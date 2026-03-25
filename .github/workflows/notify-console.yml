@@ -1,0 +1,41 @@
+# Why: after every push, notify Vision Landing Console so Gemini always gets fresh repo context.
+# What: POST JSON to your public console URL. Set CONSOLE_INGEST_URL + CONSOLE_INGEST_TOKEN in repo Secrets.
+name: Notify Vision Landing Console
+
+on:
+  push:
+    branches: [main, master]
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: POST digest to console
+        env:
+          CONSOLE_INGEST_URL: ${{ secrets.CONSOLE_INGEST_URL }}
+          CONSOLE_INGEST_TOKEN: ${{ secrets.CONSOLE_INGEST_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${CONSOLE_INGEST_URL:-}" ] || [ -z "${CONSOLE_INGEST_TOKEN:-}" ]; then
+            echo "::error::Set CONSOLE_INGEST_URL and CONSOLE_INGEST_TOKEN in GitHub repo Secrets"
+            exit 1
+          fi
+          if git rev-parse HEAD^ >/dev/null 2>&1; then
+            CHANGED=$(git diff --name-only HEAD^ HEAD | head -n 500)
+          else
+            CHANGED=$(git ls-files | head -n 500)
+          fi
+          BODY=$(jq -n \
+            --arg c "${GITHUB_SHA}" \
+            --arg b "${GITHUB_REF_NAME}" \
+            --arg r "${GITHUB_REPOSITORY}" \
+            --arg f "$CHANGED" \
+            '{commit:$c, branch:$b, repository:$r, filesChangedText:$f}')
+          curl -fsS -X POST "$CONSOLE_INGEST_URL" \
+            -H "Content-Type: application/json" \
+            -H "X-Ingest-Token: $CONSOLE_INGEST_TOKEN" \
+            -d "$BODY"

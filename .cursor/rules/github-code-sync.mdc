@@ -1,0 +1,14 @@
+---
+description: Enforce automatic GitHub → console code digest; never rely on user memory for sync.
+alwaysApply: true
+---
+
+# GitHub code sync (mandatory automation)
+
+- **Always-on rule:** Code context for the Vision Landing Console advisor **must** stay updated via **GitHub Actions → POST `/api/integrations/github/ingest`** using `X-Ingest-Token` / `GITHUB_INGEST_SECRET`. Do **not** treat “manual refresh” or “the user will remember” as the primary path.
+- When changing ingest routes, secrets, or the workflow file, **verify the automatic path still works** (token match, URL, failure visibility in GitHub Actions).
+- If the user’s machine has no public URL yet, document the limitation in `docs/GITHUB_SYNC.md` and keep CI failing loudly rather than silently skipping—unless an explicit feature flag is added and documented.
+
+Hebrew (for the maintainer):
+
+- סנכרון מילות הקוד ליועץ חייב להישאר **אוטומטי** דרך GitHub Actions; אסור לסמוך על כך שהמשתמש “יזכור” לעדכן ידנית.

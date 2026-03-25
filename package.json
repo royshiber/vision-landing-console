@@ -1,0 +1,19 @@
+{
+  "name": "vision-landing-console",
+  "version": "1.01.27",
+  "private": true,
+  "description": "New standalone project for camera-based landing workflow",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "start:clean": "node ./scripts/restart-console.mjs",
+    "tauri:dev": "npx @tauri-apps/cli dev",
+    "tauri:build": "npx @tauri-apps/cli build"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "better-sqlite3": "^12.8.0",
+    "express": "^4.21.0",
+    "multer": "^2.1.1"
+  }
+}

@@ -1,0 +1,18 @@
+---
+description: Vision Landing Console — repo isolation and version locations
+alwaysApply: true
+---
+
+# פרויקט נפרד
+
+- זה ריפו **Vision Landing Console** בלבד. אל תערוך את ריפו **תוכנת לוגים** (`תוכנת לוגים`) כחלק ממשימות כאן.
+- ב-Cursor: מומלץ **File → Open Folder** על תיקיית `VisionLandingConsole` כשורש workspace — כדי שלא יתערבבו כללים, נתיבי לוג וקבצי גרסה מפרויקט אחר.
+
+## גרסה (מקורות שחייבים להישאר מסונכרנים)
+
+- `server.js` — `APP_VERSION`
+- `package.json` — `version`
+- `public/index.html` — תג `v…`, כותרת מודל "מה חדש", ו-`app.js?v=…`
+- `public/app.js` — הקבוע **`APP_VERSION_NEW`** (מעדכן את תג הגרסה בטעינת הדף)
+
+GitHub: דחיפה (`git push`) מהריפו של התיקייה הזו בלבד; אין "שמירה ב-GitHub" בלי commit+push מקומיים — זה תמיד דרך Git.

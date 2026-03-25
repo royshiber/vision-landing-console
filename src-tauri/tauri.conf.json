@@ -1,0 +1,33 @@
+{
+  "$schema": "https://schema.tauri.app/config/2.json",
+  "productName": "Vision Landing Console",
+  "identifier": "com.visionlanding.console",
+  "version": "1.01.15",
+  "build": {
+    "beforeDevCommand": "npm run start",
+    "devUrl": "http://localhost:4010",
+    "beforeBuildCommand": "npm run start",
+    "frontendDist": "../public"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Vision Landing Console",
+        "width": 1280,
+        "height": 800,
+        "resizable": true,
+        "fullscreen": false
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/icon.png"
+    ]
+  }
+}
