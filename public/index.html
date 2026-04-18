@@ -382,6 +382,19 @@
           <p class="conn-empty-hint">לא הוגדרו חיבורים. לחץ "+ הוסף חיבור" כדי להתחבר ישירות ל-FC.</p>
         </div>
 
+        <!-- FC Parameters panel (shown when a connection is active) -->
+        <div id="fcParamsPanel" class="fc-params-panel fc-params-panel--hidden">
+          <div class="fc-params-header">
+            <span class="fc-params-title">פרמטרי FC — התקבלו דרך MAVLink</span>
+            <span id="fcParamsProgress" class="fc-params-progress"></span>
+            <div class="fc-params-actions">
+              <input id="fcParamsSearch" type="search" placeholder="חפש פרמטר..." class="fc-params-search" />
+              <button type="button" id="fcParamsRequestBtn" class="conn-url-btn" title="בקש פרמטרים מחדש מה-FC">⟳ רענן מ-FC</button>
+            </div>
+          </div>
+          <div id="fcParamsGroups" class="fc-params-groups"></div>
+        </div>
+
         <!-- Add/Edit connection form (hidden by default) -->
         <div id="connFormCard" class="conn-form-card conn-form-card--hidden">
           <h3 id="connFormTitle">חיבור חדש</h3>

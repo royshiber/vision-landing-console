@@ -2646,3 +2646,76 @@ details.flight-manage summary {
 .conn-form-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .conn-form-serial-field { display: none; }
 .conn-form-serial-field.visible { display: flex; }
+
+/* ???????????????????????????????????????????????????????????????
+   FC PARAMETERS PANEL
+   ??????????????????????????????????????????????????????????????? */
+.fc-params-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.fc-params-panel--hidden { display: none; }
+
+.fc-params-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.fc-params-title { font-weight: 700; font-size: 0.9rem; flex-shrink: 0; }
+.fc-params-progress { font-size: 0.78rem; color: var(--text-muted); flex-shrink: 0; }
+.fc-params-actions { display: flex; align-items: center; gap: 6px; margin-inline-start: auto; flex-wrap: wrap; }
+.fc-params-search {
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  background: var(--input-bg);
+  border-radius: 4px;
+  font-size: 0.82rem;
+  width: 180px;
+  color: var(--text);
+}
+
+.fc-params-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 340px;
+  overflow-y: auto;
+}
+
+.fc-params-group { border: 1px solid var(--border); border-radius: 4px; overflow: hidden; }
+.fc-params-group-header {
+  background: var(--surface-low);
+  padding: 5px 10px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--primary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  user-select: none;
+}
+.fc-params-group-header:hover { background: var(--primary-soft); }
+.fc-params-group-body {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 0;
+}
+.fc-params-group-body.collapsed { display: none; }
+
+.fc-param-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 10px;
+  border-bottom: 1px solid var(--surface-raised);
+  font-size: 0.78rem;
+}
+.fc-param-row:last-child { border-bottom: none; }
+.fc-param-name { font-family: monospace; color: var(--text-muted); font-size: 0.75rem; }
+.fc-param-value { font-weight: 700; color: var(--text); font-size: 0.8rem; font-family: monospace; }

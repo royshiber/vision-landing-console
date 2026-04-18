@@ -2081,8 +2081,9 @@ window.activateConn = async (id) => {
   try {
     const r = await fetch(`/api/connections/${id}/activate`, { method: 'POST' });
     const d = await r.json();
-    if (!d.ok) alert(`?????: ${d.message}`);
+    if (!d.ok) { alert(`?????: ${d.message}`); return; }
     await loadConnections();
+    setTimeout(() => loadFcParams(id), 4000);
   } catch (e) { alert(e.message); }
 };
 
@@ -2176,3 +2177,138 @@ document.querySelector('[data-tab="connections"]')?.addEventListener('click', ()
 });
 
 initServerUrl();
+
+/* ???????????????????????????????????????????????????????????????
+   FC PARAMETERS PANEL
+   ??????????????????????????????????????????????????????????????? */
+
+const fcParamsPanel      = document.getElementById('fcParamsPanel');
+const fcParamsProgress   = document.getElementById('fcParamsProgress');
+const fcParamsSearch     = document.getElementById('fcParamsSearch');
+const fcParamsGroups     = document.getElementById('fcParamsGroups');
+const fcParamsRequestBtn = document.getElementById('fcParamsRequestBtn');
+
+let _fcParamsActiveConnId = null;
+let _fcParamsAll = {};
+
+/** ArduPilot parameter prefix ? readable group name */
+const PARAM_GROUPS = {
+  PLND: 'נחיתה מדויקת (PLND)',
+  EK3:  'EKF3',
+  EK2:  'EKF2',
+  AHRS: 'AHRS',
+  ARMING: 'Arming',
+  FS:   'Failsafe (FS)',
+  LAND: 'נחיתה (LAND)',
+  LOG:  'לוגים (LOG)',
+  SR2:  'Stream rates SR2',
+  SR1:  'Stream rates SR1',
+  SERIAL2: 'Serial2 (Jetson)',
+  SERIAL1: 'Serial1',
+  INS:  'IMU / INS',
+  COMPASS: 'מצפן',
+  RC:   'שלט רחוק (RC)',
+  MOT:  'מנועים (MOT)',
+  ATC:  'Attitude Control (ATC)',
+  PSC:  'Position Control (PSC)',
+  WPNAV: 'Waypoint Nav',
+  GPS:  'GPS',
+  BARO: 'ברומטר',
+  RNGFND: 'טווחמר (RNG)',
+  PRX:  'Proximity',
+  VISO: 'Visual Odom (VISO)',
+  CAM:  'מצלמה (CAM)',
+  MNT:  'ג׳ימבל (MNT)',
+  BTN:  'כפתורים',
+};
+
+function getParamGroup(name) {
+  for (const [prefix, label] of Object.entries(PARAM_GROUPS)) {
+    if (name.startsWith(prefix + '_') || name === prefix) return label;
+  }
+  return 'אחר';
+}
+
+function renderFcParams(params, filter = '') {
+  if (!fcParamsGroups) return;
+  const total = Object.keys(params).length;
+  if (total === 0) {
+    fcParamsGroups.innerHTML = '<p style="color:var(--text-muted);font-size:.82rem;margin:0">לא התקבלו פרמטרים עדיין ? ודא שהחיבור פעיל ולחץ ?</p>';
+    return;
+  }
+
+  const lf = filter.toLowerCase();
+  const grouped = {};
+  for (const [name, value] of Object.entries(params)) {
+    if (lf && !name.toLowerCase().includes(lf)) continue;
+    const g = getParamGroup(name);
+    if (!grouped[g]) grouped[g] = [];
+    grouped[g].push({ name, value });
+  }
+
+  if (Object.keys(grouped).length === 0) {
+    fcParamsGroups.innerHTML = '<p style="color:var(--text-muted);font-size:.82rem;margin:0">לא נמצאו תוצאות לחיפוש</p>';
+    return;
+  }
+
+  fcParamsGroups.innerHTML = Object.entries(grouped)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([group, rows]) => `
+      <div class="fc-params-group">
+        <div class="fc-params-group-header" onclick="this.nextElementSibling.classList.toggle('collapsed')">
+          <span>${group} <small style="opacity:.6">(${rows.length})</small></span>
+          <span style="font-size:.7rem;opacity:.5">?</span>
+        </div>
+        <div class="fc-params-group-body">
+          ${rows.sort((a, b) => a.name.localeCompare(b.name)).map(r =>
+            `<div class="fc-param-row">
+              <span class="fc-param-name">${r.name}</span>
+              <span class="fc-param-value">${Number.isInteger(r.value) ? r.value : r.value.toFixed(4).replace(/\.?0+$/, '')}</span>
+            </div>`
+          ).join('')}
+        </div>
+      </div>`
+    ).join('');
+}
+
+async function loadFcParams(connId) {
+  if (!connId) return;
+  try {
+    const r = await fetch(`/api/connections/${connId}/params`);
+    if (!r.ok) return;
+    const d = await r.json();
+    if (!d.ok) return;
+    _fcParamsAll = d.params;
+    _fcParamsActiveConnId = connId;
+    if (fcParamsProgress) fcParamsProgress.textContent = `${d.count} פרמטרים`;
+    renderFcParams(d.params, fcParamsSearch?.value || '');
+    if (fcParamsPanel) fcParamsPanel.classList.remove('fc-params-panel--hidden');
+  } catch { /* ignore */ }
+}
+
+if (fcParamsSearch) {
+  fcParamsSearch.addEventListener('input', () => {
+    renderFcParams(_fcParamsAll, fcParamsSearch.value);
+  });
+}
+
+if (fcParamsRequestBtn) {
+  fcParamsRequestBtn.addEventListener('click', async () => {
+    if (!_fcParamsActiveConnId) return;
+    fcParamsRequestBtn.textContent = 'שולח...';
+    await fetch(`/api/connections/${_fcParamsActiveConnId}/request-params`, { method: 'POST' });
+    setTimeout(async () => {
+      await loadFcParams(_fcParamsActiveConnId);
+      fcParamsRequestBtn.textContent = '? רענן מ-FC';
+    }, 3000);
+  });
+}
+
+/* Update FC params when SSE reports a connected MAVLink connection */
+const _origSseHandlerForParams = window._sseParamsHooked;
+if (!_origSseHandlerForParams) {
+  window._sseParamsHooked = true;
+  document.addEventListener('mavlink-connected', (e) => {
+    setTimeout(() => loadFcParams(e.detail.connId), 3000);
+  });
+}
