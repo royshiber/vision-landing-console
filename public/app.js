@@ -1,14 +1,39 @@
 
-/* ─── ARDUPILOT READ / DIFF / WRITE ─── *//** Why: single client-side version for the top badge (must match index.html cache-bust and server APP_VERSION). What: read at init when wiring the version modal. */
-const APP_VERSION_NEW = '1.01.27';
+/* ??? ARDUPILOT READ / DIFF / WRITE ??? *//** Why: single client-side version for the top badge (must match index.html cache-bust and server APP_VERSION). What: read at init when wiring the version modal. */
+const APP_VERSION_NEW = '1.01.57';
 
 /** Why: single source of truth for what changed in each release. What: rendered into versionModal when user clicks the version badge. */
 const VERSION_HISTORY = [
   {
+    version: '1.01.57',
+    date: '2026-04-11',
+    changes: [
+      '????? Gemini: ????? ????? ?????? legacy ? gemini-2.5-flash ?????? ???? ?????.',
+      '????? ????: ????? ??????? ? ?????? ????????, ?????, ??? inline ????? ??????? ???????.',
+    ],
+  },
+  {
+    version: '1.01.56',
+    date: '2026-03-27',
+    changes: [
+      '????? ?????: ?????? ????? ???/????? ??initTerrainMap ? ??? ?? ??????? ???? ??ReferenceError ?????? (???? ???????? ?????) ?? ?????.',
+      'Critical fix: terrain DOM refs + Leaflet init restored ? script no longer throws on undefined toolbar vars; map initializes on terrain tab.',
+    ],
+  },
+  {
+    version: '1.01.55',
+    date: '2026-03-27',
+    changes: [
+      '????? ?????: ???? ?????? ??? ????? (z-index) + ??? ??? ?-flex ??? ??? ???? ???? ?? ???????; ???? ??-????? ?? ???? ??????? ???? ?? ???? ??????.',
+      'Telemetry layout: ??? ???? ???? ???? (grid ????? minmax(0,1fr)), ???? padding ? ????? ??? ??? ???? ??? ????? ??.',
+      'Main tabs stay clickable (stacking + flex shell); telemetry grid uses full panel height; control subtabs bar toggles with control tab only.',
+    ],
+  },
+  {
     version: '1.01.27',
     date: '2026-03-26',
     changes: [
-      'הסרת כל כפתורי וקוד הסימולציה/דמו מהממשק ומהשרת — הכלי מציג נתונים אמיתיים בלבד (Jetson + Vision + SLAM).',
+      '???? ?? ?????? ???? ?????????/??? ?????? ?????? ? ???? ???? ?????? ??????? ???? (Jetson + Vision + SLAM).',
       'Removed all mock/simulation/demo buttons and server routes; UI now shows only real hardware data.',
     ],
   },
@@ -16,7 +41,7 @@ const VERSION_HISTORY = [
     version: '1.01.26',
     date: '2026-03-25',
     changes: [
-      'מפה טריין: צבעי כיסוי לפי גובה AGL בפועל (מינ׳–מקס׳ מהנתונים); מקרא דינמי; סיבוב מפה עם leaflet-rotate (↺ N ↻ ליד זום). טלמטריה: עצור DEMO מדליק דיכוי דמו בלקוח — ״מחובר (דמו)״ לא מוצג; סימולציית Vision מבטלת דיכוי.',
+      '??? ?????: ???? ????? ??? ???? AGL ????? (????????? ????????); ???? ?????; ????? ??? ?? leaflet-rotate (? N ? ??? ???). ???????: ???? DEMO ????? ????? ??? ????? ? ?????? (???)? ?? ????; ????????? Vision ????? ?????.',
       'Terrain cells colored by mapped AGL; dynamic legend; map bearing via leaflet-rotate; demo stop toggles client suppressTelemetryDemo; vision mock clears suppress.',
     ],
   },
@@ -24,7 +49,7 @@ const VERSION_HISTORY = [
     version: '1.01.25',
     date: '2026-03-25',
     changes: [
-      'מפה טריין: מקרא גובה AGL לצבעי כיסוי; סיבוב מפה (כפתורים ליד זום); לוגים — משיכה מהשרת, גרירת קובץ, כפתורי מקור מעוצבים; הקלטות — וידאו גבוה יותר; מרכז פרמטרים — צפיפות אנכית; ArduPilot — תת-טאבים לפי קטגוריה; עצור דמו — מפסיק טקסט ״מחובר (דמו)״.',
+      '??? ?????: ???? ???? AGL ????? ?????; ????? ??? (??????? ??? ???); ????? ? ????? ?????, ????? ????, ?????? ???? ???????; ?????? ? ????? ???? ????; ???? ??????? ? ?????? ?????; ArduPilot ? ??-????? ??? ???????; ???? ??? ? ????? ???? ?????? (???)?.',
       'Terrain altitude-colored coverage + map bearing control; logs pull/drag-drop/pills; recordings video taller; parameter hub tighter; Ardu sub-tabs; demo stop clears simulated link label.',
     ],
   },
@@ -32,7 +57,7 @@ const VERSION_HISTORY = [
     version: '1.01.24',
     date: '2026-03-25',
     changes: [
-      'מפה טריין: תיקון חריגה מלמטה (מעטפת flex + max-height), מעבר מפת רחוב / לווין (Esri), מצב ״רק אזורים ממופים״ — רקע לבן בלי אריחים, רק עיגולי כיסוי.',
+      '??? ?????: ????? ????? ????? (????? flex + max-height), ???? ??? ???? / ????? (Esri), ??? ??? ?????? ??????? ? ??? ??? ??? ??????, ?? ?????? ?????.',
       'Terrain tab: layout fix, OSM vs satellite toggle, mapped-only white canvas with coverage circles only.',
     ],
   },
@@ -40,8 +65,8 @@ const VERSION_HISTORY = [
     version: '1.01.23',
     date: '2026-03-25',
     changes: [
-      'מרכז פרמטרים: טאב אחד במקום בקרת נחיתה + ArduPilot — תת-טאבים: נחיתה, ABORT, המראה, ניווט לפי תמונה, קושחה. READ/WRITE לשרת; בקושחה READ/WRITE לרחפן + טופס עריכה (מספרים / ON-OFF).',
-      'API: GET/POST /api/vision/config לשמירת פרופיל מסך + יעד ArduPilot בשרת; ייצוא JSON כולל arduTarget.',
+      '???? ???????: ??? ??? ????? ???? ????? + ArduPilot ? ??-?????: ?????, ABORT, ?????, ????? ??? ?????, ?????. READ/WRITE ????; ?????? READ/WRITE ????? + ???? ????? (?????? / ON-OFF).',
+      'API: GET/POST /api/vision/config ?????? ?????? ??? + ??? ArduPilot ????; ????? JSON ???? arduTarget.',
       'Unified parameter hub: one tab with five feature subtabs; server sync + FC read/write + editable Ardu targets.',
     ],
   },
@@ -49,7 +74,7 @@ const VERSION_HISTORY = [
     version: '1.01.22',
     date: '2026-03-25',
     changes: [
-      'בידוד פאנלים: `.panel:not(.visible) { display:none !important }` + מצבי flex עם !important — מפת טריין ושאר הטאבים לא יכולים ״לדלוף״ לטאב אחר בגלל inline display.',
+      '????? ??????: `.panel:not(.visible) { display:none !important }` + ???? flex ?? !important ? ??? ????? ???? ?????? ?? ?????? ??????? ???? ??? ???? inline display.',
       'Panel isolation: hidden main tabs stay hidden even if a panel regains inline display; terrain map only when its tab is active.',
     ],
   },
@@ -57,100 +82,100 @@ const VERSION_HISTORY = [
     version: '1.01.21',
     date: '2026-03-25',
     changes: [
-      'תיקון: מפת טריין לא מוצגת יותר מתחת ל״בקרת נחיתה״ — הוסר display:flex מה-inline של #terrain (הוא דרס את הסתרת הפאנל). המפה מופיעה רק בטאב ״מפה טריין״.',
-      'Fix: terrain map no longer stacks under Landing Control — inline flex on #terrain overrode .panel display:none; map shows only on the terrain tab.',
+      '?????: ??? ????? ?? ????? ???? ???? ?????? ?????? ? ???? display:flex ??-inline ?? #terrain (??? ??? ?? ????? ?????). ???? ?????? ?? ???? ???? ??????.',
+      'Fix: terrain map no longer stacks under Landing Control ? inline flex on #terrain overrode .panel display:none; map shows only on the terrain tab.',
     ],
   },
   {
     version: '1.01.20',
     date: '2026-03-25',
     changes: [
-      'בקרת נחיתה (Tuning Deck): פריסה מחודשת — רשת פרמטרים עם עמודות רחבות (auto-fill, מינ׳ ~240px), מרווחים גדולים יותר, גלילה פנימית באזור הסליידרים. המפה נשארת רק בטאב ״מפה טריין״.',
+      '???? ????? (Tuning Deck): ????? ?????? ? ??? ??????? ?? ?????? ????? (auto-fill, ???? ~240px), ??????? ?????? ????, ????? ?????? ????? ?????????. ???? ????? ?? ???? ???? ??????.',
     ],
   },
   {
     version: '1.01.19',
     date: '2026-03-25',
     changes: [
-      'ממשק Aero-Lab (Google Stitch): רקע בהיר טקטי, פלטת #f7f9fc / כחול #00478d, פונטים Inter + Space Grotesk, רשת נקודות, פינות ישרות, כפתורים וטאבים בסגנון הפקה.',
-      'עדכון כרטיסי פרמטרים, טלמטריה, ArduPilot, מפה, צ׳אט ומודלים — קריאות על רקע בהיר.',
+      '???? Aero-Lab (Google Stitch): ??? ???? ????, ???? #f7f9fc / ???? #00478d, ?????? Inter + Space Grotesk, ??? ??????, ????? ?????, ??????? ?????? ?????? ????.',
+      '????? ?????? ???????, ???????, ArduPilot, ???, ???? ??????? ? ?????? ?? ??? ????.',
     ],
   },
   {
     version: '1.01.18',
     date: '2026-03-25',
     changes: [
-      'כפתור עצור DEMO: מנקה את כל נתוני הסימולציה בשרת ומחזיר לממשק "ריאלי בלבד".',
-      'ArduPilot READ/WRITE: כפתור READ קורא את הפרמטרים הנוכחיים מה-ArduPilot + חלונית diff שמציגה מה ישתנה בלחיצת WRITE. כפתור WRITE + סטטוס SUCCESS/FAIL.',
-      'מפה טריין: טאב חדש עם Leaflet — עיגולים צבעוניים שקופים לפי כיסוי SLAM. ירוק=מלא, צהוב=חלקי, אדום=נמוך.',
-      'לוגים: כל הלוגים שהועלו אי פעם בטבלה אחת. זיהוי אוטומטי ArduPilot/Jetson לפי תוכן. זיהוי "לא טיסה — זמן על הקרקע".',
-      'אנוטציות וידאו: canvas overlay על הוידאו עם תיבות זיהוי, מד ביטחון, ואינדיקטור ננעל/לא ננעל.',
+      '????? ???? DEMO: ???? ?? ?? ????? ????????? ???? ?????? ????? "????? ????".',
+      'ArduPilot READ/WRITE: ????? READ ???? ?? ???????? ???????? ??-ArduPilot + ?????? diff ?????? ?? ????? ?????? WRITE. ????? WRITE + ????? SUCCESS/FAIL.',
+      '??? ?????: ??? ??? ?? Leaflet ? ??????? ???????? ?????? ??? ????? SLAM. ????=???, ????=????, ????=????.',
+      '?????: ?? ?????? ?????? ?? ??? ????? ???. ????? ??????? ArduPilot/Jetson ??? ????. ????? "?? ???? ? ??? ?? ?????".',
+      '???????? ?????: canvas overlay ?? ?????? ?? ????? ?????, ?? ??????, ?????????? ????/?? ????.',
     ],
   },
   {
     version: '1.01.17',
     date: '2026-03-25',
     changes: [
-      'SSE real-time push: replaced all HTTP polling (vision 500ms + jetson 5s) with a single /api/stream EventSource — updates every 300ms.',
-      'Confidence Bar חי: כאשר Jetson שולח vision frames אמיתיים (ageMs < 3s) — הבר נוצב מהנתון האמיתי ומאיר ירוק.',
-      'DEMO / LIVE badges: כרטיסי Vision ו-SLAM מסומנים "DEMO" כשלא מחובר ו-"LIVE" כשהנתון רענן.',
-      'SLAM / VIO קארדס + יועץ Gemini עם הקשר מצב מערכת בזמן אמת.',
+      'SSE real-time push: replaced all HTTP polling (vision 500ms + jetson 5s) with a single /api/stream EventSource ? updates every 300ms.',
+      'Confidence Bar ??: ???? Jetson ???? vision frames ??????? (ageMs < 3s) ? ??? ???? ?????? ?????? ????? ????.',
+      'DEMO / LIVE badges: ?????? Vision ?-SLAM ??????? "DEMO" ???? ????? ?-"LIVE" ??????? ????.',
+      'SLAM / VIO ????? + ???? Gemini ?? ???? ??? ????? ???? ???.',
     ],
   },
   {
     version: '1.01.16',
     date: '2026-03-25',
     changes: [
-      'חלון צ\'אט גדול יותר — הוסרו מגבלות max-width.',
-      'כפתור מיקרופון עוצב מחדש — SVG עגול עם pulse בזמן הקלטה.',
-      'Jetson פושט — סטטוס dot, זמן אחרון בעברית, ללא JSON גולמי.',
-      'ArduPilot Idiot-proof — כרטיסי פרמטרים + כפתור הורדת קובץ .param.',
+      '???? ?\'?? ???? ???? ? ????? ?????? max-width.',
+      '????? ???????? ???? ???? ? SVG ???? ?? pulse ???? ?????.',
+      'Jetson ???? ? ????? dot, ??? ????? ??????, ??? JSON ?????.',
+      'ArduPilot Idiot-proof ? ?????? ??????? + ????? ????? ???? .param.',
     ],
   },
   {
     version: '1.01.15',
     date: '2026-03-25',
     changes: [
-      'Vision Output ריאלי: endpoint /api/vision/frame לקבלת נתוני מצלמה מ-Jetson + כרטיסים חיים (סטייה רוחבית, שגיאת כיוון, confidence, גיל פריים).',
-      'Link Health: מעקב עיכוב heartbeat + אחוז packet-loss מחושב לפי פעימות שנשמטו.',
-      'ArduPilot Config מלא: פרמטרי Vision Landing מלאים (PLND, EKF, SERIAL, LOG, LAND, FS) + טבלת אימות ערכים לאחר reboot.',
-      'Tauri Desktop: מבנה src-tauri/tauri.conf.json + סקריפטים tauri:dev / tauri:build (דורש Rust + Tauri CLI).',
-      'מודל גרסה: חלון "מה חדש" כעת data-driven — מנוהל מ-VERSION_HISTORY בקוד.',
+      'Vision Output ?????: endpoint /api/vision/frame ????? ????? ????? ?-Jetson + ??????? ???? (????? ??????, ????? ?????, confidence, ??? ?????).',
+      'Link Health: ???? ????? heartbeat + ???? packet-loss ????? ??? ?????? ??????.',
+      'ArduPilot Config ???: ?????? Vision Landing ????? (PLND, EKF, SERIAL, LOG, LAND, FS) + ???? ????? ????? ???? reboot.',
+      'Tauri Desktop: ???? src-tauri/tauri.conf.json + ???????? tauri:dev / tauri:build (???? Rust + Tauri CLI).',
+      '???? ????: ???? "?? ???" ??? data-driven ? ????? ?-VERSION_HISTORY ????.',
     ],
   },
   {
     version: '1.01.14',
     date: '2026-03-25',
     changes: [
-      'תיקון קריטי — const eventContextMenu הוגדר אחרי השימוש בו (Temporal Dead Zone). קריסת סקריפט שלמה בכל טעינה, כולל הצ׳אט. תוקן בהזזת ההצהרה לסמוך לשאר DOM lookups.',
+      '????? ????? ? const eventContextMenu ????? ???? ?????? ?? (Temporal Dead Zone). ????? ?????? ???? ??? ?????, ???? ?????. ???? ????? ?????? ????? ???? DOM lookups.',
     ],
   },
   {
-    version: '1.01.08–1.01.13',
+    version: '1.01.08?1.01.13',
     date: '2026-03-24',
     changes: [
-      'אימות DOM לצ׳אט — הודעת שגיאה ברורה אם advisorMessages/מאזינים חסרים.',
-      'Gemini 2.5-flash כברירת מחדל; מיפוי אוטומטי ממודלים ישנים (1.5-flash, 2.0-flash).',
-      'npm run start:clean — עוצר node על פורט 4010 ומפעיל שרת מעודכן.',
-      '/api/health מציג geminiModel (env, effective, remapped).',
+      '????? DOM ????? ? ????? ????? ????? ?? advisorMessages/??????? ?????.',
+      'Gemini 2.5-flash ?????? ????; ????? ??????? ??????? ????? (1.5-flash, 2.0-flash).',
+      'npm run start:clean ? ???? node ?? ???? 4010 ?????? ??? ??????.',
+      '/api/health ???? geminiModel (env, effective, remapped).',
     ],
   },
   {
     version: '1.01.03',
     date: '2026-03-23',
     changes: [
-      'סדר Express נכון — כל /api/* לפני קבצים סטטיים.',
-      'צ׳אט מציג תשובה מקומית + הסבר כשהשרת נכשל.',
+      '??? Express ???? ? ?? /api/* ???? ????? ??????.',
+      '???? ???? ????? ?????? + ???? ?????? ????.',
     ],
   },
   {
-    version: '1.01.00–1.01.02',
+    version: '1.01.00?1.01.02',
     date: '2026-03-22',
     changes: [
-      'Gemini בשרת + מאגר SQLite לטיסות, לוגים והערות.',
-      'ingest אוטומטי מ-GitHub Actions.',
-      'Jetson במקום RPi (/api/jetson/* + תאימות /api/rpi/*).',
-      'מיקרופון בצ׳אט (Web Speech API) + הקשר טיסה לבחירה.',
+      'Gemini ???? + ???? SQLite ??????, ????? ??????.',
+      'ingest ??????? ?-GitHub Actions.',
+      'Jetson ????? RPi (/api/jetson/* + ?????? /api/rpi/*).',
+      '???????? ????? (Web Speech API) + ???? ???? ??????.',
     ],
   },
 ];
@@ -158,6 +183,7 @@ const tabs = Array.from(document.querySelectorAll('.tab'));
 const panels = Array.from(document.querySelectorAll('.panel'));
 const subtabs = Array.from(document.querySelectorAll('.subtab'));
 const subpanels = Array.from(document.querySelectorAll('.subpanel'));
+const controlSubtabsBar = document.getElementById('controlSubtabsBar');
 let selectedContextEvent = null;
 let processIndex = 0;
 
@@ -168,8 +194,16 @@ tabs.forEach((tab) => {
     tab.classList.add('active');
     const panel = document.getElementById(tab.dataset.tab);
     if (panel) panel.classList.add('visible');
+    /** Why: subtabs row belongs only to ???? ???????; what: hide bar on other main tabs so it cannot intercept layout or focus. */
+    if (controlSubtabsBar) {
+      controlSubtabsBar.classList.toggle('visible', tab.dataset.tab === 'control');
+    }
   });
 });
+if (controlSubtabsBar) {
+  const activeMainTab = document.querySelector('.tab.active');
+  controlSubtabsBar.classList.toggle('visible', activeMainTab?.dataset?.tab === 'control');
+}
 subtabs.forEach((tab) => {
   tab.addEventListener('click', () => {
     subtabs.forEach((t) => t.classList.remove('active'));
@@ -183,80 +217,80 @@ subtabs.forEach((tab) => {
 const TEXT_OVERRIDES_KEY = 'visionLandingTextOverridesV1';
 const DEV_MODE_KEY = 'visionLandingDeveloperModeV1';
 const PARAMS = [
-  { key: 'flare_alt_m', label: 'גובה הצפה (m)', min: 1, max: 30, step: 0.5, value: 8 },
-  { key: 'laser_detect_alt_m', label: 'גובה זיהוי לייזר (m)', min: 1, max: 40, step: 0.5, value: 15 },
-  { key: 'flare_pitch_up_deg', label: 'זווית הרמת אף בהצפה (deg)', min: 1, max: 20, step: 0.5, value: 7 },
-  { key: 'motor_hold_s', label: 'משך זמן מנוע בהצפה (s)', min: 0, max: 8, step: 0.1, value: 2.5 },
-  { key: 'vision_enable_alt_m', label: 'גובה הפעלת Vision (m)', min: 5, max: 120, step: 1, value: 55 },
-  { key: 'vision_conf_min', label: 'סף מינימום לתיקון Vision', min: 0.4, max: 0.99, step: 0.01, value: 0.78 },
-  { key: 'abort_conf_min', label: 'סף ביטחון מינימלי ל-Auto Abort', min: 0.3, max: 0.95, step: 0.01, value: 0.70 },
-  { key: 'abort_conf_hold_s', label: 'משך זמן מתחת לסף לפני Abort (s)', min: 0.5, max: 8, step: 0.1, value: 2.0 },
-  { key: 'abort_recover_conf', label: 'סף יציאה מ-Abort (Recover)', min: 0.35, max: 0.99, step: 0.01, value: 0.76 },
+  { key: 'flare_alt_m', label: '???? ???? (m)', min: 1, max: 30, step: 0.5, value: 8 },
+  { key: 'laser_detect_alt_m', label: '???? ????? ????? (m)', min: 1, max: 40, step: 0.5, value: 15 },
+  { key: 'flare_pitch_up_deg', label: '????? ???? ?? ????? (deg)', min: 1, max: 20, step: 0.5, value: 7 },
+  { key: 'motor_hold_s', label: '??? ??? ???? ????? (s)', min: 0, max: 8, step: 0.1, value: 2.5 },
+  { key: 'vision_enable_alt_m', label: '???? ????? Vision (m)', min: 5, max: 120, step: 1, value: 55 },
+  { key: 'vision_conf_min', label: '?? ??????? ?????? Vision', min: 0.4, max: 0.99, step: 0.01, value: 0.78 },
+  { key: 'abort_conf_min', label: '?? ?????? ??????? ?-Auto Abort', min: 0.3, max: 0.95, step: 0.01, value: 0.70 },
+  { key: 'abort_conf_hold_s', label: '??? ??? ???? ??? ???? Abort (s)', min: 0.5, max: 8, step: 0.1, value: 2.0 },
+  { key: 'abort_recover_conf', label: '?? ????? ?-Abort (Recover)', min: 0.35, max: 0.99, step: 0.01, value: 0.76 },
   { key: 'xtrack_gain', label: 'Cross Track Gain', min: 0.1, max: 3.5, step: 0.05, value: 1.25 },
   { key: 'yaw_align_gain', label: 'Yaw Align Gain', min: 0.1, max: 2.5, step: 0.05, value: 0.95 },
-  { key: 'approach_speed_ms', label: 'מהירות גישה (m/s)', min: 8, max: 35, step: 0.5, value: 16.5 },
-  { key: 'sink_rate_ms', label: 'שקיעה מותרת (m/s)', min: 0.3, max: 4, step: 0.1, value: 1.4 },
-  { key: 'max_roll_deg', label: 'הטיה מקסימלית בתיקון (deg)', min: 5, max: 35, step: 1, value: 18 },
-  { key: 'abort_max_xtrack_m', label: 'Abort אם סטייה רוחבית גבוהה (m)', min: 0.5, max: 12, step: 0.1, value: 4.0 },
-  { key: 'abort_max_heading_deg', label: 'Abort אם שגיאת כיוון גבוהה (deg)', min: 5, max: 80, step: 1, value: 22 },
+  { key: 'approach_speed_ms', label: '?????? ???? (m/s)', min: 8, max: 35, step: 0.5, value: 16.5 },
+  { key: 'sink_rate_ms', label: '????? ????? (m/s)', min: 0.3, max: 4, step: 0.1, value: 1.4 },
+  { key: 'max_roll_deg', label: '???? ???????? ?????? (deg)', min: 5, max: 35, step: 1, value: 18 },
+  { key: 'abort_max_xtrack_m', label: 'Abort ?? ????? ?????? ????? (m)', min: 0.5, max: 12, step: 0.1, value: 4.0 },
+  { key: 'abort_max_heading_deg', label: 'Abort ?? ????? ????? ????? (deg)', min: 5, max: 80, step: 1, value: 22 },
   { key: 'to_rotate_speed_ms', label: 'Takeoff Rotate Speed (m/s)', min: 6, max: 30, step: 0.5, value: 13.0 },
   { key: 'to_pitch_deg', label: 'Takeoff Pitch (deg)', min: 4, max: 20, step: 0.5, value: 11.0 },
-  { key: 'to_max_crosswind_ms', label: 'Crosswind Max להמראה (m/s)', min: 1, max: 20, step: 0.5, value: 8.0 },
-  { key: 'to_min_gps_sats', label: 'מינימום לוויינים להמראה', min: 10, max: 40, step: 1, value: 12 },
-  { key: 'to_motor_spool_s', label: 'משך ספול מנוע לפני שחרור (s)', min: 0.5, max: 8, step: 0.1, value: 2.2 },
-  { key: 'to_abort_speed_loss_ms', label: 'Abort אם איבוד מהירות (m/s)', min: 0.5, max: 8, step: 0.1, value: 2.5 },
+  { key: 'to_max_crosswind_ms', label: 'Crosswind Max ?????? (m/s)', min: 1, max: 20, step: 0.5, value: 8.0 },
+  { key: 'to_min_gps_sats', label: '??????? ???????? ??????', min: 10, max: 40, step: 1, value: 12 },
+  { key: 'to_motor_spool_s', label: '??? ???? ???? ???? ????? (s)', min: 0.5, max: 8, step: 0.1, value: 2.2 },
+  { key: 'to_abort_speed_loss_ms', label: 'Abort ?? ????? ?????? (m/s)', min: 0.5, max: 8, step: 0.1, value: 2.5 },
 ];
 const PROCESS_STEPS = [
-  'כניסה לנתיב נחיתה',
-  'אימות גובה/מהירות גישה',
-  'הפעלת Vision לנחיתה',
-  'אימות GPS ולייזר',
-  'יישור רוחבי ראשוני',
-  'בדיקת Confidence לפני Final',
-  'מעבר ל-Final',
-  'תיקוני Cross Track עדינים',
-  'בדיקת תנאי Abort',
-  'כניסה ל-Flare',
-  'הפחתת מנוע מבוקרת',
-  'נגיעה בקרקע',
-  'ריצת האטה',
-  'עצירה סופית',
+  '????? ????? ?????',
+  '????? ????/?????? ????',
+  '????? Vision ??????',
+  '????? GPS ??????',
+  '????? ????? ??????',
+  '????? Confidence ???? Final',
+  '???? ?-Final',
+  '?????? Cross Track ??????',
+  '????? ???? Abort',
+  '????? ?-Flare',
+  '????? ???? ??????',
+  '????? ?????',
+  '???? ????',
+  '????? ?????',
 ];
 
 function buildParamTooltip(param) {
-  const generic = 'מתי לשנות: כשביצועי הנחיתה לא יציבים או לא עקביים.';
-  const higher = 'ערך גבוה יותר: מגיב חזק/מוקדם יותר.';
-  const lower = 'ערך נמוך יותר: מגיב עדין/מאוחר יותר.';
+  const generic = '??? ?????: ???????? ?????? ?? ?????? ?? ?? ??????.';
+  const higher = '??? ???? ????: ???? ???/????? ????.';
+  const lower = '??? ???? ????: ???? ????/????? ????.';
   if (param.key.includes('abort')) {
-    return `מתי לשנות: כשיש false abort או abort מאוחר מדי.\nגבוה יותר: בטיחות שמרנית יותר.\nנמוך יותר: פחות abortים אבל סיכון גבוה יותר.`;
+    return `??? ?????: ???? false abort ?? abort ????? ???.\n???? ????: ?????? ?????? ????.\n???? ????: ???? abort?? ??? ????? ???? ????.`;
   }
   if (param.key.includes('conf')) {
-    return `מתי לשנות: כשאיכות הזיהוי משתנה בתאורה/מסלול.\nגבוה יותר: דורש זיהוי יציב יותר.\nנמוך יותר: סלחני יותר אבל פחות בטוח.`;
+    return `??? ?????: ??????? ?????? ????? ??????/?????.\n???? ????: ???? ????? ???? ????.\n???? ????: ????? ???? ??? ???? ????.`;
   }
   if (param.key.includes('speed') || param.key.includes('sink')) {
-    return `מתי לשנות: כשגישה מהירה/איטית מדי או נחיתה קשה.\nגבוה יותר: גישה אגרסיבית יותר.\nנמוך יותר: גישה רגועה יותר.`;
+    return `??? ?????: ?????? ?????/????? ??? ?? ????? ???.\n???? ????: ???? ???????? ????.\n???? ????: ???? ????? ????.`;
   }
   return `${generic}\n${higher}\n${lower}`;
 }
 
 function localAdvisorReply(q) {
   const text = String(q || '').toLowerCase();
-  if (text.includes('נדנוד') || text.includes('oscillation')) {
-    return 'לנדנוד: הורד מעט xtrack_gain, השאר yaw_align_gain מתון, והגדל abort_conf_hold_s למניעת תגובת יתר.';
+  if (text.includes('?????') || text.includes('oscillation')) {
+    return '??????: ???? ??? xtrack_gain, ???? yaw_align_gain ????, ????? abort_conf_hold_s ?????? ????? ???.';
   }
-  if (text.includes('הצפה') || text.includes('flare')) {
-    return 'להצפה: העלה מעט flare_alt_m, וכוון flare_pitch_up_deg בצעדים קטנים של 0.5.';
+  if (text.includes('????') || text.includes('flare')) {
+    return '?????: ???? ??? flare_alt_m, ????? flare_pitch_up_deg ?????? ????? ?? 0.5.';
   }
-  if (text.includes('ביטחון') || text.includes('confidence')) {
-    return 'לביטחון: העלה abort_conf_min אם אתה רוצה בטיחות שמרנית יותר, ועלה abort_recover_conf כדי לצאת מ-ABORT רק אחרי התאוששות אמיתית.';
+  if (text.includes('??????') || text.includes('confidence')) {
+    return '???????: ???? abort_conf_min ?? ??? ???? ?????? ?????? ????, ???? abort_recover_conf ??? ???? ?-ABORT ?? ???? ???????? ??????.';
   }
-  if (text.includes('מהירות') || text.includes('speed')) {
-    return 'למהירות: הורד approach_speed_ms אם הנגיעה קשה, וודא sink_rate_ms לא גבוה מדי.';
+  if (text.includes('??????') || text.includes('speed')) {
+    return '???????: ???? approach_speed_ms ?? ?????? ???, ???? sink_rate_ms ?? ???? ???.';
   }
-  if (text.includes('המראה') || text.includes('takeoff')) {
-    return 'להמראה: בדוק קודם GPS sats מספיק, רוח צד מתחת לסף, וספול מנוע מלא לפני שחרור.';
+  if (text.includes('?????') || text.includes('takeoff')) {
+    return '??????: ???? ???? GPS sats ?????, ??? ?? ???? ???, ????? ???? ??? ???? ?????.';
   }
-  return 'המלצה כללית: לשנות פרמטר אחד בכל טיסה, לשמור פרופיל, ולהשוות הקלטות לפני/אחרי.';
+  return '????? ?????: ????? ????? ??? ??? ????, ????? ??????, ??????? ?????? ????/????.';
 }
 const ABORT_PARAM_KEYS = new Set([
   'abort_conf_min',
@@ -273,7 +307,7 @@ const TAKEOFF_PARAM_KEYS = new Set([
   'to_motor_spool_s',
   'to_abort_speed_loss_ms',
 ]);
-/** Why: split tuning deck into feature tabs; what: keys rendered under פרמטרי נחיתה (גישה סופית / הצפה). */
+/** Why: split tuning deck into feature tabs; what: keys rendered under ?????? ????? (???? ????? / ????). */
 const LANDING_PARAM_KEYS = new Set([
   'flare_alt_m',
   'laser_detect_alt_m',
@@ -282,7 +316,7 @@ const LANDING_PARAM_KEYS = new Set([
   'approach_speed_ms',
   'sink_rate_ms',
 ]);
-/** Why: vision path correction limits; what: keys under ניווט לפי תמונה. */
+/** Why: vision path correction limits; what: keys under ????? ??? ?????. */
 const VISION_NAV_PARAM_KEYS = new Set([
   'vision_enable_alt_m',
   'vision_conf_min',
@@ -337,7 +371,7 @@ let developerMode = localStorage.getItem(DEV_MODE_KEY) === '1';
 
 function updateDeveloperModeUI() {
   document.body.classList.toggle('dev-mode', developerMode);
-  if (devModeBtn) devModeBtn.textContent = `מוד מפתח: ${developerMode ? 'פעיל' : 'כבוי'}`;
+  if (devModeBtn) devModeBtn.textContent = `??? ????: ${developerMode ? '????' : '????'}`;
 }
 
 function applyTextOverrides() {
@@ -362,7 +396,7 @@ document.addEventListener('click', (e) => {
   if (!target || !developerMode) return;
   e.preventDefault();
   const key = target.dataset.textKey;
-  const next = window.prompt('עריכת טקסט (מוד מפתח):', target.textContent || '');
+  const next = window.prompt('????? ???? (??? ????):', target.textContent || '');
   if (next == null) return;
   target.textContent = next;
   let overrides = {};
@@ -378,13 +412,13 @@ document.addEventListener('contextmenu', (e) => {
   e.preventDefault();
   if (target.classList.contains('param-info')) {
     const currentTitle = target.getAttribute('title') || '';
-    const nextTitle = window.prompt('עריכת tooltip לפרמטר:', currentTitle);
+    const nextTitle = window.prompt('????? tooltip ??????:', currentTitle);
     if (nextTitle == null) return;
     target.setAttribute('title', nextTitle);
     return;
   }
   const currentTooltip = target.getAttribute('title') || '';
-  const nextTooltip = window.prompt('עריכת tooltip לטקסט:', currentTooltip);
+  const nextTooltip = window.prompt('????? tooltip ?????:', currentTooltip);
   if (nextTooltip == null) return;
   target.setAttribute('title', nextTooltip);
 });
@@ -400,8 +434,8 @@ function renderParamsIn(container, items) {
       <div class="param-top">
         <h3 class="param-title">${param.label}</h3>
         <span class="param-info" title="${buildParamTooltip(param).replace(/"/g, '&quot;')}">?</span>
-        <button class="lock-btn ${locked ? 'locked' : ''}" id="lock_${param.key}" title="נועל או משחרר את הפרמטר לעריכה">
-          ${locked ? '🔒' : '🔓'}
+        <button class="lock-btn ${locked ? 'locked' : ''}" id="lock_${param.key}" title="???? ?? ????? ?? ?????? ??????">
+          ${locked ? '??' : '??'}
         </button>
       </div>
       <div class="param-meta">
@@ -454,33 +488,33 @@ function renderParams() {
  * Why: drive the ArduPilot sub-tab form layout; what: metadata for checkboxes vs numeric inputs (Hebrew labels).
  */
 const ARDU_FORM_FIELDS = [
-  { group: 'תקשורת Jetson', key: 'SERIAL2_PROTOCOL', label: 'SERIAL2 — פרוטוקול (MAVLink)', kind: 'number', min: 0, max: 30, step: 1 },
-  { group: 'תקשורת Jetson', key: 'SERIAL2_BAUD', label: 'SERIAL2 — Baud', kind: 'number', min: 9600, max: 921600, step: 1 },
-  { group: 'תקשורת Jetson', key: 'SR2_EXT_STAT', label: 'שידור SR2 — EXT_STAT (Hz)', kind: 'number', min: 0, max: 50, step: 1 },
-  { group: 'תקשורת Jetson', key: 'SR2_POSITION', label: 'שידור SR2 — POSITION (Hz)', kind: 'number', min: 0, max: 50, step: 1 },
-  { group: 'תקשורת Jetson', key: 'SR2_RC_CHAN', label: 'שידור SR2 — RC_CHAN (Hz)', kind: 'number', min: 0, max: 50, step: 1 },
-  { group: 'תקשורת Jetson', key: 'SR2_EXTRA1', label: 'שידור SR2 — EXTRA1 (Hz)', kind: 'number', min: 0, max: 50, step: 1 },
-  { group: 'תקשורת Jetson', key: 'SR2_EXTRA2', label: 'שידור SR2 — EXTRA2 (Hz)', kind: 'number', min: 0, max: 50, step: 1 },
-  { group: 'EKF / AHRS', key: 'EK3_ENABLE', label: 'EKF3 פעיל', kind: 'bool' },
-  { group: 'EKF / AHRS', key: 'AHRS_EKF_TYPE', label: 'סוג EKF (3 = EKF3)', kind: 'number', min: 0, max: 10, step: 1 },
-  { group: 'EKF / AHRS', key: 'EK3_GPS_TYPE', label: 'EK3 — סוג GPS', kind: 'number', min: 0, max: 10, step: 1 },
-  { group: 'EKF / AHRS', key: 'EK3_ALT_SOURCE', label: 'EK3 — מקור גובה', kind: 'number', min: 0, max: 10, step: 1 },
-  { group: 'נחיתה מדויקת (Vision)', key: 'PLND_ENABLED', label: 'Precision Landing פעיל', kind: 'bool' },
-  { group: 'נחיתה מדויקת (Vision)', key: 'PLND_TYPE', label: 'סוג PLND (1 = MAVLink)', kind: 'number', min: 0, max: 5, step: 1 },
-  { group: 'נחיתה מדויקת (Vision)', key: 'PLND_BUS', label: 'PLND — Bus', kind: 'number', min: 0, max: 10, step: 1 },
-  { group: 'נחיתה מדויקת (Vision)', key: 'PLND_LAG', label: 'PLND — Lag (שניות)', kind: 'number', min: 0, max: 1, step: 0.01 },
-  { group: 'נחיתה מדויקת (Vision)', key: 'PLND_XY_DIST_MAX', label: 'מרחק מקס׳ XY מהמטרה (מ׳)', kind: 'number', min: 0, max: 50, step: 0.5 },
-  { group: 'נחיתה מדויקת (Vision)', key: 'PLND_STRICT', label: 'PLND — מצב strict', kind: 'bool' },
-  { group: 'לוגים', key: 'LOG_DISARMED', label: 'לוג גם כבוי (Disarmed)', kind: 'bool' },
-  { group: 'לוגים', key: 'LOG_REPLAY', label: 'LOG_REPLAY', kind: 'bool' },
-  { group: 'לוגים', key: 'LOG_BITMASK', label: 'LOG_BITMASK', kind: 'number', min: 0, max: 2147483647, step: 1 },
-  { group: 'נחיתה כללית', key: 'LAND_SPEED', label: 'מהירות נחיתה סופית (ס״מ/ש)', kind: 'number', min: 10, max: 200, step: 1 },
-  { group: 'נחיתה כללית', key: 'LAND_SPEED_HIGH', label: 'LAND_SPEED_HIGH', kind: 'number', min: 0, max: 500, step: 1 },
-  { group: 'נחיתה כללית', key: 'LAND_ALT_LOW', label: 'LAND_ALT_LOW (ס״מ)', kind: 'number', min: 0, max: 5000, step: 10 },
-  { group: 'נחיתה כללית', key: 'LAND_ABORT_PWM', label: 'LAND_ABORT_PWM', kind: 'number', min: 800, max: 2200, step: 1 },
-  { group: 'בטיחות', key: 'FS_THR_ENABLE', label: 'Failsafe מצוץ', kind: 'bool' },
-  { group: 'בטיחות', key: 'FS_THR_VALUE', label: 'ערך PWM ל-FS', kind: 'number', min: 800, max: 1200, step: 1 },
-  { group: 'בטיחות', key: 'ARMING_CHECK', label: 'בדיקות לפני Arm', kind: 'bool' },
+  { group: '?????? Jetson', key: 'SERIAL2_PROTOCOL', label: 'SERIAL2 ? ???????? (MAVLink)', kind: 'number', min: 0, max: 30, step: 1 },
+  { group: '?????? Jetson', key: 'SERIAL2_BAUD', label: 'SERIAL2 ? Baud', kind: 'number', min: 9600, max: 921600, step: 1 },
+  { group: '?????? Jetson', key: 'SR2_EXT_STAT', label: '????? SR2 ? EXT_STAT (Hz)', kind: 'number', min: 0, max: 50, step: 1 },
+  { group: '?????? Jetson', key: 'SR2_POSITION', label: '????? SR2 ? POSITION (Hz)', kind: 'number', min: 0, max: 50, step: 1 },
+  { group: '?????? Jetson', key: 'SR2_RC_CHAN', label: '????? SR2 ? RC_CHAN (Hz)', kind: 'number', min: 0, max: 50, step: 1 },
+  { group: '?????? Jetson', key: 'SR2_EXTRA1', label: '????? SR2 ? EXTRA1 (Hz)', kind: 'number', min: 0, max: 50, step: 1 },
+  { group: '?????? Jetson', key: 'SR2_EXTRA2', label: '????? SR2 ? EXTRA2 (Hz)', kind: 'number', min: 0, max: 50, step: 1 },
+  { group: 'EKF / AHRS', key: 'EK3_ENABLE', label: 'EKF3 ????', kind: 'bool' },
+  { group: 'EKF / AHRS', key: 'AHRS_EKF_TYPE', label: '??? EKF (3 = EKF3)', kind: 'number', min: 0, max: 10, step: 1 },
+  { group: 'EKF / AHRS', key: 'EK3_GPS_TYPE', label: 'EK3 ? ??? GPS', kind: 'number', min: 0, max: 10, step: 1 },
+  { group: 'EKF / AHRS', key: 'EK3_ALT_SOURCE', label: 'EK3 ? ???? ????', kind: 'number', min: 0, max: 10, step: 1 },
+  { group: '????? ?????? (Vision)', key: 'PLND_ENABLED', label: 'Precision Landing ????', kind: 'bool' },
+  { group: '????? ?????? (Vision)', key: 'PLND_TYPE', label: '??? PLND (1 = MAVLink)', kind: 'number', min: 0, max: 5, step: 1 },
+  { group: '????? ?????? (Vision)', key: 'PLND_BUS', label: 'PLND ? Bus', kind: 'number', min: 0, max: 10, step: 1 },
+  { group: '????? ?????? (Vision)', key: 'PLND_LAG', label: 'PLND ? Lag (?????)', kind: 'number', min: 0, max: 1, step: 0.01 },
+  { group: '????? ?????? (Vision)', key: 'PLND_XY_DIST_MAX', label: '???? ???? XY ?????? (??)', kind: 'number', min: 0, max: 50, step: 0.5 },
+  { group: '????? ?????? (Vision)', key: 'PLND_STRICT', label: 'PLND ? ??? strict', kind: 'bool' },
+  { group: '?????', key: 'LOG_DISARMED', label: '??? ?? ???? (Disarmed)', kind: 'bool' },
+  { group: '?????', key: 'LOG_REPLAY', label: 'LOG_REPLAY', kind: 'bool' },
+  { group: '?????', key: 'LOG_BITMASK', label: 'LOG_BITMASK', kind: 'number', min: 0, max: 2147483647, step: 1 },
+  { group: '????? ?????', key: 'LAND_SPEED', label: '?????? ????? ????? (???/?)', kind: 'number', min: 10, max: 200, step: 1 },
+  { group: '????? ?????', key: 'LAND_SPEED_HIGH', label: 'LAND_SPEED_HIGH', kind: 'number', min: 0, max: 500, step: 1 },
+  { group: '????? ?????', key: 'LAND_ALT_LOW', label: 'LAND_ALT_LOW (???)', kind: 'number', min: 0, max: 5000, step: 10 },
+  { group: '????? ?????', key: 'LAND_ABORT_PWM', label: 'LAND_ABORT_PWM', kind: 'number', min: 800, max: 2200, step: 1 },
+  { group: '??????', key: 'FS_THR_ENABLE', label: 'Failsafe ????', kind: 'bool' },
+  { group: '??????', key: 'FS_THR_VALUE', label: '??? PWM ?-FS', kind: 'number', min: 800, max: 1200, step: 1 },
+  { group: '??????', key: 'ARMING_CHECK', label: '?????? ???? Arm', kind: 'bool' },
 ];
 
 /** Why: category tab order matches form field declaration order; what: unique group titles for Ardu subtabs. */
@@ -489,12 +523,12 @@ const ARDU_GROUP_ORDER = [...new Set(ARDU_FORM_FIELDS.map((f) => f.group))];
 /** Why: stable `data-panel` ids; what: maps Hebrew group title to ASCII slug for DOM ids. */
 function arduGroupToSlug(g) {
   const m = {
-    'תקשורת Jetson': 'jetson',
+    '?????? Jetson': 'jetson',
     'EKF / AHRS': 'ekf',
-    'נחיתה מדויקת (Vision)': 'plnd',
-    'לוגים': 'logs',
-    'נחיתה כללית': 'land',
-    'בטיחות': 'safety',
+    '????? ?????? (Vision)': 'plnd',
+    '?????': 'logs',
+    '????? ?????': 'land',
+    '??????': 'safety',
   };
   return m[g] || `cat_${String(g).replace(/\W+/g, '_').slice(0, 16)}`;
 }
@@ -515,7 +549,7 @@ function coerceArduFieldValue(field, raw) {
   return Number.isFinite(n) ? n : 0;
 }
 
-/** Why: render editable FC targets under מרכז פרמטרים; what: one sub-tab per category (no single long scroll). */
+/** Why: render editable FC targets under ???? ???????; what: one sub-tab per category (no single long scroll). */
 function renderArduParamForm() {
   const tabs = document.getElementById('arduCatSubtabs');
   const host = document.getElementById('arduParamFormPanels');
@@ -618,12 +652,12 @@ async function loadVisionConfigFromServer(statusEl) {
     renderArduParamForm();
     syncConfigTextFromArdu();
     if (statusEl) {
-      statusEl.textContent = 'נטען מהשרת';
+      statusEl.textContent = '???? ?????';
       statusEl.className = 'vision-config-status ok';
     }
   } catch {
     if (statusEl) {
-      statusEl.textContent = 'שגיאת רשת';
+      statusEl.textContent = '????? ???';
       statusEl.className = 'vision-config-status fail';
     }
   }
@@ -640,16 +674,16 @@ async function saveVisionConfigToServer(statusEl) {
     const d = await res.json();
     if (d.ok) {
       if (statusEl) {
-        statusEl.textContent = 'נשמר בשרת';
+        statusEl.textContent = '???? ????';
         statusEl.className = 'vision-config-status ok';
       }
     } else if (statusEl) {
-      statusEl.textContent = 'נכשל';
+      statusEl.textContent = '????';
       statusEl.className = 'vision-config-status fail';
     }
   } catch {
     if (statusEl) {
-      statusEl.textContent = 'שגיאת רשת';
+      statusEl.textContent = '????? ???';
       statusEl.className = 'vision-config-status fail';
     }
   }
@@ -668,8 +702,8 @@ if (visionConfigWriteBtn) {
 if (saveProfileBtn) {
   saveProfileBtn.addEventListener('click', () => {
     localStorage.setItem('visionLandingProfile', JSON.stringify({ values: profileState, locks: lockState }));
-    saveProfileBtn.textContent = 'נשמר';
-    setTimeout(() => { saveProfileBtn.textContent = 'שמור פרופיל'; }, 1000);
+    saveProfileBtn.textContent = '????';
+    setTimeout(() => { saveProfileBtn.textContent = '???? ??????'; }, 1000);
   });
 }
 
@@ -752,14 +786,14 @@ function formatEventRow(ev) {
   const val = profileState[ev.key];
   const t = Number(timelineRange?.value || 0);
   let cls = 'future';
-  let icon = '→';
-  if (ev.t < t - 0.5) { cls = 'past'; icon = '←'; }
-  else if (Math.abs(ev.t - t) <= 0.5) { cls = 'current'; icon = '◆'; }
+  let icon = '?';
+  if (ev.t < t - 0.5) { cls = 'past'; icon = '?'; }
+  else if (Math.abs(ev.t - t) <= 0.5) { cls = 'current'; icon = '?'; }
   return `
     <article class="event-item ${cls}" data-event-time="${ev.t}" data-event-key="${ev.key}">
-      <div class="event-time">t+${ev.t}s · ${ev.type}</div>
+      <div class="event-time">t+${ev.t}s ? ${ev.type}</div>
       <div>${ev.msg}<span class="arrow">${icon}</span></div>
-      <div class="event-time">פרמטר: ${ev.key} = ${val}</div>
+      <div class="event-time">?????: ${ev.key} = ${val}</div>
     </article>
   `;
 }
@@ -770,7 +804,7 @@ function refreshEventsFromParams() {
   const near = eventSamples.filter((ev) => ev.t >= t - 14 && ev.t <= t + 14);
   eventsList.innerHTML = near.length
     ? near.map(formatEventRow).join('')
-    : '<div class="event-item">אין אירועים סביב הזמן הנוכחי.</div>';
+    : '<div class="event-item">??? ??????? ???? ???? ??????.</div>';
   bindEventContextMenu();
 }
 
@@ -821,21 +855,21 @@ async function refreshJetsonStatus() {
     const data = await res.json();
     applyJetsonUi(data.online, data);
   } catch (err) {
-    if (jetsonOut) jetsonOut.textContent = `שגיאת חיבור לשרת: ${err?.message || err}`;
+    if (jetsonOut) jetsonOut.textContent = `????? ????? ????: ${err?.message || err}`;
   }
 }
 
 function applyJetsonUi(online, data) {
   if (jetsonStatusDot) jetsonStatusDot.className = `status-dot ${online ? 'online' : 'offline'}`;
-  if (jetsonOnlineState) jetsonOnlineState.textContent = online ? 'מחובר' : 'לא מחובר';
+  if (jetsonOnlineState) jetsonOnlineState.textContent = online ? '?????' : '?? ?????';
   if (jetsonLastSeen && data.ageMs != null) {
     const sec = Math.round(data.ageMs / 1000);
-    jetsonLastSeen.textContent = sec < 5 ? 'לפני פחות מ-5 שניות' : `לפני ${sec} שניות`;
+    jetsonLastSeen.textContent = sec < 5 ? '???? ???? ?-5 ?????' : `???? ${sec} ?????`;
   } else if (jetsonLastSeen) {
-    jetsonLastSeen.textContent = 'אין heartbeat';
+    jetsonLastSeen.textContent = '??? heartbeat';
   }
   if (jetsonCpu) jetsonCpu.textContent = data.cpuLoadPct != null ? `${data.cpuLoadPct}%` : '-';
-  if (jetsonTemp) jetsonTemp.textContent = data.tempC != null ? `${data.tempC}°C` : '-';
+  if (jetsonTemp) jetsonTemp.textContent = data.tempC != null ? `${data.tempC}?C` : '-';
   if (jetsonMem) jetsonMem.textContent = data.memPct != null ? `${data.memPct}%` : '-';
   const latEl = document.getElementById('heartbeatLatency');
   const qualEl = document.getElementById('linkQuality');
@@ -859,9 +893,9 @@ function applyVisionUi(d) {
   if (!d) return;
   const fresh = d.ageMs != null && d.ageMs < 3000;
   if (visionLateralEl) visionLateralEl.textContent = d.lateralOffsetM != null ? `${d.lateralOffsetM.toFixed(2)}m` : '-';
-  if (visionHeadingEl) visionHeadingEl.textContent = d.headingErrorDeg != null ? `${d.headingErrorDeg.toFixed(1)}°` : '-';
+  if (visionHeadingEl) visionHeadingEl.textContent = d.headingErrorDeg != null ? `${d.headingErrorDeg.toFixed(1)}?` : '-';
   if (visionConfEl) visionConfEl.textContent = d.confidence != null ? `${Math.round(d.confidence * 100)}%` : '-';
-  if (visionAgeEl) visionAgeEl.textContent = d.ageMs != null ? (d.ageMs > 3000 ? `${(d.ageMs / 1000).toFixed(1)}s ⚠` : `${d.ageMs}ms`) : '-';
+  if (visionAgeEl) visionAgeEl.textContent = d.ageMs != null ? (d.ageMs > 3000 ? `${(d.ageMs / 1000).toFixed(1)}s ?` : `${d.ageMs}ms`) : '-';
   if (visionCountEl) visionCountEl.textContent = String(d.frameCount || 0);
   // Mark cards as DEMO or LIVE based on freshness
   document.querySelectorAll('[data-vision-card]').forEach((el) => {
@@ -876,11 +910,11 @@ function applySlamUi(d) {
   if (slamPosEl) {
     slamPosEl.textContent = d.posX != null
       ? `(${d.posX.toFixed(1)}, ${d.posY.toFixed(1)}, ${d.posZ.toFixed(1)}m)`
-      : 'לא פעיל';
+      : '?? ????';
   }
   if (slamQualEl) slamQualEl.textContent = d.mapQuality != null ? `${Math.round(d.mapQuality * 100)}%` : '-';
   if (slamLoopsEl) slamLoopsEl.textContent = d.loopClosures != null ? String(d.loopClosures) : '-';
-  if (slamAgeEl) slamAgeEl.textContent = d.ageMs != null ? (fresh ? `${Math.round(d.ageMs)}ms` : `${(d.ageMs / 1000).toFixed(0)}s ⚠`) : 'לא פעיל';
+  if (slamAgeEl) slamAgeEl.textContent = d.ageMs != null ? (fresh ? `${Math.round(d.ageMs)}ms` : `${(d.ageMs / 1000).toFixed(0)}s ?`) : '?? ????';
   document.querySelectorAll('[data-slam-card]').forEach((el) => {
     el.classList.toggle('demo-data', !fresh);
     el.classList.toggle('live-data', fresh);
@@ -927,7 +961,7 @@ const pullLogsBtn = document.getElementById('pullLogsBtn');
 function updateLogFileNameDisplay() {
   if (!logFileNameDisplay || !logFileInput) return;
   const f = logFileInput.files?.[0];
-  logFileNameDisplay.textContent = f ? f.name : 'לא נבחר קובץ';
+  logFileNameDisplay.textContent = f ? f.name : '?? ???? ????';
 }
 
 /** Why: pills mirror hidden select so upload FormData stays unchanged; what: syncs active pill to `logSourceSelect.value`. */
@@ -984,12 +1018,12 @@ async function refreshFlightLists() {
     const data = await res.json();
     const flights = data.flights || [];
     const opts = flights.map((f) => `<option value="${f.id}">${f.title} (#${f.id})</option>`).join('');
-    if (flightSelect) flightSelect.innerHTML = opts || '<option value="">אין טיסות — צור טיסה חדשה</option>';
+    if (flightSelect) flightSelect.innerHTML = opts || '<option value="">??? ????? ? ??? ???? ????</option>';
     if (advisorFlightSelect) {
-      advisorFlightSelect.innerHTML = `<option value="">כל הטיסות במאגר</option>${opts}`;
+      advisorFlightSelect.innerHTML = `<option value="">?? ?????? ?????</option>${opts}`;
     }
   } catch (err) {
-    if (flightLogsOut) flightLogsOut.textContent = `רשימת טיסות נכשלה: ${err?.message || err}`;
+    if (flightLogsOut) flightLogsOut.textContent = `????? ????? ?????: ${err?.message || err}`;
   }
 }
 
@@ -998,7 +1032,7 @@ async function refreshFlightLogsList() {
   if (!flightSelect || !flightLogsOut) return;
   const id = Number(flightSelect.value);
   if (!id) {
-    flightLogsOut.textContent = 'בחר טיסה.';
+    flightLogsOut.textContent = '??? ????.';
     return;
   }
   try {
@@ -1006,7 +1040,7 @@ async function refreshFlightLogsList() {
     const data = await res.json();
     flightLogsOut.textContent = JSON.stringify(data.logs || [], null, 2);
   } catch (err) {
-    flightLogsOut.textContent = `לוגים: ${err?.message || err}`;
+    flightLogsOut.textContent = `?????: ${err?.message || err}`;
   }
 }
 
@@ -1041,9 +1075,9 @@ if (saveFlightNoteBtn) {
         body: JSON.stringify({ body }),
       });
       if (flightNoteBody) flightNoteBody.value = '';
-      if (flightLogsOut) flightLogsOut.textContent = 'הערה נשמרה.';
+      if (flightLogsOut) flightLogsOut.textContent = '???? ?????.';
     } catch (err) {
-      if (flightLogsOut) flightLogsOut.textContent = `שמירת הערה נכשלה: ${err?.message || err}`;
+      if (flightLogsOut) flightLogsOut.textContent = `????? ???? ?????: ${err?.message || err}`;
     }
   });
 }
@@ -1063,7 +1097,7 @@ if (uploadLogBtn) {
       updateLogFileNameDisplay();
       await refreshFlightLogsList();
     } catch (err) {
-      if (flightLogsOut) flightLogsOut.textContent = `העלאה נכשלה: ${err?.message || err}`;
+      if (flightLogsOut) flightLogsOut.textContent = `????? ?????: ${err?.message || err}`;
     }
   });
 }
@@ -1100,23 +1134,23 @@ function computeChecklist(currentConfidence) {
   const spool = Number(spoolInput?.value || 0);
   const checks = [
     {
-      label: `GPS מספיק (${gpsSats} / מינימום ${profileState.to_min_gps_sats})`,
+      label: `GPS ????? (${gpsSats} / ??????? ${profileState.to_min_gps_sats})`,
       pass: gpsSats >= Number(profileState.to_min_gps_sats || 10),
     },
     {
-      label: `רוח צד בטווח (${crosswind.toFixed(1)} / מקס ${profileState.to_max_crosswind_ms})`,
+      label: `??? ?? ????? (${crosswind.toFixed(1)} / ??? ${profileState.to_max_crosswind_ms})`,
       pass: crosswind <= Number(profileState.to_max_crosswind_ms || 8),
     },
     {
-      label: `ספול מנוע הושלם (${spool.toFixed(1)}s / נדרש ${profileState.to_motor_spool_s}s)`,
+      label: `???? ???? ????? (${spool.toFixed(1)}s / ???? ${profileState.to_motor_spool_s}s)`,
       pass: spool >= Number(profileState.to_motor_spool_s || 2.2),
     },
     {
-      label: `מהירות קרקע בטוחה לשחרור (${groundSpeed.toFixed(1)} < ${profileState.to_rotate_speed_ms})`,
+      label: `?????? ???? ????? ?????? (${groundSpeed.toFixed(1)} < ${profileState.to_rotate_speed_ms})`,
       pass: groundSpeed < Number(profileState.to_rotate_speed_ms || 13),
     },
     {
-      label: `ביטחון Vision מעל סף Abort (${Math.round(currentConfidence * 100)}% >= ${Math.round(Number(profileState.abort_conf_min || 0.7) * 100)}%)`,
+      label: `?????? Vision ??? ?? Abort (${Math.round(currentConfidence * 100)}% >= ${Math.round(Number(profileState.abort_conf_min || 0.7) * 100)}%)`,
       pass: currentConfidence >= Number(profileState.abort_conf_min || 0.7),
     },
   ];
@@ -1141,7 +1175,7 @@ function renderProcessFlow() {
     if (idx === processIndex) cls = 'active';
     return `
       <article class="process-card ${cls}">
-        <div class="process-index">שלב ${idx + 1}</div>
+        <div class="process-index">??? ${idx + 1}</div>
         <div class="process-title">${title}</div>
         ${idx < processIndex ? '<div class="process-check">V</div>' : ''}
       </article>
@@ -1149,17 +1183,17 @@ function renderProcessFlow() {
   }).join('');
 }
 
-/** Why: confidence bar shows real Vision data when hardware is connected (ageMs < 3s); shows "ללא חיבור" otherwise. What: runs every 1s. */
+/** Why: confidence bar shows real Vision data when hardware is connected (ageMs < 3s); shows "??? ?????" otherwise. What: runs every 1s. */
 setInterval(() => {
   const visionFresh = latestVisionFromServer != null && latestVisionFromServer.ageMs != null && latestVisionFromServer.ageMs < 3000;
   let current;
   let sourceLabel;
   if (visionFresh) {
     current = Math.max(0, Math.min(1, latestVisionFromServer.confidence ?? 0));
-    sourceLabel = latestJetsonFromServer?.online ? 'מחובר' : 'מחובר (Vision)';
+    sourceLabel = latestJetsonFromServer?.online ? '?????' : '????? (Vision)';
   } else {
     current = 0;
-    sourceLabel = 'ללא חיבור';
+    sourceLabel = '??? ?????';
     lowConfidenceSeconds = 0;
   }
   const pct = visionFresh ? Math.round(current * 100) : null;
@@ -1174,10 +1208,10 @@ setInterval(() => {
   if (linkState) linkState.textContent = sourceLabel;
   if (lastRefresh) lastRefresh.textContent = new Date().toLocaleTimeString();
   if (eventsCount) eventsCount.textContent = String(eventSamples.length);
-  if (telemetryConfidence) telemetryConfidence.textContent = pct != null ? `${pct}%` : '—';
+  if (telemetryConfidence) telemetryConfidence.textContent = pct != null ? `${pct}%` : '?';
   if (abortState) abortState.textContent = isAbort ? `ABORT (${lowConfidenceSeconds.toFixed(0)}s)` : `ARMED (${lowConfidenceSeconds.toFixed(0)}s)`;
   if (takeoffState) takeoffState.textContent = takeoffReady ? 'READY' : 'HOLD';
-  if (liveConfidenceText) liveConfidenceText.textContent = pct != null ? `${pct}%` : '—';
+  if (liveConfidenceText) liveConfidenceText.textContent = pct != null ? `${pct}%` : '?';
   if (liveConfidenceBar) liveConfidenceBar.style.width = pct != null ? `${pct}%` : '0%';
   if (liveConfidenceBar) liveConfidenceBar.classList.toggle('bar-live', visionFresh);
   renderChecklist(checks);
@@ -1209,7 +1243,7 @@ const downloadParamBtn = document.getElementById('downloadParamBtn');
 const applyToMpBtn = document.getElementById('applyToMpBtn');
 const mpOut = document.getElementById('mpOut');
 
-/** Why: pilot downloads a ready-to-import .param file — no manual copy-paste needed. What: creates a Blob from configText and triggers browser download. */
+/** Why: pilot downloads a ready-to-import .param file ? no manual copy-paste needed. What: creates a Blob from configText and triggers browser download. */
 if (downloadParamBtn && configText) {
   downloadParamBtn.addEventListener('click', () => {
     syncConfigTextFromArdu();
@@ -1234,7 +1268,7 @@ if (applyToMpBtn && configText) {
       const data = await res.json();
       if (mpOut) { mpOut.classList.add('visible'); mpOut.textContent = data.message || JSON.stringify(data, null, 2); }
     } catch (err) {
-      if (mpOut) { mpOut.classList.add('visible'); mpOut.textContent = `שגיאה: ${err?.message || err}`; }
+      if (mpOut) { mpOut.classList.add('visible'); mpOut.textContent = `?????: ${err?.message || err}`; }
     }
   });
 }
@@ -1245,16 +1279,59 @@ const advisorSendBtn = document.getElementById('advisorSendBtn');
 const advisorStatus = document.getElementById('advisorStatus');
 const advisorMicBtn = document.getElementById('advisorMicBtn');
 
+/** Why: Gemini returns markdown; raw textContent shows asterisks/hashes literally. What: minimal safe renderer ? escapes HTML first, then applies bold/italic/lists. */
+function renderMarkdown(raw) {
+  const esc = raw
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const lines = esc.split('\n');
+  let html = '';
+  let listType = '';
+  const closeList = () => { if (listType) { html += `</${listType}>`; listType = ''; } };
+  const inline = (s) => s
+    .replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/`(.+?)`/g, '<code>$1</code>');
+  for (const line of lines) {
+    const t = line.trim();
+    const ol = t.match(/^(\d+)\.\s+([\s\S]+)$/);
+    const ul = t.match(/^[-*]\s+([\s\S]+)$/);
+    const h = t.match(/^(#{1,3})\s+([\s\S]+)$/);
+    if (ol) {
+      if (listType !== 'ol') { closeList(); html += '<ol>'; listType = 'ol'; }
+      html += `<li>${inline(ol[2])}</li>`;
+    } else if (ul) {
+      if (listType !== 'ul') { closeList(); html += '<ul>'; listType = 'ul'; }
+      html += `<li>${inline(ul[1])}</li>`;
+    } else if (h) {
+      closeList();
+      const lvl = h[1].length;
+      html += `<h${lvl} class="md-h">${inline(h[2])}</h${lvl}>`;
+    } else if (t === '') {
+      closeList();
+    } else {
+      closeList();
+      html += `<p>${inline(t)}</p>`;
+    }
+  }
+  closeList();
+  return html;
+}
+
 function pushMsg(role, text) {
   if (!advisorMessages) {
-    if (advisorStatus) advisorStatus.textContent = `צ'אט לא נטען: אין advisorMessages (role=${role})`;
+    if (advisorStatus) advisorStatus.textContent = `?'?? ?? ????: ??? advisorMessages (role=${role})`;
     return;
   }
   const node = document.createElement('div');
   node.className = `msg ${role}`;
-  node.textContent = text;
+  node.innerHTML = renderMarkdown(text);
   advisorMessages.appendChild(node);
-  advisorMessages.scrollTop = advisorMessages.scrollHeight;
+  if (role === 'bot') {
+    node.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } else {
+    advisorMessages.scrollTop = advisorMessages.scrollHeight;
+  }
 }
 
 /** Why: one round-trip to server (Gemini + retrieval + digest). What: returns assistant text, merges server errors into visible chat, or local fallback when fetch/JSON fails. */
@@ -1276,7 +1353,7 @@ async function advisorReply(q) {
     try {
       data = await res.json();
     } catch {
-      return `${local}\n\n[השרת החזיר תשובה שאינה JSON — בדוק שרץ node server.js מהתיקייה VisionLandingConsole ושהפורט 4010 נכון.]`;
+      return `${local}\n\n[???? ????? ????? ????? JSON ? ???? ??? node server.js ???????? VisionLandingConsole ??????? 4010 ????.]`;
     }
     const replyText = typeof data?.reply === 'string' ? data.reply.trim() : '';
     if (data?.ok && replyText) {
@@ -1284,10 +1361,10 @@ async function advisorReply(q) {
       return `${data.reply}${tag}`;
     }
     const serverMsg = typeof data?.message === 'string' && data.message.trim() ? data.message.trim() : `HTTP ${res.status}`;
-    return `${local}\n\n[יועץ שרת: ${serverMsg}]`;
+    return `${local}\n\n[???? ???: ${serverMsg}]`;
   } catch (e) {
     const hint = e?.message || String(e);
-    return `${local}\n\n[רשת/דפדפן: ${hint}]`;
+    return `${local}\n\n[???/?????: ${hint}]`;
   }
 }
 
@@ -1296,16 +1373,16 @@ async function handleAdvisorSend() {
     const q = advisorInput.value.trim();
     if (!q) return;
     if (advisorSendBtn) advisorSendBtn.disabled = true;
-    if (advisorStatus) advisorStatus.textContent = 'שולח…';
+    if (advisorStatus) advisorStatus.textContent = '?????';
     try {
       pushMsg('user', q);
       const reply = await advisorReply(q);
       if (reply) pushMsg('bot', reply);
       advisorInput.value = '';
-      if (advisorStatus) advisorStatus.textContent = 'מוכן';
+      if (advisorStatus) advisorStatus.textContent = '????';
     } catch {
       pushMsg('bot', localAdvisorReply(q));
-      if (advisorStatus) advisorStatus.textContent = 'שגיאה — תשובה מקומית';
+      if (advisorStatus) advisorStatus.textContent = '????? ? ????? ??????';
     } finally {
       if (advisorSendBtn) advisorSendBtn.disabled = false;
     }
@@ -1317,9 +1394,9 @@ if (advisorSendBtn && advisorInput) {
   advisorInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') handleAdvisorSend();
   });
-  if (advisorStatus && advisorStatus.textContent === 'מוכן') advisorStatus.textContent = "צ'אט מחובר (מאזינים מוכנים)";
+  if (advisorStatus && advisorStatus.textContent === '????') advisorStatus.textContent = "?'?? ????? (??????? ??????)";
 } else {
-  if (advisorStatus) advisorStatus.textContent = "צ'אט לא נטען: חסרים advisorSendBtn או advisorInput";
+  if (advisorStatus) advisorStatus.textContent = "?'?? ?? ????: ????? advisorSendBtn ?? advisorInput";
 }
 
 /** Why: quick voice capture without typing. What: Web Speech API fills advisor input (browser-dependent). */
@@ -1332,27 +1409,27 @@ if (advisorMicBtn && SR) {
     const t = e.results[0][0].transcript;
     if (advisorInput) advisorInput.value = t;
     advisorMicBtn.classList.remove('recording');
-    if (advisorStatus) advisorStatus.textContent = 'הושלם הקלט — ערוך ושלח';
+    if (advisorStatus) advisorStatus.textContent = '????? ???? ? ???? ????';
   };
   rec.onend = () => advisorMicBtn.classList.remove('recording');
   rec.onerror = () => {
     advisorMicBtn.classList.remove('recording');
-    if (advisorStatus) advisorStatus.textContent = 'מיקרופון: שגיאה';
+    if (advisorStatus) advisorStatus.textContent = '????????: ?????';
   };
   advisorMicBtn.addEventListener('click', () => {
     try {
       rec.start();
       advisorMicBtn.classList.add('recording');
-      if (advisorStatus) advisorStatus.textContent = 'מאזין…';
+      if (advisorStatus) advisorStatus.textContent = '??????';
     } catch {
-      if (advisorStatus) advisorStatus.textContent = 'לא ניתן להתחיל הקלטה';
+      if (advisorStatus) advisorStatus.textContent = '?? ???? ?????? ?????';
     }
   });
 } else if (advisorMicBtn) {
   advisorMicBtn.disabled = true;
-  advisorMicBtn.title = 'הדפדפן לא תומך בדיבור לטקסט';
+  advisorMicBtn.title = '?????? ?? ???? ?????? ?????';
 }
-/* Welcome line is static in index.html (data-static-welcome) — avoids empty chat if script stops early. */
+/* Welcome line is static in index.html (data-static-welcome) ? avoids empty chat if script stops early. */
 renderProcessFlow();
 
 const versionBtn = document.getElementById('versionBtn');
@@ -1368,7 +1445,7 @@ function renderVersionModal() {
     return `
       <div style="margin-bottom:1rem">
         <h3 style="${isCurrent ? 'color:#4ade80' : 'color:#94a3b8'}">
-          ${isCurrent ? '★ ' : ''}גרסה ${entry.version} <small style="font-size:0.75rem;opacity:0.7">${entry.date}</small>
+          ${isCurrent ? '? ' : ''}???? ${entry.version} <small style="font-size:0.75rem;opacity:0.7">${entry.date}</small>
         </h3>
         <ul>${entry.changes.map((c) => `<li>${c}</li>`).join('')}</ul>
       </div>`;
@@ -1424,7 +1501,8 @@ if (eventContextMenu) {
     refreshEventsFromParams();
   });
 }
-
+
+
 const arduReadBtn = document.getElementById('arduReadBtn');
 const arduWriteBtn = document.getElementById('arduWriteBtn');
 const arduWriteStatus = document.getElementById('arduWriteStatus');
@@ -1432,7 +1510,7 @@ const arduDiffSection = document.getElementById('arduDiffSection');
 const arduDiffTable = document.getElementById('arduDiffTable');
 const arduDiffSummary = document.getElementById('arduDiffSummary');
 
-/** Why: after reading or writing, shows a clear diff table of every parameter — green=match, red=mismatch. What: renders rows with current vs target value comparison. */
+/** Why: after reading or writing, shows a clear diff table of every parameter ? green=match, red=mismatch. What: renders rows with current vs target value comparison. */
 function renderArduDiff(current, target) {
   if (!arduDiffTable || !arduDiffSection) return;
   const rows = Object.entries(target).map(([key, want]) => {
@@ -1440,43 +1518,114 @@ function renderArduDiff(current, target) {
     const match = String(have) === String(want);
     return `<tr class="${match ? 'diff-match' : 'diff-mismatch'}">
       <td class="diff-key">${key}</td>
-      <td class="diff-have">${have != null ? have : '—'}</td>
+      <td class="diff-have">${have != null ? have : '?'}</td>
       <td class="diff-want">${want}</td>
-      <td class="diff-status">${match ? '✓' : '⚠ שונה'}</td>
+      <td class="diff-status">${match ? '?' : '? ????'}</td>
     </tr>`;
   }).join('');
   arduDiffTable.innerHTML = `<table class="diff-inner">
-    <thead><tr><th>פרמטר</th><th>בדרון עכשיו</th><th>יותקן</th><th>סטטוס</th></tr></thead>
+    <thead><tr><th>?????</th><th>????? ?????</th><th>?????</th><th>?????</th></tr></thead>
     <tbody>${rows}</tbody>
   </table>`;
   arduDiffSection.classList.add('visible');
   const mismatches = Object.entries(target).filter(([k, v]) => String(current[k]) !== String(v)).length;
   if (arduDiffSummary) {
     arduDiffSummary.textContent = mismatches === 0
-      ? '✓ כל הפרמטרים כבר תואמים — אין צורך ב-WRITE לרחפן'
-      : `${mismatches} פרמטרים שונים — לחץ WRITE לרחפן להחלתם`;
+      ? '? ?? ???????? ??? ?????? ? ??? ???? ?-WRITE ?????'
+      : `${mismatches} ??????? ????? ? ??? WRITE ????? ??????`;
     arduDiffSummary.style.color = mismatches === 0 ? '#4ade80' : '#fbbf24';
   }
 }
 
 if (arduReadBtn) {
   arduReadBtn.addEventListener('click', async () => {
-    arduReadBtn.textContent = '⏳ מחבר לרחפן…';
+    arduReadBtn.textContent = '? ???? ??????';
     try {
       const res = await fetch('/api/ardu/params');
       const d = await res.json();
-      arduReadBtn.textContent = '📥 READ — מהרחפן';
+      arduReadBtn.textContent = '?? READ ? ??????';
       if (!d.connected || !d.current) {
-        if (arduWriteStatus) { arduWriteStatus.textContent = 'לא מחובר — חבר ל-ArduPilot דרך MAVProxy'; arduWriteStatus.className = 'ardu-write-status fail'; }
+        if (arduWriteStatus) { arduWriteStatus.textContent = '?? ????? ? ??? ?-ArduPilot ??? MAVProxy'; arduWriteStatus.className = 'ardu-write-status fail'; }
       } else {
         renderArduDiff(d.current, arduTargetState);
       }
-    } catch { arduReadBtn.textContent = '📥 READ — מהרחפן'; }
+    } catch { arduReadBtn.textContent = '?? READ ? ??????'; }
   });
 }
 
+/** Why: avoid ReferenceError and share one Leaflet instance; what: toolbar element refs, layer handles, and coverage circle list for terrain tab. */
+const terrainLayerStreetBtn = document.getElementById('terrainLayerStreetBtn');
+const terrainLayerSatBtn = document.getElementById('terrainLayerSatBtn');
+const terrainMappedOnlyBtn = document.getElementById('terrainMappedOnlyBtn');
+const terrainClearBtn = document.getElementById('terrainClearBtn');
+const terrainCellCount = document.getElementById('terrainCellCount');
+const terrainAreaEst = document.getElementById('terrainAreaEst');
 
-/** Why: satellite vs street, or hide all tiles for “mapped only” white canvas; what: toggles tile pane and active TileLayer. */
+let terrainMap = null;
+let terrainStreetLayer = null;
+let terrainSatLayer = null;
+let terrainCircles = [];
+let terrainLastCells = [];
+let terrainMappedOnly = false;
+let terrainActiveBase = 'street';
+
+/** Why: map must exist before coverage circles and basemap toggles; what: creates L.map once with leaflet-rotate, OSM/Esri layers, and bearing control. */
+function initTerrainMap() {
+  const mapEl = document.getElementById('terrainMap');
+  if (!mapEl || terrainMap) return;
+
+  const mapOpts = { zoomControl: true, rotate: true, bearing: 0 };
+  terrainMap = L.map(mapEl, mapOpts);
+
+  terrainStreetLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; OpenStreetMap',
+  });
+  terrainSatLayer = L.tileLayer(
+    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    { maxZoom: 19, attribution: 'Tiles &copy; Esri' }
+  );
+
+  terrainStreetLayer.addTo(terrainMap);
+  terrainMap.setView([31.5, 34.85], 8);
+
+  const BearingCtrl = L.Control.extend({
+    options: { position: 'topleft' },
+    onAdd(m) {
+      const root = L.DomUtil.create('div', 'terrain-bearing-control leaflet-bar');
+      root.innerHTML =
+        '<span class="terrain-rot-deg">0?</span><input type="range" class="terrain-rot-slider" min="-180" max="180" value="0" aria-label="????? ???" /><button type="button" class="terrain-rot-north" title="????">N</button>';
+      const slider = root.querySelector('.terrain-rot-slider');
+      const degEl = root.querySelector('.terrain-rot-deg');
+      const northBtn = root.querySelector('.terrain-rot-north');
+
+      const applyDeg = (d) => {
+        let x = Number(d);
+        if (!Number.isFinite(x)) x = 0;
+        if (typeof m.setBearing === 'function') m.setBearing(x);
+        if (degEl) degEl.textContent = `${Math.round(x)}?`;
+        if (slider) slider.value = String(Math.round(x));
+      };
+
+      if (typeof m.setBearing !== 'function') {
+        root.classList.add('disabled');
+        if (degEl) degEl.textContent = '?';
+      } else {
+        L.DomEvent.on(slider, 'input', (ev) => applyDeg(ev.target.value));
+        L.DomEvent.on(northBtn, 'click', () => applyDeg(0));
+      }
+
+      L.DomEvent.disableClickPropagation(root);
+      L.DomEvent.disableScrollPropagation(root);
+      return root;
+    },
+  });
+  terrainMap.addControl(new BearingCtrl());
+
+  setTimeout(() => terrainInvalidateLayout(), 0);
+}
+
+/** Why: satellite vs street, or hide all tiles for ?mapped only? white canvas; what: toggles tile pane and active TileLayer. */
 function applyTerrainBasemapVisibility() {
   if (!terrainMap) return;
   const c = terrainMap.getContainer();
@@ -1502,7 +1651,7 @@ function terrainInvalidateLayout() {
   requestAnimationFrame(() => terrainMap.invalidateSize());
 }
 
-/** Why: align circle colors with the legend (כחול נמוך → אדום גבוה); what: maps normalized altitude 0..1 to HSL hue 240..0. */
+/** Why: align circle colors with the legend (???? ???? ? ???? ????); what: maps normalized altitude 0..1 to HSL hue 240..0. */
 function terrainAltNormToColor(t) {
   const tt = Math.max(0, Math.min(1, t));
   const h = 240 * (1 - tt);
@@ -1527,7 +1676,7 @@ function updateTerrainAltLegendTicks(minM, maxM) {
   hi.textContent = fmt(maxM);
 }
 
-/** Why: pilot sees where visual nav was mapped at which AGL; what: draws circles colored by aglM/altM (min–max in view), popup keeps quality + radius. */
+/** Why: pilot sees where visual nav was mapped at which AGL; what: draws circles colored by aglM/altM (min?max in view), popup keeps quality + radius. */
 function renderTerrainCoverage(cells) {
   if (!terrainMap) return;
   terrainLastCells = Array.isArray(cells) ? cells.slice() : [];
@@ -1564,12 +1713,12 @@ function renderTerrainCoverage(cells) {
     const circle = L.circle([cell.lat, cell.lon], {
       radius: r, color, fillColor: color, fillOpacity: fillOp, weight: 1.5,
     }).addTo(terrainMap);
-    circle.bindPopup(`גובה מיפוי (AGL): ${Math.round(altM)}m · איכות: ${Math.round(q * 100)}% · רדיוס: ${r.toFixed(0)}m`);
+    circle.bindPopup(`???? ????? (AGL): ${Math.round(altM)}m ? ?????: ${Math.round(q * 100)}% ? ?????: ${r.toFixed(0)}m`);
     terrainCircles.push(circle);
     totalArea += Math.PI * r * r;
   });
   if (terrainCellCount) terrainCellCount.textContent = String(list.length);
-  if (terrainAreaEst) terrainAreaEst.textContent = list.length > 0 ? `${Math.round(totalArea)} m²` : '0 m²';
+  if (terrainAreaEst) terrainAreaEst.textContent = list.length > 0 ? `${Math.round(totalArea)} m?` : '0 m?';
   if (list.length > 0) {
     const lats = list.map((c) => c.lat);
     const lons = list.map((c) => c.lon);
@@ -1646,12 +1795,12 @@ if (terrainClearBtn) {
     terrainCircles = [];
     terrainLastCells = [];
     if (terrainCellCount) terrainCellCount.textContent = '0';
-    if (terrainAreaEst) terrainAreaEst.textContent = '0 m²';
+    if (terrainAreaEst) terrainAreaEst.textContent = '0 m?';
     terrainInvalidateLayout();
   });
 }
 
-/* ─── CAMERA ANNOTATIONS ─── */
+/* ??? CAMERA ANNOTATIONS ??? */
 const annotationCanvas = document.getElementById('annotationCanvas');
 const annotationsToggleBtn = document.getElementById('annotationsToggleBtn');
 const lockIndicator = document.getElementById('lockIndicator');
@@ -1699,10 +1848,10 @@ function drawAnnotations(video, canvas) {
   ctx.setLineDash([]);
 
   if (lockIndicator) {
-    lockIndicator.textContent = isLocked ? 'ננעל ✓' : isSearching ? 'מחפש…' : 'אין נעילה';
+    lockIndicator.textContent = isLocked ? '???? ?' : isSearching ? '?????' : '??? ?????';
     lockIndicator.className = `lock-indicator ${isLocked ? 'locked' : isSearching ? 'searching' : 'no-lock'}`;
   }
-  if (annotConfidence) annotConfidence.textContent = `ביטחון: ${Math.round(conf * 100)}%`;
+  if (annotConfidence) annotConfidence.textContent = `??????: ${Math.round(conf * 100)}%`;
 }
 
 if (flightVideo && annotationCanvas) {
@@ -1714,7 +1863,7 @@ if (flightVideo && annotationCanvas) {
   flightVideo.addEventListener('ended', () => {
     clearInterval(annotationTimer);
     annotationCanvas.getContext('2d').clearRect(0, 0, annotationCanvas.width, annotationCanvas.height);
-    if (lockIndicator) { lockIndicator.textContent = 'אין נעילה'; lockIndicator.className = 'lock-indicator no-lock'; }
+    if (lockIndicator) { lockIndicator.textContent = '??? ?????'; lockIndicator.className = 'lock-indicator no-lock'; }
   });
   flightVideo.addEventListener('timeupdate', () => {
     if (flightVideo.paused) drawAnnotations(flightVideo, annotationCanvas);
@@ -1725,18 +1874,305 @@ if (flightVideo && annotationCanvas) {
 if (annotationsToggleBtn) {
   annotationsToggleBtn.addEventListener('click', () => {
     annotationsEnabled = !annotationsEnabled;
-    annotationsToggleBtn.textContent = `אנוטציות: ${annotationsEnabled ? 'פועל' : 'כבוי'}`;
+    annotationsToggleBtn.textContent = `????????: ${annotationsEnabled ? '????' : '????'}`;
     if (!annotationsEnabled && annotationCanvas) annotationCanvas.getContext('2d').clearRect(0, 0, annotationCanvas.width, annotationCanvas.height);
   });
 }
+/* ???????????????????????????????????????????????????????????????
+   COMPATIBILITY BANNER
+   ??????????????????????????????????????????????????????????????? */
 
-if (terrainClearBtn) {
-  terrainClearBtn.addEventListener('click', () => {
-    terrainCircles.forEach((c) => terrainMap?.removeLayer(c));
-    terrainCircles = [];
-    terrainLastCells = [];
-    if (terrainCellCount) terrainCellCount.textContent = '0';
-    if (terrainAreaEst) terrainAreaEst.textContent = '0 m²';
-    terrainInvalidateLayout();
-  });
+const compatBanner        = document.getElementById('compatBanner');
+const compatBannerText    = document.getElementById('compatBannerText');
+const compatBannerDetails = document.getElementById('compatBannerDetails');
+const compatBannerClose   = document.getElementById('compatBannerClose');
+
+let _lastCompatData = null;
+
+async function checkCompatibility() {
+  try {
+    const r = await fetch('/api/health/compatibility');
+    if (!r.ok) return;
+    const data = await r.json();
+    _lastCompatData = data;
+    renderCompatBanner(data);
+    renderCompatCards(data);
+  } catch { /* network error ? silent */ }
 }
+
+function renderCompatBanner(data) {
+  if (!compatBanner) return;
+  if (data.overallStatus === 'ok') {
+    compatBanner.classList.add('compat-banner--hidden');
+    compatBanner.classList.remove('compat-banner--warn', 'compat-banner--error');
+    return;
+  }
+  const issues = Object.values(data.components)
+    .filter(c => c.status === 'error' || c.status === 'warn')
+    .map(c => `${c.label}${c.message ? ': ' + c.message : ''}`)
+    .join(' | ');
+  compatBannerText.textContent = issues || '????? ?????? ??????';
+  compatBanner.classList.remove('compat-banner--hidden', 'compat-banner--warn', 'compat-banner--error');
+  compatBanner.classList.add(data.overallStatus === 'error' ? 'compat-banner--error' : 'compat-banner--warn');
+}
+
+function renderCompatCards(data) {
+  const el = document.getElementById('connCompatCards');
+  if (!el) return;
+  const chips = Object.entries(data.components).map(([, c]) => {
+    const tip = c.message ? ` title="${c.message}"` : '';
+    return `<span class="conn-compat-chip conn-compat-chip--${c.status}"${tip}>
+      <span class="conn-compat-chip-dot"></span>
+      ${c.label}${c.version ? ` <small style="opacity:.7">${c.version}</small>` : ''}
+    </span>`;
+  }).join('');
+  el.innerHTML = chips || '<span style="color:var(--text-muted);font-size:.82rem">?? ????</span>';
+}
+
+if (compatBannerClose) compatBannerClose.addEventListener('click', () => {
+  compatBanner.classList.add('compat-banner--hidden');
+});
+
+if (compatBannerDetails) compatBannerDetails.addEventListener('click', () => {
+  const tab = document.querySelector('[data-tab="connections"]');
+  if (tab) tab.click();
+});
+
+const reCheckCompatBtn = document.getElementById('reCheckCompatBtn');
+if (reCheckCompatBtn) reCheckCompatBtn.addEventListener('click', checkCompatibility);
+
+checkCompatibility();
+setInterval(checkCompatibility, 60_000);
+
+/* ???????????????????????????????????????????????????????????????
+   CONNECTION MANAGER
+   ??????????????????????????????????????????????????????????????? */
+
+const connectionsList     = document.getElementById('connectionsList');
+const addConnectionBtn    = document.getElementById('addConnectionBtn');
+const refreshConnectionsBtn = document.getElementById('refreshConnectionsBtn');
+const connFormCard        = document.getElementById('connFormCard');
+const connFormTitle       = document.getElementById('connFormTitle');
+const connFormName        = document.getElementById('connFormName');
+const connFormType        = document.getElementById('connFormType');
+const connFormHost        = document.getElementById('connFormHost');
+const connFormPort        = document.getElementById('connFormPort');
+const connFormSerial      = document.getElementById('connFormSerial');
+const connFormBaud        = document.getElementById('connFormBaud');
+const connFormSaveBtn     = document.getElementById('connFormSaveBtn');
+const connFormCancelBtn   = document.getElementById('connFormCancelBtn');
+const connFormStatus      = document.getElementById('connFormStatus');
+const connFormEditId      = document.getElementById('connFormEditId');
+const serverUrlDisplay    = document.getElementById('serverUrlDisplay');
+const serverUrlQr         = document.getElementById('serverUrlQr');
+const copyServerUrlBtn    = document.getElementById('copyServerUrlBtn');
+
+const TYPE_LABELS = {
+  udp: 'UDP MAVLink', tcp: 'TCP MAVLink',
+  serial: 'Serial', telemetry: 'Telemetry Radio', http: 'HTTP',
+};
+const TYPE_DEFAULTS = { udp: 14550, tcp: 5760, serial: null, telemetry: null, http: 4010 };
+const SERIAL_TYPES = new Set(['serial', 'telemetry']);
+
+function initServerUrl() {
+  const url = `${location.protocol}//${location.hostname}:${location.port || 4010}`;
+  if (serverUrlDisplay) serverUrlDisplay.textContent = url;
+  if (serverUrlQr) serverUrlQr.src = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(url)}`;
+}
+
+if (copyServerUrlBtn) copyServerUrlBtn.addEventListener('click', async () => {
+  const url = serverUrlDisplay?.textContent || '';
+  try {
+    await navigator.clipboard.writeText(url);
+    copyServerUrlBtn.textContent = '? ?????';
+    setTimeout(() => { copyServerUrlBtn.textContent = '?? ????'; }, 1500);
+  } catch { /* clipboard not available */ }
+});
+
+function toggleSerialFields() {
+  const isSerial = connFormType && SERIAL_TYPES.has(connFormType.value);
+  document.querySelectorAll('.conn-form-serial-field').forEach(el => {
+    el.classList.toggle('visible', isSerial);
+  });
+  if (connFormPort && TYPE_DEFAULTS[connFormType?.value] !== undefined) {
+    if (!connFormPort.value) connFormPort.value = TYPE_DEFAULTS[connFormType.value] || '';
+  }
+}
+
+if (connFormType) connFormType.addEventListener('change', () => {
+  toggleSerialFields();
+  if (SERIAL_TYPES.has(connFormType.value)) loadSerialPorts();
+});
+
+async function loadSerialPorts() {
+  if (!connFormSerial) return;
+  try {
+    const r = await fetch('/api/connections/ports/list');
+    const d = await r.json();
+    const current = connFormSerial.value;
+    connFormSerial.innerHTML = '<option value="">-- ??? ???? --</option>';
+    if (d.ok && d.ports.length) {
+      d.ports.forEach((p) => {
+        const opt = document.createElement('option');
+        opt.value = p.path;
+        opt.textContent = `${p.path}${p.manufacturer ? ' ? ' + p.manufacturer : ''}`;
+        connFormSerial.appendChild(opt);
+      });
+    } else {
+      const opt = document.createElement('option');
+      opt.value = '';
+      opt.textContent = '?? ????? ?????? ? ??? ????? ???? ???';
+      connFormSerial.appendChild(opt);
+    }
+    if (current) connFormSerial.value = current;
+  } catch { /* ignore */ }
+}
+
+function connStatusLabel(conn) {
+  if (conn.liveStatus?.connected) {
+    const remote = conn.liveStatus.remoteAddr ? ` ? ${conn.liveStatus.remoteAddr}` : '';
+    const vt = conn.liveStatus.vehicleType ? ` | ${conn.liveStatus.vehicleType}` : '';
+    const hb = conn.liveStatus.lastHeartbeatAt ? ' ? HB' : '';
+    return `?????${remote}${vt}${hb}`;
+  }
+  if (conn.liveStatus?.listening) return '????? ??????...';
+  return conn.last_connected ? `?????: ${conn.last_connected}` : '?? ?????';
+}
+
+function renderConnections(conns) {
+  if (!connectionsList) return;
+  if (!conns.length) {
+    connectionsList.innerHTML = '<p class="conn-empty-hint">?? ?????? ???????. ??? "+ ???? ?????" ??? ?????? ?????? ?-FC.</p>';
+    return;
+  }
+  connectionsList.innerHTML = conns.map(c => {
+    const isActive = c.liveStatus?.connected || c.liveStatus?.listening;
+    const meta = `${TYPE_LABELS[c.type] || c.type} | ${
+      c.type === 'serial' || c.type === 'telemetry' ? `${c.serial_port || '?'} @ ${c.baud_rate}` :
+      `${c.host || '0.0.0.0'}:${c.port || '?'}`
+    } | ${connStatusLabel(c)}`;
+    return `<div class="conn-card${isActive ? ' conn-card--active' : ''}" data-conn-id="${c.id}">
+      <span class="conn-card-dot"></span>
+      <div class="conn-card-info">
+        <div class="conn-card-name">${c.name}</div>
+        <div class="conn-card-meta">${meta}</div>
+      </div>
+      <div class="conn-card-actions">
+        ${isActive
+          ? `<button class="conn-btn-disconnect" onclick="deactivateConn(${c.id})">???</button>`
+          : `<button class="conn-btn-connect" onclick="activateConn(${c.id})" ${SERIAL_TYPES.has(c.type) ? 'disabled title="???? ????? ?????"' : ''}>?????</button>`
+        }
+        <button class="conn-btn-edit" onclick="editConn(${c.id})">?</button>
+        <button class="conn-btn-delete" onclick="deleteConn(${c.id})">??</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function loadConnections() {
+  try {
+    const r = await fetch('/api/connections');
+    const data = await r.json();
+    if (data.ok) renderConnections(data.connections);
+  } catch { /* network error */ }
+}
+
+window.activateConn = async (id) => {
+  try {
+    const r = await fetch(`/api/connections/${id}/activate`, { method: 'POST' });
+    const d = await r.json();
+    if (!d.ok) alert(`?????: ${d.message}`);
+    await loadConnections();
+  } catch (e) { alert(e.message); }
+};
+
+window.deactivateConn = async (id) => {
+  try {
+    await fetch(`/api/connections/${id}/deactivate`, { method: 'POST' });
+    await loadConnections();
+  } catch { /* ignore */ }
+};
+
+window.deleteConn = async (id) => {
+  if (!confirm('????? ????? ???')) return;
+  try {
+    await fetch(`/api/connections/${id}`, { method: 'DELETE' });
+    await loadConnections();
+  } catch { /* ignore */ }
+};
+
+window.editConn = async (id) => {
+  try {
+    const r = await fetch(`/api/connections/${id}/status`);
+    const d = await r.json();
+    if (!d.ok) return;
+    const c = d.connection;
+    connFormEditId.value = String(c.id);
+    connFormTitle.textContent = '???? ?????';
+    connFormName.value = c.name;
+    connFormType.value = c.type;
+    connFormHost.value = c.host || '';
+    connFormPort.value = c.port || '';
+    if (SERIAL_TYPES.has(c.type)) { await loadSerialPorts(); }
+    connFormSerial.value = c.serial_port || '';
+    connFormBaud.value = String(c.baud_rate || 57600);
+    toggleSerialFields();
+    connFormCard.classList.remove('conn-form-card--hidden');
+    connFormCard.scrollIntoView({ behavior: 'smooth' });
+  } catch { /* ignore */ }
+};
+
+if (addConnectionBtn) addConnectionBtn.addEventListener('click', () => {
+  connFormEditId.value = '';
+  connFormTitle.textContent = '????? ???';
+  connFormName.value = '';
+  connFormType.value = 'udp';
+  connFormHost.value = '';
+  connFormPort.value = '14550';
+  connFormSerial.value = '';
+  connFormBaud.value = '57600';
+  connFormStatus.textContent = '';
+  toggleSerialFields();
+  connFormCard.classList.remove('conn-form-card--hidden');
+  connFormCard.scrollIntoView({ behavior: 'smooth' });
+});
+
+if (connFormCancelBtn) connFormCancelBtn.addEventListener('click', () => {
+  connFormCard.classList.add('conn-form-card--hidden');
+});
+
+if (connFormSaveBtn) connFormSaveBtn.addEventListener('click', async () => {
+  const name = connFormName?.value.trim();
+  const type = connFormType?.value;
+  if (!name) { connFormStatus.textContent = '?? ????'; return; }
+  const body = {
+    name, type,
+    host: connFormHost?.value.trim() || null,
+    port: connFormPort?.value ? Number(connFormPort.value) : null,
+    serialPort: connFormSerial?.value.trim() || null,
+    baudRate: connFormBaud?.value ? Number(connFormBaud.value) : 57600,
+  };
+  const editId = connFormEditId?.value;
+  try {
+    const url = editId ? `/api/connections/${editId}` : '/api/connections';
+    const method = editId ? 'PATCH' : 'POST';
+    const r = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const d = await r.json();
+    if (!d.ok) { connFormStatus.textContent = `?????: ${d.message}`; return; }
+    connFormCard.classList.add('conn-form-card--hidden');
+    await loadConnections();
+  } catch (e) { connFormStatus.textContent = e.message; }
+});
+
+if (refreshConnectionsBtn) refreshConnectionsBtn.addEventListener('click', () => {
+  loadConnections();
+  checkCompatibility();
+});
+
+document.querySelector('[data-tab="connections"]')?.addEventListener('click', () => {
+  initServerUrl();
+  loadConnections();
+  checkCompatibility();
+});
+
+initServerUrl();

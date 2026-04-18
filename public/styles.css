@@ -16,6 +16,10 @@
   --secondary: #ab3600;
   --accent-range: #00478d;
   --shadow: rgba(0, 71, 141, 0.08);
+  --tele-dash-radius: 14px;
+  --tele-card-radius: 10px;
+  --tele-card-shadow: 0 2px 10px rgba(0, 71, 141, 0.07), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --tele-panel-shadow: 0 12px 32px rgba(0, 71, 141, 0.1), 0 2px 6px rgba(0, 0, 0, 0.04);
   --success-bg: #ecfdf5;
   --success-border: #6ee7b7;
   --success-text: #065f46;
@@ -28,12 +32,19 @@
 }
 
 * { box-sizing: border-box; }
+html {
+  height: 100%;
+  overflow: hidden;
+}
 html, body { height: 100%; }
 
 body {
   margin: 0;
   font-family: "Inter", "Segoe UI", system-ui, sans-serif;
   color: var(--text);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
   overflow: hidden;
   background-color: var(--bg);
   background-image: radial-gradient(var(--bg-grid-dot) 0.5px, transparent 0.5px);
@@ -55,6 +66,7 @@ h1, h2, .panel-header h2 {
   background: var(--surface-low);
   backdrop-filter: blur(8px);
   min-height: 64px;
+  flex-shrink: 0;
 }
 
 h1 { margin: 0; font-size: 1.35rem; color: var(--primary); }
@@ -71,6 +83,8 @@ h1 { margin: 0; font-size: 1.35rem; color: var(--primary); }
   color: var(--text-muted);
   box-shadow: 0 1px 3px var(--shadow);
 }
+
+.confidence-hud strong { color: var(--primary); font-weight: 700; }
 
 .confidence-track {
   height: 7px;
@@ -101,19 +115,36 @@ h1 { margin: 0; font-size: 1.35rem; color: var(--primary); }
 }
 
 .clickable { cursor: pointer; }
-.dev-mode .editable-text { outline: 1px dashed var(--primary); outline-offset: 2px; cursor: text; }
-.dev-mode .editable-text:hover { background: rgba(0, 71, 141, 0.06); }
+.help-q {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  margin-inline-start: 4px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  font-size: 0.64rem;
+  color: var(--text-muted);
+  cursor: help;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
 
 .layout {
   max-width: 1320px;
-  height: calc(100vh - 64px);
+  flex: 1 1 0;
+  min-height: 0;
+  width: 100%;
   margin: 0 auto;
   padding: 10px 14px 12px;
   display: flex;
   flex-direction: column;
   gap: 10px;
+  overflow: hidden;
 }
 
+/* Why: tabs must stay above panel content if anything overlaps (stacking / RTL); what: shrink-disabled chrome row with explicit stacking. */
 .tabs {
   display: flex;
   flex-wrap: nowrap;
@@ -121,6 +152,10 @@ h1 { margin: 0; font-size: 1.35rem; color: var(--primary); }
   margin: 0;
   overflow-x: auto;
   padding-bottom: 4px;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 50;
+  isolation: isolate;
 }
 
 .tab {
@@ -155,7 +190,7 @@ h1 { margin: 0; font-size: 1.35rem; color: var(--primary); }
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 0;
-  padding: 12px;
+  padding: 8px 12px 10px;
   flex: 1;
   min-height: 0;
   overflow: hidden;
@@ -209,13 +244,26 @@ h1 { margin: 0; font-size: 1.35rem; color: var(--primary); }
   justify-content: space-between;
   align-items: center;
   gap: 10px;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
 }
 
 .hint { color: var(--text-muted); margin: 0 0 8px; font-size: 0.86rem; flex-shrink: 0; }
 .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.actions .action-status {
+  align-self: center;
+  min-width: 120px;
+}
 .subtabs { display: flex; gap: 8px; margin-bottom: 10px; flex-shrink: 0; }
 .subtabs-wrap { flex-wrap: wrap; }
+.control-subtabs-bar {
+  display: none;
+  border-bottom: 1px solid var(--border);
+  padding: 6px 12px 2px;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 40;
+}
+.control-subtabs-bar.visible { display: block; }
 
 .control-sync-bar {
   display: flex;
@@ -412,25 +460,19 @@ h1 { margin: 0; font-size: 1.35rem; color: var(--primary); }
   min-height: 180px;
 }
 
-/* Takeoff: prep card below sliders */
-#takeoffParams.subpanel.visible > .takeoff-prep-card {
-  flex-shrink: 0;
-  margin-top: 8px;
-}
-
 #arduParams.subpanel.visible {
   display: flex !important;
   flex-direction: column;
   overflow: hidden;
-  gap: 0;
+  gap: 8px;
   min-height: 0;
 }
 
 .ardu-cat-subtabs {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  margin: 10px 0 8px;
+  gap: 5px;
+  margin: 0 0 4px;
   flex-shrink: 0;
 }
 
@@ -438,8 +480,8 @@ h1 { margin: 0; font-size: 1.35rem; color: var(--primary); }
   background: var(--surface-raised);
   border: 1px solid var(--border);
   color: var(--text-muted);
-  padding: 6px 11px;
-  font-size: 0.72rem;
+  padding: 4px 8px;
+  font-size: 0.66rem;
   font-weight: 700;
   cursor: pointer;
   font-family: "Space Grotesk", sans-serif;
@@ -458,23 +500,37 @@ h1 { margin: 0; font-size: 1.35rem; color: var(--primary); }
 }
 
 .ardu-param-form-panels {
-  flex: 1 1 0;
+  flex: 1 1 auto;
   min-height: 0;
   overflow: hidden;
-  position: relative;
-}
-
-.ardu-cat-subpanel {
-  display: none;
-  height: 100%;
-  max-height: calc(100vh - 360px);
-  overflow-y: auto;
-  overflow-x: hidden;
-  padding-bottom: 8px;
-}
-
-.ardu-cat-subpanel.visible {
   display: block;
+}
+
+.ardu-group-section {
+  display: none;
+  border: 1px solid var(--border);
+  background: var(--surface-low);
+  padding: 8px;
+  height: 100%;
+  overflow: auto;
+}
+
+.ardu-group-section.visible {
+  display: block;
+}
+
+.ardu-group-title {
+  margin: 0 0 6px;
+  font-size: 0.76rem;
+  color: var(--primary);
+  font-family: "Space Grotesk", sans-serif;
+  letter-spacing: 0.04em;
+}
+
+.ardu-group-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 8px;
 }
 
 .ardu-diff-section-hidden {
@@ -525,8 +581,12 @@ h1 { margin: 0; font-size: 1.35rem; color: var(--primary); }
 .ardu-param-file-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 12px;
+  gap: 6px;
+  margin-top: 8px;
+}
+.ardu-param-file-actions button {
+  padding: 6px 10px;
+  font-size: 0.72rem;
 }
 
 .ardu-param-form {
@@ -551,24 +611,24 @@ h1 { margin: 0; font-size: 1.35rem; color: var(--primary); }
 .ardu-field-card {
   background: var(--surface);
   border: 1px solid var(--border);
-  padding: 10px 12px;
+  padding: 7px 8px;
   box-shadow: 0 1px 2px var(--shadow);
 }
 
 .ardu-field-card label {
   display: block;
-  font-size: 0.78rem;
+  font-size: 0.72rem;
   color: var(--text-muted);
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
 
 .ardu-field-card input[type="number"] {
   width: 100%;
-  padding: 6px 8px;
+  padding: 4px 6px;
   border: 1px solid var(--border);
   background: var(--input-bg);
   color: var(--text);
-  font-size: 0.88rem;
+  font-size: 0.8rem;
 }
 
 .ardu-field-bool {
@@ -803,7 +863,8 @@ button:hover,
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding-bottom: 4px;
+  padding: 4px 0 8px;
+  scroll-padding-top: 8px;
 }
 
 .msg {
@@ -828,6 +889,21 @@ button:hover,
   border-color: var(--border);
   color: var(--text);
 }
+
+.msg ol, .msg ul {
+  margin: 0.4rem 0 0.2rem 1.4rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.msg li { line-height: 1.5; }
+.msg p  { margin: 0.2rem 0; }
+.msg p:first-child { margin-top: 0; }
+.msg p:last-child  { margin-bottom: 0; }
+.msg strong { font-weight: 600; }
+.msg code   { background: var(--border); padding: 0 3px; border-radius: 3px; font-size: 0.85em; }
+.msg .md-h  { margin: 0.3rem 0 0.1rem; font-size: 0.97rem; font-weight: 700; }
 
 .advisor-input-row {
   display: grid;
@@ -959,17 +1035,6 @@ button:hover,
   border-color: var(--border);
 }
 
-.takeoff-prep-card {
-  margin-top: 8px;
-  background: var(--surface-low);
-  border: 1px dashed var(--border);
-  border-radius: 0;
-  padding: 8px;
-  font-size: 0.85rem;
-}
-
-.takeoff-prep-card h3 { margin: 0 0 6px; font-size: 0.92rem; color: var(--primary); }
-.takeoff-prep-card ul { margin: 0; padding-inline-start: 18px; color: var(--text-muted); }
 
 @media (max-width: 980px) {
   .recordings-layout { grid-template-columns: 1fr; }
@@ -993,7 +1058,7 @@ button:hover,
   }
   .process-flow { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .topbar { min-height: 56px; }
-  .layout { height: calc(100vh - 56px); }
+  .layout { flex: 1 1 0; min-height: 0; }
   .confidence-hud { display: none; }
 }
 
@@ -1129,24 +1194,505 @@ button:hover,
 #ardupilotValidateResult .pass { color: #15803d; }
 #ardupilotValidateResult .fail { color: #dc2626; }
 
-#telemetry.panel.visible { overflow-y: auto; }
+/**
+ * Why: operator feedback — readable metrics that fill the viewport without scrollbars.
+ * What: flex column fills tab height; 12-col grid uses two equal rows (1fr); card grids use overflow hidden + equal row fr units so content fits (no inner scroll).
+ */
+#telemetry.panel.visible {
+  display: flex !important;
+  flex-direction: column;
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: hidden;
+  padding: 8px 10px 10px;
+}
 
-/* DEMO / LIVE */
-.demo-data { position: relative; opacity: 0.95; }
+.telemetry-dashboard {
+  flex: 1 1 0;
+  min-height: 0;
+  height: 100%;
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+  align-content: stretch;
+  align-items: stretch;
+  overflow: hidden;
+}
 
-.demo-data::after {
-  content: "DEMO";
-  position: absolute;
-  top: 4px;
-  inset-inline-end: 6px;
-  font-size: 0.62rem;
+.tele-dash-col {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+  border: 1px solid rgba(194, 198, 212, 0.85);
+  border-radius: var(--tele-dash-radius);
+  background:
+    linear-gradient(165deg, rgba(255, 255, 255, 0.92) 0%, rgba(248, 250, 252, 0.96) 45%, rgba(236, 241, 247, 0.88) 100%),
+    var(--surface-low);
+  padding: 12px 14px;
+  box-shadow: var(--tele-panel-shadow);
+}
+
+#teleLink.tele-dash-col {
+  grid-column: span 7;
+  border-inline-start: 4px solid var(--primary);
+}
+
+#teleVision.tele-dash-col {
+  grid-column: span 5;
+  border-inline-start: 4px solid #1d4ed8;
+}
+
+#teleSlam.tele-dash-col {
+  grid-column: span 5;
+  border-inline-start: 4px solid #0f766e;
+}
+
+#teleJetson.tele-dash-col {
+  grid-column: span 7;
+  border-inline-start: 4px solid #b45309;
+}
+
+.tele-dash-head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--primary);
+  margin: 0 0 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(0, 71, 141, 0.12);
+}
+
+.tele-dash-head--split {
+  align-items: center;
+}
+
+.tele-dash-head .section-badge {
+  margin-inline-start: 0;
+  font-size: 0.65rem;
   font-weight: 700;
-  letter-spacing: 0.06em;
-  padding: 1px 5px;
-  border-radius: 0;
-  background: #7c3aed;
-  color: #ede9fe;
-  pointer-events: none;
+  padding: 4px 10px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border-radius: 999px;
+  background: rgba(0, 71, 141, 0.08);
+  border: 1px solid rgba(0, 71, 141, 0.18);
+  color: var(--primary);
+  letter-spacing: 0.04em;
+}
+
+.tele-dash-sub {
+  display: block;
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  color: var(--text-muted);
+  opacity: 0.9;
+  margin-top: 4px;
+}
+
+.tele-dash-note {
+  flex: 0 0 auto;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  line-height: 1.35;
+  margin: 0 0 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(15, 118, 110, 0.06);
+  border: 1px solid rgba(15, 118, 110, 0.15);
+}
+
+.tele-dash-col .telemetry-cards.tele-dash-cards {
+  flex: 1 1 0;
+  min-height: 0;
+  margin-bottom: 0;
+  overflow: hidden;
+  align-content: stretch;
+  grid-template-columns: repeat(auto-fit, minmax(152px, 1fr));
+  grid-auto-rows: minmax(0, 1fr);
+  gap: 10px;
+}
+
+/* Why: fixed column counts per panel — aligned rows, no ragged auto-fit wrapping. What: panel IDs override the generic auto-fit grid. */
+#teleLink.tele-dash-col .telemetry-cards.tele-dash-cards {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+/* Why: five metrics in two balanced rows (3+2 centered). What: 6-column grid — top row three equal cells, bottom row two centered. */
+#teleVision.tele-dash-col .telemetry-cards.tele-dash-cards {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+#teleVision.tele-dash-col .telemetry-cards.tele-dash-cards article:nth-child(1),
+#teleVision.tele-dash-col .telemetry-cards.tele-dash-cards article:nth-child(2),
+#teleVision.tele-dash-col .telemetry-cards.tele-dash-cards article:nth-child(3) {
+  grid-column: span 2;
+}
+
+#teleVision.tele-dash-col .telemetry-cards.tele-dash-cards article:nth-child(4) {
+  grid-column: 2 / span 2;
+}
+
+#teleVision.tele-dash-col .telemetry-cards.tele-dash-cards article:nth-child(5) {
+  grid-column: 4 / span 2;
+}
+
+#teleSlam.tele-dash-col .telemetry-cards.tele-dash-cards {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+/* Why: four metrics in one row + link quality centered below. What: 4-column row, fifth card spans middle columns. */
+#teleJetson.tele-dash-col .telemetry-cards.tele-dash-cards {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+#teleJetson.tele-dash-col .telemetry-cards.tele-dash-cards article:nth-child(5) {
+  grid-column: 2 / span 2;
+}
+
+.tele-dash-col .tele-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 0;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  border: 1px solid rgba(0, 71, 141, 0.1);
+  border-radius: var(--tele-card-radius);
+  padding: 9px 11px;
+  box-shadow: var(--tele-card-shadow);
+}
+
+.tele-dash-col .tele-card span {
+  font-size: 0.72rem;
+  line-height: 1.3;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.tele-dash-col .tele-card strong {
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin-top: 5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+
+.jetson-status-bar--compact {
+  flex: 0 0 auto;
+  font-size: 0.88rem;
+  margin-bottom: 8px;
+  gap: 10px;
+}
+
+.tele-dash-jetson-foot {
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.tele-dash-jetson-foot button {
+  font-family: "Space Grotesk", "Inter", sans-serif;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  padding: 8px 14px;
+  border: none;
+  border-radius: 8px;
+  background: linear-gradient(180deg, #0056a8 0%, var(--primary) 100%);
+  color: #fff;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 71, 141, 0.25);
+}
+
+.tele-dash-jetson-foot button:hover {
+  filter: brightness(1.06);
+}
+
+.tele-dash-jetson-foot button:active {
+  transform: translateY(1px);
+}
+
+.tele-dash-col .tele-card .tele-q {
+  border-color: rgba(0, 71, 141, 0.22);
+  background: rgba(0, 71, 141, 0.05);
+  color: var(--primary);
+  font-weight: 700;
+}
+
+.jetson-hint--dash {
+  margin: 0;
+  flex: 1 1 100px;
+  min-width: 0;
+  font-size: 0.72rem;
+  line-height: 1.25;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+@media (max-width: 900px) {
+  .telemetry-dashboard {
+    grid-template-columns: 1fr;
+    grid-template-rows: repeat(4, minmax(0, 1fr));
+    overflow: hidden;
+    align-items: stretch;
+  }
+
+  #teleLink.tele-dash-col,
+  #teleVision.tele-dash-col,
+  #teleSlam.tele-dash-col,
+  #teleJetson.tele-dash-col {
+    grid-column: 1 / -1;
+    height: auto;
+  }
+
+  /* Why: stack metrics without fixed 6-col layout on narrow viewports. What: reset panel grids + nth-child placement. */
+  #teleLink.tele-dash-col .telemetry-cards.tele-dash-cards {
+    grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  }
+
+  #teleVision.tele-dash-col .telemetry-cards.tele-dash-cards {
+    grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  }
+
+  #teleVision.tele-dash-col .telemetry-cards.tele-dash-cards article:nth-child(1),
+  #teleVision.tele-dash-col .telemetry-cards.tele-dash-cards article:nth-child(2),
+  #teleVision.tele-dash-col .telemetry-cards.tele-dash-cards article:nth-child(3),
+  #teleVision.tele-dash-col .telemetry-cards.tele-dash-cards article:nth-child(4),
+  #teleVision.tele-dash-col .telemetry-cards.tele-dash-cards article:nth-child(5) {
+    grid-column: auto;
+  }
+
+  #teleSlam.tele-dash-col .telemetry-cards.tele-dash-cards {
+    grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  }
+
+  #teleJetson.tele-dash-col .telemetry-cards.tele-dash-cards {
+    grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  }
+
+  #teleJetson.tele-dash-col .telemetry-cards.tele-dash-cards article:nth-child(5) {
+    grid-column: auto;
+  }
+}
+
+@media (min-height: 760px) and (min-width: 1024px) {
+  .tele-dash-col .telemetry-cards.tele-dash-cards {
+    gap: 11px;
+  }
+}
+
+/* Why: debrief/logs should use horizontal space first.
+ * What: upload tools on one side, all-logs table on the other, with management section below.
+ */
+#flights.panel.visible.flights-panel {
+  display: grid !important;
+  grid-template-columns: minmax(360px, 1fr) minmax(520px, 1.35fr);
+  grid-template-areas:
+    "head head"
+    "upload logs"
+    "manage manage";
+  gap: 10px;
+  align-content: start;
+  overflow: hidden;
+  padding: 8px 10px 10px;
+}
+
+#flights.panel.visible.flights-panel > .panel-header:first-child {
+  grid-area: head;
+  margin-bottom: 0;
+}
+
+#flights.panel.visible.flights-panel > .log-upload-card {
+  grid-area: upload;
+  margin: 0;
+  padding: 10px 12px;
+}
+
+#flights.panel.visible.flights-panel > .panel-header[style*="margin-top"] {
+  grid-area: logs;
+  margin: 0 !important;
+}
+
+#flights.panel.visible.flights-panel > #allLogsTableWrap {
+  grid-area: logs;
+  min-height: 0;
+  max-height: 100%;
+  overflow: auto;
+  align-content: start;
+  margin-top: 34px;
+}
+
+#flights.panel.visible.flights-panel > .flight-manage {
+  grid-area: manage;
+  margin-top: 0 !important;
+}
+
+.log-upload-title {
+  margin: 0 0 8px;
+  font-size: 0.9rem;
+}
+
+.log-upload-grid {
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+.log-field-block {
+  gap: 6px;
+}
+
+.log-flight-select {
+  padding: 8px 10px;
+  font-size: 0.82rem;
+}
+
+.log-source-pill {
+  min-width: 86px;
+  padding: 8px 9px;
+  font-size: 0.72rem;
+}
+
+.log-drop-zone {
+  min-height: 88px;
+}
+
+.log-drop-inner {
+  padding: 10px;
+}
+
+.log-drop-icon {
+  font-size: 1.2rem;
+  margin-bottom: 2px;
+}
+
+.log-drop-text {
+  font-size: 0.76rem;
+}
+
+.log-pick-file-btn {
+  margin-top: 4px;
+  padding: 6px 12px;
+  font-size: 0.74rem;
+}
+
+.log-file-name-display {
+  margin-top: 6px;
+  font-size: 0.72rem;
+}
+
+.log-upload-actions {
+  gap: 8px;
+}
+
+.btn-pull-logs,
+.btn-upload-log {
+  padding: 8px 12px;
+  font-size: 0.72rem;
+}
+
+.logs-columns-wrap {
+  gap: 8px;
+  grid-template-columns: 1fr 1fr;
+}
+
+.logs-col {
+  padding: 6px;
+}
+
+.logs-col h4 {
+  margin: 0 0 6px;
+  font-size: 0.75rem;
+}
+
+.logs-table {
+  font-size: 0.73rem;
+}
+
+.logs-table th,
+.logs-table td {
+  padding: 4px 5px;
+}
+
+.log-open-btn {
+  padding: 3px 6px;
+  font-size: 0.68rem;
+}
+
+@media (max-width: 1100px) {
+  #flights.panel.visible.flights-panel {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "head"
+      "upload"
+      "logs"
+      "manage";
+    overflow-y: auto;
+  }
+
+  #flights.panel.visible.flights-panel > #allLogsTableWrap {
+    margin-top: 0;
+  }
+}
+
+.tele-subtabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.tele-subtab {
+  background: var(--surface-raised);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  padding: 7px 12px;
+  cursor: pointer;
+  font-size: 0.76rem;
+  font-weight: 700;
+  font-family: "Space Grotesk", sans-serif;
+  letter-spacing: 0.05em;
+}
+
+.tele-subtab.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+.tele-subpanel {
+  display: none;
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: auto;
+}
+
+.tele-subpanel.visible {
+  display: block;
 }
 
 .live-data {
@@ -1182,7 +1728,6 @@ button:hover,
   color: var(--primary);
 }
 
-.section-badge.demo-badge { background: #ede9fe; color: #5b21b6; }
 .section-badge.live-badge { background: #dcfce7; color: #166534; }
 
 .bar-live {
@@ -1203,18 +1748,27 @@ button:hover,
   flex: 0 0 auto;
 }
 
-.btn-demo-stop {
-  background: #7c3aed;
-  color: #ede9fe;
-  border: none;
-  border-radius: 0;
-  padding: 8px 14px;
-  font-size: 0.85rem;
-  cursor: pointer;
-  transition: background 0.2s;
+.tele-q {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  margin-inline-start: 4px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  cursor: help;
 }
 
-.btn-demo-stop:hover { background: #6d28d9; }
+.logs-columns-wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.logs-col { border: 1px solid var(--border); background: var(--surface-low); padding: 8px; }
+.logs-col h4 { margin: 0 0 8px; font-size: 0.82rem; }
+.logs-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+.logs-table th, .logs-table td { border-bottom: 1px solid var(--border); padding: 6px; text-align: right; }
+.logs-table tbody tr.selected { background: rgba(59,130,246,0.12); }
+.log-open-btn { padding: 4px 8px; font-size: 0.72rem; }
 
 .ardu-rw-bar {
   display: flex;
@@ -1525,6 +2079,12 @@ button:hover,
 
 /* Terrain */
 .terrain-info-bar { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+.terrain-info-bar .tele-card {
+  padding: 6px 10px;
+  min-width: 130px;
+}
+.terrain-info-bar .tele-card span { font-size: 0.72rem; }
+.terrain-info-bar .tele-card strong { font-size: 1rem; }
 /**
  * Why: never use display:flex inline on #terrain — it overrides .panel { display:none } and the map
  * stayed visible under בקרת נחיתה, stealing vertical space. What: flex layout only when tab is active.
@@ -1534,7 +2094,8 @@ button:hover,
   flex-direction: column;
   overflow: hidden;
   min-height: 0;
-  padding-bottom: 12px;
+  gap: 6px;
+  padding-bottom: 4px;
 }
 
 .terrain-toolbar {
@@ -1542,8 +2103,12 @@ button:hover,
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
-  margin-top: 10px;
+  margin-top: 2px;
   flex-shrink: 0;
+}
+
+.terrain-toolbar-inline {
+  margin-inline-start: auto;
 }
 
 .terrain-toolbar-label {
@@ -1587,90 +2152,127 @@ button:hover,
  * Why: Leaflet needs a bounded box so tiles don’t spill past the panel bottom; what: flex child with min-height 0 + max-height from viewport.
  */
 .terrain-map-shell {
+  flex: 1 1 auto;
+  min-height: clamp(300px, calc(100vh - 420px), 56vh);
+  height: clamp(300px, calc(100vh - 420px), 56vh);
   display: flex;
   flex-direction: column;
-  height: clamp(300px, calc(100vh - 420px), 68vh);
-  margin-top: 8px;
+  margin-top: 4px;
   border: 1px solid var(--border);
   border-radius: 0;
   overflow: hidden;
   background: var(--surface);
   position: relative;
-  flex-shrink: 0;
 }
 
 .terrain-map-rotatable {
+  position: relative;
   width: 100%;
   height: 100%;
+  min-height: clamp(300px, calc(100vh - 420px), 56vh);
+  max-height: none;
+  flex: 1 1 0;
   transform-origin: center center;
   transition: transform 0.22s ease;
 }
 
+/* Why: Leaflet measures the container — ensure the map box always has explicit dimensions inside the flex shell. What: full stretch + min height so tiles are not laid out at 0×0. */
 #terrainMap {
   height: 100%;
-  min-height: 300px;
+  min-height: 280px;
   width: 100%;
   overflow: hidden;
 }
 
-.leaflet-top.leaflet-left .terrain-bearing-control {
-  margin-top: 52px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  border: none;
-  box-shadow: none;
+#terrainMap.leaflet-container {
+  width: 100%;
+  height: 100%;
+  min-height: 260px;
+  z-index: 1;
 }
 
-.terrain-bearing-control .terrain-bc-btn {
+.leaflet-top.leaflet-left .terrain-bearing-control {
+  margin-top: 10px;
+  margin-inline-start: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgba(15, 23, 42, 0.25);
+  box-shadow: 0 6px 18px rgba(2, 6, 23, 0.28);
+  background: rgba(255, 255, 255, 0.96);
+  border-radius: 10px;
+  padding: 6px 8px;
+  z-index: 1000;
+}
+
+.terrain-rot-slider {
+  width: 112px;
+  accent-color: #0f4f92;
+  cursor: ew-resize;
+}
+
+.terrain-rot-deg {
+  min-width: 40px;
+  text-align: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #0f3f78;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.terrain-rot-north {
   width: 30px;
   height: 30px;
-  line-height: 28px;
-  padding: 0;
-  margin: 0;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--primary);
-  font-size: 1rem;
+  border: 1px solid #0b3f78;
+  border-radius: 8px;
+  background: linear-gradient(180deg, #0f4f92 0%, #0b3f78 100%);
+  color: #ffffff;
+  font-size: 0.74rem;
   font-weight: 700;
   cursor: pointer;
-  border-radius: 0;
 }
 
-.terrain-bearing-control .terrain-bc-btn:hover {
-  background: var(--primary-soft);
+.terrain-rot-north:hover {
+  filter: brightness(1.05);
 }
 
-.terrain-bearing-control .terrain-bc-north {
-  font-size: 0.72rem;
-  letter-spacing: 0.02em;
+.terrain-bearing-control.disabled .terrain-rot-slider,
+.terrain-bearing-control.disabled .terrain-rot-north,
+.terrain-bearing-control.disabled .terrain-rot-deg {
+  opacity: 0.55;
+}
+
+.terrain-bearing-control.disabled .terrain-rot-slider,
+.terrain-bearing-control.disabled .terrain-rot-north {
+  cursor: not-allowed;
 }
 
 .terrain-alt-legend {
   flex-shrink: 0;
-  margin-top: 10px;
-  padding: 10px 12px;
+  margin-top: 4px;
+  padding: 7px 10px;
   background: var(--surface-low);
   border: 1px solid var(--border);
 }
 
 .terrain-alt-legend-row {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin-bottom: 8px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 5px;
 }
 
 .terrain-alt-legend-title {
-  font-size: 0.8rem;
+  font-size: 0.74rem;
   font-weight: 700;
   color: var(--text);
 }
 
 .terrain-alt-legend-hint {
-  font-size: 0.74rem;
+  font-size: 0.68rem;
   color: var(--text-muted);
-  line-height: 1.4;
+  line-height: 1.2;
 }
 
 .terrain-alt-gradient {
@@ -1697,30 +2299,39 @@ button:hover,
 }
 
 .terrain-help-panel {
-  margin-top: 12px;
+  margin-top: 4px;
   background: var(--surface-low);
   border: 1px solid var(--border);
   border-radius: 0;
-  padding: 12px;
+  padding: 8px 10px;
   flex-shrink: 0;
-  max-height: min(28vh, 220px);
+  max-height: min(18vh, 120px);
   overflow-y: auto;
 }
 
-.terrain-help-panel h3 {
-  margin: 0 0 6px;
-  font-size: 0.9rem;
+.terrain-help-panel summary {
+  cursor: pointer;
   color: var(--primary);
+  font-weight: 700;
+  font-size: 0.82rem;
 }
 
 .terrain-help-panel p {
-  font-size: 0.82rem;
+  font-size: 0.78rem;
   color: var(--text-muted);
-  margin: 0 0 6px;
-  line-height: 1.5;
+  margin: 6px 0 0;
+  line-height: 1.4;
 }
 
-.terrain-help-panel p:last-child { margin-bottom: 0; }
+@media (max-height: 780px) {
+  .terrain-help-panel { display: none; }
+  .terrain-map-shell {
+    min-height: clamp(280px, calc(100vh - 360px), 52vh);
+    height: clamp(280px, calc(100vh - 360px), 52vh);
+  }
+  .terrain-map-rotatable { min-height: clamp(280px, calc(100vh - 360px), 52vh); }
+  #terrainMap { min-height: 280px; }
+}
 
 /* Video / annotations — base wrapper rules for non-recordings contexts */
 .video-wrapper { position: relative; display: block; width: 100%; }
@@ -1782,3 +2393,256 @@ details.flight-manage summary {
 .ardu-diff-summary { font-size: 0.85rem; color: var(--text-muted); margin: 0 0 8px; }
 
 .jetson-last-seen { font-size: 0.82rem; color: var(--text-muted); margin-inline-start: 10px; }
+
+/* ???????????????????????????????????????????????????????????????
+   COMPATIBILITY BANNER
+   ??????????????????????????????????????????????????????????????? */
+.compat-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  flex-shrink: 0;
+  border-bottom: 1px solid transparent;
+  transition: background 0.2s;
+}
+.compat-banner--hidden { display: none; }
+.compat-banner--warn {
+  background: var(--warn-bg);
+  border-color: var(--warn-border);
+  color: #92400e;
+}
+.compat-banner--error {
+  background: var(--danger-bg);
+  border-color: var(--danger-border);
+  color: #991b1b;
+}
+.compat-banner-icon { font-size: 1rem; flex-shrink: 0; }
+.compat-banner-text { flex: 1; }
+.compat-banner-btn {
+  background: transparent;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  padding: 2px 10px;
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: inherit;
+}
+.compat-banner-close {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+  color: inherit;
+  line-height: 1;
+  padding: 0 4px;
+  opacity: 0.6;
+}
+.compat-banner-close:hover { opacity: 1; }
+
+/* ???????????????????????????????????????????????????????????????
+   CONNECTIONS PANEL
+   ??????????????????????????????????????????????????????????????? */
+.connections-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+/* Server URL card */
+.conn-server-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.conn-server-card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.conn-server-card-title { font-weight: 700; font-size: 0.95rem; color: var(--primary); }
+.conn-server-url-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.conn-server-url {
+  flex: 1;
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  padding: 6px 10px;
+  font-size: 0.85rem;
+  font-family: monospace;
+  border-radius: 4px;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+.conn-url-btn {
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 4px 10px;
+  cursor: pointer;
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+.conn-url-btn:hover { background: var(--primary-soft); border-color: var(--primary); }
+.conn-qr-row {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+.conn-qr-img {
+  width: 120px;
+  height: 120px;
+  border: 1px solid var(--border);
+  background: #fff;
+  flex-shrink: 0;
+  border-radius: 4px;
+}
+.conn-qr-hint { font-size: 0.82rem; color: var(--text-muted); line-height: 1.5; }
+.conn-qr-hint p { margin: 0 0 6px; }
+.conn-qr-endpoints code { font-size: 0.78rem; display: block; color: var(--primary); }
+
+/* Compatibility summary */
+.conn-compat-summary {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.conn-compat-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.conn-compat-title { font-weight: 700; font-size: 0.9rem; }
+.conn-compat-cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.conn-compat-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border: 1px solid transparent;
+}
+.conn-compat-chip--ok    { background: #ecfdf5; border-color: #6ee7b7; color: #065f46; }
+.conn-compat-chip--warn  { background: var(--warn-bg); border-color: var(--warn-border); color: #92400e; }
+.conn-compat-chip--error { background: var(--danger-bg); border-color: var(--danger-border); color: #991b1b; }
+.conn-compat-chip--unknown { background: var(--surface-raised); border-color: var(--border); color: var(--text-muted); }
+.conn-compat-chip-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.conn-compat-chip--ok .conn-compat-chip-dot    { background: #10b981; }
+.conn-compat-chip--warn .conn-compat-chip-dot  { background: #f59e0b; }
+.conn-compat-chip--error .conn-compat-chip-dot { background: #ef4444; }
+.conn-compat-chip--unknown .conn-compat-chip-dot { background: #9ca3af; }
+
+/* MAVLink connections list */
+.conn-list-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 6px;
+}
+.conn-list-title { font-weight: 700; font-size: 0.9rem; color: var(--text); }
+.connections-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.conn-empty-hint { color: var(--text-muted); font-size: 0.85rem; margin: 0; }
+
+.conn-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.conn-card--active { border-color: #10b981; background: #f0fdf4; }
+.conn-card-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: #d1d5db;
+}
+.conn-card--active .conn-card-dot { background: #10b981; }
+.conn-card-info { flex: 1; min-width: 0; }
+.conn-card-name { font-weight: 700; font-size: 0.88rem; }
+.conn-card-meta { font-size: 0.78rem; color: var(--text-muted); margin-top: 2px; }
+.conn-card-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.conn-card-actions button {
+  font-size: 0.78rem;
+  padding: 3px 10px;
+  border: 1px solid var(--border);
+  background: var(--surface-raised);
+  cursor: pointer;
+  border-radius: 4px;
+}
+.conn-card-actions .conn-btn-connect {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+}
+.conn-card-actions .conn-btn-disconnect {
+  background: #fef2f2;
+  color: #991b1b;
+  border-color: #fca5a5;
+}
+.conn-card-actions .conn-btn-edit { color: var(--primary); }
+.conn-card-actions .conn-btn-delete { color: #991b1b; }
+
+/* Add/Edit connection form */
+.conn-form-card {
+  background: var(--surface);
+  border: 1px solid var(--primary);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.conn-form-card--hidden { display: none; }
+.conn-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 10px;
+}
+.conn-form-label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.conn-form-input {
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  background: var(--input-bg);
+  font-size: 0.88rem;
+  border-radius: 4px;
+  color: var(--text);
+}
+.conn-form-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.conn-form-serial-field { display: none; }
+.conn-form-serial-field.visible { display: flex; }

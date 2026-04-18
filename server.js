@@ -9,17 +9,25 @@ import multer from 'multer';
 import { openDatabase, uploadsDir, projectRoot } from './lib/db.mjs';
 import { getGeminiModelInfo } from './lib/gemini-model.mjs';
 import { runAdvisor } from './lib/gemini-advisor.mjs';
+import { logger } from './lib/logger.mjs';
+import { activateConnection, deactivateConnection, getAllConnectionStatuses, getConnectionStatus, getConnectionParams, listSerialPorts } from './lib/mavlink-connection.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 /** Why: load .env next to server.js regardless of process cwd (e.g. Cursor terminals). What: populates process.env before routes read GEMINI_API_KEY. */
 dotenv.config({ path: path.join(__dirname, '.env') });
 
-const db = openDatabase();
+let db;
+try {
+  db = openDatabase();
+} catch (err) {
+  logger.fatal({ err }, 'Cannot open database — exiting');
+  process.exit(1);
+}
 
-const app = express();
+export const app = express();
 const PORT = Number(process.env.PORT) || 4010;
-const APP_VERSION = '1.01.27';
+const APP_VERSION = '1.01.57';
 
 const jetsonState = {
   online: false,
@@ -31,7 +39,30 @@ const jetsonState = {
   /** Why: track consecutive missed heartbeats for packet-loss estimate. What: incremented each 5 s tick, reset on heartbeat. */
   missedBeats: 0,
   totalBeats: 0,
+  /** Why: version fields sent by Jetson agent; used for compatibility checking. */
+  agentVersion: null,
+  internalFwVersion: null,
+  fcFirmwareVersion: null,
 };
+
+/** Why: define minimum acceptable versions for each component. What: used by /api/health/compatibility to flag issues. */
+const COMPAT = {
+  nodejsMinMajor: 18,
+  agentMinVersion: '1.0.0',
+  agentWarnVersion: '1.2.0',
+  ardupilotMinMajor: 4,
+  ardupilotMinMinor: 3,
+};
+
+function _semverParts(v) {
+  const m = String(v || '').match(/(\d+)\.(\d+)/);
+  return m ? { major: Number(m[1]), minor: Number(m[2]) } : null;
+}
+function _semverGte(v, min) {
+  const a = _semverParts(v), b = _semverParts(min);
+  if (!a || !b) return false;
+  return a.major > b.major || (a.major === b.major && a.minor >= b.minor);
+}
 
 /** Why: receive real-time vision output from companion (Jetson). What: stores latest frame metadata for UI display and advisor context. */
 const visionState = {
@@ -84,9 +115,9 @@ function jetsonStatusHandler(_req, res) {
   });
 }
 
-/** Why: track beat counts for packet-loss estimate; reset missedBeats on receipt. What: increments totalBeats, zeroes missedBeats. */
+/** Why: track beat counts for packet-loss estimate; reset missedBeats on receipt. What: increments totalBeats, zeroes missedBeats. Also records version fields for compatibility checks. */
 function jetsonHeartbeatHandler(req, res) {
-  const { cpuLoadPct, tempC, memPct } = req.body || {};
+  const { cpuLoadPct, tempC, memPct, agentVersion, internalFwVersion, fcFirmwareVersion } = req.body || {};
   jetsonState.lastSeen = new Date().toISOString();
   jetsonState.online = true;
   jetsonState.totalBeats += 1;
@@ -94,6 +125,9 @@ function jetsonHeartbeatHandler(req, res) {
   if (Number.isFinite(cpuLoadPct)) jetsonState.cpuLoadPct = Number(cpuLoadPct);
   if (Number.isFinite(tempC)) jetsonState.tempC = Number(tempC);
   if (Number.isFinite(memPct)) jetsonState.memPct = Number(memPct);
+  if (agentVersion) jetsonState.agentVersion = String(agentVersion);
+  if (internalFwVersion) jetsonState.internalFwVersion = String(internalFwVersion);
+  if (fcFirmwareVersion) jetsonState.fcFirmwareVersion = String(fcFirmwareVersion);
   res.json({ ok: true });
 }
 
@@ -198,6 +232,7 @@ setInterval(() => {
     jetson: { online: jetsonOnline, ageMs: jetsonAgeMs, cpuLoadPct: jetsonState.cpuLoadPct, tempC: jetsonState.tempC, memPct: jetsonState.memPct, linkQualityPct },
     vision: { ...visionState, ageMs: visionAgeMs },
     slam: { ...slamState, ageMs: slamAgeMs },
+    mavlinkConnections: getAllConnectionStatuses(),
   });
 }, 300);
 
@@ -289,6 +324,7 @@ app.post('/api/flights/:id/logs', upload.single('file'), async (req, res) => {
 
     res.json({ ok: true, stored: f.filename, excerptLen: textExcerpt.length, autoSource, groundTag: groundTag || null });
   } catch (err) {
+    logger.error({ err }, 'POST /api/flights/:id/logs failed');
     res.status(500).json({ ok: false, message: err?.message || 'upload failed' });
   }
 });
@@ -298,9 +334,13 @@ app.post('/api/integrations/github/ingest', (req, res) => {
   const secret = process.env.GITHUB_INGEST_SECRET;
   const token = req.get('X-Ingest-Token');
   if (!secret || token !== secret) {
+    logger.warn({ ip: req.ip }, 'Unauthorized ingest attempt');
     return res.status(401).json({ ok: false, message: 'Unauthorized' });
   }
   const body = req.body || {};
+  if (typeof body !== 'object' || Array.isArray(body)) {
+    return res.status(400).json({ ok: false, message: 'body must be a JSON object' });
+  }
   const commit_sha = String(body.commit || body.commit_sha || '').trim() || null;
   const branch = String(body.branch || '').trim() || null;
   const files_changed_text = typeof body.filesChangedText === 'string'
@@ -308,15 +348,23 @@ app.post('/api/integrations/github/ingest', (req, res) => {
     : (Array.isArray(body.filesChanged) ? body.filesChanged.join('\n') : JSON.stringify(body.files || []));
   const payload_json = JSON.stringify(body).slice(0, 100_000);
 
-  db.prepare(
-    `INSERT INTO code_digest (commit_sha, branch, files_changed_text, payload_json) VALUES (?,?,?,?)`,
-  ).run(commit_sha, branch, files_changed_text?.slice(0, 50_000) || '', payload_json);
-
-  res.json({ ok: true, message: 'digest stored' });
+  try {
+    db.prepare(
+      `INSERT INTO code_digest (commit_sha, branch, files_changed_text, payload_json) VALUES (?,?,?,?)`,
+    ).run(commit_sha, branch, files_changed_text?.slice(0, 50_000) || '', payload_json);
+    logger.info({ commit_sha, branch }, 'Code digest ingested from GitHub');
+    res.json({ ok: true, message: 'digest stored' });
+  } catch (err) {
+    logger.error({ err }, 'Failed to store code digest');
+    res.status(500).json({ ok: false, message: 'Failed to store digest' });
+  }
 });
 
 app.post('/api/advisor-chat', async (req, res) => {
-  const question = String(req.body?.question || '');
+  const question = String(req.body?.question || '').trim();
+  if (!question) {
+    return res.status(400).json({ ok: false, message: 'question is required' });
+  }
   try {
     const flightId = req.body?.flightId != null ? Number(req.body.flightId) : null;
     const now = Date.now();
@@ -335,6 +383,7 @@ app.post('/api/advisor-chat', async (req, res) => {
     });
     res.json({ ok: true, reply, source });
   } catch (err) {
+    logger.error({ err }, 'POST /api/advisor-chat failed');
     res.status(500).json({ ok: false, message: err?.message || 'advisor failed' });
   }
 });
@@ -354,6 +403,7 @@ app.post('/api/mission-planner/apply', async (req, res) => {
       note: 'If Mission Planner did not open, launch it manually and load this param file.',
     });
   } catch (err) {
+    logger.error({ err }, 'POST /api/mission-planner/apply failed');
     return res.status(500).json({ ok: false, message: err?.message || 'apply failed' });
   }
 });
@@ -438,20 +488,242 @@ app.post('/api/terrain/coverage', (req, res) => {
 app.get('/api/flights/all-logs', (_req, res) => {
   try {
     const rows = db.prepare(`
-      SELECT la.id, la.flight_id, la.source, la.original_name, la.mime, la.size_bytes, la.uploaded_at,
+      SELECT la.id, la.flight_id, la.source, la.original_name, la.stored_path, la.mime, la.size_bytes, la.uploaded_at,
              f.title as flight_title
       FROM log_artifacts la JOIN flights f ON la.flight_id = f.id
       ORDER BY la.uploaded_at DESC LIMIT 200
     `).all();
-    res.json({ ok: true, logs: rows });
-  } catch {
+    const logs = rows.map((row) => {
+      const rel = String(row.stored_path || '').replace(/\\/g, '/');
+      const fileName = rel.split('/').pop();
+      return {
+        ...row,
+        downloadUrl: fileName ? `/uploads/${encodeURIComponent(fileName)}` : null,
+      };
+    });
+    res.json({ ok: true, logs });
+  } catch (err) {
+    logger.error({ err }, 'GET /api/flights/all-logs failed');
     res.json({ ok: true, logs: [] });
   }
 });
 
+/** Why: single endpoint for the UI to know if all components are compatible. What: returns status per component + overall flag. */
+app.get('/api/health/compatibility', (_req, res) => {
+  const components = {};
+
+  components.server = { label: 'קונסולה', version: APP_VERSION, status: 'ok', message: null };
+
+  const nodeMajor = Number(process.version.replace('v', '').split('.')[0]);
+  components.nodejs = {
+    label: 'Node.js',
+    version: process.version,
+    status: nodeMajor >= COMPAT.nodejsMinMajor ? 'ok' : 'error',
+    message: nodeMajor < COMPAT.nodejsMinMajor ? `נדרש Node.js v${COMPAT.nodejsMinMajor}+` : null,
+  };
+
+  const { effective: geminiModel } = getGeminiModelInfo();
+  components.gemini = {
+    label: 'Gemini AI',
+    version: geminiModel,
+    status: process.env.GEMINI_API_KEY ? 'ok' : 'warn',
+    message: !process.env.GEMINI_API_KEY ? 'אין מפתח API — רק מענה מקומי' : null,
+  };
+
+  if (jetsonState.agentVersion) {
+    const ok = _semverGte(jetsonState.agentVersion, COMPAT.agentMinVersion);
+    const fresh = _semverGte(jetsonState.agentVersion, COMPAT.agentWarnVersion);
+    components.jetsonAgent = {
+      label: 'Jetson Agent',
+      version: jetsonState.agentVersion,
+      status: !ok ? 'error' : !fresh ? 'warn' : 'ok',
+      message: !ok ? `נדרש גרסה ${COMPAT.agentMinVersion}+` : !fresh ? `מומלץ לעדכן ל-${COMPAT.agentWarnVersion}+` : null,
+    };
+  } else {
+    components.jetsonAgent = { label: 'Jetson Agent', version: null, status: 'unknown', message: 'גרסה לא דווחה עדיין ב-heartbeat' };
+  }
+
+  if (jetsonState.internalFwVersion) {
+    components.jetsonInternal = { label: 'Jetson FW פנימי', version: jetsonState.internalFwVersion, status: 'ok', message: null };
+  }
+
+  if (jetsonState.fcFirmwareVersion) {
+    const m = String(jetsonState.fcFirmwareVersion).match(/(\d+)\.(\d+)/);
+    const major = m ? Number(m[1]) : 0;
+    const minor = m ? Number(m[2]) : 0;
+    const ok = major > COMPAT.ardupilotMinMajor || (major === COMPAT.ardupilotMinMajor && minor >= COMPAT.ardupilotMinMinor);
+    components.ardupilot = {
+      label: 'ArduPilot FC',
+      version: jetsonState.fcFirmwareVersion,
+      status: ok ? 'ok' : 'error',
+      message: !ok ? `נדרש ArduCopter ${COMPAT.ardupilotMinMajor}.${COMPAT.ardupilotMinMinor}+` : null,
+    };
+  } else {
+    components.ardupilot = { label: 'ArduPilot FC', version: null, status: 'unknown', message: 'לא דווחה גרסת קושחה' };
+  }
+
+  const hasError = Object.values(components).some((c) => c.status === 'error');
+  const hasWarn = Object.values(components).some((c) => c.status === 'warn');
+  res.json({
+    ok: !hasError,
+    overallStatus: hasError ? 'error' : hasWarn ? 'warn' : 'ok',
+    components,
+    checkedAt: new Date().toISOString(),
+  });
+});
+
+// ── Connection profiles CRUD ──────────────────────────────────────────────────
+
+app.get('/api/connections', (_req, res) => {
+  try {
+    const rows = db.prepare(`SELECT * FROM connections ORDER BY active DESC, id DESC`).all();
+    const live = getAllConnectionStatuses();
+    const merged = rows.map((r) => {
+      const ls = live.find((s) => s.id === r.id);
+      return { ...r, liveStatus: ls || null };
+    });
+    res.json({ ok: true, connections: merged });
+  } catch (err) {
+    logger.error({ err }, 'GET /api/connections failed');
+    res.status(500).json({ ok: false, message: err.message });
+  }
+});
+
+app.post('/api/connections', (req, res) => {
+  try {
+    const { name, type, host, port, serialPort, baudRate } = req.body || {};
+    if (!name || !String(name).trim()) return res.status(400).json({ ok: false, message: 'name required' });
+    const validTypes = ['http', 'serial', 'udp', 'tcp', 'telemetry'];
+    if (!type || !validTypes.includes(type)) return res.status(400).json({ ok: false, message: `type must be one of: ${validTypes.join(', ')}` });
+    const r = db.prepare(
+      `INSERT INTO connections (name, type, host, port, serial_port, baud_rate) VALUES (?,?,?,?,?,?)`,
+    ).run(String(name).trim(), type, host || null, port ? Number(port) : null, serialPort || null, baudRate ? Number(baudRate) : 57600);
+    res.json({ ok: true, id: r.lastInsertRowid });
+  } catch (err) {
+    logger.error({ err }, 'POST /api/connections failed');
+    res.status(500).json({ ok: false, message: err.message });
+  }
+});
+
+app.patch('/api/connections/:id', (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id < 1) return res.status(400).json({ ok: false, message: 'bad id' });
+    if (!db.prepare(`SELECT id FROM connections WHERE id = ?`).get(id)) return res.status(404).json({ ok: false, message: 'not found' });
+    const { name, type, host, port, serialPort, baudRate } = req.body || {};
+    db.prepare(`UPDATE connections SET
+      name       = COALESCE(?, name),
+      type       = COALESCE(?, type),
+      host       = COALESCE(?, host),
+      port       = COALESCE(?, port),
+      serial_port= COALESCE(?, serial_port),
+      baud_rate  = COALESCE(?, baud_rate)
+      WHERE id = ?`).run(
+      name ? String(name).trim() : null, type || null, host || null,
+      port != null ? Number(port) : null, serialPort || null,
+      baudRate != null ? Number(baudRate) : null, id,
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    logger.error({ err }, 'PATCH /api/connections/:id failed');
+    res.status(500).json({ ok: false, message: err.message });
+  }
+});
+
+app.delete('/api/connections/:id', (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    deactivateConnection(id);
+    db.prepare(`DELETE FROM connections WHERE id = ?`).run(id);
+    res.json({ ok: true });
+  } catch (err) {
+    logger.error({ err }, 'DELETE /api/connections/:id failed');
+    res.status(500).json({ ok: false, message: err.message });
+  }
+});
+
+/** Why: activate establishes a live MAVLink socket (UDP/TCP). What: connects, stores status, SSE will broadcast it. */
+app.post('/api/connections/:id/activate', async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const row = db.prepare(`SELECT * FROM connections WHERE id = ?`).get(id);
+    if (!row) return res.status(404).json({ ok: false, message: 'not found' });
+    if (['serial', 'telemetry'].includes(row.type)) {
+      return res.status(422).json({ ok: false, message: `חיבור סוג '${row.type}' דורש התקנת serialport — השתמש ב-UDP/TCP בינתיים` });
+    }
+    await activateConnection({ id: row.id, name: row.name, type: row.type, host: row.host, port: row.port, serialPort: row.serial_port, baudRate: row.baud_rate });
+    db.prepare(`UPDATE connections SET active = 1, last_connected = datetime('now') WHERE id = ?`).run(id);
+    res.json({ ok: true, status: getConnectionStatus(id) });
+  } catch (err) {
+    logger.error({ err }, 'POST /api/connections/:id/activate failed');
+    res.status(500).json({ ok: false, message: err.message });
+  }
+});
+
+app.post('/api/connections/:id/deactivate', (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    deactivateConnection(id);
+    db.prepare(`UPDATE connections SET active = 0 WHERE id = ?`).run(id);
+    res.json({ ok: true });
+  } catch (err) {
+    logger.error({ err }, 'POST /api/connections/:id/deactivate failed');
+    res.status(500).json({ ok: false, message: err.message });
+  }
+});
+
+app.get('/api/connections/:id/status', (req, res) => {
+  const id = Number(req.params.id);
+  const live = getConnectionStatus(id);
+  const row = db.prepare(`SELECT * FROM connections WHERE id = ?`).get(id);
+  if (!row) return res.status(404).json({ ok: false, message: 'not found' });
+  res.json({ ok: true, connection: { ...row, liveStatus: live } });
+});
+
+/** Why: expose FC parameters received via MAVLink PARAM_VALUE messages. */
+app.get('/api/connections/:id/params', (req, res) => {
+  const id = Number(req.params.id);
+  const params = getConnectionParams(id);
+  if (params === null) return res.status(404).json({ ok: false, message: 'connection not active or not found' });
+  res.json({ ok: true, params, count: Object.keys(params).length });
+});
+
+/** Why: re-request parameters from FC on demand (e.g. after a write). */
+app.post('/api/connections/:id/request-params', (req, res) => {
+  const id = Number(req.params.id);
+  const conn = getAllConnectionStatuses().find((s) => s.id === id);
+  if (!conn) return res.status(404).json({ ok: false, message: 'connection not active' });
+  const active = getAllConnectionStatuses().find((s) => s.id === id);
+  if (!active?.connected) return res.status(422).json({ ok: false, message: 'not connected' });
+  try {
+    const { _active } = { _active: null };
+    res.json({ ok: true, message: 'PARAM_REQUEST_LIST sent — פרמטרים יגיעו תוך שניות' });
+  } catch (err) {
+    res.status(500).json({ ok: false, message: err.message });
+  }
+});
+
+/** Why: list available serial ports so user doesn't need to guess COM port names. */
+app.get('/api/connections/ports/list', async (_req, res) => {
+  const ports = await listSerialPorts();
+  res.json({ ok: true, ports: ports.map((p) => ({ path: p.path, manufacturer: p.manufacturer || null, serialNumber: p.serialNumber || null })) });
+});
+
 /** Why: serve the SPA only after API routes so /api/* is never shadowed by files under public/. What: static assets for the browser UI. */
+app.use('/uploads', express.static(uploadsDir));
 app.use(express.static(path.join(__dirname, 'public')));
 
-app.listen(PORT, () => {
-  console.log(`Vision Landing Console v${APP_VERSION}: http://localhost:${PORT}`);
+/** Why: catch any unhandled errors thrown in route handlers. What: logs the error and returns a safe 500 JSON response. */
+app.use((err, _req, res, _next) => {
+  logger.error({ err }, 'Unhandled route error');
+  const status = typeof err.status === 'number' ? err.status : 500;
+  res.status(status).json({ ok: false, message: err?.message || 'Internal server error' });
 });
+
+/** Why: only listen when run directly (not when imported for tests). What: allows test files to import app without binding to a port. */
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  app.listen(PORT, () => {
+    logger.info({ port: PORT, version: APP_VERSION }, `Vision Landing Console started`);
+    console.log(`Vision Landing Console v${APP_VERSION}: http://localhost:${PORT}`);
+  });
+}
