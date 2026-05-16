@@ -16,6 +16,7 @@ describe('openDatabase', () => {
     expect(tables).toContain('flight_notes');
     expect(tables).toContain('log_artifacts');
     expect(tables).toContain('code_digest');
+    expect(tables).toContain('aircraft_model_assets');
   });
 
   it('מכניס ומוציא טיסה', () => {

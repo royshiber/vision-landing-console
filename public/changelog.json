@@ -1,0 +1,2497 @@
+[
+  {
+    "version": "1.02.208",
+    "date": "2026-05-16",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Advisor safety gates (allowlist/denylist)",
+        "detail": "advisor-actions.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "Advisor Apply/Rollback/Audit",
+        "detail": "advisor-apply.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "Server library",
+        "detail": "arduplane-flight-modes.mjs, auto-config-recipes.mjs, auto-connect-utils.mjs, companion-auth.mjs, compat-semver.mjs, custom-param-store.mjs, docs-param-kb.mjs, docs-retrieval.mjs, elevenlabs-voice-list.mjs, engineer-memory.mjs, feature-designer.mjs, flight-actions-service.mjs, flight-engineer.mjs, flight-hud-resolve.mjs, flight-intelligence-core.mjs, flight-notes.mjs, gemini-model.mjs, jetson-releases.mjs, jetson-version-store.mjs, param-kb.mjs, param-schema.mjs, param-semantic-search.mjs, param-smart-search-v2.mjs, param-smart-search.mjs, retrieval.mjs, advisor-api.mjs, core-api.mjs, feature-designer-api.mjs, flight-engineer-api.mjs, http-register.mjs, sim-lab-api.mjs, sim-lab-tlog.mjs, statustext-translate.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "Chat memory",
+        "detail": "chat-memory.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "DB schema",
+        "detail": "db.mjs"
+      }
+    ]
+  },
+  {
+    "version": "1.02.207",
+    "date": "2026-05-16",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Sim Lab: הצגת צילום JPEG כמרקם על פרימיטיב, סטטוס מקשר לתיעוד, בדיקת URL /uploads",
+        "detail": ""
+      }
+    ]
+  },
+  {
+    "version": "1.02.206",
+    "date": "2026-05-16",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Sim Lab: ברירות מראה, העלאת מטוס, סרגלים וגלילה",
+        "detail": ""
+      }
+    ]
+  },
+  {
+    "version": "1.02.205",
+    "date": "2026-05-16",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "HUD — simulated IAS (SIM) when GS proxy + MAVLink time coherence gates",
+        "detail": ""
+      }
+    ]
+  },
+  {
+    "version": "1.02.204",
+    "date": "2026-05-16",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "מעבדת SITL: סף טעינת GLB, שמות מצב ArduPlane בריפליי, es-module-shims",
+        "detail": ""
+      }
+    ]
+  },
+  {
+    "version": "1.02.203",
+    "date": "2026-05-16",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Advisor safety gates (allowlist/denylist)",
+        "detail": "advisor-actions.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "Advisor Apply/Rollback/Audit",
+        "detail": "advisor-apply.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "DB schema",
+        "detail": "db.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "Gemini advisor logic",
+        "detail": "gemini-advisor.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "MAVLink connection",
+        "detail": "mavlink-connection.mjs"
+      }
+    ]
+  },
+  {
+    "version": "1.02.202",
+    "date": "2026-05-16",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Advisor safety gates (allowlist/denylist)",
+        "detail": "advisor-actions.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "Advisor Apply/Rollback/Audit",
+        "detail": "advisor-apply.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "DB schema",
+        "detail": "db.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "Gemini advisor logic",
+        "detail": "gemini-advisor.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "MAVLink connection",
+        "detail": "mavlink-connection.mjs"
+      }
+    ]
+  },
+  {
+    "version": "1.02.201",
+    "date": "2026-05-16",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Advisor safety gates (allowlist/denylist)",
+        "detail": "advisor-actions.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "Advisor Apply/Rollback/Audit",
+        "detail": "advisor-apply.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "DB schema",
+        "detail": "db.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "Gemini advisor logic",
+        "detail": "gemini-advisor.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "MAVLink connection",
+        "detail": "mavlink-connection.mjs"
+      }
+    ]
+  },
+  {
+    "version": "1.02.200",
+    "date": "2026-05-16",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Advisor safety gates (allowlist/denylist)",
+        "detail": "advisor-actions.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "Advisor Apply/Rollback/Audit",
+        "detail": "advisor-apply.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "DB schema",
+        "detail": "db.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "Gemini advisor logic",
+        "detail": "gemini-advisor.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "MAVLink connection",
+        "detail": "mavlink-connection.mjs"
+      }
+    ]
+  },
+  {
+    "version": "1.02.199",
+    "date": "2026-05-16",
+    "changes": [
+      {
+        "type": "docs",
+        "title": "הרחבת SITL — לולאת Vision סגורה, צינור נכסים P0, fault injection בתוכנית, P4–P6 והחסם ל‑P5",
+        "detail": "ליטוש ניסוח בסעיף חסם P5."
+      }
+    ]
+  },
+  {
+    "version": "1.02.198",
+    "date": "2026-05-16",
+    "changes": [
+      {
+        "type": "docs",
+        "title": "תיעוד canonical מעבדת SITL",
+        "detail": ""
+      }
+    ]
+  },
+  {
+    "version": "1.02.197",
+    "date": "2026-05-16",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "מעבדת SITL — פריסת viewport, מסילות מתקפלות, פחות טקסט גלוי",
+        "detail": "קנבס דוחף גובה ~50vh; עמודות צרות עם accordion (חיבור / פרופיל / פרמטר · שליטה / שיחזור); עזרה ופירוט ארוך במתקפלים + קישור למסמך; עיצוב עקבי לטוקנים ו־btn-secondary-lg."
+      }
+    ]
+  },
+  {
+    "version": "1.02.196",
+    "date": "2026-05-16",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "שיפור חיבור אוטומטי: ניסיונות מובנים, זיהוי COM תפוס, המלצות בעברית",
+        "detail": ""
+      }
+    ]
+  },
+  {
+    "version": "1.02.195",
+    "date": "2026-05-16",
+    "changes": [
+      {
+        "type": "docs",
+        "title": "תוכנית אב SITL/Sim Lab — צילום→mesh, ריפליי לווין, אחידות מפת סימון מטוס",
+        "detail": "עודכן docs/SITL_AND_SIM_LAB.md (שלבים P0–P3, ספקים ריאליסטיים, זרימת נתונים, פרטיות). נוסף ציר דרך במסמך היכולות המסחריות והפניה טכנית."
+      },
+      {
+        "type": "feat",
+        "title": "Stub העלאת נכס מטוס — POST /api/aircraft-model/upload + טבלת aircraft_model_assets",
+        "detail": "אחסון ב-data/uploads עם מטא־דאטה ב-SQLite; סוגי קובץ נתמכים: תמונה / GLB / gltf+zip. registerSimLabApi מקבל ctx (db, upload)."
+      },
+      {
+        "type": "chore",
+        "title": ".env.example — placeholders למפתחות Mesh SaaS ואריחי מפה (אופציונלי)",
+        "detail": ""
+      }
+    ]
+  },
+  {
+    "version": "1.02.194",
+    "date": "2026-05-16",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "מעבדת SITL — שיחזור .tlog עם אירועי ציר ב-API ובממשק (STATUSTEXT, ARM/disarm, flight_mode)",
+        "detail": "שדה replayEvents ב-/api/sim-lab/parse-tlog; סימני ציר והקפצה לדגימה; פרסור מאוחד מהלוג; vitest sim-lab-tlog; ייצוא parseHeartbeat ובניית buildMavlink1Frame למבני בדיקות."
+      },
+      {
+        "type": "docs",
+        "title": "מסמך SITL, יכולות מסחר, צעדי מעבדה וגרסת parse בטוחה",
+        "detail": ""
+      }
+    ]
+  },
+  {
+    "version": "1.02.192",
+    "date": "2026-05-16",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Telemetry: fix MAVLink GPS/SYS_STATUS wire layout, statustext truncation, SSE finite guards, HUD NaN-safe display",
+        "detail": ""
+      }
+    ]
+  },
+  {
+    "version": "1.02.191",
+    "date": "2026-05-16",
+    "changes": [
+      {
+        "type": "ui",
+        "title": "מעבדת SITL — פריסת גריד, HUD מלאכותי ומפתח MANUAL_CONTROL",
+        "detail": ""
+      }
+    ]
+  },
+  {
+    "version": "1.02.190",
+    "date": "2026-05-16",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "תיקון פענוח MAVLink: GPS_RAW_INT/SYS_STATUS לפי reorder; הגנות PFD למניעת תצוגת זוויות שבר",
+        "detail": ""
+      }
+    ]
+  },
+  {
+    "version": "1.02.189",
+    "date": "2026-05-16",
+    "changes": [
+      {
+        "type": "ui",
+        "title": "תגיות קיום פרמטר בבקר אחרי READ",
+        "detail": ""
+      }
+    ]
+  },
+  {
+    "version": "1.02.188",
+    "date": "2026-05-16",
+    "changes": [
+      {
+        "type": "fix",
+        "title": "MAVLink PARAM_VALUE parse, PARAM_SET layout, param pull timing; stable version badge",
+        "detail": ""
+      }
+    ]
+  },
+  {
+    "version": "1.02.187",
+    "date": "2026-05-16",
+    "changes": [
+      {
+        "type": "fix",
+        "title": "gate connect actions on /api/meta features flag",
+        "detail": ""
+      }
+    ]
+  },
+  {
+    "version": "1.02.186",
+    "date": "2026-05-16",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "חיבור MAVLink: נתיבי quick-connect/disconnect-all; חיבור אוטומטי Serial; תיקון HTML במקום JSON",
+        "detail": ""
+      }
+    ]
+  },
+  {
+    "version": "1.02.185",
+    "date": "2026-05-16",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "תיקון תג גרסה: אל תדרוס badge מערך קבוע לאחר סנכרון שרת",
+        "detail": ""
+      }
+    ]
+  },
+  {
+    "version": "1.02.184",
+    "date": "2026-05-02",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "vlc-smoke: יציבות Playwright (שמירת פרופיל, טאבים מוסתרים, מפה)",
+        "detail": ""
+      }
+    ]
+  },
+  {
+    "version": "1.02.183",
+    "date": "2026-05-02",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "תיקון smoke: GET /api/jetson/releases, /api/vision/nav-mode; עדכון לשוניות Playwright",
+        "detail": ""
+      }
+    ]
+  },
+  {
+    "version": "1.02.182",
+    "date": "2026-05-02",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "מעבדת SITL: פריסט גרסאות, כתיבת פרמטר חיה, מצב סימולטור בתלת־מימד",
+        "detail": ""
+      }
+    ]
+  },
+  {
+    "version": "1.02.175",
+    "date": "2026-04-28",
+    "changes": [
+      {
+        "type": "fix",
+        "title": "מהנדס טיסה — תשובות בשפת הטייס (אנגלית), שגיאות API מקומיות",
+        "detail": ""
+      }
+    ]
+  },
+  {
+    "version": "1.02.174",
+    "date": "2026-04-28",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "מעבדת SITL — מפת GPS לשיחזור .tlog (מעבדה + הטסה)",
+        "detail": ""
+      }
+    ]
+  },
+  {
+    "version": "1.02.173",
+    "date": "2026-04-28",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "אישור פרמטר מהנדס — גם 确认 בסינית",
+        "detail": ""
+      }
+    ]
+  },
+  {
+    "version": "1.02.172",
+    "date": "2026-04-28",
+    "changes": [
+      {
+        "type": "docs",
+        "title": "COMMERCIAL מהנדס טיסה — שפות ופיןְיין",
+        "detail": ""
+      }
+    ]
+  },
+  {
+    "version": "1.02.171",
+    "date": "2026-04-28",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "מהנדס טיסה — עברית חזקה יותר, סינית ופיןְיין, STT zh-CN",
+        "detail": ""
+      }
+    ]
+  },
+  {
+    "version": "1.02.170",
+    "date": "2026-04-28",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "מעבדת SITL — שיחזור ‎.tlog בתצוגה, MANUAL_CONTROL אופציונלי (שרת), GET rc-capability",
+        "detail": ""
+      }
+    ]
+  },
+  {
+    "version": "1.02.169",
+    "date": "2026-04-28",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "טאב מעבדת SITL — תיעוד, תלת־מימד מטלמטריה, קיצורי חיבור, שירות קבצי docs",
+        "detail": ""
+      }
+    ]
+  },
+  {
+    "version": "1.02.168",
+    "date": "2026-04-28",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "גלגל הגדרות בשורת כותרת — נפח, קול ElevenLabs/דפדפן, שפת STT, תיאור הרשאות",
+        "detail": ""
+      }
+    ]
+  },
+  {
+    "version": "1.02.167",
+    "date": "2026-04-28",
+    "changes": [
+      {
+        "type": "fix",
+        "title": "מהנדס קולי — הגנה על STT רועש (לא למצוא יוטה/מיקומים); מילה לטינית לא ברורה קיצור",
+        "detail": ""
+      }
+    ]
+  },
+  {
+    "version": "1.02.166",
+    "date": "2026-04-28",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "HUD — פקודות קול, STATUSTEXT בעברית (Gemini), פופאבר ARM + telemetry SSE",
+        "detail": ""
+      }
+    ]
+  },
+  {
+    "version": "1.02.165",
+    "date": "2026-04-28",
+    "changes": [
+      {
+        "type": "docs",
+        "title": "COMMERCIAL — HUD מותאם עם בירור דו-משמעי",
+        "detail": ""
+      }
+    ]
+  },
+  {
+    "version": "1.02.164",
+    "date": "2026-04-28",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "HUD פרמטר מותאם — דירוג+קבצים מעורפלים עם בחירה; Gemini JSON; בלי ניחוש יחיד",
+        "detail": ""
+      }
+    ]
+  },
+  {
+    "version": "1.02.163",
+    "date": "2026-04-28",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "מהנדס קולי — ייעוץ פרויקט מלא גם בלי חיבור FC; פרומפט וממשק מזמינים ייעוץ שולחני",
+        "detail": ""
+      }
+    ]
+  },
+  {
+    "version": "1.02.162",
+    "date": "2026-04-28",
+    "changes": [
+      {
+        "type": "ui",
+        "title": "מהנדס קולי: עדכון lang על אובייקט Recognition; איפוס feSttBias בסשן חדש; תיעוד FE_STT_LANG ו-FLIGHT_ENGINEER_GEMINI_MODEL; מחיקת סקריפט patch זמני",
+        "detail": ""
+      }
+    ]
+  },
+  {
+    "version": "1.02.161",
+    "date": "2026-04-28",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "הסרת לוגי debug מהעוגן/מהנדס; ניקוי אחרי אימות",
+        "detail": ""
+      }
+    ]
+  },
+  {
+    "version": "1.02.160",
+    "date": "2026-04-28",
+    "changes": [
+      {
+        "type": "ui",
+        "title": "באנר גרסה — הנחיה נכונה כש־changelog חדש משרת ישן; כוכב ★ על הגרסה המדווחת בפועל",
+        "detail": ""
+      }
+    ]
+  },
+  {
+    "version": "1.02.159",
+    "date": "2026-04-28",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "מהנדס: סניטיזציה ל-Unknown (Unicode/NFKC) + תשובות באנגלית כשהטייס באנגלית; תיקון תצוגת .Unknown",
+        "detail": ""
+      }
+    ]
+  },
+  {
+    "version": "1.02.158",
+    "date": "2026-04-28",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "server: קריאת APP_VERSION קודם מ־version.js מקומי (תיקון גרסה שגויה כשקיים client ישן)",
+        "detail": ""
+      }
+    ]
+  },
+  {
+    "version": "1.02.157",
+    "date": "2026-04-28",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "יועץ: פחות נג'וס של שאלות גרסה; FC ממילוי MAVLink כשמחובר",
+        "detail": ""
+      }
+    ]
+  },
+  {
+    "version": "1.02.156",
+    "date": "2026-04-28",
+    "changes": [
+      {
+        "type": "ui",
+        "title": "מהנדס — שליחת flightId מבורר טיסת היועץ ל־RAG ממוקד",
+        "detail": ""
+      }
+    ]
+  },
+  {
+    "version": "1.02.155",
+    "date": "2026-04-28",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Flight Engineer: אותו ה־RAG כמו היועץ (docs, param KB, audit, digest, לוגים); flightId אופציונלי ב־API",
+        "detail": ""
+      }
+    ]
+  },
+  {
+    "version": "1.02.154",
+    "date": "2026-04-28",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Flight Engineer: richer identity/meta prompt example; align ElevenLabs env hints",
+        "detail": ""
+      }
+    ]
+  },
+  {
+    "version": "1.02.153",
+    "date": "2026-04-28",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "docs+README: חזון Cursor לכטב״מים/רובוטיקה; קהל לא־מהנדסים במסמך עסקי",
+        "detail": ""
+      }
+    ]
+  },
+  {
+    "version": "1.02.152",
+    "date": "2026-04-28",
+    "changes": [
+      {
+        "type": "docs",
+        "title": "מאגר COMMERCIAL_CAPABILITIES — תקציר עסקי־טכני מלא; README וכללי סנכרון",
+        "detail": ""
+      }
+    ]
+  },
+  {
+    "version": "1.02.151",
+    "date": "2026-04-28",
+    "changes": [
+      {
+        "type": "ui",
+        "title": "bolder Flight Engineer mic button — size, shadows, hover/active/focus",
+        "detail": ""
+      }
+    ]
+  },
+  {
+    "version": "1.02.150",
+    "date": "2026-04-28",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Comment: advisor resize handle docs match LTR sidebar layout",
+        "detail": ""
+      }
+    ]
+  },
+  {
+    "version": "1.02.149",
+    "date": "2026-04-28",
+    "changes": [
+      {
+        "type": "ui",
+        "title": "unify sidebar/notebook on physical left (LTR shells: Advisor, ArduLab, Flight Engineer)",
+        "detail": ""
+      }
+    ]
+  },
+  {
+    "version": "1.02.148",
+    "date": "2026-04-28",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Flight Engineer welcome: fix clipped chips (hero flex, card overflow)",
+        "detail": ""
+      }
+    ]
+  },
+  {
+    "version": "1.02.147",
+    "date": "2026-04-28",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "תיקון פריסת מהנדס טיסה — flex כשהטאב פעיל (כמו Advisor), בלי גלילת דף מיותרת",
+        "detail": ""
+      }
+    ]
+  },
+  {
+    "version": "1.02.146",
+    "date": "2026-04-28",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "מהנדס טיסה — עיצוב Aero-Lab בהיר: כותרת, מיקרופון, צ'אט, פנקס; תיקון הסרת hero",
+        "detail": ""
+      }
+    ]
+  },
+  {
+    "version": "1.02.145",
+    "date": "2026-04-28",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Advisor safety gates (allowlist/denylist)",
+        "detail": "advisor-actions.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "Advisor Apply/Rollback/Audit",
+        "detail": "advisor-apply.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "DB schema",
+        "detail": "db.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "Gemini advisor logic",
+        "detail": "gemini-advisor.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "MAVLink connection",
+        "detail": "mavlink-connection.mjs"
+      }
+    ]
+  },
+  {
+    "version": "1.02.144",
+    "date": "2026-04-28",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "מהנדס: Eleven v3 ברירת מחדל, optimize_streaming_latency לזרימה, פרמטרי קול טבעיים, סטטוס TTS",
+        "detail": ""
+      }
+    ]
+  },
+  {
+    "version": "1.02.143",
+    "date": "2026-04-28",
+    "changes": [
+      {
+        "type": "ui",
+        "title": "פאנל חיבור מעל הרקע — topbar ז-אינדקס, הסרת גזירה overflow מ-HUD גלילה, מודל סטט למעלה",
+        "detail": ""
+      }
+    ]
+  },
+  {
+    "version": "1.02.142",
+    "date": "2026-04-28",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Flight Engineer: תיקון באג פרוטוקול צ'אט Gemini — הסרת user כפול (history מול sendMessage); טיפול בתשובה ריקה",
+        "detail": ""
+      }
+    ]
+  },
+  {
+    "version": "1.02.141",
+    "date": "2026-04-28",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Flight Engineer: align default MODE POLICY fallback",
+        "detail": ""
+      }
+    ]
+  },
+  {
+    "version": "1.02.140",
+    "date": "2026-04-28",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Flight Engineer: deeper replies (temp/context), VLC version in telemetry, param keys from pilot text",
+        "detail": ""
+      }
+    ]
+  },
+  {
+    "version": "1.02.139",
+    "date": "2026-04-28",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Unified AI Core — shared memory/context/tools בין Advisor למהנדס",
+        "detail": "נוספו flight-intelligence-core ו-flight-actions-service, איחוד זיכרון דו-כיווני, mode policy, וחיווט routes לשכבה משותפת תוך שמירת UI נפרד."
+      }
+    ]
+  },
+  {
+    "version": "1.02.138",
+    "date": "2026-04-27",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "מהנדס טיסה — חסימת תשובות 'לא יודע' והחלפה באבחון שימושי",
+        "detail": "חוזקו כללי הפרומפט ונוספה שכבת sanitize שמונעת תשובת Unknown/לא יודע כתשובה בודדת ומחזירה כיוון בדיקה לפי ההקשר."
+      }
+    ]
+  },
+  {
+    "version": "1.02.137",
+    "date": "2026-04-27",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Flight Engineer persistent memory — פרופיל טייס/רחפן, אירועי עבר, סיכום סשן",
+        "detail": "נוסף זיכרון מתמשך למהנדס הטיסה עם טבלאות SQLite, retrieval רלוונטי לכל שאלה, כלי זיכרון פנימיים ו-debrief לפני שיחה חדשה."
+      }
+    ]
+  },
+  {
+    "version": "1.02.136",
+    "date": "2026-04-27",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "מהנדס טיסה v2 — system prompt מלא, פרמטרי FC חיים, ג'טסון context, token limit 600",
+        "detail": ""
+      }
+    ]
+  },
+  {
+    "version": "1.02.135",
+    "date": "2026-04-27",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "מפה — כפתורי שכבה על המפה, HUD גבוה יותר; תיקון 'לא יודע' מהנדס",
+        "detail": ""
+      }
+    ]
+  },
+  {
+    "version": "1.02.134",
+    "date": "2026-04-27",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Flight Engineer v2 — מסך ברוכים הבאים, האזנה רציפה, אישור פרמטרים",
+        "detail": ""
+      }
+    ]
+  },
+  {
+    "version": "1.02.133",
+    "date": "2026-04-27",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "שדרוג קול מהנדס הטיסה — Eleven v3 (ElevenLabs)",
+        "detail": ""
+      }
+    ]
+  },
+  {
+    "version": "1.02.132",
+    "date": "2026-04-27",
+    "changes": [
+      {
+        "type": "ui",
+        "title": "AI Advisor sidebar — מגבל רוחב מינימלי 215px: שורת הכותרת תמיד נשארת בשורה אחת"
+      }
+    ]
+  },
+  {
+    "version": "1.02.131",
+    "date": "2026-04-27",
+    "changes": [
+      {
+        "type": "fix",
+        "title": "מהנדס טיסה — תוקן: כשלון מודל אחד עכשיו עובר לשרשרת הבאה במקום לוותר; הודעות שגיאה בעברית"
+      }
+    ]
+  },
+  {
+    "version": "1.02.130",
+    "date": "2026-04-27",
+    "changes": [
+      {
+        "type": "ui",
+        "title": "AI Advisor — אחידות עיצובית מלאה עם ArduLab: צבעים, גרדיאנטים, Space Grotesk, hero card לstartup, chips, composer"
+      }
+    ]
+  },
+  {
+    "version": "1.02.129",
+    "date": "2026-04-27",
+    "changes": [
+      {
+        "type": "ui",
+        "title": "אחידות עיצובית בבאר הsub-tabs — הסלקט והכפתורים משתמשים עכשיו באותו font-size/weight/hover/active"
+      }
+    ]
+  },
+  {
+    "version": "1.02.128",
+    "date": "2026-04-27",
+    "changes": [
+      {
+        "type": "ui",
+        "title": "קטגוריות ArduPilot עברו ישירות לרשימה הנפתחת הראשית — ללא דרופדאון שני"
+      }
+    ]
+  },
+  {
+    "version": "1.02.127",
+    "date": "2026-04-27",
+    "changes": [
+      {
+        "type": "ui",
+        "title": "עיצוב מחדש של כפתורי READ/WRITE/שמור — שלוש pills מקובצות במקום 7 כפתורים נפרדים"
+      }
+    ]
+  },
+  {
+    "version": "1.02.126",
+    "date": "2026-04-27",
+    "changes": [
+      {
+        "type": "ui",
+        "title": "ArduPilot עבר גם הוא לרשימה הנפתחת — שורת הטאבים מכילה רק dropdown + קונפיגורציה אוטומטית"
+      }
+    ]
+  },
+  {
+    "version": "1.02.125",
+    "date": "2026-04-27",
+    "changes": [
+      {
+        "type": "ui",
+        "title": "הוספת ✨ Custom שלי לרשימה הנפתחת של תתי-הטאבים"
+      }
+    ]
+  },
+  {
+    "version": "1.02.124",
+    "date": "2026-04-27",
+    "changes": [
+      {
+        "type": "ui",
+        "title": "נחיתה / בטיחות / ניווט לפי תמונה הפכו לרשימה נפתחת בשורת הטאבים"
+      }
+    ]
+  },
+  {
+    "version": "1.02.123",
+    "date": "2026-04-27",
+    "changes": [
+      {
+        "type": "ui",
+        "title": "עיצוב רשימת קטגוריות ArduPilot בשפה עיצובית אחידה עם יתר הטאבים"
+      }
+    ]
+  },
+  {
+    "version": "1.02.122",
+    "date": "2026-04-27",
+    "changes": [
+      {
+        "type": "ui",
+        "title": "קטגוריות ArduPilot הפכו לרשימה נפתחת במקום שורת כפתורים"
+      }
+    ]
+  },
+  {
+    "version": "1.02.121",
+    "date": "2026-04-27",
+    "changes": [
+      {
+        "type": "fix",
+        "title": "תיקון: פאנל קונפיגורציה אוטומטית מוצג תמיד מתחת לפרמטרים",
+        "detail": ".ac-panel { display: flex } ב-CSS ניצח את .subpanel { display: none } כי בא אחריו עם אותו specificity. הוסרה הגדרת display מ-.ac-panel — .subpanel.visible מטפל בזה."
+      },
+      {
+        "type": "ui",
+        "title": "שינוי שם טאב מפה → הטסה, מיקום הכי ימני וצבע ירוק ייחודי"
+      }
+    ]
+  },
+  {
+    "version": "1.02.119",
+    "date": "2026-04-27",
+    "changes": [
+      {
+        "type": "fix",
+        "title": "תיקון הפעלת שרת תחת PM2 (ESM fork mode)",
+        "detail": "process.argv[1] לא הצביע על server.js כשPM2 טוען את המודול דרך dynamic import — השרת לא הקשיב על פורט 4010. תוקן על ידי זיהוי PM2_HOME בנוסף לבדיקת argv."
+      }
+    ]
+  },
+  {
+    "version": "1.02.118",
+    "date": "2026-04-27",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "patch",
+        "detail": ""
+      }
+    ]
+  },
+  {
+    "version": "1.02.117",
+    "date": "2026-04-27",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "patch",
+        "detail": ""
+      }
+    ]
+  },
+  {
+    "version": "1.02.116",
+    "date": "2026-04-27",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "patch",
+        "detail": ""
+      }
+    ]
+  },
+  {
+    "version": "1.02.115",
+    "date": "2026-04-27",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "patch",
+        "detail": ""
+      }
+    ]
+  },
+  {
+    "version": "1.02.114",
+    "date": "2026-04-27",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "patch",
+        "detail": ""
+      }
+    ]
+  },
+  {
+    "version": "1.02.113",
+    "date": "2026-04-27",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "patch",
+        "detail": ""
+      }
+    ]
+  },
+  {
+    "version": "1.02.112",
+    "date": "2026-04-27",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "patch",
+        "detail": ""
+      }
+    ]
+  },
+  {
+    "version": "1.02.111",
+    "date": "2026-04-27",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "patch",
+        "detail": ""
+      }
+    ]
+  },
+  {
+    "version": "1.02.110",
+    "date": "2026-04-27",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "patch",
+        "detail": ""
+      }
+    ]
+  },
+  {
+    "version": "1.02.109",
+    "date": "2026-04-27",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "patch",
+        "detail": ""
+      }
+    ]
+  },
+  {
+    "version": "1.02.108",
+    "date": "2026-04-27",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "patch",
+        "detail": ""
+      }
+    ]
+  },
+  {
+    "version": "1.02.107",
+    "date": "2026-04-27",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "patch",
+        "detail": ""
+      }
+    ]
+  },
+  {
+    "version": "1.02.106",
+    "date": "2026-04-26",
+    "changes": [
+      {
+        "type": "fix",
+        "title": "תיקוני Free-Flight HUD + פקודת טוס לכאן",
+        "detail": "תוקן layout (HUD שמאל, מפה ימין). אופק מלאכותי עוצב מחדש (גרדיאנטים, גלו, Roll/Pitch בתוך ה-canvas). UX חריצי פרמטר שופר (אייקון עיפרון, גבול מנוקד). נוסף right-click על המפה → 'טוס לכאן' (DO_REPOSITION COMMAND_INT, גובה מוגדר, אוטומטי לויטר בהגעה)."
+      }
+    ]
+  },
+  {
+    "version": "1.02.105",
+    "date": "2026-04-26",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Free-Flight HUD בטאב מפה",
+        "detail": "טאב המפה הפך למסך טיסה חופשית עם HUD מפוצל: אופק מלאכותי (canvas roll/pitch), מהירות אוויר, גובה, מוד טיסה ומתח סוללה. 3 חריצי פרמטר מותאמים אישית עם זיהוי שפה חופשית (Gemini). נוספו ATTITUDE ו-SYS_STATUS ל-MAVLink."
+      }
+    ]
+  },
+  {
+    "version": "1.02.104",
+    "date": "2026-04-26",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "patch",
+        "detail": ""
+      }
+    ]
+  },
+  {
+    "version": "1.02.103",
+    "date": "2026-04-26",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "patch",
+        "detail": ""
+      }
+    ]
+  },
+  {
+    "version": "1.02.102",
+    "date": "2026-04-26",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "שפה עיצובית אחידה — design system v6",
+        "detail": "נוסף מערך tokens ב-:root: --radius-xs/sm/md/lg/xl, --space-1..5, --text-xs/sm/base/md/lg, --shadow-card/panel/hover. כל הכפתורים (button, btn-primary-lg, btn-secondary-lg, btn-write-lg) עודכנו ל-border-radius: 8px עם גרדיאנט. מודלים, event-item, msg, check-item, ardu-param-card, log-upload-card, log-drop-zone, process-card, context-menu — כולם עודכנו לradius אחיד. 46 ערכי צבע hardcoded (#687087, #64748b, #424752) הוחלפו ב-var(--text-muted). font-size scales אוחדו ל-5 רמות."
+      }
+    ]
+  },
+  {
+    "version": "1.02.101",
+    "date": "2026-04-26",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "patch",
+        "detail": ""
+      }
+    ]
+  },
+  {
+    "version": "1.02.100",
+    "date": "2026-04-26",
+    "changes": [
+      {
+        "type": "fix",
+        "title": "תיקון שורש: שגיאת Gemini 429/503 חוזרת",
+        "detail": "נוסף throttle (6 שניות בין קריאות = ~10 RPM) למניעת rate-limit. נוסף retry חכם: 429 → 15s+35s המתנה; 503 → 3s+7s. הודעות שגיאה מפורטות יותר כולל קוד השגיאה. ניתן לכוונן דרך GEMINI_MIN_INTERVAL_MS ב-.env."
+      }
+    ]
+  },
+  {
+    "version": "1.02.99",
+    "date": "2026-04-26",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "מצב מצלמות הועבר מ-מפה → טלמטריה",
+        "detail": "כרטיסי CAM1, CAM1 FPS, CAM2 הועברו לסקשן Vision בטלמטריה. VIO ביטחון הועבר לסקשן SLAM/VIO. מסך המפה מציג כעת רק בחירת שכבה ללא עומס מידע לא רלוונטי."
+      }
+    ]
+  },
+  {
+    "version": "1.02.98",
+    "date": "2026-04-26",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "עיצוב מודרני — topbar כהה, rounded tabs ו-panels",
+        "detail": "הסרגל העליון עוצב מחדש עם רקע כהה-כחול וכרטיסי HUD שקופים. כל הטאבים, הפאנלים, הכפתורים והבאדג׳ים קיבלו border-radius עגול. תוקן overflow בסרגל עליון — אלמנטים לא נחתכים יותר."
+      }
+    ]
+  },
+  {
+    "version": "1.02.97",
+    "date": "2026-04-26",
+    "changes": [
+      {
+        "type": "ux",
+        "title": "ArduLab — פורמט רשימות מחדש: badge עגול ממוספר + כרטיסיות RTL מרופדות"
+      },
+      {
+        "type": "feat",
+        "title": "טופבר — נוסף נתון גובה (#hudAltitude) לצד המהירות, מ-VFR_HUD"
+      }
+    ]
+  },
+  {
+    "version": "1.02.96",
+    "date": "2026-04-26",
+    "changes": [
+      {
+        "type": "ux",
+        "title": "קונפיגורציה אוטומטית — הטופס פושט: הוסר שדה פורט, textarea תמיד גלוי, בחירת רכיב מגללת לתיבת הטקסט ומציגה placeholder ספציפי"
+      }
+    ]
+  },
+  {
+    "version": "1.02.95",
+    "date": "2026-04-26",
+    "changes": [
+      {
+        "type": "fix",
+        "title": "טלמטריה — הסרת המפה מעמודת Jetson; נתוני CPU/RAM/טמפרטורה גלויים עתה"
+      }
+    ]
+  },
+  {
+    "version": "1.02.94",
+    "date": "2026-04-25",
+    "changes": [
+      {
+        "type": "fix",
+        "title": "ArduLab — תיקון שיחה: מעתה ה-AI עונה באופן שיחתי ומבין שאלות, לא רק מייצר קוד"
+      },
+      {
+        "type": "feat",
+        "title": "ArduLab — שינוי שם: מעצב הפיצ'רים נקרא עתה ArduLab עם עיצוב brand מלא"
+      },
+      {
+        "type": "feat",
+        "title": "AI Advisor — שפה עיצובית חדשה: header gradient, בועות שיחה מודרניות, composer משודרג"
+      },
+      {
+        "type": "feat",
+        "title": "AI Advisor — הוספת יכולת צירוף קבצים ותמונות לשיחה (vision + text files)"
+      }
+    ]
+  },
+  {
+    "version": "1.02.93",
+    "date": "2026-04-25",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "ארגון טאבים מחדש — טלמטריה כטאב ראשי, הסרת תהליכים, שינוי שמות"
+      },
+      {
+        "type": "feat",
+        "title": "קונפיגורציה אוטומטית — עיצוב מודרני 2-עמודות ללא גלילה"
+      },
+      {
+        "type": "feat",
+        "title": "בדיקות מערכת — הועברו לרצועת בדיקות בתוך טאב טלמטריה"
+      },
+      {
+        "type": "feat",
+        "title": "Topbar — מוד טיסה ומהירות אוויר בזמן אמת מ-MAVLink VFR_HUD"
+      }
+    ]
+  },
+  {
+    "version": "1.02.92",
+    "date": "2026-04-25",
+    "changes": [
+      {
+        "type": "style",
+        "title": "עיצוב מודרני לממשק מעצב הפיצ'רים",
+        "detail": "עיצוב מלא מחדש של Feature Designer: כרטיס hero עם gradient header, אפקטי hover/shimmer על כפתורי CTA, sidebar עם header כחול וסטטוס dots זוהרים, בועות שיחה מודרניות (gradient כחול למשתמש), פרמטר cards עם עיצוב מוגבה, קוד block עם עיצוב dark GitHub, chips עם אייקונים ואפקט lift."
+      }
+    ]
+  },
+  {
+    "version": "1.02.91",
+    "date": "2026-04-25",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "מעצב פיצ'רים — Vibe Coding לבקר טיסה",
+        "detail": "טאב חדש 'מעצב פיצ'רים': תאר בעברית/אנגלית פיצ'ר חדש לבקר הטיסה שלך, AI ישר כותב קוד C++ ArduPilot מלא עם פרמטרים מובנים. לולאת פידבק לשיפור בשיחה. הפעל פיצ'ר → פרמטרים מופיעים בחיפוש החכם עם badge מיוחד. שנה ערכים ישירות מהממשק."
+      }
+    ]
+  },
+  {
+    "version": "1.02.90",
+    "date": "2026-04-25",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "קונפיגורציה אוטומטית — אשף המלצות רכיבים",
+        "detail": "תת-טאב חדש 'קונפיגורציה אוטומטית': בחירת רכיב (GPS / מקלט / מצפן / ESC / מותאם), תיאור בעיה חופשי, המערכת מחזירה בדיקות ידניות + שינויי פרמטרים מומלצים עם Apply ידני מאובטח. Recommendation-only — אין כתיבה אוטומטית לרחפן."
+      },
+      {
+        "type": "feat",
+        "title": "אחוד עיצוב תתי-טאבים",
+        "detail": "כפתורי subtab מכל הסוגים (ArduPilot, תחקור, בקרה) עברו לשפת עיצוב אחידה: border-radius, hover עם primary, transition חלק."
+      }
+    ]
+  },
+  {
+    "version": "1.02.89",
+    "date": "2026-04-25",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "חיפוש חכם: הפעלה, ערך נוכחי ודיפולט",
+        "detail": "ניהוג גלגל אף מציג GROUND_STEER_ALT להפעלה/כיבוי; כרטיסי חיפוש מציגים ערך נוכחי, ברירת מחדל זמינה והסבר בעברית בסימן שאלה"
+      }
+    ]
+  },
+  {
+    "version": "1.02.88",
+    "date": "2026-04-25",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "חיפוש חכם: שכבת כוונות ומיזוג סמנטי",
+        "detail": "זיהוי קבוצות פרמטרים כמו ניהוג גלגל אף; semantic search מתמזג בכל חיפוש; טעינת embeddings מתקנת metadata ממדים שגוי"
+      }
+    ]
+  },
+  {
+    "version": "1.02.87",
+    "date": "2026-04-25",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Advisor safety gates (allowlist/denylist)",
+        "detail": "advisor-actions.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "Advisor Apply/Rollback/Audit",
+        "detail": "advisor-apply.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "DB schema",
+        "detail": "db.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "Gemini advisor logic",
+        "detail": "gemini-advisor.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "MAVLink connection",
+        "detail": "mavlink-connection.mjs"
+      }
+    ]
+  },
+  {
+    "version": "1.02.86",
+    "date": "2026-04-25",
+    "changes": [
+      {
+        "type": "fix",
+        "title": "חיפוש חכם: ניהוג גלגל אף + תצוגה",
+        "detail": "הוסף מיפוי ניהוג/היגוי/גלגל אף לאנגלית; הוסף STEER2SRV ל-KB; הסר 'פתח בטופס'; תוצאות ממלאות גובה מלא"
+      }
+    ]
+  },
+  {
+    "version": "1.02.85",
+    "date": "2026-04-25",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "עריכת כל פרמטר ArduPilot מהחיפוש החכם",
+        "detail": "כרטיסי תוצאה מכילים inline editor: הקלד ערך + לחץ 'שלח' — נשלח ישירות ל-FC דרך MAVLink. חיצוניים ופנימיים כאחד."
+      }
+    ]
+  },
+  {
+    "version": "1.02.84",
+    "date": "2026-04-25",
+    "changes": [
+      {
+        "type": "fix",
+        "title": "חיפוש חכם: תצוגה מחדש מקצה לקצה",
+        "detail": "תוצאות grid אחידות; search row קבוע; עברית נקייה; כפתור 'ערוך' / 'העתק מפתח'"
+      }
+    ]
+  },
+  {
+    "version": "1.02.83",
+    "date": "2026-04-25",
+    "changes": [
+      {
+        "type": "fix",
+        "title": "תיקון syntax: async IIFE ב-gemini-advisor",
+        "detail": "await בתוך IIFE לא-async גרם לקריסת השרת; הוחלף ל-async IIFE"
+      }
+    ]
+  },
+  {
+    "version": "1.02.82",
+    "date": "2026-04-25",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Advisor safety gates (allowlist/denylist)",
+        "detail": "advisor-actions.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "Advisor Apply/Rollback/Audit",
+        "detail": "advisor-apply.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "DB schema",
+        "detail": "db.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "Gemini advisor logic",
+        "detail": "gemini-advisor.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "MAVLink connection",
+        "detail": "mavlink-connection.mjs"
+      }
+    ]
+  },
+  {
+    "version": "1.02.81",
+    "date": "2026-04-25",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Advisor safety gates (allowlist/denylist)",
+        "detail": "advisor-actions.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "Advisor Apply/Rollback/Audit",
+        "detail": "advisor-apply.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "DB schema",
+        "detail": "db.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "Gemini advisor logic",
+        "detail": "gemini-advisor.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "MAVLink connection",
+        "detail": "mavlink-connection.mjs"
+      }
+    ]
+  },
+  {
+    "version": "1.02.80",
+    "date": "2026-04-25",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Advisor safety gates (allowlist/denylist)",
+        "detail": "advisor-actions.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "Advisor Apply/Rollback/Audit",
+        "detail": "advisor-apply.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "DB schema",
+        "detail": "db.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "Gemini advisor logic",
+        "detail": "gemini-advisor.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "MAVLink connection",
+        "detail": "mavlink-connection.mjs"
+      }
+    ]
+  },
+  {
+    "version": "1.02.79",
+    "date": "2026-04-25",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Advisor safety gates (allowlist/denylist)",
+        "detail": "advisor-actions.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "Advisor Apply/Rollback/Audit",
+        "detail": "advisor-apply.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "DB schema",
+        "detail": "db.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "Gemini advisor logic",
+        "detail": "gemini-advisor.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "MAVLink connection",
+        "detail": "mavlink-connection.mjs"
+      }
+    ]
+  },
+  {
+    "version": "1.02.78",
+    "date": "2026-04-25",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Advisor safety gates (allowlist/denylist)",
+        "detail": "advisor-actions.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "Advisor Apply/Rollback/Audit",
+        "detail": "advisor-apply.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "DB schema",
+        "detail": "db.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "Gemini advisor logic",
+        "detail": "gemini-advisor.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "MAVLink connection",
+        "detail": "mavlink-connection.mjs"
+      }
+    ]
+  },
+  {
+    "version": "1.02.77",
+    "date": "2026-04-25",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Advisor safety gates (allowlist/denylist)",
+        "detail": "advisor-actions.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "Advisor Apply/Rollback/Audit",
+        "detail": "advisor-apply.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "DB schema",
+        "detail": "db.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "Gemini advisor logic",
+        "detail": "gemini-advisor.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "MAVLink connection",
+        "detail": "mavlink-connection.mjs"
+      }
+    ]
+  },
+  {
+    "version": "1.02.76",
+    "date": "2026-04-25",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Advisor safety gates (allowlist/denylist)",
+        "detail": "advisor-actions.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "Advisor Apply/Rollback/Audit",
+        "detail": "advisor-apply.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "DB schema",
+        "detail": "db.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "Gemini advisor logic",
+        "detail": "gemini-advisor.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "MAVLink connection",
+        "detail": "mavlink-connection.mjs"
+      }
+    ]
+  },
+  {
+    "version": "1.02.75",
+    "date": "2026-04-25",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Advisor safety gates (allowlist/denylist)",
+        "detail": "advisor-actions.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "Advisor Apply/Rollback/Audit",
+        "detail": "advisor-apply.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "DB schema",
+        "detail": "db.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "Gemini advisor logic",
+        "detail": "gemini-advisor.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "MAVLink connection",
+        "detail": "mavlink-connection.mjs"
+      }
+    ]
+  },
+  {
+    "version": "1.02.74",
+    "date": "2026-04-25",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Advisor safety gates (allowlist/denylist)",
+        "detail": "advisor-actions.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "Advisor Apply/Rollback/Audit",
+        "detail": "advisor-apply.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "DB schema",
+        "detail": "db.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "Gemini advisor logic",
+        "detail": "gemini-advisor.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "MAVLink connection",
+        "detail": "mavlink-connection.mjs"
+      }
+    ]
+  },
+  {
+    "version": "1.02.73",
+    "date": "2026-04-25",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Advisor safety gates (allowlist/denylist)",
+        "detail": "advisor-actions.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "Advisor Apply/Rollback/Audit",
+        "detail": "advisor-apply.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "DB schema",
+        "detail": "db.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "Gemini advisor logic",
+        "detail": "gemini-advisor.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "MAVLink connection",
+        "detail": "mavlink-connection.mjs"
+      }
+    ]
+  },
+  {
+    "version": "1.02.72",
+    "date": "2026-04-21",
+    "changes": [
+      {
+        "type": "fix",
+        "title": "ArduPilot: תוכן טאבי קטגוריה נראה שוב",
+        "detail": "גלילה על כל #arduParams שברה חישוב flex — אזור השדות קיבל גובה 0. גלילה רק ב-.ardu-param-form-panels, כותרת מצב + מסגרת; Pre-flight עם max-height."
+      }
+    ]
+  },
+  {
+    "version": "1.02.71",
+    "date": "2026-04-21",
+    "changes": [
+      {
+        "type": "fix",
+        "title": "מחיקת בעיות Advisor (מחק) — באמת נמחק מהמסד",
+        "detail": "SQLite foreign_keys + ON DELETE SET NULL ניסה לעדכן param_audit; הטריגר append-only חוסם UPDATE ולכן DELETE נכשל בשקט. מחיקת chat_issues עם foreign_keys=OFF לשורה זו; chat_actions מנוקה לפני כן."
+      }
+    ]
+  },
+  {
+    "version": "1.02.70",
+    "date": "2026-04-21",
+    "changes": [
+      {
+        "type": "fix",
+        "title": "טאבי קטגוריות ArduPilot — נראות ועיצוב",
+        "detail": "סדר מחדש: READ/WRITE + טאבי קטגוריות + טפסים לפני Pre-Flight; overflow-y:auto ב־#arduParams; טאבים כמו tele-subtab (פינות מעוגלות, גודל טקסט)."
+      }
+    ]
+  },
+  {
+    "version": "1.02.69",
+    "date": "2026-04-21",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Advisor: פס מצב מערכת (קונסול / FC / ARM / Jetson) + הבהרת שקיפות Apply",
+        "detail": "SSE כולל mavlink; טקסט שמבהיר שצ'אט לא כותב ל-FC; Audit מורחב עם fc_firmware, app_version, note."
+      },
+      {
+        "type": "feat",
+        "title": "כתיבת FC בזמן ARM (אופציונלי): ADVISOR_FC_INFLIGHT_OVERRIDE",
+        "detail": "GET …/preview; POST apply עם acknowledgeInflightRisk + סיבה; רישום ב-audit; ADVISOR_SAFETY.md R6a."
+      }
+    ]
+  },
+  {
+    "version": "1.02.68",
+    "date": "2026-04-21",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "בעיות Advisor: נפתר · פתח · מחק",
+        "detail": "הוסרה אפשרות \"לא רלוונטי\"; במקומה DELETE מהמסד (מחק לצמיתות). POST /resolve תומך רק ב-resolved או open; פתח מחדש מנקה שדה פתרון."
+      }
+    ]
+  },
+  {
+    "version": "1.02.67",
+    "date": "2026-04-21",
+    "changes": [
+      {
+        "type": "fix",
+        "title": "ניגודיות כפתורי פעולה בכרטיסי בעיות (סיידבר Advisor)",
+        "detail": "הכלל הגלובלי `button { color: #fff }` נשאר בתוקף אחרי רקע לבן מקומי — הטקסט היה בלתי נראה. נוספו `color: var(--text)` וביטול uppercase/letter-spacing לכפתורי הסיידבר."
+      }
+    ]
+  },
+  {
+    "version": "1.02.66",
+    "date": "2026-04-21",
+    "changes": [
+      {
+        "type": "fix",
+        "title": "תיקון תצוגה ריקה באזור הצ'אט של ה-AI Advisor",
+        "detail": "הגריד של advisor-v2 עודכן ל-3 עמודות (sidebar + handle + main). ללא cache-bust ב-styles.css הדפדפן החזיק CSS ישן של 2 עמודות, מה שדחף את ה-main לעמודה שלא קיימת והוסתר. נוספה מחרוזת ?v=APP_VERSION ל-styles.css."
+      },
+      {
+        "type": "ui",
+        "title": "Horizontal resize handle בין הסיידבר לצ'אט",
+        "detail": "אפשר לגרור את המפריד כדי להרחיב/לצמצם את עמודת הבעיות; הרוחב נשמר ב-localStorage."
+      },
+      {
+        "type": "fix",
+        "title": "תיקון סדר DOM של ה-resize handle",
+        "detail": "הידית הועברה להיות בין ה-aside.adv-sidebar ל-div.adv-main כדי שתתיישר עם מבנה הגריד ב-RTL."
+      }
+    ]
+  },
+  {
+    "version": "1.02.65",
+    "date": "2026-04-21",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Advisor safety gates (allowlist/denylist)",
+        "detail": "advisor-actions.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "Advisor Apply/Rollback/Audit",
+        "detail": "advisor-apply.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "DB schema",
+        "detail": "db.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "Gemini advisor logic",
+        "detail": "gemini-advisor.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "MAVLink connection",
+        "detail": "mavlink-connection.mjs"
+      }
+    ]
+  },
+  {
+    "version": "1.02.64",
+    "date": "2026-04-21",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Advisor safety gates (allowlist/denylist), Advisor Apply/Rollback/Audi…",
+        "detail": "12 קב׳ השתנו: lib/advisor-actions.mjs, lib/advisor-apply.mjs, lib/db.mjs, lib/gemini-advisor.mjs, lib/mavlink-connection.mjs, lib/session-baseline.mjs, public/app.js, public/index.html ועוד 4."
+      }
+    ]
+  },
+  {
+    "version": "1.02.63",
+    "date": "2026-04-21",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Advisor — Apply / Undo פרמטרים",
+        "detail": "היועץ מציע כעת כרטיסי param_change עם כפתור Apply. לחיצה פותחת מודל אישור מדורג לפי רמת סיכון (low/med = לחיצה אחת, high = הקלד APPLY). כפתור Undo מיד לאחר Apply מחזיר לערך הקודם."
+      },
+      {
+        "type": "feat",
+        "title": "Audit Trail — רשומות append-only",
+        "detail": "כל שינוי פרמטר נשמר בטבלת param_audit שמוגנת ב-database triggers (UPDATE/DELETE נחסמים). כפתור 📋 Audit מציג את כל ההיסטוריה. אי-אפשר לאבד מידע על שינויים."
+      },
+      {
+        "type": "feat",
+        "title": "Long-Term Memory — זיכרון ארוך-טווח",
+        "detail": "בכל שיחה (גם חדשה לגמרי, גם אחרי שבועיים) Gemini מקבל את 60 יום ה-audit trail האחרונים + הפרופיל הנוכחי. הצ'אט יכול לזהות קשרים בין שינויים ישנים לבעיות חדשות."
+      },
+      {
+        "type": "feat",
+        "title": "Session Baseline + Pending Banner",
+        "detail": "בתחילת כל סשן נשמר baseline. אם ישנם שינויים שלא בוטלו מופיע באנר צהוב עם כמות השינויים וכפתור Revert הכל. מונע שינויים שכוחים שגורמים לבאגים עתידיים."
+      },
+      {
+        "type": "feat",
+        "title": "Allowlist + Denylist — שכבת בטיחות",
+        "detail": "Tier A (Jetson, 9 פרמטרים) + Tier B (FC, 4 פרמטרים — disarmed בלבד). Denylist קשיח ל-10 פרמטרי failsafe/arming. טווחים בטוחים צרים שהשרת מאמת בכל write, לא רק בהצעה."
+      },
+      {
+        "type": "feat",
+        "title": "MAVLink PARAM_SET + ARMED gate",
+        "detail": "הוספת setParam() ל-MavlinkConnection עם CRC נכון, echo verification, ו-timeout. מחבר שומר lastBaseMode מ-heartbeat — השרת בודק ARMED state לפני כל כתיבה ל-FC."
+      },
+      {
+        "type": "feat",
+        "title": "Jetson profile — server-side canonical store",
+        "detail": "הפרופיל כעת נשמר גם בשרת (טבלת jetson_profile) ולא רק ב-localStorage. שורד ניקוי דפדפן, עדכון OS, ריסטארט מחשב."
+      },
+      {
+        "type": "feat",
+        "title": "Gemini 2.5 Flash — עדכון מפורש",
+        "detail": "GEMINI_MODEL עודכן ל-gemini-2.5-flash ב-.env (במקום legacy alias שהיה ממופה באופן שקוף). ביצועי JSON mode ו-context window 1M tokens."
+      },
+      {
+        "type": "test",
+        "title": "47 בדיקות יחידה חדשות",
+        "detail": "tests/advisor-actions.test.mjs + tests/advisor-apply.test.mjs — בדיקות allowlist, denylist, range validation, snapshot, rollback, append-only trigger enforcement. כולן עוברות."
+      }
+    ]
+  },
+  {
+    "version": "1.02.62",
+    "date": "2026-04-21",
+    "changes": [
+      {
+        "type": "refactor",
+        "title": "Changelog structured + מקור יחיד",
+        "detail": "המעבר מ-VERSION_HISTORY בתוך app.js ל-public/changelog.json. כל שינוי מופיע כ-{type,title,detail} עם type badge צבעוני (FEAT/FIX/UI/REFAC/CHORE/PERF)."
+      },
+      {
+        "type": "fix",
+        "title": "סנכרון badge ומודאל",
+        "detail": "המודאל מצלב אוטומטית עם APP_VERSION האמיתי. אם הגרסה הפעילה חסרה ב-changelog — נוספת רשומה סינתטית מובילה + אזהרה למשתמש."
+      },
+      {
+        "type": "feat",
+        "title": "auto-skeleton בכל bump",
+        "detail": "bump-version.mjs מוסיף רשומת שלד ל-changelog.json בכל עלייה; ה-git hook מוסיף את הקובץ ל-commit."
+      }
+    ]
+  },
+  {
+    "version": "1.02.61",
+    "date": "2026-04-21",
+    "changes": [
+      {
+        "type": "fix",
+        "title": "עברית ב-UI",
+        "detail": "תיקון קידוד UTF-8 בכל קבצי ה-UI (index.html, app.js, styles.css)."
+      },
+      {
+        "type": "feat",
+        "title": "יועץ: זיכרון בעיות + גרסאות",
+        "detail": "טבלאות chat_issues/chat_messages, דמיון Jaccard, העברת APP_VERSION ו-Jetson/FC versions ל-Gemini. ממשק ניהול בעיות בטאב היועץ."
+      },
+      {
+        "type": "feat",
+        "title": "CONNECT + STAT בסגנון Mission Planner",
+        "detail": "ווידג׳ט חיבור MAVLink ב-topbar (UDP/TCP/Serial + Baud + COM), נורית סטטוס, quick-connect ו-disconnect-all, מודאל STAT עם RX/TX, heartbeat rate, uptime, STATUSTEXT."
+      },
+      {
+        "type": "feat",
+        "title": "MAVLink integration",
+        "detail": "שילוב lib/mavlink-connection.mjs, logger מ-pino, הרחבת DB, בדיקות vitest, ecosystem.config.cjs ל-PM2."
+      },
+      {
+        "type": "feat",
+        "title": "Auto-bump גרסה אוטומטי",
+        "detail": "scripts/bump-version.mjs + pre-commit hook. מקור יחיד של אמת ב-version.js, הזרקת __APP_VERSION__ ל-index.html בשרת."
+      }
+    ]
+  },
+  {
+    "version": "1.02.50",
+    "date": "2026-04-07",
+    "changes": [
+      {
+        "type": "ui",
+        "title": "Jetson redesign (Stitch)",
+        "detail": "progress bars ל-CPU/RAM בסגנון Stitch GPU-bar + 3 mini-cards (טמפ/HB/קישור). תוקן height:100% שהחביא את שורת הגרסה."
+      },
+      {
+        "type": "fix",
+        "title": "יועץ: setInterval כפול",
+        "detail": "תגובות מקומיות מפורטות לכל נושא — נדנוד, הצפה, SLAM, Jetson, פרמטרים."
+      },
+      {
+        "type": "ui",
+        "title": "CPU/RAM bars בכתום מעל 85%"
+      }
+    ]
+  },
+  {
+    "version": "1.02.49",
+    "date": "2026-04-07",
+    "changes": [
+      {
+        "type": "ui",
+        "title": "מצפן עגול סיבובי",
+        "detail": "SVG compass-rose עם גרירה במקום סרגל לינארי במפת טריין."
+      },
+      {
+        "type": "ui",
+        "title": "יועץ: ניקוי כותרת",
+        "detail": "הסרת כותרת ״יועץ ביצועים״; בדיקת סטטוס Gemini כל 30 שניות."
+      },
+      {
+        "type": "ui",
+        "title": "Jetson: פאנל גרסה ברצועה נפרדת",
+        "detail": "מתחת לגריד, ללא גלילה."
+      },
+      {
+        "type": "feat",
+        "title": "לוגים: טעינה אוטומטית",
+        "detail": "ברגע ש-Jetson מתחבר; שמות לוגים ברורים."
+      }
+    ]
+  },
+  {
+    "version": "1.02.48",
+    "date": "2026-03-27",
+    "changes": [
+      {
+        "type": "fix",
+        "title": "יועץ: תצוגה כש-ok ללא טקסט",
+        "detail": "באנר סטטוס Gemini לפי /api/health."
+      },
+      {
+        "type": "ui",
+        "title": "מפת טריין: ייחוס ניווט מתקפל",
+        "detail": "גובה מפה גדול יותר; בקרת סיבוב בפינה התחתונה-שמאלית."
+      },
+      {
+        "type": "ui",
+        "title": "טלמטריה: גלילה בעמודת Jetson",
+        "detail": "כדי שלא ייחתך פאנל הגרסה."
+      },
+      {
+        "type": "feat",
+        "title": "פרמטרים: באנר סנכרון שרת/מטוס",
+        "detail": "כפתורי READ/WRITE ArduPilot ב-HTML + POST ל-/api/ardu/params/write."
+      }
+    ]
+  },
+  {
+    "version": "1.02.45",
+    "date": "2026-03-27",
+    "changes": [
+      {
+        "type": "fix",
+        "title": "טאב ״לוגים והעלאות״ לא מחובר",
+        "detail": "#flights היה ב-HTML אבל לא בשורת הטאבים."
+      },
+      {
+        "type": "feat",
+        "title": "npm run test:smoke",
+        "detail": "שרת זמני + בדיקות API + Playwright (טאבים, Ardu, מפה, יועץ)."
+      }
+    ]
+  },
+  {
+    "version": "1.02.41",
+    "date": "2026-03-27",
+    "changes": [
+      {
+        "type": "fix",
+        "title": "ArduPilot: תת-טאבי קטגוריות",
+        "detail": "תוקן CSS כך שרק הפאנל הפעיל מוצג."
+      },
+      {
+        "type": "ui",
+        "title": "מפת טריין: סיבוב",
+        "detail": "סליידר אופקי צר + כפתורי ±15° + N (במקום חוגה)."
+      },
+      {
+        "type": "ui",
+        "title": "ניווט לפי תמונה: כרטיס הסבר",
+        "detail": "שתי אפשרויות רדיו (מפת טיסה / לוויין) במקום כפתורים צפופים."
+      }
+    ]
+  },
+  {
+    "version": "1.01.56",
+    "date": "2026-03-27",
+    "changes": [
+      {
+        "type": "fix",
+        "title": "תיקון קריטי: terrain DOM + Leaflet init",
+        "detail": "הוגדרו משתני מפה/טריין ו-initTerrainMap — בלי זה הסקריפט נעצר ב-ReferenceError."
+      }
+    ]
+  },
+  {
+    "version": "1.01.55",
+    "date": "2026-03-27",
+    "changes": [
+      {
+        "type": "ui",
+        "title": "ניווט טאבים: z-index + flex",
+        "detail": "שורת הטאבים מעל התוכן; סרגל תת-טאבים מוצג רק בטאב הרלוונטי."
+      },
+      {
+        "type": "ui",
+        "title": "Telemetry layout",
+        "detail": "grid עם minmax(0,1fr), פחות padding — ניצול מסך טוב יותר בלי גלילת דף."
+      }
+    ]
+  },
+  {
+    "version": "1.01.27",
+    "date": "2026-03-26",
+    "changes": [
+      {
+        "type": "refactor",
+        "title": "הסרת כל קוד הסימולציה/דמו",
+        "detail": "הכלי מציג נתונים אמיתיים בלבד (Jetson + Vision + SLAM)."
+      }
+    ]
+  },
+  {
+    "version": "1.01.26",
+    "date": "2026-03-25",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "מפת טריין: צבעי כיסוי לפי AGL",
+        "detail": "מינימום-מקסימום מהנתונים; מקרא דינמי."
+      },
+      {
+        "type": "feat",
+        "title": "סיבוב מפה עם leaflet-rotate",
+        "detail": "↺ N ↻ ליד זום."
+      },
+      {
+        "type": "fix",
+        "title": "עצור DEMO מדליק דיכוי דמו בלקוח",
+        "detail": "״מחובר (דמו)״ לא מוצג; סימולציית Vision מבטלת דיכוי."
+      }
+    ]
+  },
+  {
+    "version": "1.01.25",
+    "date": "2026-03-25",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "מפת טריין: מקרא גובה AGL"
+      },
+      {
+        "type": "feat",
+        "title": "לוגים: משיכה מהשרת + גרירת קובץ",
+        "detail": "כפתורי מקור מעוצבים."
+      },
+      {
+        "type": "ui",
+        "title": "הקלטות: וידאו גבוה יותר"
+      },
+      {
+        "type": "ui",
+        "title": "מרכז פרמטרים: צפיפות אנכית"
+      },
+      {
+        "type": "ui",
+        "title": "ArduPilot: תת-טאבים לפי קטגוריה"
+      }
+    ]
+  },
+  {
+    "version": "1.01.24",
+    "date": "2026-03-25",
+    "changes": [
+      {
+        "type": "fix",
+        "title": "מפת טריין: חריגה מלמטה",
+        "detail": "מעטפת flex + max-height."
+      },
+      {
+        "type": "feat",
+        "title": "מעבר מפת רחוב/לווין (Esri)"
+      },
+      {
+        "type": "feat",
+        "title": "מצב ״רק אזורים ממופים״",
+        "detail": "רקע לבן בלי אריחים, רק עיגולי כיסוי."
+      }
+    ]
+  },
+  {
+    "version": "1.01.23",
+    "date": "2026-03-25",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "מרכז פרמטרים מאוחד",
+        "detail": "טאב אחד במקום בקרת נחיתה + ArduPilot. תת-טאבים: נחיתה, ABORT, המראה, ניווט לפי תמונה, קושחה."
+      },
+      {
+        "type": "feat",
+        "title": "READ/WRITE לרחפן + טופס עריכה",
+        "detail": "מספרים / ON-OFF."
+      },
+      {
+        "type": "feat",
+        "title": "API: /api/vision/config",
+        "detail": "שמירת פרופיל מסך + יעד ArduPilot; ייצוא JSON כולל arduTarget."
+      }
+    ]
+  },
+  {
+    "version": "1.01.22",
+    "date": "2026-03-25",
+    "changes": [
+      {
+        "type": "fix",
+        "title": "בידוד פאנלים",
+        "detail": ".panel:not(.visible) { display:none !important } — טאבים לא ״דולפים״ בגלל inline display."
+      }
+    ]
+  },
+  {
+    "version": "1.01.21",
+    "date": "2026-03-25",
+    "changes": [
+      {
+        "type": "fix",
+        "title": "מפת טריין תחת ״בקרת נחיתה״",
+        "detail": "הוסר display:flex מה-inline של #terrain (דרס הסתרת הפאנל)."
+      }
+    ]
+  },
+  {
+    "version": "1.01.20",
+    "date": "2026-03-25",
+    "changes": [
+      {
+        "type": "ui",
+        "title": "בקרת נחיתה (Tuning Deck)",
+        "detail": "רשת פרמטרים auto-fill ~240px, מרווחים גדולים יותר, גלילה פנימית באזור הסליידרים."
+      }
+    ]
+  },
+  {
+    "version": "1.01.19",
+    "date": "2026-03-25",
+    "changes": [
+      {
+        "type": "ui",
+        "title": "ממשק Aero-Lab (Google Stitch)",
+        "detail": "רקע בהיר טקטי, #f7f9fc / #00478d, Inter + Space Grotesk, רשת נקודות, פינות ישרות."
+      },
+      {
+        "type": "ui",
+        "title": "עדכון כרטיסי פרמטרים/טלמטריה/מפה/צ׳אט",
+        "detail": "קריאות על רקע בהיר."
+      }
+    ]
+  },
+  {
+    "version": "1.01.18",
+    "date": "2026-03-25",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "כפתור עצור DEMO",
+        "detail": "מנקה את כל נתוני הסימולציה בשרת ומחזיר ל״ריאלי בלבד״."
+      },
+      {
+        "type": "feat",
+        "title": "ArduPilot READ/WRITE + diff",
+        "detail": "READ קורא פרמטרים + חלונית diff; WRITE + סטטוס SUCCESS/FAIL."
+      },
+      {
+        "type": "feat",
+        "title": "מפת טריין: Leaflet + כיסוי SLAM",
+        "detail": "עיגולים צבעוניים — ירוק=מלא, צהוב=חלקי, אדום=נמוך."
+      },
+      {
+        "type": "feat",
+        "title": "לוגים: טבלה מאוחדת",
+        "detail": "זיהוי אוטומטי ArduPilot/Jetson לפי תוכן. זיהוי ״לא טיסה — זמן על הקרקע״."
+      },
+      {
+        "type": "feat",
+        "title": "אנוטציות וידאו",
+        "detail": "canvas overlay על הוידאו עם תיבות זיהוי, מד ביטחון ואינדיקטור ננעל."
+      }
+    ]
+  },
+  {
+    "version": "1.01.17",
+    "date": "2026-03-25",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "SSE real-time push",
+        "detail": "החלפת polling HTTP (vision 500ms + jetson 5s) ב-/api/stream EventSource — עדכונים כל 300ms."
+      },
+      {
+        "type": "feat",
+        "title": "Confidence Bar חי",
+        "detail": "כאשר Jetson שולח vision frames אמיתיים (ageMs < 3s) — הבר נוצב מהנתון האמיתי."
+      },
+      {
+        "type": "ui",
+        "title": "DEMO / LIVE badges",
+        "detail": "כרטיסי Vision ו-SLAM מסומנים."
+      },
+      {
+        "type": "feat",
+        "title": "SLAM/VIO cards + יועץ Gemini בהקשר זמן אמת"
+      }
+    ]
+  },
+  {
+    "version": "1.01.16",
+    "date": "2026-03-25",
+    "changes": [
+      {
+        "type": "ui",
+        "title": "חלון צ׳אט גדול יותר",
+        "detail": "הוסרו מגבלות max-width."
+      },
+      {
+        "type": "ui",
+        "title": "מיקרופון: SVG עגול עם pulse"
+      },
+      {
+        "type": "ui",
+        "title": "Jetson פושט",
+        "detail": "סטטוס dot, זמן אחרון בעברית, ללא JSON גולמי."
+      },
+      {
+        "type": "feat",
+        "title": "ArduPilot Idiot-proof",
+        "detail": "כרטיסי פרמטרים + הורדת קובץ .param."
+      }
+    ]
+  },
+  {
+    "version": "1.01.15",
+    "date": "2026-03-25",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Vision Output ריאלי",
+        "detail": "endpoint /api/vision/frame + כרטיסים חיים (סטייה רוחבית, שגיאת כיוון, confidence, גיל פריים)."
+      },
+      {
+        "type": "feat",
+        "title": "Link Health",
+        "detail": "עיכוב heartbeat + אחוז packet-loss לפי פעימות שנשמטו."
+      },
+      {
+        "type": "feat",
+        "title": "ArduPilot Config מלא",
+        "detail": "PLND, EKF, SERIAL, LOG, LAND, FS + טבלת אימות ערכים לאחר reboot."
+      },
+      {
+        "type": "feat",
+        "title": "Tauri Desktop",
+        "detail": "src-tauri/tauri.conf.json + tauri:dev / tauri:build (דורש Rust + Tauri CLI)."
+      },
+      {
+        "type": "refactor",
+        "title": "מודל גרסה data-driven",
+        "detail": "חלון ״מה חדש״ מנוהל מ-VERSION_HISTORY."
+      }
+    ]
+  },
+  {
+    "version": "1.01.14",
+    "date": "2026-03-25",
+    "changes": [
+      {
+        "type": "fix",
+        "title": "Temporal Dead Zone",
+        "detail": "const eventContextMenu הוגדר אחרי השימוש בו — קריסת סקריפט בכל טעינה. תוקן בהזזת ההצהרה."
+      }
+    ]
+  },
+  {
+    "version": "1.01.08–1.01.13",
+    "date": "2026-03-24",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "אימות DOM לצ׳אט",
+        "detail": "שגיאה ברורה אם advisorMessages/מאזינים חסרים."
+      },
+      {
+        "type": "feat",
+        "title": "Gemini 2.5-flash ברירת מחדל",
+        "detail": "מיפוי אוטומטי ממודלים ישנים (1.5-flash, 2.0-flash)."
+      },
+      {
+        "type": "feat",
+        "title": "npm run start:clean",
+        "detail": "עוצר node על פורט 4010 ומפעיל שרת מעודכן."
+      },
+      {
+        "type": "feat",
+        "title": "/api/health מציג geminiModel",
+        "detail": "env, effective, remapped."
+      }
+    ]
+  },
+  {
+    "version": "1.01.03",
+    "date": "2026-03-23",
+    "changes": [
+      {
+        "type": "fix",
+        "title": "סדר Express נכון",
+        "detail": "כל /api/* לפני קבצים סטטיים."
+      },
+      {
+        "type": "feat",
+        "title": "צ׳אט: תשובה מקומית + הסבר כשהשרת נכשל"
+      }
+    ]
+  },
+  {
+    "version": "1.01.00–1.01.02",
+    "date": "2026-03-22",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Gemini בשרת + SQLite",
+        "detail": "טיסות, לוגים והערות."
+      },
+      {
+        "type": "feat",
+        "title": "ingest אוטומטי מ-GitHub Actions"
+      },
+      {
+        "type": "feat",
+        "title": "Jetson במקום RPi",
+        "detail": "/api/jetson/* + תאימות /api/rpi/*."
+      },
+      {
+        "type": "feat",
+        "title": "מיקרופון בצ׳אט + הקשר טיסה",
+        "detail": "Web Speech API."
+      }
+    ]
+  }
+]

@@ -10,9 +10,14 @@ alwaysApply: true
 
 ## גרסה (מקורות שחייבים להישאר מסונכרנים)
 
-- `server.js` — `APP_VERSION`
-- `package.json` — `version`
-- `public/index.html` — תג `v…`, כותרת מודל "מה חדש", ו-`app.js?v=…`
-- `public/app.js` — הקבוע **`APP_VERSION_NEW`** (מעדכן את תג הגרסה בטעינת הדף)
+- `version.js` (או `../../client/src/version.js` במונורפו) — **מקור** המחרוזת; `readMonorepoAppVersion()` ב-`server.js` קורא מכאן בעת `APP_VERSION`
+- `server.js` / `lib/routes/http-register.mjs` — `APP_VERSION` (בזמן ריצה) ו־`GET /api/health` + `GET /api/meta` — אותו ערך
+- `package.json` — `version` (bump; עקבי מול `version.js`)
+- `public/index.html` — `__APP_VERSION__` (תג, כותרת, `app.js?v=…` בזמן רנדר)
+- `public/app.js` — `APP_VERSION_NEW` ממטא-טאג; סנכרון נוסף: `applyServerAppVersion` + `syncServerAppVersion` + SSE ‎`appVersion`‎ (כשהדפדפן מקושר)
+- בכל שינוי קוד שבוצע ע"י הסוכן: להריץ bump לגרסה (לפחות patch) ולעדכן את כל הקבצים המסונכרנים (`version.js`, `package.json`, `package-lock.json`, `public/changelog.json`) לפני סיום העבודה.
 
+## תיעוד עסקי (מוצר החוצה)
+
+- מסמך חי **`docs/COMMERCIAL_CAPABILITIES.he.md`** — תקציר עסקי־טכני מקיף. בעת **שינוי מהותי ביכולות המוצר** (לא רק refactoring), לעדכן פרקים רלוונטיים במסמך ולְהַשְׁוות ל־`public/changelog.json` ככל שהמסע המסחרי משתנה.
 GitHub: דחיפה (`git push`) מהריפו של התיקייה הזו בלבד; אין "שמירה ב-GitHub" בלי commit+push מקומיים — זה תמיד דרך Git.

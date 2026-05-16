@@ -3,12 +3,13 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Vision Landing Console</title>
+    <meta name="app-version" content="__APP_VERSION__" />
+    <title>Vision Landing Console v__APP_VERSION__</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
     <link rel="icon" href="./icon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./styles.css?v=__APP_VERSION__" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
     <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
     <script src="https://cdn.jsdelivr.net/npm/leaflet-rotate@0.2.8/dist/leaflet-rotate.js" crossorigin=""></script>
@@ -20,6 +21,7 @@
         <p class="subtitle">ממשק ניסוי מהיר לנחיתה מבוססת מצלמה</p>
       </div>
       <div class="topbar-right">
+        <div class="topbar-right-scroll" aria-label="מדדי תצוגה">
         <div class="confidence-hud" title="רמת ביטחון נחיתה לפי תמונה">
           <span>רמת ביטחון נחיתה לפי תמונה</span>
           <div class="confidence-track"><div id="liveConfidenceBar" class="confidence-fill"></div></div>
@@ -29,51 +31,212 @@
           <span>הפרש Vision מול GPS</span>
           <strong id="liveGpsVisionDelta">-- m</strong>
         </div>
-        <button id="versionBtn" class="badge clickable" title="לחץ כדי לראות מה עודכן בגרסה">v1.01.57</button>
+
+        <div class="confidence-hud tele-hud-mini" title="מהירות אוויר מ-FC">
+          <span>מהירות</span>
+          <strong id="hudAirspeed">-- m/s</strong>
+        </div>
+        <div class="confidence-hud tele-hud-mini" title="גובה מ-FC (מעל קרקע)">
+          <span>גובה</span>
+          <strong id="hudAltitude">-- m</strong>
+        </div>
+        <div class="confidence-hud tele-hud-mini" title="מוד טיסה נוכחי">
+          <span>מוד טיסה</span>
+          <strong id="hudFlightMode">--</strong>
+        </div>
+        </div>
+
+        <div id="connectWidget" class="connect-widget connect-widget-compact" title="חיבור MAVLink למטוס — בסגנון Mission Planner">
+          <button type="button" id="connectToggleBtn" class="conn-pill" aria-expanded="false" aria-controls="connectPanel" title="פתח/סגור פאנל חיבור">
+            <span id="connectStatusDot" class="conn-dot" data-state="off" aria-label="מצב חיבור"></span>
+            <span id="connectPillLabel" class="conn-pill-label">לא מחובר</span>
+            <span class="conn-pill-caret" aria-hidden="true">▾</span>
+          </button>
+          <div id="connectPanel" class="conn-panel" hidden>
+            <p id="connectApiUpgradeHint" class="conn-upgrade-hint hidden" role="alert"></p>
+            <div class="conn-panel-row">
+              <label class="conn-panel-field">
+                <span>סוג</span>
+                <select id="connectType" class="conn-select" title="סוג חיבור">
+                  <option value="udp">UDP</option>
+                  <option value="tcp">TCP</option>
+                  <option value="serial">Serial</option>
+                </select>
+              </label>
+              <label class="conn-panel-field conn-panel-field-port">
+                <span>יעד</span>
+                <select id="connectPortList" class="conn-select" title="COM port / יעד"></select>
+              </label>
+            </div>
+            <div class="conn-panel-row">
+              <label class="conn-panel-field" style="flex:1">
+                <span>host:port</span>
+                <input id="connectPortInput" class="conn-input" type="text" placeholder="udp:0.0.0.0:14550" />
+              </label>
+              <label class="conn-panel-field">
+                <span>Baud</span>
+                <select id="connectBaud" class="conn-select" title="Baud rate">
+                  <option>9600</option><option>19200</option><option>38400</option>
+                  <option selected>57600</option><option>115200</option><option>230400</option><option>460800</option><option>921600</option>
+                </select>
+              </label>
+            </div>
+            <div class="conn-panel-actions">
+              <button id="connectBtn" class="conn-btn conn-btn-primary" title="התחבר / נתק">CONNECT</button>
+              <button type="button" id="connectAutoBtn" class="conn-btn conn-btn-auto" title="חיפוש אוטומטי על USB/COM ובוד נפוצים (כמו Mission Planner Auto-Connect)">חיבור אוטומטי</button>
+              <button id="connectStatBtn" class="conn-btn" title="פתח חלון סטטיסטיקה מפורט">STAT</button>
+            </div>
+            <p id="connectAutoProgress" class="conn-auto-progress hidden" aria-live="polite" role="status"></p>
+            <div id="connectAutoChecklist" class="conn-auto-checklist hidden" role="alert"></div>
+            <details id="connectProtocolDetails" class="conn-protocol-details">
+              <summary class="conn-protocol-summary">פרוטוקול חיבור (מידע מהיר)</summary>
+              <ul class="conn-protocol-bullets">
+                <li>השרת סוגר חיבורים פתוחים קודמים, ממיין את כבלי ה-USB לפי ניחוש «מתאם FC», ומנסה מהירויות נפוצות עד שמגיע MAVLink heartbeat מהבקר.</li>
+                <li>אם ה-COM «תפוס» בווינדוס, התקנת הכבל עלולה להיכשל עם «Access denied» — רק תוכנה אחת יכולה לחבור לכל יציאה בו־זמנית.</li>
+                <li>אין עדיין דיווח התקדמות בזמן אמת מהשרת; אחרי התשובה מוצג סיכום מהיר של הניסויים (למניעת הקלקות כפולות בזמן המתן לתשובה).</li>
+              </ul>
+            </details>
+          </div>
+        </div>
+
+        <button type="button" id="globalSettingsBtn" class="global-settings-btn" title="הגדרות כלליות" aria-haspopup="dialog" aria-controls="globalSettingsModal">⚙</button>
+        <button id="versionBtn" class="badge clickable" title="לחץ כדי לראות מה עודכן בגרסה">v__APP_VERSION__</button>
       </div>
     </header>
 
-    <div id="compatBanner" class="compat-banner compat-banner--hidden" role="alert" aria-live="assertive">
-      <span id="compatBannerIcon" class="compat-banner-icon">⚠</span>
-      <span id="compatBannerText" class="compat-banner-text"></span>
-      <button id="compatBannerDetails" class="compat-banner-btn" type="button">פרטים</button>
-      <button id="compatBannerClose" class="compat-banner-close" type="button" title="סגור">✕</button>
+    <div id="connectStatModal" class="conn-modal" hidden>
+      <div class="conn-modal-backdrop" data-close="1"></div>
+      <div class="conn-modal-card" role="dialog" aria-labelledby="connStatTitle">
+        <header class="conn-modal-head">
+          <strong id="connStatTitle">סטטוס חיבור MAVLink</strong>
+          <button type="button" class="conn-modal-close" data-close="1" aria-label="סגור">✕</button>
+        </header>
+        <div id="connectStatBody" class="conn-modal-body">לא מחובר</div>
+        <footer class="conn-modal-foot">
+          <label class="conn-foot-toggle"><input type="checkbox" id="connectStatAutoRefresh" checked /> רענון אוטומטי (1 שניה)</label>
+          <button type="button" id="connectStatRefreshBtn" class="conn-btn">רענן עכשיו</button>
+        </footer>
+      </div>
+    </div>
+
+    <div id="globalSettingsModal" class="conn-modal" hidden>
+      <div class="conn-modal-backdrop" data-close="1"></div>
+      <div class="conn-modal-card global-settings-card" role="dialog" aria-labelledby="globalSettingsTitle">
+        <header class="conn-modal-head">
+          <strong id="globalSettingsTitle">הגדרות כלליות</strong>
+          <button type="button" class="conn-modal-close" data-close="1" aria-label="סגור">✕</button>
+        </header>
+        <div class="conn-modal-body global-settings-body">
+          <section class="gs-section">
+            <h3 class="gs-h">הרשאות ועריכה</h3>
+            <div id="gsPermissionsBody" class="gs-perms"></div>
+          </section>
+          <section class="gs-section">
+            <h3 class="gs-h">עוצמת קול (שמע תשובות)</h3>
+            <div class="gs-row">
+              <input type="range" id="gsVolumeSlider" min="0" max="100" value="100" aria-labelledby="gsVolumeLabel" />
+              <span id="gsVolumeLabel" class="gs-value">100%</span>
+            </div>
+            <p class="gs-hint">חלה על ElevenLabs וביצוע קול בדפדפן. עוצמת המערכת ב-Windows עדיין משפיעה על השמע.</p>
+          </section>
+          <section class="gs-section">
+            <h3 class="gs-h">קול ElevenLabs</h3>
+            <label class="gs-label" for="gsElevenVoice">בחר קול (כשמוגדר מפתח בשרת)</label>
+            <select id="gsElevenVoice" class="gs-select"></select>
+          </section>
+          <section class="gs-section">
+            <h3 class="gs-h">קול דפדפן (גיבוי כשאין ElevenLabs)</h3>
+            <label class="gs-label" for="gsBrowserVoice">בחר קול מערכת</label>
+            <select id="gsBrowserVoice" class="gs-select"></select>
+          </section>
+          <section class="gs-section">
+            <h3 class="gs-h">זיהוי דיבור (מהנדס טיסה)</h3>
+            <label class="gs-label" for="gsSttLang">שפת הקשבה</label>
+            <select id="gsSttLang" class="gs-select">
+              <option value="">לפי השרת (FE_STT_LANG)</option>
+              <option value="he-IL">עברית</option>
+              <option value="en-US">אנגלית</option>
+              <option value="zh-CN">中文（普通话）</option>
+              <option value="auto_client">אוטומטי לפי הדפדפן</option>
+            </select>
+            <p id="gsSttHint" class="gs-hint"></p>
+          </section>
+        </div>
+      </div>
     </div>
 
     <main class="layout">
       <nav class="tabs">
         <button class="tab active" data-tab="control" title="כל פרמטרי הנחיתה, הניווט הוויזואלי והקושחה במקום אחד">מרכז פרמטרים</button>
         <button class="tab" data-tab="recordings" title="הקלטות ולוגים תחת תחקור">תחקור</button>
-        <button class="tab" data-tab="processes" title="תרשים זרימת שלבי הנחיתה בזמן אמת">תהליכים</button>
-        <button class="tab" data-tab="telemetry" title="טלמטריה, סטטוסים ונתוני Jetson">טלמטריה וסטטוסים</button>
-        <button class="tab" data-tab="terrain" title="מפת טריין חזותי — אזורים מכוסים ומידע ניווט לפי תמונה">מפה טריין</button>
-        <button class="tab" data-tab="connections" title="ניהול חיבורים — Jetson, FC ישיר, MAVLink over UDP/TCP">חיבורים</button>
-        <button class="tab" data-tab="advisor" title="צ'אט ייעוץ מהיר על ביצועים ופרמטרים">יועץ ביצועים</button>
+        <button class="tab" data-tab="telemetry" title="לוח טלמטריה, סטטוסים ובדיקות מערכת">טלמטריה</button>
+        <button class="tab" data-tab="simLab" title="מעבדת SITL — ArduPilot בסימולציה, תצוגת תלת־מימד מהטלמטריה וקביעות חיבור">מעבדת SITL</button>
+        <button class="tab" data-tab="advisor" title="AI Advisor — אבחון, הצעות, שינוי פרמטרים וזיכרון ארוך-טווח">AI Advisor</button>
+        <button class="tab" data-tab="featureDesigner" title="ArduLab — תאר פיצ'ר חדש, ה-AI יכתוב עבורך קוד ArduPilot מלא ויגדיר פרמטרים">ArduLab</button>
+        <button class="tab" data-tab="flightEngineer" title="מהנדס טיסה — שיחה קולית; גם התייעצות על הפרויקט בלי חיבור לבקר">🎙 מהנדס</button>
+        <button class="tab tab-fly" data-tab="terrain" title="הטסה — מפה חזותית, HUD ניווט ושליחת פקודת טיסה">✈ הטסה</button>
+        <!-- flights kept hidden for programmatic access from recordings -->
+        <button class="tab tab-hidden" data-tab="flights" aria-hidden="true" tabindex="-1">לוגים והעלאות</button>
       </nav>
 
       <div id="controlSubtabsBar" class="control-subtabs-bar">
         <div class="subtabs subtabs-wrap">
-          <button class="subtab active" data-subtab="landingParams">נחיתה</button>
-          <button class="subtab" data-subtab="abortParams">בטיחות ו-ABORT</button>
-          <button class="subtab" data-subtab="visionNavParams">ניווט לפי תמונה</button>
-          <button class="subtab" data-subtab="arduParams">ArduPilot</button>
+          <!-- hidden anchor buttons — keep in DOM so _subtabIds() resolves them -->
+          <button class="subtab" data-subtab="landingParams" style="display:none" aria-hidden="true" tabindex="-1">נחיתה</button>
+          <button class="subtab" data-subtab="abortParams" style="display:none" aria-hidden="true" tabindex="-1">בטיחות ו-ABORT</button>
+          <button class="subtab" data-subtab="visionNavParams" style="display:none" aria-hidden="true" tabindex="-1">ניווט לפי תמונה</button>
+          <button class="subtab" data-subtab="customParams" style="display:none" aria-hidden="true" tabindex="-1">Custom שלי</button>
+          <button class="subtab" data-subtab="arduParams" style="display:none" aria-hidden="true" tabindex="-1">ArduPilot</button>
+          <select id="paramSubtabSelect" class="ardu-cat-select param-subtab-select param-subtab-select--active" aria-label="בחר תת-טאב">
+            <option value="landingParams" selected>נחיתה</option>
+            <option value="abortParams">בטיחות ו-ABORT</option>
+            <option value="visionNavParams">ניווט לפי תמונה</option>
+            <optgroup label="— ArduPilot —">
+              <option value="ardu-jetson">📡 תקשורת Jetson</option>
+              <option value="ardu-ekf">EKF / AHRS</option>
+              <option value="ardu-plnd">נחיתה מדויקת (Vision)</option>
+              <option value="ardu-land">נחיתה כללית</option>
+              <option value="ardu-limits">גבולות טיסה</option>
+              <option value="ardu-logs">לוגים</option>
+              <option value="ardu-safety">בטיחות</option>
+            </optgroup>
+            <option value="customParams">✨ Custom שלי</option>
+          </select>
+          <button class="subtab" data-subtab="autoConfig">קונפיגורציה אוטומטית</button>
         </div>
+        <div id="arduTopCatsHost" class="ardu-top-cats-host hidden" role="tablist" aria-label="קטגוריות ArduPilot"></div>
       </div>
 
       <section id="control" class="panel visible">
         <div class="panel-header">
-          <div class="actions">
-            <button id="saveProfileBtn" title="שומר את כל הערכים הנוכחיים לפרופיל מקומי">שמור פרופיל</button>
-            <button id="exportProfileBtn" title="מייצא את הפרופיל לקובץ JSON">ייצוא JSON</button>
-            <label class="file-btn">
-              <span>טעינת JSON</span>
-              <input id="importProfileInput" type="file" accept=".json,application/json" title="טוען פרופיל קיים מקובץ" />
-            </label>
-            <button type="button" id="visionConfigReadBtn" class="btn-secondary-lg" title="טוען מהשרת את פרופיל המסך ופרמטרי ArduPilot השמורים">📥 READ — מהשרת</button>
-            <button type="button" id="visionConfigWriteBtn" class="btn-primary-lg" title="שומר לשרת את פרופיל המסך ופרמטרי ArduPilot לעריכה">📤 WRITE — לשרת</button>
+          <div class="ctrl-sync-bar">
+            <!-- Server sync pill -->
+            <div class="ctrl-sync-group" aria-label="סנכרון עם שרת">
+              <span class="ctrl-sync-label">שרת</span>
+              <button type="button" id="visionConfigReadBtn" class="ctrl-sync-btn ctrl-sync-btn--read" title="טוען מהשרת את פרופיל המסך ופרמטרי ArduPilot השמורים">📥 READ</button>
+              <button type="button" id="visionConfigWriteBtn" class="ctrl-sync-btn ctrl-sync-btn--write" title="שומר לשרת את פרופיל המסך ופרמטרי ArduPilot">📤 WRITE</button>
+            </div>
+            <!-- FC sync pill -->
+            <div class="ctrl-sync-group" aria-label="סנכרון עם רחפן">
+              <span class="ctrl-sync-label">רחפן</span>
+              <button type="button" id="arduReadBtn" class="ctrl-sync-btn ctrl-sync-btn--read" title="קורא פרמטרים מה-FC דרך MAVLink">📥 READ</button>
+              <button type="button" id="arduWriteBtn" class="ctrl-sync-btn ctrl-sync-btn--write" title="שולח יעדי ArduPilot ל-FC דרך MAVLink">📤 WRITE</button>
+            </div>
+            <!-- Profile actions pill -->
+            <div class="ctrl-sync-sep" aria-hidden="true"></div>
+            <div class="ctrl-profile-group">
+              <button id="saveProfileBtn" class="ctrl-profile-btn" title="שמור פרופיל מקומי">💾 שמור</button>
+              <button id="exportProfileBtn" class="ctrl-profile-btn" title="ייצוא פרופיל לקובץ JSON">⬇ JSON</button>
+              <label class="ctrl-profile-btn ctrl-profile-btn--file" title="טעינת פרופיל מקובץ JSON">
+                <span>⬆ JSON</span>
+                <input id="importProfileInput" type="file" accept=".json,application/json" />
+              </label>
+            </div>
+            <span id="arduWriteStatus" class="ardu-write-status action-status" aria-live="polite"></span>
             <span id="visionConfigStatus" class="vision-config-status action-status"></span>
           </div>
         </div>
+        <div id="autoLogsBanner" class="auto-logs-banner hidden" role="status" aria-live="polite"></div>
         <div id="landingParams" class="subpanel visible">
           <div id="paramsGrid" class="params-grid"></div>
         </div>
@@ -84,22 +247,154 @@
           <div id="visionNavGrid" class="params-grid"></div>
         </div>
         <div id="arduParams" class="subpanel">
-          <div class="ardu-cat-subtabs" id="arduCatSubtabs" role="tablist" aria-label="קטגוריות ArduPilot"></div>
-          <div id="arduParamFormPanels" class="ardu-param-form-panels"></div>
+          <div id="arduDiffSection" class="ardu-diff-section-hidden">
+            <h3 class="ardu-diff-h3">השוואה לרחפן (אחרי READ)</h3>
+            <p id="arduDiffSummary" class="ardu-diff-summary"></p>
+            <div id="arduDiffTable" class="ardu-diff-table"></div>
+          </div>
+          <div class="ardu-form-region">
+            <div class="ardu-form-region-head">
+              <div class="ardu-search-row">
+                <input id="arduParamSearchInput" type="search" placeholder="חיפוש פרמטר (למשל LAND_SPEED / נחיתה)" />
+                <button type="button" id="arduParamSearchBtn" class="btn-secondary-lg" title="חיפוש לפי שם/תיאור">חפש</button>
+                <button type="button" id="arduParamSearchClearBtn" class="btn-secondary-lg" title="נקה חיפוש">נקה</button>
+                <button type="button" id="arduParamSmartSearchBtn" class="btn-primary-lg" title="חיפוש חכם לפי טקסט חופשי עם Gemini">חיפוש חכם</button>
+              </div>
+              <div id="arduSearchStatus" class="vision-config-status" aria-live="polite"></div>
+            </div>
+            <div id="arduSmartSearchResults" class="ardu-smart-results hidden" aria-live="polite"></div>
+            <div id="arduParamFormPanels" class="ardu-param-form-panels" role="region" aria-label="שדות פרמטרי ArduPilot"></div>
+          </div>
           <div class="ardu-param-file-actions">
             <button type="button" id="downloadParamBtn" class="btn-secondary-lg" title="הורדת קובץ .param לייבוא ל-Mission Planner">⬇ הורד .param</button>
             <button type="button" id="applyToMpBtn" class="btn-secondary-lg" title="שולח לשרת ניסיון יישום (אם הוגדר)">שליחה ל-Mission Planner</button>
           </div>
+          <div id="paramSyncBanner" class="param-sync-banner param-sync-banner--info" role="status" aria-live="polite"></div>
           <pre id="mpOut" class="mp-out-hidden"></pre>
         </div>
+        <!-- Auto-Config wizard panel -->
+        <div id="autoConfig" class="subpanel ac-panel">
+
+          <!-- ── Compact input toolbar (never scrolls) ──────────── -->
+          <div class="ac-toolbar">
+            <!-- Row 1: component chips -->
+            <div class="ac-toolbar-chips">
+              <span class="ac-toolbar-label">רכיב:</span>
+              <div id="acComponentBtns" class="ac-component-btns" role="group" aria-label="סוג רכיב"></div>
+            </div>
+            <!-- Row 2: textarea + send button -->
+            <div class="ac-toolbar-input-row">
+              <textarea id="acSymptoms" class="ac-textarea" rows="2"
+                placeholder="בחר רכיב למעלה, ואז תאר את הבעיה — AI יציע בדיקות ושינויי פרמטרים."></textarea>
+              <button id="acPlanBtn" type="button" class="ac-plan-btn" title="שלח לקבלת המלצות AI">
+                <span class="ac-plan-btn-icon">🚀</span>
+                <span class="ac-plan-btn-label">שלח</span>
+              </button>
+            </div>
+            <!-- Status line -->
+            <span id="acStatus" class="ac-status" aria-live="polite"></span>
+          </div>
+
+          <!-- ── Results body (fills rest, scrolls if needed) ─────── -->
+          <div class="ac-body">
+
+            <!-- Phase / progress bar -->
+            <div id="acPhaseBar" class="ac-phase-bar hidden" aria-live="polite">
+              <div class="ac-phase-steps">
+                <div class="ac-phase-step" id="acPhase1">
+                  <span class="ac-phase-dot"></span>
+                  <span class="ac-phase-text">בניית תוכנית</span>
+                </div>
+                <div class="ac-phase-sep">→</div>
+                <div class="ac-phase-step" id="acPhase2">
+                  <span class="ac-phase-dot"></span>
+                  <span class="ac-phase-text">המלצות מוכנות</span>
+                </div>
+                <div class="ac-phase-sep">→</div>
+                <div class="ac-phase-step" id="acPhase3">
+                  <span class="ac-phase-dot"></span>
+                  <span class="ac-phase-text">שולח לרחפן</span>
+                </div>
+                <div class="ac-phase-sep">→</div>
+                <div class="ac-phase-step" id="acPhase4">
+                  <span class="ac-phase-dot"></span>
+                  <span class="ac-phase-text">אושר</span>
+                </div>
+              </div>
+              <div id="acPhaseDetail" class="ac-phase-detail"></div>
+            </div>
+
+            <div id="acEmptyState" class="ac-empty-state">
+              <div class="ac-empty-icon" aria-hidden="true">🛩️</div>
+              <p class="ac-empty-title">ממתין לקונפיגורציה</p>
+              <p class="ac-empty-sub">בחר רכיב ותאר את הבעיה כדי לקבל המלצות.</p>
+            </div>
+
+            <div id="acResults" class="ac-results hidden" aria-live="polite">
+              <div id="acSummaryBox" class="ac-summary-box"></div>
+              <div id="acWarningsBox" class="ac-warnings-box hidden"></div>
+              <div id="acChecksSection" class="ac-section hidden">
+                <h3 class="ac-section-title">✅ בדיקות מומלצות</h3>
+                <div id="acChecksList" class="ac-checks-list"></div>
+              </div>
+              <div id="acParamsSection" class="ac-section hidden">
+                <h3 class="ac-section-title">🔧 שינויי פרמטרים</h3>
+                <p class="ac-params-note">לחץ Apply לכל פרמטר כדי לשלוח לרחפן. דורש FC מחובר.</p>
+                <div id="acParamsList" class="ac-params-list"></div>
+              </div>
+            </div>
+
+            <!-- ADVANCED: history log -->
+            <details id="acHistoryDetails" class="ac-history-details hidden">
+              <summary class="ac-history-summary">
+                <span>📋 היסטוריית ניסיונות</span>
+                <span id="acHistoryCount" class="ac-history-count">0</span>
+              </summary>
+              <div class="ac-history-body">
+                <table class="ac-history-table" aria-label="היסטוריית קונפיגורציה">
+                  <thead>
+                    <tr>
+                      <th>שעה</th><th>רכיב</th><th>פרמטר</th>
+                      <th>ערך</th><th>תגובה</th><th>תוצאה</th>
+                    </tr>
+                  </thead>
+                  <tbody id="acHistoryTbody"></tbody>
+                </table>
+                <button type="button" id="acHistoryClearBtn" class="ac-history-clear-btn">נקה היסטוריה</button>
+              </div>
+            </details>
+
+          </div>
+        </div>
+
+        <!-- Custom params sub-panel -->
+        <div id="customParams" class="subpanel">
+          <div class="cp-panel">
+            <div class="cp-panel-header">
+              <div class="cp-header-row">
+                <h3 class="cp-title">✨ הפרמטרים המותאמים שלי</h3>
+                <span class="cp-hint">פרמטרים שנוצרו דרך ArduLab · קליק ימני לסינון / שלח ישירות לרחפן</span>
+              </div>
+              <div class="cp-toolbar">
+                <input id="cpSearchInput" type="search" class="cp-search" placeholder="חפש לפי שם, תיאור, פיצ'ר…" dir="rtl" />
+                <button type="button" id="cpRefreshBtn" class="btn-secondary-lg cp-refresh-btn" title="רענן רשימה">⟳ רענן</button>
+              </div>
+            </div>
+            <div id="cpStatus" class="cp-status" aria-live="polite"></div>
+            <div id="cpFeaturesGrid" class="cp-features-grid" role="list" aria-label="פיצ'רים מותאמים"></div>
+          </div>
+        </div>
+
+        <!-- preflightStatus stub — content moved to #telemetry strip -->
+        <div id="preflightStatus" class="subpanel" style="display:none" aria-hidden="true"></div>
         <pre id="configText" class="config-text-hidden" aria-hidden="true"></pre>
       </section>
 
       <section id="recordings" class="panel recordings-panel-flex">
         <div class="panel-header">
           <div class="tele-subtabs" role="tablist" aria-label="תתי טאבים תחקור">
-            <button type="button" class="tele-subtab active" id="debriefRecBtn">הקלטות</button>
-            <button type="button" class="tele-subtab" id="debriefLogsBtn">לוגים</button>
+            <button type="button" class="tele-subtab active" id="debriefRecBtn" data-debrief-tab="recordings">הקלטות</button>
+            <button type="button" class="tele-subtab" id="debriefLogsBtn" data-debrief-tab="logs">לוגים</button>
           </div>
           <div class="actions">
             <label class="file-btn">
@@ -110,7 +405,7 @@
             <button id="annotationsToggleBtn" class="badge clickable" title="הפעל/כבה אנוטציות על הוידאו">אנוטציות: פועל</button>
           </div>
         </div>
-        <div class="recordings-layout">
+        <div id="debriefRecordingsPanel" class="recordings-layout tele-subpanel visible" data-debrief-panel="recordings">
           <div class="video-column">
             <div class="video-wrapper">
               <video id="flightVideo" controls></video>
@@ -128,6 +423,13 @@
           <div class="events-column">
             <h3>אירועים סביב הזמן הנוכחי</h3>
             <div id="eventsList" class="events-list"></div>
+          </div>
+        </div>
+        <div id="debriefLogsPanel" class="tele-subpanel debrief-logs-panel" data-debrief-panel="logs">
+          <div class="debrief-logs-card">
+            <h3>לוגים והעלאות</h3>
+            <p>לוגים מלאים, העלאת קבצים וניהול טיסות נשארים במסך הייעודי כדי לא לשכפל פעולות כתיבה וקבצים.</p>
+            <button type="button" class="btn-primary-lg" id="openFlightsFromDebriefBtn">פתח לוגים והעלאות</button>
           </div>
         </div>
       </section>
@@ -163,12 +465,23 @@
               <span>Vision <span class="tele-dash-sub">מצלמה → Jetson</span></span>
               <span class="section-badge" id="visionLiveBadge">— אין חיבור</span>
             </header>
-            <div class="telemetry-cards tele-dash-cards">
-              <article class="tele-card" data-vision-card><span>סטייה רוחבית <span class="tele-q" title="הפרש רוחבי בין נתיב התמונה לנתיב הטיסה, במטרים">?</span></span><strong id="visionLateralOffset">-</strong></article>
-              <article class="tele-card" data-vision-card><span>שגיאת כיוון <span class="tele-q" title="הפרש זווית הכיוון בין Vision לבין כיוון הייחוס">?</span></span><strong id="visionHeadingError">-</strong></article>
-              <article class="tele-card" data-vision-card><span>Vision Confidence <span class="tele-q" title="ביטחון הזיהוי של אלגוריתם הראייה בפריים האחרון">?</span></span><strong id="visionConfidence">-</strong></article>
-              <article class="tele-card" data-vision-card><span>גיל פריים <span class="tele-q" title="כמה זמן עבר מאז שהתקבל פריים Vision אחרון">?</span></span><strong id="visionFrameAge">-</strong></article>
-              <article class="tele-card" data-vision-card><span>פריימים שהתקבלו <span class="tele-q" title="מונה מצטבר של פריימי Vision שהתקבלו מהמערכת">?</span></span><strong id="visionFrameCount">0</strong></article>
+            <div class="tele-vision-group">
+              <div class="tele-group-label">מצלמות</div>
+              <div class="tele-group-cards">
+                <article class="tele-card"><span>CAM1 — קדמית <span class="tele-q" title="מצב חיבור מצלמה קדמית">?</span></span><strong id="terrainCam1Status">—</strong></article>
+                <article class="tele-card"><span>CAM1 FPS <span class="tele-q" title="קצב פריימים של מצלמה קדמית">?</span></span><strong id="terrainCam1Fps">—</strong></article>
+                <article class="tele-card"><span>CAM2 — מטה <span class="tele-q" title="מצב חיבור מצלמה תחתית">?</span></span><strong id="terrainCam2Status">—</strong></article>
+              </div>
+            </div>
+            <div class="tele-vision-group">
+              <div class="tele-group-label">אלגוריתם Vision</div>
+              <div class="tele-group-cards">
+                <article class="tele-card" data-vision-card><span>Confidence <span class="tele-q" title="ביטחון הזיהוי של אלגוריתם הראייה בפריים האחרון">?</span></span><strong id="visionConfidence">-</strong></article>
+                <article class="tele-card" data-vision-card><span>סטייה רוחבית <span class="tele-q" title="הפרש רוחבי בין נתיב התמונה לנתיב הטיסה, במטרים">?</span></span><strong id="visionLateralOffset">-</strong></article>
+                <article class="tele-card" data-vision-card><span>שגיאת כיוון <span class="tele-q" title="הפרש זווית הכיוון בין Vision לבין כיוון הייחוס">?</span></span><strong id="visionHeadingError">-</strong></article>
+                <article class="tele-card" data-vision-card><span>גיל פריים <span class="tele-q" title="כמה זמן עבר מאז שהתקבל פריים Vision אחרון">?</span></span><strong id="visionFrameAge">-</strong></article>
+                <article class="tele-card" data-vision-card><span>פריימים <span class="tele-q" title="מונה מצטבר של פריימי Vision שהתקבלו מהמערכת">?</span></span><strong id="visionFrameCount">0</strong></article>
+              </div>
             </div>
           </div>
 
@@ -179,6 +492,7 @@
             </header>
             <p class="tele-dash-note">תנוחה מ-Jetson לניווט ללא GPS כשהזרם פעיל.</p>
             <div class="telemetry-cards tele-dash-cards">
+              <article class="tele-card" data-slam-card><span>VIO ביטחון <span class="tele-q" title="רמת ביטחון אמידת המיקום החזותי-אינרציאלי">?</span></span><strong id="terrainNavStatus">—</strong></article>
               <article class="tele-card" data-slam-card><span>מיקום (X,Y,Z) <span class="tele-q" title="מיקום SLAM ביחס למסגרת המקומית של המפה">?</span></span><strong id="slamPos">לא פעיל</strong></article>
               <article class="tele-card" data-slam-card><span>איכות מפה <span class="tele-q" title="מד איכות מפת SLAM שנבנית במהלך תנועה">?</span></span><strong id="slamQuality">-</strong></article>
               <article class="tele-card" data-slam-card><span>Loop Closures <span class="tele-q" title="כמות סגירות לולאה שנמצאו לשיפור דיוק המפה">?</span></span><strong id="slamLoopClosures">-</strong></article>
@@ -187,24 +501,344 @@
           </div>
 
           <div class="tele-dash-col" id="teleJetson">
-            <header class="tele-dash-head">מחשב Jetson</header>
-            <div class="jetson-status-bar jetson-status-bar--compact">
-              <div id="jetsonStatusDot" class="status-dot offline"></div>
-              <strong id="jetsonOnlineState">בודק...</strong>
-              <span id="jetsonLastSeen" class="jetson-last-seen">-</span>
+            <header class="tele-dash-head tele-dash-head--split">
+              <span>מחשב Jetson</span>
+              <span class="jetson-online-chip">
+                <span id="jetsonStatusDot" class="status-dot offline"></span>
+                <span id="jetsonOnlineState">בודק...</span>
+              </span>
+            </header>
+
+            <!-- Stitch-style metric bars -->
+            <div class="jetson-stitch-body">
+              <div class="jst-metric">
+                <div class="jst-metric-head">
+                  <span class="jst-label">CPU Load</span>
+                  <span id="jetsonCpu" class="jst-value">—</span>
+                </div>
+                <div class="jst-bar-track"><div id="jetsonCpuBar" class="jst-bar jst-bar--primary"></div></div>
+              </div>
+              <div class="jst-metric">
+                <div class="jst-metric-head">
+                  <span class="jst-label">RAM</span>
+                  <span id="jetsonMem" class="jst-value">—</span>
+                </div>
+                <div class="jst-bar-track"><div id="jetsonMemBar" class="jst-bar jst-bar--teal"></div></div>
+              </div>
+              <div class="jst-row-metrics">
+                <div class="jst-mini">
+                  <span class="jst-label">טמפרטורה</span>
+                  <strong id="jetsonTemp">—</strong>
+                </div>
+                <div class="jst-mini">
+                  <span class="jst-label">Heartbeat</span>
+                  <strong id="heartbeatLatencyJetson">—</strong>
+                </div>
+                <div class="jst-mini">
+                  <span class="jst-label">קישור</span>
+                  <strong id="linkQualityJetson">—</strong>
+                </div>
+              </div>
+              <div class="jst-last-seen-row">
+                <span class="jst-label">נראה לאחרונה</span>
+                <span id="jetsonLastSeen" class="jst-last-seen-val">—</span>
+              </div>
             </div>
-            <div class="telemetry-cards tele-dash-cards">
-              <article class="tele-card"><span>CPU Load <span class="tele-q" title="אחוז העומס המעבד הנוכחי במחשב Jetson">?</span></span><strong id="jetsonCpu">-</strong></article>
-              <article class="tele-card"><span>טמפרטורה <span class="tele-q" title="טמפרטורת העבודה המדווחת מה-Jetson">?</span></span><strong id="jetsonTemp">-</strong></article>
-              <article class="tele-card"><span>זיכרון RAM <span class="tele-q" title="אחוז שימוש זיכרון RAM ב-Jetson">?</span></span><strong id="jetsonMem">-</strong></article>
-              <article class="tele-card"><span>עיכוב Heartbeat <span class="tele-q" title="Latency בין heartbeat לשרת לבין התצוגה">?</span></span><strong id="heartbeatLatencyJetson">-</strong></article>
-              <article class="tele-card"><span>איכות קישור <span class="tele-q" title="אומדן איכות קישור על בסיס heartbeat">?</span></span><strong id="linkQualityJetson">-</strong></article>
-            </div>
+
             <div class="tele-dash-jetson-foot">
               <button type="button" id="jetsonRefreshBtn">⟳ רענן</button>
               <p class="jetson-hint jetson-hint--dash" id="jetsonOut"></p>
             </div>
           </div>
+        </div>
+
+        <!-- Jetson version management row — collapsible to save vertical space -->
+        <details class="jetson-version-details" aria-label="ניהול גרסת קוד Jetson">
+          <summary class="jetson-version-summary">
+            <span>גרסה להתקנה / Rollback</span>
+            <span class="jetson-version-summary-hint">פתח לניהול גרסה</span>
+          </summary>
+          <div class="jetson-version-row">
+            <div class="jetson-version-row-left">
+              <div class="jetson-version-installed">
+                <span class="jvr-label">גרסה מותקנת</span>
+                <strong id="jetsonInstalledVersion">—</strong>
+                <span id="jetsonInstallStateBadge" class="jetson-install-badge idle"></span>
+              </div>
+              <p id="jetsonInstallLastAction" class="jvr-last-action"></p>
+            </div>
+            <div class="jetson-version-row-center">
+              <div class="jetson-version-notes-compact">
+                <span class="jvr-label">מה בגרסה שנבחרה</span>
+                <span id="jetsonSelectedNotesHe" class="jvr-notes-text">טוען…</span>
+              </div>
+            </div>
+            <div class="jetson-version-row-right">
+              <label class="jvr-select-label">
+                <span class="jvr-label">גרסה להתקנה / Rollback</span>
+                <select id="jetsonTargetVersionSelect" class="jetson-version-select jvr-select" title="גרסאות מהמאגר המסונכרן לפרויקט"></select>
+              </label>
+              <button type="button" id="jetsonInstallBtn" class="btn-jetson-install jvr-install-btn" title="מבצע התקנה לפי הבחירה">
+                התקן / Rollback
+              </button>
+            </div>
+          </div>
+        </details>
+
+        <!-- System-check strip — moved here from control subtabs -->
+        <div class="tele-preflight-strip">
+          <div class="tele-preflight-title">בדיקות מערכת</div>
+          <div id="preflightCard" class="tele-preflight-cards">
+            <div class="tele-pf-card" id="pf-mavlink">
+              <span class="pf-icon" id="pf-mavlink-icon">○</span>
+              <span class="pf-label">FC (MAVLink)</span>
+              <span class="pf-value" id="pf-mavlink-val">—</span>
+            </div>
+            <div class="tele-pf-card" id="pf-armed">
+              <span class="pf-icon" id="pf-armed-icon">○</span>
+              <span class="pf-label">ARMED</span>
+              <span class="pf-value" id="pf-armed-val">—</span>
+            </div>
+            <div class="tele-pf-card" id="pf-params">
+              <span class="pf-icon" id="pf-params-icon">○</span>
+              <span class="pf-label">פרמטרים</span>
+              <span class="pf-value" id="pf-params-val">—</span>
+            </div>
+            <div class="tele-pf-card" id="pf-jetson">
+              <span class="pf-icon" id="pf-jetson-icon">○</span>
+              <span class="pf-label">Jetson</span>
+              <span class="pf-value" id="pf-jetson-val">—</span>
+            </div>
+            <div class="tele-pf-card" id="pf-gps">
+              <span class="pf-icon" id="pf-gps-icon">○</span>
+              <span class="pf-label">GPS</span>
+              <span class="pf-value" id="pf-gps-val">—</span>
+            </div>
+          </div>
+          <button type="button" id="preflightRefreshBtn" class="tele-pf-refresh">↻</button>
+        </div>
+
+        <!-- hidden: diff notes (kept for JS compat) -->
+        <p id="jetsonDiffNotesHe" style="display:none">—</p>
+      </section>
+
+      <section id="simLab" class="panel">
+        <header class="sim-lab-intro">
+          <div class="sim-lab-intro-text">
+            <h2 class="sim-lab-title">מעבדת SITL</h2>
+            <p class="sim-lab-tagline">טלמטריה חיה, <code>MANUAL_CONTROL</code>, שיחזור לוג — תלת־ממד לפי נתונים; <strong class="sim-lab-honesty">הפיזיקה</strong> ב־SITL / סימולטור חיצוני.</p>
+          </div>
+          <div class="sim-lab-intro-actions">
+            <a class="btn-secondary-lg sim-lab-doc-link" href="/docs/SITL_AND_SIM_LAB.md" target="_blank" rel="noopener">תיעוד מעבדה ↗</a>
+            <details class="sim-lab-intro-more">
+              <summary>פירוט</summary>
+              <p class="sim-lab-sub sim-lab-sub--compact">ערוץ ארגומנטציה מול ArduPilot SITL: המסוף מציג טלמטריה חיה (SSE) ומאפשר RC דרך <code>MANUAL_CONTROL</code> כשהוגדר בשרת. <strong class="sim-lab-honesty">גובה, מהירות, כיוון ומודל התנועה</strong> מגיעים מ־ArduPilot וממנוע הסימולציה — לא מה־WebGL כאן.</p>
+            </details>
+          </div>
+        </header>
+
+        <div class="sim-lab-body">
+        <div class="sim-lab-shell">
+          <aside class="sim-lab-rail sim-lab-rail--start" aria-label="חיבור והגדרות">
+            <details class="sim-lab-accordion" name="simlabL" open>
+              <summary>חיבור מהיר</summary>
+              <div class="sim-lab-acc-body">
+                <p class="sim-lab-hint sim-lab-hint--tight">ממלא את שדות CONNECT למעלה — ואז Connect שם.</p>
+                <div class="sim-lab-quick-btns">
+                  <button type="button" id="simLabPresetUdp14550" class="sim-lab-qbtn">UDP ‏127.0.0.1:14550</button>
+                  <button type="button" id="simLabPresetUdpBind" class="sim-lab-qbtn">UDP מאזין ‏0.0.0.0:14550</button>
+                  <button type="button" id="simLabPresetTcp5760" class="sim-lab-qbtn">TCP ‏127.0.0.1:5760</button>
+                </div>
+              </div>
+            </details>
+            <details class="sim-lab-accordion" name="simlabL">
+              <summary>פרופיל סימולציה</summary>
+              <div class="sim-lab-acc-body">
+                <p class="sim-lab-hint sim-lab-hint--tight">תיעוד גרסאות בלבד (לא התקנה).</p>
+                <div class="sim-lab-stack-fields">
+                  <label class="sim-lab-field">שורת ArduPlane
+                    <select id="simLabArduPreset" class="sim-lab-select"></select>
+                  </label>
+                  <label class="sim-lab-field hidden" id="simLabArduCustomWrap">גרסה מותאמת
+                    <input type="text" id="simLabArduCustom" class="sim-lab-text-input" placeholder="למשל 4.5.5" autocomplete="off" />
+                  </label>
+                  <label class="sim-lab-field">Jetson bundle (קטלוג)
+                    <select id="simLabJetsonVer" class="sim-lab-select"></select>
+                  </label>
+                </div>
+              </div>
+            </details>
+            <details class="sim-lab-accordion" name="simlabL">
+              <summary>פרמטר חי</summary>
+              <div class="sim-lab-acc-body">
+                <p class="sim-lab-hint sim-lab-hint--tight">PARAM_SET: בדרך־כלל Disarm ב־SITL; חסום ב־ARMED כמו בייצור.</p>
+                <div class="sim-lab-param-row">
+                  <input type="text" id="simLabParamName" class="sim-lab-text-input" placeholder="LAND_SPEED" autocomplete="off" />
+                  <input type="number" id="simLabParamValue" class="sim-lab-text-input sim-lab-param-value" placeholder="ערך" step="any" />
+                  <button type="button" id="simLabParamSend" class="sim-lab-qbtn">שליחה</button>
+                </div>
+                <p id="simLabParamStatus" class="sim-lab-param-status" aria-live="polite"></p>
+              </div>
+            </details>
+            <details class="sim-lab-accordion" name="simlabL">
+              <summary>מודל מטוס בתלת־ממד — ‎GLB‎ מול צילום</summary>
+              <div class="sim-lab-acc-body">
+                <p class="sim-lab-hint sim-lab-hint--tight">
+                  בתפריט מופיעים רק קבצי ‎GLB‎; בחירת «פרימיטיב» עם «החל על התצוגה» מאפסת לגוף אפור ברירת־מחדל.
+                  <strong>‎JPEG‎/‎PNG‎</strong> מהעלאה מוחילים למשטח הפרימיטיב בסצנה (מרקם), ואינם מחליפים גאומטריית מודל משלהם —
+                  משח להחלפת כלי שלם עם ‎glTF /‎‎GLB‎.
+                </p>
+                <p class="sim-lab-hint sim-lab-hint--tight">טעינת ‎GLB מהשרת (<code>/uploads</code>) במקום הפרימיטיב — קנה מידה אוטומטי לסצנה.</p>
+                <label class="sim-lab-field">בחר נכס
+                  <select id="simLabAircraftSelect" class="sim-lab-select" data-simlab-ignore-kb="1"></select>
+                </label>
+                <div class="sim-lab-aircraft-actions">
+                  <button type="button" id="simLabAircraftApply" class="sim-lab-qbtn">החל על התצוגה (רק מהגלילה — ‎GLB‎ או פרימיטיב ריק)</button>
+                  <button type="button" id="simLabAircraftReload" class="sim-lab-qbtn">רענן רשימה</button>
+                </div>
+                <label class="sim-lab-field sim-lab-upload-label">העלאת ‎GLB‎ / צילום
+                  <input type="file" id="simLabAircraftUpload" accept=".glb,.gltf,.zip,.jpg,.jpeg,.png,.webp,.gif,.bmp,.tif,.tiff,.heic,.heif,.avif,image/*" class="sim-lab-file" data-simlab-ignore-kb="1" />
+                </label>
+                <p id="simLabAircraftStatus" class="sim-lab-param-status" aria-live="polite"></p>
+              </div>
+            </details>
+          </aside>
+
+          <div class="sim-lab-stage">
+            <div class="sim-lab-viz-wrap">
+              <canvas id="simLabCanvas" class="sim-lab-canvas" aria-label="תצוגת מטוס תלת־מימדית לפי טלמטריה"></canvas>
+              <div class="sim-lab-overlay" aria-hidden="true">
+                <div class="sim-lab-tape-strip sim-lab-tape-strip--heading">
+                  <span class="sim-lab-tape-label">כיוון</span>
+                  <strong id="simLabHudHeading" class="sim-lab-tape-val">—</strong>
+                </div>
+                <div class="sim-lab-pfd-mini">
+                  <canvas id="simLabHorizon" width="176" height="176" aria-hidden="true"></canvas>
+                </div>
+                <div class="sim-lab-tapes-side">
+                  <div class="sim-lab-tape-box">
+                    <span class="sim-lab-tape-label">מהירות</span>
+                    <strong id="simLabHudAirspeed" class="sim-lab-tape-val">—</strong>
+                  </div>
+                  <div class="sim-lab-tape-box">
+                    <span class="sim-lab-tape-label">גובה</span>
+                    <strong id="simLabHudAltitude" class="sim-lab-tape-val">—</strong>
+                  </div>
+                  <div class="sim-lab-tape-box sim-lab-tape-box--sub">
+                    <span class="sim-lab-tape-label">קרקע</span>
+                    <strong id="simLabHudGroundspeed" class="sim-lab-tape-val">—</strong>
+                  </div>
+                </div>
+              </div>
+              <div id="simLabHud" class="sim-lab-hud" aria-live="polite">
+                <div class="sim-lab-hud-row">
+                  <span id="simLabHudConn">אין חיבור FC</span>
+                  <span id="simLabHudAtt">—</span>
+                </div>
+                <span id="simLabHudStack" class="sim-lab-hud-stack"></span>
+              </div>
+            </div>
+
+            <div class="sim-lab-stage-foot">
+              <div class="sim-lab-toolbar-row sim-lab-toolbar-row--primary">
+                <label class="sim-lab-vfx-toggle">
+                  <input type="checkbox" id="simLabVfxToggle" checked />
+                  <span>תצוגה: שמיים · מדרון · תאורה · מצלמה חלקה (כיבוי: מעקב מצלמה פשוט יותר — עדיין שמיים, לא לב שחור)</span>
+                </label>
+              </div>
+              <div class="sim-lab-toolbar-row sim-lab-toolbar-row--secondary">
+                <details class="sim-lab-help-workflow">
+                  <summary>עזרה — סדר עבודה</summary>
+                  <ol class="sim-lab-steps">
+                    <li>הפעל <strong>ArduPlane SITL</strong> כך ש־MAVLink זמין ב־UDP/TCP מקומי.</li>
+                    <li><strong>התחברות:</strong> «חיבור מהיר» + <strong>Connect</strong> בשורת הכותרת.</li>
+                    <li><strong>ארם ומצב:</strong> בקושחה ארם ומצב שמאפשר יד (למשל MANUAL) — רק ב־SITL ובטיחות העבודה שלך.</li>
+                    <li><strong>שליטה:</strong> סמן «שליחה לקושחה» והשתמש במשחקון או במקשים — <code>MANUAL_CONTROL</code> דרך השרת. פירוט מלא ב־<a href="/docs/SITL_AND_SIM_LAB.md" target="_blank" rel="noopener">תיעוד המעבדה ↗</a>.</li>
+                    <li><strong>שיחזור:</strong> קובץ ‎.tlog — ציר זמן, GPS, אירועים (STATUSTEXT, ARM/disarm, מצב טיסה).</li>
+                  </ol>
+                </details>
+              </div>
+            </div>
+
+            <div id="simLabMapWrap" class="sim-lab-map-wrap hidden" aria-hidden="true">
+              <div id="simLabMapEl" class="sim-lab-map-el" role="img" aria-label="מפת מסלול מהלוג"></div>
+              <p id="simLabMapCaption" class="sim-lab-map-caption">מסלול GPS מהקובץ — מסונכן עם מפת ההטסה</p>
+              <div class="sim-lab-map-toolbar">
+                <label class="sim-lab-field sim-lab-field--inline">רקע מפה
+                  <select id="simLabMapBasemap" class="sim-lab-select" data-simlab-ignore-kb="1" title="בחירת שכבת בסיס לריפליי">
+                    <option value="osm">OpenStreetMap</option>
+                    <option value="satellite">לוויין (Esri)</option>
+                    <option value="gradient">גרדיאנט מקומי</option>
+                  </select>
+                </label>
+              </div>
+              <p id="simLabMapBasemapCaption" class="sim-lab-map-caption sim-lab-map-caption--sub"></p>
+            </div>
+          </div>
+
+          <aside class="sim-lab-rail sim-lab-rail--end" aria-label="שליטה ושיחזור">
+            <details class="sim-lab-accordion" name="simlabR" open>
+              <summary>שליטה · ‎MANUAL_CONTROL</summary>
+              <div class="sim-lab-acc-body">
+                <div class="sim-lab-control-toolbar">
+                  <label class="sim-lab-rc-toggle"><input type="checkbox" id="simLabRcSendToggle" /> שליחה לקושחה דרך השרת</label>
+                </div>
+                <p id="simLabRcHint" class="sim-lab-hint sim-lab-hint--tight"></p>
+                <p id="simLabGamepadStatus" class="sim-lab-gamepad">לא זוהה משחקון USB — חבר ולחץ על כפתור בזמן שהטאב פתוח.</p>
+                <details class="sim-lab-accordion sim-lab-accordion--nested">
+                  <summary>מקרא מקשים</summary>
+                  <div class="sim-lab-keys-legend" dir="ltr">
+                    <table class="sim-lab-keys-grid" aria-label="מקרא מפתחות שליחת MANUAL_CONTROL">
+                      <tbody>
+                        <tr><td class="sim-lab-key">W / ↑</td><td>אף למעלה (pitch <code>x</code>)</td></tr>
+                        <tr><td class="sim-lab-key">S / ↓</td><td>אף למטה</td></tr>
+                        <tr><td class="sim-lab-key">A / ←</td><td>גלגול שמאלה (<code>y</code>)</td></tr>
+                        <tr><td class="sim-lab-key">D / →</td><td>גלגול ימינה</td></tr>
+                        <tr><td class="sim-lab-key">Q</td><td>רודר שמאלה (<code>r</code>)</td></tr>
+                        <tr><td class="sim-lab-key">E</td><td>רודר ימינה</td></tr>
+                        <tr><td class="sim-lab-key">[ ]</td><td>דחף (<code>z</code>) ±120, טווח ‎±‎1000</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </details>
+                <p class="sim-lab-keys-note">משחקון דורס ציר מקבל מהמקלדת. נדרש <code dir="ltr">ALLOW_BROWSER_MANUAL_CONTROL=1</code> — לא לייצור. <a href="/docs/SITL_AND_SIM_LAB.md" target="_blank" rel="noopener">עוד ↗</a></p>
+              </div>
+            </details>
+            <details class="sim-lab-accordion" name="simlabR">
+              <summary>שיחזור ‎.tlog</summary>
+              <div class="sim-lab-acc-body">
+                <div class="sim-lab-replay-upload">
+                  <input type="file" id="simLabTlogInput" accept=".tlog,.bin,.log,.BIN,.TLOG" class="sim-lab-file" />
+                  <button type="button" id="simLabTlogParseBtn" class="sim-lab-qbtn">ניתוח קובץ</button>
+                </div>
+                <p id="simLabReplayMeta" class="sim-lab-hint sim-lab-hint--tight"></p>
+                <div id="simLabReplayControls" class="sim-lab-replay-controls hidden">
+                  <div class="sim-lab-replay-btns">
+                    <button type="button" id="simLabReplayPlay" class="sim-lab-qbtn">ניגון</button>
+                    <button type="button" id="simLabReplayPause" class="sim-lab-qbtn">השהה</button>
+                    <button type="button" id="simLabReplayStop" class="sim-lab-qbtn">עצור</button>
+                    <label class="sim-lab-replay-speed">מהירות
+                      <select id="simLabReplaySpeed">
+                        <option value="1">1×</option>
+                        <option value="2">2×</option>
+                        <option value="4">4×</option>
+                      </select>
+                    </label>
+                  </div>
+                  <input type="range" id="simLabReplaySeek" class="sim-lab-seek" min="0" max="0" value="0" />
+                  <div id="simLabReplayStripWrap" class="sim-lab-replay-strip-wrap hidden" aria-hidden="true">
+                    <div id="simLabReplayEventStrip" class="sim-lab-event-strip" role="presentation" title="סימני אירוע על ציר הזמן"></div>
+                    <details class="sim-lab-replay-ev-details">
+                      <summary>אירועי לוג (‎STATUSTEXT‎ · ARM · מצב)</summary>
+                      <div id="simLabReplayEventList" class="sim-lab-event-list"></div>
+                    </details>
+                  </div>
+                </div>
+                <button type="button" id="simLabGoFlightsBtn" class="sim-lab-qbtn sim-lab-qbtn--ghost">לעלאות ולוגים</button>
+              </div>
+            </details>
+          </aside>
+        </div>
         </div>
       </section>
 
@@ -298,177 +932,444 @@
 
 
       <section id="terrain" class="panel">
-        <div class="terrain-info-bar">
-          <article class="tele-card"><span>אזורים מכוסים</span><strong id="terrainCellCount">0</strong></article>
-          <article class="tele-card"><span>שטח משוער</span><strong id="terrainAreaEst">0 m²</strong></article>
-          <article class="tele-card"><span>SLAM פעיל</span><strong id="terrainSlamStatus">לא</strong></article>
-          <article class="tele-card"><span>ניווט GPS-Free</span><strong id="terrainNavStatus">לא זמין</strong></article>
-          <div class="terrain-toolbar terrain-toolbar-inline" role="toolbar" aria-label="תצוגת מפה">
-            <span class="terrain-toolbar-label">שכבה:</span>
-            <button type="button" id="terrainLayerStreetBtn" class="terrain-layer-btn active" title="OpenStreetMap">מפת רחוב</button>
-            <button type="button" id="terrainLayerSatBtn" class="terrain-layer-btn" title="תצלום לווין (Esri)">לווין</button>
-            <button type="button" id="terrainMappedOnlyBtn" class="terrain-layer-btn terrain-mapped-toggle" title="רקע לבן — מוצגים רק אזורי כיסוי שהמצלמה מיפתה">רק אזורים ממופים</button>
-            <button type="button" id="terrainClearBtn" class="terrain-layer-btn" title="מנקה את כל כיסוי הטריין">✕ נקה</button>
-          </div>
-        </div>
-        <div class="terrain-map-shell">
-          <div id="terrainMapRotatable" class="terrain-map-rotatable">
-            <div id="terrainMap"></div>
-          </div>
-        </div>
-        <div class="terrain-alt-legend" aria-label="מקרא גובה מיפוי">
-          <div class="terrain-alt-legend-row">
-            <span class="terrain-alt-legend-title">מקרא גובה (AGL)</span>
-            <span class="terrain-alt-legend-hint">כחול נמוך · אדום גבוה</span>
-          </div>
-          <div class="terrain-alt-gradient" role="img" aria-hidden="true"></div>
-          <div class="terrain-alt-ticks"><span id="terrainAltTickMin">~5m</span><span id="terrainAltTickMid">~45m</span><span id="terrainAltTickMax">~90m+</span></div>
-        </div>
-        <details class="terrain-help-panel">
-          <summary>איך לקרוא את המפה</summary>
-          <p>המצלמה בונה מפה תלת-מימדית בזמן הטיסה (SLAM). כשהיא עוברת שוב על אזור מוכר, היא מזהה אותו ויכולה לקבוע את מיקומה בדיוק של פחות ממטר — גם ללא GPS.</p>
-          <p>צבע המעגלים משקף <strong>גובה מיפוי (AGL)</strong>: כחול/סגול נמוך, אדום גבוה. פופאפ על אזור מציג גובה, איכות ורדיוס.</p>
-          <p><strong>תצוגה:</strong> מפת רחוב / לווין. מצב ״רק אזורים ממופים״ מסתיר אריחים ומציג רק אזורי כיסוי.</p>
-        </details>
-      </section>
+        <div class="terrain-flight-shell">
+          <!-- ══ Flight HUD PFD — 30% left column ══ -->
+          <aside id="flightHud" class="flight-hud" aria-label="HUD טיסה חופשית">
 
-      <section id="connections" class="panel connections-panel">
-        <div class="panel-header">
-          <h2>ניהול חיבורים</h2>
-          <div class="actions">
-            <button type="button" id="refreshConnectionsBtn" title="רענן רשימה">⟳ רענן</button>
-            <button type="button" id="addConnectionBtn" class="btn-primary-lg" title="הוסף חיבור חדש">+ הוסף חיבור</button>
-          </div>
-        </div>
+            <!-- ── Top bar: voice cmds + armed + mode + heading + GPS ─────────── -->
+            <div class="pfd-top-bar">
+              <button type="button" id="pfdVoiceFlightBtn" class="pfd-voice-flight-btn" title="פתיחת מהנדס קולי לפקודות טיסה">🎙 פקודות</button>
+              <span id="pfdArmedBadge" class="pfd-badge pfd-badge--disarmed" role="button" tabindex="0" title="מצב ARM — לחץ להסבר מוכנות">DISARMED</span>
+              <span id="pfdModeVal"    class="pfd-mode-val">--</span>
+              <div class="pfd-hdg-box" id="pfdHdgBox" title="כיוון אף (Heading)">
+                <span class="pfd-hdg-arrow" id="pfdHdgArrow">↑</span>
+                <span class="pfd-hdg-val"   id="pfdHdgVal">---°</span>
+              </div>
+              <div class="hud-nav-pill pfd-gps-pill" id="hudNavGps" data-status="unknown" title="מצב GPS">
+                <span class="hud-nav-icon">📡</span>
+                <span class="hud-nav-val" id="hudNavGpsVal">--</span>
+              </div>
+            </div>
 
-        <!-- Server URL card — for Jetson configuration -->
-        <div class="conn-server-card">
-          <div class="conn-server-card-header">
-            <span class="conn-server-card-title">כתובת השרת — לכוון את הג'טסון לכאן</span>
-            <span class="section-badge" id="serverUrlBadge">HTTP Push</span>
+            <!-- ── Horizon shell (canvas + side overlays) ─────── -->
+            <div class="pfd-horizon-shell" id="pfdHorizonShell">
+              <canvas id="horizonCanvas"></canvas>
+
+              <!-- Left: Airspeed -->
+              <div class="pfd-side-tape pfd-side-tape--left">
+                <span class="pfd-tape-key">IAS</span>
+                <strong class="pfd-tape-big" id="pfdAirspeedVal">--</strong>
+                <span class="pfd-tape-unit">m/s</span>
+              </div>
+
+              <!-- Right: Altitude -->
+              <div class="pfd-side-tape pfd-side-tape--right">
+                <span class="pfd-tape-key">ALT</span>
+                <strong class="pfd-tape-big" id="pfdAltVal">--</strong>
+                <span class="pfd-tape-unit">m</span>
+              </div>
+            </div>
+
+            <!-- FC messages (STATUSTEXT) — translated Hebrew via Gemini -->
+            <div class="pfd-statustext-strip" id="pfdStatustextStrip">
+              <div class="pfc-msg-head">
+                <span class="pfc-msg-label">הודעות FC</span>
+                <span class="pfc-opt-mini" id="pfdOptMini" title="Vision / ניווט אופטי">👁 —</span>
+              </div>
+              <p class="pfc-msg-primary" id="pfcMsgPrimaryHe">אין חיבור לבקר — לא מתקבלות הודעות.</p>
+              <div class="pfc-msg-scroll" id="pfcMsgScroll"></div>
+            </div>
+
+            <!-- ── Bottom bar: battery + add slot ─────────────────────────────── -->
+            <div class="pfd-bottom-bar">
+              <span class="pfd-batt" id="pfdBattVal">-- V</span>
+              <button id="hudAddSlotBtn" class="pfd-add-btn" title="הוסף נתון מותאם">＋</button>
+            </div>
+
+            <!-- ── Custom data slots (compact strip, right-click to edit) ── -->
+            <div id="hudDataGrid" class="hud-data-grid pfd-slots-strip" role="region" aria-label="נתונים מותאמים"></div>
+
+          </aside>
+
+          <div id="pfdReadinessPopover" class="pfd-readiness-popover hidden" role="dialog" aria-modal="false" aria-labelledby="pfdReadinessTitle">
+            <div class="pfd-readiness-inner">
+              <h4 id="pfdReadinessTitle" class="pfd-readiness-title">מוכנות טיסה</h4>
+              <div id="pfdReadinessBody" class="pfd-readiness-body"></div>
+              <button type="button" class="pfd-readiness-close" id="pfdReadinessCloseBtn">סגור</button>
+            </div>
           </div>
-          <div class="conn-server-url-row">
-            <code id="serverUrlDisplay" class="conn-server-url">טוען...</code>
-            <button type="button" id="copyServerUrlBtn" class="conn-url-btn" title="העתק לזיכרון">📋 העתק</button>
+
+          <!-- Global param-info popup (shared by all ? buttons) -->
+          <div id="paramInfoPopup" class="param-info-popup hidden" role="tooltip" aria-live="polite"></div>
+
+          <!-- Right-click context menu for HUD slots -->
+          <div id="hudCtxMenu" class="hud-ctx-menu hidden" role="menu" aria-label="אפשרויות נתון">
+            <button id="hudCtxEdit"   class="hud-ctx-item" role="menuitem">✎ ערוך / הוסף נתון</button>
+            <div class="hud-ctx-sep"></div>
+            <button id="hudCtxDelete" class="hud-ctx-item hud-ctx-danger" role="menuitem">✕ מחק נתון</button>
           </div>
-          <div class="conn-qr-row">
-            <img id="serverUrlQr" class="conn-qr-img" src="" alt="QR" />
-            <div class="conn-qr-hint">
-              <p>סרוק עם הג'טסון (או העתק) כדי להגדיר לאן לשלוח heartbeat / vision frames.</p>
-              <p class="conn-qr-endpoints">
-                <strong>Endpoints:</strong><br>
-                <code>POST /api/jetson/heartbeat</code><br>
-                <code>POST /api/vision/frame</code><br>
-                <code>POST /api/vision/slam-pose</code>
-              </p>
+
+          <!-- ══ Leaflet map — 70% right ══ -->
+          <div class="terrain-map-shell">
+            <!-- Layer controls overlay — floated on the map surface -->
+            <div class="terrain-map-overlay-toolbar" role="toolbar" aria-label="תצוגת מפה">
+              <span class="terrain-toolbar-label">שכבה:</span>
+              <button type="button" id="terrainLayerStreetBtn" class="terrain-layer-btn active" title="OpenStreetMap">מפת רחוב</button>
+              <button type="button" id="terrainLayerSatBtn" class="terrain-layer-btn" title="תצלום לווין (Esri)">לווין</button>
+              <button type="button" id="terrainShowLoadedPathBtn" class="terrain-layer-btn" title="רענן משימה והצג נתיב טעון על המפה">הצג נתיב טעון</button>
+            </div>
+            <div id="terrainMapRotatable" class="terrain-map-rotatable">
+              <div id="terrainMap"></div>
             </div>
           </div>
         </div>
 
-        <!-- Compatibility check summary -->
-        <div class="conn-compat-summary" id="connCompatSummary">
-          <div class="conn-compat-header">
-            <span class="conn-compat-title">תאימות רכיבים</span>
-            <button type="button" id="reCheckCompatBtn" class="conn-url-btn" title="בדוק שוב">⟳ בדוק</button>
-          </div>
-          <div id="connCompatCards" class="conn-compat-cards">טוען...</div>
-        </div>
-
-        <!-- MAVLink direct connections list -->
-        <div class="conn-list-header">
-          <span class="conn-list-title">חיבורי MAVLink ישיר (UDP / TCP)</span>
-        </div>
-        <div id="connectionsList" class="connections-list">
-          <p class="conn-empty-hint">לא הוגדרו חיבורים. לחץ "+ הוסף חיבור" כדי להתחבר ישירות ל-FC.</p>
-        </div>
-
-        <!-- FC Parameters panel (shown when a connection is active) -->
-        <div id="fcParamsPanel" class="fc-params-panel fc-params-panel--hidden">
-          <div class="fc-params-header">
-            <span class="fc-params-title">פרמטרי FC — התקבלו דרך MAVLink</span>
-            <span id="fcParamsProgress" class="fc-params-progress"></span>
-            <div class="fc-params-actions">
-              <input id="fcParamsSearch" type="search" placeholder="חפש פרמטר..." class="fc-params-search" />
-              <button type="button" id="fcParamsRequestBtn" class="conn-url-btn" title="בקש פרמטרים מחדש מה-FC">⟳ רענן מ-FC</button>
+        <!-- Custom-param resolve overlay (shared, one instance) -->
+        <div id="hudParamOverlay" class="hud-param-overlay" hidden role="dialog" aria-modal="true" aria-label="הגדרת פרמטר">
+          <div class="hud-param-overlay-card">
+            <p class="hud-param-overlay-title">מה תרצה לראות כאן?</p>
+            <textarea id="hudParamInput" class="hud-param-overlay-input" rows="2"
+              placeholder="למשל: מהירות אוויר, מהירות קרקעית, טמפ׳ Jetson… אם לא ברור — המערכת תציע אפשרויות לבחירה."></textarea>
+            <p class="hud-param-overlay-hint" id="hudParamHint" hidden></p>
+            <div class="hud-param-options" id="hudParamOptions" hidden role="group" aria-label="אפשרויות לבחירה"></div>
+            <div class="hud-param-overlay-actions">
+              <button type="button" id="hudParamConfirmBtn" class="btn-primary-sm">אישור</button>
+              <button type="button" id="hudParamCancelBtn" class="btn-secondary-sm">ביטול</button>
             </div>
+            <p class="hud-param-overlay-status" id="hudParamStatus"></p>
           </div>
-          <div id="fcParamsGroups" class="fc-params-groups"></div>
-        </div>
-
-        <!-- Add/Edit connection form (hidden by default) -->
-        <div id="connFormCard" class="conn-form-card conn-form-card--hidden">
-          <h3 id="connFormTitle">חיבור חדש</h3>
-          <div class="conn-form-grid">
-            <label class="conn-form-label">שם החיבור
-              <input id="connFormName" type="text" placeholder="למשל: FC over WiFi" class="conn-form-input" />
-            </label>
-            <label class="conn-form-label">סוג
-              <select id="connFormType" class="conn-form-input">
-                <option value="udp">UDP — MAVLink over UDP (WiFi / SiK radio)</option>
-                <option value="tcp">TCP — MAVLink over TCP</option>
-                <option value="serial">Serial — USB/COM (דורש התקנה נוספת)</option>
-                <option value="telemetry">Telemetry Radio — SiK / RFD900 (דורש התקנה נוספת)</option>
-                <option value="http">HTTP Push — הגדרת כתובת Jetson</option>
-              </select>
-            </label>
-            <label class="conn-form-label" id="connFormHostLabel">כתובת IP / Host
-              <input id="connFormHost" type="text" placeholder="192.168.1.10 (לUDP: ריק = כל ממשק)" class="conn-form-input" />
-            </label>
-            <label class="conn-form-label">פורט
-              <input id="connFormPort" type="number" placeholder="14550" class="conn-form-input" />
-            </label>
-            <label class="conn-form-label conn-form-serial-field" id="connFormSerialLabel">Serial Port
-              <select id="connFormSerial" class="conn-form-input">
-                <option value="">-- בחר פורט --</option>
-              </select>
-            </label>
-            <label class="conn-form-label conn-form-serial-field" id="connFormBaudLabel">Baud Rate
-              <select id="connFormBaud" class="conn-form-input">
-                <option value="57600">57600 (SiK radio ברירת מחדל)</option>
-                <option value="115200">115200</option>
-                <option value="921600">921600 (UART ישיר)</option>
-              </select>
-            </label>
-          </div>
-          <div class="conn-form-actions">
-            <button type="button" id="connFormSaveBtn" class="btn-primary-lg">שמור</button>
-            <button type="button" id="connFormCancelBtn">בטל</button>
-            <span id="connFormStatus" class="action-status"></span>
-          </div>
-          <input type="hidden" id="connFormEditId" value="" />
         </div>
       </section>
 
       <section id="advisor" class="panel">
-        <h2>יועץ ביצועים</h2>
-        <p>יועץ מבוסס Gemini (אם הוגדר מפתח בשרת), עם הקשר פרמטרים, לוגים שמורים, ועדכוני קוד מ-GitHub Actions.</p>
-        <div class="advisor-layout compact">
-          <div id="advisorMessages" class="advisor-messages" aria-live="polite">
-            <div class="msg bot" data-static-welcome="1">שלום — אפשר לשאול או להקליט בקול. אם אין מפתח Gemini בשרת, תקבל תשובות כלליות מקומיות.</div>
+        <details class="adv-info-panel" id="advInfoPanel" aria-label="מצב מערכת, יועץ ושקיפות">
+          <summary class="adv-info-summary">
+            <span class="adv-info-summary-label">מצב מערכת · יועץ · שקיפות <span class="adv-info-chevron" aria-hidden="true">▾</span></span>
+            <span class="adv-info-summary-peek" id="advInfoPeek" aria-live="polite"></span>
+          </summary>
+          <div class="adv-info-body">
+            <div class="adv-info-tight" role="region" aria-label="מצב מערכת ויועץ">
+              <div class="adv-info-tight-row">
+                <div class="adv-sys-grid adv-sys-grid--compact">
+                  <div class="adv-sys-item"><span class="adv-sys-k">קונסול</span> <span id="advSysConsole" class="adv-sys-v">—</span></div>
+                  <div class="adv-sys-item"><span class="adv-sys-k">FC</span> <span id="advSysFc" class="adv-sys-v">—</span></div>
+                  <div class="adv-sys-item"><span class="adv-sys-k">ARM</span> <span id="advSysArmed" class="adv-sys-v">—</span></div>
+                  <div class="adv-sys-item"><span class="adv-sys-k">Jetson</span> <span id="advSysJetson" class="adv-sys-v">—</span></div>
+                </div>
+                <div id="advisorModeBanner" class="advisor-mode-banner adv-compact-gemini" role="status" aria-live="polite"></div>
+              </div>
+            </div>
+            <details class="adv-info-explain" id="advInfoExplain">
+              <summary class="adv-info-explain-summary">הסברים: גרסה מול פרמטרים · שקיפות Apply</summary>
+              <p class="adv-sys-hint adv-sys-hint--compact">גרסה = איזה תוכנה מותקנת. <strong>פרמטרים</strong> = ערכי הגדרה בתוך הקושחה (נשמרים ב־FC / בפרופיל בשרת). אינם משנים מספר גרסת הקונסול.</p>
+              <p class="adv-chat-safety-hint adv-chat-safety-hint--compact" role="note">
+                <strong>שקיפות Apply:</strong> הודעות הצ'אט לא כותבות לבקר את עצמן. רק אחרי לחיצה על <em>Apply</em> נשלחת בקשה לשרת; Jetson נשמר בבסיס הנתונים של הקונסול, FC דרך MAVLink <code>PARAM_SET</code> (עם אימות). ראה <button type="button" class="adv-inline-audit" id="advSysAuditBtn">Audit</button>.
+              </p>
+            </details>
           </div>
-          <div class="advisor-flight-hint">
-            <label>מצב הקשר לצ׳אט
-              <select id="advisorFlightSelect">
-                <option value="__latest__">רק על הטיסה האחרונה</option>
-                <option value="__none__">ללא הקשר ספציפי</option>
-              </select>
-            </label>
+        </details>
+        <div class="adv-top-row">
+          <div id="advisorPendingBanner" class="adv-pending-banner hidden" role="alert">
+            <span id="advisorPendingMsg">יש שינויי פרמטרים שטרם בוצע להם Revert מאז תחילת הסשן.</span>
+            <div class="adv-pending-actions">
+              <button type="button" id="advisorAuditBtn" class="adv-banner-btn" title="צפה ב-Audit Log">📋 Audit</button>
+              <button type="button" id="advisorRevertAllBtn" class="adv-banner-btn adv-banner-btn-danger" title="שחזר את כל השינויים של הסשן">↩ Revert הכל</button>
+            </div>
           </div>
-          <div class="advisor-input-row">
-            <button type="button" class="advisor-mic" id="advisorMicBtn" title="דיבור לטקסט (דפדפן)">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <rect x="9" y="2" width="6" height="12" rx="3"/>
-                <path d="M5 10a7 7 0 0 0 14 0"/>
-                <line x1="12" y1="19" x2="12" y2="22"/>
-                <line x1="8" y1="22" x2="16" y2="22"/>
-              </svg>
-            </button>
-            <input id="advisorInput" type="text" placeholder="למשל: יש לי נדנוד לפני הצפה, מה לשנות?" />
-            <button type="button" id="advisorSendBtn" title="שולח שאלה ליועץ">שלח</button>
+        </div>
+        <div class="advisor-layout compact advisor-v2">
+          <aside class="adv-sidebar" aria-label="שיחות שמורות">
+            <div class="adv-sidebar-head">
+              <span class="adv-sidebar-head-title">AI Advisor</span>
+              <button type="button" id="advisorNewChatBtn" class="adv-new-chat" title="התחל שיחה חדשה">＋ שיחה</button>
+              <button type="button" id="advisorIssuesRefresh" class="adv-icon-btn" title="רענן רשימה" aria-label="רענן">⟳</button>
+            </div>
+            <div class="adv-sidebar-filters" role="tablist">
+              <label class="adv-filter"><input type="radio" name="advIssueFilter" value="open" /><span>פתוחות</span></label>
+              <label class="adv-filter"><input type="radio" name="advIssueFilter" value="resolved" /><span>נפתרו</span></label>
+              <label class="adv-filter"><input type="radio" name="advIssueFilter" value="all" checked /><span>הכל</span></label>
+            </div>
+            <div id="advisorIssuesList" class="adv-issues-list advisor-issues-list"></div>
+          </aside>
+          <div class="adv-resize-handle" id="advResizeHandle" title="גרור לשינוי רוחב" aria-hidden="true"></div>
+          <div class="adv-main">
+            <header class="adv-main-head">
+              <div class="adv-thread-title" id="advisorThreadTitle">שיחה חדשה</div>
+              <div class="adv-main-meta">
+                <label class="adv-ctx" title="איזה הקשר לצרף לשאלה">
+                  <span class="adv-ctx-label">הקשר:</span>
+                  <select id="advisorFlightSelect">
+                    <option value="__latest__">הטיסה האחרונה</option>
+                    <option value="__none__">ללא הקשר</option>
+                  </select>
+                </label>
+                <div id="advisorStatus" class="adv-status" role="status" aria-live="polite">מוכן</div>
+              </div>
+            </header>
+            <div id="advisorMessages" class="adv-messages" aria-live="polite">
+              <div class="adv-empty-state" data-static-welcome="1">
+                <div class="adv-empty-inner">
+                  <div class="adv-empty-icon">✦</div>
+                  <div class="adv-empty-title">AI Advisor מוכן</div>
+                  <div class="adv-empty-sub">שאל על: נדנוד, הצפה, מהירות גישה, ABORT, Jetson, SLAM — או בקש שינוי פרמטר ספציפי.</div>
+                  <div class="adv-empty-chips">
+                    <button type="button" class="adv-chip" data-prompt="יש לי נדנוד לפני ההצפה, מה לשנות?">נדנוד לפני הצפה</button>
+                    <button type="button" class="adv-chip" data-prompt="הנחיתה קשה מדי, איזה פרמטר לשנות?">נחיתה קשה</button>
+                    <button type="button" class="adv-chip" data-prompt="מה השינויים האחרונים שביצעתי בפרמטרים?">מה שיניתי לאחרונה?</button>
+                    <button type="button" class="adv-chip" data-prompt="יש לי הרבה ABORT שגויים, מה לכוונן?">ABORT שגויים</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="adv-composer">
+              <button type="button" class="advisor-mic" id="advisorMicBtn" title="דיבור לטקסט (דפדפן)" aria-label="דיבור">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <rect x="9" y="2" width="6" height="12" rx="3"/>
+                  <path d="M5 10a7 7 0 0 0 14 0"/>
+                  <line x1="12" y1="19" x2="12" y2="22"/>
+                  <line x1="8" y1="22" x2="16" y2="22"/>
+                </svg>
+              </button>
+              <textarea id="advisorInput" rows="1" placeholder="שאל שאלה, בקש שינוי פרמטר, תאר בעיה...  (Enter=שליחה, Shift+Enter=שורה חדשה)"></textarea>
+              <input type="file" id="advisorFileInput" accept="image/*,.log,.txt,.csv,.json,.bin" class="hidden" aria-hidden="true" />
+              <button type="button" id="advisorAttachBtn" class="adv-attach-btn" title="צרף קובץ או תמונה" aria-label="צרף קובץ">📎</button>
+              <button type="button" id="advisorSendBtn" class="adv-send" title="שלח (Enter)">שלח</button>
+            </div>
           </div>
-          <div id="advisorStatus" class="advisor-status">מוכן</div>
         </div>
       </section>
+
+      <!-- Audit Log Modal -->
+      <div id="auditModal" class="modal hidden" role="dialog" aria-label="Audit Log">
+        <div class="modal-card modal-card-wide">
+          <div class="modal-header">
+            <span class="modal-title">📋 Audit Log — שינויי פרמטרים</span>
+            <button id="closeAuditModalBtn" class="modal-close" title="סגור">✕</button>
+          </div>
+          <div id="auditModalContent" class="audit-table-wrap">
+            <div class="audit-loading">טוען…</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Apply Confirm Modal (risk-tiered) -->
+      <div id="applyConfirmModal" class="modal hidden" role="dialog" aria-label="אישור שינוי פרמטר">
+        <div class="modal-card">
+          <div class="modal-header">
+            <span class="modal-title" id="applyConfirmTitle">אישור שינוי</span>
+            <button id="closeApplyConfirmBtn" class="modal-close" title="ביטול">✕</button>
+          </div>
+          <div id="applyConfirmBody" class="apply-confirm-body"></div>
+          <div id="applyInflightOverrideBlock" class="apply-inflight-override hidden">
+            <p class="apply-inflight-lead">המטוס ב־ARM או שהשרת דורש אישור מיוחד. אפשר להפעיל כתיבה בטיסה רק אם בשרת הוגדר <code>ADVISOR_FC_INFLIGHT_OVERRIDE=1</code>.</p>
+            <label class="apply-inflight-check">
+              <input type="checkbox" id="applyInflightAck" />
+              <span>אני מאשר כתיבת פרמטר FC בזמן ARM — מבין את הסיכון</span>
+            </label>
+            <label for="applyInflightReason" class="apply-inflight-reason-label">סיבה (חובה 15+ תווים, נרשמת ב־audit)</label>
+            <textarea id="applyInflightReason" class="apply-inflight-reason" rows="3" placeholder="למשל: תיקון דחוף לנדנוד במבצע — אחריותי"></textarea>
+          </div>
+          <div class="apply-confirm-footer">
+            <input type="text" id="applyConfirmTypeInput" class="apply-confirm-type-input hidden" placeholder="הקלד APPLY לאישור" autocomplete="off" />
+            <button type="button" id="applyConfirmOkBtn" class="conn-btn conn-btn-primary" disabled>אשר שינוי</button>
+            <button type="button" id="applyConfirmCancelBtn" class="conn-btn">ביטול</button>
+          </div>
+        </div>
+      </div>
+      <!-- ══════════════════════════════════════════════════════════════════
+           Feature Designer tab
+           ══════════════════════════════════════════════════════════════════ -->
+      <section id="featureDesigner" class="panel fd-panel">
+        <div class="fd-layout">
+
+          <!-- Sidebar: feature list -->
+          <aside class="fd-sidebar">
+            <div class="fd-sidebar-header">
+              <div class="fd-sidebar-brand">
+                <span class="fd-sidebar-brand-name">ArduLab</span>
+                <span class="fd-sidebar-brand-sub">מעבדת AI</span>
+              </div>
+              <button id="fdNewBtn" class="fd-new-btn" title="צור פיצ'ר חדש">+ חדש</button>
+            </div>
+            <div id="fdFeatureList" class="fd-feature-list">
+              <!-- populated by app.js -->
+            </div>
+          </aside>
+
+          <!-- Main content area -->
+          <div class="fd-main">
+
+            <!-- Welcome / empty state -->
+            <div id="fdWelcome" class="fd-welcome">
+              <div class="fd-welcome-hero">
+                <div class="fd-welcome-icon-wrap">
+                  <span class="fd-welcome-icon" aria-hidden="true">🚀</span>
+                </div>
+                <div class="fd-welcome-brand">ArduLab</div>
+                <h2 class="fd-welcome-title">מעבדת פיתוח AI לArduPilot</h2>
+                <p class="fd-welcome-sub">תאר בשפה חופשית מה תרצה שבקר הטיסה יעשה — ה-AI יכתוב קוד מלא, יגדיר פרמטרים ויאפשר לך לשכלל דרך שיחה טבעית.</p>
+                <div class="fd-welcome-divider"></div>
+                <p class="fd-welcome-examples-title">רעיונות לדוגמה:</p>
+                <div class="fd-welcome-examples">
+                  <span class="fd-example-chip" data-example="פיצ'ר שמזהה רוח צד חזקה ועוצר נחיתה אוטומטית">💨 רוח צד אוטומטית</span>
+                  <span class="fd-example-chip" data-example="בקרת גובה מינימלי מעל שטח בינוי בזמן גישה">🏙 גובה מינימלי מעל בינוי</span>
+                  <span class="fd-example-chip" data-example="מגבלת זווית גלגול דינמית שמשתנה לפי מהירות אוויר">🌀 מגבלת גלגול דינמית</span>
+                  <span class="fd-example-chip" data-example="ביטול אוטומטי של נחיתה אם ה-IMU מזהה טורבולנציה חזקה">⚡ ביטול נחיתה בטורבולנציה</span>
+                </div>
+                <div class="fd-welcome-form">
+                  <textarea id="fdWelcomeInput" class="fd-welcome-textarea"
+                    placeholder="תאר את הפיצ'ר שאתה רוצה — לדוגמה: פיצ'ר שמאט אוטומטית כשמתקרבים לשדה תעופה..."
+                    rows="3"></textarea>
+                  <button id="fdWelcomeCreateBtn" class="fd-create-btn">
+                    <span id="fdWelcomeCreateLabel">✨ צור פיצ'ר חדש</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Feature detail view -->
+            <div id="fdDetail" class="fd-detail hidden">
+
+              <!-- Header -->
+              <div class="fd-detail-header">
+                <div class="fd-detail-title-block">
+                  <h2 id="fdDetailName" class="fd-detail-name"></h2>
+                  <p id="fdDetailDescription" class="fd-detail-desc"></p>
+                </div>
+                <div class="fd-detail-actions">
+                  <span id="fdStatusBadge" class="fd-status-badge fd-status-draft">טיוטה</span>
+                  <button id="fdActivateBtn" class="fd-action-btn fd-activate-btn" title="הפעל את הפיצ'ר — הפרמטרים יופיעו בחיפוש החכם">הפעל פיצ'ר ✅</button>
+                  <button id="fdDeactivateBtn" class="fd-action-btn fd-deactivate-btn hidden" title="השבת — הפרמטרים לא יופיעו בחיפוש">השבת ✗</button>
+                  <button id="fdDeleteBtn" class="fd-action-btn fd-delete-btn" title="מחק פיצ'ר זה לצמיתות">🗑 מחק</button>
+                </div>
+              </div>
+
+              <!-- Inner tabs -->
+              <div class="fd-inner-tabs" role="tablist">
+                <button class="fd-inner-tab active" data-fdtab="conversation" role="tab">💬 שיחה עם AI</button>
+                <button class="fd-inner-tab" data-fdtab="code" role="tab">📄 קוד מקור</button>
+                <button class="fd-inner-tab" data-fdtab="params" role="tab">⚙️ פרמטרים</button>
+              </div>
+
+              <!-- Conversation panel -->
+              <div id="fdPanelConversation" class="fd-inner-panel fd-conversation-panel">
+                <div id="fdMessages" class="fd-messages"></div>
+                <div class="fd-composer">
+                  <textarea id="fdFeedbackInput" class="fd-feedback-input"
+                    placeholder="שאל שאלה, בקש שינוי, או תן פידבק... (לדוגמה: מה עושה הפרמטר הראשון? / הוסף בדיקת גובה מינימלי)"
+                    rows="2"></textarea>
+                  <button id="fdSendBtn" class="fd-send-btn" title="שלח הודעה">
+                    <span id="fdSendLabel">שלח ↩</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Code panel -->
+              <div id="fdPanelCode" class="fd-inner-panel fd-code-panel hidden">
+                <div class="fd-code-toolbar">
+                  <span class="fd-code-label">ArduPilot C++ — Generated Code</span>
+                  <button id="fdCopyCodeBtn" class="fd-copy-btn">העתק קוד</button>
+                </div>
+                <pre id="fdCodeBlock" class="fd-code-block"><code id="fdCodeContent"></code></pre>
+              </div>
+
+              <!-- Params panel -->
+              <div id="fdPanelParams" class="fd-inner-panel fd-params-panel hidden">
+                <p class="fd-params-note" id="fdParamsNote"></p>
+                <div id="fdParamCards" class="fd-param-cards"></div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ══ Flight Engineer Panel ══════════════════════════════════════════ -->
+      <section id="flightEngineer" class="panel fe-panel">
+
+        <div class="fe-header">
+          <div class="fe-header-left">
+            <div class="fe-title-row">
+              <span class="fe-title-icon" aria-hidden="true">🎙</span>
+              <div class="fe-title-stack">
+                <span class="fe-title">מהנדס טיסה</span>
+                <span class="fe-subtitle">שיחה קולית · גם בלי חיבור לבקר — ייעוץ פרויקט והדרכה · ArduPilot · Jetson · זיכרון משותף</span>
+              </div>
+            </div>
+          </div>
+          <div class="fe-header-status">
+            <span id="feTtsStatus" class="fe-tts-badge" title="מצב TTS">
+              <span class="fe-tts-dot"></span>
+              <span id="feTtsLabel">טוען…</span>
+            </span>
+            <button type="button" id="feNewSessionBtn" class="fe-icon-btn fe-icon-btn--primary" title="התחל שיחה חדשה">שיחה חדשה</button>
+          </div>
+        </div>
+
+        <div class="fe-layout">
+          <!-- Notes first: with LTR shell (see styles) sidebar stays physical left; mobile order keeps chat on top -->
+          <aside class="fe-notes-panel">
+            <div class="fe-notes-header">
+              <div class="fe-notes-head-text">
+                <span class="fe-notes-title">פנקס הטיסה</span>
+                <span class="fe-notes-caption">פתקים לסשן הנוכחי</span>
+              </div>
+              <button type="button" id="feClearNotesBtn" class="fe-icon-btn fe-icon-btn--ghost" title="נקה פנקס">נקה</button>
+            </div>
+            <div id="feNotesList" class="fe-notes-list" role="list"></div>
+            <div class="fe-notes-add">
+              <input id="feNoteInput" class="fe-note-input" type="text" placeholder="הוסף פתק…" autocomplete="off" />
+              <button type="button" id="feNoteAddBtn" class="fe-note-add-btn" title="הוסף פתק">הוסף</button>
+            </div>
+          </aside>
+
+          <div class="fe-main">
+            <div class="fe-mic-zone">
+              <div class="fe-mic-cluster">
+                <button type="button" id="feMicBtn" class="fe-mic-btn" title="לחץ לדבר (או החזק Space)">
+                  <span class="fe-mic-icon">🎙</span>
+                </button>
+                <div class="fe-mic-ring" aria-hidden="true"></div>
+              </div>
+              <div class="fe-mic-info">
+                <span class="fe-mic-label">מיקרופון</span>
+                <span id="feMicStatus" class="fe-mic-status">לחץ להתחלת האזנה</span>
+                <span id="feInterimText" class="fe-interim"></span>
+              </div>
+              <div class="fe-vad-wrap" title="עוצמת קול (התרעה בזמן דיבור)">
+                <span class="fe-vad-label">רמה</span>
+                <div class="fe-vad-bar" id="feVadBar">
+                  <div class="fe-vad-fill" id="feVadFill"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="fe-chat" id="feChat" role="log" aria-label="שיחה עם מהנדס הטיסה" aria-live="polite">
+              <div class="fe-welcome-hero">
+                <div class="fe-welcome-card">
+                  <div class="fe-welcome-kicker">זמין לשיחה</div>
+                  <div class="fe-welcome-icon">🎙</div>
+                  <h2 class="fe-welcome-title">מהנדס הטיסה שלך</h2>
+                  <p class="fe-welcome-sub">
+                    אבחון וטלמטריה חיה כשיש חיבור לבקר — וגם בלי מטוס מחובר: התייעצות על ארכיטקטורת הקונסולה, פרמטרים וארדופליין, והכנה לטיסה.
+                  </p>
+                  <div class="fe-welcome-chips">
+                    <button type="button" class="fe-chip" data-prompt="מה הקונסולה והמהנדס יודעים לעשות גם כשאין טיסן מחובר לבקר?">מה אפשר בלי חיבור?</button>
+                    <button type="button" class="fe-chip" data-prompt="הטיסה לא יציבה — מה לבדוק ברמת פרמטרים וברמת חומרה?">הטיסה לא יציבה</button>
+                    <button type="button" class="fe-chip" data-prompt="תן הסבר קצר על מערכת הוויז׳ן, ה-VIO וה-EKF בהקשר של Vision Landing">וויז׳ן ו־EKF ב-VLC</button>
+                    <button type="button" class="fe-chip" data-prompt="זה קרה לנו כבר בעבר?">זה קרה לנו כבר?</button>
+                  </div>
+                  <div class="fe-welcome-hint">
+                    <span class="fe-hint-dot"></span>
+                    לחץ על המיקרופון — מאזין רציף, המהנדס יכול לענות בקול
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
     </main>
 
     <div id="versionModal" class="modal hidden">
@@ -484,6 +1385,29 @@
       <button data-action="jump">קפוץ לזמן אירוע</button>
     </div>
 
-    <script src="./app.js?v=1.01.57"></script>
+    <!-- Map fly-to context menu -->
+    <div id="mapFlyToMenu" class="map-fly-to-menu hidden" role="menu">
+      <div class="map-fly-to-coords" id="mapFlyToCoords"></div>
+      <button class="map-fly-to-btn" id="mapFlyToBtn" role="menuitem">
+        <span class="map-fly-to-icon">✈</span> טוס לכאן
+      </button>
+      <div class="map-fly-to-alt-row">
+        <label class="map-fly-to-alt-label" for="mapFlyToAlt">גובה (m AGL)</label>
+        <input type="number" id="mapFlyToAlt" class="map-fly-to-alt-input" value="60" min="20" max="500" step="10">
+      </div>
+      <div class="map-fly-to-status" id="mapFlyToStatus"></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/es-module-shims@1.10.0/dist/es-module-shims.js"></script>
+    <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+      }
+    }
+    </script>
+    <script type="module" src="./sim-lab.mjs?v=__APP_VERSION__"></script>
+    <script src="./app.js?v=__APP_VERSION__"></script>
   </body>
 </html>

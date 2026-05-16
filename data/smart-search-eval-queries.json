@@ -1,0 +1,55 @@
+[
+  {
+    "q": "זווית אף חיובית מקסימאלית",
+    "expected_top3_any": ["LIM_PITCH_CD"]
+  },
+  {
+    "q": "קצב גלגול מקסימלי",
+    "expected_top3_any": ["RLL2SRV_RMAX"]
+  },
+  {
+    "q": "מה הפרמטר לאוטוטיון",
+    "expected_top3_any": ["AUTOTUNE_LEVEL", "AUTOTUNE_AXES"]
+  },
+  {
+    "q": "מהירות שקיעה בנחיתה",
+    "expected_top3_any": ["LAND_SPEED", "LAND_SPEED_HIGH"]
+  },
+  {
+    "q": "failsafe מצערת",
+    "expected_top3_any": ["FS_THR_ENABLE", "FS_THR_VALUE"]
+  },
+  {
+    "q": "ekf מקור גובה",
+    "expected_top3_any": ["EK3_ALT_SOURCE", "AHRS_EKF_TYPE", "EK3_ENABLE"]
+  },
+  {
+    "q": "בקרת ניהוג גלגל אף",
+    "expected_top3_any": ["STEER2SRV_P", "STEER2SRV_TCONST", "STEER2SRV_D"]
+  },
+  {
+    "q": "פרמטרים להיגוי גלגל אף",
+    "expected_top3_any": ["STEER2SRV_P", "STEER2SRV_TCONST", "GROUND_STEER_ALT"]
+  },
+  {
+    "q": "ground steering nose wheel",
+    "expected_top3_any": ["STEER2SRV_P", "STEER2SRV_TCONST", "GROUND_STEER_ALT"]
+  },
+  {
+    "q": "חיברתי GPS חדש והוא לא מזוהה",
+    "expected_top3_any": ["GPS_TYPE", "GPS_TYPE2", "SERIAL3_PROTOCOL"]
+  },
+  {
+    "q": "מקלט חדש אין PWM RC input",
+    "expected_top3_any": ["RC_PROTOCOLS", "RC_OPTIONS", "RCMAP_ROLL"]
+  },
+  {
+    "q": "GPS no fix serial port",
+    "expected_top3_any": ["GPS_TYPE", "GPS_COM_PORT", "SERIAL3_PROTOCOL"]
+  },
+  {
+    "q": "פרוטוקול מקלט SBUS CRSF",
+    "expected_top3_any": ["RC_PROTOCOLS", "RC_OPTIONS"]
+  }
+]
+
