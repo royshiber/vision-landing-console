@@ -5,28 +5,8 @@
     "changes": [
       {
         "type": "feat",
-        "title": "Advisor safety gates (allowlist/denylist)",
-        "detail": "advisor-actions.mjs"
-      },
-      {
-        "type": "feat",
-        "title": "Advisor Apply/Rollback/Audit",
-        "detail": "advisor-apply.mjs"
-      },
-      {
-        "type": "feat",
-        "title": "Server library",
-        "detail": "auto-connect-progress.mjs, auto-connect-utils.mjs, flight-actions-service.mjs, flight-engineer.mjs, flight-hud-resolve.mjs, jetson-companion-proxy.mjs, param-icon-engine.mjs, request-context.mjs, core-api.mjs, sim-lab-api.mjs, smart-connect.mjs, upload-path.mjs"
-      },
-      {
-        "type": "feat",
-        "title": "DB schema",
-        "detail": "db.mjs"
-      },
-      {
-        "type": "feat",
-        "title": "MAVLink connection",
-        "detail": "mavlink-connection.mjs"
+        "title": "Frontend",
+        "detail": "changelog.json"
       }
     ]
   },
