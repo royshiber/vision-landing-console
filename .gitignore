@@ -8,3 +8,6 @@ data/uploads/
 .env
 debug-*.log
 *.bak
+
+# Sim Lab: Three.js + es-module-shims copied from node_modules (`npm run vendor:sync`)
+public/vendor/

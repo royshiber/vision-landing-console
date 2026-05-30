@@ -1,5 +1,308 @@
 [
   {
+    "version": "1.02.231",
+    "date": "2026-05-30",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Advisor safety gates (allowlist/denylist)",
+        "detail": "advisor-actions.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "Advisor Apply/Rollback/Audit",
+        "detail": "advisor-apply.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "Server library",
+        "detail": "auto-connect-progress.mjs, auto-connect-utils.mjs, flight-actions-service.mjs, flight-engineer.mjs, flight-hud-resolve.mjs, jetson-companion-proxy.mjs, param-icon-engine.mjs, request-context.mjs, core-api.mjs, sim-lab-api.mjs, smart-connect.mjs, upload-path.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "DB schema",
+        "detail": "db.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "MAVLink connection",
+        "detail": "mavlink-connection.mjs"
+      }
+    ]
+  },
+  {
+    "version": "1.02.230",
+    "date": "2026-05-30",
+    "changes": [
+      {
+        "type": "ux",
+        "title": "מרכז פרמטרים — שורת חיפוש גלויה",
+        "detail": "שורת חיפוש (רגיל + חיפוש חכם) מוצגת בתוך מרכז הפרמטרים מיד מתחת ל-READ/WRITE — לא תלויה ב-class visible חיצוני. חיפוש רגיל מסנן כרטיסי פרמטרים; חיפוש חכם דרך POST /api/param-center/smart-search."
+      }
+    ]
+  },
+  {
+    "version": "1.02.229",
+    "date": "2026-05-30",
+    "changes": [
+      {
+        "type": "ux",
+        "title": "חיבור חכם — stepper מתוקן + גשרים",
+        "detail": "קו ירוק לא בורח (RTL→LTR ל-track, גשרים נפרדים בין שלבים). כרטיס רקע, shimmer בזמן סריקה, שורת סטטוס RTL."
+      }
+    ]
+  },
+  {
+    "version": "1.02.228",
+    "date": "2026-05-30",
+    "changes": [
+      {
+        "type": "fix",
+        "title": "PARAM_SET — סוג פרמטר נכון + verify-by-read",
+        "detail": "SERIAL/EK3: INT8 במקום REAL32; sysId מ-heartbeat FC; resend כל 900ms; אימות בקריאה אם echo חסר."
+      }
+    ]
+  },
+  {
+    "version": "1.02.227",
+    "date": "2026-05-30",
+    "changes": [
+      {
+        "type": "fix",
+        "title": "יועץ AI — הצעות enum + Apply ל-SERIAL/EK3",
+        "detail": "פרמטרי enum (SERIALn_PROTOCOL וכו') — בלי שמרני/נועז; ערכים שלמים בלבד עם תווית MAVLink2. PARAM_SET: pre-read, retry, timeout ארוך יותר, התאמת שם פרמטר."
+      }
+    ]
+  },
+  {
+    "version": "1.02.226",
+    "date": "2026-05-30",
+    "changes": [
+      {
+        "type": "fix",
+        "title": "חיבור חכם — דילוג COM וירטואלי + בלי alert חוסם",
+        "detail": "דילוג על Microsoft/BT COM; Jetson relay קודם כש-online; heartbeat 5.5s; סרגל שלבים + checklist inline בכשלון (ללא popup); זמן elapsed בזמן סריקה."
+      }
+    ]
+  },
+  {
+    "version": "1.02.225",
+    "date": "2026-05-30",
+    "changes": [
+      {
+        "type": "feature",
+        "title": "חיבור חכם — סרגל התקדמות בזמן אמת",
+        "detail": "GET /api/connections/auto-connect/progress; שלבים USB FC / Jetson relay / SITL עם מצבי pending, active, done, failed, skipped; סריקה מול המתנה ל-heartbeat; polling כל ~350ms בזמן החיבור."
+      }
+    ]
+  },
+  {
+    "version": "1.02.224",
+    "date": "2026-05-30",
+    "changes": [
+      {
+        "type": "feature",
+        "title": "חיבור חכם — FC / Jetson / SITL ללא בחירת מוד",
+        "detail": "כפתור «חיבור חכם» סורק USB FC, relay MAVLink מ-Jetson (5770), ו-SITL מקומי. UI מתעדכן אוטומטית ל-serial/TCP/UDP. companion_agent.py עם relay byte-level."
+      },
+      {
+        "type": "feature",
+        "title": "Jetson — משיכת לוגים + התקנת companion",
+        "detail": "POST /api/jetson/pull-logs, /api/jetson/install, GET /api/jetson/companion-script. כפתור «משוך לוגים מ-Jetson» בטאב טלמטריה."
+      }
+    ]
+  },
+  {
+    "version": "1.02.223",
+    "date": "2026-05-30",
+    "changes": [
+      {
+        "type": "fix",
+        "title": "מעבדת SITL — שיחזור .tlog אוטומטי אחרי בחירת קובץ",
+        "detail": "בחירת קובץ (אשף או סרגל צד) מציגה שם קובץ, סטטוס בעברית (טוען/מנתח/שגיאה/מוכן) ומפעילה parse אוטומטית; מסתיר את האשף ומציג פס שיחזור; שגיאות API לא נבלעות; 422 כשאין דגימות בקובץ."
+      }
+    ]
+  },
+  {
+    "version": "1.02.222",
+    "date": "2026-05-30",
+    "changes": [
+      {
+        "type": "feature",
+        "title": "מחיקת לוגים — רשימת טיסות עם מחיקה inline",
+        "detail": "רשימת טיסות גלויה עם כפתור 🗑 מחק ליד כל טיסה. מחיקה כוללת את כל הלוגים. הרשימה נטענת אוטומטית בכניסה לטאב."
+      },
+      {
+        "type": "fix",
+        "title": "Disambiguation HUD — 'מהירות אנכית' + כפתור הצג הכל",
+        "detail": "נוסף climbRate לקטלוג עם synonyms עבריים. נוסף כפתור 'הצג את כל הפרמטרים' כגיבוי. endpoint /api/flight-hud/catalog."
+      },
+      {
+        "type": "ux",
+        "title": "אופק מלאכותי — חדות pixel-snapping",
+        "detail": "קווים מיושרים לגבולות פיקסל, imageSmoothingEnabled=false, קו אופק 2.5px."
+      }
+    ]
+  },
+  {
+    "version": "1.02.221",
+    "date": "2026-05-30",
+    "changes": [
+      {
+        "type": "ux",
+        "title": "מרכז פרמטרים — אייקון צבעוני לכל פרמטר לפי קטגוריה",
+        "detail": "נוסף מיפוי של 23 קטגוריות פרמטרי ArduPilot לאייקונים צבעוניים (💨 מהירות, 🛬 נחיתה, 📡 GPS, 🔋 סוללה, 🛡️ בטיחות ועוד). האייקון מופיע בכל כרטיס פרמטר בכל תתי-הטאבים (ArduPilot, נחיתה, המראה, בטיחות, Vision) ובתוצאות חיפוש חכם. הצבע והסמל עוזרים להבין את משמעות הפרמטר במבט ראשון."
+      }
+    ]
+  },
+  {
+    "version": "1.02.220",
+    "date": "2026-05-30",
+    "changes": [
+      {
+        "type": "ux",
+        "title": "מעבדת SITL — wizard אינטואיטיבי עם מחוון שלבים",
+        "detail": "הוחלף ה-quickstart הישן ב-wizard מלא עם מחוון 3 שלבים ויזואלי (הפעל SITL → התחבר → בדוק סטטוס). שלב 1 כולל בלוק terminal-style עם כפתור העתקה, טיפ למשתמשים חדשים וקיצור דרך לשלב 2. שלב 2 מציג 3 כרטיסי חיבור גדולים עם הסברים. המחוון מתקדם אוטומטית: בחיבור FC מוצג שלב 3 ולאחר 0.8 שניות עובר לפאנל הטרום-טיסה; בניתוק חוזר לשלב 2."
+      }
+    ]
+  },
+  {
+    "version": "1.02.219",
+    "date": "2026-05-29",
+    "changes": [
+      {
+        "type": "fix",
+        "title": "תיקון DPR — אופק מלאכותי נראה עקום על מסכים רגילים",
+        "detail": "תוקן באג שגרם לכל ציור האופק להיות מחוץ לגבולות ה-canvas: ctx.setTransform(dpr) הוחל גם בתוך drawHorizon עצמו, וכל ה-coordinates עברו לעבוד ב-CSS-pixel space. כעת האופק נראה נכון בכל דגם מסך."
+      },
+      {
+        "type": "ux",
+        "title": "מעבדת SITL — quickstart עיצוב מחדש: 3 שלבים עם פעולות",
+        "detail": "הוחלף הכרטיס הטקסט-כבד בפריסת 3 שלבים ויזואלית: שלב 1 — פקודת SITL עם כפתור העתקה; שלב 2 — 3 כפתורי חיבור גדולים (UDP 14550, TCP 5760, UDP bind) שמתחברים בלחיצה; שלב 3 — צ'ק-ליסט סטטוס (מטושטש עד לחיבור). כפתור tlog בתחתית."
+      },
+      {
+        "type": "ux",
+        "title": "כפתור וידאו באופק — גלוי עם תווית ולוח URL ברור",
+        "detail": "כפתור וידאו עבר לפינה ימין-תחתון עם תווית '📹 וידאו' ולוח URL עם הסבר ברור לזרם MJPEG/HLS/RTSP."
+      }
+    ]
+  },
+  {
+    "version": "1.02.218",
+    "date": "2026-05-29",
+    "changes": [
+      {
+        "type": "feature",
+        "title": "אופק מלאכותי — עיצוב מחדש: מילוי מרובע מלא + שכבת וידאו חי",
+        "detail": "האופק המלאכותי עודכן לסגנון PFD וקטורי עם מילוי מלא של כל הריבוע (ללא גזירה עגולה). HiDPI מלא (devicePixelRatio). סולם הגובה (pitch ladder) מכסה ±40°. כפתור 🎥 תחתי מאפשר שכבת וידאו חי מהטיסן (MJPEG/HLS) — ב-URL כמו http://jetson-ip:8080/stream — עם שמירת ה-URL בין סשנים ומצב שקיפות חצי-שקוף בזמן הסטרימינג."
+      }
+    ]
+  },
+  {
+    "version": "1.02.217",
+    "date": "2026-05-29",
+    "changes": [
+      {
+        "type": "feature",
+        "title": "מעבדת SITL — לוח סטטוס טרום-טיסה בזמן אמת",
+        "detail": "כשה-FC מחובר, מוצג לוח סטטוס חדש עם: מצב זירוז (ארם/לא ארם), מוד טיסה לפי שם (MANUAL, STABILIZE, AUTO…), איכות GPS (Fix + מספר לוויינים, צבע-קוד), מתח סוללה, וכל הודעות STATUSTEXT מהבקר (כולל שגיאות PreArm). כפתורי הפריסט (UDP 14550, TCP 5760) מתחברים אוטומטית עם לחיצה — אין עוד צורך ללחוץ CONNECT בנפרד."
+      }
+    ]
+  },
+  {
+    "version": "1.02.216",
+    "date": "2026-05-29",
+    "changes": [
+      {
+        "type": "ux",
+        "title": "מעבדת SITL — מסך פתיחה 'בדיקה לפני טיסה'",
+        "detail": "כשאין חיבור FC, מוצג מסך הנחיה ברור עם 3 צעדים: הפעלת SITL, התחברות, ובדיקת ארם. כפתורי קיצור UDP/TCP מוטמעים ישירות במסך. המסך נעלם אוטומטית עם חיבור FC חי או פתיחת שיחזור."
+      }
+    ]
+  },
+  {
+    "version": "1.02.215",
+    "date": "2026-05-28",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "מעבדת SITL — עיצוב מחדש (2-panel)",
+        "detail": "ממשק מעבדת הסימולציה עוצב מחדש: sidebar צר לפקדי חיבור ורפליי, stage ימני עם קנבס Three.js מלא. עיצוב נקי ואינטואיטיבי ללא עודף מלל; אפשרויות מתקדמות מכווצות ב-<details>."
+      },
+      {
+        "type": "feat",
+        "title": "מחיקת לוגים וטיסות",
+        "detail": "נוספה אפשרות מחיקה לכל לוג בטבלת הלוגים (כפתור 🗑 לכל שורה) וכפתור 'מחק טיסה' בניהול הטיסות. מחיקה מסירה גם את הקובץ מהדיסק. נוספו API endpoints: DELETE /api/flights/log/:id ו-DELETE /api/flights/:id."
+      }
+    ]
+  },
+  {
+    "version": "1.02.214",
+    "date": "2026-05-28",
+    "changes": [
+      {
+        "type": "fix",
+        "title": "כפתור הקלטות בפאנל טיסות — תוקן",
+        "detail": "הכפתור debriefRecBtn2 (הקלטות) בפאנל הטיסות לא היה מחובר לאירוע לחיצה. נוספו מאזיני אירוע ל-debriefRecBtn2 ול-debriefLogsBtn2: לחיצה על הקלטות עוברת ל-recordings, לחיצה על לוגים נשארת ב-flights."
+      }
+    ]
+  },
+  {
+    "version": "1.02.213",
+    "date": "2026-05-21",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "מהנדס קולי — קיטוע (barge-in) מהיר ויציב יותר",
+        "detail": "VAD משולב FFT+RMS עם חלון warmup ופריימים רציפים; תוצאות STT סופיות בזמן TTS מטופלות כפנייה חדשה; חלקיים עם אנרגיית מיקרופון ברורה מבריחים מהר מדיון."
+      }
+    ]
+  },
+  {
+    "version": "1.02.212",
+    "date": "2026-05-20",
+    "changes": [
+      {
+        "type": "fix",
+        "title": "TTS ElevenLabs — זרם אודיו תקין",
+        "detail": "הסרת תלות ב-node-fetch שלא הותקנה; שימוש ב-fetch מובני + Readable.fromWeb. תוקן קריאת API עם eleven_v3 ללא optimize_streaming_latency (נדרש רק במודלי flash וכדומה), כדי שלא ייפול לקול דפדפן רובוטי."
+      }
+    ]
+  },
+  {
+    "version": "1.02.211",
+    "date": "2026-05-16",
+    "changes": [
+      {
+        "type": "docs",
+        "title": "README air-gap note for vendor sync",
+        "detail": ""
+      }
+    ]
+  },
+  {
+    "version": "1.02.210",
+    "date": "2026-05-16",
+    "changes": [
+      {
+        "type": "chore",
+        "title": "gitignore generated Sim Lab vendor dir",
+        "detail": ""
+      }
+    ]
+  },
+  {
+    "version": "1.02.209",
+    "date": "2026-05-16",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "air-gap vendor sync, upload URL helpers, correlation IDs + PARAM_SET logs",
+        "detail": ""
+      }
+    ]
+  },
+  {
     "version": "1.02.208",
     "date": "2026-05-16",
     "changes": [

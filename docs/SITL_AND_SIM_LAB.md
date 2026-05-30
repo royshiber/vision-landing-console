@@ -54,7 +54,7 @@
 | **סינכרון HUD בין חבילות** | זמני קבלה ו־`time_boot_ms` שונים מדי בין ATTITUDE לבין GLOBAL/VFR — ערבול צמתים מצומצם ודגל **`hudTimeSkewWarn`** ב-SSE. |
 | **גובה** | עדיפות: VFR alt → יחסי GLOBAL → MSL GLOBAL. |
 | **כיוון** | VFR heading → GLOBAL hdg → yaw מ־ATTITUDE (0…360°). |
-| **Three.js** | `sim-lab.mjs` כמודול + **import map** ל־CDN; לפניו נטען **es-module-shims** (CDN) לשיפור תאימות דפדפנים ישנים יותר ל־import maps — **טריידאוף:** תלות רשת/גרסה בפריט סקריפט חיצוני (ראו פשרות). |
+| **Three.js** | `sim-lab.mjs` כמודול + **import map** לנתיבים תחת **`/vendor/…`** (קבצים מועתקים מ־`node_modules` באמצעות **`npm run vendor:sync`** — ללא curl/wget). לפני כן נטען **es-module-shims** מאותו נתיב — מתאים ל‑**air‑gap** אחרי סנכרון vendor מכונה מחוברת. |
 | **טעינת GLB** | רק נתיבי `/uploads/…` מהאותו מקור (אין כתובות חיצוניות שרירותיות). |
 | **לוויין** | Esri World Imagery ציבורי — עומס ותנאי שימוש באחריות המפעיל. |
 | **VFR חלקי** | `parseVfrHud` שומר שדות תקינים גם כששדה float אחר לא סופי — להימנע מאיבוי מלא של HUD. |

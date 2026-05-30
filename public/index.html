@@ -83,8 +83,26 @@
             </div>
             <div class="conn-panel-actions">
               <button id="connectBtn" class="conn-btn conn-btn-primary" title="התחבר / נתק">CONNECT</button>
-              <button type="button" id="connectAutoBtn" class="conn-btn conn-btn-auto" title="חיפוש אוטומטי על USB/COM ובוד נפוצים (כמו Mission Planner Auto-Connect)">חיבור אוטומטי</button>
+              <button type="button" id="connectAutoBtn" class="conn-btn conn-btn-auto" title="מזהה אוטומטית: FC ב-USB → Jetson relay → SITL מקומי">חיבור חכם</button>
               <button id="connectStatBtn" class="conn-btn" title="פתח חלון סטטיסטיקה מפורט">STAT</button>
+            </div>
+            <div id="connectAutoStepper" class="conn-auto-stepper hidden" aria-label="התקדמות חיבור חכם" dir="ltr">
+              <ol class="conn-auto-steps">
+                <li class="conn-auto-step" data-phase="usb_serial">
+                  <span class="conn-auto-step-icon" aria-hidden="true"></span>
+                  <span class="conn-auto-step-label">USB FC</span>
+                </li>
+                <li class="conn-auto-bridge" data-bridge="usb_jetson" aria-hidden="true"></li>
+                <li class="conn-auto-step" data-phase="jetson_relay">
+                  <span class="conn-auto-step-icon" aria-hidden="true"></span>
+                  <span class="conn-auto-step-label">Jetson relay</span>
+                </li>
+                <li class="conn-auto-bridge" data-bridge="jetson_sitl" aria-hidden="true"></li>
+                <li class="conn-auto-step" data-phase="sitl_local">
+                  <span class="conn-auto-step-icon" aria-hidden="true"></span>
+                  <span class="conn-auto-step-label">SITL מקומי</span>
+                </li>
+              </ol>
             </div>
             <p id="connectAutoProgress" class="conn-auto-progress hidden" aria-live="polite" role="status"></p>
             <div id="connectAutoChecklist" class="conn-auto-checklist hidden" role="alert"></div>
@@ -93,7 +111,7 @@
               <ul class="conn-protocol-bullets">
                 <li>השרת סוגר חיבורים פתוחים קודמים, ממיין את כבלי ה-USB לפי ניחוש «מתאם FC», ומנסה מהירויות נפוצות עד שמגיע MAVLink heartbeat מהבקר.</li>
                 <li>אם ה-COM «תפוס» בווינדוס, התקנת הכבל עלולה להיכשל עם «Access denied» — רק תוכנה אחת יכולה לחבור לכל יציאה בו־זמנית.</li>
-                <li>אין עדיין דיווח התקדמות בזמן אמת מהשרת; אחרי התשובה מוצג סיכום מהיר של הניסויים (למניעת הקלקות כפולות בזמן המתן לתשובה).</li>
+                <li>בזמן «חיבור חכם» — סרגל שלבים ודיווח התקדמות בזמן אמת (סריקה / המתנה ל-heartbeat / סיום שלב).</li>
               </ul>
             </details>
           </div>
@@ -236,6 +254,16 @@
             <span id="visionConfigStatus" class="vision-config-status action-status"></span>
           </div>
         </div>
+        <div id="paramCenterSearchBar" class="param-center-search-bar" role="search" aria-label="חיפוש פרמטרים">
+          <div class="ardu-search-row">
+            <input id="arduParamSearchInput" type="search" placeholder="חיפוש פרמטר בשפה חופשית (למשל: נחיתה קשה / LAND_SPEED)" dir="rtl" />
+            <button type="button" id="arduParamSearchBtn" class="btn-secondary-lg" title="חיפוש לפי שם/תיאור">חפש</button>
+            <button type="button" id="arduParamSearchClearBtn" class="btn-secondary-lg" title="נקה חיפוש">נקה</button>
+            <button type="button" id="arduParamSmartSearchBtn" class="btn-primary-lg" title="חיפוש חכם לפי טקסט חופשי עם Gemini">חיפוש חכם</button>
+          </div>
+          <div id="arduSearchStatus" class="vision-config-status param-center-search-status" aria-live="polite"></div>
+          <div id="arduSmartSearchResults" class="ardu-smart-results hidden param-center-smart-results" aria-live="polite"></div>
+        </div>
         <div id="autoLogsBanner" class="auto-logs-banner hidden" role="status" aria-live="polite"></div>
         <div id="landingParams" class="subpanel visible">
           <div id="paramsGrid" class="params-grid"></div>
@@ -253,16 +281,6 @@
             <div id="arduDiffTable" class="ardu-diff-table"></div>
           </div>
           <div class="ardu-form-region">
-            <div class="ardu-form-region-head">
-              <div class="ardu-search-row">
-                <input id="arduParamSearchInput" type="search" placeholder="חיפוש פרמטר (למשל LAND_SPEED / נחיתה)" />
-                <button type="button" id="arduParamSearchBtn" class="btn-secondary-lg" title="חיפוש לפי שם/תיאור">חפש</button>
-                <button type="button" id="arduParamSearchClearBtn" class="btn-secondary-lg" title="נקה חיפוש">נקה</button>
-                <button type="button" id="arduParamSmartSearchBtn" class="btn-primary-lg" title="חיפוש חכם לפי טקסט חופשי עם Gemini">חיפוש חכם</button>
-              </div>
-              <div id="arduSearchStatus" class="vision-config-status" aria-live="polite"></div>
-            </div>
-            <div id="arduSmartSearchResults" class="ardu-smart-results hidden" aria-live="polite"></div>
             <div id="arduParamFormPanels" class="ardu-param-form-panels" role="region" aria-label="שדות פרמטרי ArduPilot"></div>
           </div>
           <div class="ardu-param-file-actions">
@@ -547,6 +565,7 @@
 
             <div class="tele-dash-jetson-foot">
               <button type="button" id="jetsonRefreshBtn">⟳ רענן</button>
+              <button type="button" id="jetsonPullLogsBtn" class="btn-pull-logs" title="משוך לוגים מ-Jetson companion">⬇ משוך לוגים מ-Jetson</button>
               <p class="jetson-hint jetson-hint--dash" id="jetsonOut"></p>
             </div>
           </div>
@@ -622,91 +641,198 @@
         <p id="jetsonDiffNotesHe" style="display:none">—</p>
       </section>
 
-      <section id="simLab" class="panel">
-        <header class="sim-lab-intro">
-          <div class="sim-lab-intro-text">
-            <h2 class="sim-lab-title">מעבדת SITL</h2>
-            <p class="sim-lab-tagline">טלמטריה חיה, <code>MANUAL_CONTROL</code>, שיחזור לוג — תלת־ממד לפי נתונים; <strong class="sim-lab-honesty">הפיזיקה</strong> ב־SITL / סימולטור חיצוני.</p>
-          </div>
-          <div class="sim-lab-intro-actions">
-            <a class="btn-secondary-lg sim-lab-doc-link" href="/docs/SITL_AND_SIM_LAB.md" target="_blank" rel="noopener">תיעוד מעבדה ↗</a>
-            <details class="sim-lab-intro-more">
-              <summary>פירוט</summary>
-              <p class="sim-lab-sub sim-lab-sub--compact">ערוץ ארגומנטציה מול ArduPilot SITL: המסוף מציג טלמטריה חיה (SSE) ומאפשר RC דרך <code>MANUAL_CONTROL</code> כשהוגדר בשרת. <strong class="sim-lab-honesty">גובה, מהירות, כיוון ומודל התנועה</strong> מגיעים מ־ArduPilot וממנוע הסימולציה — לא מה־WebGL כאן.</p>
-            </details>
-          </div>
-        </header>
+            <section id="simLab" class="panel">
+        <div class="sl-layout">
 
-        <div class="sim-lab-body">
-        <div class="sim-lab-shell">
-          <aside class="sim-lab-rail sim-lab-rail--start" aria-label="חיבור והגדרות">
-            <details class="sim-lab-accordion" name="simlabL" open>
-              <summary>חיבור מהיר</summary>
-              <div class="sim-lab-acc-body">
-                <p class="sim-lab-hint sim-lab-hint--tight">ממלא את שדות CONNECT למעלה — ואז Connect שם.</p>
-                <div class="sim-lab-quick-btns">
-                  <button type="button" id="simLabPresetUdp14550" class="sim-lab-qbtn">UDP ‏127.0.0.1:14550</button>
-                  <button type="button" id="simLabPresetUdpBind" class="sim-lab-qbtn">UDP מאזין ‏0.0.0.0:14550</button>
-                  <button type="button" id="simLabPresetTcp5760" class="sim-lab-qbtn">TCP ‏127.0.0.1:5760</button>
-                </div>
+          <!-- ── Sidebar ── -->
+          <aside class="sl-sidebar" aria-label="חיבור ושיחזור">
+
+            <!-- חיבור -->
+            <div class="sl-section">
+              <div class="sl-section-title">חיבור SITL</div>
+              <p class="sl-connect-hint">בחר סוג חיבור לפי הגדרת ה-SITL שלך:</p>
+              <div class="sl-presets">
+                <button type="button" id="simLabPresetUdp14550" class="sl-preset-btn" title="UDP 127.0.0.1:14550 — הנפוץ ביותר עם sim_vehicle.py">
+                  <span class="sl-preset-name">UDP 14550</span>
+                  <span class="sl-preset-sub">sim_vehicle.py --out udp:…</span>
+                </button>
+                <button type="button" id="simLabPresetUdpBind" class="sl-preset-btn" title="UDP 0.0.0.0:14550 — האזנה (SITL שולח אליך)">
+                  <span class="sl-preset-name">UDP bind</span>
+                  <span class="sl-preset-sub">SITL שולח אליך</span>
+                </button>
+                <button type="button" id="simLabPresetTcp5760" class="sl-preset-btn" title="TCP 127.0.0.1:5760 — MAVProxy / SITL ברירת מחדל">
+                  <span class="sl-preset-name">TCP 5760</span>
+                  <span class="sl-preset-sub">MAVProxy / SITL</span>
+                </button>
               </div>
-            </details>
-            <details class="sim-lab-accordion" name="simlabL">
-              <summary>פרופיל סימולציה</summary>
-              <div class="sim-lab-acc-body">
-                <p class="sim-lab-hint sim-lab-hint--tight">תיעוד גרסאות בלבד (לא התקנה).</p>
+              <button type="button" id="simLabConnectNowBtn" class="sl-connect-now-btn hidden" title="התחבר עם ההגדרה שנבחרה">⚡ התחבר עכשיו</button>
+            </div>
+
+            <!-- שיחזור -->
+            <div class="sl-section">
+              <div class="sl-section-title">שיחזור .tlog</div>
+              <div class="sl-replay-upload">
+                <label class="sl-file-label" title="בחר קובץ .tlog, .bin, .log לשיחזור">
+                  <input type="file" id="simLabTlogInput" accept=".tlog,.bin,.log,.BIN,.TLOG" class="sl-file-native" />
+                  <span id="simLabTlogFileBtn" class="sl-file-btn">בחר קובץ</span>
+                </label>
+                <button type="button" id="simLabTlogParseBtn" class="sl-btn" title="נתח את הקובץ והצג שיחזור בתלת־ממד">▶ נתח והפעל</button>
+              </div>
+              <p id="simLabReplayMeta" class="sl-meta" aria-live="polite"></p>
+              <button type="button" id="simLabGoFlightsBtn" class="sl-btn sl-btn--ghost" title="עבור לטאב לוגים והעלאות">לוגים ↗</button>
+            </div>
+
+            <!-- עוד (מתקפל) -->
+            <details class="sl-more">
+              <summary class="sl-more-summary">עוד ▾</summary>
+
+              <div class="sl-section sl-section--sub">
+                <div class="sl-section-title">פרמטר חי</div>
+                <div class="sim-lab-param-row">
+                  <input type="text" id="simLabParamName" class="sim-lab-text-input" placeholder="LAND_SPEED" autocomplete="off" title="שם פרמטר ArduPilot לשליחה — PARAM_SET; חסום כשמזויין" />
+                  <input type="number" id="simLabParamValue" class="sim-lab-text-input sim-lab-param-value" placeholder="ערך" step="any" />
+                  <button type="button" id="simLabParamSend" class="sim-lab-qbtn">שלח</button>
+                </div>
+                <p id="simLabParamStatus" class="sim-lab-param-status" aria-live="polite"></p>
+              </div>
+
+              <div class="sl-section sl-section--sub">
+                <div class="sl-section-title">שליטה · MANUAL_CONTROL</div>
+                <label class="sim-lab-rc-toggle"><input type="checkbox" id="simLabRcSendToggle" /> שלח לקושחה</label>
+                <p id="simLabRcHint" class="sl-meta" aria-live="polite"></p>
+                <p id="simLabGamepadStatus" class="sl-meta"></p>
+                <details class="sl-keys">
+                  <summary>מקרא מקשים</summary>
+                  <div class="sim-lab-keys-legend" dir="ltr">
+                    <table class="sim-lab-keys-grid" aria-label="מקרא מפתחות שליחת MANUAL_CONTROL">
+                      <tbody>
+                        <tr><td class="sim-lab-key">W / ↑</td><td>pitch+</td></tr>
+                        <tr><td class="sim-lab-key">S / ↓</td><td>pitch−</td></tr>
+                        <tr><td class="sim-lab-key">A / ←</td><td>roll−</td></tr>
+                        <tr><td class="sim-lab-key">D / →</td><td>roll+</td></tr>
+                        <tr><td class="sim-lab-key">Q / E</td><td>yaw</td></tr>
+                        <tr><td class="sim-lab-key">[ / ]</td><td>thrust</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </details>
+              </div>
+
+              <div class="sl-section sl-section--sub">
+                <div class="sl-section-title">מודל GLB</div>
+                <label class="sim-lab-field">
+                  <select id="simLabAircraftSelect" class="sim-lab-select" data-simlab-ignore-kb="1" title="בחר קובץ GLB מהשרת להחלה על הסצנה"></select>
+                </label>
+                <div class="sim-lab-aircraft-actions">
+                  <button type="button" id="simLabAircraftApply" class="sim-lab-qbtn" title="החל GLB נבחר על סצנת Three.js (קנה-מידה אוטומטי)">החל</button>
+                  <button type="button" id="simLabAircraftReload" class="sim-lab-qbtn">רענן</button>
+                </div>
+                <label class="sim-lab-field sim-lab-upload-label" title="העלה GLB / צילום לשרת">
+                  העלאה
+                  <input type="file" id="simLabAircraftUpload" accept=".glb,.gltf,.zip,.jpg,.jpeg,.png,.webp,.gif,.bmp,.tif,.tiff,.heic,.heif,.avif,image/*" class="sim-lab-file" data-simlab-ignore-kb="1" />
+                </label>
+                <p id="simLabAircraftStatus" class="sl-meta" aria-live="polite"></p>
+              </div>
+
+              <div class="sl-section sl-section--sub">
+                <div class="sl-section-title">פרופיל (תיעוד)</div>
                 <div class="sim-lab-stack-fields">
-                  <label class="sim-lab-field">שורת ArduPlane
+                  <label class="sim-lab-field">ArduPlane
                     <select id="simLabArduPreset" class="sim-lab-select"></select>
                   </label>
-                  <label class="sim-lab-field hidden" id="simLabArduCustomWrap">גרסה מותאמת
-                    <input type="text" id="simLabArduCustom" class="sim-lab-text-input" placeholder="למשל 4.5.5" autocomplete="off" />
+                  <label class="sim-lab-field hidden" id="simLabArduCustomWrap">גרסה
+                    <input type="text" id="simLabArduCustom" class="sim-lab-text-input" placeholder="4.5.5" autocomplete="off" />
                   </label>
-                  <label class="sim-lab-field">Jetson bundle (קטלוג)
+                  <label class="sim-lab-field">Jetson
                     <select id="simLabJetsonVer" class="sim-lab-select"></select>
                   </label>
                 </div>
               </div>
-            </details>
-            <details class="sim-lab-accordion" name="simlabL">
-              <summary>פרמטר חי</summary>
-              <div class="sim-lab-acc-body">
-                <p class="sim-lab-hint sim-lab-hint--tight">PARAM_SET: בדרך־כלל Disarm ב־SITL; חסום ב־ARMED כמו בייצור.</p>
-                <div class="sim-lab-param-row">
-                  <input type="text" id="simLabParamName" class="sim-lab-text-input" placeholder="LAND_SPEED" autocomplete="off" />
-                  <input type="number" id="simLabParamValue" class="sim-lab-text-input sim-lab-param-value" placeholder="ערך" step="any" />
-                  <button type="button" id="simLabParamSend" class="sim-lab-qbtn">שליחה</button>
-                </div>
-                <p id="simLabParamStatus" class="sim-lab-param-status" aria-live="polite"></p>
-              </div>
-            </details>
-            <details class="sim-lab-accordion" name="simlabL">
-              <summary>מודל מטוס בתלת־ממד — ‎GLB‎ מול צילום</summary>
-              <div class="sim-lab-acc-body">
-                <p class="sim-lab-hint sim-lab-hint--tight">
-                  בתפריט מופיעים רק קבצי ‎GLB‎; בחירת «פרימיטיב» עם «החל על התצוגה» מאפסת לגוף אפור ברירת־מחדל.
-                  <strong>‎JPEG‎/‎PNG‎</strong> מהעלאה מוחילים למשטח הפרימיטיב בסצנה (מרקם), ואינם מחליפים גאומטריית מודל משלהם —
-                  משח להחלפת כלי שלם עם ‎glTF /‎‎GLB‎.
-                </p>
-                <p class="sim-lab-hint sim-lab-hint--tight">טעינת ‎GLB מהשרת (<code>/uploads</code>) במקום הפרימיטיב — קנה מידה אוטומטי לסצנה.</p>
-                <label class="sim-lab-field">בחר נכס
-                  <select id="simLabAircraftSelect" class="sim-lab-select" data-simlab-ignore-kb="1"></select>
-                </label>
-                <div class="sim-lab-aircraft-actions">
-                  <button type="button" id="simLabAircraftApply" class="sim-lab-qbtn">החל על התצוגה (רק מהגלילה — ‎GLB‎ או פרימיטיב ריק)</button>
-                  <button type="button" id="simLabAircraftReload" class="sim-lab-qbtn">רענן רשימה</button>
-                </div>
-                <label class="sim-lab-field sim-lab-upload-label">העלאת ‎GLB‎ / צילום
-                  <input type="file" id="simLabAircraftUpload" accept=".glb,.gltf,.zip,.jpg,.jpeg,.png,.webp,.gif,.bmp,.tif,.tiff,.heic,.heif,.avif,image/*" class="sim-lab-file" data-simlab-ignore-kb="1" />
-                </label>
-                <p id="simLabAircraftStatus" class="sim-lab-param-status" aria-live="polite"></p>
-              </div>
+
             </details>
           </aside>
 
-          <div class="sim-lab-stage">
-            <div class="sim-lab-viz-wrap">
+          <!-- ── Main stage ── -->
+          <div class="sl-stage">
+
+            <!-- 3D canvas + HUD -->
+            <div class="sl-viz">
               <canvas id="simLabCanvas" class="sim-lab-canvas" aria-label="תצוגת מטוס תלת־מימדית לפי טלמטריה"></canvas>
+
+              <!-- Quickstart guide — shown when FC is not connected -->
+              <div id="simLabQuickstart" class="sl-quickstart">
+                <div class="sl-wizard" id="simLabWizard">
+
+                  <!-- Step indicator -->
+                  <div class="sl-wiz-steps">
+                    <div class="sl-wiz-step sl-wiz-step--active" data-step="1">
+                      <div class="sl-wiz-dot">1</div>
+                      <div class="sl-wiz-step-label">הפעל SITL</div>
+                    </div>
+                    <div class="sl-wiz-connector"></div>
+                    <div class="sl-wiz-step" data-step="2">
+                      <div class="sl-wiz-dot">2</div>
+                      <div class="sl-wiz-step-label">התחבר</div>
+                    </div>
+                    <div class="sl-wiz-connector"></div>
+                    <div class="sl-wiz-step" data-step="3">
+                      <div class="sl-wiz-dot">3</div>
+                      <div class="sl-wiz-step-label">בדוק סטטוס</div>
+                    </div>
+                  </div>
+
+                  <!-- Panel 1: Run SITL -->
+                  <div class="sl-wiz-panel" data-panel="1">
+                    <div class="sl-wiz-title">הפעל SITL במחשב</div>
+                    <div class="sl-wiz-sub">הרץ את הפקודה הבאה ב-terminal:</div>
+                    <div class="sl-wiz-cmd-block">
+                      <code id="simLabSitlCmd">sim_vehicle.py -v ArduPlane --out udp:127.0.0.1:14550</code>
+                      <button type="button" id="simLabCopyCmd" class="sl-wiz-copy" title="העתק">⎘ העתק</button>
+                    </div>
+                    <div class="sl-wiz-tip">💡 בפעם הראשונה — ArduSim מוריד קבצים, לוקח ~1 דקה</div>
+                    <button type="button" id="simLabWizSkip1" class="sl-wiz-skip">SITL כבר פועל — עבור לחיבור ←</button>
+                  </div>
+
+                  <!-- Panel 2: Connect -->
+                  <div class="sl-wiz-panel hidden" data-panel="2">
+                    <div class="sl-wiz-title">התחבר לסימולטור</div>
+                    <div class="sl-wiz-sub">בחר את סוג החיבור לפי אופן הפעלת SITL:</div>
+                    <div class="sl-wiz-conn-grid">
+                      <button type="button" id="simLabQsUdp" class="sl-wiz-conn-card sl-wiz-conn-card--primary">
+                        <span class="sl-wiz-conn-icon">📡</span>
+                        <span class="sl-wiz-conn-name">UDP 14550</span>
+                        <span class="sl-wiz-conn-desc">הכי נפוץ עם sim_vehicle.py</span>
+                        <span class="sl-wiz-conn-badge">מומלץ</span>
+                      </button>
+                      <button type="button" id="simLabQsTcp" class="sl-wiz-conn-card">
+                        <span class="sl-wiz-conn-icon">🔌</span>
+                        <span class="sl-wiz-conn-name">TCP 5760</span>
+                        <span class="sl-wiz-conn-desc">MAVProxy / SITL ישיר</span>
+                      </button>
+                      <button type="button" id="simLabQsUdpBind" class="sl-wiz-conn-card">
+                        <span class="sl-wiz-conn-icon">📶</span>
+                        <span class="sl-wiz-conn-name">UDP bind</span>
+                        <span class="sl-wiz-conn-desc">SITL שולח אליך</span>
+                      </button>
+                    </div>
+                    <div id="simLabWizConnStatus" class="sl-wiz-conn-status hidden">מתחבר…</div>
+                  </div>
+
+                  <!-- Panel 3: Connecting confirmation (brief) -->
+                  <div class="sl-wiz-panel hidden" data-panel="3">
+                    <div class="sl-wiz-title">✅ מחובר! בודק טרום-טיסה…</div>
+                    <div class="sl-wiz-sub">הסטטוס יוצג עוד רגע</div>
+                  </div>
+
+                  <!-- tlog alternative -->
+                  <div class="sl-wiz-divider">— או לחלופין —</div>
+                  <button type="button" id="simLabQsTlog" class="sl-wiz-tlog-btn">📂 שחזר טיסה מקובץ .tlog</button>
+                  <p id="simLabWizTlogStatus" class="sl-wiz-tlog-status sl-meta" aria-live="polite"></p>
+
+                </div>
+              </div>
+
+              <!-- instrument overlay -->
               <div class="sim-lab-overlay" aria-hidden="true">
                 <div class="sim-lab-tape-strip sim-lab-tape-strip--heading">
                   <span class="sim-lab-tape-label">כיוון</span>
@@ -730,6 +856,8 @@
                   </div>
                 </div>
               </div>
+
+              <!-- status bar -->
               <div id="simLabHud" class="sim-lab-hud" aria-live="polite">
                 <div class="sim-lab-hud-row">
                   <span id="simLabHudConn">אין חיבור FC</span>
@@ -737,109 +865,77 @@
                 </div>
                 <span id="simLabHudStack" class="sim-lab-hud-stack"></span>
               </div>
+
+              <!-- VFX toggle -->
+              <label class="sl-vfx-toggle" title="שמיים · מדרון · תאורה · מצלמה חלקה">
+                <input type="checkbox" id="simLabVfxToggle" checked />
+                <span>VFX</span>
+              </label>
             </div>
 
-            <div class="sim-lab-stage-foot">
-              <div class="sim-lab-toolbar-row sim-lab-toolbar-row--primary">
-                <label class="sim-lab-vfx-toggle">
-                  <input type="checkbox" id="simLabVfxToggle" checked />
-                  <span>תצוגה: שמיים · מדרון · תאורה · מצלמה חלקה (כיבוי: מעקב מצלמה פשוט יותר — עדיין שמיים, לא לב שחור)</span>
-                </label>
+          <!-- Pre-flight status bar — shown when FC is connected -->
+          <div id="simLabPreflightBar" class="sl-preflight-bar hidden">
+            <div class="sl-pf-chips">
+              <span id="simLabPfArmed" class="sl-pf-chip sl-pf-chip--neutral">
+                <span class="sl-pf-label">מצב</span>
+                <span class="sl-pf-val">—</span>
+              </span>
+              <span id="simLabPfMode" class="sl-pf-chip sl-pf-chip--neutral">
+                <span class="sl-pf-label">מוד</span>
+                <span class="sl-pf-val">—</span>
+              </span>
+              <span id="simLabPfGps" class="sl-pf-chip sl-pf-chip--neutral">
+                <span class="sl-pf-label">GPS</span>
+                <span class="sl-pf-val">—</span>
+              </span>
+              <span id="simLabPfBatt" class="sl-pf-chip sl-pf-chip--neutral">
+                <span class="sl-pf-label">מתח</span>
+                <span class="sl-pf-val">—</span>
+              </span>
+            </div>
+            <div id="simLabFcLog" class="sl-pf-log" dir="ltr"></div>
+          </div>
+
+          <!-- Replay controls (hidden until log loaded) -->
+          <div id="simLabReplayControls" class="sl-replay-bar hidden">
+              <div class="sl-replay-btns">
+                <button type="button" id="simLabReplayPlay"  class="sl-replay-btn" title="נגן">▶</button>
+                <button type="button" id="simLabReplayPause" class="sl-replay-btn" title="השהה">⏸</button>
+                <button type="button" id="simLabReplayStop"  class="sl-replay-btn" title="עצור וסגור">■</button>
+                <select id="simLabReplaySpeed" class="sl-speed-sel" title="מהירות ניגון">
+                  <option value="1">1×</option>
+                  <option value="2">2×</option>
+                  <option value="4">4×</option>
+                </select>
               </div>
-              <div class="sim-lab-toolbar-row sim-lab-toolbar-row--secondary">
-                <details class="sim-lab-help-workflow">
-                  <summary>עזרה — סדר עבודה</summary>
-                  <ol class="sim-lab-steps">
-                    <li>הפעל <strong>ArduPlane SITL</strong> כך ש־MAVLink זמין ב־UDP/TCP מקומי.</li>
-                    <li><strong>התחברות:</strong> «חיבור מהיר» + <strong>Connect</strong> בשורת הכותרת.</li>
-                    <li><strong>ארם ומצב:</strong> בקושחה ארם ומצב שמאפשר יד (למשל MANUAL) — רק ב־SITL ובטיחות העבודה שלך.</li>
-                    <li><strong>שליטה:</strong> סמן «שליחה לקושחה» והשתמש במשחקון או במקשים — <code>MANUAL_CONTROL</code> דרך השרת. פירוט מלא ב־<a href="/docs/SITL_AND_SIM_LAB.md" target="_blank" rel="noopener">תיעוד המעבדה ↗</a>.</li>
-                    <li><strong>שיחזור:</strong> קובץ ‎.tlog — ציר זמן, GPS, אירועים (STATUSTEXT, ARM/disarm, מצב טיסה).</li>
-                  </ol>
+              <input type="range" id="simLabReplaySeek" class="sim-lab-seek sl-seek" min="0" max="0" value="0" />
+              <div id="simLabReplayStripWrap" class="sim-lab-replay-strip-wrap hidden" aria-hidden="true">
+                <div id="simLabReplayEventStrip" class="sim-lab-event-strip" role="presentation" title="סימני אירוע על ציר הזמן"></div>
+                <details class="sim-lab-replay-ev-details">
+                  <summary>אירועים</summary>
+                  <div id="simLabReplayEventList" class="sim-lab-event-list"></div>
                 </details>
               </div>
             </div>
 
+            <!-- Map (hidden until GPS data available) -->
             <div id="simLabMapWrap" class="sim-lab-map-wrap hidden" aria-hidden="true">
               <div id="simLabMapEl" class="sim-lab-map-el" role="img" aria-label="מפת מסלול מהלוג"></div>
-              <p id="simLabMapCaption" class="sim-lab-map-caption">מסלול GPS מהקובץ — מסונכן עם מפת ההטסה</p>
-              <div class="sim-lab-map-toolbar">
-                <label class="sim-lab-field sim-lab-field--inline">רקע מפה
-                  <select id="simLabMapBasemap" class="sim-lab-select" data-simlab-ignore-kb="1" title="בחירת שכבת בסיס לריפליי">
-                    <option value="osm">OpenStreetMap</option>
-                    <option value="satellite">לוויין (Esri)</option>
-                    <option value="gradient">גרדיאנט מקומי</option>
+              <div class="sl-map-footer">
+                <p id="simLabMapCaption" class="sim-lab-map-caption">מסלול GPS מהקובץ</p>
+                <label class="sim-lab-field sim-lab-field--inline">
+                  <select id="simLabMapBasemap" class="sim-lab-select" data-simlab-ignore-kb="1" title="שכבת בסיס מפה">
+                    <option value="osm">OSM</option>
+                    <option value="satellite">לוויין</option>
+                    <option value="gradient">גרדיאנט</option>
                   </select>
                 </label>
               </div>
               <p id="simLabMapBasemapCaption" class="sim-lab-map-caption sim-lab-map-caption--sub"></p>
             </div>
-          </div>
 
-          <aside class="sim-lab-rail sim-lab-rail--end" aria-label="שליטה ושיחזור">
-            <details class="sim-lab-accordion" name="simlabR" open>
-              <summary>שליטה · ‎MANUAL_CONTROL</summary>
-              <div class="sim-lab-acc-body">
-                <div class="sim-lab-control-toolbar">
-                  <label class="sim-lab-rc-toggle"><input type="checkbox" id="simLabRcSendToggle" /> שליחה לקושחה דרך השרת</label>
-                </div>
-                <p id="simLabRcHint" class="sim-lab-hint sim-lab-hint--tight"></p>
-                <p id="simLabGamepadStatus" class="sim-lab-gamepad">לא זוהה משחקון USB — חבר ולחץ על כפתור בזמן שהטאב פתוח.</p>
-                <details class="sim-lab-accordion sim-lab-accordion--nested">
-                  <summary>מקרא מקשים</summary>
-                  <div class="sim-lab-keys-legend" dir="ltr">
-                    <table class="sim-lab-keys-grid" aria-label="מקרא מפתחות שליחת MANUAL_CONTROL">
-                      <tbody>
-                        <tr><td class="sim-lab-key">W / ↑</td><td>אף למעלה (pitch <code>x</code>)</td></tr>
-                        <tr><td class="sim-lab-key">S / ↓</td><td>אף למטה</td></tr>
-                        <tr><td class="sim-lab-key">A / ←</td><td>גלגול שמאלה (<code>y</code>)</td></tr>
-                        <tr><td class="sim-lab-key">D / →</td><td>גלגול ימינה</td></tr>
-                        <tr><td class="sim-lab-key">Q</td><td>רודר שמאלה (<code>r</code>)</td></tr>
-                        <tr><td class="sim-lab-key">E</td><td>רודר ימינה</td></tr>
-                        <tr><td class="sim-lab-key">[ ]</td><td>דחף (<code>z</code>) ±120, טווח ‎±‎1000</td></tr>
-                      </tbody>
-                    </table>
-                  </div>
-                </details>
-                <p class="sim-lab-keys-note">משחקון דורס ציר מקבל מהמקלדת. נדרש <code dir="ltr">ALLOW_BROWSER_MANUAL_CONTROL=1</code> — לא לייצור. <a href="/docs/SITL_AND_SIM_LAB.md" target="_blank" rel="noopener">עוד ↗</a></p>
-              </div>
-            </details>
-            <details class="sim-lab-accordion" name="simlabR">
-              <summary>שיחזור ‎.tlog</summary>
-              <div class="sim-lab-acc-body">
-                <div class="sim-lab-replay-upload">
-                  <input type="file" id="simLabTlogInput" accept=".tlog,.bin,.log,.BIN,.TLOG" class="sim-lab-file" />
-                  <button type="button" id="simLabTlogParseBtn" class="sim-lab-qbtn">ניתוח קובץ</button>
-                </div>
-                <p id="simLabReplayMeta" class="sim-lab-hint sim-lab-hint--tight"></p>
-                <div id="simLabReplayControls" class="sim-lab-replay-controls hidden">
-                  <div class="sim-lab-replay-btns">
-                    <button type="button" id="simLabReplayPlay" class="sim-lab-qbtn">ניגון</button>
-                    <button type="button" id="simLabReplayPause" class="sim-lab-qbtn">השהה</button>
-                    <button type="button" id="simLabReplayStop" class="sim-lab-qbtn">עצור</button>
-                    <label class="sim-lab-replay-speed">מהירות
-                      <select id="simLabReplaySpeed">
-                        <option value="1">1×</option>
-                        <option value="2">2×</option>
-                        <option value="4">4×</option>
-                      </select>
-                    </label>
-                  </div>
-                  <input type="range" id="simLabReplaySeek" class="sim-lab-seek" min="0" max="0" value="0" />
-                  <div id="simLabReplayStripWrap" class="sim-lab-replay-strip-wrap hidden" aria-hidden="true">
-                    <div id="simLabReplayEventStrip" class="sim-lab-event-strip" role="presentation" title="סימני אירוע על ציר הזמן"></div>
-                    <details class="sim-lab-replay-ev-details">
-                      <summary>אירועי לוג (‎STATUSTEXT‎ · ARM · מצב)</summary>
-                      <div id="simLabReplayEventList" class="sim-lab-event-list"></div>
-                    </details>
-                  </div>
-                </div>
-                <button type="button" id="simLabGoFlightsBtn" class="sim-lab-qbtn sim-lab-qbtn--ghost">לעלאות ולוגים</button>
-              </div>
-            </details>
-          </aside>
-        </div>
-        </div>
+          </div><!-- /.sl-stage -->
+        </div><!-- /.sl-layout -->
       </section>
 
       <section id="flights" class="panel flights-panel">
@@ -888,10 +984,23 @@
           <p id="uploadLogStatus" class="upload-status-ok"></p>
         </div>
 
-        <!-- All-logs history -->
-        <div class="panel-header" style="margin-top:16px">
-          <h3>כל הלוגים שהועלו</h3>
-          <button type="button" id="refreshAllLogsBtn" title="רענן רשימה">⟳ רענן</button>
+        <!-- Flight list with inline delete -->
+        <div class="flights-mgr-header">
+          <h3 class="flights-mgr-title">טיסות ולוגים</h3>
+          <div class="flights-mgr-actions">
+            <input id="newFlightTitle" type="text" class="flights-new-input" placeholder="שם טיסה חדשה…" />
+            <button type="button" id="createFlightBtn" class="flights-new-btn" title="יוצר רשומת טיסה">+ טיסה</button>
+            <button type="button" id="refreshFlightsBtn" class="flights-refresh-btn" title="רענן">⟳</button>
+          </div>
+        </div>
+        <div id="flightListWrap" class="flight-list-wrap">
+          <!-- Rendered by JS: one .flight-list-row per flight -->
+        </div>
+
+        <!-- All-logs history (auto-loaded) -->
+        <div class="flights-mgr-header" style="margin-top:20px">
+          <h3 class="flights-mgr-title">כל הלוגים</h3>
+          <button type="button" id="refreshAllLogsBtn" title="רענן">⟳ רענן</button>
         </div>
         <div id="allLogsTableWrap" class="logs-columns-wrap">
           <div class="logs-col">
@@ -910,24 +1019,12 @@
           </div>
         </div>
 
-        <!-- Flight management -->
-        <details class="flight-manage" style="margin-top:16px">
-          <summary>ניהול טיסות והערות ▸</summary>
-          <div class="flight-form" style="margin-top:10px">
-            <div class="actions">
-              <button type="button" id="refreshFlightsBtn" title="רענון רשימת טיסות">רענן טיסות</button>
-            </div>
-            <div class="actions">
-              <input id="newFlightTitle" type="text" placeholder="כותרת לטיסה חדשה" />
-              <button type="button" id="createFlightBtn" title="יוצר רשומת טיסה">טיסה חדשה</button>
-            </div>
-            <label>חוות דעת / הערות (נשמרות למאגר)
-              <textarea id="flightNoteBody" placeholder="מה עבד, מה לא, רוח, תקלות…"></textarea>
-            </label>
-            <button type="button" id="saveFlightNoteBtn" title="שומר הערה לטיסה הנבחרת">שמור הערה</button>
-            <pre id="flightLogsOut">בחר טיסה ורענן.</pre>
-          </div>
-        </details>
+        <!-- Hidden legacy elements kept for JS compat -->
+        <select id="flightSelect" style="display:none"></select>
+        <button type="button" id="deleteFlightBtn" style="display:none"></button>
+        <pre id="flightLogsOut" style="display:none"></pre>
+        <textarea id="flightNoteBody" style="display:none"></textarea>
+        <button type="button" id="saveFlightNoteBtn" style="display:none"></button>
       </section>
 
 
@@ -953,7 +1050,22 @@
 
             <!-- ── Horizon shell (canvas + side overlays) ─────── -->
             <div class="pfd-horizon-shell" id="pfdHorizonShell">
+              <!-- Video feed layer (behind canvas) -->
+              <video id="horizonVideoEl" class="pfd-horizon-video hidden" muted playsinline autoplay loop
+                     aria-hidden="true" title="שידור וידאו מהטיסן"></video>
+
               <canvas id="horizonCanvas"></canvas>
+
+              <!-- Video overlay toggle + URL input -->
+              <button type="button" id="horizonVideoToggle" class="pfd-video-toggle" title="שכבת וידאו חי מהטיסן">📹 וידאו</button>
+              <div id="horizonVideoPanel" class="pfd-video-panel hidden">
+                <span class="pfd-video-label">זרם וידאו חי מהטיסן (MJPEG / HLS / RTSP)</span>
+                <div>
+                  <input type="text" id="horizonVideoUrl" class="pfd-video-url-input"
+                    placeholder="http://192.168.1.x:8080/stream" autocomplete="off" />
+                  <button type="button" id="horizonVideoApply" class="pfd-video-apply-btn">▶ הפעל</button>
+                </div>
+              </div>
 
               <!-- Left: Airspeed -->
               <div class="pfd-side-tape pfd-side-tape--left">
@@ -1029,9 +1141,11 @@
           <div class="hud-param-overlay-card">
             <p class="hud-param-overlay-title">מה תרצה לראות כאן?</p>
             <textarea id="hudParamInput" class="hud-param-overlay-input" rows="2"
-              placeholder="למשל: מהירות אוויר, מהירות קרקעית, טמפ׳ Jetson… אם לא ברור — המערכת תציע אפשרויות לבחירה."></textarea>
+              placeholder="למשל: מהירות אנכית, גובה, מתח סוללה, עומס CPU…"></textarea>
             <p class="hud-param-overlay-hint" id="hudParamHint" hidden></p>
             <div class="hud-param-options" id="hudParamOptions" hidden role="group" aria-label="אפשרויות לבחירה"></div>
+            <!-- "show all" link — always visible -->
+            <button type="button" id="hudParamShowAll" class="hud-param-show-all">הצג את כל הפרמטרים הזמינים</button>
             <div class="hud-param-overlay-actions">
               <button type="button" id="hudParamConfirmBtn" class="btn-primary-sm">אישור</button>
               <button type="button" id="hudParamCancelBtn" class="btn-secondary-sm">ביטול</button>
@@ -1398,12 +1512,12 @@
       <div class="map-fly-to-status" id="mapFlyToStatus"></div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/es-module-shims@1.10.0/dist/es-module-shims.js"></script>
+    <script src="/vendor/es-module-shims/es-module-shims.js?v=__APP_VERSION__"></script>
     <script type="importmap">
     {
       "imports": {
-        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+        "three": "/vendor/three/build/three.module.js?v=__APP_VERSION__",
+        "three/addons/": "/vendor/three/examples/jsm/"
       }
     }
     </script>

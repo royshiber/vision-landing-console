@@ -18,10 +18,13 @@
 ```powershell
 cd "C:\Users\shibe\VisionLandingConsole"
 npm install
+npm run vendor:sync
 copy .env.example .env
 # ערוך .env: GEMINI_API_KEY, GITHUB_INGEST_SECRET
 npm run start
 ```
+
+**Air-gap / סגור רשת:** התיקייה `public/vendor/` נוצרת על ידי `vendor:sync` ומופיעה ב־`.gitignore` — העתק אותה יחד עם הקוד לסביבה מנותקת אחרי הרצה חד־פעמית במחשב מחובר. טאבי מפה עם Leaflet עדיין טוענים ספריות מ־CDN; להשלמת air-gap מלא לאחסון מקומי של Leaflet יידרש צעד דומה נפרד.
 
 אם נשאר תהליך `node` ישן על פורט 4010 (רואים ב־`/api/health` גרסה ישנה או מודל ישן), הרץ:
 

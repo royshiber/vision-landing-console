@@ -1,6 +1,6 @@
 {
   "name": "vision-landing-console",
-  "version": "1.02.208",
+  "version": "1.02.231",
   "private": true,
   "type": "module",
   "description": "Vision Landing Console — camera-based landing workflow with MAVLink, Jetson agent and Gemini advisor",
@@ -23,9 +23,10 @@
     "bump:major": "node scripts/bump-version.mjs --major",
     "hooks:install": "node scripts/install-git-hooks.mjs",
     "hooks:uninstall": "node scripts/install-git-hooks.mjs --uninstall",
-    "postinstall": "node scripts/install-git-hooks.mjs --silent",
+    "postinstall": "node scripts/install-git-hooks.mjs --silent && node scripts/vendor-sync.mjs",
     "fetch-arduplane-params": "node scripts/fetch-arduplane-params.mjs",
-    "build-param-embeddings": "node scripts/build-param-embeddings.mjs"
+    "build-param-embeddings": "node scripts/build-param-embeddings.mjs",
+    "vendor:sync": "node scripts/vendor-sync.mjs"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
@@ -40,8 +41,10 @@
     "serialport": "^13.0.0"
   },
   "devDependencies": {
+    "es-module-shims": "1.10.0",
     "playwright": "^1.50.1",
     "pm2": "^6.0.14",
+    "three": "0.160.0",
     "vitest": "^4.1.4"
   }
 }

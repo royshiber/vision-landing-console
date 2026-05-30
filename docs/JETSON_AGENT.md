@@ -528,6 +528,52 @@ curl -X POST http://192.168.1.100:4010/api/vision/flow \
 
 ---
 
+---
+
+## Companion Agent — MAVLink relay + heartbeat (חיבור חכם מהקונסול)
+
+הקונסול (`Vision Landing Console`) יכול להתחבר **אוטומטית** ל-Jetson דרך relay MAVLink (TCP `:5770`) בלי USB ישיר ל-FC.
+
+### מה הסקריפט עושה
+
+| שירות | פורט | תפקיד |
+|-------|------|--------|
+| MAVLink relay | TCP `5770` | גשר byte-level בין GCS (PC) ל-UART של FC |
+| HTTP API | `8081` | `/api/health`, `/api/logs`, `/api/install` |
+| Heartbeat | → PC `:4010` | `/api/jetson/heartbeat` — IP, relay, FC linked |
+
+הסקריפט: `scripts/jetson-companion/companion_agent.py`
+
+### התקנה על Jetson
+
+```bash
+# מהקונסול (PC) — הורדה:
+curl -o companion_agent.py http://<PC-IP>:4010/api/jetson/companion-script
+
+# או העתקה ידנית מהריפו
+pip3 install pymavlink requests
+
+export VLC_CONSOLE_URL="http://<PC-IP>:4010"
+export VLC_COMPANION_TOKEN="<אותו COMPANION_SHARED_SECRET>"
+export VLC_FC_DEVICE="/dev/ttyTHS0"   # UART ל-Matek
+export VLC_FC_BAUD="115200"
+export VLC_RELAY_PORT="5770"
+export VLC_HTTP_PORT="8081"
+
+python3 companion_agent.py
+```
+
+### חיבור חכם מה-UI
+
+לחץ **«חיבור חכם»** — הסדר:
+1. USB serial ישיר ל-FC (אם מחובר)
+2. TCP relay ל-Jetson (`peerIp:5770` מ-heartbeat)
+3. SITL מקומי (UDP/TCP 14550/5760)
+
+משיכת לוגים: כפתור **«משוך לוגים מ-Jetson»** בטאב טלמטריה → `POST /api/jetson/pull-logs`.
+
+---
+
 ## גרסאות תאימות
 
 | רכיב | מינימום | מומלץ |

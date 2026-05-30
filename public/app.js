@@ -123,6 +123,10 @@ const panels = Array.from(document.querySelectorAll('.panel'));
 const subtabs = Array.from(document.querySelectorAll('.subtab'));
 const subpanels = Array.from(document.querySelectorAll('.subpanel'));
 const controlSubtabsBar = document.getElementById('controlSubtabsBar');
+
+function setParamCenterChromeVisible(visible) {
+  if (controlSubtabsBar) controlSubtabsBar.classList.toggle('visible', visible);
+}
 const arduTopCatsHost = document.getElementById('arduTopCatsHost');
 const debriefTabButtons = Array.from(document.querySelectorAll('[data-debrief-tab]'));
 const debriefRecordingsPanel = document.getElementById('debriefRecordingsPanel');
@@ -172,9 +176,7 @@ function applyMainTab(tabId, { save = true } = {}) {
   const panel = document.getElementById(tabId);
   if (tab) tab.classList.add('active');
   if (panel) panel.classList.add('visible');
-  if (controlSubtabsBar) {
-    controlSubtabsBar.classList.toggle('visible', tabId === 'control');
-  }
+  setParamCenterChromeVisible(tabId === 'control');
   updateArduTopCatsVisibility();
   if (save) {
     try {
@@ -195,6 +197,12 @@ function applyMainTab(tabId, { save = true } = {}) {
       window.simLab3d?.resizeRenderer?.();
       window.simLab3d?.invalidateMiniMap?.();
     }, 80);
+  }
+  if (tabId === 'flights') {
+    setTimeout(() => {
+      refreshFlightLists();
+      refreshAllLogsTable();
+    }, 50);
   }
 }
 const PARAM_SUBTAB_IDS = new Set(['landingParams', 'abortParams', 'visionNavParams', 'arduParams', 'customParams']);
@@ -311,6 +319,15 @@ const openFlightsFromDebriefBtn = document.getElementById('openFlightsFromDebrie
 if (openFlightsFromDebriefBtn) {
   openFlightsFromDebriefBtn.addEventListener('click', () => applyMainTab('flights'));
 }
+// Mirror subtabs in the flights panel: "הקלטות" → recordings main tab; "לוגים" stays on flights
+const debriefRecBtn2 = document.getElementById('debriefRecBtn2');
+const debriefLogsBtn2 = document.getElementById('debriefLogsBtn2');
+if (debriefRecBtn2) {
+  debriefRecBtn2.addEventListener('click', () => applyMainTab('recordings'));
+}
+if (debriefLogsBtn2) {
+  debriefLogsBtn2.addEventListener('click', () => applyMainTab('flights'));
+}
 subtabs.forEach((tab) => {
   tab.addEventListener('click', () => {
     applyControlSubtab(tab.dataset.subtab);
@@ -318,9 +335,9 @@ subtabs.forEach((tab) => {
 });
 initDebriefTelemetrySubtab();
 restoreLastUiTab();
-if (controlSubtabsBar) {
+{
   const activeMainTab = document.querySelector('.tab.active');
-  controlSubtabsBar.classList.toggle('visible', activeMainTab?.dataset?.tab === 'control');
+  setParamCenterChromeVisible(activeMainTab?.dataset?.tab === 'control');
 }
 updateArduTopCatsVisibility();
 
@@ -687,6 +704,59 @@ document.addEventListener('contextmenu', (e) => {
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closePopup(); });
 })();
 
+// ---------------------------------------------------------------------------
+// Parameter icon map — maps ArduPilot param name prefixes to visual icons
+// ---------------------------------------------------------------------------
+const PARAM_ICON_MAP = [
+  { prefixes: ['ARSPD', 'ASPD', 'TECS_SPDW', 'TECS_SPD'],    icon: '💨', color: '#38bdf8', label: 'מהירות אווירית' },
+  { prefixes: ['THR', 'TKOFF_THR', 'LAND_THR', 'MOT_THST'],   icon: '🔥', color: '#f97316', label: 'מצערת' },
+  { prefixes: ['NAVL1', 'WP_', 'NAV_'],                        icon: '🧭', color: '#a78bfa', label: 'ניווט' },
+  { prefixes: ['TECS_HGT', 'ALT_', 'BARO_'],                   icon: '📏', color: '#4ade80', label: 'גובה / לחץ' },
+  { prefixes: ['EKF', 'AHRS'],                                  icon: '🔬', color: '#f472b6', label: 'EKF / AHRS' },
+  { prefixes: ['GPS_'],                                         icon: '📡', color: '#34d399', label: 'GPS' },
+  { prefixes: ['BATT'],                                         icon: '🔋', color: '#facc15', label: 'סוללה' },
+  { prefixes: ['RCMAP', 'RCIN', 'RCOUT', 'RC'],                icon: '📻', color: '#fb923c', label: 'RC / שלט' },
+  { prefixes: ['SRV_', 'SERVO'],                                icon: '⚙️', color: '#94a3b8', label: 'סרוו' },
+  { prefixes: ['COMPASS', 'MAG_'],                              icon: '🧲', color: '#c084fc', label: 'מצפן' },
+  { prefixes: ['FS_', 'FENCE_'],                                icon: '🛡️', color: '#ef4444', label: 'בטיחות' },
+  { prefixes: ['CAM_', 'CAMERA'],                               icon: '📷', color: '#60a5fa', label: 'מצלמה' },
+  { prefixes: ['LOG_'],                                         icon: '📋', color: '#a3e635', label: 'לוגינג' },
+  { prefixes: ['MIS_', 'CMD_'],                                 icon: '🗺️', color: '#67e8f9', label: 'מיסיון' },
+  { prefixes: ['LAND_'],                                        icon: '🛬', color: '#fb7185', label: 'נחיתה' },
+  { prefixes: ['TKOFF_'],                                       icon: '🛫', color: '#86efac', label: 'המראה' },
+  { prefixes: ['PTCH', 'PITCH'],                                icon: '↕️', color: '#fde68a', label: 'Pitch' },
+  { prefixes: ['RLL', 'ROLL'],                                  icon: '↔️', color: '#ddd6fe', label: 'Roll' },
+  { prefixes: ['YAW', 'RUDDER'],                                icon: '🔄', color: '#99f6e4', label: 'Yaw' },
+  { prefixes: ['TECS_'],                                        icon: '📈', color: '#7dd3fc', label: 'TECS' },
+  { prefixes: ['PLND_'],                                        icon: '🎯', color: '#f9a8d4', label: 'Precision Landing' },
+  { prefixes: ['MOT_'],                                         icon: '🛸', color: '#c4b5fd', label: 'מנוע' },
+  { prefixes: ['SERIAL', 'SER'],                                icon: '🔌', color: '#fdba74', label: 'סיריאל' },
+];
+
+function getParamIcon(name) {
+  if (!name) return { icon: '⚙️', color: '#64748b', label: 'פרמטר' };
+  const upper = name.toUpperCase();
+  for (const entry of PARAM_ICON_MAP) {
+    if (entry.prefixes.some(p => upper.startsWith(p))) return entry;
+  }
+  if (/_P\b/.test(upper) || upper.endsWith('_P')) return { icon: '🎯', color: '#f59e0b', label: 'P gain' };
+  if (/_IMAX$|_I\b/.test(upper) || upper.endsWith('_I')) return { icon: '∑', color: '#fb923c', label: 'I gain' };
+  if (upper.endsWith('_D')) return { icon: '📉', color: '#818cf8', label: 'D gain' };
+  if (upper.endsWith('_FF')) return { icon: '➡️', color: '#6ee7b7', label: 'FF gain' };
+  return { icon: '⚙️', color: '#64748b', label: 'פרמטר' };
+}
+
+function renderParamIcon(key) {
+  const k = encodeURIComponent(String(key || '').toUpperCase());
+  const fb = getParamIcon(key);
+  const title = String(fb.label).replace(/"/g, '&quot;');
+  return `<span class="pc-param-icon-wrap" title="${title}">
+    <img class="pc-param-icon pc-param-icon--svg" src="/api/param-icons/${k}" alt="" width="18" height="18" loading="lazy"
+      onerror="this.style.display='none';this.parentElement.classList.add('pc-param-icon--failed')">
+    <span class="pc-param-icon pc-param-icon--fallback" style="color:${fb.color}">${fb.icon}</span>
+  </span>`;
+}
+
 function renderParamsIn(container, items) {
   if (!container) return;
   container.innerHTML = '';
@@ -696,7 +766,7 @@ function renderParamsIn(container, items) {
     card.className = 'param-card';
     card.innerHTML = `
       <div class="param-top">
-        <h3 class="param-title">${param.label}</h3>
+        <h3 class="param-title">${renderParamIcon(param.key)}${param.label}</h3>
         <span class="param-info" title="${buildParamTooltip(param).replace(/"/g, '&quot;')}">?</span>
         <button class="lock-btn ${locked ? 'locked' : ''}" id="lock_${param.key}" title="נועל או משחרר את הפרמטר לעריכה">
           ${locked ? '🔒' : '🔓'}
@@ -734,11 +804,19 @@ function bindParamHandlers(items) {
   });
 }
 
+function paramMatchesSearchQuery(param, query) {
+  if (!query) return true;
+  const q = query.toLowerCase();
+  const help = buildParamTooltip(param) || '';
+  return `${param.key} ${param.label} ${help}`.toLowerCase().includes(q);
+}
+
 function renderParams() {
-  const landing = PARAMS.filter((p) => LANDING_PARAM_KEYS.has(p.key));
-  const visionNav = PARAMS.filter((p) => VISION_NAV_PARAM_KEYS.has(p.key));
-  const abort = PARAMS.filter((p) => ABORT_PARAM_KEYS.has(p.key));
-  const takeoff = PARAMS.filter((p) => TAKEOFF_PARAM_KEYS.has(p.key));
+  const query = String(arduSearchQuery || '').trim();
+  const landing = PARAMS.filter((p) => LANDING_PARAM_KEYS.has(p.key) && paramMatchesSearchQuery(p, query));
+  const visionNav = PARAMS.filter((p) => VISION_NAV_PARAM_KEYS.has(p.key) && paramMatchesSearchQuery(p, query));
+  const abort = PARAMS.filter((p) => ABORT_PARAM_KEYS.has(p.key) && paramMatchesSearchQuery(p, query));
+  const takeoff = PARAMS.filter((p) => TAKEOFF_PARAM_KEYS.has(p.key) && paramMatchesSearchQuery(p, query));
   renderParamsIn(paramsGrid, landing);
   renderParamsIn(visionNavGrid, visionNav);
   renderParamsIn(abortGrid, abort);
@@ -957,6 +1035,7 @@ function renderArduFieldCard(f) {
   const helpT = escapeArduTitle(help);
   const dis = locked && !isVirtual ? ' disabled' : '';
   const favBtn = `<button type="button" class="ardu-fav-btn ${fav ? 'on' : ''}" data-ardu-fav="${f.key}" title="${fav ? 'הסר ממועדפים' : 'הוסף למועדפים'}">${fav ? '★ מועדף' : '☆ מועדף'}</button>`;
+  const iconHtml = renderParamIcon(f.key);
   if (f.kind === 'enum') {
     const options = (f.options || []).map((opt) => {
       const val = Number(opt);
@@ -965,7 +1044,7 @@ function renderArduFieldCard(f) {
     }).join('');
     return `<article class="param-card ardu-fc-param${missCls}" data-ardu-key="${f.key}">
       <div class="param-top">
-        <h3 class="param-title">${f.label}</h3>
+        <h3 class="param-title">${iconHtml}${f.label}</h3>
         ${presenceBadge}
         <span class="param-info" title="${helpT}">?</span>
         ${favBtn}
@@ -983,7 +1062,7 @@ function renderArduFieldCard(f) {
     const valStr = v != null ? String(v) : '';
     return `<article class="param-card ardu-fc-param${missCls}" data-ardu-key="${f.key}">
       <div class="param-top">
-        <h3 class="param-title">${f.label}</h3>
+        <h3 class="param-title">${iconHtml}${f.label}</h3>
         ${presenceBadge}
         <span class="param-info" title="${helpT}">?</span>
         ${favBtn}
@@ -1002,7 +1081,7 @@ function renderArduFieldCard(f) {
     const on = Number(v) === 1;
     return `<article class="param-card ardu-fc-param${missCls}" data-ardu-key="${f.key}">
       <div class="param-top">
-        <h3 class="param-title">${f.label}</h3>
+        <h3 class="param-title">${iconHtml}${f.label}</h3>
         ${presenceBadge}
         <span class="param-info" title="${helpT}">?</span>
         ${favBtn}
@@ -1019,7 +1098,7 @@ function renderArduFieldCard(f) {
   if (useRange) {
     return `<article class="param-card ardu-fc-param${missCls}" data-ardu-key="${f.key}">
       <div class="param-top">
-        <h3 class="param-title">${f.label}</h3>
+        <h3 class="param-title">${iconHtml}${f.label}</h3>
         ${presenceBadge}
         <span class="param-info" title="${helpT}">?</span>
         ${favBtn}
@@ -1036,7 +1115,7 @@ function renderArduFieldCard(f) {
   }
   return `<article class="param-card ardu-fc-param${missCls}" data-ardu-key="${f.key}">
     <div class="param-top">
-      <h3 class="param-title">${f.label}</h3>
+      <h3 class="param-title">${iconHtml}${f.label}</h3>
       ${presenceBadge}
       <span class="param-info" title="${helpT}">?</span>
       ${favBtn}
@@ -1471,6 +1550,7 @@ wireArduCategorySubtabsOnce();
     arduSmartCustomMatches = null;
     renderArduSmartSearchPanel();
     renderArduParamForm();
+    renderParams();
     setStatus(arduSearchQuery ? `מסנן לפי: ${arduSearchQuery}` : '');
   }
 
@@ -1486,6 +1566,7 @@ wireArduCategorySubtabsOnce();
     arduSmartCustomMatches = null;
     renderArduSmartSearchPanel();
     renderArduParamForm();
+    renderParams();
     setStatus('');
   });
 
@@ -1558,6 +1639,7 @@ wireArduCategorySubtabsOnce();
       arduSmartMatchedKeys = keys;
       arduSmartSearchMatches = matches.length ? matches : keys.map((k) => ({ param_key: k, label_he: k, label_en: k }));
       arduSmartOutsideMatches = outside.length ? outside : null;
+      applyControlSubtab('arduParams', { selectOverride: 'ardu-jetson' });
       renderArduSmartSearchPanel();
       renderArduParamForm();
       const src =
@@ -2091,6 +2173,34 @@ function applyJetsonUi(online, data) {
 
 if (jetsonRefreshBtn) jetsonRefreshBtn.addEventListener('click', refreshJetsonStatus);
 
+const jetsonPullLogsBtn = document.getElementById('jetsonPullLogsBtn');
+if (jetsonPullLogsBtn) {
+  jetsonPullLogsBtn.addEventListener('click', async () => {
+    jetsonPullLogsBtn.disabled = true;
+    if (jetsonOut) jetsonOut.textContent = 'מושך לוגים מ-Jetson…';
+    try {
+      const res = await fetch('/api/jetson/pull-logs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || data.error || 'משיכת לוגים נכשלה');
+      const n = data.imported ?? 0;
+      if (jetsonOut) {
+        jetsonOut.textContent = n
+          ? `יובאו ${n} קבצים לטיסה #${data.flightId}`
+          : (data.message || 'אין לוגים חדשים');
+      }
+      if (n > 0) document.querySelector('.tab[data-tab="flights"]')?.click();
+    } catch (err) {
+      if (jetsonOut) jetsonOut.textContent = err?.message || String(err);
+    } finally {
+      jetsonPullLogsBtn.disabled = false;
+    }
+  });
+}
+
 jetsonTargetVersionSelect?.addEventListener('change', () => {
   renderJetsonVersionNotes();
 });
@@ -2264,20 +2374,88 @@ function formatHudAngleLabel(deg) {
   return clipped.toFixed(1);
 }
 
-// ── ResizeObserver: keep canvas pixel size = CSS size ─────────────────────────
+// ── ResizeObserver: keep canvas pixel size = CSS size × devicePixelRatio ──────
 if (horizonCanvas && pfdHorizonShell) {
   const _resizeCanvas = () => {
     const { width, height } = pfdHorizonShell.getBoundingClientRect();
     if (width > 10 && height > 10) {
-      horizonCanvas.width  = Math.round(width);
-      horizonCanvas.height = Math.round(height);
-      drawHorizon(horizonCanvas, _lastRoll, _lastPitch);
+      const dpr = window.devicePixelRatio || 1;
+      horizonCanvas.width  = Math.round(width  * dpr);
+      horizonCanvas.height = Math.round(height * dpr);
+      horizonCanvas.style.width  = width  + 'px';
+      horizonCanvas.style.height = height + 'px';
+      drawHorizon(horizonCanvas, _lastRoll, _lastPitch, { videoMode: _horizonVideoMode });
     }
   };
   new ResizeObserver(_resizeCanvas).observe(pfdHorizonShell);
 }
+
+let _horizonVideoMode = false;
 let _lastRoll = null;
 let _lastPitch = null;
+
+// ── Horizon video overlay wiring ───────────────────────────────────────────
+(function initHorizonVideo() {
+  const videoEl     = document.getElementById('horizonVideoEl');
+  const toggleBtn   = document.getElementById('horizonVideoToggle');
+  const panel       = document.getElementById('horizonVideoPanel');
+  const urlInput    = document.getElementById('horizonVideoUrl');
+  const applyBtn    = document.getElementById('horizonVideoApply');
+  if (!toggleBtn || !panel || !videoEl) return;
+
+  const LS_VIDEO_URL = 'vlc.horizon.videoUrl';
+  const LS_VIDEO_ON  = 'vlc.horizon.videoOn';
+
+  // Restore saved URL
+  const savedUrl = localStorage.getItem(LS_VIDEO_URL) || '';
+  if (urlInput && savedUrl) urlInput.value = savedUrl;
+
+  function setVideoActive(active, url) {
+    _horizonVideoMode = active;
+    toggleBtn.classList.toggle('active', active);
+    pfdHorizonShell?.classList.toggle('pfd-horizon-shell--video-active', active);
+    if (active && url) {
+      videoEl.src = url;
+      videoEl.classList.remove('hidden');
+      videoEl.play().catch(() => {});
+    } else {
+      videoEl.src = '';
+      videoEl.classList.add('hidden');
+    }
+    // Redraw horizon with updated videoMode flag
+    drawHorizon(horizonCanvas, _lastRoll, _lastPitch, { videoMode: active });
+    try { localStorage.setItem(LS_VIDEO_ON, active ? '1' : '0'); } catch {}
+  }
+
+  function applyVideoUrl() {
+    const url = urlInput?.value.trim() || '';
+    if (!url) return;
+    try { localStorage.setItem(LS_VIDEO_URL, url); } catch {}
+    panel.classList.add('hidden');
+    setVideoActive(true, url);
+  }
+
+  toggleBtn.addEventListener('click', () => {
+    if (_horizonVideoMode) {
+      setVideoActive(false, '');
+      panel.classList.add('hidden');
+    } else {
+      panel.classList.toggle('hidden');
+    }
+  });
+
+  if (applyBtn) applyBtn.addEventListener('click', applyVideoUrl);
+  if (urlInput) {
+    urlInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); applyVideoUrl(); }
+    });
+  }
+
+  // Restore previous session state
+  if (savedUrl && localStorage.getItem(LS_VIDEO_ON) === '1') {
+    setVideoActive(true, savedUrl);
+  }
+})();
 /** @type {object | null} snapshot from last SSE — readiness popover */
 let latestHudMavlink = null;
 let _statustextSig = '';
@@ -2420,16 +2598,28 @@ hudAddSlotBtn?.addEventListener('click', () => {
 });
 
 /**
- * Premium artificial horizon — circular bezel, rich gradients, PFD-style
- * pitch ladder with end-ticks, glowing horizon, classic T-bar aircraft symbol.
+ * Premium artificial horizon — fills full square, sharp vector PFD style,
+ * HiDPI-aware, optional video-overlay mode (semi-transparent sky/ground).
+ *
+ * @param {HTMLCanvasElement} canvas
+ * @param {number|null} rollDeg
+ * @param {number|null} pitchDeg
+ * @param {{ videoMode?: boolean }} [opts]
  */
-function drawHorizon(canvas, rollDeg, pitchDeg) {
+function drawHorizon(canvas, rollDeg, pitchDeg, opts = {}) {
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
-  const W   = canvas.width;
-  const H   = canvas.height;
+  const dpr = window.devicePixelRatio || 1;
+  // Always re-apply HiDPI transform so call-sites don't need to worry about it
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  // Pixel-sharp rendering
+  ctx.imageSmoothingEnabled = false;
+  // Work in CSS pixel space (canvas.width is physical px = CSS px × dpr)
+  const W   = canvas.width / dpr;
+  const H   = canvas.height / dpr;
   const cx  = W / 2;
   const cy  = H / 2;
+  const videoMode = !!opts.videoMode;
 
   const rollBounded  = finiteHudAngleDeg(rollDeg, 180);
   const pitchBounded = finiteHudAngleDeg(pitchDeg, 90);
@@ -2438,80 +2628,76 @@ function drawHorizon(canvas, rollDeg, pitchDeg) {
   const rollDraw  = showRoll ? rollBounded : 0;
   const pitchDraw = showPitch ? pitchBounded : 0;
   const rollRad  = (rollDraw * Math.PI) / 180;
-  const pxPerDeg = H / 42;
+  const pxPerDeg = H / 40;
   const pitchPx  = Math.max(-H, Math.min(H, pitchDraw * pxPerDeg));
   const diag     = Math.sqrt(W * W + H * H);
-  const clipR    = Math.min(cx, cy) * 0.97;
 
   ctx.clearRect(0, 0, W, H);
 
-  // 1. Circular clip
-  ctx.save();
-  ctx.beginPath();
-  ctx.arc(cx, cy, clipR, 0, Math.PI * 2);
-  ctx.clip();
-
-  // 2. Rotated sky + ground
+  // ── 1. Sky + Ground (full square, rotated) ──────────────────────────────
   ctx.save();
   ctx.translate(cx, cy);
   ctx.rotate(rollRad);
 
-  const skyGrad = ctx.createLinearGradient(0, -diag / 2 + pitchPx, 0, pitchPx);
-  skyGrad.addColorStop(0,    '#020e22');
-  skyGrad.addColorStop(0.55, '#0b3a72');
-  skyGrad.addColorStop(1,    '#1560b8');
+  const skyAlpha = videoMode ? 0.62 : 1;
+  const gndAlpha = videoMode ? 0.58 : 1;
+
+  const skyGrad = ctx.createLinearGradient(0, -diag * 0.5 + pitchPx, 0, pitchPx);
+  skyGrad.addColorStop(0,    `rgba(2,14,34,${skyAlpha})`);
+  skyGrad.addColorStop(0.5,  `rgba(11,58,114,${skyAlpha})`);
+  skyGrad.addColorStop(1,    `rgba(21,96,184,${skyAlpha})`);
   ctx.fillStyle = skyGrad;
   ctx.fillRect(-diag, -diag + pitchPx, diag * 2, diag);
 
-  const gndGrad = ctx.createLinearGradient(0, pitchPx, 0, pitchPx + diag * 0.55);
-  gndGrad.addColorStop(0,   '#6b3f1a');
-  gndGrad.addColorStop(0.4, '#42260e');
-  gndGrad.addColorStop(1,   '#1e1008');
+  const gndGrad = ctx.createLinearGradient(0, pitchPx, 0, pitchPx + diag * 0.6);
+  gndGrad.addColorStop(0,   `rgba(107,63,26,${gndAlpha})`);
+  gndGrad.addColorStop(0.45,`rgba(66,38,14,${gndAlpha})`);
+  gndGrad.addColorStop(1,   `rgba(30,16,8,${gndAlpha})`);
   ctx.fillStyle = gndGrad;
   ctx.fillRect(-diag, pitchPx, diag * 2, diag);
 
-  // Horizon glow
-  const hlGrad = ctx.createLinearGradient(-clipR, 0, clipR, 0);
-  hlGrad.addColorStop(0,   'rgba(100,190,255,0)');
-  hlGrad.addColorStop(0.5, 'rgba(160,225,255,0.95)');
-  hlGrad.addColorStop(1,   'rgba(100,190,255,0)');
-  ctx.shadowColor = 'rgba(100,200,255,0.75)';
-  ctx.shadowBlur  = 7;
-  ctx.strokeStyle = hlGrad;
-  ctx.lineWidth   = 1.8;
-  ctx.beginPath(); ctx.moveTo(-diag, pitchPx); ctx.lineTo(diag, pitchPx); ctx.stroke();
+  // ── 2. Horizon line ────────────────────────────────────────────────────
+  const hlLen = diag;
+  const horizPx = Math.round(pitchPx) + 0.5; // snap to pixel boundary for crispness
+  ctx.shadowColor = 'rgba(160,230,255,0.9)';
+  ctx.shadowBlur  = videoMode ? 3 : 5;
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth   = videoMode ? 1.5 : 2.5;
+  ctx.beginPath(); ctx.moveTo(-hlLen, horizPx); ctx.lineTo(hlLen, horizPx); ctx.stroke();
   ctx.shadowBlur  = 0;
 
-  // Pitch ladder
-  ctx.font    = `600 ${H * 0.058}px "Space Grotesk", monospace`;
+  // ── 3. Pitch ladder ────────────────────────────────────────────────────
+  ctx.font    = `600 ${H * 0.055}px "Space Grotesk", monospace`;
   ctx.lineCap = 'round';
-  for (let p = -30; p <= 30; p += 5) {
+  for (let p = -40; p <= 40; p += 5) {
     if (p === 0) continue;
     const y   = pitchPx - p * pxPerDeg;
-    if (Math.abs(y) > diag * 0.55) continue;
+    if (Math.abs(y) > H * 0.6) continue;
     const big = p % 10 === 0;
-    const hw  = big ? W * 0.24 : W * 0.14;
-    ctx.strokeStyle = big ? 'rgba(255,255,255,0.75)' : 'rgba(255,255,255,0.38)';
-    ctx.lineWidth   = big ? 1.6 : 0.9;
-    ctx.beginPath(); ctx.moveTo(-hw, y); ctx.lineTo(hw, y); ctx.stroke();
+    const hw  = big ? W * 0.22 : W * 0.12;
+    const alpha = videoMode ? (big ? 0.9 : 0.55) : (big ? 1 : 0.55);
+    const ySnap = Math.round(y) + 0.5;
+    ctx.strokeStyle = `rgba(255,255,255,${alpha})`;
+    ctx.lineWidth   = big ? (videoMode ? 1.5 : 2) : 1;
+    ctx.beginPath(); ctx.moveTo(-hw, ySnap); ctx.lineTo(hw, ySnap); ctx.stroke();
     if (big) {
-      const tk = H * 0.028;
+      const tk = H * 0.025;
       ctx.beginPath();
       ctx.moveTo(-hw, y); ctx.lineTo(-hw, y + (p > 0 ? tk : -tk));
       ctx.moveTo( hw, y); ctx.lineTo( hw, y + (p > 0 ? tk : -tk));
       ctx.stroke();
-      ctx.fillStyle = 'rgba(255,255,255,0.78)';
-      ctx.textAlign = 'right'; ctx.fillText(String(Math.abs(p)), -hw - 5, y + H * 0.022);
-      ctx.textAlign = 'left';  ctx.fillText(String(Math.abs(p)),  hw + 5, y + H * 0.022);
+      ctx.fillStyle = `rgba(255,255,255,${videoMode ? 0.9 : 1})`;
+      ctx.textAlign = 'right'; ctx.fillText(String(Math.abs(p)), -hw - 4, y + H * 0.02);
+      ctx.textAlign = 'left';  ctx.fillText(String(Math.abs(p)),  hw + 4, y + H * 0.02);
     }
   }
   ctx.lineCap = 'butt';
   ctx.restore();
 
-  // 3. Roll arc + ticks (fixed)
-  const arcR = clipR * 0.87;
-  ctx.strokeStyle = 'rgba(255,255,255,0.2)';
-  ctx.lineWidth   = 1.5;
+  // ── 4. Bank arc + ticks (fixed, over the square) ──────────────────────
+  const arcR = Math.min(cx, cy) * 0.82;
+  ctx.strokeStyle = 'rgba(255,255,255,0.22)';
+  ctx.lineWidth   = 1.2;
   ctx.beginPath();
   ctx.arc(cx, cy, arcR, -Math.PI * 0.78, -Math.PI * 0.22);
   ctx.stroke();
@@ -2520,7 +2706,7 @@ function drawHorizon(canvas, rollDeg, pitchDeg) {
     const a   = (-90 + deg) * Math.PI / 180;
     const big = Math.abs(deg) % 30 === 0;
     const tL  = big ? 9 : 5;
-    ctx.strokeStyle = big ? 'rgba(255,255,255,0.6)' : 'rgba(255,255,255,0.28)';
+    ctx.strokeStyle = big ? 'rgba(255,255,255,0.65)' : 'rgba(255,255,255,0.32)';
     ctx.lineWidth   = big ? 1.5 : 0.8;
     ctx.beginPath();
     ctx.moveTo(cx + Math.cos(a) * arcR,        cy + Math.sin(a) * arcR);
@@ -2528,59 +2714,49 @@ function drawHorizon(canvas, rollDeg, pitchDeg) {
     ctx.stroke();
   });
 
+  // Bank pointer triangle (rotates with roll)
   ctx.save();
   ctx.translate(cx, cy);
   ctx.rotate(rollRad);
-  ctx.shadowColor = 'rgba(250,204,21,0.6)';
+  ctx.shadowColor = 'rgba(250,204,21,0.7)';
   ctx.shadowBlur  = 5;
   ctx.fillStyle   = '#facc15';
   ctx.beginPath();
-  ctx.moveTo(0, -arcR);
-  ctx.lineTo(-6, -arcR + 13);
-  ctx.lineTo( 6, -arcR + 13);
+  ctx.moveTo(0, -arcR + 1);
+  ctx.lineTo(-5, -arcR + 13);
+  ctx.lineTo( 5, -arcR + 13);
   ctx.closePath();
   ctx.fill();
   ctx.shadowBlur = 0;
   ctx.restore();
 
-  // 4. Aircraft T-bar symbol (fixed)
-  const aW = W * 0.18;
-  const aG = W * 0.048;
+  // ── 5. Aircraft T-bar symbol ───────────────────────────────────────────
+  const aW = W * 0.19;
+  const aG = W * 0.05;
   const aY = cy;
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.shadowColor = 'rgba(250,204,21,0.8)';
+  ctx.shadowBlur  = 9;
   ctx.strokeStyle = '#facc15';
-  ctx.shadowColor = 'rgba(250,204,21,0.75)';
-  ctx.shadowBlur  = 8;
-  ctx.lineWidth   = 2.8;
-  ctx.beginPath(); ctx.moveTo(cx - aG, aY); ctx.lineTo(cx - aW, aY + H * 0.022); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(cx + aG, aY); ctx.lineTo(cx + aW, aY + H * 0.022); ctx.stroke();
-  ctx.lineWidth = 2.2;
-  ctx.beginPath(); ctx.moveTo(cx, aY); ctx.lineTo(cx, aY - H * 0.07); ctx.stroke();
-  ctx.shadowBlur = 12;
+  ctx.lineWidth   = 2.6;
+  ctx.beginPath(); ctx.moveTo(cx - aG, aY); ctx.lineTo(cx - aW, aY + H * 0.02); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx + aG, aY); ctx.lineTo(cx + aW, aY + H * 0.02); ctx.stroke();
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(cx, aY); ctx.lineTo(cx, aY - H * 0.065); ctx.stroke();
+  ctx.shadowBlur = 10;
   ctx.fillStyle  = '#facc15';
-  ctx.beginPath(); ctx.arc(cx, aY, 3.2, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(cx, aY, 3, 0, Math.PI * 2); ctx.fill();
   ctx.shadowBlur = 0;
   ctx.lineCap = 'butt'; ctx.lineJoin = 'butt';
 
-  ctx.restore(); // end circular clip
-
-  // 5. Bezel ring
-  const bGrad = ctx.createLinearGradient(cx - clipR, cy - clipR, cx + clipR, cy + clipR);
-  bGrad.addColorStop(0,   'rgba(100,150,220,0.55)');
-  bGrad.addColorStop(0.5, 'rgba(30, 60, 120,0.30)');
-  bGrad.addColorStop(1,   'rgba(100,150,220,0.55)');
-  ctx.strokeStyle = bGrad;
-  ctx.lineWidth   = 3.5;
-  ctx.beginPath(); ctx.arc(cx, cy, clipR, 0, Math.PI * 2); ctx.stroke();
-
-  // 6. R/P readout (corners)
-  ctx.font      = `700 ${Math.min(W, H) * 0.058}px "Space Grotesk", monospace`;
-  ctx.fillStyle = showRoll && rollDraw === 0 ? 'rgba(180,210,255,0.55)' : '#facc15';
+  // ── 6. Corner readouts (R / P) ─────────────────────────────────────────
+  ctx.font      = `700 ${Math.min(W, H) * 0.055}px "Space Grotesk", monospace`;
+  ctx.fillStyle = showRoll && rollDraw === 0 ? 'rgba(180,210,255,0.5)' : '#facc15';
   ctx.textAlign = 'left';
-  ctx.fillText(showRoll ? `R${rollDraw >= 0 ? '+' : ''}${formatHudAngleLabel(rollDraw)}°` : 'R --', 5, H - 6);
-  ctx.fillStyle = showPitch && pitchDraw === 0 ? 'rgba(180,210,255,0.55)' : '#4ade80';
+  ctx.fillText(showRoll ? `R${rollDraw >= 0 ? '+' : ''}${formatHudAngleLabel(rollDraw)}°` : 'R --', 5, H - 5);
+  ctx.fillStyle = showPitch && pitchDraw === 0 ? 'rgba(180,210,255,0.5)' : '#4ade80';
   ctx.textAlign = 'right';
-  ctx.fillText(showPitch ? `P${pitchDraw >= 0 ? '+' : ''}${formatHudAngleLabel(pitchDraw)}°` : 'P --', W - 5, H - 6);
+  ctx.fillText(showPitch ? `P${pitchDraw >= 0 ? '+' : ''}${formatHudAngleLabel(pitchDraw)}°` : 'P --', W - 5, H - 5);
 }
 const GPS_FIX_LABELS = ['אין GPS', 'אין Fix', '2D Fix', '3D Fix', 'DGPS', 'RTK Float', 'RTK Fixed'];
 
@@ -2594,7 +2770,7 @@ function applyFlightHud(mav) {
   const p = finiteHudAngleDeg(mav.pitchDeg, 90);
   _lastRoll = r;
   _lastPitch = p;
-  drawHorizon(horizonCanvas, r, p);
+  drawHorizon(horizonCanvas, r, p, { videoMode: _horizonVideoMode });
 
   // Armed / mode (top bar)
   const armed = !!mav.armed;
@@ -2888,7 +3064,7 @@ function applyHudResolvedSlot(slotCfg) {
 function showHudParamAmbiguous(hint, options) {
   if (hudParamStatus) { hudParamStatus.textContent = ''; hudParamStatus.className = 'hud-param-overlay-status'; }
   if (hudParamHint) {
-    hudParamHint.textContent = hint || 'בחרו אפשרות:';
+    hudParamHint.textContent = 'לא זיהינו במדויק — בחר מהרשימה, או נסח מחדש בשדה למעלה:';
     hudParamHint.hidden = false;
   }
   if (!hudParamOptions) return;
@@ -2950,6 +3126,34 @@ hudParamConfirmBtn?.addEventListener('click', confirmHudParamResolve);
 hudParamCancelBtn?.addEventListener('click', closeHudParamOverlay);
 hudParamInput?.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); confirmHudParamResolve(); } });
 hudParamOverlay?.addEventListener('click', (e) => { if (e.target === hudParamOverlay) closeHudParamOverlay(); });
+
+// "Show all" — fetch full catalog and display all as options
+document.getElementById('hudParamShowAll')?.addEventListener('click', async () => {
+  try {
+    const res = await fetch('/api/flight-hud/catalog');
+    const data = await res.json();
+    const catalog = Array.isArray(data.catalog) ? data.catalog : [];
+    if (catalog.length) {
+      if (hudParamHint) { hudParamHint.textContent = 'כל הפרמטרים הזמינים:'; hudParamHint.hidden = false; }
+      if (hudParamOptions) {
+        hudParamOptions.innerHTML = '';
+        for (const opt of catalog) {
+          const b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'hud-param-option-btn';
+          b.textContent = `${opt.label}${opt.unit ? ` — ${opt.unit}` : ''}`;
+          b.addEventListener('click', () => {
+            applyHudResolvedSlot({ key: opt.key, label: opt.label, unit: opt.unit ?? '' });
+            if (hudParamStatus) { hudParamStatus.textContent = `✓ ${opt.label}`; hudParamStatus.className = 'hud-param-overlay-status ok'; }
+            setTimeout(closeHudParamOverlay, 600);
+          });
+          hudParamOptions.appendChild(b);
+        }
+        hudParamOptions.hidden = false;
+      }
+    }
+  } catch {}
+});
 
 // Initial horizon draw — defer so ResizeObserver fires first
 requestAnimationFrame(() => drawHorizon(horizonCanvas, 0, 0));
@@ -3117,7 +3321,7 @@ function escapeAllLogsCell(s) {
     .replace(/"/g, '&quot;');
 }
 
-/** Why: Ardu/Jetson history tables were never wired after copy into monorepo. What: GET /api/flights/all-logs, split by source, render download links. */
+/** Why: Ardu/Jetson history tables were never wired after copy into monorepo. What: GET /api/flights/all-logs, split by source, render download links + delete buttons. */
 async function refreshAllLogsTable() {
   const uploadLogStatus = document.getElementById('uploadLogStatus');
   if (!allLogsArduTbody || !allLogsJetsonTbody) return;
@@ -3131,7 +3335,6 @@ async function refreshAllLogsTable() {
       return list
         .map((l, i) => {
           const raw = l.original_name || '';
-          // Build a clear friendly name: "טיסה #N — שם" or fallback to filename
           const flightNum = l.flight_id ? `טיסה #${l.flight_id}` : '';
           const flightLabel = l.flight_title && !l.flight_title.startsWith('Flight')
             ? l.flight_title
@@ -3139,8 +3342,9 @@ async function refreshAllLogsTable() {
           const displayName = flightNum ? `${flightNum} — ${flightLabel}` : flightLabel;
           const dateStr = l.uploaded_at ? new Date(l.uploaded_at).toLocaleDateString('he-IL') : '';
           const href = l.downloadUrl ? escapeAllLogsCell(l.downloadUrl) : '';
-          const action = href ? `<a href="${href}" download title="${escapeAllLogsCell(raw)}">הורדה</a>` : '—';
-          return `<tr><td>${escapeAllLogsCell(displayName)}${dateStr ? `<br><small style="opacity:0.6">${dateStr}</small>` : ''}</td><td>${escapeAllLogsCell(flightNum || `#${l.flight_id}`)}</td><td>${action}</td></tr>`;
+          const dlLink = href ? `<a href="${href}" download title="${escapeAllLogsCell(raw)}">הורדה</a>` : '—';
+          const delBtn = `<button type="button" class="del-log-btn" data-log-id="${l.id}" title="מחק לוג ${escapeAllLogsCell(raw)}" aria-label="מחק לוג">🗑</button>`;
+          return `<tr><td>${escapeAllLogsCell(displayName)}${dateStr ? `<br><small style="opacity:0.6">${dateStr}</small>` : ''}</td><td>${escapeAllLogsCell(flightNum || `#${l.flight_id}`)}</td><td class="log-action-cell">${dlLink} ${delBtn}</td></tr>`;
         })
         .join('');
     }
@@ -3151,6 +3355,28 @@ async function refreshAllLogsTable() {
     if (uploadLogStatus) uploadLogStatus.textContent = `טעינת כל הלוגים נכשלה: ${err?.message || err}`;
   }
 }
+
+/** Event delegation for log delete buttons in both table bodies. */
+async function handleDeleteLogClick(e) {
+  const btn = e.target.closest('.del-log-btn');
+  if (!btn) return;
+  const logId = btn.dataset.logId;
+  if (!logId) return;
+  const name = btn.closest('tr')?.querySelector('td')?.textContent?.trim() || `לוג #${logId}`;
+  if (!confirm(`למחוק את "${name}"?\nהפעולה בלתי הפיכה.`)) return;
+  btn.disabled = true;
+  try {
+    const res = await fetch(`/api/flights/log/${logId}`, { method: 'DELETE' });
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok || !d.ok) throw new Error(d.message || `HTTP ${res.status}`);
+    await refreshAllLogsTable();
+  } catch (err) {
+    alert(`מחיקה נכשלה: ${err?.message || err}`);
+    btn.disabled = false;
+  }
+}
+allLogsArduTbody?.addEventListener('click', handleDeleteLogClick);
+allLogsJetsonTbody?.addEventListener('click', handleDeleteLogClick);
 
 pullLogsBtn?.addEventListener('click', () => {
   refreshAllLogsTable();
@@ -3213,7 +3439,7 @@ logDropZone?.addEventListener('drop', (e) => {
   updateLogFileNameDisplay();
 });
 
-/** Why: keep advisor and log UI aligned with server flight list. What: fills both selects from GET /api/flights. */
+/** Why: keep advisor and log UI aligned with server flight list. What: fills both selects + flight list cards from GET /api/flights. */
 async function refreshFlightLists() {
   try {
     const res = await fetch('/api/flights');
@@ -3224,10 +3450,53 @@ async function refreshFlightLists() {
     if (advisorFlightSelect) {
       advisorFlightSelect.innerHTML = `<option value="">כל הטיסות במאגר</option>${opts}`;
     }
+    // Render flight list cards
+    renderFlightListCards(flights);
   } catch (err) {
     if (flightLogsOut) flightLogsOut.textContent = `רשימת טיסות נכשלה: ${err?.message || err}`;
   }
 }
+
+function renderFlightListCards(flights) {
+  const wrap = document.getElementById('flightListWrap');
+  if (!wrap) return;
+  if (!flights.length) {
+    wrap.innerHTML = '<p class="flight-list-empty">אין טיסות עדיין — צור טיסה חדשה למעלה.</p>';
+    return;
+  }
+  wrap.innerHTML = flights.map((f) => {
+    const date = f.created_at ? new Date(f.created_at).toLocaleDateString('he-IL') : '';
+    return `<div class="flight-list-row" data-flight-id="${f.id}">
+      <span class="flight-list-num">#${f.id}</span>
+      <span class="flight-list-title">${f.title || `טיסה ${f.id}`}</span>
+      ${date ? `<span class="flight-list-date">${date}</span>` : ''}
+      <button type="button" class="flight-list-del" data-flight-id="${f.id}" title="מחק טיסה זו וכל הלוגים שלה">🗑 מחק</button>
+    </div>`;
+  }).join('');
+}
+
+// Event delegation for inline flight delete buttons
+document.getElementById('flightListWrap')?.addEventListener('click', async (e) => {
+  const btn = e.target.closest('.flight-list-del');
+  if (!btn) return;
+  const id = Number(btn.dataset.flightId);
+  if (!id) return;
+  const title = btn.closest('.flight-list-row')?.querySelector('.flight-list-title')?.textContent || `טיסה #${id}`;
+  if (!confirm(`למחוק את "${title}" וכל הלוגים שלה?\nהפעולה בלתי הפיכה.`)) return;
+  btn.disabled = true;
+  btn.textContent = 'מוחק…';
+  try {
+    const res = await fetch(`/api/flights/${id}`, { method: 'DELETE' });
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok || !d.ok) throw new Error(d.message || `HTTP ${res.status}`);
+    await refreshFlightLists();
+    await refreshAllLogsTable();
+  } catch (err) {
+    alert(`מחיקה נכשלה: ${err?.message || err}`);
+    btn.disabled = false;
+    btn.textContent = '🗑 מחק';
+  }
+});
 
 /** Why: show uploaded logs for selected flight. What: GET /api/flights/:id/logs. */
 async function refreshFlightLogsList() {
@@ -3265,6 +3534,28 @@ if (createFlightBtn) {
     } catch {}
   });
 }
+const deleteFlightBtn = document.getElementById('deleteFlightBtn');
+if (deleteFlightBtn) {
+  deleteFlightBtn.addEventListener('click', async () => {
+    const id = Number(flightSelect?.value);
+    if (!id) return;
+    const selText = flightSelect.options[flightSelect.selectedIndex]?.text || `טיסה #${id}`;
+    if (!confirm(`למחוק את "${selText}" וכל הלוגים שלה?\nהפעולה בלתי הפיכה.`)) return;
+    deleteFlightBtn.disabled = true;
+    try {
+      const res = await fetch(`/api/flights/${id}`, { method: 'DELETE' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) throw new Error(data.message || `HTTP ${res.status}`);
+      await refreshFlightLists();
+      await refreshAllLogsTable();
+      if (flightLogsOut) flightLogsOut.textContent = `הטיסה "${selText}" נמחקה.`;
+    } catch (err) {
+      alert(`מחיקת הטיסה נכשלה: ${err?.message || err}`);
+    }
+    deleteFlightBtn.disabled = false;
+  });
+}
+
 if (saveFlightNoteBtn) {
   saveFlightNoteBtn.addEventListener('click', async () => {
     const id = Number(flightSelect?.value);
@@ -3812,10 +4103,12 @@ function renderAdvisorOptions(options) {
     if (opt.kind === 'param_change' && opt.change) {
       const fromStr = opt.change.from != null ? String(opt.change.from) : '?';
       const unitStr = opt.unit ? ` ${opt.unit}` : '';
-      const alts = Array.isArray(opt.alternatives) && opt.alternatives.length ? opt.alternatives : null;
+      const alts =
+        Array.isArray(opt.alternatives) && opt.alternatives.length > 1 ? opt.alternatives : null;
       const defaultTo = alts
         ? (alts.find((a) => a.isPrimary) || alts[alts.length - 1] || alts[0]).to
         : opt.change.to;
+      const defaultLabel = opt.enumLabel || alts?.find((a) => a.isPrimary)?.enumLabel || null;
       const diffEl = document.createElement('div');
       diffEl.className = 'adv-option-diff';
       const helpText = (opt.paramHelp && String(opt.paramHelp).trim()) || '';
@@ -3844,7 +4137,7 @@ function renderAdvisorOptions(options) {
       fromSp.textContent = fromStr + unitStr;
       const toSpan = document.createElement('span');
       toSpan.className = 'diff-to';
-      toSpan.textContent = String(defaultTo) + unitStr;
+      toSpan.textContent = defaultLabel || String(defaultTo) + unitStr;
       valLine.appendChild(fromSp);
       valLine.appendChild(document.createTextNode(' → '));
       valLine.appendChild(toSpan);
@@ -3856,7 +4149,7 @@ function renderAdvisorOptions(options) {
         const group = document.createElement('div');
         group.className = 'adv-alt-tiers';
         group.setAttribute('role', 'radiogroup');
-        group.setAttribute('aria-label', 'עוצמת שינוי');
+        group.setAttribute('aria-label', opt.discreteKind === 'enum' ? 'ערך enum' : 'עוצמת שינוי');
         const preA = alts.find((x) => x.isPrimary) || alts[0];
         for (const a of alts) {
           const id = `alt-${altName}-${a.id}`;
@@ -3871,7 +4164,10 @@ function renderAdvisorOptions(options) {
           input.checked = !!preA && Math.abs(Number(a.to) - Number(preA.to)) < 1e-5;
           input.addEventListener('change', (e) => {
             const v = e.target?.value;
-            if (v != null) toSpan.textContent = String(v) + unitStr;
+            if (v != null) {
+              const alt = alts.find((x) => Math.abs(Number(x.to) - Number(v)) < 1e-5);
+              toSpan.textContent = (alt?.enumLabel || String(v)) + (alt?.enumLabel ? '' : unitStr);
+            }
           });
           label.appendChild(input);
           label.appendChild(document.createTextNode(` ${a.label} `));
@@ -5763,7 +6059,10 @@ setInterval(refreshAdvisorHealth, 60_000);
   const panel     = document.getElementById('connectPanel');
   const pillLabel = document.getElementById('connectPillLabel');
   const connectAutoProgress = document.getElementById('connectAutoProgress');
+  const connectAutoStepper = document.getElementById('connectAutoStepper');
   const connectAutoChecklist = document.getElementById('connectAutoChecklist');
+  const AUTO_CONNECT_PHASE_IDS = ['usb_serial', 'jetson_relay', 'sitl_local'];
+  const AUTO_CONNECT_POLL_MS = 350;
 
   function setPillLabel(text) {
     if (pillLabel) pillLabel.textContent = text;
@@ -5794,6 +6093,7 @@ setInterval(refreshAdvisorHealth, 60_000);
   /** בולם הקלקות כפולות בזמן חיבור אוטומטי (הבקשה חוסמת עד החזרת JSON). */
   let autoConnectInFlight = false;
   let autoConnectReplayTimer = null;
+  let autoConnectPollTimer = null;
 
   function clearAutoConnectReplay() {
     if (autoConnectReplayTimer) {
@@ -5802,11 +6102,112 @@ setInterval(refreshAdvisorHealth, 60_000);
     }
   }
 
+  function stopAutoConnectPoll() {
+    if (autoConnectPollTimer) {
+      clearInterval(autoConnectPollTimer);
+      autoConnectPollTimer = null;
+    }
+  }
+
+  function subStatusHe(sub) {
+    if (sub === 'heartbeat') return 'ממתין ל-heartbeat';
+    if (sub === 'activate') return 'פותח חיבור';
+    if (sub === 'exhausted') return 'סיימנו את כל השלבים';
+    return 'סורק יעדים';
+  }
+
+  function syncAutoConnectBridges() {
+    if (!connectAutoStepper) return;
+    const steps = [...connectAutoStepper.querySelectorAll('.conn-auto-step')];
+    const bridges = [...connectAutoStepper.querySelectorAll('.conn-auto-bridge')];
+    bridges.forEach((b, i) => {
+      const left = steps[i]?.dataset.state || 'pending';
+      if (left === 'done') b.dataset.state = 'done';
+      else if (left === 'failed') b.dataset.state = 'failed';
+      else if (left === 'active') b.dataset.state = 'active';
+      else if (left === 'skipped') b.dataset.state = 'pending';
+      else b.dataset.state = 'pending';
+    });
+  }
+
+  function applyAutoConnectProgress(p) {
+    if (!p) return;
+    if (connectAutoStepper) {
+      connectAutoStepper.classList.remove('hidden');
+      const states = p.phaseStates || {};
+      for (const li of connectAutoStepper.querySelectorAll('.conn-auto-step')) {
+        const phase = li.dataset.phase;
+        li.dataset.state = states[phase] || (p.currentPhase === phase ? 'active' : 'pending');
+      }
+      syncAutoConnectBridges();
+    }
+    if (!connectAutoProgress) return;
+    connectAutoProgress.classList.remove('hidden');
+    connectAutoProgress.classList.remove(
+      'conn-auto-sub-scanning',
+      'conn-auto-sub-heartbeat',
+      'conn-auto-sub-exhausted',
+    );
+    const sub = p.subStatus || 'scanning';
+    if (sub === 'heartbeat') connectAutoProgress.classList.add('conn-auto-sub-heartbeat');
+    else if (sub === 'exhausted') connectAutoProgress.classList.add('conn-auto-sub-exhausted');
+    else connectAutoProgress.classList.add('conn-auto-sub-scanning');
+
+    const parts = [];
+    if (p.message) parts.push(p.message);
+    else parts.push(subStatusHe(sub));
+    if (p.currentTarget) parts.push(p.currentTarget);
+    if (p.attemptIndex > 0) parts.push(`ניסיון ${p.attemptIndex}`);
+    if (p.startedAt) parts.push(`${Math.max(0, Math.round((Date.now() - p.startedAt) / 1000))}s`);
+    if (p.jetsonOnline === false) parts.push('Jetson offline');
+    else if (p.jetsonOnline === true) parts.push('Jetson online');
+    connectAutoProgress.textContent = parts.filter(Boolean).join(' · ');
+  }
+
+  function finalizeAutoConnectStepper(p, ok) {
+    if (!connectAutoStepper || !p) return;
+    const states = p.phaseStates || {};
+    for (const li of connectAutoStepper.querySelectorAll('.conn-auto-step')) {
+      const phase = li.dataset.phase;
+      if (states[phase]) li.dataset.state = states[phase];
+      else if (ok && p.phasesDone?.includes(phase)) li.dataset.state = 'done';
+      else if (!ok && !p.active) li.dataset.state = states[phase] || 'failed';
+    }
+    syncAutoConnectBridges();
+  }
+
+  async function pollAutoConnectProgress() {
+    try {
+      const r = await fetch('/api/connections/auto-connect/progress', { cache: 'no-store' });
+      const p = await r.json();
+      if (p?.ok !== false) applyAutoConnectProgress(p);
+      return p;
+    } catch {
+      return null;
+    }
+  }
+
+  function startAutoConnectPoll() {
+    stopAutoConnectPoll();
+    if (connectAutoStepper) connectAutoStepper.classList.remove('hidden');
+    void pollAutoConnectProgress();
+    autoConnectPollTimer = setInterval(() => {
+      void pollAutoConnectProgress();
+    }, AUTO_CONNECT_POLL_MS);
+  }
+
   function hideAutoConnectUi() {
     clearAutoConnectReplay();
+    stopAutoConnectPoll();
+    if (connectAutoStepper) connectAutoStepper.classList.add('hidden');
     if (connectAutoProgress) {
       connectAutoProgress.classList.add('hidden');
       connectAutoProgress.textContent = '';
+      connectAutoProgress.classList.remove(
+        'conn-auto-sub-scanning',
+        'conn-auto-sub-heartbeat',
+        'conn-auto-sub-exhausted',
+      );
     }
     if (connectAutoChecklist) {
       connectAutoChecklist.classList.add('hidden');
@@ -5827,15 +6228,16 @@ setInterval(refreshAdvisorHealth, 60_000);
 
   function formatAttemptProgressLine(a) {
     if (!a) return '';
-    const path = esc(a.port || '?');
+    const net = a.host != null && a.port != null ? `${a.host}:${a.port}` : '';
+    const path = esc(a.target || a.portPath || net || a.port || '?');
     const baudNum = Number(a.baud);
     const baudStr = Number.isFinite(baudNum) ? String(baudNum) : '';
     if (a.phase === 'activate' && a.code === 'port_busy') {
       return `${path}${baudStr ? ' @ ' + baudStr : ''}: COM תפוס / גישה נחסמת — צריך לסגור תוכנה אחרת על אותה יציאה`;
     }
     if (a.phase === 'heartbeat' && !a.ok) {
-      const b = baudStr || 'נסיון במהירות לא ידועה';
-      return `${path} במהירות ${b}: נפתח — לא התקבל heartbeat`;
+      const b = baudStr || (net ? 'TCP/UDP' : 'נסיון במהירות לא ידועה');
+      return `${path}${baudStr ? ' @ ' + baudStr : ''}: נפתח — לא התקבל heartbeat (${b})`;
     }
     return `${path}${baudStr ? ' @ ' + baudStr : ''}`;
   }
@@ -5996,7 +6398,7 @@ setInterval(refreshAdvisorHealth, 60_000);
       if (connectAutoBtn && connBtn.dataset.connected !== '1') {
         connectAutoBtn.disabled = !connectionApisOk;
         connectAutoBtn.title = connectionApisOk
-          ? 'חיפוש אוטומטי על USB/COM ובוד נפוצים (כמו Mission Planner Auto-Connect)'
+          ? 'מזהה אוטומטית: FC ב-USB → Jetson relay → SITL מקומי'
           : 'דורש הפעלה מחדש של השרת מהריפו המעודכן.';
       }
       return connectionApisOk;
@@ -6106,57 +6508,92 @@ setInterval(refreshAdvisorHealth, 60_000);
     connBtn.disabled = true;
     if (connectAutoBtn) connectAutoBtn.disabled = true;
     setDot('connecting');
-    setPillLabel('חיבור אוטומטי…');
-    if (connectAutoProgress) {
-      connectAutoProgress.classList.remove('hidden');
-      connectAutoProgress.textContent =
-        'מתחבר אוטומטית — סורק יציאות ובודים (השרת מחפש MAVLink heartbeat; זה עשוי לקחת מספר שניות)…';
-    }
+    setPillLabel('חיבור חכם…');
+    applyAutoConnectProgress({
+      active: true,
+      message: 'מזהה אוטומטית: USB FC → Jetson relay → SITL…',
+      subStatus: 'scanning',
+      phaseStates: Object.fromEntries(AUTO_CONNECT_PHASE_IDS.map((id) => [id, 'pending'])),
+      attemptIndex: 0,
+    });
+    startAutoConnectPoll();
     openPanel();
     try {
-      const body = {};
-      if (typeSel.value === 'serial' && portList?.value) body.serialPort = portList.value;
       const r = await fetch('/api/connections/auto-connect', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
+        body: JSON.stringify({}),
       });
       const j = await parseConnJsonResponse(r);
+      stopAutoConnectPoll();
+      const finalProg = await pollAutoConnectProgress();
       if (!j.ok) {
         setDot('err');
         setPillLabel('חיבור אוטומטי נכשל');
         const msg = j.message || 'auto-connect failed';
+        finalizeAutoConnectStepper(finalProg, false);
+        if (finalProg) {
+          applyAutoConnectProgress({ ...finalProg, subStatus: 'exhausted', message: msg });
+        }
         await replayAttemptsTimeline(j.attempts, msg);
         renderAutoSuggestion(j.suggestion);
-        alert(msg);
         return;
       }
       currentId = j.id;
-      typeSel.value = 'serial';
+      const connType = j.connectionType || 'serial';
+      typeSel.value = connType;
       applyTypeUI();
-      await refreshSerialPorts();
-      if (j.serialPort && [...portList.options].some((o) => o.value === j.serialPort)) {
-        portList.value = j.serialPort;
+      if (connType === 'serial') {
+        await refreshSerialPorts();
+        if (j.serialPort && [...portList.options].some((o) => o.value === j.serialPort)) {
+          portList.value = j.serialPort;
+        }
+        if (j.baudRate != null) baudSel.value = String(j.baudRate);
+      } else if (connType === 'tcp' || connType === 'udp') {
+        if (portInput && j.host != null && j.port != null) {
+          portInput.value = connType === 'udp' && j.host === '0.0.0.0'
+            ? `:${j.port}`
+            : `${j.host}:${j.port}`;
+        }
       }
-      if (j.baudRate != null) baudSel.value = String(j.baudRate);
       savePrefs();
       setDot('on');
-      const win = j.winner && j.winner.port
-        ? `מחובר · ${j.winner.port} @ ${j.winner.baud}`
-        : 'מחובר (אוטומטי)';
+      const win = j.connectPath
+        ? `מחובר · ${j.connectPath}`
+        : j.winner?.port && j.winner?.baud
+          ? `מחובר · ${j.winner.port} @ ${j.winner.baud}`
+          : j.winner?.host
+            ? `מחובר · ${j.winner.host}:${j.winner.port}`
+            : 'מחובר (חכם)';
       setPillLabel(win);
-      const okLine = j.winner && j.winner.port
-        ? `הצלחה: ${j.winner.port} @ ${j.winner.baud} — heartbeat OK`
-        : 'הצלחה — heartbeat OK';
+      const phaseHint = Array.isArray(j.phases) && j.phases.length
+        ? j.phases.map((p) => p.summary).filter(Boolean).join(' → ')
+        : '';
+      const okLine = j.connectPath
+        ? `הצלחה: ${j.connectPath}${phaseHint ? ` (${phaseHint})` : ''}`
+        : j.winner?.port && j.winner?.baud
+          ? `הצלחה: ${j.winner.port} @ ${j.winner.baud} — heartbeat OK`
+          : j.winner?.host
+            ? `הצלחה: ${j.winner.host}:${j.winner.port} — heartbeat OK`
+            : 'הצלחה — heartbeat OK';
+      finalizeAutoConnectStepper(finalProg, true);
+      if (finalProg) applyAutoConnectProgress({ ...finalProg, message: okLine });
       await replayAttemptsTimeline(j.attempts, okLine);
       setTimeout(() => {
         if (connectAutoProgress) connectAutoProgress.classList.add('hidden');
+        if (connectAutoStepper) connectAutoStepper.classList.add('hidden');
       }, 4500);
     } catch (err) {
+      stopAutoConnectPoll();
       setDot('err');
       setPillLabel('חיבור אוטומטי נכשל');
-      hideAutoConnectUi();
-      alert(`חיבור אוטומטי: ${err.message || err}`);
+      const errMsg = err?.message || String(err);
+      if (connectAutoProgress) {
+        connectAutoProgress.classList.remove('hidden');
+        connectAutoProgress.textContent = errMsg;
+        connectAutoProgress.classList.add('conn-auto-sub-exhausted');
+      }
+      if (connectAutoStepper) connectAutoStepper.classList.remove('hidden');
     } finally {
       autoConnectInFlight = false;
       connBtn.disabled = false;
@@ -6655,9 +7092,10 @@ setInterval(refreshAdvisorHealth, 60_000);
           const esc  = key.replace(/[^A-Za-z0-9]/g, '_');
           const cur  = p.current_value ?? p.default_value ?? '';
           const desc = p.description_he || p.description || p.display_name || '';
+          const _cpi = getParamIcon(key);
           return `<div class="cp-param-row">
             <div class="cp-param-info">
-              <span class="cp-param-key">${escapeSmartHtml(key)}</span>
+              <span class="cp-param-key"><span class="pc-param-icon" style="color:${_cpi.color}" title="${_cpi.label}">${_cpi.icon}</span>${escapeSmartHtml(key)}</span>
               ${p.units ? `<span class="cp-param-unit">${escapeSmartHtml(p.units)}</span>` : ''}
               ${desc ? `<span class="cp-param-desc">${escapeSmartHtml(desc.slice(0, 70))}</span>` : ''}
             </div>
@@ -6808,6 +7246,10 @@ setInterval(refreshAdvisorHealth, 60_000);
     currentFeatureId = null;
     currentFeature   = null;
     document.querySelectorAll('.fd-feature-item').forEach((el) => el.classList.remove('active'));
+    if (fdWelcomeInput) {
+      fdWelcomeInput.value = '';
+      setTimeout(() => fdWelcomeInput.focus(), 50);
+    }
   }
 
   function statusLabel(s) {
@@ -7418,6 +7860,18 @@ setInterval(refreshAdvisorHealth, 60_000);
   let vadCtx      = null;
   let vadAnalyser = null;
   let vadAnimId   = null;
+  /** Barge-in tuning: suppress triggers right when TTS audio starts */
+  let feBargeQuietUntilMs = 0;
+  /** Consecutive “loud-ish” ticks while engineer is speaking → real interrupt */
+  let feBargeVadHits      = 0;
+  /** Last combined mic-energy score ( fft + RMS ) — aligns STT-aided cutoff with physics */
+  let feLastMicCombo      = 0;
+  const FE_BARGE_WARMUP_MS       = 380;
+  const FE_BARGE_VAD_FRAMES      = 5;
+  /** Heuristic combo ~same scale as old raw avg(~20 gate); RMS mixed in catches speech fft misses */
+  const FE_BARGE_TRIGGER_COMBO   = 19;
+  /** Extra uplift required before partial transcript alone cancels TTS (mitigate loudspeaker bleed) */
+  const FE_STT_PARTIAL_NEED_COMBO_DELTA = 7;
   let pendingChange  = null;     // { key, value, reason, token } — awaiting pilot approval
   let feRcApprovalChannel = 7;   // RC channel for hardware approval (updated from /status)
   /** @type {'auto'|'he-IL'|'en-US'|'zh-CN'} from server .env FE_STT_LANG — biases Web Speech language */
@@ -7524,6 +7978,8 @@ setInterval(refreshAdvisorHealth, 60_000);
     feChat.querySelector('.fe-welcome-hero')?.remove();
     const emptyEl = feChat.querySelector('.fe-chat-empty');
     if (emptyEl) emptyEl.remove();
+    // Remove any previous suggestion chips when a new turn starts
+    feChat.querySelector('.fe-suggest-row')?.remove();
 
     const now   = new Date().toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
     const div   = document.createElement('div');
@@ -7534,6 +7990,27 @@ setInterval(refreshAdvisorHealth, 60_000);
     feChat.appendChild(div);
     feChat.scrollTop = feChat.scrollHeight;
     history.push({ role, content: text });
+  }
+
+  /** Render inline disambiguation / quick-reply chips after the last engineer message. */
+  function renderSuggestionChips(suggestions) {
+    feChat.querySelector('.fe-suggest-row')?.remove();
+    if (!Array.isArray(suggestions) || suggestions.length === 0) return;
+    const row = document.createElement('div');
+    row.className = 'fe-suggest-row';
+    for (const chip of suggestions.slice(0, 4)) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'fe-suggest-chip';
+      btn.textContent = chip;
+      btn.addEventListener('click', () => {
+        row.remove();
+        handlePilotTurn(chip);
+      });
+      row.appendChild(btn);
+    }
+    feChat.appendChild(row);
+    feChat.scrollTop = feChat.scrollHeight;
   }
 
   // ── Notes rendering ───────────────────────────────────────────────────────────
@@ -7567,6 +8044,8 @@ setInterval(refreshAdvisorHealth, 60_000);
     if (!text) return;
     stopSpeaking();
     setMicState('speaking');
+    feBargeVadHits = 0;
+    feBargeQuietUntilMs = Date.now() + FE_BARGE_WARMUP_MS;
 
     if (ttsMode === 'elevenlabs') {
       try {
@@ -7643,14 +8122,36 @@ setInterval(refreshAdvisorHealth, 60_000);
       vadAnalyser.fftSize = 256;
       const src   = vadCtx.createMediaStreamSource(stream);
       src.connect(vadAnalyser);
-      const data = new Uint8Array(vadAnalyser.frequencyBinCount);
+      const data  = new Uint8Array(vadAnalyser.frequencyBinCount);
+      const tdBuf = new Uint8Array(vadAnalyser.fftSize);
       const tick = () => {
         vadAnalyser.getByteFrequencyData(data);
         const avg = data.reduce((s, v) => s + v, 0) / data.length;
+        vadAnalyser.getByteTimeDomainData(tdBuf);
+        let sumSq = 0;
+        for (let i = 0; i < tdBuf.length; i++) {
+          const z = (tdBuf[i] - 128) / 128;
+          sumSq += z * z;
+        }
+        const rms        = Math.sqrt(sumSq / tdBuf.length);
+        const rmsScaled  = Math.min(100, rms * 620);
+        const combo      = avg * 0.55 + rmsScaled * 0.45;
+        feLastMicCombo   = combo;
         const pct = Math.min(100, avg * 3);
         feVadFill.style.height = `${pct}%`;
-        // If engineer is speaking and user starts talking → barge-in: stop TTS and resume listening
-        if (micState === 'speaking' && avg > 20) { stopSpeaking(); resumeListening(); }
+        /* Barge-in: sustained energy above combo threshold (speech often lifts RMS sooner than bleed-only TTS) */
+        if (micState === 'speaking' && Date.now() >= feBargeQuietUntilMs) {
+          if (combo > FE_BARGE_TRIGGER_COMBO) {
+            feBargeVadHits += 1;
+            if (feBargeVadHits >= FE_BARGE_VAD_FRAMES) {
+              feBargeVadHits = 0;
+              stopSpeaking();
+              resumeListening();
+            }
+          } else {
+            feBargeVadHits = Math.max(0, feBargeVadHits - 2);
+          }
+        } else feBargeVadHits = 0;
         vadAnimId = requestAnimationFrame(tick);
       };
       tick();
@@ -7702,11 +8203,36 @@ setInterval(refreshAdvisorHealth, 60_000);
       const transcript = result[0].transcript;
       if (!result.isFinal) {
         feInterimText.textContent = transcript;
+        /** Partial transcripts + clear mic uplift → cut TTS faster than VADavg-only (still gated vs echo). */
+        const tPart = transcript.trim();
+        if (micState === 'speaking'
+            && Date.now() >= feBargeQuietUntilMs
+            && tPart.length >= 4
+            && feLastMicCombo > FE_BARGE_TRIGGER_COMBO + FE_STT_PARTIAL_NEED_COMBO_DELTA) {
+          stopSpeaking();
+          resumeListening();
+        }
         return;
       }
       feInterimText.textContent = '';
       const text = transcript.trim();
       if (!text) return;
+
+      /* Voice approval: even while TTS is playing, honour explicit approval cues */
+      if (pendingChange && /מאשר|confirm|确认|批准/i.test(text)) {
+        feBargeVadHits = 0;
+        stopSpeaking();
+        submitApproval(pendingChange.token);
+        return;
+      }
+
+      /** Final hypothesis while engineer still talking counts as deliberate interrupt → handle turn */
+      if (micState === 'speaking') {
+        feBargeVadHits = 0;
+        stopSpeaking();
+        await handlePilotTurn(text);
+        return;
+      }
 
       if (feSttLangCfg === 'auto') {
         let he = 0;
@@ -7727,14 +8253,7 @@ setInterval(refreshAdvisorHealth, 60_000);
         if (r.lang !== nl) r.lang = nl;
       }
 
-      // Voice approval: if a param change is pending and transcript contains the approval word
-      if (pendingChange && /מאשר|confirm|确认|批准/i.test(text)) {
-        submitApproval(pendingChange.token);
-        return;
-      }
-
-      // Normal turn — don't send while already thinking/speaking
-      if (micState === 'thinking' || micState === 'speaking') return;
+      if (micState === 'thinking') return;
       await handlePilotTurn(text);
     };
     return r;
@@ -7803,6 +8322,9 @@ setInterval(refreshAdvisorHealth, 60_000);
       const data = await res.json();
       if (!data.ok) { addMessage('engineer', data.message || 'שגיאה'); resumeListening(); return; }
       addMessage('engineer', data.text);
+      if (Array.isArray(data.suggestions) && data.suggestions.length > 0) {
+        renderSuggestionChips(data.suggestions);
+      }
       if (data.notes) renderNotes(data.notes);
       if (data.pendingChange) {
         pendingChange = data.pendingChange;

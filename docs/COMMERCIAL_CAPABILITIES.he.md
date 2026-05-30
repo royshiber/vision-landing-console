@@ -113,7 +113,7 @@
 
 ### 5.7 מעבדת SITL (`#simLab`)
 
-חיבור MAVLink ל־**ArduPilot SITL** (תהליך חיצוני — לינוקס/WSL) עם קיצורי UDP/TCP, תצוגת מטוס תלת־ממדי (**פרימיטיב או GLB מהשרת**; **בדיקת גודל לפני טעינת GLB** ואזהרה לא חוסמת לקבצים גדולים), מפת ריפליי עם **OSM / לוויין / גרדיאנט מקומי**, **פרופיל מסומן** ArduPlane + Jetson bundle (מקטלוג שחרורים), **כתיבת פרמטר חיה** דרך `param-set` כש־MAVLink מחובר (שכבות ARM כמו בייצור), **שיחזור ‎.tlog** עם **אירועי ציר מהלוג** (STATUSTEXT, ARM/DISARM, שינויי ‎flight_mode‎ עם **שמות מצב ArduPlane**), ואופציה ל־**MANUAL_CONTROL** מהמשחקון דרך השרת (`ALLOW_BROWSER_MANUAL_CONTROL`) — ל־SITL בלבד. **תאימות import maps** (Three): טעינת **es-module-shims** לפני מפת הייבוא. **HUD חי** משלים גובה/מהירות/כיוון מ־GLOBAL ו־ATTITUDE כש־`VFR_HUD` דליל — עם סימון **SIM** כשמהירות היא פרוקסי מ-groundspeed (לא IAS מפיטו), ובקרת התאמת זמן חבילות (**skew**) בשידור SSE. ראה `docs/SITL_AND_SIM_LAB.md`.
+חיבור MAVLink ל־**ArduPilot SITL** (תהליך חיצוני — לינוקס/WSL) עם קיצורי UDP/TCP, תצוגת מטוס תלת־ממדי (**פרימיטיב או GLB מהשרת**; **בדיקת גודל לפני טעינת GLB** ואזהרה לא חוסמת לקבצים גדולים), מפת ריפליי עם **OSM / לוויין / גרדיאנט מקומי**, **פרופיל מסומן** ArduPlane + Jetson bundle (מקטלוג שחרורים), **כתיבת פרמטר חיה** דרך `param-set` כש־MAVLink מחובר (שכבות ARM כמו בייצור), **שיחזור ‎.tlog** עם **אירועי ציר מהלוג** (STATUSTEXT, ARM/DISARM, שינויי ‎flight_mode‎ עם **שמות מצב ArduPlane**), ואופציה ל־**MANUAL_CONTROL** מהמשחקון דרך השרת (`ALLOW_BROWSER_MANUAL_CONTROL`) — ל־SITL בלבד. **Three.js / import maps:** נכסים תחת **`/vendor`** (מילוי מקומי דרך **`npm run vendor:sync`** אחרי `npm install`, ללא תלות CDN לטעינת המעבדה). **HUD חי** משלים גובה/מהירות/כיוון מ־GLOBAL ו־ATTITUDE כש־`VFR_HUD` דליל — עם סימון **SIM** כשמהירות היא פרוקסי מ-groundspeed (לא IAS מפיטו), ובקרת התאמת זמן חבילות (**skew**) בשידור SSE. ראה `docs/SITL_AND_SIM_LAB.md`.
 
 **Photo→Mesh (P3):** קיים נתיב `POST /api/sim-lab/mesh-job` לאימות נכס תמונה וסביבת ספק; השלמת קריאות SaaS אינה מוצגת כ«סופק במלואו» עד יישום צד השרת.
 
@@ -153,7 +153,9 @@
 
 ## 7. Jetson companion, חזון, ו MAVLink
 
-- **דופק חיים:** `POST /api/jetson/heartbeat` (ואחורה `/api/rpi/*`) — חיבור סטטוס Jetson ללוח הבקרה.
+- **דופק חיים:** `POST /api/jetson/heartbeat` (ואחורה `/api/rpi/*`) — חיבור סטטוס Jetson ללוח הבקרה; כולל `peerIp`, relay MAVLink, ומצב FC.
+- **Companion agent:** `companion_agent.py` — relay MAVLink (TCP :5770), HTTP לוגים/התקנה, heartbeat לקונסול; `GET /api/jetson/companion-script`, `POST /api/jetson/install`, `POST /api/jetson/pull-logs`.
+- **חיבור חכם:** `POST /api/connections/auto-connect` + `GET …/auto-connect/progress` (polling) — USB FC ישיר → Jetson relay → SITL מקומי; סרגל שלבים בזמן אמת (סריקה / heartbeat / סיום); **ללא** בחירת מוד ב-UI.
 - **תמונות ומצב SLAM/VIO:** נקודות קצה ל־frame, pose, optical flow — לניווט ללא/עם GPS חלש (פירוט הנדסי ב־`docs/JETSON_AGENT.md`).
 - **MAVLink:** ניהול חיבורים, בקשת פרמטרים, כתיבה מבוקרת, משימות; ערוץ אישור חומרה אופציונלי לפרמטרים דרך מהנדס (`FE_APPROVAL_RC_CHANNEL`).
 - **עסקית:** חברה שמוכרת ערכת Jetson יכולה להציג את הקונסולה כ־**ממשק אחיד** מול הלקוח יחד עם חומרה.

@@ -9,6 +9,7 @@ import { openDatabase, uploadsDir } from './lib/db.mjs';
 import { logger } from './lib/logger.mjs';
 import { buildArduTargetDefaults } from './lib/param-schema.mjs';
 import { registerHttpRoutes } from './lib/routes/http-register.mjs';
+import { correlationMiddleware } from './lib/request-context.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -48,6 +49,7 @@ try {
 }
 
 export const app = express();
+app.use(correlationMiddleware);
 const PORT = Number(process.env.PORT) || 4010;
 /** Why: default bind to loopback; set HOST=0.0.0.0 in .env to expose on LAN (use COMPANION_SHARED_SECRET for push APIs). */
 const HOST = (process.env.HOST || '127.0.0.1').trim();
@@ -68,6 +70,12 @@ const jetsonState = {
   agentVersion: null,
   internalFwVersion: null,
   fcFirmwareVersion: null,
+  peerIp: null,
+  relayPort: 5770,
+  companionHttpPort: 8081,
+  companionHttpUrl: null,
+  fcLinked: null,
+  fcHeartbeat: null,
 };
 
 const JETSON_COMPANION_BASE_URL = (process.env.JETSON_COMPANION_BASE_URL || '').trim();
@@ -170,10 +178,12 @@ app.get(['/', '/index.html'], (_req, res) => {
 app.use(express.static(path.join(__dirname, 'public')));
 
 /** Why: catch any unhandled errors thrown in route handlers. What: logs the error and returns a safe 500 JSON response. */
-app.use((err, _req, res, _next) => {
-  logger.error({ err }, 'Unhandled route error');
+app.use((err, req, res, _next) => {
+  logger.error({ err, corrId: req?.correlationId }, 'Unhandled route error');
   const status = typeof err.status === 'number' ? err.status : 500;
-  res.status(status).json({ ok: false, message: err?.message || 'Internal server error' });
+  const body = { ok: false, message: err?.message || 'Internal server error' };
+  if (req?.correlationId) body.requestId = req.correlationId;
+  res.status(status).json(body);
 });
 
 /** Why: only listen when run directly (not when imported for tests). What: allows test files to import app without binding to a port.

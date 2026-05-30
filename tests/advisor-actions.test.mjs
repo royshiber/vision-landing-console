@@ -16,6 +16,9 @@ import {
   parseStructuredReply,
   buildParamAlternatives,
   isValueInParamProposalFamily,
+  isDiscreteArduParam,
+  snapDiscreteParamValue,
+  formatDiscreteParamLabel,
 } from '../lib/advisor-actions.mjs';
 import { FC_ADVISOR_WRITE_BOUNDS } from '../lib/param-schema.mjs';
 
@@ -269,7 +272,34 @@ describe('assignActionIds', () => {
 
 // ── buildParamAlternatives + apply value family ─────────────────────────
 
-describe('buildParamAlternatives', () => {
+describe('buildParamAlternatives — discrete enum', () => {
+  it('SERIAL3_PROTOCOL returns single enum option, not cautious/assertive', () => {
+    expect(isDiscreteArduParam('SERIAL3_PROTOCOL')).toBe(true);
+    const spec = { min: -1e9, max: 1e9 };
+    const alts = buildParamAlternatives({
+      param: 'SERIAL3_PROTOCOL',
+      from: 5,
+      primaryTo: 2,
+      spec,
+    });
+    expect(alts).toHaveLength(1);
+    expect(alts[0].to).toBe(2);
+    expect(alts[0].enumLabel).toMatch(/MAVLink2/i);
+    expect(formatDiscreteParamLabel('SERIAL3_PROTOCOL', 2)).toMatch(/MAVLink2/i);
+  });
+
+  it('rejects fractional enum value at validation', () => {
+    const { rejected } = validateOptions([{
+      kind: 'param_change',
+      title: 'bad enum',
+      change: { param: 'SERIAL3_PROTOCOL', from: 5, to: 2.38 },
+    }]);
+    expect(rejected).toHaveLength(1);
+    expect(rejected[0].reason).toMatch(/enum/);
+  });
+});
+
+describe('buildParamAlternatives — continuous', () => {
   it('produces 3 steps when from differs from primary', () => {
     const spec = JETSON_PARAM_ALLOWLIST.get('xtrack_gain');
     const alts = buildParamAlternatives({ from: 1.25, primaryTo: 1.05, spec });

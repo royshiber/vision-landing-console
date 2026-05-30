@@ -35,6 +35,24 @@ if (!canvas) {
   const mapWrap = document.getElementById('simLabMapWrap');
   const mapCaption = document.getElementById('simLabMapCaption');
 
+  // Pre-flight dashboard elements
+  const pfBar    = document.getElementById('simLabPreflightBar');
+  const pfArmed  = document.getElementById('simLabPfArmed');
+  const pfMode   = document.getElementById('simLabPfMode');
+  const pfGps    = document.getElementById('simLabPfGps');
+  const pfBatt   = document.getElementById('simLabPfBatt');
+  const pfFcLog  = document.getElementById('simLabFcLog');
+
+  // ArduPlane custom-mode numbers → names
+  const AP_MODES = {
+    0: 'MANUAL', 1: 'CIRCLE', 2: 'STABILIZE', 3: 'TRAINING', 4: 'ACRO',
+    5: 'FBW-A', 6: 'FBW-B', 7: 'CRUISE', 8: 'AUTOTUNE',
+    10: 'AUTO', 11: 'RTL', 12: 'LOITER', 13: 'TAKEOFF', 14: 'ADSB',
+    15: 'GUIDED', 16: 'INIT', 17: 'QSTABILIZE', 18: 'QHOVER',
+    19: 'QLOITER', 20: 'QLAND', 21: 'QRTL', 22: 'QAUTOTUNE',
+    23: 'QACRO', 24: 'THERMAL', 25: 'LOITER_ALT',
+  };
+
   let renderer;
   let scene;
   let camera;
@@ -1539,6 +1557,92 @@ if (!canvas) {
     loop();
   }
 
+  const simLabQsEl = document.getElementById('simLabQuickstart');
+
+  // ── Pre-flight dashboard helpers ───────────────────────────────────────────
+  function setChip(el, valText, state) {
+    if (!el) return;
+    const valEl = el.querySelector('.sl-pf-val');
+    if (valEl) valEl.textContent = valText;
+    el.className = `sl-pf-chip sl-pf-chip--${state}`;
+  }
+
+  function updatePreflightBar(m) {
+    // Armed / Disarmed
+    if (m.armedKnown) {
+      if (m.armed) {
+        setChip(pfArmed, '⚡ מזויין', 'err');
+      } else {
+        setChip(pfArmed, '🔒 לא מזויין', 'ok');
+      }
+    } else {
+      setChip(pfArmed, '—', 'neutral');
+    }
+
+    // Flight mode name
+    if (m.flightMode != null) {
+      const name = AP_MODES[m.flightMode] ?? `MODE ${m.flightMode}`;
+      setChip(pfMode, name, 'neutral');
+    } else {
+      setChip(pfMode, '—', 'neutral');
+    }
+
+    // GPS
+    if (m.gpsFixType != null) {
+      const fix = m.gpsFixType;
+      const sats = m.gpsSats ?? 0;
+      let gpsState, gpsText;
+      if (fix >= 3 && sats >= 6) {
+        gpsState = 'ok';
+        gpsText = `3D-Fix · ${sats} לוויינים`;
+      } else if (fix >= 3) {
+        gpsState = 'warn';
+        gpsText = `3D · ${sats} לוויינים`;
+      } else if (fix >= 2) {
+        gpsState = 'warn';
+        gpsText = `2D · ${sats} לוויינים`;
+      } else if (fix === 1) {
+        gpsState = 'err';
+        gpsText = 'GPS ← אין נעילה';
+      } else {
+        gpsState = 'err';
+        gpsText = 'אין GPS';
+      }
+      setChip(pfGps, gpsText, gpsState);
+    } else {
+      setChip(pfGps, '—', 'neutral');
+    }
+
+    // Battery
+    if (m.batteryPct != null && m.batteryPct >= 0) {
+      const pct = m.batteryPct;
+      const vStr = m.batteryV != null ? ` ${m.batteryV.toFixed(1)}V` : '';
+      const battState = pct > 50 ? 'ok' : pct > 20 ? 'warn' : 'err';
+      setChip(pfBatt, `${pct}%${vStr}`, battState);
+    } else if (m.batteryV != null) {
+      setChip(pfBatt, `${m.batteryV.toFixed(1)}V`, 'neutral');
+    } else {
+      setChip(pfBatt, '—', 'neutral');
+    }
+
+    // FC messages (statustext)
+    if (pfFcLog && Array.isArray(m.recentStatusTexts) && m.recentStatusTexts.length > 0) {
+      const items = m.recentStatusTexts.slice(0, 10);
+      pfFcLog.replaceChildren(...items.map((st) => {
+        const div = document.createElement('div');
+        const sev = typeof st.severity === 'number' ? st.severity : 6;
+        let cls = 'sl-pf-log-item';
+        if (sev <= 2) cls += ' sl-pf-log-item--crit';
+        else if (sev <= 4) cls += ' sl-pf-log-item--warn';
+        div.className = cls;
+        div.textContent = st.text || '';
+        return div;
+      }));
+    } else if (pfFcLog) {
+      pfFcLog.replaceChildren();
+    }
+  }
+
   function updateHudLive(mavlink) {
     const conn = !!mavlink?.connected;
     if (!conn && lastConnected) {
@@ -1548,8 +1652,35 @@ if (!canvas) {
         planeGroup.position.x = 0;
         planeGroup.position.z = 0;
       }
+      // Transition: connected → disconnected — go back to wizard step 2
+      if (!replayDrivingMesh) {
+        document.getElementById('simLabQuickstart')?.classList.remove('hidden');
+        document.getElementById('simLabPreflightBar')?.classList.add('hidden');
+        wizardGoStep(2);
+      }
+    }
+    // Transition: disconnected → connected — advance wizard to step 3, then hide it
+    if (conn && !lastConnected && !replayDrivingMesh) {
+      wizardGoStep(3);
+      setTimeout(() => {
+        document.getElementById('simLabQuickstart')?.classList.add('hidden');
+        document.getElementById('simLabPreflightBar')?.classList.remove('hidden');
+      }, 800);
     }
     lastConnected = conn;
+
+    // Show/hide quickstart guide based on connection state
+    if (simLabQsEl) {
+      simLabQsEl.classList.toggle('hidden', conn || replayDrivingMesh);
+    }
+
+    // Show/hide pre-flight dashboard
+    if (pfBar) {
+      pfBar.classList.toggle('hidden', !conn || replayDrivingMesh);
+    }
+    if (conn && mavlink && !replayDrivingMesh) {
+      updatePreflightBar(mavlink);
+    }
 
     const replaySuffix =
       replayDrivingMesh && replaySamples.length ? ` · שיחזור ${replayIdx + 1}/${replaySamples.length}` : '';
@@ -1658,50 +1789,133 @@ if (!canvas) {
   function bindQuick(id, fn) {
     document.getElementById(id)?.addEventListener('click', fn);
   }
-  bindQuick('simLabPresetUdp14550', () => {
+
+  // Fill connection fields AND auto-connect if not already connected
+  function fillAndConnect(type, portVal) {
     const t = document.getElementById('connectType');
     const pi = document.getElementById('connectPortInput');
-    if (t) t.value = 'udp';
-    if (pi) pi.value = '127.0.0.1:14550';
-    t?.dispatchEvent(new Event('change'));
-  });
-  bindQuick('simLabPresetUdpBind', () => {
-    const t = document.getElementById('connectType');
-    const pi = document.getElementById('connectPortInput');
-    if (t) t.value = 'udp';
-    if (pi) pi.value = '0.0.0.0:14550';
-    t?.dispatchEvent(new Event('change'));
-  });
-  bindQuick('simLabPresetTcp5760', () => {
-    const t = document.getElementById('connectType');
-    const pi = document.getElementById('connectPortInput');
-    if (t) t.value = 'tcp';
-    if (pi) pi.value = '127.0.0.1:5760';
-    t?.dispatchEvent(new Event('change'));
-  });
+    if (t) { t.value = type; t.dispatchEvent(new Event('change')); }
+    if (pi) pi.value = portVal;
+    const cb = document.getElementById('connectBtn');
+    if (cb && cb.dataset.connected !== '1') {
+      setTimeout(() => cb.click(), 60);
+    }
+  }
+
+  bindQuick('simLabPresetUdp14550', () => fillAndConnect('udp', '127.0.0.1:14550'));
+  bindQuick('simLabPresetUdpBind',   () => fillAndConnect('udp', '0.0.0.0:14550'));
+  bindQuick('simLabPresetTcp5760',   () => fillAndConnect('tcp', '127.0.0.1:5760'));
   bindQuick('simLabGoFlightsBtn', () => {
     document.querySelector('.tab[data-tab="flights"]')?.click();
   });
 
-  bindQuick('simLabTlogParseBtn', async () => {
+  // ── Wizard step management ─────────────────────────────────────────────────
+  function wizardGoStep(n) {
+    const wizard = document.getElementById('simLabWizard');
+    if (!wizard) return;
+    wizard.querySelectorAll('.sl-wiz-step').forEach((el) => {
+      const s = parseInt(el.dataset.step);
+      el.classList.toggle('sl-wiz-step--active', s === n);
+      el.classList.toggle('sl-wiz-step--done', s < n);
+    });
+    wizard.querySelectorAll('.sl-wiz-connector').forEach((el, i) => {
+      el.classList.toggle('sl-wiz-connector--done', i + 1 < n);
+    });
+    wizard.querySelectorAll('.sl-wiz-panel').forEach((el) => {
+      const p = parseInt(el.dataset.panel);
+      el.classList.toggle('hidden', p !== n);
+    });
+  }
+
+  // Copy command button
+  bindQuick('simLabCopyCmd', () => {
+    const cmd = document.getElementById('simLabSitlCmd')?.textContent?.trim() || '';
+    navigator.clipboard?.writeText(cmd).then(() => {
+      const btn = document.getElementById('simLabCopyCmd');
+      if (!btn) return;
+      btn.textContent = '✓ הועתק!';
+      btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = '⎘ העתק'; btn.classList.remove('copied'); }, 1800);
+    }).catch(() => {});
+  });
+
+  // Skip to step 2
+  bindQuick('simLabWizSkip1', () => wizardGoStep(2));
+
+  // Connection buttons → show "connecting" status then call fillAndConnect
+  function wizConnect(type, port) {
+    const statusEl = document.getElementById('simLabWizConnStatus');
+    if (statusEl) { statusEl.textContent = 'מתחבר…'; statusEl.className = 'sl-wiz-conn-status'; }
+    fillAndConnect(type, port);
+  }
+  bindQuick('simLabQsUdp',     () => wizConnect('udp', '127.0.0.1:14550'));
+  bindQuick('simLabQsTcp',     () => wizConnect('tcp', '127.0.0.1:5760'));
+  bindQuick('simLabQsUdpBind', () => wizConnect('udp', '0.0.0.0:14550'));
+
+  const tlogFileBtn = document.getElementById('simLabTlogFileBtn');
+  const wizTlogStatus = document.getElementById('simLabWizTlogStatus');
+  let tlogParsing = false;
+
+  function setTlogStatus(text, { error = false, busy = false } = {}) {
+    for (const el of [replayMeta, wizTlogStatus]) {
+      if (!el) continue;
+      el.textContent = text;
+      el.classList.toggle('sl-meta--err', !!error);
+      el.classList.toggle('sl-meta--busy', !!busy);
+    }
+  }
+
+  function showSelectedTlogFilename(name) {
+    if (!tlogFileBtn || !name) return;
+    const short = name.length > 26 ? `${name.slice(0, 23)}…` : name;
+    tlogFileBtn.textContent = `📄 ${short}`;
+    tlogFileBtn.title = name;
+  }
+
+  function syncTlogParseBtn() {
+    const parseBtn = document.getElementById('simLabTlogParseBtn');
+    const inp = document.getElementById('simLabTlogInput');
+    if (!parseBtn) return;
+    const hasFile = !!inp?.files?.[0];
+    parseBtn.disabled = !hasFile || tlogParsing;
+    parseBtn.title = hasFile
+      ? 'נתח את הקובץ והצג שיחזור בתלת־ממד'
+      : 'בחר קובץ ‎.tlog בלחיצה על «בחר קובץ»';
+  }
+
+  async function parseSimLabTlogFromInput() {
     const inp = document.getElementById('simLabTlogInput');
     const file = inp?.files?.[0];
     if (!file) {
-      if (replayMeta) replayMeta.textContent = 'בחר קובץ ‎.tlog קודם.';
+      setTlogStatus('בחר קובץ ‎.tlog קודם.', { error: true });
       return;
     }
-    if (replayMeta) replayMeta.textContent = 'מנתח…';
+    if (tlogParsing) return;
+    tlogParsing = true;
+    const parseBtn = document.getElementById('simLabTlogParseBtn');
+    const prevBtnText = parseBtn?.textContent;
+    if (parseBtn) {
+      parseBtn.disabled = true;
+      parseBtn.textContent = 'מנתח…';
+    }
+    setTlogStatus(`טוען לוג… ${file.name}`, { busy: true });
     const fd = new FormData();
     fd.append('file', file);
     try {
       const res = await fetch('/api/sim-lab/parse-tlog', { method: 'POST', body: fd });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data.ok || !Array.isArray(data.samples)) {
+      if (!res.ok || !data.ok || !Array.isArray(data.samples) || !data.samples.length) {
         replayEvents = [];
         clearReplayTimelineDom();
-        if (replayMeta) replayMeta.textContent = data.message || 'ניתוח נכשל.';
+        const msg = data.message
+          || (Array.isArray(data.samples) && !data.samples.length
+            ? 'הקובץ נטען אך לא נמצאו דגימות לשיחזור.'
+            : 'ניתוח נכשל.');
+        setTlogStatus(msg, { error: true });
+        if (replayControls) replayControls.classList.add('hidden');
         return;
       }
+      setTlogStatus('מנתח…', { busy: true });
       replaySamples = data.samples;
       replayEvents = Array.isArray(data.replayEvents) ? data.replayEvents : [];
       replayIdx = 0;
@@ -1710,6 +1924,8 @@ if (!canvas) {
       originLon = null;
       clearReplayTimer();
       replayPlaying = false;
+      document.getElementById('simLabQuickstart')?.classList.add('hidden');
+      pfBar?.classList.add('hidden');
 
       if (replaySeek) {
         const max = Math.max(0, replaySamples.length - 1);
@@ -1719,18 +1935,65 @@ if (!canvas) {
       if (replayControls) replayControls.classList.remove('hidden');
       const durS = data.durationMs != null ? (Number(data.durationMs) / 1000).toFixed(1) : '—';
       const ne = replayEvents.length;
-      if (replayMeta) {
-        const evPart = ne ? ` · ${ne} אירועי ציר` : '';
-        replayMeta.textContent = `${replaySamples.length} דגימות · ~${durS}s · ${data.frameCount ?? '—'} פריימים MAVLink${evPart}`;
-      }
+      const evPart = ne ? ` · ${ne} אירועי ציר` : '';
+      setTlogStatus(`✓ מוכן — לחץ ▶ · ${replaySamples.length} דגימות · ~${durS}s${evPart}`);
       refreshReplayMapsAfterParse();
       refreshReplayMarkersAndList();
       applyReplayFrame(0);
     } catch (err) {
       replayEvents = [];
       clearReplayTimelineDom();
-      if (replayMeta) replayMeta.textContent = err?.message || 'שגיאת רשת.';
+      setTlogStatus(err?.message || 'שגיאת רשת — בדוק שהשרת פועל.', { error: true });
+      if (replayControls) replayControls.classList.add('hidden');
+    } finally {
+      tlogParsing = false;
+      if (parseBtn) {
+        parseBtn.disabled = false;
+        parseBtn.textContent = prevBtnText || '▶ נתח והפעל';
+      }
     }
+  }
+
+  // tlog shortcut in quickstart — opens picker; change handler parses
+  bindQuick('simLabQsTlog', () => {
+    const inp = document.getElementById('simLabTlogInput');
+    if (inp) inp.value = '';
+    setTlogStatus('בחר קובץ ‎.tlog…', { busy: true });
+    inp?.click();
+  });
+
+  // Initialize wizard at step 1
+  wizardGoStep(1);
+
+  // "Connect Now" button in sidebar — shown after a preset is selected while disconnected
+  const connectNowBtn = document.getElementById('simLabConnectNowBtn');
+  function updateConnectNowBtn() {
+    const cb = document.getElementById('connectBtn');
+    if (!connectNowBtn || !cb) return;
+    connectNowBtn.classList.toggle('hidden', cb.dataset.connected === '1');
+  }
+  if (connectNowBtn) {
+    connectNowBtn.addEventListener('click', () => {
+      const cb = document.getElementById('connectBtn');
+      if (cb && cb.dataset.connected !== '1') cb.click();
+    });
+  }
+  // Observe connectBtn state changes to show/hide the "Connect Now" button
+  const _cbEl = document.getElementById('connectBtn');
+  if (_cbEl) {
+    new MutationObserver(updateConnectNowBtn).observe(_cbEl, { attributes: true, attributeFilter: ['data-connected'] });
+    updateConnectNowBtn();
+  }
+
+  bindQuick('simLabTlogParseBtn', () => { void parseSimLabTlogFromInput(); });
+
+  document.getElementById('simLabTlogInput')?.addEventListener('change', () => {
+    const inp = document.getElementById('simLabTlogInput');
+    const file = inp?.files?.[0];
+    if (!file) return;
+    showSelectedTlogFilename(file.name);
+    setTlogStatus(`נבחר: ${file.name} — מנתח…`, { busy: true });
+    void parseSimLabTlogFromInput();
   });
 
   document.getElementById('simLabReplayPlay')?.addEventListener('click', () => {
@@ -1755,11 +2018,21 @@ if (!canvas) {
     originLat = null;
     originLon = null;
     if (replayControls) replayControls.classList.add('hidden');
+    // Restore quickstart guide if not connected to live FC
+    if (!lastConnected) {
+      document.getElementById('simLabQuickstart')?.classList.remove('hidden');
+    }
+    // Also restore pre-flight bar if live FC is connected
+    if (pfBar) pfBar.classList.toggle('hidden', !lastConnected);
     if (replaySeek) {
       replaySeek.max = '0';
       replaySeek.value = '0';
     }
-    if (replayMeta) replayMeta.textContent = '';
+    setTlogStatus('');
+    if (tlogFileBtn) {
+      tlogFileBtn.textContent = 'בחר קובץ';
+      tlogFileBtn.removeAttribute('title');
+    }
     clearReplayTimelineDom();
     window.__vlcSimLabReplayOverlay?.clear();
     hideSimLabMiniMap();
