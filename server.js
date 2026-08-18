@@ -10,6 +10,7 @@ import { logger } from './lib/logger.mjs';
 import { buildArduTargetDefaults } from './lib/param-schema.mjs';
 import { registerHttpRoutes } from './lib/routes/http-register.mjs';
 import { correlationMiddleware } from './lib/request-context.mjs';
+import { createCompanionService } from './lib/companion-service.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -79,6 +80,7 @@ const jetsonState = {
 };
 
 const JETSON_COMPANION_BASE_URL = (process.env.JETSON_COMPANION_BASE_URL || '').trim();
+const companionService = createCompanionService(process.env);
 
 const visionNavModeState = { mode: 'prior_mission_map' };
 
@@ -138,6 +140,7 @@ const routeCtx = {
   slamState,
   visionNavModeState,
   JETSON_COMPANION_BASE_URL,
+  companionService,
   advisorChatLimiter,
   arduTargetParams: { ...ARDU_TARGET_DEFAULTS },
   visionProfileStore: {},
@@ -191,6 +194,9 @@ app.use((err, req, res, _next) => {
 const _isMain = process.argv[1] === fileURLToPath(import.meta.url) || !!process.env.PM2_HOME;
 if (_isMain) {
   const server = app.listen(PORT, HOST, () => {
+    Promise.resolve(companionService.start()).catch((err) =>
+      logger.warn({ err }, 'Companion bridge start failed'),
+    );
     logger.info({ port: PORT, host: HOST, version: APP_VERSION }, `Vision Landing Console started`);
     const hostLabel = HOST === '0.0.0.0' ? 'localhost' : HOST;
     console.log(`Vision Landing Console v${APP_VERSION}: http://${hostLabel}:${PORT}`);

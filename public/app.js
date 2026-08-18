@@ -2106,6 +2106,7 @@ function renderJetsonVersionNotes() {
 
 /** Why: keep latest SSE-delivered telemetry accessible to the confidence-bar simulation. What: updated by SSE handler; read by the 1s sim interval. */
 let latestVisionFromServer = null;
+let latestCompanionFromServer = null;
 let latestJetsonFromServer = null;
 
 /** Why: one fetch for manual refresh button (no need for polling anymore). What: pulls jetson status once on demand. */
@@ -2250,7 +2251,11 @@ function applyVisionUi(d) {
   if (visionHeadingEl) visionHeadingEl.textContent = d.headingErrorDeg != null ? `${d.headingErrorDeg.toFixed(1)}°` : '-';
   if (visionConfEl) visionConfEl.textContent = d.confidence != null ? `${Math.round(d.confidence * 100)}%` : '-';
   if (visionAgeEl) visionAgeEl.textContent = d.ageMs != null ? (d.ageMs > 3000 ? `${(d.ageMs / 1000).toFixed(1)}s ⚠` : `${d.ageMs}ms`) : '-';
-  if (visionCountEl) visionCountEl.textContent = String(d.frameCount || 0);
+  if (visionCountEl) {
+    visionCountEl.textContent = d.companionActive
+      ? (d.frameCount == null ? '—' : String(d.frameCount))
+      : String(d.frameCount || 0);
+  }
   // Mark cards as DEMO or LIVE based on freshness
   document.querySelectorAll('[data-vision-card]').forEach((el) => {
     el.classList.toggle('demo-data', !fresh);
@@ -2267,7 +2272,200 @@ function applySlamUi(d) {
   if (terrainCam1FpsEl)    terrainCam1FpsEl.textContent    = d.cam1Fps != null ? `${Number(d.cam1Fps).toFixed(0)} fps` : '--';
   if (terrainCam2StatusEl) terrainCam2StatusEl.textContent = flowFresh ? 'פעילה' : 'לא מחוברת';
   if (terrainNavStatusEl)  terrainNavStatusEl.textContent  = d.mapQuality != null ? `${Math.round(d.mapQuality * 100)}%` : '--';
+  if (d.companionActive) {
+    const pos = document.getElementById('slamPos');
+    const quality = document.getElementById('slamQuality');
+    if (pos) {
+      pos.textContent = [d.posX, d.posY, d.posZ].every((v) => v != null)
+        ? [d.posX, d.posY, d.posZ].map((v) => Number(v).toFixed(2)).join(', ')
+        : '—';
+    }
+    if (quality) quality.textContent = d.mapQuality == null ? '—' : `${Math.round(d.mapQuality * 100)}%`;
+  }
 }
+
+function companionText(value, suffix = '') {
+  return value == null || value === '' ? '—' : `${value}${suffix}`;
+}
+
+function companionStateText(value, mode) {
+  if (mode === 'off') return 'כבוי';
+  return {
+    OK: 'תקין',
+    DISCONNECTED: 'מנותק',
+    DEGRADED: 'מוחלש',
+    NOT_PRESENT: 'לא קיים',
+    DISABLED: 'כבוי',
+    WAITING_FOR_HARDWARE: 'ממתין לחומרה',
+    STALE: 'מיושן',
+  }[value] || companionText(value);
+}
+
+function companionValidityText(value) {
+  return { valid: 'תקף', invalid: 'לא תקף', stale: 'מיושן' }[value] || companionText(value);
+}
+
+function companionVideoText(value) {
+  return {
+    available: 'זמין',
+    unavailable: 'לא זמין',
+    starting: 'עולה',
+    stopped: 'עצור',
+    degraded: 'מוחלש',
+  }[value] || '—';
+}
+
+function setCompanionText(id, value) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = value;
+}
+
+function companionVectorText(value) {
+  if (!Array.isArray(value) || value.length < 3 || value.some((v) => !Number.isFinite(Number(v)))) return '—';
+  return value.slice(0, 3).map((v) => Number(v).toFixed(2)).join(', ');
+}
+
+function renderCompanionChannels(channels = {}) {
+  const host = document.getElementById('companionChannelsTable');
+  if (!host) return;
+  const rows = [
+    ['ערוץ שלט', channels.rc],
+    ['רדיו ישיר', channels.rfd900x || channels.rfd],
+    ['רשת מאובטחת', channels.gcs_tailscale || channels.gcs4g],
+    ['לולאת ראייה', channels.vision_loopback],
+  ];
+  host.innerHTML = rows.map(([label, channel]) => {
+    const path = channel?.jetson_in_path === true ? 'בנתיב המלווה'
+      : channel?.jetson_in_path === false ? 'לא בנתיב' : '—';
+    const bind = channel?.bind || '—';
+    return `<div class="companion-b2-row"><span>${escapeHtml(label)}</span><strong>${escapeHtml(path)}</strong><span>${escapeHtml(bind)}</span><strong>${escapeHtml(channel?.implementation || '—')}</strong></div>`;
+  }).join('');
+}
+
+function renderCompanionPolicy(hostId, channel) {
+  const host = document.getElementById(hostId);
+  if (!host) return;
+  const tokens = channel?.tokens || {};
+  host.innerHTML = Object.entries(tokens).map(([name, state]) => {
+    const text = state === 'allowed' ? 'מותר' : state === 'denied' ? 'חסום' : 'לא צוין';
+    return `<span class="companion-chip">${escapeHtml(name)} ${escapeHtml(text)}</span>`;
+  }).join('') || '—';
+}
+
+function applyTeleSubtab(tabId) {
+  const wanted = tabId === 'companion' ? 'companion' : 'dash';
+  document.querySelectorAll('[data-tele-tab]').forEach((button) => {
+    button.classList.toggle('active', button.dataset.teleTab === wanted);
+  });
+  document.querySelectorAll('[data-tele-panel]').forEach((panel) => {
+    panel.classList.toggle('visible', panel.dataset.telePanel === wanted);
+  });
+}
+
+function applyCompanionUi(companion) {
+  if (!companion) return;
+  const unavailable = companion.unavailable === true || (companion.mode === 'real' && companion.reachable === false);
+  const unavailableEl = document.getElementById('companionApiUnavailable');
+  if (unavailableEl) {
+    unavailableEl.hidden = !unavailable;
+    unavailableEl.textContent = unavailable ? (companion.message || 'Companion API not available') : '';
+  }
+  const mockBar = document.getElementById('companionMockBar');
+  if (mockBar) mockBar.hidden = companion.mode !== 'mock';
+
+  setCompanionText('companionApiState', companionStateText(companion.state || companion.overall, companion.mode));
+  setCompanionText('companionApiVersion', companionText(companion.version));
+  setCompanionText('maintCompanionVersion', companionText(companion.version));
+  setCompanionText('maintApiVersion', companionText(companion.api_version || companion.api));
+  setCompanionText('maintCompanionMode', companionText(companion.mode));
+
+  const system = companion.system || {};
+  setCompanionText('companionCpu', companionText(system.cpu_percent, '%'));
+  setCompanionText('companionMem', companionText(system.memPct == null ? null : Math.round(system.memPct), '%'));
+  setCompanionText('companionTemp', companionText(system.temperature_c, '°C'));
+  setCompanionText('companionDisk', companionText(system.disk_used_percent, '%'));
+
+  const fc = companion.fc || {};
+  setCompanionText('companionFcConnected', fc.connected === true ? 'מחובר' : fc.connected === false ? 'מנותק' : '—');
+  setCompanionText('companionFcHeartbeat', companionValidityText(fc.heartbeat_validity));
+  setCompanionText('companionFcSysid', companionText(fc.system_id));
+
+  const mavlink = companion.mavlink || {};
+  setCompanionText('companionMavRouter', mavlink.router_running === true ? 'פועל' : mavlink.router_running === false ? 'כבוי' : '—');
+  setCompanionText('companionMavHeartbeat', mavlink.heartbeat_ok === true ? 'תקין' : mavlink.heartbeat_ok === false ? 'לא תקין' : '—');
+  setCompanionText('companionMavReceived', companionText(mavlink.messages_received));
+  setCompanionText('companionMavDropped', companionText(mavlink.messages_dropped));
+
+  const vision = companion.vision || {};
+  setCompanionText('companionVisionHealth', companionStateText(vision.status));
+  setCompanionText('companionVisionFps', companionText(vision.fps));
+  setCompanionText('companionVisionConfidence', vision.confidence == null ? '—' : `${Math.round(vision.confidence * 100)}%`);
+  setCompanionText('companionVisionTargetId', companionText(vision.target_id));
+
+  const landing = companion.landing || {};
+  setCompanionText('companionLandingDetected', landing.detected === true ? 'זוהתה' : landing.detected === false ? 'לא זוהתה' : '—');
+  setCompanionText('companionLandRange', companionText(landing.range_m, 'm'));
+
+  const navigation = companion.navigation || {};
+  setCompanionText('companionNavPos', companionVectorText(navigation.position_m));
+  setCompanionText('companionNavEkf', navigation.ekf_injected === false ? 'לא מוזרק' : '—');
+
+  const video = companion.video || {};
+  const rawVideo = companionVideoText(video.raw_ui);
+  const annotatedVideo = companionVideoText(video.annotated_ui);
+  setCompanionText('companionVideoStatus', `${rawVideo} · ${annotatedVideo}`);
+  setCompanionText('companionVidRawPh', rawVideo);
+  setCompanionText('companionVidAnnPh', annotatedVideo);
+  setCompanionText('companionVidRes', companionText(video.resolution));
+
+  renderCompanionChannels(companion.channels);
+  const categories = Object.entries(fc.message_categories || {});
+  const categoryHost = document.getElementById('companionMsgCats');
+  if (categoryHost) {
+    categoryHost.innerHTML = categories.map(([name, item]) => {
+      const validity = item?.validity;
+      const cls = validity === 'valid' ? 'companion-chip--ok' : validity === 'invalid' ? 'companion-chip--bad' : 'companion-chip--off';
+      return `<span class="companion-chip ${cls}">${escapeHtml(name)} ${escapeHtml(companionValidityText(validity))}</span>`;
+    }).join('') || '—';
+  }
+  renderCompanionPolicy('companionPolicyGcs', companion.policy?.gcs_4g);
+  renderCompanionPolicy('companionPolicyRfd', companion.policy?.rfd900x);
+  setCompanionText('companionPolicyPreview', companionText(companion.policyPreview?.snippet));
+
+  const configHost = document.getElementById('companionConfigTable');
+  if (configHost) {
+    const rows = Array.isArray(companion.config) ? companion.config : [];
+    configHost.innerHTML = rows.map((row) =>
+      `<div class="companion-b2-row"><span>${escapeHtml(row.group || '—')}</span><strong>${escapeHtml(row.key || '—')}</strong><span>${escapeHtml(companionText(row.value))}</span><strong class="companion-tier">${escapeHtml(row.tier || '—')} · קריאה</strong></div>`,
+    ).join('') || '—';
+  }
+
+  const diagnostics = companion.diagnostics?.subsystems || {};
+  const diagnosticsHost = document.getElementById('companionDiagGrid');
+  if (diagnosticsHost) {
+    diagnosticsHost.innerHTML = Object.entries(diagnostics).map(([name, state]) =>
+      `<span class="companion-chip">${escapeHtml(name)} ${escapeHtml(companionText(state))}</span>`,
+    ).join('') || '—';
+  }
+  setCompanionText('companionDiagMsg', Object.keys(diagnostics).length ? 'נתוני אבחון התקבלו' : '—');
+}
+
+document.querySelectorAll('[data-tele-tab]').forEach((button) => {
+  button.addEventListener('click', () => applyTeleSubtab(button.dataset.teleTab));
+});
+document.querySelectorAll('[data-mock-scenario]').forEach((button) => {
+  button.addEventListener('click', async () => {
+    try {
+      await fetch('/api/jetson/v1/_console/mock-scenario', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scenario: button.dataset.mockScenario }),
+      });
+    } catch {
+      // Mock switching is local UI support only.
+    }
+  });
+});
 
 
 /** Why: auto-load flights+logs when Jetson first comes online so operator doesn't need to navigate manually. What: tracks previous online state and triggers refresh on transition. */
@@ -3257,11 +3455,13 @@ let feRcApprovalChannelGlobal = 7;
       const payload = JSON.parse(e.data);
       latestJetsonFromServer = payload.jetson;
       latestVisionFromServer = payload.vision;
+      latestCompanionFromServer = payload.companion || null;
       const jetsonOnline = Boolean(payload.jetson?.online);
       updateAdvisorSysStrip(payload.mavlink, payload.jetson, payload.appVersion);
       applyJetsonUi(jetsonOnline, payload.jetson || {});
       applyVisionUi(payload.vision);
       applySlamUi(payload.slam);
+      applyCompanionUi(payload.companion);
       applyTopbarFlightData(payload.mavlink);
       applyFlightHud(payload.mavlink);
       applyFcStatustextHud(payload.mavlink);
@@ -3677,25 +3877,36 @@ function renderProcessFlow() {
   }).join('');
 }
 
-/** Why: confidence bar shows real Vision data when hardware is connected (ageMs < 3s); shows "ללא חיבור" otherwise. What: runs every 1s. */
+/** Display-only confidence: prefer Companion when available and never synthesize a zero for missing data. */
 setInterval(() => {
+  const companionActive = latestCompanionFromServer?.mode !== 'off' && latestCompanionFromServer?.reachable === true;
+  const companionConfidence = companionActive ? latestCompanionFromServer?.vision?.confidence : null;
   const visionFresh = latestVisionFromServer != null && latestVisionFromServer.ageMs != null && latestVisionFromServer.ageMs < 3000;
   let current;
   let sourceLabel;
-  if (visionFresh) {
-    current = Math.max(0, Math.min(1, latestVisionFromServer.confidence ?? 0));
+  if (companionConfidence != null) {
+    current = Math.max(0, Math.min(1, companionConfidence));
+    sourceLabel = 'Companion';
+  } else if (companionActive && !visionFresh) {
+    current = null;
+    sourceLabel = 'Companion ללא מדידה';
+    lowConfidenceSeconds = 0;
+  } else if (visionFresh) {
+    current = latestVisionFromServer.confidence == null
+      ? null
+      : Math.max(0, Math.min(1, latestVisionFromServer.confidence));
     sourceLabel = latestJetsonFromServer?.online ? 'מחובר' : 'מחובר (Vision)';
   } else {
-    current = 0;
+    current = null;
     sourceLabel = 'ללא חיבור';
     lowConfidenceSeconds = 0;
   }
-  const pct = visionFresh ? Math.round(current * 100) : null;
+  const pct = current == null ? null : Math.round(current * 100);
   const abortThreshold = Number(profileState.abort_conf_min || 0.7);
   const holdNeeded = Number(profileState.abort_conf_hold_s || 2);
   const recoverThreshold = Number(profileState.abort_recover_conf || (abortThreshold + 0.05));
-  if (visionFresh && current < abortThreshold) lowConfidenceSeconds += 1;
-  else if (visionFresh && current >= recoverThreshold) lowConfidenceSeconds = Math.max(0, lowConfidenceSeconds - 1);
+  if (visionFresh && current != null && current < abortThreshold) lowConfidenceSeconds += 1;
+  else if (visionFresh && current != null && current >= recoverThreshold) lowConfidenceSeconds = Math.max(0, lowConfidenceSeconds - 1);
   const isAbort = lowConfidenceSeconds >= holdNeeded;
   const checks = computeChecklist(current);
   const takeoffReady = checks.every((c) => c.pass);

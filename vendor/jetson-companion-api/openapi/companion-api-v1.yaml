@@ -1,0 +1,936 @@
+openapi: 3.1.0
+info:
+  title: Jetson Companion API
+  version: "1"
+  summary: Aircraft-side companion contract for VisionLandingConsole.
+  description: |
+    Source of truth is Jetson Companion Core (`src/companion/`).
+    Design only — no server is implemented.
+
+    Safety tiers (x-safety-tier): READ_ONLY | RUNTIME_WRITE | FLIGHT_CRITICAL | NOT_SUPPORTED.
+    Flight-control commands, UART, systemd, and raw GStreamer are not part of this API.
+  license:
+    name: Proprietary
+
+servers:
+  - url: http://127.0.0.1:{port}/api/v1
+    description: Future local loopback (port TBD; not UI :4010)
+    variables:
+      port:
+        default: "8472"
+  - url: http://100.82.59.45:{port}/api/v1
+    description: Future Tailscale bind (not public WWAN)
+    variables:
+      port:
+        default: "8472"
+
+tags:
+  - name: meta
+  - name: status
+  - name: vision
+  - name: navigation
+  - name: landing
+  - name: video
+  - name: config
+  - name: policy
+  - name: events
+
+x-not-supported:
+  - ARM
+  - DISARM
+  - SET_MODE
+  - LAND
+  - COMMAND_LONG
+  - UART
+  - systemd
+  - GStreamer control
+  - POST /policy/apply
+
+paths:
+  /health:
+    get:
+      tags: [meta]
+      operationId: getHealth
+      x-safety-tier: READ_ONLY
+      x-mutability: READ_ONLY
+      summary: Process liveness (not FC heartbeat)
+      responses:
+        "200":
+          description: Companion process is up
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+
+  /version:
+    get:
+      tags: [meta]
+      operationId: getVersion
+      x-safety-tier: READ_ONLY
+      x-mutability: READ_ONLY
+      responses:
+        "200":
+          description: API and companion versions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VersionResponse"
+
+  /status:
+    get:
+      tags: [status]
+      operationId: getStatus
+      x-safety-tier: READ_ONLY
+      x-mutability: READ_ONLY
+      summary: Aggregate CompanionStatus plus FC/channels/landing summaries
+      responses:
+        "200":
+          description: Snapshot
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CompanionStatus"
+
+  /status/system:
+    get:
+      tags: [status]
+      operationId: getSystemStatus
+      x-safety-tier: READ_ONLY
+      x-mutability: READ_ONLY
+      responses:
+        "200":
+          description: SystemStatus
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SystemStatus"
+
+  /status/fc:
+    get:
+      tags: [status]
+      operationId: getFcStatus
+      x-safety-tier: READ_ONLY
+      x-mutability: READ_ONLY
+      summary: Projection of inbound MAVLink cache, not a second estimator
+      responses:
+        "200":
+          description: FcStatus
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FcStatus"
+
+  /status/mavlink:
+    get:
+      tags: [status]
+      operationId: getMavlinkStatus
+      x-safety-tier: READ_ONLY
+      x-mutability: READ_ONLY
+      responses:
+        "200":
+          description: MavlinkStatus
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MavlinkStatus"
+
+  /status/channels:
+    get:
+      tags: [status]
+      operationId: getChannels
+      x-safety-tier: READ_ONLY
+      x-mutability: READ_ONLY
+      responses:
+        "200":
+          description: Communication channels
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChannelsStatus"
+
+  /status/vision:
+    get:
+      tags: [vision]
+      operationId: getVisionStatus
+      x-safety-tier: READ_ONLY
+      x-mutability: READ_ONLY
+      responses:
+        "200":
+          description: VisionStatus
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VisionStatus"
+
+  /vision/result:
+    get:
+      tags: [vision]
+      operationId: getVisionResult
+      x-safety-tier: READ_ONLY
+      x-mutability: READ_ONLY
+      summary: Latest VisionResult; stale is unavailable, never silently current
+      responses:
+        "200":
+          description: VisionResult
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VisionResult"
+
+  /status/navigation:
+    get:
+      tags: [navigation]
+      operationId: getNavigationStatus
+      x-safety-tier: READ_ONLY
+      x-mutability: READ_ONLY
+      responses:
+        "200":
+          description: NavigationStatus
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NavigationStatus"
+
+  /navigation/estimate:
+    get:
+      tags: [navigation]
+      operationId: getNavEstimate
+      x-safety-tier: READ_ONLY
+      x-mutability: READ_ONLY
+      summary: Internal NavEstimate only; not injected into ArduPilot
+      responses:
+        "200":
+          description: NavEstimate
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NavEstimate"
+
+  /status/landing:
+    get:
+      tags: [landing]
+      operationId: getLandingStatus
+      x-safety-tier: READ_ONLY
+      x-mutability: READ_ONLY
+      responses:
+        "200":
+          description: LandingTargetResult
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LandingTargetResult"
+
+  /status/video:
+    get:
+      tags: [video]
+      operationId: getVideoStatus
+      x-safety-tier: READ_ONLY
+      x-mutability: READ_ONLY
+      summary: Pipeline metadata only; no stream URL protocol chosen
+      responses:
+        "200":
+          description: VideoStatus
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VideoStatus"
+
+  /diagnostics:
+    get:
+      tags: [status]
+      operationId: getDiagnostics
+      x-safety-tier: READ_ONLY
+      x-mutability: READ_ONLY
+      responses:
+        "200":
+          description: Diagnostics snapshot
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiagnosticsSnapshot"
+
+  /config:
+    get:
+      tags: [config]
+      operationId: getConfig
+      x-safety-tier: READ_ONLY
+      x-mutability: READ_ONLY
+      responses:
+        "200":
+          description: Full CompanionConfig (writes still tier-gated)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CompanionConfig"
+
+  /config/runtime:
+    patch:
+      tags: [config]
+      operationId: patchRuntimeConfig
+      x-safety-tier: RUNTIME_WRITE
+      x-mutability: RUNTIME_WRITE
+      summary: Non-flight-critical runtime keys only
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RuntimeConfigPatch"
+            example:
+              runtime:
+                min_detection_confidence: 0.4
+                vision_stale_timeout_s: 0.5
+                log_level: INFO
+      responses:
+        "200":
+          description: Updated CompanionConfig
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CompanionConfig"
+        "400":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+
+  /policy:
+    get:
+      tags: [policy]
+      operationId: getPolicy
+      x-safety-tier: READ_ONLY
+      x-mutability: READ_ONLY
+      responses:
+        "200":
+          description: Project policy YAML as JSON
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MavlinkPolicy"
+    put:
+      tags: [policy]
+      operationId: putPolicy
+      x-safety-tier: RUNTIME_WRITE
+      x-mutability: RUNTIME_WRITE
+      summary: Validate and save project policy; does not apply to /etc or restart router
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MavlinkPolicy"
+      responses:
+        "200":
+          description: Saved intent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PolicyWriteResponse"
+        "400":
+          $ref: "#/components/responses/Error"
+
+  /policy/preview:
+    get:
+      tags: [policy]
+      operationId: previewPolicy
+      x-safety-tier: READ_ONLY
+      x-mutability: READ_ONLY
+      summary: mavlink-router snippet from current policy; never writes /etc
+      responses:
+        "200":
+          description: Snippet
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PolicyPreview"
+
+  /policy/apply:
+    post:
+      tags: [policy]
+      operationId: applyPolicy
+      x-safety-tier: NOT_SUPPORTED
+      x-mutability: NOT_SUPPORTED
+      summary: Not supported in v1 (would write /etc and restart mavlink-router)
+      responses:
+        "501":
+          $ref: "#/components/responses/Error"
+
+  /command/{name}:
+    post:
+      tags: [status]
+      operationId: forbiddenCommand
+      x-safety-tier: NOT_SUPPORTED
+      x-mutability: NOT_SUPPORTED
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [arm, disarm, set_mode, land]
+      responses:
+        "403":
+          $ref: "#/components/responses/Error"
+
+  /events:
+    get:
+      tags: [events]
+      operationId: streamEventsSse
+      x-safety-tier: READ_ONLY
+      x-mutability: READ_ONLY
+      summary: SSE stream of EventEnvelope
+      responses:
+        "200":
+          description: text/event-stream
+          content:
+            text/event-stream:
+              schema:
+                $ref: "#/components/schemas/EventEnvelope"
+
+  /ws:
+    get:
+      tags: [events]
+      operationId: streamEventsWs
+      x-safety-tier: READ_ONLY
+      x-mutability: READ_ONLY
+      summary: WebSocket; same EventEnvelope JSON as SSE
+      responses:
+        "101":
+          description: Switching Protocols
+
+components:
+  responses:
+    Error:
+      description: Error
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+  schemas:
+    HealthState:
+      type: string
+      enum: [unavailable, degraded, valid]
+
+    Validity:
+      type: string
+      enum: [invalid, stale, valid]
+
+    Timestamped:
+      type: object
+      additionalProperties: false
+      required: [t_monotonic_ns]
+      properties:
+        t_monotonic_ns:
+          type: integer
+          format: int64
+        t_utc_ns:
+          type: [integer, "null"]
+          format: int64
+
+    Quality:
+      type: object
+      additionalProperties: false
+      required: [confidence]
+      properties:
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+        label:
+          type: string
+          default: ""
+
+    Diagnostics:
+      type: object
+      additionalProperties: false
+      properties:
+        data:
+          type: object
+          additionalProperties: true
+
+    Vec3:
+      type: array
+      minItems: 3
+      maxItems: 3
+      items:
+        type: number
+
+    FrameId:
+      type: string
+      enum: [camera_optical, body_frd, body_flu, ned_local, wgs84, target]
+
+    HealthResponse:
+      type: object
+      required: [ok, api_version]
+      properties:
+        ok:
+          type: boolean
+        api_version:
+          type: string
+          example: "1"
+
+    VersionResponse:
+      type: object
+      required: [api_version, companion_version]
+      properties:
+        api_version:
+          type: string
+        companion_version:
+          type: string
+          example: "0.1.0"
+
+    SystemStatus:
+      type: object
+      additionalProperties: false
+      properties:
+        cpu_percent: { type: [number, "null"] }
+        ram_used_mb: { type: [number, "null"] }
+        ram_total_mb: { type: [number, "null"] }
+        gpu_percent: { type: [number, "null"] }
+        temperature_c: { type: [number, "null"] }
+        disk_used_percent: { type: [number, "null"] }
+
+    MavlinkStatus:
+      type: object
+      additionalProperties: false
+      properties:
+        router_running: { type: boolean }
+        connected: { type: boolean }
+        heartbeat_ok: { type: boolean }
+        messages_sent: { type: integer }
+        messages_received: { type: integer }
+        messages_dropped:
+          type: [integer, "null"]
+          description: Optional; for UI packet-loss. Null until counted.
+        rx_drop_rate:
+          type: [number, "null"]
+        last_heartbeat:
+          oneOf:
+            - $ref: "#/components/schemas/Timestamped"
+            - type: "null"
+
+    VisionStatus:
+      type: object
+      additionalProperties: false
+      properties:
+        running: { type: boolean }
+        health: { $ref: "#/components/schemas/HealthState" }
+        fps: { type: [number, "null"] }
+        latency_ms: { type: [number, "null"] }
+        last_valid:
+          oneOf:
+            - $ref: "#/components/schemas/Timestamped"
+            - type: "null"
+        quality: { $ref: "#/components/schemas/Quality" }
+        camera_ok: { type: boolean }
+        source_id: { type: string }
+
+    NavigationStatus:
+      type: object
+      additionalProperties: false
+      properties:
+        active_source: { type: string }
+        health: { $ref: "#/components/schemas/HealthState" }
+        validity: { $ref: "#/components/schemas/Validity" }
+        quality: { $ref: "#/components/schemas/Quality" }
+        last_update:
+          oneOf:
+            - $ref: "#/components/schemas/Timestamped"
+            - type: "null"
+
+    VideoStatus:
+      type: object
+      additionalProperties: false
+      properties:
+        raw_pipeline: { type: string }
+        annotated_pipeline: { type: string }
+        raw_fps: { type: [number, "null"] }
+        annotated_fps: { type: [number, "null"] }
+        bitrate_kbps: { type: [number, "null"] }
+        raw_kind:
+          type: string
+          const: raw
+        annotated_kind:
+          type: string
+          const: annotated
+
+    CachedMessage:
+      type: object
+      required: [validity]
+      properties:
+        validity: { $ref: "#/components/schemas/Validity" }
+        timestamp:
+          oneOf:
+            - $ref: "#/components/schemas/Timestamped"
+            - type: "null"
+        system_id: { type: [integer, "null"] }
+        component_id: { type: [integer, "null"] }
+        fields:
+          type: object
+          additionalProperties: true
+
+    FcStatus:
+      type: object
+      description: View over TelemetryCache; not a Core domain class
+      additionalProperties: false
+      properties:
+        heartbeat: { $ref: "#/components/schemas/CachedMessage" }
+        sys_status: { $ref: "#/components/schemas/CachedMessage" }
+        attitude: { $ref: "#/components/schemas/CachedMessage" }
+        global_position_int: { $ref: "#/components/schemas/CachedMessage" }
+        armed:
+          type: [boolean, "null"]
+          description: Derived from HEARTBEAT base_mode if present; observe-only
+        custom_mode: { type: [integer, "null"] }
+
+    ChannelStatus:
+      type: object
+      properties:
+        id: { type: string }
+        implementation: { type: string }
+        jetson_in_path: { type: boolean }
+        listening: { type: [boolean, "null"] }
+        bind: { type: [string, "null"] }
+        notes: { type: string }
+
+    ChannelsStatus:
+      type: object
+      required: [rc, rfd900x, gcs_tailscale, vision_loopback]
+      properties:
+        rc:
+          $ref: "#/components/schemas/ChannelStatus"
+        rfd900x:
+          $ref: "#/components/schemas/ChannelStatus"
+        gcs_tailscale:
+          $ref: "#/components/schemas/ChannelStatus"
+        vision_loopback:
+          $ref: "#/components/schemas/ChannelStatus"
+
+    Detection:
+      type: object
+      required: [label, detection_id, confidence]
+      properties:
+        label: { type: string }
+        detection_id:
+          oneOf:
+            - type: integer
+            - type: string
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+        bbox_px:
+          type: [array, "null"]
+          minItems: 4
+          maxItems: 4
+          items: { type: number }
+        corners_px:
+          type: [array, "null"]
+          items:
+            type: array
+            minItems: 2
+            maxItems: 2
+            items: { type: number }
+        metadata:
+          type: object
+          additionalProperties: true
+
+    LandingTargetMeasurement:
+      type: object
+      required: [angle_x_rad, angle_y_rad, distance_m, position_valid]
+      properties:
+        angle_x_rad: { type: number }
+        angle_y_rad: { type: number }
+        distance_m: { type: number }
+        frame:
+          $ref: "#/components/schemas/FrameId"
+        target_num: { type: integer }
+        landing_type: { type: integer }
+        position_m:
+          oneOf:
+            - $ref: "#/components/schemas/Vec3"
+            - type: "null"
+        position_valid:
+          type: boolean
+          default: false
+        marker_id: { type: [integer, "null"] }
+
+    VisionResult:
+      type: object
+      required: [timestamp, source, validity, quality, health, frame_id]
+      properties:
+        timestamp: { $ref: "#/components/schemas/Timestamped" }
+        source: { type: string }
+        validity: { $ref: "#/components/schemas/Validity" }
+        quality: { $ref: "#/components/schemas/Quality" }
+        health: { $ref: "#/components/schemas/HealthState" }
+        frame_id: { type: integer }
+        detections:
+          type: array
+          items: { $ref: "#/components/schemas/Detection" }
+        landing_target:
+          oneOf:
+            - $ref: "#/components/schemas/LandingTargetMeasurement"
+            - type: "null"
+        latency_ms: { type: [number, "null"] }
+        diagnostics: { $ref: "#/components/schemas/Diagnostics" }
+
+    LandingTargetResult:
+      type: object
+      required: [timestamp, source, validity, quality]
+      properties:
+        timestamp: { $ref: "#/components/schemas/Timestamped" }
+        source: { type: string }
+        validity: { $ref: "#/components/schemas/Validity" }
+        quality: { $ref: "#/components/schemas/Quality" }
+        target:
+          oneOf:
+            - $ref: "#/components/schemas/LandingTargetMeasurement"
+            - type: "null"
+        detections:
+          type: array
+          items: { $ref: "#/components/schemas/Detection" }
+
+    NavEstimate:
+      type: object
+      required: [timestamp, source, validity, quality]
+      properties:
+        timestamp: { $ref: "#/components/schemas/Timestamped" }
+        source: { type: string }
+        validity: { $ref: "#/components/schemas/Validity" }
+        quality: { $ref: "#/components/schemas/Quality" }
+        position_m:
+          oneOf:
+            - $ref: "#/components/schemas/Vec3"
+            - type: "null"
+        velocity_m_s:
+          oneOf:
+            - $ref: "#/components/schemas/Vec3"
+            - type: "null"
+        attitude_rpy_rad:
+          oneOf:
+            - $ref: "#/components/schemas/Vec3"
+            - type: "null"
+        position_frame: { $ref: "#/components/schemas/FrameId" }
+        attitude_frame: { $ref: "#/components/schemas/FrameId" }
+        covariance:
+          type: [array, "null"]
+          items: { type: number }
+        metadata:
+          type: object
+          additionalProperties: true
+
+    CompanionStatus:
+      type: object
+      required: [timestamp, system, mavlink, vision, navigation, video]
+      properties:
+        timestamp: { $ref: "#/components/schemas/Timestamped" }
+        system: { $ref: "#/components/schemas/SystemStatus" }
+        mavlink: { $ref: "#/components/schemas/MavlinkStatus" }
+        vision: { $ref: "#/components/schemas/VisionStatus" }
+        navigation: { $ref: "#/components/schemas/NavigationStatus" }
+        video: { $ref: "#/components/schemas/VideoStatus" }
+        fc: { $ref: "#/components/schemas/FcStatus" }
+        channels: { $ref: "#/components/schemas/ChannelsStatus" }
+        landing: { $ref: "#/components/schemas/LandingTargetResult" }
+        extras:
+          type: object
+          additionalProperties: true
+
+    CameraExtrinsics:
+      type: object
+      x-safety-tier: READ_ONLY
+      properties:
+        rotation_rpy_rad: { $ref: "#/components/schemas/Vec3" }
+        translation_m: { $ref: "#/components/schemas/Vec3" }
+        body_frame: { $ref: "#/components/schemas/FrameId" }
+
+    ArucoConfig:
+      type: object
+      properties:
+        dictionary_name: { type: string }
+        marker_ids:
+          type: array
+          items: { type: integer }
+        marker_length_m: { type: number }
+        fx: { type: number }
+        fy: { type: number }
+        cx: { type: number }
+        cy: { type: number }
+        hfov_deg: { type: number }
+        target_num: { type: integer }
+        landing_type: { type: integer }
+        frame: { $ref: "#/components/schemas/FrameId" }
+
+    CompanionConfig:
+      type: object
+      properties:
+        static:
+          type: object
+          x-safety-tier: READ_ONLY
+          additionalProperties: true
+        runtime:
+          type: object
+          x-safety-tier: RUNTIME_WRITE
+          additionalProperties: true
+        flight_critical:
+          type: object
+          x-safety-tier: FLIGHT_CRITICAL
+          additionalProperties: true
+        read_only:
+          type: object
+          x-safety-tier: READ_ONLY
+          additionalProperties: true
+        camera_extrinsics:
+          oneOf:
+            - $ref: "#/components/schemas/CameraExtrinsics"
+            - type: "null"
+        aruco:
+          oneOf:
+            - $ref: "#/components/schemas/ArucoConfig"
+            - type: "null"
+        vision:
+          type: object
+          additionalProperties: true
+
+    RuntimeConfigPatch:
+      type: object
+      additionalProperties: false
+      properties:
+        runtime:
+          type: object
+          additionalProperties: false
+          properties:
+            vision_stale_timeout_s:
+              type: number
+              exclusiveMinimum: 0
+            log_level:
+              type: string
+              enum: [DEBUG, INFO, WARNING, ERROR]
+            min_detection_confidence:
+              type: number
+              minimum: 0
+              maximum: 1
+        vision:
+          type: object
+          additionalProperties: false
+          properties:
+            default_source:
+              type: string
+              enum: [synthetic, replay, csi]
+        aruco:
+          type: object
+          additionalProperties: false
+          properties:
+            aruco_dict: { type: string }
+            marker_ids:
+              type: array
+              items: { type: integer }
+
+    MavlinkPolicyChannel:
+      type: object
+      additionalProperties: true
+      properties:
+        implementation: { type: string }
+        endpoint: { type: string }
+        mode: { type: string }
+        deny:
+          type: array
+          items: { type: string }
+        deny_in:
+          type: array
+          items: { type: string }
+        deny_out:
+          type: array
+          items: { type: string }
+        allow:
+          type: array
+          items: { type: string }
+        notes: { type: string }
+
+    MavlinkPolicy:
+      type: object
+      required: [version, channels]
+      properties:
+        version: { type: integer }
+        channels:
+          type: object
+          required: [gcs_4g, rfd900x]
+          properties:
+            gcs_4g: { $ref: "#/components/schemas/MavlinkPolicyChannel" }
+            rfd900x: { $ref: "#/components/schemas/MavlinkPolicyChannel" }
+
+    PolicyWriteResponse:
+      type: object
+      required: [ok, applied]
+      properties:
+        ok: { type: boolean }
+        applied:
+          type: boolean
+          description: Always false in v1
+        path: { type: string }
+
+    PolicyPreview:
+      type: object
+      properties:
+        snippet: { type: string }
+        writes_etc: { type: boolean, const: false }
+
+    DiagnosticsSnapshot:
+      type: object
+      properties:
+        timestamp: { $ref: "#/components/schemas/Timestamped" }
+        diagnostics: { $ref: "#/components/schemas/Diagnostics" }
+        subsystems:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/HealthState"
+
+    DiagnosticEvent:
+      type: object
+      required: [subsystem, health, message]
+      properties:
+        subsystem:
+          type: string
+          enum: [system, vision, navigation, landing, mavlink, video, policy, config, api]
+        health: { $ref: "#/components/schemas/HealthState" }
+        message: { type: string }
+        diagnostics: { $ref: "#/components/schemas/Diagnostics" }
+
+    EventEnvelope:
+      type: object
+      required: [api_version, event, timestamp, payload]
+      properties:
+        api_version:
+          type: string
+          const: "1"
+        event:
+          type: string
+          enum: [status, vision, mavlink, navigation, landing, diagnostics]
+        timestamp: { $ref: "#/components/schemas/Timestamped" }
+        payload:
+          description: Schema depends on event (status→CompanionStatus, vision→VisionResult, …)
+
+    ErrorBody:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          enum:
+            - validation_error
+            - not_supported
+            - forbidden
+            - stale
+            - unavailable
+            - not_found
+        message: { type: string }
+        details:
+          type: array
+          items: { type: string }
+
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error: { $ref: "#/components/schemas/ErrorBody" }

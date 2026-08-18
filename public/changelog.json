@@ -1,5 +1,36 @@
 [
   {
+    "version": "1.02.232",
+    "date": "2026-08-18",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Server library",
+        "detail": "companion-api-client.mjs, companion-display.mjs, companion-events-bridge.mjs, companion-mock-fixtures.mjs, companion-mock.mjs, companion-service.mjs, companion-status.mjs, companion-v1-paths.mjs, jetson-companion-proxy.mjs, companion-proxy-api.mjs, core-api.mjs, http-register.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "UI / app.js",
+        "detail": "app.js"
+      },
+      {
+        "type": "feat",
+        "title": "Server routes",
+        "detail": "server.js"
+      },
+      {
+        "type": "ui",
+        "title": "HTML layout",
+        "detail": "index.html"
+      },
+      {
+        "type": "ui",
+        "title": "Styles",
+        "detail": "styles.css"
+      }
+    ]
+  },
+  {
     "version": "1.02.231",
     "date": "2026-05-30",
     "changes": [

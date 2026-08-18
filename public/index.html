@@ -188,6 +188,7 @@
         <button class="tab active" data-tab="control" title="כל פרמטרי הנחיתה, הניווט הוויזואלי והקושחה במקום אחד">מרכז פרמטרים</button>
         <button class="tab" data-tab="recordings" title="הקלטות ולוגים תחת תחקור">תחקור</button>
         <button class="tab" data-tab="telemetry" title="לוח טלמטריה, סטטוסים ובדיקות מערכת">טלמטריה</button>
+        <button class="tab" data-tab="maintenance" title="סטטוס תחזוקה לתצוגה בלבד">תחזוקה</button>
         <button class="tab" data-tab="simLab" title="מעבדת SITL — ArduPilot בסימולציה, תצוגת תלת־מימד מהטלמטריה וקביעות חיבור">מעבדת SITL</button>
         <button class="tab" data-tab="advisor" title="AI Advisor — אבחון, הצעות, שינוי פרמטרים וזיכרון ארוך-טווח">AI Advisor</button>
         <button class="tab" data-tab="featureDesigner" title="ArduLab — תאר פיצ'ר חדש, ה-AI יכתוב עבורך קוד ArduPilot מלא ויגדיר פרמטרים">ArduLab</button>
@@ -463,6 +464,28 @@
       </section>
 
       <section id="telemetry" class="panel">
+        <div class="panel-header tele-b2-head">
+          <div class="tele-subtabs" role="tablist" aria-label="תצוגות טלמטריה">
+            <button type="button" class="tele-subtab active" data-tele-tab="dash">לוח</button>
+            <button type="button" class="tele-subtab" data-tele-tab="companion">מלווה</button>
+          </div>
+          <div id="companionMockBar" class="companion-mock-bar" hidden>
+            <span>מצב מדומה</span>
+            <button type="button" class="tele-subtab" data-mock-scenario="healthy">תקין</button>
+            <button type="button" class="tele-subtab" data-mock-scenario="disconnected">מנותק</button>
+            <button type="button" class="tele-subtab" data-mock-scenario="degraded">מוחלש</button>
+          </div>
+        </div>
+        <div id="companionApiUnavailable" class="companion-api-unavailable" hidden></div>
+        <div id="teleDashPanel" class="tele-subpanel visible" data-tele-panel="dash">
+        <div class="companion-dashboard-summary" aria-label="סיכום Companion API">
+          <article class="tele-card"><span>Companion API</span><strong id="companionApiState">כבוי</strong></article>
+          <article class="tele-card"><span>גרסת Companion</span><strong id="companionApiVersion">—</strong></article>
+          <article class="tele-card"><span>בקר טיסה</span><strong id="companionFcConnected">—</strong></article>
+          <article class="tele-card"><span>ראייה</span><strong id="companionVisionHealth">—</strong></article>
+          <article class="tele-card"><span>נחיתה לתצוגה</span><strong id="companionLandingDetected">—</strong></article>
+          <article class="tele-card"><span>וידאו</span><strong id="companionVideoStatus">—</strong></article>
+        </div>
         <div class="telemetry-dashboard" aria-label="לוח טלמטריה וסטטוסים — ארבעה תחומים במסך אחד">
           <div class="tele-dash-col" id="teleLink">
             <header class="tele-dash-head">קישוריות</header>
@@ -639,6 +662,77 @@
 
         <!-- hidden: diff notes (kept for JS compat) -->
         <p id="jetsonDiffNotesHe" style="display:none">—</p>
+        </div>
+
+        <div id="teleCompanionPanel" class="tele-subpanel companion-b2-panel" data-tele-panel="companion">
+          <p class="tele-dash-note">תצוגה בלבד מנתוני Companion API ללא פקודות טיסה או כתיבות</p>
+          <div class="companion-section-grid">
+            <section class="companion-b2-section">
+              <h3>מערכת ובקר</h3>
+              <div class="companion-b2-table">
+                <div class="companion-b2-row"><span>מעבד</span><strong id="companionCpu">—</strong><span>זיכרון</span><strong id="companionMem">—</strong></div>
+                <div class="companion-b2-row"><span>טמפרטורה</span><strong id="companionTemp">—</strong><span>דיסק</span><strong id="companionDisk">—</strong></div>
+                <div class="companion-b2-row"><span>דופק בקר</span><strong id="companionFcHeartbeat">—</strong><span>מזהה מערכת</span><strong id="companionFcSysid">—</strong></div>
+              </div>
+            </section>
+            <section class="companion-b2-section">
+              <h3>נתיב הודעות וערוצים</h3>
+              <div class="companion-b2-table">
+                <div class="companion-b2-row"><span>נתב</span><strong id="companionMavRouter">—</strong><span>דופק</span><strong id="companionMavHeartbeat">—</strong></div>
+                <div class="companion-b2-row"><span>התקבלו</span><strong id="companionMavReceived">—</strong><span>נשמטו</span><strong id="companionMavDropped">—</strong></div>
+              </div>
+              <div id="companionChannelsTable" class="companion-b2-table"></div>
+              <div id="companionMsgCats" class="companion-b2-chips"></div>
+            </section>
+            <section class="companion-b2-section">
+              <h3>ראייה ונחיתה לתצוגה בלבד</h3>
+              <div class="companion-b2-table">
+                <div class="companion-b2-row"><span>קצב פריימים</span><strong id="companionVisionFps">—</strong><span>ביטחון</span><strong id="companionVisionConfidence">—</strong></div>
+                <div class="companion-b2-row"><span>מטרה</span><strong id="companionVisionTargetId">—</strong><span>טווח נחיתה</span><strong id="companionLandRange">—</strong></div>
+                <div class="companion-b2-row"><span>מיקום מלווה</span><strong id="companionNavPos">—</strong><span>EKF</span><strong id="companionNavEkf">לא מוזרק</strong></div>
+              </div>
+            </section>
+            <section class="companion-b2-section">
+              <h3>וידאו כמקום שמור</h3>
+              <div class="companion-video-ph">
+                <article class="tele-card"><span>גולמי</span><strong id="companionVidRawPh">—</strong></article>
+                <article class="tele-card"><span>מסומן</span><strong id="companionVidAnnPh">—</strong></article>
+                <article class="tele-card"><span>רזולוציה</span><strong id="companionVidRes">—</strong></article>
+              </div>
+            </section>
+            <section class="companion-b2-section">
+              <h3>מדיניות לקריאה ותצוגה מקדימה</h3>
+              <p class="tele-dash-note">אין החלה ואין כתיבה למערכת</p>
+              <div class="companion-policy-cols">
+                <div id="companionPolicyGcs" class="companion-policy-list"></div>
+                <div id="companionPolicyRfd" class="companion-policy-list"></div>
+              </div>
+              <pre id="companionPolicyPreview" class="companion-preview">—</pre>
+            </section>
+            <section class="companion-b2-section">
+              <h3>תצורה לפי שכבת בטיחות</h3>
+              <div id="companionConfigTable" class="companion-b2-table">—</div>
+            </section>
+            <section class="companion-b2-section">
+              <h3>אבחון</h3>
+              <div id="companionDiagGrid" class="companion-b2-chips"></div>
+              <p id="companionDiagMsg" class="tele-dash-note">—</p>
+            </section>
+          </div>
+        </div>
+      </section>
+
+      <section id="maintenance" class="panel">
+        <div class="companion-maint-panel">
+          <h3>תחזוקה</h3>
+          <p class="tele-dash-note">מקום שמור לתצוגה בלבד ללא אתחול מחדש פריסה או פקודות מערכת</p>
+          <div class="companion-dashboard-summary">
+            <article class="tele-card"><span>גרסת ממשק</span><strong id="maintUiVersion">__APP_VERSION__</strong></article>
+            <article class="tele-card"><span>גרסת Companion</span><strong id="maintCompanionVersion">—</strong></article>
+            <article class="tele-card"><span>גרסת API</span><strong id="maintApiVersion">v1</strong></article>
+            <article class="tele-card"><span>מצב</span><strong id="maintCompanionMode">כבוי</strong></article>
+          </div>
+        </div>
       </section>
 
             <section id="simLab" class="panel">
