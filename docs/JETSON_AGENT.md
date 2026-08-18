@@ -532,6 +532,15 @@ curl -X POST http://192.168.1.100:4010/api/vision/flow \
 
 ## Companion Agent — MAVLink relay + heartbeat (חיבור חכם מהקונסול)
 
+> **LEGACY / FROZEN.** `companion_agent.py` ו־`/api/jetson/status|heartbeat|install` נשארים לתאימות.
+> מסלול חדש: דפדפן → Node `:4010` `/api/jetson/v1/*` → Jetson `/api/v1/*` (`COMPANION_MODE`, `JETSON_COMPANION_BASE_URL`).
+> אין כאן ARM / DISARM / SET_MODE / LAND / COMMAND_LONG.
+
+| מסלול | תפקיד |
+|--------|--------|
+| **חדש** `/api/jetson/v1/*` | פרוקסי Companion API v1 (ברירת מחדל כבוי) |
+| **ישן** `/api/jetson/*` `/api/rpi/*` | דופק, סטטוס, התקנה, לוגים |
+
 הקונסול (`Vision Landing Console`) יכול להתחבר **אוטומטית** ל-Jetson דרך relay MAVLink (TCP `:5770`) בלי USB ישיר ל-FC.
 
 ### מה הסקריפט עושה

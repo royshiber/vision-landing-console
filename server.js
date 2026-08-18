@@ -10,6 +10,7 @@ import { logger } from './lib/logger.mjs';
 import { buildArduTargetDefaults } from './lib/param-schema.mjs';
 import { registerHttpRoutes } from './lib/routes/http-register.mjs';
 import { correlationMiddleware } from './lib/request-context.mjs';
+import { createCompanionService } from './lib/companion-service.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -58,6 +59,7 @@ function getAppVersion() {
   return readMonorepoAppVersion();
 }
 
+/** TRANSITIONAL: legacy heartbeat snapshot until Phase B UI. Companion API v1 overlays via companionService. */
 const jetsonState = {
   online: false,
   lastSeen: null,
@@ -82,6 +84,7 @@ const JETSON_COMPANION_BASE_URL = (process.env.JETSON_COMPANION_BASE_URL || '').
 
 const visionNavModeState = { mode: 'prior_mission_map' };
 
+/** TRANSITIONAL: populated by legacy /api/vision/* until Companion /api/v1/status/vision overlay. */
 const visionState = {
   lateralOffsetM: null,
   headingErrorDeg: null,
@@ -93,6 +96,7 @@ const visionState = {
   navLon: null,
 };
 
+/** TRANSITIONAL: populated by legacy slam-pose until Companion /api/v1/status/navigation overlay. */
 const slamState = {
   posX: null,
   posY: null,
@@ -127,6 +131,8 @@ const advisorChatLimiter = rateLimit({
 
 app.use(express.json({ limit: '12mb' }));
 
+const companionService = createCompanionService();
+
 /** Why: one mutable bag for Ardu/vision config so ctx.arduCurrentParams assignments in routes update this object. */
 const routeCtx = {
   db,
@@ -138,6 +144,7 @@ const routeCtx = {
   slamState,
   visionNavModeState,
   JETSON_COMPANION_BASE_URL,
+  companionService,
   advisorChatLimiter,
   arduTargetParams: { ...ARDU_TARGET_DEFAULTS },
   visionProfileStore: {},
@@ -194,6 +201,7 @@ if (_isMain) {
     logger.info({ port: PORT, host: HOST, version: APP_VERSION }, `Vision Landing Console started`);
     const hostLabel = HOST === '0.0.0.0' ? 'localhost' : HOST;
     console.log(`Vision Landing Console v${APP_VERSION}: http://${hostLabel}:${PORT}`);
+    companionService.start().catch((err) => logger.warn({ err }, 'Companion events bridge failed to start'));
   });
   server.on('error', (err) => {
     if (err.code === 'EADDRINUSE') {

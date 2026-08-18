@@ -155,6 +155,7 @@
 
 - **דופק חיים:** `POST /api/jetson/heartbeat` (ואחורה `/api/rpi/*`) — חיבור סטטוס Jetson ללוח הבקרה; כולל `peerIp`, relay MAVLink, ומצב FC.
 - **Companion agent:** `companion_agent.py` — relay MAVLink (TCP :5770), HTTP לוגים/התקנה, heartbeat לקונסול; `GET /api/jetson/companion-script`, `POST /api/jetson/install`, `POST /api/jetson/pull-logs`.
+- **Companion API v1:** הדפדפן אינו קורא לג'טסון. שרת הקונסולה מתווך `/api/jetson/v1/*` → `/api/v1/*` (`COMPANION_MODE=off|mock|real`). בלי פקודות חימוש/נחיתה בשלב זה.
 - **חיבור חכם:** `POST /api/connections/auto-connect` + `GET …/auto-connect/progress` (polling) — USB FC ישיר → Jetson relay → SITL מקומי; סרגל שלבים בזמן אמת (סריקה / heartbeat / סיום); **ללא** בחירת מוד ב-UI.
 - **תמונות ומצב SLAM/VIO:** נקודות קצה ל־frame, pose, optical flow — לניווט ללא/עם GPS חלש (פירוט הנדסי ב־`docs/JETSON_AGENT.md`).
 - **MAVLink:** ניהול חיבורים, בקשת פרמטרים, כתיבה מבוקרת, משימות; ערוץ אישור חומרה אופציונלי לפרמטרים דרך מהנדס (`FE_APPROVAL_RC_CHANNEL`).
@@ -259,6 +260,7 @@
 | **`/api/health`, `/api/meta`** | בריאות, גרסה |
 | **`/api/param-center/*`** | סכימה, חיפוש חכם, param-set מבוקר |
 | **`/api/jetson/*`**, **`/api/rpi/*`** | סטטוס, heartbeat, reboot |
+| **`/api/jetson/v1/*`** | פרוקסי Companion API v1 (מצב כבוי כברירת מחדל) |
 | **`/api/vision/*`** | פריימים, VIO, flow, slam |
 | **`/api/stream`** | SSE — עדכונים לדפדפן |
 | **`/api/flights/*`, העלאות** | טיסות, לוגים, הערות |

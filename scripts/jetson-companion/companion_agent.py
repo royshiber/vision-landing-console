@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Vision Landing Console — Jetson companion: MAVLink relay + HTTP API + heartbeat."""
+"""LEGACY/FROZEN — Vision Landing Console Jetson companion: MAVLink relay + HTTP API + heartbeat.
+
+Do not extend this agent for Companion API v1.
+GCS browsers talk only to VisionLandingConsole Node; Node proxies /api/jetson/v1 → Jetson /api/v1.
+"""
 
 from __future__ import annotations
 
