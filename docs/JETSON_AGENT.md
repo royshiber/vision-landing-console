@@ -535,6 +535,7 @@ curl -X POST http://192.168.1.100:4010/api/vision/flow \
 > **LEGACY / FROZEN.** `companion_agent.py` ו־`/api/jetson/status|heartbeat|install` נשארים לתאימות.
 > מסלול חדש: דפדפן → Node `:4010` `/api/jetson/v1/*` → Jetson `/api/v1/*` (`COMPANION_MODE`, `JETSON_COMPANION_BASE_URL`).
 > אין כאן ARM / DISARM / SET_MODE / LAND / COMMAND_LONG.
+> חוזה השדות: מקור הסמכות בריפו הג'טסון (`architecture/openapi/companion-api-v1.yaml`). עותק צריכה בקונסולה: `vendor/jetson-companion-api/`.
 
 | מסלול | תפקיד |
 |--------|--------|

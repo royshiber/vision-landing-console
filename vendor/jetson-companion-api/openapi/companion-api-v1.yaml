@@ -1,0 +1,690 @@
+openapi: 3.1.0
+info:
+  title: Companion API v1
+  version: "1.0.0"
+  description: |
+    Authoritative copy lives in the Jetson repository:
+    architecture/openapi/companion-api-v1.yaml
+    This file is a console consumption snapshot — do not fork the contract here.
+    x-console-aliases are transitional GCS names only; they are not aircraft fields.
+  x-canonical-source: jetson-companion/architecture/openapi/companion-api-v1.yaml
+  x-snapshot-date: "2026-08-18"
+
+servers:
+  - url: /
+    description: Companion base (JETSON_COMPANION_BASE_URL). Never heartbeat :8081.
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: meta
+  - name: status
+  - name: vision
+  - name: navigation
+  - name: config
+  - name: policy
+  - name: events
+
+paths:
+  /api/v1/health:
+    get:
+      tags: [meta]
+      operationId: getHealth
+      responses:
+        "200":
+          description: Process health
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+              example:
+                ok: true
+                status: ok
+                ts: "2026-08-18T12:00:00Z"
+
+  /api/v1/version:
+    get:
+      tags: [meta]
+      operationId: getVersion
+      responses:
+        "200":
+          description: Companion version
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Version"
+              example:
+                version: "1.0.0"
+                api: v1
+
+  /api/v1/status:
+    get:
+      tags: [status]
+      operationId: getStatus
+      responses:
+        "200":
+          description: Aggregated status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Status"
+              examples:
+                healthy:
+                  value:
+                    ok: true
+                    connected: true
+                    version: "1.0.0"
+                    state: OK
+                    ts: "2026-08-18T12:00:00Z"
+                    system:
+                      cpu_temp_c: 48.5
+                      gpu_temp_c: 51.2
+                      mem_used_pct: 42
+                    fc:
+                      connected: true
+                      armed: false
+                      mode: STABILIZE
+                      voltage_v: 16.4
+                    vision:
+                      fps: 30
+                      latency_ms: 42
+                      pad_visible: true
+                    navigation:
+                      quality: 0.82
+                      tracking: true
+                    landing:
+                      phase: idle
+                      ready: false
+                    video:
+                      streaming: true
+                      url: "http://companion.local/stream"
+                    mavlink:
+                      connected: true
+                      heartbeat_hz: 4
+                    channels:
+                      rc: null
+                stale:
+                  value:
+                    ok: true
+                    connected: true
+                    version: "1.0.0"
+                    state: STALE
+                    ts: "2026-08-18T12:00:00Z"
+                    system:
+                      cpu_temp_c: null
+                      gpu_temp_c: null
+                      mem_used_pct: null
+                    fc:
+                      connected: true
+                      armed: null
+                      mode: null
+                      voltage_v: null
+                    vision:
+                      fps: null
+                      latency_ms: null
+                      pad_visible: null
+                    navigation:
+                      quality: null
+                      tracking: null
+                    landing:
+                      phase: null
+                      ready: null
+                    video:
+                      streaming: null
+                      url: null
+                    mavlink:
+                      connected: null
+                      heartbeat_hz: null
+                    channels:
+                      rc: null
+                missing_numerics:
+                  value:
+                    ok: true
+                    connected: true
+                    version: "1.0.0"
+                    state: OK
+                    system: {}
+                    fc:
+                      connected: true
+                      mode: STABILIZE
+                    vision:
+                      pad_visible: true
+                    navigation: {}
+                    landing: {}
+                    video: {}
+
+  /api/v1/status/system:
+    get:
+      tags: [status]
+      operationId: getStatusSystem
+      responses:
+        "200":
+          description: System telemetry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SystemStatus"
+              example:
+                cpu_temp_c: 48.5
+                gpu_temp_c: 51.2
+                mem_used_pct: 42
+
+  /api/v1/status/fc:
+    get:
+      tags: [status]
+      operationId: getStatusFc
+      responses:
+        "200":
+          description: Flight-controller link
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FcStatus"
+              example:
+                connected: true
+                armed: false
+                mode: STABILIZE
+                voltage_v: 16.4
+
+  /api/v1/status/mavlink:
+    get:
+      tags: [status]
+      operationId: getStatusMavlink
+      responses:
+        "200":
+          description: MAVLink transport
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MavlinkStatus"
+              example:
+                connected: true
+                heartbeat_hz: 4
+
+  /api/v1/status/channels:
+    get:
+      tags: [status]
+      operationId: getStatusChannels
+      responses:
+        "200":
+          description: RC / servo channels
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChannelsStatus"
+              example:
+                rc: null
+
+  /api/v1/status/vision:
+    get:
+      tags: [status]
+      operationId: getStatusVision
+      responses:
+        "200":
+          description: Vision pipeline
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VisionStatus"
+              example:
+                fps: 30
+                latency_ms: 42
+                pad_visible: true
+
+  /api/v1/status/navigation:
+    get:
+      tags: [status]
+      operationId: getStatusNavigation
+      responses:
+        "200":
+          description: Navigation / VIO quality
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NavigationStatus"
+              example:
+                quality: 0.82
+                tracking: true
+
+  /api/v1/status/landing:
+    get:
+      tags: [status]
+      operationId: getStatusLanding
+      responses:
+        "200":
+          description: Landing phase
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LandingStatus"
+              example:
+                phase: idle
+                ready: false
+
+  /api/v1/status/video:
+    get:
+      tags: [status]
+      operationId: getStatusVideo
+      responses:
+        "200":
+          description: Video stream
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VideoStatus"
+              example:
+                streaming: true
+                url: "http://companion.local/stream"
+
+  /api/v1/vision/result:
+    get:
+      tags: [vision]
+      operationId: getVisionResult
+      responses:
+        "200":
+          description: Latest pad / offset result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VisionResult"
+              example:
+                pad_visible: true
+                dx: null
+                dy: null
+
+  /api/v1/navigation/estimate:
+    get:
+      tags: [navigation]
+      operationId: getNavigationEstimate
+      responses:
+        "200":
+          description: Navigation estimate
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NavigationEstimate"
+              example:
+                quality: 0.82
+                tracking: true
+
+  /api/v1/diagnostics:
+    get:
+      tags: [meta]
+      operationId: getDiagnostics
+      responses:
+        "200":
+          description: Diagnostic bundle
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Diagnostics"
+              example:
+                ok: true
+                checks: []
+
+  /api/v1/config:
+    get:
+      tags: [config]
+      operationId: getConfig
+      responses:
+        "200":
+          description: Effective config
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Config"
+              example:
+                runtime: {}
+
+  /api/v1/config/runtime:
+    patch:
+      tags: [config]
+      operationId: patchRuntimeConfig
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        "200":
+          description: Runtime patch applied
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RuntimePatchResult"
+              example:
+                ok: true
+                runtime: {}
+
+  /api/v1/policy:
+    get:
+      tags: [policy]
+      operationId: getPolicy
+      responses:
+        "200":
+          description: Active policy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Policy"
+              example:
+                name: default
+                rules: []
+    put:
+      tags: [policy]
+      operationId: putPolicy
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Policy"
+      responses:
+        "200":
+          description: Policy replaced
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PolicyPutResult"
+              example:
+                ok: true
+                policy:
+                  name: default
+                  rules: []
+
+  /api/v1/policy/preview:
+    get:
+      tags: [policy]
+      operationId: getPolicyPreview
+      responses:
+        "200":
+          description: Policy preview (no apply)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PolicyPreview"
+              example:
+                name: default
+                rules: []
+                preview: true
+
+  /api/v1/events:
+    get:
+      tags: [events]
+      operationId: getEvents
+      responses:
+        "200":
+          description: Recent events snapshot
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Events"
+              example:
+                events: []
+
+  /api/v1/ws:
+    get:
+      tags: [events]
+      operationId: getCompanionWebsocket
+      description: WebSocket upgrade. Not a JSON document.
+      responses:
+        "101":
+          description: Switching protocols
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+
+  schemas:
+    NullableNumber:
+      type: ["number", "null"]
+    NullableString:
+      type: ["string", "null"]
+    NullableBoolean:
+      type: ["boolean", "null"]
+
+    CompanionWireState:
+      type: string
+      enum:
+        - OK
+        - DISCONNECTED
+        - DEGRADED
+        - WAITING_FOR_HARDWARE
+        - STALE
+
+    Health:
+      type: object
+      required: [ok]
+      additionalProperties: true
+      properties:
+        ok:
+          type: boolean
+        status:
+          type: ["string", "null"]
+        ts:
+          type: ["string", "null"]
+
+    Version:
+      type: object
+      required: [version]
+      additionalProperties: true
+      properties:
+        version:
+          type: string
+        api:
+          type: ["string", "null"]
+
+    SystemStatus:
+      type: object
+      additionalProperties: true
+      properties:
+        cpu_temp_c:
+          $ref: "#/components/schemas/NullableNumber"
+          x-console-aliases: [cpuTempC]
+        gpu_temp_c:
+          $ref: "#/components/schemas/NullableNumber"
+          x-console-aliases: [gpuTempC]
+        mem_used_pct:
+          $ref: "#/components/schemas/NullableNumber"
+          x-console-aliases: [memUsedPct]
+
+    FcStatus:
+      type: object
+      additionalProperties: true
+      properties:
+        connected:
+          $ref: "#/components/schemas/NullableBoolean"
+        armed:
+          $ref: "#/components/schemas/NullableBoolean"
+        mode:
+          $ref: "#/components/schemas/NullableString"
+        voltage_v:
+          $ref: "#/components/schemas/NullableNumber"
+          x-console-aliases: [voltageV, voltage]
+
+    VisionStatus:
+      type: object
+      additionalProperties: true
+      properties:
+        fps:
+          $ref: "#/components/schemas/NullableNumber"
+        latency_ms:
+          $ref: "#/components/schemas/NullableNumber"
+          x-console-aliases: [latencyMs]
+        pad_visible:
+          $ref: "#/components/schemas/NullableBoolean"
+          x-console-aliases: [padVisible]
+
+    NavigationStatus:
+      type: object
+      additionalProperties: true
+      properties:
+        quality:
+          $ref: "#/components/schemas/NullableNumber"
+          x-console-aliases: [slamQuality]
+        tracking:
+          $ref: "#/components/schemas/NullableBoolean"
+
+    LandingStatus:
+      type: object
+      additionalProperties: true
+      properties:
+        phase:
+          $ref: "#/components/schemas/NullableString"
+        ready:
+          $ref: "#/components/schemas/NullableBoolean"
+
+    VideoStatus:
+      type: object
+      additionalProperties: true
+      properties:
+        streaming:
+          $ref: "#/components/schemas/NullableBoolean"
+        url:
+          $ref: "#/components/schemas/NullableString"
+
+    MavlinkStatus:
+      type: object
+      additionalProperties: true
+      properties:
+        connected:
+          $ref: "#/components/schemas/NullableBoolean"
+        heartbeat_hz:
+          $ref: "#/components/schemas/NullableNumber"
+          x-console-aliases: [heartbeatHz]
+
+    ChannelsStatus:
+      type: object
+      additionalProperties: true
+      properties:
+        rc:
+          description: RC channel map or null when not present
+          nullable: true
+
+    Status:
+      type: object
+      additionalProperties: true
+      properties:
+        ok:
+          type: ["boolean", "null"]
+        connected:
+          type: ["boolean", "null"]
+          x-console-aliases: [reachable]
+        version:
+          type: ["string", "null"]
+          x-console-aliases: [appVersion]
+        state:
+          $ref: "#/components/schemas/CompanionWireState"
+        ts:
+          type: ["string", "null"]
+        system:
+          $ref: "#/components/schemas/SystemStatus"
+        fc:
+          $ref: "#/components/schemas/FcStatus"
+        vision:
+          $ref: "#/components/schemas/VisionStatus"
+        navigation:
+          $ref: "#/components/schemas/NavigationStatus"
+        landing:
+          $ref: "#/components/schemas/LandingStatus"
+        video:
+          $ref: "#/components/schemas/VideoStatus"
+        mavlink:
+          $ref: "#/components/schemas/MavlinkStatus"
+        channels:
+          $ref: "#/components/schemas/ChannelsStatus"
+
+    VisionResult:
+      type: object
+      additionalProperties: true
+      properties:
+        pad_visible:
+          $ref: "#/components/schemas/NullableBoolean"
+          x-console-aliases: [padVisible]
+        dx:
+          $ref: "#/components/schemas/NullableNumber"
+        dy:
+          $ref: "#/components/schemas/NullableNumber"
+
+    NavigationEstimate:
+      type: object
+      additionalProperties: true
+      properties:
+        quality:
+          $ref: "#/components/schemas/NullableNumber"
+        tracking:
+          $ref: "#/components/schemas/NullableBoolean"
+
+    Diagnostics:
+      type: object
+      additionalProperties: true
+      properties:
+        ok:
+          type: ["boolean", "null"]
+        checks:
+          type: array
+          items: {}
+
+    Config:
+      type: object
+      additionalProperties: true
+      properties:
+        runtime:
+          type: object
+          additionalProperties: true
+
+    RuntimePatchResult:
+      type: object
+      required: [ok]
+      additionalProperties: true
+      properties:
+        ok:
+          type: boolean
+        runtime:
+          type: object
+          additionalProperties: true
+
+    Policy:
+      type: object
+      additionalProperties: true
+      properties:
+        name:
+          type: ["string", "null"]
+        rules:
+          type: array
+          items: {}
+
+    PolicyPutResult:
+      type: object
+      required: [ok]
+      additionalProperties: true
+      properties:
+        ok:
+          type: boolean
+        policy:
+          $ref: "#/components/schemas/Policy"
+
+    PolicyPreview:
+      type: object
+      additionalProperties: true
+      properties:
+        name:
+          type: ["string", "null"]
+        rules:
+          type: array
+          items: {}
+        preview:
+          type: ["boolean", "null"]
+
+    Events:
+      type: object
+      additionalProperties: true
+      properties:
+        events:
+          type: array
+          items: {}

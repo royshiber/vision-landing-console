@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { createCompanionApiClient, CompanionApiError } from "../lib/companion-api-client.mjs";
+import { getContractExample } from "../lib/companion-contract.mjs";
 
 function jsonRes(body, status = 200) {
   return {
@@ -37,7 +38,7 @@ describe("CompanionApiClient", () => {
       sharedSecret: "s3cret",
       fetch: async (_url, init) => {
         headers = init.headers;
-        return jsonRes({ ok: true });
+        return jsonRes({ version: "1.0.0", api: "v1" });
       },
     });
     await client.getVersion();
@@ -104,5 +105,21 @@ describe("CompanionApiClient", () => {
     expect(init.url).toBe("http://companion.example/api/v1/config/runtime");
     expect(init.method).toBe("PATCH");
     expect(JSON.parse(init.body)).toEqual({ fps: 15 });
+  });
+
+  it("rejects responses that violate the OpenAPI schema", async () => {
+    const client = createCompanionApiClient({
+      baseUrl: "http://companion.example",
+      fetch: async () => jsonRes({ ok: "yes" }),
+    });
+    await expect(client.getHealth()).rejects.toMatchObject({ kind: "schema" });
+  });
+
+  it("accepts the contract health example", async () => {
+    const client = createCompanionApiClient({
+      baseUrl: "http://companion.example",
+      fetch: async () => jsonRes(getContractExample("/api/v1/health")),
+    });
+    await expect(client.getHealth()).resolves.toMatchObject({ ok: true, status: "ok" });
   });
 });

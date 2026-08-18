@@ -155,7 +155,7 @@
 
 - **דופק חיים:** `POST /api/jetson/heartbeat` (ואחורה `/api/rpi/*`) — חיבור סטטוס Jetson ללוח הבקרה; כולל `peerIp`, relay MAVLink, ומצב FC.
 - **Companion agent:** `companion_agent.py` — relay MAVLink (TCP :5770), HTTP לוגים/התקנה, heartbeat לקונסול; `GET /api/jetson/companion-script`, `POST /api/jetson/install`, `POST /api/jetson/pull-logs`.
-- **Companion API v1:** הדפדפן אינו קורא לג'טסון. שרת הקונסולה מתווך `/api/jetson/v1/*` → `/api/v1/*` (`COMPANION_MODE=off|mock|real`). בלי פקודות חימוש/נחיתה בשלב זה.
+- **Companion API v1:** הדפדפן אינו קורא לג'טסון. שרת הקונסולה מתווך `/api/jetson/v1/*` → `/api/v1/*` (`COMPANION_MODE=off|mock|real`). שמות השדות לפי חוזה OpenAPI של המלווה (עותק ב־`vendor/jetson-companion-api`). בלי פקודות חימוש/נחיתה בשלב זה.
 - **חיבור חכם:** `POST /api/connections/auto-connect` + `GET …/auto-connect/progress` (polling) — USB FC ישיר → Jetson relay → SITL מקומי; סרגל שלבים בזמן אמת (סריקה / heartbeat / סיום); **ללא** בחירת מוד ב-UI.
 - **תמונות ומצב SLAM/VIO:** נקודות קצה ל־frame, pose, optical flow — לניווט ללא/עם GPS חלש (פירוט הנדסי ב־`docs/JETSON_AGENT.md`).
 - **MAVLink:** ניהול חיבורים, בקשת פרמטרים, כתיבה מבוקרת, משימות; ערוץ אישור חומרה אופציונלי לפרמטרים דרך מהנדס (`FE_APPROVAL_RC_CHANNEL`).

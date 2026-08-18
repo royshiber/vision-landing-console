@@ -6,19 +6,21 @@ import {
   toSseTelemetryOverlay,
   mergeTelemetryWithCompanion,
 } from "../lib/companion-status.mjs";
+import { CompanionApiError } from "../lib/companion-api-error.mjs";
+import { getContractExample } from "../lib/companion-contract.mjs";
 
 describe("companion-status", () => {
   it("keeps missing numerics as null never 0", () => {
     const mapped = mapCompanionStatus({
       ok: true,
       connected: true,
-      vision: { padVisible: true },
+      vision: { pad_visible: true },
       fc: { connected: true, mode: "STABILIZE" },
     });
     expect(mapped.vision.fps).toBeNull();
-    expect(mapped.vision.latencyMs).toBeNull();
-    expect(mapped.fc.voltageV).toBeNull();
-    expect(mapped.system.cpuTempC).toBeNull();
+    expect(mapped.vision.latency_ms).toBeNull();
+    expect(mapped.fc.voltage_v).toBeNull();
+    expect(mapped.system.cpu_temp_c).toBeNull();
     expect(mapped.navigation.quality).toBeNull();
   });
 
@@ -41,7 +43,7 @@ describe("companion-status", () => {
         ok: true,
         connected: true,
         version: "1.2.3",
-        vision: { fps: 30, latencyMs: 40 },
+        vision: { fps: 30, latency_ms: 40 },
         navigation: { quality: 0.5, tracking: true },
       }),
     );
@@ -66,9 +68,38 @@ describe("companion-status", () => {
     expect(merged.companion.version).toBe("c1");
   });
 
-  it("maps DISABLED WAITING_FOR_HARDWARE and STALE", () => {
+  it("maps contract state enum and transitional flags", () => {
+    expect(mapCompanionStatus({ state: "WAITING_FOR_HARDWARE" }).state).toBe(
+      COMPANION_STATES.WAITING_FOR_HARDWARE,
+    );
+    expect(mapCompanionStatus({ state: "STALE" }).state).toBe(COMPANION_STATES.STALE);
     expect(mapCompanionStatus({ disabled: true }).state).toBe(COMPANION_STATES.DISABLED);
-    expect(mapCompanionStatus({ waitingForHardware: true }).state).toBe(COMPANION_STATES.WAITING_FOR_HARDWARE);
-    expect(mapCompanionStatus({ stale: true }).state).toBe(COMPANION_STATES.STALE);
+  });
+
+  it("reads transitional camelCase aliases", () => {
+    const mapped = mapCompanionStatus({
+      ok: true,
+      connected: true,
+      appVersion: "legacy",
+      vision: { latencyMs: 9, padVisible: true },
+      system: { cpuTempC: 33 },
+    });
+    expect(mapped.version).toBe("legacy");
+    expect(mapped.vision.latency_ms).toBe(9);
+    expect(mapped.vision.pad_visible).toBe(true);
+    expect(mapped.system.cpu_temp_c).toBe(33);
+  });
+
+  it("rejects non-object status payloads", () => {
+    expect(() => mapCompanionStatus([])).toThrow(CompanionApiError);
+    expect(() => mapCompanionStatus("nope")).toThrow(CompanionApiError);
+  });
+
+  it("maps the contract missing_numerics example without inventing zeros", () => {
+    const mapped = mapCompanionStatus(getContractExample("/api/v1/status", "missing_numerics"));
+    expect(mapped.vision.fps).toBeNull();
+    expect(mapped.fc.voltage_v).toBeNull();
+    expect(mapped.system.gpu_temp_c).toBeNull();
+    expect(mapped.connected).toBe(true);
   });
 });
