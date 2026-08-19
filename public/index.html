@@ -759,14 +759,45 @@
 
       <section id="maintenance" class="panel">
         <div class="companion-maint-panel">
-          <h3>תחזוקה</h3>
-          <p class="tele-dash-note">מקום שמור לתצוגה בלבד ללא אתחול מחדש פריסה או פקודות מערכת</p>
-          <div class="companion-dashboard-summary">
-            <article class="tele-card"><span>גרסת ממשק</span><strong id="maintUiVersion">__APP_VERSION__</strong></article>
+          <h3>פיתוח ותחזוקה</h3>
+          <p class="tele-dash-note" id="maintStatusBadge">—</p>
+
+          <h4 class="maint-group-title">תוכנה</h4>
+          <div class="tele-group-cards">
+            <article class="tele-card"><span>גרסת ממשק</span><strong id="maintUiVersion">—</strong></article>
             <article class="tele-card"><span>גרסת Companion</span><strong id="maintCompanionVersion">—</strong></article>
-            <article class="tele-card"><span>גרסת API</span><strong id="maintApiVersion">v1</strong></article>
-            <article class="tele-card"><span>מצב</span><strong id="maintCompanionMode">כבוי</strong></article>
+            <article class="tele-card"><span>Git commit</span><strong id="maintGitCommit">—</strong></article>
+            <article class="tele-card"><span>Git branch</span><strong id="maintGitBranch">—</strong></article>
+            <article class="tele-card"><span>Git clean</span><strong id="maintGitClean">—</strong></article>
+            <article class="tele-card"><span>קבצים שהשתנו</span><strong id="maintChangedFiles">—</strong></article>
           </div>
+
+          <h4 class="maint-group-title">מערכת</h4>
+          <div class="tele-group-cards">
+            <article class="tele-card"><span>מעבד</span><strong id="maintCpu">—</strong></article>
+            <article class="tele-card"><span>זיכרון</span><strong id="maintMem">—</strong></article>
+            <article class="tele-card"><span>GPU</span><strong id="maintGpu">—</strong></article>
+            <article class="tele-card"><span>טמפרטורה</span><strong id="maintTemp">—</strong></article>
+            <article class="tele-card"><span>דיסק</span><strong id="maintDisk">—</strong></article>
+          </div>
+
+          <h4 class="maint-group-title">Companion</h4>
+          <div class="tele-group-cards">
+            <article class="tele-card"><span>מצב Console</span><strong id="maintCompanionMode">—</strong></article>
+            <article class="tele-card"><span>גרסת API</span><strong id="maintApiVersion">—</strong></article>
+            <article class="tele-card"><span>API פעיל</span><strong id="maintApiRunning">—</strong></article>
+            <article class="tele-card"><span>API נגיש</span><strong id="maintApiReachable">—</strong></article>
+          </div>
+
+          <h4 class="maint-group-title">אירועי אבחון</h4>
+          <div class="maint-diag-wrap">
+            <table class="maint-diag-table" id="maintDiagTable">
+              <thead><tr><th>זמן</th><th>חומרה</th><th>תת-מערכת</th><th>הודעה</th></tr></thead>
+              <tbody id="maintDiagBody"></tbody>
+            </table>
+            <p id="maintDiagEmpty" class="maint-diag-empty">אין אירועים</p>
+          </div>
+          <button type="button" id="maintRefreshBtn" class="policy-btn">רענן</button>
         </div>
       </section>
 

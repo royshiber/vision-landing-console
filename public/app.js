@@ -122,6 +122,7 @@ const tabs = Array.from(document.querySelectorAll('.tab'));
 const panels = Array.from(document.querySelectorAll('.panel'));
 const subtabs = Array.from(document.querySelectorAll('.subtab'));
 const subpanels = Array.from(document.querySelectorAll('.subpanel'));
+let _maintCompanionModeHint = null;
 const controlSubtabsBar = document.getElementById('controlSubtabsBar');
 
 function setParamCenterChromeVisible(visible) {
@@ -203,6 +204,9 @@ function applyMainTab(tabId, { save = true } = {}) {
       refreshFlightLists();
       refreshAllLogsTable();
     }, 50);
+  }
+  if (tabId === 'maintenance') {
+    void maintLoadData();
   }
 }
 const PARAM_SUBTAB_IDS = new Set(['landingParams', 'abortParams', 'visionNavParams', 'arduParams', 'customParams']);
@@ -2616,6 +2620,7 @@ function applyCompanionUi(companion) {
   setCompanionText('maintCompanionVersion', companionText(companion.version));
   setCompanionText('maintApiVersion', companionText(companion.api_version || companion.api));
   setCompanionText('maintCompanionMode', companionText(companion.mode));
+  if (companion.mode) _maintCompanionModeHint = companion.mode;
 
   const system = companion.system || {};
   setCompanionText('companionCpu', companionText(system.cpu_percent, '%'));
@@ -8946,3 +8951,128 @@ setInterval(refreshAdvisorHealth, 60_000);
     recognition = null;
   };
 })();
+
+/* ── Maintenance panel (C8.1) — wire schema from Jetson GET /api/v1/maintenance ── */
+const MAINT_STATES_HE = { ok: 'תקין', degraded: 'חלקי', unavailable: 'לא זמין', stale: 'ישן', 'not present': 'חסר' };
+const MAINT_RECENT_MAX = 10;
+let _maintLastWire = null;
+let _maintApiReachable = null;
+
+function maintSetEl(id, val) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = (val == null || val === '') ? '—' : String(val);
+}
+
+function maintFmtPercent(v) {
+  if (v == null || v === '') return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? `${n}%` : null;
+}
+
+function maintFmtGitClean(v) {
+  if (v === true) return 'נקי';
+  if (v === false) return 'dirty';
+  if (v === null || v === undefined) return 'לא ידוע';
+  return null;
+}
+
+function maintFmtApiRunning(v) {
+  if (v === true) return 'פעיל';
+  if (v === false) return 'לא פעיל';
+  return null;
+}
+
+function maintFmtEventTime(ts) {
+  if (!ts || typeof ts !== 'object') return '—';
+  if (ts.t_utc_ns != null && Number.isFinite(Number(ts.t_utc_ns))) {
+    return new Date(Number(ts.t_utc_ns) / 1e6).toLocaleTimeString('he-IL');
+  }
+  if (ts.t_monotonic_ns != null) return `#${ts.t_monotonic_ns}`;
+  return '—';
+}
+
+function maintFmtHealth(v) {
+  const key = String(v || '').trim().toLowerCase();
+  if (!key) return null;
+  const labels = { valid: 'תקין', degraded: 'חלקי', unavailable: 'לא זמין' };
+  return labels[key] ?? key;
+}
+
+function maintRenderDiag(recent) {
+  const tbody = document.getElementById('maintDiagBody');
+  const empty = document.getElementById('maintDiagEmpty');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+  const events = Array.isArray(recent) ? recent.slice(0, MAINT_RECENT_MAX) : [];
+  if (!events.length) {
+    if (empty) empty.hidden = false;
+    return;
+  }
+  if (empty) empty.hidden = true;
+  for (const ev of events) {
+    const tr = document.createElement('tr');
+    const health = ev.health ?? null;
+    if (health) tr.dataset.health = health;
+    tr.innerHTML = `<td>${maintFmtEventTime(ev.timestamp)}</td><td>${maintFmtHealth(health) || '—'}</td><td>${ev.subsystem || '—'}</td><td>${ev.message || '—'}</td>`;
+    tbody.appendChild(tr);
+  }
+}
+
+function maintApplyWire(wire, { apiReachable = null, companionMode = null } = {}) {
+  if (!wire) return;
+  _maintLastWire = wire;
+  if (apiReachable != null) _maintApiReachable = apiReachable;
+  const sw = wire.software || {};
+  const sys = wire.system || {};
+  const comp = wire.companion || {};
+  maintSetEl('maintUiVersion', document.querySelector('meta[name="app-version"]')?.content);
+  maintSetEl('maintCompanionVersion', sw.companion_version);
+  maintSetEl('maintGitCommit', sw.git_commit ? String(sw.git_commit).slice(0, 7) : sw.git_commit ?? null);
+  maintSetEl('maintGitBranch', sw.git_branch ?? null);
+  maintSetEl('maintGitClean', maintFmtGitClean(sw.git_clean));
+  maintSetEl('maintChangedFiles', sw.changed_files_count != null ? String(sw.changed_files_count) : null);
+  maintSetEl('maintCpu', maintFmtPercent(sys.cpu_percent));
+  const ramUsed = sys.ram_used_mb;
+  const ramTotal = sys.ram_total_mb;
+  maintSetEl('maintMem', ramUsed != null && ramTotal != null ? `${ramUsed}/${ramTotal} MB` : ramUsed != null ? `${ramUsed} MB` : null);
+  maintSetEl('maintGpu', maintFmtPercent(sys.gpu_percent));
+  maintSetEl('maintTemp', sys.temperature_c != null ? `${sys.temperature_c}°` : null);
+  maintSetEl('maintDisk', maintFmtPercent(sys.disk_used_percent));
+  maintSetEl('maintCompanionMode', companionMode ?? _maintCompanionModeHint ?? null);
+  maintSetEl('maintApiVersion', comp.api_version ?? null);
+  maintSetEl('maintApiRunning', maintFmtApiRunning(comp.api_running));
+  maintSetEl('maintApiReachable', _maintApiReachable === true ? 'כן' : _maintApiReachable === false ? 'לא' : null);
+  const badge = document.getElementById('maintStatusBadge');
+  if (badge) {
+    let st = 'unavailable';
+    if (_maintApiReachable === false) st = 'unavailable';
+    else if (comp.api_running === true) st = 'ok';
+    else if (comp.api_running === false) st = 'degraded';
+    else if (wire) st = 'degraded';
+    badge.textContent = MAINT_STATES_HE[st] || st;
+    badge.className = 'tele-dash-note maint-badge--' + st;
+  }
+  maintRenderDiag(wire.diagnostics?.recent);
+}
+
+async function maintLoadData() {
+  _maintApiReachable = null;
+  try {
+    const r = await fetch('/api/jetson/v1/maintenance');
+    const j = await r.json();
+    _maintApiReachable = r.ok && j.ok !== false;
+    const wire = j.data ?? j;
+    if (!wire || typeof wire !== 'object' || !wire.software) {
+      _maintApiReachable = false;
+      throw new Error('invalid maintenance payload');
+    }
+    maintApplyWire(wire, { apiReachable: _maintApiReachable, companionMode: _maintCompanionModeHint });
+  } catch {
+    _maintApiReachable = false;
+    const badge = document.getElementById('maintStatusBadge');
+    if (badge) { badge.textContent = MAINT_STATES_HE.unavailable; badge.className = 'tele-dash-note maint-badge--unavailable'; }
+  }
+}
+
+document.getElementById('maintRefreshBtn')?.addEventListener('click', () => maintLoadData());

@@ -1,5 +1,47 @@
 [
   {
+    "version": "1.02.235",
+    "date": "2026-08-19",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Server library",
+        "detail": "companion-api-client.mjs, companion-maintenance.mjs, companion-mock-fixtures.mjs, companion-mock.mjs, companion-v1-paths.mjs, companion-proxy-api.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "UI / app.js",
+        "detail": "app.js"
+      },
+      {
+        "type": "feat",
+        "title": "Frontend",
+        "detail": "changelog.json"
+      },
+      {
+        "type": "ui",
+        "title": "HTML layout",
+        "detail": "index.html"
+      },
+      {
+        "type": "ui",
+        "title": "Styles",
+        "detail": "styles.css"
+      }
+    ]
+  },
+  {
+    "version": "1.02.234",
+    "date": "2026-08-19",
+    "changes": [
+      {
+        "type": "feature",
+        "title": "Maintenance foundation",
+        "detail": "C8.1 — read-only maintenance UI, API proxy, mock, OpenAPI sync, diagnostics health schema"
+      }
+    ]
+  },
+  {
     "version": "1.02.233",
     "date": "2026-08-19",
     "changes": [

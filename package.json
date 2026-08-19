@@ -1,6 +1,6 @@
 {
   "name": "vision-landing-console",
-  "version": "1.02.233",
+  "version": "1.02.235",
   "private": true,
   "type": "module",
   "description": "Vision Landing Console — camera-based landing workflow with MAVLink, Jetson agent and Gemini advisor",

@@ -1,4 +1,4 @@
-# AIRVIX Companion B2 UI — 1.02.232
+# AIRVIX Companion B2 UI — 1.02.234
 
 ## Scope
 
@@ -18,10 +18,12 @@ This note documents only the Companion B2 read-only UI foundation.
 - Video is a status placeholder and does not carry a media stream.
 - Configuration and policy are rendered as read-only values.
 
-## Maintenance placeholder
+## Maintenance (read-only)
 
-- The maintenance screen shows versions and mode only.
-- It contains no restart, deployment, shell, networking, or service controls.
+- Tab loads GET /api/v1/maintenance via console proxy /api/jetson/v1/maintenance.
+- Groups: software (Git), system metrics, companion API state, diagnostics.recent (health field).
+- Console-local fields: UI version from meta tag, companion mode hint from SSE.
+- No restart, deploy, shell, systemd, or service controls.
 
 ## Visual rules
 
@@ -30,4 +32,5 @@ This note documents only the Companion B2 read-only UI foundation.
 
 ## Design change log
 
+- 1.02.234 — C8.1 read-only maintenance UI, API proxy, mock, OpenAPI sync, health schema alignment.
 - 1.02.232 — Added the narrow Companion B2 read-only dashboard, detail panel, mock selector, and maintenance placeholder.

@@ -4215,6 +4215,51 @@ button:hover,
   overflow: auto;
 }
 
+.maint-group-title {
+  margin: 14px 0 6px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-secondary, var(--text-muted));
+  letter-spacing: 0.02em;
+}
+.maint-group-title:first-of-type { margin-top: 8px; }
+.maint-diag-wrap {
+  max-height: 260px;
+  overflow: auto;
+  margin: 6px 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.maint-diag-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.75rem;
+}
+.maint-diag-table th {
+  position: sticky;
+  top: 0;
+  background: var(--surface-raised, #1a1a2e);
+  text-align: start;
+  padding: 4px 8px;
+  font-weight: 600;
+  border-bottom: 1px solid var(--border);
+}
+.maint-diag-table td {
+  padding: 3px 8px;
+  border-bottom: 1px solid var(--border-subtle, rgba(255,255,255,.06));
+  white-space: nowrap;
+}
+.maint-diag-table td:last-child { white-space: normal; }
+.maint-diag-table tr[data-health="degraded"] td { color: var(--status-warning, #f5a623); }
+.maint-diag-table tr[data-health="unavailable"] td { color: var(--status-error, #e74c3c); }
+.maint-diag-table tr[data-health="valid"] td { color: inherit; }
+.maint-diag-empty {
+  text-align: center;
+  padding: 16px;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
 /* ── Policy editor ── */
 .policy-channel-card {
   margin: 10px 0 6px;

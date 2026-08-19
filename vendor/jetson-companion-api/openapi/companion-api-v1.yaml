@@ -34,6 +34,7 @@ tags:
   - name: config
   - name: policy
   - name: events
+  - name: maintenance
 
 x-not-supported:
   - ARM
@@ -248,6 +249,25 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/DiagnosticsSnapshot"
+
+  /maintenance:
+    get:
+      tags: [maintenance]
+      operationId: getMaintenance
+      x-safety-tier: READ_ONLY
+      x-mutability: READ_ONLY
+      summary: Read-only software, system, companion, and recent diagnostic maintenance view
+      description: |
+        Jetson-side source of truth only. Does not include VisionLandingConsole UI version.
+        Aggregates existing /version, /status/system, and structured runtime diagnostic audit data.
+        No write, deploy, restart, or service-control operations.
+      responses:
+        "200":
+          description: MaintenanceStatus snapshot
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MaintenanceStatus"
 
   /config:
     get:
@@ -895,7 +915,64 @@ components:
           enum: [system, vision, navigation, landing, mavlink, video, policy, config, api]
         health: { $ref: "#/components/schemas/HealthState" }
         message: { type: string }
+        timestamp: { $ref: "#/components/schemas/Timestamped" }
         diagnostics: { $ref: "#/components/schemas/Diagnostics" }
+
+    MaintenanceSoftware:
+      type: object
+      additionalProperties: false
+      required: [companion_version]
+      properties:
+        companion_version:
+          type: string
+          example: "0.1.0"
+        git_commit:
+          type: [string, "null"]
+          description: HEAD commit SHA from the Jetson repository working tree
+        git_branch:
+          type: [string, "null"]
+          description: Current branch name, or null when detached
+        git_clean:
+          type: [boolean, "null"]
+          description: |
+            Best-effort clean hint without shell execution. null when unknown.
+        changed_files_count:
+          type: [integer, "null"]
+          description: Optional dirty-file count; null when not safely obtainable
+
+    MaintenanceCompanion:
+      type: object
+      additionalProperties: false
+      required: [api_version, api_running]
+      properties:
+        api_version:
+          type: string
+          const: "1"
+        api_running:
+          type: boolean
+          description: True when this Companion API process is serving the request
+
+    MaintenanceDiagnostics:
+      type: object
+      additionalProperties: false
+      required: [recent]
+      properties:
+        recent:
+          type: array
+          maxItems: 10
+          items:
+            $ref: "#/components/schemas/DiagnosticEvent"
+
+    MaintenanceStatus:
+      type: object
+      additionalProperties: false
+      required: [timestamp, software, system, companion, diagnostics]
+      properties:
+        timestamp: { $ref: "#/components/schemas/Timestamped" }
+        software: { $ref: "#/components/schemas/MaintenanceSoftware" }
+        system: { $ref: "#/components/schemas/SystemStatus" }
+        companion: { $ref: "#/components/schemas/MaintenanceCompanion" }
+        diagnostics: { $ref: "#/components/schemas/MaintenanceDiagnostics" }
 
     EventEnvelope:
       type: object
