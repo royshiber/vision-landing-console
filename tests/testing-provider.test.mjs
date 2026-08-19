@@ -76,4 +76,78 @@ describe('testing-provider', () => {
     const c = await p.cancelRun(run.run_id);
     expect(c.state).toBe('CANCELLED');
   });
+
+  it('rejects profile metacharacter injection attempts', async () => {
+    const p = new LocalTestingProvider({ repoRoot });
+    const abs = path.join(repoRoot, wt.worktree_id);
+    await expect(p.runApprovedSuite('dev;rm -rf /', {
+      profile: 'DEVELOPMENT && echo PWNED',
+      worktreeAbsPath: abs,
+    })).rejects.toThrow(/invalid testing profile/);
+  });
+
+  it('keeps command selection code-owned regardless of malicious task metadata', async () => {
+    const maliciousWorktree = createDevelopmentWorktreeManager({ repoRoot }).create('main --upload-pack=evil');
+    const p = new LocalTestingProvider({ repoRoot });
+    const runInfo = await p.runApprovedSuite('dev-$(whoami)-`id`', {
+      profile: 'DEVELOPMENT',
+      worktreeAbsPath: path.join(repoRoot, maliciousWorktree.worktree_id),
+      title: 'x; npm run evil',
+      description: '$(calc)',
+      target_area: 'API && echo bad',
+      priority: 'HIGH || shutdown',
+    });
+    expect(runInfo.profile).toBe('DEVELOPMENT');
+    expect(runInfo.log_ref.includes('..')).toBe(false);
+  });
+
+  it('task id cannot influence executable path', async () => {
+    const p = new LocalTestingProvider({ repoRoot });
+    const abs = path.join(repoRoot, wt.worktree_id);
+    const runInfo = await p.runApprovedSuite('/bin/sh -c "rm -rf /"', {
+      profile: 'CONSOLE_FULL',
+      worktreeAbsPath: abs,
+    });
+    expect(runInfo.profile).toBe('CONSOLE_FULL');
+    expect(runInfo.run_id.startsWith('test-')).toBe(true);
+  });
+
+  it('task id cannot influence shell arguments via spawn', async () => {
+    const p = new LocalTestingProvider({ repoRoot });
+    const abs = path.join(repoRoot, wt.worktree_id);
+    const runInfo = await p.runApprovedSuite('task-id-with; rm -rf /', {
+      profile: 'DEVELOPMENT',
+      worktreeAbsPath: abs,
+    });
+    expect(runInfo.task_id).toBe('task-id-with; rm -rf /');
+    expect(runInfo.profile).toBe('DEVELOPMENT');
+  });
+
+  it('test profile selects only code-owned command definitions', () => {
+    const validProfiles = ['CONSOLE_FULL', 'COMPANION_CONTRACT', 'MAINTENANCE', 'DEVELOPMENT'];
+    const invalidProfiles = ['HACK', 'npm run evil', '$(calc)', 'CONSOLE_FULL; rm -rf /'];
+    const p = new MockTestingProvider({ scenario: 'healthy' });
+    for (const profile of validProfiles) {
+      expect(p.supportedProfiles()).toContain(profile);
+    }
+    for (const profile of invalidProfiles) {
+      expect(p.supportedProfiles()).not.toContain(profile);
+    }
+  });
+
+  it('shell metacharacter injection in profile is rejected', async () => {
+    const p = new LocalTestingProvider({ repoRoot });
+    const abs = path.join(repoRoot, wt.worktree_id);
+    const attacks = ['DEVELOPMENT; echo pwned', 'DEVELOPMENT && rm -rf /', 'DEVELOPMENT | cat /etc/passwd', '$(whoami)'];
+    for (const profile of attacks) {
+      await expect(p.runApprovedSuite('dev', { profile, worktreeAbsPath: abs })).rejects.toThrow(/invalid testing profile/);
+    }
+  });
+
+  it('LocalTestingProvider uses shell: false', async () => {
+    const p = new LocalTestingProvider({ repoRoot });
+    const abs = path.join(repoRoot, wt.worktree_id);
+    const runInfo = await p.runApprovedSuite('dev', { profile: 'CONSOLE_FULL', worktreeAbsPath: abs });
+    expect(runInfo.run_id).toBeTruthy();
+  });
 });

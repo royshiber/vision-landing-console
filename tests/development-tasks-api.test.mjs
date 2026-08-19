@@ -164,6 +164,31 @@ describe('development tasks API', () => {
     expect(detail.task.audit.length).toBeGreaterThan(1);
   });
 
+  it('handles two concurrent task updates without state corruption', async () => {
+    const created = await fetch(`${base}/api/development/tasks`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: 'Concurrent', description: 'Concurrent', target_area: 'API', priority: 'NORMAL' }),
+    }).then((r) => r.json());
+    const taskId = created.task.id;
+    const a = fetch(`${base}/api/development/tasks/${taskId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ priority: 'HIGH' }),
+    });
+    const b = fetch(`${base}/api/development/tasks/${taskId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ notes: 'parallel-note' }),
+    });
+    const [ra, rb] = await Promise.all([a, b]);
+    expect(ra.status).toBe(200);
+    expect(rb.status).toBe(200);
+    const finalTask = await fetch(`${base}/api/development/tasks/${taskId}`).then((r) => r.json());
+    expect(finalTask.task.priority).toBe('HIGH');
+    expect(finalTask.task.notes).toBe('parallel-note');
+  });
+
   it('rejects unknown patch fields', async () => {
     const created = await fetch(`${base}/api/development/tasks`, {
       method: 'POST',
@@ -382,6 +407,69 @@ describe('development tasks API', () => {
     await new Promise((r) => setTimeout(r, 1200));
     const state = await fetch(`${base}/api/development/tasks/${created.task.id}/tests`).then((r) => r.json());
     expect(['RUNNING', 'PASSED']).toContain(state.task.tests.state);
+  });
+
+  it('allows metadata update during active test execution', async () => {
+    const created = await fetch(`${base}/api/development/tasks`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: 'Update during tests', description: 'Update during tests', target_area: 'API', priority: 'NORMAL' }),
+    }).then((r) => r.json());
+    await fetch(`${base}/api/development/tasks/${created.task.id}/worktree/create`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ confirm: true }),
+    });
+    await fetch(`${base}/api/development/tasks/${created.task.id}/agent/start`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ confirm: true }),
+    });
+    await new Promise((r) => setTimeout(r, 1100));
+    await fetch(`${base}/api/development/tasks/${created.task.id}/agent`);
+    await fetch(`${base}/api/development/tasks/${created.task.id}/tests/run`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ confirm: true, profile: 'DEVELOPMENT' }),
+    });
+    const update = await fetch(`${base}/api/development/tasks/${created.task.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ notes: 'edited while testing' }),
+    });
+    expect(update.status).toBe(200);
+    const detail = await fetch(`${base}/api/development/tasks/${created.task.id}`).then((r) => r.json());
+    expect(detail.task.notes).toBe('edited while testing');
+    expect(['TESTING', 'WAITING_FOR_REVIEW', 'FAILED']).toContain(detail.task.status);
+  });
+
+  it('allows update while agent polling endpoint is active', async () => {
+    const created = await fetch(`${base}/api/development/tasks`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: 'Update during polling', description: 'Update during polling', target_area: 'API', priority: 'NORMAL' }),
+    }).then((r) => r.json());
+    await fetch(`${base}/api/development/tasks/${created.task.id}/worktree/create`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ confirm: true }),
+    });
+    await fetch(`${base}/api/development/tasks/${created.task.id}/agent/start`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ confirm: true }),
+    });
+    const polling = fetch(`${base}/api/development/tasks/${created.task.id}/agent`);
+    const update = fetch(`${base}/api/development/tasks/${created.task.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ priority: 'CRITICAL' }),
+    });
+    const [pollRes, updRes] = await Promise.all([polling, update]);
+    expect(pollRes.status).toBe(200);
+    expect(updRes.status).toBe(200);
+    const detail = await fetch(`${base}/api/development/tasks/${created.task.id}`).then((r) => r.json());
+    expect(detail.task.priority).toBe('CRITICAL');
   });
 
   it('cancels active tests with confirmation', async () => {
@@ -622,6 +710,80 @@ describe('development tasks API', () => {
       body: JSON.stringify({ confirm: true }),
     });
     expect(build.status).toBe(409);
+  });
+
+  it('task creation with injection strings does not execute them', async () => {
+    const created = await fetch(`${base}/api/development/tasks`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: '$(rm -rf /)',
+        description: '`id` && echo PWNED; DROP TABLE tasks; --',
+        target_area: 'API',
+        priority: 'NORMAL',
+        notes: '<script>alert(1)</script>\n; shutdown -h now',
+      }),
+    }).then((r) => r.json());
+    expect(created.ok).toBe(true);
+    expect(created.task.title).toBe('$(rm -rf /)');
+    expect(created.task.description).toContain('DROP TABLE');
+    expect(created.task.notes).toContain('<script>');
+    expect(created.task.id.startsWith('dev-')).toBe(true);
+    expect(created.task.branch).toBe(null);
+    expect(created.task.worktree).toBe(null);
+  });
+
+  it('worktree creation with malicious task id sanitizes paths', async () => {
+    const created = await fetch(`${base}/api/development/tasks`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: 'dev-../../etc/passwd',
+        title: 'Escape attempt',
+        description: 'Escape attempt',
+        target_area: 'API',
+        priority: 'NORMAL',
+      }),
+    }).then((r) => r.json());
+    expect(created.ok).toBe(true);
+    const wt = await fetch(`${base}/api/development/tasks/${encodeURIComponent(created.task.id)}/worktree/create`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ confirm: true }),
+    }).then((r) => r.json());
+    expect(wt.ok).toBe(true);
+    expect(wt.worktree.branch).toMatch(/^development\/tasks\//);
+    expect(wt.worktree.branch).not.toContain('..');
+    expect(wt.worktree.branch).not.toContain('/etc/');
+  });
+
+  it('rejects arbitrary fields in agent start without leaking to shell', async () => {
+    const created = await fetch(`${base}/api/development/tasks`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: 'SecAgent', description: 'SecAgent', target_area: 'API', priority: 'NORMAL' }),
+    }).then((r) => r.json());
+    await fetch(`${base}/api/development/tasks/${created.task.id}/worktree/create`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ confirm: true }),
+    });
+    const started = await fetch(`${base}/api/development/tasks/${created.task.id}/agent/start`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ confirm: true, exec: 'rm -rf /', cmd: 'calc', argv: ['--evil'] }),
+    }).then((r) => r.json());
+    expect(started.ok).toBe(true);
+    expect(started.agent.branch).toMatch(/^development\/tasks\//);
+    expect(started.agent.worktree).toMatch(/^\.worktrees\//);
+  });
+
+  it('empty store file does not crash list', async () => {
+    fs.mkdirSync(path.dirname(storePath), { recursive: true });
+    fs.writeFileSync(storePath, '', 'utf8');
+    const r = await fetch(`${base}/api/development/tasks`).then((r) => r.json());
+    expect(r.ok).toBe(true);
+    expect(r.tasks).toEqual([]);
   });
 
   it('maps deploy success/failed/rolled_back to task deployment state', async () => {

@@ -1,5 +1,37 @@
 [
   {
+    "version": "1.02.247",
+    "date": "2026-08-19",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Server library",
+        "detail": "development-task-store.mjs, development-tasks-api.mjs, testing-provider.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "Frontend",
+        "detail": "changelog.json"
+      },
+      {
+        "type": "test",
+        "title": "Tests",
+        "detail": "development-task-store.test.mjs, development-tasks-api.test.mjs, development-worktree-manager.test.mjs, testing-provider.test.mjs"
+      }
+    ]
+  },
+  {
+    "version": "1.02.246",
+    "date": "2026-08-19",
+    "changes": [
+      {
+        "type": "feature",
+        "title": "Development workflow security and stability hardening",
+        "detail": "C9.6 — hardened task-store locking/recovery, removed shell-based test execution path in LocalTestingProvider, added injection/path-escape regression tests, and expanded concurrency/stability coverage for development tasks APIs and worktree flows"
+      }
+    ]
+  },
+  {
     "version": "1.02.245",
     "date": "2026-08-19",
     "changes": [
