@@ -1,5 +1,58 @@
 [
   {
+    "version": "1.02.239",
+    "date": "2026-08-19",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Server library",
+        "detail": "companion-api-client.mjs, companion-mock-fixtures.mjs, companion-mock.mjs, companion-release-mgmt.mjs, companion-v1-paths.mjs, companion-proxy-api.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "UI / app.js",
+        "detail": "app.js"
+      },
+      {
+        "type": "feat",
+        "title": "Frontend",
+        "detail": "changelog.json"
+      },
+      {
+        "type": "ui",
+        "title": "HTML layout",
+        "detail": "index.html"
+      },
+      {
+        "type": "ui",
+        "title": "Styles",
+        "detail": "styles.css"
+      }
+    ]
+  },
+  {
+    "version": "1.02.238",
+    "date": "2026-08-19",
+    "changes": [
+      {
+        "type": "feature",
+        "title": "Deploy runtime wiring",
+        "detail": "C8.3.4 — real deploy/rollback outcome handling, strict success criteria, operation locking, audit/release refresh"
+      }
+    ]
+  },
+  {
+    "version": "1.02.236",
+    "date": "2026-08-19",
+    "changes": [
+      {
+        "type": "feature",
+        "title": "Release management UI",
+        "detail": "C8.2 — inventory, backup, deploy, rollback, audit; mock fixtures; restart-required state"
+      }
+    ]
+  },
+  {
     "version": "1.02.235",
     "date": "2026-08-19",
     "changes": [

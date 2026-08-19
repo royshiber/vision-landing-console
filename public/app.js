@@ -9073,6 +9073,435 @@ async function maintLoadData() {
     const badge = document.getElementById('maintStatusBadge');
     if (badge) { badge.textContent = MAINT_STATES_HE.unavailable; badge.className = 'tele-dash-note maint-badge--unavailable'; }
   }
+  void maintRelLoadAll();
 }
 
-document.getElementById('maintRefreshBtn')?.addEventListener('click', () => maintLoadData());
+document.getElementById('maintRefreshBtn')?.addEventListener('click', () => {
+  void maintLoadData();
+});
+
+/* ── Release management (C8.3.4) — real deploy/rollback outcome wiring ── */
+const MAINT_REL_DEPLOY_STATE_HE = {
+  IDLE: 'ממתין',
+  VERIFYING: 'מאמת',
+  BACKING_UP: 'גיבוי',
+  ACTIVATING: 'מפעיל גרסה',
+  RESTARTING: 'מאתחל תהליך',
+  HEALTH_CHECK: 'בדיקת תקינות',
+  SUCCEEDED: 'הצליח',
+  FAILED: 'נכשל',
+  ROLLING_BACK: 'משחזר גרסה קודמת',
+  ROLLED_BACK: 'שוחזר אוטומטית',
+};
+const MAINT_REL_DEPLOYABLE = new Set(['VERIFIED', 'AVAILABLE']);
+const MAINT_REL_FORBIDDEN_BODY_KEYS = new Set([
+  'path', 'url', 'command', 'shell', 'script', 'sudo', 'systemd', 'service', 'git', 'exec', 'argv', 'cwd',
+  'file', 'directory', 'release_path', 'artifact_path', 'artifact_url',
+]);
+let _maintRelInventory = null;
+let _maintRelPendingAction = null;
+let _maintRelBusy = false;
+
+function maintRelSetEl(id, val) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = (val == null || val === '') ? '—' : String(val);
+}
+
+function maintRelFmtTime(v) {
+  if (v == null || v === '') return '—';
+  if (typeof v === 'object' && v.t_utc_ns != null && Number.isFinite(Number(v.t_utc_ns))) {
+    return new Date(Number(v.t_utc_ns) / 1e6).toLocaleString('he-IL');
+  }
+  const d = new Date(v);
+  return Number.isNaN(d.getTime()) ? String(v) : d.toLocaleString('he-IL');
+}
+
+function maintRelFmtSha(v) {
+  if (!v) return '—';
+  const s = String(v);
+  return s.length > 16 ? `${s.slice(0, 8)}…${s.slice(-8)}` : s;
+}
+
+function maintRelFmtSize(bytes) {
+  if (bytes == null || bytes === '') return '—';
+  const n = Number(bytes);
+  if (!Number.isFinite(n)) return '—';
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)} MB`;
+  if (n >= 1000) return `${(n / 1000).toFixed(1)} KB`;
+  return `${n} B`;
+}
+
+function maintRelDeployStateLabel(state) {
+  const key = String(state || '').trim().toUpperCase();
+  return MAINT_REL_DEPLOY_STATE_HE[key] || key || '—';
+}
+
+function maintRelActivationMessage(wire) {
+  if (!wire || typeof wire !== 'object') return null;
+  if (typeof wire.message === 'string' && wire.message.trim()) return wire.message.trim();
+  const state = String(wire.state || wire.deploy_state || '').trim().toUpperCase();
+  if (state === 'ROLLED_BACK') return wire.failure_reason || 'Deployment failed — previous version restored';
+  if (state === 'FAILED') return wire.failure_reason || 'Deployment failed';
+  if (state === 'SUCCEEDED') {
+    if (wire.running_process_changed === true) return 'Deployment successful';
+    return 'Deployment completed without runtime confirmation';
+  }
+  return null;
+}
+
+function maintRelSetBusy(busy, phase = '') {
+  _maintRelBusy = busy === true;
+  const deployButtons = document.querySelectorAll('.maint-rel-deploy-btn');
+  deployButtons.forEach((b) => { b.disabled = _maintRelBusy; });
+  const rollbackBtn = document.getElementById('maintRelRollbackBtn');
+  const backupBtn = document.getElementById('maintRelBackupBtn');
+  if (rollbackBtn) rollbackBtn.disabled = _maintRelBusy || !(_maintRelInventory?.previous?.release_id);
+  if (backupBtn) backupBtn.disabled = _maintRelBusy;
+  if (_maintRelBusy && phase) {
+    maintRelSetEl('maintRelDeployState', maintRelDeployStateLabel(phase));
+  }
+}
+
+function maintRelApiError(status, body) {
+  const msg = body?.message || body?.error || body?.failure_reason || body?.details?.message;
+  if (status === 400) return msg || 'בקשה לא תקינה';
+  if (status === 403) return msg || 'אין הרשאה';
+  if (status === 404) return msg || 'לא נמצא';
+  if (status === 409) return msg || 'קונפליקט — פעולה לא זמינה כעת';
+  if (status === 501) return msg || 'לא נתמך ב-Jetson';
+  if (status === 503 || status === 504) return msg || 'Companion לא זמין';
+  return msg || 'שגיאה';
+}
+
+function maintRelShowResult(elId, text, kind = 'ok') {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  if (!text) { el.hidden = true; el.textContent = ''; return; }
+  el.hidden = false;
+  el.textContent = text;
+  el.dataset.kind = kind;
+}
+
+async function maintRelFetchJson(path, opts = {}) {
+  const r = await fetch(path, opts);
+  let j = {};
+  try { j = await r.json(); } catch { /* ignore */ }
+  return { ok: r.ok && j.ok !== false, status: r.status, json: j, data: j.data ?? j };
+}
+
+function maintRelBuildDeployBody(releaseId) {
+  const id = String(releaseId || '').trim();
+  if (!id) throw new Error('release_id is required');
+  return { release_id: id };
+}
+
+function maintRelAssertDeployBodySafe(body) {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) throw new Error('invalid deploy body');
+  for (const key of Object.keys(body)) {
+    if (MAINT_REL_FORBIDDEN_BODY_KEYS.has(key.toLowerCase())) throw new Error(`forbidden field: ${key}`);
+  }
+  const keys = Object.keys(body);
+  if (keys.length !== 1 || keys[0] !== 'release_id') throw new Error('deploy body must contain only release_id');
+}
+
+function maintRelRenderInventory(inv) {
+  _maintRelInventory = inv;
+  const active = inv?.active || null;
+  const previous = inv?.previous || null;
+  maintRelSetEl('maintRelDeployState', maintRelDeployStateLabel(inv?.deploy_state));
+  maintRelSetEl('maintRelActiveId', active?.release_id);
+  maintRelSetEl('maintRelActiveVersion', active?.version);
+  maintRelSetEl('maintRelActiveStatus', active?.status);
+  maintRelSetEl('maintRelPrevId', previous?.release_id);
+  maintRelSetEl('maintRelPrevVersion', previous?.version);
+  maintRelSetEl('maintRelPrevStatus', previous?.status);
+  const rollbackBtn = document.getElementById('maintRelRollbackBtn');
+  if (rollbackBtn) rollbackBtn.disabled = _maintRelBusy || !previous?.release_id;
+
+  const tbody = document.getElementById('maintRelAvailableBody');
+  const empty = document.getElementById('maintRelAvailableEmpty');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+  const list = Array.isArray(inv?.available) ? inv.available : [];
+  if (!list.length) {
+    if (empty) empty.hidden = false;
+    return;
+  }
+  if (empty) empty.hidden = true;
+  for (const rel of list) {
+    const tr = document.createElement('tr');
+    const status = String(rel.status || '').toUpperCase();
+    const deployable = MAINT_REL_DEPLOYABLE.has(status);
+    const btn = deployable
+      ? `<button type="button" class="policy-btn maint-rel-deploy-btn" data-release-id="${rel.release_id || ''}" ${_maintRelBusy ? 'disabled' : ''}>Deploy</button>`
+      : '';
+    tr.innerHTML = `<td>${rel.release_id || '—'}</td><td>${rel.version || '—'}</td><td>${rel.status || '—'}</td><td>${maintRelFmtTime(rel.created_at)}</td><td>${rel.compatibility || '—'}</td><td title="${rel.sha256 || ''}">${maintRelFmtSha(rel.sha256)}</td><td>${maintRelFmtSize(rel.size_bytes ?? rel.size)}</td><td>${btn}</td>`;
+    tbody.appendChild(tr);
+  }
+  tbody.querySelectorAll('.maint-rel-deploy-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.releaseId;
+      const rel = list.find((r) => r.release_id === id);
+      if (rel) maintRelOpenDeployConfirm(rel);
+    });
+  });
+}
+
+function maintRelRenderBackups(wire) {
+  const tbody = document.getElementById('maintRelBackupsBody');
+  const empty = document.getElementById('maintRelBackupsEmpty');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+  const list = Array.isArray(wire?.backups) ? wire.backups : [];
+  if (!list.length) {
+    if (empty) empty.hidden = false;
+    return;
+  }
+  if (empty) empty.hidden = true;
+  for (const b of list) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${b.backup_id || '—'}</td><td>${maintRelFmtTime(b.created_at)}</td><td>${b.release_id || '—'}</td><td title="${b.sha256 || ''}">${maintRelFmtSha(b.sha256)}</td>`;
+    tbody.appendChild(tr);
+  }
+}
+
+function maintRelRenderAudit(wire) {
+  const tbody = document.getElementById('maintRelAuditBody');
+  const empty = document.getElementById('maintRelAuditEmpty');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+  const entries = Array.isArray(wire?.entries) ? [...wire.entries] : [];
+  entries.sort((a, b) => {
+    const au = a?.timestamp?.t_utc_ns ?? 0;
+    const bu = b?.timestamp?.t_utc_ns ?? 0;
+    return Number(bu) - Number(au);
+  });
+  if (!entries.length) {
+    if (empty) empty.hidden = false;
+    return;
+  }
+  if (empty) empty.hidden = true;
+  for (const e of entries) {
+    const tr = document.createElement('tr');
+    if (e.result) tr.dataset.result = e.result;
+    tr.innerHTML = `<td>${maintRelFmtTime(e.timestamp ?? e.created_at)}</td><td>${e.operation || '—'}</td><td>${e.release_id || e.release || '—'}</td><td>${e.result || '—'}</td><td>${e.failure_reason || '—'}</td><td>${e.active_release_id || e.active_release || '—'}</td>`;
+    tbody.appendChild(tr);
+  }
+}
+
+function maintRelSetUnavailable(note) {
+  maintRelSetEl('maintRelDeployState', '—');
+  maintRelSetEl('maintRelActiveId', '—');
+  maintRelSetEl('maintRelActiveVersion', '—');
+  maintRelSetEl('maintRelActiveStatus', '—');
+  maintRelSetEl('maintRelPrevId', '—');
+  maintRelSetEl('maintRelPrevVersion', '—');
+  maintRelSetEl('maintRelPrevStatus', '—');
+  const noteEl = document.getElementById('maintRelStatusNote');
+  if (noteEl) noteEl.textContent = note || 'לא זמין';
+  const tbodyA = document.getElementById('maintRelAvailableBody');
+  if (tbodyA) tbodyA.innerHTML = '';
+  const emptyA = document.getElementById('maintRelAvailableEmpty');
+  if (emptyA) { emptyA.hidden = false; emptyA.textContent = 'לא זמין'; }
+  const rollbackBtn = document.getElementById('maintRelRollbackBtn');
+  const backupBtn = document.getElementById('maintRelBackupBtn');
+  if (rollbackBtn) rollbackBtn.disabled = true;
+  if (backupBtn) backupBtn.disabled = true;
+}
+
+async function maintRelLoadAll() {
+  const mockBadge = document.getElementById('maintRelMockBadge');
+  const isMock = _maintCompanionModeHint === 'mock';
+  if (mockBadge) mockBadge.hidden = !isMock;
+
+  const noteEl = document.getElementById('maintRelStatusNote');
+  if (_maintApiReachable === false) {
+    maintRelSetUnavailable('Companion לא זמין — מציג מצב אחרון');
+    return;
+  }
+
+  const [relR, bkR, auditR] = await Promise.all([
+    maintRelFetchJson('/api/jetson/v1/maintenance/releases'),
+    maintRelFetchJson('/api/jetson/v1/maintenance/backups'),
+    maintRelFetchJson('/api/jetson/v1/maintenance/audit'),
+  ]);
+
+  if (!relR.ok) {
+    maintRelSetUnavailable(maintRelApiError(relR.status, relR.json));
+    if (bkR.ok) maintRelRenderBackups(bkR.data);
+    if (auditR.ok) maintRelRenderAudit(auditR.data);
+    return;
+  }
+
+  if (noteEl) noteEl.textContent = isMock ? 'מצב MOCK — פעולות דטרמיניסטיות ללא מנוע פריסה אמיתי' : '';
+  maintRelRenderInventory(relR.data);
+  const backupBtn = document.getElementById('maintRelBackupBtn');
+  if (backupBtn) backupBtn.disabled = _maintRelBusy;
+  if (bkR.ok) maintRelRenderBackups(bkR.data);
+  else maintRelRenderBackups({ backups: [] });
+  if (auditR.ok) maintRelRenderAudit(auditR.data);
+  else maintRelRenderAudit({ entries: [] });
+}
+
+function maintRelOpenConfirm(title, html, onOk) {
+  if (_maintRelBusy) return;
+  const modal = document.getElementById('maintRelConfirmModal');
+  const titleEl = document.getElementById('maintRelConfirmTitle');
+  const bodyEl = document.getElementById('maintRelConfirmBody');
+  if (!modal || !titleEl || !bodyEl) return;
+  titleEl.textContent = title;
+  bodyEl.innerHTML = html;
+  _maintRelPendingAction = onOk;
+  modal.hidden = false;
+}
+
+function maintRelCloseConfirm() {
+  const modal = document.getElementById('maintRelConfirmModal');
+  if (modal) modal.hidden = true;
+  _maintRelPendingAction = null;
+}
+
+function maintRelOpenDeployConfirm(rel) {
+  const html = [
+    '<p><strong>Install this release?</strong></p>',
+    `<p>Version: ${rel.version || '—'}</p>`,
+    `<p>Release ID: ${rel.release_id || '—'}</p>`,
+    `<p>SHA256: ${rel.sha256 || '—'}</p>`,
+    `<p>Compatibility: ${rel.compatibility || '—'}</p>`,
+  ].join('');
+  maintRelOpenConfirm('Deploy release', html, () => maintRelExecuteDeploy(rel));
+}
+
+function maintRelOpenRollbackConfirm() {
+  const inv = _maintRelInventory;
+  if (!inv?.previous?.release_id) return;
+  const html = [
+    '<p><strong>Rollback to previous release?</strong></p>',
+    `<p>Target: ${inv.previous.version || '—'} (${inv.previous.release_id})</p>`,
+    `<p>Current: ${inv.active?.version || '—'} (${inv.active?.release_id || '—'})</p>`,
+    '<p>אזהרה: פעולה זו תחזיר את הגרסה המופעלת; אתחול תהליך עדיין נדרש.</p>',
+  ].join('');
+  maintRelOpenConfirm('Rollback', html, () => maintRelExecuteRollback());
+}
+
+async function maintRelExecuteDeploy(rel) {
+  if (_maintRelBusy) return;
+  maintRelCloseConfirm();
+  maintRelSetBusy(true, 'VERIFYING');
+  try {
+    const body = maintRelBuildDeployBody(rel.release_id);
+    maintRelAssertDeployBodySafe(body);
+    const r = await maintRelFetchJson('/api/jetson/v1/maintenance/deploy', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!r.ok) {
+      const msg = r.status === 409
+        ? 'Another maintenance operation is already running'
+        : maintRelApiError(r.status, r.json);
+      maintRelShowResult('maintRelBackupResult', msg, 'err');
+      await maintRelLoadAll();
+      return;
+    }
+    const state = String(r.data?.state || r.data?.deploy_state || '').toUpperCase();
+    maintRelSetEl('maintRelDeployState', maintRelDeployStateLabel(state || 'SUCCEEDED'));
+    if (state === 'ROLLED_BACK') {
+      const failedRel = r.data?.release_id || rel.release_id || '—';
+      const restoredRel = r.data?.active_release?.release_id || '—';
+      const runningVer = r.data?.running_version || r.data?.active_release?.version || '—';
+      const reason = r.data?.failure_reason || r.data?.message || '—';
+      maintRelShowResult(
+        'maintRelBackupResult',
+        `Deployment failed — previous version restored | failed=${failedRel} restored=${restoredRel} running=${runningVer} reason=${reason}`,
+        'err',
+      );
+    } else if (state === 'FAILED') {
+      const runningVer = r.data?.running_version || '—';
+      const activeRel = r.data?.active_release?.release_id || '—';
+      const reason = r.data?.failure_reason || r.data?.message || '—';
+      maintRelShowResult(
+        'maintRelBackupResult',
+        `Deployment failed | active=${activeRel} running=${runningVer} reason=${reason}`,
+        'err',
+      );
+    } else if (
+      state === 'SUCCEEDED'
+      && r.data?.running_process_changed === true
+      && String(r.data?.running_version || '') === String(r.data?.active_release?.version || '')
+      && (r.data?.health_check_ok === true || r.data?.health_ok === true || r.data?.health === 'valid')
+      && String(r.data?.release_id || r.data?.requested_release_id || '') === String(rel.release_id)
+    ) {
+      maintRelShowResult('maintRelBackupResult', `Deployment successful | running version: ${r.data.running_version}`, 'ok');
+    } else {
+      maintRelShowResult('maintRelBackupResult', maintRelActivationMessage(r.data) || 'Deployment did not reach verified running state', 'err');
+    }
+    await maintRelLoadAll();
+  } catch (err) {
+    maintRelShowResult('maintRelBackupResult', err?.message || 'Deploy failed', 'err');
+  } finally {
+    maintRelSetBusy(false);
+  }
+}
+
+async function maintRelExecuteRollback() {
+  if (_maintRelBusy) return;
+  maintRelCloseConfirm();
+  maintRelSetBusy(true, 'ROLLING_BACK');
+  try {
+    const r = await maintRelFetchJson('/api/jetson/v1/maintenance/rollback', { method: 'POST' });
+    if (!r.ok) {
+      const msg = r.status === 409
+        ? 'Another maintenance operation is already running'
+        : maintRelApiError(r.status, r.json);
+      maintRelShowResult('maintRelBackupResult', msg, 'err');
+      await maintRelLoadAll();
+      return;
+    }
+    const msg = maintRelActivationMessage(r.data) || 'Rollback completed';
+    maintRelShowResult('maintRelBackupResult', msg, 'ok');
+    await maintRelLoadAll();
+  } catch (err) {
+    maintRelShowResult('maintRelBackupResult', err?.message || 'Rollback failed', 'err');
+  } finally {
+    maintRelSetBusy(false);
+  }
+}
+
+async function maintRelExecuteBackup() {
+  if (_maintRelBusy) return;
+  maintRelShowResult('maintRelBackupResult', null);
+  maintRelSetBusy(true, 'BACKING_UP');
+  try {
+    const r = await maintRelFetchJson('/api/jetson/v1/maintenance/backup', { method: 'POST' });
+    if (!r.ok) {
+      const msg = r.status === 409
+        ? 'Another maintenance operation is already running'
+        : maintRelApiError(r.status, r.json);
+      maintRelShowResult('maintRelBackupResult', msg, 'err');
+      await maintRelLoadAll();
+      return;
+    }
+    const d = r.data || {};
+    const text = d.backup_id
+      ? `גיבוי הצליח — ID: ${d.backup_id}`
+      : (d.message || 'גיבוי הצליח');
+    maintRelShowResult('maintRelBackupResult', text, 'ok');
+    await maintRelLoadAll();
+  } catch (err) {
+    maintRelShowResult('maintRelBackupResult', err?.message || 'Backup failed', 'err');
+  } finally {
+    maintRelSetBusy(false);
+  }
+}
+
+document.getElementById('maintRelBackupBtn')?.addEventListener('click', () => { void maintRelExecuteBackup(); });
+document.getElementById('maintRelRollbackBtn')?.addEventListener('click', () => maintRelOpenRollbackConfirm());
+document.getElementById('maintRelConfirmCancel')?.addEventListener('click', () => maintRelCloseConfirm());
+document.getElementById('maintRelConfirmOk')?.addEventListener('click', () => {
+  if (typeof _maintRelPendingAction === 'function') void _maintRelPendingAction();
+});
+document.getElementById('maintRelConfirmModal')?.addEventListener('click', (ev) => {
+  if (ev.target?.id === 'maintRelConfirmModal') maintRelCloseConfirm();
+});

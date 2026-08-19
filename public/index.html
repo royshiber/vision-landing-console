@@ -798,6 +798,66 @@
             <p id="maintDiagEmpty" class="maint-diag-empty">אין אירועים</p>
           </div>
           <button type="button" id="maintRefreshBtn" class="policy-btn">רענן</button>
+
+          <h4 class="maint-group-title">ניהול גרסאות</h4>
+          <p id="maintRelMockBadge" class="maint-rel-mock-badge" hidden>MOCK</p>
+          <p class="tele-dash-note" id="maintRelStatusNote">—</p>
+          <p class="maint-rel-deploy-state"><span>מצב פריסה:</span> <strong id="maintRelDeployState">—</strong></p>
+
+          <h5 class="maint-sub-title">גרסה פעילה</h5>
+          <div class="tele-group-cards">
+            <article class="tele-card"><span>Release ID</span><strong id="maintRelActiveId">—</strong></article>
+            <article class="tele-card"><span>Version</span><strong id="maintRelActiveVersion">—</strong></article>
+            <article class="tele-card"><span>Status</span><strong id="maintRelActiveStatus">—</strong></article>
+          </div>
+
+          <h5 class="maint-sub-title">גרסה קודמת</h5>
+          <div class="tele-group-cards">
+            <article class="tele-card"><span>Release ID</span><strong id="maintRelPrevId">—</strong></article>
+            <article class="tele-card"><span>Version</span><strong id="maintRelPrevVersion">—</strong></article>
+            <article class="tele-card"><span>Status</span><strong id="maintRelPrevStatus">—</strong></article>
+          </div>
+          <button type="button" id="maintRelRollbackBtn" class="policy-btn maint-rel-action" disabled>Rollback</button>
+
+          <h5 class="maint-sub-title">גרסאות זמינות</h5>
+          <div class="maint-diag-wrap">
+            <table class="maint-diag-table" id="maintRelAvailableTable">
+              <thead><tr><th>ID</th><th>Version</th><th>Status</th><th>Created</th><th>Compat</th><th>SHA256</th><th>Size</th><th></th></tr></thead>
+              <tbody id="maintRelAvailableBody"></tbody>
+            </table>
+            <p id="maintRelAvailableEmpty" class="maint-diag-empty">אין גרסאות</p>
+          </div>
+
+          <h4 class="maint-group-title">גיבויים</h4>
+          <div class="maint-diag-wrap">
+            <table class="maint-diag-table" id="maintRelBackupsTable">
+              <thead><tr><th>Backup ID</th><th>Created</th><th>Release</th><th>SHA256</th></tr></thead>
+              <tbody id="maintRelBackupsBody"></tbody>
+            </table>
+            <p id="maintRelBackupsEmpty" class="maint-diag-empty">אין גיבויים</p>
+          </div>
+          <button type="button" id="maintRelBackupBtn" class="policy-btn">Backup configuration</button>
+          <p id="maintRelBackupResult" class="maint-rel-result" hidden></p>
+
+          <h4 class="maint-group-title">יומן פעולות</h4>
+          <div class="maint-diag-wrap">
+            <table class="maint-diag-table" id="maintRelAuditTable">
+              <thead><tr><th>Time</th><th>Operation</th><th>Release</th><th>Result</th><th>Failure</th><th>Active</th></tr></thead>
+              <tbody id="maintRelAuditBody"></tbody>
+            </table>
+            <p id="maintRelAuditEmpty" class="maint-diag-empty">אין רשומות</p>
+          </div>
+
+          <div id="maintRelConfirmModal" class="maint-rel-modal" hidden>
+            <div class="maint-rel-modal-card">
+              <h4 id="maintRelConfirmTitle">—</h4>
+              <div id="maintRelConfirmBody" class="maint-rel-confirm-body"></div>
+              <div class="maint-rel-modal-actions">
+                <button type="button" id="maintRelConfirmCancel" class="policy-btn">ביטול</button>
+                <button type="button" id="maintRelConfirmOk" class="policy-btn maint-rel-confirm-ok">אישור</button>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 

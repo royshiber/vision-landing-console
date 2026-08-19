@@ -4260,6 +4260,75 @@ button:hover,
   font-size: 0.8rem;
 }
 
+.maint-sub-title {
+  margin: 10px 0 4px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-secondary, var(--text-muted));
+}
+.maint-rel-deploy-state {
+  margin: 4px 0 8px;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+.maint-rel-mock-badge {
+  display: inline-block;
+  margin: 4px 0;
+  padding: 2px 8px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  border-radius: 6px;
+  background: var(--status-warning, #f5a623);
+  color: #1a1a1a;
+}
+.maint-rel-action { margin: 6px 0 10px; }
+.maint-rel-action:disabled { opacity: 0.45; cursor: not-allowed; }
+.maint-rel-result {
+  margin: 6px 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 0.78rem;
+  border: 1px solid var(--border);
+}
+.maint-rel-result[data-kind="ok"] { border-color: var(--status-ok, #27ae60); color: var(--status-ok, #27ae60); }
+.maint-rel-result[data-kind="err"] { border-color: var(--status-error, #e74c3c); color: var(--status-error, #e74c3c); }
+.maint-rel-deploy-btn {
+  font-size: 0.68rem;
+  padding: 2px 8px;
+}
+.maint-rel-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.45);
+}
+.maint-rel-modal-card {
+  width: min(420px, 92vw);
+  padding: 16px 18px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface-raised, #fff);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+}
+.maint-rel-confirm-body {
+  margin: 10px 0 14px;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--text-secondary, var(--text-muted));
+}
+.maint-rel-modal-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+.maint-rel-confirm-ok { font-weight: 700; }
+.maint-diag-table tr[data-result="failure"] td { color: var(--status-error, #e74c3c); }
+.maint-diag-table tr[data-result="success"] td { color: inherit; }
+
 /* ── Policy editor ── */
 .policy-channel-card {
   margin: 10px 0 6px;
