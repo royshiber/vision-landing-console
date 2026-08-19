@@ -4329,6 +4329,84 @@ button:hover,
 .maint-diag-table tr[data-result="failure"] td { color: var(--status-error, #e74c3c); }
 .maint-diag-table tr[data-result="success"] td { color: inherit; }
 
+.devtasks-panel {
+  padding: 16px 18px;
+  overflow: auto;
+  display: grid;
+  gap: 14px;
+}
+.devtasks-create,
+.devtasks-list,
+.devtasks-detail {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-raised);
+  padding: 10px 12px;
+}
+.devtasks-block {
+  margin-top: 8px;
+  display: block;
+}
+.devtasks-block .kpi-input {
+  width: 100%;
+  margin-top: 5px;
+}
+.devtasks-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+  align-items: center;
+}
+.devtasks-filters label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.devtasks-filters .kpi-input {
+  min-width: 112px;
+}
+.devtasks-open {
+  margin-inline-start: auto;
+}
+.devtasks-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin: 8px 0 4px;
+}
+.devtasks-description {
+  margin: 0 0 8px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  white-space: pre-wrap;
+}
+.devtasks-edit {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: end;
+  margin-bottom: 8px;
+}
+.devtasks-edit label {
+  font-size: 0.74rem;
+  color: var(--text-muted);
+  display: grid;
+  gap: 4px;
+}
+.devtasks-agent-actions {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+#devTaskListBody tr {
+  cursor: pointer;
+}
+#devTaskListBody tr[data-selected="true"] td {
+  background: rgba(37,99,235,0.12);
+}
+
 /* ── Policy editor ── */
 .policy-channel-card {
   margin: 10px 0 6px;

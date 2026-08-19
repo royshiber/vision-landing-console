@@ -189,6 +189,7 @@
         <button class="tab" data-tab="recordings" title="הקלטות ולוגים תחת תחקור">תחקור</button>
         <button class="tab" data-tab="telemetry" title="לוח טלמטריה, סטטוסים ובדיקות מערכת">טלמטריה</button>
         <button class="tab" data-tab="maintenance" title="סטטוס תחזוקה לתצוגה בלבד">תחזוקה</button>
+        <button class="tab" data-tab="development" title="ניהול משימות פיתוח מקומיות">DEVELOPMENT</button>
         <button class="tab" data-tab="simLab" title="מעבדת SITL — ArduPilot בסימולציה, תצוגת תלת־מימד מהטלמטריה וקביעות חיבור">מעבדת SITL</button>
         <button class="tab" data-tab="advisor" title="AI Advisor — אבחון, הצעות, שינוי פרמטרים וזיכרון ארוך-טווח">AI Advisor</button>
         <button class="tab" data-tab="featureDesigner" title="ArduLab — תאר פיצ'ר חדש, ה-AI יכתוב עבורך קוד ArduPilot מלא ויגדיר פרמטרים">ArduLab</button>
@@ -858,6 +859,153 @@
               </div>
             </div>
           </div>
+        </div>
+      </section>
+
+      <section id="development" class="panel">
+        <div class="devtasks-panel">
+          <h3>Development Tasks</h3>
+          <p class="tele-dash-note">שכבת ניהול מקומית מבוקרת: worktree מבודד והרצת פרופילי בדיקות מאושרים בלבד.</p>
+
+          <section class="devtasks-create">
+            <h4 class="maint-group-title">Create task</h4>
+            <div class="tele-group-cards">
+              <label class="tele-card"><span>Title</span><input id="devTaskTitle" class="kpi-input" maxlength="140" /></label>
+              <label class="tele-card"><span>Target area</span>
+                <select id="devTaskTarget" class="kpi-input">
+                  <option>VISION</option><option>NAVIGATION</option><option>LANDING</option><option>VIDEO</option>
+                  <option>MAVLINK</option><option>COMPANION</option><option>UI</option><option>API</option>
+                  <option>MAINTENANCE</option><option selected>OTHER</option>
+                </select>
+              </label>
+              <label class="tele-card"><span>Priority</span>
+                <select id="devTaskPriority" class="kpi-input">
+                  <option>LOW</option><option selected>NORMAL</option><option>HIGH</option><option>CRITICAL</option>
+                </select>
+              </label>
+            </div>
+            <label class="tele-card devtasks-block"><span>Description</span><textarea id="devTaskDescription" class="kpi-input" rows="4" maxlength="5000"></textarea></label>
+            <label class="tele-card devtasks-block"><span>Notes (optional)</span><textarea id="devTaskNotes" class="kpi-input" rows="2" maxlength="5000"></textarea></label>
+            <button type="button" id="devTaskCreateBtn" class="policy-btn">Create task</button>
+            <p id="devTaskCreateResult" class="maint-rel-result" hidden></p>
+          </section>
+
+          <section class="devtasks-list">
+            <h4 class="maint-group-title">Development Tasks</h4>
+            <div class="devtasks-filters">
+              <label>Status <select id="devTaskFilterStatus" class="kpi-input"><option value="">ALL</option></select></label>
+              <label>Target <select id="devTaskFilterTarget" class="kpi-input"><option value="">ALL</option></select></label>
+              <label>Sort <select id="devTaskSort" class="kpi-input"><option value="updated_desc">Updated ↓</option><option value="updated_asc">Updated ↑</option></select></label>
+              <label class="devtasks-open"><input type="checkbox" id="devTaskFilterOpen" /> Open only</label>
+              <button type="button" id="devTaskRefreshBtn" class="policy-btn">Refresh</button>
+            </div>
+            <div class="maint-diag-wrap">
+              <table class="maint-diag-table">
+                <thead><tr><th>ID</th><th>Title</th><th>Target</th><th>Priority</th><th>Status</th><th>Updated</th></tr></thead>
+                <tbody id="devTaskListBody"></tbody>
+              </table>
+              <p id="devTaskListEmpty" class="maint-diag-empty">No tasks</p>
+            </div>
+          </section>
+
+          <section class="devtasks-detail">
+            <h4 class="maint-group-title">Task Detail</h4>
+            <p id="devTaskDetailEmpty" class="maint-diag-empty">בחר משימה מהרשימה</p>
+            <div id="devTaskDetailCard" hidden>
+              <div class="tele-group-cards">
+                <article class="tele-card"><span>Task ID</span><strong id="devDetailId">—</strong></article>
+                <article class="tele-card"><span>Status</span><strong id="devDetailStatus">—</strong></article>
+                <article class="tele-card"><span>Updated</span><strong id="devDetailUpdated">—</strong></article>
+              </div>
+              <p id="devDetailTitle" class="devtasks-title">—</p>
+              <p id="devDetailDescription" class="devtasks-description">—</p>
+              <div class="devtasks-edit">
+                <label>Priority <select id="devDetailPriority" class="kpi-input"></select></label>
+                <label>Target <select id="devDetailTarget" class="kpi-input"></select></label>
+                <label>Status <select id="devDetailStatusSelect" class="kpi-input"></select></label>
+                <button type="button" id="devDetailSaveBtn" class="policy-btn">Save</button>
+              </div>
+              <div class="devtasks-agent-actions">
+                <button type="button" id="devAgentStartBtn" class="policy-btn">Start development</button>
+                <button type="button" id="devAgentCancelBtn" class="policy-btn">Cancel agent</button>
+                <button type="button" id="devWorktreeCreateBtn" class="policy-btn">Create worktree</button>
+              </div>
+              <p id="devAgentResult" class="maint-rel-result" hidden></p>
+              <h5 class="maint-sub-title">Development metadata</h5>
+              <div class="tele-group-cards">
+                <article class="tele-card"><span>Branch</span><strong id="devMetaBranch">—</strong></article>
+                <article class="tele-card"><span>Worktree</span><strong id="devMetaWorktree">—</strong></article>
+                <article class="tele-card"><span>Base commit</span><strong id="devMetaBaseCommit">—</strong></article>
+                <article class="tele-card"><span>Worktree clean</span><strong id="devMetaWorktreeClean">—</strong></article>
+                <article class="tele-card"><span>Changed files</span><strong id="devMetaWorktreeChangedFiles">—</strong></article>
+                <article class="tele-card"><span>Agent status</span><strong id="devMetaAgentStatus">—</strong></article>
+                <article class="tele-card"><span>Agent session</span><strong id="devMetaAgentSession">—</strong></article>
+                <article class="tele-card"><span>Agent provider</span><strong id="devMetaAgentProvider">—</strong></article>
+              </div>
+              <h5 class="maint-sub-title">Progress</h5>
+              <div class="tele-group-cards">
+                <article class="tele-card"><span>Progress</span><strong id="devAgentProgress">—</strong></article>
+                <article class="tele-card"><span>Last update</span><strong id="devAgentUpdatedAt">—</strong></article>
+                <article class="tele-card"><span>Last message</span><strong id="devAgentLastMessage">—</strong></article>
+                <article class="tele-card"><span>Error</span><strong id="devAgentError">—</strong></article>
+              </div>
+              <h5 class="maint-sub-title">Testing</h5>
+              <div class="devtasks-agent-actions">
+                <label>Profile
+                  <select id="devTestProfileSelect" class="kpi-input">
+                    <option value="CONSOLE_FULL">CONSOLE_FULL</option>
+                    <option value="COMPANION_CONTRACT">COMPANION_CONTRACT</option>
+                    <option value="MAINTENANCE">MAINTENANCE</option>
+                    <option value="DEVELOPMENT">DEVELOPMENT</option>
+                  </select>
+                </label>
+                <button type="button" id="devTestRunBtn" class="policy-btn">Run approved tests</button>
+                <button type="button" id="devTestCancelBtn" class="policy-btn">Cancel tests</button>
+              </div>
+              <p id="devTestResult" class="maint-rel-result" hidden></p>
+              <div class="tele-group-cards">
+                <article class="tele-card"><span>Profile</span><strong id="devTestProfile">—</strong></article>
+                <article class="tele-card"><span>State</span><strong id="devTestState">—</strong></article>
+                <article class="tele-card"><span>Passed</span><strong id="devTestPassed">—</strong></article>
+                <article class="tele-card"><span>Failed</span><strong id="devTestFailed">—</strong></article>
+                <article class="tele-card"><span>Duration</span><strong id="devTestDuration">—</strong></article>
+                <article class="tele-card"><span>Last run</span><strong id="devTestLastRun">—</strong></article>
+                <article class="tele-card"><span>Result</span><strong id="devTestOutcome">—</strong></article>
+                <article class="tele-card"><span>Exit status</span><strong id="devTestExitStatus">—</strong></article>
+                <article class="tele-card"><span>Log ref</span><strong id="devTestLogRef">—</strong></article>
+              </div>
+              <h5 class="maint-sub-title">Release</h5>
+              <div class="devtasks-agent-actions">
+                <button type="button" id="devReleaseApproveBtn" class="policy-btn">Approve for release</button>
+                <button type="button" id="devReleaseCreateBtn" class="policy-btn">Create release</button>
+                <button type="button" id="devReleaseDeployBtn" class="policy-btn">Deploy release</button>
+              </div>
+              <p id="devReleaseResult" class="maint-rel-result" hidden></p>
+              <div class="tele-group-cards">
+                <article class="tele-card"><span>State</span><strong id="devReleaseState">—</strong></article>
+                <article class="tele-card"><span>Release ID</span><strong id="devReleaseId">—</strong></article>
+                <article class="tele-card"><span>Version</span><strong id="devReleaseVersion">—</strong></article>
+                <article class="tele-card"><span>SHA256</span><strong id="devReleaseSha256">—</strong></article>
+                <article class="tele-card"><span>Source commit</span><strong id="devReleaseSourceCommit">—</strong></article>
+                <article class="tele-card"><span>Created</span><strong id="devReleaseCreatedAt">—</strong></article>
+              </div>
+              <h5 class="maint-sub-title">Deployment</h5>
+              <div class="tele-group-cards">
+                <article class="tele-card"><span>State</span><strong id="devDeployState">—</strong></article>
+                <article class="tele-card"><span>Running version</span><strong id="devDeployRunningVersion">—</strong></article>
+                <article class="tele-card"><span>Result</span><strong id="devDeployResult">—</strong></article>
+              </div>
+              <h5 class="maint-sub-title">History / Audit</h5>
+              <div class="maint-diag-wrap">
+                <table class="maint-diag-table">
+                  <thead><tr><th>Time</th><th>Action</th><th>Previous</th><th>New</th></tr></thead>
+                  <tbody id="devTaskAuditBody"></tbody>
+                </table>
+                <p id="devTaskAuditEmpty" class="maint-diag-empty">No audit entries</p>
+              </div>
+              <p id="devTaskDetailResult" class="maint-rel-result" hidden></p>
+            </div>
+          </section>
         </div>
       </section>
 

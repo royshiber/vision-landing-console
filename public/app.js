@@ -208,6 +208,9 @@ function applyMainTab(tabId, { save = true } = {}) {
   if (tabId === 'maintenance') {
     void maintLoadData();
   }
+  if (tabId === 'development') {
+    void devTasksLoadList();
+  }
 }
 const PARAM_SUBTAB_IDS = new Set(['landingParams', 'abortParams', 'visionNavParams', 'arduParams', 'customParams']);
 
@@ -9505,3 +9508,482 @@ document.getElementById('maintRelConfirmOk')?.addEventListener('click', () => {
 document.getElementById('maintRelConfirmModal')?.addEventListener('click', (ev) => {
   if (ev.target?.id === 'maintRelConfirmModal') maintRelCloseConfirm();
 });
+
+/* ── Development Tasks (C9.1) — local management layer only ── */
+const DEV_STATUSES = ['DRAFT', 'QUEUED', 'IN_PROGRESS', 'WAITING_FOR_REVIEW', 'TESTING', 'READY_FOR_RELEASE', 'RELEASED', 'DEPLOYED', 'FAILED', 'CANCELLED'];
+const DEV_PRIORITIES = ['LOW', 'NORMAL', 'HIGH', 'CRITICAL'];
+const DEV_TARGETS = ['VISION', 'NAVIGATION', 'LANDING', 'VIDEO', 'MAVLINK', 'COMPANION', 'UI', 'API', 'MAINTENANCE', 'OTHER'];
+let _devTasks = [];
+let _devSelectedTaskId = null;
+let _devMetaReady = false;
+let _devAgentPoll = null;
+let _devAgentMeta = { provider: null, available: false };
+let _devTestPoll = null;
+
+function devText(v) {
+  return (v == null || v === '') ? '—' : String(v);
+}
+
+function devSetResult(id, text, kind = 'ok') {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (!text) {
+    el.hidden = true;
+    el.textContent = '';
+    return;
+  }
+  el.hidden = false;
+  el.textContent = text;
+  el.dataset.kind = kind;
+}
+
+function devFmtTime(ts) {
+  if (!ts) return '—';
+  const d = new Date(ts);
+  return Number.isNaN(d.getTime()) ? String(ts) : d.toLocaleString('he-IL');
+}
+
+async function devApi(path, opts = {}) {
+  const r = await fetch(path, opts);
+  let j = {};
+  try { j = await r.json(); } catch { /* ignore */ }
+  return { ok: r.ok && j.ok !== false, status: r.status, data: j };
+}
+
+function devFillOptions(selectId, values, includeAll = false) {
+  const el = document.getElementById(selectId);
+  if (!el) return;
+  const current = el.value;
+  const opt = [];
+  if (includeAll) opt.push('<option value="">ALL</option>');
+  for (const v of values) opt.push(`<option value="${v}">${v}</option>`);
+  el.innerHTML = opt.join('');
+  if ([...el.options].some((o) => o.value === current)) el.value = current;
+}
+
+async function devEnsureMeta() {
+  if (_devMetaReady) return;
+  const r = await devApi('/api/development/tasks/meta');
+  if (!r.ok) return;
+  const statuses = Array.isArray(r.data.statuses) ? r.data.statuses : DEV_STATUSES;
+  const priorities = Array.isArray(r.data.priorities) ? r.data.priorities : DEV_PRIORITIES;
+  const targets = Array.isArray(r.data.targetAreas) ? r.data.targetAreas : DEV_TARGETS;
+  devFillOptions('devTaskFilterStatus', statuses, true);
+  devFillOptions('devTaskFilterTarget', targets, true);
+  devFillOptions('devDetailStatusSelect', statuses, false);
+  devFillOptions('devDetailPriority', priorities, false);
+  devFillOptions('devDetailTarget', targets, false);
+  _devAgentMeta = {
+    provider: r.data?.agentProvider || null,
+    available: r.data?.agentAvailable === true,
+  };
+  const profiles = Array.isArray(r.data?.testProfiles) ? r.data.testProfiles : ['CONSOLE_FULL', 'COMPANION_CONTRACT', 'MAINTENANCE', 'DEVELOPMENT'];
+  devFillOptions('devTestProfileSelect', profiles, false);
+  _devMetaReady = true;
+}
+
+function devRenderTaskList() {
+  const body = document.getElementById('devTaskListBody');
+  const empty = document.getElementById('devTaskListEmpty');
+  if (!body) return;
+  body.innerHTML = '';
+  if (!_devTasks.length) {
+    if (empty) empty.hidden = false;
+    return;
+  }
+  if (empty) empty.hidden = true;
+  for (const t of _devTasks) {
+    const tr = document.createElement('tr');
+    if (t.id === _devSelectedTaskId) tr.dataset.selected = 'true';
+    tr.innerHTML = `<td>${devText(t.id)}</td><td>${devText(t.title)}</td><td>${devText(t.target_area)}</td><td>${devText(t.priority)}</td><td>${devText(t.status)}</td><td>${devFmtTime(t.updated_at)}</td>`;
+    tr.addEventListener('click', () => {
+      _devSelectedTaskId = t.id;
+      devRenderTaskList();
+      void devLoadTaskDetail(t.id);
+    });
+    body.appendChild(tr);
+  }
+}
+
+function devRenderTaskDetail(task) {
+  const card = document.getElementById('devTaskDetailCard');
+  const empty = document.getElementById('devTaskDetailEmpty');
+  if (!card || !empty) return;
+  if (!task) {
+    empty.hidden = false;
+    card.hidden = true;
+    return;
+  }
+  empty.hidden = true;
+  card.hidden = false;
+  document.getElementById('devDetailId').textContent = devText(task.id);
+  document.getElementById('devDetailStatus').textContent = devText(task.status);
+  document.getElementById('devDetailUpdated').textContent = devFmtTime(task.updated_at);
+  document.getElementById('devDetailTitle').textContent = devText(task.title);
+  document.getElementById('devDetailDescription').textContent = devText(task.description);
+  document.getElementById('devMetaBranch').textContent = devText(task.branch);
+  document.getElementById('devMetaWorktree').textContent = devText(task.worktree);
+  document.getElementById('devMetaBaseCommit').textContent = devText(task.worktree_meta?.base_commit);
+  document.getElementById('devMetaWorktreeClean').textContent = task.worktree_meta?.clean == null ? '—' : (task.worktree_meta.clean ? 'CLEAN' : 'DIRTY');
+  document.getElementById('devMetaWorktreeChangedFiles').textContent = devText(task.worktree_meta?.changed_files);
+  document.getElementById('devMetaAgentStatus').textContent = devText(task.agent?.state || 'NOT_STARTED');
+  document.getElementById('devMetaAgentSession').textContent = devText(task.agent?.session_id);
+  document.getElementById('devMetaAgentProvider').textContent = devText(task.agent?.provider || _devAgentMeta.provider);
+  document.getElementById('devAgentProgress').textContent = devText(task.agent?.progress);
+  document.getElementById('devAgentUpdatedAt').textContent = devFmtTime(task.agent?.updated_at);
+  document.getElementById('devAgentLastMessage').textContent = devText(task.agent?.last_message);
+  document.getElementById('devAgentError').textContent = devText(task.agent?.error);
+  document.getElementById('devTestState').textContent = devText(task.tests?.state || 'NOT_STARTED');
+  document.getElementById('devTestProfile').textContent = devText(task.tests?.profile);
+  document.getElementById('devTestPassed').textContent = devText(task.tests?.passed);
+  document.getElementById('devTestFailed').textContent = devText(task.tests?.failed);
+  document.getElementById('devTestDuration').textContent = task.tests?.duration_ms == null ? '—' : `${task.tests.duration_ms} ms`;
+  document.getElementById('devTestLastRun').textContent = devFmtTime(task.tests?.last_run);
+  document.getElementById('devTestOutcome').textContent = devText(task.tests?.result);
+  document.getElementById('devTestExitStatus').textContent = devText(task.tests?.exit_status);
+  document.getElementById('devTestLogRef').textContent = devText(task.tests?.log_ref);
+  document.getElementById('devReleaseState').textContent = devText(task.release?.state || 'NOT_STARTED');
+  document.getElementById('devReleaseId').textContent = devText(task.release?.release_id);
+  document.getElementById('devReleaseVersion').textContent = devText(task.release?.version);
+  document.getElementById('devReleaseSha256').textContent = devText(task.release?.artifact_sha256);
+  document.getElementById('devReleaseSourceCommit').textContent = devText(task.release?.source_commit);
+  document.getElementById('devReleaseCreatedAt').textContent = devFmtTime(task.release?.created_at);
+  document.getElementById('devDeployState').textContent = devText(task.deployment?.state || 'NOT_STARTED');
+  document.getElementById('devDeployRunningVersion').textContent = devText(task.deployment?.running_version);
+  document.getElementById('devDeployResult').textContent = devText(task.deployment?.result);
+  document.getElementById('devDetailPriority').value = task.priority || 'NORMAL';
+  document.getElementById('devDetailTarget').value = task.target_area || 'OTHER';
+  document.getElementById('devDetailStatusSelect').value = task.status || 'DRAFT';
+  const canStart = ['NOT_STARTED', 'FAILED', 'CANCELLED'].includes(task.agent?.state || 'NOT_STARTED');
+  const canCancel = ['QUEUED', 'RUNNING', 'WAITING'].includes(task.agent?.state || '');
+  const startBtn = document.getElementById('devAgentStartBtn');
+  const cancelBtn = document.getElementById('devAgentCancelBtn');
+  const worktreeBtn = document.getElementById('devWorktreeCreateBtn');
+  const runTestsBtn = document.getElementById('devTestRunBtn');
+  const cancelTestsBtn = document.getElementById('devTestCancelBtn');
+  const approveReleaseBtn = document.getElementById('devReleaseApproveBtn');
+  const createReleaseBtn = document.getElementById('devReleaseCreateBtn');
+  const deployReleaseBtn = document.getElementById('devReleaseDeployBtn');
+  if (startBtn) startBtn.disabled = !canStart || !_devAgentMeta.available;
+  if (cancelBtn) cancelBtn.disabled = !canCancel || !_devAgentMeta.available;
+  if (worktreeBtn) worktreeBtn.disabled = !!task.worktree;
+  if (runTestsBtn) runTestsBtn.disabled = !task.worktree || task.tests?.state === 'RUNNING' || task.agent?.state !== 'SUCCEEDED';
+  if (cancelTestsBtn) cancelTestsBtn.disabled = task.tests?.state !== 'RUNNING';
+  if (approveReleaseBtn) approveReleaseBtn.disabled = !(task.status === 'WAITING_FOR_REVIEW' && task.agent?.state === 'SUCCEEDED' && task.tests?.state === 'PASSED');
+  if (createReleaseBtn) createReleaseBtn.disabled = task.status !== 'READY_FOR_RELEASE';
+  if (deployReleaseBtn) deployReleaseBtn.disabled = task.release?.state !== 'READY';
+
+  const auditBody = document.getElementById('devTaskAuditBody');
+  const auditEmpty = document.getElementById('devTaskAuditEmpty');
+  if (auditBody) {
+    auditBody.innerHTML = '';
+    const audit = Array.isArray(task.audit) ? task.audit : [];
+    if (!audit.length) {
+      if (auditEmpty) auditEmpty.hidden = false;
+    } else {
+      if (auditEmpty) auditEmpty.hidden = true;
+      for (const a of audit) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${devFmtTime(a.timestamp)}</td><td>${devText(a.action)}</td><td>${devText(a.previous_value ? JSON.stringify(a.previous_value) : null)}</td><td>${devText(a.new_value ? JSON.stringify(a.new_value) : null)}</td>`;
+        auditBody.appendChild(tr);
+      }
+    }
+  }
+}
+
+async function devLoadTaskDetail(id) {
+  const r = await devApi(`/api/development/tasks/${encodeURIComponent(id)}`);
+  if (!r.ok) {
+    devSetResult('devTaskDetailResult', r.data?.message || 'failed to load task detail', 'err');
+    return;
+  }
+  devRenderTaskDetail(r.data.task);
+  devSetResult('devTaskDetailResult', null);
+}
+
+function devStartAgentPolling() {
+  if (_devAgentPoll) clearInterval(_devAgentPoll);
+  _devAgentPoll = setInterval(() => {
+    if (!_devSelectedTaskId) return;
+    void devRefreshAgentState(_devSelectedTaskId, true);
+  }, 2500);
+}
+
+function devStopAgentPolling() {
+  if (_devAgentPoll) clearInterval(_devAgentPoll);
+  _devAgentPoll = null;
+}
+
+async function devRefreshAgentState(taskId, silent = false) {
+  const r = await devApi(`/api/development/tasks/${encodeURIComponent(taskId)}/agent`);
+  if (!r.ok) {
+    if (!silent) devSetResult('devAgentResult', r.data?.message || 'failed to refresh agent', 'err');
+    return;
+  }
+  devRenderTaskDetail(r.data.task);
+  const state = r.data.task?.agent?.state || 'NOT_STARTED';
+  if (['SUCCEEDED', 'FAILED', 'CANCELLED', 'NOT_STARTED'].includes(state)) {
+    devStopAgentPolling();
+    await devTasksLoadList();
+  }
+}
+
+async function devStartDevelopment() {
+  if (!_devSelectedTaskId) return;
+  const t = _devTasks.find((x) => x.id === _devSelectedTaskId);
+  const id = t?.id || _devSelectedTaskId;
+  const title = t?.title || '';
+  const desc = t?.description || '';
+  const target = t?.target_area || '';
+  const priority = t?.priority || '';
+  const branch = `development/tasks/${String(id).toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '')}`;
+  const worktree = `.worktrees/${String(id).toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '')}`;
+  const msg = `Start development agent?\n\nTitle: ${title}\nDescription: ${desc}\nTarget: ${target}\nPriority: ${priority}\n\nWarning: Agent will modify code in isolated branch/worktree.\nBranch: ${branch}\nWorktree: ${worktree}`;
+  if (!window.confirm(msg)) return;
+  const r = await devApi(`/api/development/tasks/${encodeURIComponent(_devSelectedTaskId)}/agent/start`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ confirm: true }),
+  });
+  if (!r.ok) {
+    devSetResult('devAgentResult', r.data?.message || 'failed to start agent', 'err');
+    return;
+  }
+  devSetResult('devAgentResult', 'Development agent started', 'ok');
+  devRenderTaskDetail(r.data.task);
+  devStartAgentPolling();
+}
+
+async function devCreateWorktree() {
+  if (!_devSelectedTaskId) return;
+  const t = _devTasks.find((x) => x.id === _devSelectedTaskId);
+  const branch = t?.branch || `development/tasks/${String(_devSelectedTaskId).toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '')}`;
+  const worktree = t?.worktree || `.worktrees/${String(_devSelectedTaskId).toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '')}`;
+  if (!window.confirm(`Create isolated worktree?\n\nBranch: ${branch}\nWorktree: ${worktree}`)) return;
+  const r = await devApi(`/api/development/tasks/${encodeURIComponent(_devSelectedTaskId)}/worktree/create`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ confirm: true }),
+  });
+  if (!r.ok) {
+    devSetResult('devAgentResult', r.data?.message || 'worktree creation failed', 'err');
+    return;
+  }
+  devSetResult('devAgentResult', 'Worktree created', 'ok');
+  devRenderTaskDetail(r.data.task);
+  await devTasksLoadList();
+}
+
+async function devRunTests() {
+  if (!_devSelectedTaskId) return;
+  const profile = document.getElementById('devTestProfileSelect')?.value || 'DEVELOPMENT';
+  if (!window.confirm(`Run approved test profile ${profile} in task worktree?`)) return;
+  const r = await devApi(`/api/development/tasks/${encodeURIComponent(_devSelectedTaskId)}/tests/run`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ confirm: true, profile }),
+  });
+  if (!r.ok) {
+    devSetResult('devTestResult', r.data?.message || 'test run failed to start', 'err');
+    return;
+  }
+  devSetResult('devTestResult', `Tests started (${profile})`, 'ok');
+  devRenderTaskDetail(r.data.task);
+  if (_devTestPoll) clearInterval(_devTestPoll);
+  _devTestPoll = setInterval(() => { void devRefreshTests(true); }, 2500);
+}
+
+async function devRefreshTests(silent = false) {
+  if (!_devSelectedTaskId) return;
+  const r = await devApi(`/api/development/tasks/${encodeURIComponent(_devSelectedTaskId)}/tests`);
+  if (!r.ok) {
+    if (!silent) devSetResult('devTestResult', r.data?.message || 'failed to refresh tests', 'err');
+    return;
+  }
+  devRenderTaskDetail(r.data.task);
+  const state = r.data.task?.tests?.state || 'NOT_STARTED';
+  if (['PASSED', 'FAILED', 'CANCELLED', 'NOT_STARTED'].includes(state) && _devTestPoll) {
+    clearInterval(_devTestPoll);
+    _devTestPoll = null;
+    await devTasksLoadList();
+  }
+}
+
+async function devCancelTests() {
+  if (!_devSelectedTaskId) return;
+  if (!window.confirm('Cancel active test run?')) return;
+  const r = await devApi(`/api/development/tasks/${encodeURIComponent(_devSelectedTaskId)}/tests/cancel`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ confirm: true }),
+  });
+  if (!r.ok) {
+    devSetResult('devTestResult', r.data?.message || 'failed to cancel tests', 'err');
+    return;
+  }
+  devSetResult('devTestResult', 'Test run cancelled', 'ok');
+  devRenderTaskDetail(r.data.task);
+  if (_devTestPoll) clearInterval(_devTestPoll);
+  _devTestPoll = null;
+  await devTasksLoadList();
+}
+
+async function devApproveForRelease() {
+  if (!_devSelectedTaskId) return;
+  if (!window.confirm('Approve task for release readiness?')) return;
+  const r = await devApi(`/api/development/tasks/${encodeURIComponent(_devSelectedTaskId)}/release/approve`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ confirm: true }),
+  });
+  if (!r.ok) {
+    devSetResult('devReleaseResult', r.data?.message || 'failed to approve for release', 'err');
+    return;
+  }
+  devSetResult('devReleaseResult', 'Task approved for release', 'ok');
+  devRenderTaskDetail(r.data.task);
+  await devTasksLoadList();
+}
+
+async function devCreateRelease() {
+  if (!_devSelectedTaskId) return;
+  if (!window.confirm('Create release artifact from tested task worktree?')) return;
+  const r = await devApi(`/api/development/tasks/${encodeURIComponent(_devSelectedTaskId)}/release/create`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ confirm: true }),
+  });
+  if (!r.ok) {
+    devSetResult('devReleaseResult', r.data?.message || 'failed to create release', 'err');
+    return;
+  }
+  devSetResult('devReleaseResult', `Release ready: ${r.data.release?.release_id || '—'}`, 'ok');
+  devRenderTaskDetail(r.data.task);
+  await devTasksLoadList();
+}
+
+async function devDeployRelease() {
+  if (!_devSelectedTaskId) return;
+  if (!window.confirm('Deploy this release via maintenance pipeline?')) return;
+  const r = await devApi(`/api/development/tasks/${encodeURIComponent(_devSelectedTaskId)}/release/deploy`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ confirm: true }),
+  });
+  if (!r.ok) {
+    devSetResult('devReleaseResult', r.data?.message || 'failed to deploy release', 'err');
+    return;
+  }
+  devSetResult('devReleaseResult', `Deploy result: ${r.data.task?.deployment?.result || 'unknown'}`, 'ok');
+  devRenderTaskDetail(r.data.task);
+  await devTasksLoadList();
+}
+
+async function devCancelAgent() {
+  if (!_devSelectedTaskId) return;
+  if (!window.confirm('Cancel development agent session?')) return;
+  const r = await devApi(`/api/development/tasks/${encodeURIComponent(_devSelectedTaskId)}/agent/cancel`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ confirm: true }),
+  });
+  if (!r.ok) {
+    if (r.data?.code === 'NOT_SUPPORTED') {
+      devSetResult('devAgentResult', 'Provider cancellation is not supported', 'err');
+      return;
+    }
+    devSetResult('devAgentResult', r.data?.message || 'failed to cancel agent', 'err');
+    return;
+  }
+  devSetResult('devAgentResult', 'Development agent cancelled', 'ok');
+  devRenderTaskDetail(r.data.task);
+  devStopAgentPolling();
+  await devTasksLoadList();
+}
+
+async function devTasksLoadList() {
+  await devEnsureMeta();
+  const qs = new URLSearchParams();
+  const status = document.getElementById('devTaskFilterStatus')?.value || '';
+  const target = document.getElementById('devTaskFilterTarget')?.value || '';
+  const sort = document.getElementById('devTaskSort')?.value || 'updated_desc';
+  const openOnly = document.getElementById('devTaskFilterOpen')?.checked === true;
+  if (status) qs.set('status', status);
+  if (target) qs.set('target', target);
+  if (sort) qs.set('sort', sort);
+  if (openOnly) qs.set('open', 'true');
+  const url = `/api/development/tasks${qs.toString() ? `?${qs.toString()}` : ''}`;
+  const r = await devApi(url);
+  if (!r.ok) {
+    devSetResult('devTaskCreateResult', r.data?.message || 'failed to load tasks', 'err');
+    return;
+  }
+  _devTasks = Array.isArray(r.data.tasks) ? r.data.tasks : [];
+  devRenderTaskList();
+  if (_devSelectedTaskId && _devTasks.some((t) => t.id === _devSelectedTaskId)) {
+    await devLoadTaskDetail(_devSelectedTaskId);
+  } else {
+    _devSelectedTaskId = null;
+    devRenderTaskDetail(null);
+  }
+}
+
+async function devCreateTask() {
+  const title = document.getElementById('devTaskTitle')?.value || '';
+  const description = document.getElementById('devTaskDescription')?.value || '';
+  const target_area = document.getElementById('devTaskTarget')?.value || 'OTHER';
+  const priority = document.getElementById('devTaskPriority')?.value || 'NORMAL';
+  const notes = document.getElementById('devTaskNotes')?.value || '';
+  const r = await devApi('/api/development/tasks', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title, description, target_area, priority, notes: notes || null }),
+  });
+  if (!r.ok) {
+    devSetResult('devTaskCreateResult', r.data?.message || 'task creation failed', 'err');
+    return;
+  }
+  const t = r.data.task;
+  devSetResult('devTaskCreateResult', `Task created: ${t.id} | ${t.status} | ${devFmtTime(t.created_at)}`, 'ok');
+  document.getElementById('devTaskTitle').value = '';
+  document.getElementById('devTaskDescription').value = '';
+  document.getElementById('devTaskNotes').value = '';
+  _devSelectedTaskId = t.id;
+  await devTasksLoadList();
+}
+
+async function devSaveTaskChanges() {
+  if (!_devSelectedTaskId) return;
+  const payload = {
+    priority: document.getElementById('devDetailPriority')?.value,
+    target_area: document.getElementById('devDetailTarget')?.value,
+    status: document.getElementById('devDetailStatusSelect')?.value,
+  };
+  const r = await devApi(`/api/development/tasks/${encodeURIComponent(_devSelectedTaskId)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!r.ok) {
+    devSetResult('devTaskDetailResult', r.data?.message || 'task update failed', 'err');
+    return;
+  }
+  devSetResult('devTaskDetailResult', 'Task updated', 'ok');
+  await devTasksLoadList();
+}
+
+document.getElementById('devTaskCreateBtn')?.addEventListener('click', () => { void devCreateTask(); });
+document.getElementById('devTaskRefreshBtn')?.addEventListener('click', () => { void devTasksLoadList(); });
+document.getElementById('devTaskFilterStatus')?.addEventListener('change', () => { void devTasksLoadList(); });
+document.getElementById('devTaskFilterTarget')?.addEventListener('change', () => { void devTasksLoadList(); });
+document.getElementById('devTaskSort')?.addEventListener('change', () => { void devTasksLoadList(); });
+document.getElementById('devTaskFilterOpen')?.addEventListener('change', () => { void devTasksLoadList(); });
+document.getElementById('devDetailSaveBtn')?.addEventListener('click', () => { void devSaveTaskChanges(); });
+document.getElementById('devAgentStartBtn')?.addEventListener('click', () => { void devStartDevelopment(); });
+document.getElementById('devAgentCancelBtn')?.addEventListener('click', () => { void devCancelAgent(); });
+document.getElementById('devWorktreeCreateBtn')?.addEventListener('click', () => { void devCreateWorktree(); });
+document.getElementById('devTestRunBtn')?.addEventListener('click', () => { void devRunTests(); });
+document.getElementById('devTestCancelBtn')?.addEventListener('click', () => { void devCancelTests(); });
+document.getElementById('devReleaseApproveBtn')?.addEventListener('click', () => { void devApproveForRelease(); });
+document.getElementById('devReleaseCreateBtn')?.addEventListener('click', () => { void devCreateRelease(); });
+document.getElementById('devReleaseDeployBtn')?.addEventListener('click', () => { void devDeployRelease(); });

@@ -1,5 +1,91 @@
 [
   {
+    "version": "1.02.245",
+    "date": "2026-08-19",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Server library",
+        "detail": "coding-agent-provider.mjs, development-agent-service.mjs, development-release-builder.mjs, development-release-service.mjs, development-task-store.mjs, development-testing-service.mjs, development-worktree-manager.mjs, development-tasks-api.mjs, http-register.mjs, testing-provider.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "UI / app.js",
+        "detail": "app.js"
+      },
+      {
+        "type": "feat",
+        "title": "Frontend",
+        "detail": "changelog.json"
+      },
+      {
+        "type": "ui",
+        "title": "HTML layout",
+        "detail": "index.html"
+      },
+      {
+        "type": "ui",
+        "title": "Styles",
+        "detail": "styles.css"
+      }
+    ]
+  },
+  {
+    "version": "1.02.244",
+    "date": "2026-08-19",
+    "changes": [
+      {
+        "type": "feature",
+        "title": "Development-to-release workflow bridge",
+        "detail": "C9.5 — explicit release approval gate, deterministic release builder from tested worktree commit, release metadata on tasks, and deploy integration via existing maintenance deploy API with task/deployment state mapping"
+      }
+    ]
+  },
+  {
+    "version": "1.02.243",
+    "date": "2026-08-19",
+    "changes": [
+      {
+        "type": "feature",
+        "title": "Provider-ready agent/worktree binding",
+        "detail": "C9.4 — agent start now requires approved task worktree binding, provider contract upgraded to task+worktree session creation, explicit agent-to-testing handoff, and NOT_SUPPORTED cancellation handling"
+      }
+    ]
+  },
+  {
+    "version": "1.02.242",
+    "date": "2026-08-19",
+    "changes": [
+      {
+        "type": "feature",
+        "title": "Real worktrees and controlled testing",
+        "detail": "C9.3 — real per-task git worktree manager, approved test-profile execution inside task worktrees, test lifecycle APIs (run/status/cancel), UI controls, and audit events for worktree/tests"
+      }
+    ]
+  },
+  {
+    "version": "1.02.241",
+    "date": "2026-08-19",
+    "changes": [
+      {
+        "type": "feature",
+        "title": "Controlled coding-agent integration",
+        "detail": "C9.2 — provider abstraction, deterministic mock agent lifecycle, isolated branch/worktree metadata, start/cancel/status APIs, UI controls, and audit-driven task transitions to TESTING/FAILED/CANCELLED"
+      }
+    ]
+  },
+  {
+    "version": "1.02.240",
+    "date": "2026-08-19",
+    "changes": [
+      {
+        "type": "feature",
+        "title": "Development task foundation",
+        "detail": "C9.1 — local Development Tasks model, API routes, UI tab, state-machine validation, and audit trail"
+      }
+    ]
+  },
+  {
     "version": "1.02.239",
     "date": "2026-08-19",
     "changes": [
