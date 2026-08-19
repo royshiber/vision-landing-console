@@ -2352,6 +2352,244 @@ function renderCompanionPolicy(hostId, channel) {
   }).join('') || '—';
 }
 
+/* ── Policy Editor (C6) ── */
+const POLICY_CATEGORIES = [
+  'HEARTBEAT','STATUS','GPS','ATTITUDE','BATTERY','PARAMETERS',
+  'MISSIONS','COMMANDS','RC','VISION','LANDING_TARGET','HIGH_RATE',
+];
+const POLICY_CAT_HE = {
+  HEARTBEAT:'דופק', STATUS:'סטטוס', GPS:'GPS', ATTITUDE:'תנוחה',
+  BATTERY:'סוללה', PARAMETERS:'פרמטרים', MISSIONS:'משימות', COMMANDS:'פקודות',
+  RC:'שלט רחוק', VISION:'ראייה', LANDING_TARGET:'מטרת נחיתה', HIGH_RATE:'תדר גבוה',
+};
+const POLICY_DIR_OPTS = [
+  { value:'BOTH', label:'שני הכיוונים' },
+  { value:'INBOUND', label:'GCS→FC' },
+  { value:'OUTBOUND', label:'FC→GCS' },
+];
+const POLICY_STATE_HE = {
+  LOADING:'טוען', AVAILABLE:'זמין', DIRTY:'שונה — לא נשמר', VALIDATING:'מאמת',
+  INVALID:'לא תקין', SAVED_NOT_APPLIED:'נשמר — לא הוחל', UNAVAILABLE:'לא זמין', ERROR:'שגיאה',
+};
+
+let _policyOriginal = null;
+let _policyEdited = {};
+let _policyUiState = 'LOADING';
+
+function policySetState(state) {
+  _policyUiState = state;
+  const badge = document.getElementById('policyUiState');
+  if (badge) {
+    badge.textContent = POLICY_STATE_HE[state] || state;
+    badge.dataset.state = state;
+  }
+}
+
+function policyShowError(msg) {
+  const el = document.getElementById('policyUiError');
+  if (!el) return;
+  if (msg) { el.textContent = msg; el.hidden = false; }
+  else { el.textContent = ''; el.hidden = true; }
+}
+
+function policyShowSave(msg) {
+  const el = document.getElementById('policySaveStatus');
+  if (!el) return;
+  if (msg) { el.textContent = msg; el.hidden = false; }
+  else { el.hidden = true; }
+}
+
+function policyCatStateFromChannel(ch) {
+  if (!ch || typeof ch !== 'object') return POLICY_CATEGORIES.map(c => ({ cat: c, denied: false, dir: 'BOTH' }));
+  const deny = (ch.deny||[]).map(s=>String(s).toUpperCase());
+  const denyIn = (ch.deny_in||[]).map(s=>String(s).toUpperCase());
+  const denyOut = (ch.deny_out||[]).map(s=>String(s).toUpperCase());
+  const allow = (ch.allow||[]).map(s=>String(s).toUpperCase());
+  return POLICY_CATEGORIES.map(cat => {
+    const inD = deny.includes(cat), inDI = denyIn.includes(cat), inDO = denyOut.includes(cat);
+    const inA = allow.includes(cat);
+    let denied = inD || inDI || inDO;
+    if (allow.length && !inA && !denied) denied = true;
+    let dir = 'BOTH';
+    if (inD) dir = 'BOTH';
+    else if (inDI && inDO) dir = 'BOTH';
+    else if (inDI) dir = 'INBOUND';
+    else if (inDO) dir = 'OUTBOUND';
+    return { cat, denied, dir };
+  });
+}
+
+function policyBuildWireChannel(states, baseCh) {
+  const d = [], di = [], dout = [];
+  for (const s of states) {
+    if (!s.denied) continue;
+    if (s.dir === 'BOTH') d.push(s.cat);
+    else if (s.dir === 'INBOUND') di.push(s.cat);
+    else if (s.dir === 'OUTBOUND') dout.push(s.cat);
+  }
+  return {
+    implementation: baseCh?.implementation ?? null,
+    endpoint: baseCh?.endpoint ?? null,
+    mode: baseCh?.mode ?? null,
+    deny: d, deny_in: di, deny_out: dout,
+    allow: baseCh?.allow || [],
+    notes: baseCh?.notes ?? null,
+  };
+}
+
+function policyRenderChannel(hostId, channelKey) {
+  const host = document.getElementById(hostId);
+  if (!host) return;
+  const states = _policyEdited[channelKey] || policyCatStateFromChannel(null);
+  host.innerHTML = states.map((s, i) => {
+    const checked = !s.denied ? 'checked' : '';
+    const dirOptions = POLICY_DIR_OPTS.map(o =>
+      `<option value="${o.value}" ${s.dir === o.value ? 'selected' : ''}>${o.label}</option>`
+    ).join('');
+    return `<div class="policy-cat-row">
+      <input type="checkbox" ${checked} data-ch="${channelKey}" data-idx="${i}">
+      <span class="policy-cat-label">${POLICY_CAT_HE[s.cat]||s.cat}</span>
+      <select class="policy-cat-dir" data-ch="${channelKey}" data-idx="${i}" ${!s.denied ? 'disabled' : ''}>
+        ${dirOptions}
+      </select>
+    </div>`;
+  }).join('');
+}
+
+function policyRenderAll() {
+  policyRenderChannel('policyCatGcs4g', 'gcs_4g');
+  policyRenderChannel('policyCatRfd900x', 'rfd900x');
+  policyUpdateSaveBtn();
+}
+
+function policyUpdateSaveBtn() {
+  const btn = document.getElementById('policySaveBtn');
+  if (!btn) return;
+  const dirty = _policyOriginal && JSON.stringify(_policyOriginal) !== JSON.stringify(policyBuildWire());
+  btn.disabled = !dirty || _policyUiState === 'LOADING' || _policyUiState === 'VALIDATING' || _policyUiState === 'UNAVAILABLE';
+  if (dirty && _policyUiState === 'AVAILABLE') policySetState('DIRTY');
+  if (dirty && _policyUiState === 'SAVED_NOT_APPLIED') policySetState('DIRTY');
+  if (!dirty && _policyUiState === 'DIRTY') policySetState('AVAILABLE');
+}
+
+function policyBuildWire() {
+  if (!_policyOriginal) return null;
+  const baseCh = _policyOriginal.channels || {};
+  return {
+    version: _policyOriginal.version ?? 1,
+    channels: {
+      gcs_4g: policyBuildWireChannel(_policyEdited.gcs_4g || [], baseCh.gcs_4g),
+      rfd900x: policyBuildWireChannel(_policyEdited.rfd900x || [], baseCh.rfd900x),
+    },
+  };
+}
+
+function policyApplyFromServer(policy) {
+  _policyOriginal = policy;
+  if (!policy || typeof policy !== 'object') {
+    _policyEdited = {};
+    policySetState('UNAVAILABLE');
+    policyRenderAll();
+    return;
+  }
+  const ch = policy.channels || {};
+  _policyEdited = {
+    gcs_4g: policyCatStateFromChannel(ch.gcs_4g),
+    rfd900x: policyCatStateFromChannel(ch.rfd900x),
+  };
+  policyShowError(null);
+  policyRenderAll();
+}
+
+async function policyLoad() {
+  policySetState('LOADING');
+  policyShowError(null);
+  policyShowSave(null);
+  try {
+    const res = await fetch('/api/jetson/v1/policy');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    policyApplyFromServer(data);
+    policySetState('AVAILABLE');
+  } catch (e) {
+    policySetState('ERROR');
+    policyShowError(String(e.message || e));
+  }
+}
+
+async function policySave() {
+  const wire = policyBuildWire();
+  if (!wire) return;
+  policySetState('VALIDATING');
+  policyShowError(null);
+  policyShowSave(null);
+  try {
+    const res = await fetch('/api/jetson/v1/policy', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(wire),
+    });
+    if (!res.ok) {
+      const err = await res.text();
+      throw new Error(err || `HTTP ${res.status}`);
+    }
+    policySetState('SAVED_NOT_APPLIED');
+    const now = new Date().toLocaleTimeString('he-IL');
+    policyShowSave(`נשמר בהצלחה ב-${now} — לא הוחל על המערכת`);
+    await policyLoad();
+    policySetState('SAVED_NOT_APPLIED');
+  } catch (e) {
+    policySetState('INVALID');
+    policyShowError(String(e.message || e));
+  }
+}
+
+async function policyPreview() {
+  const sec = document.getElementById('policyPreviewSection');
+  const pre = document.getElementById('policyPreviewContent');
+  if (!sec || !pre) return;
+  try {
+    const res = await fetch('/api/jetson/v1/policy/preview');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    pre.textContent = data.snippet || JSON.stringify(data, null, 2);
+    sec.hidden = false;
+  } catch (e) {
+    pre.textContent = String(e.message || e);
+    sec.hidden = false;
+  }
+}
+
+document.addEventListener('click', (e) => {
+  const cb = e.target.closest('input[type="checkbox"][data-ch]');
+  if (cb) {
+    const ch = cb.dataset.ch;
+    const idx = Number(cb.dataset.idx);
+    const states = _policyEdited[ch];
+    if (states && states[idx] != null) {
+      states[idx].denied = !cb.checked;
+      const sel = cb.parentElement.querySelector('select');
+      if (sel) sel.disabled = cb.checked;
+    }
+    policyUpdateSaveBtn();
+    return;
+  }
+});
+document.addEventListener('change', (e) => {
+  const sel = e.target.closest('select[data-ch]');
+  if (sel) {
+    const ch = sel.dataset.ch;
+    const idx = Number(sel.dataset.idx);
+    const states = _policyEdited[ch];
+    if (states && states[idx] != null) states[idx].dir = sel.value;
+    policyUpdateSaveBtn();
+  }
+});
+document.getElementById('policySaveBtn')?.addEventListener('click', policySave);
+document.getElementById('policyRefreshBtn')?.addEventListener('click', policyLoad);
+document.getElementById('policyPreviewBtn')?.addEventListener('click', policyPreview);
+policyLoad();
+
 function applyTeleSubtab(tabId) {
   const wanted = tabId === 'companion' ? 'companion' : 'dash';
   document.querySelectorAll('[data-tele-tab]').forEach((button) => {
@@ -2428,9 +2666,10 @@ function applyCompanionUi(companion) {
       return `<span class="companion-chip ${cls}">${escapeHtml(name)} ${escapeHtml(companionValidityText(validity))}</span>`;
     }).join('') || '—';
   }
-  renderCompanionPolicy('companionPolicyGcs', companion.policy?.gcs_4g);
-  renderCompanionPolicy('companionPolicyRfd', companion.policy?.rfd900x);
-  setCompanionText('companionPolicyPreview', companionText(companion.policyPreview?.snippet));
+  if (companion.policy && _policyUiState === 'LOADING') {
+    policyApplyFromServer(companion.policy);
+    policySetState('AVAILABLE');
+  }
 
   const configHost = document.getElementById('companionConfigTable');
   if (configHost) {

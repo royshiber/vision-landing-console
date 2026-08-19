@@ -700,15 +700,50 @@
                 <article class="tele-card"><span>רזולוציה</span><strong id="companionVidRes">—</strong></article>
               </div>
             </section>
-            <section class="companion-b2-section">
-              <h3>מדיניות לקריאה ותצוגה מקדימה</h3>
-              <p class="tele-dash-note">אין החלה ואין כתיבה למערכת</p>
-              <div class="companion-policy-cols">
-                <div id="companionPolicyGcs" class="companion-policy-list"></div>
-                <div id="companionPolicyRfd" class="companion-policy-list"></div>
+          <div class="tele-vision-group" id="policyEditorSection">
+            <div class="tele-b2-head">
+              <div class="tele-group-label">מדיניות נתיב הודעות MAVLink</div>
+              <div id="policyUiState" class="policy-state-badge">—</div>
+            </div>
+            <p id="policyUiError" class="policy-error" hidden></p>
+
+            <!-- CHANNEL 3 — 4G / TAILSCALE -->
+            <div class="policy-channel-card">
+              <div class="policy-channel-head">
+                <strong>CHANNEL 3 — 4G / TAILSCALE</strong>
+                <span class="companion-tier">GCS ↔ Tailscale ↔ Jetson ↔ FC</span>
               </div>
-              <pre id="companionPolicyPreview" class="companion-preview">—</pre>
-            </section>
+              <div id="policyCatGcs4g" class="policy-cat-grid"></div>
+            </div>
+
+            <!-- CHANNEL 2 — RFD900X -->
+            <div class="policy-channel-card">
+              <div class="policy-channel-head">
+                <strong>CHANNEL 2 — RFD900X</strong>
+                <span class="companion-tier">GCS ↔ RFD900X ↔ FC — Jetson אינו נקודת קצה רדיו</span>
+              </div>
+              <div id="policyCatRfd900x" class="policy-cat-grid"></div>
+            </div>
+
+            <!-- Actions -->
+            <div class="policy-actions">
+              <button id="policySaveBtn" class="policy-btn policy-btn--save" disabled>שמור מדיניות</button>
+              <button id="policyRefreshBtn" class="policy-btn policy-btn--secondary">רענן</button>
+              <button id="policyPreviewBtn" class="policy-btn policy-btn--secondary">תצוגה מקדימה</button>
+              <button id="policyApplyBtn" class="policy-btn policy-btn--apply" disabled title="לא זמין בגרסה v1">
+                החל
+              </button>
+              <span id="policyApplyNote" class="companion-tier">לא זמין בגרסה v1 — שמירה בלבד</span>
+            </div>
+
+            <div id="policySaveStatus" class="policy-save-status" hidden></div>
+
+            <!-- Preview -->
+            <div id="policyPreviewSection" hidden>
+              <div class="tele-group-label">תצוגה מקדימה בלבד — לא מוחל</div>
+              <pre id="policyPreviewContent" class="companion-preview"></pre>
+            </div>
+          </div>
             <section class="companion-b2-section">
               <h3>תצורה לפי שכבת בטיחות</h3>
               <div id="companionConfigTable" class="companion-b2-table">—</div>
