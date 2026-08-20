@@ -1,5 +1,84 @@
 [
   {
+    "version": "1.02.251",
+    "date": "2026-08-20",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Server library",
+        "detail": "coding-agent-base.mjs, coding-agent-provider.mjs, cursor-agent-log-store.mjs, cursor-agent-supervisor.mjs, cursor-agent-tool-policy.mjs, cursor-agent-worktree-guard.mjs, cursor-sdk-adapter.mjs, cursor-sdk-coding-agent-provider.mjs, cursor-task-prompt.mjs, development-tasks-api.mjs, wsl-cursor-agent-runtime.mjs, wsl-cursor-agent-supervisor.mjs, wsl-cursor-ipc.mjs, wsl-cursor-runtime-spec.mjs, wsl-cursor-secret.mjs, wsl-distro.mjs, wsl-path-map.mjs, cursor-agent-entrypoint.mjs, runtime-package.json"
+      },
+      {
+        "type": "feat",
+        "title": "UI / app.js",
+        "detail": "app.js"
+      },
+      {
+        "type": "feat",
+        "title": "Frontend",
+        "detail": "changelog.json"
+      },
+      {
+        "type": "ui",
+        "title": "HTML layout",
+        "detail": "index.html"
+      },
+      {
+        "type": "test",
+        "title": "Tests",
+        "detail": "coding-agent-provider.test.mjs, cursor-sdk-coding-agent-provider.test.mjs, development-tasks-api.test.mjs, wsl-cursor-agent-bridge.test.mjs, wsl-cursor-sdk-live.test.mjs"
+      }
+    ]
+  },
+  {
+    "version": "1.02.250",
+    "date": "2026-08-20",
+    "changes": [
+      {
+        "type": "fix",
+        "title": "C9.10.1 WSL bridge hardening",
+        "detail": "Fixed waitFor event-history race; bounded WSL cold-start wake retries; live negative tool/sandbox checks; concurrency isolation tests."
+      }
+    ]
+  },
+  {
+    "version": "1.02.249",
+    "date": "2026-08-20",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "C9.10 Windows to WSL Cursor agent bridge",
+        "detail": "Development task agents now run against a Linux-native @cursor/sdk install inside WSL with sandbox enabled; readiness is verified per start and never installs."
+      },
+      {
+        "type": "feat",
+        "title": "Development panel runtime status",
+        "detail": "Agent runtime shows READY or UNAVAILABLE with a safe reason; no API key, WSL path or runtime internals are exposed."
+      },
+      {
+        "type": "fix",
+        "title": "Cursor tool policy is now effective",
+        "detail": "tools moved to top-level agent options and aligned with the SDK tool vocabulary."
+      },
+      {
+        "type": "test",
+        "title": "Tests",
+        "detail": "wsl-cursor-agent-bridge.test.mjs, wsl-cursor-sdk-live.test.mjs (opt-in via RUN_CURSOR_SDK_WSL_LIVE_TEST=1)"
+      }
+    ]
+  },
+  {
+    "version": "1.02.248",
+    "date": "2026-08-19",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "C9.8 real Cursor SDK coding agent provider (opt-in)",
+        "detail": ""
+      }
+    ]
+  },
+  {
     "version": "1.02.247",
     "date": "2026-08-19",
     "changes": [

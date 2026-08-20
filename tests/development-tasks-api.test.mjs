@@ -7,7 +7,16 @@ import { spawnSync } from 'child_process';
 import { registerDevelopmentTasksApi } from '../lib/routes/development-tasks-api.mjs';
 import { createDevelopmentWorktreeManager } from '../lib/development-worktree-manager.mjs';
 import { MockTestingProvider } from '../lib/testing-provider.mjs';
+import { MockCodingAgentProvider } from '../lib/coding-agent-provider.mjs';
 import { createDevelopmentReleaseBuilder } from '../lib/development-release-builder.mjs';
+
+function devApiCtx(overrides = {}) {
+  return {
+    codingAgentProvider: new MockCodingAgentProvider({ scenario: 'healthy' }),
+    testingProvider: new MockTestingProvider({ scenario: 'healthy' }),
+    ...overrides,
+  };
+}
 
 function listen(app) {
   return new Promise((resolve) => {
@@ -45,12 +54,11 @@ describe('development tasks API', () => {
     storePath = path.join(root, 'tasks.json');
     const app = express();
     app.use(express.json());
-    registerDevelopmentTasksApi(app, {
+    registerDevelopmentTasksApi(app, devApiCtx({
       developmentTaskStorePath: storePath,
       worktreeManager: createDevelopmentWorktreeManager({ repoRoot }),
       releaseBuilder: createDevelopmentReleaseBuilder({ repoRoot }),
-      testingProvider: new MockTestingProvider({ scenario: 'healthy' }),
-    });
+    }));
     server = await listen(app);
     const addr = server.address();
     base = `http://127.0.0.1:${addr.port}`;
@@ -305,8 +313,6 @@ describe('development tasks API', () => {
   });
 
   it('returns unavailable when provider is disconnected', async () => {
-    process.env.DEVELOPMENT_AGENT_PROVIDER = 'mock';
-    process.env.DEVELOPMENT_AGENT_MOCK_SCENARIO = 'disconnected';
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'vlc-devapi-disc-'));
     const repo = path.join(root, 'repo');
     fs.mkdirSync(repo, { recursive: true });
@@ -314,10 +320,11 @@ describe('development tasks API', () => {
     const disconnectedPath = path.join(root, 'tasks.json');
     const app = express();
     app.use(express.json());
-    registerDevelopmentTasksApi(app, {
+    registerDevelopmentTasksApi(app, devApiCtx({
       developmentTaskStorePath: disconnectedPath,
       worktreeManager: createDevelopmentWorktreeManager({ repoRoot: repo }),
-    });
+      codingAgentProvider: new MockCodingAgentProvider({ scenario: 'disconnected' }),
+    }));
     const disconnectedServer = await listen(app);
     const addr = disconnectedServer.address();
     const disconnectedBase = `http://127.0.0.1:${addr.port}`;
@@ -339,8 +346,6 @@ describe('development tasks API', () => {
       });
       expect(start.status).toBe(503);
     } finally {
-      delete process.env.DEVELOPMENT_AGENT_PROVIDER;
-      delete process.env.DEVELOPMENT_AGENT_MOCK_SCENARIO;
       await new Promise((resolve) => disconnectedServer.close(resolve));
     }
   });
@@ -518,11 +523,11 @@ describe('development tasks API', () => {
     const isolatedStore = path.join(root, 'tasks.json');
     const app = express();
     app.use(express.json());
-    registerDevelopmentTasksApi(app, {
+    registerDevelopmentTasksApi(app, devApiCtx({
       developmentTaskStorePath: isolatedStore,
       worktreeManager: createDevelopmentWorktreeManager({ repoRoot: repo }),
       testingProvider: new MockTestingProvider({ scenario: 'disconnected' }),
-    });
+    }));
     const srv = await listen(app);
     const addr = srv.address();
     const localBase = `http://127.0.0.1:${addr.port}`;
@@ -795,11 +800,10 @@ describe('development tasks API', () => {
       const localStore = path.join(root, 'tasks.json');
       const app = express();
       app.use(express.json());
-      registerDevelopmentTasksApi(app, {
+      registerDevelopmentTasksApi(app, devApiCtx({
         developmentTaskStorePath: localStore,
         worktreeManager: createDevelopmentWorktreeManager({ repoRoot: repo }),
         releaseBuilder: createDevelopmentReleaseBuilder({ repoRoot: repo }),
-        testingProvider: new MockTestingProvider({ scenario: 'healthy' }),
         deployRelease: async (releaseId) => ({
           state: deployState,
           release_id: releaseId,
@@ -808,7 +812,7 @@ describe('development tasks API', () => {
           running_version: deployState === 'SUCCEEDED' ? '1.0.0' : '0.9.0',
           active_release: { version: deployState === 'SUCCEEDED' ? '1.0.0' : '0.9.0' },
         }),
-      });
+      }));
       const srv = await listen(app);
       const addr = srv.address();
       return { srv, baseUrl: `http://127.0.0.1:${addr.port}` };

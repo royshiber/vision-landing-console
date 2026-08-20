@@ -9517,11 +9517,25 @@ let _devTasks = [];
 let _devSelectedTaskId = null;
 let _devMetaReady = false;
 let _devAgentPoll = null;
-let _devAgentMeta = { provider: null, available: false };
+let _devAgentMeta = { provider: null, available: false, runtime: null, reason: null };
 let _devTestPoll = null;
 
 function devText(v) {
   return (v == null || v === '') ? '—' : String(v);
+}
+
+function devFormatAgentProvider(name, available) {
+  const p = String(name || '').trim();
+  if (!available || p === 'unavailable' || !p) return 'Development agent unavailable';
+  if (p.startsWith('mock:')) return 'MOCK';
+  if (p === 'cursor-sdk') return 'Cursor SDK';
+  return p;
+}
+
+function devFormatAgentRuntime(available, runtime, reason) {
+  if (available) return String(runtime || 'READY');
+  const extra = String(reason || '').trim().replace(/^Development agent unavailable:\s*/i, '');
+  return extra ? `UNAVAILABLE — ${extra}` : 'UNAVAILABLE';
 }
 
 function devSetResult(id, text, kind = 'ok') {
@@ -9576,6 +9590,8 @@ async function devEnsureMeta() {
   _devAgentMeta = {
     provider: r.data?.agentProvider || null,
     available: r.data?.agentAvailable === true,
+    runtime: r.data?.agentRuntime || null,
+    reason: r.data?.agentUnavailableReason || null,
   };
   const profiles = Array.isArray(r.data?.testProfiles) ? r.data.testProfiles : ['CONSOLE_FULL', 'COMPANION_CONTRACT', 'MAINTENANCE', 'DEVELOPMENT'];
   devFillOptions('devTestProfileSelect', profiles, false);
@@ -9628,7 +9644,11 @@ function devRenderTaskDetail(task) {
   document.getElementById('devMetaWorktreeChangedFiles').textContent = devText(task.worktree_meta?.changed_files);
   document.getElementById('devMetaAgentStatus').textContent = devText(task.agent?.state || 'NOT_STARTED');
   document.getElementById('devMetaAgentSession').textContent = devText(task.agent?.session_id);
-  document.getElementById('devMetaAgentProvider').textContent = devText(task.agent?.provider || _devAgentMeta.provider);
+  document.getElementById('devMetaAgentProvider').textContent = devFormatAgentProvider(task.agent?.provider || _devAgentMeta.provider, _devAgentMeta.available);
+  const runtimeEl = document.getElementById('devMetaAgentRuntime');
+  if (runtimeEl) {
+    runtimeEl.textContent = devFormatAgentRuntime(_devAgentMeta.available, _devAgentMeta.runtime, _devAgentMeta.reason);
+  }
   document.getElementById('devAgentProgress').textContent = devText(task.agent?.progress);
   document.getElementById('devAgentUpdatedAt').textContent = devFmtTime(task.agent?.updated_at);
   document.getElementById('devAgentLastMessage').textContent = devText(task.agent?.last_message);

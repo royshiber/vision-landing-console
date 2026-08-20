@@ -1,0 +1,10 @@
+{
+  "name": "vlc-cursor-agent-runtime",
+  "private": true,
+  "type": "module",
+  "version": "1.0.0",
+  "description": "Linux-native Cursor agent runtime for Vision Landing Console development tasks",
+  "dependencies": {
+    "@cursor/sdk": "1.0.28"
+  }
+}

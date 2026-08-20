@@ -38,6 +38,19 @@ describe('coding-agent-provider', () => {
     await expect(p.createSession({})).rejects.toThrow(/unavailable/i);
   });
 
+  it('defaults to unavailable when provider env is unset', () => {
+    const p = createCodingAgentProvider({});
+    expect(p).toBeInstanceOf(UnavailableCodingAgentProvider);
+  });
+
+  it('selects cursor-sdk only with API key', () => {
+    expect(createCodingAgentProvider({ DEVELOPMENT_AGENT_PROVIDER: 'cursor-sdk' })).toBeInstanceOf(UnavailableCodingAgentProvider);
+    expect(createCodingAgentProvider({
+      DEVELOPMENT_AGENT_PROVIDER: 'cursor-sdk',
+      CURSOR_API_KEY: 'cursor_test',
+    }).providerName).toBe('cursor-sdk');
+  });
+
   it('disconnects mock when disconnected scenario selected', async () => {
     const p = createCodingAgentProvider({
       DEVELOPMENT_AGENT_PROVIDER: 'mock',
