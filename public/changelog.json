@@ -1,5 +1,68 @@
 [
   {
+    "version": "1.02.254",
+    "date": "2026-08-21",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Server library",
+        "detail": "assist-context.mjs, assist-intent-resolver.mjs, assist-routes.mjs, assist-service.mjs, assist-store.mjs, assist-types.mjs, assist-api.mjs, http-register.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "UI / app.js",
+        "detail": "app.js"
+      },
+      {
+        "type": "feat",
+        "title": "Frontend",
+        "detail": "changelog.json"
+      },
+      {
+        "type": "ui",
+        "title": "HTML layout",
+        "detail": "index.html"
+      },
+      {
+        "type": "ui",
+        "title": "Styles",
+        "detail": "styles.css"
+      }
+    ]
+  },
+  {
+    "version": "1.02.253",
+    "date": "2026-08-21",
+    "changes": [
+      {
+        "type": "fix",
+        "title": "C10.2.1 development-tasks agent poll flake",
+        "detail": "Replaced fixed 1100ms sleep with waitForJson polling; deterministic temp cleanup; regression for agent SUCCEEDED without wall-clock sleep."
+      }
+    ]
+  },
+  {
+    "version": "1.02.252",
+    "date": "2026-08-21",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "C10.2 AIRVIX Assist foundation",
+        "detail": "Persistent Assist rail + deterministic intent layer; confirm-gated notes/observations/dev tasks; known-route navigation only; no flight/deploy/agent actions."
+      },
+      {
+        "type": "test",
+        "title": "Assist suite",
+        "detail": "tests/assist.test.mjs"
+      },
+      {
+        "type": "docs",
+        "title": "Architecture",
+        "detail": "docs/AIRVIX_PRODUCT_ARCHITECTURE.md C10.2 status"
+      }
+    ]
+  },
+  {
     "version": "1.02.251",
     "date": "2026-08-20",
     "changes": [

@@ -117,10 +117,34 @@
           </div>
         </div>
 
+        <button type="button" id="assistToggleBtn" class="assist-toggle-btn" title="ASSIST" aria-expanded="false" aria-controls="assistRail">ASSIST</button>
         <button type="button" id="globalSettingsBtn" class="global-settings-btn" title="הגדרות כלליות" aria-haspopup="dialog" aria-controls="globalSettingsModal">⚙</button>
         <button id="versionBtn" class="badge clickable" title="לחץ כדי לראות מה עודכן בגרסה">v__APP_VERSION__</button>
       </div>
     </header>
+
+    <aside id="assistRail" class="assist-rail" hidden aria-label="ASSIST">
+      <header class="assist-rail-head">
+        <div class="assist-rail-titles">
+          <strong class="assist-rail-title">ASSIST</strong>
+          <span id="assistContextChip" class="assist-context-chip">—</span>
+        </div>
+        <button type="button" id="assistCloseBtn" class="assist-close-btn" aria-label="סגור">✕</button>
+      </header>
+      <p class="assist-rail-hint">שכבת אינטראקציה — לא צ׳אטבוט אוטונומי. הצעות דורשות אישור.</p>
+      <div id="assistMessages" class="assist-messages" role="log" aria-live="polite"></div>
+      <div id="assistProposalBar" class="assist-proposal-bar" hidden>
+        <p id="assistProposalText" class="assist-proposal-text"></p>
+        <div class="assist-proposal-actions">
+          <button type="button" id="assistConfirmBtn" class="assist-btn assist-btn-confirm">Confirm</button>
+          <button type="button" id="assistCancelBtn" class="assist-btn assist-btn-cancel">Cancel</button>
+        </div>
+      </div>
+      <form id="assistForm" class="assist-form" autocomplete="off">
+        <input id="assistInput" class="assist-input" type="text" maxlength="2000" placeholder="שאלה, תצפית, פתק, ניווט, או בקשת פיתוח…" />
+        <button type="submit" id="assistSendBtn" class="assist-btn assist-btn-send">שלח</button>
+      </form>
+    </aside>
 
     <div id="connectStatModal" class="conn-modal" hidden>
       <div class="conn-modal-backdrop" data-close="1"></div>

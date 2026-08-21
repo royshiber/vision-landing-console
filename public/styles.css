@@ -11870,6 +11870,168 @@ details.flight-manage summary {
 }
 .sl-wiz-tlog-btn:hover { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.75); }
 
- 
+/* ── ASSIST rail (C10.2) ───────────────────────────────────────────── */
+.assist-toggle-btn {
+  font-family: "Space Grotesk", "Heebo", sans-serif;
+  font-weight: 700;
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(34, 197, 94, 0.12);
+  color: #bbf7d0;
+  cursor: pointer;
+}
+.assist-toggle-btn[aria-expanded="true"] {
+  background: rgba(34, 197, 94, 0.28);
+  border-color: rgba(74, 222, 128, 0.45);
+}
+.assist-rail {
+  position: fixed;
+  top: 0;
+  inset-inline-end: 0;
+  width: min(380px, 100vw);
+  height: 100vh;
+  z-index: 8600;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 12px 14px;
+  background: rgba(12, 18, 28, 0.96);
+  border-inline-start: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: -8px 0 28px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(10px);
+}
+.assist-rail[hidden] { display: none !important; }
+.assist-rail-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+.assist-rail-titles { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.assist-rail-title {
+  font-family: "Space Grotesk", "Heebo", sans-serif;
+  font-size: 0.95rem;
+  letter-spacing: 0.08em;
+  color: #ecfdf5;
+}
+.assist-context-chip {
+  font-size: 0.68rem;
+  color: rgba(187, 247, 208, 0.85);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.assist-close-btn {
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.55);
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 2px 6px;
+}
+.assist-rail-hint {
+  margin: 0;
+  font-size: 0.72rem;
+  color: rgba(255, 255, 255, 0.45);
+  line-height: 1.35;
+}
+.assist-messages {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 4px 2px;
+}
+.assist-msg {
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  max-width: 100%;
+}
+.assist-msg-user {
+  align-self: flex-end;
+  background: rgba(59, 130, 246, 0.2);
+  color: #dbeafe;
+}
+.assist-msg-assist {
+  align-self: flex-start;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.assist-msg-meta {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.65rem;
+  color: rgba(255, 255, 255, 0.4);
+  font-family: "Space Grotesk", monospace;
+}
+.assist-msg-kind-proposal { border-color: rgba(250, 204, 21, 0.35); }
+.assist-msg-kind-confirm { border-color: rgba(74, 222, 128, 0.4); }
+.assist-proposal-bar {
+  border: 1px solid rgba(74, 222, 128, 0.35);
+  background: rgba(22, 101, 52, 0.25);
+  border-radius: 10px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.assist-proposal-bar[hidden] { display: none !important; }
+.assist-proposal-text { margin: 0; font-size: 0.78rem; color: #dcfce7; }
+.assist-proposal-actions { display: flex; gap: 8px; }
+.assist-form {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+.assist-input {
+  flex: 1;
+  min-width: 0;
+  border-radius: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(0, 0, 0, 0.35);
+  color: #f8fafc;
+  padding: 9px 10px;
+  font-size: 0.82rem;
+  font-family: "Heebo", sans-serif;
+}
+.assist-btn {
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  padding: 7px 12px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: "Space Grotesk", "Heebo", sans-serif;
+}
+.assist-btn-send {
+  background: rgba(34, 197, 94, 0.25);
+  color: #bbf7d0;
+}
+.assist-btn-confirm {
+  background: rgba(34, 197, 94, 0.35);
+  color: #ecfdf5;
+  flex: 1;
+}
+.assist-btn-cancel {
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.7);
+  flex: 1;
+}
+body.assist-open .layout {
+  padding-inline-end: min(380px, 100vw);
+}
+@media (max-width: 720px) {
+  body.assist-open .layout { padding-inline-end: 0; }
+  .assist-rail { width: 100vw; }
+}
 
 

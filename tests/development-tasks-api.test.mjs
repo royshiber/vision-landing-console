@@ -24,11 +24,24 @@ function listen(app) {
   });
 }
 
+/** Poll until predicate; avoids fixed sleeps that flake under full-suite load. */
+async function waitForJson(url, predicate, { timeoutMs = 8000, intervalMs = 75 } = {}) {
+  const started = Date.now();
+  let last = null;
+  while (Date.now() - started < timeoutMs) {
+    last = await fetch(url).then((r) => r.json());
+    if (predicate(last)) return last;
+    await new Promise((r) => setTimeout(r, intervalMs));
+  }
+  throw new Error(`waitForJson timed out after ${timeoutMs}ms; last=${JSON.stringify(last)}`);
+}
+
 describe('development tasks API', () => {
   let server;
   let base;
   let storePath;
   let repoRoot;
+  let tempRoot;
 
   function run(cmd, args, cwd) {
     const out = spawnSync(cmd, args, { cwd, encoding: 'utf8' });
@@ -47,11 +60,11 @@ describe('development tasks API', () => {
   }
 
   beforeEach(async () => {
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'vlc-devapi-'));
-    repoRoot = path.join(root, 'repo');
+    tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'vlc-devapi-'));
+    repoRoot = path.join(tempRoot, 'repo');
     fs.mkdirSync(repoRoot, { recursive: true });
     initRepo(repoRoot);
-    storePath = path.join(root, 'tasks.json');
+    storePath = path.join(tempRoot, 'tasks.json');
     const app = express();
     app.use(express.json());
     registerDevelopmentTasksApi(app, devApiCtx({
@@ -65,7 +78,18 @@ describe('development tasks API', () => {
   });
 
   afterEach(async () => {
-    if (server) await new Promise((resolve) => server.close(resolve));
+    if (server) {
+      await new Promise((resolve) => server.close(resolve));
+      server = null;
+    }
+    if (tempRoot) {
+      try {
+        fs.rmSync(tempRoot, { recursive: true, force: true });
+      } catch {
+        /* Windows may briefly hold git worktree handles */
+      }
+      tempRoot = null;
+    }
   });
 
   it('creates and gets a task', async () => {
@@ -270,12 +294,47 @@ describe('development tasks API', () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ confirm: true }),
     });
-    await new Promise((r) => setTimeout(r, 1100));
-    const poll = await fetch(`${base}/api/development/tasks/${created.task.id}/agent`).then((r) => r.json());
+    // Mock reaches SUCCEEDED at ~800ms; poll instead of fixed sleep so git/worktree
+    // variance under full-suite load cannot burn the whole Vitest default 5s budget.
+    const poll = await waitForJson(
+      `${base}/api/development/tasks/${created.task.id}/agent`,
+      (j) => j?.ok === true && j?.task?.agent?.state === 'SUCCEEDED',
+      { timeoutMs: 10000, intervalMs: 75 },
+    );
     expect(poll.ok).toBe(true);
     expect(poll.task.agent.state).toBe('SUCCEEDED');
     expect(poll.task.status).toBe('IN_PROGRESS');
-  });
+  }, 20000);
+
+  it('agent poll reaches SUCCEEDED without fixed wall-clock sleep (regression)', async () => {
+    const created = await fetch(`${base}/api/development/tasks`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: 'AgentPoll', description: 'Poll regression', target_area: 'UI', priority: 'NORMAL' }),
+    }).then((r) => r.json());
+    await fetch(`${base}/api/development/tasks/${created.task.id}/worktree/create`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ confirm: true }),
+    });
+    const startedAt = Date.now();
+    await fetch(`${base}/api/development/tasks/${created.task.id}/agent/start`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ confirm: true }),
+    });
+    const early = await fetch(`${base}/api/development/tasks/${created.task.id}/agent`).then((r) => r.json());
+    expect(['QUEUED', 'RUNNING', 'WAITING', 'SUCCEEDED']).toContain(early.task.agent.state);
+    const done = await waitForJson(
+      `${base}/api/development/tasks/${created.task.id}/agent`,
+      (j) => j?.task?.agent?.state === 'SUCCEEDED',
+      { timeoutMs: 10000, intervalMs: 50 },
+    );
+    expect(done.task.agent.state).toBe('SUCCEEDED');
+    expect(Date.now() - startedAt).toBeLessThan(15000);
+    // No leftover lock dir after sync
+    expect(fs.existsSync(`${storePath}.lock`)).toBe(false);
+  }, 20000);
 
   it('cancels agent with confirmation and keeps audit trail', async () => {
     const created = await fetch(`${base}/api/development/tasks`, {

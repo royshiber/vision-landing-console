@@ -3693,6 +3693,8 @@ function applyTopbarFlightData(mav) {
 
 // RC approval channel (updated by initFlightEngineer via checkStatus)
 let feRcApprovalChannelGlobal = 7;
+/** Latest mavlink snapshot for Assist context (C10.2). */
+let _assistLastMav = null;
 
 /** Why: single SSE connection replaces all client-side polling (vision 500ms + jetson 5s) with server-pushed 300ms events. What: EventSource from /api/stream; on 'telemetry' event updates all UI components and shared state. */
 (function startSseStream() {
@@ -3709,6 +3711,7 @@ let feRcApprovalChannelGlobal = 7;
       applyVisionUi(payload.vision);
       applySlamUi(payload.slam);
       applyCompanionUi(payload.companion);
+      _assistLastMav = payload.mavlink || null;
       applyTopbarFlightData(payload.mavlink);
       applyFlightHud(payload.mavlink);
       applyFcStatustextHud(payload.mavlink);
@@ -10007,3 +10010,230 @@ document.getElementById('devTestCancelBtn')?.addEventListener('click', () => { v
 document.getElementById('devReleaseApproveBtn')?.addEventListener('click', () => { void devApproveForRelease(); });
 document.getElementById('devReleaseCreateBtn')?.addEventListener('click', () => { void devCreateRelease(); });
 document.getElementById('devReleaseDeployBtn')?.addEventListener('click', () => { void devDeployRelease(); });
+
+/* ── ASSIST (C10.2) — persistent interaction layer; text path only ── */
+const ASSIST_OPEN_KEY = 'visionLandingAssistOpenV1';
+const ASSIST_TAB_WORKSPACE = {
+  terrain: 'MISSION',
+  development: 'EVOLVE',
+  simLab: 'LAB',
+  control: 'PLATFORM',
+  telemetry: 'PLATFORM',
+  maintenance: 'PLATFORM',
+  recordings: 'PLATFORM',
+  flights: 'PLATFORM',
+  advisor: 'PLATFORM',
+  featureDesigner: 'EVOLVE',
+  flightEngineer: 'MISSION',
+};
+const ASSIST_TAB_CAPABILITY = {
+  terrain: 'mission',
+  development: 'evolve',
+  simLab: 'lab_sitl',
+  control: 'configuration',
+  telemetry: 'diagnostics',
+  maintenance: 'companion',
+  recordings: 'debrief',
+  flights: 'debrief',
+  landingParams: 'landing',
+  abortParams: 'landing',
+  visionNavParams: 'vision',
+  arduParams: 'configuration',
+  customParams: 'configuration',
+  advisor: 'diagnostics',
+  featureDesigner: 'evolve',
+  flightEngineer: 'voice',
+};
+
+let _assistPendingProposalId = null;
+let _assistHistory = [];
+
+function assistEscape(s) {
+  return String(s ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function assistActiveTab() {
+  const active = document.querySelector('.tab.active');
+  return active?.dataset?.tab || null;
+}
+
+function assistActiveSubtab() {
+  const active = document.querySelector('.subtab.active, [data-subtab].active');
+  return active?.dataset?.subtab || null;
+}
+
+function assistBuildContextSnapshot() {
+  const tab = assistActiveTab();
+  const subtab = assistActiveSubtab();
+  const mav = _assistLastMav || {};
+  const vision = latestVisionFromServer || {};
+  const conf = typeof vision.confidence === 'number'
+    ? vision.confidence
+    : (typeof vision.landing_confidence === 'number' ? vision.landing_confidence : null);
+  return {
+    current_tab: tab,
+    current_subtab: subtab,
+    current_workspace: ASSIST_TAB_WORKSPACE[tab] || 'UNKNOWN',
+    current_capability: (subtab && ASSIST_TAB_CAPABILITY[subtab]) || ASSIST_TAB_CAPABILITY[tab] || null,
+    assist_open: !document.getElementById('assistRail')?.hidden,
+    channel: 'text',
+    aircraft_state: {
+      connected: mav.connected === true,
+      flight_mode: ARDUPILOT_PLANE_MODES[mav.flightMode] || (mav.flightMode != null ? String(mav.flightMode) : null),
+      armed: typeof mav.armed === 'boolean' ? mav.armed : null,
+      gps_ok: typeof mav.gpsFixType === 'number' ? mav.gpsFixType >= 3 : null,
+      vision_confidence: conf,
+      altitude_m: typeof mav.altitude === 'number' ? mav.altitude : null,
+      airspeed_ms: typeof mav.airspeed === 'number' ? mav.airspeed : null,
+    },
+  };
+}
+
+function assistRefreshContextChip() {
+  const chip = document.getElementById('assistContextChip');
+  if (!chip) return;
+  const ctx = assistBuildContextSnapshot();
+  const parts = [ctx.current_workspace, ctx.current_capability, ctx.current_tab].filter(Boolean);
+  chip.textContent = parts.join(' · ') || '—';
+}
+
+function assistAppendMessage({ role, text, meta, kind }) {
+  const box = document.getElementById('assistMessages');
+  if (!box) return;
+  const div = document.createElement('div');
+  div.className = `assist-msg assist-msg-${role === 'user' ? 'user' : 'assist'}`;
+  if (kind === 'PROPOSAL') div.classList.add('assist-msg-kind-proposal');
+  if (kind === 'ACTION_REQUIRING_CONFIRMATION') div.classList.add('assist-msg-kind-confirm');
+  div.innerHTML = `<div>${assistEscape(text)}</div>${meta ? `<span class="assist-msg-meta">${assistEscape(meta)}</span>` : ''}`;
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+  _assistHistory.push({ role, text, meta, kind, ts: Date.now() });
+  if (_assistHistory.length > 40) _assistHistory = _assistHistory.slice(-40);
+}
+
+function assistSetProposalBar(response) {
+  const bar = document.getElementById('assistProposalBar');
+  const textEl = document.getElementById('assistProposalText');
+  if (!bar || !textEl) return;
+  if (response?.requires_confirmation && response?.action_proposal?.id) {
+    _assistPendingProposalId = response.action_proposal.id;
+    textEl.textContent = response.answer || 'Confirm this action?';
+    bar.hidden = false;
+  } else {
+    _assistPendingProposalId = null;
+    bar.hidden = true;
+  }
+}
+
+function assistApplyNavigation(nav) {
+  if (!nav || typeof nav !== 'object') return;
+  if (nav.tab) applyMainTab(nav.tab);
+  if (nav.subtab) applyControlSubtab(nav.subtab);
+  if (nav.task_id) {
+    _devSelectedTaskId = nav.task_id;
+    void (async () => {
+      await devTasksLoadList();
+      await devLoadTaskDetail(nav.task_id);
+    })();
+  }
+  assistRefreshContextChip();
+}
+
+async function assistSendText(rawText) {
+  const text = String(rawText || '').trim();
+  if (!text) return;
+  assistAppendMessage({ role: 'user', text });
+  const r = await fetch('/api/assist/message', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      text,
+      channel: 'text',
+      context: assistBuildContextSnapshot(),
+    }),
+  });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok || !data.ok) {
+    assistAppendMessage({ role: 'assist', text: data.message || 'ASSIST request failed', kind: 'INFORMATION' });
+    assistSetProposalBar(null);
+    return;
+  }
+  const resp = data.response || {};
+  const meta = [resp.intent, resp.kind, resp.confidence != null ? `conf ${Number(resp.confidence).toFixed(2)}` : null]
+    .filter(Boolean)
+    .join(' · ');
+  assistAppendMessage({ role: 'assist', text: resp.answer || '—', meta, kind: resp.kind });
+  assistSetProposalBar(resp);
+  if (!resp.requires_confirmation && resp.action_proposal?.action === 'UI_NAVIGATION') {
+    assistApplyNavigation(resp.action_proposal.payload);
+  }
+}
+
+async function assistConfirm(confirm) {
+  if (!_assistPendingProposalId) return;
+  const proposalId = _assistPendingProposalId;
+  const r = await fetch('/api/assist/confirm', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ proposal_id: proposalId, confirm: !!confirm }),
+  });
+  const data = await r.json().catch(() => ({}));
+  assistSetProposalBar(null);
+  if (!r.ok || !data.ok) {
+    assistAppendMessage({ role: 'assist', text: data.answer || data.message || 'Confirm failed', kind: 'INFORMATION' });
+    return;
+  }
+  assistAppendMessage({
+    role: 'assist',
+    text: data.answer || (confirm ? 'Confirmed.' : 'Cancelled.'),
+    kind: 'INFORMATION',
+  });
+  if (confirm && data.result?.navigation) {
+    assistApplyNavigation(data.result.navigation);
+  }
+}
+
+function assistSetOpen(open) {
+  const rail = document.getElementById('assistRail');
+  const toggle = document.getElementById('assistToggleBtn');
+  if (!rail || !toggle) return;
+  rail.hidden = !open;
+  toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+  document.body.classList.toggle('assist-open', open);
+  try { sessionStorage.setItem(ASSIST_OPEN_KEY, open ? '1' : '0'); } catch { /* ignore */ }
+  assistRefreshContextChip();
+  if (open) document.getElementById('assistInput')?.focus();
+}
+
+function initAssistUi() {
+  const rail = document.getElementById('assistRail');
+  const toggle = document.getElementById('assistToggleBtn');
+  if (!rail || !toggle) return;
+  let open = false;
+  try { open = sessionStorage.getItem(ASSIST_OPEN_KEY) === '1'; } catch { /* ignore */ }
+  assistSetOpen(open);
+  toggle.addEventListener('click', () => assistSetOpen(rail.hidden));
+  document.getElementById('assistCloseBtn')?.addEventListener('click', () => assistSetOpen(false));
+  document.getElementById('assistForm')?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const input = document.getElementById('assistInput');
+    const text = input?.value || '';
+    if (input) input.value = '';
+    void assistSendText(text);
+  });
+  document.getElementById('assistConfirmBtn')?.addEventListener('click', () => { void assistConfirm(true); });
+  document.getElementById('assistCancelBtn')?.addEventListener('click', () => { void assistConfirm(false); });
+  document.querySelectorAll('.tab[data-tab]').forEach((btn) => {
+    btn.addEventListener('click', () => setTimeout(assistRefreshContextChip, 0));
+  });
+  document.querySelectorAll('[data-subtab]').forEach((btn) => {
+    btn.addEventListener('click', () => setTimeout(assistRefreshContextChip, 0));
+  });
+  assistRefreshContextChip();
+}
+
+initAssistUi();
