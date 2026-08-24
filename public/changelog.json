@@ -5,28 +5,18 @@
     "changes": [
       {
         "type": "feat",
-        "title": "Server library",
-        "detail": "assist-context.mjs, assist-intent-resolver.mjs, assist-routes.mjs, assist-service.mjs, assist-store.mjs, assist-types.mjs, assist-api.mjs, http-register.mjs"
+        "title": "C10.2 AIRVIX Assist foundation",
+        "detail": "Persistent Assist rail + deterministic intent layer; confirm-gated notes/observations/dev tasks; known-route navigation only; no flight/deploy/agent actions."
       },
       {
         "type": "feat",
-        "title": "UI / app.js",
-        "detail": "app.js"
+        "title": "Assist rail on every workspace",
+        "detail": "Header-launched right-side text rail; not a sixth peer tab and not a full-page chat. Advisor and engineer tabs remain."
       },
       {
-        "type": "feat",
-        "title": "Frontend",
-        "detail": "changelog.json"
-      },
-      {
-        "type": "ui",
-        "title": "HTML layout",
-        "detail": "index.html"
-      },
-      {
-        "type": "ui",
-        "title": "Styles",
-        "detail": "styles.css"
+        "type": "test",
+        "title": "Assist suite",
+        "detail": "Regression coverage for Assist intent routing, confirm-gated safe actions, and rejection of prohibited flight, deploy, and agent commands."
       }
     ]
   },
