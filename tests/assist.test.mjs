@@ -3,6 +3,7 @@ import express from 'express';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import { buildAssistContext } from '../lib/assist/assist-context.mjs';
 import { resolveAssistIntent } from '../lib/assist/assist-intent-resolver.mjs';
 import { createAssistService } from '../lib/assist/assist-service.mjs';
@@ -307,5 +308,32 @@ describe('Assist HTTP API', () => {
     expect(meta.prohibited).toContain('DEPLOY');
     expect(meta.prohibited).toContain('CURSOR_AGENT_START');
     expect(meta.channels).toEqual(['text', 'voice']);
+  });
+});
+
+function htmlButtonInnerText(html, id) {
+  const re = new RegExp(`<button\\b[^>]*\\bid="${id}"[^>]*>([\\s\\S]*?)</button>`, 'i');
+  const m = html.match(re);
+  expect(m, `missing <button id="${id}">`).toBeTruthy();
+  return m[1].replace(/<[^>]+>/g, '').trim();
+}
+
+describe('Assist rail proposal chrome', () => {
+  const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+
+  it('uses Hebrew אישור / ביטול on Confirm/Cancel proposal buttons', () => {
+    const html = fs.readFileSync(path.join(repoRoot, 'public', 'index.html'), 'utf8');
+    const confirmLabel = htmlButtonInnerText(html, 'assistConfirmBtn');
+    const cancelLabel = htmlButtonInnerText(html, 'assistCancelBtn');
+    expect(confirmLabel).toBe('אישור');
+    expect(cancelLabel).toBe('ביטול');
+    expect(confirmLabel).not.toBe('Confirm');
+    expect(cancelLabel).not.toBe('Cancel');
+  });
+
+  it('does not hardcode English Confirm/Cancel onto those buttons in JS', () => {
+    const js = fs.readFileSync(path.join(repoRoot, 'public', 'app.js'), 'utf8');
+    expect(js).not.toMatch(/assistConfirmBtn[\s\S]{0,240}?(?:textContent|innerText|innerHTML)\s*=\s*['"`]Confirm['"`]/);
+    expect(js).not.toMatch(/assistCancelBtn[\s\S]{0,240}?(?:textContent|innerText|innerHTML)\s*=\s*['"`]Cancel['"`]/);
   });
 });
