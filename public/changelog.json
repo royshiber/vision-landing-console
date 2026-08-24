@@ -1,5 +1,21 @@
 [
   {
+    "version": "1.02.255",
+    "date": "2026-08-24",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "DB schema",
+        "detail": "db.mjs"
+      },
+      {
+        "type": "test",
+        "title": "Tests",
+        "detail": "connections-api.test.mjs, db.test.mjs"
+      }
+    ]
+  },
+  {
     "version": "1.02.254",
     "date": "2026-08-21",
     "changes": [
