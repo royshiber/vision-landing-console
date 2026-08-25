@@ -1,6 +1,6 @@
 # AIRVIX Project Constitution
 
-Approved 2026-08-24 by Product Owner Roy, including the PM-stop addendum. Leadership addendum 2026-08-25 (PM/TL expansion) is in force and does not replace the delivery loop, Human Gates, Companion BOTH-mode gate, NEVER rules, or the PM-stop addendum. Communication / observability addendum 2026-08-25 is in force and does not replace those rules, the 3-retry limit, merge as a Human Gate, or flight-command Human Gates. UI / UX product-quality addendum 2026-08-25 is in force and does not replace those rules, the PM/TL expansion, or Communication / observability. Human Response Protocol addendum 2026-08-25 is in force and does not replace those rules, UI / UX product quality, or Communication / observability. For Human Gate questions, visible chat state is WAITING FOR ROY, not BLOCKED. UI / UX Visual QA & Product Checkpoints addendum 2026-08-25 is in force and does not replace those rules, UI / UX product quality, or Human Response Protocol. It makes visual QA and screenshots operational. Product-level prioritization addendum 2026-08-25 and Parallel work while waiting for Roy addendum 2026-08-25 are in force and do not replace those rules. WAITING FOR ROY is waiting on that specific decision only; it does not stop the project. Product vision addendum 2026-08-25 (Agent as part of the product) is in force and does not replace those rules. The intended architecture is locked. Product execution ownership addendum 2026-08-25 is in force and does not replace those rules. King owns the living execution plan. This file records the ownership rule, not the full task list.
+Approved 2026-08-24 by Product Owner Roy, including the PM-stop addendum. Leadership addendum 2026-08-25 (PM/TL expansion) is in force and does not replace the delivery loop, Human Gates, Companion BOTH-mode gate, NEVER rules, or the PM-stop addendum. Communication / observability addendum 2026-08-25 is in force and does not replace those rules, the 3-retry limit, merge as a Human Gate, or flight-command Human Gates. UI / UX product-quality addendum 2026-08-25 is in force and does not replace those rules, the PM/TL expansion, or Communication / observability. Human Response Protocol addendum 2026-08-25 is in force and does not replace those rules, UI / UX product quality, or Communication / observability. For Human Gate questions, visible chat state is WAITING FOR ROY, not BLOCKED. UI / UX Visual QA & Product Checkpoints addendum 2026-08-25 is in force and does not replace those rules, UI / UX product quality, or Human Response Protocol. It makes visual QA and screenshots operational. Product-level prioritization addendum 2026-08-25 and Parallel work while waiting for Roy addendum 2026-08-25 are in force and do not replace those rules. WAITING FOR ROY is waiting on that specific decision only; it does not stop the project. Product vision addendum 2026-08-25 (Agent as part of the product) is in force and does not replace those rules. The intended architecture is locked. Product execution ownership addendum 2026-08-25 is in force and does not replace those rules. King owns the living execution plan. This file records the ownership rule, not the full task list. Human Decisions — Simple Product Language addendum 2026-08-25 is in force and does not replace Human Response Protocol. It tightens how questions are worded. Clickable widget required.
 
 This file is the work-rules source of truth for AIRVIX (Vision Landing Console). Do not weaken, omit, or invent safety or product rules.
 
@@ -96,7 +96,7 @@ Before every new task, inspect the repo, the vision, and the backlog. Rank by pr
 
 A Human Gate is a decision gate, not a lock on a whole sensitive area. If this file already defines the decision, implement it; do not re-ask Roy.
 
-When asking Roy, use Human Response Protocol. Do not hide the question inside a technical status report. Visible chat state is WAITING FOR ROY.
+When asking Roy, use Human Response Protocol and Human Decisions — Simple Product Language. Do not hide the question inside a technical status report. Visible chat state is WAITING FOR ROY. Still use a clickable widget.
 
 Required:
 
@@ -119,6 +119,7 @@ Required:
 Not a Human Gate (do not re-ask):
 
 - The Companion BOTH gate already on master (PR #20); do not regress it. Implementing or preserving that already-defined gate is not a Human Gate.
+- Assist confirm already chosen 2026-08-25: do-and-check (start an isolated coding agent; return the result to the product UI). Do not re-ask. Merge / deploy remains a Human Gate.
 - Work toward Companion real that does not connect a live vehicle and does not send flight commands, after structured risk management in the PR
 - In-scope safe work consistent with the vision and this constitution, including new tasks King identified without a prior Issue
 
@@ -257,7 +258,7 @@ This addendum does not replace NEVER, merge as a Human Gate, flight-command Huma
 
 When King needs Roy to make a decision, choose between options, approve something, or resolve an ambiguity: STOP and ask explicitly. Do not hide the question inside a technical status report. Roy must never have to infer from STATE / NEXT / Human Gate / BLOCKED / technical logs that King is waiting.
 
-Every question requiring Roy's response MUST use this exact chat format (Hebrew body, English tokens as shown):
+Every question requiring Roy's response MUST use this exact chat format (Hebrew body, English tokens as shown). Wording of the Hebrew body and options follows Human Decisions — Simple Product Language. Still use a clickable widget whose values read like Roy's reply.
 
 ```
 ❓ HUMAN DECISION NEEDED
@@ -274,9 +275,10 @@ WAITING FOR ROY.
 
 Rules:
 
-- Simple Hebrew whenever possible. Avoid technical terms unless necessary; if necessary, explain in simple words.
-- Keep the question short. One decision at a time. Prefer 2–4 options.
+- Simple Hebrew whenever possible. Avoid technical terms unless necessary; if necessary, explain in simple words. Options are simple product OUTCOMES, not implementation mechanisms. See Human Decisions — Simple Product Language.
+- Keep the question short. One decision at a time. Prefer 2–3 options (2–4 maximum). Mark the recommended option.
 - Put the safest / recommended option first when appropriate. Say what you recommend and why, one short sentence.
+- Still use a clickable widget with 2–4 options whose values read like Roy's reply.
 - Do not continue work that depends on Roy's answer. Continue all other independent work that is safe and does not depend on his answer.
 - While waiting, the visible chat state is WAITING FOR ROY — not RUNNING, not DONE, and not BLOCKED. This protocol replaces the previous observability token `BLOCKED: <decision>` for Human Gate questions.
 
@@ -308,7 +310,7 @@ If the decision materially affects product behavior, UX direction, user workflow
 
 1. Stop the dependent work.
 2. Show a screenshot.
-3. Ask one short, simple question with 2–4 clickable choices (Human Response Protocol + widget).
+3. Ask one short, simple question with 2–4 clickable choices (Human Response Protocol + widget + Human Decisions — Simple Product Language).
 4. Simple language.
 5. Visible state WAITING FOR ROY.
 
@@ -420,6 +422,44 @@ Measure by capabilities closed and distance to vision, not PR count.
 Do not ask Roy what to work on next unless vision, safety, scope, or two materially different product choices require him. Use Human Response Protocol when that is a Human Gate. WAITING FOR ROY blocks only that decision. See Parallel work while waiting for Roy.
 
 The living map lives in `docs/PRODUCT_EXECUTION.md` (separate PR). This `AGENTS.md` records the ownership rule only, not the full task list. Do not invent a `STATUS.md`. Do not put the full task list in this constitution.
+
+## Human Decisions — Simple Product Language (addendum, 2026-08-25)
+
+This addendum does not replace NEVER, merge as a Human Gate, flight-command Human Gates, the Companion BOTH-mode gate (now on master), the PM-stop addendum, the 3-retry limit, the PM/TL expansion, Communication / observability, Human Response Protocol, UI / UX product quality, UI / UX Visual QA, Product-level prioritization, Parallel work while waiting for Roy, Product vision: Agent as part of the product, or Product execution ownership. It does not replace the delivery loop. It tightens HOW Human Gate questions are worded. Tokens remain `❓ HUMAN DECISION NEEDED` and `WAITING FOR ROY`. A clickable widget remains required.
+
+When King needs a Roy decision, do not describe it primarily in technical terms. Translate it into the simplest product dilemma: what actual choice is Roy making?
+
+Required wording inside Human Response Protocol:
+
+```
+❓ HUMAN DECISION NEEDED
+
+**השורה התחתונה:** [one short sentence of the actual decision]
+
+**מה אתה מעדיף?**
+
+A. [simple outcome] מומלץ
+B. [simple outcome]
+C. [simple outcome, if needed]
+
+WAITING FOR ROY.
+```
+
+Keep the question extremely short. Prefer 2–3 simple OUTCOMES, not implementation mechanisms. Mark the recommended option `מומלץ`. Avoid technical terminology unless absolutely necessary. Do not explain implementation details before the choice. Technical consequences only after Roy chooses, if needed. Roy must understand without knowing how the system is implemented.
+
+Still use a clickable widget with 2–4 options whose values read like Roy's reply, not like an engineering ticket.
+
+Roy's contrast (locked teaching example):
+
+- BAD: a technical Assist / branch / no-merge question.
+- GOOD: when you confirm a change through Assist, should it actually be done?
+  - A. Do it and check (recommended)
+  - B. Prepare only
+  - C. Prepare and show me first
+
+Roy 2026-08-25 chose the do-and-check outcome for Assist confirm: when Roy confirms a change through Assist, start an isolated coding agent and return the result to the product UI. This decision is already defined. Do not re-ask it. This does not make merge / deploy a non-Human-Gate. Stay draft until Roy says merge.
+
+Do not invent a `STATUS.md`.
 
 ## Post-approval sequence (for the PM, not an implementer license)
 
