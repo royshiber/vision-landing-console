@@ -90,8 +90,8 @@ Also locked without GO:
 
 | ID | Capability | Gate |
 |---|---|---|
-| **A** | In-product isolated agent loop: Assist Confirm starts a Cursor Agent on an isolated branch | Safe to build now (no merge, no FC/Jetson) |
-| **B** | Results visible in Assist (status, then live progress, then outcome) | Follows A VERIFY |
+| **A** | In-product isolated agent loop: Assist Confirm starts a Cursor Agent on an isolated branch | **LANDED** on master 2026-08-25 via PR #33 merge `51d2ef41`. Issue #31 done. |
+| **B** | Results visible in Assist (status, then live progress, then outcome) | **LANDED** with A: Hebrew status + `GET /api/assist/tasks/:id` poll RUNNING → result. UNAVAILABLE is honest (no fake run). |
 | **C** | Companion apply after GO | Human Gate (#28) |
 | **D** | Flight ops + auto-land after GO | Human Gate (#29) |
 
@@ -101,19 +101,19 @@ Params vs live FC: console persistence is a GAP (safe). Write-to-vehicle is a Hu
 
 ## Near-term (do, in this order)
 
-1. Assist Confirm starts an isolated Cursor Agent and returns Hebrew status/result. **IN FLIGHT as of 2026-08-25. No merge.** Tracker: Issue #31.
-2. Surface the `UNAVAILABLE` reason in Assist. Never fake a run.
-3. Finish / VERIFY param-set persist PR #30. Retarget or close Issue #27 after VERIFY.
-4. After loop VERIFY: live agent progress in Assist (Milestone B).
-5. Keep constitution PR #6 updated. Do not merge without Roy.
-6. Do **not** spend cycles on changelog PR #15, smoke PR #4, or remaining Development English chrome while these GAPS remain.
+1. Assist Confirm starts an isolated Cursor Agent and returns Hebrew status/result. **LANDED on master** via PR #33 merge `51d2ef41` 2026-08-25. Issue #31 done.
+2. Highest remaining GAPS (this snapshot): companion apply/restart (Human Gate #28), live vehicle/auto-landing (Human Gate #29), and making the in-product agent actually **READY** when `CURSOR_API_KEY` / `DEVELOPMENT_AGENT_PROVIDER` are unset. UNAVAILABLE is honest, but the loop cannot run for Roy until the console has a working agent.
+3. Finish / VERIFY param-set persist PR #30. Retarget or close Issue #27 after VERIFY. **Do not merge #30.**
+4. Keep constitution PR #6 updated. **Do not merge #6** without Roy.
+5. Do **not** merge #32 (this map), #15, or #4. Do **not** spend cycles on changelog PR #15, smoke PR #4, remaining Development English chrome, version bump, or Jetson/FC while these GAPS remain.
 
 ---
 
-## Audit snapshot — 2026-08-25
+## Audit snapshot — 2026-08-25 (post PR #33 VERIFY)
 
-**Master:** `1.02.255` @ `b4b094a` (PR #18 merge and later on this line).  
-**This file:** living plan as of this date. Rewrite after the next meaningful VERIFY.
+**Master:** `1.02.255` @ `51d2ef41` (PR #33 merge: Assist confirm starts isolated coding agent and returns result to UI).  
+**Prior pointer:** same-day snapshot at `b4b094a` (PR #18 line) is superseded. Rewrite after the next meaningful VERIFY.  
+**This file:** living plan as of this VERIFY. Draft PR #32. Do not merge.
 
 ### On master (true)
 
@@ -125,33 +125,33 @@ Params vs live FC: console persistence is a GAP (safe). Write-to-vehicle is a Hu
 - Vision config + `arduTargetParams` persist via SQLite `server_config` on `POST /api/vision/config` (PR #18).
 - Assist Confirm / Cancel labels are Hebrew (PR #9). Issues #8 / #10 are done on master — close later.
 - Development Tasks empty-state copy is Hebrew (PR #13). Issue #14 leftover is remaining Development English chrome (polish).
+- Assist Confirm for DEVELOPMENT/REQUEST now composes: create task → isolated `development/tasks/` worktree → start coding agent when provider is READY → Hebrew status back to Assist, with poll on `GET /api/assist/tasks/:id` (PR #33). `CURSOR_AGENT_START` stays in `ASSIST_PROHIBITED_ACTIONS` as a proposed action; the loop is server-side composition after confirmed `CREATE_DEVELOPMENT_TASK`. No in-app merge to master, no deploy, no Jetson/FC/apply/restart.
 
 ### Remaining hole (params)
 
-`POST /api/param-center/param-set` is still RAM-only. Draft PR #30 persists those RAM updates through the same `server_config` snapshot. Out of scope for #30: live FC `PARAM_SET` as a product capability (Human Gate).
+`POST /api/param-center/param-set` is still RAM-only. Draft PR #30 persists those RAM updates through the same `server_config` snapshot. Out of scope for #30: live FC `PARAM_SET` as a product capability (Human Gate). **Do not merge #30.**
 
-### Assist / agent (the highest safe GAP)
+### Assist / agent (loop landed; not READY for Roy)
 
-On master today:
+On master today (PR #33):
 
-- DEVELOPMENT / REQUEST Confirm creates a development **task only**.
-- Assist service comment: never start agent / release / deploy from Assist.
-- `CURSOR_AGENT_START` is in `ASSIST_PROHIBITED_ACTIONS`. Assist must not propose it.
-- `next_step`: agent will not start automatically.
-- Operator then leaves Assist for the Development Tasks panel (create worktree, Start development, English chrome).
-- Progress, PR, and summary do **not** return to Assist.
-- Coding agent API exists (`cursor-sdk` + WSL on Windows). Default is `UNAVAILABLE` unless `DEVELOPMENT_AGENT_PROVIDER=cursor-sdk` **and** `CURSOR_API_KEY` are set.
+- DEVELOPMENT / REQUEST Confirm creates the task, creates the isolated worktree/branch, and starts the agent **when the provider is READY**.
+- Assist returns Hebrew status and polls `GET /api/assist/tasks/:id` (RUNNING → result). Progress, PR URL, and last message surface when the provider exposes them.
+- If the provider is **UNAVAILABLE**, the task still exists, `agent_started` is false, and Assist shows the Hebrew unavailable reason. It does not pretend the agent ran.
+- Coding agent API exists (`cursor-sdk` + WSL on Windows). Default is still `UNAVAILABLE` unless `DEVELOPMENT_AGENT_PROVIDER=cursor-sdk` **and** `CURSOR_API_KEY` are set.
+- **Remaining GAP:** UNAVAILABLE is honest, but the destination loop cannot run for Roy until the console has a working agent. Do not fake READY. Secrets remain a Human Gate.
 
-Intended architecture is the Destination loop above. Safety if implemented: isolated `development/tasks/` (or equivalent) branch, no merge to master, no FC / Jetson / apply / restart / flight commands, explicit Confirm in Assist.
+Intended architecture is the Destination loop above. Safety still required: isolated `development/tasks/` (or equivalent) branch, no merge to master, no FC / Jetson / apply / restart / flight commands, explicit Confirm in Assist.
 
-### Open drafts (stay draft)
+### Open drafts (stay draft — do not merge)
 
 | PR | Topic | This map |
 |---|---|---|
-| [#4](https://github.com/royshiber/vision-landing-console/pull/4) | PM orchestrator smoke | Skip |
-| [#6](https://github.com/royshiber/vision-landing-console/pull/6) | `AGENTS.md` constitution | Keep updated; merge is Human Gate (Roy) |
-| [#15](https://github.com/royshiber/vision-landing-console/pull/15) | Changelog polish | Skip |
-| [#30](https://github.com/royshiber/vision-landing-console/pull/30) | param-set persist | Finish / VERIFY; then retarget or close #27 |
+| [#4](https://github.com/royshiber/vision-landing-console/pull/4) | PM orchestrator smoke | Skip. Do not merge. |
+| [#6](https://github.com/royshiber/vision-landing-console/pull/6) | `AGENTS.md` constitution | Keep updated; merge is Human Gate (Roy). Do not merge. |
+| [#15](https://github.com/royshiber/vision-landing-console/pull/15) | Changelog polish | Skip. Do not merge. |
+| [#30](https://github.com/royshiber/vision-landing-console/pull/30) | param-set persist | Finish / VERIFY; then retarget or close #27. Do not merge. |
+| [#32](https://github.com/royshiber/vision-landing-console/pull/32) | This living map | Stay draft. Do not merge. |
 
 ### Open issues
 
@@ -162,21 +162,21 @@ Intended architecture is the Destination loop above. Safety if implemented: isol
 | [#12](https://github.com/royshiber/vision-landing-console/issues/12) / [#16](https://github.com/royshiber/vision-landing-console/issues/16) | Changelog dump rows | IMPROVEMENT. Skip while GAPS remain. |
 | [#14](https://github.com/royshiber/vision-landing-console/issues/14) | Remaining Development English chrome | IMPROVEMENT / polish. Skip while GAPS remain. |
 | [#27](https://github.com/royshiber/vision-landing-console/issues/27) | Params persist | Mostly landed in #18. Leftover is param-set (PR #30). |
-| [#28](https://github.com/royshiber/vision-landing-console/issues/28) | Companion apply/restart | GAP + Human Gate |
-| [#29](https://github.com/royshiber/vision-landing-console/issues/29) | Live vehicle + auto-landing | GAP + Human Gate |
-| [#31](https://github.com/royshiber/vision-landing-console/issues/31) | In-product Cursor Agent loop | Highest safe GAP. IN FLIGHT 2026-08-25. No merge. |
+| [#28](https://github.com/royshiber/vision-landing-console/issues/28) | Companion apply/restart | GAP + Human Gate. Highest remaining value. No GO. |
+| [#29](https://github.com/royshiber/vision-landing-console/issues/29) | Live vehicle + auto-landing | GAP + Human Gate. Next remaining value. No GO. |
+| [#31](https://github.com/royshiber/vision-landing-console/issues/31) | In-product Cursor Agent loop | **Done.** PR #33 merged to master `51d2ef41` 2026-08-25. Close. |
 
 ### Ranked GAPS (this snapshot)
 
-1. **In-product agent loop** — highest safe. Milestone A → B. Issue #31.
-2. **Companion apply/restart** — Human Gate. Issue #28. Milestone C.
-3. **Live vehicle + auto landing** — Human Gate. Issue #29. Milestone D.
-4. **Full params vs live FC** — persist leftover is PR #30; write-to-vehicle is Human Gate.
+1. **Companion apply/restart** — Human Gate. Issue #28. Milestone C. Highest remaining value. Do not implement without Roy GO. No Jetson/FC from this map.
+2. **Live vehicle + auto landing** — Human Gate. Issue #29. Milestone D. Do not implement without Roy GO.
+3. **In-product agent actually READY** — loop (Milestone A/B, Issue #31) is on master, but default `UNAVAILABLE` when `CURSOR_API_KEY` / `DEVELOPMENT_AGENT_PROVIDER` are unset. Honest, yet Roy cannot run the loop until the console has a working agent. Do not fake a run. Secrets / deploy stay a Human Gate.
+4. **Full params vs live FC** — persist leftover is PR #30 (do not merge); write-to-vehicle is Human Gate.
 
 ### Explicitly not next
 
-Changelog #15, smoke PR #4, Development English chrome, constitution merge, Jetson/FC, version bump from this map.
+Do not merge #32 / #30 / #15 / #6 / #4. Changelog #15, smoke PR #4, Development English chrome, constitution merge, Jetson/FC, version bump from this map.
 
 ### Next pick (this snapshot)
 
-Close the Assist → isolated Cursor Agent → Hebrew result loop (Issue #31, IN FLIGHT). After VERIFY, rewrite this snapshot and pick: `UNAVAILABLE` in Assist, then PR #30 VERIFY, then live progress in Assist.
+Human Gates #28 and #29 stay WAITING FOR ROY. Executable next: make the in-product agent actually READY so Roy can run the landed Assist loop without `CURSOR_API_KEY` / `DEVELOPMENT_AGENT_PROVIDER` unset leaving the product UNAVAILABLE. Do not fake READY. Do not merge this map.
