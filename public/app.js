@@ -10455,7 +10455,8 @@ function assistStopRunPolling() {
 
 function assistStatusKind(state, agentStarted, unavailableReason) {
   if (unavailableReason || agentStarted === false) return 'unavailable';
-  const s = String(state || '').toUpperCase();
+  const s = String(state || '').trim().toUpperCase();
+  if (!s || s === 'NOT_STARTED') return 'unavailable';
   if (s === 'SUCCEEDED' || s === 'FAILED' || s === 'CANCELLED') return 'result';
   return 'run';
 }
@@ -10495,11 +10496,12 @@ function assistRenderRunStatus(payload, { agentStarted = true, unavailableReason
     branch: payload.branch || payload.task?.branch,
     prUrl: payload.pr_url || payload.task?.pr_url,
   });
+  const kind = assistStatusKind(payload.agent_state || payload.task?.agent_state, agentStarted, unavailableReason);
   if (panel) {
     panel.innerHTML = html;
     panel.hidden = false;
+    panel.dataset.kind = kind;
   }
-  const kind = assistStatusKind(payload.agent_state || payload.task?.agent_state, agentStarted, unavailableReason);
   if (box) {
     if (!_assistRunMsgEl || !box.contains(_assistRunMsgEl)) {
       _assistRunMsgEl = document.createElement('div');
@@ -10517,7 +10519,9 @@ async function assistRefreshRun(taskId) {
   const r = await fetch(`/api/assist/tasks/${encodeURIComponent(taskId)}`);
   const data = await r.json().catch(() => ({}));
   if (!r.ok || !data.ok) return;
-  assistRenderRunStatus(data, { agentStarted: true });
+  const state = String(data.agent_state || '').toUpperCase();
+  const started = Boolean(state) && state !== 'NOT_STARTED';
+  assistRenderRunStatus(data, { agentStarted: started });
   if (data.terminal) assistStopRunPolling();
 }
 
@@ -10615,6 +10619,9 @@ async function assistConfirm(confirm) {
     } else {
       assistStopRunPolling();
     }
+    if (data.result.agent_started !== true) {
+      void assistRefreshAgentConnection();
+    }
   } else {
     assistAppendMessage({
       role: 'assist',
@@ -10627,6 +10634,173 @@ async function assistConfirm(confirm) {
   }
 }
 
+function assistSetConnectError(text) {
+  const err = document.getElementById('assistAgentConnectError');
+  if (!err) return;
+  const msg = String(text || '').trim();
+  err.hidden = !msg;
+  err.textContent = msg;
+}
+
+function assistSetConnectBusy(busy) {
+  const key = document.getElementById('assistAgentKey');
+  const connectBtn = document.getElementById('assistAgentConnectBtn');
+  const disconnectBtn = document.getElementById('assistAgentDisconnectBtn');
+  if (key) key.disabled = !!busy;
+  if (connectBtn) {
+    const empty = !String(key?.value || '').trim();
+    connectBtn.disabled = !!busy || empty;
+  }
+  if (disconnectBtn) disconnectBtn.disabled = !!busy;
+}
+
+function assistSyncConnectButton() {
+  const key = document.getElementById('assistAgentKey');
+  const connectBtn = document.getElementById('assistAgentConnectBtn');
+  if (!connectBtn) return;
+  connectBtn.disabled = !String(key?.value || '').trim();
+}
+
+function assistRenderAgentConnection(status) {
+  const card = document.getElementById('assistAgentConnect');
+  const statusEl = document.getElementById('assistAgentStatus');
+  const hintEl = document.getElementById('assistAgentHint');
+  const keyHintEl = document.getElementById('assistAgentKeyHint');
+  const form = document.getElementById('assistAgentConnectForm');
+  const disconnectBtn = document.getElementById('assistAgentDisconnectBtn');
+  if (!card || !statusEl) return;
+  const connected = status?.connected === true && status?.runtime === 'READY';
+  const errorText = !connected && status?.ok === false
+    ? (status.status_he || status.reason_he || 'החיבור לסוכן נכשל.')
+    : '';
+  card.dataset.state = errorText ? 'error' : (connected ? 'connected' : 'disconnected');
+  statusEl.textContent = connected
+    ? (status.status_he || 'הסוכן מחובר ומוכן.')
+    : (status.status_he || status.reason_he || 'הסוכן מנותק.');
+  if (hintEl) {
+    hintEl.hidden = connected;
+    hintEl.textContent = 'כדי להריץ שינוי מאושר צריך לחבר את הסוכן.';
+  }
+  if (keyHintEl) {
+    const hint = connected ? String(status.key_hint || '').trim() : '';
+    keyHintEl.hidden = !hint;
+    keyHintEl.textContent = hint;
+  }
+  if (form) form.hidden = connected;
+  if (disconnectBtn) {
+    disconnectBtn.hidden = !connected;
+    disconnectBtn.setAttribute('aria-hidden', connected ? 'false' : 'true');
+  }
+  if (!errorText) assistSetConnectError('');
+  assistSyncConnectButton();
+}
+
+async function assistRefreshAgentConnection() {
+  try {
+    const r = await fetch('/api/assist/agent', { cache: 'no-store' });
+    const data = await r.json().catch(() => ({}));
+    assistRenderAgentConnection({
+      ok: r.ok && data.ok !== false,
+      runtime: data.runtime,
+      connected: data.connected === true,
+      status_he: data.status_he,
+      reason_he: data.reason_he,
+      key_hint: data.key_hint,
+    });
+  } catch {
+    assistRenderAgentConnection({
+      ok: false,
+      runtime: 'UNAVAILABLE',
+      connected: false,
+      status_he: 'הסוכן מנותק.',
+    });
+  }
+}
+
+async function assistConnectAgent(event) {
+  event?.preventDefault?.();
+  const keyEl = document.getElementById('assistAgentKey');
+  const key = String(keyEl?.value || '').trim();
+  if (!key) {
+    assistSetConnectError('יש להזין מפתח חיבור.');
+    assistRenderAgentConnection({
+      ok: false,
+      runtime: 'UNAVAILABLE',
+      connected: false,
+      status_he: 'יש להזין מפתח חיבור.',
+    });
+    return;
+  }
+  if (key.length < 8) {
+    assistSetConnectError('מפתח החיבור אינו תקין.');
+    assistRenderAgentConnection({
+      ok: false,
+      runtime: 'UNAVAILABLE',
+      connected: false,
+      status_he: 'מפתח החיבור אינו תקין.',
+    });
+    return;
+  }
+  const statusEl = document.getElementById('assistAgentStatus');
+  if (statusEl) statusEl.textContent = 'מחברים את הסוכן…';
+  assistSetConnectBusy(true);
+  assistSetConnectError('');
+  try {
+    const r = await fetch('/api/assist/agent/connect', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key }),
+    });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok || data.ok === false || data.runtime !== 'READY') {
+      assistSetConnectError(data.status_he || data.reason_he || 'החיבור לסוכן נכשל.');
+      assistRenderAgentConnection({
+        ok: false,
+        runtime: 'UNAVAILABLE',
+        connected: false,
+        status_he: data.status_he || data.reason_he || 'החיבור לסוכן נכשל.',
+        reason_he: data.reason_he,
+      });
+      return;
+    }
+    if (keyEl) keyEl.value = '';
+    assistRenderAgentConnection(data);
+  } catch {
+    assistSetConnectError('החיבור לסוכן נכשל.');
+    assistRenderAgentConnection({
+      ok: false,
+      runtime: 'UNAVAILABLE',
+      connected: false,
+      status_he: 'החיבור לסוכן נכשל.',
+    });
+  } finally {
+    assistSetConnectBusy(false);
+  }
+}
+
+async function assistDisconnectAgent() {
+  assistSetConnectBusy(true);
+  try {
+    const r = await fetch('/api/assist/agent/disconnect', { method: 'POST' });
+    const data = await r.json().catch(() => ({}));
+    assistRenderAgentConnection({
+      ok: r.ok,
+      runtime: 'UNAVAILABLE',
+      connected: false,
+      status_he: data.status_he || 'הסוכן מנותק.',
+    });
+  } catch {
+    assistRenderAgentConnection({
+      ok: false,
+      runtime: 'UNAVAILABLE',
+      connected: false,
+      status_he: 'הסוכן מנותק.',
+    });
+  } finally {
+    assistSetConnectBusy(false);
+  }
+}
+
 function assistSetOpen(open) {
   const rail = document.getElementById('assistRail');
   const toggle = document.getElementById('assistToggleBtn');
@@ -10636,7 +10810,10 @@ function assistSetOpen(open) {
   document.body.classList.toggle('assist-open', open);
   try { sessionStorage.setItem(ASSIST_OPEN_KEY, open ? '1' : '0'); } catch { /* ignore */ }
   assistRefreshContextChip();
-  if (open) document.getElementById('assistInput')?.focus();
+  if (open) {
+    void assistRefreshAgentConnection();
+    document.getElementById('assistInput')?.focus();
+  }
 }
 
 function initAssistUi() {
@@ -10657,6 +10834,12 @@ function initAssistUi() {
   });
   document.getElementById('assistConfirmBtn')?.addEventListener('click', () => { void assistConfirm(true); });
   document.getElementById('assistCancelBtn')?.addEventListener('click', () => { void assistConfirm(false); });
+  document.getElementById('assistAgentConnectForm')?.addEventListener('submit', (e) => { void assistConnectAgent(e); });
+  document.getElementById('assistAgentKey')?.addEventListener('input', () => {
+    assistSetConnectError('');
+    assistSyncConnectButton();
+  });
+  document.getElementById('assistAgentDisconnectBtn')?.addEventListener('click', () => { void assistDisconnectAgent(); });
   document.querySelectorAll('.tab[data-tab]').forEach((btn) => {
     btn.addEventListener('click', () => setTimeout(assistRefreshContextChip, 0));
   });

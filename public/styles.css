@@ -12002,6 +12002,103 @@ details.flight-manage summary {
   color: rgba(255, 255, 255, 0.45);
   line-height: 1.35;
 }
+.assist-agent-connect {
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  background: rgba(69, 26, 3, 0.35);
+  border-radius: 10px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.assist-agent-connect[data-state="connected"] {
+  border-color: rgba(74, 222, 128, 0.4);
+  background: rgba(20, 83, 45, 0.32);
+}
+.assist-agent-connect[data-state="error"] {
+  border-color: rgba(248, 113, 113, 0.5);
+  background: rgba(69, 10, 10, 0.38);
+}
+.assist-agent-status {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #fef3c7;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.assist-agent-connect[data-state="connected"] .assist-agent-status {
+  color: #dcfce7;
+}
+.assist-agent-hint {
+  margin: 0;
+  font-size: 0.72rem;
+  color: rgba(254, 243, 199, 0.8);
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+.assist-agent-key-hint {
+  margin: 0;
+  font-size: 0.72rem;
+  color: rgba(226, 232, 240, 0.75);
+  direction: ltr;
+  unicode-bidi: isolate;
+  text-align: start;
+  overflow-wrap: anywhere;
+}
+.assist-agent-form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.assist-agent-form[hidden],
+.assist-agent-hint[hidden],
+.assist-agent-key-hint[hidden],
+.assist-agent-error[hidden],
+#assistAgentDisconnectBtn[hidden] {
+  display: none !important;
+}
+.assist-agent-connect[data-state="connected"] .assist-agent-form,
+.assist-agent-connect[data-state="connected"] .assist-agent-hint {
+  display: none !important;
+}
+.assist-agent-connect:not([data-state="connected"]) #assistAgentDisconnectBtn,
+.assist-agent-connect:not([data-state="connected"]) .assist-agent-key-hint {
+  display: none !important;
+}
+.assist-agent-label {
+  font-size: 0.72rem;
+  color: rgba(254, 243, 199, 0.9);
+}
+.assist-agent-key {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  border-radius: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(0, 0, 0, 0.35);
+  color: #f8fafc;
+  padding: 8px 10px;
+  font-size: 0.82rem;
+  font-family: "Space Grotesk", "Heebo", sans-serif;
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+.assist-agent-key:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.assist-agent-error {
+  margin: 0;
+  font-size: 0.72rem;
+  color: #fecaca;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.assist-agent-connect .assist-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
 .assist-messages {
   flex: 1;
   min-height: 0;
@@ -12051,8 +12148,8 @@ details.flight-manage summary {
 .assist-proposal-bar[hidden] { display: none !important; }
 .assist-proposal-text { margin: 0; font-size: 0.78rem; color: #dcfce7; white-space: pre-wrap; }
 .assist-run-panel {
-  border: 1px solid rgba(56, 189, 248, 0.35);
-  background: rgba(8, 47, 73, 0.45);
+  border: 1px solid rgba(251, 191, 36, 0.45);
+  background: rgba(69, 26, 3, 0.35);
   border-radius: 10px;
   padding: 8px 10px;
   display: flex;
@@ -12063,7 +12160,7 @@ details.flight-manage summary {
 .assist-run-headline {
   margin: 0;
   font-size: 0.8rem;
-  color: #e0f2fe;
+  color: #fef3c7;
   white-space: pre-wrap;
 }
 .assist-status-row {
@@ -12073,7 +12170,7 @@ details.flight-manage summary {
 }
 .assist-status-label {
   font-size: 0.68rem;
-  color: rgba(224, 242, 254, 0.7);
+  color: rgba(254, 243, 199, 0.75);
 }
 .assist-status-value {
   direction: ltr;
@@ -12085,6 +12182,26 @@ details.flight-manage summary {
   border-radius: 6px;
   padding: 4px 6px;
   overflow-wrap: anywhere;
+}
+.assist-run-panel[data-kind="run"] {
+  border-color: rgba(56, 189, 248, 0.35);
+  background: rgba(8, 47, 73, 0.45);
+}
+.assist-run-panel[data-kind="run"] .assist-run-headline {
+  color: #e0f2fe;
+}
+.assist-run-panel[data-kind="run"] .assist-status-label {
+  color: rgba(224, 242, 254, 0.7);
+}
+.assist-run-panel[data-kind="result"] {
+  border-color: rgba(74, 222, 128, 0.5);
+  background: rgba(20, 83, 45, 0.32);
+}
+.assist-run-panel[data-kind="result"] .assist-run-headline {
+  color: #dcfce7;
+}
+.assist-run-panel[data-kind="result"] .assist-status-label {
+  color: rgba(220, 252, 231, 0.75);
 }
 .assist-msg-kind-run { border-color: rgba(56, 189, 248, 0.4); }
 .assist-msg-kind-unavailable { border-color: rgba(251, 191, 36, 0.45); }

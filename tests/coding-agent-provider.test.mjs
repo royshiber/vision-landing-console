@@ -51,6 +51,15 @@ describe('coding-agent-provider', () => {
     }).providerName).toBe('cursor-sdk');
   });
 
+  it('uses a test double for cursor-sdk when requested', () => {
+    const p = createCodingAgentProvider({
+      DEVELOPMENT_AGENT_PROVIDER: 'cursor-sdk',
+      CURSOR_API_KEY: 'cursor_test_key',
+      VLC_CODING_AGENT_TEST_DOUBLE: '1',
+    });
+    expect(p).toBeInstanceOf(MockCodingAgentProvider);
+  });
+
   it('disconnects mock when disconnected scenario selected', async () => {
     const p = createCodingAgentProvider({
       DEVELOPMENT_AGENT_PROVIDER: 'mock',
