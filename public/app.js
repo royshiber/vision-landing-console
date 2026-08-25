@@ -2621,6 +2621,208 @@ document.getElementById('policyRefreshBtn')?.addEventListener('click', policyLoa
 document.getElementById('policyPreviewBtn')?.addEventListener('click', policyPreview);
 policyLoad();
 
+/* ── Companion RUNTIME config (save-not-apply) ── */
+let _configRows = [];
+let _configEdited = {};
+let _configDirty = false;
+let _configSaving = false;
+
+function companionConfigFromPayload(payload) {
+  const doc = unwrapCompanionProxy(payload);
+  if (!doc || typeof doc !== 'object') return null;
+  if (doc.runtime != null || doc.static != null || doc.vision != null || doc.read_only != null) {
+    return doc;
+  }
+  return null;
+}
+
+function coerceCompanionConfigValue(previous, raw) {
+  const text = raw == null ? '' : String(raw).trim();
+  if (typeof previous === 'number') {
+    const n = Number(text);
+    return Number.isFinite(n) ? n : previous;
+  }
+  if (typeof previous === 'boolean') {
+    if (text === 'true' || text === '1') return true;
+    if (text === 'false' || text === '0') return false;
+    return previous;
+  }
+  return text;
+}
+
+function companionConfigIsDirty() {
+  for (const [key, val] of Object.entries(_configEdited)) {
+    const row = _configRows.find((r) => r.key === key);
+    if (!row || row.editable !== true || row.tier !== 'RUNTIME') continue;
+    const orig = row.value == null ? '' : String(row.value);
+    if (String(val) !== orig) return true;
+  }
+  return false;
+}
+
+function companionConfigUpdateSaveBtn() {
+  const btn = document.getElementById('companionConfigSaveBtn');
+  if (!btn) return;
+  btn.disabled = !companionConfigIsDirty() || _configSaving;
+}
+
+function companionConfigShowSave(msg) {
+  const el = document.getElementById('companionConfigSaveStatus');
+  if (!el) return;
+  if (msg) { el.textContent = msg; el.hidden = false; }
+  else { el.hidden = true; }
+}
+
+function companionConfigShowError(msg) {
+  const el = document.getElementById('companionConfigError');
+  if (!el) return;
+  if (msg) { el.textContent = msg; el.hidden = false; }
+  else { el.textContent = ''; el.hidden = true; }
+}
+
+function companionConfigTierLabel(row) {
+  const tier = row?.tier || '—';
+  if (row?.editable === true && row?.tier === 'RUNTIME') return `${tier} · שמירה בלבד`;
+  return `${tier} · קריאה`;
+}
+
+function buildRuntimeConfigPatchFromUi() {
+  const patch = {};
+  for (const row of _configRows) {
+    if (!row || row.tier !== 'RUNTIME' || row.editable !== true) continue;
+    const key = String(row.key || '');
+    const dot = key.indexOf('.');
+    if (dot <= 0) continue;
+    const group = key.slice(0, dot);
+    const field = key.slice(dot + 1);
+    if ((group !== 'runtime' && group !== 'vision') || !field) continue;
+    if (!Object.prototype.hasOwnProperty.call(_configEdited, key)) continue;
+    const orig = row.value == null ? '' : String(row.value);
+    if (String(_configEdited[key]) === orig) continue;
+    if (!patch[group]) patch[group] = {};
+    patch[group][field] = coerceCompanionConfigValue(row.value, _configEdited[key]);
+  }
+  return patch;
+}
+
+function applyConfigValuesFromDoc(cfg) {
+  if (!cfg || typeof cfg !== 'object') return;
+  for (const row of _configRows) {
+    const key = String(row.key || '');
+    const dot = key.indexOf('.');
+    if (dot <= 0) continue;
+    const group = key.slice(0, dot);
+    const field = key.slice(dot + 1);
+    const block = cfg[group];
+    if (!block || typeof block !== 'object' || !(field in block)) continue;
+    const v = block[field];
+    row.value = v != null && typeof v === 'object' ? JSON.stringify(v) : v;
+  }
+}
+
+function renderCompanionConfigRows(rows) {
+  const configHost = document.getElementById('companionConfigTable');
+  if (!configHost) return;
+  _configRows = Array.isArray(rows) ? rows : [];
+  configHost.innerHTML = _configRows.map((row) => {
+    const key = row.key || '—';
+    const tierLabel = companionConfigTierLabel(row);
+    if (row.editable === true && row.tier === 'RUNTIME') {
+      const current = Object.prototype.hasOwnProperty.call(_configEdited, row.key)
+        ? _configEdited[row.key]
+        : (row.value == null ? '' : String(row.value));
+      return `<div class="companion-b2-row companion-b2-row--runtime"><span>${escapeHtml(row.group || '—')}</span><span class="companion-config-meta"><strong class="companion-config-key" dir="ltr">${escapeHtml(key)}</strong><strong class="companion-tier">${escapeHtml(tierLabel)}</strong></span><input class="companion-config-input" dir="ltr" data-config-key="${escapeHtml(row.key || '')}" value="${escapeHtml(String(current))}"></div>`;
+    }
+    return `<div class="companion-b2-row companion-b2-row--locked"><span>${escapeHtml(row.group || '—')}</span><span class="companion-config-meta"><strong class="companion-config-key" dir="ltr">${escapeHtml(key)}</strong><strong class="companion-tier">${escapeHtml(tierLabel)}</strong></span><span dir="ltr">${escapeHtml(companionText(row.value))}</span></div>`;
+  }).join('') || '—';
+  companionConfigUpdateSaveBtn();
+}
+
+async function companionConfigPatch(patch) {
+  _configSaving = true;
+  companionConfigUpdateSaveBtn();
+  companionConfigShowSave(null);
+  companionConfigShowError(null);
+  try {
+    const res = await fetch('/api/jetson/v1/config/runtime', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(patch),
+    });
+    if (!res.ok) throw new Error('invalid');
+    unwrapCompanionProxy(await res.json());
+    const getRes = await fetch('/api/jetson/v1/config');
+    if (getRes.ok) {
+      const cfg = companionConfigFromPayload(await getRes.json());
+      applyConfigValuesFromDoc(cfg);
+    } else {
+      applyConfigValuesFromDoc(patch);
+    }
+    _configEdited = {};
+    _configDirty = false;
+    _configSaving = false;
+    renderCompanionConfigRows(_configRows);
+    const now = new Date().toLocaleTimeString('he-IL');
+    companionConfigShowSave(`נשמר בהצלחה ב-${now} — לא הוחל על המערכת`);
+  } catch (e) {
+    _configSaving = false;
+    companionConfigUpdateSaveBtn();
+    companionConfigShowSave(null);
+    companionConfigShowError('שגיאה');
+  }
+}
+
+function companionConfigValueInvalid(row, raw) {
+  if (!row || row.editable !== true || row.tier !== 'RUNTIME') return false;
+  const text = raw == null ? '' : String(raw).trim();
+  if (typeof row.value === 'number') return !Number.isFinite(Number(text));
+  return text === '';
+}
+
+function companionConfigHasInvalid() {
+  for (const [key, val] of Object.entries(_configEdited)) {
+    const row = _configRows.find((r) => r.key === key);
+    if (!row || row.editable !== true || row.tier !== 'RUNTIME') continue;
+    const orig = row.value == null ? '' : String(row.value);
+    if (String(val) === orig) continue;
+    if (companionConfigValueInvalid(row, val)) return true;
+  }
+  return false;
+}
+
+function companionConfigSave() {
+  if (companionConfigHasInvalid()) {
+    companionConfigShowSave(null);
+    companionConfigShowError('לא תקין');
+    return;
+  }
+  const patch = buildRuntimeConfigPatchFromUi();
+  if (!patch.runtime && !patch.vision) return;
+  companionConfigShowError(null);
+  openConfigChangeConfirm(patch, () => companionConfigPatch(patch));
+}
+
+function companionConfigOnEdit(input) {
+  const key = input?.dataset?.configKey;
+  if (!key) return;
+  const row = _configRows.find((r) => r.key === key);
+  if (!row || row.editable !== true || row.tier !== 'RUNTIME') return;
+  _configEdited[key] = input.value;
+  _configDirty = companionConfigIsDirty();
+  companionConfigUpdateSaveBtn();
+  if (!companionConfigHasInvalid()) companionConfigShowError(null);
+}
+
+document.getElementById('companionConfigTable')?.addEventListener('input', (e) => {
+  const input = e.target.closest?.('.companion-config-input');
+  if (input) companionConfigOnEdit(input);
+});
+document.getElementById('companionConfigTable')?.addEventListener('change', (e) => {
+  const input = e.target.closest?.('.companion-config-input');
+  if (input) companionConfigOnEdit(input);
+});
+document.getElementById('companionConfigSaveBtn')?.addEventListener('click', companionConfigSave);
+
 function applyTeleSubtab(tabId) {
   const wanted = tabId === 'companion' ? 'companion' : 'dash';
   document.querySelectorAll('[data-tele-tab]').forEach((button) => {
@@ -2704,11 +2906,9 @@ function applyCompanionUi(companion) {
   }
 
   const configHost = document.getElementById('companionConfigTable');
-  if (configHost) {
-    const rows = Array.isArray(companion.config) ? companion.config : [];
-    configHost.innerHTML = rows.map((row) =>
-      `<div class="companion-b2-row"><span>${escapeHtml(row.group || '—')}</span><strong>${escapeHtml(row.key || '—')}</strong><span>${escapeHtml(companionText(row.value))}</span><strong class="companion-tier">${escapeHtml(row.tier || '—')} · קריאה</strong></div>`,
-    ).join('') || '—';
+  const configFocused = document.activeElement?.classList?.contains('companion-config-input');
+  if (configHost && !_configDirty && !_configSaving && !configFocused) {
+    renderCompanionConfigRows(Array.isArray(companion.config) ? companion.config : []);
   }
 
   const diagnostics = companion.diagnostics?.subsystems || {};
@@ -4720,11 +4920,17 @@ const applyInflightReason = document.getElementById('applyInflightReason');
 
 /** @type {{ opt: any, valueTo: number|undefined } | null} */
 let _pendingApply = null;
+/** @type {null | (() => (void|Promise<void>))} */
+let _pendingConfigChange = null;
 /** FC + ARM + server override flag: require checkbox + reason before OK. */
 let _applyNeedsInflightOverride = false;
 
 function validateApplyConfirmOk() {
   if (!applyConfirmOkBtn) return;
+  if (_pendingConfigChange) {
+    applyConfirmOkBtn.disabled = false;
+    return;
+  }
   const opt = _pendingApply?.opt;
   const high = opt?.risk === 'high';
   if (high && applyConfirmTypeInput && applyConfirmTypeInput.value.trim().toUpperCase() !== 'APPLY') {
@@ -4751,6 +4957,7 @@ async function openApplyConfirm(opt, chosenTo) {
     ? Number(chosenTo)
     : Number(opt?.change?.to);
   _pendingApply = { opt, valueTo: toApply };
+  _pendingConfigChange = null;
   _applyNeedsInflightOverride = false;
   if (applyInflightBlock) applyInflightBlock.classList.add('hidden');
   if (applyInflightAck) applyInflightAck.checked = false;
@@ -4827,11 +5034,50 @@ function closeApplyConfirm() {
   if (!applyConfirmModal) return;
   applyConfirmModal.classList.add('hidden');
   _pendingApply = null;
+  _pendingConfigChange = null;
   _applyNeedsInflightOverride = false;
   if (applyInflightBlock) applyInflightBlock.classList.add('hidden');
 }
 
+function openConfigChangeConfirm(patch, onConfirm) {
+  _pendingConfigChange = typeof onConfirm === 'function' ? onConfirm : null;
+  _pendingApply = null;
+  _applyNeedsInflightOverride = false;
+  if (applyInflightBlock) applyInflightBlock.classList.add('hidden');
+  if (!applyConfirmModal || !_pendingConfigChange) {
+    if (_pendingConfigChange && window.confirm('שמירה בלבד')) {
+      const run = _pendingConfigChange;
+      _pendingConfigChange = null;
+      void run();
+    }
+    return;
+  }
+  applyConfirmTitle.textContent = 'אישור שינוי';
+  const rows = [];
+  for (const [group, fields] of Object.entries(patch || {})) {
+    if (!fields || typeof fields !== 'object') continue;
+    for (const [field, value] of Object.entries(fields)) {
+      const key = `${group}.${field}`;
+      const prev = _configRows.find((r) => r.key === key)?.value;
+      rows.push(`<tr><th>פרמטר</th><td><strong>${escapeHtml(key)}</strong></td></tr><tr><th>מ (הצעה / לפני)</th><td>${escapeHtml(prev == null || prev === '' ? '—' : String(prev))}</td></tr><tr><th>ל (אחרי)</th><td><strong>${escapeHtml(String(value))}</strong></td></tr>`);
+    }
+  }
+  applyConfirmBody.innerHTML = `<table class="apply-table">${rows.join('')}</table><p class="apply-detail">שמירה בלבד</p>`;
+  if (applyConfirmTypeInput) {
+    applyConfirmTypeInput.classList.add('hidden');
+    applyConfirmTypeInput.value = '';
+  }
+  if (applyConfirmOkBtn) applyConfirmOkBtn.disabled = false;
+  applyConfirmModal.classList.remove('hidden');
+}
+
 async function executeApply() {
+  if (_pendingConfigChange) {
+    const run = _pendingConfigChange;
+    closeApplyConfirm();
+    await run();
+    return;
+  }
   const pending = _pendingApply;
   const opt = pending?.opt;
   if (!opt || !opt.id) {

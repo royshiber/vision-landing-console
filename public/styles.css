@@ -4154,12 +4154,33 @@ button:hover,
 
 .companion-b2-row {
   display: grid;
-  grid-template-columns: minmax(72px, 1fr) minmax(72px, 1fr) minmax(72px, 1fr) minmax(72px, 1fr);
+  grid-template-columns: minmax(96px, 1.1fr) minmax(140px, 1.7fr) minmax(88px, 1.1fr);
   gap: 8px;
+  align-items: center;
   padding: 6px 8px;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--surface-raised);
+}
+
+.companion-b2-row--runtime {
+  border-color: var(--accent, #2563eb);
+}
+
+.companion-b2-row--locked {
+  background: var(--surface-low, var(--surface-raised));
+}
+
+.companion-config-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.companion-config-key {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .companion-chip {
@@ -4208,6 +4229,18 @@ button:hover,
 .companion-tier {
   font-size: 0.62rem;
   color: var(--text-muted);
+}
+
+.companion-config-input {
+  min-width: 0;
+  width: 100%;
+  min-height: 28px;
+  font-size: 0.72rem;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-raised);
+  color: var(--text);
 }
 
 .companion-maint-panel {
@@ -4512,7 +4545,7 @@ button:hover,
 
 @media (max-width: 900px) {
   .companion-policy-cols { grid-template-columns: 1fr; }
-  .companion-b2-row { grid-template-columns: 1fr 1fr; }
+  .companion-b2-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) minmax(0, 1fr); }
   .policy-cat-grid { grid-template-columns: 1fr; }
 }
 

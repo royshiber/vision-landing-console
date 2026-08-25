@@ -94,11 +94,19 @@ describe('companion B2 foundation', () => {
     expect(videoPipelineUiState(null)).toBe('unavailable');
   });
 
-  it('config rows expose tiers and are not editable in B2', () => {
+  it('config rows mark RUNTIME editable and keep FLIGHT_CRITICAL / READ_ONLY closed', () => {
     const rows = flattenCompanionConfig(healthyCompanionConfig());
-    expect(rows.some((r) => r.tier === CONFIG_TIER.FLIGHT_CRITICAL && r.editable === false)).toBe(true);
-    expect(rows.some((r) => r.tier === CONFIG_TIER.RUNTIME && r.key.includes('log_level'))).toBe(true);
-    expect(rows.every((r) => r.editable === false)).toBe(true);
+    const runtimeLeaves = rows.filter((r) => r.tier === CONFIG_TIER.RUNTIME && String(r.key).includes('.'));
+    const critical = rows.filter((r) => r.tier === CONFIG_TIER.FLIGHT_CRITICAL);
+    const readOnly = rows.filter((r) => r.tier === CONFIG_TIER.READ_ONLY);
+    expect(runtimeLeaves.length).toBeGreaterThan(0);
+    expect(runtimeLeaves.every((r) => r.editable === true)).toBe(true);
+    expect(rows.some((r) => r.tier === CONFIG_TIER.RUNTIME && r.key.includes('log_level') && r.editable === true)).toBe(true);
+    expect(critical.length).toBeGreaterThan(0);
+    expect(critical.every((r) => r.editable === false)).toBe(true);
+    expect(readOnly.length).toBeGreaterThan(0);
+    expect(readOnly.every((r) => r.editable === false)).toBe(true);
+    expect(rows.filter((r) => r.tier !== CONFIG_TIER.RUNTIME).every((r) => r.editable === false)).toBe(true);
   });
 
   it('policy preview is read-only and does not invent unspecified tokens as allowed', async () => {
