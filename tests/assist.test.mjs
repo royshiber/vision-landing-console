@@ -12,11 +12,74 @@ import { ASSIST_ACTION_TYPES, ASSIST_PROHIBITED_ACTIONS } from '../lib/assist/as
 import { isKnownAssistRouteId, findAssistRoute } from '../lib/assist/assist-routes.mjs';
 import { createDevelopmentTaskStore } from '../lib/development-task-store.mjs';
 import { registerAssistApi } from '../lib/routes/assist-api.mjs';
+import { createDevelopmentAgentService } from '../lib/development-agent-service.mjs';
+import { MockCodingAgentProvider, UnavailableCodingAgentProvider } from '../lib/coding-agent-provider.mjs';
 
 function listen(app) {
   return new Promise((resolve) => {
     const server = app.listen(0, '127.0.0.1', () => resolve(server));
   });
+}
+
+function memoryWorktreeManager() {
+  const byId = new Map();
+  function paths(taskId) {
+    const slug = String(taskId || 'task')
+      .toLowerCase()
+      .replace(/[^a-z0-9-]+/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '') || 'task';
+    return { branch: `development/tasks/${slug}`, worktree_id: `.worktrees/${slug}` };
+  }
+  return {
+    create(taskId) {
+      const id = String(taskId);
+      if (byId.has(id)) throw new Error('worktree already exists');
+      const p = paths(id);
+      const meta = {
+        exists: true,
+        ...p,
+        clean: true,
+        changed_files: 0,
+        base_commit: 'abc123',
+        created_at: new Date().toISOString(),
+      };
+      byId.set(id, meta);
+      return meta;
+    },
+    status(taskId) {
+      const id = String(taskId);
+      const p = paths(id);
+      return byId.get(id) || { exists: false, ...p, clean: null, changed_files: 0, base_commit: null };
+    },
+    remove(taskId) {
+      const id = String(taskId);
+      const p = paths(id);
+      const removed = byId.delete(id);
+      return { removed, ...p };
+    },
+  };
+}
+
+function makeAssistWithAgent({ provider } = {}) {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'vlc-assist-'));
+  const store = createDevelopmentTaskStore({ filePath: path.join(root, 'tasks.json') });
+  const codingAgentProvider = provider || new MockCodingAgentProvider({ scenario: 'healthy' });
+  const worktreeManager = memoryWorktreeManager();
+  const developmentAgentService = createDevelopmentAgentService({
+    store,
+    provider: codingAgentProvider,
+    worktreeManager,
+  });
+  const service = createAssistService({
+    repoRoot: root,
+    developmentTaskStore: store,
+    persistence: createAssistPersistence(root),
+    codingAgentProvider,
+    worktreeManager,
+    developmentAgentService,
+  });
+  return { root, store, service, codingAgentProvider, worktreeManager, developmentAgentService };
 }
 
 describe('Assist context', () => {
@@ -133,6 +196,9 @@ describe('Assist service proposals and confirmation', () => {
     expect(resp.requires_confirmation).toBe(true);
     expect(resp.kind).toBe('ACTION_REQUIRING_CONFIRMATION');
     expect(resp.action_proposal.action).toBe('CREATE_DEVELOPMENT_TASK');
+    expect(resp.answer).toMatch(/ענף מבודד/);
+    expect(resp.answer).toMatch(/לא יתבצע מיזוג/);
+    expect(resp.next_step).toMatch(/אישור/);
     expect(store.list({}).length).toBe(0);
 
     const confirmed = await service.confirmProposal({
@@ -149,7 +215,82 @@ describe('Assist service proposals and confirmation', () => {
     expect(store.list({}).length).toBe(1);
   });
 
-  it('does not start agent, create release, or deploy from Assist', async () => {
+  it('starts the coding agent after confirm when the provider is READY', async () => {
+    const wired = makeAssistWithAgent();
+    try {
+      const resp = await wired.service.processInput({
+        text: 'Add a tab for landing confidence.',
+        context_snapshot: { current_tab: 'development' },
+      });
+      expect(resp.action_proposal.action).toBe('CREATE_DEVELOPMENT_TASK');
+      const confirmed = await wired.service.confirmProposal({
+        proposal_id: resp.action_proposal.id,
+        confirm: true,
+      });
+      expect(confirmed.ok).toBe(true);
+      expect(confirmed.result.agent_started).toBe(true);
+      expect(confirmed.result.agent_runtime).toBe('READY');
+      expect(confirmed.result.release_created).toBe(false);
+      expect(confirmed.result.deploy_started).toBe(false);
+      expect(confirmed.result.merged_to_master).toBe(false);
+      expect(confirmed.result.worktree.branch.startsWith('development/tasks/')).toBe(true);
+      expect(confirmed.result.task.agent_state).toMatch(/QUEUED|RUNNING/);
+      expect(confirmed.answer).toMatch(/מבודד/);
+      const task = wired.store.getById(confirmed.result.task.id);
+      expect(task.agent.state).not.toBe('NOT_STARTED');
+      expect(task.agent.session_id).toBeTruthy();
+      expect(task.release.state).toBe('NOT_STARTED');
+      expect(task.deployment.state).toBe('NOT_STARTED');
+    } finally {
+      fs.rmSync(wired.root, { recursive: true, force: true });
+    }
+  });
+
+  it('creates the task and does not start the agent when the provider is UNAVAILABLE', async () => {
+    const wired = makeAssistWithAgent({
+      provider: new UnavailableCodingAgentProvider({ reason: 'CURSOR_API_KEY is not configured' }),
+    });
+    try {
+      const resp = await wired.service.processInput({
+        text: 'Add a tab for landing confidence.',
+      });
+      const confirmed = await wired.service.confirmProposal({
+        proposal_id: resp.action_proposal.id,
+        confirm: true,
+      });
+      expect(confirmed.ok).toBe(true);
+      expect(wired.store.list({}).length).toBe(1);
+      expect(confirmed.result.agent_started).toBe(false);
+      expect(confirmed.result.agent_runtime).toBe('UNAVAILABLE');
+      expect(confirmed.result.agent_unavailable_reason).toMatch(/מפתח החיבור לסוכן לא הוגדר/);
+      expect(confirmed.answer).toMatch(/לא הופעל סוכן/);
+      const task = wired.store.getById(confirmed.result.task.id);
+      expect(task).toBeTruthy();
+      expect(task.agent.state).toBe('NOT_STARTED');
+    } finally {
+      fs.rmSync(wired.root, { recursive: true, force: true });
+    }
+  });
+
+  it('does not start the agent on cancel', async () => {
+    const wired = makeAssistWithAgent();
+    try {
+      const resp = await wired.service.processInput({
+        text: 'Add a tab for landing confidence.',
+      });
+      const cancelled = await wired.service.confirmProposal({
+        proposal_id: resp.action_proposal.id,
+        confirm: false,
+      });
+      expect(cancelled.cancelled).toBe(true);
+      expect(wired.store.list({}).length).toBe(0);
+      expect(cancelled.answer).toMatch(/בוטלה/);
+    } finally {
+      fs.rmSync(wired.root, { recursive: true, force: true });
+    }
+  });
+
+  it('does not create release or deploy from Assist', async () => {
     const resp = await service.processInput({
       text: 'Add a tab that shows landing confidence.',
       context_snapshot: { current_tab: 'control' },
@@ -159,6 +300,7 @@ describe('Assist service proposals and confirmation', () => {
       confirm: true,
     });
     const task = store.getById(confirmed.result.task.id);
+    expect(confirmed.result.agent_started).toBe(false);
     expect(task.agent.state).toBe('NOT_STARTED');
     expect(task.release.state).toBe('NOT_STARTED');
     expect(task.deployment.state).toBe('NOT_STARTED');
@@ -242,7 +384,7 @@ describe('Assist service proposals and confirmation', () => {
     });
     expect(resp.intent).toBe('QUESTION');
     expect(resp.context_used.workspace).toBe('EVOLVE');
-    expect(resp.answer).toMatch(/WIP|development task/i);
+    expect(resp.answer).toMatch(/WIP|משימת פיתוח/);
   });
 });
 
@@ -277,7 +419,7 @@ describe('Assist HTTP API', () => {
     fs.rmSync(root, { recursive: true, force: true });
   });
 
-  it('message → confirm creates development task without agent start', async () => {
+  it('message → confirm creates development task without pretending the agent ran when runtime is missing', async () => {
     const msg = await fetch(`${base}/api/assist/message`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -288,6 +430,7 @@ describe('Assist HTTP API', () => {
     }).then((r) => r.json());
     expect(msg.ok).toBe(true);
     expect(msg.response.requires_confirmation).toBe(true);
+    expect(msg.response.answer).toMatch(/ענף מבודד/);
 
     const conf = await fetch(`${base}/api/assist/confirm`, {
       method: 'POST',
@@ -300,6 +443,7 @@ describe('Assist HTTP API', () => {
     expect(conf.ok).toBe(true);
     expect(conf.result.agent_started).toBe(false);
     expect(conf.result.deploy_started).toBe(false);
+    expect(conf.result.task.id).toBeTruthy();
   });
 
   it('meta exposes intents and prohibited actions', async () => {
@@ -308,6 +452,90 @@ describe('Assist HTTP API', () => {
     expect(meta.prohibited).toContain('DEPLOY');
     expect(meta.prohibited).toContain('CURSOR_AGENT_START');
     expect(meta.channels).toEqual(['text', 'voice']);
+  });
+});
+
+describe('Assist HTTP confirm with injected coding-agent provider', () => {
+  let server;
+  let base;
+  let root;
+
+  async function startWithProvider(provider) {
+    root = fs.mkdtempSync(path.join(os.tmpdir(), 'vlc-assist-agent-api-'));
+    const app = express();
+    app.use(express.json());
+    registerAssistApi(app, {
+      repoRoot: root,
+      developmentTaskStorePath: path.join(root, 'tasks.json'),
+      codingAgentProvider: provider,
+      worktreeManager: memoryWorktreeManager(),
+    });
+    server = await listen(app);
+    const addr = server.address();
+    base = `http://127.0.0.1:${addr.port}`;
+  }
+
+  afterEach(async () => {
+    if (server) await new Promise((r) => server.close(r));
+    server = null;
+    if (root) fs.rmSync(root, { recursive: true, force: true });
+    root = null;
+  });
+
+  async function confirmDevelopment() {
+    const msg = await fetch(`${base}/api/assist/message`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        text: 'Add a tab for landing confidence.',
+        context: { current_tab: 'development' },
+      }),
+    }).then((r) => r.json());
+    return fetch(`${base}/api/assist/confirm`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        proposal_id: msg.response.action_proposal.id,
+        confirm: true,
+      }),
+    }).then((r) => r.json());
+  }
+
+  it('starts the agent when the provider is READY and polls until a result', async () => {
+    await startWithProvider(new MockCodingAgentProvider({ scenario: 'healthy' }));
+    const conf = await confirmDevelopment();
+    expect(conf.ok).toBe(true);
+    expect(conf.result.agent_started).toBe(true);
+    expect(conf.result.agent_runtime).toBe('READY');
+    expect(conf.result.worktree.branch.startsWith('development/tasks/')).toBe(true);
+    const taskId = conf.result.task.id;
+    const started = Date.now();
+    let status = null;
+    while (Date.now() - started < 5000) {
+      status = await fetch(`${base}/api/assist/tasks/${encodeURIComponent(taskId)}`).then((r) => r.json());
+      if (status.ok && status.terminal) break;
+      await new Promise((r) => setTimeout(r, 75));
+    }
+    expect(status.ok).toBe(true);
+    expect(status.agent_state).toBe('SUCCEEDED');
+    expect(status.branch.startsWith('development/tasks/')).toBe(true);
+    expect(status.pr_url).toMatch(/^https:\/\//);
+    expect(status.answer).toMatch(/סיים/);
+  });
+
+  it('creates the task and reports Hebrew unavailable when the provider is UNAVAILABLE', async () => {
+    await startWithProvider(new UnavailableCodingAgentProvider({
+      reason: 'DEVELOPMENT_AGENT_PROVIDER is not configured',
+    }));
+    const conf = await confirmDevelopment();
+    expect(conf.ok).toBe(true);
+    expect(conf.result.agent_started).toBe(false);
+    expect(conf.result.agent_runtime).toBe('UNAVAILABLE');
+    expect(conf.result.agent_unavailable_reason).toMatch(/ספק הסוכן לא הוגדר/);
+    expect(conf.result.task.id).toBeTruthy();
+    const listed = await fetch(`${base}/api/assist/tasks/${encodeURIComponent(conf.result.task.id)}`).then((r) => r.json());
+    expect(listed.ok).toBe(true);
+    expect(listed.agent_state).toBe('NOT_STARTED');
   });
 });
 

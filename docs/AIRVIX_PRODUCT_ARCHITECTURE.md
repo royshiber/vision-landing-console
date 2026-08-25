@@ -548,6 +548,8 @@ Thin vertical Assist foundation:
 - Server: `lib/assist/*` + `POST /api/assist/message` + `POST /api/assist/confirm`
 - Deterministic intents: QUESTION / OBSERVATION / NOTE / REQUEST / DEVELOPMENT / UI_ACTION (no FLIGHT_ACTION)
 - Safe actions only: UI_NAVIGATION (known routes), CREATE_NOTE, CREATE_OBSERVATION, CREATE_DEVELOPMENT_TASK (confirm)
+- Confirmed CREATE_DEVELOPMENT_TASK composes isolated worktree + existing coding-agent start (not a new proposed action). No merge/deploy/FC/companion apply.
+- Assist returns Hebrew run status and polls until a terminal agent state (or shows the Hebrew unavailable reason).
 - Persistent Assist rail UI (not a peer tab / not full-page chat)
 - Today’s tabs map into workspace labels until Pulse/Mission/… shells ship
 - Text channel only; voice uses the same pipeline later

@@ -10361,6 +10361,9 @@ const ASSIST_TAB_CAPABILITY = {
 
 let _assistPendingProposalId = null;
 let _assistHistory = [];
+let _assistRunPoll = null;
+let _assistRunTaskId = null;
+let _assistRunMsgEl = null;
 
 function assistEscape(s) {
   return String(s ?? '')
@@ -10422,7 +10425,7 @@ function assistAppendMessage({ role, text, meta, kind }) {
   div.className = `assist-msg assist-msg-${role === 'user' ? 'user' : 'assist'}`;
   if (kind === 'PROPOSAL') div.classList.add('assist-msg-kind-proposal');
   if (kind === 'ACTION_REQUIRING_CONFIRMATION') div.classList.add('assist-msg-kind-confirm');
-  div.innerHTML = `<div>${assistEscape(text)}</div>${meta ? `<span class="assist-msg-meta">${assistEscape(meta)}</span>` : ''}`;
+  div.innerHTML = `<div class="assist-msg-body">${assistEscape(text)}</div>${meta ? `<span class="assist-msg-meta">${assistEscape(meta)}</span>` : ''}`;
   box.appendChild(div);
   box.scrollTop = box.scrollHeight;
   _assistHistory.push({ role, text, meta, kind, ts: Date.now() });
@@ -10435,12 +10438,96 @@ function assistSetProposalBar(response) {
   if (!bar || !textEl) return;
   if (response?.requires_confirmation && response?.action_proposal?.id) {
     _assistPendingProposalId = response.action_proposal.id;
-    textEl.textContent = response.answer || 'Confirm this action?';
+    textEl.textContent = response.answer || 'לאשר את הפעולה?';
     bar.hidden = false;
   } else {
     _assistPendingProposalId = null;
     bar.hidden = true;
   }
+}
+
+function assistStopRunPolling() {
+  if (_assistRunPoll) {
+    clearInterval(_assistRunPoll);
+    _assistRunPoll = null;
+  }
+}
+
+function assistStatusKind(state, agentStarted, unavailableReason) {
+  if (unavailableReason || agentStarted === false) return 'unavailable';
+  const s = String(state || '').toUpperCase();
+  if (s === 'SUCCEEDED' || s === 'FAILED' || s === 'CANCELLED') return 'result';
+  return 'run';
+}
+
+function assistBuildStatusHtml({ headline, taskId, agentState, lastMessage, progress, branch, prUrl }) {
+  const rows = [];
+  function row(label, value) {
+    if (value == null || value === '') return;
+    rows.push(
+      `<div class="assist-status-row"><span class="assist-status-label">${assistEscape(label)}</span><code class="assist-status-value">${assistEscape(value)}</code></div>`,
+    );
+  }
+  row('מזהה משימה', taskId);
+  row('מצב סוכן', agentState);
+  row('הודעה אחרונה', lastMessage);
+  row('התקדמות', progress == null || progress === '' ? null : String(progress));
+  row('ענף', branch);
+  row('כתובת בקשה', prUrl);
+  return `<p class="assist-run-headline">${assistEscape(headline || '')}</p>${rows.join('')}`;
+}
+
+function assistRenderRunStatus(payload, { agentStarted = true, unavailableReason = null } = {}) {
+  const panel = document.getElementById('assistRunPanel');
+  const box = document.getElementById('assistMessages');
+  const headline = payload.answer
+    || (unavailableReason
+      ? 'המשימה נוצרה.\nהסוכן אינו זמין כרגע.\nלא הופעל סוכן.'
+      : 'הסוכן רץ על הענף המבודד.');
+  const html = assistBuildStatusHtml({
+    headline: unavailableReason && !String(headline).includes(unavailableReason)
+      ? `${headline}\n${unavailableReason}`
+      : headline,
+    taskId: payload.task_id || payload.task?.id,
+    agentState: payload.agent_state || payload.task?.agent_state,
+    lastMessage: payload.last_message || payload.task?.last_message,
+    progress: payload.progress ?? payload.task?.progress,
+    branch: payload.branch || payload.task?.branch,
+    prUrl: payload.pr_url || payload.task?.pr_url,
+  });
+  if (panel) {
+    panel.innerHTML = html;
+    panel.hidden = false;
+  }
+  const kind = assistStatusKind(payload.agent_state || payload.task?.agent_state, agentStarted, unavailableReason);
+  if (box) {
+    if (!_assistRunMsgEl || !box.contains(_assistRunMsgEl)) {
+      _assistRunMsgEl = document.createElement('div');
+      _assistRunMsgEl.className = 'assist-msg assist-msg-assist';
+      box.appendChild(_assistRunMsgEl);
+    }
+    _assistRunMsgEl.classList.remove('assist-msg-kind-run', 'assist-msg-kind-unavailable', 'assist-msg-kind-result');
+    _assistRunMsgEl.classList.add(`assist-msg-kind-${kind}`);
+    _assistRunMsgEl.innerHTML = `<div class="assist-msg-body">${assistEscape(headline)}</div>`;
+    box.scrollTop = box.scrollHeight;
+  }
+}
+
+async function assistRefreshRun(taskId) {
+  const r = await fetch(`/api/assist/tasks/${encodeURIComponent(taskId)}`);
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok || !data.ok) return;
+  assistRenderRunStatus(data, { agentStarted: true });
+  if (data.terminal) assistStopRunPolling();
+}
+
+function assistStartRunPolling(taskId) {
+  assistStopRunPolling();
+  _assistRunTaskId = taskId;
+  void assistRefreshRun(taskId);
+  _assistRunPoll = setInterval(() => {
+    void assistRefreshRun(taskId);
+  }, 2000);
 }
 
 function assistApplyNavigation(nav) {
@@ -10498,15 +10585,44 @@ async function assistConfirm(confirm) {
   const data = await r.json().catch(() => ({}));
   assistSetProposalBar(null);
   if (!r.ok || !data.ok) {
-    assistAppendMessage({ role: 'assist', text: data.answer || data.message || 'Confirm failed', kind: 'INFORMATION' });
+    assistAppendMessage({ role: 'assist', text: data.answer || data.message || 'האישור נכשל', kind: 'INFORMATION' });
     return;
   }
-  assistAppendMessage({
-    role: 'assist',
-    text: data.answer || (confirm ? 'Confirmed.' : 'Cancelled.'),
-    kind: 'INFORMATION',
-  });
-  if (confirm && data.result?.navigation) {
+  if (!confirm) {
+    assistAppendMessage({
+      role: 'assist',
+      text: data.answer || 'הפעולה בוטלה.',
+      kind: 'INFORMATION',
+    });
+    return;
+  }
+  if (data.action === 'CREATE_DEVELOPMENT_TASK' && data.result) {
+    const taskId = data.result.task?.id;
+    assistRenderRunStatus({
+      answer: data.answer,
+      task_id: taskId,
+      agent_state: data.result.task?.agent_state,
+      last_message: data.result.task?.last_message,
+      progress: data.result.task?.progress,
+      branch: data.result.task?.branch || data.result.worktree?.branch,
+      pr_url: data.result.task?.pr_url,
+    }, {
+      agentStarted: data.result.agent_started === true,
+      unavailableReason: data.result.agent_unavailable_reason || null,
+    });
+    if (data.result.agent_started === true && taskId) {
+      assistStartRunPolling(taskId);
+    } else {
+      assistStopRunPolling();
+    }
+  } else {
+    assistAppendMessage({
+      role: 'assist',
+      text: data.answer || 'אושר.',
+      kind: 'INFORMATION',
+    });
+  }
+  if (data.result?.navigation) {
     assistApplyNavigation(data.result.navigation);
   }
 }
