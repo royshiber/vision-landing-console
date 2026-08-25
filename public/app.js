@@ -5810,6 +5810,62 @@ let simLabReplayTrackPts = null;
 /** @type {{ gpsLat: number, gpsLon: number, globalHdgDeg?: number | null } | null} */
 let simLabReplayMapSample = null;
 
+const liveGpsVisionDeltaEl = document.getElementById('liveGpsVisionDelta');
+
+/** Keep in sync with lib/gps-vision-delta.mjs (classic script, not a module). */
+function gpsVisionDeltaMeters(gpsLat, gpsLon, visionLat, visionLon) {
+  const finiteCoord = (value) => {
+    if (value == null || value === '') return null;
+    const n = typeof value === 'number' ? value : Number(value);
+    return Number.isFinite(n) ? n : null;
+  };
+  const lat1 = finiteCoord(gpsLat);
+  const lon1 = finiteCoord(gpsLon);
+  const lat2 = finiteCoord(visionLat);
+  const lon2 = finiteCoord(visionLon);
+  if (lat1 == null || lon1 == null || lat2 == null || lon2 == null) return null;
+  const toRad = (deg) => (deg * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return 6371000 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function formatGpsVisionDeltaMeters(meters) {
+  if (!Number.isFinite(meters)) return '-- m';
+  return `${meters.toFixed(1)} m`;
+}
+
+function resolveFlightOverlayMapData() {
+  const sseMap = lastSseTerrainPayload?.mavlink?.map;
+  const mapData =
+    simLabReplayMapSample &&
+    Number.isFinite(simLabReplayMapSample.gpsLat) &&
+    Number.isFinite(simLabReplayMapSample.gpsLon)
+      ? {
+          ...sseMap,
+          gpsLat: simLabReplayMapSample.gpsLat,
+          gpsLon: simLabReplayMapSample.gpsLon,
+          globalHdgDeg:
+            simLabReplayMapSample.globalHdgDeg != null &&
+            Number.isFinite(simLabReplayMapSample.globalHdgDeg)
+              ? simLabReplayMapSample.globalHdgDeg
+              : sseMap?.globalHdgDeg ?? null,
+          gpsSource: 'SIMLAB_REPLAY',
+        }
+      : sseMap;
+  const vision = lastSseTerrainPayload?.vision;
+  return { mapData, vision };
+}
+
+function paintLiveGpsVisionDelta(mapData, vision) {
+  if (!liveGpsVisionDeltaEl) return;
+  const meters = gpsVisionDeltaMeters(mapData?.gpsLat, mapData?.gpsLon, vision?.navLat, vision?.navLon);
+  liveGpsVisionDeltaEl.textContent = formatGpsVisionDeltaMeters(meters);
+}
+
 function terrainPlaneDivIcon(color, hdgDeg) {
   const r = Number.isFinite(hdgDeg) ? hdgDeg - 45 : -45;
   return L.divIcon({
@@ -5843,24 +5899,7 @@ function applyFlightOverlayToMap(map, layers) {
     return;
   }
 
-  const sseMap = lastSseTerrainPayload?.mavlink?.map;
-  const mapData =
-    simLabReplayMapSample &&
-    Number.isFinite(simLabReplayMapSample.gpsLat) &&
-    Number.isFinite(simLabReplayMapSample.gpsLon)
-      ? {
-          ...sseMap,
-          gpsLat: simLabReplayMapSample.gpsLat,
-          gpsLon: simLabReplayMapSample.gpsLon,
-          globalHdgDeg:
-            simLabReplayMapSample.globalHdgDeg != null &&
-            Number.isFinite(simLabReplayMapSample.globalHdgDeg)
-              ? simLabReplayMapSample.globalHdgDeg
-              : sseMap?.globalHdgDeg ?? null,
-          gpsSource: 'SIMLAB_REPLAY',
-        }
-      : sseMap;
-  const vision = lastSseTerrainPayload?.vision;
+  const { mapData, vision } = resolveFlightOverlayMapData();
   const hdg = mapData?.globalHdgDeg ?? null;
 
   if (simLabReplayTrackPts && simLabReplayTrackPts.length >= 2) {
@@ -5964,6 +6003,8 @@ function applyFlightOverlayToMap(map, layers) {
 
 function updateFlightOverlaysOnAllMaps(payload) {
   if (payload) lastSseTerrainPayload = payload;
+  const overlay = resolveFlightOverlayMapData();
+  paintLiveGpsVisionDelta(overlay.mapData, overlay.vision);
   if (
     !lastSseTerrainPayload &&
     !simLabReplayMapSample &&
