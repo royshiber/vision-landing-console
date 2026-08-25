@@ -10508,7 +10508,7 @@ function assistRenderRunStatus(payload, { agentStarted = true, unavailableReason
     }
     _assistRunMsgEl.classList.remove('assist-msg-kind-run', 'assist-msg-kind-unavailable', 'assist-msg-kind-result');
     _assistRunMsgEl.classList.add(`assist-msg-kind-${kind}`);
-    _assistRunMsgEl.innerHTML = html;
+    _assistRunMsgEl.innerHTML = `<div class="assist-msg-body">${assistEscape(headline)}</div>`;
     box.scrollTop = box.scrollHeight;
   }
 }
