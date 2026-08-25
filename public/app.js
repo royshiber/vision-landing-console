@@ -2874,7 +2874,8 @@ function applyCompanionUi(companion) {
   }
 
   const configHost = document.getElementById('companionConfigTable');
-  if (configHost && !_configDirty && !_configSaving) {
+  const configFocused = document.activeElement?.classList?.contains('companion-config-input');
+  if (configHost && !_configDirty && !_configSaving && !configFocused) {
     renderCompanionConfigRows(Array.isArray(companion.config) ? companion.config : []);
   }
 
