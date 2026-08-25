@@ -2731,9 +2731,9 @@ function renderCompanionConfigRows(rows) {
       const current = Object.prototype.hasOwnProperty.call(_configEdited, row.key)
         ? _configEdited[row.key]
         : (row.value == null ? '' : String(row.value));
-      return `<div class="companion-b2-row companion-b2-row--runtime"><span>${escapeHtml(row.group || '—')}</span><strong>${escapeHtml(key)}</strong><input class="companion-config-input" data-config-key="${escapeHtml(row.key || '')}" value="${escapeHtml(String(current))}"><strong class="companion-tier">${escapeHtml(tierLabel)}</strong></div>`;
+      return `<div class="companion-b2-row companion-b2-row--runtime"><span>${escapeHtml(row.group || '—')}</span><span class="companion-config-meta"><strong class="companion-config-key" dir="ltr">${escapeHtml(key)}</strong><strong class="companion-tier">${escapeHtml(tierLabel)}</strong></span><input class="companion-config-input" dir="ltr" data-config-key="${escapeHtml(row.key || '')}" value="${escapeHtml(String(current))}"></div>`;
     }
-    return `<div class="companion-b2-row"><span>${escapeHtml(row.group || '—')}</span><strong>${escapeHtml(key)}</strong><span>${escapeHtml(companionText(row.value))}</span><strong class="companion-tier">${escapeHtml(tierLabel)}</strong></div>`;
+    return `<div class="companion-b2-row companion-b2-row--locked"><span>${escapeHtml(row.group || '—')}</span><span class="companion-config-meta"><strong class="companion-config-key" dir="ltr">${escapeHtml(key)}</strong><strong class="companion-tier">${escapeHtml(tierLabel)}</strong></span><span dir="ltr">${escapeHtml(companionText(row.value))}</span></div>`;
   }).join('') || '—';
   companionConfigUpdateSaveBtn();
 }
@@ -2749,7 +2749,7 @@ async function companionConfigPatch(patch) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(patch),
     });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    if (!res.ok) throw new Error('invalid');
     unwrapCompanionProxy(await res.json());
     const getRes = await fetch('/api/jetson/v1/config');
     if (getRes.ok) {
@@ -2768,26 +2768,58 @@ async function companionConfigPatch(patch) {
     _configSaving = false;
     companionConfigUpdateSaveBtn();
     companionConfigShowSave(null);
-    companionConfigShowError(String(e.message || e));
+    companionConfigShowError('שגיאה');
   }
 }
 
+function companionConfigValueInvalid(row, raw) {
+  if (!row || row.editable !== true || row.tier !== 'RUNTIME') return false;
+  const text = raw == null ? '' : String(raw).trim();
+  if (typeof row.value === 'number') return !Number.isFinite(Number(text));
+  return text === '';
+}
+
+function companionConfigHasInvalid() {
+  for (const [key, val] of Object.entries(_configEdited)) {
+    const row = _configRows.find((r) => r.key === key);
+    if (!row || row.editable !== true || row.tier !== 'RUNTIME') continue;
+    const orig = row.value == null ? '' : String(row.value);
+    if (String(val) === orig) continue;
+    if (companionConfigValueInvalid(row, val)) return true;
+  }
+  return false;
+}
+
 function companionConfigSave() {
+  if (companionConfigHasInvalid()) {
+    companionConfigShowSave(null);
+    companionConfigShowError('לא תקין');
+    return;
+  }
   const patch = buildRuntimeConfigPatchFromUi();
   if (!patch.runtime && !patch.vision) return;
+  companionConfigShowError(null);
   openConfigChangeConfirm(patch, () => companionConfigPatch(patch));
 }
 
-document.getElementById('companionConfigTable')?.addEventListener('input', (e) => {
-  const input = e.target.closest?.('.companion-config-input');
-  if (!input) return;
-  const key = input.dataset.configKey;
+function companionConfigOnEdit(input) {
+  const key = input?.dataset?.configKey;
   if (!key) return;
   const row = _configRows.find((r) => r.key === key);
   if (!row || row.editable !== true || row.tier !== 'RUNTIME') return;
   _configEdited[key] = input.value;
   _configDirty = companionConfigIsDirty();
   companionConfigUpdateSaveBtn();
+  if (!companionConfigHasInvalid()) companionConfigShowError(null);
+}
+
+document.getElementById('companionConfigTable')?.addEventListener('input', (e) => {
+  const input = e.target.closest?.('.companion-config-input');
+  if (input) companionConfigOnEdit(input);
+});
+document.getElementById('companionConfigTable')?.addEventListener('change', (e) => {
+  const input = e.target.closest?.('.companion-config-input');
+  if (input) companionConfigOnEdit(input);
 });
 document.getElementById('companionConfigSaveBtn')?.addEventListener('click', companionConfigSave);
 
