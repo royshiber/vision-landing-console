@@ -63,7 +63,7 @@ A Human Gate is a decision gate, not a general stop, and not a lock on a whole s
 
 If this file already defines the decision (including the Companion BOTH gate), implement it; do not re-ask Roy. Choose among safe in-constitution options yourself. Do not send Roy a choice this constitution already answers. Do not ask “what now?” if this file already has enough to know.
 
-Work toward Companion real is not forbidden merely because it is real. King may lead it autonomously after structured risk management written in the PR (scope, blast radius, test strategy, rollback, authorization boundaries, VERIFY). Connecting a live vehicle and sending flight commands remain Human Gates. Implementing the already-defined BOTH gate is not.
+Work toward Companion real is not forbidden merely because it is real. King may lead it autonomously after structured risk management written in the PR (scope, blast radius, test strategy, rollback, authorization boundaries, VERIFY). Connecting a live vehicle and sending flight commands remain Human Gates. Companion apply / restart against a live vehicle remains a Human Gate. The Companion BOTH gate is on master (PR #20); implementing or preserving it is not a Human Gate.
 
 Human Gate remains required for: flight safety; flight commands (ARM / DISARM / LAND / auto-land send); a NEW safety policy this constitution does not already define; an essential product/UX decision this constitution does not already define; merge / deploy / release.
 
@@ -79,7 +79,7 @@ Before every new task, inspect the repo, the vision, and the backlog. Rank by pr
 - Fix-loop up to 3 retries on the same agent/branch/PR.
 - Parallel Cloud Agents only if branches/files do not overlap and there is no regression.
 - Mock Companion work that does not change real-behavior boundaries.
-- Implementing the already-defined Companion BOTH gate (real requires BOTH `COMPANION_MODE=real` AND `JETSON_COMPANION_BASE_URL`; a URL alone must never enable real). Write structured risk management in the PR. This is not a Human Gate.
+- The Companion BOTH gate is on master (PR #20, merge commit `364494fb`). Do not regress it. Real requires BOTH `COMPANION_MODE=real` AND `JETSON_COMPANION_BASE_URL`; a URL alone must never enable real. Preserving this gate is not a Human Gate.
 - Work toward Companion real that does not connect a live vehicle and does not send flight commands, after structured risk management written in the PR (scope, blast radius, test strategy, rollback, authorization boundaries, VERIFY).
 - Telemetry / flight-state DISPLAY that does not change parser/protocol and does not add command sending.
 - Local parameter READ. Local writes that only simulate or prepare configuration, if they do not change safety behavior or the path of real FC writes.
@@ -118,7 +118,7 @@ Required:
 
 Not a Human Gate (do not re-ask):
 
-- Implementing the already-defined Companion BOTH gate
+- The Companion BOTH gate already on master (PR #20); do not regress it. Implementing or preserving that already-defined gate is not a Human Gate.
 - Work toward Companion real that does not connect a live vehicle and does not send flight commands, after structured risk management in the PR
 - In-scope safe work consistent with the vision and this constitution, including new tasks King identified without a prior Issue
 
@@ -128,15 +128,15 @@ A Human Gate does not freeze the rest of the project. Independent work not depen
 
 Real Companion mode requires BOTH `COMPANION_MODE=real` AND `JETSON_COMPANION_BASE_URL`. A URL alone must never enable real. If either is missing, stay mock or off.
 
-This BOTH requirement is already defined in this constitution. Implement it. Do not re-ask Roy for permission to implement this gate.
+This BOTH requirement is already defined in this constitution and is on current master: Roy approved PR #20, merged 2026-08-25, merge commit `364494fb`. Current master `lib/companion-service.mjs` `resolveCompanionMode` returns `real` only when BOTH `COMPANION_MODE=real` AND `JETSON_COMPANION_BASE_URL` is non-empty. A URL alone never enables real. `real` without a URL stays off. Explicit `mock` / `off` unchanged. Do not regress this gate. Do not re-ask Roy for permission to keep this gate.
 
 Work toward Companion real is not forbidden merely because it is real. King may lead that work autonomously after structured risk management written in the PR: scope, blast radius, test strategy, rollback, authorization boundaries, VERIFY.
 
-A Human Gate is a decision gate, not a lock on all companion-mode code. Connecting a live vehicle and sending flight commands remain Human Gates. Implementing this already-defined BOTH gate is not.
+A Human Gate is a decision gate, not a lock on all companion-mode code. Connecting a live vehicle, sending flight commands, and Companion apply / restart against a live vehicle remain Human Gates. The BOTH gate on master is not a license to touch a live vehicle.
 
 Do not enable real against a live vehicle, and do not send flight commands, without a Human Gate. The Cloud Agent VM must never network to a Jetson / FC / production vehicle (NEVER rules).
 
-“Companion real still has no GO” is not a blanket stop on companion-mode code.
+“Companion real still has no GO” is not a blanket stop on companion-mode code. The BOTH gate being on master does not allow a live vehicle, apply, or restart.
 
 ## NEVER
 
@@ -294,7 +294,7 @@ Do not invent a `STATUS.md`.
 2. Close PR #1, #2, #3 as superseded (no merge).
 3. Inspect → prioritize → choose next in-scope safe work toward the north star. Not limited to a user-visible console bug or to a prior Issue.
 
-PR #5 (connections schema) merged 2026-08-25, merge commit `f5ddc14`. Remaining open drafts stay draft until Roy says merge: #4 (orchestrator smoke, no product value), #6 (this constitution), #9 Assist Hebrew buttons, #13 Development empty-state Hebrew stacked on #9, #15 changelog product copy for 1.02.254+1.02.255. Connecting a live vehicle / sending flight commands is still gated. Implementing the already-defined Companion BOTH gate is not. “Companion real still has no GO” is not a blanket stop on companion-mode code.
+PR #5 (connections schema) merged 2026-08-25, merge commit `f5ddc14`. PR #20 (Companion BOTH-mode gate) merged 2026-08-25, merge commit `364494fb`. Remaining open drafts stay draft until Roy says merge: #4 (orchestrator smoke, no product value), #6 (this constitution), #9 Assist Hebrew buttons, #13 Development empty-state Hebrew stacked on #9, #15 changelog product copy for 1.02.254+1.02.255, #18 vision config persist. Connecting a live vehicle / sending flight commands / Companion apply or restart is still gated. The Companion BOTH gate is on master; do not regress it. “Companion real still has no GO” is not a blanket stop on companion-mode code.
 
 ---
 
@@ -311,6 +311,7 @@ Factual how-to-run notes for Cloud Agents on current `master` (as of 2026-08-25)
 - No lint tooling. Do not invent one unless asked.
 - `npm run test:smoke` needs Playwright chromium.
 - PR #5 merged 2026-08-25, merge commit `f5ddc14`. Current master `lib/db.mjs` has `CREATE TABLE IF NOT EXISTS connections`. APP_VERSION on that landing is `1.02.255` (hook bump that rode in with PR #5). The schema 500 on `GET /api/connections` is gone on current master. A 500 there is not expected master behavior.
+- PR #20 merged 2026-08-25, merge commit `364494fb`. Current master `lib/companion-service.mjs` `resolveCompanionMode` returns `real` only when BOTH `COMPANION_MODE=real` AND `JETSON_COMPANION_BASE_URL` is non-empty. A URL alone never enables real. `real` without a URL stays off. Explicit `mock` / `off` unchanged. This does not allow connecting a live vehicle, sending flight commands, or Companion apply / restart.
 - Gemini features are optional without `GEMINI_API_KEY` (the name is gitignored via `.env`). The core app runs without it. Never put real keys, `.env` values, Jetson addresses, credentials, or secrets in this file, a prompt, a PR, or logs.
 - The pre-commit hook auto-bumps `APP_VERSION` and restages `version.js`, `package.json`, `package-lock.json`, and `public/changelog.json`. This constitution forbids leaving that bump in a PR except at release (unless Roy gives an explicit exception). If the hook fires on a non-release commit, revert those files back to master. Do not skip git hooks. Do not leave a dummy changelog entry.
 - New tasks start from `master`. Follow existing branch names (`development/tasks/<slug>`). Do not invent a new convention family. Do not stack on an unrelated PR.
