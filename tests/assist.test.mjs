@@ -10,6 +10,7 @@ import { createAssistService } from '../lib/assist/assist-service.mjs';
 import { createAssistPersistence } from '../lib/assist/assist-store.mjs';
 import { ASSIST_ACTION_TYPES, ASSIST_PROHIBITED_ACTIONS } from '../lib/assist/assist-types.mjs';
 import { isKnownAssistRouteId, findAssistRoute } from '../lib/assist/assist-routes.mjs';
+import { ASSIST_HE, hebrewOpenRouteAnswer } from '../lib/assist/assist-hebrew.mjs';
 import { createDevelopmentTaskStore } from '../lib/development-task-store.mjs';
 import { registerAssistApi } from '../lib/routes/assist-api.mjs';
 import { createDevelopmentAgentService } from '../lib/development-agent-service.mjs';
@@ -184,7 +185,8 @@ describe('Assist service proposals and confirmation', () => {
     expect(resp.intent).toBe('QUESTION');
     expect(resp.requires_confirmation).toBe(false);
     expect(resp.action_proposal).toBe(null);
-    expect(resp.answer).toMatch(/GPS/i);
+    expect(resp.answer).toBe(ASSIST_HE.gpsOk);
+    expect(resp.answer).not.toMatch(/looks OK/i);
   });
 
   it('proposes development task and requires confirmation; does not create until confirm', async () => {
@@ -313,12 +315,15 @@ describe('Assist service proposals and confirmation', () => {
     });
     expect(resp.intent).toBe('OBSERVATION');
     expect(resp.requires_confirmation).toBe(true);
+    expect(resp.answer).toBe(ASSIST_HE.observationProposalAnswer);
+    expect(resp.next_step).toBe(ASSIST_HE.observationProposalNextStep);
     const confirmed = await service.confirmProposal({
       proposal_id: resp.action_proposal.id,
       confirm: true,
     });
     expect(confirmed.result.observation.text).toMatch(/drifting right/i);
     expect(confirmed.result.observation.workspace).toBe('MISSION');
+    expect(confirmed.answer).toBe(ASSIST_HE.observationSaved);
   });
 
   it('proposes note with confirmation', async () => {
@@ -327,11 +332,14 @@ describe('Assist service proposals and confirmation', () => {
       context_snapshot: { current_tab: 'flightEngineer' },
     });
     expect(resp.intent).toBe('NOTE');
+    expect(resp.answer).toBe(ASSIST_HE.noteProposalAnswer);
+    expect(resp.next_step).toBe(ASSIST_HE.noteProposalNextStep);
     const confirmed = await service.confirmProposal({
       proposal_id: resp.action_proposal.id,
       confirm: true,
     });
     expect(confirmed.result.note.text).toMatch(/drifted right/i);
+    expect(confirmed.answer).toBe(ASSIST_HE.noteSaved);
   });
 
   it('navigates via known routes only', async () => {
@@ -342,6 +350,8 @@ describe('Assist service proposals and confirmation', () => {
     expect(resp.action_proposal.payload.tab).toBe('control');
     expect(resp.action_proposal.payload.subtab).toBe('visionNavParams');
     expect(isKnownAssistRouteId(resp.action_proposal.payload.route_id)).toBe(true);
+    expect(resp.answer).toBe(hebrewOpenRouteAnswer('vision'));
+    expect(resp.next_step).toBe(ASSIST_HE.uiNavNextStep);
   });
 
   it('rejects cancel without applying', async () => {
@@ -360,7 +370,10 @@ describe('Assist service proposals and confirmation', () => {
     const resp = await service.processInput({ text: 'Please disarm now' });
     expect(resp.intent).toBe('UNRESOLVED');
     expect(resp.action_proposal).toBe(null);
-    expect(resp.answer).toMatch(/prohibited/i);
+    expect(resp.requires_confirmation).toBe(false);
+    expect(resp.answer).toBe(ASSIST_HE.prohibitedAnswer);
+    expect(resp.answer).not.toMatch(/prohibited/i);
+    expect(resp.next_step).toBe(ASSIST_HE.prohibitedNextStep);
   });
 
   it('allows only safe action types', () => {
@@ -385,6 +398,75 @@ describe('Assist service proposals and confirmation', () => {
     expect(resp.intent).toBe('QUESTION');
     expect(resp.context_used.workspace).toBe('EVOLVE');
     expect(resp.answer).toMatch(/WIP|משימת פיתוח/);
+  });
+
+  it('answers Hebrew GPS question without inventing coordinates', async () => {
+    const resp = await service.processInput({
+      text: 'מה מצב ה-GPS',
+      context_snapshot: { current_tab: 'telemetry', aircraft_state: { gps_ok: true, connected: true } },
+    });
+    expect(resp.intent).toBe('QUESTION');
+    expect(resp.kind).toBe('INFORMATION');
+    expect(resp.requires_confirmation).toBe(false);
+    expect(resp.action_proposal).toBe(null);
+    expect(resp.answer).toBe(ASSIST_HE.gpsOk);
+    expect(resp.answer).not.toMatch(/looks OK/i);
+    expect(resp.answer).not.toMatch(/\d+\s*m/);
+    expect(resp.answer).not.toMatch(/\d+\.\d+/);
+  });
+
+  it('opens Vision from פתח ראייה with a Hebrew answer and no confirm', async () => {
+    const resp = await service.processInput({ text: 'פתח ראייה' });
+    expect(resp.intent).toBe('UI_ACTION');
+    expect(resp.requires_confirmation).toBe(false);
+    expect(resp.action_proposal.action).toBe('UI_NAVIGATION');
+    expect(resp.action_proposal.payload.route_id).toBe('vision');
+    expect(resp.answer).toBe(hebrewOpenRouteAnswer('vision'));
+    expect(resp.answer).not.toMatch(/Opening /);
+  });
+
+  it('refuses a prohibited phrase in Hebrew without a confirm bar', async () => {
+    const resp = await service.processInput({ text: 'Please arm the aircraft' });
+    expect(resp.intent).toBe('UNRESOLVED');
+    expect(resp.kind).toBe('INFORMATION');
+    expect(resp.requires_confirmation).toBe(false);
+    expect(resp.action_proposal).toBe(null);
+    expect(resp.answer).toBe(ASSIST_HE.prohibitedAnswer);
+    expect(resp.answer).toMatch(/אסורה/);
+    expect(resp.answer).not.toMatch(/That request maps/i);
+  });
+
+  it('answers an unresolved phrase in Hebrew', async () => {
+    const resp = await service.processInput({ text: 'purple bananas dance tomorrow' });
+    expect(resp.intent).toBe('UNRESOLVED');
+    expect(resp.kind).toBe('INFORMATION');
+    expect(resp.requires_confirmation).toBe(false);
+    expect(resp.action_proposal).toBe(null);
+    expect(resp.answer).toBe(ASSIST_HE.unresolvedAnswer);
+    expect(resp.next_step).toBe(ASSIST_HE.unresolvedNextStep);
+    expect(resp.answer).not.toMatch(/I could not resolve/i);
+  });
+
+  it('returns Hebrew when the development store is unavailable on confirm', async () => {
+    const orphanRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'vlc-assist-nostore-'));
+    const orphan = createAssistService({
+      repoRoot: orphanRoot,
+      persistence: createAssistPersistence(orphanRoot),
+    });
+    try {
+      const resp = await orphan.processInput({
+        text: 'Add a tab for landing confidence.',
+      });
+      const confirmed = await orphan.confirmProposal({
+        proposal_id: resp.action_proposal.id,
+        confirm: true,
+      });
+      expect(confirmed.ok).toBe(false);
+      expect(confirmed.error).toBe('development_store_unavailable');
+      expect(confirmed.answer).toBe(ASSIST_HE.developmentStoreUnavailable);
+    } finally {
+      fs.rmSync(orphanRoot, { recursive: true, force: true });
+    }
   });
 });
 
