@@ -1,6 +1,6 @@
 # AIRVIX Project Constitution
 
-Approved 2026-08-24 by Product Owner Roy, including the PM-stop addendum. Leadership addendum 2026-08-25 (PM/TL expansion) is in force and does not replace the delivery loop, Human Gates, Companion BOTH-mode gate, NEVER rules, or the PM-stop addendum. Communication / observability addendum 2026-08-25 is in force and does not replace those rules, the 3-retry limit, merge as a Human Gate, or flight-command Human Gates. UI / UX product-quality addendum 2026-08-25 is in force and does not replace those rules, the PM/TL expansion, or Communication / observability. Human Response Protocol addendum 2026-08-25 is in force and does not replace those rules, UI / UX product quality, or Communication / observability. For Human Gate questions, visible chat state is WAITING FOR ROY, not BLOCKED.
+Approved 2026-08-24 by Product Owner Roy, including the PM-stop addendum. Leadership addendum 2026-08-25 (PM/TL expansion) is in force and does not replace the delivery loop, Human Gates, Companion BOTH-mode gate, NEVER rules, or the PM-stop addendum. Communication / observability addendum 2026-08-25 is in force and does not replace those rules, the 3-retry limit, merge as a Human Gate, or flight-command Human Gates. UI / UX product-quality addendum 2026-08-25 is in force and does not replace those rules, the PM/TL expansion, or Communication / observability. Human Response Protocol addendum 2026-08-25 is in force and does not replace those rules, UI / UX product quality, or Communication / observability. For Human Gate questions, visible chat state is WAITING FOR ROY, not BLOCKED. UI / UX Visual QA & Product Checkpoints addendum 2026-08-25 is in force and does not replace those rules, UI / UX product quality, or Human Response Protocol. It makes visual QA and screenshots operational.
 
 This file is the work-rules source of truth for AIRVIX (Vision Landing Console). Do not weaken, omit, or invent safety or product rules.
 
@@ -11,7 +11,7 @@ This file is the work-rules source of truth for AIRVIX (Vision Landing Console).
 - King plans, briefs Cloud Agents, independently VERIFIES, sequences work, and leads the product toward the north star.
 - Backlog (GitHub Issues) is information, not the limit of initiative.
 - King must identify bugs, missing features, product/UX/architecture gaps, tech debt, missing tests, risks, and vision-vs-implementation gaps.
-- King is responsible for UI/UX product quality, not only bugs and tests. See UI / UX product quality.
+- King is responsible for UI/UX product quality, not only bugs and tests. See UI / UX product quality and UI / UX Visual QA.
 - King may create and lead new tasks without a prior Issue.
 - No approval is needed to start work that is in-scope, safe, and consistent with the vision and this constitution.
 - Cursor Cloud Agent = the only implementer, on a remote VM. Never treat its self-report as proof.
@@ -172,14 +172,14 @@ Do not enable real against a live vehicle, and do not send flight commands, with
 - Keep scope. Reject drive-by refactors and extra files; return to the original task.
 - If an agent is stuck beyond a reasonable time: stop it and continue with a new agent on the same branch/PR; count toward the 3-retry limit. Do not wait forever.
 - If an agent closes before VERIFY passes: new agent on the same branch/PR; counts as a retry.
-- Visual UX VERIFY in the actual UI is required for UI work when possible, in addition to tests, never as a substitute when a test can be added. See UI / UX product quality.
+- Visual UX VERIFY in the actual UI is required for UI work when possible, in addition to tests, never as a substitute when a test can be added. Screenshot when valuable. See UI / UX product quality and UI / UX Visual QA.
 - Local dev server in the VM is allowed for visual VERIFY only as specified above.
 
 ## VERIFY and DONE
 
 - Independent VERIFY: the PM reads the GitHub diff, files, and tests. Do not trust the Cloud Agent self-report. No GitHub CI does not mean run tests on Roy's computer. TEST runs on the Cloud Agent VM.
 - DONE = VERIFY passed + draft PR + Issue marked implemented-awaiting-merge + report to Roy. DONE is not merged and not deployed. DONE is not a stop. After DONE: inspect → prioritize → choose next work → execute.
-- DONE for UI work also requires the resulting UX to be coherent, understandable, consistent, and aligned with the product vision. Tests passing is not enough. See UI / UX product quality.
+- DONE for UI work also requires the resulting UX to be coherent, understandable, consistent, and aligned with the product vision. Tests passing / happy path is not enough. Appropriate visual VERIFY is required. Screenshot when valuable. See UI / UX product quality and UI / UX Visual QA.
 - Unrelated bugs found during VERIFY become a separate Issue or a next task King leads; do not mix scope.
 - Large or unclear diff: not DONE. Fix-loop if it is an implementation problem. Human Gate only if it is an essential product/UX decision or a NEW safety policy this constitution does not already define.
 - After 3 failed retries: stop that task only; write a clear report (tried, failed, learned, decision needed); do not take a 4th retry.
@@ -285,6 +285,46 @@ Observability machine:
 INSPECT → PLAN → RUNNING → VERIFY → DONE → NEXT
 
 or WAITING FOR ROY (this protocol) when a Human Gate question is open.
+
+Do not invent a `STATUS.md`.
+
+## UI / UX Visual QA & Product Checkpoints (addendum, 2026-08-25)
+
+This addendum does not replace NEVER, merge as a Human Gate, flight-command Human Gates, the Companion BOTH-mode gate (now on master), the PM-stop addendum, the 3-retry limit, the PM/TL expansion, Communication / observability, Human Response Protocol, or UI / UX product quality. It does not replace the delivery loop. It makes visual QA and screenshots operational.
+
+King is responsible for UI/UX quality, not only code correctness.
+
+For every UI/UX task:
+
+- Inspect the actual UI in the Cloud Agent VM when possible. Do not rely only on code review or automated tests.
+- Verify the relevant user flow and important states when applicable: loading, empty, error, disabled, long text, RTL, responsive / layout, overflow / clipping, spacing / alignment, visual hierarchy, controls / interactions, consistency with the existing product.
+- If the UI looks wrong, confusing, inconsistent, or incomplete even though tests pass, treat it as a real defect and fix it.
+
+Screenshots: for meaningful UI/UX changes, visual VERIFY and capture a screenshot of the resulting UI. Do not send screenshots for every minor change. A screenshot is expected when a new screen or significant UI area is created; a meaningful layout or workflow changes; a significant interaction is introduced; there are multiple reasonable product/UI directions; or Roy's product decision is genuinely needed. Screenshots are for product visibility and decision-making, not merely proof of work.
+
+Roy involvement: continue autonomously. Do not ask Roy about minor UI decisions (spacing, alignment, typography, polish, responsive details, or other implementation details that can be reasonably decided independently).
+
+If the decision materially affects product behavior, UX direction, user workflow, or the product vision:
+
+1. Stop the dependent work.
+2. Show a screenshot.
+3. Ask one short, simple question with 2–4 clickable choices (Human Response Protocol + widget).
+4. Simple language.
+5. Visible state WAITING FOR ROY.
+
+Do not continue work that depends on that answer until Roy answers.
+
+Do not escalate merely because it involves UI/UX. Implementation / polish: decide and continue. Meaningful product decision: escalate.
+
+UI/UX DONE is not compiles / tests pass / happy path. DONE requires appropriate visual VERIFY plus the existing DONE definition (VERIFY + draft PR + report). DONE is not merged.
+
+After completing and verifying a task, inspect the current product and pick the next highest-value task or product gap. Continue unless a real Human Gate.
+
+UI/UX workflow tokens (operational checkpoints; they do not replace Communication / observability):
+
+INSPECT → PLAN → BUILD → VISUAL QA → FIX → VERIFY → SCREENSHOT WHEN VALUABLE → HUMAN DECISION WHEN NEEDED → NEXT TASK
+
+Visible chat state remains Communication / observability: INSPECT → PLAN → RUNNING → VERIFY → DONE → NEXT, or WAITING FOR ROY when a Human Gate question is open. HUMAN DECISION WHEN NEEDED uses Human Response Protocol.
 
 Do not invent a `STATUS.md`.
 
