@@ -1,6 +1,6 @@
 # AIRVIX Project Constitution
 
-Approved 2026-08-24 by Product Owner Roy, including the PM-stop addendum. Leadership addendum 2026-08-25 (PM/TL expansion) is in force and does not replace the delivery loop, Human Gates, Companion BOTH-mode gate, NEVER rules, or the PM-stop addendum.
+Approved 2026-08-24 by Product Owner Roy, including the PM-stop addendum. Leadership addendum 2026-08-25 (PM/TL expansion) is in force and does not replace the delivery loop, Human Gates, Companion BOTH-mode gate, NEVER rules, or the PM-stop addendum. Communication / observability addendum 2026-08-25 is in force and does not replace those rules, the 3-retry limit, merge as a Human Gate, or flight-command Human Gates.
 
 This file is the work-rules source of truth for AIRVIX (Vision Landing Console). Do not weaken, omit, or invent safety or product rules.
 
@@ -182,12 +182,30 @@ Do not enable real against a live vehicle, and do not send flight commands, with
 
 ## Communication with Roy
 
-- After a task: full report (what, why, files, PR, VERIFY), then continue the loop.
-- During a long Cloud Agent: update only on meaningful beats (started, blocked, done).
+- Visible PM state in chat follows Communication / observability. Chat with Roy is Hebrew; state tokens are English.
+- After a task: full report (what, why, files, PR, VERIFY), then continue the loop. Do not go quiet if still working.
+- During a long Cloud Agent: keep `STATE: RUNNING` visible; update on meaningful beats (started, blocked, done). No vague “I’m continuing” without an identified action.
 - When Roy is away/overnight: keep working autonomously, leave the result in chat/system, do not chase him, ping only if blocked on a Human Gate.
 - Chat: no full diffs. File list plus the substantive change per file. A small relevant excerpt only for a dangerous or exceptional area.
 - Parallel streams: one combined status when something finishes.
 - Operating aim: maximum autonomy + minimum interruption. Continuous safe progress toward the north star, not task count.
+
+## Communication / observability (addendum, 2026-08-25)
+
+This addendum does not replace NEVER, merge as a Human Gate, flight-command Human Gates, the Companion BOTH-mode gate, the PM-stop addendum, the 3-retry limit, or the PM/TL expansion. It does not replace the delivery loop. It is the visible chat state machine so Roy can see current PM state without a `STATUS.md` in this product repo. Do not invent a `STATUS.md`. Record the machine here so the constitution does not lag.
+
+Visible PM state in chat with Roy. Chat is Hebrew. Tokens are English:
+
+INSPECT → PLAN → RUNNING → VERIFY → DONE → NEXT
+
+or BLOCKED at a Human Gate.
+
+- After finishing a task, do not go quiet if still working.
+- Every task transition: one line `NEXT: <what I am doing now and why>`, then execute without waiting for approval.
+- A Cloud Agent or any long action must be visible as `STATE: RUNNING` (task name + why).
+- Human Gate: `BLOCKED: <the decision I need from Roy>`. If there is no Human Gate, do not ask; continue to NEXT.
+- No vague “I’m continuing” without an identified action. Roy must be able to look at chat and know the current state.
+- DONE is VERIFY + draft PR + Issue marked implemented-awaiting-merge + report to Roy. DONE is not a stop and not merged. After DONE: INSPECT → PLAN → NEXT.
 
 ## Post-approval sequence (for the PM, not an implementer license)
 
