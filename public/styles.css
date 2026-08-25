@@ -162,6 +162,11 @@ h1 { margin: 0; font-size: 1.25rem; color: #ffffff; }
 }
 
 .confidence-hud {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 2px;
   min-width: 120px;
   flex-shrink: 0;
   background: rgba(255,255,255,0.08);
@@ -171,18 +176,23 @@ h1 { margin: 0; font-size: 1.25rem; color: #ffffff; }
   font-size: 0.74rem;
   color: rgba(255,255,255,0.65);
   backdrop-filter: blur(4px);
-  white-space: nowrap;
 }
 
-.confidence-hud strong { color: #60a5fa; font-weight: 700; }
+.confidence-hud strong {
+  color: #60a5fa;
+  font-weight: 700;
+  unicode-bidi: isolate;
+}
 
 .confidence-track {
   height: 5px;
   border-radius: 999px;
   background: rgba(255,255,255,0.12);
-  margin: 4px 0;
+  margin: 2px 0;
   overflow: hidden;
   border: none;
+  width: 100%;
+  align-self: stretch;
 }
 
 .confidence-fill {
@@ -4133,6 +4143,14 @@ button:hover,
   gap: 10px;
 }
 
+.companion-b2-span {
+  grid-column: 1 / -1;
+}
+
+.companion-b2-section > .tele-b2-head {
+  padding: 0 0 8px;
+}
+
 .companion-b2-section {
   min-width: 0;
   padding: 10px;
@@ -4154,7 +4172,7 @@ button:hover,
 
 .companion-b2-row {
   display: grid;
-  grid-template-columns: minmax(96px, 1.1fr) minmax(140px, 1.7fr) minmax(88px, 1.1fr);
+  grid-template-columns: minmax(72px, 1fr) minmax(72px, 1fr) minmax(72px, 1fr) minmax(72px, 1fr);
   gap: 8px;
   align-items: center;
   padding: 6px 8px;
@@ -4163,12 +4181,22 @@ button:hover,
   background: var(--surface-raised);
 }
 
+.companion-b2-row--runtime,
+.companion-b2-row--locked {
+  grid-template-columns: minmax(120px, 0.9fr) minmax(180px, 1.6fr) minmax(140px, 1.2fr);
+}
+
 .companion-b2-row--runtime {
   border-color: var(--accent, #2563eb);
 }
 
 .companion-b2-row--locked {
   background: var(--surface-low, var(--surface-raised));
+}
+
+.companion-b2-row--locked > [dir="ltr"] {
+  min-width: 0;
+  overflow-wrap: break-word;
 }
 
 .companion-config-meta {
@@ -4180,7 +4208,7 @@ button:hover,
 
 .companion-config-key {
   min-width: 0;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 .companion-chip {
@@ -4545,7 +4573,9 @@ button:hover,
 
 @media (max-width: 900px) {
   .companion-policy-cols { grid-template-columns: 1fr; }
-  .companion-b2-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) minmax(0, 1fr); }
+  .companion-b2-row { grid-template-columns: 1fr 1fr; }
+  .companion-b2-row--runtime,
+  .companion-b2-row--locked { grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) minmax(0, 1fr); }
   .policy-cat-grid { grid-template-columns: 1fr; }
 }
 

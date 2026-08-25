@@ -2839,7 +2839,7 @@ function applyCompanionUi(companion) {
   const unavailableEl = document.getElementById('companionApiUnavailable');
   if (unavailableEl) {
     unavailableEl.hidden = !unavailable;
-    unavailableEl.textContent = unavailable ? (companion.message || 'Companion API not available') : '';
+    unavailableEl.textContent = unavailable ? 'ממשק המלווה אינו זמין' : '';
   }
   const mockBar = document.getElementById('companionMockBar');
   if (mockBar) mockBar.hidden = companion.mode !== 'mock';
@@ -2931,6 +2931,9 @@ document.querySelectorAll('[data-mock-scenario]').forEach((button) => {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ scenario: button.dataset.mockScenario }),
+      });
+      document.querySelectorAll('[data-mock-scenario]').forEach((el) => {
+        el.classList.toggle('active', el === button);
       });
     } catch {
       // Mock switching is local UI support only.

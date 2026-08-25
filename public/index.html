@@ -29,16 +29,16 @@
         </div>
         <div class="confidence-hud" title="הפרש מיקום Vision מול GPS">
           <span>הפרש Vision מול GPS</span>
-          <strong id="liveGpsVisionDelta">-- m</strong>
+          <strong id="liveGpsVisionDelta" dir="ltr">-- m</strong>
         </div>
 
         <div class="confidence-hud tele-hud-mini" title="מהירות אוויר מ-FC">
           <span>מהירות</span>
-          <strong id="hudAirspeed">-- m/s</strong>
+          <strong id="hudAirspeed" dir="ltr">-- m/s</strong>
         </div>
         <div class="confidence-hud tele-hud-mini" title="גובה מ-FC (מעל קרקע)">
           <span>גובה</span>
-          <strong id="hudAltitude">-- m</strong>
+          <strong id="hudAltitude" dir="ltr">-- m</strong>
         </div>
         <div class="confidence-hud tele-hud-mini" title="מוד טיסה נוכחי">
           <span>מוד טיסה</span>
@@ -496,7 +496,7 @@
           </div>
           <div id="companionMockBar" class="companion-mock-bar" hidden>
             <span>מצב מדומה</span>
-            <button type="button" class="tele-subtab" data-mock-scenario="healthy">תקין</button>
+            <button type="button" class="tele-subtab active" data-mock-scenario="healthy">תקין</button>
             <button type="button" class="tele-subtab" data-mock-scenario="disconnected">מנותק</button>
             <button type="button" class="tele-subtab" data-mock-scenario="degraded">מוחלש</button>
           </div>
@@ -725,7 +725,7 @@
                 <article class="tele-card"><span>רזולוציה</span><strong id="companionVidRes">—</strong></article>
               </div>
             </section>
-          <div class="tele-vision-group" id="policyEditorSection">
+          <section class="companion-b2-section companion-b2-span" id="policyEditorSection">
             <div class="tele-b2-head">
               <div class="tele-group-label">מדיניות נתיב הודעות MAVLink</div>
               <div id="policyUiState" class="policy-state-badge">—</div>
@@ -768,8 +768,8 @@
               <div class="tele-group-label">תצוגה מקדימה בלבד — לא מוחל</div>
               <pre id="policyPreviewContent" class="companion-preview"></pre>
             </div>
-          </div>
-            <section class="companion-b2-section">
+          </section>
+            <section class="companion-b2-section companion-b2-span">
               <h3>תצורה לפי שכבת בטיחות</h3>
               <div id="companionConfigTable" class="companion-b2-table">—</div>
               <div class="policy-actions">
@@ -779,7 +779,7 @@
               <p id="companionConfigError" class="policy-error" hidden></p>
               <div id="companionConfigSaveStatus" class="policy-save-status" hidden></div>
             </section>
-            <section class="companion-b2-section">
+            <section class="companion-b2-section companion-b2-span">
               <h3>אבחון</h3>
               <div id="companionDiagGrid" class="companion-b2-chips"></div>
               <p id="companionDiagMsg" class="tele-dash-note">—</p>
