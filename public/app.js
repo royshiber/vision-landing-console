@@ -10683,7 +10683,10 @@ function assistRenderAgentConnection(status) {
     keyHintEl.textContent = hint;
   }
   if (form) form.hidden = connected;
-  if (disconnectBtn) disconnectBtn.hidden = !connected;
+  if (disconnectBtn) {
+    disconnectBtn.hidden = !connected;
+    disconnectBtn.setAttribute('aria-hidden', connected ? 'false' : 'true');
+  }
   if (!errorText) assistSetConnectError('');
   assistSyncConnectButton();
 }

@@ -12051,6 +12051,21 @@ details.flight-manage summary {
   flex-direction: column;
   gap: 6px;
 }
+.assist-agent-form[hidden],
+.assist-agent-hint[hidden],
+.assist-agent-key-hint[hidden],
+.assist-agent-error[hidden],
+#assistAgentDisconnectBtn[hidden] {
+  display: none !important;
+}
+.assist-agent-connect[data-state="connected"] .assist-agent-form,
+.assist-agent-connect[data-state="connected"] .assist-agent-hint {
+  display: none !important;
+}
+.assist-agent-connect:not([data-state="connected"]) #assistAgentDisconnectBtn,
+.assist-agent-connect:not([data-state="connected"]) .assist-agent-key-hint {
+  display: none !important;
+}
 .assist-agent-label {
   font-size: 0.72rem;
   color: rgba(254, 243, 199, 0.9);
