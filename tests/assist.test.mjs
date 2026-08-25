@@ -568,4 +568,18 @@ describe('Assist rail proposal chrome', () => {
     expect(js).not.toMatch(/assistConfirmBtn[\s\S]{0,240}?(?:textContent|innerText|innerHTML)\s*=\s*['"`]Confirm['"`]/);
     expect(js).not.toMatch(/assistCancelBtn[\s\S]{0,240}?(?:textContent|innerText|innerHTML)\s*=\s*['"`]Cancel['"`]/);
   });
+
+  it('treats NOT_STARTED live status as unavailable, not a running agent', () => {
+    const js = fs.readFileSync(path.join(repoRoot, 'public', 'app.js'), 'utf8');
+    expect(js).toMatch(/s === 'NOT_STARTED'/);
+    expect(js).toMatch(/panel\.dataset\.kind = kind/);
+    const html = fs.readFileSync(path.join(repoRoot, 'public', 'index.html'), 'utf8');
+    expect(html).toMatch(/id="assistRunPanel"[^>]*data-kind="unavailable"/);
+    const css = fs.readFileSync(path.join(repoRoot, 'public', 'styles.css'), 'utf8');
+    expect(css).toMatch(/\.assist-run-panel\[data-kind="run"\]/);
+    expect(css).toMatch(/\.assist-run-panel\[data-kind="result"\]/);
+    const runBlock = css.split('.assist-run-panel[data-kind="run"]')[0];
+    expect(runBlock).toMatch(/rgba\(251, 191, 36/);
+    expect(runBlock).not.toMatch(/rgba\(56, 189, 248, 0\.35\)/);
+  });
 });

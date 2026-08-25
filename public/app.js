@@ -10455,7 +10455,8 @@ function assistStopRunPolling() {
 
 function assistStatusKind(state, agentStarted, unavailableReason) {
   if (unavailableReason || agentStarted === false) return 'unavailable';
-  const s = String(state || '').toUpperCase();
+  const s = String(state || '').trim().toUpperCase();
+  if (!s || s === 'NOT_STARTED') return 'unavailable';
   if (s === 'SUCCEEDED' || s === 'FAILED' || s === 'CANCELLED') return 'result';
   return 'run';
 }
@@ -10495,11 +10496,12 @@ function assistRenderRunStatus(payload, { agentStarted = true, unavailableReason
     branch: payload.branch || payload.task?.branch,
     prUrl: payload.pr_url || payload.task?.pr_url,
   });
+  const kind = assistStatusKind(payload.agent_state || payload.task?.agent_state, agentStarted, unavailableReason);
   if (panel) {
     panel.innerHTML = html;
     panel.hidden = false;
+    panel.dataset.kind = kind;
   }
-  const kind = assistStatusKind(payload.agent_state || payload.task?.agent_state, agentStarted, unavailableReason);
   if (box) {
     if (!_assistRunMsgEl || !box.contains(_assistRunMsgEl)) {
       _assistRunMsgEl = document.createElement('div');
@@ -10517,7 +10519,9 @@ async function assistRefreshRun(taskId) {
   const r = await fetch(`/api/assist/tasks/${encodeURIComponent(taskId)}`);
   const data = await r.json().catch(() => ({}));
   if (!r.ok || !data.ok) return;
-  assistRenderRunStatus(data, { agentStarted: true });
+  const state = String(data.agent_state || '').toUpperCase();
+  const started = Boolean(state) && state !== 'NOT_STARTED';
+  assistRenderRunStatus(data, { agentStarted: started });
   if (data.terminal) assistStopRunPolling();
 }
 
