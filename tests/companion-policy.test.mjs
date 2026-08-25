@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import {
   POLICY_UI_STATES,
   POLICY_CHANNELS,
@@ -10,6 +10,10 @@ import {
   isPolicyDirty,
 } from '../lib/companion-policy-state.mjs';
 import {
+  unwrapCompanionProxy,
+  policyDocumentFromProxyJson,
+} from '../lib/companion-proxy-unwrap.mjs';
+import {
   MAVLINK_DISPLAY_CATEGORIES,
   policyTokenState,
   mapPolicyPreview,
@@ -19,6 +23,10 @@ import {
   healthyPolicyPreview,
 } from '../lib/companion-mock-fixtures.mjs';
 import { createCompanionMock } from '../lib/companion-mock.mjs';
+import express from 'express';
+import { createCompanionService } from '../lib/companion-service.mjs';
+import { registerCompanionProxyApi } from '../lib/routes/companion-proxy-api.mjs';
+import { COMPANION_PROXY_PREFIX } from '../lib/companion-v1-paths.mjs';
 
 describe('companion-policy-state', () => {
   const policy = healthyPolicy();
@@ -120,20 +128,21 @@ describe('mock policy round-trip', () => {
   });
 
   it('apply route is forbidden in proxy', async () => {
-    const res = { status: null, body: null };
-    const expressLike = {
-      post: (path, handler) => {
-        if (path.includes('policy/apply')) {
-          const mockRes = {
-            status(code) { res.status = code; return this; },
-            json(obj) { res.body = obj; },
-          };
-          handler({}, mockRes);
-        }
-      },
-    };
-    // proxy registers forbidden routes; testing concept only
-    expect(true).toBe(true);
+    const app = express();
+    app.use(express.json());
+    registerCompanionProxyApi(app, { companionService: createCompanionService({ COMPANION_MODE: 'mock' }) });
+    const server = await new Promise((resolve) => {
+      const s = app.listen(0, '127.0.0.1', () => resolve(s));
+    });
+    try {
+      const addr = server.address();
+      const r = await fetch(`http://127.0.0.1:${addr.port}${COMPANION_PROXY_PREFIX}/policy/apply`, { method: 'POST' });
+      expect(r.status).toBe(404);
+      const j = await r.json();
+      expect(j.code).toBe('companion_forbidden');
+    } finally {
+      await new Promise((resolve) => server.close(resolve));
+    }
   });
 });
 
@@ -149,5 +158,110 @@ describe('policy state transitions', () => {
   it('UI states are frozen', () => {
     expect(Object.isFrozen(POLICY_UI_STATES)).toBe(true);
     expect(POLICY_UI_STATES.SAVED_NOT_APPLIED).toBe('SAVED_NOT_APPLIED');
+  });
+});
+
+describe('companion proxy envelope unwrap', () => {
+  it('returns json.data when the NEW-lane envelope is present', () => {
+    const doc = healthyPolicy();
+    const unwrapped = unwrapCompanionProxy({ ok: true, lane: 'NEW', data: doc });
+    expect(unwrapped).toBe(doc);
+    expect(unwrapped.channels.gcs_4g.deny).toContain('VISION');
+  });
+
+  it('returns the same object when already unwrapped', () => {
+    const doc = healthyPolicy();
+    expect(unwrapCompanionProxy(doc)).toBe(doc);
+  });
+
+  it('policyDocumentFromProxyJson hydrates channels from the envelope', () => {
+    const envelope = { ok: true, lane: 'NEW', data: healthyPolicy() };
+    const doc = policyDocumentFromProxyJson(envelope);
+    expect(doc.channels.gcs_4g).toBeTruthy();
+    expect(doc.channels.rfd900x).toBeTruthy();
+    const vis = channelCategoryStates(doc.channels.gcs_4g).find((s) => s.category === 'VISION');
+    expect(vis.denied).toBe(true);
+  });
+
+  it('does not treat mapPolicyPreview tokens as a policy document', () => {
+    const mapped = mapPolicyPreview(healthyPolicy());
+    expect(mapped.gcs_4g.tokens.VISION).toBe('denied');
+    expect(policyDocumentFromProxyJson(mapped)).toBeNull();
+    expect(policyDocumentFromProxyJson({ ok: true, lane: 'NEW', data: mapped })).toBeNull();
+  });
+
+  it('unwraps policy preview snippet from the envelope', () => {
+    const preview = healthyPolicyPreview();
+    const data = unwrapCompanionProxy({ ok: true, lane: 'NEW', data: preview });
+    expect(data.snippet).toContain('preview only');
+    expect(data.applySupported).toBe(false);
+  });
+});
+
+describe('policy editor GET/PUT round-trip through proxy envelope', () => {
+  /** @type {import('http').Server} */
+  let server;
+  /** @type {string} */
+  let base;
+
+  beforeAll(async () => {
+    const app = express();
+    app.use(express.json());
+    registerCompanionProxyApi(app, { companionService: createCompanionService({ COMPANION_MODE: 'mock' }) });
+    server = await new Promise((resolve) => {
+      const s = app.listen(0, '127.0.0.1', () => resolve(s));
+    });
+    const addr = server.address();
+    base = `http://127.0.0.1:${addr.port}`;
+  });
+
+  afterAll(async () => {
+    await new Promise((resolve) => server.close(resolve));
+  });
+
+  it('GET envelope unwraps to channels the editor can render', async () => {
+    const res = await fetch(`${base}${COMPANION_PROXY_PREFIX}/policy`);
+    expect(res.status).toBe(200);
+    const envelope = await res.json();
+    expect(envelope.ok).toBe(true);
+    expect(envelope.lane).toBe('NEW');
+    expect(envelope.channels).toBeUndefined();
+    const doc = policyDocumentFromProxyJson(envelope);
+    expect(doc.channels.gcs_4g.deny).toContain('VISION');
+    const states = channelCategoryStates(doc.channels.gcs_4g);
+    expect(states.find((s) => s.category === 'VISION').denied).toBe(true);
+    expect(states.find((s) => s.category === 'HEARTBEAT').denied).toBe(false);
+  });
+
+  it('PUT is 200 and GET rehydrate still sees channels', async () => {
+    const before = policyDocumentFromProxyJson(
+      await fetch(`${base}${COMPANION_PROXY_PREFIX}/policy`).then((r) => r.json()),
+    );
+    const next = structuredClone(before);
+    next.channels.gcs_4g.deny = ['HIGH_RATE'];
+    const put = await fetch(`${base}${COMPANION_PROXY_PREFIX}/policy`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(next),
+    });
+    expect(put.status).toBe(200);
+    const putBody = await put.json();
+    expect(putBody.ok).toBe(true);
+    expect(unwrapCompanionProxy(putBody).applied).toBe(false);
+
+    const after = policyDocumentFromProxyJson(
+      await fetch(`${base}${COMPANION_PROXY_PREFIX}/policy`).then((r) => r.json()),
+    );
+    expect(after.channels.gcs_4g.deny).toEqual(['HIGH_RATE']);
+    const states = channelCategoryStates(after.channels.gcs_4g);
+    expect(states.find((s) => s.category === 'HIGH_RATE').denied).toBe(true);
+    expect(after.channels.gcs_4g.deny).not.toContain('VISION');
+  });
+
+  it('POST /policy/apply stays 404', async () => {
+    const r = await fetch(`${base}${COMPANION_PROXY_PREFIX}/policy/apply`, { method: 'POST' });
+    expect(r.status).toBe(404);
+    const j = await r.json();
+    expect(j.code).toBe('companion_forbidden');
   });
 });
