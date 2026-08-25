@@ -70,6 +70,14 @@ describe('companion proxy routes', () => {
     expect(put.data.applied).toBe(false);
   });
 
+  it('does not expose config apply or restart', async () => {
+    const apply = await fetch(`${base}${COMPANION_PROXY_PREFIX}/config/apply`, { method: 'POST' });
+    const restart = await fetch(`${base}${COMPANION_PROXY_PREFIX}/config/restart`, { method: 'POST' });
+    expect(apply.status).toBe(404);
+    expect(restart.status).toBe(404);
+    expect((await apply.json()).code).toBe('companion_forbidden');
+  });
+
   it('does not expose ARM / LAND', async () => {
     const arm = await fetch(`${base}${COMPANION_PROXY_PREFIX}/arm`, { method: 'POST' });
     const land = await fetch(`${base}${COMPANION_PROXY_PREFIX}/land`, { method: 'POST' });

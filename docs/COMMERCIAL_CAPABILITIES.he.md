@@ -173,6 +173,7 @@
 ## 7. Jetson companion, חזון, ו MAVLink
 
 - **Companion API v1 — יסוד תצוגה בלבד:** לקוח Node ופרוקסי מקומי מזינים את לוח הטלמטריה ואת פאנל המלווה בסטטוס בקר, MAVLink, ערוצים, ראייה, ניווט, נחיתה, וידאו, תצורה, מדיניות ואבחון. ערכים חסרים נשארים ריקים; אין פקודות טיסה, כתיבת פרמטרי FC, החלת מדיניות או הזרמת וידאו.
+- **תצורת מלווה בזמן ריצה:** שמירה מאושרת בלבד. לא מוחל. שכבות טיסה קריטיות נשארות לקריאה.
 - **דופק חיים:** `POST /api/jetson/heartbeat` (ואחורה `/api/rpi/*`) — חיבור סטטוס Jetson ללוח הבקרה; כולל `peerIp`, relay MAVLink, ומצב FC.
 - **Companion agent:** `companion_agent.py` — relay MAVLink (TCP :5770), HTTP לוגים/התקנה, heartbeat לקונסול; `GET /api/jetson/companion-script`, `POST /api/jetson/install`, `POST /api/jetson/pull-logs`.
 - **חיבור חכם:** `POST /api/connections/auto-connect` + `GET …/auto-connect/progress` (polling) — USB FC ישיר → Jetson relay → SITL מקומי; סרגל שלבים בזמן אמת (סריקה / heartbeat / סיום); **ללא** בחירת מוד ב-UI.

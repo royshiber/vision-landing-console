@@ -4210,6 +4210,17 @@ button:hover,
   color: var(--text-muted);
 }
 
+.companion-config-input {
+  min-width: 0;
+  width: 100%;
+  font-size: 0.72rem;
+  padding: 2px 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-raised);
+  color: var(--text);
+}
+
 .companion-maint-panel {
   padding: 16px 18px;
   overflow: auto;
