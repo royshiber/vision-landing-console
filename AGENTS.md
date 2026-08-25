@@ -1,6 +1,6 @@
 # AIRVIX Project Constitution
 
-Approved 2026-08-24 by Product Owner Roy, including the PM-stop addendum.
+Approved 2026-08-24 by Product Owner Roy, including the PM-stop addendum. Leadership addendum 2026-08-25 is in force and does not replace the delivery loop, Human Gates, Companion real-mode gate, NEVER rules, or the PM-stop addendum.
 
 This file is the work-rules source of truth for AIRVIX (Vision Landing Console). Do not weaken, omit, or invent safety or product rules.
 
@@ -42,6 +42,20 @@ The PM may stop, reject, or change a Cloud Agent task at any stage if VERIFY fin
 That stop does NOT require a Human Gate.
 
 A Human Gate is required only when Roy must decide Product / UX / Architecture / Safety / Production behavior.
+
+## Leadership addendum (2026-08-25)
+
+After constitution approval, do not wait for a next-task order. End of a task is VERIFY → report → update backlog → pick the next task and continue.
+
+A Human Gate is a decision point, not a general stop. After Roy decides, execute and return to the loop immediately.
+
+Choose among safe in-constitution options yourself. Do not send Roy a choice this constitution already answers. Do not ask "what now?" if this file already has enough to know.
+
+Stop and ask Roy only for: undefined product/UX; a significant safety or scope change; Jetson / FC / Companion-real / protocol work without GO; merge or another named Human Gate; a significant conflict; a 3-retry failure; genuine inability to know what is right.
+
+Do not create artificial work just to stay busy. If nothing is high-value enough, stop and report project status plus a recommendation.
+
+Before every new task, rank the backlog by product impact, user-visible value, dependencies/blockers, risk, alignment with the current AIRVIX phase, and the smallest safe next step. Pick the highest-priority task that is not a Human Gate. Do not measure success by PR count.
 
 ## Autonomous (no Human Gate)
 
@@ -152,13 +166,13 @@ Do not implement the runtime gate, and do not enable real, until that GO.
 2. Close PR #1, #2, #3 as superseded (no merge).
 3. Next user-visible console bug.
 
-Do not merge existing drafts #4 (orchestrator smoke) or #5 (connections schema) unless Roy says merge.
+PR #5 (connections schema) merged 2026-08-25, merge commit `f5ddc14`. Remaining open drafts stay draft until Roy says merge: #4 (orchestrator smoke, no product value), #6 (this constitution), #9 Assist Hebrew buttons, #13 Development empty-state Hebrew stacked on #9, #15 changelog product copy for 1.02.254+1.02.255. Companion real still has no GO.
 
 ---
 
 ## Repo operations
 
-Factual how-to-run notes for Cloud Agents on current `master` (as of 2026-08-24). These notes are not a license to ignore this constitution.
+Factual how-to-run notes for Cloud Agents on current `master` (as of 2026-08-25). These notes are not a license to ignore this constitution.
 
 - Node/Express app. Entry: `server.js`. UI: `public/`. API: `/api/*`.
 - SQLite at `data/vision-landing.sqlite`, created by `lib/db.mjs`.
@@ -168,7 +182,7 @@ Factual how-to-run notes for Cloud Agents on current `master` (as of 2026-08-24)
 - Tests: `npm test` (vitest). Known master baseline failures exist (`advisor-actions`, `flight-engineer-sanitize`, `mavlink-parse-telemetry`). Do not "fix" them inside an unrelated task. Do not add a fake test for this markdown policy file.
 - No lint tooling. Do not invent one unless asked.
 - `npm run test:smoke` needs Playwright chromium.
-- On current master, `GET /api/connections` may return HTTP 500 because the `connections` table is missing from `lib/db.mjs`. Draft PR #5 adds the table; it is not merged. This is current master behavior, not an environment failure.
+- PR #5 merged 2026-08-25, merge commit `f5ddc14`. Current master `lib/db.mjs` has `CREATE TABLE IF NOT EXISTS connections`. APP_VERSION on that landing is `1.02.255` (hook bump that rode in with PR #5). The schema 500 on `GET /api/connections` is gone on current master. A 500 there is not expected master behavior.
 - Gemini features are optional without `GEMINI_API_KEY` (the name is gitignored via `.env`). The core app runs without it. Never put real keys, `.env` values, Jetson addresses, credentials, or secrets in this file, a prompt, a PR, or logs.
 - The pre-commit hook auto-bumps `APP_VERSION` and restages `version.js`, `package.json`, `package-lock.json`, and `public/changelog.json`. This constitution forbids leaving that bump in a PR except at release (unless Roy gives an explicit exception). If the hook fires on a non-release commit, revert those files back to master. Do not skip git hooks. Do not leave a dummy changelog entry.
 - New tasks start from `master`. Follow existing branch names (`development/tasks/<slug>`). Do not invent a new convention family. Do not stack on an unrelated PR.
