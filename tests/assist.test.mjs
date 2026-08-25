@@ -559,6 +559,10 @@ describe('Assist rail proposal chrome', () => {
     expect(cancelLabel).not.toBe('Cancel');
   });
 
+  it('keeps CURSOR_AGENT_START prohibited as a proposed Assist action', () => {
+    expect(ASSIST_PROHIBITED_ACTIONS).toContain('CURSOR_AGENT_START');
+  });
+
   it('does not hardcode English Confirm/Cancel onto those buttons in JS', () => {
     const js = fs.readFileSync(path.join(repoRoot, 'public', 'app.js'), 'utf8');
     expect(js).not.toMatch(/assistConfirmBtn[\s\S]{0,240}?(?:textContent|innerText|innerHTML)\s*=\s*['"`]Confirm['"`]/);
