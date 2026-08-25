@@ -1,6 +1,6 @@
 import { describe, expect, it, beforeAll, afterAll } from 'vitest';
 import express from 'express';
-import { createCompanionService } from '../lib/companion-service.mjs';
+import { createCompanionService, resolveCompanionMode } from '../lib/companion-service.mjs';
 import { registerCompanionProxyApi } from '../lib/routes/companion-proxy-api.mjs';
 import { COMPANION_PROXY_PREFIX } from '../lib/companion-v1-paths.mjs';
 import { getCompanionBaseUrl } from '../lib/jetson-companion-proxy.mjs';
@@ -127,11 +127,13 @@ describe('companion proxy routes', () => {
 });
 
 describe('companion service config', () => {
-  it('selects real mode from JETSON_COMPANION_BASE_URL', () => {
-    const svc = createCompanionService({
+  it('selects real mode only when COMPANION_MODE=real and JETSON_COMPANION_BASE_URL are both set', () => {
+    const env = {
       COMPANION_MODE: 'real',
       JETSON_COMPANION_BASE_URL: 'http://jetson:8080',
-    });
+    };
+    expect(resolveCompanionMode(env)).toBe('real');
+    const svc = createCompanionService(env);
     expect(svc.mode).toBe('real');
     expect(svc.baseUrl).toBe('http://jetson:8080');
     expect(svc.client.kind).toBe('real');
@@ -147,16 +149,81 @@ describe('companion service config', () => {
     expect(svc.client.eventsUrl()).toBe('http://jetson:8472/api/v1/events');
   });
 
+  it('does not select real from JETSON_COMPANION_BASE_URL alone', () => {
+    const env = { JETSON_COMPANION_BASE_URL: 'http://jetson:8080' };
+    expect(resolveCompanionMode(env)).toBe('off');
+    const svc = createCompanionService(env);
+    expect(svc.mode).toBe('off');
+    expect(svc.client).toBeNull();
+  });
+
+  it('does not select real from empty or garbage COMPANION_MODE even when a URL is set', () => {
+    expect(resolveCompanionMode({
+      COMPANION_MODE: '',
+      JETSON_COMPANION_BASE_URL: 'http://jetson:8080',
+    })).toBe('off');
+    expect(resolveCompanionMode({
+      COMPANION_MODE: 'yes',
+      JETSON_COMPANION_BASE_URL: 'http://jetson:8080',
+    })).toBe('off');
+    const svc = createCompanionService({
+      COMPANION_MODE: 'garbage',
+      JETSON_COMPANION_BASE_URL: 'http://jetson:8080',
+    });
+    expect(svc.mode).toBe('off');
+    expect(svc.client).toBeNull();
+  });
+
+  it('does not select real from COMPANION_MODE=real without a URL', () => {
+    const env = { COMPANION_MODE: 'real' };
+    expect(resolveCompanionMode(env)).toBe('off');
+    const svc = createCompanionService(env);
+    expect(svc.mode).toBe('off');
+    expect(svc.client).toBeNull();
+  });
+
+  it('does not select real from COMPANION_MODE=real with a blank URL', () => {
+    const env = { COMPANION_MODE: 'real', JETSON_COMPANION_BASE_URL: '   ' };
+    expect(resolveCompanionMode(env)).toBe('off');
+    const svc = createCompanionService(env);
+    expect(svc.mode).toBe('off');
+    expect(svc.client).toBeNull();
+  });
+
   it('defaults to off without URL so existing UI stays on legacy state', () => {
+    expect(resolveCompanionMode({ COMPANION_MODE: '', JETSON_COMPANION_BASE_URL: '' })).toBe('off');
     const svc = createCompanionService({ COMPANION_MODE: '', JETSON_COMPANION_BASE_URL: '' });
     expect(svc.mode).toBe('off');
     expect(svc.client).toBeNull();
   });
 
   it('mock does not require a base URL', () => {
+    expect(resolveCompanionMode({ COMPANION_MODE: 'mock' })).toBe('mock');
     const svc = createCompanionService({ COMPANION_MODE: 'mock' });
     expect(svc.mode).toBe('mock');
     expect(svc.describe().baseUrl).toBe('mock://companion');
+  });
+
+  it('keeps explicit mock even when a URL is set', () => {
+    const env = {
+      COMPANION_MODE: 'mock',
+      JETSON_COMPANION_BASE_URL: 'http://jetson:8080',
+    };
+    expect(resolveCompanionMode(env)).toBe('mock');
+    const svc = createCompanionService(env);
+    expect(svc.mode).toBe('mock');
+    expect(svc.client.kind).toBe('mock');
+  });
+
+  it('keeps explicit off even when a URL is set', () => {
+    const env = {
+      COMPANION_MODE: 'off',
+      JETSON_COMPANION_BASE_URL: 'http://jetson:8080',
+    };
+    expect(resolveCompanionMode(env)).toBe('off');
+    const svc = createCompanionService(env);
+    expect(svc.mode).toBe('off');
+    expect(svc.client).toBeNull();
   });
 
   it('does not send legacy companion_agent calls to a v1 API base', () => {
