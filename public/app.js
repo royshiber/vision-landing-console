@@ -2383,6 +2383,22 @@ let _policyOriginal = null;
 let _policyEdited = {};
 let _policyUiState = 'LOADING';
 
+/** Mirror of lib/companion-proxy-unwrap.mjs — app.js is not an ES module. */
+function unwrapCompanionProxy(json) {
+  if (json && typeof json === 'object' && json.data != null && typeof json.data === 'object') {
+    return json.data;
+  }
+  return json;
+}
+
+function policyDocumentFromPayload(payload) {
+  const doc = unwrapCompanionProxy(payload);
+  if (doc && typeof doc === 'object' && doc.channels && typeof doc.channels === 'object') {
+    return doc;
+  }
+  return null;
+}
+
 function policySetState(state) {
   _policyUiState = state;
   const badge = document.getElementById('policyUiState');
@@ -2492,20 +2508,23 @@ function policyBuildWire() {
 }
 
 function policyApplyFromServer(policy) {
-  _policyOriginal = policy;
-  if (!policy || typeof policy !== 'object') {
+  const doc = policyDocumentFromPayload(policy);
+  if (!doc) {
+    _policyOriginal = null;
     _policyEdited = {};
     policySetState('UNAVAILABLE');
     policyRenderAll();
-    return;
+    return false;
   }
-  const ch = policy.channels || {};
+  _policyOriginal = doc;
+  const ch = doc.channels;
   _policyEdited = {
     gcs_4g: policyCatStateFromChannel(ch.gcs_4g),
     rfd900x: policyCatStateFromChannel(ch.rfd900x),
   };
   policyShowError(null);
   policyRenderAll();
+  return true;
 }
 
 async function policyLoad() {
@@ -2516,7 +2535,10 @@ async function policyLoad() {
     const res = await fetch('/api/jetson/v1/policy');
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
-    policyApplyFromServer(data);
+    if (!policyApplyFromServer(data)) {
+      policySetState('UNAVAILABLE');
+      return;
+    }
     policySetState('AVAILABLE');
   } catch (e) {
     policySetState('ERROR');
@@ -2542,9 +2564,11 @@ async function policySave() {
     }
     policySetState('SAVED_NOT_APPLIED');
     const now = new Date().toLocaleTimeString('he-IL');
-    policyShowSave(`נשמר בהצלחה ב-${now} — לא הוחל על המערכת`);
+    const saveMsg = `נשמר בהצלחה ב-${now} — לא הוחל על המערכת`;
+    policyShowSave(saveMsg);
     await policyLoad();
     policySetState('SAVED_NOT_APPLIED');
+    policyShowSave(saveMsg);
   } catch (e) {
     policySetState('INVALID');
     policyShowError(String(e.message || e));
@@ -2558,8 +2582,8 @@ async function policyPreview() {
   try {
     const res = await fetch('/api/jetson/v1/policy/preview');
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-    pre.textContent = data.snippet || JSON.stringify(data, null, 2);
+    const data = unwrapCompanionProxy(await res.json());
+    pre.textContent = (data && data.snippet) || JSON.stringify(data, null, 2);
     sec.hidden = false;
   } catch (e) {
     pre.textContent = String(e.message || e);
@@ -2674,7 +2698,7 @@ function applyCompanionUi(companion) {
       return `<span class="companion-chip ${cls}">${escapeHtml(name)} ${escapeHtml(companionValidityText(validity))}</span>`;
     }).join('') || '—';
   }
-  if (companion.policy && _policyUiState === 'LOADING') {
+  if (companion.policy && _policyUiState === 'LOADING' && policyDocumentFromPayload(companion.policy)) {
     policyApplyFromServer(companion.policy);
     policySetState('AVAILABLE');
   }
