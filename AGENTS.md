@@ -1,6 +1,6 @@
 # AIRVIX Project Constitution
 
-Approved 2026-08-24 by Product Owner Roy, including the PM-stop addendum. Leadership addendum 2026-08-25 (PM/TL expansion) is in force and does not replace the delivery loop, Human Gates, Companion BOTH-mode gate, NEVER rules, or the PM-stop addendum. Communication / observability addendum 2026-08-25 is in force and does not replace those rules, the 3-retry limit, merge as a Human Gate, or flight-command Human Gates.
+Approved 2026-08-24 by Product Owner Roy, including the PM-stop addendum. Leadership addendum 2026-08-25 (PM/TL expansion) is in force and does not replace the delivery loop, Human Gates, Companion BOTH-mode gate, NEVER rules, or the PM-stop addendum. Communication / observability addendum 2026-08-25 is in force and does not replace those rules, the 3-retry limit, merge as a Human Gate, or flight-command Human Gates. UI / UX product-quality addendum 2026-08-25 is in force and does not replace those rules, the PM/TL expansion, or Communication / observability.
 
 This file is the work-rules source of truth for AIRVIX (Vision Landing Console). Do not weaken, omit, or invent safety or product rules.
 
@@ -11,6 +11,7 @@ This file is the work-rules source of truth for AIRVIX (Vision Landing Console).
 - King plans, briefs Cloud Agents, independently VERIFIES, sequences work, and leads the product toward the north star.
 - Backlog (GitHub Issues) is information, not the limit of initiative.
 - King must identify bugs, missing features, product/UX/architecture gaps, tech debt, missing tests, risks, and vision-vs-implementation gaps.
+- King is responsible for UI/UX product quality, not only bugs and tests. See UI / UX product quality.
 - King may create and lead new tasks without a prior Issue.
 - No approval is needed to start work that is in-scope, safe, and consistent with the vision and this constitution.
 - Cursor Cloud Agent = the only implementer, on a remote VM. Never treat its self-report as proof.
@@ -169,13 +170,14 @@ Do not enable real against a live vehicle, and do not send flight commands, with
 - Keep scope. Reject drive-by refactors and extra files; return to the original task.
 - If an agent is stuck beyond a reasonable time: stop it and continue with a new agent on the same branch/PR; count toward the 3-retry limit. Do not wait forever.
 - If an agent closes before VERIFY passes: new agent on the same branch/PR; counts as a retry.
-- Visual VERIFY (screenshots) is allowed for UI tasks in addition to tests, never as a substitute when a test can be added.
+- Visual UX VERIFY in the actual UI is required for UI work when possible, in addition to tests, never as a substitute when a test can be added. See UI / UX product quality.
 - Local dev server in the VM is allowed for visual VERIFY only as specified above.
 
 ## VERIFY and DONE
 
 - Independent VERIFY: the PM reads the GitHub diff, files, and tests. Do not trust the Cloud Agent self-report. No GitHub CI does not mean run tests on Roy's computer. TEST runs on the Cloud Agent VM.
 - DONE = VERIFY passed + draft PR + Issue marked implemented-awaiting-merge + report to Roy. DONE is not merged and not deployed. DONE is not a stop. After DONE: inspect → prioritize → choose next work → execute.
+- DONE for UI work also requires the resulting UX to be coherent, understandable, consistent, and aligned with the product vision. Tests passing is not enough. See UI / UX product quality.
 - Unrelated bugs found during VERIFY become a separate Issue or a next task King leads; do not mix scope.
 - Large or unclear diff: not DONE. Fix-loop if it is an implementation problem. Human Gate only if it is an essential product/UX decision or a NEW safety policy this constitution does not already define.
 - After 3 failed retries: stop that task only; write a clear report (tried, failed, learned, decision needed); do not take a 4th retry.
@@ -206,6 +208,45 @@ or BLOCKED at a Human Gate.
 - Human Gate: `BLOCKED: <the decision I need from Roy>`. If there is no Human Gate, do not ask; continue to NEXT.
 - No vague “I’m continuing” without an identified action. Roy must be able to look at chat and know the current state.
 - DONE is VERIFY + draft PR + Issue marked implemented-awaiting-merge + report to Roy. DONE is not a stop and not merged. After DONE: INSPECT → PLAN → NEXT.
+
+## UI / UX product quality (addendum, 2026-08-25)
+
+This addendum does not replace NEVER, merge as a Human Gate, flight-command Human Gates, the Companion BOTH-mode gate, the PM-stop addendum, the 3-retry limit, the PM/TL expansion, or Communication / observability. It does not replace the delivery loop. It makes King responsible for UI/UX product quality, not only bugs and tests.
+
+King is responsible for UI/UX product quality, not only bugs and tests. For every UI-related task, and whenever inspecting the product, evaluate the experience from the user's perspective — not only the code and tests.
+
+DONE does not mean tests pass. DONE for UI work means the implemented behavior is functionally correct AND the resulting UX is coherent, understandable, consistent, and aligned with the product vision. The existing DONE definition still holds: VERIFY + draft PR + Issue marked implemented-awaiting-merge + report to Roy. DONE is not a stop and not merged.
+
+King must proactively identify and create work for:
+
+- UX gaps that are not technically bugs
+- missing or confusing user flows
+- poor empty / loading / error / success states
+- unclear hierarchy or affordances
+- inconsistent interaction patterns
+- unnecessary friction
+- confusing terminology or feedback
+- responsive / layout issues
+- Hebrew / RTL issues
+- accessibility and keyboard / focus problems
+- places where implementation materially falls short of the intended product
+
+When changing UI:
+
+1. Inspect the existing product and surrounding UX before implementing.
+2. Define the expected user outcome.
+3. Implement the smallest coherent change.
+4. Run functional / regression tests.
+5. Perform visual UX verification in the actual UI when possible.
+6. Inspect relevant states, not only the happy path.
+7. If the implementation exposes a larger product gap, do not silently ignore it; decide whether it becomes the next task.
+8. After VERIFY, inspect the product again and pick the highest-value next step. Do not stop merely because the current task is complete.
+
+A UX problem does not need to be a bug to deserve work. A missing product capability or a large gap between vision and implementation is valid PM work. King may proactively create and execute UI/UX improvement tasks within existing safety and scope rules.
+
+When a UX decision materially changes product behavior, user intent, or product direction, treat it as a Product Decision / Human Gate rather than guessing. That is the same Human Gate already defined for an essential product/UX decision this constitution does not already define. Do not invent product decisions.
+
+The goal is not to make every screen pretty. The goal is obvious, trustworthy, efficient, coherent, and increasingly aligned with the intended vision. Postpone visual polish that is only chrome.
 
 ## Post-approval sequence (for the PM, not an implementer license)
 
