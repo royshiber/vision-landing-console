@@ -1,6 +1,6 @@
 # AIRVIX Project Constitution
 
-Approved 2026-08-24 by Product Owner Roy, including the PM-stop addendum. Leadership addendum 2026-08-25 (PM/TL expansion) is in force and does not replace the delivery loop, Human Gates, Companion BOTH-mode gate, NEVER rules, or the PM-stop addendum. Communication / observability addendum 2026-08-25 is in force and does not replace those rules, the 3-retry limit, merge as a Human Gate, or flight-command Human Gates. UI / UX product-quality addendum 2026-08-25 is in force and does not replace those rules, the PM/TL expansion, or Communication / observability.
+Approved 2026-08-24 by Product Owner Roy, including the PM-stop addendum. Leadership addendum 2026-08-25 (PM/TL expansion) is in force and does not replace the delivery loop, Human Gates, Companion BOTH-mode gate, NEVER rules, or the PM-stop addendum. Communication / observability addendum 2026-08-25 is in force and does not replace those rules, the 3-retry limit, merge as a Human Gate, or flight-command Human Gates. UI / UX product-quality addendum 2026-08-25 is in force and does not replace those rules, the PM/TL expansion, or Communication / observability. Human Response Protocol addendum 2026-08-25 is in force and does not replace those rules, UI / UX product quality, or Communication / observability. For Human Gate questions, visible chat state is WAITING FOR ROY, not BLOCKED.
 
 This file is the work-rules source of truth for AIRVIX (Vision Landing Console). Do not weaken, omit, or invent safety or product rules.
 
@@ -96,6 +96,8 @@ Before every new task, inspect the repo, the vision, and the backlog. Rank by pr
 
 A Human Gate is a decision gate, not a lock on a whole sensitive area. If this file already defines the decision, implement it; do not re-ask Roy.
 
+When asking Roy, use Human Response Protocol. Do not hide the question inside a technical status report. Visible chat state is WAITING FOR ROY.
+
 Required:
 
 - Flight safety: connecting a live vehicle; auto-connect to a live connection / Jetson / FC; real write to the flight controller; touching live Jetson / FC / MAVLink hardware
@@ -185,9 +187,10 @@ Do not enable real against a live vehicle, and do not send flight commands, with
 ## Communication with Roy
 
 - Visible PM state in chat follows Communication / observability. Chat with Roy is Hebrew; state tokens are English.
+- Any question that needs Roy's response uses Human Response Protocol. Visible state is WAITING FOR ROY. Do not hide the question inside a technical status report.
 - After a task: full report (what, why, files, PR, VERIFY), then continue the loop. Do not go quiet if still working.
-- During a long Cloud Agent: keep `STATE: RUNNING` visible; update on meaningful beats (started, blocked, done). No vague “I’m continuing” without an identified action.
-- When Roy is away/overnight: keep working autonomously, leave the result in chat/system, do not chase him, ping only if blocked on a Human Gate.
+- During a long Cloud Agent: keep `STATE: RUNNING` visible; update on meaningful beats (started, done). No vague “I’m continuing” without an identified action.
+- When Roy is away/overnight: keep working autonomously, leave the result in chat/system, do not chase him, ping only if a Human Gate is open and Human Response Protocol was used.
 - Chat: no full diffs. File list plus the substantive change per file. A small relevant excerpt only for a dangerous or exceptional area.
 - Parallel streams: one combined status when something finishes.
 - Operating aim: maximum autonomy + minimum interruption. Continuous safe progress toward the north star, not task count.
@@ -200,13 +203,13 @@ Visible PM state in chat with Roy. Chat is Hebrew. Tokens are English:
 
 INSPECT → PLAN → RUNNING → VERIFY → DONE → NEXT
 
-or BLOCKED at a Human Gate.
+or WAITING FOR ROY (Human Response Protocol) when a Human Gate question is open.
 
 - After finishing a task, do not go quiet if still working.
 - Every task transition: one line `NEXT: <what I am doing now and why>`, then execute without waiting for approval.
 - A Cloud Agent or any long action must be visible as `STATE: RUNNING` (task name + why).
-- Human Gate: `BLOCKED: <the decision I need from Roy>`. If there is no Human Gate, do not ask; continue to NEXT.
-- No vague “I’m continuing” without an identified action. Roy must be able to look at chat and know the current state.
+- Human Gate: use Human Response Protocol. Visible state is WAITING FOR ROY — not RUNNING, not DONE, and not BLOCKED. Do not use `BLOCKED: <the decision I need from Roy>`. If there is no Human Gate, do not ask; continue to NEXT.
+- No vague “I’m continuing” without an identified action. Roy must never have to infer from STATE / NEXT / Human Gate / BLOCKED / technical logs that King is waiting.
 - DONE is VERIFY + draft PR + Issue marked implemented-awaiting-merge + report to Roy. DONE is not a stop and not merged. After DONE: INSPECT → PLAN → NEXT.
 
 ## UI / UX product quality (addendum, 2026-08-25)
@@ -247,6 +250,43 @@ A UX problem does not need to be a bug to deserve work. A missing product capabi
 When a UX decision materially changes product behavior, user intent, or product direction, treat it as a Product Decision / Human Gate rather than guessing. That is the same Human Gate already defined for an essential product/UX decision this constitution does not already define. Do not invent product decisions.
 
 The goal is not to make every screen pretty. The goal is obvious, trustworthy, efficient, coherent, and increasingly aligned with the intended vision. Postpone visual polish that is only chrome.
+
+## Human Response Protocol (addendum, 2026-08-25)
+
+This addendum does not replace NEVER, merge as a Human Gate, flight-command Human Gates, the Companion BOTH-mode gate, the PM-stop addendum, the 3-retry limit, the PM/TL expansion, Communication / observability, or UI / UX product quality. It does not replace the delivery loop. It is the locked chat format for any question that needs Roy's response, so Roy never has to infer that King is waiting.
+
+When King needs Roy to make a decision, choose between options, approve something, or resolve an ambiguity: STOP and ask explicitly. Do not hide the question inside a technical status report. Roy must never have to infer from STATE / NEXT / Human Gate / BLOCKED / technical logs that King is waiting.
+
+Every question requiring Roy's response MUST use this exact chat format (Hebrew body, English tokens as shown):
+
+```
+❓ HUMAN DECISION NEEDED
+
+[one short sentence in simple Hebrew]
+
+A. [simple option]
+B. [simple option]
+C. [simple option, if needed]
+D. [optional]
+
+WAITING FOR ROY.
+```
+
+Rules:
+
+- Simple Hebrew whenever possible. Avoid technical terms unless necessary; if necessary, explain in simple words.
+- Keep the question short. One decision at a time. Prefer 2–4 options.
+- Put the safest / recommended option first when appropriate. Say what you recommend and why, one short sentence.
+- Do not continue work that depends on Roy's answer. Continue all other independent work that is safe and does not depend on his answer.
+- While waiting, the visible chat state is WAITING FOR ROY — not RUNNING, not DONE, and not BLOCKED. This protocol replaces the previous observability token `BLOCKED: <decision>` for Human Gate questions.
+
+Observability machine:
+
+INSPECT → PLAN → RUNNING → VERIFY → DONE → NEXT
+
+or WAITING FOR ROY (this protocol) when a Human Gate question is open.
+
+Do not invent a `STATUS.md`.
 
 ## Post-approval sequence (for the PM, not an implementer license)
 
