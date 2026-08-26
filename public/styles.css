@@ -4367,6 +4367,9 @@ button:hover,
   justify-content: center;
   background: rgba(0, 0, 0, 0.45);
 }
+.maint-rel-modal[hidden] {
+  display: none !important;
+}
 .maint-rel-modal-card {
   width: min(420px, 92vw);
   padding: 16px 18px;
