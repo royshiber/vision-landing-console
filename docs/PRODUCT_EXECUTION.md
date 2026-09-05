@@ -213,4 +213,4 @@ Do not spend cycles on smoke #4, more Hebrew / chrome polish, version bump, 300+
 
 ### Next pick (this snapshot)
 
-Roy authorized a focused UI/UX friction pass while the Companion token is delayed. Jetson still parked. Do not invent a token. Do not fake a live connect. Human Gates stay **WAITING FOR ROY**: #28 apply/restart, #29 live vehicle / auto-land. After this friction pass: live Jetson proof stays parked on the token. Do not ask Roy what to work on next.
+UI/UX design pass landed (disconnected-first overview). Jetson still parked on the Companion token. Do not invent a token. Do not fake a live connect. Human Gates stay **WAITING FOR ROY**: #28 apply/restart, #29 live vehicle / auto-land. Do not ask Roy what to work on next.

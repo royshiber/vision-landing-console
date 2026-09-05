@@ -132,7 +132,7 @@
         <button type="button" id="assistCloseBtn" class="assist-close-btn" aria-label="סגור">✕</button>
       </header>
       <p class="assist-rail-hint">שכבת אינטראקציה — לא צ׳אטבוט אוטונומי. הצעות דורשות אישור.</p>
-      <section id="assistAgentConnect" class="assist-agent-connect" data-state="disconnected" aria-label="חיבור הסוכן">
+      <section id="assistAgentConnect" class="assist-agent-connect operator-state" data-state="disconnected" aria-label="חיבור הסוכן">
         <p id="assistAgentStatus" class="assist-agent-status" aria-live="polite">הסוכן מנותק.</p>
         <p id="assistAgentHint" class="assist-agent-hint">כדי להריץ שינוי מאושר צריך לחבר את הסוכן.</p>
         <p id="assistAgentKeyHint" class="assist-agent-key-hint" hidden dir="ltr"></p>
@@ -517,7 +517,7 @@
           </div>
         </div>
         <div id="companionApiUnavailable" class="companion-api-unavailable" hidden></div>
-        <section id="companionConnect" class="companion-connect assist-agent-connect" data-state="disconnected" aria-label="חיבור מלווה">
+        <section id="companionConnect" class="companion-connect assist-agent-connect operator-state" data-state="disconnected" aria-label="חיבור מלווה">
           <p id="companionConnectStatus" class="assist-agent-status" aria-live="polite">המלווה מנותק</p>
           <p id="companionConnectHint" class="assist-agent-hint">חיבור דורש כתובת ואסימון יחד. כתובת לבד לא מחברת.</p>
           <p id="companionConnectPathHint" class="assist-agent-key-hint" hidden dir="ltr">/api/v1/*</p>
@@ -533,7 +533,8 @@
           <button type="button" id="companionDisconnectBtn" class="assist-btn assist-btn-cancel" hidden>ניתוק</button>
         </section>
         <div id="teleDashPanel" class="tele-subpanel visible" data-tele-panel="dash">
-        <div class="companion-dashboard-summary" aria-label="סיכום Companion API">
+        <p id="companionLiveParked" class="operator-state-parked">סיכום המלווה יופיע אחרי חיבור. כתובת לבד לא מחברת.</p>
+        <div id="companionDashboardSummary" class="companion-dashboard-summary" hidden aria-label="סיכום Companion API">
           <article class="tele-card"><span>Companion API</span><strong id="companionApiState">כבוי</strong></article>
           <article class="tele-card"><span>גרסת Companion</span><strong id="companionApiVersion">—</strong></article>
           <article class="tele-card"><span>בקר טיסה</span><strong id="companionFcConnected">—</strong></article>
@@ -721,7 +722,8 @@
 
         <div id="teleCompanionPanel" class="tele-subpanel companion-b2-panel" data-tele-panel="companion">
           <p class="tele-dash-note">תצוגה בלבד מנתוני Companion API ללא פקודות טיסה או כתיבות</p>
-          <div class="companion-section-grid">
+          <p id="companionB2Parked" class="operator-state-parked">נתוני מלווה יופיעו אחרי חיבור. כתובת לבד לא מחברת.</p>
+          <div id="companionB2Grid" class="companion-section-grid" hidden>
             <section class="companion-b2-section">
               <h3>מערכת ובקר</h3>
               <div class="companion-b2-table">
@@ -820,12 +822,27 @@
 
       <section id="maintenance" class="panel">
         <div class="companion-maint-panel">
-          <h3>פיתוח ותחזוקה</h3>
-          <p class="tele-dash-note" id="maintStatusBadge">—</p>
+          <header class="operator-overview">
+            <h3>תחזוקה</h3>
+            <div id="maintOperatorBanner" class="operator-state" data-state="disconnected">
+              <p id="maintStatusBadge" class="operator-state-status">המלווה מנותק</p>
+              <p id="maintNextStep" class="operator-state-next">חברו מלווה בטלמטריה. כתובת לבד לא מחברת.</p>
+              <button type="button" id="maintRefreshBtn" class="policy-btn">רענון</button>
+            </div>
+          </header>
 
+          <section id="maintLocalFacts" class="maint-local-facts" aria-label="מסוף זה">
+            <h4 class="maint-group-title">מסוף זה</h4>
+            <div class="tele-group-cards">
+              <article class="tele-card"><span>גרסת ממשק</span><strong id="maintUiVersion">—</strong></article>
+            </div>
+          </section>
+
+          <p id="maintLiveParked" class="operator-state-parked">נתוני Jetson וגרסאות יופיעו אחרי חיבור מלווה.</p>
+
+          <div id="maintLiveSections" hidden>
           <h4 class="maint-group-title">תוכנה</h4>
           <div class="tele-group-cards">
-            <article class="tele-card"><span>גרסת ממשק</span><strong id="maintUiVersion">—</strong></article>
             <article class="tele-card"><span>גרסת Companion</span><strong id="maintCompanionVersion">—</strong></article>
             <article class="tele-card"><span>Git commit</span><strong id="maintGitCommit">—</strong></article>
             <article class="tele-card"><span>Git branch</span><strong id="maintGitBranch">—</strong></article>
@@ -849,7 +866,7 @@
             <article class="tele-card"><span>API פעיל</span><strong id="maintApiRunning">—</strong></article>
             <article class="tele-card"><span>API נגיש</span><strong id="maintApiReachable">—</strong></article>
           </div>
-          <p id="maintCompanionConnectStatus" class="tele-dash-note">המלווה מנותק</p>
+          <p id="maintCompanionConnectStatus" class="tele-dash-note" hidden>המלווה מנותק</p>
           <p id="maintCompanionTokenHint" class="assist-agent-key-hint" hidden dir="ltr"></p>
 
           <h4 class="maint-group-title">אירועי אבחון</h4>
@@ -860,7 +877,6 @@
             </table>
             <p id="maintDiagEmpty" class="maint-diag-empty">אין אירועים</p>
           </div>
-          <button type="button" id="maintRefreshBtn" class="policy-btn">רענן</button>
 
           <h4 class="maint-group-title">ניהול גרסאות</h4>
           <p id="maintRelMockBadge" class="maint-rel-mock-badge" hidden>MOCK</p>
@@ -869,23 +885,23 @@
 
           <h5 class="maint-sub-title">גרסה פעילה</h5>
           <div class="tele-group-cards">
-            <article class="tele-card"><span>Release ID</span><strong id="maintRelActiveId">—</strong></article>
-            <article class="tele-card"><span>Version</span><strong id="maintRelActiveVersion">—</strong></article>
-            <article class="tele-card"><span>Status</span><strong id="maintRelActiveStatus">—</strong></article>
+            <article class="tele-card"><span>מזהה גרסה</span><strong id="maintRelActiveId">—</strong></article>
+            <article class="tele-card"><span>גרסה</span><strong id="maintRelActiveVersion">—</strong></article>
+            <article class="tele-card"><span>מצב</span><strong id="maintRelActiveStatus">—</strong></article>
           </div>
 
           <h5 class="maint-sub-title">גרסה קודמת</h5>
           <div class="tele-group-cards">
-            <article class="tele-card"><span>Release ID</span><strong id="maintRelPrevId">—</strong></article>
-            <article class="tele-card"><span>Version</span><strong id="maintRelPrevVersion">—</strong></article>
-            <article class="tele-card"><span>Status</span><strong id="maintRelPrevStatus">—</strong></article>
+            <article class="tele-card"><span>מזהה גרסה</span><strong id="maintRelPrevId">—</strong></article>
+            <article class="tele-card"><span>גרסה</span><strong id="maintRelPrevVersion">—</strong></article>
+            <article class="tele-card"><span>מצב</span><strong id="maintRelPrevStatus">—</strong></article>
           </div>
-          <button type="button" id="maintRelRollbackBtn" class="policy-btn maint-rel-action" disabled>Rollback</button>
+          <button type="button" id="maintRelRollbackBtn" class="policy-btn maint-rel-action" disabled>שחזור</button>
 
           <h5 class="maint-sub-title">גרסאות זמינות</h5>
           <div class="maint-diag-wrap">
             <table class="maint-diag-table" id="maintRelAvailableTable">
-              <thead><tr><th>ID</th><th>Version</th><th>Status</th><th>Created</th><th>Compat</th><th>SHA256</th><th>Size</th><th></th></tr></thead>
+              <thead><tr><th>מזהה</th><th>גרסה</th><th>מצב</th><th>נוצר</th><th>תאימות</th><th>SHA256</th><th>גודל</th><th></th></tr></thead>
               <tbody id="maintRelAvailableBody"></tbody>
             </table>
             <p id="maintRelAvailableEmpty" class="maint-diag-empty">אין גרסאות</p>
@@ -894,21 +910,22 @@
           <h4 class="maint-group-title">גיבויים</h4>
           <div class="maint-diag-wrap">
             <table class="maint-diag-table" id="maintRelBackupsTable">
-              <thead><tr><th>Backup ID</th><th>Created</th><th>Release</th><th>SHA256</th></tr></thead>
+              <thead><tr><th>מזהה גיבוי</th><th>נוצר</th><th>גרסה</th><th>SHA256</th></tr></thead>
               <tbody id="maintRelBackupsBody"></tbody>
             </table>
             <p id="maintRelBackupsEmpty" class="maint-diag-empty">אין גיבויים</p>
           </div>
-          <button type="button" id="maintRelBackupBtn" class="policy-btn">Backup configuration</button>
+          <button type="button" id="maintRelBackupBtn" class="policy-btn">גיבוי תצורה</button>
           <p id="maintRelBackupResult" class="maint-rel-result" hidden></p>
 
           <h4 class="maint-group-title">יומן פעולות</h4>
           <div class="maint-diag-wrap">
             <table class="maint-diag-table" id="maintRelAuditTable">
-              <thead><tr><th>Time</th><th>Operation</th><th>Release</th><th>Result</th><th>Failure</th><th>Active</th></tr></thead>
+              <thead><tr><th>זמן</th><th>פעולה</th><th>גרסה</th><th>תוצאה</th><th>כשל</th><th>פעיל</th></tr></thead>
               <tbody id="maintRelAuditBody"></tbody>
             </table>
             <p id="maintRelAuditEmpty" class="maint-diag-empty">אין רשומות</p>
+          </div>
           </div>
 
           <div id="maintRelConfirmModal" class="maint-rel-modal" hidden>
@@ -954,7 +971,7 @@
 
           <section class="devtasks-list">
             <h4 class="maint-group-title">משימות פיתוח</h4>
-            <div class="devtasks-filters">
+            <div id="devTaskFilters" class="devtasks-filters" hidden>
               <label>מצב <select id="devTaskFilterStatus" class="kpi-input"><option value="">הכל</option></select></label>
               <label>יעד <select id="devTaskFilterTarget" class="kpi-input"><option value="">הכל</option></select></label>
               <label>מיון <select id="devTaskSort" class="kpi-input"><option value="updated_desc">עדכון ↓</option><option value="updated_asc">עדכון ↑</option></select></label>
@@ -966,13 +983,13 @@
                 <thead><tr><th>מזהה</th><th>כותרת</th><th>יעד</th><th>עדיפות</th><th>מצב</th><th>עודכן</th></tr></thead>
                 <tbody id="devTaskListBody"></tbody>
               </table>
-              <p id="devTaskListEmpty" class="maint-diag-empty">אין משימות</p>
+              <p id="devTaskListEmpty" class="maint-diag-empty">אין משימות. צרו משימה למעלה.</p>
             </div>
           </section>
 
-          <section class="devtasks-detail">
+          <section id="devTaskDetailSection" class="devtasks-detail" hidden>
             <h4 class="maint-group-title">פרטי משימה</h4>
-            <p id="devTaskDetailEmpty" class="maint-diag-empty">בחר משימה מהרשימה</p>
+            <p id="devTaskDetailEmpty" class="maint-diag-empty" hidden>בחר משימה מהרשימה</p>
             <div id="devTaskDetailCard" hidden>
               <div class="tele-group-cards">
                 <article class="tele-card"><span>מזהה משימה</span><strong id="devDetailId">—</strong></article>
