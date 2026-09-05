@@ -1,36 +1,5 @@
 [
   {
-    "version": "1.02.256",
-    "date": "2026-09-05",
-    "changes": [
-      {
-        "type": "feat",
-        "title": "Server library",
-        "detail": "companion-maintenance.mjs"
-      },
-      {
-        "type": "feat",
-        "title": "UI / app.js",
-        "detail": "app.js"
-      },
-      {
-        "type": "ui",
-        "title": "HTML layout",
-        "detail": "index.html"
-      },
-      {
-        "type": "test",
-        "title": "Tests",
-        "detail": "maintenance-ui.test.mjs, operator-hebrew-chrome.test.mjs"
-      },
-      {
-        "type": "docs",
-        "title": "Documentation",
-        "detail": "PRODUCT_EXECUTION.md"
-      }
-    ]
-  },
-  {
     "version": "1.02.255",
     "date": "2026-08-24",
     "changes": [
