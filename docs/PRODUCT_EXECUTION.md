@@ -213,4 +213,4 @@ Do not spend cycles on smoke #4, more Hebrew / chrome polish, version bump, 300+
 
 ### Next pick (this snapshot)
 
-UI/UX design pass landed (disconnected-first overview). Jetson still parked on the Companion token. Do not invent a token. Do not fake a live connect. Human Gates stay **WAITING FOR ROY**: #28 apply/restart, #29 live vehicle / auto-land. Do not ask Roy what to work on next.
+Hebrew leftover chrome (this draft): parked telemetry labels + Maintenance Git/GPU/MOCK/חתימה + deploy/rollback result strings. Jetson still parked on the Companion token. Do not invent a token. Do not fake a live connect. Human Gates stay **WAITING FOR ROY**: #28 apply/restart, #29 live vehicle / auto-land. Do not ask Roy what to work on next.

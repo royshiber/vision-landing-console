@@ -357,7 +357,7 @@ const PARAMS = [
   { key: 'motor_hold_s', label: 'משך זמן מנוע בהצפה (s)', min: 0, max: 8, step: 0.1, value: 2.5 },
   { key: 'vision_enable_alt_m', label: 'גובה הפעלת Vision (m)', min: 5, max: 120, step: 1, value: 55 },
   { key: 'vision_conf_min', label: 'סף מינימום לתיקון Vision', min: 0.4, max: 0.99, step: 0.01, value: 0.78 },
-  { key: 'abort_conf_min', label: 'סף ביטחון מינימלי ל-Auto Abort', min: 0.3, max: 0.95, step: 0.01, value: 0.70 },
+  { key: 'abort_conf_min', label: 'סף ביטחון מינימלי לביטול אוטומטי', min: 0.3, max: 0.95, step: 0.01, value: 0.70 },
   { key: 'abort_conf_hold_s', label: 'משך זמן מתחת לסף לפני Abort (s)', min: 0.5, max: 8, step: 0.1, value: 2.0 },
   { key: 'abort_recover_conf', label: 'סף יציאה מ-Abort (Recover)', min: 0.35, max: 0.99, step: 0.01, value: 0.76 },
   { key: 'xtrack_gain', label: 'Cross Track Gain', min: 0.1, max: 3.5, step: 0.05, value: 1.25 },
@@ -2295,6 +2295,11 @@ function companionText(value, suffix = '') {
   return value == null || value === '' ? '—' : `${value}${suffix}`;
 }
 
+function companionModeText(mode) {
+  const key = String(mode || '').trim().toLowerCase();
+  return { off: 'כבוי', mock: 'מדומה', real: 'אמיתי' }[key] || companionText(mode);
+}
+
 function companionStateText(value, mode) {
   if (mode === 'off') return 'כבוי';
   return {
@@ -3094,7 +3099,7 @@ function applyCompanionUi(companion) {
   setCompanionText('companionApiVersion', companionText(companion.version));
   setCompanionText('maintCompanionVersion', companionText(companion.version));
   setCompanionText('maintApiVersion', companionText(companion.api_version || companion.api));
-  setCompanionText('maintCompanionMode', companionText(companion.mode));
+  setCompanionText('maintCompanionMode', companionModeText(companion.mode));
   if (companion.mode) _maintCompanionModeHint = companion.mode;
 
   const system = companion.system || {};
@@ -9565,7 +9570,7 @@ function maintFmtPercent(v) {
 
 function maintFmtGitClean(v) {
   if (v === true) return 'נקי';
-  if (v === false) return 'dirty';
+  if (v === false) return 'עם שינויים';
   if (v === null || v === undefined) return 'לא ידוע';
   return null;
 }
@@ -9632,7 +9637,7 @@ function maintApplyWire(wire, { apiReachable = null, companionMode = null } = {}
   maintSetEl('maintGpu', maintFmtPercent(sys.gpu_percent));
   maintSetEl('maintTemp', sys.temperature_c != null ? `${sys.temperature_c}°` : null);
   maintSetEl('maintDisk', maintFmtPercent(sys.disk_used_percent));
-  maintSetEl('maintCompanionMode', companionMode ?? _maintCompanionModeHint ?? null);
+  maintSetEl('maintCompanionMode', companionModeText(companionMode ?? _maintCompanionModeHint));
   maintSetEl('maintApiVersion', comp.api_version ?? null);
   maintSetEl('maintApiRunning', maintFmtApiRunning(comp.api_running));
   maintSetEl('maintApiReachable', _maintApiReachable === true ? 'כן' : _maintApiReachable === false ? 'לא' : null);
@@ -9735,15 +9740,40 @@ function maintRelDeployStateLabel(state) {
   return MAINT_REL_DEPLOY_STATE_HE[key] || key || '—';
 }
 
+function maintRelHeKnownMessage(text) {
+  const s = String(text || '').trim();
+  if (!s) return '';
+  const known = {
+    'Deployment successful': 'ההתקנה הצליחה',
+    'Deployment failed': 'ההתקנה נכשלה',
+    'Deployment failed — previous version restored': 'ההתקנה נכשלה. שוחזרה הגרסה הקודמת',
+    'Deployment completed without runtime confirmation': 'ההתקנה הסתיימה בלי אישור ריצה',
+    'Deployment did not reach verified running state': 'ההתקנה לא הגיעה למצב ריצה מאומת',
+    'Rollback completed': 'השחזור הושלם',
+    'Rollback failed': 'השחזור נכשל',
+    'Backup failed': 'הגיבוי נכשל',
+    'Deploy failed': 'ההתקנה נכשלה',
+    'Another maintenance operation is already running': 'פעולת תחזוקה אחרת כבר רצה',
+    'Companion לא זמין': 'המלווה לא זמין',
+    'Companion לא זמין — מציג מצב אחרון': 'המלווה לא זמין. מוצג מצב אחרון',
+  };
+  if (known[s]) return known[s];
+  const runningParen = s.match(/^Deployment successful \(running (.+)\)$/);
+  if (runningParen) return `ההתקנה הצליחה. גרסה רצה: ${runningParen[1]}`;
+  const runningPipe = s.match(/^Deployment successful \| running version: (.+)$/);
+  if (runningPipe) return `ההתקנה הצליחה. גרסה רצה: ${runningPipe[1]}`;
+  return s;
+}
+
 function maintRelActivationMessage(wire) {
   if (!wire || typeof wire !== 'object') return null;
-  if (typeof wire.message === 'string' && wire.message.trim()) return wire.message.trim();
+  if (typeof wire.message === 'string' && wire.message.trim()) return maintRelHeKnownMessage(wire.message);
   const state = String(wire.state || wire.deploy_state || '').trim().toUpperCase();
-  if (state === 'ROLLED_BACK') return wire.failure_reason || 'Deployment failed — previous version restored';
-  if (state === 'FAILED') return wire.failure_reason || 'Deployment failed';
+  if (state === 'ROLLED_BACK') return maintRelHeKnownMessage(wire.failure_reason) || 'ההתקנה נכשלה. שוחזרה הגרסה הקודמת';
+  if (state === 'FAILED') return maintRelHeKnownMessage(wire.failure_reason) || 'ההתקנה נכשלה';
   if (state === 'SUCCEEDED') {
-    if (wire.running_process_changed === true) return 'Deployment successful';
-    return 'Deployment completed without runtime confirmation';
+    if (wire.running_process_changed === true) return 'ההתקנה הצליחה';
+    return 'ההתקנה הסתיימה בלי אישור ריצה';
   }
   return null;
 }
@@ -9768,7 +9798,7 @@ function maintRelApiError(status, body) {
   if (status === 404) return msg || 'לא נמצא';
   if (status === 409) return msg || 'קונפליקט — פעולה לא זמינה כעת';
   if (status === 501) return msg || 'לא נתמך ב-Jetson';
-  if (status === 503 || status === 504) return msg || 'Companion לא זמין';
+  if (status === 503 || status === 504) return msg || 'המלווה לא זמין';
   return msg || 'שגיאה';
 }
 
@@ -9777,7 +9807,7 @@ function maintRelShowResult(elId, text, kind = 'ok') {
   if (!el) return;
   if (!text) { el.hidden = true; el.textContent = ''; return; }
   el.hidden = false;
-  el.textContent = text;
+  el.textContent = maintRelHeKnownMessage(text);
   el.dataset.kind = kind;
 }
 
@@ -9915,7 +9945,7 @@ async function maintRelLoadAll() {
 
   const noteEl = document.getElementById('maintRelStatusNote');
   if (_maintApiReachable === false) {
-    maintRelSetUnavailable('Companion לא זמין — מציג מצב אחרון');
+    maintRelSetUnavailable('המלווה לא זמין. מוצג מצב אחרון');
     return;
   }
 
@@ -9932,7 +9962,7 @@ async function maintRelLoadAll() {
     return;
   }
 
-  if (noteEl) noteEl.textContent = isMock ? 'מצב MOCK — פעולות דטרמיניסטיות ללא מנוע פריסה אמיתי' : '';
+  if (noteEl) noteEl.textContent = isMock ? 'מצב מדומה. פעולות קבועות בלי מנוע התקנה אמיתי' : '';
   maintRelRenderInventory(relR.data);
   const backupBtn = document.getElementById('maintRelBackupBtn');
   if (backupBtn) backupBtn.disabled = _maintRelBusy;
@@ -9971,7 +10001,7 @@ function maintRelOpenDeployConfirm(rel) {
     '<p><strong>להתקין את הגרסה הזו?</strong></p>',
     `<p>גרסה: ${rel.version || '—'}</p>`,
     `<p>מזהה גרסה: ${rel.release_id || '—'}</p>`,
-    `<p>SHA256: ${rel.sha256 || '—'}</p>`,
+    `<p>חתימה: ${rel.sha256 || '—'}</p>`,
     `<p>תאימות: ${rel.compatibility || '—'}</p>`,
   ].join('');
   maintRelOpenConfirm('התקנת גרסה', html, () => maintRelExecuteDeploy(rel));
@@ -10003,7 +10033,7 @@ async function maintRelExecuteDeploy(rel) {
     });
     if (!r.ok) {
       const msg = r.status === 409
-        ? 'Another maintenance operation is already running'
+        ? 'פעולת תחזוקה אחרת כבר רצה'
         : maintRelApiError(r.status, r.json);
       maintRelShowResult('maintRelBackupResult', msg, 'err');
       await maintRelLoadAll();
@@ -10015,19 +10045,19 @@ async function maintRelExecuteDeploy(rel) {
       const failedRel = r.data?.release_id || rel.release_id || '—';
       const restoredRel = r.data?.active_release?.release_id || '—';
       const runningVer = r.data?.running_version || r.data?.active_release?.version || '—';
-      const reason = r.data?.failure_reason || r.data?.message || '—';
+      const reason = maintRelHeKnownMessage(r.data?.failure_reason || r.data?.message) || '—';
       maintRelShowResult(
         'maintRelBackupResult',
-        `Deployment failed — previous version restored | failed=${failedRel} restored=${restoredRel} running=${runningVer} reason=${reason}`,
+        `ההתקנה נכשלה. שוחזרה הגרסה הקודמת. נכשל: ${failedRel}. שוחזר: ${restoredRel}. רץ: ${runningVer}. סיבה: ${reason}`,
         'err',
       );
     } else if (state === 'FAILED') {
       const runningVer = r.data?.running_version || '—';
       const activeRel = r.data?.active_release?.release_id || '—';
-      const reason = r.data?.failure_reason || r.data?.message || '—';
+      const reason = maintRelHeKnownMessage(r.data?.failure_reason || r.data?.message) || '—';
       maintRelShowResult(
         'maintRelBackupResult',
-        `Deployment failed | active=${activeRel} running=${runningVer} reason=${reason}`,
+        `ההתקנה נכשלה. פעיל: ${activeRel}. רץ: ${runningVer}. סיבה: ${reason}`,
         'err',
       );
     } else if (
@@ -10037,13 +10067,13 @@ async function maintRelExecuteDeploy(rel) {
       && (r.data?.health_check_ok === true || r.data?.health_ok === true || r.data?.health === 'valid')
       && String(r.data?.release_id || r.data?.requested_release_id || '') === String(rel.release_id)
     ) {
-      maintRelShowResult('maintRelBackupResult', `Deployment successful | running version: ${r.data.running_version}`, 'ok');
+      maintRelShowResult('maintRelBackupResult', `ההתקנה הצליחה. גרסה רצה: ${r.data.running_version}`, 'ok');
     } else {
-      maintRelShowResult('maintRelBackupResult', maintRelActivationMessage(r.data) || 'Deployment did not reach verified running state', 'err');
+      maintRelShowResult('maintRelBackupResult', maintRelActivationMessage(r.data) || 'ההתקנה לא הגיעה למצב ריצה מאומת', 'err');
     }
     await maintRelLoadAll();
   } catch (err) {
-    maintRelShowResult('maintRelBackupResult', err?.message || 'Deploy failed', 'err');
+    maintRelShowResult('maintRelBackupResult', err?.message || 'ההתקנה נכשלה', 'err');
   } finally {
     maintRelSetBusy(false);
   }
@@ -10057,17 +10087,17 @@ async function maintRelExecuteRollback() {
     const r = await maintRelFetchJson('/api/jetson/v1/maintenance/rollback', { method: 'POST' });
     if (!r.ok) {
       const msg = r.status === 409
-        ? 'Another maintenance operation is already running'
+        ? 'פעולת תחזוקה אחרת כבר רצה'
         : maintRelApiError(r.status, r.json);
       maintRelShowResult('maintRelBackupResult', msg, 'err');
       await maintRelLoadAll();
       return;
     }
-    const msg = maintRelActivationMessage(r.data) || 'Rollback completed';
+    const msg = maintRelActivationMessage(r.data) || 'השחזור הושלם';
     maintRelShowResult('maintRelBackupResult', msg, 'ok');
     await maintRelLoadAll();
   } catch (err) {
-    maintRelShowResult('maintRelBackupResult', err?.message || 'Rollback failed', 'err');
+    maintRelShowResult('maintRelBackupResult', err?.message || 'השחזור נכשל', 'err');
   } finally {
     maintRelSetBusy(false);
   }
@@ -10081,7 +10111,7 @@ async function maintRelExecuteBackup() {
     const r = await maintRelFetchJson('/api/jetson/v1/maintenance/backup', { method: 'POST' });
     if (!r.ok) {
       const msg = r.status === 409
-        ? 'Another maintenance operation is already running'
+        ? 'פעולת תחזוקה אחרת כבר רצה'
         : maintRelApiError(r.status, r.json);
       maintRelShowResult('maintRelBackupResult', msg, 'err');
       await maintRelLoadAll();
@@ -10089,12 +10119,12 @@ async function maintRelExecuteBackup() {
     }
     const d = r.data || {};
     const text = d.backup_id
-      ? `גיבוי הצליח — ID: ${d.backup_id}`
-      : (d.message || 'גיבוי הצליח');
+      ? `גיבוי הצליח. מזהה: ${d.backup_id}`
+      : (maintRelHeKnownMessage(d.message) || 'גיבוי הצליח');
     maintRelShowResult('maintRelBackupResult', text, 'ok');
     await maintRelLoadAll();
   } catch (err) {
-    maintRelShowResult('maintRelBackupResult', err?.message || 'Backup failed', 'err');
+    maintRelShowResult('maintRelBackupResult', err?.message || 'הגיבוי נכשל', 'err');
   } finally {
     maintRelSetBusy(false);
   }
@@ -10128,7 +10158,7 @@ function devText(v) {
 function devFormatAgentProvider(name, available) {
   const p = String(name || '').trim();
   if (!available || p === 'unavailable' || !p) return 'סוכן הפיתוח אינו זמין';
-  if (p.startsWith('mock:')) return 'MOCK';
+  if (p.startsWith('mock:')) return 'מדומה';
   if (p === 'cursor-sdk') return 'Cursor SDK';
   return p;
 }
@@ -10275,7 +10305,7 @@ function devRenderTaskDetail(task) {
   document.getElementById('devMetaBranch').textContent = devText(task.branch);
   document.getElementById('devMetaWorktree').textContent = devText(task.worktree);
   document.getElementById('devMetaBaseCommit').textContent = devText(task.worktree_meta?.base_commit);
-  document.getElementById('devMetaWorktreeClean').textContent = task.worktree_meta?.clean == null ? '—' : (task.worktree_meta.clean ? 'CLEAN' : 'DIRTY');
+  document.getElementById('devMetaWorktreeClean').textContent = task.worktree_meta?.clean == null ? '—' : (task.worktree_meta.clean ? 'נקי' : 'עם שינויים');
   document.getElementById('devMetaWorktreeChangedFiles').textContent = devText(task.worktree_meta?.changed_files);
   document.getElementById('devMetaAgentStatus').textContent = devText(task.agent?.state || 'NOT_STARTED');
   document.getElementById('devMetaAgentSession').textContent = devText(task.agent?.session_id);

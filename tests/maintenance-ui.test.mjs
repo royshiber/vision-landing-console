@@ -155,6 +155,11 @@ describe('null Git state display', () => {
   it('formatGitClean null → unknown label', () => {
     expect(formatGitClean(null)).toBe('לא ידוע');
   });
+
+  it('formatGitClean false uses Hebrew leftover, not dirty', () => {
+    expect(formatGitClean(false)).toBe('עם שינויים');
+    expect(formatGitClean(true)).toBe('נקי');
+  });
 });
 
 describe('diagnostics.recent', () => {
