@@ -17,9 +17,10 @@ describe('Development Tasks empty-state chrome', () => {
   it('uses Hebrew empty-state copy for the task list and audit list', () => {
     const listEmpty = htmlElementInnerText(html, 'p', 'devTaskListEmpty');
     const auditEmpty = htmlElementInnerText(html, 'p', 'devTaskAuditEmpty');
-    expect(listEmpty).toBe('אין משימות');
+    expect(listEmpty).toBe('אין משימות. צרו משימה למעלה.');
     expect(auditEmpty).toBe('אין רשומות ביקורת');
     expect(listEmpty).not.toBe('No tasks');
+    expect(listEmpty).toContain('אין משימות');
     expect(auditEmpty).not.toBe('No audit entries');
   });
 });

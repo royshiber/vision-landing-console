@@ -2864,6 +2864,25 @@ function companionConnectSyncButton() {
   connectBtn.disabled = !String(url?.value || '').trim() || !String(token?.value || '').trim();
 }
 
+function companionIsLive(source) {
+  if (!source || typeof source !== 'object') return false;
+  if (source.mode === 'mock') return true;
+  if (source.mode === 'real' && source.reachable === true) return true;
+  if (source.mode === 'real' && source.connected === true && source.reachable !== false) return true;
+  return false;
+}
+
+function companionSetLiveChrome(live) {
+  const summary = document.getElementById('companionDashboardSummary');
+  const summaryParked = document.getElementById('companionLiveParked');
+  const b2Grid = document.getElementById('companionB2Grid');
+  const b2Parked = document.getElementById('companionB2Parked');
+  if (summary) summary.hidden = !live;
+  if (summaryParked) summaryParked.hidden = !!live;
+  if (b2Grid) b2Grid.hidden = !live;
+  if (b2Parked) b2Parked.hidden = !!live;
+}
+
 function companionConnectRender(status) {
   const card = document.getElementById('companionConnect');
   const statusEl = document.getElementById('companionConnectStatus');
@@ -2876,6 +2895,8 @@ function companionConnectRender(status) {
   const maintHint = document.getElementById('maintCompanionTokenHint');
   if (!card || !statusEl) return;
   const connected = status?.connected === true && status?.mode === 'real';
+  const live = companionIsLive(status);
+  companionSetLiveChrome(live);
   const errorText = !connected && status?.ok === false
     ? (status.status_he || status.reason_he || 'החיבור למלווה נכשל')
     : '';
@@ -2885,6 +2906,14 @@ function companionConnectRender(status) {
     : (status.status_he || status.reason_he || 'המלווה מנותק');
   statusEl.textContent = statusText;
   if (maintStatus) maintStatus.textContent = statusText;
+  if (!live) {
+    maintSetOverview({
+      live: false,
+      statusHe: statusText,
+      nextHe: status?.hint_he || 'חברו מלווה בטלמטריה. כתובת לבד לא מחברת.',
+      state: errorText ? 'error' : 'disconnected',
+    });
+  }
   if (hintEl) {
     hintEl.hidden = connected;
     hintEl.textContent = status?.hint_he || 'חיבור דורש כתובת ואסימון יחד. כתובת לבד לא מחברת.';
@@ -3047,6 +3076,16 @@ function applyCompanionUi(companion) {
   if (unavailableEl) {
     unavailableEl.hidden = !unavailable;
     unavailableEl.textContent = unavailable ? 'המלווה החי אינו מגיב. בדקו כתובת ואסימון. כתובת לבד לא מחברת.' : '';
+  }
+  const live = companionIsLive(companion) && !unavailable;
+  companionSetLiveChrome(live);
+  if (!live) {
+    maintSetOverview({
+      live: false,
+      statusHe: companion.mode === 'real' && unavailable ? 'המלווה החי אינו מגיב' : 'המלווה מנותק',
+      nextHe: 'חברו מלווה בטלמטריה. כתובת לבד לא מחברת.',
+      state: unavailable ? 'error' : 'disconnected',
+    });
   }
   const mockBar = document.getElementById('companionMockBar');
   if (mockBar) mockBar.hidden = companion.mode !== 'mock';
@@ -9485,6 +9524,29 @@ const MAINT_RECENT_MAX = 10;
 let _maintLastWire = null;
 let _maintApiReachable = null;
 
+function maintSetOverview({ live, statusHe, nextHe, state } = {}) {
+  const banner = document.getElementById('maintOperatorBanner');
+  const badge = document.getElementById('maintStatusBadge');
+  const next = document.getElementById('maintNextStep');
+  const parked = document.getElementById('maintLiveParked');
+  const liveEl = document.getElementById('maintLiveSections');
+  const resolvedState = state || (live ? 'ok' : 'disconnected');
+  if (banner) banner.dataset.state = resolvedState;
+  if (badge) {
+    badge.textContent = statusHe || (live ? 'תקין' : 'המלווה מנותק');
+    badge.className = `operator-state-status maint-badge--${resolvedState}`;
+  }
+  if (next) {
+    const text = nextHe || '';
+    next.hidden = !text;
+    next.textContent = text;
+  }
+  if (parked) parked.hidden = !!live;
+  if (liveEl) liveEl.hidden = !live;
+  const uiVer = document.querySelector('meta[name="app-version"]')?.content;
+  if (uiVer) maintSetEl('maintUiVersion', uiVer);
+}
+
 function maintSetEl(id, val) {
   const el = document.getElementById(id);
   if (!el) return;
@@ -9570,16 +9632,17 @@ function maintApplyWire(wire, { apiReachable = null, companionMode = null } = {}
   maintSetEl('maintApiVersion', comp.api_version ?? null);
   maintSetEl('maintApiRunning', maintFmtApiRunning(comp.api_running));
   maintSetEl('maintApiReachable', _maintApiReachable === true ? 'כן' : _maintApiReachable === false ? 'לא' : null);
-  const badge = document.getElementById('maintStatusBadge');
-  if (badge) {
-    let st = 'unavailable';
-    if (_maintApiReachable === false) st = 'unavailable';
-    else if (comp.api_running === true) st = 'ok';
-    else if (comp.api_running === false) st = 'degraded';
-    else if (wire) st = 'degraded';
-    badge.textContent = MAINT_STATES_HE[st] || st;
-    badge.className = 'tele-dash-note maint-badge--' + st;
-  }
+  let st = 'unavailable';
+  if (_maintApiReachable === false) st = 'unavailable';
+  else if (comp.api_running === true) st = 'ok';
+  else if (comp.api_running === false) st = 'degraded';
+  else if (wire) st = 'degraded';
+  maintSetOverview({
+    live: _maintApiReachable === true,
+    statusHe: MAINT_STATES_HE[st] || st,
+    nextHe: _maintApiReachable === true ? '' : 'חברו מלווה בטלמטריה. כתובת לבד לא מחברת.',
+    state: st,
+  });
   maintRenderDiag(wire.diagnostics?.recent);
 }
 
@@ -9597,10 +9660,14 @@ async function maintLoadData() {
     maintApplyWire(wire, { apiReachable: _maintApiReachable, companionMode: _maintCompanionModeHint });
   } catch {
     _maintApiReachable = false;
-    const badge = document.getElementById('maintStatusBadge');
-    if (badge) { badge.textContent = MAINT_STATES_HE.unavailable; badge.className = 'tele-dash-note maint-badge--unavailable'; }
+    maintSetOverview({
+      live: false,
+      statusHe: 'המלווה מנותק',
+      nextHe: 'חברו מלווה בטלמטריה. כתובת לבד לא מחברת.',
+      state: 'disconnected',
+    });
   }
-  void maintRelLoadAll();
+  if (_maintApiReachable === true) void maintRelLoadAll();
 }
 
 document.getElementById('maintRefreshBtn')?.addEventListener('click', () => {
@@ -9761,7 +9828,7 @@ function maintRelRenderInventory(inv) {
     const status = String(rel.status || '').toUpperCase();
     const deployable = MAINT_REL_DEPLOYABLE.has(status);
     const btn = deployable
-      ? `<button type="button" class="policy-btn maint-rel-deploy-btn" data-release-id="${rel.release_id || ''}" ${_maintRelBusy ? 'disabled' : ''}>Deploy</button>`
+      ? `<button type="button" class="policy-btn maint-rel-deploy-btn" data-release-id="${rel.release_id || ''}" ${_maintRelBusy ? 'disabled' : ''}>התקנה</button>`
       : '';
     tr.innerHTML = `<td>${rel.release_id || '—'}</td><td>${rel.version || '—'}</td><td>${rel.status || '—'}</td><td>${maintRelFmtTime(rel.created_at)}</td><td>${rel.compatibility || '—'}</td><td title="${rel.sha256 || ''}">${maintRelFmtSha(rel.sha256)}</td><td>${maintRelFmtSize(rel.size_bytes ?? rel.size)}</td><td>${btn}</td>`;
     tbody.appendChild(tr);
@@ -10139,6 +10206,26 @@ async function devEnsureMeta() {
   _devMetaReady = true;
 }
 
+function devSyncEmptyOverview() {
+  const hasTasks = Array.isArray(_devTasks) && _devTasks.length > 0;
+  const filters = document.getElementById('devTaskFilters');
+  const detailSection = document.getElementById('devTaskDetailSection');
+  const detailCard = document.getElementById('devTaskDetailCard');
+  const detailEmpty = document.getElementById('devTaskDetailEmpty');
+  const listEmpty = document.getElementById('devTaskListEmpty');
+  if (filters) filters.hidden = !hasTasks;
+  if (listEmpty) {
+    listEmpty.hidden = hasTasks;
+    if (!hasTasks) listEmpty.textContent = 'אין משימות. צרו משימה למעלה.';
+  }
+  const showingDetail = !!(detailCard && !detailCard.hidden);
+  if (detailSection) detailSection.hidden = !hasTasks;
+  if (detailEmpty) {
+    detailEmpty.hidden = !hasTasks || showingDetail;
+    if (hasTasks && !showingDetail) detailEmpty.textContent = 'בחר משימה מהרשימה';
+  }
+}
+
 function devRenderTaskList() {
   const body = document.getElementById('devTaskListBody');
   const empty = document.getElementById('devTaskListEmpty');
@@ -10146,6 +10233,7 @@ function devRenderTaskList() {
   body.innerHTML = '';
   if (!_devTasks.length) {
     if (empty) empty.hidden = false;
+    devSyncEmptyOverview();
     return;
   }
   if (empty) empty.hidden = true;
@@ -10160,6 +10248,7 @@ function devRenderTaskList() {
     });
     body.appendChild(tr);
   }
+  devSyncEmptyOverview();
 }
 
 function devRenderTaskDetail(task) {
@@ -10169,6 +10258,7 @@ function devRenderTaskDetail(task) {
   if (!task) {
     empty.hidden = false;
     card.hidden = true;
+    devSyncEmptyOverview();
     return;
   }
   empty.hidden = true;
@@ -10266,6 +10356,7 @@ function devRenderTaskDetail(task) {
       }
     }
   }
+  devSyncEmptyOverview();
 }
 
 async function devLoadTaskDetail(id) {
