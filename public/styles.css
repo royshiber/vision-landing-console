@@ -4111,6 +4111,72 @@ button:hover,
   font-weight: 700;
 }
 
+.companion-connect {
+  margin: 8px 10px 0;
+  max-width: 520px;
+  border: 1px solid var(--warn-border);
+  background: var(--warn-bg);
+  color: var(--text);
+}
+
+.companion-connect[data-state="connected"] {
+  border-color: var(--success-border);
+  background: var(--success-bg);
+}
+
+.companion-connect[data-state="error"] {
+  border-color: var(--danger-border);
+  background: var(--danger-bg);
+}
+
+.companion-connect .assist-agent-status,
+.companion-connect .assist-agent-hint,
+.companion-connect .assist-agent-label {
+  color: var(--text);
+}
+
+.companion-connect[data-state="connected"] .assist-agent-status {
+  color: var(--success-text);
+}
+
+.companion-connect .assist-agent-key-hint {
+  color: var(--text-muted);
+}
+
+.companion-connect .assist-agent-key {
+  background: var(--input-bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.companion-connect .assist-agent-error {
+  color: var(--secondary);
+}
+
+.companion-connect .assist-agent-form {
+  display: grid;
+  grid-template-columns: 1fr;
+}
+
+#companionConnectForm[hidden],
+#companionDisconnectBtn[hidden],
+#companionTokenHint[hidden],
+#companionConnectError[hidden],
+#maintCompanionTokenHint[hidden] {
+  display: none !important;
+}
+
+.companion-connect[data-state="connected"] #companionConnectForm,
+.companion-connect[data-state="connected"] #companionConnectHint,
+.companion-connect[data-state="connected"] #companionConnectPathHint {
+  display: none !important;
+}
+
+.companion-connect:not([data-state="connected"]) #companionDisconnectBtn,
+.companion-connect:not([data-state="connected"]) #companionTokenHint {
+  display: none !important;
+}
+
 .companion-mock-bar,
 .companion-b2-chips,
 .companion-policy-list {

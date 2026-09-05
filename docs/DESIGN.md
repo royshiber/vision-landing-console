@@ -8,6 +8,7 @@ This note documents only the Companion B2 read-only UI foundation.
 
 - The telemetry screen retains its existing dashboard and adds Dashboard and Companion subtabs.
 - The dashboard summary shows Companion API state, version, FC connectivity, vision health, landing detection, and video availability.
+- An in-product Companion v1 connect form (base URL + token, Connect / Disconnect) sits above the dashboard summary. Connect enables real only when both mode=real and a URL are set. The token is shown last-4 after save. This is not the legacy heartbeat install API — the base must serve `/api/v1/*`.
 - Missing measurements render as an em dash and never as a synthetic zero.
 - Mock mode exposes Healthy, Disconnected, and Degraded scenario buttons.
 

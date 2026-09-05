@@ -11,6 +11,7 @@ import { buildArduTargetDefaults } from './lib/param-schema.mjs';
 import { registerHttpRoutes } from './lib/routes/http-register.mjs';
 import { correlationMiddleware } from './lib/request-context.mjs';
 import { createCompanionService } from './lib/companion-service.mjs';
+import { mergeCompanionEnv, readStoredCompanionConnection, snapshotCompanionEnv } from './lib/companion-connection.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -80,7 +81,8 @@ const jetsonState = {
 };
 
 const JETSON_COMPANION_BASE_URL = (process.env.JETSON_COMPANION_BASE_URL || '').trim();
-const companionService = createCompanionService(process.env);
+const companionEnv = snapshotCompanionEnv(process.env);
+const companionService = createCompanionService(mergeCompanionEnv(companionEnv, readStoredCompanionConnection(db)));
 
 const visionNavModeState = { mode: 'prior_mission_map' };
 
@@ -141,6 +143,7 @@ const routeCtx = {
   visionNavModeState,
   JETSON_COMPANION_BASE_URL,
   companionService,
+  companionEnv,
   advisorChatLimiter,
   arduTargetParams: { ...ARDU_TARGET_DEFAULTS },
   visionProfileStore: {},
