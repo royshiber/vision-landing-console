@@ -1,10 +1,11 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import express from 'express';
 import os from 'os';
 import path from 'path';
 import fs from 'fs';
 import { openDatabase, getConfig } from '../lib/db.mjs';
 import { buildArduTargetDefaults } from '../lib/param-schema.mjs';
+import * as mavlinkConnection from '../lib/mavlink-connection.mjs';
 
 function listen(app) {
   return new Promise((resolve) => {
@@ -172,6 +173,98 @@ describe('GET/POST /api/vision/config SQLite persistence', () => {
       expect(j.arduTarget.LAND_SPEED).toBe(80);
       expect(j.arduTarget.NOT_A_PARAM).toBeUndefined();
       expect(j.arduTarget.EK3_ENABLE).toBe(1);
+    } finally {
+      await stopCoreApi(restarted);
+    }
+  });
+});
+
+describe('POST /api/param-center/param-set SQLite persistence', () => {
+  const tmpPath = path.join(os.tmpdir(), `test-vlc-param-set-persist-${Date.now()}.sqlite`);
+  /** @type {import('better-sqlite3').Database} */
+  let db;
+
+  beforeAll(() => {
+    db = openDatabase(tmpPath);
+    // Disconnected + known-disarmed: armed gate unchanged, offline path, no live FC.
+    vi.spyOn(mavlinkConnection, 'getActiveConnection').mockReturnValue({
+      connected: false,
+      lastBaseMode: 0,
+    });
+  });
+
+  afterAll(() => {
+    vi.restoreAllMocks();
+    db?.close();
+    try { fs.unlinkSync(tmpPath); } catch { /* temp file cleanup */ }
+    try { fs.unlinkSync(`${tmpPath}-wal`); } catch { /* wal cleanup */ }
+    try { fs.unlinkSync(`${tmpPath}-shm`); } catch { /* shm cleanup */ }
+  });
+
+  it('offline param-set of an ArduPilot target key is in server_config and survives restart GET', async () => {
+    const first = await startCoreApi(db);
+    let posted;
+    try {
+      const res = await fetch(`${first.base}/api/param-center/param-set`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ param: 'LAND_SPEED', value: 91 }),
+      });
+      posted = await res.json();
+      expect(res.status).toBe(200);
+      expect(posted.ok).toBe(true);
+      expect(posted.via).toBe('offline');
+      expect(posted.param).toBe('LAND_SPEED');
+      expect(posted.value).toBe(91);
+    } finally {
+      await stopCoreApi(first);
+    }
+
+    expect(getConfig(db, 'arduTargetParams').LAND_SPEED).toBe(91);
+
+    const restarted = await startCoreApi(db);
+    try {
+      const r = await fetch(`${restarted.base}/api/vision/config`);
+      const j = await r.json();
+      expect(r.status).toBe(200);
+      expect(j.ok).toBe(true);
+      expect(j.arduTarget.LAND_SPEED).toBe(91);
+      expect(j.arduTarget.LAND_SPEED).not.toBe(buildArduTargetDefaults().LAND_SPEED);
+    } finally {
+      await stopCoreApi(restarted);
+    }
+  });
+
+  it('rejected and non-finite param-set values do not persist', async () => {
+    const first = await startCoreApi(db);
+    try {
+      const badFinite = await fetch(`${first.base}/api/param-center/param-set`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ param: 'LAND_SPEED', value: 'nope' }),
+      });
+      const badFiniteBody = await badFinite.json();
+      expect(badFinite.status).toBe(400);
+      expect(badFiniteBody.ok).toBe(false);
+
+      const missing = await fetch(`${first.base}/api/param-center/param-set`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ param: 'LAND_SPEED', value: '' }),
+      });
+      expect(missing.status).toBe(400);
+      expect((await missing.json()).ok).toBe(false);
+    } finally {
+      await stopCoreApi(first);
+    }
+
+    expect(getConfig(db, 'arduTargetParams').LAND_SPEED).toBe(91);
+
+    const restarted = await startCoreApi(db);
+    try {
+      const r = await fetch(`${restarted.base}/api/vision/config`);
+      const j = await r.json();
+      expect(j.arduTarget.LAND_SPEED).toBe(91);
     } finally {
       await stopCoreApi(restarted);
     }
