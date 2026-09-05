@@ -2849,17 +2849,19 @@ function companionConnectSetBusy(busy) {
   if (url) url.disabled = !!busy;
   if (token) token.disabled = !!busy;
   if (connectBtn) {
-    const empty = !String(url?.value || '').trim();
-    connectBtn.disabled = !!busy || empty;
+    const emptyUrl = !String(url?.value || '').trim();
+    const emptyToken = !String(token?.value || '').trim();
+    connectBtn.disabled = !!busy || emptyUrl || emptyToken;
   }
   if (disconnectBtn) disconnectBtn.disabled = !!busy;
 }
 
 function companionConnectSyncButton() {
   const url = document.getElementById('companionBaseUrl');
+  const token = document.getElementById('companionToken');
   const connectBtn = document.getElementById('companionConnectBtn');
   if (!connectBtn) return;
-  connectBtn.disabled = !String(url?.value || '').trim();
+  connectBtn.disabled = !String(url?.value || '').trim() || !String(token?.value || '').trim();
 }
 
 function companionConnectRender(status) {
@@ -2885,7 +2887,7 @@ function companionConnectRender(status) {
   if (maintStatus) maintStatus.textContent = statusText;
   if (hintEl) {
     hintEl.hidden = connected;
-    hintEl.textContent = 'כתובת הבסיס חייבת לשרת את ממשק המלווה בגרסה הראשונה';
+    hintEl.textContent = status?.hint_he || 'חיבור דורש כתובת ואסימון יחד. כתובת לבד לא מחברת.';
   }
   const hint = connected ? String(status.token_hint || '').trim() : '';
   if (tokenHintEl) {
@@ -2920,6 +2922,7 @@ async function companionConnectRefresh() {
       reason_he: data.reason_he,
       token_hint: data.token_hint,
       base_url: data.base_url,
+      hint_he: data.hint_he,
     });
   } catch {
     companionConnectRender({
@@ -2947,6 +2950,17 @@ async function companionConnectSubmit(event) {
     });
     return;
   }
+  if (!token) {
+    companionConnectSetError('יש להזין אסימון');
+    companionConnectRender({
+      ok: false,
+      mode: 'off',
+      connected: false,
+      status_he: 'יש להזין אסימון',
+      base_url: baseUrl,
+    });
+    return;
+  }
   const statusEl = document.getElementById('companionConnectStatus');
   if (statusEl) statusEl.textContent = 'מחברים את המלווה';
   companionConnectSetBusy(true);
@@ -2968,6 +2982,7 @@ async function companionConnectSubmit(event) {
         status_he: msg,
         reason_he: data.reason_he,
         base_url: baseUrl,
+        hint_he: data.hint_he,
       });
       return;
     }
@@ -3017,6 +3032,10 @@ function initCompanionConnectUi() {
     companionConnectSetError('');
     companionConnectSyncButton();
   });
+  document.getElementById('companionToken')?.addEventListener('input', () => {
+    companionConnectSetError('');
+    companionConnectSyncButton();
+  });
   document.getElementById('companionDisconnectBtn')?.addEventListener('click', () => { void companionDisconnect(); });
   void companionConnectRefresh();
 }
@@ -3027,7 +3046,7 @@ function applyCompanionUi(companion) {
   const unavailableEl = document.getElementById('companionApiUnavailable');
   if (unavailableEl) {
     unavailableEl.hidden = !unavailable;
-    unavailableEl.textContent = unavailable ? 'ממשק המלווה אינו זמין' : '';
+    unavailableEl.textContent = unavailable ? 'המלווה החי אינו מגיב. בדקו כתובת ואסימון. כתובת לבד לא מחברת.' : '';
   }
   const mockBar = document.getElementById('companionMockBar');
   if (mockBar) mockBar.hidden = companion.mode !== 'mock';
@@ -10043,10 +10062,21 @@ function devFormatAgentProvider(name, available) {
   return p;
 }
 
+function devHebrewUnavailableReason(reason) {
+  const s = String(reason || '').trim();
+  if (!s) return 'סוכן הפיתוח אינו זמין. חברו אותו במסייע.';
+  if (/agent-connection-missing|agent-disconnected/i.test(s)) return 'הסוכן מנותק. חברו אותו במסייע.';
+  if (/agent-key-empty/i.test(s)) return 'יש להזין מפתח חיבור.';
+  if (/agent-key-invalid/i.test(s)) return 'מפתח החיבור אינו תקין.';
+  if (/agent-key-missing|CURSOR_API_KEY/i.test(s)) return 'מפתח החיבור לסוכן לא הוגדר.';
+  if (/DEVELOPMENT_AGENT_PROVIDER is not configured/i.test(s)) return 'ספק הסוכן לא הוגדר.';
+  if (/unsupported DEVELOPMENT_AGENT_PROVIDER/i.test(s)) return 'ספק הסוכן אינו נתמך.';
+  return 'סוכן הפיתוח אינו זמין. חברו אותו במסייע.';
+}
+
 function devFormatAgentRuntime(available, runtime, reason) {
-  if (available) return String(runtime || 'READY');
-  const extra = String(reason || '').trim().replace(/^Development agent unavailable:\s*/i, '');
-  return extra ? `UNAVAILABLE — ${extra}` : 'UNAVAILABLE';
+  if (available) return 'מוכן';
+  return `לא זמין. ${devHebrewUnavailableReason(reason)}`;
 }
 
 function devSetResult(id, text, kind = 'ok') {
@@ -10195,8 +10225,24 @@ function devRenderTaskDetail(task) {
   const approveReleaseBtn = document.getElementById('devReleaseApproveBtn');
   const createReleaseBtn = document.getElementById('devReleaseCreateBtn');
   const deployReleaseBtn = document.getElementById('devReleaseDeployBtn');
-  if (startBtn) startBtn.disabled = !canStart || !_devAgentMeta.available;
-  if (cancelBtn) cancelBtn.disabled = !canCancel || !_devAgentMeta.available;
+  const unavailableNote = document.getElementById('devAgentUnavailableNote');
+  if (unavailableNote) {
+    const show = !_devAgentMeta.available;
+    unavailableNote.hidden = !show;
+    if (show) unavailableNote.textContent = devHebrewUnavailableReason(_devAgentMeta.reason);
+  }
+  if (startBtn) {
+    startBtn.disabled = !canStart || !_devAgentMeta.available;
+    startBtn.title = !_devAgentMeta.available
+      ? devHebrewUnavailableReason(_devAgentMeta.reason)
+      : '';
+  }
+  if (cancelBtn) {
+    cancelBtn.disabled = !canCancel || !_devAgentMeta.available;
+    cancelBtn.title = !_devAgentMeta.available
+      ? devHebrewUnavailableReason(_devAgentMeta.reason)
+      : '';
+  }
   if (worktreeBtn) worktreeBtn.disabled = !!task.worktree;
   if (runTestsBtn) runTestsBtn.disabled = !task.worktree || task.tests?.state === 'RUNNING' || task.agent?.state !== 'SUCCEEDED';
   if (cancelTestsBtn) cancelTestsBtn.disabled = task.tests?.state !== 'RUNNING';
@@ -10558,6 +10604,52 @@ let _assistHistory = [];
 let _assistRunPoll = null;
 let _assistRunTaskId = null;
 let _assistRunMsgEl = null;
+let _assistAgentConnected = false;
+
+const ASSIST_WORKSPACE_HE = Object.freeze({
+  PULSE: 'סקירה',
+  MISSION: 'משימה',
+  PLATFORM: 'פלטפורמה',
+  EVOLVE: 'פיתוח',
+  LAB: 'מעבדה',
+  UNKNOWN: 'לא ידוע',
+});
+const ASSIST_CAPABILITY_HE = Object.freeze({
+  vision: 'ראייה',
+  landing: 'נחיתה',
+  navigation: 'ניווט',
+  mission: 'משימה',
+  video: 'וידאו',
+  voice: 'קול',
+  diagnostics: 'אבחון',
+  companion: 'מלווה',
+  configuration: 'תצורה',
+  debrief: 'תחקור',
+  evolve: 'פיתוח',
+  lab_sitl: 'מעבדה',
+});
+const ASSIST_TAB_HE = Object.freeze({
+  terrain: 'הטסה',
+  development: 'פיתוח',
+  simLab: 'מעבדה',
+  control: 'פרמטרים',
+  telemetry: 'טלמטריה',
+  maintenance: 'תחזוקה',
+  recordings: 'הקלטות',
+  flights: 'טיסות',
+  advisor: 'יועץ',
+  featureDesigner: 'מעצב פיצ׳רים',
+  flightEngineer: 'מהנדס טיסה',
+});
+const ASSIST_AGENT_STATE_HE = Object.freeze({
+  RUNNING: 'רץ',
+  QUEUED: 'בתור',
+  WAITING: 'ממתין',
+  SUCCEEDED: 'הסתיים',
+  FAILED: 'נכשל',
+  CANCELLED: 'בוטל',
+  NOT_STARTED: 'לא הופעל',
+});
 
 function assistEscape(s) {
   return String(s ?? '')
@@ -10608,8 +10700,25 @@ function assistRefreshContextChip() {
   const chip = document.getElementById('assistContextChip');
   if (!chip) return;
   const ctx = assistBuildContextSnapshot();
-  const parts = [ctx.current_workspace, ctx.current_capability, ctx.current_tab].filter(Boolean);
+  const parts = [
+    ASSIST_WORKSPACE_HE[ctx.current_workspace] || ASSIST_WORKSPACE_HE.UNKNOWN,
+    ASSIST_CAPABILITY_HE[ctx.current_capability] || null,
+    ASSIST_TAB_HE[ctx.current_tab] || null,
+  ].filter(Boolean);
   chip.textContent = parts.join(' · ') || '—';
+}
+
+function assistSyncMessagesEmpty() {
+  const empty = document.getElementById('assistMessagesEmpty');
+  const box = document.getElementById('assistMessages');
+  if (!empty) return;
+  empty.hidden = !!(box && box.children.length);
+}
+
+function assistSyncProposalWarn() {
+  const warn = document.getElementById('assistProposalWarn');
+  if (!warn) return;
+  warn.hidden = !_assistPendingProposalId || _assistAgentConnected;
 }
 
 function assistAppendMessage({ role, text, meta, kind }) {
@@ -10624,6 +10733,7 @@ function assistAppendMessage({ role, text, meta, kind }) {
   box.scrollTop = box.scrollHeight;
   _assistHistory.push({ role, text, meta, kind, ts: Date.now() });
   if (_assistHistory.length > 40) _assistHistory = _assistHistory.slice(-40);
+  assistSyncMessagesEmpty();
 }
 
 function assistSetProposalBar(response) {
@@ -10638,6 +10748,7 @@ function assistSetProposalBar(response) {
     _assistPendingProposalId = null;
     bar.hidden = true;
   }
+  assistSyncProposalWarn();
 }
 
 function assistStopRunPolling() {
@@ -10663,8 +10774,9 @@ function assistBuildStatusHtml({ headline, taskId, agentState, lastMessage, prog
       `<div class="assist-status-row"><span class="assist-status-label">${assistEscape(label)}</span><code class="assist-status-value">${assistEscape(value)}</code></div>`,
     );
   }
+  const stateKey = String(agentState || '').trim().toUpperCase();
   row('מזהה משימה', taskId);
-  row('מצב סוכן', agentState);
+  row('מצב סוכן', ASSIST_AGENT_STATE_HE[stateKey] || agentState);
   row('הודעה אחרונה', lastMessage);
   row('התקדמות', progress == null || progress === '' ? null : String(progress));
   row('ענף', branch);
@@ -10706,6 +10818,7 @@ function assistRenderRunStatus(payload, { agentStarted = true, unavailableReason
     _assistRunMsgEl.classList.add(`assist-msg-kind-${kind}`);
     _assistRunMsgEl.innerHTML = `<div class="assist-msg-body">${assistEscape(headline)}</div>`;
     box.scrollTop = box.scrollHeight;
+    assistSyncMessagesEmpty();
   }
 }
 
@@ -10757,7 +10870,7 @@ async function assistSendText(rawText) {
   });
   const data = await r.json().catch(() => ({}));
   if (!r.ok || !data.ok) {
-    assistAppendMessage({ role: 'assist', text: data.message || 'ASSIST request failed', kind: 'INFORMATION' });
+    assistAppendMessage({ role: 'assist', text: data.message || 'שליחת ההודעה נכשלה.', kind: 'INFORMATION' });
     assistSetProposalBar(null);
     return;
   }
@@ -10864,10 +10977,12 @@ function assistRenderAgentConnection(status) {
   const disconnectBtn = document.getElementById('assistAgentDisconnectBtn');
   if (!card || !statusEl) return;
   const connected = status?.connected === true && status?.runtime === 'READY';
+  _assistAgentConnected = connected;
   const errorText = !connected && status?.ok === false
     ? (status.status_he || status.reason_he || 'החיבור לסוכן נכשל.')
     : '';
   card.dataset.state = errorText ? 'error' : (connected ? 'connected' : 'disconnected');
+  assistSyncProposalWarn();
   statusEl.textContent = connected
     ? (status.status_he || 'הסוכן מחובר ומוכן.')
     : (status.status_he || status.reason_he || 'הסוכן מנותק.');
@@ -11041,6 +11156,8 @@ function initAssistUi() {
     btn.addEventListener('click', () => setTimeout(assistRefreshContextChip, 0));
   });
   assistRefreshContextChip();
+  assistSyncMessagesEmpty();
+  assistSyncProposalWarn();
 }
 
 initAssistUi();

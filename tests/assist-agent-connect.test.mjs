@@ -343,8 +343,22 @@ describe('Assist connect chrome', () => {
     expect(html).toMatch(/id="assistAgentConnectBtn"[^>]*>חיבור</);
     expect(html).toMatch(/id="assistAgentDisconnectBtn"[^>]*>ניתוק</);
     expect(html).toMatch(/מפתח חיבור/);
+    expect(html).toMatch(/id="assistMessagesEmpty"[^>]*>אין הודעות עדיין\.</);
+    expect(html).toMatch(/id="assistProposalWarn"/);
+    expect(html).toMatch(/חברו מפתח לפני אישור/);
     expect(html).not.toMatch(/CURSOR_API_KEY/);
     expect(html).not.toMatch(/DEVELOPMENT_AGENT_PROVIDER/);
+  });
+
+  it('keeps Assist send / chip / run-state copy in Hebrew', () => {
+    const js = fs.readFileSync(path.join(repoRoot, 'public', 'app.js'), 'utf8');
+    expect(js).toContain("data.message || 'שליחת ההודעה נכשלה.'");
+    expect(js).not.toContain('ASSIST request failed');
+    expect(js).toContain("MISSION: 'משימה'");
+    expect(js).toContain("terrain: 'הטסה'");
+    expect(js).toContain("NOT_STARTED: 'לא הופעל'");
+    expect(js).toContain('assistSyncProposalWarn');
+    expect(js).toContain('assistSyncMessagesEmpty');
   });
 });
 

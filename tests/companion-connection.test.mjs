@@ -16,6 +16,7 @@ import {
   mergeCompanionEnv,
   readStoredCompanionConnection,
   validateCompanionBaseUrl,
+  validateCompanionToken,
   writeStoredCompanionConnection,
 } from '../lib/companion-connection.mjs';
 import { CompanionApiError } from '../lib/companion-api-client.mjs';
@@ -84,11 +85,17 @@ describe('companion connection helpers', () => {
     expect(validateCompanionBaseUrl('ftp://jetson:8081').error).toBe('url_invalid');
     expect(validateCompanionBaseUrl('http://jetson:8081').ok).toBe(true);
     expect(validateCompanionBaseUrl('http://jetson:8081/api/v1/').url).toBe('http://jetson:8081/api/v1');
+    expect(validateCompanionToken('').status_he).toBe(COMPANION_HE.tokenEmpty);
+    expect(validateCompanionToken('   ').error).toBe('token_empty');
+    expect(validateCompanionToken(TOKEN).ok).toBe(true);
   });
 
   it('maps CompanionApiError kinds including 401 to Hebrew', () => {
     expect(hebrewCompanionError(new CompanionApiError({ kind: 'http', status: 401, message: 'nope' })))
       .toBe(COMPANION_HE.unauthorized);
+    expect(COMPANION_HE.unauthorized).toMatch(/אסימון/);
+    expect(COMPANION_HE.hint).toMatch(/כתובת לבד לא מחברת/);
+    expect(COMPANION_HE.bothGate).toMatch(/כתובת לבד לא מחברת/);
     expect(hebrewCompanionError(new CompanionApiError({ kind: 'timeout', message: 't' })))
       .toBe(COMPANION_HE.timeout);
     expect(hebrewCompanionError(new CompanionApiError({ kind: 'connection', message: 'c' })))
@@ -172,6 +179,8 @@ describe('Companion in-product v1 connect', () => {
     const before = await fetch(`${base}/api/companion/connection`).then((r) => r.json());
     expect(before.mode).toBe('off');
     expect(before.connect_available).toBe(true);
+    expect(before.hint_he).toBe(COMPANION_HE.hint);
+    expect(before.status_he).toBe(COMPANION_HE.disconnected);
     expect(JSON.stringify(before)).not.toContain(TOKEN);
 
     const connected = await fetch(`${base}/api/companion/connection/connect`, {
@@ -220,13 +229,30 @@ describe('Companion in-product v1 connect', () => {
     expect(resolveCompanionMode({ JETSON_COMPANION_BASE_URL: BASE_URL })).toBe('off');
   });
 
+  it('rejects an empty token in Hebrew without probing', async () => {
+    const fetchImpl = vi.fn(async () => jsonResponse({ ok: true }, 200));
+    await boot({ fetchImpl });
+    const res = await fetch(`${base}/api/companion/connection/connect`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ base_url: BASE_URL }),
+    });
+    const body = await res.json();
+    expect(res.status).toBe(400);
+    expect(body.ok).toBe(false);
+    expect(body.status_he).toBe(COMPANION_HE.tokenEmpty);
+    expect(body.error).toBe('token_empty');
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(readStoredCompanionConnection(db).connected).toBe(false);
+  });
+
   it('maps HTTP 401 to the Hebrew token error and does not persist real', async () => {
     const fetchImpl = vi.fn(async () => jsonResponse({ message: 'unauthorized' }, 401));
     await boot({ fetchImpl });
     const res = await fetch(`${base}/api/companion/connection/connect`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ base_url: BASE_URL }),
+      body: JSON.stringify({ base_url: BASE_URL, token: TOKEN }),
     });
     const body = await res.json();
     expect(res.status).toBe(401);
@@ -349,6 +375,12 @@ describe('Companion connect chrome', () => {
     expect(html).toMatch(/id="companionDisconnectBtn"[^>]*>ניתוק</);
     expect(html).toMatch(/כתובת בסיס/);
     expect(html).toMatch(/אסימון/);
+    expect(html).toMatch(/חיבור דורש כתובת ואסימון יחד/);
+    expect(html).toMatch(/כתובת לבד לא מחברת/);
+    expect(html).toMatch(/id="companionConnectForm"[^>]*novalidate/);
+    expect(html).toMatch(/id="companionBaseUrl"[^>]*type="text"/);
+    expect(html).not.toMatch(/id="companionBaseUrl"[^>]*type="url"/);
+    expect(html).not.toMatch(/כתובת הבסיס חייבת לשרת/);
     expect(html).toMatch(/id="maintCompanionConnectStatus"/);
     expect(html).not.toMatch(/JETSON_COMPANION_TOKEN/);
     expect(html).not.toMatch(/COMPANION_SHARED_SECRET/);

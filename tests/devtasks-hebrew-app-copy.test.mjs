@@ -185,6 +185,16 @@ describe('Development Tasks Hebrew leftover copy', () => {
     const provider = sliceFunction(js, 'devFormatAgentProvider');
     expect(provider).toContain('סוכן הפיתוח אינו זמין');
     expect(provider).not.toMatch(/Development agent unavailable'/);
+
+    const runtime = sliceFunction(js, 'devFormatAgentRuntime');
+    expect(runtime).toContain('לא זמין.');
+    expect(runtime).toContain('מוכן');
+    expect(runtime).not.toContain('UNAVAILABLE —');
+    expect(runtime).not.toMatch(/return extra \? `UNAVAILABLE/);
+
+    const unavailable = sliceFunction(js, 'devHebrewUnavailableReason');
+    expect(unavailable).toContain('הסוכן מנותק. חברו אותו במסייע.');
+    expect(unavailable).toContain('סוכן הפיתוח אינו זמין. חברו אותו במסייע.');
   });
 
   it('keeps filter / profile / status enum values as the API contract', () => {

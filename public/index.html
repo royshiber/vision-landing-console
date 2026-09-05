@@ -144,10 +144,12 @@
         </form>
         <button type="button" id="assistAgentDisconnectBtn" class="assist-btn assist-btn-cancel" hidden>ניתוק</button>
       </section>
+      <p id="assistMessagesEmpty" class="assist-messages-empty">אין הודעות עדיין.</p>
       <div id="assistMessages" class="assist-messages" role="log" aria-live="polite"></div>
       <div id="assistRunPanel" class="assist-run-panel" data-kind="unavailable" hidden></div>
       <div id="assistProposalBar" class="assist-proposal-bar" hidden>
         <p id="assistProposalText" class="assist-proposal-text"></p>
+        <p id="assistProposalWarn" class="assist-proposal-warn" hidden>הסוכן מנותק. חברו מפתח לפני אישור. אחרת תיווצר משימה בלי הרצת סוכן.</p>
         <div class="assist-proposal-actions">
           <button type="button" id="assistConfirmBtn" class="assist-btn assist-btn-confirm">אישור</button>
           <button type="button" id="assistCancelBtn" class="assist-btn assist-btn-cancel">ביטול</button>
@@ -517,12 +519,12 @@
         <div id="companionApiUnavailable" class="companion-api-unavailable" hidden></div>
         <section id="companionConnect" class="companion-connect assist-agent-connect" data-state="disconnected" aria-label="חיבור מלווה">
           <p id="companionConnectStatus" class="assist-agent-status" aria-live="polite">המלווה מנותק</p>
-          <p id="companionConnectHint" class="assist-agent-hint">כתובת הבסיס חייבת לשרת את ממשק המלווה בגרסה הראשונה</p>
-          <p id="companionConnectPathHint" class="assist-agent-key-hint" dir="ltr">/api/v1/*</p>
+          <p id="companionConnectHint" class="assist-agent-hint">חיבור דורש כתובת ואסימון יחד. כתובת לבד לא מחברת.</p>
+          <p id="companionConnectPathHint" class="assist-agent-key-hint" hidden dir="ltr">/api/v1/*</p>
           <p id="companionTokenHint" class="assist-agent-key-hint" hidden dir="ltr"></p>
-          <form id="companionConnectForm" class="assist-agent-form" autocomplete="off">
+          <form id="companionConnectForm" class="assist-agent-form" autocomplete="off" novalidate>
             <label class="assist-agent-label" for="companionBaseUrl">כתובת בסיס</label>
-            <input id="companionBaseUrl" class="assist-agent-key" type="url" maxlength="500" dir="ltr" autocomplete="off" placeholder="http://host:8081" />
+            <input id="companionBaseUrl" class="assist-agent-key" type="text" inputmode="url" maxlength="500" dir="ltr" autocomplete="off" placeholder="http://host:8081" />
             <label class="assist-agent-label" for="companionToken">אסימון</label>
             <input id="companionToken" class="assist-agent-key" type="password" maxlength="500" dir="ltr" autocomplete="off" />
             <p id="companionConnectError" class="assist-agent-error" hidden></p>
@@ -979,6 +981,7 @@
               </div>
               <p id="devDetailTitle" class="devtasks-title">—</p>
               <p id="devDetailDescription" class="devtasks-description">—</p>
+              <p id="devAgentUnavailableNote" class="devtasks-unavailable-note" hidden>סוכן הפיתוח אינו זמין. חברו אותו במסייע.</p>
               <div class="devtasks-edit">
                 <label>עדיפות <select id="devDetailPriority" class="kpi-input"></select></label>
                 <label>יעד <select id="devDetailTarget" class="kpi-input"></select></label>
