@@ -2833,6 +2833,194 @@ function applyTeleSubtab(tabId) {
   });
 }
 
+function companionConnectSetError(text) {
+  const err = document.getElementById('companionConnectError');
+  if (!err) return;
+  const msg = String(text || '').trim();
+  err.hidden = !msg;
+  err.textContent = msg;
+}
+
+function companionConnectSetBusy(busy) {
+  const url = document.getElementById('companionBaseUrl');
+  const token = document.getElementById('companionToken');
+  const connectBtn = document.getElementById('companionConnectBtn');
+  const disconnectBtn = document.getElementById('companionDisconnectBtn');
+  if (url) url.disabled = !!busy;
+  if (token) token.disabled = !!busy;
+  if (connectBtn) {
+    const empty = !String(url?.value || '').trim();
+    connectBtn.disabled = !!busy || empty;
+  }
+  if (disconnectBtn) disconnectBtn.disabled = !!busy;
+}
+
+function companionConnectSyncButton() {
+  const url = document.getElementById('companionBaseUrl');
+  const connectBtn = document.getElementById('companionConnectBtn');
+  if (!connectBtn) return;
+  connectBtn.disabled = !String(url?.value || '').trim();
+}
+
+function companionConnectRender(status) {
+  const card = document.getElementById('companionConnect');
+  const statusEl = document.getElementById('companionConnectStatus');
+  const hintEl = document.getElementById('companionConnectHint');
+  const tokenHintEl = document.getElementById('companionTokenHint');
+  const form = document.getElementById('companionConnectForm');
+  const disconnectBtn = document.getElementById('companionDisconnectBtn');
+  const urlEl = document.getElementById('companionBaseUrl');
+  const maintStatus = document.getElementById('maintCompanionConnectStatus');
+  const maintHint = document.getElementById('maintCompanionTokenHint');
+  if (!card || !statusEl) return;
+  const connected = status?.connected === true && status?.mode === 'real';
+  const errorText = !connected && status?.ok === false
+    ? (status.status_he || status.reason_he || 'החיבור למלווה נכשל')
+    : '';
+  card.dataset.state = errorText ? 'error' : (connected ? 'connected' : 'disconnected');
+  const statusText = connected
+    ? (status.status_he || 'המלווה מחובר')
+    : (status.status_he || status.reason_he || 'המלווה מנותק');
+  statusEl.textContent = statusText;
+  if (maintStatus) maintStatus.textContent = statusText;
+  if (hintEl) {
+    hintEl.hidden = connected;
+    hintEl.textContent = 'כתובת הבסיס חייבת לשרת את ממשק המלווה בגרסה הראשונה';
+  }
+  const hint = connected ? String(status.token_hint || '').trim() : '';
+  if (tokenHintEl) {
+    tokenHintEl.hidden = !hint;
+    tokenHintEl.textContent = hint;
+  }
+  if (maintHint) {
+    maintHint.hidden = !hint;
+    maintHint.textContent = hint;
+  }
+  if (form) form.hidden = connected;
+  if (disconnectBtn) {
+    disconnectBtn.hidden = !connected;
+    disconnectBtn.setAttribute('aria-hidden', connected ? 'false' : 'true');
+  }
+  if (urlEl && status?.base_url && !connected && !String(urlEl.value || '').trim()) {
+    urlEl.value = status.base_url;
+  }
+  if (!errorText) companionConnectSetError('');
+  companionConnectSyncButton();
+}
+
+async function companionConnectRefresh() {
+  try {
+    const r = await fetch('/api/companion/connection', { cache: 'no-store' });
+    const data = await r.json().catch(() => ({}));
+    companionConnectRender({
+      ok: r.ok && data.ok !== false,
+      mode: data.mode,
+      connected: data.connected === true,
+      status_he: data.status_he,
+      reason_he: data.reason_he,
+      token_hint: data.token_hint,
+      base_url: data.base_url,
+    });
+  } catch {
+    companionConnectRender({
+      ok: false,
+      mode: 'off',
+      connected: false,
+      status_he: 'המלווה מנותק',
+    });
+  }
+}
+
+async function companionConnectSubmit(event) {
+  event?.preventDefault?.();
+  const urlEl = document.getElementById('companionBaseUrl');
+  const tokenEl = document.getElementById('companionToken');
+  const baseUrl = String(urlEl?.value || '').trim();
+  const token = String(tokenEl?.value || '').trim();
+  if (!baseUrl) {
+    companionConnectSetError('יש להזין כתובת בסיס');
+    companionConnectRender({
+      ok: false,
+      mode: 'off',
+      connected: false,
+      status_he: 'יש להזין כתובת בסיס',
+    });
+    return;
+  }
+  const statusEl = document.getElementById('companionConnectStatus');
+  if (statusEl) statusEl.textContent = 'מחברים את המלווה';
+  companionConnectSetBusy(true);
+  companionConnectSetError('');
+  try {
+    const r = await fetch('/api/companion/connection/connect', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ base_url: baseUrl, token }),
+    });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok || data.ok === false || data.mode !== 'real') {
+      const msg = data.status_he || data.reason_he || 'החיבור למלווה נכשל';
+      companionConnectSetError(msg);
+      companionConnectRender({
+        ok: false,
+        mode: 'off',
+        connected: false,
+        status_he: msg,
+        reason_he: data.reason_he,
+        base_url: baseUrl,
+      });
+      return;
+    }
+    if (tokenEl) tokenEl.value = '';
+    companionConnectRender(data);
+  } catch {
+    companionConnectSetError('החיבור למלווה נכשל');
+    companionConnectRender({
+      ok: false,
+      mode: 'off',
+      connected: false,
+      status_he: 'החיבור למלווה נכשל',
+    });
+  } finally {
+    companionConnectSetBusy(false);
+  }
+}
+
+async function companionDisconnect() {
+  companionConnectSetBusy(true);
+  try {
+    const r = await fetch('/api/companion/connection/disconnect', { method: 'POST' });
+    const data = await r.json().catch(() => ({}));
+    companionConnectRender({
+      ok: r.ok,
+      mode: data.mode || 'off',
+      connected: false,
+      status_he: data.status_he || 'המלווה מנותק',
+      base_url: data.base_url,
+    });
+  } catch {
+    companionConnectRender({
+      ok: false,
+      mode: 'off',
+      connected: false,
+      status_he: 'המלווה מנותק',
+    });
+  } finally {
+    companionConnectSetBusy(false);
+  }
+}
+
+function initCompanionConnectUi() {
+  if (!document.getElementById('companionConnect')) return;
+  document.getElementById('companionConnectForm')?.addEventListener('submit', (e) => { void companionConnectSubmit(e); });
+  document.getElementById('companionBaseUrl')?.addEventListener('input', () => {
+    companionConnectSetError('');
+    companionConnectSyncButton();
+  });
+  document.getElementById('companionDisconnectBtn')?.addEventListener('click', () => { void companionDisconnect(); });
+  void companionConnectRefresh();
+}
+
 function applyCompanionUi(companion) {
   if (!companion) return;
   const unavailable = companion.unavailable === true || (companion.mode === 'real' && companion.reachable === false);
@@ -10850,3 +11038,4 @@ function initAssistUi() {
 }
 
 initAssistUi();
+initCompanionConnectUi();

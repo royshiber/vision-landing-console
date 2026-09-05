@@ -515,6 +515,21 @@
           </div>
         </div>
         <div id="companionApiUnavailable" class="companion-api-unavailable" hidden></div>
+        <section id="companionConnect" class="companion-connect assist-agent-connect" data-state="disconnected" aria-label="חיבור מלווה">
+          <p id="companionConnectStatus" class="assist-agent-status" aria-live="polite">המלווה מנותק</p>
+          <p id="companionConnectHint" class="assist-agent-hint">כתובת הבסיס חייבת לשרת את ממשק המלווה בגרסה הראשונה</p>
+          <p id="companionConnectPathHint" class="assist-agent-key-hint" dir="ltr">/api/v1/*</p>
+          <p id="companionTokenHint" class="assist-agent-key-hint" hidden dir="ltr"></p>
+          <form id="companionConnectForm" class="assist-agent-form" autocomplete="off">
+            <label class="assist-agent-label" for="companionBaseUrl">כתובת בסיס</label>
+            <input id="companionBaseUrl" class="assist-agent-key" type="url" maxlength="500" dir="ltr" autocomplete="off" placeholder="http://host:8081" />
+            <label class="assist-agent-label" for="companionToken">אסימון</label>
+            <input id="companionToken" class="assist-agent-key" type="password" maxlength="500" dir="ltr" autocomplete="off" />
+            <p id="companionConnectError" class="assist-agent-error" hidden></p>
+            <button type="submit" id="companionConnectBtn" class="assist-btn assist-btn-confirm" disabled>חיבור</button>
+          </form>
+          <button type="button" id="companionDisconnectBtn" class="assist-btn assist-btn-cancel" hidden>ניתוק</button>
+        </section>
         <div id="teleDashPanel" class="tele-subpanel visible" data-tele-panel="dash">
         <div class="companion-dashboard-summary" aria-label="סיכום Companion API">
           <article class="tele-card"><span>Companion API</span><strong id="companionApiState">כבוי</strong></article>
@@ -832,6 +847,8 @@
             <article class="tele-card"><span>API פעיל</span><strong id="maintApiRunning">—</strong></article>
             <article class="tele-card"><span>API נגיש</span><strong id="maintApiReachable">—</strong></article>
           </div>
+          <p id="maintCompanionConnectStatus" class="tele-dash-note">המלווה מנותק</p>
+          <p id="maintCompanionTokenHint" class="assist-agent-key-hint" hidden dir="ltr"></p>
 
           <h4 class="maint-group-title">אירועי אבחון</h4>
           <div class="maint-diag-wrap">
