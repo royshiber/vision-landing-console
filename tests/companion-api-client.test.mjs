@@ -158,4 +158,80 @@ describe('CompanionApiClient', () => {
     expect(client).not.toHaveProperty('setMode');
     expect(client).not.toHaveProperty('land');
   });
+
+  it('opens /api/v1/events with the same auth headers as other Companion calls', async () => {
+    const encoder = new TextEncoder();
+    const envelope = {
+      api_version: '1',
+      event: 'status',
+      timestamp: { t_monotonic_ns: 1, t_utc_ns: null },
+      payload: { timestamp: { t_monotonic_ns: 1, t_utc_ns: null }, system: { cpu_percent: 10 } },
+    };
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify(envelope)}\n\n`));
+        controller.close();
+      },
+    });
+    const fetchImpl = vi.fn(async (url, init) => {
+      expect(String(url)).toBe('http://jetson:8472/api/v1/events');
+      expect(init.headers.Accept).toBe('text/event-stream');
+      expect(init.headers['X-Companion-Token']).toBe('tok');
+      expect(init.headers.Authorization).toBe('Bearer tok');
+      return new Response(stream, {
+        status: 200,
+        headers: { 'Content-Type': 'text/event-stream' },
+      });
+    });
+    const client = createCompanionApiClient({
+      baseUrl: 'http://jetson:8472',
+      fetchImpl,
+      timeoutMs: 500,
+      env: { COMPANION_SHARED_SECRET: 'tok' },
+    });
+    const events = [];
+    const { done } = await client.openEventsStream({ onEvent: (e) => events.push(e) });
+    await done;
+    expect(events).toHaveLength(1);
+    expect(events[0].event).toBe('status');
+    expect(events[0].payload.system.cpu_percent).toBe(10);
+  });
+
+  it('rejects events stream 404 so the bridge can poll', async () => {
+    const fetchImpl = vi.fn(async () => jsonResponse({ message: 'nope' }, 404));
+    const client = createCompanionApiClient({
+      baseUrl: 'http://jetson:8472',
+      fetchImpl,
+      timeoutMs: 200,
+    });
+    await expect(client.openEventsStream({ onEvent: () => {} })).rejects.toMatchObject({
+      kind: 'http',
+      status: 404,
+    });
+  });
+
+  it('rejects events stream 501 so the bridge can poll', async () => {
+    const fetchImpl = vi.fn(async () => jsonResponse({ message: 'not implemented' }, 501));
+    const client = createCompanionApiClient({
+      baseUrl: 'http://jetson:8472',
+      fetchImpl,
+      timeoutMs: 200,
+    });
+    await expect(client.openEventsStream({ onEvent: () => {} })).rejects.toMatchObject({
+      kind: 'http',
+      status: 501,
+    });
+  });
+
+  it('rejects a JSON 200 on /events as an unsupported stream', async () => {
+    const fetchImpl = vi.fn(async () => jsonResponse({ ok: true }));
+    const client = createCompanionApiClient({
+      baseUrl: 'http://jetson:8472',
+      fetchImpl,
+      timeoutMs: 200,
+    });
+    await expect(client.openEventsStream({ onEvent: () => {} })).rejects.toMatchObject({
+      kind: 'parse',
+    });
+  });
 });
