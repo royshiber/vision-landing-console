@@ -80,7 +80,7 @@ Do not implement without explicit Roy **GO**:
 - ARM / DISARM / LAND / SET_MODE / live FC write / auto-landing — Issue #29
 - Secrets / deploy to devices / flight commands
 
-Merge: Roy 2026-09-05 — King may merge **verified safe** draft PRs without asking. This map stays draft. Decision options must carry meaning hints.
+Merge: Roy 2026-09-05 — King may merge **verified safe** draft PRs without asking, including this map (#32) after VERIFY. Constitution #6 stays draft until its merge-autonomy text lands; then King may merge #6. Decision options must carry meaning hints.
 
 Also locked without GO:
 
@@ -111,16 +111,16 @@ Params persist on master via PR #18 + PR #30. Write-to-vehicle is still a Human 
 4. Live Jetson connect is **parked** until Roy remembers the Companion token. Token is not in Cursor / PC `.env`. Jetson `:8081` returns 401 without it. Do not invent a token. Do not fake a live connect.
 5. Human Gates stay WAITING FOR ROY: companion apply/restart (#28), live vehicle / auto-landing (#29), secrets / deploy / flight commands.
 6. 300+ hunt is **abandoned permanently**. GitHub public `master` is `1.02.255`. Improve GitHub 255. Prefer high-impact capability over chrome polish.
-7. Keep leftover drafts draft. Do **not** merge #4, #6, #15, or #32 (this map). Keep constitution PR #6 updated; merge is still a Human Gate for constitution / work-rules.
-8. After this map rewrite, do not create chrome / copy / changelog PRs while destination GAPS remain. Do not ask Roy what to work on next.
+7. Skip leftover draft #4 (low-value smoke). Constitution #6 stays draft until its merge-autonomy text lands; then King may merge #6. King may merge this map (#32) after VERIFY.
+8. After this map rewrite, do not create chrome / copy / changelog PRs while destination GAPS remain. Changelog #15 is already on master. Do not ask Roy what to work on next.
 
 ---
 
 ## Audit snapshot — 2026-09-05
 
-**Master:** `1.02.255` @ `2036fbb` (PR #30 merge). Do not bump.  
-**Prior pointer:** 2026-08-26 snapshot at `613e4eb` is superseded. It still listed #30 / #37 / #38 as open drafts and treated 255 as not-the-product.  
-**This file:** living plan as of this VERIFY. Draft PR #32. Do not merge. King (PM) independently VERIFIES.
+**Master:** `1.02.255` @ `09fad00` (PR #15 merge). Tip is past #30. Do not bump.  
+**Prior pointer:** earlier 2026-09-05 snapshot on this PR still listed #15 as an open skip and forbade merging #32. That is superseded.  
+**This file:** living plan as of this VERIFY. Draft PR #32. King may merge #32 after VERIFY.
 
 ### Landed on master after the 2026-08-26 snapshot (true)
 
@@ -130,6 +130,7 @@ Params persist on master via PR #18 + PR #30. Write-to-vehicle is still a Human 
 - PR #38 Hebrew Development Tasks chrome in `index.html` (`f4acc74`). Nav `DEVELOPMENT` → `פיתוח`. Behavior / ids / enums unchanged.
 - PR #41 Hebrew Development Tasks leftovers in `app.js` (`afb1972`). User-visible filter / error / confirm copy. Enums stay English.
 - PR #30 param-set RAM updates persist through SQLite `server_config` (`2036fbb`). Follow-on to #18. No live FC `PARAM_SET` as a new product capability.
+- PR #15 rewrite dummy `1.02.254` / `1.02.255` changelog rows as product copy (`09fad00`). Issues #12 / #16 done on master — close later.
 
 ### Already on master (keep)
 
@@ -159,24 +160,27 @@ On master today (PR #39 + PR #40):
 
 `POST /api/param-center/param-set` now persists through the same `server_config` snapshot as vision config (PR #18 + PR #30). Issue #27 done on master — close later. Live FC `PARAM_SET` as a product capability remains a Human Gate.
 
-### Open drafts (stay draft — do not merge in this task)
+### Open drafts
 
 | PR | Topic | This map |
 |---|---|---|
-| [#4](https://github.com/royshiber/vision-landing-console/pull/4) | PM orchestrator smoke | Skip. Do not merge. |
-| [#6](https://github.com/royshiber/vision-landing-console/pull/6) | `AGENTS.md` constitution | Keep updated; merge is Human Gate (Roy). Do not merge. |
-| [#15](https://github.com/royshiber/vision-landing-console/pull/15) | Changelog polish | Skip. Do not merge. Chrome / copy while GAPS remain. |
-| [#32](https://github.com/royshiber/vision-landing-console/pull/32) | This living map | Stay draft. Do not merge. |
+| [#4](https://github.com/royshiber/vision-landing-console/pull/4) | PM orchestrator smoke | Skip. Low-value. Do not merge. |
+| [#6](https://github.com/royshiber/vision-landing-console/pull/6) | `AGENTS.md` constitution | Keep updated. Stay draft until merge-autonomy text lands; then King may merge #6. |
+| [#32](https://github.com/royshiber/vision-landing-console/pull/32) | This living map | King may merge after VERIFY. |
 
-Do not merge leftover drafts #4 #6 #15 #32.
+### Landed draft (was open on the prior 2026-09-05 snapshot)
+
+| PR | Topic | This map |
+|---|---|---|
+| [#15](https://github.com/royshiber/vision-landing-console/pull/15) | Changelog product copy | **LANDED** on master `09fad00`. Not a skip. |
 
 ### Open issues
 
 | Issue | Topic | Class |
 |---|---|---|
-| [#7](https://github.com/royshiber/vision-landing-console/issues/7) | Constitution in `AGENTS.md` | Implemented in draft #6; leave open until Roy merges |
+| [#7](https://github.com/royshiber/vision-landing-console/issues/7) | Constitution in `AGENTS.md` | Implemented in draft #6. Stay open until merge-autonomy text lands and King merges #6. |
 | [#8](https://github.com/royshiber/vision-landing-console/issues/8) / [#10](https://github.com/royshiber/vision-landing-console/issues/10) | Assist Confirm/Cancel English | Done on master (PR #9). Close later. |
-| [#12](https://github.com/royshiber/vision-landing-console/issues/12) / [#16](https://github.com/royshiber/vision-landing-console/issues/16) | Changelog dump rows | IMPROVEMENT. Skip while GAPS remain. |
+| [#12](https://github.com/royshiber/vision-landing-console/issues/12) / [#16](https://github.com/royshiber/vision-landing-console/issues/16) | Changelog dump rows | **Done on master** via PR #15. Close later. |
 | [#14](https://github.com/royshiber/vision-landing-console/issues/14) | Remaining Development English chrome | **Done on master** via #13 + #38 + #41. Close later. |
 | [#27](https://github.com/royshiber/vision-landing-console/issues/27) | Params persist | **Done on master** via #18 + #30. Close later. Write-to-vehicle is Human Gate. |
 | [#28](https://github.com/royshiber/vision-landing-console/issues/28) | Companion apply/restart | GAP + Human Gate. Highest remaining destination code. No GO. |
@@ -196,8 +200,8 @@ Roy 2026-09-05: abandon searching the local tree for versions past 300 **permane
 
 ### Explicitly not next
 
-Do not spend cycles on changelog #15, smoke #4, more Hebrew / chrome polish, version bump, 300+ hunt, inventing a Companion token, Jetson apply/restart, flight commands, or merging this map. Issue #14 leftover chrome is closed on master.
+Do not spend cycles on smoke #4, more Hebrew / chrome polish, version bump, 300+ hunt, inventing a Companion token, Jetson apply/restart, or flight commands. Changelog #15 is landed. Issue #14 leftover chrome is closed on master. Merging this map is allowed after VERIFY.
 
 ### Next pick (this snapshot)
 
-Human Gates stay WAITING FOR ROY. Live Jetson proof stays parked on the token. 300+ hunt is abandoned. GitHub 255 is the product to improve. Prefer high-impact capability over chrome. Independent executable high-impact work that is not Human Gate / not parked token / not chrome is thin — do not invent a polish PR to fill the gap. Do not ask Roy what to work on next. Do not merge this map.
+Human Gates stay WAITING FOR ROY. Live Jetson proof stays parked on the token. 300+ hunt is abandoned. GitHub 255 is the product to improve. Prefer high-impact capability over chrome. Independent executable high-impact work that is not Human Gate / not parked token / not chrome is thin — do not invent a polish PR to fill the gap. Do not ask Roy what to work on next. King may merge this map (#32) after VERIFY.
