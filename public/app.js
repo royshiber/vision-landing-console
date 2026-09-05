@@ -10037,7 +10037,7 @@ function devText(v) {
 
 function devFormatAgentProvider(name, available) {
   const p = String(name || '').trim();
-  if (!available || p === 'unavailable' || !p) return 'Development agent unavailable';
+  if (!available || p === 'unavailable' || !p) return 'סוכן הפיתוח אינו זמין';
   if (p.startsWith('mock:')) return 'MOCK';
   if (p === 'cursor-sdk') return 'Cursor SDK';
   return p;
@@ -10080,7 +10080,7 @@ function devFillOptions(selectId, values, includeAll = false) {
   if (!el) return;
   const current = el.value;
   const opt = [];
-  if (includeAll) opt.push('<option value="">ALL</option>');
+  if (includeAll) opt.push('<option value="">הכל</option>');
   for (const v of values) opt.push(`<option value="${v}">${v}</option>`);
   el.innerHTML = opt.join('');
   if ([...el.options].some((o) => o.value === current)) el.value = current;
@@ -10225,7 +10225,7 @@ function devRenderTaskDetail(task) {
 async function devLoadTaskDetail(id) {
   const r = await devApi(`/api/development/tasks/${encodeURIComponent(id)}`);
   if (!r.ok) {
-    devSetResult('devTaskDetailResult', r.data?.message || 'failed to load task detail', 'err');
+    devSetResult('devTaskDetailResult', r.data?.message || 'טעינת פרטי המשימה נכשלה', 'err');
     return;
   }
   devRenderTaskDetail(r.data.task);
@@ -10248,7 +10248,7 @@ function devStopAgentPolling() {
 async function devRefreshAgentState(taskId, silent = false) {
   const r = await devApi(`/api/development/tasks/${encodeURIComponent(taskId)}/agent`);
   if (!r.ok) {
-    if (!silent) devSetResult('devAgentResult', r.data?.message || 'failed to refresh agent', 'err');
+    if (!silent) devSetResult('devAgentResult', r.data?.message || 'רענון מצב הסוכן נכשל', 'err');
     return;
   }
   devRenderTaskDetail(r.data.task);
@@ -10269,7 +10269,7 @@ async function devStartDevelopment() {
   const priority = t?.priority || '';
   const branch = `development/tasks/${String(id).toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '')}`;
   const worktree = `.worktrees/${String(id).toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '')}`;
-  const msg = `Start development agent?\n\nTitle: ${title}\nDescription: ${desc}\nTarget: ${target}\nPriority: ${priority}\n\nWarning: Agent will modify code in isolated branch/worktree.\nBranch: ${branch}\nWorktree: ${worktree}`;
+  const msg = `להפעיל סוכן פיתוח?\n\nכותרת: ${title}\nתיאור: ${desc}\nיעד: ${target}\nעדיפות: ${priority}\n\nאזהרה: הסוכן ישנה קוד בענף וב-worktree מבודדים.\nענף: ${branch}\nworktree: ${worktree}`;
   if (!window.confirm(msg)) return;
   const r = await devApi(`/api/development/tasks/${encodeURIComponent(_devSelectedTaskId)}/agent/start`, {
     method: 'POST',
@@ -10277,10 +10277,10 @@ async function devStartDevelopment() {
     body: JSON.stringify({ confirm: true }),
   });
   if (!r.ok) {
-    devSetResult('devAgentResult', r.data?.message || 'failed to start agent', 'err');
+    devSetResult('devAgentResult', r.data?.message || 'הפעלת סוכן הפיתוח נכשלה', 'err');
     return;
   }
-  devSetResult('devAgentResult', 'Development agent started', 'ok');
+  devSetResult('devAgentResult', 'סוכן הפיתוח הופעל', 'ok');
   devRenderTaskDetail(r.data.task);
   devStartAgentPolling();
 }
@@ -10290,17 +10290,17 @@ async function devCreateWorktree() {
   const t = _devTasks.find((x) => x.id === _devSelectedTaskId);
   const branch = t?.branch || `development/tasks/${String(_devSelectedTaskId).toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '')}`;
   const worktree = t?.worktree || `.worktrees/${String(_devSelectedTaskId).toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '')}`;
-  if (!window.confirm(`Create isolated worktree?\n\nBranch: ${branch}\nWorktree: ${worktree}`)) return;
+  if (!window.confirm(`ליצור worktree מבודד?\n\nענף: ${branch}\nworktree: ${worktree}`)) return;
   const r = await devApi(`/api/development/tasks/${encodeURIComponent(_devSelectedTaskId)}/worktree/create`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ confirm: true }),
   });
   if (!r.ok) {
-    devSetResult('devAgentResult', r.data?.message || 'worktree creation failed', 'err');
+    devSetResult('devAgentResult', r.data?.message || 'יצירת worktree נכשלה', 'err');
     return;
   }
-  devSetResult('devAgentResult', 'Worktree created', 'ok');
+  devSetResult('devAgentResult', 'worktree נוצר', 'ok');
   devRenderTaskDetail(r.data.task);
   await devTasksLoadList();
 }
@@ -10308,17 +10308,17 @@ async function devCreateWorktree() {
 async function devRunTests() {
   if (!_devSelectedTaskId) return;
   const profile = document.getElementById('devTestProfileSelect')?.value || 'DEVELOPMENT';
-  if (!window.confirm(`Run approved test profile ${profile} in task worktree?`)) return;
+  if (!window.confirm(`להריץ פרופיל בדיקות מאושר ${profile} ב-worktree של המשימה?`)) return;
   const r = await devApi(`/api/development/tasks/${encodeURIComponent(_devSelectedTaskId)}/tests/run`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ confirm: true, profile }),
   });
   if (!r.ok) {
-    devSetResult('devTestResult', r.data?.message || 'test run failed to start', 'err');
+    devSetResult('devTestResult', r.data?.message || 'הרצת הבדיקות נכשלה', 'err');
     return;
   }
-  devSetResult('devTestResult', `Tests started (${profile})`, 'ok');
+  devSetResult('devTestResult', `הבדיקות הופעלו — ${profile}`, 'ok');
   devRenderTaskDetail(r.data.task);
   if (_devTestPoll) clearInterval(_devTestPoll);
   _devTestPoll = setInterval(() => { void devRefreshTests(true); }, 2500);
@@ -10328,7 +10328,7 @@ async function devRefreshTests(silent = false) {
   if (!_devSelectedTaskId) return;
   const r = await devApi(`/api/development/tasks/${encodeURIComponent(_devSelectedTaskId)}/tests`);
   if (!r.ok) {
-    if (!silent) devSetResult('devTestResult', r.data?.message || 'failed to refresh tests', 'err');
+    if (!silent) devSetResult('devTestResult', r.data?.message || 'רענון מצב הבדיקות נכשל', 'err');
     return;
   }
   devRenderTaskDetail(r.data.task);
@@ -10342,17 +10342,17 @@ async function devRefreshTests(silent = false) {
 
 async function devCancelTests() {
   if (!_devSelectedTaskId) return;
-  if (!window.confirm('Cancel active test run?')) return;
+  if (!window.confirm('לבטל את הרצת הבדיקות הפעילה?')) return;
   const r = await devApi(`/api/development/tasks/${encodeURIComponent(_devSelectedTaskId)}/tests/cancel`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ confirm: true }),
   });
   if (!r.ok) {
-    devSetResult('devTestResult', r.data?.message || 'failed to cancel tests', 'err');
+    devSetResult('devTestResult', r.data?.message || 'ביטול הרצת הבדיקות נכשל', 'err');
     return;
   }
-  devSetResult('devTestResult', 'Test run cancelled', 'ok');
+  devSetResult('devTestResult', 'הרצת הבדיקות בוטלה', 'ok');
   devRenderTaskDetail(r.data.task);
   if (_devTestPoll) clearInterval(_devTestPoll);
   _devTestPoll = null;
@@ -10361,58 +10361,58 @@ async function devCancelTests() {
 
 async function devApproveForRelease() {
   if (!_devSelectedTaskId) return;
-  if (!window.confirm('Approve task for release readiness?')) return;
+  if (!window.confirm('לאשר את המשימה למוכנות גרסה?')) return;
   const r = await devApi(`/api/development/tasks/${encodeURIComponent(_devSelectedTaskId)}/release/approve`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ confirm: true }),
   });
   if (!r.ok) {
-    devSetResult('devReleaseResult', r.data?.message || 'failed to approve for release', 'err');
+    devSetResult('devReleaseResult', r.data?.message || 'אישור המשימה לגרסה נכשל', 'err');
     return;
   }
-  devSetResult('devReleaseResult', 'Task approved for release', 'ok');
+  devSetResult('devReleaseResult', 'המשימה אושרה לגרסה', 'ok');
   devRenderTaskDetail(r.data.task);
   await devTasksLoadList();
 }
 
 async function devCreateRelease() {
   if (!_devSelectedTaskId) return;
-  if (!window.confirm('Create release artifact from tested task worktree?')) return;
+  if (!window.confirm('ליצור קובץ גרסה מ-worktree המשימה שנבדק?')) return;
   const r = await devApi(`/api/development/tasks/${encodeURIComponent(_devSelectedTaskId)}/release/create`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ confirm: true }),
   });
   if (!r.ok) {
-    devSetResult('devReleaseResult', r.data?.message || 'failed to create release', 'err');
+    devSetResult('devReleaseResult', r.data?.message || 'יצירת הגרסה נכשלה', 'err');
     return;
   }
-  devSetResult('devReleaseResult', `Release ready: ${r.data.release?.release_id || '—'}`, 'ok');
+  devSetResult('devReleaseResult', `הגרסה מוכנה: ${r.data.release?.release_id || '—'}`, 'ok');
   devRenderTaskDetail(r.data.task);
   await devTasksLoadList();
 }
 
 async function devDeployRelease() {
   if (!_devSelectedTaskId) return;
-  if (!window.confirm('Deploy this release via maintenance pipeline?')) return;
+  if (!window.confirm('להתקין את הגרסה דרך צינור התחזוקה?')) return;
   const r = await devApi(`/api/development/tasks/${encodeURIComponent(_devSelectedTaskId)}/release/deploy`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ confirm: true }),
   });
   if (!r.ok) {
-    devSetResult('devReleaseResult', r.data?.message || 'failed to deploy release', 'err');
+    devSetResult('devReleaseResult', r.data?.message || 'התקנת הגרסה נכשלה', 'err');
     return;
   }
-  devSetResult('devReleaseResult', `Deploy result: ${r.data.task?.deployment?.result || 'unknown'}`, 'ok');
+  devSetResult('devReleaseResult', `תוצאת התקנה: ${r.data.task?.deployment?.result || 'לא ידוע'}`, 'ok');
   devRenderTaskDetail(r.data.task);
   await devTasksLoadList();
 }
 
 async function devCancelAgent() {
   if (!_devSelectedTaskId) return;
-  if (!window.confirm('Cancel development agent session?')) return;
+  if (!window.confirm('לבטל את סשן סוכן הפיתוח?')) return;
   const r = await devApi(`/api/development/tasks/${encodeURIComponent(_devSelectedTaskId)}/agent/cancel`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -10420,13 +10420,13 @@ async function devCancelAgent() {
   });
   if (!r.ok) {
     if (r.data?.code === 'NOT_SUPPORTED') {
-      devSetResult('devAgentResult', 'Provider cancellation is not supported', 'err');
+      devSetResult('devAgentResult', 'ביטול אצל הספק אינו נתמך', 'err');
       return;
     }
-    devSetResult('devAgentResult', r.data?.message || 'failed to cancel agent', 'err');
+    devSetResult('devAgentResult', r.data?.message || 'ביטול סוכן הפיתוח נכשל', 'err');
     return;
   }
-  devSetResult('devAgentResult', 'Development agent cancelled', 'ok');
+  devSetResult('devAgentResult', 'סוכן הפיתוח בוטל', 'ok');
   devRenderTaskDetail(r.data.task);
   devStopAgentPolling();
   await devTasksLoadList();
@@ -10446,7 +10446,7 @@ async function devTasksLoadList() {
   const url = `/api/development/tasks${qs.toString() ? `?${qs.toString()}` : ''}`;
   const r = await devApi(url);
   if (!r.ok) {
-    devSetResult('devTaskCreateResult', r.data?.message || 'failed to load tasks', 'err');
+    devSetResult('devTaskCreateResult', r.data?.message || 'טעינת המשימות נכשלה', 'err');
     return;
   }
   _devTasks = Array.isArray(r.data.tasks) ? r.data.tasks : [];
@@ -10471,11 +10471,11 @@ async function devCreateTask() {
     body: JSON.stringify({ title, description, target_area, priority, notes: notes || null }),
   });
   if (!r.ok) {
-    devSetResult('devTaskCreateResult', r.data?.message || 'task creation failed', 'err');
+    devSetResult('devTaskCreateResult', r.data?.message || 'יצירת המשימה נכשלה', 'err');
     return;
   }
   const t = r.data.task;
-  devSetResult('devTaskCreateResult', `Task created: ${t.id} | ${t.status} | ${devFmtTime(t.created_at)}`, 'ok');
+  devSetResult('devTaskCreateResult', `המשימה נוצרה: ${t.id} | ${t.status} | ${devFmtTime(t.created_at)}`, 'ok');
   document.getElementById('devTaskTitle').value = '';
   document.getElementById('devTaskDescription').value = '';
   document.getElementById('devTaskNotes').value = '';
@@ -10496,10 +10496,10 @@ async function devSaveTaskChanges() {
     body: JSON.stringify(payload),
   });
   if (!r.ok) {
-    devSetResult('devTaskDetailResult', r.data?.message || 'task update failed', 'err');
+    devSetResult('devTaskDetailResult', r.data?.message || 'עדכון המשימה נכשל', 'err');
     return;
   }
-  devSetResult('devTaskDetailResult', 'Task updated', 'ok');
+  devSetResult('devTaskDetailResult', 'המשימה עודכנה', 'ok');
   await devTasksLoadList();
 }
 
