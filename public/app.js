@@ -9524,7 +9524,11 @@ const MAINT_RECENT_MAX = 10;
 let _maintLastWire = null;
 let _maintApiReachable = null;
 
-function maintSetOverview({ live, statusHe, nextHe, state } = {}) {
+function maintSetOverview(opts) {
+  const live = opts?.live;
+  const statusHe = opts?.statusHe;
+  const nextHe = opts?.nextHe;
+  const state = opts?.state;
   const banner = document.getElementById('maintOperatorBanner');
   const badge = document.getElementById('maintStatusBadge');
   const next = document.getElementById('maintNextStep');

@@ -49,6 +49,7 @@ describe('Disconnected-first operator overview', () => {
     expect(tag('maintRelConfirmModal')).toMatch(/\bhidden\b/);
     expect(css).toMatch(/#companionDashboardSummary\[hidden\]/);
     expect(css).toMatch(/#maintLiveSections\[hidden\]/);
+    expect(css).toMatch(/#companionMockBar\[hidden\]/);
     expect(css).toMatch(/display:\s*none\s*!important/);
   });
 
@@ -102,7 +103,7 @@ describe('Disconnected-first operator overview', () => {
       querySelector() { return { content: '1.02.255' }; },
     };
     const src = [
-      sliceFunction(js, 'maintSetEl'),
+      'function maintSetEl(id, val) { const el = document.getElementById(id); if (el) el.textContent = (val == null || val === "") ? "—" : String(val); }',
       sliceFunction(js, 'maintSetOverview'),
       'maintSetOverview({ live: false, statusHe: "המלווה מנותק", nextHe: "חברו מלווה בטלמטריה. כתובת לבד לא מחברת.", state: "disconnected" });',
       'const collapsed = { liveHidden: document.getElementById("maintLiveSections").hidden, parkedHidden: document.getElementById("maintLiveParked").hidden, next: document.getElementById("maintNextStep").textContent, ui: document.getElementById("maintUiVersion").textContent };',

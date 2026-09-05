@@ -4192,6 +4192,10 @@ button:hover,
   color: var(--text-muted);
 }
 
+#companionMockBar[hidden] {
+  display: none !important;
+}
+
 .companion-dashboard-summary {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
