@@ -9852,8 +9852,14 @@ async function maintRelLoadAll() {
   else maintRelRenderAudit({ entries: [] });
 }
 
+function maintRelConfirmHasCopy(value) {
+  const text = String(value ?? '').replace(/<[^>]*>/g, ' ').replace(/&nbsp;/gi, ' ').trim();
+  return text.length > 0 && text !== '—';
+}
+
 function maintRelOpenConfirm(title, html, onOk) {
   if (_maintRelBusy) return;
+  if (!maintRelConfirmHasCopy(title) || !maintRelConfirmHasCopy(html)) return;
   const modal = document.getElementById('maintRelConfirmModal');
   const titleEl = document.getElementById('maintRelConfirmTitle');
   const bodyEl = document.getElementById('maintRelConfirmBody');
@@ -9872,25 +9878,25 @@ function maintRelCloseConfirm() {
 
 function maintRelOpenDeployConfirm(rel) {
   const html = [
-    '<p><strong>Install this release?</strong></p>',
-    `<p>Version: ${rel.version || '—'}</p>`,
-    `<p>Release ID: ${rel.release_id || '—'}</p>`,
+    '<p><strong>להתקין את הגרסה הזו?</strong></p>',
+    `<p>גרסה: ${rel.version || '—'}</p>`,
+    `<p>מזהה גרסה: ${rel.release_id || '—'}</p>`,
     `<p>SHA256: ${rel.sha256 || '—'}</p>`,
-    `<p>Compatibility: ${rel.compatibility || '—'}</p>`,
+    `<p>תאימות: ${rel.compatibility || '—'}</p>`,
   ].join('');
-  maintRelOpenConfirm('Deploy release', html, () => maintRelExecuteDeploy(rel));
+  maintRelOpenConfirm('התקנת גרסה', html, () => maintRelExecuteDeploy(rel));
 }
 
 function maintRelOpenRollbackConfirm() {
   const inv = _maintRelInventory;
   if (!inv?.previous?.release_id) return;
   const html = [
-    '<p><strong>Rollback to previous release?</strong></p>',
-    `<p>Target: ${inv.previous.version || '—'} (${inv.previous.release_id})</p>`,
-    `<p>Current: ${inv.active?.version || '—'} (${inv.active?.release_id || '—'})</p>`,
+    '<p><strong>לחזור לגרסה הקודמת?</strong></p>',
+    `<p>יעד: ${inv.previous.version || '—'} (${inv.previous.release_id})</p>`,
+    `<p>נוכחי: ${inv.active?.version || '—'} (${inv.active?.release_id || '—'})</p>`,
     '<p>אזהרה: פעולה זו תחזיר את הגרסה המופעלת; אתחול תהליך עדיין נדרש.</p>',
   ].join('');
-  maintRelOpenConfirm('Rollback', html, () => maintRelExecuteRollback());
+  maintRelOpenConfirm('שחזור לגרסה קודמת', html, () => maintRelExecuteRollback());
 }
 
 async function maintRelExecuteDeploy(rel) {
