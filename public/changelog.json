@@ -1,36 +1,5 @@
 [
   {
-    "version": "1.02.256",
-    "date": "2026-09-05",
-    "changes": [
-      {
-        "type": "feat",
-        "title": "Server library",
-        "detail": "assist-hebrew.mjs, companion-connection.mjs, companion-connection-api.mjs"
-      },
-      {
-        "type": "feat",
-        "title": "UI / app.js",
-        "detail": "app.js"
-      },
-      {
-        "type": "ui",
-        "title": "HTML layout",
-        "detail": "index.html"
-      },
-      {
-        "type": "ui",
-        "title": "Styles",
-        "detail": "styles.css"
-      },
-      {
-        "type": "test",
-        "title": "Tests",
-        "detail": "assist-agent-connect.test.mjs, companion-connection.test.mjs, devtasks-hebrew-app-copy.test.mjs"
-      }
-    ]
-  },
-  {
     "version": "1.02.255",
     "date": "2026-08-24",
     "changes": [
