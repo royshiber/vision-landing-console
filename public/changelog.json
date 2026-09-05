@@ -4,14 +4,14 @@
     "date": "2026-08-24",
     "changes": [
       {
-        "type": "feat",
-        "title": "DB schema",
-        "detail": "db.mjs"
+        "type": "fix",
+        "title": "Connection profiles persist on a fresh database",
+        "detail": "Added the missing SQLite connections table so GET/POST/PATCH/DELETE /api/connections store profiles instead of returning HTTP 500. Additive schema only; no activate, auto-connect, or MAVLink."
       },
       {
         "type": "test",
-        "title": "Tests",
-        "detail": "connections-api.test.mjs, db.test.mjs"
+        "title": "Connections profile CRUD",
+        "detail": "Schema and HTTP create, read, update, and delete of connection profiles on a fresh database, without starting MAVLink."
       }
     ]
   },
@@ -21,28 +21,8 @@
     "changes": [
       {
         "type": "feat",
-        "title": "Server library",
-        "detail": "assist-context.mjs, assist-intent-resolver.mjs, assist-routes.mjs, assist-service.mjs, assist-store.mjs, assist-types.mjs, assist-api.mjs, http-register.mjs"
-      },
-      {
-        "type": "feat",
-        "title": "UI / app.js",
-        "detail": "app.js"
-      },
-      {
-        "type": "feat",
-        "title": "Frontend",
-        "detail": "changelog.json"
-      },
-      {
-        "type": "ui",
-        "title": "HTML layout",
-        "detail": "index.html"
-      },
-      {
-        "type": "ui",
-        "title": "Styles",
-        "detail": "styles.css"
+        "title": "C10.2 AIRVIX Assist foundation",
+        "detail": "Persistent Assist rail + deterministic intent layer; confirm-gated notes/observations/dev tasks; known-route navigation only; no flight/deploy/agent actions."
       }
     ]
   },
