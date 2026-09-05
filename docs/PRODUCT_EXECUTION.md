@@ -213,4 +213,4 @@ Do not spend cycles on smoke #4, more Hebrew / chrome polish, version bump, 300+
 
 ### Next pick (this snapshot)
 
-**PARKED** on Companion token for live Jetson proof. Human Gates stay **WAITING FOR ROY** (#28 apply/restart, #29 live vehicle / auto-land). Independent high-impact non-HG non-token work remains thin — do not invent polish. Do not ask Roy what to work on next.
+Roy authorized a focused UI/UX friction pass while the Companion token is delayed. Jetson still parked. Do not invent a token. Do not fake a live connect. Human Gates stay **WAITING FOR ROY**: #28 apply/restart, #29 live vehicle / auto-land. After this friction pass: live Jetson proof stays parked on the token. Do not ask Roy what to work on next.

@@ -4512,6 +4512,13 @@ button:hover,
   color: var(--text-muted);
   white-space: pre-wrap;
 }
+.devtasks-unavailable-note {
+  margin: 0 0 8px;
+  font-size: 0.78rem;
+  color: #fde68a;
+  line-height: 1.4;
+}
+.devtasks-unavailable-note[hidden] { display: none !important; }
 .devtasks-edit {
   display: flex;
   flex-wrap: wrap;
@@ -12168,6 +12175,21 @@ details.flight-manage summary {
   opacity: 0.45;
   cursor: not-allowed;
 }
+.assist-messages-empty {
+  margin: 0;
+  font-size: 0.75rem;
+  color: rgba(226, 232, 240, 0.55);
+  line-height: 1.4;
+}
+.assist-messages-empty[hidden] { display: none !important; }
+.assist-proposal-warn {
+  margin: 0;
+  font-size: 0.75rem;
+  color: #fde68a;
+  line-height: 1.4;
+  white-space: pre-wrap;
+}
+.assist-proposal-warn[hidden] { display: none !important; }
 .assist-messages {
   flex: 1;
   min-height: 0;
