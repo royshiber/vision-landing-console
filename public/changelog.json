@@ -1,26 +1,5 @@
 [
   {
-    "version": "1.02.256",
-    "date": "2026-09-05",
-    "changes": [
-      {
-        "type": "feat",
-        "title": "In-product Companion API v1 connect",
-        "detail": "Hebrew RTL form for v1 base URL + token; Connect enables real only with BOTH mode and URL; persist in SQLite server_config; last-4 token hint; 401/timeout/connection Hebrew errors; SSE overlay via existing companion bridge. No apply/flight ops."
-      },
-      {
-        "type": "test",
-        "title": "Companion connect suite",
-        "detail": "tests/companion-connection.test.mjs"
-      },
-      {
-        "type": "docs",
-        "title": "Companion connect",
-        "detail": "DESIGN.md, COMMERCIAL_CAPABILITIES.he.md, .env.example"
-      }
-    ]
-  },
-  {
     "version": "1.02.255",
     "date": "2026-08-24",
     "changes": [
