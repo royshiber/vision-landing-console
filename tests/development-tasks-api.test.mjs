@@ -92,6 +92,59 @@ describe('development tasks API', () => {
     }
   });
 
+  it('exposes locked taxonomies on tasks meta', async () => {
+    const meta = await fetch(`${base}/api/development/tasks/meta`).then((r) => r.json());
+    expect(meta.ok).toBe(true);
+    expect(meta.taxonomies).toEqual(['IDEA', 'REQUEST', 'IMPROVEMENT', 'BUG', 'EXPERIMENT', 'FEATURE']);
+  });
+
+  it('creates, patches, lists, and filters first-class taxonomy', async () => {
+    const created = await fetch(`${base}/api/development/tasks`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: 'Taxonomy create',
+        description: 'Need taxonomy field',
+        taxonomy: 'IMPROVEMENT',
+        target_area: 'UI',
+        priority: 'NORMAL',
+      }),
+    }).then((r) => r.json());
+    expect(created.ok).toBe(true);
+    expect(created.task.taxonomy).toBe('IMPROVEMENT');
+    await fetch(`${base}/api/development/tasks`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: 'Default tax',
+        description: 'Default tax',
+        target_area: 'API',
+        priority: 'LOW',
+      }),
+    });
+    const patched = await fetch(`${base}/api/development/tasks/${created.task.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ taxonomy: 'BUG' }),
+    }).then((r) => r.json());
+    expect(patched.task.taxonomy).toBe('BUG');
+    const filtered = await fetch(`${base}/api/development/tasks?taxonomy=BUG`).then((r) => r.json());
+    expect(filtered.tasks).toHaveLength(1);
+    expect(filtered.tasks[0].id).toBe(created.task.id);
+    const bad = await fetch(`${base}/api/development/tasks`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: 'Bad tax',
+        description: 'Bad tax',
+        taxonomy: 'EPIC',
+        target_area: 'UI',
+        priority: 'NORMAL',
+      }),
+    });
+    expect(bad.status).toBe(400);
+  });
+
   it('creates and gets a task', async () => {
     const created = await fetch(`${base}/api/development/tasks`, {
       method: 'POST',

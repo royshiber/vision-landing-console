@@ -1021,6 +1021,12 @@
             <h4 class="maint-group-title">יצירת משימה</h4>
             <div class="tele-group-cards">
               <label class="tele-card"><span>כותרת</span><input id="devTaskTitle" class="kpi-input" maxlength="140" /></label>
+              <label class="tele-card"><span>סיווג</span>
+                <select id="devTaskTaxonomy" class="kpi-input">
+                  <option>IDEA</option><option>REQUEST</option><option>IMPROVEMENT</option>
+                  <option>BUG</option><option>EXPERIMENT</option><option selected>FEATURE</option>
+                </select>
+              </label>
               <label class="tele-card"><span>אזור יעד</span>
                 <select id="devTaskTarget" class="kpi-input">
                   <option>VISION</option><option>NAVIGATION</option><option>LANDING</option><option>VIDEO</option>
@@ -1044,6 +1050,7 @@
             <h4 class="maint-group-title">משימות פיתוח</h4>
             <div id="devTaskFilters" class="devtasks-filters" hidden>
               <label>מצב <select id="devTaskFilterStatus" class="kpi-input"><option value="">הכל</option></select></label>
+              <label>סיווג <select id="devTaskFilterTaxonomy" class="kpi-input"><option value="">הכל</option></select></label>
               <label>יעד <select id="devTaskFilterTarget" class="kpi-input"><option value="">הכל</option></select></label>
               <label>מיון <select id="devTaskSort" class="kpi-input"><option value="updated_desc">עדכון ↓</option><option value="updated_asc">עדכון ↑</option></select></label>
               <label class="devtasks-open"><input type="checkbox" id="devTaskFilterOpen" /> פתוחות בלבד</label>
@@ -1051,7 +1058,7 @@
             </div>
             <div class="maint-diag-wrap">
               <table class="maint-diag-table">
-                <thead><tr><th>מזהה</th><th>כותרת</th><th>יעד</th><th>עדיפות</th><th>מצב</th><th>עודכן</th></tr></thead>
+                <thead><tr><th>מזהה</th><th>כותרת</th><th>סיווג</th><th>יעד</th><th>עדיפות</th><th>מצב</th><th>עודכן</th></tr></thead>
                 <tbody id="devTaskListBody"></tbody>
               </table>
               <p id="devTaskListEmpty" class="maint-diag-empty">אין משימות. צרו משימה למעלה.</p>
@@ -1072,6 +1079,7 @@
               <p id="devAgentUnavailableNote" class="devtasks-unavailable-note" hidden>סוכן הפיתוח אינו זמין. חברו אותו במסייע.</p>
               <div class="devtasks-edit">
                 <label>עדיפות <select id="devDetailPriority" class="kpi-input"></select></label>
+                <label>סיווג <select id="devDetailTaxonomy" class="kpi-input"></select></label>
                 <label>יעד <select id="devDetailTarget" class="kpi-input"></select></label>
                 <label>מצב <select id="devDetailStatusSelect" class="kpi-input"></select></label>
                 <button type="button" id="devDetailSaveBtn" class="policy-btn">שמירה</button>

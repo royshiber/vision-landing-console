@@ -215,6 +215,29 @@ describe('Assist service proposals and confirmation', () => {
     expect(confirmed.result.task.agent_state).toBe('NOT_STARTED');
     expect(confirmed.result.navigation.tab).toBe('development');
     expect(store.list({}).length).toBe(1);
+    const created = store.list({})[0];
+    expect(created.taxonomy).toBe('FEATURE');
+    expect(created.notes).toBe(null);
+    expect(String(created.notes || '')).not.toMatch(/Assist taxonomy/i);
+    expect(confirmed.result.task.taxonomy).toBe('FEATURE');
+  });
+
+  it('writes REQUEST taxonomy as a first-class field and does not stuff it into notes', async () => {
+    const resp = await service.processInput({
+      text: 'I want a tab for the HUD',
+      context_snapshot: { current_tab: 'development' },
+    });
+    expect(resp.action_proposal.payload.taxonomy).toBe('REQUEST');
+    const confirmed = await service.confirmProposal({
+      proposal_id: resp.action_proposal.id,
+      confirm: true,
+    });
+    expect(confirmed.ok).toBe(true);
+    const task = store.getById(confirmed.result.task.id);
+    expect(task.taxonomy).toBe('REQUEST');
+    expect(task.notes).toBe(null);
+    expect(String(task.notes || '')).not.toContain('Assist taxonomy');
+    expect(confirmed.result.task.taxonomy).toBe('REQUEST');
   });
 
   it('starts the coding agent after confirm when the provider is READY', async () => {

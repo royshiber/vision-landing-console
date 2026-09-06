@@ -90,8 +90,14 @@ describe('Development Tasks Hebrew leftover copy', () => {
       /<select\b[^>]*\bid="devTaskFilterTarget"[^>]*>\s*<option value="">([^<]*)<\/option>/,
       'missing #devTaskFilterTarget ALL option',
     );
+    const taxonomyOpt = capture(
+      html,
+      /<select\b[^>]*\bid="devTaskFilterTaxonomy"[^>]*>\s*<option value="">([^<]*)<\/option>/,
+      'missing #devTaskFilterTaxonomy ALL option',
+    );
     expect(statusOpt[1]).toBe('הכל');
     expect(targetOpt[1]).toBe('הכל');
+    expect(taxonomyOpt[1]).toBe('הכל');
   });
 
   it('does not keep leftover English user-visible strings in the Development Tasks flow', () => {
@@ -101,6 +107,7 @@ describe('Development Tasks Hebrew leftover copy', () => {
     }
     expect(html).not.toMatch(/id="devTaskFilterStatus"[^>]*>[\s\S]*?<option value="">ALL<\/option>/);
     expect(html).not.toMatch(/id="devTaskFilterTarget"[^>]*>[\s\S]*?<option value="">ALL<\/option>/);
+    expect(html).not.toMatch(/id="devTaskFilterTaxonomy"[^>]*>[\s\S]*?<option value="">ALL<\/option>/);
   });
 
   it('uses Hebrew confirm prompts for start / worktree / tests / release / deploy / cancel', () => {
@@ -108,6 +115,7 @@ describe('Development Tasks Hebrew leftover copy', () => {
     expect(start).toContain('להפעיל סוכן פיתוח?');
     expect(start).toContain('כותרת:');
     expect(start).toContain('תיאור:');
+    expect(start).toContain('סיווג:');
     expect(start).toContain('יעד:');
     expect(start).toContain('עדיפות:');
     expect(start).toContain('אזהרה:');

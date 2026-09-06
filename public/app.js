@@ -10384,6 +10384,7 @@ document.getElementById('maintRelConfirmModal')?.addEventListener('click', (ev) 
 /* ── Development Tasks (C9.1) — local management layer only ── */
 const DEV_STATUSES = ['DRAFT', 'QUEUED', 'IN_PROGRESS', 'WAITING_FOR_REVIEW', 'TESTING', 'READY_FOR_RELEASE', 'RELEASED', 'DEPLOYED', 'FAILED', 'CANCELLED'];
 const DEV_PRIORITIES = ['LOW', 'NORMAL', 'HIGH', 'CRITICAL'];
+const DEV_TAXONOMIES = ['IDEA', 'REQUEST', 'IMPROVEMENT', 'BUG', 'EXPERIMENT', 'FEATURE'];
 const DEV_TARGETS = ['VISION', 'NAVIGATION', 'LANDING', 'VIDEO', 'MAVLINK', 'COMPANION', 'UI', 'API', 'MAINTENANCE', 'OTHER'];
 let _devTasks = [];
 let _devSelectedTaskId = null;
@@ -10464,11 +10465,15 @@ async function devEnsureMeta() {
   if (!r.ok) return;
   const statuses = Array.isArray(r.data.statuses) ? r.data.statuses : DEV_STATUSES;
   const priorities = Array.isArray(r.data.priorities) ? r.data.priorities : DEV_PRIORITIES;
+  const taxonomies = Array.isArray(r.data.taxonomies) ? r.data.taxonomies : DEV_TAXONOMIES;
   const targets = Array.isArray(r.data.targetAreas) ? r.data.targetAreas : DEV_TARGETS;
+  devFillOptions('devTaskTaxonomy', taxonomies, false);
   devFillOptions('devTaskFilterStatus', statuses, true);
+  devFillOptions('devTaskFilterTaxonomy', taxonomies, true);
   devFillOptions('devTaskFilterTarget', targets, true);
   devFillOptions('devDetailStatusSelect', statuses, false);
   devFillOptions('devDetailPriority', priorities, false);
+  devFillOptions('devDetailTaxonomy', taxonomies, false);
   devFillOptions('devDetailTarget', targets, false);
   _devAgentMeta = {
     provider: r.data?.agentProvider || null,
@@ -10515,7 +10520,7 @@ function devRenderTaskList() {
   for (const t of _devTasks) {
     const tr = document.createElement('tr');
     if (t.id === _devSelectedTaskId) tr.dataset.selected = 'true';
-    tr.innerHTML = `<td>${devText(t.id)}</td><td>${devText(t.title)}</td><td>${devText(t.target_area)}</td><td>${devText(t.priority)}</td><td>${devText(t.status)}</td><td>${devFmtTime(t.updated_at)}</td>`;
+    tr.innerHTML = `<td>${devText(t.id)}</td><td>${devText(t.title)}</td><td>${devText(t.taxonomy || 'FEATURE')}</td><td>${devText(t.target_area)}</td><td>${devText(t.priority)}</td><td>${devText(t.status)}</td><td>${devFmtTime(t.updated_at)}</td>`;
     tr.addEventListener('click', () => {
       _devSelectedTaskId = t.id;
       devRenderTaskList();
@@ -10578,6 +10583,7 @@ function devRenderTaskDetail(task) {
   document.getElementById('devDeployRunningVersion').textContent = devText(task.deployment?.running_version);
   document.getElementById('devDeployResult').textContent = devText(task.deployment?.result);
   document.getElementById('devDetailPriority').value = task.priority || 'NORMAL';
+  document.getElementById('devDetailTaxonomy').value = task.taxonomy || 'FEATURE';
   document.getElementById('devDetailTarget').value = task.target_area || 'OTHER';
   document.getElementById('devDetailStatusSelect').value = task.status || 'DRAFT';
   const canStart = ['NOT_STARTED', 'FAILED', 'CANCELLED'].includes(task.agent?.state || 'NOT_STARTED');
@@ -10678,10 +10684,11 @@ async function devStartDevelopment() {
   const title = t?.title || '';
   const desc = t?.description || '';
   const target = t?.target_area || '';
+  const taxonomy = t?.taxonomy || 'FEATURE';
   const priority = t?.priority || '';
   const branch = `development/tasks/${String(id).toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '')}`;
   const worktree = `.worktrees/${String(id).toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '')}`;
-  const msg = `להפעיל סוכן פיתוח?\n\nכותרת: ${title}\nתיאור: ${desc}\nיעד: ${target}\nעדיפות: ${priority}\n\nאזהרה: הסוכן ישנה קוד בענף וב-worktree מבודדים.\nענף: ${branch}\nworktree: ${worktree}`;
+  const msg = `להפעיל סוכן פיתוח?\n\nכותרת: ${title}\nתיאור: ${desc}\nסיווג: ${taxonomy}\nיעד: ${target}\nעדיפות: ${priority}\n\nאזהרה: הסוכן ישנה קוד בענף וב-worktree מבודדים.\nענף: ${branch}\nworktree: ${worktree}`;
   if (!window.confirm(msg)) return;
   const r = await devApi(`/api/development/tasks/${encodeURIComponent(_devSelectedTaskId)}/agent/start`, {
     method: 'POST',
@@ -10848,10 +10855,12 @@ async function devTasksLoadList() {
   await devEnsureMeta();
   const qs = new URLSearchParams();
   const status = document.getElementById('devTaskFilterStatus')?.value || '';
+  const taxonomy = document.getElementById('devTaskFilterTaxonomy')?.value || '';
   const target = document.getElementById('devTaskFilterTarget')?.value || '';
   const sort = document.getElementById('devTaskSort')?.value || 'updated_desc';
   const openOnly = document.getElementById('devTaskFilterOpen')?.checked === true;
   if (status) qs.set('status', status);
+  if (taxonomy) qs.set('taxonomy', taxonomy);
   if (target) qs.set('target', target);
   if (sort) qs.set('sort', sort);
   if (openOnly) qs.set('open', 'true');
@@ -10874,13 +10883,14 @@ async function devTasksLoadList() {
 async function devCreateTask() {
   const title = document.getElementById('devTaskTitle')?.value || '';
   const description = document.getElementById('devTaskDescription')?.value || '';
+  const taxonomy = document.getElementById('devTaskTaxonomy')?.value || 'FEATURE';
   const target_area = document.getElementById('devTaskTarget')?.value || 'OTHER';
   const priority = document.getElementById('devTaskPriority')?.value || 'NORMAL';
   const notes = document.getElementById('devTaskNotes')?.value || '';
   const r = await devApi('/api/development/tasks', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ title, description, target_area, priority, notes: notes || null }),
+    body: JSON.stringify({ title, description, taxonomy, target_area, priority, notes: notes || null }),
   });
   if (!r.ok) {
     devSetResult('devTaskCreateResult', r.data?.message || 'יצירת המשימה נכשלה', 'err');
@@ -10899,6 +10909,7 @@ async function devSaveTaskChanges() {
   if (!_devSelectedTaskId) return;
   const payload = {
     priority: document.getElementById('devDetailPriority')?.value,
+    taxonomy: document.getElementById('devDetailTaxonomy')?.value,
     target_area: document.getElementById('devDetailTarget')?.value,
     status: document.getElementById('devDetailStatusSelect')?.value,
   };
@@ -10918,6 +10929,7 @@ async function devSaveTaskChanges() {
 document.getElementById('devTaskCreateBtn')?.addEventListener('click', () => { void devCreateTask(); });
 document.getElementById('devTaskRefreshBtn')?.addEventListener('click', () => { void devTasksLoadList(); });
 document.getElementById('devTaskFilterStatus')?.addEventListener('change', () => { void devTasksLoadList(); });
+document.getElementById('devTaskFilterTaxonomy')?.addEventListener('change', () => { void devTasksLoadList(); });
 document.getElementById('devTaskFilterTarget')?.addEventListener('change', () => { void devTasksLoadList(); });
 document.getElementById('devTaskSort')?.addEventListener('change', () => { void devTasksLoadList(); });
 document.getElementById('devTaskFilterOpen')?.addEventListener('change', () => { void devTasksLoadList(); });

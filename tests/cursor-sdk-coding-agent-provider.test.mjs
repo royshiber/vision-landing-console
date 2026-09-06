@@ -96,12 +96,14 @@ describe('cursor task prompt and worktree guard', () => {
         title: 'Add card',
         description: 'Need card',
         notes: 'none',
+        taxonomy: 'FEATURE',
         target_area: 'UI',
         priority: 'HIGH',
       },
       { branch: 'development/tasks/task-1', worktree_id: '.worktrees/task-1', base_commit: 'abc123' },
     );
     expect(prompt).toContain('Task ID: task-1');
+    expect(prompt).toContain('Taxonomy: FEATURE');
     expect(prompt).toContain('development/tasks/task-1');
     expect(prompt).toContain('.worktrees/task-1');
     expect(prompt).toContain('Do not modify master');

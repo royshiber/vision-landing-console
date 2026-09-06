@@ -23,4 +23,10 @@ describe('Development Tasks empty-state chrome', () => {
     expect(listEmpty).toContain('אין משימות');
     expect(auditEmpty).not.toBe('No audit entries');
   });
+
+  it('keeps the empty list copy after the taxonomy column is present', () => {
+    expect(html).toContain('<th>סיווג</th>');
+    const listEmpty = htmlElementInnerText(html, 'p', 'devTaskListEmpty');
+    expect(listEmpty).toBe('אין משימות. צרו משימה למעלה.');
+  });
 });

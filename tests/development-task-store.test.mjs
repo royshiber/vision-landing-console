@@ -5,6 +5,7 @@ import path from 'path';
 import {
   createDevelopmentTaskStore,
   canTransitionStatus,
+  DEV_TASK_TAXONOMIES,
 } from '../lib/development-task-store.mjs';
 
 function mkStore() {
@@ -29,7 +30,72 @@ describe('development-task-store', () => {
     const got = ctx.store.getById(created.id);
     expect(got).toBeTruthy();
     expect(got.status).toBe('DRAFT');
+    expect(got.taxonomy).toBe('FEATURE');
     expect(got.audit.length).toBeGreaterThan(0);
+  });
+
+  it('persists first-class taxonomy on create, list filter, and patch', () => {
+    const idea = ctx.store.create({
+      title: 'Try HUD',
+      description: 'Maybe a HUD',
+      taxonomy: 'IDEA',
+      target_area: 'UI',
+      priority: 'LOW',
+    });
+    expect(idea.taxonomy).toBe('IDEA');
+    expect(DEV_TASK_TAXONOMIES).toContain(idea.taxonomy);
+    ctx.store.create({
+      title: 'Fix parse',
+      description: 'Broken parse',
+      taxonomy: 'BUG',
+      target_area: 'API',
+      priority: 'HIGH',
+    });
+    const byTax = ctx.store.list({ taxonomy: 'BUG' });
+    expect(byTax).toHaveLength(1);
+    expect(byTax[0].title).toBe('Fix parse');
+    const patched = ctx.store.patch(idea.id, { taxonomy: 'EXPERIMENT' });
+    expect(patched.taxonomy).toBe('EXPERIMENT');
+    const actions = ctx.store.getById(idea.id).audit.map((a) => a.action);
+    expect(actions).toContain('taxonomy_changed');
+  });
+
+  it('defaults missing taxonomy to FEATURE and rejects invalid create/patch values', () => {
+    const created = ctx.store.create({
+      title: 'No tax',
+      description: 'No tax',
+      target_area: 'OTHER',
+      priority: 'NORMAL',
+    });
+    expect(created.taxonomy).toBe('FEATURE');
+    expect(() => ctx.store.create({
+      title: 'Bad',
+      description: 'Bad',
+      taxonomy: 'EPIC',
+      target_area: 'UI',
+      priority: 'LOW',
+    })).toThrow(/invalid taxonomy/);
+    expect(() => ctx.store.patch(created.id, { taxonomy: 'EPIC' })).toThrow(/invalid taxonomy/);
+  });
+
+  it('backfills missing taxonomy on existing rows to FEATURE without breaking the row', () => {
+    const created = ctx.store.create({
+      id: 'dev-legacy-1',
+      title: 'Legacy',
+      description: 'Legacy row',
+      target_area: 'UI',
+      priority: 'NORMAL',
+    });
+    const raw = JSON.parse(fs.readFileSync(ctx.filePath, 'utf8'));
+    delete raw.tasks[0].taxonomy;
+    fs.writeFileSync(ctx.filePath, JSON.stringify(raw, null, 2), 'utf8');
+    const listed = ctx.store.list({});
+    expect(listed).toHaveLength(1);
+    expect(listed[0].id).toBe(created.id);
+    expect(listed[0].taxonomy).toBe('FEATURE');
+    expect(listed[0].title).toBe('Legacy');
+    const persisted = JSON.parse(fs.readFileSync(ctx.filePath, 'utf8'));
+    expect(persisted.tasks[0].taxonomy).toBe('FEATURE');
   });
 
   it('lists tasks with filters and sorting', () => {
