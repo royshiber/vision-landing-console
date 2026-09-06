@@ -194,6 +194,18 @@ function labTabLabel(tabId) {
   return (btn?.textContent || 'מעבדה').replace(/\s+/g, ' ').trim();
 }
 
+function placeLabMenu() {
+  const toggle = document.getElementById('tabLabToggle');
+  const menu = document.getElementById('tabLabMenu');
+  if (!toggle || !menu || menu.hidden) return;
+  const box = toggle.getBoundingClientRect();
+  menu.style.position = 'fixed';
+  menu.style.top = `${Math.round(box.bottom + 4)}px`;
+  menu.style.right = `${Math.round(window.innerWidth - box.right)}px`;
+  menu.style.left = 'auto';
+  menu.style.insetInlineEnd = 'auto';
+}
+
 function setLabMenuOpen(open) {
   const group = document.getElementById('tabLabGroup');
   const toggle = document.getElementById('tabLabToggle');
@@ -202,6 +214,7 @@ function setLabMenuOpen(open) {
   menu.hidden = !open;
   toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
   group.classList.toggle('is-open', open);
+  if (open) placeLabMenu();
 }
 
 function syncLabTabGroup(tabId) {
@@ -230,6 +243,9 @@ function initLabTabGroup() {
   });
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') setLabMenuOpen(false);
+  });
+  window.addEventListener('resize', () => {
+    if (!menu.hidden) placeLabMenu();
   });
 }
 

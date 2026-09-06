@@ -68,6 +68,8 @@ describe('Operator chrome voice and lab shelf', () => {
     expect(css).toMatch(/\.tabs:has\(\.tab-lab-group\.is-open\)/);
     expect(js).toContain('function initLabTabGroup(');
     expect(js).toContain('function syncLabTabGroup(');
+    expect(js).toContain('function placeLabMenu(');
+    expect(css).toMatch(/\.tab-lab-menu\s*\{[^}]*position:\s*fixed/);
     expect(js).toMatch(/function applyMainTab\([\s\S]*?syncLabTabGroup\(tabId\)/);
   });
 
@@ -82,9 +84,14 @@ describe('Operator chrome voice and lab shelf', () => {
   });
 
   it('syncs the lab toggle label to the open lab tab and resets on ops', () => {
-    const toggle = { textContent: 'מעבדה', classList: { current: false, toggle(name, on) { if (name === 'is-current') this.current = on; } }, setAttribute() {} };
+    const toggle = {
+      textContent: 'מעבדה',
+      classList: { current: false, toggle(name, on) { if (name === 'is-current') this.current = on; } },
+      setAttribute() {},
+      getBoundingClientRect() { return { bottom: 80, right: 200, left: 120, top: 50 }; },
+    };
     const group = { classList: { lab: false, open: false, toggle(name, on) { if (name === 'is-lab-active') this.lab = on; if (name === 'is-open') this.open = on; } } };
-    const menu = { hidden: true };
+    const menu = { hidden: true, style: {} };
     const simBtn = { textContent: 'סימולציה' };
     const document = {
       getElementById(id) {
@@ -102,8 +109,10 @@ describe('Operator chrome voice and lab shelf', () => {
       'const LAB_SHELF_TABS = new Set(["simLab", "advisor", "featureDesigner", "flightEngineer", "terrain"]);',
       sliceFunction(js, 'isLabShelfTab'),
       sliceFunction(js, 'labTabLabel'),
+      sliceFunction(js, 'placeLabMenu'),
       sliceFunction(js, 'setLabMenuOpen'),
       sliceFunction(js, 'syncLabTabGroup'),
+      'const window = { innerWidth: 1280 };',
       'syncLabTabGroup("simLab");',
       'const lab = { label: document.getElementById("tabLabToggle").textContent, current: document.getElementById("tabLabToggle").classList.current, group: document.getElementById("tabLabGroup").classList.lab, menuHidden: document.getElementById("tabLabMenu").hidden };',
       'syncLabTabGroup("pulse");',

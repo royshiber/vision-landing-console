@@ -355,9 +355,7 @@ h1 { margin: 0; font-size: 1.25rem; color: #ffffff; }
 }
 
 .tab-lab-menu {
-  position: absolute;
-  top: calc(100% + 4px);
-  inset-inline-end: 0;
+  position: fixed;
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -367,7 +365,7 @@ h1 { margin: 0; font-size: 1.25rem; color: #ffffff; }
   border: 1px solid var(--border);
   border-radius: 10px;
   box-shadow: 0 8px 24px rgba(0, 71, 141, 0.14);
-  z-index: 80;
+  z-index: 400;
 }
 
 .tab-lab-menu[hidden] {
