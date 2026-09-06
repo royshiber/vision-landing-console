@@ -80,7 +80,7 @@ Do not implement without explicit Roy **GO**:
 - ARM / DISARM / LAND / SET_MODE / live FC write / auto-landing — Issue #29
 - Secrets / deploy to devices / flight commands
 
-Merge: Roy 2026-09-05 — King may merge **verified safe** draft PRs without asking (Merge Autonomy + Decision Option Hints, LANDED on master via PR #6 `e57eb28`). Still on. Hard safety stops stay draft until Roy. This map last landed on master via PR #49 `1c7f8fa`. Decision options must carry meaning hints.
+Merge: Roy 2026-09-05 — King may merge **verified safe** draft PRs without asking (Merge Autonomy + Decision Option Hints, LANDED on master via PR #6 `e57eb28`). Still on. Hard safety stops stay draft until Roy. This map last landed on master via PR #51 `ba78623`. Decision options must carry meaning hints.
 
 Also locked without GO:
 
@@ -95,7 +95,7 @@ Also locked without GO:
 | ID | Capability | Gate |
 |---|---|---|
 | **A** | In-product isolated agent loop: Assist Confirm starts a Cursor Agent on an isolated branch | **LANDED** on master 2026-08-25 via PR #33 merge `51d2ef41`. Issue #31 done on master. |
-| **B** | Connected Assist progress / result surface: agent run status → live progress → outcome back in the product UI | **PARTIAL.** Start + connect + status rows landed (#33, #34). The connected operator surface is the remaining independent GAP. Not chrome. |
+| **B** | Connected Assist progress / result surface: Hebrew status → real progress → result card (open PR / dismiss) | **LANDED** on master 2026-09-06 via PR #52 merge `042c095`. Start + connect already on master (#33, #34). UNAVAILABLE stays honest. Remainder closed. |
 | **C** | Companion apply after GO | Human Gate (#28). No GO. In-product connect + events SSE landed (#39, #40). Live Jetson proof parked on token. |
 | **D** | Flight ops + auto-land after GO | Human Gate (#29). No GO. |
 
@@ -109,29 +109,33 @@ Params persist on master via PR #18 + PR #30. Write-to-vehicle is still a Human 
 2. Operator can connect the coding agent from Assist. **LANDED on master** via PR #34. Empty/invalid key stays UNAVAILABLE. Do not fake READY.
 3. In-product Companion API v1 connect + events SSE. **LANDED on master** via PR #39 and PR #40. Read / status / overlay only. Apply/restart still Human Gate.
 4. Operator first-impression UX. **LANDED on master** via PR #50 merge `560686c`. Hebrew Assist **מסייע**, Companion hero card, first-open next actions, muted lab tabs. Prior UI round #43–#49 stays on master.
-5. Live Jetson connect is **parked** (days) until Roy remembers the Companion token. Token is not in Cursor / PC `.env`. Jetson `:8081` returns 401 without it. Do not invent a token. Do not fake a live connect.
-6. Human Gates stay WAITING FOR ROY: companion apply/restart (#28), live vehicle / auto-landing (#29), secrets / deploy / flight commands.
-7. Next independent work (no Jetson / token / Human Gate): **Assist connected progress/result surface** — agent run status → result back in the UI. Not more disconnected chrome polish.
-8. 300+ hunt is **abandoned permanently**. GitHub public `master` is `1.02.255`. Improve GitHub 255. Measure by capabilities closed, not PR count.
-9. Skip leftover draft #4 (low-value smoke). Do not merge. Constitution #6 **LANDED** on master `e57eb28`. Prior map snapshot **LANDED** on master via PR #49 `1c7f8fa`.
+5. Prior living-map snapshot after #50. **LANDED on master** via PR #51 merge `ba78623`.
+6. Assist connected progress/result card. **LANDED on master** via PR #52 merge `042c095`. Milestone B remainder closed: Hebrew status → real progress → result card (open PR / dismiss). UNAVAILABLE stays honest.
+7. Live Jetson connect is **parked** (days) until Roy remembers the Companion token. Token is not in Cursor / PC `.env`. Jetson `:8081` returns 401 without it. Do not invent a token. Do not fake a live connect.
+8. Human Gates stay WAITING FOR ROY: companion apply/restart (#28), live vehicle / auto-landing (#29), secrets / deploy / flight commands.
+9. Independent high-impact non-HG / non-token work is now **thin**. Do not invent chrome polish. Wait for Roy design notes and/or Companion token / HG GO. Measure by capabilities closed.
+10. 300+ hunt is **abandoned permanently**. GitHub public `master` is `1.02.255`. Improve GitHub 255. Measure by capabilities closed, not PR count.
+11. Skip leftover draft #4 (low-value smoke). Do not merge. Constitution #6 **LANDED** on master `e57eb28`. Prior map snapshots **LANDED** via PR #49 `1c7f8fa` and PR #51 `ba78623`.
 
 ---
 
-## Audit snapshot — 2026-09-06 (post #50 land)
+## Audit snapshot — 2026-09-06 (post #52 land)
 
-**Master:** `1.02.255` @ `560686c` (PR #50 merge — operator first-impression UX). Do not bump.  
-**Prior pointer:** 2026-09-06 post-#48 / #49 snapshot treated the UI/UX round as complete and next work as parked. That is superseded. #50 landed. #6 and #49 remain **LANDED**.  
-**This draft:** [#51](https://github.com/royshiber/vision-landing-console/pull/51) rewrite of this living snapshot after PR #50. Docs only. Do not bump `APP_VERSION`. Stay draft. Do not merge from this agent.
+**Master:** `1.02.255` @ `042c095` (PR #52 merge — Assist connected progress/result card). Do not bump.  
+**Prior pointer:** 2026-09-06 post-#50 / #51 snapshot treated the Assist connected result surface as the next independent GAP. That is superseded. #52 landed. Milestone B remainder is closed. #6, #49, #50, and #51 remain **LANDED**.  
+**This draft:** [#53](https://github.com/royshiber/vision-landing-console/pull/53) rewrite of this living snapshot after PR #52. Docs only. Do not bump `APP_VERSION`. Stay draft. Do not merge from this agent.
 
 Ops (not product): WhatsApp Human Gate delivery remains available (signed in on the operator box targeting +972584010075, self-chat).
 
-### LANDED this first-impression round (2026-09-06)
+### LANDED this capability close (2026-09-06)
 
-- PR #50 Operator first-impression UX → master `560686c`. Hebrew Assist **מסייע**. Companion hero card. First-open next actions. Muted lab tabs. `APP_VERSION` stayed `1.02.255`.
+- PR #52 Assist connected progress/result card → master `042c095`. Hebrew status → real progress → result card (open PR / dismiss). UNAVAILABLE stays honest. `APP_VERSION` stayed `1.02.255`.
 
-### Prior UI round still on master (#43–#49)
+### Prior still on master (#50, #51, UI round #43–#49)
 
-- PR #49 this living map rewrite after the UI/UX round → master `1c7f8fa`.
+- PR #51 this living map rewrite after PR #50 → master `ba78623`.
+- PR #50 Operator first-impression UX → master `560686c`. Hebrew Assist **מסייע**. Companion hero card. First-open next actions. Muted lab tabs.
+- PR #49 living map rewrite after the UI/UX round → master `1c7f8fa`.
 - PR #48 PROCESS_STEPS Hebrew leftovers → master `ecc7184`.
 - PR #47 Params Hebrew leftover labels → master `9fd0ce7`.
 - PR #46 Telemetry disconnected-first hierarchy → master `f278bff`.
@@ -142,7 +146,7 @@ Ops (not product): WhatsApp Human Gate delivery remains available (signed in on 
 ### Already on master (keep)
 
 - PR #6 `AGENTS.md` constitution + Merge Autonomy + Decision Option Hints → master `e57eb28`. Merge autonomy still on for independently VERIFIED safe draft PRs (UX / copy / persist / connect non-apply). Hard safety stops stay draft until Roy.
-- PR #32 first living map → master `6d8fbbf`. Later snapshots: #49 `1c7f8fa`.
+- PR #32 first living map → master `6d8fbbf`. Later snapshots: #49 `1c7f8fa`, #51 `ba78623`.
 - PR #39 in-product Companion API v1 connect (`bc19828`). Hebrew RTL form (base URL + token). Connect writes **BOTH** `COMPANION_MODE=real` and a URL. Persist in SQLite `server_config.companionConnection`. Token last-4 only. Read / status / connect only. No apply/restart.
 - PR #40 Companion `/api/v1/events` SSE preferred over 1s status poll (`a6fc5e8`). Poll remains fallback. Browser still uses one `EventSource('/api/stream')`. Overlay only.
 - Companion real mode requires **BOTH** `COMPANION_MODE=real` **and** `JETSON_COMPANION_BASE_URL` (PR #20). A URL alone must never enable real. In-product connect (#39) writes both.
@@ -151,8 +155,9 @@ Ops (not product): WhatsApp Human Gate delivery remains available (signed in on 
 - Connections persist in SQLite (PR #5).
 - HUD GPS–Vision delta stays `-- m` until real GPS. Do not invent mock GPS (PR #22).
 - Vision config + `arduTargetParams` persist via SQLite `server_config` on `POST /api/vision/config` (PR #18). Param-set uses the same snapshot (PR #30).
-- Assist confirm → isolated agent → Hebrew status/result rows (PR #33). Issue #31 done on master; GitHub close blocked.
+- Assist confirm → isolated agent → Hebrew status (PR #33). Issue #31 done on master; GitHub close blocked.
 - Assist connect-from-screen (PR #34). Empty/invalid key stays UNAVAILABLE.
+- Assist connected result card (PR #52). Hebrew status → real progress → open PR / dismiss. UNAVAILABLE stays honest. Do not invent progress.
 - Hebrew Assist Confirm / Cancel (PR #9). Hebrew Assist development phrasing (PR #35). Hebrew Assist answers (PR #36). Coding-agent `last_message` stays English by design.
 - Development Tasks empty-state + chrome leftovers (#13, #38, #41). Issue #14 done on master — close later.
 - PR #37 hide empty Maintenance deploy/rollback confirm modal (`de24ba1`). Does not execute deploy.
@@ -168,13 +173,14 @@ On master today (PR #39 + PR #40 + first-impression hero from #50):
 - Live Jetson proof is **parked** (days). Token is not in Cursor / PC `.env`. Jetson `:8081` returns 401 without it. Roy must remember the token. Do not invent one. Do not treat 401 as a product bug.
 - Apply / restart / policy-apply remain Human Gate (#28). No GO.
 
-### Assist (start + connect landed; connected result surface is next)
+### Assist (start + connect + result card landed)
 
-On master today (PR #33 + PR #34 + Hebrew Assist chrome from #50):
+On master today (PR #33 + PR #34 + Hebrew Assist chrome from #50 + result card from #52):
 
-- Confirm starts an isolated Cursor Agent. Connect-from-Assist is the operator path. UNAVAILABLE stays honest.
-- A status panel and poll exist (`assistRunPanel`, `assistRenderRunStatus`). That is plumbing, not the destination surface.
-- The remaining independent GAP is the **connected** progress/result surface: operator sees agent run status, then progress, then the result back in Assist. Do not spend the next cycle on more disconnected chrome.
+- Confirm starts an isolated Cursor Agent. Connect-from-Assist is the operator path.
+- Connected run surface is a first-class card: Hebrew status, then real progress when the API has it, then a result card with open PR / dismiss.
+- UNAVAILABLE stays honest. Empty/invalid key, `NOT_STARTED`, or `agent_started === false` never render as a healthy run. Do not invent progress.
+- Milestone B remainder is closed. Do not spend the next cycle polishing this card.
 
 ### Params (persist landed)
 
@@ -184,7 +190,7 @@ On master today (PR #33 + PR #34 + Hebrew Assist chrome from #50):
 
 | PR | Topic | This map |
 |---|---|---|
-| [#51](https://github.com/royshiber/vision-landing-console/pull/51) | This snapshot rewrite | **This draft.** Docs only. Stay draft. Do not merge from this agent. Not a next-pick polish PR. |
+| [#53](https://github.com/royshiber/vision-landing-console/pull/53) | This snapshot rewrite | **This draft.** Docs only. Stay draft. Do not merge from this agent. Not a next-pick polish PR. |
 | [#4](https://github.com/royshiber/vision-landing-console/pull/4) | PM orchestrator smoke | Skip. Low-value. Do not merge. |
 
 ### Open issues
@@ -200,7 +206,7 @@ GitHub Issues write is still blocked for the Cursor GitHub App. Done issues stay
 | [#27](https://github.com/royshiber/vision-landing-console/issues/27) | Params persist | **Done on master** via #18 + #30. Close later. Write-to-vehicle is Human Gate. |
 | [#28](https://github.com/royshiber/vision-landing-console/issues/28) | Companion apply/restart | GAP + Human Gate. Highest remaining destination code. No GO. Stay **WAITING FOR ROY**. |
 | [#29](https://github.com/royshiber/vision-landing-console/issues/29) | Live vehicle + auto-landing | GAP + Human Gate. Next remaining destination value. No GO. Stay **WAITING FOR ROY**. |
-| [#31](https://github.com/royshiber/vision-landing-console/issues/31) | In-product Cursor Agent loop | **Done on master.** PR #33 merged `51d2ef41` 2026-08-25. GitHub close blocked. Connected progress/result surface is the leftover of milestone B. |
+| [#31](https://github.com/royshiber/vision-landing-console/issues/31) | In-product Cursor Agent loop | **Done on master.** PR #33 merged `51d2ef41` 2026-08-25. Result card PR #52 closed the milestone B remainder. GitHub close blocked. |
 
 ### Version hunt (abandoned)
 
@@ -208,15 +214,15 @@ Roy 2026-09-05: abandon searching the local tree for versions past 300 **permane
 
 ### Ranked GAPS (this snapshot)
 
-1. **Assist connected progress/result surface** — next independent work. No Jetson. No token. No Human Gate. Agent run status → result back in the UI. Not more disconnected chrome polish.
-2. **Live Jetson connect proof** — parked (days). Capability is on master (#39 / #40). Blocked on Companion token (not in Cursor / PC `.env`; Jetson `:8081` → 401). WAITING FOR ROY on the token, not more connect code. Do not invent a token.
-3. **Companion apply/restart** — Human Gate. Issue #28. Milestone C. Highest remaining destination *code*. No GO. Stay **WAITING FOR ROY**.
-4. **Live vehicle + auto landing** — Human Gate. Issue #29. Milestone D. No GO. Stay **WAITING FOR ROY**.
+1. **Live Jetson connect proof** — parked (days). Capability is on master (#39 / #40). Blocked on Companion token (not in Cursor / PC `.env`; Jetson `:8081` → 401). WAITING FOR ROY on the token, not more connect code. Do not invent a token.
+2. **Companion apply/restart** — Human Gate. Issue #28. Milestone C. Highest remaining destination *code*. No GO. Stay **WAITING FOR ROY**.
+3. **Live vehicle + auto landing** — Human Gate. Issue #29. Milestone D. No GO. Stay **WAITING FOR ROY**.
+4. **Independent high-impact non-HG / non-token work** — now thin after #52 closed milestone B. Do not invent chrome polish to fill the gap. Wait for Roy design notes and/or Companion token / HG GO.
 
 ### Explicitly not next
 
-Do not spend cycles on smoke #4, leftover disconnected chrome, version bump, 300+ hunt, inventing a Companion token, Jetson apply/restart, or flight commands. The first-impression / UI round (#43–#50) is landed. Do not invent another polish PR. Do not invent a token. Do not fake a live Jetson connect.
+Do not spend cycles on smoke #4, leftover disconnected chrome, version bump, 300+ hunt, inventing a Companion token, Jetson apply/restart, or flight commands. The first-impression / UI round (#43–#50) and the Assist result card (#52) are landed. Do not invent another polish PR. Do not invent a token. Do not fake a live Jetson connect.
 
 ### Next pick (this snapshot)
 
-**Assist connected progress/result surface** (milestone B remainder). Independent. No Jetson / token / Human Gate. Close the loop the destination already named: agent run status → result back in Assist. Jetson live connect stays parked until Roy supplies the Companion token (days; Jetson `:8081` → 401 without it). Human Gates stay **WAITING FOR ROY**: #28 apply/restart, #29 live vehicle / auto-land. Merge autonomy still on for verified safe draft PRs. Measure by capabilities closed, not PR count. `APP_VERSION` stays `1.02.255`.
+Parked. Independent high-impact non-HG / non-token work is now thin. Do not invent chrome polish. Wait for Roy design notes and/or Companion token / HG GO. Jetson live connect stays parked until Roy supplies the Companion token (days; Jetson `:8081` → 401 without it). Human Gates stay **WAITING FOR ROY**: #28 apply/restart, #29 live vehicle / auto-land. Merge autonomy still on for verified safe draft PRs. Measure by capabilities closed, not PR count. `APP_VERSION` stays `1.02.255`.
