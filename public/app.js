@@ -183,6 +183,72 @@ function applyDebriefSubtab(tabId = 'recordings', { save = true } = {}) {
     }
   }
 }
+const LAB_SHELF_TABS = new Set(['simLab', 'advisor', 'featureDesigner', 'flightEngineer', 'terrain']);
+
+function isLabShelfTab(tabId) {
+  return LAB_SHELF_TABS.has(tabId);
+}
+
+function labTabLabel(tabId) {
+  const btn = document.querySelector(`.tab-lab-menu .tab[data-tab="${tabId}"]`);
+  return (btn?.textContent || 'מעבדה').replace(/\s+/g, ' ').trim();
+}
+
+function placeLabMenu() {
+  const toggle = document.getElementById('tabLabToggle');
+  const menu = document.getElementById('tabLabMenu');
+  if (!toggle || !menu || menu.hidden) return;
+  const box = toggle.getBoundingClientRect();
+  menu.style.position = 'fixed';
+  menu.style.top = `${Math.round(box.bottom + 4)}px`;
+  menu.style.right = `${Math.round(window.innerWidth - box.right)}px`;
+  menu.style.left = 'auto';
+  menu.style.insetInlineEnd = 'auto';
+}
+
+function setLabMenuOpen(open) {
+  const group = document.getElementById('tabLabGroup');
+  const toggle = document.getElementById('tabLabToggle');
+  const menu = document.getElementById('tabLabMenu');
+  if (!group || !toggle || !menu) return;
+  menu.hidden = !open;
+  toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+  group.classList.toggle('is-open', open);
+  if (open) placeLabMenu();
+}
+
+function syncLabTabGroup(tabId) {
+  const toggle = document.getElementById('tabLabToggle');
+  const group = document.getElementById('tabLabGroup');
+  if (!toggle || !group) return;
+  const lab = isLabShelfTab(tabId);
+  group.classList.toggle('is-lab-active', lab);
+  toggle.classList.toggle('is-current', lab);
+  toggle.textContent = lab ? labTabLabel(tabId) : 'מעבדה';
+  setLabMenuOpen(false);
+}
+
+function initLabTabGroup() {
+  const toggle = document.getElementById('tabLabToggle');
+  const menu = document.getElementById('tabLabMenu');
+  const group = document.getElementById('tabLabGroup');
+  if (!toggle || !menu || !group) return;
+  toggle.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setLabMenuOpen(menu.hidden);
+  });
+  document.addEventListener('click', (e) => {
+    if (!group.contains(e.target)) setLabMenuOpen(false);
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') setLabMenuOpen(false);
+  });
+  window.addEventListener('resize', () => {
+    if (!menu.hidden) placeLabMenu();
+  });
+}
+
 function applyMainTab(tabId, { save = true } = {}) {
   if (!_mainTabIds().has(tabId)) return;
   tabs.forEach((t) => t.classList.remove('active'));
@@ -191,6 +257,7 @@ function applyMainTab(tabId, { save = true } = {}) {
   const panel = document.getElementById(tabId);
   if (tab) tab.classList.add('active');
   if (panel) panel.classList.add('visible');
+  syncLabTabGroup(tabId);
   setParamCenterChromeVisible(tabId === 'control');
   updateArduTopCatsVisibility();
   if (save) {
@@ -333,9 +400,11 @@ async function refreshAdvisorHealth() {
 
 tabs.forEach((tab) => {
   tab.addEventListener('click', () => {
+    if (!tab.dataset.tab) return;
     applyMainTab(tab.dataset.tab);
   });
 });
+initLabTabGroup();
 debriefTabButtons.forEach((tab) => {
   tab.addEventListener('click', () => {
     applyDebriefSubtab(tab.dataset.debriefTab);
@@ -2979,7 +3048,7 @@ function pulseBuildAttention(opts) {
     items.push({ id: 'companion', text: 'מלווה מנותק', action: 'companion', cta: 'חברו מלווה' });
   }
   if (!assistConnected) {
-    items.push({ id: 'assist', text: 'מסייע מנותק', action: 'assist', cta: 'פתיחת מסייע' });
+    items.push({ id: 'assist', text: 'מסייע מנותק', action: 'assist', cta: 'מסייע' });
   }
   if (!evolveActive && !companionLive && items.length < 3) {
     items.push({ id: 'evolve', text: 'אין משימת פיתוח פעילה', action: 'develop', cta: 'פיתוח' });
@@ -3032,7 +3101,7 @@ function pulseRefresh() {
   assistEl.textContent = _assistAgentConnected ? 'מחובר' : 'מנותק';
   assistEl.parentElement?.setAttribute('data-state', _assistAgentConnected ? 'connected' : 'disconnected');
   const linkLabel = document.getElementById('connectPillLabel')?.textContent?.trim() || '';
-  linkEl.textContent = (!linkLabel || linkLabel === 'לא מחובר') ? '--' : linkLabel;
+  linkEl.textContent = (!linkLabel || linkLabel === 'לא מחובר' || linkLabel === 'מנותק') ? '--' : linkLabel;
   aircraftEl.textContent = pulseHudText('hudFlightMode');
   const evolveText = pulseEvolveLine(document.getElementById('assistRunPanel'));
   const items = pulseBuildAttention({
@@ -3099,7 +3168,7 @@ function teleSetOverview(opts) {
   }
   if (next) {
     const text = nextHe == null
-      ? (live ? '' : 'חברו מלווה בטלמטריה. כתובת לבד לא מחברת.')
+      ? (live ? '' : 'חברו מלווה. כתובת לבד לא מספיקה.')
       : nextHe;
     next.hidden = !text;
     next.textContent = text;
@@ -3134,20 +3203,20 @@ function companionConnectRender(status) {
   teleSetOverview({
     live,
     statusHe: live && !connected && !status?.status_he ? 'חי' : statusText,
-    nextHe: live ? '' : (status?.hint_he || 'חברו מלווה בטלמטריה. כתובת לבד לא מחברת.'),
+    nextHe: live ? '' : (status?.hint_he || 'חברו מלווה. כתובת לבד לא מספיקה.'),
     state: errorText ? 'error' : (live ? (connected ? 'connected' : 'ok') : 'disconnected'),
   });
   if (!live) {
     maintSetOverview({
       live: false,
       statusHe: statusText,
-      nextHe: status?.hint_he || 'חברו מלווה בטלמטריה. כתובת לבד לא מחברת.',
+      nextHe: status?.hint_he || 'חברו מלווה. כתובת לבד לא מספיקה.',
       state: errorText ? 'error' : 'disconnected',
     });
   }
   if (hintEl) {
     hintEl.hidden = connected;
-    hintEl.textContent = status?.hint_he || 'חיבור דורש כתובת ואסימון יחד. כתובת לבד לא מחברת.';
+    hintEl.textContent = status?.hint_he || 'צריך כתובת ואסימון. כתובת לבד לא מספיקה.';
   }
   const hint = connected ? String(status.token_hint || '').trim() : '';
   if (tokenHintEl) {
@@ -3201,22 +3270,22 @@ async function companionConnectSubmit(event) {
   const baseUrl = String(urlEl?.value || '').trim();
   const token = String(tokenEl?.value || '').trim();
   if (!baseUrl) {
-    companionConnectSetError('יש להזין כתובת בסיס');
+    companionConnectSetError('חסרה כתובת');
     companionConnectRender({
       ok: false,
       mode: 'off',
       connected: false,
-      status_he: 'יש להזין כתובת בסיס',
+      status_he: 'חסרה כתובת',
     });
     return;
   }
   if (!token) {
-    companionConnectSetError('יש להזין אסימון');
+    companionConnectSetError('חסר אסימון');
     companionConnectRender({
       ok: false,
       mode: 'off',
       connected: false,
-      status_he: 'יש להזין אסימון',
+      status_he: 'חסר אסימון',
       base_url: baseUrl,
     });
     return;
@@ -3306,7 +3375,7 @@ function applyCompanionUi(companion) {
   const unavailableEl = document.getElementById('companionApiUnavailable');
   if (unavailableEl) {
     unavailableEl.hidden = !unavailable;
-    unavailableEl.textContent = unavailable ? 'המלווה החי אינו מגיב. בדקו כתובת ואסימון. כתובת לבד לא מחברת.' : '';
+    unavailableEl.textContent = unavailable ? 'המלווה החי אינו מגיב. בדקו כתובת ואסימון.' : '';
   }
   const live = companionIsLive(companion) && !unavailable;
   companionSetLiveChrome(live);
@@ -3315,13 +3384,13 @@ function applyCompanionUi(companion) {
     maintSetOverview({
       live: false,
       statusHe,
-      nextHe: 'חברו מלווה בטלמטריה. כתובת לבד לא מחברת.',
+      nextHe: 'חברו מלווה. כתובת לבד לא מספיקה.',
       state: unavailable ? 'error' : 'disconnected',
     });
     teleSetOverview({
       live: false,
       statusHe,
-      nextHe: 'חברו מלווה בטלמטריה. כתובת לבד לא מחברת.',
+      nextHe: 'חברו מלווה. כתובת לבד לא מספיקה.',
       state: unavailable ? 'error' : 'disconnected',
     });
   } else {
@@ -7705,7 +7774,7 @@ setInterval(refreshAdvisorHealth, 60_000);
           connBtn.textContent = 'CONNECT';
           connBtn.dataset.connected = '0';
           connBtn.title = 'התחבר למטוס';
-          setPillLabel('לא מחובר');
+          setPillLabel('מנותק');
         }
       }
     } catch (err) {
@@ -9890,7 +9959,7 @@ function maintApplyWire(wire, { apiReachable = null, companionMode = null } = {}
   maintSetOverview({
     live: _maintApiReachable === true,
     statusHe: MAINT_STATES_HE[st] || st,
-    nextHe: _maintApiReachable === true ? '' : 'חברו מלווה בטלמטריה. כתובת לבד לא מחברת.',
+    nextHe: _maintApiReachable === true ? '' : 'חברו מלווה. כתובת לבד לא מספיקה.',
     state: st,
   });
   maintRenderDiag(wire.diagnostics?.recent);
@@ -9913,7 +9982,7 @@ async function maintLoadData() {
     maintSetOverview({
       live: false,
       statusHe: 'המלווה מנותק',
-      nextHe: 'חברו מלווה בטלמטריה. כתובת לבד לא מחברת.',
+      nextHe: 'חברו מלווה. כתובת לבד לא מספיקה.',
       state: 'disconnected',
     });
   }

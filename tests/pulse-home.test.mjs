@@ -65,6 +65,10 @@ describe('C10.3 Pulse home', () => {
     expect(css).toMatch(/#pulse\.panel\.visible\b/);
     expect(css).toMatch(/\.pulse-attention\b/);
     expect(css).toMatch(/\.pulse-status\b/);
+    expect(html).not.toContain('מה שחשוב עכשיו בלבד');
+    expect(html).not.toContain('pulse-lede');
+    expect(html).not.toContain('pulse-kicker');
+    expect(html).toMatch(/data-tab="control"[^>]*>פרמטרים</);
   });
 
   it('keeps link and aircraft as placeholders and never invents GPS', () => {

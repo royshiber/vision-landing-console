@@ -259,6 +259,11 @@ h1 { margin: 0; font-size: 1.25rem; color: #ffffff; }
   isolation: isolate;
 }
 
+/* Why: overflow-x:auto computes overflow-y to auto and clips the Lab menu. */
+.tabs:has(.tab-lab-group.is-open) {
+  overflow: visible;
+}
+
 /* Stitch-inspired nav: clean uppercase labels, solid background for legibility */
 .tab {
   background: var(--surface-raised);
@@ -310,6 +315,85 @@ h1 { margin: 0; font-size: 1.25rem; color: #ffffff; }
 
 .tab-lab.active {
   opacity: 1;
+  background: var(--surface-container-high);
+  border-color: var(--border);
+  color: var(--text);
+  box-shadow: none;
+}
+
+.tab-lab-group {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.tab-lab-toggle {
+  font-weight: 600;
+  font-size: 0.64rem;
+  letter-spacing: 0.04em;
+  color: var(--text-subtle);
+  background: transparent;
+  border-color: transparent;
+  opacity: 0.78;
+}
+
+.tab-lab-toggle:hover,
+.tab-lab-group.is-open .tab-lab-toggle {
+  opacity: 1;
+  background: var(--surface-container-low);
+  border-color: var(--border);
+  color: var(--text-muted);
+  box-shadow: none;
+}
+
+.tab-lab-group.is-lab-active .tab-lab-toggle,
+.tab-lab-toggle.is-current {
+  opacity: 1;
+  background: var(--surface-container-high);
+  border-color: var(--border);
+  color: var(--text);
+  box-shadow: none;
+}
+
+.tab-lab-menu {
+  position: fixed;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 8.5rem;
+  padding: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 71, 141, 0.14);
+  z-index: 400;
+}
+
+.tab-lab-menu[hidden] {
+  display: none !important;
+}
+
+.tab-lab-menu .tab {
+  width: 100%;
+  justify-content: flex-start;
+  text-align: start;
+}
+
+.tab-lab-menu .tab-fly {
+  order: 0;
+  border-color: transparent;
+  color: var(--text-subtle);
+  background: transparent;
+  box-shadow: none;
+}
+
+.tab-lab-menu .tab-fly:hover {
+  background: var(--surface-container-low);
+  border-color: var(--border);
+  color: var(--text-muted);
+  box-shadow: none;
+}
+
+.tab-lab-menu .tab-fly.active {
   background: var(--surface-container-high);
   border-color: var(--border);
   color: var(--text);
@@ -4450,25 +4534,11 @@ body.operator-live .companion-connect--hero {
   text-align: center;
 }
 
-.pulse-kicker {
-  margin: 0;
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  color: var(--primary);
-}
-
 .pulse-title {
   margin: 0;
   font-size: 1.35rem;
   font-weight: 800;
   color: var(--text);
-}
-
-.pulse-lede {
-  margin: 0;
-  font-size: 0.84rem;
-  color: var(--text-muted);
 }
 
 .pulse-status {

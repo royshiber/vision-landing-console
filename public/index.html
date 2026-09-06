@@ -18,7 +18,6 @@
     <header class="topbar">
       <div>
         <h1>Vision Landing Console</h1>
-        <p class="subtitle">ממשק ניסוי מהיר לנחיתה מבוססת מצלמה</p>
       </div>
       <div class="topbar-right">
         <div class="topbar-right-scroll" aria-label="מדדי תצוגה">
@@ -49,7 +48,7 @@
         <div id="connectWidget" class="connect-widget connect-widget-compact" title="חיבור MAVLink למטוס — בסגנון Mission Planner">
           <button type="button" id="connectToggleBtn" class="conn-pill" aria-expanded="false" aria-controls="connectPanel" title="פתח/סגור פאנל חיבור">
             <span id="connectStatusDot" class="conn-dot" data-state="off" aria-label="מצב חיבור"></span>
-            <span id="connectPillLabel" class="conn-pill-label">לא מחובר</span>
+            <span id="connectPillLabel" class="conn-pill-label">מנותק</span>
             <span class="conn-pill-caret" aria-hidden="true">▾</span>
           </button>
           <div id="connectPanel" class="conn-panel" hidden>
@@ -145,8 +144,7 @@
         </form>
         <button type="button" id="assistAgentDisconnectBtn" class="assist-btn assist-btn-cancel" hidden>ניתוק</button>
       </section>
-      <div id="assistMessagesEmpty" class="assist-empty-stage">
-        <p class="assist-empty-kicker">מוכנים</p>
+        <div id="assistMessagesEmpty" class="assist-empty-stage">
         <p class="assist-empty-invite">כתבו שאלה או בקשה.</p>
       </div>
       <div id="assistMessages" class="assist-messages" role="log" aria-live="polite"></div>
@@ -172,7 +170,7 @@
           <strong id="connStatTitle">סטטוס חיבור MAVLink</strong>
           <button type="button" class="conn-modal-close" data-close="1" aria-label="סגור">✕</button>
         </header>
-        <div id="connectStatBody" class="conn-modal-body">לא מחובר</div>
+        <div id="connectStatBody" class="conn-modal-body">מנותק</div>
         <footer class="conn-modal-foot">
           <label class="conn-foot-toggle"><input type="checkbox" id="connectStatAutoRefresh" checked /> רענון אוטומטי (1 שניה)</label>
           <button type="button" id="connectStatRefreshBtn" class="conn-btn">רענן עכשיו</button>
@@ -228,17 +226,22 @@
 
     <main class="layout">
       <nav class="tabs">
-        <button class="tab tab-ops active" data-tab="pulse" title="מה קורה עכשיו ומה חשוב לטפל בו">סקירה</button>
-        <button class="tab tab-ops" data-tab="control" title="כל פרמטרי הנחיתה, הניווט הוויזואלי והקושחה במקום אחד">מרכז פרמטרים</button>
-        <button class="tab tab-ops" data-tab="recordings" title="הקלטות ולוגים תחת תחקור">תחקור</button>
-        <button class="tab tab-ops" data-tab="telemetry" title="לוח טלמטריה, סטטוסים ובדיקות מערכת">טלמטריה</button>
-        <button class="tab tab-ops" data-tab="maintenance" title="סטטוס תחזוקה לתצוגה בלבד">תחזוקה</button>
-        <button class="tab tab-ops" data-tab="development" title="ניהול משימות פיתוח מקומיות">פיתוח</button>
-        <button class="tab tab-lab" data-tab="simLab" title="מעבדת SITL — ArduPilot בסימולציה, תצוגת תלת־מימד מהטלמטריה וקביעות חיבור">מעבדת SITL</button>
-        <button class="tab tab-lab" data-tab="advisor" title="AI Advisor — אבחון, הצעות, שינוי פרמטרים וזיכרון ארוך-טווח">AI Advisor</button>
-        <button class="tab tab-lab" data-tab="featureDesigner" title="ArduLab — תאר פיצ'ר חדש, ה-AI יכתוב עבורך קוד ArduPilot מלא ויגדיר פרמטרים">ArduLab</button>
-        <button class="tab tab-lab" data-tab="flightEngineer" title="מהנדס טיסה — שיחה קולית; גם התייעצות על הפרויקט בלי חיבור לבקר">🎙 מהנדס</button>
-        <button class="tab tab-fly" data-tab="terrain" title="הטסה — מפה חזותית, HUD ניווט ושליחת פקודת טיסה">✈ הטסה</button>
+        <button class="tab tab-ops active" data-tab="pulse" title="סקירה">סקירה</button>
+        <button class="tab tab-ops" data-tab="control" title="פרמטרים">פרמטרים</button>
+        <button class="tab tab-ops" data-tab="recordings" title="תחקור">תחקור</button>
+        <button class="tab tab-ops" data-tab="telemetry" title="טלמטריה">טלמטריה</button>
+        <button class="tab tab-ops" data-tab="maintenance" title="תחזוקה">תחזוקה</button>
+        <button class="tab tab-ops" data-tab="development" title="פיתוח">פיתוח</button>
+        <div class="tab-lab-group" id="tabLabGroup">
+          <button type="button" id="tabLabToggle" class="tab tab-lab-toggle" aria-expanded="false" aria-controls="tabLabMenu" aria-haspopup="true" title="מעבדה">מעבדה</button>
+          <div id="tabLabMenu" class="tab-lab-menu" hidden>
+            <button class="tab tab-lab" data-tab="simLab" title="סימולציה">סימולציה</button>
+            <button class="tab tab-lab" data-tab="advisor" title="יועץ">יועץ</button>
+            <button class="tab tab-lab" data-tab="featureDesigner" title="ArduLab">ArduLab</button>
+            <button class="tab tab-lab" data-tab="flightEngineer" title="מהנדס">מהנדס</button>
+            <button class="tab tab-fly" data-tab="terrain" title="הטסה">הטסה</button>
+          </div>
+        </div>
         <!-- flights kept hidden for programmatic access from recordings -->
         <button class="tab tab-hidden" data-tab="flights" aria-hidden="true" tabindex="-1">לוגים והעלאות</button>
       </nav>
@@ -274,13 +277,11 @@
       <section id="pulse" class="panel visible" aria-label="סקירה">
         <div class="pulse-home">
           <header class="pulse-hero">
-            <p class="pulse-kicker">מה קורה עכשיו</p>
             <h3 class="pulse-title">סקירה</h3>
-            <p class="pulse-lede">מה שחשוב עכשיו בלבד.</p>
           </header>
           <dl class="pulse-status" aria-label="מצב מקוצר">
             <div class="pulse-status-item">
-              <dt>קונסול</dt>
+              <dt>גרסה</dt>
               <dd id="pulseVersion" dir="ltr">--</dd>
             </div>
             <div class="pulse-status-item" data-pulse-kind="companion">
@@ -303,8 +304,8 @@
           <section id="pulseAttention" class="pulse-attention" hidden aria-label="תשומת לב"></section>
           <nav class="pulse-actions" data-first-open="pulse" aria-label="פעולה הבאה">
             <button type="button" class="first-open-btn" data-first-action="companion" data-pulse-live="hide">חברו מלווה</button>
-            <button type="button" class="first-open-btn first-open-btn-quiet" data-first-action="assist">פתיחת מסייע</button>
-            <button type="button" class="first-open-btn first-open-btn-quiet" data-first-action="params">פתיחת פרמטרים</button>
+            <button type="button" class="first-open-btn first-open-btn-quiet" data-first-action="assist">מסייע</button>
+            <button type="button" class="first-open-btn first-open-btn-quiet" data-first-action="params">פרמטרים</button>
             <button type="button" class="first-open-btn first-open-btn-quiet" data-first-action="develop">פיתוח</button>
             <button type="button" class="first-open-btn first-open-btn-quiet" data-first-action="telemetry">טלמטריה</button>
           </nav>
@@ -570,11 +571,11 @@
         <div class="first-open-stage-fill" data-first-open-stage>
         <section id="companionConnect" class="companion-connect companion-connect--hero assist-agent-connect operator-state" data-state="disconnected" aria-label="חיבור מלווה">
           <p id="companionConnectStatus" class="assist-agent-status" aria-live="polite">המלווה מנותק</p>
-          <p id="companionConnectHint" class="assist-agent-hint">חיבור דורש כתובת ואסימון יחד. כתובת לבד לא מחברת.</p>
+          <p id="companionConnectHint" class="assist-agent-hint">צריך כתובת ואסימון. כתובת לבד לא מספיקה.</p>
           <p id="companionConnectPathHint" class="assist-agent-key-hint" hidden dir="ltr">/api/v1/*</p>
           <p id="companionTokenHint" class="assist-agent-key-hint" hidden dir="ltr"></p>
           <form id="companionConnectForm" class="assist-agent-form" autocomplete="off" novalidate>
-            <label class="assist-agent-label" for="companionBaseUrl">כתובת בסיס</label>
+            <label class="assist-agent-label" for="companionBaseUrl">כתובת</label>
             <input id="companionBaseUrl" class="assist-agent-key" type="text" inputmode="url" maxlength="500" dir="ltr" autocomplete="off" placeholder="http://host:8081" />
             <label class="assist-agent-label" for="companionToken">אסימון</label>
             <input id="companionToken" class="assist-agent-key" type="password" maxlength="500" dir="ltr" autocomplete="off" />
@@ -584,8 +585,8 @@
           <button type="button" id="companionDisconnectBtn" class="assist-btn assist-btn-cancel" hidden>ניתוק</button>
         </section>
         <nav class="first-open-actions" data-first-open="telemetry" aria-label="פעולה הבאה">
-          <button type="button" class="first-open-btn" data-first-action="assist">פתיחת מסייע</button>
-          <button type="button" class="first-open-btn first-open-btn-quiet" data-first-action="params">פתיחת פרמטרים</button>
+          <button type="button" class="first-open-btn" data-first-action="assist">מסייע</button>
+          <button type="button" class="first-open-btn first-open-btn-quiet" data-first-action="params">פרמטרים</button>
         </nav>
         </div>
         <div id="teleDashPanel" class="tele-subpanel visible" data-tele-panel="dash">
@@ -593,10 +594,10 @@
           <h3>טלמטריה</h3>
           <div id="teleOperatorBanner" class="operator-state" data-state="disconnected">
             <p id="teleStatusBadge" class="operator-state-status">המלווה מנותק</p>
-            <p id="teleNextStep" class="operator-state-next">חברו מלווה בטלמטריה. כתובת לבד לא מחברת.</p>
+            <p id="teleNextStep" class="operator-state-next">חברו מלווה. כתובת לבד לא מספיקה.</p>
           </div>
         </header>
-        <p id="companionLiveParked" class="operator-state-parked">סיכום המלווה יופיע אחרי חיבור. כתובת לבד לא מחברת.</p>
+        <p id="companionLiveParked" class="operator-state-parked">הסיכום יופיע אחרי חיבור.</p>
         <div id="companionDashboardSummary" class="companion-dashboard-summary" hidden aria-label="סיכום ממשק מלווה">
           <article class="tele-card"><span>ממשק מלווה</span><strong id="companionApiState">כבוי</strong></article>
           <article class="tele-card"><span>גרסת מלווה</span><strong id="companionApiVersion">—</strong></article>
@@ -788,7 +789,7 @@
 
         <div id="teleCompanionPanel" class="tele-subpanel companion-b2-panel" data-tele-panel="companion">
           <p class="tele-dash-note">תצוגה בלבד מנתוני המלווה. אין פקודות טיסה ואין כתיבות</p>
-          <p id="companionB2Parked" class="operator-state-parked">נתוני מלווה יופיעו אחרי חיבור. כתובת לבד לא מחברת.</p>
+          <p id="companionB2Parked" class="operator-state-parked">נתוני מלווה יופיעו אחרי חיבור.</p>
           <div id="companionB2Grid" class="companion-section-grid" hidden>
             <section class="companion-b2-section">
               <h3>מערכת ובקר</h3>
@@ -892,11 +893,11 @@
             <h3>תחזוקה</h3>
             <div id="maintOperatorBanner" class="operator-state" data-state="disconnected">
               <p id="maintStatusBadge" class="operator-state-status">המלווה מנותק</p>
-              <p id="maintNextStep" class="operator-state-next">חברו מלווה בטלמטריה. כתובת לבד לא מחברת.</p>
+              <p id="maintNextStep" class="operator-state-next">חברו מלווה. כתובת לבד לא מספיקה.</p>
               <nav class="first-open-actions" data-first-open="maintenance" aria-label="פעולה הבאה">
                 <button type="button" class="first-open-btn" data-first-action="companion">חברו מלווה</button>
-                <button type="button" class="first-open-btn first-open-btn-quiet" data-first-action="assist">פתיחת מסייע</button>
-                <button type="button" class="first-open-btn first-open-btn-quiet" data-first-action="params">פתיחת פרמטרים</button>
+                <button type="button" class="first-open-btn first-open-btn-quiet" data-first-action="assist">מסייע</button>
+                <button type="button" class="first-open-btn first-open-btn-quiet" data-first-action="params">פרמטרים</button>
               </nav>
               <button type="button" id="maintRefreshBtn" class="policy-btn">רענון</button>
             </div>
@@ -1015,7 +1016,6 @@
       <section id="development" class="panel">
         <div class="devtasks-panel">
           <h3>משימות פיתוח</h3>
-          <p class="tele-dash-note">שכבת ניהול מקומית מבוקרת: worktree מבודד והרצת פרופילי בדיקות מאושרים בלבד.</p>
 
           <section class="devtasks-create">
             <h4 class="maint-group-title">יצירת משימה</h4>
@@ -1730,7 +1730,7 @@
         <div class="advisor-layout compact advisor-v2">
           <aside class="adv-sidebar" aria-label="שיחות שמורות">
             <div class="adv-sidebar-head">
-              <span class="adv-sidebar-head-title">AI Advisor</span>
+              <span class="adv-sidebar-head-title">יועץ</span>
               <button type="button" id="advisorNewChatBtn" class="adv-new-chat" title="התחל שיחה חדשה">＋ שיחה</button>
               <button type="button" id="advisorIssuesRefresh" class="adv-icon-btn" title="רענן רשימה" aria-label="רענן">⟳</button>
             </div>
@@ -1760,7 +1760,7 @@
               <div class="adv-empty-state" data-static-welcome="1">
                 <div class="adv-empty-inner">
                   <div class="adv-empty-icon">✦</div>
-                  <div class="adv-empty-title">AI Advisor מוכן</div>
+                  <div class="adv-empty-title">יועץ</div>
                   <div class="adv-empty-sub">שאל על: נדנוד, הצפה, מהירות גישה, ABORT, Jetson, SLAM — או בקש שינוי פרמטר ספציפי.</div>
                   <div class="adv-empty-chips">
                     <button type="button" class="adv-chip" data-prompt="יש לי נדנוד לפני ההצפה, מה לשנות?">נדנוד לפני הצפה</button>
