@@ -141,5 +141,6 @@ describe('Assist connected run result card', () => {
     expect(css).toMatch(/\.assist-run-actions\b/);
     expect(css).toMatch(/\.assist-run-panel\[data-kind="unavailable"\]/);
     expect(css).toMatch(/\.assist-run-panel\[data-outcome="failed"\]/);
+    expect(css).toMatch(/\.assist-messages:empty\b/);
   });
 });
