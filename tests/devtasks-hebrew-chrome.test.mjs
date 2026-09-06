@@ -26,7 +26,7 @@ describe('Development Tasks Hebrew chrome', () => {
     const label = innerText(m[1]);
     expect(label).toBe('פיתוח');
     expect(label).not.toBe('DEVELOPMENT');
-    expect(m[0]).toContain('title="ניהול משימות פיתוח מקומיות"');
+    expect(m[0]).toContain('title="פיתוח"');
   });
 
   it('does not keep Create task / Start development / Deploy release as visible chrome', () => {
