@@ -65,10 +65,17 @@ describe('Development Tasks Hebrew chrome', () => {
     expect(panel).toContain('<h4 class="maint-group-title">פרטי משימה</h4>');
     expect(panel).toContain('<th>מזהה</th>');
     expect(panel).toContain('<th>כותרת</th>');
+    expect(panel).toContain('<th>סיווג</th>');
     expect(panel).toContain('<th>יעד</th>');
     expect(panel).toContain('<th>עדיפות</th>');
     expect(panel).toContain('<th>מצב</th>');
     expect(panel).toContain('<th>עודכן</th>');
+    expect(panel).toContain('id="devTaskTaxonomy"');
+    expect(panel).toContain('id="devTaskFilterTaxonomy"');
+    expect(panel).toContain('id="devDetailTaxonomy"');
+    expect(panel).toMatch(/<span>סיווג<\/span>/);
+    expect(panel).toMatch(/<label>סיווג <select id="devTaskFilterTaxonomy"/);
+    expect(panel).toMatch(/<label>סיווג <select id="devDetailTaxonomy"/);
     expect(panel).not.toContain('Development Tasks');
     expect(panel).not.toContain('Task Detail');
   });
