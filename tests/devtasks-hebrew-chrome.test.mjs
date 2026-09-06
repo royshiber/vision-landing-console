@@ -92,6 +92,9 @@ describe('Development Tasks Hebrew chrome', () => {
     expect(strip).toContain('<span>בדיקות</span>');
     expect(strip).toContain('<span>גרסה</span>');
     expect(strip).toContain('<span>גרסה רצה</span>');
+    expect(strip).not.toContain('ראיות');
+    expect(strip).not.toContain('מה שחשוב');
+    expect(strip).not.toContain('בלבד');
     expect(strip).not.toMatch(/>\s*What\s*</);
     expect(strip).not.toMatch(/>\s*Why\s*</);
     expect(strip).not.toMatch(/>\s*Release\s*</);

@@ -10422,14 +10422,14 @@ function devBindEvidenceStrip(task) {
   }
 
   const taxonomy = task.taxonomy || 'FEATURE';
-  set('devEvidenceWhat', devEvidenceJoin([taxonomy, devText(task.title), devText(task.target_area)]));
+  set('devEvidenceWhat', devEvidenceJoin([task.title, taxonomy, task.target_area]));
 
   const whyParts = [task.description, task.notes]
     .map((s) => String(s || '').trim())
     .filter(Boolean);
   set('devEvidenceWhy', whyParts.length ? whyParts.join(' · ') : '—');
 
-  set('devEvidenceState', devEvidenceJoin([devText(task.status), task.agent?.state || 'NOT_STARTED']));
+  set('devEvidenceState', devEvidenceJoin([task.status, task.agent?.state || 'NOT_STARTED']));
 
   const testState = task.tests?.state || 'NOT_STARTED';
   const testBits = [testState];
@@ -10442,14 +10442,18 @@ function devBindEvidenceStrip(task) {
   const releaseState = task.release?.state || 'NOT_STARTED';
   const releaseBits = [releaseState];
   if (task.release?.version || task.release?.release_id) {
-    releaseBits.push(devText(task.release?.version), devText(task.release?.release_id));
+    releaseBits.push(task.release?.version, task.release?.release_id);
   }
   set('devEvidenceRelease', devEvidenceJoin(releaseBits));
 
+  const runVer = task.deployment?.running_version;
   const deployState = task.deployment?.state || 'NOT_STARTED';
-  const runningBits = [devText(task.deployment?.running_version), deployState];
-  if (task.deployment?.result) runningBits.push(String(task.deployment.result));
-  set('devEvidenceRunning', devEvidenceJoin(runningBits));
+  const depResult = task.deployment?.result;
+  if (!runVer && deployState === 'NOT_STARTED' && !depResult) {
+    set('devEvidenceRunning', 'NOT_STARTED');
+  } else {
+    set('devEvidenceRunning', devEvidenceJoin([runVer, deployState, depResult]));
+  }
 }
 
 function devFormatAgentProvider(name, available) {

@@ -88,7 +88,8 @@ describe('C10.4b Development evidence strip', () => {
       'missing #devEvidenceStrip',
     )[0];
     expect(strip).toContain('dir="rtl"');
-    expect(strip).toContain('aria-label="ראיות משימה"');
+    expect(strip).not.toContain('aria-label');
+    expect(strip).not.toMatch(/<p[\s>]/);
     expect(strip).toMatch(/<span>מה<\/span>/);
     expect(strip).toMatch(/<span>למה<\/span>/);
     expect(strip).toMatch(/<span>מצב<\/span>/);
@@ -111,6 +112,10 @@ describe('C10.4b Development evidence strip', () => {
     )[0];
     const labels = [...strip.matchAll(/<span>([^<]*)<\/span>/g)].map((m) => m[1]);
     expect(labels).toEqual(['מה', 'למה', 'מצב', 'בדיקות', 'גרסה', 'גרסה רצה']);
+    expect(strip).not.toContain('ראיות');
+    expect(strip).not.toContain('מה שחשוב');
+    expect(strip).not.toContain('בלבד');
+    expect(strip).not.toContain('תמונת מצב');
     expect(innerText(strip)).not.toMatch(/\bWhat\b/);
     expect(innerText(strip)).not.toMatch(/\bWhy\b/);
     expect(innerText(strip)).not.toMatch(/\bState\b/);
@@ -134,12 +139,12 @@ describe('C10.4b Development evidence strip', () => {
       notes: null,
       status: 'DRAFT',
     });
-    expect(empty.what).toBe('FEATURE · — · —');
+    expect(empty.what).toBe('FEATURE');
     expect(empty.why).toBe('—');
     expect(empty.state).toBe('DRAFT · NOT_STARTED');
     expect(empty.tests).toBe('NOT_STARTED');
     expect(empty.release).toBe('NOT_STARTED');
-    expect(empty.running).toBe('— · NOT_STARTED');
+    expect(empty.running).toBe('NOT_STARTED');
     expect(empty.tests).not.toMatch(/0\/0/);
     expect(empty.release).not.toMatch(/1\.\d+/);
     expect(empty.running).not.toMatch(/1\.\d+/);
@@ -157,7 +162,7 @@ describe('C10.4b Development evidence strip', () => {
       release: { state: 'READY', version: '1.02.255', release_id: 'rel-1' },
       deployment: { state: 'DEPLOYED', running_version: '1.02.255', result: 'ok' },
     });
-    expect(filled.what).toBe('BUG · תיקון נחיתה · LANDING');
+    expect(filled.what).toBe('תיקון נחיתה · BUG · LANDING');
     expect(filled.why).toBe('כישלון בנחיתה אוטומטית · מהטיסה האחרונה');
     expect(filled.state).toBe('TESTING · SUCCEEDED');
     expect(filled.tests).toBe('PASSED · 12/0 · ok');
