@@ -10397,6 +10397,61 @@ function devText(v) {
   return (v == null || v === '') ? '—' : String(v);
 }
 
+function devEvidenceJoin(parts) {
+  const cleaned = [];
+  for (const part of parts) {
+    if (part == null || part === '') continue;
+    cleaned.push(String(part));
+  }
+  return cleaned.length ? cleaned.join(' · ') : '—';
+}
+
+function devBindEvidenceStrip(task) {
+  const set = (id, value) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = value;
+  };
+  if (!task) {
+    set('devEvidenceWhat', '—');
+    set('devEvidenceWhy', '—');
+    set('devEvidenceState', 'NOT_STARTED');
+    set('devEvidenceTests', 'NOT_STARTED');
+    set('devEvidenceRelease', 'NOT_STARTED');
+    set('devEvidenceRunning', 'NOT_STARTED');
+    return;
+  }
+
+  const taxonomy = task.taxonomy || 'FEATURE';
+  set('devEvidenceWhat', devEvidenceJoin([taxonomy, devText(task.title), devText(task.target_area)]));
+
+  const whyParts = [task.description, task.notes]
+    .map((s) => String(s || '').trim())
+    .filter(Boolean);
+  set('devEvidenceWhy', whyParts.length ? whyParts.join(' · ') : '—');
+
+  set('devEvidenceState', devEvidenceJoin([devText(task.status), task.agent?.state || 'NOT_STARTED']));
+
+  const testState = task.tests?.state || 'NOT_STARTED';
+  const testBits = [testState];
+  if (task.tests?.passed != null || task.tests?.failed != null) {
+    testBits.push(`${devText(task.tests?.passed)}/${devText(task.tests?.failed)}`);
+  }
+  if (task.tests?.result) testBits.push(String(task.tests.result));
+  set('devEvidenceTests', devEvidenceJoin(testBits));
+
+  const releaseState = task.release?.state || 'NOT_STARTED';
+  const releaseBits = [releaseState];
+  if (task.release?.version || task.release?.release_id) {
+    releaseBits.push(devText(task.release?.version), devText(task.release?.release_id));
+  }
+  set('devEvidenceRelease', devEvidenceJoin(releaseBits));
+
+  const deployState = task.deployment?.state || 'NOT_STARTED';
+  const runningBits = [devText(task.deployment?.running_version), deployState];
+  if (task.deployment?.result) runningBits.push(String(task.deployment.result));
+  set('devEvidenceRunning', devEvidenceJoin(runningBits));
+}
+
 function devFormatAgentProvider(name, available) {
   const p = String(name || '').trim();
   if (!available || p === 'unavailable' || !p) return 'סוכן הפיתוח אינו זמין';
@@ -10543,6 +10598,7 @@ function devRenderTaskDetail(task) {
   }
   empty.hidden = true;
   card.hidden = false;
+  devBindEvidenceStrip(task);
   document.getElementById('devDetailId').textContent = devText(task.id);
   document.getElementById('devDetailStatus').textContent = devText(task.status);
   document.getElementById('devDetailUpdated').textContent = devFmtTime(task.updated_at);
