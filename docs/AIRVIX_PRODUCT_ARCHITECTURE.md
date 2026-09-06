@@ -559,7 +559,7 @@ Thin vertical Assist foundation:
 
 | Phase | Focus |
 |-------|--------|
-| **C10.3** | Pulse home (non-breaking prototype / flag) |
+| **C10.3** | Pulse home (non-breaking prototype / localStorage home pref) |
 | **C10.4** | Evolve workspace v2 (taxonomy + evidence + absorb release owner) |
 | **C10.5** | Platform capability shells + Debrief merge |
 | **C10.6** | Mission flight-safe Assist polish |
@@ -578,6 +578,6 @@ Full IA chrome rewrite · peer Assist tab · STT/ElevenLabs Assist path · Jetso
 |-------|-------|
 | Created | C10.1 |
 | Companion review canvas | `canvases/airvix-c10-product-architecture.canvas.tsx` (C10 opinionated review) |
-| Implementation status | C10.1 contract + C10.2 Assist foundation |
+| Implementation status | C10.1 contract + C10.2 Assist foundation + C10.3 Pulse home prototype |
 
-**Next:** C10.3 Pulse home.
+**Next:** C10.4 Evolve workspace v2.

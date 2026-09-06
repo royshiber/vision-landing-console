@@ -228,7 +228,8 @@
 
     <main class="layout">
       <nav class="tabs">
-        <button class="tab tab-ops active" data-tab="control" title="כל פרמטרי הנחיתה, הניווט הוויזואלי והקושחה במקום אחד">מרכז פרמטרים</button>
+        <button class="tab tab-ops active" data-tab="pulse" title="מה קורה עכשיו ומה חשוב לטפל בו">סקירה</button>
+        <button class="tab tab-ops" data-tab="control" title="כל פרמטרי הנחיתה, הניווט הוויזואלי והקושחה במקום אחד">מרכז פרמטרים</button>
         <button class="tab tab-ops" data-tab="recordings" title="הקלטות ולוגים תחת תחקור">תחקור</button>
         <button class="tab tab-ops" data-tab="telemetry" title="לוח טלמטריה, סטטוסים ובדיקות מערכת">טלמטריה</button>
         <button class="tab tab-ops" data-tab="maintenance" title="סטטוס תחזוקה לתצוגה בלבד">תחזוקה</button>
@@ -270,7 +271,52 @@
         <div id="arduTopCatsHost" class="ardu-top-cats-host hidden" role="tablist" aria-label="קטגוריות ArduPilot"></div>
       </div>
 
-      <section id="control" class="panel visible">
+      <section id="pulse" class="panel visible" aria-label="סקירה">
+        <div class="pulse-home">
+          <header class="pulse-hero">
+            <p class="pulse-kicker">מה קורה עכשיו</p>
+            <h3 class="pulse-title">סקירה</h3>
+            <p class="pulse-lede">מה שחשוב עכשיו בלבד.</p>
+          </header>
+          <dl class="pulse-status" aria-label="מצב מקוצר">
+            <div class="pulse-status-item">
+              <dt>קונסול</dt>
+              <dd id="pulseVersion" dir="ltr">--</dd>
+            </div>
+            <div class="pulse-status-item" data-pulse-kind="companion">
+              <dt>מלווה</dt>
+              <dd id="pulseCompanion">מנותק</dd>
+            </div>
+            <div class="pulse-status-item" data-pulse-kind="assist">
+              <dt>מסייע</dt>
+              <dd id="pulseAssist">מנותק</dd>
+            </div>
+            <div class="pulse-status-item">
+              <dt>קישור</dt>
+              <dd id="pulseLink" dir="ltr">--</dd>
+            </div>
+            <div class="pulse-status-item">
+              <dt>כלי</dt>
+              <dd id="pulseAircraft" dir="ltr">--</dd>
+            </div>
+          </dl>
+          <section id="pulseAttention" class="pulse-attention" hidden aria-label="תשומת לב"></section>
+          <nav class="pulse-actions" data-first-open="pulse" aria-label="פעולה הבאה">
+            <button type="button" class="first-open-btn" data-first-action="companion" data-pulse-live="hide">חברו מלווה</button>
+            <button type="button" class="first-open-btn first-open-btn-quiet" data-first-action="assist">פתיחת מסייע</button>
+            <button type="button" class="first-open-btn first-open-btn-quiet" data-first-action="params">פתיחת פרמטרים</button>
+            <button type="button" class="first-open-btn first-open-btn-quiet" data-first-action="develop">פיתוח</button>
+            <button type="button" class="first-open-btn first-open-btn-quiet" data-first-action="telemetry">טלמטריה</button>
+          </nav>
+          <button type="button" id="pulseEvolveGlance" class="pulse-evolve" hidden>משימה רצה</button>
+          <p class="pulse-home-pref">
+            <span>מסך פתיחה</span>
+            <button type="button" id="pulseHomePulseBtn" class="pulse-home-pref-btn is-active" data-pulse-home="pulse">סקירה</button>
+            <button type="button" id="pulseHomeTeleBtn" class="pulse-home-pref-btn" data-pulse-home="telemetry">טלמטריה</button>
+          </p>
+        </div>
+      </section>
+      <section id="control" class="panel">
         <div class="panel-header">
           <div class="ctrl-sync-bar">
             <!-- Server sync pill -->

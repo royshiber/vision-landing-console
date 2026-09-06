@@ -140,6 +140,20 @@ let processIndex = 0;
 /** Why: F5/refresh should keep the current main tab and (when relevant) the control sub-tab. What: sessionStorage, same window session. */
 const MAIN_TAB_KEY = 'visionLandingMainTabV1';
 const CONTROL_SUBTAB_KEY = 'visionLandingControlSubtabV1';
+/** Why: Pulse is the locked home; operators who want Telemetry-first keep that via localStorage. */
+const PULSE_HOME_KEY = 'visionLandingHomeSurfaceV1';
+let _assistAgentConnected = false;
+function pulseReadHomePref() {
+  try {
+    if (localStorage.getItem(PULSE_HOME_KEY) === 'telemetry') return 'telemetry';
+  } catch {
+    /* ignore */
+  }
+  return 'pulse';
+}
+function pulseDefaultHomeTab() {
+  return pulseReadHomePref() === 'telemetry' ? 'telemetry' : 'pulse';
+}
 function _mainTabIds() {
   return new Set(tabs.map((t) => t.dataset.tab).filter(Boolean));
 }
@@ -189,6 +203,9 @@ function applyMainTab(tabId, { save = true } = {}) {
   void syncServerAppVersion();
   if (tabId === 'advisor') {
     void refreshAdvisorHealth();
+  }
+  if (tabId === 'pulse' && typeof pulseRefresh === 'function') {
+    pulseRefresh();
   }
   if (tabId === 'telemetry') {
     setTimeout(() => onTelemetryTabActivated(), 60);
@@ -260,6 +277,8 @@ function restoreLastUiTab() {
   }
   if (main && _mainTabIds().has(main)) {
     applyMainTab(main, { save: false });
+  } else {
+    applyMainTab(pulseDefaultHomeTab(), { save: false });
   }
   if (main === 'recordings') {
     // 'logs' sub-tab now redirects to flights — always restore to 'recordings'
@@ -2898,6 +2917,7 @@ function operatorSyncFirstOpen(live) {
   document.querySelectorAll('.first-open-actions').forEach((el) => {
     el.hidden = !!live;
   });
+  if (typeof pulseRefresh === 'function') pulseRefresh();
 }
 
 function operatorOpenFirstAction(action) {
@@ -2909,11 +2929,150 @@ function operatorOpenFirstAction(action) {
     applyMainTab('control');
     return;
   }
+  if (action === 'develop') {
+    applyMainTab('development');
+    return;
+  }
+  if (action === 'telemetry') {
+    applyMainTab('telemetry');
+    return;
+  }
+  if (action === 'pulse') {
+    applyMainTab('pulse');
+    return;
+  }
   if (action === 'companion') {
     applyMainTab('telemetry');
     applyTeleSubtab('dash');
     document.getElementById('companionBaseUrl')?.focus();
   }
+}
+
+function pulseIsPlaceholder(text) {
+  const s = String(text || '').trim();
+  if (!s) return true;
+  if (s === '--' || s === '—' || s === '-') return true;
+  return /^--(\s|$|%|m)/i.test(s);
+}
+
+function pulseHudText(id) {
+  const el = document.getElementById(id);
+  const text = el?.textContent?.trim() || '';
+  return pulseIsPlaceholder(text) ? '--' : text;
+}
+
+function pulseCompanionLabel(status) {
+  const connected = status?.connected === true && status?.mode === 'real';
+  const hint = connected ? String(status.token_hint || '').trim() : '';
+  if (connected && hint) return 'מחובר ' + hint;
+  if (connected) return 'מחובר';
+  if (status?.mode === 'mock') return 'מדומה';
+  return 'מנותק';
+}
+
+function pulseBuildAttention(opts) {
+  const companionLive = opts?.companionLive;
+  const assistConnected = opts?.assistConnected;
+  const evolveActive = opts?.evolveActive;
+  const items = [];
+  if (!companionLive) {
+    items.push({ id: 'companion', text: 'מלווה מנותק', action: 'companion', cta: 'חברו מלווה' });
+  }
+  if (!assistConnected) {
+    items.push({ id: 'assist', text: 'מסייע מנותק', action: 'assist', cta: 'פתיחת מסייע' });
+  }
+  if (!evolveActive && !companionLive && items.length < 3) {
+    items.push({ id: 'evolve', text: 'אין משימת פיתוח פעילה', action: 'develop', cta: 'פיתוח' });
+  }
+  return items.slice(0, 3);
+}
+
+function pulseEvolveLine(panel) {
+  if (!panel || panel.hidden) return null;
+  const kind = panel.dataset?.kind;
+  if (kind === 'run') return 'משימה רצה';
+  if (kind === 'result') return 'משימה הסתיימה';
+  return null;
+}
+
+function pulseWriteHomePref(surface) {
+  const next = surface === 'telemetry' ? 'telemetry' : 'pulse';
+  try { localStorage.setItem(PULSE_HOME_KEY, next); } catch { /* ignore */ }
+  pulseSyncHomePrefChrome();
+  return next;
+}
+
+function pulseSyncHomePrefChrome() {
+  const pref = pulseReadHomePref();
+  document.getElementById('pulseHomePulseBtn')?.classList.toggle('is-active', pref === 'pulse');
+  document.getElementById('pulseHomeTeleBtn')?.classList.toggle('is-active', pref === 'telemetry');
+}
+
+function pulseRefresh() {
+  const versionEl = document.getElementById('pulseVersion');
+  const companionEl = document.getElementById('pulseCompanion');
+  const assistEl = document.getElementById('pulseAssist');
+  const linkEl = document.getElementById('pulseLink');
+  const aircraftEl = document.getElementById('pulseAircraft');
+  const attentionEl = document.getElementById('pulseAttention');
+  const glanceEl = document.getElementById('pulseEvolveGlance');
+  if (!versionEl || !companionEl || !assistEl) return;
+  const version = String(APP_VERSION_NEW || '').replace(/^v/i, '').trim() || '--';
+  versionEl.textContent = version;
+  const companionLive = document.body.classList.contains('operator-live');
+  const companionCard = document.getElementById('companionConnect');
+  const companionState = companionCard?.dataset?.state || 'disconnected';
+  const tokenHint = document.getElementById('companionTokenHint')?.textContent?.trim() || '';
+  companionEl.textContent = pulseCompanionLabel({
+    connected: companionState === 'connected',
+    mode: companionState === 'connected' ? 'real' : (companionLive ? 'mock' : 'off'),
+    token_hint: tokenHint,
+  });
+  companionEl.parentElement?.setAttribute('data-state', companionState === 'connected' || companionLive ? 'connected' : 'disconnected');
+  assistEl.textContent = _assistAgentConnected ? 'מחובר' : 'מנותק';
+  assistEl.parentElement?.setAttribute('data-state', _assistAgentConnected ? 'connected' : 'disconnected');
+  const linkLabel = document.getElementById('connectPillLabel')?.textContent?.trim() || '';
+  linkEl.textContent = (!linkLabel || linkLabel === 'לא מחובר') ? '--' : linkLabel;
+  aircraftEl.textContent = pulseHudText('hudFlightMode');
+  const evolveText = pulseEvolveLine(document.getElementById('assistRunPanel'));
+  const items = pulseBuildAttention({
+    companionLive,
+    assistConnected: _assistAgentConnected,
+    evolveActive: !!evolveText,
+  });
+  if (attentionEl) {
+    attentionEl.hidden = items.length === 0;
+    attentionEl.innerHTML = items.map((item) => (
+      '<article class="pulse-attention-item" data-pulse-attention="' + item.id + '">'
+      + '<p class="pulse-attention-text">' + item.text + '</p>'
+      + '<button type="button" class="first-open-btn first-open-btn-quiet" data-first-action="' + item.action + '">' + item.cta + '</button>'
+      + '</article>'
+    )).join('');
+  }
+  document.querySelectorAll('#pulse [data-pulse-live="hide"]').forEach((el) => {
+    el.hidden = !!companionLive;
+  });
+  if (glanceEl) {
+    glanceEl.hidden = !evolveText;
+    if (evolveText) glanceEl.textContent = evolveText;
+  }
+  pulseSyncHomePrefChrome();
+}
+
+function initPulseHome() {
+  document.getElementById('pulseAttention')?.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-first-action]');
+    if (btn) operatorOpenFirstAction(btn.dataset.firstAction);
+  });
+  document.getElementById('pulseEvolveGlance')?.addEventListener('click', () => {
+    operatorOpenFirstAction('assist');
+  });
+  document.querySelectorAll('[data-pulse-home]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      pulseWriteHomePref(btn.dataset.pulseHome);
+    });
+  });
+  pulseRefresh();
 }
 
 function initFirstOpenActions() {
@@ -4248,6 +4407,7 @@ function applyTopbarFlightData(mav) {
     const mode = ARDUPILOT_PLANE_MODES[mav.flightMode];
     hudFlightModeEl.textContent = mode ?? (mav.connected ? `#${mav.flightMode ?? '--'}` : '--');
   }
+  if (typeof pulseRefresh === 'function') pulseRefresh();
 }
 
 // RC approval channel (updated by initFlightEngineer via checkStatus)
@@ -10774,6 +10934,7 @@ document.getElementById('devReleaseDeployBtn')?.addEventListener('click', () => 
 /* ── ASSIST (C10.2) — persistent interaction layer; text path only ── */
 const ASSIST_OPEN_KEY = 'visionLandingAssistOpenV1';
 const ASSIST_TAB_WORKSPACE = {
+  pulse: 'PULSE',
   terrain: 'MISSION',
   development: 'EVOLVE',
   simLab: 'LAB',
@@ -10787,6 +10948,7 @@ const ASSIST_TAB_WORKSPACE = {
   flightEngineer: 'MISSION',
 };
 const ASSIST_TAB_CAPABILITY = {
+  pulse: 'diagnostics',
   terrain: 'mission',
   development: 'evolve',
   simLab: 'lab_sitl',
@@ -10810,7 +10972,6 @@ let _assistHistory = [];
 let _assistRunPoll = null;
 let _assistRunTaskId = null;
 let _assistRunMsgEl = null;
-let _assistAgentConnected = false;
 
 const ASSIST_WORKSPACE_HE = Object.freeze({
   PULSE: 'סקירה',
@@ -10838,6 +10999,7 @@ const ASSIST_TAB_HE = Object.freeze({
   terrain: 'הטסה',
   development: 'פיתוח',
   simLab: 'מעבדה',
+  pulse: 'סקירה',
   control: 'פרמטרים',
   telemetry: 'טלמטריה',
   maintenance: 'תחזוקה',
@@ -11065,6 +11227,7 @@ function assistClearRunPanel() {
     delete panel.dataset.outcome;
   }
   assistSyncMessagesEmpty();
+  if (typeof pulseRefresh === 'function') pulseRefresh();
 }
 
 function assistRunHeadline(payload, kind, outcome, unavailableReason) {
@@ -11103,6 +11266,7 @@ function assistRenderRunStatus(payload, { agentStarted = true, unavailableReason
     panel.dataset.outcome = outcome;
   }
   assistSyncMessagesEmpty();
+  if (typeof pulseRefresh === 'function') pulseRefresh();
 }
 
 async function assistRefreshRun(taskId) {
@@ -11285,6 +11449,7 @@ function assistRenderAgentConnection(status) {
   }
   if (!errorText) assistSetConnectError('');
   assistSyncConnectButton();
+  if (typeof pulseRefresh === 'function') pulseRefresh();
 }
 
 async function assistRefreshAgentConnection() {
@@ -11449,3 +11614,4 @@ function initAssistUi() {
 initAssistUi();
 initCompanionConnectUi();
 initFirstOpenActions();
+initPulseHome();
