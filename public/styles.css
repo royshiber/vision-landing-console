@@ -297,7 +297,7 @@ h1 { margin: 0; font-size: 1.25rem; color: #ffffff; }
   color: var(--text-subtle);
   background: transparent;
   border-color: transparent;
-  opacity: 0.72;
+  opacity: 0.84;
 }
 
 .tab-lab:hover {
@@ -3365,6 +3365,37 @@ button:hover,
     var(--surface);
 }
 
+#teleDashPanel:has(#teleLiveSections[hidden]) #teleOperatorBanner,
+#teleDashPanel:has(#teleLiveSections[hidden]) #companionLiveParked {
+  display: none !important;
+}
+
+#teleDashPanel:has(#teleLiveSections[hidden]) .operator-overview {
+  margin: 0 10px 0;
+}
+
+#teleDashPanel:has(#teleLiveSections[hidden]) .operator-overview h3 {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-subtle);
+  text-align: center;
+}
+
+#maintenance.panel.visible:has(#maintLiveSections[hidden]) #maintOperatorBanner {
+  max-width: 680px;
+  margin-inline: auto;
+  padding: 22px 24px 18px;
+  box-shadow: var(--shadow-panel);
+}
+
+#maintenance.panel.visible:has(#maintLiveSections[hidden]) #maintNextStep {
+  display: none !important;
+}
+
+#maintenance.panel.visible:has(#maintLiveSections[hidden]) #maintRefreshBtn {
+  align-self: flex-start;
+}
+
 /* Stitch-inspired columns: white panels with visible border and gentle shadow */
 .tele-dash-col {
   display: flex;
@@ -4170,7 +4201,8 @@ button:hover,
 }
 
 .companion-connect--hero .assist-agent-status {
-  font-size: 1.05rem;
+  font-size: 1.15rem;
+  font-weight: 800;
 }
 
 .companion-connect--hero .assist-agent-form {
@@ -4316,6 +4348,12 @@ button:hover,
 #teleOperatorBanner.operator-state {
   border: 1px solid var(--border);
   background: var(--surface-container-low);
+}
+
+#maintOperatorBanner.operator-state {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .first-open-stage-fill {
