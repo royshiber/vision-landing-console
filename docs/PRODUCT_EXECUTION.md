@@ -116,16 +116,18 @@ Params persist on master via PR #18 + PR #30. Write-to-vehicle is still a Human 
 
 ---
 
-## Audit snapshot — 2026-09-05 (post #6 / #32 land)
+## Audit snapshot — 2026-09-06 (post #45 land)
 
-**Master:** `1.02.255` @ `6d8fbbf` (PR #32 merge). Parent includes PR #6 `e57eb28`. Do not bump.  
-**Prior pointer:** earlier 2026-09-05 snapshot inside this file still listed #6 and #32 as open drafts. That is superseded. Both **LANDED**.  
-**This file:** living plan rewrite after those merges. Docs only. Do not bump `APP_VERSION`.
+**Master:** `1.02.255` @ `5d9d8ce` (PR #45 merge — Hebrew leftover operator chrome). Parent includes PR #44 `c737aa3` (disconnected-first / zoom-out on Maintenance / Companion / Development). Do not bump.  
+**Prior pointer:** 2026-09-05 snapshot listed #6 / #32 as the latest land. That is superseded. #6 and #32 remain **LANDED**. #44 and #45 are now also **LANDED**.  
+**This draft:** Telemetry disconnected-first hierarchy (operator STATUS + NEXT; dense dash walls collapsed until Companion/mock live). Docs + UI only. Do not bump `APP_VERSION`.
 
 Ops (not product): WhatsApp Human Gate delivery is signed in on the operator box targeting +972584010075 (self-chat).
 
 ### LANDED since the stale snapshot (true)
 
+- PR #45 Hebrew leftover operator chrome on Telemetry + Maintenance → master `5d9d8ce`.
+- PR #44 disconnected-first / zoom-out operator overview on Maintenance / Companion / Development → master `c737aa3`.
 - PR #6 `AGENTS.md` constitution + Merge Autonomy + Decision Option Hints → master `e57eb28`.
 - PR #32 `PRODUCT_EXECUTION.md` living map → master `6d8fbbf`.
 
@@ -171,6 +173,7 @@ On master today (PR #39 + PR #40):
 
 | PR | Topic | This map |
 |---|---|---|
+| This draft | Telemetry disconnected-first hierarchy | **In flight.** Extends #44 zoom-out to the Telemetry dash. Stay draft until VERIFY. Not a Human Gate. |
 | [#4](https://github.com/royshiber/vision-landing-console/pull/4) | PM orchestrator smoke | Skip. Low-value. Do not merge. |
 
 ### LANDED drafts (were open on the prior 2026-09-05 snapshot)
@@ -202,15 +205,15 @@ Roy 2026-09-05: abandon searching the local tree for versions past 300 **permane
 
 ### Ranked GAPS (this snapshot)
 
-1. **Live Jetson connect proof** — parked. Capability is on master (#39 / #40). Blocked on Companion token (not in Cursor / PC `.env`; Jetson `:8081` → 401). WAITING FOR ROY on the token, not more connect code.
-2. **Companion apply/restart** — Human Gate. Issue #28. Milestone C. Highest remaining destination *code*. No GO.
-3. **Live vehicle + auto landing** — Human Gate. Issue #29. Milestone D. No GO.
-4. **Independent high-impact capability on GitHub 255** — only if it closes destination distance and is not Human Gate / not parked token / not chrome. Do not invent one in this snapshot. Params persist is closed. Hebrew Development chrome is closed. Independent high-impact non-HG non-token work remains thin.
+1. **Live Jetson connect proof** — parked. Capability is on master (#39 / #40). Blocked on Companion token (not in Cursor / PC `.env`; Jetson `:8081` → 401). WAITING FOR ROY on the token, not more connect code. Do not invent a token.
+2. **Companion apply/restart** — Human Gate. Issue #28. Milestone C. Highest remaining destination *code*. No GO. Stay **WAITING FOR ROY**.
+3. **Live vehicle + auto landing** — Human Gate. Issue #29. Milestone D. No GO. Stay **WAITING FOR ROY**.
+4. **Independent high-impact capability on GitHub 255** — only if it closes destination distance and is not Human Gate / not parked token / not chrome.
 
 ### Explicitly not next
 
-Do not spend cycles on smoke #4, more Hebrew / chrome polish, version bump, 300+ hunt, inventing a Companion token, Jetson apply/restart, or flight commands. Changelog #15 is landed. Constitution #6 is landed. This map #32 is landed. Issue #14 leftover chrome is closed on master. Do not invent a polish PR.
+Do not spend cycles on smoke #4, more leftover Hebrew chrome, version bump, 300+ hunt, inventing a Companion token, Jetson apply/restart, or flight commands. #45 leftover chrome is landed. #44 zoom-out is landed on Maintenance / Companion / Development. Do not invent a token. Do not fake a live Jetson connect.
 
 ### Next pick (this snapshot)
 
-Hebrew leftover chrome (this draft): parked telemetry labels + Maintenance Git/GPU/MOCK/חתימה + deploy/rollback result strings. Jetson still parked on the Companion token. Do not invent a token. Do not fake a live connect. Human Gates stay **WAITING FOR ROY**: #28 apply/restart, #29 live vehicle / auto-land. Do not ask Roy what to work on next.
+**This draft = Telemetry disconnected-first hierarchy.** When Companion is not live, collapse the dense Telemetry dash walls and show STATUS + NEXT, same `operator-overview` pattern as #44. Reveal walls only when `companionIsLive`. Jetson still parked on the Companion token. Do not invent a token. Human Gates stay **WAITING FOR ROY**: #28 apply/restart, #29 live vehicle / auto-land. `APP_VERSION` stays `1.02.255`. Do not ask Roy what to work on next.

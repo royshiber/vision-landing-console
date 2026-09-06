@@ -4210,6 +4210,9 @@ button:hover,
 #maintLiveSections[hidden],
 #maintLiveParked[hidden],
 #maintNextStep[hidden],
+#teleLiveSections[hidden],
+#teleLiveParked[hidden],
+#teleNextStep[hidden],
 #devTaskFilters[hidden],
 #devTaskDetailSection[hidden],
 #devTaskDetailEmpty[hidden] {
@@ -4222,6 +4225,11 @@ button:hover,
   margin-bottom: 8px;
 }
 
+#teleDashPanel .operator-overview,
+#teleDashPanel > .operator-state-parked {
+  margin-inline: 10px;
+}
+
 .operator-overview h3 {
   margin: 0;
 }
@@ -4231,18 +4239,22 @@ button:hover,
   padding: 10px 12px;
 }
 
-#maintOperatorBanner.operator-state {
+#maintOperatorBanner.operator-state,
+#teleOperatorBanner.operator-state {
   border: 1px solid var(--warn-border, #d97706);
   background: var(--warn-bg, rgba(217, 119, 6, 0.08));
 }
 
 #maintOperatorBanner.operator-state[data-state="ok"],
-#maintOperatorBanner.operator-state[data-state="connected"] {
+#maintOperatorBanner.operator-state[data-state="connected"],
+#teleOperatorBanner.operator-state[data-state="ok"],
+#teleOperatorBanner.operator-state[data-state="connected"] {
   border-color: var(--success-border, #15803d);
   background: var(--success-bg, rgba(21, 128, 61, 0.08));
 }
 
-#maintOperatorBanner.operator-state[data-state="error"] {
+#maintOperatorBanner.operator-state[data-state="error"],
+#teleOperatorBanner.operator-state[data-state="error"] {
   border-color: var(--danger-border, #b91c1c);
   background: var(--danger-bg, rgba(185, 28, 28, 0.08));
 }

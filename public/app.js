@@ -2882,10 +2882,41 @@ function companionSetLiveChrome(live) {
   const summaryParked = document.getElementById('companionLiveParked');
   const b2Grid = document.getElementById('companionB2Grid');
   const b2Parked = document.getElementById('companionB2Parked');
+  const teleLive = document.getElementById('teleLiveSections');
+  const teleParked = document.getElementById('teleLiveParked');
   if (summary) summary.hidden = !live;
   if (summaryParked) summaryParked.hidden = !!live;
   if (b2Grid) b2Grid.hidden = !live;
   if (b2Parked) b2Parked.hidden = !!live;
+  if (teleLive) teleLive.hidden = !live;
+  if (teleParked) teleParked.hidden = !!live;
+}
+
+function teleSetOverview(opts) {
+  const live = opts?.live;
+  const statusHe = opts?.statusHe;
+  const nextHe = opts?.nextHe;
+  const state = opts?.state;
+  const banner = document.getElementById('teleOperatorBanner');
+  const badge = document.getElementById('teleStatusBadge');
+  const next = document.getElementById('teleNextStep');
+  const parked = document.getElementById('teleLiveParked');
+  const liveEl = document.getElementById('teleLiveSections');
+  const resolvedState = state || (live ? 'ok' : 'disconnected');
+  if (banner) banner.dataset.state = resolvedState;
+  if (badge) {
+    badge.textContent = statusHe || (live ? 'חי' : 'המלווה מנותק');
+    badge.className = 'operator-state-status';
+  }
+  if (next) {
+    const text = nextHe == null
+      ? (live ? '' : 'חברו מלווה בטלמטריה. כתובת לבד לא מחברת.')
+      : nextHe;
+    next.hidden = !text;
+    next.textContent = text;
+  }
+  if (parked) parked.hidden = !!live;
+  if (liveEl) liveEl.hidden = !live;
 }
 
 function companionConnectRender(status) {
@@ -2911,6 +2942,12 @@ function companionConnectRender(status) {
     : (status.status_he || status.reason_he || 'המלווה מנותק');
   statusEl.textContent = statusText;
   if (maintStatus) maintStatus.textContent = statusText;
+  teleSetOverview({
+    live,
+    statusHe: live && !connected && !status?.status_he ? 'חי' : statusText,
+    nextHe: live ? '' : (status?.hint_he || 'חברו מלווה בטלמטריה. כתובת לבד לא מחברת.'),
+    state: errorText ? 'error' : (live ? (connected ? 'connected' : 'ok') : 'disconnected'),
+  });
   if (!live) {
     maintSetOverview({
       live: false,
@@ -3085,11 +3122,25 @@ function applyCompanionUi(companion) {
   const live = companionIsLive(companion) && !unavailable;
   companionSetLiveChrome(live);
   if (!live) {
+    const statusHe = companion.mode === 'real' && unavailable ? 'המלווה החי אינו מגיב' : 'המלווה מנותק';
     maintSetOverview({
       live: false,
-      statusHe: companion.mode === 'real' && unavailable ? 'המלווה החי אינו מגיב' : 'המלווה מנותק',
+      statusHe,
       nextHe: 'חברו מלווה בטלמטריה. כתובת לבד לא מחברת.',
       state: unavailable ? 'error' : 'disconnected',
+    });
+    teleSetOverview({
+      live: false,
+      statusHe,
+      nextHe: 'חברו מלווה בטלמטריה. כתובת לבד לא מחברת.',
+      state: unavailable ? 'error' : 'disconnected',
+    });
+  } else {
+    teleSetOverview({
+      live: true,
+      statusHe: companion.mode === 'mock' ? 'המלווה במצב מדומה' : 'חי',
+      nextHe: '',
+      state: 'ok',
     });
   }
   const mockBar = document.getElementById('companionMockBar');
