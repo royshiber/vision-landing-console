@@ -3366,7 +3366,8 @@ button:hover,
 }
 
 #teleDashPanel:has(#teleLiveSections[hidden]) #teleOperatorBanner,
-#teleDashPanel:has(#teleLiveSections[hidden]) #companionLiveParked {
+#teleDashPanel:has(#teleLiveSections[hidden]) #companionLiveParked,
+#teleCompanionPanel:has(#companionB2Grid[hidden]) #companionB2Parked {
   display: none !important;
 }
 
