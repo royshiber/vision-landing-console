@@ -4930,6 +4930,9 @@ body.operator-live .companion-connect--hero {
   background: var(--status-warning, #f5a623);
   color: #1a1a1a;
 }
+.maint-rel-handoff { margin: 10px 0 12px; }
+.maint-rel-handoff .tele-dash-note { margin: 0 0 6px; }
+.maint-rel-handoff-btn { margin: 0; }
 .maint-rel-action { margin: 6px 0 10px; }
 .maint-rel-action:disabled { opacity: 0.45; cursor: not-allowed; }
 .maint-rel-result {

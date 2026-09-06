@@ -912,6 +912,11 @@
 
           <p id="maintLiveParked" class="operator-state-parked">נתוני Jetson וגרסאות יופיעו אחרי חיבור מלווה.</p>
 
+          <div id="maintRelHandoff" class="maint-rel-handoff">
+            <p id="maintRelHandoffNote" class="tele-dash-note">התקנה ושחזור נעשים בפיתוח.</p>
+            <button type="button" id="maintRelOpenDevReleaseBtn" class="policy-btn maint-rel-handoff-btn">פיתוח — גרסה</button>
+          </div>
+
           <div id="maintLiveSections" hidden>
           <h4 class="maint-group-title">תוכנה</h4>
           <div class="tele-group-cards">
@@ -950,7 +955,7 @@
             <p id="maintDiagEmpty" class="maint-diag-empty">אין אירועים</p>
           </div>
 
-          <h4 class="maint-group-title">ניהול גרסאות</h4>
+          <h4 class="maint-group-title">גרסאות</h4>
           <p id="maintRelMockBadge" class="maint-rel-mock-badge" hidden>מדומה</p>
           <p class="tele-dash-note" id="maintRelStatusNote">—</p>
           <p class="maint-rel-deploy-state"><span>מצב פריסה:</span> <strong id="maintRelDeployState">—</strong></p>
@@ -968,12 +973,11 @@
             <article class="tele-card"><span>גרסה</span><strong id="maintRelPrevVersion">—</strong></article>
             <article class="tele-card"><span>מצב</span><strong id="maintRelPrevStatus">—</strong></article>
           </div>
-          <button type="button" id="maintRelRollbackBtn" class="policy-btn maint-rel-action" disabled>שחזור</button>
 
           <h5 class="maint-sub-title">גרסאות זמינות</h5>
           <div class="maint-diag-wrap">
             <table class="maint-diag-table" id="maintRelAvailableTable">
-              <thead><tr><th>מזהה</th><th>גרסה</th><th>מצב</th><th>נוצר</th><th>תאימות</th><th>חתימה</th><th>גודל</th><th></th></tr></thead>
+              <thead><tr><th>מזהה</th><th>גרסה</th><th>מצב</th><th>נוצר</th><th>תאימות</th><th>חתימה</th><th>גודל</th></tr></thead>
               <tbody id="maintRelAvailableBody"></tbody>
             </table>
             <p id="maintRelAvailableEmpty" class="maint-diag-empty">אין גרסאות</p>
@@ -1142,7 +1146,7 @@
                 <article class="tele-card"><span>קוד יציאה</span><strong id="devTestExitStatus">—</strong></article>
                 <article class="tele-card"><span>מזהה לוג</span><strong id="devTestLogRef">—</strong></article>
               </div>
-              <h5 class="maint-sub-title">גרסה</h5>
+              <h5 class="maint-sub-title" id="devReleaseSection">גרסה</h5>
               <div class="devtasks-agent-actions">
                 <button type="button" id="devReleaseApproveBtn" class="policy-btn">אישור לגרסה</button>
                 <button type="button" id="devReleaseCreateBtn" class="policy-btn">יצירת גרסה</button>
