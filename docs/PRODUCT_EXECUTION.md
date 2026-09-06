@@ -80,7 +80,7 @@ Do not implement without explicit Roy **GO**:
 - ARM / DISARM / LAND / SET_MODE / live FC write / auto-landing — Issue #29
 - Secrets / deploy to devices / flight commands
 
-Merge: Roy 2026-09-05 — King may merge **verified safe** draft PRs without asking (Merge Autonomy + Decision Option Hints, LANDED on master via PR #6 `e57eb28`). Still on. Hard safety stops stay draft until Roy. This map last landed on master via PR #55 `db6fdc0`. Decision options must carry meaning hints.
+Merge: Roy 2026-09-05 — King may merge **verified safe** draft PRs without asking (Merge Autonomy + Decision Option Hints, LANDED on master via PR #6 `e57eb28`). Still on. Hard safety stops stay draft until Roy. This map last landed on master via PR #55 `db6fdc0`. This rewrite is draft [#57](https://github.com/royshiber/vision-landing-console/pull/57). Decision options must carry meaning hints.
 
 Also locked without GO:
 
@@ -129,7 +129,7 @@ Architecture wave (`docs/AIRVIX_PRODUCT_ARCHITECTURE.md`): C10.2 Assist unificat
 
 **Master:** `1.02.255` @ `a554d5224bbc1f99196f3e80c1e5123f91b06961` (PR #56 merge — C10.4a Evolve taxonomy). Do not bump.  
 **Prior pointer:** 2026-09-06 post-#54 / #55 snapshot named all of C10.4 (taxonomy + evidence + absorb release owner) as next. That is superseded. #56 landed taxonomy. C10.4 remainder is evidence strip + absorb release owner. #6, #50, #52, #53, #54, and #55 remain **LANDED**.  
-**This draft:** rewrite of this living snapshot after PR #56. Docs only. Do not bump `APP_VERSION`. Stay draft. Do not merge from this agent.
+**This draft:** [#57](https://github.com/royshiber/vision-landing-console/pull/57) rewrite of this living snapshot after PR #56. Docs only. Do not bump `APP_VERSION`. Stay draft. Do not merge from this agent.
 
 Ops (not product): WhatsApp Human Gate delivery remains available (signed in on the operator box targeting +972584010075, self-chat).
 
@@ -215,7 +215,7 @@ On master today (PR #33 + PR #34 + Hebrew Assist chrome from #50 + result card f
 
 | PR | Topic | This map |
 |---|---|---|
-| This draft | This snapshot rewrite | **This draft.** Docs only. Stay draft. Do not merge from this agent. Not a next-pick polish PR. |
+| [#57](https://github.com/royshiber/vision-landing-console/pull/57) | This snapshot rewrite | **This draft.** Docs only. Stay draft. Do not merge from this agent. Not a next-pick polish PR. |
 | [#4](https://github.com/royshiber/vision-landing-console/pull/4) | PM orchestrator smoke | Skip. Low-value. Do not merge. |
 
 ### Open issues
