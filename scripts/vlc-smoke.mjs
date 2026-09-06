@@ -402,18 +402,20 @@ async function runPlaywrightSuite() {
     await sleep(200);
     ok('UI save profile');
 
-    await page.evaluate(() => document.querySelector('.tab[data-tab="flights"]')?.click());
+    await page.locator('.tab[data-tab="recordings"]').click({ force: true });
+    await sleep(120);
+    await page.evaluate(() => document.getElementById('debriefLogsBtn')?.click());
     await sleep(200);
-    await expectPanelVisible('flights');
-    await page.locator('details.flight-manage summary').click();
-    await sleep(200);
+    await expectPanelVisible('recordings');
+    const logsVis = await page.locator('#debriefLogsPanel.visible').count();
+    if (logsVis !== 1) throw new Error(`expected #debriefLogsPanel.visible, got ${logsVis}`);
     await page.click('#refreshFlightsBtn');
     await sleep(250);
     await page.click('#pullLogsBtn');
     await sleep(250);
     await page.click('#refreshAllLogsBtn', { force: true });
     await sleep(200);
-    ok('UI flights tab + refresh flights + pull all logs + refresh all-logs table');
+    ok('UI תחקור לוגים + refresh flights + pull all logs + refresh all-logs table');
 
     await page.click('.tab[data-tab="control"]');
     await page.selectOption('#paramSubtabSelect', 'ardu-jetson');

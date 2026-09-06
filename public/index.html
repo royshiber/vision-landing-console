@@ -242,8 +242,6 @@
             <button class="tab tab-fly" data-tab="terrain" title="הטסה">הטסה</button>
           </div>
         </div>
-        <!-- flights kept hidden for programmatic access from recordings -->
-        <button class="tab tab-hidden" data-tab="flights" aria-hidden="true" tabindex="-1">לוגים והעלאות</button>
       </nav>
 
       <div id="controlSubtabsBar" class="control-subtabs-bar">
@@ -535,12 +533,82 @@
             <div id="eventsList" class="events-list"></div>
           </div>
         </div>
-        <div id="debriefLogsPanel" class="tele-subpanel debrief-logs-panel" data-debrief-panel="logs">
-          <div class="debrief-logs-card">
-            <h3>לוגים והעלאות</h3>
-            <p>לוגים מלאים, העלאת קבצים וניהול טיסות נשארים במסך הייעודי כדי לא לשכפל פעולות כתיבה וקבצים.</p>
-            <button type="button" class="btn-primary-lg" id="openFlightsFromDebriefBtn">פתח לוגים והעלאות</button>
+        <div id="debriefLogsPanel" class="tele-subpanel debrief-logs-panel flights-panel" data-debrief-panel="logs">
+          <div class="debrief-logs-grid">
+            <div class="debrief-logs-col debrief-logs-col--upload">
+              <div class="log-upload-card">
+                <h3 class="log-upload-title">העלאת לוג חדש</h3>
+                <div class="log-upload-grid">
+                  <div class="log-field-block">
+                    <span class="log-field-label">טיסה</span>
+                    <select id="flightSelect" class="log-flight-select" title="בחר טיסה לשיוך הלוג"></select>
+                  </div>
+                  <div class="log-field-block log-source-block">
+                    <span class="log-field-label">מקור לוג</span>
+                    <div class="log-source-pills" role="group" aria-label="מקור לוג">
+                      <button type="button" class="log-source-pill active" data-log-source="ardupilot">ArduPilot</button>
+                      <button type="button" class="log-source-pill" data-log-source="jetson">Jetson</button>
+                      <button type="button" class="log-source-pill" data-log-source="auto">זיהוי אוטומטי</button>
+                    </div>
+                    <select id="logSourceSelect" class="log-source-select-hidden" aria-hidden="true" tabindex="-1">
+                      <option value="ardupilot">ArduPilot</option>
+                      <option value="jetson">Jetson</option>
+                      <option value="auto">auto</option>
+                    </select>
+                  </div>
+                  <div class="log-drop-zone" id="logDropZone">
+                    <input id="logFileInput" class="log-file-input-native" type="file" accept=".bin,.log,.tlog,.csv,.txt" title="בחירת קובץ לוג" />
+                    <div class="log-drop-inner">
+                      <span class="log-drop-icon" aria-hidden="true">📄</span>
+                      <p class="log-drop-text"><strong>גרור קובץ לוג לכאן</strong> או</p>
+                      <button type="button" id="logPickFileBtn" class="log-pick-file-btn">בחר קובץ</button>
+                      <p id="logFileNameDisplay" class="log-file-name-display">לא נבחר קובץ</p>
+                    </div>
+                  </div>
+                  <div class="log-upload-actions">
+                    <button type="button" id="pullLogsBtn" class="btn-pull-logs" title="מרענן את רשימת כל הלוגים מהשרת">⬇ משוך לוגים מהשרת</button>
+                    <button type="button" id="uploadLogBtn" class="btn-primary-lg btn-upload-log" title="מעלה לוג, מסווג אוטומטית לפי תוכן">⬆ העלה לוג</button>
+                  </div>
+                </div>
+                <p id="uploadLogStatus" class="upload-status-ok"></p>
+              </div>
+              <div class="flights-mgr-header">
+                <h3 class="flights-mgr-title">טיסות ולוגים</h3>
+                <div class="flights-mgr-actions">
+                  <input id="newFlightTitle" type="text" class="flights-new-input" placeholder="שם טיסה חדשה…" />
+                  <button type="button" id="createFlightBtn" class="flights-new-btn" title="יוצר רשומת טיסה">+ טיסה</button>
+                  <button type="button" id="refreshFlightsBtn" class="flights-refresh-btn" title="רענן">⟳</button>
+                </div>
+              </div>
+              <div id="flightListWrap" class="flight-list-wrap"></div>
+            </div>
+            <div class="debrief-logs-col debrief-logs-col--history">
+              <div class="flights-mgr-header debrief-all-logs-head">
+                <h3 class="flights-mgr-title">כל הלוגים</h3>
+                <button type="button" id="refreshAllLogsBtn" title="רענן">⟳ רענן</button>
+              </div>
+              <div id="allLogsTableWrap" class="logs-columns-wrap">
+                <div class="logs-col">
+                  <h4>ArduPilot</h4>
+                  <table class="logs-table">
+                    <thead><tr><th>לוג</th><th>טיסה</th><th>פעולה</th></tr></thead>
+                    <tbody id="allLogsArduTbody"></tbody>
+                  </table>
+                </div>
+                <div class="logs-col">
+                  <h4>Jetson</h4>
+                  <table class="logs-table">
+                    <thead><tr><th>לוג</th><th>טיסה</th><th>פעולה</th></tr></thead>
+                    <tbody id="allLogsJetsonTbody"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
           </div>
+          <button type="button" id="deleteFlightBtn" style="display:none"></button>
+          <pre id="flightLogsOut" style="display:none"></pre>
+          <textarea id="flightNoteBody" style="display:none"></textarea>
+          <button type="button" id="saveFlightNoteBtn" style="display:none"></button>
         </div>
       </section>
 
@@ -1219,7 +1287,7 @@
                 <button type="button" id="simLabTlogParseBtn" class="sl-btn" title="נתח את הקובץ והצג שיחזור בתלת־ממד">▶ נתח והפעל</button>
               </div>
               <p id="simLabReplayMeta" class="sl-meta" aria-live="polite"></p>
-              <button type="button" id="simLabGoFlightsBtn" class="sl-btn sl-btn--ghost" title="עבור לטאב לוגים והעלאות">לוגים ↗</button>
+              <button type="button" id="simLabGoFlightsBtn" class="sl-btn sl-btn--ghost" title="פתח לוגים בתחקור">לוגים</button>
             </div>
 
             <!-- עוד (מתקפל) -->
@@ -1478,94 +1546,7 @@
         </div><!-- /.sl-layout -->
       </section>
 
-      <section id="flights" class="panel flights-panel">
-        <div class="panel-header">
-          <div class="tele-subtabs" role="tablist" aria-label="תתי טאבים תחקור">
-            <button type="button" class="tele-subtab" id="debriefRecBtn2">הקלטות</button>
-            <button type="button" class="tele-subtab active" id="debriefLogsBtn2">לוגים</button>
-          </div>
-        </div>
-
-        <!-- Upload row — prominent -->
-        <div class="log-upload-card">
-          <h3 class="log-upload-title">העלאת לוג חדש</h3>
-          <div class="log-upload-grid">
-            <div class="log-field-block">
-              <span class="log-field-label">טיסה</span>
-              <select id="flightSelect" class="log-flight-select" title="בחר טיסה לשיוך הלוג"></select>
-            </div>
-            <div class="log-field-block log-source-block">
-              <span class="log-field-label">מקור לוג</span>
-              <div class="log-source-pills" role="group" aria-label="מקור לוג">
-                <button type="button" class="log-source-pill active" data-log-source="ardupilot">ArduPilot</button>
-                <button type="button" class="log-source-pill" data-log-source="jetson">Jetson</button>
-                <button type="button" class="log-source-pill" data-log-source="auto">זיהוי אוטומטי</button>
-              </div>
-              <select id="logSourceSelect" class="log-source-select-hidden" aria-hidden="true" tabindex="-1">
-                <option value="ardupilot">ArduPilot</option>
-                <option value="jetson">Jetson</option>
-                <option value="auto">auto</option>
-              </select>
-            </div>
-            <div class="log-drop-zone" id="logDropZone">
-              <input id="logFileInput" class="log-file-input-native" type="file" accept=".bin,.log,.tlog,.csv,.txt" title="בחירת קובץ לוג" />
-              <div class="log-drop-inner">
-                <span class="log-drop-icon" aria-hidden="true">📄</span>
-                <p class="log-drop-text"><strong>גרור קובץ לוג לכאן</strong> או</p>
-                <button type="button" id="logPickFileBtn" class="log-pick-file-btn">בחר קובץ</button>
-                <p id="logFileNameDisplay" class="log-file-name-display">לא נבחר קובץ</p>
-              </div>
-            </div>
-            <div class="log-upload-actions">
-              <button type="button" id="pullLogsBtn" class="btn-pull-logs" title="מרענן את רשימת כל הלוגים מהשרת">⬇ משוך לוגים מהשרת</button>
-              <button type="button" id="uploadLogBtn" class="btn-primary-lg btn-upload-log" title="מעלה לוג, מסווג אוטומטית לפי תוכן">⬆ העלה לוג</button>
-            </div>
-          </div>
-          <p id="uploadLogStatus" class="upload-status-ok"></p>
-        </div>
-
-        <!-- Flight list with inline delete -->
-        <div class="flights-mgr-header">
-          <h3 class="flights-mgr-title">טיסות ולוגים</h3>
-          <div class="flights-mgr-actions">
-            <input id="newFlightTitle" type="text" class="flights-new-input" placeholder="שם טיסה חדשה…" />
-            <button type="button" id="createFlightBtn" class="flights-new-btn" title="יוצר רשומת טיסה">+ טיסה</button>
-            <button type="button" id="refreshFlightsBtn" class="flights-refresh-btn" title="רענן">⟳</button>
-          </div>
-        </div>
-        <div id="flightListWrap" class="flight-list-wrap">
-          <!-- Rendered by JS: one .flight-list-row per flight -->
-        </div>
-
-        <!-- All-logs history (auto-loaded) -->
-        <div class="flights-mgr-header" style="margin-top:20px">
-          <h3 class="flights-mgr-title">כל הלוגים</h3>
-          <button type="button" id="refreshAllLogsBtn" title="רענן">⟳ רענן</button>
-        </div>
-        <div id="allLogsTableWrap" class="logs-columns-wrap">
-          <div class="logs-col">
-            <h4>ArduPilot</h4>
-            <table class="logs-table">
-              <thead><tr><th>לוג</th><th>טיסה</th><th>פעולה</th></tr></thead>
-              <tbody id="allLogsArduTbody"></tbody>
-            </table>
-          </div>
-          <div class="logs-col">
-            <h4>Jetson</h4>
-            <table class="logs-table">
-              <thead><tr><th>לוג</th><th>טיסה</th><th>פעולה</th></tr></thead>
-              <tbody id="allLogsJetsonTbody"></tbody>
-            </table>
-          </div>
-        </div>
-
-        <!-- Hidden legacy elements kept for JS compat -->
-        <select id="flightSelect" style="display:none"></select>
-        <button type="button" id="deleteFlightBtn" style="display:none"></button>
-        <pre id="flightLogsOut" style="display:none"></pre>
-        <textarea id="flightNoteBody" style="display:none"></textarea>
-        <button type="button" id="saveFlightNoteBtn" style="display:none"></button>
-      </section>
+      <section id="flights" class="panel flights-panel" hidden aria-hidden="true"></section>
 
 
       <section id="terrain" class="panel">

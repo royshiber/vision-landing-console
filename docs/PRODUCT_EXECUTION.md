@@ -101,7 +101,7 @@ Also locked without GO:
 
 Params persist on master via PR #18 + PR #30. Write-to-vehicle is still a Human Gate.
 
-Architecture wave (`docs/AIRVIX_PRODUCT_ARCHITECTURE.md`): C10.2 Assist unification landed; C10.3 Pulse home **LANDED** via PR #54; C10.4a Evolve taxonomy **LANDED** via PR #56; C10.4b Evolve evidence **LANDED** via PR #58; C10.4c-a Maintenance→Development release handoff is this draft. Remainder: C10.4c-b Jetson deploy-wire move stays deferred (#28).
+Architecture wave (`docs/AIRVIX_PRODUCT_ARCHITECTURE.md`): C10.2 Assist unification landed; C10.3 Pulse home **LANDED** via PR #54; C10.4a Evolve taxonomy **LANDED** via PR #56; C10.4b Evolve evidence **LANDED** via PR #58; C10.4c-a Maintenance→Development release handoff **LANDED** via PR #61; leftover `#flights` folds into תחקור in this C10.5a draft. Remainder: C10.4c-b Jetson deploy-wire move stays deferred (#28).
 
 ---
 
@@ -121,9 +121,10 @@ Architecture wave (`docs/AIRVIX_PRODUCT_ARCHITECTURE.md`): C10.2 Assist unificat
 12. C10.4b Evolve evidence strip. **LANDED on master** via PR #58 merge `6100247d1d27c76af5ca09293d7d99b97794f0b9`. Development task detail shows compact Hebrew cells **מה / למה / מצב / בדיקות / גרסה / גרסה רצה**. Read-only from existing task JSON. Empty stays `—` or `NOT_STARTED`. No invented progress, versions, or GPS.
 13. Live Jetson connect is **parked** (days) until Roy remembers the Companion token. Token is not in Cursor / PC `.env`. Jetson `:8081` returns 401 without it. Do not invent a token. Do not fake a live connect.
 14. Human Gates stay WAITING FOR ROY: companion apply/restart (#28), live vehicle / auto-landing (#29), secrets / deploy / flight commands.
-15. **C10.4c-a** Maintenance product-release authoring CTAs fold to a spoken-Hebrew Development handoff — **this draft.** Remainder: C10.4c-b Jetson deploy-wire move stays **deferred** (#28).
+15. **C10.4c-a** Maintenance product-release authoring CTAs fold to a spoken-Hebrew Development handoff — **LANDED** via PR #61. Remainder: C10.4c-b Jetson deploy-wire move stays **deferred** (#28).
 16. 300+ hunt is **abandoned permanently**. GitHub public `master` is `1.02.255`. Improve GitHub 255. Measure by capabilities closed, not PR count.
 17. Skip leftover draft #4 (low-value smoke). Do not merge. Constitution #6 **LANDED** on master `e57eb28`. Prior map snapshots **LANDED** via PR #49 `1c7f8fa`, PR #51 `ba78623`, PR #53 `1c165e0`, PR #55 `db6fdc0`, and PR #57 `b724c76`.
+18. **C10.5a** leftover hidden `#flights` folds into תחקור לוגים — **this draft.**
 
 ---
 
@@ -221,8 +222,9 @@ On master today (PR #33 + PR #34 + Hebrew Assist chrome from #50 + result card f
 
 | PR | Topic | This map |
 |---|---|---|
-| [#60](https://github.com/royshiber/vision-landing-console/pull/60) | This snapshot rewrite | **This draft.** Docs only. Stay draft. Do not merge from this agent. Not a next-pick polish PR. |
-| [#59](https://github.com/royshiber/vision-landing-console/pull/59) | Spoken Hebrew chrome, kill Pulse filler, group lab tabs | **In flight / next.** Roy 2026-09-06 voice: spoken Hebrew, less filler, calmer tabs. Do not fork a second chrome PR. |
+| this draft | C10.5a leftover `#flights` folds into תחקור | **This draft.** Stay draft. Do not merge from this agent. |
+| [#60](https://github.com/royshiber/vision-landing-console/pull/60) | Living-map snapshot after #58 | **LANDED** on master via PR #60. |
+| [#59](https://github.com/royshiber/vision-landing-console/pull/59) | Spoken Hebrew chrome, kill Pulse filler, group lab tabs | **LANDED** on master via PR #59. |
 | [#4](https://github.com/royshiber/vision-landing-console/pull/4) | PM orchestrator smoke | Skip. Low-value. Do not merge. |
 
 ### Open issues
@@ -258,4 +260,4 @@ Do not spend cycles on smoke #4, leftover disconnected chrome, version bump, 300
 
 ### Next pick (this snapshot)
 
-**C10.4c-a** Maintenance→Development release handoff is this draft. C10.4a taxonomy, C10.4b evidence, and #59 spoken Hebrew are on master. Remainder **C10.4c-b** Jetson deploy-wire move stays deferred (#28). Jetson live connect stays parked until Roy supplies the Companion token (days; Jetson `:8081` → 401 without it). Human Gates stay **WAITING FOR ROY**: #28 apply/restart, #29 live vehicle / auto-land. Merge autonomy still on for verified safe draft PRs. Measure by capabilities closed, not PR count. `APP_VERSION` stays `1.02.255`.
+**C10.5a** leftover `#flights` folds into תחקור — this draft. C10.4c-a landed via #61. Remainder **C10.4c-b** Jetson deploy-wire move stays deferred (#28). Jetson live connect stays parked until Roy supplies the Companion token (days; Jetson `:8081` → 401 without it). Human Gates stay **WAITING FOR ROY**: #28 apply/restart, #29 live vehicle / auto-land. Merge autonomy still on for verified safe draft PRs. Measure by capabilities closed, not PR count. `APP_VERSION` stays `1.02.255`.

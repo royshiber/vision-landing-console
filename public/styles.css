@@ -4033,50 +4033,42 @@ button:hover,
   }
 }
 
-/* Why: debrief/logs should use horizontal space first.
- * What: upload tools on one side, all-logs table on the other, with management section below.
+/* Why: leftover #flights chrome now lives inside תחקור → לוגים.
+ * What: upload + flight list on one side, all-logs history on the other.
  */
-#flights.panel.visible.flights-panel {
-  display: grid !important;
-  grid-template-columns: minmax(360px, 1fr) minmax(520px, 1.35fr);
-  grid-template-areas:
-    "head head"
-    "upload logs"
-    "manage manage";
-  gap: 10px;
-  align-content: start;
-  overflow: hidden;
+#debriefLogsPanel.debrief-logs-panel.visible {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  overflow: auto;
   padding: 8px 10px 10px;
 }
 
-#flights.panel.visible.flights-panel > .panel-header:first-child {
-  grid-area: head;
-  margin-bottom: 0;
+.debrief-logs-grid {
+  display: grid;
+  grid-template-columns: minmax(360px, 1fr) minmax(520px, 1.35fr);
+  gap: 10px;
+  align-content: start;
+  min-height: 0;
 }
 
-#flights.panel.visible.flights-panel > .log-upload-card {
-  grid-area: upload;
+.debrief-logs-col {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  min-height: 0;
+}
+
+.debrief-logs-col--history #allLogsTableWrap {
+  min-height: 0;
+  overflow: auto;
+}
+
+#debriefLogsPanel .log-upload-card {
   margin: 0;
   padding: 10px 12px;
-}
-
-#flights.panel.visible.flights-panel > .panel-header[style*="margin-top"] {
-  grid-area: logs;
-  margin: 0 !important;
-}
-
-#flights.panel.visible.flights-panel > #allLogsTableWrap {
-  grid-area: logs;
-  min-height: 0;
-  max-height: 100%;
-  overflow: auto;
-  align-content: start;
-  margin-top: 34px;
-}
-
-#flights.panel.visible.flights-panel > .flight-manage {
-  grid-area: manage;
-  margin-top: 0 !important;
 }
 
 .log-upload-title {
@@ -4171,18 +4163,8 @@ button:hover,
 }
 
 @media (max-width: 1100px) {
-  #flights.panel.visible.flights-panel {
+  .debrief-logs-grid {
     grid-template-columns: 1fr;
-    grid-template-areas:
-      "head"
-      "upload"
-      "logs"
-      "manage";
-    overflow-y: auto;
-  }
-
-  #flights.panel.visible.flights-panel > #allLogsTableWrap {
-    margin-top: 0;
   }
 }
 
@@ -5196,29 +5178,8 @@ body.operator-live .companion-connect--hero {
   .policy-cat-grid { grid-template-columns: 1fr; }
 }
 
-.debrief-logs-panel.visible {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
 .debrief-logs-card {
-  max-width: 520px;
-  padding: 18px 20px;
-  border: 1px solid var(--border);
-  background: var(--surface-low);
-  color: var(--text);
-}
-
-.debrief-logs-card h3 {
-  margin: 0 0 8px;
-  font-size: 1rem;
-}
-
-.debrief-logs-card p {
-  margin: 0 0 14px;
-  color: var(--text-muted);
-  line-height: 1.45;
+  display: none;
 }
 
 /* =========================================================
