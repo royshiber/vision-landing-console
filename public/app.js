@@ -2890,6 +2890,36 @@ function companionSetLiveChrome(live) {
   if (b2Parked) b2Parked.hidden = !!live;
   if (teleLive) teleLive.hidden = !live;
   if (teleParked) teleParked.hidden = !!live;
+  if (typeof operatorSyncFirstOpen === 'function') operatorSyncFirstOpen(live);
+}
+
+function operatorSyncFirstOpen(live) {
+  document.body.classList.toggle('operator-live', !!live);
+  document.querySelectorAll('.first-open-actions').forEach((el) => {
+    el.hidden = !!live;
+  });
+}
+
+function operatorOpenFirstAction(action) {
+  if (action === 'assist') {
+    assistSetOpen(true);
+    return;
+  }
+  if (action === 'params') {
+    applyMainTab('control');
+    return;
+  }
+  if (action === 'companion') {
+    applyMainTab('telemetry');
+    applyTeleSubtab('dash');
+    document.getElementById('companionBaseUrl')?.focus();
+  }
+}
+
+function initFirstOpenActions() {
+  document.querySelectorAll('[data-first-action]').forEach((btn) => {
+    btn.addEventListener('click', () => operatorOpenFirstAction(btn.dataset.firstAction));
+  });
 }
 
 function teleSetOverview(opts) {
@@ -11164,7 +11194,7 @@ function assistRenderAgentConnection(status) {
     : (status.status_he || status.reason_he || 'הסוכן מנותק.');
   if (hintEl) {
     hintEl.hidden = connected;
-    hintEl.textContent = 'כדי להריץ שינוי מאושר צריך לחבר את הסוכן.';
+    hintEl.textContent = 'חברו מפתח כדי לאשר שינוי.';
   }
   if (keyHintEl) {
     const hint = connected ? String(status.key_hint || '').trim() : '';
@@ -11338,3 +11368,4 @@ function initAssistUi() {
 
 initAssistUi();
 initCompanionConnectUi();
+initFirstOpenActions();

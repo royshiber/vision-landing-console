@@ -343,7 +343,8 @@ describe('Assist connect chrome', () => {
     expect(html).toMatch(/id="assistAgentConnectBtn"[^>]*>חיבור</);
     expect(html).toMatch(/id="assistAgentDisconnectBtn"[^>]*>ניתוק</);
     expect(html).toMatch(/מפתח חיבור/);
-    expect(html).toMatch(/id="assistMessagesEmpty"[^>]*>אין הודעות עדיין\.</);
+    expect(html).toMatch(/id="assistMessagesEmpty"[^>]*assist-empty-stage/);
+    expect(html).toMatch(/כתבו שאלה או בקשה/);
     expect(html).toMatch(/id="assistProposalWarn"/);
     expect(html).toMatch(/חברו מפתח לפני אישור/);
     expect(html).not.toMatch(/CURSOR_API_KEY/);

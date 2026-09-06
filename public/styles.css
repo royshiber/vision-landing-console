@@ -290,6 +290,32 @@ h1 { margin: 0; font-size: 1.25rem; color: #ffffff; }
   box-shadow: 0 3px 10px rgba(0,71,141,0.3);
 }
 
+.tab-lab {
+  font-weight: 600;
+  font-size: 0.64rem;
+  letter-spacing: 0.04em;
+  color: var(--text-subtle);
+  background: transparent;
+  border-color: transparent;
+  opacity: 0.84;
+}
+
+.tab-lab:hover {
+  opacity: 1;
+  background: var(--surface-container-low);
+  border-color: var(--border);
+  color: var(--text-muted);
+  box-shadow: none;
+}
+
+.tab-lab.active {
+  opacity: 1;
+  background: var(--surface-container-high);
+  border-color: var(--border);
+  color: var(--text);
+  box-shadow: none;
+}
+
 .panel {
   display: none;
   background: var(--surface);
@@ -3324,6 +3350,53 @@ button:hover,
   padding: 8px 10px 10px;
 }
 
+#maintenance.panel.visible {
+  display: flex !important;
+  flex-direction: column;
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+#telemetry.panel.visible:has(#teleLiveSections[hidden]),
+#maintenance.panel.visible:has(#maintLiveSections[hidden]) {
+  background:
+    radial-gradient(ellipse 90% 55% at 50% 12%, rgba(214, 227, 255, 0.42), transparent 62%),
+    var(--surface);
+}
+
+#teleDashPanel:has(#teleLiveSections[hidden]) #teleOperatorBanner,
+#teleDashPanel:has(#teleLiveSections[hidden]) #companionLiveParked,
+#teleCompanionPanel:has(#companionB2Grid[hidden]) #companionB2Parked {
+  display: none !important;
+}
+
+#teleDashPanel:has(#teleLiveSections[hidden]) .operator-overview {
+  margin: 0 10px 0;
+}
+
+#teleDashPanel:has(#teleLiveSections[hidden]) .operator-overview h3 {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-subtle);
+  text-align: center;
+}
+
+#maintenance.panel.visible:has(#maintLiveSections[hidden]) #maintOperatorBanner {
+  max-width: 680px;
+  margin-inline: auto;
+  padding: 22px 24px 18px;
+  box-shadow: var(--shadow-panel);
+}
+
+#maintenance.panel.visible:has(#maintLiveSections[hidden]) #maintNextStep {
+  display: none !important;
+}
+
+#maintenance.panel.visible:has(#maintLiveSections[hidden]) #maintRefreshBtn {
+  align-self: flex-start;
+}
+
 /* Stitch-inspired columns: white panels with visible border and gentle shadow */
 .tele-dash-col {
   display: flex;
@@ -4114,9 +4187,42 @@ button:hover,
 .companion-connect {
   margin: 8px 10px 0;
   max-width: 520px;
-  border: 1px solid var(--warn-border);
-  background: var(--warn-bg);
+  border: 1px solid var(--border);
+  background: var(--surface-container-low);
   color: var(--text);
+}
+
+.companion-connect--hero {
+  margin: 0 auto;
+  max-width: 680px;
+  width: 100%;
+  padding: 22px 24px 20px;
+  border-radius: 16px;
+  box-shadow: var(--shadow-panel);
+}
+
+.companion-connect--hero .assist-agent-status {
+  font-size: 1.15rem;
+  font-weight: 800;
+}
+
+.companion-connect--hero .assist-agent-form {
+  gap: 10px;
+}
+
+@media (min-width: 720px) {
+  .companion-connect--hero .assist-agent-form {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px 14px;
+    align-items: end;
+  }
+  .companion-connect--hero .assist-agent-form .assist-agent-label:nth-of-type(1) { grid-column: 1; grid-row: 1; }
+  .companion-connect--hero .assist-agent-form #companionBaseUrl { grid-column: 1; grid-row: 2; }
+  .companion-connect--hero .assist-agent-form .assist-agent-label:nth-of-type(2) { grid-column: 2; grid-row: 1; }
+  .companion-connect--hero .assist-agent-form #companionToken { grid-column: 2; grid-row: 2; }
+  .companion-connect--hero .assist-agent-form .assist-agent-error { grid-column: 1 / -1; }
+  .companion-connect--hero .assist-agent-form #companionConnectBtn { grid-column: 1 / -1; }
 }
 
 .companion-connect[data-state="connected"] {
@@ -4241,8 +4347,80 @@ button:hover,
 
 #maintOperatorBanner.operator-state,
 #teleOperatorBanner.operator-state {
-  border: 1px solid var(--warn-border, #d97706);
-  background: var(--warn-bg, rgba(217, 119, 6, 0.08));
+  border: 1px solid var(--border);
+  background: var(--surface-container-low);
+}
+
+#maintOperatorBanner.operator-state {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.first-open-stage-fill {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 14px;
+  flex: 1 1 auto;
+  min-height: 220px;
+  padding: 22px 16px 18px;
+}
+
+.first-open-stage-fill[hidden] {
+  display: none !important;
+}
+
+body.operator-live .first-open-stage-fill {
+  flex: 0 0 auto;
+  min-height: 0;
+  justify-content: flex-start;
+  padding: 4px 0 8px;
+}
+
+body.operator-live .companion-connect--hero {
+  max-width: 520px;
+  margin-inline: 10px 0;
+  padding: 12px 14px;
+  box-shadow: none;
+}
+
+.first-open-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
+.first-open-actions[hidden] {
+  display: none !important;
+}
+
+#maintOperatorBanner .first-open-actions {
+  justify-content: flex-start;
+  margin: 8px 0 4px;
+}
+
+.first-open-btn {
+  border-radius: 999px;
+  border: 1px solid var(--primary);
+  background: var(--primary);
+  color: #ffffff;
+  padding: 8px 16px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  font-family: "Heebo", "Space Grotesk", sans-serif;
+  cursor: pointer;
+}
+
+.first-open-btn-quiet {
+  background: transparent;
+  color: var(--primary);
+  border-color: var(--border);
+}
+
+#maintenance.panel.visible:has(#maintLiveSections[hidden]) .companion-maint-panel {
+  justify-content: center;
 }
 
 #maintOperatorBanner.operator-state[data-state="ok"],
@@ -4274,12 +4452,13 @@ button:hover,
 
 .operator-state-parked {
   margin: 8px 0 12px;
-  padding: 10px 12px;
-  border: 1px dashed var(--border);
-  border-radius: 8px;
-  color: var(--text-muted);
-  font-size: 0.82rem;
-  line-height: 1.4;
+  padding: 8px 4px;
+  border: none;
+  border-radius: 0;
+  color: var(--text-subtle);
+  font-size: 0.78rem;
+  line-height: 1.45;
+  text-align: center;
 }
 
 .companion-b2-panel {
@@ -4421,6 +4600,10 @@ button:hover,
 }
 
 .companion-maint-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
   padding: 16px 18px;
   overflow: auto;
 }
@@ -12094,16 +12277,30 @@ details.flight-manage summary {
 
 /* ── ASSIST rail (C10.2) ───────────────────────────────────────────── */
 .assist-toggle-btn {
-  font-family: "Space Grotesk", "Heebo", sans-serif;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  font-family: "Heebo", "Space Grotesk", sans-serif;
   font-weight: 700;
-  font-size: 0.72rem;
-  letter-spacing: 0.06em;
-  padding: 6px 10px;
-  border-radius: 8px;
+  font-size: 0.78rem;
+  letter-spacing: 0.02em;
+  padding: 5px 12px 4px;
+  border-radius: 10px;
   border: 1px solid rgba(255, 255, 255, 0.18);
-  background: rgba(34, 197, 94, 0.12);
-  color: #bbf7d0;
+  background: rgba(34, 197, 94, 0.16);
+  color: #ecfdf5;
   cursor: pointer;
+  line-height: 1.1;
+}
+.assist-toggle-he { font-size: 0.82rem; }
+.assist-toggle-en {
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 0.52rem;
+  letter-spacing: 0.14em;
+  color: rgba(187, 247, 208, 0.7);
+  font-weight: 600;
 }
 .assist-toggle-btn[aria-expanded="true"] {
   background: rgba(34, 197, 94, 0.28);
@@ -12134,10 +12331,18 @@ details.flight-manage summary {
 }
 .assist-rail-titles { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .assist-rail-title {
-  font-family: "Space Grotesk", "Heebo", sans-serif;
-  font-size: 0.95rem;
-  letter-spacing: 0.08em;
+  font-family: "Heebo", "Space Grotesk", sans-serif;
+  font-size: 1.15rem;
+  letter-spacing: 0.04em;
+  font-weight: 800;
   color: #ecfdf5;
+}
+.assist-rail-mark {
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 0.58rem;
+  letter-spacing: 0.16em;
+  color: rgba(187, 247, 208, 0.55);
+  font-weight: 600;
 }
 .assist-context-chip {
   font-size: 0.68rem;
@@ -12162,10 +12367,10 @@ details.flight-manage summary {
   line-height: 1.35;
 }
 .assist-agent-connect {
-  border: 1px solid rgba(251, 191, 36, 0.35);
-  background: rgba(69, 26, 3, 0.35);
-  border-radius: 10px;
-  padding: 8px 10px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  background: rgba(15, 23, 42, 0.42);
+  border-radius: 12px;
+  padding: 12px 12px 10px;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -12180,9 +12385,9 @@ details.flight-manage summary {
 }
 .assist-agent-status {
   margin: 0;
-  font-size: 0.8rem;
-  color: #fef3c7;
-  font-weight: 600;
+  font-size: 0.84rem;
+  color: #e2e8f0;
+  font-weight: 700;
   overflow-wrap: anywhere;
   white-space: pre-wrap;
 }
@@ -12191,9 +12396,9 @@ details.flight-manage summary {
 }
 .assist-agent-hint {
   margin: 0;
-  font-size: 0.72rem;
-  color: rgba(254, 243, 199, 0.8);
-  line-height: 1.35;
+  font-size: 0.74rem;
+  color: rgba(226, 232, 240, 0.72);
+  line-height: 1.4;
   overflow-wrap: anywhere;
 }
 .assist-agent-key-hint {
@@ -12227,7 +12432,7 @@ details.flight-manage summary {
 }
 .assist-agent-label {
   font-size: 0.72rem;
-  color: rgba(254, 243, 199, 0.9);
+  color: rgba(226, 232, 240, 0.82);
 }
 .assist-agent-key {
   width: 100%;
@@ -12258,13 +12463,31 @@ details.flight-manage summary {
   opacity: 0.45;
   cursor: not-allowed;
 }
+.assist-empty-stage {
+  flex: 1;
+  min-height: 140px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  text-align: center;
+  padding: 18px 8px;
+}
+.assist-empty-stage[hidden] { display: none !important; }
+.assist-empty-kicker {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #ecfdf5;
+}
+.assist-empty-invite,
 .assist-messages-empty {
   margin: 0;
-  font-size: 0.75rem;
-  color: rgba(226, 232, 240, 0.55);
-  line-height: 1.4;
+  font-size: 0.78rem;
+  color: rgba(226, 232, 240, 0.62);
+  line-height: 1.45;
 }
-.assist-messages-empty[hidden] { display: none !important; }
 .assist-proposal-warn {
   margin: 0;
   font-size: 0.75rem;
@@ -12322,8 +12545,8 @@ details.flight-manage summary {
 .assist-proposal-bar[hidden] { display: none !important; }
 .assist-proposal-text { margin: 0; font-size: 0.78rem; color: #dcfce7; white-space: pre-wrap; }
 .assist-run-panel {
-  border: 1px solid rgba(251, 191, 36, 0.45);
-  background: rgba(69, 26, 3, 0.35);
+  border: 1px solid rgba(148, 163, 184, 0.32);
+  background: rgba(15, 23, 42, 0.42);
   border-radius: 10px;
   padding: 8px 10px;
   display: flex;
@@ -12334,7 +12557,7 @@ details.flight-manage summary {
 .assist-run-headline {
   margin: 0;
   font-size: 0.8rem;
-  color: #fef3c7;
+  color: #e2e8f0;
   white-space: pre-wrap;
 }
 .assist-status-row {
@@ -12344,7 +12567,7 @@ details.flight-manage summary {
 }
 .assist-status-label {
   font-size: 0.68rem;
-  color: rgba(254, 243, 199, 0.75);
+  color: rgba(226, 232, 240, 0.7);
 }
 .assist-status-value {
   direction: ltr;

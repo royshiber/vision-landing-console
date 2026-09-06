@@ -117,24 +117,25 @@
           </div>
         </div>
 
-        <button type="button" id="assistToggleBtn" class="assist-toggle-btn" title="ASSIST" aria-expanded="false" aria-controls="assistRail">ASSIST</button>
+        <button type="button" id="assistToggleBtn" class="assist-toggle-btn" title="מסייע" aria-label="מסייע" aria-expanded="false" aria-controls="assistRail"><span class="assist-toggle-he">מסייע</span><span class="assist-toggle-en" aria-hidden="true">ASSIST</span></button>
         <button type="button" id="globalSettingsBtn" class="global-settings-btn" title="הגדרות כלליות" aria-haspopup="dialog" aria-controls="globalSettingsModal">⚙</button>
         <button id="versionBtn" class="badge clickable" title="לחץ כדי לראות מה עודכן בגרסה">v__APP_VERSION__</button>
       </div>
     </header>
 
-    <aside id="assistRail" class="assist-rail" hidden aria-label="ASSIST">
+    <aside id="assistRail" class="assist-rail" hidden aria-label="מסייע">
       <header class="assist-rail-head">
         <div class="assist-rail-titles">
-          <strong class="assist-rail-title">ASSIST</strong>
+          <strong class="assist-rail-title">מסייע</strong>
+          <span class="assist-rail-mark" aria-hidden="true">ASSIST</span>
           <span id="assistContextChip" class="assist-context-chip">—</span>
         </div>
         <button type="button" id="assistCloseBtn" class="assist-close-btn" aria-label="סגור">✕</button>
       </header>
-      <p class="assist-rail-hint">שכבת אינטראקציה — לא צ׳אטבוט אוטונומי. הצעות דורשות אישור.</p>
+      <p class="assist-rail-hint">שינוי דורש אישור.</p>
       <section id="assistAgentConnect" class="assist-agent-connect operator-state" data-state="disconnected" aria-label="חיבור הסוכן">
         <p id="assistAgentStatus" class="assist-agent-status" aria-live="polite">הסוכן מנותק.</p>
-        <p id="assistAgentHint" class="assist-agent-hint">כדי להריץ שינוי מאושר צריך לחבר את הסוכן.</p>
+        <p id="assistAgentHint" class="assist-agent-hint">חברו מפתח כדי לאשר שינוי.</p>
         <p id="assistAgentKeyHint" class="assist-agent-key-hint" hidden dir="ltr"></p>
         <form id="assistAgentConnectForm" class="assist-agent-form" autocomplete="off">
           <label class="assist-agent-label" for="assistAgentKey">מפתח חיבור</label>
@@ -144,7 +145,10 @@
         </form>
         <button type="button" id="assistAgentDisconnectBtn" class="assist-btn assist-btn-cancel" hidden>ניתוק</button>
       </section>
-      <p id="assistMessagesEmpty" class="assist-messages-empty">אין הודעות עדיין.</p>
+      <div id="assistMessagesEmpty" class="assist-empty-stage">
+        <p class="assist-empty-kicker">מוכנים</p>
+        <p class="assist-empty-invite">כתבו שאלה או בקשה.</p>
+      </div>
       <div id="assistMessages" class="assist-messages" role="log" aria-live="polite"></div>
       <div id="assistRunPanel" class="assist-run-panel" data-kind="unavailable" hidden></div>
       <div id="assistProposalBar" class="assist-proposal-bar" hidden>
@@ -224,15 +228,15 @@
 
     <main class="layout">
       <nav class="tabs">
-        <button class="tab active" data-tab="control" title="כל פרמטרי הנחיתה, הניווט הוויזואלי והקושחה במקום אחד">מרכז פרמטרים</button>
-        <button class="tab" data-tab="recordings" title="הקלטות ולוגים תחת תחקור">תחקור</button>
-        <button class="tab" data-tab="telemetry" title="לוח טלמטריה, סטטוסים ובדיקות מערכת">טלמטריה</button>
-        <button class="tab" data-tab="maintenance" title="סטטוס תחזוקה לתצוגה בלבד">תחזוקה</button>
-        <button class="tab" data-tab="development" title="ניהול משימות פיתוח מקומיות">פיתוח</button>
-        <button class="tab" data-tab="simLab" title="מעבדת SITL — ArduPilot בסימולציה, תצוגת תלת־מימד מהטלמטריה וקביעות חיבור">מעבדת SITL</button>
-        <button class="tab" data-tab="advisor" title="AI Advisor — אבחון, הצעות, שינוי פרמטרים וזיכרון ארוך-טווח">AI Advisor</button>
-        <button class="tab" data-tab="featureDesigner" title="ArduLab — תאר פיצ'ר חדש, ה-AI יכתוב עבורך קוד ArduPilot מלא ויגדיר פרמטרים">ArduLab</button>
-        <button class="tab" data-tab="flightEngineer" title="מהנדס טיסה — שיחה קולית; גם התייעצות על הפרויקט בלי חיבור לבקר">🎙 מהנדס</button>
+        <button class="tab tab-ops active" data-tab="control" title="כל פרמטרי הנחיתה, הניווט הוויזואלי והקושחה במקום אחד">מרכז פרמטרים</button>
+        <button class="tab tab-ops" data-tab="recordings" title="הקלטות ולוגים תחת תחקור">תחקור</button>
+        <button class="tab tab-ops" data-tab="telemetry" title="לוח טלמטריה, סטטוסים ובדיקות מערכת">טלמטריה</button>
+        <button class="tab tab-ops" data-tab="maintenance" title="סטטוס תחזוקה לתצוגה בלבד">תחזוקה</button>
+        <button class="tab tab-ops" data-tab="development" title="ניהול משימות פיתוח מקומיות">פיתוח</button>
+        <button class="tab tab-lab" data-tab="simLab" title="מעבדת SITL — ArduPilot בסימולציה, תצוגת תלת־מימד מהטלמטריה וקביעות חיבור">מעבדת SITL</button>
+        <button class="tab tab-lab" data-tab="advisor" title="AI Advisor — אבחון, הצעות, שינוי פרמטרים וזיכרון ארוך-טווח">AI Advisor</button>
+        <button class="tab tab-lab" data-tab="featureDesigner" title="ArduLab — תאר פיצ'ר חדש, ה-AI יכתוב עבורך קוד ArduPilot מלא ויגדיר פרמטרים">ArduLab</button>
+        <button class="tab tab-lab" data-tab="flightEngineer" title="מהנדס טיסה — שיחה קולית; גם התייעצות על הפרויקט בלי חיבור לבקר">🎙 מהנדס</button>
         <button class="tab tab-fly" data-tab="terrain" title="הטסה — מפה חזותית, HUD ניווט ושליחת פקודת טיסה">✈ הטסה</button>
         <!-- flights kept hidden for programmatic access from recordings -->
         <button class="tab tab-hidden" data-tab="flights" aria-hidden="true" tabindex="-1">לוגים והעלאות</button>
@@ -517,7 +521,8 @@
           </div>
         </div>
         <div id="companionApiUnavailable" class="companion-api-unavailable" hidden></div>
-        <section id="companionConnect" class="companion-connect assist-agent-connect operator-state" data-state="disconnected" aria-label="חיבור מלווה">
+        <div class="first-open-stage-fill" data-first-open-stage>
+        <section id="companionConnect" class="companion-connect companion-connect--hero assist-agent-connect operator-state" data-state="disconnected" aria-label="חיבור מלווה">
           <p id="companionConnectStatus" class="assist-agent-status" aria-live="polite">המלווה מנותק</p>
           <p id="companionConnectHint" class="assist-agent-hint">חיבור דורש כתובת ואסימון יחד. כתובת לבד לא מחברת.</p>
           <p id="companionConnectPathHint" class="assist-agent-key-hint" hidden dir="ltr">/api/v1/*</p>
@@ -532,6 +537,11 @@
           </form>
           <button type="button" id="companionDisconnectBtn" class="assist-btn assist-btn-cancel" hidden>ניתוק</button>
         </section>
+        <nav class="first-open-actions" data-first-open="telemetry" aria-label="פעולה הבאה">
+          <button type="button" class="first-open-btn" data-first-action="assist">פתיחת מסייע</button>
+          <button type="button" class="first-open-btn first-open-btn-quiet" data-first-action="params">פתיחת פרמטרים</button>
+        </nav>
+        </div>
         <div id="teleDashPanel" class="tele-subpanel visible" data-tele-panel="dash">
         <header class="operator-overview">
           <h3>טלמטריה</h3>
@@ -837,6 +847,11 @@
             <div id="maintOperatorBanner" class="operator-state" data-state="disconnected">
               <p id="maintStatusBadge" class="operator-state-status">המלווה מנותק</p>
               <p id="maintNextStep" class="operator-state-next">חברו מלווה בטלמטריה. כתובת לבד לא מחברת.</p>
+              <nav class="first-open-actions" data-first-open="maintenance" aria-label="פעולה הבאה">
+                <button type="button" class="first-open-btn" data-first-action="companion">חברו מלווה</button>
+                <button type="button" class="first-open-btn first-open-btn-quiet" data-first-action="assist">פתיחת מסייע</button>
+                <button type="button" class="first-open-btn first-open-btn-quiet" data-first-action="params">פתיחת פרמטרים</button>
+              </nav>
               <button type="button" id="maintRefreshBtn" class="policy-btn">רענון</button>
             </div>
           </header>
