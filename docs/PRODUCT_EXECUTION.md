@@ -80,7 +80,7 @@ Do not implement without explicit Roy **GO**:
 - ARM / DISARM / LAND / SET_MODE / live FC write / auto-landing — Issue #29
 - Secrets / deploy to devices / flight commands
 
-Merge: Roy 2026-09-05 — King may merge **verified safe** draft PRs without asking (Merge Autonomy + Decision Option Hints, LANDED on master via PR #6 `e57eb28`). Still on. Hard safety stops stay draft until Roy. This map last landed on master via PR #57 `b724c76`. This rewrite is a new draft after PR #58. Decision options must carry meaning hints.
+Merge: Roy 2026-09-05 — King may merge **verified safe** draft PRs without asking (Merge Autonomy + Decision Option Hints, LANDED on master via PR #6 `e57eb28`). Still on. Hard safety stops stay draft until Roy. This map last landed on master via PR #57 `b724c76`. This rewrite is draft [#60](https://github.com/royshiber/vision-landing-console/pull/60). Decision options must carry meaning hints.
 
 Also locked without GO:
 
@@ -131,7 +131,7 @@ Architecture wave (`docs/AIRVIX_PRODUCT_ARCHITECTURE.md`): C10.2 Assist unificat
 
 **Master:** `1.02.255` @ `6100247d1d27c76af5ca09293d7d99b97794f0b9` (PR #58 merge — C10.4b Evolve evidence strip). Do not bump.  
 **Prior pointer:** 2026-09-06 post-#56 / #57 snapshot named C10.4b evidence as next. That is superseded. #58 landed evidence. C10.4c absorb release owner stays deferred. In flight / next is Roy spoken Hebrew + less filler + calmer tabs (draft PR #59). #6, #50, #52, #53, #54, #55, #56, and #57 remain **LANDED**.  
-**This draft:** rewrite of this living snapshot after PR #58. Docs only. Do not bump `APP_VERSION`. Stay draft. Do not merge from this agent.
+**This draft:** [#60](https://github.com/royshiber/vision-landing-console/pull/60) rewrite of this living snapshot after PR #58. Docs only. Do not bump `APP_VERSION`. Stay draft. Do not merge from this agent.
 
 Ops (not product): WhatsApp Human Gate delivery remains available (signed in on the operator box targeting +972584010075, self-chat).
 
@@ -221,7 +221,7 @@ On master today (PR #33 + PR #34 + Hebrew Assist chrome from #50 + result card f
 
 | PR | Topic | This map |
 |---|---|---|
-| This snapshot rewrite | Living map after PR #58 | **This draft.** Docs only. Stay draft. Do not merge from this agent. Not a next-pick polish PR. |
+| [#60](https://github.com/royshiber/vision-landing-console/pull/60) | This snapshot rewrite | **This draft.** Docs only. Stay draft. Do not merge from this agent. Not a next-pick polish PR. |
 | [#59](https://github.com/royshiber/vision-landing-console/pull/59) | Spoken Hebrew chrome, kill Pulse filler, group lab tabs | **In flight / next.** Roy 2026-09-06 voice: spoken Hebrew, less filler, calmer tabs. Do not fork a second chrome PR. |
 | [#4](https://github.com/royshiber/vision-landing-console/pull/4) | PM orchestrator smoke | Skip. Low-value. Do not merge. |
 
