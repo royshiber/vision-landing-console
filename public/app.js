@@ -284,6 +284,9 @@ function applyMainTab(tabId, { save = true } = {}) {
   if (tabId === 'pulse' && typeof pulseRefresh === 'function') {
     pulseRefresh();
   }
+  if (tabId === 'platform' && typeof platformRefresh === 'function') {
+    platformRefresh();
+  }
   if (tabId === 'telemetry') {
     setTimeout(() => onTelemetryTabActivated(), 60);
   }
@@ -3005,6 +3008,14 @@ function operatorOpenFirstAction(action) {
     applyMainTab('telemetry');
     applyTeleSubtab('dash');
     document.getElementById('companionBaseUrl')?.focus();
+    return;
+  }
+  if (action === 'maintenance') {
+    applyMainTab('maintenance');
+    return;
+  }
+  if (action === 'platform') {
+    applyMainTab('platform');
   }
 }
 
@@ -3117,6 +3128,49 @@ function pulseRefresh() {
     if (evolveText) glanceEl.textContent = evolveText;
   }
   pulseSyncHomePrefChrome();
+  if (typeof platformRefresh === 'function') platformRefresh();
+}
+
+function platformMaintLabel() {
+  const badge = document.getElementById('maintStatusBadge')?.textContent?.trim();
+  return badge || 'המלווה מנותק';
+}
+
+function platformRefresh() {
+  const companionEl = document.getElementById('platformCompanionStatus');
+  const maintEl = document.getElementById('platformMaintStatus');
+  if (!companionEl && !maintEl) return;
+  const companionLive = document.body.classList.contains('operator-live');
+  const companionCard = document.getElementById('companionConnect');
+  const companionState = companionCard?.dataset?.state || 'disconnected';
+  const tokenHint = document.getElementById('companionTokenHint')?.textContent?.trim() || '';
+  if (companionEl) {
+    companionEl.textContent = pulseCompanionLabel({
+      connected: companionState === 'connected',
+      mode: companionState === 'connected' ? 'real' : (companionLive ? 'mock' : 'off'),
+      token_hint: tokenHint,
+    });
+    companionEl.parentElement?.setAttribute(
+      'data-state',
+      companionState === 'connected' || companionLive ? 'connected' : 'disconnected',
+    );
+  }
+  if (maintEl) {
+    maintEl.textContent = platformMaintLabel();
+    const bannerState = document.getElementById('maintOperatorBanner')?.dataset?.state || 'disconnected';
+    maintEl.parentElement?.setAttribute(
+      'data-state',
+      bannerState === 'ok' || bannerState === 'connected' ? 'connected' : 'disconnected',
+    );
+  }
+}
+
+function initPlatformShell() {
+  document.getElementById('platform')?.addEventListener('click', (e) => {
+    const go = e.target.closest('[data-platform-go]');
+    if (go) operatorOpenFirstAction(go.dataset.platformGo);
+  });
+  platformRefresh();
 }
 
 function initPulseHome() {
@@ -9855,6 +9909,7 @@ function maintSetOverview(opts) {
   if (liveEl) liveEl.hidden = !live;
   const uiVer = document.querySelector('meta[name="app-version"]')?.content;
   if (uiVer) maintSetEl('maintUiVersion', uiVer);
+  if (typeof platformRefresh === 'function') platformRefresh();
 }
 
 function maintSetEl(id, val) {
@@ -11067,6 +11122,7 @@ const ASSIST_TAB_WORKSPACE = {
   development: 'EVOLVE',
   simLab: 'LAB',
   control: 'PLATFORM',
+  platform: 'PLATFORM',
   telemetry: 'PLATFORM',
   maintenance: 'PLATFORM',
   recordings: 'PLATFORM',
@@ -11081,6 +11137,7 @@ const ASSIST_TAB_CAPABILITY = {
   development: 'evolve',
   simLab: 'lab_sitl',
   control: 'configuration',
+  platform: 'companion',
   telemetry: 'diagnostics',
   maintenance: 'companion',
   recordings: 'debrief',
@@ -11747,3 +11804,4 @@ initAssistUi();
 initCompanionConnectUi();
 initFirstOpenActions();
 initPulseHome();
+initPlatformShell();

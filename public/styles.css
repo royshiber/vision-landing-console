@@ -4485,6 +4485,96 @@ body.operator-live .companion-connect--hero {
   border-color: var(--border);
 }
 
+#platform.panel.visible {
+  display: flex !important;
+  flex-direction: column;
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: hidden;
+  padding: 0;
+  background:
+    radial-gradient(ellipse 88% 48% at 50% 8%, rgba(214, 227, 255, 0.5), transparent 64%),
+    var(--surface);
+}
+
+.platform-home {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 18px;
+  flex: 1 1 auto;
+  min-height: 0;
+  max-width: 720px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 28px 22px 22px;
+}
+
+.platform-hero {
+  display: grid;
+  gap: 4px;
+  text-align: center;
+}
+
+.platform-title {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.platform-shells {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.platform-shell {
+  display: grid;
+  gap: 10px;
+  justify-items: center;
+  padding: 16px 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+  text-align: center;
+  cursor: pointer;
+}
+
+.platform-shell h4 {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.platform-shell p {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.platform-shell[data-state="connected"] {
+  border-color: var(--success-border);
+  background: var(--success-bg);
+}
+
+.platform-shell[data-state="connected"] p {
+  color: var(--text);
+}
+
+@media (max-width: 720px) {
+  .platform-shells {
+    grid-template-columns: 1fr;
+  }
+  .platform-home {
+    padding: 18px 14px 16px;
+    justify-content: flex-start;
+  }
+}
+
 #pulse.panel.visible {
   display: flex !important;
   flex-direction: column;

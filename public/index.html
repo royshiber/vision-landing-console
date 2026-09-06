@@ -227,6 +227,7 @@
     <main class="layout">
       <nav class="tabs">
         <button class="tab tab-ops active" data-tab="pulse" title="סקירה">סקירה</button>
+        <button class="tab tab-ops" data-tab="platform" title="פלטפורמה">פלטפורמה</button>
         <button class="tab tab-ops" data-tab="control" title="פרמטרים">פרמטרים</button>
         <button class="tab tab-ops" data-tab="recordings" title="תחקור">תחקור</button>
         <button class="tab tab-ops" data-tab="telemetry" title="טלמטריה">טלמטריה</button>
@@ -313,6 +314,29 @@
             <button type="button" id="pulseHomePulseBtn" class="pulse-home-pref-btn is-active" data-pulse-home="pulse">סקירה</button>
             <button type="button" id="pulseHomeTeleBtn" class="pulse-home-pref-btn" data-pulse-home="telemetry">טלמטריה</button>
           </p>
+        </div>
+      </section>
+      <section id="platform" class="panel" aria-label="פלטפורמה">
+        <div class="platform-home">
+          <header class="platform-hero">
+            <h3 class="platform-title">פלטפורמה</h3>
+          </header>
+          <nav class="platform-shells" aria-label="יכולות פלטפורמה">
+            <article class="platform-shell" data-platform-go="companion">
+              <h4>מלווה</h4>
+              <p id="platformCompanionStatus">מנותק</p>
+              <button type="button" class="first-open-btn" data-platform-go="companion">מלווה</button>
+            </article>
+            <article class="platform-shell" data-platform-go="params">
+              <h4>פרמטרים</h4>
+              <button type="button" class="first-open-btn first-open-btn-quiet" data-platform-go="params">פרמטרים</button>
+            </article>
+            <article class="platform-shell" data-platform-go="maintenance">
+              <h4>תחזוקה</h4>
+              <p id="platformMaintStatus">המלווה מנותק</p>
+              <button type="button" class="first-open-btn first-open-btn-quiet" data-platform-go="maintenance">תחזוקה</button>
+            </article>
+          </nav>
         </div>
       </section>
       <section id="control" class="panel">
