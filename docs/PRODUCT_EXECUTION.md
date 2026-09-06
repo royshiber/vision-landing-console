@@ -112,7 +112,7 @@ Params persist on master via PR #18 + PR #30. Write-to-vehicle is still a Human 
 5. Human Gates stay WAITING FOR ROY: companion apply/restart (#28), live vehicle / auto-landing (#29), secrets / deploy / flight commands.
 6. 300+ hunt is **abandoned permanently**. GitHub public `master` is `1.02.255`. Improve GitHub 255. Prefer high-impact capability over chrome polish.
 7. Skip leftover draft #4 (low-value smoke). Do not merge. Constitution #6 **LANDED** on master `e57eb28`. This map **LANDED** on master `6d8fbbf`.
-8. Do not create chrome / copy / changelog PRs while destination GAPS remain. Changelog #15 is already on master. Do not ask Roy what to work on next.
+8. Do not invent chrome / copy / changelog PRs after this UI/UX round. Independent high-impact non-HG / non-token work is now thin. Changelog #15 is already on master. Do not ask Roy what to work on next.
 
 ---
 
