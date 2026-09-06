@@ -1,5 +1,21 @@
 [
   {
+    "version": "1.02.256",
+    "date": "2026-09-06",
+    "changes": [
+      {
+        "type": "test",
+        "title": "Tests",
+        "detail": "process-steps-hebrew.test.mjs"
+      },
+      {
+        "type": "docs",
+        "title": "Documentation",
+        "detail": "PRODUCT_EXECUTION.md"
+      }
+    ]
+  },
+  {
     "version": "1.02.255",
     "date": "2026-08-24",
     "changes": [

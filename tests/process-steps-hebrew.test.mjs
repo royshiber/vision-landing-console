@@ -84,7 +84,8 @@ describe('PROCESS_STEPS Hebrew leftover copy', () => {
 
   it('uses Hebrew leftover copy in nearby checklist chrome', () => {
     const checklist = sliceFunction(js, 'computeChecklist');
-    const labels = [...checklist.matchAll(/label:\s*`([^`]*)`/g)].map((m) => m[1]);
+    const labels = [...checklist.matchAll(/label:\s*`([^`]*)`/g)]
+      .map((m) => m[1].replace(/\$\{[^}]+\}/g, ''));
     expect(labels.some((label) => label.includes('ביטחון ראייה מעל סף ביטול'))).toBe(true);
     expect(labels.some((label) => label.includes('ביטחון Vision מעל סף Abort'))).toBe(false);
     for (const leftover of ENGLISH_LEFTOVERS) {

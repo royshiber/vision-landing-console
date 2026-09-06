@@ -175,7 +175,7 @@ On master today (PR #39 + PR #40):
 
 | PR | Topic | This map |
 |---|---|---|
-| this draft | PROCESS_STEPS Hebrew leftovers | **This draft.** Copy-only landing checklist / process-step titles + nearby checklist chrome. Stay draft until VERIFY. Not a Human Gate. Do not merge from this agent. |
+| [#48](https://github.com/royshiber/vision-landing-console/pull/48) | PROCESS_STEPS Hebrew leftovers | **This draft.** Copy-only landing checklist / process-step titles + nearby checklist chrome. Stay draft until VERIFY. Not a Human Gate. Do not merge from this agent. |
 | [#4](https://github.com/royshiber/vision-landing-console/pull/4) | PM orchestrator smoke | Skip. Low-value. Do not merge. |
 
 ### LANDED drafts (were open on the prior 2026-09-05 snapshot)
