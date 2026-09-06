@@ -164,12 +164,7 @@ function initDebriefTelemetrySubtab() {
   // Telemetry is now its own main tab — no longer moved into recordings.
 }
 function applyDebriefSubtab(tabId = 'recordings', { save = true } = {}) {
-  // "לוגים" sub-tab redirects directly to the flights main tab (no placeholder)
-  if (tabId === 'logs') {
-    applyMainTab('flights');
-    return;
-  }
-  const wanted = 'recordings';
+  const wanted = tabId === 'logs' ? 'logs' : 'recordings';
   debriefTabButtons.forEach((btn) => btn.classList.toggle('active', btn.dataset.debriefTab === wanted));
   [debriefRecordingsPanel, debriefLogsPanel].forEach((panel) => {
     if (!panel) return;
@@ -182,6 +177,17 @@ function applyDebriefSubtab(tabId = 'recordings', { save = true } = {}) {
       /* ignore */
     }
   }
+  if (wanted === 'logs') {
+    setTimeout(() => {
+      if (typeof refreshFlightLists === 'function') refreshFlightLists();
+      if (typeof refreshAllLogsTable === 'function') refreshAllLogsTable();
+    }, 50);
+  }
+}
+
+function openDebriefLogs({ save = true } = {}) {
+  applyMainTab('recordings', { save });
+  applyDebriefSubtab('logs', { save });
 }
 const LAB_SHELF_TABS = new Set(['simLab', 'advisor', 'featureDesigner', 'flightEngineer', 'terrain']);
 
@@ -250,6 +256,10 @@ function initLabTabGroup() {
 }
 
 function applyMainTab(tabId, { save = true } = {}) {
+  if (tabId === 'flights') {
+    openDebriefLogs({ save });
+    return;
+  }
   if (!_mainTabIds().has(tabId)) return;
   tabs.forEach((t) => t.classList.remove('active'));
   panels.forEach((p) => p.classList.remove('visible'));
@@ -282,12 +292,6 @@ function applyMainTab(tabId, { save = true } = {}) {
       window.simLab3d?.resizeRenderer?.();
       window.simLab3d?.invalidateMiniMap?.();
     }, 80);
-  }
-  if (tabId === 'flights') {
-    setTimeout(() => {
-      refreshFlightLists();
-      refreshAllLogsTable();
-    }, 50);
   }
   if (tabId === 'maintenance') {
     void maintLoadData();
@@ -337,19 +341,19 @@ function restoreLastUiTab() {
   } catch {
     return;
   }
-  // telemetry is now a proper main tab; flights/processes removed from nav
-  if (main === 'processes') main = 'control';
-  if (main === 'telemetry') {
-    // telemetry is now a direct main tab — no redirect needed
+  // leftover #flights folds into תחקור לוגים; processes stays on params
+  if (main === 'flights') {
+    main = 'recordings';
+    debriefSub = 'logs';
   }
+  if (main === 'processes') main = 'control';
   if (main && _mainTabIds().has(main)) {
     applyMainTab(main, { save: false });
   } else {
     applyMainTab(pulseDefaultHomeTab(), { save: false });
   }
   if (main === 'recordings') {
-    // 'logs' sub-tab now redirects to flights — always restore to 'recordings'
-    applyDebriefSubtab('recordings', { save: false });
+    applyDebriefSubtab(debriefSub === 'logs' ? 'logs' : 'recordings', { save: false });
   }
   if (main === 'control') {
     try {
@@ -410,19 +414,6 @@ debriefTabButtons.forEach((tab) => {
     applyDebriefSubtab(tab.dataset.debriefTab);
   });
 });
-const openFlightsFromDebriefBtn = document.getElementById('openFlightsFromDebriefBtn');
-if (openFlightsFromDebriefBtn) {
-  openFlightsFromDebriefBtn.addEventListener('click', () => applyMainTab('flights'));
-}
-// Mirror subtabs in the flights panel: "הקלטות" → recordings main tab; "לוגים" stays on flights
-const debriefRecBtn2 = document.getElementById('debriefRecBtn2');
-const debriefLogsBtn2 = document.getElementById('debriefLogsBtn2');
-if (debriefRecBtn2) {
-  debriefRecBtn2.addEventListener('click', () => applyMainTab('recordings'));
-}
-if (debriefLogsBtn2) {
-  debriefLogsBtn2.addEventListener('click', () => applyMainTab('flights'));
-}
 subtabs.forEach((tab) => {
   tab.addEventListener('click', () => {
     applyControlSubtab(tab.dataset.subtab);
@@ -2288,7 +2279,7 @@ if (jetsonPullLogsBtn) {
           ? `יובאו ${n} קבצים לטיסה #${data.flightId}`
           : (data.message || 'אין לוגים חדשים');
       }
-      if (n > 0) document.querySelector('.tab[data-tab="flights"]')?.click();
+      if (n > 0) openDebriefLogs();
     } catch (err) {
       if (jetsonOut) jetsonOut.textContent = err?.message || String(err);
     } finally {
@@ -11140,8 +11131,8 @@ const ASSIST_TAB_HE = Object.freeze({
   control: 'פרמטרים',
   telemetry: 'טלמטריה',
   maintenance: 'תחזוקה',
-  recordings: 'הקלטות',
-  flights: 'טיסות',
+  recordings: 'תחקור',
+  flights: 'תחקור',
   advisor: 'יועץ',
   featureDesigner: 'מעצב פיצ׳רים',
   flightEngineer: 'מהנדס טיסה',
@@ -11427,7 +11418,11 @@ function assistStartRunPolling(taskId) {
 
 function assistApplyNavigation(nav) {
   if (!nav || typeof nav !== 'object') return;
-  if (nav.tab) applyMainTab(nav.tab);
+  if (nav.tab === 'flights') {
+    openDebriefLogs();
+  } else if (nav.tab) {
+    applyMainTab(nav.tab);
+  }
   if (nav.subtab) applyControlSubtab(nav.subtab);
   if (nav.task_id) {
     _devSelectedTaskId = nav.task_id;

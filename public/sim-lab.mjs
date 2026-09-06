@@ -1806,7 +1806,8 @@ if (!canvas) {
   bindQuick('simLabPresetUdpBind',   () => fillAndConnect('udp', '0.0.0.0:14550'));
   bindQuick('simLabPresetTcp5760',   () => fillAndConnect('tcp', '127.0.0.1:5760'));
   bindQuick('simLabGoFlightsBtn', () => {
-    document.querySelector('.tab[data-tab="flights"]')?.click();
+    document.querySelector('.tab[data-tab="recordings"]')?.click();
+    document.getElementById('debriefLogsBtn')?.click();
   });
 
   // ── Wizard step management ─────────────────────────────────────────────────

@@ -1,5 +1,36 @@
 [
   {
+    "version": "1.02.256",
+    "date": "2026-09-06",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Server library",
+        "detail": "assist-hebrew.mjs, assist-routes.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "UI / app.js",
+        "detail": "app.js"
+      },
+      {
+        "type": "feat",
+        "title": "Frontend",
+        "detail": "sim-lab.mjs"
+      },
+      {
+        "type": "ui",
+        "title": "HTML layout",
+        "detail": "index.html"
+      },
+      {
+        "type": "ui",
+        "title": "Styles",
+        "detail": "styles.css"
+      }
+    ]
+  },
+  {
     "version": "1.02.255",
     "date": "2026-08-24",
     "changes": [
