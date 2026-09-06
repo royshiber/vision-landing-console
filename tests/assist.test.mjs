@@ -660,6 +660,7 @@ describe('Assist rail proposal chrome', () => {
     const css = fs.readFileSync(path.join(repoRoot, 'public', 'styles.css'), 'utf8');
     expect(css).toMatch(/\.assist-run-panel\[data-kind="run"\]/);
     expect(css).toMatch(/\.assist-run-panel\[data-kind="result"\]/);
+    expect(css).toMatch(/\.assist-run-panel\[data-kind="unavailable"\]/);
     const runBlock = css.split('.assist-run-panel[data-kind="run"]')[0];
     expect(runBlock).toMatch(/rgba\(251, 191, 36/);
     expect(runBlock).not.toMatch(/rgba\(56, 189, 248, 0\.35\)/);

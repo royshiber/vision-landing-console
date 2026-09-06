@@ -10856,6 +10856,15 @@ const ASSIST_AGENT_STATE_HE = Object.freeze({
   CANCELLED: 'בוטל',
   NOT_STARTED: 'לא הופעל',
 });
+const ASSIST_RUN_KICKER_HE = Object.freeze({
+  running: 'רץ',
+  queued: 'בתור',
+  waiting: 'ממתין',
+  succeeded: 'הסתיים',
+  failed: 'נכשל',
+  cancelled: 'בוטל',
+  unavailable: 'לא זמין',
+});
 
 function assistEscape(s) {
   return String(s ?? '')
@@ -10917,8 +10926,11 @@ function assistRefreshContextChip() {
 function assistSyncMessagesEmpty() {
   const empty = document.getElementById('assistMessagesEmpty');
   const box = document.getElementById('assistMessages');
+  const panel = document.getElementById('assistRunPanel');
   if (!empty) return;
-  empty.hidden = !!(box && box.children.length);
+  const hasMessages = !!(box && box.children.length);
+  const hasRun = !!(panel && !panel.hidden);
+  empty.hidden = hasMessages || hasRun;
 }
 
 function assistSyncProposalWarn() {
@@ -10972,60 +10984,125 @@ function assistStatusKind(state, agentStarted, unavailableReason) {
   return 'run';
 }
 
-function assistBuildStatusHtml({ headline, taskId, agentState, lastMessage, progress, branch, prUrl }) {
-  const rows = [];
-  function row(label, value) {
+function assistStatusOutcome(state, kind) {
+  if (kind === 'unavailable') return 'unavailable';
+  const s = String(state || '').trim().toUpperCase();
+  if (s === 'FAILED') return 'failed';
+  if (s === 'CANCELLED') return 'cancelled';
+  if (s === 'SUCCEEDED') return 'succeeded';
+  if (s === 'QUEUED') return 'queued';
+  if (s === 'WAITING') return 'waiting';
+  if (kind === 'run') return 'running';
+  return kind;
+}
+
+function assistRunKicker(outcome) {
+  return ASSIST_RUN_KICKER_HE[outcome] || ASSIST_RUN_KICKER_HE.unavailable;
+}
+
+function assistOperatorProgress(progress) {
+  if (progress == null || progress === '') return null;
+  const n = typeof progress === 'number' ? progress : Number(progress);
+  if (!Number.isFinite(n)) return null;
+  if (n >= 0 && n <= 1) return `${Math.round(n * 100)}%`;
+  if (n > 1 && n <= 100) return `${Math.round(n)}%`;
+  return String(n);
+}
+
+function assistSafePrUrl(url) {
+  const s = String(url || '').trim();
+  if (/^https:\/\//i.test(s)) return s;
+  return null;
+}
+
+function assistBuildStatusHtml(opts) {
+  const headline = opts?.headline;
+  const progress = opts?.progress;
+  const branch = opts?.branch;
+  const prUrl = opts?.prUrl;
+  const outcome = opts?.outcome;
+  const facts = [];
+  function fact(label, value, ltr) {
     if (value == null || value === '') return;
-    rows.push(
-      `<div class="assist-status-row"><span class="assist-status-label">${assistEscape(label)}</span><code class="assist-status-value">${assistEscape(value)}</code></div>`,
+    const ddClass = ltr ? ' class="assist-run-fact-value" dir="ltr"' : ' class="assist-run-fact-value"';
+    facts.push(
+      `<div class="assist-run-fact"><dt>${assistEscape(label)}</dt><dd${ddClass}>${assistEscape(value)}</dd></div>`,
     );
   }
-  const stateKey = String(agentState || '').trim().toUpperCase();
-  row('מזהה משימה', taskId);
-  row('מצב סוכן', ASSIST_AGENT_STATE_HE[stateKey] || agentState);
-  row('הודעה אחרונה', lastMessage);
-  row('התקדמות', progress == null || progress === '' ? null : String(progress));
-  row('ענף', branch);
-  row('כתובת בקשה', prUrl);
-  return `<p class="assist-run-headline">${assistEscape(headline || '')}</p>${rows.join('')}`;
+  fact('ענף', branch, true);
+  fact('התקדמות', assistOperatorProgress(progress), false);
+  const factsHtml = facts.length
+    ? `<dl class="assist-run-facts">${facts.join('')}</dl>`
+    : '';
+  const actions = [];
+  const safePr = assistSafePrUrl(prUrl);
+  if (safePr) {
+    actions.push(
+      `<a class="assist-btn assist-btn-confirm assist-run-pr" href="${assistEscape(safePr)}" target="_blank" rel="noopener noreferrer">פתיחת בקשה</a>`,
+    );
+  }
+  actions.push('<button type="button" class="assist-btn assist-btn-cancel" id="assistRunDismissBtn">סגירה</button>');
+  return [
+    `<p class="assist-run-kicker">${assistEscape(assistRunKicker(outcome))}</p>`,
+    `<p class="assist-run-headline">${assistEscape(headline || '')}</p>`,
+    factsHtml,
+    `<div class="assist-run-actions">${actions.join('')}</div>`,
+  ].join('');
+}
+
+function assistClearRunPanel() {
+  assistStopRunPolling();
+  _assistRunTaskId = null;
+  if (_assistRunMsgEl) {
+    _assistRunMsgEl.remove();
+    _assistRunMsgEl = null;
+  }
+  const panel = document.getElementById('assistRunPanel');
+  if (panel) {
+    panel.innerHTML = '';
+    panel.hidden = true;
+    panel.dataset.kind = 'unavailable';
+    delete panel.dataset.outcome;
+  }
+  assistSyncMessagesEmpty();
+}
+
+function assistRunHeadline(payload, kind, outcome, unavailableReason) {
+  const byOutcome = {
+    succeeded: 'הסוכן סיים על הענף המבודד.',
+    failed: 'הסוכן נכשל על הענף המבודד.',
+    cancelled: 'הסוכן בוטל.',
+    queued: 'הסוכן ממתין בתור על הענף המבודד.',
+    waiting: 'הסוכן ממתין על הענף המבודד.',
+    unavailable: 'המשימה נוצרה.\nהסוכן אינו זמין כרגע.\nלא הופעל סוכן.',
+  };
+  let headline = payload.answer || byOutcome[outcome] || 'הסוכן רץ על הענף המבודד.';
+  if (unavailableReason && !String(headline).includes(unavailableReason)) {
+    headline = `${headline}\n${unavailableReason}`;
+  }
+  return headline;
 }
 
 function assistRenderRunStatus(payload, { agentStarted = true, unavailableReason = null } = {}) {
   const panel = document.getElementById('assistRunPanel');
-  const box = document.getElementById('assistMessages');
-  const headline = payload.answer
-    || (unavailableReason
-      ? 'המשימה נוצרה.\nהסוכן אינו זמין כרגע.\nלא הופעל סוכן.'
-      : 'הסוכן רץ על הענף המבודד.');
+  const agentState = payload.agent_state || payload.task?.agent_state;
+  const kind = assistStatusKind(agentState, agentStarted, unavailableReason);
+  const outcome = assistStatusOutcome(agentState, kind);
+  const headline = assistRunHeadline(payload, kind, outcome, unavailableReason);
   const html = assistBuildStatusHtml({
-    headline: unavailableReason && !String(headline).includes(unavailableReason)
-      ? `${headline}\n${unavailableReason}`
-      : headline,
-    taskId: payload.task_id || payload.task?.id,
-    agentState: payload.agent_state || payload.task?.agent_state,
-    lastMessage: payload.last_message || payload.task?.last_message,
+    headline,
     progress: payload.progress ?? payload.task?.progress,
     branch: payload.branch || payload.task?.branch,
     prUrl: payload.pr_url || payload.task?.pr_url,
+    outcome,
   });
-  const kind = assistStatusKind(payload.agent_state || payload.task?.agent_state, agentStarted, unavailableReason);
   if (panel) {
     panel.innerHTML = html;
     panel.hidden = false;
     panel.dataset.kind = kind;
+    panel.dataset.outcome = outcome;
   }
-  if (box) {
-    if (!_assistRunMsgEl || !box.contains(_assistRunMsgEl)) {
-      _assistRunMsgEl = document.createElement('div');
-      _assistRunMsgEl.className = 'assist-msg assist-msg-assist';
-      box.appendChild(_assistRunMsgEl);
-    }
-    _assistRunMsgEl.classList.remove('assist-msg-kind-run', 'assist-msg-kind-unavailable', 'assist-msg-kind-result');
-    _assistRunMsgEl.classList.add(`assist-msg-kind-${kind}`);
-    _assistRunMsgEl.innerHTML = `<div class="assist-msg-body">${assistEscape(headline)}</div>`;
-    box.scrollTop = box.scrollHeight;
-    assistSyncMessagesEmpty();
-  }
+  assistSyncMessagesEmpty();
 }
 
 async function assistRefreshRun(taskId) {
@@ -11355,6 +11432,9 @@ function initAssistUi() {
     assistSyncConnectButton();
   });
   document.getElementById('assistAgentDisconnectBtn')?.addEventListener('click', () => { void assistDisconnectAgent(); });
+  document.getElementById('assistRunPanel')?.addEventListener('click', (e) => {
+    if (e.target.closest('#assistRunDismissBtn')) assistClearRunPanel();
+  });
   document.querySelectorAll('.tab[data-tab]').forEach((btn) => {
     btn.addEventListener('click', () => setTimeout(assistRefreshContextChip, 0));
   });

@@ -12547,29 +12547,58 @@ details.flight-manage summary {
 .assist-run-panel {
   border: 1px solid rgba(148, 163, 184, 0.32);
   background: rgba(15, 23, 42, 0.42);
-  border-radius: 10px;
-  padding: 8px 10px;
+  border-radius: 12px;
+  padding: 12px 12px 10px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 .assist-run-panel[hidden] { display: none !important; }
+.assist-run-kicker {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: rgba(226, 232, 240, 0.78);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.assist-run-kicker::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(148, 163, 184, 0.7);
+  flex-shrink: 0;
+}
 .assist-run-headline {
   margin: 0;
-  font-size: 0.8rem;
+  font-size: 0.86rem;
+  font-weight: 700;
+  line-height: 1.4;
   color: #e2e8f0;
   white-space: pre-wrap;
 }
-.assist-status-row {
+.assist-run-facts {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.assist-run-fact {
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
+.assist-run-fact dt,
 .assist-status-label {
   font-size: 0.68rem;
   color: rgba(226, 232, 240, 0.7);
 }
+.assist-run-fact-value,
 .assist-status-value {
+  margin: 0;
   direction: ltr;
   unicode-bidi: isolate;
   text-align: start;
@@ -12580,6 +12609,27 @@ details.flight-manage summary {
   padding: 4px 6px;
   overflow-wrap: anywhere;
 }
+.assist-run-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.assist-run-actions .assist-btn {
+  flex: 1;
+  text-align: center;
+  text-decoration: none;
+}
+.assist-run-panel[data-kind="unavailable"] {
+  border-color: rgba(251, 191, 36, 0.45);
+  background: rgba(69, 26, 3, 0.35);
+}
+.assist-run-panel[data-kind="unavailable"] .assist-run-kicker,
+.assist-run-panel[data-kind="unavailable"] .assist-run-headline {
+  color: #fde68a;
+}
+.assist-run-panel[data-kind="unavailable"] .assist-run-kicker::before {
+  background: #fbbf24;
+}
 .assist-run-panel[data-kind="run"] {
   border-color: rgba(56, 189, 248, 0.35);
   background: rgba(8, 47, 73, 0.45);
@@ -12587,7 +12637,15 @@ details.flight-manage summary {
 .assist-run-panel[data-kind="run"] .assist-run-headline {
   color: #e0f2fe;
 }
-.assist-run-panel[data-kind="run"] .assist-status-label {
+.assist-run-panel[data-kind="run"] .assist-run-kicker {
+  color: rgba(224, 242, 254, 0.88);
+}
+.assist-run-panel[data-kind="run"] .assist-run-kicker::before {
+  background: #38bdf8;
+  box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.18);
+}
+.assist-run-panel[data-kind="run"] .assist-status-label,
+.assist-run-panel[data-kind="run"] .assist-run-fact dt {
   color: rgba(224, 242, 254, 0.7);
 }
 .assist-run-panel[data-kind="result"] {
@@ -12597,8 +12655,30 @@ details.flight-manage summary {
 .assist-run-panel[data-kind="result"] .assist-run-headline {
   color: #dcfce7;
 }
-.assist-run-panel[data-kind="result"] .assist-status-label {
+.assist-run-panel[data-kind="result"] .assist-run-kicker {
+  color: rgba(220, 252, 231, 0.88);
+}
+.assist-run-panel[data-kind="result"] .assist-run-kicker::before {
+  background: #4ade80;
+}
+.assist-run-panel[data-kind="result"] .assist-status-label,
+.assist-run-panel[data-kind="result"] .assist-run-fact dt {
   color: rgba(220, 252, 231, 0.75);
+}
+.assist-run-panel[data-outcome="failed"] {
+  border-color: rgba(248, 113, 113, 0.5);
+  background: rgba(69, 10, 10, 0.38);
+}
+.assist-run-panel[data-outcome="failed"] .assist-run-headline,
+.assist-run-panel[data-outcome="failed"] .assist-run-kicker {
+  color: #fecaca;
+}
+.assist-run-panel[data-outcome="failed"] .assist-run-kicker::before {
+  background: #f87171;
+}
+.assist-run-panel[data-outcome="cancelled"] {
+  border-color: rgba(148, 163, 184, 0.45);
+  background: rgba(30, 41, 59, 0.45);
 }
 .assist-msg-kind-run { border-color: rgba(56, 189, 248, 0.4); }
 .assist-msg-kind-unavailable { border-color: rgba(251, 191, 36, 0.45); }
