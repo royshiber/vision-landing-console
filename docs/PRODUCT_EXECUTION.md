@@ -173,7 +173,7 @@ On master today (PR #39 + PR #40):
 
 | PR | Topic | This map |
 |---|---|---|
-| This draft | Telemetry disconnected-first hierarchy | **In flight.** Extends #44 zoom-out to the Telemetry dash. Stay draft until VERIFY. Not a Human Gate. |
+| [#46](https://github.com/royshiber/vision-landing-console/pull/46) | Telemetry disconnected-first hierarchy | **This draft.** Extends #44 zoom-out to the Telemetry dash. Stay draft until VERIFY. Not a Human Gate. |
 | [#4](https://github.com/royshiber/vision-landing-console/pull/4) | PM orchestrator smoke | Skip. Low-value. Do not merge. |
 
 ### LANDED drafts (were open on the prior 2026-09-05 snapshot)
