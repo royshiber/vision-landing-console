@@ -1,26 +1,5 @@
 [
   {
-    "version": "1.02.256",
-    "date": "2026-09-06",
-    "changes": [
-      {
-        "type": "feat",
-        "title": "UI / app.js",
-        "detail": "app.js"
-      },
-      {
-        "type": "ui",
-        "title": "HTML layout",
-        "detail": "index.html"
-      },
-      {
-        "type": "test",
-        "title": "Tests",
-        "detail": "devtasks-evidence-strip.test.mjs, devtasks-hebrew-chrome.test.mjs"
-      }
-    ]
-  },
-  {
     "version": "1.02.255",
     "date": "2026-08-24",
     "changes": [
