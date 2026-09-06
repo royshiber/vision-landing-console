@@ -10090,11 +10090,7 @@ function maintRelActivationMessage(wire) {
 
 function maintRelSetBusy(busy, phase = '') {
   _maintRelBusy = busy === true;
-  const deployButtons = document.querySelectorAll('.maint-rel-deploy-btn');
-  deployButtons.forEach((b) => { b.disabled = _maintRelBusy; });
-  const rollbackBtn = document.getElementById('maintRelRollbackBtn');
   const backupBtn = document.getElementById('maintRelBackupBtn');
-  if (rollbackBtn) rollbackBtn.disabled = _maintRelBusy || !(_maintRelInventory?.previous?.release_id);
   if (backupBtn) backupBtn.disabled = _maintRelBusy;
   if (_maintRelBusy && phase) {
     maintRelSetEl('maintRelDeployState', maintRelDeployStateLabel(phase));
@@ -10154,8 +10150,6 @@ function maintRelRenderInventory(inv) {
   maintRelSetEl('maintRelPrevId', previous?.release_id);
   maintRelSetEl('maintRelPrevVersion', previous?.version);
   maintRelSetEl('maintRelPrevStatus', previous?.status);
-  const rollbackBtn = document.getElementById('maintRelRollbackBtn');
-  if (rollbackBtn) rollbackBtn.disabled = _maintRelBusy || !previous?.release_id;
 
   const tbody = document.getElementById('maintRelAvailableBody');
   const empty = document.getElementById('maintRelAvailableEmpty');
@@ -10169,21 +10163,9 @@ function maintRelRenderInventory(inv) {
   if (empty) empty.hidden = true;
   for (const rel of list) {
     const tr = document.createElement('tr');
-    const status = String(rel.status || '').toUpperCase();
-    const deployable = MAINT_REL_DEPLOYABLE.has(status);
-    const btn = deployable
-      ? `<button type="button" class="policy-btn maint-rel-deploy-btn" data-release-id="${rel.release_id || ''}" ${_maintRelBusy ? 'disabled' : ''}>התקנה</button>`
-      : '';
-    tr.innerHTML = `<td>${rel.release_id || '—'}</td><td>${rel.version || '—'}</td><td>${rel.status || '—'}</td><td>${maintRelFmtTime(rel.created_at)}</td><td>${rel.compatibility || '—'}</td><td title="${rel.sha256 || ''}">${maintRelFmtSha(rel.sha256)}</td><td>${maintRelFmtSize(rel.size_bytes ?? rel.size)}</td><td>${btn}</td>`;
+    tr.innerHTML = `<td>${rel.release_id || '—'}</td><td>${rel.version || '—'}</td><td>${rel.status || '—'}</td><td>${maintRelFmtTime(rel.created_at)}</td><td>${rel.compatibility || '—'}</td><td title="${rel.sha256 || ''}">${maintRelFmtSha(rel.sha256)}</td><td>${maintRelFmtSize(rel.size_bytes ?? rel.size)}</td>`;
     tbody.appendChild(tr);
   }
-  tbody.querySelectorAll('.maint-rel-deploy-btn').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const id = btn.dataset.releaseId;
-      const rel = list.find((r) => r.release_id === id);
-      if (rel) maintRelOpenDeployConfirm(rel);
-    });
-  });
 }
 
 function maintRelRenderBackups(wire) {
@@ -10242,9 +10224,7 @@ function maintRelSetUnavailable(note) {
   if (tbodyA) tbodyA.innerHTML = '';
   const emptyA = document.getElementById('maintRelAvailableEmpty');
   if (emptyA) { emptyA.hidden = false; emptyA.textContent = 'לא זמין'; }
-  const rollbackBtn = document.getElementById('maintRelRollbackBtn');
   const backupBtn = document.getElementById('maintRelBackupBtn');
-  if (rollbackBtn) rollbackBtn.disabled = true;
   if (backupBtn) backupBtn.disabled = true;
 }
 
@@ -10440,8 +10420,24 @@ async function maintRelExecuteBackup() {
   }
 }
 
+function maintRelOpenDevelopmentRelease() {
+  applyMainTab('development');
+  try { history.replaceState(null, '', '#development'); } catch { /* ignore */ }
+  const section = document.getElementById('devReleaseSection');
+  const panel = document.getElementById('development');
+  const visible = section && section.offsetParent !== null;
+  const target = visible ? section : panel;
+  if (target && typeof target.scrollIntoView === 'function') {
+    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  if (visible && typeof section.focus === 'function') {
+    if (!section.hasAttribute('tabindex')) section.setAttribute('tabindex', '-1');
+    section.focus({ preventScroll: true });
+  }
+}
+
 document.getElementById('maintRelBackupBtn')?.addEventListener('click', () => { void maintRelExecuteBackup(); });
-document.getElementById('maintRelRollbackBtn')?.addEventListener('click', () => maintRelOpenRollbackConfirm());
+document.getElementById('maintRelOpenDevReleaseBtn')?.addEventListener('click', () => maintRelOpenDevelopmentRelease());
 document.getElementById('maintRelConfirmCancel')?.addEventListener('click', () => maintRelCloseConfirm());
 document.getElementById('maintRelConfirmOk')?.addEventListener('click', () => {
   if (typeof _maintRelPendingAction === 'function') void _maintRelPendingAction();
