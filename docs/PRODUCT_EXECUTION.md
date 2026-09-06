@@ -121,7 +121,7 @@ Params persist on master via PR #18 + PR #30. Write-to-vehicle is still a Human 
 
 **Master:** `1.02.255` @ `560686c` (PR #50 merge — operator first-impression UX). Do not bump.  
 **Prior pointer:** 2026-09-06 post-#48 / #49 snapshot treated the UI/UX round as complete and next work as parked. That is superseded. #50 landed. #6 and #49 remain **LANDED**.  
-**This draft:** rewrite of this living snapshot after PR #50. Docs only. Do not bump `APP_VERSION`. Stay draft. Do not merge from this agent.
+**This draft:** [#51](https://github.com/royshiber/vision-landing-console/pull/51) rewrite of this living snapshot after PR #50. Docs only. Do not bump `APP_VERSION`. Stay draft. Do not merge from this agent.
 
 Ops (not product): WhatsApp Human Gate delivery remains available (signed in on the operator box targeting +972584010075, self-chat).
 
@@ -184,7 +184,7 @@ On master today (PR #33 + PR #34 + Hebrew Assist chrome from #50):
 
 | PR | Topic | This map |
 |---|---|---|
-| This draft | This snapshot rewrite | **This draft.** Docs only. Stay draft. Do not merge from this agent. Not a next-pick polish PR. |
+| [#51](https://github.com/royshiber/vision-landing-console/pull/51) | This snapshot rewrite | **This draft.** Docs only. Stay draft. Do not merge from this agent. Not a next-pick polish PR. |
 | [#4](https://github.com/royshiber/vision-landing-console/pull/4) | PM orchestrator smoke | Skip. Low-value. Do not merge. |
 
 ### Open issues
