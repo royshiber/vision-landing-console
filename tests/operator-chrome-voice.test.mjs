@@ -65,6 +65,7 @@ describe('Operator chrome voice and lab shelf', () => {
     expect(html).toMatch(/id="tabLabMenu"[^>]*\bhidden\b/);
     expect(css).toMatch(/\.tab-lab-menu\[hidden\]/);
     expect(css).toMatch(/\.tab-lab-toggle\b/);
+    expect(css).toMatch(/\.tabs:has\(\.tab-lab-group\.is-open\)/);
     expect(js).toContain('function initLabTabGroup(');
     expect(js).toContain('function syncLabTabGroup(');
     expect(js).toMatch(/function applyMainTab\([\s\S]*?syncLabTabGroup\(tabId\)/);

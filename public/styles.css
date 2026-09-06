@@ -259,6 +259,11 @@ h1 { margin: 0; font-size: 1.25rem; color: #ffffff; }
   isolation: isolate;
 }
 
+/* Why: overflow-x:auto computes overflow-y to auto and clips the Lab menu. */
+.tabs:has(.tab-lab-group.is-open) {
+  overflow: visible;
+}
+
 /* Stitch-inspired nav: clean uppercase labels, solid background for legibility */
 .tab {
   background: var(--surface-raised);
