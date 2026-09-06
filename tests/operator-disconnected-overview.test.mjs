@@ -75,7 +75,7 @@ describe('Disconnected-first operator overview', () => {
 
   it('uses the same Hebrew disconnected next-step tone across Assist, Companion, and Maintenance', () => {
     expect(html).toMatch(/id="assistAgentStatus"[^>]*>הסוכן מנותק\.</);
-    expect(html).toMatch(/id="assistAgentHint"[^>]*>כדי להריץ שינוי מאושר צריך לחבר את הסוכן\.</);
+    expect(html).toMatch(/id="assistAgentHint"[^>]*>חברו מפתח כדי לאשר שינוי\.</);
     expect(html).toMatch(/id="companionConnectStatus"[^>]*>המלווה מנותק</);
     expect(html).toMatch(/id="companionConnectHint"[^>]*>חיבור דורש כתובת ואסימון יחד\. כתובת לבד לא מחברת\.</);
     expect(html).toMatch(/id="maintNextStep"[^>]*>חברו מלווה בטלמטריה\. כתובת לבד לא מחברת\.</);
@@ -219,11 +219,57 @@ describe('Disconnected-first operator overview', () => {
     const overview = [
       sliceFunction(js, 'companionIsLive'),
       sliceFunction(js, 'companionSetLiveChrome'),
+      sliceFunction(js, 'operatorSyncFirstOpen'),
+      sliceFunction(js, 'operatorOpenFirstAction'),
       sliceFunction(js, 'teleSetOverview'),
       sliceFunction(js, 'maintSetOverview'),
       sliceFunction(js, 'devSyncEmptyOverview'),
     ].join('\n');
     expect(overview).not.toMatch(/\/apply|\/restart|ARM|DISARM|LAND|JETSON_COMPANION|CURSOR_API_KEY/);
     expect(html).not.toMatch(/id="companionApplyBtn"|id="companionRestartBtn"/);
+  });
+
+  it('ships Hebrew-first Assist chrome and a calm first-open next action', () => {
+    expect(html).toMatch(/class="assist-rail-title">מסייע</);
+    expect(html).toMatch(/assist-toggle-he">מסייע</);
+    expect(html).toMatch(/id="assistMessagesEmpty"[^>]*assist-empty-stage/);
+    expect(html).toMatch(/כתבו שאלה או בקשה/);
+    expect(html).toMatch(/שינוי דורש אישור/);
+    expect(html).toMatch(/companion-connect--hero/);
+    expect(html).toMatch(/data-first-action="assist"/);
+    expect(html).toMatch(/data-first-action="params"/);
+    expect(html).toMatch(/data-first-action="companion"/);
+    expect(html).toMatch(/data-tab="simLab"[^>]*\btab-lab\b|class="tab tab-lab"[^>]*data-tab="simLab"/);
+    expect(html).toMatch(/data-tab="advisor"[^>]*\btab-lab\b|class="tab tab-lab"[^>]*data-tab="advisor"/);
+    expect(html).toMatch(/data-tab="featureDesigner"[^>]*\btab-lab\b|class="tab tab-lab"[^>]*data-tab="featureDesigner"/);
+    expect(html).toMatch(/data-tab="flightEngineer"[^>]*\btab-lab\b|class="tab tab-lab"[^>]*data-tab="flightEngineer"/);
+    expect(html).toMatch(/data-tab="telemetry"[^>]*\btab-ops\b|class="tab tab-ops"[^>]*data-tab="telemetry"/);
+    expect(css).toMatch(/\.tab-lab\b/);
+    expect(css).toMatch(/\.companion-connect--hero\b/);
+    expect(css).toMatch(/\.assist-empty-stage\b/);
+    expect(css).toMatch(/\.first-open-stage-fill\b/);
+  });
+
+  it('hides first-open actions when Companion is live', () => {
+    const actions = { hidden: false };
+    const body = { classList: { toggled: null, toggle(name, on) { this.toggled = { name, on }; } } };
+    const document = {
+      body,
+      querySelectorAll(sel) {
+        if (sel === '.first-open-actions') return [actions];
+        return [];
+      },
+    };
+    const src = [
+      sliceFunction(js, 'operatorSyncFirstOpen'),
+      'operatorSyncFirstOpen(true);',
+      'const live = { hidden: document.querySelectorAll(".first-open-actions")[0].hidden, liveClass: document.body.classList.toggled };',
+      'operatorSyncFirstOpen(false);',
+      'return { live, idleHidden: document.querySelectorAll(".first-open-actions")[0].hidden };',
+    ].join('\n');
+    const result = new Function('document', src)(document);
+    expect(result.live.hidden).toBe(true);
+    expect(result.live.liveClass).toEqual({ name: 'operator-live', on: true });
+    expect(result.idleHidden).toBe(false);
   });
 });
