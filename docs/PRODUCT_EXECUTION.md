@@ -127,7 +127,7 @@ Architecture wave (docs/AIRVIX_PRODUCT_ARCHITECTURE.md): C10.2 Assist unificatio
 
 **Master:** `1.02.255` @ `9f4e05bc47ddd6fb07a94acfa0852bf7137841e1` (PR #54 merge — C10.3 Pulse home). Do not bump.  
 **Prior pointer:** 2026-09-06 post-#52 / #53 snapshot treated independent non-HG work as thin and waited on Roy design notes. That is superseded. #54 landed. Roy said continue and approved merge #54 after the Auto-review block. Design notes stay deferred. Architecture next phase is C10.4. #6, #50, #52, and #53 remain **LANDED**.  
-**This draft:** rewrite of this living snapshot after PR #54. Docs only. Do not bump `APP_VERSION`. Stay draft. Do not merge from this agent.
+**This draft:** [#55](https://github.com/royshiber/vision-landing-console/pull/55) rewrite of this living snapshot after PR #54. Docs only. Do not bump `APP_VERSION`. Stay draft. Do not merge from this agent.
 
 Ops (not product): WhatsApp Human Gate delivery remains available (signed in on the operator box targeting +972584010075, self-chat).
 
@@ -201,7 +201,7 @@ On master today (PR #33 + PR #34 + Hebrew Assist chrome from #50 + result card f
 
 | PR | Topic | This map |
 |---|---|---|
-| This draft | Snapshot rewrite after PR #54 | **This draft.** Docs only. Stay draft. Do not merge from this agent. Not a next-pick polish PR. |
+| [#55](https://github.com/royshiber/vision-landing-console/pull/55) | This snapshot rewrite | **This draft.** Docs only. Stay draft. Do not merge from this agent. Not a next-pick polish PR. |
 | [#4](https://github.com/royshiber/vision-landing-console/pull/4) | PM orchestrator smoke | Skip. Low-value. Do not merge. |
 
 ### Open issues
