@@ -50,6 +50,7 @@ describe('Operator chrome voice and lab shelf', () => {
 
   it('keeps ops tabs on the shelf and groups lab/fly tabs under מעבדה', () => {
     expect(html).toMatch(/class="tab tab-ops active"[^>]*data-tab="pulse"[^>]*>סקירה</);
+    expect(html).toMatch(/class="tab tab-ops"[^>]*data-tab="platform"[^>]*>פלטפורמה</);
     expect(html).toMatch(/class="tab tab-ops"[^>]*data-tab="control"[^>]*>פרמטרים</);
     expect(html).toMatch(/class="tab tab-ops"[^>]*data-tab="recordings"[^>]*>תחקור</);
     expect(html).toMatch(/class="tab tab-ops"[^>]*data-tab="telemetry"[^>]*>טלמטריה</);

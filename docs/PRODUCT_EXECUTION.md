@@ -101,7 +101,7 @@ Also locked without GO:
 
 Params persist on master via PR #18 + PR #30. Write-to-vehicle is still a Human Gate.
 
-Architecture wave (`docs/AIRVIX_PRODUCT_ARCHITECTURE.md`): C10.2 Assist unification landed; C10.3 Pulse home **LANDED** via PR #54; C10.4a Evolve taxonomy **LANDED** via PR #56; C10.4b Evolve evidence **LANDED** via PR #58; C10.4c-a Maintenance→Development release handoff **LANDED** via PR #61; leftover `#flights` folds into תחקור in this C10.5a draft. Remainder: C10.4c-b Jetson deploy-wire move stays deferred (#28).
+Architecture wave (`docs/AIRVIX_PRODUCT_ARCHITECTURE.md`): C10.2 Assist unification landed; C10.3 Pulse home **LANDED** via PR #54; C10.4a Evolve taxonomy **LANDED** via PR #56; C10.4b Evolve evidence **LANDED** via PR #58; C10.4c-a Maintenance→Development release handoff **LANDED** via PR #61; C10.5a leftover `#flights` fold **LANDED** via PR #62; C10.5b Platform capability shells is this draft. Remainder: C10.4c-b Jetson deploy-wire move stays deferred (#28).
 
 ---
 
@@ -124,7 +124,8 @@ Architecture wave (`docs/AIRVIX_PRODUCT_ARCHITECTURE.md`): C10.2 Assist unificat
 15. **C10.4c-a** Maintenance product-release authoring CTAs fold to a spoken-Hebrew Development handoff — **LANDED** via PR #61. Remainder: C10.4c-b Jetson deploy-wire move stays **deferred** (#28).
 16. 300+ hunt is **abandoned permanently**. GitHub public `master` is `1.02.255`. Improve GitHub 255. Measure by capabilities closed, not PR count.
 17. Skip leftover draft #4 (low-value smoke). Do not merge. Constitution #6 **LANDED** on master `e57eb28`. Prior map snapshots **LANDED** via PR #49 `1c7f8fa`, PR #51 `ba78623`, PR #53 `1c165e0`, PR #55 `db6fdc0`, and PR #57 `b724c76`.
-18. **C10.5a** leftover hidden `#flights` folds into תחקור לוגים — **this draft.**
+18. **C10.5a** leftover hidden `#flights` folds into תחקור לוגים — **LANDED** via PR #62.
+19. **C10.5b** Platform capability shells — **this draft.** One overview tab **פלטפורמה** links to existing Companion / Params / Maintenance. No new write paths.
 
 ---
 
@@ -260,4 +261,4 @@ Do not spend cycles on smoke #4, leftover disconnected chrome, version bump, 300
 
 ### Next pick (this snapshot)
 
-**C10.5a** leftover `#flights` folds into תחקור — this draft. C10.4c-a landed via #61. Remainder **C10.4c-b** Jetson deploy-wire move stays deferred (#28). Jetson live connect stays parked until Roy supplies the Companion token (days; Jetson `:8081` → 401 without it). Human Gates stay **WAITING FOR ROY**: #28 apply/restart, #29 live vehicle / auto-land. Merge autonomy still on for verified safe draft PRs. Measure by capabilities closed, not PR count. `APP_VERSION` stays `1.02.255`.
+**C10.5b** Platform capability shells is this draft. C10.5a leftover `#flights` fold landed via #62. Remainder **C10.4c-b** Jetson deploy-wire move stays deferred (#28). Jetson live connect stays parked until Roy supplies the Companion token (days; Jetson `:8081` → 401 without it). Human Gates stay **WAITING FOR ROY**: #28 apply/restart, #29 live vehicle / auto-land. Merge autonomy still on for verified safe draft PRs. Measure by capabilities closed, not PR count. `APP_VERSION` stays `1.02.255`.
