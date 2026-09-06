@@ -534,9 +534,9 @@
         </section>
         <div id="teleDashPanel" class="tele-subpanel visible" data-tele-panel="dash">
         <p id="companionLiveParked" class="operator-state-parked">סיכום המלווה יופיע אחרי חיבור. כתובת לבד לא מחברת.</p>
-        <div id="companionDashboardSummary" class="companion-dashboard-summary" hidden aria-label="סיכום Companion API">
-          <article class="tele-card"><span>Companion API</span><strong id="companionApiState">כבוי</strong></article>
-          <article class="tele-card"><span>גרסת Companion</span><strong id="companionApiVersion">—</strong></article>
+        <div id="companionDashboardSummary" class="companion-dashboard-summary" hidden aria-label="סיכום ממשק מלווה">
+          <article class="tele-card"><span>ממשק מלווה</span><strong id="companionApiState">כבוי</strong></article>
+          <article class="tele-card"><span>גרסת מלווה</span><strong id="companionApiVersion">—</strong></article>
           <article class="tele-card"><span>בקר טיסה</span><strong id="companionFcConnected">—</strong></article>
           <article class="tele-card"><span>ראייה</span><strong id="companionVisionHealth">—</strong></article>
           <article class="tele-card"><span>נחיתה לתצוגה</span><strong id="companionLandingDetected">—</strong></article>
@@ -549,8 +549,8 @@
               <article class="tele-card"><span>מצב קישור <span class="tele-q" title="מציין אם מתקבלים נתוני טלמטריה חיים מהמערכת">?</span></span><strong id="linkState">בודק...</strong></article>
               <article class="tele-card"><span>רענון אחרון <span class="tele-q" title="זמן העדכון האחרון שהתקבל בלקוח">?</span></span><strong id="lastRefresh">-</strong></article>
               <article class="tele-card"><span>אירועים <span class="tele-q" title="כמות אירועים זמינים בתצוגת האירועים">?</span></span><strong id="eventsCount">0</strong></article>
-              <article class="tele-card"><span>Vision Confidence <span class="tele-q" title="רמת הביטחון של זיהוי Vision בפריים האחרון">?</span></span><strong id="telemetryConfidence">--%</strong></article>
-              <article class="tele-card"><span>Auto Abort <span class="tele-q" title="מצב לוגיקת הביטול האוטומטי לפי ספי ביטחון">?</span></span><strong id="abortState">ממתין</strong></article>
+              <article class="tele-card"><span>ביטחון ראייה <span class="tele-q" title="רמת הביטחון של זיהוי הראייה בפריים האחרון">?</span></span><strong id="telemetryConfidence">--%</strong></article>
+              <article class="tele-card"><span>ביטול אוטומטי <span class="tele-q" title="מצב לוגיקת הביטול האוטומטי לפי ספי ביטחון">?</span></span><strong id="abortState">ממתין</strong></article>
               <article class="tele-card"><span>סטטוס בטיחות <span class="tele-q" title="סטטוס בטיחות מחושב לפי תנאי הביטחון הפעילים">?</span></span><strong id="safetyState">ממתין</strong></article>
               <article class="tele-card"><span>עיכוב Heartbeat <span class="tele-q" title="השהיה משוערת בין heartbeat מהכלי לבין התצוגה">?</span></span><strong id="heartbeatLatency">-</strong></article>
               <article class="tele-card"><span>איכות קישור <span class="tele-q" title="אומדן איכות קישור מחושב מהחטאות heartbeat">?</span></span><strong id="linkQuality">-</strong></article>
@@ -573,7 +573,7 @@
             <div class="tele-vision-group">
               <div class="tele-group-label">אלגוריתם Vision</div>
               <div class="tele-group-cards">
-                <article class="tele-card" data-vision-card><span>Confidence <span class="tele-q" title="ביטחון הזיהוי של אלגוריתם הראייה בפריים האחרון">?</span></span><strong id="visionConfidence">-</strong></article>
+                <article class="tele-card" data-vision-card><span>ביטחון <span class="tele-q" title="ביטחון הזיהוי של אלגוריתם הראייה בפריים האחרון">?</span></span><strong id="visionConfidence">-</strong></article>
                 <article class="tele-card" data-vision-card><span>סטייה רוחבית <span class="tele-q" title="הפרש רוחבי בין נתיב התמונה לנתיב הטיסה, במטרים">?</span></span><strong id="visionLateralOffset">-</strong></article>
                 <article class="tele-card" data-vision-card><span>שגיאת כיוון <span class="tele-q" title="הפרש זווית הכיוון בין Vision לבין כיוון הייחוס">?</span></span><strong id="visionHeadingError">-</strong></article>
                 <article class="tele-card" data-vision-card><span>גיל פריים <span class="tele-q" title="כמה זמן עבר מאז שהתקבל פריים Vision אחרון">?</span></span><strong id="visionFrameAge">-</strong></article>
@@ -592,7 +592,7 @@
               <article class="tele-card" data-slam-card><span>VIO ביטחון <span class="tele-q" title="רמת ביטחון אמידת המיקום החזותי-אינרציאלי">?</span></span><strong id="terrainNavStatus">—</strong></article>
               <article class="tele-card" data-slam-card><span>מיקום (X,Y,Z) <span class="tele-q" title="מיקום SLAM ביחס למסגרת המקומית של המפה">?</span></span><strong id="slamPos">לא פעיל</strong></article>
               <article class="tele-card" data-slam-card><span>איכות מפה <span class="tele-q" title="מד איכות מפת SLAM שנבנית במהלך תנועה">?</span></span><strong id="slamQuality">-</strong></article>
-              <article class="tele-card" data-slam-card><span>Loop Closures <span class="tele-q" title="כמות סגירות לולאה שנמצאו לשיפור דיוק המפה">?</span></span><strong id="slamLoopClosures">-</strong></article>
+              <article class="tele-card" data-slam-card><span>סגירות לולאה <span class="tele-q" title="כמות סגירות לולאה שנמצאו לשיפור דיוק המפה">?</span></span><strong id="slamLoopClosures">-</strong></article>
               <article class="tele-card" data-slam-card><span>גיל נתון <span class="tele-q" title="כמה זמן עבר מאז שדגימת SLAM אחרונה התקבלה">?</span></span><strong id="slamAge">לא פעיל</strong></article>
             </div>
           </div>
@@ -610,14 +610,14 @@
             <div class="jetson-stitch-body">
               <div class="jst-metric">
                 <div class="jst-metric-head">
-                  <span class="jst-label">CPU Load</span>
+                  <span class="jst-label">עומס מעבד</span>
                   <span id="jetsonCpu" class="jst-value">—</span>
                 </div>
                 <div class="jst-bar-track"><div id="jetsonCpuBar" class="jst-bar jst-bar--primary"></div></div>
               </div>
               <div class="jst-metric">
                 <div class="jst-metric-head">
-                  <span class="jst-label">RAM</span>
+                  <span class="jst-label">זיכרון</span>
                   <span id="jetsonMem" class="jst-value">—</span>
                 </div>
                 <div class="jst-bar-track"><div id="jetsonMemBar" class="jst-bar jst-bar--teal"></div></div>
@@ -653,7 +653,7 @@
         <!-- Jetson version management row — collapsible to save vertical space -->
         <details class="jetson-version-details" aria-label="ניהול גרסת קוד Jetson">
           <summary class="jetson-version-summary">
-            <span>גרסה להתקנה / Rollback</span>
+            <span>גרסה להתקנה או שחזור</span>
             <span class="jetson-version-summary-hint">פתח לניהול גרסה</span>
           </summary>
           <div class="jetson-version-row">
@@ -673,11 +673,11 @@
             </div>
             <div class="jetson-version-row-right">
               <label class="jvr-select-label">
-                <span class="jvr-label">גרסה להתקנה / Rollback</span>
+                <span class="jvr-label">גרסה להתקנה או שחזור</span>
                 <select id="jetsonTargetVersionSelect" class="jetson-version-select jvr-select" title="גרסאות מהמאגר המסונכרן לפרויקט"></select>
               </label>
               <button type="button" id="jetsonInstallBtn" class="btn-jetson-install jvr-install-btn" title="מבצע התקנה לפי הבחירה">
-                התקן / Rollback
+                התקן או שחזר
               </button>
             </div>
           </div>
@@ -721,7 +721,7 @@
         </div>
 
         <div id="teleCompanionPanel" class="tele-subpanel companion-b2-panel" data-tele-panel="companion">
-          <p class="tele-dash-note">תצוגה בלבד מנתוני Companion API ללא פקודות טיסה או כתיבות</p>
+          <p class="tele-dash-note">תצוגה בלבד מנתוני המלווה. אין פקודות טיסה ואין כתיבות</p>
           <p id="companionB2Parked" class="operator-state-parked">נתוני מלווה יופיעו אחרי חיבור. כתובת לבד לא מחברת.</p>
           <div id="companionB2Grid" class="companion-section-grid" hidden>
             <section class="companion-b2-section">
@@ -843,10 +843,10 @@
           <div id="maintLiveSections" hidden>
           <h4 class="maint-group-title">תוכנה</h4>
           <div class="tele-group-cards">
-            <article class="tele-card"><span>גרסת Companion</span><strong id="maintCompanionVersion">—</strong></article>
-            <article class="tele-card"><span>Git commit</span><strong id="maintGitCommit">—</strong></article>
-            <article class="tele-card"><span>Git branch</span><strong id="maintGitBranch">—</strong></article>
-            <article class="tele-card"><span>Git clean</span><strong id="maintGitClean">—</strong></article>
+            <article class="tele-card"><span>גרסת מלווה</span><strong id="maintCompanionVersion">—</strong></article>
+            <article class="tele-card"><span>קומיט</span><strong id="maintGitCommit">—</strong></article>
+            <article class="tele-card"><span>ענף</span><strong id="maintGitBranch">—</strong></article>
+            <article class="tele-card"><span>עץ נקי</span><strong id="maintGitClean">—</strong></article>
             <article class="tele-card"><span>קבצים שהשתנו</span><strong id="maintChangedFiles">—</strong></article>
           </div>
 
@@ -854,17 +854,17 @@
           <div class="tele-group-cards">
             <article class="tele-card"><span>מעבד</span><strong id="maintCpu">—</strong></article>
             <article class="tele-card"><span>זיכרון</span><strong id="maintMem">—</strong></article>
-            <article class="tele-card"><span>GPU</span><strong id="maintGpu">—</strong></article>
+            <article class="tele-card"><span>מעבד גרפי</span><strong id="maintGpu">—</strong></article>
             <article class="tele-card"><span>טמפרטורה</span><strong id="maintTemp">—</strong></article>
             <article class="tele-card"><span>דיסק</span><strong id="maintDisk">—</strong></article>
           </div>
 
-          <h4 class="maint-group-title">Companion</h4>
+          <h4 class="maint-group-title">מלווה</h4>
           <div class="tele-group-cards">
-            <article class="tele-card"><span>מצב Console</span><strong id="maintCompanionMode">—</strong></article>
-            <article class="tele-card"><span>גרסת API</span><strong id="maintApiVersion">—</strong></article>
-            <article class="tele-card"><span>API פעיל</span><strong id="maintApiRunning">—</strong></article>
-            <article class="tele-card"><span>API נגיש</span><strong id="maintApiReachable">—</strong></article>
+            <article class="tele-card"><span>מצב מסוף</span><strong id="maintCompanionMode">—</strong></article>
+            <article class="tele-card"><span>גרסת ממשק</span><strong id="maintApiVersion">—</strong></article>
+            <article class="tele-card"><span>ממשק פעיל</span><strong id="maintApiRunning">—</strong></article>
+            <article class="tele-card"><span>ממשק נגיש</span><strong id="maintApiReachable">—</strong></article>
           </div>
           <p id="maintCompanionConnectStatus" class="tele-dash-note" hidden>המלווה מנותק</p>
           <p id="maintCompanionTokenHint" class="assist-agent-key-hint" hidden dir="ltr"></p>
@@ -879,7 +879,7 @@
           </div>
 
           <h4 class="maint-group-title">ניהול גרסאות</h4>
-          <p id="maintRelMockBadge" class="maint-rel-mock-badge" hidden>MOCK</p>
+          <p id="maintRelMockBadge" class="maint-rel-mock-badge" hidden>מדומה</p>
           <p class="tele-dash-note" id="maintRelStatusNote">—</p>
           <p class="maint-rel-deploy-state"><span>מצב פריסה:</span> <strong id="maintRelDeployState">—</strong></p>
 
@@ -901,7 +901,7 @@
           <h5 class="maint-sub-title">גרסאות זמינות</h5>
           <div class="maint-diag-wrap">
             <table class="maint-diag-table" id="maintRelAvailableTable">
-              <thead><tr><th>מזהה</th><th>גרסה</th><th>מצב</th><th>נוצר</th><th>תאימות</th><th>SHA256</th><th>גודל</th><th></th></tr></thead>
+              <thead><tr><th>מזהה</th><th>גרסה</th><th>מצב</th><th>נוצר</th><th>תאימות</th><th>חתימה</th><th>גודל</th><th></th></tr></thead>
               <tbody id="maintRelAvailableBody"></tbody>
             </table>
             <p id="maintRelAvailableEmpty" class="maint-diag-empty">אין גרסאות</p>
@@ -910,7 +910,7 @@
           <h4 class="maint-group-title">גיבויים</h4>
           <div class="maint-diag-wrap">
             <table class="maint-diag-table" id="maintRelBackupsTable">
-              <thead><tr><th>מזהה גיבוי</th><th>נוצר</th><th>גרסה</th><th>SHA256</th></tr></thead>
+              <thead><tr><th>מזהה גיבוי</th><th>נוצר</th><th>גרסה</th><th>חתימה</th></tr></thead>
               <tbody id="maintRelBackupsBody"></tbody>
             </table>
             <p id="maintRelBackupsEmpty" class="maint-diag-empty">אין גיבויים</p>
@@ -1066,7 +1066,7 @@
                 <article class="tele-card"><span>מצב</span><strong id="devReleaseState">—</strong></article>
                 <article class="tele-card"><span>מזהה גרסה</span><strong id="devReleaseId">—</strong></article>
                 <article class="tele-card"><span>גרסה</span><strong id="devReleaseVersion">—</strong></article>
-                <article class="tele-card"><span>SHA256</span><strong id="devReleaseSha256">—</strong></article>
+                <article class="tele-card"><span>חתימה</span><strong id="devReleaseSha256">—</strong></article>
                 <article class="tele-card"><span>קומיט מקור</span><strong id="devReleaseSourceCommit">—</strong></article>
                 <article class="tele-card"><span>נוצר</span><strong id="devReleaseCreatedAt">—</strong></article>
               </div>
