@@ -4953,7 +4953,7 @@ body.operator-live .companion-connect--hero {
   margin-inline-start: auto;
 }
 .devtasks-evidence {
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
   margin-bottom: 10px;
 }
 .devtasks-evidence .tele-card {
@@ -4968,16 +4968,6 @@ body.operator-live .companion-connect--hero {
   -webkit-box-orient: vertical;
   line-height: 1.25;
   word-break: break-word;
-}
-@media (max-width: 900px) {
-  .devtasks-evidence {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-}
-@media (max-width: 560px) {
-  .devtasks-evidence {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
 }
 .devtasks-title {
   font-size: 0.95rem;
