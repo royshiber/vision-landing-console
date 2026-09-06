@@ -53,6 +53,19 @@ describe('Disconnected-first operator overview', () => {
     expect(css).toMatch(/display:\s*none\s*!important/);
   });
 
+  it('collapses Telemetry dash walls behind a parked STATUS plus NEXT overview', () => {
+    expect(html).toMatch(/<section id="telemetry"[\s\S]*?<h3>טלמטריה<\/h3>/);
+    expect(tag('teleOperatorBanner')).toMatch(/data-state="disconnected"/);
+    expect(html).toMatch(/id="teleStatusBadge"[^>]*>המלווה מנותק</);
+    expect(html).toMatch(/id="teleNextStep"[^>]*>חברו מלווה בטלמטריה\. כתובת לבד לא מחברת\.</);
+    expect(html).toMatch(/id="teleLiveParked"[^>]*>נתוני טלמטריה יופיעו אחרי חיבור מלווה\.</);
+    expect(tag('teleLiveSections')).toMatch(/\bhidden\b/);
+    expect(html).toMatch(/id="teleLiveSections"[^>]*>[\s\S]*class="telemetry-dashboard"/);
+    expect(css).toMatch(/#teleLiveSections\[hidden\]/);
+    expect(css).toMatch(/#teleLiveParked\[hidden\]/);
+    expect(css).toMatch(/#teleNextStep\[hidden\]/);
+  });
+
   it('keeps Development empty list as the next step and hides unused detail chrome', () => {
     expect(html).toMatch(/id="devTaskListEmpty"[^>]*>אין משימות\. צרו משימה למעלה\.</);
     expect(tag('devTaskFilters')).toMatch(/\bhidden\b/);
@@ -66,6 +79,7 @@ describe('Disconnected-first operator overview', () => {
     expect(html).toMatch(/id="companionConnectStatus"[^>]*>המלווה מנותק</);
     expect(html).toMatch(/id="companionConnectHint"[^>]*>חיבור דורש כתובת ואסימון יחד\. כתובת לבד לא מחברת\.</);
     expect(html).toMatch(/id="maintNextStep"[^>]*>חברו מלווה בטלמטריה\. כתובת לבד לא מחברת\.</);
+    expect(html).toMatch(/id="teleNextStep"[^>]*>חברו מלווה בטלמטריה\. כתובת לבד לא מחברת\.</);
     expect(html).toMatch(/id="assistAgentConnect"[^>]*\boperator-state\b/);
     expect(html).toMatch(/id="companionConnect"[^>]*\boperator-state\b/);
   });
@@ -155,10 +169,57 @@ describe('Disconnected-first operator overview', () => {
     expect(result.detailHidden).toBe(false);
   });
 
+  it('collapses Telemetry walls until live and reveals them on the live path', () => {
+    const teleLive = { hidden: true };
+    const teleParked = { hidden: false };
+    const next = { hidden: false, textContent: '' };
+    const badge = { textContent: '', className: '' };
+    const banner = { dataset: { state: 'disconnected' } };
+    const summary = { hidden: true };
+    const summaryParked = { hidden: false };
+    const b2Grid = { hidden: true };
+    const b2Parked = { hidden: false };
+    const document = {
+      getElementById(id) {
+        if (id === 'teleOperatorBanner') return banner;
+        if (id === 'teleStatusBadge') return badge;
+        if (id === 'teleNextStep') return next;
+        if (id === 'teleLiveParked') return teleParked;
+        if (id === 'teleLiveSections') return teleLive;
+        if (id === 'companionDashboardSummary') return summary;
+        if (id === 'companionLiveParked') return summaryParked;
+        if (id === 'companionB2Grid') return b2Grid;
+        if (id === 'companionB2Parked') return b2Parked;
+        return null;
+      },
+    };
+    const src = [
+      sliceFunction(js, 'companionSetLiveChrome'),
+      sliceFunction(js, 'teleSetOverview'),
+      'teleSetOverview({ live: false, statusHe: "המלווה מנותק", nextHe: "חברו מלווה בטלמטריה. כתובת לבד לא מחברת.", state: "disconnected" });',
+      'companionSetLiveChrome(false);',
+      'const collapsed = { liveHidden: document.getElementById("teleLiveSections").hidden, parkedHidden: document.getElementById("teleLiveParked").hidden, next: document.getElementById("teleNextStep").textContent, state: document.getElementById("teleOperatorBanner").dataset.state };',
+      'teleSetOverview({ live: true, statusHe: "המלווה במצב מדומה", nextHe: "", state: "ok" });',
+      'companionSetLiveChrome(true);',
+      'return { collapsed, liveHidden: document.getElementById("teleLiveSections").hidden, parkedHidden: document.getElementById("teleLiveParked").hidden, nextHidden: document.getElementById("teleNextStep").hidden, status: document.getElementById("teleStatusBadge").textContent, summaryHidden: document.getElementById("companionDashboardSummary").hidden };',
+    ].join('\n');
+    const result = new Function('document', src)(document);
+    expect(result.collapsed.liveHidden).toBe(true);
+    expect(result.collapsed.parkedHidden).toBe(false);
+    expect(result.collapsed.next).toContain('חברו מלווה בטלמטריה');
+    expect(result.collapsed.state).toBe('disconnected');
+    expect(result.liveHidden).toBe(false);
+    expect(result.parkedHidden).toBe(true);
+    expect(result.nextHidden).toBe(true);
+    expect(result.status).toBe('המלווה במצב מדומה');
+    expect(result.summaryHidden).toBe(false);
+  });
+
   it('does not add apply, restart, flight-command, or token-invent paths', () => {
     const overview = [
       sliceFunction(js, 'companionIsLive'),
       sliceFunction(js, 'companionSetLiveChrome'),
+      sliceFunction(js, 'teleSetOverview'),
       sliceFunction(js, 'maintSetOverview'),
       sliceFunction(js, 'devSyncEmptyOverview'),
     ].join('\n');
