@@ -123,7 +123,7 @@ Params persist on master via PR #18 + PR #30. Write-to-vehicle is still a Human 
 
 **Master:** `1.02.255` @ `042c095` (PR #52 merge — Assist connected progress/result card). Do not bump.  
 **Prior pointer:** 2026-09-06 post-#50 / #51 snapshot treated the Assist connected result surface as the next independent GAP. That is superseded. #52 landed. Milestone B remainder is closed. #6, #49, #50, and #51 remain **LANDED**.  
-**This draft:** rewrite of this living snapshot after PR #52. Docs only. Do not bump `APP_VERSION`. Stay draft. Do not merge from this agent.
+**This draft:** [#53](https://github.com/royshiber/vision-landing-console/pull/53) rewrite of this living snapshot after PR #52. Docs only. Do not bump `APP_VERSION`. Stay draft. Do not merge from this agent.
 
 Ops (not product): WhatsApp Human Gate delivery remains available (signed in on the operator box targeting +972584010075, self-chat).
 
@@ -190,7 +190,7 @@ On master today (PR #33 + PR #34 + Hebrew Assist chrome from #50 + result card f
 
 | PR | Topic | This map |
 |---|---|---|
-| This draft | This snapshot rewrite | **This draft.** Docs only. Stay draft. Do not merge from this agent. Not a next-pick polish PR. |
+| [#53](https://github.com/royshiber/vision-landing-console/pull/53) | This snapshot rewrite | **This draft.** Docs only. Stay draft. Do not merge from this agent. Not a next-pick polish PR. |
 | [#4](https://github.com/royshiber/vision-landing-console/pull/4) | PM orchestrator smoke | Skip. Low-value. Do not merge. |
 
 ### Open issues
