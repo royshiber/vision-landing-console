@@ -1,31 +1,5 @@
 [
   {
-    "version": "1.02.256",
-    "date": "2026-09-06",
-    "changes": [
-      {
-        "type": "feat",
-        "title": "Server library",
-        "detail": "assist-service.mjs, cursor-task-prompt.mjs, development-agent-service.mjs, development-task-store.mjs, development-tasks-api.mjs"
-      },
-      {
-        "type": "feat",
-        "title": "UI / app.js",
-        "detail": "app.js"
-      },
-      {
-        "type": "ui",
-        "title": "HTML layout",
-        "detail": "index.html"
-      },
-      {
-        "type": "test",
-        "title": "Tests",
-        "detail": "assist.test.mjs, cursor-sdk-coding-agent-provider.test.mjs, development-task-store.test.mjs, development-tasks-api.test.mjs, development-tasks-empty-labels.test.mjs, devtasks-hebrew-app-copy.test.mjs, devtasks-hebrew-chrome.test.mjs"
-      }
-    ]
-  },
-  {
     "version": "1.02.255",
     "date": "2026-08-24",
     "changes": [
