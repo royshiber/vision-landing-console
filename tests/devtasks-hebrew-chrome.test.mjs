@@ -79,4 +79,24 @@ describe('Development Tasks Hebrew chrome', () => {
     expect(panel).not.toContain('Development Tasks');
     expect(panel).not.toContain('Task Detail');
   });
+
+  it('uses Hebrew labels on the Development evidence strip', () => {
+    const strip = capture(
+      html,
+      /<div id="devEvidenceStrip"[^>]*>([\s\S]*?)<\/div>/,
+      'missing #devEvidenceStrip',
+    )[0];
+    expect(strip).toContain('<span>מה</span>');
+    expect(strip).toContain('<span>למה</span>');
+    expect(strip).toContain('<span>מצב</span>');
+    expect(strip).toContain('<span>בדיקות</span>');
+    expect(strip).toContain('<span>גרסה</span>');
+    expect(strip).toContain('<span>גרסה רצה</span>');
+    expect(strip).not.toContain('ראיות');
+    expect(strip).not.toContain('מה שחשוב');
+    expect(strip).not.toContain('בלבד');
+    expect(strip).not.toMatch(/>\s*What\s*</);
+    expect(strip).not.toMatch(/>\s*Why\s*</);
+    expect(strip).not.toMatch(/>\s*Release\s*</);
+  });
 });

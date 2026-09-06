@@ -4952,6 +4952,23 @@ body.operator-live .companion-connect--hero {
 .devtasks-open {
   margin-inline-start: auto;
 }
+.devtasks-evidence {
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  margin-bottom: 10px;
+}
+.devtasks-evidence .tele-card {
+  min-width: 0;
+}
+.devtasks-evidence .tele-card strong {
+  font-size: 0.78rem;
+  font-weight: 700;
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  line-height: 1.25;
+  word-break: break-word;
+}
 .devtasks-title {
   font-size: 0.95rem;
   font-weight: 700;
