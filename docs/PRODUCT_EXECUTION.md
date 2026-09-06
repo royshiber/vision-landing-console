@@ -116,16 +116,17 @@ Params persist on master via PR #18 + PR #30. Write-to-vehicle is still a Human 
 
 ---
 
-## Audit snapshot — 2026-09-06 (post #46 land)
+## Audit snapshot — 2026-09-06 (post #47 land)
 
-**Master:** `1.02.255` @ `f278bff` (PR #46 merge — Telemetry disconnected-first). Parent includes PR #45 `5d9d8ce` (Hebrew leftover operator chrome) and PR #44 `c737aa3` (disconnected-first / zoom-out on Maintenance / Companion / Development). Do not bump.  
-**Prior pointer:** 2026-09-06 post-#45 snapshot listed Telemetry disconnected-first as this draft. That is superseded. #46 is now **LANDED**. #6 and #32 remain **LANDED**.  
-**This draft:** Params Hebrew leftover labels (operator-visible PARAMS list + abort-tab chrome). Copy-only. Do not bump `APP_VERSION`.
+**Master:** `1.02.255` @ `9fd0ce7` (PR #47 merge — Params Hebrew leftover labels). Parent includes PR #46 `f278bff` (Telemetry disconnected-first), PR #45 `5d9d8ce` (Hebrew leftover operator chrome), and PR #44 `c737aa3` (disconnected-first / zoom-out on Maintenance / Companion / Development). Do not bump.  
+**Prior pointer:** 2026-09-06 post-#46 snapshot listed Params Hebrew leftover labels as this draft. That is superseded. #47 is now **LANDED**. #6 and #32 remain **LANDED**.  
+**This draft:** PROCESS_STEPS Hebrew leftovers (landing checklist / process-step titles + nearby checklist chrome). Copy-only. Do not bump `APP_VERSION`.
 
 Ops (not product): WhatsApp Human Gate delivery is signed in on the operator box targeting +972584010075 (self-chat).
 
 ### LANDED since the stale snapshot (true)
 
+- PR #47 Params Hebrew leftover labels → master `9fd0ce7`.
 - PR #46 Telemetry disconnected-first hierarchy → master `f278bff`.
 - PR #45 Hebrew leftover operator chrome on Telemetry + Maintenance → master `5d9d8ce`.
 - PR #44 disconnected-first / zoom-out operator overview on Maintenance / Companion / Development → master `c737aa3`.
@@ -174,13 +175,14 @@ On master today (PR #39 + PR #40):
 
 | PR | Topic | This map |
 |---|---|---|
-| [#47](https://github.com/royshiber/vision-landing-console/pull/47) | Params Hebrew leftover labels | **This draft.** Copy-only PARAMS list + abort-tab chrome. Stay draft until VERIFY. Not a Human Gate. Do not merge from this agent. |
+| this draft | PROCESS_STEPS Hebrew leftovers | **This draft.** Copy-only landing checklist / process-step titles + nearby checklist chrome. Stay draft until VERIFY. Not a Human Gate. Do not merge from this agent. |
 | [#4](https://github.com/royshiber/vision-landing-console/pull/4) | PM orchestrator smoke | Skip. Low-value. Do not merge. |
 
 ### LANDED drafts (were open on the prior 2026-09-05 snapshot)
 
 | PR | Topic | This map |
 |---|---|---|
+| [#47](https://github.com/royshiber/vision-landing-console/pull/47) | Params Hebrew leftover labels | **LANDED** on master `9fd0ce7`. Not an open draft. |
 | [#46](https://github.com/royshiber/vision-landing-console/pull/46) | Telemetry disconnected-first hierarchy | **LANDED** on master `f278bff`. Not an open draft. |
 | [#6](https://github.com/royshiber/vision-landing-console/pull/6) | `AGENTS.md` constitution + Merge Autonomy + Decision Option Hints | **LANDED** on master `e57eb28`. Not an open draft. |
 | [#32](https://github.com/royshiber/vision-landing-console/pull/32) | This living map | **LANDED** on master `6d8fbbf`. Not an open draft. |
@@ -214,8 +216,8 @@ Roy 2026-09-05: abandon searching the local tree for versions past 300 **permane
 
 ### Explicitly not next
 
-Do not spend cycles on smoke #4, more leftover Hebrew chrome beyond this Params labels draft, version bump, 300+ hunt, inventing a Companion token, Jetson apply/restart, or flight commands. #46 Telemetry disconnected-first is landed. #45 leftover chrome is landed. #44 zoom-out is landed on Maintenance / Companion / Development. Do not invent a token. Do not fake a live Jetson connect.
+Do not spend cycles on smoke #4, more leftover Hebrew chrome beyond this PROCESS_STEPS draft, version bump, 300+ hunt, inventing a Companion token, Jetson apply/restart, or flight commands. #47 Params labels is landed. #46 Telemetry disconnected-first is landed. #45 leftover chrome is landed. #44 zoom-out is landed on Maintenance / Companion / Development. Do not invent a token. Do not fake a live Jetson connect. Jetson remains parked on the Companion token. Human Gates stay **WAITING FOR ROY**: #28 apply/restart, #29 live vehicle / auto-land.
 
 ### Next pick (this snapshot)
 
-**This draft = Params Hebrew leftover labels.** Translate remaining English operator-visible PARAMS labels (example: `Cross Track Gain`) and abort-tab chrome. Keys / wire / FC enums stay English. Jetson still parked on the Companion token. Do not invent a token. Human Gates stay **WAITING FOR ROY**: #28 apply/restart, #29 live vehicle / auto-land. `APP_VERSION` stays `1.02.255`. Do not ask Roy what to work on next.
+**This draft = PROCESS_STEPS Hebrew leftovers.** Translate remaining English fragments inside operator-visible landing checklist / process-step titles (Vision / Confidence / Final / Cross Track / Abort / Flare) and the nearby checklist chrome that mixes the same words into Hebrew. JS identifiers / enums / wire keys stay English. Jetson still parked on the Companion token. Do not invent a token. Human Gates stay **WAITING FOR ROY**: #28 apply/restart, #29 live vehicle / auto-land. `APP_VERSION` stays `1.02.255`. Do not ask Roy what to work on next.
