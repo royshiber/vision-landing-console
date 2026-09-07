@@ -85,8 +85,9 @@
   --tele-card-shadow: var(--shadow-card);
   --tele-panel-shadow: var(--shadow-panel);
 
-  /* Stacking: chrome (header) above main content tabs/panels; modals above chrome */
+  /* Stacking: ops chrome above panels; connect float above chrome; modals above all */
   --z-topbar-chrome: 200;
+  --z-connect-float: 520;
   --z-modal-overlay: 9800;
 }
 
@@ -116,50 +117,65 @@ h1, h2, .panel-header h2 {
   letter-spacing: -0.02em;
 }
 
-.topbar {
+.app-chrome {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 0 16px;
+  gap: 10px;
+  padding: 8px 14px;
+  padding-inline-end: 168px;
   border-bottom: 1px solid var(--border);
-  background: linear-gradient(135deg, #0a1628 0%, #001a4d 50%, #00305a 100%);
-  min-height: 60px;
+  background: var(--surface);
+  min-height: 48px;
   flex-shrink: 0;
-  gap: 12px;
   position: relative;
   z-index: var(--z-topbar-chrome);
 }
 
-h1 { margin: 0; font-size: 1.25rem; color: #ffffff; }
-.subtitle { margin: 2px 0 0; color: rgba(255,255,255,0.55); font-size: 0.78rem; }
-.topbar-right {
+.app-chrome .tabs {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding-bottom: 0;
+}
+
+.app-chrome-tools {
   display: flex;
   align-items: center;
   gap: 6px;
-  flex-wrap: nowrap;
-  max-width: calc(100% - 220px);
-  min-width: 0;
-  overflow: visible;
-}
-
-/* Horizontal scroll only for HUD chips — connect panel must not be clipped (was overflow-y:hidden on parent) */
-.topbar-right-scroll {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex: 1;
-  min-width: 0;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-
-.topbar-right-scroll::-webkit-scrollbar { display: none; }
-
-/* Keep connect + version visible when the HUD strip scrolls horizontally */
-.topbar-right > .connect-widget,
-.topbar-right > .badge.clickable {
   flex-shrink: 0;
+  margin-inline-start: auto;
 }
+
+.app-chrome .badge {
+  background: var(--surface-container-high);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+}
+
+.app-chrome .global-settings-btn {
+  border: 1px solid var(--border);
+  background: var(--surface-container-low);
+  color: var(--text);
+}
+
+.app-chrome .global-settings-btn:hover {
+  background: var(--surface-container-high);
+}
+
+.app-chrome .assist-toggle-btn {
+  flex-direction: row;
+  padding: 5px 10px;
+  border: 1px solid rgba(5, 150, 105, 0.28);
+  background: #ecfdf5;
+  color: #065f46;
+}
+
+.app-chrome .assist-toggle-btn[aria-expanded="true"] {
+  background: #d1fae5;
+  border-color: #059669;
+}
+
+h1 { margin: 0; font-size: 1.25rem; color: var(--text); }
+.subtitle { margin: 2px 0 0; color: var(--text-muted); font-size: 0.78rem; }
 
 .confidence-hud {
   display: flex;
@@ -238,11 +254,16 @@ h1 { margin: 0; font-size: 1.25rem; color: #ffffff; }
   min-height: 0;
   width: 100%;
   margin: 0 auto;
-  padding: 10px 14px 12px;
+  padding: 8px 14px 12px;
   display: flex;
   flex-direction: column;
   gap: 10px;
   overflow: hidden;
+}
+
+body:has(#terrain.panel.visible) .layout {
+  max-width: none;
+  padding-inline: 10px;
 }
 
 /* Why: tabs must stay above panel content if anything overlaps (stacking / RTL); what: shrink-disabled chrome row with explicit stacking. */
@@ -1384,8 +1405,8 @@ h1 { margin: 0; font-size: 1.25rem; color: #ffffff; }
 
 /* 1366x768-like screens: tighten chrome, preserve readable cards, avoid clipping. */
 @media (max-height: 820px) {
-  .layout { padding-top: 8px; gap: 8px; }
-  .topbar { min-height: 56px; padding: 8px 14px; }
+  .layout { padding-top: 6px; gap: 8px; }
+  .app-chrome { min-height: 44px; padding: 6px 12px; padding-inline-end: 160px; }
   .tabs { padding-bottom: 2px; }
   .tab { padding: 6px 11px; font-size: 0.68rem; }
   .subtab { padding: 5px 10px; font-size: 0.72rem; }
@@ -3119,9 +3140,8 @@ button:hover,
     grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
     gap: 10px;
   }
-  .topbar { min-height: 56px; }
+  .app-chrome { min-height: 44px; }
   .layout { flex: 1 1 0; min-height: 0; }
-  .confidence-hud { display: none; }
 }
 
 /* Jetson */
@@ -6774,23 +6794,188 @@ body.operator-live .companion-connect--hero {
   outline: none;
 }
 
-/* ── Free-Flight split shell ────────────────────────────────────────────────── */
-.terrain-flight-shell {
-  display: flex;
-  flex-direction: row;
+/**
+ * Mission layout hook (future Assist rearrange):
+ * [data-mission-layout="ops-v1"] names the grid.
+ * [data-mission-region="horizon|map|data|messages|talk"] names cells.
+ * Swap grid-template-areas without rewriting widgets.
+ */
+.terrain-flight-shell.mission-workspace,
+.mission-workspace[data-mission-layout="ops-v1"] {
+  display: grid;
+  grid-template-columns: minmax(260px, 1.15fr) minmax(280px, 1.45fr) minmax(240px, 0.92fr);
+  grid-template-rows: minmax(240px, 1.55fr) minmax(150px, 0.88fr);
+  grid-template-areas:
+    "horizon map talk"
+    "data messages talk";
   flex: 1 1 0;
   min-height: 0;
-  gap: 6px;
-  direction: ltr; /* force LTR so HUD stays on left regardless of page RTL */
-  padding: 6px 6px 6px 6px;
+  gap: 8px;
+  direction: ltr;
+  padding: 6px;
 }
 
-/* ── HUD panel — left 30% ───────────────────────────────────────────────────── */
-/* ── Flight HUD — PFD layout (no scrolling, data overlaid on canvas) ──────── */
+.mission-region {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.mission-region[data-mission-region="horizon"] { grid-area: horizon; }
+.mission-region[data-mission-region="map"] { grid-area: map; }
+.mission-region[data-mission-region="data"] { grid-area: data; }
+.mission-region[data-mission-region="messages"] { grid-area: messages; }
+.mission-region[data-mission-region="talk"] { grid-area: talk; }
+
+.mission-region-title {
+  margin: 0;
+  padding: 6px 10px 0;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: #14532d;
+  font-family: "Heebo", sans-serif;
+  flex: 0 0 auto;
+}
+
+.mission-region-data,
+.mission-region-messages,
+.mission-region-talk {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.mission-data-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  margin: 0;
+  padding: 8px 10px 10px;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.mission-data-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+.mission-data-item dt {
+  font-size: 0.64rem;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.mission-data-item dd {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 800;
+  font-family: "Space Grotesk", "Heebo", sans-serif;
+  color: var(--text);
+}
+
+.mission-data-confidence dd {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mission-data-confidence .confidence-track {
+  background: #e2e8f0;
+}
+
+.mission-talk-hint {
+  margin: 0;
+  padding: 2px 10px 6px;
+  font-size: 0.7rem;
+  color: #166534;
+}
+
+.mission-talk-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 10px 8px;
+}
+
+.mission-talk-chip,
+.mission-talk-send,
+.mission-talk-voice {
+  border: 1px solid #86efac;
+  background: #ecfdf3;
+  color: #14532d;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  font-family: "Heebo", sans-serif;
+  cursor: pointer;
+}
+
+.mission-talk-chip:hover,
+.mission-talk-send:hover,
+.mission-talk-voice:hover {
+  background: #dcfce7;
+}
+
+.mission-talk-form {
+  display: flex;
+  gap: 6px;
+  padding: 0 10px 10px;
+  margin-top: auto;
+}
+
+.mission-talk-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 8px;
+  font-family: "Heebo", sans-serif;
+  font-size: 0.78rem;
+}
+
+.mission-region-messages .pfd-statustext-strip {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+  margin: 0 8px 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 140, 255, 0.16);
+}
+
+.mission-region-messages .pfc-msg-scroll {
+  max-height: none;
+  flex: 1 1 auto;
+}
+
+@media (max-width: 1100px) {
+  .mission-workspace[data-mission-layout="ops-v1"] {
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: minmax(220px, 1.3fr) minmax(140px, 0.8fr) minmax(160px, 0.7fr);
+    grid-template-areas:
+      "horizon map"
+      "data messages"
+      "talk talk";
+  }
+}
+
+/* ── Flight HUD — fills the Mission horizon region ──────── */
+.mission-region-horizon .flight-hud,
 .flight-hud {
-  width: 30%;
-  min-width: 210px;
-  max-width: 340px;
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+  height: 100%;
   display: flex;
   flex-direction: column;
   gap: 0;
@@ -6800,7 +6985,7 @@ body.operator-live .companion-connect--hero {
   border-radius: var(--radius-lg);
   padding: 0;
   overflow: hidden;
-  flex-shrink: 0;
+  flex: 1 1 auto;
   color: #e8edf6;
 }
 
@@ -7552,12 +7737,14 @@ body.operator-live .companion-connect--hero {
   text-align: start;
 }
 .hud-param-show-all:hover { color: #93c5fd; }
-.terrain-flight-shell .terrain-map-shell {
+.terrain-flight-shell .terrain-map-shell,
+.mission-region-map .terrain-map-shell {
   flex: 1 1 0;
   min-width: 0;
+  min-height: 0;
   margin-top: 0;
-  height: 100%; /* override height:0 (which only works in column-flex parent) */
-  position: relative; /* needed for absolutely-positioned overlay toolbar */
+  height: 100%;
+  position: relative;
 }
 
 /* Layer controls overlay — floats on top of the map, bottom-right corner */
@@ -8221,6 +8408,36 @@ details.flight-manage summary {
   border: 0;
   box-shadow: none;
   gap: 0;
+}
+
+.connect-widget.connect-widget-float {
+  position: fixed;
+  top: 8px;
+  inset-inline-end: 12px;
+  z-index: var(--z-connect-float);
+}
+
+.connect-widget-float .conn-pill {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  box-shadow: 0 4px 16px rgba(0, 71, 141, 0.16);
+}
+
+.connect-widget-float .conn-pill:hover {
+  background: var(--surface-container-high);
+  border-color: var(--primary);
+  color: var(--text);
+}
+
+.connect-widget-float .conn-pill[aria-expanded="true"] {
+  background: #eff6ff;
+  border-color: #60a5fa;
+  color: #1d4ed8;
+}
+
+.connect-widget-float .conn-pill-caret {
+  color: var(--text-muted);
 }
 .conn-pill {
   display: inline-flex;

@@ -48,7 +48,7 @@ describe('Operator chrome voice and lab shelf', () => {
     expect(html).toMatch(/<dt>גרסה<\/dt>/);
   });
 
-  it('keeps ops tabs on the shelf and groups lab/fly tabs under מעבדה', () => {
+  it('keeps ops tabs on the shelf and groups lab tabs under מעבדה', () => {
     expect(html).toMatch(/class="tab tab-ops active"[^>]*data-tab="pulse"[^>]*>סקירה</);
     expect(html).toMatch(/class="tab tab-ops"[^>]*data-tab="platform"[^>]*>פלטפורמה</);
     expect(html).toMatch(/class="tab tab-ops"[^>]*data-tab="control"[^>]*>פרמטרים</);
@@ -56,12 +56,13 @@ describe('Operator chrome voice and lab shelf', () => {
     expect(html).toMatch(/data-tab="telemetry"[^>]*>אבחונים</);
     expect(html).toMatch(/class="tab tab-ops"[^>]*data-tab="maintenance"[^>]*>תחזוקה</);
     expect(html).toMatch(/class="tab tab-ops"[^>]*data-tab="development"[^>]*>פיתוח</);
+    expect(html).toMatch(/class="tab tab-fly"[^>]*data-tab="terrain"[^>]*>הטסה</);
     const menu = capture(html, /<div id="tabLabMenu"[^>]*>([\s\S]*?)<\/div>\s*<\/div>/, 'missing #tabLabMenu')[1];
     expect(menu).toMatch(/class="tab tab-lab"[^>]*data-tab="simLab"[^>]*>סימולציה</);
     expect(menu).toMatch(/class="tab tab-lab"[^>]*data-tab="advisor"[^>]*>יועץ מעבדה</);
     expect(menu).toMatch(/class="tab tab-lab"[^>]*data-tab="featureDesigner"[^>]*>ArduLab</);
     expect(menu).toMatch(/class="tab tab-lab"[^>]*data-tab="flightEngineer"[^>]*>מהנדס מעבדה</);
-    expect(menu).toMatch(/class="tab tab-fly"[^>]*data-tab="terrain"[^>]*>הטסה</);
+    expect(menu).not.toMatch(/data-tab="terrain"/);
     expect(html).toMatch(/id="tabLabToggle"[^>]*>מעבדה</);
     expect(html).toMatch(/id="tabLabMenu"[^>]*\bhidden\b/);
     expect(css).toMatch(/\.tab-lab-menu\[hidden\]/);
@@ -107,7 +108,7 @@ describe('Operator chrome voice and lab shelf', () => {
       },
     };
     const src = [
-      'const LAB_SHELF_TABS = new Set(["simLab", "advisor", "featureDesigner", "flightEngineer", "terrain"]);',
+      'const LAB_SHELF_TABS = new Set(["simLab", "advisor", "featureDesigner", "flightEngineer"]);',
       sliceFunction(js, 'isLabShelfTab'),
       sliceFunction(js, 'labTabLabel'),
       sliceFunction(js, 'placeLabMenu'),

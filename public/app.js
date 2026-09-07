@@ -192,7 +192,7 @@ function openDebriefLogs({ save = true } = {}) {
   applyMainTab('recordings', { save });
   applyDebriefSubtab('logs', { save });
 }
-const LAB_SHELF_TABS = new Set(['simLab', 'advisor', 'featureDesigner', 'flightEngineer', 'terrain']);
+const LAB_SHELF_TABS = new Set(['simLab', 'advisor', 'featureDesigner', 'flightEngineer']);
 
 function isLabShelfTab(tabId) {
   return LAB_SHELF_TABS.has(tabId);
@@ -298,6 +298,11 @@ function applyMainTab(tabId, { save = true } = {}) {
       window.simLab3d?.resizeRenderer?.();
       window.simLab3d?.invalidateMiniMap?.();
     }, 80);
+  }
+  if (tabId === 'terrain') {
+    setTimeout(() => {
+      if (typeof onTerrainTabActivated === 'function') onTerrainTabActivated();
+    }, 60);
   }
   if (tabId === 'maintenance') {
     void maintLoadData();
@@ -3201,7 +3206,10 @@ function pulseRefresh() {
   assistEl.textContent = _assistAgentConnected ? 'מחובר' : 'מנותק';
   assistEl.parentElement?.setAttribute('data-state', _assistAgentConnected ? 'connected' : 'disconnected');
   const linkLabel = document.getElementById('connectPillLabel')?.textContent?.trim() || '';
-  linkEl.textContent = (!linkLabel || linkLabel === 'לא מחובר' || linkLabel === 'מנותק') ? '--' : linkLabel;
+  const linkText = (!linkLabel || linkLabel === 'לא מחובר' || linkLabel === 'מנותק') ? '--' : linkLabel;
+  linkEl.textContent = linkText;
+  const missionLink = document.getElementById('missionLink');
+  if (missionLink) missionLink.textContent = linkText;
   aircraftEl.textContent = pulseHudText('hudFlightMode');
   const evolveText = pulseEvolveLine(document.getElementById('assistRunPanel'));
   const items = pulseBuildAttention({
@@ -11453,6 +11461,11 @@ function assistSyncMissionPosture() {
 }
 
 function assistApplyQuickChip(kind) {
+  if (kind === 'ask') {
+    assistSetOpen(true);
+    document.getElementById('assistInput')?.focus();
+    return;
+  }
   if (kind === 'advisor') {
     void assistSendText('פתח יועץ');
     return;
@@ -11968,6 +11981,32 @@ function assistSetOpen(open) {
   }
 }
 
+function initMissionTalk() {
+  const form = document.getElementById('missionTalkForm');
+  const input = document.getElementById('missionTalkInput');
+  const chips = document.getElementById('missionTalkChips');
+  const voiceBtn = document.getElementById('missionTalkVoiceBtn');
+  if (form) {
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const text = String(input?.value || '');
+      if (input) input.value = '';
+      assistSetOpen(true);
+      void assistSendText(text);
+    });
+  }
+  chips?.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-assist-chip]');
+    if (!btn) return;
+    assistSetOpen(true);
+    assistApplyQuickChip(btn.dataset.assistChip);
+  });
+  voiceBtn?.addEventListener('click', () => {
+    assistSetOpen(true);
+    document.getElementById('assistInput')?.focus();
+  });
+}
+
 function initAssistUi() {
   const rail = document.getElementById('assistRail');
   const toggle = document.getElementById('assistToggleBtn');
@@ -11993,6 +12032,7 @@ function initAssistUi() {
   document.getElementById('advisorOpenAssistBtn')?.addEventListener('click', () => assistSetOpen(true));
   document.getElementById('feOpenAssistBtn')?.addEventListener('click', () => assistSetOpen(true));
   document.getElementById('fdOpenAssistBtn')?.addEventListener('click', () => assistSetOpen(true));
+  initMissionTalk();
   document.getElementById('assistConfirmBtn')?.addEventListener('click', () => { void assistConfirm(true); });
   document.getElementById('assistCancelBtn')?.addEventListener('click', () => { void assistConfirm(false); });
   document.getElementById('assistAgentConnectForm')?.addEventListener('submit', (e) => { void assistConnectAgent(e); });
