@@ -174,7 +174,7 @@ function renderIndexHtml() {
     return html;
   } catch (err) {
     logger.error({ err }, 'Failed to render index.html');
-    return `<h1>Vision Landing Console</h1><p>Cannot load index.html: ${err.message}</p>`;
+    return `<h1>AIRVIX</h1><p>Cannot load index.html: ${err.message}</p>`;
   }
 }
 app.get(['/', '/index.html'], (_req, res) => {

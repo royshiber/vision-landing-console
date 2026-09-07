@@ -121,18 +121,18 @@ h1, h2, .panel-header h2 {
 .app-chrome {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 8px 18px;
-  padding-inline-end: 176px;
-  border-bottom: 0;
-  background: rgba(6, 9, 14, 0.88);
-  backdrop-filter: blur(24px) saturate(1.2);
-  min-height: 52px;
+  gap: 8px;
+  padding: 4px 12px;
+  padding-inline-end: 168px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: #0b0e14;
+  backdrop-filter: none;
+  min-height: 40px;
   flex-shrink: 0;
   position: relative;
   z-index: var(--z-topbar-chrome);
   color: #e8edf6;
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04);
+  box-shadow: none;
 }
 
 .app-chrome .tabs {
@@ -147,6 +147,14 @@ h1, h2, .panel-header h2 {
   gap: 6px;
   flex-shrink: 0;
   margin-inline-start: auto;
+}
+
+.app-chrome-brand {
+  font-family: "Space Grotesk", "Heebo", sans-serif;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: rgba(232, 237, 246, 0.78);
 }
 
 .app-chrome .badge {
@@ -173,12 +181,12 @@ h1, h2, .panel-header h2 {
   text-transform: none;
   letter-spacing: 0.01em;
   font-weight: 600;
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   background: transparent;
   color: rgba(226, 232, 240, 0.62);
   border-color: transparent;
-  border-radius: 999px;
-  padding: 6px 13px;
+  border-radius: 4px;
+  padding: 5px 11px;
   transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
 }
 
@@ -331,13 +339,14 @@ h1 { margin: 0; font-size: 1.25rem; color: var(--text); }
 }
 
 body:has(#terrain.panel.visible) {
-  background-color: #dbe6f2;
+  background-color: #0b0e14;
   background-image: none;
 }
 
 body:has(#terrain.panel.visible) .layout {
   max-width: none;
-  padding: 8px 12px 12px;
+  padding: 0;
+  gap: 0;
 }
 
 /* Why: tabs must stay above panel content if anything overlaps (stacking / RTL); what: shrink-disabled chrome row with explicit stacking. */
@@ -1480,7 +1489,8 @@ body:has(#terrain.panel.visible) .layout {
 /* 1366x768-like screens: tighten chrome, preserve readable cards, avoid clipping. */
 @media (max-height: 820px) {
   .layout { padding-top: 6px; gap: 8px; }
-  .app-chrome { min-height: 44px; padding: 6px 12px; padding-inline-end: 160px; }
+  body:has(#terrain.panel.visible) .layout { padding: 0; gap: 0; }
+  .app-chrome { min-height: 36px; padding: 3px 10px; padding-inline-end: 160px; }
   .tabs { padding-bottom: 2px; }
   .tab { padding: 6px 11px; font-size: 0.68rem; }
   .subtab { padding: 5px 10px; font-size: 0.72rem; }
@@ -4649,6 +4659,14 @@ body.operator-live .companion-connect--hero {
   }
 }
 
+body:has(#pulse.panel.visible) {
+  background-color: #0b1018;
+}
+body:has(#pulse.panel.visible) .layout {
+  padding: 0;
+  background: #0b1018;
+}
+
 #pulse.panel.visible {
   display: flex !important;
   flex-direction: column;
@@ -4657,75 +4675,96 @@ body.operator-live .companion-connect--hero {
   overflow: hidden;
   padding: 0;
   background:
-    radial-gradient(ellipse 88% 48% at 50% 8%, rgba(214, 227, 255, 0.5), transparent 64%),
-    var(--surface);
+    radial-gradient(ellipse 70% 40% at 50% 0%, rgba(56, 92, 160, 0.16), transparent 62%),
+    #0b1018;
 }
 
 .pulse-home {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 18px;
+  gap: 14px;
   flex: 1 1 auto;
   min-height: 0;
-  max-width: 720px;
+  max-width: 980px;
   width: 100%;
   margin: 0 auto;
-  padding: 28px 22px 22px;
+  padding: 18px 16px 16px;
 }
 
 .pulse-hero {
   display: grid;
-  gap: 4px;
-  text-align: center;
+  gap: 2px;
+  text-align: start;
 }
 
 .pulse-title {
   margin: 0;
-  font-size: 1.35rem;
+  font-size: 1.22rem;
   font-weight: 800;
-  color: var(--text);
+  color: #e8edf6;
 }
 .pulse-purpose {
   margin: 0;
-  font-size: 0.92rem;
+  font-size: 0.82rem;
   font-weight: 600;
-  color: var(--text-muted);
+  color: #8b97ab;
 }
 .pulse-status-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  gap: 10px;
 }
 .pulse-status-card {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 16px 14px;
-  border-radius: 16px;
-  background: #fff;
-  box-shadow: var(--shadow-card);
-  text-align: center;
+  gap: 10px;
+  padding: 14px 14px 12px;
+  border-radius: 10px;
+  background: #121826;
+  border: 1px solid rgba(148, 168, 198, 0.12);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
+  text-align: start;
+  color: #e8edf6;
 }
 .pulse-status-card h4 {
   margin: 0;
-  font-size: 0.82rem;
+  font-size: 0.92rem;
   font-weight: 800;
+  color: #f2f6fb;
 }
 .pulse-status-card p {
   margin: 0;
   font-weight: 700;
 }
 .pulse-status-note {
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   font-weight: 600;
-  color: var(--text-muted);
+  color: #8b97ab;
+}
+.pulse-computer-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
 }
 .pulse-computer-who {
   font-size: 0.68rem;
   font-weight: 700;
   letter-spacing: 0.04em;
-  color: var(--text-subtle);
+  color: #7d8ba0;
+}
+.pulse-computer-state {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #9aa8b8;
+}
+.pulse-computer-card[data-state="connected"] .pulse-computer-state {
+  color: #3dd68c;
+}
+.pulse-computer-card[data-state="disconnected"] .pulse-computer-state {
+  color: #8b97ab;
 }
 .pulse-computer-metrics {
   display: grid;
@@ -4733,26 +4772,69 @@ body.operator-live .companion-connect--hero {
   margin: 2px 0 0;
   text-align: start;
 }
-.pulse-computer-metrics > div {
+.pulse-gauges {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.pulse-gauges .pulse-gauge {
   display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 10px;
-  padding: 7px 10px;
-  border-radius: 10px;
-  background: #121a26;
-  color: #e8eef6;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  padding: 10px 6px 8px;
+  border-radius: 8px;
+  background: #0d1320;
+  color: #e8edf6;
+  --gauge-pct: 0;
+}
+.pulse-gauge-svg {
+  width: 100%;
+  max-width: 104px;
+  height: 58px;
+  overflow: visible;
+}
+.pulse-gauge-track,
+.pulse-gauge-fill {
+  fill: none;
+  stroke-width: 7;
+  stroke-linecap: round;
+}
+.pulse-gauge-track {
+  stroke: rgba(148, 168, 198, 0.38);
+}
+.pulse-gauge-fill {
+  stroke: #3dd68c;
+  stroke-dasharray: var(--gauge-pct) 100;
+  transition: stroke-dasharray 0.2s ease;
+}
+.pulse-gauge[data-gauge="mem"] .pulse-gauge-fill { stroke: #4c8dff; }
+.pulse-gauge[data-gauge="temp"] .pulse-gauge-fill { stroke: #f0a04b; }
+.pulse-gauge.is-empty .pulse-gauge-fill {
+  stroke: rgba(148, 168, 198, 0.18);
+  stroke-dasharray: 0 100;
 }
 .pulse-computer-metrics dt {
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   font-weight: 700;
-  color: #9aa8b8;
+  color: #8b97ab;
+}
+.pulse-gauge dt {
+  text-align: center;
 }
 .pulse-computer-metrics dd {
   margin: 0;
   font-size: 0.92rem;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
+}
+.pulse-gauge dd {
+  font-size: 0.98rem;
+  line-height: 1;
+  color: #f2f6fb;
+}
+.pulse-gauge.is-empty dd {
+  color: #7d8ba0;
 }
 .pulse-talk-card {
   grid-column: 1 / -1;
@@ -4761,10 +4843,15 @@ body.operator-live .companion-connect--hero {
   justify-content: space-between;
   gap: 12px;
   text-align: start;
+  background: #101827;
+  border-color: rgba(76, 141, 255, 0.22);
 }
 .pulse-talk-copy {
   display: grid;
   gap: 2px;
+}
+.pulse-talk-copy h4 {
+  color: #9ec0ff;
 }
 .pulse-talk-btn {
   margin-top: 0;
@@ -4772,9 +4859,9 @@ body.operator-live .companion-connect--hero {
 }
 .pulse-version-line {
   margin: 0;
-  text-align: center;
+  text-align: start;
   font-size: 0.72rem;
-  color: var(--text-subtle);
+  color: #7d8ba0;
 }
 
 .pulse-status {
@@ -4832,9 +4919,10 @@ body.operator-live .companion-connect--hero {
   justify-content: space-between;
   gap: 12px;
   padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: var(--surface-container-low);
+  border: 1px solid rgba(148, 168, 198, 0.16);
+  border-radius: 8px;
+  background: #121826;
+  color: #e8edf6;
 }
 .pulse-attention-item[data-attention-level="attention"] {
   border-inline-start: 3px solid rgba(245, 158, 11, 0.7);
@@ -4881,17 +4969,17 @@ body.operator-live .companion-connect--hero {
 .pulse-home-pref {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 8px;
   margin: 4px 0 0;
   font-size: 0.72rem;
-  color: var(--text-subtle);
+  color: #7d8ba0;
 }
 
 .pulse-home-pref-btn {
-  border: 1px solid var(--border);
+  border: 1px solid rgba(148, 168, 198, 0.22);
   background: transparent;
-  color: var(--text-muted);
+  color: #8b97ab;
   border-radius: 999px;
   padding: 4px 10px;
   font-size: 0.72rem;
@@ -4901,9 +4989,9 @@ body.operator-live .companion-connect--hero {
 }
 
 .pulse-home-pref-btn.is-active {
-  border-color: var(--primary);
-  color: var(--primary);
-  background: var(--primary-fixed);
+  border-color: #4c8dff;
+  color: #d7e6ff;
+  background: rgba(76, 141, 255, 0.16);
 }
 
 @media (max-width: 720px) {
@@ -6924,34 +7012,49 @@ body.operator-live .companion-connect--hero {
   gap: 0;
   padding: 0;
   position: relative;
-  border-radius: 20px;
+  border-radius: 0;
   border: 0;
-  background:
-    radial-gradient(900px 380px at 88% -10%, rgba(125, 211, 252, 0.28), transparent 52%),
-    linear-gradient(180deg, #e8f1f8 0%, #d5e3f0 100%);
+  background: #0b0e14;
 }
-.mission-identity {
-  margin: 0;
-  padding: 12px 18px 0;
-  font-family: "Heebo", sans-serif;
-  font-size: 0.8rem;
-  font-weight: 600;
-  letter-spacing: 0.01em;
-  color: #334155;
-  direction: rtl;
-  flex: 0 0 auto;
+.mission-ops-chrome {
+  position: absolute;
+  top: 6px;
+  inset-inline-end: 8px;
+  z-index: 6;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 6px;
+  min-height: 0;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  pointer-events: none;
+}
+.mission-ops-chrome button {
+  pointer-events: auto;
+}
+.mission-sr-only,
+.mission-identity,
+.mission-layout-hint,
+.mission-data-hint,
+.mission-talk-hint {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 .mission-readiness-glance {
   margin: 0;
-  margin-inline-start: auto;
-  padding: 3px 11px;
+  padding: 2px 8px;
   border: 1px solid rgba(16, 185, 129, 0.35);
-  border-radius: 999px;
-  background: rgba(16, 185, 129, 0.14);
-  color: #065f46;
+  border-radius: 4px;
+  background: rgba(16, 185, 129, 0.16);
+  color: #bbf7d0;
   font: inherit;
   font-size: 0.68rem;
   font-weight: 700;
@@ -6975,21 +7078,22 @@ body.operator-live .companion-connect--hero {
 .mission-layout-bar {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 18px 10px;
+  gap: 6px;
+  padding: 0;
+  margin-inline-start: auto;
   direction: rtl;
   flex: 0 0 auto;
 }
 
 .mission-layout-btn {
   margin: 0;
-  padding: 5px 12px;
+  padding: 3px 8px;
   border: 0;
-  border-radius: 999px;
-  background: rgba(15, 23, 42, 0.06);
-  color: #1e2937;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #e8edf6;
   font: inherit;
-  font-size: 0.7rem;
+  font-size: 0.66rem;
   font-weight: 600;
   font-family: "Heebo", sans-serif;
   cursor: pointer;
@@ -7010,7 +7114,7 @@ body.operator-live .companion-connect--hero {
 
 .mission-layout-hint {
   margin: 0;
-  font-size: 0.68rem;
+  font-size: 0.62rem;
   font-weight: 500;
   color: #64748b;
   font-family: "Heebo", sans-serif;
@@ -7018,23 +7122,23 @@ body.operator-live .companion-connect--hero {
 
 .terrain-flight-shell.mission-workspace,
 .mission-workspace[data-mission-layout="ops-v1"] {
-  --mission-c1: 1.15fr;
-  --mission-c2: 1.45fr;
-  --mission-c3: 0.92fr;
-  --mission-r1: 1.55fr;
-  --mission-r2: 0.88fr;
+  --mission-c1: 0.82fr;
+  --mission-c2: 1.88fr;
+  --mission-c3: 1.22fr;
+  --mission-r1: 2.20fr;
+  --mission-r2: 0.62fr;
   position: relative;
   display: grid;
-  grid-template-columns: minmax(260px, var(--mission-c1)) minmax(280px, var(--mission-c2)) minmax(240px, var(--mission-c3));
-  grid-template-rows: minmax(240px, var(--mission-r1)) minmax(150px, var(--mission-r2));
+  grid-template-columns: minmax(168px, var(--mission-c1)) minmax(320px, var(--mission-c2)) minmax(260px, var(--mission-c3));
+  grid-template-rows: minmax(280px, var(--mission-r1)) minmax(96px, var(--mission-r2));
   grid-template-areas:
     "horizon map talk"
     "data messages talk";
   flex: 1 1 0;
   min-height: 0;
-  gap: 10px;
+  gap: 4px;
   direction: ltr;
-  padding: 4px 10px 10px;
+  padding: 4px;
 }
 
 .mission-workspace[data-mission-swap="map-horizon"] {
@@ -7077,16 +7181,17 @@ body.operator-live .companion-connect--hero {
 }
 
 .mission-region {
+  position: relative;
   min-width: 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border-radius: 16px;
-  border: 0;
-  background: rgba(255, 255, 255, 0.72);
-  backdrop-filter: blur(16px);
-  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #11161f;
+  backdrop-filter: none;
+  box-shadow: none;
 }
 
 .mission-region--drop {
@@ -7112,40 +7217,37 @@ body.operator-live .companion-connect--hero {
 .mission-region[data-mission-region="talk"] { grid-area: talk; }
 
 .mission-region-title {
+  position: absolute;
+  top: 4px;
+  inset-inline-start: 6px;
+  z-index: 3;
   margin: 0;
-  padding: 11px 16px 6px;
-  font-size: 0.78rem;
+  padding: 1px 6px;
+  font-size: 0.62rem;
   font-weight: 600;
   letter-spacing: 0.01em;
-  color: #0f172a;
+  color: rgba(226, 232, 240, 0.72);
   font-family: "Heebo", sans-serif;
   flex: 0 0 auto;
+  background: rgba(11, 14, 20, 0.55);
+  border-radius: 3px;
 }
 
 .mission-region-data,
 .mission-region-messages {
-  background: rgba(255, 255, 255, 0.82);
+  background: #11161f;
   position: relative;
 }
 .mission-region-talk {
-  background: #eef3f8;
-}
-
-.mission-data-hint {
-  margin: 0;
-  padding: 0 14px 4px;
-  font-size: 0.62rem;
-  font-weight: 600;
-  color: #64748b;
-  font-family: "Heebo", sans-serif;
+  background: #0f141c;
 }
 
 .mission-data-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
+  gap: 4px;
   margin: 0;
-  padding: 6px 10px 10px;
+  padding: 22px 6px 6px;
   flex: 1 1 auto;
   min-height: 0;
   position: relative;
@@ -7156,10 +7258,10 @@ body.operator-live .companion-connect--hero {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  gap: 4px;
+  gap: 2px;
   min-width: 0;
-  padding: 8px 10px 9px;
-  border-radius: 10px;
+  padding: 4px 6px 5px;
+  border-radius: 4px;
   background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
   border: 1px solid rgba(148, 163, 184, 0.28);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 8px 16px rgba(15, 23, 42, 0.16);
@@ -7309,31 +7411,25 @@ body.operator-live .companion-connect--hero {
 
 .mission-messages-toggle {
   align-self: flex-start;
-  margin: 0 12px 6px;
+  margin: 22px 6px 4px;
   border: 0;
-  border-radius: 999px;
-  padding: 3px 10px;
-  background: rgba(15, 23, 42, 0.08);
-  color: #0f172a;
+  border-radius: 4px;
+  padding: 2px 8px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #e8edf6;
   font-size: 0.66rem;
   font-weight: 800;
   font-family: "Heebo", sans-serif;
   cursor: pointer;
 }
 
+.mission-region-messages[data-messages-expanded="0"] .pfc-msg-head,
 .mission-region-messages[data-messages-expanded="0"] .pfc-msg-scroll {
   display: none;
 }
 
 .mission-region-messages[data-messages-expanded="1"] .pfc-msg-scroll {
   display: block;
-}
-
-.mission-talk-hint {
-  margin: 0;
-  padding: 0 16px 8px;
-  font-size: 0.7rem;
-  color: #475569;
 }
 
 .mission-talk-chips {
@@ -7384,9 +7480,9 @@ body.operator-live .companion-connect--hero {
   flex: 1 1 auto;
   min-height: 0;
   max-height: none;
-  margin: 0 8px 8px;
-  border-radius: 8px;
-  border: 1px solid rgba(0, 140, 255, 0.16);
+  margin: 0 4px 4px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .mission-region-messages .pfc-msg-scroll {
@@ -7397,7 +7493,7 @@ body.operator-live .companion-connect--hero {
 @media (max-width: 1100px) {
   .mission-workspace[data-mission-layout="ops-v1"] {
     grid-template-columns: minmax(200px, var(--mission-c1)) minmax(200px, var(--mission-c2));
-    grid-template-rows: minmax(220px, var(--mission-r1)) minmax(140px, var(--mission-r2)) minmax(160px, 0.7fr);
+    grid-template-rows: minmax(240px, var(--mission-r1)) minmax(88px, var(--mission-r2)) minmax(180px, 0.85fr);
     grid-template-areas:
       "horizon map"
       "data messages"
@@ -7423,7 +7519,7 @@ body.operator-live .companion-connect--hero {
   flex-direction: column;
   gap: 0;
   direction: rtl;
-  background: #e8eef5;
+  background: #0b0e14;
   border: 0;
   border-radius: 0;
   padding: 0;
@@ -7534,6 +7630,7 @@ body.operator-live .companion-connect--hero {
   height: 100%;
   display: block;
   z-index: 1;
+  background: #12161e;
 }
 
 /* Side tape overlays (airspeed left, altitude right) */
@@ -7544,34 +7641,46 @@ body.operator-live .companion-connect--hero {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
-  background: rgba(0,0,0,0.52);
-  border: 1px solid rgba(255,255,255,0.12);
-  border-radius: 8px;
-  padding: 8px 7px;
-  min-width: 46px;
+  gap: 1px;
+  background: #0b0e14;
+  border: 1px solid #f8fafc;
+  border-radius: 2px;
+  padding: 5px 6px 4px;
+  min-width: 42px;
   pointer-events: none;
   z-index: 2;
+  opacity: 0;
 }
-.pfd-side-tape--left  { left: 5px; }
-.pfd-side-tape--right { right: 5px; }
+.pfd-side-tape--left  { left: 6px; }
+.pfd-side-tape--right { right: 6px; }
 .pfd-tape-key {
-  font-size: 0.55rem;
+  font-size: 0.5rem;
   font-weight: 700;
   letter-spacing: 0.08em;
-  color: rgba(180,210,255,0.6);
+  color: #94a3b8;
   text-transform: uppercase;
 }
 .pfd-tape-big {
-  font-size: 1.35rem;
-  font-weight: 700;
+  font-size: 1.18rem;
+  font-weight: 800;
   font-family: "Space Grotesk", monospace;
-  color: #e8f4ff;
+  color: #f8fafc;
   line-height: 1;
-  filter: drop-shadow(0 0 4px rgba(100,200,255,0.4));
 }
-.pfd-side-tape--left  .pfd-tape-big { color: #22d3ee; }
-.pfd-side-tape--right .pfd-tape-big { color: #4ade80; }
+.pfd-side-tape--left  .pfd-tape-big { color: #f8fafc; }
+.pfd-side-tape--right .pfd-tape-big { color: #f8fafc; }
+.pfd-horizon-shell--video-active .pfd-side-tape {
+  background: rgba(0, 0, 0, 0.42);
+  border-color: #3dff6a;
+}
+.pfd-horizon-shell--video-active .pfd-tape-key,
+.pfd-horizon-shell--video-active .pfd-tape-unit,
+.pfd-horizon-shell--video-active .pfd-tape-big,
+.pfd-horizon-shell--video-active .pfd-side-tape--left .pfd-tape-big,
+.pfd-horizon-shell--video-active .pfd-side-tape--right .pfd-tape-big {
+  color: #3dff6a;
+  filter: none;
+}
 .pfd-tape-unit {
   font-size: 0.55rem;
   color: rgba(180,200,230,0.5);
@@ -7601,8 +7710,30 @@ body.operator-live .companion-connect--hero {
   height: 100%;
   object-fit: cover;
   z-index: 0;
+  background: #0b0e14;
 }
 .pfd-horizon-video.hidden { display: none; }
+.pfd-horizon-shell--video-active canvas {
+  background: transparent;
+}
+.pfd-horizon-video-empty {
+  position: absolute;
+  inset: auto 72px 6px 8px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: rgba(11, 14, 20, 0.78);
+  color: #e8edf6;
+  font-size: 0.68rem;
+  font-weight: 600;
+  font-family: "Heebo", sans-serif;
+  pointer-events: none;
+}
+.pfd-horizon-video-empty.hidden { display: none; }
 
 .pfd-video-toggle {
   position: absolute;
@@ -8193,24 +8324,22 @@ body.operator-live .companion-connect--hero {
 /* Layer controls overlay — floats on top of the map, bottom-right corner */
 .terrain-map-overlay-toolbar {
   position: absolute;
-  bottom: 24px;
-  right: 10px;
+  bottom: 8px;
+  right: 8px;
   z-index: 1000;
   display: flex;
   align-items: center;
   gap: 4px;
-  background: rgba(8, 18, 38, 0.82);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border: 1px solid rgba(0,140,255,0.25);
-  border-radius: 10px;
-  padding: 5px 8px;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.45);
+  background: rgba(11, 14, 20, 0.88);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  padding: 3px 6px;
+  box-shadow: none;
 }
 .terrain-map-overlay-toolbar .terrain-toolbar-label {
-  font-size: 0.68rem;
-  color: rgba(180,210,255,0.5);
-  margin-inline-end: 2px;
+  display: none;
 }
 .terrain-map-overlay-toolbar .terrain-layer-btn {
   background: rgba(255,255,255,0.06);
@@ -13540,11 +13669,16 @@ body.mission-assist-docked .assist-rail.assist-rail--mission,
   box-shadow: none;
   background: transparent;
   backdrop-filter: none;
-  padding: 4px 10px 12px;
+  padding: 4px 8px 8px;
+}
+#missionTalkHost .assist-rail-head,
+#missionTalkHost .assist-rail-hint,
+#missionTalkHost .assist-context-chip {
+  display: none;
 }
 #missionTalkHost .assist-rail-title {
-  font-size: 1rem;
-  color: #0f172a;
+  font-size: 0.92rem;
+  color: #e8edf6;
 }
 #missionTalkHost .assist-rail-mark {
   display: none;
@@ -13555,38 +13689,38 @@ body.mission-assist-docked .assist-rail.assist-rail--mission,
 #missionTalkHost .assist-agent-label,
 #missionTalkHost .assist-empty-invite,
 #missionTalkHost .assist-messages-empty {
-  color: #475569;
+  color: #94a3b8;
 }
 #missionTalkHost .assist-agent-connect,
 #missionTalkHost .assist-run-panel,
 #missionTalkHost .assist-proposal-bar {
-  background: rgba(255, 255, 255, 0.86);
-  border-color: rgba(15, 23, 42, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.08);
 }
 #missionTalkHost .assist-agent-status,
 #missionTalkHost .assist-run-headline,
 #missionTalkHost .assist-proposal-text {
-  color: #0f172a;
+  color: #e8edf6;
 }
 #missionTalkHost .assist-agent-key,
 #missionTalkHost .assist-input {
-  background: #ffffff;
-  color: #0f172a;
-  border-color: #cbd5e1;
+  background: #0b0e14;
+  color: #e8edf6;
+  border-color: rgba(255, 255, 255, 0.12);
 }
 #missionTalkHost .assist-msg-user {
-  background: rgba(37, 99, 235, 0.12);
-  color: #1e3a8a;
+  background: rgba(37, 99, 235, 0.22);
+  color: #dbeafe;
 }
 #missionTalkHost .assist-msg-assist {
-  background: #ffffff;
-  color: #0f172a;
-  border-color: rgba(15, 23, 42, 0.1);
+  background: rgba(255, 255, 255, 0.06);
+  color: #e8edf6;
+  border-color: rgba(255, 255, 255, 0.08);
 }
 #missionTalkHost .assist-quick-chip {
-  background: #e2e8f0;
-  color: #0f172a;
-  border-color: #cbd5e1;
+  background: rgba(255, 255, 255, 0.08);
+  color: #e8edf6;
+  border-color: rgba(255, 255, 255, 0.12);
 }
 #missionTalkHost .assist-btn-send {
   background: #16a34a;
@@ -13598,12 +13732,18 @@ body.mission-assist-docked .assist-rail.assist-rail--mission,
   color: #ffffff;
 }
 #missionTalkHost .assist-btn-cancel {
-  background: #e2e8f0;
-  color: #0f172a;
+  background: rgba(255, 255, 255, 0.08);
+  color: #e8edf6;
 }
 #missionTalkHost .mission-talk-hint,
 .mission-region-talk .mission-talk-hint {
-  color: #475569;
+  color: #94a3b8;
+}
+#missionTalkHost .assist-mic-btn,
+.mission-region-talk .assist-mic-btn {
+  background: rgba(255, 255, 255, 0.08);
+  color: #e8edf6;
+  border-color: rgba(255, 255, 255, 0.12);
 }
 .assist-rail-head {
   display: flex;

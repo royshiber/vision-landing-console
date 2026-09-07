@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="app-version" content="__APP_VERSION__" />
-    <title>Vision Landing Console v__APP_VERSION__</title>
+    <title>AIRVIX v__APP_VERSION__</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
@@ -98,6 +98,7 @@
         <button class="tab tab-ops" data-tab="development" title="פיתוח">פיתוח</button>
       </nav>
       <div class="app-chrome-tools">
+        <span class="app-chrome-brand" aria-label="AIRVIX">AIRVIX</span>
         <button type="button" id="globalSettingsBtn" class="global-settings-btn" title="הגדרות כלליות" aria-haspopup="dialog" aria-controls="globalSettingsModal">⚙</button>
         <button id="versionBtn" class="badge clickable" title="לחץ כדי לראות מה עודכן בגרסה">v__APP_VERSION__</button>
       </div>
@@ -272,42 +273,74 @@
           </header>
           <div class="pulse-status-grid" aria-label="סטטוס מחשבים">
             <article class="pulse-status-card pulse-computer-card" data-pulse-kind="companion" data-computer="jetson">
-              <h4>מחשב משימה</h4>
-              <p class="pulse-computer-who">Jetson</p>
-              <p id="pulseCompanion">מנותק</p>
-              <dl class="pulse-computer-metrics">
+              <header class="pulse-computer-head">
                 <div>
-                  <dt>עומס</dt>
+                  <h4>מחשב משימה</h4>
+                  <p class="pulse-computer-who">Jetson</p>
+                </div>
+                <p id="pulseCompanion" class="pulse-computer-state">מנותק</p>
+              </header>
+              <dl class="pulse-computer-metrics pulse-gauges">
+                <div class="pulse-gauge is-empty" data-gauge="load">
+                  <svg class="pulse-gauge-svg" viewBox="0 0 80 50" aria-hidden="true">
+                    <path class="pulse-gauge-track" pathLength="100" d="M8 46 A 32 32 0 0 1 72 46"/>
+                    <path class="pulse-gauge-fill" pathLength="100" d="M8 46 A 32 32 0 0 1 72 46"/>
+                  </svg>
                   <dd id="pulseJetsonLoad" dir="ltr">--</dd>
+                  <dt>עומס</dt>
                 </div>
-                <div>
-                  <dt>זיכרון</dt>
+                <div class="pulse-gauge is-empty" data-gauge="mem">
+                  <svg class="pulse-gauge-svg" viewBox="0 0 80 50" aria-hidden="true">
+                    <path class="pulse-gauge-track" pathLength="100" d="M8 46 A 32 32 0 0 1 72 46"/>
+                    <path class="pulse-gauge-fill" pathLength="100" d="M8 46 A 32 32 0 0 1 72 46"/>
+                  </svg>
                   <dd id="pulseJetsonMem" dir="ltr">--</dd>
+                  <dt>זיכרון</dt>
                 </div>
-                <div>
-                  <dt>טמפרטורות</dt>
+                <div class="pulse-gauge is-empty" data-gauge="temp">
+                  <svg class="pulse-gauge-svg" viewBox="0 0 80 50" aria-hidden="true">
+                    <path class="pulse-gauge-track" pathLength="100" d="M8 46 A 32 32 0 0 1 72 46"/>
+                    <path class="pulse-gauge-fill" pathLength="100" d="M8 46 A 32 32 0 0 1 72 46"/>
+                  </svg>
                   <dd id="pulseJetsonTemp" dir="ltr">--</dd>
+                  <dt>טמפרטורות</dt>
                 </div>
               </dl>
               <button type="button" class="first-open-btn" data-first-action="companion" data-pulse-live="hide">חברו Jetson</button>
             </article>
             <article class="pulse-status-card pulse-computer-card" data-pulse-kind="aircraft" data-computer="fc">
-              <h4>הכלי</h4>
-              <p class="pulse-computer-who">FC</p>
-              <p id="pulseAircraft">מנותק</p>
+              <header class="pulse-computer-head">
+                <div>
+                  <h4>הכלי</h4>
+                  <p class="pulse-computer-who">FC</p>
+                </div>
+                <p id="pulseAircraft" class="pulse-computer-state">מנותק</p>
+              </header>
               <p class="pulse-status-note">קישור <span id="pulseLink" dir="ltr">--</span></p>
-              <dl class="pulse-computer-metrics">
-                <div>
-                  <dt>עומס</dt>
+              <dl class="pulse-computer-metrics pulse-gauges">
+                <div class="pulse-gauge is-empty" data-gauge="load">
+                  <svg class="pulse-gauge-svg" viewBox="0 0 80 50" aria-hidden="true">
+                    <path class="pulse-gauge-track" pathLength="100" d="M8 46 A 32 32 0 0 1 72 46"/>
+                    <path class="pulse-gauge-fill" pathLength="100" d="M8 46 A 32 32 0 0 1 72 46"/>
+                  </svg>
                   <dd id="pulseFcLoad" dir="ltr">--</dd>
+                  <dt>עומס</dt>
                 </div>
-                <div>
-                  <dt>זיכרון</dt>
+                <div class="pulse-gauge is-empty" data-gauge="mem">
+                  <svg class="pulse-gauge-svg" viewBox="0 0 80 50" aria-hidden="true">
+                    <path class="pulse-gauge-track" pathLength="100" d="M8 46 A 32 32 0 0 1 72 46"/>
+                    <path class="pulse-gauge-fill" pathLength="100" d="M8 46 A 32 32 0 0 1 72 46"/>
+                  </svg>
                   <dd id="pulseFcMem" dir="ltr">--</dd>
+                  <dt>זיכרון</dt>
                 </div>
-                <div>
-                  <dt>טמפרטורות</dt>
+                <div class="pulse-gauge is-empty" data-gauge="temp">
+                  <svg class="pulse-gauge-svg" viewBox="0 0 80 50" aria-hidden="true">
+                    <path class="pulse-gauge-track" pathLength="100" d="M8 46 A 32 32 0 0 1 72 46"/>
+                    <path class="pulse-gauge-fill" pathLength="100" d="M8 46 A 32 32 0 0 1 72 46"/>
+                  </svg>
                   <dd id="pulseFcTemp" dir="ltr">--</dd>
+                  <dt>טמפרטורות</dt>
                 </div>
               </dl>
             </article>
@@ -1282,11 +1315,14 @@
 
 
       <section id="terrain" class="panel visible" data-workspace="mission">
-        <p id="missionIdentity" class="mission-identity">הטסה · מרחב טיסה<button type="button" id="missionReadinessGlance" class="mission-readiness-glance" title="מוכנות">מוכנות</button></p>
-        <div class="mission-layout-bar">
-          <button type="button" id="missionSwapHorizonMapBtn" class="mission-layout-btn">החלף אופק ומפה</button>
-          <button type="button" id="missionResetLayoutBtn" class="mission-layout-btn">איפוס סידור</button>
+        <div class="mission-ops-chrome">
+          <p id="missionIdentity" class="mission-identity">הטסה · מרחב טיסה</p>
+          <button type="button" id="missionReadinessGlance" class="mission-readiness-glance" title="מוכנות">מוכנות</button>
+          <div class="mission-layout-bar">
+            <button type="button" id="missionSwapHorizonMapBtn" class="mission-layout-btn">החלף אופק ומפה</button>
+            <button type="button" id="missionResetLayoutBtn" class="mission-layout-btn">איפוס סידור</button>
             <p id="missionLayoutHint" class="mission-layout-hint">גררו קצה לשינוי גודל. גררו כותרת להחלפה. גם בטיסה.</p>
+          </div>
         </div>
         <div class="terrain-flight-shell mission-workspace" data-mission-layout="ops-v1" data-mission-swap="horizon-map" data-mission-edit="on">
           <div id="missionColSplit" class="mission-split mission-split-col"></div>
@@ -1312,6 +1348,7 @@
               <div class="pfd-horizon-shell" id="pfdHorizonShell">
                 <video id="horizonVideoEl" class="pfd-horizon-video hidden" muted playsinline autoplay loop
                        aria-hidden="true" title="שידור וידאו מהטיסן"></video>
+                <p id="horizonVideoEmpty" class="pfd-horizon-video-empty hidden">אין וידאו</p>
                 <canvas id="horizonCanvas"></canvas>
                 <button type="button" id="horizonVideoToggle" class="pfd-video-toggle" title="שכבת וידאו חי מהטיסן">📹 וידאו</button>
                 <div id="horizonVideoPanel" class="pfd-video-panel hidden">
@@ -1786,7 +1823,7 @@
                   <div class="fe-welcome-chips">
                     <button type="button" class="fe-chip" data-prompt="מה הקונסולה והמהנדס יודעים לעשות גם כשאין טיסן מחובר לבקר?">מה אפשר בלי חיבור?</button>
                     <button type="button" class="fe-chip" data-prompt="הטיסה לא יציבה — מה לבדוק ברמת פרמטרים וברמת חומרה?">הטיסה לא יציבה</button>
-                    <button type="button" class="fe-chip" data-prompt="תן הסבר קצר על מערכת הוויז׳ן, ה-VIO וה-EKF בהקשר של Vision Landing">וויז׳ן ו־EKF ב-VLC</button>
+                    <button type="button" class="fe-chip" data-prompt="תן הסבר קצר על מערכת הוויז׳ן, ה-VIO וה-EKF בהקשר של AIRVIX">וויז׳ן ו־EKF ב-AIRVIX</button>
                     <button type="button" class="fe-chip" data-prompt="זה קרה לנו כבר בעבר?">זה קרה לנו כבר?</button>
                   </div>
                   <div class="fe-welcome-hint">
