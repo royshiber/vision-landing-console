@@ -121,18 +121,18 @@ h1, h2, .panel-header h2 {
 .app-chrome {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 7px 16px;
-  padding-inline-end: 168px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  background: linear-gradient(180deg, rgba(8, 12, 20, 0.92), rgba(8, 12, 20, 0.78));
-  backdrop-filter: blur(22px) saturate(1.15);
-  min-height: 48px;
+  gap: 12px;
+  padding: 8px 18px;
+  padding-inline-end: 176px;
+  border-bottom: 0;
+  background: rgba(6, 9, 14, 0.88);
+  backdrop-filter: blur(24px) saturate(1.2);
+  min-height: 52px;
   flex-shrink: 0;
   position: relative;
   z-index: var(--z-topbar-chrome);
   color: #e8edf6;
-  box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.04);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 .app-chrome .tabs {
@@ -150,15 +150,19 @@ h1, h2, .panel-header h2 {
 }
 
 .app-chrome .badge {
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: rgba(232, 237, 246, 0.72);
+  background: transparent;
+  border: 0;
+  color: rgba(232, 237, 246, 0.46);
+  font-weight: 600;
+  letter-spacing: 0.02em;
 }
 
 .app-chrome .global-settings-btn {
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.05);
-  color: #e8edf6;
+  border: 0;
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(232, 237, 246, 0.78);
+  border-radius: 999px;
+  transition: background 0.2s ease;
 }
 
 .app-chrome .global-settings-btn:hover {
@@ -166,63 +170,73 @@ h1, h2, .panel-header h2 {
 }
 
 .app-chrome .tab {
-  background: rgba(255, 255, 255, 0.035);
-  color: rgba(232, 237, 246, 0.68);
-  border-color: rgba(255, 255, 255, 0.07);
+  text-transform: none;
+  letter-spacing: 0.01em;
+  font-weight: 600;
+  font-size: 0.8rem;
+  background: transparent;
+  color: rgba(226, 232, 240, 0.62);
+  border-color: transparent;
   border-radius: 999px;
-  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  padding: 6px 13px;
+  transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .app-chrome .tab:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(147, 197, 253, 0.35);
-  color: #e0f2fe;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+  background: rgba(255, 255, 255, 0.06);
+  border-color: transparent;
+  color: #f1f5f9;
+  box-shadow: none;
 }
 
 .app-chrome .tab.active {
-  background: rgba(56, 189, 248, 0.18);
-  border-color: rgba(125, 211, 252, 0.38);
+  background: rgba(255, 255, 255, 0.1);
+  border-color: transparent;
   color: #f8fafc;
-  box-shadow: inset 0 0 0 1px rgba(125, 211, 252, 0.12);
+  box-shadow: none;
 }
 
 .app-chrome .tab-fly {
-  color: #86efac;
-  border-color: rgba(52, 211, 153, 0.28);
+  color: rgba(167, 243, 208, 0.78);
+  border-color: transparent;
 }
 
 .app-chrome .tab-fly:hover {
-  background: rgba(16, 185, 129, 0.14);
-  color: #bbf7d0;
+  background: rgba(16, 185, 129, 0.1);
+  color: #d1fae5;
 }
 
 .app-chrome .tab-fly.active {
-  background: rgba(16, 185, 129, 0.22);
-  border-color: rgba(52, 211, 153, 0.42);
+  background: rgba(16, 185, 129, 0.16);
+  border-color: transparent;
   color: #f0fdf4;
 }
 
 .assist-toggle-btn.assist-toggle-float {
   position: fixed;
   bottom: 22px;
-  inset-inline-end: 18px;
+  inset-inline-end: 20px;
   inset-inline-start: auto;
   z-index: var(--z-assist-float);
   flex-direction: row;
-  padding: 11px 18px;
-  border: 1px solid rgba(167, 243, 208, 0.22);
-  background: rgba(8, 14, 22, 0.72);
-  color: #ecfdf5;
+  padding: 12px 20px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(8, 12, 20, 0.7);
+  color: #f8fafc;
   border-radius: 999px;
-  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(20px) saturate(1.2);
-  transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(22px) saturate(1.25);
+  transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.assist-toggle-btn.assist-toggle-float:hover {
+  background: rgba(12, 18, 28, 0.86);
+  border-color: rgba(255, 255, 255, 0.16);
 }
 
 .assist-toggle-btn.assist-toggle-float[aria-expanded="true"] {
-  background: rgba(16, 185, 129, 0.28);
-  border-color: rgba(52, 211, 153, 0.48);
+  background: rgba(16, 185, 129, 0.2);
+  border-color: rgba(167, 243, 208, 0.28);
 }
 
 body.mission-assist-docked .assist-toggle-btn {
@@ -316,9 +330,14 @@ h1 { margin: 0; font-size: 1.25rem; color: var(--text); }
   overflow: hidden;
 }
 
+body:has(#terrain.panel.visible) {
+  background-color: #070b12;
+  background-image: none;
+}
+
 body:has(#terrain.panel.visible) .layout {
   max-width: none;
-  padding-inline: 10px;
+  padding: 8px 12px 12px;
 }
 
 /* Why: tabs must stay above panel content if anything overlaps (stacking / RTL); what: shrink-disabled chrome row with explicit stacking. */
@@ -6812,26 +6831,25 @@ body.operator-live .companion-connect--hero {
   gap: 0;
   padding: 0;
   position: relative;
-  border-radius: 18px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 20px;
+  border: 0;
   background:
-    radial-gradient(980px 420px at 82% 0%, rgba(56, 189, 248, 0.08), transparent 58%),
-    linear-gradient(180deg, #0a1018 0%, #0c1524 100%);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    radial-gradient(900px 380px at 88% -10%, rgba(56, 189, 248, 0.07), transparent 52%),
+    linear-gradient(180deg, #0b111a 0%, #080d14 100%);
 }
 .mission-identity {
   margin: 0;
-  padding: 8px 12px 4px;
+  padding: 12px 18px 0;
   font-family: "Heebo", sans-serif;
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  color: #86efac;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: rgba(226, 232, 240, 0.7);
   direction: rtl;
   flex: 0 0 auto;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 }
 .mission-readiness-glance {
   margin: 0;
@@ -6864,25 +6882,25 @@ body.operator-live .companion-connect--hero {
 .mission-layout-bar {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 0 10px 6px;
+  gap: 8px;
+  padding: 8px 18px 10px;
   direction: rtl;
   flex: 0 0 auto;
 }
 
 .mission-layout-btn {
   margin: 0;
-  padding: 5px 13px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 5px 12px;
+  border: 0;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.04);
-  color: #d1fae5;
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(226, 232, 240, 0.82);
   font: inherit;
-  font-size: 0.68rem;
-  font-weight: 700;
+  font-size: 0.7rem;
+  font-weight: 600;
   font-family: "Heebo", sans-serif;
   cursor: pointer;
-  transition: background 0.2s ease, border-color 0.2s ease;
+  transition: background 0.2s ease, color 0.2s ease;
 }
 
 .mission-layout-btn:hover,
@@ -6900,8 +6918,8 @@ body.operator-live .companion-connect--hero {
 .mission-layout-hint {
   margin: 0;
   font-size: 0.68rem;
-  font-weight: 600;
-  color: rgba(209, 250, 229, 0.78);
+  font-weight: 500;
+  color: rgba(148, 163, 184, 0.78);
   font-family: "Heebo", sans-serif;
 }
 
@@ -6921,9 +6939,9 @@ body.operator-live .companion-connect--hero {
     "data messages talk";
   flex: 1 1 0;
   min-height: 0;
-  gap: 8px;
+  gap: 10px;
   direction: ltr;
-  padding: 6px;
+  padding: 4px 10px 10px;
 }
 
 .mission-workspace[data-mission-swap="map-horizon"] {
@@ -6961,10 +6979,10 @@ body.operator-live .companion-connect--hero {
   flex-direction: column;
   overflow: hidden;
   border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  background: rgba(10, 16, 26, 0.52);
-  backdrop-filter: blur(18px);
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  border: 0;
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(20px);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
 .mission-region--drop {
@@ -6991,11 +7009,11 @@ body.operator-live .companion-connect--hero {
 
 .mission-region-title {
   margin: 0;
-  padding: 9px 14px 5px;
-  font-size: 0.7rem;
-  font-weight: 800;
-  letter-spacing: 0.06em;
-  color: rgba(187, 247, 208, 0.88);
+  padding: 11px 16px 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: rgba(226, 232, 240, 0.78);
   font-family: "Heebo", sans-serif;
   flex: 0 0 auto;
 }
@@ -7003,7 +7021,7 @@ body.operator-live .companion-connect--hero {
 .mission-region-data,
 .mission-region-messages,
 .mission-region-talk {
-  background: rgba(12, 18, 30, 0.42);
+  background: rgba(255, 255, 255, 0.028);
 }
 
 .mission-data-grid {
@@ -7021,10 +7039,10 @@ body.operator-live .companion-connect--hero {
   flex-direction: column;
   gap: 2px;
   min-width: 0;
-  padding: 7px 9px;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.035);
+  border: 0;
 }
 
 .mission-data-item dt {
@@ -7048,14 +7066,14 @@ body.operator-live .companion-connect--hero {
 }
 
 .mission-data-confidence .confidence-track {
-  background: #e2e8f0;
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .mission-talk-hint {
   margin: 0;
-  padding: 2px 10px 6px;
+  padding: 0 16px 8px;
   font-size: 0.7rem;
-  color: rgba(187, 247, 208, 0.8);
+  color: rgba(148, 163, 184, 0.86);
 }
 
 .mission-talk-chips {
@@ -7068,9 +7086,9 @@ body.operator-live .companion-connect--hero {
 .mission-talk-chip,
 .mission-talk-send,
 .mission-talk-voice {
-  border: 1px solid #86efac;
-  background: #ecfdf3;
-  color: #14532d;
+  border: 0;
+  background: rgba(255, 255, 255, 0.06);
+  color: #e2e8f0;
   border-radius: 999px;
   padding: 4px 10px;
   font-size: 0.7rem;
@@ -7082,7 +7100,7 @@ body.operator-live .companion-connect--hero {
 .mission-talk-chip:hover,
 .mission-talk-send:hover,
 .mission-talk-voice:hover {
-  background: #dcfce7;
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .mission-talk-form {
@@ -7145,9 +7163,9 @@ body.operator-live .companion-connect--hero {
   flex-direction: column;
   gap: 0;
   direction: rtl;
-  background: #060c18;
-  border: 1px solid rgba(0,140,255,0.22);
-  border-radius: var(--radius-lg);
+  background: #05080f;
+  border: 0;
+  border-radius: 0;
   padding: 0;
   overflow: hidden;
   flex: 1 1 auto;
@@ -8577,33 +8595,51 @@ details.flight-manage summary {
 
 .connect-widget.connect-widget-float {
   position: fixed;
-  top: 8px;
-  inset-inline-end: 12px;
+  top: 10px;
+  inset-inline-end: 16px;
   z-index: var(--z-connect-float);
 }
 
 .connect-widget-float .conn-pill {
-  background: rgba(10, 14, 22, 0.78);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  color: #e8edf6;
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.32);
-  backdrop-filter: blur(16px);
+  min-height: 36px;
+  padding: 7px 14px;
+  background: rgba(8, 12, 20, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #f8fafc;
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(22px) saturate(1.25);
+  transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .connect-widget-float .conn-pill:hover {
-  background: rgba(16, 22, 34, 0.92);
-  border-color: rgba(125, 211, 252, 0.38);
-  color: #e8edf6;
+  background: rgba(12, 18, 28, 0.88);
+  border-color: rgba(255, 255, 255, 0.16);
+  color: #f8fafc;
 }
 
 .connect-widget-float .conn-pill[aria-expanded="true"] {
-  background: rgba(37, 99, 235, 0.22);
-  border-color: rgba(96, 165, 250, 0.48);
-  color: #dbeafe;
+  background: rgba(37, 99, 235, 0.18);
+  border-color: rgba(147, 197, 253, 0.28);
+  color: #e0f2fe;
 }
 
 .connect-widget-float .conn-pill-caret {
-  color: var(--text-muted);
+  color: rgba(226, 232, 240, 0.45);
+}
+
+.connect-widget-float .conn-panel {
+  top: calc(100% + 10px);
+  width: 328px;
+  padding: 12px;
+  background: rgba(10, 14, 22, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  box-shadow: 0 22px 56px rgba(0, 0, 0, 0.42);
+  backdrop-filter: blur(22px) saturate(1.2);
+  color: #e8edf6;
+}
+.connect-widget-float .conn-panel-field {
+  color: rgba(226, 232, 240, 0.62);
 }
 .conn-pill {
   display: inline-flex;
@@ -13240,8 +13276,18 @@ body.mission-assist-docked .assist-rail.assist-rail--mission,
   flex: 1 1 auto !important;
   z-index: 1 !important;
   border-inline-start: 0;
-  border-radius: 12px;
+  border-radius: 0;
   box-shadow: none;
+  background: transparent;
+  backdrop-filter: none;
+  padding: 4px 10px 12px;
+}
+#missionTalkHost .assist-rail-title {
+  font-size: 1rem;
+  color: #f1f5f9;
+}
+#missionTalkHost .assist-rail-mark {
+  display: none;
 }
 .assist-rail-head {
   display: flex;

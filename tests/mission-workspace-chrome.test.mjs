@@ -46,6 +46,8 @@ describe('AIRVIX Mission chrome — top strip gone', () => {
     expect(html).toMatch(/<main class="layout">\s*<div id="controlSubtabsBar"/);
     expect(css).toMatch(/\.connect-widget\.connect-widget-float\s*\{[^}]*position:\s*fixed/);
     expect(css).toMatch(/z-index:\s*var\(--z-connect-float\)/);
+    expect(css).toMatch(/\.app-chrome \.tab\s*\{[^}]*text-transform:\s*none/);
+    expect(css).toMatch(/body:has\(#terrain\.panel\.visible\)\s*\{[^}]*background-color:\s*#070b12/);
   });
 
   it('raises הטסה into the primary tab row', () => {

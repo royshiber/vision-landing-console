@@ -145,7 +145,7 @@ Architecture wave (`docs/AIRVIX_PRODUCT_ARCHITECTURE.md`): C10.2 Assist unificat
 
 **Master:** `1.02.255` @ `33d6334` (PR #75 merge — Auto-Config wizard MERGE). Do not bump.  
 **Prior pointer:** 2026-09-07 Auto-Config wizard MERGE draft snapshot. Superseded. #75 landed Assist → `#autoConfig`.  
-**This draft:** AIRVIX UI redesign — chrome + Mission workspace + locked IA. Default open **הטסה**. Free Mission layout even in flight. Assist is a full Mission `talk` panel on **הטסה**, not a PFD overlay. Outside Mission a floating Assist button opens Assist; the rail may remain as the opened surface. Stay draft. Do not bump `APP_VERSION`.
+**This draft:** AIRVIX UI redesign — chrome + Mission workspace + locked IA. Default open **הטסה**. Free Mission layout even in flight. Assist is a full Mission `talk` panel on **הטסה**, not a PFD overlay. Outside Mission a floating Assist button opens Assist; the rail may remain as the opened surface. Chrome / Mission use a dark glass cockpit treatment. Stay draft. Do not bump `APP_VERSION`.
 
 Ops (not product): WhatsApp Human Gate delivery remains available (signed in on the operator box targeting +972584010075, self-chat).
 
