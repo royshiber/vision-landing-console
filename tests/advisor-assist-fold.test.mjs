@@ -189,6 +189,7 @@ describe('Advisor → Assist fold — chrome', () => {
     expect(js).toContain("void assistSendText('פתח יועץ')");
     expect(js).toContain("advisorOpenAssistBtn");
     expect(css).toMatch(/\.advisor-assist-fold\b/);
+    expect(css).toMatch(/\.assist-quick-chip\[hidden\]/);
     expect(js).toMatch(/function attentionSyncAssistChrome\(/);
     expect(js).toContain("ASSIST_MISSION_HINT_HE = 'הטסה. הערה ותצפית בלבד.'");
   });

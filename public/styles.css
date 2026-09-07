@@ -13140,6 +13140,7 @@ details.flight-manage summary {
   flex-wrap: wrap;
 }
 .assist-quick-chips[hidden] { display: none !important; }
+.assist-quick-chip[hidden] { display: none !important; }
 .assist-quick-chip {
   border-radius: 999px;
   border: 1px solid rgba(187, 247, 208, 0.22);
