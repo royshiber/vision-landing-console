@@ -50,7 +50,6 @@ describe('Telemetry dash MERGE into Pulse + Platform diagnostics', () => {
     expect(html).toContain('id="platformDiagStatus"');
     expect(html).toMatch(/<article class="platform-shell"[^>]*data-platform-go="telemetry"[\s\S]*?<h4>אבחונים<\/h4>/);
     expect(html).toMatch(/data-platform-go="telemetry"[^>]*>אבחונים</);
-    expect(html).toMatch(/data-first-action="telemetry">אבחונים</);
     expect(tag('telemetry')).toBeTruthy();
     expect(html).toMatch(/<section id="telemetry"[\s\S]*?<h3>טלמטריה<\/h3>/);
     expect(html).toContain('id="teleLiveParked"');
@@ -114,8 +113,8 @@ describe('Telemetry dash MERGE into Pulse + Platform diagnostics', () => {
     expect(html).toContain('id="companionB2Grid"');
   });
 
-  it('pins APP_VERSION at 1.02.255', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.255'");
-    expect(pkg.version).toBe('1.02.255');
+  it('pins APP_VERSION at 1.02.256', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.256'");
+    expect(pkg.version).toBe('1.02.256');
   });
 });

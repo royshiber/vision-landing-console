@@ -209,12 +209,12 @@ describe('C10.6 Mission chrome', () => {
 
   it('uses a flight-safe Assist hint on Mission tabs', () => {
     expect(html).toMatch(/id="assistRailHint"[^>]*>שינוי דורש אישור\.</);
-    expect(html).toMatch(/id="assistEmptyInvite"[^>]*>שאלו כאן\. יועץ המעבדה נפתח אם צריך\.</);
+    expect(html).toMatch(/id="assistEmptyInvite"[^>]*>שאלו כאן\.</);
     expect(html).toMatch(/id="assistQuickChips"[^>]*hidden/);
     expect(html).toMatch(/data-assist-chip="note">הערה</);
     expect(html).toMatch(/data-assist-chip="observation">תצפית</);
     expect(html).toMatch(/data-assist-chip="advisor"[^>]*>יועץ</);
-    expect(html).toMatch(/data-assist-chip="ardulab"[^>]*>ארדולאב</);
+    expect(html).toMatch(/data-assist-chip="ardulab"[^>]*>פיצ׳ר</);
     expect(html).toMatch(/data-assist-chip="flightEngineer"[^>]*>מהנדס</);
     expect(js).toContain("ASSIST_MISSION_HINT_HE = 'הטסה. הערה ותצפית בלבד.'");
     expect(js).toContain("ASSIST_MISSION_PLACEHOLDER_HE = 'הערה, תצפית, או שאלה'");
@@ -233,8 +233,8 @@ describe('C10.6 Mission chrome', () => {
     expect(posture).not.toMatch(/\/apply|\/restart|ARM|DISARM|LAND|JETSON_COMPANION|CURSOR_API_KEY/);
   });
 
-  it('pins APP_VERSION at 1.02.255', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.255'");
-    expect(pkg.version).toBe('1.02.255');
+  it('pins APP_VERSION at 1.02.256', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.256'");
+    expect(pkg.version).toBe('1.02.256');
   });
 });

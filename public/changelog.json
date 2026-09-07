@@ -1,5 +1,21 @@
 [
   {
+    "version": "1.02.256",
+    "date": "2026-09-07",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Mission chrome: luminous workspace, premium horizon, Home as status",
+        "detail": "Removed user-visible Lab chrome. Mission uses a brighter flight-console theme with drag-resize persistence. Artificial horizon rebuilt as a circular GCS instrument. Home is system status for aircraft, Jetson, and Assist with a clear talk entry. APP_VERSION 1.02.256."
+      },
+      {
+        "type": "test",
+        "title": "Lab chrome gone and Mission resize/Home status pins",
+        "detail": "Asserts no Lab tab shelf, brighter Mission tokens, horizon canvas instrument, Home status markers, Assist flight-safe, and version 1.02.256."
+      }
+    ]
+  },
+  {
     "version": "1.02.255",
     "date": "2026-08-24",
     "changes": [

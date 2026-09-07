@@ -68,8 +68,8 @@ describe('ArduLab → Assist fold — routes and context', () => {
     expect(findAssistRoute('מעצב פיצ׳רים')?.tab).toBe('featureDesigner');
     expect(findAssistRoute('יועץ')?.tab).toBe('advisor');
     expect(findAssistRoute('מעבדה')?.tab).toBe('simLab');
-    expect(hebrewOpenRouteAnswer('ardulab')).toBe('פותחים את ארדולאב.');
-    expect(hebrewLookingAtAnswer('EVOLVE', 'evolve', 'featureDesigner')).toContain('מסך נוכחי: ארדולאב.');
+    expect(hebrewOpenRouteAnswer('ardulab')).toBe('פותחים את הפיצ׳ר המותאם.');
+    expect(hebrewLookingAtAnswer('EVOLVE', 'evolve', 'featureDesigner')).toContain('מסך נוכחי: פיצ׳ר.');
   });
 
   it('treats #featureDesigner as EVOLVE specialist, not a Mission or Lab peer workspace', () => {
@@ -144,7 +144,7 @@ describe('ArduLab → Assist fold — service', () => {
     expect(resp.action_proposal.payload.route_id).toBe('ardulab');
     expect(resp.action_proposal.payload.tab).toBe('featureDesigner');
     expect(resp.action_proposal.payload.workspace).toBe('EVOLVE');
-    expect(resp.answer).toBe('פותחים את ארדולאב.');
+    expect(resp.answer).toBe('פותחים את הפיצ׳ר המותאם.');
     expect(store.list({}).length).toBe(0);
   });
 
@@ -173,20 +173,20 @@ describe('ArduLab → Assist fold — service', () => {
 });
 
 describe('ArduLab → Assist fold — chrome', () => {
-  it('keeps #featureDesigner on the lab shelf and folds Assist chrome', () => {
+  it('keeps #featureDesigner reachable from Assist without Lab chrome', () => {
     expect(html).not.toMatch(/class="tab tab-ops"[^>]*data-tab="featureDesigner"/);
-    const menu = html.match(/<div id="tabLabMenu"[^>]*>([\s\S]*?)<\/div>\s*<\/div>/)?.[1] || '';
-    expect(menu).toMatch(/class="tab tab-lab"[^>]*data-tab="featureDesigner"[^>]*>ArduLab</);
+    expect(html).not.toContain('id="tabLabMenu"');
+    expect(html).not.toContain('id="devArdulabHandoff"');
+    expect(html).not.toContain('id="devOpenArdulabBtn"');
+    expect(html).not.toContain('מעבדה');
     expect(html).toContain('id="featureDesigner"');
     expect(html).toContain('id="fdWelcomeInput"');
     expect(html).toContain('id="fdAssistFoldNote"');
     expect(html).toContain('id="fdOpenAssistBtn"');
     expect(html).toMatch(/id="fdAssistFoldNote"[^>]*>[\s\S]*שאלו במסייע\./);
-    expect(html).toMatch(/data-assist-chip="ardulab"[^>]*>ארדולאב</);
+    expect(html).toMatch(/data-assist-chip="ardulab"[^>]*>פיצ׳ר</);
     expect(html).toMatch(/data-assist-chip="advisor"[^>]*>יועץ</);
-    expect(html).toContain('id="devArdulabHandoff"');
-    expect(html).toMatch(/id="devArdulabHandoff"[^>]*>[\s\S]*פיצ׳ר מותאם נפתח בארדולאב\./);
-    expect(html).toContain('id="devOpenArdulabBtn"');
+    expect(html).toMatch(/class="fd-welcome-title">פיצ׳ר מותאם</);
     expect(js).toMatch(/featureDesigner:\s*'EVOLVE'/);
     expect(js).toMatch(/featureDesigner:\s*'evolve'/);
     expect(js).toContain("void assistSendText('פתח ארדולאב')");
@@ -196,7 +196,6 @@ describe('ArduLab → Assist fold — chrome', () => {
     expect(js).toMatch(/tab === 'terrain' \|\| tab === 'flightEngineer'/);
     expect(css).toMatch(/\.fd-assist-fold\b/);
     expect(css).toMatch(/#featureDesigner\.panel\.visible/);
-    expect(css).toMatch(/\.dev-ardulab-handoff\b/);
     expect(css).toMatch(/\.assist-quick-chip\[hidden\]/);
   });
 
@@ -209,8 +208,8 @@ describe('ArduLab → Assist fold — chrome', () => {
     expect(html).not.toMatch(/id="companionApplyBtn"|id="companionRestartBtn"/);
   });
 
-  it('pins APP_VERSION at 1.02.255', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.255'");
-    expect(pkg.version).toBe('1.02.255');
+  it('pins APP_VERSION at 1.02.256', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.256'");
+    expect(pkg.version).toBe('1.02.256');
   });
 });

@@ -54,15 +54,16 @@ describe('C10.3 Pulse home', () => {
     expect(html).toMatch(/data-tab="maintenance"/);
     expect(html).toMatch(/data-tab="development"/);
     expect(html).toMatch(/data-tab="control"/);
-    expect(html).toMatch(/data-tab="simLab"/);
+    expect(html).not.toMatch(/class="tab"[^>]*data-tab="simLab"/);
+    expect(html).toContain('id="simLab"');
+    expect(html).toMatch(/class="pulse-purpose">מצב מערכת</);
+    expect(html).toMatch(/id="pulseTalkBtn"[^>]*>שאלו את המסייע</);
     expect(html).toMatch(/id="pulseVersion"[^>]*>--</);
     expect(html).toMatch(/id="pulseLink"[^>]*>--</);
     expect(html).toMatch(/id="pulseAircraft"[^>]*>--</);
     expect(html).toMatch(/data-first-action="companion"/);
     expect(html).toMatch(/data-first-action="assist"/);
     expect(html).toMatch(/data-first-action="params"/);
-    expect(html).toMatch(/data-first-action="develop"/);
-    expect(html).toMatch(/data-first-action="telemetry"/);
     expect(css).toMatch(/#pulse\.panel\.visible\b/);
     expect(css).toMatch(/\.pulse-attention\b/);
     expect(css).toMatch(/\.pulse-status\b/);
@@ -98,15 +99,16 @@ describe('C10.3 Pulse home', () => {
     expect(pulse.pulseCompanionLabel({ connected: false, mode: 'mock' })).toBe('מדומה');
   });
 
-  it('builds at most three calm attention items and a one-line Evolve glance', () => {
+  it('builds at most two calm attention items and a one-line Evolve glance', () => {
     const disconnected = pulse.pulseBuildAttention({
       companionLive: false,
       assistConnected: false,
       evolveActive: false,
     });
-    expect(disconnected).toHaveLength(3);
-    expect(disconnected.map((item) => item.id)).toEqual(['companion', 'assist', 'evolve']);
-    expect(disconnected.map((item) => item.level)).toEqual(['attention', 'info', 'info']);
+    expect(disconnected).toHaveLength(2);
+    expect(disconnected.map((item) => item.id)).toEqual(['companion', 'assist']);
+    expect(disconnected.map((item) => item.level)).toEqual(['attention', 'info']);
+    expect(disconnected.find((item) => item.id === 'assist')?.cta).toBe('שאלו את המסייע');
     const quiet = pulse.pulseBuildAttention({
       companionLive: true,
       assistConnected: true,

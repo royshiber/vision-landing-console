@@ -96,15 +96,6 @@
         <button class="tab tab-quiet" hidden data-tab="telemetry" title="אבחונים">אבחונים</button>
         <button class="tab tab-ops" data-tab="maintenance" title="תחזוקה">תחזוקה</button>
         <button class="tab tab-ops" data-tab="development" title="פיתוח">פיתוח</button>
-        <div class="tab-lab-group" id="tabLabGroup">
-          <button type="button" id="tabLabToggle" class="tab tab-lab-toggle" aria-expanded="false" aria-controls="tabLabMenu" aria-haspopup="true" title="מעבדה">מעבדה</button>
-          <div id="tabLabMenu" class="tab-lab-menu" hidden>
-            <button class="tab tab-lab" data-tab="simLab" title="סימולציה">סימולציה</button>
-            <button class="tab tab-lab" data-tab="featureDesigner" title="ArduLab">ArduLab</button>
-            <button class="tab tab-lab" data-tab="flightEngineer" title="מהנדס מעבדה">מהנדס מעבדה</button>
-            <button class="tab tab-lab" data-tab="advisor" title="יועץ מעבדה">יועץ מעבדה</button>
-          </div>
-        </div>
       </nav>
       <div class="app-chrome-tools">
         <button type="button" id="globalSettingsBtn" class="global-settings-btn" title="הגדרות כלליות" aria-haspopup="dialog" aria-controls="globalSettingsModal">⚙</button>
@@ -139,7 +130,7 @@
         <button type="button" id="assistAgentDisconnectBtn" class="assist-btn assist-btn-cancel" hidden>ניתוק</button>
       </section>
         <div id="assistMessagesEmpty" class="assist-empty-stage">
-        <p id="assistEmptyInvite" class="assist-empty-invite">שאלו כאן. יועץ המעבדה נפתח אם צריך.</p>
+        <p id="assistEmptyInvite" class="assist-empty-invite">שאלו כאן.</p>
       </div>
       <div id="assistMessages" class="assist-messages" role="log" aria-live="polite"></div>
       <div id="assistRunPanel" class="assist-run-panel" data-kind="unavailable" hidden aria-live="polite"></div>
@@ -156,7 +147,7 @@
           <button type="button" class="assist-quick-chip" data-assist-chip="note">הערה</button>
           <button type="button" class="assist-quick-chip" data-assist-chip="observation">תצפית</button>
           <button type="button" class="assist-quick-chip" data-assist-chip="advisor" hidden>יועץ</button>
-          <button type="button" class="assist-quick-chip" data-assist-chip="ardulab" hidden>ארדולאב</button>
+          <button type="button" class="assist-quick-chip" data-assist-chip="ardulab" hidden>פיצ׳ר</button>
           <button type="button" class="assist-quick-chip" data-assist-chip="flightEngineer" hidden>מהנדס</button>
         </div>
         <form id="assistForm" class="assist-form" autocomplete="off">
@@ -270,43 +261,35 @@
       </div>
 
       <section id="pulse" class="panel" aria-label="בית">
-        <div class="pulse-home">
+        <div class="pulse-home pulse-status-home">
           <header class="pulse-hero">
             <h3 class="pulse-title">בית</h3>
+            <p class="pulse-purpose">מצב מערכת</p>
           </header>
-          <dl class="pulse-status" aria-label="מצב מקוצר">
-            <div class="pulse-status-item">
-              <dt>גרסה</dt>
-              <dd id="pulseVersion" dir="ltr">--</dd>
-            </div>
-            <div class="pulse-status-item" data-pulse-kind="companion">
-              <dt>Jetson</dt>
-              <dd id="pulseCompanion">מנותק</dd>
-            </div>
-            <div class="pulse-status-item" data-pulse-kind="assist">
-              <dt>מסייע</dt>
-              <dd id="pulseAssist">מנותק</dd>
-            </div>
-            <div class="pulse-status-item">
-              <dt>קישור</dt>
-              <dd id="pulseLink" dir="ltr">--</dd>
-            </div>
-            <div class="pulse-status-item">
-              <dt>כלי</dt>
-              <dd id="pulseAircraft" dir="ltr">--</dd>
-            </div>
-          </dl>
+          <div class="pulse-status-grid" aria-label="מצב מערכת">
+            <article class="pulse-status-card" data-pulse-kind="aircraft">
+              <h4>כלי</h4>
+              <p id="pulseAircraft" dir="ltr">--</p>
+              <p class="pulse-status-note">חיבור MAVLink</p>
+              <p class="pulse-status-note">קישור <span id="pulseLink" dir="ltr">--</span></p>
+            </article>
+            <article class="pulse-status-card" data-pulse-kind="companion">
+              <h4>Jetson</h4>
+              <p id="pulseCompanion">מנותק</p>
+              <p class="pulse-status-note">מחשב משימה</p>
+              <button type="button" class="first-open-btn" data-first-action="companion" data-pulse-live="hide">חברו Jetson</button>
+            </article>
+            <article class="pulse-status-card" data-pulse-kind="assist">
+              <h4>מסייע</h4>
+              <p id="pulseAssist">מנותק</p>
+              <button type="button" id="pulseTalkBtn" class="first-open-btn pulse-talk-btn" data-first-action="assist">שאלו את המסייע</button>
+            </article>
+          </div>
           <section id="pulseAttention" class="pulse-attention" hidden aria-label="תשומת לב"></section>
-          <nav class="pulse-actions" data-first-open="pulse" aria-label="פעולה הבאה">
-            <button type="button" class="first-open-btn" data-first-action="companion" data-pulse-live="hide">חברו Jetson</button>
-            <button type="button" class="first-open-btn first-open-btn-quiet" data-first-action="assist">מסייע</button>
-            <button type="button" class="first-open-btn first-open-btn-quiet" data-first-action="params">פרמטרים</button>
-            <button type="button" class="first-open-btn first-open-btn-quiet" data-first-action="develop">פיתוח</button>
-            <button type="button" class="first-open-btn first-open-btn-quiet" data-first-action="telemetry">אבחונים</button>
-          </nav>
+          <p class="pulse-version-line">גרסה <span id="pulseVersion" dir="ltr">--</span></p>
           <button type="button" id="pulseEvolveGlance" class="pulse-evolve" hidden>משימה רצה</button>
           <p class="pulse-home-pref">
-            <span>מסך פתיחה</span>
+            <span>בתוך בית</span>
             <button type="button" id="pulseHomePulseBtn" class="pulse-home-pref-btn is-active" data-pulse-home="pulse">בית</button>
             <button type="button" id="pulseHomeTeleBtn" class="pulse-home-pref-btn" data-pulse-home="telemetry">טלמטריה</button>
           </p>
@@ -507,7 +490,7 @@
             <div class="cp-panel-header">
               <div class="cp-header-row">
                 <h3 class="cp-title">✨ הפרמטרים המותאמים שלי</h3>
-                <span class="cp-hint">פרמטרים שנוצרו דרך ArduLab · קליק ימני לסינון / שלח ישירות לרחפן</span>
+                <span class="cp-hint">פרמטרים מותאמים · קליק ימני לסינון / שלח ישירות לרחפן</span>
               </div>
               <div class="cp-toolbar">
                 <input id="cpSearchInput" type="search" class="cp-search" placeholder="חפש לפי שם, תיאור, פיצ'ר…" dir="rtl" />
@@ -1101,11 +1084,6 @@
       <section id="development" class="panel">
         <div class="devtasks-panel">
           <h3>משימות פיתוח</h3>
-          <p id="devArdulabHandoff" class="dev-ardulab-handoff">
-            פיצ׳ר מותאם נפתח בארדולאב.
-            <button type="button" id="devOpenArdulabBtn" class="dev-ardulab-handoff-btn">ארדולאב</button>
-          </p>
-
           <section class="devtasks-create">
             <h4 class="maint-group-title">יצירת משימה</h4>
             <div class="tele-group-cards">
@@ -1498,8 +1476,8 @@
               </label>
             </div>
 
-          <!-- LAB readiness bar — shown when FC is connected; same מוכנות vocabulary -->
-          <div id="simLabPreflightBar" class="sl-preflight-bar hidden" aria-label="מוכנות מעבדה">
+          <!-- Simulation readiness bar — shown when FC is connected; same מוכנות vocabulary -->
+          <div id="simLabPreflightBar" class="sl-preflight-bar hidden" aria-label="מוכנות סימולציה">
             <div class="sl-pf-chips">
               <span class="sl-pf-title">מוכנות</span>
               <span id="simLabPfArmed" class="sl-pf-chip sl-pf-chip--neutral">
@@ -1572,7 +1550,7 @@
         <div class="mission-layout-bar">
           <button type="button" id="missionSwapHorizonMapBtn" class="mission-layout-btn">החלף אופק ומפה</button>
           <button type="button" id="missionResetLayoutBtn" class="mission-layout-btn">איפוס סידור</button>
-          <p id="missionLayoutHint" class="mission-layout-hint">גררו כותרת אזור. שינוי גודל תמיד, גם בטיסה.</p>
+            <p id="missionLayoutHint" class="mission-layout-hint">גררו קצה לשינוי גודל. גררו כותרת להחלפה. גם בטיסה.</p>
         </div>
         <div class="terrain-flight-shell mission-workspace" data-mission-layout="ops-v1" data-mission-swap="horizon-map" data-mission-edit="on">
           <div id="missionColSplit" class="mission-split mission-split-col"></div>
@@ -1886,8 +1864,8 @@
           <aside class="fd-sidebar">
             <div class="fd-sidebar-header">
               <div class="fd-sidebar-brand">
-                <span class="fd-sidebar-brand-name">ArduLab</span>
-                <span class="fd-sidebar-brand-sub">מעבדת AI</span>
+                <span class="fd-sidebar-brand-name">פיצ׳ר מותאם</span>
+                <span class="fd-sidebar-brand-sub">פיתוח</span>
               </div>
               <button id="fdNewBtn" class="fd-new-btn" title="צור פיצ'ר חדש">+ חדש</button>
             </div>
@@ -1905,8 +1883,8 @@
                 <div class="fd-welcome-icon-wrap">
                   <span class="fd-welcome-icon" aria-hidden="true">🚀</span>
                 </div>
-                <div class="fd-welcome-brand">ArduLab</div>
-                <h2 class="fd-welcome-title">מעבדת פיתוח AI לArduPilot</h2>
+                <div class="fd-welcome-brand">פיצ׳ר מותאם</div>
+                <h2 class="fd-welcome-title">פיצ׳ר מותאם</h2>
                 <p class="fd-welcome-sub">תאר בשפה חופשית מה תרצה שבקר הטיסה יעשה — ה-AI יכתוב קוד מלא, יגדיר פרמטרים ויאפשר לך לשכלל דרך שיחה טבעית.</p>
                 <div class="fd-welcome-divider"></div>
                 <p class="fd-welcome-examples-title">רעיונות לדוגמה:</p>

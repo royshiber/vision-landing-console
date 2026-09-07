@@ -112,7 +112,7 @@ describe('SITL Lab connect handoff — Assist route', () => {
     expect(findAssistRoute('SITL')?.tab).toBe('simLab');
     expect(findAssistRoute('simulation')?.tab).toBe('simLab');
     expect(findAssistRoute('מעבדה')?.tab).toBe('simLab');
-    expect(hebrewOpenRouteAnswer('lab')).toBe('פותחים את מעבדת הסימולציה.');
+    expect(hebrewOpenRouteAnswer('lab')).toBe('פותחים את הסימולציה.');
   });
 
   it('opens Sim Lab from Assist without stealing development or flight intents', () => {
@@ -127,8 +127,8 @@ describe('SITL Lab connect handoff — Assist route', () => {
 });
 
 describe('SITL Lab connect handoff — version pin', () => {
-  it('pins APP_VERSION at 1.02.255', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.255'");
-    expect(pkg.version).toBe('1.02.255');
+  it('pins APP_VERSION at 1.02.256', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.256'");
+    expect(pkg.version).toBe('1.02.256');
   });
 });

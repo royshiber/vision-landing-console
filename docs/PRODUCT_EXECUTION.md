@@ -137,15 +137,15 @@ Architecture wave (`docs/AIRVIX_PRODUCT_ARCHITECTURE.md`): C10.2 Assist unificat
 28. **ArduLab → Assist REFINE** — **LANDED** via PR #73 merge `dca929a`. Assist route `ardulab` opens existing `#featureDesigner`. Workspace **EVOLVE**. Lab shelf stays. No FC write / Companion apply / Jetson deploy.
 29. **SITL Lab connect REFINE** — **LANDED** via PR #74 merge `1971384`. `#simLab` presets/wizard drive the global `#connectWidget`. Spoken-Hebrew handoff. One MAVLink connect truth.
 30. **Auto-Config wizard MERGE** — **LANDED** via PR #75. Assist opens `#autoConfig` under Parameter Center (`#control`). Quiet Platform / Params chrome. Existing suggest→approve→apply stays. No new FC write.
-31. **AIRVIX UI redesign (chrome + Mission workspace)** — **this draft.** Roy 2026-09-07 GO + complete IA LOCKED. Blue telemetry top strip removed. `#connectWidget` floats globally. Tabs sit in the freed top chrome. **הטסה** is a primary ops tab and the LOCKED app default open workspace (`#terrain`). Pulse home label stays **בית**. Mission regions are modular panes: drag any region onto another, resize columns/rows, persist, reset. Free edit on the ground, in flight, and on approach. The prior mid-flight-only swap/resize interim is overridden. On **הטסה**, Assist is a full rearrangeable Mission panel (`talk` among horizon / map / data / messages) — not a thin side rail covering the PFD. Outside Mission a floating Assist button opens Assist; the existing rail may remain as the opened surface. Develop / Params / Settings have the same access airborne and on the ground (`opsChromeAlwaysReachable`). FC write safety is unchanged. No Assist `FLIGHT_ACTION` / ARM / LAND. Short UI **Jetson**. Longer Hebrew **מחשב משימה**. No Companion apply/restart. No new FC write. No GPS invented.
+31. **AIRVIX UI redesign (chrome + Mission workspace)** — **this draft.** Roy 2026-09-07 GO + later locks. Lab / מעבדה chrome removed (Assist still opens hidden sim/advisor/feature/engineer panels). **בית** is system status (aircraft + Jetson + Assist) with an obvious talk entry. Mission is brighter / luminous with true drag-resize persist. Artificial horizon rebuilt as a circular GCS instrument. `APP_VERSION` **1.02.256**. Stay draft.
 
 ---
 
 ## Audit snapshot — 2026-09-07 (AIRVIX UI redesign this draft)
 
-**Master:** `1.02.255` @ `33d6334` (PR #75 merge — Auto-Config wizard MERGE). Do not bump.  
+**Master:** `1.02.255` @ `33d6334` (PR #75 merge — Auto-Config wizard MERGE).  
 **Prior pointer:** 2026-09-07 Auto-Config wizard MERGE draft snapshot. Superseded. #75 landed Assist → `#autoConfig`.  
-**This draft:** AIRVIX UI redesign — chrome + Mission workspace + locked IA. Default open **הטסה**. Free Mission layout even in flight. Assist is a full Mission `talk` panel on **הטסה**, not a PFD overlay. Outside Mission a floating Assist button opens Assist; the rail may remain as the opened surface. Chrome / Mission use a dark glass cockpit treatment. Stay draft. Do not bump `APP_VERSION`.
+**This draft:** AIRVIX UI redesign — lab chrome gone; **בית** = status + talk; luminous Mission; premium AH; drag-resize persist. `APP_VERSION` **1.02.256**. Stay draft.
 
 Ops (not product): WhatsApp Human Gate delivery remains available (signed in on the operator box targeting +972584010075, self-chat).
 
@@ -165,7 +165,7 @@ Ops (not product): WhatsApp Human Gate delivery remains available (signed in on 
 
 ### This draft (2026-09-07)
 
-- AIRVIX UI redesign. Blue telemetry top strip gone. `#connectWidget` floats on every tab. **הטסה** is the LOCKED default open workspace. Pulse home label LOCKED **בית**. Mission regions `horizon | map | data | messages | talk` are modular panes: drag any region onto another, resize, persist, reset. Free edit on the ground, in flight, and on approach. Prior mid-flight-only swap/resize interim is overridden. On **הטסה**, Assist is the full `talk` panel (one rearrangeable region), never a thin rail covering the PFD. Outside Mission a floating Assist button opens Assist; the existing rail may remain as the opened surface. Develop / Params / Settings have the same access airborne and on the ground. FC write safety is unchanged. Short UI **Jetson**. Longer Hebrew **מחשב משימה**. No Companion apply/restart. No new FC `PARAM_SET`. No FLIGHT_ACTION / ARM / LAND from Assist. Empty GPS stays `-- m`. `APP_VERSION` stays `1.02.255`.
+- AIRVIX UI redesign. Lab / מעבדה chrome gone. **בית** is system status (aircraft + Jetson + Assist) with שאלו את המסייע. Mission is brighter with drag-resize persist. Artificial horizon is a circular GCS instrument. Default open **הטסה**. Assist is the full `talk` panel on Mission; float outside Mission. Short UI **Jetson**. No Companion apply/restart. No new FC `PARAM_SET`. No FLIGHT_ACTION / ARM / LAND from Assist. `APP_VERSION` **1.02.256**.
 
 ### Prior still on master (#54, #56, #57)
 
@@ -250,7 +250,7 @@ On master today (PR #33 + PR #34 + Hebrew Assist chrome from #50 + result card f
 - **ArduLab → Assist REFINE LANDED** via PR #73 `dca929a`: Assist opens `#featureDesigner` for `ארדולאב` / feature designer. Workspace **EVOLVE**. Lab shelf stays. Not a competing primary chat. No FC / Companion apply.
 - **SITL Lab connect REFINE LANDED** via PR #74 `1971384`: `#simLab` presets/wizard drive `#connectWidget`. One MAVLink connect truth. Spoken-Hebrew handoff. Wizard teaching stays. Assist `סימולציה` / `sitl` → `#simLab`.
 - **Auto-Config wizard MERGE LANDED** via PR #75 `33d6334`: Assist opens `#autoConfig` for `אשף` / `קונפיג אוטומטי`. Quiet Platform / Params chrome. Panel stays. No new vehicle write.
-- **AIRVIX UI redesign this draft:** chrome + Mission workspace. Connect floats. **הטסה** default open. Free Mission layout on the ground, in flight, and on approach (drag / resize / persist / reset). Assist is a full Mission `talk` panel on **הטסה**, not a PFD overlay; outside Mission a floating Assist button opens Assist. Pulse home LOCKED **בית**. Short UI **Jetson**. Longer Hebrew **מחשב משימה**.
+- **AIRVIX UI redesign this draft:** lab chrome gone. **בית** = status + talk. Luminous Mission + drag-resize persist. Premium circular AH. `APP_VERSION` **1.02.256**. Stay draft.
 
 ### Params (persist landed)
 
@@ -298,7 +298,7 @@ Roy 2026-09-05: abandon searching the local tree for versions past 300 **permane
 
 ### Ranked GAPS (this snapshot)
 
-1. **AIRVIX UI redesign** — this draft. Chrome + Mission workspace + locked IA (בית / Jetson / מחשב משימה / default הטסה / free layout / Assist as a full Mission `talk` panel). No new FC write.
+1. **AIRVIX UI redesign** — this draft. Lab chrome gone. בית = status + talk. Luminous Mission. Premium AH. Version **1.02.256**. No new FC write.
 2. **C10.7b voice/STT** — deferred. Do not start now. No new ElevenLabs/STT secrets.
 3. **C10.4c-b Jetson deploy-wire move** — remaining C10.4 slice. Still **deferred** (#28). Do not start now.
 4. **Live Jetson connect proof** — parked (days). Capability is on master (#39 / #40). Blocked on Companion token (not in Cursor / PC `.env`; Jetson `:8081` → 401). WAITING FOR ROY on the token, not more connect code. Do not invent a token.
@@ -311,4 +311,4 @@ Do not spend cycles on smoke #4, leftover disconnected chrome, version bump, 300
 
 ### Next pick (this snapshot)
 
-**AIRVIX UI redesign** is this draft. Auto-Config wizard landed via #75 @ `33d6334`. C10.7b voice/STT stays deferred. Remainder **C10.4c-b** Jetson deploy-wire move stays deferred (#28). Jetson live connect stays parked until Roy supplies the Companion token (days; Jetson `:8081` → 401 without it). Human Gates stay **WAITING FOR ROY**: #28 apply/restart, #29 live vehicle / auto-land. Merge autonomy still on for verified safe draft PRs. Measure by capabilities closed, not PR count. `APP_VERSION` stays `1.02.255`.
+**AIRVIX UI redesign** is this draft (`1.02.256`). Auto-Config wizard landed via #75 @ `33d6334`. C10.7b voice/STT stays deferred. Remainder **C10.4c-b** Jetson deploy-wire move stays deferred (#28). Jetson live connect stays parked until Roy supplies the Companion token (days; Jetson `:8081` → 401 without it). Human Gates stay **WAITING FOR ROY**: #28 apply/restart, #29 live vehicle / auto-land. Merge autonomy still on for verified safe draft PRs. Measure by capabilities closed, not PR count.

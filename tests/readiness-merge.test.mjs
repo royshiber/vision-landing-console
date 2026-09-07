@@ -70,7 +70,7 @@ describe('Preflight / readiness MERGE — Mission glance + Diagnostics', () => {
 
   it('shares מוכנות vocabulary on the LAB SITL bar without cliff-deleting it', () => {
     expect(html).toContain('id="simLabPreflightBar"');
-    expect(html).toMatch(/aria-label="מוכנות מעבדה"/);
+    expect(html).toMatch(/aria-label="מוכנות סימולציה"/);
     expect(html).toMatch(/class="sl-pf-title">מוכנות</);
     expect(css).toMatch(/\.sl-pf-title\b/);
   });
@@ -99,8 +99,8 @@ describe('Preflight / readiness MERGE — Mission glance + Diagnostics', () => {
     expect(js).not.toMatch(/FLIGHT_ACTION/);
   });
 
-  it('pins APP_VERSION at 1.02.255', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.255'");
-    expect(pkg.version).toBe('1.02.255');
+  it('pins APP_VERSION at 1.02.256', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.256'");
+    expect(pkg.version).toBe('1.02.256');
   });
 });

@@ -204,70 +204,10 @@ function openDebriefLogs({ save = true } = {}) {
   applyMainTab('recordings', { save });
   applyDebriefSubtab('logs', { save });
 }
-const LAB_SHELF_TABS = new Set(['simLab', 'advisor', 'featureDesigner', 'flightEngineer']);
+const ASSIST_SHELF_PANELS = new Set(['simLab', 'advisor', 'featureDesigner', 'flightEngineer']);
 
-function isLabShelfTab(tabId) {
-  return LAB_SHELF_TABS.has(tabId);
-}
-
-function labTabLabel(tabId) {
-  const btn = document.querySelector(`.tab-lab-menu .tab[data-tab="${tabId}"]`);
-  return (btn?.textContent || 'מעבדה').replace(/\s+/g, ' ').trim();
-}
-
-function placeLabMenu() {
-  const toggle = document.getElementById('tabLabToggle');
-  const menu = document.getElementById('tabLabMenu');
-  if (!toggle || !menu || menu.hidden) return;
-  const box = toggle.getBoundingClientRect();
-  menu.style.position = 'fixed';
-  menu.style.top = `${Math.round(box.bottom + 4)}px`;
-  menu.style.right = `${Math.round(window.innerWidth - box.right)}px`;
-  menu.style.left = 'auto';
-  menu.style.insetInlineEnd = 'auto';
-}
-
-function setLabMenuOpen(open) {
-  const group = document.getElementById('tabLabGroup');
-  const toggle = document.getElementById('tabLabToggle');
-  const menu = document.getElementById('tabLabMenu');
-  if (!group || !toggle || !menu) return;
-  menu.hidden = !open;
-  toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
-  group.classList.toggle('is-open', open);
-  if (open) placeLabMenu();
-}
-
-function syncLabTabGroup(tabId) {
-  const toggle = document.getElementById('tabLabToggle');
-  const group = document.getElementById('tabLabGroup');
-  if (!toggle || !group) return;
-  const lab = isLabShelfTab(tabId);
-  group.classList.toggle('is-lab-active', lab);
-  toggle.classList.toggle('is-current', lab);
-  toggle.textContent = lab ? labTabLabel(tabId) : 'מעבדה';
-  setLabMenuOpen(false);
-}
-
-function initLabTabGroup() {
-  const toggle = document.getElementById('tabLabToggle');
-  const menu = document.getElementById('tabLabMenu');
-  const group = document.getElementById('tabLabGroup');
-  if (!toggle || !menu || !group) return;
-  toggle.addEventListener('click', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setLabMenuOpen(menu.hidden);
-  });
-  document.addEventListener('click', (e) => {
-    if (!group.contains(e.target)) setLabMenuOpen(false);
-  });
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') setLabMenuOpen(false);
-  });
-  window.addEventListener('resize', () => {
-    if (!menu.hidden) placeLabMenu();
-  });
+function isAssistShelfPanel(tabId) {
+  return ASSIST_SHELF_PANELS.has(tabId);
 }
 
 function applyMainTab(tabId, { save = true } = {}) {
@@ -276,14 +216,13 @@ function applyMainTab(tabId, { save = true } = {}) {
     return;
   }
   if ((tabId === 'control' || tabId === 'development') && !opsChromeAlwaysReachable(tabId)) return;
-  if (!_mainTabIds().has(tabId)) return;
+  if (!_mainTabIds().has(tabId) && !isAssistShelfPanel(tabId)) return;
   tabs.forEach((t) => t.classList.remove('active'));
   panels.forEach((p) => p.classList.remove('visible'));
   const tab = tabs.find((t) => t.dataset.tab === tabId);
   const panel = document.getElementById(tabId);
   if (tab) tab.classList.add('active');
   if (panel) panel.classList.add('visible');
-  syncLabTabGroup(tabId);
   setParamCenterChromeVisible(tabId === 'control');
   updateArduTopCatsVisibility();
   if (save) {
@@ -434,7 +373,6 @@ tabs.forEach((tab) => {
     applyMainTab(tab.dataset.tab);
   });
 });
-initLabTabGroup();
 debriefTabButtons.forEach((tab) => {
   tab.addEventListener('click', () => {
     applyDebriefSubtab(tab.dataset.debriefTab);
@@ -3167,12 +3105,9 @@ function pulseBuildAttention(opts) {
     items.push({ id: 'companion', level: 'attention', text: 'Jetson מנותק', action: 'companion', cta: 'חברו Jetson' });
   }
   if (!assistConnected) {
-    items.push({ id: 'assist', level: 'info', text: 'מסייע מנותק', action: 'assist', cta: 'מסייע' });
+    items.push({ id: 'assist', level: 'info', text: 'מסייע מנותק', action: 'assist', cta: 'שאלו את המסייע' });
   }
-  if (!evolveActive && !companionLive && items.length < 3) {
-    items.push({ id: 'evolve', level: 'info', text: 'אין משימת פיתוח פעילה', action: 'develop', cta: 'פיתוח' });
-  }
-  return items.slice(0, 3);
+  return items.slice(0, 2);
 }
 
 function pulseEvolveLine(panel) {
@@ -4039,153 +3974,135 @@ function drawHorizon(canvas, rollDeg, pitchDeg, opts = {}) {
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
   const dpr = window.devicePixelRatio || 1;
-  // Always re-apply HiDPI transform so call-sites don't need to worry about it
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  // Pixel-sharp rendering
-  ctx.imageSmoothingEnabled = false;
-  // Work in CSS pixel space (canvas.width is physical px = CSS px × dpr)
-  const W   = canvas.width / dpr;
-  const H   = canvas.height / dpr;
-  const cx  = W / 2;
-  const cy  = H / 2;
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  const W = canvas.width / dpr;
+  const H = canvas.height / dpr;
+  const cx = W / 2;
+  const cy = H / 2;
   const videoMode = !!opts.videoMode;
-
-  const rollBounded  = finiteHudAngleDeg(rollDeg, 180);
+  const rollBounded = finiteHudAngleDeg(rollDeg, 180);
   const pitchBounded = finiteHudAngleDeg(pitchDeg, 90);
-  const showRoll  = rollBounded != null;
+  const showRoll = rollBounded != null;
   const showPitch = pitchBounded != null;
-  const rollDraw  = showRoll ? rollBounded : 0;
+  const rollDraw = showRoll ? rollBounded : 0;
   const pitchDraw = showPitch ? pitchBounded : 0;
-  const rollRad  = (rollDraw * Math.PI) / 180;
-  const pxPerDeg = H / 40;
-  const pitchPx  = Math.max(-H, Math.min(H, pitchDraw * pxPerDeg));
-  const diag     = Math.sqrt(W * W + H * H);
+  const rollRad = (rollDraw * Math.PI) / 180;
+  const instR = Math.min(W, H) * 0.46;
+  const pxPerDeg = instR / 22;
+  const pitchPx = Math.max(-instR * 1.4, Math.min(instR * 1.4, pitchDraw * pxPerDeg));
 
   ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = videoMode ? 'rgba(8, 14, 22, 0.28)' : '#d7e3f0';
+  ctx.fillRect(0, 0, W, H);
 
-  // ── 1. Sky + Ground (full square, rotated) ──────────────────────────────
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(cx, cy, instR, 0, Math.PI * 2);
+  ctx.clip();
+
   ctx.save();
   ctx.translate(cx, cy);
   ctx.rotate(rollRad);
-
-  const skyAlpha = videoMode ? 0.62 : 1;
-  const gndAlpha = videoMode ? 0.58 : 1;
-
-  const skyGrad = ctx.createLinearGradient(0, -diag * 0.5 + pitchPx, 0, pitchPx);
-  skyGrad.addColorStop(0,    `rgba(2,14,34,${skyAlpha})`);
-  skyGrad.addColorStop(0.5,  `rgba(11,58,114,${skyAlpha})`);
-  skyGrad.addColorStop(1,    `rgba(21,96,184,${skyAlpha})`);
-  ctx.fillStyle = skyGrad;
-  ctx.fillRect(-diag, -diag + pitchPx, diag * 2, diag);
-
-  const gndGrad = ctx.createLinearGradient(0, pitchPx, 0, pitchPx + diag * 0.6);
-  gndGrad.addColorStop(0,   `rgba(107,63,26,${gndAlpha})`);
-  gndGrad.addColorStop(0.45,`rgba(66,38,14,${gndAlpha})`);
-  gndGrad.addColorStop(1,   `rgba(30,16,8,${gndAlpha})`);
-  ctx.fillStyle = gndGrad;
-  ctx.fillRect(-diag, pitchPx, diag * 2, diag);
-
-  // ── 2. Horizon line ────────────────────────────────────────────────────
-  const hlLen = diag;
-  const horizPx = Math.round(pitchPx) + 0.5; // snap to pixel boundary for crispness
-  ctx.shadowColor = 'rgba(160,230,255,0.9)';
-  ctx.shadowBlur  = videoMode ? 3 : 5;
+  const sky = videoMode ? 'rgba(74, 144, 212, 0.55)' : '#5aa4de';
+  const gnd = videoMode ? 'rgba(166, 122, 58, 0.55)' : '#c4a06a';
+  ctx.fillStyle = sky;
+  ctx.fillRect(-instR * 2, -instR * 2 + pitchPx, instR * 4, instR * 2);
+  ctx.fillStyle = gnd;
+  ctx.fillRect(-instR * 2, pitchPx, instR * 4, instR * 2);
   ctx.strokeStyle = '#ffffff';
-  ctx.lineWidth   = videoMode ? 1.5 : 2.5;
-  ctx.beginPath(); ctx.moveTo(-hlLen, horizPx); ctx.lineTo(hlLen, horizPx); ctx.stroke();
-  ctx.shadowBlur  = 0;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(-instR * 2, pitchPx);
+  ctx.lineTo(instR * 2, pitchPx);
+  ctx.stroke();
 
-  // ── 3. Pitch ladder ────────────────────────────────────────────────────
-  ctx.font    = `600 ${H * 0.055}px "Space Grotesk", monospace`;
-  ctx.lineCap = 'round';
-  for (let p = -40; p <= 40; p += 5) {
+  ctx.font = '600 12px "Space Grotesk", "Heebo", sans-serif';
+  ctx.textBaseline = 'middle';
+  for (let p = -30; p <= 30; p += 5) {
     if (p === 0) continue;
-    const y   = pitchPx - p * pxPerDeg;
-    if (Math.abs(y) > H * 0.6) continue;
+    const y = pitchPx - p * pxPerDeg;
+    if (Math.abs(y) > instR * 0.88) continue;
     const big = p % 10 === 0;
-    const hw  = big ? W * 0.22 : W * 0.12;
-    const alpha = videoMode ? (big ? 0.9 : 0.55) : (big ? 1 : 0.55);
-    const ySnap = Math.round(y) + 0.5;
-    ctx.strokeStyle = `rgba(255,255,255,${alpha})`;
-    ctx.lineWidth   = big ? (videoMode ? 1.5 : 2) : 1;
-    ctx.beginPath(); ctx.moveTo(-hw, ySnap); ctx.lineTo(hw, ySnap); ctx.stroke();
+    const hw = big ? 28 : 14;
+    ctx.strokeStyle = big ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.55)';
+    ctx.lineWidth = big ? 1.6 : 1;
+    ctx.beginPath();
+    ctx.moveTo(-hw, y);
+    ctx.lineTo(hw, y);
+    ctx.stroke();
     if (big) {
-      const tk = H * 0.025;
-      ctx.beginPath();
-      ctx.moveTo(-hw, y); ctx.lineTo(-hw, y + (p > 0 ? tk : -tk));
-      ctx.moveTo( hw, y); ctx.lineTo( hw, y + (p > 0 ? tk : -tk));
-      ctx.stroke();
-      ctx.fillStyle = `rgba(255,255,255,${videoMode ? 0.9 : 1})`;
-      ctx.textAlign = 'right'; ctx.fillText(String(Math.abs(p)), -hw - 4, y + H * 0.02);
-      ctx.textAlign = 'left';  ctx.fillText(String(Math.abs(p)),  hw + 4, y + H * 0.02);
+      ctx.fillStyle = '#ffffff';
+      ctx.textAlign = 'right';
+      ctx.fillText(String(Math.abs(p)), -hw - 6, y);
+      ctx.textAlign = 'left';
+      ctx.fillText(String(Math.abs(p)), hw + 6, y);
     }
   }
-  ctx.lineCap = 'butt';
+  ctx.restore();
   ctx.restore();
 
-  // ── 4. Bank arc + ticks (fixed, over the square) ──────────────────────
-  const arcR = Math.min(cx, cy) * 0.82;
-  ctx.strokeStyle = 'rgba(255,255,255,0.22)';
-  ctx.lineWidth   = 1.2;
+  ctx.strokeStyle = 'rgba(15, 23, 42, 0.35)';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.arc(cx, cy, instR, 0, Math.PI * 2);
+  ctx.stroke();
+
+  const arcR = instR - 6;
+  ctx.strokeStyle = 'rgba(15, 23, 42, 0.45)';
+  ctx.lineWidth = 1.4;
   ctx.beginPath();
   ctx.arc(cx, cy, arcR, -Math.PI * 0.78, -Math.PI * 0.22);
   ctx.stroke();
-
   [-60, -45, -30, -20, -10, 0, 10, 20, 30, 45, 60].forEach((deg) => {
-    const a   = (-90 + deg) * Math.PI / 180;
+    const a = (-90 + deg) * Math.PI / 180;
     const big = Math.abs(deg) % 30 === 0;
-    const tL  = big ? 9 : 5;
-    ctx.strokeStyle = big ? 'rgba(255,255,255,0.65)' : 'rgba(255,255,255,0.32)';
-    ctx.lineWidth   = big ? 1.5 : 0.8;
+    const tL = big ? 10 : 5;
+    ctx.strokeStyle = big ? 'rgba(15, 23, 42, 0.75)' : 'rgba(15, 23, 42, 0.4)';
+    ctx.lineWidth = big ? 1.8 : 1;
     ctx.beginPath();
-    ctx.moveTo(cx + Math.cos(a) * arcR,        cy + Math.sin(a) * arcR);
-    ctx.lineTo(cx + Math.cos(a) * (arcR - tL),  cy + Math.sin(a) * (arcR - tL));
+    ctx.moveTo(cx + Math.cos(a) * arcR, cy + Math.sin(a) * arcR);
+    ctx.lineTo(cx + Math.cos(a) * (arcR - tL), cy + Math.sin(a) * (arcR - tL));
     ctx.stroke();
   });
 
-  // Bank pointer triangle (rotates with roll)
   ctx.save();
   ctx.translate(cx, cy);
   ctx.rotate(rollRad);
-  ctx.shadowColor = 'rgba(250,204,21,0.7)';
-  ctx.shadowBlur  = 5;
-  ctx.fillStyle   = '#facc15';
+  ctx.fillStyle = '#f4c430';
   ctx.beginPath();
-  ctx.moveTo(0, -arcR + 1);
-  ctx.lineTo(-5, -arcR + 13);
-  ctx.lineTo( 5, -arcR + 13);
+  ctx.moveTo(0, -arcR + 2);
+  ctx.lineTo(-6, -arcR + 14);
+  ctx.lineTo(6, -arcR + 14);
   ctx.closePath();
   ctx.fill();
-  ctx.shadowBlur = 0;
   ctx.restore();
 
-  // ── 5. Aircraft T-bar symbol ───────────────────────────────────────────
-  const aW = W * 0.19;
-  const aG = W * 0.05;
-  const aY = cy;
-  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-  ctx.shadowColor = 'rgba(250,204,21,0.8)';
-  ctx.shadowBlur  = 9;
-  ctx.strokeStyle = '#facc15';
-  ctx.lineWidth   = 2.6;
-  ctx.beginPath(); ctx.moveTo(cx - aG, aY); ctx.lineTo(cx - aW, aY + H * 0.02); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(cx + aG, aY); ctx.lineTo(cx + aW, aY + H * 0.02); ctx.stroke();
-  ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.moveTo(cx, aY); ctx.lineTo(cx, aY - H * 0.065); ctx.stroke();
-  ctx.shadowBlur = 10;
-  ctx.fillStyle  = '#facc15';
-  ctx.beginPath(); ctx.arc(cx, aY, 3, 0, Math.PI * 2); ctx.fill();
-  ctx.shadowBlur = 0;
-  ctx.lineCap = 'butt'; ctx.lineJoin = 'butt';
+  ctx.strokeStyle = '#f4c430';
+  ctx.fillStyle = '#f4c430';
+  ctx.lineWidth = 2.4;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(cx - 46, cy);
+  ctx.lineTo(cx - 10, cy);
+  ctx.moveTo(cx + 10, cy);
+  ctx.lineTo(cx + 46, cy);
+  ctx.moveTo(cx, cy);
+  ctx.lineTo(cx, cy + 12);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(cx, cy, 3.2, 0, Math.PI * 2);
+  ctx.fill();
 
-  // ── 6. Corner readouts (R / P) ─────────────────────────────────────────
-  ctx.font      = `700 ${Math.min(W, H) * 0.055}px "Space Grotesk", monospace`;
-  ctx.fillStyle = showRoll && rollDraw === 0 ? 'rgba(180,210,255,0.5)' : '#facc15';
+  ctx.font = '700 12px "Space Grotesk", sans-serif';
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillStyle = showRoll ? '#1e2937' : 'rgba(30,41,59,0.45)';
   ctx.textAlign = 'left';
-  ctx.fillText(showRoll ? `R${rollDraw >= 0 ? '+' : ''}${formatHudAngleLabel(rollDraw)}°` : 'R --', 5, H - 5);
-  ctx.fillStyle = showPitch && pitchDraw === 0 ? 'rgba(180,210,255,0.5)' : '#4ade80';
+  ctx.fillText(showRoll ? `R ${rollDraw >= 0 ? '+' : ''}${formatHudAngleLabel(rollDraw)}°` : 'R --', 10, H - 10);
+  ctx.fillStyle = showPitch ? '#1e2937' : 'rgba(30,41,59,0.45)';
   ctx.textAlign = 'right';
-  ctx.fillText(showPitch ? `P${pitchDraw >= 0 ? '+' : ''}${formatHudAngleLabel(pitchDraw)}°` : 'P --', W - 5, H - 5);
+  ctx.fillText(showPitch ? `P ${pitchDraw >= 0 ? '+' : ''}${formatHudAngleLabel(pitchDraw)}°` : 'P --', W - 10, H - 10);
 }
 const GPS_FIX_LABELS = ['אין GPS', 'אין Fix', '2D Fix', '3D Fix', 'DGPS', 'RTK Float', 'RTK Fixed'];
 
@@ -8628,7 +8545,7 @@ setInterval(refreshAdvisorHealth, 60_000);
     ].filter(g => g.items.length > 0);
 
     if (!groups.length) {
-      cpFeaturesGrid.innerHTML = '<div class="cp-empty">לא נוצרו עדיין פרמטרים מותאמים.<br>עבור ל<strong>ArduLab</strong> כדי ליצור פיצ\'ר חדש.</div>';
+      cpFeaturesGrid.innerHTML = '<div class="cp-empty">לא נוצרו עדיין פרמטרים מותאמים.<br>שאלו במסייע לפיצ׳ר חדש.</div>';
       return;
     }
 
@@ -8908,7 +8825,7 @@ setInterval(refreshAdvisorHealth, 60_000);
       div.className = `fd-message ${turn.role === 'user' ? 'user' : 'assistant'}`;
       const isAI = turn.role !== 'user';
       div.innerHTML = `
-        <div class="fd-message-role">${isAI ? 'ArduLab AI' : 'אתה'}</div>
+        <div class="fd-message-role">${isAI ? 'פיצ׳ר' : 'אתה'}</div>
         <div class="fd-message-bubble${isAI ? ' fd-md' : ''}">${isAI ? fdRenderMarkdown(turn.content) : fdEscape(turn.content)}</div>
       `;
       fdMessages.appendChild(div);
@@ -9080,7 +8997,7 @@ setInterval(refreshAdvisorHealth, 60_000);
       const badgeHtml = d.type === 'update'
         ? '<span class="fd-update-badge">✦ עדכון קוד</span>'
         : '';
-      aiMsg.innerHTML = `<div class="fd-message-role">ArduLab AI</div><div class="fd-message-bubble fd-md">${badgeHtml}${fdRenderMarkdown(d.message)}</div>`;
+      aiMsg.innerHTML = `<div class="fd-message-role">פיצ׳ר</div><div class="fd-message-bubble fd-md">${badgeHtml}${fdRenderMarkdown(d.message)}</div>`;
       fdMessages.appendChild(aiMsg);
       fdMessages.scrollTop = fdMessages.scrollHeight;
 
@@ -11337,7 +11254,7 @@ const ASSIST_WORKSPACE_HE = Object.freeze({
   MISSION: 'משימה',
   PLATFORM: 'פלטפורמה',
   EVOLVE: 'פיתוח',
-  LAB: 'מעבדה',
+  LAB: 'סימולציה',
   UNKNOWN: 'לא ידוע',
 });
 const ASSIST_CAPABILITY_HE = Object.freeze({
@@ -11352,13 +11269,13 @@ const ASSIST_CAPABILITY_HE = Object.freeze({
   configuration: 'תצורה',
   debrief: 'תחקור',
   evolve: 'פיתוח',
-  lab_sitl: 'מעבדה',
+  lab_sitl: 'סימולציה',
   advisor: 'יועץ',
 });
 const ASSIST_TAB_HE = Object.freeze({
   terrain: 'הטסה',
   development: 'פיתוח',
-  simLab: 'מעבדה',
+  simLab: 'סימולציה',
   pulse: 'בית',
   control: 'פרמטרים',
   telemetry: 'טלמטריה',
@@ -11366,7 +11283,7 @@ const ASSIST_TAB_HE = Object.freeze({
   recordings: 'תחקור',
   flights: 'תחקור',
   advisor: 'יועץ',
-  featureDesigner: 'ארדולאב',
+  featureDesigner: 'פיצ׳ר',
   flightEngineer: 'מהנדס טיסה',
 });
 const ASSIST_AGENT_STATE_HE = Object.freeze({
@@ -11439,7 +11356,7 @@ const ASSIST_DEFAULT_HINT_HE = 'שינוי דורש אישור.';
 const ASSIST_MISSION_HINT_HE = 'הטסה. הערה ותצפית בלבד.';
 const ASSIST_DEFAULT_PLACEHOLDER_HE = 'שאלה, יועץ, פתק, או בקשת פיתוח…';
 const ASSIST_MISSION_PLACEHOLDER_HE = 'הערה, תצפית, או שאלה';
-const ASSIST_DEFAULT_INVITE_HE = 'שאלו כאן. יועץ המעבדה נפתח אם צריך.';
+const ASSIST_DEFAULT_INVITE_HE = 'שאלו כאן.';
 const ASSIST_MISSION_INVITE_HE = 'שאלו, רשמו הערה, או תצפית.';
 const ASSIST_CHIP_PREFIX = Object.freeze({
   note: 'הערה: ',
@@ -12241,7 +12158,7 @@ function syncMissionLayoutChrome() {
     if (el) el.hidden = false;
   });
   const hint = document.getElementById('missionLayoutHint');
-  if (hint) hint.textContent = 'גררו כותרת אזור. שינוי גודל תמיד, גם בטיסה.';
+  if (hint) hint.textContent = 'גררו קצה לשינוי גודל. גררו כותרת להחלפה. גם בטיסה.';
   requestAnimationFrame(placeMissionSplits);
 }
 
