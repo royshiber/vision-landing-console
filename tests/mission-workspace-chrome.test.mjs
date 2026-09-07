@@ -57,11 +57,23 @@ describe('AIRVIX Mission chrome — top strip gone', () => {
     expect(html).not.toContain('Vision Landing Console');
     expect(js).toContain('document.title = `AIRVIX v${v}`');
     expect(css).toMatch(/body:has\(#terrain\.panel\.visible\) \.layout\s*\{[^}]*padding:\s*0/);
-    expect(css).toMatch(/\.mission-ops-chrome\s*\{[^}]*min-height:\s*26px/);
+    expect(css).toMatch(/\.mission-ops-chrome\s*\{[^}]*position:\s*absolute/);
+    expect(css).toMatch(/\.mission-ops-chrome\s*\{[^}]*min-height:\s*0/);
     expect(css).toMatch(/\.mission-workspace\[data-mission-layout="ops-v1"\]\s*\{[^}]*gap:\s*4px/);
     expect(css).toMatch(/--mission-r1:\s*2\.20fr/);
     expect(css).toMatch(/--mission-r2:\s*0\.62fr/);
     expect(css).toMatch(/\.mission-region\s*\{[^}]*border-radius:\s*4px/);
+  });
+
+  it('keeps three primary Mission surfaces and quiets extra chrome', () => {
+    expect(css).toMatch(/\.mission-identity,\s*\.mission-layout-hint,\s*\.mission-data-hint,\s*\.mission-talk-hint\s*\{[^}]*clip:\s*rect\(0, 0, 0, 0\)/);
+    expect(css).toMatch(/#missionTalkHost \.assist-rail-head,\s*#missionTalkHost \.assist-rail-hint,\s*#missionTalkHost \.assist-context-chip\s*\{[^}]*display:\s*none/);
+    expect(css).toMatch(/\.terrain-map-overlay-toolbar \.terrain-toolbar-label\s*\{[^}]*display:\s*none/);
+    expect(css).toMatch(/\.mission-region-title\s*\{[^}]*position:\s*absolute/);
+    expect(html).toMatch(/id="missionIdentity"[^>]*>הטסה · מרחב טיסה</);
+    expect(html).toContain('id="missionSwapHorizonMapBtn"');
+    expect(html).toContain('id="missionResetLayoutBtn"');
+    expect(html).not.toContain('Vision Landing Console');
   });
 
   it('raises הטסה into the primary tab row and removes Lab chrome', () => {

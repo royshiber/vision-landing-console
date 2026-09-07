@@ -6,7 +6,7 @@
       {
         "type": "ui",
         "title": "Mission density: flush tabs, dark console, AIRVIX chrome",
-        "detail": "Removed the gap under tabs and collapsed identity/layout into a 26px strip. Horizon, map, and Assist claim most of the viewport; data stays compact and messages stay click-expand. One dark flight-console skin. User-visible product name is AIRVIX. APP_VERSION 1.02.258."
+        "detail": "Removed the gap under tabs. Horizon, map, and Assist are the three primary surfaces; data stays compact and messages stay click-expand. Extra identity, hint, and Assist-head chrome is visually quiet so the viewport stays dense without packing status into the tab bar. One dark flight-console skin. User-visible product name is AIRVIX. APP_VERSION 1.02.258."
       },
       {
         "type": "test",
