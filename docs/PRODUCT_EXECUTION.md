@@ -125,7 +125,7 @@ Architecture wave (`docs/AIRVIX_PRODUCT_ARCHITECTURE.md`): C10.2 Assist unificat
 16. 300+ hunt is **abandoned permanently**. GitHub public `master` is `1.02.255`. Improve GitHub 255. Measure by capabilities closed, not PR count.
 17. Skip leftover draft #4 (low-value smoke). Do not merge. Constitution #6 **LANDED** on master `e57eb28`. Prior map snapshots **LANDED** via PR #49 `1c7f8fa`, PR #51 `ba78623`, PR #53 `1c165e0`, PR #55 `db6fdc0`, and PR #57 `b724c76`.
 18. **C10.5a** leftover hidden `#flights` folds into תחקור לוגים — **LANDED** via PR #62.
-19. **C10.5b** Platform capability shells — **LANDED** via PR #64 merge `779a11d`. One overview tab **פלטפורמה** links to existing Companion / Params / Maintenance. No new write paths.
+19. **C10.5b** Platform capability shells — **LANDED** via PR #64 merge `779a11d`. One overview tab **פלטפורמה** links to existing Companion / Params / Maintenance. **This draft** adds **אבחונים** → existing `#telemetry`. No new write paths.
 20. **C10.6** Mission flight-safe Assist polish — **LANDED** via PR #65 merge `5184e71`. `#terrain` / `#flightEngineer` stay MISSION. Assist drops `CREATE_DEVELOPMENT_TASK` there and refuses coding-agent starts in spoken Hebrew. NOTE / OBSERVATION / UI_NAVIGATION stay.
 21. **C10.7a** Attention Policy controls — **LANDED** via PR #66 merge `b37c26e`. Quiet-by-default `off` / `attention` / `critical` in the existing gear. Pulse tags INFO/ATTENTION/CRITICAL. Assist badge only when policy allows noticing. No STT/TTS pipeline. C10.7b voice/STT stays deferred.
 22. **Advisor→Assist MERGE** — **LANDED** via PR #67 merge `b0be4c3`. `#advisor` stays on the lab shelf. Assist routes `advisor` / `יועץ` and advisor-style Q&A to that panel. No cliff-delete.
