@@ -3751,6 +3751,9 @@ const pfdVoiceFlightBtn = document.getElementById('pfdVoiceFlightBtn');
 const pfdReadinessPopover = document.getElementById('pfdReadinessPopover');
 const pfdReadinessBody = document.getElementById('pfdReadinessBody');
 const pfdReadinessCloseBtn = document.getElementById('pfdReadinessCloseBtn');
+const pfdReadinessDiagBtn = document.getElementById('pfdReadinessDiagBtn');
+const missionReadinessGlance = document.getElementById('missionReadinessGlance');
+let _readinessAnchor = null;
 // Kept as null — removed from HTML
 const hudRollLabel = null;
 const hudPitchLabel = null;
@@ -4318,8 +4321,9 @@ async function translateAndRenderFcStatustext(rows) {
 }
 
 function positionPfdReadinessPopover() {
-  if (!pfdReadinessPopover || !pfdArmedBadge || pfdReadinessPopover.classList.contains('hidden')) return;
-  const r = pfdArmedBadge.getBoundingClientRect();
+  const anchor = _readinessAnchor || missionReadinessGlance || pfdArmedBadge;
+  if (!pfdReadinessPopover || !anchor || pfdReadinessPopover.classList.contains('hidden')) return;
+  const r = anchor.getBoundingClientRect();
   const w = Math.min(300, window.innerWidth - 16);
   const left = Math.max(8, Math.min(r.left, window.innerWidth - w - 8));
   pfdReadinessPopover.style.width = `${w}px`;
@@ -4366,8 +4370,9 @@ function buildReadinessListHtml(m) {
   pfdReadinessBody.appendChild(ul);
 }
 
-function openPfdReadinessPopover() {
+function openPfdReadinessPopover(anchor) {
   if (!pfdReadinessPopover) return;
+  _readinessAnchor = anchor || missionReadinessGlance || pfdArmedBadge;
   buildReadinessListHtml(latestHudMavlink);
   pfdReadinessPopover.classList.remove('hidden');
   positionPfdReadinessPopover();
@@ -4375,6 +4380,15 @@ function openPfdReadinessPopover() {
 
 function closePfdReadinessPopover() {
   pfdReadinessPopover?.classList.add('hidden');
+  _readinessAnchor = null;
+}
+
+function openDiagnosticsReadiness() {
+  closePfdReadinessPopover();
+  applyMainTab('telemetry');
+  applyTeleSubtab('dash');
+  const strip = document.getElementById('readinessStrip') || document.getElementById('preflightCard');
+  strip?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
 }
 
 function setupFlightHudChromeHandlers() {
@@ -4382,19 +4396,27 @@ function setupFlightHudChromeHandlers() {
     document.querySelector('.tab[data-tab="flightEngineer"]')?.click();
     setTimeout(() => document.getElementById('feMicBtn')?.click(), 220);
   });
-  function toggleArmPopover(e) {
+  function toggleReadinessPopover(e, anchor) {
     e.preventDefault();
-    if (pfdReadinessPopover?.classList.contains('hidden')) openPfdReadinessPopover();
+    e.stopPropagation();
+    if (pfdReadinessPopover?.classList.contains('hidden')) openPfdReadinessPopover(anchor);
     else closePfdReadinessPopover();
   }
-  pfdArmedBadge?.addEventListener('click', toggleArmPopover);
+  pfdArmedBadge?.addEventListener('click', (e) => toggleReadinessPopover(e, pfdArmedBadge));
   pfdArmedBadge?.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' || e.key === ' ') toggleArmPopover(e);
+    if (e.key === 'Enter' || e.key === ' ') toggleReadinessPopover(e, pfdArmedBadge);
   });
+  missionReadinessGlance?.addEventListener('click', (e) => toggleReadinessPopover(e, missionReadinessGlance));
   pfdReadinessCloseBtn?.addEventListener('click', () => closePfdReadinessPopover());
+  pfdReadinessDiagBtn?.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    openDiagnosticsReadiness();
+  });
   document.addEventListener('click', (e) => {
     if (!pfdReadinessPopover || pfdReadinessPopover.classList.contains('hidden')) return;
     if (pfdArmedBadge?.contains(e.target)) return;
+    if (missionReadinessGlance?.contains(e.target)) return;
     if (pfdReadinessPopover.contains(e.target)) return;
     closePfdReadinessPopover();
   });
@@ -6554,17 +6576,17 @@ const arduWriteStatus = document.getElementById('arduWriteStatus');
       setRow('jetson', 'fail', 'שגיאת רשת');
     }
 
-    // GPS — use the manual satellite count input on the takeoff-readiness card.
-    const satsInput = document.getElementById('gpsSatsInput');
-    const sats = satsInput ? Number(satsInput.value) : NaN;
-    if (!isNaN(sats) && sats >= 6) {
-      setRow('gps', 'ok', `${sats} לוויינים`);
-    } else if (!isNaN(sats) && sats > 0) {
-      setRow('gps', 'warn', `${sats} לוויינים (חלש)`);
-    } else if (!isNaN(sats) && sats === 0) {
-      setRow('gps', 'fail', 'אין GPS (0 לוויינים)');
+    // GPS — real MAVLink snapshot only. Empty stays — ; do not invent sats.
+    const mav = latestHudMavlink;
+    if (!mav || !mav.connected) {
+      setRow('gps', 'pending', '—');
+    } else if (typeof mav.gpsFixType === 'number' && Number.isFinite(mav.gpsFixType)) {
+      const fixLabel = GPS_FIX_LABELS[mav.gpsFixType] ?? `Fix ${mav.gpsFixType}`;
+      const sats = typeof mav.gpsSats === 'number' && Number.isFinite(mav.gpsSats) ? ` · ${mav.gpsSats}` : '';
+      const status = mav.gpsFixType >= 3 ? 'ok' : mav.gpsFixType === 2 ? 'warn' : 'fail';
+      setRow('gps', status, `${fixLabel}${sats}`);
     } else {
-      setRow('gps', 'pending', 'הזן מספר לוויינים בטאב הזנקה');
+      setRow('gps', 'pending', '—');
     }
   }
 
@@ -11624,6 +11646,9 @@ function assistApplyNavigation(nav) {
     applyMainTab(nav.tab);
   }
   if (nav.subtab) applyControlSubtab(nav.subtab);
+  if (nav.route_id === 'readiness') {
+    requestAnimationFrame(() => openPfdReadinessPopover(missionReadinessGlance || pfdArmedBadge));
+  }
   if (nav.task_id) {
     _devSelectedTaskId = nav.task_id;
     void (async () => {
