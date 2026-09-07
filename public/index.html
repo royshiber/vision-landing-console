@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="app-version" content="__APP_VERSION__" />
-    <title>Vision Landing Console v__APP_VERSION__</title>
+    <title>AIRVIX v__APP_VERSION__</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
@@ -98,6 +98,7 @@
         <button class="tab tab-ops" data-tab="development" title="פיתוח">פיתוח</button>
       </nav>
       <div class="app-chrome-tools">
+        <span class="app-chrome-brand" aria-label="AIRVIX">AIRVIX</span>
         <button type="button" id="globalSettingsBtn" class="global-settings-btn" title="הגדרות כלליות" aria-haspopup="dialog" aria-controls="globalSettingsModal">⚙</button>
         <button id="versionBtn" class="badge clickable" title="לחץ כדי לראות מה עודכן בגרסה">v__APP_VERSION__</button>
       </div>
@@ -1282,11 +1283,13 @@
 
 
       <section id="terrain" class="panel visible" data-workspace="mission">
-        <p id="missionIdentity" class="mission-identity">הטסה · מרחב טיסה<button type="button" id="missionReadinessGlance" class="mission-readiness-glance" title="מוכנות">מוכנות</button></p>
-        <div class="mission-layout-bar">
-          <button type="button" id="missionSwapHorizonMapBtn" class="mission-layout-btn">החלף אופק ומפה</button>
-          <button type="button" id="missionResetLayoutBtn" class="mission-layout-btn">איפוס סידור</button>
+        <div class="mission-ops-chrome">
+          <p id="missionIdentity" class="mission-identity">הטסה · מרחב טיסה<button type="button" id="missionReadinessGlance" class="mission-readiness-glance" title="מוכנות">מוכנות</button></p>
+          <div class="mission-layout-bar">
+            <button type="button" id="missionSwapHorizonMapBtn" class="mission-layout-btn">החלף אופק ומפה</button>
+            <button type="button" id="missionResetLayoutBtn" class="mission-layout-btn">איפוס סידור</button>
             <p id="missionLayoutHint" class="mission-layout-hint">גררו קצה לשינוי גודל. גררו כותרת להחלפה. גם בטיסה.</p>
+          </div>
         </div>
         <div class="terrain-flight-shell mission-workspace" data-mission-layout="ops-v1" data-mission-swap="horizon-map" data-mission-edit="on">
           <div id="missionColSplit" class="mission-split mission-split-col"></div>
@@ -1786,7 +1789,7 @@
                   <div class="fe-welcome-chips">
                     <button type="button" class="fe-chip" data-prompt="מה הקונסולה והמהנדס יודעים לעשות גם כשאין טיסן מחובר לבקר?">מה אפשר בלי חיבור?</button>
                     <button type="button" class="fe-chip" data-prompt="הטיסה לא יציבה — מה לבדוק ברמת פרמטרים וברמת חומרה?">הטיסה לא יציבה</button>
-                    <button type="button" class="fe-chip" data-prompt="תן הסבר קצר על מערכת הוויז׳ן, ה-VIO וה-EKF בהקשר של Vision Landing">וויז׳ן ו־EKF ב-VLC</button>
+                    <button type="button" class="fe-chip" data-prompt="תן הסבר קצר על מערכת הוויז׳ן, ה-VIO וה-EKF בהקשר של AIRVIX">וויז׳ן ו־EKF ב-AIRVIX</button>
                     <button type="button" class="fe-chip" data-prompt="זה קרה לנו כבר בעבר?">זה קרה לנו כבר?</button>
                   </div>
                   <div class="fe-welcome-hint">

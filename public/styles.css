@@ -121,18 +121,18 @@ h1, h2, .panel-header h2 {
 .app-chrome {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 8px 18px;
-  padding-inline-end: 176px;
-  border-bottom: 0;
-  background: rgba(6, 9, 14, 0.88);
-  backdrop-filter: blur(24px) saturate(1.2);
-  min-height: 52px;
+  gap: 8px;
+  padding: 4px 12px;
+  padding-inline-end: 168px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: #0b0e14;
+  backdrop-filter: none;
+  min-height: 40px;
   flex-shrink: 0;
   position: relative;
   z-index: var(--z-topbar-chrome);
   color: #e8edf6;
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04);
+  box-shadow: none;
 }
 
 .app-chrome .tabs {
@@ -147,6 +147,14 @@ h1, h2, .panel-header h2 {
   gap: 6px;
   flex-shrink: 0;
   margin-inline-start: auto;
+}
+
+.app-chrome-brand {
+  font-family: "Space Grotesk", "Heebo", sans-serif;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: rgba(232, 237, 246, 0.78);
 }
 
 .app-chrome .badge {
@@ -173,12 +181,12 @@ h1, h2, .panel-header h2 {
   text-transform: none;
   letter-spacing: 0.01em;
   font-weight: 600;
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   background: transparent;
   color: rgba(226, 232, 240, 0.62);
   border-color: transparent;
-  border-radius: 999px;
-  padding: 6px 13px;
+  border-radius: 4px;
+  padding: 5px 11px;
   transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
 }
 
@@ -331,13 +339,14 @@ h1 { margin: 0; font-size: 1.25rem; color: var(--text); }
 }
 
 body:has(#terrain.panel.visible) {
-  background-color: #dbe6f2;
+  background-color: #0b0e14;
   background-image: none;
 }
 
 body:has(#terrain.panel.visible) .layout {
   max-width: none;
-  padding: 8px 12px 12px;
+  padding: 0;
+  gap: 0;
 }
 
 /* Why: tabs must stay above panel content if anything overlaps (stacking / RTL); what: shrink-disabled chrome row with explicit stacking. */
@@ -1480,7 +1489,8 @@ body:has(#terrain.panel.visible) .layout {
 /* 1366x768-like screens: tighten chrome, preserve readable cards, avoid clipping. */
 @media (max-height: 820px) {
   .layout { padding-top: 6px; gap: 8px; }
-  .app-chrome { min-height: 44px; padding: 6px 12px; padding-inline-end: 160px; }
+  body:has(#terrain.panel.visible) .layout { padding: 0; gap: 0; }
+  .app-chrome { min-height: 36px; padding: 3px 10px; padding-inline-end: 160px; }
   .tabs { padding-bottom: 2px; }
   .tab { padding: 6px 11px; font-size: 0.68rem; }
   .subtab { padding: 5px 10px; font-size: 0.72rem; }
@@ -6924,25 +6934,33 @@ body.operator-live .companion-connect--hero {
   gap: 0;
   padding: 0;
   position: relative;
-  border-radius: 20px;
+  border-radius: 0;
   border: 0;
-  background:
-    radial-gradient(900px 380px at 88% -10%, rgba(125, 211, 252, 0.28), transparent 52%),
-    linear-gradient(180deg, #e8f1f8 0%, #d5e3f0 100%);
+  background: #0b0e14;
+}
+.mission-ops-chrome {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 26px;
+  padding: 2px 8px;
+  flex: 0 0 auto;
+  background: #0b0e14;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 .mission-identity {
   margin: 0;
-  padding: 12px 18px 0;
+  padding: 0;
   font-family: "Heebo", sans-serif;
-  font-size: 0.8rem;
+  font-size: 0.68rem;
   font-weight: 600;
   letter-spacing: 0.01em;
-  color: #334155;
+  color: #94a3b8;
   direction: rtl;
-  flex: 0 0 auto;
+  flex: 0 1 auto;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
 }
 .mission-readiness-glance {
   margin: 0;
@@ -6975,21 +6993,22 @@ body.operator-live .companion-connect--hero {
 .mission-layout-bar {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 18px 10px;
+  gap: 6px;
+  padding: 0;
+  margin-inline-start: auto;
   direction: rtl;
   flex: 0 0 auto;
 }
 
 .mission-layout-btn {
   margin: 0;
-  padding: 5px 12px;
+  padding: 3px 8px;
   border: 0;
-  border-radius: 999px;
-  background: rgba(15, 23, 42, 0.06);
-  color: #1e2937;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #e8edf6;
   font: inherit;
-  font-size: 0.7rem;
+  font-size: 0.66rem;
   font-weight: 600;
   font-family: "Heebo", sans-serif;
   cursor: pointer;
@@ -7010,7 +7029,7 @@ body.operator-live .companion-connect--hero {
 
 .mission-layout-hint {
   margin: 0;
-  font-size: 0.68rem;
+  font-size: 0.62rem;
   font-weight: 500;
   color: #64748b;
   font-family: "Heebo", sans-serif;
@@ -7018,23 +7037,23 @@ body.operator-live .companion-connect--hero {
 
 .terrain-flight-shell.mission-workspace,
 .mission-workspace[data-mission-layout="ops-v1"] {
-  --mission-c1: 1.15fr;
-  --mission-c2: 1.45fr;
-  --mission-c3: 0.92fr;
-  --mission-r1: 1.55fr;
-  --mission-r2: 0.88fr;
+  --mission-c1: 1.28fr;
+  --mission-c2: 1.62fr;
+  --mission-c3: 1.10fr;
+  --mission-r1: 2.20fr;
+  --mission-r2: 0.62fr;
   position: relative;
   display: grid;
-  grid-template-columns: minmax(260px, var(--mission-c1)) minmax(280px, var(--mission-c2)) minmax(240px, var(--mission-c3));
-  grid-template-rows: minmax(240px, var(--mission-r1)) minmax(150px, var(--mission-r2));
+  grid-template-columns: minmax(280px, var(--mission-c1)) minmax(300px, var(--mission-c2)) minmax(260px, var(--mission-c3));
+  grid-template-rows: minmax(280px, var(--mission-r1)) minmax(96px, var(--mission-r2));
   grid-template-areas:
     "horizon map talk"
     "data messages talk";
   flex: 1 1 0;
   min-height: 0;
-  gap: 10px;
+  gap: 4px;
   direction: ltr;
-  padding: 4px 10px 10px;
+  padding: 4px;
 }
 
 .mission-workspace[data-mission-swap="map-horizon"] {
@@ -7082,11 +7101,11 @@ body.operator-live .companion-connect--hero {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border-radius: 16px;
-  border: 0;
-  background: rgba(255, 255, 255, 0.72);
-  backdrop-filter: blur(16px);
-  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #11161f;
+  backdrop-filter: none;
+  box-shadow: none;
 }
 
 .mission-region--drop {
@@ -7113,28 +7132,28 @@ body.operator-live .companion-connect--hero {
 
 .mission-region-title {
   margin: 0;
-  padding: 11px 16px 6px;
-  font-size: 0.78rem;
+  padding: 4px 8px 2px;
+  font-size: 0.68rem;
   font-weight: 600;
   letter-spacing: 0.01em;
-  color: #0f172a;
+  color: #94a3b8;
   font-family: "Heebo", sans-serif;
   flex: 0 0 auto;
 }
 
 .mission-region-data,
 .mission-region-messages {
-  background: rgba(255, 255, 255, 0.82);
+  background: #11161f;
   position: relative;
 }
 .mission-region-talk {
-  background: #eef3f8;
+  background: #0f141c;
 }
 
 .mission-data-hint {
   margin: 0;
-  padding: 0 14px 4px;
-  font-size: 0.62rem;
+  padding: 0 8px 2px;
+  font-size: 0.58rem;
   font-weight: 600;
   color: #64748b;
   font-family: "Heebo", sans-serif;
@@ -7143,9 +7162,9 @@ body.operator-live .companion-connect--hero {
 .mission-data-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
+  gap: 4px;
   margin: 0;
-  padding: 6px 10px 10px;
+  padding: 4px 6px 6px;
   flex: 1 1 auto;
   min-height: 0;
   position: relative;
@@ -7156,10 +7175,10 @@ body.operator-live .companion-connect--hero {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  gap: 4px;
+  gap: 2px;
   min-width: 0;
-  padding: 8px 10px 9px;
-  border-radius: 10px;
+  padding: 4px 6px 5px;
+  border-radius: 4px;
   background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
   border: 1px solid rgba(148, 163, 184, 0.28);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 8px 16px rgba(15, 23, 42, 0.16);
@@ -7309,12 +7328,12 @@ body.operator-live .companion-connect--hero {
 
 .mission-messages-toggle {
   align-self: flex-start;
-  margin: 0 12px 6px;
+  margin: 0 6px 4px;
   border: 0;
-  border-radius: 999px;
-  padding: 3px 10px;
-  background: rgba(15, 23, 42, 0.08);
-  color: #0f172a;
+  border-radius: 4px;
+  padding: 2px 8px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #e8edf6;
   font-size: 0.66rem;
   font-weight: 800;
   font-family: "Heebo", sans-serif;
@@ -7331,9 +7350,9 @@ body.operator-live .companion-connect--hero {
 
 .mission-talk-hint {
   margin: 0;
-  padding: 0 16px 8px;
-  font-size: 0.7rem;
-  color: #475569;
+  padding: 0 8px 4px;
+  font-size: 0.66rem;
+  color: #94a3b8;
 }
 
 .mission-talk-chips {
@@ -7384,9 +7403,9 @@ body.operator-live .companion-connect--hero {
   flex: 1 1 auto;
   min-height: 0;
   max-height: none;
-  margin: 0 8px 8px;
-  border-radius: 8px;
-  border: 1px solid rgba(0, 140, 255, 0.16);
+  margin: 0 4px 4px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .mission-region-messages .pfc-msg-scroll {
@@ -7397,7 +7416,7 @@ body.operator-live .companion-connect--hero {
 @media (max-width: 1100px) {
   .mission-workspace[data-mission-layout="ops-v1"] {
     grid-template-columns: minmax(200px, var(--mission-c1)) minmax(200px, var(--mission-c2));
-    grid-template-rows: minmax(220px, var(--mission-r1)) minmax(140px, var(--mission-r2)) minmax(160px, 0.7fr);
+    grid-template-rows: minmax(240px, var(--mission-r1)) minmax(88px, var(--mission-r2)) minmax(180px, 0.85fr);
     grid-template-areas:
       "horizon map"
       "data messages"
@@ -7423,7 +7442,7 @@ body.operator-live .companion-connect--hero {
   flex-direction: column;
   gap: 0;
   direction: rtl;
-  background: #e8eef5;
+  background: #0b0e14;
   border: 0;
   border-radius: 0;
   padding: 0;
@@ -8193,19 +8212,19 @@ body.operator-live .companion-connect--hero {
 /* Layer controls overlay — floats on top of the map, bottom-right corner */
 .terrain-map-overlay-toolbar {
   position: absolute;
-  bottom: 24px;
-  right: 10px;
+  bottom: 8px;
+  right: 8px;
   z-index: 1000;
   display: flex;
   align-items: center;
   gap: 4px;
-  background: rgba(8, 18, 38, 0.82);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border: 1px solid rgba(0,140,255,0.25);
-  border-radius: 10px;
-  padding: 5px 8px;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.45);
+  background: rgba(11, 14, 20, 0.88);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  padding: 3px 6px;
+  box-shadow: none;
 }
 .terrain-map-overlay-toolbar .terrain-toolbar-label {
   font-size: 0.68rem;
@@ -13540,11 +13559,11 @@ body.mission-assist-docked .assist-rail.assist-rail--mission,
   box-shadow: none;
   background: transparent;
   backdrop-filter: none;
-  padding: 4px 10px 12px;
+  padding: 4px 8px 8px;
 }
 #missionTalkHost .assist-rail-title {
-  font-size: 1rem;
-  color: #0f172a;
+  font-size: 0.92rem;
+  color: #e8edf6;
 }
 #missionTalkHost .assist-rail-mark {
   display: none;
@@ -13555,38 +13574,38 @@ body.mission-assist-docked .assist-rail.assist-rail--mission,
 #missionTalkHost .assist-agent-label,
 #missionTalkHost .assist-empty-invite,
 #missionTalkHost .assist-messages-empty {
-  color: #475569;
+  color: #94a3b8;
 }
 #missionTalkHost .assist-agent-connect,
 #missionTalkHost .assist-run-panel,
 #missionTalkHost .assist-proposal-bar {
-  background: rgba(255, 255, 255, 0.86);
-  border-color: rgba(15, 23, 42, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.08);
 }
 #missionTalkHost .assist-agent-status,
 #missionTalkHost .assist-run-headline,
 #missionTalkHost .assist-proposal-text {
-  color: #0f172a;
+  color: #e8edf6;
 }
 #missionTalkHost .assist-agent-key,
 #missionTalkHost .assist-input {
-  background: #ffffff;
-  color: #0f172a;
-  border-color: #cbd5e1;
+  background: #0b0e14;
+  color: #e8edf6;
+  border-color: rgba(255, 255, 255, 0.12);
 }
 #missionTalkHost .assist-msg-user {
-  background: rgba(37, 99, 235, 0.12);
-  color: #1e3a8a;
+  background: rgba(37, 99, 235, 0.22);
+  color: #dbeafe;
 }
 #missionTalkHost .assist-msg-assist {
-  background: #ffffff;
-  color: #0f172a;
-  border-color: rgba(15, 23, 42, 0.1);
+  background: rgba(255, 255, 255, 0.06);
+  color: #e8edf6;
+  border-color: rgba(255, 255, 255, 0.08);
 }
 #missionTalkHost .assist-quick-chip {
-  background: #e2e8f0;
-  color: #0f172a;
-  border-color: #cbd5e1;
+  background: rgba(255, 255, 255, 0.08);
+  color: #e8edf6;
+  border-color: rgba(255, 255, 255, 0.12);
 }
 #missionTalkHost .assist-btn-send {
   background: #16a34a;
@@ -13598,12 +13617,18 @@ body.mission-assist-docked .assist-rail.assist-rail--mission,
   color: #ffffff;
 }
 #missionTalkHost .assist-btn-cancel {
-  background: #e2e8f0;
-  color: #0f172a;
+  background: rgba(255, 255, 255, 0.08);
+  color: #e8edf6;
 }
 #missionTalkHost .mission-talk-hint,
 .mission-region-talk .mission-talk-hint {
-  color: #475569;
+  color: #94a3b8;
+}
+#missionTalkHost .assist-mic-btn,
+.mission-region-talk .assist-mic-btn {
+  background: rgba(255, 255, 255, 0.08);
+  color: #e8edf6;
+  border-color: rgba(255, 255, 255, 0.12);
 }
 .assist-rail-head {
   display: flex;

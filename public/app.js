@@ -76,8 +76,8 @@ function applyServerAppVersion(ver) {
   if (m) m.setAttribute('content', v);
   const vb = document.getElementById('versionBtn');
   if (vb) vb.textContent = `v${v}`;
-  if (document.title && document.title.startsWith('Vision Landing Console')) {
-    document.title = `Vision Landing Console v${v}`;
+  if (document.title && (document.title.startsWith('AIRVIX') || document.title.startsWith('Vision Landing Console'))) {
+    document.title = `AIRVIX v${v}`;
   }
   const advC = document.getElementById('advSysConsole');
   if (advC) advC.textContent = `v${v}`;
@@ -7906,7 +7906,7 @@ setInterval(refreshAdvisorHealth, 60_000);
       throw new Error(
         r.ok
           ? 'תשובת השרת לא בפורמט JSON — ודא שהשרת מעודכן והופעל מחדש.'
-          : `HTTP ${r.status}: התקבלה תשובת HTML במקום JSON — ודא שהשרת הוא Vision Landing Console מגרסה עדכנית.`,
+          : `HTTP ${r.status}: התקבלה תשובת HTML במקום JSON — ודא שהשרת הוא AIRVIX מגרסה עדכנית.`,
       );
     }
   }
@@ -9534,7 +9534,7 @@ setInterval(refreshAdvisorHealth, 60_000);
           <div class="fe-welcome-chips">
             <button type="button" class="fe-chip" data-prompt="מה הקונסולה והמהנדס יודעים לעשות גם כשאין טיסן מחובר לבקר?">מה אפשר בלי חיבור?</button>
             <button type="button" class="fe-chip" data-prompt="הטיסה לא יציבה — מה לבדוק ברמת פרמטרים וברמת חומרה?">הטיסה לא יציבה</button>
-            <button type="button" class="fe-chip" data-prompt="תן הסבר קצר על מערכת הוויז׳ן, ה-VIO וה-EKF בהקשר של Vision Landing">וויז׳ן ו־EKF ב-VLC</button>
+            <button type="button" class="fe-chip" data-prompt="תן הסבר קצר על מערכת הוויז׳ן, ה-VIO וה-EKF בהקשר של AIRVIX">וויז׳ן ו־EKF ב-AIRVIX</button>
             <button type="button" class="fe-chip" data-prompt="זה קרה לנו כבר בעבר?">זה קרה לנו כבר?</button>
           </div>
           <div class="fe-welcome-hint"><span class="fe-hint-dot"></span>לחץ על המיקרופון — נשמיע תשובה בקול</div>
@@ -12066,7 +12066,7 @@ function clampMissionFr(value, min, max, fallback) {
 }
 
 function defaultMissionSize() {
-  return { c1: 1.15, c2: 1.45, c3: 0.92, r1: 1.55, r2: 0.88 };
+  return { c1: 1.28, c2: 1.62, c3: 1.10, r1: 2.20, r2: 0.62 };
 }
 
 function defaultMissionAreas() {

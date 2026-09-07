@@ -1,5 +1,21 @@
 [
   {
+    "version": "1.02.258",
+    "date": "2026-09-07",
+    "changes": [
+      {
+        "type": "ui",
+        "title": "Mission density: flush tabs, dark console, AIRVIX chrome",
+        "detail": "Removed the gap under tabs and collapsed identity/layout into a 26px strip. Horizon, map, and Assist claim most of the viewport; data stays compact and messages stay click-expand. One dark flight-console skin. User-visible product name is AIRVIX. APP_VERSION 1.02.258."
+      },
+      {
+        "type": "test",
+        "title": "Mission flush density and AIRVIX branding pins",
+        "detail": "Asserts zero Mission layout padding, 4px workspace gap, enlarged default grid, dark talk panel, no Vision Landing Console in the document title, and version 1.02.258."
+      }
+    ]
+  },
+  {
     "version": "1.02.257",
     "date": "2026-09-07",
     "changes": [
