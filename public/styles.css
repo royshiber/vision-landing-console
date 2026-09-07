@@ -4659,6 +4659,14 @@ body.operator-live .companion-connect--hero {
   }
 }
 
+body:has(#pulse.panel.visible) {
+  background-color: #0b1018;
+}
+body:has(#pulse.panel.visible) .layout {
+  padding: 0;
+  background: #0b1018;
+}
+
 #pulse.panel.visible {
   display: flex !important;
   flex-direction: column;
@@ -4768,22 +4776,13 @@ body.operator-live .companion-connect--hero {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
 }
-.pulse-computer-metrics > div {
+.pulse-gauges .pulse-gauge {
   display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 10px;
-  padding: 7px 10px;
-  border-radius: 10px;
-  background: #121a26;
-  color: #e8eef6;
-}
-.pulse-gauge {
   flex-direction: column;
   align-items: center;
   justify-content: flex-end;
-  gap: 2px;
-  padding: 6px 4px 8px;
+  gap: 4px;
+  padding: 10px 6px 8px;
   border-radius: 8px;
   background: #0d1320;
   color: #e8edf6;
@@ -4791,8 +4790,8 @@ body.operator-live .companion-connect--hero {
 }
 .pulse-gauge-svg {
   width: 100%;
-  max-width: 92px;
-  height: auto;
+  max-width: 104px;
+  height: 58px;
   overflow: visible;
 }
 .pulse-gauge-track,
@@ -4802,7 +4801,7 @@ body.operator-live .companion-connect--hero {
   stroke-linecap: round;
 }
 .pulse-gauge-track {
-  stroke: rgba(148, 168, 198, 0.16);
+  stroke: rgba(148, 168, 198, 0.38);
 }
 .pulse-gauge-fill {
   stroke: #3dd68c;
