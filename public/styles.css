@@ -201,7 +201,8 @@ h1, h2, .panel-header h2 {
 .app-chrome .assist-toggle-btn {
   position: fixed;
   bottom: 20px;
-  inset-inline-start: 16px;
+  inset-inline-end: 16px;
+  inset-inline-start: auto;
   z-index: var(--z-assist-float);
   flex-direction: row;
   padding: 10px 16px;
