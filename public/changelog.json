@@ -1,36 +1,5 @@
 [
   {
-    "version": "1.02.256",
-    "date": "2026-09-07",
-    "changes": [
-      {
-        "type": "feat",
-        "title": "Server library",
-        "detail": "assist-context.mjs, assist-hebrew.mjs, assist-intent-resolver.mjs, assist-routes.mjs, assist-types.mjs"
-      },
-      {
-        "type": "feat",
-        "title": "UI / app.js",
-        "detail": "app.js"
-      },
-      {
-        "type": "ui",
-        "title": "HTML layout",
-        "detail": "index.html"
-      },
-      {
-        "type": "ui",
-        "title": "Styles",
-        "detail": "styles.css"
-      },
-      {
-        "type": "test",
-        "title": "Tests",
-        "detail": "advisor-assist-fold.test.mjs, assist-agent-connect.test.mjs, mission-assist-posture.test.mjs, operator-chrome-voice.test.mjs, operator-disconnected-overview.test.mjs"
-      }
-    ]
-  },
-  {
     "version": "1.02.255",
     "date": "2026-08-24",
     "changes": [
