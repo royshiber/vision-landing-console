@@ -109,7 +109,7 @@ describe('AIRVIX Mission chrome — talk is flight-safe', () => {
 });
 
 describe('AIRVIX Mission chrome — operator naming', () => {
-  it('uses בית as the Pulse home placeholder and Jetson / מחשב משימה for the computer', () => {
+  it('uses locked בית for Pulse home and Jetson / מחשב משימה for the computer', () => {
     const chrome = capture(html, /<header class="app-chrome"[^>]*>([\s\S]*?)<\/header>/, 'missing app-chrome')[1];
     expect(chrome).toMatch(/data-tab="pulse"[^>]*>בית</);
     expect(chrome).not.toMatch(/>סקירה</);

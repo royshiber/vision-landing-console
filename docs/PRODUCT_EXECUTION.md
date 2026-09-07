@@ -137,7 +137,7 @@ Architecture wave (`docs/AIRVIX_PRODUCT_ARCHITECTURE.md`): C10.2 Assist unificat
 28. **ArduLab → Assist REFINE** — **LANDED** via PR #73 merge `dca929a`. Assist route `ardulab` opens existing `#featureDesigner`. Workspace **EVOLVE**. Lab shelf stays. No FC write / Companion apply / Jetson deploy.
 29. **SITL Lab connect REFINE** — **LANDED** via PR #74 merge `1971384`. `#simLab` presets/wizard drive the global `#connectWidget`. Spoken-Hebrew handoff. One MAVLink connect truth.
 30. **Auto-Config wizard MERGE** — **LANDED** via PR #75. Assist opens `#autoConfig` under Parameter Center (`#control`). Quiet Platform / Params chrome. Existing suggest→approve→apply stays. No new FC write.
-31. **AIRVIX UI redesign (chrome + Mission workspace)** — **this draft.** Roy 2026-09-07 GO + naming LOCKED. Blue telemetry top strip removed. `#connectWidget` floats globally. Tabs sit in the freed top chrome. **הטסה** is a primary ops tab. Mission folds horizon / map / data / messages / talk as named regions (`data-mission-layout="ops-v1"`). Pulse home label is interim **בית** (not סקירה, not תמונת מצב). Short UI for the computer is **Jetson**. Longer Hebrew copy is **מחשב משימה**. Do not use מלווה or a Companion calque in operator copy. Code ids `companion` unchanged. No Companion apply/restart. No new FC write. No FLIGHT_ACTION. No GPS invented.
+31. **AIRVIX UI redesign (chrome + Mission workspace)** — **this draft.** Roy 2026-09-07 GO + naming LOCKED. Blue telemetry top strip removed. `#connectWidget` floats globally. Tabs sit in the freed top chrome. **הטסה** is a primary ops tab. Mission folds horizon / map / data / messages / talk as named regions (`data-mission-layout="ops-v1"`). Pulse home label is LOCKED **בית** (not סקירה, not תמונת מצב). Short UI for the computer is **Jetson**. Longer Hebrew copy is **מחשב משימה**. Do not use מלווה or a Companion calque in operator copy. Code ids `companion` unchanged. No Companion apply/restart. No new FC write. No FLIGHT_ACTION. No GPS invented.
 
 ---
 
@@ -165,7 +165,7 @@ Ops (not product): WhatsApp Human Gate delivery remains available (signed in on 
 
 ### This draft (2026-09-07)
 
-- AIRVIX UI redesign. Blue telemetry top strip gone (version/glance/confidence/ASSIST clutter). `#connectWidget` stays in its corner as a high-z float, visible on every tab. Main tabs move into the freed top chrome. **הטסה** (`#terrain`) is a primary ops tab, not only under מעבדה. Mission workspace folds existing PFD/horizon, map, glanceables, STATUSTEXT, and flight-safe Assist talk into named regions `horizon | map | data | messages | talk` (`data-mission-layout="ops-v1"`). Layout hook is CSS grid areas for later Assist rearrange — not a full NL editor. Tone: professional flight / development console. Pulse home placeholder **בית** (Assist aliases `סקירה` / `תמונת מצב` stay). Short UI **Jetson**. Longer Hebrew **מחשב משימה**. No מלווה and no Companion calque in operator copy. Code ids `companion` unchanged. No Companion apply/restart. No new FC `PARAM_SET`. No FLIGHT_ACTION / ARM / LAND from Assist. Empty GPS stays `-- m`. `APP_VERSION` stays `1.02.255`.
+- AIRVIX UI redesign. Blue telemetry top strip gone (version/glance/confidence/ASSIST clutter). `#connectWidget` stays in its corner as a high-z float, visible on every tab. Main tabs move into the freed top chrome. **הטסה** (`#terrain`) is a primary ops tab, not only under מעבדה. Mission workspace folds existing PFD/horizon, map, glanceables, STATUSTEXT, and flight-safe Assist talk into named regions `horizon | map | data | messages | talk` (`data-mission-layout="ops-v1"`). Layout hook is CSS grid areas for later Assist rearrange — not a full NL editor. Tone: professional flight / development console. Pulse home label LOCKED **בית** (Assist aliases `סקירה` / `תמונת מצב` stay). Short UI **Jetson**. Longer Hebrew **מחשב משימה**. No מלווה and no Companion calque in operator copy. Code ids `companion` unchanged. No Companion apply/restart. No new FC `PARAM_SET`. No FLIGHT_ACTION / ARM / LAND from Assist. Empty GPS stays `-- m`. `APP_VERSION` stays `1.02.255`.
 
 ### Prior still on master (#54, #56, #57)
 
@@ -203,7 +203,7 @@ Ops (not product): WhatsApp Human Gate delivery remains available (signed in on 
 
 On master today (PR #54):
 
-- First paint is Hebrew **סקירה**, not Parameter Center.
+- First paint is Hebrew **סקירה**, not Parameter Center. **This draft** locks the operator-facing Pulse label to **בית** (not סקירה, not תמונת מצב).
 - Status is compressed: console version, companion, assist, link, aircraft. Placeholders stay `--` until real values exist.
 - Attention, Evolve glance, and first-open actions (companion / assist / params / develop / telemetry) sit on the home surface.
 - Operator can keep Telemetry-first via `localStorage` `visionLandingHomeSurfaceV1` = `telemetry`. Default is `pulse`.
@@ -250,7 +250,7 @@ On master today (PR #33 + PR #34 + Hebrew Assist chrome from #50 + result card f
 - **ArduLab → Assist REFINE LANDED** via PR #73 `dca929a`: Assist opens `#featureDesigner` for `ארדולאב` / feature designer. Workspace **EVOLVE**. Lab shelf stays. Not a competing primary chat. No FC / Companion apply.
 - **SITL Lab connect REFINE LANDED** via PR #74 `1971384`: `#simLab` presets/wizard drive `#connectWidget`. One MAVLink connect truth. Spoken-Hebrew handoff. Wizard teaching stays. Assist `סימולציה` / `sitl` → `#simLab`.
 - **Auto-Config wizard MERGE LANDED** via PR #75 `33d6334`: Assist opens `#autoConfig` for `אשף` / `קונפיג אוטומטי`. Quiet Platform / Params chrome. Panel stays. No new vehicle write.
-- **AIRVIX UI redesign this draft:** chrome + Mission workspace. Connect floats. **הטסה** primary. Named Mission regions. Flight-safe talk only. Pulse home placeholder **בית**. Short UI **Jetson**. Longer Hebrew **מחשב משימה**.
+- **AIRVIX UI redesign this draft:** chrome + Mission workspace. Connect floats. **הטסה** primary. Named Mission regions. Flight-safe talk only. Pulse home LOCKED **בית**. Short UI **Jetson**. Longer Hebrew **מחשב משימה**.
 
 ### Params (persist landed)
 
