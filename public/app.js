@@ -3247,10 +3247,16 @@ function platformMaintLabel() {
   return badge || 'המלווה מנותק';
 }
 
+function platformDiagLabel() {
+  const badge = document.getElementById('teleStatusBadge')?.textContent?.trim();
+  return badge || 'המלווה מנותק';
+}
+
 function platformRefresh() {
   const companionEl = document.getElementById('platformCompanionStatus');
   const maintEl = document.getElementById('platformMaintStatus');
-  if (!companionEl && !maintEl) return;
+  const diagEl = document.getElementById('platformDiagStatus');
+  if (!companionEl && !maintEl && !diagEl) return;
   const companionLive = document.body.classList.contains('operator-live');
   const companionCard = document.getElementById('companionConnect');
   const companionState = companionCard?.dataset?.state || 'disconnected';
@@ -3270,6 +3276,14 @@ function platformRefresh() {
     maintEl.textContent = platformMaintLabel();
     const bannerState = document.getElementById('maintOperatorBanner')?.dataset?.state || 'disconnected';
     maintEl.parentElement?.setAttribute(
+      'data-state',
+      bannerState === 'ok' || bannerState === 'connected' ? 'connected' : 'disconnected',
+    );
+  }
+  if (diagEl) {
+    diagEl.textContent = platformDiagLabel();
+    const bannerState = document.getElementById('teleOperatorBanner')?.dataset?.state || 'disconnected';
+    diagEl.parentElement?.setAttribute(
       'data-state',
       bannerState === 'ok' || bannerState === 'connected' ? 'connected' : 'disconnected',
     );

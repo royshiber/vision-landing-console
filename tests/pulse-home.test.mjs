@@ -49,7 +49,7 @@ describe('C10.3 Pulse home', () => {
     expect(html).toMatch(/data-tab="pulse"[^>]*>סקירה</);
     expect(tag('pulse')).toMatch(/\bvisible\b/);
     expect(tag('control')).not.toMatch(/\bvisible\b/);
-    expect(html).toMatch(/data-tab="telemetry"[^>]*\btab-ops\b|class="tab tab-ops"[^>]*data-tab="telemetry"/);
+    expect(html).toMatch(/data-tab="telemetry"/);
     expect(html).toMatch(/data-tab="maintenance"/);
     expect(html).toMatch(/data-tab="development"/);
     expect(html).toMatch(/data-tab="control"/);

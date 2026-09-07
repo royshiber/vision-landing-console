@@ -251,7 +251,7 @@
         <button class="tab tab-ops" data-tab="platform" title="פלטפורמה">פלטפורמה</button>
         <button class="tab tab-ops" data-tab="control" title="פרמטרים">פרמטרים</button>
         <button class="tab tab-ops" data-tab="recordings" title="תחקור">תחקור</button>
-        <button class="tab tab-ops" data-tab="telemetry" title="טלמטריה">טלמטריה</button>
+        <button class="tab tab-quiet" hidden data-tab="telemetry" title="אבחונים">אבחונים</button>
         <button class="tab tab-ops" data-tab="maintenance" title="תחזוקה">תחזוקה</button>
         <button class="tab tab-ops" data-tab="development" title="פיתוח">פיתוח</button>
         <div class="tab-lab-group" id="tabLabGroup">
@@ -327,7 +327,7 @@
             <button type="button" class="first-open-btn first-open-btn-quiet" data-first-action="assist">מסייע</button>
             <button type="button" class="first-open-btn first-open-btn-quiet" data-first-action="params">פרמטרים</button>
             <button type="button" class="first-open-btn first-open-btn-quiet" data-first-action="develop">פיתוח</button>
-            <button type="button" class="first-open-btn first-open-btn-quiet" data-first-action="telemetry">טלמטריה</button>
+            <button type="button" class="first-open-btn first-open-btn-quiet" data-first-action="telemetry">אבחונים</button>
           </nav>
           <button type="button" id="pulseEvolveGlance" class="pulse-evolve" hidden>משימה רצה</button>
           <p class="pulse-home-pref">
@@ -356,6 +356,11 @@
               <h4>תחזוקה</h4>
               <p id="platformMaintStatus">המלווה מנותק</p>
               <button type="button" class="first-open-btn first-open-btn-quiet" data-platform-go="maintenance">תחזוקה</button>
+            </article>
+            <article class="platform-shell" data-platform-go="telemetry">
+              <h4>אבחונים</h4>
+              <p id="platformDiagStatus">המלווה מנותק</p>
+              <button type="button" class="first-open-btn first-open-btn-quiet" data-platform-go="telemetry">אבחונים</button>
             </article>
           </nav>
         </div>
