@@ -6795,16 +6795,65 @@ body.operator-live .companion-connect--hero {
 }
 
 /**
- * Mission layout hook (future Assist rearrange):
+ * Mission layout hook (interim Roy policy):
  * [data-mission-layout="ops-v1"] names the grid.
  * [data-mission-region="horizon|map|data|messages|talk"] names cells.
- * Swap grid-template-areas without rewriting widgets.
+ * Mid-flight only: swap horizon↔map + resize. No free tiling.
  */
+.mission-layout-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 10px 6px;
+  direction: rtl;
+  flex: 0 0 auto;
+}
+
+.mission-layout-btn {
+  margin: 0;
+  padding: 3px 10px;
+  border: 1px solid #86efac;
+  border-radius: 999px;
+  background: #ecfdf3;
+  color: #14532d;
+  font: inherit;
+  font-size: 0.68rem;
+  font-weight: 700;
+  font-family: "Heebo", sans-serif;
+  cursor: pointer;
+}
+
+.mission-layout-btn:hover,
+.mission-layout-btn:focus-visible {
+  border-color: #4ade80;
+  background: #dcfce7;
+  outline: none;
+}
+
+.mission-layout-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.mission-layout-hint {
+  margin: 0;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: #166534;
+  font-family: "Heebo", sans-serif;
+}
+
 .terrain-flight-shell.mission-workspace,
 .mission-workspace[data-mission-layout="ops-v1"] {
+  --mission-c1: 1.15fr;
+  --mission-c2: 1.45fr;
+  --mission-c3: 0.92fr;
+  --mission-r1: 1.55fr;
+  --mission-r2: 0.88fr;
+  position: relative;
   display: grid;
-  grid-template-columns: minmax(260px, 1.15fr) minmax(280px, 1.45fr) minmax(240px, 0.92fr);
-  grid-template-rows: minmax(240px, 1.55fr) minmax(150px, 0.88fr);
+  grid-template-columns: minmax(260px, var(--mission-c1)) minmax(280px, var(--mission-c2)) minmax(240px, var(--mission-c3));
+  grid-template-rows: minmax(240px, var(--mission-r1)) minmax(150px, var(--mission-r2));
   grid-template-areas:
     "horizon map talk"
     "data messages talk";
@@ -6813,6 +6862,34 @@ body.operator-live .companion-connect--hero {
   gap: 8px;
   direction: ltr;
   padding: 6px;
+}
+
+.mission-workspace[data-mission-swap="map-horizon"] {
+  grid-template-areas:
+    "map horizon talk"
+    "data messages talk";
+}
+
+.mission-split {
+  position: absolute;
+  z-index: 4;
+  padding: 0;
+  border: 0;
+  margin: 0;
+  background: transparent;
+  touch-action: none;
+}
+
+.mission-workspace[data-mission-edit="on"] .mission-split-col {
+  cursor: col-resize;
+}
+
+.mission-workspace[data-mission-edit="on"] .mission-split-row {
+  cursor: row-resize;
+}
+
+.mission-workspace[data-mission-edit="off"] .mission-split {
+  display: none;
 }
 
 .mission-region {
@@ -6960,10 +7037,17 @@ body.operator-live .companion-connect--hero {
 
 @media (max-width: 1100px) {
   .mission-workspace[data-mission-layout="ops-v1"] {
-    grid-template-columns: 1fr 1fr;
-    grid-template-rows: minmax(220px, 1.3fr) minmax(140px, 0.8fr) minmax(160px, 0.7fr);
+    grid-template-columns: minmax(200px, var(--mission-c1)) minmax(200px, var(--mission-c2));
+    grid-template-rows: minmax(220px, var(--mission-r1)) minmax(140px, var(--mission-r2)) minmax(160px, 0.7fr);
     grid-template-areas:
       "horizon map"
+      "data messages"
+      "talk talk";
+  }
+
+  .mission-workspace[data-mission-swap="map-horizon"] {
+    grid-template-areas:
+      "map horizon"
       "data messages"
       "talk talk";
   }

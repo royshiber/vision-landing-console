@@ -45,9 +45,10 @@ function loadPulseLogic() {
 describe('C10.3 Pulse home', () => {
   const pulse = loadPulseLogic();
 
-  it('ships Pulse as the default Hebrew home without deleting existing tabs', () => {
+  it('keeps Pulse as the named Hebrew home without deleting existing tabs', () => {
     expect(html).toMatch(/data-tab="pulse"[^>]*>בית</);
-    expect(tag('pulse')).toMatch(/\bvisible\b/);
+    expect(tag('pulse')).not.toMatch(/\bvisible\b/);
+    expect(tag('terrain')).toMatch(/\bvisible\b/);
     expect(tag('control')).not.toMatch(/\bvisible\b/);
     expect(html).toMatch(/data-tab="telemetry"/);
     expect(html).toMatch(/data-tab="maintenance"/);

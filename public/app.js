@@ -140,8 +140,11 @@ let selectedContextEvent = null;
 /** Why: F5/refresh should keep the current main tab and (when relevant) the control sub-tab. What: sessionStorage, same window session. */
 const MAIN_TAB_KEY = 'visionLandingMainTabV1';
 const CONTROL_SUBTAB_KEY = 'visionLandingControlSubtabV1';
-/** Why: Pulse is the locked home; operators who want Telemetry-first keep that via localStorage. */
+/** Why: בית is the home tab name. App default open workspace is Mission / הטסה. */
 const PULSE_HOME_KEY = 'visionLandingHomeSurfaceV1';
+const MISSION_SWAP_KEY = 'visionLandingMissionSwapV1';
+const MISSION_SIZE_KEY = 'visionLandingMissionSizeV1';
+const MISSION_APPROACH_MODES = Object.freeze(['LAND', 'QLAND']);
 /** Why: C10.7a Attention Policy — quiet by default; chrome only, no voice. */
 const ATTENTION_POLICY_KEY = 'visionLandingAttentionPolicyV1';
 const ATTENTION_POLICY_LEVELS = Object.freeze(['off', 'attention', 'critical']);
@@ -156,6 +159,9 @@ function pulseReadHomePref() {
 }
 function pulseDefaultHomeTab() {
   return pulseReadHomePref() === 'telemetry' ? 'telemetry' : 'pulse';
+}
+function appDefaultWorkspaceTab() {
+  return 'terrain';
 }
 function _mainTabIds() {
   return new Set(tabs.map((t) => t.dataset.tab).filter(Boolean));
@@ -362,7 +368,7 @@ function restoreLastUiTab() {
   if (main && _mainTabIds().has(main)) {
     applyMainTab(main, { save: false });
   } else {
-    applyMainTab(pulseDefaultHomeTab(), { save: false });
+    applyMainTab(appDefaultWorkspaceTab(), { save: false });
   }
   if (main === 'recordings') {
     applyDebriefSubtab(debriefSub === 'logs' ? 'logs' : 'recordings', { save: false });
@@ -4177,7 +4183,11 @@ const GPS_FIX_LABELS = ['אין GPS', 'אין Fix', '2D Fix', '3D Fix', 'DGPS', 
 
 /** Update the PFD with the latest MAVLink snapshot. */
 function applyFlightHud(mav) {
-  if (!mav) return;
+  if (!mav) {
+    latestHudMavlink = null;
+    syncMissionLayoutChrome();
+    return;
+  }
   latestHudMavlink = mav;
 
   // Horizon canvas — level when angles unknown or out-of-range garbage
@@ -4263,6 +4273,7 @@ function applyFlightHud(mav) {
       : fix === 2 ? 'warn'
       : 'fail';
   }
+  syncMissionLayoutChrome();
 }
 
 /** Update the optical-nav indicator (compact strip near FC messages). */
@@ -11981,6 +11992,211 @@ function assistSetOpen(open) {
   }
 }
 
+function missionModeName(mav) {
+  if (!mav) return '';
+  return ARDUPILOT_PLANE_MODES[mav.flightMode] || '';
+}
+
+function missionApproachActive(mav, companion) {
+  const mode = missionModeName(mav);
+  if (MISSION_APPROACH_MODES.includes(mode)) return true;
+  return companion?.landing?.detected === true;
+}
+
+function resolveMissionLayoutPhase(mav, companion) {
+  if (missionApproachActive(mav, companion)) return 'approach';
+  if (mav?.armed === true && mav?.armedKnown === true) return 'flight';
+  return 'ground';
+}
+
+function clampMissionFr(value, min, max, fallback) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(max, Math.max(min, n));
+}
+
+function defaultMissionSize() {
+  return { c1: 1.15, c2: 1.45, c3: 0.92, r1: 1.55, r2: 0.88 };
+}
+
+let _missionSize = defaultMissionSize();
+
+function readMissionSwap() {
+  try {
+    if (sessionStorage.getItem(MISSION_SWAP_KEY) === 'map-horizon') return 'map-horizon';
+  } catch {
+    /* ignore */
+  }
+  return 'horizon-map';
+}
+
+function writeMissionSwap(swap) {
+  try {
+    sessionStorage.setItem(MISSION_SWAP_KEY, swap === 'map-horizon' ? 'map-horizon' : 'horizon-map');
+  } catch {
+    /* ignore */
+  }
+}
+
+function readMissionSize() {
+  try {
+    const raw = JSON.parse(sessionStorage.getItem(MISSION_SIZE_KEY) || 'null');
+    if (raw && typeof raw === 'object') {
+      const fallback = defaultMissionSize();
+      return {
+        c1: clampMissionFr(raw.c1, 0.7, 2.2, fallback.c1),
+        c2: clampMissionFr(raw.c2, 0.7, 2.2, fallback.c2),
+        c3: clampMissionFr(raw.c3, 0.6, 1.6, fallback.c3),
+        r1: clampMissionFr(raw.r1, 0.9, 2.4, fallback.r1),
+        r2: clampMissionFr(raw.r2, 0.6, 1.8, fallback.r2),
+      };
+    }
+  } catch {
+    /* ignore */
+  }
+  return defaultMissionSize();
+}
+
+function writeMissionSize(size) {
+  _missionSize = size;
+  try {
+    sessionStorage.setItem(MISSION_SIZE_KEY, JSON.stringify(size));
+  } catch {
+    /* ignore */
+  }
+}
+
+function applyMissionSwap(swap) {
+  const ws = document.querySelector('.mission-workspace');
+  if (!ws) return;
+  ws.dataset.missionSwap = swap === 'map-horizon' ? 'map-horizon' : 'horizon-map';
+  requestAnimationFrame(placeMissionSplits);
+}
+
+function applyMissionSize(size) {
+  const ws = document.querySelector('.mission-workspace');
+  if (!ws || !size) return;
+  _missionSize = size;
+  ws.style.setProperty('--mission-c1', `${size.c1}fr`);
+  ws.style.setProperty('--mission-c2', `${size.c2}fr`);
+  ws.style.setProperty('--mission-c3', `${size.c3}fr`);
+  ws.style.setProperty('--mission-r1', `${size.r1}fr`);
+  ws.style.setProperty('--mission-r2', `${size.r2}fr`);
+  requestAnimationFrame(placeMissionSplits);
+}
+
+function toggleMissionHorizonMapSwap() {
+  if (resolveMissionLayoutPhase(latestHudMavlink, latestCompanionFromServer) !== 'flight') return;
+  const next = readMissionSwap() === 'map-horizon' ? 'horizon-map' : 'map-horizon';
+  writeMissionSwap(next);
+  applyMissionSwap(next);
+}
+
+function placeMissionSplits() {
+  const ws = document.querySelector('.mission-workspace');
+  const col = document.getElementById('missionColSplit');
+  const row = document.getElementById('missionRowSplit');
+  if (!ws || !col || !row || ws.dataset.missionEdit !== 'on') return;
+  const horizon = ws.querySelector('[data-mission-region="horizon"]');
+  const map = ws.querySelector('[data-mission-region="map"]');
+  const data = ws.querySelector('[data-mission-region="data"]');
+  if (!horizon || !map) return;
+  const wr = ws.getBoundingClientRect();
+  const hr = horizon.getBoundingClientRect();
+  const mr = map.getBoundingClientRect();
+  const left = hr.left <= mr.left ? hr : mr;
+  const right = left === hr ? mr : hr;
+  col.style.left = `${((left.right + right.left) / 2) - wr.left - 4}px`;
+  col.style.top = `${left.top - wr.top}px`;
+  col.style.height = `${Math.max(left.height, right.height)}px`;
+  col.style.width = '8px';
+  if (!data) return;
+  const dr = data.getBoundingClientRect();
+  row.style.left = `${left.left - wr.left}px`;
+  row.style.width = `${Math.max(8, right.right - left.left)}px`;
+  row.style.top = `${((left.bottom + dr.top) / 2) - wr.top - 4}px`;
+  row.style.height = '8px';
+}
+
+function syncMissionLayoutChrome() {
+  const phase = resolveMissionLayoutPhase(latestHudMavlink, latestCompanionFromServer);
+  const editOn = phase === 'flight';
+  const ws = document.querySelector('.mission-workspace');
+  if (ws) ws.dataset.missionEdit = editOn ? 'on' : 'off';
+  const btn = document.getElementById('missionSwapHorizonMapBtn');
+  if (btn) btn.disabled = !editOn;
+  const col = document.getElementById('missionColSplit');
+  const row = document.getElementById('missionRowSplit');
+  if (col) col.hidden = !editOn;
+  if (row) row.hidden = !editOn;
+  const hint = document.getElementById('missionLayoutHint');
+  if (hint) {
+    hint.textContent = phase === 'flight'
+      ? 'אפשר להחליף אופק ומפה ולשנות גודל.'
+      : phase === 'approach'
+        ? 'בגישה אין החלפה ואין סידור חופשי.'
+        : 'החלפה ושינוי גודל בטיסה בלבד.';
+  }
+  if (editOn) requestAnimationFrame(placeMissionSplits);
+}
+
+function bindMissionSplitters() {
+  const col = document.getElementById('missionColSplit');
+  const row = document.getElementById('missionRowSplit');
+  let dragging = null;
+  let start = 0;
+  let base = null;
+  const stopDrag = () => {
+    if (!dragging) return;
+    writeMissionSize(_missionSize);
+    dragging = null;
+    base = null;
+  };
+  const onDown = (axis, ev) => {
+    if (resolveMissionLayoutPhase(latestHudMavlink, latestCompanionFromServer) !== 'flight') return;
+    dragging = axis;
+    start = axis === 'col' ? ev.clientX : ev.clientY;
+    base = { ..._missionSize };
+    ev.currentTarget.setPointerCapture?.(ev.pointerId);
+    ev.preventDefault();
+  };
+  const onMove = (ev) => {
+    if (!dragging || !base) return;
+    const ws = document.querySelector('.mission-workspace');
+    if (!ws) return;
+    const rect = ws.getBoundingClientRect();
+    const next = { ...base };
+    if (dragging === 'col') {
+      const unit = rect.width / Math.max(0.001, base.c1 + base.c2 + base.c3);
+      const delta = (ev.clientX - start) / unit;
+      next.c1 = clampMissionFr(base.c1 + delta, 0.7, 2.2, base.c1);
+      next.c2 = clampMissionFr(base.c2 - delta, 0.7, 2.2, base.c2);
+    } else {
+      const unit = rect.height / Math.max(0.001, base.r1 + base.r2);
+      const delta = (ev.clientY - start) / unit;
+      next.r1 = clampMissionFr(base.r1 + delta, 0.9, 2.4, base.r1);
+      next.r2 = clampMissionFr(base.r2 - delta, 0.6, 1.8, base.r2);
+    }
+    applyMissionSize(next);
+  };
+  col?.addEventListener('pointerdown', (ev) => onDown('col', ev));
+  row?.addEventListener('pointerdown', (ev) => onDown('row', ev));
+  window.addEventListener('pointermove', onMove);
+  window.addEventListener('pointerup', stopDrag);
+  window.addEventListener('pointercancel', stopDrag);
+}
+
+function initMissionLayout() {
+  applyMissionSwap(readMissionSwap());
+  applyMissionSize(readMissionSize());
+  syncMissionLayoutChrome();
+  document.getElementById('missionSwapHorizonMapBtn')?.addEventListener('click', () => {
+    toggleMissionHorizonMapSwap();
+  });
+  bindMissionSplitters();
+  window.addEventListener('resize', () => requestAnimationFrame(placeMissionSplits));
+}
+
 function initMissionTalk() {
   const form = document.getElementById('missionTalkForm');
   const input = document.getElementById('missionTalkInput');
@@ -12056,6 +12272,7 @@ function initAssistUi() {
 }
 
 initAssistUi();
+initMissionLayout();
 initCompanionConnectUi();
 initFirstOpenActions();
 initPulseHome();

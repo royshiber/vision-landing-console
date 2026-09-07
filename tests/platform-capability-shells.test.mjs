@@ -49,7 +49,8 @@ describe('C10.5b Platform capability shells', () => {
     expect(html).toMatch(/class="tab tab-ops"[^>]*data-tab="platform"[^>]*>פלטפורמה</);
     expect(tag('platform')).toMatch(/aria-label="פלטפורמה"/);
     expect(tag('platform')).not.toMatch(/\bvisible\b/);
-    expect(tag('pulse')).toMatch(/\bvisible\b/);
+    expect(tag('pulse')).not.toMatch(/\bvisible\b/);
+    expect(tag('terrain')).toMatch(/\bvisible\b/);
     expect(html).toMatch(/class="tab tab-ops"[^>]*data-tab="control"[^>]*>פרמטרים</);
     expect(html).toMatch(/class="tab tab-ops"[^>]*data-tab="recordings"[^>]*>תחקור</);
     expect(html).toMatch(/data-tab="telemetry"[^>]*>אבחונים</);

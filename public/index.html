@@ -88,8 +88,8 @@
 
     <header class="app-chrome" data-chrome="ops">
       <nav class="tabs" aria-label="ניווט ראשי">
-        <button class="tab tab-fly" data-tab="terrain" title="הטסה">הטסה</button>
-        <button class="tab tab-ops active" data-tab="pulse" title="בית">בית</button>
+        <button class="tab tab-fly active" data-tab="terrain" title="הטסה">הטסה</button>
+        <button class="tab tab-ops" data-tab="pulse" title="בית">בית</button>
         <button class="tab tab-ops" data-tab="platform" title="פלטפורמה">פלטפורמה</button>
         <button class="tab tab-ops" data-tab="control" title="פרמטרים">פרמטרים</button>
         <button class="tab tab-ops" data-tab="recordings" title="תחקור">תחקור</button>
@@ -266,7 +266,7 @@
         <div id="arduTopCatsHost" class="ardu-top-cats-host hidden" role="tablist" aria-label="קטגוריות ArduPilot"></div>
       </div>
 
-      <section id="pulse" class="panel visible" aria-label="בית">
+      <section id="pulse" class="panel" aria-label="בית">
         <div class="pulse-home">
           <header class="pulse-hero">
             <h3 class="pulse-title">בית</h3>
@@ -1564,9 +1564,15 @@
       <section id="flights" class="panel flights-panel" hidden aria-hidden="true"></section>
 
 
-      <section id="terrain" class="panel" data-workspace="mission">
+      <section id="terrain" class="panel visible" data-workspace="mission">
         <p id="missionIdentity" class="mission-identity">הטסה · מרחב טיסה<button type="button" id="missionReadinessGlance" class="mission-readiness-glance" title="מוכנות">מוכנות</button></p>
-        <div class="terrain-flight-shell mission-workspace" data-mission-layout="ops-v1">
+        <div class="mission-layout-bar">
+          <button type="button" id="missionSwapHorizonMapBtn" class="mission-layout-btn" disabled>החלף אופק ומפה</button>
+          <p id="missionLayoutHint" class="mission-layout-hint">החלפה ושינוי גודל בטיסה בלבד.</p>
+        </div>
+        <div class="terrain-flight-shell mission-workspace" data-mission-layout="ops-v1" data-mission-swap="horizon-map" data-mission-edit="off">
+          <div id="missionColSplit" class="mission-split mission-split-col" hidden></div>
+          <div id="missionRowSplit" class="mission-split mission-split-row" hidden></div>
           <section class="mission-region mission-region-horizon" data-mission-region="horizon" aria-label="אופק">
             <aside id="flightHud" class="flight-hud" aria-label="HUD טיסה חופשית">
               <div class="pfd-top-bar">
