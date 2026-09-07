@@ -150,17 +150,34 @@ describe('AIRVIX Mission chrome — default open + layout policy', () => {
     expect(js.slice(js.indexOf('function applyMainTab('), js.indexOf('const PARAM_SUBTAB_IDS'))).not.toMatch(/armed|airborne|inFlight/);
   });
 
-  it('docks Assist inside Mission and floats it elsewhere', () => {
+  it('docks Assist as a full Mission panel, not a PFD overlay rail', () => {
     expect(html).toContain('id="missionTalkHost"');
     expect(html).toMatch(/data-mission-region="talk"[^>]*aria-label="מסייע"/);
     expect(html).toContain('id="assistRail"');
+    expect(html).toContain('id="assistRailDock"');
     expect(html).toContain('id="assistToggleBtn"');
     expect(css).toMatch(/assist-rail--mission/);
     expect(css).toMatch(/body\.mission-assist-docked/);
+    expect(css).toMatch(/#missionTalkHost \.assist-rail/);
+    expect(css).toMatch(/body\.mission-assist-docked\.assist-open \.layout/);
+    const missionRail = capture(
+      css,
+      /\.assist-rail\.assist-rail--mission\s*\{[^}]+\}/,
+      'missing .assist-rail--mission block',
+    )[0];
+    expect(missionRail).toMatch(/position:\s*relative/);
+    expect(missionRail).not.toMatch(/position:\s*fixed/);
+    expect(missionRail).not.toMatch(/height:\s*100vh/);
     expect(js).toContain('function placeAssistSurface(');
     expect(js).toContain('function isMissionAssistDocked(');
-    expect(sliceFunction(js, 'placeAssistSurface')).toContain("tabId === 'terrain'");
-    expect(sliceFunction(js, 'placeAssistSurface')).toContain('missionTalkHost');
+    const place = sliceFunction(js, 'placeAssistSurface');
+    expect(place).toContain("tabId === 'terrain'");
+    expect(place).toContain('missionTalkHost');
+    expect(place).toContain('host.appendChild(rail)');
+    expect(place).toContain('assist-rail--mission');
+    expect(place).toContain("document.body.classList.remove('assist-open')");
+    expect(place).not.toMatch(/\/apply|\/restart|FLIGHT_ACTION|PARAM_SET/);
+    expect(place).not.toMatch(/\bARM\b|\bDISARM\b|\bLAND\b/);
     expect(sliceFunction(js, 'assistSetOpen')).toContain('isMissionAssistDocked()');
     expect(js).toMatch(/function applyMainTab\([\s\S]*?placeAssistSurface\(tabId\)/);
   });

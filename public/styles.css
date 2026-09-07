@@ -6845,10 +6845,11 @@ body.operator-live .companion-connect--hero {
 }
 
 /**
- * Mission layout hook (interim Roy policy):
+ * Mission layout hook (locked):
  * [data-mission-layout="ops-v1"] names the grid.
  * [data-mission-region="horizon|map|data|messages|talk"] names cells.
- * Mid-flight only: swap horizon↔map + resize. No free tiling.
+ * Free rearrange + resize on the ground, in flight, and on approach.
+ * Assist is the talk region — a full panel, never a PFD overlay.
  */
 .mission-layout-bar {
   display: flex;
@@ -6965,6 +6966,7 @@ body.operator-live .companion-connect--hero {
   min-height: 0;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .mission-region[data-mission-region="horizon"] { grid-area: horizon; }
@@ -13211,15 +13213,21 @@ details.flight-manage summary {
   backdrop-filter: blur(10px);
 }
 .assist-rail[hidden] { display: none !important; }
+body.mission-assist-docked .assist-rail,
+body.mission-assist-docked .assist-rail.assist-rail--mission,
+#missionTalkHost .assist-rail,
+.mission-talk-host > .assist-rail,
 .assist-rail.assist-rail--mission {
-  position: relative;
-  inset: auto;
-  top: auto;
-  width: 100%;
-  height: auto;
-  flex: 1 1 auto;
-  min-height: 0;
-  z-index: 1;
+  position: relative !important;
+  inset: auto !important;
+  top: auto !important;
+  inset-inline-end: auto !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-height: none !important;
+  min-height: 0 !important;
+  flex: 1 1 auto !important;
+  z-index: 1 !important;
   border-inline-start: 0;
   border-radius: 12px;
   box-shadow: none;
@@ -13662,9 +13670,19 @@ details.flight-manage summary {
 body.assist-open .layout {
   padding-inline-end: min(380px, 100vw);
 }
+body.mission-assist-docked .layout,
+body.mission-assist-docked.assist-open .layout {
+  padding-inline-end: 0;
+}
 @media (max-width: 720px) {
   body.assist-open .layout { padding-inline-end: 0; }
   .assist-rail { width: 100vw; }
+  body.mission-assist-docked .assist-rail,
+  .assist-rail.assist-rail--mission,
+  #missionTalkHost .assist-rail {
+    width: 100% !important;
+    height: 100% !important;
+  }
 }
 
 
