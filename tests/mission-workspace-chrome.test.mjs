@@ -128,6 +128,7 @@ describe('AIRVIX Mission chrome — default open + layout policy', () => {
     expect(html).toContain('id="missionResetLayoutBtn"');
     expect(html).toContain('id="missionLayoutHint"');
     expect(html).toContain('id="missionColSplit"');
+    expect(html).toContain('id="missionColSplitB"');
     expect(html).toContain('id="missionRowSplit"');
     expect(html).toMatch(/data-mission-swap="horizon-map"/);
     expect(html).toMatch(/data-mission-edit="on"/);
@@ -143,7 +144,8 @@ describe('AIRVIX Mission chrome — default open + layout policy', () => {
     expect(js).toContain('function initMissionLayout(');
     expect(sliceFunction(js, 'toggleMissionHorizonMapSwap')).not.toContain('flight');
     expect(sliceFunction(js, 'bindMissionSplitters')).not.toContain('flight');
-    expect(sliceFunction(js, 'syncMissionLayoutChrome')).toContain('גררו כותרת אזור. אפשר לשנות גודל תמיד.');
+    expect(sliceFunction(js, 'toggleMissionHorizonMapSwap')).toContain("swapMissionRegions('horizon', 'map')");
+    expect(sliceFunction(js, 'syncMissionLayoutChrome')).toContain('גררו כותרת אזור. שינוי גודל תמיד, גם בטיסה.');
     expect(js.slice(js.indexOf('function applyMainTab('), js.indexOf('const PARAM_SUBTAB_IDS'))).not.toMatch(/armed|airborne|inFlight/);
   });
 
@@ -175,6 +177,53 @@ describe('AIRVIX Mission chrome — default open + layout policy', () => {
     ].join('\n');
     expect(layout).not.toMatch(/\/apply|\/restart|FLIGHT_ACTION|PARAM_SET/);
     expect(layout).not.toMatch(/\bARM\b|\bDISARM\b|\bLAND\b/);
+  });
+
+  it('swaps any two panes and reset restores the default map', () => {
+    const store = {};
+    const localStorage = {
+      getItem(key) { return store[key] ?? null; },
+      setItem(key, value) { store[key] = String(value); },
+    };
+    const regions = {
+      horizon: { dataset: { missionRegion: 'horizon' }, style: {} },
+      map: { dataset: { missionRegion: 'map' }, style: {} },
+      data: { dataset: { missionRegion: 'data' }, style: {} },
+      messages: { dataset: { missionRegion: 'messages' }, style: {} },
+      talk: { dataset: { missionRegion: 'talk' }, style: {} },
+    };
+    const document = {
+      querySelector() { return null; },
+      querySelectorAll() { return Object.values(regions); },
+      getElementById() { return null; },
+    };
+    const src = [
+      'const MISSION_AREAS_KEY = "visionLandingMissionAreasV1";',
+      'const MISSION_SIZE_KEY = "visionLandingMissionSizeV1";',
+      'const MISSION_SWAP_KEY = "visionLandingMissionSwapV1";',
+      'const MISSION_REGION_IDS = Object.freeze(["horizon", "map", "data", "messages", "talk"]);',
+      'let _missionSize = { c1: 1.15, c2: 1.45, c3: 0.92, r1: 1.55, r2: 0.88 };',
+      'function requestAnimationFrame(fn) { fn(); }',
+      sliceFunction(js, 'defaultMissionSize'),
+      sliceFunction(js, 'defaultMissionAreas'),
+      sliceFunction(js, 'missionLayoutStoreGet'),
+      sliceFunction(js, 'missionLayoutStoreSet'),
+      sliceFunction(js, 'readMissionAreas'),
+      sliceFunction(js, 'writeMissionAreas'),
+      sliceFunction(js, 'writeMissionSwap'),
+      sliceFunction(js, 'writeMissionSize'),
+      sliceFunction(js, 'applyMissionAreas').replace('requestAnimationFrame(placeMissionSplits);', ''),
+      sliceFunction(js, 'applyMissionSize').replace('requestAnimationFrame(placeMissionSplits);', ''),
+      sliceFunction(js, 'swapMissionRegions'),
+      sliceFunction(js, 'resetMissionLayout').replace('syncMissionLayoutChrome();', ''),
+      'swapMissionRegions("horizon", "talk");',
+      'const swapped = { horizon: regions.horizon.style.gridArea, talk: regions.talk.style.gridArea };',
+      'resetMissionLayout();',
+      'return { swapped, restored: { horizon: regions.horizon.style.gridArea, talk: regions.talk.style.gridArea } };',
+    ].join('\n');
+    const result = new Function('localStorage', 'document', 'regions', src)(localStorage, document, regions);
+    expect(result.swapped).toEqual({ horizon: 'talk', talk: 'horizon' });
+    expect(result.restored).toEqual({ horizon: 'horizon', talk: 'talk' });
   });
 });
 

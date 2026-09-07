@@ -12141,13 +12141,6 @@ function swapMissionRegions(fromId, toId) {
   applyMissionAreas(areas);
 }
 
-function applyMissionSwap(swap) {
-  const ws = document.querySelector('.mission-workspace');
-  if (!ws) return;
-  ws.dataset.missionSwap = swap === 'map-horizon' ? 'map-horizon' : 'horizon-map';
-  requestAnimationFrame(placeMissionSplits);
-}
-
 function applyMissionSize(size) {
   const ws = document.querySelector('.mission-workspace');
   if (!ws || !size) return;
@@ -12161,45 +12154,68 @@ function applyMissionSize(size) {
 }
 
 function toggleMissionHorizonMapSwap() {
-  const next = readMissionSwap() === 'map-horizon' ? 'horizon-map' : 'map-horizon';
-  writeMissionSwap(next);
-  applyMissionSwap(next);
+  swapMissionRegions('horizon', 'map');
 }
 
 function resetMissionLayout() {
   writeMissionSwap('horizon-map');
   writeMissionSize(defaultMissionSize());
   writeMissionAreas(defaultMissionAreas());
-  applyMissionSwap('horizon-map');
   applyMissionSize(defaultMissionSize());
   applyMissionAreas(defaultMissionAreas());
   syncMissionLayoutChrome();
 }
 
+function clusterMissionRects(items, pick, gap) {
+  const sorted = [...items].sort((a, b) => pick(a) - pick(b));
+  const groups = [];
+  for (const item of sorted) {
+    const last = groups[groups.length - 1];
+    if (!last || pick(item) - pick(last[0]) > gap) groups.push([item]);
+    else last.push(item);
+  }
+  return groups;
+}
+
+function placeMissionSplitBox(el, left, top, width, height) {
+  if (!el) return;
+  el.style.left = `${left}px`;
+  el.style.top = `${top}px`;
+  el.style.width = `${width}px`;
+  el.style.height = `${height}px`;
+}
+
 function placeMissionSplits() {
   const ws = document.querySelector('.mission-workspace');
   const col = document.getElementById('missionColSplit');
+  const colB = document.getElementById('missionColSplitB');
   const row = document.getElementById('missionRowSplit');
-  if (!ws || !col || !row) return;
-  const horizon = ws.querySelector('[data-mission-region="horizon"]');
-  const map = ws.querySelector('[data-mission-region="map"]');
-  const data = ws.querySelector('[data-mission-region="data"]');
-  if (!horizon || !map) return;
+  if (!ws) return;
+  const items = [...ws.querySelectorAll('[data-mission-region]')].map((el) => ({
+    el,
+    r: el.getBoundingClientRect(),
+  })).filter((x) => x.r.width > 8 && x.r.height > 8);
+  if (items.length < 2) return;
   const wr = ws.getBoundingClientRect();
-  const hr = horizon.getBoundingClientRect();
-  const mr = map.getBoundingClientRect();
-  const left = hr.left <= mr.left ? hr : mr;
-  const right = left === hr ? mr : hr;
-  col.style.left = `${((left.right + right.left) / 2) - wr.left - 4}px`;
-  col.style.top = `${left.top - wr.top}px`;
-  col.style.height = `${Math.max(left.height, right.height)}px`;
-  col.style.width = '8px';
-  if (!data) return;
-  const dr = data.getBoundingClientRect();
-  row.style.left = `${left.left - wr.left}px`;
-  row.style.width = `${Math.max(8, right.right - left.left)}px`;
-  row.style.top = `${((left.bottom + dr.top) / 2) - wr.top - 4}px`;
-  row.style.height = '8px';
+  const cols = clusterMissionRects(items, (x) => x.r.left, 28);
+  const rows = clusterMissionRects(items, (x) => x.r.top, 28);
+  const placeCol = (el, leftGroup, rightGroup) => {
+    if (!el || !leftGroup || !rightGroup) return;
+    const left = leftGroup.reduce((m, x) => (x.r.right > m.r.right ? x : m));
+    const right = rightGroup.reduce((m, x) => (x.r.left < m.r.left ? x : m));
+    const top = Math.min(...leftGroup.concat(rightGroup).map((x) => x.r.top)) - wr.top;
+    const bottom = Math.max(...leftGroup.concat(rightGroup).map((x) => x.r.bottom)) - wr.top;
+    placeMissionSplitBox(el, ((left.r.right + right.r.left) / 2) - wr.left - 4, top, 8, Math.max(8, bottom - top));
+  };
+  placeCol(col, cols[0], cols[1]);
+  placeCol(colB, cols[1], cols[2]);
+  if (row && rows[0] && rows[1]) {
+    const top = rows[0].reduce((m, x) => (x.r.bottom > m.r.bottom ? x : m));
+    const bottom = rows[1].reduce((m, x) => (x.r.top < m.r.top ? x : m));
+    const left = Math.min(...rows[0].concat(rows[1]).map((x) => x.r.left)) - wr.left;
+    const right = Math.max(...rows[0].concat(rows[1]).map((x) => x.r.right)) - wr.left;
+    placeMissionSplitBox(row, left, ((top.r.bottom + bottom.r.top) / 2) - wr.top - 4, Math.max(8, right - left), 8);
+  }
 }
 
 function syncMissionLayoutChrome() {
@@ -12207,12 +12223,12 @@ function syncMissionLayoutChrome() {
   if (ws) ws.dataset.missionEdit = 'on';
   const btn = document.getElementById('missionSwapHorizonMapBtn');
   if (btn) btn.disabled = false;
-  const col = document.getElementById('missionColSplit');
-  const row = document.getElementById('missionRowSplit');
-  if (col) col.hidden = false;
-  if (row) row.hidden = false;
+  ['missionColSplit', 'missionColSplitB', 'missionRowSplit'].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.hidden = false;
+  });
   const hint = document.getElementById('missionLayoutHint');
-  if (hint) hint.textContent = 'גררו כותרת אזור. אפשר לשנות גודל תמיד.';
+  if (hint) hint.textContent = 'גררו כותרת אזור. שינוי גודל תמיד, גם בטיסה.';
   requestAnimationFrame(placeMissionSplits);
 }
 
@@ -12233,6 +12249,9 @@ function bindMissionRegionDrag() {
       const to = region.dataset.missionRegion;
       if (from && to) swapMissionRegions(from, to);
     });
+    region.addEventListener('dragend', () => {
+      region.classList.remove('mission-region--drop');
+    });
   });
   document.querySelectorAll('.mission-region-title').forEach((title) => {
     title.addEventListener('dragstart', (e) => {
@@ -12249,6 +12268,7 @@ function bindMissionRegionDrag() {
 
 function bindMissionSplitters() {
   const col = document.getElementById('missionColSplit');
+  const colB = document.getElementById('missionColSplitB');
   const row = document.getElementById('missionRowSplit');
   let dragging = null;
   let start = 0;
@@ -12261,7 +12281,7 @@ function bindMissionSplitters() {
   };
   const onDown = (axis, ev) => {
     dragging = axis;
-    start = axis === 'col' ? ev.clientX : ev.clientY;
+    start = axis === 'row' ? ev.clientY : ev.clientX;
     base = { ..._missionSize };
     ev.currentTarget.setPointerCapture?.(ev.pointerId);
     ev.preventDefault();
@@ -12277,6 +12297,11 @@ function bindMissionSplitters() {
       const delta = (ev.clientX - start) / unit;
       next.c1 = clampMissionFr(base.c1 + delta, 0.7, 2.2, base.c1);
       next.c2 = clampMissionFr(base.c2 - delta, 0.7, 2.2, base.c2);
+    } else if (dragging === 'col2') {
+      const unit = rect.width / Math.max(0.001, base.c1 + base.c2 + base.c3);
+      const delta = (ev.clientX - start) / unit;
+      next.c2 = clampMissionFr(base.c2 + delta, 0.7, 2.2, base.c2);
+      next.c3 = clampMissionFr(base.c3 - delta, 0.6, 1.6, base.c3);
     } else {
       const unit = rect.height / Math.max(0.001, base.r1 + base.r2);
       const delta = (ev.clientY - start) / unit;
@@ -12286,6 +12311,7 @@ function bindMissionSplitters() {
     applyMissionSize(next);
   };
   col?.addEventListener('pointerdown', (ev) => onDown('col', ev));
+  colB?.addEventListener('pointerdown', (ev) => onDown('col2', ev));
   row?.addEventListener('pointerdown', (ev) => onDown('row', ev));
   window.addEventListener('pointermove', onMove);
   window.addEventListener('pointerup', stopDrag);
@@ -12293,7 +12319,6 @@ function bindMissionSplitters() {
 }
 
 function initMissionLayout() {
-  applyMissionSwap(readMissionSwap());
   applyMissionSize(readMissionSize());
   applyMissionAreas(readMissionAreas());
   syncMissionLayoutChrome();
