@@ -11438,6 +11438,10 @@ function assistApplyQuickChip(kind) {
     void assistSendText('פתח יועץ');
     return;
   }
+  if (kind === 'flightEngineer') {
+    void assistSendText('פתח מהנדס');
+    return;
+  }
   const input = document.getElementById('assistInput');
   const prefix = ASSIST_CHIP_PREFIX[kind];
   if (!input || !prefix) return;
@@ -11961,6 +11965,7 @@ function initAssistUi() {
     assistApplyQuickChip(btn.dataset.assistChip);
   });
   document.getElementById('advisorOpenAssistBtn')?.addEventListener('click', () => assistSetOpen(true));
+  document.getElementById('feOpenAssistBtn')?.addEventListener('click', () => assistSetOpen(true));
   document.getElementById('assistConfirmBtn')?.addEventListener('click', () => { void assistConfirm(true); });
   document.getElementById('assistCancelBtn')?.addEventListener('click', () => { void assistConfirm(false); });
   document.getElementById('assistAgentConnectForm')?.addEventListener('submit', (e) => { void assistConnectAgent(e); });
