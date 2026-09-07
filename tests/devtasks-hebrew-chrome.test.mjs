@@ -56,7 +56,7 @@ describe('Development Tasks Hebrew chrome', () => {
   it('uses Hebrew headings and table headers on the Development Tasks screen', () => {
     const panel = capture(
       html,
-      /<section\b[^>]*\bid="development"[^>]*>([\s\S]*?)<\/section>\s*<section\b[^>]*\bid="simLab"/i,
+      /<section\b[^>]*\bid="development"[^>]*>([\s\S]*?)<\/section>\s*<section\b[^>]*\bid="flights"/i,
       'missing #development panel',
     )[1];
     expect(panel).toContain('<h3>משימות פיתוח</h3>');

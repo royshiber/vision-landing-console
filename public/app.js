@@ -204,7 +204,7 @@ function openDebriefLogs({ save = true } = {}) {
   applyMainTab('recordings', { save });
   applyDebriefSubtab('logs', { save });
 }
-const ASSIST_SHELF_PANELS = new Set(['simLab', 'advisor', 'featureDesigner', 'flightEngineer']);
+const ASSIST_SHELF_PANELS = new Set(['advisor', 'featureDesigner', 'flightEngineer']);
 
 function isAssistShelfPanel(tabId) {
   return ASSIST_SHELF_PANELS.has(tabId);
@@ -213,6 +213,10 @@ function isAssistShelfPanel(tabId) {
 function applyMainTab(tabId, { save = true } = {}) {
   if (tabId === 'flights') {
     openDebriefLogs({ save });
+    return;
+  }
+  if (tabId === 'simLab') {
+    applyMainTab('terrain', { save });
     return;
   }
   if ((tabId === 'control' || tabId === 'development') && !opsChromeAlwaysReachable(tabId)) return;
@@ -244,12 +248,6 @@ function applyMainTab(tabId, { save = true } = {}) {
   }
   if (tabId === 'telemetry') {
     setTimeout(() => onTelemetryTabActivated(), 60);
-  }
-  if (tabId === 'simLab') {
-    setTimeout(() => {
-      window.simLab3d?.resizeRenderer?.();
-      window.simLab3d?.invalidateMiniMap?.();
-    }, 80);
   }
   if (tabId === 'terrain') {
     setTimeout(() => {
@@ -312,6 +310,7 @@ function restoreLastUiTab() {
     debriefSub = 'logs';
   }
   if (main === 'processes') main = 'control';
+  if (main === 'simLab') main = 'terrain';
   if (main && _mainTabIds().has(main)) {
     applyMainTab(main, { save: false });
   } else {
@@ -11210,7 +11209,6 @@ const ASSIST_TAB_WORKSPACE = {
   pulse: 'PULSE',
   terrain: 'MISSION',
   development: 'EVOLVE',
-  simLab: 'LAB',
   control: 'PLATFORM',
   platform: 'PLATFORM',
   telemetry: 'PLATFORM',
@@ -11225,7 +11223,6 @@ const ASSIST_TAB_CAPABILITY = {
   pulse: 'diagnostics',
   terrain: 'mission',
   development: 'evolve',
-  simLab: 'lab_sitl',
   control: 'configuration',
   platform: 'companion',
   telemetry: 'diagnostics',
@@ -11254,7 +11251,7 @@ const ASSIST_WORKSPACE_HE = Object.freeze({
   MISSION: 'משימה',
   PLATFORM: 'פלטפורמה',
   EVOLVE: 'פיתוח',
-  LAB: 'סימולציה',
+  LAB: 'יועץ',
   UNKNOWN: 'לא ידוע',
 });
 const ASSIST_CAPABILITY_HE = Object.freeze({
@@ -11269,13 +11266,12 @@ const ASSIST_CAPABILITY_HE = Object.freeze({
   configuration: 'תצורה',
   debrief: 'תחקור',
   evolve: 'פיתוח',
-  lab_sitl: 'סימולציה',
+  lab_sitl: 'יועץ',
   advisor: 'יועץ',
 });
 const ASSIST_TAB_HE = Object.freeze({
   terrain: 'הטסה',
   development: 'פיתוח',
-  simLab: 'סימולציה',
   pulse: 'בית',
   control: 'פרמטרים',
   telemetry: 'טלמטריה',

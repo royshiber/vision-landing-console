@@ -62,7 +62,14 @@ describe('AIRVIX Mission chrome — top strip gone', () => {
     expect(html).not.toContain('id="tabLabMenu"');
     expect(html).not.toContain('id="tabLabToggle"');
     expect(html).not.toContain('מעבדה');
-    expect(js).toMatch(/ASSIST_SHELF_PANELS = new Set\(\['simLab', 'advisor', 'featureDesigner', 'flightEngineer'\]\)/);
+    expect(html).not.toContain('id="simLab"');
+    expect(html).not.toContain('sim-lab.mjs');
+    expect(js).toMatch(/ASSIST_SHELF_PANELS = new Set\(\['advisor', 'featureDesigner', 'flightEngineer'\]\)/);
+    expect(js).not.toMatch(/ASSIST_SHELF_PANELS = new Set\(\[[^\]]*simLab/);
+    expect(findAssistRoute('מעבדה')).toBeNull();
+    expect(findAssistRoute('סימולציה')).toBeNull();
+    expect(findAssistRoute('sitl')).toBeNull();
+    expect(findAssistRoute('lab')).toBeNull();
     expect(js).toContain('function isAssistShelfPanel(');
     expect(js).not.toContain('LAB_SHELF_TABS');
     expect(js).not.toContain('function initLabTabGroup(');

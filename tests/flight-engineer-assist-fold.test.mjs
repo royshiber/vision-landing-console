@@ -65,10 +65,12 @@ describe('Flight Engineer → Assist fold — routes and context', () => {
     expect(findAssistRoute('flight engineer')?.tab).toBe('flightEngineer');
     expect(findAssistRoute('voice engineer')?.tab).toBe('flightEngineer');
     expect(findAssistRoute('מהנדס טיסה')?.tab).toBe('flightEngineer');
-    expect(findAssistRoute('מהנדס מעבדה')?.tab).toBe('flightEngineer');
+    expect(findAssistRoute('מהנדס')?.tab).toBe('flightEngineer');
+    expect(findAssistRoute('מהנדס מעבדה')?.tab).not.toBe('simLab');
     expect(findAssistRoute('מהנדס קולי')?.tab).toBe('flightEngineer');
     expect(findAssistRoute('יועץ')?.tab).toBe('advisor');
-    expect(findAssistRoute('מעבדה')?.tab).toBe('simLab');
+    expect(findAssistRoute('מעבדה')).toBeNull();
+    expect(findAssistRoute('סימולציה')).toBeNull();
     expect(hebrewOpenRouteAnswer('engineer')).toBe('פותחים את מהנדס הטיסה.');
     expect(hebrewLookingAtAnswer('MISSION', 'voice', 'flightEngineer')).toContain('מסך נוכחי: מהנדס טיסה.');
   });

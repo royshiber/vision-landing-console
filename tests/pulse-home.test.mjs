@@ -55,7 +55,7 @@ describe('C10.3 Pulse home', () => {
     expect(html).toMatch(/data-tab="development"/);
     expect(html).toMatch(/data-tab="control"/);
     expect(html).not.toMatch(/class="tab"[^>]*data-tab="simLab"/);
-    expect(html).toContain('id="simLab"');
+    expect(html).not.toContain('id="simLab"');
     expect(html).toMatch(/class="pulse-purpose">מצב מערכת</);
     expect(html).toMatch(/id="pulseTalkBtn"[^>]*>שאלו את המסייע</);
     expect(html).toMatch(/id="pulseVersion"[^>]*>--</);

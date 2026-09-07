@@ -242,7 +242,7 @@ describe('Disconnected-first operator overview', () => {
     expect(html).not.toContain('id="tabLabMenu"');
     expect(html).not.toContain('id="tabLabToggle"');
     expect(html).not.toContain('מעבדה');
-    expect(html).toContain('id="simLab"');
+    expect(html).not.toContain('id="simLab"');
     expect(html).toContain('id="advisor"');
     expect(html).toContain('id="featureDesigner"');
     expect(html).toContain('id="flightEngineer"');

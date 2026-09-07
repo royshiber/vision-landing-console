@@ -64,8 +64,9 @@ describe('Advisor → Assist fold — routes and context', () => {
     expect(route?.capability).toBe('advisor');
     expect(findAssistRoute('advisor')?.tab).toBe('advisor');
     expect(findAssistRoute('ai advisor')?.tab).toBe('advisor');
-    expect(findAssistRoute('יועץ מעבדה')?.tab).toBe('advisor');
-    expect(findAssistRoute('מעבדה')?.tab).toBe('simLab');
+    expect(findAssistRoute('יועץ')?.tab).toBe('advisor');
+    expect(findAssistRoute('מעבדה')).toBeNull();
+    expect(findAssistRoute('סימולציה')).toBeNull();
     expect(hebrewOpenRouteAnswer('advisor')).toBe('פותחים את היועץ.');
     expect(hebrewLookingAtAnswer('LAB', 'advisor', 'advisor')).toContain('מסך נוכחי: יועץ.');
   });

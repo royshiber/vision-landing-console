@@ -55,12 +55,13 @@ describe('Operator chrome voice and lab chrome gone', () => {
     expect(html).not.toContain('id="tabLabToggle"');
     expect(html).not.toContain('מעבדה');
     expect(html).not.toMatch(/class="tab"[^>]*data-tab="simLab"/);
-    expect(html).toContain('id="simLab"');
+    expect(html).not.toContain('id="simLab"');
+    expect(html).not.toContain('sim-lab.mjs');
     expect(html).toContain('id="advisor"');
     expect(html).toContain('id="featureDesigner"');
     expect(html).toContain('id="flightEngineer"');
     expect(js).toContain('function isAssistShelfPanel(');
-    expect(js).toMatch(/ASSIST_SHELF_PANELS = new Set\(\['simLab', 'advisor', 'featureDesigner', 'flightEngineer'\]\)/);
+    expect(js).toMatch(/ASSIST_SHELF_PANELS = new Set\(\['advisor', 'featureDesigner', 'flightEngineer'\]\)/);
     expect(js).toMatch(/function applyMainTab\([\s\S]*?isAssistShelfPanel\(tabId\)/);
     expect(js).not.toContain('function initLabTabGroup(');
     expect(js).not.toContain('function syncLabTabGroup(');
@@ -78,12 +79,12 @@ describe('Operator chrome voice and lab chrome gone', () => {
 
   it('opens Assist-shelf panels without a Lab tab button', () => {
     const helper = [
-      'const ASSIST_SHELF_PANELS = new Set(["simLab", "advisor", "featureDesigner", "flightEngineer"]);',
+      'const ASSIST_SHELF_PANELS = new Set(["advisor", "featureDesigner", "flightEngineer"]);',
       sliceFunction(js, 'isAssistShelfPanel'),
       'return { sim: isAssistShelfPanel("simLab"), pulse: isAssistShelfPanel("pulse"), advisor: isAssistShelfPanel("advisor") };',
     ].join('\n');
     const result = new Function(helper)();
-    expect(result.sim).toBe(true);
+    expect(result.sim).toBe(false);
     expect(result.advisor).toBe(true);
     expect(result.pulse).toBe(false);
   });

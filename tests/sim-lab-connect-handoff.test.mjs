@@ -15,38 +15,28 @@ import {
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const html = fs.readFileSync(path.join(repoRoot, 'public', 'index.html'), 'utf8');
 const appJs = fs.readFileSync(path.join(repoRoot, 'public', 'app.js'), 'utf8');
-const simLab = fs.readFileSync(path.join(repoRoot, 'public', 'sim-lab.mjs'), 'utf8');
 const version = fs.readFileSync(path.join(repoRoot, 'version.js'), 'utf8');
 const pkg = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8'));
 
-describe('SITL Lab connect handoff — shared path', () => {
-  it('exposes one topbar connect API and Sim Lab drives it', () => {
+describe('SITL connect handoff — shared connect widget only', () => {
+  it('keeps one floating connect API and removes the Sim Lab UI', () => {
     expect(appJs).toContain('window.__vlcConnectWidget');
     expect(appJs).toContain('function applySitlPreset');
     expect(appJs).toContain('function connectNow');
     expect(appJs).toMatch(/fetch\('\/api\/connections\/quick-connect'/);
-    expect(simLab).toContain('handoffSitlConnect');
-    expect(simLab).toContain('getConnectWidgetApi');
-    expect(simLab).toContain('SITL_CONNECT_PRESETS');
-    expect(simLab).not.toMatch(/\/api\/connections\/quick-connect/);
-    expect(simLab).not.toMatch(/\/api\/connections\/auto-connect/);
-  });
-
-  it('keeps SITL wizard teaching steps and spoken-Hebrew topbar handoff', () => {
-    expect(html).toContain('id="simLabConnectHandoffHint"');
-    expect(html).toContain('אותו חיבור כמו בשורת המצב למעלה.');
-    expect(html).toContain('חברו למעלה');
-    expect(html).toContain('id="simLabWizard"');
-    expect(html).toContain('data-step="1"');
-    expect(html).toContain('הפעל SITL');
-    expect(html).toContain('id="simLabQsUdp"');
-    expect(html).toContain('id="simLabQsTcp"');
-    expect(html).toContain('id="simLabQsUdpBind"');
-    expect(html).toContain('id="simLabCopyCmd"');
-    expect(html).toContain('id="simLabPresetUdp14550"');
+    expect(html).not.toContain('id="simLab"');
+    expect(html).not.toContain('sim-lab.mjs');
     expect(html).toContain('id="connectWidget"');
     expect(html).toContain('id="connectBtn"');
     expect(html).toContain('id="connectAutoBtn"');
+  });
+
+  it('does not ship a Sim Lab wizard or PARAM_SET form', () => {
+    expect(html).not.toContain('id="simLabConnectHandoffHint"');
+    expect(html).not.toContain('id="simLabWizard"');
+    expect(html).not.toContain('id="simLabParamSend"');
+    expect(html).not.toContain('id="simLabRcSendToggle"');
+    expect(html).not.toContain('id="simLabCanvas"');
   });
 
   it('hands presets to the shared widget API instead of a second stack', () => {
@@ -104,23 +94,21 @@ describe('SITL Lab connect handoff — shared path', () => {
   });
 });
 
-describe('SITL Lab connect handoff — Assist route', () => {
-  it('maps סימולציה and SITL to the existing lab tab', () => {
-    expect(findAssistRoute('סימולציה')?.id).toBe('lab');
-    expect(findAssistRoute('סימולציה')?.tab).toBe('simLab');
-    expect(findAssistRoute('sitl')?.tab).toBe('simLab');
-    expect(findAssistRoute('SITL')?.tab).toBe('simLab');
-    expect(findAssistRoute('simulation')?.tab).toBe('simLab');
-    expect(findAssistRoute('מעבדה')?.tab).toBe('simLab');
-    expect(hebrewOpenRouteAnswer('lab')).toBe('פותחים את הסימולציה.');
+describe('SITL connect handoff — no Assist lab route', () => {
+  it('does not map סימולציה or מעבדה to a lab panel', () => {
+    expect(findAssistRoute('סימולציה')).toBeNull();
+    expect(findAssistRoute('sitl')).toBeNull();
+    expect(findAssistRoute('SITL')).toBeNull();
+    expect(findAssistRoute('simulation')).toBeNull();
+    expect(findAssistRoute('מעבדה')).toBeNull();
+    expect(findAssistRoute('lab')).toBeNull();
+    expect(hebrewOpenRouteAnswer('lab')).not.toBe('פותחים את הסימולציה.');
   });
 
-  it('opens Sim Lab from Assist without stealing development or flight intents', () => {
-    const openHe = resolveAssistIntent('פתח סימולציה');
-    expect(openHe.intent).toBe('UI_ACTION');
-    expect(openHe.slots.route_id).toBe('lab');
-    expect(resolveAssistIntent('sitl').slots.route_id).toBe('lab');
-    expect(resolveAssistIntent('סימולציה').slots.route_id).toBe('lab');
+  it('does not open a lab panel from Assist speech', () => {
+    expect(resolveAssistIntent('פתח סימולציה').slots?.route_id).not.toBe('lab');
+    expect(resolveAssistIntent('sitl').slots?.route_id).not.toBe('lab');
+    expect(resolveAssistIntent('סימולציה').slots?.route_id).not.toBe('lab');
     expect(resolveAssistIntent('Add a tab for landing confidence.').intent).toBe('DEVELOPMENT');
     expect(resolveAssistIntent('Change param LAND_SPEED to 5').prohibited).toBe(true);
   });

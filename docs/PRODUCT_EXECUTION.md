@@ -137,7 +137,7 @@ Architecture wave (`docs/AIRVIX_PRODUCT_ARCHITECTURE.md`): C10.2 Assist unificat
 28. **ArduLab → Assist REFINE** — **LANDED** via PR #73 merge `dca929a`. Assist route `ardulab` opens existing `#featureDesigner`. Workspace **EVOLVE**. Lab shelf stays. No FC write / Companion apply / Jetson deploy.
 29. **SITL Lab connect REFINE** — **LANDED** via PR #74 merge `1971384`. `#simLab` presets/wizard drive the global `#connectWidget`. Spoken-Hebrew handoff. One MAVLink connect truth.
 30. **Auto-Config wizard MERGE** — **LANDED** via PR #75. Assist opens `#autoConfig` under Parameter Center (`#control`). Quiet Platform / Params chrome. Existing suggest→approve→apply stays. No new FC write.
-31. **AIRVIX UI redesign (chrome + Mission workspace)** — **this draft.** Roy 2026-09-07 GO + later locks. Lab / מעבדה chrome removed (Assist still opens hidden sim/advisor/feature/engineer panels). **בית** is system status (aircraft + Jetson + Assist) with an obvious talk entry. Mission is brighter / luminous with true drag-resize persist. Artificial horizon rebuilt as a circular GCS instrument. `APP_VERSION` **1.02.256**. Stay draft.
+31. **AIRVIX UI redesign (chrome + Mission workspace)** — **this draft.** Roy 2026-09-07 GO + later locks. `#simLab` panel removed from the operator UI. Assist has no `lab` / `סימולציה` / `מעבדה` route. SITL connect stays on the floating `#connectWidget` only. **בית** is system status + talk. Luminous Mission, circular AH, drag-resize persist. `APP_VERSION` **1.02.256**. Stay draft.
 
 ---
 
@@ -145,7 +145,7 @@ Architecture wave (`docs/AIRVIX_PRODUCT_ARCHITECTURE.md`): C10.2 Assist unificat
 
 **Master:** `1.02.255` @ `33d6334` (PR #75 merge — Auto-Config wizard MERGE).  
 **Prior pointer:** 2026-09-07 Auto-Config wizard MERGE draft snapshot. Superseded. #75 landed Assist → `#autoConfig`.  
-**This draft:** AIRVIX UI redesign — lab chrome gone; **בית** = status + talk; luminous Mission; premium AH; drag-resize persist. `APP_VERSION` **1.02.256**. Stay draft.
+**This draft:** AIRVIX UI redesign — `#simLab` UI fully removed; no Assist lab route; **בית** = status + talk; luminous Mission; premium AH; drag-resize persist. `APP_VERSION` **1.02.256**. Stay draft.
 
 Ops (not product): WhatsApp Human Gate delivery remains available (signed in on the operator box targeting +972584010075, self-chat).
 
@@ -165,7 +165,7 @@ Ops (not product): WhatsApp Human Gate delivery remains available (signed in on 
 
 ### This draft (2026-09-07)
 
-- AIRVIX UI redesign. Lab / מעבדה chrome gone. **בית** is system status (aircraft + Jetson + Assist) with שאלו את המסייע. Mission is brighter with drag-resize persist. Artificial horizon is a circular GCS instrument. Default open **הטסה**. Assist is the full `talk` panel on Mission; float outside Mission. Short UI **Jetson**. No Companion apply/restart. No new FC `PARAM_SET`. No FLIGHT_ACTION / ARM / LAND from Assist. `APP_VERSION` **1.02.256**.
+- AIRVIX UI redesign. `#simLab` panel gone. No Assist route for `מעבדה` / `סימולציה` / `sitl`. SITL connect remains on `#connectWidget`. **בית** is system status with שאלו את המסייע. Luminous Mission + circular AH + drag-resize persist. `APP_VERSION` **1.02.256**.
 
 ### Prior still on master (#54, #56, #57)
 
@@ -250,7 +250,7 @@ On master today (PR #33 + PR #34 + Hebrew Assist chrome from #50 + result card f
 - **ArduLab → Assist REFINE LANDED** via PR #73 `dca929a`: Assist opens `#featureDesigner` for `ארדולאב` / feature designer. Workspace **EVOLVE**. Lab shelf stays. Not a competing primary chat. No FC / Companion apply.
 - **SITL Lab connect REFINE LANDED** via PR #74 `1971384`: `#simLab` presets/wizard drive `#connectWidget`. One MAVLink connect truth. Spoken-Hebrew handoff. Wizard teaching stays. Assist `סימולציה` / `sitl` → `#simLab`.
 - **Auto-Config wizard MERGE LANDED** via PR #75 `33d6334`: Assist opens `#autoConfig` for `אשף` / `קונפיג אוטומטי`. Quiet Platform / Params chrome. Panel stays. No new vehicle write.
-- **AIRVIX UI redesign this draft:** lab chrome gone. **בית** = status + talk. Luminous Mission + drag-resize persist. Premium circular AH. `APP_VERSION` **1.02.256**. Stay draft.
+- **AIRVIX UI redesign this draft:** `#simLab` UI fully removed. No Assist lab route. **בית** = status + talk. Luminous Mission + circular AH. `APP_VERSION` **1.02.256**. Stay draft.
 
 ### Params (persist landed)
 

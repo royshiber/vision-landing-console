@@ -67,7 +67,8 @@ describe('ArduLab → Assist fold — routes and context', () => {
     expect(findAssistRoute('featuredesigner')?.tab).toBe('featureDesigner');
     expect(findAssistRoute('מעצב פיצ׳רים')?.tab).toBe('featureDesigner');
     expect(findAssistRoute('יועץ')?.tab).toBe('advisor');
-    expect(findAssistRoute('מעבדה')?.tab).toBe('simLab');
+    expect(findAssistRoute('מעבדה')).toBeNull();
+    expect(findAssistRoute('סימולציה')).toBeNull();
     expect(hebrewOpenRouteAnswer('ardulab')).toBe('פותחים את הפיצ׳ר המותאם.');
     expect(hebrewLookingAtAnswer('EVOLVE', 'evolve', 'featureDesigner')).toContain('מסך נוכחי: פיצ׳ר.');
   });
