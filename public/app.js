@@ -144,7 +144,8 @@ const CONTROL_SUBTAB_KEY = 'visionLandingControlSubtabV1';
 const PULSE_HOME_KEY = 'visionLandingHomeSurfaceV1';
 const MISSION_SWAP_KEY = 'visionLandingMissionSwapV1';
 const MISSION_SIZE_KEY = 'visionLandingMissionSizeV1';
-const MISSION_APPROACH_MODES = Object.freeze(['LAND', 'QLAND']);
+const MISSION_AREAS_KEY = 'visionLandingMissionAreasV1';
+const MISSION_REGION_IDS = Object.freeze(['horizon', 'map', 'data', 'messages', 'talk']);
 /** Why: C10.7a Attention Policy — quiet by default; chrome only, no voice. */
 const ATTENTION_POLICY_KEY = 'visionLandingAttentionPolicyV1';
 const ATTENTION_POLICY_LEVELS = Object.freeze(['off', 'attention', 'critical']);
@@ -316,6 +317,7 @@ function applyMainTab(tabId, { save = true } = {}) {
   if (tabId === 'development') {
     void devTasksLoadList();
   }
+  placeAssistSurface(tabId);
   if (_assistChromeReady) assistRefreshContextChip();
 }
 const PARAM_SUBTAB_IDS = new Set(['landingParams', 'abortParams', 'visionNavParams', 'arduParams', 'customParams']);
@@ -11977,10 +11979,48 @@ async function assistDisconnectAgent() {
   }
 }
 
+function isMissionAssistDocked() {
+  return document.getElementById('terrain')?.classList.contains('visible') === true;
+}
+
+function placeAssistSurface(tabId) {
+  const rail = document.getElementById('assistRail');
+  const host = document.getElementById('missionTalkHost');
+  const dock = document.getElementById('assistRailDock');
+  const closeBtn = document.getElementById('assistCloseBtn');
+  if (!rail) return;
+  const onMission = tabId === 'terrain';
+  document.body.classList.toggle('mission-assist-docked', onMission);
+  if (onMission && host) {
+    host.appendChild(rail);
+    rail.classList.add('assist-rail--mission');
+    rail.hidden = false;
+    document.body.classList.remove('assist-open');
+    if (closeBtn) closeBtn.hidden = true;
+    const toggle = document.getElementById('assistToggleBtn');
+    toggle?.setAttribute('aria-expanded', 'true');
+    void assistRefreshAgentConnection();
+    return;
+  }
+  if (dock && rail.parentElement !== dock) dock.appendChild(rail);
+  rail.classList.remove('assist-rail--mission');
+  if (closeBtn) closeBtn.hidden = false;
+}
+
 function assistSetOpen(open) {
   const rail = document.getElementById('assistRail');
   const toggle = document.getElementById('assistToggleBtn');
   if (!rail || !toggle) return;
+  if (isMissionAssistDocked()) {
+    rail.hidden = false;
+    toggle.setAttribute('aria-expanded', 'true');
+    document.body.classList.remove('assist-open');
+    try { sessionStorage.setItem(ASSIST_OPEN_KEY, '1'); } catch { /* ignore */ }
+    assistRefreshContextChip();
+    void assistRefreshAgentConnection();
+    document.getElementById('assistInput')?.focus();
+    return;
+  }
   rail.hidden = !open;
   toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
   document.body.classList.toggle('assist-open', open);
@@ -11990,23 +12030,6 @@ function assistSetOpen(open) {
     void assistRefreshAgentConnection();
     document.getElementById('assistInput')?.focus();
   }
-}
-
-function missionModeName(mav) {
-  if (!mav) return '';
-  return ARDUPILOT_PLANE_MODES[mav.flightMode] || '';
-}
-
-function missionApproachActive(mav, companion) {
-  const mode = missionModeName(mav);
-  if (MISSION_APPROACH_MODES.includes(mode)) return true;
-  return companion?.landing?.detected === true;
-}
-
-function resolveMissionLayoutPhase(mav, companion) {
-  if (missionApproachActive(mav, companion)) return 'approach';
-  if (mav?.armed === true && mav?.armedKnown === true) return 'flight';
-  return 'ground';
 }
 
 function clampMissionFr(value, min, max, fallback) {
@@ -12019,28 +12042,46 @@ function defaultMissionSize() {
   return { c1: 1.15, c2: 1.45, c3: 0.92, r1: 1.55, r2: 0.88 };
 }
 
+function defaultMissionAreas() {
+  return {
+    horizon: 'horizon',
+    map: 'map',
+    data: 'data',
+    messages: 'messages',
+    talk: 'talk',
+  };
+}
+
 let _missionSize = defaultMissionSize();
 
-function readMissionSwap() {
+function missionLayoutStoreGet(key) {
   try {
-    if (sessionStorage.getItem(MISSION_SWAP_KEY) === 'map-horizon') return 'map-horizon';
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function missionLayoutStoreSet(key, value) {
+  try {
+    localStorage.setItem(key, value);
   } catch {
     /* ignore */
   }
+}
+
+function readMissionSwap() {
+  if (missionLayoutStoreGet(MISSION_SWAP_KEY) === 'map-horizon') return 'map-horizon';
   return 'horizon-map';
 }
 
 function writeMissionSwap(swap) {
-  try {
-    sessionStorage.setItem(MISSION_SWAP_KEY, swap === 'map-horizon' ? 'map-horizon' : 'horizon-map');
-  } catch {
-    /* ignore */
-  }
+  missionLayoutStoreSet(MISSION_SWAP_KEY, swap === 'map-horizon' ? 'map-horizon' : 'horizon-map');
 }
 
 function readMissionSize() {
   try {
-    const raw = JSON.parse(sessionStorage.getItem(MISSION_SIZE_KEY) || 'null');
+    const raw = JSON.parse(missionLayoutStoreGet(MISSION_SIZE_KEY) || 'null');
     if (raw && typeof raw === 'object') {
       const fallback = defaultMissionSize();
       return {
@@ -12059,11 +12100,45 @@ function readMissionSize() {
 
 function writeMissionSize(size) {
   _missionSize = size;
+  missionLayoutStoreSet(MISSION_SIZE_KEY, JSON.stringify(size));
+}
+
+function readMissionAreas() {
+  const fallback = defaultMissionAreas();
   try {
-    sessionStorage.setItem(MISSION_SIZE_KEY, JSON.stringify(size));
+    const raw = JSON.parse(missionLayoutStoreGet(MISSION_AREAS_KEY) || 'null');
+    if (!raw || typeof raw !== 'object') return fallback;
+    const next = { ...fallback };
+    for (const id of MISSION_REGION_IDS) {
+      if (MISSION_REGION_IDS.includes(raw[id])) next[id] = raw[id];
+    }
+    return next;
   } catch {
-    /* ignore */
+    return fallback;
   }
+}
+
+function writeMissionAreas(map) {
+  missionLayoutStoreSet(MISSION_AREAS_KEY, JSON.stringify(map));
+}
+
+function applyMissionAreas(map) {
+  const areas = map || readMissionAreas();
+  document.querySelectorAll('[data-mission-region]').forEach((el) => {
+    const id = el.dataset.missionRegion;
+    el.style.gridArea = areas[id] || id;
+  });
+  requestAnimationFrame(placeMissionSplits);
+}
+
+function swapMissionRegions(fromId, toId) {
+  if (!MISSION_REGION_IDS.includes(fromId) || !MISSION_REGION_IDS.includes(toId) || fromId === toId) return;
+  const areas = readMissionAreas();
+  const fromArea = areas[fromId];
+  areas[fromId] = areas[toId];
+  areas[toId] = fromArea;
+  writeMissionAreas(areas);
+  applyMissionAreas(areas);
 }
 
 function applyMissionSwap(swap) {
@@ -12086,17 +12161,26 @@ function applyMissionSize(size) {
 }
 
 function toggleMissionHorizonMapSwap() {
-  if (resolveMissionLayoutPhase(latestHudMavlink, latestCompanionFromServer) !== 'flight') return;
   const next = readMissionSwap() === 'map-horizon' ? 'horizon-map' : 'map-horizon';
   writeMissionSwap(next);
   applyMissionSwap(next);
+}
+
+function resetMissionLayout() {
+  writeMissionSwap('horizon-map');
+  writeMissionSize(defaultMissionSize());
+  writeMissionAreas(defaultMissionAreas());
+  applyMissionSwap('horizon-map');
+  applyMissionSize(defaultMissionSize());
+  applyMissionAreas(defaultMissionAreas());
+  syncMissionLayoutChrome();
 }
 
 function placeMissionSplits() {
   const ws = document.querySelector('.mission-workspace');
   const col = document.getElementById('missionColSplit');
   const row = document.getElementById('missionRowSplit');
-  if (!ws || !col || !row || ws.dataset.missionEdit !== 'on') return;
+  if (!ws || !col || !row) return;
   const horizon = ws.querySelector('[data-mission-region="horizon"]');
   const map = ws.querySelector('[data-mission-region="map"]');
   const data = ws.querySelector('[data-mission-region="data"]');
@@ -12119,25 +12203,48 @@ function placeMissionSplits() {
 }
 
 function syncMissionLayoutChrome() {
-  const phase = resolveMissionLayoutPhase(latestHudMavlink, latestCompanionFromServer);
-  const editOn = phase === 'flight';
   const ws = document.querySelector('.mission-workspace');
-  if (ws) ws.dataset.missionEdit = editOn ? 'on' : 'off';
+  if (ws) ws.dataset.missionEdit = 'on';
   const btn = document.getElementById('missionSwapHorizonMapBtn');
-  if (btn) btn.disabled = !editOn;
+  if (btn) btn.disabled = false;
   const col = document.getElementById('missionColSplit');
   const row = document.getElementById('missionRowSplit');
-  if (col) col.hidden = !editOn;
-  if (row) row.hidden = !editOn;
+  if (col) col.hidden = false;
+  if (row) row.hidden = false;
   const hint = document.getElementById('missionLayoutHint');
-  if (hint) {
-    hint.textContent = phase === 'flight'
-      ? 'אפשר להחליף אופק ומפה ולשנות גודל.'
-      : phase === 'approach'
-        ? 'בגישה אין החלפה ואין סידור חופשי.'
-        : 'החלפה ושינוי גודל בטיסה בלבד.';
-  }
-  if (editOn) requestAnimationFrame(placeMissionSplits);
+  if (hint) hint.textContent = 'גררו כותרת אזור. אפשר לשנות גודל תמיד.';
+  requestAnimationFrame(placeMissionSplits);
+}
+
+function bindMissionRegionDrag() {
+  document.querySelectorAll('.mission-region').forEach((region) => {
+    region.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      region.classList.add('mission-region--drop');
+    });
+    region.addEventListener('dragleave', () => {
+      region.classList.remove('mission-region--drop');
+    });
+    region.addEventListener('drop', (e) => {
+      e.preventDefault();
+      region.classList.remove('mission-region--drop');
+      const from = String(e.dataTransfer.getData('text/plain') || '');
+      const to = region.dataset.missionRegion;
+      if (from && to) swapMissionRegions(from, to);
+    });
+  });
+  document.querySelectorAll('.mission-region-title').forEach((title) => {
+    title.addEventListener('dragstart', (e) => {
+      const region = title.closest('[data-mission-region]');
+      if (!region) {
+        e.preventDefault();
+        return;
+      }
+      e.dataTransfer.setData('text/plain', region.dataset.missionRegion);
+      e.dataTransfer.effectAllowed = 'move';
+    });
+  });
 }
 
 function bindMissionSplitters() {
@@ -12153,7 +12260,6 @@ function bindMissionSplitters() {
     base = null;
   };
   const onDown = (axis, ev) => {
-    if (resolveMissionLayoutPhase(latestHudMavlink, latestCompanionFromServer) !== 'flight') return;
     dragging = axis;
     start = axis === 'col' ? ev.clientX : ev.clientY;
     base = { ..._missionSize };
@@ -12189,10 +12295,15 @@ function bindMissionSplitters() {
 function initMissionLayout() {
   applyMissionSwap(readMissionSwap());
   applyMissionSize(readMissionSize());
+  applyMissionAreas(readMissionAreas());
   syncMissionLayoutChrome();
   document.getElementById('missionSwapHorizonMapBtn')?.addEventListener('click', () => {
     toggleMissionHorizonMapSwap();
   });
+  document.getElementById('missionResetLayoutBtn')?.addEventListener('click', () => {
+    resetMissionLayout();
+  });
+  bindMissionRegionDrag();
   bindMissionSplitters();
   window.addEventListener('resize', () => requestAnimationFrame(placeMissionSplits));
 }
@@ -12230,7 +12341,9 @@ function initAssistUi() {
   _assistChromeReady = true;
   let open = false;
   try { open = sessionStorage.getItem(ASSIST_OPEN_KEY) === '1'; } catch { /* ignore */ }
-  assistSetOpen(open);
+  const current = document.querySelector('.panel.visible')?.id || appDefaultWorkspaceTab();
+  placeAssistSurface(current);
+  assistSetOpen(current === 'terrain' ? true : open);
   toggle.addEventListener('click', () => assistSetOpen(rail.hidden));
   document.getElementById('assistCloseBtn')?.addEventListener('click', () => assistSetOpen(false));
   document.getElementById('assistForm')?.addEventListener('submit', (e) => {

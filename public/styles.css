@@ -88,6 +88,7 @@
   /* Stacking: ops chrome above panels; connect float above chrome; modals above all */
   --z-topbar-chrome: 200;
   --z-connect-float: 520;
+  --z-assist-float: 530;
   --z-modal-overlay: 9800;
 }
 
@@ -123,12 +124,14 @@ h1, h2, .panel-header h2 {
   gap: 10px;
   padding: 8px 14px;
   padding-inline-end: 168px;
-  border-bottom: 1px solid var(--border);
-  background: var(--surface);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(180deg, rgba(14, 18, 28, 0.96), rgba(10, 14, 22, 0.92));
+  backdrop-filter: blur(18px);
   min-height: 48px;
   flex-shrink: 0;
   position: relative;
   z-index: var(--z-topbar-chrome);
+  color: #e8edf6;
 }
 
 .app-chrome .tabs {
@@ -146,32 +149,77 @@ h1, h2, .panel-header h2 {
 }
 
 .app-chrome .badge {
-  background: var(--surface-container-high);
-  border: 1px solid var(--border);
-  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(232, 237, 246, 0.72);
 }
 
 .app-chrome .global-settings-btn {
-  border: 1px solid var(--border);
-  background: var(--surface-container-low);
-  color: var(--text);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05);
+  color: #e8edf6;
 }
 
 .app-chrome .global-settings-btn:hover {
-  background: var(--surface-container-high);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.app-chrome .tab {
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(232, 237, 246, 0.72);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.app-chrome .tab:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(96, 165, 250, 0.45);
+  color: #dbeafe;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.22);
+}
+
+.app-chrome .tab.active {
+  background: linear-gradient(135deg, #2563eb 0%, #38bdf8 100%);
+  border-color: rgba(125, 211, 252, 0.55);
+  color: #fff;
+}
+
+.app-chrome .tab-fly {
+  color: #6ee7b7;
+  border-color: rgba(52, 211, 153, 0.35);
+}
+
+.app-chrome .tab-fly:hover {
+  background: rgba(16, 185, 129, 0.16);
+  color: #a7f3d0;
+}
+
+.app-chrome .tab-fly.active {
+  background: linear-gradient(135deg, #059669 0%, #34d399 100%);
+  color: #fff;
 }
 
 .app-chrome .assist-toggle-btn {
+  position: fixed;
+  bottom: 20px;
+  inset-inline-start: 16px;
+  z-index: var(--z-assist-float);
   flex-direction: row;
-  padding: 5px 10px;
-  border: 1px solid rgba(5, 150, 105, 0.28);
-  background: #ecfdf5;
-  color: #065f46;
+  padding: 10px 16px;
+  border: 1px solid rgba(110, 231, 183, 0.28);
+  background: rgba(8, 16, 24, 0.78);
+  color: #ecfdf5;
+  border-radius: 999px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(16px);
 }
 
 .app-chrome .assist-toggle-btn[aria-expanded="true"] {
-  background: #d1fae5;
-  border-color: #059669;
+  background: rgba(16, 185, 129, 0.28);
+  border-color: rgba(52, 211, 153, 0.5);
+}
+
+body.mission-assist-docked .app-chrome .assist-toggle-btn {
+  display: none;
 }
 
 h1 { margin: 0; font-size: 1.25rem; color: var(--text); }
@@ -6757,16 +6805,17 @@ body.operator-live .companion-connect--hero {
   gap: 0;
   padding: 0;
   position: relative;
-  border-radius: 12px; /* keep the card corners */
+  border-radius: 16px;
+  background: linear-gradient(180deg, #0b1220 0%, #111827 100%);
 }
 .mission-identity {
   margin: 0;
-  padding: 5px 10px 2px;
+  padding: 8px 12px 4px;
   font-family: "Heebo", sans-serif;
-  font-size: 0.7rem;
+  font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.02em;
-  color: #166534;
+  color: #86efac;
   direction: rtl;
   flex: 0 0 auto;
   display: flex;
@@ -6811,11 +6860,11 @@ body.operator-live .companion-connect--hero {
 
 .mission-layout-btn {
   margin: 0;
-  padding: 3px 10px;
-  border: 1px solid #86efac;
+  padding: 4px 12px;
+  border: 1px solid rgba(110, 231, 183, 0.28);
   border-radius: 999px;
-  background: #ecfdf3;
-  color: #14532d;
+  background: rgba(16, 185, 129, 0.12);
+  color: #d1fae5;
   font: inherit;
   font-size: 0.68rem;
   font-weight: 700;
@@ -6839,7 +6888,7 @@ body.operator-live .companion-connect--hero {
   margin: 0;
   font-size: 0.68rem;
   font-weight: 600;
-  color: #166534;
+  color: rgba(209, 250, 229, 0.78);
   font-family: "Heebo", sans-serif;
 }
 
@@ -6898,6 +6947,23 @@ body.operator-live .companion-connect--hero {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  border-radius: 14px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.22);
+}
+
+.mission-region--drop {
+  outline: 2px solid rgba(52, 211, 153, 0.7);
+}
+
+.mission-region-title[draggable="true"] {
+  cursor: grab;
+}
+
+.mission-talk-host {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .mission-region[data-mission-region="horizon"] { grid-area: horizon; }
@@ -6908,11 +6974,11 @@ body.operator-live .companion-connect--hero {
 
 .mission-region-title {
   margin: 0;
-  padding: 6px 10px 0;
+  padding: 8px 12px 4px;
   font-size: 0.72rem;
   font-weight: 800;
   letter-spacing: 0.04em;
-  color: #14532d;
+  color: #bbf7d0;
   font-family: "Heebo", sans-serif;
   flex: 0 0 auto;
 }
@@ -6920,9 +6986,10 @@ body.operator-live .companion-connect--hero {
 .mission-region-data,
 .mission-region-messages,
 .mission-region-talk {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  background: rgba(15, 23, 42, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  backdrop-filter: blur(12px);
 }
 
 .mission-data-grid {
@@ -6974,7 +7041,7 @@ body.operator-live .companion-connect--hero {
   margin: 0;
   padding: 2px 10px 6px;
   font-size: 0.7rem;
-  color: #166534;
+  color: rgba(187, 247, 208, 0.8);
 }
 
 .mission-talk-chips {
@@ -8502,10 +8569,11 @@ details.flight-manage summary {
 }
 
 .connect-widget-float .conn-pill {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  color: var(--text);
-  box-shadow: 0 4px 16px rgba(0, 71, 141, 0.16);
+  background: rgba(10, 14, 22, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #e8edf6;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.32);
+  backdrop-filter: blur(16px);
 }
 
 .connect-widget-float .conn-pill:hover {
@@ -13142,6 +13210,19 @@ details.flight-manage summary {
   backdrop-filter: blur(10px);
 }
 .assist-rail[hidden] { display: none !important; }
+.assist-rail.assist-rail--mission {
+  position: relative;
+  inset: auto;
+  top: auto;
+  width: 100%;
+  height: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+  z-index: 1;
+  border-inline-start: 0;
+  border-radius: 12px;
+  box-shadow: none;
+}
 .assist-rail-head {
   display: flex;
   align-items: flex-start;

@@ -200,7 +200,7 @@ describe('C10.6 Mission refuses development', () => {
 describe('C10.6 Mission chrome', () => {
   it('marks #terrain as הטסה without hiding PFD or map', () => {
     expect(html).toMatch(/id="missionIdentity"[^>]*>הטסה · מרחב טיסה</);
-    expect(html).toMatch(/class="tab tab-fly"[^>]*data-tab="terrain"[^>]*>הטסה</);
+    expect(html).toMatch(/class="tab tab-fly[^"]*"[^>]*data-tab="terrain"[^>]*>הטסה</);
     expect(html).toContain('id="flightHud"');
     expect(html).toContain('id="terrainMap"');
     expect(html).toMatch(/class="terrain-flight-shell(?:\s|")/);

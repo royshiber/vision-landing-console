@@ -113,6 +113,7 @@
       </div>
     </header>
 
+    <div id="assistRailDock">
     <aside id="assistRail" class="assist-rail" hidden aria-label="מסייע">
       <header class="assist-rail-head">
         <div class="assist-rail-titles">
@@ -163,6 +164,7 @@
         </form>
       </div>
     </aside>
+    </div>
 
     <div id="connectStatModal" class="conn-modal" hidden>
       <div class="conn-modal-backdrop" data-close="1"></div>
@@ -1567,13 +1569,15 @@
       <section id="terrain" class="panel visible" data-workspace="mission">
         <p id="missionIdentity" class="mission-identity">הטסה · מרחב טיסה<button type="button" id="missionReadinessGlance" class="mission-readiness-glance" title="מוכנות">מוכנות</button></p>
         <div class="mission-layout-bar">
-          <button type="button" id="missionSwapHorizonMapBtn" class="mission-layout-btn" disabled>החלף אופק ומפה</button>
-          <p id="missionLayoutHint" class="mission-layout-hint">החלפה ושינוי גודל בטיסה בלבד.</p>
+          <button type="button" id="missionSwapHorizonMapBtn" class="mission-layout-btn">החלף אופק ומפה</button>
+          <button type="button" id="missionResetLayoutBtn" class="mission-layout-btn">איפוס סידור</button>
+          <p id="missionLayoutHint" class="mission-layout-hint">גררו כותרת אזור. אפשר לשנות גודל תמיד.</p>
         </div>
-        <div class="terrain-flight-shell mission-workspace" data-mission-layout="ops-v1" data-mission-swap="horizon-map" data-mission-edit="off">
-          <div id="missionColSplit" class="mission-split mission-split-col" hidden></div>
-          <div id="missionRowSplit" class="mission-split mission-split-row" hidden></div>
+        <div class="terrain-flight-shell mission-workspace" data-mission-layout="ops-v1" data-mission-swap="horizon-map" data-mission-edit="on">
+          <div id="missionColSplit" class="mission-split mission-split-col"></div>
+          <div id="missionRowSplit" class="mission-split mission-split-row"></div>
           <section class="mission-region mission-region-horizon" data-mission-region="horizon" aria-label="אופק">
+            <h3 class="mission-region-title" draggable="true">אופק</h3>
             <aside id="flightHud" class="flight-hud" aria-label="HUD טיסה חופשית">
               <div class="pfd-top-bar">
                 <button type="button" id="pfdVoiceFlightBtn" class="pfd-voice-flight-btn" title="פתיחת מהנדס קולי לפקודות טיסה">🎙 פקודות</button>
@@ -1623,6 +1627,7 @@
           </section>
 
           <section class="mission-region mission-region-map" data-mission-region="map" aria-label="מפה">
+            <h3 class="mission-region-title" draggable="true">מפה</h3>
             <div class="terrain-map-shell">
               <div class="terrain-map-overlay-toolbar" role="toolbar" aria-label="תצוגת מפה">
                 <span class="terrain-toolbar-label">שכבה:</span>
@@ -1637,7 +1642,7 @@
           </section>
 
           <section class="mission-region mission-region-data" data-mission-region="data" aria-label="נתונים">
-            <h3 class="mission-region-title">נתונים</h3>
+            <h3 class="mission-region-title" draggable="true">נתונים</h3>
             <dl class="mission-data-grid" aria-label="מדדי טיסה">
               <div class="mission-data-item">
                 <dt>מוד</dt>
@@ -1670,7 +1675,7 @@
           </section>
 
           <section class="mission-region mission-region-messages" data-mission-region="messages" aria-label="הודעות">
-            <h3 class="mission-region-title">הודעות</h3>
+            <h3 class="mission-region-title" draggable="true">הודעות</h3>
             <div class="pfd-statustext-strip" id="pfdStatustextStrip">
               <div class="pfc-msg-head">
                 <span class="pfc-msg-label">הודעות מהבקר</span>
@@ -1681,20 +1686,10 @@
             </div>
           </section>
 
-          <section class="mission-region mission-region-talk" data-mission-region="talk" aria-label="שיחה">
-            <h3 class="mission-region-title">שיחה</h3>
+          <section class="mission-region mission-region-talk" data-mission-region="talk" aria-label="מסייע">
+            <h3 class="mission-region-title" draggable="true">מסייע</h3>
             <p id="missionTalkHint" class="mission-talk-hint">הטסה. הערה ותצפית בלבד.</p>
-            <div id="missionTalkChips" class="mission-talk-chips">
-              <button type="button" class="mission-talk-chip" data-assist-chip="note">הערה</button>
-              <button type="button" class="mission-talk-chip" data-assist-chip="observation">תצפית</button>
-              <button type="button" class="mission-talk-chip" data-assist-chip="ask">שאלה</button>
-              <button type="button" class="mission-talk-chip" data-assist-chip="advisor">יועץ</button>
-            </div>
-            <form id="missionTalkForm" class="mission-talk-form" autocomplete="off">
-              <input id="missionTalkInput" class="mission-talk-input" type="text" maxlength="2000" placeholder="הערה, תצפית, או שאלה" />
-              <button type="submit" id="missionTalkSendBtn" class="mission-talk-send">שלח</button>
-              <button type="button" id="missionTalkVoiceBtn" class="mission-talk-voice" title="פתח מסייע לדיבור">דבר</button>
-            </form>
+            <div id="missionTalkHost" class="mission-talk-host"></div>
           </section>
 
           <div id="pfdReadinessPopover" class="pfd-readiness-popover hidden" role="dialog" aria-modal="false" aria-labelledby="pfdReadinessTitle">

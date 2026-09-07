@@ -49,7 +49,7 @@ describe('AIRVIX Mission chrome — top strip gone', () => {
 
   it('raises הטסה into the primary tab row', () => {
     const chrome = capture(html, /<header class="app-chrome"[^>]*>([\s\S]*?)<\/header>/, 'missing app-chrome')[1];
-    expect(chrome).toMatch(/class="tab tab-fly"[^>]*data-tab="terrain"[^>]*>הטסה</);
+    expect(chrome).toMatch(/class="tab tab-fly[^"]*"[^>]*data-tab="terrain"[^>]*>הטסה</);
     expect(chrome.indexOf('data-tab="terrain"')).toBeLessThan(chrome.indexOf('data-tab="pulse"'));
     const menu = capture(html, /<div id="tabLabMenu"[^>]*>([\s\S]*?)<\/div>/, 'missing #tabLabMenu')[1];
     expect(menu).not.toMatch(/data-tab="terrain"/);
@@ -77,7 +77,7 @@ describe('AIRVIX Mission chrome — workspace regions', () => {
     expect(html).toContain('id="liveConfidenceText"');
     expect(html).toContain('id="pfdStatustextStrip"');
     expect(html).toContain('id="pfcMsgScroll"');
-    expect(html).toContain('id="missionTalkForm"');
+    expect(html).toContain('id="missionTalkHost"');
     expect(html).toMatch(/id="missionTalkHint"[^>]*>הטסה\. הערה ותצפית בלבד\.</);
     expect(css).toMatch(/data-mission-region="horizon\|map\|data\|messages\|talk"/);
     expect(css).toMatch(/grid-template-areas:/);
@@ -123,50 +123,54 @@ describe('AIRVIX Mission chrome — default open + layout policy', () => {
     expect(sliceFunction(js, 'pulseDefaultHomeTab')).toContain("pulseReadHomePref() === 'telemetry' ? 'telemetry' : 'pulse'");
   });
 
-  it('allows mid-flight map↔horizon swap and resize only', () => {
+  it('keeps Mission regions rearrangeable on the ground and in the air', () => {
     expect(html).toContain('id="missionSwapHorizonMapBtn"');
+    expect(html).toContain('id="missionResetLayoutBtn"');
     expect(html).toContain('id="missionLayoutHint"');
     expect(html).toContain('id="missionColSplit"');
     expect(html).toContain('id="missionRowSplit"');
     expect(html).toMatch(/data-mission-swap="horizon-map"/);
-    expect(html).toMatch(/data-mission-edit="off"/);
+    expect(html).toMatch(/data-mission-edit="on"/);
+    expect(html).toMatch(/class="mission-region-title" draggable="true"/);
     expect(css).toMatch(/data-mission-swap="map-horizon"/);
     expect(css).toMatch(/--mission-c1/);
     expect(css).toMatch(/cursor:\s*col-resize/);
     expect(css).toMatch(/cursor:\s*row-resize/);
-    expect(js).toContain('function resolveMissionLayoutPhase(');
+    expect(js).toContain('function swapMissionRegions(');
+    expect(js).toContain('function resetMissionLayout(');
     expect(js).toContain('function toggleMissionHorizonMapSwap(');
-    expect(js).toContain('function syncMissionLayoutChrome(');
+    expect(js).toContain('function bindMissionRegionDrag(');
     expect(js).toContain('function initMissionLayout(');
-    const phase = [
-      'const MISSION_APPROACH_MODES = Object.freeze(["LAND", "QLAND"]);',
-      'const ARDUPILOT_PLANE_MODES = { 10: "AUTO", 14: "LAND", 20: "QLAND" };',
-      sliceFunction(js, 'missionModeName'),
-      sliceFunction(js, 'missionApproachActive'),
-      sliceFunction(js, 'resolveMissionLayoutPhase'),
-      'return { resolveMissionLayoutPhase };',
-    ].join('\n');
-    const { resolveMissionLayoutPhase } = new Function(phase)();
-    expect(resolveMissionLayoutPhase(null, null)).toBe('ground');
-    expect(resolveMissionLayoutPhase({ armed: true, armedKnown: true, flightMode: 10 }, null)).toBe('flight');
-    expect(resolveMissionLayoutPhase({ armed: true, armedKnown: true, flightMode: 14 }, null)).toBe('approach');
-    expect(resolveMissionLayoutPhase({ armed: true, armedKnown: true, flightMode: 20 }, null)).toBe('approach');
-    expect(resolveMissionLayoutPhase({ armed: true, armedKnown: true, flightMode: 10 }, { landing: { detected: true } })).toBe('approach');
-    expect(resolveMissionLayoutPhase({ armed: false, armedKnown: true, flightMode: 10 }, null)).toBe('ground');
-    expect(sliceFunction(js, 'toggleMissionHorizonMapSwap')).toContain("!== 'flight'");
-    expect(sliceFunction(js, 'syncMissionLayoutChrome')).toContain('בגישה אין החלפה ואין סידור חופשי.');
-    expect(sliceFunction(js, 'syncMissionLayoutChrome')).toContain('החלפה ושינוי גודל בטיסה בלבד.');
+    expect(sliceFunction(js, 'toggleMissionHorizonMapSwap')).not.toContain('flight');
+    expect(sliceFunction(js, 'bindMissionSplitters')).not.toContain('flight');
+    expect(sliceFunction(js, 'syncMissionLayoutChrome')).toContain('גררו כותרת אזור. אפשר לשנות גודל תמיד.');
+    expect(js.slice(js.indexOf('function applyMainTab('), js.indexOf('const PARAM_SUBTAB_IDS'))).not.toMatch(/armed|airborne|inFlight/);
   });
 
-  it('does not add free tiling or flight writes', () => {
-    expect(html).not.toMatch(/data-mission-region="[^"]+"[^>]*\bdraggable=/);
-    expect(js).not.toMatch(/mission-region[\s\S]{0,120}dragstart/);
-    expect(js).not.toContain('free-tile');
+  it('docks Assist inside Mission and floats it elsewhere', () => {
+    expect(html).toContain('id="missionTalkHost"');
+    expect(html).toMatch(/data-mission-region="talk"[^>]*aria-label="מסייע"/);
+    expect(html).toContain('id="assistRail"');
+    expect(html).toContain('id="assistToggleBtn"');
+    expect(css).toMatch(/assist-rail--mission/);
+    expect(css).toMatch(/body\.mission-assist-docked/);
+    expect(js).toContain('function placeAssistSurface(');
+    expect(js).toContain('function isMissionAssistDocked(');
+    expect(sliceFunction(js, 'placeAssistSurface')).toContain("tabId === 'terrain'");
+    expect(sliceFunction(js, 'placeAssistSurface')).toContain('missionTalkHost');
+    expect(sliceFunction(js, 'assistSetOpen')).toContain('isMissionAssistDocked()');
+    expect(js).toMatch(/function applyMainTab\([\s\S]*?placeAssistSurface\(tabId\)/);
+  });
+
+  it('does not add flight writes from layout or Assist chrome', () => {
     const layout = [
-      sliceFunction(js, 'resolveMissionLayoutPhase'),
+      sliceFunction(js, 'swapMissionRegions'),
+      sliceFunction(js, 'resetMissionLayout'),
       sliceFunction(js, 'toggleMissionHorizonMapSwap'),
       sliceFunction(js, 'syncMissionLayoutChrome'),
       sliceFunction(js, 'bindMissionSplitters'),
+      sliceFunction(js, 'placeAssistSurface'),
+      sliceFunction(js, 'assistSetOpen'),
       sliceFunction(js, 'initMissionLayout'),
     ].join('\n');
     expect(layout).not.toMatch(/\/apply|\/restart|FLIGHT_ACTION|PARAM_SET/);
