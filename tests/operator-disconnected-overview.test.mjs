@@ -243,7 +243,7 @@ describe('Disconnected-first operator overview', () => {
     expect(html).toMatch(/id="tabLabMenu"[\s\S]*data-tab="advisor"[^>]*\btab-lab\b|id="tabLabMenu"[\s\S]*class="tab tab-lab"[^>]*data-tab="advisor"/);
     expect(html).toMatch(/id="tabLabMenu"[\s\S]*data-tab="featureDesigner"[^>]*\btab-lab\b|id="tabLabMenu"[\s\S]*class="tab tab-lab"[^>]*data-tab="featureDesigner"/);
     expect(html).toMatch(/id="tabLabMenu"[\s\S]*data-tab="flightEngineer"[^>]*\btab-lab\b|id="tabLabMenu"[\s\S]*class="tab tab-lab"[^>]*data-tab="flightEngineer"/);
-    expect(html).toMatch(/data-tab="telemetry"[^>]*\btab-ops\b|class="tab tab-ops"[^>]*data-tab="telemetry"/);
+    expect(html).toMatch(/data-tab="telemetry"/);
     expect(html).toMatch(/id="tabLabToggle"[^>]*>מעבדה</);
     expect(css).toMatch(/\.tab-lab\b/);
     expect(css).toMatch(/\.tab-lab-menu\[hidden\]/);

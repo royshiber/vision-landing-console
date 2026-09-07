@@ -52,7 +52,7 @@ describe('C10.5b Platform capability shells', () => {
     expect(tag('pulse')).toMatch(/\bvisible\b/);
     expect(html).toMatch(/class="tab tab-ops"[^>]*data-tab="control"[^>]*>פרמטרים</);
     expect(html).toMatch(/class="tab tab-ops"[^>]*data-tab="recordings"[^>]*>תחקור</);
-    expect(html).toMatch(/class="tab tab-ops"[^>]*data-tab="telemetry"[^>]*>טלמטריה</);
+    expect(html).toMatch(/data-tab="telemetry"[^>]*>אבחונים</);
     expect(html).toMatch(/class="tab tab-ops"[^>]*data-tab="maintenance"[^>]*>תחזוקה</);
     expect(html).toMatch(/class="tab tab-ops"[^>]*data-tab="development"[^>]*>פיתוח</);
     expect(html).toMatch(/id="tabLabToggle"[^>]*>מעבדה</);
@@ -61,6 +61,8 @@ describe('C10.5b Platform capability shells', () => {
     expect(html).toMatch(/data-platform-go="companion"/);
     expect(html).toMatch(/data-platform-go="params"/);
     expect(html).toMatch(/data-platform-go="maintenance"/);
+    expect(html).toMatch(/data-platform-go="telemetry"/);
+    expect(html).toContain('id="platformDiagStatus"');
     expect(html).not.toContain('platform-lede');
     expect(html).not.toContain('מה שחשוב עכשיו בלבד');
     expect(css).toMatch(/#platform\.panel\.visible\b/);
@@ -124,6 +126,7 @@ describe('C10.5b Platform capability shells', () => {
     expect(result.maint).toBe('תקין');
     const platformJs = [
       sliceFunction(js, 'platformMaintLabel'),
+      sliceFunction(js, 'platformDiagLabel'),
       sliceFunction(js, 'platformRefresh'),
       sliceFunction(js, 'initPlatformShell'),
     ].join('\n');
