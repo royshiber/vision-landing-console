@@ -41,7 +41,7 @@ const PARKED_OR_LIVE_ENGLISH = [
   'Loop Closures',
   'CPU Load',
   'Companion API',
-  'גרסת Companion',
+  'Companion Version',
   'מצב Console',
   '>GPU<',
   '>MOCK<',
@@ -63,6 +63,7 @@ describe('Operator Hebrew leftover chrome', () => {
     expect(html).not.toContain('Loop Closures');
     expect(html).not.toContain('CPU Load');
     expect(html).not.toContain('Companion API');
+    expect(html).not.toContain('Companion Version');
   });
 
   it('replaces Maintenance live-wall Git / GPU / MOCK / SHA chrome', () => {
