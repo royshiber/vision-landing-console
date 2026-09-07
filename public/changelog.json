@@ -1,5 +1,21 @@
 [
   {
+    "version": "1.02.257",
+    "date": "2026-09-07",
+    "changes": [
+      {
+        "type": "ui",
+        "title": "Mission: click-to-open messages, sharper PFD, brighter Assist, instrument data picker",
+        "detail": "Messages stay in the same grid slot and expand on click with a persisted preference. Artificial horizon is a sharper circular PFD. Mission Assist is brighter with a visible microphone control. Data tiles are instruments; right-click free text suggests catalog fields. Home is computer status for Jetson and the flight controller. Missing load, memory, and temperature stay --. APP_VERSION 1.02.257."
+      },
+      {
+        "type": "test",
+        "title": "Messages persist, data picker catalog, version 1.02.257",
+        "detail": "Asserts collapsed messages persist, catalog plus free-text chips, brighter Assist mic, flight-safe Assist, no simLab panel, and version 1.02.257."
+      }
+    ]
+  },
+  {
     "version": "1.02.256",
     "date": "2026-09-07",
     "changes": [

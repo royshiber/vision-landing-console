@@ -119,6 +119,7 @@ describe('MAVLink telemetry parsers (wire layout + truncation)', () => {
     p.writeInt16LE(234, 16); // 23.4 A
     p.writeInt8(88, 18);
     expect(parseSysStatus(p)).toEqual({
+      load_pct: 0,
       voltage_V: 12.35,
       current_A: 2.34,
       remaining_pct: 88,
@@ -129,6 +130,7 @@ describe('MAVLink telemetry parsers (wire layout + truncation)', () => {
     q.writeInt16LE(-1, 16);
     q.writeInt8(-1, 18);
     expect(parseSysStatus(q)).toEqual({
+      load_pct: 0,
       voltage_V: null,
       current_A: null,
       remaining_pct: null,

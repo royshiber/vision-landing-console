@@ -3,6 +3,8 @@ import {
   rankHudParamMatches,
   resolveHudParamLocally,
   parseHudGeminiResolution,
+  suggestMissionDataFields,
+  FLIGHT_HUD_CATALOG,
 } from '../lib/flight-hud-resolve.mjs';
 
 describe('resolveHudParamLocally', () => {
@@ -37,6 +39,34 @@ describe('rankHudParamMatches', () => {
   it('orders by score', () => {
     const ranked = rankHudParamMatches('cpu jetson');
     expect(ranked[0].entry.key).toBe('jetson.cpuLoadPct');
+  });
+});
+
+describe('suggestMissionDataFields', () => {
+  it('keeps a catalog of bindable console fields', () => {
+    expect(FLIGHT_HUD_CATALOG.some((e) => e.key === 'mavlink.airspeed')).toBe(true);
+    expect(FLIGHT_HUD_CATALOG.some((e) => e.key === 'mission.link')).toBe(true);
+    expect(FLIGHT_HUD_CATALOG.some((e) => e.key === 'mission.gpsVisionDelta')).toBe(true);
+    expect(FLIGHT_HUD_CATALOG.some((e) => e.key === 'vision.confidence')).toBe(true);
+  });
+
+  it('suggests chips from Hebrew or English free text', () => {
+    const air = suggestMissionDataFields('מהירות אוויר');
+    expect(air.exact?.key).toBe('mavlink.airspeed');
+    expect(air.chips[0].key).toBe('mavlink.airspeed');
+    const gs = suggestMissionDataFields('groundspeed');
+    expect(gs.chips.some((c) => c.key === 'mavlink.groundspeed')).toBe(true);
+    const link = suggestMissionDataFields('קישור');
+    expect(link.chips.some((c) => c.key === 'mission.link')).toBe(true);
+    const empty = suggestMissionDataFields('');
+    expect(empty.chips.length).toBeGreaterThan(0);
+    expect(empty.exact).toBeNull();
+  });
+
+  it('does not invent GPS numbers', () => {
+    const miss = suggestMissionDataFields('מספר לוויינים בדוי 12.4');
+    expect(miss.chips.every((c) => typeof c.key === 'string')).toBe(true);
+    expect(JSON.stringify(miss)).not.toMatch(/12\.4/);
   });
 });
 

@@ -56,11 +56,19 @@ describe('C10.3 Pulse home', () => {
     expect(html).toMatch(/data-tab="control"/);
     expect(html).not.toMatch(/class="tab"[^>]*data-tab="simLab"/);
     expect(html).not.toContain('id="simLab"');
-    expect(html).toMatch(/class="pulse-purpose">מצב מערכת</);
+    expect(html).toMatch(/class="pulse-purpose">סטטוס מחשבים</);
     expect(html).toMatch(/id="pulseTalkBtn"[^>]*>שאלו את המסייע</);
     expect(html).toMatch(/id="pulseVersion"[^>]*>--</);
     expect(html).toMatch(/id="pulseLink"[^>]*>--</);
-    expect(html).toMatch(/id="pulseAircraft"[^>]*>--</);
+    expect(html).toMatch(/id="pulseAircraft"[^>]*>מנותק</);
+    expect(html).toMatch(/id="pulseJetsonLoad"[^>]*>--</);
+    expect(html).toMatch(/id="pulseJetsonMem"[^>]*>--</);
+    expect(html).toMatch(/id="pulseJetsonTemp"[^>]*>--</);
+    expect(html).toMatch(/id="pulseFcLoad"[^>]*>--</);
+    expect(html).toMatch(/id="pulseFcMem"[^>]*>--</);
+    expect(html).toMatch(/id="pulseFcTemp"[^>]*>--</);
+    expect(html).toMatch(/data-computer="jetson"/);
+    expect(html).toMatch(/data-computer="fc"/);
     expect(html).toMatch(/data-first-action="companion"/);
     expect(html).toMatch(/data-first-action="assist"/);
     expect(html).toMatch(/data-first-action="params"/);
@@ -89,7 +97,30 @@ describe('C10.3 Pulse home', () => {
     expect(pulseJs).not.toMatch(/setView\s*\(/);
     expect(pulseJs).not.toMatch(/31\.5|34\.85/);
     expect(pulseJs).not.toMatch(/latitude|longitude|gpsLat|mockGps/i);
-    expect(html).not.toMatch(/id="pulse(?:Link|Aircraft)"[^>]*>\s*\d/);
+    expect(html).not.toMatch(/id="pulse(?:Link|Aircraft|JetsonLoad|JetsonMem|JetsonTemp|FcLoad|FcMem|FcTemp)"[^>]*>\s*\d/);
+  });
+
+  it('formats computer metrics honestly and blanks them when disconnected', () => {
+    const src = [
+      sliceFunction(js, 'formatComputerMetric'),
+      sliceFunction(js, 'pulseComputerMetricValue'),
+      'return { formatComputerMetric, pulseComputerMetricValue };',
+    ].join('\n');
+    const fns = new Function(src)();
+    expect(fns.formatComputerMetric(null, '%')).toBe('--');
+    expect(fns.formatComputerMetric(undefined, '%')).toBe('--');
+    expect(fns.formatComputerMetric('', '%')).toBe('--');
+    expect(fns.formatComputerMetric('x', '%')).toBe('--');
+    expect(fns.formatComputerMetric(41.2, '%')).toBe('41%');
+    expect(fns.formatComputerMetric(48.54, 'C')).toBe('48.5°C');
+    expect(fns.pulseComputerMetricValue(false, 41)).toBeNull();
+    expect(fns.pulseComputerMetricValue(true, null)).toBeNull();
+    expect(fns.pulseComputerMetricValue(true, 12.6)).toBeCloseTo(12.6);
+    expect(js).toContain('latestJetsonFromServer');
+    expect(js).toContain('fcLoadPct');
+    const refresh = sliceFunction(js, 'pulseRefresh');
+    expect(refresh).not.toMatch(/31\.5|34\.85/);
+    expect(refresh).not.toMatch(/latitude|longitude|gpsLat|mockGps/i);
   });
 
   it('compresses Companion to disconnected or connected last-4 only', () => {
@@ -173,6 +204,9 @@ describe('C10.3 Pulse home', () => {
       sliceFunction(js, 'pulseCompanionLabel'),
       sliceFunction(js, 'pulseBuildAttention'),
       sliceFunction(js, 'pulseEvolveLine'),
+      sliceFunction(js, 'formatComputerMetric'),
+      sliceFunction(js, 'pulseComputerMetricValue'),
+      sliceFunction(js, 'pulseWriteComputerMetric'),
       sliceFunction(js, 'pulseRefresh'),
       sliceFunction(js, 'operatorOpenFirstAction'),
       sliceFunction(js, 'initPulseHome'),

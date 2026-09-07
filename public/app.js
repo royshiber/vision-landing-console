@@ -145,7 +145,37 @@ const PULSE_HOME_KEY = 'visionLandingHomeSurfaceV1';
 const MISSION_SWAP_KEY = 'visionLandingMissionSwapV1';
 const MISSION_SIZE_KEY = 'visionLandingMissionSizeV1';
 const MISSION_AREAS_KEY = 'visionLandingMissionAreasV1';
+const MISSION_MESSAGES_KEY = 'visionLandingMissionMessagesV1';
+const MISSION_DATA_SLOTS_KEY = 'visionLandingMissionDataSlotsV1';
 const MISSION_REGION_IDS = Object.freeze(['horizon', 'map', 'data', 'messages', 'talk']);
+const MISSION_DATA_CATALOG = Object.freeze([
+  { key: 'mavlink.airspeed', label: 'מהירות אוויר', unit: 'm/s', tokens: ['ias', 'airspeed', 'אוויר', 'מהירות'] },
+  { key: 'mavlink.groundspeed', label: 'מהירות קרקעית', unit: 'm/s', tokens: ['gs', 'groundspeed', 'קרקע', 'מהירות'] },
+  { key: 'mavlink.climbRate', label: 'מהירות אנכית', unit: 'm/s', tokens: ['climb', 'אנכי', 'עלייה'] },
+  { key: 'mavlink.altitude', label: 'גובה', unit: 'm', tokens: ['alt', 'altitude', 'גובה'] },
+  { key: 'mavlink.heading', label: 'כיוון אף', unit: '°', tokens: ['hdg', 'heading', 'כיוון'] },
+  { key: 'mavlink.flightMode', label: 'מוד', unit: '', tokens: ['mode', 'מוד', 'מצב'] },
+  { key: 'mavlink.armed', label: 'מצב ARM', unit: '', tokens: ['arm', 'armed'] },
+  { key: 'mavlink.batteryV', label: 'מתח סוללה', unit: 'V', tokens: ['volt', 'מתח'] },
+  { key: 'mavlink.batteryPct', label: 'טעינת סוללה', unit: '%', tokens: ['battery', 'סוללה'] },
+  { key: 'mavlink.rollDeg', label: 'רול', unit: '°', tokens: ['roll', 'רול'] },
+  { key: 'mavlink.pitchDeg', label: 'פיץ׳', unit: '°', tokens: ['pitch', 'פיץ'] },
+  { key: 'mavlink.gpsFixType', label: 'Fix GPS', unit: '', tokens: ['fix', 'gps'] },
+  { key: 'mavlink.gpsSats', label: 'לוויינים GPS', unit: '', tokens: ['sats', 'לוויינים'] },
+  { key: 'vision.confidence', label: 'ביטחון נחיתה', unit: '%', tokens: ['confidence', 'ביטחון', 'נחיתה'] },
+  { key: 'mission.link', label: 'קישור', unit: '', tokens: ['link', 'קישור', 'rssi'] },
+  { key: 'mission.gpsVisionDelta', label: 'הפרש ראייה', unit: 'm', tokens: ['הפרש', 'ראייה', 'delta'] },
+  { key: 'jetson.cpuLoadPct', label: 'עומס CPU Jetson', unit: '%', tokens: ['cpu', 'עומס'] },
+  { key: 'jetson.tempC', label: 'טמפ׳ Jetson', unit: '°C', tokens: ['temp', 'טמפ'] },
+]);
+const DEFAULT_MISSION_DATA_SLOTS = Object.freeze([
+  { key: 'mavlink.flightMode', label: 'מוד', unit: '' },
+  { key: 'mavlink.altitude', label: 'גובה', unit: 'm' },
+  { key: 'mavlink.airspeed', label: 'מהירות', unit: 'm/s' },
+  { key: 'mission.link', label: 'קישור', unit: '' },
+  { key: 'mission.gpsVisionDelta', label: 'הפרש ראייה', unit: 'm' },
+  { key: 'vision.confidence', label: 'ביטחון נחיתה', unit: '%' },
+]);
 /** Why: C10.7a Attention Policy — quiet by default; chrome only, no voice. */
 const ATTENTION_POLICY_KEY = 'visionLandingAttentionPolicyV1';
 const ATTENTION_POLICY_LEVELS = Object.freeze(['off', 'attention', 'critical']);
@@ -3130,6 +3160,30 @@ function pulseSyncHomePrefChrome() {
   document.getElementById('pulseHomeTeleBtn')?.classList.toggle('is-active', pref === 'telemetry');
 }
 
+function formatComputerMetric(value, unit) {
+  if (value == null || value === '') return '--';
+  const n = Number(value);
+  if (!Number.isFinite(n)) return '--';
+  if (unit === '%') return `${Math.round(n)}%`;
+  if (unit === 'C') {
+    const rounded = Math.round(n * 10) / 10;
+    return `${rounded}°C`;
+  }
+  return String(n);
+}
+
+function pulseComputerMetricValue(connected, value) {
+  if (!connected) return null;
+  if (value == null || value === '') return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+function pulseWriteComputerMetric(id, value, unit) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = formatComputerMetric(value, unit);
+}
+
 function pulseRefresh() {
   const versionEl = document.getElementById('pulseVersion');
   const companionEl = document.getElementById('pulseCompanion');
@@ -3155,10 +3209,21 @@ function pulseRefresh() {
   assistEl.parentElement?.setAttribute('data-state', _assistAgentConnected ? 'connected' : 'disconnected');
   const linkLabel = document.getElementById('connectPillLabel')?.textContent?.trim() || '';
   const linkText = (!linkLabel || linkLabel === 'לא מחובר' || linkLabel === 'מנותק') ? '--' : linkLabel;
-  linkEl.textContent = linkText;
+  if (linkEl) linkEl.textContent = linkText;
   const missionLink = document.getElementById('missionLink');
   if (missionLink) missionLink.textContent = linkText;
-  aircraftEl.textContent = pulseHudText('hudFlightMode');
+  const jetson = (typeof latestJetsonFromServer !== 'undefined' && latestJetsonFromServer) ? latestJetsonFromServer : {};
+  const jetsonConnected = companionState === 'connected' || !!jetson.online;
+  pulseWriteComputerMetric('pulseJetsonLoad', pulseComputerMetricValue(jetsonConnected, jetson.cpuLoadPct), '%');
+  pulseWriteComputerMetric('pulseJetsonMem', pulseComputerMetricValue(jetsonConnected, jetson.memPct), '%');
+  pulseWriteComputerMetric('pulseJetsonTemp', pulseComputerMetricValue(jetsonConnected, jetson.tempC), 'C');
+  const mav = (typeof latestHudMavlink !== 'undefined' && latestHudMavlink) ? latestHudMavlink : null;
+  const fcConnected = !!(mav && mav.connected);
+  if (aircraftEl) aircraftEl.textContent = fcConnected ? 'מחובר' : 'מנותק';
+  aircraftEl?.parentElement?.setAttribute('data-state', fcConnected ? 'connected' : 'disconnected');
+  pulseWriteComputerMetric('pulseFcLoad', pulseComputerMetricValue(fcConnected, mav?.fcLoadPct), '%');
+  pulseWriteComputerMetric('pulseFcMem', pulseComputerMetricValue(fcConnected, mav?.fcMemPct), '%');
+  pulseWriteComputerMetric('pulseFcTemp', pulseComputerMetricValue(fcConnected, mav?.fcTempC), 'C');
   const evolveText = pulseEvolveLine(document.getElementById('assistRunPanel'));
   const items = pulseBuildAttention({
     companionLive,
@@ -3961,8 +4026,8 @@ hudAddSlotBtn?.addEventListener('click', () => {
 });
 
 /**
- * Premium artificial horizon — fills full square, sharp vector PFD style,
- * HiDPI-aware, optional video-overlay mode (semi-transparent sky/ground).
+ * Premium circular PFD — sharp vector sky/ground, boxed pitch ladder,
+ * fixed roll index, aircraft symbol. Same roll/pitch bindings as before.
  *
  * @param {HTMLCanvasElement} canvas
  * @param {number|null} rollDeg
@@ -3974,8 +4039,7 @@ function drawHorizon(canvas, rollDeg, pitchDeg, opts = {}) {
   const ctx = canvas.getContext('2d');
   const dpr = window.devicePixelRatio || 1;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.imageSmoothingEnabled = true;
-  ctx.imageSmoothingQuality = 'high';
+  ctx.imageSmoothingEnabled = false;
   const W = canvas.width / dpr;
   const H = canvas.height / dpr;
   const cx = W / 2;
@@ -3989,12 +4053,19 @@ function drawHorizon(canvas, rollDeg, pitchDeg, opts = {}) {
   const pitchDraw = showPitch ? pitchBounded : 0;
   const rollRad = (rollDraw * Math.PI) / 180;
   const instR = Math.min(W, H) * 0.46;
-  const pxPerDeg = instR / 22;
-  const pitchPx = Math.max(-instR * 1.4, Math.min(instR * 1.4, pitchDraw * pxPerDeg));
+  const pxPerDeg = instR / 25;
+  const pitchPx = Math.max(-instR * 1.35, Math.min(instR * 1.35, pitchDraw * pxPerDeg));
+  const sky = videoMode ? 'rgba(14, 86, 150, 0.52)' : '#1468b3';
+  const gnd = videoMode ? 'rgba(122, 78, 28, 0.52)' : '#8a5724';
 
   ctx.clearRect(0, 0, W, H);
-  ctx.fillStyle = videoMode ? 'rgba(8, 14, 22, 0.28)' : '#d7e3f0';
+  ctx.fillStyle = videoMode ? 'rgba(8, 14, 22, 0.28)' : '#c5d4e4';
   ctx.fillRect(0, 0, W, H);
+
+  ctx.fillStyle = '#1a2332';
+  ctx.beginPath();
+  ctx.arc(cx, cy, instR + 9, 0, Math.PI * 2);
+  ctx.fill();
 
   ctx.save();
   ctx.beginPath();
@@ -4004,67 +4075,82 @@ function drawHorizon(canvas, rollDeg, pitchDeg, opts = {}) {
   ctx.save();
   ctx.translate(cx, cy);
   ctx.rotate(rollRad);
-  const sky = videoMode ? 'rgba(74, 144, 212, 0.55)' : '#5aa4de';
-  const gnd = videoMode ? 'rgba(166, 122, 58, 0.55)' : '#c4a06a';
   ctx.fillStyle = sky;
-  ctx.fillRect(-instR * 2, -instR * 2 + pitchPx, instR * 4, instR * 2);
+  ctx.fillRect(-instR * 2.4, -instR * 2.4 + pitchPx, instR * 4.8, instR * 2.4);
   ctx.fillStyle = gnd;
-  ctx.fillRect(-instR * 2, pitchPx, instR * 4, instR * 2);
+  ctx.fillRect(-instR * 2.4, pitchPx, instR * 4.8, instR * 2.4);
   ctx.strokeStyle = '#ffffff';
-  ctx.lineWidth = 2;
+  ctx.lineWidth = 3;
+  ctx.lineCap = 'butt';
   ctx.beginPath();
-  ctx.moveTo(-instR * 2, pitchPx);
-  ctx.lineTo(instR * 2, pitchPx);
+  ctx.moveTo(-instR * 2.4, pitchPx);
+  ctx.lineTo(instR * 2.4, pitchPx);
   ctx.stroke();
 
-  ctx.font = '600 12px "Space Grotesk", "Heebo", sans-serif';
   ctx.textBaseline = 'middle';
-  for (let p = -30; p <= 30; p += 5) {
+  ctx.font = '700 13px "Space Grotesk", "Heebo", sans-serif';
+  for (let p = -40; p <= 40; p += 5) {
     if (p === 0) continue;
     const y = pitchPx - p * pxPerDeg;
-    if (Math.abs(y) > instR * 0.88) continue;
+    if (Math.abs(y) > instR * 0.86) continue;
     const big = p % 10 === 0;
-    const hw = big ? 28 : 14;
-    ctx.strokeStyle = big ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.55)';
-    ctx.lineWidth = big ? 1.6 : 1;
+    const hw = big ? 34 : 16;
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = big ? 2.4 : 1.6;
     ctx.beginPath();
     ctx.moveTo(-hw, y);
     ctx.lineTo(hw, y);
     ctx.stroke();
     if (big) {
+      const label = String(Math.abs(p));
+      ctx.fillStyle = '#0b1220';
+      ctx.fillRect(-hw - 22, y - 8, 20, 16);
+      ctx.fillRect(hw + 2, y - 8, 20, 16);
       ctx.fillStyle = '#ffffff';
-      ctx.textAlign = 'right';
-      ctx.fillText(String(Math.abs(p)), -hw - 6, y);
-      ctx.textAlign = 'left';
-      ctx.fillText(String(Math.abs(p)), hw + 6, y);
+      ctx.textAlign = 'center';
+      ctx.fillText(label, -hw - 12, y + 1);
+      ctx.fillText(label, hw + 12, y + 1);
     }
   }
   ctx.restore();
   ctx.restore();
 
-  ctx.strokeStyle = 'rgba(15, 23, 42, 0.35)';
-  ctx.lineWidth = 3;
+  ctx.strokeStyle = '#0b1220';
+  ctx.lineWidth = 6;
   ctx.beginPath();
   ctx.arc(cx, cy, instR, 0, Math.PI * 2);
   ctx.stroke();
+  ctx.strokeStyle = '#d7e3f0';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(cx, cy, instR - 3, 0, Math.PI * 2);
+  ctx.stroke();
 
-  const arcR = instR - 6;
-  ctx.strokeStyle = 'rgba(15, 23, 42, 0.45)';
-  ctx.lineWidth = 1.4;
+  const arcR = instR - 8;
+  ctx.strokeStyle = '#f8fafc';
+  ctx.lineWidth = 2;
   ctx.beginPath();
   ctx.arc(cx, cy, arcR, -Math.PI * 0.78, -Math.PI * 0.22);
   ctx.stroke();
   [-60, -45, -30, -20, -10, 0, 10, 20, 30, 45, 60].forEach((deg) => {
     const a = (-90 + deg) * Math.PI / 180;
-    const big = Math.abs(deg) % 30 === 0;
-    const tL = big ? 10 : 5;
-    ctx.strokeStyle = big ? 'rgba(15, 23, 42, 0.75)' : 'rgba(15, 23, 42, 0.4)';
-    ctx.lineWidth = big ? 1.8 : 1;
+    const big = deg === 0 || Math.abs(deg) === 30 || Math.abs(deg) === 60;
+    const tL = big ? 11 : 6;
+    ctx.strokeStyle = '#f8fafc';
+    ctx.lineWidth = big ? 2.4 : 1.6;
     ctx.beginPath();
     ctx.moveTo(cx + Math.cos(a) * arcR, cy + Math.sin(a) * arcR);
     ctx.lineTo(cx + Math.cos(a) * (arcR - tL), cy + Math.sin(a) * (arcR - tL));
     ctx.stroke();
   });
+
+  ctx.fillStyle = '#f4c430';
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - arcR + 1);
+  ctx.lineTo(cx - 7, cy - arcR + 13);
+  ctx.lineTo(cx + 7, cy - arcR + 13);
+  ctx.closePath();
+  ctx.fill();
 
   ctx.save();
   ctx.translate(cx, cy);
@@ -4072,27 +4158,27 @@ function drawHorizon(canvas, rollDeg, pitchDeg, opts = {}) {
   ctx.fillStyle = '#f4c430';
   ctx.beginPath();
   ctx.moveTo(0, -arcR + 2);
-  ctx.lineTo(-6, -arcR + 14);
-  ctx.lineTo(6, -arcR + 14);
+  ctx.lineTo(-5, -arcR + 12);
+  ctx.lineTo(5, -arcR + 12);
   ctx.closePath();
   ctx.fill();
   ctx.restore();
 
   ctx.strokeStyle = '#f4c430';
   ctx.fillStyle = '#f4c430';
-  ctx.lineWidth = 2.4;
-  ctx.lineCap = 'round';
+  ctx.lineWidth = 4;
+  ctx.lineCap = 'butt';
+  ctx.lineJoin = 'miter';
   ctx.beginPath();
-  ctx.moveTo(cx - 46, cy);
-  ctx.lineTo(cx - 10, cy);
-  ctx.moveTo(cx + 10, cy);
-  ctx.lineTo(cx + 46, cy);
-  ctx.moveTo(cx, cy);
-  ctx.lineTo(cx, cy + 12);
+  ctx.moveTo(cx - 52, cy);
+  ctx.lineTo(cx - 14, cy);
+  ctx.moveTo(cx + 14, cy);
+  ctx.lineTo(cx + 52, cy);
+  ctx.moveTo(cx - 14, cy);
+  ctx.lineTo(cx, cy + 10);
+  ctx.lineTo(cx + 14, cy);
   ctx.stroke();
-  ctx.beginPath();
-  ctx.arc(cx, cy, 3.2, 0, Math.PI * 2);
-  ctx.fill();
+  ctx.fillRect(cx - 4, cy - 4, 8, 8);
 
   ctx.font = '700 12px "Space Grotesk", sans-serif';
   ctx.textBaseline = 'alphabetic';
@@ -4594,6 +4680,7 @@ document.addEventListener('keydown', (e) => {
 });
 
 function applyTopbarFlightData(mav) {
+  if (mav) latestHudMavlink = mav;
   if (!mav) return;
   const miniSpd = hudAirspeedEl?.closest('.tele-hud-mini');
   if (miniSpd) miniSpd.classList.toggle('tele-hud-mini--airspeed-proxy', !!mav.airspeedIsGroundspeedProxy);
@@ -4601,12 +4688,18 @@ function applyTopbarFlightData(mav) {
   if (miniAlt) miniAlt.classList.toggle('tele-hud-mini--time-skew', !!mav.hudTimeSkewWarn);
   if (hudAirspeedEl) {
     const spd = mav.airspeed;
-    hudAirspeedEl.textContent = (typeof spd === 'number' && Number.isFinite(spd)) ? `${spd.toFixed(1)} m/s` : '-- m/s';
+    const useTile = hudAirspeedEl.classList.contains('mission-data-value');
+    hudAirspeedEl.textContent = (typeof spd === 'number' && Number.isFinite(spd))
+      ? (useTile ? spd.toFixed(1) : `${spd.toFixed(1)} m/s`)
+      : (useTile ? '--' : '-- m/s');
     hudAirspeedEl.title = mav.airspeedIsGroundspeedProxy ? VLC_TOOLTIP_IAS_FROM_GS : '';
   }
   if (hudAltitudeEl) {
     const alt = mav.altitude;
-    hudAltitudeEl.textContent = (typeof alt === 'number' && Number.isFinite(alt)) ? `${alt.toFixed(1)} m` : '-- m';
+    const useTile = hudAltitudeEl.classList.contains('mission-data-value');
+    hudAltitudeEl.textContent = (typeof alt === 'number' && Number.isFinite(alt))
+      ? (useTile ? alt.toFixed(1) : `${alt.toFixed(1)} m`)
+      : (useTile ? '--' : '-- m');
     hudAltitudeEl.title = mav.hudTimeSkewWarn ? VLC_TOOLTIP_HUD_TIME_SKEW : '';
   }
   if (hudFlightModeEl) {
@@ -4642,6 +4735,7 @@ let _assistLastMav = null;
       applyFcStatustextHud(payload.mavlink);
       applyNavOpticalStatus(payload.vision);
       applyHudCustomSlots(payload);
+      applyMissionDataGrid(payload);
       if (payload.visionNav?.mode) applyVisionNavModeUi(payload.visionNav.mode);
       updateFlightOverlaysOnAllMaps(payload);
       // RC-switch param approval: dispatch event consumed by initFlightEngineer
@@ -5072,7 +5166,10 @@ setInterval(() => {
   if (telemetryConfidence) telemetryConfidence.textContent = pct != null ? `${pct}%` : '—';
   if (abortState) abortState.textContent = isAbort ? `ABORT (${lowConfidenceSeconds.toFixed(0)}s)` : `ARMED (${lowConfidenceSeconds.toFixed(0)}s)`;
   if (takeoffState) takeoffState.textContent = takeoffReady ? 'READY' : 'HOLD';
-  if (liveConfidenceText) liveConfidenceText.textContent = pct != null ? `${pct}%` : '—';
+  if (liveConfidenceText) {
+    const useTile = liveConfidenceText.classList.contains('mission-data-value');
+    liveConfidenceText.textContent = pct != null ? (useTile ? String(pct) : `${pct}%`) : (useTile ? '--' : '--');
+  }
   if (liveConfidenceBar) liveConfidenceBar.style.width = pct != null ? `${pct}%` : '0%';
   if (liveConfidenceBar) liveConfidenceBar.classList.toggle('bar-live', visionFresh);
   renderChecklist(checks);
@@ -6800,6 +6897,10 @@ function resolveFlightOverlayMapData() {
 function paintLiveGpsVisionDelta(mapData, vision) {
   if (!liveGpsVisionDeltaEl) return;
   const meters = gpsVisionDeltaMeters(mapData?.gpsLat, mapData?.gpsLon, vision?.navLat, vision?.navLon);
+  if (liveGpsVisionDeltaEl.classList.contains('mission-data-value')) {
+    liveGpsVisionDeltaEl.textContent = Number.isFinite(meters) ? meters.toFixed(1) : '--';
+    return;
+  }
   liveGpsVisionDeltaEl.textContent = formatGpsVisionDeltaMeters(meters);
 }
 
@@ -12244,6 +12345,300 @@ function bindMissionSplitters() {
   window.addEventListener('pointercancel', stopDrag);
 }
 
+function readMissionMessagesExpanded() {
+  return missionLayoutStoreGet(MISSION_MESSAGES_KEY) === '1';
+}
+
+function writeMissionMessagesExpanded(expanded) {
+  missionLayoutStoreSet(MISSION_MESSAGES_KEY, expanded ? '1' : '0');
+}
+
+function applyMissionMessagesExpanded(expanded) {
+  const region = document.querySelector('[data-mission-region="messages"]');
+  const scroll = document.getElementById('pfcMsgScroll');
+  const toggle = document.getElementById('missionMessagesToggle');
+  if (region) region.dataset.messagesExpanded = expanded ? '1' : '0';
+  if (scroll) scroll.hidden = !expanded;
+  if (toggle) {
+    toggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+    toggle.textContent = expanded ? 'כווץ' : 'הרחב';
+  }
+}
+
+function toggleMissionMessages() {
+  const next = !readMissionMessagesExpanded();
+  writeMissionMessagesExpanded(next);
+  applyMissionMessagesExpanded(next);
+}
+
+function initMissionMessages() {
+  applyMissionMessagesExpanded(readMissionMessagesExpanded());
+  const region = document.querySelector('[data-mission-region="messages"]');
+  const title = region?.querySelector('.mission-region-title');
+  const toggle = document.getElementById('missionMessagesToggle');
+  let dragged = false;
+  title?.addEventListener('dragstart', () => { dragged = true; });
+  title?.addEventListener('click', () => {
+    if (dragged) { dragged = false; return; }
+    toggleMissionMessages();
+  });
+  toggle?.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    toggleMissionMessages();
+  });
+}
+
+function suggestMissionDataFields(text) {
+  const raw = String(text || '').trim().toLowerCase().replace(/\s+/g, ' ');
+  if (!raw) {
+    return { chips: MISSION_DATA_CATALOG.slice(0, 6), hint: 'כתבו מה להציג, או בחרו אפשרות.', exact: null };
+  }
+  const ranked = MISSION_DATA_CATALOG.map((entry) => {
+    let score = 0;
+    const label = String(entry.label || '').toLowerCase();
+    if (raw.includes(label) || (label && label.includes(raw) && raw.length >= 3)) score += 80;
+    const keyPart = String(entry.key || '').split('.')[1] || '';
+    if (keyPart && raw.includes(keyPart.toLowerCase())) score += 22;
+    for (const token of entry.tokens || []) {
+      if (token.length >= 2 && raw.includes(String(token).toLowerCase())) score += 14;
+    }
+    return { entry, score };
+  }).filter((x) => x.score > 0).sort((a, b) => b.score - a.score);
+  if (!ranked.length) {
+    return { chips: MISSION_DATA_CATALOG.slice(0, 8), hint: 'לא זוהה במדויק. נסחו מחדש או בחרו אפשרות.', exact: null };
+  }
+  const top = ranked[0];
+  const second = ranked[1];
+  if (second && top.score - second.score < 10) {
+    return {
+      chips: ranked.filter((r) => r.score >= top.score - 8).slice(0, 5).map((r) => r.entry),
+      hint: 'לא זוהה במדויק. נסחו מחדש או בחרו אפשרות.',
+      exact: null,
+    };
+  }
+  return {
+    chips: ranked.slice(0, 5).map((r) => r.entry),
+    hint: 'בחרו אפשרות, או נסחו מחדש.',
+    exact: top.entry,
+  };
+}
+
+function defaultMissionDataSlots() {
+  return DEFAULT_MISSION_DATA_SLOTS.map((s) => ({ ...s }));
+}
+
+function readMissionDataSlots() {
+  const fallback = defaultMissionDataSlots();
+  try {
+    const raw = JSON.parse(missionLayoutStoreGet(MISSION_DATA_SLOTS_KEY) || 'null');
+    if (!Array.isArray(raw) || raw.length !== fallback.length) return fallback;
+    return raw.map((slot, i) => {
+      const found = MISSION_DATA_CATALOG.find((e) => e.key === slot?.key);
+      if (!found) return fallback[i];
+      return { key: found.key, label: found.label, unit: found.unit };
+    });
+  } catch {
+    return fallback;
+  }
+}
+
+function writeMissionDataSlots(slots) {
+  missionLayoutStoreSet(MISSION_DATA_SLOTS_KEY, JSON.stringify(slots));
+}
+
+function formatMissionDataValue(key, payload) {
+  if (key === 'mission.link') {
+    const linkLabel = document.getElementById('connectPillLabel')?.textContent?.trim() || '';
+    if (!linkLabel || linkLabel === 'לא מחובר' || linkLabel === 'מנותק') return '--';
+    return linkLabel;
+  }
+  if (key === 'mission.gpsVisionDelta') {
+    const mapData = payload?.mavlink?.map;
+    const vision = payload?.vision;
+    const meters = gpsVisionDeltaMeters(mapData?.gpsLat, mapData?.gpsLon, vision?.navLat, vision?.navLon);
+    return Number.isFinite(meters) ? meters.toFixed(1) : '--';
+  }
+  if (key === 'mavlink.flightMode') {
+    const raw = payload?.mavlink?.flightMode;
+    return ARDUPILOT_PLANE_MODES[raw] ?? (payload?.mavlink?.connected ? `#${raw ?? '--'}` : '--');
+  }
+  if (key === 'mavlink.armed') {
+    if (!payload?.mavlink?.connected) return '--';
+    if (payload.mavlink.armedKnown === false) return '--';
+    return payload.mavlink.armed ? 'ARMED' : 'DISARMED';
+  }
+  const raw = getPayloadValue(payload, key);
+  if (raw == null) return '--';
+  if (typeof raw === 'number') {
+    if (!Number.isFinite(raw)) return '--';
+    const a = Math.abs(raw);
+    if (a > 1e6 || (a > 0 && a < 1e-9)) return '--';
+    if (key === 'vision.confidence' && raw <= 1) return String(Math.round(raw * 100));
+    const dec = Number.isInteger(raw) ? 0 : (a < 10 ? 2 : 1);
+    return raw.toFixed(dec);
+  }
+  return String(raw);
+}
+
+function applyMissionDataSlotsChrome(slots) {
+  const items = document.querySelectorAll('[data-mission-data-slot]');
+  items.forEach((item) => {
+    const idx = Number(item.dataset.missionDataSlot);
+    const slot = slots[idx];
+    if (!slot) return;
+    const label = item.querySelector('.mission-data-label');
+    const unit = item.querySelector('.mission-data-unit');
+    if (label) label.textContent = slot.label;
+    if (unit) unit.textContent = slot.unit || '';
+    item.classList.toggle('mission-data-confidence', slot.key === 'vision.confidence');
+  });
+}
+
+function applyMissionDataGrid(payload) {
+  const slots = readMissionDataSlots();
+  applyMissionDataSlotsChrome(slots);
+  document.querySelectorAll('[data-mission-data-slot]').forEach((item) => {
+    const idx = Number(item.dataset.missionDataSlot);
+    const slot = slots[idx];
+    if (!slot) return;
+    const valueEl = item.querySelector('.mission-data-value');
+    if (valueEl) valueEl.textContent = formatMissionDataValue(slot.key, payload || {});
+    const bar = item.querySelector('.confidence-fill');
+    if (bar && slot.key === 'vision.confidence') {
+      const raw = getPayloadValue(payload, slot.key);
+      const pct = typeof raw === 'number' && Number.isFinite(raw) ? (raw <= 1 ? raw * 100 : raw) : null;
+      bar.style.width = pct != null ? `${Math.max(0, Math.min(100, pct))}%` : '0%';
+    }
+  });
+}
+
+function renderMissionDataPickerChips(result) {
+  const box = document.getElementById('missionDataPickerChips');
+  const hint = document.getElementById('missionDataPickerHint');
+  if (hint) hint.textContent = result.hint;
+  if (!box) return;
+  box.innerHTML = '';
+  for (const chip of result.chips) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'mission-data-picker-chip';
+    btn.textContent = chip.unit ? `${chip.label} · ${chip.unit}` : chip.label;
+    btn.addEventListener('click', () => {
+      applyMissionDataSlotChoice(chip);
+    });
+    box.appendChild(btn);
+  }
+}
+
+let _missionDataPickerSlot = -1;
+
+function closeMissionDataPicker() {
+  document.getElementById('missionDataPicker')?.classList.add('hidden');
+  _missionDataPickerSlot = -1;
+}
+
+function openMissionDataPicker(slotIdx, x, y) {
+  const picker = document.getElementById('missionDataPicker');
+  if (!picker) return;
+  _missionDataPickerSlot = slotIdx;
+  const slots = readMissionDataSlots();
+  const current = slots[slotIdx];
+  const input = document.getElementById('missionDataPickerInput');
+  if (input) input.value = current?.label || '';
+  renderMissionDataPickerChips(suggestMissionDataFields(input?.value || ''));
+  picker.classList.remove('hidden');
+  const host = picker.closest('.mission-region-data') || document.body;
+  const hr = host.getBoundingClientRect();
+  const left = Math.min(Math.max(8, x - hr.left - 20), Math.max(8, hr.width - 260));
+  const top = Math.min(Math.max(8, y - hr.top + 8), Math.max(8, hr.height - 160));
+  picker.style.left = `${left}px`;
+  picker.style.top = `${top}px`;
+  setTimeout(() => input?.focus(), 30);
+}
+
+function applyMissionDataSlotChoice(entry) {
+  if (_missionDataPickerSlot < 0 || !entry?.key) return;
+  const slots = readMissionDataSlots();
+  slots[_missionDataPickerSlot] = { key: entry.key, label: entry.label, unit: entry.unit || '' };
+  writeMissionDataSlots(slots);
+  applyMissionDataGrid({
+    mavlink: latestHudMavlink,
+    vision: lastSseTerrainPayload?.vision,
+    jetson: typeof latestJetsonFromServer !== 'undefined' ? latestJetsonFromServer : null,
+    slam: lastSseTerrainPayload?.slam,
+  });
+  closeMissionDataPicker();
+}
+
+function initMissionDataPicker() {
+  applyMissionDataSlotsChrome(readMissionDataSlots());
+  document.querySelectorAll('[data-mission-data-slot]').forEach((item) => {
+    item.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      openMissionDataPicker(Number(item.dataset.missionDataSlot), e.clientX, e.clientY);
+    });
+  });
+  document.getElementById('missionDataPickerSuggest')?.addEventListener('click', () => {
+    const text = document.getElementById('missionDataPickerInput')?.value || '';
+    const result = suggestMissionDataFields(text);
+    renderMissionDataPickerChips(result);
+    if (result.exact && result.chips.length === 1) applyMissionDataSlotChoice(result.exact);
+  });
+  document.getElementById('missionDataPickerInput')?.addEventListener('input', () => {
+    renderMissionDataPickerChips(suggestMissionDataFields(document.getElementById('missionDataPickerInput')?.value || ''));
+  });
+  document.getElementById('missionDataPickerClose')?.addEventListener('click', () => closeMissionDataPicker());
+  document.addEventListener('click', (e) => {
+    const picker = document.getElementById('missionDataPicker');
+    if (!picker || picker.classList.contains('hidden')) return;
+    if (picker.contains(e.target) || e.target.closest('[data-mission-data-slot]')) return;
+    closeMissionDataPicker();
+  });
+}
+
+function initAssistMic() {
+  const btn = document.getElementById('assistMicBtn');
+  if (!btn) return;
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) {
+    btn.disabled = true;
+    btn.title = 'מיקרופון — דיבור לטקסט אינו זמין בדפדפן זה';
+    btn.setAttribute('aria-label', 'מיקרופון — אינו זמין');
+    return;
+  }
+  const rec = new SR();
+  rec.lang = 'he-IL';
+  rec.interimResults = false;
+  rec.onresult = (e) => {
+    const t = e.results?.[0]?.[0]?.transcript || '';
+    const input = document.getElementById('assistInput');
+    if (input && t) input.value = t;
+    btn.classList.remove('recording');
+    btn.setAttribute('aria-pressed', 'false');
+  };
+  rec.onend = () => {
+    btn.classList.remove('recording');
+    btn.setAttribute('aria-pressed', 'false');
+  };
+  rec.onerror = () => {
+    btn.classList.remove('recording');
+    btn.setAttribute('aria-pressed', 'false');
+    btn.title = 'מיקרופון — שגיאת הקלטה';
+  };
+  btn.addEventListener('click', () => {
+    try {
+      rec.start();
+      btn.classList.add('recording');
+      btn.setAttribute('aria-pressed', 'true');
+      btn.title = 'מיקרופון — מאזין';
+    } catch {
+      btn.title = 'מיקרופון — לא ניתן להתחיל הקלטה';
+    }
+  });
+}
+
 function initMissionLayout() {
   applyMissionSize(readMissionSize());
   applyMissionAreas(readMissionAreas());
@@ -12256,6 +12651,8 @@ function initMissionLayout() {
   });
   bindMissionRegionDrag();
   bindMissionSplitters();
+  initMissionMessages();
+  initMissionDataPicker();
   window.addEventListener('resize', () => requestAnimationFrame(placeMissionSplits));
 }
 
@@ -12313,6 +12710,7 @@ function initAssistUi() {
   document.getElementById('feOpenAssistBtn')?.addEventListener('click', () => assistSetOpen(true));
   document.getElementById('fdOpenAssistBtn')?.addEventListener('click', () => assistSetOpen(true));
   initMissionTalk();
+  initAssistMic();
   document.getElementById('assistConfirmBtn')?.addEventListener('click', () => { void assistConfirm(true); });
   document.getElementById('assistCancelBtn')?.addEventListener('click', () => { void assistConfirm(false); });
   document.getElementById('assistAgentConnectForm')?.addEventListener('submit', (e) => { void assistConnectAgent(e); });

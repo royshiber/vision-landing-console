@@ -151,6 +151,10 @@
           <button type="button" class="assist-quick-chip" data-assist-chip="flightEngineer" hidden>מהנדס</button>
         </div>
         <form id="assistForm" class="assist-form" autocomplete="off">
+          <button type="button" id="assistMicBtn" class="assist-mic-btn" title="מיקרופון" aria-label="מיקרופון" aria-pressed="false">
+            <span class="assist-mic-icon" aria-hidden="true">🎙</span>
+            <span class="assist-mic-label">מיקרופון</span>
+          </button>
           <input id="assistInput" class="assist-input" type="text" maxlength="2000" placeholder="שאלה, יועץ, פתק, או בקשת פיתוח…" />
           <button type="submit" id="assistSendBtn" class="assist-btn assist-btn-send">שלח</button>
         </form>
@@ -264,24 +268,54 @@
         <div class="pulse-home pulse-status-home">
           <header class="pulse-hero">
             <h3 class="pulse-title">בית</h3>
-            <p class="pulse-purpose">מצב מערכת</p>
+            <p class="pulse-purpose">סטטוס מחשבים</p>
           </header>
-          <div class="pulse-status-grid" aria-label="מצב מערכת">
-            <article class="pulse-status-card" data-pulse-kind="aircraft">
-              <h4>כלי</h4>
-              <p id="pulseAircraft" dir="ltr">--</p>
-              <p class="pulse-status-note">חיבור MAVLink</p>
-              <p class="pulse-status-note">קישור <span id="pulseLink" dir="ltr">--</span></p>
-            </article>
-            <article class="pulse-status-card" data-pulse-kind="companion">
-              <h4>Jetson</h4>
+          <div class="pulse-status-grid" aria-label="סטטוס מחשבים">
+            <article class="pulse-status-card pulse-computer-card" data-pulse-kind="companion" data-computer="jetson">
+              <h4>מחשב משימה</h4>
+              <p class="pulse-computer-who">Jetson</p>
               <p id="pulseCompanion">מנותק</p>
-              <p class="pulse-status-note">מחשב משימה</p>
+              <dl class="pulse-computer-metrics">
+                <div>
+                  <dt>עומס</dt>
+                  <dd id="pulseJetsonLoad" dir="ltr">--</dd>
+                </div>
+                <div>
+                  <dt>זיכרון</dt>
+                  <dd id="pulseJetsonMem" dir="ltr">--</dd>
+                </div>
+                <div>
+                  <dt>טמפרטורות</dt>
+                  <dd id="pulseJetsonTemp" dir="ltr">--</dd>
+                </div>
+              </dl>
               <button type="button" class="first-open-btn" data-first-action="companion" data-pulse-live="hide">חברו Jetson</button>
             </article>
-            <article class="pulse-status-card" data-pulse-kind="assist">
-              <h4>מסייע</h4>
-              <p id="pulseAssist">מנותק</p>
+            <article class="pulse-status-card pulse-computer-card" data-pulse-kind="aircraft" data-computer="fc">
+              <h4>הכלי</h4>
+              <p class="pulse-computer-who">FC</p>
+              <p id="pulseAircraft">מנותק</p>
+              <p class="pulse-status-note">קישור <span id="pulseLink" dir="ltr">--</span></p>
+              <dl class="pulse-computer-metrics">
+                <div>
+                  <dt>עומס</dt>
+                  <dd id="pulseFcLoad" dir="ltr">--</dd>
+                </div>
+                <div>
+                  <dt>זיכרון</dt>
+                  <dd id="pulseFcMem" dir="ltr">--</dd>
+                </div>
+                <div>
+                  <dt>טמפרטורות</dt>
+                  <dd id="pulseFcTemp" dir="ltr">--</dd>
+                </div>
+              </dl>
+            </article>
+            <article class="pulse-status-card pulse-talk-card" data-pulse-kind="assist">
+              <div class="pulse-talk-copy">
+                <h4>מסייע</h4>
+                <p id="pulseAssist">מנותק</p>
+              </div>
               <button type="button" id="pulseTalkBtn" class="first-open-btn pulse-talk-btn" data-first-action="assist">שאלו את המסייע</button>
             </article>
           </div>
@@ -1325,46 +1359,59 @@
 
           <section class="mission-region mission-region-data" data-mission-region="data" aria-label="נתונים">
             <h3 class="mission-region-title" draggable="true">נתונים</h3>
-            <dl class="mission-data-grid" aria-label="מדדי טיסה">
-              <div class="mission-data-item">
-                <dt>מוד</dt>
-                <dd id="hudFlightMode">--</dd>
+            <p class="mission-data-hint">קליק ימני על אריח לבחירת שדה.</p>
+            <dl id="missionDataGrid" class="mission-data-grid" aria-label="מדדי טיסה">
+              <div class="mission-data-item mission-data-tile" data-mission-data-slot="0">
+                <dt class="mission-data-label">מוד</dt>
+                <dd class="mission-data-readout"><strong class="mission-data-value" id="hudFlightMode">--</strong></dd>
               </div>
-              <div class="mission-data-item tele-hud-mini">
-                <dt>גובה</dt>
-                <dd id="hudAltitude" dir="ltr">-- m</dd>
+              <div class="mission-data-item mission-data-tile tele-hud-mini" data-mission-data-slot="1">
+                <dt class="mission-data-label">גובה</dt>
+                <dd class="mission-data-readout" dir="ltr"><strong class="mission-data-value" id="hudAltitude">--</strong><span class="mission-data-unit">m</span></dd>
               </div>
-              <div class="mission-data-item tele-hud-mini">
-                <dt>מהירות</dt>
-                <dd id="hudAirspeed" dir="ltr">-- m/s</dd>
+              <div class="mission-data-item mission-data-tile tele-hud-mini" data-mission-data-slot="2">
+                <dt class="mission-data-label">מהירות</dt>
+                <dd class="mission-data-readout" dir="ltr"><strong class="mission-data-value" id="hudAirspeed">--</strong><span class="mission-data-unit">m/s</span></dd>
               </div>
-              <div class="mission-data-item">
-                <dt>קישור</dt>
-                <dd id="missionLink" dir="ltr">--</dd>
+              <div class="mission-data-item mission-data-tile" data-mission-data-slot="3">
+                <dt class="mission-data-label">קישור</dt>
+                <dd class="mission-data-readout" dir="ltr"><strong class="mission-data-value" id="missionLink">--</strong></dd>
               </div>
-              <div class="mission-data-item">
-                <dt>הפרש ראייה</dt>
-                <dd id="liveGpsVisionDelta" dir="ltr">-- m</dd>
+              <div class="mission-data-item mission-data-tile" data-mission-data-slot="4">
+                <dt class="mission-data-label">הפרש ראייה</dt>
+                <dd class="mission-data-readout" dir="ltr"><strong class="mission-data-value" id="liveGpsVisionDelta">--</strong><span class="mission-data-unit">m</span></dd>
               </div>
-              <div class="mission-data-item mission-data-confidence">
-                <dt>ביטחון נחיתה</dt>
-                <dd>
+              <div class="mission-data-item mission-data-tile mission-data-confidence" data-mission-data-slot="5">
+                <dt class="mission-data-label">ביטחון נחיתה</dt>
+                <dd class="mission-data-readout">
                   <div class="confidence-track"><div id="liveConfidenceBar" class="confidence-fill"></div></div>
-                  <strong id="liveConfidenceText">--%</strong>
+                  <strong class="mission-data-value" id="liveConfidenceText">--</strong>
+                  <span class="mission-data-unit">%</span>
                 </dd>
               </div>
             </dl>
+            <div id="missionDataPicker" class="mission-data-picker hidden" role="dialog" aria-label="בחירת שדה">
+              <p class="mission-data-picker-title">מה להציג באריח</p>
+              <input id="missionDataPickerInput" class="mission-data-picker-input" type="text" maxlength="120" placeholder="למשל מהירות קרקע או גובה" autocomplete="off" />
+              <p id="missionDataPickerHint" class="mission-data-picker-hint">כתבו בעברית או באנגלית. נציע שדות שהקונסולה כבר מכירה.</p>
+              <div id="missionDataPickerChips" class="mission-data-picker-chips"></div>
+              <div class="mission-data-picker-actions">
+                <button type="button" id="missionDataPickerSuggest" class="mission-data-picker-btn">הצע</button>
+                <button type="button" id="missionDataPickerClose" class="mission-data-picker-btn mission-data-picker-btn--quiet">סגור</button>
+              </div>
+            </div>
           </section>
 
-          <section class="mission-region mission-region-messages" data-mission-region="messages" aria-label="הודעות">
+          <section class="mission-region mission-region-messages" data-mission-region="messages" data-messages-expanded="0" aria-label="הודעות">
             <h3 class="mission-region-title" draggable="true">הודעות</h3>
+            <button type="button" id="missionMessagesToggle" class="mission-messages-toggle" aria-expanded="false" aria-controls="pfcMsgScroll" title="הצג או הסתר את זרם ההודעות">הרחב</button>
             <div class="pfd-statustext-strip" id="pfdStatustextStrip">
               <div class="pfc-msg-head">
                 <span class="pfc-msg-label">הודעות מהבקר</span>
-                <span class="pfc-opt-mini" id="pfdOptMini" title="Vision / ניווט אופטי">👁 —</span>
+                <span class="pfc-opt-mini" id="pfdOptMini" title="ניווט אופטי">👁 —</span>
               </div>
               <p class="pfc-msg-primary" id="pfcMsgPrimaryHe">אין חיבור לבקר — לא מתקבלות הודעות.</p>
-              <div class="pfc-msg-scroll" id="pfcMsgScroll"></div>
+              <div class="pfc-msg-scroll" id="pfcMsgScroll" hidden></div>
             </div>
           </section>
 
