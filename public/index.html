@@ -163,6 +163,7 @@
           <button type="button" class="assist-quick-chip" data-assist-chip="note">הערה</button>
           <button type="button" class="assist-quick-chip" data-assist-chip="observation">תצפית</button>
           <button type="button" class="assist-quick-chip" data-assist-chip="advisor" hidden>יועץ</button>
+          <button type="button" class="assist-quick-chip" data-assist-chip="ardulab" hidden>ארדולאב</button>
           <button type="button" class="assist-quick-chip" data-assist-chip="flightEngineer" hidden>מהנדס</button>
         </div>
         <form id="assistForm" class="assist-form" autocomplete="off">
@@ -1125,6 +1126,10 @@
       <section id="development" class="panel">
         <div class="devtasks-panel">
           <h3>משימות פיתוח</h3>
+          <p id="devArdulabHandoff" class="dev-ardulab-handoff">
+            פיצ׳ר מותאם נפתח בארדולאב.
+            <button type="button" id="devOpenArdulabBtn" class="dev-ardulab-handoff-btn">ארדולאב</button>
+          </p>
 
           <section class="devtasks-create">
             <h4 class="maint-group-title">יצירת משימה</h4>
@@ -1861,6 +1866,10 @@
            Feature Designer tab
            ══════════════════════════════════════════════════════════════════ -->
       <section id="featureDesigner" class="panel fd-panel">
+        <p id="fdAssistFoldNote" class="fd-assist-fold">
+          שאלו במסייע.
+          <button type="button" id="fdOpenAssistBtn" class="fd-assist-fold-btn">מסייע</button>
+        </p>
         <div class="fd-layout">
 
           <!-- Sidebar: feature list -->
