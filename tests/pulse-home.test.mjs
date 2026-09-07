@@ -118,7 +118,9 @@ describe('C10.3 Pulse home', () => {
     expect(fns.pulseComputerMetricValue(true, 12.6)).toBeCloseTo(12.6);
     expect(js).toContain('latestJetsonFromServer');
     expect(js).toContain('fcLoadPct');
-    expect(js).not.toMatch(/function pulseRefresh[\s\S]{0,1800}31\.5|34\.85/);
+    const refresh = sliceFunction(js, 'pulseRefresh');
+    expect(refresh).not.toMatch(/31\.5|34\.85/);
+    expect(refresh).not.toMatch(/latitude|longitude|gpsLat|mockGps/i);
   });
 
   it('compresses Companion to disconnected or connected last-4 only', () => {
