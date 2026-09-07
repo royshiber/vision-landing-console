@@ -59,7 +59,7 @@ describe('C10.5a leftover #flights folds into תחקור', () => {
   it('hosts recordings and logs chrome inside תחקור', () => {
     const rec = capture(
       html,
-      /<section\b[^>]*\bid="recordings"[^>]*>([\s\S]*?)<\/section>\s*<section\b[^>]*\bid="processes"/,
+      /<section\b[^>]*\bid="recordings"[^>]*>([\s\S]*?)<\/section>\s*<section\b[^>]*\bid="telemetry"/,
       'missing #recordings panel',
     )[1];
     expect(rec).toMatch(/id="debriefRecBtn"[^>]*data-debrief-tab="recordings"[^>]*>הקלטות</);
