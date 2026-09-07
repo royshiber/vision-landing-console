@@ -20,6 +20,7 @@ describe('MAVLink telemetry parsers (wire layout + truncation)', () => {
     expect(a.rollDeg).toBe(5.7);
     expect(a.pitchDeg).toBe(-2.9);
     expect(a.yawDeg).toBe(68.8);
+    expect(a.timeBootMs).toBe(99_000);
   });
 
   it('parseAttitude: MAVLink2-truncated payload (no angular rates) still parses angles', () => {
@@ -28,7 +29,9 @@ describe('MAVLink telemetry parsers (wire layout + truncation)', () => {
     p.writeFloatLE(0, 4);
     p.writeFloatLE(0, 8);
     p.writeFloatLE(0, 12);
-    expect(parseAttitude(p)).toEqual({ rollDeg: 0, pitchDeg: 0, yawDeg: 0 });
+    const a = parseAttitude(p);
+    expect(a).toMatchObject({ rollDeg: 0, pitchDeg: 0, yawDeg: 0 });
+    expect(a.timeBootMs).toBe(1);
   });
 
   it('parseAttitude: rejects too-short buffer', () => {

@@ -352,10 +352,16 @@ describe('buildLLMActionSchemaBlock', () => {
     }
   });
 
-  it('does NOT mention denylisted params', () => {
+  it('lists denylist params in the DENY section, not as allowable options', () => {
     const block = buildLLMActionSchemaBlock();
+    const denyIdx = block.indexOf('פרמטרים אסורים לחלוטין (DENYLIST');
+    expect(denyIdx).toBeGreaterThan(-1);
+    const denySection = block.slice(denyIdx);
+    const beforeDeny = block.slice(0, denyIdx);
+    expect(PARAM_DENYLIST.size).toBeGreaterThan(0);
     for (const p of PARAM_DENYLIST) {
-      expect(block).not.toContain(p);
+      expect(denySection).toContain(p);
+      expect(beforeDeny).not.toMatch(new RegExp(`^\\s*-\\s*${p}\\s*\\(`, 'm'));
     }
   });
 });
