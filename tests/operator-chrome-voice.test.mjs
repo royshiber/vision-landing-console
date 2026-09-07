@@ -6,7 +6,6 @@ import { COMPANION_HE } from '../lib/companion-connection.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const html = fs.readFileSync(path.join(repoRoot, 'public', 'index.html'), 'utf8');
-const css = fs.readFileSync(path.join(repoRoot, 'public', 'styles.css'), 'utf8');
 const js = fs.readFileSync(path.join(repoRoot, 'public', 'app.js'), 'utf8');
 
 function sliceFunction(src, name) {
@@ -24,13 +23,7 @@ function sliceFunction(src, name) {
   throw new Error(`unclosed function ${name}`);
 }
 
-function capture(src, re, label) {
-  const m = src.match(re);
-  expect(m, label).toBeTruthy();
-  return m;
-}
-
-describe('Operator chrome voice and lab shelf', () => {
+describe('Operator chrome voice and lab chrome gone', () => {
   it('removes Pulse filler and uses spoken chrome on first-open CTAs', () => {
     expect(html).not.toContain('מה שחשוב עכשיו בלבד');
     expect(html).not.toContain('מה קורה עכשיו');
@@ -42,96 +35,63 @@ describe('Operator chrome voice and lab shelf', () => {
     expect(html).not.toContain('פתיחת מסייע');
     expect(html).not.toContain('פתיחת פרמטרים');
     expect(html).toMatch(/data-first-action="assist">מסייע</);
+    expect(html).toMatch(/id="pulseTalkBtn"[^>]*>שאלו את המסייע</);
     expect(html).toMatch(/data-first-action="params">פרמטרים</);
-    expect(html).toMatch(/data-first-action="companion">חברו מלווה</);
+    expect(html).toMatch(/data-first-action="companion">חברו Jetson</);
     expect(html).toMatch(/id="connectPillLabel"[^>]*>מנותק</);
-    expect(html).toMatch(/<dt>גרסה<\/dt>/);
+    expect(html).toMatch(/class="pulse-version-line">גרסה <span id="pulseVersion"/);
   });
 
-  it('keeps ops tabs on the shelf and groups lab/fly tabs under מעבדה', () => {
-    expect(html).toMatch(/class="tab tab-ops active"[^>]*data-tab="pulse"[^>]*>סקירה</);
+  it('keeps ops tabs and deletes every user-visible Lab shelf', () => {
+    expect(html).toMatch(/class="tab tab-ops"[^>]*data-tab="pulse"[^>]*>בית</);
     expect(html).toMatch(/class="tab tab-ops"[^>]*data-tab="platform"[^>]*>פלטפורמה</);
     expect(html).toMatch(/class="tab tab-ops"[^>]*data-tab="control"[^>]*>פרמטרים</);
     expect(html).toMatch(/class="tab tab-ops"[^>]*data-tab="recordings"[^>]*>תחקור</);
     expect(html).toMatch(/data-tab="telemetry"[^>]*>אבחונים</);
     expect(html).toMatch(/class="tab tab-ops"[^>]*data-tab="maintenance"[^>]*>תחזוקה</);
     expect(html).toMatch(/class="tab tab-ops"[^>]*data-tab="development"[^>]*>פיתוח</);
-    const menu = capture(html, /<div id="tabLabMenu"[^>]*>([\s\S]*?)<\/div>\s*<\/div>/, 'missing #tabLabMenu')[1];
-    expect(menu).toMatch(/class="tab tab-lab"[^>]*data-tab="simLab"[^>]*>סימולציה</);
-    expect(menu).toMatch(/class="tab tab-lab"[^>]*data-tab="advisor"[^>]*>יועץ מעבדה</);
-    expect(menu).toMatch(/class="tab tab-lab"[^>]*data-tab="featureDesigner"[^>]*>ArduLab</);
-    expect(menu).toMatch(/class="tab tab-lab"[^>]*data-tab="flightEngineer"[^>]*>מהנדס מעבדה</);
-    expect(menu).toMatch(/class="tab tab-fly"[^>]*data-tab="terrain"[^>]*>הטסה</);
-    expect(html).toMatch(/id="tabLabToggle"[^>]*>מעבדה</);
-    expect(html).toMatch(/id="tabLabMenu"[^>]*\bhidden\b/);
-    expect(css).toMatch(/\.tab-lab-menu\[hidden\]/);
-    expect(css).toMatch(/\.tab-lab-toggle\b/);
-    expect(css).toMatch(/\.tabs:has\(\.tab-lab-group\.is-open\)/);
-    expect(js).toContain('function initLabTabGroup(');
-    expect(js).toContain('function syncLabTabGroup(');
-    expect(js).toContain('function placeLabMenu(');
-    expect(css).toMatch(/\.tab-lab-menu\s*\{[^}]*position:\s*fixed/);
-    expect(js).toMatch(/function applyMainTab\([\s\S]*?syncLabTabGroup\(tabId\)/);
+    expect(html).toMatch(/class="tab tab-fly[^"]*"[^>]*data-tab="terrain"[^>]*>הטסה</);
+    expect(html).not.toContain('id="tabLabMenu"');
+    expect(html).not.toContain('id="tabLabToggle"');
+    expect(html).not.toContain('מעבדה');
+    expect(html).not.toMatch(/class="tab"[^>]*data-tab="simLab"/);
+    expect(html).not.toContain('id="simLab"');
+    expect(html).not.toContain('sim-lab.mjs');
+    expect(html).toContain('id="advisor"');
+    expect(html).toContain('id="featureDesigner"');
+    expect(html).toContain('id="flightEngineer"');
+    expect(js).toContain('function isAssistShelfPanel(');
+    expect(js).toMatch(/ASSIST_SHELF_PANELS = new Set\(\['advisor', 'featureDesigner', 'flightEngineer'\]\)/);
+    expect(js).toMatch(/function applyMainTab\([\s\S]*?isAssistShelfPanel\(tabId\)/);
+    expect(js).not.toContain('function initLabTabGroup(');
+    expect(js).not.toContain('function syncLabTabGroup(');
   });
 
   it('uses spoken Companion connect and disconnected next-step copy', () => {
     expect(html).toMatch(/id="companionConnectHint"[^>]*>צריך כתובת ואסימון\. כתובת לבד לא מספיקה\.</);
-    expect(html).toMatch(/id="teleNextStep"[^>]*>חברו מלווה\. כתובת לבד לא מספיקה\.</);
-    expect(html).toMatch(/id="maintNextStep"[^>]*>חברו מלווה\. כתובת לבד לא מספיקה\.</);
+    expect(html).toMatch(/id="teleNextStep"[^>]*>חברו מחשב משימה\. כתובת לבד לא מספיקה\.</);
+    expect(html).toMatch(/id="maintNextStep"[^>]*>חברו מחשב משימה\. כתובת לבד לא מספיקה\.</);
     expect(COMPANION_HE.hint).toBe('צריך כתובת ואסימון. כתובת לבד לא מספיקה.');
     expect(COMPANION_HE.bothGate).toMatch(/כתובת לבד לא מספיקה/);
     expect(js).not.toContain('כתובת לבד לא מחברת');
     expect(html).not.toContain('כתובת לבד לא מחברת');
   });
 
-  it('syncs the lab toggle label to the open lab tab and resets on ops', () => {
-    const toggle = {
-      textContent: 'מעבדה',
-      classList: { current: false, toggle(name, on) { if (name === 'is-current') this.current = on; } },
-      setAttribute() {},
-      getBoundingClientRect() { return { bottom: 80, right: 200, left: 120, top: 50 }; },
-    };
-    const group = { classList: { lab: false, open: false, toggle(name, on) { if (name === 'is-lab-active') this.lab = on; if (name === 'is-open') this.open = on; } } };
-    const menu = { hidden: true, style: {} };
-    const simBtn = { textContent: 'סימולציה' };
-    const document = {
-      getElementById(id) {
-        if (id === 'tabLabToggle') return toggle;
-        if (id === 'tabLabGroup') return group;
-        if (id === 'tabLabMenu') return menu;
-        return null;
-      },
-      querySelector(sel) {
-        if (sel === '.tab-lab-menu .tab[data-tab="simLab"]') return simBtn;
-        return null;
-      },
-    };
-    const src = [
-      'const LAB_SHELF_TABS = new Set(["simLab", "advisor", "featureDesigner", "flightEngineer", "terrain"]);',
-      sliceFunction(js, 'isLabShelfTab'),
-      sliceFunction(js, 'labTabLabel'),
-      sliceFunction(js, 'placeLabMenu'),
-      sliceFunction(js, 'setLabMenuOpen'),
-      sliceFunction(js, 'syncLabTabGroup'),
-      'const window = { innerWidth: 1280 };',
-      'syncLabTabGroup("simLab");',
-      'const lab = { label: document.getElementById("tabLabToggle").textContent, current: document.getElementById("tabLabToggle").classList.current, group: document.getElementById("tabLabGroup").classList.lab, menuHidden: document.getElementById("tabLabMenu").hidden };',
-      'syncLabTabGroup("pulse");',
-      'return { lab, opsLabel: document.getElementById("tabLabToggle").textContent, opsCurrent: document.getElementById("tabLabToggle").classList.current };',
+  it('opens Assist-shelf panels without a Lab tab button', () => {
+    const helper = [
+      'const ASSIST_SHELF_PANELS = new Set(["advisor", "featureDesigner", "flightEngineer"]);',
+      sliceFunction(js, 'isAssistShelfPanel'),
+      'return { sim: isAssistShelfPanel("simLab"), pulse: isAssistShelfPanel("pulse"), advisor: isAssistShelfPanel("advisor") };',
     ].join('\n');
-    const result = new Function('document', src)(document);
-    expect(result.lab.label).toBe('סימולציה');
-    expect(result.lab.current).toBe(true);
-    expect(result.lab.group).toBe(true);
-    expect(result.lab.menuHidden).toBe(true);
-    expect(result.opsLabel).toBe('מעבדה');
-    expect(result.opsCurrent).toBe(false);
+    const result = new Function(helper)();
+    expect(result.sim).toBe(false);
+    expect(result.advisor).toBe(true);
+    expect(result.pulse).toBe(false);
   });
 
   it('does not add apply, restart, flight-command, or token-invent paths', () => {
     const chrome = [
-      sliceFunction(js, 'initLabTabGroup'),
-      sliceFunction(js, 'syncLabTabGroup'),
+      sliceFunction(js, 'isAssistShelfPanel'),
       sliceFunction(js, 'pulseBuildAttention'),
     ].join('\n');
     expect(chrome).not.toMatch(/\/apply|\/restart|ARM|DISARM|LAND|JETSON_COMPANION|CURSOR_API_KEY/);

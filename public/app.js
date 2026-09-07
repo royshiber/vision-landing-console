@@ -140,8 +140,12 @@ let selectedContextEvent = null;
 /** Why: F5/refresh should keep the current main tab and (when relevant) the control sub-tab. What: sessionStorage, same window session. */
 const MAIN_TAB_KEY = 'visionLandingMainTabV1';
 const CONTROL_SUBTAB_KEY = 'visionLandingControlSubtabV1';
-/** Why: Pulse is the locked home; operators who want Telemetry-first keep that via localStorage. */
+/** Why: בית is the home tab name. App default open workspace is Mission / הטסה. */
 const PULSE_HOME_KEY = 'visionLandingHomeSurfaceV1';
+const MISSION_SWAP_KEY = 'visionLandingMissionSwapV1';
+const MISSION_SIZE_KEY = 'visionLandingMissionSizeV1';
+const MISSION_AREAS_KEY = 'visionLandingMissionAreasV1';
+const MISSION_REGION_IDS = Object.freeze(['horizon', 'map', 'data', 'messages', 'talk']);
 /** Why: C10.7a Attention Policy — quiet by default; chrome only, no voice. */
 const ATTENTION_POLICY_KEY = 'visionLandingAttentionPolicyV1';
 const ATTENTION_POLICY_LEVELS = Object.freeze(['off', 'attention', 'critical']);
@@ -156,6 +160,14 @@ function pulseReadHomePref() {
 }
 function pulseDefaultHomeTab() {
   return pulseReadHomePref() === 'telemetry' ? 'telemetry' : 'pulse';
+}
+function appDefaultWorkspaceTab() {
+  return 'terrain';
+}
+
+/** Roy LOCKED 2026-09-07: Develop / Params / Settings stay reachable airborne and on the ground. Access only — not FC write, not Assist flight commands. */
+function opsChromeAlwaysReachable(_tabId) {
+  return true;
 }
 function _mainTabIds() {
   return new Set(tabs.map((t) => t.dataset.tab).filter(Boolean));
@@ -192,70 +204,10 @@ function openDebriefLogs({ save = true } = {}) {
   applyMainTab('recordings', { save });
   applyDebriefSubtab('logs', { save });
 }
-const LAB_SHELF_TABS = new Set(['simLab', 'advisor', 'featureDesigner', 'flightEngineer', 'terrain']);
+const ASSIST_SHELF_PANELS = new Set(['advisor', 'featureDesigner', 'flightEngineer']);
 
-function isLabShelfTab(tabId) {
-  return LAB_SHELF_TABS.has(tabId);
-}
-
-function labTabLabel(tabId) {
-  const btn = document.querySelector(`.tab-lab-menu .tab[data-tab="${tabId}"]`);
-  return (btn?.textContent || 'מעבדה').replace(/\s+/g, ' ').trim();
-}
-
-function placeLabMenu() {
-  const toggle = document.getElementById('tabLabToggle');
-  const menu = document.getElementById('tabLabMenu');
-  if (!toggle || !menu || menu.hidden) return;
-  const box = toggle.getBoundingClientRect();
-  menu.style.position = 'fixed';
-  menu.style.top = `${Math.round(box.bottom + 4)}px`;
-  menu.style.right = `${Math.round(window.innerWidth - box.right)}px`;
-  menu.style.left = 'auto';
-  menu.style.insetInlineEnd = 'auto';
-}
-
-function setLabMenuOpen(open) {
-  const group = document.getElementById('tabLabGroup');
-  const toggle = document.getElementById('tabLabToggle');
-  const menu = document.getElementById('tabLabMenu');
-  if (!group || !toggle || !menu) return;
-  menu.hidden = !open;
-  toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
-  group.classList.toggle('is-open', open);
-  if (open) placeLabMenu();
-}
-
-function syncLabTabGroup(tabId) {
-  const toggle = document.getElementById('tabLabToggle');
-  const group = document.getElementById('tabLabGroup');
-  if (!toggle || !group) return;
-  const lab = isLabShelfTab(tabId);
-  group.classList.toggle('is-lab-active', lab);
-  toggle.classList.toggle('is-current', lab);
-  toggle.textContent = lab ? labTabLabel(tabId) : 'מעבדה';
-  setLabMenuOpen(false);
-}
-
-function initLabTabGroup() {
-  const toggle = document.getElementById('tabLabToggle');
-  const menu = document.getElementById('tabLabMenu');
-  const group = document.getElementById('tabLabGroup');
-  if (!toggle || !menu || !group) return;
-  toggle.addEventListener('click', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setLabMenuOpen(menu.hidden);
-  });
-  document.addEventListener('click', (e) => {
-    if (!group.contains(e.target)) setLabMenuOpen(false);
-  });
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') setLabMenuOpen(false);
-  });
-  window.addEventListener('resize', () => {
-    if (!menu.hidden) placeLabMenu();
-  });
+function isAssistShelfPanel(tabId) {
+  return ASSIST_SHELF_PANELS.has(tabId);
 }
 
 function applyMainTab(tabId, { save = true } = {}) {
@@ -263,14 +215,18 @@ function applyMainTab(tabId, { save = true } = {}) {
     openDebriefLogs({ save });
     return;
   }
-  if (!_mainTabIds().has(tabId)) return;
+  if (tabId === 'simLab') {
+    applyMainTab('terrain', { save });
+    return;
+  }
+  if ((tabId === 'control' || tabId === 'development') && !opsChromeAlwaysReachable(tabId)) return;
+  if (!_mainTabIds().has(tabId) && !isAssistShelfPanel(tabId)) return;
   tabs.forEach((t) => t.classList.remove('active'));
   panels.forEach((p) => p.classList.remove('visible'));
   const tab = tabs.find((t) => t.dataset.tab === tabId);
   const panel = document.getElementById(tabId);
   if (tab) tab.classList.add('active');
   if (panel) panel.classList.add('visible');
-  syncLabTabGroup(tabId);
   setParamCenterChromeVisible(tabId === 'control');
   updateArduTopCatsVisibility();
   if (save) {
@@ -293,11 +249,10 @@ function applyMainTab(tabId, { save = true } = {}) {
   if (tabId === 'telemetry') {
     setTimeout(() => onTelemetryTabActivated(), 60);
   }
-  if (tabId === 'simLab') {
+  if (tabId === 'terrain') {
     setTimeout(() => {
-      window.simLab3d?.resizeRenderer?.();
-      window.simLab3d?.invalidateMiniMap?.();
-    }, 80);
+      if (typeof onTerrainTabActivated === 'function') onTerrainTabActivated();
+    }, 60);
   }
   if (tabId === 'maintenance') {
     void maintLoadData();
@@ -305,6 +260,7 @@ function applyMainTab(tabId, { save = true } = {}) {
   if (tabId === 'development') {
     void devTasksLoadList();
   }
+  placeAssistSurface(tabId);
   if (_assistChromeReady) assistRefreshContextChip();
 }
 const PARAM_SUBTAB_IDS = new Set(['landingParams', 'abortParams', 'visionNavParams', 'arduParams', 'customParams']);
@@ -354,10 +310,11 @@ function restoreLastUiTab() {
     debriefSub = 'logs';
   }
   if (main === 'processes') main = 'control';
+  if (main === 'simLab') main = 'terrain';
   if (main && _mainTabIds().has(main)) {
     applyMainTab(main, { save: false });
   } else {
-    applyMainTab(pulseDefaultHomeTab(), { save: false });
+    applyMainTab(appDefaultWorkspaceTab(), { save: false });
   }
   if (main === 'recordings') {
     applyDebriefSubtab(debriefSub === 'logs' ? 'logs' : 'recordings', { save: false });
@@ -415,7 +372,6 @@ tabs.forEach((tab) => {
     applyMainTab(tab.dataset.tab);
   });
 });
-initLabTabGroup();
 debriefTabButtons.forEach((tab) => {
   tab.addEventListener('click', () => {
     applyDebriefSubtab(tab.dataset.debriefTab);
@@ -496,7 +452,7 @@ function localAdvisorReply(q) {
     return 'המראה: to_rotate_speed_ms — מהירות הרמה, to_pitch_deg — זווית עלייה, to_max_crosswind_ms — רוח צד מקסימלית. בדוק GPS sats ≥ 8 לפני.';
   }
   if (text.includes('jetson') && (text.includes('fc') || text.includes('רחפן') || text.includes('מטוס') || text.includes('gcs') || text.includes('mavlink'))) {
-    return 'תקשורת: קו MAVLink בדרך כלל בין עמדת קרקע לבקר (FC). Jetson מריץ Vision בנתיב נפרד — לא מחליף את קו ה־GCS ל־FC. ב-ArduPilot בחר פורט Companion (SERIALx) וערוץ SRx בהתאם.';
+    return 'תקשורת: קו MAVLink בדרך כלל בין עמדת קרקע לבקר (FC). Jetson מריץ Vision בנתיב נפרד — לא מחליף את קו ה־GCS ל־FC. ב-ArduPilot בחר פורט Jetson (SERIALx) וערוץ SRx בהתאם.';
   }
   if (text.includes('jetson') || text.includes('ג\'טסון') || text.includes('חיבור') || text.includes('connect')) {
     return 'Jetson: ודא שהשרת והJetson באותה רשת, ש-heartbeat מגיע בקצב < 5s. בדוק /api/jetson/status לפרטים. אם offline — הפעל מחדש.';
@@ -949,7 +905,7 @@ function buildDynamicCommFields(rawCompanion = companionLinkState) {
   const serialKey = serialLabelForPort(serialPort);
   const srKey = srLabelForBucket(srBucket);
   return [
-    { group: 'תקשורת Jetson', key: 'companion_serial_port', label: 'פורט Companion (SERIALx)', kind: 'enum', virtual: true, options: COMPANION_PORT_OPTIONS, tier: 'core' },
+    { group: 'תקשורת Jetson', key: 'companion_serial_port', label: 'פורט Jetson (SERIALx)', kind: 'enum', virtual: true, options: COMPANION_PORT_OPTIONS, tier: 'core' },
     { group: 'תקשורת Jetson', key: 'companion_sr_bucket', label: 'ערוץ SRx לקצבים', kind: 'enum', virtual: true, options: COMPANION_PORT_OPTIONS, tier: 'core' },
     { group: 'תקשורת Jetson', key: `${serialKey}_PROTOCOL`, label: `${serialKey} — פרוטוקול (MAVLink)`, kind: 'enum', options: [0, 1, 2], tier: 'core' },
     { group: 'תקשורת Jetson', key: `${serialKey}_BAUD`, label: `${serialKey} — Baud (Ardu code)`, kind: 'enum', options: [9, 19, 38, 57, 115, 230, 460, 921], tier: 'core' },
@@ -1007,14 +963,14 @@ function persistArduFavorites() {
 
 /** Why: `?` tooltips on ArduPilot form — short Hebrew, parameter name in English in title bar only via label. */
 const ARDU_PARAM_HELP = {
-  companion_serial_port: 'בחירת פורט פיזי שאליו מחובר ה‑Companion. אם החיבור בפועל הוא SERIAL3 ואתה משאיר SERIAL2, ה‑FC ישדר בפורט הלא נכון ותראה ניתוקים/חוסר נתונים. שנה רק כשאתה בטוח בחיווט.',
-  companion_sr_bucket: 'קובע מאיזה SRx יוצאים קצבי הטלמטריה ל‑Companion. ברוב המקרים תואם לאותו מספר של SERIALx, אבל יש מערכות שבהן זה מופרד. אם אתה רואה heartbeat בלי נתונים עשירים, בדוק את הערך הזה.',
+  companion_serial_port: 'בחירת פורט פיזי שאליו מחובר מחשב המשימה. אם החיבור בפועל הוא SERIAL3 ואתה משאיר SERIAL2, ה‑FC ישדר בפורט הלא נכון ותראה ניתוקים/חוסר נתונים. שנה רק כשאתה בטוח בחיווט.',
+  companion_sr_bucket: 'קובע מאיזה SRx יוצאים קצבי הטלמטריה למחשב המשימה. ברוב המקרים תואם לאותו מספר של SERIALx, אבל יש מערכות שבהן זה מופרד. אם אתה רואה heartbeat בלי נתונים עשירים, בדוק את הערך הזה.',
   EK3_ENABLE: 'מפעיל את EKF3 כחישוב הניווט הראשי. שינוי פרמטר זה משפיע על התנהגות FC גלובלית ולכן מבוצע רק על הקרקע ובזהירות.',
   AHRS_EKF_TYPE: 'בוחר מנוע EKF בשכבת AHRS. ערך 3 הוא EKF3 ברוב גרסאות Plane. שינוי כאן יכול להשפיע על יציבות חישוב Attitude ו‑Position.',
   EK3_GPS_TYPE: 'מגדיר כמה ואיך EKF3 מסתמך על GPS. מתאים בעיקר לניסויי GPS/vision coupling — לא לשנות בלי להבין את מקור המיקום הפעיל בניסוי.',
   EK3_ALT_SOURCE: 'מקור הגובה הראשי של EKF3 (לרוב ברומטר/טווח/שילוב). אם מקור הגובה לא נכון תראה פרופיל גובה לא יציב ב‑final.',
-  PLND_ENABLED: 'מפעיל Precision Landing בצד FC. כשכבוי, נתוני נחיתה מדויקת מה‑Companion יתקבלו אך לא יניעו לוגיקת נחיתה ייעודית.',
-  PLND_TYPE: 'סוג קלט נחיתה מדויקת. ערך 1 לרוב מייצג MAVLink ולכן מתאים לאינטגרציה עם Companion/Jetson.',
+  PLND_ENABLED: 'מפעיל Precision Landing בצד FC. כשכבוי, נתוני נחיתה מדויקת ממחשב המשימה יתקבלו אך לא יניעו לוגיקת נחיתה ייעודית.',
+  PLND_TYPE: 'סוג קלט נחיתה מדויקת. ערך 1 לרוב מייצג MAVLink ולכן מתאים לאינטגרציה עם מחשב משימה.',
   PLND_BUS: 'ערוץ/Bus ממנו FC מצפה לקבל PLND. ברוב תרחישי MAVLink נשאר ברירת מחדל, אבל במערכות היברידיות צריך התאמה מפורשת.',
   PLND_LAG: 'פיצוי עיכוב בין המדידה הוויזואלית לבין השימוש ב‑FC. אם גבוה מדי התיקון מגיע מאוחר; אם נמוך מדי מתקבלת תגובת יתר.',
   PLND_XY_DIST_MAX: 'רדיוס אופקי שבו FC עדיין מוכן להשתמש בנתוני PLND. קטן מדי יבטל תיקונים מוקדם, גדול מדי עלול לאפשר תיקונים אגרסיביים רחוקים.',
@@ -2417,7 +2373,7 @@ function renderCompanionChannels(channels = {}) {
     ['לולאת ראייה', channels.vision_loopback],
   ];
   host.innerHTML = rows.map(([label, channel]) => {
-    const path = channel?.jetson_in_path === true ? 'בנתיב המלווה'
+    const path = channel?.jetson_in_path === true ? 'בנתיב Jetson'
       : channel?.jetson_in_path === false ? 'לא בנתיב' : '—';
     const bind = channel?.bind || '—';
     return `<div class="companion-b2-row"><span>${escapeHtml(label)}</span><strong>${escapeHtml(path)}</strong><span>${escapeHtml(bind)}</span><strong>${escapeHtml(channel?.implementation || '—')}</strong></div>`;
@@ -3145,15 +3101,12 @@ function pulseBuildAttention(opts) {
   const evolveActive = opts?.evolveActive;
   const items = [];
   if (!companionLive) {
-    items.push({ id: 'companion', level: 'attention', text: 'מלווה מנותק', action: 'companion', cta: 'חברו מלווה' });
+    items.push({ id: 'companion', level: 'attention', text: 'Jetson מנותק', action: 'companion', cta: 'חברו Jetson' });
   }
   if (!assistConnected) {
-    items.push({ id: 'assist', level: 'info', text: 'מסייע מנותק', action: 'assist', cta: 'מסייע' });
+    items.push({ id: 'assist', level: 'info', text: 'מסייע מנותק', action: 'assist', cta: 'שאלו את המסייע' });
   }
-  if (!evolveActive && !companionLive && items.length < 3) {
-    items.push({ id: 'evolve', level: 'info', text: 'אין משימת פיתוח פעילה', action: 'develop', cta: 'פיתוח' });
-  }
-  return items.slice(0, 3);
+  return items.slice(0, 2);
 }
 
 function pulseEvolveLine(panel) {
@@ -3201,7 +3154,10 @@ function pulseRefresh() {
   assistEl.textContent = _assistAgentConnected ? 'מחובר' : 'מנותק';
   assistEl.parentElement?.setAttribute('data-state', _assistAgentConnected ? 'connected' : 'disconnected');
   const linkLabel = document.getElementById('connectPillLabel')?.textContent?.trim() || '';
-  linkEl.textContent = (!linkLabel || linkLabel === 'לא מחובר' || linkLabel === 'מנותק') ? '--' : linkLabel;
+  const linkText = (!linkLabel || linkLabel === 'לא מחובר' || linkLabel === 'מנותק') ? '--' : linkLabel;
+  linkEl.textContent = linkText;
+  const missionLink = document.getElementById('missionLink');
+  if (missionLink) missionLink.textContent = linkText;
   aircraftEl.textContent = pulseHudText('hudFlightMode');
   const evolveText = pulseEvolveLine(document.getElementById('assistRunPanel'));
   const items = pulseBuildAttention({
@@ -3232,12 +3188,12 @@ function pulseRefresh() {
 
 function platformMaintLabel() {
   const badge = document.getElementById('maintStatusBadge')?.textContent?.trim();
-  return badge || 'המלווה מנותק';
+  return badge || 'Jetson מנותק';
 }
 
 function platformDiagLabel() {
   const badge = document.getElementById('teleStatusBadge')?.textContent?.trim();
-  return badge || 'המלווה מנותק';
+  return badge || 'Jetson מנותק';
 }
 
 function platformRefresh() {
@@ -3335,12 +3291,12 @@ function teleSetOverview(opts) {
   const resolvedState = state || (live ? 'ok' : 'disconnected');
   if (banner) banner.dataset.state = resolvedState;
   if (badge) {
-    badge.textContent = statusHe || (live ? 'חי' : 'המלווה מנותק');
+    badge.textContent = statusHe || (live ? 'חי' : 'Jetson מנותק');
     badge.className = 'operator-state-status';
   }
   if (next) {
     const text = nextHe == null
-      ? (live ? '' : 'חברו מלווה. כתובת לבד לא מספיקה.')
+      ? (live ? '' : 'חברו מחשב משימה. כתובת לבד לא מספיקה.')
       : nextHe;
     next.hidden = !text;
     next.textContent = text;
@@ -3364,25 +3320,25 @@ function companionConnectRender(status) {
   const live = companionIsLive(status);
   companionSetLiveChrome(live);
   const errorText = !connected && status?.ok === false
-    ? (status.status_he || status.reason_he || 'החיבור למלווה נכשל')
+    ? (status.status_he || status.reason_he || 'חיבור מחשב משימה נכשל')
     : '';
   card.dataset.state = errorText ? 'error' : (connected ? 'connected' : 'disconnected');
   const statusText = connected
-    ? (status.status_he || 'המלווה מחובר')
-    : (status.status_he || status.reason_he || 'המלווה מנותק');
+    ? (status.status_he || 'Jetson מחובר')
+    : (status.status_he || status.reason_he || 'Jetson מנותק');
   statusEl.textContent = statusText;
   if (maintStatus) maintStatus.textContent = statusText;
   teleSetOverview({
     live,
     statusHe: live && !connected && !status?.status_he ? 'חי' : statusText,
-    nextHe: live ? '' : (status?.hint_he || 'חברו מלווה. כתובת לבד לא מספיקה.'),
+    nextHe: live ? '' : (status?.hint_he || 'חברו מחשב משימה. כתובת לבד לא מספיקה.'),
     state: errorText ? 'error' : (live ? (connected ? 'connected' : 'ok') : 'disconnected'),
   });
   if (!live) {
     maintSetOverview({
       live: false,
       statusHe: statusText,
-      nextHe: status?.hint_he || 'חברו מלווה. כתובת לבד לא מספיקה.',
+      nextHe: status?.hint_he || 'חברו מחשב משימה. כתובת לבד לא מספיקה.',
       state: errorText ? 'error' : 'disconnected',
     });
   }
@@ -3430,7 +3386,7 @@ async function companionConnectRefresh() {
       ok: false,
       mode: 'off',
       connected: false,
-      status_he: 'המלווה מנותק',
+      status_he: 'Jetson מנותק',
     });
   }
 }
@@ -3463,7 +3419,7 @@ async function companionConnectSubmit(event) {
     return;
   }
   const statusEl = document.getElementById('companionConnectStatus');
-  if (statusEl) statusEl.textContent = 'מחברים את המלווה';
+  if (statusEl) statusEl.textContent = 'מחברים Jetson';
   companionConnectSetBusy(true);
   companionConnectSetError('');
   try {
@@ -3474,7 +3430,7 @@ async function companionConnectSubmit(event) {
     });
     const data = await r.json().catch(() => ({}));
     if (!r.ok || data.ok === false || data.mode !== 'real') {
-      const msg = data.status_he || data.reason_he || 'החיבור למלווה נכשל';
+      const msg = data.status_he || data.reason_he || 'חיבור מחשב משימה נכשל';
       companionConnectSetError(msg);
       companionConnectRender({
         ok: false,
@@ -3490,12 +3446,12 @@ async function companionConnectSubmit(event) {
     if (tokenEl) tokenEl.value = '';
     companionConnectRender(data);
   } catch {
-    companionConnectSetError('החיבור למלווה נכשל');
+    companionConnectSetError('חיבור מחשב משימה נכשל');
     companionConnectRender({
       ok: false,
       mode: 'off',
       connected: false,
-      status_he: 'החיבור למלווה נכשל',
+      status_he: 'חיבור מחשב משימה נכשל',
     });
   } finally {
     companionConnectSetBusy(false);
@@ -3511,7 +3467,7 @@ async function companionDisconnect() {
       ok: r.ok,
       mode: data.mode || 'off',
       connected: false,
-      status_he: data.status_he || 'המלווה מנותק',
+      status_he: data.status_he || 'Jetson מנותק',
       base_url: data.base_url,
     });
   } catch {
@@ -3519,7 +3475,7 @@ async function companionDisconnect() {
       ok: false,
       mode: 'off',
       connected: false,
-      status_he: 'המלווה מנותק',
+      status_he: 'Jetson מנותק',
     });
   } finally {
     companionConnectSetBusy(false);
@@ -3547,28 +3503,28 @@ function applyCompanionUi(companion) {
   const unavailableEl = document.getElementById('companionApiUnavailable');
   if (unavailableEl) {
     unavailableEl.hidden = !unavailable;
-    unavailableEl.textContent = unavailable ? 'המלווה החי אינו מגיב. בדקו כתובת ואסימון.' : '';
+    unavailableEl.textContent = unavailable ? 'מחשב משימה לא מגיב. בדקו כתובת ואסימון.' : '';
   }
   const live = companionIsLive(companion) && !unavailable;
   companionSetLiveChrome(live);
   if (!live) {
-    const statusHe = companion.mode === 'real' && unavailable ? 'המלווה החי אינו מגיב' : 'המלווה מנותק';
+    const statusHe = companion.mode === 'real' && unavailable ? 'Jetson לא מגיב' : 'Jetson מנותק';
     maintSetOverview({
       live: false,
       statusHe,
-      nextHe: 'חברו מלווה. כתובת לבד לא מספיקה.',
+      nextHe: 'חברו מחשב משימה. כתובת לבד לא מספיקה.',
       state: unavailable ? 'error' : 'disconnected',
     });
     teleSetOverview({
       live: false,
       statusHe,
-      nextHe: 'חברו מלווה. כתובת לבד לא מספיקה.',
+      nextHe: 'חברו מחשב משימה. כתובת לבד לא מספיקה.',
       state: unavailable ? 'error' : 'disconnected',
     });
   } else {
     teleSetOverview({
       live: true,
-      statusHe: companion.mode === 'mock' ? 'המלווה במצב מדומה' : 'חי',
+      statusHe: companion.mode === 'mock' ? 'Jetson במצב מדומה' : 'חי',
       nextHe: '',
       state: 'ok',
     });
@@ -4017,159 +3973,145 @@ function drawHorizon(canvas, rollDeg, pitchDeg, opts = {}) {
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
   const dpr = window.devicePixelRatio || 1;
-  // Always re-apply HiDPI transform so call-sites don't need to worry about it
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  // Pixel-sharp rendering
-  ctx.imageSmoothingEnabled = false;
-  // Work in CSS pixel space (canvas.width is physical px = CSS px × dpr)
-  const W   = canvas.width / dpr;
-  const H   = canvas.height / dpr;
-  const cx  = W / 2;
-  const cy  = H / 2;
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  const W = canvas.width / dpr;
+  const H = canvas.height / dpr;
+  const cx = W / 2;
+  const cy = H / 2;
   const videoMode = !!opts.videoMode;
-
-  const rollBounded  = finiteHudAngleDeg(rollDeg, 180);
+  const rollBounded = finiteHudAngleDeg(rollDeg, 180);
   const pitchBounded = finiteHudAngleDeg(pitchDeg, 90);
-  const showRoll  = rollBounded != null;
+  const showRoll = rollBounded != null;
   const showPitch = pitchBounded != null;
-  const rollDraw  = showRoll ? rollBounded : 0;
+  const rollDraw = showRoll ? rollBounded : 0;
   const pitchDraw = showPitch ? pitchBounded : 0;
-  const rollRad  = (rollDraw * Math.PI) / 180;
-  const pxPerDeg = H / 40;
-  const pitchPx  = Math.max(-H, Math.min(H, pitchDraw * pxPerDeg));
-  const diag     = Math.sqrt(W * W + H * H);
+  const rollRad = (rollDraw * Math.PI) / 180;
+  const instR = Math.min(W, H) * 0.46;
+  const pxPerDeg = instR / 22;
+  const pitchPx = Math.max(-instR * 1.4, Math.min(instR * 1.4, pitchDraw * pxPerDeg));
 
   ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = videoMode ? 'rgba(8, 14, 22, 0.28)' : '#d7e3f0';
+  ctx.fillRect(0, 0, W, H);
 
-  // ── 1. Sky + Ground (full square, rotated) ──────────────────────────────
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(cx, cy, instR, 0, Math.PI * 2);
+  ctx.clip();
+
   ctx.save();
   ctx.translate(cx, cy);
   ctx.rotate(rollRad);
-
-  const skyAlpha = videoMode ? 0.62 : 1;
-  const gndAlpha = videoMode ? 0.58 : 1;
-
-  const skyGrad = ctx.createLinearGradient(0, -diag * 0.5 + pitchPx, 0, pitchPx);
-  skyGrad.addColorStop(0,    `rgba(2,14,34,${skyAlpha})`);
-  skyGrad.addColorStop(0.5,  `rgba(11,58,114,${skyAlpha})`);
-  skyGrad.addColorStop(1,    `rgba(21,96,184,${skyAlpha})`);
-  ctx.fillStyle = skyGrad;
-  ctx.fillRect(-diag, -diag + pitchPx, diag * 2, diag);
-
-  const gndGrad = ctx.createLinearGradient(0, pitchPx, 0, pitchPx + diag * 0.6);
-  gndGrad.addColorStop(0,   `rgba(107,63,26,${gndAlpha})`);
-  gndGrad.addColorStop(0.45,`rgba(66,38,14,${gndAlpha})`);
-  gndGrad.addColorStop(1,   `rgba(30,16,8,${gndAlpha})`);
-  ctx.fillStyle = gndGrad;
-  ctx.fillRect(-diag, pitchPx, diag * 2, diag);
-
-  // ── 2. Horizon line ────────────────────────────────────────────────────
-  const hlLen = diag;
-  const horizPx = Math.round(pitchPx) + 0.5; // snap to pixel boundary for crispness
-  ctx.shadowColor = 'rgba(160,230,255,0.9)';
-  ctx.shadowBlur  = videoMode ? 3 : 5;
+  const sky = videoMode ? 'rgba(74, 144, 212, 0.55)' : '#5aa4de';
+  const gnd = videoMode ? 'rgba(166, 122, 58, 0.55)' : '#c4a06a';
+  ctx.fillStyle = sky;
+  ctx.fillRect(-instR * 2, -instR * 2 + pitchPx, instR * 4, instR * 2);
+  ctx.fillStyle = gnd;
+  ctx.fillRect(-instR * 2, pitchPx, instR * 4, instR * 2);
   ctx.strokeStyle = '#ffffff';
-  ctx.lineWidth   = videoMode ? 1.5 : 2.5;
-  ctx.beginPath(); ctx.moveTo(-hlLen, horizPx); ctx.lineTo(hlLen, horizPx); ctx.stroke();
-  ctx.shadowBlur  = 0;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(-instR * 2, pitchPx);
+  ctx.lineTo(instR * 2, pitchPx);
+  ctx.stroke();
 
-  // ── 3. Pitch ladder ────────────────────────────────────────────────────
-  ctx.font    = `600 ${H * 0.055}px "Space Grotesk", monospace`;
-  ctx.lineCap = 'round';
-  for (let p = -40; p <= 40; p += 5) {
+  ctx.font = '600 12px "Space Grotesk", "Heebo", sans-serif';
+  ctx.textBaseline = 'middle';
+  for (let p = -30; p <= 30; p += 5) {
     if (p === 0) continue;
-    const y   = pitchPx - p * pxPerDeg;
-    if (Math.abs(y) > H * 0.6) continue;
+    const y = pitchPx - p * pxPerDeg;
+    if (Math.abs(y) > instR * 0.88) continue;
     const big = p % 10 === 0;
-    const hw  = big ? W * 0.22 : W * 0.12;
-    const alpha = videoMode ? (big ? 0.9 : 0.55) : (big ? 1 : 0.55);
-    const ySnap = Math.round(y) + 0.5;
-    ctx.strokeStyle = `rgba(255,255,255,${alpha})`;
-    ctx.lineWidth   = big ? (videoMode ? 1.5 : 2) : 1;
-    ctx.beginPath(); ctx.moveTo(-hw, ySnap); ctx.lineTo(hw, ySnap); ctx.stroke();
+    const hw = big ? 28 : 14;
+    ctx.strokeStyle = big ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.55)';
+    ctx.lineWidth = big ? 1.6 : 1;
+    ctx.beginPath();
+    ctx.moveTo(-hw, y);
+    ctx.lineTo(hw, y);
+    ctx.stroke();
     if (big) {
-      const tk = H * 0.025;
-      ctx.beginPath();
-      ctx.moveTo(-hw, y); ctx.lineTo(-hw, y + (p > 0 ? tk : -tk));
-      ctx.moveTo( hw, y); ctx.lineTo( hw, y + (p > 0 ? tk : -tk));
-      ctx.stroke();
-      ctx.fillStyle = `rgba(255,255,255,${videoMode ? 0.9 : 1})`;
-      ctx.textAlign = 'right'; ctx.fillText(String(Math.abs(p)), -hw - 4, y + H * 0.02);
-      ctx.textAlign = 'left';  ctx.fillText(String(Math.abs(p)),  hw + 4, y + H * 0.02);
+      ctx.fillStyle = '#ffffff';
+      ctx.textAlign = 'right';
+      ctx.fillText(String(Math.abs(p)), -hw - 6, y);
+      ctx.textAlign = 'left';
+      ctx.fillText(String(Math.abs(p)), hw + 6, y);
     }
   }
-  ctx.lineCap = 'butt';
+  ctx.restore();
   ctx.restore();
 
-  // ── 4. Bank arc + ticks (fixed, over the square) ──────────────────────
-  const arcR = Math.min(cx, cy) * 0.82;
-  ctx.strokeStyle = 'rgba(255,255,255,0.22)';
-  ctx.lineWidth   = 1.2;
+  ctx.strokeStyle = 'rgba(15, 23, 42, 0.35)';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.arc(cx, cy, instR, 0, Math.PI * 2);
+  ctx.stroke();
+
+  const arcR = instR - 6;
+  ctx.strokeStyle = 'rgba(15, 23, 42, 0.45)';
+  ctx.lineWidth = 1.4;
   ctx.beginPath();
   ctx.arc(cx, cy, arcR, -Math.PI * 0.78, -Math.PI * 0.22);
   ctx.stroke();
-
   [-60, -45, -30, -20, -10, 0, 10, 20, 30, 45, 60].forEach((deg) => {
-    const a   = (-90 + deg) * Math.PI / 180;
+    const a = (-90 + deg) * Math.PI / 180;
     const big = Math.abs(deg) % 30 === 0;
-    const tL  = big ? 9 : 5;
-    ctx.strokeStyle = big ? 'rgba(255,255,255,0.65)' : 'rgba(255,255,255,0.32)';
-    ctx.lineWidth   = big ? 1.5 : 0.8;
+    const tL = big ? 10 : 5;
+    ctx.strokeStyle = big ? 'rgba(15, 23, 42, 0.75)' : 'rgba(15, 23, 42, 0.4)';
+    ctx.lineWidth = big ? 1.8 : 1;
     ctx.beginPath();
-    ctx.moveTo(cx + Math.cos(a) * arcR,        cy + Math.sin(a) * arcR);
-    ctx.lineTo(cx + Math.cos(a) * (arcR - tL),  cy + Math.sin(a) * (arcR - tL));
+    ctx.moveTo(cx + Math.cos(a) * arcR, cy + Math.sin(a) * arcR);
+    ctx.lineTo(cx + Math.cos(a) * (arcR - tL), cy + Math.sin(a) * (arcR - tL));
     ctx.stroke();
   });
 
-  // Bank pointer triangle (rotates with roll)
   ctx.save();
   ctx.translate(cx, cy);
   ctx.rotate(rollRad);
-  ctx.shadowColor = 'rgba(250,204,21,0.7)';
-  ctx.shadowBlur  = 5;
-  ctx.fillStyle   = '#facc15';
+  ctx.fillStyle = '#f4c430';
   ctx.beginPath();
-  ctx.moveTo(0, -arcR + 1);
-  ctx.lineTo(-5, -arcR + 13);
-  ctx.lineTo( 5, -arcR + 13);
+  ctx.moveTo(0, -arcR + 2);
+  ctx.lineTo(-6, -arcR + 14);
+  ctx.lineTo(6, -arcR + 14);
   ctx.closePath();
   ctx.fill();
-  ctx.shadowBlur = 0;
   ctx.restore();
 
-  // ── 5. Aircraft T-bar symbol ───────────────────────────────────────────
-  const aW = W * 0.19;
-  const aG = W * 0.05;
-  const aY = cy;
-  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-  ctx.shadowColor = 'rgba(250,204,21,0.8)';
-  ctx.shadowBlur  = 9;
-  ctx.strokeStyle = '#facc15';
-  ctx.lineWidth   = 2.6;
-  ctx.beginPath(); ctx.moveTo(cx - aG, aY); ctx.lineTo(cx - aW, aY + H * 0.02); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(cx + aG, aY); ctx.lineTo(cx + aW, aY + H * 0.02); ctx.stroke();
-  ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.moveTo(cx, aY); ctx.lineTo(cx, aY - H * 0.065); ctx.stroke();
-  ctx.shadowBlur = 10;
-  ctx.fillStyle  = '#facc15';
-  ctx.beginPath(); ctx.arc(cx, aY, 3, 0, Math.PI * 2); ctx.fill();
-  ctx.shadowBlur = 0;
-  ctx.lineCap = 'butt'; ctx.lineJoin = 'butt';
+  ctx.strokeStyle = '#f4c430';
+  ctx.fillStyle = '#f4c430';
+  ctx.lineWidth = 2.4;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(cx - 46, cy);
+  ctx.lineTo(cx - 10, cy);
+  ctx.moveTo(cx + 10, cy);
+  ctx.lineTo(cx + 46, cy);
+  ctx.moveTo(cx, cy);
+  ctx.lineTo(cx, cy + 12);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(cx, cy, 3.2, 0, Math.PI * 2);
+  ctx.fill();
 
-  // ── 6. Corner readouts (R / P) ─────────────────────────────────────────
-  ctx.font      = `700 ${Math.min(W, H) * 0.055}px "Space Grotesk", monospace`;
-  ctx.fillStyle = showRoll && rollDraw === 0 ? 'rgba(180,210,255,0.5)' : '#facc15';
+  ctx.font = '700 12px "Space Grotesk", sans-serif';
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillStyle = showRoll ? '#1e2937' : 'rgba(30,41,59,0.45)';
   ctx.textAlign = 'left';
-  ctx.fillText(showRoll ? `R${rollDraw >= 0 ? '+' : ''}${formatHudAngleLabel(rollDraw)}°` : 'R --', 5, H - 5);
-  ctx.fillStyle = showPitch && pitchDraw === 0 ? 'rgba(180,210,255,0.5)' : '#4ade80';
+  ctx.fillText(showRoll ? `R ${rollDraw >= 0 ? '+' : ''}${formatHudAngleLabel(rollDraw)}°` : 'R --', 10, H - 10);
+  ctx.fillStyle = showPitch ? '#1e2937' : 'rgba(30,41,59,0.45)';
   ctx.textAlign = 'right';
-  ctx.fillText(showPitch ? `P${pitchDraw >= 0 ? '+' : ''}${formatHudAngleLabel(pitchDraw)}°` : 'P --', W - 5, H - 5);
+  ctx.fillText(showPitch ? `P ${pitchDraw >= 0 ? '+' : ''}${formatHudAngleLabel(pitchDraw)}°` : 'P --', W - 10, H - 10);
 }
 const GPS_FIX_LABELS = ['אין GPS', 'אין Fix', '2D Fix', '3D Fix', 'DGPS', 'RTK Float', 'RTK Fixed'];
 
 /** Update the PFD with the latest MAVLink snapshot. */
 function applyFlightHud(mav) {
-  if (!mav) return;
+  if (!mav) {
+    latestHudMavlink = null;
+    syncMissionLayoutChrome();
+    return;
+  }
   latestHudMavlink = mav;
 
   // Horizon canvas — level when angles unknown or out-of-range garbage
@@ -4255,6 +4197,7 @@ function applyFlightHud(mav) {
       : fix === 2 ? 'warn'
       : 'fail';
   }
+  syncMissionLayoutChrome();
 }
 
 /** Update the optical-nav indicator (compact strip near FC messages). */
@@ -5099,10 +5042,10 @@ setInterval(() => {
   let sourceLabel;
   if (companionConfidence != null) {
     current = Math.max(0, Math.min(1, companionConfidence));
-    sourceLabel = 'Companion';
+    sourceLabel = 'Jetson';
   } else if (companionActive && !visionFresh) {
     current = null;
-    sourceLabel = 'Companion ללא מדידה';
+    sourceLabel = 'Jetson ללא מדידה';
     lowConfidenceSeconds = 0;
   } else if (visionFresh) {
     current = latestVisionFromServer.confidence == null
@@ -8601,7 +8544,7 @@ setInterval(refreshAdvisorHealth, 60_000);
     ].filter(g => g.items.length > 0);
 
     if (!groups.length) {
-      cpFeaturesGrid.innerHTML = '<div class="cp-empty">לא נוצרו עדיין פרמטרים מותאמים.<br>עבור ל<strong>ArduLab</strong> כדי ליצור פיצ\'ר חדש.</div>';
+      cpFeaturesGrid.innerHTML = '<div class="cp-empty">לא נוצרו עדיין פרמטרים מותאמים.<br>שאלו במסייע לפיצ׳ר חדש.</div>';
       return;
     }
 
@@ -8881,7 +8824,7 @@ setInterval(refreshAdvisorHealth, 60_000);
       div.className = `fd-message ${turn.role === 'user' ? 'user' : 'assistant'}`;
       const isAI = turn.role !== 'user';
       div.innerHTML = `
-        <div class="fd-message-role">${isAI ? 'ArduLab AI' : 'אתה'}</div>
+        <div class="fd-message-role">${isAI ? 'פיצ׳ר' : 'אתה'}</div>
         <div class="fd-message-bubble${isAI ? ' fd-md' : ''}">${isAI ? fdRenderMarkdown(turn.content) : fdEscape(turn.content)}</div>
       `;
       fdMessages.appendChild(div);
@@ -9053,7 +8996,7 @@ setInterval(refreshAdvisorHealth, 60_000);
       const badgeHtml = d.type === 'update'
         ? '<span class="fd-update-badge">✦ עדכון קוד</span>'
         : '';
-      aiMsg.innerHTML = `<div class="fd-message-role">ArduLab AI</div><div class="fd-message-bubble fd-md">${badgeHtml}${fdRenderMarkdown(d.message)}</div>`;
+      aiMsg.innerHTML = `<div class="fd-message-role">פיצ׳ר</div><div class="fd-message-bubble fd-md">${badgeHtml}${fdRenderMarkdown(d.message)}</div>`;
       fdMessages.appendChild(aiMsg);
       fdMessages.scrollTop = fdMessages.scrollHeight;
 
@@ -9318,7 +9261,10 @@ setInterval(refreshAdvisorHealth, 60_000);
       'שינוי השפה נכנס לתוקף בהפעלה הבאה של המיקרופון (או ריענון דף). ברירת השרת נקבעת ב־FE_STT_LANG.';
   }
 
-  btn.addEventListener('click', () => openModal());
+  btn.addEventListener('click', () => {
+    if (!opsChromeAlwaysReachable('settings')) return;
+    openModal();
+  });
   closeBtns.forEach((el) => el.addEventListener('click', closeModal));
 
   volSlider?.addEventListener('input', () => {
@@ -10039,7 +9985,7 @@ function maintSetOverview(opts) {
   const resolvedState = state || (live ? 'ok' : 'disconnected');
   if (banner) banner.dataset.state = resolvedState;
   if (badge) {
-    badge.textContent = statusHe || (live ? 'תקין' : 'המלווה מנותק');
+    badge.textContent = statusHe || (live ? 'תקין' : 'Jetson מנותק');
     badge.className = `operator-state-status maint-badge--${resolvedState}`;
   }
   if (next) {
@@ -10147,7 +10093,7 @@ function maintApplyWire(wire, { apiReachable = null, companionMode = null } = {}
   maintSetOverview({
     live: _maintApiReachable === true,
     statusHe: MAINT_STATES_HE[st] || st,
-    nextHe: _maintApiReachable === true ? '' : 'חברו מלווה. כתובת לבד לא מספיקה.',
+    nextHe: _maintApiReachable === true ? '' : 'חברו מחשב משימה. כתובת לבד לא מספיקה.',
     state: st,
   });
   maintRenderDiag(wire.diagnostics?.recent);
@@ -10169,8 +10115,8 @@ async function maintLoadData() {
     _maintApiReachable = false;
     maintSetOverview({
       live: false,
-      statusHe: 'המלווה מנותק',
-      nextHe: 'חברו מלווה. כתובת לבד לא מספיקה.',
+      statusHe: 'Jetson מנותק',
+      nextHe: 'חברו מחשב משימה. כתובת לבד לא מספיקה.',
       state: 'disconnected',
     });
   }
@@ -10252,8 +10198,8 @@ function maintRelHeKnownMessage(text) {
     'Backup failed': 'הגיבוי נכשל',
     'Deploy failed': 'ההתקנה נכשלה',
     'Another maintenance operation is already running': 'פעולת תחזוקה אחרת כבר רצה',
-    'Companion לא זמין': 'המלווה לא זמין',
-    'Companion לא זמין — מציג מצב אחרון': 'המלווה לא זמין. מוצג מצב אחרון',
+    'Jetson לא זמין': 'Jetson לא זמין',
+    'מחשב משימה לא זמין. מוצג מצב אחרון': 'מחשב משימה לא זמין. מוצג מצב אחרון',
   };
   if (known[s]) return known[s];
   const runningParen = s.match(/^Deployment successful \(running (.+)\)$/);
@@ -10292,7 +10238,7 @@ function maintRelApiError(status, body) {
   if (status === 404) return msg || 'לא נמצא';
   if (status === 409) return msg || 'קונפליקט — פעולה לא זמינה כעת';
   if (status === 501) return msg || 'לא נתמך ב-Jetson';
-  if (status === 503 || status === 504) return msg || 'המלווה לא זמין';
+  if (status === 503 || status === 504) return msg || 'Jetson לא זמין';
   return msg || 'שגיאה';
 }
 
@@ -10423,7 +10369,7 @@ async function maintRelLoadAll() {
 
   const noteEl = document.getElementById('maintRelStatusNote');
   if (_maintApiReachable === false) {
-    maintRelSetUnavailable('המלווה לא זמין. מוצג מצב אחרון');
+    maintRelSetUnavailable('מחשב משימה לא זמין. מוצג מצב אחרון');
     return;
   }
 
@@ -11263,7 +11209,6 @@ const ASSIST_TAB_WORKSPACE = {
   pulse: 'PULSE',
   terrain: 'MISSION',
   development: 'EVOLVE',
-  simLab: 'LAB',
   control: 'PLATFORM',
   platform: 'PLATFORM',
   telemetry: 'PLATFORM',
@@ -11278,7 +11223,6 @@ const ASSIST_TAB_CAPABILITY = {
   pulse: 'diagnostics',
   terrain: 'mission',
   development: 'evolve',
-  simLab: 'lab_sitl',
   control: 'configuration',
   platform: 'companion',
   telemetry: 'diagnostics',
@@ -11303,11 +11247,11 @@ let _assistRunTaskId = null;
 let _assistRunMsgEl = null;
 
 const ASSIST_WORKSPACE_HE = Object.freeze({
-  PULSE: 'סקירה',
+  PULSE: 'בית',
   MISSION: 'משימה',
   PLATFORM: 'פלטפורמה',
   EVOLVE: 'פיתוח',
-  LAB: 'מעבדה',
+  LAB: 'יועץ',
   UNKNOWN: 'לא ידוע',
 });
 const ASSIST_CAPABILITY_HE = Object.freeze({
@@ -11318,25 +11262,24 @@ const ASSIST_CAPABILITY_HE = Object.freeze({
   video: 'וידאו',
   voice: 'קול',
   diagnostics: 'אבחון',
-  companion: 'מלווה',
+  companion: 'Jetson',
   configuration: 'תצורה',
   debrief: 'תחקור',
   evolve: 'פיתוח',
-  lab_sitl: 'מעבדה',
+  lab_sitl: 'יועץ',
   advisor: 'יועץ',
 });
 const ASSIST_TAB_HE = Object.freeze({
   terrain: 'הטסה',
   development: 'פיתוח',
-  simLab: 'מעבדה',
-  pulse: 'סקירה',
+  pulse: 'בית',
   control: 'פרמטרים',
   telemetry: 'טלמטריה',
   maintenance: 'תחזוקה',
   recordings: 'תחקור',
   flights: 'תחקור',
   advisor: 'יועץ',
-  featureDesigner: 'ארדולאב',
+  featureDesigner: 'פיצ׳ר',
   flightEngineer: 'מהנדס טיסה',
 });
 const ASSIST_AGENT_STATE_HE = Object.freeze({
@@ -11409,7 +11352,7 @@ const ASSIST_DEFAULT_HINT_HE = 'שינוי דורש אישור.';
 const ASSIST_MISSION_HINT_HE = 'הטסה. הערה ותצפית בלבד.';
 const ASSIST_DEFAULT_PLACEHOLDER_HE = 'שאלה, יועץ, פתק, או בקשת פיתוח…';
 const ASSIST_MISSION_PLACEHOLDER_HE = 'הערה, תצפית, או שאלה';
-const ASSIST_DEFAULT_INVITE_HE = 'שאלו כאן. יועץ המעבדה נפתח אם צריך.';
+const ASSIST_DEFAULT_INVITE_HE = 'שאלו כאן.';
 const ASSIST_MISSION_INVITE_HE = 'שאלו, רשמו הערה, או תצפית.';
 const ASSIST_CHIP_PREFIX = Object.freeze({
   note: 'הערה: ',
@@ -11453,6 +11396,11 @@ function assistSyncMissionPosture() {
 }
 
 function assistApplyQuickChip(kind) {
+  if (kind === 'ask') {
+    assistSetOpen(true);
+    document.getElementById('assistInput')?.focus();
+    return;
+  }
   if (kind === 'advisor') {
     void assistSendText('פתח יועץ');
     return;
@@ -11953,10 +11901,52 @@ async function assistDisconnectAgent() {
   }
 }
 
+function isMissionAssistDocked() {
+  return document.getElementById('terrain')?.classList.contains('visible') === true;
+}
+
+function placeAssistSurface(tabId) {
+  const rail = document.getElementById('assistRail');
+  const host = document.getElementById('missionTalkHost');
+  const dock = document.getElementById('assistRailDock');
+  const closeBtn = document.getElementById('assistCloseBtn');
+  const toggle = document.getElementById('assistToggleBtn');
+  if (!rail) return;
+  const onMission = tabId === 'terrain';
+  document.body.classList.toggle('mission-assist-docked', onMission);
+  if (onMission && host) {
+    host.appendChild(rail);
+    rail.classList.add('assist-rail--mission');
+    rail.hidden = false;
+    document.body.classList.remove('assist-open');
+    if (closeBtn) closeBtn.hidden = true;
+    toggle?.setAttribute('aria-expanded', 'true');
+    void assistRefreshAgentConnection();
+    return;
+  }
+  if (dock && rail.parentElement !== dock) dock.appendChild(rail);
+  rail.classList.remove('assist-rail--mission');
+  if (closeBtn) closeBtn.hidden = false;
+  let overlayOpen = false;
+  try { overlayOpen = sessionStorage.getItem(ASSIST_OPEN_KEY) === '1'; } catch { /* ignore */ }
+  rail.hidden = !overlayOpen;
+  document.body.classList.toggle('assist-open', overlayOpen);
+  toggle?.setAttribute('aria-expanded', overlayOpen ? 'true' : 'false');
+}
+
 function assistSetOpen(open) {
   const rail = document.getElementById('assistRail');
   const toggle = document.getElementById('assistToggleBtn');
   if (!rail || !toggle) return;
+  if (isMissionAssistDocked()) {
+    rail.hidden = false;
+    toggle.setAttribute('aria-expanded', 'true');
+    document.body.classList.remove('assist-open');
+    assistRefreshContextChip();
+    void assistRefreshAgentConnection();
+    document.getElementById('assistInput')?.focus();
+    return;
+  }
   rail.hidden = !open;
   toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
   document.body.classList.toggle('assist-open', open);
@@ -11968,6 +11958,333 @@ function assistSetOpen(open) {
   }
 }
 
+function clampMissionFr(value, min, max, fallback) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(max, Math.max(min, n));
+}
+
+function defaultMissionSize() {
+  return { c1: 1.15, c2: 1.45, c3: 0.92, r1: 1.55, r2: 0.88 };
+}
+
+function defaultMissionAreas() {
+  return {
+    horizon: 'horizon',
+    map: 'map',
+    data: 'data',
+    messages: 'messages',
+    talk: 'talk',
+  };
+}
+
+let _missionSize = defaultMissionSize();
+
+function missionLayoutStoreGet(key) {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function missionLayoutStoreSet(key, value) {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    /* ignore */
+  }
+}
+
+function readMissionSwap() {
+  if (missionLayoutStoreGet(MISSION_SWAP_KEY) === 'map-horizon') return 'map-horizon';
+  return 'horizon-map';
+}
+
+function writeMissionSwap(swap) {
+  missionLayoutStoreSet(MISSION_SWAP_KEY, swap === 'map-horizon' ? 'map-horizon' : 'horizon-map');
+}
+
+function readMissionSize() {
+  try {
+    const raw = JSON.parse(missionLayoutStoreGet(MISSION_SIZE_KEY) || 'null');
+    if (raw && typeof raw === 'object') {
+      const fallback = defaultMissionSize();
+      return {
+        c1: clampMissionFr(raw.c1, 0.7, 2.2, fallback.c1),
+        c2: clampMissionFr(raw.c2, 0.7, 2.2, fallback.c2),
+        c3: clampMissionFr(raw.c3, 0.6, 1.6, fallback.c3),
+        r1: clampMissionFr(raw.r1, 0.9, 2.4, fallback.r1),
+        r2: clampMissionFr(raw.r2, 0.6, 1.8, fallback.r2),
+      };
+    }
+  } catch {
+    /* ignore */
+  }
+  return defaultMissionSize();
+}
+
+function writeMissionSize(size) {
+  _missionSize = size;
+  missionLayoutStoreSet(MISSION_SIZE_KEY, JSON.stringify(size));
+}
+
+function readMissionAreas() {
+  const fallback = defaultMissionAreas();
+  try {
+    const raw = JSON.parse(missionLayoutStoreGet(MISSION_AREAS_KEY) || 'null');
+    if (!raw || typeof raw !== 'object') return fallback;
+    const next = { ...fallback };
+    for (const id of MISSION_REGION_IDS) {
+      if (MISSION_REGION_IDS.includes(raw[id])) next[id] = raw[id];
+    }
+    return next;
+  } catch {
+    return fallback;
+  }
+}
+
+function writeMissionAreas(map) {
+  missionLayoutStoreSet(MISSION_AREAS_KEY, JSON.stringify(map));
+}
+
+function applyMissionAreas(map) {
+  const areas = map || readMissionAreas();
+  document.querySelectorAll('[data-mission-region]').forEach((el) => {
+    const id = el.dataset.missionRegion;
+    el.style.gridArea = areas[id] || id;
+  });
+  requestAnimationFrame(placeMissionSplits);
+}
+
+function swapMissionRegions(fromId, toId) {
+  if (!MISSION_REGION_IDS.includes(fromId) || !MISSION_REGION_IDS.includes(toId) || fromId === toId) return;
+  const areas = readMissionAreas();
+  const fromArea = areas[fromId];
+  areas[fromId] = areas[toId];
+  areas[toId] = fromArea;
+  writeMissionAreas(areas);
+  applyMissionAreas(areas);
+}
+
+function applyMissionSize(size) {
+  const ws = document.querySelector('.mission-workspace');
+  if (!ws || !size) return;
+  _missionSize = size;
+  ws.style.setProperty('--mission-c1', `${size.c1}fr`);
+  ws.style.setProperty('--mission-c2', `${size.c2}fr`);
+  ws.style.setProperty('--mission-c3', `${size.c3}fr`);
+  ws.style.setProperty('--mission-r1', `${size.r1}fr`);
+  ws.style.setProperty('--mission-r2', `${size.r2}fr`);
+  requestAnimationFrame(placeMissionSplits);
+}
+
+function toggleMissionHorizonMapSwap() {
+  swapMissionRegions('horizon', 'map');
+}
+
+function resetMissionLayout() {
+  writeMissionSwap('horizon-map');
+  writeMissionSize(defaultMissionSize());
+  writeMissionAreas(defaultMissionAreas());
+  applyMissionSize(defaultMissionSize());
+  applyMissionAreas(defaultMissionAreas());
+  syncMissionLayoutChrome();
+}
+
+function clusterMissionRects(items, pick, gap) {
+  const sorted = [...items].sort((a, b) => pick(a) - pick(b));
+  const groups = [];
+  for (const item of sorted) {
+    const last = groups[groups.length - 1];
+    if (!last || pick(item) - pick(last[0]) > gap) groups.push([item]);
+    else last.push(item);
+  }
+  return groups;
+}
+
+function placeMissionSplitBox(el, left, top, width, height) {
+  if (!el) return;
+  el.style.left = `${left}px`;
+  el.style.top = `${top}px`;
+  el.style.width = `${width}px`;
+  el.style.height = `${height}px`;
+}
+
+function placeMissionSplits() {
+  const ws = document.querySelector('.mission-workspace');
+  const col = document.getElementById('missionColSplit');
+  const colB = document.getElementById('missionColSplitB');
+  const row = document.getElementById('missionRowSplit');
+  if (!ws) return;
+  const items = [...ws.querySelectorAll('[data-mission-region]')].map((el) => ({
+    el,
+    r: el.getBoundingClientRect(),
+  })).filter((x) => x.r.width > 8 && x.r.height > 8);
+  if (items.length < 2) return;
+  const wr = ws.getBoundingClientRect();
+  const cols = clusterMissionRects(items, (x) => x.r.left, 28);
+  const rows = clusterMissionRects(items, (x) => x.r.top, 28);
+  const placeCol = (el, leftGroup, rightGroup) => {
+    if (!el || !leftGroup || !rightGroup) return;
+    const left = leftGroup.reduce((m, x) => (x.r.right > m.r.right ? x : m));
+    const right = rightGroup.reduce((m, x) => (x.r.left < m.r.left ? x : m));
+    const top = Math.min(...leftGroup.concat(rightGroup).map((x) => x.r.top)) - wr.top;
+    const bottom = Math.max(...leftGroup.concat(rightGroup).map((x) => x.r.bottom)) - wr.top;
+    placeMissionSplitBox(el, ((left.r.right + right.r.left) / 2) - wr.left - 4, top, 8, Math.max(8, bottom - top));
+  };
+  placeCol(col, cols[0], cols[1]);
+  placeCol(colB, cols[1], cols[2]);
+  if (row && rows[0] && rows[1]) {
+    const top = rows[0].reduce((m, x) => (x.r.bottom > m.r.bottom ? x : m));
+    const bottom = rows[1].reduce((m, x) => (x.r.top < m.r.top ? x : m));
+    const left = Math.min(...rows[0].concat(rows[1]).map((x) => x.r.left)) - wr.left;
+    const right = Math.max(...rows[0].concat(rows[1]).map((x) => x.r.right)) - wr.left;
+    placeMissionSplitBox(row, left, ((top.r.bottom + bottom.r.top) / 2) - wr.top - 4, Math.max(8, right - left), 8);
+  }
+}
+
+function syncMissionLayoutChrome() {
+  const ws = document.querySelector('.mission-workspace');
+  if (ws) ws.dataset.missionEdit = 'on';
+  const btn = document.getElementById('missionSwapHorizonMapBtn');
+  if (btn) btn.disabled = false;
+  ['missionColSplit', 'missionColSplitB', 'missionRowSplit'].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.hidden = false;
+  });
+  const hint = document.getElementById('missionLayoutHint');
+  if (hint) hint.textContent = 'גררו קצה לשינוי גודל. גררו כותרת להחלפה. גם בטיסה.';
+  requestAnimationFrame(placeMissionSplits);
+}
+
+function bindMissionRegionDrag() {
+  document.querySelectorAll('.mission-region').forEach((region) => {
+    region.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      region.classList.add('mission-region--drop');
+    });
+    region.addEventListener('dragleave', () => {
+      region.classList.remove('mission-region--drop');
+    });
+    region.addEventListener('drop', (e) => {
+      e.preventDefault();
+      region.classList.remove('mission-region--drop');
+      const from = String(e.dataTransfer.getData('text/plain') || '');
+      const to = region.dataset.missionRegion;
+      if (from && to) swapMissionRegions(from, to);
+    });
+    region.addEventListener('dragend', () => {
+      region.classList.remove('mission-region--drop');
+    });
+  });
+  document.querySelectorAll('.mission-region-title').forEach((title) => {
+    title.addEventListener('dragstart', (e) => {
+      const region = title.closest('[data-mission-region]');
+      if (!region) {
+        e.preventDefault();
+        return;
+      }
+      e.dataTransfer.setData('text/plain', region.dataset.missionRegion);
+      e.dataTransfer.effectAllowed = 'move';
+    });
+  });
+}
+
+function bindMissionSplitters() {
+  const col = document.getElementById('missionColSplit');
+  const colB = document.getElementById('missionColSplitB');
+  const row = document.getElementById('missionRowSplit');
+  let dragging = null;
+  let start = 0;
+  let base = null;
+  const stopDrag = () => {
+    if (!dragging) return;
+    writeMissionSize(_missionSize);
+    dragging = null;
+    base = null;
+  };
+  const onDown = (axis, ev) => {
+    dragging = axis;
+    start = axis === 'row' ? ev.clientY : ev.clientX;
+    base = { ..._missionSize };
+    ev.currentTarget.setPointerCapture?.(ev.pointerId);
+    ev.preventDefault();
+  };
+  const onMove = (ev) => {
+    if (!dragging || !base) return;
+    const ws = document.querySelector('.mission-workspace');
+    if (!ws) return;
+    const rect = ws.getBoundingClientRect();
+    const next = { ...base };
+    if (dragging === 'col') {
+      const unit = rect.width / Math.max(0.001, base.c1 + base.c2 + base.c3);
+      const delta = (ev.clientX - start) / unit;
+      next.c1 = clampMissionFr(base.c1 + delta, 0.7, 2.2, base.c1);
+      next.c2 = clampMissionFr(base.c2 - delta, 0.7, 2.2, base.c2);
+    } else if (dragging === 'col2') {
+      const unit = rect.width / Math.max(0.001, base.c1 + base.c2 + base.c3);
+      const delta = (ev.clientX - start) / unit;
+      next.c2 = clampMissionFr(base.c2 + delta, 0.7, 2.2, base.c2);
+      next.c3 = clampMissionFr(base.c3 - delta, 0.6, 1.6, base.c3);
+    } else {
+      const unit = rect.height / Math.max(0.001, base.r1 + base.r2);
+      const delta = (ev.clientY - start) / unit;
+      next.r1 = clampMissionFr(base.r1 + delta, 0.9, 2.4, base.r1);
+      next.r2 = clampMissionFr(base.r2 - delta, 0.6, 1.8, base.r2);
+    }
+    applyMissionSize(next);
+  };
+  col?.addEventListener('pointerdown', (ev) => onDown('col', ev));
+  colB?.addEventListener('pointerdown', (ev) => onDown('col2', ev));
+  row?.addEventListener('pointerdown', (ev) => onDown('row', ev));
+  window.addEventListener('pointermove', onMove);
+  window.addEventListener('pointerup', stopDrag);
+  window.addEventListener('pointercancel', stopDrag);
+}
+
+function initMissionLayout() {
+  applyMissionSize(readMissionSize());
+  applyMissionAreas(readMissionAreas());
+  syncMissionLayoutChrome();
+  document.getElementById('missionSwapHorizonMapBtn')?.addEventListener('click', () => {
+    toggleMissionHorizonMapSwap();
+  });
+  document.getElementById('missionResetLayoutBtn')?.addEventListener('click', () => {
+    resetMissionLayout();
+  });
+  bindMissionRegionDrag();
+  bindMissionSplitters();
+  window.addEventListener('resize', () => requestAnimationFrame(placeMissionSplits));
+}
+
+function initMissionTalk() {
+  const form = document.getElementById('missionTalkForm');
+  const input = document.getElementById('missionTalkInput');
+  const chips = document.getElementById('missionTalkChips');
+  const voiceBtn = document.getElementById('missionTalkVoiceBtn');
+  if (form) {
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const text = String(input?.value || '');
+      if (input) input.value = '';
+      assistSetOpen(true);
+      void assistSendText(text);
+    });
+  }
+  chips?.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-assist-chip]');
+    if (!btn) return;
+    assistSetOpen(true);
+    assistApplyQuickChip(btn.dataset.assistChip);
+  });
+  voiceBtn?.addEventListener('click', () => {
+    assistSetOpen(true);
+    document.getElementById('assistInput')?.focus();
+  });
+}
+
 function initAssistUi() {
   const rail = document.getElementById('assistRail');
   const toggle = document.getElementById('assistToggleBtn');
@@ -11975,7 +12292,9 @@ function initAssistUi() {
   _assistChromeReady = true;
   let open = false;
   try { open = sessionStorage.getItem(ASSIST_OPEN_KEY) === '1'; } catch { /* ignore */ }
-  assistSetOpen(open);
+  const current = document.querySelector('.panel.visible')?.id || appDefaultWorkspaceTab();
+  placeAssistSurface(current);
+  assistSetOpen(current === 'terrain' ? true : open);
   toggle.addEventListener('click', () => assistSetOpen(rail.hidden));
   document.getElementById('assistCloseBtn')?.addEventListener('click', () => assistSetOpen(false));
   document.getElementById('assistForm')?.addEventListener('submit', (e) => {
@@ -11993,6 +12312,7 @@ function initAssistUi() {
   document.getElementById('advisorOpenAssistBtn')?.addEventListener('click', () => assistSetOpen(true));
   document.getElementById('feOpenAssistBtn')?.addEventListener('click', () => assistSetOpen(true));
   document.getElementById('fdOpenAssistBtn')?.addEventListener('click', () => assistSetOpen(true));
+  initMissionTalk();
   document.getElementById('assistConfirmBtn')?.addEventListener('click', () => { void assistConfirm(true); });
   document.getElementById('assistCancelBtn')?.addEventListener('click', () => { void assistConfirm(false); });
   document.getElementById('assistAgentConnectForm')?.addEventListener('submit', (e) => { void assistConnectAgent(e); });
@@ -12016,6 +12336,7 @@ function initAssistUi() {
 }
 
 initAssistUi();
+initMissionLayout();
 initCompanionConnectUi();
 initFirstOpenActions();
 initPulseHome();

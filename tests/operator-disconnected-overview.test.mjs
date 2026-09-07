@@ -35,17 +35,17 @@ describe('Disconnected-first operator overview', () => {
     expect(html).toMatch(/<section id="maintenance"[\s\S]*?<h3>תחזוקה<\/h3>/);
     expect(html).not.toMatch(/<h3>פיתוח ותחזוקה<\/h3>/);
     expect(tag('maintOperatorBanner')).toMatch(/data-state="disconnected"/);
-    expect(html).toMatch(/id="maintStatusBadge"[^>]*>המלווה מנותק</);
-    expect(html).toMatch(/id="maintNextStep"[^>]*>חברו מלווה\. כתובת לבד לא מספיקה\.</);
+    expect(html).toMatch(/id="maintStatusBadge"[^>]*>Jetson מנותק</);
+    expect(html).toMatch(/id="maintNextStep"[^>]*>חברו מחשב משימה\. כתובת לבד לא מספיקה\.</);
     expect(tag('maintLiveSections')).toMatch(/\bhidden\b/);
-    expect(html).toMatch(/id="maintLiveParked"[^>]*>נתוני Jetson וגרסאות יופיעו אחרי חיבור מלווה\.</);
+    expect(html).toMatch(/id="maintLiveParked"[^>]*>נתוני Jetson וגרסאות יופיעו אחרי חיבור מחשב משימה\.</);
   });
 
   it('hides Companion live walls until connected and keeps the confirm modal hidden', () => {
     expect(tag('companionDashboardSummary')).toMatch(/\bhidden\b/);
     expect(tag('companionB2Grid')).toMatch(/\bhidden\b/);
     expect(html).toMatch(/id="companionLiveParked"[^>]*>הסיכום יופיע אחרי חיבור/);
-    expect(html).toMatch(/id="companionB2Parked"[^>]*>נתוני מלווה יופיעו אחרי חיבור/);
+    expect(html).toMatch(/id="companionB2Parked"[^>]*>נתוני מחשב משימה יופיעו אחרי חיבור/);
     expect(tag('maintRelConfirmModal')).toMatch(/\bhidden\b/);
     expect(css).toMatch(/#companionDashboardSummary\[hidden\]/);
     expect(css).toMatch(/#maintLiveSections\[hidden\]/);
@@ -56,9 +56,9 @@ describe('Disconnected-first operator overview', () => {
   it('collapses Telemetry dash walls behind a parked STATUS plus NEXT overview', () => {
     expect(html).toMatch(/<section id="telemetry"[\s\S]*?<h3>טלמטריה<\/h3>/);
     expect(tag('teleOperatorBanner')).toMatch(/data-state="disconnected"/);
-    expect(html).toMatch(/id="teleStatusBadge"[^>]*>המלווה מנותק</);
-    expect(html).toMatch(/id="teleNextStep"[^>]*>חברו מלווה\. כתובת לבד לא מספיקה\.</);
-    expect(html).toMatch(/id="teleLiveParked"[^>]*>נתוני טלמטריה יופיעו אחרי חיבור מלווה\.</);
+    expect(html).toMatch(/id="teleStatusBadge"[^>]*>Jetson מנותק</);
+    expect(html).toMatch(/id="teleNextStep"[^>]*>חברו מחשב משימה\. כתובת לבד לא מספיקה\.</);
+    expect(html).toMatch(/id="teleLiveParked"[^>]*>נתוני טלמטריה יופיעו אחרי חיבור מחשב משימה\.</);
     expect(tag('teleLiveSections')).toMatch(/\bhidden\b/);
     expect(html).toMatch(/id="teleLiveSections"[^>]*>[\s\S]*class="telemetry-dashboard"/);
     expect(css).toMatch(/#teleLiveSections\[hidden\]/);
@@ -76,10 +76,10 @@ describe('Disconnected-first operator overview', () => {
   it('uses the same Hebrew disconnected next-step tone across Assist, Companion, and Maintenance', () => {
     expect(html).toMatch(/id="assistAgentStatus"[^>]*>הסוכן מנותק\.</);
     expect(html).toMatch(/id="assistAgentHint"[^>]*>חברו מפתח כדי לאשר שינוי\.</);
-    expect(html).toMatch(/id="companionConnectStatus"[^>]*>המלווה מנותק</);
+    expect(html).toMatch(/id="companionConnectStatus"[^>]*>Jetson מנותק</);
     expect(html).toMatch(/id="companionConnectHint"[^>]*>צריך כתובת ואסימון\. כתובת לבד לא מספיקה\.</);
-    expect(html).toMatch(/id="maintNextStep"[^>]*>חברו מלווה\. כתובת לבד לא מספיקה\.</);
-    expect(html).toMatch(/id="teleNextStep"[^>]*>חברו מלווה\. כתובת לבד לא מספיקה\.</);
+    expect(html).toMatch(/id="maintNextStep"[^>]*>חברו מחשב משימה\. כתובת לבד לא מספיקה\.</);
+    expect(html).toMatch(/id="teleNextStep"[^>]*>חברו מחשב משימה\. כתובת לבד לא מספיקה\.</);
     expect(html).toMatch(/id="assistAgentConnect"[^>]*\boperator-state\b/);
     expect(html).toMatch(/id="companionConnect"[^>]*\boperator-state\b/);
   });
@@ -119,7 +119,7 @@ describe('Disconnected-first operator overview', () => {
     const src = [
       'function maintSetEl(id, val) { const el = document.getElementById(id); if (el) el.textContent = (val == null || val === "") ? "—" : String(val); }',
       sliceFunction(js, 'maintSetOverview'),
-      'maintSetOverview({ live: false, statusHe: "המלווה מנותק", nextHe: "חברו מלווה. כתובת לבד לא מספיקה.", state: "disconnected" });',
+      'maintSetOverview({ live: false, statusHe: "Jetson מנותק", nextHe: "חברו מחשב משימה. כתובת לבד לא מספיקה.", state: "disconnected" });',
       'const collapsed = { liveHidden: document.getElementById("maintLiveSections").hidden, parkedHidden: document.getElementById("maintLiveParked").hidden, next: document.getElementById("maintNextStep").textContent, ui: document.getElementById("maintUiVersion").textContent };',
       'maintSetOverview({ live: true, statusHe: "תקין", nextHe: "", state: "ok" });',
       'return { collapsed, liveHidden: document.getElementById("maintLiveSections").hidden, parkedHidden: document.getElementById("maintLiveParked").hidden, nextHidden: document.getElementById("maintNextStep").hidden, ui: document.getElementById("maintUiVersion").textContent };',
@@ -127,7 +127,7 @@ describe('Disconnected-first operator overview', () => {
     const result = new Function('document', src)(document);
     expect(result.collapsed.liveHidden).toBe(true);
     expect(result.collapsed.parkedHidden).toBe(false);
-    expect(result.collapsed.next).toContain('חברו מלווה');
+    expect(result.collapsed.next).toContain('חברו מחשב משימה');
     expect(result.liveHidden).toBe(false);
     expect(result.parkedHidden).toBe(true);
     expect(result.nextHidden).toBe(true);
@@ -196,22 +196,22 @@ describe('Disconnected-first operator overview', () => {
     const src = [
       sliceFunction(js, 'companionSetLiveChrome'),
       sliceFunction(js, 'teleSetOverview'),
-      'teleSetOverview({ live: false, statusHe: "המלווה מנותק", nextHe: "חברו מלווה. כתובת לבד לא מספיקה.", state: "disconnected" });',
+      'teleSetOverview({ live: false, statusHe: "Jetson מנותק", nextHe: "חברו מחשב משימה. כתובת לבד לא מספיקה.", state: "disconnected" });',
       'companionSetLiveChrome(false);',
       'const collapsed = { liveHidden: document.getElementById("teleLiveSections").hidden, parkedHidden: document.getElementById("teleLiveParked").hidden, next: document.getElementById("teleNextStep").textContent, state: document.getElementById("teleOperatorBanner").dataset.state };',
-      'teleSetOverview({ live: true, statusHe: "המלווה במצב מדומה", nextHe: "", state: "ok" });',
+      'teleSetOverview({ live: true, statusHe: "Jetson במצב מדומה", nextHe: "", state: "ok" });',
       'companionSetLiveChrome(true);',
       'return { collapsed, liveHidden: document.getElementById("teleLiveSections").hidden, parkedHidden: document.getElementById("teleLiveParked").hidden, nextHidden: document.getElementById("teleNextStep").hidden, status: document.getElementById("teleStatusBadge").textContent, summaryHidden: document.getElementById("companionDashboardSummary").hidden };',
     ].join('\n');
     const result = new Function('document', src)(document);
     expect(result.collapsed.liveHidden).toBe(true);
     expect(result.collapsed.parkedHidden).toBe(false);
-    expect(result.collapsed.next).toContain('חברו מלווה');
+    expect(result.collapsed.next).toContain('חברו מחשב משימה');
     expect(result.collapsed.state).toBe('disconnected');
     expect(result.liveHidden).toBe(false);
     expect(result.parkedHidden).toBe(true);
     expect(result.nextHidden).toBe(true);
-    expect(result.status).toBe('המלווה במצב מדומה');
+    expect(result.status).toBe('Jetson במצב מדומה');
     expect(result.summaryHidden).toBe(false);
   });
 
@@ -233,20 +233,20 @@ describe('Disconnected-first operator overview', () => {
     expect(html).toMatch(/class="assist-rail-title">מסייע</);
     expect(html).toMatch(/assist-toggle-he">מסייע</);
     expect(html).toMatch(/id="assistMessagesEmpty"[^>]*assist-empty-stage/);
-    expect(html).toMatch(/שאלו כאן\. יועץ המעבדה נפתח אם צריך/);
+    expect(html).toMatch(/שאלו כאן\./);
     expect(html).toMatch(/שינוי דורש אישור/);
     expect(html).toMatch(/companion-connect--hero/);
     expect(html).toMatch(/data-first-action="assist"/);
     expect(html).toMatch(/data-first-action="params"/);
     expect(html).toMatch(/data-first-action="companion"/);
-    expect(html).toMatch(/id="tabLabMenu"[\s\S]*data-tab="simLab"[^>]*\btab-lab\b|id="tabLabMenu"[\s\S]*class="tab tab-lab"[^>]*data-tab="simLab"/);
-    expect(html).toMatch(/id="tabLabMenu"[\s\S]*data-tab="advisor"[^>]*\btab-lab\b|id="tabLabMenu"[\s\S]*class="tab tab-lab"[^>]*data-tab="advisor"/);
-    expect(html).toMatch(/id="tabLabMenu"[\s\S]*data-tab="featureDesigner"[^>]*\btab-lab\b|id="tabLabMenu"[\s\S]*class="tab tab-lab"[^>]*data-tab="featureDesigner"/);
-    expect(html).toMatch(/id="tabLabMenu"[\s\S]*data-tab="flightEngineer"[^>]*\btab-lab\b|id="tabLabMenu"[\s\S]*class="tab tab-lab"[^>]*data-tab="flightEngineer"/);
+    expect(html).not.toContain('id="tabLabMenu"');
+    expect(html).not.toContain('id="tabLabToggle"');
+    expect(html).not.toContain('מעבדה');
+    expect(html).not.toContain('id="simLab"');
+    expect(html).toContain('id="advisor"');
+    expect(html).toContain('id="featureDesigner"');
+    expect(html).toContain('id="flightEngineer"');
     expect(html).toMatch(/data-tab="telemetry"/);
-    expect(html).toMatch(/id="tabLabToggle"[^>]*>מעבדה</);
-    expect(css).toMatch(/\.tab-lab\b/);
-    expect(css).toMatch(/\.tab-lab-menu\[hidden\]/);
     expect(css).toMatch(/\.companion-connect--hero\b/);
     expect(css).toMatch(/\.assist-empty-stage\b/);
     expect(css).toMatch(/\.first-open-stage-fill\b/);

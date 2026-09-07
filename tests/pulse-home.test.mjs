@@ -45,23 +45,25 @@ function loadPulseLogic() {
 describe('C10.3 Pulse home', () => {
   const pulse = loadPulseLogic();
 
-  it('ships Pulse as the default Hebrew home without deleting existing tabs', () => {
-    expect(html).toMatch(/data-tab="pulse"[^>]*>סקירה</);
-    expect(tag('pulse')).toMatch(/\bvisible\b/);
+  it('keeps Pulse as the named Hebrew home without deleting existing tabs', () => {
+    expect(html).toMatch(/data-tab="pulse"[^>]*>בית</);
+    expect(tag('pulse')).not.toMatch(/\bvisible\b/);
+    expect(tag('terrain')).toMatch(/\bvisible\b/);
     expect(tag('control')).not.toMatch(/\bvisible\b/);
     expect(html).toMatch(/data-tab="telemetry"/);
     expect(html).toMatch(/data-tab="maintenance"/);
     expect(html).toMatch(/data-tab="development"/);
     expect(html).toMatch(/data-tab="control"/);
-    expect(html).toMatch(/data-tab="simLab"/);
+    expect(html).not.toMatch(/class="tab"[^>]*data-tab="simLab"/);
+    expect(html).not.toContain('id="simLab"');
+    expect(html).toMatch(/class="pulse-purpose">מצב מערכת</);
+    expect(html).toMatch(/id="pulseTalkBtn"[^>]*>שאלו את המסייע</);
     expect(html).toMatch(/id="pulseVersion"[^>]*>--</);
     expect(html).toMatch(/id="pulseLink"[^>]*>--</);
     expect(html).toMatch(/id="pulseAircraft"[^>]*>--</);
     expect(html).toMatch(/data-first-action="companion"/);
     expect(html).toMatch(/data-first-action="assist"/);
     expect(html).toMatch(/data-first-action="params"/);
-    expect(html).toMatch(/data-first-action="develop"/);
-    expect(html).toMatch(/data-first-action="telemetry"/);
     expect(css).toMatch(/#pulse\.panel\.visible\b/);
     expect(css).toMatch(/\.pulse-attention\b/);
     expect(css).toMatch(/\.pulse-status\b/);
@@ -97,15 +99,16 @@ describe('C10.3 Pulse home', () => {
     expect(pulse.pulseCompanionLabel({ connected: false, mode: 'mock' })).toBe('מדומה');
   });
 
-  it('builds at most three calm attention items and a one-line Evolve glance', () => {
+  it('builds at most two calm attention items and a one-line Evolve glance', () => {
     const disconnected = pulse.pulseBuildAttention({
       companionLive: false,
       assistConnected: false,
       evolveActive: false,
     });
-    expect(disconnected).toHaveLength(3);
-    expect(disconnected.map((item) => item.id)).toEqual(['companion', 'assist', 'evolve']);
-    expect(disconnected.map((item) => item.level)).toEqual(['attention', 'info', 'info']);
+    expect(disconnected).toHaveLength(2);
+    expect(disconnected.map((item) => item.id)).toEqual(['companion', 'assist']);
+    expect(disconnected.map((item) => item.level)).toEqual(['attention', 'info']);
+    expect(disconnected.find((item) => item.id === 'assist')?.cta).toBe('שאלו את המסייע');
     const quiet = pulse.pulseBuildAttention({
       companionLive: true,
       assistConnected: true,
@@ -177,6 +180,12 @@ describe('C10.3 Pulse home', () => {
     expect(pulseSrc).not.toMatch(/\/apply|\/restart|ARM|DISARM|LAND|JETSON_COMPANION|CURSOR_API_KEY/);
     expect(html).not.toMatch(/id="pulse".*id="companionApplyBtn"|id="companionRestartBtn"/);
     expect(findAssistRoute('סקירה')?.tab).toBe('pulse');
+    expect(findAssistRoute('תמונת מצב')?.tab).toBe('pulse');
+    expect(findAssistRoute('בית')?.tab).toBe('pulse');
     expect(findAssistRoute('pulse')?.tab).toBe('pulse');
+    expect(findAssistRoute('מלווה')?.tab).toBe('maintenance');
+    expect(findAssistRoute('Companion')?.tab).toBe('maintenance');
+    expect(findAssistRoute('Jetson')?.tab).toBe('maintenance');
+    expect(findAssistRoute('מחשב משימה')?.tab).toBe('maintenance');
   });
 });

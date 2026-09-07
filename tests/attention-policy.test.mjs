@@ -120,7 +120,6 @@ describe('C10.7a Attention Policy', () => {
     expect(items.map((item) => [item.id, item.level])).toEqual([
       ['companion', 'attention'],
       ['assist', 'info'],
-      ['evolve', 'info'],
     ]);
     const quiet = logic.attentionPolicyDefaults();
     expect(logic.attentionShouldShowAssistBadge(quiet, items)).toBe(false);
@@ -176,7 +175,7 @@ describe('C10.7a Attention Policy', () => {
     expect(css).toMatch(/\.assist-attention-badge\b/);
     expect(js).toContain("ATTENTION_POLICY_KEY = 'visionLandingAttentionPolicyV1'");
     expect(js).toContain("proactiveLevel: 'off'");
-    expect(version).toContain("export const APP_VERSION = '1.02.255'");
-    expect(pkg.version).toBe('1.02.255');
+    expect(version).toContain("export const APP_VERSION = '1.02.256'");
+    expect(pkg.version).toBe('1.02.256');
   });
 });

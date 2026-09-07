@@ -68,11 +68,11 @@ describe('Preflight / readiness MERGE — Mission glance + Diagnostics', () => {
     expect(html).toMatch(/id="pfdReadinessDiagBtn"[^>]*>רשימה באבחונים</);
   });
 
-  it('shares מוכנות vocabulary on the LAB SITL bar without cliff-deleting it', () => {
-    expect(html).toContain('id="simLabPreflightBar"');
-    expect(html).toMatch(/aria-label="מוכנות מעבדה"/);
-    expect(html).toMatch(/class="sl-pf-title">מוכנות</);
-    expect(css).toMatch(/\.sl-pf-title\b/);
+  it('keeps Mission מוכנות and does not ship a Sim Lab readiness bar', () => {
+    expect(html).toContain('id="missionReadinessGlance"');
+    expect(html).not.toContain('id="simLabPreflightBar"');
+    expect(html).not.toContain('מוכנות סימולציה');
+    expect(html).not.toContain('id="simLab"');
   });
 
   it('routes Assist מוכנות to Mission readiness and does not invent GPS or write paths', () => {
@@ -99,8 +99,8 @@ describe('Preflight / readiness MERGE — Mission glance + Diagnostics', () => {
     expect(js).not.toMatch(/FLIGHT_ACTION/);
   });
 
-  it('pins APP_VERSION at 1.02.255', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.255'");
-    expect(pkg.version).toBe('1.02.255');
+  it('pins APP_VERSION at 1.02.256', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.256'");
+    expect(pkg.version).toBe('1.02.256');
   });
 });

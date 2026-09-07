@@ -43,7 +43,7 @@ function maintPanel() {
 function devPanel() {
   return capture(
     html,
-    /<section\b[^>]*\bid="development"[^>]*>([\s\S]*?)<\/section>\s*<section\b[^>]*\bid="simLab"/i,
+    /<section\b[^>]*\bid="development"[^>]*>([\s\S]*?)<\/section>\s*<section\b[^>]*\bid="flights"/i,
     'missing #development panel',
   )[1];
 }

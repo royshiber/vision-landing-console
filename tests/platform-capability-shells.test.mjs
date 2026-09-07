@@ -49,13 +49,15 @@ describe('C10.5b Platform capability shells', () => {
     expect(html).toMatch(/class="tab tab-ops"[^>]*data-tab="platform"[^>]*>פלטפורמה</);
     expect(tag('platform')).toMatch(/aria-label="פלטפורמה"/);
     expect(tag('platform')).not.toMatch(/\bvisible\b/);
-    expect(tag('pulse')).toMatch(/\bvisible\b/);
+    expect(tag('pulse')).not.toMatch(/\bvisible\b/);
+    expect(tag('terrain')).toMatch(/\bvisible\b/);
     expect(html).toMatch(/class="tab tab-ops"[^>]*data-tab="control"[^>]*>פרמטרים</);
     expect(html).toMatch(/class="tab tab-ops"[^>]*data-tab="recordings"[^>]*>תחקור</);
     expect(html).toMatch(/data-tab="telemetry"[^>]*>אבחונים</);
     expect(html).toMatch(/class="tab tab-ops"[^>]*data-tab="maintenance"[^>]*>תחזוקה</);
     expect(html).toMatch(/class="tab tab-ops"[^>]*data-tab="development"[^>]*>פיתוח</);
-    expect(html).toMatch(/id="tabLabToggle"[^>]*>מעבדה</);
+    expect(html).not.toContain('id="tabLabToggle"');
+    expect(html).not.toContain('מעבדה');
     expect(html).toContain('id="platformCompanionStatus"');
     expect(html).toContain('id="platformMaintStatus"');
     expect(html).toMatch(/data-platform-go="companion"/);
@@ -149,8 +151,8 @@ describe('C10.5b Platform capability shells', () => {
     expect(html).not.toMatch(/id="platform".*id="companionApplyBtn"|id="companionRestartBtn"/);
   });
 
-  it('pins APP_VERSION at 1.02.255', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.255'");
-    expect(pkg.version).toBe('1.02.255');
+  it('pins APP_VERSION at 1.02.256', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.256'");
+    expect(pkg.version).toBe('1.02.256');
   });
 });

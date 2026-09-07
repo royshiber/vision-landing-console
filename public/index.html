@@ -15,37 +15,7 @@
     <script src="https://cdn.jsdelivr.net/npm/leaflet-rotate@0.2.8/dist/leaflet-rotate.js" crossorigin=""></script>
   </head>
   <body>
-    <header class="topbar">
-      <div>
-        <h1>Vision Landing Console</h1>
-      </div>
-      <div class="topbar-right">
-        <div class="topbar-right-scroll" aria-label="מדדי תצוגה">
-        <div class="confidence-hud" title="רמת ביטחון נחיתה לפי תמונה">
-          <span>רמת ביטחון נחיתה לפי תמונה</span>
-          <div class="confidence-track"><div id="liveConfidenceBar" class="confidence-fill"></div></div>
-          <strong id="liveConfidenceText">--%</strong>
-        </div>
-        <div class="confidence-hud" title="הפרש מיקום Vision מול GPS">
-          <span>הפרש Vision מול GPS</span>
-          <strong id="liveGpsVisionDelta" dir="ltr">-- m</strong>
-        </div>
-
-        <div class="confidence-hud tele-hud-mini" title="מהירות אוויר מ-FC">
-          <span>מהירות</span>
-          <strong id="hudAirspeed" dir="ltr">-- m/s</strong>
-        </div>
-        <div class="confidence-hud tele-hud-mini" title="גובה מ-FC (מעל קרקע)">
-          <span>גובה</span>
-          <strong id="hudAltitude" dir="ltr">-- m</strong>
-        </div>
-        <div class="confidence-hud tele-hud-mini" title="מוד טיסה נוכחי">
-          <span>מוד טיסה</span>
-          <strong id="hudFlightMode">--</strong>
-        </div>
-        </div>
-
-        <div id="connectWidget" class="connect-widget connect-widget-compact" title="חיבור MAVLink למטוס — בסגנון Mission Planner">
+    <div id="connectWidget" class="connect-widget connect-widget-compact connect-widget-float" title="חיבור MAVLink למטוס — בסגנון Mission Planner">
           <button type="button" id="connectToggleBtn" class="conn-pill" aria-expanded="false" aria-controls="connectPanel" title="פתח/סגור פאנל חיבור">
             <span id="connectStatusDot" class="conn-dot" data-state="off" aria-label="מצב חיבור"></span>
             <span id="connectPillLabel" class="conn-pill-label">מנותק</span>
@@ -114,14 +84,28 @@
               </ul>
             </details>
           </div>
-        </div>
+    </div>
 
-        <button type="button" id="assistToggleBtn" class="assist-toggle-btn" title="מסייע" aria-label="מסייע" aria-expanded="false" aria-controls="assistRail"><span class="assist-toggle-he">מסייע</span><span class="assist-toggle-en" aria-hidden="true">ASSIST</span><span id="assistAttentionDot" class="assist-attention-dot" hidden></span></button>
+    <header class="app-chrome" data-chrome="ops">
+      <nav class="tabs" aria-label="ניווט ראשי">
+        <button class="tab tab-fly active" data-tab="terrain" title="הטסה">הטסה</button>
+        <button class="tab tab-ops" data-tab="pulse" title="בית">בית</button>
+        <button class="tab tab-ops" data-tab="platform" title="פלטפורמה">פלטפורמה</button>
+        <button class="tab tab-ops" data-tab="control" title="פרמטרים">פרמטרים</button>
+        <button class="tab tab-ops" data-tab="recordings" title="תחקור">תחקור</button>
+        <button class="tab tab-quiet" hidden data-tab="telemetry" title="אבחונים">אבחונים</button>
+        <button class="tab tab-ops" data-tab="maintenance" title="תחזוקה">תחזוקה</button>
+        <button class="tab tab-ops" data-tab="development" title="פיתוח">פיתוח</button>
+      </nav>
+      <div class="app-chrome-tools">
         <button type="button" id="globalSettingsBtn" class="global-settings-btn" title="הגדרות כלליות" aria-haspopup="dialog" aria-controls="globalSettingsModal">⚙</button>
         <button id="versionBtn" class="badge clickable" title="לחץ כדי לראות מה עודכן בגרסה">v__APP_VERSION__</button>
       </div>
     </header>
 
+    <button type="button" id="assistToggleBtn" class="assist-toggle-btn assist-toggle-float" title="מסייע" aria-label="מסייע" aria-expanded="false" aria-controls="assistRail"><span class="assist-toggle-he">מסייע</span><span id="assistAttentionDot" class="assist-attention-dot" hidden></span></button>
+
+    <div id="assistRailDock">
     <aside id="assistRail" class="assist-rail" hidden aria-label="מסייע">
       <header class="assist-rail-head">
         <div class="assist-rail-titles">
@@ -146,7 +130,7 @@
         <button type="button" id="assistAgentDisconnectBtn" class="assist-btn assist-btn-cancel" hidden>ניתוק</button>
       </section>
         <div id="assistMessagesEmpty" class="assist-empty-stage">
-        <p id="assistEmptyInvite" class="assist-empty-invite">שאלו כאן. יועץ המעבדה נפתח אם צריך.</p>
+        <p id="assistEmptyInvite" class="assist-empty-invite">שאלו כאן.</p>
       </div>
       <div id="assistMessages" class="assist-messages" role="log" aria-live="polite"></div>
       <div id="assistRunPanel" class="assist-run-panel" data-kind="unavailable" hidden aria-live="polite"></div>
@@ -163,7 +147,7 @@
           <button type="button" class="assist-quick-chip" data-assist-chip="note">הערה</button>
           <button type="button" class="assist-quick-chip" data-assist-chip="observation">תצפית</button>
           <button type="button" class="assist-quick-chip" data-assist-chip="advisor" hidden>יועץ</button>
-          <button type="button" class="assist-quick-chip" data-assist-chip="ardulab" hidden>ארדולאב</button>
+          <button type="button" class="assist-quick-chip" data-assist-chip="ardulab" hidden>פיצ׳ר</button>
           <button type="button" class="assist-quick-chip" data-assist-chip="flightEngineer" hidden>מהנדס</button>
         </div>
         <form id="assistForm" class="assist-form" autocomplete="off">
@@ -172,6 +156,7 @@
         </form>
       </div>
     </aside>
+    </div>
 
     <div id="connectStatModal" class="conn-modal" hidden>
       <div class="conn-modal-backdrop" data-close="1"></div>
@@ -247,26 +232,6 @@
     </div>
 
     <main class="layout">
-      <nav class="tabs">
-        <button class="tab tab-ops active" data-tab="pulse" title="סקירה">סקירה</button>
-        <button class="tab tab-ops" data-tab="platform" title="פלטפורמה">פלטפורמה</button>
-        <button class="tab tab-ops" data-tab="control" title="פרמטרים">פרמטרים</button>
-        <button class="tab tab-ops" data-tab="recordings" title="תחקור">תחקור</button>
-        <button class="tab tab-quiet" hidden data-tab="telemetry" title="אבחונים">אבחונים</button>
-        <button class="tab tab-ops" data-tab="maintenance" title="תחזוקה">תחזוקה</button>
-        <button class="tab tab-ops" data-tab="development" title="פיתוח">פיתוח</button>
-        <div class="tab-lab-group" id="tabLabGroup">
-          <button type="button" id="tabLabToggle" class="tab tab-lab-toggle" aria-expanded="false" aria-controls="tabLabMenu" aria-haspopup="true" title="מעבדה">מעבדה</button>
-          <div id="tabLabMenu" class="tab-lab-menu" hidden>
-            <button class="tab tab-lab" data-tab="simLab" title="סימולציה">סימולציה</button>
-            <button class="tab tab-lab" data-tab="featureDesigner" title="ArduLab">ArduLab</button>
-            <button class="tab tab-lab" data-tab="flightEngineer" title="מהנדס מעבדה">מהנדס מעבדה</button>
-            <button class="tab tab-lab" data-tab="advisor" title="יועץ מעבדה">יועץ מעבדה</button>
-            <button class="tab tab-fly" data-tab="terrain" title="הטסה">הטסה</button>
-          </div>
-        </div>
-      </nav>
-
       <div id="controlSubtabsBar" class="control-subtabs-bar">
         <div class="subtabs subtabs-wrap">
           <!-- hidden anchor buttons — keep in DOM so _subtabIds() resolves them -->
@@ -295,45 +260,37 @@
         <div id="arduTopCatsHost" class="ardu-top-cats-host hidden" role="tablist" aria-label="קטגוריות ArduPilot"></div>
       </div>
 
-      <section id="pulse" class="panel visible" aria-label="סקירה">
-        <div class="pulse-home">
+      <section id="pulse" class="panel" aria-label="בית">
+        <div class="pulse-home pulse-status-home">
           <header class="pulse-hero">
-            <h3 class="pulse-title">סקירה</h3>
+            <h3 class="pulse-title">בית</h3>
+            <p class="pulse-purpose">מצב מערכת</p>
           </header>
-          <dl class="pulse-status" aria-label="מצב מקוצר">
-            <div class="pulse-status-item">
-              <dt>גרסה</dt>
-              <dd id="pulseVersion" dir="ltr">--</dd>
-            </div>
-            <div class="pulse-status-item" data-pulse-kind="companion">
-              <dt>מלווה</dt>
-              <dd id="pulseCompanion">מנותק</dd>
-            </div>
-            <div class="pulse-status-item" data-pulse-kind="assist">
-              <dt>מסייע</dt>
-              <dd id="pulseAssist">מנותק</dd>
-            </div>
-            <div class="pulse-status-item">
-              <dt>קישור</dt>
-              <dd id="pulseLink" dir="ltr">--</dd>
-            </div>
-            <div class="pulse-status-item">
-              <dt>כלי</dt>
-              <dd id="pulseAircraft" dir="ltr">--</dd>
-            </div>
-          </dl>
+          <div class="pulse-status-grid" aria-label="מצב מערכת">
+            <article class="pulse-status-card" data-pulse-kind="aircraft">
+              <h4>כלי</h4>
+              <p id="pulseAircraft" dir="ltr">--</p>
+              <p class="pulse-status-note">חיבור MAVLink</p>
+              <p class="pulse-status-note">קישור <span id="pulseLink" dir="ltr">--</span></p>
+            </article>
+            <article class="pulse-status-card" data-pulse-kind="companion">
+              <h4>Jetson</h4>
+              <p id="pulseCompanion">מנותק</p>
+              <p class="pulse-status-note">מחשב משימה</p>
+              <button type="button" class="first-open-btn" data-first-action="companion" data-pulse-live="hide">חברו Jetson</button>
+            </article>
+            <article class="pulse-status-card" data-pulse-kind="assist">
+              <h4>מסייע</h4>
+              <p id="pulseAssist">מנותק</p>
+              <button type="button" id="pulseTalkBtn" class="first-open-btn pulse-talk-btn" data-first-action="assist">שאלו את המסייע</button>
+            </article>
+          </div>
           <section id="pulseAttention" class="pulse-attention" hidden aria-label="תשומת לב"></section>
-          <nav class="pulse-actions" data-first-open="pulse" aria-label="פעולה הבאה">
-            <button type="button" class="first-open-btn" data-first-action="companion" data-pulse-live="hide">חברו מלווה</button>
-            <button type="button" class="first-open-btn first-open-btn-quiet" data-first-action="assist">מסייע</button>
-            <button type="button" class="first-open-btn first-open-btn-quiet" data-first-action="params">פרמטרים</button>
-            <button type="button" class="first-open-btn first-open-btn-quiet" data-first-action="develop">פיתוח</button>
-            <button type="button" class="first-open-btn first-open-btn-quiet" data-first-action="telemetry">אבחונים</button>
-          </nav>
+          <p class="pulse-version-line">גרסה <span id="pulseVersion" dir="ltr">--</span></p>
           <button type="button" id="pulseEvolveGlance" class="pulse-evolve" hidden>משימה רצה</button>
           <p class="pulse-home-pref">
-            <span>מסך פתיחה</span>
-            <button type="button" id="pulseHomePulseBtn" class="pulse-home-pref-btn is-active" data-pulse-home="pulse">סקירה</button>
+            <span>בתוך בית</span>
+            <button type="button" id="pulseHomePulseBtn" class="pulse-home-pref-btn is-active" data-pulse-home="pulse">בית</button>
             <button type="button" id="pulseHomeTeleBtn" class="pulse-home-pref-btn" data-pulse-home="telemetry">טלמטריה</button>
           </p>
         </div>
@@ -345,9 +302,9 @@
           </header>
           <nav class="platform-shells" aria-label="יכולות פלטפורמה">
             <article class="platform-shell" data-platform-go="companion">
-              <h4>מלווה</h4>
+              <h4>Jetson</h4>
               <p id="platformCompanionStatus">מנותק</p>
-              <button type="button" class="first-open-btn" data-platform-go="companion">מלווה</button>
+              <button type="button" class="first-open-btn" data-platform-go="companion">Jetson</button>
             </article>
             <article class="platform-shell" data-platform-go="params">
               <h4>פרמטרים</h4>
@@ -356,12 +313,12 @@
             </article>
             <article class="platform-shell" data-platform-go="maintenance">
               <h4>תחזוקה</h4>
-              <p id="platformMaintStatus">המלווה מנותק</p>
+              <p id="platformMaintStatus">Jetson מנותק</p>
               <button type="button" class="first-open-btn first-open-btn-quiet" data-platform-go="maintenance">תחזוקה</button>
             </article>
             <article class="platform-shell" data-platform-go="telemetry">
               <h4>אבחונים</h4>
-              <p id="platformDiagStatus">המלווה מנותק</p>
+              <p id="platformDiagStatus">Jetson מנותק</p>
               <button type="button" class="first-open-btn first-open-btn-quiet" data-platform-go="telemetry">אבחונים</button>
             </article>
           </nav>
@@ -533,7 +490,7 @@
             <div class="cp-panel-header">
               <div class="cp-header-row">
                 <h3 class="cp-title">✨ הפרמטרים המותאמים שלי</h3>
-                <span class="cp-hint">פרמטרים שנוצרו דרך ArduLab · קליק ימני לסינון / שלח ישירות לרחפן</span>
+                <span class="cp-hint">פרמטרים מותאמים · קליק ימני לסינון / שלח ישירות לרחפן</span>
               </div>
               <div class="cp-toolbar">
                 <input id="cpSearchInput" type="search" class="cp-search" placeholder="חפש לפי שם, תיאור, פיצ'ר…" dir="rtl" />
@@ -666,7 +623,7 @@
         <div class="panel-header tele-b2-head">
           <div class="tele-subtabs" role="tablist" aria-label="תצוגות טלמטריה">
             <button type="button" class="tele-subtab active" data-tele-tab="dash">לוח</button>
-            <button type="button" class="tele-subtab" data-tele-tab="companion">מלווה</button>
+            <button type="button" class="tele-subtab" data-tele-tab="companion">Jetson</button>
           </div>
           <div id="companionMockBar" class="companion-mock-bar" hidden>
             <span>מצב מדומה</span>
@@ -677,8 +634,8 @@
         </div>
         <div id="companionApiUnavailable" class="companion-api-unavailable" hidden></div>
         <div class="first-open-stage-fill" data-first-open-stage>
-        <section id="companionConnect" class="companion-connect companion-connect--hero assist-agent-connect operator-state" data-state="disconnected" aria-label="חיבור מלווה">
-          <p id="companionConnectStatus" class="assist-agent-status" aria-live="polite">המלווה מנותק</p>
+        <section id="companionConnect" class="companion-connect companion-connect--hero assist-agent-connect operator-state" data-state="disconnected" aria-label="חיבור Jetson">
+          <p id="companionConnectStatus" class="assist-agent-status" aria-live="polite">Jetson מנותק</p>
           <p id="companionConnectHint" class="assist-agent-hint">צריך כתובת ואסימון. כתובת לבד לא מספיקה.</p>
           <p id="companionConnectPathHint" class="assist-agent-key-hint" hidden dir="ltr">/api/v1/*</p>
           <p id="companionTokenHint" class="assist-agent-key-hint" hidden dir="ltr"></p>
@@ -701,20 +658,20 @@
         <header class="operator-overview">
           <h3>טלמטריה</h3>
           <div id="teleOperatorBanner" class="operator-state" data-state="disconnected">
-            <p id="teleStatusBadge" class="operator-state-status">המלווה מנותק</p>
-            <p id="teleNextStep" class="operator-state-next">חברו מלווה. כתובת לבד לא מספיקה.</p>
+            <p id="teleStatusBadge" class="operator-state-status">Jetson מנותק</p>
+            <p id="teleNextStep" class="operator-state-next">חברו מחשב משימה. כתובת לבד לא מספיקה.</p>
           </div>
         </header>
         <p id="companionLiveParked" class="operator-state-parked">הסיכום יופיע אחרי חיבור.</p>
-        <div id="companionDashboardSummary" class="companion-dashboard-summary" hidden aria-label="סיכום ממשק מלווה">
-          <article class="tele-card"><span>ממשק מלווה</span><strong id="companionApiState">כבוי</strong></article>
-          <article class="tele-card"><span>גרסת מלווה</span><strong id="companionApiVersion">—</strong></article>
+        <div id="companionDashboardSummary" class="companion-dashboard-summary" hidden aria-label="סיכום ממשק Jetson">
+          <article class="tele-card"><span>ממשק Jetson</span><strong id="companionApiState">כבוי</strong></article>
+          <article class="tele-card"><span>גרסת Jetson</span><strong id="companionApiVersion">—</strong></article>
           <article class="tele-card"><span>בקר טיסה</span><strong id="companionFcConnected">—</strong></article>
           <article class="tele-card"><span>ראייה</span><strong id="companionVisionHealth">—</strong></article>
           <article class="tele-card"><span>נחיתה לתצוגה</span><strong id="companionLandingDetected">—</strong></article>
           <article class="tele-card"><span>וידאו</span><strong id="companionVideoStatus">—</strong></article>
         </div>
-        <p id="teleLiveParked" class="operator-state-parked">נתוני טלמטריה יופיעו אחרי חיבור מלווה.</p>
+        <p id="teleLiveParked" class="operator-state-parked">נתוני טלמטריה יופיעו אחרי חיבור מחשב משימה.</p>
         <!-- Readiness checklist stays visible on diagnostics even when live sections are parked -->
         <div class="tele-preflight-strip" id="readinessStrip">
           <div class="tele-preflight-title">מוכנות</div>
@@ -895,8 +852,8 @@
         </div>
 
         <div id="teleCompanionPanel" class="tele-subpanel companion-b2-panel" data-tele-panel="companion">
-          <p class="tele-dash-note">תצוגה בלבד מנתוני המלווה. אין פקודות טיסה ואין כתיבות</p>
-          <p id="companionB2Parked" class="operator-state-parked">נתוני מלווה יופיעו אחרי חיבור.</p>
+          <p class="tele-dash-note">תצוגה בלבד מנתוני מחשב משימה. אין פקודות טיסה ואין כתיבות</p>
+          <p id="companionB2Parked" class="operator-state-parked">נתוני מחשב משימה יופיעו אחרי חיבור.</p>
           <div id="companionB2Grid" class="companion-section-grid" hidden>
             <section class="companion-b2-section">
               <h3>מערכת ובקר</h3>
@@ -920,7 +877,7 @@
               <div class="companion-b2-table">
                 <div class="companion-b2-row"><span>קצב פריימים</span><strong id="companionVisionFps">—</strong><span>ביטחון</span><strong id="companionVisionConfidence">—</strong></div>
                 <div class="companion-b2-row"><span>מטרה</span><strong id="companionVisionTargetId">—</strong><span>טווח נחיתה</span><strong id="companionLandRange">—</strong></div>
-                <div class="companion-b2-row"><span>מיקום מלווה</span><strong id="companionNavPos">—</strong><span>EKF</span><strong id="companionNavEkf">לא מוזרק</strong></div>
+                <div class="companion-b2-row"><span>מיקום Jetson</span><strong id="companionNavPos">—</strong><span>EKF</span><strong id="companionNavEkf">לא מוזרק</strong></div>
               </div>
             </section>
             <section class="companion-b2-section">
@@ -999,10 +956,10 @@
           <header class="operator-overview">
             <h3>תחזוקה</h3>
             <div id="maintOperatorBanner" class="operator-state" data-state="disconnected">
-              <p id="maintStatusBadge" class="operator-state-status">המלווה מנותק</p>
-              <p id="maintNextStep" class="operator-state-next">חברו מלווה. כתובת לבד לא מספיקה.</p>
+              <p id="maintStatusBadge" class="operator-state-status">Jetson מנותק</p>
+              <p id="maintNextStep" class="operator-state-next">חברו מחשב משימה. כתובת לבד לא מספיקה.</p>
               <nav class="first-open-actions" data-first-open="maintenance" aria-label="פעולה הבאה">
-                <button type="button" class="first-open-btn" data-first-action="companion">חברו מלווה</button>
+                <button type="button" class="first-open-btn" data-first-action="companion">חברו Jetson</button>
                 <button type="button" class="first-open-btn first-open-btn-quiet" data-first-action="assist">מסייע</button>
                 <button type="button" class="first-open-btn first-open-btn-quiet" data-first-action="params">פרמטרים</button>
               </nav>
@@ -1017,7 +974,7 @@
             </div>
           </section>
 
-          <p id="maintLiveParked" class="operator-state-parked">נתוני Jetson וגרסאות יופיעו אחרי חיבור מלווה.</p>
+          <p id="maintLiveParked" class="operator-state-parked">נתוני Jetson וגרסאות יופיעו אחרי חיבור מחשב משימה.</p>
 
           <div id="maintRelHandoff" class="maint-rel-handoff">
             <p id="maintRelHandoffNote" class="tele-dash-note">התקנה ושחזור נעשים בפיתוח.</p>
@@ -1027,7 +984,7 @@
           <div id="maintLiveSections" hidden>
           <h4 class="maint-group-title">תוכנה</h4>
           <div class="tele-group-cards">
-            <article class="tele-card"><span>גרסת מלווה</span><strong id="maintCompanionVersion">—</strong></article>
+            <article class="tele-card"><span>גרסת Jetson</span><strong id="maintCompanionVersion">—</strong></article>
             <article class="tele-card"><span>קומיט</span><strong id="maintGitCommit">—</strong></article>
             <article class="tele-card"><span>ענף</span><strong id="maintGitBranch">—</strong></article>
             <article class="tele-card"><span>עץ נקי</span><strong id="maintGitClean">—</strong></article>
@@ -1043,14 +1000,14 @@
             <article class="tele-card"><span>דיסק</span><strong id="maintDisk">—</strong></article>
           </div>
 
-          <h4 class="maint-group-title">מלווה</h4>
+          <h4 class="maint-group-title">Jetson</h4>
           <div class="tele-group-cards">
             <article class="tele-card"><span>מצב מסוף</span><strong id="maintCompanionMode">—</strong></article>
             <article class="tele-card"><span>גרסת ממשק</span><strong id="maintApiVersion">—</strong></article>
             <article class="tele-card"><span>ממשק פעיל</span><strong id="maintApiRunning">—</strong></article>
             <article class="tele-card"><span>ממשק נגיש</span><strong id="maintApiReachable">—</strong></article>
           </div>
-          <p id="maintCompanionConnectStatus" class="tele-dash-note" hidden>המלווה מנותק</p>
+          <p id="maintCompanionConnectStatus" class="tele-dash-note" hidden>Jetson מנותק</p>
           <p id="maintCompanionTokenHint" class="assist-agent-key-hint" hidden dir="ltr"></p>
 
           <h4 class="maint-group-title">אירועי אבחון</h4>
@@ -1127,11 +1084,6 @@
       <section id="development" class="panel">
         <div class="devtasks-panel">
           <h3>משימות פיתוח</h3>
-          <p id="devArdulabHandoff" class="dev-ardulab-handoff">
-            פיצ׳ר מותאם נפתח בארדולאב.
-            <button type="button" id="devOpenArdulabBtn" class="dev-ardulab-handoff-btn">ארדולאב</button>
-          </p>
-
           <section class="devtasks-create">
             <h4 class="maint-group-title">יצירת משימה</h4>
             <div class="tele-group-cards">
@@ -1292,382 +1244,135 @@
         </div>
       </section>
 
-            <section id="simLab" class="panel">
-        <div class="sl-layout">
-
-          <!-- ── Sidebar ── -->
-          <aside class="sl-sidebar" aria-label="חיבור ושיחזור">
-
-            <!-- חיבור -->
-            <div class="sl-section">
-              <div class="sl-section-title">חיבור סימולטור</div>
-              <p id="simLabConnectHandoffHint" class="sl-connect-hint">אותו חיבור כמו בשורת המצב למעלה.</p>
-              <div class="sl-presets">
-                <button type="button" id="simLabPresetUdp14550" class="sl-preset-btn" title="UDP 127.0.0.1:14550 — הנפוץ ביותר עם sim_vehicle.py">
-                  <span class="sl-preset-name">UDP 14550</span>
-                  <span class="sl-preset-sub">sim_vehicle.py --out udp:…</span>
-                </button>
-                <button type="button" id="simLabPresetUdpBind" class="sl-preset-btn" title="UDP 0.0.0.0:14550 — האזנה (SITL שולח אליך)">
-                  <span class="sl-preset-name">UDP bind</span>
-                  <span class="sl-preset-sub">SITL שולח אליך</span>
-                </button>
-                <button type="button" id="simLabPresetTcp5760" class="sl-preset-btn" title="TCP 127.0.0.1:5760 — MAVProxy / SITL ברירת מחדל">
-                  <span class="sl-preset-name">TCP 5760</span>
-                  <span class="sl-preset-sub">MAVProxy / SITL</span>
-                </button>
-              </div>
-              <button type="button" id="simLabConnectNowBtn" class="sl-connect-now-btn hidden" title="פותח את החיבור למעלה ומתחבר">חברו למעלה</button>
-            </div>
-
-            <!-- שיחזור -->
-            <div class="sl-section">
-              <div class="sl-section-title">שיחזור .tlog</div>
-              <div class="sl-replay-upload">
-                <label class="sl-file-label" title="בחר קובץ .tlog, .bin, .log לשיחזור">
-                  <input type="file" id="simLabTlogInput" accept=".tlog,.bin,.log,.BIN,.TLOG" class="sl-file-native" />
-                  <span id="simLabTlogFileBtn" class="sl-file-btn">בחר קובץ</span>
-                </label>
-                <button type="button" id="simLabTlogParseBtn" class="sl-btn" title="נתח את הקובץ והצג שיחזור בתלת־ממד">▶ נתח והפעל</button>
-              </div>
-              <p id="simLabReplayMeta" class="sl-meta" aria-live="polite"></p>
-              <button type="button" id="simLabGoFlightsBtn" class="sl-btn sl-btn--ghost" title="פתח לוגים בתחקור">לוגים</button>
-            </div>
-
-            <!-- עוד (מתקפל) -->
-            <details class="sl-more">
-              <summary class="sl-more-summary">עוד ▾</summary>
-
-              <div class="sl-section sl-section--sub">
-                <div class="sl-section-title">פרמטר חי</div>
-                <div class="sim-lab-param-row">
-                  <input type="text" id="simLabParamName" class="sim-lab-text-input" placeholder="LAND_SPEED" autocomplete="off" title="שם פרמטר ArduPilot לשליחה — PARAM_SET; חסום כשמזויין" />
-                  <input type="number" id="simLabParamValue" class="sim-lab-text-input sim-lab-param-value" placeholder="ערך" step="any" />
-                  <button type="button" id="simLabParamSend" class="sim-lab-qbtn">שלח</button>
-                </div>
-                <p id="simLabParamStatus" class="sim-lab-param-status" aria-live="polite"></p>
-              </div>
-
-              <div class="sl-section sl-section--sub">
-                <div class="sl-section-title">שליטה · MANUAL_CONTROL</div>
-                <label class="sim-lab-rc-toggle"><input type="checkbox" id="simLabRcSendToggle" /> שלח לקושחה</label>
-                <p id="simLabRcHint" class="sl-meta" aria-live="polite"></p>
-                <p id="simLabGamepadStatus" class="sl-meta"></p>
-                <details class="sl-keys">
-                  <summary>מקרא מקשים</summary>
-                  <div class="sim-lab-keys-legend" dir="ltr">
-                    <table class="sim-lab-keys-grid" aria-label="מקרא מפתחות שליחת MANUAL_CONTROL">
-                      <tbody>
-                        <tr><td class="sim-lab-key">W / ↑</td><td>pitch+</td></tr>
-                        <tr><td class="sim-lab-key">S / ↓</td><td>pitch−</td></tr>
-                        <tr><td class="sim-lab-key">A / ←</td><td>roll−</td></tr>
-                        <tr><td class="sim-lab-key">D / →</td><td>roll+</td></tr>
-                        <tr><td class="sim-lab-key">Q / E</td><td>yaw</td></tr>
-                        <tr><td class="sim-lab-key">[ / ]</td><td>thrust</td></tr>
-                      </tbody>
-                    </table>
-                  </div>
-                </details>
-              </div>
-
-              <div class="sl-section sl-section--sub">
-                <div class="sl-section-title">מודל GLB</div>
-                <label class="sim-lab-field">
-                  <select id="simLabAircraftSelect" class="sim-lab-select" data-simlab-ignore-kb="1" title="בחר קובץ GLB מהשרת להחלה על הסצנה"></select>
-                </label>
-                <div class="sim-lab-aircraft-actions">
-                  <button type="button" id="simLabAircraftApply" class="sim-lab-qbtn" title="החל GLB נבחר על סצנת Three.js (קנה-מידה אוטומטי)">החל</button>
-                  <button type="button" id="simLabAircraftReload" class="sim-lab-qbtn">רענן</button>
-                </div>
-                <label class="sim-lab-field sim-lab-upload-label" title="העלה GLB / צילום לשרת">
-                  העלאה
-                  <input type="file" id="simLabAircraftUpload" accept=".glb,.gltf,.zip,.jpg,.jpeg,.png,.webp,.gif,.bmp,.tif,.tiff,.heic,.heif,.avif,image/*" class="sim-lab-file" data-simlab-ignore-kb="1" />
-                </label>
-                <p id="simLabAircraftStatus" class="sl-meta" aria-live="polite"></p>
-              </div>
-
-              <div class="sl-section sl-section--sub">
-                <div class="sl-section-title">פרופיל (תיעוד)</div>
-                <div class="sim-lab-stack-fields">
-                  <label class="sim-lab-field">ArduPlane
-                    <select id="simLabArduPreset" class="sim-lab-select"></select>
-                  </label>
-                  <label class="sim-lab-field hidden" id="simLabArduCustomWrap">גרסה
-                    <input type="text" id="simLabArduCustom" class="sim-lab-text-input" placeholder="4.5.5" autocomplete="off" />
-                  </label>
-                  <label class="sim-lab-field">Jetson
-                    <select id="simLabJetsonVer" class="sim-lab-select"></select>
-                  </label>
-                </div>
-              </div>
-
-            </details>
-          </aside>
-
-          <!-- ── Main stage ── -->
-          <div class="sl-stage">
-
-            <!-- 3D canvas + HUD -->
-            <div class="sl-viz">
-              <canvas id="simLabCanvas" class="sim-lab-canvas" aria-label="תצוגת מטוס תלת־מימדית לפי טלמטריה"></canvas>
-
-              <!-- Quickstart guide — shown when FC is not connected -->
-              <div id="simLabQuickstart" class="sl-quickstart">
-                <div class="sl-wizard" id="simLabWizard">
-
-                  <!-- Step indicator -->
-                  <div class="sl-wiz-steps">
-                    <div class="sl-wiz-step sl-wiz-step--active" data-step="1">
-                      <div class="sl-wiz-dot">1</div>
-                      <div class="sl-wiz-step-label">הפעל SITL</div>
-                    </div>
-                    <div class="sl-wiz-connector"></div>
-                    <div class="sl-wiz-step" data-step="2">
-                      <div class="sl-wiz-dot">2</div>
-                      <div class="sl-wiz-step-label">התחבר</div>
-                    </div>
-                    <div class="sl-wiz-connector"></div>
-                    <div class="sl-wiz-step" data-step="3">
-                      <div class="sl-wiz-dot">3</div>
-                      <div class="sl-wiz-step-label">בדוק סטטוס</div>
-                    </div>
-                  </div>
-
-                  <!-- Panel 1: Run SITL -->
-                  <div class="sl-wiz-panel" data-panel="1">
-                    <div class="sl-wiz-title">הפעל SITL במחשב</div>
-                    <div class="sl-wiz-sub">הרץ את הפקודה הבאה ב-terminal:</div>
-                    <div class="sl-wiz-cmd-block">
-                      <code id="simLabSitlCmd">sim_vehicle.py -v ArduPlane --out udp:127.0.0.1:14550</code>
-                      <button type="button" id="simLabCopyCmd" class="sl-wiz-copy" title="העתק">⎘ העתק</button>
-                    </div>
-                    <div class="sl-wiz-tip">💡 בפעם הראשונה — ArduSim מוריד קבצים, לוקח ~1 דקה</div>
-                    <button type="button" id="simLabWizSkip1" class="sl-wiz-skip">SITL כבר פועל — עבור לחיבור ←</button>
-                  </div>
-
-                  <!-- Panel 2: Connect -->
-                  <div class="sl-wiz-panel hidden" data-panel="2">
-                    <div class="sl-wiz-title">התחבר לסימולטור</div>
-                    <div class="sl-wiz-sub">בחרו סוג חיבור. אותו חיבור כמו בשורת המצב למעלה.</div>
-                    <div class="sl-wiz-conn-grid">
-                      <button type="button" id="simLabQsUdp" class="sl-wiz-conn-card sl-wiz-conn-card--primary">
-                        <span class="sl-wiz-conn-icon">📡</span>
-                        <span class="sl-wiz-conn-name">UDP 14550</span>
-                        <span class="sl-wiz-conn-desc">הכי נפוץ עם sim_vehicle.py</span>
-                        <span class="sl-wiz-conn-badge">מומלץ</span>
-                      </button>
-                      <button type="button" id="simLabQsTcp" class="sl-wiz-conn-card">
-                        <span class="sl-wiz-conn-icon">🔌</span>
-                        <span class="sl-wiz-conn-name">TCP 5760</span>
-                        <span class="sl-wiz-conn-desc">MAVProxy / SITL ישיר</span>
-                      </button>
-                      <button type="button" id="simLabQsUdpBind" class="sl-wiz-conn-card">
-                        <span class="sl-wiz-conn-icon">📶</span>
-                        <span class="sl-wiz-conn-name">UDP bind</span>
-                        <span class="sl-wiz-conn-desc">SITL שולח אליך</span>
-                      </button>
-                    </div>
-                    <div id="simLabWizConnStatus" class="sl-wiz-conn-status hidden">מתחבר…</div>
-                  </div>
-
-                  <!-- Panel 3: Connecting confirmation (brief) -->
-                  <div class="sl-wiz-panel hidden" data-panel="3">
-                    <div class="sl-wiz-title">✅ מחובר! בודק טרום-טיסה…</div>
-                    <div class="sl-wiz-sub">הסטטוס יוצג עוד רגע</div>
-                  </div>
-
-                  <!-- tlog alternative -->
-                  <div class="sl-wiz-divider">— או לחלופין —</div>
-                  <button type="button" id="simLabQsTlog" class="sl-wiz-tlog-btn">📂 שחזר טיסה מקובץ .tlog</button>
-                  <p id="simLabWizTlogStatus" class="sl-wiz-tlog-status sl-meta" aria-live="polite"></p>
-
-                </div>
-              </div>
-
-              <!-- instrument overlay -->
-              <div class="sim-lab-overlay" aria-hidden="true">
-                <div class="sim-lab-tape-strip sim-lab-tape-strip--heading">
-                  <span class="sim-lab-tape-label">כיוון</span>
-                  <strong id="simLabHudHeading" class="sim-lab-tape-val">—</strong>
-                </div>
-                <div class="sim-lab-pfd-mini">
-                  <canvas id="simLabHorizon" width="176" height="176" aria-hidden="true"></canvas>
-                </div>
-                <div class="sim-lab-tapes-side">
-                  <div class="sim-lab-tape-box">
-                    <span class="sim-lab-tape-label">מהירות</span>
-                    <strong id="simLabHudAirspeed" class="sim-lab-tape-val">—</strong>
-                  </div>
-                  <div class="sim-lab-tape-box">
-                    <span class="sim-lab-tape-label">גובה</span>
-                    <strong id="simLabHudAltitude" class="sim-lab-tape-val">—</strong>
-                  </div>
-                  <div class="sim-lab-tape-box sim-lab-tape-box--sub">
-                    <span class="sim-lab-tape-label">קרקע</span>
-                    <strong id="simLabHudGroundspeed" class="sim-lab-tape-val">—</strong>
-                  </div>
-                </div>
-              </div>
-
-              <!-- status bar -->
-              <div id="simLabHud" class="sim-lab-hud" aria-live="polite">
-                <div class="sim-lab-hud-row">
-                  <span id="simLabHudConn">אין חיבור FC</span>
-                  <span id="simLabHudAtt">—</span>
-                </div>
-                <span id="simLabHudStack" class="sim-lab-hud-stack"></span>
-              </div>
-
-              <!-- VFX toggle -->
-              <label class="sl-vfx-toggle" title="שמיים · מדרון · תאורה · מצלמה חלקה">
-                <input type="checkbox" id="simLabVfxToggle" checked />
-                <span>VFX</span>
-              </label>
-            </div>
-
-          <!-- LAB readiness bar — shown when FC is connected; same מוכנות vocabulary -->
-          <div id="simLabPreflightBar" class="sl-preflight-bar hidden" aria-label="מוכנות מעבדה">
-            <div class="sl-pf-chips">
-              <span class="sl-pf-title">מוכנות</span>
-              <span id="simLabPfArmed" class="sl-pf-chip sl-pf-chip--neutral">
-                <span class="sl-pf-label">מצב</span>
-                <span class="sl-pf-val">—</span>
-              </span>
-              <span id="simLabPfMode" class="sl-pf-chip sl-pf-chip--neutral">
-                <span class="sl-pf-label">מוד</span>
-                <span class="sl-pf-val">—</span>
-              </span>
-              <span id="simLabPfGps" class="sl-pf-chip sl-pf-chip--neutral">
-                <span class="sl-pf-label">GPS</span>
-                <span class="sl-pf-val">—</span>
-              </span>
-              <span id="simLabPfBatt" class="sl-pf-chip sl-pf-chip--neutral">
-                <span class="sl-pf-label">מתח</span>
-                <span class="sl-pf-val">—</span>
-              </span>
-            </div>
-            <div id="simLabFcLog" class="sl-pf-log" dir="ltr"></div>
-          </div>
-
-          <!-- Replay controls (hidden until log loaded) -->
-          <div id="simLabReplayControls" class="sl-replay-bar hidden">
-              <div class="sl-replay-btns">
-                <button type="button" id="simLabReplayPlay"  class="sl-replay-btn" title="נגן">▶</button>
-                <button type="button" id="simLabReplayPause" class="sl-replay-btn" title="השהה">⏸</button>
-                <button type="button" id="simLabReplayStop"  class="sl-replay-btn" title="עצור וסגור">■</button>
-                <select id="simLabReplaySpeed" class="sl-speed-sel" title="מהירות ניגון">
-                  <option value="1">1×</option>
-                  <option value="2">2×</option>
-                  <option value="4">4×</option>
-                </select>
-              </div>
-              <input type="range" id="simLabReplaySeek" class="sim-lab-seek sl-seek" min="0" max="0" value="0" />
-              <div id="simLabReplayStripWrap" class="sim-lab-replay-strip-wrap hidden" aria-hidden="true">
-                <div id="simLabReplayEventStrip" class="sim-lab-event-strip" role="presentation" title="סימני אירוע על ציר הזמן"></div>
-                <details class="sim-lab-replay-ev-details">
-                  <summary>אירועים</summary>
-                  <div id="simLabReplayEventList" class="sim-lab-event-list"></div>
-                </details>
-              </div>
-            </div>
-
-            <!-- Map (hidden until GPS data available) -->
-            <div id="simLabMapWrap" class="sim-lab-map-wrap hidden" aria-hidden="true">
-              <div id="simLabMapEl" class="sim-lab-map-el" role="img" aria-label="מפת מסלול מהלוג"></div>
-              <div class="sl-map-footer">
-                <p id="simLabMapCaption" class="sim-lab-map-caption">מסלול GPS מהקובץ</p>
-                <label class="sim-lab-field sim-lab-field--inline">
-                  <select id="simLabMapBasemap" class="sim-lab-select" data-simlab-ignore-kb="1" title="שכבת בסיס מפה">
-                    <option value="osm">OSM</option>
-                    <option value="satellite">לוויין</option>
-                    <option value="gradient">גרדיאנט</option>
-                  </select>
-                </label>
-              </div>
-              <p id="simLabMapBasemapCaption" class="sim-lab-map-caption sim-lab-map-caption--sub"></p>
-            </div>
-
-          </div><!-- /.sl-stage -->
-        </div><!-- /.sl-layout -->
-      </section>
-
       <section id="flights" class="panel flights-panel" hidden aria-hidden="true"></section>
 
 
-      <section id="terrain" class="panel">
+      <section id="terrain" class="panel visible" data-workspace="mission">
         <p id="missionIdentity" class="mission-identity">הטסה · מרחב טיסה<button type="button" id="missionReadinessGlance" class="mission-readiness-glance" title="מוכנות">מוכנות</button></p>
-        <div class="terrain-flight-shell">
-          <!-- ══ Flight HUD PFD — 30% left column ══ -->
-          <aside id="flightHud" class="flight-hud" aria-label="HUD טיסה חופשית">
-
-            <!-- ── Top bar: voice cmds + armed + mode + heading + GPS ─────────── -->
-            <div class="pfd-top-bar">
-              <button type="button" id="pfdVoiceFlightBtn" class="pfd-voice-flight-btn" title="פתיחת מהנדס קולי לפקודות טיסה">🎙 פקודות</button>
-              <span id="pfdArmedBadge" class="pfd-badge pfd-badge--disarmed" role="button" tabindex="0" title="מצב ARM — לחץ להסבר מוכנות">DISARMED</span>
-              <span id="pfdModeVal"    class="pfd-mode-val">--</span>
-              <div class="pfd-hdg-box" id="pfdHdgBox" title="כיוון אף (Heading)">
-                <span class="pfd-hdg-arrow" id="pfdHdgArrow">↑</span>
-                <span class="pfd-hdg-val"   id="pfdHdgVal">---°</span>
-              </div>
-              <div class="hud-nav-pill pfd-gps-pill" id="hudNavGps" data-status="unknown" title="מצב GPS">
-                <span class="hud-nav-icon">📡</span>
-                <span class="hud-nav-val" id="hudNavGpsVal">--</span>
-              </div>
-            </div>
-
-            <!-- ── Horizon shell (canvas + side overlays) ─────── -->
-            <div class="pfd-horizon-shell" id="pfdHorizonShell">
-              <!-- Video feed layer (behind canvas) -->
-              <video id="horizonVideoEl" class="pfd-horizon-video hidden" muted playsinline autoplay loop
-                     aria-hidden="true" title="שידור וידאו מהטיסן"></video>
-
-              <canvas id="horizonCanvas"></canvas>
-
-              <!-- Video overlay toggle + URL input -->
-              <button type="button" id="horizonVideoToggle" class="pfd-video-toggle" title="שכבת וידאו חי מהטיסן">📹 וידאו</button>
-              <div id="horizonVideoPanel" class="pfd-video-panel hidden">
-                <span class="pfd-video-label">זרם וידאו חי מהטיסן (MJPEG / HLS / RTSP)</span>
-                <div>
-                  <input type="text" id="horizonVideoUrl" class="pfd-video-url-input"
-                    placeholder="http://192.168.1.x:8080/stream" autocomplete="off" />
-                  <button type="button" id="horizonVideoApply" class="pfd-video-apply-btn">▶ הפעל</button>
+        <div class="mission-layout-bar">
+          <button type="button" id="missionSwapHorizonMapBtn" class="mission-layout-btn">החלף אופק ומפה</button>
+          <button type="button" id="missionResetLayoutBtn" class="mission-layout-btn">איפוס סידור</button>
+            <p id="missionLayoutHint" class="mission-layout-hint">גררו קצה לשינוי גודל. גררו כותרת להחלפה. גם בטיסה.</p>
+        </div>
+        <div class="terrain-flight-shell mission-workspace" data-mission-layout="ops-v1" data-mission-swap="horizon-map" data-mission-edit="on">
+          <div id="missionColSplit" class="mission-split mission-split-col"></div>
+          <div id="missionColSplitB" class="mission-split mission-split-col"></div>
+          <div id="missionRowSplit" class="mission-split mission-split-row"></div>
+          <section class="mission-region mission-region-horizon" data-mission-region="horizon" aria-label="אופק">
+            <h3 class="mission-region-title" draggable="true">אופק</h3>
+            <aside id="flightHud" class="flight-hud" aria-label="HUD טיסה חופשית">
+              <div class="pfd-top-bar">
+                <button type="button" id="pfdVoiceFlightBtn" class="pfd-voice-flight-btn" title="פתיחת מהנדס קולי לפקודות טיסה">🎙 פקודות</button>
+                <span id="pfdArmedBadge" class="pfd-badge pfd-badge--disarmed" role="button" tabindex="0" title="מצב ARM — לחץ להסבר מוכנות">DISARMED</span>
+                <span id="pfdModeVal"    class="pfd-mode-val">--</span>
+                <div class="pfd-hdg-box" id="pfdHdgBox" title="כיוון אף (Heading)">
+                  <span class="pfd-hdg-arrow" id="pfdHdgArrow">↑</span>
+                  <span class="pfd-hdg-val"   id="pfdHdgVal">---°</span>
+                </div>
+                <div class="hud-nav-pill pfd-gps-pill" id="hudNavGps" data-status="unknown" title="מצב GPS">
+                  <span class="hud-nav-icon">📡</span>
+                  <span class="hud-nav-val" id="hudNavGpsVal">--</span>
                 </div>
               </div>
 
-              <!-- Left: Airspeed -->
-              <div class="pfd-side-tape pfd-side-tape--left">
-                <span class="pfd-tape-key">IAS</span>
-                <strong class="pfd-tape-big" id="pfdAirspeedVal">--</strong>
-                <span class="pfd-tape-unit">m/s</span>
+              <div class="pfd-horizon-shell" id="pfdHorizonShell">
+                <video id="horizonVideoEl" class="pfd-horizon-video hidden" muted playsinline autoplay loop
+                       aria-hidden="true" title="שידור וידאו מהטיסן"></video>
+                <canvas id="horizonCanvas"></canvas>
+                <button type="button" id="horizonVideoToggle" class="pfd-video-toggle" title="שכבת וידאו חי מהטיסן">📹 וידאו</button>
+                <div id="horizonVideoPanel" class="pfd-video-panel hidden">
+                  <span class="pfd-video-label">זרם וידאו חי מהטיסן (MJPEG / HLS / RTSP)</span>
+                  <div>
+                    <input type="text" id="horizonVideoUrl" class="pfd-video-url-input"
+                      placeholder="http://192.168.1.x:8080/stream" autocomplete="off" />
+                    <button type="button" id="horizonVideoApply" class="pfd-video-apply-btn">▶ הפעל</button>
+                  </div>
+                </div>
+                <div class="pfd-side-tape pfd-side-tape--left">
+                  <span class="pfd-tape-key">IAS</span>
+                  <strong class="pfd-tape-big" id="pfdAirspeedVal">--</strong>
+                  <span class="pfd-tape-unit">m/s</span>
+                </div>
+                <div class="pfd-side-tape pfd-side-tape--right">
+                  <span class="pfd-tape-key">ALT</span>
+                  <strong class="pfd-tape-big" id="pfdAltVal">--</strong>
+                  <span class="pfd-tape-unit">m</span>
+                </div>
               </div>
 
-              <!-- Right: Altitude -->
-              <div class="pfd-side-tape pfd-side-tape--right">
-                <span class="pfd-tape-key">ALT</span>
-                <strong class="pfd-tape-big" id="pfdAltVal">--</strong>
-                <span class="pfd-tape-unit">m</span>
+              <div class="pfd-bottom-bar">
+                <span class="pfd-batt" id="pfdBattVal">-- V</span>
+                <button id="hudAddSlotBtn" class="pfd-add-btn" title="הוסף נתון מותאם">＋</button>
+              </div>
+              <div id="hudDataGrid" class="hud-data-grid pfd-slots-strip" role="region" aria-label="נתונים מותאמים"></div>
+            </aside>
+          </section>
+
+          <section class="mission-region mission-region-map" data-mission-region="map" aria-label="מפה">
+            <h3 class="mission-region-title" draggable="true">מפה</h3>
+            <div class="terrain-map-shell">
+              <div class="terrain-map-overlay-toolbar" role="toolbar" aria-label="תצוגת מפה">
+                <span class="terrain-toolbar-label">שכבה:</span>
+                <button type="button" id="terrainLayerStreetBtn" class="terrain-layer-btn active" title="OpenStreetMap">מפת רחוב</button>
+                <button type="button" id="terrainLayerSatBtn" class="terrain-layer-btn" title="תצלום לווין (Esri)">לווין</button>
+                <button type="button" id="terrainShowLoadedPathBtn" class="terrain-layer-btn" title="רענן משימה והצג נתיב טעון על המפה">הצג נתיב טעון</button>
+              </div>
+              <div id="terrainMapRotatable" class="terrain-map-rotatable">
+                <div id="terrainMap"></div>
               </div>
             </div>
+          </section>
 
-            <!-- FC messages (STATUSTEXT) — translated Hebrew via Gemini -->
+          <section class="mission-region mission-region-data" data-mission-region="data" aria-label="נתונים">
+            <h3 class="mission-region-title" draggable="true">נתונים</h3>
+            <dl class="mission-data-grid" aria-label="מדדי טיסה">
+              <div class="mission-data-item">
+                <dt>מוד</dt>
+                <dd id="hudFlightMode">--</dd>
+              </div>
+              <div class="mission-data-item tele-hud-mini">
+                <dt>גובה</dt>
+                <dd id="hudAltitude" dir="ltr">-- m</dd>
+              </div>
+              <div class="mission-data-item tele-hud-mini">
+                <dt>מהירות</dt>
+                <dd id="hudAirspeed" dir="ltr">-- m/s</dd>
+              </div>
+              <div class="mission-data-item">
+                <dt>קישור</dt>
+                <dd id="missionLink" dir="ltr">--</dd>
+              </div>
+              <div class="mission-data-item">
+                <dt>הפרש ראייה</dt>
+                <dd id="liveGpsVisionDelta" dir="ltr">-- m</dd>
+              </div>
+              <div class="mission-data-item mission-data-confidence">
+                <dt>ביטחון נחיתה</dt>
+                <dd>
+                  <div class="confidence-track"><div id="liveConfidenceBar" class="confidence-fill"></div></div>
+                  <strong id="liveConfidenceText">--%</strong>
+                </dd>
+              </div>
+            </dl>
+          </section>
+
+          <section class="mission-region mission-region-messages" data-mission-region="messages" aria-label="הודעות">
+            <h3 class="mission-region-title" draggable="true">הודעות</h3>
             <div class="pfd-statustext-strip" id="pfdStatustextStrip">
               <div class="pfc-msg-head">
-                <span class="pfc-msg-label">הודעות FC</span>
+                <span class="pfc-msg-label">הודעות מהבקר</span>
                 <span class="pfc-opt-mini" id="pfdOptMini" title="Vision / ניווט אופטי">👁 —</span>
               </div>
               <p class="pfc-msg-primary" id="pfcMsgPrimaryHe">אין חיבור לבקר — לא מתקבלות הודעות.</p>
               <div class="pfc-msg-scroll" id="pfcMsgScroll"></div>
             </div>
+          </section>
 
-            <!-- ── Bottom bar: battery + add slot ─────────────────────────────── -->
-            <div class="pfd-bottom-bar">
-              <span class="pfd-batt" id="pfdBattVal">-- V</span>
-              <button id="hudAddSlotBtn" class="pfd-add-btn" title="הוסף נתון מותאם">＋</button>
-            </div>
-
-            <!-- ── Custom data slots (compact strip, right-click to edit) ── -->
-            <div id="hudDataGrid" class="hud-data-grid pfd-slots-strip" role="region" aria-label="נתונים מותאמים"></div>
-
-          </aside>
+          <section class="mission-region mission-region-talk" data-mission-region="talk" aria-label="מסייע">
+            <h3 class="mission-region-title" draggable="true">מסייע</h3>
+            <p id="missionTalkHint" class="mission-talk-hint">הטסה. הערה ותצפית בלבד.</p>
+            <div id="missionTalkHost" class="mission-talk-host"></div>
+          </section>
 
           <div id="pfdReadinessPopover" class="pfd-readiness-popover hidden" role="dialog" aria-modal="false" aria-labelledby="pfdReadinessTitle">
             <div class="pfd-readiness-inner">
@@ -1680,28 +1385,12 @@
             </div>
           </div>
 
-          <!-- Global param-info popup (shared by all ? buttons) -->
           <div id="paramInfoPopup" class="param-info-popup hidden" role="tooltip" aria-live="polite"></div>
 
-          <!-- Right-click context menu for HUD slots -->
           <div id="hudCtxMenu" class="hud-ctx-menu hidden" role="menu" aria-label="אפשרויות נתון">
             <button id="hudCtxEdit"   class="hud-ctx-item" role="menuitem">✎ ערוך / הוסף נתון</button>
             <div class="hud-ctx-sep"></div>
             <button id="hudCtxDelete" class="hud-ctx-item hud-ctx-danger" role="menuitem">✕ מחק נתון</button>
-          </div>
-
-          <!-- ══ Leaflet map — 70% right ══ -->
-          <div class="terrain-map-shell">
-            <!-- Layer controls overlay — floated on the map surface -->
-            <div class="terrain-map-overlay-toolbar" role="toolbar" aria-label="תצוגת מפה">
-              <span class="terrain-toolbar-label">שכבה:</span>
-              <button type="button" id="terrainLayerStreetBtn" class="terrain-layer-btn active" title="OpenStreetMap">מפת רחוב</button>
-              <button type="button" id="terrainLayerSatBtn" class="terrain-layer-btn" title="תצלום לווין (Esri)">לווין</button>
-              <button type="button" id="terrainShowLoadedPathBtn" class="terrain-layer-btn" title="רענן משימה והצג נתיב טעון על המפה">הצג נתיב טעון</button>
-            </div>
-            <div id="terrainMapRotatable" class="terrain-map-rotatable">
-              <div id="terrainMap"></div>
-            </div>
           </div>
         </div>
 
@@ -1877,8 +1566,8 @@
           <aside class="fd-sidebar">
             <div class="fd-sidebar-header">
               <div class="fd-sidebar-brand">
-                <span class="fd-sidebar-brand-name">ArduLab</span>
-                <span class="fd-sidebar-brand-sub">מעבדת AI</span>
+                <span class="fd-sidebar-brand-name">פיצ׳ר מותאם</span>
+                <span class="fd-sidebar-brand-sub">פיתוח</span>
               </div>
               <button id="fdNewBtn" class="fd-new-btn" title="צור פיצ'ר חדש">+ חדש</button>
             </div>
@@ -1896,8 +1585,8 @@
                 <div class="fd-welcome-icon-wrap">
                   <span class="fd-welcome-icon" aria-hidden="true">🚀</span>
                 </div>
-                <div class="fd-welcome-brand">ArduLab</div>
-                <h2 class="fd-welcome-title">מעבדת פיתוח AI לArduPilot</h2>
+                <div class="fd-welcome-brand">פיצ׳ר מותאם</div>
+                <h2 class="fd-welcome-title">פיצ׳ר מותאם</h2>
                 <p class="fd-welcome-sub">תאר בשפה חופשית מה תרצה שבקר הטיסה יעשה — ה-AI יכתוב קוד מלא, יגדיר פרמטרים ויאפשר לך לשכלל דרך שיחה טבעית.</p>
                 <div class="fd-welcome-divider"></div>
                 <p class="fd-welcome-examples-title">רעיונות לדוגמה:</p>
@@ -2101,7 +1790,6 @@
       }
     }
     </script>
-    <script type="module" src="./sim-lab.mjs?v=__APP_VERSION__"></script>
     <script src="./app.js?v=__APP_VERSION__"></script>
   </body>
 </html>

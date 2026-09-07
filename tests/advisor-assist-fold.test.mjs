@@ -64,9 +64,10 @@ describe('Advisor → Assist fold — routes and context', () => {
     expect(route?.capability).toBe('advisor');
     expect(findAssistRoute('advisor')?.tab).toBe('advisor');
     expect(findAssistRoute('ai advisor')?.tab).toBe('advisor');
-    expect(findAssistRoute('יועץ מעבדה')?.tab).toBe('advisor');
-    expect(findAssistRoute('מעבדה')?.tab).toBe('simLab');
-    expect(hebrewOpenRouteAnswer('advisor')).toBe('פותחים את יועץ המעבדה.');
+    expect(findAssistRoute('יועץ')?.tab).toBe('advisor');
+    expect(findAssistRoute('מעבדה')).toBeNull();
+    expect(findAssistRoute('סימולציה')).toBeNull();
+    expect(hebrewOpenRouteAnswer('advisor')).toBe('פותחים את היועץ.');
     expect(hebrewLookingAtAnswer('LAB', 'advisor', 'advisor')).toContain('מסך נוכחי: יועץ.');
   });
 
@@ -138,7 +139,7 @@ describe('Advisor → Assist fold — service', () => {
     expect(resp.action_proposal.payload.route_id).toBe('advisor');
     expect(resp.action_proposal.payload.tab).toBe('advisor');
     expect(resp.action_proposal.payload.workspace).toBe('LAB');
-    expect(resp.answer).toBe('פותחים את יועץ המעבדה.');
+    expect(resp.answer).toBe('פותחים את היועץ.');
     expect(store.list({}).length).toBe(0);
   });
 
@@ -167,11 +168,11 @@ describe('Advisor → Assist fold — service', () => {
 });
 
 describe('Advisor → Assist fold — chrome', () => {
-  it('keeps advisor on the lab shelf and out of primary ops tabs', () => {
-    expect(html).toMatch(/class="tab tab-ops active"[^>]*data-tab="pulse"[^>]*>סקירה</);
+  it('keeps advisor reachable from Assist and out of primary ops tabs', () => {
+    expect(html).toMatch(/class="tab tab-ops"[^>]*data-tab="pulse"[^>]*>בית</);
     expect(html).not.toMatch(/class="tab tab-ops"[^>]*data-tab="advisor"/);
-    const menu = html.match(/<div id="tabLabMenu"[^>]*>([\s\S]*?)<\/div>\s*<\/div>/)?.[1] || '';
-    expect(menu).toMatch(/class="tab tab-lab"[^>]*data-tab="advisor"[^>]*>יועץ מעבדה</);
+    expect(html).not.toContain('id="tabLabMenu"');
+    expect(html).not.toContain('מעבדה');
     expect(html).toContain('id="advisor"');
     expect(html).toContain('id="advisorInput"');
     expect(html).toContain('id="advisorSendBtn"');
@@ -181,11 +182,11 @@ describe('Advisor → Assist fold — chrome', () => {
     expect(html).toContain('id="advisorOpenAssistBtn"');
     expect(html).toMatch(/id="advisorAssistFoldNote"[^>]*>[\s\S]*שאלו במסייע\./);
     expect(html).toMatch(/data-assist-chip="advisor"[^>]*>יועץ</);
-    expect(html).toMatch(/id="assistEmptyInvite"[^>]*>שאלו כאן\. יועץ המעבדה נפתח אם צריך\.</);
+    expect(html).toMatch(/id="assistEmptyInvite"[^>]*>שאלו כאן\.</);
     expect(js).toContain("ASSIST_TAB_WORKSPACE");
     expect(js).toMatch(/advisor:\s*'LAB'/);
     expect(js).toMatch(/advisor:\s*'advisor'/);
-    expect(js).toContain("ASSIST_DEFAULT_INVITE_HE = 'שאלו כאן. יועץ המעבדה נפתח אם צריך.'");
+    expect(js).toContain("ASSIST_DEFAULT_INVITE_HE = 'שאלו כאן.'");
     expect(js).toContain("void assistSendText('פתח יועץ')");
     expect(js).toContain("advisorOpenAssistBtn");
     expect(css).toMatch(/\.advisor-assist-fold\b/);
@@ -203,8 +204,8 @@ describe('Advisor → Assist fold — chrome', () => {
     expect(html).not.toMatch(/id="companionApplyBtn"|id="companionRestartBtn"/);
   });
 
-  it('pins APP_VERSION at 1.02.255', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.255'");
-    expect(pkg.version).toBe('1.02.255');
+  it('pins APP_VERSION at 1.02.256', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.256'");
+    expect(pkg.version).toBe('1.02.256');
   });
 });

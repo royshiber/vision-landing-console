@@ -65,10 +65,12 @@ describe('Flight Engineer → Assist fold — routes and context', () => {
     expect(findAssistRoute('flight engineer')?.tab).toBe('flightEngineer');
     expect(findAssistRoute('voice engineer')?.tab).toBe('flightEngineer');
     expect(findAssistRoute('מהנדס טיסה')?.tab).toBe('flightEngineer');
-    expect(findAssistRoute('מהנדס מעבדה')?.tab).toBe('flightEngineer');
+    expect(findAssistRoute('מהנדס')?.tab).toBe('flightEngineer');
+    expect(findAssistRoute('מהנדס מעבדה')?.tab).not.toBe('simLab');
     expect(findAssistRoute('מהנדס קולי')?.tab).toBe('flightEngineer');
     expect(findAssistRoute('יועץ')?.tab).toBe('advisor');
-    expect(findAssistRoute('מעבדה')?.tab).toBe('simLab');
+    expect(findAssistRoute('מעבדה')).toBeNull();
+    expect(findAssistRoute('סימולציה')).toBeNull();
     expect(hebrewOpenRouteAnswer('engineer')).toBe('פותחים את מהנדס הטיסה.');
     expect(hebrewLookingAtAnswer('MISSION', 'voice', 'flightEngineer')).toContain('מסך נוכחי: מהנדס טיסה.');
   });
@@ -174,10 +176,10 @@ describe('Flight Engineer → Assist fold — service', () => {
 });
 
 describe('Flight Engineer → Assist fold — chrome', () => {
-  it('keeps #flightEngineer on the lab shelf and folds Assist chrome', () => {
+  it('keeps #flightEngineer reachable from Assist without Lab chrome', () => {
     expect(html).not.toMatch(/class="tab tab-ops"[^>]*data-tab="flightEngineer"/);
-    const menu = html.match(/<div id="tabLabMenu"[^>]*>([\s\S]*?)<\/div>\s*<\/div>/)?.[1] || '';
-    expect(menu).toMatch(/class="tab tab-lab"[^>]*data-tab="flightEngineer"[^>]*>מהנדס מעבדה</);
+    expect(html).not.toContain('id="tabLabMenu"');
+    expect(html).not.toContain('מעבדה');
     expect(html).toContain('id="flightEngineer"');
     expect(html).toContain('id="feChat"');
     expect(html).toContain('id="feMicBtn"');
@@ -207,8 +209,8 @@ describe('Flight Engineer → Assist fold — chrome', () => {
     expect(html).toContain('id="pfdVoiceFlightBtn"');
   });
 
-  it('pins APP_VERSION at 1.02.255', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.255'");
-    expect(pkg.version).toBe('1.02.255');
+  it('pins APP_VERSION at 1.02.256', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.256'");
+    expect(pkg.version).toBe('1.02.256');
   });
 });
