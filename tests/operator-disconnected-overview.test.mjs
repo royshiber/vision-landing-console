@@ -233,7 +233,7 @@ describe('Disconnected-first operator overview', () => {
     expect(html).toMatch(/class="assist-rail-title">מסייע</);
     expect(html).toMatch(/assist-toggle-he">מסייע</);
     expect(html).toMatch(/id="assistMessagesEmpty"[^>]*assist-empty-stage/);
-    expect(html).toMatch(/כתבו שאלה או בקשה/);
+    expect(html).toMatch(/שאלו כאן\. יועץ המעבדה נפתח אם צריך/);
     expect(html).toMatch(/שינוי דורש אישור/);
     expect(html).toMatch(/companion-connect--hero/);
     expect(html).toMatch(/data-first-action="assist"/);

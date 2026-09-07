@@ -58,7 +58,7 @@ describe('Operator chrome voice and lab shelf', () => {
     expect(html).toMatch(/class="tab tab-ops"[^>]*data-tab="development"[^>]*>פיתוח</);
     const menu = capture(html, /<div id="tabLabMenu"[^>]*>([\s\S]*?)<\/div>\s*<\/div>/, 'missing #tabLabMenu')[1];
     expect(menu).toMatch(/class="tab tab-lab"[^>]*data-tab="simLab"[^>]*>סימולציה</);
-    expect(menu).toMatch(/class="tab tab-lab"[^>]*data-tab="advisor"[^>]*>יועץ</);
+    expect(menu).toMatch(/class="tab tab-lab"[^>]*data-tab="advisor"[^>]*>יועץ מעבדה</);
     expect(menu).toMatch(/class="tab tab-lab"[^>]*data-tab="featureDesigner"[^>]*>ArduLab</);
     expect(menu).toMatch(/class="tab tab-lab"[^>]*data-tab="flightEngineer"[^>]*>מהנדס</);
     expect(menu).toMatch(/class="tab tab-fly"[^>]*data-tab="terrain"[^>]*>הטסה</);

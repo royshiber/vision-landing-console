@@ -101,7 +101,7 @@ Also locked without GO:
 
 Params persist on master via PR #18 + PR #30. Write-to-vehicle is still a Human Gate.
 
-Architecture wave (`docs/AIRVIX_PRODUCT_ARCHITECTURE.md`): C10.2 Assist unification landed; C10.3 Pulse home **LANDED** via PR #54; C10.4a Evolve taxonomy **LANDED** via PR #56; C10.4b Evolve evidence **LANDED** via PR #58; C10.4c-a Maintenance→Development release handoff **LANDED** via PR #61; C10.5a leftover `#flights` fold **LANDED** via PR #62; C10.5b Platform capability shells **LANDED** via PR #64 merge `779a11d`; C10.6 Mission flight-safe Assist **LANDED** via PR #65 merge `5184e71`; C10.7a Attention Policy controls is this draft. Remainder: C10.4c-b Jetson deploy-wire move stays deferred (#28). C10.7b voice/STT stays deferred.
+Architecture wave (`docs/AIRVIX_PRODUCT_ARCHITECTURE.md`): C10.2 Assist unification landed; C10.3 Pulse home **LANDED** via PR #54; C10.4a Evolve taxonomy **LANDED** via PR #56; C10.4b Evolve evidence **LANDED** via PR #58; C10.4c-a Maintenance→Development release handoff **LANDED** via PR #61; C10.5a leftover `#flights` fold **LANDED** via PR #62; C10.5b Platform capability shells **LANDED** via PR #64 merge `779a11d`; C10.6 Mission flight-safe Assist **LANDED** via PR #65 merge `5184e71`; C10.7a Attention Policy **LANDED** via PR #66 merge `b37c26e`; Advisor→Assist MERGE fold is this draft. Remainder: C10.4c-b Jetson deploy-wire move stays deferred (#28). C10.7b voice/STT stays deferred.
 
 ---
 
@@ -127,26 +127,28 @@ Architecture wave (`docs/AIRVIX_PRODUCT_ARCHITECTURE.md`): C10.2 Assist unificat
 18. **C10.5a** leftover hidden `#flights` folds into תחקור לוגים — **LANDED** via PR #62.
 19. **C10.5b** Platform capability shells — **LANDED** via PR #64 merge `779a11d`. One overview tab **פלטפורמה** links to existing Companion / Params / Maintenance. No new write paths.
 20. **C10.6** Mission flight-safe Assist polish — **LANDED** via PR #65 merge `5184e71`. `#terrain` / `#flightEngineer` stay MISSION. Assist drops `CREATE_DEVELOPMENT_TASK` there and refuses coding-agent starts in spoken Hebrew. NOTE / OBSERVATION / UI_NAVIGATION stay.
-21. **C10.7a** Attention Policy controls — **this draft.** Quiet-by-default `off` / `attention` / `critical` in the existing gear. Pulse tags INFO/ATTENTION/CRITICAL. Assist badge only when policy allows noticing. No STT/TTS pipeline. C10.7b voice/STT stays deferred.
+21. **C10.7a** Attention Policy controls — **LANDED** via PR #66 merge `b37c26e`. Quiet-by-default `off` / `attention` / `critical` in the existing gear. Pulse tags INFO/ATTENTION/CRITICAL. Assist badge only when policy allows noticing. No STT/TTS pipeline. C10.7b voice/STT stays deferred.
+22. **Advisor→Assist MERGE** — **this draft.** `#advisor` stays on the lab shelf. Assist routes `advisor` / `יועץ` and advisor-style Q&A to that panel. No cliff-delete. No apply/restart/flight-command change.
 
 ---
 
-## Audit snapshot — 2026-09-07 (C10.7a this draft)
+## Audit snapshot — 2026-09-07 (Advisor→Assist fold this draft)
 
-**Master:** `1.02.255` @ `5184e71` (PR #65 merge — C10.6 Mission flight-safe Assist). Do not bump.  
-**Prior pointer:** 2026-09-07 C10.6 draft snapshot. Superseded. #65 landed C10.6.  
-**This draft:** C10.7a Attention Policy controls. Quiet by default. Stay draft. King merges after independent VERIFY. Do not bump `APP_VERSION`.
+**Master:** `1.02.255` @ `b37c26e` (PR #66 merge — C10.7a Attention Policy). Do not bump.  
+**Prior pointer:** 2026-09-07 C10.7a draft snapshot. Superseded. #66 landed C10.7a.  
+**This draft:** Advisor→Assist MERGE fold. Stay draft. King merges after independent VERIFY. Do not bump `APP_VERSION`.
 
 Ops (not product): WhatsApp Human Gate delivery remains available (signed in on the operator box targeting +972584010075, self-chat).
 
 ### LANDED this capability close (2026-09-07)
 
-- PR #65 C10.6 Mission flight-safe Assist → master `5184e71`. `terrain` / `flightEngineer` stay MISSION. `available_actions` drop `CREATE_DEVELOPMENT_TASK`. DEVELOPMENT / REQUEST in Mission is a spoken-Hebrew refuse; no agent start. NOTE / OBSERVATION / UI_NAVIGATION stay. Compact `#terrain` identity. Assist rail hint/placeholder/chips. `APP_VERSION` stayed `1.02.255`.
+- PR #66 C10.7a Attention Policy → master `b37c26e`. Quiet-by-default `off` / `attention` / `critical`. Pulse tags INFO/ATTENTION/CRITICAL. Assist badge only when policy allows noticing. No STT/TTS. `APP_VERSION` stayed `1.02.255`.
+- PR #65 C10.6 Mission flight-safe Assist → master `5184e71`. `terrain` / `flightEngineer` stay MISSION. `available_actions` drop `CREATE_DEVELOPMENT_TASK`. DEVELOPMENT / REQUEST in Mission is a spoken-Hebrew refuse; no agent start. NOTE / OBSERVATION / UI_NAVIGATION stay.
 - PR #64 C10.5b Platform capability shells → master `779a11d`. Hebrew **פלטפורמה** overview links existing Companion / Params / Maintenance. No new write paths.
 
 ### This draft (2026-09-07)
 
-- C10.7a Attention Policy UX. `localStorage` `visionLandingAttentionPolicyV1`: `proactiveLevel` `off` \| `attention` \| `critical`, default **`off`**. Optional Assist badge flag. Gear control **התערבות**. Pulse `#pulseAttention` tagged INFO/ATTENTION/CRITICAL. Assist badge/dot only when policy allows noticing. No chime. No auto TTS. No new ElevenLabs/STT keys. C10.7b voice/STT stays deferred. `APP_VERSION` stays `1.02.255`.
+- Advisor→Assist MERGE fold. Assist route `advisor` → LAB `#advisor`. Advisor-style Q&A (`נדנוד`, `הצפה`, `ABORT`, `יועץ`) opens the lab shelf. Lab entry is **יועץ מעבדה**. Panel stays; no cliff-delete. Mission flight-safe Assist and Attention Policy stay. `APP_VERSION` stays `1.02.255`.
 
 ### Prior still on master (#54, #56, #57)
 
@@ -190,7 +192,7 @@ On master today (PR #54):
 - Operator can keep Telemetry-first via `localStorage` `visionLandingHomeSurfaceV1` = `telemetry`. Default is `pulse`.
 - Existing tabs remain. This is a non-breaking home, not an IA cliff-delete.
 - PR #59 landed spoken Hebrew chrome and dropped Pulse filler lede / kicker. Do not start a second Pulse rewrite.
-- **C10.7a this draft:** Pulse attention items stay visible and are tagged INFO / ATTENTION / CRITICAL. Policy `off` does not hide the list and does not add chimes.
+- **C10.7a LANDED** via PR #66 `b37c26e`: Pulse attention items stay visible and are tagged INFO / ATTENTION / CRITICAL. Policy `off` does not hide the list and does not add chimes.
 
 ### Evolve (C10.4a + C10.4b + C10.4c-a landed)
 
@@ -223,7 +225,8 @@ On master today (PR #33 + PR #34 + Hebrew Assist chrome from #50 + result card f
 - UNAVAILABLE stays honest. Empty/invalid key, `NOT_STARTED`, or `agent_started === false` never render as a healthy run. Do not invent progress.
 - Milestone B remainder is closed. Do not spend the next cycle polishing this card.
 - **C10.6 LANDED** via PR #65 `5184e71`: Mission (`terrain` / `flightEngineer`) drops `CREATE_DEVELOPMENT_TASK` from `available_actions`. DEVELOPMENT / REQUEST there is a spoken-Hebrew refuse; no agent start. NOTE / OBSERVATION / known-route nav stay. Rail hint/placeholder/chips. `#terrain` keeps a small הטסה identity.
-- **C10.7a this draft:** Attention Policy chrome only. Quiet default. Assist badge when policy allows. No voice/STT.
+- **C10.7a LANDED** via PR #66 `b37c26e`: Attention Policy chrome only. Quiet default. Assist badge when policy allows. No voice/STT.
+- **Advisor→Assist MERGE this draft:** Assist opens the lab advisor for `יועץ` / advisor-style Q&A. `#advisor` stays reachable. Not a competing primary chat.
 
 ### Params (persist landed)
 
@@ -233,7 +236,8 @@ On master today (PR #33 + PR #34 + Hebrew Assist chrome from #50 + result card f
 
 | PR | Topic | This map |
 |---|---|---|
-| this draft | C10.7a Attention Policy controls | **This draft.** Stay draft. King merges after independent VERIFY. |
+| this draft | Advisor→Assist MERGE fold | **This draft.** Stay draft. King merges after independent VERIFY. |
+| [#66](https://github.com/royshiber/vision-landing-console/pull/66) | C10.7a Attention Policy controls | **LANDED** on master via PR #66 merge `b37c26e`. |
 | [#65](https://github.com/royshiber/vision-landing-console/pull/65) | C10.6 Mission flight-safe Assist polish | **LANDED** on master via PR #65 merge `5184e71`. |
 | [#64](https://github.com/royshiber/vision-landing-console/pull/64) | Platform capability shells | **LANDED** on master via PR #64 merge `779a11d`. |
 | [#60](https://github.com/royshiber/vision-landing-console/pull/60) | Living-map snapshot after #58 | **LANDED** on master via PR #60. |
@@ -261,7 +265,7 @@ Roy 2026-09-05: abandon searching the local tree for versions past 300 **permane
 
 ### Ranked GAPS (this snapshot)
 
-1. **C10.7a Attention Policy controls** — this draft. Quiet-by-default gear + Pulse/Assist chrome. No voice/STT.
+1. **Advisor→Assist MERGE fold** — this draft. Assist routes advisor Q&A to the lab shelf. Panel stays.
 2. **C10.7b voice/STT** — deferred. Do not start now. No new ElevenLabs/STT secrets.
 3. **C10.4c-b Jetson deploy-wire move** — remaining C10.4 slice. Still **deferred** (#28). Do not start now.
 4. **Live Jetson connect proof** — parked (days). Capability is on master (#39 / #40). Blocked on Companion token (not in Cursor / PC `.env`; Jetson `:8081` → 401). WAITING FOR ROY on the token, not more connect code. Do not invent a token.
@@ -270,8 +274,8 @@ Roy 2026-09-05: abandon searching the local tree for versions past 300 **permane
 
 ### Explicitly not next
 
-Do not spend cycles on smoke #4, leftover disconnected chrome, version bump, 300+ hunt, inventing a Companion token, Jetson apply/restart, flight commands, another Pulse polish pass, another taxonomy polish pass, another evidence-strip polish pass, C10.7b voice/STT, or C10.4c-b Jetson deploy-wire move. #50 / #52 / #54 / #56 / #58 / #59 / #61 / #62 / #64 / #65 are landed. Do not invent a token. Do not invent GPS. Do not fake a live Jetson connect. Do not add ElevenLabs/STT keys.
+Do not spend cycles on smoke #4, leftover disconnected chrome, version bump, 300+ hunt, inventing a Companion token, Jetson apply/restart, flight commands, another Pulse polish pass, another taxonomy polish pass, another evidence-strip polish pass, C10.7b voice/STT, or C10.4c-b Jetson deploy-wire move. #50 / #52 / #54 / #56 / #58 / #59 / #61 / #62 / #64 / #65 / #66 are landed. Do not invent a token. Do not invent GPS. Do not fake a live Jetson connect. Do not add ElevenLabs/STT keys.
 
 ### Next pick (this snapshot)
 
-**C10.7a** Attention Policy controls is this draft. C10.6 landed via #65 @ `5184e71`. C10.7b voice/STT stays deferred. Remainder **C10.4c-b** Jetson deploy-wire move stays deferred (#28). Jetson live connect stays parked until Roy supplies the Companion token (days; Jetson `:8081` → 401 without it). Human Gates stay **WAITING FOR ROY**: #28 apply/restart, #29 live vehicle / auto-land. Merge autonomy still on for verified safe draft PRs. Measure by capabilities closed, not PR count. `APP_VERSION` stays `1.02.255`.
+**Advisor→Assist MERGE** is this draft. C10.7a landed via #66 @ `b37c26e`. C10.7b voice/STT stays deferred. Remainder **C10.4c-b** Jetson deploy-wire move stays deferred (#28). Jetson live connect stays parked until Roy supplies the Companion token (days; Jetson `:8081` → 401 without it). Human Gates stay **WAITING FOR ROY**: #28 apply/restart, #29 live vehicle / auto-land. Merge autonomy still on for verified safe draft PRs. Measure by capabilities closed, not PR count. `APP_VERSION` stays `1.02.255`.

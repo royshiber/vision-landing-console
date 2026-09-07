@@ -11252,7 +11252,7 @@ const ASSIST_TAB_WORKSPACE = {
   maintenance: 'PLATFORM',
   recordings: 'PLATFORM',
   flights: 'PLATFORM',
-  advisor: 'PLATFORM',
+  advisor: 'LAB',
   featureDesigner: 'EVOLVE',
   flightEngineer: 'MISSION',
 };
@@ -11272,7 +11272,7 @@ const ASSIST_TAB_CAPABILITY = {
   visionNavParams: 'vision',
   arduParams: 'configuration',
   customParams: 'configuration',
-  advisor: 'diagnostics',
+  advisor: 'advisor',
   featureDesigner: 'evolve',
   flightEngineer: 'voice',
 };
@@ -11304,6 +11304,7 @@ const ASSIST_CAPABILITY_HE = Object.freeze({
   debrief: 'תחקור',
   evolve: 'פיתוח',
   lab_sitl: 'מעבדה',
+  advisor: 'יועץ',
 });
 const ASSIST_TAB_HE = Object.freeze({
   terrain: 'הטסה',
@@ -11387,9 +11388,9 @@ function assistBuildContextSnapshot() {
 
 const ASSIST_DEFAULT_HINT_HE = 'שינוי דורש אישור.';
 const ASSIST_MISSION_HINT_HE = 'הטסה. הערה ותצפית בלבד.';
-const ASSIST_DEFAULT_PLACEHOLDER_HE = 'שאלה, תצפית, פתק, ניווט, או בקשת פיתוח…';
+const ASSIST_DEFAULT_PLACEHOLDER_HE = 'שאלה, יועץ, פתק, או בקשת פיתוח…';
 const ASSIST_MISSION_PLACEHOLDER_HE = 'הערה, תצפית, או שאלה';
-const ASSIST_DEFAULT_INVITE_HE = 'כתבו שאלה או בקשה.';
+const ASSIST_DEFAULT_INVITE_HE = 'שאלו כאן. יועץ המעבדה נפתח אם צריך.';
 const ASSIST_MISSION_INVITE_HE = 'שאלו, רשמו הערה, או תצפית.';
 const ASSIST_CHIP_PREFIX = Object.freeze({
   note: 'הערה: ',
@@ -11423,10 +11424,20 @@ function assistSyncMissionPosture() {
   if (hint) hint.textContent = mission ? ASSIST_MISSION_HINT_HE : ASSIST_DEFAULT_HINT_HE;
   if (input) input.placeholder = mission ? ASSIST_MISSION_PLACEHOLDER_HE : ASSIST_DEFAULT_PLACEHOLDER_HE;
   if (invite) invite.textContent = mission ? ASSIST_MISSION_INVITE_HE : ASSIST_DEFAULT_INVITE_HE;
-  if (chips) chips.hidden = !mission;
+  if (chips) {
+    chips.querySelectorAll('[data-assist-chip]').forEach((btn) => {
+      const kind = btn.dataset.assistChip;
+      btn.hidden = kind === 'advisor' ? mission : !mission;
+    });
+    chips.hidden = false;
+  }
 }
 
 function assistApplyQuickChip(kind) {
+  if (kind === 'advisor') {
+    void assistSendText('פתח יועץ');
+    return;
+  }
   const input = document.getElementById('assistInput');
   const prefix = ASSIST_CHIP_PREFIX[kind];
   if (!input || !prefix) return;
@@ -11949,6 +11960,7 @@ function initAssistUi() {
     if (!btn) return;
     assistApplyQuickChip(btn.dataset.assistChip);
   });
+  document.getElementById('advisorOpenAssistBtn')?.addEventListener('click', () => assistSetOpen(true));
   document.getElementById('assistConfirmBtn')?.addEventListener('click', () => { void assistConfirm(true); });
   document.getElementById('assistCancelBtn')?.addEventListener('click', () => { void assistConfirm(false); });
   document.getElementById('assistAgentConnectForm')?.addEventListener('submit', (e) => { void assistConnectAgent(e); });
