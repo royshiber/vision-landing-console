@@ -229,7 +229,7 @@ On master today (PR #33 + PR #34 + Hebrew Assist chrome from #50 + result card f
 
 | PR | Topic | This map |
 |---|---|---|
-| this draft | C10.6 Mission flight-safe Assist polish | **This draft.** Stay draft. King merges after independent VERIFY. |
+| [#65](https://github.com/royshiber/vision-landing-console/pull/65) | C10.6 Mission flight-safe Assist polish | **This draft.** Stay draft. King merges after independent VERIFY. |
 | [#64](https://github.com/royshiber/vision-landing-console/pull/64) | Platform capability shells | **LANDED** on master via PR #64 merge `779a11d`. |
 | [#60](https://github.com/royshiber/vision-landing-console/pull/60) | Living-map snapshot after #58 | **LANDED** on master via PR #60. |
 | [#59](https://github.com/royshiber/vision-landing-console/pull/59) | Spoken Hebrew chrome, kill Pulse filler, group lab tabs | **LANDED** on master via PR #59. |

@@ -217,6 +217,8 @@ describe('C10.6 Mission chrome', () => {
     expect(js).toContain("ASSIST_MISSION_PLACEHOLDER_HE = 'הערה, תצפית, או שאלה'");
     expect(js).toContain('function assistSyncMissionPosture(');
     expect(js).toContain('function assistIsMissionTab(');
+    expect(js).toContain('_assistChromeReady');
+    expect(js).toMatch(/if \(_assistChromeReady\) assistRefreshContextChip\(\)/);
     expect(js).toMatch(/tab === 'terrain' \|\| tab === 'flightEngineer'/);
     expect(html).not.toContain('מה שחשוב עכשיו בלבד');
     expect(js).not.toContain('מה שחשוב עכשיו בלבד');

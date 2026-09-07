@@ -123,6 +123,7 @@ const panels = Array.from(document.querySelectorAll('.panel'));
 const subtabs = Array.from(document.querySelectorAll('.subtab'));
 const subpanels = Array.from(document.querySelectorAll('.subpanel'));
 let _maintCompanionModeHint = null;
+let _assistChromeReady = false;
 const controlSubtabsBar = document.getElementById('controlSubtabsBar');
 
 function setParamCenterChromeVisible(visible) {
@@ -302,7 +303,7 @@ function applyMainTab(tabId, { save = true } = {}) {
   if (tabId === 'development') {
     void devTasksLoadList();
   }
-  if (typeof assistRefreshContextChip === 'function') assistRefreshContextChip();
+  if (_assistChromeReady) assistRefreshContextChip();
 }
 const PARAM_SUBTAB_IDS = new Set(['landingParams', 'abortParams', 'visionNavParams', 'arduParams', 'customParams']);
 
@@ -11235,8 +11236,10 @@ function assistActiveSubtab() {
 function assistBuildContextSnapshot() {
   const tab = assistActiveTab();
   const subtab = assistActiveSubtab();
-  const mav = _assistLastMav || {};
-  const vision = latestVisionFromServer || {};
+  let mav = {};
+  let vision = {};
+  try { mav = _assistLastMav || {}; } catch { mav = {}; }
+  try { vision = latestVisionFromServer || {}; } catch { vision = {}; }
   const conf = typeof vision.confidence === 'number'
     ? vision.confidence
     : (typeof vision.landing_confidence === 'number' ? vision.landing_confidence : null);
@@ -11805,6 +11808,7 @@ function initAssistUi() {
   const rail = document.getElementById('assistRail');
   const toggle = document.getElementById('assistToggleBtn');
   if (!rail || !toggle) return;
+  _assistChromeReady = true;
   let open = false;
   try { open = sessionStorage.getItem(ASSIST_OPEN_KEY) === '1'; } catch { /* ignore */ }
   assistSetOpen(open);
