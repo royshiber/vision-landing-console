@@ -101,7 +101,7 @@ Also locked without GO:
 
 Params persist on master via PR #18 + PR #30. Write-to-vehicle is still a Human Gate.
 
-Architecture wave (`docs/AIRVIX_PRODUCT_ARCHITECTURE.md`): C10.2 Assist unification landed; C10.3 Pulse home **LANDED** via PR #54; C10.4a Evolve taxonomy **LANDED** via PR #56; C10.4b Evolve evidence **LANDED** via PR #58; C10.4c-a Maintenance→Development release handoff **LANDED** via PR #61; C10.5a leftover `#flights` fold **LANDED** via PR #62; C10.5b Platform capability shells **LANDED** via PR #64 merge `779a11d`; C10.6 Mission flight-safe Assist **LANDED** via PR #65 merge `5184e71`; C10.7a Attention Policy **LANDED** via PR #66 merge `b37c26e`; Advisor→Assist MERGE **LANDED** via PR #67 merge `b0be4c3`; Flight Engineer→Assist MERGE **LANDED** via PR #68 merge `6b6218f`; Telemetry dash MERGE **LANDED** via PR #69 merge `1fe10df`; orphan `#processes` REMOVE **LANDED** via PR #70 merge `d67ce2a`; Preflight / readiness MERGE **LANDED** via PR #71 merge `4ce554e`; baseline test hygiene **LANDED** via PR #72 merge `d67d4d5`; ArduLab Assist fold **LANDED** via PR #73 merge `dca929a`; SITL Lab (`#simLab`) connect REFINE is this draft — one connection truth (`#connectWidget`). Remainder: C10.4c-b Jetson deploy-wire move stays deferred (#28). C10.7b voice/STT stays deferred.
+Architecture wave (`docs/AIRVIX_PRODUCT_ARCHITECTURE.md`): C10.2 Assist unification landed; C10.3 Pulse home **LANDED** via PR #54; C10.4a Evolve taxonomy **LANDED** via PR #56; C10.4b Evolve evidence **LANDED** via PR #58; C10.4c-a Maintenance→Development release handoff **LANDED** via PR #61; C10.5a leftover `#flights` fold **LANDED** via PR #62; C10.5b Platform capability shells **LANDED** via PR #64 merge `779a11d`; C10.6 Mission flight-safe Assist **LANDED** via PR #65 merge `5184e71`; C10.7a Attention Policy **LANDED** via PR #66 merge `b37c26e`; Advisor→Assist MERGE **LANDED** via PR #67 merge `b0be4c3`; Flight Engineer→Assist MERGE **LANDED** via PR #68 merge `6b6218f`; Telemetry dash MERGE **LANDED** via PR #69 merge `1fe10df`; orphan `#processes` REMOVE **LANDED** via PR #70 merge `d67ce2a`; Preflight / readiness MERGE **LANDED** via PR #71 merge `4ce554e`; baseline test hygiene **LANDED** via PR #72 merge `d67d4d5`; ArduLab Assist fold **LANDED** via PR #73 merge `dca929a`; SITL Lab connect REFINE **LANDED** via PR #74 merge `1971384`; Auto-Config wizard MERGE is this draft. Remainder: C10.4c-b Jetson deploy-wire move stays deferred (#28). C10.7b voice/STT stays deferred.
 
 ---
 
@@ -135,20 +135,22 @@ Architecture wave (`docs/AIRVIX_PRODUCT_ARCHITECTURE.md`): C10.2 Assist unificat
 26. **Preflight / readiness MERGE** — **LANDED** via PR #71 merge `4ce554e`. One spoken-Hebrew **מוכנות** concept. Mission glance + Diagnostics checklist. SITL bar stays LAB-scoped with shared vocabulary. No GPS invented. PFD **פקודות** unchanged. No ARM / LAND / FC writes.
 27. **Baseline test hygiene** — **LANDED** via PR #72 merge `d67d4d5`. `APP_VERSION` stayed `1.02.255`.
 28. **ArduLab → Assist REFINE** — **LANDED** via PR #73 merge `dca929a`. Assist route `ardulab` opens existing `#featureDesigner`. Workspace **EVOLVE**. Lab shelf stays. No FC write / Companion apply / Jetson deploy.
-29. **SITL Lab connect REFINE** — **this draft.** `#simLab` presets/wizard drive the global `#connectWidget` path. Spoken-Hebrew handoff. Wizard teaching stays. No second MAVLink stack. No auto-connect / smart-connect break.
+29. **SITL Lab connect REFINE** — **LANDED** via PR #74 merge `1971384`. `#simLab` presets/wizard drive the global `#connectWidget`. Spoken-Hebrew handoff. One MAVLink connect truth.
+30. **Auto-Config wizard MERGE** — **this draft.** Assist opens `#autoConfig` under Parameter Center (`#control`). Quiet Platform / Params chrome. Existing suggest→approve→apply stays. No new FC write. No cliff-delete.
 
 ---
 
-## Audit snapshot — 2026-09-07 (SITL Lab connect REFINE this draft)
+## Audit snapshot — 2026-09-07 (Auto-Config wizard MERGE this draft)
 
-**Master:** `1.02.255` @ `dca929a` (PR #73 merge — ArduLab Assist fold). Do not bump.  
-**Prior pointer:** 2026-09-07 ArduLab → Assist REFINE draft snapshot. Superseded. #73 landed ArduLab fold.  
-**This draft:** SITL Lab (`#simLab`) connection UX REFINE — one truth in the topbar `#connectWidget`. Stay draft. King merges after independent VERIFY. Do not bump `APP_VERSION`.
+**Master:** `1.02.255` @ `1971384` (PR #74 merge — SITL Lab connect REFINE). Do not bump.  
+**Prior pointer:** 2026-09-07 SITL Lab connect REFINE draft snapshot. Superseded. #74 landed SITL → `#connectWidget`.  
+**This draft:** Auto-Config wizard MERGE into Assist + Configuration. Stay draft. King merges after independent VERIFY. Do not bump `APP_VERSION`.
 
 Ops (not product): WhatsApp Human Gate delivery remains available (signed in on the operator box targeting +972584010075, self-chat).
 
 ### LANDED this capability close (2026-09-07)
 
+- PR #74 SITL Lab connect REFINE → master `1971384`. `#simLab` presets/wizard drive `#connectWidget`. One MAVLink connect truth. Spoken-Hebrew handoff. Wizard teaching stays. No second TCP/UDP stack. `APP_VERSION` stayed `1.02.255`.
 - PR #73 ArduLab → Assist REFINE → master `dca929a`. Assist route `ardulab` / `ארדולאב` opens existing `#featureDesigner`. Workspace **EVOLVE**. Lab shelf stays. No FC write / Companion apply / Jetson deploy. `APP_VERSION` stayed `1.02.255`.
 - PR #72 baseline test hygiene → master `d67d4d5`. Advisor denylist / parseAttitude tests aligned. `APP_VERSION` stayed `1.02.255`.
 - PR #71 Preflight / readiness MERGE → master `4ce554e`. One **מוכנות** concept. Mission glance + Diagnostics checklist. Assist `מוכנות` → Mission readiness. SITL bar stays LAB-scoped. No GPS invented. `APP_VERSION` stayed `1.02.255`.
@@ -162,7 +164,7 @@ Ops (not product): WhatsApp Human Gate delivery remains available (signed in on 
 
 ### This draft (2026-09-07)
 
-- SITL Lab connect REFINE. `#simLab` sidebar presets and wizard connect cards set the global `#connectWidget` fields and trigger the same connect path (`applySitlPreset` + `connectNow` → `/api/connections/quick-connect`). Spoken-Hebrew handoff: **אותו חיבור כמו בשורת המצב למעלה.** Wizard teaching (run SITL → connect → status) stays. Assist `סימולציה` / `sitl` opens `#simLab`. No second TCP/UDP stack. Auto-connect / smart connect unchanged. No FC write beyond existing MAVLink connect. No Companion apply/restart. No GPS invented. `APP_VERSION` stays `1.02.255`.
+- Auto-Config wizard MERGE. Assist route `auto-config` / `אשף` / `קונפיג אוטומטי` opens Parameter Center `#control` and shows existing `#autoConfig`. Platform **פרמטרים** chrome has a quiet **אשף קונפיגורציה** entry. Wizard panel stays. Existing suggest→approve→apply / param-set path unchanged. No new FC `PARAM_SET`. No Companion apply/restart. No flight commands. No GPS invented. `APP_VERSION` stays `1.02.255`.
 
 ### Prior still on master (#54, #56, #57)
 
@@ -245,17 +247,19 @@ On master today (PR #33 + PR #34 + Hebrew Assist chrome from #50 + result card f
 - **Flight Engineer→Assist MERGE LANDED** via PR #68 `6b6218f`: Assist opens `#flightEngineer` for `מהנדס` / voice-ops notes. Panel stays on the lab shelf. Mission stays flight-safe. PFD **פקודות** stays where it is.
 - **Preflight / readiness MERGE LANDED** via PR #71 `4ce554e`: One **מוכנות** concept. Mission glance opens the existing popover. Diagnostics keeps the checklist. Assist `מוכנות` → Mission readiness. SITL bar stays LAB-scoped. No GPS invented. No flight commands.
 - **ArduLab → Assist REFINE LANDED** via PR #73 `dca929a`: Assist opens `#featureDesigner` for `ארדולאב` / feature designer. Workspace **EVOLVE**. Lab shelf stays. Not a competing primary chat. No FC / Companion apply.
-- **SITL Lab connect REFINE this draft:** `#simLab` presets/wizard drive `#connectWidget`. One MAVLink connect truth. Spoken-Hebrew handoff. Wizard teaching stays. Assist `סימולציה` / `sitl` → `#simLab`. No second connect stack.
+- **SITL Lab connect REFINE LANDED** via PR #74 `1971384`: `#simLab` presets/wizard drive `#connectWidget`. One MAVLink connect truth. Spoken-Hebrew handoff. Wizard teaching stays. Assist `סימולציה` / `sitl` → `#simLab`.
+- **Auto-Config wizard MERGE this draft:** Assist opens `#autoConfig` for `אשף` / `קונפיג אוטומטי`. Quiet Platform / Params chrome. Panel stays. No new vehicle write.
 
 ### Params (persist landed)
 
-`POST /api/param-center/param-set` now persists through the same `server_config` snapshot as vision config (PR #18 + PR #30). Issue #27 done on master — close later. Live FC `PARAM_SET` as a product capability remains a Human Gate.
+`POST /api/param-center/param-set` now persists through the same `server_config` snapshot as vision config (PR #18 + PR #30). Issue #27 done on master — close later. Live FC `PARAM_SET` as a product capability remains a Human Gate. **Auto-Config wizard MERGE this draft:** Assist + Platform chrome open existing `#autoConfig`. Suggest→approve→apply is unchanged. Do not widen FC writes.
 
 ### Open drafts
 
 | PR | Topic | This map |
 |---|---|---|
-| this draft | SITL Lab (`#simLab`) connect REFINE — one `#connectWidget` truth | **This draft.** Stay draft. King merges after independent VERIFY. |
+| this draft | Auto-Config wizard MERGE into Assist + Configuration | **This draft.** Stay draft. King merges after independent VERIFY. |
+| [#74](https://github.com/royshiber/vision-landing-console/pull/74) | SITL Lab connect REFINE — one `#connectWidget` truth | **LANDED** on master via PR #74 merge `1971384`. |
 | [#73](https://github.com/royshiber/vision-landing-console/pull/73) | ArduLab → Assist REFINE fold | **LANDED** on master via PR #73 merge `dca929a`. |
 | [#72](https://github.com/royshiber/vision-landing-console/pull/72) | Baseline test hygiene | **LANDED** on master via PR #72 merge `d67d4d5`. |
 | [#71](https://github.com/royshiber/vision-landing-console/pull/71) | Preflight / readiness MERGE | **LANDED** on master via PR #71 merge `4ce554e`. |
@@ -291,7 +295,7 @@ Roy 2026-09-05: abandon searching the local tree for versions past 300 **permane
 
 ### Ranked GAPS (this snapshot)
 
-1. **SITL Lab connect REFINE** — this draft. One connection truth in `#connectWidget`. Sim Lab presets/wizard hand off. Wizard teaching stays.
+1. **Auto-Config wizard MERGE** — this draft. Assist + Configuration chrome. Panel stays. No new FC write.
 2. **C10.7b voice/STT** — deferred. Do not start now. No new ElevenLabs/STT secrets.
 3. **C10.4c-b Jetson deploy-wire move** — remaining C10.4 slice. Still **deferred** (#28). Do not start now.
 4. **Live Jetson connect proof** — parked (days). Capability is on master (#39 / #40). Blocked on Companion token (not in Cursor / PC `.env`; Jetson `:8081` → 401). WAITING FOR ROY on the token, not more connect code. Do not invent a token.
@@ -300,8 +304,8 @@ Roy 2026-09-05: abandon searching the local tree for versions past 300 **permane
 
 ### Explicitly not next
 
-Do not spend cycles on smoke #4, leftover disconnected chrome, version bump, 300+ hunt, inventing a Companion token, Jetson apply/restart, flight commands, another Pulse polish pass, another taxonomy polish pass, another evidence-strip polish pass, Companion B2 policy rewrite, C10.7b voice/STT, or C10.4c-b Jetson deploy-wire move. #50 / #52 / #54 / #56 / #58 / #59 / #61 / #62 / #64 / #65 / #66 / #67 / #68 / #69 / #70 / #71 / #72 / #73 are landed. Do not invent a token. Do not invent GPS. Do not fake a live Jetson connect. Do not add ElevenLabs/STT keys.
+Do not spend cycles on smoke #4, leftover disconnected chrome, version bump, 300+ hunt, inventing a Companion token, Jetson apply/restart, flight commands, another Pulse polish pass, another taxonomy polish pass, another evidence-strip polish pass, Companion B2 policy rewrite, C10.7b voice/STT, or C10.4c-b Jetson deploy-wire move. #50 / #52 / #54 / #56 / #58 / #59 / #61 / #62 / #64 / #65 / #66 / #67 / #68 / #69 / #70 / #71 / #72 / #73 / #74 are landed. Do not invent a token. Do not invent GPS. Do not fake a live Jetson connect. Do not add ElevenLabs/STT keys.
 
 ### Next pick (this snapshot)
 
-**SITL Lab connect REFINE** is this draft. ArduLab Assist fold landed via #73 @ `dca929a`. C10.7b voice/STT stays deferred. Remainder **C10.4c-b** Jetson deploy-wire move stays deferred (#28). Jetson live connect stays parked until Roy supplies the Companion token (days; Jetson `:8081` → 401 without it). Human Gates stay **WAITING FOR ROY**: #28 apply/restart, #29 live vehicle / auto-land. Merge autonomy still on for verified safe draft PRs. Measure by capabilities closed, not PR count. `APP_VERSION` stays `1.02.255`.
+**Auto-Config wizard MERGE** is this draft. SITL Lab connect landed via #74 @ `1971384`. C10.7b voice/STT stays deferred. Remainder **C10.4c-b** Jetson deploy-wire move stays deferred (#28). Jetson live connect stays parked until Roy supplies the Companion token (days; Jetson `:8081` → 401 without it). Human Gates stay **WAITING FOR ROY**: #28 apply/restart, #29 live vehicle / auto-land. Merge autonomy still on for verified safe draft PRs. Measure by capabilities closed, not PR count. `APP_VERSION` stays `1.02.255`.

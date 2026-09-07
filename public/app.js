@@ -2980,6 +2980,11 @@ function operatorOpenFirstAction(action) {
     applyMainTab('control');
     return;
   }
+  if (action === 'auto-config') {
+    applyMainTab('control');
+    applyControlSubtab('autoConfig');
+    return;
+  }
   if (action === 'develop') {
     applyMainTab('development');
     return;
@@ -11285,6 +11290,7 @@ const ASSIST_TAB_CAPABILITY = {
   visionNavParams: 'vision',
   arduParams: 'configuration',
   customParams: 'configuration',
+  autoConfig: 'configuration',
   advisor: 'advisor',
   featureDesigner: 'evolve',
   flightEngineer: 'voice',
