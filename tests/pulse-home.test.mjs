@@ -105,6 +105,7 @@ describe('C10.3 Pulse home', () => {
     });
     expect(disconnected).toHaveLength(3);
     expect(disconnected.map((item) => item.id)).toEqual(['companion', 'assist', 'evolve']);
+    expect(disconnected.map((item) => item.level)).toEqual(['attention', 'info', 'info']);
     const quiet = pulse.pulseBuildAttention({
       companionLive: true,
       assistConnected: true,
