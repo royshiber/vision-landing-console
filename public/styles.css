@@ -6726,6 +6726,17 @@ body.operator-live .companion-connect--hero {
   position: relative;
   border-radius: 12px; /* keep the card corners */
 }
+.mission-identity {
+  margin: 0;
+  padding: 5px 10px 2px;
+  font-family: "Heebo", sans-serif;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: rgba(187, 247, 208, 0.78);
+  direction: rtl;
+  flex: 0 0 auto;
+}
 
 /* ── Free-Flight split shell ────────────────────────────────────────────────── */
 .terrain-flight-shell {
@@ -13016,11 +13027,38 @@ details.flight-manage summary {
 .assist-msg-kind-unavailable { border-color: rgba(251, 191, 36, 0.45); }
 .assist-msg-kind-result { border-color: rgba(74, 222, 128, 0.5); }
 .assist-proposal-actions { display: flex; gap: 8px; }
+.assist-composer {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.assist-quick-chips {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}
+.assist-quick-chips[hidden] { display: none !important; }
+.assist-quick-chip {
+  border-radius: 999px;
+  border: 1px solid rgba(187, 247, 208, 0.22);
+  background: rgba(20, 83, 45, 0.28);
+  color: rgba(187, 247, 208, 0.88);
+  padding: 3px 10px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  font-family: "Heebo", sans-serif;
+  cursor: pointer;
+}
+.assist-quick-chip:hover {
+  border-color: rgba(74, 222, 128, 0.4);
+  background: rgba(20, 83, 45, 0.42);
+}
 .assist-form {
   display: flex;
   gap: 8px;
   align-items: stretch;
-  margin-top: auto;
 }
 .assist-input {
   flex: 1;

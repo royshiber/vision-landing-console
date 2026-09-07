@@ -131,7 +131,7 @@
         </div>
         <button type="button" id="assistCloseBtn" class="assist-close-btn" aria-label="סגור">✕</button>
       </header>
-      <p class="assist-rail-hint">שינוי דורש אישור.</p>
+      <p id="assistRailHint" class="assist-rail-hint">שינוי דורש אישור.</p>
       <section id="assistAgentConnect" class="assist-agent-connect operator-state" data-state="disconnected" aria-label="חיבור הסוכן">
         <p id="assistAgentStatus" class="assist-agent-status" aria-live="polite">הסוכן מנותק.</p>
         <p id="assistAgentHint" class="assist-agent-hint">חברו מפתח כדי לאשר שינוי.</p>
@@ -145,7 +145,7 @@
         <button type="button" id="assistAgentDisconnectBtn" class="assist-btn assist-btn-cancel" hidden>ניתוק</button>
       </section>
         <div id="assistMessagesEmpty" class="assist-empty-stage">
-        <p class="assist-empty-invite">כתבו שאלה או בקשה.</p>
+        <p id="assistEmptyInvite" class="assist-empty-invite">כתבו שאלה או בקשה.</p>
       </div>
       <div id="assistMessages" class="assist-messages" role="log" aria-live="polite"></div>
       <div id="assistRunPanel" class="assist-run-panel" data-kind="unavailable" hidden aria-live="polite"></div>
@@ -157,10 +157,16 @@
           <button type="button" id="assistCancelBtn" class="assist-btn assist-btn-cancel">ביטול</button>
         </div>
       </div>
-      <form id="assistForm" class="assist-form" autocomplete="off">
-        <input id="assistInput" class="assist-input" type="text" maxlength="2000" placeholder="שאלה, תצפית, פתק, ניווט, או בקשת פיתוח…" />
-        <button type="submit" id="assistSendBtn" class="assist-btn assist-btn-send">שלח</button>
-      </form>
+      <div class="assist-composer">
+        <div id="assistQuickChips" class="assist-quick-chips" hidden>
+          <button type="button" class="assist-quick-chip" data-assist-chip="note">הערה</button>
+          <button type="button" class="assist-quick-chip" data-assist-chip="observation">תצפית</button>
+        </div>
+        <form id="assistForm" class="assist-form" autocomplete="off">
+          <input id="assistInput" class="assist-input" type="text" maxlength="2000" placeholder="שאלה, תצפית, פתק, ניווט, או בקשת פיתוח…" />
+          <button type="submit" id="assistSendBtn" class="assist-btn assist-btn-send">שלח</button>
+        </form>
+      </div>
     </aside>
 
     <div id="connectStatModal" class="conn-modal" hidden>
@@ -1574,6 +1580,7 @@
 
 
       <section id="terrain" class="panel">
+        <p id="missionIdentity" class="mission-identity">הטסה · מרחב טיסה</p>
         <div class="terrain-flight-shell">
           <!-- ══ Flight HUD PFD — 30% left column ══ -->
           <aside id="flightHud" class="flight-hud" aria-label="HUD טיסה חופשית">
