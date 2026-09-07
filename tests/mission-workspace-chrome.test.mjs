@@ -449,10 +449,12 @@ describe('AIRVIX Mission chrome — operator naming', () => {
     expect(chrome).not.toMatch(/>סקירה</);
     expect(chrome).not.toMatch(/>תמונת מצב</);
     expect(html).toMatch(/<h3 class="pulse-title">בית<\/h3>/);
-    expect(html).toMatch(/class="pulse-purpose">מצב מערכת</);
+    expect(html).toMatch(/class="pulse-purpose">סטטוס מחשבים</);
     expect(html).toMatch(/id="pulseHomePulseBtn"[^>]*>בית</);
     expect(html).toMatch(/data-pulse-kind="aircraft"/);
-    expect(html).toMatch(/<h4>Jetson<\/h4>/);
+    expect(html).toMatch(/<h4>מחשב משימה<\/h4>/);
+    expect(html).toMatch(/class="pulse-computer-who">Jetson</);
+    expect(html).toMatch(/<h4>הכלי<\/h4>/);
     expect(html).toMatch(/data-pulse-kind="assist"/);
     expect(html).toMatch(/id="pulseTalkBtn"[^>]*>שאלו את המסייע</);
     expect(html).toMatch(/data-first-action="companion">חברו Jetson</);

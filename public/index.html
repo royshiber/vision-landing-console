@@ -268,24 +268,54 @@
         <div class="pulse-home pulse-status-home">
           <header class="pulse-hero">
             <h3 class="pulse-title">בית</h3>
-            <p class="pulse-purpose">מצב מערכת</p>
+            <p class="pulse-purpose">סטטוס מחשבים</p>
           </header>
-          <div class="pulse-status-grid" aria-label="מצב מערכת">
-            <article class="pulse-status-card" data-pulse-kind="aircraft">
-              <h4>כלי</h4>
-              <p id="pulseAircraft" dir="ltr">--</p>
-              <p class="pulse-status-note">חיבור MAVLink</p>
-              <p class="pulse-status-note">קישור <span id="pulseLink" dir="ltr">--</span></p>
-            </article>
-            <article class="pulse-status-card" data-pulse-kind="companion">
-              <h4>Jetson</h4>
+          <div class="pulse-status-grid" aria-label="סטטוס מחשבים">
+            <article class="pulse-status-card pulse-computer-card" data-pulse-kind="companion" data-computer="jetson">
+              <h4>מחשב משימה</h4>
+              <p class="pulse-computer-who">Jetson</p>
               <p id="pulseCompanion">מנותק</p>
-              <p class="pulse-status-note">מחשב משימה</p>
+              <dl class="pulse-computer-metrics">
+                <div>
+                  <dt>עומס</dt>
+                  <dd id="pulseJetsonLoad" dir="ltr">--</dd>
+                </div>
+                <div>
+                  <dt>זיכרון</dt>
+                  <dd id="pulseJetsonMem" dir="ltr">--</dd>
+                </div>
+                <div>
+                  <dt>טמפרטורות</dt>
+                  <dd id="pulseJetsonTemp" dir="ltr">--</dd>
+                </div>
+              </dl>
               <button type="button" class="first-open-btn" data-first-action="companion" data-pulse-live="hide">חברו Jetson</button>
             </article>
-            <article class="pulse-status-card" data-pulse-kind="assist">
-              <h4>מסייע</h4>
-              <p id="pulseAssist">מנותק</p>
+            <article class="pulse-status-card pulse-computer-card" data-pulse-kind="aircraft" data-computer="fc">
+              <h4>הכלי</h4>
+              <p class="pulse-computer-who">FC</p>
+              <p id="pulseAircraft">מנותק</p>
+              <p class="pulse-status-note">קישור <span id="pulseLink" dir="ltr">--</span></p>
+              <dl class="pulse-computer-metrics">
+                <div>
+                  <dt>עומס</dt>
+                  <dd id="pulseFcLoad" dir="ltr">--</dd>
+                </div>
+                <div>
+                  <dt>זיכרון</dt>
+                  <dd id="pulseFcMem" dir="ltr">--</dd>
+                </div>
+                <div>
+                  <dt>טמפרטורות</dt>
+                  <dd id="pulseFcTemp" dir="ltr">--</dd>
+                </div>
+              </dl>
+            </article>
+            <article class="pulse-status-card pulse-talk-card" data-pulse-kind="assist">
+              <div class="pulse-talk-copy">
+                <h4>מסייע</h4>
+                <p id="pulseAssist">מנותק</p>
+              </div>
               <button type="button" id="pulseTalkBtn" class="first-open-btn pulse-talk-btn" data-first-action="assist">שאלו את המסייע</button>
             </article>
           </div>

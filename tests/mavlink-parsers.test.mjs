@@ -80,5 +80,22 @@ describe('MAVLink payload parsers', () => {
     expect(s.remaining_pct).toBe(77);
     expect(s.voltage_V).toBeCloseTo(12.62, 3);
     expect(s.current_A).toBeNull();
+    expect(s.load_pct).toBe(0);
+  });
+
+  it('parseSysStatus reads load at offset 12 as percent and blanks invalid load', () => {
+    const p = Buffer.alloc(19);
+    p.writeUInt16LE(412, 12); // 41.2%
+    p.writeUInt16LE(12_620, 14);
+    p.writeInt16LE(-1, 16);
+    p.writeInt8(50, 18);
+    const s = parseSysStatus(p);
+    expect(s.load_pct).toBeCloseTo(41.2, 5);
+    const q = Buffer.alloc(19);
+    q.writeUInt16LE(0xffff, 12);
+    q.writeUInt16LE(0xffff, 14);
+    q.writeInt16LE(-1, 16);
+    q.writeInt8(-1, 18);
+    expect(parseSysStatus(q).load_pct).toBeNull();
   });
 });

@@ -4694,7 +4694,7 @@ body.operator-live .companion-connect--hero {
 }
 .pulse-status-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
 }
 .pulse-status-card {
@@ -4721,8 +4721,54 @@ body.operator-live .companion-connect--hero {
   font-weight: 600;
   color: var(--text-muted);
 }
+.pulse-computer-who {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--text-subtle);
+}
+.pulse-computer-metrics {
+  display: grid;
+  gap: 6px;
+  margin: 2px 0 0;
+  text-align: start;
+}
+.pulse-computer-metrics > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  padding: 7px 10px;
+  border-radius: 10px;
+  background: #121a26;
+  color: #e8eef6;
+}
+.pulse-computer-metrics dt {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #9aa8b8;
+}
+.pulse-computer-metrics dd {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.pulse-talk-card {
+  grid-column: 1 / -1;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  text-align: start;
+}
+.pulse-talk-copy {
+  display: grid;
+  gap: 2px;
+}
 .pulse-talk-btn {
-  margin-top: 4px;
+  margin-top: 0;
+  flex: 0 0 auto;
 }
 .pulse-version-line {
   margin: 0;
@@ -4863,6 +4909,9 @@ body.operator-live .companion-connect--hero {
 @media (max-width: 720px) {
   .pulse-status {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .pulse-status-grid {
+    grid-template-columns: 1fr;
   }
   .pulse-home {
     padding: 18px 14px 16px;

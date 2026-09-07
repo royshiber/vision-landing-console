@@ -3160,6 +3160,30 @@ function pulseSyncHomePrefChrome() {
   document.getElementById('pulseHomeTeleBtn')?.classList.toggle('is-active', pref === 'telemetry');
 }
 
+function formatComputerMetric(value, unit) {
+  if (value == null || value === '') return '--';
+  const n = Number(value);
+  if (!Number.isFinite(n)) return '--';
+  if (unit === '%') return `${Math.round(n)}%`;
+  if (unit === 'C') {
+    const rounded = Math.round(n * 10) / 10;
+    return `${rounded}°C`;
+  }
+  return String(n);
+}
+
+function pulseComputerMetricValue(connected, value) {
+  if (!connected) return null;
+  if (value == null || value === '') return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+function pulseWriteComputerMetric(id, value, unit) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = formatComputerMetric(value, unit);
+}
+
 function pulseRefresh() {
   const versionEl = document.getElementById('pulseVersion');
   const companionEl = document.getElementById('pulseCompanion');
@@ -3185,10 +3209,21 @@ function pulseRefresh() {
   assistEl.parentElement?.setAttribute('data-state', _assistAgentConnected ? 'connected' : 'disconnected');
   const linkLabel = document.getElementById('connectPillLabel')?.textContent?.trim() || '';
   const linkText = (!linkLabel || linkLabel === 'לא מחובר' || linkLabel === 'מנותק') ? '--' : linkLabel;
-  linkEl.textContent = linkText;
+  if (linkEl) linkEl.textContent = linkText;
   const missionLink = document.getElementById('missionLink');
   if (missionLink) missionLink.textContent = linkText;
-  aircraftEl.textContent = pulseHudText('hudFlightMode');
+  const jetson = (typeof latestJetsonFromServer !== 'undefined' && latestJetsonFromServer) ? latestJetsonFromServer : {};
+  const jetsonConnected = companionState === 'connected' || !!jetson.online;
+  pulseWriteComputerMetric('pulseJetsonLoad', pulseComputerMetricValue(jetsonConnected, jetson.cpuLoadPct), '%');
+  pulseWriteComputerMetric('pulseJetsonMem', pulseComputerMetricValue(jetsonConnected, jetson.memPct), '%');
+  pulseWriteComputerMetric('pulseJetsonTemp', pulseComputerMetricValue(jetsonConnected, jetson.tempC), 'C');
+  const mav = (typeof latestHudMavlink !== 'undefined' && latestHudMavlink) ? latestHudMavlink : null;
+  const fcConnected = !!(mav && mav.connected);
+  if (aircraftEl) aircraftEl.textContent = fcConnected ? 'מחובר' : 'מנותק';
+  aircraftEl?.parentElement?.setAttribute('data-state', fcConnected ? 'connected' : 'disconnected');
+  pulseWriteComputerMetric('pulseFcLoad', pulseComputerMetricValue(fcConnected, mav?.fcLoadPct), '%');
+  pulseWriteComputerMetric('pulseFcMem', pulseComputerMetricValue(fcConnected, mav?.fcMemPct), '%');
+  pulseWriteComputerMetric('pulseFcTemp', pulseComputerMetricValue(fcConnected, mav?.fcTempC), 'C');
   const evolveText = pulseEvolveLine(document.getElementById('assistRunPanel'));
   const items = pulseBuildAttention({
     companionLive,
@@ -4645,6 +4680,7 @@ document.addEventListener('keydown', (e) => {
 });
 
 function applyTopbarFlightData(mav) {
+  if (mav) latestHudMavlink = mav;
   if (!mav) return;
   const miniSpd = hudAirspeedEl?.closest('.tele-hud-mini');
   if (miniSpd) miniSpd.classList.toggle('tele-hud-mini--airspeed-proxy', !!mav.airspeedIsGroundspeedProxy);
