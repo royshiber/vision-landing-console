@@ -101,7 +101,7 @@ Also locked without GO:
 
 Params persist on master via PR #18 + PR #30. Write-to-vehicle is still a Human Gate.
 
-Architecture wave (`docs/AIRVIX_PRODUCT_ARCHITECTURE.md`): C10.2 Assist unification landed; C10.3 Pulse home **LANDED** via PR #54; C10.4a Evolve taxonomy **LANDED** via PR #56; C10.4b Evolve evidence **LANDED** via PR #58; C10.4c-a Maintenance→Development release handoff **LANDED** via PR #61; C10.5a leftover `#flights` fold **LANDED** via PR #62; C10.5b Platform capability shells is this draft. Remainder: C10.4c-b Jetson deploy-wire move stays deferred (#28).
+Architecture wave (`docs/AIRVIX_PRODUCT_ARCHITECTURE.md`): C10.2 Assist unification landed; C10.3 Pulse home **LANDED** via PR #54; C10.4a Evolve taxonomy **LANDED** via PR #56; C10.4b Evolve evidence **LANDED** via PR #58; C10.4c-a Maintenance→Development release handoff **LANDED** via PR #61; C10.5a leftover `#flights` fold **LANDED** via PR #62; C10.5b Platform capability shells **LANDED** via PR #64 merge `779a11d`; C10.6 Mission flight-safe Assist polish is this draft. Remainder: C10.4c-b Jetson deploy-wire move stays deferred (#28). C10.7 voice/STT is not this draft.
 
 ---
 
@@ -125,21 +125,26 @@ Architecture wave (`docs/AIRVIX_PRODUCT_ARCHITECTURE.md`): C10.2 Assist unificat
 16. 300+ hunt is **abandoned permanently**. GitHub public `master` is `1.02.255`. Improve GitHub 255. Measure by capabilities closed, not PR count.
 17. Skip leftover draft #4 (low-value smoke). Do not merge. Constitution #6 **LANDED** on master `e57eb28`. Prior map snapshots **LANDED** via PR #49 `1c7f8fa`, PR #51 `ba78623`, PR #53 `1c165e0`, PR #55 `db6fdc0`, and PR #57 `b724c76`.
 18. **C10.5a** leftover hidden `#flights` folds into תחקור לוגים — **LANDED** via PR #62.
-19. **C10.5b** Platform capability shells — **this draft.** One overview tab **פלטפורמה** links to existing Companion / Params / Maintenance. No new write paths.
+19. **C10.5b** Platform capability shells — **LANDED** via PR #64 merge `779a11d`. One overview tab **פלטפורמה** links to existing Companion / Params / Maintenance. No new write paths.
+20. **C10.6** Mission flight-safe Assist polish — **this draft.** `#terrain` / `#flightEngineer` stay MISSION. Assist drops `CREATE_DEVELOPMENT_TASK` there and refuses coding-agent starts in spoken Hebrew. NOTE / OBSERVATION / UI_NAVIGATION stay. No voice/STT (C10.7).
 
 ---
 
-## Audit snapshot — 2026-09-06 (post #58 land)
+## Audit snapshot — 2026-09-07 (C10.6 this draft)
 
-**Master:** `1.02.255` @ `6100247d1d27c76af5ca09293d7d99b97794f0b9` (PR #58 merge — C10.4b Evolve evidence strip). Do not bump.  
-**Prior pointer:** 2026-09-06 post-#56 / #57 snapshot named C10.4b evidence as next. That is superseded. #58 landed evidence. C10.4c absorb release owner stays deferred. In flight / next is Roy spoken Hebrew + less filler + calmer tabs (draft PR #59). #6, #50, #52, #53, #54, #55, #56, and #57 remain **LANDED**.  
-**This draft:** [#60](https://github.com/royshiber/vision-landing-console/pull/60) rewrite of this living snapshot after PR #58. Docs only. Do not bump `APP_VERSION`. Stay draft. Do not merge from this agent.
+**Master:** `1.02.255` @ `779a11d` (PR #64 merge — C10.5b Platform capability shells). Do not bump.  
+**Prior pointer:** 2026-09-06 post-#58 snapshot. Superseded. #61 / #62 / #64 landed C10.4c-a, C10.5a, and C10.5b.  
+**This draft:** C10.6 Mission flight-safe Assist polish. Policy + rail chrome. Stay draft. King merges after independent VERIFY. Do not bump `APP_VERSION`.
 
 Ops (not product): WhatsApp Human Gate delivery remains available (signed in on the operator box targeting +972584010075, self-chat).
 
-### LANDED this capability close (2026-09-06)
+### LANDED this capability close (2026-09-07)
 
-- PR #58 C10.4b Evolve evidence strip → master `6100247d1d27c76af5ca09293d7d99b97794f0b9`. Compact Hebrew strip on Development task detail: **מה / למה / מצב / בדיקות / גרסה / גרסה רצה**. Read-only bind from existing task JSON (`devBindEvidenceStrip`). No new APIs. No parallel store. Empty cells stay `—` or `NOT_STARTED`. Spoken operator Hebrew. No invented progress, versions, or GPS. `APP_VERSION` stayed `1.02.255`.
+- PR #64 C10.5b Platform capability shells → master `779a11d`. Hebrew **פלטפורמה** overview links existing Companion / Params / Maintenance. No new write paths.
+
+### This draft (2026-09-07)
+
+- C10.6 Mission flight-safe Assist. `terrain` / `flightEngineer` stay MISSION. `available_actions` drop `CREATE_DEVELOPMENT_TASK`. DEVELOPMENT / REQUEST in Mission is a spoken-Hebrew refuse; no agent start. NOTE / OBSERVATION / UI_NAVIGATION stay. Compact `#terrain` identity. Assist rail hint/placeholder/chips. `APP_VERSION` stays `1.02.255`.
 
 ### Prior still on master (#54, #56, #57)
 
@@ -182,9 +187,9 @@ On master today (PR #54):
 - Attention, Evolve glance, and first-open actions (companion / assist / params / develop / telemetry) sit on the home surface.
 - Operator can keep Telemetry-first via `localStorage` `visionLandingHomeSurfaceV1` = `telemetry`. Default is `pulse`.
 - Existing tabs remain. This is a non-breaking home, not an IA cliff-delete.
-- Draft PR #59 (in flight) may drop Pulse filler lede / kicker. Do not start a second Pulse rewrite.
+- PR #59 landed spoken Hebrew chrome and dropped Pulse filler lede / kicker. Do not start a second Pulse rewrite.
 
-### Evolve (C10.4a + C10.4b landed; C10.4c-a this draft)
+### Evolve (C10.4a + C10.4b + C10.4c-a landed)
 
 On master today (PR #56 + PR #58):
 
@@ -193,7 +198,7 @@ On master today (PR #56 + PR #58):
 - Assist CREATE writes taxonomy on the task. Do not stuff the type into notes.
 - Rows missing taxonomy backfill to FEATURE.
 - Development task detail opens with a compact evidence strip: **מה / למה / מצב / בדיקות / גרסה / גרסה רצה**. Bind is read-only from existing task / pipeline fields. Empty stays honest.
-- C10.4 is **not closed**. **C10.4c-a landed in this draft:** Maintenance demotes deploy/rollback authoring CTAs to a Hebrew handoff into Development `#devReleaseSection`; active/previous + backups/health stay read-only. Remainder is **C10.4c-b** Jetson deploy-wire move — still **deferred** (#28).
+- C10.4 is **not closed**. **C10.4c-a LANDED** via PR #61: Maintenance demotes deploy/rollback authoring CTAs to a Hebrew handoff into Development `#devReleaseSection`; active/previous + backups/health stay read-only. Remainder is **C10.4c-b** Jetson deploy-wire move — still **deferred** (#28).
 
 ### Companion (connect + events landed; live proof parked)
 
@@ -214,6 +219,7 @@ On master today (PR #33 + PR #34 + Hebrew Assist chrome from #50 + result card f
 - CREATE_DEVELOPMENT_TASK writes taxonomy instead of stuffing notes.
 - UNAVAILABLE stays honest. Empty/invalid key, `NOT_STARTED`, or `agent_started === false` never render as a healthy run. Do not invent progress.
 - Milestone B remainder is closed. Do not spend the next cycle polishing this card.
+- **C10.6 this draft:** Mission (`terrain` / `flightEngineer`) drops `CREATE_DEVELOPMENT_TASK` from `available_actions`. DEVELOPMENT / REQUEST there is a spoken-Hebrew refuse; no agent start. NOTE / OBSERVATION / known-route nav stay. Rail hint/placeholder/chips. `#terrain` keeps a small הטסה identity. No voice/STT.
 
 ### Params (persist landed)
 
@@ -223,7 +229,8 @@ On master today (PR #33 + PR #34 + Hebrew Assist chrome from #50 + result card f
 
 | PR | Topic | This map |
 |---|---|---|
-| this draft | C10.5a leftover `#flights` folds into תחקור | **This draft.** Stay draft. Do not merge from this agent. |
+| [#65](https://github.com/royshiber/vision-landing-console/pull/65) | C10.6 Mission flight-safe Assist polish | **This draft.** Stay draft. King merges after independent VERIFY. |
+| [#64](https://github.com/royshiber/vision-landing-console/pull/64) | Platform capability shells | **LANDED** on master via PR #64 merge `779a11d`. |
 | [#60](https://github.com/royshiber/vision-landing-console/pull/60) | Living-map snapshot after #58 | **LANDED** on master via PR #60. |
 | [#59](https://github.com/royshiber/vision-landing-console/pull/59) | Spoken Hebrew chrome, kill Pulse filler, group lab tabs | **LANDED** on master via PR #59. |
 | [#4](https://github.com/royshiber/vision-landing-console/pull/4) | PM orchestrator smoke | Skip. Low-value. Do not merge. |
@@ -249,7 +256,7 @@ Roy 2026-09-05: abandon searching the local tree for versions past 300 **permane
 
 ### Ranked GAPS (this snapshot)
 
-1. **C10.4c-a Maintenance→Development release handoff** — this draft. Chrome fold only; Dev remains the authoring owner.
+1. **C10.6 Mission flight-safe Assist** — this draft. Policy + rail chrome only. No voice, no FLIGHT_ACTION.
 2. **C10.4c-b Jetson deploy-wire move** — remaining C10.4 slice. Still **deferred** (#28). Do not start now.
 3. **Live Jetson connect proof** — parked (days). Capability is on master (#39 / #40). Blocked on Companion token (not in Cursor / PC `.env`; Jetson `:8081` → 401). WAITING FOR ROY on the token, not more connect code. Do not invent a token.
 4. **Companion apply/restart** — Human Gate. Issue #28. Milestone C. Highest remaining destination *code*. No GO. Stay **WAITING FOR ROY**.
@@ -257,8 +264,8 @@ Roy 2026-09-05: abandon searching the local tree for versions past 300 **permane
 
 ### Explicitly not next
 
-Do not spend cycles on smoke #4, leftover disconnected chrome, version bump, 300+ hunt, inventing a Companion token, Jetson apply/restart, flight commands, another Pulse polish pass, another taxonomy polish pass, another evidence-strip polish pass, or C10.4c-b Jetson deploy-wire move. #50 / #52 / #54 / #56 / #58 / #59 are landed. Do not invent a token. Do not invent GPS. Do not fake a live Jetson connect.
+Do not spend cycles on smoke #4, leftover disconnected chrome, version bump, 300+ hunt, inventing a Companion token, Jetson apply/restart, flight commands, another Pulse polish pass, another taxonomy polish pass, another evidence-strip polish pass, C10.7 voice/STT, or C10.4c-b Jetson deploy-wire move. #50 / #52 / #54 / #56 / #58 / #59 / #61 / #62 / #64 are landed. Do not invent a token. Do not invent GPS. Do not fake a live Jetson connect.
 
 ### Next pick (this snapshot)
 
-**C10.5b** Platform capability shells is this draft. C10.5a leftover `#flights` fold landed via #62. Remainder **C10.4c-b** Jetson deploy-wire move stays deferred (#28). Jetson live connect stays parked until Roy supplies the Companion token (days; Jetson `:8081` → 401 without it). Human Gates stay **WAITING FOR ROY**: #28 apply/restart, #29 live vehicle / auto-land. Merge autonomy still on for verified safe draft PRs. Measure by capabilities closed, not PR count. `APP_VERSION` stays `1.02.255`.
+**C10.6** Mission flight-safe Assist polish is this draft. Platform shells landed via #64 @ `779a11d`. Remainder **C10.4c-b** Jetson deploy-wire move stays deferred (#28). C10.7 voice/STT is next architecture wave after this, not this PR. Jetson live connect stays parked until Roy supplies the Companion token (days; Jetson `:8081` → 401 without it). Human Gates stay **WAITING FOR ROY**: #28 apply/restart, #29 live vehicle / auto-land. Merge autonomy still on for verified safe draft PRs. Measure by capabilities closed, not PR count. `APP_VERSION` stays `1.02.255`.

@@ -123,6 +123,7 @@ const panels = Array.from(document.querySelectorAll('.panel'));
 const subtabs = Array.from(document.querySelectorAll('.subtab'));
 const subpanels = Array.from(document.querySelectorAll('.subpanel'));
 let _maintCompanionModeHint = null;
+let _assistChromeReady = false;
 const controlSubtabsBar = document.getElementById('controlSubtabsBar');
 
 function setParamCenterChromeVisible(visible) {
@@ -302,6 +303,7 @@ function applyMainTab(tabId, { save = true } = {}) {
   if (tabId === 'development') {
     void devTasksLoadList();
   }
+  if (_assistChromeReady) assistRefreshContextChip();
 }
 const PARAM_SUBTAB_IDS = new Set(['landingParams', 'abortParams', 'visionNavParams', 'arduParams', 'customParams']);
 
@@ -11234,8 +11236,10 @@ function assistActiveSubtab() {
 function assistBuildContextSnapshot() {
   const tab = assistActiveTab();
   const subtab = assistActiveSubtab();
-  const mav = _assistLastMav || {};
-  const vision = latestVisionFromServer || {};
+  let mav = {};
+  let vision = {};
+  try { mav = _assistLastMav || {}; } catch { mav = {}; }
+  try { vision = latestVisionFromServer || {}; } catch { vision = {}; }
   const conf = typeof vision.confidence === 'number'
     ? vision.confidence
     : (typeof vision.landing_confidence === 'number' ? vision.landing_confidence : null);
@@ -11258,16 +11262,54 @@ function assistBuildContextSnapshot() {
   };
 }
 
+const ASSIST_DEFAULT_HINT_HE = 'שינוי דורש אישור.';
+const ASSIST_MISSION_HINT_HE = 'הטסה. הערה ותצפית בלבד.';
+const ASSIST_DEFAULT_PLACEHOLDER_HE = 'שאלה, תצפית, פתק, ניווט, או בקשת פיתוח…';
+const ASSIST_MISSION_PLACEHOLDER_HE = 'הערה, תצפית, או שאלה';
+const ASSIST_DEFAULT_INVITE_HE = 'כתבו שאלה או בקשה.';
+const ASSIST_MISSION_INVITE_HE = 'שאלו, רשמו הערה, או תצפית.';
+const ASSIST_CHIP_PREFIX = Object.freeze({
+  note: 'הערה: ',
+  observation: 'תצפית: ',
+});
+
+function assistIsMissionTab(tab) {
+  return tab === 'terrain' || tab === 'flightEngineer';
+}
+
 function assistRefreshContextChip() {
   const chip = document.getElementById('assistContextChip');
-  if (!chip) return;
-  const ctx = assistBuildContextSnapshot();
-  const parts = [
-    ASSIST_WORKSPACE_HE[ctx.current_workspace] || ASSIST_WORKSPACE_HE.UNKNOWN,
-    ASSIST_CAPABILITY_HE[ctx.current_capability] || null,
-    ASSIST_TAB_HE[ctx.current_tab] || null,
-  ].filter(Boolean);
-  chip.textContent = parts.join(' · ') || '—';
+  if (chip) {
+    const ctx = assistBuildContextSnapshot();
+    const parts = [
+      ASSIST_WORKSPACE_HE[ctx.current_workspace] || ASSIST_WORKSPACE_HE.UNKNOWN,
+      ASSIST_CAPABILITY_HE[ctx.current_capability] || null,
+      ASSIST_TAB_HE[ctx.current_tab] || null,
+    ].filter(Boolean);
+    chip.textContent = parts.join(' · ') || '—';
+  }
+  assistSyncMissionPosture();
+}
+
+function assistSyncMissionPosture() {
+  const mission = assistIsMissionTab(assistActiveTab());
+  const hint = document.getElementById('assistRailHint');
+  const input = document.getElementById('assistInput');
+  const invite = document.getElementById('assistEmptyInvite');
+  const chips = document.getElementById('assistQuickChips');
+  if (hint) hint.textContent = mission ? ASSIST_MISSION_HINT_HE : ASSIST_DEFAULT_HINT_HE;
+  if (input) input.placeholder = mission ? ASSIST_MISSION_PLACEHOLDER_HE : ASSIST_DEFAULT_PLACEHOLDER_HE;
+  if (invite) invite.textContent = mission ? ASSIST_MISSION_INVITE_HE : ASSIST_DEFAULT_INVITE_HE;
+  if (chips) chips.hidden = !mission;
+}
+
+function assistApplyQuickChip(kind) {
+  const input = document.getElementById('assistInput');
+  const prefix = ASSIST_CHIP_PREFIX[kind];
+  if (!input || !prefix) return;
+  const current = String(input.value || '');
+  if (!current.startsWith(prefix)) input.value = `${prefix}${current}`;
+  input.focus();
 }
 
 function assistSyncMessagesEmpty() {
@@ -11766,6 +11808,7 @@ function initAssistUi() {
   const rail = document.getElementById('assistRail');
   const toggle = document.getElementById('assistToggleBtn');
   if (!rail || !toggle) return;
+  _assistChromeReady = true;
   let open = false;
   try { open = sessionStorage.getItem(ASSIST_OPEN_KEY) === '1'; } catch { /* ignore */ }
   assistSetOpen(open);
@@ -11777,6 +11820,11 @@ function initAssistUi() {
     const text = input?.value || '';
     if (input) input.value = '';
     void assistSendText(text);
+  });
+  document.getElementById('assistQuickChips')?.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-assist-chip]');
+    if (!btn) return;
+    assistApplyQuickChip(btn.dataset.assistChip);
   });
   document.getElementById('assistConfirmBtn')?.addEventListener('click', () => { void assistConfirm(true); });
   document.getElementById('assistCancelBtn')?.addEventListener('click', () => { void assistConfirm(false); });
