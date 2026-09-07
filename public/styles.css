@@ -122,16 +122,17 @@ h1, h2, .panel-header h2 {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 14px;
+  padding: 7px 16px;
   padding-inline-end: 168px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  background: linear-gradient(180deg, rgba(14, 18, 28, 0.96), rgba(10, 14, 22, 0.92));
-  backdrop-filter: blur(18px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: linear-gradient(180deg, rgba(8, 12, 20, 0.92), rgba(8, 12, 20, 0.78));
+  backdrop-filter: blur(22px) saturate(1.15);
   min-height: 48px;
   flex-shrink: 0;
   position: relative;
   z-index: var(--z-topbar-chrome);
   color: #e8edf6;
+  box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.04);
 }
 
 .app-chrome .tabs {
@@ -165,62 +166,67 @@ h1, h2, .panel-header h2 {
 }
 
 .app-chrome .tab {
-  background: rgba(255, 255, 255, 0.04);
-  color: rgba(232, 237, 246, 0.72);
-  border-color: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.035);
+  color: rgba(232, 237, 246, 0.68);
+  border-color: rgba(255, 255, 255, 0.07);
+  border-radius: 999px;
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .app-chrome .tab:hover {
   background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(96, 165, 250, 0.45);
-  color: #dbeafe;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.22);
+  border-color: rgba(147, 197, 253, 0.35);
+  color: #e0f2fe;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
 }
 
 .app-chrome .tab.active {
-  background: linear-gradient(135deg, #2563eb 0%, #38bdf8 100%);
-  border-color: rgba(125, 211, 252, 0.55);
-  color: #fff;
+  background: rgba(56, 189, 248, 0.18);
+  border-color: rgba(125, 211, 252, 0.38);
+  color: #f8fafc;
+  box-shadow: inset 0 0 0 1px rgba(125, 211, 252, 0.12);
 }
 
 .app-chrome .tab-fly {
-  color: #6ee7b7;
-  border-color: rgba(52, 211, 153, 0.35);
+  color: #86efac;
+  border-color: rgba(52, 211, 153, 0.28);
 }
 
 .app-chrome .tab-fly:hover {
-  background: rgba(16, 185, 129, 0.16);
-  color: #a7f3d0;
+  background: rgba(16, 185, 129, 0.14);
+  color: #bbf7d0;
 }
 
 .app-chrome .tab-fly.active {
-  background: linear-gradient(135deg, #059669 0%, #34d399 100%);
-  color: #fff;
+  background: rgba(16, 185, 129, 0.22);
+  border-color: rgba(52, 211, 153, 0.42);
+  color: #f0fdf4;
 }
 
-.app-chrome .assist-toggle-btn {
+.assist-toggle-btn.assist-toggle-float {
   position: fixed;
-  bottom: 20px;
-  inset-inline-end: 16px;
+  bottom: 22px;
+  inset-inline-end: 18px;
   inset-inline-start: auto;
   z-index: var(--z-assist-float);
   flex-direction: row;
-  padding: 10px 16px;
-  border: 1px solid rgba(110, 231, 183, 0.28);
-  background: rgba(8, 16, 24, 0.78);
+  padding: 11px 18px;
+  border: 1px solid rgba(167, 243, 208, 0.22);
+  background: rgba(8, 14, 22, 0.72);
   color: #ecfdf5;
   border-radius: 999px;
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
-  backdrop-filter: blur(16px);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(20px) saturate(1.2);
+  transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-.app-chrome .assist-toggle-btn[aria-expanded="true"] {
+.assist-toggle-btn.assist-toggle-float[aria-expanded="true"] {
   background: rgba(16, 185, 129, 0.28);
-  border-color: rgba(52, 211, 153, 0.5);
+  border-color: rgba(52, 211, 153, 0.48);
 }
 
-body.mission-assist-docked .app-chrome .assist-toggle-btn {
-  display: none;
+body.mission-assist-docked .assist-toggle-btn {
+  display: none !important;
 }
 
 h1 { margin: 0; font-size: 1.25rem; color: var(--text); }
@@ -6806,8 +6812,12 @@ body.operator-live .companion-connect--hero {
   gap: 0;
   padding: 0;
   position: relative;
-  border-radius: 16px;
-  background: linear-gradient(180deg, #0b1220 0%, #111827 100%);
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background:
+    radial-gradient(980px 420px at 82% 0%, rgba(56, 189, 248, 0.08), transparent 58%),
+    linear-gradient(180deg, #0a1018 0%, #0c1524 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 .mission-identity {
   margin: 0;
@@ -6826,11 +6836,11 @@ body.operator-live .companion-connect--hero {
 .mission-readiness-glance {
   margin: 0;
   margin-inline-start: auto;
-  padding: 2px 10px;
-  border: 1px solid #86efac;
+  padding: 3px 11px;
+  border: 1px solid rgba(52, 211, 153, 0.32);
   border-radius: 999px;
-  background: #ecfdf3;
-  color: #14532d;
+  background: rgba(16, 185, 129, 0.12);
+  color: #bbf7d0;
   font: inherit;
   font-size: 0.68rem;
   font-weight: 700;
@@ -6839,8 +6849,8 @@ body.operator-live .companion-connect--hero {
 }
 .mission-readiness-glance:hover,
 .mission-readiness-glance:focus-visible {
-  border-color: #4ade80;
-  background: #dcfce7;
+  border-color: rgba(74, 222, 128, 0.55);
+  background: rgba(16, 185, 129, 0.2);
   outline: none;
 }
 
@@ -6862,22 +6872,23 @@ body.operator-live .companion-connect--hero {
 
 .mission-layout-btn {
   margin: 0;
-  padding: 4px 12px;
-  border: 1px solid rgba(110, 231, 183, 0.28);
+  padding: 5px 13px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 999px;
-  background: rgba(16, 185, 129, 0.12);
+  background: rgba(255, 255, 255, 0.04);
   color: #d1fae5;
   font: inherit;
   font-size: 0.68rem;
   font-weight: 700;
   font-family: "Heebo", sans-serif;
   cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease;
 }
 
 .mission-layout-btn:hover,
 .mission-layout-btn:focus-visible {
-  border-color: #4ade80;
-  background: #dcfce7;
+  border-color: rgba(52, 211, 153, 0.45);
+  background: rgba(16, 185, 129, 0.16);
   outline: none;
 }
 
@@ -6949,8 +6960,11 @@ body.operator-live .companion-connect--hero {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border-radius: 14px;
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.22);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(10, 16, 26, 0.52);
+  backdrop-filter: blur(18px);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 .mission-region--drop {
@@ -6977,11 +6991,11 @@ body.operator-live .companion-connect--hero {
 
 .mission-region-title {
   margin: 0;
-  padding: 8px 12px 4px;
-  font-size: 0.72rem;
+  padding: 9px 14px 5px;
+  font-size: 0.7rem;
   font-weight: 800;
-  letter-spacing: 0.04em;
-  color: #bbf7d0;
+  letter-spacing: 0.06em;
+  color: rgba(187, 247, 208, 0.88);
   font-family: "Heebo", sans-serif;
   flex: 0 0 auto;
 }
@@ -6989,10 +7003,7 @@ body.operator-live .companion-connect--hero {
 .mission-region-data,
 .mission-region-messages,
 .mission-region-talk {
-  background: rgba(15, 23, 42, 0.72);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 14px;
-  backdrop-filter: blur(12px);
+  background: rgba(12, 18, 30, 0.42);
 }
 
 .mission-data-grid {
@@ -7010,16 +7021,16 @@ body.operator-live .companion-connect--hero {
   flex-direction: column;
   gap: 2px;
   min-width: 0;
-  padding: 6px 8px;
-  border-radius: 8px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  padding: 7px 9px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.07);
 }
 
 .mission-data-item dt {
   font-size: 0.64rem;
   font-weight: 700;
-  color: var(--text-muted);
+  color: rgba(226, 232, 240, 0.55);
 }
 
 .mission-data-item dd {
@@ -7027,7 +7038,7 @@ body.operator-live .companion-connect--hero {
   font-size: 0.92rem;
   font-weight: 800;
   font-family: "Space Grotesk", "Heebo", sans-serif;
-  color: var(--text);
+  color: #f8fafc;
 }
 
 .mission-data-confidence dd {
@@ -8580,15 +8591,15 @@ details.flight-manage summary {
 }
 
 .connect-widget-float .conn-pill:hover {
-  background: var(--surface-container-high);
-  border-color: var(--primary);
-  color: var(--text);
+  background: rgba(16, 22, 34, 0.92);
+  border-color: rgba(125, 211, 252, 0.38);
+  color: #e8edf6;
 }
 
 .connect-widget-float .conn-pill[aria-expanded="true"] {
-  background: #eff6ff;
-  border-color: #60a5fa;
-  color: #1d4ed8;
+  background: rgba(37, 99, 235, 0.22);
+  border-color: rgba(96, 165, 250, 0.48);
+  color: #dbeafe;
 }
 
 .connect-widget-float .conn-pill-caret {

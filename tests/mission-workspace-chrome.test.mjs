@@ -155,9 +155,13 @@ describe('AIRVIX Mission chrome — default open + layout policy', () => {
     expect(html).toMatch(/data-mission-region="talk"[^>]*aria-label="מסייע"/);
     expect(html).toContain('id="assistRail"');
     expect(html).toContain('id="assistRailDock"');
-    expect(html).toContain('id="assistToggleBtn"');
+    const chrome = capture(html, /<header class="app-chrome"[^>]*>([\s\S]*?)<\/header>/, 'missing app-chrome')[1];
+    expect(chrome).not.toContain('assistToggleBtn');
+    expect(html).toMatch(/<\/header>\s*<button type="button" id="assistToggleBtn" class="assist-toggle-btn assist-toggle-float"/);
     expect(css).toMatch(/assist-rail--mission/);
     expect(css).toMatch(/body\.mission-assist-docked/);
+    expect(css).toMatch(/\.assist-toggle-btn\.assist-toggle-float\s*\{[^}]*position:\s*fixed/);
+    expect(css).toMatch(/body\.mission-assist-docked \.assist-toggle-btn/);
     expect(css).toMatch(/#missionTalkHost \.assist-rail/);
     expect(css).toMatch(/body\.mission-assist-docked\.assist-open \.layout/);
     const missionRail = capture(
