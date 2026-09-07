@@ -203,7 +203,7 @@ describe('C10.6 Mission chrome', () => {
     expect(html).toMatch(/class="tab tab-fly"[^>]*data-tab="terrain"[^>]*>הטסה</);
     expect(html).toContain('id="flightHud"');
     expect(html).toContain('id="terrainMap"');
-    expect(html).toContain('class="terrain-flight-shell"');
+    expect(html).toMatch(/class="terrain-flight-shell(?:\s|")/);
     expect(css).toMatch(/\.mission-identity\b/);
   });
 
