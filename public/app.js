@@ -3821,54 +3821,80 @@ if (horizonCanvas && pfdHorizonShell) {
 let _horizonVideoMode = false;
 let _lastRoll = null;
 let _lastPitch = null;
+const HORIZON_VIDEO_URL_KEY = 'vlc.horizon.videoUrl';
+const HORIZON_VIDEO_ON_KEY = 'vlc.horizon.videoOn';
 
-// ── Horizon video overlay wiring ───────────────────────────────────────────
-(function initHorizonVideo() {
-  const videoEl     = document.getElementById('horizonVideoEl');
-  const toggleBtn   = document.getElementById('horizonVideoToggle');
-  const panel       = document.getElementById('horizonVideoPanel');
-  const urlInput    = document.getElementById('horizonVideoUrl');
-  const applyBtn    = document.getElementById('horizonVideoApply');
-  if (!toggleBtn || !panel || !videoEl) return;
+function horizonVideoHasPlayableSource(url) {
+  return typeof url === 'string' && url.trim().length > 0;
+}
 
-  const LS_VIDEO_URL = 'vlc.horizon.videoUrl';
-  const LS_VIDEO_ON  = 'vlc.horizon.videoOn';
+function syncHorizonVideoEmpty(hasVideo) {
+  const emptyEl = document.getElementById('horizonVideoEmpty');
+  if (!emptyEl) return;
+  const showEmpty = !!_horizonVideoMode && !hasVideo;
+  emptyEl.classList.toggle('hidden', !showEmpty);
+}
 
-  // Restore saved URL
-  const savedUrl = localStorage.getItem(LS_VIDEO_URL) || '';
-  if (urlInput && savedUrl) urlInput.value = savedUrl;
-
-  function setVideoActive(active, url) {
-    _horizonVideoMode = active;
-    toggleBtn.classList.toggle('active', active);
-    pfdHorizonShell?.classList.toggle('pfd-horizon-shell--video-active', active);
-    if (active && url) {
-      videoEl.src = url;
+function setHorizonVideoActive(active, url) {
+  const videoEl = document.getElementById('horizonVideoEl');
+  const toggleBtn = document.getElementById('horizonVideoToggle');
+  const playable = !!active && horizonVideoHasPlayableSource(url);
+  _horizonVideoMode = !!active;
+  toggleBtn?.classList.toggle('active', _horizonVideoMode);
+  pfdHorizonShell?.classList.toggle('pfd-horizon-shell--video-active', _horizonVideoMode);
+  if (videoEl) {
+    videoEl.onerror = () => {
+      videoEl.classList.add('hidden');
+      syncHorizonVideoEmpty(false);
+    };
+    if (playable) {
+      videoEl.src = String(url).trim();
       videoEl.classList.remove('hidden');
-      videoEl.play().catch(() => {});
+      videoEl.play().catch(() => {
+        videoEl.classList.add('hidden');
+        syncHorizonVideoEmpty(false);
+      });
     } else {
+      videoEl.removeAttribute('src');
       videoEl.src = '';
       videoEl.classList.add('hidden');
     }
-    // Redraw horizon with updated videoMode flag
-    drawHorizon(horizonCanvas, _lastRoll, _lastPitch, { videoMode: active });
-    try { localStorage.setItem(LS_VIDEO_ON, active ? '1' : '0'); } catch {}
   }
+  syncHorizonVideoEmpty(playable);
+  drawHorizon(horizonCanvas, _lastRoll, _lastPitch, { videoMode: _horizonVideoMode });
+  try { localStorage.setItem(HORIZON_VIDEO_ON_KEY, _horizonVideoMode ? '1' : '0'); } catch {}
+}
+
+function initHorizonVideo() {
+  const videoEl = document.getElementById('horizonVideoEl');
+  const toggleBtn = document.getElementById('horizonVideoToggle');
+  const panel = document.getElementById('horizonVideoPanel');
+  const urlInput = document.getElementById('horizonVideoUrl');
+  const applyBtn = document.getElementById('horizonVideoApply');
+  if (!toggleBtn || !panel || !videoEl) return;
+
+  const savedUrl = localStorage.getItem(HORIZON_VIDEO_URL_KEY) || '';
+  if (urlInput && savedUrl) urlInput.value = savedUrl;
 
   function applyVideoUrl() {
     const url = urlInput?.value.trim() || '';
-    if (!url) return;
-    try { localStorage.setItem(LS_VIDEO_URL, url); } catch {}
+    if (!url) {
+      setHorizonVideoActive(true, '');
+      return;
+    }
+    try { localStorage.setItem(HORIZON_VIDEO_URL_KEY, url); } catch {}
     panel.classList.add('hidden');
-    setVideoActive(true, url);
+    setHorizonVideoActive(true, url);
   }
 
   toggleBtn.addEventListener('click', () => {
     if (_horizonVideoMode) {
-      setVideoActive(false, '');
+      setHorizonVideoActive(false, '');
       panel.classList.add('hidden');
     } else {
-      panel.classList.toggle('hidden');
+      const url = urlInput?.value.trim() || savedUrl;
+      setHorizonVideoActive(true, url);
+      if (!horizonVideoHasPlayableSource(url)) panel.classList.remove('hidden');
     }
   });
 
@@ -3879,11 +3905,11 @@ let _lastPitch = null;
     });
   }
 
-  // Restore previous session state
-  if (savedUrl && localStorage.getItem(LS_VIDEO_ON) === '1') {
-    setVideoActive(true, savedUrl);
+  if (localStorage.getItem(HORIZON_VIDEO_ON_KEY) === '1') {
+    setHorizonVideoActive(true, savedUrl);
   }
-})();
+}
+initHorizonVideo();
 /** @type {object | null} snapshot from last SSE — readiness popover */
 let latestHudMavlink = null;
 let _statustextSig = '';
@@ -4055,14 +4081,16 @@ function drawHorizon(canvas, rollDeg, pitchDeg, opts = {}) {
   const instR = Math.min(W, H) * 0.46;
   const pxPerDeg = instR / 25;
   const pitchPx = Math.max(-instR * 1.35, Math.min(instR * 1.35, pitchDraw * pxPerDeg));
-  const sky = videoMode ? 'rgba(14, 86, 150, 0.52)' : '#1468b3';
-  const gnd = videoMode ? 'rgba(122, 78, 28, 0.52)' : '#8a5724';
+  const sky = videoMode ? 'rgba(14, 86, 150, 0.28)' : '#1468b3';
+  const gnd = videoMode ? 'rgba(122, 78, 28, 0.28)' : '#8a5724';
 
   ctx.clearRect(0, 0, W, H);
-  ctx.fillStyle = videoMode ? 'rgba(8, 14, 22, 0.28)' : '#c5d4e4';
-  ctx.fillRect(0, 0, W, H);
+  if (!videoMode) {
+    ctx.fillStyle = '#c5d4e4';
+    ctx.fillRect(0, 0, W, H);
+  }
 
-  ctx.fillStyle = '#1a2332';
+  ctx.fillStyle = videoMode ? 'rgba(26, 35, 50, 0.22)' : '#1a2332';
   ctx.beginPath();
   ctx.arc(cx, cy, instR + 9, 0, Math.PI * 2);
   ctx.fill();
@@ -4182,10 +4210,12 @@ function drawHorizon(canvas, rollDeg, pitchDeg, opts = {}) {
 
   ctx.font = '700 12px "Space Grotesk", sans-serif';
   ctx.textBaseline = 'alphabetic';
-  ctx.fillStyle = showRoll ? '#1e2937' : 'rgba(30,41,59,0.45)';
+  const angleInk = videoMode ? '#e8edf6' : '#1e2937';
+  const angleMuted = videoMode ? 'rgba(232,237,246,0.45)' : 'rgba(30,41,59,0.45)';
+  ctx.fillStyle = showRoll ? angleInk : angleMuted;
   ctx.textAlign = 'left';
   ctx.fillText(showRoll ? `R ${rollDraw >= 0 ? '+' : ''}${formatHudAngleLabel(rollDraw)}°` : 'R --', 10, H - 10);
-  ctx.fillStyle = showPitch ? '#1e2937' : 'rgba(30,41,59,0.45)';
+  ctx.fillStyle = showPitch ? angleInk : angleMuted;
   ctx.textAlign = 'right';
   ctx.fillText(showPitch ? `P ${pitchDraw >= 0 ? '+' : ''}${formatHudAngleLabel(pitchDraw)}°` : 'P --', W - 10, H - 10);
 }
@@ -12066,7 +12096,7 @@ function clampMissionFr(value, min, max, fallback) {
 }
 
 function defaultMissionSize() {
-  return { c1: 1.28, c2: 1.62, c3: 1.10, r1: 2.20, r2: 0.62 };
+  return { c1: 0.82, c2: 1.88, c3: 1.22, r1: 2.20, r2: 0.62 };
 }
 
 function defaultMissionAreas() {
@@ -12112,9 +12142,9 @@ function readMissionSize() {
     if (raw && typeof raw === 'object') {
       const fallback = defaultMissionSize();
       return {
-        c1: clampMissionFr(raw.c1, 0.7, 2.2, fallback.c1),
-        c2: clampMissionFr(raw.c2, 0.7, 2.2, fallback.c2),
-        c3: clampMissionFr(raw.c3, 0.6, 1.6, fallback.c3),
+        c1: clampMissionFr(raw.c1, 0.55, 1.6, fallback.c1),
+        c2: clampMissionFr(raw.c2, 0.9, 2.4, fallback.c2),
+        c3: clampMissionFr(raw.c3, 0.7, 1.8, fallback.c3),
         r1: clampMissionFr(raw.r1, 0.9, 2.4, fallback.r1),
         r2: clampMissionFr(raw.r2, 0.6, 1.8, fallback.r2),
       };

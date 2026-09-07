@@ -7044,14 +7044,14 @@ body.operator-live .companion-connect--hero {
 
 .terrain-flight-shell.mission-workspace,
 .mission-workspace[data-mission-layout="ops-v1"] {
-  --mission-c1: 1.28fr;
-  --mission-c2: 1.62fr;
-  --mission-c3: 1.10fr;
+  --mission-c1: 0.82fr;
+  --mission-c2: 1.88fr;
+  --mission-c3: 1.22fr;
   --mission-r1: 2.20fr;
   --mission-r2: 0.62fr;
   position: relative;
   display: grid;
-  grid-template-columns: minmax(280px, var(--mission-c1)) minmax(300px, var(--mission-c2)) minmax(260px, var(--mission-c3));
+  grid-template-columns: minmax(168px, var(--mission-c1)) minmax(320px, var(--mission-c2)) minmax(260px, var(--mission-c3));
   grid-template-rows: minmax(280px, var(--mission-r1)) minmax(96px, var(--mission-r2));
   grid-template-areas:
     "horizon map talk"
@@ -7619,8 +7619,28 @@ body.operator-live .companion-connect--hero {
   height: 100%;
   object-fit: cover;
   z-index: 0;
+  background: #0b0e14;
 }
 .pfd-horizon-video.hidden { display: none; }
+.pfd-horizon-shell--video-active canvas {
+  background: transparent;
+}
+.pfd-horizon-video-empty {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  background: rgba(11, 14, 20, 0.42);
+  color: rgba(226, 232, 240, 0.58);
+  font-size: 0.78rem;
+  font-weight: 600;
+  font-family: "Heebo", sans-serif;
+  pointer-events: none;
+}
+.pfd-horizon-video-empty.hidden { display: none; }
 
 .pfd-video-toggle {
   position: absolute;
