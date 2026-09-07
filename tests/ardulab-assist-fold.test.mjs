@@ -195,6 +195,7 @@ describe('ArduLab → Assist fold — chrome', () => {
     expect(js).toContain("ASSIST_MISSION_HINT_HE = 'הטסה. הערה ותצפית בלבד.'");
     expect(js).toMatch(/tab === 'terrain' \|\| tab === 'flightEngineer'/);
     expect(css).toMatch(/\.fd-assist-fold\b/);
+    expect(css).toMatch(/#featureDesigner\.panel\.visible/);
     expect(css).toMatch(/\.dev-ardulab-handoff\b/);
     expect(css).toMatch(/\.assist-quick-chip\[hidden\]/);
   });

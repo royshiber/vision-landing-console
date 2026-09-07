@@ -9100,12 +9100,15 @@ details.flight-manage summary {
 .cp-param-status.ok  { color: #6ee7b7; }
 .cp-param-status.err { color: #fca5a5; }
 
-.fd-panel {
+.fd-panel { overflow: hidden; padding: 0; background: #f0f4fa; }
+
+/** Why: .panel.visible { display:block !important } breaks the fold strip + inner flex height. */
+#featureDesigner.panel.visible {
+  display: flex !important;
+  flex-direction: column;
+  min-height: 0;
   overflow: hidden;
   padding: 0;
-  background: #f0f4fa;
-  display: flex;
-  flex-direction: column;
 }
 
 .fd-assist-fold {
