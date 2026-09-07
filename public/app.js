@@ -143,6 +143,9 @@ const MAIN_TAB_KEY = 'visionLandingMainTabV1';
 const CONTROL_SUBTAB_KEY = 'visionLandingControlSubtabV1';
 /** Why: Pulse is the locked home; operators who want Telemetry-first keep that via localStorage. */
 const PULSE_HOME_KEY = 'visionLandingHomeSurfaceV1';
+/** Why: C10.7a Attention Policy — quiet by default; chrome only, no voice. */
+const ATTENTION_POLICY_KEY = 'visionLandingAttentionPolicyV1';
+const ATTENTION_POLICY_LEVELS = Object.freeze(['off', 'attention', 'critical']);
 let _assistAgentConnected = false;
 function pulseReadHomePref() {
   try {
@@ -3043,19 +3046,124 @@ function pulseCompanionLabel(status) {
   return 'מנותק';
 }
 
+function attentionPolicyDefaults() {
+  return { proactiveLevel: 'off', showAssistBadge: true };
+}
+
+function attentionNormalizePolicy(raw) {
+  const defaults = attentionPolicyDefaults();
+  const level = String(raw?.proactiveLevel || '').trim();
+  return {
+    proactiveLevel: ATTENTION_POLICY_LEVELS.includes(level) ? level : defaults.proactiveLevel,
+    showAssistBadge: raw?.showAssistBadge === false ? false : true,
+  };
+}
+
+function attentionReadPolicy() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(ATTENTION_POLICY_KEY) || 'null');
+    return attentionNormalizePolicy(raw);
+  } catch {
+    return attentionPolicyDefaults();
+  }
+}
+
+function attentionWritePolicy(next) {
+  const policy = attentionNormalizePolicy({ ...attentionReadPolicy(), ...next });
+  try { localStorage.setItem(ATTENTION_POLICY_KEY, JSON.stringify(policy)); } catch { /* ignore */ }
+  return policy;
+}
+
+function attentionItemLevel(item) {
+  const level = String(item?.level || '').trim();
+  if (level === 'critical' || level === 'attention' || level === 'info') return level;
+  return 'info';
+}
+
+function attentionPolicyNotices(policy, level) {
+  const p = attentionNormalizePolicy(policy);
+  if (p.proactiveLevel === 'off') return false;
+  if (p.proactiveLevel === 'critical') return level === 'critical';
+  return level === 'attention' || level === 'critical';
+}
+
+function attentionHighestNoticedLevel(policy, items) {
+  const rank = { info: 0, attention: 1, critical: 2 };
+  let best = null;
+  for (const item of items || []) {
+    const level = attentionItemLevel(item);
+    if (!attentionPolicyNotices(policy, level)) continue;
+    if (!best || rank[level] > rank[best]) best = level;
+  }
+  return best;
+}
+
+function attentionShouldShowAssistBadge(policy, items) {
+  const p = attentionNormalizePolicy(policy);
+  if (!p.showAssistBadge) return false;
+  return !!attentionHighestNoticedLevel(p, items);
+}
+
+function attentionBadgeLabelHe(level) {
+  if (level === 'critical') return 'דחוף';
+  if (level === 'attention') return 'שימו לב';
+  return '';
+}
+
+function attentionMayChime() {
+  return false;
+}
+
+function attentionMaySpeak() {
+  return false;
+}
+
+function attentionSyncSettingsChrome(policy) {
+  const p = attentionNormalizePolicy(policy || attentionReadPolicy());
+  document.querySelectorAll('[data-attention-level]').forEach((btn) => {
+    if (!btn.classList.contains('gs-attention-btn')) return;
+    const on = btn.dataset.attentionLevel === p.proactiveLevel;
+    btn.classList.toggle('is-active', on);
+    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+  });
+  const badge = document.getElementById('gsAttentionBadge');
+  if (badge) badge.checked = p.showAssistBadge !== false;
+}
+
+function attentionSyncAssistChrome(items) {
+  const policy = attentionReadPolicy();
+  const show = attentionShouldShowAssistBadge(policy, items);
+  const highest = attentionHighestNoticedLevel(policy, items);
+  const label = attentionBadgeLabelHe(highest);
+  const dot = document.getElementById('assistAttentionDot');
+  const badge = document.getElementById('assistAttentionBadge');
+  if (dot) {
+    dot.hidden = !show;
+    if (show) dot.dataset.level = highest;
+    else delete dot.dataset.level;
+  }
+  if (badge) {
+    badge.hidden = !show;
+    badge.textContent = show ? label : '';
+    if (show) badge.dataset.level = highest;
+    else delete badge.dataset.level;
+  }
+  attentionSyncSettingsChrome(policy);
+}
+
 function pulseBuildAttention(opts) {
   const companionLive = opts?.companionLive;
   const assistConnected = opts?.assistConnected;
   const evolveActive = opts?.evolveActive;
   const items = [];
   if (!companionLive) {
-    items.push({ id: 'companion', text: 'מלווה מנותק', action: 'companion', cta: 'חברו מלווה' });
+    items.push({ id: 'companion', level: 'attention', text: 'מלווה מנותק', action: 'companion', cta: 'חברו מלווה' });
   }
   if (!assistConnected) {
-    items.push({ id: 'assist', text: 'מסייע מנותק', action: 'assist', cta: 'מסייע' });
+    items.push({ id: 'assist', level: 'info', text: 'מסייע מנותק', action: 'assist', cta: 'מסייע' });
   }
   if (!evolveActive && !companionLive && items.length < 3) {
-    items.push({ id: 'evolve', text: 'אין משימת פיתוח פעילה', action: 'develop', cta: 'פיתוח' });
+    items.push({ id: 'evolve', level: 'info', text: 'אין משימת פיתוח פעילה', action: 'develop', cta: 'פיתוח' });
   }
   return items.slice(0, 3);
 }
@@ -3116,12 +3224,13 @@ function pulseRefresh() {
   if (attentionEl) {
     attentionEl.hidden = items.length === 0;
     attentionEl.innerHTML = items.map((item) => (
-      '<article class="pulse-attention-item" data-pulse-attention="' + item.id + '">'
+      '<article class="pulse-attention-item" data-pulse-attention="' + item.id + '" data-attention-level="' + attentionItemLevel(item) + '">'
       + '<p class="pulse-attention-text">' + item.text + '</p>'
       + '<button type="button" class="first-open-btn first-open-btn-quiet" data-first-action="' + item.action + '">' + item.cta + '</button>'
       + '</article>'
     )).join('');
   }
+  attentionSyncAssistChrome(items);
   document.querySelectorAll('#pulse [data-pulse-live="hide"]').forEach((el) => {
     el.hidden = !!companionLive;
   });
@@ -3189,6 +3298,20 @@ function initPulseHome() {
     });
   });
   pulseRefresh();
+}
+
+function initAttentionPolicyControls() {
+  attentionSyncSettingsChrome(attentionReadPolicy());
+  document.querySelectorAll('.gs-attention-btn[data-attention-level]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      attentionWritePolicy({ proactiveLevel: btn.dataset.attentionLevel });
+      pulseRefresh();
+    });
+  });
+  document.getElementById('gsAttentionBadge')?.addEventListener('change', (e) => {
+    attentionWritePolicy({ showAssistBadge: !!e.target.checked });
+    pulseRefresh();
+  });
 }
 
 function initFirstOpenActions() {
@@ -11852,4 +11975,5 @@ initAssistUi();
 initCompanionConnectUi();
 initFirstOpenActions();
 initPulseHome();
+initAttentionPolicyControls();
 initPlatformShell();
