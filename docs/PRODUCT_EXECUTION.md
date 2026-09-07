@@ -137,15 +137,16 @@ Architecture wave (`docs/AIRVIX_PRODUCT_ARCHITECTURE.md`): C10.2 Assist unificat
 28. **ArduLab → Assist REFINE** — **LANDED** via PR #73 merge `dca929a`. Assist route `ardulab` opens existing `#featureDesigner`. Workspace **EVOLVE**. Lab shelf stays. No FC write / Companion apply / Jetson deploy.
 29. **SITL Lab connect REFINE** — **LANDED** via PR #74 merge `1971384`. `#simLab` presets/wizard drive the global `#connectWidget`. Spoken-Hebrew handoff. One MAVLink connect truth.
 30. **Auto-Config wizard MERGE** — **LANDED** via PR #75. Assist opens `#autoConfig` under Parameter Center (`#control`). Quiet Platform / Params chrome. Existing suggest→approve→apply stays. No new FC write.
-31. **AIRVIX UI redesign (chrome + Mission workspace)** — **this draft.** Roy 2026-09-07 GO + later locks. `#simLab` panel removed from the operator UI. Assist has no `lab` / `סימולציה` / `מעבדה` route. SITL connect stays on the floating `#connectWidget` only. **בית** is system status + talk. Luminous Mission, circular AH, drag-resize persist. `APP_VERSION` **1.02.256**. Stay draft.
+31. **AIRVIX UI redesign (chrome + Mission workspace)** — **LANDED** via PR #76. `#simLab` panel removed. **בית** is system status + talk. Luminous Mission, circular AH, drag-resize persist. `APP_VERSION` **1.02.256**.
+32. **Mission Roy feedback after 1.02.256** — **this draft.** Click-to-open messages (same slot, persist). Sharper circular PFD. Brighter Mission Assist + visible microphone control (browser STT into Assist input, or honest disabled). Instrument data tiles + right-click free-text catalog picker. No FC write. No Companion apply/restart. No Lab chrome. `APP_VERSION` **1.02.257**. Stay draft.
 
 ---
 
-## Audit snapshot — 2026-09-07 (AIRVIX UI redesign this draft)
+## Audit snapshot — 2026-09-07 (Mission Roy feedback 1.02.257)
 
-**Master:** `1.02.255` @ `33d6334` (PR #75 merge — Auto-Config wizard MERGE).  
-**Prior pointer:** 2026-09-07 Auto-Config wizard MERGE draft snapshot. Superseded. #75 landed Assist → `#autoConfig`.  
-**This draft:** AIRVIX UI redesign — `#simLab` UI fully removed; no Assist lab route; **בית** = status + talk; luminous Mission; premium AH; drag-resize persist. `APP_VERSION` **1.02.256**. Stay draft.
+**Master:** `1.02.256` @ `f0aed51` (PR #76 merge — AIRVIX UI redesign).  
+**Prior pointer:** 2026-09-07 AIRVIX UI redesign draft snapshot. Superseded. #76 landed Lab chrome removal + luminous Mission.  
+**This draft:** Roy feedback after trying 1.02.256. Messages click-to-open in the same slot. Sharper PFD. Brighter Assist + visible mic. Instrument data tiles + free-text picker. `APP_VERSION` **1.02.257**. Stay draft.
 
 Ops (not product): WhatsApp Human Gate delivery remains available (signed in on the operator box targeting +972584010075, self-chat).
 
@@ -165,7 +166,7 @@ Ops (not product): WhatsApp Human Gate delivery remains available (signed in on 
 
 ### This draft (2026-09-07)
 
-- AIRVIX UI redesign. `#simLab` panel gone. No Assist route for `מעבדה` / `סימולציה` / `sitl`. SITL connect remains on `#connectWidget`. **בית** is system status with שאלו את המסייע. Luminous Mission + circular AH + drag-resize persist. `APP_VERSION` **1.02.256**.
+- Mission Roy feedback after 1.02.256. Messages collapsed by default; click expands in the same grid slot; persist. Sharper circular PFD. Brighter Mission Assist + visible **מיקרופון** (browser STT or honest disabled). Instrument data tiles; right-click free-text chips from the existing catalog. No GPS invented. No FC write. `APP_VERSION` **1.02.257**.
 
 ### Prior still on master (#54, #56, #57)
 
@@ -250,7 +251,8 @@ On master today (PR #33 + PR #34 + Hebrew Assist chrome from #50 + result card f
 - **ArduLab → Assist REFINE LANDED** via PR #73 `dca929a`: Assist opens `#featureDesigner` for `ארדולאב` / feature designer. Workspace **EVOLVE**. Lab shelf stays. Not a competing primary chat. No FC / Companion apply.
 - **SITL Lab connect REFINE LANDED** via PR #74 `1971384`: `#simLab` presets/wizard drive `#connectWidget`. One MAVLink connect truth. Spoken-Hebrew handoff. Wizard teaching stays. Assist `סימולציה` / `sitl` → `#simLab`.
 - **Auto-Config wizard MERGE LANDED** via PR #75 `33d6334`: Assist opens `#autoConfig` for `אשף` / `קונפיג אוטומטי`. Quiet Platform / Params chrome. Panel stays. No new vehicle write.
-- **AIRVIX UI redesign this draft:** `#simLab` UI fully removed. No Assist lab route. **בית** = status + talk. Luminous Mission + circular AH. `APP_VERSION` **1.02.256**. Stay draft.
+- **AIRVIX UI redesign LANDED** via PR #76 `f0aed51`. `#simLab` UI fully removed. No Assist lab route. **בית** = status + talk. Luminous Mission + circular AH. `APP_VERSION` **1.02.256**.
+- **Mission Roy feedback this draft:** click-to-open messages, sharper PFD, brighter Assist + mic, instrument data picker. `APP_VERSION` **1.02.257**. Stay draft.
 
 ### Params (persist landed)
 
@@ -260,7 +262,8 @@ On master today (PR #33 + PR #34 + Hebrew Assist chrome from #50 + result card f
 
 | PR | Topic | This map |
 |---|---|---|
-| this draft | AIRVIX UI redesign — chrome + Mission workspace + locked naming + Mission-first default | **This draft.** Stay draft. King merges after independent VERIFY. |
+| this draft | Mission Roy feedback after 1.02.256 — messages, PFD, Assist, data picker | **This draft.** Stay draft. King merges after independent VERIFY. |
+| [#76](https://github.com/royshiber/vision-landing-console/pull/76) | AIRVIX UI redesign — chrome + Mission workspace | **LANDED** on master via PR #76 merge `f0aed51`. |
 | [#75](https://github.com/royshiber/vision-landing-console/pull/75) | Auto-Config wizard MERGE into Assist + Configuration | **LANDED** on master via PR #75 merge `33d6334`. |
 | [#74](https://github.com/royshiber/vision-landing-console/pull/74) | SITL Lab connect REFINE — one `#connectWidget` truth | **LANDED** on master via PR #74 merge `1971384`. |
 | [#73](https://github.com/royshiber/vision-landing-console/pull/73) | ArduLab → Assist REFINE fold | **LANDED** on master via PR #73 merge `dca929a`. |
@@ -298,7 +301,7 @@ Roy 2026-09-05: abandon searching the local tree for versions past 300 **permane
 
 ### Ranked GAPS (this snapshot)
 
-1. **AIRVIX UI redesign** — this draft. Lab chrome gone. בית = status + talk. Luminous Mission. Premium AH. Version **1.02.256**. No new FC write.
+1. **Mission Roy feedback after 1.02.256** — this draft. Messages click-to-open. Sharper PFD. Brighter Assist + mic. Instrument data picker. Version **1.02.257**. No new FC write.
 2. **C10.7b voice/STT** — deferred. Do not start now. No new ElevenLabs/STT secrets.
 3. **C10.4c-b Jetson deploy-wire move** — remaining C10.4 slice. Still **deferred** (#28). Do not start now.
 4. **Live Jetson connect proof** — parked (days). Capability is on master (#39 / #40). Blocked on Companion token (not in Cursor / PC `.env`; Jetson `:8081` → 401). WAITING FOR ROY on the token, not more connect code. Do not invent a token.
@@ -311,4 +314,4 @@ Do not spend cycles on smoke #4, leftover disconnected chrome, version bump, 300
 
 ### Next pick (this snapshot)
 
-**AIRVIX UI redesign** is this draft (`1.02.256`). Auto-Config wizard landed via #75 @ `33d6334`. C10.7b voice/STT stays deferred. Remainder **C10.4c-b** Jetson deploy-wire move stays deferred (#28). Jetson live connect stays parked until Roy supplies the Companion token (days; Jetson `:8081` → 401 without it). Human Gates stay **WAITING FOR ROY**: #28 apply/restart, #29 live vehicle / auto-land. Merge autonomy still on for verified safe draft PRs. Measure by capabilities closed, not PR count.
+**Mission Roy feedback** is this draft (`1.02.257`). PR #76 landed 1.02.256. C10.7b full voice/STT backend stays deferred; this draft only shows a Mission microphone control (browser STT into Assist, or honest disabled). Remainder **C10.4c-b** Jetson deploy-wire move stays deferred (#28). Jetson live connect stays parked until Roy supplies the Companion token (days; Jetson `:8081` → 401 without it). Human Gates stay **WAITING FOR ROY**: #28 apply/restart, #29 live vehicle / auto-land. Merge autonomy still on for verified safe draft PRs. Measure by capabilities closed, not PR count.

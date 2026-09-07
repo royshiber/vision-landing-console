@@ -7076,54 +7076,208 @@ body.operator-live .companion-connect--hero {
 .mission-region-data,
 .mission-region-messages {
   background: rgba(255, 255, 255, 0.82);
+  position: relative;
 }
 .mission-region-talk {
-  background: #2a3648;
+  background: #eef3f8;
+}
+
+.mission-data-hint {
+  margin: 0;
+  padding: 0 14px 4px;
+  font-size: 0.62rem;
+  font-weight: 600;
+  color: #64748b;
+  font-family: "Heebo", sans-serif;
 }
 
 .mission-data-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 6px;
+  gap: 8px;
   margin: 0;
-  padding: 8px 10px 10px;
+  padding: 6px 10px 10px;
   flex: 1 1 auto;
   min-height: 0;
+  position: relative;
 }
 
-.mission-data-item {
+.mission-data-item,
+.mission-data-tile {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  justify-content: space-between;
+  gap: 4px;
   min-width: 0;
-  padding: 8px 10px;
-  border-radius: 12px;
-  background: #f8fafc;
-  border: 0;
+  padding: 8px 10px 9px;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 8px 16px rgba(15, 23, 42, 0.16);
+  cursor: context-menu;
 }
 
-.mission-data-item dt {
-  font-size: 0.64rem;
-  font-weight: 700;
-  color: #64748b;
+.mission-data-item dt,
+.mission-data-label {
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: #93c5fd;
+  font-family: "Heebo", sans-serif;
 }
 
-.mission-data-item dd {
+.mission-data-item dd,
+.mission-data-readout {
   margin: 0;
-  font-size: 0.92rem;
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  min-width: 0;
+}
+
+.mission-data-value {
+  font-size: 1.05rem;
   font-weight: 800;
   font-family: "Space Grotesk", "Heebo", sans-serif;
-  color: #0f172a;
+  color: #f8fafc;
+  line-height: 1.1;
+  letter-spacing: 0.01em;
 }
 
-.mission-data-confidence dd {
+.mission-data-unit {
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: #94a3b8;
+  font-family: "Space Grotesk", sans-serif;
+}
+
+.mission-data-confidence dd,
+.mission-data-confidence .mission-data-readout {
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
 .mission-data-confidence .confidence-track {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(148, 163, 184, 0.28);
+  height: 5px;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.mission-data-confidence .confidence-fill {
+  height: 100%;
+  width: 0;
+  background: #38bdf8;
+}
+
+.mission-data-picker {
+  position: absolute;
+  z-index: 8;
+  min-width: 240px;
+  max-width: min(320px, 92%);
+  padding: 10px;
+  border-radius: 12px;
+  background: #f8fafc;
+  border: 1px solid rgba(15, 23, 42, 0.16);
+  box-shadow: 0 16px 32px rgba(15, 23, 42, 0.22);
+  direction: rtl;
+}
+
+.mission-data-picker.hidden { display: none; }
+
+.mission-data-picker-title {
+  margin: 0 0 6px;
+  font-size: 0.74rem;
+  font-weight: 800;
+  color: #0f172a;
+  font-family: "Heebo", sans-serif;
+}
+
+.mission-data-picker-input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 7px 8px;
+  font-size: 0.78rem;
+  font-family: "Heebo", sans-serif;
+  background: #fff;
+  color: #0f172a;
+}
+
+.mission-data-picker-hint {
+  margin: 6px 0;
+  font-size: 0.66rem;
+  color: #475569;
+  line-height: 1.35;
+}
+
+.mission-data-picker-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 8px;
+}
+
+.mission-data-picker-chip {
+  border: 1px solid #cbd5e1;
+  background: #e2e8f0;
+  color: #0f172a;
+  border-radius: 999px;
+  padding: 3px 9px;
+  font-size: 0.66rem;
+  font-weight: 700;
+  font-family: "Heebo", sans-serif;
+  cursor: pointer;
+}
+
+.mission-data-picker-chip:hover {
+  background: #cbd5e1;
+}
+
+.mission-data-picker-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.mission-data-picker-btn {
+  border: 0;
+  border-radius: 8px;
+  padding: 5px 10px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  font-family: "Heebo", sans-serif;
+  background: #1e293b;
+  color: #f8fafc;
+  cursor: pointer;
+}
+
+.mission-data-picker-btn--quiet {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.mission-messages-toggle {
+  align-self: flex-start;
+  margin: 0 12px 6px;
+  border: 0;
+  border-radius: 999px;
+  padding: 3px 10px;
+  background: rgba(15, 23, 42, 0.08);
+  color: #0f172a;
+  font-size: 0.66rem;
+  font-weight: 800;
+  font-family: "Heebo", sans-serif;
+  cursor: pointer;
+}
+
+.mission-region-messages[data-messages-expanded="0"] .pfc-msg-scroll {
+  display: none;
+}
+
+.mission-region-messages[data-messages-expanded="1"] .pfc-msg-scroll {
+  display: block;
 }
 
 .mission-talk-hint {
@@ -13341,10 +13495,66 @@ body.mission-assist-docked .assist-rail.assist-rail--mission,
 }
 #missionTalkHost .assist-rail-title {
   font-size: 1rem;
-  color: #f8fafc;
+  color: #0f172a;
 }
 #missionTalkHost .assist-rail-mark {
   display: none;
+}
+#missionTalkHost .assist-rail-hint,
+#missionTalkHost .assist-context-chip,
+#missionTalkHost .assist-agent-hint,
+#missionTalkHost .assist-agent-label,
+#missionTalkHost .assist-empty-invite,
+#missionTalkHost .assist-messages-empty {
+  color: #475569;
+}
+#missionTalkHost .assist-agent-connect,
+#missionTalkHost .assist-run-panel,
+#missionTalkHost .assist-proposal-bar {
+  background: rgba(255, 255, 255, 0.86);
+  border-color: rgba(15, 23, 42, 0.12);
+}
+#missionTalkHost .assist-agent-status,
+#missionTalkHost .assist-run-headline,
+#missionTalkHost .assist-proposal-text {
+  color: #0f172a;
+}
+#missionTalkHost .assist-agent-key,
+#missionTalkHost .assist-input {
+  background: #ffffff;
+  color: #0f172a;
+  border-color: #cbd5e1;
+}
+#missionTalkHost .assist-msg-user {
+  background: rgba(37, 99, 235, 0.12);
+  color: #1e3a8a;
+}
+#missionTalkHost .assist-msg-assist {
+  background: #ffffff;
+  color: #0f172a;
+  border-color: rgba(15, 23, 42, 0.1);
+}
+#missionTalkHost .assist-quick-chip {
+  background: #e2e8f0;
+  color: #0f172a;
+  border-color: #cbd5e1;
+}
+#missionTalkHost .assist-btn-send {
+  background: #16a34a;
+  color: #ffffff;
+  border-color: #15803d;
+}
+#missionTalkHost .assist-btn-confirm {
+  background: #15803d;
+  color: #ffffff;
+}
+#missionTalkHost .assist-btn-cancel {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+#missionTalkHost .mission-talk-hint,
+.mission-region-talk .mission-talk-hint {
+  color: #475569;
 }
 .assist-rail-head {
   display: flex;
@@ -13742,6 +13952,35 @@ body.mission-assist-docked .assist-rail.assist-rail--mission,
   border-color: rgba(74, 222, 128, 0.4);
   background: rgba(20, 83, 45, 0.42);
 }
+.assist-mic-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+  border-radius: 9px;
+  border: 1px solid rgba(15, 23, 42, 0.18);
+  background: #e2e8f0;
+  color: #0f172a;
+  padding: 7px 9px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  font-family: "Heebo", sans-serif;
+  cursor: pointer;
+}
+.assist-mic-btn:hover {
+  background: #cbd5e1;
+}
+.assist-mic-btn[aria-pressed="true"] {
+  background: #fecaca;
+  border-color: #ef4444;
+  color: #7f1d1d;
+}
+.assist-mic-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.assist-mic-icon { font-size: 0.95rem; line-height: 1; }
+.assist-mic-label { white-space: nowrap; }
 .assist-form {
   display: flex;
   gap: 8px;

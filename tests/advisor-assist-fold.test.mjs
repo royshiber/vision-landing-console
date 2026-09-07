@@ -204,8 +204,8 @@ describe('Advisor → Assist fold — chrome', () => {
     expect(html).not.toMatch(/id="companionApplyBtn"|id="companionRestartBtn"/);
   });
 
-  it('pins APP_VERSION at 1.02.256', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.256'");
-    expect(pkg.version).toBe('1.02.256');
+  it('pins APP_VERSION at 1.02.257', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.257'");
+    expect(pkg.version).toBe('1.02.257');
   });
 });

@@ -103,7 +103,8 @@ describe('AIRVIX Mission chrome — workspace regions', () => {
   });
 
   it('keeps empty GPS honest and does not invent a number', () => {
-    expect(html).toMatch(/id="liveGpsVisionDelta"[^>]*>-- m</);
+    expect(html).toMatch(/id="liveGpsVisionDelta"[^>]*>--</);
+    expect(html).toMatch(/class="mission-data-unit">m</);
     expect(html).toMatch(/id="hudNavGpsVal">--</);
     expect(js).toContain('formatGpsVisionDeltaMeters');
   });
@@ -121,22 +122,127 @@ describe('AIRVIX Mission chrome — talk is flight-safe', () => {
     expect(chip).toContain("kind === 'advisor'");
   });
 
-  it('pins APP_VERSION at 1.02.256', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.256'");
-    expect(pkg.version).toBe('1.02.256');
+  it('pins APP_VERSION at 1.02.257', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.257'");
+    expect(pkg.version).toBe('1.02.257');
   });
 
   it('keeps a premium circular artificial horizon on the existing canvas', () => {
     expect(html).toContain('id="horizonCanvas"');
     const start = js.indexOf('function drawHorizon(');
     expect(start).toBeGreaterThanOrEqual(0);
-    const draw = js.slice(start, start + 4500);
+    const draw = js.slice(start, start + 6500);
     expect(draw).toContain('const instR = Math.min(W, H) * 0.46');
     expect(draw).toContain("ctx.arc(cx, cy, instR, 0, Math.PI * 2)");
-    expect(draw).toContain('#5aa4de');
-    expect(draw).toContain('#c4a06a');
+    expect(draw).toContain('#1468b3');
+    expect(draw).toContain('#8a5724');
+    expect(draw).toContain('fillRect(cx - 4, cy - 4, 8, 8)');
     expect(draw).toContain('formatHudAngleLabel');
     expect(draw).not.toMatch(/FLIGHT_ACTION|PARAM_SET|\/apply|\/restart/);
+  });
+
+  it('collapses Mission messages by default and persists expand in localStorage', () => {
+    expect(html).toMatch(/data-mission-region="messages"[^>]*data-messages-expanded="0"/);
+    expect(html).toContain('id="missionMessagesToggle"');
+    expect(html).toMatch(/id="pfcMsgScroll" hidden/);
+    expect(js).toContain('function readMissionMessagesExpanded(');
+    expect(js).toContain('function writeMissionMessagesExpanded(');
+    expect(js).toContain('function toggleMissionMessages(');
+    expect(js).toContain('visionLandingMissionMessagesV1');
+    const store = {};
+    const localStorage = {
+      getItem(key) { return store[key] ?? null; },
+      setItem(key, value) { store[key] = String(value); },
+    };
+    const region = { dataset: { messagesExpanded: '0' } };
+    const scroll = { hidden: true };
+    const toggle = { textContent: 'הרחב', setAttribute() {} };
+    const document = {
+      querySelector() { return region; },
+      getElementById(id) { return id === 'pfcMsgScroll' ? scroll : toggle; },
+    };
+    const src = [
+      'const MISSION_MESSAGES_KEY = "visionLandingMissionMessagesV1";',
+      sliceFunction(js, 'missionLayoutStoreGet'),
+      sliceFunction(js, 'missionLayoutStoreSet'),
+      sliceFunction(js, 'readMissionMessagesExpanded'),
+      sliceFunction(js, 'writeMissionMessagesExpanded'),
+      sliceFunction(js, 'applyMissionMessagesExpanded'),
+      sliceFunction(js, 'toggleMissionMessages'),
+      'const before = readMissionMessagesExpanded();',
+      'toggleMissionMessages();',
+      'const after = readMissionMessagesExpanded();',
+      'toggleMissionMessages();',
+      'return { before, after, collapsedAgain: readMissionMessagesExpanded(), stored: localStorage.getItem("visionLandingMissionMessagesV1"), hidden: scroll.hidden };',
+    ].join('\n');
+    const result = new Function('localStorage', 'document', 'scroll', src)(localStorage, document, scroll);
+    expect(result.before).toBe(false);
+    expect(result.after).toBe(true);
+    expect(result.collapsedAgain).toBe(false);
+    expect(result.stored).toBe('0');
+    expect(result.hidden).toBe(true);
+  });
+
+  it('restyles data tiles and persists a free-text picker choice', () => {
+    expect(html).toContain('id="missionDataGrid"');
+    expect(html).toContain('id="missionDataPicker"');
+    expect(html).toContain('id="missionDataPickerInput"');
+    expect(html).toContain('id="missionDataPickerChips"');
+    expect(html).toContain('data-mission-data-slot="0"');
+    expect(css).toMatch(/\.mission-data-tile\b/);
+    expect(css).toMatch(/\.mission-data-picker\b/);
+    expect(js).toContain('function suggestMissionDataFields(');
+    expect(js).toContain('function readMissionDataSlots(');
+    expect(js).toContain('visionLandingMissionDataSlotsV1');
+    expect(js).toContain('const MISSION_DATA_CATALOG = Object.freeze([');
+    expect(js).toContain('const DEFAULT_MISSION_DATA_SLOTS = Object.freeze([');
+    expect(sliceFunction(js, 'suggestMissionDataFields')).not.toMatch(/FLIGHT_ACTION|PARAM_SET|\/apply|\/restart/);
+    const catalogStart = js.indexOf('const MISSION_DATA_CATALOG = Object.freeze([');
+    const defaultsStart = js.indexOf('const DEFAULT_MISSION_DATA_SLOTS = Object.freeze([');
+    const catalog = js.slice(catalogStart, js.indexOf(']);', catalogStart) + 3);
+    const defaults = js.slice(defaultsStart, js.indexOf(']);', defaultsStart) + 3);
+    const suggest = new Function(`${catalog}; ${sliceFunction(js, 'suggestMissionDataFields')}; return suggestMissionDataFields;`)();
+    const air = suggest('מהירות אוויר');
+    expect(air.exact?.key).toBe('mavlink.airspeed');
+    const bare = suggest('מהירות');
+    expect(bare.chips.some((c) => c.key === 'mavlink.airspeed')).toBe(true);
+    expect(bare.chips.some((c) => c.key === 'mavlink.groundspeed')).toBe(true);
+    const store = {};
+    const localStorage = {
+      getItem(key) { return store[key] ?? null; },
+      setItem(key, value) { store[key] = String(value); },
+    };
+    const persist = [
+      'const MISSION_DATA_SLOTS_KEY = "visionLandingMissionDataSlotsV1";',
+      catalog,
+      defaults,
+      sliceFunction(js, 'missionLayoutStoreGet'),
+      sliceFunction(js, 'missionLayoutStoreSet'),
+      sliceFunction(js, 'defaultMissionDataSlots'),
+      sliceFunction(js, 'readMissionDataSlots'),
+      sliceFunction(js, 'writeMissionDataSlots'),
+      'const slots = defaultMissionDataSlots();',
+      'slots[2] = { key: "mavlink.groundspeed", label: "מהירות קרקעית", unit: "m/s" };',
+      'writeMissionDataSlots(slots);',
+      'return readMissionDataSlots()[2];',
+    ].join('\n');
+    const saved = new Function('localStorage', persist)(localStorage);
+    expect(saved.key).toBe('mavlink.groundspeed');
+  });
+
+  it('brightens Mission Assist and shows an honest microphone control', () => {
+    expect(html).toContain('id="assistMicBtn"');
+    expect(html).toMatch(/id="assistMicBtn"[^>]*aria-label="מיקרופון"/);
+    expect(html).toMatch(/class="assist-mic-label">מיקרופון</);
+    expect(css).toMatch(/\.mission-region-talk\s*\{[^}]*background:\s*#eef3f8/);
+    expect(css).toMatch(/#missionTalkHost \.assist-rail-title\s*\{[^}]*color:\s*#0f172a/);
+    expect(css).toMatch(/\.assist-mic-btn\b/);
+    expect(js).toContain('function initAssistMic(');
+    const mic = sliceFunction(js, 'initAssistMic');
+    expect(mic).toContain('SpeechRecognition');
+    expect(mic).toContain('דיבור לטקסט אינו זמין בדפדפן זה');
+    expect(mic).not.toMatch(/FLIGHT_ACTION|PARAM_SET|\/apply|\/restart/);
+    expect(mic).not.toMatch(/\bARM\b|\bDISARM\b|\bLAND\b/);
   });
 });
 
