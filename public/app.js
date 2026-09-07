@@ -501,7 +501,7 @@ function localAdvisorReply(q) {
     return 'המראה: to_rotate_speed_ms — מהירות הרמה, to_pitch_deg — זווית עלייה, to_max_crosswind_ms — רוח צד מקסימלית. בדוק GPS sats ≥ 8 לפני.';
   }
   if (text.includes('jetson') && (text.includes('fc') || text.includes('רחפן') || text.includes('מטוס') || text.includes('gcs') || text.includes('mavlink'))) {
-    return 'תקשורת: קו MAVLink בדרך כלל בין עמדת קרקע לבקר (FC). Jetson מריץ Vision בנתיב נפרד — לא מחליף את קו ה־GCS ל־FC. ב-ArduPilot בחר פורט Companion (SERIALx) וערוץ SRx בהתאם.';
+    return 'תקשורת: קו MAVLink בדרך כלל בין עמדת קרקע לבקר (FC). Jetson מריץ Vision בנתיב נפרד — לא מחליף את קו ה־GCS ל־FC. ב-ArduPilot בחר פורט Jetson (SERIALx) וערוץ SRx בהתאם.';
   }
   if (text.includes('jetson') || text.includes('ג\'טסון') || text.includes('חיבור') || text.includes('connect')) {
     return 'Jetson: ודא שהשרת והJetson באותה רשת, ש-heartbeat מגיע בקצב < 5s. בדוק /api/jetson/status לפרטים. אם offline — הפעל מחדש.';
@@ -954,7 +954,7 @@ function buildDynamicCommFields(rawCompanion = companionLinkState) {
   const serialKey = serialLabelForPort(serialPort);
   const srKey = srLabelForBucket(srBucket);
   return [
-    { group: 'תקשורת Jetson', key: 'companion_serial_port', label: 'פורט Companion (SERIALx)', kind: 'enum', virtual: true, options: COMPANION_PORT_OPTIONS, tier: 'core' },
+    { group: 'תקשורת Jetson', key: 'companion_serial_port', label: 'פורט Jetson (SERIALx)', kind: 'enum', virtual: true, options: COMPANION_PORT_OPTIONS, tier: 'core' },
     { group: 'תקשורת Jetson', key: 'companion_sr_bucket', label: 'ערוץ SRx לקצבים', kind: 'enum', virtual: true, options: COMPANION_PORT_OPTIONS, tier: 'core' },
     { group: 'תקשורת Jetson', key: `${serialKey}_PROTOCOL`, label: `${serialKey} — פרוטוקול (MAVLink)`, kind: 'enum', options: [0, 1, 2], tier: 'core' },
     { group: 'תקשורת Jetson', key: `${serialKey}_BAUD`, label: `${serialKey} — Baud (Ardu code)`, kind: 'enum', options: [9, 19, 38, 57, 115, 230, 460, 921], tier: 'core' },
@@ -1012,14 +1012,14 @@ function persistArduFavorites() {
 
 /** Why: `?` tooltips on ArduPilot form — short Hebrew, parameter name in English in title bar only via label. */
 const ARDU_PARAM_HELP = {
-  companion_serial_port: 'בחירת פורט פיזי שאליו מחובר ה‑Companion. אם החיבור בפועל הוא SERIAL3 ואתה משאיר SERIAL2, ה‑FC ישדר בפורט הלא נכון ותראה ניתוקים/חוסר נתונים. שנה רק כשאתה בטוח בחיווט.',
-  companion_sr_bucket: 'קובע מאיזה SRx יוצאים קצבי הטלמטריה ל‑Companion. ברוב המקרים תואם לאותו מספר של SERIALx, אבל יש מערכות שבהן זה מופרד. אם אתה רואה heartbeat בלי נתונים עשירים, בדוק את הערך הזה.',
+  companion_serial_port: 'בחירת פורט פיזי שאליו מחובר מחשב המשימה. אם החיבור בפועל הוא SERIAL3 ואתה משאיר SERIAL2, ה‑FC ישדר בפורט הלא נכון ותראה ניתוקים/חוסר נתונים. שנה רק כשאתה בטוח בחיווט.',
+  companion_sr_bucket: 'קובע מאיזה SRx יוצאים קצבי הטלמטריה למחשב המשימה. ברוב המקרים תואם לאותו מספר של SERIALx, אבל יש מערכות שבהן זה מופרד. אם אתה רואה heartbeat בלי נתונים עשירים, בדוק את הערך הזה.',
   EK3_ENABLE: 'מפעיל את EKF3 כחישוב הניווט הראשי. שינוי פרמטר זה משפיע על התנהגות FC גלובלית ולכן מבוצע רק על הקרקע ובזהירות.',
   AHRS_EKF_TYPE: 'בוחר מנוע EKF בשכבת AHRS. ערך 3 הוא EKF3 ברוב גרסאות Plane. שינוי כאן יכול להשפיע על יציבות חישוב Attitude ו‑Position.',
   EK3_GPS_TYPE: 'מגדיר כמה ואיך EKF3 מסתמך על GPS. מתאים בעיקר לניסויי GPS/vision coupling — לא לשנות בלי להבין את מקור המיקום הפעיל בניסוי.',
   EK3_ALT_SOURCE: 'מקור הגובה הראשי של EKF3 (לרוב ברומטר/טווח/שילוב). אם מקור הגובה לא נכון תראה פרופיל גובה לא יציב ב‑final.',
-  PLND_ENABLED: 'מפעיל Precision Landing בצד FC. כשכבוי, נתוני נחיתה מדויקת מה‑Companion יתקבלו אך לא יניעו לוגיקת נחיתה ייעודית.',
-  PLND_TYPE: 'סוג קלט נחיתה מדויקת. ערך 1 לרוב מייצג MAVLink ולכן מתאים לאינטגרציה עם Companion/Jetson.',
+  PLND_ENABLED: 'מפעיל Precision Landing בצד FC. כשכבוי, נתוני נחיתה מדויקת ממחשב המשימה יתקבלו אך לא יניעו לוגיקת נחיתה ייעודית.',
+  PLND_TYPE: 'סוג קלט נחיתה מדויקת. ערך 1 לרוב מייצג MAVLink ולכן מתאים לאינטגרציה עם מחשב משימה.',
   PLND_BUS: 'ערוץ/Bus ממנו FC מצפה לקבל PLND. ברוב תרחישי MAVLink נשאר ברירת מחדל, אבל במערכות היברידיות צריך התאמה מפורשת.',
   PLND_LAG: 'פיצוי עיכוב בין המדידה הוויזואלית לבין השימוש ב‑FC. אם גבוה מדי התיקון מגיע מאוחר; אם נמוך מדי מתקבלת תגובת יתר.',
   PLND_XY_DIST_MAX: 'רדיוס אופקי שבו FC עדיין מוכן להשתמש בנתוני PLND. קטן מדי יבטל תיקונים מוקדם, גדול מדי עלול לאפשר תיקונים אגרסיביים רחוקים.',
@@ -2422,7 +2422,7 @@ function renderCompanionChannels(channels = {}) {
     ['לולאת ראייה', channels.vision_loopback],
   ];
   host.innerHTML = rows.map(([label, channel]) => {
-    const path = channel?.jetson_in_path === true ? 'בנתיב Companion'
+    const path = channel?.jetson_in_path === true ? 'בנתיב Jetson'
       : channel?.jetson_in_path === false ? 'לא בנתיב' : '—';
     const bind = channel?.bind || '—';
     return `<div class="companion-b2-row"><span>${escapeHtml(label)}</span><strong>${escapeHtml(path)}</strong><span>${escapeHtml(bind)}</span><strong>${escapeHtml(channel?.implementation || '—')}</strong></div>`;
@@ -3150,7 +3150,7 @@ function pulseBuildAttention(opts) {
   const evolveActive = opts?.evolveActive;
   const items = [];
   if (!companionLive) {
-    items.push({ id: 'companion', level: 'attention', text: 'Companion מנותק', action: 'companion', cta: 'חברו Companion' });
+    items.push({ id: 'companion', level: 'attention', text: 'Jetson מנותק', action: 'companion', cta: 'חברו Jetson' });
   }
   if (!assistConnected) {
     items.push({ id: 'assist', level: 'info', text: 'מסייע מנותק', action: 'assist', cta: 'מסייע' });
@@ -3240,12 +3240,12 @@ function pulseRefresh() {
 
 function platformMaintLabel() {
   const badge = document.getElementById('maintStatusBadge')?.textContent?.trim();
-  return badge || 'Companion מנותק';
+  return badge || 'Jetson מנותק';
 }
 
 function platformDiagLabel() {
   const badge = document.getElementById('teleStatusBadge')?.textContent?.trim();
-  return badge || 'Companion מנותק';
+  return badge || 'Jetson מנותק';
 }
 
 function platformRefresh() {
@@ -3343,12 +3343,12 @@ function teleSetOverview(opts) {
   const resolvedState = state || (live ? 'ok' : 'disconnected');
   if (banner) banner.dataset.state = resolvedState;
   if (badge) {
-    badge.textContent = statusHe || (live ? 'חי' : 'Companion מנותק');
+    badge.textContent = statusHe || (live ? 'חי' : 'Jetson מנותק');
     badge.className = 'operator-state-status';
   }
   if (next) {
     const text = nextHe == null
-      ? (live ? '' : 'חברו Companion. כתובת לבד לא מספיקה.')
+      ? (live ? '' : 'חברו מחשב משימה. כתובת לבד לא מספיקה.')
       : nextHe;
     next.hidden = !text;
     next.textContent = text;
@@ -3372,25 +3372,25 @@ function companionConnectRender(status) {
   const live = companionIsLive(status);
   companionSetLiveChrome(live);
   const errorText = !connected && status?.ok === false
-    ? (status.status_he || status.reason_he || 'חיבור Companion נכשל')
+    ? (status.status_he || status.reason_he || 'חיבור מחשב משימה נכשל')
     : '';
   card.dataset.state = errorText ? 'error' : (connected ? 'connected' : 'disconnected');
   const statusText = connected
-    ? (status.status_he || 'Companion מחובר')
-    : (status.status_he || status.reason_he || 'Companion מנותק');
+    ? (status.status_he || 'Jetson מחובר')
+    : (status.status_he || status.reason_he || 'Jetson מנותק');
   statusEl.textContent = statusText;
   if (maintStatus) maintStatus.textContent = statusText;
   teleSetOverview({
     live,
     statusHe: live && !connected && !status?.status_he ? 'חי' : statusText,
-    nextHe: live ? '' : (status?.hint_he || 'חברו Companion. כתובת לבד לא מספיקה.'),
+    nextHe: live ? '' : (status?.hint_he || 'חברו מחשב משימה. כתובת לבד לא מספיקה.'),
     state: errorText ? 'error' : (live ? (connected ? 'connected' : 'ok') : 'disconnected'),
   });
   if (!live) {
     maintSetOverview({
       live: false,
       statusHe: statusText,
-      nextHe: status?.hint_he || 'חברו Companion. כתובת לבד לא מספיקה.',
+      nextHe: status?.hint_he || 'חברו מחשב משימה. כתובת לבד לא מספיקה.',
       state: errorText ? 'error' : 'disconnected',
     });
   }
@@ -3438,7 +3438,7 @@ async function companionConnectRefresh() {
       ok: false,
       mode: 'off',
       connected: false,
-      status_he: 'Companion מנותק',
+      status_he: 'Jetson מנותק',
     });
   }
 }
@@ -3471,7 +3471,7 @@ async function companionConnectSubmit(event) {
     return;
   }
   const statusEl = document.getElementById('companionConnectStatus');
-  if (statusEl) statusEl.textContent = 'מחברים Companion';
+  if (statusEl) statusEl.textContent = 'מחברים Jetson';
   companionConnectSetBusy(true);
   companionConnectSetError('');
   try {
@@ -3482,7 +3482,7 @@ async function companionConnectSubmit(event) {
     });
     const data = await r.json().catch(() => ({}));
     if (!r.ok || data.ok === false || data.mode !== 'real') {
-      const msg = data.status_he || data.reason_he || 'חיבור Companion נכשל';
+      const msg = data.status_he || data.reason_he || 'חיבור מחשב משימה נכשל';
       companionConnectSetError(msg);
       companionConnectRender({
         ok: false,
@@ -3498,12 +3498,12 @@ async function companionConnectSubmit(event) {
     if (tokenEl) tokenEl.value = '';
     companionConnectRender(data);
   } catch {
-    companionConnectSetError('חיבור Companion נכשל');
+    companionConnectSetError('חיבור מחשב משימה נכשל');
     companionConnectRender({
       ok: false,
       mode: 'off',
       connected: false,
-      status_he: 'חיבור Companion נכשל',
+      status_he: 'חיבור מחשב משימה נכשל',
     });
   } finally {
     companionConnectSetBusy(false);
@@ -3519,7 +3519,7 @@ async function companionDisconnect() {
       ok: r.ok,
       mode: data.mode || 'off',
       connected: false,
-      status_he: data.status_he || 'Companion מנותק',
+      status_he: data.status_he || 'Jetson מנותק',
       base_url: data.base_url,
     });
   } catch {
@@ -3527,7 +3527,7 @@ async function companionDisconnect() {
       ok: false,
       mode: 'off',
       connected: false,
-      status_he: 'Companion מנותק',
+      status_he: 'Jetson מנותק',
     });
   } finally {
     companionConnectSetBusy(false);
@@ -3555,28 +3555,28 @@ function applyCompanionUi(companion) {
   const unavailableEl = document.getElementById('companionApiUnavailable');
   if (unavailableEl) {
     unavailableEl.hidden = !unavailable;
-    unavailableEl.textContent = unavailable ? 'Companion לא מגיב. בדקו כתובת ואסימון.' : '';
+    unavailableEl.textContent = unavailable ? 'מחשב משימה לא מגיב. בדקו כתובת ואסימון.' : '';
   }
   const live = companionIsLive(companion) && !unavailable;
   companionSetLiveChrome(live);
   if (!live) {
-    const statusHe = companion.mode === 'real' && unavailable ? 'Companion לא מגיב' : 'Companion מנותק';
+    const statusHe = companion.mode === 'real' && unavailable ? 'Jetson לא מגיב' : 'Jetson מנותק';
     maintSetOverview({
       live: false,
       statusHe,
-      nextHe: 'חברו Companion. כתובת לבד לא מספיקה.',
+      nextHe: 'חברו מחשב משימה. כתובת לבד לא מספיקה.',
       state: unavailable ? 'error' : 'disconnected',
     });
     teleSetOverview({
       live: false,
       statusHe,
-      nextHe: 'חברו Companion. כתובת לבד לא מספיקה.',
+      nextHe: 'חברו מחשב משימה. כתובת לבד לא מספיקה.',
       state: unavailable ? 'error' : 'disconnected',
     });
   } else {
     teleSetOverview({
       live: true,
-      statusHe: companion.mode === 'mock' ? 'Companion במצב מדומה' : 'חי',
+      statusHe: companion.mode === 'mock' ? 'Jetson במצב מדומה' : 'חי',
       nextHe: '',
       state: 'ok',
     });
@@ -5107,10 +5107,10 @@ setInterval(() => {
   let sourceLabel;
   if (companionConfidence != null) {
     current = Math.max(0, Math.min(1, companionConfidence));
-    sourceLabel = 'Companion';
+    sourceLabel = 'Jetson';
   } else if (companionActive && !visionFresh) {
     current = null;
-    sourceLabel = 'Companion ללא מדידה';
+    sourceLabel = 'Jetson ללא מדידה';
     lowConfidenceSeconds = 0;
   } else if (visionFresh) {
     current = latestVisionFromServer.confidence == null
@@ -10047,7 +10047,7 @@ function maintSetOverview(opts) {
   const resolvedState = state || (live ? 'ok' : 'disconnected');
   if (banner) banner.dataset.state = resolvedState;
   if (badge) {
-    badge.textContent = statusHe || (live ? 'תקין' : 'Companion מנותק');
+    badge.textContent = statusHe || (live ? 'תקין' : 'Jetson מנותק');
     badge.className = `operator-state-status maint-badge--${resolvedState}`;
   }
   if (next) {
@@ -10155,7 +10155,7 @@ function maintApplyWire(wire, { apiReachable = null, companionMode = null } = {}
   maintSetOverview({
     live: _maintApiReachable === true,
     statusHe: MAINT_STATES_HE[st] || st,
-    nextHe: _maintApiReachable === true ? '' : 'חברו Companion. כתובת לבד לא מספיקה.',
+    nextHe: _maintApiReachable === true ? '' : 'חברו מחשב משימה. כתובת לבד לא מספיקה.',
     state: st,
   });
   maintRenderDiag(wire.diagnostics?.recent);
@@ -10177,8 +10177,8 @@ async function maintLoadData() {
     _maintApiReachable = false;
     maintSetOverview({
       live: false,
-      statusHe: 'Companion מנותק',
-      nextHe: 'חברו Companion. כתובת לבד לא מספיקה.',
+      statusHe: 'Jetson מנותק',
+      nextHe: 'חברו מחשב משימה. כתובת לבד לא מספיקה.',
       state: 'disconnected',
     });
   }
@@ -10260,8 +10260,8 @@ function maintRelHeKnownMessage(text) {
     'Backup failed': 'הגיבוי נכשל',
     'Deploy failed': 'ההתקנה נכשלה',
     'Another maintenance operation is already running': 'פעולת תחזוקה אחרת כבר רצה',
-    'Companion לא זמין': 'Companion לא זמין',
-    'Companion לא זמין — מציג מצב אחרון': 'Companion לא זמין. מוצג מצב אחרון',
+    'Jetson לא זמין': 'Jetson לא זמין',
+    'מחשב משימה לא זמין. מוצג מצב אחרון': 'מחשב משימה לא זמין. מוצג מצב אחרון',
   };
   if (known[s]) return known[s];
   const runningParen = s.match(/^Deployment successful \(running (.+)\)$/);
@@ -10300,7 +10300,7 @@ function maintRelApiError(status, body) {
   if (status === 404) return msg || 'לא נמצא';
   if (status === 409) return msg || 'קונפליקט — פעולה לא זמינה כעת';
   if (status === 501) return msg || 'לא נתמך ב-Jetson';
-  if (status === 503 || status === 504) return msg || 'Companion לא זמין';
+  if (status === 503 || status === 504) return msg || 'Jetson לא זמין';
   return msg || 'שגיאה';
 }
 
@@ -10431,7 +10431,7 @@ async function maintRelLoadAll() {
 
   const noteEl = document.getElementById('maintRelStatusNote');
   if (_maintApiReachable === false) {
-    maintRelSetUnavailable('Companion לא זמין. מוצג מצב אחרון');
+    maintRelSetUnavailable('מחשב משימה לא זמין. מוצג מצב אחרון');
     return;
   }
 
@@ -11326,7 +11326,7 @@ const ASSIST_CAPABILITY_HE = Object.freeze({
   video: 'וידאו',
   voice: 'קול',
   diagnostics: 'אבחון',
-  companion: 'Companion',
+  companion: 'Jetson',
   configuration: 'תצורה',
   debrief: 'תחקור',
   evolve: 'פיתוח',

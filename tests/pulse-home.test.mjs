@@ -181,5 +181,7 @@ describe('C10.3 Pulse home', () => {
     expect(findAssistRoute('pulse')?.tab).toBe('pulse');
     expect(findAssistRoute('מלווה')?.tab).toBe('maintenance');
     expect(findAssistRoute('Companion')?.tab).toBe('maintenance');
+    expect(findAssistRoute('Jetson')?.tab).toBe('maintenance');
+    expect(findAssistRoute('מחשב משימה')?.tab).toBe('maintenance');
   });
 });

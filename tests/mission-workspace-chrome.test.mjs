@@ -109,20 +109,24 @@ describe('AIRVIX Mission chrome — talk is flight-safe', () => {
 });
 
 describe('AIRVIX Mission chrome — operator naming', () => {
-  it('uses תמונת מצב for Pulse home and Companion as the product term', () => {
+  it('uses תמונת מצב for Pulse home and Jetson / מחשב משימה for the computer', () => {
     const chrome = capture(html, /<header class="app-chrome"[^>]*>([\s\S]*?)<\/header>/, 'missing app-chrome')[1];
     expect(chrome).toMatch(/data-tab="pulse"[^>]*>תמונת מצב</);
     expect(chrome).not.toMatch(/>סקירה</);
     expect(html).toMatch(/<h3 class="pulse-title">תמונת מצב<\/h3>/);
     expect(html).toMatch(/id="pulseHomePulseBtn"[^>]*>תמונת מצב</);
-    expect(html).toMatch(/<dt>Companion<\/dt>/);
-    expect(html).toMatch(/data-first-action="companion">חברו Companion</);
+    expect(html).toMatch(/<dt>Jetson<\/dt>/);
+    expect(html).toMatch(/data-first-action="companion">חברו Jetson</);
+    expect(html).toMatch(/id="teleNextStep"[^>]*>חברו מחשב משימה\. כתובת לבד לא מספיקה\.</);
     expect(html).not.toContain('מלווה');
     expect(html).not.toMatch(/>סקירה</);
+    expect(html).not.toMatch(/>Companion</);
     expect(js).toMatch(/PULSE:\s*'תמונת מצב'/);
-    expect(js).toMatch(/companion:\s*'Companion'/);
+    expect(js).toMatch(/companion:\s*'Jetson'/);
     expect(findAssistRoute('תמונת מצב')?.tab).toBe('pulse');
     expect(findAssistRoute('סקירה')?.tab).toBe('pulse');
+    expect(findAssistRoute('Jetson')?.id).toBe('companion');
+    expect(findAssistRoute('מחשב משימה')?.id).toBe('companion');
     expect(findAssistRoute('Companion')?.id).toBe('companion');
     expect(findAssistRoute('מלווה')?.id).toBe('companion');
   });

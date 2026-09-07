@@ -137,7 +137,7 @@ Architecture wave (`docs/AIRVIX_PRODUCT_ARCHITECTURE.md`): C10.2 Assist unificat
 28. **ArduLab → Assist REFINE** — **LANDED** via PR #73 merge `dca929a`. Assist route `ardulab` opens existing `#featureDesigner`. Workspace **EVOLVE**. Lab shelf stays. No FC write / Companion apply / Jetson deploy.
 29. **SITL Lab connect REFINE** — **LANDED** via PR #74 merge `1971384`. `#simLab` presets/wizard drive the global `#connectWidget`. Spoken-Hebrew handoff. One MAVLink connect truth.
 30. **Auto-Config wizard MERGE** — **LANDED** via PR #75. Assist opens `#autoConfig` under Parameter Center (`#control`). Quiet Platform / Params chrome. Existing suggest→approve→apply stays. No new FC write.
-31. **AIRVIX UI redesign (chrome + Mission workspace)** — **this draft.** Roy 2026-09-07 GO + naming addendum. Blue telemetry top strip removed. `#connectWidget` floats globally. Tabs sit in the freed top chrome. **הטסה** is a primary ops tab. Mission folds horizon / map / data / messages / talk as named regions (`data-mission-layout="ops-v1"`). Pulse home label is **תמונת מצב** (not סקירה). User-visible Companion term stays **Companion** (not מלווה). Assist still accepts `סקירה` as a Pulse alias. No Companion apply/restart. No new FC write. No FLIGHT_ACTION. No GPS invented.
+31. **AIRVIX UI redesign (chrome + Mission workspace)** — **this draft.** Roy 2026-09-07 GO + naming LOCKED. Blue telemetry top strip removed. `#connectWidget` floats globally. Tabs sit in the freed top chrome. **הטסה** is a primary ops tab. Mission folds horizon / map / data / messages / talk as named regions (`data-mission-layout="ops-v1"`). Pulse home label is interim **תמונת מצב** (not סקירה). Short UI for the computer is **Jetson**. Longer Hebrew copy is **מחשב משימה**. Do not use מלווה or a Companion calque in operator copy. Code ids `companion` unchanged. No Companion apply/restart. No new FC write. No FLIGHT_ACTION. No GPS invented.
 
 ---
 
@@ -145,7 +145,7 @@ Architecture wave (`docs/AIRVIX_PRODUCT_ARCHITECTURE.md`): C10.2 Assist unificat
 
 **Master:** `1.02.255` @ `33d6334` (PR #75 merge — Auto-Config wizard MERGE). Do not bump.  
 **Prior pointer:** 2026-09-07 Auto-Config wizard MERGE draft snapshot. Superseded. #75 landed Assist → `#autoConfig`.  
-**This draft:** AIRVIX UI redesign — chrome + Mission workspace + operator naming. Roy 2026-09-07 GO + addendum. Stay draft. King merges after independent VERIFY. Do not bump `APP_VERSION`.
+**This draft:** AIRVIX UI redesign — chrome + Mission workspace + locked operator naming. Roy 2026-09-07 GO + naming LOCKED. Stay draft. King merges after independent VERIFY. Do not bump `APP_VERSION`.
 
 Ops (not product): WhatsApp Human Gate delivery remains available (signed in on the operator box targeting +972584010075, self-chat).
 
@@ -165,7 +165,7 @@ Ops (not product): WhatsApp Human Gate delivery remains available (signed in on 
 
 ### This draft (2026-09-07)
 
-- AIRVIX UI redesign. Blue telemetry top strip gone (version/glance/confidence/ASSIST clutter). `#connectWidget` stays in its corner as a high-z float, visible on every tab. Main tabs move into the freed top chrome. **הטסה** (`#terrain`) is a primary ops tab, not only under מעבדה. Mission workspace folds existing PFD/horizon, map, glanceables, STATUSTEXT, and flight-safe Assist talk into named regions `horizon | map | data | messages | talk` (`data-mission-layout="ops-v1"`). Layout hook is CSS grid areas for later Assist rearrange — not a full NL editor. Tone: professional flight / development console. Pulse home label **תמונת מצב** (Assist alias `סקירה` stays). User-visible Companion term is **Companion**, not מלווה. Code ids `companion` unchanged. No Companion apply/restart. No new FC `PARAM_SET`. No FLIGHT_ACTION / ARM / LAND from Assist. Empty GPS stays `-- m`. `APP_VERSION` stays `1.02.255`.
+- AIRVIX UI redesign. Blue telemetry top strip gone (version/glance/confidence/ASSIST clutter). `#connectWidget` stays in its corner as a high-z float, visible on every tab. Main tabs move into the freed top chrome. **הטסה** (`#terrain`) is a primary ops tab, not only under מעבדה. Mission workspace folds existing PFD/horizon, map, glanceables, STATUSTEXT, and flight-safe Assist talk into named regions `horizon | map | data | messages | talk` (`data-mission-layout="ops-v1"`). Layout hook is CSS grid areas for later Assist rearrange — not a full NL editor. Tone: professional flight / development console. Pulse home label **תמונת מצב** (Assist alias `סקירה` stays). Short UI **Jetson**. Longer Hebrew **מחשב משימה**. No מלווה and no Companion calque in operator copy. Code ids `companion` unchanged. No Companion apply/restart. No new FC `PARAM_SET`. No FLIGHT_ACTION / ARM / LAND from Assist. Empty GPS stays `-- m`. `APP_VERSION` stays `1.02.255`.
 
 ### Prior still on master (#54, #56, #57)
 
@@ -250,7 +250,7 @@ On master today (PR #33 + PR #34 + Hebrew Assist chrome from #50 + result card f
 - **ArduLab → Assist REFINE LANDED** via PR #73 `dca929a`: Assist opens `#featureDesigner` for `ארדולאב` / feature designer. Workspace **EVOLVE**. Lab shelf stays. Not a competing primary chat. No FC / Companion apply.
 - **SITL Lab connect REFINE LANDED** via PR #74 `1971384`: `#simLab` presets/wizard drive `#connectWidget`. One MAVLink connect truth. Spoken-Hebrew handoff. Wizard teaching stays. Assist `סימולציה` / `sitl` → `#simLab`.
 - **Auto-Config wizard MERGE LANDED** via PR #75 `33d6334`: Assist opens `#autoConfig` for `אשף` / `קונפיג אוטומטי`. Quiet Platform / Params chrome. Panel stays. No new vehicle write.
-- **AIRVIX UI redesign this draft:** chrome + Mission workspace. Connect floats. **הטסה** primary. Named Mission regions. Flight-safe talk only. Pulse home **תמונת מצב**. User-visible Companion term **Companion**.
+- **AIRVIX UI redesign this draft:** chrome + Mission workspace. Connect floats. **הטסה** primary. Named Mission regions. Flight-safe talk only. Pulse home **תמונת מצב**. Short UI **Jetson**. Longer Hebrew **מחשב משימה**.
 
 ### Params (persist landed)
 
@@ -260,7 +260,7 @@ On master today (PR #33 + PR #34 + Hebrew Assist chrome from #50 + result card f
 
 | PR | Topic | This map |
 |---|---|---|
-| this draft | AIRVIX UI redesign — chrome + Mission workspace + operator naming | **This draft.** Stay draft. King merges after independent VERIFY. |
+| this draft | AIRVIX UI redesign — chrome + Mission workspace + locked naming | **This draft.** Stay draft. King merges after independent VERIFY. |
 | [#75](https://github.com/royshiber/vision-landing-console/pull/75) | Auto-Config wizard MERGE into Assist + Configuration | **LANDED** on master via PR #75 merge `33d6334`. |
 | [#74](https://github.com/royshiber/vision-landing-console/pull/74) | SITL Lab connect REFINE — one `#connectWidget` truth | **LANDED** on master via PR #74 merge `1971384`. |
 | [#73](https://github.com/royshiber/vision-landing-console/pull/73) | ArduLab → Assist REFINE fold | **LANDED** on master via PR #73 merge `dca929a`. |
@@ -298,7 +298,7 @@ Roy 2026-09-05: abandon searching the local tree for versions past 300 **permane
 
 ### Ranked GAPS (this snapshot)
 
-1. **AIRVIX UI redesign** — this draft. Chrome + Mission workspace + operator naming (תמונת מצב / Companion). No new FC write.
+1. **AIRVIX UI redesign** — this draft. Chrome + Mission workspace + locked naming (תמונת מצב / Jetson / מחשב משימה). No new FC write.
 2. **C10.7b voice/STT** — deferred. Do not start now. No new ElevenLabs/STT secrets.
 3. **C10.4c-b Jetson deploy-wire move** — remaining C10.4 slice. Still **deferred** (#28). Do not start now.
 4. **Live Jetson connect proof** — parked (days). Capability is on master (#39 / #40). Blocked on Companion token (not in Cursor / PC `.env`; Jetson `:8081` → 401). WAITING FOR ROY on the token, not more connect code. Do not invent a token.
