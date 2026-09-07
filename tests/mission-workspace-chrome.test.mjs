@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { findAssistRoute } from '../lib/assist/assist-routes.mjs';
+import { ASSIST_PROHIBITED_ACTIONS, MISSION_AVAILABLE_ACTIONS } from '../lib/assist/assist-types.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const html = fs.readFileSync(path.join(repoRoot, 'public', 'index.html'), 'utf8');
@@ -251,5 +252,39 @@ describe('AIRVIX Mission chrome — operator naming', () => {
     expect(findAssistRoute('מחשב משימה')?.id).toBe('companion');
     expect(findAssistRoute('Companion')?.id).toBe('companion');
     expect(findAssistRoute('מלווה')?.id).toBe('companion');
+  });
+});
+
+describe('AIRVIX Mission chrome — no air/ground tab gate', () => {
+  it('keeps Develop, Params, and Settings reachable airborne and on the ground', () => {
+    expect(html).toMatch(/class="tab tab-ops"[^>]*data-tab="control"[^>]*>פרמטרים</);
+    expect(html).toMatch(/class="tab tab-ops"[^>]*data-tab="development"[^>]*>פיתוח</);
+    expect(html).toContain('id="globalSettingsBtn"');
+    expect(html).toContain('id="globalSettingsModal"');
+    expect(html).not.toMatch(/data-tab="control"[^>]*\bdisabled\b/);
+    expect(html).not.toMatch(/data-tab="development"[^>]*\bdisabled\b/);
+    expect(html).not.toMatch(/id="globalSettingsBtn"[^>]*\bdisabled\b/);
+    expect(js).toContain('function opsChromeAlwaysReachable(');
+    expect(sliceFunction(js, 'opsChromeAlwaysReachable')).toContain('return true');
+    expect(sliceFunction(js, 'opsChromeAlwaysReachable')).not.toMatch(/armed|airborne|inFlight|DISARMED/);
+    const applyMain = js.slice(js.indexOf('function applyMainTab('), js.indexOf('const PARAM_SUBTAB_IDS'));
+    expect(applyMain).toContain('opsChromeAlwaysReachable(tabId)');
+    expect(applyMain).not.toMatch(/armed|airborne|inFlight|DISARMED/);
+    expect(js).toContain("opsChromeAlwaysReachable('settings')");
+    const reachable = new Function(`${sliceFunction(js, 'opsChromeAlwaysReachable')}; return opsChromeAlwaysReachable;`)();
+    expect(reachable('control')).toBe(true);
+    expect(reachable('development')).toBe(true);
+    expect(reachable('settings')).toBe(true);
+    expect(reachable('control', { armed: true, armedKnown: true })).toBe(true);
+    expect(reachable('development', { armed: false, armedKnown: true })).toBe(true);
+  });
+
+  it('does not add Assist flight commands', () => {
+    expect(MISSION_AVAILABLE_ACTIONS).not.toContain('FLIGHT_ACTION');
+    expect(MISSION_AVAILABLE_ACTIONS).not.toContain('ARM');
+    expect(MISSION_AVAILABLE_ACTIONS).not.toContain('DISARM');
+    expect(MISSION_AVAILABLE_ACTIONS).not.toContain('LANDING_COMMAND');
+    expect(ASSIST_PROHIBITED_ACTIONS).toEqual(expect.arrayContaining(['ARM', 'DISARM', 'LANDING_COMMAND', 'FC_COMMAND']));
+    expect(js).not.toMatch(/FLIGHT_ACTION/);
   });
 });

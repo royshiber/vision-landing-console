@@ -164,6 +164,11 @@ function pulseDefaultHomeTab() {
 function appDefaultWorkspaceTab() {
   return 'terrain';
 }
+
+/** Roy LOCKED 2026-09-07: Develop / Params / Settings stay reachable airborne and on the ground. Access only — not FC write, not Assist flight commands. */
+function opsChromeAlwaysReachable(_tabId) {
+  return true;
+}
 function _mainTabIds() {
   return new Set(tabs.map((t) => t.dataset.tab).filter(Boolean));
 }
@@ -270,6 +275,7 @@ function applyMainTab(tabId, { save = true } = {}) {
     openDebriefLogs({ save });
     return;
   }
+  if ((tabId === 'control' || tabId === 'development') && !opsChromeAlwaysReachable(tabId)) return;
   if (!_mainTabIds().has(tabId)) return;
   tabs.forEach((t) => t.classList.remove('active'));
   panels.forEach((p) => p.classList.remove('visible'));
@@ -9339,7 +9345,10 @@ setInterval(refreshAdvisorHealth, 60_000);
       'שינוי השפה נכנס לתוקף בהפעלה הבאה של המיקרופון (או ריענון דף). ברירת השרת נקבעת ב־FE_STT_LANG.';
   }
 
-  btn.addEventListener('click', () => openModal());
+  btn.addEventListener('click', () => {
+    if (!opsChromeAlwaysReachable('settings')) return;
+    openModal();
+  });
   closeBtns.forEach((el) => el.addEventListener('click', closeModal));
 
   volSlider?.addEventListener('input', () => {
