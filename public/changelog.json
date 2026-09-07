@@ -6,7 +6,7 @@
       {
         "type": "ui",
         "title": "Mission density: flush tabs, dark console, AIRVIX chrome",
-        "detail": "Removed the gap under tabs. Map and Assist are larger than the artificial horizon. Video can sit behind the horizon as a toggle; the HUD stays a semi-transparent overlay, and missing video stays empty. Extra identity chrome is visually quiet. AIRVIX branding. APP_VERSION 1.02.258."
+        "detail": "Removed the gap under tabs. Home is a dark computer-status console with Jetson and FC gauges. The artificial horizon is a rectangular glass PFD; video mode is a neon HUD over live video, or an honest empty state. Map and Assist stay larger than the horizon. AIRVIX branding. APP_VERSION 1.02.258."
       },
       {
         "type": "test",

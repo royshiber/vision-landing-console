@@ -4667,81 +4667,106 @@ body.operator-live .companion-connect--hero {
   overflow: hidden;
   padding: 0;
   background:
-    radial-gradient(ellipse 88% 48% at 50% 8%, rgba(214, 227, 255, 0.5), transparent 64%),
-    var(--surface);
+    radial-gradient(ellipse 70% 40% at 50% 0%, rgba(56, 92, 160, 0.16), transparent 62%),
+    #0b1018;
 }
 
 .pulse-home {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 18px;
+  gap: 14px;
   flex: 1 1 auto;
   min-height: 0;
-  max-width: 720px;
+  max-width: 980px;
   width: 100%;
   margin: 0 auto;
-  padding: 28px 22px 22px;
+  padding: 18px 16px 16px;
 }
 
 .pulse-hero {
   display: grid;
-  gap: 4px;
-  text-align: center;
+  gap: 2px;
+  text-align: start;
 }
 
 .pulse-title {
   margin: 0;
-  font-size: 1.35rem;
+  font-size: 1.22rem;
   font-weight: 800;
-  color: var(--text);
+  color: #e8edf6;
 }
 .pulse-purpose {
   margin: 0;
-  font-size: 0.92rem;
+  font-size: 0.82rem;
   font-weight: 600;
-  color: var(--text-muted);
+  color: #8b97ab;
 }
 .pulse-status-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  gap: 10px;
 }
 .pulse-status-card {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 16px 14px;
-  border-radius: 16px;
-  background: #fff;
-  box-shadow: var(--shadow-card);
-  text-align: center;
+  gap: 10px;
+  padding: 14px 14px 12px;
+  border-radius: 10px;
+  background: #121826;
+  border: 1px solid rgba(148, 168, 198, 0.12);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
+  text-align: start;
+  color: #e8edf6;
 }
 .pulse-status-card h4 {
   margin: 0;
-  font-size: 0.82rem;
+  font-size: 0.92rem;
   font-weight: 800;
+  color: #f2f6fb;
 }
 .pulse-status-card p {
   margin: 0;
   font-weight: 700;
 }
 .pulse-status-note {
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   font-weight: 600;
-  color: var(--text-muted);
+  color: #8b97ab;
+}
+.pulse-computer-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
 }
 .pulse-computer-who {
   font-size: 0.68rem;
   font-weight: 700;
   letter-spacing: 0.04em;
-  color: var(--text-subtle);
+  color: #7d8ba0;
+}
+.pulse-computer-state {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #9aa8b8;
+}
+.pulse-computer-card[data-state="connected"] .pulse-computer-state {
+  color: #3dd68c;
+}
+.pulse-computer-card[data-state="disconnected"] .pulse-computer-state {
+  color: #8b97ab;
 }
 .pulse-computer-metrics {
   display: grid;
   gap: 6px;
   margin: 2px 0 0;
   text-align: start;
+}
+.pulse-gauges {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
 }
 .pulse-computer-metrics > div {
   display: flex;
@@ -4753,16 +4778,64 @@ body.operator-live .companion-connect--hero {
   background: #121a26;
   color: #e8eef6;
 }
+.pulse-gauge {
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2px;
+  padding: 6px 4px 8px;
+  border-radius: 8px;
+  background: #0d1320;
+  color: #e8edf6;
+  --gauge-pct: 0;
+}
+.pulse-gauge-svg {
+  width: 100%;
+  max-width: 92px;
+  height: auto;
+  overflow: visible;
+}
+.pulse-gauge-track,
+.pulse-gauge-fill {
+  fill: none;
+  stroke-width: 7;
+  stroke-linecap: round;
+}
+.pulse-gauge-track {
+  stroke: rgba(148, 168, 198, 0.16);
+}
+.pulse-gauge-fill {
+  stroke: #3dd68c;
+  stroke-dasharray: var(--gauge-pct) 100;
+  transition: stroke-dasharray 0.2s ease;
+}
+.pulse-gauge[data-gauge="mem"] .pulse-gauge-fill { stroke: #4c8dff; }
+.pulse-gauge[data-gauge="temp"] .pulse-gauge-fill { stroke: #f0a04b; }
+.pulse-gauge.is-empty .pulse-gauge-fill {
+  stroke: rgba(148, 168, 198, 0.18);
+  stroke-dasharray: 0 100;
+}
 .pulse-computer-metrics dt {
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   font-weight: 700;
-  color: #9aa8b8;
+  color: #8b97ab;
+}
+.pulse-gauge dt {
+  text-align: center;
 }
 .pulse-computer-metrics dd {
   margin: 0;
   font-size: 0.92rem;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
+}
+.pulse-gauge dd {
+  font-size: 0.98rem;
+  line-height: 1;
+  color: #f2f6fb;
+}
+.pulse-gauge.is-empty dd {
+  color: #7d8ba0;
 }
 .pulse-talk-card {
   grid-column: 1 / -1;
@@ -4771,10 +4844,15 @@ body.operator-live .companion-connect--hero {
   justify-content: space-between;
   gap: 12px;
   text-align: start;
+  background: #101827;
+  border-color: rgba(76, 141, 255, 0.22);
 }
 .pulse-talk-copy {
   display: grid;
   gap: 2px;
+}
+.pulse-talk-copy h4 {
+  color: #9ec0ff;
 }
 .pulse-talk-btn {
   margin-top: 0;
@@ -4782,9 +4860,9 @@ body.operator-live .companion-connect--hero {
 }
 .pulse-version-line {
   margin: 0;
-  text-align: center;
+  text-align: start;
   font-size: 0.72rem;
-  color: var(--text-subtle);
+  color: #7d8ba0;
 }
 
 .pulse-status {
@@ -4842,9 +4920,10 @@ body.operator-live .companion-connect--hero {
   justify-content: space-between;
   gap: 12px;
   padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: var(--surface-container-low);
+  border: 1px solid rgba(148, 168, 198, 0.16);
+  border-radius: 8px;
+  background: #121826;
+  color: #e8edf6;
 }
 .pulse-attention-item[data-attention-level="attention"] {
   border-inline-start: 3px solid rgba(245, 158, 11, 0.7);
@@ -4891,17 +4970,17 @@ body.operator-live .companion-connect--hero {
 .pulse-home-pref {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 8px;
   margin: 4px 0 0;
   font-size: 0.72rem;
-  color: var(--text-subtle);
+  color: #7d8ba0;
 }
 
 .pulse-home-pref-btn {
-  border: 1px solid var(--border);
+  border: 1px solid rgba(148, 168, 198, 0.22);
   background: transparent;
-  color: var(--text-muted);
+  color: #8b97ab;
   border-radius: 999px;
   padding: 4px 10px;
   font-size: 0.72rem;
@@ -4911,9 +4990,9 @@ body.operator-live .companion-connect--hero {
 }
 
 .pulse-home-pref-btn.is-active {
-  border-color: var(--primary);
-  color: var(--primary);
-  background: var(--primary-fixed);
+  border-color: #4c8dff;
+  color: #d7e6ff;
+  background: rgba(76, 141, 255, 0.16);
 }
 
 @media (max-width: 720px) {
@@ -7552,6 +7631,7 @@ body.operator-live .companion-connect--hero {
   height: 100%;
   display: block;
   z-index: 1;
+  background: #12161e;
 }
 
 /* Side tape overlays (airspeed left, altitude right) */
@@ -7562,34 +7642,46 @@ body.operator-live .companion-connect--hero {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
-  background: rgba(0,0,0,0.52);
-  border: 1px solid rgba(255,255,255,0.12);
-  border-radius: 8px;
-  padding: 8px 7px;
-  min-width: 46px;
+  gap: 1px;
+  background: #0b0e14;
+  border: 1px solid #f8fafc;
+  border-radius: 2px;
+  padding: 5px 6px 4px;
+  min-width: 42px;
   pointer-events: none;
   z-index: 2;
+  opacity: 0;
 }
-.pfd-side-tape--left  { left: 5px; }
-.pfd-side-tape--right { right: 5px; }
+.pfd-side-tape--left  { left: 6px; }
+.pfd-side-tape--right { right: 6px; }
 .pfd-tape-key {
-  font-size: 0.55rem;
+  font-size: 0.5rem;
   font-weight: 700;
   letter-spacing: 0.08em;
-  color: rgba(180,210,255,0.6);
+  color: #94a3b8;
   text-transform: uppercase;
 }
 .pfd-tape-big {
-  font-size: 1.35rem;
-  font-weight: 700;
+  font-size: 1.18rem;
+  font-weight: 800;
   font-family: "Space Grotesk", monospace;
-  color: #e8f4ff;
+  color: #f8fafc;
   line-height: 1;
-  filter: drop-shadow(0 0 4px rgba(100,200,255,0.4));
 }
-.pfd-side-tape--left  .pfd-tape-big { color: #22d3ee; }
-.pfd-side-tape--right .pfd-tape-big { color: #4ade80; }
+.pfd-side-tape--left  .pfd-tape-big { color: #f8fafc; }
+.pfd-side-tape--right .pfd-tape-big { color: #f8fafc; }
+.pfd-horizon-shell--video-active .pfd-side-tape {
+  background: rgba(0, 0, 0, 0.42);
+  border-color: #3dff6a;
+}
+.pfd-horizon-shell--video-active .pfd-tape-key,
+.pfd-horizon-shell--video-active .pfd-tape-unit,
+.pfd-horizon-shell--video-active .pfd-tape-big,
+.pfd-horizon-shell--video-active .pfd-side-tape--left .pfd-tape-big,
+.pfd-horizon-shell--video-active .pfd-side-tape--right .pfd-tape-big {
+  color: #3dff6a;
+  filter: none;
+}
 .pfd-tape-unit {
   font-size: 0.55rem;
   color: rgba(180,200,230,0.5);

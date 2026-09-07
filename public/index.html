@@ -273,42 +273,74 @@
           </header>
           <div class="pulse-status-grid" aria-label="סטטוס מחשבים">
             <article class="pulse-status-card pulse-computer-card" data-pulse-kind="companion" data-computer="jetson">
-              <h4>מחשב משימה</h4>
-              <p class="pulse-computer-who">Jetson</p>
-              <p id="pulseCompanion">מנותק</p>
-              <dl class="pulse-computer-metrics">
+              <header class="pulse-computer-head">
                 <div>
-                  <dt>עומס</dt>
+                  <h4>מחשב משימה</h4>
+                  <p class="pulse-computer-who">Jetson</p>
+                </div>
+                <p id="pulseCompanion" class="pulse-computer-state">מנותק</p>
+              </header>
+              <dl class="pulse-computer-metrics pulse-gauges">
+                <div class="pulse-gauge is-empty" data-gauge="load">
+                  <svg class="pulse-gauge-svg" viewBox="0 0 80 50" aria-hidden="true">
+                    <path class="pulse-gauge-track" pathLength="100" d="M8 46 A 32 32 0 0 1 72 46"/>
+                    <path class="pulse-gauge-fill" pathLength="100" d="M8 46 A 32 32 0 0 1 72 46"/>
+                  </svg>
                   <dd id="pulseJetsonLoad" dir="ltr">--</dd>
+                  <dt>עומס</dt>
                 </div>
-                <div>
-                  <dt>זיכרון</dt>
+                <div class="pulse-gauge is-empty" data-gauge="mem">
+                  <svg class="pulse-gauge-svg" viewBox="0 0 80 50" aria-hidden="true">
+                    <path class="pulse-gauge-track" pathLength="100" d="M8 46 A 32 32 0 0 1 72 46"/>
+                    <path class="pulse-gauge-fill" pathLength="100" d="M8 46 A 32 32 0 0 1 72 46"/>
+                  </svg>
                   <dd id="pulseJetsonMem" dir="ltr">--</dd>
+                  <dt>זיכרון</dt>
                 </div>
-                <div>
-                  <dt>טמפרטורות</dt>
+                <div class="pulse-gauge is-empty" data-gauge="temp">
+                  <svg class="pulse-gauge-svg" viewBox="0 0 80 50" aria-hidden="true">
+                    <path class="pulse-gauge-track" pathLength="100" d="M8 46 A 32 32 0 0 1 72 46"/>
+                    <path class="pulse-gauge-fill" pathLength="100" d="M8 46 A 32 32 0 0 1 72 46"/>
+                  </svg>
                   <dd id="pulseJetsonTemp" dir="ltr">--</dd>
+                  <dt>טמפרטורות</dt>
                 </div>
               </dl>
               <button type="button" class="first-open-btn" data-first-action="companion" data-pulse-live="hide">חברו Jetson</button>
             </article>
             <article class="pulse-status-card pulse-computer-card" data-pulse-kind="aircraft" data-computer="fc">
-              <h4>הכלי</h4>
-              <p class="pulse-computer-who">FC</p>
-              <p id="pulseAircraft">מנותק</p>
+              <header class="pulse-computer-head">
+                <div>
+                  <h4>הכלי</h4>
+                  <p class="pulse-computer-who">FC</p>
+                </div>
+                <p id="pulseAircraft" class="pulse-computer-state">מנותק</p>
+              </header>
               <p class="pulse-status-note">קישור <span id="pulseLink" dir="ltr">--</span></p>
-              <dl class="pulse-computer-metrics">
-                <div>
-                  <dt>עומס</dt>
+              <dl class="pulse-computer-metrics pulse-gauges">
+                <div class="pulse-gauge is-empty" data-gauge="load">
+                  <svg class="pulse-gauge-svg" viewBox="0 0 80 50" aria-hidden="true">
+                    <path class="pulse-gauge-track" pathLength="100" d="M8 46 A 32 32 0 0 1 72 46"/>
+                    <path class="pulse-gauge-fill" pathLength="100" d="M8 46 A 32 32 0 0 1 72 46"/>
+                  </svg>
                   <dd id="pulseFcLoad" dir="ltr">--</dd>
+                  <dt>עומס</dt>
                 </div>
-                <div>
-                  <dt>זיכרון</dt>
+                <div class="pulse-gauge is-empty" data-gauge="mem">
+                  <svg class="pulse-gauge-svg" viewBox="0 0 80 50" aria-hidden="true">
+                    <path class="pulse-gauge-track" pathLength="100" d="M8 46 A 32 32 0 0 1 72 46"/>
+                    <path class="pulse-gauge-fill" pathLength="100" d="M8 46 A 32 32 0 0 1 72 46"/>
+                  </svg>
                   <dd id="pulseFcMem" dir="ltr">--</dd>
+                  <dt>זיכרון</dt>
                 </div>
-                <div>
-                  <dt>טמפרטורות</dt>
+                <div class="pulse-gauge is-empty" data-gauge="temp">
+                  <svg class="pulse-gauge-svg" viewBox="0 0 80 50" aria-hidden="true">
+                    <path class="pulse-gauge-track" pathLength="100" d="M8 46 A 32 32 0 0 1 72 46"/>
+                    <path class="pulse-gauge-fill" pathLength="100" d="M8 46 A 32 32 0 0 1 72 46"/>
+                  </svg>
                   <dd id="pulseFcTemp" dir="ltr">--</dd>
+                  <dt>טמפרטורות</dt>
                 </div>
               </dl>
             </article>

@@ -164,18 +164,19 @@ describe('AIRVIX Mission chrome — talk is flight-safe', () => {
     expect(pkg.version).toBe('1.02.258');
   });
 
-  it('keeps a premium circular artificial horizon on the existing canvas', () => {
+  it('keeps a rectangular glass artificial horizon with video HUD mode', () => {
     expect(html).toContain('id="horizonCanvas"');
     const start = js.indexOf('function drawHorizon(');
     expect(start).toBeGreaterThanOrEqual(0);
-    const draw = js.slice(start, start + 6500);
-    expect(draw).toContain('const instR = Math.min(W, H) * 0.46');
-    expect(draw).toContain("ctx.arc(cx, cy, instR, 0, Math.PI * 2)");
+    const draw = js.slice(start, start + 9000);
     expect(draw).toContain('#1468b3');
     expect(draw).toContain('#8a5724');
-    expect(draw).toContain("videoMode ? 'rgba(14, 86, 150, 0.28)'");
-    expect(draw).toContain("videoMode ? 'rgba(122, 78, 28, 0.28)'");
-    expect(draw).toContain('if (!videoMode)');
+    expect(draw).toContain('#3DFF6A');
+    expect(draw).toContain("if (!videoMode)");
+    expect(draw).toContain('ctx.rect(att.x, att.y, att.w, att.h)');
+    expect(draw).toContain('drawVTape');
+    expect(draw).toContain("value == null ? '--'");
+    expect(draw).toContain("heading == null ? '--'");
     expect(draw).toContain('fillRect(cx - 4, cy - 4, 8, 8)');
     expect(draw).toContain('formatHudAngleLabel');
     expect(draw).not.toMatch(/FLIGHT_ACTION|PARAM_SET|\/apply|\/restart/);
@@ -226,6 +227,8 @@ describe('AIRVIX Mission chrome — talk is flight-safe', () => {
       'let _horizonVideoMode = false;',
       'let _lastRoll = null;',
       'let _lastPitch = null;',
+      'let _horizonTape = { airspeed: null, altitude: null, heading: null };',
+      'function currentHorizonDrawOpts() { return { videoMode: _horizonVideoMode, ..._horizonTape }; }',
       'const pfdHorizonShell = shell;',
       'const horizonCanvas = null;',
       'function drawHorizon() {}',

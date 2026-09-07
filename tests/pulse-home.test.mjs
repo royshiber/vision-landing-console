@@ -69,6 +69,9 @@ describe('C10.3 Pulse home', () => {
     expect(html).toMatch(/id="pulseFcTemp"[^>]*>--</);
     expect(html).toMatch(/data-computer="jetson"/);
     expect(html).toMatch(/data-computer="fc"/);
+    expect(html).toMatch(/class="pulse-gauge is-empty"/);
+    expect(css).toMatch(/\.pulse-gauge\s*\{/);
+    expect(css).toMatch(/#pulse\.panel\.visible\s*\{[^}]*#0b1018/);
     expect(html).toMatch(/data-first-action="companion"/);
     expect(html).toMatch(/data-first-action="assist"/);
     expect(html).toMatch(/data-first-action="params"/);
@@ -116,6 +119,8 @@ describe('C10.3 Pulse home', () => {
     expect(fns.pulseComputerMetricValue(false, 41)).toBeNull();
     expect(fns.pulseComputerMetricValue(true, null)).toBeNull();
     expect(fns.pulseComputerMetricValue(true, 12.6)).toBeCloseTo(12.6);
+    expect(js).toContain('function pulseGaugePct(');
+    expect(js).toContain("el?.closest('.pulse-gauge')");
     expect(js).toContain('latestJetsonFromServer');
     expect(js).toContain('fcLoadPct');
     const refresh = sliceFunction(js, 'pulseRefresh');
@@ -206,6 +211,7 @@ describe('C10.3 Pulse home', () => {
       sliceFunction(js, 'pulseEvolveLine'),
       sliceFunction(js, 'formatComputerMetric'),
       sliceFunction(js, 'pulseComputerMetricValue'),
+      sliceFunction(js, 'pulseGaugePct'),
       sliceFunction(js, 'pulseWriteComputerMetric'),
       sliceFunction(js, 'pulseRefresh'),
       sliceFunction(js, 'operatorOpenFirstAction'),

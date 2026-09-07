@@ -3179,9 +3179,21 @@ function pulseComputerMetricValue(connected, value) {
   return Number.isFinite(n) ? n : null;
 }
 
+function pulseGaugePct(value, unit) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return 0;
+  if (unit === 'C') return Math.max(0, Math.min(100, n));
+  return Math.max(0, Math.min(100, n));
+}
+
 function pulseWriteComputerMetric(id, value, unit) {
   const el = document.getElementById(id);
   if (el) el.textContent = formatComputerMetric(value, unit);
+  const gauge = el?.closest('.pulse-gauge');
+  if (!gauge) return;
+  const has = value != null && Number.isFinite(Number(value));
+  gauge.classList.toggle('is-empty', !has);
+  gauge.style.setProperty('--gauge-pct', has ? String(pulseGaugePct(value, unit)) : '0');
 }
 
 function pulseRefresh() {
@@ -3204,8 +3216,9 @@ function pulseRefresh() {
     mode: companionState === 'connected' ? 'real' : (companionLive ? 'mock' : 'off'),
     token_hint: tokenHint,
   });
-  companionEl.parentElement?.setAttribute('data-state', companionState === 'connected' || companionLive ? 'connected' : 'disconnected');
+  companionEl.closest('.pulse-computer-card')?.setAttribute('data-state', companionState === 'connected' || companionLive ? 'connected' : 'disconnected');
   assistEl.textContent = _assistAgentConnected ? 'מחובר' : 'מנותק';
+  assistEl.closest('.pulse-talk-card')?.setAttribute('data-state', _assistAgentConnected ? 'connected' : 'disconnected');
   assistEl.parentElement?.setAttribute('data-state', _assistAgentConnected ? 'connected' : 'disconnected');
   const linkLabel = document.getElementById('connectPillLabel')?.textContent?.trim() || '';
   const linkText = (!linkLabel || linkLabel === 'לא מחובר' || linkLabel === 'מנותק') ? '--' : linkLabel;
@@ -3220,7 +3233,7 @@ function pulseRefresh() {
   const mav = (typeof latestHudMavlink !== 'undefined' && latestHudMavlink) ? latestHudMavlink : null;
   const fcConnected = !!(mav && mav.connected);
   if (aircraftEl) aircraftEl.textContent = fcConnected ? 'מחובר' : 'מנותק';
-  aircraftEl?.parentElement?.setAttribute('data-state', fcConnected ? 'connected' : 'disconnected');
+  aircraftEl?.closest('.pulse-computer-card')?.setAttribute('data-state', fcConnected ? 'connected' : 'disconnected');
   pulseWriteComputerMetric('pulseFcLoad', pulseComputerMetricValue(fcConnected, mav?.fcLoadPct), '%');
   pulseWriteComputerMetric('pulseFcMem', pulseComputerMetricValue(fcConnected, mav?.fcMemPct), '%');
   pulseWriteComputerMetric('pulseFcTemp', pulseComputerMetricValue(fcConnected, mav?.fcTempC), 'C');
@@ -3812,7 +3825,7 @@ if (horizonCanvas && pfdHorizonShell) {
       horizonCanvas.height = Math.round(height * dpr);
       horizonCanvas.style.width  = width  + 'px';
       horizonCanvas.style.height = height + 'px';
-      drawHorizon(horizonCanvas, _lastRoll, _lastPitch, { videoMode: _horizonVideoMode });
+      drawHorizon(horizonCanvas, _lastRoll, _lastPitch, currentHorizonDrawOpts());
     }
   };
   new ResizeObserver(_resizeCanvas).observe(pfdHorizonShell);
@@ -3821,6 +3834,20 @@ if (horizonCanvas && pfdHorizonShell) {
 let _horizonVideoMode = false;
 let _lastRoll = null;
 let _lastPitch = null;
+let _horizonTape = { airspeed: null, altitude: null, heading: null };
+
+function finiteHorizonTape(n) {
+  return typeof n === 'number' && Number.isFinite(n) ? n : null;
+}
+
+function currentHorizonDrawOpts() {
+  return {
+    videoMode: _horizonVideoMode,
+    airspeed: _horizonTape.airspeed,
+    altitude: _horizonTape.altitude,
+    heading: _horizonTape.heading,
+  };
+}
 const HORIZON_VIDEO_URL_KEY = 'vlc.horizon.videoUrl';
 const HORIZON_VIDEO_ON_KEY = 'vlc.horizon.videoOn';
 
@@ -3861,7 +3888,7 @@ function setHorizonVideoActive(active, url) {
     }
   }
   syncHorizonVideoEmpty(playable);
-  drawHorizon(horizonCanvas, _lastRoll, _lastPitch, { videoMode: _horizonVideoMode });
+  drawHorizon(horizonCanvas, _lastRoll, _lastPitch, currentHorizonDrawOpts());
   try { localStorage.setItem(HORIZON_VIDEO_ON_KEY, _horizonVideoMode ? '1' : '0'); } catch {}
 }
 
@@ -4052,13 +4079,13 @@ hudAddSlotBtn?.addEventListener('click', () => {
 });
 
 /**
- * Premium circular PFD — sharp vector sky/ground, boxed pitch ladder,
- * fixed roll index, aircraft symbol. Same roll/pitch bindings as before.
+ * Rectangular glass PFD (mockup B) with optional video HUD (mockup C).
+ * Same roll/pitch bindings. Tape numbers stay honest -- when missing.
  *
  * @param {HTMLCanvasElement} canvas
  * @param {number|null} rollDeg
  * @param {number|null} pitchDeg
- * @param {{ videoMode?: boolean }} [opts]
+ * @param {{ videoMode?: boolean, airspeed?: number|null, altitude?: number|null, heading?: number|null }} [opts]
  */
 function drawHorizon(canvas, rollDeg, pitchDeg, opts = {}) {
   if (!canvas) return;
@@ -4068,8 +4095,6 @@ function drawHorizon(canvas, rollDeg, pitchDeg, opts = {}) {
   ctx.imageSmoothingEnabled = false;
   const W = canvas.width / dpr;
   const H = canvas.height / dpr;
-  const cx = W / 2;
-  const cy = H / 2;
   const videoMode = !!opts.videoMode;
   const rollBounded = finiteHudAngleDeg(rollDeg, 180);
   const pitchBounded = finiteHudAngleDeg(pitchDeg, 90);
@@ -4078,146 +4103,223 @@ function drawHorizon(canvas, rollDeg, pitchDeg, opts = {}) {
   const rollDraw = showRoll ? rollBounded : 0;
   const pitchDraw = showPitch ? pitchBounded : 0;
   const rollRad = (rollDraw * Math.PI) / 180;
-  const instR = Math.min(W, H) * 0.46;
-  const pxPerDeg = instR / 25;
-  const pitchPx = Math.max(-instR * 1.35, Math.min(instR * 1.35, pitchDraw * pxPerDeg));
-  const sky = videoMode ? 'rgba(14, 86, 150, 0.28)' : '#1468b3';
-  const gnd = videoMode ? 'rgba(122, 78, 28, 0.28)' : '#8a5724';
+  const airspeed = finiteHorizonTape(opts.airspeed);
+  const altitude = finiteHorizonTape(opts.altitude);
+  const heading = finiteHorizonTape(opts.heading);
+  const hud = videoMode ? '#3DFF6A' : '#f8fafc';
+  const sky = videoMode ? 'rgba(20, 104, 179, 0.10)' : '#1468b3';
+  const gnd = videoMode ? 'rgba(138, 87, 36, 0.10)' : '#8a5724';
 
   ctx.clearRect(0, 0, W, H);
   if (!videoMode) {
-    ctx.fillStyle = '#c5d4e4';
+    ctx.fillStyle = '#12161e';
     ctx.fillRect(0, 0, W, H);
   }
 
-  ctx.fillStyle = videoMode ? 'rgba(26, 35, 50, 0.22)' : '#1a2332';
-  ctx.beginPath();
-  ctx.arc(cx, cy, instR + 9, 0, Math.PI * 2);
-  ctx.fill();
+  const pad = 4;
+  const tapeW = Math.max(36, Math.min(52, W * 0.15));
+  const hdgH = Math.max(20, Math.min(28, H * 0.11));
+  const att = {
+    x: pad + tapeW,
+    y: pad + 6,
+    w: Math.max(40, W - pad * 2 - tapeW * 2),
+    h: Math.max(40, H - pad * 2 - hdgH - 8),
+  };
+  const cx = att.x + att.w / 2;
+  const cy = att.y + att.h / 2;
+  const pxPerDeg = att.h / 50;
+  const pitchPx = Math.max(-att.h * 0.72, Math.min(att.h * 0.72, pitchDraw * pxPerDeg));
 
   ctx.save();
   ctx.beginPath();
-  ctx.arc(cx, cy, instR, 0, Math.PI * 2);
+  ctx.rect(att.x, att.y, att.w, att.h);
   ctx.clip();
-
   ctx.save();
   ctx.translate(cx, cy);
   ctx.rotate(rollRad);
-  ctx.fillStyle = sky;
-  ctx.fillRect(-instR * 2.4, -instR * 2.4 + pitchPx, instR * 4.8, instR * 2.4);
-  ctx.fillStyle = gnd;
-  ctx.fillRect(-instR * 2.4, pitchPx, instR * 4.8, instR * 2.4);
-  ctx.strokeStyle = '#ffffff';
-  ctx.lineWidth = 3;
-  ctx.lineCap = 'butt';
+  if (!videoMode) {
+    ctx.fillStyle = sky;
+    ctx.fillRect(-att.w * 2, -att.h * 2 + pitchPx, att.w * 4, att.h * 2);
+    ctx.fillStyle = gnd;
+    ctx.fillRect(-att.w * 2, pitchPx, att.w * 4, att.h * 2);
+  }
+  ctx.strokeStyle = hud;
+  ctx.lineWidth = videoMode ? 1.4 : 2.4;
   ctx.beginPath();
-  ctx.moveTo(-instR * 2.4, pitchPx);
-  ctx.lineTo(instR * 2.4, pitchPx);
+  ctx.moveTo(-att.w * 2, pitchPx);
+  ctx.lineTo(att.w * 2, pitchPx);
   ctx.stroke();
-
   ctx.textBaseline = 'middle';
-  ctx.font = '700 13px "Space Grotesk", "Heebo", sans-serif';
+  ctx.font = '700 11px "Space Grotesk", "Heebo", sans-serif';
   for (let p = -40; p <= 40; p += 5) {
     if (p === 0) continue;
     const y = pitchPx - p * pxPerDeg;
-    if (Math.abs(y) > instR * 0.86) continue;
+    if (y < -att.h * 0.46 || y > att.h * 0.46) continue;
     const big = p % 10 === 0;
-    const hw = big ? 34 : 16;
-    ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = big ? 2.4 : 1.6;
+    const hw = big ? 28 : 12;
+    ctx.strokeStyle = hud;
+    ctx.lineWidth = big ? 2 : 1.2;
     ctx.beginPath();
     ctx.moveTo(-hw, y);
     ctx.lineTo(hw, y);
     ctx.stroke();
     if (big) {
-      const label = String(Math.abs(p));
-      ctx.fillStyle = '#0b1220';
-      ctx.fillRect(-hw - 22, y - 8, 20, 16);
-      ctx.fillRect(hw + 2, y - 8, 20, 16);
-      ctx.fillStyle = '#ffffff';
+      ctx.fillStyle = hud;
       ctx.textAlign = 'center';
-      ctx.fillText(label, -hw - 12, y + 1);
-      ctx.fillText(label, hw + 12, y + 1);
+      ctx.fillText(String(Math.abs(p)), -hw - 12, y + 1);
+      ctx.fillText(String(Math.abs(p)), hw + 12, y + 1);
     }
   }
   ctx.restore();
   ctx.restore();
 
-  ctx.strokeStyle = '#0b1220';
-  ctx.lineWidth = 6;
-  ctx.beginPath();
-  ctx.arc(cx, cy, instR, 0, Math.PI * 2);
-  ctx.stroke();
-  ctx.strokeStyle = '#d7e3f0';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.arc(cx, cy, instR - 3, 0, Math.PI * 2);
-  ctx.stroke();
+  if (!videoMode) {
+    ctx.strokeStyle = '#2a3344';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(att.x + 0.5, att.y + 0.5, att.w - 1, att.h - 1);
+  }
 
-  const arcR = instR - 8;
-  ctx.strokeStyle = '#f8fafc';
-  ctx.lineWidth = 2;
+  const arcR = Math.min(att.w, att.h) * 0.42;
+  ctx.strokeStyle = hud;
+  ctx.lineWidth = videoMode ? 1.4 : 2;
   ctx.beginPath();
-  ctx.arc(cx, cy, arcR, -Math.PI * 0.78, -Math.PI * 0.22);
+  ctx.arc(cx, att.y + 18, arcR, -Math.PI * 0.78, -Math.PI * 0.22);
   ctx.stroke();
   [-60, -45, -30, -20, -10, 0, 10, 20, 30, 45, 60].forEach((deg) => {
     const a = (-90 + deg) * Math.PI / 180;
     const big = deg === 0 || Math.abs(deg) === 30 || Math.abs(deg) === 60;
-    const tL = big ? 11 : 6;
-    ctx.strokeStyle = '#f8fafc';
-    ctx.lineWidth = big ? 2.4 : 1.6;
+    const tL = big ? 8 : 5;
+    const ox = cx;
+    const oy = att.y + 18;
     ctx.beginPath();
-    ctx.moveTo(cx + Math.cos(a) * arcR, cy + Math.sin(a) * arcR);
-    ctx.lineTo(cx + Math.cos(a) * (arcR - tL), cy + Math.sin(a) * (arcR - tL));
+    ctx.moveTo(ox + Math.cos(a) * arcR, oy + Math.sin(a) * arcR);
+    ctx.lineTo(ox + Math.cos(a) * (arcR - tL), oy + Math.sin(a) * (arcR - tL));
     ctx.stroke();
   });
-
-  ctx.fillStyle = '#f4c430';
-  ctx.beginPath();
-  ctx.moveTo(cx, cy - arcR + 1);
-  ctx.lineTo(cx - 7, cy - arcR + 13);
-  ctx.lineTo(cx + 7, cy - arcR + 13);
-  ctx.closePath();
-  ctx.fill();
-
   ctx.save();
-  ctx.translate(cx, cy);
+  ctx.translate(cx, att.y + 18);
   ctx.rotate(rollRad);
-  ctx.fillStyle = '#f4c430';
+  ctx.fillStyle = videoMode ? hud : '#f4c430';
   ctx.beginPath();
   ctx.moveTo(0, -arcR + 2);
-  ctx.lineTo(-5, -arcR + 12);
-  ctx.lineTo(5, -arcR + 12);
+  ctx.lineTo(-5, -arcR + 11);
+  ctx.lineTo(5, -arcR + 11);
   ctx.closePath();
   ctx.fill();
   ctx.restore();
 
-  ctx.strokeStyle = '#f4c430';
-  ctx.fillStyle = '#f4c430';
-  ctx.lineWidth = 4;
-  ctx.lineCap = 'butt';
-  ctx.lineJoin = 'miter';
-  ctx.beginPath();
-  ctx.moveTo(cx - 52, cy);
-  ctx.lineTo(cx - 14, cy);
-  ctx.moveTo(cx + 14, cy);
-  ctx.lineTo(cx + 52, cy);
-  ctx.moveTo(cx - 14, cy);
-  ctx.lineTo(cx, cy + 10);
-  ctx.lineTo(cx + 14, cy);
-  ctx.stroke();
-  ctx.fillRect(cx - 4, cy - 4, 8, 8);
+  if (videoMode) {
+    ctx.strokeStyle = hud;
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.arc(cx, cy, 7, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(cx - 28, cy);
+    ctx.lineTo(cx - 10, cy);
+    ctx.moveTo(cx + 10, cy);
+    ctx.lineTo(cx + 28, cy);
+    ctx.moveTo(cx, cy - 12);
+    ctx.lineTo(cx, cy - 6);
+    ctx.stroke();
+  } else {
+    ctx.strokeStyle = '#f4c430';
+    ctx.fillStyle = '#f4c430';
+    ctx.lineWidth = 3.2;
+    ctx.lineCap = 'butt';
+    ctx.lineJoin = 'miter';
+    ctx.beginPath();
+    ctx.moveTo(cx - 36, cy);
+    ctx.lineTo(cx - 10, cy);
+    ctx.moveTo(cx + 10, cy);
+    ctx.lineTo(cx + 36, cy);
+    ctx.moveTo(cx - 10, cy);
+    ctx.lineTo(cx, cy + 8);
+    ctx.lineTo(cx + 10, cy);
+    ctx.stroke();
+    ctx.fillRect(cx - 4, cy - 4, 8, 8);
+  }
 
-  ctx.font = '700 12px "Space Grotesk", sans-serif';
+  const drawVTape = (x, value, step, digits) => {
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(x, att.y, tapeW - 4, att.h);
+    ctx.clip();
+    ctx.fillStyle = videoMode ? 'rgba(0,0,0,0.18)' : 'rgba(8,10,14,0.55)';
+    ctx.fillRect(x, att.y, tapeW - 4, att.h);
+    const mid = att.y + att.h / 2;
+    const px = att.h / (step * 8);
+    const center = value == null ? 0 : value;
+    ctx.strokeStyle = hud;
+    ctx.fillStyle = hud;
+    ctx.font = '700 9px "Space Grotesk", sans-serif';
+    ctx.textAlign = x < cx ? 'right' : 'left';
+    ctx.textBaseline = 'middle';
+    const labelX = x < cx ? x + tapeW - 10 : x + 8;
+    for (let v = center - step * 6; v <= center + step * 6; v += step) {
+      const y = mid - (v - center) * px;
+      if (y < att.y + 4 || y > att.y + att.h - 4) continue;
+      ctx.beginPath();
+      ctx.moveTo(x < cx ? x + tapeW - 8 : x + 2, y);
+      ctx.lineTo(x < cx ? x + tapeW - 14 : x + 8, y);
+      ctx.stroke();
+      if (Math.round(v / step) % 2 === 0) ctx.fillText(String(Math.round(v)), labelX, y);
+    }
+    ctx.restore();
+    ctx.fillStyle = videoMode ? 'rgba(0,0,0,0.35)' : '#0b0e14';
+    ctx.strokeStyle = hud;
+    ctx.lineWidth = 1.2;
+    const boxY = mid - 11;
+    ctx.fillRect(x + 1, boxY, tapeW - 6, 22);
+    ctx.strokeRect(x + 1, boxY, tapeW - 6, 22);
+    ctx.fillStyle = hud;
+    ctx.font = '800 12px "Space Grotesk", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const label = value == null ? '--' : value.toFixed(digits);
+    ctx.fillText(label, x + (tapeW - 4) / 2, mid + 1);
+  };
+  drawVTape(pad + 2, airspeed, 10, 0);
+  drawVTape(W - pad - tapeW + 2, altitude, 20, 0);
+
+  const hdgY = att.y + att.h + 4;
+  ctx.fillStyle = videoMode ? 'rgba(0,0,0,0.18)' : 'rgba(8,10,14,0.62)';
+  ctx.fillRect(att.x, hdgY, att.w, hdgH);
+  ctx.strokeStyle = hud;
+  ctx.strokeRect(att.x + 0.5, hdgY + 0.5, att.w - 1, hdgH - 1);
+  const hdgCenter = heading == null ? 0 : ((heading % 360) + 360) % 360;
+  const hdgPx = att.w / 90;
+  ctx.fillStyle = hud;
+  ctx.strokeStyle = hud;
+  ctx.font = '700 9px "Space Grotesk", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  for (let d = -50; d <= 50; d += 5) {
+    const h = (hdgCenter + d + 360) % 360;
+    const x = cx + d * hdgPx;
+    if (x < att.x + 6 || x > att.x + att.w - 6) continue;
+    ctx.beginPath();
+    ctx.moveTo(x, hdgY + 3);
+    ctx.lineTo(x, hdgY + (d % 10 === 0 ? 10 : 6));
+    ctx.stroke();
+    if (d % 10 === 0) ctx.fillText(String(Math.round(h)).padStart(3, '0'), x, hdgY + hdgH - 8);
+  }
+  ctx.fillStyle = videoMode ? 'rgba(0,0,0,0.35)' : '#0b0e14';
+  ctx.fillRect(cx - 22, hdgY + 1, 44, hdgH - 2);
+  ctx.strokeStyle = hud;
+  ctx.strokeRect(cx - 22, hdgY + 1, 44, hdgH - 2);
+  ctx.fillStyle = hud;
+  ctx.font = '800 11px "Space Grotesk", sans-serif';
+  ctx.fillText(heading == null ? '--' : `${Math.round(hdgCenter)}°`, cx, hdgY + hdgH / 2);
+
+  ctx.font = '700 11px "Space Grotesk", sans-serif';
   ctx.textBaseline = 'alphabetic';
-  const angleInk = videoMode ? '#e8edf6' : '#1e2937';
-  const angleMuted = videoMode ? 'rgba(232,237,246,0.45)' : 'rgba(30,41,59,0.45)';
-  ctx.fillStyle = showRoll ? angleInk : angleMuted;
+  ctx.fillStyle = showRoll ? hud : (videoMode ? 'rgba(61,255,106,0.4)' : 'rgba(248,250,252,0.4)');
   ctx.textAlign = 'left';
-  ctx.fillText(showRoll ? `R ${rollDraw >= 0 ? '+' : ''}${formatHudAngleLabel(rollDraw)}°` : 'R --', 10, H - 10);
-  ctx.fillStyle = showPitch ? angleInk : angleMuted;
+  ctx.fillText(showRoll ? `R ${rollDraw >= 0 ? '+' : ''}${formatHudAngleLabel(rollDraw)}°` : 'R --', 8, H - 6);
+  ctx.fillStyle = showPitch ? hud : (videoMode ? 'rgba(61,255,106,0.4)' : 'rgba(248,250,252,0.4)');
   ctx.textAlign = 'right';
-  ctx.fillText(showPitch ? `P ${pitchDraw >= 0 ? '+' : ''}${formatHudAngleLabel(pitchDraw)}°` : 'P --', W - 10, H - 10);
+  ctx.fillText(showPitch ? `P ${pitchDraw >= 0 ? '+' : ''}${formatHudAngleLabel(pitchDraw)}°` : 'P --', W - 8, H - 6);
 }
 const GPS_FIX_LABELS = ['אין GPS', 'אין Fix', '2D Fix', '3D Fix', 'DGPS', 'RTK Float', 'RTK Fixed'];
 
@@ -4235,7 +4337,12 @@ function applyFlightHud(mav) {
   const p = finiteHudAngleDeg(mav.pitchDeg, 90);
   _lastRoll = r;
   _lastPitch = p;
-  drawHorizon(horizonCanvas, r, p, { videoMode: _horizonVideoMode });
+  _horizonTape = {
+    airspeed: finiteHorizonTape(mav.airspeed),
+    altitude: finiteHorizonTape(mav.altitude),
+    heading: finiteHorizonTape(mav.heading),
+  };
+  drawHorizon(horizonCanvas, r, p, currentHorizonDrawOpts());
 
   // Armed / mode (top bar)
   const armed = !!mav.armed;
@@ -4641,7 +4748,7 @@ document.getElementById('hudParamShowAll')?.addEventListener('click', async () =
 });
 
 // Initial horizon draw — defer so ResizeObserver fires first
-requestAnimationFrame(() => drawHorizon(horizonCanvas, 0, 0));
+requestAnimationFrame(() => drawHorizon(horizonCanvas, 0, 0, currentHorizonDrawOpts()));
 
 // ── Map fly-to context menu ────────────────────────────────────────────────────
 const mapFlyToMenu    = document.getElementById('mapFlyToMenu');
