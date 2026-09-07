@@ -214,6 +214,7 @@ describe('C10.6 Mission chrome', () => {
     expect(html).toMatch(/data-assist-chip="note">הערה</);
     expect(html).toMatch(/data-assist-chip="observation">תצפית</);
     expect(html).toMatch(/data-assist-chip="advisor"[^>]*>יועץ</);
+    expect(html).toMatch(/data-assist-chip="ardulab"[^>]*>ארדולאב</);
     expect(html).toMatch(/data-assist-chip="flightEngineer"[^>]*>מהנדס</);
     expect(js).toContain("ASSIST_MISSION_HINT_HE = 'הטסה. הערה ותצפית בלבד.'");
     expect(js).toContain("ASSIST_MISSION_PLACEHOLDER_HE = 'הערה, תצפית, או שאלה'");
@@ -227,7 +228,7 @@ describe('C10.6 Mission chrome', () => {
   });
 
   it('does not add flight-command or companion-apply paths', () => {
-    expect(js).toMatch(/function assistSyncMissionPosture\([\s\S]*?kind === 'advisor' \? mission : !mission/);
+    expect(js).toMatch(/function assistSyncMissionPosture\([\s\S]*?\(kind === 'advisor' \|\| kind === 'ardulab'\) \? mission : !mission/);
     const posture = js.slice(js.indexOf('function assistSyncMissionPosture('), js.indexOf('function assistApplyQuickChip('));
     expect(posture).not.toMatch(/\/apply|\/restart|ARM|DISARM|LAND|JETSON_COMPANION|CURSOR_API_KEY/);
   });

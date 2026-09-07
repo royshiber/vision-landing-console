@@ -9102,11 +9102,74 @@ details.flight-manage summary {
 
 .fd-panel { overflow: hidden; padding: 0; background: #f0f4fa; }
 
-.fd-layout {
-  display: flex;
-  height: 100%;
+/** Why: .panel.visible { display:block !important } breaks the fold strip + inner flex height. */
+#featureDesigner.panel.visible {
+  display: flex !important;
+  flex-direction: column;
   min-height: 0;
   overflow: hidden;
+  padding: 0;
+}
+
+.fd-assist-fold {
+  margin: 0;
+  padding: 8px 14px;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  background: #fff;
+}
+.fd-assist-fold-btn {
+  border-radius: 999px;
+  border: 1px solid rgba(0, 71, 141, 0.22);
+  background: #eef3fb;
+  color: #0f172a;
+  padding: 2px 10px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  font-family: "Heebo", sans-serif;
+  cursor: pointer;
+}
+.fd-assist-fold-btn:hover {
+  border-color: rgba(0, 71, 141, 0.4);
+  background: #dce9f8;
+}
+
+.fd-layout {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.dev-ardulab-handoff {
+  margin: 0 0 12px;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.dev-ardulab-handoff-btn {
+  border-radius: 999px;
+  border: 1px solid rgba(0, 71, 141, 0.22);
+  background: #eef3fb;
+  color: #0f172a;
+  padding: 2px 10px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  font-family: "Heebo", sans-serif;
+  cursor: pointer;
+}
+.dev-ardulab-handoff-btn:hover {
+  border-color: rgba(0, 71, 141, 0.4);
+  background: #dce9f8;
 }
 
 /* ── Sidebar ───────────────────────────────────────────── */

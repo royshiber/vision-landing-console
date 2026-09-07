@@ -101,7 +101,7 @@ Also locked without GO:
 
 Params persist on master via PR #18 + PR #30. Write-to-vehicle is still a Human Gate.
 
-Architecture wave (`docs/AIRVIX_PRODUCT_ARCHITECTURE.md`): C10.2 Assist unification landed; C10.3 Pulse home **LANDED** via PR #54; C10.4a Evolve taxonomy **LANDED** via PR #56; C10.4b Evolve evidence **LANDED** via PR #58; C10.4c-a Maintenance→Development release handoff **LANDED** via PR #61; C10.5a leftover `#flights` fold **LANDED** via PR #62; C10.5b Platform capability shells **LANDED** via PR #64 merge `779a11d`; C10.6 Mission flight-safe Assist **LANDED** via PR #65 merge `5184e71`; C10.7a Attention Policy **LANDED** via PR #66 merge `b37c26e`; Advisor→Assist MERGE **LANDED** via PR #67 merge `b0be4c3`; Flight Engineer→Assist MERGE **LANDED** via PR #68 merge `6b6218f`; Telemetry dash MERGE **LANDED** via PR #69 merge `1fe10df`; orphan `#processes` REMOVE **LANDED** via PR #70 merge `d67ce2a`; Preflight / readiness MERGE **LANDED** via PR #71 merge `4ce554e`; this PR is baseline test hygiene. Remainder: C10.4c-b Jetson deploy-wire move stays deferred (#28). C10.7b voice/STT stays deferred.
+Architecture wave (`docs/AIRVIX_PRODUCT_ARCHITECTURE.md`): C10.2 Assist unification landed; C10.3 Pulse home **LANDED** via PR #54; C10.4a Evolve taxonomy **LANDED** via PR #56; C10.4b Evolve evidence **LANDED** via PR #58; C10.4c-a Maintenance→Development release handoff **LANDED** via PR #61; C10.5a leftover `#flights` fold **LANDED** via PR #62; C10.5b Platform capability shells **LANDED** via PR #64 merge `779a11d`; C10.6 Mission flight-safe Assist **LANDED** via PR #65 merge `5184e71`; C10.7a Attention Policy **LANDED** via PR #66 merge `b37c26e`; Advisor→Assist MERGE **LANDED** via PR #67 merge `b0be4c3`; Flight Engineer→Assist MERGE **LANDED** via PR #68 merge `6b6218f`; Telemetry dash MERGE **LANDED** via PR #69 merge `1fe10df`; orphan `#processes` REMOVE **LANDED** via PR #70 merge `d67ce2a`; Preflight / readiness MERGE **LANDED** via PR #71 merge `4ce554e`; baseline test hygiene **LANDED** via PR #72 merge `d67d4d5`; ArduLab (`#featureDesigner`) Assist fold is this draft. Assumption: workspace **EVOLVE** (specialist path), not a peer Assist tab. Remainder: C10.4c-b Jetson deploy-wire move stays deferred (#28). C10.7b voice/STT stays deferred.
 
 ---
 
@@ -132,20 +132,24 @@ Architecture wave (`docs/AIRVIX_PRODUCT_ARCHITECTURE.md`): C10.2 Assist unificat
 23. **Flight Engineer→Assist MERGE** — **LANDED** via PR #68 merge `6b6218f`. `#flightEngineer` stays reachable (lab shelf / Mission). Assist routes `מהנדס` / flight engineer / voice engineer to that panel. Mission stays NOTE / OBSERVATION / UI_NAV. No flight commands. No cliff-delete.
 24. **Telemetry dash MERGE** — **LANDED** via PR #69 merge `1fe10df`. `#telemetry` stays reachable. Platform **אבחונים** opens the existing panel. Primary ops tab is quieted. Pulse keeps compressed companion/link/aircraft. No GPS invented. Companion B2 / Jetson install-rollback writes stay gated / deferred (#28).
 25. **Orphan `#processes` REMOVE** — **LANDED** via PR #70 merge `d67ce2a`. Dead DOM panel and stepper hooks gone. Live telemetry checklist / preflight strip stay. Stale session `processes` remaps to params. No GPS invented.
-26. **Preflight / readiness MERGE** — **this draft.** One spoken-Hebrew **מוכנות** concept. Mission glance + Diagnostics checklist. SITL bar stays LAB-scoped with shared vocabulary. No GPS invented. PFD **פקודות** unchanged. No ARM / LAND / FC writes.
+26. **Preflight / readiness MERGE** — **LANDED** via PR #71 merge `4ce554e`. One spoken-Hebrew **מוכנות** concept. Mission glance + Diagnostics checklist. SITL bar stays LAB-scoped with shared vocabulary. No GPS invented. PFD **פקודות** unchanged. No ARM / LAND / FC writes.
+27. **Baseline test hygiene** — **LANDED** via PR #72 merge `d67d4d5`. `APP_VERSION` stayed `1.02.255`.
+28. **ArduLab → Assist REFINE** — **this draft.** Assist route `ardulab` opens existing `#featureDesigner`. Workspace **EVOLVE** (specialist path, not a peer Assist tab). Lab shelf stays. No FC write / Companion apply / Jetson deploy.
 
 ---
 
-## Audit snapshot — 2026-09-07 (Preflight / readiness MERGE this draft)
+## Audit snapshot — 2026-09-07 (ArduLab → Assist REFINE this draft)
 
-**Master:** `1.02.255` @ `d67ce2a` (PR #70 merge — orphan `#processes` REMOVE). Do not bump.  
-**Prior pointer:** 2026-09-07 orphan `#processes` REMOVE draft snapshot. Superseded. #70 landed dead-DOM remove.  
-**This draft:** Preflight / readiness MERGE — single **מוכנות** concept; Mission glance + Diagnostics checklist. Stay draft. King merges after independent VERIFY. Do not bump `APP_VERSION`.
+**Master:** `1.02.255` @ `d67d4d5` (PR #72 merge — baseline test hygiene). Do not bump.  
+**Prior pointer:** 2026-09-07 Preflight / readiness MERGE draft snapshot. Superseded. #71 landed readiness; #72 landed baseline hygiene.  
+**This draft:** ArduLab (`#featureDesigner`) Assist fold. Workspace **EVOLVE**. Stay draft. King merges after independent VERIFY. Do not bump `APP_VERSION`.
 
 Ops (not product): WhatsApp Human Gate delivery remains available (signed in on the operator box targeting +972584010075, self-chat).
 
 ### LANDED this capability close (2026-09-07)
 
+- PR #72 baseline test hygiene → master `d67d4d5`. Advisor denylist / parseAttitude tests aligned. `APP_VERSION` stayed `1.02.255`.
+- PR #71 Preflight / readiness MERGE → master `4ce554e`. One **מוכנות** concept. Mission glance + Diagnostics checklist. Assist `מוכנות` → Mission readiness. SITL bar stays LAB-scoped. No GPS invented. `APP_VERSION` stayed `1.02.255`.
 - PR #70 orphan `#processes` REMOVE → master `d67ce2a`. Dead panel, stepper hooks, and unused `#preflightStatus` stub gone. Live telemetry checklist / `#preflightCard` stay. Stale session `processes` remaps to params. No GPS invented. `APP_VERSION` stayed `1.02.255`.
 - PR #69 Telemetry dash MERGE → master `1fe10df`. Platform **אבחונים** opens existing `#telemetry`. Primary ops tab quieted. Pulse first-open uses **אבחונים**. Companion/link/aircraft glance stays. Panel stays. No GPS invented. `APP_VERSION` stayed `1.02.255`.
 - PR #68 Flight Engineer→Assist MERGE → master `6b6218f`. Assist route `engineer` → MISSION `#flightEngineer`. `מהנדס` / flight engineer / voice engineer open that panel. Lab entry is **מהנדס מעבדה**. Panel stays. Mission stays flight-safe. `APP_VERSION` stayed `1.02.255`.
@@ -156,7 +160,7 @@ Ops (not product): WhatsApp Human Gate delivery remains available (signed in on 
 
 ### This draft (2026-09-07)
 
-- Preflight / readiness MERGE. Operator term is **מוכנות**. Mission (`#terrain`) gets a quiet glance that opens the existing PFD popover. Diagnostics (`#telemetry` / `#preflightCard`) keeps the checklist under the same name. SITL `#simLabPreflightBar` stays LAB-scoped and shares the label. Assist `מוכנות` opens Mission readiness. Empty GPS stays `—`. No ARM / LAND / FC writes. PFD **פקודות** unchanged. Fold, not cliff-delete. `APP_VERSION` stays `1.02.255`.
+- ArduLab → Assist REFINE. Assist route `ardulab` / `feature designer` / `ארדולאב` opens existing `#featureDesigner`. Workspace **EVOLVE** (architecture: Evolve specialist path, not a peer Assist tab). Capability stays `evolve`. Lab shelf entry stays **ArduLab**. Fold note + back-to-Assist. Quiet Assist chip off Mission. Spoken-Hebrew Development handoff. Panel stays. No FC write / Companion apply / Jetson deploy. `APP_VERSION` stays `1.02.255`.
 
 ### Prior still on master (#54, #56, #57)
 
@@ -237,7 +241,8 @@ On master today (PR #33 + PR #34 + Hebrew Assist chrome from #50 + result card f
 - **C10.7a LANDED** via PR #66 `b37c26e`: Attention Policy chrome only. Quiet default. Assist badge when policy allows. No voice/STT.
 - **Advisor→Assist MERGE LANDED** via PR #67 `b0be4c3`: Assist opens the lab advisor for `יועץ` / advisor-style Q&A. `#advisor` stays reachable. Not a competing primary chat.
 - **Flight Engineer→Assist MERGE LANDED** via PR #68 `6b6218f`: Assist opens `#flightEngineer` for `מהנדס` / voice-ops notes. Panel stays on the lab shelf. Mission stays flight-safe. PFD **פקודות** stays where it is.
-- **Preflight / readiness MERGE this draft:** One **מוכנות** concept. Mission glance opens the existing popover. Diagnostics keeps the checklist. Assist `מוכנות` → Mission readiness. SITL bar stays LAB-scoped. No GPS invented. No flight commands.
+- **Preflight / readiness MERGE LANDED** via PR #71 `4ce554e`: One **מוכנות** concept. Mission glance opens the existing popover. Diagnostics keeps the checklist. Assist `מוכנות` → Mission readiness. SITL bar stays LAB-scoped. No GPS invented. No flight commands.
+- **ArduLab → Assist REFINE this draft:** Assist opens `#featureDesigner` for `ארדולאב` / feature designer. Workspace **EVOLVE**. Lab shelf stays. Not a competing primary chat. No FC / Companion apply.
 
 ### Params (persist landed)
 
@@ -247,7 +252,9 @@ On master today (PR #33 + PR #34 + Hebrew Assist chrome from #50 + result card f
 
 | PR | Topic | This map |
 |---|---|---|
-| this draft | Preflight / readiness MERGE | **This draft.** Stay draft. King merges after independent VERIFY. |
+| this draft | ArduLab → Assist REFINE fold | **This draft.** Stay draft. King merges after independent VERIFY. |
+| [#72](https://github.com/royshiber/vision-landing-console/pull/72) | Baseline test hygiene | **LANDED** on master via PR #72 merge `d67d4d5`. |
+| [#71](https://github.com/royshiber/vision-landing-console/pull/71) | Preflight / readiness MERGE | **LANDED** on master via PR #71 merge `4ce554e`. |
 | [#70](https://github.com/royshiber/vision-landing-console/pull/70) | Orphan `#processes` dead-DOM REMOVE | **LANDED** on master via PR #70 merge `d67ce2a`. |
 | [#69](https://github.com/royshiber/vision-landing-console/pull/69) | Telemetry dash MERGE into Pulse + Platform diagnostics | **LANDED** on master via PR #69 merge `1fe10df`. |
 | [#68](https://github.com/royshiber/vision-landing-console/pull/68) | Flight Engineer→Assist MERGE fold | **LANDED** on master via PR #68 merge `6b6218f`. |
@@ -280,7 +287,7 @@ Roy 2026-09-05: abandon searching the local tree for versions past 300 **permane
 
 ### Ranked GAPS (this snapshot)
 
-1. **Preflight / readiness MERGE** — this draft. One **מוכנות** concept. Mission glance + Diagnostics checklist. SITL bar LAB-scoped.
+1. **ArduLab → Assist REFINE** — this draft. Fold `#featureDesigner` through Assist as an Evolve specialist path. Panel stays.
 2. **C10.7b voice/STT** — deferred. Do not start now. No new ElevenLabs/STT secrets.
 3. **C10.4c-b Jetson deploy-wire move** — remaining C10.4 slice. Still **deferred** (#28). Do not start now.
 4. **Live Jetson connect proof** — parked (days). Capability is on master (#39 / #40). Blocked on Companion token (not in Cursor / PC `.env`; Jetson `:8081` → 401). WAITING FOR ROY on the token, not more connect code. Do not invent a token.
@@ -289,8 +296,8 @@ Roy 2026-09-05: abandon searching the local tree for versions past 300 **permane
 
 ### Explicitly not next
 
-Do not spend cycles on smoke #4, leftover disconnected chrome, version bump, 300+ hunt, inventing a Companion token, Jetson apply/restart, flight commands, another Pulse polish pass, another taxonomy polish pass, another evidence-strip polish pass, Companion B2 policy rewrite, C10.7b voice/STT, or C10.4c-b Jetson deploy-wire move. #50 / #52 / #54 / #56 / #58 / #59 / #61 / #62 / #64 / #65 / #66 / #67 / #68 / #69 / #70 are landed. Do not invent a token. Do not invent GPS. Do not fake a live Jetson connect. Do not add ElevenLabs/STT keys.
+Do not spend cycles on smoke #4, leftover disconnected chrome, version bump, 300+ hunt, inventing a Companion token, Jetson apply/restart, flight commands, another Pulse polish pass, another taxonomy polish pass, another evidence-strip polish pass, Companion B2 policy rewrite, C10.7b voice/STT, or C10.4c-b Jetson deploy-wire move. #50 / #52 / #54 / #56 / #58 / #59 / #61 / #62 / #64 / #65 / #66 / #67 / #68 / #69 / #70 / #71 / #72 are landed. Do not invent a token. Do not invent GPS. Do not fake a live Jetson connect. Do not add ElevenLabs/STT keys.
 
 ### Next pick (this snapshot)
 
-**Preflight / readiness MERGE** is this draft. Orphan `#processes` REMOVE landed via #70 @ `d67ce2a`. C10.7b voice/STT stays deferred. Remainder **C10.4c-b** Jetson deploy-wire move stays deferred (#28). Jetson live connect stays parked until Roy supplies the Companion token (days; Jetson `:8081` → 401 without it). Human Gates stay **WAITING FOR ROY**: #28 apply/restart, #29 live vehicle / auto-land. Merge autonomy still on for verified safe draft PRs. Measure by capabilities closed, not PR count. `APP_VERSION` stays `1.02.255`.
+**ArduLab → Assist REFINE** is this draft. Baseline hygiene landed via #72 @ `d67d4d5`. C10.7b voice/STT stays deferred. Remainder **C10.4c-b** Jetson deploy-wire move stays deferred (#28). Jetson live connect stays parked until Roy supplies the Companion token (days; Jetson `:8081` → 401 without it). Human Gates stay **WAITING FOR ROY**: #28 apply/restart, #29 live vehicle / auto-land. Merge autonomy still on for verified safe draft PRs. Measure by capabilities closed, not PR count. `APP_VERSION` stays `1.02.255`.

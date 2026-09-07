@@ -11223,6 +11223,7 @@ document.getElementById('devTestCancelBtn')?.addEventListener('click', () => { v
 document.getElementById('devReleaseApproveBtn')?.addEventListener('click', () => { void devApproveForRelease(); });
 document.getElementById('devReleaseCreateBtn')?.addEventListener('click', () => { void devCreateRelease(); });
 document.getElementById('devReleaseDeployBtn')?.addEventListener('click', () => { void devDeployRelease(); });
+document.getElementById('devOpenArdulabBtn')?.addEventListener('click', () => applyMainTab('featureDesigner'));
 
 /* ── ASSIST (C10.2) — persistent interaction layer; text path only ── */
 const ASSIST_OPEN_KEY = 'visionLandingAssistOpenV1';
@@ -11302,7 +11303,7 @@ const ASSIST_TAB_HE = Object.freeze({
   recordings: 'תחקור',
   flights: 'תחקור',
   advisor: 'יועץ',
-  featureDesigner: 'מעצב פיצ׳רים',
+  featureDesigner: 'ארדולאב',
   flightEngineer: 'מהנדס טיסה',
 });
 const ASSIST_AGENT_STATE_HE = Object.freeze({
@@ -11412,7 +11413,7 @@ function assistSyncMissionPosture() {
   if (chips) {
     chips.querySelectorAll('[data-assist-chip]').forEach((btn) => {
       const kind = btn.dataset.assistChip;
-      btn.hidden = kind === 'advisor' ? mission : !mission;
+      btn.hidden = (kind === 'advisor' || kind === 'ardulab') ? mission : !mission;
     });
     chips.hidden = false;
   }
@@ -11421,6 +11422,10 @@ function assistSyncMissionPosture() {
 function assistApplyQuickChip(kind) {
   if (kind === 'advisor') {
     void assistSendText('פתח יועץ');
+    return;
+  }
+  if (kind === 'ardulab') {
+    void assistSendText('פתח ארדולאב');
     return;
   }
   if (kind === 'flightEngineer') {
@@ -11954,6 +11959,7 @@ function initAssistUi() {
   });
   document.getElementById('advisorOpenAssistBtn')?.addEventListener('click', () => assistSetOpen(true));
   document.getElementById('feOpenAssistBtn')?.addEventListener('click', () => assistSetOpen(true));
+  document.getElementById('fdOpenAssistBtn')?.addEventListener('click', () => assistSetOpen(true));
   document.getElementById('assistConfirmBtn')?.addEventListener('click', () => { void assistConfirm(true); });
   document.getElementById('assistCancelBtn')?.addEventListener('click', () => { void assistConfirm(false); });
   document.getElementById('assistAgentConnectForm')?.addEventListener('submit', (e) => { void assistConnectAgent(e); });
