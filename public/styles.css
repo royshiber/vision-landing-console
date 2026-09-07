@@ -6053,6 +6053,33 @@ body.operator-live .companion-connect--hero {
   padding: 0;
   overflow: hidden;
 }
+.advisor-assist-fold {
+  margin: 0;
+  padding: 8px 14px;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+}
+.advisor-assist-fold-btn {
+  border-radius: 999px;
+  border: 1px solid rgba(0, 71, 141, 0.22);
+  background: #eef3fb;
+  color: #0f172a;
+  padding: 2px 10px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  font-family: "Heebo", sans-serif;
+  cursor: pointer;
+}
+.advisor-assist-fold-btn:hover {
+  border-color: rgba(0, 71, 141, 0.4);
+  background: #dce9f8;
+}
 /* Collapsible strip: one row when closed — restores vertical space to chat+sidebar */
 .adv-info-panel {
   flex-shrink: 0;
@@ -13113,6 +13140,7 @@ details.flight-manage summary {
   flex-wrap: wrap;
 }
 .assist-quick-chips[hidden] { display: none !important; }
+.assist-quick-chip[hidden] { display: none !important; }
 .assist-quick-chip {
   border-radius: 999px;
   border: 1px solid rgba(187, 247, 208, 0.22);
