@@ -180,6 +180,12 @@ describe('AIRVIX Mission chrome — default open + layout policy', () => {
     expect(place).toContain('host.appendChild(rail)');
     expect(place).toContain('assist-rail--mission');
     expect(place).toContain("document.body.classList.remove('assist-open')");
+    expect(place).toContain('ASSIST_OPEN_KEY');
+    expect(place).toContain('rail.hidden = !overlayOpen');
+    const setOpen = sliceFunction(js, 'assistSetOpen');
+    const dockedSlice = setOpen.slice(setOpen.indexOf('isMissionAssistDocked()'), setOpen.indexOf('rail.hidden = !open'));
+    expect(dockedSlice).toContain("document.body.classList.remove('assist-open')");
+    expect(dockedSlice).not.toContain('sessionStorage.setItem');
     expect(place).not.toMatch(/\/apply|\/restart|FLIGHT_ACTION|PARAM_SET/);
     expect(place).not.toMatch(/\bARM\b|\bDISARM\b|\bLAND\b/);
     expect(sliceFunction(js, 'assistSetOpen')).toContain('isMissionAssistDocked()');

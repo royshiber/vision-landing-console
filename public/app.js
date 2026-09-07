@@ -11997,6 +11997,7 @@ function placeAssistSurface(tabId) {
   const host = document.getElementById('missionTalkHost');
   const dock = document.getElementById('assistRailDock');
   const closeBtn = document.getElementById('assistCloseBtn');
+  const toggle = document.getElementById('assistToggleBtn');
   if (!rail) return;
   const onMission = tabId === 'terrain';
   document.body.classList.toggle('mission-assist-docked', onMission);
@@ -12006,7 +12007,6 @@ function placeAssistSurface(tabId) {
     rail.hidden = false;
     document.body.classList.remove('assist-open');
     if (closeBtn) closeBtn.hidden = true;
-    const toggle = document.getElementById('assistToggleBtn');
     toggle?.setAttribute('aria-expanded', 'true');
     void assistRefreshAgentConnection();
     return;
@@ -12014,6 +12014,11 @@ function placeAssistSurface(tabId) {
   if (dock && rail.parentElement !== dock) dock.appendChild(rail);
   rail.classList.remove('assist-rail--mission');
   if (closeBtn) closeBtn.hidden = false;
+  let overlayOpen = false;
+  try { overlayOpen = sessionStorage.getItem(ASSIST_OPEN_KEY) === '1'; } catch { /* ignore */ }
+  rail.hidden = !overlayOpen;
+  document.body.classList.toggle('assist-open', overlayOpen);
+  toggle?.setAttribute('aria-expanded', overlayOpen ? 'true' : 'false');
 }
 
 function assistSetOpen(open) {
@@ -12024,7 +12029,6 @@ function assistSetOpen(open) {
     rail.hidden = false;
     toggle.setAttribute('aria-expanded', 'true');
     document.body.classList.remove('assist-open');
-    try { sessionStorage.setItem(ASSIST_OPEN_KEY, '1'); } catch { /* ignore */ }
     assistRefreshContextChip();
     void assistRefreshAgentConnection();
     document.getElementById('assistInput')?.focus();
