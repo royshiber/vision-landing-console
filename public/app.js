@@ -136,7 +136,6 @@ const debriefLogsPanel = document.getElementById('debriefLogsPanel');
 const debriefPanelsHost = document.getElementById('recordings');
 const telemetryPanel = document.getElementById('telemetry');
 let selectedContextEvent = null;
-let processIndex = 0;
 
 /** Why: F5/refresh should keep the current main tab and (when relevant) the control sub-tab. What: sessionStorage, same window session. */
 const MAIN_TAB_KEY = 'visionLandingMainTabV1';
@@ -349,7 +348,7 @@ function restoreLastUiTab() {
   } catch {
     return;
   }
-  // leftover #flights folds into תחקור לוגים; processes stays on params
+  // leftover #flights folds into תחקור לוגים; stale processes session opens params
   if (main === 'flights') {
     main = 'recordings';
     debriefSub = 'logs';
@@ -460,22 +459,6 @@ const PARAMS = [
   { key: 'to_min_gps_sats', label: 'מינימום לוויינים להמראה', min: 10, max: 40, step: 1, value: 12 },
   { key: 'to_motor_spool_s', label: 'משך האצת מנוע לפני שחרור (s)', min: 0.5, max: 8, step: 0.1, value: 2.2 },
   { key: 'to_abort_speed_loss_ms', label: 'ביטול אם איבוד מהירות (m/s)', min: 0.5, max: 8, step: 0.1, value: 2.5 },
-];
-const PROCESS_STEPS = [
-  'כניסה לנתיב נחיתה',
-  'אימות גובה/מהירות גישה',
-  'הפעלת ראייה לנחיתה',
-  'אימות GPS ולייזר',
-  'יישור רוחבי ראשוני',
-  'בדיקת ביטחון לפני גישה סופית',
-  'מעבר לגישה סופית',
-  'תיקוני סטייה רוחבית עדינים',
-  'בדיקת תנאי ביטול',
-  'כניסה להצפה',
-  'הפחתת מנוע מבוקרת',
-  'נגיעה בקרקע',
-  'ריצת האטה',
-  'עצירה סופית',
 ];
 
 function buildParamTooltip(param) {
@@ -5031,9 +5014,6 @@ const groundSpeedInput = document.getElementById('groundSpeedInput');
 const spoolInput = document.getElementById('spoolInput');
 const runChecklistBtn = document.getElementById('runChecklistBtn');
 const checklistList = document.getElementById('checklistList');
-const processFlow = document.getElementById('processFlow');
-const processPrevBtn = document.getElementById('processPrevBtn');
-const processNextBtn = document.getElementById('processNextBtn');
 if (gpsSatsInput) {
   gpsSatsInput.min = '10';
   gpsSatsInput.max = '40';
@@ -5083,22 +5063,6 @@ function renderChecklist(checks) {
   `).join('');
 }
 
-function renderProcessFlow() {
-  if (!processFlow) return;
-  processFlow.innerHTML = PROCESS_STEPS.map((title, idx) => {
-    let cls = 'pending';
-    if (idx < processIndex) cls = 'done';
-    if (idx === processIndex) cls = 'active';
-    return `
-      <article class="process-card ${cls}">
-        <div class="process-index">שלב ${idx + 1}</div>
-        <div class="process-title">${title}</div>
-        ${idx < processIndex ? '<div class="process-check">V</div>' : ''}
-      </article>
-    `;
-  }).join('');
-}
-
 /** Display-only confidence: prefer Companion when available and never synthesize a zero for missing data. */
 setInterval(() => {
   const companionActive = latestCompanionFromServer?.mode !== 'off' && latestCompanionFromServer?.reachable === true;
@@ -5142,26 +5106,12 @@ setInterval(() => {
   if (liveConfidenceBar) liveConfidenceBar.style.width = pct != null ? `${pct}%` : '0%';
   if (liveConfidenceBar) liveConfidenceBar.classList.toggle('bar-live', visionFresh);
   renderChecklist(checks);
-  /* renderProcessFlow only when processIndex changes (buttons); not every telemetry tick */
 }, 1000);
 if (runChecklistBtn) {
   runChecklistBtn.addEventListener('click', () => {
     const currentText = String(telemetryConfidence?.textContent || '0').replace('%', '');
     const confidence = Math.max(0, Math.min(1, Number(currentText) / 100));
     renderChecklist(computeChecklist(confidence));
-  });
-}
-
-if (processPrevBtn) {
-  processPrevBtn.addEventListener('click', () => {
-    processIndex = Math.max(0, processIndex - 1);
-    renderProcessFlow();
-  });
-}
-if (processNextBtn) {
-  processNextBtn.addEventListener('click', () => {
-    processIndex = Math.min(PROCESS_STEPS.length - 1, processIndex + 1);
-    renderProcessFlow();
   });
 }
 
@@ -6383,7 +6333,6 @@ if (advisorMicBtn && SR) {
   advisorMicBtn.title = 'הדפדפן לא תומך בדיבור לטקסט';
 }
 /* Welcome line is static in index.html (data-static-welcome) — avoids empty chat if script stops early. */
-renderProcessFlow();
 
 const versionBtn = document.getElementById('versionBtn');
 const versionModal = document.getElementById('versionModal');

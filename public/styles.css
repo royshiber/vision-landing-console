@@ -1188,56 +1188,6 @@ h1 { margin: 0; font-size: 1.25rem; color: #ffffff; }
   display: flex;
 }
 
-.process-flow {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 8px;
-  height: calc(100% - 66px);
-  overflow: hidden;
-  align-content: start;
-}
-
-.process-card {
-  background: var(--surface-low);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  padding: 10px;
-  font-size: var(--text-base);
-  position: relative;
-  box-shadow: var(--shadow-card);
-}
-
-.process-card.pending {
-  opacity: 0.65;
-  filter: grayscale(15%);
-}
-
-.process-card.done {
-  border-color: var(--success-border);
-  background: var(--success-bg);
-}
-
-.process-card.active {
-  border-color: #16a34a;
-  background: #d1fae5;
-  animation: activePulse 1s ease-in-out infinite;
-}
-
-.process-index { font-size: 0.72rem; color: var(--text-muted); }
-.process-title { font-weight: 600; margin-top: 2px; color: var(--text); }
-.process-check {
-  position: absolute;
-  top: 6px;
-  left: 6px;
-  font-size: var(--text-sm);
-  color: #059669;
-}
-
-@keyframes activePulse {
-  0%, 100% { box-shadow: 0 0 0 rgba(22, 163, 74, 0); }
-  50% { box-shadow: 0 0 12px rgba(22, 163, 74, 0.35); }
-}
-
 .telemetry-cards {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -3169,7 +3119,6 @@ button:hover,
     grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
     gap: 10px;
   }
-  .process-flow { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .topbar { min-height: 56px; }
   .layout { flex: 1 1 0; min-height: 0; }
   .confidence-hud { display: none; }
@@ -8112,10 +8061,6 @@ body.operator-live .companion-connect--hero {
   padding: 4px 10px;
 }
 .pf-refresh-btn:hover { border-color: var(--primary); color: var(--primary); }
-
-#preflightStatus.subpanel.visible {
-  overflow: hidden;
-}
 
 .advisor-mode-banner {
   font-size: var(--text-sm);
