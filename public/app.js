@@ -8205,6 +8205,33 @@ setInterval(refreshAdvisorHealth, 60_000);
 
   if (statusPollTimer) clearInterval(statusPollTimer);
   statusPollTimer = setInterval(refreshConnectionStatus, 2000);
+
+  function applySitlPreset({ type, hostPort } = {}) {
+    const t = String(type || '').toLowerCase();
+    if (t !== 'udp' && t !== 'tcp') return;
+    if (!typeSel || !portInput) return;
+    typeSel.value = t;
+    applyTypeUI();
+    portInput.value = String(hostPort || '');
+    savePrefs();
+    setTimeout(() => { void openPanel(); }, 0);
+  }
+
+  function connectNow() {
+    if (!connBtn) return;
+    setTimeout(() => {
+      void openPanel();
+      if (connBtn.dataset.connected === '1') return;
+      void onConnectClick();
+    }, 60);
+  }
+
+  window.__vlcConnectWidget = {
+    applySitlPreset,
+    connectNow,
+    openPanel,
+    isConnected: () => connBtn?.dataset?.connected === '1',
+  };
 })();
 
 /* ─── AUTO-CONFIG WIZARD ─── */

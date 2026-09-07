@@ -4,6 +4,12 @@
  */
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import {
+  SITL_CONNECT_PRESETS,
+  fallbackFillGlobalConnectFields,
+  getConnectWidgetApi,
+  handoffSitlConnect,
+} from './sitl-connect-handoff.mjs';
 
 const canvas = document.getElementById('simLabCanvas');
 
@@ -1688,7 +1694,7 @@ if (!canvas) {
     if (hudConn) {
       hudConn.textContent = conn
         ? `מחובר · ${mavlink.autopilotName || 'FC'} · מוד ${mavlink.flightMode ?? '—'}${replaySuffix}`
-        : `אין חיבור FC — הרץ SITL והגדר UDP/TCP במסמך המעבדה${replaySuffix}`;
+        : `אין חיבור — חברו למעלה בשורת המצב${replaySuffix}`;
     }
 
     if (!replayDrivingMesh && mavlink && hudAtt) {
@@ -1790,21 +1796,27 @@ if (!canvas) {
     document.getElementById(id)?.addEventListener('click', fn);
   }
 
-  // Fill connection fields AND auto-connect if not already connected
+  // Drive the global topbar connect widget — never a second MAVLink stack.
   function fillAndConnect(type, portVal) {
-    const t = document.getElementById('connectType');
-    const pi = document.getElementById('connectPortInput');
-    if (t) { t.value = type; t.dispatchEvent(new Event('change')); }
-    if (pi) pi.value = portVal;
-    const cb = document.getElementById('connectBtn');
-    if (cb && cb.dataset.connected !== '1') {
-      setTimeout(() => cb.click(), 60);
-    }
+    const handed = handoffSitlConnect(getConnectWidgetApi(window), {
+      type,
+      hostPort: portVal,
+      connect: true,
+    });
+    if (handed.ok) return;
+    fallbackFillGlobalConnectFields({
+      typeSel: document.getElementById('connectType'),
+      portInput: document.getElementById('connectPortInput'),
+      connectBtn: document.getElementById('connectBtn'),
+      type,
+      hostPort: portVal,
+      connect: true,
+    });
   }
 
-  bindQuick('simLabPresetUdp14550', () => fillAndConnect('udp', '127.0.0.1:14550'));
-  bindQuick('simLabPresetUdpBind',   () => fillAndConnect('udp', '0.0.0.0:14550'));
-  bindQuick('simLabPresetTcp5760',   () => fillAndConnect('tcp', '127.0.0.1:5760'));
+  bindQuick('simLabPresetUdp14550', () => fillAndConnect(SITL_CONNECT_PRESETS.udp14550.type, SITL_CONNECT_PRESETS.udp14550.hostPort));
+  bindQuick('simLabPresetUdpBind',   () => fillAndConnect(SITL_CONNECT_PRESETS.udpBind.type, SITL_CONNECT_PRESETS.udpBind.hostPort));
+  bindQuick('simLabPresetTcp5760',   () => fillAndConnect(SITL_CONNECT_PRESETS.tcp5760.type, SITL_CONNECT_PRESETS.tcp5760.hostPort));
   bindQuick('simLabGoFlightsBtn', () => {
     document.querySelector('.tab[data-tab="recordings"]')?.click();
     document.getElementById('debriefLogsBtn')?.click();
@@ -1849,9 +1861,9 @@ if (!canvas) {
     if (statusEl) { statusEl.textContent = 'מתחבר…'; statusEl.className = 'sl-wiz-conn-status'; }
     fillAndConnect(type, port);
   }
-  bindQuick('simLabQsUdp',     () => wizConnect('udp', '127.0.0.1:14550'));
-  bindQuick('simLabQsTcp',     () => wizConnect('tcp', '127.0.0.1:5760'));
-  bindQuick('simLabQsUdpBind', () => wizConnect('udp', '0.0.0.0:14550'));
+  bindQuick('simLabQsUdp',     () => wizConnect(SITL_CONNECT_PRESETS.udp14550.type, SITL_CONNECT_PRESETS.udp14550.hostPort));
+  bindQuick('simLabQsTcp',     () => wizConnect(SITL_CONNECT_PRESETS.tcp5760.type, SITL_CONNECT_PRESETS.tcp5760.hostPort));
+  bindQuick('simLabQsUdpBind', () => wizConnect(SITL_CONNECT_PRESETS.udpBind.type, SITL_CONNECT_PRESETS.udpBind.hostPort));
 
   const tlogFileBtn = document.getElementById('simLabTlogFileBtn');
   const wizTlogStatus = document.getElementById('simLabWizTlogStatus');
@@ -1969,12 +1981,21 @@ if (!canvas) {
   // "Connect Now" button in sidebar — shown after a preset is selected while disconnected
   const connectNowBtn = document.getElementById('simLabConnectNowBtn');
   function updateConnectNowBtn() {
+    const api = getConnectWidgetApi(window);
     const cb = document.getElementById('connectBtn');
-    if (!connectNowBtn || !cb) return;
-    connectNowBtn.classList.toggle('hidden', cb.dataset.connected === '1');
+    if (!connectNowBtn) return;
+    const connected = api
+      ? !!api.isConnected?.()
+      : cb?.dataset?.connected === '1';
+    connectNowBtn.classList.toggle('hidden', connected);
   }
   if (connectNowBtn) {
     connectNowBtn.addEventListener('click', () => {
+      const api = getConnectWidgetApi(window);
+      if (api?.connectNow) {
+        api.connectNow();
+        return;
+      }
       const cb = document.getElementById('connectBtn');
       if (cb && cb.dataset.connected !== '1') cb.click();
     });

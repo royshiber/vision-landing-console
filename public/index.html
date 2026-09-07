@@ -1299,8 +1299,8 @@
 
             <!-- חיבור -->
             <div class="sl-section">
-              <div class="sl-section-title">חיבור SITL</div>
-              <p class="sl-connect-hint">בחר סוג חיבור לפי הגדרת ה-SITL שלך:</p>
+              <div class="sl-section-title">חיבור סימולטור</div>
+              <p id="simLabConnectHandoffHint" class="sl-connect-hint">אותו חיבור כמו בשורת המצב למעלה.</p>
               <div class="sl-presets">
                 <button type="button" id="simLabPresetUdp14550" class="sl-preset-btn" title="UDP 127.0.0.1:14550 — הנפוץ ביותר עם sim_vehicle.py">
                   <span class="sl-preset-name">UDP 14550</span>
@@ -1315,7 +1315,7 @@
                   <span class="sl-preset-sub">MAVProxy / SITL</span>
                 </button>
               </div>
-              <button type="button" id="simLabConnectNowBtn" class="sl-connect-now-btn hidden" title="התחבר עם ההגדרה שנבחרה">⚡ התחבר עכשיו</button>
+              <button type="button" id="simLabConnectNowBtn" class="sl-connect-now-btn hidden" title="פותח את החיבור למעלה ומתחבר">חברו למעלה</button>
             </div>
 
             <!-- שיחזור -->
@@ -1446,7 +1446,7 @@
                   <!-- Panel 2: Connect -->
                   <div class="sl-wiz-panel hidden" data-panel="2">
                     <div class="sl-wiz-title">התחבר לסימולטור</div>
-                    <div class="sl-wiz-sub">בחר את סוג החיבור לפי אופן הפעלת SITL:</div>
+                    <div class="sl-wiz-sub">בחרו סוג חיבור. אותו חיבור כמו בשורת המצב למעלה.</div>
                     <div class="sl-wiz-conn-grid">
                       <button type="button" id="simLabQsUdp" class="sl-wiz-conn-card sl-wiz-conn-card--primary">
                         <span class="sl-wiz-conn-icon">📡</span>
