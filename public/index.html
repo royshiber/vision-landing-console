@@ -89,7 +89,7 @@
     <header class="app-chrome" data-chrome="ops">
       <nav class="tabs" aria-label="ניווט ראשי">
         <button class="tab tab-fly" data-tab="terrain" title="הטסה">הטסה</button>
-        <button class="tab tab-ops active" data-tab="pulse" title="סקירה">סקירה</button>
+        <button class="tab tab-ops active" data-tab="pulse" title="תמונת מצב">תמונת מצב</button>
         <button class="tab tab-ops" data-tab="platform" title="פלטפורמה">פלטפורמה</button>
         <button class="tab tab-ops" data-tab="control" title="פרמטרים">פרמטרים</button>
         <button class="tab tab-ops" data-tab="recordings" title="תחקור">תחקור</button>
@@ -266,10 +266,10 @@
         <div id="arduTopCatsHost" class="ardu-top-cats-host hidden" role="tablist" aria-label="קטגוריות ArduPilot"></div>
       </div>
 
-      <section id="pulse" class="panel visible" aria-label="סקירה">
+      <section id="pulse" class="panel visible" aria-label="תמונת מצב">
         <div class="pulse-home">
           <header class="pulse-hero">
-            <h3 class="pulse-title">סקירה</h3>
+            <h3 class="pulse-title">תמונת מצב</h3>
           </header>
           <dl class="pulse-status" aria-label="מצב מקוצר">
             <div class="pulse-status-item">
@@ -277,7 +277,7 @@
               <dd id="pulseVersion" dir="ltr">--</dd>
             </div>
             <div class="pulse-status-item" data-pulse-kind="companion">
-              <dt>מלווה</dt>
+              <dt>Companion</dt>
               <dd id="pulseCompanion">מנותק</dd>
             </div>
             <div class="pulse-status-item" data-pulse-kind="assist">
@@ -295,7 +295,7 @@
           </dl>
           <section id="pulseAttention" class="pulse-attention" hidden aria-label="תשומת לב"></section>
           <nav class="pulse-actions" data-first-open="pulse" aria-label="פעולה הבאה">
-            <button type="button" class="first-open-btn" data-first-action="companion" data-pulse-live="hide">חברו מלווה</button>
+            <button type="button" class="first-open-btn" data-first-action="companion" data-pulse-live="hide">חברו Companion</button>
             <button type="button" class="first-open-btn first-open-btn-quiet" data-first-action="assist">מסייע</button>
             <button type="button" class="first-open-btn first-open-btn-quiet" data-first-action="params">פרמטרים</button>
             <button type="button" class="first-open-btn first-open-btn-quiet" data-first-action="develop">פיתוח</button>
@@ -304,7 +304,7 @@
           <button type="button" id="pulseEvolveGlance" class="pulse-evolve" hidden>משימה רצה</button>
           <p class="pulse-home-pref">
             <span>מסך פתיחה</span>
-            <button type="button" id="pulseHomePulseBtn" class="pulse-home-pref-btn is-active" data-pulse-home="pulse">סקירה</button>
+            <button type="button" id="pulseHomePulseBtn" class="pulse-home-pref-btn is-active" data-pulse-home="pulse">תמונת מצב</button>
             <button type="button" id="pulseHomeTeleBtn" class="pulse-home-pref-btn" data-pulse-home="telemetry">טלמטריה</button>
           </p>
         </div>
@@ -316,9 +316,9 @@
           </header>
           <nav class="platform-shells" aria-label="יכולות פלטפורמה">
             <article class="platform-shell" data-platform-go="companion">
-              <h4>מלווה</h4>
+              <h4>Companion</h4>
               <p id="platformCompanionStatus">מנותק</p>
-              <button type="button" class="first-open-btn" data-platform-go="companion">מלווה</button>
+              <button type="button" class="first-open-btn" data-platform-go="companion">Companion</button>
             </article>
             <article class="platform-shell" data-platform-go="params">
               <h4>פרמטרים</h4>
@@ -327,12 +327,12 @@
             </article>
             <article class="platform-shell" data-platform-go="maintenance">
               <h4>תחזוקה</h4>
-              <p id="platformMaintStatus">המלווה מנותק</p>
+              <p id="platformMaintStatus">Companion מנותק</p>
               <button type="button" class="first-open-btn first-open-btn-quiet" data-platform-go="maintenance">תחזוקה</button>
             </article>
             <article class="platform-shell" data-platform-go="telemetry">
               <h4>אבחונים</h4>
-              <p id="platformDiagStatus">המלווה מנותק</p>
+              <p id="platformDiagStatus">Companion מנותק</p>
               <button type="button" class="first-open-btn first-open-btn-quiet" data-platform-go="telemetry">אבחונים</button>
             </article>
           </nav>
@@ -637,7 +637,7 @@
         <div class="panel-header tele-b2-head">
           <div class="tele-subtabs" role="tablist" aria-label="תצוגות טלמטריה">
             <button type="button" class="tele-subtab active" data-tele-tab="dash">לוח</button>
-            <button type="button" class="tele-subtab" data-tele-tab="companion">מלווה</button>
+            <button type="button" class="tele-subtab" data-tele-tab="companion">Companion</button>
           </div>
           <div id="companionMockBar" class="companion-mock-bar" hidden>
             <span>מצב מדומה</span>
@@ -648,8 +648,8 @@
         </div>
         <div id="companionApiUnavailable" class="companion-api-unavailable" hidden></div>
         <div class="first-open-stage-fill" data-first-open-stage>
-        <section id="companionConnect" class="companion-connect companion-connect--hero assist-agent-connect operator-state" data-state="disconnected" aria-label="חיבור מלווה">
-          <p id="companionConnectStatus" class="assist-agent-status" aria-live="polite">המלווה מנותק</p>
+        <section id="companionConnect" class="companion-connect companion-connect--hero assist-agent-connect operator-state" data-state="disconnected" aria-label="חיבור Companion">
+          <p id="companionConnectStatus" class="assist-agent-status" aria-live="polite">Companion מנותק</p>
           <p id="companionConnectHint" class="assist-agent-hint">צריך כתובת ואסימון. כתובת לבד לא מספיקה.</p>
           <p id="companionConnectPathHint" class="assist-agent-key-hint" hidden dir="ltr">/api/v1/*</p>
           <p id="companionTokenHint" class="assist-agent-key-hint" hidden dir="ltr"></p>
@@ -672,20 +672,20 @@
         <header class="operator-overview">
           <h3>טלמטריה</h3>
           <div id="teleOperatorBanner" class="operator-state" data-state="disconnected">
-            <p id="teleStatusBadge" class="operator-state-status">המלווה מנותק</p>
-            <p id="teleNextStep" class="operator-state-next">חברו מלווה. כתובת לבד לא מספיקה.</p>
+            <p id="teleStatusBadge" class="operator-state-status">Companion מנותק</p>
+            <p id="teleNextStep" class="operator-state-next">חברו Companion. כתובת לבד לא מספיקה.</p>
           </div>
         </header>
         <p id="companionLiveParked" class="operator-state-parked">הסיכום יופיע אחרי חיבור.</p>
-        <div id="companionDashboardSummary" class="companion-dashboard-summary" hidden aria-label="סיכום ממשק מלווה">
-          <article class="tele-card"><span>ממשק מלווה</span><strong id="companionApiState">כבוי</strong></article>
-          <article class="tele-card"><span>גרסת מלווה</span><strong id="companionApiVersion">—</strong></article>
+        <div id="companionDashboardSummary" class="companion-dashboard-summary" hidden aria-label="סיכום ממשק Companion">
+          <article class="tele-card"><span>ממשק Companion</span><strong id="companionApiState">כבוי</strong></article>
+          <article class="tele-card"><span>גרסת Companion</span><strong id="companionApiVersion">—</strong></article>
           <article class="tele-card"><span>בקר טיסה</span><strong id="companionFcConnected">—</strong></article>
           <article class="tele-card"><span>ראייה</span><strong id="companionVisionHealth">—</strong></article>
           <article class="tele-card"><span>נחיתה לתצוגה</span><strong id="companionLandingDetected">—</strong></article>
           <article class="tele-card"><span>וידאו</span><strong id="companionVideoStatus">—</strong></article>
         </div>
-        <p id="teleLiveParked" class="operator-state-parked">נתוני טלמטריה יופיעו אחרי חיבור מלווה.</p>
+        <p id="teleLiveParked" class="operator-state-parked">נתוני טלמטריה יופיעו אחרי חיבור Companion.</p>
         <!-- Readiness checklist stays visible on diagnostics even when live sections are parked -->
         <div class="tele-preflight-strip" id="readinessStrip">
           <div class="tele-preflight-title">מוכנות</div>
@@ -866,8 +866,8 @@
         </div>
 
         <div id="teleCompanionPanel" class="tele-subpanel companion-b2-panel" data-tele-panel="companion">
-          <p class="tele-dash-note">תצוגה בלבד מנתוני המלווה. אין פקודות טיסה ואין כתיבות</p>
-          <p id="companionB2Parked" class="operator-state-parked">נתוני מלווה יופיעו אחרי חיבור.</p>
+          <p class="tele-dash-note">תצוגה בלבד מנתוני Companion. אין פקודות טיסה ואין כתיבות</p>
+          <p id="companionB2Parked" class="operator-state-parked">נתוני Companion יופיעו אחרי חיבור.</p>
           <div id="companionB2Grid" class="companion-section-grid" hidden>
             <section class="companion-b2-section">
               <h3>מערכת ובקר</h3>
@@ -891,7 +891,7 @@
               <div class="companion-b2-table">
                 <div class="companion-b2-row"><span>קצב פריימים</span><strong id="companionVisionFps">—</strong><span>ביטחון</span><strong id="companionVisionConfidence">—</strong></div>
                 <div class="companion-b2-row"><span>מטרה</span><strong id="companionVisionTargetId">—</strong><span>טווח נחיתה</span><strong id="companionLandRange">—</strong></div>
-                <div class="companion-b2-row"><span>מיקום מלווה</span><strong id="companionNavPos">—</strong><span>EKF</span><strong id="companionNavEkf">לא מוזרק</strong></div>
+                <div class="companion-b2-row"><span>מיקום Companion</span><strong id="companionNavPos">—</strong><span>EKF</span><strong id="companionNavEkf">לא מוזרק</strong></div>
               </div>
             </section>
             <section class="companion-b2-section">
@@ -970,10 +970,10 @@
           <header class="operator-overview">
             <h3>תחזוקה</h3>
             <div id="maintOperatorBanner" class="operator-state" data-state="disconnected">
-              <p id="maintStatusBadge" class="operator-state-status">המלווה מנותק</p>
-              <p id="maintNextStep" class="operator-state-next">חברו מלווה. כתובת לבד לא מספיקה.</p>
+              <p id="maintStatusBadge" class="operator-state-status">Companion מנותק</p>
+              <p id="maintNextStep" class="operator-state-next">חברו Companion. כתובת לבד לא מספיקה.</p>
               <nav class="first-open-actions" data-first-open="maintenance" aria-label="פעולה הבאה">
-                <button type="button" class="first-open-btn" data-first-action="companion">חברו מלווה</button>
+                <button type="button" class="first-open-btn" data-first-action="companion">חברו Companion</button>
                 <button type="button" class="first-open-btn first-open-btn-quiet" data-first-action="assist">מסייע</button>
                 <button type="button" class="first-open-btn first-open-btn-quiet" data-first-action="params">פרמטרים</button>
               </nav>
@@ -988,7 +988,7 @@
             </div>
           </section>
 
-          <p id="maintLiveParked" class="operator-state-parked">נתוני Jetson וגרסאות יופיעו אחרי חיבור מלווה.</p>
+          <p id="maintLiveParked" class="operator-state-parked">נתוני Jetson וגרסאות יופיעו אחרי חיבור Companion.</p>
 
           <div id="maintRelHandoff" class="maint-rel-handoff">
             <p id="maintRelHandoffNote" class="tele-dash-note">התקנה ושחזור נעשים בפיתוח.</p>
@@ -998,7 +998,7 @@
           <div id="maintLiveSections" hidden>
           <h4 class="maint-group-title">תוכנה</h4>
           <div class="tele-group-cards">
-            <article class="tele-card"><span>גרסת מלווה</span><strong id="maintCompanionVersion">—</strong></article>
+            <article class="tele-card"><span>גרסת Companion</span><strong id="maintCompanionVersion">—</strong></article>
             <article class="tele-card"><span>קומיט</span><strong id="maintGitCommit">—</strong></article>
             <article class="tele-card"><span>ענף</span><strong id="maintGitBranch">—</strong></article>
             <article class="tele-card"><span>עץ נקי</span><strong id="maintGitClean">—</strong></article>
@@ -1014,14 +1014,14 @@
             <article class="tele-card"><span>דיסק</span><strong id="maintDisk">—</strong></article>
           </div>
 
-          <h4 class="maint-group-title">מלווה</h4>
+          <h4 class="maint-group-title">Companion</h4>
           <div class="tele-group-cards">
             <article class="tele-card"><span>מצב מסוף</span><strong id="maintCompanionMode">—</strong></article>
             <article class="tele-card"><span>גרסת ממשק</span><strong id="maintApiVersion">—</strong></article>
             <article class="tele-card"><span>ממשק פעיל</span><strong id="maintApiRunning">—</strong></article>
             <article class="tele-card"><span>ממשק נגיש</span><strong id="maintApiReachable">—</strong></article>
           </div>
-          <p id="maintCompanionConnectStatus" class="tele-dash-note" hidden>המלווה מנותק</p>
+          <p id="maintCompanionConnectStatus" class="tele-dash-note" hidden>Companion מנותק</p>
           <p id="maintCompanionTokenHint" class="assist-agent-key-hint" hidden dir="ltr"></p>
 
           <h4 class="maint-group-title">אירועי אבחון</h4>

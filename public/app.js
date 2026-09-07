@@ -2422,7 +2422,7 @@ function renderCompanionChannels(channels = {}) {
     ['לולאת ראייה', channels.vision_loopback],
   ];
   host.innerHTML = rows.map(([label, channel]) => {
-    const path = channel?.jetson_in_path === true ? 'בנתיב המלווה'
+    const path = channel?.jetson_in_path === true ? 'בנתיב Companion'
       : channel?.jetson_in_path === false ? 'לא בנתיב' : '—';
     const bind = channel?.bind || '—';
     return `<div class="companion-b2-row"><span>${escapeHtml(label)}</span><strong>${escapeHtml(path)}</strong><span>${escapeHtml(bind)}</span><strong>${escapeHtml(channel?.implementation || '—')}</strong></div>`;
@@ -3150,7 +3150,7 @@ function pulseBuildAttention(opts) {
   const evolveActive = opts?.evolveActive;
   const items = [];
   if (!companionLive) {
-    items.push({ id: 'companion', level: 'attention', text: 'מלווה מנותק', action: 'companion', cta: 'חברו מלווה' });
+    items.push({ id: 'companion', level: 'attention', text: 'Companion מנותק', action: 'companion', cta: 'חברו Companion' });
   }
   if (!assistConnected) {
     items.push({ id: 'assist', level: 'info', text: 'מסייע מנותק', action: 'assist', cta: 'מסייע' });
@@ -3240,12 +3240,12 @@ function pulseRefresh() {
 
 function platformMaintLabel() {
   const badge = document.getElementById('maintStatusBadge')?.textContent?.trim();
-  return badge || 'המלווה מנותק';
+  return badge || 'Companion מנותק';
 }
 
 function platformDiagLabel() {
   const badge = document.getElementById('teleStatusBadge')?.textContent?.trim();
-  return badge || 'המלווה מנותק';
+  return badge || 'Companion מנותק';
 }
 
 function platformRefresh() {
@@ -3343,12 +3343,12 @@ function teleSetOverview(opts) {
   const resolvedState = state || (live ? 'ok' : 'disconnected');
   if (banner) banner.dataset.state = resolvedState;
   if (badge) {
-    badge.textContent = statusHe || (live ? 'חי' : 'המלווה מנותק');
+    badge.textContent = statusHe || (live ? 'חי' : 'Companion מנותק');
     badge.className = 'operator-state-status';
   }
   if (next) {
     const text = nextHe == null
-      ? (live ? '' : 'חברו מלווה. כתובת לבד לא מספיקה.')
+      ? (live ? '' : 'חברו Companion. כתובת לבד לא מספיקה.')
       : nextHe;
     next.hidden = !text;
     next.textContent = text;
@@ -3372,25 +3372,25 @@ function companionConnectRender(status) {
   const live = companionIsLive(status);
   companionSetLiveChrome(live);
   const errorText = !connected && status?.ok === false
-    ? (status.status_he || status.reason_he || 'החיבור למלווה נכשל')
+    ? (status.status_he || status.reason_he || 'חיבור Companion נכשל')
     : '';
   card.dataset.state = errorText ? 'error' : (connected ? 'connected' : 'disconnected');
   const statusText = connected
-    ? (status.status_he || 'המלווה מחובר')
-    : (status.status_he || status.reason_he || 'המלווה מנותק');
+    ? (status.status_he || 'Companion מחובר')
+    : (status.status_he || status.reason_he || 'Companion מנותק');
   statusEl.textContent = statusText;
   if (maintStatus) maintStatus.textContent = statusText;
   teleSetOverview({
     live,
     statusHe: live && !connected && !status?.status_he ? 'חי' : statusText,
-    nextHe: live ? '' : (status?.hint_he || 'חברו מלווה. כתובת לבד לא מספיקה.'),
+    nextHe: live ? '' : (status?.hint_he || 'חברו Companion. כתובת לבד לא מספיקה.'),
     state: errorText ? 'error' : (live ? (connected ? 'connected' : 'ok') : 'disconnected'),
   });
   if (!live) {
     maintSetOverview({
       live: false,
       statusHe: statusText,
-      nextHe: status?.hint_he || 'חברו מלווה. כתובת לבד לא מספיקה.',
+      nextHe: status?.hint_he || 'חברו Companion. כתובת לבד לא מספיקה.',
       state: errorText ? 'error' : 'disconnected',
     });
   }
@@ -3438,7 +3438,7 @@ async function companionConnectRefresh() {
       ok: false,
       mode: 'off',
       connected: false,
-      status_he: 'המלווה מנותק',
+      status_he: 'Companion מנותק',
     });
   }
 }
@@ -3471,7 +3471,7 @@ async function companionConnectSubmit(event) {
     return;
   }
   const statusEl = document.getElementById('companionConnectStatus');
-  if (statusEl) statusEl.textContent = 'מחברים את המלווה';
+  if (statusEl) statusEl.textContent = 'מחברים Companion';
   companionConnectSetBusy(true);
   companionConnectSetError('');
   try {
@@ -3482,7 +3482,7 @@ async function companionConnectSubmit(event) {
     });
     const data = await r.json().catch(() => ({}));
     if (!r.ok || data.ok === false || data.mode !== 'real') {
-      const msg = data.status_he || data.reason_he || 'החיבור למלווה נכשל';
+      const msg = data.status_he || data.reason_he || 'חיבור Companion נכשל';
       companionConnectSetError(msg);
       companionConnectRender({
         ok: false,
@@ -3498,12 +3498,12 @@ async function companionConnectSubmit(event) {
     if (tokenEl) tokenEl.value = '';
     companionConnectRender(data);
   } catch {
-    companionConnectSetError('החיבור למלווה נכשל');
+    companionConnectSetError('חיבור Companion נכשל');
     companionConnectRender({
       ok: false,
       mode: 'off',
       connected: false,
-      status_he: 'החיבור למלווה נכשל',
+      status_he: 'חיבור Companion נכשל',
     });
   } finally {
     companionConnectSetBusy(false);
@@ -3519,7 +3519,7 @@ async function companionDisconnect() {
       ok: r.ok,
       mode: data.mode || 'off',
       connected: false,
-      status_he: data.status_he || 'המלווה מנותק',
+      status_he: data.status_he || 'Companion מנותק',
       base_url: data.base_url,
     });
   } catch {
@@ -3527,7 +3527,7 @@ async function companionDisconnect() {
       ok: false,
       mode: 'off',
       connected: false,
-      status_he: 'המלווה מנותק',
+      status_he: 'Companion מנותק',
     });
   } finally {
     companionConnectSetBusy(false);
@@ -3555,28 +3555,28 @@ function applyCompanionUi(companion) {
   const unavailableEl = document.getElementById('companionApiUnavailable');
   if (unavailableEl) {
     unavailableEl.hidden = !unavailable;
-    unavailableEl.textContent = unavailable ? 'המלווה החי אינו מגיב. בדקו כתובת ואסימון.' : '';
+    unavailableEl.textContent = unavailable ? 'Companion לא מגיב. בדקו כתובת ואסימון.' : '';
   }
   const live = companionIsLive(companion) && !unavailable;
   companionSetLiveChrome(live);
   if (!live) {
-    const statusHe = companion.mode === 'real' && unavailable ? 'המלווה החי אינו מגיב' : 'המלווה מנותק';
+    const statusHe = companion.mode === 'real' && unavailable ? 'Companion לא מגיב' : 'Companion מנותק';
     maintSetOverview({
       live: false,
       statusHe,
-      nextHe: 'חברו מלווה. כתובת לבד לא מספיקה.',
+      nextHe: 'חברו Companion. כתובת לבד לא מספיקה.',
       state: unavailable ? 'error' : 'disconnected',
     });
     teleSetOverview({
       live: false,
       statusHe,
-      nextHe: 'חברו מלווה. כתובת לבד לא מספיקה.',
+      nextHe: 'חברו Companion. כתובת לבד לא מספיקה.',
       state: unavailable ? 'error' : 'disconnected',
     });
   } else {
     teleSetOverview({
       live: true,
-      statusHe: companion.mode === 'mock' ? 'המלווה במצב מדומה' : 'חי',
+      statusHe: companion.mode === 'mock' ? 'Companion במצב מדומה' : 'חי',
       nextHe: '',
       state: 'ok',
     });
@@ -10047,7 +10047,7 @@ function maintSetOverview(opts) {
   const resolvedState = state || (live ? 'ok' : 'disconnected');
   if (banner) banner.dataset.state = resolvedState;
   if (badge) {
-    badge.textContent = statusHe || (live ? 'תקין' : 'המלווה מנותק');
+    badge.textContent = statusHe || (live ? 'תקין' : 'Companion מנותק');
     badge.className = `operator-state-status maint-badge--${resolvedState}`;
   }
   if (next) {
@@ -10155,7 +10155,7 @@ function maintApplyWire(wire, { apiReachable = null, companionMode = null } = {}
   maintSetOverview({
     live: _maintApiReachable === true,
     statusHe: MAINT_STATES_HE[st] || st,
-    nextHe: _maintApiReachable === true ? '' : 'חברו מלווה. כתובת לבד לא מספיקה.',
+    nextHe: _maintApiReachable === true ? '' : 'חברו Companion. כתובת לבד לא מספיקה.',
     state: st,
   });
   maintRenderDiag(wire.diagnostics?.recent);
@@ -10177,8 +10177,8 @@ async function maintLoadData() {
     _maintApiReachable = false;
     maintSetOverview({
       live: false,
-      statusHe: 'המלווה מנותק',
-      nextHe: 'חברו מלווה. כתובת לבד לא מספיקה.',
+      statusHe: 'Companion מנותק',
+      nextHe: 'חברו Companion. כתובת לבד לא מספיקה.',
       state: 'disconnected',
     });
   }
@@ -10260,8 +10260,8 @@ function maintRelHeKnownMessage(text) {
     'Backup failed': 'הגיבוי נכשל',
     'Deploy failed': 'ההתקנה נכשלה',
     'Another maintenance operation is already running': 'פעולת תחזוקה אחרת כבר רצה',
-    'Companion לא זמין': 'המלווה לא זמין',
-    'Companion לא זמין — מציג מצב אחרון': 'המלווה לא זמין. מוצג מצב אחרון',
+    'Companion לא זמין': 'Companion לא זמין',
+    'Companion לא זמין — מציג מצב אחרון': 'Companion לא זמין. מוצג מצב אחרון',
   };
   if (known[s]) return known[s];
   const runningParen = s.match(/^Deployment successful \(running (.+)\)$/);
@@ -10300,7 +10300,7 @@ function maintRelApiError(status, body) {
   if (status === 404) return msg || 'לא נמצא';
   if (status === 409) return msg || 'קונפליקט — פעולה לא זמינה כעת';
   if (status === 501) return msg || 'לא נתמך ב-Jetson';
-  if (status === 503 || status === 504) return msg || 'המלווה לא זמין';
+  if (status === 503 || status === 504) return msg || 'Companion לא זמין';
   return msg || 'שגיאה';
 }
 
@@ -10431,7 +10431,7 @@ async function maintRelLoadAll() {
 
   const noteEl = document.getElementById('maintRelStatusNote');
   if (_maintApiReachable === false) {
-    maintRelSetUnavailable('המלווה לא זמין. מוצג מצב אחרון');
+    maintRelSetUnavailable('Companion לא זמין. מוצג מצב אחרון');
     return;
   }
 
@@ -11311,7 +11311,7 @@ let _assistRunTaskId = null;
 let _assistRunMsgEl = null;
 
 const ASSIST_WORKSPACE_HE = Object.freeze({
-  PULSE: 'סקירה',
+  PULSE: 'תמונת מצב',
   MISSION: 'משימה',
   PLATFORM: 'פלטפורמה',
   EVOLVE: 'פיתוח',
@@ -11326,7 +11326,7 @@ const ASSIST_CAPABILITY_HE = Object.freeze({
   video: 'וידאו',
   voice: 'קול',
   diagnostics: 'אבחון',
-  companion: 'מלווה',
+  companion: 'Companion',
   configuration: 'תצורה',
   debrief: 'תחקור',
   evolve: 'פיתוח',
@@ -11337,7 +11337,7 @@ const ASSIST_TAB_HE = Object.freeze({
   terrain: 'הטסה',
   development: 'פיתוח',
   simLab: 'מעבדה',
-  pulse: 'סקירה',
+  pulse: 'תמונת מצב',
   control: 'פרמטרים',
   telemetry: 'טלמטריה',
   maintenance: 'תחזוקה',

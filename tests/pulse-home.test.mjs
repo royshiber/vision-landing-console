@@ -46,7 +46,7 @@ describe('C10.3 Pulse home', () => {
   const pulse = loadPulseLogic();
 
   it('ships Pulse as the default Hebrew home without deleting existing tabs', () => {
-    expect(html).toMatch(/data-tab="pulse"[^>]*>סקירה</);
+    expect(html).toMatch(/data-tab="pulse"[^>]*>תמונת מצב</);
     expect(tag('pulse')).toMatch(/\bvisible\b/);
     expect(tag('control')).not.toMatch(/\bvisible\b/);
     expect(html).toMatch(/data-tab="telemetry"/);
@@ -177,6 +177,9 @@ describe('C10.3 Pulse home', () => {
     expect(pulseSrc).not.toMatch(/\/apply|\/restart|ARM|DISARM|LAND|JETSON_COMPANION|CURSOR_API_KEY/);
     expect(html).not.toMatch(/id="pulse".*id="companionApplyBtn"|id="companionRestartBtn"/);
     expect(findAssistRoute('סקירה')?.tab).toBe('pulse');
+    expect(findAssistRoute('תמונת מצב')?.tab).toBe('pulse');
     expect(findAssistRoute('pulse')?.tab).toBe('pulse');
+    expect(findAssistRoute('מלווה')?.tab).toBe('maintenance');
+    expect(findAssistRoute('Companion')?.tab).toBe('maintenance');
   });
 });

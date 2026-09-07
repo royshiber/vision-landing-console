@@ -43,13 +43,13 @@ describe('Operator chrome voice and lab shelf', () => {
     expect(html).not.toContain('פתיחת פרמטרים');
     expect(html).toMatch(/data-first-action="assist">מסייע</);
     expect(html).toMatch(/data-first-action="params">פרמטרים</);
-    expect(html).toMatch(/data-first-action="companion">חברו מלווה</);
+    expect(html).toMatch(/data-first-action="companion">חברו Companion</);
     expect(html).toMatch(/id="connectPillLabel"[^>]*>מנותק</);
     expect(html).toMatch(/<dt>גרסה<\/dt>/);
   });
 
   it('keeps ops tabs on the shelf and groups lab tabs under מעבדה', () => {
-    expect(html).toMatch(/class="tab tab-ops active"[^>]*data-tab="pulse"[^>]*>סקירה</);
+    expect(html).toMatch(/class="tab tab-ops active"[^>]*data-tab="pulse"[^>]*>תמונת מצב</);
     expect(html).toMatch(/class="tab tab-ops"[^>]*data-tab="platform"[^>]*>פלטפורמה</);
     expect(html).toMatch(/class="tab tab-ops"[^>]*data-tab="control"[^>]*>פרמטרים</);
     expect(html).toMatch(/class="tab tab-ops"[^>]*data-tab="recordings"[^>]*>תחקור</);
@@ -77,8 +77,8 @@ describe('Operator chrome voice and lab shelf', () => {
 
   it('uses spoken Companion connect and disconnected next-step copy', () => {
     expect(html).toMatch(/id="companionConnectHint"[^>]*>צריך כתובת ואסימון\. כתובת לבד לא מספיקה\.</);
-    expect(html).toMatch(/id="teleNextStep"[^>]*>חברו מלווה\. כתובת לבד לא מספיקה\.</);
-    expect(html).toMatch(/id="maintNextStep"[^>]*>חברו מלווה\. כתובת לבד לא מספיקה\.</);
+    expect(html).toMatch(/id="teleNextStep"[^>]*>חברו Companion\. כתובת לבד לא מספיקה\.</);
+    expect(html).toMatch(/id="maintNextStep"[^>]*>חברו Companion\. כתובת לבד לא מספיקה\.</);
     expect(COMPANION_HE.hint).toBe('צריך כתובת ואסימון. כתובת לבד לא מספיקה.');
     expect(COMPANION_HE.bothGate).toMatch(/כתובת לבד לא מספיקה/);
     expect(js).not.toContain('כתובת לבד לא מחברת');

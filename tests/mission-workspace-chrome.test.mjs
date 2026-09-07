@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { findAssistRoute } from '../lib/assist/assist-routes.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const html = fs.readFileSync(path.join(repoRoot, 'public', 'index.html'), 'utf8');
@@ -104,5 +105,25 @@ describe('AIRVIX Mission chrome — talk is flight-safe', () => {
   it('pins APP_VERSION at 1.02.255', () => {
     expect(version).toContain("export const APP_VERSION = '1.02.255'");
     expect(pkg.version).toBe('1.02.255');
+  });
+});
+
+describe('AIRVIX Mission chrome — operator naming', () => {
+  it('uses תמונת מצב for Pulse home and Companion as the product term', () => {
+    const chrome = capture(html, /<header class="app-chrome"[^>]*>([\s\S]*?)<\/header>/, 'missing app-chrome')[1];
+    expect(chrome).toMatch(/data-tab="pulse"[^>]*>תמונת מצב</);
+    expect(chrome).not.toMatch(/>סקירה</);
+    expect(html).toMatch(/<h3 class="pulse-title">תמונת מצב<\/h3>/);
+    expect(html).toMatch(/id="pulseHomePulseBtn"[^>]*>תמונת מצב</);
+    expect(html).toMatch(/<dt>Companion<\/dt>/);
+    expect(html).toMatch(/data-first-action="companion">חברו Companion</);
+    expect(html).not.toContain('מלווה');
+    expect(html).not.toMatch(/>סקירה</);
+    expect(js).toMatch(/PULSE:\s*'תמונת מצב'/);
+    expect(js).toMatch(/companion:\s*'Companion'/);
+    expect(findAssistRoute('תמונת מצב')?.tab).toBe('pulse');
+    expect(findAssistRoute('סקירה')?.tab).toBe('pulse');
+    expect(findAssistRoute('Companion')?.id).toBe('companion');
+    expect(findAssistRoute('מלווה')?.id).toBe('companion');
   });
 });

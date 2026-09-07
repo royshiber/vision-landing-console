@@ -56,8 +56,8 @@ describe('Operator Hebrew leftover chrome', () => {
     expect(html).toContain('ביטול אוטומטי');
     expect(html).toContain('סגירות לולאה');
     expect(html).toContain('עומס מעבד');
-    expect(html).toContain('ממשק מלווה');
-    expect(html).toContain('גרסת מלווה');
+    expect(html).toContain('ממשק Companion');
+    expect(html).toContain('גרסת Companion');
     expect(html).not.toContain('Vision Confidence');
     expect(html).not.toContain('Auto Abort');
     expect(html).not.toContain('Loop Closures');
@@ -75,7 +75,7 @@ describe('Operator Hebrew leftover chrome', () => {
     expect(maint).toContain('<span>ענף</span>');
     expect(maint).toContain('<span>עץ נקי</span>');
     expect(maint).toContain('<span>מעבד גרפי</span>');
-    expect(maint).toContain('<h4 class="maint-group-title">מלווה</h4>');
+    expect(maint).toContain('<h4 class="maint-group-title">Companion</h4>');
     expect(maint).toContain('<span>מצב מסוף</span>');
     expect(maint).toContain('>מדומה<');
     expect(maint).toContain('<th>חתימה</th>');
