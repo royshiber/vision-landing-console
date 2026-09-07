@@ -49,6 +49,10 @@ describe('Preflight / readiness MERGE — Mission glance + Diagnostics', () => {
     expect(html).toContain('id="pfdReadinessPopover"');
     expect(html).toContain('id="pfdArmedBadge"');
     expect(html).toMatch(/id="pfdVoiceFlightBtn"[^>]*>🎙 פקודות</);
+    const liveIdx = html.indexOf('id="teleLiveSections"');
+    const stripIdx = html.indexOf('id="readinessStrip"');
+    expect(stripIdx).toBeGreaterThan(0);
+    expect(liveIdx).toBeGreaterThan(stripIdx);
   });
 
   it('keeps a quiet Mission glance that opens the same popover and a diagnostics jump', () => {

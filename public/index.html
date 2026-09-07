@@ -713,6 +713,38 @@
           <article class="tele-card"><span>וידאו</span><strong id="companionVideoStatus">—</strong></article>
         </div>
         <p id="teleLiveParked" class="operator-state-parked">נתוני טלמטריה יופיעו אחרי חיבור מלווה.</p>
+        <!-- Readiness checklist stays visible on diagnostics even when live sections are parked -->
+        <div class="tele-preflight-strip" id="readinessStrip">
+          <div class="tele-preflight-title">מוכנות</div>
+          <div id="preflightCard" class="tele-preflight-cards">
+            <div class="tele-pf-card" id="pf-mavlink">
+              <span class="pf-icon" id="pf-mavlink-icon">○</span>
+              <span class="pf-label">FC (MAVLink)</span>
+              <span class="pf-value" id="pf-mavlink-val">—</span>
+            </div>
+            <div class="tele-pf-card" id="pf-armed">
+              <span class="pf-icon" id="pf-armed-icon">○</span>
+              <span class="pf-label">ARMED</span>
+              <span class="pf-value" id="pf-armed-val">—</span>
+            </div>
+            <div class="tele-pf-card" id="pf-params">
+              <span class="pf-icon" id="pf-params-icon">○</span>
+              <span class="pf-label">פרמטרים</span>
+              <span class="pf-value" id="pf-params-val">—</span>
+            </div>
+            <div class="tele-pf-card" id="pf-jetson">
+              <span class="pf-icon" id="pf-jetson-icon">○</span>
+              <span class="pf-label">Jetson</span>
+              <span class="pf-value" id="pf-jetson-val">—</span>
+            </div>
+            <div class="tele-pf-card" id="pf-gps">
+              <span class="pf-icon" id="pf-gps-icon">○</span>
+              <span class="pf-label">GPS</span>
+              <span class="pf-value" id="pf-gps-val">—</span>
+            </div>
+          </div>
+          <button type="button" id="preflightRefreshBtn" class="tele-pf-refresh">↻</button>
+        </div>
         <div id="teleLiveSections" hidden>
         <div class="telemetry-dashboard" aria-label="לוח טלמטריה וסטטוסים — ארבעה תחומים במסך אחד">
           <div class="tele-dash-col" id="teleLink">
@@ -854,39 +886,6 @@
             </div>
           </div>
         </details>
-
-        <!-- Readiness checklist — diagnostics keeps the full strip -->
-        <div class="tele-preflight-strip" id="readinessStrip">
-          <div class="tele-preflight-title">מוכנות</div>
-          <div id="preflightCard" class="tele-preflight-cards">
-            <div class="tele-pf-card" id="pf-mavlink">
-              <span class="pf-icon" id="pf-mavlink-icon">○</span>
-              <span class="pf-label">FC (MAVLink)</span>
-              <span class="pf-value" id="pf-mavlink-val">—</span>
-            </div>
-            <div class="tele-pf-card" id="pf-armed">
-              <span class="pf-icon" id="pf-armed-icon">○</span>
-              <span class="pf-label">ARMED</span>
-              <span class="pf-value" id="pf-armed-val">—</span>
-            </div>
-            <div class="tele-pf-card" id="pf-params">
-              <span class="pf-icon" id="pf-params-icon">○</span>
-              <span class="pf-label">פרמטרים</span>
-              <span class="pf-value" id="pf-params-val">—</span>
-            </div>
-            <div class="tele-pf-card" id="pf-jetson">
-              <span class="pf-icon" id="pf-jetson-icon">○</span>
-              <span class="pf-label">Jetson</span>
-              <span class="pf-value" id="pf-jetson-val">—</span>
-            </div>
-            <div class="tele-pf-card" id="pf-gps">
-              <span class="pf-icon" id="pf-gps-icon">○</span>
-              <span class="pf-label">GPS</span>
-              <span class="pf-value" id="pf-gps-val">—</span>
-            </div>
-          </div>
-          <button type="button" id="preflightRefreshBtn" class="tele-pf-refresh">↻</button>
-        </div>
 
         <!-- hidden: diff notes (kept for JS compat) -->
         <p id="jetsonDiffNotesHe" style="display:none">—</p>

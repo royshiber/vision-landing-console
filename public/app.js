@@ -4386,6 +4386,7 @@ function closePfdReadinessPopover() {
 function openDiagnosticsReadiness() {
   closePfdReadinessPopover();
   applyMainTab('telemetry');
+  applyTeleSubtab('dash');
   const strip = document.getElementById('readinessStrip') || document.getElementById('preflightCard');
   strip?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
 }
