@@ -47,6 +47,8 @@ const PARKED_OR_LIVE_ENGLISH = [
   'חברו Companion',
   'Companion מנותק',
   'מלווה',
+  'תמונת מצב',
+  'סקירה',
   'מצב Console',
   '>GPU<',
   '>MOCK<',

@@ -116,6 +116,7 @@ describe('C10.4b Development evidence strip', () => {
     expect(strip).not.toContain('מה שחשוב');
     expect(strip).not.toContain('בלבד');
     expect(strip).not.toContain('תמונת מצב');
+    expect(strip).not.toContain('סקירה');
     expect(innerText(strip)).not.toMatch(/\bWhat\b/);
     expect(innerText(strip)).not.toMatch(/\bWhy\b/);
     expect(innerText(strip)).not.toMatch(/\bState\b/);

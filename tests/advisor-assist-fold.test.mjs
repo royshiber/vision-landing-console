@@ -168,7 +168,7 @@ describe('Advisor → Assist fold — service', () => {
 
 describe('Advisor → Assist fold — chrome', () => {
   it('keeps advisor on the lab shelf and out of primary ops tabs', () => {
-    expect(html).toMatch(/class="tab tab-ops active"[^>]*data-tab="pulse"[^>]*>תמונת מצב</);
+    expect(html).toMatch(/class="tab tab-ops active"[^>]*data-tab="pulse"[^>]*>בית</);
     expect(html).not.toMatch(/class="tab tab-ops"[^>]*data-tab="advisor"/);
     const menu = html.match(/<div id="tabLabMenu"[^>]*>([\s\S]*?)<\/div>\s*<\/div>/)?.[1] || '';
     expect(menu).toMatch(/class="tab tab-lab"[^>]*data-tab="advisor"[^>]*>יועץ מעבדה</);

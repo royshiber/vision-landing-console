@@ -11311,7 +11311,7 @@ let _assistRunTaskId = null;
 let _assistRunMsgEl = null;
 
 const ASSIST_WORKSPACE_HE = Object.freeze({
-  PULSE: 'תמונת מצב',
+  PULSE: 'בית',
   MISSION: 'משימה',
   PLATFORM: 'פלטפורמה',
   EVOLVE: 'פיתוח',
@@ -11337,7 +11337,7 @@ const ASSIST_TAB_HE = Object.freeze({
   terrain: 'הטסה',
   development: 'פיתוח',
   simLab: 'מעבדה',
-  pulse: 'תמונת מצב',
+  pulse: 'בית',
   control: 'פרמטרים',
   telemetry: 'טלמטריה',
   maintenance: 'תחזוקה',

@@ -87,7 +87,7 @@ describe('Telemetry dash MERGE into Pulse + Platform diagnostics', () => {
   it('quiets telemetry from primary ops chrome without cliff-deleting the panel', () => {
     expect(html).not.toMatch(/class="tab tab-ops"[^>]*data-tab="telemetry"/);
     expect(html).toMatch(/class="tab tab-quiet"[^>]*\bhidden\b[^>]*data-tab="telemetry"[^>]*>אבחונים</);
-    expect(html).toMatch(/class="tab tab-ops active"[^>]*data-tab="pulse"[^>]*>תמונת מצב</);
+    expect(html).toMatch(/class="tab tab-ops active"[^>]*data-tab="pulse"[^>]*>בית</);
     expect(html).toMatch(/class="tab tab-ops"[^>]*data-tab="platform"[^>]*>פלטפורמה</);
     expect(html).toContain('id="pulseCompanion"');
     expect(html).toContain('id="pulseLink"');
