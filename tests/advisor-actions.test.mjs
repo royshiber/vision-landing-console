@@ -56,8 +56,13 @@ describe('resolveParam', () => {
     expect(resolveParam('FS_THR_ENABLE')).toBeNull();
   });
 
-  it('returns null for unknown param', () => {
-    expect(resolveParam('TOTALLY_FAKE_PARAM')).toBeNull();
+  it('resolves unknown non-denied param as open FC', () => {
+    const r = resolveParam('TOTALLY_FAKE_PARAM');
+    expect(r).not.toBeNull();
+    expect(r.target).toBe('fc');
+    expect(r.isOpen).toBe(true);
+    expect(r.spec.risk).toBe('high');
+    expect(r.spec.inflightSafe).toBe(false);
   });
 
   it('returns null for empty / bad input', () => {
@@ -180,14 +185,17 @@ describe('validateOptions — param_change (Jetson)', () => {
     expect(rejected[0].reason).toMatch(/denylisted/);
   });
 
-  it('rejects an unknown param', () => {
-    const { rejected } = validateOptions([{
+  it('accepts an unknown non-denied param as open FC (user still must approve)', () => {
+    const { accepted, rejected } = validateOptions([{
       kind: 'param_change',
       title: 'fake param',
       change: { param: 'FAKE_PARAM_XYZ', from: 1, to: 2 },
     }]);
-    expect(rejected).toHaveLength(1);
-    expect(rejected[0].reason).toMatch(/not in allowlist/);
+    expect(rejected).toHaveLength(0);
+    expect(accepted).toHaveLength(1);
+    expect(accepted[0].target).toBe('fc');
+    expect(accepted[0].risk).toBe('high');
+    expect(accepted[0].inflightSafe).toBe(false);
   });
 
   it('rejects a no-op (from == to)', () => {
@@ -352,10 +360,16 @@ describe('buildLLMActionSchemaBlock', () => {
     }
   });
 
-  it('does NOT mention denylisted params', () => {
+  it('lists denylist params in the DENY section, not as allowable options', () => {
     const block = buildLLMActionSchemaBlock();
+    const denyIdx = block.indexOf('פרמטרים אסורים לחלוטין (DENYLIST');
+    expect(denyIdx).toBeGreaterThan(-1);
+    const denySection = block.slice(denyIdx);
+    const beforeDeny = block.slice(0, denyIdx);
+    expect(PARAM_DENYLIST.size).toBeGreaterThan(0);
     for (const p of PARAM_DENYLIST) {
-      expect(block).not.toContain(p);
+      expect(denySection).toContain(p);
+      expect(beforeDeny).not.toMatch(new RegExp(`^\\s*-\\s*${p}\\s*\\(`, 'm'));
     }
   });
 });
