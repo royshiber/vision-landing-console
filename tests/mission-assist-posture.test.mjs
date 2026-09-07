@@ -214,6 +214,7 @@ describe('C10.6 Mission chrome', () => {
     expect(html).toMatch(/data-assist-chip="note">הערה</);
     expect(html).toMatch(/data-assist-chip="observation">תצפית</);
     expect(html).toMatch(/data-assist-chip="advisor"[^>]*>יועץ</);
+    expect(html).toMatch(/data-assist-chip="flightEngineer"[^>]*>מהנדס</);
     expect(js).toContain("ASSIST_MISSION_HINT_HE = 'הטסה. הערה ותצפית בלבד.'");
     expect(js).toContain("ASSIST_MISSION_PLACEHOLDER_HE = 'הערה, תצפית, או שאלה'");
     expect(js).toContain('function assistSyncMissionPosture(');

@@ -445,6 +445,33 @@ h1 { margin: 0; font-size: 1.25rem; color: #ffffff; }
   overflow: hidden;
   padding: 0;
 }
+.fe-assist-fold {
+  margin: 0;
+  padding: 8px 14px;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+}
+.fe-assist-fold-btn {
+  border-radius: 999px;
+  border: 1px solid rgba(0, 71, 141, 0.22);
+  background: #eef3fb;
+  color: #0f172a;
+  padding: 2px 10px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  font-family: "Heebo", sans-serif;
+  cursor: pointer;
+}
+.fe-assist-fold-btn:hover {
+  border-color: rgba(0, 71, 141, 0.4);
+  background: #dce9f8;
+}
 
 /* Why: tighten vertical chrome so param grids start higher and use more of the viewport. */
 #control.panel.visible .panel-header {

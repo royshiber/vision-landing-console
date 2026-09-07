@@ -163,6 +163,7 @@
           <button type="button" class="assist-quick-chip" data-assist-chip="note">הערה</button>
           <button type="button" class="assist-quick-chip" data-assist-chip="observation">תצפית</button>
           <button type="button" class="assist-quick-chip" data-assist-chip="advisor" hidden>יועץ</button>
+          <button type="button" class="assist-quick-chip" data-assist-chip="flightEngineer" hidden>מהנדס</button>
         </div>
         <form id="assistForm" class="assist-form" autocomplete="off">
           <input id="assistInput" class="assist-input" type="text" maxlength="2000" placeholder="שאלה, יועץ, פתק, או בקשת פיתוח…" />
@@ -258,7 +259,7 @@
           <div id="tabLabMenu" class="tab-lab-menu" hidden>
             <button class="tab tab-lab" data-tab="simLab" title="סימולציה">סימולציה</button>
             <button class="tab tab-lab" data-tab="featureDesigner" title="ArduLab">ArduLab</button>
-            <button class="tab tab-lab" data-tab="flightEngineer" title="מהנדס">מהנדס</button>
+            <button class="tab tab-lab" data-tab="flightEngineer" title="מהנדס מעבדה">מהנדס מעבדה</button>
             <button class="tab tab-lab" data-tab="advisor" title="יועץ מעבדה">יועץ מעבדה</button>
             <button class="tab tab-fly" data-tab="terrain" title="הטסה">הטסה</button>
           </div>
@@ -1970,7 +1971,10 @@
 
       <!-- ══ Flight Engineer Panel ══════════════════════════════════════════ -->
       <section id="flightEngineer" class="panel fe-panel">
-
+        <p id="feAssistFoldNote" class="fe-assist-fold">
+          שאלו במסייע.
+          <button type="button" id="feOpenAssistBtn" class="fe-assist-fold-btn">מסייע</button>
+        </p>
         <div class="fe-header">
           <div class="fe-header-left">
             <div class="fe-title-row">
