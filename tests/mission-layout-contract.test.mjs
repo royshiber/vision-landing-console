@@ -55,16 +55,21 @@ function shotDir() {
 async function writeShot(page, name) {
   const buf = await page.screenshot({ type: 'png', fullPage: false });
   fs.mkdirSync('/tmp/pr81-shots', { recursive: true });
-  fs.writeFileSync(path.join('/tmp/pr81-shots', name), buf);
-  const dest = path.join(shotDir(), name);
-  try { fs.unlinkSync(dest); } catch { /* ignore missing */ }
+  const tmp = path.join('/tmp/pr81-shots', name);
+  fs.writeFileSync(tmp, buf);
   try {
+    const dest = path.join(shotDir(), name);
+    try { fs.unlinkSync(dest); } catch { /* ignore missing */ }
     fs.writeFileSync(dest, buf);
     return dest;
   } catch {
-    const alt = path.join(shotDir(), name.replace(/\.png$/, `-${Date.now()}.png`));
-    fs.writeFileSync(alt, buf);
-    return alt;
+    try {
+      const alt = path.join(shotDir(), name.replace(/\.png$/, `-${Date.now()}.png`));
+      fs.writeFileSync(alt, buf);
+      return alt;
+    } catch {
+      return tmp;
+    }
   }
 }
 
@@ -121,7 +126,7 @@ describe('Mission layout contract — static source', () => {
     expect(css).toMatch(/#missionTalkHost \.assist-empty-stage/);
     expect(cssBlock(css, '#missionTalkHost .assist-empty-stage')).toMatch(/flex:\s*0 0 auto/);
     expect(cssBlock(css, '#missionTalkHost .assist-empty-stage')).not.toMatch(/min-height:\s*140px/);
-    expect(cssBlock(css, '#missionTalkHost .assist-transcript-well')).toMatch(/background:\s*#1a2230/);
+    expect(cssBlock(css, '#missionTalkHost .assist-transcript-well')).toMatch(/background:\s*#1e293b/);
     expect(css).toMatch(/#missionTalkHost \.assist-messages\s*\{[^}]*flex:\s*1 1 0/);
     expect(css).toMatch(/#missionTalkHost \.assist-messages:empty\s*\{[^}]*flex:\s*1 1 0 !important/);
     expect(css).toMatch(/#missionTalkHost \.assist-composer\s*\{[^}]*flex:\s*0 0 auto/);

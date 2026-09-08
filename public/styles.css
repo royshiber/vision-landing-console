@@ -14517,8 +14517,8 @@ body.mission-assist-docked .assist-rail.assist-rail--mission,
   overflow: hidden;
 }
 #missionTalkHost .assist-transcript-well {
-  background: #1a2230;
-  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: #1e293b;
+  border: 1px solid rgba(148, 163, 184, 0.28);
   border-radius: 10px;
 }
 #missionTalkHost .assist-messages {
