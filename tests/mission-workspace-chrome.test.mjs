@@ -58,26 +58,25 @@ describe('AIRVIX Mission chrome — top strip gone', () => {
     expect(js).toContain('document.title = `AIRVIX v${v}`');
     expect(css).toMatch(/body:has\(#terrain\.panel\.visible\) \.layout\s*\{[^}]*padding:\s*0/);
     expect(css).toMatch(/\.mission-ops-chrome\s*\{[^}]*position:\s*relative/);
-    expect(css).toMatch(/\.mission-ops-chrome\s*\{[^}]*min-height:\s*28px/);
-    expect(css).toMatch(/\.mission-workspace\[data-mission-layout="ops-v1"\]\s*\{[^}]*gap:\s*6px/);
-    expect(css).toMatch(/--mission-ah-col:\s*22%/);
-    expect(css).toMatch(/--mission-ah-row:\s*28%/);
-    expect(css).toMatch(/--mission-msg-h:\s*64px/);
-    expect(css).toMatch(/--mission-c3:\s*minmax\(280px, var\(--mission-talk-col\)\)/);
-    expect(css).toMatch(/--mission-r1:\s*minmax\(96px, min\(28%, var\(--mission-ah-row\)\)\)/);
+    expect(css).toMatch(/\.mission-ops-chrome\s*\{[^}]*min-height:\s*22px/);
+    expect(css).toMatch(/\.mission-workspace\[data-mission-layout="ops-v1"\]\s*\{[^}]*gap:\s*4px/);
+    expect(css).toMatch(/--mission-ah-col:\s*20%/);
+    expect(css).toMatch(/--mission-map-min:\s*65%/);
+    expect(css).toMatch(/--mission-msg-h:\s*40px/);
+    expect(css).toMatch(/--mission-c3:\s*minmax\(240px, min\(28%, var\(--mission-talk-col\)\)\)/);
+    expect(css).toMatch(/--mission-r1:\s*minmax\(0, 1fr\)/);
     expect(css).toMatch(/\.mission-region\s*\{[^}]*border-radius:\s*4px/);
   });
 
   it('keeps the artificial horizon smaller than map and Assist by default', () => {
-    expect(js).toContain('return { c1: 0.22, c2: 1.00, c3: 0.26, r1: 0.28, r2: 0.64, r3: 0.08 }');
+    expect(js).toContain('return { c1: 0.20, c2: 1.20, c3: 0.24, r1: 0.78, r2: 0.22, r3: 0.00 }');
     const size = new Function(`${sliceFunction(js, 'defaultMissionSize')}; return defaultMissionSize();`)();
     expect(size.c2).toBeGreaterThan(size.c1);
-    expect(size.c3).toBeGreaterThan(size.c1);
-    expect(size.r1).toBeLessThanOrEqual(0.28);
-    expect(size.r1).toBeLessThan(size.r2);
-    expect(css).toMatch(/minmax\(160px, min\(28%, var\(--mission-ah-col\)\)\)/);
-    expect(css).toMatch(/minmax\(360px, 1fr\)/);
-    expect(css).toMatch(/minmax\(96px, min\(28%, var\(--mission-ah-row\)\)\)/);
+    expect(size.c1).toBeLessThanOrEqual(0.22);
+    expect(size.r3).toBe(0);
+    expect(css).toMatch(/minmax\(132px, min\(22%, var\(--mission-ah-col\)\)\)/);
+    expect(css).toMatch(/minmax\(0, 1fr\)/);
+    expect(css).toMatch(/minmax\(240px, min\(28%, var\(--mission-talk-col\)\)\)/);
     expect(css).toMatch(/\.mission-region-horizon \.pfd-horizon-shell\s*\{[^}]*aspect-ratio:\s*auto/);
     expect(css).toMatch(/\.pfd-horizon-instrument\s*\{[^}]*grid-template-columns:\s*46px minmax\(0, 1fr\) 46px/);
     expect(css).toMatch(/\.pfd-side-tape\s*\{[^}]*position:\s*static/);
@@ -165,9 +164,9 @@ describe('AIRVIX Mission chrome — talk is flight-safe', () => {
     expect(chip).toContain("kind === 'advisor'");
   });
 
-  it('pins APP_VERSION at 1.02.260', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.260'");
-    expect(pkg.version).toBe('1.02.260');
+  it('pins APP_VERSION at 1.02.261', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.261'");
+    expect(pkg.version).toBe('1.02.261');
   });
 
   it('keeps a rectangular glass artificial horizon with video HUD mode', () => {
@@ -478,10 +477,10 @@ describe('AIRVIX Mission chrome — default open + layout policy', () => {
     };
     const src = [
       'const MISSION_AREAS_KEY = "visionLandingMissionAreasV2";',
-      'const MISSION_SIZE_KEY = "visionLandingMissionSizeV3";',
+      'const MISSION_SIZE_KEY = "visionLandingMissionSizeV4";',
       'const MISSION_SWAP_KEY = "visionLandingMissionSwapV1";',
       'const MISSION_REGION_IDS = Object.freeze(["horizon", "map", "data", "messages", "talk"]);',
-      'let _missionSize = { c1: 0.22, c2: 1.00, c3: 0.26, r1: 0.28, r2: 0.64, r3: 0.08 };',
+      'let _missionSize = { c1: 0.20, c2: 1.20, c3: 0.24, r1: 0.78, r2: 0.22, r3: 0.00 };',
       'function requestAnimationFrame(fn) { fn(); }',
       sliceFunction(js, 'defaultMissionSize'),
       sliceFunction(js, 'defaultMissionAreas'),
@@ -495,14 +494,14 @@ describe('AIRVIX Mission chrome — default open + layout policy', () => {
       sliceFunction(js, 'applyMissionSize').replace('requestAnimationFrame(placeMissionSplits);', ''),
       sliceFunction(js, 'swapMissionRegions'),
       sliceFunction(js, 'resetMissionLayout').replace('syncMissionLayoutChrome();', ''),
-      'swapMissionRegions("horizon", "talk");',
-      'const swapped = { horizon: regions.horizon.style.gridArea, talk: regions.talk.style.gridArea };',
+      'swapMissionRegions("map", "talk");',
+      'const swapped = { map: regions.map.style.gridArea, talk: regions.talk.style.gridArea };',
       'resetMissionLayout();',
-      'return { swapped, restored: { horizon: regions.horizon.style.gridArea, talk: regions.talk.style.gridArea } };',
+      'return { swapped, restored: { map: regions.map.style.gridArea, talk: regions.talk.style.gridArea } };',
     ].join('\n');
     const result = new Function('localStorage', 'document', 'regions', src)(localStorage, document, regions);
-    expect(result.swapped).toEqual({ horizon: 'talk', talk: 'horizon' });
-    expect(result.restored).toEqual({ horizon: 'horizon', talk: 'talk' });
+    expect(result.swapped).toEqual({ map: 'talk', talk: 'map' });
+    expect(result.restored).toEqual({ map: 'map', talk: 'talk' });
   });
 
   it('persists drag-resize sizes and reset restores defaults', () => {
@@ -525,10 +524,10 @@ describe('AIRVIX Mission chrome — default open + layout policy', () => {
     };
     const src = [
       'const MISSION_AREAS_KEY = "visionLandingMissionAreasV2";',
-      'const MISSION_SIZE_KEY = "visionLandingMissionSizeV3";',
+      'const MISSION_SIZE_KEY = "visionLandingMissionSizeV4";',
       'const MISSION_SWAP_KEY = "visionLandingMissionSwapV1";',
       'const MISSION_REGION_IDS = Object.freeze(["horizon", "map", "data", "messages", "talk"]);',
-      'let _missionSize = { c1: 0.22, c2: 1.00, c3: 0.26, r1: 0.28, r2: 0.64, r3: 0.08 };',
+      'let _missionSize = { c1: 0.20, c2: 1.20, c3: 0.24, r1: 0.78, r2: 0.22, r3: 0.00 };',
       'function requestAnimationFrame(fn) { fn(); }',
       sliceFunction(js, 'clampMissionFr'),
       sliceFunction(js, 'defaultMissionSize'),
@@ -543,15 +542,15 @@ describe('AIRVIX Mission chrome — default open + layout policy', () => {
       sliceFunction(js, 'applyMissionAreas').replace('requestAnimationFrame(placeMissionSplits);', ''),
       sliceFunction(js, 'applyMissionSize').replace('requestAnimationFrame(placeMissionSplits);', ''),
       sliceFunction(js, 'resetMissionLayout').replace('syncMissionLayoutChrome();', ''),
-      'writeMissionSize({ c1: 0.18, c2: 1.1, c3: 0.30, r1: 0.20, r2: 0.70, r3: 0.08 });',
-      'const saved = JSON.parse(localStorage.getItem("visionLandingMissionSizeV3"));',
+      'writeMissionSize({ c1: 0.18, c2: 1.1, c3: 0.26, r1: 0.70, r2: 0.22, r3: 0.00 });',
+      'const saved = JSON.parse(localStorage.getItem("visionLandingMissionSizeV4"));',
       'resetMissionLayout();',
-      'return { saved, restored: JSON.parse(localStorage.getItem("visionLandingMissionSizeV3")), read: readMissionSize() };',
+      'return { saved, restored: JSON.parse(localStorage.getItem("visionLandingMissionSizeV4")), read: readMissionSize() };',
     ].join('\n');
     const result = new Function('localStorage', 'document', 'regions', src)(localStorage, document, regions);
-    expect(result.saved).toEqual({ c1: 0.18, c2: 1.1, c3: 0.30, r1: 0.20, r2: 0.70, r3: 0.08 });
-    expect(result.restored).toEqual({ c1: 0.22, c2: 1.00, c3: 0.26, r1: 0.28, r2: 0.64, r3: 0.08 });
-    expect(result.read).toEqual({ c1: 0.22, c2: 1.00, c3: 0.26, r1: 0.28, r2: 0.64, r3: 0.08 });
+    expect(result.saved).toEqual({ c1: 0.18, c2: 1.1, c3: 0.26, r1: 0.70, r2: 0.22, r3: 0.00 });
+    expect(result.restored).toEqual({ c1: 0.20, c2: 1.20, c3: 0.24, r1: 0.78, r2: 0.22, r3: 0.00 });
+    expect(result.read).toEqual({ c1: 0.20, c2: 1.20, c3: 0.24, r1: 0.78, r2: 0.22, r3: 0.00 });
   });
 });
 
