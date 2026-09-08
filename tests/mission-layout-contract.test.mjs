@@ -46,31 +46,12 @@ function interiorsIntersect(a, b, slack = 1) {
     && a.bottom > b.top + slack;
 }
 
-function shotDir() {
-  const dir = '/opt/cursor/artifacts/screenshots';
-  fs.mkdirSync(dir, { recursive: true });
-  return dir;
-}
-
 async function writeShot(page, name) {
   const buf = await page.screenshot({ type: 'png', fullPage: false });
   fs.mkdirSync('/tmp/pr81-shots', { recursive: true });
   const tmp = path.join('/tmp/pr81-shots', name);
   fs.writeFileSync(tmp, buf);
-  try {
-    const dest = path.join(shotDir(), name);
-    try { fs.unlinkSync(dest); } catch { /* ignore missing */ }
-    fs.writeFileSync(dest, buf);
-    return dest;
-  } catch {
-    try {
-      const alt = path.join(shotDir(), name.replace(/\.png$/, `-${Date.now()}.png`));
-      fs.writeFileSync(alt, buf);
-      return alt;
-    } catch {
-      return tmp;
-    }
-  }
+  return tmp;
 }
 
 describe('Mission layout contract — static source', () => {
@@ -366,11 +347,6 @@ describe('Mission layout contract — live boxes', () => {
     };
     fs.mkdirSync('/tmp/pr81-shots', { recursive: true });
     fs.writeFileSync('/tmp/pr81-shots/mission-contract-measure.json', JSON.stringify(measure, null, 2));
-    try {
-      fs.writeFileSync(path.join(shotDir(), 'mission-contract-measure.json'), JSON.stringify(measure, null, 2));
-    } catch {
-      /* artifact FUSE may reject overwrite */
-    }
 
     await writeShot(page, 'mission-contract.png');
     await writeShot(page, 'hatasa-1440x900.png');
