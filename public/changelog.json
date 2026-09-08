@@ -4,24 +4,14 @@
     "date": "2026-09-08",
     "changes": [
       {
-        "type": "feat",
-        "title": "UI / app.js",
-        "detail": "app.js"
-      },
-      {
         "type": "ui",
-        "title": "HTML layout",
-        "detail": "index.html"
-      },
-      {
-        "type": "ui",
-        "title": "Styles",
-        "detail": "styles.css"
+        "title": "Brutal Mission GCS density: map owns the workspace",
+        "detail": "Map is at least 65% of workspace height and the majority of width. Collapsed messages are a one-line 40px overlay on the map, not a permanent grid row. Assist fills the right column with connect, transcript, and composer — the empty state is one line. Artificial horizon stays at most 22% wide with a dense data strip. Layout chrome under the tabs shrinks to an icon row. Computer status and Develop stay filled, not blank. APP_VERSION 1.02.261."
       },
       {
         "type": "test",
-        "title": "Tests",
-        "detail": "advisor-assist-fold.test.mjs, airvix-259-roy-feedback.test.mjs, airvix-260-roy-feedback.test.mjs, ardulab-assist-fold.test.mjs, attention-policy.test.mjs, auto-config-assist-fold.test.mjs, debrief-flights-fold.test.mjs, flight-engineer-assist-fold.test.mjs, mission-assist-posture.test.mjs, mission-layout-contract.test.mjs, mission-workspace-chrome.test.mjs, orphan-processes-remove.test.mjs, platform-capability-shells.test.mjs, readiness-merge.test.mjs, sim-lab-connect-handoff.test.mjs, telemetry-platform-fold.test.mjs"
+        "title": "Layout contract v2 asserts computed Mission sizes",
+        "detail": "Collapsed messages max-height is 40px in the rendered box. Map row share is at least 65% of the workspace. AH width is clamped at 22%. Overlay messages may cover the map; other regions must not intersect. Pulse and Develop must render visible content. Version 1.02.261."
       }
     ]
   },
