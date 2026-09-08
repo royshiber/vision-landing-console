@@ -1,5 +1,16 @@
 [
   {
+    "version": "1.02.267",
+    "date": "2026-09-08",
+    "changes": [
+      {
+        "type": "docs",
+        "title": "Documentation",
+        "detail": "f1-capability-intake-draft-saved.png, f1-capability-intake-empty.png, f1-capability-intake-idea.png, f1-capability-intake-jetson.png, f1-capability-intake-precision.png, f1-capability-intake-queue.png"
+      }
+    ]
+  },
+  {
     "version": "1.02.266",
     "date": "2026-09-08",
     "changes": [
