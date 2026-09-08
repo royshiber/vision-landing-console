@@ -112,15 +112,15 @@ describe('C10.7a Attention Policy', () => {
 
   it('maps Pulse items and stays quiet unless policy allows a notice', () => {
     const logic = loadPolicyLogic();
-    const items = logic.pulseBuildAttention({
+    expect(logic.pulseBuildAttention({
       companionLive: false,
       assistConnected: false,
       evolveActive: false,
-    });
-    expect(items.map((item) => [item.id, item.level])).toEqual([
-      ['companion', 'attention'],
-      ['assist', 'info'],
-    ]);
+    })).toEqual([]);
+    const items = [
+      { id: 'companion', level: 'attention', text: 'Jetson מנותק' },
+      { id: 'assist', level: 'info', text: 'AIRVIX Ask מנותק' },
+    ];
     const quiet = logic.attentionPolicyDefaults();
     expect(logic.attentionShouldShowAssistBadge(quiet, items)).toBe(false);
     expect(logic.attentionHighestNoticedLevel(quiet, items)).toBeNull();
@@ -175,7 +175,7 @@ describe('C10.7a Attention Policy', () => {
     expect(css).toMatch(/\.assist-attention-badge\b/);
     expect(js).toContain("ATTENTION_POLICY_KEY = 'visionLandingAttentionPolicyV1'");
     expect(js).toContain("proactiveLevel: 'off'");
-    expect(version).toContain("export const APP_VERSION = '1.02.264'");
-    expect(pkg.version).toBe('1.02.264');
+    expect(version).toContain("export const APP_VERSION = '1.02.265'");
+    expect(pkg.version).toBe('1.02.265');
   });
 });

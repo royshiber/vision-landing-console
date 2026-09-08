@@ -270,6 +270,7 @@
           <header class="pulse-hero">
             <h3 class="pulse-title">סטטוס מחשבים</h3>
             <p class="pulse-purpose">סטטוס מחשבים</p>
+            <p class="pulse-health-note">בריאות מחשב המשימה והכלי. לא שינוי מוצר.</p>
           </header>
           <div class="pulse-status-grid" aria-label="סטטוס מחשבים">
             <article class="pulse-status-card pulse-computer-card" data-pulse-kind="companion" data-computer="jetson">
@@ -1152,7 +1153,8 @@
         <div class="devtasks-panel evolve-shell" data-layout-contract="v1">
           <header class="evolve-hero">
             <h3>פיתוח</h3>
-            <p class="evolve-purpose">בקשה בשפה חופשית. הסוכן עובד על ענף מבודד. התוצאה חוזרת לכאן.</p>
+            <p class="evolve-concept">שנה את המוצר</p>
+            <p class="evolve-purpose">בקשה בשפה חופשית משנה את המוצר. לא את בריאות המחשב. הסוכן עובד על ענף מבודד. התוצאה חוזרת לכאן.</p>
           </header>
 
           <div class="evolve-intent">
@@ -1211,19 +1213,31 @@
           </section>
           </div>
 
-          <section class="evolve-preview" aria-label="תצוגה חיה">
+          <section class="evolve-preview" aria-label="תצוגת המוצר">
             <div class="evolve-section-head">
-              <h4 class="evolve-section-title">תצוגה חיה</h4>
+              <h4 class="evolve-section-title">תצוגת המוצר</h4>
               <div class="evolve-preview-toggle" role="group" aria-label="לפני ואחרי">
                 <button type="button" id="evolvePreviewBeforeBtn" class="evolve-preview-btn" data-mode="before" aria-pressed="true">לפני</button>
                 <button type="button" id="evolvePreviewAfterBtn" class="evolve-preview-btn" data-mode="after" aria-pressed="false">אחרי</button>
               </div>
             </div>
-            <p class="evolve-preview-kicker">המסך החי של הקונסול המשתנה.</p>
+            <p class="evolve-preview-kicker">לפני ואחרי של ממשק ההטסה. זה משנה את המוצר. לא מדדי מחשב.</p>
             <div class="evolve-preview-stage">
-              <iframe id="evolvePreviewFrame" class="evolve-preview-frame" title="תצוגה חיה" hidden sandbox="allow-same-origin allow-scripts"></iframe>
+              <div id="evolveProductPreview" class="evolve-product-preview" data-mode="before">
+                <div id="evolveMissionMockBefore" class="evolve-mission-mock" data-preview-side="before">
+                  <div class="evolve-mock-horizon" aria-hidden="true"><span class="evolve-mock-ah">אופק</span></div>
+                  <div class="evolve-mock-map"><span>מפה</span></div>
+                  <div class="evolve-mock-talk"><span>AIRVIX Ask</span></div>
+                </div>
+                <div id="evolveMissionMockAfter" class="evolve-mission-mock is-after" data-preview-side="after" hidden>
+                  <div class="evolve-mock-horizon" aria-hidden="true"><span class="evolve-mock-ah">אופק</span></div>
+                  <div class="evolve-mock-map"><span>מפה</span><p id="evolveMockCallout" class="evolve-mock-callout">השינוי יופיע כאן אחרי בקשה.</p></div>
+                  <div class="evolve-mock-talk"><span>AIRVIX Ask</span></div>
+                </div>
+              </div>
+              <iframe id="evolvePreviewFrame" class="evolve-preview-frame" title="תצוגת המוצר" hidden sandbox="allow-same-origin allow-scripts"></iframe>
               <p id="evolvePreviewAfterNote" class="evolve-preview-after" hidden></p>
-              <p id="evolvePreviewEmpty" class="evolve-empty">אין תצוגה חיה עדיין.</p>
+              <p id="evolvePreviewEmpty" class="evolve-empty">אין תצוגת מוצר עדיין. כתבו מה לשנות במוצר.</p>
             </div>
           </section>
 
