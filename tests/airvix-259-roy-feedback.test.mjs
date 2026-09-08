@@ -17,10 +17,10 @@ function capture(src, re, label) {
   return m;
 }
 
-describe('AIRVIX 1.02.259 Roy feedback', () => {
-  it('pins APP_VERSION at 1.02.259', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.259'");
-    expect(pkg.version).toBe('1.02.259');
+describe('AIRVIX 1.02.259 Roy feedback (still holds on 1.02.260)', () => {
+  it('pins APP_VERSION at 1.02.260', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.260'");
+    expect(pkg.version).toBe('1.02.260');
   });
 
   it('keeps Mission chrome and titles out of the instrument', () => {
@@ -49,7 +49,7 @@ describe('AIRVIX 1.02.259 Roy feedback', () => {
   });
 
   it('restyles leftover ops tabs into the dark AIRVIX language', () => {
-    expect(css).toMatch(/body:has\(#platform\.panel\.visible\),\s*body:has\(#control\.panel\.visible\)/);
+    expect(css).toMatch(/body:has\(#control\.panel\.visible\),\s*body:has\(#development\.panel\.visible\)/);
     expect(css).toMatch(/#development\.panel\.visible \.devtasks-create/);
     expect(css).toMatch(/#maintenance\.panel\.visible:has\(#maintLiveSections\[hidden\]\)/);
     expect(css).toMatch(/#recordings\.panel\.visible \.events-list/);

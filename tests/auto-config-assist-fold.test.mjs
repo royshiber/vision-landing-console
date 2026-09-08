@@ -178,12 +178,11 @@ describe('Auto-Config → Assist + Configuration fold — service', () => {
 });
 
 describe('Auto-Config → Assist + Configuration fold — chrome', () => {
-  it('keeps #autoConfig under Parameter Center and adds a quiet Platform entry', () => {
+  it('keeps #autoConfig under Parameter Center after Platform tab removal', () => {
     expect(html).toContain('id="autoConfig"');
     expect(html).toContain('id="acPlanBtn"');
     expect(html).toMatch(/class="subtab"[^>]*data-subtab="autoConfig"[^>]*>אשף קונפיגורציה</);
-    expect(html).toMatch(/data-platform-go="params"[^>]*>פרמטרים</);
-    expect(html).toMatch(/data-platform-go="auto-config"[^>]*>אשף קונפיגורציה</);
+    expect(html).not.toContain('data-platform-go');
     expect(html).toMatch(/class="tab tab-ops"[^>]*data-tab="control"[^>]*>פרמטרים</);
     expect(js).toContain("applyControlSubtab('autoConfig')");
     expect(js).toMatch(/action === 'auto-config'/);
@@ -204,8 +203,8 @@ describe('Auto-Config → Assist + Configuration fold — chrome', () => {
     expect(html).not.toMatch(/id="companionApplyBtn"|id="companionRestartBtn"/);
   });
 
-  it('pins APP_VERSION at 1.02.259', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.259'");
-    expect(pkg.version).toBe('1.02.259');
+  it('pins APP_VERSION at 1.02.260', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.260'");
+    expect(pkg.version).toBe('1.02.260');
   });
 });

@@ -90,7 +90,6 @@
       <nav class="tabs" aria-label="ניווט ראשי">
         <button class="tab tab-fly active" data-tab="terrain" title="הטסה">הטסה</button>
         <button class="tab tab-ops" data-tab="pulse" title="סטטוס מחשבים">סטטוס מחשבים</button>
-        <button class="tab tab-ops" data-tab="platform" title="פלטפורמה">פלטפורמה</button>
         <button class="tab tab-ops" data-tab="control" title="פרמטרים">פרמטרים</button>
         <button class="tab tab-ops" data-tab="recordings" title="תחקור">תחקור</button>
         <button class="tab tab-quiet" hidden data-tab="telemetry" title="אבחונים">אבחונים</button>
@@ -307,6 +306,7 @@
                 </div>
               </dl>
               <button type="button" class="first-open-btn" data-first-action="companion" data-pulse-live="hide">חברו Jetson</button>
+              <div id="pulseJetsonExtra" class="pulse-extra-metrics" data-pulse-extra="jetson"></div>
               <div class="pulse-version-block" data-version-kind="jetson">
                 <p class="pulse-version-k">גרסה</p>
                 <p id="pulseJetsonVersion" class="pulse-version-v" dir="ltr">--</p>
@@ -349,6 +349,7 @@
                   <dt>טמפרטורות</dt>
                 </div>
               </dl>
+              <div id="pulseFcExtra" class="pulse-extra-metrics" data-pulse-extra="fc"></div>
               <div class="pulse-version-block" data-version-kind="fc">
                 <p class="pulse-version-k">זהות</p>
                 <p id="pulseFcVersion" class="pulse-version-v" dir="ltr">--</p>
@@ -363,6 +364,22 @@
               <button type="button" id="pulseTalkBtn" class="first-open-btn pulse-talk-btn" data-first-action="assist">שאלו את המסייע</button>
             </article>
           </div>
+          <section class="pulse-add-widget" aria-label="הוספת מד">
+            <p class="pulse-add-widget-title">מה להציג עוד</p>
+            <div class="pulse-add-widget-row">
+              <input id="pulseAddWidgetInput" class="pulse-add-widget-input" type="text" maxlength="120" placeholder="למשל עומס או גובה" autocomplete="off" />
+              <button type="button" id="pulseAddWidgetBtn" class="pulse-add-widget-btn">הוסיפו</button>
+            </div>
+            <p id="pulseAddWidgetHint" class="pulse-add-widget-hint">כתבו בעברית או באנגלית. נציע שדות שהקונסולה כבר מכירה.</p>
+            <div class="pulse-add-widget-targets" role="group" aria-label="איפה לשים">
+              <button type="button" class="pulse-target-chip is-active" data-pulse-place="auto">אוטומטי</button>
+              <button type="button" class="pulse-target-chip" data-pulse-place="jetson">מחשב משימה</button>
+              <button type="button" class="pulse-target-chip" data-pulse-place="fc">הכלי</button>
+              <button type="button" class="pulse-target-chip" data-pulse-place="row">שורה חדשה</button>
+            </div>
+            <div id="pulseAddWidgetChips" class="pulse-add-widget-chips"></div>
+          </section>
+          <div id="pulseExtraRow" class="pulse-extra-row" aria-label="מדדים נוספים"></div>
           <section id="pulseAttention" class="pulse-attention" hidden aria-label="תשומת לב"></section>
           <p class="pulse-version-line">קונסולה <span id="pulseVersion" dir="ltr">--</span> <span id="pulseConsoleVersionState" class="pulse-version-state" data-offer="current">מעודכן</span></p>
           <button type="button" id="pulseEvolveGlance" class="pulse-evolve" hidden>משימה רצה</button>
@@ -371,35 +388,6 @@
             <button type="button" id="pulseHomePulseBtn" class="pulse-home-pref-btn is-active" data-pulse-home="pulse">סטטוס מחשבים</button>
             <button type="button" id="pulseHomeTeleBtn" class="pulse-home-pref-btn" data-pulse-home="telemetry">טלמטריה</button>
           </p>
-        </div>
-      </section>
-      <section id="platform" class="panel" aria-label="פלטפורמה">
-        <div class="platform-home">
-          <header class="platform-hero">
-            <h3 class="platform-title">פלטפורמה</h3>
-          </header>
-          <nav class="platform-shells" aria-label="יכולות פלטפורמה">
-            <article class="platform-shell" data-platform-go="companion">
-              <h4>Jetson</h4>
-              <p id="platformCompanionStatus">מנותק</p>
-              <button type="button" class="first-open-btn" data-platform-go="companion">Jetson</button>
-            </article>
-            <article class="platform-shell" data-platform-go="params">
-              <h4>פרמטרים</h4>
-              <button type="button" class="first-open-btn first-open-btn-quiet" data-platform-go="params">פרמטרים</button>
-              <button type="button" class="first-open-btn first-open-btn-quiet" data-platform-go="auto-config">אשף קונפיגורציה</button>
-            </article>
-            <article class="platform-shell" data-platform-go="maintenance">
-              <h4>תחזוקה</h4>
-              <p id="platformMaintStatus">Jetson מנותק</p>
-              <button type="button" class="first-open-btn first-open-btn-quiet" data-platform-go="maintenance">תחזוקה</button>
-            </article>
-            <article class="platform-shell" data-platform-go="telemetry">
-              <h4>אבחונים</h4>
-              <p id="platformDiagStatus">Jetson מנותק</p>
-              <button type="button" class="first-open-btn first-open-btn-quiet" data-platform-go="telemetry">אבחונים</button>
-            </article>
-          </nav>
         </div>
       </section>
       <section id="control" class="panel">
@@ -1357,28 +1345,34 @@
               </div>
 
               <div class="pfd-horizon-shell" id="pfdHorizonShell">
-                <video id="horizonVideoEl" class="pfd-horizon-video hidden" muted playsinline autoplay loop
-                       aria-hidden="true" title="שידור וידאו מהטיסן"></video>
-                <p id="horizonVideoEmpty" class="pfd-horizon-video-empty hidden">אין וידאו</p>
-                <canvas id="horizonCanvas"></canvas>
-                <button type="button" id="horizonVideoToggle" class="pfd-video-toggle" title="שכבת וידאו חי מהטיסן">📹 וידאו</button>
-                <div id="horizonVideoPanel" class="pfd-video-panel hidden">
-                  <span class="pfd-video-label">זרם וידאו חי מהטיסן (MJPEG / HLS / RTSP)</span>
-                  <div>
-                    <input type="text" id="horizonVideoUrl" class="pfd-video-url-input"
-                      placeholder="http://192.168.1.x:8080/stream" autocomplete="off" />
-                    <button type="button" id="horizonVideoApply" class="pfd-video-apply-btn">▶ הפעל</button>
+                <div class="pfd-horizon-instrument">
+                  <div class="pfd-side-tape pfd-side-tape--left">
+                    <span class="pfd-tape-key">IAS</span>
+                    <strong class="pfd-tape-big" id="pfdAirspeedVal">--</strong>
+                    <span class="pfd-tape-unit">m/s</span>
+                  </div>
+                  <div class="pfd-horizon-stage" id="pfdHorizonStage">
+                    <video id="horizonVideoEl" class="pfd-horizon-video hidden" muted playsinline autoplay loop
+                           aria-hidden="true" title="שידור וידאו מהטיסן"></video>
+                    <p id="horizonVideoEmpty" class="pfd-horizon-video-empty hidden">אין וידאו</p>
+                    <canvas id="horizonCanvas"></canvas>
+                  </div>
+                  <div class="pfd-side-tape pfd-side-tape--right">
+                    <span class="pfd-tape-key">ALT</span>
+                    <strong class="pfd-tape-big" id="pfdAltVal">--</strong>
+                    <span class="pfd-tape-unit">m</span>
                   </div>
                 </div>
-                <div class="pfd-side-tape pfd-side-tape--left">
-                  <span class="pfd-tape-key">IAS</span>
-                  <strong class="pfd-tape-big" id="pfdAirspeedVal">--</strong>
-                  <span class="pfd-tape-unit">m/s</span>
-                </div>
-                <div class="pfd-side-tape pfd-side-tape--right">
-                  <span class="pfd-tape-key">ALT</span>
-                  <strong class="pfd-tape-big" id="pfdAltVal">--</strong>
-                  <span class="pfd-tape-unit">m</span>
+                <div class="pfd-horizon-chrome">
+                  <button type="button" id="horizonVideoToggle" class="pfd-video-toggle" title="שכבת וידאו חי מהטיסן">וידאו</button>
+                  <div id="horizonVideoPanel" class="pfd-video-panel hidden">
+                    <span class="pfd-video-label">זרם וידאו חי מהטיסן (MJPEG / HLS / RTSP)</span>
+                    <div>
+                      <input type="text" id="horizonVideoUrl" class="pfd-video-url-input"
+                        placeholder="http://192.168.1.x:8080/stream" autocomplete="off" />
+                      <button type="button" id="horizonVideoApply" class="pfd-video-apply-btn">▶ הפעל</button>
+                    </div>
+                  </div>
                 </div>
               </div>
 

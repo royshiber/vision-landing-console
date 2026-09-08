@@ -1,0 +1,117 @@
+import { describe, it, expect } from 'vitest';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { findAssistRoute } from '../lib/assist/assist-routes.mjs';
+
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const html = fs.readFileSync(path.join(repoRoot, 'public', 'index.html'), 'utf8');
+const css = fs.readFileSync(path.join(repoRoot, 'public', 'styles.css'), 'utf8');
+const js = fs.readFileSync(path.join(repoRoot, 'public', 'app.js'), 'utf8');
+const version = fs.readFileSync(path.join(repoRoot, 'version.js'), 'utf8');
+const pkg = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8'));
+
+function sliceFunction(src, name) {
+  const start = src.indexOf(`function ${name}(`);
+  expect(start, `missing function ${name}`).toBeGreaterThanOrEqual(0);
+  const brace = src.indexOf('{', start);
+  let depth = 0;
+  for (let i = brace; i < src.length; i++) {
+    if (src[i] === '{') depth += 1;
+    else if (src[i] === '}') {
+      depth -= 1;
+      if (depth === 0) return src.slice(start, i + 1);
+    }
+  }
+  throw new Error(`unclosed function ${name}`);
+}
+
+describe('AIRVIX 1.02.260 Roy feedback', () => {
+  it('pins APP_VERSION at 1.02.260', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.260'");
+    expect(pkg.version).toBe('1.02.260');
+  });
+
+  it('removes Platform from primary chrome and redirects Assist', () => {
+    expect(html).not.toMatch(/data-tab="platform"/);
+    expect(html).not.toContain('id="platform"');
+    expect(html).not.toContain('מעבדה');
+    expect(findAssistRoute('פלטפורמה')?.tab).toBe('pulse');
+    expect(findAssistRoute('platform')?.tab).toBe('pulse');
+    expect(sliceFunction(js, 'operatorOpenFirstAction')).toMatch(/action === 'platform'/);
+    expect(sliceFunction(js, 'operatorOpenFirstAction')).toMatch(/applyMainTab\('pulse'\)/);
+  });
+
+  it('adds a computer-status widget composer with a growing grid', () => {
+    expect(html).toContain('id="pulseAddWidgetInput"');
+    expect(html).toContain('id="pulseAddWidgetBtn"');
+    expect(html).toContain('id="pulseJetsonExtra"');
+    expect(html).toContain('id="pulseFcExtra"');
+    expect(html).toContain('id="pulseExtraRow"');
+    expect(html).toMatch(/data-pulse-place="auto"/);
+    expect(html).toMatch(/data-pulse-place="jetson"/);
+    expect(html).toMatch(/data-pulse-place="fc"/);
+    expect(html).toMatch(/data-pulse-place="row"/);
+    expect(css).toMatch(/\.pulse-extra-metrics,\s*\.pulse-extra-row\s*\{[^}]*grid-template-columns:\s*repeat\(auto-fill/);
+    expect(css).toMatch(/\.pulse-extra-metrics:empty,\s*\.pulse-extra-row:empty/);
+    expect(js).toContain("PULSE_WIDGETS_KEY = 'visionLandingPulseWidgetsV1'");
+    expect(js).toContain('function suggestPulseWidgetFields(');
+    expect(js).toContain('function addPulseWidget(');
+    expect(js).toContain('function resolvePulseWidgetPlace(');
+    const suggest = [
+      sliceFunction(js, 'suggestPulseWidgetFields'),
+      'const PULSE_WIDGET_CATALOG = [{ key: "mavlink.altitude", label: "גובה", unit: "m", place: "fc", tokens: ["alt", "גובה"] }, { key: "jetson.cpuLoadPct", label: "עומס CPU", unit: "%", place: "jetson", tokens: ["cpu", "עומס"] }];',
+      'return suggestPulseWidgetFields("גובה");',
+    ].join('\n');
+    const result = new Function(suggest)();
+    expect(result.exact?.key).toBe('mavlink.altitude');
+    const placeSrc = [
+      sliceFunction(js, 'resolvePulseWidgetPlace'),
+      'return { auto: resolvePulseWidgetPlace({ place: "jetson" }, "auto"), row: resolvePulseWidgetPlace({ place: "jetson" }, "row"), fc: resolvePulseWidgetPlace({ place: "jetson" }, "fc") };',
+    ].join('\n');
+    const places = new Function(placeSrc)();
+    expect(places.auto).toBe('jetson');
+    expect(places.row).toBe('row');
+    expect(places.fc).toBe('fc');
+  });
+
+  it('never invents pulse widget numbers and adds no flight writes', () => {
+    const src = [
+      sliceFunction(js, 'formatPulseWidgetValue'),
+      sliceFunction(js, 'formatComputerMetric'),
+      sliceFunction(js, 'pulseComputerMetricValue'),
+      sliceFunction(js, 'pulseIsPlaceholder'),
+      'function formatMissionDataValue() { return "--"; }',
+      'return formatPulseWidgetValue("jetson.cpuLoadPct", { jetson: { cpuLoadPct: 41, online: false } });',
+    ].join('\n');
+    const document = { getElementById() { return { dataset: { state: 'disconnected' } }; } };
+    const shown = new Function('document', src)(document);
+    expect(shown).toBe('--');
+    const addSrc = [
+      sliceFunction(js, 'addPulseWidget'),
+      sliceFunction(js, 'resolvePulseWidgetPlace'),
+      sliceFunction(js, 'refreshPulseExtraWidgets'),
+      sliceFunction(js, 'operatorOpenFirstAction'),
+    ].join('\n');
+    expect(addSrc).not.toMatch(/FLIGHT_ACTION|\/apply|\/restart|ARM|DISARM|LAND/);
+  });
+
+  it('makes the Mission map the tall primary cell and keeps messages tiny', () => {
+    expect(css).toMatch(/"horizon map talk"\s*"data\s+map talk"\s*"messages map talk"/);
+    expect(css).toMatch(/--mission-r1:\s*1\.70fr/);
+    expect(css).toMatch(/--mission-r3:\s*42px/);
+    expect(html).toMatch(/data-mission-region="messages"[^>]*data-messages-expanded="0"/);
+    expect(css).toMatch(/\.mission-region-messages\[data-messages-expanded="0"\] \.pfc-msg-primary/);
+    expect(js).toContain('return { c1: 0.62, c2: 2.10, c3: 1.18, r1: 1.70, r2: 0.85, r3: 0.22 }');
+  });
+
+  it('keeps a clean rectangular PFD without overlay tapes', () => {
+    expect(html).toContain('id="pfdHorizonStage"');
+    expect(html).toContain('class="pfd-horizon-instrument"');
+    expect(html).toContain('class="pfd-horizon-chrome"');
+    expect(css).toMatch(/\.pfd-side-tape\s*\{[^}]*position:\s*static/);
+    expect(css).toMatch(/\.pfd-video-toggle\s*\{[^}]*position:\s*static/);
+    expect(css).toMatch(/\.mission-data-grid\s*\{[^}]*grid-template-columns:\s*repeat\(2/);
+    expect(html).not.toContain('Vision Landing Console');
+  });
+});

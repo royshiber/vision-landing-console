@@ -1,5 +1,21 @@
 [
   {
+    "version": "1.02.260",
+    "date": "2026-09-08",
+    "changes": [
+      {
+        "type": "ui",
+        "title": "Remove Platform tab, add computer-status widgets, fix Mission proportions",
+        "detail": "Platform tab and hub are gone; Assist and leftover routes open computer status. Computer status adds a free-text widget composer that binds known catalog fields, places cards without overlap, and persists in localStorage. Mission map is the tall primary cell; messages default to a short strip; AH tapes sit beside the canvas. APP_VERSION 1.02.260."
+      },
+      {
+        "type": "test",
+        "title": "Roy feedback pins for 1.02.260",
+        "detail": "Asserts no Platform tab, Pulse widget composer without invented numbers, taller Mission map, short messages, clean rectangular PFD, and version 1.02.260."
+      }
+    ]
+  },
+  {
     "version": "1.02.259",
     "date": "2026-09-08",
     "changes": [

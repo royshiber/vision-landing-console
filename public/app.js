@@ -143,10 +143,11 @@ const CONTROL_SUBTAB_KEY = 'visionLandingControlSubtabV1';
 /** Why: בית is the home tab name. App default open workspace is Mission / הטסה. */
 const PULSE_HOME_KEY = 'visionLandingHomeSurfaceV1';
 const MISSION_SWAP_KEY = 'visionLandingMissionSwapV1';
-const MISSION_SIZE_KEY = 'visionLandingMissionSizeV1';
-const MISSION_AREAS_KEY = 'visionLandingMissionAreasV1';
+const MISSION_SIZE_KEY = 'visionLandingMissionSizeV2';
+const MISSION_AREAS_KEY = 'visionLandingMissionAreasV2';
 const MISSION_MESSAGES_KEY = 'visionLandingMissionMessagesV1';
 const MISSION_DATA_SLOTS_KEY = 'visionLandingMissionDataSlotsV1';
+const PULSE_WIDGETS_KEY = 'visionLandingPulseWidgetsV1';
 const MISSION_REGION_IDS = Object.freeze(['horizon', 'map', 'data', 'messages', 'talk']);
 const MISSION_DATA_CATALOG = Object.freeze([
   { key: 'mavlink.airspeed', label: 'מהירות אוויר', unit: 'm/s', tokens: ['ias', 'airspeed', 'אוויר', 'מהירות'] },
@@ -249,6 +250,10 @@ function applyMainTab(tabId, { save = true } = {}) {
     applyMainTab('terrain', { save });
     return;
   }
+  if (tabId === 'platform') {
+    applyMainTab('pulse', { save });
+    return;
+  }
   if ((tabId === 'control' || tabId === 'development') && !opsChromeAlwaysReachable(tabId)) return;
   if (!_mainTabIds().has(tabId) && !isAssistShelfPanel(tabId)) return;
   tabs.forEach((t) => t.classList.remove('active'));
@@ -272,9 +277,6 @@ function applyMainTab(tabId, { save = true } = {}) {
   }
   if (tabId === 'pulse' && typeof pulseRefresh === 'function') {
     pulseRefresh();
-  }
-  if (tabId === 'platform' && typeof platformRefresh === 'function') {
-    platformRefresh();
   }
   if (tabId === 'telemetry') {
     setTimeout(() => onTelemetryTabActivated(), 60);
@@ -341,6 +343,7 @@ function restoreLastUiTab() {
   }
   if (main === 'processes') main = 'control';
   if (main === 'simLab') main = 'terrain';
+  if (main === 'platform') main = 'pulse';
   if (main && _mainTabIds().has(main)) {
     applyMainTab(main, { save: false });
   } else {
@@ -3003,7 +3006,7 @@ function operatorOpenFirstAction(action) {
     return;
   }
   if (action === 'platform') {
-    applyMainTab('platform');
+    applyMainTab('pulse');
   }
 }
 
@@ -3368,6 +3371,7 @@ function pulseRefresh() {
   }
   pulseSyncHomePrefChrome();
   pulseRefreshVersionOffers();
+  if (typeof refreshPulseExtraWidgets === 'function') refreshPulseExtraWidgets();
   if (typeof platformRefresh === 'function') platformRefresh();
 }
 
@@ -3427,6 +3431,224 @@ function initPlatformShell() {
   platformRefresh();
 }
 
+const PULSE_WIDGET_CATALOG = Object.freeze([
+  { key: 'jetson.cpuLoadPct', label: 'עומס CPU', unit: '%', place: 'jetson', tokens: ['cpu', 'עומס', 'jetson', 'load'] },
+  { key: 'jetson.memPct', label: 'זיכרון Jetson', unit: '%', place: 'jetson', tokens: ['mem', 'זיכרון', 'ram'] },
+  { key: 'jetson.tempC', label: 'טמפ׳ Jetson', unit: '°C', place: 'jetson', tokens: ['temp', 'טמפ', 'חום'] },
+  { key: 'jetson.version', label: 'גרסת Jetson', unit: '', place: 'jetson', tokens: ['version', 'גרסה'] },
+  { key: 'mavlink.fcLoadPct', label: 'עומס FC', unit: '%', place: 'fc', tokens: ['fc', 'עומס', 'load'] },
+  { key: 'mavlink.fcMemPct', label: 'זיכרון FC', unit: '%', place: 'fc', tokens: ['mem', 'זיכרון'] },
+  { key: 'mavlink.fcTempC', label: 'טמפ׳ FC', unit: '°C', place: 'fc', tokens: ['temp', 'טמפ'] },
+  { key: 'mavlink.flightMode', label: 'מוד', unit: '', place: 'fc', tokens: ['mode', 'מוד'] },
+  { key: 'mavlink.altitude', label: 'גובה', unit: 'm', place: 'fc', tokens: ['alt', 'גובה'] },
+  { key: 'mavlink.airspeed', label: 'מהירות', unit: 'm/s', place: 'fc', tokens: ['ias', 'מהירות'] },
+  { key: 'mavlink.batteryV', label: 'מתח', unit: 'V', place: 'fc', tokens: ['volt', 'מתח'] },
+  { key: 'mavlink.heading', label: 'כיוון', unit: '°', place: 'fc', tokens: ['hdg', 'כיוון'] },
+  { key: 'mavlink.gpsSats', label: 'לוויינים', unit: '', place: 'fc', tokens: ['sats', 'gps'] },
+  { key: 'mission.link', label: 'קישור', unit: '', place: 'fc', tokens: ['link', 'קישור'] },
+  { key: 'console.version', label: 'גרסת קונסולה', unit: '', place: 'row', tokens: ['console', 'קונסולה', 'גרסה'] },
+]);
+
+let _pulseWidgetPlace = 'auto';
+
+function suggestPulseWidgetFields(text) {
+  const raw = String(text || '').trim().toLowerCase().replace(/\s+/g, ' ');
+  if (!raw) {
+    return { chips: PULSE_WIDGET_CATALOG.slice(0, 6), hint: 'כתבו מה להציג, או בחרו אפשרות.', exact: null };
+  }
+  const ranked = PULSE_WIDGET_CATALOG.map((entry) => {
+    let score = 0;
+    const label = String(entry.label || '').toLowerCase();
+    if (raw.includes(label) || (label && label.includes(raw) && raw.length >= 3)) score += 80;
+    const keyPart = String(entry.key || '').split('.')[1] || '';
+    if (keyPart && raw.includes(keyPart.toLowerCase())) score += 22;
+    for (const token of entry.tokens || []) {
+      if (token.length >= 2 && raw.includes(String(token).toLowerCase())) score += 14;
+    }
+    return { entry, score };
+  }).filter((x) => x.score > 0).sort((a, b) => b.score - a.score);
+  if (!ranked.length) {
+    return { chips: PULSE_WIDGET_CATALOG.slice(0, 8), hint: 'לא זוהה במדויק. נסחו מחדש או בחרו אפשרות.', exact: null };
+  }
+  const top = ranked[0];
+  const second = ranked[1];
+  if (second && top.score - second.score < 10) {
+    return {
+      chips: ranked.filter((r) => r.score >= top.score - 8).slice(0, 5).map((r) => r.entry),
+      hint: 'לא זוהה במדויק. נסחו מחדש או בחרו אפשרות.',
+      exact: null,
+    };
+  }
+  return {
+    chips: ranked.slice(0, 5).map((r) => r.entry),
+    hint: 'בחרו אפשרות, או נסחו מחדש.',
+    exact: top.entry,
+  };
+}
+
+function resolvePulseWidgetPlace(entry, userPlace) {
+  if (userPlace === 'jetson' || userPlace === 'fc' || userPlace === 'row') return userPlace;
+  return entry?.place || 'row';
+}
+
+function readPulseWidgets() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(PULSE_WIDGETS_KEY) || 'null');
+    if (!Array.isArray(raw)) return [];
+    return raw.map((item) => {
+      const found = PULSE_WIDGET_CATALOG.find((e) => e.key === item?.key);
+      if (!found) return null;
+      const place = resolvePulseWidgetPlace(found, item.place);
+      return { id: String(item.id || found.key + '-' + place), key: found.key, label: found.label, unit: found.unit || '', place };
+    }).filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+function writePulseWidgets(list) {
+  try {
+    localStorage.setItem(PULSE_WIDGETS_KEY, JSON.stringify(list));
+  } catch {
+    /* ignore */
+  }
+}
+
+function pulseWidgetPayload() {
+  return {
+    mavlink: typeof latestHudMavlink !== 'undefined' ? latestHudMavlink : null,
+    vision: typeof lastSseTerrainPayload !== 'undefined' ? lastSseTerrainPayload?.vision : null,
+    jetson: typeof latestJetsonFromServer !== 'undefined' ? latestJetsonFromServer : null,
+    slam: typeof lastSseTerrainPayload !== 'undefined' ? lastSseTerrainPayload?.slam : null,
+    console: { version: String(typeof APP_VERSION_NEW !== 'undefined' ? APP_VERSION_NEW : '').replace(/^v/i, '').trim() },
+  };
+}
+
+function formatPulseWidgetValue(key, payload) {
+  if (key === 'jetson.version') {
+    const raw = payload?.jetson?.installedVersion || payload?.jetson?.agentVersion || '';
+    return pulseIsPlaceholder(raw) ? '--' : String(raw);
+  }
+  if (key === 'console.version') {
+    const raw = payload?.console?.version || '';
+    return pulseIsPlaceholder(raw) ? '--' : String(raw);
+  }
+  if (key === 'jetson.cpuLoadPct' || key === 'jetson.memPct' || key === 'jetson.tempC') {
+    const jetson = payload?.jetson || {};
+    const companionCard = document.getElementById('companionConnect');
+    const companionState = companionCard?.dataset?.state || 'disconnected';
+    const connected = companionState === 'connected' || !!jetson.online;
+    const field = key.split('.')[1];
+    const unit = key === 'jetson.tempC' ? 'C' : '%';
+    return formatComputerMetric(pulseComputerMetricValue(connected, jetson[field]), unit);
+  }
+  if (typeof formatMissionDataValue === 'function') return formatMissionDataValue(key, payload || {});
+  return '--';
+}
+
+function pulseExtraHost(place) {
+  if (place === 'jetson') return document.getElementById('pulseJetsonExtra');
+  if (place === 'fc') return document.getElementById('pulseFcExtra');
+  return document.getElementById('pulseExtraRow');
+}
+
+function renderPulseAddWidgetChips(result) {
+  const box = document.getElementById('pulseAddWidgetChips');
+  const hint = document.getElementById('pulseAddWidgetHint');
+  if (hint) hint.textContent = result.hint;
+  if (!box) return;
+  box.innerHTML = '';
+  for (const chip of result.chips) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'pulse-add-widget-chip';
+    btn.textContent = chip.unit ? `${chip.label} · ${chip.unit}` : chip.label;
+    btn.addEventListener('click', () => addPulseWidget(chip));
+    box.appendChild(btn);
+  }
+}
+
+function refreshPulseExtraWidgets() {
+  const payload = pulseWidgetPayload();
+  const widgets = readPulseWidgets();
+  ['pulseJetsonExtra', 'pulseFcExtra', 'pulseExtraRow'].forEach((id) => {
+    const host = document.getElementById(id);
+    if (host) host.innerHTML = '';
+  });
+  for (const widget of widgets) {
+    const host = pulseExtraHost(widget.place);
+    if (!host) continue;
+    const tile = document.createElement('div');
+    tile.className = 'pulse-extra-tile';
+    tile.dataset.pulseWidgetId = widget.id;
+    const dt = document.createElement('dt');
+    dt.textContent = widget.label;
+    const dd = document.createElement('dd');
+    dd.dir = 'ltr';
+    dd.textContent = formatPulseWidgetValue(widget.key, payload);
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.className = 'pulse-extra-remove';
+    remove.setAttribute('aria-label', 'הסירו');
+    remove.textContent = '×';
+    remove.addEventListener('click', () => removePulseWidget(widget.id));
+    tile.appendChild(dt);
+    tile.appendChild(dd);
+    tile.appendChild(remove);
+    host.appendChild(tile);
+  }
+}
+
+function addPulseWidget(entry) {
+  if (!entry?.key) return;
+  const place = resolvePulseWidgetPlace(entry, _pulseWidgetPlace);
+  const list = readPulseWidgets();
+  if (list.some((w) => w.key === entry.key && w.place === place)) {
+    const hint = document.getElementById('pulseAddWidgetHint');
+    if (hint) hint.textContent = 'המד כבר מוצג שם.';
+    return;
+  }
+  list.push({
+    id: `${entry.key}-${place}-${Date.now()}`,
+    key: entry.key,
+    label: entry.label,
+    unit: entry.unit || '',
+    place,
+  });
+  writePulseWidgets(list);
+  refreshPulseExtraWidgets();
+  const input = document.getElementById('pulseAddWidgetInput');
+  if (input) input.value = '';
+  renderPulseAddWidgetChips(suggestPulseWidgetFields(''));
+}
+
+function removePulseWidget(id) {
+  writePulseWidgets(readPulseWidgets().filter((w) => w.id !== id));
+  refreshPulseExtraWidgets();
+}
+
+function initPulseAddWidget() {
+  renderPulseAddWidgetChips(suggestPulseWidgetFields(''));
+  refreshPulseExtraWidgets();
+  document.querySelectorAll('[data-pulse-place]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      _pulseWidgetPlace = btn.dataset.pulsePlace || 'auto';
+      document.querySelectorAll('[data-pulse-place]').forEach((el) => {
+        el.classList.toggle('is-active', el === btn);
+      });
+    });
+  });
+  document.getElementById('pulseAddWidgetInput')?.addEventListener('input', () => {
+    renderPulseAddWidgetChips(suggestPulseWidgetFields(document.getElementById('pulseAddWidgetInput')?.value || ''));
+  });
+  document.getElementById('pulseAddWidgetBtn')?.addEventListener('click', () => {
+    const text = document.getElementById('pulseAddWidgetInput')?.value || '';
+    const result = suggestPulseWidgetFields(text);
+    renderPulseAddWidgetChips(result);
+    if (result.exact) addPulseWidget(result.exact);
+  });
+}
+
 function initPulseHome() {
   document.getElementById('pulseAttention')?.addEventListener('click', (e) => {
     const btn = e.target.closest('[data-first-action]');
@@ -3440,6 +3662,7 @@ function initPulseHome() {
       pulseWriteHomePref(btn.dataset.pulseHome);
     });
   });
+  initPulseAddWidget();
   pulseRefresh();
 }
 
@@ -3925,7 +4148,8 @@ function formatHudAngleLabel(deg) {
 // ── ResizeObserver: keep canvas pixel size = CSS size × devicePixelRatio ──────
 if (horizonCanvas && pfdHorizonShell) {
   const _resizeCanvas = () => {
-    const { width, height } = pfdHorizonShell.getBoundingClientRect();
+    const stage = document.getElementById('pfdHorizonStage') || pfdHorizonShell;
+    const { width, height } = stage.getBoundingClientRect();
     if (width > 10 && height > 10) {
       const dpr = window.devicePixelRatio || 1;
       horizonCanvas.width  = Math.round(width  * dpr);
@@ -3935,7 +4159,8 @@ if (horizonCanvas && pfdHorizonShell) {
       drawHorizon(horizonCanvas, _lastRoll, _lastPitch, currentHorizonDrawOpts());
     }
   };
-  new ResizeObserver(_resizeCanvas).observe(pfdHorizonShell);
+  const stage = document.getElementById('pfdHorizonStage') || pfdHorizonShell;
+  new ResizeObserver(_resizeCanvas).observe(stage);
 }
 
 let _horizonVideoMode = false;
@@ -12310,7 +12535,7 @@ function clampMissionFr(value, min, max, fallback) {
 }
 
 function defaultMissionSize() {
-  return { c1: 0.62, c2: 2.00, c3: 1.28, r1: 0.78, r2: 1.42 };
+  return { c1: 0.62, c2: 2.10, c3: 1.18, r1: 1.70, r2: 0.85, r3: 0.22 };
 }
 
 function defaultMissionAreas() {
@@ -12359,8 +12584,9 @@ function readMissionSize() {
         c1: clampMissionFr(raw.c1, 0.55, 1.6, fallback.c1),
         c2: clampMissionFr(raw.c2, 0.9, 2.4, fallback.c2),
         c3: clampMissionFr(raw.c3, 0.7, 1.8, fallback.c3),
-        r1: clampMissionFr(raw.r1, 0.55, 2.4, fallback.r1),
-        r2: clampMissionFr(raw.r2, 0.6, 1.8, fallback.r2),
+        r1: clampMissionFr(raw.r1, 1.1, 2.6, fallback.r1),
+        r2: clampMissionFr(raw.r2, 0.5, 1.4, fallback.r2),
+        r3: clampMissionFr(raw.r3, 0.12, 0.8, fallback.r3),
       };
     }
   } catch {
@@ -12421,6 +12647,7 @@ function applyMissionSize(size) {
   ws.style.setProperty('--mission-c3', `${size.c3}fr`);
   ws.style.setProperty('--mission-r1', `${size.r1}fr`);
   ws.style.setProperty('--mission-r2', `${size.r2}fr`);
+  if (size.r3 != null) ws.style.setProperty('--mission-r3', `${Math.max(36, size.r3 * 160)}px`);
   requestAnimationFrame(placeMissionSplits);
 }
 

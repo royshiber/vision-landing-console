@@ -5051,6 +5051,128 @@ body:has(#pulse.panel.visible) .layout {
   background: rgba(76, 141, 255, 0.16);
 }
 
+.pulse-home.pulse-status-home {
+  justify-content: flex-start;
+  overflow: auto;
+}
+.pulse-extra-metrics,
+.pulse-extra-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+.pulse-extra-metrics:empty,
+.pulse-extra-row:empty {
+  display: none;
+}
+.pulse-extra-tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: 8px 10px 8px;
+  border-radius: 8px;
+  background: #0d1320;
+  border: 1px solid rgba(148, 168, 198, 0.16);
+}
+.pulse-extra-tile dt {
+  margin: 0;
+  font-size: 0.66rem;
+  font-weight: 700;
+  color: #8b97ab;
+}
+.pulse-extra-tile dd {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: #f2f6fb;
+}
+.pulse-extra-remove {
+  position: absolute;
+  top: 4px;
+  inset-inline-end: 4px;
+  border: 0;
+  background: transparent;
+  color: #7d8ba0;
+  font-size: 0.78rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.pulse-add-widget {
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: #121826;
+  border: 1px solid rgba(148, 168, 198, 0.14);
+}
+.pulse-add-widget-title {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: #e8edf6;
+}
+.pulse-add-widget-row {
+  display: flex;
+  gap: 8px;
+}
+.pulse-add-widget-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  box-sizing: border-box;
+  border: 1px solid rgba(148, 168, 198, 0.22);
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: #0d1320;
+  color: #f2f6fb;
+  font-family: "Heebo", sans-serif;
+  font-size: 0.82rem;
+}
+.pulse-add-widget-btn {
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: 8px;
+  padding: 8px 12px;
+  background: #1d4ed8;
+  color: #f8fafc;
+  font-family: "Heebo", sans-serif;
+  font-size: 0.78rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+.pulse-add-widget-hint {
+  margin: 0;
+  font-size: 0.68rem;
+  color: #8b97ab;
+}
+.pulse-add-widget-targets,
+.pulse-add-widget-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.pulse-target-chip,
+.pulse-add-widget-chip {
+  border: 1px solid rgba(148, 168, 198, 0.22);
+  background: transparent;
+  color: #d7e6ff;
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  font-family: "Heebo", sans-serif;
+  cursor: pointer;
+}
+.pulse-target-chip.is-active,
+.pulse-add-widget-chip:hover,
+.pulse-target-chip:hover {
+  border-color: #4c8dff;
+  background: rgba(76, 141, 255, 0.16);
+}
+
 @media (max-width: 720px) {
   .pulse-status {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -7184,17 +7306,19 @@ body:has(#pulse.panel.visible) .layout {
 .terrain-flight-shell.mission-workspace,
 .mission-workspace[data-mission-layout="ops-v1"] {
   --mission-c1: 0.62fr;
-  --mission-c2: 2.00fr;
-  --mission-c3: 1.28fr;
-  --mission-r1: 0.78fr;
-  --mission-r2: 1.42fr;
+  --mission-c2: 2.10fr;
+  --mission-c3: 1.18fr;
+  --mission-r1: 1.70fr;
+  --mission-r2: 0.85fr;
+  --mission-r3: 42px;
   position: relative;
   display: grid;
-  grid-template-columns: minmax(220px, var(--mission-c1)) minmax(320px, var(--mission-c2)) minmax(260px, var(--mission-c3));
-  grid-template-rows: minmax(160px, var(--mission-r1)) minmax(200px, var(--mission-r2));
+  grid-template-columns: minmax(220px, var(--mission-c1)) minmax(360px, var(--mission-c2)) minmax(260px, var(--mission-c3));
+  grid-template-rows: minmax(220px, var(--mission-r1)) minmax(140px, var(--mission-r2)) var(--mission-r3);
   grid-template-areas:
     "horizon map talk"
-    "data messages talk";
+    "data    map talk"
+    "messages map talk";
   flex: 1 1 0;
   min-height: 0;
   gap: 4px;
@@ -7202,10 +7326,15 @@ body:has(#pulse.panel.visible) .layout {
   padding: 4px;
 }
 
+.mission-workspace[data-mission-layout="ops-v1"]:has([data-mission-region="messages"][data-messages-expanded="1"]) {
+  --mission-r3: minmax(120px, 0.55fr);
+}
+
 .mission-workspace[data-mission-swap="map-horizon"] {
   grid-template-areas:
     "map horizon talk"
-    "data messages talk";
+    "map data talk"
+    "map messages talk";
 }
 
 .mission-split {
@@ -7325,12 +7454,13 @@ body:has(#pulse.panel.visible) .layout {
 
 .mission-data-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 4px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
   margin: 0;
   padding: 4px 6px 6px;
   flex: 1 1 auto;
   min-height: 0;
+  overflow: auto;
   position: relative;
 }
 
@@ -7341,7 +7471,9 @@ body:has(#pulse.panel.visible) .layout {
   justify-content: space-between;
   gap: 2px;
   min-width: 0;
-  padding: 4px 6px 5px;
+  min-height: 52px;
+  overflow: hidden;
+  padding: 6px 8px 7px;
   border-radius: 4px;
   background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
   border: 1px solid rgba(148, 163, 184, 0.28);
@@ -7491,8 +7623,11 @@ body:has(#pulse.panel.visible) .layout {
 }
 
 .mission-messages-toggle {
-  align-self: flex-start;
-  margin: 22px 6px 4px;
+  position: absolute;
+  top: 2px;
+  inset-inline-start: 6px;
+  z-index: 2;
+  margin: 0;
   border: 0;
   border-radius: 4px;
   padding: 2px 8px;
@@ -7502,6 +7637,16 @@ body:has(#pulse.panel.visible) .layout {
   font-weight: 800;
   font-family: "Heebo", sans-serif;
   cursor: pointer;
+}
+.mission-region-messages .mission-region-title {
+  padding-inline-start: 56px;
+}
+.mission-region-messages[data-messages-expanded="0"] .pfc-msg-primary {
+  margin: 0 8px 4px;
+  font-size: 0.68rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .mission-region-messages[data-messages-expanded="0"] .pfc-msg-head,
@@ -7574,17 +7719,19 @@ body:has(#pulse.panel.visible) .layout {
 @media (max-width: 1100px) {
   .mission-workspace[data-mission-layout="ops-v1"] {
     grid-template-columns: minmax(200px, var(--mission-c1)) minmax(200px, var(--mission-c2));
-    grid-template-rows: minmax(240px, var(--mission-r1)) minmax(88px, var(--mission-r2)) minmax(180px, 0.85fr);
+    grid-template-rows: minmax(240px, var(--mission-r1)) minmax(120px, var(--mission-r2)) var(--mission-r3) minmax(180px, 0.85fr);
     grid-template-areas:
       "horizon map"
-      "data messages"
+      "data map"
+      "messages messages"
       "talk talk";
   }
 
   .mission-workspace[data-mission-swap="map-horizon"] {
     grid-template-areas:
       "map horizon"
-      "data messages"
+      "map data"
+      "messages messages"
       "talk talk";
   }
 }
@@ -7717,11 +7864,42 @@ body:has(#pulse.panel.visible) .layout {
   padding: 2px 6px;
 }
 .mission-region-horizon .pfd-horizon-shell {
-  aspect-ratio: 1 / 1;
-  max-height: min(148px, 100%);
-  width: min(100%, 160px);
+  aspect-ratio: auto;
+  max-height: none;
+  width: 100%;
   margin-inline: auto;
   flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.pfd-horizon-instrument {
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr) 46px;
+  gap: 4px;
+  flex: 1 1 auto;
+  min-height: 0;
+  align-items: stretch;
+  padding: 4px 4px 0;
+}
+.pfd-horizon-stage {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: 4px;
+  background: #12161e;
+}
+.pfd-horizon-chrome {
+  position: relative;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  padding: 4px 6px;
+  min-height: 28px;
 }
 .mission-region-horizon .hud-data-grid {
   display: none;
@@ -7736,26 +7914,27 @@ body:has(#pulse.panel.visible) .layout {
   background: #12161e;
 }
 
-/* Side tape overlays (airspeed left, altitude right) */
+/* Side tapes sit beside the canvas — never over video or labels */
 .pfd-side-tape {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
+  position: static;
+  top: auto;
+  transform: none;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 1px;
   background: #0b0e14;
   border: 1px solid #f8fafc;
   border-radius: 2px;
-  padding: 5px 6px 4px;
-  min-width: 42px;
+  padding: 5px 4px 4px;
+  min-width: 0;
   pointer-events: none;
-  z-index: 2;
-  opacity: 0;
+  z-index: auto;
+  opacity: 1;
 }
-.pfd-side-tape--left  { left: 6px; }
-.pfd-side-tape--right { right: 6px; }
+.pfd-side-tape--left  { left: auto; }
+.pfd-side-tape--right { right: auto; }
 .pfd-tape-key {
   font-size: 0.5rem;
   font-weight: 700;
@@ -7821,7 +8000,7 @@ body:has(#pulse.panel.visible) .layout {
 }
 .pfd-horizon-video-empty {
   position: absolute;
-  inset: auto 72px 6px 8px;
+  inset: 8px;
   z-index: 3;
   display: flex;
   align-items: center;
@@ -7839,10 +8018,10 @@ body:has(#pulse.panel.visible) .layout {
 .pfd-horizon-video-empty.hidden { display: none; }
 
 .pfd-video-toggle {
-  position: absolute;
-  bottom: 6px;
-  right: 6px;
-  z-index: 3;
+  position: static;
+  bottom: auto;
+  right: auto;
+  z-index: auto;
   background: rgba(0,0,0,0.62);
   border: 1px solid rgba(255,255,255,0.25);
   border-radius: 6px;
@@ -7861,7 +8040,7 @@ body:has(#pulse.panel.visible) .layout {
 
 .pfd-video-panel {
   position: absolute;
-  bottom: 34px;
+  bottom: calc(100% + 4px);
   right: 6px;
   left: 6px;
   z-index: 4;
@@ -14339,7 +14518,6 @@ body.mission-assist-docked.assist-open .layout {
 }
 
 /* AIRVIX 2026 — leftover ops tabs share Mission / Pulse language */
-body:has(#platform.panel.visible),
 body:has(#control.panel.visible),
 body:has(#development.panel.visible),
 body:has(#maintenance.panel.visible),
@@ -14348,7 +14526,6 @@ body:has(#telemetry.panel.visible) {
   background-color: #0b0e14;
   background-image: radial-gradient(rgba(255, 255, 255, 0.04) 0.5px, transparent 0.5px);
 }
-#platform.panel.visible,
 #control.panel.visible,
 #development.panel.visible,
 #maintenance.panel.visible,
@@ -14357,30 +14534,12 @@ body:has(#telemetry.panel.visible) {
   background: #0b0e14 !important;
   color: #e8edf6;
 }
-#platform.panel.visible {
-  background:
-    radial-gradient(ellipse 70% 40% at 50% 0%, rgba(56, 92, 160, 0.16), transparent 62%),
-    #0b0e14 !important;
-}
-#platform.panel.visible .platform-title,
 #development.panel.visible .devtasks-panel > h3,
 #control.panel.visible .panel-header h2,
 #maintenance.panel.visible h3,
 #recordings.panel.visible h2,
 #recordings.panel.visible h3 {
   color: #e8edf6;
-}
-#platform.panel.visible .platform-shell {
-  background: #121826;
-  border-color: rgba(148, 168, 198, 0.16);
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
-  color: #e8edf6;
-}
-#platform.panel.visible .platform-shell h4 { color: #f2f6fb; }
-#platform.panel.visible .platform-shell p { color: #8b97ab; }
-#platform.panel.visible .platform-shell[data-state="connected"] {
-  border-color: rgba(61, 214, 140, 0.4);
-  background: #102018;
 }
 #development.panel.visible .devtasks-create,
 #development.panel.visible .devtasks-list,
