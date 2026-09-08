@@ -6,12 +6,12 @@
       {
         "type": "ui",
         "title": "Mission Assist composer grows on focus; aircraft messages and mic are obvious",
-        "detail": "Mission Assist input is a textarea that expands to about 3–5 lines while focused or while it has text, then collapses when blurred if empty. The microphone is labeled in Hebrew as שיחה עם המסייע / שיחה עם הממשק, with a tooltip that this is interface Assist and not flight commands. The map overlay strip is titled הודעות מטוס, with stronger collapsed contrast and an obvious הצג/הסתר control. Assist empty transcript is a muted filled panel. User-visible מלווה strings stay out of the public UI. APP_VERSION 1.02.262."
+        "detail": "Mission Assist input is a textarea that expands to about 3–5 lines while focused or while it has text, then collapses when blurred if empty. The microphone is labeled in Hebrew as שיחה עם המסייע / שיחה עם הממשק, with a tooltip that this is interface Assist and not flight commands. The map overlay strip is titled הודעות מטוס, with stronger collapsed contrast and an obvious הצג/הסתר control. Assist empty transcript is a muted filled panel. Public UI copy uses Jetson or מחשב משימה only. APP_VERSION 1.02.262."
       },
       {
         "type": "test",
         "title": "Roy Mission chrome pins for 1.02.262",
-        "detail": "Asserts composer grow-on-focus CSS and JS, Assist-not-radio mic labels, הודעות מטוס discoverability without enlarging the 40px collapsed strip, no public UI מלווה, muted Assist empty well, unchanged Develop concept, and version 1.02.262."
+        "detail": "Asserts composer grow-on-focus CSS and JS, Assist-not-radio mic labels, הודעות מטוס discoverability without enlarging the 40px collapsed strip, no leftover companion Hebrew name in public UI, muted Assist empty well, unchanged Develop concept, and version 1.02.262."
       }
     ]
   },
