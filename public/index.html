@@ -1153,10 +1153,11 @@
             <p class="evolve-purpose">בקשה בשפה חופשית. הסוכן עובד על ענף מבודד. התוצאה חוזרת לכאן.</p>
           </header>
 
+          <div class="evolve-intent">
           <section class="evolve-command" aria-label="בקשה">
-            <h4 class="evolve-section-title">בקשה</h4>
-            <label class="evolve-ask-block" for="devTaskDescription"><span>מה לשנות</span>
-              <textarea id="devTaskDescription" class="kpi-input evolve-ask-input" rows="3" maxlength="5000" placeholder="למשל תקנו את רצועת הנתונים בהטסה"></textarea>
+            <h4 class="evolve-section-title">מה ברצונך לשנות?</h4>
+            <label class="evolve-ask-block" for="devTaskDescription"><span class="mission-sr-only">בקשה</span>
+              <textarea id="devTaskDescription" class="kpi-input evolve-ask-input" rows="4" maxlength="5000" placeholder="תארו מה לשנות…"></textarea>
             </label>
             <label class="evolve-ask-title" for="devTaskTitle"><span>כותרת קצרה</span>
               <input id="devTaskTitle" class="kpi-input" maxlength="140" placeholder="כותרת למשימה" />
@@ -1185,14 +1186,60 @@
               </div>
               <label class="tele-card devtasks-block"><span>הערות</span><textarea id="devTaskNotes" class="kpi-input" rows="2" maxlength="5000"></textarea></label>
             </details>
-            <button type="button" id="devTaskCreateBtn" class="policy-btn evolve-ask-go">הפעילו שינוי</button>
+            <div class="evolve-ask-actions">
+              <button type="button" id="devTaskCreateBtn" class="policy-btn evolve-ask-go">הפעילו שינוי</button>
+              <button type="button" id="evolveAdjustPlanBtn" class="policy-btn evolve-ask-adjust">התאם תוכנית</button>
+            </div>
             <p id="devTaskCreateResult" class="maint-rel-result" hidden></p>
+          </section>
+
+          <section class="evolve-plan" aria-label="תוכנית מוצעת">
+            <div class="evolve-section-head">
+              <h4 class="evolve-section-title">תוכנית מוצעת</h4>
+              <span id="evolvePlanCount" class="evolve-count" dir="ltr"></span>
+            </div>
+            <ol id="evolvePlanList" class="evolve-plan-list"></ol>
+            <p id="evolvePlanEmpty" class="evolve-empty">אין תוכנית עדיין.</p>
           </section>
 
           <section class="evolve-live" aria-label="ריצות חיות">
             <h4 class="evolve-section-title">ריצות חיות</h4>
             <div id="evolveLiveRuns" class="evolve-run-grid"></div>
             <p id="evolveLiveEmpty" class="evolve-empty">אין ריצה פעילה.</p>
+          </section>
+          </div>
+
+          <section class="evolve-preview" aria-label="תצוגה חיה">
+            <div class="evolve-section-head">
+              <h4 class="evolve-section-title">תצוגה חיה</h4>
+              <div class="evolve-preview-toggle" role="group" aria-label="לפני ואחרי">
+                <button type="button" id="evolvePreviewBeforeBtn" class="evolve-preview-btn" data-mode="before" aria-pressed="true">לפני</button>
+                <button type="button" id="evolvePreviewAfterBtn" class="evolve-preview-btn" data-mode="after" aria-pressed="false">אחרי</button>
+              </div>
+            </div>
+            <p class="evolve-preview-kicker">המסך החי של הקונסול המשתנה.</p>
+            <div class="evolve-preview-stage">
+              <iframe id="evolvePreviewFrame" class="evolve-preview-frame" title="תצוגה חיה" hidden sandbox="allow-same-origin allow-scripts"></iframe>
+              <p id="evolvePreviewAfterNote" class="evolve-preview-after" hidden></p>
+              <p id="evolvePreviewEmpty" class="evolve-empty">אין תצוגה חיה עדיין.</p>
+            </div>
+          </section>
+
+          <section class="evolve-delivery" aria-label="בדיקות ובקשת מיזוג">
+            <section class="evolve-tests" aria-label="בדיקות">
+              <h4 class="evolve-section-title">בדיקות</h4>
+              <div id="evolveTestChips" class="evolve-pr-chips"></div>
+              <p id="evolveTestEmpty" class="evolve-empty">אין בדיקות עדיין.</p>
+            </section>
+            <section class="evolve-pr" aria-label="בקשת מיזוג">
+              <div class="evolve-section-head">
+                <h4 class="evolve-section-title">בקשת מיזוג</h4>
+                <a id="evolvePrLink" class="evolve-pr-link" hidden target="_blank" rel="noopener noreferrer">פתיחה</a>
+              </div>
+              <p id="evolvePrTitle" class="evolve-pr-title"></p>
+              <div id="evolvePrChips" class="evolve-pr-chips"></div>
+              <p id="evolvePrEmpty" class="evolve-empty">אין בקשת מיזוג עדיין.</p>
+            </section>
           </section>
 
           <section class="devtasks-list evolve-backlog" aria-label="תור יכולות">

@@ -6,7 +6,7 @@
       {
         "type": "ui",
         "title": "Remove Platform tab, add computer-status widgets, enforce Mission layout contract",
-        "detail": "Platform and Maintenance tabs are gone from primary chrome; Assist leftover routes open computer status, which remains the Jetson version home. Computer status adds a free-text widget composer on a flowing auto-fill grid. Mission uses the layout contract. Develop is an Evolve first slice: command surface, live run cards, ranked capability queue. APP_VERSION 1.02.260."
+        "detail": "Platform and Maintenance tabs are gone from primary chrome; Assist leftover routes open computer status, which remains the Jetson version home. Computer status adds a free-text widget composer on a flowing auto-fill grid. Mission uses the layout contract. Develop follows concept 3: Hebrew intent plus plan, live product preview, and honest test/PR chips. APP_VERSION 1.02.260."
       },
       {
         "type": "test",

@@ -295,17 +295,28 @@ describe('Mission layout contract — live boxes', () => {
       };
       const command = box(document.querySelector('.evolve-command'));
       const live = box(document.querySelector('.evolve-live'));
+      const intent = box(document.querySelector('.evolve-intent'));
+      const preview = box(document.querySelector('.evolve-preview'));
+      const delivery = box(document.querySelector('.evolve-delivery'));
       const backlog = box(document.querySelector('.evolve-backlog'));
       const cards = [...document.querySelectorAll('.evolve-run-card')].map(box);
       const cs = getComputedStyle(document.querySelector('.evolve-shell'));
+      const ask = document.getElementById('devTaskDescription');
       return {
         command,
         live,
+        intent,
+        preview,
+        delivery,
         backlog,
         cards,
         display: cs.display,
         gap: cs.gap,
         overflowY: cs.overflowY,
+        placeholder: ask ? ask.getAttribute('placeholder') : '',
+        planEmpty: document.getElementById('evolvePlanEmpty')?.textContent || '',
+        testEmpty: document.getElementById('evolveTestEmpty')?.textContent || '',
+        prEmpty: document.getElementById('evolvePrEmpty')?.textContent || '',
         maintenanceTab: !!document.querySelector('[data-tab="maintenance"]'),
       };
     });
@@ -313,7 +324,13 @@ describe('Mission layout contract — live boxes', () => {
     expect(evolve.display).toBe('grid');
     expect(Number.parseFloat(evolve.gap)).toBeLessThanOrEqual(8);
     expect(evolve.overflowY).toMatch(/auto|scroll/);
+    expect(evolve.placeholder).toBe('תארו מה לשנות…');
+    expect(evolve.planEmpty).toContain('אין תוכנית עדיין');
+    expect(evolve.testEmpty).toContain('אין בדיקות עדיין');
+    expect(evolve.prEmpty).toContain('אין בקשת מיזוג עדיין');
     expect(interiorsIntersect(evolve.command, evolve.live)).toBe(false);
+    expect(interiorsIntersect(evolve.intent, evolve.preview)).toBe(false);
+    expect(interiorsIntersect(evolve.preview, evolve.delivery)).toBe(false);
     expect(interiorsIntersect(evolve.command, evolve.backlog)).toBe(false);
     expect(interiorsIntersect(evolve.live, evolve.backlog)).toBe(false);
     for (let i = 0; i < evolve.cards.length; i += 1) {
@@ -323,6 +340,6 @@ describe('Mission layout contract — live boxes', () => {
     }
     const shotDir = '/opt/cursor/artifacts/screenshots';
     fs.mkdirSync(shotDir, { recursive: true });
-    await page.screenshot({ path: path.join(shotDir, 'evolve-first-slice.png'), fullPage: false });
+    await page.screenshot({ path: path.join(shotDir, 'evolve-concept3.png'), fullPage: false });
   }, 30000);
 });

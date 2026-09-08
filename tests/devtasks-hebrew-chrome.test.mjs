@@ -63,9 +63,14 @@ describe('Development Tasks Hebrew chrome', () => {
     expect(panel).toContain('class="evolve-command"');
     expect(panel).toContain('id="evolveLiveRuns"');
     expect(panel).toContain('class="devtasks-list evolve-backlog"');
-    expect(panel).toContain('<h4 class="evolve-section-title">בקשה</h4>');
+    expect(panel).toContain('<h4 class="evolve-section-title">מה ברצונך לשנות?</h4>');
+    expect(panel).toContain('<h4 class="evolve-section-title">תוכנית מוצעת</h4>');
+    expect(panel).toContain('<h4 class="evolve-section-title">תצוגה חיה</h4>');
+    expect(panel).toContain('<h4 class="evolve-section-title">בדיקות</h4>');
+    expect(panel).toContain('<h4 class="evolve-section-title">בקשת מיזוג</h4>');
     expect(panel).toContain('<h4 class="evolve-section-title">ריצות חיות</h4>');
     expect(panel).toContain('<h4 class="evolve-section-title">תור יכולות</h4>');
+    expect(panel).toContain('placeholder="תארו מה לשנות…"');
     expect(panel).toContain('<h4 class="maint-group-title">פרטי משימה</h4>');
     expect(panel).toContain('<th>מזהה</th>');
     expect(panel).toContain('<th>כותרת</th>');

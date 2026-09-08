@@ -241,6 +241,25 @@ function isAssistShelfPanel(tabId) {
   return ASSIST_SHELF_PANELS.has(tabId);
 }
 
+function evolvePreviewQuery() {
+  try {
+    return new URLSearchParams(location.search);
+  } catch {
+    return new URLSearchParams();
+  }
+}
+
+function isEvolvePreviewFrame() {
+  return evolvePreviewQuery().get('evolvePreview') === '1';
+}
+
+function evolvePreviewAllowedTab(tabId) {
+  const raw = String(tabId || '').trim();
+  if (raw === 'platform' || raw === 'maintenance' || raw === 'development') return 'pulse';
+  if (['pulse', 'terrain', 'control', 'recordings', 'telemetry'].includes(raw)) return raw;
+  return 'pulse';
+}
+
 function applyMainTab(tabId, { save = true } = {}) {
   if (tabId === 'flights') {
     openDebriefLogs({ save });
@@ -257,6 +276,10 @@ function applyMainTab(tabId, { save = true } = {}) {
   if (tabId === 'maintenance') {
     applyMainTab('pulse', { save });
     return;
+  }
+  if (isEvolvePreviewFrame()) {
+    save = false;
+    tabId = evolvePreviewAllowedTab(tabId);
   }
   if ((tabId === 'control' || tabId === 'development') && !opsChromeAlwaysReachable(tabId)) return;
   if (!_mainTabIds().has(tabId) && !isAssistShelfPanel(tabId)) return;
@@ -418,7 +441,12 @@ subtabs.forEach((tab) => {
   });
 });
 initDebriefTelemetrySubtab();
-restoreLastUiTab();
+if (isEvolvePreviewFrame()) {
+  document.documentElement.dataset.evolvePreview = '1';
+  applyMainTab(evolvePreviewAllowedTab(evolvePreviewQuery().get('tab')), { save: false });
+} else {
+  restoreLastUiTab();
+}
 {
   const activeMainTab = document.querySelector('.tab.active');
   setParamCenterChromeVisible(activeMainTab?.dataset?.tab === 'control');
@@ -11159,6 +11187,8 @@ const DEV_TAXONOMIES = ['IDEA', 'REQUEST', 'IMPROVEMENT', 'BUG', 'EXPERIMENT', '
 const DEV_TARGETS = ['VISION', 'NAVIGATION', 'LANDING', 'VIDEO', 'MAVLINK', 'COMPANION', 'UI', 'API', 'MAINTENANCE', 'OTHER'];
 let _devTasks = [];
 let _devSelectedTaskId = null;
+let _devAgentPrUrl = null;
+let _evolvePreviewMode = 'before';
 let _devMetaReady = false;
 let _devAgentPoll = null;
 let _devAgentMeta = { provider: null, available: false, runtime: null, reason: null };
@@ -11378,6 +11408,190 @@ function devPriorityRank(priority) {
   return 4;
 }
 
+function devSafePrUrl(url) {
+  const s = String(url || '').trim();
+  if (/^https:\/\//i.test(s) || /^http:\/\/127\.0\.0\.1(?::\d+)?(?:\/|$)/i.test(s)) return s;
+  return null;
+}
+
+function devAgentStateKind(state) {
+  const s = String(state || '').toUpperCase();
+  if (['SUCCEEDED', 'PASSED', 'READY', 'RELEASED', 'DEPLOYED'].includes(s)) return 'done';
+  if (['FAILED', 'CANCELLED'].includes(s)) return 'err';
+  if (['RUNNING', 'ACTIVE', 'QUEUED', 'WAITING', 'IN_PROGRESS', 'TESTING'].includes(s)) return 'run';
+  return 'wait';
+}
+
+function devEvolvePlanSteps(task) {
+  if (!task) return [];
+  const lines = String(task.description || '').split(/\n+/).map((s) => s.trim()).filter(Boolean);
+  const agentState = String(task.agent?.state || 'NOT_STARTED').toUpperCase();
+  const kind = devAgentStateKind(agentState === 'NOT_STARTED' ? '' : agentState);
+  const extras = lines.slice(1);
+  if (extras.length) {
+    return extras.map((text, i) => {
+      let stepKind = 'wait';
+      if (kind === 'done' || kind === 'err') stepKind = kind;
+      else if (kind === 'run' && i === 0) stepKind = 'run';
+      return { text, kind: stepKind };
+    });
+  }
+  const message = String(task.agent?.last_message || '').trim();
+  if (message) return [{ text: message, kind: agentState === 'NOT_STARTED' ? 'wait' : kind }];
+  if (lines[0]) return [{ text: lines[0], kind: agentState === 'NOT_STARTED' ? 'wait' : kind }];
+  return [];
+}
+
+function devAddEvolveChip(host, label, value, kind) {
+  if (!host || value == null || value === '' || value === '—') return;
+  const chip = document.createElement('span');
+  chip.className = 'evolve-pr-chip';
+  if (kind) chip.dataset.kind = kind;
+  const name = document.createElement('span');
+  name.textContent = label;
+  const strong = document.createElement('strong');
+  strong.dir = 'ltr';
+  strong.textContent = String(value);
+  chip.appendChild(name);
+  chip.appendChild(strong);
+  host.appendChild(chip);
+}
+
+function devEvolvePreviewTab(task) {
+  const area = String(task?.target_area || document.getElementById('devTaskTarget')?.value || 'OTHER').toUpperCase();
+  if (['VISION', 'NAVIGATION', 'LANDING', 'VIDEO'].includes(area)) return 'terrain';
+  if (area === 'API') return 'control';
+  return 'pulse';
+}
+
+function devRenderEvolvePlan(task) {
+  const list = document.getElementById('evolvePlanList');
+  const empty = document.getElementById('evolvePlanEmpty');
+  const count = document.getElementById('evolvePlanCount');
+  const steps = devEvolvePlanSteps(task);
+  if (count) {
+    const done = steps.filter((s) => s.kind === 'done').length;
+    count.textContent = steps.length ? `${done}/${steps.length}` : '';
+  }
+  if (!list) return;
+  list.innerHTML = '';
+  if (empty) empty.hidden = steps.length > 0;
+  for (const step of steps) {
+    const li = document.createElement('li');
+    li.className = 'evolve-plan-item';
+    li.dataset.state = step.kind;
+    const mark = document.createElement('span');
+    mark.className = 'evolve-plan-mark';
+    mark.setAttribute('aria-hidden', 'true');
+    const text = document.createElement('span');
+    text.className = 'evolve-plan-text';
+    text.textContent = step.text;
+    li.appendChild(mark);
+    li.appendChild(text);
+    list.appendChild(li);
+  }
+}
+
+function devRenderEvolvePreview(task) {
+  if (isEvolvePreviewFrame()) return;
+  const frame = document.getElementById('evolvePreviewFrame');
+  const empty = document.getElementById('evolvePreviewEmpty');
+  const after = document.getElementById('evolvePreviewAfterNote');
+  const tab = evolvePreviewAllowedTab(devEvolvePreviewTab(task));
+  const src = `/?evolvePreview=1&tab=${encodeURIComponent(tab)}`;
+  if (frame) {
+    if (frame.dataset.tab !== tab) {
+      frame.src = src;
+      frame.dataset.tab = tab;
+    }
+    frame.hidden = false;
+  }
+  const afterText = String(task?.agent?.output_excerpt || task?.description || '').trim();
+  if (_evolvePreviewMode === 'after') {
+    if (after) {
+      after.hidden = !afterText;
+      after.textContent = afterText;
+    }
+    if (empty) {
+      empty.hidden = !!afterText;
+      if (!afterText) empty.textContent = 'אין תצוגת אחרי עדיין.';
+    }
+    return;
+  }
+  if (after) {
+    after.hidden = true;
+    after.textContent = '';
+  }
+  if (empty) empty.hidden = true;
+}
+
+function devSetEvolvePreviewMode(mode) {
+  _evolvePreviewMode = mode === 'after' ? 'after' : 'before';
+  const beforeBtn = document.getElementById('evolvePreviewBeforeBtn');
+  const afterBtn = document.getElementById('evolvePreviewAfterBtn');
+  if (beforeBtn) beforeBtn.setAttribute('aria-pressed', _evolvePreviewMode === 'before' ? 'true' : 'false');
+  if (afterBtn) afterBtn.setAttribute('aria-pressed', _evolvePreviewMode === 'after' ? 'true' : 'false');
+  const selected = _devTasks.find((t) => t.id === _devSelectedTaskId) || null;
+  devRenderEvolvePreview(selected);
+}
+
+function devRenderEvolveTests(task) {
+  const chips = document.getElementById('evolveTestChips');
+  const empty = document.getElementById('evolveTestEmpty');
+  const tests = task?.tests;
+  const state = String(tests?.state || 'NOT_STARTED').toUpperCase();
+  const has = !!(tests && state !== 'NOT_STARTED');
+  if (empty) empty.hidden = has;
+  if (!chips) return;
+  chips.innerHTML = '';
+  if (!has) return;
+  devAddEvolveChip(chips, 'מצב', state, state === 'PASSED' ? 'ok' : '');
+  if (tests.passed != null) devAddEvolveChip(chips, 'עברו', String(tests.passed));
+  if (tests.failed != null) devAddEvolveChip(chips, 'נכשלו', String(tests.failed));
+  if (tests.profile) devAddEvolveChip(chips, 'פרופיל', tests.profile);
+}
+
+function devRenderEvolvePr(task, prUrl) {
+  const chips = document.getElementById('evolvePrChips');
+  const empty = document.getElementById('evolvePrEmpty');
+  const link = document.getElementById('evolvePrLink');
+  const title = document.getElementById('evolvePrTitle');
+  const safe = devSafePrUrl(prUrl || task?.agent?.pr_url);
+  const agentState = String(task?.agent?.state || '').toUpperCase();
+  if (title) title.textContent = task?.title || '';
+  if (link) {
+    if (safe) {
+      link.hidden = false;
+      link.href = safe;
+    } else {
+      link.hidden = true;
+      link.removeAttribute('href');
+    }
+  }
+  if (chips) {
+    chips.innerHTML = '';
+    if (task && agentState && agentState !== 'NOT_STARTED') {
+      devAddEvolveChip(chips, 'סוכן', agentState, agentState === 'SUCCEEDED' ? 'ok' : '');
+    }
+    const changed = Number(task?.worktree_meta?.changed_files || 0);
+    if (changed > 0) devAddEvolveChip(chips, 'קבצים', String(changed));
+    if (task?.status) devAddEvolveChip(chips, 'מצב', task.status);
+  }
+  if (empty) empty.hidden = !!(safe || (task && agentState && agentState !== 'NOT_STARTED'));
+}
+
+function devRenderEvolveWorkspace(task) {
+  const selected = arguments.length
+    ? task
+    : (_devTasks.find((t) => t.id === _devSelectedTaskId)
+      || _devTasks.find((t) => devTaskIsLive(t))
+      || null);
+  devRenderEvolvePlan(selected);
+  devRenderEvolvePreview(selected);
+  devRenderEvolveTests(selected);
+  devRenderEvolvePr(selected, _devAgentPrUrl);
+}
+
 function devRenderEvolveLiveRuns() {
   const host = document.getElementById('evolveLiveRuns');
   const empty = document.getElementById('evolveLiveEmpty');
@@ -11404,6 +11618,7 @@ function devRenderEvolveLiveRuns() {
     });
     host.appendChild(card);
   }
+  devRenderEvolveWorkspace();
 }
 
 function devRenderTaskDetail(task) {
@@ -11414,6 +11629,7 @@ function devRenderTaskDetail(task) {
     empty.hidden = false;
     card.hidden = true;
     devSyncEmptyOverview();
+    devRenderEvolveWorkspace();
     return;
   }
   empty.hidden = true;
@@ -11514,6 +11730,7 @@ function devRenderTaskDetail(task) {
     }
   }
   devSyncEmptyOverview();
+  devRenderEvolveWorkspace(task);
 }
 
 async function devLoadTaskDetail(id) {
@@ -11522,7 +11739,16 @@ async function devLoadTaskDetail(id) {
     devSetResult('devTaskDetailResult', r.data?.message || 'טעינת פרטי המשימה נכשלה', 'err');
     return;
   }
-  devRenderTaskDetail(r.data.task);
+  let task = r.data.task;
+  const agentR = await devApi(`/api/development/tasks/${encodeURIComponent(id)}/agent`);
+  if (agentR.ok) {
+    _devAgentPrUrl = devSafePrUrl(agentR.data.agent?.pr_url);
+    task = agentR.data.task || task;
+    if (task?.agent) task.agent.pr_url = _devAgentPrUrl;
+  } else {
+    _devAgentPrUrl = null;
+  }
+  devRenderTaskDetail(task);
   devSetResult('devTaskDetailResult', null);
 }
 
@@ -11545,7 +11771,10 @@ async function devRefreshAgentState(taskId, silent = false) {
     if (!silent) devSetResult('devAgentResult', r.data?.message || 'רענון מצב הסוכן נכשל', 'err');
     return;
   }
-  devRenderTaskDetail(r.data.task);
+  _devAgentPrUrl = devSafePrUrl(r.data.agent?.pr_url);
+  const task = r.data.task;
+  if (task?.agent) task.agent.pr_url = _devAgentPrUrl;
+  devRenderTaskDetail(task);
   const state = r.data.task?.agent?.state || 'NOT_STARTED';
   if (['SUCCEEDED', 'FAILED', 'CANCELLED', 'NOT_STARTED'].includes(state)) {
     devStopAgentPolling();
@@ -11804,6 +12033,17 @@ async function devSaveTaskChanges() {
 }
 
 document.getElementById('devTaskCreateBtn')?.addEventListener('click', () => { void devCreateTask(); });
+document.getElementById('evolveAdjustPlanBtn')?.addEventListener('click', () => {
+  const more = document.querySelector('.evolve-ask-more');
+  if (more) more.open = true;
+  document.getElementById('devTaskDescription')?.focus();
+});
+document.getElementById('evolvePreviewBeforeBtn')?.addEventListener('click', () => { devSetEvolvePreviewMode('before'); });
+document.getElementById('evolvePreviewAfterBtn')?.addEventListener('click', () => { devSetEvolvePreviewMode('after'); });
+document.getElementById('devTaskTarget')?.addEventListener('change', () => {
+  const selected = _devTasks.find((t) => t.id === _devSelectedTaskId) || null;
+  devRenderEvolvePreview(selected);
+});
 document.getElementById('devTaskRefreshBtn')?.addEventListener('click', () => { void devTasksLoadList(); });
 document.getElementById('devTaskFilterStatus')?.addEventListener('change', () => { void devTasksLoadList(); });
 document.getElementById('devTaskFilterTaxonomy')?.addEventListener('change', () => { void devTasksLoadList(); });

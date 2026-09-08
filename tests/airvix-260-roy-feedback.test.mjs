@@ -58,21 +58,58 @@ describe('AIRVIX 1.02.260 Roy feedback', () => {
 
   it('turns Develop into an Evolve first slice without flight writes', () => {
     expect(html).toContain('class="devtasks-panel evolve-shell"');
+    expect(html).toContain('class="evolve-intent"');
     expect(html).toContain('class="evolve-command"');
+    expect(html).toContain('class="evolve-plan"');
+    expect(html).toContain('class="evolve-preview"');
+    expect(html).toContain('class="evolve-delivery"');
+    expect(html).toContain('id="evolvePreviewFrame"');
     expect(html).toContain('id="evolveLiveRuns"');
+    expect(html).toContain('id="evolvePlanList"');
+    expect(html).toContain('id="evolveTestChips"');
+    expect(html).toContain('id="evolvePrChips"');
+    expect(html).toContain('placeholder="תארו מה לשנות…"');
+    expect(html).toContain('אין תוכנית עדיין.');
+    expect(html).toContain('אין תצוגה חיה עדיין.');
+    expect(html).toContain('אין בדיקות עדיין.');
+    expect(html).toContain('אין בקשת מיזוג עדיין.');
     expect(html).toContain('class="devtasks-list evolve-backlog"');
     expect(html).toContain('id="devTaskCreateBtn"');
     expect(html).toMatch(/id="devTaskCreateBtn"[^>]*>הפעילו שינוי</);
     expect(css).toMatch(/\.evolve-shell\s*\{[^}]*display:\s*grid/);
+    expect(css).toMatch(/"intent preview"/);
     expect(css).toMatch(/\.evolve-run-grid\s*\{[^}]*grid-auto-flow:\s*row/);
+    expect(js).toContain('function isEvolvePreviewFrame(');
+    expect(js).toContain('function devRenderEvolvePreview(');
+    expect(js).toContain('function devEvolvePlanSteps(');
+    expect(js).toContain('function devSafePrUrl(');
     expect(js).toContain('function devRenderEvolveLiveRuns(');
     expect(js).toContain('function devTaskIsLive(');
     const evolve = [
       sliceFunction(js, 'devCreateTask'),
       sliceFunction(js, 'devRenderEvolveLiveRuns'),
+      sliceFunction(js, 'devRenderEvolveWorkspace'),
+      sliceFunction(js, 'devRenderEvolvePreview'),
+      sliceFunction(js, 'devRenderEvolvePlan'),
+      sliceFunction(js, 'devRenderEvolvePr'),
+      sliceFunction(js, 'devEvolvePlanSteps'),
+      sliceFunction(js, 'devSafePrUrl'),
       sliceFunction(js, 'devTaskIsLive'),
+      sliceFunction(js, 'isEvolvePreviewFrame'),
+      sliceFunction(js, 'evolvePreviewAllowedTab'),
     ].join('\n');
     expect(evolve).not.toMatch(/FLIGHT_ACTION|\/apply|\/restart|\bARM\b|\bDISARM\b|\bLAND\b/);
+    expect(evolve).not.toMatch(/capture_amount|Default environment|סביבת ברירת מחדל/);
+    expect(sliceFunction(js, 'evolvePreviewAllowedTab')).toMatch(/development.*pulse/);
+    const planSrc = [
+      sliceFunction(js, 'devEvolvePlanSteps'),
+      sliceFunction(js, 'devAgentStateKind'),
+      'return { empty: devEvolvePlanSteps(null), one: devEvolvePlanSteps({ description: "only title", agent: { state: "NOT_STARTED" } }), many: devEvolvePlanSteps({ description: "title\\nstep a\\nstep b", agent: { state: "RUNNING" } }) };',
+    ].join('\n');
+    const planned = new Function(planSrc)();
+    expect(planned.empty).toEqual([]);
+    expect(planned.one).toEqual([{ text: 'only title', kind: 'wait' }]);
+    expect(planned.many.map((s) => s.text)).toEqual(['step a', 'step b']);
   });
 
   it('adds a computer-status widget composer with a growing grid', () => {
