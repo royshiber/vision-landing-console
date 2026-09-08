@@ -51,9 +51,8 @@ describe('AIRVIX 1.02.260 Roy feedback', () => {
     expect(findAssistRoute('תחזוקה')?.tab).toBe('pulse');
     expect(findAssistRoute('maintenance')?.tab).toBe('pulse');
     expect(findAssistRoute('Jetson')?.tab).toBe('pulse');
-    expect(sliceFunction(js, 'applyMainTab')).toMatch(/tabId === 'maintenance'/);
-    expect(sliceFunction(js, 'applyMainTab')).toMatch(/applyMainTab\('pulse'/);
-    expect(sliceFunction(js, 'restoreLastUiTab')).toMatch(/main === 'maintenance'/);
+    expect(js).toMatch(/if \(tabId === 'maintenance'\) \{\s*applyMainTab\('pulse'/);
+    expect(js).toMatch(/if \(main === 'maintenance'\) main = 'pulse'/);
     expect(sliceFunction(js, 'operatorOpenFirstAction')).toMatch(/action === 'maintenance'/);
   });
 

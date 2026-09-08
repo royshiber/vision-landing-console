@@ -236,10 +236,10 @@ describe('C10.3 Pulse home', () => {
     expect(findAssistRoute('בית')?.tab).toBe('pulse');
     expect(findAssistRoute('סטטוס מחשבים')?.tab).toBe('pulse');
     expect(findAssistRoute('pulse')?.tab).toBe('pulse');
-    expect(findAssistRoute('מלווה')?.tab).toBe('maintenance');
-    expect(findAssistRoute('Companion')?.tab).toBe('maintenance');
-    expect(findAssistRoute('Jetson')?.tab).toBe('maintenance');
-    expect(findAssistRoute('מחשב משימה')?.tab).toBe('maintenance');
+    expect(findAssistRoute('מלווה')?.tab).toBe('pulse');
+    expect(findAssistRoute('Companion')?.tab).toBe('pulse');
+    expect(findAssistRoute('Jetson')?.tab).toBe('pulse');
+    expect(findAssistRoute('מחשב משימה')?.tab).toBe('pulse');
   });
 
   it('offers a Jetson update without applying or restarting', () => {

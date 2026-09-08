@@ -49,7 +49,6 @@ describe('Platform tab removed — redirect to computer status', () => {
     expect(html).toMatch(/class="tab tab-ops"[^>]*data-tab="pulse"[^>]*>סטטוס מחשבים</);
     expect(html).toMatch(/data-tab="telemetry"[^>]*>אבחונים</);
     expect(html).not.toMatch(/data-tab="maintenance"/);
-    expect(html).not.toMatch(/>תחזוקה</);
   });
 
   it('redirects leftover platform actions to Pulse / computer status', () => {

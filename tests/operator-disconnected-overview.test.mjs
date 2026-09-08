@@ -67,7 +67,7 @@ describe('Disconnected-first operator overview', () => {
   });
 
   it('keeps Development empty list as the next step and hides unused detail chrome', () => {
-    expect(html).toMatch(/id="devTaskListEmpty"[^>]*>אין משימות\. צרו משימה למעלה\.</);
+    expect(html).toMatch(/id="devTaskListEmpty"[^>]*>אין משימות\. כתבו בקשה למעלה\.</);
     expect(tag('devTaskFilters')).toMatch(/\bhidden\b/);
     expect(tag('devTaskDetailSection')).toMatch(/\bhidden\b/);
     expect(tag('devTaskDetailEmpty')).toMatch(/\bhidden\b/);
@@ -162,7 +162,7 @@ describe('Disconnected-first operator overview', () => {
     const result = new Function('document', src)(document);
     expect(result.empty.filters).toBe(true);
     expect(result.empty.section).toBe(true);
-    expect(result.empty.list).toBe('אין משימות. צרו משימה למעלה.');
+    expect(result.empty.list).toBe('אין משימות. כתבו בקשה למעלה.');
     expect(result.filters).toBe(false);
     expect(result.section).toBe(false);
     expect(result.detail).toBe('בחר משימה מהרשימה');
