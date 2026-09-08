@@ -201,8 +201,8 @@ describe('Development Tasks Hebrew leftover copy', () => {
     expect(runtime).not.toMatch(/return extra \? `UNAVAILABLE/);
 
     const unavailable = sliceFunction(js, 'devHebrewUnavailableReason');
-    expect(unavailable).toContain('הסוכן מנותק. חברו אותו במסייע.');
-    expect(unavailable).toContain('סוכן הפיתוח אינו זמין. חברו אותו במסייע.');
+    expect(unavailable).toContain('הסוכן מנותק. חברו אותו ב-AIRVIX Ask.');
+    expect(unavailable).toContain('סוכן הפיתוח אינו זמין. חברו אותו ב-AIRVIX Ask.');
   });
 
   it('keeps filter / profile / status enum values as the API contract', () => {

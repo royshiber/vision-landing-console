@@ -230,10 +230,10 @@ describe('Disconnected-first operator overview', () => {
   });
 
   it('ships Hebrew-first Assist chrome and a calm first-open next action', () => {
-    expect(html).toMatch(/class="assist-rail-title">מסייע</);
-    expect(html).toMatch(/assist-toggle-he">מסייע</);
+    expect(html).toMatch(/class="assist-rail-title">AIRVIX Ask</);
+    expect(html).toMatch(/assist-toggle-he">AIRVIX Ask</);
     expect(html).toMatch(/id="assistMessagesEmpty"[^>]*assist-empty-stage/);
-    expect(html).toMatch(/שאלו כאן\./);
+    expect(html).toMatch(/שאלו את AIRVIX Ask./);
     expect(html).toMatch(/שינוי דורש אישור/);
     expect(html).toMatch(/companion-connect--hero/);
     expect(html).toMatch(/data-first-action="assist"/);

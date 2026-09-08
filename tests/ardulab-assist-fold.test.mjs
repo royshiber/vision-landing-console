@@ -184,7 +184,7 @@ describe('ArduLab → Assist fold — chrome', () => {
     expect(html).toContain('id="fdWelcomeInput"');
     expect(html).toContain('id="fdAssistFoldNote"');
     expect(html).toContain('id="fdOpenAssistBtn"');
-    expect(html).toMatch(/id="fdAssistFoldNote"[^>]*>[\s\S]*שאלו במסייע\./);
+    expect(html).toMatch(/id="fdAssistFoldNote"[^>]*>[\s\S]*שאלו את AIRVIX Ask./);
     expect(html).toMatch(/data-assist-chip="ardulab"[^>]*>פיצ׳ר</);
     expect(html).toMatch(/data-assist-chip="advisor"[^>]*>יועץ</);
     expect(html).toMatch(/class="fd-welcome-title">פיצ׳ר מותאם</);
@@ -209,8 +209,8 @@ describe('ArduLab → Assist fold — chrome', () => {
     expect(html).not.toMatch(/id="companionApplyBtn"|id="companionRestartBtn"/);
   });
 
-  it('pins APP_VERSION at 1.02.263', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.263'");
-    expect(pkg.version).toBe('1.02.263');
+  it('pins APP_VERSION at 1.02.264', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.264'");
+    expect(pkg.version).toBe('1.02.264');
   });
 });

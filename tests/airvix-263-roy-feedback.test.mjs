@@ -41,10 +41,10 @@ function cssBlock(src, selector) {
   throw new Error(`unclosed selector ${selector}`);
 }
 
-describe('AIRVIX 1.02.263 flyable Mission layout', () => {
-  it('pins APP_VERSION at 1.02.263', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.263'");
-    expect(pkg.version).toBe('1.02.263');
+describe('AIRVIX 1.02.264 flyable Mission layout', () => {
+  it('pins APP_VERSION at 1.02.264', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.264'");
+    expect(pkg.version).toBe('1.02.264');
   });
 
   it('keeps the map as the majority workspace and sizes the PFD in the readable band', () => {
@@ -75,11 +75,11 @@ describe('AIRVIX 1.02.263 flyable Mission layout', () => {
   });
 
   it('labels the microphone as interface Assist, not flight radio', () => {
-    expect(html).toMatch(/id="assistMicBtn"[^>]*title="שיחה עם המסייע של הממשק\. לא פקודות טיסה\."/);
-    expect(html).toMatch(/class="assist-mic-label">שיחה עם המסייע</);
+    expect(html).toMatch(/id="assistMicBtn"[^>]*title="שיחה עם AIRVIX Ask של הממשק\. לא פקודות טיסה\."/);
+    expect(html).toMatch(/class="assist-mic-label">שיחה עם AIRVIX Ask</);
     expect(html).not.toContain('class="assist-mic-caption"');
     const mic = sliceFunction(js, 'assistMicTalkLabel');
-    expect(mic).toContain('שיחה עם המסייע של הממשק. לא פקודות טיסה.');
+    expect(mic).toContain('שיחה עם AIRVIX Ask של הממשק. לא פקודות טיסה.');
     expect(mic).not.toMatch(/רדיו|טייס|מטוס/);
     expect(mic).not.toMatch(/\bARM\b|\bDISARM\b|\bLAND\b/);
   });

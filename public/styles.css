@@ -8265,11 +8265,12 @@ html[data-evolve-preview="1"] #development {
   display: flex;
   align-items: center;
   gap: 3px;
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.1);
+  background: linear-gradient(180deg, rgba(255,255,255,0.10), rgba(11,14,20,0.72));
+  border: 1px solid rgba(226, 232, 240, 0.28);
   border-radius: 6px;
   padding: 2px 7px;
   flex-shrink: 0;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.12);
 }
 .pfd-hdg-arrow {
   font-size: 0.85rem;
@@ -8383,8 +8384,25 @@ html[data-evolve-preview="1"] #development {
   min-width: 0;
   min-height: 0;
   overflow: hidden;
-  border-radius: 4px;
-  background: #12161e;
+  border-radius: 8px;
+  background:
+    radial-gradient(120% 70% at 50% 0%, rgba(255, 255, 255, 0.10), transparent 58%),
+    #10151d;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    inset 0 -10px 16px rgba(0, 0, 0, 0.28),
+    0 0 0 1px rgba(212, 196, 150, 0.22),
+    0 0 0 3px #141820;
+}
+.pfd-horizon-stage::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  border-radius: inherit;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, transparent 22%);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.10);
 }
 .pfd-heading-lane {
   grid-area: hdg;
@@ -8424,7 +8442,7 @@ html[data-evolve-preview="1"] #development {
   height: 100%;
   display: block;
   z-index: 1;
-  background: #12161e;
+  background: #10151d;
 }
 
 /* Side tapes sit beside the canvas — never over video or labels */
@@ -8437,14 +8455,17 @@ html[data-evolve-preview="1"] #development {
   align-items: center;
   justify-content: center;
   gap: 1px;
-  background: #0b0e14;
-  border: 1px solid #f8fafc;
-  border-radius: 2px;
+  background: linear-gradient(180deg, #1c2433 0%, #0b0e14 58%, #07090d 100%);
+  border: 1px solid rgba(226, 232, 240, 0.62);
+  border-radius: 4px;
   padding: 5px 4px 4px;
   min-width: 0;
   pointer-events: none;
   z-index: auto;
   opacity: 1;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    inset 0 -8px 12px rgba(0, 0, 0, 0.28);
 }
 .pfd-side-tape--left  { grid-area: ias; left: auto; }
 .pfd-side-tape--right { grid-area: alt; right: auto; }
