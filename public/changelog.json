@@ -1,5 +1,21 @@
 [
   {
+    "version": "1.02.259",
+    "date": "2026-09-08",
+    "changes": [
+      {
+        "type": "ui",
+        "title": "Mission overlaps, compact AH, big mic, computer-status versions",
+        "detail": "Mission chrome and region titles no longer overlay instruments. Artificial horizon is a compact square-ish PFD. Assist microphone is larger. Pulse tab is סטטוס מחשבים with honest version display and an update offer that only opens the existing Jetson version UI. Leftover ops tabs use the dark AIRVIX 2026 language. APP_VERSION 1.02.259."
+      },
+      {
+        "type": "test",
+        "title": "Roy feedback pins for 1.02.259",
+        "detail": "Asserts no Mission overlay chrome, Pulse tab rename, version offer without apply/restart, larger mic, compact AH defaults, leftover-tab restyle, and version 1.02.259."
+      }
+    ]
+  },
+  {
     "version": "1.02.258",
     "date": "2026-09-07",
     "changes": [

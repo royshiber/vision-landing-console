@@ -46,7 +46,7 @@ describe('C10.3 Pulse home', () => {
   const pulse = loadPulseLogic();
 
   it('keeps Pulse as the named Hebrew home without deleting existing tabs', () => {
-    expect(html).toMatch(/data-tab="pulse"[^>]*>בית</);
+    expect(html).toMatch(/data-tab="pulse"[^>]*>סטטוס מחשבים</);
     expect(tag('pulse')).not.toMatch(/\bvisible\b/);
     expect(tag('terrain')).toMatch(/\bvisible\b/);
     expect(tag('control')).not.toMatch(/\bvisible\b/);
@@ -59,6 +59,11 @@ describe('C10.3 Pulse home', () => {
     expect(html).toMatch(/class="pulse-purpose">סטטוס מחשבים</);
     expect(html).toMatch(/id="pulseTalkBtn"[^>]*>שאלו את המסייע</);
     expect(html).toMatch(/id="pulseVersion"[^>]*>--</);
+    expect(html).toMatch(/id="pulseJetsonVersion"[^>]*>--</);
+    expect(html).toMatch(/id="pulseFcVersion"[^>]*>--</);
+    expect(html).toMatch(/id="pulseJetsonUpdateBtn"[^>]*data-first-action="jetson-version"/);
+    expect(html).toMatch(/id="pulseHomePulseBtn"[^>]*>סטטוס מחשבים</);
+    expect(html).toMatch(/<span>בתוך סטטוס מחשבים</);
     expect(html).toMatch(/id="pulseLink"[^>]*>--</);
     expect(html).toMatch(/id="pulseAircraft"[^>]*>מנותק</);
     expect(html).toMatch(/id="pulseJetsonLoad"[^>]*>--</);
@@ -214,6 +219,13 @@ describe('C10.3 Pulse home', () => {
       sliceFunction(js, 'pulseGaugePct'),
       sliceFunction(js, 'pulseWriteComputerMetric'),
       sliceFunction(js, 'pulseRefresh'),
+      sliceFunction(js, 'pulseParseVersionTuple'),
+      sliceFunction(js, 'pulseVersionCompare'),
+      sliceFunction(js, 'pulseIsNewerVersion'),
+      sliceFunction(js, 'pulseFindNewerDeployable'),
+      sliceFunction(js, 'pulseVersionOfferState'),
+      sliceFunction(js, 'pulseWriteVersionOffer'),
+      sliceFunction(js, 'pulseRefreshVersionOffers'),
       sliceFunction(js, 'operatorOpenFirstAction'),
       sliceFunction(js, 'initPulseHome'),
     ].join('\n');
@@ -222,10 +234,50 @@ describe('C10.3 Pulse home', () => {
     expect(findAssistRoute('סקירה')?.tab).toBe('pulse');
     expect(findAssistRoute('תמונת מצב')?.tab).toBe('pulse');
     expect(findAssistRoute('בית')?.tab).toBe('pulse');
+    expect(findAssistRoute('סטטוס מחשבים')?.tab).toBe('pulse');
     expect(findAssistRoute('pulse')?.tab).toBe('pulse');
     expect(findAssistRoute('מלווה')?.tab).toBe('maintenance');
     expect(findAssistRoute('Companion')?.tab).toBe('maintenance');
     expect(findAssistRoute('Jetson')?.tab).toBe('maintenance');
     expect(findAssistRoute('מחשב משימה')?.tab).toBe('maintenance');
+  });
+
+  it('offers a Jetson update without applying or restarting', () => {
+    const src = [
+      sliceFunction(js, 'pulseParseVersionTuple'),
+      sliceFunction(js, 'pulseVersionCompare'),
+      sliceFunction(js, 'pulseIsNewerVersion'),
+      sliceFunction(js, 'pulseFindNewerDeployable'),
+      sliceFunction(js, 'pulseVersionOfferState'),
+      'return { pulseParseVersionTuple, pulseIsNewerVersion, pulseFindNewerDeployable, pulseVersionOfferState };',
+    ].join('\n');
+    const fns = new Function(src)();
+    expect(fns.pulseParseVersionTuple('1.02.57')).toEqual([1, 2, 57]);
+    expect(fns.pulseIsNewerVersion('1.02.58', '1.02.57')).toBe(true);
+    expect(fns.pulseIsNewerVersion('1.02.57', '1.02.57')).toBe(false);
+    expect(fns.pulseFindNewerDeployable('1.02.56', [
+      { version: '1.02.57', channel: 'stable' },
+      { version: '1.02.50', channel: 'legacy' },
+    ])).toEqual({ version: '1.02.57', channel: 'stable' });
+    expect(fns.pulseFindNewerDeployable('1.02.57', [
+      { version: '1.02.57', channel: 'stable' },
+      { version: '1.02.50', channel: 'legacy' },
+    ])).toBeNull();
+    expect(fns.pulseVersionOfferState('', []).state).toBe('unknown');
+    expect(fns.pulseVersionOfferState('1.02.57', [{ version: '1.02.57', channel: 'stable' }])).toMatchObject({
+      state: 'current',
+      offer: false,
+    });
+    expect(fns.pulseVersionOfferState('1.02.56', [{ version: '1.02.57', channel: 'stable' }])).toMatchObject({
+      state: 'available',
+      offer: true,
+    });
+    expect(js).toContain("action === 'jetson-version'");
+    expect(sliceFunction(js, 'operatorOpenFirstAction')).toContain("operatorOpenFirstAction('companion')");
+    expect(sliceFunction(js, 'operatorOpenFirstAction')).not.toMatch(/\/api\/jetson\/install|\/apply|\/restart/);
+    expect(html).toMatch(/id="pulseJetsonUpdateBtn"[^>]*hidden/);
+    expect(html).toMatch(/id="pulseJetsonVersionState"[^>]*>מעודכן</);
+    expect(html).toMatch(/id="pulseConsoleVersionState"[^>]*>מעודכן</);
+    expect(html).toMatch(/id="pulseFcIdentity"[^>]*>--</);
   });
 });

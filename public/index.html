@@ -89,7 +89,7 @@
     <header class="app-chrome" data-chrome="ops">
       <nav class="tabs" aria-label="ניווט ראשי">
         <button class="tab tab-fly active" data-tab="terrain" title="הטסה">הטסה</button>
-        <button class="tab tab-ops" data-tab="pulse" title="בית">בית</button>
+        <button class="tab tab-ops" data-tab="pulse" title="סטטוס מחשבים">סטטוס מחשבים</button>
         <button class="tab tab-ops" data-tab="platform" title="פלטפורמה">פלטפורמה</button>
         <button class="tab tab-ops" data-tab="control" title="פרמטרים">פרמטרים</button>
         <button class="tab tab-ops" data-tab="recordings" title="תחקור">תחקור</button>
@@ -104,7 +104,7 @@
       </div>
     </header>
 
-    <button type="button" id="assistToggleBtn" class="assist-toggle-btn assist-toggle-float" title="מסייע" aria-label="מסייע" aria-expanded="false" aria-controls="assistRail"><span class="assist-toggle-he">מסייע</span><span id="assistAttentionDot" class="assist-attention-dot" hidden></span></button>
+    <button type="button" id="assistToggleBtn" class="assist-toggle-btn assist-toggle-float" title="מסייע — דברו" aria-label="מסייע — דברו" aria-expanded="false" aria-controls="assistRail"><span class="assist-toggle-mic" aria-hidden="true">🎙</span><span class="assist-toggle-he">מסייע</span><span id="assistAttentionDot" class="assist-attention-dot" hidden></span></button>
 
     <div id="assistRailDock">
     <aside id="assistRail" class="assist-rail" hidden aria-label="מסייע">
@@ -152,7 +152,7 @@
           <button type="button" class="assist-quick-chip" data-assist-chip="flightEngineer" hidden>מהנדס</button>
         </div>
         <form id="assistForm" class="assist-form" autocomplete="off">
-          <button type="button" id="assistMicBtn" class="assist-mic-btn" title="מיקרופון" aria-label="מיקרופון" aria-pressed="false">
+          <button type="button" id="assistMicBtn" class="assist-mic-btn assist-mic-btn--invite" title="מיקרופון — דברו אל המסייע" aria-label="מיקרופון — דברו אל המסייע" aria-pressed="false">
             <span class="assist-mic-icon" aria-hidden="true">🎙</span>
             <span class="assist-mic-label">מיקרופון</span>
           </button>
@@ -265,10 +265,10 @@
         <div id="arduTopCatsHost" class="ardu-top-cats-host hidden" role="tablist" aria-label="קטגוריות ArduPilot"></div>
       </div>
 
-      <section id="pulse" class="panel" aria-label="בית">
+      <section id="pulse" class="panel" aria-label="סטטוס מחשבים">
         <div class="pulse-home pulse-status-home">
           <header class="pulse-hero">
-            <h3 class="pulse-title">בית</h3>
+            <h3 class="pulse-title">סטטוס מחשבים</h3>
             <p class="pulse-purpose">סטטוס מחשבים</p>
           </header>
           <div class="pulse-status-grid" aria-label="סטטוס מחשבים">
@@ -307,6 +307,12 @@
                 </div>
               </dl>
               <button type="button" class="first-open-btn" data-first-action="companion" data-pulse-live="hide">חברו Jetson</button>
+              <div class="pulse-version-block" data-version-kind="jetson">
+                <p class="pulse-version-k">גרסה</p>
+                <p id="pulseJetsonVersion" class="pulse-version-v" dir="ltr">--</p>
+                <p id="pulseJetsonVersionState" class="pulse-version-state" data-offer="current">מעודכן</p>
+                <button type="button" id="pulseJetsonUpdateBtn" class="first-open-btn pulse-version-offer" data-first-action="jetson-version" hidden>עדכון זמין</button>
+              </div>
             </article>
             <article class="pulse-status-card pulse-computer-card" data-pulse-kind="aircraft" data-computer="fc">
               <header class="pulse-computer-head">
@@ -343,6 +349,11 @@
                   <dt>טמפרטורות</dt>
                 </div>
               </dl>
+              <div class="pulse-version-block" data-version-kind="fc">
+                <p class="pulse-version-k">זהות</p>
+                <p id="pulseFcVersion" class="pulse-version-v" dir="ltr">--</p>
+                <p id="pulseFcIdentity" class="pulse-version-state">--</p>
+              </div>
             </article>
             <article class="pulse-status-card pulse-talk-card" data-pulse-kind="assist">
               <div class="pulse-talk-copy">
@@ -353,11 +364,11 @@
             </article>
           </div>
           <section id="pulseAttention" class="pulse-attention" hidden aria-label="תשומת לב"></section>
-          <p class="pulse-version-line">גרסה <span id="pulseVersion" dir="ltr">--</span></p>
+          <p class="pulse-version-line">קונסולה <span id="pulseVersion" dir="ltr">--</span> <span id="pulseConsoleVersionState" class="pulse-version-state" data-offer="current">מעודכן</span></p>
           <button type="button" id="pulseEvolveGlance" class="pulse-evolve" hidden>משימה רצה</button>
           <p class="pulse-home-pref">
-            <span>בתוך בית</span>
-            <button type="button" id="pulseHomePulseBtn" class="pulse-home-pref-btn is-active" data-pulse-home="pulse">בית</button>
+            <span>בתוך סטטוס מחשבים</span>
+            <button type="button" id="pulseHomePulseBtn" class="pulse-home-pref-btn is-active" data-pulse-home="pulse">סטטוס מחשבים</button>
             <button type="button" id="pulseHomeTeleBtn" class="pulse-home-pref-btn" data-pulse-home="telemetry">טלמטריה</button>
           </p>
         </div>
@@ -1396,6 +1407,7 @@
 
           <section class="mission-region mission-region-data" data-mission-region="data" aria-label="נתונים">
             <h3 class="mission-region-title" draggable="true">נתונים</h3>
+            <button type="button" id="missionAskDataBtn" class="mission-ask-chip">שאלו על הנתונים</button>
             <p class="mission-data-hint">קליק ימני על אריח לבחירת שדה.</p>
             <dl id="missionDataGrid" class="mission-data-grid" aria-label="מדדי טיסה">
               <div class="mission-data-item mission-data-tile" data-mission-data-slot="0">

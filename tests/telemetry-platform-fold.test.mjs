@@ -86,7 +86,7 @@ describe('Telemetry dash MERGE into Pulse + Platform diagnostics', () => {
   it('quiets telemetry from primary ops chrome without cliff-deleting the panel', () => {
     expect(html).not.toMatch(/class="tab tab-ops"[^>]*data-tab="telemetry"/);
     expect(html).toMatch(/class="tab tab-quiet"[^>]*\bhidden\b[^>]*data-tab="telemetry"[^>]*>אבחונים</);
-    expect(html).toMatch(/class="tab tab-ops"[^>]*data-tab="pulse"[^>]*>בית</);
+    expect(html).toMatch(/class="tab tab-ops"[^>]*data-tab="pulse"[^>]*>סטטוס מחשבים</);
     expect(html).toMatch(/class="tab tab-ops"[^>]*data-tab="platform"[^>]*>פלטפורמה</);
     expect(html).toContain('id="pulseCompanion"');
     expect(html).toContain('id="pulseLink"');
@@ -113,8 +113,8 @@ describe('Telemetry dash MERGE into Pulse + Platform diagnostics', () => {
     expect(html).toContain('id="companionB2Grid"');
   });
 
-  it('pins APP_VERSION at 1.02.258', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.258'");
-    expect(pkg.version).toBe('1.02.258');
+  it('pins APP_VERSION at 1.02.259', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.259'");
+    expect(pkg.version).toBe('1.02.259');
   });
 });

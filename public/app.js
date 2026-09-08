@@ -2124,6 +2124,7 @@ async function loadJetsonReleasesCatalog() {
       '';
     if (pick) jetsonTargetVersionSelect.value = pick;
     renderJetsonVersionNotes();
+    if (typeof pulseRefreshVersionOffers === 'function') pulseRefreshVersionOffers();
   } catch {
     if (document.getElementById('jetsonSelectedNotesHe')) {
       document.getElementById('jetsonSelectedNotesHe').textContent = 'לא ניתן לטעון את רשימת הגרסאות.';
@@ -2233,6 +2234,7 @@ function applyJetsonUi(online, data) {
   if (la && data.lastAction) la.textContent = data.lastAction;
   renderJetsonVersionNotes();
   if (jetsonInstallBtn) jetsonInstallBtn.disabled = data.installState === 'installing';
+  if (typeof pulseRefreshVersionOffers === 'function') pulseRefreshVersionOffers();
 }
 
 if (jetsonRefreshBtn) jetsonRefreshBtn.addEventListener('click', refreshJetsonStatus);
@@ -2989,6 +2991,13 @@ function operatorOpenFirstAction(action) {
     document.getElementById('companionBaseUrl')?.focus();
     return;
   }
+  if (action === 'jetson-version') {
+    operatorOpenFirstAction('companion');
+    const details = document.querySelector?.('.jetson-version-details');
+    if (details) details.open = true;
+    details?.scrollIntoView?.({ block: 'nearest' });
+    return;
+  }
   if (action === 'maintenance') {
     applyMainTab('maintenance');
     return;
@@ -3196,6 +3205,103 @@ function pulseWriteComputerMetric(id, value, unit) {
   gauge.style.setProperty('--gauge-pct', has ? String(pulseGaugePct(value, unit)) : '0');
 }
 
+function pulseParseVersionTuple(raw) {
+  const m = String(raw || '').match(/(\d+)\.(\d+)\.(\d+)/);
+  if (!m) return null;
+  return [Number(m[1]), Number(m[2]), Number(m[3])];
+}
+
+function pulseVersionCompare(a, b) {
+  const left = pulseParseVersionTuple(a);
+  const right = pulseParseVersionTuple(b);
+  if (!left || !right) return 0;
+  for (let i = 0; i < 3; i += 1) {
+    if (left[i] !== right[i]) return left[i] - right[i];
+  }
+  return 0;
+}
+
+function pulseIsNewerVersion(candidate, current) {
+  return pulseVersionCompare(candidate, current) > 0;
+}
+
+function pulseFindNewerDeployable(installed, releases) {
+  const list = Array.isArray(releases) ? releases : [];
+  const current = String(installed || '').trim();
+  if (!current || !pulseParseVersionTuple(current)) return null;
+  let best = null;
+  for (const rel of list) {
+    const ver = String(rel?.version || '').trim();
+    const channel = String(rel?.channel || '').toLowerCase();
+    if (!ver || channel === 'legacy') continue;
+    if (!pulseIsNewerVersion(ver, current)) continue;
+    if (!best || pulseIsNewerVersion(ver, best.version)) best = { version: ver, channel };
+  }
+  return best;
+}
+
+function pulseVersionOfferState(installed, releases) {
+  const current = String(installed || '').trim();
+  if (!current) return { label: '--', state: 'unknown', offer: false, newer: null };
+  const newer = pulseFindNewerDeployable(current, releases);
+  if (newer) return { label: current, state: 'available', offer: true, newer };
+  return { label: current, state: 'current', offer: false, newer: null };
+}
+
+function pulseWriteVersionOffer(opts) {
+  const valueEl = document.getElementById(opts.valueId);
+  const stateEl = document.getElementById(opts.stateId);
+  const btn = document.getElementById(opts.btnId);
+  const offer = pulseVersionOfferState(opts.installed, opts.releases);
+  if (valueEl) valueEl.textContent = offer.label;
+  if (stateEl) {
+    stateEl.dataset.offer = offer.state === 'available' ? 'available' : (offer.state === 'current' ? 'current' : 'unknown');
+    if (offer.state === 'available') stateEl.textContent = 'עדכון זמין';
+    else if (offer.state === 'current') stateEl.textContent = 'מעודכן';
+    else stateEl.textContent = '--';
+  }
+  if (btn) {
+    btn.hidden = !offer.offer;
+    btn.textContent = offer.offer ? 'הציעו עדכון' : 'עדכון זמין';
+  }
+  return offer;
+}
+
+function pulseRefreshVersionOffers() {
+  const jetsonInstalled = String(
+    (typeof jetsonInstalledVersionCached !== 'undefined' && jetsonInstalledVersionCached)
+    || (typeof latestJetsonFromServer !== 'undefined' && latestJetsonFromServer && (latestJetsonFromServer.installedVersion || latestJetsonFromServer.agentVersion))
+    || '',
+  ).trim();
+  pulseWriteVersionOffer({
+    valueId: 'pulseJetsonVersion',
+    stateId: 'pulseJetsonVersionState',
+    btnId: 'pulseJetsonUpdateBtn',
+    installed: jetsonInstalled,
+    releases: typeof jetsonReleasesCache !== 'undefined' ? jetsonReleasesCache : [],
+  });
+  const consoleEl = document.getElementById('pulseConsoleVersionState');
+  if (consoleEl) {
+    const v = String(typeof APP_VERSION_NEW !== 'undefined' ? APP_VERSION_NEW : '').replace(/^v/i, '').trim();
+    consoleEl.dataset.offer = v ? 'current' : 'unknown';
+    consoleEl.textContent = v ? 'מעודכן' : '--';
+  }
+  const mav = (typeof latestHudMavlink !== 'undefined' && latestHudMavlink) ? latestHudMavlink : null;
+  const fcVer = document.getElementById('pulseFcVersion');
+  const fcId = document.getElementById('pulseFcIdentity');
+  if (fcVer) {
+    const raw = mav?.autopilotVersion || mav?.flightSwVersion || mav?.version || '';
+    fcVer.textContent = pulseIsPlaceholder(raw) ? '--' : String(raw);
+  }
+  if (fcId) {
+    if (!mav || !mav.connected) fcId.textContent = '--';
+    else {
+      const label = [mav.autopilotName, mav.vehicleType].filter(Boolean).join(' · ');
+      fcId.textContent = label || '--';
+    }
+  }
+}
+
 function pulseRefresh() {
   const versionEl = document.getElementById('pulseVersion');
   const companionEl = document.getElementById('pulseCompanion');
@@ -3261,6 +3367,7 @@ function pulseRefresh() {
     if (evolveText) glanceEl.textContent = evolveText;
   }
   pulseSyncHomePrefChrome();
+  pulseRefreshVersionOffers();
   if (typeof platformRefresh === 'function') platformRefresh();
 }
 
@@ -11485,7 +11592,7 @@ let _assistRunTaskId = null;
 let _assistRunMsgEl = null;
 
 const ASSIST_WORKSPACE_HE = Object.freeze({
-  PULSE: 'בית',
+  PULSE: 'סטטוס מחשבים',
   MISSION: 'משימה',
   PLATFORM: 'פלטפורמה',
   EVOLVE: 'פיתוח',
@@ -11510,7 +11617,7 @@ const ASSIST_CAPABILITY_HE = Object.freeze({
 const ASSIST_TAB_HE = Object.freeze({
   terrain: 'הטסה',
   development: 'פיתוח',
-  pulse: 'בית',
+  pulse: 'סטטוס מחשבים',
   control: 'פרמטרים',
   telemetry: 'טלמטריה',
   maintenance: 'תחזוקה',
@@ -12203,7 +12310,7 @@ function clampMissionFr(value, min, max, fallback) {
 }
 
 function defaultMissionSize() {
-  return { c1: 0.82, c2: 1.88, c3: 1.22, r1: 2.20, r2: 0.62 };
+  return { c1: 0.62, c2: 2.00, c3: 1.28, r1: 0.78, r2: 1.42 };
 }
 
 function defaultMissionAreas() {
@@ -12252,7 +12359,7 @@ function readMissionSize() {
         c1: clampMissionFr(raw.c1, 0.55, 1.6, fallback.c1),
         c2: clampMissionFr(raw.c2, 0.9, 2.4, fallback.c2),
         c3: clampMissionFr(raw.c3, 0.7, 1.8, fallback.c3),
-        r1: clampMissionFr(raw.r1, 0.9, 2.4, fallback.r1),
+        r1: clampMissionFr(raw.r1, 0.55, 2.4, fallback.r1),
         r2: clampMissionFr(raw.r2, 0.6, 1.8, fallback.r2),
       };
     }
@@ -12814,6 +12921,10 @@ function initMissionTalk() {
     assistApplyQuickChip(btn.dataset.assistChip);
   });
   voiceBtn?.addEventListener('click', () => {
+    assistSetOpen(true);
+    document.getElementById('assistInput')?.focus();
+  });
+  document.getElementById('missionAskDataBtn')?.addEventListener('click', () => {
     assistSetOpen(true);
     document.getElementById('assistInput')?.focus();
   });
