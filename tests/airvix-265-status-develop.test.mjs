@@ -34,10 +34,10 @@ function panel(id) {
   return html.slice(from, next === -1 ? undefined : next);
 }
 
-describe('AIRVIX 1.02.265 status densify + Develop concept A', () => {
-  it('pins APP_VERSION at 1.02.265', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.265'");
-    expect(pkg.version).toBe('1.02.265');
+describe('AIRVIX 1.02.266 status densify + Develop concept A', () => {
+  it('pins APP_VERSION at 1.02.266', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.266'");
+    expect(pkg.version).toBe('1.02.266');
   });
 
   it('keeps מסייע out of public UI', () => {
@@ -54,9 +54,9 @@ describe('AIRVIX 1.02.265 status densify + Develop concept A', () => {
     expect(html).toContain('id="pulseAddWidgetBtn"');
     expect(html).toContain('class="pulse-health-note"');
     expect(html).toMatch(/בריאות מחשב המשימה והכלי/);
-    expect(css).toMatch(/\.pulse-gauges \.pulse-gauge\s*\{[^}]*padding:\s*4px/);
-    expect(css).toMatch(/\.pulse-gauge-svg\s*\{[^}]*height:\s*34px/);
-    expect(css).toMatch(/\.pulse-home\s*\{[^}]*gap:\s*8px/);
+    expect(css).toMatch(/\.pulse-gauges \.pulse-gauge\s*\{[^}]*padding:\s*2px/);
+    expect(css).toMatch(/\.pulse-gauge-svg\s*\{[^}]*height:\s*54px/);
+    expect(css).toMatch(/\.pulse-home\s*\{[^}]*gap:\s*6px/);
     expect(css).toMatch(/\.pulse-purpose\s*\{[^}]*clip:\s*rect\(0, 0, 0, 0\)/);
     const attention = sliceFunction(js, 'pulseBuildAttention');
     expect(attention).not.toMatch(/Jetson מנותק/);

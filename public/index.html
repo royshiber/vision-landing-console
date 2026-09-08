@@ -272,10 +272,10 @@
             <p class="pulse-purpose">סטטוס מחשבים</p>
             <p class="pulse-health-note">בריאות מחשב המשימה והכלי. לא שינוי מוצר.</p>
           </header>
-          <div class="pulse-status-grid" aria-label="סטטוס מחשבים">
+          <div class="pulse-status-grid pulse-computers-band" aria-label="סטטוס מחשבים">
             <article class="pulse-status-card pulse-computer-card" data-pulse-kind="companion" data-computer="jetson">
               <header class="pulse-computer-head">
-                <div>
+                <div class="pulse-computer-name">
                   <h4>מחשב משימה</h4>
                   <p class="pulse-computer-who">Jetson</p>
                 </div>
@@ -307,24 +307,26 @@
                   <dt>טמפרטורות</dt>
                 </div>
               </dl>
-              <button type="button" class="first-open-btn" data-first-action="companion" data-pulse-live="hide">חברו Jetson</button>
               <div id="pulseJetsonExtra" class="pulse-extra-metrics" data-pulse-extra="jetson"></div>
-              <div class="pulse-version-block" data-version-kind="jetson">
-                <p class="pulse-version-k">גרסה</p>
-                <p id="pulseJetsonVersion" class="pulse-version-v" dir="ltr">--</p>
-                <p id="pulseJetsonVersionState" class="pulse-version-state" data-offer="current">מעודכן</p>
-                <button type="button" id="pulseJetsonUpdateBtn" class="first-open-btn pulse-version-offer" data-first-action="jetson-version" hidden>עדכון זמין</button>
+              <div class="pulse-computer-foot">
+                <button type="button" class="first-open-btn first-open-btn-quiet pulse-connect-btn" data-first-action="companion" data-pulse-live="hide">חברו Jetson</button>
+                <div class="pulse-version-block" data-version-kind="jetson">
+                  <p class="pulse-version-k">גרסה</p>
+                  <p id="pulseJetsonVersion" class="pulse-version-v" dir="ltr">--</p>
+                  <p id="pulseJetsonVersionState" class="pulse-version-state" data-offer="current">מעודכן</p>
+                  <button type="button" id="pulseJetsonUpdateBtn" class="first-open-btn pulse-version-offer" data-first-action="jetson-version" hidden>עדכון זמין</button>
+                </div>
               </div>
             </article>
             <article class="pulse-status-card pulse-computer-card" data-pulse-kind="aircraft" data-computer="fc">
               <header class="pulse-computer-head">
-                <div>
+                <div class="pulse-computer-name">
                   <h4>הכלי</h4>
                   <p class="pulse-computer-who">FC</p>
+                  <p class="pulse-status-note">קישור <span id="pulseLink" dir="ltr">--</span></p>
                 </div>
                 <p id="pulseAircraft" class="pulse-computer-state">מנותק</p>
               </header>
-              <p class="pulse-status-note">קישור <span id="pulseLink" dir="ltr">--</span></p>
               <dl class="pulse-computer-metrics pulse-gauges">
                 <div class="pulse-gauge is-empty" data-gauge="load">
                   <svg class="pulse-gauge-svg" viewBox="0 0 80 50" aria-hidden="true">
@@ -352,20 +354,22 @@
                 </div>
               </dl>
               <div id="pulseFcExtra" class="pulse-extra-metrics" data-pulse-extra="fc"></div>
-              <div class="pulse-version-block" data-version-kind="fc">
-                <p class="pulse-version-k">זהות</p>
-                <p id="pulseFcVersion" class="pulse-version-v" dir="ltr">--</p>
-                <p id="pulseFcIdentity" class="pulse-version-state">--</p>
+              <div class="pulse-computer-foot">
+                <div class="pulse-version-block" data-version-kind="fc">
+                  <p class="pulse-version-k">זהות</p>
+                  <p id="pulseFcVersion" class="pulse-version-v" dir="ltr">--</p>
+                  <p id="pulseFcIdentity" class="pulse-version-state">--</p>
+                </div>
               </div>
-            </article>
-            <article class="pulse-status-card pulse-talk-card" data-pulse-kind="assist">
-              <div class="pulse-talk-copy">
-                <h4>AIRVIX Ask</h4>
-                <p id="pulseAssist">מנותק</p>
-              </div>
-              <button type="button" id="pulseTalkBtn" class="first-open-btn pulse-talk-btn" data-first-action="assist">שאלו את AIRVIX Ask</button>
             </article>
           </div>
+          <article class="pulse-status-card pulse-talk-card" data-pulse-kind="assist">
+            <div class="pulse-talk-copy">
+              <h4>AIRVIX Ask</h4>
+              <p id="pulseAssist">מנותק</p>
+            </div>
+            <button type="button" id="pulseTalkBtn" class="first-open-btn pulse-talk-btn" data-first-action="assist">שאלו את AIRVIX Ask</button>
+          </article>
           <section class="pulse-add-widget" aria-label="הוספת מד">
             <p class="pulse-add-widget-title">מה להציג עוד</p>
             <div class="pulse-add-widget-row">

@@ -4684,8 +4684,8 @@ body:has(#pulse.panel.visible) .layout {
   flex-direction: column;
   flex: 1 1 0;
   min-height: 0;
-  overflow: auto;
-  padding: 10px 14px 12px;
+  overflow: hidden;
+  padding: 6px 12px 8px;
   background:
     radial-gradient(ellipse 70% 40% at 50% 0%, rgba(56, 92, 160, 0.16), transparent 62%),
     #0b1018;
@@ -4695,24 +4695,28 @@ body:has(#pulse.panel.visible) .layout {
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
-  gap: 8px;
+  gap: 6px;
   flex: 1 1 auto;
   min-height: 0;
-  max-width: 980px;
+  height: 100%;
+  max-width: 1180px;
   width: 100%;
   margin: 0 auto;
-  padding: 10px 12px 12px;
+  padding: 4px 8px 6px;
 }
 
 .pulse-hero {
-  display: grid;
-  gap: 2px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 12px;
+  flex: 0 0 auto;
   text-align: start;
 }
 
 .pulse-title {
   margin: 0;
-  font-size: 1.08rem;
+  font-size: 0.92rem;
   font-weight: 800;
   color: #e8edf6;
 }
@@ -4725,7 +4729,7 @@ body:has(#pulse.panel.visible) .layout {
 }
 .pulse-health-note {
   margin: 0;
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   font-weight: 600;
   color: #8b97ab;
 }
@@ -4733,22 +4737,26 @@ body:has(#pulse.panel.visible) .layout {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 6px;
+  flex: 0 0 auto;
+}
+.pulse-computers-band {
+  flex: 0 0 auto;
 }
 .pulse-status-card {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 8px 10px 8px;
+  gap: 4px;
+  padding: 6px 8px 6px;
   border-radius: 8px;
   background: #121826;
   border: 1px solid rgba(148, 168, 198, 0.12);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.22);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
   text-align: start;
   color: #e8edf6;
 }
 .pulse-status-card h4 {
   margin: 0;
-  font-size: 0.92rem;
+  font-size: 0.86rem;
   font-weight: 800;
   color: #f2f6fb;
 }
@@ -4763,9 +4771,16 @@ body:has(#pulse.panel.visible) .layout {
 }
 .pulse-computer-head {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: 8px;
+}
+.pulse-computer-name {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 10px;
+  min-width: 0;
 }
 .pulse-computer-who {
   font-size: 0.68rem;
@@ -4801,7 +4816,7 @@ body:has(#pulse.panel.visible) .layout {
   align-items: center;
   justify-content: flex-end;
   gap: 1px;
-  padding: 4px 2px 3px;
+  padding: 2px 2px 1px;
   border-radius: 6px;
   background: #0d1320;
   color: #e8edf6;
@@ -4809,8 +4824,8 @@ body:has(#pulse.panel.visible) .layout {
 }
 .pulse-gauge-svg {
   width: 100%;
-  max-width: 72px;
-  height: 34px;
+  max-width: 118px;
+  height: 54px;
   overflow: visible;
 }
 .pulse-gauge-track,
@@ -4848,7 +4863,7 @@ body:has(#pulse.panel.visible) .layout {
   font-variant-numeric: tabular-nums;
 }
 .pulse-gauge dd {
-  font-size: 0.98rem;
+  font-size: 1.12rem;
   line-height: 1;
   color: #f2f6fb;
 }
@@ -4856,29 +4871,55 @@ body:has(#pulse.panel.visible) .layout {
   color: #7d8ba0;
 }
 .pulse-talk-card {
-  grid-column: 1 / -1;
+  flex: 0 0 auto;
   flex-direction: row;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 6px 10px;
+  padding: 3px 8px;
+  min-height: 0;
   text-align: start;
   background: #101827;
   border-color: rgba(76, 141, 255, 0.22);
 }
 .pulse-talk-copy {
-  display: grid;
-  gap: 2px;
+  display: flex;
+  flex-direction: row;
+  align-items: baseline;
+  gap: 8px;
 }
 .pulse-talk-copy h4 {
+  font-size: 0.8rem;
   color: #9ec0ff;
+}
+.pulse-talk-copy p {
+  font-size: 0.72rem;
+  color: #8b97ab;
+}
+.pulse-talk-card[data-state="connected"] #pulseAssist {
+  color: #3dd68c;
 }
 .pulse-talk-btn {
   margin-top: 0;
   flex: 0 0 auto;
+  padding: 4px 10px;
+  font-size: 0.72rem;
+}
+.pulse-computer-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 8px;
+  margin-top: 0;
+}
+.pulse-connect-btn {
+  padding: 3px 8px;
+  font-size: 0.68rem;
 }
 .pulse-version-line {
   margin: 0;
+  flex: 0 0 auto;
   text-align: start;
   font-size: 0.72rem;
   color: #7d8ba0;
@@ -4887,10 +4928,10 @@ body:has(#pulse.panel.visible) .layout {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: 6px 10px;
+  gap: 4px 8px;
   margin-top: 0;
-  padding-top: 4px;
-  border-top: 1px solid rgba(148, 168, 198, 0.12);
+  padding-top: 0;
+  border-top: 0;
   text-align: start;
 }
 .pulse-version-k {
@@ -5038,7 +5079,8 @@ body:has(#pulse.panel.visible) .layout {
   align-items: center;
   justify-content: flex-start;
   gap: 8px;
-  margin: 4px 0 0;
+  margin: 0;
+  flex: 0 0 auto;
   font-size: 0.72rem;
   color: #7d8ba0;
 }
@@ -5116,22 +5158,26 @@ body:has(#pulse.panel.visible) .layout {
   cursor: pointer;
 }
 .pulse-add-widget {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 6px;
-  padding: 8px 10px;
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 6px 8px;
   border-radius: 8px;
   background: #121826;
   border: 1px solid rgba(148, 168, 198, 0.14);
 }
 .pulse-add-widget-title {
   margin: 0;
-  font-size: 0.82rem;
+  font-size: 0.78rem;
   font-weight: 800;
   color: #e8edf6;
 }
 .pulse-add-widget-row {
   display: flex;
   gap: 8px;
+  flex: 0 0 auto;
 }
 .pulse-add-widget-input {
   flex: 1 1 auto;
@@ -5139,7 +5185,7 @@ body:has(#pulse.panel.visible) .layout {
   box-sizing: border-box;
   border: 1px solid rgba(148, 168, 198, 0.22);
   border-radius: 8px;
-  padding: 8px 10px;
+  padding: 6px 10px;
   background: #0d1320;
   color: #f2f6fb;
   font-family: "Heebo", sans-serif;
@@ -5149,7 +5195,7 @@ body:has(#pulse.panel.visible) .layout {
   flex: 0 0 auto;
   border: 0;
   border-radius: 8px;
-  padding: 8px 12px;
+  padding: 6px 12px;
   background: #1d4ed8;
   color: #f8fafc;
   font-family: "Heebo", sans-serif;
@@ -5162,11 +5208,19 @@ body:has(#pulse.panel.visible) .layout {
   font-size: 0.68rem;
   color: #8b97ab;
 }
-.pulse-add-widget-targets,
+.pulse-add-widget-targets {
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 6px;
+}
 .pulse-add-widget-chips {
   display: flex;
   flex-wrap: wrap;
+  align-content: flex-start;
   gap: 6px;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 .pulse-target-chip,
 .pulse-add-widget-chip {
@@ -5195,7 +5249,7 @@ body:has(#pulse.panel.visible) .layout {
     grid-template-columns: 1fr;
   }
   .pulse-home {
-    padding: 10px 12px 12px;
+    padding: 4px 8px 6px;
     justify-content: flex-start;
   }
 }
