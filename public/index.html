@@ -152,11 +152,14 @@
           <button type="button" class="assist-quick-chip" data-assist-chip="flightEngineer" hidden>מהנדס</button>
         </div>
         <form id="assistForm" class="assist-form" autocomplete="off">
-          <button type="button" id="assistMicBtn" class="assist-mic-btn assist-mic-btn--invite" title="מיקרופון — דברו אל המסייע" aria-label="מיקרופון — דברו אל המסייע" aria-pressed="false">
-            <span class="assist-mic-icon" aria-hidden="true">🎙</span>
-            <span class="assist-mic-label">מיקרופון</span>
-          </button>
-          <input id="assistInput" class="assist-input" type="text" maxlength="2000" placeholder="שאלה, יועץ, פתק, או בקשת פיתוח…" />
+          <div class="assist-mic-cluster">
+            <button type="button" id="assistMicBtn" class="assist-mic-btn assist-mic-btn--invite" title="שיחה עם המסייע של הממשק. לא פקודות טיסה." aria-label="שיחה עם המסייע של הממשק. לא פקודות טיסה." aria-pressed="false">
+              <span class="assist-mic-icon" aria-hidden="true">🎙</span>
+              <span class="assist-mic-label">שיחה עם המסייע</span>
+            </button>
+            <p class="assist-mic-caption">שיחה עם הממשק</p>
+          </div>
+          <textarea id="assistInput" class="assist-input" rows="1" maxlength="2000" placeholder="שאלה, יועץ, פתק, או בקשת פיתוח…"></textarea>
           <button type="submit" id="assistSendBtn" class="assist-btn assist-btn-send">שלח</button>
         </form>
       </div>
@@ -1512,12 +1515,12 @@
                 <div id="terrainMap"></div>
               </div>
             </div>
-            <section class="mission-region mission-region-messages" data-mission-region="messages" data-messages-expanded="0" aria-label="הודעות">
-              <h3 class="mission-region-title">הודעות</h3>
-              <button type="button" id="missionMessagesToggle" class="mission-messages-toggle" aria-expanded="false" aria-controls="pfcMsgScroll" title="הצג או הסתר את זרם ההודעות">הרחב</button>
+            <section class="mission-region mission-region-messages" data-mission-region="messages" data-messages-expanded="0" aria-label="הודעות מטוס">
+              <h3 class="mission-region-title">הודעות מטוס</h3>
+              <button type="button" id="missionMessagesToggle" class="mission-messages-toggle" aria-expanded="false" aria-controls="pfcMsgScroll" title="הצג או הסתר הודעות מטוס">הצג ▾</button>
               <div class="pfd-statustext-strip" id="pfdStatustextStrip">
                 <div class="pfc-msg-head">
-                  <span class="pfc-msg-label">הודעות מהבקר</span>
+                  <span class="pfc-msg-label">הודעות מטוס</span>
                   <span class="pfc-opt-mini" id="pfdOptMini" title="ניווט אופטי">👁 —</span>
                 </div>
                 <p class="pfc-msg-primary" id="pfcMsgPrimaryHe">אין חיבור לבקר — לא מתקבלות הודעות.</p>

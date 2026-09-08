@@ -8022,19 +8022,21 @@ html[data-evolve-preview="1"] #development {
   align-items: center;
   gap: 6px;
   padding: 0 6px;
-  background: rgba(11, 14, 20, 0.92);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: #1d4ed8;
+  border: 1px solid #93c5fd;
+  box-shadow: 0 0 0 1px rgba(147, 197, 253, 0.45);
+  cursor: pointer;
 }
 .mission-messages-toggle {
   position: static;
   align-self: center;
   margin: 0;
   border: 0;
-  border-radius: 4px;
-  padding: 1px 6px;
-  background: rgba(255, 255, 255, 0.08);
-  color: #e8edf6;
-  font-size: 0.6rem;
+  border-radius: 6px;
+  padding: 3px 8px;
+  background: #f8fafc;
+  color: #0f172a;
+  font-size: 0.68rem;
   font-weight: 800;
   font-family: "Heebo", sans-serif;
   cursor: pointer;
@@ -8043,6 +8045,10 @@ html[data-evolve-preview="1"] #development {
 .mission-region-messages .mission-region-title {
   padding: 0;
   flex: 0 0 auto;
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #f8fafc;
+  cursor: pointer;
 }
 .mission-region-messages[data-messages-expanded="0"] .pfc-msg-primary {
   margin: 0;
@@ -8063,6 +8069,8 @@ html[data-evolve-preview="1"] #development {
   flex-direction: column;
   align-items: stretch;
   padding: 4px 6px;
+  background: #1e3a8a;
+  cursor: default;
 }
 .mission-region-messages[data-messages-expanded="1"] .pfc-msg-scroll {
   display: block;
@@ -14491,9 +14499,14 @@ body.mission-assist-docked .assist-rail.assist-rail--mission,
 }
 #missionTalkHost .assist-agent-key,
 #missionTalkHost .assist-input {
-  background: #0b0e14;
-  color: #e8edf6;
-  border-color: rgba(255, 255, 255, 0.12);
+  background: #151b27;
+  color: #f8fafc;
+  border-color: rgba(255, 255, 255, 0.18);
+}
+#missionTalkHost .assist-input:focus,
+#missionTalkHost .assist-input.assist-input--grown {
+  background: #1e293b;
+  border-color: #93c5fd;
 }
 #missionTalkHost .assist-msg-user {
   background: rgba(37, 99, 235, 0.22);
@@ -14530,16 +14543,16 @@ body.mission-assist-docked .assist-rail.assist-rail--mission,
   justify-content: flex-start;
   align-items: stretch;
   text-align: start;
-  padding: 10px 12px;
+  padding: 12px 14px;
   gap: 0;
-  background: transparent;
+  background: #2a3648;
 }
 #missionTalkHost .assist-empty-invite {
-  font-size: 0.72rem;
-  line-height: 1.3;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  color: #cbd5e1;
+  white-space: normal;
+  overflow: visible;
 }
 .assist-transcript-well {
   flex: 1 1 0;
@@ -14549,8 +14562,8 @@ body.mission-assist-docked .assist-rail.assist-rail--mission,
   overflow: hidden;
 }
 #missionTalkHost .assist-transcript-well {
-  background: #1e293b;
-  border: 1px solid rgba(148, 163, 184, 0.28);
+  background: #243044;
+  border: 1px solid rgba(148, 163, 184, 0.34);
   border-radius: 10px;
 }
 #missionTalkHost .assist-messages {
@@ -14582,6 +14595,19 @@ body.mission-assist-docked .assist-rail.assist-rail--mission,
 #missionTalkHost .assist-composer {
   margin-top: 0;
   flex: 0 0 auto;
+}
+#missionTalkHost .assist-input,
+#missionTalkHost .assist-input:focus,
+#missionTalkHost .assist-input.assist-input--grown {
+  min-height: 6.4em;
+  max-height: 12em;
+}
+#missionTalkHost .assist-input:not(:focus):not(.assist-input--grown) {
+  min-height: 2.2em;
+  max-height: 2.6em;
+}
+#missionTalkHost .assist-mic-caption {
+  color: #bbf7d0;
 }
 #missionTalkHost .mission-talk-hint,
 .mission-region-talk .mission-talk-hint {
@@ -15025,21 +15051,51 @@ body.mission-assist-docked .assist-rail.assist-rail--mission,
 }
 .assist-mic-icon { font-size: 1.6rem; line-height: 1; }
 .assist-mic-label { white-space: nowrap; }
+.assist-mic-cluster {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2px;
+  flex: 0 0 auto;
+  min-width: 0;
+}
+.assist-mic-caption {
+  margin: 0;
+  max-width: 7.8rem;
+  font-size: 0.58rem;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+  color: #86efac;
+  font-family: "Heebo", sans-serif;
+}
 .assist-form {
   display: flex;
   gap: 8px;
-  align-items: stretch;
+  align-items: flex-end;
 }
 .assist-input {
   flex: 1;
   min-width: 0;
+  min-height: 2.2em;
+  max-height: 2.6em;
   border-radius: 9px;
   border: 1px solid rgba(255, 255, 255, 0.14);
   background: rgba(0, 0, 0, 0.35);
   color: #f8fafc;
   padding: 9px 10px;
   font-size: 0.82rem;
+  line-height: 1.4;
   font-family: "Heebo", sans-serif;
+  resize: none;
+  overflow-y: hidden;
+}
+.assist-input:focus,
+.assist-input.assist-input--grown {
+  min-height: 4.8em;
+  max-height: 12em;
+  overflow-y: auto;
 }
 .assist-btn {
   border-radius: 8px;

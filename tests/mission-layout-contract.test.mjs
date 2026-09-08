@@ -111,7 +111,7 @@ describe('Mission layout contract — static source', () => {
     expect(cssBlock(css, '#missionTalkHost .assist-empty-stage')).toMatch(/flex:\s*1 1 0/);
     expect(cssBlock(css, '#missionTalkHost .assist-empty-stage')).toMatch(/justify-content:\s*flex-start/);
     expect(cssBlock(css, '#missionTalkHost .assist-empty-stage')).not.toMatch(/min-height:\s*140px/);
-    expect(cssBlock(css, '#missionTalkHost .assist-transcript-well')).toMatch(/background:\s*#1e293b/);
+    expect(cssBlock(css, '#missionTalkHost .assist-transcript-well')).toMatch(/background:\s*#243044/);
     expect(cssBlock(css, '#missionTalkHost .assist-transcript-well')).toMatch(/border:\s*1px solid/);
     expect(css).toMatch(/#missionTalkHost \.assist-composer\s*\{[^}]*flex:\s*0 0 auto/);
     expect(css).toMatch(/#development\.panel\.visible\s*\{[^}]*display:\s*flex/);
@@ -267,7 +267,7 @@ describe('Mission layout contract — live boxes', () => {
     });
 
     expect(measured.platformTab).toBe(false);
-    expect(measured.version).toBe('1.02.261');
+    expect(measured.version).toBe('1.02.262');
     expect(measured.ws.width).toBeGreaterThan(800);
     expect(measured.talkMinWidth).toBe('240px');
     expect(Number.parseFloat(measured.dataGap)).toBeLessThanOrEqual(4);
@@ -397,6 +397,77 @@ describe('Mission layout contract — live boxes', () => {
     expect(expanded.rows.split(' ').filter(Boolean).length).toBe(1);
     await page.click('#missionMessagesToggle');
   }, 20000);
+
+  it('grows Assist composer on focus and makes mic plus aircraft messages obvious', async () => {
+    await page.locator('[data-tab="terrain"]').click({ force: true });
+    await page.waitForFunction(() => document.getElementById('terrain')?.classList.contains('visible'));
+    const collapsed = await page.evaluate(() => {
+      const input = document.getElementById('assistInput');
+      const mic = document.getElementById('assistMicBtn');
+      const caption = document.querySelector('#missionTalkHost .assist-mic-caption');
+      const title = document.querySelector('[data-mission-region="messages"] .mission-region-title');
+      const toggle = document.getElementById('missionMessagesToggle');
+      const msg = document.querySelector('[data-mission-region="messages"]');
+      const well = document.querySelector('#missionTalkHost .assist-transcript-well');
+      const empty = document.querySelector('#missionTalkHost .assist-empty-stage');
+      return {
+        tag: input?.tagName,
+        inputH: input ? input.getBoundingClientRect().height : 0,
+        title: title?.textContent || '',
+        toggle: toggle?.textContent || '',
+        micLabel: mic?.getAttribute('aria-label') || '',
+        caption: caption?.textContent || '',
+        msgBg: msg ? getComputedStyle(msg).backgroundColor : '',
+        wellBg: well ? getComputedStyle(well).backgroundColor : '',
+        emptyBg: empty ? getComputedStyle(empty).backgroundColor : '',
+        version: document.querySelector('meta[name="app-version"]')?.getAttribute('content') || '',
+      };
+    });
+    expect(collapsed.tag).toBe('TEXTAREA');
+    expect(collapsed.inputH).toBeGreaterThan(20);
+    expect(collapsed.inputH).toBeLessThan(56);
+    expect(collapsed.title).toBe('הודעות מטוס');
+    expect(collapsed.toggle).toContain('הצג');
+    expect(collapsed.micLabel).toContain('שיחה עם המסייע');
+    expect(collapsed.micLabel).toContain('לא פקודות טיסה');
+    expect(collapsed.caption).toBe('שיחה עם הממשק');
+    expect(collapsed.msgBg).not.toMatch(/rgba?\(\s*11,\s*14,\s*20/);
+    expect(collapsed.wellBg).not.toMatch(/rgba?\(\s*0,\s*0,\s*0/);
+    expect(collapsed.emptyBg).not.toMatch(/rgba?\(\s*0,\s*0,\s*0/);
+    expect(collapsed.version).toBe('1.02.262');
+    await writeShot(page, 'mission-assist-collapsed.png');
+
+    await page.focus('#assistInput');
+    await page.type('#assistInput', 'בדיקת טקסט שנראה בזמן הקלדה');
+    const grown = await page.evaluate(() => {
+      const input = document.getElementById('assistInput');
+      return {
+        h: input.getBoundingClientRect().height,
+        grown: input.classList.contains('assist-input--grown'),
+        value: input.value,
+      };
+    });
+    expect(grown.grown).toBe(true);
+    expect(grown.h).toBeGreaterThanOrEqual(88);
+    expect(grown.value).toContain('בדיקת טקסט');
+    await writeShot(page, 'mission-assist-focused.png');
+
+    await page.click('#missionMessagesToggle');
+    const expanded = await page.evaluate(() => {
+      const toggle = document.getElementById('missionMessagesToggle');
+      const region = document.querySelector('[data-mission-region="messages"]');
+      return {
+        text: toggle?.textContent || '',
+        expanded: region?.dataset.messagesExpanded,
+        h: region.getBoundingClientRect().height,
+      };
+    });
+    expect(expanded.expanded).toBe('1');
+    expect(expanded.text).toContain('הסתר');
+    expect(expanded.h).toBeGreaterThan(40);
+    await writeShot(page, 'mission-aircraft-messages.png');
+    await page.click('#missionMessagesToggle');
+  }, 30000);
 
   it('keeps Pulse extra cards in flow without stacking', async () => {
     await page.click('[data-tab="pulse"]');
