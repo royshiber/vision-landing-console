@@ -42,6 +42,40 @@ describe('AIRVIX 1.02.260 Roy feedback', () => {
     expect(sliceFunction(js, 'operatorOpenFirstAction')).toMatch(/applyMainTab\('pulse'\)/);
   });
 
+  it('removes Maintenance from primary chrome and keeps Jetson version on computer status', () => {
+    const chrome = html.match(/<header class="app-chrome"[^>]*>([\s\S]*?)<\/header>/)?.[1] || '';
+    expect(chrome).not.toMatch(/data-tab="maintenance"/);
+    expect(chrome).not.toMatch(/>תחזוקה</);
+    expect(html).toContain('id="pulseJetsonUpdateBtn"');
+    expect(html).toContain('id="pulseJetsonVersion"');
+    expect(findAssistRoute('תחזוקה')?.tab).toBe('pulse');
+    expect(findAssistRoute('maintenance')?.tab).toBe('pulse');
+    expect(findAssistRoute('Jetson')?.tab).toBe('pulse');
+    expect(sliceFunction(js, 'applyMainTab')).toMatch(/tabId === 'maintenance'/);
+    expect(sliceFunction(js, 'applyMainTab')).toMatch(/applyMainTab\('pulse'/);
+    expect(sliceFunction(js, 'restoreLastUiTab')).toMatch(/main === 'maintenance'/);
+    expect(sliceFunction(js, 'operatorOpenFirstAction')).toMatch(/action === 'maintenance'/);
+  });
+
+  it('turns Develop into an Evolve first slice without flight writes', () => {
+    expect(html).toContain('class="devtasks-panel evolve-shell"');
+    expect(html).toContain('class="evolve-command"');
+    expect(html).toContain('id="evolveLiveRuns"');
+    expect(html).toContain('class="devtasks-list evolve-backlog"');
+    expect(html).toContain('id="devTaskCreateBtn"');
+    expect(html).toMatch(/id="devTaskCreateBtn"[^>]*>הפעילו שינוי</);
+    expect(css).toMatch(/\.evolve-shell\s*\{[^}]*display:\s*grid/);
+    expect(css).toMatch(/\.evolve-run-grid\s*\{[^}]*grid-auto-flow:\s*row/);
+    expect(js).toContain('function devRenderEvolveLiveRuns(');
+    expect(js).toContain('function devTaskIsLive(');
+    const evolve = [
+      sliceFunction(js, 'devCreateTask'),
+      sliceFunction(js, 'devRenderEvolveLiveRuns'),
+      sliceFunction(js, 'devTaskIsLive'),
+    ].join('\n');
+    expect(evolve).not.toMatch(/FLIGHT_ACTION|\/apply|\/restart|\bARM\b|\bDISARM\b|\bLAND\b/);
+  });
+
   it('adds a computer-status widget composer with a growing grid', () => {
     expect(html).toContain('id="pulseAddWidgetInput"');
     expect(html).toContain('id="pulseAddWidgetBtn"');

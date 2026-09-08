@@ -93,7 +93,6 @@
         <button class="tab tab-ops" data-tab="control" title="פרמטרים">פרמטרים</button>
         <button class="tab tab-ops" data-tab="recordings" title="תחקור">תחקור</button>
         <button class="tab tab-quiet" hidden data-tab="telemetry" title="אבחונים">אבחונים</button>
-        <button class="tab tab-ops" data-tab="maintenance" title="תחזוקה">תחזוקה</button>
         <button class="tab tab-ops" data-tab="development" title="פיתוח">פיתוח</button>
       </nav>
       <div class="app-chrome-tools">
@@ -1017,7 +1016,7 @@
         </div>
       </section>
 
-      <section id="maintenance" class="panel">
+      <section id="maintenance" class="panel" hidden aria-hidden="true">
         <div class="companion-maint-panel">
           <header class="operator-overview">
             <h3>תחזוקה</h3>
@@ -1148,39 +1147,56 @@
       </section>
 
       <section id="development" class="panel">
-        <div class="devtasks-panel">
-          <h3>משימות פיתוח</h3>
-          <section class="devtasks-create">
-            <h4 class="maint-group-title">יצירת משימה</h4>
-            <div class="tele-group-cards">
-              <label class="tele-card"><span>כותרת</span><input id="devTaskTitle" class="kpi-input" maxlength="140" /></label>
-              <label class="tele-card"><span>סיווג</span>
-                <select id="devTaskTaxonomy" class="kpi-input">
-                  <option>IDEA</option><option>REQUEST</option><option>IMPROVEMENT</option>
-                  <option>BUG</option><option>EXPERIMENT</option><option selected>FEATURE</option>
-                </select>
-              </label>
-              <label class="tele-card"><span>אזור יעד</span>
-                <select id="devTaskTarget" class="kpi-input">
-                  <option>VISION</option><option>NAVIGATION</option><option>LANDING</option><option>VIDEO</option>
-                  <option>MAVLINK</option><option>COMPANION</option><option>UI</option><option>API</option>
-                  <option>MAINTENANCE</option><option selected>OTHER</option>
-                </select>
-              </label>
-              <label class="tele-card"><span>עדיפות</span>
-                <select id="devTaskPriority" class="kpi-input">
-                  <option>LOW</option><option selected>NORMAL</option><option>HIGH</option><option>CRITICAL</option>
-                </select>
-              </label>
-            </div>
-            <label class="tele-card devtasks-block"><span>תיאור</span><textarea id="devTaskDescription" class="kpi-input" rows="4" maxlength="5000"></textarea></label>
-            <label class="tele-card devtasks-block"><span>הערות (לא חובה)</span><textarea id="devTaskNotes" class="kpi-input" rows="2" maxlength="5000"></textarea></label>
-            <button type="button" id="devTaskCreateBtn" class="policy-btn">יצירת משימה</button>
+        <div class="devtasks-panel evolve-shell" data-layout-contract="v1">
+          <header class="evolve-hero">
+            <h3>פיתוח</h3>
+            <p class="evolve-purpose">בקשה בשפה חופשית. הסוכן עובד על ענף מבודד. התוצאה חוזרת לכאן.</p>
+          </header>
+
+          <section class="evolve-command" aria-label="בקשה">
+            <h4 class="evolve-section-title">בקשה</h4>
+            <label class="evolve-ask-block" for="devTaskDescription"><span>מה לשנות</span>
+              <textarea id="devTaskDescription" class="kpi-input evolve-ask-input" rows="3" maxlength="5000" placeholder="למשל תקנו את רצועת הנתונים בהטסה"></textarea>
+            </label>
+            <label class="evolve-ask-title" for="devTaskTitle"><span>כותרת קצרה</span>
+              <input id="devTaskTitle" class="kpi-input" maxlength="140" placeholder="כותרת למשימה" />
+            </label>
+            <details class="evolve-ask-more">
+              <summary>סיווג וחשיבות</summary>
+              <div class="tele-group-cards">
+                <label class="tele-card"><span>סיווג</span>
+                  <select id="devTaskTaxonomy" class="kpi-input">
+                    <option>IDEA</option><option>REQUEST</option><option>IMPROVEMENT</option>
+                    <option>BUG</option><option>EXPERIMENT</option><option selected>FEATURE</option>
+                  </select>
+                </label>
+                <label class="tele-card"><span>אזור יעד</span>
+                  <select id="devTaskTarget" class="kpi-input">
+                    <option>VISION</option><option>NAVIGATION</option><option>LANDING</option><option>VIDEO</option>
+                    <option>MAVLINK</option><option>COMPANION</option><option>UI</option><option>API</option>
+                    <option>MAINTENANCE</option><option selected>OTHER</option>
+                  </select>
+                </label>
+                <label class="tele-card"><span>עדיפות</span>
+                  <select id="devTaskPriority" class="kpi-input">
+                    <option>LOW</option><option selected>NORMAL</option><option>HIGH</option><option>CRITICAL</option>
+                  </select>
+                </label>
+              </div>
+              <label class="tele-card devtasks-block"><span>הערות</span><textarea id="devTaskNotes" class="kpi-input" rows="2" maxlength="5000"></textarea></label>
+            </details>
+            <button type="button" id="devTaskCreateBtn" class="policy-btn evolve-ask-go">הפעילו שינוי</button>
             <p id="devTaskCreateResult" class="maint-rel-result" hidden></p>
           </section>
 
-          <section class="devtasks-list">
-            <h4 class="maint-group-title">משימות פיתוח</h4>
+          <section class="evolve-live" aria-label="ריצות חיות">
+            <h4 class="evolve-section-title">ריצות חיות</h4>
+            <div id="evolveLiveRuns" class="evolve-run-grid"></div>
+            <p id="evolveLiveEmpty" class="evolve-empty">אין ריצה פעילה.</p>
+          </section>
+
+          <section class="devtasks-list evolve-backlog" aria-label="תור יכולות">
+            <h4 class="evolve-section-title">תור יכולות</h4>
             <div id="devTaskFilters" class="devtasks-filters" hidden>
               <label>מצב <select id="devTaskFilterStatus" class="kpi-input"><option value="">הכל</option></select></label>
               <label>סיווג <select id="devTaskFilterTaxonomy" class="kpi-input"><option value="">הכל</option></select></label>
@@ -1194,7 +1210,7 @@
                 <thead><tr><th>מזהה</th><th>כותרת</th><th>סיווג</th><th>יעד</th><th>עדיפות</th><th>מצב</th><th>עודכן</th></tr></thead>
                 <tbody id="devTaskListBody"></tbody>
               </table>
-              <p id="devTaskListEmpty" class="maint-diag-empty">אין משימות. צרו משימה למעלה.</p>
+              <p id="devTaskListEmpty" class="maint-diag-empty">אין משימות. כתבו בקשה למעלה.</p>
             </div>
           </section>
 

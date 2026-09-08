@@ -6,7 +6,7 @@
       {
         "type": "ui",
         "title": "Remove Platform tab, add computer-status widgets, enforce Mission layout contract",
-        "detail": "Platform tab and hub are gone; Assist and leftover routes open computer status. Computer status adds a free-text widget composer that binds known catalog fields onto a flowing auto-fill grid and persists in localStorage. Mission uses a layout contract: CSS Grid regions only, map at least 55% tall, messages collapsed to 72px, AH at most 28% with reserved IAS/horizon/ALT/heading lanes, horizontal data strip, Assist column 280px. APP_VERSION 1.02.260."
+        "detail": "Platform and Maintenance tabs are gone from primary chrome; Assist leftover routes open computer status, which remains the Jetson version home. Computer status adds a free-text widget composer on a flowing auto-fill grid. Mission uses the layout contract. Develop is an Evolve first slice: command surface, live run cards, ranked capability queue. APP_VERSION 1.02.260."
       },
       {
         "type": "test",

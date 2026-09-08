@@ -254,6 +254,10 @@ function applyMainTab(tabId, { save = true } = {}) {
     applyMainTab('pulse', { save });
     return;
   }
+  if (tabId === 'maintenance') {
+    applyMainTab('pulse', { save });
+    return;
+  }
   if ((tabId === 'control' || tabId === 'development') && !opsChromeAlwaysReachable(tabId)) return;
   if (!_mainTabIds().has(tabId) && !isAssistShelfPanel(tabId)) return;
   tabs.forEach((t) => t.classList.remove('active'));
@@ -285,9 +289,6 @@ function applyMainTab(tabId, { save = true } = {}) {
     setTimeout(() => {
       if (typeof onTerrainTabActivated === 'function') onTerrainTabActivated();
     }, 60);
-  }
-  if (tabId === 'maintenance') {
-    void maintLoadData();
   }
   if (tabId === 'development') {
     void devTasksLoadList();
@@ -344,6 +345,7 @@ function restoreLastUiTab() {
   if (main === 'processes') main = 'control';
   if (main === 'simLab') main = 'terrain';
   if (main === 'platform') main = 'pulse';
+  if (main === 'maintenance') main = 'pulse';
   if (main && _mainTabIds().has(main)) {
     applyMainTab(main, { save: false });
   } else {
@@ -3002,7 +3004,7 @@ function operatorOpenFirstAction(action) {
     return;
   }
   if (action === 'maintenance') {
-    applyMainTab('maintenance');
+    applyMainTab('pulse');
     return;
   }
   if (action === 'platform') {
@@ -11324,7 +11326,7 @@ function devSyncEmptyOverview() {
   if (filters) filters.hidden = !hasTasks;
   if (listEmpty) {
     listEmpty.hidden = hasTasks;
-    if (!hasTasks) listEmpty.textContent = 'אין משימות. צרו משימה למעלה.';
+    if (!hasTasks) listEmpty.textContent = 'אין משימות. כתבו בקשה למעלה.';
   }
   const showingDetail = !!(detailCard && !detailCard.hidden);
   if (detailSection) detailSection.hidden = !hasTasks;
@@ -11357,6 +11359,51 @@ function devRenderTaskList() {
     body.appendChild(tr);
   }
   devSyncEmptyOverview();
+  devRenderEvolveLiveRuns();
+}
+
+function devTaskIsLive(task) {
+  const status = String(task?.status || '').toUpperCase();
+  const agent = String(task?.agent?.state || task?.agent?.status || '').toUpperCase();
+  return ['QUEUED', 'IN_PROGRESS', 'TESTING', 'WAITING_FOR_REVIEW'].includes(status)
+    || ['RUNNING', 'ACTIVE', 'IN_PROGRESS', 'QUEUED'].includes(agent);
+}
+
+function devPriorityRank(priority) {
+  const p = String(priority || '').toUpperCase();
+  if (p === 'CRITICAL') return 0;
+  if (p === 'HIGH') return 1;
+  if (p === 'NORMAL') return 2;
+  if (p === 'LOW') return 3;
+  return 4;
+}
+
+function devRenderEvolveLiveRuns() {
+  const host = document.getElementById('evolveLiveRuns');
+  const empty = document.getElementById('evolveLiveEmpty');
+  if (!host) return;
+  const live = [..._devTasks]
+    .filter((t) => devTaskIsLive(t))
+    .sort((a, b) => devPriorityRank(a.priority) - devPriorityRank(b.priority));
+  host.innerHTML = '';
+  if (empty) empty.hidden = live.length > 0;
+  for (const t of live) {
+    const card = document.createElement('button');
+    card.type = 'button';
+    card.className = 'evolve-run-card';
+    card.dataset.taskId = t.id;
+    if (t.id === _devSelectedTaskId) card.dataset.selected = 'true';
+    const state = t.agent?.state || t.status || '—';
+    card.innerHTML = `<strong class="evolve-run-title">${devText(t.title)}</strong>`
+      + `<span class="evolve-run-state">${devText(state)}</span>`
+      + `<span class="evolve-run-meta">${devText(t.priority)} · ${devText(t.target_area)}</span>`;
+    card.addEventListener('click', () => {
+      _devSelectedTaskId = t.id;
+      devRenderTaskList();
+      void devLoadTaskDetail(t.id);
+    });
+    host.appendChild(card);
+  }
 }
 
 function devRenderTaskDetail(task) {
@@ -11710,8 +11757,9 @@ async function devTasksLoadList() {
 }
 
 async function devCreateTask() {
-  const title = document.getElementById('devTaskTitle')?.value || '';
   const description = document.getElementById('devTaskDescription')?.value || '';
+  const typedTitle = document.getElementById('devTaskTitle')?.value || '';
+  const title = String(typedTitle).trim() || String(description).trim().split('\n')[0].slice(0, 140);
   const taxonomy = document.getElementById('devTaskTaxonomy')?.value || 'FEATURE';
   const target_area = document.getElementById('devTaskTarget')?.value || 'OTHER';
   const priority = document.getElementById('devTaskPriority')?.value || 'NORMAL';

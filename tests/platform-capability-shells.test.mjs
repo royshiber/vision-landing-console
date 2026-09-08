@@ -48,7 +48,8 @@ describe('Platform tab removed — redirect to computer status', () => {
     expect(html).toMatch(/class="tab tab-ops"[^>]*data-tab="control"[^>]*>פרמטרים</);
     expect(html).toMatch(/class="tab tab-ops"[^>]*data-tab="pulse"[^>]*>סטטוס מחשבים</);
     expect(html).toMatch(/data-tab="telemetry"[^>]*>אבחונים</);
-    expect(html).toMatch(/class="tab tab-ops"[^>]*data-tab="maintenance"[^>]*>תחזוקה</);
+    expect(html).not.toMatch(/data-tab="maintenance"/);
+    expect(html).not.toMatch(/>תחזוקה</);
   });
 
   it('redirects leftover platform actions to Pulse / computer status', () => {
@@ -81,19 +82,24 @@ describe('Platform tab removed — redirect to computer status', () => {
     expect(result.tabs.pulse).toBe(true);
     expect(result.tabs.control).toBe(true);
     expect(result.tabs.telemetry).toBe(true);
-    expect(result.tabs.maintenance).toBe(true);
+    expect(result.tabs.maintenance).toBe(false);
     expect(result.teleSub).toBe('dash');
     expect(result.focused).toBe(true);
     expect(sliceFunction(js, 'applyMainTab')).toMatch(/tabId === 'platform'/);
     expect(sliceFunction(js, 'applyMainTab')).toMatch(/applyMainTab\('pulse'/);
     expect(sliceFunction(js, 'restoreLastUiTab')).toMatch(/main === 'platform'/);
+    expect(sliceFunction(js, 'applyMainTab')).toMatch(/tabId === 'maintenance'/);
+    expect(sliceFunction(js, 'restoreLastUiTab')).toMatch(/main === 'maintenance'/);
   });
 
   it('routes Assist platform / פלטפורמה to computer status', () => {
     expect(findAssistRoute('פלטפורמה')?.tab).toBe('pulse');
     expect(findAssistRoute('platform')?.tab).toBe('pulse');
     expect(findAssistRoute('סטטוס מחשבים')?.tab).toBe('pulse');
-    expect(findAssistRoute('תחזוקה')?.tab).toBe('maintenance');
+    expect(findAssistRoute('תחזוקה')?.tab).toBe('pulse');
+    expect(findAssistRoute('maintenance')?.tab).toBe('pulse');
+    expect(findAssistRoute('Jetson')?.tab).toBe('pulse');
+    expect(hebrewOpenRouteAnswer('companion')).toBe('פותחים סטטוס מחשבים.');
     expect(findAssistRoute('פרמטרים')?.tab).toBe('control');
     expect(hebrewOpenRouteAnswer('platform')).toBe('פותחים סטטוס מחשבים.');
     expect(hebrewLookingAtAnswer('PULSE', 'diagnostics', 'pulse')).toContain('מסך נוכחי: סטטוס מחשבים.');

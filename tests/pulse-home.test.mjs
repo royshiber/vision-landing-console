@@ -51,7 +51,7 @@ describe('C10.3 Pulse home', () => {
     expect(tag('terrain')).toMatch(/\bvisible\b/);
     expect(tag('control')).not.toMatch(/\bvisible\b/);
     expect(html).toMatch(/data-tab="telemetry"/);
-    expect(html).toMatch(/data-tab="maintenance"/);
+    expect(html).not.toMatch(/data-tab="maintenance"/);
     expect(html).toMatch(/data-tab="development"/);
     expect(html).toMatch(/data-tab="control"/);
     expect(html).not.toMatch(/class="tab"[^>]*data-tab="simLab"/);

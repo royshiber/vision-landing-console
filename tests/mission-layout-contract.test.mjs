@@ -51,6 +51,7 @@ describe('Mission layout contract — static source', () => {
     expect(html).toMatch(/data-layout-contract="v1"/);
     expect(html).toContain('class="pfd-heading-lane"');
     expect(html).not.toMatch(/data-tab="platform"/);
+    expect(html).not.toMatch(/data-tab="maintenance"/);
     expect(html).not.toContain('id="platform"');
     const workspace = cssBlock(css, '.mission-workspace[data-mission-layout="ops-v1"]');
     expect(workspace).toMatch(/display:\s*grid/);
@@ -243,6 +244,7 @@ describe('Mission layout contract — live boxes', () => {
     }
 
     for (let i = 0; i < measured.tiles.length; i += 1) {
+      expect(measured.tiles[i].height).toBeLessThanOrEqual(72);
       for (let j = i + 1; j < measured.tiles.length; j += 1) {
         expect(interiorsIntersect(measured.tiles[i], measured.tiles[j]), 'data tiles overlap').toBe(false);
       }
@@ -280,5 +282,47 @@ describe('Mission layout contract — live boxes', () => {
     const shotDir = '/opt/cursor/artifacts/screenshots';
     fs.mkdirSync(shotDir, { recursive: true });
     await page.screenshot({ path: path.join(shotDir, 'status-widgets-contract.png'), fullPage: false });
+  }, 30000);
+
+  it('keeps Evolve command and live-run regions from overlapping', async () => {
+    await page.click('[data-tab="development"]');
+    await page.waitForSelector('.evolve-shell');
+    const evolve = await page.evaluate(() => {
+      const box = (el) => {
+        if (!el) return null;
+        const r = el.getBoundingClientRect();
+        return { left: r.left, top: r.top, right: r.right, bottom: r.bottom, width: r.width, height: r.height };
+      };
+      const command = box(document.querySelector('.evolve-command'));
+      const live = box(document.querySelector('.evolve-live'));
+      const backlog = box(document.querySelector('.evolve-backlog'));
+      const cards = [...document.querySelectorAll('.evolve-run-card')].map(box);
+      const cs = getComputedStyle(document.querySelector('.evolve-shell'));
+      return {
+        command,
+        live,
+        backlog,
+        cards,
+        display: cs.display,
+        gap: cs.gap,
+        overflowY: cs.overflowY,
+        maintenanceTab: !!document.querySelector('[data-tab="maintenance"]'),
+      };
+    });
+    expect(evolve.maintenanceTab).toBe(false);
+    expect(evolve.display).toBe('grid');
+    expect(Number.parseFloat(evolve.gap)).toBeLessThanOrEqual(8);
+    expect(evolve.overflowY).toMatch(/auto|scroll/);
+    expect(interiorsIntersect(evolve.command, evolve.live)).toBe(false);
+    expect(interiorsIntersect(evolve.command, evolve.backlog)).toBe(false);
+    expect(interiorsIntersect(evolve.live, evolve.backlog)).toBe(false);
+    for (let i = 0; i < evolve.cards.length; i += 1) {
+      for (let j = i + 1; j < evolve.cards.length; j += 1) {
+        expect(interiorsIntersect(evolve.cards[i], evolve.cards[j]), 'evolve run cards overlap').toBe(false);
+      }
+    }
+    const shotDir = '/opt/cursor/artifacts/screenshots';
+    fs.mkdirSync(shotDir, { recursive: true });
+    await page.screenshot({ path: path.join(shotDir, 'evolve-first-slice.png'), fullPage: false });
   }, 30000);
 });
