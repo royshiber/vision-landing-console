@@ -1,5 +1,16 @@
 [
   {
+    "version": "1.02.263",
+    "date": "2026-09-08",
+    "changes": [
+      {
+        "type": "ui",
+        "title": "Flyable Mission: readable horizon, map-dominant workspace, stable Assist composer",
+        "detail": "Rebuild from the last good 1.02.261 Mission. The map stays the majority of the workspace (≥65% height). The artificial horizon is a readable rectangle at 35–42% of the left column, with IAS|horizon|ALT lanes — not a postage stamp and not a stretched filler tower. Assist composer may grow to about 3–5 lines on focus but stays a horizontal textarea at the bottom and cannot steal map width. Microphone is labeled as talking to interface Assist, not flight. Collapsed messages are titled aircraft messages. Leftover companion Hebrew stays out of public UI. APP_VERSION 1.02.263."
+      }
+    ]
+  },
+  {
     "version": "1.02.261",
     "date": "2026-09-08",
     "changes": [

@@ -12277,6 +12277,7 @@ function assistApplyQuickChip(kind) {
   const current = String(input.value || '');
   if (!current.startsWith(prefix)) input.value = `${prefix}${current}`;
   input.focus();
+  syncAssistComposerSize();
 }
 
 function assistSyncMessagesEmpty() {
@@ -13120,7 +13121,7 @@ function applyMissionMessagesExpanded(expanded) {
   if (scroll) scroll.hidden = !expanded;
   if (toggle) {
     toggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
-    toggle.textContent = expanded ? 'כווץ' : 'הרחב';
+    toggle.textContent = expanded ? 'הסתר' : 'הצג';
   }
 }
 
@@ -13137,8 +13138,10 @@ function initMissionMessages() {
   const toggle = document.getElementById('missionMessagesToggle');
   let dragged = false;
   title?.addEventListener('dragstart', () => { dragged = true; });
-  title?.addEventListener('click', () => {
+  region?.addEventListener('click', (e) => {
     if (dragged) { dragged = false; return; }
+    if (e.target.closest('#missionMessagesToggle')) return;
+    if (region.dataset.messagesExpanded === '1' && e.target.closest('#pfcMsgScroll')) return;
     toggleMissionMessages();
   });
   toggle?.addEventListener('click', (e) => {
@@ -13357,14 +13360,37 @@ function initMissionDataPicker() {
   });
 }
 
+function assistMicTalkLabel(state) {
+  if (state === 'unavailable') return 'שיחה עם המסייע אינה זמינה בדפדפן זה';
+  if (state === 'error') return 'שיחה עם המסייע — שגיאת הקלטה';
+  if (state === 'listening') return 'שיחה עם המסייע — מאזין';
+  if (state === 'blocked') return 'שיחה עם המסייע — לא ניתן להתחיל';
+  return 'שיחה עם המסייע של הממשק. לא פקודות טיסה.';
+}
+
+function syncAssistComposerSize() {
+  const input = document.getElementById('assistInput');
+  if (!input || input.tagName !== 'TEXTAREA') return;
+  const focused = document.activeElement === input;
+  const hasText = String(input.value || '').length > 0;
+  input.classList.toggle('assist-input--grown', focused || hasText);
+  if (focused || hasText) {
+    input.style.height = 'auto';
+    const minPx = focused ? 72 : 64;
+    input.style.height = `${Math.min(Math.max(input.scrollHeight, minPx), 132)}px`;
+  } else {
+    input.style.height = '';
+  }
+}
+
 function initAssistMic() {
   const btn = document.getElementById('assistMicBtn');
   if (!btn) return;
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR) {
     btn.disabled = true;
-    btn.title = 'מיקרופון — דיבור לטקסט אינו זמין בדפדפן זה';
-    btn.setAttribute('aria-label', 'מיקרופון — אינו זמין');
+    btn.title = assistMicTalkLabel('unavailable');
+    btn.setAttribute('aria-label', assistMicTalkLabel('unavailable'));
     return;
   }
   const rec = new SR();
@@ -13374,26 +13400,29 @@ function initAssistMic() {
     const t = e.results?.[0]?.[0]?.transcript || '';
     const input = document.getElementById('assistInput');
     if (input && t) input.value = t;
+    syncAssistComposerSize();
     btn.classList.remove('recording');
     btn.setAttribute('aria-pressed', 'false');
+    btn.title = assistMicTalkLabel();
   };
   rec.onend = () => {
     btn.classList.remove('recording');
     btn.setAttribute('aria-pressed', 'false');
+    btn.title = assistMicTalkLabel();
   };
   rec.onerror = () => {
     btn.classList.remove('recording');
     btn.setAttribute('aria-pressed', 'false');
-    btn.title = 'מיקרופון — שגיאת הקלטה';
+    btn.title = assistMicTalkLabel('error');
   };
   btn.addEventListener('click', () => {
     try {
       rec.start();
       btn.classList.add('recording');
       btn.setAttribute('aria-pressed', 'true');
-      btn.title = 'מיקרופון — מאזין';
+      btn.title = assistMicTalkLabel('listening');
     } catch {
-      btn.title = 'מיקרופון — לא ניתן להתחיל הקלטה';
+      btn.title = assistMicTalkLabel('blocked');
     }
   });
 }
@@ -13462,8 +13491,19 @@ function initAssistUi() {
     const input = document.getElementById('assistInput');
     const text = input?.value || '';
     if (input) input.value = '';
+    syncAssistComposerSize();
     void assistSendText(text);
   });
+  const assistInput = document.getElementById('assistInput');
+  assistInput?.addEventListener('focus', () => syncAssistComposerSize());
+  assistInput?.addEventListener('blur', () => syncAssistComposerSize());
+  assistInput?.addEventListener('input', () => syncAssistComposerSize());
+  assistInput?.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' || e.shiftKey) return;
+    e.preventDefault();
+    document.getElementById('assistForm')?.requestSubmit();
+  });
+  syncAssistComposerSize();
   document.getElementById('assistQuickChips')?.addEventListener('click', (e) => {
     const btn = e.target.closest('[data-assist-chip]');
     if (!btn) return;
