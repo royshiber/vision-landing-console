@@ -186,6 +186,10 @@ describe('Mission layout contract — live boxes', () => {
     });
     await page.goto(BASE, { waitUntil: 'domcontentloaded' });
     await page.waitForSelector('[data-mission-region="map"]');
+    await page.waitForFunction(
+      () => document.querySelectorAll('.leaflet-tile-loaded').length >= 4,
+      { timeout: 20000 },
+    );
   }, 45000);
 
   afterAll(async () => {
