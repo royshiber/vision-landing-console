@@ -5,13 +5,13 @@
     "changes": [
       {
         "type": "ui",
-        "title": "Remove Platform tab, add computer-status widgets, fix Mission proportions",
-        "detail": "Platform tab and hub are gone; Assist and leftover routes open computer status. Computer status adds a free-text widget composer that binds known catalog fields, places cards without overlap, and persists in localStorage. Mission map is the tall primary cell; messages default to a short strip; AH tapes sit beside the canvas. APP_VERSION 1.02.260."
+        "title": "Remove Platform tab, add computer-status widgets, enforce Mission layout contract",
+        "detail": "Platform tab and hub are gone; Assist and leftover routes open computer status. Computer status adds a free-text widget composer that binds known catalog fields onto a flowing auto-fill grid and persists in localStorage. Mission uses a layout contract: CSS Grid regions only, map at least 55% tall, messages collapsed to 72px, AH at most 28% with reserved IAS/horizon/ALT/heading lanes, horizontal data strip, Assist column 280px. APP_VERSION 1.02.260."
       },
       {
         "type": "test",
         "title": "Roy feedback pins for 1.02.260",
-        "detail": "Asserts no Platform tab, Pulse widget composer without invented numbers, taller Mission map, short messages, clean rectangular PFD, and version 1.02.260."
+        "detail": "Asserts no Platform tab, Pulse widget composer without invented numbers, Mission layout-contract CSS and size clamps, Playwright non-overlap of mission regions, and version 1.02.260."
       }
     ]
   },

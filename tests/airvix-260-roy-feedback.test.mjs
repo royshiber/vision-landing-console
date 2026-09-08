@@ -98,20 +98,22 @@ describe('AIRVIX 1.02.260 Roy feedback', () => {
 
   it('makes the Mission map the tall primary cell and keeps messages tiny', () => {
     expect(css).toMatch(/"horizon map talk"\s*"data\s+map talk"\s*"messages map talk"/);
-    expect(css).toMatch(/--mission-r1:\s*1\.70fr/);
-    expect(css).toMatch(/--mission-r3:\s*42px/);
+    expect(css).toMatch(/--mission-ah-row:\s*28%/);
+    expect(css).toMatch(/--mission-msg-h:\s*64px/);
     expect(html).toMatch(/data-mission-region="messages"[^>]*data-messages-expanded="0"/);
     expect(css).toMatch(/\.mission-region-messages\[data-messages-expanded="0"\] \.pfc-msg-primary/);
-    expect(js).toContain('return { c1: 0.62, c2: 2.10, c3: 1.18, r1: 1.70, r2: 0.85, r3: 0.22 }');
+    expect(js).toContain('return { c1: 0.22, c2: 1.00, c3: 0.26, r1: 0.28, r2: 0.64, r3: 0.08 }');
   });
 
   it('keeps a clean rectangular PFD without overlay tapes', () => {
     expect(html).toContain('id="pfdHorizonStage"');
     expect(html).toContain('class="pfd-horizon-instrument"');
     expect(html).toContain('class="pfd-horizon-chrome"');
+    expect(html).toContain('class="pfd-heading-lane"');
     expect(css).toMatch(/\.pfd-side-tape\s*\{[^}]*position:\s*static/);
     expect(css).toMatch(/\.pfd-video-toggle\s*\{[^}]*position:\s*static/);
-    expect(css).toMatch(/\.mission-data-grid\s*\{[^}]*grid-template-columns:\s*repeat\(2/);
+    expect(css).toMatch(/\.pfd-video-panel\s*\{[^}]*position:\s*static/);
+    expect(css).toMatch(/\.mission-data-grid\s*\{[^}]*flex-flow:\s*row nowrap/);
     expect(html).not.toContain('Vision Landing Console');
   });
 });

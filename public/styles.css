@@ -5053,14 +5053,17 @@ body:has(#pulse.panel.visible) .layout {
 
 .pulse-home.pulse-status-home {
   justify-content: flex-start;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 .pulse-extra-metrics,
 .pulse-extra-row {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+  grid-auto-flow: row;
   gap: 8px;
   min-width: 0;
+  position: static;
 }
 .pulse-extra-metrics:empty,
 .pulse-extra-row:empty {
@@ -5068,6 +5071,7 @@ body:has(#pulse.panel.visible) .layout {
 }
 .pulse-extra-tile {
   position: relative;
+  inset: auto;
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -7204,10 +7208,10 @@ body:has(#pulse.panel.visible) .layout {
   align-items: center;
   justify-content: flex-end;
   gap: 6px;
-  min-height: 32px;
+  min-height: 28px;
   flex: 0 0 auto;
   width: 100%;
-  padding: 6px 10px;
+  padding: 2px 8px;
   background: #0b0e14;
   border: 0;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
@@ -7303,31 +7307,36 @@ body:has(#pulse.panel.visible) .layout {
   font-family: "Heebo", sans-serif;
 }
 
+/* Layout contract v1: grid tracks only. AH ≤ 28%, map ≥ 55% tall, messages ≤ 72px, talk ≥ 280px, gap ≤ 8px. */
 .terrain-flight-shell.mission-workspace,
 .mission-workspace[data-mission-layout="ops-v1"] {
-  --mission-c1: 0.62fr;
-  --mission-c2: 2.10fr;
-  --mission-c3: 1.18fr;
-  --mission-r1: 1.70fr;
-  --mission-r2: 0.85fr;
-  --mission-r3: 42px;
+  --mission-ah-col: 22%;
+  --mission-ah-row: 28%;
+  --mission-msg-h: 64px;
+  --mission-c1: minmax(160px, min(28%, var(--mission-ah-col)));
+  --mission-c2: minmax(360px, 1fr);
+  --mission-talk-col: 26%;
+  --mission-c3: minmax(280px, var(--mission-talk-col));
+  --mission-r1: minmax(96px, min(28%, var(--mission-ah-row)));
+  --mission-r2: minmax(72px, 1fr);
+  --mission-r3: var(--mission-msg-h);
   position: relative;
   display: grid;
-  grid-template-columns: minmax(220px, var(--mission-c1)) minmax(360px, var(--mission-c2)) minmax(260px, var(--mission-c3));
-  grid-template-rows: minmax(220px, var(--mission-r1)) minmax(140px, var(--mission-r2)) var(--mission-r3);
+  grid-template-columns: minmax(160px, min(28%, var(--mission-ah-col))) minmax(360px, 1fr) minmax(280px, var(--mission-talk-col));
+  grid-template-rows: minmax(96px, min(28%, var(--mission-ah-row))) minmax(72px, 1fr) var(--mission-msg-h);
   grid-template-areas:
     "horizon map talk"
     "data    map talk"
     "messages map talk";
   flex: 1 1 0;
   min-height: 0;
-  gap: 4px;
+  gap: 6px;
   direction: ltr;
   padding: 4px;
 }
 
 .mission-workspace[data-mission-layout="ops-v1"]:has([data-mission-region="messages"][data-messages-expanded="1"]) {
-  --mission-r3: minmax(120px, 0.55fr);
+  --mission-msg-h: minmax(120px, 0.35fr);
 }
 
 .mission-workspace[data-mission-swap="map-horizon"] {
@@ -7400,11 +7409,28 @@ body:has(#pulse.panel.visible) .layout {
   overflow: hidden;
 }
 
-.mission-region[data-mission-region="horizon"] { grid-area: horizon; }
-.mission-region[data-mission-region="map"] { grid-area: map; }
+.mission-region[data-mission-region="horizon"] {
+  grid-area: horizon;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  justify-self: stretch;
+  align-self: stretch;
+}
+.mission-region[data-mission-region="map"] {
+  grid-area: map;
+  min-height: 55%;
+}
 .mission-region[data-mission-region="data"] { grid-area: data; }
 .mission-region[data-mission-region="messages"] { grid-area: messages; }
-.mission-region[data-mission-region="talk"] { grid-area: talk; }
+.mission-region[data-mission-region="talk"] {
+  grid-area: talk;
+  min-width: 280px;
+}
+.mission-region-messages[data-messages-expanded="0"] {
+  max-height: 72px;
+}
 
 .mission-region-title {
   position: static;
@@ -7453,15 +7479,16 @@ body:has(#pulse.panel.visible) .layout {
 }
 
 .mission-data-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px;
+  display: flex;
+  flex-flow: row nowrap;
+  gap: 8px;
   margin: 0;
   padding: 4px 6px 6px;
   flex: 1 1 auto;
   min-height: 0;
-  overflow: auto;
-  position: relative;
+  overflow-x: auto;
+  overflow-y: hidden;
+  position: static;
 }
 
 .mission-data-item,
@@ -7470,7 +7497,8 @@ body:has(#pulse.panel.visible) .layout {
   flex-direction: column;
   justify-content: space-between;
   gap: 2px;
-  min-width: 0;
+  flex: 0 0 auto;
+  min-width: 96px;
   min-height: 52px;
   overflow: hidden;
   padding: 6px 8px 7px;
@@ -7622,12 +7650,14 @@ body:has(#pulse.panel.visible) .layout {
   color: #0f172a;
 }
 
+.mission-region-messages {
+  display: flex;
+  flex-direction: column;
+}
 .mission-messages-toggle {
-  position: absolute;
-  top: 2px;
-  inset-inline-start: 6px;
-  z-index: 2;
-  margin: 0;
+  position: static;
+  align-self: flex-start;
+  margin: 0 6px 2px;
   border: 0;
   border-radius: 4px;
   padding: 2px 8px;
@@ -7639,7 +7669,7 @@ body:has(#pulse.panel.visible) .layout {
   cursor: pointer;
 }
 .mission-region-messages .mission-region-title {
-  padding-inline-start: 56px;
+  padding-inline-start: 8px;
 }
 .mission-region-messages[data-messages-expanded="0"] .pfc-msg-primary {
   margin: 0 8px 4px;
@@ -7718,8 +7748,8 @@ body:has(#pulse.panel.visible) .layout {
 
 @media (max-width: 1100px) {
   .mission-workspace[data-mission-layout="ops-v1"] {
-    grid-template-columns: minmax(200px, var(--mission-c1)) minmax(200px, var(--mission-c2));
-    grid-template-rows: minmax(240px, var(--mission-r1)) minmax(120px, var(--mission-r2)) var(--mission-r3) minmax(180px, 0.85fr);
+    grid-template-columns: minmax(160px, min(28%, var(--mission-ah-col))) minmax(240px, 1fr);
+    grid-template-rows: minmax(96px, min(28%, var(--mission-ah-row))) minmax(72px, 1fr) var(--mission-msg-h) minmax(180px, 0.85fr);
     grid-template-areas:
       "horizon map"
       "data map"
@@ -7816,7 +7846,7 @@ body:has(#pulse.panel.visible) .layout {
   padding: 3px 7px !important;
 }
 
-/* Heading readout in top bar */
+/* Heading readout in the reserved PFD heading lane */
 .pfd-hdg-box {
   display: flex;
   align-items: center;
@@ -7877,6 +7907,10 @@ body:has(#pulse.panel.visible) .layout {
 .pfd-horizon-instrument {
   display: grid;
   grid-template-columns: 46px minmax(0, 1fr) 46px;
+  grid-template-rows: minmax(0, 1fr) 28px;
+  grid-template-areas:
+    "ias horizon alt"
+    "hdg hdg hdg";
   gap: 4px;
   flex: 1 1 auto;
   min-height: 0;
@@ -7884,6 +7918,7 @@ body:has(#pulse.panel.visible) .layout {
   padding: 4px 4px 0;
 }
 .pfd-horizon-stage {
+  grid-area: horizon;
   position: relative;
   min-width: 0;
   min-height: 0;
@@ -7891,10 +7926,20 @@ body:has(#pulse.panel.visible) .layout {
   border-radius: 4px;
   background: #12161e;
 }
+.pfd-heading-lane {
+  grid-area: hdg;
+  position: static;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  min-width: 0;
+}
 .pfd-horizon-chrome {
   position: relative;
   flex: 0 0 auto;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
   gap: 6px;
@@ -7933,8 +7978,8 @@ body:has(#pulse.panel.visible) .layout {
   z-index: auto;
   opacity: 1;
 }
-.pfd-side-tape--left  { left: auto; }
-.pfd-side-tape--right { right: auto; }
+.pfd-side-tape--left  { grid-area: ias; left: auto; }
+.pfd-side-tape--right { grid-area: alt; right: auto; }
 .pfd-tape-key {
   font-size: 0.5rem;
   font-weight: 700;
@@ -8039,11 +8084,12 @@ body:has(#pulse.panel.visible) .layout {
 .pfd-video-toggle.active { border-color: #22d3ee; color: #22d3ee; background: rgba(0,40,60,0.75); }
 
 .pfd-video-panel {
-  position: absolute;
-  bottom: calc(100% + 4px);
-  right: 6px;
-  left: 6px;
-  z-index: 4;
+  position: static;
+  inset: auto;
+  z-index: auto;
+  flex: 1 0 100%;
+  width: 100%;
+  box-sizing: border-box;
   background: rgba(5,12,28,0.95);
   border: 1px solid rgba(34,211,238,0.4);
   border-radius: 8px;

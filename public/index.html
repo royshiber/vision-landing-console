@@ -1323,7 +1323,7 @@
             <p id="missionLayoutHint" class="mission-layout-hint">גררו קצה לשינוי גודל. גררו כותרת להחלפה. גם בטיסה.</p>
           </div>
         </div>
-        <div class="terrain-flight-shell mission-workspace" data-mission-layout="ops-v1" data-mission-swap="horizon-map" data-mission-edit="on">
+        <div class="terrain-flight-shell mission-workspace" data-mission-layout="ops-v1" data-mission-swap="horizon-map" data-mission-edit="on" data-layout-contract="v1">
           <div id="missionColSplit" class="mission-split mission-split-col"></div>
           <div id="missionColSplitB" class="mission-split mission-split-col"></div>
           <div id="missionRowSplit" class="mission-split mission-split-row"></div>
@@ -1334,10 +1334,6 @@
                 <button type="button" id="pfdVoiceFlightBtn" class="pfd-voice-flight-btn" title="פתיחת מהנדס קולי לפקודות טיסה">🎙 פקודות</button>
                 <span id="pfdArmedBadge" class="pfd-badge pfd-badge--disarmed" role="button" tabindex="0" title="מצב ARM — לחץ להסבר מוכנות">DISARMED</span>
                 <span id="pfdModeVal"    class="pfd-mode-val">--</span>
-                <div class="pfd-hdg-box" id="pfdHdgBox" title="כיוון אף (Heading)">
-                  <span class="pfd-hdg-arrow" id="pfdHdgArrow">↑</span>
-                  <span class="pfd-hdg-val"   id="pfdHdgVal">---°</span>
-                </div>
                 <div class="hud-nav-pill pfd-gps-pill" id="hudNavGps" data-status="unknown" title="מצב GPS">
                   <span class="hud-nav-icon">📡</span>
                   <span class="hud-nav-val" id="hudNavGpsVal">--</span>
@@ -1361,6 +1357,12 @@
                     <span class="pfd-tape-key">ALT</span>
                     <strong class="pfd-tape-big" id="pfdAltVal">--</strong>
                     <span class="pfd-tape-unit">m</span>
+                  </div>
+                  <div class="pfd-heading-lane">
+                    <div class="pfd-hdg-box" id="pfdHdgBox" title="כיוון אף (Heading)">
+                      <span class="pfd-hdg-arrow" id="pfdHdgArrow">↑</span>
+                      <span class="pfd-hdg-val"   id="pfdHdgVal">---°</span>
+                    </div>
                   </div>
                 </div>
                 <div class="pfd-horizon-chrome">

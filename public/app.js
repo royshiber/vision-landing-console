@@ -143,7 +143,7 @@ const CONTROL_SUBTAB_KEY = 'visionLandingControlSubtabV1';
 /** Why: בית is the home tab name. App default open workspace is Mission / הטסה. */
 const PULSE_HOME_KEY = 'visionLandingHomeSurfaceV1';
 const MISSION_SWAP_KEY = 'visionLandingMissionSwapV1';
-const MISSION_SIZE_KEY = 'visionLandingMissionSizeV2';
+const MISSION_SIZE_KEY = 'visionLandingMissionSizeV3';
 const MISSION_AREAS_KEY = 'visionLandingMissionAreasV2';
 const MISSION_MESSAGES_KEY = 'visionLandingMissionMessagesV1';
 const MISSION_DATA_SLOTS_KEY = 'visionLandingMissionDataSlotsV1';
@@ -12535,7 +12535,7 @@ function clampMissionFr(value, min, max, fallback) {
 }
 
 function defaultMissionSize() {
-  return { c1: 0.62, c2: 2.10, c3: 1.18, r1: 1.70, r2: 0.85, r3: 0.22 };
+  return { c1: 0.22, c2: 1.00, c3: 0.26, r1: 0.28, r2: 0.64, r3: 0.08 };
 }
 
 function defaultMissionAreas() {
@@ -12581,12 +12581,12 @@ function readMissionSize() {
     if (raw && typeof raw === 'object') {
       const fallback = defaultMissionSize();
       return {
-        c1: clampMissionFr(raw.c1, 0.55, 1.6, fallback.c1),
-        c2: clampMissionFr(raw.c2, 0.9, 2.4, fallback.c2),
-        c3: clampMissionFr(raw.c3, 0.7, 1.8, fallback.c3),
-        r1: clampMissionFr(raw.r1, 1.1, 2.6, fallback.r1),
-        r2: clampMissionFr(raw.r2, 0.5, 1.4, fallback.r2),
-        r3: clampMissionFr(raw.r3, 0.12, 0.8, fallback.r3),
+        c1: clampMissionFr(raw.c1, 0.16, 0.28, fallback.c1),
+        c2: clampMissionFr(raw.c2, 0.70, 1.60, fallback.c2),
+        c3: clampMissionFr(raw.c3, 0.22, 0.40, fallback.c3),
+        r1: clampMissionFr(raw.r1, 0.16, 0.28, fallback.r1),
+        r2: clampMissionFr(raw.r2, 0.40, 0.80, fallback.r2),
+        r3: clampMissionFr(raw.r3, 0.04, 0.12, fallback.r3),
       };
     }
   } catch {
@@ -12642,12 +12642,12 @@ function applyMissionSize(size) {
   const ws = document.querySelector('.mission-workspace');
   if (!ws || !size) return;
   _missionSize = size;
-  ws.style.setProperty('--mission-c1', `${size.c1}fr`);
-  ws.style.setProperty('--mission-c2', `${size.c2}fr`);
-  ws.style.setProperty('--mission-c3', `${size.c3}fr`);
-  ws.style.setProperty('--mission-r1', `${size.r1}fr`);
-  ws.style.setProperty('--mission-r2', `${size.r2}fr`);
-  if (size.r3 != null) ws.style.setProperty('--mission-r3', `${Math.max(36, size.r3 * 160)}px`);
+  const ahCol = Math.min(28, Math.max(16, size.c1 * 100));
+  const ahRow = Math.min(28, Math.max(16, size.r1 * 100));
+  const talkCol = Math.min(40, Math.max(22, size.c3 * 100));
+  ws.style.setProperty('--mission-ah-col', `${ahCol}%`);
+  ws.style.setProperty('--mission-ah-row', `${ahRow}%`);
+  ws.style.setProperty('--mission-talk-col', `${talkCol}%`);
   requestAnimationFrame(placeMissionSplits);
 }
 
@@ -12791,20 +12791,17 @@ function bindMissionSplitters() {
     const rect = ws.getBoundingClientRect();
     const next = { ...base };
     if (dragging === 'col') {
-      const unit = rect.width / Math.max(0.001, base.c1 + base.c2 + base.c3);
-      const delta = (ev.clientX - start) / unit;
-      next.c1 = clampMissionFr(base.c1 + delta, 0.7, 2.2, base.c1);
-      next.c2 = clampMissionFr(base.c2 - delta, 0.7, 2.2, base.c2);
+      const delta = (ev.clientX - start) / Math.max(1, rect.width);
+      next.c1 = clampMissionFr(base.c1 + delta, 0.16, 0.28, base.c1);
+      next.c2 = clampMissionFr(base.c2 - delta, 0.70, 1.60, base.c2);
     } else if (dragging === 'col2') {
-      const unit = rect.width / Math.max(0.001, base.c1 + base.c2 + base.c3);
-      const delta = (ev.clientX - start) / unit;
-      next.c2 = clampMissionFr(base.c2 + delta, 0.7, 2.2, base.c2);
-      next.c3 = clampMissionFr(base.c3 - delta, 0.6, 1.6, base.c3);
+      const delta = (ev.clientX - start) / Math.max(1, rect.width);
+      next.c2 = clampMissionFr(base.c2 + delta, 0.70, 1.60, base.c2);
+      next.c3 = clampMissionFr(base.c3 - delta, 0.22, 0.40, base.c3);
     } else {
-      const unit = rect.height / Math.max(0.001, base.r1 + base.r2);
-      const delta = (ev.clientY - start) / unit;
-      next.r1 = clampMissionFr(base.r1 + delta, 0.9, 2.4, base.r1);
-      next.r2 = clampMissionFr(base.r2 - delta, 0.6, 1.8, base.r2);
+      const delta = (ev.clientY - start) / Math.max(1, rect.height);
+      next.r1 = clampMissionFr(base.r1 + delta, 0.16, 0.28, base.r1);
+      next.r2 = clampMissionFr(base.r2 - delta, 0.40, 0.80, base.r2);
     }
     applyMissionSize(next);
   };
