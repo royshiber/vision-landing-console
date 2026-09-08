@@ -7906,6 +7906,7 @@ body:has(#pulse.panel.visible) .layout {
 }
 .pfd-horizon-instrument {
   display: grid;
+  direction: ltr;
   grid-template-columns: 46px minmax(0, 1fr) 46px;
   grid-template-rows: minmax(0, 1fr) 28px;
   grid-template-areas:

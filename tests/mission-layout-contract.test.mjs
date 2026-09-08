@@ -66,6 +66,7 @@ describe('Mission layout contract — static source', () => {
   });
 
   it('keeps PFD tapes, heading, video toggle, and video panel in flow', () => {
+    expect(cssBlock(css, '.pfd-horizon-instrument')).toMatch(/direction:\s*ltr/);
     expect(cssBlock(css, '.pfd-horizon-instrument')).toMatch(/grid-template-areas:/);
     expect(cssBlock(css, '.pfd-horizon-instrument')).toMatch(/"ias horizon alt"/);
     expect(cssBlock(css, '.pfd-horizon-instrument')).toMatch(/"hdg hdg hdg"/);
