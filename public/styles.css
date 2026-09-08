@@ -5215,9 +5215,10 @@ body:has(#pulse.panel.visible) .layout {
   gap: 6px;
 }
 .pulse-add-widget-chips {
-  display: flex;
-  flex-wrap: wrap;
-  align-content: flex-start;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-auto-rows: 1fr;
+  align-content: stretch;
   gap: 6px;
   flex: 1 1 auto;
   min-height: 0;
@@ -5234,6 +5235,16 @@ body:has(#pulse.panel.visible) .layout {
   font-family: "Heebo", sans-serif;
   cursor: pointer;
 }
+.pulse-add-widget-chip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: #0d1320;
+  text-align: center;
+}
 .pulse-target-chip.is-active,
 .pulse-add-widget-chip:hover,
 .pulse-target-chip:hover {
@@ -5247,6 +5258,9 @@ body:has(#pulse.panel.visible) .layout {
   }
   .pulse-status-grid {
     grid-template-columns: 1fr;
+  }
+  .pulse-add-widget-chips {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .pulse-home {
     padding: 4px 8px 6px;

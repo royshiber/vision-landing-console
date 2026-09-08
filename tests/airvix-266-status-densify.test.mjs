@@ -89,6 +89,9 @@ describe('AIRVIX 1.02.266 computer-status densify', () => {
     expect(cssBlock(css, '.pulse-talk-copy')).toMatch(/flex-direction:\s*row/);
     expect(cssBlock(css, '.pulse-add-widget')).toMatch(/flex:\s*1 1 auto/);
     expect(cssBlock(css, '.pulse-add-widget-chips')).toMatch(/flex:\s*1 1 auto/);
+    expect(cssBlock(css, '.pulse-add-widget-chips')).toMatch(/grid-auto-rows:\s*1fr/);
+    expect(cssBlock(css, '.pulse-add-widget-chips')).toMatch(/grid-template-columns:\s*repeat\(5/);
+    expect(js).toContain("chips: PULSE_WIDGET_CATALOG.slice()");
     expect(cssBlock(css, '.pulse-home')).toMatch(/gap:\s*6px/);
     expect(cssBlock(css, '.pulse-home')).toMatch(/height:\s*100%/);
   });
