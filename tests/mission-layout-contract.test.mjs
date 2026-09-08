@@ -54,10 +54,18 @@ function shotDir() {
 
 async function writeShot(page, name) {
   const buf = await page.screenshot({ type: 'png', fullPage: false });
+  fs.mkdirSync('/tmp/pr81-shots', { recursive: true });
+  fs.writeFileSync(path.join('/tmp/pr81-shots', name), buf);
   const dest = path.join(shotDir(), name);
   try { fs.unlinkSync(dest); } catch { /* ignore missing */ }
-  fs.writeFileSync(dest, buf);
-  return dest;
+  try {
+    fs.writeFileSync(dest, buf);
+    return dest;
+  } catch {
+    const alt = path.join(shotDir(), name.replace(/\.png$/, `-${Date.now()}.png`));
+    fs.writeFileSync(alt, buf);
+    return alt;
+  }
 }
 
 describe('Mission layout contract — static source', () => {
@@ -336,7 +344,7 @@ describe('Mission layout contract — live boxes', () => {
 
     const ahShareH = regions.horizon.height / ws.height;
     const wellShare = measured.well.height / regions.talk.height;
-    fs.writeFileSync(path.join(shotDir(), 'mission-contract-measure.json'), JSON.stringify({
+    const measure = {
       ahShareH,
       ahH: regions.horizon.height,
       ahW: regions.horizon.width,
@@ -350,7 +358,14 @@ describe('Mission layout contract — live boxes', () => {
       emptyHeight: measured.emptyHeight,
       wellBg: measured.wellBg,
       version: measured.version,
-    }, null, 2));
+    };
+    fs.mkdirSync('/tmp/pr81-shots', { recursive: true });
+    fs.writeFileSync('/tmp/pr81-shots/mission-contract-measure.json', JSON.stringify(measure, null, 2));
+    try {
+      fs.writeFileSync(path.join(shotDir(), 'mission-contract-measure.json'), JSON.stringify(measure, null, 2));
+    } catch {
+      /* artifact FUSE may reject overwrite */
+    }
 
     await writeShot(page, 'mission-contract.png');
     await writeShot(page, 'hatasa-1440x900.png');
