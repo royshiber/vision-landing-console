@@ -165,7 +165,7 @@ describe('C10.7a Attention Policy', () => {
     expect(html).toMatch(/data-attention-level="attention"[^>]*>שימו לב</);
     expect(html).toMatch(/data-attention-level="critical"[^>]*>רק דחוף</);
     expect(html).toMatch(/id="gsAttentionBadge"/);
-    expect(html).toMatch(/נקודה במסייע/);
+    expect(html).toMatch(/נקודה ב-AIRVIX Ask/);
     expect(html).toMatch(/id="assistAttentionDot"/);
     expect(html).toMatch(/id="assistAttentionBadge"/);
     expect(html).toContain('id="gsElevenVoice"');
@@ -175,7 +175,7 @@ describe('C10.7a Attention Policy', () => {
     expect(css).toMatch(/\.assist-attention-badge\b/);
     expect(js).toContain("ATTENTION_POLICY_KEY = 'visionLandingAttentionPolicyV1'");
     expect(js).toContain("proactiveLevel: 'off'");
-    expect(version).toContain("export const APP_VERSION = '1.02.263'");
-    expect(pkg.version).toBe('1.02.263');
+    expect(version).toContain("export const APP_VERSION = '1.02.264'");
+    expect(pkg.version).toBe('1.02.264');
   });
 });

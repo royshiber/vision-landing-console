@@ -48,8 +48,8 @@ function interiorsIntersect(a, b, slack = 1) {
 
 async function writeShot(page, name) {
   const buf = await page.screenshot({ type: 'png', fullPage: false });
-  fs.mkdirSync('/tmp/pr263-shots', { recursive: true });
-  const tmp = path.join('/tmp/pr263-shots', name);
+  fs.mkdirSync('/tmp/pr264-shots', { recursive: true });
+  const tmp = path.join('/tmp/pr264-shots', name);
   fs.writeFileSync(tmp, buf);
   return tmp;
 }
@@ -275,7 +275,7 @@ describe('Mission layout contract — live boxes', () => {
     });
 
     expect(measured.platformTab).toBe(false);
-    expect(measured.version).toBe('1.02.263');
+    expect(measured.version).toBe('1.02.264');
     expect(measured.ws.width).toBeGreaterThan(800);
     expect(measured.talkMinWidth).toBe('240px');
     expect(Number.parseFloat(measured.dataGap)).toBeLessThanOrEqual(4);
@@ -371,8 +371,8 @@ describe('Mission layout contract — live boxes', () => {
       fillerBg: measured.fillerBg,
       version: measured.version,
     };
-    fs.mkdirSync('/tmp/pr263-shots', { recursive: true });
-    fs.writeFileSync('/tmp/pr263-shots/mission-contract-measure.json', JSON.stringify(measure, null, 2));
+    fs.mkdirSync('/tmp/pr264-shots', { recursive: true });
+    fs.writeFileSync('/tmp/pr264-shots/mission-contract-measure.json', JSON.stringify(measure, null, 2));
 
     await writeShot(page, 'mission-contract.png');
     await writeShot(page, 'hatasa-1440x900.png');
@@ -465,6 +465,58 @@ describe('Mission layout contract — live boxes', () => {
     expect(collapsed.inputW).toBeGreaterThan(collapsed.inputH);
     expect(Math.abs(collapsed.mapW - before.map.width) / before.map.width).toBeLessThanOrEqual(0.02);
     await writeShot(page, 'mission-assist-collapsed.png');
+  }, 20000);
+
+  it('persists operator settings that can still be changed', async () => {
+    await page.click('#globalSettingsBtn');
+    await page.waitForSelector('#globalSettingsModal:not([hidden])');
+    const before = await page.evaluate(() => {
+      const vol = document.getElementById('gsVolumeSlider');
+      const badge = document.getElementById('gsAttentionBadge');
+      const critical = document.querySelector('[data-attention-level="critical"]');
+      vol.value = '40';
+      vol.dispatchEvent(new Event('input', { bubbles: true }));
+      if (badge.checked) badge.click();
+      critical.click();
+      return {
+        modalOpen: !document.getElementById('globalSettingsModal').hidden,
+        volume: window.__vlcSettings?.ttsVolume,
+        settings: JSON.parse(localStorage.getItem('vlc_settings_v1') || '{}'),
+        attention: JSON.parse(localStorage.getItem('visionLandingAttentionPolicyV1') || '{}'),
+      };
+    });
+    expect(before.modalOpen).toBe(true);
+    expect(before.volume).toBeCloseTo(0.4, 2);
+    expect(before.settings.ttsVolume).toBeCloseTo(0.4, 2);
+    expect(before.attention.proactiveLevel).toBe('critical');
+    expect(before.attention.showAssistBadge).toBe(false);
+    await page.click('#globalSettingsModal [data-close="1"]');
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await page.waitForSelector('[data-mission-region="map"]');
+    await page.click('#globalSettingsBtn');
+    await page.waitForSelector('#globalSettingsModal:not([hidden])');
+    const after = await page.evaluate(() => {
+      const vol = document.getElementById('gsVolumeSlider');
+      const badge = document.getElementById('gsAttentionBadge');
+      const critical = document.querySelector('[data-attention-level="critical"]');
+      return {
+        slider: vol?.value,
+        label: document.getElementById('gsVolumeLabel')?.textContent,
+        badge: badge?.checked,
+        criticalOn: critical?.classList.contains('is-active'),
+        settings: JSON.parse(localStorage.getItem('vlc_settings_v1') || '{}'),
+        attention: JSON.parse(localStorage.getItem('visionLandingAttentionPolicyV1') || '{}'),
+      };
+    });
+    expect(after.slider).toBe('40');
+    expect(after.label).toBe('40%');
+    expect(after.badge).toBe(false);
+    expect(after.criticalOn).toBe(true);
+    expect(after.settings.ttsVolume).toBeCloseTo(0.4, 2);
+    expect(after.attention.proactiveLevel).toBe('critical');
+    expect(after.attention.showAssistBadge).toBe(false);
+    await page.click('#globalSettingsModal [data-close="1"]');
+    await writeShot(page, 'settings-persist.png');
   }, 20000);
 
   it('grows messages as an overlay drawer instead of a grid row', async () => {

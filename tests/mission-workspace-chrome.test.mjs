@@ -164,9 +164,9 @@ describe('AIRVIX Mission chrome — talk is flight-safe', () => {
     expect(chip).toContain("kind === 'advisor'");
   });
 
-  it('pins APP_VERSION at 1.02.263', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.263'");
-    expect(pkg.version).toBe('1.02.263');
+  it('pins APP_VERSION at 1.02.264', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.264'");
+    expect(pkg.version).toBe('1.02.264');
   });
 
   it('keeps a rectangular glass artificial horizon with video HUD mode', () => {
@@ -344,8 +344,8 @@ describe('AIRVIX Mission chrome — talk is flight-safe', () => {
 
   it('brightens Mission Assist and shows an honest microphone control', () => {
     expect(html).toContain('id="assistMicBtn"');
-    expect(html).toMatch(/id="assistMicBtn"[^>]*aria-label="שיחה עם המסייע של הממשק\. לא פקודות טיסה\."/);
-    expect(html).toMatch(/class="assist-mic-label">שיחה עם המסייע</);
+    expect(html).toMatch(/id="assistMicBtn"[^>]*aria-label="שיחה עם AIRVIX Ask של הממשק\. לא פקודות טיסה\."/);
+    expect(html).toMatch(/class="assist-mic-label">שיחה עם AIRVIX Ask</);
     expect(css).toMatch(/\.mission-region-talk\s*\{[^}]*background:\s*#0f141c/);
     expect(css).toMatch(/#missionTalkHost \.assist-rail-title\s*\{[^}]*color:\s*#e8edf6/);
     expect(css).toMatch(/\.assist-mic-btn\b/);
@@ -353,7 +353,7 @@ describe('AIRVIX Mission chrome — talk is flight-safe', () => {
     const mic = sliceFunction(js, 'initAssistMic');
     const label = sliceFunction(js, 'assistMicTalkLabel');
     expect(mic).toContain('SpeechRecognition');
-    expect(label).toContain('שיחה עם המסייע אינה זמינה בדפדפן זה');
+    expect(label).toContain('שיחה עם AIRVIX Ask אינה זמינה בדפדפן זה');
     expect(mic + label).not.toMatch(/FLIGHT_ACTION|PARAM_SET|\/apply|\/restart/);
     expect(mic + label).not.toMatch(/\bARM\b|\bDISARM\b|\bLAND\b/);
   });
@@ -403,7 +403,7 @@ describe('AIRVIX Mission chrome — default open + layout policy', () => {
 
   it('docks Assist as a full Mission panel, not a PFD overlay rail', () => {
     expect(html).toContain('id="missionTalkHost"');
-    expect(html).toMatch(/data-mission-region="talk"[^>]*aria-label="מסייע"/);
+    expect(html).toMatch(/data-mission-region="talk"[^>]*aria-label="AIRVIX Ask"/);
     expect(html).toContain('id="assistRail"');
     expect(html).toContain('id="assistRailDock"');
     const chrome = capture(html, /<header class="app-chrome"[^>]*>([\s\S]*?)<\/header>/, 'missing app-chrome')[1];
@@ -569,7 +569,7 @@ describe('AIRVIX Mission chrome — operator naming', () => {
     expect(html).toMatch(/class="pulse-computer-who">Jetson</);
     expect(html).toMatch(/<h4>הכלי<\/h4>/);
     expect(html).toMatch(/data-pulse-kind="assist"/);
-    expect(html).toMatch(/id="pulseTalkBtn"[^>]*>שאלו את המסייע</);
+    expect(html).toMatch(/id="pulseTalkBtn"[^>]*>שאלו את AIRVIX Ask</);
     expect(html).toMatch(/data-first-action="companion">חברו Jetson</);
     expect(html).toMatch(/id="teleNextStep"[^>]*>חברו מחשב משימה\. כתובת לבד לא מספיקה\.</);
     expect(html).not.toContain('מלווה');

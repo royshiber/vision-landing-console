@@ -57,7 +57,7 @@ describe('C10.3 Pulse home', () => {
     expect(html).not.toMatch(/class="tab"[^>]*data-tab="simLab"/);
     expect(html).not.toContain('id="simLab"');
     expect(html).toMatch(/class="pulse-purpose">סטטוס מחשבים</);
-    expect(html).toMatch(/id="pulseTalkBtn"[^>]*>שאלו את המסייע</);
+    expect(html).toMatch(/id="pulseTalkBtn"[^>]*>שאלו את AIRVIX Ask</);
     expect(html).toMatch(/id="pulseVersion"[^>]*>--</);
     expect(html).toMatch(/id="pulseJetsonVersion"[^>]*>--</);
     expect(html).toMatch(/id="pulseFcVersion"[^>]*>--</);
@@ -149,7 +149,7 @@ describe('C10.3 Pulse home', () => {
     expect(disconnected).toHaveLength(2);
     expect(disconnected.map((item) => item.id)).toEqual(['companion', 'assist']);
     expect(disconnected.map((item) => item.level)).toEqual(['attention', 'info']);
-    expect(disconnected.find((item) => item.id === 'assist')?.cta).toBe('שאלו את המסייע');
+    expect(disconnected.find((item) => item.id === 'assist')?.cta).toBe('שאלו את AIRVIX Ask');
     const quiet = pulse.pulseBuildAttention({
       companionLive: true,
       assistConnected: true,

@@ -1,5 +1,16 @@
 [
   {
+    "version": "1.02.264",
+    "date": "2026-09-08",
+    "changes": [
+      {
+        "type": "ui",
+        "title": "Rename Assist to AIRVIX Ask and polish the artificial horizon",
+        "detail": "Every user-visible Assist label is now AIRVIX Ask: panel titles, mic label and tooltip (interface talk, not flight commands), empty invites, Pulse CTA, settings badge, and fold notes. The Mission layout band from 263 stays: map ≥65% height, AH 35–42% of the left column. The PFD keeps IAS|horizon|ALT and gains sky/ground gradients plus instrument chrome. Operator settings selectors and persist keys are unchanged. APP_VERSION 1.02.264."
+      }
+    ]
+  },
+  {
     "version": "1.02.263",
     "date": "2026-09-08",
     "changes": [

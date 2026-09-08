@@ -3176,7 +3176,7 @@ function pulseBuildAttention(opts) {
     items.push({ id: 'companion', level: 'attention', text: 'Jetson מנותק', action: 'companion', cta: 'חברו Jetson' });
   }
   if (!assistConnected) {
-    items.push({ id: 'assist', level: 'info', text: 'מסייע מנותק', action: 'assist', cta: 'שאלו את המסייע' });
+    items.push({ id: 'assist', level: 'info', text: 'AIRVIX Ask מנותק', action: 'assist', cta: 'שאלו את AIRVIX Ask' });
   }
   return items.slice(0, 2);
 }
@@ -4454,7 +4454,8 @@ function drawHorizon(canvas, rollDeg, pitchDeg, opts = {}) {
   const ctx = canvas.getContext('2d');
   const dpr = window.devicePixelRatio || 1;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.imageSmoothingEnabled = false;
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
   const W = canvas.width / dpr;
   const H = canvas.height / dpr;
   const videoMode = !!opts.videoMode;
@@ -4468,13 +4469,20 @@ function drawHorizon(canvas, rollDeg, pitchDeg, opts = {}) {
   const airspeed = finiteHorizonTape(opts.airspeed);
   const altitude = finiteHorizonTape(opts.altitude);
   const heading = finiteHorizonTape(opts.heading);
-  const hud = videoMode ? '#3DFF6A' : '#f8fafc';
-  const sky = videoMode ? 'rgba(20, 104, 179, 0.10)' : '#1468b3';
-  const gnd = videoMode ? 'rgba(138, 87, 36, 0.10)' : '#8a5724';
+  const hud = videoMode ? '#3DFF6A' : '#f4f7fb';
+  const skyZenith = videoMode ? 'rgba(18, 78, 148, 0.12)' : '#163e86';
+  const skyMid = videoMode ? 'rgba(36, 118, 196, 0.10)' : '#2a78c8';
+  const skyHaze = videoMode ? 'rgba(120, 188, 232, 0.08)' : '#7ec4ea';
+  const gndHaze = videoMode ? 'rgba(186, 142, 78, 0.10)' : '#c49a58';
+  const gndMid = videoMode ? 'rgba(138, 87, 36, 0.10)' : '#8a5724';
+  const gndDeep = videoMode ? 'rgba(74, 42, 16, 0.12)' : '#4a2a10';
 
   ctx.clearRect(0, 0, W, H);
   if (!videoMode) {
-    ctx.fillStyle = '#12161e';
+    const well = ctx.createLinearGradient(0, 0, 0, H);
+    well.addColorStop(0, '#161b24');
+    well.addColorStop(1, '#0b0e14');
+    ctx.fillStyle = well;
     ctx.fillRect(0, 0, W, H);
   }
 
@@ -4500,17 +4508,34 @@ function drawHorizon(canvas, rollDeg, pitchDeg, opts = {}) {
   ctx.translate(cx, cy);
   ctx.rotate(rollRad);
   if (!videoMode) {
-    ctx.fillStyle = sky;
+    const skyBand = ctx.createLinearGradient(0, -att.h * 2 + pitchPx, 0, pitchPx);
+    skyBand.addColorStop(0, skyZenith);
+    skyBand.addColorStop(0.55, skyMid);
+    skyBand.addColorStop(1, skyHaze);
+    ctx.fillStyle = skyBand;
     ctx.fillRect(-att.w * 2, -att.h * 2 + pitchPx, att.w * 4, att.h * 2);
-    ctx.fillStyle = gnd;
+    const gndBand = ctx.createLinearGradient(0, pitchPx, 0, att.h * 2 + pitchPx);
+    gndBand.addColorStop(0, gndHaze);
+    gndBand.addColorStop(0.38, gndMid);
+    gndBand.addColorStop(1, gndDeep);
+    ctx.fillStyle = gndBand;
     ctx.fillRect(-att.w * 2, pitchPx, att.w * 4, att.h * 2);
+    const haze = ctx.createLinearGradient(0, pitchPx - 18, 0, pitchPx + 18);
+    haze.addColorStop(0, 'rgba(255, 236, 196, 0)');
+    haze.addColorStop(0.5, 'rgba(255, 236, 196, 0.22)');
+    haze.addColorStop(1, 'rgba(255, 236, 196, 0)');
+    ctx.fillStyle = haze;
+    ctx.fillRect(-att.w * 2, pitchPx - 18, att.w * 4, 36);
   }
-  ctx.strokeStyle = hud;
-  ctx.lineWidth = videoMode ? 1.4 : 2.4;
+  ctx.strokeStyle = videoMode ? hud : '#fff4d2';
+  ctx.lineWidth = videoMode ? 1.4 : 2.6;
+  ctx.shadowColor = videoMode ? 'rgba(61, 255, 106, 0.35)' : 'rgba(255, 236, 180, 0.55)';
+  ctx.shadowBlur = videoMode ? 4 : 8;
   ctx.beginPath();
   ctx.moveTo(-att.w * 2, pitchPx);
   ctx.lineTo(att.w * 2, pitchPx);
   ctx.stroke();
+  ctx.shadowBlur = 0;
   ctx.textBaseline = 'middle';
   ctx.font = '700 11px "Space Grotesk", "Heebo", sans-serif';
   for (let p = -40; p <= 40; p += 5) {
@@ -4518,27 +4543,37 @@ function drawHorizon(canvas, rollDeg, pitchDeg, opts = {}) {
     const y = pitchPx - p * pxPerDeg;
     if (y < -att.h * 0.46 || y > att.h * 0.46) continue;
     const big = p % 10 === 0;
-    const hw = big ? 28 : 12;
+    const hw = big ? 30 : 13;
     ctx.strokeStyle = hud;
-    ctx.lineWidth = big ? 2 : 1.2;
+    ctx.globalAlpha = big ? 0.95 : 0.55;
+    ctx.lineWidth = big ? 1.8 : 1;
     ctx.beginPath();
     ctx.moveTo(-hw, y);
     ctx.lineTo(hw, y);
     ctx.stroke();
     if (big) {
+      ctx.globalAlpha = 1;
       ctx.fillStyle = hud;
       ctx.textAlign = 'center';
       ctx.fillText(String(Math.abs(p)), -hw - 12, y + 1);
       ctx.fillText(String(Math.abs(p)), hw + 12, y + 1);
     }
   }
+  ctx.globalAlpha = 1;
   ctx.restore();
   ctx.restore();
 
   if (!videoMode) {
-    ctx.strokeStyle = '#2a3344';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(att.x + 0.5, att.y + 0.5, att.w - 1, att.h - 1);
+    const bezel = ctx.createLinearGradient(att.x, att.y, att.x, att.y + att.h);
+    bezel.addColorStop(0, 'rgba(236, 240, 248, 0.42)');
+    bezel.addColorStop(0.18, 'rgba(148, 163, 184, 0.22)');
+    bezel.addColorStop(1, 'rgba(15, 23, 42, 0.55)');
+    ctx.strokeStyle = bezel;
+    ctx.lineWidth = 2.4;
+    ctx.strokeRect(att.x + 1, att.y + 1, att.w - 2, att.h - 2);
+    ctx.strokeStyle = 'rgba(255,255,255,0.16)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(att.x + 2.5, att.y + 2.5, att.w - 5, att.h - 5);
   }
 
   const arcR = Math.min(att.w, att.h) * 0.42;
@@ -4585,21 +4620,28 @@ function drawHorizon(canvas, rollDeg, pitchDeg, opts = {}) {
     ctx.lineTo(cx, cy - 6);
     ctx.stroke();
   } else {
-    ctx.strokeStyle = '#f4c430';
-    ctx.fillStyle = '#f4c430';
-    ctx.lineWidth = 3.2;
-    ctx.lineCap = 'butt';
-    ctx.lineJoin = 'miter';
+    ctx.strokeStyle = '#f6d15a';
+    ctx.fillStyle = '#f6d15a';
+    ctx.shadowColor = 'rgba(246, 209, 90, 0.45)';
+    ctx.shadowBlur = 6;
+    ctx.lineWidth = 3.4;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
     ctx.beginPath();
-    ctx.moveTo(cx - 36, cy);
-    ctx.lineTo(cx - 10, cy);
-    ctx.moveTo(cx + 10, cy);
-    ctx.lineTo(cx + 36, cy);
-    ctx.moveTo(cx - 10, cy);
+    ctx.moveTo(cx - 38, cy);
+    ctx.lineTo(cx - 11, cy);
+    ctx.moveTo(cx + 11, cy);
+    ctx.lineTo(cx + 38, cy);
+    ctx.moveTo(cx - 11, cy);
     ctx.lineTo(cx, cy + 8);
-    ctx.lineTo(cx + 10, cy);
+    ctx.lineTo(cx + 11, cy);
     ctx.stroke();
-    ctx.fillRect(cx - 4, cy - 4, 8, 8);
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = '#0b0e14';
+    ctx.fillRect(cx - 4.5, cy - 4.5, 9, 9);
+    ctx.strokeStyle = '#f6d15a';
+    ctx.lineWidth = 1.6;
+    ctx.strokeRect(cx - 4.5, cy - 4.5, 9, 9);
   }
 
   const drawVTape = (x, value, step, digits) => {
@@ -9144,7 +9186,7 @@ setInterval(refreshAdvisorHealth, 60_000);
     ].filter(g => g.items.length > 0);
 
     if (!groups.length) {
-      cpFeaturesGrid.innerHTML = '<div class="cp-empty">לא נוצרו עדיין פרמטרים מותאמים.<br>שאלו במסייע לפיצ׳ר חדש.</div>';
+      cpFeaturesGrid.innerHTML = '<div class="cp-empty">לא נוצרו עדיין פרמטרים מותאמים.<br>שאלו ב-AIRVIX Ask לפיצ׳ר חדש.</div>';
       return;
     }
 
@@ -11267,14 +11309,14 @@ function devFormatAgentProvider(name, available) {
 
 function devHebrewUnavailableReason(reason) {
   const s = String(reason || '').trim();
-  if (!s) return 'סוכן הפיתוח אינו זמין. חברו אותו במסייע.';
-  if (/agent-connection-missing|agent-disconnected/i.test(s)) return 'הסוכן מנותק. חברו אותו במסייע.';
+  if (!s) return 'סוכן הפיתוח אינו זמין. חברו אותו ב-AIRVIX Ask.';
+  if (/agent-connection-missing|agent-disconnected/i.test(s)) return 'הסוכן מנותק. חברו אותו ב-AIRVIX Ask.';
   if (/agent-key-empty/i.test(s)) return 'יש להזין מפתח חיבור.';
   if (/agent-key-invalid/i.test(s)) return 'מפתח החיבור אינו תקין.';
   if (/agent-key-missing|CURSOR_API_KEY/i.test(s)) return 'מפתח החיבור לסוכן לא הוגדר.';
   if (/DEVELOPMENT_AGENT_PROVIDER is not configured/i.test(s)) return 'ספק הסוכן לא הוגדר.';
   if (/unsupported DEVELOPMENT_AGENT_PROVIDER/i.test(s)) return 'ספק הסוכן אינו נתמך.';
-  return 'סוכן הפיתוח אינו זמין. חברו אותו במסייע.';
+  return 'סוכן הפיתוח אינו זמין. חברו אותו ב-AIRVIX Ask.';
 }
 
 function devFormatAgentRuntime(available, runtime, reason) {
@@ -12210,8 +12252,8 @@ const ASSIST_DEFAULT_HINT_HE = 'שינוי דורש אישור.';
 const ASSIST_MISSION_HINT_HE = 'הטסה. הערה ותצפית בלבד.';
 const ASSIST_DEFAULT_PLACEHOLDER_HE = 'שאלה, יועץ, פתק, או בקשת פיתוח…';
 const ASSIST_MISSION_PLACEHOLDER_HE = 'הערה, תצפית, או שאלה';
-const ASSIST_DEFAULT_INVITE_HE = 'שאלו כאן.';
-const ASSIST_MISSION_INVITE_HE = 'שאלו, רשמו הערה, או תצפית.';
+const ASSIST_DEFAULT_INVITE_HE = 'שאלו את AIRVIX Ask.';
+const ASSIST_MISSION_INVITE_HE = 'שאלו את AIRVIX Ask, רשמו הערה, או תצפית.';
 const ASSIST_CHIP_PREFIX = Object.freeze({
   note: 'הערה: ',
   observation: 'תצפית: ',
@@ -13361,11 +13403,11 @@ function initMissionDataPicker() {
 }
 
 function assistMicTalkLabel(state) {
-  if (state === 'unavailable') return 'שיחה עם המסייע אינה זמינה בדפדפן זה';
-  if (state === 'error') return 'שיחה עם המסייע — שגיאת הקלטה';
-  if (state === 'listening') return 'שיחה עם המסייע — מאזין';
-  if (state === 'blocked') return 'שיחה עם המסייע — לא ניתן להתחיל';
-  return 'שיחה עם המסייע של הממשק. לא פקודות טיסה.';
+  if (state === 'unavailable') return 'שיחה עם AIRVIX Ask אינה זמינה בדפדפן זה';
+  if (state === 'error') return 'שיחה עם AIRVIX Ask — שגיאת הקלטה';
+  if (state === 'listening') return 'שיחה עם AIRVIX Ask — מאזין';
+  if (state === 'blocked') return 'שיחה עם AIRVIX Ask — לא ניתן להתחיל';
+  return 'שיחה עם AIRVIX Ask של הממשק. לא פקודות טיסה.';
 }
 
 function syncAssistComposerSize() {
