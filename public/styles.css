@@ -8400,9 +8400,11 @@ html[data-evolve-preview="1"] #development {
   padding: 2px 4px;
 }
 .mission-region-horizon .hud-data-grid {
-  display: flex;
-  flex: 1 1 auto;
-  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+  flex: 0 0 auto;
+  max-height: 88px;
+  overflow: auto;
 }
 .pfd-horizon-shell canvas {
   position: absolute;
