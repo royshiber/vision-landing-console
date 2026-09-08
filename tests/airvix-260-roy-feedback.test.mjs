@@ -26,10 +26,10 @@ function sliceFunction(src, name) {
   throw new Error(`unclosed function ${name}`);
 }
 
-describe('AIRVIX 1.02.260 Roy feedback', () => {
-  it('pins APP_VERSION at 1.02.260', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.260'");
-    expect(pkg.version).toBe('1.02.260');
+describe('AIRVIX 1.02.261 Roy feedback', () => {
+  it('pins APP_VERSION at 1.02.261', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.261'");
+    expect(pkg.version).toBe('1.02.261');
   });
 
   it('removes Platform from primary chrome and redirects Assist', () => {
@@ -167,12 +167,13 @@ describe('AIRVIX 1.02.260 Roy feedback', () => {
   });
 
   it('makes the Mission map the tall primary cell and keeps messages tiny', () => {
-    expect(css).toMatch(/"horizon map talk"\s*"data\s+map talk"\s*"messages map talk"/);
-    expect(css).toMatch(/--mission-ah-row:\s*28%/);
-    expect(css).toMatch(/--mission-msg-h:\s*64px/);
+    expect(css).toMatch(/"horizon map talk"\s*"data\s+map talk"/);
+    expect(css).not.toMatch(/"messages map talk"/);
+    expect(css).toMatch(/--mission-map-min:\s*65%/);
+    expect(css).toMatch(/--mission-msg-h:\s*40px/);
     expect(html).toMatch(/data-mission-region="messages"[^>]*data-messages-expanded="0"/);
     expect(css).toMatch(/\.mission-region-messages\[data-messages-expanded="0"\] \.pfc-msg-primary/);
-    expect(js).toContain('return { c1: 0.22, c2: 1.00, c3: 0.26, r1: 0.28, r2: 0.64, r3: 0.08 }');
+    expect(js).toContain('return { c1: 0.20, c2: 1.20, c3: 0.24, r1: 0.78, r2: 0.22, r3: 0.00 }');
   });
 
   it('keeps a clean rectangular PFD without overlay tapes', () => {
@@ -184,7 +185,7 @@ describe('AIRVIX 1.02.260 Roy feedback', () => {
     expect(css).toMatch(/\.pfd-video-toggle\s*\{[^}]*position:\s*static/);
     expect(css).toMatch(/\.pfd-video-panel\s*\{[^}]*position:\s*static/);
     expect(css).toMatch(/\.mission-data-grid\s*\{[^}]*flex-flow:\s*row nowrap/);
-    expect(css).toMatch(/\.mission-data-grid\s*\{[^}]*align-items:\s*flex-start/);
+    expect(css).toMatch(/\.mission-data-grid\s*\{[^}]*align-items:\s*stretch/);
     expect(html).not.toContain('Vision Landing Console');
   });
 });

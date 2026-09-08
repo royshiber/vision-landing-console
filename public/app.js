@@ -143,7 +143,7 @@ const CONTROL_SUBTAB_KEY = 'visionLandingControlSubtabV1';
 /** Why: בית is the home tab name. App default open workspace is Mission / הטסה. */
 const PULSE_HOME_KEY = 'visionLandingHomeSurfaceV1';
 const MISSION_SWAP_KEY = 'visionLandingMissionSwapV1';
-const MISSION_SIZE_KEY = 'visionLandingMissionSizeV3';
+const MISSION_SIZE_KEY = 'visionLandingMissionSizeV4';
 const MISSION_AREAS_KEY = 'visionLandingMissionAreasV2';
 const MISSION_MESSAGES_KEY = 'visionLandingMissionMessagesV1';
 const MISSION_DATA_SLOTS_KEY = 'visionLandingMissionDataSlotsV1';
@@ -12823,7 +12823,7 @@ function clampMissionFr(value, min, max, fallback) {
 }
 
 function defaultMissionSize() {
-  return { c1: 0.22, c2: 1.00, c3: 0.26, r1: 0.28, r2: 0.64, r3: 0.08 };
+  return { c1: 0.20, c2: 1.20, c3: 0.24, r1: 0.78, r2: 0.22, r3: 0.00 };
 }
 
 function defaultMissionAreas() {
@@ -12869,12 +12869,12 @@ function readMissionSize() {
     if (raw && typeof raw === 'object') {
       const fallback = defaultMissionSize();
       return {
-        c1: clampMissionFr(raw.c1, 0.16, 0.28, fallback.c1),
-        c2: clampMissionFr(raw.c2, 0.70, 1.60, fallback.c2),
-        c3: clampMissionFr(raw.c3, 0.22, 0.40, fallback.c3),
-        r1: clampMissionFr(raw.r1, 0.16, 0.28, fallback.r1),
-        r2: clampMissionFr(raw.r2, 0.40, 0.80, fallback.r2),
-        r3: clampMissionFr(raw.r3, 0.04, 0.12, fallback.r3),
+        c1: clampMissionFr(raw.c1, 0.14, 0.22, fallback.c1),
+        c2: clampMissionFr(raw.c2, 0.70, 1.80, fallback.c2),
+        c3: clampMissionFr(raw.c3, 0.20, 0.28, fallback.c3),
+        r1: clampMissionFr(raw.r1, 0.50, 0.90, fallback.r1),
+        r2: clampMissionFr(raw.r2, 0.10, 0.40, fallback.r2),
+        r3: 0,
       };
     }
   } catch {
@@ -12911,12 +12911,17 @@ function applyMissionAreas(map) {
   const areas = map || readMissionAreas();
   document.querySelectorAll('[data-mission-region]').forEach((el) => {
     const id = el.dataset.missionRegion;
+    if (id === 'messages') {
+      el.style.gridArea = '';
+      return;
+    }
     el.style.gridArea = areas[id] || id;
   });
   requestAnimationFrame(placeMissionSplits);
 }
 
 function swapMissionRegions(fromId, toId) {
+  if (fromId === 'messages' || toId === 'messages') return;
   if (!MISSION_REGION_IDS.includes(fromId) || !MISSION_REGION_IDS.includes(toId) || fromId === toId) return;
   const areas = readMissionAreas();
   const fromArea = areas[fromId];
@@ -12930,11 +12935,9 @@ function applyMissionSize(size) {
   const ws = document.querySelector('.mission-workspace');
   if (!ws || !size) return;
   _missionSize = size;
-  const ahCol = Math.min(28, Math.max(16, size.c1 * 100));
-  const ahRow = Math.min(28, Math.max(16, size.r1 * 100));
-  const talkCol = Math.min(40, Math.max(22, size.c3 * 100));
+  const ahCol = Math.min(22, Math.max(14, size.c1 * 100));
+  const talkCol = Math.min(28, Math.max(20, size.c3 * 100));
   ws.style.setProperty('--mission-ah-col', `${ahCol}%`);
-  ws.style.setProperty('--mission-ah-row', `${ahRow}%`);
   ws.style.setProperty('--mission-talk-col', `${talkCol}%`);
   requestAnimationFrame(placeMissionSplits);
 }
@@ -12980,11 +12983,10 @@ function placeMissionSplits() {
   const items = [...ws.querySelectorAll('[data-mission-region]')].map((el) => ({
     el,
     r: el.getBoundingClientRect(),
-  })).filter((x) => x.r.width > 8 && x.r.height > 8);
+  })).filter((x) => x.el.dataset.missionRegion !== 'messages' && x.r.width > 8 && x.r.height > 8);
   if (items.length < 2) return;
   const wr = ws.getBoundingClientRect();
   const cols = clusterMissionRects(items, (x) => x.r.left, 28);
-  const rows = clusterMissionRects(items, (x) => x.r.top, 28);
   const placeCol = (el, leftGroup, rightGroup) => {
     if (!el || !leftGroup || !rightGroup) return;
     const left = leftGroup.reduce((m, x) => (x.r.right > m.r.right ? x : m));
@@ -12995,12 +12997,9 @@ function placeMissionSplits() {
   };
   placeCol(col, cols[0], cols[1]);
   placeCol(colB, cols[1], cols[2]);
-  if (row && rows[0] && rows[1]) {
-    const top = rows[0].reduce((m, x) => (x.r.bottom > m.r.bottom ? x : m));
-    const bottom = rows[1].reduce((m, x) => (x.r.top < m.r.top ? x : m));
-    const left = Math.min(...rows[0].concat(rows[1]).map((x) => x.r.left)) - wr.left;
-    const right = Math.max(...rows[0].concat(rows[1]).map((x) => x.r.right)) - wr.left;
-    placeMissionSplitBox(row, left, ((top.r.bottom + bottom.r.top) / 2) - wr.top - 4, Math.max(8, right - left), 8);
+  if (row) {
+    row.hidden = true;
+    placeMissionSplitBox(row, 0, 0, 0, 0);
   }
 }
 
@@ -13009,10 +13008,12 @@ function syncMissionLayoutChrome() {
   if (ws) ws.dataset.missionEdit = 'on';
   const btn = document.getElementById('missionSwapHorizonMapBtn');
   if (btn) btn.disabled = false;
-  ['missionColSplit', 'missionColSplitB', 'missionRowSplit'].forEach((id) => {
+  ['missionColSplit', 'missionColSplitB'].forEach((id) => {
     const el = document.getElementById(id);
     if (el) el.hidden = false;
   });
+  const rowSplit = document.getElementById('missionRowSplit');
+  if (rowSplit) rowSplit.hidden = true;
   const hint = document.getElementById('missionLayoutHint');
   if (hint) hint.textContent = 'גררו קצה לשינוי גודל. גררו כותרת להחלפה. גם בטיסה.';
   requestAnimationFrame(placeMissionSplits);
@@ -13033,6 +13034,7 @@ function bindMissionRegionDrag() {
       region.classList.remove('mission-region--drop');
       const from = String(e.dataTransfer.getData('text/plain') || '');
       const to = region.dataset.missionRegion;
+      if (from === 'messages' || to === 'messages') return;
       if (from && to) swapMissionRegions(from, to);
     });
     region.addEventListener('dragend', () => {
@@ -13080,16 +13082,14 @@ function bindMissionSplitters() {
     const next = { ...base };
     if (dragging === 'col') {
       const delta = (ev.clientX - start) / Math.max(1, rect.width);
-      next.c1 = clampMissionFr(base.c1 + delta, 0.16, 0.28, base.c1);
-      next.c2 = clampMissionFr(base.c2 - delta, 0.70, 1.60, base.c2);
+      next.c1 = clampMissionFr(base.c1 + delta, 0.14, 0.22, base.c1);
+      next.c2 = clampMissionFr(base.c2 - delta, 0.70, 1.80, base.c2);
     } else if (dragging === 'col2') {
       const delta = (ev.clientX - start) / Math.max(1, rect.width);
-      next.c2 = clampMissionFr(base.c2 + delta, 0.70, 1.60, base.c2);
-      next.c3 = clampMissionFr(base.c3 - delta, 0.22, 0.40, base.c3);
+      next.c2 = clampMissionFr(base.c2 + delta, 0.70, 1.80, base.c2);
+      next.c3 = clampMissionFr(base.c3 - delta, 0.20, 0.28, base.c3);
     } else {
-      const delta = (ev.clientY - start) / Math.max(1, rect.height);
-      next.r1 = clampMissionFr(base.r1 + delta, 0.16, 0.28, base.r1);
-      next.r2 = clampMissionFr(base.r2 - delta, 0.40, 0.80, base.r2);
+      return;
     }
     applyMissionSize(next);
   };

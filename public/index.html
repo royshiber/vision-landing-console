@@ -1381,12 +1381,12 @@
           <p id="missionIdentity" class="mission-identity">הטסה · מרחב טיסה</p>
           <button type="button" id="missionReadinessGlance" class="mission-readiness-glance" title="מוכנות">מוכנות</button>
           <div class="mission-layout-bar">
-            <button type="button" id="missionSwapHorizonMapBtn" class="mission-layout-btn">החלף אופק ומפה</button>
-            <button type="button" id="missionResetLayoutBtn" class="mission-layout-btn">איפוס סידור</button>
+            <button type="button" id="missionSwapHorizonMapBtn" class="mission-layout-btn" title="החלף אופק ומפה" aria-label="החלף אופק ומפה">⇄</button>
+            <button type="button" id="missionResetLayoutBtn" class="mission-layout-btn" title="איפוס סידור" aria-label="איפוס סידור">↺</button>
             <p id="missionLayoutHint" class="mission-layout-hint">גררו קצה לשינוי גודל. גררו כותרת להחלפה. גם בטיסה.</p>
           </div>
         </div>
-        <div class="terrain-flight-shell mission-workspace" data-mission-layout="ops-v1" data-mission-swap="horizon-map" data-mission-edit="on" data-layout-contract="v1">
+        <div class="terrain-flight-shell mission-workspace" data-mission-layout="ops-v1" data-mission-swap="horizon-map" data-mission-edit="on" data-layout-contract="v2">
           <div id="missionColSplit" class="mission-split mission-split-col"></div>
           <div id="missionColSplitB" class="mission-split mission-split-col"></div>
           <div id="missionRowSplit" class="mission-split mission-split-row"></div>
@@ -1462,6 +1462,18 @@
                 <div id="terrainMap"></div>
               </div>
             </div>
+            <section class="mission-region mission-region-messages" data-mission-region="messages" data-messages-expanded="0" aria-label="הודעות">
+              <h3 class="mission-region-title">הודעות</h3>
+              <button type="button" id="missionMessagesToggle" class="mission-messages-toggle" aria-expanded="false" aria-controls="pfcMsgScroll" title="הצג או הסתר את זרם ההודעות">הרחב</button>
+              <div class="pfd-statustext-strip" id="pfdStatustextStrip">
+                <div class="pfc-msg-head">
+                  <span class="pfc-msg-label">הודעות מהבקר</span>
+                  <span class="pfc-opt-mini" id="pfdOptMini" title="ניווט אופטי">👁 —</span>
+                </div>
+                <p class="pfc-msg-primary" id="pfcMsgPrimaryHe">אין חיבור לבקר — לא מתקבלות הודעות.</p>
+                <div class="pfc-msg-scroll" id="pfcMsgScroll" hidden></div>
+              </div>
+            </section>
           </section>
 
           <section class="mission-region mission-region-data" data-mission-region="data" aria-label="נתונים">
@@ -1507,19 +1519,6 @@
                 <button type="button" id="missionDataPickerSuggest" class="mission-data-picker-btn">הצע</button>
                 <button type="button" id="missionDataPickerClose" class="mission-data-picker-btn mission-data-picker-btn--quiet">סגור</button>
               </div>
-            </div>
-          </section>
-
-          <section class="mission-region mission-region-messages" data-mission-region="messages" data-messages-expanded="0" aria-label="הודעות">
-            <h3 class="mission-region-title" draggable="true">הודעות</h3>
-            <button type="button" id="missionMessagesToggle" class="mission-messages-toggle" aria-expanded="false" aria-controls="pfcMsgScroll" title="הצג או הסתר את זרם ההודעות">הרחב</button>
-            <div class="pfd-statustext-strip" id="pfdStatustextStrip">
-              <div class="pfc-msg-head">
-                <span class="pfc-msg-label">הודעות מהבקר</span>
-                <span class="pfc-opt-mini" id="pfdOptMini" title="ניווט אופטי">👁 —</span>
-              </div>
-              <p class="pfc-msg-primary" id="pfcMsgPrimaryHe">אין חיבור לבקר — לא מתקבלות הודעות.</p>
-              <div class="pfc-msg-scroll" id="pfcMsgScroll" hidden></div>
             </div>
           </section>
 
