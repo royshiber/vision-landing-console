@@ -4508,15 +4508,15 @@ function drawHorizon(canvas, rollDeg, pitchDeg, opts = {}) {
   ctx.translate(cx, cy);
   ctx.rotate(rollRad);
   if (!videoMode) {
-    const skyBand = ctx.createLinearGradient(0, -att.h * 2 + pitchPx, 0, pitchPx);
+    const skyBand = ctx.createLinearGradient(0, -att.h * 0.52 + pitchPx, 0, pitchPx);
     skyBand.addColorStop(0, skyZenith);
-    skyBand.addColorStop(0.55, skyMid);
+    skyBand.addColorStop(0.42, skyMid);
     skyBand.addColorStop(1, skyHaze);
     ctx.fillStyle = skyBand;
     ctx.fillRect(-att.w * 2, -att.h * 2 + pitchPx, att.w * 4, att.h * 2);
-    const gndBand = ctx.createLinearGradient(0, pitchPx, 0, att.h * 2 + pitchPx);
+    const gndBand = ctx.createLinearGradient(0, pitchPx, 0, att.h * 0.52 + pitchPx);
     gndBand.addColorStop(0, gndHaze);
-    gndBand.addColorStop(0.38, gndMid);
+    gndBand.addColorStop(0.4, gndMid);
     gndBand.addColorStop(1, gndDeep);
     ctx.fillStyle = gndBand;
     ctx.fillRect(-att.w * 2, pitchPx, att.w * 4, att.h * 2);
