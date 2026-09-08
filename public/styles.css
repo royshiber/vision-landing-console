@@ -7601,14 +7601,16 @@ html[data-evolve-preview="1"] #development {
 }
 
 /* Layout contract v2: map owns the workspace (≥65% height, majority width).
-   Left column is one flex stack: capped PFD + data strip + FC/status filler.
-   PFD content ≤28% workspace height. Filler absorbs leftover — no empty black gap.
+   Left column is one flex stack: readable PFD + data strip + secondary FC/status filler.
+   PFD content is 35–42% of the left column — a rectangle, not a postage stamp
+   and not a full-height stretched tower. Filler takes leftover only.
    Messages collapsed ≤ 40px overlay — never a grid row.
-   Talk transcript well fills the right column. Gap ≤ 4px. */
+   Talk composer stays a horizontal strip at the bottom (grows 3–5 lines, never
+   a vertical sliver, never steals map width). Gap ≤ 4px. */
 .terrain-flight-shell.mission-workspace,
 .mission-workspace[data-mission-layout="ops-v1"] {
   --mission-ah-col: 20%;
-  --mission-ah-row: 28%;
+  --mission-ah-row: 38%;
   --mission-msg-h: 40px;
   --mission-map-min: 65%;
   --mission-c1: minmax(132px, min(22%, var(--mission-ah-col)));
@@ -8022,8 +8024,9 @@ html[data-evolve-preview="1"] #development {
   align-items: center;
   gap: 6px;
   padding: 0 6px;
-  background: rgba(11, 14, 20, 0.92);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: #1e3a5f;
+  border: 1px solid rgba(147, 197, 253, 0.45);
+  cursor: pointer;
 }
 .mission-messages-toggle {
   position: static;
@@ -8031,10 +8034,10 @@ html[data-evolve-preview="1"] #development {
   margin: 0;
   border: 0;
   border-radius: 4px;
-  padding: 1px 6px;
-  background: rgba(255, 255, 255, 0.08);
-  color: #e8edf6;
-  font-size: 0.6rem;
+  padding: 2px 8px;
+  background: #e2e8f0;
+  color: #0f172a;
+  font-size: 0.62rem;
   font-weight: 800;
   font-family: "Heebo", sans-serif;
   cursor: pointer;
@@ -8043,6 +8046,9 @@ html[data-evolve-preview="1"] #development {
 .mission-region-messages .mission-region-title {
   padding: 0;
   flex: 0 0 auto;
+  font-size: 0.68rem;
+  font-weight: 800;
+  color: #f8fafc;
 }
 .mission-region-messages[data-messages-expanded="0"] .pfc-msg-primary {
   margin: 0;
@@ -8063,6 +8069,8 @@ html[data-evolve-preview="1"] #development {
   flex-direction: column;
   align-items: stretch;
   padding: 4px 6px;
+  background: #1e3a5f;
+  cursor: default;
 }
 .mission-region-messages[data-messages-expanded="1"] .pfc-msg-scroll {
   display: block;
@@ -8299,8 +8307,9 @@ html[data-evolve-preview="1"] #development {
   border: 0;
 }
 .mission-region-horizon .flight-hud {
-  max-height: min(260px, var(--mission-ah-row, 28%));
-  height: min(260px, var(--mission-ah-row, 28%));
+  height: var(--mission-ah-row, 38%);
+  min-height: 35%;
+  max-height: 42%;
   flex: 0 0 auto;
 }
 .mission-region-horizon .pfd-top-bar {
@@ -14582,6 +14591,40 @@ body.mission-assist-docked .assist-rail.assist-rail--mission,
 #missionTalkHost .assist-composer {
   margin-top: 0;
   flex: 0 0 auto;
+  max-height: 210px;
+  min-width: 0;
+  width: 100%;
+}
+#missionTalkHost .assist-form {
+  display: flex;
+  flex-flow: row nowrap;
+  align-items: flex-end;
+  min-width: 0;
+  width: 100%;
+}
+#missionTalkHost .assist-input {
+  flex: 1 1 auto;
+  min-width: 8rem;
+  width: 0;
+  writing-mode: horizontal-tb;
+  direction: rtl;
+  resize: none;
+  overflow-x: hidden;
+  overflow-y: hidden;
+  line-height: 1.4;
+  min-height: 2.4em;
+  max-height: 2.6em;
+}
+#missionTalkHost .assist-input:focus,
+#missionTalkHost .assist-input.assist-input--grown {
+  min-height: 4.5em;
+  max-height: 7.5em;
+  overflow-y: auto;
+}
+#missionTalkHost .assist-mic-btn {
+  flex: 0 1 auto;
+  max-width: 44%;
+  min-width: 0;
 }
 #missionTalkHost .mission-talk-hint,
 .mission-region-talk .mission-talk-hint {
@@ -14593,8 +14636,9 @@ body.mission-assist-docked .assist-rail.assist-rail--mission,
   color: #ecfdf5;
   border-color: rgba(74, 222, 128, 0.42);
   min-height: 56px;
-  min-width: 72px;
-  flex: 0 0 auto;
+  min-width: 0;
+  max-width: 44%;
+  flex: 0 1 auto;
 }
 .assist-rail-head {
   display: flex;
@@ -15024,22 +15068,43 @@ body.mission-assist-docked .assist-rail.assist-rail--mission,
   cursor: not-allowed;
 }
 .assist-mic-icon { font-size: 1.6rem; line-height: 1; }
-.assist-mic-label { white-space: nowrap; }
+.assist-mic-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .assist-form {
   display: flex;
+  flex-flow: row nowrap;
   gap: 8px;
-  align-items: stretch;
+  align-items: flex-end;
+  min-width: 0;
+  width: 100%;
 }
 .assist-input {
-  flex: 1;
-  min-width: 0;
+  flex: 1 1 auto;
+  min-width: 8rem;
+  width: 0;
+  writing-mode: horizontal-tb;
   border-radius: 9px;
   border: 1px solid rgba(255, 255, 255, 0.14);
   background: rgba(0, 0, 0, 0.35);
   color: #f8fafc;
   padding: 9px 10px;
   font-size: 0.82rem;
+  line-height: 1.4;
   font-family: "Heebo", sans-serif;
+  resize: none;
+  overflow-x: hidden;
+  overflow-y: hidden;
+  min-height: 2.4em;
+  max-height: 2.6em;
+}
+.assist-input:focus,
+.assist-input.assist-input--grown {
+  min-height: 4.5em;
+  max-height: 7.5em;
+  overflow-y: auto;
 }
 .assist-btn {
   border-radius: 8px;
