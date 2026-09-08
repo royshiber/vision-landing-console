@@ -146,10 +146,7 @@ describe('C10.3 Pulse home', () => {
       assistConnected: false,
       evolveActive: false,
     });
-    expect(disconnected).toHaveLength(2);
-    expect(disconnected.map((item) => item.id)).toEqual(['companion', 'assist']);
-    expect(disconnected.map((item) => item.level)).toEqual(['attention', 'info']);
-    expect(disconnected.find((item) => item.id === 'assist')?.cta).toBe('שאלו את AIRVIX Ask');
+    expect(disconnected).toEqual([]);
     const quiet = pulse.pulseBuildAttention({
       companionLive: true,
       assistConnected: true,

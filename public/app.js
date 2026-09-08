@@ -255,9 +255,9 @@ function isEvolvePreviewFrame() {
 
 function evolvePreviewAllowedTab(tabId) {
   const raw = String(tabId || '').trim();
-  if (raw === 'platform' || raw === 'maintenance' || raw === 'development') return 'pulse';
-  if (['pulse', 'terrain', 'control', 'recordings', 'telemetry'].includes(raw)) return raw;
-  return 'pulse';
+  if (raw === 'platform' || raw === 'maintenance' || raw === 'development' || raw === 'pulse') return 'terrain';
+  if (['terrain', 'control', 'recordings', 'telemetry'].includes(raw)) return raw;
+  return 'terrain';
 }
 
 function applyMainTab(tabId, { save = true } = {}) {
@@ -3167,18 +3167,9 @@ function attentionSyncAssistChrome(items) {
   attentionSyncSettingsChrome(policy);
 }
 
-function pulseBuildAttention(opts) {
-  const companionLive = opts?.companionLive;
-  const assistConnected = opts?.assistConnected;
-  const evolveActive = opts?.evolveActive;
-  const items = [];
-  if (!companionLive) {
-    items.push({ id: 'companion', level: 'attention', text: 'Jetson מנותק', action: 'companion', cta: 'חברו Jetson' });
-  }
-  if (!assistConnected) {
-    items.push({ id: 'assist', level: 'info', text: 'AIRVIX Ask מנותק', action: 'assist', cta: 'שאלו את AIRVIX Ask' });
-  }
-  return items.slice(0, 2);
+function pulseBuildAttention(_opts) {
+  // Jetson and AIRVIX Ask disconnect already live on the main cards.
+  return [];
 }
 
 function pulseEvolveLine(panel) {
@@ -11499,11 +11490,20 @@ function devAddEvolveChip(host, label, value, kind) {
   host.appendChild(chip);
 }
 
-function devEvolvePreviewTab(task) {
-  const area = String(task?.target_area || document.getElementById('devTaskTarget')?.value || 'OTHER').toUpperCase();
-  if (['VISION', 'NAVIGATION', 'LANDING', 'VIDEO'].includes(area)) return 'terrain';
-  if (area === 'API') return 'control';
-  return 'pulse';
+function devEvolvePreviewTab(_task) {
+  return 'terrain';
+}
+
+function devProductIntentText(task) {
+  const typed = String(document.getElementById('devTaskDescription')?.value || '').trim();
+  if (typed) return typed;
+  const title = String(document.getElementById('devTaskTitle')?.value || '').trim();
+  if (title) return title;
+  const excerpt = String(task?.agent?.output_excerpt || '').trim();
+  if (excerpt) return excerpt;
+  const desc = String(task?.description || '').trim();
+  if (desc) return desc.split(/\n+/)[0];
+  return String(task?.title || '').trim();
 }
 
 function devRenderEvolvePlan(task) {
@@ -11539,32 +11539,29 @@ function devRenderEvolvePreview(task) {
   const frame = document.getElementById('evolvePreviewFrame');
   const empty = document.getElementById('evolvePreviewEmpty');
   const after = document.getElementById('evolvePreviewAfterNote');
-  const tab = evolvePreviewAllowedTab(devEvolvePreviewTab(task));
-  const src = `/?evolvePreview=1&tab=${encodeURIComponent(tab)}`;
+  const host = document.getElementById('evolveProductPreview');
+  const mockBefore = document.getElementById('evolveMissionMockBefore');
+  const mockAfter = document.getElementById('evolveMissionMockAfter');
+  const callout = document.getElementById('evolveMockCallout');
   if (frame) {
-    if (frame.dataset.tab !== tab) {
-      frame.src = src;
-      frame.dataset.tab = tab;
-    }
-    frame.hidden = false;
+    frame.hidden = true;
+    frame.removeAttribute('src');
+    delete frame.dataset.tab;
   }
-  const afterText = String(task?.agent?.output_excerpt || task?.description || '').trim();
-  if (_evolvePreviewMode === 'after') {
-    if (after) {
-      after.hidden = !afterText;
-      after.textContent = afterText;
-    }
-    if (empty) {
-      empty.hidden = !!afterText;
-      if (!afterText) empty.textContent = 'אין תצוגת אחרי עדיין.';
-    }
-    return;
-  }
+  const intent = typeof devProductIntentText === 'function' ? devProductIntentText(task) : '';
+  const showAfter = _evolvePreviewMode === 'after';
+  if (host) host.dataset.mode = showAfter ? 'after' : 'before';
+  if (mockBefore) mockBefore.hidden = showAfter;
+  if (mockAfter) mockAfter.hidden = !showAfter;
+  if (callout) callout.textContent = intent || 'השינוי יופיע כאן אחרי בקשה.';
   if (after) {
-    after.hidden = true;
-    after.textContent = '';
+    after.hidden = !(showAfter && intent);
+    after.textContent = showAfter && intent ? intent : '';
   }
-  if (empty) empty.hidden = true;
+  if (empty) {
+    empty.hidden = !showAfter || !!intent;
+    if (!intent) empty.textContent = 'אין תצוגת מוצר עדיין. כתבו מה לשנות במוצר.';
+  }
 }
 
 function devSetEvolvePreviewMode(mode) {
@@ -12082,6 +12079,14 @@ document.getElementById('evolveAdjustPlanBtn')?.addEventListener('click', () => 
 });
 document.getElementById('evolvePreviewBeforeBtn')?.addEventListener('click', () => { devSetEvolvePreviewMode('before'); });
 document.getElementById('evolvePreviewAfterBtn')?.addEventListener('click', () => { devSetEvolvePreviewMode('after'); });
+document.getElementById('devTaskDescription')?.addEventListener('input', () => {
+  const selected = _devTasks.find((t) => t.id === _devSelectedTaskId) || null;
+  devRenderEvolvePreview(selected);
+});
+document.getElementById('devTaskTitle')?.addEventListener('input', () => {
+  const selected = _devTasks.find((t) => t.id === _devSelectedTaskId) || null;
+  devRenderEvolvePreview(selected);
+});
 document.getElementById('devTaskTarget')?.addEventListener('change', () => {
   const selected = _devTasks.find((t) => t.id === _devSelectedTaskId) || null;
   devRenderEvolvePreview(selected);

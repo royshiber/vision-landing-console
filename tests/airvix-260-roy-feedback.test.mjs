@@ -26,10 +26,10 @@ function sliceFunction(src, name) {
   throw new Error(`unclosed function ${name}`);
 }
 
-describe('AIRVIX 1.02.261 Roy feedback (still holds on 1.02.264)', () => {
-  it('pins APP_VERSION at 1.02.264', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.264'");
-    expect(pkg.version).toBe('1.02.264');
+describe('AIRVIX 1.02.261 Roy feedback (still holds on 1.02.265)', () => {
+  it('pins APP_VERSION at 1.02.265', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.265'");
+    expect(pkg.version).toBe('1.02.265');
   });
 
   it('removes Platform from primary chrome and redirects Assist', () => {
@@ -70,7 +70,7 @@ describe('AIRVIX 1.02.261 Roy feedback (still holds on 1.02.264)', () => {
     expect(html).toContain('id="evolvePrChips"');
     expect(html).toContain('placeholder="תארו מה לשנות…"');
     expect(html).toContain('אין תוכנית עדיין.');
-    expect(html).toContain('אין תצוגה חיה עדיין.');
+    expect(html).toContain('אין תצוגת מוצר עדיין. כתבו מה לשנות במוצר.');
     expect(html).toContain('אין בדיקות עדיין.');
     expect(html).toContain('אין בקשת מיזוג עדיין.');
     expect(html).toContain('class="devtasks-list evolve-backlog"');
@@ -100,7 +100,7 @@ describe('AIRVIX 1.02.261 Roy feedback (still holds on 1.02.264)', () => {
     ].join('\n');
     expect(evolve).not.toMatch(/FLIGHT_ACTION|\/apply|\/restart|\bARM\b|\bDISARM\b|\bLAND\b/);
     expect(evolve).not.toMatch(/capture_amount|Default environment|סביבת ברירת מחדל/);
-    expect(sliceFunction(js, 'evolvePreviewAllowedTab')).toMatch(/development.*pulse/);
+    expect(sliceFunction(js, 'evolvePreviewAllowedTab')).toMatch(/development.*terrain/);
     const planSrc = [
       sliceFunction(js, 'devEvolvePlanSteps'),
       sliceFunction(js, 'devAgentStateKind'),

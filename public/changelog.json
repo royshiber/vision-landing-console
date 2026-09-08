@@ -1,5 +1,16 @@
 [
   {
+    "version": "1.02.265",
+    "date": "2026-09-08",
+    "changes": [
+      {
+        "type": "ui",
+        "title": "Denser computer status and Develop concept A product preview",
+        "detail": "Computer status drops duplicate Jetson and AIRVIX Ask disconnect rows under the main cards, tightens gauges and card padding, and keeps the free-text add-widget composer. The mission computer stays Jetson / מחשב משימה. Develop is locked concept A שנה את המוצר: natural-language intent plus a Mission UI before/after mock. The preview never embeds computer-status gauges. Copy states this changes the product, not machine health. Plan and PR affordances stay. Params and debrief keep AIRVIX Ask labels with no leftover מסייע / מלווה / Lab chrome. Mission map-dominant layout and AH size band from 263–264 are unchanged. APP_VERSION 1.02.265."
+      }
+    ]
+  },
+  {
     "version": "1.02.264",
     "date": "2026-09-08",
     "changes": [
