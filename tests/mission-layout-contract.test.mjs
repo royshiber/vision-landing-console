@@ -46,6 +46,20 @@ function interiorsIntersect(a, b, slack = 1) {
     && a.bottom > b.top + slack;
 }
 
+function shotDir() {
+  const dir = '/opt/cursor/artifacts/screenshots';
+  fs.mkdirSync(dir, { recursive: true });
+  return dir;
+}
+
+async function writeShot(page, name) {
+  const buf = await page.screenshot({ type: 'png', fullPage: false });
+  const dest = path.join(shotDir(), name);
+  try { fs.unlinkSync(dest); } catch { /* ignore missing */ }
+  fs.writeFileSync(dest, buf);
+  return dest;
+}
+
 describe('Mission layout contract — static source', () => {
   it('uses a two-column grid: map owns the cell, AH is a compact overlay', () => {
     expect(html).toMatch(/data-layout-contract="v2"/);
@@ -188,8 +202,6 @@ describe('Mission layout contract — live boxes', () => {
   });
 
   it('keeps mission region boxes from intersecting and honors size shares', async () => {
-    const shotDir = '/opt/cursor/artifacts/screenshots';
-    fs.mkdirSync(shotDir, { recursive: true });
     const measured = await page.evaluate(() => {
       const box = (el) => {
         if (!el) return null;
@@ -322,8 +334,26 @@ describe('Mission layout contract — live boxes', () => {
       }
     }
 
-    await page.screenshot({ path: path.join(shotDir, 'mission-contract.png'), fullPage: false });
-    await page.screenshot({ path: path.join(shotDir, 'hatasa-1440x900.png'), fullPage: false });
+    const ahShareH = regions.horizon.height / ws.height;
+    const wellShare = measured.well.height / regions.talk.height;
+    fs.writeFileSync(path.join(shotDir(), 'mission-contract-measure.json'), JSON.stringify({
+      ahShareH,
+      ahH: regions.horizon.height,
+      ahW: regions.horizon.width,
+      wsH: ws.height,
+      wsW: ws.width,
+      mapShareH: regions.map.height / ws.height,
+      mapShareW: regions.map.width / ws.width,
+      wellShare,
+      wellH: measured.well.height,
+      messagesHostH: measured.messagesHost.height,
+      emptyHeight: measured.emptyHeight,
+      wellBg: measured.wellBg,
+      version: measured.version,
+    }, null, 2));
+
+    await writeShot(page, 'mission-contract.png');
+    await writeShot(page, 'hatasa-1440x900.png');
   }, 45000);
 
   it('grows messages as an overlay drawer instead of a grid row', async () => {
@@ -394,10 +424,8 @@ describe('Mission layout contract — live boxes', () => {
         expect(interiorsIntersect(pulse.tiles[i], pulse.tiles[j]), 'pulse extra tiles overlap').toBe(false);
       }
     }
-    const shotDir = '/opt/cursor/artifacts/screenshots';
-    fs.mkdirSync(shotDir, { recursive: true });
-    await page.screenshot({ path: path.join(shotDir, 'status-widgets-contract.png'), fullPage: false });
-  }, 30000);
+    await writeShot(page, 'status-widgets-contract.png');
+  }, 45000);
 
   it('keeps Evolve command and live-run regions from overlapping', async () => {
     await page.locator('[data-tab="development"]').click({ force: true });
@@ -465,8 +493,6 @@ describe('Mission layout contract — live boxes', () => {
         expect(interiorsIntersect(evolve.cards[i], evolve.cards[j]), 'evolve run cards overlap').toBe(false);
       }
     }
-    const shotDir = '/opt/cursor/artifacts/screenshots';
-    fs.mkdirSync(shotDir, { recursive: true });
-    await page.screenshot({ path: path.join(shotDir, 'evolve-concept3.png'), fullPage: false });
-  }, 30000);
+    await writeShot(page, 'evolve-concept3.png');
+  }, 45000);
 });
