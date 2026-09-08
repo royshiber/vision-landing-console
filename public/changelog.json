@@ -1,21 +1,5 @@
 [
   {
-    "version": "1.02.266",
-    "date": "2026-09-08",
-    "changes": [
-      {
-        "type": "ui",
-        "title": "Styles",
-        "detail": "styles.css"
-      },
-      {
-        "type": "test",
-        "title": "Tests",
-        "detail": "airvix-265-status-develop.test.mjs"
-      }
-    ]
-  },
-  {
     "version": "1.02.265",
     "date": "2026-09-08",
     "changes": [
