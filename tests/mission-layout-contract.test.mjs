@@ -77,6 +77,7 @@ describe('Mission layout contract — static source', () => {
     expect(cssBlock(css, '.pfd-video-panel')).not.toMatch(/position:\s*absolute/);
     expect(cssBlock(css, '.mission-messages-toggle')).toMatch(/position:\s*static/);
     expect(cssBlock(css, '.mission-data-grid')).toMatch(/flex-flow:\s*row nowrap/);
+    expect(cssBlock(css, '.mission-data-grid')).toMatch(/align-items:\s*flex-start/);
     expect(cssBlock(css, '.mission-data-grid')).toMatch(/gap:\s*8px/);
     expect(cssBlock(css, '.mission-data-grid')).toMatch(/overflow-x:\s*auto/);
   });
@@ -225,6 +226,9 @@ describe('Mission layout contract — live boxes', () => {
       }
     }
 
+    expect(measured.pfd.ias.right).toBeLessThanOrEqual(measured.pfd.stage.left + 1);
+    expect(measured.pfd.alt.left).toBeGreaterThanOrEqual(measured.pfd.stage.right - 1);
+    expect(measured.pfd.hdg.top).toBeGreaterThanOrEqual(measured.pfd.stage.bottom - 1);
     const pfdParts = [measured.pfd.ias, measured.pfd.stage, measured.pfd.alt, measured.pfd.hdg, measured.pfd.videoToggle]
       .filter((part) => part && part.width > 2 && part.height > 2);
     for (let i = 0; i < pfdParts.length; i += 1) {

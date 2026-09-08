@@ -114,6 +114,7 @@ describe('AIRVIX 1.02.260 Roy feedback', () => {
     expect(css).toMatch(/\.pfd-video-toggle\s*\{[^}]*position:\s*static/);
     expect(css).toMatch(/\.pfd-video-panel\s*\{[^}]*position:\s*static/);
     expect(css).toMatch(/\.mission-data-grid\s*\{[^}]*flex-flow:\s*row nowrap/);
+    expect(css).toMatch(/\.mission-data-grid\s*\{[^}]*align-items:\s*flex-start/);
     expect(html).not.toContain('Vision Landing Console');
   });
 });

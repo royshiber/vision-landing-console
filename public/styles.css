@@ -7481,10 +7481,11 @@ body:has(#pulse.panel.visible) .layout {
 .mission-data-grid {
   display: flex;
   flex-flow: row nowrap;
+  align-items: flex-start;
   gap: 8px;
   margin: 0;
   padding: 4px 6px 6px;
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   min-height: 0;
   overflow-x: auto;
   overflow-y: hidden;
@@ -7498,8 +7499,10 @@ body:has(#pulse.panel.visible) .layout {
   justify-content: space-between;
   gap: 2px;
   flex: 0 0 auto;
+  align-self: flex-start;
   min-width: 96px;
   min-height: 52px;
+  max-height: 72px;
   overflow: hidden;
   padding: 6px 8px 7px;
   border-radius: 4px;
