@@ -169,7 +169,7 @@ describe('Advisor → Assist fold — service', () => {
 
 describe('Advisor → Assist fold — chrome', () => {
   it('keeps advisor reachable from Assist and out of primary ops tabs', () => {
-    expect(html).toMatch(/class="tab tab-ops"[^>]*data-tab="pulse"[^>]*>בית</);
+    expect(html).toMatch(/class="tab tab-ops"[^>]*data-tab="pulse"[^>]*>סטטוס מחשבים</);
     expect(html).not.toMatch(/class="tab tab-ops"[^>]*data-tab="advisor"/);
     expect(html).not.toContain('id="tabLabMenu"');
     expect(html).not.toContain('מעבדה');
@@ -204,8 +204,8 @@ describe('Advisor → Assist fold — chrome', () => {
     expect(html).not.toMatch(/id="companionApplyBtn"|id="companionRestartBtn"/);
   });
 
-  it('pins APP_VERSION at 1.02.258', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.258'");
-    expect(pkg.version).toBe('1.02.258');
+  it('pins APP_VERSION at 1.02.259', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.259'");
+    expect(pkg.version).toBe('1.02.259');
   });
 });

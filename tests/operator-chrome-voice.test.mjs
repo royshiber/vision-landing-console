@@ -39,11 +39,11 @@ describe('Operator chrome voice and lab chrome gone', () => {
     expect(html).toMatch(/data-first-action="params">פרמטרים</);
     expect(html).toMatch(/data-first-action="companion">חברו Jetson</);
     expect(html).toMatch(/id="connectPillLabel"[^>]*>מנותק</);
-    expect(html).toMatch(/class="pulse-version-line">גרסה <span id="pulseVersion"/);
+    expect(html).toMatch(/class="pulse-version-line">קונסולה <span id="pulseVersion"/);
   });
 
   it('keeps ops tabs and deletes every user-visible Lab shelf', () => {
-    expect(html).toMatch(/class="tab tab-ops"[^>]*data-tab="pulse"[^>]*>בית</);
+    expect(html).toMatch(/class="tab tab-ops"[^>]*data-tab="pulse"[^>]*>סטטוס מחשבים</);
     expect(html).toMatch(/class="tab tab-ops"[^>]*data-tab="platform"[^>]*>פלטפורמה</);
     expect(html).toMatch(/class="tab tab-ops"[^>]*data-tab="control"[^>]*>פרמטרים</);
     expect(html).toMatch(/class="tab tab-ops"[^>]*data-tab="recordings"[^>]*>תחקור</);

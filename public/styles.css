@@ -226,15 +226,27 @@ h1, h2, .panel-header h2 {
   inset-inline-end: 20px;
   inset-inline-start: auto;
   z-index: var(--z-assist-float);
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
   flex-direction: row;
-  padding: 12px 20px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(8, 12, 20, 0.7);
-  color: #f8fafc;
+  min-height: 64px;
+  padding: 16px 26px;
+  border: 1px solid rgba(74, 222, 128, 0.35);
+  background: rgba(8, 18, 16, 0.82);
+  color: #f0fdf4;
   border-radius: 999px;
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(22px) saturate(1.25);
   transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+.assist-toggle-mic {
+  font-size: 1.7rem;
+  line-height: 1;
+}
+.assist-toggle-btn.assist-toggle-float .assist-toggle-he {
+  font-size: 1.12rem;
+  font-weight: 800;
 }
 
 .assist-toggle-btn.assist-toggle-float:hover {
@@ -4863,6 +4875,51 @@ body:has(#pulse.panel.visible) .layout {
   font-size: 0.72rem;
   color: #7d8ba0;
 }
+.pulse-version-block {
+  display: grid;
+  gap: 4px;
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(148, 168, 198, 0.12);
+  text-align: start;
+}
+.pulse-version-k {
+  margin: 0;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #7d8ba0;
+}
+.pulse-version-v {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: #f2f6fb;
+}
+.pulse-version-state {
+  margin: 0;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #8b97ab;
+}
+.pulse-version-state[data-offer="current"] {
+  color: #3dd68c;
+}
+.pulse-version-state[data-offer="available"] {
+  color: #f0a04b;
+  font-weight: 800;
+}
+.pulse-version-offer {
+  margin-top: 2px;
+}
+.pulse-version-offer[hidden] {
+  display: none !important;
+}
+.pulse-computer-card:has(.pulse-version-state[data-offer="available"]) {
+  border-color: rgba(240, 160, 75, 0.45);
+  box-shadow: 0 0 0 1px rgba(240, 160, 75, 0.2);
+}
 
 .pulse-status {
   display: grid;
@@ -7017,18 +7074,22 @@ body:has(#pulse.panel.visible) .layout {
   background: #0b0e14;
 }
 .mission-ops-chrome {
-  position: absolute;
-  top: 6px;
-  inset-inline-end: 8px;
-  z-index: 6;
+  position: relative;
+  top: auto;
+  inset-inline-end: auto;
+  z-index: 2;
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 6px;
-  min-height: 0;
-  padding: 0;
-  background: transparent;
+  min-height: 32px;
+  flex: 0 0 auto;
+  width: 100%;
+  padding: 6px 10px;
+  background: #0b0e14;
   border: 0;
-  pointer-events: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  pointer-events: auto;
 }
 .mission-ops-chrome button {
   pointer-events: auto;
@@ -7122,15 +7183,15 @@ body:has(#pulse.panel.visible) .layout {
 
 .terrain-flight-shell.mission-workspace,
 .mission-workspace[data-mission-layout="ops-v1"] {
-  --mission-c1: 0.82fr;
-  --mission-c2: 1.88fr;
-  --mission-c3: 1.22fr;
-  --mission-r1: 2.20fr;
-  --mission-r2: 0.62fr;
+  --mission-c1: 0.62fr;
+  --mission-c2: 2.00fr;
+  --mission-c3: 1.28fr;
+  --mission-r1: 0.78fr;
+  --mission-r2: 1.42fr;
   position: relative;
   display: grid;
-  grid-template-columns: minmax(168px, var(--mission-c1)) minmax(320px, var(--mission-c2)) minmax(260px, var(--mission-c3));
-  grid-template-rows: minmax(280px, var(--mission-r1)) minmax(96px, var(--mission-r2));
+  grid-template-columns: minmax(220px, var(--mission-c1)) minmax(320px, var(--mission-c2)) minmax(260px, var(--mission-c3));
+  grid-template-rows: minmax(160px, var(--mission-r1)) minmax(200px, var(--mission-r2));
   grid-template-areas:
     "horizon map talk"
     "data messages talk";
@@ -7217,20 +7278,40 @@ body:has(#pulse.panel.visible) .layout {
 .mission-region[data-mission-region="talk"] { grid-area: talk; }
 
 .mission-region-title {
-  position: absolute;
-  top: 4px;
-  inset-inline-start: 6px;
-  z-index: 3;
+  position: static;
+  top: auto;
+  inset-inline-start: auto;
+  z-index: 1;
   margin: 0;
-  padding: 1px 6px;
+  padding: 4px 8px 2px;
   font-size: 0.62rem;
   font-weight: 600;
   letter-spacing: 0.01em;
   color: rgba(226, 232, 240, 0.72);
   font-family: "Heebo", sans-serif;
   flex: 0 0 auto;
-  background: rgba(11, 14, 20, 0.55);
-  border-radius: 3px;
+  background: transparent;
+  border-radius: 0;
+}
+.mission-ask-chip {
+  flex: 0 0 auto;
+  align-self: flex-start;
+  margin: 0 8px 4px;
+  padding: 3px 10px;
+  border: 1px solid rgba(74, 222, 128, 0.32);
+  border-radius: 999px;
+  background: rgba(16, 185, 129, 0.14);
+  color: #bbf7d0;
+  font: inherit;
+  font-size: 0.66rem;
+  font-weight: 700;
+  font-family: "Heebo", sans-serif;
+  cursor: pointer;
+}
+.mission-ask-chip:hover,
+.mission-ask-chip:focus-visible {
+  background: rgba(16, 185, 129, 0.24);
+  outline: none;
 }
 
 .mission-region-data,
@@ -7247,7 +7328,7 @@ body:has(#pulse.panel.visible) .layout {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 4px;
   margin: 0;
-  padding: 22px 6px 6px;
+  padding: 4px 6px 6px;
   flex: 1 1 auto;
   min-height: 0;
   position: relative;
@@ -7616,12 +7697,34 @@ body:has(#pulse.panel.visible) .layout {
   text-align: center;
 }
 
-/* ── Horizon shell (fills remaining height) ──────────────── */
+/* ── Horizon shell (compact rectangular instrument) ─────── */
 .pfd-horizon-shell {
   flex: 1 1 0;
   position: relative;
   min-height: 0;
   overflow: hidden;
+}
+.mission-region-horizon .flight-hud {
+  max-height: none;
+}
+.mission-region-horizon .pfd-top-bar {
+  min-height: 24px;
+  padding: 2px 6px;
+  flex-wrap: wrap;
+}
+.mission-region-horizon .pfd-bottom-bar {
+  min-height: 22px;
+  padding: 2px 6px;
+}
+.mission-region-horizon .pfd-horizon-shell {
+  aspect-ratio: 1 / 1;
+  max-height: min(148px, 100%);
+  width: min(100%, 160px);
+  margin-inline: auto;
+  flex: 1 1 auto;
+}
+.mission-region-horizon .hud-data-grid {
+  display: none;
 }
 .pfd-horizon-shell canvas {
   position: absolute;
@@ -8984,9 +9087,10 @@ details.flight-manage summary {
 
 .connect-widget.connect-widget-float {
   position: fixed;
-  top: 10px;
-  inset-inline-end: 16px;
+  top: 4px;
+  inset-inline-end: 12px;
   z-index: var(--z-connect-float);
+  max-width: 168px;
 }
 
 .connect-widget-float .conn-pill {
@@ -13741,9 +13845,12 @@ body.mission-assist-docked .assist-rail.assist-rail--mission,
 }
 #missionTalkHost .assist-mic-btn,
 .mission-region-talk .assist-mic-btn {
-  background: rgba(255, 255, 255, 0.08);
-  color: #e8edf6;
-  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(16, 185, 129, 0.22);
+  color: #ecfdf5;
+  border-color: rgba(74, 222, 128, 0.42);
+  min-height: 56px;
+  min-width: 72px;
+  flex: 0 0 auto;
 }
 .assist-rail-head {
   display: flex;
@@ -14144,20 +14251,24 @@ body.mission-assist-docked .assist-rail.assist-rail--mission,
 .assist-mic-btn {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  justify-content: center;
+  gap: 8px;
   flex: 0 0 auto;
-  border-radius: 9px;
-  border: 1px solid rgba(15, 23, 42, 0.18);
-  background: #e2e8f0;
-  color: #0f172a;
-  padding: 7px 9px;
-  font-size: 0.7rem;
+  min-height: 56px;
+  min-width: 56px;
+  border-radius: 999px;
+  border: 1px solid rgba(74, 222, 128, 0.4);
+  background: rgba(16, 185, 129, 0.2);
+  color: #ecfdf5;
+  padding: 12px 18px;
+  font-size: 0.95rem;
   font-weight: 800;
   font-family: "Heebo", sans-serif;
   cursor: pointer;
+  box-shadow: 0 8px 20px rgba(16, 185, 129, 0.18);
 }
 .assist-mic-btn:hover {
-  background: #cbd5e1;
+  background: rgba(16, 185, 129, 0.32);
 }
 .assist-mic-btn[aria-pressed="true"] {
   background: #fecaca;
@@ -14168,7 +14279,7 @@ body.mission-assist-docked .assist-rail.assist-rail--mission,
   opacity: 0.55;
   cursor: not-allowed;
 }
-.assist-mic-icon { font-size: 0.95rem; line-height: 1; }
+.assist-mic-icon { font-size: 1.6rem; line-height: 1; }
 .assist-mic-label { white-space: nowrap; }
 .assist-form {
   display: flex;
@@ -14225,6 +14336,123 @@ body.mission-assist-docked.assist-open .layout {
     width: 100% !important;
     height: 100% !important;
   }
+}
+
+/* AIRVIX 2026 — leftover ops tabs share Mission / Pulse language */
+body:has(#platform.panel.visible),
+body:has(#control.panel.visible),
+body:has(#development.panel.visible),
+body:has(#maintenance.panel.visible),
+body:has(#recordings.panel.visible),
+body:has(#telemetry.panel.visible) {
+  background-color: #0b0e14;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.04) 0.5px, transparent 0.5px);
+}
+#platform.panel.visible,
+#control.panel.visible,
+#development.panel.visible,
+#maintenance.panel.visible,
+#recordings.panel.visible,
+#telemetry.panel.visible {
+  background: #0b0e14 !important;
+  color: #e8edf6;
+}
+#platform.panel.visible {
+  background:
+    radial-gradient(ellipse 70% 40% at 50% 0%, rgba(56, 92, 160, 0.16), transparent 62%),
+    #0b0e14 !important;
+}
+#platform.panel.visible .platform-title,
+#development.panel.visible .devtasks-panel > h3,
+#control.panel.visible .panel-header h2,
+#maintenance.panel.visible h3,
+#recordings.panel.visible h2,
+#recordings.panel.visible h3 {
+  color: #e8edf6;
+}
+#platform.panel.visible .platform-shell {
+  background: #121826;
+  border-color: rgba(148, 168, 198, 0.16);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
+  color: #e8edf6;
+}
+#platform.panel.visible .platform-shell h4 { color: #f2f6fb; }
+#platform.panel.visible .platform-shell p { color: #8b97ab; }
+#platform.panel.visible .platform-shell[data-state="connected"] {
+  border-color: rgba(61, 214, 140, 0.4);
+  background: #102018;
+}
+#development.panel.visible .devtasks-create,
+#development.panel.visible .devtasks-list,
+#development.panel.visible .devtasks-detail {
+  background: #121826;
+  border-color: rgba(148, 168, 198, 0.16);
+  color: #e8edf6;
+}
+#development.panel.visible .tele-card,
+#control.panel.visible .tele-card,
+#control.panel.visible .param-card,
+#maintenance.panel.visible .tele-card,
+#recordings.panel.visible .tele-card {
+  background: #121826 !important;
+  border-color: rgba(148, 168, 198, 0.16);
+  color: #e8edf6;
+}
+#development.panel.visible .kpi-input,
+#control.panel.visible input,
+#control.panel.visible select,
+#control.panel.visible textarea,
+#maintenance.panel.visible input,
+#maintenance.panel.visible select,
+#maintenance.panel.visible textarea,
+#recordings.panel.visible input,
+#recordings.panel.visible select,
+#recordings.panel.visible textarea {
+  background: #0b0e14;
+  color: #e8edf6;
+  border-color: rgba(255, 255, 255, 0.12);
+}
+#control.panel.visible .panel-header,
+#control.panel.visible .hint,
+#control.panel.visible .subtabs,
+#control.panel.visible .param-sync-banner,
+#maintenance.panel.visible .operator-overview,
+#recordings.panel.visible .video-column,
+#recordings.panel.visible .events-column {
+  background: #11161f;
+  border-color: rgba(255, 255, 255, 0.08);
+  color: #e8edf6;
+}
+#control.panel.visible .param-sync-banner,
+#maintenance.panel.visible .companion-maint-panel,
+#telemetry.panel.visible .tele-dash-col {
+  background: #121826;
+  border-color: rgba(148, 168, 198, 0.16);
+  color: #e8edf6;
+}
+#maintenance.panel.visible:has(#maintLiveSections[hidden]),
+#telemetry.panel.visible:has(#teleLiveSections[hidden]) {
+  background: #0b0e14 !important;
+}
+body:has(#control.panel.visible) #controlSubtabsBar,
+body:has(#control.panel.visible) .ardu-top-cats-host {
+  background: #0b0e14;
+  color: #e8edf6;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+#development.panel.visible .maint-diag-table,
+#maintenance.panel.visible .maint-diag-table {
+  color: #e8edf6;
+}
+#development.panel.visible .maint-diag-table th,
+#maintenance.panel.visible .maint-diag-table th {
+  color: #94a3b8;
+  background: #0f141c;
+}
+#recordings.panel.visible .events-list,
+#recordings.panel.visible .video-column .video-wrapper {
+  background: #0b0e14;
+  border-color: rgba(255, 255, 255, 0.08);
 }
 
 

@@ -99,8 +99,8 @@ describe('Preflight / readiness MERGE — Mission glance + Diagnostics', () => {
     expect(js).not.toMatch(/FLIGHT_ACTION/);
   });
 
-  it('pins APP_VERSION at 1.02.258', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.258'");
-    expect(pkg.version).toBe('1.02.258');
+  it('pins APP_VERSION at 1.02.259', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.259'");
+    expect(pkg.version).toBe('1.02.259');
   });
 });
