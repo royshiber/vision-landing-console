@@ -85,7 +85,9 @@ describe('AIRVIX 1.02.264 Ask rename + premium horizon', () => {
   });
 
   it('polishes the PFD with gradients and instrument chrome without a new layout', () => {
-    const draw = sliceFunction(js, 'drawHorizon');
+    const start = js.indexOf('function drawHorizon(');
+    expect(start).toBeGreaterThanOrEqual(0);
+    const draw = js.slice(start, start + 16000);
     expect(draw).toContain('imageSmoothingEnabled = true');
     expect(draw).toContain('createLinearGradient');
     expect(draw).toContain('skyZenith');
