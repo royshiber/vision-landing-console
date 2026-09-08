@@ -128,10 +128,12 @@
         </form>
         <button type="button" id="assistAgentDisconnectBtn" class="assist-btn assist-btn-cancel" hidden>ניתוק</button>
       </section>
+        <div class="assist-transcript-well">
         <div id="assistMessagesEmpty" class="assist-empty-stage">
         <p id="assistEmptyInvite" class="assist-empty-invite">שאלו כאן.</p>
       </div>
       <div id="assistMessages" class="assist-messages" role="log" aria-live="polite"></div>
+      </div>
       <div id="assistRunPanel" class="assist-run-panel" data-kind="unavailable" hidden aria-live="polite"></div>
       <div id="assistProposalBar" class="assist-proposal-bar" hidden>
         <p id="assistProposalText" class="assist-proposal-text"></p>
@@ -1447,36 +1449,7 @@
               </div>
               <div id="hudDataGrid" class="hud-data-grid pfd-slots-strip" role="region" aria-label="נתונים מותאמים"></div>
             </aside>
-          </section>
-
-          <section class="mission-region mission-region-map" data-mission-region="map" aria-label="מפה">
-            <h3 class="mission-region-title" draggable="true">מפה</h3>
-            <div class="terrain-map-shell">
-              <div class="terrain-map-overlay-toolbar" role="toolbar" aria-label="תצוגת מפה">
-                <span class="terrain-toolbar-label">שכבה:</span>
-                <button type="button" id="terrainLayerStreetBtn" class="terrain-layer-btn active" title="OpenStreetMap">מפת רחוב</button>
-                <button type="button" id="terrainLayerSatBtn" class="terrain-layer-btn" title="תצלום לווין (Esri)">לווין</button>
-                <button type="button" id="terrainShowLoadedPathBtn" class="terrain-layer-btn" title="רענן משימה והצג נתיב טעון על המפה">הצג נתיב טעון</button>
-              </div>
-              <div id="terrainMapRotatable" class="terrain-map-rotatable">
-                <div id="terrainMap"></div>
-              </div>
-            </div>
-            <section class="mission-region mission-region-messages" data-mission-region="messages" data-messages-expanded="0" aria-label="הודעות">
-              <h3 class="mission-region-title">הודעות</h3>
-              <button type="button" id="missionMessagesToggle" class="mission-messages-toggle" aria-expanded="false" aria-controls="pfcMsgScroll" title="הצג או הסתר את זרם ההודעות">הרחב</button>
-              <div class="pfd-statustext-strip" id="pfdStatustextStrip">
-                <div class="pfc-msg-head">
-                  <span class="pfc-msg-label">הודעות מהבקר</span>
-                  <span class="pfc-opt-mini" id="pfdOptMini" title="ניווט אופטי">👁 —</span>
-                </div>
-                <p class="pfc-msg-primary" id="pfcMsgPrimaryHe">אין חיבור לבקר — לא מתקבלות הודעות.</p>
-                <div class="pfc-msg-scroll" id="pfcMsgScroll" hidden></div>
-              </div>
-            </section>
-          </section>
-
-          <section class="mission-region mission-region-data" data-mission-region="data" aria-label="נתונים">
+            <section class="mission-region mission-region-data" data-mission-region="data" aria-label="נתונים">
             <h3 class="mission-region-title" draggable="true">נתונים</h3>
             <button type="button" id="missionAskDataBtn" class="mission-ask-chip">שאלו על הנתונים</button>
             <p class="mission-data-hint">קליק ימני על אריח לבחירת שדה.</p>
@@ -1520,6 +1493,34 @@
                 <button type="button" id="missionDataPickerClose" class="mission-data-picker-btn mission-data-picker-btn--quiet">סגור</button>
               </div>
             </div>
+          </section>
+          </section>
+
+          <section class="mission-region mission-region-map" data-mission-region="map" aria-label="מפה">
+            <h3 class="mission-region-title" draggable="true">מפה</h3>
+            <div class="terrain-map-shell">
+              <div class="terrain-map-overlay-toolbar" role="toolbar" aria-label="תצוגת מפה">
+                <span class="terrain-toolbar-label">שכבה:</span>
+                <button type="button" id="terrainLayerStreetBtn" class="terrain-layer-btn active" title="OpenStreetMap">מפת רחוב</button>
+                <button type="button" id="terrainLayerSatBtn" class="terrain-layer-btn" title="תצלום לווין (Esri)">לווין</button>
+                <button type="button" id="terrainShowLoadedPathBtn" class="terrain-layer-btn" title="רענן משימה והצג נתיב טעון על המפה">הצג נתיב טעון</button>
+              </div>
+              <div id="terrainMapRotatable" class="terrain-map-rotatable">
+                <div id="terrainMap"></div>
+              </div>
+            </div>
+            <section class="mission-region mission-region-messages" data-mission-region="messages" data-messages-expanded="0" aria-label="הודעות">
+              <h3 class="mission-region-title">הודעות</h3>
+              <button type="button" id="missionMessagesToggle" class="mission-messages-toggle" aria-expanded="false" aria-controls="pfcMsgScroll" title="הצג או הסתר את זרם ההודעות">הרחב</button>
+              <div class="pfd-statustext-strip" id="pfdStatustextStrip">
+                <div class="pfc-msg-head">
+                  <span class="pfc-msg-label">הודעות מהבקר</span>
+                  <span class="pfc-opt-mini" id="pfdOptMini" title="ניווט אופטי">👁 —</span>
+                </div>
+                <p class="pfc-msg-primary" id="pfcMsgPrimaryHe">אין חיבור לבקר — לא מתקבלות הודעות.</p>
+                <div class="pfc-msg-scroll" id="pfcMsgScroll" hidden></div>
+              </div>
+            </section>
           </section>
 
           <section class="mission-region mission-region-talk" data-mission-region="talk" aria-label="מסייע">

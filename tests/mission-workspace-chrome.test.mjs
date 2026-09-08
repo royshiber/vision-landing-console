@@ -494,14 +494,14 @@ describe('AIRVIX Mission chrome — default open + layout policy', () => {
       sliceFunction(js, 'applyMissionSize').replace('requestAnimationFrame(placeMissionSplits);', ''),
       sliceFunction(js, 'swapMissionRegions'),
       sliceFunction(js, 'resetMissionLayout').replace('syncMissionLayoutChrome();', ''),
-      'swapMissionRegions("horizon", "talk");',
-      'const swapped = { horizon: regions.horizon.style.gridArea, talk: regions.talk.style.gridArea };',
+      'swapMissionRegions("map", "talk");',
+      'const swapped = { map: regions.map.style.gridArea, talk: regions.talk.style.gridArea };',
       'resetMissionLayout();',
-      'return { swapped, restored: { horizon: regions.horizon.style.gridArea, talk: regions.talk.style.gridArea } };',
+      'return { swapped, restored: { map: regions.map.style.gridArea, talk: regions.talk.style.gridArea } };',
     ].join('\n');
     const result = new Function('localStorage', 'document', 'regions', src)(localStorage, document, regions);
-    expect(result.swapped).toEqual({ horizon: 'talk', talk: 'horizon' });
-    expect(result.restored).toEqual({ horizon: 'horizon', talk: 'talk' });
+    expect(result.swapped).toEqual({ map: 'talk', talk: 'map' });
+    expect(result.restored).toEqual({ map: 'map', talk: 'talk' });
   });
 
   it('persists drag-resize sizes and reset restores defaults', () => {

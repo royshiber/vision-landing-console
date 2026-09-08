@@ -167,7 +167,8 @@ describe('AIRVIX 1.02.261 Roy feedback', () => {
   });
 
   it('makes the Mission map the tall primary cell and keeps messages tiny', () => {
-    expect(css).toMatch(/"horizon map talk"\s*"data\s+map talk"/);
+    expect(css).toMatch(/grid-template-areas:\s*"map talk"/);
+    expect(css).not.toMatch(/"horizon map talk"/);
     expect(css).not.toMatch(/"messages map talk"/);
     expect(css).toMatch(/--mission-map-min:\s*65%/);
     expect(css).toMatch(/--mission-msg-h:\s*40px/);

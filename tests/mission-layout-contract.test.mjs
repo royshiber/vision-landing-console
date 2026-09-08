@@ -47,7 +47,7 @@ function interiorsIntersect(a, b, slack = 1) {
 }
 
 describe('Mission layout contract — static source', () => {
-  it('uses a two-row grid: map spans height, messages are not a track', () => {
+  it('uses a two-column grid: map owns the cell, AH is a compact overlay', () => {
     expect(html).toMatch(/data-layout-contract="v2"/);
     expect(html).toContain('class="pfd-heading-lane"');
     expect(html).not.toMatch(/data-tab="platform"/);
@@ -56,15 +56,20 @@ describe('Mission layout contract — static source', () => {
     const workspace = cssBlock(css, '.mission-workspace[data-mission-layout="ops-v1"]');
     expect(workspace).toMatch(/display:\s*grid/);
     expect(workspace).toMatch(/gap:\s*4px/);
-    expect(workspace).toMatch(/minmax\(132px, min\(22%, var\(--mission-ah-col\)\)\)/);
+    expect(workspace).toMatch(/--mission-c1:\s*minmax\(132px, min\(22%, var\(--mission-ah-col\)\)\)/);
     expect(workspace).toMatch(/minmax\(0, 1fr\)/);
     expect(workspace).toMatch(/minmax\(240px, min\(28%, var\(--mission-talk-col\)\)\)/);
     expect(workspace).toMatch(/--mission-msg-h:\s*40px/);
     expect(workspace).toMatch(/--mission-map-min:\s*65%/);
-    expect(workspace).toMatch(/grid-template-rows:\s*minmax\(0, 1fr\) auto/);
-    expect(workspace).toMatch(/"horizon map talk"\s*"data\s+map talk"/);
+    expect(workspace).toMatch(/--mission-ah-row:\s*28%/);
+    expect(workspace).toMatch(/grid-template-rows:\s*minmax\(0, 1fr\)/);
+    expect(workspace).toMatch(/grid-template-areas:\s*"map talk"/);
+    expect(workspace).not.toMatch(/"horizon map talk"/);
     expect(workspace).not.toMatch(/"messages map talk"/);
     expect(cssBlock(css, '.mission-region[data-mission-region="map"]')).toMatch(/min-height:\s*var\(--mission-map-min/);
+    expect(cssBlock(css, '.mission-region[data-mission-region="horizon"]')).toMatch(/position:\s*absolute/);
+    expect(cssBlock(css, '.mission-region[data-mission-region="horizon"]')).toMatch(/max-height:\s*var\(--mission-ah-row/);
+    expect(cssBlock(css, '.mission-region[data-mission-region="horizon"]')).toMatch(/align-self:\s*start/);
     expect(cssBlock(css, '.mission-region-messages[data-messages-expanded="0"]')).toMatch(/max-height:\s*40px/);
     expect(cssBlock(css, '.mission-region[data-mission-region="messages"]')).toMatch(/position:\s*absolute/);
     expect(cssBlock(css, '.mission-region[data-mission-region="talk"]')).toMatch(/min-width:\s*240px/);
@@ -89,11 +94,14 @@ describe('Mission layout contract — static source', () => {
     expect(cssBlock(css, '.mission-data-grid')).toMatch(/overflow-x:\s*auto/);
   });
 
-  it('keeps Assist empty state compact and the composer pinned', () => {
+  it('keeps Assist empty invite compact inside a filled transcript well', () => {
+    expect(html).toMatch(/class="assist-transcript-well"/);
     expect(css).toMatch(/#missionTalkHost \.assist-empty-stage/);
     expect(cssBlock(css, '#missionTalkHost .assist-empty-stage')).toMatch(/flex:\s*0 0 auto/);
     expect(cssBlock(css, '#missionTalkHost .assist-empty-stage')).not.toMatch(/min-height:\s*140px/);
+    expect(cssBlock(css, '#missionTalkHost .assist-transcript-well')).toMatch(/background:\s*#1a2230/);
     expect(css).toMatch(/#missionTalkHost \.assist-messages\s*\{[^}]*flex:\s*1 1 0/);
+    expect(css).toMatch(/#missionTalkHost \.assist-messages:empty\s*\{[^}]*flex:\s*1 1 0 !important/);
     expect(css).toMatch(/#missionTalkHost \.assist-composer\s*\{[^}]*flex:\s*0 0 auto/);
     expect(css).toMatch(/#development\.panel\.visible\s*\{[^}]*display:\s*flex/);
     expect(css).toMatch(/#pulse\.panel\.visible\s*\{[^}]*display:\s*flex/);
@@ -125,7 +133,7 @@ describe('Mission layout contract — static source', () => {
     expect(read).toMatch(/clampMissionFr\(raw\.c1, 0\.14, 0\.22/);
     const split = sliceFunction(js, 'bindMissionSplitters');
     expect(split).toMatch(/clampMissionFr\(base\.c1 \+ delta, 0\.14, 0\.22/);
-    expect(sliceFunction(js, 'applyMissionAreas')).toContain("id === 'messages'");
+    expect(sliceFunction(js, 'applyMissionAreas')).toContain("id === 'messages' || id === 'horizon' || id === 'data'");
   });
 });
 
@@ -212,6 +220,9 @@ describe('Mission layout contract — live boxes', () => {
       const msgCs = getComputedStyle(msgEl);
       const empty = document.querySelector('#missionTalkHost .assist-empty-stage');
       const chrome = document.querySelector('.mission-ops-chrome');
+      const well = document.querySelector('#missionTalkHost .assist-transcript-well');
+      const messagesHost = document.querySelector('#missionTalkHost .assist-messages');
+      const horizonCs = getComputedStyle(document.querySelector('[data-mission-region="horizon"]'));
       return {
         ws: box(ws),
         regions,
@@ -227,6 +238,12 @@ describe('Mission layout contract — live boxes', () => {
         chromeHeight: chrome ? chrome.getBoundingClientRect().height : 0,
         version: document.querySelector('meta[name="app-version"]')?.getAttribute('content') || '',
         platformTab: !!document.querySelector('[data-tab="platform"]'),
+        horizonPosition: horizonCs.position,
+        horizonAlignSelf: horizonCs.alignSelf,
+        well: box(well),
+        messagesHost: box(messagesHost),
+        wellBg: well ? getComputedStyle(well).backgroundColor : '',
+        messagesFlex: messagesHost ? getComputedStyle(messagesHost).flexGrow : '',
       };
     });
 
@@ -248,16 +265,31 @@ describe('Mission layout contract — live boxes', () => {
     expect(measured.leaflet.width / regions.map.width).toBeGreaterThanOrEqual(0.90);
     expect(regions.messages.height).toBeLessThanOrEqual(40);
     expect(regions.horizon.width / ws.width).toBeLessThanOrEqual(0.22 + 0.02);
+    expect(regions.horizon.height / ws.height).toBeLessThanOrEqual(0.28);
+    expect(regions.horizon.height).toBeLessThanOrEqual(280);
+    expect(measured.horizonPosition).toBe('absolute');
+    expect(measured.horizonAlignSelf).toBe('start');
     expect(regions.data.height).toBeLessThanOrEqual(56);
     expect(regions.talk.width).toBeGreaterThanOrEqual(240);
     expect(regions.talk.height / ws.height).toBeGreaterThanOrEqual(0.90);
+    expect(measured.well.height).toBeGreaterThanOrEqual(regions.talk.height * 0.40);
+    expect(measured.messagesHost.height).toBeGreaterThanOrEqual(120);
+    expect(measured.wellBg).not.toMatch(/rgba?\(\s*0,\s*0,\s*0/);
+    expect(Number.parseFloat(measured.messagesFlex)).toBeGreaterThanOrEqual(1);
 
+    const overlayPair = (a, b) => {
+      const skip = new Set([
+        'map|messages', 'messages|map',
+        'map|horizon', 'horizon|map',
+        'map|data', 'data|map',
+        'horizon|data', 'data|horizon',
+      ]);
+      return skip.has(`${a}|${b}`);
+    };
     const names = Object.keys(regions);
     for (let i = 0; i < names.length; i += 1) {
       for (let j = i + 1; j < names.length; j += 1) {
-        if ((names[i] === 'map' && names[j] === 'messages') || (names[i] === 'messages' && names[j] === 'map')) {
-          continue;
-        }
+        if (overlayPair(names[i], names[j])) continue;
         expect(
           interiorsIntersect(regions[names[i]], regions[names[j]]),
           `${names[i]} overlaps ${names[j]}`,
@@ -265,6 +297,7 @@ describe('Mission layout contract — live boxes', () => {
       }
     }
     expect(interiorsIntersect(regions.messages, regions.map)).toBe(true);
+    expect(interiorsIntersect(regions.horizon, regions.map)).toBe(true);
 
     expect(measured.pfd.ias.right).toBeLessThanOrEqual(measured.pfd.stage.left + 1);
     expect(measured.pfd.alt.left).toBeGreaterThanOrEqual(measured.pfd.stage.right - 1);
@@ -290,6 +323,7 @@ describe('Mission layout contract — live boxes', () => {
     }
 
     await page.screenshot({ path: path.join(shotDir, 'mission-contract.png'), fullPage: false });
+    await page.screenshot({ path: path.join(shotDir, 'hatasa-1440x900.png'), fullPage: false });
   }, 45000);
 
   it('grows messages as an overlay drawer instead of a grid row', async () => {
@@ -316,7 +350,7 @@ describe('Mission layout contract — live boxes', () => {
     expect(expanded.msgH).toBeLessThanOrEqual(expanded.wsH * 0.45);
     expect(expanded.mapH / expanded.wsH).toBeGreaterThanOrEqual(0.65);
     expect(Math.abs(expanded.msgBottom - expanded.mapBottom)).toBeLessThan(16);
-    expect(expanded.rows.split(' ').length).toBe(2);
+    expect(expanded.rows.split(' ').filter(Boolean).length).toBe(1);
     await page.click('#missionMessagesToggle');
   }, 20000);
 
