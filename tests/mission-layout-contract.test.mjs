@@ -467,58 +467,6 @@ describe('Mission layout contract — live boxes', () => {
     await writeShot(page, 'mission-assist-collapsed.png');
   }, 20000);
 
-  it('persists operator settings that can still be changed', async () => {
-    await page.click('#globalSettingsBtn');
-    await page.waitForSelector('#globalSettingsModal:not([hidden])');
-    const before = await page.evaluate(() => {
-      const vol = document.getElementById('gsVolumeSlider');
-      const badge = document.getElementById('gsAttentionBadge');
-      const critical = document.querySelector('[data-attention-level="critical"]');
-      vol.value = '40';
-      vol.dispatchEvent(new Event('input', { bubbles: true }));
-      if (badge.checked) badge.click();
-      critical.click();
-      return {
-        modalOpen: !document.getElementById('globalSettingsModal').hidden,
-        volume: window.__vlcSettings?.ttsVolume,
-        settings: JSON.parse(localStorage.getItem('vlc_settings_v1') || '{}'),
-        attention: JSON.parse(localStorage.getItem('visionLandingAttentionPolicyV1') || '{}'),
-      };
-    });
-    expect(before.modalOpen).toBe(true);
-    expect(before.volume).toBeCloseTo(0.4, 2);
-    expect(before.settings.ttsVolume).toBeCloseTo(0.4, 2);
-    expect(before.attention.proactiveLevel).toBe('critical');
-    expect(before.attention.showAssistBadge).toBe(false);
-    await page.click('#globalSettingsModal [data-close="1"]');
-    await page.reload({ waitUntil: 'domcontentloaded' });
-    await page.waitForSelector('[data-mission-region="map"]');
-    await page.click('#globalSettingsBtn');
-    await page.waitForSelector('#globalSettingsModal:not([hidden])');
-    const after = await page.evaluate(() => {
-      const vol = document.getElementById('gsVolumeSlider');
-      const badge = document.getElementById('gsAttentionBadge');
-      const critical = document.querySelector('[data-attention-level="critical"]');
-      return {
-        slider: vol?.value,
-        label: document.getElementById('gsVolumeLabel')?.textContent,
-        badge: badge?.checked,
-        criticalOn: critical?.classList.contains('is-active'),
-        settings: JSON.parse(localStorage.getItem('vlc_settings_v1') || '{}'),
-        attention: JSON.parse(localStorage.getItem('visionLandingAttentionPolicyV1') || '{}'),
-      };
-    });
-    expect(after.slider).toBe('40');
-    expect(after.label).toBe('40%');
-    expect(after.badge).toBe(false);
-    expect(after.criticalOn).toBe(true);
-    expect(after.settings.ttsVolume).toBeCloseTo(0.4, 2);
-    expect(after.attention.proactiveLevel).toBe('critical');
-    expect(after.attention.showAssistBadge).toBe(false);
-    await page.click('#globalSettingsModal [data-close="1"]');
-    await writeShot(page, 'settings-persist.png');
-  }, 20000);
-
   it('grows messages as an overlay drawer instead of a grid row', async () => {
     await page.click('#missionMessagesToggle');
     const expanded = await page.evaluate(() => {
@@ -658,5 +606,79 @@ describe('Mission layout contract — live boxes', () => {
       }
     }
     await writeShot(page, 'evolve-concept3.png');
+  }, 45000);
+
+  it('persists operator settings that can still be changed', async () => {
+    const closeSettings = async () => {
+      await page.evaluate(() => {
+        const modal = document.getElementById('globalSettingsModal');
+        if (modal) modal.hidden = true;
+      });
+    };
+    try {
+      await page.evaluate(() => {
+        document.getElementById('globalSettingsBtn')?.click();
+      });
+      await page.waitForFunction(() => {
+        const modal = document.getElementById('globalSettingsModal');
+        return modal && !modal.hidden;
+      });
+      const before = await page.evaluate(() => {
+        const vol = document.getElementById('gsVolumeSlider');
+        const badge = document.getElementById('gsAttentionBadge');
+        const critical = document.querySelector('[data-attention-level="critical"]');
+        vol.value = '40';
+        vol.dispatchEvent(new Event('input', { bubbles: true }));
+        if (badge.checked) {
+          badge.checked = false;
+          badge.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        critical.click();
+        return {
+          modalOpen: !document.getElementById('globalSettingsModal').hidden,
+          volume: window.__vlcSettings?.ttsVolume,
+          settings: JSON.parse(localStorage.getItem('vlc_settings_v1') || '{}'),
+          attention: JSON.parse(localStorage.getItem('visionLandingAttentionPolicyV1') || '{}'),
+        };
+      });
+      expect(before.modalOpen).toBe(true);
+      expect(before.volume).toBeCloseTo(0.4, 2);
+      expect(before.settings.ttsVolume).toBeCloseTo(0.4, 2);
+      expect(before.attention.proactiveLevel).toBe('critical');
+      expect(before.attention.showAssistBadge).toBe(false);
+      await closeSettings();
+      await page.reload({ waitUntil: 'domcontentloaded' });
+      await page.waitForSelector('[data-mission-region="map"]');
+      await page.evaluate(() => {
+        document.getElementById('globalSettingsBtn')?.click();
+      });
+      await page.waitForFunction(() => {
+        const modal = document.getElementById('globalSettingsModal');
+        return modal && !modal.hidden;
+      });
+      const after = await page.evaluate(() => {
+        const vol = document.getElementById('gsVolumeSlider');
+        const badge = document.getElementById('gsAttentionBadge');
+        const critical = document.querySelector('[data-attention-level="critical"]');
+        return {
+          slider: vol?.value,
+          label: document.getElementById('gsVolumeLabel')?.textContent,
+          badge: badge?.checked,
+          criticalOn: critical?.classList.contains('is-active'),
+          settings: JSON.parse(localStorage.getItem('vlc_settings_v1') || '{}'),
+          attention: JSON.parse(localStorage.getItem('visionLandingAttentionPolicyV1') || '{}'),
+        };
+      });
+      expect(after.slider).toBe('40');
+      expect(after.label).toBe('40%');
+      expect(after.badge).toBe(false);
+      expect(after.criticalOn).toBe(true);
+      expect(after.settings.ttsVolume).toBeCloseTo(0.4, 2);
+      expect(after.attention.proactiveLevel).toBe('critical');
+      expect(after.attention.showAssistBadge).toBe(false);
+      await writeShot(page, 'settings-persist.png');
+    } finally {
+      await closeSettings();
+    }
   }, 45000);
 });
