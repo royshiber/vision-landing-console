@@ -648,8 +648,9 @@ describe('Mission layout contract — live boxes', () => {
       expect(before.attention.showAssistBadge).toBe(false);
       await closeSettings();
       await page.reload({ waitUntil: 'domcontentloaded' });
-      await page.waitForSelector('[data-mission-region="map"]');
+      await page.waitForSelector('#globalSettingsBtn');
       await page.evaluate(() => {
+        document.querySelector('[data-tab="terrain"]')?.click();
         document.getElementById('globalSettingsBtn')?.click();
       });
       await page.waitForFunction(() => {
