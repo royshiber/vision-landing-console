@@ -1,5 +1,47 @@
 [
   {
+    "version": "1.02.267",
+    "date": "2026-09-08",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "UI / app.js",
+        "detail": "app.js"
+      },
+      {
+        "type": "feat",
+        "title": "Frontend",
+        "detail": "changelog.json"
+      },
+      {
+        "type": "ui",
+        "title": "HTML layout",
+        "detail": "index.html"
+      },
+      {
+        "type": "ui",
+        "title": "Styles",
+        "detail": "styles.css"
+      },
+      {
+        "type": "test",
+        "title": "Tests",
+        "detail": "advisor-assist-fold.test.mjs, airvix-259-roy-feedback.test.mjs, airvix-260-roy-feedback.test.mjs, airvix-263-roy-feedback.test.mjs, airvix-264-roy-feedback.test.mjs, airvix-265-status-develop.test.mjs, airvix-266-capability-intake.test.mjs, ardulab-assist-fold.test.mjs, attention-policy.test.mjs, auto-config-assist-fold.test.mjs, debrief-flights-fold.test.mjs, development-tasks-empty-labels.test.mjs, devtasks-hebrew-chrome.test.mjs, flight-engineer-assist-fold.test.mjs, mission-assist-posture.test.mjs, mission-layout-contract.test.mjs, mission-workspace-chrome.test.mjs, operator-disconnected-overview.test.mjs, orphan-processes-remove.test.mjs, platform-capability-shells.test.mjs, readiness-merge.test.mjs, sim-lab-connect-handoff.test.mjs, telemetry-platform-fold.test.mjs"
+      }
+    ]
+  },
+  {
+    "version": "1.02.266",
+    "date": "2026-09-08",
+    "changes": [
+      {
+        "type": "ui",
+        "title": "Develop becomes Capability Intake Studio",
+        "detail": "The Develop tab is now F1 Capability Intake Studio: a new-capability composer with FEATURE / REQUEST / IDEA / IMPROVEMENT / BUG / EXPERIMENT chips, an auto-draft card (what / why / impact / risks / modules), and example capabilities (Precision Landing, Jetson overlay, Debrief AI, Voice Ops). Primary CTA starts the existing isolated-branch capability agent and stays honest when the agent is UNAVAILABLE. Secondary CTA saves a FEATURE draft to the Development Tasks store. The leftover Mission AH before/after mock is gone. Existing task list, detail, and evidence strip stay reachable as secondary. AIRVIX Ask naming only. Mission layout contract unchanged. APP_VERSION 1.02.266."
+      }
+    ]
+  },
+  {
     "version": "1.02.265",
     "date": "2026-09-08",
     "changes": [

@@ -34,10 +34,10 @@ function panel(id) {
   return html.slice(from, next === -1 ? undefined : next);
 }
 
-describe('AIRVIX 1.02.265 status densify + Develop concept A', () => {
-  it('pins APP_VERSION at 1.02.265', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.265'");
-    expect(pkg.version).toBe('1.02.265');
+describe('AIRVIX 1.02.266 status densify + Develop concept A', () => {
+  it('pins APP_VERSION at 1.02.266', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.266'");
+    expect(pkg.version).toBe('1.02.266');
   });
 
   it('keeps מסייע out of public UI', () => {
@@ -65,32 +65,14 @@ describe('AIRVIX 1.02.265 status densify + Develop concept A', () => {
     expect(fn).toEqual([]);
   });
 
-  it('implements שנה את המוצר with a Mission product mock, not computer gauges', () => {
-    expect(html).toContain('class="evolve-concept">שנה את המוצר');
-    expect(html).toMatch(/משנה את המוצר\. לא את בריאות המחשב/);
-    expect(html).toContain('id="evolveProductPreview"');
-    expect(html).toContain('id="evolveMissionMockBefore"');
-    expect(html).toContain('id="evolveMissionMockAfter"');
-    expect(css).toMatch(/\.evolve-mission-mock\s*\{[^}]*direction:\s*ltr/);
-    expect(html).toContain('id="evolveMockCallout"');
-    expect(html).toContain('class="evolve-section-title">תצוגת המוצר');
-    expect(html).toMatch(/זה משנה את המוצר\. לא מדדי מחשב/);
-    expect(html).not.toMatch(/id="evolveProductPreview"[\s\S]*pulse-gauge/);
-    expect(html).not.toMatch(/id="evolveMissionMockBefore"[\s\S]*pulse-gauge/);
-    const preview = sliceFunction(js, 'devRenderEvolvePreview');
-    expect(preview).not.toMatch(/evolvePreview=1/);
-    expect(preview).toContain('frame.hidden = true');
-    expect(preview).toContain('devProductIntentText');
-    expect(sliceFunction(js, 'devEvolvePreviewTab')).toContain("return 'terrain'");
+  it('keeps computer-status densify and leaves Develop to Capability Intake', () => {
+    expect(html).not.toContain('id="evolveMissionMockBefore"');
+    expect(html).not.toContain('id="evolveMissionMockAfter"');
+    expect(html).not.toContain('class="evolve-concept">שנה את המוצר');
+    expect(html).toContain('data-cap-intake="f1"');
+    expect(html).toContain('יכולת חדשה');
     expect(sliceFunction(js, 'evolvePreviewAllowedTab')).toMatch(/pulse.*terrain/);
     expect(sliceFunction(js, 'evolvePreviewAllowedTab')).not.toMatch(/return 'pulse'/);
-    expect(js).toContain('function devProductIntentText(');
-    const intentSrc = [
-      sliceFunction(js, 'devProductIntentText'),
-      'const document = { getElementById() { return { value: "הגדל את המפה" }; } };',
-      'return devProductIntentText({ title: "old" });',
-    ].join('\n');
-    expect(new Function(intentSrc)()).toBe('הגדל את המפה');
   });
 
   it('keeps plan and PR affordances and a light Ask-only pass on params and debrief', () => {
@@ -107,8 +89,8 @@ describe('AIRVIX 1.02.265 status densify + Develop concept A', () => {
     expect(recordings.includes('מסייע')).toBe(false);
     expect(recordings.includes('מלווה')).toBe(false);
     expect(recordings.includes('מעבדה')).toBe(false);
-    expect(commercial).toContain('שנה את המוצר');
-    expect(commercial).toContain('אין הטמעת מדי סטטוס מחשבים');
+    expect(commercial).toContain('סטודיו קליטת יכולות');
+    expect(commercial).toContain('אין כתיבה לבקר');
   });
 
   it('does not add flight writes, apply, or restart', () => {
@@ -118,6 +100,8 @@ describe('AIRVIX 1.02.265 status densify + Develop concept A', () => {
       sliceFunction(js, 'devProductIntentText'),
       sliceFunction(js, 'devEvolvePreviewTab'),
       sliceFunction(js, 'evolvePreviewAllowedTab'),
+      sliceFunction(js, 'capStartCapabilityAgent'),
+      sliceFunction(js, 'capRenderDraftCard'),
     ].join('\n');
     expect(src).not.toMatch(/\/apply|\/restart|\bARM\b|\bDISARM\b|\bLAND\b|JETSON_COMPANION|CURSOR_API_KEY/);
   });

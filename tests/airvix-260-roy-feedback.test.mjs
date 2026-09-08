@@ -26,10 +26,10 @@ function sliceFunction(src, name) {
   throw new Error(`unclosed function ${name}`);
 }
 
-describe('AIRVIX 1.02.261 Roy feedback (still holds on 1.02.265)', () => {
-  it('pins APP_VERSION at 1.02.265', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.265'");
-    expect(pkg.version).toBe('1.02.265');
+describe('AIRVIX 1.02.261 Roy feedback (still holds on 1.02.266)', () => {
+  it('pins APP_VERSION at 1.02.266', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.266'");
+    expect(pkg.version).toBe('1.02.266');
   });
 
   it('removes Platform from primary chrome and redirects Assist', () => {
@@ -56,37 +56,36 @@ describe('AIRVIX 1.02.261 Roy feedback (still holds on 1.02.265)', () => {
     expect(sliceFunction(js, 'operatorOpenFirstAction')).toMatch(/action === 'maintenance'/);
   });
 
-  it('turns Develop into an Evolve first slice without flight writes', () => {
-    expect(html).toContain('class="devtasks-panel evolve-shell"');
-    expect(html).toContain('class="evolve-intent"');
-    expect(html).toContain('class="evolve-command"');
+  it('turns Develop into Capability Intake without flight writes', () => {
+    expect(html).toContain('class="devtasks-panel evolve-shell cap-intake-shell"');
+    expect(html).toContain('data-cap-intake="f1"');
+    expect(html).toContain('class="cap-composer evolve-command"');
     expect(html).toContain('class="evolve-plan"');
-    expect(html).toContain('class="evolve-preview"');
     expect(html).toContain('class="evolve-delivery"');
-    expect(html).toContain('id="evolvePreviewFrame"');
     expect(html).toContain('id="evolveLiveRuns"');
     expect(html).toContain('id="evolvePlanList"');
     expect(html).toContain('id="evolveTestChips"');
     expect(html).toContain('id="evolvePrChips"');
-    expect(html).toContain('placeholder="תארו מה לשנות…"');
     expect(html).toContain('אין תוכנית עדיין.');
-    expect(html).toContain('אין תצוגת מוצר עדיין. כתבו מה לשנות במוצר.');
     expect(html).toContain('אין בדיקות עדיין.');
     expect(html).toContain('אין בקשת מיזוג עדיין.');
     expect(html).toContain('class="devtasks-list evolve-backlog"');
     expect(html).toContain('id="devTaskCreateBtn"');
-    expect(html).toMatch(/id="devTaskCreateBtn"[^>]*>הפעילו שינוי</);
+    expect(html).toMatch(/id="devTaskCreateBtn"[^>]*>שמור טיוטה</);
+    expect(html).toMatch(/id="capStartAgentBtn"[^>]*>התחל סוכן יכולת</);
     expect(css).toMatch(/\.evolve-shell\s*\{[^}]*display:\s*grid/);
-    expect(css).toMatch(/"intent preview"/);
+    expect(css).toMatch(/"draft studio"/);
     expect(css).toMatch(/\.evolve-run-grid\s*\{[^}]*grid-auto-flow:\s*row/);
     expect(js).toContain('function isEvolvePreviewFrame(');
-    expect(js).toContain('function devRenderEvolvePreview(');
+    expect(js).toContain('function capStartCapabilityAgent(');
+    expect(js).toContain('function capRenderDraftCard(');
     expect(js).toContain('function devEvolvePlanSteps(');
     expect(js).toContain('function devSafePrUrl(');
     expect(js).toContain('function devRenderEvolveLiveRuns(');
     expect(js).toContain('function devTaskIsLive(');
     const evolve = [
       sliceFunction(js, 'devCreateTask'),
+      sliceFunction(js, 'capStartCapabilityAgent'),
       sliceFunction(js, 'devRenderEvolveLiveRuns'),
       sliceFunction(js, 'devRenderEvolveWorkspace'),
       sliceFunction(js, 'devRenderEvolvePreview'),

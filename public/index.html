@@ -1150,95 +1150,135 @@
       </section>
 
       <section id="development" class="panel">
-        <div class="devtasks-panel evolve-shell" data-layout-contract="v1">
-          <header class="evolve-hero">
-            <h3>פיתוח</h3>
-            <p class="evolve-concept">שנה את המוצר</p>
-            <p class="evolve-purpose">בקשה בשפה חופשית משנה את המוצר. לא את בריאות המחשב. הסוכן עובד על ענף מבודד. התוצאה חוזרת לכאן.</p>
-          </header>
-
-          <div class="evolve-intent">
-          <section class="evolve-command" aria-label="בקשה">
-            <h4 class="evolve-section-title">מה ברצונך לשנות?</h4>
-            <label class="evolve-ask-block" for="devTaskDescription"><span class="mission-sr-only">בקשה</span>
-              <textarea id="devTaskDescription" class="kpi-input evolve-ask-input" rows="4" maxlength="5000" placeholder="תארו מה לשנות…"></textarea>
-            </label>
-            <label class="evolve-ask-title" for="devTaskTitle"><span>כותרת קצרה</span>
-              <input id="devTaskTitle" class="kpi-input" maxlength="140" placeholder="כותרת למשימה" />
-            </label>
-            <details class="evolve-ask-more">
-              <summary>סיווג וחשיבות</summary>
-              <div class="tele-group-cards">
-                <label class="tele-card"><span>סיווג</span>
-                  <select id="devTaskTaxonomy" class="kpi-input">
-                    <option>IDEA</option><option>REQUEST</option><option>IMPROVEMENT</option>
-                    <option>BUG</option><option>EXPERIMENT</option><option selected>FEATURE</option>
-                  </select>
-                </label>
-                <label class="tele-card"><span>אזור יעד</span>
-                  <select id="devTaskTarget" class="kpi-input">
-                    <option>VISION</option><option>NAVIGATION</option><option>LANDING</option><option>VIDEO</option>
-                    <option>MAVLINK</option><option>COMPANION</option><option>UI</option><option>API</option>
-                    <option>MAINTENANCE</option><option selected>OTHER</option>
-                  </select>
-                </label>
-                <label class="tele-card"><span>עדיפות</span>
-                  <select id="devTaskPriority" class="kpi-input">
-                    <option>LOW</option><option selected>NORMAL</option><option>HIGH</option><option>CRITICAL</option>
-                  </select>
-                </label>
+        <div class="devtasks-panel evolve-shell cap-intake-shell" data-layout-contract="v1" data-cap-intake="f1">
+          <aside class="cap-draft-card" aria-label="כרטיס יכולת">
+            <header class="cap-draft-head">
+              <h3 class="cap-draft-kicker">כרטיס יכולת — טיוטה אוטומטית</h3>
+              <span class="cap-ai-badge">AI draft</span>
+            </header>
+            <h4 id="capDraftTitle" class="cap-draft-title">יכולת חדשה</h4>
+            <dl class="cap-draft-fields">
+              <div class="cap-draft-row">
+                <dt>מה</dt>
+                <dd id="capDraftWhat">כתבו כותרת ותיאור. הכרטיס ייבנה כאן.</dd>
               </div>
-              <label class="tele-card devtasks-block"><span>הערות</span><textarea id="devTaskNotes" class="kpi-input" rows="2" maxlength="5000"></textarea></label>
-            </details>
-            <div class="evolve-ask-actions">
-              <button type="button" id="devTaskCreateBtn" class="policy-btn evolve-ask-go">הפעילו שינוי</button>
-              <button type="button" id="evolveAdjustPlanBtn" class="policy-btn evolve-ask-adjust">התאם תוכנית</button>
+              <div class="cap-draft-row">
+                <dt>למה</dt>
+                <dd id="capDraftWhy">מרעיון ליכולת מאומתת, בלי לשנות את מעטפת המוצר.</dd>
+              </div>
+              <div class="cap-draft-meta">
+                <label class="cap-draft-box"><span>השפעה</span><strong id="capDraftImpact">Mission + Ops</strong></label>
+                <label class="cap-draft-box"><span>גירסת יעד</span><strong id="capDraftVersion" dir="ltr">v1.03.x</strong></label>
+              </div>
+              <div class="cap-draft-row">
+                <dt>סיכונים</dt>
+                <dd>
+                  <ul id="capDraftRisks" class="cap-risk-list">
+                    <li>תלות במפת המשימה</li>
+                    <li>דיוק מיקום באזורים צפופים</li>
+                  </ul>
+                </dd>
+              </div>
+              <div class="cap-draft-row">
+                <dt>מודולים מושפעים</dt>
+                <dd id="capDraftModules" class="cap-module-chips">
+                  <span class="cap-module-chip">Platform</span>
+                  <span class="cap-module-chip">Jetson Overlay</span>
+                  <span class="cap-module-chip">Agent API</span>
+                  <span class="cap-module-chip">Mission UI</span>
+                </dd>
+              </div>
+            </dl>
+            <div class="cap-arch-flow" aria-label="לולאת היכולת">
+              <span>משתמש</span>
+              <span class="cap-arch-arrow" aria-hidden="true">→</span>
+              <span>Product UI</span>
+              <span class="cap-arch-arrow" aria-hidden="true">→</span>
+              <span>Agent API</span>
+              <span class="cap-arch-arrow" aria-hidden="true">→</span>
+              <span>Cursor</span>
+              <span class="cap-arch-arrow" aria-hidden="true">→</span>
+              <span>ענף</span>
             </div>
+            <p class="cap-arch-verify">אימות</p>
+          </aside>
+
+          <div class="cap-studio">
+            <header class="cap-studio-hero evolve-hero">
+              <span class="cap-studio-badge">Evolve · Capability Intake</span>
+              <h3>יכולת חדשה</h3>
+              <p class="cap-studio-caption evolve-purpose">הגדירו יכולת מוצר. הסוכן מממש, בודק, ומחזיר תוצאה מאומתת.</p>
+            </header>
+
+            <section class="cap-composer evolve-command" aria-label="תיאור היכולת">
+              <label class="cap-composer-label" for="devTaskDescription">תיאור היכולת</label>
+              <div class="cap-composer-titlebar">
+                <input id="devTaskTitle" class="kpi-input cap-title-input" maxlength="140" placeholder="כותרת היכולת" />
+                <span id="capTaxonomyBadge" class="cap-tax-badge" data-taxonomy="FEATURE">FEATURE</span>
+              </div>
+              <textarea id="devTaskDescription" class="kpi-input evolve-ask-input cap-desc-input" rows="6" maxlength="5000" placeholder="תארו את היכולת: מה נבנה, למי, ואיך נדע שהיא עובדת."></textarea>
+              <span>סיווג</span>
+              <div id="capTaxonomyChips" class="cap-tax-chips" role="radiogroup" aria-label="סיווג">
+                <button type="button" class="cap-tax-chip" data-taxonomy="FEATURE" aria-pressed="true">FEATURE</button>
+                <button type="button" class="cap-tax-chip" data-taxonomy="REQUEST" aria-pressed="false">REQUEST</button>
+                <button type="button" class="cap-tax-chip" data-taxonomy="IDEA" aria-pressed="false">IDEA</button>
+                <button type="button" class="cap-tax-chip" data-taxonomy="IMPROVEMENT" aria-pressed="false">IMPROVEMENT</button>
+                <button type="button" class="cap-tax-chip" data-taxonomy="BUG" aria-pressed="false">BUG</button>
+                <button type="button" class="cap-tax-chip" data-taxonomy="EXPERIMENT" aria-pressed="false">EXPERIMENT</button>
+              </div>
+              <div class="cap-hidden-fields" hidden>
+                <select id="devTaskTaxonomy" class="kpi-input">
+                  <option>IDEA</option><option>REQUEST</option><option>IMPROVEMENT</option>
+                  <option>BUG</option><option>EXPERIMENT</option><option selected>FEATURE</option>
+                </select>
+                <select id="devTaskTarget" class="kpi-input">
+                  <option>VISION</option><option>NAVIGATION</option><option selected>LANDING</option><option>VIDEO</option>
+                  <option>MAVLINK</option><option>COMPANION</option><option>UI</option><option>API</option>
+                  <option>MAINTENANCE</option><option>OTHER</option>
+                </select>
+                <select id="devTaskPriority" class="kpi-input">
+                  <option>LOW</option><option>NORMAL</option><option selected>HIGH</option><option>CRITICAL</option>
+                </select>
+                <textarea id="devTaskNotes" class="kpi-input" rows="2" maxlength="5000"></textarea>
+              </div>
+            </section>
+
+            <div class="cap-meta-row">
+              <div class="cap-meta-cell"><span>עדיפות</span><strong id="capMetaPriority">P1 — מוצר</strong></div>
+              <div class="cap-meta-cell"><span>מודולים</span><strong id="capMetaModules">Mission · API · Jetson</strong></div>
+              <div class="cap-meta-cell"><span>יעד אימות</span><strong id="capMetaVerify">בדיקות + PR</strong></div>
+            </div>
+
+            <div id="capExampleChips" class="cap-example-chips" role="group" aria-label="יכולות לדוגמה">
+              <button type="button" class="cap-example-chip" data-cap-example="precision">Precision Landing</button>
+              <button type="button" class="cap-example-chip" data-cap-example="jetson">Jetson overlay</button>
+              <button type="button" class="cap-example-chip" data-cap-example="debrief">Debrief AI</button>
+              <button type="button" class="cap-example-chip" data-cap-example="voice">Voice Ops</button>
+            </div>
+
+            <div class="cap-actions evolve-ask-actions">
+              <button type="button" id="capStartAgentBtn" class="policy-btn cap-start-btn">התחל סוכן יכולת</button>
+              <button type="button" id="devTaskCreateBtn" class="policy-btn cap-draft-btn">שמור טיוטה</button>
+            </div>
+            <p id="capAgentUnavailableNote" class="cap-unavailable-note" hidden>סוכן הפיתוח אינו זמין. חברו אותו ב-AIRVIX Ask.</p>
             <p id="devTaskCreateResult" class="maint-rel-result" hidden></p>
-          </section>
-
-          <section class="evolve-plan" aria-label="תוכנית מוצעת">
-            <div class="evolve-section-head">
-              <h4 class="evolve-section-title">תוכנית מוצעת</h4>
-              <span id="evolvePlanCount" class="evolve-count" dir="ltr"></span>
-            </div>
-            <ol id="evolvePlanList" class="evolve-plan-list"></ol>
-            <p id="evolvePlanEmpty" class="evolve-empty">אין תוכנית עדיין.</p>
-          </section>
-
-          <section class="evolve-live" aria-label="ריצות חיות">
-            <h4 class="evolve-section-title">ריצות חיות</h4>
-            <div id="evolveLiveRuns" class="evolve-run-grid"></div>
-            <p id="evolveLiveEmpty" class="evolve-empty">אין ריצה פעילה.</p>
-          </section>
+            <p class="cap-loop-foot">משתמש → ממשק מוצר → Agent API → Cursor → ענף → אימות → תוצאה</p>
           </div>
 
-          <section class="evolve-preview" aria-label="תצוגת המוצר">
-            <div class="evolve-section-head">
-              <h4 class="evolve-section-title">תצוגת המוצר</h4>
-              <div class="evolve-preview-toggle" role="group" aria-label="לפני ואחרי">
-                <button type="button" id="evolvePreviewBeforeBtn" class="evolve-preview-btn" data-mode="before" aria-pressed="true">לפני</button>
-                <button type="button" id="evolvePreviewAfterBtn" class="evolve-preview-btn" data-mode="after" aria-pressed="false">אחרי</button>
+          <section class="evolve-follow" aria-label="מעקב יכולת">
+            <section class="evolve-plan" aria-label="תוכנית מוצעת">
+              <div class="evolve-section-head">
+                <h4 class="evolve-section-title">תוכנית מוצעת</h4>
+                <span id="evolvePlanCount" class="evolve-count" dir="ltr"></span>
               </div>
-            </div>
-            <p class="evolve-preview-kicker">לפני ואחרי של ממשק ההטסה. זה משנה את המוצר. לא מדדי מחשב.</p>
-            <div class="evolve-preview-stage">
-              <div id="evolveProductPreview" class="evolve-product-preview" data-mode="before">
-                <div id="evolveMissionMockBefore" class="evolve-mission-mock" data-preview-side="before">
-                  <div class="evolve-mock-horizon" aria-hidden="true"><span class="evolve-mock-ah">אופק</span></div>
-                  <div class="evolve-mock-map"><span>מפה</span></div>
-                  <div class="evolve-mock-talk"><span>AIRVIX Ask</span></div>
-                </div>
-                <div id="evolveMissionMockAfter" class="evolve-mission-mock is-after" data-preview-side="after" hidden>
-                  <div class="evolve-mock-horizon" aria-hidden="true"><span class="evolve-mock-ah">אופק</span></div>
-                  <div class="evolve-mock-map"><span>מפה</span><p id="evolveMockCallout" class="evolve-mock-callout">השינוי יופיע כאן אחרי בקשה.</p></div>
-                  <div class="evolve-mock-talk"><span>AIRVIX Ask</span></div>
-                </div>
-              </div>
-              <iframe id="evolvePreviewFrame" class="evolve-preview-frame" title="תצוגת המוצר" hidden sandbox="allow-same-origin allow-scripts"></iframe>
-              <p id="evolvePreviewAfterNote" class="evolve-preview-after" hidden></p>
-              <p id="evolvePreviewEmpty" class="evolve-empty">אין תצוגת מוצר עדיין. כתבו מה לשנות במוצר.</p>
-            </div>
+              <ol id="evolvePlanList" class="evolve-plan-list"></ol>
+              <p id="evolvePlanEmpty" class="evolve-empty">אין תוכנית עדיין.</p>
+            </section>
+            <section class="evolve-live" aria-label="ריצות חיות">
+              <h4 class="evolve-section-title">ריצות חיות</h4>
+              <div id="evolveLiveRuns" class="evolve-run-grid"></div>
+              <p id="evolveLiveEmpty" class="evolve-empty">אין ריצה פעילה.</p>
+            </section>
           </section>
 
           <section class="evolve-delivery" aria-label="בדיקות ובקשת מיזוג">
@@ -1273,7 +1313,7 @@
                 <thead><tr><th>מזהה</th><th>כותרת</th><th>סיווג</th><th>יעד</th><th>עדיפות</th><th>מצב</th><th>עודכן</th></tr></thead>
                 <tbody id="devTaskListBody"></tbody>
               </table>
-              <p id="devTaskListEmpty" class="maint-diag-empty">אין משימות. כתבו בקשה למעלה.</p>
+              <p id="devTaskListEmpty" class="maint-diag-empty">אין יכולות עדיין. שמרו טיוטה או התחילו סוכן יכולת.</p>
             </div>
           </section>
 
