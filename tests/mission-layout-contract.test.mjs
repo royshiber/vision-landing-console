@@ -655,7 +655,9 @@ describe('Mission layout contract — live boxes', () => {
       });
       await page.waitForFunction(() => {
         const modal = document.getElementById('globalSettingsModal');
-        return modal && !modal.hidden;
+        const vol = document.getElementById('gsVolumeSlider');
+        const settings = JSON.parse(localStorage.getItem('vlc_settings_v1') || '{}');
+        return modal && !modal.hidden && vol && vol.value === '40' && Number(settings.ttsVolume) === 0.4;
       });
       const after = await page.evaluate(() => {
         const vol = document.getElementById('gsVolumeSlider');
