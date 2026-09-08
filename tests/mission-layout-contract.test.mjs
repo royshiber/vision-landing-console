@@ -78,6 +78,7 @@ describe('Mission layout contract — static source', () => {
     expect(cssBlock(css, '.mission-region[data-mission-region="map"]')).toMatch(/min-height:\s*var\(--mission-map-min/);
     expect(cssBlock(css, '.mission-region[data-mission-region="horizon"]')).toMatch(/align-self:\s*stretch/);
     expect(css).toMatch(/\.mission-region-horizon \.flight-hud \{\s*max-height:\s*min\(260px, var\(--mission-ah-row/);
+    expect(css).toMatch(/\.mission-region-horizon \.flight-hud \{[^}]*height:\s*min\(260px, var\(--mission-ah-row/);
     expect(cssBlock(css, '.mission-horizon-filler')).toMatch(/flex:\s*1 1 0/);
     expect(cssBlock(css, '.mission-horizon-filler')).toMatch(/background:\s*#1e293b/);
     expect(cssBlock(css, '.mission-region-messages[data-messages-expanded="0"]')).toMatch(/max-height:\s*40px/);

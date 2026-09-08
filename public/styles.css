@@ -8300,7 +8300,7 @@ html[data-evolve-preview="1"] #development {
 }
 .mission-region-horizon .flight-hud {
   max-height: min(260px, var(--mission-ah-row, 28%));
-  height: auto;
+  height: min(260px, var(--mission-ah-row, 28%));
   flex: 0 0 auto;
 }
 .mission-region-horizon .pfd-top-bar {
