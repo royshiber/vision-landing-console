@@ -7610,7 +7610,7 @@ html[data-evolve-preview="1"] #development {
 .terrain-flight-shell.mission-workspace,
 .mission-workspace[data-mission-layout="ops-v1"] {
   --mission-ah-col: 20%;
-  --mission-ah-row: 38%;
+  --mission-ah-row: 40%;
   --mission-msg-h: 40px;
   --mission-map-min: 65%;
   --mission-c1: minmax(132px, min(22%, var(--mission-ah-col)));
@@ -8307,7 +8307,7 @@ html[data-evolve-preview="1"] #development {
   border: 0;
 }
 .mission-region-horizon .flight-hud {
-  height: var(--mission-ah-row, 38%);
+  height: var(--mission-ah-row, 40%);
   min-height: 35%;
   max-height: 42%;
   flex: 0 0 auto;
@@ -8336,8 +8336,10 @@ html[data-evolve-preview="1"] #development {
   overflow: hidden;
 }
 .mission-horizon-filler {
-  flex: 1 1 0;
+  flex: 0 1 auto;
+  max-height: 32%;
   min-height: 0;
+  margin-top: 0;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -14622,9 +14624,12 @@ body.mission-assist-docked .assist-rail.assist-rail--mission,
   overflow-y: auto;
 }
 #missionTalkHost .assist-mic-btn {
-  flex: 0 1 auto;
-  max-width: 44%;
-  min-width: 0;
+  flex: 0 0 auto;
+  flex-direction: column;
+  max-width: 96px;
+  min-width: 88px;
+  padding: 8px 6px;
+  gap: 4px;
 }
 #missionTalkHost .mission-talk-hint,
 .mission-region-talk .mission-talk-hint {
@@ -14636,9 +14641,18 @@ body.mission-assist-docked .assist-rail.assist-rail--mission,
   color: #ecfdf5;
   border-color: rgba(74, 222, 128, 0.42);
   min-height: 56px;
-  min-width: 0;
-  max-width: 44%;
-  flex: 0 1 auto;
+  min-width: 88px;
+  max-width: 96px;
+  flex: 0 0 auto;
+  flex-direction: column;
+  padding: 8px 6px;
+  gap: 4px;
+}
+#missionTalkHost .assist-mic-label {
+  white-space: normal;
+  text-align: center;
+  font-size: 0.62rem;
+  line-height: 1.15;
 }
 .assist-rail-head {
   display: flex;

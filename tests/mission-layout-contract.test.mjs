@@ -70,7 +70,7 @@ describe('Mission layout contract — static source', () => {
     expect(workspace).toMatch(/minmax\(240px, min\(28%, var\(--mission-talk-col\)\)\)/);
     expect(workspace).toMatch(/--mission-msg-h:\s*40px/);
     expect(workspace).toMatch(/--mission-map-min:\s*65%/);
-    expect(workspace).toMatch(/--mission-ah-row:\s*38%/);
+    expect(workspace).toMatch(/--mission-ah-row:\s*40%/);
     expect(workspace).toMatch(/grid-template-rows:\s*minmax\(0, 1fr\)/);
     expect(workspace).toMatch(/grid-template-areas:\s*"horizon map talk"/);
     expect(workspace).not.toMatch(/"data\s+map talk"/);
@@ -80,7 +80,8 @@ describe('Mission layout contract — static source', () => {
     expect(css).toMatch(/\.mission-region-horizon \.flight-hud \{[^}]*height:\s*var\(--mission-ah-row/);
     expect(css).toMatch(/\.mission-region-horizon \.flight-hud \{[^}]*min-height:\s*35%/);
     expect(css).toMatch(/\.mission-region-horizon \.flight-hud \{[^}]*max-height:\s*42%/);
-    expect(cssBlock(css, '.mission-horizon-filler')).toMatch(/flex:\s*1 1 0/);
+    expect(cssBlock(css, '.mission-horizon-filler')).toMatch(/flex:\s*0 1 auto/);
+    expect(cssBlock(css, '.mission-horizon-filler')).toMatch(/max-height:\s*32%/);
     expect(cssBlock(css, '.mission-horizon-filler')).toMatch(/background:\s*#1e293b/);
     expect(cssBlock(css, '.mission-region-messages[data-messages-expanded="0"]')).toMatch(/max-height:\s*40px/);
     expect(cssBlock(css, '.mission-region[data-mission-region="messages"]')).toMatch(/position:\s*absolute/);
@@ -294,8 +295,8 @@ describe('Mission layout contract — live boxes', () => {
     expect(measured.hud.height / regions.horizon.height).toBeLessThanOrEqual(0.42);
     expect(measured.horizonPosition).toBe('relative');
     expect(regions.horizon.height / ws.height).toBeGreaterThanOrEqual(0.90);
-    expect(regions.horizon.bottom - measured.filler.bottom).toBeLessThanOrEqual(80);
     expect(measured.filler.height).toBeGreaterThan(80);
+    expect(measured.filler.height / regions.horizon.height).toBeLessThanOrEqual(0.34);
     expect(measured.fillerBg).not.toMatch(/rgba?\(\s*0,\s*0,\s*0/);
     expect(regions.data.height).toBeLessThanOrEqual(56);
     expect(regions.talk.width).toBeGreaterThanOrEqual(240);

@@ -351,10 +351,11 @@ describe('AIRVIX Mission chrome — talk is flight-safe', () => {
     expect(css).toMatch(/\.assist-mic-btn\b/);
     expect(js).toContain('function initAssistMic(');
     const mic = sliceFunction(js, 'initAssistMic');
+    const label = sliceFunction(js, 'assistMicTalkLabel');
     expect(mic).toContain('SpeechRecognition');
-    expect(mic).toContain('דיבור לטקסט אינו זמין בדפדפן זה');
-    expect(mic).not.toMatch(/FLIGHT_ACTION|PARAM_SET|\/apply|\/restart/);
-    expect(mic).not.toMatch(/\bARM\b|\bDISARM\b|\bLAND\b/);
+    expect(label).toContain('שיחה עם המסייע אינה זמינה בדפדפן זה');
+    expect(mic + label).not.toMatch(/FLIGHT_ACTION|PARAM_SET|\/apply|\/restart/);
+    expect(mic + label).not.toMatch(/\bARM\b|\bDISARM\b|\bLAND\b/);
   });
 });
 

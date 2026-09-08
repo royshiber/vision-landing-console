@@ -50,7 +50,7 @@ describe('AIRVIX 1.02.263 flyable Mission layout', () => {
   it('keeps the map as the majority workspace and sizes the PFD in the readable band', () => {
     const workspace = cssBlock(css, '.mission-workspace[data-mission-layout="ops-v1"]');
     expect(workspace).toMatch(/--mission-map-min:\s*65%/);
-    expect(workspace).toMatch(/--mission-ah-row:\s*38%/);
+    expect(workspace).toMatch(/--mission-ah-row:\s*40%/);
     expect(workspace).toMatch(/grid-template-areas:\s*"horizon map talk"/);
     expect(css).toMatch(/\.mission-region-horizon \.flight-hud \{[^}]*min-height:\s*35%/);
     expect(css).toMatch(/\.mission-region-horizon \.flight-hud \{[^}]*max-height:\s*42%/);
