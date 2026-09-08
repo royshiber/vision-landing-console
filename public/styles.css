@@ -7716,6 +7716,9 @@ html[data-evolve-preview="1"] #development {
   grid-area: map;
   min-height: var(--mission-map-min, 65%);
   min-width: 0;
+  border: 0;
+  border-radius: 0;
+  background: #0b0e14;
 }
 .mission-region[data-mission-region="data"] {
   grid-area: data;
@@ -8107,15 +8110,27 @@ html[data-evolve-preview="1"] #development {
 .mission-region-map {
   position: relative;
 }
+.mission-region-map .terrain-map-overlay-toolbar {
+  top: 6px;
+  bottom: auto;
+  right: 8px;
+  left: auto;
+}
+.mission-region-map .terrain-map-shell {
+  flex: 1 1 0;
+  height: auto;
+  min-height: 0;
+  margin-top: 0;
+  border: 0;
+  background: #0b0e14;
+}
 .mission-region-map .terrain-map-rotatable,
 .mission-region-map #terrainMap,
 .mission-region-map #terrainMap.leaflet-container {
   min-height: 0;
-}
-.mission-region-map .terrain-map-shell {
-  height: auto;
-  min-height: 0;
-  margin-top: 0;
+  height: 100%;
+  flex: 1 1 0;
+  background: #0b0e14;
 }
 
 @media (max-width: 1100px) {
@@ -14461,6 +14476,10 @@ body.mission-assist-docked .assist-rail.assist-rail--mission,
 #missionTalkHost .assist-messages {
   flex: 1 1 0;
   min-height: 0;
+  background: rgba(8, 12, 20, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+  padding: 4px 6px;
 }
 #missionTalkHost .assist-agent-connect {
   padding: 6px 8px 6px;

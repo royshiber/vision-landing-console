@@ -202,6 +202,9 @@ describe('Mission layout contract — live boxes', () => {
         videoToggle: box(document.getElementById('horizonVideoToggle')),
         videoPanel: box(document.getElementById('horizonVideoPanel')),
       };
+      const mapEl = document.querySelector('[data-mission-region="map"]');
+      const mapBox = box(mapEl);
+      const leaflet = box(document.getElementById('terrainMap'));
       const talkEl = document.querySelector('[data-mission-region="talk"]');
       const talk = getComputedStyle(talkEl);
       const dataGrid = getComputedStyle(document.getElementById('missionDataGrid'));
@@ -214,6 +217,7 @@ describe('Mission layout contract — live boxes', () => {
         regions,
         tiles,
         pfd,
+        leaflet,
         talkMinWidth: talk.minWidth,
         dataGap: dataGrid.gap,
         dataOverflowX: dataGrid.overflowX,
@@ -240,6 +244,8 @@ describe('Mission layout contract — live boxes', () => {
     const { ws, regions } = measured;
     expect(regions.map.height / ws.height).toBeGreaterThanOrEqual(0.65);
     expect(regions.map.width / ws.width).toBeGreaterThan(0.50);
+    expect(measured.leaflet.height / regions.map.height).toBeGreaterThanOrEqual(0.90);
+    expect(measured.leaflet.width / regions.map.width).toBeGreaterThanOrEqual(0.90);
     expect(regions.messages.height).toBeLessThanOrEqual(40);
     expect(regions.horizon.width / ws.width).toBeLessThanOrEqual(0.22 + 0.02);
     expect(regions.data.height).toBeLessThanOrEqual(56);
