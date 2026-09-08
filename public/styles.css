@@ -5660,7 +5660,8 @@ body:has(#pulse.panel.visible) .layout {
 }
 .evolve-preview-btn[aria-pressed="true"] {
   border-color: #a78bfa;
-  color: #e9d5ff;
+  background: rgba(167, 139, 250, 0.22);
+  color: #f5f3ff;
 }
 .evolve-preview-stage {
   display: grid;
@@ -5676,6 +5677,7 @@ body:has(#pulse.panel.visible) .layout {
 }
 .evolve-mission-mock {
   display: grid;
+  direction: ltr;
   grid-template-columns: minmax(56px, 18%) minmax(0, 1fr) minmax(72px, 22%);
   grid-template-areas: "horizon map talk";
   gap: 4px;

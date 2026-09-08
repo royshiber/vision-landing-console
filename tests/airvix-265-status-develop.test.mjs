@@ -71,6 +71,7 @@ describe('AIRVIX 1.02.265 status densify + Develop concept A', () => {
     expect(html).toContain('id="evolveProductPreview"');
     expect(html).toContain('id="evolveMissionMockBefore"');
     expect(html).toContain('id="evolveMissionMockAfter"');
+    expect(css).toMatch(/\.evolve-mission-mock\s*\{[^}]*direction:\s*ltr/);
     expect(html).toContain('id="evolveMockCallout"');
     expect(html).toContain('class="evolve-section-title">תצוגת המוצר');
     expect(html).toMatch(/זה משנה את המוצר\. לא מדדי מחשב/);
