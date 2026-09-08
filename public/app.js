@@ -12911,7 +12911,7 @@ function applyMissionAreas(map) {
   const areas = map || readMissionAreas();
   document.querySelectorAll('[data-mission-region]').forEach((el) => {
     const id = el.dataset.missionRegion;
-    if (id === 'messages' || id === 'horizon' || id === 'data') {
+    if (id === 'messages' || id === 'data') {
       el.style.gridArea = '';
       return;
     }
@@ -12922,7 +12922,7 @@ function applyMissionAreas(map) {
 
 function swapMissionRegions(fromId, toId) {
   if (fromId === 'messages' || toId === 'messages') return;
-  if (fromId === 'horizon' || toId === 'horizon' || fromId === 'data' || toId === 'data') return;
+  if (fromId === 'data' || toId === 'data') return;
   if (!MISSION_REGION_IDS.includes(fromId) || !MISSION_REGION_IDS.includes(toId) || fromId === toId) return;
   const areas = readMissionAreas();
   const fromArea = areas[fromId];
@@ -12981,24 +12981,13 @@ function placeMissionSplits() {
   const colB = document.getElementById('missionColSplitB');
   const row = document.getElementById('missionRowSplit');
   if (!ws) return;
-  const overlayIds = new Set(['messages', 'horizon', 'data']);
+  const overlayIds = new Set(['messages', 'data']);
   const items = [...ws.querySelectorAll('[data-mission-region]')].map((el) => ({
     el,
     r: el.getBoundingClientRect(),
   })).filter((x) => !overlayIds.has(x.el.dataset.missionRegion) && x.r.width > 8 && x.r.height > 8);
+  if (items.length < 2) return;
   const wr = ws.getBoundingClientRect();
-  const horizon = ws.querySelector('[data-mission-region="horizon"]');
-  if (horizon && col) {
-    const hr = horizon.getBoundingClientRect();
-    placeMissionSplitBox(col, hr.right - wr.left - 4, hr.top - wr.top, 8, Math.max(8, hr.height));
-  }
-  if (items.length < 2) {
-    if (row) {
-      row.hidden = true;
-      placeMissionSplitBox(row, 0, 0, 0, 0);
-    }
-    return;
-  }
   const cols = clusterMissionRects(items, (x) => x.r.left, 28);
   const placeCol = (el, leftGroup, rightGroup) => {
     if (!el || !leftGroup || !rightGroup) return;
@@ -13008,7 +12997,8 @@ function placeMissionSplits() {
     const bottom = Math.max(...leftGroup.concat(rightGroup).map((x) => x.r.bottom)) - wr.top;
     placeMissionSplitBox(el, ((left.r.right + right.r.left) / 2) - wr.left - 4, top, 8, Math.max(8, bottom - top));
   };
-  placeCol(colB, cols[0], cols[1]);
+  placeCol(col, cols[0], cols[1]);
+  placeCol(colB, cols[1], cols[2]);
   if (row) {
     row.hidden = true;
     placeMissionSplitBox(row, 0, 0, 0, 0);
@@ -13047,7 +13037,7 @@ function bindMissionRegionDrag() {
       const from = String(e.dataTransfer.getData('text/plain') || '');
       const to = region.dataset.missionRegion;
       if (from === 'messages' || to === 'messages') return;
-      if (from === 'horizon' || to === 'horizon' || from === 'data' || to === 'data') return;
+      if (from === 'data' || to === 'data') return;
       if (from && to) swapMissionRegions(from, to);
     });
     region.addEventListener('dragend', () => {

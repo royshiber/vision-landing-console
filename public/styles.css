@@ -7601,8 +7601,8 @@ html[data-evolve-preview="1"] #development {
 }
 
 /* Layout contract v2: map owns the workspace (≥65% height, majority width).
-   AH is a compact overlay: ≤22% width, ≤28% height, align-self start.
-   Do not stretch the horizon into a left-column tower. Leftover is map.
+   Left column is one flex stack: capped PFD + data strip + FC/status filler.
+   PFD content ≤28% workspace height. Filler absorbs leftover — no empty black gap.
    Messages collapsed ≤ 40px overlay — never a grid row.
    Talk transcript well fills the right column. Gap ≤ 4px. */
 .terrain-flight-shell.mission-workspace,
@@ -7620,9 +7620,9 @@ html[data-evolve-preview="1"] #development {
   --mission-r3: 0px;
   position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(240px, min(28%, var(--mission-talk-col)));
+  grid-template-columns: minmax(132px, min(22%, var(--mission-ah-col))) minmax(0, 1fr) minmax(240px, min(28%, var(--mission-talk-col)));
   grid-template-rows: minmax(0, 1fr);
-  grid-template-areas: "map talk";
+  grid-template-areas: "horizon map talk";
   flex: 1 1 0;
   min-height: 0;
   gap: 4px;
@@ -7635,7 +7635,7 @@ html[data-evolve-preview="1"] #development {
 }
 
 .mission-workspace[data-mission-swap="map-horizon"] {
-  grid-template-areas: "map talk";
+  grid-template-areas: "map horizon talk";
 }
 
 .mission-split {
@@ -7702,20 +7702,19 @@ html[data-evolve-preview="1"] #development {
 }
 
 .mission-region[data-mission-region="horizon"] {
-  grid-area: unset;
-  position: absolute;
-  z-index: 5;
-  top: 8px;
-  left: 8px;
-  right: auto;
-  width: min(22%, var(--mission-ah-col));
-  min-width: 132px;
-  max-width: 22%;
-  height: auto;
-  max-height: var(--mission-ah-row, 28%);
-  justify-self: start;
-  align-self: start;
+  grid-area: horizon;
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  justify-self: stretch;
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
+  background: #151b27;
 }
 .mission-region[data-mission-region="map"] {
   grid-area: map;
@@ -8159,17 +8158,17 @@ html[data-evolve-preview="1"] #development {
 
 @media (max-width: 1100px) {
   .mission-workspace[data-mission-layout="ops-v1"] {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: minmax(120px, min(22%, var(--mission-ah-col))) minmax(0, 1fr);
     grid-template-rows: minmax(0, 1fr) minmax(160px, 28%);
     grid-template-areas:
-      "map"
-      "talk";
+      "horizon map"
+      "talk talk";
   }
 
   .mission-workspace[data-mission-swap="map-horizon"] {
     grid-template-areas:
-      "map"
-      "talk";
+      "map horizon"
+      "talk talk";
   }
 }
 
@@ -8300,9 +8299,9 @@ html[data-evolve-preview="1"] #development {
   border: 0;
 }
 .mission-region-horizon .flight-hud {
-  max-height: none;
+  max-height: min(260px, var(--mission-ah-row, 28%));
   height: auto;
-  flex: 0 1 auto;
+  flex: 0 0 auto;
 }
 .mission-region-horizon .pfd-top-bar {
   min-height: 22px;
@@ -8310,19 +8309,48 @@ html[data-evolve-preview="1"] #development {
   flex-wrap: wrap;
 }
 .mission-region-horizon .pfd-bottom-bar {
-  display: none;
+  display: flex;
+  flex: 0 0 auto;
+  min-height: 22px;
+  padding: 2px 6px;
 }
 .mission-region-horizon .pfd-horizon-shell {
   aspect-ratio: auto;
-  height: 136px;
-  max-height: 136px;
+  height: auto;
+  max-height: none;
   min-height: 110px;
   width: 100%;
   margin-inline: auto;
-  flex: 0 0 auto;
+  flex: 1 1 auto;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+}
+.mission-horizon-filler {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  background: #1e293b;
+  border-top: 1px solid rgba(148, 163, 184, 0.22);
+  overflow: auto;
+}
+.mission-horizon-filler-kicker {
+  margin: 0;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #cbd5e1;
+  font-family: "Heebo", sans-serif;
+}
+.mission-horizon-filler-note {
+  margin: 0;
+  margin-top: auto;
+  font-size: 0.68rem;
+  line-height: 1.35;
+  color: #94a3b8;
+  font-family: "Heebo", sans-serif;
 }
 .pfd-horizon-instrument {
   display: grid;
@@ -8372,7 +8400,9 @@ html[data-evolve-preview="1"] #development {
   padding: 2px 4px;
 }
 .mission-region-horizon .hud-data-grid {
-  display: none;
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 .pfd-horizon-shell canvas {
   position: absolute;
@@ -14493,12 +14523,12 @@ body.mission-assist-docked .assist-rail.assist-rail--mission,
 #missionTalkHost .assist-empty-stage,
 .mission-talk-host .assist-empty-stage,
 #missionTalkHost .assist-messages-empty {
-  flex: 0 0 auto;
+  flex: 1 1 0;
   min-height: 0;
   justify-content: flex-start;
   align-items: stretch;
   text-align: start;
-  padding: 6px 10px 4px;
+  padding: 10px 12px;
   gap: 0;
   background: transparent;
 }
@@ -14528,6 +14558,12 @@ body.mission-assist-docked .assist-rail.assist-rail--mission,
   border: 0;
   border-radius: 0;
   padding: 4px 10px 8px;
+}
+#missionTalkHost .assist-empty-stage:not([hidden]) + .assist-messages:empty {
+  flex: 0 0 0 !important;
+  min-height: 0;
+  padding: 0;
+  overflow: hidden;
 }
 #missionTalkHost .assist-messages:empty {
   flex: 1 1 0 !important;

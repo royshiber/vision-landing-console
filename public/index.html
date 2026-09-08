@@ -1442,12 +1442,6 @@
                   </div>
                 </div>
               </div>
-
-              <div class="pfd-bottom-bar">
-                <span class="pfd-batt" id="pfdBattVal">-- V</span>
-                <button id="hudAddSlotBtn" class="pfd-add-btn" title="הוסף נתון מותאם">＋</button>
-              </div>
-              <div id="hudDataGrid" class="hud-data-grid pfd-slots-strip" role="region" aria-label="נתונים מותאמים"></div>
             </aside>
             <section class="mission-region mission-region-data" data-mission-region="data" aria-label="נתונים">
             <h3 class="mission-region-title" draggable="true">נתונים</h3>
@@ -1494,6 +1488,15 @@
               </div>
             </div>
           </section>
+            <aside id="missionHorizonFiller" class="mission-horizon-filler" aria-label="מצב בקר">
+              <p class="mission-horizon-filler-kicker">מצב בקר</p>
+              <div class="pfd-bottom-bar">
+                <span class="pfd-batt" id="pfdBattVal">-- V</span>
+                <button id="hudAddSlotBtn" class="pfd-add-btn" title="הוסף נתון מותאם">＋</button>
+              </div>
+              <div id="hudDataGrid" class="hud-data-grid pfd-slots-strip" role="region" aria-label="נתונים מותאמים"></div>
+              <p class="mission-horizon-filler-note">אין חיבור לבקר. אין הודעות נכנסות.</p>
+            </aside>
           </section>
 
           <section class="mission-region mission-region-map" data-mission-region="map" aria-label="מפה">

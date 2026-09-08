@@ -6,12 +6,12 @@
       {
         "type": "ui",
         "title": "Brutal Mission GCS density: map owns the workspace",
-        "detail": "Map is at least 65% of workspace height and the majority of width. Collapsed messages are a one-line 40px overlay on the map, not a permanent grid row. Assist fills the right column: a muted transcript well with a one-line empty invite at the top and the composer pinned at the bottom. Artificial horizon is a compact overlay at most 22% wide and 28% of workspace height — not a stretched left-column tower. Layout chrome under the tabs shrinks to an icon row. Computer status and Develop stay filled, not blank. APP_VERSION 1.02.261."
+        "detail": "Map is at least 65% of workspace height and the majority of width. Collapsed messages are a one-line 40px overlay on the map, not a permanent grid row. Assist fills the right column: a muted transcript well with the empty invite at the top of that filled panel and the composer pinned at the bottom. Left column is one stack: PFD capped at 28% of workspace height, a dense data strip, and an FC/status filler that absorbs leftover height so there is no empty black gap. Layout chrome under the tabs shrinks to an icon row. Computer status and Develop stay filled, not blank. APP_VERSION 1.02.261."
       },
       {
         "type": "test",
         "title": "Layout contract v2 asserts computed Mission sizes",
-        "detail": "Collapsed messages max-height is 40px in the rendered box. Map row share is at least 65% of the workspace. AH width is clamped at 22% and computed height at 28% of the workspace. Overlay AH and messages may cover the map; the Assist transcript well must fill the talk column, not only keep empty-stage compact. Pulse and Develop must render visible content. Version 1.02.261."
+        "detail": "Collapsed messages max-height is 40px in the rendered box. Map row share is at least 65% of the workspace. PFD content height is clamped at 28% of the workspace. Left-column leftover under the PFD is a filled FC/status panel, not an empty gap over 80px. Overlay messages may cover the map. The Assist empty-stage grows inside a muted transcript well with the invite at the top. Pulse and Develop must render visible content. Version 1.02.261."
       }
     ]
   },
