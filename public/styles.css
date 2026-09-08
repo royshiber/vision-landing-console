@@ -5507,14 +5507,12 @@ body:has(#pulse.panel.visible) .layout {
 }
 .evolve-shell {
   display: grid;
-  grid-template-columns: minmax(240px, 1fr) minmax(280px, 1.15fr) minmax(220px, 0.9fr);
+  grid-template-columns: minmax(280px, 1.2fr) minmax(240px, 0.9fr);
   grid-template-areas:
-    "hero hero hero"
-    "command command command"
-    "plan diff context"
-    "stream pr context"
-    "backlog backlog backlog"
-    "detail detail detail";
+    "hero hero"
+    "command live"
+    "backlog backlog"
+    "detail detail";
   gap: 8px;
   align-items: start;
   min-height: 0;
@@ -5524,12 +5522,7 @@ body:has(#pulse.panel.visible) .layout {
 }
 .evolve-hero { grid-area: hero; }
 .evolve-command { grid-area: command; }
-.evolve-plan { grid-area: plan; }
-.evolve-diff { grid-area: diff; }
-.evolve-live,
-.evolve-stream { grid-area: stream; }
-.evolve-pr { grid-area: pr; }
-.evolve-context { grid-area: context; }
+.evolve-live { grid-area: live; }
 .evolve-backlog { grid-area: backlog; }
 .evolve-shell .devtasks-detail { grid-area: detail; }
 .evolve-hero h3,
@@ -5546,32 +5539,9 @@ body:has(#pulse.panel.visible) .layout {
   line-height: 1.45;
 }
 .evolve-command,
-.evolve-plan,
-.evolve-diff,
-.evolve-live,
-.evolve-pr,
-.evolve-context {
+.evolve-live {
   min-width: 0;
   position: static;
-}
-.evolve-section-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 6px;
-}
-.evolve-section-head .evolve-section-title {
-  margin-bottom: 0;
-}
-.evolve-count,
-.evolve-live-dot {
-  font-size: 0.72rem;
-  font-weight: 700;
-  color: #93c5fd;
-}
-.evolve-live-dot[data-live="1"] {
-  color: #4ade80;
 }
 .evolve-ask-block,
 .evolve-ask-title {
@@ -5583,15 +5553,8 @@ body:has(#pulse.panel.visible) .layout {
   color: #cbd5e1;
 }
 .evolve-ask-input {
-  min-height: 96px;
+  min-height: 72px;
   resize: vertical;
-}
-.evolve-ask-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 8px;
-  align-items: end;
-  margin-bottom: 8px;
 }
 .evolve-ask-more {
   margin: 0 0 8px;
@@ -5599,21 +5562,15 @@ body:has(#pulse.panel.visible) .layout {
   color: #93c5fd;
 }
 .evolve-ask-go {
-  margin-top: 0;
-  white-space: nowrap;
+  margin-top: 4px;
 }
-.evolve-run-grid,
-.evolve-stream-list,
-.evolve-plan-list {
+.evolve-run-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
   grid-auto-flow: row;
   gap: 8px;
   min-width: 0;
   position: static;
-  margin: 0;
-  padding: 0;
-  list-style: none;
 }
 .evolve-run-card {
   display: grid;
@@ -5646,126 +5603,8 @@ body:has(#pulse.panel.visible) .layout {
   font-size: 0.78rem;
   color: #8b97ab;
 }
-.evolve-plan-item,
-.evolve-stream-node {
-  display: grid;
-  grid-template-columns: 14px minmax(0, 1fr);
-  column-gap: 8px;
-  row-gap: 2px;
-  align-items: start;
-  min-width: 0;
-  padding: 8px 10px;
-  border-radius: 8px;
-  border: 1px solid rgba(148, 163, 184, 0.22);
-  background: #0d1320;
-  color: #e8edf6;
-  font: inherit;
-  text-align: start;
-  position: static;
-}
-.evolve-stream-node {
-  width: 100%;
-}
-button.evolve-stream-node {
-  cursor: pointer;
-}
-.evolve-plan-mark,
-.evolve-stream-mark {
-  width: 10px;
-  height: 10px;
-  margin-top: 4px;
-  border-radius: 50%;
-  border: 2px solid #64748b;
-  background: transparent;
-}
-.evolve-plan-item[data-state="done"] .evolve-plan-mark,
-.evolve-stream-node[data-state="done"] .evolve-stream-mark {
-  border-color: #4ade80;
-  background: #4ade80;
-}
-.evolve-plan-item[data-state="run"] .evolve-plan-mark,
-.evolve-stream-node[data-state="run"] .evolve-stream-mark {
-  border-color: #60a5fa;
-  background: #60a5fa;
-}
-.evolve-stream-node[data-state="err"] .evolve-stream-mark {
-  border-color: #f87171;
-  background: #f87171;
-}
-.evolve-plan-text,
-.evolve-stream-title {
-  font-size: 0.82rem;
-  font-weight: 700;
-}
-.evolve-stream-detail,
-.evolve-stream-time,
-.evolve-pr-title,
-.evolve-context-desc {
-  font-size: 0.72rem;
-  color: #94a3b8;
-}
-.evolve-stream-title,
-.evolve-stream-detail,
-.evolve-stream-time {
-  grid-column: 2;
-}
-.evolve-pr-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  min-width: 0;
-}
-.evolve-pr-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 8px;
-  border-radius: 999px;
-  border: 1px solid rgba(148, 163, 184, 0.28);
-  background: #0d1320;
-  font-size: 0.72rem;
-  color: #cbd5e1;
-}
-.evolve-pr-chip[data-kind="ok"] {
-  border-color: rgba(74, 222, 128, 0.45);
-  color: #86efac;
-}
-.evolve-pr-chip strong {
-  font-weight: 800;
-}
-.evolve-pr-link {
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: #93c5fd;
-}
-.evolve-context-title {
-  margin: 0 0 6px;
-  font-size: 0.88rem;
-  font-weight: 800;
-}
-.evolve-context-desc {
-  margin: 0 0 8px;
-  line-height: 1.45;
-}
-.evolve-diff-excerpt {
-  margin: 8px 0 0;
-  max-height: 180px;
-  overflow: auto;
-  padding: 8px;
-  border-radius: 8px;
-  background: #0a0f18;
-  color: #cbd5e1;
-  font-size: 0.72rem;
-  white-space: pre-wrap;
-  direction: ltr;
-  text-align: start;
-}
 .evolve-command,
-.evolve-plan,
-.evolve-diff,
 .evolve-live,
-.evolve-pr,
-.evolve-context,
 .devtasks-create,
 .devtasks-list,
 .devtasks-detail {
@@ -5773,19 +5612,6 @@ button.evolve-stream-node {
   border-radius: 10px;
   background: var(--surface-raised);
   padding: 10px 12px;
-}
-@media (max-width: 1100px) {
-  .evolve-shell {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    grid-template-areas:
-      "hero hero"
-      "command command"
-      "plan diff"
-      "stream pr"
-      "context context"
-      "backlog backlog"
-      "detail detail";
-  }
 }
 .devtasks-block {
   margin-top: 8px;
@@ -14870,11 +14696,7 @@ body:has(#telemetry.panel.visible) {
   color: #e8edf6;
 }
 #development.panel.visible .evolve-command,
-#development.panel.visible .evolve-plan,
-#development.panel.visible .evolve-diff,
 #development.panel.visible .evolve-live,
-#development.panel.visible .evolve-pr,
-#development.panel.visible .evolve-context,
 #development.panel.visible .devtasks-create,
 #development.panel.visible .devtasks-list,
 #development.panel.visible .devtasks-detail {

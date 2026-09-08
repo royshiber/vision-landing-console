@@ -1155,15 +1155,12 @@
 
           <section class="evolve-command" aria-label="בקשה">
             <h4 class="evolve-section-title">בקשה</h4>
-            <label class="evolve-ask-block" for="devTaskDescription"><span class="mission-sr-only">בקשה</span>
-              <textarea id="devTaskDescription" class="kpi-input evolve-ask-input" rows="4" maxlength="5000" placeholder="תארו מה לשנות…"></textarea>
+            <label class="evolve-ask-block" for="devTaskDescription"><span>מה לשנות</span>
+              <textarea id="devTaskDescription" class="kpi-input evolve-ask-input" rows="3" maxlength="5000" placeholder="למשל תקנו את רצועת הנתונים בהטסה"></textarea>
             </label>
-            <div class="evolve-ask-row">
-              <label class="evolve-ask-title" for="devTaskTitle"><span>כותרת קצרה</span>
-                <input id="devTaskTitle" class="kpi-input" maxlength="140" placeholder="כותרת למשימה" />
-              </label>
-              <button type="button" id="devTaskCreateBtn" class="policy-btn evolve-ask-go">הפעילו שינוי</button>
-            </div>
+            <label class="evolve-ask-title" for="devTaskTitle"><span>כותרת קצרה</span>
+              <input id="devTaskTitle" class="kpi-input" maxlength="140" placeholder="כותרת למשימה" />
+            </label>
             <details class="evolve-ask-more">
               <summary>סיווג וחשיבות</summary>
               <div class="tele-group-cards">
@@ -1188,52 +1185,14 @@
               </div>
               <label class="tele-card devtasks-block"><span>הערות</span><textarea id="devTaskNotes" class="kpi-input" rows="2" maxlength="5000"></textarea></label>
             </details>
+            <button type="button" id="devTaskCreateBtn" class="policy-btn evolve-ask-go">הפעילו שינוי</button>
             <p id="devTaskCreateResult" class="maint-rel-result" hidden></p>
           </section>
 
-          <section class="evolve-plan" aria-label="תוכנית">
-            <div class="evolve-section-head">
-              <h4 class="evolve-section-title">תוכנית</h4>
-              <span id="evolvePlanCount" class="evolve-count" dir="ltr"></span>
-            </div>
-            <ol id="evolvePlanList" class="evolve-plan-list"></ol>
-            <p id="evolvePlanEmpty" class="evolve-empty">אין תוכנית עדיין.</p>
-          </section>
-
-          <section class="evolve-diff" aria-label="תצוגת שינוי">
-            <h4 class="evolve-section-title">תצוגת שינוי</h4>
-            <div id="evolveDiffMeta" class="evolve-pr-chips"></div>
-            <pre id="evolveDiffExcerpt" class="evolve-diff-excerpt" hidden></pre>
-            <p id="evolveDiffEmpty" class="evolve-empty">אין תצוגת שינוי עדיין.</p>
-          </section>
-
-          <section class="evolve-live evolve-stream" aria-label="זרם סוכן">
-            <div class="evolve-section-head">
-              <h4 class="evolve-section-title">זרם סוכן</h4>
-              <span id="evolveStreamLive" class="evolve-live-dot" hidden>חי</span>
-            </div>
-            <div id="evolveLiveRuns" class="evolve-run-grid evolve-stream-list"></div>
+          <section class="evolve-live" aria-label="ריצות חיות">
+            <h4 class="evolve-section-title">ריצות חיות</h4>
+            <div id="evolveLiveRuns" class="evolve-run-grid"></div>
             <p id="evolveLiveEmpty" class="evolve-empty">אין ריצה פעילה.</p>
-          </section>
-
-          <section class="evolve-pr" aria-label="בקשת מיזוג">
-            <div class="evolve-section-head">
-              <h4 class="evolve-section-title">בקשת מיזוג</h4>
-              <a id="evolvePrLink" class="evolve-pr-link" hidden target="_blank" rel="noopener noreferrer">פתיחה</a>
-            </div>
-            <p id="evolvePrTitle" class="evolve-pr-title"></p>
-            <div id="evolvePrChips" class="evolve-pr-chips"></div>
-            <p id="evolvePrEmpty" class="evolve-empty">אין בקשת מיזוג עדיין.</p>
-          </section>
-
-          <section class="evolve-context" aria-label="הקשר">
-            <h4 class="evolve-section-title">הקשר</h4>
-            <div id="evolveContextBody" hidden>
-              <p id="evolveContextTitle" class="evolve-context-title"></p>
-              <p id="evolveContextDesc" class="evolve-context-desc"></p>
-              <div id="evolveContextChips" class="evolve-pr-chips"></div>
-            </div>
-            <p id="evolveContextEmpty" class="evolve-empty">אין הקשר למשימה.</p>
           </section>
 
           <section class="devtasks-list evolve-backlog" aria-label="תור יכולות">

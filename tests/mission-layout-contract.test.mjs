@@ -294,31 +294,18 @@ describe('Mission layout contract — live boxes', () => {
         return { left: r.left, top: r.top, right: r.right, bottom: r.bottom, width: r.width, height: r.height };
       };
       const command = box(document.querySelector('.evolve-command'));
-      const plan = box(document.querySelector('.evolve-plan'));
-      const diff = box(document.querySelector('.evolve-diff'));
       const live = box(document.querySelector('.evolve-live'));
-      const pr = box(document.querySelector('.evolve-pr'));
-      const context = box(document.querySelector('.evolve-context'));
       const backlog = box(document.querySelector('.evolve-backlog'));
-      const cards = [...document.querySelectorAll('.evolve-run-card, .evolve-stream-node, .evolve-plan-item')].map(box);
+      const cards = [...document.querySelectorAll('.evolve-run-card')].map(box);
       const cs = getComputedStyle(document.querySelector('.evolve-shell'));
-      const ask = document.getElementById('devTaskDescription');
       return {
         command,
-        plan,
-        diff,
         live,
-        pr,
-        context,
         backlog,
         cards,
         display: cs.display,
         gap: cs.gap,
         overflowY: cs.overflowY,
-        placeholder: ask ? ask.getAttribute('placeholder') : '',
-        planEmpty: document.getElementById('evolvePlanEmpty')?.textContent || '',
-        diffEmpty: document.getElementById('evolveDiffEmpty')?.textContent || '',
-        prEmpty: document.getElementById('evolvePrEmpty')?.textContent || '',
         maintenanceTab: !!document.querySelector('[data-tab="maintenance"]'),
       };
     });
@@ -326,16 +313,9 @@ describe('Mission layout contract — live boxes', () => {
     expect(evolve.display).toBe('grid');
     expect(Number.parseFloat(evolve.gap)).toBeLessThanOrEqual(8);
     expect(evolve.overflowY).toMatch(/auto|scroll/);
-    expect(evolve.placeholder).toBe('תארו מה לשנות…');
-    expect(evolve.planEmpty).toContain('אין תוכנית עדיין');
-    expect(evolve.diffEmpty).toContain('אין תצוגת שינוי עדיין');
-    expect(evolve.prEmpty).toContain('אין בקשת מיזוג עדיין');
     expect(interiorsIntersect(evolve.command, evolve.live)).toBe(false);
     expect(interiorsIntersect(evolve.command, evolve.backlog)).toBe(false);
     expect(interiorsIntersect(evolve.live, evolve.backlog)).toBe(false);
-    expect(interiorsIntersect(evolve.plan, evolve.diff)).toBe(false);
-    expect(interiorsIntersect(evolve.diff, evolve.pr)).toBe(false);
-    expect(interiorsIntersect(evolve.plan, evolve.context)).toBe(false);
     for (let i = 0; i < evolve.cards.length; i += 1) {
       for (let j = i + 1; j < evolve.cards.length; j += 1) {
         expect(interiorsIntersect(evolve.cards[i], evolve.cards[j]), 'evolve run cards overlap').toBe(false);
