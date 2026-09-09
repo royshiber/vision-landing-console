@@ -47,10 +47,10 @@ function pulsePanel() {
   return html.slice(start, next === -1 ? undefined : next);
 }
 
-describe('AIRVIX 1.02.266 computer-status densify', () => {
-  it('pins APP_VERSION at 1.02.266', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.266'");
-    expect(pkg.version).toBe('1.02.266');
+describe('AIRVIX 1.02.267 computer-status densify', () => {
+  it('pins APP_VERSION at 1.02.267', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.267'");
+    expect(pkg.version).toBe('1.02.267');
   });
 
   it('keeps מסייע out of public UI', () => {
@@ -110,12 +110,12 @@ describe('AIRVIX 1.02.266 computer-status densify', () => {
     expect(src).not.toMatch(/\/apply|\/restart|\bARM\b|\bDISARM\b|\bLAND\b|JETSON_COMPANION|CURSOR_API_KEY/);
   });
 
-  it('does not touch Mission layout contract or Develop mock markup', () => {
+  it('does not touch Mission layout contract', () => {
     expect(css).toMatch(/#missionTalkHost \.assist-composer\s*\{[^}]*max-height:\s*210px/);
     expect(js).toContain("MISSION_SIZE_KEY = 'visionLandingMissionSizeV4'");
-    expect(html).toContain('class="evolve-concept">שנה את המוצר');
-    expect(html).toContain('id="evolveMissionMockBefore"');
-    expect(html).toContain('id="evolveMissionMockAfter"');
     expect(html).not.toMatch(/id="evolveProductPreview"[\s\S]*pulse-gauge/);
+    expect(html).not.toContain('id="evolveMissionMockBefore"');
+    expect(html).not.toContain('id="evolveMissionMockAfter"');
+    expect(html).toContain('data-cap-intake="f1"');
   });
 });

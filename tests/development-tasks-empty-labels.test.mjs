@@ -17,16 +17,16 @@ describe('Development Tasks empty-state chrome', () => {
   it('uses Hebrew empty-state copy for the task list and audit list', () => {
     const listEmpty = htmlElementInnerText(html, 'p', 'devTaskListEmpty');
     const auditEmpty = htmlElementInnerText(html, 'p', 'devTaskAuditEmpty');
-    expect(listEmpty).toBe('אין משימות. כתבו בקשה למעלה.');
+    expect(listEmpty).toBe('אין יכולות עדיין. שמרו טיוטה או התחילו סוכן יכולת.');
     expect(auditEmpty).toBe('אין רשומות ביקורת');
     expect(listEmpty).not.toBe('No tasks');
-    expect(listEmpty).toContain('אין משימות');
+    expect(listEmpty).toContain('אין יכולות עדיין');
     expect(auditEmpty).not.toBe('No audit entries');
   });
 
   it('keeps the empty list copy after the taxonomy column is present', () => {
     expect(html).toContain('<th>סיווג</th>');
     const listEmpty = htmlElementInnerText(html, 'p', 'devTaskListEmpty');
-    expect(listEmpty).toBe('אין משימות. כתבו בקשה למעלה.');
+    expect(listEmpty).toBe('אין יכולות עדיין. שמרו טיוטה או התחילו סוכן יכולת.');
   });
 });

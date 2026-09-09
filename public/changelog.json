@@ -1,5 +1,16 @@
 [
   {
+    "version": "1.02.267",
+    "date": "2026-09-09",
+    "changes": [
+      {
+        "type": "ui",
+        "title": "Develop becomes Capability Intake Studio",
+        "detail": "The Develop tab is now F1 Capability Intake Studio: a new-capability composer with FEATURE / REQUEST / IDEA / IMPROVEMENT / BUG / EXPERIMENT chips, an auto-draft card (what / why / impact / risks / modules), and example capabilities (Precision Landing, Jetson overlay, Debrief AI, Voice Ops). Primary CTA starts the existing isolated-branch capability agent and stays honest when the agent is UNAVAILABLE. Secondary CTA saves a FEATURE draft to the Development Tasks store. The leftover Mission AH before/after mock is gone. Existing task list, detail, and evidence strip stay reachable as secondary. AIRVIX Ask naming only. Computer-status densify from 1.02.266 stays. Mission layout contract unchanged. APP_VERSION 1.02.267."
+      }
+    ]
+  },
+  {
     "version": "1.02.266",
     "date": "2026-09-08",
     "changes": [

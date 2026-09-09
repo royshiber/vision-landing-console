@@ -45,7 +45,7 @@ describe('Development Tasks Hebrew chrome', () => {
       /<button\b[^>]*\bid="devReleaseDeployBtn"[^>]*>([\s\S]*?)<\/button>/i,
       'missing #devReleaseDeployBtn',
     );
-    expect(innerText(createBtn[1])).toBe('הפעילו שינוי');
+    expect(innerText(createBtn[1])).toBe('שמור טיוטה');
     expect(innerText(startBtn[1])).toBe('התחלת פיתוח');
     expect(innerText(deployBtn[1])).toBe('התקנת גרסה');
     expect(html).not.toMatch(/>\s*Create task\s*</);
@@ -59,18 +59,16 @@ describe('Development Tasks Hebrew chrome', () => {
       /<section\b[^>]*\bid="development"[^>]*>([\s\S]*?)<\/section>\s*<section\b[^>]*\bid="flights"/i,
       'missing #development panel',
     )[1];
-    expect(panel).toContain('<h3>פיתוח</h3>');
-    expect(panel).toContain('class="evolve-command"');
+    expect(panel).toContain('<h3>יכולת חדשה</h3>');
+    expect(panel).toContain('class="cap-composer evolve-command"');
     expect(panel).toContain('id="evolveLiveRuns"');
     expect(panel).toContain('class="devtasks-list evolve-backlog"');
-    expect(panel).toContain('<h4 class="evolve-section-title">מה ברצונך לשנות?</h4>');
     expect(panel).toContain('<h4 class="evolve-section-title">תוכנית מוצעת</h4>');
-    expect(panel).toContain('<h4 class="evolve-section-title">תצוגת המוצר</h4>');
     expect(panel).toContain('<h4 class="evolve-section-title">בדיקות</h4>');
     expect(panel).toContain('<h4 class="evolve-section-title">בקשת מיזוג</h4>');
     expect(panel).toContain('<h4 class="evolve-section-title">ריצות חיות</h4>');
     expect(panel).toContain('<h4 class="evolve-section-title">תור יכולות</h4>');
-    expect(panel).toContain('placeholder="תארו מה לשנות…"');
+    expect(panel).toContain('placeholder="כותרת היכולת"');
     expect(panel).toContain('<h4 class="maint-group-title">פרטי משימה</h4>');
     expect(panel).toContain('<th>מזהה</th>');
     expect(panel).toContain('<th>כותרת</th>');

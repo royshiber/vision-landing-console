@@ -11218,6 +11218,53 @@ const DEV_STATUSES = ['DRAFT', 'QUEUED', 'IN_PROGRESS', 'WAITING_FOR_REVIEW', 'T
 const DEV_PRIORITIES = ['LOW', 'NORMAL', 'HIGH', 'CRITICAL'];
 const DEV_TAXONOMIES = ['IDEA', 'REQUEST', 'IMPROVEMENT', 'BUG', 'EXPERIMENT', 'FEATURE'];
 const DEV_TARGETS = ['VISION', 'NAVIGATION', 'LANDING', 'VIDEO', 'MAVLINK', 'COMPANION', 'UI', 'API', 'MAINTENANCE', 'OTHER'];
+const CAP_INTAKE_TAXONOMY_ORDER = ['FEATURE', 'REQUEST', 'IDEA', 'IMPROVEMENT', 'BUG', 'EXPERIMENT'];
+const CAP_INTAKE_EXAMPLES = {
+  precision: {
+    title: 'נחיתה מדויקת עם אזורי נחיתה על המפה',
+    description: 'מסך אזורי נחיתה על המפה. סימון אזורים ואישור לפני נחיתה. שכבת מחשב המשימה מציגה את האזור שנבחר.',
+    taxonomy: 'FEATURE',
+    target: 'LANDING',
+    priority: 'HIGH',
+    impact: 'Mission + Ops',
+    modules: ['Platform', 'Jetson Overlay', 'Agent API', 'Mission UI'],
+    risks: ['תלות במפת המשימה', 'דיוק מיקום באזורים צפופים'],
+    why: 'מקצר את הדרך מרעיון ליכולת נחיתה מדויקת, בלי לשנות את מעטפת הממשק.',
+  },
+  jetson: {
+    title: 'שליטה מלאה בשכבת מחשב המשימה',
+    description: 'מסך שליטה בשכבת התצוגה של מחשב המשימה: הפעלה, כיבוי, ומצב תצוגה — בלי פקודות טיסה.',
+    taxonomy: 'FEATURE',
+    target: 'COMPANION',
+    priority: 'HIGH',
+    impact: 'Ops + Overlay',
+    modules: ['Jetson Overlay', 'Companion', 'Agent API'],
+    risks: ['גבול החלה מול מחשב חי', 'תלות בחוזה התצוגה'],
+    why: 'מפעיל שולט בשכבת התצוגה מתוך המוצר, בלי לצאת לענף חיצוני.',
+  },
+  debrief: {
+    title: 'סיכום טיסה בבינה מתוך תחקור',
+    description: 'בתחקור: סיכום טיסה קצר בעברית מנתוני הלוג הקיימים. בלי כתיבה לבקר.',
+    taxonomy: 'FEATURE',
+    target: 'UI',
+    priority: 'NORMAL',
+    impact: 'Debrief + Ask',
+    modules: ['Debrief', 'AIRVIX Ask', 'Agent API'],
+    risks: ['איכות הסיכום תלויה בלוג', 'אין להציג כעובדה כשאין נתונים'],
+    why: 'מקצר תחקור. המפעיל רואה מה קרה בטיסה בשפה פשוטה.',
+  },
+  voice: {
+    title: 'פקודות קוליות לממשק התפעול',
+    description: 'דיבור אל הממשק: פתיחת מסך, שאילתה, ורישום תצפית. לא פקודות טיסה.',
+    taxonomy: 'FEATURE',
+    target: 'UI',
+    priority: 'NORMAL',
+    impact: 'Voice + Ops',
+    modules: ['AIRVIX Ask', 'Voice', 'Mission UI'],
+    risks: ['בלבול בין דיבור לממשק לבין פקודת טיסה', 'רעש סביבה'],
+    why: 'המפעיל מדבר אל המוצר בלי לעזוב את מסך ההטסה.',
+  },
+};
 let _devTasks = [];
 let _devSelectedTaskId = null;
 let _devAgentPrUrl = null;
@@ -11226,6 +11273,7 @@ let _devMetaReady = false;
 let _devAgentPoll = null;
 let _devAgentMeta = { provider: null, available: false, runtime: null, reason: null };
 let _devTestPoll = null;
+let _capDraftOverride = null;
 
 function devText(v) {
   return (v == null || v === '') ? '—' : String(v);
@@ -11377,6 +11425,7 @@ async function devEnsureMeta() {
   const profiles = Array.isArray(r.data?.testProfiles) ? r.data.testProfiles : ['CONSOLE_FULL', 'COMPANION_CONTRACT', 'MAINTENANCE', 'DEVELOPMENT'];
   devFillOptions('devTestProfileSelect', profiles, false);
   _devMetaReady = true;
+  capRefreshAgentCta();
 }
 
 function devSyncEmptyOverview() {
@@ -11389,7 +11438,7 @@ function devSyncEmptyOverview() {
   if (filters) filters.hidden = !hasTasks;
   if (listEmpty) {
     listEmpty.hidden = hasTasks;
-    if (!hasTasks) listEmpty.textContent = 'אין משימות. כתבו בקשה למעלה.';
+    if (!hasTasks) listEmpty.textContent = 'אין יכולות עדיין. שמרו טיוטה או התחילו סוכן יכולת.';
   }
   const showingDetail = !!(detailCard && !detailCard.hidden);
   if (detailSection) detailSection.hidden = !hasTasks;
@@ -11506,6 +11555,187 @@ function devProductIntentText(task) {
   return String(task?.title || '').trim();
 }
 
+function capPriorityLabel(priority) {
+  const p = String(priority || 'HIGH').toUpperCase();
+  if (p === 'CRITICAL') return 'P0 — קריטי';
+  if (p === 'HIGH') return 'P1 — מוצר';
+  if (p === 'NORMAL') return 'P2 — רגיל';
+  if (p === 'LOW') return 'P3 — נמוך';
+  return 'P1 — מוצר';
+}
+
+function capGuessModules(title, description, target) {
+  const blob = `${title} ${description} ${target}`.toLowerCase();
+  const modules = [];
+  if (/landing|נחית|zone|אזור/.test(blob)) modules.push('Mission UI');
+  if (/jetson|overlay|שכבת/.test(blob) || target === 'COMPANION') modules.push('Jetson Overlay');
+  if (/debrief|תחקור|סיכום/.test(blob)) modules.push('Debrief');
+  if (/voice|קול|דיבור/.test(blob)) modules.push('Voice');
+  if (/ask|assist/.test(blob) || /קול|תחקור/.test(blob)) modules.push('AIRVIX Ask');
+  if (/api|סוכן|agent/.test(blob)) modules.push('Agent API');
+  if (target === 'LANDING' && !modules.includes('Mission UI')) modules.push('Mission UI');
+  if (target === 'UI' && !modules.includes('Mission UI')) modules.push('Platform');
+  if (!modules.length) modules.push('Platform', 'Agent API');
+  return [...new Set(modules)].slice(0, 4);
+}
+
+function capGuessRisks(title, description, target) {
+  const blob = `${title} ${description} ${target}`.toLowerCase();
+  const risks = [];
+  if (/landing|נחית|map|מפה|zone/.test(blob)) risks.push('תלות במפת המשימה');
+  if (/gps|מיקום|zone|נחית/.test(blob)) risks.push('דיוק מיקום באזורים צפופים');
+  if (/jetson|overlay|companion|שכבת/.test(blob)) risks.push('גבול החלה מול מחשב חי');
+  if (/voice|קול/.test(blob)) risks.push('בלבול בין דיבור לממשק לבין פקודת טיסה');
+  if (!risks.length) risks.push('היקף היכולת חייב להישאר מבודד בענף');
+  return risks.slice(0, 3);
+}
+
+function capGuessImpact(target, modules) {
+  if (target === 'LANDING') return 'Mission + Ops';
+  if (target === 'COMPANION') return 'Ops + Overlay';
+  if (modules.includes('Debrief')) return 'Debrief + Ask';
+  if (modules.includes('Voice')) return 'Voice + Ops';
+  return 'Product + API';
+}
+
+function capGuessWhy(description, taxonomy) {
+  const first = String(description || '').trim().split(/\n+/)[0];
+  if (first && first.length > 12) return first.slice(0, 180);
+  if (taxonomy === 'BUG') return 'מתקן התנהגות שכבר אמורה לעבוד, בלי לשנות את גבול הבטיחות.';
+  if (taxonomy === 'EXPERIMENT') return 'ניסוי מבודד. התוצאה חוזרת למוצר רק אחרי אימות.';
+  return 'מרעיון ליכולת מאומתת, בלי לשנות את מעטפת המוצר.';
+}
+
+function capSetTaxonomy(taxonomy) {
+  const next = CAP_INTAKE_TAXONOMY_ORDER.includes(taxonomy) ? taxonomy : 'FEATURE';
+  const select = document.getElementById('devTaskTaxonomy');
+  if (select) select.value = next;
+  const badge = document.getElementById('capTaxonomyBadge');
+  if (badge) {
+    badge.textContent = next;
+    badge.dataset.taxonomy = next;
+  }
+  document.querySelectorAll('#capTaxonomyChips .cap-tax-chip').forEach((btn) => {
+    btn.setAttribute('aria-pressed', btn.dataset.taxonomy === next ? 'true' : 'false');
+  });
+  capRenderDraftCard();
+}
+
+function capCollectComposer() {
+  const title = String(document.getElementById('devTaskTitle')?.value || '').trim();
+  const description = String(document.getElementById('devTaskDescription')?.value || '').trim();
+  const taxonomy = document.getElementById('devTaskTaxonomy')?.value || 'FEATURE';
+  const target = document.getElementById('devTaskTarget')?.value || 'OTHER';
+  const priority = document.getElementById('devTaskPriority')?.value || 'HIGH';
+  return { title, description, taxonomy, target, priority };
+}
+
+function capRenderDraftCard() {
+  const draft = _capDraftOverride || capCollectComposer();
+  const title = draft.title || 'יכולת חדשה';
+  const modules = draft.modules || capGuessModules(draft.title, draft.description, draft.target);
+  const risks = draft.risks || capGuessRisks(draft.title, draft.description, draft.target);
+  const impact = draft.impact || capGuessImpact(draft.target, modules);
+  const why = draft.why || capGuessWhy(draft.description, draft.taxonomy);
+  const what = draft.description || draft.title || 'כתבו כותרת ותיאור. הכרטיס ייבנה כאן.';
+  const setText = (id, value) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = value;
+  };
+  setText('capDraftTitle', title);
+  setText('capDraftWhat', what);
+  setText('capDraftWhy', why);
+  setText('capDraftImpact', impact);
+  setText('capDraftVersion', 'v1.03.x');
+  setText('capMetaPriority', capPriorityLabel(draft.priority));
+  setText('capMetaModules', modules.join(' · '));
+  const riskHost = document.getElementById('capDraftRisks');
+  if (riskHost) {
+    riskHost.innerHTML = '';
+    for (const risk of risks) {
+      const li = document.createElement('li');
+      li.textContent = risk;
+      riskHost.appendChild(li);
+    }
+  }
+  const moduleHost = document.getElementById('capDraftModules');
+  if (moduleHost) {
+    moduleHost.innerHTML = '';
+    for (const name of modules) {
+      const chip = document.createElement('span');
+      chip.className = 'cap-module-chip';
+      chip.textContent = name;
+      moduleHost.appendChild(chip);
+    }
+  }
+}
+
+function capApplyExample(id) {
+  const example = CAP_INTAKE_EXAMPLES[id];
+  if (!example) return;
+  _capDraftOverride = example;
+  const title = document.getElementById('devTaskTitle');
+  const desc = document.getElementById('devTaskDescription');
+  const target = document.getElementById('devTaskTarget');
+  const priority = document.getElementById('devTaskPriority');
+  if (title) title.value = example.title;
+  if (desc) desc.value = example.description;
+  if (target) target.value = example.target;
+  if (priority) priority.value = example.priority;
+  capSetTaxonomy(example.taxonomy);
+  _capDraftOverride = example;
+  capRenderDraftCard();
+}
+
+function capBindIntakeStudio() {
+  document.querySelectorAll('#capTaxonomyChips .cap-tax-chip').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      _capDraftOverride = null;
+      capSetTaxonomy(btn.dataset.taxonomy);
+    });
+  });
+  document.querySelectorAll('#capExampleChips .cap-example-chip').forEach((btn) => {
+    btn.addEventListener('click', () => { capApplyExample(btn.dataset.capExample); });
+  });
+  const onComposer = () => {
+    _capDraftOverride = null;
+    capRenderDraftCard();
+  };
+  document.getElementById('devTaskTitle')?.addEventListener('input', onComposer);
+  document.getElementById('devTaskDescription')?.addEventListener('input', onComposer);
+  capSetTaxonomy(document.getElementById('devTaskTaxonomy')?.value || 'FEATURE');
+  capRefreshAgentCta();
+}
+
+function capRefreshAgentCta() {
+  const startBtn = document.getElementById('capStartAgentBtn');
+  const note = document.getElementById('capAgentUnavailableNote');
+  const available = _devAgentMeta.available === true;
+  if (note) {
+    note.hidden = available;
+    if (!available) note.textContent = devHebrewUnavailableReason(_devAgentMeta.reason);
+  }
+  if (startBtn) {
+    startBtn.disabled = false;
+    startBtn.title = available
+      ? 'יוצר יכולת ומפעיל סוכן על ענף מבודד'
+      : devHebrewUnavailableReason(_devAgentMeta.reason);
+  }
+}
+
+async function capStartCapabilityAgent() {
+  await devEnsureMeta();
+  capRefreshAgentCta();
+  const created = await devCreateTask({ keepForm: true, silentOk: false });
+  if (!created) return;
+  if (!_devAgentMeta.available) {
+    devSetResult('devTaskCreateResult', devHebrewUnavailableReason(_devAgentMeta.reason), 'err');
+    capRefreshAgentCta();
+    return;
+  }
+  await devStartDevelopment();
+}
+
 function devRenderEvolvePlan(task) {
   const list = document.getElementById('evolvePlanList');
   const empty = document.getElementById('evolvePlanEmpty');
@@ -11537,31 +11767,12 @@ function devRenderEvolvePlan(task) {
 function devRenderEvolvePreview(task) {
   if (isEvolvePreviewFrame()) return;
   const frame = document.getElementById('evolvePreviewFrame');
-  const empty = document.getElementById('evolvePreviewEmpty');
-  const after = document.getElementById('evolvePreviewAfterNote');
-  const host = document.getElementById('evolveProductPreview');
-  const mockBefore = document.getElementById('evolveMissionMockBefore');
-  const mockAfter = document.getElementById('evolveMissionMockAfter');
-  const callout = document.getElementById('evolveMockCallout');
   if (frame) {
     frame.hidden = true;
     frame.removeAttribute('src');
     delete frame.dataset.tab;
   }
-  const intent = typeof devProductIntentText === 'function' ? devProductIntentText(task) : '';
-  const showAfter = _evolvePreviewMode === 'after';
-  if (host) host.dataset.mode = showAfter ? 'after' : 'before';
-  if (mockBefore) mockBefore.hidden = showAfter;
-  if (mockAfter) mockAfter.hidden = !showAfter;
-  if (callout) callout.textContent = intent || 'השינוי יופיע כאן אחרי בקשה.';
-  if (after) {
-    after.hidden = !(showAfter && intent);
-    after.textContent = showAfter && intent ? intent : '';
-  }
-  if (empty) {
-    empty.hidden = !showAfter || !!intent;
-    if (!intent) empty.textContent = 'אין תצוגת מוצר עדיין. כתבו מה לשנות במוצר.';
-  }
+  if (!_capDraftOverride) capRenderDraftCard(task);
 }
 
 function devSetEvolvePreviewMode(mode) {
@@ -12024,13 +12235,18 @@ async function devTasksLoadList() {
   }
 }
 
-async function devCreateTask() {
+async function devCreateTask(opts) {
+  opts = opts || {};
   const description = document.getElementById('devTaskDescription')?.value || '';
   const typedTitle = document.getElementById('devTaskTitle')?.value || '';
   const title = String(typedTitle).trim() || String(description).trim().split('\n')[0].slice(0, 140);
+  if (!String(title || '').trim()) {
+    devSetResult('devTaskCreateResult', 'כתבו כותרת או תיאור ליכולת', 'err');
+    return null;
+  }
   const taxonomy = document.getElementById('devTaskTaxonomy')?.value || 'FEATURE';
   const target_area = document.getElementById('devTaskTarget')?.value || 'OTHER';
-  const priority = document.getElementById('devTaskPriority')?.value || 'NORMAL';
+  const priority = document.getElementById('devTaskPriority')?.value || 'HIGH';
   const notes = document.getElementById('devTaskNotes')?.value || '';
   const r = await devApi('/api/development/tasks', {
     method: 'POST',
@@ -12039,15 +12255,25 @@ async function devCreateTask() {
   });
   if (!r.ok) {
     devSetResult('devTaskCreateResult', r.data?.message || 'יצירת המשימה נכשלה', 'err');
-    return;
+    return null;
   }
   const t = r.data.task;
-  devSetResult('devTaskCreateResult', `המשימה נוצרה: ${t.id} | ${t.status} | ${devFmtTime(t.created_at)}`, 'ok');
-  document.getElementById('devTaskTitle').value = '';
-  document.getElementById('devTaskDescription').value = '';
-  document.getElementById('devTaskNotes').value = '';
+  if (!opts.silentOk) {
+    devSetResult('devTaskCreateResult', `המשימה נוצרה: ${t.id} | ${t.status} | ${devFmtTime(t.created_at)}`, 'ok');
+  }
+  if (!opts.keepForm) {
+    const titleEl = document.getElementById('devTaskTitle');
+    const descEl = document.getElementById('devTaskDescription');
+    const notesEl = document.getElementById('devTaskNotes');
+    if (titleEl) titleEl.value = '';
+    if (descEl) descEl.value = '';
+    if (notesEl) notesEl.value = '';
+    _capDraftOverride = null;
+    capSetTaxonomy('FEATURE');
+  }
   _devSelectedTaskId = t.id;
   await devTasksLoadList();
+  return t;
 }
 
 async function devSaveTaskChanges() {
@@ -12072,25 +12298,8 @@ async function devSaveTaskChanges() {
 }
 
 document.getElementById('devTaskCreateBtn')?.addEventListener('click', () => { void devCreateTask(); });
-document.getElementById('evolveAdjustPlanBtn')?.addEventListener('click', () => {
-  const more = document.querySelector('.evolve-ask-more');
-  if (more) more.open = true;
-  document.getElementById('devTaskDescription')?.focus();
-});
-document.getElementById('evolvePreviewBeforeBtn')?.addEventListener('click', () => { devSetEvolvePreviewMode('before'); });
-document.getElementById('evolvePreviewAfterBtn')?.addEventListener('click', () => { devSetEvolvePreviewMode('after'); });
-document.getElementById('devTaskDescription')?.addEventListener('input', () => {
-  const selected = _devTasks.find((t) => t.id === _devSelectedTaskId) || null;
-  devRenderEvolvePreview(selected);
-});
-document.getElementById('devTaskTitle')?.addEventListener('input', () => {
-  const selected = _devTasks.find((t) => t.id === _devSelectedTaskId) || null;
-  devRenderEvolvePreview(selected);
-});
-document.getElementById('devTaskTarget')?.addEventListener('change', () => {
-  const selected = _devTasks.find((t) => t.id === _devSelectedTaskId) || null;
-  devRenderEvolvePreview(selected);
-});
+document.getElementById('capStartAgentBtn')?.addEventListener('click', () => { void capStartCapabilityAgent(); });
+capBindIntakeStudio();
 document.getElementById('devTaskRefreshBtn')?.addEventListener('click', () => { void devTasksLoadList(); });
 document.getElementById('devTaskFilterStatus')?.addEventListener('change', () => { void devTasksLoadList(); });
 document.getElementById('devTaskFilterTaxonomy')?.addEventListener('change', () => { void devTasksLoadList(); });

@@ -275,7 +275,7 @@ describe('Mission layout contract — live boxes', () => {
     });
 
     expect(measured.platformTab).toBe(false);
-    expect(measured.version).toBe('1.02.266');
+    expect(measured.version).toBe('1.02.267');
     expect(measured.ws.width).toBeGreaterThan(800);
     expect(measured.talkMinWidth).toBe('240px');
     expect(Number.parseFloat(measured.dataGap)).toBeLessThanOrEqual(4);
@@ -539,20 +539,20 @@ describe('Mission layout contract — live boxes', () => {
     await writeShot(page, 'status-widgets-contract.png');
   }, 45000);
 
-  it('keeps Evolve command and live-run regions from overlapping', async () => {
+  it('keeps Capability Intake studio and follow regions from overlapping', async () => {
     await page.locator('[data-tab="development"]').click({ force: true });
     await page.waitForFunction(() => document.getElementById('development')?.classList.contains('visible'));
-    await page.waitForSelector('.evolve-shell', { state: 'visible', timeout: 15000 });
+    await page.waitForSelector('.cap-intake-shell', { state: 'visible', timeout: 15000 });
     const evolve = await page.evaluate(() => {
       const box = (el) => {
         if (!el) return null;
         const r = el.getBoundingClientRect();
         return { left: r.left, top: r.top, right: r.right, bottom: r.bottom, width: r.width, height: r.height };
       };
-      const command = box(document.querySelector('.evolve-command'));
+      const studio = box(document.querySelector('.cap-studio'));
+      const draft = box(document.querySelector('.cap-draft-card'));
+      const follow = box(document.querySelector('.evolve-follow'));
       const live = box(document.querySelector('.evolve-live'));
-      const intent = box(document.querySelector('.evolve-intent'));
-      const preview = box(document.querySelector('.evolve-preview'));
       const delivery = box(document.querySelector('.evolve-delivery'));
       const backlog = box(document.querySelector('.evolve-backlog'));
       const cards = [...document.querySelectorAll('.evolve-run-card')].map(box);
@@ -560,12 +560,12 @@ describe('Mission layout contract — live boxes', () => {
       const panel = document.getElementById('development');
       const cs = getComputedStyle(shell);
       const ask = document.getElementById('devTaskDescription');
-      const hero = document.querySelector('.evolve-hero h3');
+      const hero = document.querySelector('.cap-studio-hero h3');
       return {
-        command,
+        studio,
+        draft,
+        follow,
         live,
-        intent,
-        preview,
         delivery,
         backlog,
         cards,
@@ -577,35 +577,42 @@ describe('Mission layout contract — live boxes', () => {
         heroText: hero?.textContent || '',
         heroColor: hero ? getComputedStyle(hero).color : '',
         placeholder: ask ? ask.getAttribute('placeholder') : '',
+        startLabel: document.getElementById('capStartAgentBtn')?.textContent || '',
+        draftLabel: document.getElementById('devTaskCreateBtn')?.textContent || '',
         planEmpty: document.getElementById('evolvePlanEmpty')?.textContent || '',
         testEmpty: document.getElementById('evolveTestEmpty')?.textContent || '',
         prEmpty: document.getElementById('evolvePrEmpty')?.textContent || '',
+        hasAhMock: !!document.getElementById('evolveMissionMockBefore'),
         maintenanceTab: !!document.querySelector('[data-tab="maintenance"]'),
       };
     });
     expect(evolve.maintenanceTab).toBe(false);
+    expect(evolve.hasAhMock).toBe(false);
     expect(evolve.display).toBe('grid');
     expect(evolve.panelDisplay).toMatch(/flex/);
     expect(evolve.panelHeight).toBeGreaterThan(240);
-    expect(evolve.heroText).toContain('פיתוח');
+    expect(evolve.heroText).toContain('יכולת חדשה');
     expect(evolve.heroColor).not.toMatch(/rgba\(0, 0, 0, 0\)/);
-    expect(Number.parseFloat(evolve.gap)).toBeLessThanOrEqual(8);
+    expect(Number.parseFloat(evolve.gap)).toBeLessThanOrEqual(10);
     expect(evolve.overflowY).toMatch(/auto|scroll/);
-    expect(evolve.placeholder).toBe('תארו מה לשנות…');
+    expect(evolve.placeholder).toContain('תארו את היכולת');
+    expect(evolve.startLabel).toContain('התחל סוכן יכולת');
+    expect(evolve.draftLabel).toContain('שמור טיוטה');
     expect(evolve.planEmpty).toContain('אין תוכנית עדיין');
     expect(evolve.testEmpty).toContain('אין בדיקות עדיין');
     expect(evolve.prEmpty).toContain('אין בקשת מיזוג עדיין');
-    expect(interiorsIntersect(evolve.command, evolve.live)).toBe(false);
-    expect(interiorsIntersect(evolve.intent, evolve.preview)).toBe(false);
-    expect(interiorsIntersect(evolve.preview, evolve.delivery)).toBe(false);
-    expect(interiorsIntersect(evolve.command, evolve.backlog)).toBe(false);
+    expect(interiorsIntersect(evolve.studio, evolve.draft)).toBe(false);
+    expect(interiorsIntersect(evolve.studio, evolve.follow)).toBe(false);
+    expect(interiorsIntersect(evolve.draft, evolve.follow)).toBe(false);
+    expect(interiorsIntersect(evolve.follow, evolve.delivery)).toBe(false);
+    expect(interiorsIntersect(evolve.studio, evolve.backlog)).toBe(false);
     expect(interiorsIntersect(evolve.live, evolve.backlog)).toBe(false);
     for (let i = 0; i < evolve.cards.length; i += 1) {
       for (let j = i + 1; j < evolve.cards.length; j += 1) {
         expect(interiorsIntersect(evolve.cards[i], evolve.cards[j]), 'evolve run cards overlap').toBe(false);
       }
     }
-    await writeShot(page, 'evolve-concept3.png');
+    await writeShot(page, 'capability-intake-f1.png');
   }, 45000);
 
   it('persists operator settings that can still be changed', async () => {
