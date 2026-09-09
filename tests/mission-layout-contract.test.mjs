@@ -275,7 +275,7 @@ describe('Mission layout contract — live boxes', () => {
     });
 
     expect(measured.platformTab).toBe(false);
-    expect(measured.version).toBe('1.02.265');
+    expect(measured.version).toBe('1.02.266');
     expect(measured.ws.width).toBeGreaterThan(800);
     expect(measured.talkMinWidth).toBe('240px');
     expect(Number.parseFloat(measured.dataGap)).toBeLessThanOrEqual(4);
