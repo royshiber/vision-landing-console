@@ -3475,7 +3475,7 @@ let _pulseWidgetPlace = 'auto';
 function suggestPulseWidgetFields(text) {
   const raw = String(text || '').trim().toLowerCase().replace(/\s+/g, ' ');
   if (!raw) {
-    return { chips: PULSE_WIDGET_CATALOG.slice(0, 6), hint: 'כתבו מה להציג, או בחרו אפשרות.', exact: null };
+    return { chips: PULSE_WIDGET_CATALOG.slice(), hint: 'כתבו מה להציג, או בחרו אפשרות.', exact: null };
   }
   const ranked = PULSE_WIDGET_CATALOG.map((entry) => {
     let score = 0;
