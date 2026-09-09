@@ -1,21 +1,5 @@
 [
   {
-    "version": "1.02.269",
-    "date": "2026-09-09",
-    "changes": [
-      {
-        "type": "feat",
-        "title": "UI / app.js",
-        "detail": "app.js"
-      },
-      {
-        "type": "test",
-        "title": "Tests",
-        "detail": "airvix-268-capability-runway.test.mjs, mission-layout-contract.test.mjs"
-      }
-    ]
-  },
-  {
     "version": "1.02.268",
     "date": "2026-09-09",
     "changes": [
