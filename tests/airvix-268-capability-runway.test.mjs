@@ -75,6 +75,8 @@ describe('AIRVIX 1.02.268 Capability Runway Kanban F2', () => {
     expect(panel).toContain('מסלול יכולות');
     expect(js).toContain('function capRunwayLane(');
     expect(js).toContain('function capRenderRunway(');
+    expect(sliceFunction(js, 'capRenderRunway')).toContain('dataset.runwayCardLane');
+    expect(sliceFunction(js, 'capRenderRunway')).not.toContain('dataset.runwayLane');
     expect(sliceFunction(js, 'devRenderTaskList')).toContain('capRenderRunway()');
     expect(css).toContain('.cap-runway-board');
     expect(css).toMatch(/grid-area:\s*runway/);

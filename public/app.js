@@ -11794,7 +11794,7 @@ function capRenderRunway() {
       card.type = 'button';
       card.className = 'cap-runway-card';
       card.dataset.taskId = t.id;
-      card.dataset.runwayLane = lane;
+      card.dataset.runwayCardLane = lane;
       if (t.id === _devSelectedTaskId) card.dataset.selected = 'true';
       const title = document.createElement('strong');
       title.className = 'cap-runway-card-title';
