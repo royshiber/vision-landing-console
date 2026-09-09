@@ -1,36 +1,5 @@
 [
   {
-    "version": "1.02.269",
-    "date": "2026-09-09",
-    "changes": [
-      {
-        "type": "feat",
-        "title": "UI / app.js",
-        "detail": "app.js"
-      },
-      {
-        "type": "feat",
-        "title": "Frontend",
-        "detail": "changelog.json"
-      },
-      {
-        "type": "ui",
-        "title": "HTML layout",
-        "detail": "index.html"
-      },
-      {
-        "type": "ui",
-        "title": "Styles",
-        "detail": "styles.css"
-      },
-      {
-        "type": "test",
-        "title": "Tests",
-        "detail": "advisor-assist-fold.test.mjs, airvix-259-roy-feedback.test.mjs, airvix-260-roy-feedback.test.mjs, airvix-263-roy-feedback.test.mjs, airvix-264-roy-feedback.test.mjs, airvix-265-status-develop.test.mjs, airvix-266-capability-intake.test.mjs, airvix-266-status-densify.test.mjs, airvix-268-capability-runway.test.mjs, ardulab-assist-fold.test.mjs, attention-policy.test.mjs, auto-config-assist-fold.test.mjs, debrief-flights-fold.test.mjs, flight-engineer-assist-fold.test.mjs, mission-assist-posture.test.mjs, mission-layout-contract.test.mjs, mission-workspace-chrome.test.mjs, orphan-processes-remove.test.mjs, platform-capability-shells.test.mjs, readiness-merge.test.mjs, sim-lab-connect-handoff.test.mjs, telemetry-platform-fold.test.mjs"
-      }
-    ]
-  },
-  {
     "version": "1.02.268",
     "date": "2026-09-09",
     "changes": [
