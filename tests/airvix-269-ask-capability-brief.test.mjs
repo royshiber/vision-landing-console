@@ -124,6 +124,8 @@ describe('AIRVIX 1.02.269 Ask → Capability Brief F4', () => {
     expect(html).toMatch(/id="assistCapStartAgentBtn"[^>]*>התחל סוכן</);
     expect(html).toContain('סוכן הפיתוח אינו זמין. חברו אותו ב-AIRVIX Ask.');
     expect(css).toContain('.assist-cap-brief');
+    expect(css).toContain('.assist-rail:not(.assist-rail--mission) .assist-proposal-bar');
+    expect(css).toContain('max-height: 42vh');
     expect(js).toContain('function assistRenderCapabilityBrief(');
     expect(js).toContain('function capHandoffFromAsk(');
     expect(js).toContain('function assistOpenCapabilityInDevelop(');

@@ -1,5 +1,21 @@
 [
   {
+    "version": "1.02.270",
+    "date": "2026-09-10",
+    "changes": [
+      {
+        "type": "ui",
+        "title": "Styles",
+        "detail": "styles.css"
+      },
+      {
+        "type": "test",
+        "title": "Tests",
+        "detail": "airvix-269-ask-capability-brief.test.mjs"
+      }
+    ]
+  },
+  {
     "version": "1.02.269",
     "date": "2026-09-10",
     "changes": [

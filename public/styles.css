@@ -15015,6 +15015,35 @@ details.flight-manage summary {
   border-inline-start: 1px solid rgba(255, 255, 255, 0.1);
   box-shadow: -8px 0 28px rgba(0, 0, 0, 0.35);
   backdrop-filter: blur(10px);
+  overflow: hidden;
+  min-height: 0;
+}
+.assist-rail:not(.assist-rail--mission) .assist-transcript-well {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+.assist-rail:not(.assist-rail--mission) .assist-proposal-bar {
+  flex: 0 1 auto;
+  max-height: 42vh;
+  overflow: auto;
+}
+.assist-rail:not(.assist-rail--mission) .assist-composer,
+.assist-rail:not(.assist-rail--mission) .assist-agent-connect,
+.assist-rail:not(.assist-rail--mission) .assist-run-panel {
+  flex-shrink: 0;
+  min-width: 0;
+}
+.assist-rail:not(.assist-rail--mission) .assist-form {
+  min-width: 0;
+}
+.assist-rail:not(.assist-rail--mission) .assist-mic-btn {
+  min-width: 48px;
+  max-width: 72px;
+  padding: 8px;
+}
+.assist-rail:not(.assist-rail--mission) .assist-mic-label {
+  display: none;
 }
 .assist-rail[hidden] { display: none !important; }
 body.mission-assist-docked .assist-rail,
