@@ -1,36 +1,5 @@
 [
   {
-    "version": "1.02.270",
-    "date": "2026-09-10",
-    "changes": [
-      {
-        "type": "feat",
-        "title": "Server library",
-        "detail": "assist-hebrew.mjs, assist-intent-resolver.mjs, assist-service.mjs, capability-brief.mjs, assist-api.mjs"
-      },
-      {
-        "type": "feat",
-        "title": "UI / app.js",
-        "detail": "app.js"
-      },
-      {
-        "type": "feat",
-        "title": "Frontend",
-        "detail": "changelog.json"
-      },
-      {
-        "type": "ui",
-        "title": "HTML layout",
-        "detail": "index.html"
-      },
-      {
-        "type": "ui",
-        "title": "Styles",
-        "detail": "styles.css"
-      }
-    ]
-  },
-  {
     "version": "1.02.269",
     "date": "2026-09-10",
     "changes": [
