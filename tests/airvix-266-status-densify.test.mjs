@@ -47,10 +47,10 @@ function pulsePanel() {
   return html.slice(start, next === -1 ? undefined : next);
 }
 
-describe('AIRVIX 1.02.267 computer-status densify', () => {
-  it('pins APP_VERSION at 1.02.267', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.267'");
-    expect(pkg.version).toBe('1.02.267');
+describe('AIRVIX 1.02.268 computer-status densify', () => {
+  it('pins APP_VERSION at 1.02.268', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.268'");
+    expect(pkg.version).toBe('1.02.268');
   });
 
   it('keeps מסייע out of public UI', () => {

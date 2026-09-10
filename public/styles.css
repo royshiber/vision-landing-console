@@ -5588,6 +5588,7 @@ body:has(#pulse.panel.visible) .layout {
   grid-template-columns: minmax(280px, 0.92fr) minmax(360px, 1.35fr);
   grid-template-areas:
     "draft studio"
+    "runway runway"
     "follow follow"
     "delivery delivery"
     "backlog backlog"
@@ -5608,6 +5609,7 @@ body:has(#pulse.panel.visible) .layout {
 .cap-draft-card { grid-area: draft; }
 .cap-studio { grid-area: studio; }
 .evolve-hero { grid-area: auto; }
+.cap-runway { grid-area: runway; }
 .evolve-follow { grid-area: follow; }
 .evolve-delivery { grid-area: delivery; }
 .evolve-backlog { grid-area: backlog; }
@@ -5894,6 +5896,100 @@ body:has(#pulse.panel.visible) .layout {
   margin: 0;
   font-size: 0.7rem;
   color: #64748b;
+}
+.cap-runway {
+  min-width: 0;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 12px;
+  background: #121826;
+  padding: 12px 14px;
+  color: #e8edf6;
+}
+.cap-runway-head {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+.cap-runway-badge {
+  display: inline-flex;
+  width: fit-content;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(59, 130, 246, 0.16);
+  border: 1px solid rgba(96, 165, 250, 0.4);
+  color: #bfdbfe;
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+.cap-runway-caption {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #94a3b8;
+}
+.cap-runway-board {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(140px, 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+.cap-runway-col {
+  min-width: 0;
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  padding: 8px;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: #0d1320;
+}
+.cap-runway-col-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+.cap-runway-lane {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: #e2e8f0;
+}
+.cap-runway-count {
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: #93c5fd;
+}
+.cap-runway-cards {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+.cap-runway-card {
+  display: grid;
+  gap: 4px;
+  text-align: start;
+  min-width: 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  background: #121826;
+  color: #e8edf6;
+  font: inherit;
+  cursor: pointer;
+}
+.cap-runway-card[data-selected="true"] {
+  border-color: #4c8dff;
+}
+.cap-runway-card-title {
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+.cap-runway-card-meta {
+  font-size: 0.68rem;
+  color: #94a3b8;
+}
+.cap-runway-empty {
+  margin: 0;
 }
 .evolve-follow {
   display: grid;
@@ -6231,10 +6327,14 @@ body:has(#pulse.panel.visible) .layout {
     grid-template-areas:
       "studio"
       "draft"
+      "runway"
       "follow"
       "delivery"
       "backlog"
       "detail";
+  }
+  .cap-runway-board {
+    grid-template-columns: minmax(0, 1fr);
   }
   .evolve-delivery,
   .evolve-follow,
@@ -15693,6 +15793,7 @@ body:has(#pulse.panel.visible) .layout {
 #development.panel.visible .evolve-pr,
 #development.panel.visible .cap-draft-card,
 #development.panel.visible .cap-studio,
+#development.panel.visible .cap-runway,
 #development.panel.visible .devtasks-create,
 #development.panel.visible .devtasks-list,
 #development.panel.visible .devtasks-detail {

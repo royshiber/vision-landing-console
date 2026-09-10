@@ -11219,6 +11219,7 @@ const DEV_PRIORITIES = ['LOW', 'NORMAL', 'HIGH', 'CRITICAL'];
 const DEV_TAXONOMIES = ['IDEA', 'REQUEST', 'IMPROVEMENT', 'BUG', 'EXPERIMENT', 'FEATURE'];
 const DEV_TARGETS = ['VISION', 'NAVIGATION', 'LANDING', 'VIDEO', 'MAVLINK', 'COMPANION', 'UI', 'API', 'MAINTENANCE', 'OTHER'];
 const CAP_INTAKE_TAXONOMY_ORDER = ['FEATURE', 'REQUEST', 'IDEA', 'IMPROVEMENT', 'BUG', 'EXPERIMENT'];
+const CAP_RUNWAY_LANES = ['IDEA', 'RUNNING', 'VERIFY', 'PR', 'DONE'];
 const CAP_INTAKE_EXAMPLES = {
   precision: {
     title: 'נחיתה מדויקת עם אזורי נחיתה על המפה',
@@ -11456,6 +11457,7 @@ function devRenderTaskList() {
   if (!_devTasks.length) {
     if (empty) empty.hidden = false;
     devSyncEmptyOverview();
+    capRenderRunway();
     return;
   }
   if (empty) empty.hidden = true;
@@ -11471,6 +11473,7 @@ function devRenderTaskList() {
     body.appendChild(tr);
   }
   devSyncEmptyOverview();
+  capRenderRunway();
   devRenderEvolveLiveRuns();
 }
 
@@ -11734,6 +11737,81 @@ async function capStartCapabilityAgent() {
     return;
   }
   await devStartDevelopment();
+}
+
+function capRunwayHasPr(task) {
+  const raw = String(task?.agent?.pr_url || task?.pr_url || '').trim();
+  if (/^https:\/\//i.test(raw)) return true;
+  if (/^http:\/\/127\.0\.0\.1(?::\d+)?(?:\/|$)/i.test(raw)) return true;
+  return false;
+}
+
+function capRunwayLane(task) {
+  const status = String(task?.status || '').toUpperCase();
+  const agent = String(task?.agent?.state || task?.agent?.status || '').toUpperCase();
+  const tests = String(task?.tests?.state || 'NOT_STARTED').toUpperCase();
+  const release = String(task?.release?.state || 'NOT_STARTED').toUpperCase();
+  const deploy = String(task?.deployment?.state || 'NOT_STARTED').toUpperCase();
+  const hasPr = capRunwayHasPr(task);
+  if (['RELEASED', 'DEPLOYED'].includes(status) || release === 'DEPLOYED' || deploy === 'DEPLOYED') return 'DONE';
+  if (hasPr || ['WAITING_FOR_REVIEW', 'READY_FOR_RELEASE'].includes(status) || release === 'READY') return 'PR';
+  if (status === 'TESTING' || ['QUEUED', 'RUNNING', 'PASSED', 'FAILED'].includes(tests) || agent === 'SUCCEEDED') return 'VERIFY';
+  if (
+    ['QUEUED', 'IN_PROGRESS'].includes(status)
+    || ['RUNNING', 'QUEUED', 'WAITING', 'ACTIVE', 'IN_PROGRESS', 'FAILED'].includes(agent)
+  ) return 'RUNNING';
+  return 'IDEA';
+}
+
+function capRunwayCardMeta(task) {
+  const bits = [task?.taxonomy || 'FEATURE', task?.status || 'DRAFT'];
+  const agent = String(task?.agent?.state || '').toUpperCase();
+  if (agent && agent !== 'NOT_STARTED') bits.push(agent);
+  const tests = String(task?.tests?.state || '').toUpperCase();
+  if (tests && tests !== 'NOT_STARTED') bits.push(tests);
+  return bits.join(' · ');
+}
+
+function capRenderRunway() {
+  const board = document.getElementById('capRunwayBoard');
+  if (!board) return;
+  const grouped = { IDEA: [], RUNNING: [], VERIFY: [], PR: [], DONE: [] };
+  for (const task of _devTasks) {
+    const lane = capRunwayLane(task);
+    (grouped[lane] || grouped.IDEA).push(task);
+  }
+  for (const lane of CAP_RUNWAY_LANES) {
+    const host = board.querySelector(`[data-runway-cards="${lane}"]`);
+    const empty = board.querySelector(`[data-runway-empty="${lane}"]`);
+    const count = board.querySelector(`[data-runway-count="${lane}"]`);
+    const tasks = grouped[lane] || [];
+    if (count) count.textContent = String(tasks.length);
+    if (empty) empty.hidden = tasks.length > 0;
+    if (!host) continue;
+    host.innerHTML = '';
+    for (const t of tasks) {
+      const card = document.createElement('button');
+      card.type = 'button';
+      card.className = 'cap-runway-card';
+      card.dataset.taskId = t.id;
+      card.dataset.runwayCardLane = lane;
+      if (t.id === _devSelectedTaskId) card.dataset.selected = 'true';
+      const title = document.createElement('strong');
+      title.className = 'cap-runway-card-title';
+      title.textContent = t.title || '—';
+      const meta = document.createElement('span');
+      meta.className = 'cap-runway-card-meta';
+      meta.textContent = capRunwayCardMeta(t);
+      card.appendChild(title);
+      card.appendChild(meta);
+      card.addEventListener('click', () => {
+        _devSelectedTaskId = t.id;
+        devRenderTaskList();
+        void devLoadTaskDetail(t.id);
+      });
+      host.appendChild(card);
+    }
+  }
 }
 
 function devRenderEvolvePlan(task) {

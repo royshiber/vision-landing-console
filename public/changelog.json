@@ -1,5 +1,16 @@
 [
   {
+    "version": "1.02.268",
+    "date": "2026-09-09",
+    "changes": [
+      {
+        "type": "ui",
+        "title": "Develop adds Capability Runway Kanban",
+        "detail": "F2 Capability Runway sits under F1 intake on the Develop tab. Real Development Tasks are placed into IDEA → RUNNING → VERIFY → PR → DONE from existing status / agent / tests / PR / release / deploy fields only. Empty columns stay empty. Cards open the existing task detail. No invented progress. No artificial-horizon polish. No FC write and no Companion apply/restart. APP_VERSION 1.02.268."
+      }
+    ]
+  },
+  {
     "version": "1.02.267",
     "date": "2026-09-09",
     "changes": [

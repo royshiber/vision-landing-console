@@ -275,7 +275,7 @@ describe('Mission layout contract — live boxes', () => {
     });
 
     expect(measured.platformTab).toBe(false);
-    expect(measured.version).toBe('1.02.267');
+    expect(measured.version).toBe('1.02.268');
     expect(measured.ws.width).toBeGreaterThan(800);
     expect(measured.talkMinWidth).toBe('240px');
     expect(Number.parseFloat(measured.dataGap)).toBeLessThanOrEqual(4);
@@ -551,11 +551,14 @@ describe('Mission layout contract — live boxes', () => {
       };
       const studio = box(document.querySelector('.cap-studio'));
       const draft = box(document.querySelector('.cap-draft-card'));
+      const runway = box(document.querySelector('.cap-runway'));
       const follow = box(document.querySelector('.evolve-follow'));
       const live = box(document.querySelector('.evolve-live'));
       const delivery = box(document.querySelector('.evolve-delivery'));
       const backlog = box(document.querySelector('.evolve-backlog'));
       const cards = [...document.querySelectorAll('.evolve-run-card')].map(box);
+      const runwayCards = [...document.querySelectorAll('.cap-runway-card')].map(box);
+      const lanes = [...document.querySelectorAll('[data-runway-lane]')].map((el) => el.getAttribute('data-runway-lane'));
       const shell = document.querySelector('.evolve-shell');
       const panel = document.getElementById('development');
       const cs = getComputedStyle(shell);
@@ -564,6 +567,9 @@ describe('Mission layout contract — live boxes', () => {
       return {
         studio,
         draft,
+        runway,
+        lanes,
+        runwayCards,
         follow,
         live,
         delivery,
@@ -584,10 +590,18 @@ describe('Mission layout contract — live boxes', () => {
         prEmpty: document.getElementById('evolvePrEmpty')?.textContent || '',
         hasAhMock: !!document.getElementById('evolveMissionMockBefore'),
         maintenanceTab: !!document.querySelector('[data-tab="maintenance"]'),
+        runwayTitle: document.querySelector('.cap-runway .evolve-section-title')?.textContent || '',
+        f1: document.querySelector('.cap-intake-shell')?.getAttribute('data-cap-intake') || '',
+        f2: document.querySelector('[data-cap-runway]')?.getAttribute('data-cap-runway') || '',
       };
     });
     expect(evolve.maintenanceTab).toBe(false);
     expect(evolve.hasAhMock).toBe(false);
+    expect(evolve.f1).toBe('f1');
+    expect(evolve.f2).toBe('f2');
+    expect(evolve.runwayTitle).toContain('מסלול יכולות');
+    expect(evolve.lanes).toEqual(['IDEA', 'RUNNING', 'VERIFY', 'PR', 'DONE']);
+    expect(evolve.runway).toBeTruthy();
     expect(evolve.display).toBe('grid');
     expect(evolve.panelDisplay).toMatch(/flex/);
     expect(evolve.panelHeight).toBeGreaterThan(240);
@@ -602,6 +616,9 @@ describe('Mission layout contract — live boxes', () => {
     expect(evolve.testEmpty).toContain('אין בדיקות עדיין');
     expect(evolve.prEmpty).toContain('אין בקשת מיזוג עדיין');
     expect(interiorsIntersect(evolve.studio, evolve.draft)).toBe(false);
+    expect(interiorsIntersect(evolve.studio, evolve.runway)).toBe(false);
+    expect(interiorsIntersect(evolve.draft, evolve.runway)).toBe(false);
+    expect(interiorsIntersect(evolve.runway, evolve.follow)).toBe(false);
     expect(interiorsIntersect(evolve.studio, evolve.follow)).toBe(false);
     expect(interiorsIntersect(evolve.draft, evolve.follow)).toBe(false);
     expect(interiorsIntersect(evolve.follow, evolve.delivery)).toBe(false);
@@ -612,7 +629,13 @@ describe('Mission layout contract — live boxes', () => {
         expect(interiorsIntersect(evolve.cards[i], evolve.cards[j]), 'evolve run cards overlap').toBe(false);
       }
     }
+    for (let i = 0; i < evolve.runwayCards.length; i += 1) {
+      for (let j = i + 1; j < evolve.runwayCards.length; j += 1) {
+        expect(interiorsIntersect(evolve.runwayCards[i], evolve.runwayCards[j]), 'runway cards overlap').toBe(false);
+      }
+    }
     await writeShot(page, 'capability-intake-f1.png');
+    await writeShot(page, 'capability-runway-f2.png');
   }, 45000);
 
   it('persists operator settings that can still be changed', async () => {
