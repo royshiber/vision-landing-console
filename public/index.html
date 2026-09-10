@@ -137,8 +137,24 @@
       <div id="assistRunPanel" class="assist-run-panel" data-kind="unavailable" hidden aria-live="polite"></div>
       <div id="assistProposalBar" class="assist-proposal-bar" hidden>
         <p id="assistProposalText" class="assist-proposal-text"></p>
+        <article id="assistCapabilityBrief" class="assist-cap-brief" hidden data-cap-brief="f4" aria-label="כרטיס יכולת">
+          <h4 class="assist-cap-kicker">כרטיס יכולת</h4>
+          <strong id="assistCapTitle" class="assist-cap-title">יכולת חדשה</strong>
+          <dl class="assist-cap-fields">
+            <div class="assist-cap-row"><dt>מה</dt><dd id="assistCapWhat">—</dd></div>
+            <div class="assist-cap-row"><dt>למה</dt><dd id="assistCapWhy">—</dd></div>
+            <div class="assist-cap-row"><dt>מודולים</dt><dd id="assistCapModules">—</dd></div>
+            <div class="assist-cap-row"><dt>סיווג</dt><dd id="assistCapTaxonomy">FEATURE</dd></div>
+          </dl>
+          <p id="assistCapUnavailableNote" class="assist-cap-unavailable" hidden>סוכן הפיתוח אינו זמין. חברו אותו ב-AIRVIX Ask.</p>
+          <div class="assist-cap-actions">
+            <button type="button" id="assistCapOpenDevelopBtn" class="assist-btn assist-btn-confirm">פתח בפיתוח</button>
+            <button type="button" id="assistCapSaveDraftBtn" class="assist-btn assist-btn-cancel">שמור טיוטה</button>
+            <button type="button" id="assistCapStartAgentBtn" class="assist-btn assist-btn-confirm">התחל סוכן</button>
+          </div>
+        </article>
         <p id="assistProposalWarn" class="assist-proposal-warn" hidden>הסוכן מנותק. חברו מפתח לפני אישור. אחרת תיווצר משימה בלי הרצת סוכן.</p>
-        <div class="assist-proposal-actions">
+        <div id="assistProposalActions" class="assist-proposal-actions">
           <button type="button" id="assistConfirmBtn" class="assist-btn assist-btn-confirm">אישור</button>
           <button type="button" id="assistCancelBtn" class="assist-btn assist-btn-cancel">ביטול</button>
         </div>

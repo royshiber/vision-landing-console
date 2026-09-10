@@ -12433,6 +12433,7 @@ const ASSIST_TAB_CAPABILITY = {
 };
 
 let _assistPendingProposalId = null;
+let _assistPendingBrief = null;
 let _assistHistory = [];
 let _assistRunPoll = null;
 let _assistRunTaskId = null;
@@ -12645,19 +12646,127 @@ function assistAppendMessage({ role, text, meta, kind }) {
   assistSyncMessagesEmpty();
 }
 
+function assistRenderCapabilityBrief(brief) {
+  const card = document.getElementById('assistCapabilityBrief');
+  if (!card) return;
+  const setText = (id, value) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = value || '—';
+  };
+  const modules = Array.isArray(brief?.modules) ? brief.modules.filter(Boolean) : [];
+  setText('assistCapTitle', brief?.title || 'יכולת חדשה');
+  setText('assistCapWhat', brief?.what || brief?.description || '—');
+  setText('assistCapWhy', brief?.why || '—');
+  setText('assistCapModules', modules.length ? modules.join(' · ') : '—');
+  setText('assistCapTaxonomy', brief?.taxonomy || 'FEATURE');
+  assistRefreshCapabilityAgentCta();
+}
+
+function assistRefreshCapabilityAgentCta() {
+  const note = document.getElementById('assistCapUnavailableNote');
+  const startBtn = document.getElementById('assistCapStartAgentBtn');
+  const available = _assistAgentConnected === true || _devAgentMeta?.available === true;
+  const reason = available
+    ? ''
+    : (typeof devHebrewUnavailableReason === 'function'
+      ? devHebrewUnavailableReason(_devAgentMeta?.reason)
+      : 'סוכן הפיתוח אינו זמין. חברו אותו ב-AIRVIX Ask.');
+  if (note) {
+    note.hidden = available || !_assistPendingBrief;
+    if (!available) note.textContent = reason;
+  }
+  if (startBtn) {
+    startBtn.disabled = false;
+    startBtn.title = available
+      ? 'יוצר יכולת ומפעיל סוכן על ענף מבודד'
+      : reason;
+  }
+}
+
+function capHandoffFromAsk(brief) {
+  if (!brief || typeof brief !== 'object') return;
+  applyMainTab('development');
+  try { history.replaceState(null, '', '#development'); } catch { /* ignore */ }
+  _capDraftOverride = {
+    title: brief.title,
+    description: brief.description || brief.what,
+    taxonomy: brief.taxonomy || 'FEATURE',
+    target: brief.target_area || 'OTHER',
+    priority: brief.priority || 'HIGH',
+    modules: brief.modules,
+    why: brief.why,
+    impact: brief.impact,
+  };
+  const title = document.getElementById('devTaskTitle');
+  const desc = document.getElementById('devTaskDescription');
+  const target = document.getElementById('devTaskTarget');
+  const priority = document.getElementById('devTaskPriority');
+  if (title) title.value = brief.title || '';
+  if (desc) desc.value = brief.description || brief.what || '';
+  if (target) target.value = brief.target_area || 'OTHER';
+  if (priority) priority.value = brief.priority || 'HIGH';
+  capSetTaxonomy(brief.taxonomy || 'FEATURE');
+  _capDraftOverride = {
+    title: brief.title,
+    description: brief.description || brief.what,
+    taxonomy: brief.taxonomy || 'FEATURE',
+    target: brief.target_area || 'OTHER',
+    priority: brief.priority || 'HIGH',
+    modules: brief.modules,
+    why: brief.why,
+    impact: brief.impact,
+  };
+  capRenderDraftCard();
+  const studio = document.querySelector('#development .cap-studio');
+  if (studio && typeof studio.scrollIntoView === 'function') {
+    studio.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  if (title && typeof title.focus === 'function') title.focus({ preventScroll: true });
+}
+
+async function assistOpenCapabilityInDevelop() {
+  const brief = _assistPendingBrief;
+  if (!brief) return;
+  await assistConfirm(false, { silent: true });
+  capHandoffFromAsk(brief);
+  assistAppendMessage({
+    role: 'assist',
+    text: 'הכרטיס נפתח בפיתוח.',
+    kind: 'INFORMATION',
+  });
+}
+
 function assistSetProposalBar(response) {
   const bar = document.getElementById('assistProposalBar');
   const textEl = document.getElementById('assistProposalText');
+  const briefEl = document.getElementById('assistCapabilityBrief');
+  const genericActions = document.getElementById('assistProposalActions');
   if (!bar || !textEl) return;
-  if (response?.requires_confirmation && response?.action_proposal?.id) {
-    _assistPendingProposalId = response.action_proposal.id;
+  const proposal = response?.action_proposal;
+  const brief = response?.capability_brief || proposal?.payload?.capability_brief || null;
+  const isCap = proposal?.action === 'CREATE_DEVELOPMENT_TASK' && !!brief;
+  if (response?.requires_confirmation && proposal?.id) {
+    _assistPendingProposalId = proposal.id;
+    _assistPendingBrief = isCap ? brief : null;
     textEl.textContent = response.answer || 'לאשר את הפעולה?';
     bar.hidden = false;
+    if (isCap) {
+      assistRenderCapabilityBrief(brief);
+      if (briefEl) briefEl.hidden = false;
+      if (genericActions) genericActions.hidden = true;
+    } else {
+      if (briefEl) briefEl.hidden = true;
+      if (genericActions) genericActions.hidden = false;
+    }
   } else {
     _assistPendingProposalId = null;
+    _assistPendingBrief = null;
     bar.hidden = true;
+    if (briefEl) briefEl.hidden = true;
+    if (genericActions) genericActions.hidden = false;
   }
   assistSyncProposalWarn();
+  assistRefreshCapabilityAgentCta();
 }
 
 function assistStopRunPolling() {
@@ -12868,13 +12977,17 @@ async function assistSendText(rawText) {
   }
 }
 
-async function assistConfirm(confirm) {
+async function assistConfirm(confirm, { startAgent = true, silent = false } = {}) {
   if (!_assistPendingProposalId) return;
   const proposalId = _assistPendingProposalId;
   const r = await fetch('/api/assist/confirm', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ proposal_id: proposalId, confirm: !!confirm }),
+    body: JSON.stringify({
+      proposal_id: proposalId,
+      confirm: !!confirm,
+      start_agent: startAgent !== false,
+    }),
   });
   const data = await r.json().catch(() => ({}));
   assistSetProposalBar(null);
@@ -12883,34 +12996,45 @@ async function assistConfirm(confirm) {
     return;
   }
   if (!confirm) {
-    assistAppendMessage({
-      role: 'assist',
-      text: data.answer || 'הפעולה בוטלה.',
-      kind: 'INFORMATION',
-    });
+    if (!silent) {
+      assistAppendMessage({
+        role: 'assist',
+        text: data.answer || 'הפעולה בוטלה.',
+        kind: 'INFORMATION',
+      });
+    }
     return;
   }
   if (data.action === 'CREATE_DEVELOPMENT_TASK' && data.result) {
     const taskId = data.result.task?.id;
-    assistRenderRunStatus({
-      answer: data.answer,
-      task_id: taskId,
-      agent_state: data.result.task?.agent_state,
-      last_message: data.result.task?.last_message,
-      progress: data.result.task?.progress,
-      branch: data.result.task?.branch || data.result.worktree?.branch,
-      pr_url: data.result.task?.pr_url,
-    }, {
-      agentStarted: data.result.agent_started === true,
-      unavailableReason: data.result.agent_unavailable_reason || null,
-    });
-    if (data.result.agent_started === true && taskId) {
-      assistStartRunPolling(taskId);
+    const draftOnly = startAgent === false || data.result.agent_runtime === 'NOT_STARTED';
+    if (draftOnly && data.result.agent_started !== true) {
+      assistAppendMessage({
+        role: 'assist',
+        text: data.answer || 'הטיוטה נשמרה בפיתוח.',
+        kind: 'INFORMATION',
+      });
     } else {
-      assistStopRunPolling();
-    }
-    if (data.result.agent_started !== true) {
-      void assistRefreshAgentConnection();
+      assistRenderRunStatus({
+        answer: data.answer,
+        task_id: taskId,
+        agent_state: data.result.task?.agent_state,
+        last_message: data.result.task?.last_message,
+        progress: data.result.task?.progress,
+        branch: data.result.task?.branch || data.result.worktree?.branch,
+        pr_url: data.result.task?.pr_url,
+      }, {
+        agentStarted: data.result.agent_started === true,
+        unavailableReason: data.result.agent_unavailable_reason || null,
+      });
+      if (data.result.agent_started === true && taskId) {
+        assistStartRunPolling(taskId);
+      } else {
+        assistStopRunPolling();
+      }
+      if (data.result.agent_started !== true) {
+        void assistRefreshAgentConnection();
+      }
     }
   } else {
     assistAppendMessage({
@@ -12986,6 +13110,7 @@ function assistRenderAgentConnection(status) {
   if (!errorText) assistSetConnectError('');
   assistSyncConnectButton();
   if (typeof pulseRefresh === 'function') pulseRefresh();
+  assistRefreshCapabilityAgentCta();
 }
 
 async function assistRefreshAgentConnection() {
@@ -13850,6 +13975,9 @@ function initAssistUi() {
   initAssistMic();
   document.getElementById('assistConfirmBtn')?.addEventListener('click', () => { void assistConfirm(true); });
   document.getElementById('assistCancelBtn')?.addEventListener('click', () => { void assistConfirm(false); });
+  document.getElementById('assistCapOpenDevelopBtn')?.addEventListener('click', () => { void assistOpenCapabilityInDevelop(); });
+  document.getElementById('assistCapSaveDraftBtn')?.addEventListener('click', () => { void assistConfirm(true, { startAgent: false }); });
+  document.getElementById('assistCapStartAgentBtn')?.addEventListener('click', () => { void assistConfirm(true, { startAgent: true }); });
   document.getElementById('assistAgentConnectForm')?.addEventListener('submit', (e) => { void assistConnectAgent(e); });
   document.getElementById('assistAgentKey')?.addEventListener('input', () => {
     assistSetConnectError('');
