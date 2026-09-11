@@ -13298,7 +13298,7 @@ function developChatRenderPreview(session) {
 
 function developChatProgressLabel(status) {
   if (status === 'recorded') return 'נרשם מקומית';
-  if (status === 'queued') return 'מותר להתקין';
+  if (status === 'allowed' || status === 'queued') return 'מותר להתקין';
   if (status === 'installing') return 'מתקין';
   return 'ממתין';
 }
@@ -13311,6 +13311,9 @@ function developChatSyncGates(session) {
   const fc = session?.gates?.fc_install;
   const jetsonBtn = document.getElementById('developGateJetsonBtn');
   const fcBtn = document.getElementById('developGateFcBtn');
+  const actions = document.getElementById('developInstallActions');
+  const authorized = Boolean(session?.install?.authorized);
+  if (actions) actions.hidden = !ready || authorized;
   if (jetsonBtn) {
     jetsonBtn.disabled = !jetson?.enabled;
     jetsonBtn.dataset.approved = jetson?.approved ? '1' : '0';
@@ -13341,8 +13344,8 @@ function developChatSyncGates(session) {
     if (!ready) {
       progress.textContent = '';
     } else {
-      const jetsonSt = session?.install?.progress?.jetson_upload?.status || 'queued';
-      const fcSt = session?.install?.progress?.fc_install?.status || 'queued';
+      const jetsonSt = session?.install?.progress?.jetson_upload?.status || 'allowed';
+      const fcSt = session?.install?.progress?.fc_install?.status || 'allowed';
       progress.textContent = [
         `מחשב משימה · ${developChatProgressLabel(jetsonSt)}`,
         `בקר טיסה · ${developChatProgressLabel(fcSt)}`,

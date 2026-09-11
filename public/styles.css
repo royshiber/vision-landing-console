@@ -6015,7 +6015,8 @@ body:has(#pulse.panel.visible) .layout {
 #developOpenParamsBtn[hidden],
 #developChatStatus[hidden],
 #developChatMcq[hidden],
-#developChatGates[hidden] {
+#developChatGates[hidden],
+#developInstallActions[hidden] {
   display: none !important;
 }
 .develop-live-canvas {
