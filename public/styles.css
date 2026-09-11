@@ -11301,6 +11301,11 @@ details.flight-manage summary {
   border-color: #b91c1c;
 }
 .connect-widget .conn-btn-primary[data-connected="1"]:hover { background: #b91c1c; }
+#companionLinkBtn.conn-btn-primary[data-connected="1"] {
+  background: #16a34a;
+  border-color: #15803d;
+}
+#companionLinkBtn.conn-btn-primary[data-connected="1"]:hover { background: #15803d; }
 .connect-widget .conn-btn-auto {
   background: #2563eb;
   color: #fff;

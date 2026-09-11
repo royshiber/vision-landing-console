@@ -48,6 +48,8 @@ describe('AIRVIX 1.02.272 Jetson↔FC topbar connect', () => {
     expect(advanced).toBeGreaterThan(0);
     expect(hostPort).toBeGreaterThan(advanced);
     expect(cellHost).toBeGreaterThan(advanced);
+    expect(panel.indexOf('id="radioLinkChip"')).toBeGreaterThan(advanced);
+    expect(panel.indexOf('id="cellularLinkChip"')).toBeGreaterThan(advanced);
     expect(panel).toContain('id="radioLinkChip"');
     expect(panel).toContain('id="cellularLinkChip"');
     expect(panel).toContain('id="activeLinkPicker"');
