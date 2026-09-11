@@ -2962,6 +2962,36 @@ function companionConnectSyncButton() {
   connectBtn.disabled = !String(url?.value || '').trim() || !String(token?.value || '').trim();
 }
 
+function companionPrefillDefaultUrl(baseUrl) {
+  const url = String(baseUrl || '').trim();
+  if (!url) return;
+  const teleUrl = document.getElementById('companionBaseUrl');
+  if (teleUrl && !String(teleUrl.value || '').trim()) teleUrl.value = url;
+  const linkUrl = document.getElementById('companionLinkUrl');
+  if (linkUrl && !String(linkUrl.value || '').trim()) linkUrl.value = url;
+}
+
+function companionOpenTokenAdvanced() {
+  const teleAdv = document.getElementById('companionConnectAdvanced');
+  if (teleAdv) teleAdv.open = true;
+  const connectAdv = document.getElementById('connectAdvanced');
+  if (connectAdv) connectAdv.open = true;
+  const topToken = document.getElementById('companionLinkToken');
+  const teleToken = document.getElementById('companionToken');
+  const focusEl = (topToken && topToken.offsetParent !== null ? topToken : null) || topToken || teleToken;
+  if (focusEl && typeof focusEl.focus === 'function') {
+    try { focusEl.focus(); } catch { /* ignore */ }
+  }
+}
+
+function companionNeedsToken(data) {
+  if (!data || typeof data !== 'object') return false;
+  return data.needToken === true
+    || data.focusField === 'token'
+    || data.error === 'token_empty'
+    || data.status_he === 'חסר אסימון';
+}
+
 function companionIsLive(source) {
   if (!source || typeof source !== 'object') return false;
   if (source.mode === 'mock') return true;
@@ -3793,9 +3823,7 @@ function companionConnectRender(status) {
     disconnectBtn.hidden = !connected;
     disconnectBtn.setAttribute('aria-hidden', connected ? 'false' : 'true');
   }
-  if (urlEl && status?.base_url && !connected && !String(urlEl.value || '').trim()) {
-    urlEl.value = status.base_url;
-  }
+  if (!connected) companionPrefillDefaultUrl(status?.base_url);
   if (!errorText) companionConnectSetError('');
   companionConnectSyncButton();
 }
@@ -3935,22 +3963,31 @@ async function companionQuickConnect() {
   companionConnectSetBusy(true);
   companionConnectSetError('');
   try {
+    const tokenEl = document.getElementById('companionToken');
+    const urlEl = document.getElementById('companionBaseUrl');
     const r = await fetch('/api/companion/link/connect', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({}),
+      body: JSON.stringify({
+        ...(String(urlEl?.value || '').trim() ? { base_url: String(urlEl.value).trim() } : {}),
+        ...(String(tokenEl?.value || '').trim() ? { token: String(tokenEl.value).trim() } : {}),
+      }),
     });
     const data = await r.json().catch(() => ({}));
-    if (data.needAdvanced || data.error === 'need_advanced') {
-      const adv = document.getElementById('companionConnectAdvanced');
-      if (adv) adv.open = true;
-      companionConnectSetError(data.status_he || 'פתחו מתקדם רק אם חסרה כתובת.');
+    if (companionNeedsToken(data) || data.needAdvanced || data.error === 'need_advanced') {
+      if (companionNeedsToken(data)) companionOpenTokenAdvanced();
+      else {
+        const adv = document.getElementById('companionConnectAdvanced');
+        if (adv) adv.open = true;
+      }
+      companionConnectSetError(data.status_he || (companionNeedsToken(data) ? 'חסר אסימון' : 'פתחו מתקדם רק אם חסרה כתובת.'));
       companionConnectRender({
         ok: false,
         mode: data.mode || 'off',
         connected: false,
         status_he: data.status_he,
         hint_he: data.hint_he,
+        base_url: data.base_url,
       });
       return;
     }
@@ -8599,6 +8636,7 @@ initAnnotatedVisionPanel();
       fcLinkChip.textContent = `${link.fcLabelHe || 'בקר טיסה'} · ${link.fcStatusHe || 'מנותק'}`;
     }
     if (companionLinkHint && link.hint_he) companionLinkHint.textContent = link.hint_he;
+    companionPrefillDefaultUrl(link.base_url);
     if (companionLinkBtn) {
       const connected = link.connected === true;
       companionLinkBtn.textContent = connected ? 'מחובר' : 'חיבור';
@@ -8620,16 +8658,22 @@ initAnnotatedVisionPanel();
       } else {
         setDot('connecting');
         setPillLabel('מתחבר');
+        const linkToken = document.getElementById('companionLinkToken');
+        const linkUrl = document.getElementById('companionLinkUrl');
         const r = await fetch('/api/companion/link/connect', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({}),
+          body: JSON.stringify({
+            ...(String(linkUrl?.value || '').trim() ? { base_url: String(linkUrl.value).trim() } : {}),
+            ...(String(linkToken?.value || '').trim() ? { token: String(linkToken.value).trim() } : {}),
+          }),
         });
         const j = await parseConnJsonResponse(r);
-        if (j.needAdvanced || j.error === 'need_advanced') {
-          if (connectAdvanced) connectAdvanced.open = true;
-          if (companionLinkHint) companionLinkHint.textContent = j.hint_he || j.status_he || 'פתחו מתקדם רק אם חסרה כתובת.';
-          throw new Error(j.status_he || 'חסרה כתובת במתקדם');
+        if (companionNeedsToken(j) || j.needAdvanced || j.error === 'need_advanced') {
+          if (companionNeedsToken(j)) companionOpenTokenAdvanced();
+          else if (connectAdvanced) connectAdvanced.open = true;
+          if (companionLinkHint) companionLinkHint.textContent = j.hint_he || j.status_he || (companionNeedsToken(j) ? 'חסר אסימון. הזינו אותו במתקדם.' : 'פתחו מתקדם רק אם חסרה כתובת.');
+          throw new Error(j.status_he || (companionNeedsToken(j) ? 'חסר אסימון' : 'חסרה כתובת במתקדם'));
         }
         if (!j.ok && j.connected !== true && j.jetson !== 'reachable' && j.jetson !== 'mock') {
           throw new Error(j.status_he || j.message || 'חיבור מחשב משימה נכשל');

@@ -35,6 +35,20 @@
             </section>
             <details id="connectAdvanced" class="conn-advanced">
               <summary class="conn-advanced-summary">מתקדם</summary>
+            <section id="companionLinkAdvanced" class="conn-link-block" aria-label="אסימון מחשב משימה">
+              <div class="conn-panel-row">
+                <label class="conn-panel-field" style="flex:1">
+                  <span>אסימון</span>
+                  <input id="companionLinkToken" class="conn-input" type="password" maxlength="500" dir="ltr" autocomplete="off" />
+                </label>
+              </div>
+              <div class="conn-panel-row">
+                <label class="conn-panel-field" style="flex:1">
+                  <span>כתובת</span>
+                  <input id="companionLinkUrl" class="conn-input" type="text" inputmode="url" maxlength="500" dir="ltr" autocomplete="off" placeholder="http://host:8081" />
+                </label>
+              </div>
+            </section>
             <div class="conn-dual-chips conn-mav-chips" aria-label="מצב קישורים">
               <span id="radioLinkChip" class="conn-link-chip" data-state="off">טלמטריה רגילה · מנותק</span>
               <span id="cellularLinkChip" class="conn-link-chip" data-state="off">סלולר · מודם לא מחובר</span>

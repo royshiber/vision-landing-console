@@ -8,7 +8,7 @@ This note documents only the Companion B2 read-only UI foundation.
 
 - The telemetry screen retains its existing dashboard and adds Dashboard and Companion subtabs.
 - The dashboard summary shows Companion API state, version, FC connectivity, vision health, landing detection, and video availability.
-- An in-product Companion v1 connect form (base URL + token, Connect / Disconnect) sits above the dashboard summary. Connect enables real only when both mode=real and a URL are set. The token is shown last-4 after save. This is not the legacy heartbeat install API — the base must serve `/api/v1/*`.
+- An in-product Companion v1 connect form (base URL + token, Connect / Disconnect) sits above the dashboard summary. One-click חיבור uses stored URL, else env URL, else the baked Tailscale product default `http://100.82.59.45:8081` (`DEFAULT_COMPANION_BASE_URL`) plus token from env or stored DB. A missing token shows חסר אסימון and focuses the מתקדם token field; it never claims מחובר. Connect enables real only when both mode=real and a URL are set after an explicit connect. The token is shown last-4 after save. This is not the legacy heartbeat install API — the base must serve `/api/v1/*`.
 - Missing measurements render as an em dash and never as a synthetic zero.
 - Mock mode exposes Healthy, Disconnected, and Degraded scenario buttons.
 
