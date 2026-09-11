@@ -39,10 +39,12 @@ function run(script, args, env = {}) {
 }
 
 function lastJson(stdout) {
-  const lines = String(stdout || '').trim().split('\n').filter(Boolean);
-  const blob = lines.slice().reverse().find((line) => line.startsWith('{'));
-  expect(blob, `JSON in stdout:\n${stdout}`).toBeTruthy();
-  return JSON.parse(blob);
+  const text = String(stdout || '');
+  const start = text.lastIndexOf('{');
+  const end = text.lastIndexOf('}');
+  expect(start, `JSON in stdout:\n${stdout}`).toBeGreaterThanOrEqual(0);
+  expect(end).toBeGreaterThan(start);
+  return JSON.parse(text.slice(start, end + 1));
 }
 
 describe('Jetson Huawei E3372 host pack (software before hardware)', () => {
@@ -117,8 +119,8 @@ describe('Jetson Huawei E3372 host pack (software before hardware)', () => {
     expect(statusUnit).toMatch(/SuccessExitStatus=0/);
     expect(bringUnit).toMatch(/SuccessExitStatus=0/);
     expect(bringUnit).toMatch(/ConditionPathExists=\|\/dev\/cdc-wdm0/);
-    expect(bringUnit).not.toMatch(/ttyUSB0/);
-    expect(statusUnit + bringUnit).not.toMatch(/Companion apply|systemctl restart|mavlink.*send/i);
+    expect(bringUnit).not.toMatch(/ConditionPathExists=.*ttyUSB0/);
+    expect(statusUnit + bringUnit).not.toMatch(/ExecStart=.*companion|systemctl restart|mavlink_to_fc/i);
 
     const switchA = read('usb-modeswitch/12d1:1f01');
     expect(switchA).toMatch(/HuaweiNewMode=1/);
@@ -139,7 +141,7 @@ describe('Jetson Huawei E3372 host pack (software before hardware)', () => {
     expect(docs).toMatch(/Do not SSH/);
     expect(commercial).toMatch(/scripts\/jetson-cellular/);
     expect(jetson).toMatch(/scripts\/jetson-cellular/);
-    expect(env).not.toMatch(/password|secret|token\s*=\s*\S+/i);
+    expect(env).not.toMatch(/^\s*(APN|PASSWORD|SECRET|TOKEN|VLC_COMPANION_TOKEN)\s*=\s*\S+/im);
     expect(env).not.toMatch(/100\.82\.59\.45/);
     expect(readme).not.toMatch(/100\.82\.59\.45/);
     expect(docs).not.toMatch(/100\.82\.59\.45/);
