@@ -1,12 +1,12 @@
 [
   {
-    "version": "1.02.269",
+    "version": "1.02.271",
     "date": "2026-09-11",
     "changes": [
       {
         "type": "feat",
         "title": "Configuration Wizard rebuilt as a hardware-intent wiring checklist",
-        "detail": "אשף קונפיגורציה is now a walk of one-component cards: what is connected, where it is wired on FC and/or Jetson at pin/port level, and the expected observable (GPS → 3D fix; companion link → heartbeat; UART radio → telemetry stream; landing camera → vision estimate; RC → stick motion). Dark dense RTL console. Recommendation fold stays secondary. No flight commands and no Companion apply/restart. Mission layout unchanged. APP_VERSION 1.02.269."
+        "detail": "אשף קונפיגורציה is now a walk of one-component cards: what is connected, where it is wired on FC and/or Jetson at pin/port level, and the expected observable (GPS → 3D fix; companion link → heartbeat; UART radio → telemetry stream; landing camera → vision estimate; RC → stick motion). Dark dense RTL console. Recommendation fold stays secondary. No flight commands and no Companion apply/restart. Mission layout unchanged. APP_VERSION 1.02.271 (269/270 reserved by sibling PRs)."
       }
     ]
   },
