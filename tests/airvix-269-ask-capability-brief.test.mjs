@@ -140,6 +140,7 @@ describe('AIRVIX 1.02.269 Ask → Capability Brief F4 (still holds on 1.02.277)'
     expect(handoff).toContain('capSetTaxonomy');
     expect(handoff).toContain('capRenderDraftCard');
     expect(handoff).toContain('_capDraftOverride');
+    expect(handoff).toContain('developChatSeedFromBrief');
     expect(js).toContain("getElementById('assistCapOpenDevelopBtn')?.addEventListener('click'");
     expect(js).toContain('assistOpenCapabilityInDevelop');
   });

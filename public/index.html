@@ -704,6 +704,7 @@
               </div>
             </div>
             <div id="cpStatus" class="cp-status" aria-live="polite"></div>
+            <p id="developParamsHook" class="develop-params-hook" hidden>יכולת חדשה נחתה. הפרמטרים שלה מופיעים כאן. כתיבה לבקר דורשת שער נפרד.</p>
             <div id="cpFeaturesGrid" class="cp-features-grid" role="list" aria-label="פיצ'רים מותאמים"></div>
           </div>
         </div>
@@ -1292,8 +1293,49 @@
       </section>
 
       <section id="development" class="panel">
-        <div class="devtasks-panel evolve-shell cap-intake-shell" data-layout-contract="v1" data-cap-intake="f1">
-          <aside class="cap-draft-card" aria-label="כרטיס יכולת">
+        <div class="devtasks-panel evolve-shell cap-intake-shell develop-b-shell" data-layout-contract="v1" data-develop-chat="b" data-cap-intake="f1">
+          <section class="develop-chat-pane" aria-label="שיחת פיתוח">
+            <header class="develop-chat-hero">
+              <span class="develop-b-badge">פיתוח · שיחה</span>
+              <h3>שנה את המוצר</h3>
+              <p class="develop-chat-caption">תארו יכולת בטקסט חופשי. הסוכן שואל, בונה, ומציג תצוגה חיה. אין העלאה ואין התקנה בלי אישור.</p>
+            </header>
+            <div id="developChatLog" class="develop-chat-log" role="log" aria-live="polite"></div>
+            <div id="developChatMcq" class="develop-chat-mcq" hidden></div>
+            <form id="developChatForm" class="develop-chat-form">
+              <label class="visually-hidden" for="developChatInput">תיאור היכולת</label>
+              <textarea id="developChatInput" class="kpi-input develop-chat-input" rows="3" maxlength="5000" placeholder="תארו את היכולת החדשה בעברית."></textarea>
+              <button type="submit" id="developChatSendBtn" class="policy-btn develop-chat-send">שלח</button>
+            </form>
+            <div class="develop-chat-gates" aria-label="שערי אנוש">
+              <button type="button" id="developGateJetsonBtn" class="policy-btn develop-gate-btn" data-gate="jetson_upload" disabled>אשר העלאה לג׳טסון</button>
+              <button type="button" id="developGateFcBtn" class="policy-btn develop-gate-btn" data-gate="fc_install" disabled>אשר התקנה ל-FC</button>
+              <p class="develop-gate-note">שערי אנוש בלבד. אין העלאה או התקנה עד אישור.</p>
+            </div>
+            <button type="button" id="developOpenParamsBtn" class="policy-btn develop-params-btn" hidden>פתח בפרמטרים</button>
+            <p id="developChatStatus" class="develop-chat-status" hidden></p>
+          </section>
+
+          <section class="develop-preview-pane evolve-preview" aria-label="תצוגה חיה">
+            <header class="evolve-section-head">
+              <h4 class="evolve-section-title">תצוגה חיה</h4>
+              <div class="evolve-preview-toggle" role="group" aria-label="לפני ואחרי">
+                <button type="button" id="evolvePreviewBeforeBtn" class="evolve-preview-btn" aria-pressed="true">לפני</button>
+                <button type="button" id="evolvePreviewAfterBtn" class="evolve-preview-btn" aria-pressed="false">אחרי</button>
+              </div>
+            </header>
+            <p class="evolve-preview-kicker" id="developPreviewKicker">סקיצה חיה של השינוי תחת הדיון. לקריאה בלבד.</p>
+            <div id="developPreviewStage" class="evolve-preview-stage develop-preview-stage">
+              <article id="developPreviewSketch" class="develop-preview-sketch" data-mode="before">
+                <span class="develop-preview-mode">לפני</span>
+                <strong id="developPreviewHeadline">הממשק הנוכחי</strong>
+                <p id="developPreviewLine1">אין את היכולת הזו עדיין.</p>
+                <p id="developPreviewLine2">המפעיל עובד במסך הקיים בלבד.</p>
+              </article>
+            </div>
+          </section>
+
+          <aside class="cap-draft-card" hidden aria-hidden="true" aria-label="כרטיס יכולת">
             <header class="cap-draft-head">
               <h3 class="cap-draft-kicker">כרטיס יכולת — טיוטה אוטומטית</h3>
               <span class="cap-ai-badge">AI draft</span>
@@ -1345,7 +1387,7 @@
             <p class="cap-arch-verify">אימות</p>
           </aside>
 
-          <div class="cap-studio">
+          <div class="cap-studio" hidden aria-hidden="true">
             <header class="cap-studio-hero evolve-hero">
               <span class="cap-studio-badge">Evolve · Capability Intake</span>
               <h3>יכולת חדשה</h3>

@@ -89,7 +89,7 @@ describe('AIRVIX 1.02.268 status densify + Develop concept A', () => {
     expect(recordings.includes('מסייע')).toBe(false);
     expect(recordings.includes('מלווה')).toBe(false);
     expect(recordings.includes('מעבדה')).toBe(false);
-    expect(commercial).toContain('סטודיו קליטת יכולות');
+    expect(commercial).toContain('שיחה ותצוגה חיה');
     expect(commercial).toContain('אין כתיבה לבקר');
   });
 

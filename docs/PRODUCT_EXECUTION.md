@@ -18,12 +18,13 @@ Locked loop:
 
 ```
 User
-  → Product UI (AIRVIX Ask)
-  → Capability Brief
-  → Develop F1 composer / FEATURE task
+  → Product UI (AIRVIX Ask or Develop chat)
+  → clarifying MCQ + free text
   → Agent API
   → Cursor Agent on isolated branch
-  → verify
+  → live UI preview
+  → Human Gates (Jetson upload / FC install) — never auto-apply
+  → parameters surfaced in Parameters tab
   → result back to Product UI
 ```
 
@@ -65,11 +66,12 @@ Merge autonomy still on for independently VERIFIED safe draft PRs. Hard safety s
 
 **Master tip before this draft:** `1.02.268` @ `2cffa19` (PR #88 — F2 Capability Runway).  
 **This draft:** F4 Ask → Capability Brief. `APP_VERSION` **1.02.269**. Stay draft until VERIFY.  
-**Tip after merge 269:** master carries F1 + F2 + F4. Next pick is **F3**.
+**Tip after merge 269:** master carried F1 + F2 + F4. **F3 / Concept B** is this draft: Develop chat + live preview.
 
 ### Landed
 
-- **F1 Capability Intake Studio** — master `1.02.267` via PR #87 `3897a70`. Develop composer, FEATURE default, draft card, example chips, existing isolated-branch agent start, honest UNAVAILABLE.
+- **F1 Capability Intake Studio** — master `1.02.267` via PR #87 `3897a70`. Now hidden under Concept B; composer remnants stay for Ask handoff.
+- **Develop Concept B** — this draft `1.02.274`. Chat + live preview. MCQ with always-available free text. Human Gates disabled until ready. Parameters hook after land.
 - **F2 Capability Runway** — master `1.02.268` via PR #88 `2cffa19`. IDEA → RUNNING → VERIFY → PR → DONE from real task fields only.
 - C10.6 Mission flight-safe Assist stays: no `CREATE_DEVELOPMENT_TASK` on Mission; DEVELOPMENT / coding-agent start refused in spoken Hebrew.
 - AIRVIX Ask naming only. Jetson / מחשב משימה. No מסייע. No מלווה. No AH polish / «הגדל את האופק».

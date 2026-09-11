@@ -57,7 +57,7 @@ describe('AIRVIX 1.02.261 Roy feedback (still holds on 1.02.277)', () => {
   });
 
   it('turns Develop into Capability Intake without flight writes', () => {
-    expect(html).toContain('class="devtasks-panel evolve-shell cap-intake-shell"');
+    expect(html).toContain('class="devtasks-panel evolve-shell cap-intake-shell develop-b-shell"');
     expect(html).toContain('data-cap-intake="f1"');
     expect(html).toContain('class="cap-composer evolve-command"');
     expect(html).toContain('class="evolve-plan"');
@@ -74,7 +74,7 @@ describe('AIRVIX 1.02.261 Roy feedback (still holds on 1.02.277)', () => {
     expect(html).toMatch(/id="devTaskCreateBtn"[^>]*>שמור טיוטה</);
     expect(html).toMatch(/id="capStartAgentBtn"[^>]*>התחל סוכן יכולת</);
     expect(css).toMatch(/\.evolve-shell\s*\{[^}]*display:\s*grid/);
-    expect(css).toMatch(/"draft studio"/);
+    expect(css).toMatch(/"chat preview"/);
     expect(css).toMatch(/\.evolve-run-grid\s*\{[^}]*grid-auto-flow:\s*row/);
     expect(js).toContain('function isEvolvePreviewFrame(');
     expect(js).toContain('function capStartCapabilityAgent(');
