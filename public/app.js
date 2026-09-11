@@ -8818,6 +8818,11 @@ setInterval(refreshAdvisorHealth, 60_000);
 /* ─── AUTO-CONFIG WIZARD ─── */
 (function initAutoConfigWizard() {
   const acComponentBtns    = document.getElementById('acComponentBtns');
+  const acIntentCard       = document.getElementById('acIntentCard');
+  const acWizProgress      = document.getElementById('acWizProgress');
+  const acWizPrev          = document.getElementById('acWizPrev');
+  const acWizNext          = document.getElementById('acWizNext');
+  const acWizMark          = document.getElementById('acWizMark');
   const acSymptoms         = document.getElementById('acSymptoms');
   const acPlanBtn          = document.getElementById('acPlanBtn');
   const acPlanBtnLabel     = acPlanBtn?.querySelector('.ac-plan-btn-label');
@@ -8838,6 +8843,14 @@ setInterval(refreshAdvisorHealth, 60_000);
   const acHistoryClearBtn  = document.getElementById('acHistoryClearBtn');
 
   if (!acComponentBtns || !acPlanBtn) return;
+
+  function acEsc(s) {
+    return String(s ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
 
   // ── Phase bar helpers ──────────────────────────────────────────────────────
   const PHASES = ['acPhase1', 'acPhase2', 'acPhase3', 'acPhase4'];
@@ -8895,46 +8908,139 @@ setInterval(refreshAdvisorHealth, 60_000);
   });
 
   let selectedComponent = null;
+  let hardwareWalk = [];
+  let walkIndex = 0;
+  const seenIds = new Set();
 
-  /** Fetch component types and build the selector buttons. */
+  function currentIntent() {
+    return hardwareWalk[walkIndex] || null;
+  }
+
+  function recipeTypeOf(intent) {
+    return intent?.recipeType || intent?.id || selectedComponent;
+  }
+
+  function renderWireHost(target, emptyHe) {
+    if (!target) {
+      return `<div class="ac-wire-host" data-empty="1">
+        <p class="ac-wire-host-name">${acEsc(emptyHe)}</p>
+        <p class="ac-wire-note">אין חיבור חוט כאן.</p>
+      </div>`;
+    }
+    const pins = (target.pins || []).map((p) => `<span class="ac-port-chip">${acEsc(p)}</span>`).join('');
+    return `<div class="ac-wire-host" data-host="${acEsc(target.host)}">
+      <p class="ac-wire-host-name">${acEsc(target.hostHe)}</p>
+      <div class="ac-wire-pins">${pins}</div>
+      <p class="ac-wire-note">${acEsc(target.noteHe)}</p>
+    </div>`;
+  }
+
+  function renderIntentCard(intent) {
+    if (!acIntentCard) return;
+    if (!intent) {
+      acIntentCard.innerHTML = '';
+      if (acEmptyState) acEmptyState.classList.remove('hidden');
+      return;
+    }
+    if (acEmptyState) acEmptyState.classList.add('hidden');
+    const model = intent.connected?.modelHe
+      ? `<span class="ac-model-chip">${acEsc(intent.connected.modelHe)}</span>`
+      : '';
+    acIntentCard.innerHTML = `
+      <section class="ac-q" data-q="connected">
+        <p class="ac-q-kicker">מה מחובר</p>
+        <h4 class="ac-q-title">${acEsc(intent.connected?.titleHe || intent.labelHe)}</h4>
+        ${model}
+        <p class="ac-q-detail">${acEsc(intent.connected?.detailHe || '')}</p>
+      </section>
+      <section class="ac-q" data-q="where">
+        <p class="ac-q-kicker">לאן מחובר</p>
+        <div class="ac-wire-hosts">
+          ${renderWireHost(intent.wiring?.fc, 'בקר טיסה')}
+          ${renderWireHost(intent.wiring?.jetson, 'מחשב משימה')}
+        </div>
+      </section>
+      <section class="ac-q" data-q="expect">
+        <p class="ac-q-kicker">מה אני מצפה שיקרה</p>
+        <span class="ac-expect-token">${acEsc(intent.expected?.token || '')}</span>
+        <h4 class="ac-q-title">${acEsc(intent.expected?.titleHe || '')}</h4>
+        <p class="ac-q-detail">${acEsc(intent.expected?.observeHe || '')}</p>
+      </section>`;
+  }
+
+  function syncWalkChrome() {
+    const intent = currentIntent();
+    selectedComponent = recipeTypeOf(intent);
+    if (acWizProgress) {
+      acWizProgress.textContent = hardwareWalk.length
+        ? `${walkIndex + 1} מתוך ${hardwareWalk.length}`
+        : '';
+    }
+    acComponentBtns.querySelectorAll('.ac-comp-btn').forEach((b, i) => {
+      b.classList.toggle('active', i === walkIndex);
+      b.dataset.seen = seenIds.has(hardwareWalk[i]?.id) ? '1' : '0';
+    });
+    if (acWizPrev) acWizPrev.disabled = walkIndex <= 0;
+    if (acWizNext) acWizNext.disabled = walkIndex >= hardwareWalk.length - 1;
+    if (acWizMark) {
+      const on = intent ? seenIds.has(intent.id) : false;
+      acWizMark.dataset.on = on ? '1' : '0';
+      acWizMark.textContent = on ? 'סומן כנראה' : 'סימנתי שראיתי';
+    }
+    if (acSymptoms && intent) {
+      acSymptoms.placeholder = `מה לא תואם לציפייה ברכיב ${intent.labelHe}`;
+      acSymptoms.classList.add('ac-textarea--ready');
+    }
+    renderIntentCard(intent);
+  }
+
+  function selectWalkIndex(i) {
+    if (!hardwareWalk.length) return;
+    walkIndex = Math.max(0, Math.min(hardwareWalk.length - 1, i));
+    acResults?.classList.add('hidden');
+    syncWalkChrome();
+  }
+
+  /** Fetch hardware-intent walk and build the step rail. */
   async function loadComponentTypes() {
     try {
       const res = await fetch('/api/auto-config/components');
       const d = await res.json();
-      if (!d.ok || !Array.isArray(d.components)) return;
+      if (!d.ok) return;
+      hardwareWalk = Array.isArray(d.hardwareIntent) && d.hardwareIntent.length
+        ? d.hardwareIntent
+        : (Array.isArray(d.components) ? d.components.filter((c) => c.hardwareIntent).map((c) => c.hardwareIntent) : []);
       acComponentBtns.innerHTML = '';
-      d.components.forEach(({ id, labelHe }) => {
+      if (!hardwareWalk.length) {
+        acComponentBtns.textContent = 'אין רכיבים ברשימת החיווט';
+        return;
+      }
+      hardwareWalk.forEach((intent, idx) => {
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'ac-comp-btn';
-        btn.dataset.compId = id;
-        btn.textContent = labelHe;
-        btn.addEventListener('click', () => {
-          selectedComponent = id;
-          acComponentBtns.querySelectorAll('.ac-comp-btn').forEach((b) => b.classList.remove('active'));
-          btn.classList.add('active');
-
-          // Guide user to the textarea — highlight it and update placeholder
-          if (acSymptoms) {
-            acSymptoms.placeholder = `מה לא עובד עם ${labelHe}? לדוגמה: חיברתי ל-SERIAL3 אבל הרכיב לא מזוהה...`;
-            acSymptoms.classList.add('ac-textarea--ready');
-            const lbl = document.getElementById('acSymptomsLabel');
-            if (lbl) lbl.classList.add('ac-label--active');
-            // Scroll into view and focus
-            acSymptoms.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-            setTimeout(() => acSymptoms.focus(), 200);
-          }
-        });
+        btn.dataset.compId = intent.id;
+        btn.setAttribute('role', 'tab');
+        btn.textContent = `${idx + 1} ${intent.labelHe}`;
+        btn.addEventListener('click', () => selectWalkIndex(idx));
         acComponentBtns.appendChild(btn);
       });
-      // Auto-select first
-      const first = acComponentBtns.querySelector('.ac-comp-btn');
-      if (first) first.click();
+      selectWalkIndex(0);
     } catch (err) {
-      acComponentBtns.textContent = '(שגיאה בטעינת רשימת רכיבים)';
+      acComponentBtns.textContent = 'שגיאה בטעינת רשימת רכיבים';
       console.error('[auto-config] loadComponentTypes failed', err);
     }
   }
+
+  acWizPrev?.addEventListener('click', () => selectWalkIndex(walkIndex - 1));
+  acWizNext?.addEventListener('click', () => selectWalkIndex(walkIndex + 1));
+  acWizMark?.addEventListener('click', () => {
+    const intent = currentIntent();
+    if (!intent) return;
+    if (seenIds.has(intent.id)) seenIds.delete(intent.id);
+    else seenIds.add(intent.id);
+    syncWalkChrome();
+  });
 
   /** Risk badge HTML */
   function riskBadge(risk) {
@@ -9046,7 +9152,7 @@ setInterval(refreshAdvisorHealth, 60_000);
           ${p.success_condition ? `<div class="ac-param-success">תנאי הצלחה: ${p.success_condition}</div>` : ''}
           <div class="ac-param-apply-row">
             <input class="ac-param-val-input" type="text" value="${p.recommended_value}" aria-label="ערך לשליחה עבור ${p.param_key}">
-            <button class="ac-param-apply-btn" type="button">Apply ✈</button>
+            <button class="ac-param-apply-btn" type="button">החל המלצה</button>
             <span class="ac-param-apply-status"></span>
           </div>
         `;
@@ -9099,10 +9205,10 @@ setInterval(refreshAdvisorHealth, 60_000);
         if (acStatus) acStatus.textContent = `✘ ${msg}`;
         setPhase(0, `✘ נכשל: ${msg}`);
         acPlanBtn.disabled = false;
-        if (acPlanBtnLabel) acPlanBtnLabel.textContent = 'קבל המלצות קונפיגורציה';
+        if (acPlanBtnLabel) acPlanBtnLabel.textContent = 'בדיקות';
         return;
       }
-      setPhase(1, 'המלצות מוכנות — לחץ Apply ליד כל פרמטר כדי לשלוח לרחפן.');
+      setPhase(1, 'המלצות מוכנות לבדיקה.');
       renderRecipe(d.recipe);
     } catch (err) {
       const msg = err?.message || 'שגיאת רשת';
@@ -9110,7 +9216,7 @@ setInterval(refreshAdvisorHealth, 60_000);
       setPhase(0, `✘ ${msg}`);
     }
     acPlanBtn.disabled = false;
-    if (acPlanBtnLabel) acPlanBtnLabel.textContent = 'קבל המלצות קונפיגורציה';
+    if (acPlanBtnLabel) acPlanBtnLabel.textContent = 'בדיקות';
   });
 
   loadComponentTypes();
