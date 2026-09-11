@@ -1,36 +1,5 @@
 [
   {
-    "version": "1.02.276",
-    "date": "2026-09-11",
-    "changes": [
-      {
-        "type": "feat",
-        "title": "Server library",
-        "detail": "companion-api-client.mjs, companion-auth.mjs, companion-connection.mjs, companion-secret.mjs, jetson-companion-proxy.mjs, logger.mjs, companion-connection-api.mjs"
-      },
-      {
-        "type": "feat",
-        "title": "Frontend",
-        "detail": "changelog.json"
-      },
-      {
-        "type": "test",
-        "title": "Tests",
-        "detail": "companion-api-client.test.mjs, companion-connection.test.mjs, companion-link.test.mjs"
-      },
-      {
-        "type": "docs",
-        "title": "Commercial capabilities overview",
-        "detail": "COMMERCIAL_CAPABILITIES.he.md"
-      },
-      {
-        "type": "chore",
-        "title": "Config",
-        "detail": ".env.example"
-      }
-    ]
-  },
-  {
     "version": "1.02.275",
     "date": "2026-09-12",
     "changes": [
