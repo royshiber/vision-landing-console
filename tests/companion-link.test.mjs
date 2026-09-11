@@ -53,11 +53,13 @@ describe('companion health → Jetson / FC mapping', () => {
       mode: 'real',
       reachable: true,
       health: { fc_linked: false, fc_heartbeat: false },
+      overlay: { system: { cpu_percent: 41.2 } },
     });
     expect(jetsonOnly.pillLabelHe).toBe('מחובר · מחשב משימה');
     expect(jetsonOnly.pillDot).toBe('warn');
     expect(jetsonOnly.fc).toBe('unlinked');
     expect(jetsonOnly.fcStatusHe).toBe('מנותק');
+    expect(jetsonOnly.hasData).toBe(true);
 
     const composed = composeConnectPill({
       dual: { radio: 'disconnected', cellular: 'modem_absent', pillLabelHe: 'מנותק' },
@@ -175,6 +177,23 @@ describe('one-Jetson connect defaults', () => {
     expect(missing.hint_he).toMatch(/אסימון/);
     expect(missing.hint_he).not.toMatch(/חסרה כתובת/);
     expect(missing.jetsonStatusHe).not.toBe('מחובר');
+  });
+
+  it('falls back to the one-Jetson default URL and strips quoted tokens', () => {
+    const fallback = resolveCompanionConnectDefaults({ env: {} });
+    expect(fallback.url).toBe('http://100.82.59.45:8081');
+    expect(fallback.source).toBe('default');
+    expect(fallback.configured).toBe(false);
+
+    const quoted = resolveCompanionConnectDefaults({
+      env: {
+        JETSON_COMPANION_BASE_URL: '"http://jetson.ts:8081"',
+        JETSON_COMPANION_TOKEN: '"env-token-aaaa"',
+      },
+    });
+    expect(quoted.url).toBe('http://jetson.ts:8081');
+    expect(quoted.token).toBe('env-token-aaaa');
+    expect(quoted.configured).toBe(true);
   });
 });
 

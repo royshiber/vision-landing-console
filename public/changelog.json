@@ -1,5 +1,16 @@
 [
   {
+    "version": "1.02.276",
+    "date": "2026-09-12",
+    "changes": [
+      {
+        "type": "fix",
+        "title": "Status cards no longer show connected when Jetson is silent",
+        "detail": "APP_VERSION 1.02.276. סטטוס מחשבים and the topbar connect pill now agree: מחובר only with live reachability plus a data path; otherwise מנותק / לא מגיב / מחובר · אין נתונים. Gauges read Companion health/stats and show אין נתון for missing fields. Console version on Status is APP_VERSION. One-click connect uses the stored/env token (quotes stripped) and the one-Jetson default URL. No flight commands and no Companion apply/restart."
+      }
+    ]
+  },
+  {
     "version": "1.02.275",
     "date": "2026-09-12",
     "changes": [

@@ -115,8 +115,8 @@ describe('SITL connect handoff — no Assist lab route', () => {
 });
 
 describe('SITL Lab connect handoff — version pin', () => {
-  it('pins APP_VERSION at 1.02.273', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.273'");
-    expect(pkg.version).toBe('1.02.273');
+  it('pins APP_VERSION at 1.02.276', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.276'");
+    expect(pkg.version).toBe('1.02.276');
   });
 });
