@@ -15015,6 +15015,35 @@ details.flight-manage summary {
   border-inline-start: 1px solid rgba(255, 255, 255, 0.1);
   box-shadow: -8px 0 28px rgba(0, 0, 0, 0.35);
   backdrop-filter: blur(10px);
+  overflow: hidden;
+  min-height: 0;
+}
+.assist-rail:not(.assist-rail--mission) .assist-transcript-well {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+.assist-rail:not(.assist-rail--mission) .assist-proposal-bar {
+  flex: 0 1 auto;
+  max-height: 42vh;
+  overflow: auto;
+}
+.assist-rail:not(.assist-rail--mission) .assist-composer,
+.assist-rail:not(.assist-rail--mission) .assist-agent-connect,
+.assist-rail:not(.assist-rail--mission) .assist-run-panel {
+  flex-shrink: 0;
+  min-width: 0;
+}
+.assist-rail:not(.assist-rail--mission) .assist-form {
+  min-width: 0;
+}
+.assist-rail:not(.assist-rail--mission) .assist-mic-btn {
+  min-width: 48px;
+  max-width: 72px;
+  padding: 8px;
+}
+.assist-rail:not(.assist-rail--mission) .assist-mic-label {
+  display: none;
 }
 .assist-rail[hidden] { display: none !important; }
 body.mission-assist-docked .assist-rail,
@@ -15452,6 +15481,62 @@ body.mission-assist-docked .assist-rail.assist-rail--mission,
 }
 .assist-proposal-bar[hidden] { display: none !important; }
 .assist-proposal-text { margin: 0; font-size: 0.78rem; color: #dcfce7; white-space: pre-wrap; }
+.assist-cap-brief {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.35);
+  border: 1px solid rgba(148, 163, 184, 0.28);
+}
+.assist-cap-brief[hidden] { display: none !important; }
+.assist-cap-kicker {
+  margin: 0;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: rgba(226, 232, 240, 0.72);
+}
+.assist-cap-title {
+  font-size: 0.86rem;
+  line-height: 1.3;
+  color: #f8fafc;
+}
+.assist-cap-fields {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.assist-cap-row {
+  display: grid;
+  grid-template-columns: 4.2rem 1fr;
+  gap: 6px;
+  align-items: start;
+}
+.assist-cap-row dt {
+  margin: 0;
+  font-size: 0.68rem;
+  color: rgba(226, 232, 240, 0.68);
+}
+.assist-cap-row dd {
+  margin: 0;
+  font-size: 0.76rem;
+  color: #e2e8f0;
+  overflow-wrap: anywhere;
+}
+.assist-cap-unavailable {
+  margin: 0;
+  font-size: 0.72rem;
+  color: #fde68a;
+}
+.assist-cap-unavailable[hidden] { display: none !important; }
+.assist-cap-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
 .assist-run-panel {
   border: 1px solid rgba(148, 163, 184, 0.32);
   background: rgba(15, 23, 42, 0.42);

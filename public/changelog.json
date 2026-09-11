@@ -1,5 +1,16 @@
 [
   {
+    "version": "1.02.269",
+    "date": "2026-09-10",
+    "changes": [
+      {
+        "type": "ui",
+        "title": "AIRVIX Ask drafts a Capability Brief and hands off to Develop",
+        "detail": "F4 closes the Ask → capability loop on non-Mission surfaces. A Hebrew/English capability ask drafts a brief card (what / why / modules / FEATURE default) with Open in Develop, Save draft, and Start agent. Open fills the F1 composer and draft card and switches to the Develop tab. Save and start reuse CREATE_DEVELOPMENT_TASK and the existing isolated-branch agent. UNAVAILABLE stays honest. Mission still refuses development and coding-agent starts. F1 intake and F2 runway stay. No מסייע, no AH polish, no FC write, no Companion apply/restart. APP_VERSION 1.02.269."
+      }
+    ]
+  },
+  {
     "version": "1.02.268",
     "date": "2026-09-09",
     "changes": [
