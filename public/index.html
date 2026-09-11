@@ -512,33 +512,49 @@
           <div id="paramSyncBanner" class="param-sync-banner param-sync-banner--info" role="status" aria-live="polite"></div>
           <pre id="mpOut" class="mp-out-hidden"></pre>
         </div>
-        <!-- Auto-Config wizard panel -->
-        <div id="autoConfig" class="subpanel ac-panel">
+        <!-- Auto-Config wizard panel — hardware-intent walk -->
+        <div id="autoConfig" class="subpanel ac-panel" data-ac-model="hardware-intent">
 
-          <!-- ── Compact input toolbar (never scrolls) ──────────── -->
+          <header class="ac-wiz-head">
+            <div class="ac-wiz-head-text">
+              <h3 class="ac-wiz-title">אשף קונפיגורציה</h3>
+              <p class="ac-wiz-lead">רשימת חיווט. כל כרטיס הוא רכיב אחד.</p>
+            </div>
+            <p id="acWizProgress" class="ac-wiz-progress" aria-live="polite"></p>
+          </header>
+
           <div class="ac-toolbar">
-            <!-- Row 1: component chips -->
             <div class="ac-toolbar-chips">
-              <span class="ac-toolbar-label">רכיב:</span>
-              <div id="acComponentBtns" class="ac-component-btns" role="group" aria-label="סוג רכיב"></div>
+              <span class="ac-toolbar-label">רכיב</span>
+              <div id="acComponentBtns" class="ac-component-btns" role="tablist" aria-label="רכיבים מחוברים"></div>
             </div>
-            <!-- Row 2: textarea + send button -->
-            <div class="ac-toolbar-input-row">
-              <textarea id="acSymptoms" class="ac-textarea" rows="2"
-                placeholder="בחר רכיב למעלה, ואז תאר את הבעיה — AI יציע בדיקות ושינויי פרמטרים."></textarea>
-              <button id="acPlanBtn" type="button" class="ac-plan-btn" title="שלח לקבלת המלצות AI">
-                <span class="ac-plan-btn-icon">🚀</span>
-                <span class="ac-plan-btn-label">שלח</span>
-              </button>
-            </div>
-            <!-- Status line -->
-            <span id="acStatus" class="ac-status" aria-live="polite"></span>
           </div>
 
-          <!-- ── Results body (fills rest, scrolls if needed) ─────── -->
           <div class="ac-body">
+            <article id="acIntentCard" class="ac-intent-card" aria-live="polite"></article>
 
-            <!-- Phase / progress bar -->
+            <div class="ac-wiz-nav">
+              <button type="button" id="acWizPrev" class="ac-wiz-nav-btn">הקודם</button>
+              <button type="button" id="acWizMark" class="ac-wiz-mark-btn">סימנתי שראיתי</button>
+              <button type="button" id="acWizNext" class="ac-wiz-nav-btn ac-wiz-nav-btn--next">הבא</button>
+            </div>
+
+            <section id="acWalkOverview" class="ac-walk-overview" aria-label="רשימת חיווט מלאה"></section>
+
+            <details id="acAskFold" class="ac-ask-fold">
+              <summary class="ac-ask-summary">שאלה על הרכיב הזה</summary>
+              <div class="ac-ask-body">
+                <div class="ac-toolbar-input-row">
+                  <textarea id="acSymptoms" class="ac-textarea" rows="2"
+                    placeholder="מה לא תואם לציפייה. אין פקודות טיסה מכאן."></textarea>
+                  <button id="acPlanBtn" type="button" class="ac-plan-btn" title="המלצות בדיקה בלבד">
+                    <span class="ac-plan-btn-label">בדיקות</span>
+                  </button>
+                </div>
+                <span id="acStatus" class="ac-status" aria-live="polite"></span>
+              </div>
+            </details>
+
             <div id="acPhaseBar" class="ac-phase-bar hidden" aria-live="polite">
               <div class="ac-phase-steps">
                 <div class="ac-phase-step" id="acPhase1">
@@ -553,7 +569,7 @@
                 <div class="ac-phase-sep">→</div>
                 <div class="ac-phase-step" id="acPhase3">
                   <span class="ac-phase-dot"></span>
-                  <span class="ac-phase-text">שולח לרחפן</span>
+                  <span class="ac-phase-text">מוכן לבדיקה</span>
                 </div>
                 <div class="ac-phase-sep">→</div>
                 <div class="ac-phase-step" id="acPhase4">
@@ -564,30 +580,28 @@
               <div id="acPhaseDetail" class="ac-phase-detail"></div>
             </div>
 
-            <div id="acEmptyState" class="ac-empty-state">
-              <div class="ac-empty-icon" aria-hidden="true">🛩️</div>
-              <p class="ac-empty-title">ממתין לקונפיגורציה</p>
-              <p class="ac-empty-sub">בחר רכיב ותאר את הבעיה כדי לקבל המלצות.</p>
+            <div id="acEmptyState" class="ac-empty-state hidden">
+              <p class="ac-empty-title">אין כרטיס</p>
+              <p class="ac-empty-sub">בחרו רכיב למעלה.</p>
             </div>
 
             <div id="acResults" class="ac-results hidden" aria-live="polite">
               <div id="acSummaryBox" class="ac-summary-box"></div>
               <div id="acWarningsBox" class="ac-warnings-box hidden"></div>
               <div id="acChecksSection" class="ac-section hidden">
-                <h3 class="ac-section-title">✅ בדיקות מומלצות</h3>
+                <h3 class="ac-section-title">בדיקות מומלצות</h3>
                 <div id="acChecksList" class="ac-checks-list"></div>
               </div>
               <div id="acParamsSection" class="ac-section hidden">
-                <h3 class="ac-section-title">🔧 שינויי פרמטרים</h3>
-                <p class="ac-params-note">לחץ Apply לכל פרמטר כדי לשלוח לרחפן. דורש FC מחובר.</p>
+                <h3 class="ac-section-title">המלצות פרמטרים</h3>
+                <p class="ac-params-note">המלצה בלבד. אין שליחת פקודת טיסה מכאן.</p>
                 <div id="acParamsList" class="ac-params-list"></div>
               </div>
             </div>
 
-            <!-- ADVANCED: history log -->
             <details id="acHistoryDetails" class="ac-history-details hidden">
               <summary class="ac-history-summary">
-                <span>📋 היסטוריית ניסיונות</span>
+                <span>היסטוריית ניסיונות</span>
                 <span id="acHistoryCount" class="ac-history-count">0</span>
               </summary>
               <div class="ac-history-body">
