@@ -1,0 +1,17 @@
+[Unit]
+Description=AIRVIX Huawei E3372 status (modem_absent until USB present)
+Documentation=file:///opt/airvix/jetson-cellular/README.md
+After=local-fs.target
+DefaultDependencies=yes
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+EnvironmentFile=-/etc/airvix/e3372.env
+ExecStart=/opt/airvix/jetson-cellular/e3372-status.sh --write
+# Unplugged stick is the expected pre-hardware state.
+SuccessExitStatus=0
+# Do not send flight commands. Do not Companion-apply.
+
+[Install]
+WantedBy=multi-user.target

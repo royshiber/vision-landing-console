@@ -1,0 +1,8 @@
+# Huawei E3372 / E3372h HiLink — first USB id (mass storage / CD-ROM).
+# Matches usb-modeswitch-data HuaweiNewMode. Target is usually 12d1:14dc.
+DefaultVendor=0x12d1
+DefaultProduct=0x1f01
+TargetVendor=0x12d1
+TargetProductList="14db,14dc"
+HuaweiNewMode=1
+# No secrets. No APN. Host-side switch only.

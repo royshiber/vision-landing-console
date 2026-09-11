@@ -1,0 +1,8 @@
+# Huawei E3372 some firmware — first USB id (mass storage).
+# HuaweiNewMode typically lands on HiLink 14dc or stick 1506.
+DefaultVendor=0x12d1
+DefaultProduct=0x14fe
+TargetVendor=0x12d1
+TargetProductList="14dc,1506"
+HuaweiNewMode=1
+# No secrets. No APN. Host-side switch only.

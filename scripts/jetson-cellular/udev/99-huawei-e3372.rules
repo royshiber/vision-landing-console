@@ -1,0 +1,21 @@
+# AIRVIX — Huawei E3372 on Jetson USB host (Orin / Xavier).
+# Software stub. Safe to install before the stick is plugged in.
+# Cellular is the MAVLink second path. Annotated video is cellular only.
+# Do not treat Companion-HTTP as the command path.
+
+# Mass-storage / CD-ROM first appearance → usb_modeswitch to HiLink or stick.
+# -J is HuaweiNewMode (same as usb-modeswitch-data). RUN is a last-resort
+# if the distro data package is missing on a thin Jetson image.
+ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="12d1", ATTR{idProduct}=="1f01", RUN+="/usr/sbin/usb_modeswitch -v 12d1 -p 1f01 -J"
+ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="12d1", ATTR{idProduct}=="14fe", RUN+="/usr/sbin/usb_modeswitch -v 12d1 -p 14fe -J"
+ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="12d1", ATTR{idProduct}=="1446", RUN+="/usr/sbin/usb_modeswitch -v 12d1 -p 1446 -J"
+
+# HiLink CDC ethernet after switch — start bring-up when the netdev appears.
+ACTION=="add", SUBSYSTEM=="net", ATTRS{idVendor}=="12d1", ATTRS{idProduct}=="14dc", TAG+="systemd", ENV{SYSTEMD_WANTS}="airvix-e3372-bringup.service"
+ACTION=="add", SUBSYSTEM=="net", ATTRS{idVendor}=="12d1", ATTRS{idProduct}=="14db", TAG+="systemd", ENV{SYSTEMD_WANTS}="airvix-e3372-bringup.service"
+ACTION=="add", SUBSYSTEM=="net", ATTRS{idVendor}=="12d1", ATTRS{idProduct}=="155e", TAG+="systemd", ENV{SYSTEMD_WANTS}="airvix-e3372-bringup.service"
+
+# Stick / option tty after switch.
+ACTION=="add", SUBSYSTEM=="tty", ATTRS{idVendor}=="12d1", ATTRS{idProduct}=="1506", TAG+="systemd", ENV{SYSTEMD_WANTS}="airvix-e3372-bringup.service"
+ACTION=="add", SUBSYSTEM=="tty", ATTRS{idVendor}=="12d1", ATTRS{idProduct}=="1001", TAG+="systemd", ENV{SYSTEMD_WANTS}="airvix-e3372-bringup.service"
+ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="12d1", ATTR{idProduct}=="14dc", TAG+="systemd", ENV{SYSTEMD_WANTS}="airvix-e3372-bringup.service"

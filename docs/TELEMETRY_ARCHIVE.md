@@ -48,6 +48,8 @@ Huawei E3372 is **not** required for the archive to work. When the modem is unpl
 
 When a real modem is present, keep downlink on priority 2. Do not block the radio or cellular MAVLink sockets on export.
 
+Jetson host files for a future Huawei E3372 USB stick live in `scripts/jetson-cellular/` (see `docs/JETSON_CELLULAR_E3372.md`). They are dry-run safe. The console mock / `modem_absent` path stays until that USB id appears. Do not SSH from a Cloud Agent VM.
+
 ## API
 
 - `GET /api/telemetry-archive` — path, schema, queue stats, modem stub status
