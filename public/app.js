@@ -3122,21 +3122,73 @@ function companionHasDataPathClient(companion) {
   return false;
 }
 
-function pulseResolveComputerHonesty(companion) {
+function pulseFcObject(companion) {
+  const fc = companion?.fc;
+  return fc && typeof fc === 'object' && !Array.isArray(fc) ? fc : {};
+}
+
+function pulseCompanionFcLink(companion, mav) {
+  const src = companion && typeof companion === 'object' ? companion : {};
+  const mode = src.mode || src.link?.mode || 'off';
+  const jetsonUnreachable = mode === 'real' && src.reachable === false;
+  const fcObj = pulseFcObject(src);
+  const fcHb = src.fc_heartbeat === true
+    || src.link?.fc === 'heartbeat'
+    || src.fc === 'heartbeat'
+    || fcObj.heartbeat === true
+    || fcObj.heartbeat_validity === 'valid';
+  const fcLinked = src.fc_linked === true
+    || src.link?.fc === 'linked'
+    || src.fc === 'linked'
+    || fcObj.connected === true;
+  if (jetsonUnreachable) return 'unlinked';
+  if (fcHb) return 'heartbeat';
+  if (fcLinked) return 'linked';
+  if (mav && mav.connected) return 'heartbeat';
+  return 'unlinked';
+}
+
+function pulseResolveFcHonesty(companion, mav) {
+  const link = pulseCompanionFcLink(companion, mav);
+  const fcObj = pulseFcObject(companion);
+  const load = companionFiniteMetric(fcObj.loadPct, fcObj.load_pct, mav?.fcLoadPct);
+  const mem = companionFiniteMetric(fcObj.memPct, fcObj.mem_pct, mav?.fcMemPct);
+  const temp = companionFiniteMetric(fcObj.tempC, fcObj.temp_c, mav?.fcTempC);
+  const hasMetrics = load != null || mem != null || temp != null;
+  const live = link === 'heartbeat' || link === 'linked';
+  const labelHe = link === 'heartbeat' ? 'דופק חי' : link === 'linked' ? 'מקושר' : 'מנותק';
+  const card = link === 'heartbeat' ? 'heartbeat' : link === 'linked' ? 'linked' : 'disconnected';
+  const showGcsMissingNote = live && !hasMetrics;
+  return {
+    link,
+    labelHe,
+    card,
+    live,
+    hasMetrics,
+    showGcsMissingNote,
+    gaugeMissing: showGcsMissingNote ? '--' : (live ? 'אין נתון' : '--'),
+    load: live ? load : null,
+    mem: live ? mem : null,
+    temp: live ? temp : null,
+  };
+}
+
+function pulseResolveComputerHonesty(companion, mav) {
   const src = companion && typeof companion === 'object' ? companion : {};
   const mode = src.mode || src.link?.mode || 'off';
   const reachable = src.reachable === true || mode === 'mock';
   const hasData = src.hasData === true || src.hasData === false
     ? src.hasData === true
     : companionHasDataPathClient(src);
+  const fcHonesty = pulseResolveFcHonesty(src, mav);
   if (mode === 'real' && src.reachable === false) {
     return {
       jetsonLabelHe: 'לא מגיב',
       jetsonCard: 'unreachable',
-      fcLabelHe: 'מנותק',
-      fcCard: 'disconnected',
+      fcLabelHe: fcHonesty.labelHe,
+      fcCard: fcHonesty.card,
       jetsonLive: false,
-      fcLive: false,
+      fcLive: fcHonesty.live,
       hasData: false,
     };
   }
@@ -3144,22 +3196,20 @@ function pulseResolveComputerHonesty(companion) {
     return {
       jetsonLabelHe: 'מנותק',
       jetsonCard: 'disconnected',
-      fcLabelHe: 'מנותק',
-      fcCard: 'disconnected',
+      fcLabelHe: fcHonesty.labelHe,
+      fcCard: fcHonesty.card,
       jetsonLive: false,
-      fcLive: false,
+      fcLive: fcHonesty.live,
       hasData: false,
     };
   }
-  const fcHb = src.fc_heartbeat === true || src.link?.fc === 'heartbeat' || src.fc?.heartbeat === true || src.fc?.heartbeat_validity === 'valid';
-  const fcLinked = src.fc_linked === true || src.link?.fc === 'linked';
   return {
     jetsonLabelHe: hasData ? (mode === 'mock' ? 'מדומה' : 'מחובר') : 'מחובר · אין נתונים',
     jetsonCard: hasData ? 'connected' : 'nodata',
-    fcLabelHe: fcHb ? 'דופק חי' : (fcLinked ? 'מקושר' : 'מנותק'),
-    fcCard: fcHb ? 'connected' : (fcLinked ? 'nodata' : 'disconnected'),
+    fcLabelHe: fcHonesty.labelHe,
+    fcCard: fcHonesty.card,
     jetsonLive: true,
-    fcLive: !!(fcHb || fcLinked),
+    fcLive: fcHonesty.live,
     hasData,
   };
 }
@@ -3490,13 +3540,17 @@ function pulseRefresh() {
   pulseWriteComputerMetric('pulseJetsonMem', pulseComputerMetricValue(honesty.jetsonLive, companionFiniteMetric(sys.memPct, jetson.memPct)), '%', jetsonMissing);
   pulseWriteComputerMetric('pulseJetsonTemp', pulseComputerMetricValue(honesty.jetsonLive, companionFiniteMetric(sys.tempC, sys.temperature_c, jetson.tempC)), 'C', jetsonMissing);
   const mav = (typeof latestHudMavlink !== 'undefined' && latestHudMavlink) ? latestHudMavlink : null;
-  const fc = companion.fc || {};
-  if (aircraftEl) aircraftEl.textContent = honesty.fcLabelHe;
-  aircraftEl?.closest('.pulse-computer-card')?.setAttribute('data-state', honesty.fcCard);
-  const fcMissing = honesty.fcLive ? 'אין נתון' : '--';
-  pulseWriteComputerMetric('pulseFcLoad', pulseComputerMetricValue(honesty.fcLive, companionFiniteMetric(fc.loadPct, mav?.fcLoadPct)), '%', fcMissing);
-  pulseWriteComputerMetric('pulseFcMem', pulseComputerMetricValue(honesty.fcLive, companionFiniteMetric(fc.memPct, mav?.fcMemPct)), '%', fcMissing);
-  pulseWriteComputerMetric('pulseFcTemp', pulseComputerMetricValue(honesty.fcLive, companionFiniteMetric(fc.tempC, mav?.fcTempC)), 'C', fcMissing);
+  const fcHonesty = pulseResolveFcHonesty(companion, mav);
+  if (aircraftEl) aircraftEl.textContent = fcHonesty.labelHe;
+  aircraftEl?.closest('.pulse-computer-card')?.setAttribute('data-state', fcHonesty.card);
+  pulseWriteComputerMetric('pulseFcLoad', fcHonesty.load, '%', fcHonesty.gaugeMissing);
+  pulseWriteComputerMetric('pulseFcMem', fcHonesty.mem, '%', fcHonesty.gaugeMissing);
+  pulseWriteComputerMetric('pulseFcTemp', fcHonesty.temp, 'C', fcHonesty.gaugeMissing);
+  const fcNote = document.getElementById('pulseFcMetricsNote');
+  if (fcNote) {
+    fcNote.hidden = !fcHonesty.showGcsMissingNote;
+    fcNote.textContent = 'אין נתוני עומס מ־GCS';
+  }
   const companionLive = honesty.jetsonLive;
   const evolveText = pulseEvolveLine(document.getElementById('assistRunPanel'));
   const items = pulseBuildAttention({
@@ -8756,8 +8810,6 @@ initAnnotatedVisionPanel();
       mode: link.mode || prev.mode,
       reachable: link.reachable,
       hasData: link.hasData,
-      jetson: link.jetson,
-      fc: link.fc,
       fc_linked: link.fc_linked,
       fc_heartbeat: link.fc_heartbeat,
       pillLabelHe: link.pillLabelHe,

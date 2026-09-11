@@ -45,20 +45,23 @@ function loadUiHonesty() {
     sliceFunction(js, 'pulseCompanionLabel'),
     sliceFunction(js, 'companionFiniteMetric'),
     sliceFunction(js, 'companionHasDataPathClient'),
+    sliceFunction(js, 'pulseFcObject'),
+    sliceFunction(js, 'pulseCompanionFcLink'),
+    sliceFunction(js, 'pulseResolveFcHonesty'),
     sliceFunction(js, 'pulseResolveComputerHonesty'),
     sliceFunction(js, 'companionIsLive'),
     sliceFunction(js, 'formatComputerMetric'),
     sliceFunction(js, 'pulseComputerMetricValue'),
-    'return { pulseCompanionLabel, companionHasDataPathClient, pulseResolveComputerHonesty, companionIsLive, formatComputerMetric, pulseComputerMetricValue };',
+    'return { pulseCompanionLabel, companionHasDataPathClient, pulseFcObject, pulseCompanionFcLink, pulseResolveFcHonesty, pulseResolveComputerHonesty, companionIsLive, formatComputerMetric, pulseComputerMetricValue };',
   ].join('\n');
   return new Function(src)();
 }
 
 describe('Status connected ⇔ data honesty', () => {
-  it('pins APP_VERSION at 1.02.278 after Concept B 278', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.278'");
-    expect(pkg.version).toBe('1.02.278');
-    expect(changelog).toContain('"version": "1.02.277"');
+  it('pins APP_VERSION at 1.02.279 after Status FC honesty', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.279'");
+    expect(pkg.version).toBe('1.02.279');
+    expect(changelog).toContain('"version": "1.02.279"');
   });
 
   it('never labels Jetson מחובר when unreachable', () => {
@@ -122,6 +125,7 @@ describe('Status connected ⇔ data honesty', () => {
       fcLabelHe: 'מנותק',
       fcCard: 'disconnected',
     });
+    expect(ui.pulseResolveFcHonesty(unreachable).card).toBe('disconnected');
 
     const nodata = { mode: 'real', reachable: true, connected: true, hasData: false };
     expect(ui.pulseCompanionLabel(nodata)).toBe('מחובר · אין נתונים');
@@ -138,7 +142,7 @@ describe('Status connected ⇔ data honesty', () => {
     expect(honesty.jetsonLabelHe).toBe('מחובר');
     expect(honesty.fcLabelHe).toBe('דופק חי');
     expect(honesty.jetsonCard).toBe('connected');
-    expect(honesty.fcCard).toBe('connected');
+    expect(honesty.fcCard).toBe('heartbeat');
     expect(ui.formatComputerMetric(null, '%', 'אין נתון')).toBe('אין נתון');
     expect(ui.formatComputerMetric(41.2, '%', 'אין נתון')).toBe('41%');
     expect(ui.pulseComputerMetricValue(false, 41)).toBeNull();
