@@ -1294,50 +1294,60 @@
 
       <section id="development" class="panel">
         <div class="devtasks-panel evolve-shell cap-intake-shell develop-b-shell" data-layout-contract="v1" data-develop-chat="b" data-cap-intake="f1">
-          <section class="develop-chat-pane" aria-label="שיחת פיתוח">
-            <header class="develop-chat-hero">
-              <span class="develop-b-badge">פיתוח · שיחה</span>
-              <h3>שנה את המוצר</h3>
-              <p class="develop-chat-caption">תארו יכולת בטקסט חופשי. הסוכן שואל, בונה, ומציג תצוגה חיה. אין העלאה ואין התקנה בלי אישור.</p>
-            </header>
-            <div id="developChatLog" class="develop-chat-log" role="log" aria-live="polite"></div>
-            <div id="developChatMcq" class="develop-chat-mcq" hidden></div>
-            <form id="developChatForm" class="develop-chat-form">
-              <label class="visually-hidden" for="developChatInput">תיאור היכולת</label>
-              <textarea id="developChatInput" class="kpi-input develop-chat-input" rows="3" maxlength="5000" placeholder="תארו את היכולת החדשה בעברית."></textarea>
-              <button type="submit" id="developChatSendBtn" class="policy-btn develop-chat-send">שלח</button>
-            </form>
-            <div class="develop-chat-gates" aria-label="שערי אנוש">
-              <button type="button" id="developGateJetsonBtn" class="policy-btn develop-gate-btn" data-gate="jetson_upload" disabled>אשר העלאה לג׳טסון</button>
-              <button type="button" id="developGateFcBtn" class="policy-btn develop-gate-btn" data-gate="fc_install" disabled>אשר התקנה ל-FC</button>
-              <p class="develop-gate-note">שערי אנוש בלבד. אין העלאה או התקנה עד אישור.</p>
-            </div>
-            <button type="button" id="developOpenParamsBtn" class="policy-btn develop-params-btn" hidden>פתח בפרמטרים</button>
-            <p id="developChatStatus" class="develop-chat-status" hidden></p>
-          </section>
-
           <section class="develop-preview-pane evolve-preview" aria-label="תצוגה חיה">
-            <header class="evolve-section-head">
-              <h4 class="evolve-section-title">תצוגה חיה</h4>
-              <div class="evolve-preview-toggle" role="group" aria-label="לפני ואחרי">
-                <button type="button" id="evolvePreviewBeforeBtn" class="evolve-preview-btn" aria-pressed="true">לפני</button>
-                <button type="button" id="evolvePreviewAfterBtn" class="evolve-preview-btn" aria-pressed="false">אחרי</button>
-              </div>
-            </header>
-            <p class="evolve-preview-kicker" id="developPreviewKicker">סקיצה חיה של השינוי תחת הדיון. לקריאה בלבד.</p>
-            <div id="developPreviewStage" class="evolve-preview-stage develop-preview-stage">
-              <article id="developPreviewSketch" class="develop-preview-sketch" data-mode="before">
-                <span class="develop-preview-mode">לפני</span>
-                <div class="develop-preview-chrome" aria-hidden="true">
-                  <span data-surface="mission">הטסה</span>
-                  <span data-surface="pulse">סטטוס מחשבים</span>
-                  <span data-surface="params">פרמטרים</span>
+            <div id="developPreviewStage" class="develop-live-canvas" data-mode="before">
+              <svg class="develop-live-svg" viewBox="0 0 640 420" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+                <path class="develop-live-path" d="M90 370 C 170 310, 230 255, 310 210 S 430 145, 520 108"></path>
+                <circle class="develop-live-wp" cx="520" cy="108" r="9"></circle>
+                <polygon class="develop-live-mark" points="188,286 198,300 188,314 178,300"></polygon>
+              </svg>
+              <div class="develop-live-top">
+                <span class="develop-home-chip">חזרה לבית</span>
+                <div class="evolve-preview-toggle" role="group" aria-label="לפני ואחרי">
+                  <button type="button" id="evolvePreviewBeforeBtn" class="evolve-preview-btn" aria-pressed="true">לפני</button>
+                  <button type="button" id="evolvePreviewAfterBtn" class="evolve-preview-btn" aria-pressed="false">אחרי</button>
                 </div>
+              </div>
+              <p class="visually-hidden" id="developPreviewKicker">תצוגה חיה</p>
+              <article id="developPreviewSketch" class="develop-live-hud" data-mode="before">
+                <span class="develop-preview-mode">לפני</span>
                 <strong id="developPreviewHeadline">הממשק הנוכחי</strong>
+                <dl class="develop-live-hud-facts">
+                  <div><dt>מצב</dt><dd id="developPreviewHudState">מוכן</dd></div>
+                  <div><dt>מרחק</dt><dd id="developPreviewHudRange">—</dd></div>
+                  <div><dt>זמן</dt><dd id="developPreviewHudEta">—</dd></div>
+                </dl>
                 <p id="developPreviewLine1">אין את היכולת הזו עדיין.</p>
                 <p id="developPreviewLine2">המפעיל עובד במסך הקיים בלבד.</p>
               </article>
             </div>
+          </section>
+
+          <section class="develop-chat-pane" aria-label="שיחת פיתוח">
+            <header class="develop-chat-hero">
+              <span class="develop-b-badge">פיתוח · שיחה</span>
+            </header>
+            <div id="developChatLog" class="develop-chat-log" role="log" aria-live="polite"></div>
+            <div id="developChatMcq" class="develop-chat-mcq" hidden></div>
+            <div class="develop-chat-gates" id="developChatGates" hidden aria-label="התקנה">
+              <article class="develop-install-card">
+                <h5>מה יותקן</h5>
+                <p id="developInstallPayload" class="develop-install-payload"></p>
+                <p id="developInstallProgress" class="develop-install-progress"></p>
+                <div class="develop-install-actions">
+                  <button type="button" id="developGateJetsonBtn" class="policy-btn develop-gate-btn" data-gate="jetson_upload" disabled>אשר העלאה לג׳טסון</button>
+                  <button type="button" id="developGateFcBtn" class="policy-btn develop-gate-btn" data-gate="fc_install" disabled>אשר התקנה ל-FC</button>
+                </div>
+                <p class="develop-gate-note">אחרי אימות אפשר להתקין. אין פקודת טיסה.</p>
+              </article>
+            </div>
+            <button type="button" id="developOpenParamsBtn" class="policy-btn develop-params-btn" hidden>פתח בפרמטרים</button>
+            <p id="developChatStatus" class="develop-chat-status" hidden></p>
+            <form id="developChatForm" class="develop-chat-form">
+              <label class="visually-hidden" for="developChatInput">תיאור היכולת</label>
+              <textarea id="developChatInput" class="kpi-input develop-chat-input" rows="2" maxlength="5000" placeholder="כתבו חופשי או בחרו אפשרות."></textarea>
+              <button type="submit" id="developChatSendBtn" class="develop-chat-send" aria-label="שלח">שלח</button>
+            </form>
           </section>
 
           <aside class="cap-draft-card" hidden aria-hidden="true" aria-label="כרטיס יכולת">
@@ -1454,6 +1464,8 @@
             <p class="cap-loop-foot">משתמש → ממשק מוצר → Agent API → Cursor → ענף → אימות → תוצאה</p>
           </div>
 
+          <details class="develop-secondary" id="developSecondary">
+            <summary>מסלול ומעקב</summary>
           <section class="evolve-follow" aria-label="מעקב יכולת">
             <section class="evolve-plan" aria-label="תוכנית מוצעת">
               <div class="evolve-section-head">
@@ -1665,6 +1677,7 @@
               <p id="devTaskDetailResult" class="maint-rel-result" hidden></p>
             </div>
           </section>
+          </details>
         </div>
       </section>
 

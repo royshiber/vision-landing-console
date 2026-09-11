@@ -13265,7 +13265,7 @@ function developChatWelcome() {
   const msg = document.createElement('div');
   msg.className = 'develop-chat-msg';
   msg.dataset.role = 'assistant';
-  msg.textContent = 'תארו יכולת חדשה בטקסט חופשי. אשאל שאלות קצרות, אבנה קוד, ואציג תצוגה חיה. אין העלאה או התקנה בלי אישור.';
+  msg.textContent = 'תארו יכולת בטקסט חופשי. אשאל, אבנה, ואציג תצוגה חיה. אחרי אימות יוצג מה יותקן. אין פקודת טיסה.';
   log.appendChild(msg);
 }
 
@@ -13274,22 +13274,16 @@ function developChatRenderPreview(session) {
   const mode = _evolvePreviewMode === 'after' ? 'after' : 'before';
   const side = preview?.[mode] || preview?.before;
   const sketch = document.getElementById('developPreviewSketch');
+  const stage = document.getElementById('developPreviewStage');
   const kicker = document.getElementById('developPreviewKicker');
   if (kicker) kicker.textContent = preview?.title
-    ? `סקיצה חיה: ${preview.title}`
-    : 'סקיצה חיה של השינוי תחת הדיון. לקריאה בלבד.';
+    ? `תצוגה חיה: ${preview.title}`
+    : 'תצוגה חיה';
+  if (stage) stage.dataset.mode = mode;
   if (!sketch) return;
   sketch.dataset.mode = mode;
   const modeEl = sketch.querySelector('.develop-preview-mode');
   if (modeEl) modeEl.textContent = side?.kicker || (mode === 'after' ? 'אחרי' : 'לפני');
-  const surface = String(session?.answers?.surface || '');
-  sketch.querySelectorAll('.develop-preview-chrome span').forEach((el) => {
-    const key = el.getAttribute('data-surface');
-    const on = (surface === 'pulse' && key === 'pulse')
-      || (surface === 'params' && key === 'params')
-      || ((surface === 'mission' || surface === 'הטסה' || !surface) && key === 'mission');
-    el.setAttribute('data-on', on ? '1' : '0');
-  });
   const set = (id, value) => {
     const el = document.getElementById(id);
     if (el) el.textContent = value || '—';
@@ -13297,9 +13291,22 @@ function developChatRenderPreview(session) {
   set('developPreviewHeadline', side?.headline || 'הממשק הנוכחי');
   set('developPreviewLine1', side?.lines?.[0] || 'אין את היכולת הזו עדיין.');
   set('developPreviewLine2', side?.lines?.[1] || 'המפעיל עובד במסך הקיים בלבד.');
+  set('developPreviewHudState', 'מוכן');
+  set('developPreviewHudRange', mode === 'after' ? '1422' : '—');
+  set('developPreviewHudEta', mode === 'after' ? '0:48' : '—');
+}
+
+function developChatProgressLabel(status) {
+  if (status === 'recorded') return 'נרשם מקומית';
+  if (status === 'queued') return 'מותר להתקין';
+  if (status === 'installing') return 'מתקין';
+  return 'ממתין';
 }
 
 function developChatSyncGates(session) {
+  const ready = session?.phase === 'ready' || session?.phase === 'landed';
+  const host = document.getElementById('developChatGates');
+  if (host) host.hidden = !ready;
   const jetson = session?.gates?.jetson_upload;
   const fc = session?.gates?.fc_install;
   const jetsonBtn = document.getElementById('developGateJetsonBtn');
@@ -13312,9 +13319,38 @@ function developChatSyncGates(session) {
     fcBtn.disabled = !fc?.enabled;
     fcBtn.dataset.approved = fc?.approved ? '1' : '0';
   }
+  const payload = document.getElementById('developInstallPayload');
+  const progress = document.getElementById('developInstallProgress');
+  if (payload) {
+    if (!ready) {
+      payload.textContent = '';
+    } else {
+      const jetsonItems = session?.install?.jetson?.items || [];
+      const fcItems = session?.install?.fc?.items || [];
+      const lines = [
+        'מחשב משימה',
+        ...(jetsonItems.length ? jetsonItems : ['אין פריטים']),
+        'בקר טיסה',
+        ...(fcItems.length ? fcItems : ['אין פריטים']),
+        session?.install?.note || 'אין פקודת טיסה.',
+      ];
+      payload.textContent = lines.join('\n');
+    }
+  }
+  if (progress) {
+    if (!ready) {
+      progress.textContent = '';
+    } else {
+      const jetsonSt = session?.install?.progress?.jetson_upload?.status || 'queued';
+      const fcSt = session?.install?.progress?.fc_install?.status || 'queued';
+      progress.textContent = [
+        `מחשב משימה · ${developChatProgressLabel(jetsonSt)}`,
+        `בקר טיסה · ${developChatProgressLabel(fcSt)}`,
+      ].join('\n');
+    }
+  }
   const paramsBtn = document.getElementById('developOpenParamsBtn');
-  const hasParams = Array.isArray(session?.params) && session.params.length > 0
-    && (session.phase === 'ready' || session.phase === 'landed');
+  const hasParams = Array.isArray(session?.params) && session.params.length > 0 && ready;
   if (paramsBtn) paramsBtn.hidden = !hasParams;
   const hook = document.getElementById('developParamsHook');
   if (hook) hook.hidden = !hasParams;
@@ -13330,18 +13366,27 @@ function developChatRenderMcq(session) {
     return;
   }
   host.hidden = false;
-  const prompt = document.createElement('p');
-  prompt.className = 'develop-chat-mcq-prompt';
-  prompt.textContent = q.prompt;
-  host.appendChild(prompt);
+  const letters = ['א', 'ב', 'ג', 'ד', 'ה'];
+  let letterIdx = 0;
   for (const opt of q.options || []) {
+    const isFree = opt.freeText || opt.id === 'free_text' || opt.label === DEVELOP_FREE_TEXT_LABEL;
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'develop-mcq-btn';
     btn.dataset.choiceId = opt.id;
-    btn.dataset.free = opt.freeText || opt.id === 'free_text' || opt.label === DEVELOP_FREE_TEXT_LABEL ? '1' : '0';
-    btn.textContent = opt.label || (opt.id === 'free_text' ? DEVELOP_FREE_TEXT_LABEL : '');
-    btn.addEventListener('click', () => { void developChatChoose(opt.id, opt.freeText || opt.id === 'free_text'); });
+    btn.dataset.free = isFree ? '1' : '0';
+    if (isFree) {
+      btn.textContent = opt.label || DEVELOP_FREE_TEXT_LABEL;
+    } else {
+      const letter = document.createElement('span');
+      letter.className = 'develop-mcq-letter';
+      letter.textContent = letters[letterIdx] || String(letterIdx + 1);
+      letterIdx += 1;
+      const label = document.createElement('span');
+      label.textContent = opt.label || '';
+      btn.append(letter, label);
+    }
+    btn.addEventListener('click', () => { void developChatChoose(opt.id, isFree); });
     host.appendChild(btn);
   }
 }
@@ -13456,7 +13501,7 @@ async function developChatApproveGate(gateId) {
     return;
   }
   developChatRender(j.session);
-  developChatSetStatus('נרשם אישור. אין החלה אוטומטית.', 'ok');
+  developChatSetStatus('נרשמה התקדמות מקומית. אין החלה אוטומטית.', 'ok');
 }
 
 function developOpenParams() {

@@ -74,7 +74,7 @@ describe('AIRVIX 1.02.261 Roy feedback (still holds on 1.02.277)', () => {
     expect(html).toMatch(/id="devTaskCreateBtn"[^>]*>שמור טיוטה</);
     expect(html).toMatch(/id="capStartAgentBtn"[^>]*>התחל סוכן יכולת</);
     expect(css).toMatch(/\.evolve-shell\s*\{[^}]*display:\s*grid/);
-    expect(css).toMatch(/"chat preview"/);
+    expect(css).toMatch(/"preview chat"/);
     expect(css).toMatch(/\.evolve-run-grid\s*\{[^}]*grid-auto-flow:\s*row/);
     expect(js).toContain('function isEvolvePreviewFrame(');
     expect(js).toContain('function capStartCapabilityAgent(');

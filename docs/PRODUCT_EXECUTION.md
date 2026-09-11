@@ -71,7 +71,7 @@ Merge autonomy still on for independently VERIFIED safe draft PRs. Hard safety s
 ### Landed
 
 - **F1 Capability Intake Studio** — master `1.02.267` via PR #87 `3897a70`. Now hidden under Concept B; composer remnants stay for Ask handoff.
-- **Develop Concept B** — this draft `1.02.274`. Chat + live preview. MCQ with always-available free text. Human Gates disabled until ready. Parameters hook after land.
+- **Develop Concept B** — this draft `1.02.274`. Locked split: live map preview left, Hebrew chat right. MCQ rows plus free text. After VERIFY, install payload is visible; optional tap records local progress only. No live Jetson/FC apply. Parameters hook after land.
 - **F2 Capability Runway** — master `1.02.268` via PR #88 `2cffa19`. IDEA → RUNNING → VERIFY → PR → DONE from real task fields only.
 - C10.6 Mission flight-safe Assist stays: no `CREATE_DEVELOPMENT_TASK` on Mission; DEVELOPMENT / coding-agent start refused in spoken Hebrew.
 - AIRVIX Ask naming only. Jetson / מחשב משימה. No מסייע. No מלווה. No AH polish / «הגדל את האופק».

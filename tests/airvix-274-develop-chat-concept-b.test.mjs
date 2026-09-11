@@ -73,15 +73,19 @@ describe('AIRVIX 1.02.274 Develop Concept B chat', () => {
     expect(panel).toContain('אשר התקנה ל-FC');
     expect(panel).toContain('פתח בפרמטרים');
     expect(panel).toContain('תצוגה חיה');
+    expect(panel).toContain('class="develop-live-canvas"');
+    expect(panel).toContain('id="developInstallPayload"');
     expect(panel).toMatch(/id="developGateJetsonBtn"[^>]*disabled/);
     expect(panel).toMatch(/id="developGateFcBtn"[^>]*disabled/);
     expect(panel).toContain('class="cap-studio" hidden');
     expect(panel).toContain('class="cap-draft-card" hidden');
-    expect(css).toMatch(/"chat preview"/);
+    expect(css).toMatch(/"preview chat"/);
     expect(js).toContain('function developChatSend(');
     expect(js).toContain('function developChatChoose(');
     expect(js).toContain('function developChatApproveGate(');
     expect(js).toContain('או כתוב חופשי');
+    expect(js).toContain('develop-mcq-letter');
+    expect(panel).toContain('מה יותקן');
   });
 
   it('keeps Ask as flight advisor naming and hides מסייע', () => {
@@ -145,6 +149,11 @@ describe('Develop Concept B conversation engine', () => {
     expect(approved.gates.jetson_upload.approved).toBe(true);
     expect(approved.gates.jetson_upload.applied).toBe(false);
     expect(approved.gates.fc_install.applied).toBe(false);
+    expect(session.install.authorized).toBe(true);
+    expect(session.install.jetson.items.length).toBeGreaterThan(0);
+    expect(session.install.note).toContain('אין פקודת טיסה');
+    expect(approved.install.progress.jetson_upload.status).toBe('recorded');
+    expect(approved.install.progress.jetson_upload.percent).toBe(100);
   });
 });
 
@@ -199,6 +208,9 @@ describe('Develop Concept B HTTP API', () => {
       expect(built.applied).toBe(false);
       expect(built.session.gates.jetson_upload.enabled).toBe(true);
       expect(built.session.params.length).toBeGreaterThan(0);
+      expect(built.session.install.authorized).toBe(true);
+      expect(built.session.install.jetson.items.length).toBeGreaterThan(0);
+      expect(built.session.install.progress.jetson_upload.status).toBe('queued');
       expect(built.task?.taxonomy).toBe('FEATURE');
 
       const gated = await fetch(`${base}/api/develop/chat/${first.session.id}/gate`, {
