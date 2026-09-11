@@ -20,36 +20,30 @@ function wizardPanel() {
   return html.slice(start, custom);
 }
 
-describe('AIRVIX 1.02.272 hardware-intent configuration wizard', () => {
-  it('keeps the 1.02.272 hardware-intent changelog', () => {
-    expect(changelog).toContain('"version": "1.02.272"');
+describe('AIRVIX hardware-intent lock still holds on Concept B (1.02.273)', () => {
+  it('pins APP_VERSION at 1.02.273', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.273'");
+    expect(pkg.version).toBe('1.02.273');
+    expect(changelog).toContain('"version": "1.02.273"');
   });
 
-  it('rebuilds the wizard around one component and three questions', () => {
+  it('keeps the three locked questions and the recommendation fold', () => {
     const panel = wizardPanel();
-    expect(panel).toContain('data-ac-model="hardware-intent"');
-    expect(panel).toContain('id="acIntentCard"');
-    expect(panel).toContain('id="acWizPrev"');
-    expect(panel).toContain('id="acWizNext"');
-    expect(panel).toContain('id="acWizMark"');
-    expect(panel).toContain('id="acWalkOverview"');
-    expect(js).toContain('function renderWalkOverview');
+    expect(panel).toContain('data-ac-model="concept-b"');
+    expect(panel).toContain('מה חיברתי');
+    expect(panel).toContain('לאן חיברתי');
+    expect(panel).toContain('מה אני מצפה שיקרה');
     expect(panel).toContain('id="acPlanBtn"');
-    expect(js).toContain('מה מחובר');
-    expect(js).toContain('לאן מחובר');
-    expect(js).toContain('מה אני מצפה שיקרה');
-    expect(js).toContain('data-host=');
     expect(js).toContain('בקר טיסה');
     expect(js).toContain('מחשב משימה');
-    expect(js).toContain('ac-expect-token');
-    expect(js).toContain('hardwareIntent');
+    expect(js).toContain('conceptB');
   });
 
   it('keeps FC and Jetson visually distinct and RTL-safe', () => {
-    expect(css).toContain('.ac-wire-host[data-host="fc"]');
-    expect(css).toContain('.ac-wire-host[data-host="jetson"]');
+    expect(css).toContain('.ac-b-seg-btn[data-host="fc"]');
+    expect(css).toContain('.ac-b-seg-btn[data-host="jetson"]');
     expect(css).toContain('unicode-bidi: isolate');
-    expect(css).toContain('.ac-intent-card');
+    expect(css).toContain('.ac-b-card');
   });
 
   it('does not turn Develop into Mission polish and keeps Mission contract markers', () => {

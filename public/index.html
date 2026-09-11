@@ -525,35 +525,77 @@
           <div id="paramSyncBanner" class="param-sync-banner param-sync-banner--info" role="status" aria-live="polite"></div>
           <pre id="mpOut" class="mp-out-hidden"></pre>
         </div>
-        <!-- Auto-Config wizard panel — hardware-intent walk -->
-        <div id="autoConfig" class="subpanel ac-panel" data-ac-model="hardware-intent">
+        <!-- Auto-Config wizard panel — Concept B three tall cards -->
+        <div id="autoConfig" class="subpanel ac-panel" data-ac-model="concept-b">
 
-          <header class="ac-wiz-head">
-            <div class="ac-wiz-head-text">
-              <h3 class="ac-wiz-title">אשף קונפיגורציה</h3>
-              <p class="ac-wiz-lead">רשימת חיווט. כל כרטיס הוא רכיב אחד.</p>
+          <header class="ac-b-head">
+            <div class="ac-b-head-text">
+              <h3 class="ac-b-title">אשף קונפיגורציה</h3>
+              <p class="ac-b-lead">מה חיברתי. לאן חיברתי. מה אני מצפה שיקרה.</p>
             </div>
-            <p id="acWizProgress" class="ac-wiz-progress" aria-live="polite"></p>
+            <p id="acBProgress" class="ac-b-progress" aria-live="polite"></p>
           </header>
 
-          <div class="ac-toolbar">
-            <div class="ac-toolbar-chips">
-              <span class="ac-toolbar-label">רכיב</span>
-              <div id="acComponentBtns" class="ac-component-btns" role="tablist" aria-label="רכיבים מחוברים"></div>
-            </div>
+          <div id="acBGrid" class="ac-b-grid" dir="rtl">
+            <article id="acBCardWhat" class="ac-b-card" data-card="what" data-step="1">
+              <header class="ac-b-card-head">
+                <span class="ac-b-num" aria-hidden="true">1</span>
+                <h4 class="ac-b-card-title">מה חיברתי</h4>
+              </header>
+              <div id="acBWhatList" class="ac-b-list" role="radiogroup" aria-label="מה חיברתי"></div>
+              <div class="ac-b-free">
+                <label class="ac-b-free-opt" for="acBWhatFreeRadio">
+                  <input type="radio" name="acBWhat" id="acBWhatFreeRadio" value="__free__">
+                  <span>אחר</span>
+                </label>
+                <input id="acBWhatFree" class="ac-b-free-input" type="text" dir="rtl" placeholder="או כתוב חופשי…" autocomplete="off">
+              </div>
+            </article>
+
+            <article id="acBCardWhere" class="ac-b-card" data-card="where" data-step="2">
+              <header class="ac-b-card-head">
+                <span class="ac-b-num" aria-hidden="true">2</span>
+                <h4 class="ac-b-card-title">לאן חיברתי</h4>
+              </header>
+              <div class="ac-b-seg" role="tablist" aria-label="יעד חיבור">
+                <button type="button" id="acBHostFc" class="ac-b-seg-btn" data-host="fc" aria-pressed="true">בקר טיסה</button>
+                <button type="button" id="acBHostJetson" class="ac-b-seg-btn" data-host="jetson" aria-pressed="false">מחשב משימה</button>
+              </div>
+              <p id="acBHostNote" class="ac-b-host-note" data-host="fc">שקעים על לוח הבקר.</p>
+              <div id="acBPortGrid" class="ac-b-ports" role="radiogroup" aria-label="שקע או פין"></div>
+              <div class="ac-b-free">
+                <label class="ac-b-free-opt" for="acBWhereFreeRadio">
+                  <input type="radio" name="acBPort" id="acBWhereFreeRadio" value="__free__">
+                  <span>אחר</span>
+                </label>
+                <input id="acBWhereFree" class="ac-b-free-input" type="text" dir="rtl" placeholder="או כתוב חופשי…" autocomplete="off">
+              </div>
+            </article>
+
+            <article id="acBCardExpect" class="ac-b-card" data-card="expect" data-step="3">
+              <header class="ac-b-card-head">
+                <span class="ac-b-num" aria-hidden="true">3</span>
+                <h4 class="ac-b-card-title">מה אני מצפה שיקרה</h4>
+              </header>
+              <div id="acBOutcomeList" class="ac-b-outcomes" role="group" aria-label="ציפיות"></div>
+              <div class="ac-b-free">
+                <label class="ac-b-free-opt" for="acBExpectFree">
+                  <span>אחר</span>
+                </label>
+                <input id="acBExpectFree" class="ac-b-free-input" type="text" dir="rtl" placeholder="או כתוב חופשי…" autocomplete="off">
+              </div>
+            </article>
           </div>
 
-          <div class="ac-body">
-            <article id="acIntentCard" class="ac-intent-card" aria-live="polite"></article>
-
-            <div class="ac-wiz-nav">
-              <button type="button" id="acWizPrev" class="ac-wiz-nav-btn">הקודם</button>
-              <button type="button" id="acWizMark" class="ac-wiz-mark-btn">סימנתי שראיתי</button>
-              <button type="button" id="acWizNext" class="ac-wiz-nav-btn ac-wiz-nav-btn--next">הבא</button>
+          <footer class="ac-b-foot">
+            <p id="acBSummary" class="ac-b-summary" aria-live="polite"></p>
+            <div class="ac-b-actions">
+              <button type="button" id="acBSave" class="ac-b-save">שמור</button>
+              <button type="button" id="acBNext" class="ac-b-next">הבא</button>
             </div>
+          </footer>
 
-            <section id="acWalkOverview" class="ac-walk-overview" aria-label="רשימת חיווט מלאה"></section>
-
+          <div class="ac-body ac-b-secondary">
             <details id="acAskFold" class="ac-ask-fold">
               <summary class="ac-ask-summary">שאלה על הרכיב הזה</summary>
               <div class="ac-ask-body">

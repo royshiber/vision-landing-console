@@ -180,8 +180,8 @@ describe('Auto-Config → Assist + Configuration fold — service', () => {
 describe('Auto-Config → Assist + Configuration fold — chrome', () => {
   it('keeps #autoConfig under Parameter Center after Platform tab removal', () => {
     expect(html).toContain('id="autoConfig"');
-    expect(html).toContain('data-ac-model="hardware-intent"');
-    expect(html).toContain('id="acIntentCard"');
+    expect(html).toContain('data-ac-model="concept-b"');
+    expect(html).toContain('id="acBCardWhat"');
     expect(html).toContain('id="acPlanBtn"');
     expect(html).toMatch(/class="subtab"[^>]*data-subtab="autoConfig"[^>]*>אשף קונפיגורציה</);
     expect(html).not.toContain('data-platform-go');
@@ -205,8 +205,8 @@ describe('Auto-Config → Assist + Configuration fold — chrome', () => {
     expect(html).not.toMatch(/id="companionApplyBtn"|id="companionRestartBtn"/);
   });
 
-  it('pins APP_VERSION at 1.02.272', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.272'");
-    expect(pkg.version).toBe('1.02.272');
+  it('pins APP_VERSION at 1.02.273', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.273'");
+    expect(pkg.version).toBe('1.02.273');
   });
 });

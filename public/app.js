@@ -9126,15 +9126,24 @@ initAnnotatedVisionPanel();
   };
 })();
 
-/* ─── AUTO-CONFIG WIZARD ─── */
+/* ─── AUTO-CONFIG WIZARD (Concept B) ─── */
 (function initAutoConfigWizard() {
-  const acComponentBtns    = document.getElementById('acComponentBtns');
-  const acIntentCard       = document.getElementById('acIntentCard');
-  const acWizProgress      = document.getElementById('acWizProgress');
-  const acWizPrev          = document.getElementById('acWizPrev');
-  const acWizNext          = document.getElementById('acWizNext');
-  const acWizMark          = document.getElementById('acWizMark');
-  const acWalkOverview     = document.getElementById('acWalkOverview');
+  const acBWhatList        = document.getElementById('acBWhatList');
+  const acBPortGrid        = document.getElementById('acBPortGrid');
+  const acBOutcomeList     = document.getElementById('acBOutcomeList');
+  const acBWhatFree        = document.getElementById('acBWhatFree');
+  const acBWhereFree       = document.getElementById('acBWhereFree');
+  const acBExpectFree      = document.getElementById('acBExpectFree');
+  const acBWhatFreeRadio   = document.getElementById('acBWhatFreeRadio');
+  const acBWhereFreeRadio  = document.getElementById('acBWhereFreeRadio');
+  const acBHostFc          = document.getElementById('acBHostFc');
+  const acBHostJetson      = document.getElementById('acBHostJetson');
+  const acBHostNote        = document.getElementById('acBHostNote');
+  const acBCardWhere       = document.getElementById('acBCardWhere');
+  const acBSummary         = document.getElementById('acBSummary');
+  const acBSave            = document.getElementById('acBSave');
+  const acBNext            = document.getElementById('acBNext');
+  const acBProgress        = document.getElementById('acBProgress');
   const acSymptoms         = document.getElementById('acSymptoms');
   const acPlanBtn          = document.getElementById('acPlanBtn');
   const acPlanBtnLabel     = acPlanBtn?.querySelector('.ac-plan-btn-label');
@@ -9154,7 +9163,7 @@ initAnnotatedVisionPanel();
   const acHistoryCount     = document.getElementById('acHistoryCount');
   const acHistoryClearBtn  = document.getElementById('acHistoryClearBtn');
 
-  if (!acComponentBtns || !acPlanBtn) return;
+  if (!acBWhatList || !acPlanBtn) return;
 
   function acEsc(s) {
     return String(s ?? '')
@@ -9219,177 +9228,376 @@ initAnnotatedVisionPanel();
     if (acHistoryDetails) acHistoryDetails.classList.add('hidden');
   });
 
+  const AC_FREE = '__free__';
+  const AC_STORE = 'vlc.ac.conceptB.v1';
+
   let selectedComponent = null;
-  let hardwareWalk = [];
-  let walkIndex = 0;
-  const seenIds = new Set();
+  let catalog = { hardware: [], ports: { fc: [], jetson: [] }, outcomes: [] };
+  let step = emptyConceptBStep();
+  let savedSteps = [];
 
-  function currentIntent() {
-    return hardwareWalk[walkIndex] || null;
+  function emptyConceptBStep() {
+    return {
+      hardwareId: '',
+      hardwareFree: '',
+      host: 'fc',
+      portId: '',
+      portFree: '',
+      outcomeIds: [],
+      outcomeFree: '',
+    };
   }
 
-  function recipeTypeOf(intent) {
-    return intent?.recipeType || intent?.id || selectedComponent;
+  function normalizeConceptBStep(raw) {
+    const src = raw && typeof raw === 'object' ? raw : {};
+    return {
+      hardwareId: String(src.hardwareId || '').trim(),
+      hardwareFree: String(src.hardwareFree || ''),
+      host: src.host === 'jetson' ? 'jetson' : 'fc',
+      portId: String(src.portId || '').trim(),
+      portFree: String(src.portFree || ''),
+      outcomeIds: Array.isArray(src.outcomeIds) ? src.outcomeIds.map((id) => String(id || '').trim()).filter(Boolean) : [],
+      outcomeFree: String(src.outcomeFree || ''),
+    };
   }
 
-  function renderWireHost(target, emptyHe) {
-    if (!target) {
-      return `<div class="ac-wire-host" data-empty="1">
-        <p class="ac-wire-host-name">${acEsc(emptyHe)}</p>
-        <p class="ac-wire-note">אין חיבור חוט כאן.</p>
-      </div>`;
-    }
-    const pins = (target.pins || []).map((p) => `<span class="ac-port-chip">${acEsc(p)}</span>`).join('');
-    return `<div class="ac-wire-host" data-host="${acEsc(target.host)}">
-      <p class="ac-wire-host-name">${acEsc(target.hostHe)}</p>
-      <div class="ac-wire-pins">${pins}</div>
-      <p class="ac-wire-note">${acEsc(target.noteHe)}</p>
-    </div>`;
+  function hardwarePreset(id) {
+    return catalog.hardware.find((h) => h.id === id) || null;
   }
 
-  function renderIntentCard(intent) {
-    if (!acIntentCard) return;
-    if (!intent) {
-      acIntentCard.innerHTML = '';
-      if (acEmptyState) acEmptyState.classList.remove('hidden');
+  function applyHardwarePreset(id) {
+    const preset = hardwarePreset(id);
+    if (!preset) {
+      step.hardwareId = AC_FREE;
       return;
     }
+    step.hardwareId = preset.id;
+    step.hardwareFree = '';
+    step.host = preset.suggestHost || 'fc';
+    step.portId = preset.suggestPort || '';
+    step.portFree = '';
+    step.outcomeIds = Array.isArray(preset.suggestOutcomes) ? [...preset.suggestOutcomes] : [];
+  }
+
+  function hardwareLabel() {
+    if (step.hardwareId === AC_FREE || step.hardwareFree.trim()) {
+      return step.hardwareFree.trim() || 'אחר';
+    }
+    return hardwarePreset(step.hardwareId)?.labelHe || '';
+  }
+
+  function portLabel() {
+    if (step.portId === AC_FREE || step.portFree.trim()) {
+      return step.portFree.trim() || 'שקע אחר';
+    }
+    const ports = step.host === 'jetson' ? catalog.ports.jetson : catalog.ports.fc;
+    return (ports || []).find((p) => p.id === step.portId)?.label || step.portId || '';
+  }
+
+  function outcomeLabels() {
+    const labels = [];
+    for (const id of step.outcomeIds) {
+      const o = catalog.outcomes.find((x) => x.id === id);
+      if (o) labels.push(o.token);
+    }
+    if (step.outcomeFree.trim()) labels.push(step.outcomeFree.trim());
+    return labels;
+  }
+
+  function buildSummaryHe() {
+    const what = hardwareLabel();
+    const port = portLabel();
+    const outcomes = outcomeLabels();
+    const hostHe = step.host === 'jetson' ? 'מחשב משימה' : 'בקר טיסה';
+    const hasWhat = Boolean(what && what !== 'אחר');
+    const hasFreeWhat = step.hardwareId === AC_FREE && Boolean(step.hardwareFree.trim());
+    const hasPort = Boolean(port && port !== 'שקע אחר');
+    const hasFreePort = step.portId === AC_FREE && Boolean(step.portFree.trim());
+    const hasExpect = outcomes.length > 0;
+    if (!hasWhat && !hasFreeWhat && !hasPort && !hasFreePort && !hasExpect) {
+      return 'בחרו מה חיברתם, לאן, ומה מצפים.';
+    }
+    const whatPart = what || 'רכיב';
+    const wherePart = port ? ` ל${hostHe} בשקע ${port}` : ` ל${hostHe}`;
+    const expectPart = hasExpect ? ` מצפה ל־${outcomes.join(' · ')}.` : '.';
+    return `חיברתי ${whatPart}${wherePart}.${expectPart}`;
+  }
+
+  function isStepSavable() {
+    const hasWhat = (step.hardwareId && step.hardwareId !== AC_FREE) || Boolean(step.hardwareFree.trim());
+    const hasWhere = (step.portId && step.portId !== AC_FREE) || Boolean(step.portFree.trim());
+    const hasExpect = step.outcomeIds.length > 0 || Boolean(step.outcomeFree.trim());
+    return hasWhat || hasWhere || hasExpect;
+  }
+
+  function recipeTypeOf() {
+    return hardwarePreset(step.hardwareId)?.componentId || selectedComponent;
+  }
+
+  function persistConceptB() {
+    try {
+      localStorage.setItem(AC_STORE, JSON.stringify({ step, saved: savedSteps }));
+    } catch { /* ignore */ }
+  }
+
+  function loadPersistedConceptB() {
+    try {
+      const raw = JSON.parse(localStorage.getItem(AC_STORE) || 'null');
+      if (raw?.step) step = normalizeConceptBStep(raw.step);
+      if (Array.isArray(raw?.saved)) savedSteps = raw.saved.map((s) => normalizeConceptBStep(s));
+    } catch { /* ignore */ }
+  }
+
+  function liveOf(key) {
+    const mav = (typeof _assistLastMav === 'object' && _assistLastMav) ? _assistLastMav : {};
+    const companion = (typeof latestCompanionFromServer === 'object' && latestCompanionFromServer) ? latestCompanionFromServer : {};
+    const vision = (typeof latestVisionFromServer === 'object' && latestVisionFromServer) ? latestVisionFromServer : {};
+    if (key === 'gps3d') {
+      if (typeof mav.gpsFixType !== 'number') return 'off';
+      return mav.gpsFixType >= 3 ? 'live' : 'wait';
+    }
+    if (key === 'heartbeat') {
+      const mavHb = companion?.mavlink?.heartbeat_ok === true;
+      const fcHb = companion?.fc?.heartbeat_validity === 'ok' || companion?.fc?.heartbeat_ok === true;
+      if (mavHb || fcHb) return 'live';
+      if (mav.connected === true) return 'wait';
+      return 'off';
+    }
+    if (key === 'telemetry') return mav.connected === true ? 'live' : 'off';
+    if (key === 'vision') {
+      const age = vision.ageMs;
+      if (typeof age === 'number' && age < 3000) return 'live';
+      return 'off';
+    }
+    if (key === 'rc') return mav.rcChannels ? 'live' : 'off';
+    return 'off';
+  }
+
+  function liveHe(state) {
+    if (state === 'live') return 'חי';
+    if (state === 'wait') return 'ממתין';
+    return 'אין נתון';
+  }
+
+  function syncFreeChrome() {
+    const whatFree = step.hardwareId === AC_FREE;
+    const whereFree = step.portId === AC_FREE;
+    acBWhatFreeRadio && (acBWhatFreeRadio.checked = whatFree);
+    acBWhereFreeRadio && (acBWhereFreeRadio.checked = whereFree);
+    if (acBWhatFree && document.activeElement !== acBWhatFree) acBWhatFree.value = step.hardwareFree;
+    if (acBWhereFree && document.activeElement !== acBWhereFree) acBWhereFree.value = step.portFree;
+    if (acBExpectFree && document.activeElement !== acBExpectFree) acBExpectFree.value = step.outcomeFree;
+    acBWhatFree?.closest('.ac-b-free')?.setAttribute('data-on', whatFree ? '1' : '0');
+    acBWhereFree?.closest('.ac-b-free')?.setAttribute('data-on', whereFree ? '1' : '0');
+    acBExpectFree?.closest('.ac-b-free')?.setAttribute('data-on', step.outcomeFree.trim() ? '1' : '0');
+    acBWhatList?.querySelectorAll('.ac-b-opt').forEach((el) => {
+      const input = el.querySelector('input');
+      const on = Boolean(input) && step.hardwareId === input.value;
+      el.dataset.on = on ? '1' : '0';
+      if (input) input.checked = on;
+    });
+    acBPortGrid?.querySelectorAll('.ac-b-port').forEach((el) => {
+      el.dataset.on = step.portId === el.dataset.port ? '1' : '0';
+    });
+  }
+
+  function renderWhatList() {
+    acBWhatList.innerHTML = catalog.hardware.map((h) => `
+      <label class="ac-b-opt" data-on="${step.hardwareId === h.id ? '1' : '0'}">
+        <input type="radio" name="acBWhat" value="${acEsc(h.id)}" ${step.hardwareId === h.id ? 'checked' : ''}>
+        <span class="ac-b-opt-body">
+          <span class="ac-b-opt-title">${acEsc(h.labelHe)}</span>
+          <span class="ac-b-model">${acEsc(h.modelHe)}</span>
+          <span class="ac-b-opt-detail">${acEsc(h.detailHe)}</span>
+        </span>
+      </label>`).join('');
+    acBWhatList.querySelectorAll('input[name="acBWhat"]').forEach((input) => {
+      input.addEventListener('change', () => {
+        applyHardwarePreset(input.value);
+        selectedComponent = recipeTypeOf();
+        persistConceptB();
+        renderConceptB();
+      });
+    });
+  }
+
+  function renderPortGrid() {
+    const ports = step.host === 'jetson' ? catalog.ports.jetson : catalog.ports.fc;
+    acBPortGrid.innerHTML = (ports || []).map((p) => `
+      <button type="button" class="ac-b-port" data-port="${acEsc(p.id)}" data-on="${step.portId === p.id ? '1' : '0'}">${acEsc(p.label)}</button>`).join('');
+    acBPortGrid.querySelectorAll('[data-port]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        step.portId = btn.dataset.port;
+        step.portFree = '';
+        persistConceptB();
+        renderConceptB();
+      });
+    });
+  }
+
+  function renderOutcomes() {
+    acBOutcomeList.innerHTML = catalog.outcomes.map((o) => {
+      const on = step.outcomeIds.includes(o.id);
+      const live = liveOf(o.liveKey);
+      return `
+        <label class="ac-b-outcome" data-on="${on ? '1' : '0'}">
+          <input type="checkbox" value="${acEsc(o.id)}" ${on ? 'checked' : ''}>
+          <span class="ac-b-opt-body">
+            <span class="ac-b-expect-token">${acEsc(o.token)}</span>
+            <span class="ac-b-opt-title">${acEsc(o.titleHe)}</span>
+            <span class="ac-b-opt-detail">${acEsc(o.observeHe)}</span>
+          </span>
+          <span class="ac-b-live" data-live="${live}">${liveHe(live)}</span>
+        </label>`;
+    }).join('');
+    acBOutcomeList.querySelectorAll('input[type="checkbox"]').forEach((input) => {
+      input.addEventListener('change', () => {
+        const id = input.value;
+        if (input.checked) {
+          if (!step.outcomeIds.includes(id)) step.outcomeIds.push(id);
+        } else {
+          step.outcomeIds = step.outcomeIds.filter((x) => x !== id);
+        }
+        persistConceptB();
+        renderConceptB();
+      });
+    });
+  }
+
+  function renderHost() {
+    acBHostFc?.setAttribute('aria-pressed', step.host === 'fc' ? 'true' : 'false');
+    acBHostJetson?.setAttribute('aria-pressed', step.host === 'jetson' ? 'true' : 'false');
+    if (acBCardWhere) acBCardWhere.dataset.host = step.host;
+    if (acBHostNote) {
+      acBHostNote.dataset.host = step.host;
+      acBHostNote.textContent = step.host === 'jetson'
+        ? 'שקעים על מחשב המשימה.'
+        : 'שקעים על לוח הבקר.';
+    }
+  }
+
+  function renderConceptB() {
     if (acEmptyState) acEmptyState.classList.add('hidden');
-    const model = intent.connected?.modelHe
-      ? `<span class="ac-model-chip">${acEsc(intent.connected.modelHe)}</span>`
-      : '';
-    acIntentCard.innerHTML = `
-      <section class="ac-q" data-q="connected">
-        <p class="ac-q-kicker">מה מחובר</p>
-        <h4 class="ac-q-title">${acEsc(intent.connected?.titleHe || intent.labelHe)}</h4>
-        ${model}
-        <p class="ac-q-detail">${acEsc(intent.connected?.detailHe || '')}</p>
-      </section>
-      <section class="ac-q" data-q="where">
-        <p class="ac-q-kicker">לאן מחובר</p>
-        <div class="ac-wire-hosts">
-          ${renderWireHost(intent.wiring?.fc, 'בקר טיסה')}
-          ${renderWireHost(intent.wiring?.jetson, 'מחשב משימה')}
-        </div>
-      </section>
-      <section class="ac-q" data-q="expect">
-        <p class="ac-q-kicker">מה אני מצפה שיקרה</p>
-        <span class="ac-expect-token">${acEsc(intent.expected?.token || '')}</span>
-        <h4 class="ac-q-title">${acEsc(intent.expected?.titleHe || '')}</h4>
-        <p class="ac-q-detail">${acEsc(intent.expected?.observeHe || '')}</p>
-      </section>`;
-  }
-
-  function syncWalkChrome() {
-    const intent = currentIntent();
-    selectedComponent = recipeTypeOf(intent);
-    if (acWizProgress) {
-      acWizProgress.textContent = hardwareWalk.length
-        ? `${walkIndex + 1} מתוך ${hardwareWalk.length}`
-        : '';
+    selectedComponent = recipeTypeOf();
+    renderWhatList();
+    renderHost();
+    renderPortGrid();
+    renderOutcomes();
+    syncFreeChrome();
+    if (acBSummary) acBSummary.textContent = buildSummaryHe();
+    if (acBProgress) {
+      acBProgress.textContent = savedSteps.length
+        ? `נשמרו ${savedSteps.length}`
+        : 'אין רשומות שמורות';
     }
-    acComponentBtns.querySelectorAll('.ac-comp-btn').forEach((b, i) => {
-      b.classList.toggle('active', i === walkIndex);
-      b.dataset.seen = seenIds.has(hardwareWalk[i]?.id) ? '1' : '0';
-    });
-    if (acWizPrev) acWizPrev.disabled = walkIndex <= 0;
-    if (acWizNext) acWizNext.disabled = walkIndex >= hardwareWalk.length - 1;
-    if (acWizMark) {
-      const on = intent ? seenIds.has(intent.id) : false;
-      acWizMark.dataset.on = on ? '1' : '0';
-      acWizMark.textContent = on ? 'סומן כנראה' : 'סימנתי שראיתי';
+    if (acSymptoms) {
+      const label = hardwareLabel();
+      acSymptoms.placeholder = label && label !== 'אחר'
+        ? `מה לא תואם לציפייה ברכיב ${label}`
+        : 'מה לא תואם לציפייה. אין פקודות טיסה מכאן.';
+      acSymptoms.classList.toggle('ac-textarea--ready', Boolean(selectedComponent));
     }
-    if (acSymptoms && intent) {
-      acSymptoms.placeholder = `מה לא תואם לציפייה ברכיב ${intent.labelHe}`;
-      acSymptoms.classList.add('ac-textarea--ready');
+  }
+
+  function saveCurrentStep() {
+    if (!isStepSavable()) {
+      if (acBSummary) acBSummary.textContent = 'אין מה לשמור עדיין.';
+      return false;
     }
-    renderIntentCard(intent);
-    renderWalkOverview();
-  }
-
-  function hostCell(target) {
-    if (!target) return '<span class="ac-walk-none">אין</span>';
-    const pins = target.pins && target.pins.length ? target.pins : [target.port];
-    return pins.map((p) => `<span class="ac-port-chip">${acEsc(p)}</span>`).join('');
-  }
-
-  function renderWalkOverview() {
-    if (!acWalkOverview) return;
-    if (!hardwareWalk.length) {
-      acWalkOverview.innerHTML = '';
-      return;
+    savedSteps.push({ ...normalizeConceptBStep(step), savedAt: new Date().toISOString() });
+    persistConceptB();
+    if (acBSave) {
+      acBSave.dataset.flash = '1';
+      setTimeout(() => { if (acBSave) acBSave.dataset.flash = '0'; }, 700);
     }
-    const rows = hardwareWalk.map((c, i) => `
-      <button type="button" class="ac-walk-row" data-walk-idx="${i}" data-active="${i === walkIndex ? '1' : '0'}" data-seen="${seenIds.has(c.id) ? '1' : '0'}">
-        <span>${i + 1}</span>
-        <span>${acEsc(c.labelHe)}</span>
-        <span>${hostCell(c.wiring?.fc)}</span>
-        <span>${hostCell(c.wiring?.jetson)}</span>
-        <span class="ac-expect-token">${acEsc(c.expected?.token || '')}</span>
-        <span class="ac-walk-seen">${seenIds.has(c.id) ? 'נראה' : 'ממתין'}</span>
-      </button>`).join('');
-    acWalkOverview.innerHTML = `
-      <div class="ac-walk-head">
-        <span>#</span>
-        <span>רכיב</span>
-        <span>בקר טיסה</span>
-        <span>מחשב משימה</span>
-        <span>ציפייה</span>
-        <span>מצב</span>
-      </div>
-      <div class="ac-walk-rows">${rows}</div>`;
-    acWalkOverview.querySelectorAll('[data-walk-idx]').forEach((btn) => {
-      btn.addEventListener('click', () => selectWalkIndex(Number(btn.dataset.walkIdx)));
-    });
+    addHistoryEntry(hardwareLabel() || '—', 'wizard-step', portLabel() || '—', buildSummaryHe(), true);
+    renderConceptB();
+    return true;
   }
 
-  function selectWalkIndex(i) {
-    if (!hardwareWalk.length) return;
-    walkIndex = Math.max(0, Math.min(hardwareWalk.length - 1, i));
-    acResults?.classList.add('hidden');
-    syncWalkChrome();
+  function goNextStep() {
+    if (isStepSavable()) saveCurrentStep();
+    step = emptyConceptBStep();
+    persistConceptB();
+    renderConceptB();
   }
 
-  /** Fetch hardware-intent walk and build the step rail. */
+  function setHost(host) {
+    step.host = host === 'jetson' ? 'jetson' : 'fc';
+    const ports = step.host === 'jetson' ? catalog.ports.jetson : catalog.ports.fc;
+    if (step.portId !== AC_FREE && !(ports || []).some((p) => p.id === step.portId)) {
+      step.portId = '';
+    }
+    persistConceptB();
+    renderConceptB();
+  }
+
+  acBHostFc?.addEventListener('click', () => setHost('fc'));
+  acBHostJetson?.addEventListener('click', () => setHost('jetson'));
+  acBWhatFreeRadio?.addEventListener('change', () => {
+    if (!acBWhatFreeRadio.checked) return;
+    step.hardwareId = AC_FREE;
+    persistConceptB();
+    renderConceptB();
+    acBWhatFree?.focus();
+  });
+  acBWhereFreeRadio?.addEventListener('change', () => {
+    if (!acBWhereFreeRadio.checked) return;
+    step.portId = AC_FREE;
+    persistConceptB();
+    renderConceptB();
+    acBWhereFree?.focus();
+  });
+  acBWhatFree?.addEventListener('input', () => {
+    step.hardwareId = AC_FREE;
+    step.hardwareFree = acBWhatFree.value;
+    persistConceptB();
+    if (acBSummary) acBSummary.textContent = buildSummaryHe();
+    syncFreeChrome();
+  });
+  acBWhereFree?.addEventListener('input', () => {
+    step.portId = AC_FREE;
+    step.portFree = acBWhereFree.value;
+    persistConceptB();
+    if (acBSummary) acBSummary.textContent = buildSummaryHe();
+    syncFreeChrome();
+  });
+  acBExpectFree?.addEventListener('input', () => {
+    step.outcomeFree = acBExpectFree.value;
+    persistConceptB();
+    if (acBSummary) acBSummary.textContent = buildSummaryHe();
+    syncFreeChrome();
+  });
+  acBSave?.addEventListener('click', () => { saveCurrentStep(); });
+  acBNext?.addEventListener('click', () => { goNextStep(); });
+  document.addEventListener('vlc:telemetry', () => {
+    if (!catalog.outcomes.length) return;
+    renderOutcomes();
+  });
+
+  /** Fetch Concept B catalog and restore the last draft. */
   async function loadComponentTypes() {
+    loadPersistedConceptB();
     try {
       const res = await fetch('/api/auto-config/components');
       const d = await res.json();
       if (!d.ok) return;
-      hardwareWalk = Array.isArray(d.hardwareIntent) && d.hardwareIntent.length
-        ? d.hardwareIntent
-        : (Array.isArray(d.components) ? d.components.filter((c) => c.hardwareIntent).map((c) => c.hardwareIntent) : []);
-      acComponentBtns.innerHTML = '';
-      if (!hardwareWalk.length) {
-        acComponentBtns.textContent = 'אין רכיבים ברשימת החיווט';
-        return;
+      if (d.conceptB) {
+        catalog = {
+          hardware: Array.isArray(d.conceptB.hardware) ? d.conceptB.hardware : [],
+          ports: {
+            fc: Array.isArray(d.conceptB.ports?.fc) ? d.conceptB.ports.fc : [],
+            jetson: Array.isArray(d.conceptB.ports?.jetson) ? d.conceptB.ports.jetson : [],
+          },
+          outcomes: Array.isArray(d.conceptB.outcomes) ? d.conceptB.outcomes : [],
+        };
       }
-      hardwareWalk.forEach((intent, idx) => {
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'ac-comp-btn';
-        btn.dataset.compId = intent.id;
-        btn.setAttribute('role', 'tab');
-        btn.textContent = `${idx + 1} ${intent.labelHe}`;
-        btn.addEventListener('click', () => selectWalkIndex(idx));
-        acComponentBtns.appendChild(btn);
-      });
-      selectWalkIndex(0);
+      renderConceptB();
     } catch (err) {
-      acComponentBtns.textContent = 'שגיאה בטעינת רשימת רכיבים';
+      if (acBSummary) acBSummary.textContent = 'שגיאה בטעינת רשימת רכיבים';
       console.error('[auto-config] loadComponentTypes failed', err);
     }
   }
-
-  acWizPrev?.addEventListener('click', () => selectWalkIndex(walkIndex - 1));
-  acWizNext?.addEventListener('click', () => selectWalkIndex(walkIndex + 1));
-  acWizMark?.addEventListener('click', () => {
-    const intent = currentIntent();
-    if (!intent) return;
-    if (seenIds.has(intent.id)) seenIds.delete(intent.id);
-    else seenIds.add(intent.id);
-    syncWalkChrome();
-  });
 
   /** Risk badge HTML */
   function riskBadge(risk) {
