@@ -7652,7 +7652,7 @@ html[data-evolve-preview="1"] #development {
   flex-direction: column;
   gap: 6px;
   scrollbar-width: thin;
-  scrollbar-color: rgba(56, 189, 248, 0.35) transparent;
+  scrollbar-color: rgba(56, 189, 248, 0.34) transparent;
 }
 
 .ac-b-opt {
