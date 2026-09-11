@@ -2942,6 +2942,7 @@ function companionConnectSetBusy(busy) {
   const token = document.getElementById('companionToken');
   const connectBtn = document.getElementById('companionConnectBtn');
   const disconnectBtn = document.getElementById('companionDisconnectBtn');
+  const quickBtn = document.getElementById('companionQuickConnectBtn');
   if (url) url.disabled = !!busy;
   if (token) token.disabled = !!busy;
   if (connectBtn) {
@@ -2949,6 +2950,7 @@ function companionConnectSetBusy(busy) {
     const emptyToken = !String(token?.value || '').trim();
     connectBtn.disabled = !!busy || emptyUrl || emptyToken;
   }
+  if (quickBtn) quickBtn.disabled = !!busy;
   if (disconnectBtn) disconnectBtn.disabled = !!busy;
 }
 
@@ -3784,7 +3786,9 @@ function companionConnectRender(status) {
     maintHint.hidden = !hint;
     maintHint.textContent = hint;
   }
-  if (form) form.hidden = connected;
+  if (form) form.hidden = false;
+  const quickBtn = document.getElementById('companionQuickConnectBtn');
+  if (quickBtn) quickBtn.hidden = connected;
   if (disconnectBtn) {
     disconnectBtn.hidden = !connected;
     disconnectBtn.setAttribute('aria-hidden', connected ? 'false' : 'true');
@@ -3923,11 +3927,64 @@ function initCompanionConnectUi() {
     companionConnectSyncButton();
   });
   document.getElementById('companionDisconnectBtn')?.addEventListener('click', () => { void companionDisconnect(); });
+  document.getElementById('companionQuickConnectBtn')?.addEventListener('click', () => { void companionQuickConnect(); });
   void companionConnectRefresh();
+}
+
+async function companionQuickConnect() {
+  companionConnectSetBusy(true);
+  companionConnectSetError('');
+  try {
+    const r = await fetch('/api/companion/link/connect', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    });
+    const data = await r.json().catch(() => ({}));
+    if (data.needAdvanced || data.error === 'need_advanced') {
+      const adv = document.getElementById('companionConnectAdvanced');
+      if (adv) adv.open = true;
+      companionConnectSetError(data.status_he || 'פתחו מתקדם רק אם חסרה כתובת.');
+      companionConnectRender({
+        ok: false,
+        mode: data.mode || 'off',
+        connected: false,
+        status_he: data.status_he,
+        hint_he: data.hint_he,
+      });
+      return;
+    }
+    if (!r.ok || data.ok === false) {
+      const msg = data.status_he || data.reason_he || 'חיבור מחשב משימה נכשל';
+      companionConnectSetError(msg);
+      companionConnectRender({
+        ok: false,
+        mode: 'off',
+        connected: false,
+        status_he: msg,
+        hint_he: data.hint_he,
+      });
+      return;
+    }
+    companionConnectRender({
+      ...data,
+      ok: true,
+      connected: data.connected === true || data.jetson === 'reachable' || data.mode === 'mock',
+      status_he: data.status_he || data.jetsonStatusHe,
+    });
+  } catch {
+    companionConnectSetError('חיבור מחשב משימה נכשל');
+  } finally {
+    companionConnectSetBusy(false);
+    void companionConnectRefresh();
+  }
 }
 
 function applyCompanionUi(companion) {
   if (!companion) return;
+  const link = companion.link || null;
+  const widget = document.getElementById('connectWidget');
+  if (link && typeof widget?.applyCompanionLink === 'function') widget.applyCompanionLink(link);
   const unavailable = companion.unavailable === true || (companion.mode === 'real' && companion.reachable === false);
   const unavailableEl = document.getElementById('companionApiUnavailable');
   if (unavailableEl) {
@@ -8164,6 +8221,11 @@ initAnnotatedVisionPanel();
   const activeLinkPicker = document.getElementById('activeLinkPicker');
   const activeLinkRadio = document.getElementById('activeLinkRadio');
   const activeLinkCellular = document.getElementById('activeLinkCellular');
+  const jetsonLinkChip = document.getElementById('jetsonLinkChip');
+  const fcLinkChip = document.getElementById('fcLinkChip');
+  const companionLinkBtn = document.getElementById('companionLinkBtn');
+  const companionLinkHint = document.getElementById('companionLinkHint');
+  const connectAdvanced = document.getElementById('connectAdvanced');
   const connectAutoProgress = document.getElementById('connectAutoProgress');
   const connectAutoStepper = document.getElementById('connectAutoStepper');
   const connectAutoChecklist = document.getElementById('connectAutoChecklist');
@@ -8525,6 +8587,64 @@ initAnnotatedVisionPanel();
     return 'off';
   }
 
+  function applyCompanionLinkUi(link) {
+    if (!link) return;
+    if (jetsonLinkChip) {
+      jetsonLinkChip.dataset.state = link.jetson === 'reachable' || link.jetson === 'mock' ? 'on'
+        : link.jetson === 'unreachable' ? 'warn' : 'off';
+      jetsonLinkChip.textContent = `${link.jetsonLabelHe || 'מחשב משימה'} · ${link.jetsonStatusHe || 'מנותק'}`;
+    }
+    if (fcLinkChip) {
+      fcLinkChip.dataset.state = link.fc === 'heartbeat' ? 'on' : link.fc === 'linked' ? 'warn' : 'off';
+      fcLinkChip.textContent = `${link.fcLabelHe || 'בקר טיסה'} · ${link.fcStatusHe || 'מנותק'}`;
+    }
+    if (companionLinkHint && link.hint_he) companionLinkHint.textContent = link.hint_he;
+    if (companionLinkBtn) {
+      const connected = link.connected === true;
+      companionLinkBtn.textContent = connected ? 'מחובר' : 'חיבור';
+      companionLinkBtn.dataset.connected = connected ? '1' : '0';
+      companionLinkBtn.title = connected ? 'מחשב משימה מחובר. לחץ לניתוק.' : 'חיבור אוטומטי למחשב המשימה';
+    }
+  }
+
+  async function onCompanionLinkClick() {
+    if (!companionLinkBtn) return;
+    const connected = companionLinkBtn.dataset.connected === '1';
+    companionLinkBtn.disabled = true;
+    try {
+      if (connected) {
+        const r = await fetch('/api/companion/connection/disconnect', { method: 'POST' });
+        const j = await parseConnJsonResponse(r);
+        if (!j.ok && j.mode !== 'mock' && j.mode !== 'off') throw new Error(j.status_he || 'ניתוק נכשל');
+        applyCompanionLinkUi(j.jetson ? j : null);
+      } else {
+        setDot('connecting');
+        setPillLabel('מתחבר');
+        const r = await fetch('/api/companion/link/connect', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({}),
+        });
+        const j = await parseConnJsonResponse(r);
+        if (j.needAdvanced || j.error === 'need_advanced') {
+          if (connectAdvanced) connectAdvanced.open = true;
+          if (companionLinkHint) companionLinkHint.textContent = j.hint_he || j.status_he || 'פתחו מתקדם רק אם חסרה כתובת.';
+          throw new Error(j.status_he || 'חסרה כתובת במתקדם');
+        }
+        if (!j.ok && j.connected !== true && j.jetson !== 'reachable' && j.jetson !== 'mock') {
+          throw new Error(j.status_he || j.message || 'חיבור מחשב משימה נכשל');
+        }
+        applyCompanionLinkUi(j);
+      }
+    } catch (err) {
+      setDot('err');
+      if (companionLinkHint) companionLinkHint.textContent = err.message || String(err);
+    } finally {
+      companionLinkBtn.disabled = false;
+      await refreshConnectionStatus();
+    }
+  }
+
   function applyDualLinkUi(links) {
     if (!links) return false;
     if (radioChip) {
@@ -8552,11 +8672,13 @@ initAnnotatedVisionPanel();
       if (links.active === 'cellular' && activeLinkCellular) activeLinkCellular.checked = true;
       else if (activeLinkRadio) activeLinkRadio.checked = true;
     }
+    if (links.companion) applyCompanionLinkUi(links.companion);
     setPillLabel(links.pillLabelHe || 'מנותק');
     const anyUp = links.radio === 'connected' || links.cellular === 'connected';
     const anyWait = links.radio === 'listening' || links.cellular === 'listening'
       || links.radio === 'connecting' || links.cellular === 'connecting';
-    if (anyUp) setDot(links.radio === 'connected' || links.cellular === 'connected' ? 'on' : 'warn');
+    if (links.pillDot) setDot(links.pillDot);
+    else if (anyUp) setDot(links.radio === 'connected' || links.cellular === 'connected' ? 'on' : 'warn');
     else if (anyWait) setDot('connecting');
     else setDot('off');
     const radioUp = links.radio === 'connected' || links.radio === 'listening';
@@ -8579,7 +8701,15 @@ initAnnotatedVisionPanel();
       const dual = await fetch('/api/links', { cache: 'no-store' });
       if (dual.ok) {
         const body = await dual.json();
-        if (body?.ok && body.links && applyDualLinkUi(body.links)) return;
+        if (body?.ok && body.links) {
+          if (!body.links.companion) {
+            try {
+              const cr = await fetch('/api/companion/link', { cache: 'no-store' });
+              if (cr.ok) body.links.companion = await cr.json();
+            } catch { /* chips stay from last paint */ }
+          }
+          if (applyDualLinkUi(body.links)) return;
+        }
       }
     } catch { /* fall back to single-link status */ }
     try {
@@ -8909,6 +9039,8 @@ initAnnotatedVisionPanel();
   connBtn.addEventListener('click', onConnectClick);
   if (connectAutoBtn) connectAutoBtn.addEventListener('click', onAutoConnectClick);
   if (cellularConnectBtn) cellularConnectBtn.addEventListener('click', onCellularConnectClick);
+  if (companionLinkBtn) companionLinkBtn.addEventListener('click', () => { void onCompanionLinkClick(); });
+  widget.applyCompanionLink = applyCompanionLinkUi;
   if (cellularHostPort) {
     cellularHostPort.addEventListener('input', () => { cellularHostPort.dataset.dirty = '1'; });
     cellularHostPort.addEventListener('change', savePrefs);

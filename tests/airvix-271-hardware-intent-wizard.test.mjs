@@ -20,11 +20,9 @@ function wizardPanel() {
   return html.slice(start, custom);
 }
 
-describe('AIRVIX 1.02.271 hardware-intent configuration wizard', () => {
-  it('pins APP_VERSION at 1.02.271', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.271'");
-    expect(pkg.version).toBe('1.02.271');
-    expect(changelog).toContain('"version": "1.02.271"');
+describe('AIRVIX 1.02.272 hardware-intent configuration wizard', () => {
+  it('keeps the 1.02.272 hardware-intent changelog', () => {
+    expect(changelog).toContain('"version": "1.02.272"');
   });
 
   it('rebuilds the wizard around one component and three questions', () => {

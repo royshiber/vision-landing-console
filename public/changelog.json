@@ -1,5 +1,16 @@
 [
   {
+    "version": "1.02.272",
+    "date": "2026-09-12",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Topbar connect shows Jetson reachability and FC heartbeat as a normal live link",
+        "detail": "APP_VERSION 1.02.272. The existing topbar connect corner is now a single Hebrew action (חיבור / מחובר) with מחשב משימה and בקר טיסה chips from Companion health fc_linked / fc_heartbeat. One Jetson: default Tailscale URL comes from env/config; address fields stay under מתקדם, never the main path. Dual-link radio + cellular remain in the same panel. When Companion is reachable and the FC heartbeat is live, the pill is not מנותק even if radio MAVLink is down. No flight commands, no Companion apply/restart, no secrets in the UI. Mission layout unchanged."
+      }
+    ]
+  },
+  {
     "version": "1.02.271",
     "date": "2026-09-11",
     "changes": [
