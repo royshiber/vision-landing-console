@@ -11,10 +11,12 @@ import { registerCompanionProxyApi } from '../lib/routes/companion-proxy-api.mjs
 import {
   COMPANION_CONNECTION_KEY,
   COMPANION_HE,
+  DEFAULT_COMPANION_BASE_URL,
   hebrewCompanionError,
   maskCompanionToken,
   mergeCompanionEnv,
   readStoredCompanionConnection,
+  resolveCompanionConnectDefaults,
   validateCompanionBaseUrl,
   validateCompanionToken,
   writeStoredCompanionConnection,
@@ -352,6 +354,132 @@ describe('Companion in-product v1 connect', () => {
     expect(overlay.api).toBe('v1');
   });
 
+  it('connects from the baked default URL plus env token without a body', async () => {
+    const started = await boot({
+      companionEnv: {
+        JETSON_COMPANION_TOKEN: TOKEN,
+      },
+    });
+    const defaults = resolveCompanionConnectDefaults({
+      stored: readStoredCompanionConnection(db),
+      env: { JETSON_COMPANION_TOKEN: TOKEN },
+    });
+    expect(defaults.url).toBe(DEFAULT_COMPANION_BASE_URL);
+    expect(defaults.source).toBe('builtin');
+    expect(defaults.configured).toBe(true);
+
+    const connected = await fetch(`${base}/api/companion/link/connect`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    }).then((r) => r.json());
+    expect(connected.ok).toBe(true);
+    expect(connected.mode).toBe('real');
+    expect(connected.connected).toBe(true);
+    expect(connected.status_he).toBe(COMPANION_HE.connected);
+    expect(JSON.stringify(connected)).not.toContain(TOKEN);
+    expect(started.fetchImpl).toHaveBeenCalled();
+    const requested = String(started.fetchImpl.mock.calls[0][0] || '');
+    expect(requested.startsWith(DEFAULT_COMPANION_BASE_URL)).toBe(true);
+
+    const stored = readStoredCompanionConnection(db);
+    expect(stored.connected).toBe(true);
+    expect(stored.baseUrl).toBe(DEFAULT_COMPANION_BASE_URL);
+    expect(stored.token).toBe(TOKEN);
+  });
+
+  it('treats quoted VLC_COMPANION_TOKEN plus baked URL as one-click ready', async () => {
+    const quoted = `'${TOKEN}'`;
+    expect(quoted).toHaveLength(TOKEN.length + 2);
+    await boot({
+      companionEnv: {
+        VLC_COMPANION_TOKEN: quoted,
+      },
+    });
+    const link = await fetch(`${base}/api/companion/link`).then((r) => r.json());
+    expect(link.ok).toBe(true);
+    expect(link.base_url).toBe(DEFAULT_COMPANION_BASE_URL);
+    expect(link.defaultSource).toBe('builtin');
+    expect(link.defaultConfigured).toBe(true);
+    expect(link.needAdvanced).toBe(false);
+    expect(link.connectAvailable).toBe(true);
+    expect(link.needToken).toBe(false);
+    expect(link.connected).toBe(false);
+    expect(JSON.stringify(link)).not.toContain(TOKEN);
+    expect(JSON.stringify(link)).not.toContain(quoted);
+  });
+
+  it('strips export quotes before probing so token_len matches', async () => {
+    const quoted = `"${TOKEN}"`;
+    const started = await boot({
+      companionEnv: {
+        VLC_COMPANION_TOKEN: quoted,
+      },
+    });
+    await fetch(`${base}/api/companion/link/connect`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    }).then((r) => r.json());
+    expect(started.fetchImpl).toHaveBeenCalled();
+    const init = started.fetchImpl.mock.calls[0][1] || {};
+    expect(init.headers['X-Companion-Token']).toBe(TOKEN);
+    expect(init.headers['X-Companion-Token']).toHaveLength(TOKEN.length);
+    expect(init.headers.Authorization).toBe(`Bearer ${TOKEN}`);
+    expect(readStoredCompanionConnection(db).token).toBe(TOKEN);
+  });
+
+  it('keeps needAdvanced false on timeout when baked URL and env token exist', async () => {
+    const fetchImpl = vi.fn((_url, init) => new Promise((_, reject) => {
+      init.signal.addEventListener('abort', () => {
+        const err = new Error('aborted');
+        err.name = 'AbortError';
+        reject(err);
+      });
+    }));
+    await boot({
+      fetchImpl,
+      companionEnv: { VLC_COMPANION_TOKEN: `'${TOKEN}'` },
+    });
+    const res = await fetch(`${base}/api/companion/link/connect`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    });
+    const body = await res.json();
+    expect(res.status).toBe(504);
+    expect(body.status_he).toBe(COMPANION_HE.timeout);
+    expect(body.needAdvanced).toBe(false);
+    expect(body.connectAvailable).toBe(true);
+    expect(body.connected).toBe(false);
+    expect(body.defaultConfigured).toBe(true);
+    expect(body.base_url).toBe(DEFAULT_COMPANION_BASE_URL);
+    expect(JSON.stringify(body)).not.toContain(TOKEN);
+  });
+
+  it('asks for a token, not a generic address, when the default URL exists without a token', async () => {
+    const fetchImpl = vi.fn(async () => jsonResponse({ ok: true }, 200));
+    await boot({ fetchImpl });
+    const res = await fetch(`${base}/api/companion/link/connect`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    });
+    const body = await res.json();
+    expect(res.status).toBe(400);
+    expect(body.ok).toBe(false);
+    expect(body.connected).toBe(false);
+    expect(body.error).toBe('token_empty');
+    expect(body.focusField).toBe('token');
+    expect(body.needToken).toBe(true);
+    expect(body.status_he).toBe(COMPANION_HE.tokenEmpty);
+    expect(body.status_he).not.toBe(COMPANION_HE.urlEmpty);
+    expect(body.hint_he).toBe(COMPANION_HE.tokenMissingHint);
+    expect(body.status_he).not.toMatch(/חסרה כתובת/);
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(readStoredCompanionConnection(db).connected).toBe(false);
+  });
+
   it('connects from env defaults without a typed URL', async () => {
     await boot({
       companionEnv: {
@@ -406,8 +534,30 @@ describe('Companion connect chrome', () => {
     expect(html).not.toMatch(/id="companionBaseUrl"[^>]*type="url"/);
     expect(html).not.toMatch(/כתובת הבסיס חייבת לשרת/);
     expect(html).toMatch(/id="maintCompanionConnectStatus"/);
+    expect(html).toMatch(/id="companionLinkToken"[^>]*type="password"/);
+    expect(html).toMatch(/id="companionQuickConnectBtn"[^>]*>חיבור</);
     expect(html).not.toMatch(/JETSON_COMPANION_TOKEN/);
+    expect(html).not.toMatch(/VLC_COMPANION_TOKEN/);
     expect(html).not.toMatch(/COMPANION_SHARED_SECRET/);
     expect(html).not.toMatch(/100\.82\.59\.45/);
+  });
+
+  it('does not hard-code a companion token in product sources', () => {
+    const files = [
+      'lib/companion-connection.mjs',
+      'lib/companion-secret.mjs',
+      'lib/routes/companion-connection-api.mjs',
+      'lib/companion-link.mjs',
+      'public/app.js',
+      'public/index.html',
+      '.env.example',
+    ];
+    for (const rel of files) {
+      const text = fs.readFileSync(path.join(repoRoot, rel), 'utf8');
+      expect(text).not.toMatch(/JETSON_COMPANION_TOKEN\s*=\s*['"][^'"]+['"]/);
+      expect(text).not.toMatch(/COMPANION_SHARED_SECRET\s*=\s*['"][^'"]+['"]/);
+      expect(text).not.toContain(TOKEN);
+    }
+    expect(DEFAULT_COMPANION_BASE_URL).toBe('http://100.82.59.45:8081');
   });
 });

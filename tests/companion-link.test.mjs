@@ -8,7 +8,8 @@ import {
   hebrewFcState,
   chipStateFromCompanion,
 } from '../lib/companion-link.mjs';
-import { resolveCompanionConnectDefaults } from '../lib/companion-connection.mjs';
+import { DEFAULT_COMPANION_BASE_URL, resolveCompanionConnectDefaults } from '../lib/companion-connection.mjs';
+import { normalizeCompanionSecret, readCompanionTokenFromEnv } from '../lib/companion-secret.mjs';
 import { createCompanionMock } from '../lib/companion-mock.mjs';
 
 describe('companion health → Jetson / FC mapping', () => {
@@ -94,7 +95,7 @@ describe('companion health → Jetson / FC mapping', () => {
 });
 
 describe('one-Jetson connect defaults', () => {
-  it('takes stored URL+token, else env Tailscale, and never enables from URL alone', () => {
+  it('takes stored URL+token, else env Tailscale, else the baked product URL', () => {
     const envOnly = resolveCompanionConnectDefaults({
       stored: { connected: false },
       env: {
@@ -112,6 +113,68 @@ describe('one-Jetson connect defaults', () => {
     expect(urlAlone.configured).toBe(false);
     expect(urlAlone.urlConfigured).toBe(true);
     expect(urlAlone.tokenConfigured).toBe(false);
+
+    const baked = resolveCompanionConnectDefaults({ stored: { connected: false }, env: {} });
+    expect(baked.url).toBe(DEFAULT_COMPANION_BASE_URL);
+    expect(baked.source).toBe('builtin');
+    expect(baked.urlConfigured).toBe(true);
+    expect(baked.tokenConfigured).toBe(false);
+    expect(baked.configured).toBe(false);
+  });
+
+  it('strips surrounding quotes from VLC_COMPANION_TOKEN export lines', () => {
+    const fortyEight = 'abcdefghijabcdefghijabcdefghijabcdefghijabcdefgh';
+    expect(fortyEight).toHaveLength(48);
+    expect(`'${fortyEight}'`).toHaveLength(50);
+    expect(normalizeCompanionSecret(`'${fortyEight}'`)).toBe(fortyEight);
+    expect(normalizeCompanionSecret(`"${fortyEight}"`)).toBe(fortyEight);
+    expect(normalizeCompanionSecret(`  "${fortyEight}"  `)).toBe(fortyEight);
+    expect(readCompanionTokenFromEnv({
+      VLC_COMPANION_TOKEN: `'${fortyEight}'`,
+    })).toBe(fortyEight);
+    expect(readCompanionTokenFromEnv({
+      VLC_COMPANION_TOKEN: `'${fortyEight}'`,
+    })).toHaveLength(48);
+
+    const quoted = resolveCompanionConnectDefaults({
+      stored: { connected: false },
+      env: { VLC_COMPANION_TOKEN: `'${fortyEight}'` },
+    });
+    expect(quoted.configured).toBe(true);
+    expect(quoted.token).toBe(fortyEight);
+    expect(quoted.token).toHaveLength(48);
+    expect(quoted.url).toBe(DEFAULT_COMPANION_BASE_URL);
+    expect(quoted.source).toBe('builtin');
+  });
+
+  it('keeps one-click ready when baked URL plus env token exist', () => {
+    const ready = summarizeCompanionLink({
+      mode: 'off',
+      reachable: false,
+      defaultConfigured: true,
+      urlConfigured: true,
+      tokenConfigured: true,
+    });
+    expect(ready.needAdvanced).toBe(false);
+    expect(ready.connectAvailable).toBe(true);
+    expect(ready.needToken).toBe(false);
+    expect(ready.connected).toBe(false);
+  });
+
+  it('asks for a token, not an address, when the baked URL exists without a token', () => {
+    const missing = summarizeCompanionLink({
+      mode: 'off',
+      reachable: false,
+      defaultConfigured: false,
+      urlConfigured: true,
+      tokenConfigured: false,
+    });
+    expect(missing.needToken).toBe(true);
+    expect(missing.focusField).toBe('token');
+    expect(missing.connected).toBe(false);
+    expect(missing.hint_he).toMatch(/אסימון/);
+    expect(missing.hint_he).not.toMatch(/חסרה כתובת/);
+    expect(missing.jetsonStatusHe).not.toBe('מחובר');
   });
 });
 

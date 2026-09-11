@@ -1,5 +1,27 @@
 [
   {
+    "version": "1.02.275",
+    "date": "2026-09-12",
+    "changes": [
+      {
+        "type": "fix",
+        "title": "Strip quotes from VLC_COMPANION_TOKEN so one-click auth is 48 chars, not 50",
+        "detail": "APP_VERSION 1.02.275. Shell export / .env quotes around VLC_COMPANION_TOKEN (and the other Companion token names) are stripped before auth. One-click still uses the baked Tailscale URL http://100.82.59.45:8081 when env/stored URL is empty. When that default URL plus an env token exist, GET /api/companion/link is connectAvailable with needAdvanced false — a Tailscale timeout on a box VM is expected and must not open מתקדם. No hardcoded token, no flight commands, no Companion apply/restart. Develop chat unchanged."
+      }
+    ]
+  },
+  {
+    "version": "1.02.274",
+    "date": "2026-09-12",
+    "changes": [
+      {
+        "type": "fix",
+        "title": "One-click חיבור uses the baked Jetson Tailscale URL plus stored or env token",
+        "detail": "APP_VERSION 1.02.274. Topbar חיבור no longer fails with need_advanced / חסרה כתובת when COMPANION_MODE=off and JETSON_COMPANION_BASE_URL is empty. One-click uses stored URL, else env URL, else the product default http://100.82.59.45:8081, plus token from JETSON_COMPANION_TOKEN / COMPANION_SHARED_SECRET / stored DB, without opening מתקדם when both are available. A missing token shows חסר אסימון and focuses the מתקדם token field only — never claims מחובר. Successful connect persists URL+token. BOTH gate unchanged: real only after connect applies mode+URL. No flight commands, no Companion apply/restart, no secrets in UI JSON. Develop chat unchanged."
+      }
+    ]
+  },
+  {
     "version": "1.02.273",
     "date": "2026-09-12",
     "changes": [
