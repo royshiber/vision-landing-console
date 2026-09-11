@@ -6055,12 +6055,14 @@ body:has(#pulse.panel.visible) .layout {
 .develop-live-top {
   position: absolute;
   top: 12px;
-  inset-inline: 12px;
+  left: 12px;
+  right: 12px;
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 8px;
   z-index: 2;
+  direction: ltr;
 }
 .develop-home-chip {
   display: inline-flex;
@@ -6076,7 +6078,8 @@ body:has(#pulse.panel.visible) .layout {
 .develop-live-hud,
 .develop-preview-sketch {
   position: absolute;
-  inset-inline-start: 12px;
+  left: 12px;
+  inset-inline-start: auto;
   bottom: 12px;
   width: min(240px, calc(100% - 24px));
   display: grid;
