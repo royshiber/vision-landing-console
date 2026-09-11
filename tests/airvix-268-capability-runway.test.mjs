@@ -45,18 +45,17 @@ function runwayLane() {
 }
 
 describe('AIRVIX 1.02.268 Capability Runway Kanban F2', () => {
-  it('pins APP_VERSION at 1.02.277', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.277'");
-    expect(pkg.version).toBe('1.02.277');
+  it('pins APP_VERSION at 1.02.278', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.278'");
+    expect(pkg.version).toBe('1.02.278');
     expect(changelog).toContain('"version": "1.02.268"');
   });
 
-  it('keeps F1 Capability Intake Studio', () => {
+  it('keeps hidden F1 remnants under Concept B chat', () => {
     const panel = developmentPanel();
     expect(panel).toContain('data-cap-intake="f1"');
-    expect(panel).toContain('class="cap-draft-card"');
-    expect(panel).toContain('class="cap-studio"');
-    expect(panel).toContain('<h3>יכולת חדשה</h3>');
+    expect(panel).toContain('class="cap-draft-card" hidden');
+    expect(panel).toContain('class="cap-studio" hidden');
     expect(panel).toContain('id="capStartAgentBtn"');
     expect(panel).toContain('id="devTaskCreateBtn"');
     expect(panel).toContain('id="capTaxonomyChips"');

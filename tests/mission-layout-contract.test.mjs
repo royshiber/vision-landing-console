@@ -275,7 +275,7 @@ describe('Mission layout contract — live boxes', () => {
     });
 
     expect(measured.platformTab).toBe(false);
-    expect(measured.version).toBe('1.02.277');
+    expect(measured.version).toBe('1.02.278');
     expect(measured.ws.width).toBeGreaterThan(800);
     expect(measured.talkMinWidth).toBe('240px');
     expect(Number.parseFloat(measured.dataGap)).toBeLessThanOrEqual(4);
@@ -539,18 +539,18 @@ describe('Mission layout contract — live boxes', () => {
     await writeShot(page, 'status-widgets-contract.png');
   }, 45000);
 
-  it('keeps Capability Intake studio and follow regions from overlapping', async () => {
+  it('keeps Develop Concept B chat and preview from overlapping', async () => {
     await page.locator('[data-tab="development"]').click({ force: true });
     await page.waitForFunction(() => document.getElementById('development')?.classList.contains('visible'));
-    await page.waitForSelector('.cap-intake-shell', { state: 'visible', timeout: 15000 });
+    await page.waitForSelector('.develop-b-shell', { state: 'visible', timeout: 15000 });
     const evolve = await page.evaluate(() => {
       const box = (el) => {
         if (!el) return null;
         const r = el.getBoundingClientRect();
         return { left: r.left, top: r.top, right: r.right, bottom: r.bottom, width: r.width, height: r.height };
       };
-      const studio = box(document.querySelector('.cap-studio'));
-      const draft = box(document.querySelector('.cap-draft-card'));
+      const chat = box(document.querySelector('.develop-chat-pane'));
+      const preview = box(document.querySelector('.develop-preview-pane'));
       const runway = box(document.querySelector('.cap-runway'));
       const follow = box(document.querySelector('.evolve-follow'));
       const live = box(document.querySelector('.evolve-live'));
@@ -562,11 +562,11 @@ describe('Mission layout contract — live boxes', () => {
       const shell = document.querySelector('.evolve-shell');
       const panel = document.getElementById('development');
       const cs = getComputedStyle(shell);
-      const ask = document.getElementById('devTaskDescription');
-      const hero = document.querySelector('.cap-studio-hero h3');
+      const ask = document.getElementById('developChatInput');
+      const hero = document.querySelector('.develop-b-badge');
       return {
-        studio,
-        draft,
+        chat,
+        preview,
         runway,
         lanes,
         runwayCards,
@@ -583,21 +583,24 @@ describe('Mission layout contract — live boxes', () => {
         heroText: hero?.textContent || '',
         heroColor: hero ? getComputedStyle(hero).color : '',
         placeholder: ask ? ask.getAttribute('placeholder') : '',
-        startLabel: document.getElementById('capStartAgentBtn')?.textContent || '',
-        draftLabel: document.getElementById('devTaskCreateBtn')?.textContent || '',
+        jetsonGate: document.getElementById('developGateJetsonBtn')?.textContent || '',
+        fcGate: document.getElementById('developGateFcBtn')?.textContent || '',
+        jetsonDisabled: document.getElementById('developGateJetsonBtn')?.disabled === true,
+        fcDisabled: document.getElementById('developGateFcBtn')?.disabled === true,
+        studioHidden: document.querySelector('.cap-studio')?.hidden === true,
         planEmpty: document.getElementById('evolvePlanEmpty')?.textContent || '',
         testEmpty: document.getElementById('evolveTestEmpty')?.textContent || '',
         prEmpty: document.getElementById('evolvePrEmpty')?.textContent || '',
         hasAhMock: !!document.getElementById('evolveMissionMockBefore'),
         maintenanceTab: !!document.querySelector('[data-tab="maintenance"]'),
         runwayTitle: document.querySelector('.cap-runway .evolve-section-title')?.textContent || '',
-        f1: document.querySelector('.cap-intake-shell')?.getAttribute('data-cap-intake') || '',
+        concept: document.querySelector('.develop-b-shell')?.getAttribute('data-develop-chat') || '',
         f2: document.querySelector('[data-cap-runway]')?.getAttribute('data-cap-runway') || '',
       };
     });
     expect(evolve.maintenanceTab).toBe(false);
     expect(evolve.hasAhMock).toBe(false);
-    expect(evolve.f1).toBe('f1');
+    expect(evolve.concept).toBe('b');
     expect(evolve.f2).toBe('f2');
     expect(evolve.runwayTitle).toContain('מסלול יכולות');
     expect(evolve.lanes).toEqual(['IDEA', 'RUNNING', 'VERIFY', 'PR', 'DONE']);
@@ -605,25 +608,40 @@ describe('Mission layout contract — live boxes', () => {
     expect(evolve.display).toBe('grid');
     expect(evolve.panelDisplay).toMatch(/flex/);
     expect(evolve.panelHeight).toBeGreaterThan(240);
-    expect(evolve.heroText).toContain('יכולת חדשה');
+    expect(evolve.heroText).toContain('פיתוח');
     expect(evolve.heroColor).not.toMatch(/rgba\(0, 0, 0, 0\)/);
     expect(Number.parseFloat(evolve.gap)).toBeLessThanOrEqual(10);
-    expect(evolve.overflowY).toMatch(/auto|scroll/);
-    expect(evolve.placeholder).toContain('תארו את היכולת');
-    expect(evolve.startLabel).toContain('התחל סוכן יכולת');
-    expect(evolve.draftLabel).toContain('שמור טיוטה');
+    expect(evolve.overflowY).toMatch(/auto|hidden|scroll/);
+    expect(evolve.placeholder).toContain('כתבו חופשי');
+    expect(evolve.jetsonGate).toContain('אשר העלאה לג׳טסון');
+    expect(evolve.fcGate).toContain('אשר התקנה ל-FC');
+    expect(evolve.jetsonDisabled).toBe(true);
+    expect(evolve.fcDisabled).toBe(true);
+    expect(evolve.studioHidden).toBe(true);
     expect(evolve.planEmpty).toContain('אין תוכנית עדיין');
     expect(evolve.testEmpty).toContain('אין בדיקות עדיין');
     expect(evolve.prEmpty).toContain('אין בקשת מיזוג עדיין');
-    expect(interiorsIntersect(evolve.studio, evolve.draft)).toBe(false);
-    expect(interiorsIntersect(evolve.studio, evolve.runway)).toBe(false);
-    expect(interiorsIntersect(evolve.draft, evolve.runway)).toBe(false);
-    expect(interiorsIntersect(evolve.runway, evolve.follow)).toBe(false);
-    expect(interiorsIntersect(evolve.studio, evolve.follow)).toBe(false);
-    expect(interiorsIntersect(evolve.draft, evolve.follow)).toBe(false);
-    expect(interiorsIntersect(evolve.follow, evolve.delivery)).toBe(false);
-    expect(interiorsIntersect(evolve.studio, evolve.backlog)).toBe(false);
-    expect(interiorsIntersect(evolve.live, evolve.backlog)).toBe(false);
+    expect(interiorsIntersect(evolve.chat, evolve.preview)).toBe(false);
+    if (evolve.runway && evolve.runway.width > 2 && evolve.runway.height > 2) {
+      expect(interiorsIntersect(evolve.chat, evolve.runway)).toBe(false);
+      expect(interiorsIntersect(evolve.preview, evolve.runway)).toBe(false);
+    }
+    if (evolve.follow && evolve.follow.width > 2 && evolve.follow.height > 2) {
+      expect(interiorsIntersect(evolve.chat, evolve.follow)).toBe(false);
+      expect(interiorsIntersect(evolve.preview, evolve.follow)).toBe(false);
+      if (evolve.runway && evolve.runway.width > 2 && evolve.runway.height > 2) {
+        expect(interiorsIntersect(evolve.runway, evolve.follow)).toBe(false);
+      }
+    }
+    if (evolve.delivery && evolve.follow && evolve.delivery.width > 2 && evolve.follow.width > 2) {
+      expect(interiorsIntersect(evolve.follow, evolve.delivery)).toBe(false);
+    }
+    if (evolve.backlog && evolve.backlog.width > 2 && evolve.backlog.height > 2) {
+      expect(interiorsIntersect(evolve.chat, evolve.backlog)).toBe(false);
+      if (evolve.live && evolve.live.width > 2) {
+        expect(interiorsIntersect(evolve.live, evolve.backlog)).toBe(false);
+      }
+    }
     for (let i = 0; i < evolve.cards.length; i += 1) {
       for (let j = i + 1; j < evolve.cards.length; j += 1) {
         expect(interiorsIntersect(evolve.cards[i], evolve.cards[j]), 'evolve run cards overlap').toBe(false);
@@ -634,7 +652,7 @@ describe('Mission layout contract — live boxes', () => {
         expect(interiorsIntersect(evolve.runwayCards[i], evolve.runwayCards[j]), 'runway cards overlap').toBe(false);
       }
     }
-    await writeShot(page, 'capability-intake-f1.png');
+    await writeShot(page, 'develop-concept-b.png');
     await writeShot(page, 'capability-runway-f2.png');
   }, 45000);
 

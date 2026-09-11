@@ -26,10 +26,10 @@ function sliceFunction(src, name) {
   throw new Error(`unclosed function ${name}`);
 }
 
-describe('AIRVIX 1.02.261 Roy feedback (still holds on 1.02.277)', () => {
-  it('pins APP_VERSION at 1.02.277', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.277'");
-    expect(pkg.version).toBe('1.02.277');
+describe('AIRVIX 1.02.261 Roy feedback (still holds on 1.02.278)', () => {
+  it('pins APP_VERSION at 1.02.278', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.278'");
+    expect(pkg.version).toBe('1.02.278');
   });
 
   it('removes Platform from primary chrome and redirects Assist', () => {
@@ -57,7 +57,7 @@ describe('AIRVIX 1.02.261 Roy feedback (still holds on 1.02.277)', () => {
   });
 
   it('turns Develop into Capability Intake without flight writes', () => {
-    expect(html).toContain('class="devtasks-panel evolve-shell cap-intake-shell"');
+    expect(html).toContain('class="devtasks-panel evolve-shell cap-intake-shell develop-b-shell"');
     expect(html).toContain('data-cap-intake="f1"');
     expect(html).toContain('class="cap-composer evolve-command"');
     expect(html).toContain('class="evolve-plan"');
@@ -74,7 +74,7 @@ describe('AIRVIX 1.02.261 Roy feedback (still holds on 1.02.277)', () => {
     expect(html).toMatch(/id="devTaskCreateBtn"[^>]*>שמור טיוטה</);
     expect(html).toMatch(/id="capStartAgentBtn"[^>]*>התחל סוכן יכולת</);
     expect(css).toMatch(/\.evolve-shell\s*\{[^}]*display:\s*grid/);
-    expect(css).toMatch(/"draft studio"/);
+    expect(css).toMatch(/"preview chat"/);
     expect(css).toMatch(/\.evolve-run-grid\s*\{[^}]*grid-auto-flow:\s*row/);
     expect(js).toContain('function isEvolvePreviewFrame(');
     expect(js).toContain('function capStartCapabilityAgent(');

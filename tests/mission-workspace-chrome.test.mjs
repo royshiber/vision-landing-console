@@ -164,9 +164,9 @@ describe('AIRVIX Mission chrome — talk is flight-safe', () => {
     expect(chip).toContain("kind === 'advisor'");
   });
 
-  it('pins APP_VERSION at 1.02.277', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.277'");
-    expect(pkg.version).toBe('1.02.277');
+  it('pins APP_VERSION at 1.02.278', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.278'");
+    expect(pkg.version).toBe('1.02.278');
   });
 
   it('keeps a rectangular glass artificial horizon with video HUD mode', () => {

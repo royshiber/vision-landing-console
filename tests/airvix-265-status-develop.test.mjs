@@ -35,9 +35,9 @@ function panel(id) {
 }
 
 describe('AIRVIX 1.02.268 status densify + Develop concept A', () => {
-  it('pins APP_VERSION at 1.02.277', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.277'");
-    expect(pkg.version).toBe('1.02.277');
+  it('pins APP_VERSION at 1.02.278', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.278'");
+    expect(pkg.version).toBe('1.02.278');
   });
 
   it('keeps מסייע out of public UI', () => {
@@ -89,7 +89,7 @@ describe('AIRVIX 1.02.268 status densify + Develop concept A', () => {
     expect(recordings.includes('מסייע')).toBe(false);
     expect(recordings.includes('מלווה')).toBe(false);
     expect(recordings.includes('מעבדה')).toBe(false);
-    expect(commercial).toContain('סטודיו קליטת יכולות');
+    expect(commercial).toContain('שיחה ותצוגה חיה');
     expect(commercial).toContain('אין כתיבה לבקר');
   });
 

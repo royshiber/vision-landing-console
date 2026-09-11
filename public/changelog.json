@@ -1,5 +1,16 @@
 [
   {
+    "version": "1.02.278",
+    "date": "2026-09-12",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Develop is Concept B: chat plus live UI preview",
+        "detail": "APP_VERSION 1.02.278. The Develop tab matches locked Concept B: live map preview on the left and Hebrew chat on the right. The operator describes a capability in free text. The agent asks stacked multiple-choice questions with always-available free-text answers. After VERIFY, the UI shows what will install to the mission computer and flight controller and marks that install allowed without another in-UI ask. Local progress never applies to live hardware and never sends flight commands. New parameters surface in the Parameters tab. No wizard redesign, no Companion apply/restart."
+      }
+    ]
+  },
+  {
     "version": "1.02.277",
     "date": "2026-09-12",
     "changes": [

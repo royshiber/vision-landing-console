@@ -9,6 +9,7 @@ const css = fs.readFileSync(path.join(repoRoot, 'public', 'styles.css'), 'utf8')
 const js = fs.readFileSync(path.join(repoRoot, 'public', 'app.js'), 'utf8');
 const version = fs.readFileSync(path.join(repoRoot, 'version.js'), 'utf8');
 const pkg = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8'));
+const changelog = fs.readFileSync(path.join(repoRoot, 'public', 'changelog.json'), 'utf8');
 const commercial = fs.readFileSync(path.join(repoRoot, 'docs', 'COMMERCIAL_CAPABILITIES.he.md'), 'utf8');
 
 function cssBlock(src, selector) {
@@ -27,9 +28,9 @@ function cssBlock(src, selector) {
 }
 
 describe('AIRVIX dual-link connect + cellular infrastructure', () => {
-  it('pins APP_VERSION at 1.02.277', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.277'");
-    expect(pkg.version).toBe('1.02.277');
+  it('pins APP_VERSION at 1.02.278', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.278'");
+    expect(pkg.version).toBe('1.02.278');
   });
 
   it('extends the מנותק connect panel with both link roles and an active picker', () => {
