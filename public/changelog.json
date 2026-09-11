@@ -1,5 +1,16 @@
 [
   {
+    "version": "1.02.270",
+    "date": "2026-09-11",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Dual-link MAVLink connect (radio + cellular) with active-link picker, annotated vision slot, and telemetry archive foundation",
+        "detail": "APP_VERSION 1.02.270 (1.02.269 is PR #89 Ask to Capability Brief on master). Topbar connect panel carries regular telemetry and Jetson cellular MAVLink as two links. Operator can connect one or both and pick the active command/telemetry link. Annotated vision is a Mission slot that only uses cellular from the mission computer. Flight bytes persist under data/flights/archive with a backpressure queue so downlink cannot starve MAVLink. Huawei E3372 stays unplugged; UI and APIs use mock/disconnected states. No new flight-command send. No Companion apply/restart. Mission layout contract unchanged."
+      }
+    ]
+  },
+  {
     "version": "1.02.269",
     "date": "2026-09-10",
     "changes": [

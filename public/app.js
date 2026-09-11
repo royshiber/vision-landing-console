@@ -8108,6 +8108,32 @@ if (annotationsToggleBtn) {
 refreshAdvisorHealth();
 setInterval(refreshAdvisorHealth, 60_000);
 
+function applyAnnotatedVision(video) {
+  const empty = document.getElementById('annotatedVisionEmpty');
+  const panel = document.getElementById('annotatedVisionPanel');
+  const frame = document.getElementById('annotatedVisionFrame');
+  if (empty) {
+    empty.textContent = video?.reasonHe || 'אין שידור. סלולר מנותק.';
+  }
+  if (panel) panel.dataset.state = video?.available ? 'live' : 'disconnected';
+  if (frame) frame.hidden = !video?.available;
+}
+
+function initAnnotatedVisionPanel() {
+  const toggle = document.getElementById('annotatedVisionToggle');
+  const panel = document.getElementById('annotatedVisionPanel');
+  if (!toggle || !panel) return;
+  toggle.addEventListener('click', () => {
+    const willOpen = panel.hasAttribute('hidden') || panel.classList.contains('hidden');
+    panel.toggleAttribute('hidden', !willOpen);
+    panel.classList.toggle('hidden', !willOpen);
+    toggle.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+    toggle.classList.toggle('active', willOpen);
+  });
+}
+
+initAnnotatedVisionPanel();
+
 // ── Topbar CONNECT widget (Mission Planner style) ──────────────────────────
 (() => {
   /** Why: compact topbar connection widget mirroring Mission Planner UX.
@@ -8130,6 +8156,14 @@ setInterval(refreshAdvisorHealth, 60_000);
   const toggleBtn = document.getElementById('connectToggleBtn');
   const panel     = document.getElementById('connectPanel');
   const pillLabel = document.getElementById('connectPillLabel');
+  const radioChip = document.getElementById('radioLinkChip');
+  const cellularChip = document.getElementById('cellularLinkChip');
+  const cellularHostPort = document.getElementById('cellularHostPort');
+  const cellularConnectBtn = document.getElementById('cellularConnectBtn');
+  const cellularModemStatus = document.getElementById('cellularModemStatus');
+  const activeLinkPicker = document.getElementById('activeLinkPicker');
+  const activeLinkRadio = document.getElementById('activeLinkRadio');
+  const activeLinkCellular = document.getElementById('activeLinkCellular');
   const connectAutoProgress = document.getElementById('connectAutoProgress');
   const connectAutoStepper = document.getElementById('connectAutoStepper');
   const connectAutoChecklist = document.getElementById('connectAutoChecklist');
@@ -8359,6 +8393,7 @@ setInterval(refreshAdvisorHealth, 60_000);
         host: portInput.value,
         serialPort: portList.value,
         baud: baudSel.value,
+        cellularHost: cellularHostPort ? cellularHostPort.value : '',
       };
       localStorage.setItem(LS_KEY, JSON.stringify(prefs));
     } catch { /* ignore */ }
@@ -8460,6 +8495,9 @@ setInterval(refreshAdvisorHealth, 60_000);
         return true;
       }
       connectionApisOk = j.features?.mavlinkQuickConnect === true;
+      const dualOk = j.features?.dualLink === true;
+      const cellBlock = document.querySelector('#connectPanel [data-link-role="cellular"]');
+      if (cellBlock) cellBlock.hidden = !dualOk;
       if (hint) {
         hint.classList.toggle('hidden', connectionApisOk);
         if (!connectionApisOk) {
@@ -8481,7 +8519,69 @@ setInterval(refreshAdvisorHealth, 60_000);
     }
   }
 
+  function chipStateFromLink(state) {
+    if (state === 'connected') return 'on';
+    if (state === 'listening' || state === 'connecting') return 'warn';
+    return 'off';
+  }
+
+  function applyDualLinkUi(links) {
+    if (!links) return false;
+    if (radioChip) {
+      radioChip.dataset.state = chipStateFromLink(links.radio);
+      radioChip.textContent = `${links.radioLabelHe || 'טלמטריה רגילה'} · ${links.radioStatusHe || 'מנותק'}`;
+    }
+    if (cellularChip) {
+      cellularChip.dataset.state = chipStateFromLink(links.cellular);
+      cellularChip.textContent = `סלולר · ${links.cellularStatusHe || 'מנותק'}`;
+    }
+    if (cellularModemStatus) {
+      cellularModemStatus.dataset.state = links.modemPresent ? 'present' : 'absent';
+      cellularModemStatus.textContent = links.modem?.reasonHe || links.cellularStatusHe || 'מודם לא מחובר';
+    }
+    if (cellularHostPort && links.endpoint && !cellularHostPort.dataset.dirty) {
+      cellularHostPort.value = `${links.endpoint.host}:${links.endpoint.port}`;
+    }
+    if (cellularConnectBtn) {
+      const cellUp = links.cellular === 'connected' || links.cellular === 'listening';
+      cellularConnectBtn.textContent = cellUp ? 'ניתוק' : 'חיבור';
+      cellularConnectBtn.dataset.connected = cellUp ? '1' : '0';
+    }
+    if (activeLinkPicker) {
+      activeLinkPicker.hidden = !links.canSelectActive;
+      if (links.active === 'cellular' && activeLinkCellular) activeLinkCellular.checked = true;
+      else if (activeLinkRadio) activeLinkRadio.checked = true;
+    }
+    setPillLabel(links.pillLabelHe || 'מנותק');
+    const anyUp = links.radio === 'connected' || links.cellular === 'connected';
+    const anyWait = links.radio === 'listening' || links.cellular === 'listening'
+      || links.radio === 'connecting' || links.cellular === 'connecting';
+    if (anyUp) setDot(links.radio === 'connected' || links.cellular === 'connected' ? 'on' : 'warn');
+    else if (anyWait) setDot('connecting');
+    else setDot('off');
+    const radioUp = links.radio === 'connected' || links.radio === 'listening';
+    if (radioUp) {
+      currentId = links.radioConnection?.id || currentId;
+      connBtn.textContent = 'DISCONNECT';
+      connBtn.dataset.connected = '1';
+      connBtn.title = 'מחובר בטלמטריה רגילה. לחץ לניתוק.';
+    } else {
+      connBtn.textContent = 'CONNECT';
+      connBtn.dataset.connected = '0';
+      connBtn.title = 'התחבר למטוס';
+    }
+    applyAnnotatedVision(links.video);
+    return true;
+  }
+
   async function refreshConnectionStatus() {
+    try {
+      const dual = await fetch('/api/links', { cache: 'no-store' });
+      if (dual.ok) {
+        const body = await dual.json();
+        if (body?.ok && body.links && applyDualLinkUi(body.links)) return;
+      }
+    } catch { /* fall back to single-link status */ }
     try {
       const r = await fetch('/api/connections');
       const j = await r.json();
@@ -8518,6 +8618,62 @@ setInterval(refreshAdvisorHealth, 60_000);
     }
   }
 
+  async function onCellularConnectClick() {
+    if (!cellularConnectBtn) return;
+    const connected = cellularConnectBtn.dataset.connected === '1';
+    cellularConnectBtn.disabled = true;
+    try {
+      if (connected) {
+        const r = await fetch('/api/links/disconnect', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ role: 'cellular' }),
+        });
+        const j = await parseConnJsonResponse(r);
+        if (!j.ok) throw new Error(j.message || 'ניתוק סלולר נכשל');
+      } else {
+        const hp = parseHostPort(cellularHostPort?.value);
+        if (!hp) {
+          alert('הזן יעד ברשת לסלולר.');
+          return;
+        }
+        savePrefs();
+        setDot('connecting');
+        const r = await fetch('/api/links/connect', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            role: 'cellular',
+            type: 'udp',
+            host: hp.host,
+            port: hp.port,
+          }),
+        });
+        const j = await parseConnJsonResponse(r);
+        if (!j.ok) throw new Error(j.message || 'חיבור סלולר נכשל');
+      }
+    } catch (err) {
+      setDot('err');
+      alert(`שגיאת סלולר: ${err.message || err}`);
+    } finally {
+      cellularConnectBtn.disabled = false;
+      await refreshConnectionStatus();
+    }
+  }
+
+  async function onActiveLinkPick(role) {
+    try {
+      await fetch('/api/links/active', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role }),
+      });
+    } catch (err) {
+      console.warn('set active link failed', err);
+    }
+    await refreshConnectionStatus();
+  }
+
   async function onConnectClick() {
     const connected = connBtn.dataset.connected === '1';
     connBtn.disabled = true;
@@ -8529,7 +8685,11 @@ setInterval(refreshAdvisorHealth, 60_000);
         return;
       }
       if (connected) {
-        const r = await fetch('/api/connections/disconnect-all', { method: 'POST' });
+        const r = await fetch('/api/links/disconnect', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ role: 'radio' }),
+        });
         const j = await parseConnJsonResponse(r);
         if (!j.ok) throw new Error(j.message || 'disconnect failed');
       } else {
@@ -8748,6 +8908,21 @@ setInterval(refreshAdvisorHealth, 60_000);
   portList.addEventListener('focus', refreshSerialPorts);
   connBtn.addEventListener('click', onConnectClick);
   if (connectAutoBtn) connectAutoBtn.addEventListener('click', onAutoConnectClick);
+  if (cellularConnectBtn) cellularConnectBtn.addEventListener('click', onCellularConnectClick);
+  if (cellularHostPort) {
+    cellularHostPort.addEventListener('input', () => { cellularHostPort.dataset.dirty = '1'; });
+    cellularHostPort.addEventListener('change', savePrefs);
+  }
+  if (activeLinkRadio) {
+    activeLinkRadio.addEventListener('change', () => {
+      if (activeLinkRadio.checked) void onActiveLinkPick('radio');
+    });
+  }
+  if (activeLinkCellular) {
+    activeLinkCellular.addEventListener('change', () => {
+      if (activeLinkCellular.checked) void onActiveLinkPick('cellular');
+    });
+  }
   statBtn.addEventListener('click', openStatModal);
   statRefr.addEventListener('click', refreshStatBody);
   statAuto.addEventListener('change', () => {
@@ -8774,6 +8949,10 @@ setInterval(refreshAdvisorHealth, 60_000);
   if (prefs.type) typeSel.value = prefs.type;
   if (prefs.host) portInput.value = prefs.host;
   if (prefs.baud) baudSel.value = prefs.baud;
+  if (prefs.cellularHost && cellularHostPort) {
+    cellularHostPort.value = prefs.cellularHost;
+    cellularHostPort.dataset.dirty = '1';
+  }
   applyTypeUI();
   refreshSerialPorts();
   refreshConnectionStatus();

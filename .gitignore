@@ -6,6 +6,7 @@ data/*.wal
 data/*.shm
 data/*.log
 data/uploads/
+data/flights/archive/
 .env
 debug-*.log
 *.bak

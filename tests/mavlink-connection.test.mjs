@@ -8,6 +8,14 @@ describe('MavlinkConnection', () => {
     expect(conn.type).toBe('udp');
     expect(conn.port).toBe(14550);
     expect(conn.connected).toBe(false);
+    expect(conn.linkRole).toBe('radio');
+  });
+
+  it('שומר תפקיד סלולר כשמועבר', () => {
+    const conn = new MavlinkConnection({
+      id: 9, name: 'Cell', type: 'udp', port: 14560, linkRole: 'cellular',
+    });
+    expect(conn.getStatus().linkRole).toBe('cellular');
   });
 
   it('getStatus מחזיר מבנה נכון', () => {
@@ -16,6 +24,7 @@ describe('MavlinkConnection', () => {
     expect(status).toHaveProperty('id', 2);
     expect(status).toHaveProperty('connected', false);
     expect(status).toHaveProperty('type', 'tcp');
+    expect(status).toHaveProperty('linkRole', 'radio');
     expect(status).toHaveProperty('lastHeartbeatAt', null);
   });
 
