@@ -1,0 +1,20 @@
+[Unit]
+Description=AIRVIX Huawei E3372 bring-up when the USB stick appears
+Documentation=file:///opt/airvix/jetson-cellular/README.md
+After=local-fs.target
+# udev SYSTEMD_WANTS starts this on a matching Huawei net/tty.
+# Boot enable is skipped unless a modem-shaped node already exists.
+# Do not key off /dev/ttyUSB0 — that node is often the flight-controller UART.
+ConditionPathExists=|/dev/cdc-wdm0
+ConditionPathExists=|/sys/class/net/usb0
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+EnvironmentFile=-/etc/airvix/e3372.env
+ExecStart=/opt/airvix/jetson-cellular/e3372-bringup.sh
+SuccessExitStatus=0
+# No APN write. No MAVLink send. No annotated-video start. No Companion apply.
+
+[Install]
+WantedBy=multi-user.target

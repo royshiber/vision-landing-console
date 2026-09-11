@@ -585,3 +585,18 @@ python3 companion_agent.py
 | JetPack | 5.x | 6.x |
 | OpenCV | 4.5 | 4.8+ |
 | pymavlink | 2.4.x | 2.4.40+ |
+
+---
+
+## Cellular host pack (Huawei E3372) — before the stick arrives
+
+Dual-link cellular is MAVLink from the mission computer, not Companion-HTTP. Annotated video stays on that cellular path only.
+
+Software to copy later onto Orin / Xavier: `scripts/jetson-cellular/` (notes: `docs/JETSON_CELLULAR_E3372.md`).
+
+```
+./scripts/jetson-cellular/install.sh --dry-run
+./scripts/jetson-cellular/e3372-status.sh --dry-run
+```
+
+Unplugged USB reports `modem_absent` and exits 0. `AIRVIX_CELLULAR_MOCK=present` is the software mock — same idea as console `CELLULAR_MODEM_MOCK=present`. `--apply` is for a Jetson on the bench, not a Cloud Agent VM. No flight commands and no Companion apply/restart.

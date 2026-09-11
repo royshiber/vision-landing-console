@@ -1,5 +1,16 @@
 [
   {
+    "version": "1.02.280",
+    "date": "2026-09-11",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Jetson E3372 host pack before the stick arrives",
+        "detail": "APP_VERSION 1.02.280. scripts/jetson-cellular is a copy-later pack for Orin/Xavier: usb-modeswitch notes, udev rules, systemd status/bring-up stubs, and dry-run install/status. Unplugged USB reports modem_absent and exits 0. AIRVIX_CELLULAR_MOCK aligns with console CELLULAR_MODEM_MOCK so dual-link cellular stays mock until the Huawei stick is present. Cellular remains the MAVLink second path; annotated video stays cellular-only. No live modem, no SSH, no secrets, no flight commands, no Companion apply/restart."
+      }
+    ]
+  },
+  {
     "version": "1.02.279",
     "date": "2026-09-12",
     "changes": [
