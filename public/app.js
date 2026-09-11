@@ -8108,6 +8108,32 @@ if (annotationsToggleBtn) {
 refreshAdvisorHealth();
 setInterval(refreshAdvisorHealth, 60_000);
 
+function applyAnnotatedVision(video) {
+  const empty = document.getElementById('annotatedVisionEmpty');
+  const panel = document.getElementById('annotatedVisionPanel');
+  const frame = document.getElementById('annotatedVisionFrame');
+  if (empty) {
+    empty.textContent = video?.reasonHe || 'אין שידור. סלולר מנותק.';
+  }
+  if (panel) panel.dataset.state = video?.available ? 'live' : 'disconnected';
+  if (frame) frame.hidden = !video?.available;
+}
+
+function initAnnotatedVisionPanel() {
+  const toggle = document.getElementById('annotatedVisionToggle');
+  const panel = document.getElementById('annotatedVisionPanel');
+  if (!toggle || !panel) return;
+  toggle.addEventListener('click', () => {
+    const willOpen = panel.hasAttribute('hidden') || panel.classList.contains('hidden');
+    panel.toggleAttribute('hidden', !willOpen);
+    panel.classList.toggle('hidden', !willOpen);
+    toggle.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+    toggle.classList.toggle('active', willOpen);
+  });
+}
+
+initAnnotatedVisionPanel();
+
 // ── Topbar CONNECT widget (Mission Planner style) ──────────────────────────
 (() => {
   /** Why: compact topbar connection widget mirroring Mission Planner UX.
@@ -8130,6 +8156,14 @@ setInterval(refreshAdvisorHealth, 60_000);
   const toggleBtn = document.getElementById('connectToggleBtn');
   const panel     = document.getElementById('connectPanel');
   const pillLabel = document.getElementById('connectPillLabel');
+  const radioChip = document.getElementById('radioLinkChip');
+  const cellularChip = document.getElementById('cellularLinkChip');
+  const cellularHostPort = document.getElementById('cellularHostPort');
+  const cellularConnectBtn = document.getElementById('cellularConnectBtn');
+  const cellularModemStatus = document.getElementById('cellularModemStatus');
+  const activeLinkPicker = document.getElementById('activeLinkPicker');
+  const activeLinkRadio = document.getElementById('activeLinkRadio');
+  const activeLinkCellular = document.getElementById('activeLinkCellular');
   const connectAutoProgress = document.getElementById('connectAutoProgress');
   const connectAutoStepper = document.getElementById('connectAutoStepper');
   const connectAutoChecklist = document.getElementById('connectAutoChecklist');
@@ -8359,6 +8393,7 @@ setInterval(refreshAdvisorHealth, 60_000);
         host: portInput.value,
         serialPort: portList.value,
         baud: baudSel.value,
+        cellularHost: cellularHostPort ? cellularHostPort.value : '',
       };
       localStorage.setItem(LS_KEY, JSON.stringify(prefs));
     } catch { /* ignore */ }
@@ -8460,6 +8495,9 @@ setInterval(refreshAdvisorHealth, 60_000);
         return true;
       }
       connectionApisOk = j.features?.mavlinkQuickConnect === true;
+      const dualOk = j.features?.dualLink === true;
+      const cellBlock = document.querySelector('#connectPanel [data-link-role="cellular"]');
+      if (cellBlock) cellBlock.hidden = !dualOk;
       if (hint) {
         hint.classList.toggle('hidden', connectionApisOk);
         if (!connectionApisOk) {
@@ -8481,7 +8519,69 @@ setInterval(refreshAdvisorHealth, 60_000);
     }
   }
 
+  function chipStateFromLink(state) {
+    if (state === 'connected') return 'on';
+    if (state === 'listening' || state === 'connecting') return 'warn';
+    return 'off';
+  }
+
+  function applyDualLinkUi(links) {
+    if (!links) return false;
+    if (radioChip) {
+      radioChip.dataset.state = chipStateFromLink(links.radio);
+      radioChip.textContent = `${links.radioLabelHe || 'טלמטריה רגילה'} · ${links.radioStatusHe || 'מנותק'}`;
+    }
+    if (cellularChip) {
+      cellularChip.dataset.state = chipStateFromLink(links.cellular);
+      cellularChip.textContent = `סלולר · ${links.cellularStatusHe || 'מנותק'}`;
+    }
+    if (cellularModemStatus) {
+      cellularModemStatus.dataset.state = links.modemPresent ? 'present' : 'absent';
+      cellularModemStatus.textContent = links.modem?.reasonHe || links.cellularStatusHe || 'מודם לא מחובר';
+    }
+    if (cellularHostPort && links.endpoint && !cellularHostPort.dataset.dirty) {
+      cellularHostPort.value = `${links.endpoint.host}:${links.endpoint.port}`;
+    }
+    if (cellularConnectBtn) {
+      const cellUp = links.cellular === 'connected' || links.cellular === 'listening';
+      cellularConnectBtn.textContent = cellUp ? 'ניתוק' : 'חיבור';
+      cellularConnectBtn.dataset.connected = cellUp ? '1' : '0';
+    }
+    if (activeLinkPicker) {
+      activeLinkPicker.hidden = !links.canSelectActive;
+      if (links.active === 'cellular' && activeLinkCellular) activeLinkCellular.checked = true;
+      else if (activeLinkRadio) activeLinkRadio.checked = true;
+    }
+    setPillLabel(links.pillLabelHe || 'מנותק');
+    const anyUp = links.radio === 'connected' || links.cellular === 'connected';
+    const anyWait = links.radio === 'listening' || links.cellular === 'listening'
+      || links.radio === 'connecting' || links.cellular === 'connecting';
+    if (anyUp) setDot(links.radio === 'connected' || links.cellular === 'connected' ? 'on' : 'warn');
+    else if (anyWait) setDot('connecting');
+    else setDot('off');
+    const radioUp = links.radio === 'connected' || links.radio === 'listening';
+    if (radioUp) {
+      currentId = links.radioConnection?.id || currentId;
+      connBtn.textContent = 'DISCONNECT';
+      connBtn.dataset.connected = '1';
+      connBtn.title = 'מחובר בטלמטריה רגילה. לחץ לניתוק.';
+    } else {
+      connBtn.textContent = 'CONNECT';
+      connBtn.dataset.connected = '0';
+      connBtn.title = 'התחבר למטוס';
+    }
+    applyAnnotatedVision(links.video);
+    return true;
+  }
+
   async function refreshConnectionStatus() {
+    try {
+      const dual = await fetch('/api/links', { cache: 'no-store' });
+      if (dual.ok) {
+        const body = await dual.json();
+        if (body?.ok && body.links && applyDualLinkUi(body.links)) return;
+      }
+    } catch { /* fall back to single-link status */ }
     try {
       const r = await fetch('/api/connections');
       const j = await r.json();
@@ -8518,6 +8618,62 @@ setInterval(refreshAdvisorHealth, 60_000);
     }
   }
 
+  async function onCellularConnectClick() {
+    if (!cellularConnectBtn) return;
+    const connected = cellularConnectBtn.dataset.connected === '1';
+    cellularConnectBtn.disabled = true;
+    try {
+      if (connected) {
+        const r = await fetch('/api/links/disconnect', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ role: 'cellular' }),
+        });
+        const j = await parseConnJsonResponse(r);
+        if (!j.ok) throw new Error(j.message || 'ניתוק סלולר נכשל');
+      } else {
+        const hp = parseHostPort(cellularHostPort?.value);
+        if (!hp) {
+          alert('הזן יעד ברשת לסלולר.');
+          return;
+        }
+        savePrefs();
+        setDot('connecting');
+        const r = await fetch('/api/links/connect', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            role: 'cellular',
+            type: 'udp',
+            host: hp.host,
+            port: hp.port,
+          }),
+        });
+        const j = await parseConnJsonResponse(r);
+        if (!j.ok) throw new Error(j.message || 'חיבור סלולר נכשל');
+      }
+    } catch (err) {
+      setDot('err');
+      alert(`שגיאת סלולר: ${err.message || err}`);
+    } finally {
+      cellularConnectBtn.disabled = false;
+      await refreshConnectionStatus();
+    }
+  }
+
+  async function onActiveLinkPick(role) {
+    try {
+      await fetch('/api/links/active', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role }),
+      });
+    } catch (err) {
+      console.warn('set active link failed', err);
+    }
+    await refreshConnectionStatus();
+  }
+
   async function onConnectClick() {
     const connected = connBtn.dataset.connected === '1';
     connBtn.disabled = true;
@@ -8529,7 +8685,11 @@ setInterval(refreshAdvisorHealth, 60_000);
         return;
       }
       if (connected) {
-        const r = await fetch('/api/connections/disconnect-all', { method: 'POST' });
+        const r = await fetch('/api/links/disconnect', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ role: 'radio' }),
+        });
         const j = await parseConnJsonResponse(r);
         if (!j.ok) throw new Error(j.message || 'disconnect failed');
       } else {
@@ -8748,6 +8908,21 @@ setInterval(refreshAdvisorHealth, 60_000);
   portList.addEventListener('focus', refreshSerialPorts);
   connBtn.addEventListener('click', onConnectClick);
   if (connectAutoBtn) connectAutoBtn.addEventListener('click', onAutoConnectClick);
+  if (cellularConnectBtn) cellularConnectBtn.addEventListener('click', onCellularConnectClick);
+  if (cellularHostPort) {
+    cellularHostPort.addEventListener('input', () => { cellularHostPort.dataset.dirty = '1'; });
+    cellularHostPort.addEventListener('change', savePrefs);
+  }
+  if (activeLinkRadio) {
+    activeLinkRadio.addEventListener('change', () => {
+      if (activeLinkRadio.checked) void onActiveLinkPick('radio');
+    });
+  }
+  if (activeLinkCellular) {
+    activeLinkCellular.addEventListener('change', () => {
+      if (activeLinkCellular.checked) void onActiveLinkPick('cellular');
+    });
+  }
   statBtn.addEventListener('click', openStatModal);
   statRefr.addEventListener('click', refreshStatBody);
   statAuto.addEventListener('change', () => {
@@ -8774,6 +8949,10 @@ setInterval(refreshAdvisorHealth, 60_000);
   if (prefs.type) typeSel.value = prefs.type;
   if (prefs.host) portInput.value = prefs.host;
   if (prefs.baud) baudSel.value = prefs.baud;
+  if (prefs.cellularHost && cellularHostPort) {
+    cellularHostPort.value = prefs.cellularHost;
+    cellularHostPort.dataset.dirty = '1';
+  }
   applyTypeUI();
   refreshSerialPorts();
   refreshConnectionStatus();
@@ -12577,6 +12756,7 @@ const ASSIST_TAB_CAPABILITY = {
 };
 
 let _assistPendingProposalId = null;
+let _assistPendingBrief = null;
 let _assistHistory = [];
 let _assistRunPoll = null;
 let _assistRunTaskId = null;
@@ -12789,19 +12969,127 @@ function assistAppendMessage({ role, text, meta, kind }) {
   assistSyncMessagesEmpty();
 }
 
+function assistRenderCapabilityBrief(brief) {
+  const card = document.getElementById('assistCapabilityBrief');
+  if (!card) return;
+  const setText = (id, value) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = value || '—';
+  };
+  const modules = Array.isArray(brief?.modules) ? brief.modules.filter(Boolean) : [];
+  setText('assistCapTitle', brief?.title || 'יכולת חדשה');
+  setText('assistCapWhat', brief?.what || brief?.description || '—');
+  setText('assistCapWhy', brief?.why || '—');
+  setText('assistCapModules', modules.length ? modules.join(' · ') : '—');
+  setText('assistCapTaxonomy', brief?.taxonomy || 'FEATURE');
+  assistRefreshCapabilityAgentCta();
+}
+
+function assistRefreshCapabilityAgentCta() {
+  const note = document.getElementById('assistCapUnavailableNote');
+  const startBtn = document.getElementById('assistCapStartAgentBtn');
+  const available = _assistAgentConnected === true || _devAgentMeta?.available === true;
+  const reason = available
+    ? ''
+    : (typeof devHebrewUnavailableReason === 'function'
+      ? devHebrewUnavailableReason(_devAgentMeta?.reason)
+      : 'סוכן הפיתוח אינו זמין. חברו אותו ב-AIRVIX Ask.');
+  if (note) {
+    note.hidden = available || !_assistPendingBrief;
+    if (!available) note.textContent = reason;
+  }
+  if (startBtn) {
+    startBtn.disabled = false;
+    startBtn.title = available
+      ? 'יוצר יכולת ומפעיל סוכן על ענף מבודד'
+      : reason;
+  }
+}
+
+function capHandoffFromAsk(brief) {
+  if (!brief || typeof brief !== 'object') return;
+  applyMainTab('development');
+  try { history.replaceState(null, '', '#development'); } catch { /* ignore */ }
+  _capDraftOverride = {
+    title: brief.title,
+    description: brief.description || brief.what,
+    taxonomy: brief.taxonomy || 'FEATURE',
+    target: brief.target_area || 'OTHER',
+    priority: brief.priority || 'HIGH',
+    modules: brief.modules,
+    why: brief.why,
+    impact: brief.impact,
+  };
+  const title = document.getElementById('devTaskTitle');
+  const desc = document.getElementById('devTaskDescription');
+  const target = document.getElementById('devTaskTarget');
+  const priority = document.getElementById('devTaskPriority');
+  if (title) title.value = brief.title || '';
+  if (desc) desc.value = brief.description || brief.what || '';
+  if (target) target.value = brief.target_area || 'OTHER';
+  if (priority) priority.value = brief.priority || 'HIGH';
+  capSetTaxonomy(brief.taxonomy || 'FEATURE');
+  _capDraftOverride = {
+    title: brief.title,
+    description: brief.description || brief.what,
+    taxonomy: brief.taxonomy || 'FEATURE',
+    target: brief.target_area || 'OTHER',
+    priority: brief.priority || 'HIGH',
+    modules: brief.modules,
+    why: brief.why,
+    impact: brief.impact,
+  };
+  capRenderDraftCard();
+  const studio = document.querySelector('#development .cap-studio');
+  if (studio && typeof studio.scrollIntoView === 'function') {
+    studio.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  if (title && typeof title.focus === 'function') title.focus({ preventScroll: true });
+}
+
+async function assistOpenCapabilityInDevelop() {
+  const brief = _assistPendingBrief;
+  if (!brief) return;
+  await assistConfirm(false, { silent: true });
+  capHandoffFromAsk(brief);
+  assistAppendMessage({
+    role: 'assist',
+    text: 'הכרטיס נפתח בפיתוח.',
+    kind: 'INFORMATION',
+  });
+}
+
 function assistSetProposalBar(response) {
   const bar = document.getElementById('assistProposalBar');
   const textEl = document.getElementById('assistProposalText');
+  const briefEl = document.getElementById('assistCapabilityBrief');
+  const genericActions = document.getElementById('assistProposalActions');
   if (!bar || !textEl) return;
-  if (response?.requires_confirmation && response?.action_proposal?.id) {
-    _assistPendingProposalId = response.action_proposal.id;
+  const proposal = response?.action_proposal;
+  const brief = response?.capability_brief || proposal?.payload?.capability_brief || null;
+  const isCap = proposal?.action === 'CREATE_DEVELOPMENT_TASK' && !!brief;
+  if (response?.requires_confirmation && proposal?.id) {
+    _assistPendingProposalId = proposal.id;
+    _assistPendingBrief = isCap ? brief : null;
     textEl.textContent = response.answer || 'לאשר את הפעולה?';
     bar.hidden = false;
+    if (isCap) {
+      assistRenderCapabilityBrief(brief);
+      if (briefEl) briefEl.hidden = false;
+      if (genericActions) genericActions.hidden = true;
+    } else {
+      if (briefEl) briefEl.hidden = true;
+      if (genericActions) genericActions.hidden = false;
+    }
   } else {
     _assistPendingProposalId = null;
+    _assistPendingBrief = null;
     bar.hidden = true;
+    if (briefEl) briefEl.hidden = true;
+    if (genericActions) genericActions.hidden = false;
   }
   assistSyncProposalWarn();
+  assistRefreshCapabilityAgentCta();
 }
 
 function assistStopRunPolling() {
@@ -13012,13 +13300,17 @@ async function assistSendText(rawText) {
   }
 }
 
-async function assistConfirm(confirm) {
+async function assistConfirm(confirm, { startAgent = true, silent = false } = {}) {
   if (!_assistPendingProposalId) return;
   const proposalId = _assistPendingProposalId;
   const r = await fetch('/api/assist/confirm', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ proposal_id: proposalId, confirm: !!confirm }),
+    body: JSON.stringify({
+      proposal_id: proposalId,
+      confirm: !!confirm,
+      start_agent: startAgent !== false,
+    }),
   });
   const data = await r.json().catch(() => ({}));
   assistSetProposalBar(null);
@@ -13027,34 +13319,45 @@ async function assistConfirm(confirm) {
     return;
   }
   if (!confirm) {
-    assistAppendMessage({
-      role: 'assist',
-      text: data.answer || 'הפעולה בוטלה.',
-      kind: 'INFORMATION',
-    });
+    if (!silent) {
+      assistAppendMessage({
+        role: 'assist',
+        text: data.answer || 'הפעולה בוטלה.',
+        kind: 'INFORMATION',
+      });
+    }
     return;
   }
   if (data.action === 'CREATE_DEVELOPMENT_TASK' && data.result) {
     const taskId = data.result.task?.id;
-    assistRenderRunStatus({
-      answer: data.answer,
-      task_id: taskId,
-      agent_state: data.result.task?.agent_state,
-      last_message: data.result.task?.last_message,
-      progress: data.result.task?.progress,
-      branch: data.result.task?.branch || data.result.worktree?.branch,
-      pr_url: data.result.task?.pr_url,
-    }, {
-      agentStarted: data.result.agent_started === true,
-      unavailableReason: data.result.agent_unavailable_reason || null,
-    });
-    if (data.result.agent_started === true && taskId) {
-      assistStartRunPolling(taskId);
+    const draftOnly = startAgent === false || data.result.agent_runtime === 'NOT_STARTED';
+    if (draftOnly && data.result.agent_started !== true) {
+      assistAppendMessage({
+        role: 'assist',
+        text: data.answer || 'הטיוטה נשמרה בפיתוח.',
+        kind: 'INFORMATION',
+      });
     } else {
-      assistStopRunPolling();
-    }
-    if (data.result.agent_started !== true) {
-      void assistRefreshAgentConnection();
+      assistRenderRunStatus({
+        answer: data.answer,
+        task_id: taskId,
+        agent_state: data.result.task?.agent_state,
+        last_message: data.result.task?.last_message,
+        progress: data.result.task?.progress,
+        branch: data.result.task?.branch || data.result.worktree?.branch,
+        pr_url: data.result.task?.pr_url,
+      }, {
+        agentStarted: data.result.agent_started === true,
+        unavailableReason: data.result.agent_unavailable_reason || null,
+      });
+      if (data.result.agent_started === true && taskId) {
+        assistStartRunPolling(taskId);
+      } else {
+        assistStopRunPolling();
+      }
+      if (data.result.agent_started !== true) {
+        void assistRefreshAgentConnection();
+      }
     }
   } else {
     assistAppendMessage({
@@ -13130,6 +13433,7 @@ function assistRenderAgentConnection(status) {
   if (!errorText) assistSetConnectError('');
   assistSyncConnectButton();
   if (typeof pulseRefresh === 'function') pulseRefresh();
+  assistRefreshCapabilityAgentCta();
 }
 
 async function assistRefreshAgentConnection() {
@@ -13994,6 +14298,9 @@ function initAssistUi() {
   initAssistMic();
   document.getElementById('assistConfirmBtn')?.addEventListener('click', () => { void assistConfirm(true); });
   document.getElementById('assistCancelBtn')?.addEventListener('click', () => { void assistConfirm(false); });
+  document.getElementById('assistCapOpenDevelopBtn')?.addEventListener('click', () => { void assistOpenCapabilityInDevelop(); });
+  document.getElementById('assistCapSaveDraftBtn')?.addEventListener('click', () => { void assistConfirm(true, { startAgent: false }); });
+  document.getElementById('assistCapStartAgentBtn')?.addEventListener('click', () => { void assistConfirm(true, { startAgent: true }); });
   document.getElementById('assistAgentConnectForm')?.addEventListener('submit', (e) => { void assistConnectAgent(e); });
   document.getElementById('assistAgentKey')?.addEventListener('input', () => {
     assistSetConnectError('');

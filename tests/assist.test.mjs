@@ -198,9 +198,13 @@ describe('Assist service proposals and confirmation', () => {
     expect(resp.requires_confirmation).toBe(true);
     expect(resp.kind).toBe('ACTION_REQUIRING_CONFIRMATION');
     expect(resp.action_proposal.action).toBe('CREATE_DEVELOPMENT_TASK');
+    expect(resp.capability_brief.taxonomy).toBe('FEATURE');
+    expect(resp.capability_brief.what).toMatch(/landing confidence/i);
+    expect(resp.capability_brief.modules.length).toBeGreaterThan(0);
+    expect(resp.action_proposal.payload.capability_brief.taxonomy).toBe('FEATURE');
     expect(resp.answer).toMatch(/ענף מבודד/);
     expect(resp.answer).toMatch(/לא יתבצע מיזוג/);
-    expect(resp.next_step).toMatch(/אישור/);
+    expect(resp.next_step).toMatch(/פיתוח|טיוטה|סוכן/);
     expect(store.list({}).length).toBe(0);
 
     const confirmed = await service.confirmProposal({

@@ -10775,7 +10775,9 @@ details.flight-manage summary {
 
 .connect-widget-float .conn-panel {
   top: calc(100% + 10px);
-  width: 328px;
+  width: 380px;
+  max-height: min(78vh, 720px);
+  overflow: auto;
   padding: 12px;
   background: rgba(10, 14, 22, 0.92);
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -10808,7 +10810,7 @@ details.flight-manage summary {
 }
 .conn-pill-label {
   font-weight: 600;
-  max-width: 110px;
+  max-width: 190px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -10822,7 +10824,7 @@ details.flight-manage summary {
   top: calc(100% + 6px);
   inset-inline-end: 0;
   z-index: 1;
-  width: 320px;
+  width: 360px;
   padding: 10px;
   background: var(--surface, #fff);
   border: 1px solid var(--border, #dde2ec);
@@ -10861,6 +10863,137 @@ details.flight-manage summary {
   gap: 6px;
   justify-content: flex-end;
   margin-top: 2px;
+}
+.conn-dual-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  direction: rtl;
+}
+.conn-link-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  font-family: "Heebo", sans-serif;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: rgba(15, 23, 42, 0.45);
+  color: #cbd5e1;
+}
+.conn-link-chip[data-state="on"] {
+  border-color: rgba(52, 211, 153, 0.55);
+  color: #86efac;
+  background: rgba(16, 185, 129, 0.14);
+}
+.conn-link-chip[data-state="warn"] {
+  border-color: rgba(251, 191, 36, 0.55);
+  color: #fde68a;
+  background: rgba(245, 158, 11, 0.12);
+}
+.conn-link-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: rgba(15, 23, 42, 0.28);
+  direction: rtl;
+}
+.conn-link-title {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  font-family: "Heebo", sans-serif;
+  color: #e2e8f0;
+}
+.conn-link-note {
+  margin: 0;
+  font-size: 0.7rem;
+  line-height: 1.4;
+  color: #94a3b8;
+  font-family: "Heebo", sans-serif;
+}
+.conn-modem-status {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #fbbf24;
+  font-family: "Heebo", sans-serif;
+}
+.conn-modem-status[data-state="present"] {
+  color: #86efac;
+}
+.conn-active-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  border-radius: 10px;
+  border: 1px solid rgba(96, 165, 250, 0.35);
+  background: rgba(37, 99, 235, 0.12);
+  direction: rtl;
+}
+.conn-active-picker[hidden] { display: none; }
+.conn-active-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.conn-active-choice {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.74rem;
+  font-weight: 600;
+  font-family: "Heebo", sans-serif;
+  color: #e2e8f0;
+  cursor: pointer;
+}
+.mission-annotated-vision {
+  flex: 1 1 100%;
+  margin: 0;
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  background: rgba(8, 12, 20, 0.78);
+  direction: rtl;
+  text-align: right;
+}
+.mission-annotated-vision[hidden],
+.mission-annotated-vision.hidden {
+  display: none !important;
+}
+.mission-annotated-kicker {
+  margin: 0;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #e2e8f0;
+  font-family: "Heebo", sans-serif;
+}
+.mission-annotated-path {
+  margin: 2px 0 0;
+  font-size: 0.62rem;
+  color: #94a3b8;
+  font-family: "Heebo", sans-serif;
+}
+.mission-annotated-empty {
+  margin: 6px 0 0;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #fbbf24;
+  font-family: "Heebo", sans-serif;
+}
+.mission-annotated-vision[data-state="live"] .mission-annotated-empty {
+  color: #86efac;
+}
+.mission-annotated-frame {
+  margin-top: 6px;
+  min-height: 64px;
+  border-radius: 6px;
+  background: #0b0e14;
 }
 .conn-upgrade-hint {
   margin: 0 0 8px;
@@ -15404,6 +15537,35 @@ details.flight-manage summary {
   border-inline-start: 1px solid rgba(255, 255, 255, 0.1);
   box-shadow: -8px 0 28px rgba(0, 0, 0, 0.35);
   backdrop-filter: blur(10px);
+  overflow: hidden;
+  min-height: 0;
+}
+.assist-rail:not(.assist-rail--mission) .assist-transcript-well {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+.assist-rail:not(.assist-rail--mission) .assist-proposal-bar {
+  flex: 0 1 auto;
+  max-height: 42vh;
+  overflow: auto;
+}
+.assist-rail:not(.assist-rail--mission) .assist-composer,
+.assist-rail:not(.assist-rail--mission) .assist-agent-connect,
+.assist-rail:not(.assist-rail--mission) .assist-run-panel {
+  flex-shrink: 0;
+  min-width: 0;
+}
+.assist-rail:not(.assist-rail--mission) .assist-form {
+  min-width: 0;
+}
+.assist-rail:not(.assist-rail--mission) .assist-mic-btn {
+  min-width: 48px;
+  max-width: 72px;
+  padding: 8px;
+}
+.assist-rail:not(.assist-rail--mission) .assist-mic-label {
+  display: none;
 }
 .assist-rail[hidden] { display: none !important; }
 body.mission-assist-docked .assist-rail,
@@ -15841,6 +16003,62 @@ body.mission-assist-docked .assist-rail.assist-rail--mission,
 }
 .assist-proposal-bar[hidden] { display: none !important; }
 .assist-proposal-text { margin: 0; font-size: 0.78rem; color: #dcfce7; white-space: pre-wrap; }
+.assist-cap-brief {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.35);
+  border: 1px solid rgba(148, 163, 184, 0.28);
+}
+.assist-cap-brief[hidden] { display: none !important; }
+.assist-cap-kicker {
+  margin: 0;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: rgba(226, 232, 240, 0.72);
+}
+.assist-cap-title {
+  font-size: 0.86rem;
+  line-height: 1.3;
+  color: #f8fafc;
+}
+.assist-cap-fields {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.assist-cap-row {
+  display: grid;
+  grid-template-columns: 4.2rem 1fr;
+  gap: 6px;
+  align-items: start;
+}
+.assist-cap-row dt {
+  margin: 0;
+  font-size: 0.68rem;
+  color: rgba(226, 232, 240, 0.68);
+}
+.assist-cap-row dd {
+  margin: 0;
+  font-size: 0.76rem;
+  color: #e2e8f0;
+  overflow-wrap: anywhere;
+}
+.assist-cap-unavailable {
+  margin: 0;
+  font-size: 0.72rem;
+  color: #fde68a;
+}
+.assist-cap-unavailable[hidden] { display: none !important; }
+.assist-cap-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
 .assist-run-panel {
   border: 1px solid rgba(148, 163, 184, 0.32);
   background: rgba(15, 23, 42, 0.42);

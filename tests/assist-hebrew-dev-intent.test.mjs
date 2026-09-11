@@ -92,8 +92,10 @@ describe('Assist Hebrew development proposal loop', () => {
     expect(resp.requires_confirmation).toBe(true);
     expect(resp.kind).toBe('ACTION_REQUIRING_CONFIRMATION');
     expect(resp.action_proposal.action).toBe('CREATE_DEVELOPMENT_TASK');
+    expect(resp.capability_brief.taxonomy).toBe('FEATURE');
+    expect(resp.capability_brief.modules.length).toBeGreaterThan(0);
     expect(resp.answer).toMatch(/ענף מבודד/);
-    expect(resp.next_step).toMatch(/אישור/);
+    expect(resp.next_step).toMatch(/פיתוח|טיוטה|סוכן/);
     expect(resp.intent).not.toBe('UNRESOLVED');
   });
 
