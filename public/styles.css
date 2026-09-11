@@ -7259,9 +7259,7 @@ html[data-evolve-preview="1"] #development {
   grid-template-columns: minmax(160px, 0.9fr) minmax(220px, 1.3fr) minmax(180px, 1fr);
   gap: 8px;
   padding: 8px 12px 4px;
-  flex: 1 1 auto;
-  min-height: 220px;
-  align-items: stretch;
+  flex: 0 0 auto;
 }
 
 .ac-q {
@@ -7386,6 +7384,71 @@ html[data-evolve-preview="1"] #development {
   font-weight: 800;
   width: fit-content;
   unicode-bidi: isolate;
+}
+
+.ac-walk-overview {
+  margin: 0 12px 10px;
+  border: 1px solid rgba(148, 168, 198, 0.16);
+  border-radius: 10px;
+  background: #121826;
+  overflow: hidden;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.ac-walk-head,
+.ac-walk-row {
+  display: grid;
+  grid-template-columns: 28px minmax(90px, 1.1fr) minmax(80px, 1fr) minmax(80px, 1fr) minmax(90px, 1fr) 52px;
+  gap: 8px;
+  align-items: center;
+  padding: 6px 10px;
+}
+
+.ac-walk-head {
+  font-size: 0.62rem;
+  font-weight: 800;
+  color: #94a3b8;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid rgba(148, 168, 198, 0.12);
+}
+
+.ac-walk-rows {
+  overflow: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.ac-walk-row {
+  font-size: 0.72rem;
+  color: #e8edf6;
+  border-bottom: 1px solid rgba(148, 168, 198, 0.08);
+  cursor: pointer;
+  background: transparent;
+  width: 100%;
+  text-align: start;
+  font-family: inherit;
+}
+
+.ac-walk-row[data-active="1"] {
+  background: #152033;
+}
+
+.ac-walk-row[data-seen="1"] .ac-walk-seen {
+  color: #6ee7b7;
+}
+
+.ac-walk-seen {
+  color: #64748b;
+  font-weight: 700;
+  font-size: 0.66rem;
+}
+
+.ac-walk-none {
+  color: #64748b;
+  font-size: 0.68rem;
 }
 
 .ac-wiz-nav {

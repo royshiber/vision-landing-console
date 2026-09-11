@@ -34,6 +34,8 @@ describe('AIRVIX 1.02.269 hardware-intent configuration wizard', () => {
     expect(panel).toContain('id="acWizPrev"');
     expect(panel).toContain('id="acWizNext"');
     expect(panel).toContain('id="acWizMark"');
+    expect(panel).toContain('id="acWalkOverview"');
+    expect(js).toContain('function renderWalkOverview');
     expect(panel).toContain('id="acPlanBtn"');
     expect(js).toContain('מה מחובר');
     expect(js).toContain('לאן מחובר');

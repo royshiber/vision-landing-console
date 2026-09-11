@@ -8823,6 +8823,7 @@ setInterval(refreshAdvisorHealth, 60_000);
   const acWizPrev          = document.getElementById('acWizPrev');
   const acWizNext          = document.getElementById('acWizNext');
   const acWizMark          = document.getElementById('acWizMark');
+  const acWalkOverview     = document.getElementById('acWalkOverview');
   const acSymptoms         = document.getElementById('acSymptoms');
   const acPlanBtn          = document.getElementById('acPlanBtn');
   const acPlanBtnLabel     = acPlanBtn?.querySelector('.ac-plan-btn-label');
@@ -8992,6 +8993,43 @@ setInterval(refreshAdvisorHealth, 60_000);
       acSymptoms.classList.add('ac-textarea--ready');
     }
     renderIntentCard(intent);
+    renderWalkOverview();
+  }
+
+  function hostCell(target) {
+    if (!target) return '<span class="ac-walk-none">אין</span>';
+    const pins = target.pins && target.pins.length ? target.pins : [target.port];
+    return pins.map((p) => `<span class="ac-port-chip">${acEsc(p)}</span>`).join('');
+  }
+
+  function renderWalkOverview() {
+    if (!acWalkOverview) return;
+    if (!hardwareWalk.length) {
+      acWalkOverview.innerHTML = '';
+      return;
+    }
+    const rows = hardwareWalk.map((c, i) => `
+      <button type="button" class="ac-walk-row" data-walk-idx="${i}" data-active="${i === walkIndex ? '1' : '0'}" data-seen="${seenIds.has(c.id) ? '1' : '0'}">
+        <span>${i + 1}</span>
+        <span>${acEsc(c.labelHe)}</span>
+        <span>${hostCell(c.wiring?.fc)}</span>
+        <span>${hostCell(c.wiring?.jetson)}</span>
+        <span class="ac-expect-token">${acEsc(c.expected?.token || '')}</span>
+        <span class="ac-walk-seen">${seenIds.has(c.id) ? 'נראה' : 'ממתין'}</span>
+      </button>`).join('');
+    acWalkOverview.innerHTML = `
+      <div class="ac-walk-head">
+        <span>#</span>
+        <span>רכיב</span>
+        <span>בקר טיסה</span>
+        <span>מחשב משימה</span>
+        <span>ציפייה</span>
+        <span>מצב</span>
+      </div>
+      <div class="ac-walk-rows">${rows}</div>`;
+    acWalkOverview.querySelectorAll('[data-walk-idx]').forEach((btn) => {
+      btn.addEventListener('click', () => selectWalkIndex(Number(btn.dataset.walkIdx)));
+    });
   }
 
   function selectWalkIndex(i) {
