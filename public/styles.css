@@ -4797,6 +4797,12 @@ body:has(#pulse.panel.visible) .layout {
 .pulse-computer-card[data-state="connected"] .pulse-computer-state {
   color: #3dd68c;
 }
+.pulse-computer-card[data-state="nodata"] .pulse-computer-state {
+  color: #f0a04b;
+}
+.pulse-computer-card[data-state="unreachable"] .pulse-computer-state {
+  color: #f07167;
+}
 .pulse-computer-card[data-state="disconnected"] .pulse-computer-state {
   color: #8b97ab;
 }

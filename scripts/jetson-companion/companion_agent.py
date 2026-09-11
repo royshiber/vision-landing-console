@@ -31,7 +31,14 @@ LOG_DIRS = [
     Path("/var/log"),
 ]
 
-STATE = {"fc_linked": False, "fc_heartbeat": False, "relay_clients": 0}
+STATE = {
+    "fc_linked": False,
+    "fc_heartbeat": False,
+    "relay_clients": 0,
+    "cpuLoadPct": None,
+    "memPct": None,
+    "tempC": None,
+}
 
 
 def auth_headers():
@@ -66,6 +73,9 @@ def heartbeat_loop():
                     if arr:
                         temp = float(arr[0].current)
                         break
+            STATE["cpuLoadPct"] = cpu
+            STATE["memPct"] = mem
+            STATE["tempC"] = temp
             post_json("/api/jetson/heartbeat", {
                 "cpuLoadPct": cpu,
                 "memPct": mem,
@@ -207,6 +217,7 @@ class Handler(BaseHTTPRequestHandler):
                     return
             return self._json(404, {"ok": False, "message": "not found"})
         if self.path == "/api/health":
+            # Console Status gauges read cpuLoadPct / memPct / tempC here when /api/v1/status is 404.
             return self._json(200, {"ok": True, "agentVersion": AGENT_VERSION, **STATE})
         return self._json(404, {"ok": False})
 

@@ -2995,9 +2995,7 @@ function companionNeedsToken(data) {
 function companionIsLive(source) {
   if (!source || typeof source !== 'object') return false;
   if (source.mode === 'mock') return true;
-  if (source.mode === 'real' && source.reachable === true) return true;
-  if (source.mode === 'real' && source.connected === true && source.reachable !== false) return true;
-  return false;
+  return source.mode === 'real' && source.reachable === true;
 }
 
 function companionSetLiveChrome(live) {
@@ -3086,12 +3084,84 @@ function pulseHudText(id) {
 }
 
 function pulseCompanionLabel(status) {
-  const connected = status?.connected === true && status?.mode === 'real';
-  const hint = connected ? String(status.token_hint || '').trim() : '';
-  if (connected && hint) return 'מחובר ' + hint;
-  if (connected) return 'מחובר';
+  if (status?.labelHe) return status.labelHe;
+  if (status?.mode === 'real' && status?.reachable === false) return 'לא מגיב';
+  const live = status?.mode === 'mock' || (status?.connected === true && status?.mode === 'real' && status?.reachable === true);
+  if (live && status?.hasData === false) return 'מחובר · אין נתונים';
+  const hint = live && status?.mode === 'real' ? String(status.token_hint || '').trim() : '';
+  if (live && status?.mode === 'real' && hint) return 'מחובר ' + hint;
+  if (live && status?.mode === 'real') return 'מחובר';
   if (status?.mode === 'mock') return 'מדומה';
   return 'מנותק';
+}
+
+function companionFiniteMetric(...values) {
+  for (const v of values) {
+    if (v == null || v === '') continue;
+    const n = Number(v);
+    if (Number.isFinite(n)) return n;
+  }
+  return null;
+}
+
+function companionHasDataPathClient(companion) {
+  if (!companion || typeof companion !== 'object') return false;
+  if (companion.fc_heartbeat === true || companion.link?.fc === 'heartbeat') return true;
+  if (companion.fc?.heartbeat === true || companion.fc?.heartbeat_validity === 'valid') return true;
+  if (companion.mavlink?.heartbeat_ok === true) return true;
+  const sys = companion.system || {};
+  if (companionFiniteMetric(
+    sys.cpu_percent,
+    sys.cpuLoadPct,
+    sys.temperature_c,
+    sys.tempC,
+    sys.memPct,
+    sys.ram_used_mb,
+  ) != null) return true;
+  if (companionFiniteMetric(companion.fc?.loadPct, companion.fc?.memPct, companion.fc?.tempC) != null) return true;
+  return false;
+}
+
+function pulseResolveComputerHonesty(companion) {
+  const src = companion && typeof companion === 'object' ? companion : {};
+  const mode = src.mode || src.link?.mode || 'off';
+  const reachable = src.reachable === true || mode === 'mock';
+  const hasData = src.hasData === true || src.hasData === false
+    ? src.hasData === true
+    : companionHasDataPathClient(src);
+  if (mode === 'real' && src.reachable === false) {
+    return {
+      jetsonLabelHe: 'לא מגיב',
+      jetsonCard: 'unreachable',
+      fcLabelHe: 'מנותק',
+      fcCard: 'disconnected',
+      jetsonLive: false,
+      fcLive: false,
+      hasData: false,
+    };
+  }
+  if (!reachable) {
+    return {
+      jetsonLabelHe: 'מנותק',
+      jetsonCard: 'disconnected',
+      fcLabelHe: 'מנותק',
+      fcCard: 'disconnected',
+      jetsonLive: false,
+      fcLive: false,
+      hasData: false,
+    };
+  }
+  const fcHb = src.fc_heartbeat === true || src.link?.fc === 'heartbeat' || src.fc?.heartbeat === true || src.fc?.heartbeat_validity === 'valid';
+  const fcLinked = src.fc_linked === true || src.link?.fc === 'linked';
+  return {
+    jetsonLabelHe: hasData ? (mode === 'mock' ? 'מדומה' : 'מחובר') : 'מחובר · אין נתונים',
+    jetsonCard: hasData ? 'connected' : 'nodata',
+    fcLabelHe: fcHb ? 'דופק חי' : (fcLinked ? 'מקושר' : 'מנותק'),
+    fcCard: fcHb ? 'connected' : (fcLinked ? 'nodata' : 'disconnected'),
+    jetsonLive: true,
+    fcLive: !!(fcHb || fcLinked),
+    hasData,
+  };
 }
 
 function attentionPolicyDefaults() {
@@ -3225,10 +3295,10 @@ function pulseSyncHomePrefChrome() {
   document.getElementById('pulseHomeTeleBtn')?.classList.toggle('is-active', pref === 'telemetry');
 }
 
-function formatComputerMetric(value, unit) {
-  if (value == null || value === '') return '--';
+function formatComputerMetric(value, unit, missingLabel = '--') {
+  if (value == null || value === '') return missingLabel;
   const n = Number(value);
-  if (!Number.isFinite(n)) return '--';
+  if (!Number.isFinite(n)) return missingLabel;
   if (unit === '%') return `${Math.round(n)}%`;
   if (unit === 'C') {
     const rounded = Math.round(n * 10) / 10;
@@ -3251,9 +3321,9 @@ function pulseGaugePct(value, unit) {
   return Math.max(0, Math.min(100, n));
 }
 
-function pulseWriteComputerMetric(id, value, unit) {
+function pulseWriteComputerMetric(id, value, unit, missingLabel = '--') {
   const el = document.getElementById(id);
-  if (el) el.textContent = formatComputerMetric(value, unit);
+  if (el) el.textContent = formatComputerMetric(value, unit, missingLabel);
   const gauge = el?.closest('.pulse-gauge');
   if (!gauge) return;
   const has = value != null && Number.isFinite(Number(value));
@@ -3324,23 +3394,44 @@ function pulseWriteVersionOffer(opts) {
 }
 
 function pulseRefreshVersionOffers() {
-  const jetsonInstalled = String(
-    (typeof jetsonInstalledVersionCached !== 'undefined' && jetsonInstalledVersionCached)
-    || (typeof latestJetsonFromServer !== 'undefined' && latestJetsonFromServer && (latestJetsonFromServer.installedVersion || latestJetsonFromServer.agentVersion))
-    || '',
-  ).trim();
-  pulseWriteVersionOffer({
-    valueId: 'pulseJetsonVersion',
-    stateId: 'pulseJetsonVersionState',
-    btnId: 'pulseJetsonUpdateBtn',
-    installed: jetsonInstalled,
-    releases: typeof jetsonReleasesCache !== 'undefined' ? jetsonReleasesCache : [],
-  });
+  const companion = (typeof latestCompanionFromServer !== 'undefined' && latestCompanionFromServer) ? latestCompanionFromServer : {};
+  const honesty = pulseResolveComputerHonesty(companion);
+  const liveCompanionVer = honesty.jetsonLive
+    ? String(companion.version || companion.system?.version || '').trim()
+    : '';
+  if (!honesty.jetsonLive) {
+    const valueEl = document.getElementById('pulseJetsonVersion');
+    const stateEl = document.getElementById('pulseJetsonVersionState');
+    const btn = document.getElementById('pulseJetsonUpdateBtn');
+    if (valueEl) valueEl.textContent = 'אין נתון';
+    if (stateEl) {
+      stateEl.dataset.offer = 'unknown';
+      stateEl.textContent = 'אין נתון';
+    }
+    if (btn) btn.hidden = true;
+  } else {
+    pulseWriteVersionOffer({
+      valueId: 'pulseJetsonVersion',
+      stateId: 'pulseJetsonVersionState',
+      btnId: 'pulseJetsonUpdateBtn',
+      installed: liveCompanionVer,
+      releases: typeof jetsonReleasesCache !== 'undefined' ? jetsonReleasesCache : [],
+    });
+    if (!liveCompanionVer) {
+      const valueEl = document.getElementById('pulseJetsonVersion');
+      const stateEl = document.getElementById('pulseJetsonVersionState');
+      if (valueEl) valueEl.textContent = 'אין נתון';
+      if (stateEl) {
+        stateEl.dataset.offer = 'unknown';
+        stateEl.textContent = 'אין נתון';
+      }
+    }
+  }
   const consoleEl = document.getElementById('pulseConsoleVersionState');
+  const consoleVer = String(typeof APP_VERSION_NEW !== 'undefined' ? APP_VERSION_NEW : '').replace(/^v/i, '').trim();
   if (consoleEl) {
-    const v = String(typeof APP_VERSION_NEW !== 'undefined' ? APP_VERSION_NEW : '').replace(/^v/i, '').trim();
-    consoleEl.dataset.offer = v ? 'current' : 'unknown';
-    consoleEl.textContent = v ? 'מעודכן' : '--';
+    consoleEl.dataset.offer = consoleVer ? 'current' : 'unknown';
+    consoleEl.textContent = consoleVer ? 'מעודכן' : '--';
   }
   const mav = (typeof latestHudMavlink !== 'undefined' && latestHudMavlink) ? latestHudMavlink : null;
   const fcVer = document.getElementById('pulseFcVersion');
@@ -3369,36 +3460,44 @@ function pulseRefresh() {
   if (!versionEl || !companionEl || !assistEl) return;
   const version = String(APP_VERSION_NEW || '').replace(/^v/i, '').trim() || '--';
   versionEl.textContent = version;
-  const companionLive = document.body.classList.contains('operator-live');
-  const companionCard = document.getElementById('companionConnect');
-  const companionState = companionCard?.dataset?.state || 'disconnected';
+  const companion = (typeof latestCompanionFromServer !== 'undefined' && latestCompanionFromServer) ? latestCompanionFromServer : {};
+  const honesty = pulseResolveComputerHonesty(companion);
   const tokenHint = document.getElementById('companionTokenHint')?.textContent?.trim() || '';
-  companionEl.textContent = pulseCompanionLabel({
-    connected: companionState === 'connected',
-    mode: companionState === 'connected' ? 'real' : (companionLive ? 'mock' : 'off'),
-    token_hint: tokenHint,
-  });
-  companionEl.closest('.pulse-computer-card')?.setAttribute('data-state', companionState === 'connected' || companionLive ? 'connected' : 'disconnected');
+  companionEl.textContent = honesty.jetsonLabelHe === 'מחובר' && tokenHint
+    ? pulseCompanionLabel({
+      connected: true,
+      mode: 'real',
+      reachable: true,
+      hasData: honesty.hasData,
+      token_hint: tokenHint,
+    })
+    : honesty.jetsonLabelHe;
+  companionEl.closest('.pulse-computer-card')?.setAttribute('data-state', honesty.jetsonCard);
   assistEl.textContent = _assistAgentConnected ? 'מחובר' : 'מנותק';
   assistEl.closest('.pulse-talk-card')?.setAttribute('data-state', _assistAgentConnected ? 'connected' : 'disconnected');
   assistEl.parentElement?.setAttribute('data-state', _assistAgentConnected ? 'connected' : 'disconnected');
   const linkLabel = document.getElementById('connectPillLabel')?.textContent?.trim() || '';
-  const linkText = (!linkLabel || linkLabel === 'לא מחובר' || linkLabel === 'מנותק') ? '--' : linkLabel;
+  const pillFromCompanion = companion.pillLabelHe || companion.link?.pillLabelHe || '';
+  const agreedLink = pillFromCompanion || linkLabel;
+  const linkText = (!agreedLink || agreedLink === 'לא מחובר' || agreedLink === 'מנותק') ? '--' : agreedLink;
   if (linkEl) linkEl.textContent = linkText;
   const missionLink = document.getElementById('missionLink');
   if (missionLink) missionLink.textContent = linkText;
   const jetson = (typeof latestJetsonFromServer !== 'undefined' && latestJetsonFromServer) ? latestJetsonFromServer : {};
-  const jetsonConnected = companionState === 'connected' || !!jetson.online;
-  pulseWriteComputerMetric('pulseJetsonLoad', pulseComputerMetricValue(jetsonConnected, jetson.cpuLoadPct), '%');
-  pulseWriteComputerMetric('pulseJetsonMem', pulseComputerMetricValue(jetsonConnected, jetson.memPct), '%');
-  pulseWriteComputerMetric('pulseJetsonTemp', pulseComputerMetricValue(jetsonConnected, jetson.tempC), 'C');
+  const sys = companion.system || {};
+  const jetsonMissing = honesty.jetsonLive ? 'אין נתון' : '--';
+  pulseWriteComputerMetric('pulseJetsonLoad', pulseComputerMetricValue(honesty.jetsonLive, companionFiniteMetric(sys.cpuLoadPct, sys.cpu_percent, jetson.cpuLoadPct)), '%', jetsonMissing);
+  pulseWriteComputerMetric('pulseJetsonMem', pulseComputerMetricValue(honesty.jetsonLive, companionFiniteMetric(sys.memPct, jetson.memPct)), '%', jetsonMissing);
+  pulseWriteComputerMetric('pulseJetsonTemp', pulseComputerMetricValue(honesty.jetsonLive, companionFiniteMetric(sys.tempC, sys.temperature_c, jetson.tempC)), 'C', jetsonMissing);
   const mav = (typeof latestHudMavlink !== 'undefined' && latestHudMavlink) ? latestHudMavlink : null;
-  const fcConnected = !!(mav && mav.connected);
-  if (aircraftEl) aircraftEl.textContent = fcConnected ? 'מחובר' : 'מנותק';
-  aircraftEl?.closest('.pulse-computer-card')?.setAttribute('data-state', fcConnected ? 'connected' : 'disconnected');
-  pulseWriteComputerMetric('pulseFcLoad', pulseComputerMetricValue(fcConnected, mav?.fcLoadPct), '%');
-  pulseWriteComputerMetric('pulseFcMem', pulseComputerMetricValue(fcConnected, mav?.fcMemPct), '%');
-  pulseWriteComputerMetric('pulseFcTemp', pulseComputerMetricValue(fcConnected, mav?.fcTempC), 'C');
+  const fc = companion.fc || {};
+  if (aircraftEl) aircraftEl.textContent = honesty.fcLabelHe;
+  aircraftEl?.closest('.pulse-computer-card')?.setAttribute('data-state', honesty.fcCard);
+  const fcMissing = honesty.fcLive ? 'אין נתון' : '--';
+  pulseWriteComputerMetric('pulseFcLoad', pulseComputerMetricValue(honesty.fcLive, companionFiniteMetric(fc.loadPct, mav?.fcLoadPct)), '%', fcMissing);
+  pulseWriteComputerMetric('pulseFcMem', pulseComputerMetricValue(honesty.fcLive, companionFiniteMetric(fc.memPct, mav?.fcMemPct)), '%', fcMissing);
+  pulseWriteComputerMetric('pulseFcTemp', pulseComputerMetricValue(honesty.fcLive, companionFiniteMetric(fc.tempC, mav?.fcTempC)), 'C', fcMissing);
+  const companionLive = honesty.jetsonLive;
   const evolveText = pulseEvolveLine(document.getElementById('assistRunPanel'));
   const items = pulseBuildAttention({
     companionLive,
@@ -3443,20 +3542,20 @@ function platformRefresh() {
   const maintEl = document.getElementById('platformMaintStatus');
   const diagEl = document.getElementById('platformDiagStatus');
   if (!companionEl && !maintEl && !diagEl) return;
-  const companionLive = document.body.classList.contains('operator-live');
-  const companionCard = document.getElementById('companionConnect');
-  const companionState = companionCard?.dataset?.state || 'disconnected';
+  const companion = (typeof latestCompanionFromServer !== 'undefined' && latestCompanionFromServer) ? latestCompanionFromServer : {};
+  const honesty = pulseResolveComputerHonesty(companion);
   const tokenHint = document.getElementById('companionTokenHint')?.textContent?.trim() || '';
   if (companionEl) {
-    companionEl.textContent = pulseCompanionLabel({
-      connected: companionState === 'connected',
-      mode: companionState === 'connected' ? 'real' : (companionLive ? 'mock' : 'off'),
-      token_hint: tokenHint,
-    });
-    companionEl.parentElement?.setAttribute(
-      'data-state',
-      companionState === 'connected' || companionLive ? 'connected' : 'disconnected',
-    );
+    companionEl.textContent = honesty.jetsonLabelHe === 'מחובר' && tokenHint
+      ? pulseCompanionLabel({
+        connected: true,
+        mode: 'real',
+        reachable: true,
+        hasData: honesty.hasData,
+        token_hint: tokenHint,
+      })
+      : honesty.jetsonLabelHe;
+    companionEl.parentElement?.setAttribute('data-state', honesty.jetsonCard);
   }
   if (maintEl) {
     maintEl.textContent = platformMaintLabel();
@@ -3587,13 +3686,22 @@ function formatPulseWidgetValue(key, payload) {
     return pulseIsPlaceholder(raw) ? '--' : String(raw);
   }
   if (key === 'jetson.cpuLoadPct' || key === 'jetson.memPct' || key === 'jetson.tempC') {
+    const companion = payload?.companion || (typeof latestCompanionFromServer !== 'undefined' ? latestCompanionFromServer : {});
+    const honesty = pulseResolveComputerHonesty(companion);
     const jetson = payload?.jetson || {};
-    const companionCard = document.getElementById('companionConnect');
-    const companionState = companionCard?.dataset?.state || 'disconnected';
-    const connected = companionState === 'connected' || !!jetson.online;
+    const sys = companion?.system || {};
     const field = key.split('.')[1];
     const unit = key === 'jetson.tempC' ? 'C' : '%';
-    return formatComputerMetric(pulseComputerMetricValue(connected, jetson[field]), unit);
+    const raw = field === 'cpuLoadPct'
+      ? companionFiniteMetric(sys.cpuLoadPct, sys.cpu_percent, jetson.cpuLoadPct)
+      : field === 'memPct'
+        ? companionFiniteMetric(sys.memPct, jetson.memPct)
+        : companionFiniteMetric(sys.tempC, sys.temperature_c, jetson.tempC);
+    return formatComputerMetric(
+      pulseComputerMetricValue(honesty.jetsonLive, raw),
+      unit,
+      honesty.jetsonLive ? 'אין נתון' : '--',
+    );
   }
   if (typeof formatMissionDataValue === 'function') return formatMissionDataValue(key, payload || {});
   return '--';
@@ -3777,16 +3885,25 @@ function companionConnectRender(status) {
   const maintStatus = document.getElementById('maintCompanionConnectStatus');
   const maintHint = document.getElementById('maintCompanionTokenHint');
   if (!card || !statusEl) return;
-  const connected = status?.connected === true && status?.mode === 'real';
+  const configuredReal = status?.mode === 'real';
+  const reachable = status?.mode === 'mock' || status?.reachable === true;
+  const connected = configuredReal && reachable;
   const live = companionIsLive(status);
   companionSetLiveChrome(live);
-  const errorText = !connected && status?.ok === false
+  const errorText = !connected && status?.ok === false && status?.reachable !== false
     ? (status.status_he || status.reason_he || 'חיבור מחשב משימה נכשל')
     : '';
-  card.dataset.state = errorText ? 'error' : (connected ? 'connected' : 'disconnected');
-  const statusText = connected
-    ? (status.status_he || 'Jetson מחובר')
-    : (status.status_he || status.reason_he || 'Jetson מנותק');
+  const honesty = pulseResolveComputerHonesty(status);
+  card.dataset.state = errorText
+    ? 'error'
+    : (honesty.jetsonCard === 'connected' ? 'connected'
+      : honesty.jetsonCard === 'unreachable' ? 'error'
+        : 'disconnected');
+  const statusText = honesty.jetsonCard === 'unreachable'
+    ? (status.status_he || 'Jetson לא מגיב')
+    : (connected && live)
+      ? (status.status_he || 'Jetson מחובר')
+      : (status.status_he || status.reason_he || 'Jetson מנותק');
   statusEl.textContent = statusText;
   if (maintStatus) maintStatus.textContent = statusText;
   teleSetOverview({
@@ -3804,10 +3921,10 @@ function companionConnectRender(status) {
     });
   }
   if (hintEl) {
-    hintEl.hidden = connected;
+    hintEl.hidden = configuredReal;
     hintEl.textContent = status?.hint_he || 'צריך כתובת ואסימון. כתובת לבד לא מספיקה.';
   }
-  const hint = connected ? String(status.token_hint || '').trim() : '';
+  const hint = configuredReal ? String(status.token_hint || '').trim() : '';
   if (tokenHintEl) {
     tokenHintEl.hidden = !hint;
     tokenHintEl.textContent = hint;
@@ -3818,12 +3935,12 @@ function companionConnectRender(status) {
   }
   if (form) form.hidden = false;
   const quickBtn = document.getElementById('companionQuickConnectBtn');
-  if (quickBtn) quickBtn.hidden = connected;
+  if (quickBtn) quickBtn.hidden = configuredReal;
   if (disconnectBtn) {
-    disconnectBtn.hidden = !connected;
-    disconnectBtn.setAttribute('aria-hidden', connected ? 'false' : 'true');
+    disconnectBtn.hidden = !configuredReal;
+    disconnectBtn.setAttribute('aria-hidden', configuredReal ? 'false' : 'true');
   }
-  if (!connected) companionPrefillDefaultUrl(status?.base_url);
+  if (!configuredReal) companionPrefillDefaultUrl(status?.base_url);
   if (!errorText) companionConnectSetError('');
   companionConnectSyncButton();
 }
@@ -3836,6 +3953,12 @@ async function companionConnectRefresh() {
       ok: r.ok && data.ok !== false,
       mode: data.mode,
       connected: data.connected === true,
+      reachable: data.reachable === true,
+      configuredReal: data.configuredReal === true,
+      hasData: data.hasData === true,
+      jetson: data.jetson,
+      fc: data.fc,
+      link: data.link,
       status_he: data.status_he,
       reason_he: data.reason_he,
       token_hint: data.token_hint,
@@ -3856,8 +3979,8 @@ async function companionConnectSubmit(event) {
   event?.preventDefault?.();
   const urlEl = document.getElementById('companionBaseUrl');
   const tokenEl = document.getElementById('companionToken');
-  const baseUrl = String(urlEl?.value || '').trim();
-  const token = String(tokenEl?.value || '').trim();
+  const baseUrl = String(urlEl?.value || '').trim().replace(/^['"]+|['"]+$/g, '');
+  const token = String(tokenEl?.value || '').trim().replace(/^['"]+|['"]+$/g, '');
   if (!baseUrl) {
     companionConnectSetError('חסרה כתובת');
     companionConnectRender({
@@ -8626,13 +8749,29 @@ initAnnotatedVisionPanel();
 
   function applyCompanionLinkUi(link) {
     if (!link) return;
+    const prev = (typeof latestCompanionFromServer === 'object' && latestCompanionFromServer) ? latestCompanionFromServer : {};
+    latestCompanionFromServer = {
+      ...prev,
+      link,
+      mode: link.mode || prev.mode,
+      reachable: link.reachable,
+      hasData: link.hasData,
+      jetson: link.jetson,
+      fc: link.fc,
+      fc_linked: link.fc_linked,
+      fc_heartbeat: link.fc_heartbeat,
+      pillLabelHe: link.pillLabelHe,
+    };
     if (jetsonLinkChip) {
-      jetsonLinkChip.dataset.state = link.jetson === 'reachable' || link.jetson === 'mock' ? 'on'
-        : link.jetson === 'unreachable' ? 'warn' : 'off';
+      jetsonLinkChip.dataset.state = link.jetsonChip || (link.jetson === 'reachable' || link.jetson === 'mock'
+        ? (link.hasData === false ? 'warn' : 'on')
+        : link.jetson === 'unreachable' ? 'warn' : 'off');
       jetsonLinkChip.textContent = `${link.jetsonLabelHe || 'מחשב משימה'} · ${link.jetsonStatusHe || 'מנותק'}`;
     }
     if (fcLinkChip) {
-      fcLinkChip.dataset.state = link.fc === 'heartbeat' ? 'on' : link.fc === 'linked' ? 'warn' : 'off';
+      fcLinkChip.dataset.state = link.fcChip || (link.fc === 'heartbeat'
+        ? (link.hasData === false ? 'warn' : 'on')
+        : link.fc === 'linked' ? 'warn' : 'off');
       fcLinkChip.textContent = `${link.fcLabelHe || 'בקר טיסה'} · ${link.fcStatusHe || 'מנותק'}`;
     }
     if (companionLinkHint && link.hint_he) companionLinkHint.textContent = link.hint_he;
@@ -8643,6 +8782,7 @@ initAnnotatedVisionPanel();
       companionLinkBtn.dataset.connected = connected ? '1' : '0';
       companionLinkBtn.title = connected ? 'מחשב משימה מחובר. לחץ לניתוק.' : 'חיבור אוטומטי למחשב המשימה';
     }
+    if (typeof pulseRefresh === 'function') pulseRefresh();
   }
 
   async function onCompanionLinkClick() {

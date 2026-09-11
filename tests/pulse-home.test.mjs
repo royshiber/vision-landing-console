@@ -135,8 +135,9 @@ describe('C10.3 Pulse home', () => {
 
   it('compresses Companion to disconnected or connected last-4 only', () => {
     expect(pulse.pulseCompanionLabel({ connected: false, mode: 'off' })).toBe('מנותק');
-    expect(pulse.pulseCompanionLabel({ connected: true, mode: 'real', token_hint: '••••ab12' })).toBe('מחובר ••••ab12');
-    expect(pulse.pulseCompanionLabel({ connected: true, mode: 'real' })).toBe('מחובר');
+    expect(pulse.pulseCompanionLabel({ connected: true, mode: 'real', reachable: true, token_hint: '••••ab12' })).toBe('מחובר ••••ab12');
+    expect(pulse.pulseCompanionLabel({ connected: true, mode: 'real', reachable: true })).toBe('מחובר');
+    expect(pulse.pulseCompanionLabel({ connected: true, mode: 'real', reachable: false })).toBe('לא מגיב');
     expect(pulse.pulseCompanionLabel({ connected: false, mode: 'mock' })).toBe('מדומה');
   });
 
