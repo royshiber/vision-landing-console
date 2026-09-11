@@ -352,6 +352,30 @@ describe('Companion in-product v1 connect', () => {
     expect(overlay.api).toBe('v1');
   });
 
+  it('connects from env defaults without a typed URL', async () => {
+    await boot({
+      companionEnv: {
+        JETSON_COMPANION_BASE_URL: BASE_URL,
+        JETSON_COMPANION_TOKEN: TOKEN,
+      },
+    });
+    const link = await fetch(`${base}/api/companion/link`).then((r) => r.json());
+    expect(link.ok).toBe(true);
+    expect(link.jetsonLabelHe).toBe('מחשב משימה');
+    expect(link.fcLabelHe).toBe('בקר טיסה');
+    expect(link.defaultConfigured).toBe(true);
+    expect(JSON.stringify(link)).not.toContain(TOKEN);
+
+    const connected = await fetch(`${base}/api/companion/link/connect`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    }).then((r) => r.json());
+    expect(connected.ok).toBe(true);
+    expect(connected.mode).toBe('real');
+    expect(JSON.stringify(connected)).not.toContain(TOKEN);
+  });
+
   it('does not leak the token in JSON logs', async () => {
     await boot();
     await fetch(`${base}/api/companion/connection/connect`, {

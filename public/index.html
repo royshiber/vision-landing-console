@@ -23,7 +23,19 @@
           </button>
           <div id="connectPanel" class="conn-panel" hidden>
             <p id="connectApiUpgradeHint" class="conn-upgrade-hint hidden" role="alert"></p>
-            <div class="conn-dual-chips" aria-label="מצב קישורים">
+            <section id="companionLinkBlock" class="conn-link-block conn-companion-block" aria-label="מחשב משימה">
+              <div class="conn-dual-chips" aria-label="מצב מחשב משימה">
+                <span id="jetsonLinkChip" class="conn-link-chip" data-state="off">מחשב משימה · מנותק</span>
+                <span id="fcLinkChip" class="conn-link-chip" data-state="off">בקר טיסה · מנותק</span>
+              </div>
+              <p id="companionLinkHint" class="conn-link-note">חיבור אוטומטי למחשב המשימה.</p>
+              <div class="conn-panel-actions">
+                <button type="button" id="companionLinkBtn" class="conn-btn conn-btn-primary" title="חיבור למחשב משימה">חיבור</button>
+              </div>
+            </section>
+            <details id="connectAdvanced" class="conn-advanced">
+              <summary class="conn-advanced-summary">מתקדם</summary>
+            <div class="conn-dual-chips conn-mav-chips" aria-label="מצב קישורים">
               <span id="radioLinkChip" class="conn-link-chip" data-state="off">טלמטריה רגילה · מנותק</span>
               <span id="cellularLinkChip" class="conn-link-chip" data-state="off">סלולר · מודם לא מחובר</span>
             </div>
@@ -117,6 +129,7 @@
                 <li>אם ה-COM «תפוס» בווינדוס, התקנת הכבל עלולה להיכשל עם «Access denied» — רק תוכנה אחת יכולה לחבור לכל יציאה בו־זמנית.</li>
                 <li>בזמן «חיבור חכם» — סרגל שלבים ודיווח התקדמות בזמן אמת (סריקה / המתנה ל-heartbeat / סיום שלב).</li>
               </ul>
+            </details>
             </details>
           </div>
     </div>
@@ -776,6 +789,9 @@
           <p id="companionConnectHint" class="assist-agent-hint">צריך כתובת ואסימון. כתובת לבד לא מספיקה.</p>
           <p id="companionConnectPathHint" class="assist-agent-key-hint" hidden dir="ltr">/api/v1/*</p>
           <p id="companionTokenHint" class="assist-agent-key-hint" hidden dir="ltr"></p>
+          <button type="button" id="companionQuickConnectBtn" class="assist-btn assist-btn-confirm">חיבור</button>
+          <details id="companionConnectAdvanced" class="conn-advanced companion-connect-advanced">
+            <summary class="conn-advanced-summary">מתקדם</summary>
           <form id="companionConnectForm" class="assist-agent-form" autocomplete="off" novalidate>
             <label class="assist-agent-label" for="companionBaseUrl">כתובת</label>
             <input id="companionBaseUrl" class="assist-agent-key" type="text" inputmode="url" maxlength="500" dir="ltr" autocomplete="off" placeholder="http://host:8081" />
@@ -784,6 +800,7 @@
             <p id="companionConnectError" class="assist-agent-error" hidden></p>
             <button type="submit" id="companionConnectBtn" class="assist-btn assist-btn-confirm" disabled>חיבור</button>
           </form>
+          </details>
           <button type="button" id="companionDisconnectBtn" class="assist-btn assist-btn-cancel" hidden>ניתוק</button>
         </section>
         <nav class="first-open-actions" data-first-open="telemetry" aria-label="פעולה הבאה">
