@@ -7166,8 +7166,16 @@ html[data-evolve-preview="1"] #development {
    Hardware-intent wizard — dense 2026 console
    ========================================================= */
 
+#control.panel.visible #autoConfig.subpanel.visible {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
 .ac-panel[data-ac-model="hardware-intent"] {
   display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
   background: transparent;
   color: #e8edf6;
   gap: 0;
@@ -7251,17 +7259,21 @@ html[data-evolve-preview="1"] #development {
   grid-template-columns: minmax(160px, 0.9fr) minmax(220px, 1.3fr) minmax(180px, 1fr);
   gap: 8px;
   padding: 8px 12px 4px;
+  flex: 1 1 auto;
+  min-height: 220px;
+  align-items: stretch;
 }
 
 .ac-q {
   background: #121826;
   border: 1px solid rgba(148, 168, 198, 0.16);
   border-radius: 10px;
-  padding: 10px 11px;
+  padding: 12px 13px;
   min-width: 0;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 
 .ac-q-kicker {
