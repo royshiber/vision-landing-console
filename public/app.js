@@ -9384,12 +9384,21 @@ initAnnotatedVisionPanel();
     const whereFree = step.portId === AC_FREE;
     acBWhatFreeRadio && (acBWhatFreeRadio.checked = whatFree);
     acBWhereFreeRadio && (acBWhereFreeRadio.checked = whereFree);
-    acBWhatFree && (acBWhatFree.value = step.hardwareFree);
-    acBWhereFree && (acBWhereFree.value = step.portFree);
-    acBExpectFree && (acBExpectFree.value = step.outcomeFree);
+    if (acBWhatFree && document.activeElement !== acBWhatFree) acBWhatFree.value = step.hardwareFree;
+    if (acBWhereFree && document.activeElement !== acBWhereFree) acBWhereFree.value = step.portFree;
+    if (acBExpectFree && document.activeElement !== acBExpectFree) acBExpectFree.value = step.outcomeFree;
     acBWhatFree?.closest('.ac-b-free')?.setAttribute('data-on', whatFree ? '1' : '0');
     acBWhereFree?.closest('.ac-b-free')?.setAttribute('data-on', whereFree ? '1' : '0');
     acBExpectFree?.closest('.ac-b-free')?.setAttribute('data-on', step.outcomeFree.trim() ? '1' : '0');
+    acBWhatList?.querySelectorAll('.ac-b-opt').forEach((el) => {
+      const input = el.querySelector('input');
+      const on = Boolean(input) && step.hardwareId === input.value;
+      el.dataset.on = on ? '1' : '0';
+      if (input) input.checked = on;
+    });
+    acBPortGrid?.querySelectorAll('.ac-b-port').forEach((el) => {
+      el.dataset.on = step.portId === el.dataset.port ? '1' : '0';
+    });
   }
 
   function renderWhatList() {

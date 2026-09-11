@@ -74,6 +74,7 @@ describe('AIRVIX 1.02.272 Concept B configuration wizard', () => {
     expect(js).toContain("step.hardwareId = AC_FREE");
     expect(js).toContain("step.portId = AC_FREE");
     expect(js).toContain('step.outcomeFree');
+    expect(js).toContain('el.dataset.on = on ? \'1\' : \'0\'');
   });
 
   it('uses FC vs mission-computer segmented control and a pin grid', () => {
