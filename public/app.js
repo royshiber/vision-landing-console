@@ -13282,6 +13282,14 @@ function developChatRenderPreview(session) {
   sketch.dataset.mode = mode;
   const modeEl = sketch.querySelector('.develop-preview-mode');
   if (modeEl) modeEl.textContent = side?.kicker || (mode === 'after' ? 'אחרי' : 'לפני');
+  const surface = String(session?.answers?.surface || '');
+  sketch.querySelectorAll('.develop-preview-chrome span').forEach((el) => {
+    const key = el.getAttribute('data-surface');
+    const on = (surface === 'pulse' && key === 'pulse')
+      || (surface === 'params' && key === 'params')
+      || ((surface === 'mission' || surface === 'הטסה' || !surface) && key === 'mission');
+    el.setAttribute('data-on', on ? '1' : '0');
+  });
   const set = (id, value) => {
     const el = document.getElementById(id);
     if (el) el.textContent = value || '—';
