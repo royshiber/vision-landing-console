@@ -542,6 +542,8 @@ curl -X POST http://192.168.1.100:4010/api/vision/flow \
 | HTTP API | `8081` | `/api/health`, `/api/logs`, `/api/install` |
 | Heartbeat | → PC `:4010` | `/api/jetson/heartbeat` — IP, relay, FC linked |
 
+`GET /api/health` already carries `cpuLoadPct`, `memPct`, and `tempC` (same names as the console heartbeat). The console tries Companion v1 (`/api/v1/health`, `/api/v1/status`) first; on HTTP 404 it maps this legacy health body onto Status gauges. No `/api/v1/status` on the agent is required for those three numbers.
+
 הסקריפט: `scripts/jetson-companion/companion_agent.py`
 
 ### התקנה על Jetson

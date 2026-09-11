@@ -71,6 +71,39 @@ describe('CompanionApiClient', () => {
     expect(fetchImpl).toHaveBeenCalledOnce();
   });
 
+  it('falls back to legacy /api/health when v1 health is HTTP 404', async () => {
+    const fetchImpl = vi.fn(async (url) => {
+      const u = String(url);
+      if (u === 'http://jetson:8081/api/v1/health') {
+        return jsonResponse({ message: 'not found' }, 404);
+      }
+      expect(u).toBe('http://jetson:8081/api/health');
+      return jsonResponse({ ok: true, cpuLoadPct: 22, memPct: 40, tempC: 51 });
+    });
+    const client = createCompanionApiClient({
+      baseUrl: 'http://jetson:8081',
+      fetchImpl,
+      timeoutMs: 500,
+    });
+    const data = await client.getHealth();
+    expect(data.ok).toBe(true);
+    expect(data.cpuLoadPct).toBe(22);
+    expect(data.memPct).toBe(40);
+    expect(data.tempC).toBe(51);
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not fall back to /api/health on non-404 health errors', async () => {
+    const fetchImpl = vi.fn(async () => jsonResponse({ message: 'down' }, 503));
+    const client = createCompanionApiClient({
+      baseUrl: 'http://jetson:8081',
+      fetchImpl,
+      timeoutMs: 500,
+    });
+    await expect(client.getHealth()).rejects.toMatchObject({ kind: 'http', status: 503 });
+    expect(fetchImpl).toHaveBeenCalledOnce();
+  });
+
   it('succeeds and calls /api/v1/health', async () => {
     const fetchImpl = vi.fn(async (url) => {
       expect(String(url)).toBe('http://jetson:8080/api/v1/health');

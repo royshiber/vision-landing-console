@@ -55,10 +55,10 @@ function loadUiHonesty() {
 }
 
 describe('Status connected ⇔ data honesty', () => {
-  it('pins APP_VERSION at 1.02.276 after in-flight 274', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.276'");
-    expect(pkg.version).toBe('1.02.276');
-    expect(changelog).toContain('"version": "1.02.276"');
+  it('pins APP_VERSION at 1.02.277 after in-flight 274', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.277'");
+    expect(pkg.version).toBe('1.02.277');
+    expect(changelog).toContain('"version": "1.02.277"');
   });
 
   it('never labels Jetson מחובר when unreachable', () => {
@@ -166,6 +166,17 @@ describe('Status connected ⇔ data honesty', () => {
     expect(apiClient).not.toContain('100.82.59.45');
     expect(html).not.toMatch(/100\.82\.59\.45/);
     expect(js).not.toMatch(/JETSON_COMPANION_TOKEN|COMPANION_SHARED_SECRET/);
+  });
+
+  it('companionConnectRender requires configuredReal plus reachable for connected chrome', () => {
+    const render = sliceFunction(js, 'companionConnectRender');
+    const refresh = sliceFunction(js, 'companionConnectRefresh');
+    expect(render).toContain("const configuredReal = status?.mode === 'real'");
+    expect(render).toContain('status?.mode === \'mock\' || status?.reachable === true');
+    expect(render).toContain('const connected = configuredReal && reachable');
+    expect(render).toContain('disconnectBtn.hidden = !configuredReal');
+    expect(refresh).toContain('reachable: data.reachable === true');
+    expect(js).toContain("return source.mode === 'real' && source.reachable === true");
   });
 
   it('Status version line is APP_VERSION and Jetson version is not a stale console pin', () => {

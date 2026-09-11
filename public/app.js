@@ -3885,7 +3885,9 @@ function companionConnectRender(status) {
   const maintStatus = document.getElementById('maintCompanionConnectStatus');
   const maintHint = document.getElementById('maintCompanionTokenHint');
   if (!card || !statusEl) return;
-  const connected = status?.connected === true && status?.mode === 'real';
+  const configuredReal = status?.mode === 'real';
+  const reachable = status?.mode === 'mock' || status?.reachable === true;
+  const connected = configuredReal && reachable;
   const live = companionIsLive(status);
   companionSetLiveChrome(live);
   const errorText = !connected && status?.ok === false && status?.reachable !== false
@@ -3919,10 +3921,10 @@ function companionConnectRender(status) {
     });
   }
   if (hintEl) {
-    hintEl.hidden = connected;
+    hintEl.hidden = configuredReal;
     hintEl.textContent = status?.hint_he || 'צריך כתובת ואסימון. כתובת לבד לא מספיקה.';
   }
-  const hint = connected ? String(status.token_hint || '').trim() : '';
+  const hint = configuredReal ? String(status.token_hint || '').trim() : '';
   if (tokenHintEl) {
     tokenHintEl.hidden = !hint;
     tokenHintEl.textContent = hint;
@@ -3933,12 +3935,12 @@ function companionConnectRender(status) {
   }
   if (form) form.hidden = false;
   const quickBtn = document.getElementById('companionQuickConnectBtn');
-  if (quickBtn) quickBtn.hidden = connected;
+  if (quickBtn) quickBtn.hidden = configuredReal;
   if (disconnectBtn) {
-    disconnectBtn.hidden = !connected;
-    disconnectBtn.setAttribute('aria-hidden', connected ? 'false' : 'true');
+    disconnectBtn.hidden = !configuredReal;
+    disconnectBtn.setAttribute('aria-hidden', configuredReal ? 'false' : 'true');
   }
-  if (!connected) companionPrefillDefaultUrl(status?.base_url);
+  if (!configuredReal) companionPrefillDefaultUrl(status?.base_url);
   if (!errorText) companionConnectSetError('');
   companionConnectSyncButton();
 }
@@ -3952,6 +3954,7 @@ async function companionConnectRefresh() {
       mode: data.mode,
       connected: data.connected === true,
       reachable: data.reachable === true,
+      configuredReal: data.configuredReal === true,
       hasData: data.hasData === true,
       jetson: data.jetson,
       fc: data.fc,

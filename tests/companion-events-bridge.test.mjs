@@ -4,10 +4,12 @@ import { createCompanionMock } from '../lib/companion-mock.mjs';
 import { healthyCompanionStatus } from '../lib/companion-mock-fixtures.mjs';
 import { createCompanionService } from '../lib/companion-service.mjs';
 import {
+  collectStatusBundle,
   companionMappedToSseOverlay,
   createCompanionEventBridge,
   mergeTelemetryWithCompanion,
   preserveFiniteIfNull,
+  statusBundleFromLegacyHealth,
 } from '../lib/companion-events-bridge.mjs';
 import { mapCompanionStatus, COMPANION_STATES } from '../lib/companion-status.mjs';
 
@@ -66,6 +68,67 @@ describe('companion event bridge', () => {
     expect(merged.companion.mode).toBe('mock');
     expect(merged.companion.api).toBe('v1');
     expect(merged.jetson.companionStatus).toBe(COMPANION_STATES.OK);
+  });
+
+  it('maps Jetson /api/health gauges into a legacy status bundle', () => {
+    const bundle = statusBundleFromLegacyHealth({
+      ok: true,
+      cpuLoadPct: 33.5,
+      memPct: 61,
+      tempC: 47.2,
+      agentVersion: '2.1.0',
+    });
+    expect(bundle.legacyHealth).toBe(true);
+    expect(bundle.system.cpuLoadPct).toBe(33.5);
+    expect(bundle.system.cpu_percent).toBe(33.5);
+    expect(bundle.system.memPct).toBe(61);
+    expect(bundle.system.tempC).toBe(47.2);
+    expect(bundle.companion_version).toBe('2.1.0');
+    const mapped = mapCompanionStatus(bundle);
+    expect(mapped.system.cpuLoadPct).toBe(33.5);
+    expect(mapped.system.memPct).toBe(61);
+    expect(mapped.system.tempC).toBe(47.2);
+  });
+
+  it('collectStatusBundle returns the legacy bundle when getStatus is HTTP 404', async () => {
+    const health = { ok: true, cpuLoadPct: 33.5, memPct: 61, tempC: 47.2, agentVersion: '2.1.0' };
+    const client = {
+      getHealth: async () => health,
+      getStatus: async () => {
+        throw new CompanionApiError({ kind: 'http', status: 404, message: 'not found' });
+      },
+    };
+    const bundle = await collectStatusBundle(client);
+    expect(bundle.legacyHealth).toBe(true);
+    expect(bundle.system.cpuLoadPct).toBe(33.5);
+    expect(bundle.health).toEqual(health);
+  });
+
+  it('collectStatusBundle does not treat a 503 status as legacy health', async () => {
+    const client = {
+      getHealth: async () => ({ ok: true, cpuLoadPct: 1 }),
+      getStatus: async () => {
+        throw new CompanionApiError({ kind: 'http', status: 503, message: 'down' });
+      },
+    };
+    await expect(collectStatusBundle(client)).rejects.toMatchObject({ kind: 'http', status: 503 });
+  });
+
+  it('prefers finite overlay jetson gauges when merging telemetry', () => {
+    const overlay = companionMappedToSseOverlay(
+      mapCompanionStatus({
+        timestamp: { t_monotonic_ns: 1, t_utc_ns: null },
+        system: { cpuLoadPct: 41.2, memPct: 52.5, tempC: 48.5 },
+      }),
+      { mode: 'real', reachable: true },
+    );
+    const merged = mergeTelemetryWithCompanion(
+      { jetson: { online: true, cpuLoadPct: 11, memPct: 9, tempC: 20 } },
+      overlay,
+    );
+    expect(merged.jetson.cpuLoadPct).toBe(41.2);
+    expect(merged.jetson.memPct).toBe(52.5);
+    expect(merged.jetson.tempC).toBe(48.5);
   });
 
   it('does not overwrite legacy fields when there is no snapshot', () => {

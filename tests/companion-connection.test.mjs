@@ -12,11 +12,13 @@ import {
   COMPANION_CONNECTION_KEY,
   COMPANION_HE,
   DEFAULT_COMPANION_BASE_URL,
+  buildPublicCompanionConnectionStatus,
   hebrewCompanionError,
   maskCompanionToken,
   mergeCompanionEnv,
   readStoredCompanionConnection,
   resolveCompanionConnectDefaults,
+  statusHeForMode,
   validateCompanionBaseUrl,
   validateCompanionToken,
   writeStoredCompanionConnection,
@@ -106,6 +108,41 @@ describe('companion connection helpers', () => {
       .toBe(COMPANION_HE.httpError);
     expect(hebrewCompanionError(new CompanionApiError({ kind: 'config', message: 'missing' })))
       .toBe(COMPANION_HE.urlEmpty);
+  });
+
+  it('connected is configuredReal and reachable, with a legacy health path hint', () => {
+    expect(statusHeForMode('real', { reachable: false })).toBe(COMPANION_HE.unreachable);
+    expect(statusHeForMode('real', { reachable: true })).toBe(COMPANION_HE.connected);
+    expect(statusHeForMode('mock')).toBe(COMPANION_HE.mock);
+    const dead = buildPublicCompanionConnectionStatus({
+      service: {
+        describe: () => ({ mode: 'real', baseUrlConfigured: true, baseUrl: BASE_URL }),
+        getSseOverlay: () => ({ companion: { reachable: false } }),
+      },
+    });
+    expect(dead.configuredReal).toBe(true);
+    expect(dead.reachable).toBe(false);
+    expect(dead.connected).toBe(false);
+    expect(dead.connect_available).toBe(false);
+    expect(dead.disconnect_available).toBe(true);
+    expect(dead.status_he).toBe(COMPANION_HE.unreachable);
+    expect(dead.path_hint).toBe('/api/v1/* or legacy /api/health');
+
+    const live = buildPublicCompanionConnectionStatus({
+      service: {
+        describe: () => ({ mode: 'real', baseUrlConfigured: true, baseUrl: BASE_URL }),
+        getSseOverlay: () => ({
+          companion: {
+            reachable: true,
+            health: { ok: true, cpuLoadPct: 12 },
+            system: { cpuLoadPct: 12, memPct: 40, tempC: 44 },
+          },
+        }),
+      },
+    });
+    expect(live.connected).toBe(true);
+    expect(live.reachable).toBe(true);
+    expect(live.status_he).toBe(COMPANION_HE.connected);
   });
 
   it('does not enable real from a stored URL alone', () => {

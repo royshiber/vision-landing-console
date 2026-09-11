@@ -1,5 +1,16 @@
 [
   {
+    "version": "1.02.277",
+    "date": "2026-09-12",
+    "changes": [
+      {
+        "type": "fix",
+        "title": "Status gauges read legacy Jetson /api/health when v1 status is missing",
+        "detail": "APP_VERSION 1.02.277 (1.02.274 is in-flight Develop Concept B). getHealth tries /api/v1/health and falls back to /api/health on HTTP 404. collectStatusBundle does the same when getStatus is 404. connected is configuredReal and reachable; Status cards stay off green מחובר without that plus a data path. One-click default URL and quote-stripped tokens unchanged. No flight commands and no Companion apply/restart."
+      }
+    ]
+  },
+  {
     "version": "1.02.276",
     "date": "2026-09-12",
     "changes": [

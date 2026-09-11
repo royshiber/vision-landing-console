@@ -13,6 +13,21 @@ import {
 } from '../lib/companion-mock-fixtures.mjs';
 
 describe('companion-status mapper', () => {
+  it('maps cpuLoadPct / memPct / tempC aliases onto Status gauges', () => {
+    const m = mapCompanionStatus({
+      timestamp: { t_monotonic_ns: 1, t_utc_ns: null },
+      system: { cpuLoadPct: 33.5, memPct: 61, tempC: 47.2 },
+    });
+    expect(m.system.cpu_percent).toBe(33.5);
+    expect(m.system.cpuLoadPct).toBe(33.5);
+    expect(m.system.memPct).toBe(61);
+    expect(m.system.temperature_c).toBe(47.2);
+    expect(m.system.tempC).toBe(47.2);
+    expect(m.compatibility.jetson.cpuLoadPct).toBe(33.5);
+    expect(m.compatibility.jetson.memPct).toBe(61);
+    expect(m.compatibility.jetson.tempC).toBe(47.2);
+  });
+
   it('maps a healthy OpenAPI payload', () => {
     const m = mapCompanionStatus({
       ...healthyCompanionStatus(),
