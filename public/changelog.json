@@ -1,5 +1,16 @@
 [
   {
+    "version": "1.02.279",
+    "date": "2026-09-12",
+    "changes": [
+      {
+        "type": "fix",
+        "title": "Status FC card tells UART heartbeat from empty GCS load",
+        "detail": "APP_VERSION 1.02.279. When Companion reports fc_heartbeat or fc_linked but GCS MAVLink HUD has no load/mem/temp, Status הכלי shows דופק חי or מקושר — never fake green מחובר with empty gauges. Missing metrics stay blank and the card says אין נתוני עומס מ־GCS. Companion sys_status numbers are mapped when present; nothing is invented. Chrome matches topbar בקר טיסה (heartbeat vs unlinked). Mission HUD mavlink path unchanged. No flight commands and no Companion apply/restart."
+      }
+    ]
+  },
+  {
     "version": "1.02.278",
     "date": "2026-09-12",
     "changes": [

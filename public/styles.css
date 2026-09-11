@@ -4797,6 +4797,12 @@ body:has(#pulse.panel.visible) .layout {
 .pulse-computer-card[data-state="connected"] .pulse-computer-state {
   color: #3dd68c;
 }
+.pulse-computer-card[data-state="heartbeat"] .pulse-computer-state {
+  color: #86efac;
+}
+.pulse-computer-card[data-state="linked"] .pulse-computer-state {
+  color: #fde68a;
+}
 .pulse-computer-card[data-state="nodata"] .pulse-computer-state {
   color: #f0a04b;
 }
@@ -4805,6 +4811,13 @@ body:has(#pulse.panel.visible) .layout {
 }
 .pulse-computer-card[data-state="disconnected"] .pulse-computer-state {
   color: #8b97ab;
+}
+.pulse-fc-metrics-note {
+  margin: 0;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: #8b97ab;
+  text-align: center;
 }
 .pulse-computer-metrics {
   display: grid;
