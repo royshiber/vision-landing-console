@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   CompanionApiError,
+  companionAuthHeaders,
   createCompanionApiClient,
   joinCompanionUrl,
   resolveCompanionV1BaseUrl,
@@ -20,6 +21,14 @@ describe('CompanionApiClient', () => {
       'http://jetson:8080',
     );
     expect(resolveCompanionV1BaseUrl({})).toBe(null);
+  });
+
+  it('strips quotes from VLC_COMPANION_TOKEN before sending auth headers', () => {
+    const token = 'companion-connect-token-9f3a2c1b';
+    const headers = companionAuthHeaders({ VLC_COMPANION_TOKEN: `'${token}'` });
+    expect(headers['X-Companion-Token']).toBe(token);
+    expect(headers['X-Companion-Token']).toHaveLength(token.length);
+    expect(headers.Authorization).toBe(`Bearer ${token}`);
   });
 
   it('does not hard-code a device IP', async () => {

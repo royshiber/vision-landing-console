@@ -1,5 +1,47 @@
 [
   {
+    "version": "1.02.276",
+    "date": "2026-09-11",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Server library",
+        "detail": "companion-api-client.mjs, companion-auth.mjs, companion-connection.mjs, companion-secret.mjs, jetson-companion-proxy.mjs, logger.mjs, companion-connection-api.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "Frontend",
+        "detail": "changelog.json"
+      },
+      {
+        "type": "test",
+        "title": "Tests",
+        "detail": "companion-api-client.test.mjs, companion-connection.test.mjs, companion-link.test.mjs"
+      },
+      {
+        "type": "docs",
+        "title": "Commercial capabilities overview",
+        "detail": "COMMERCIAL_CAPABILITIES.he.md"
+      },
+      {
+        "type": "chore",
+        "title": "Config",
+        "detail": ".env.example"
+      }
+    ]
+  },
+  {
+    "version": "1.02.275",
+    "date": "2026-09-12",
+    "changes": [
+      {
+        "type": "fix",
+        "title": "Strip quotes from VLC_COMPANION_TOKEN so one-click auth is 48 chars, not 50",
+        "detail": "APP_VERSION 1.02.275. Shell export / .env quotes around VLC_COMPANION_TOKEN (and the other Companion token names) are stripped before auth. One-click still uses the baked Tailscale URL http://100.82.59.45:8081 when env/stored URL is empty. When that default URL plus an env token exist, GET /api/companion/link is connectAvailable with needAdvanced false — a Tailscale timeout on a box VM is expected and must not open מתקדם. No hardcoded token, no flight commands, no Companion apply/restart. Develop chat unchanged."
+      }
+    ]
+  },
+  {
     "version": "1.02.274",
     "date": "2026-09-12",
     "changes": [
