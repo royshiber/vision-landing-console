@@ -1,5 +1,16 @@
 [
   {
+    "version": "1.02.273",
+    "date": "2026-09-12",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Configuration Wizard Concept B — three tall cards with first-class free text",
+        "detail": "APP_VERSION 1.02.273 (1.02.272 is PR #92 Jetson↔FC topbar on master). אשף קונפיגורציה is three numbered RTL cards: מה חיברתי (hardware radio, e.g. Here3), לאן חיברתי (FC vs מחשב משימה + pin/port grid), מה אני מצפה שיקרה (FIX 3D / heartbeat checklist + live status). Each card has a first-class אחר / או כתוב חופשי… field saved with the step. Footer summary + שמור / הבא. Not a settings dump and not address/URL entry. Develop / Capability Intake unchanged. No flight commands and no Companion apply/restart."
+      }
+    ]
+  },
+  {
     "version": "1.02.272",
     "date": "2026-09-12",
     "changes": [
