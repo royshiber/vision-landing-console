@@ -21,8 +21,9 @@ describe('openDatabase', () => {
     expect(tables).toContain('connections');
     const connCols = db.prepare(`PRAGMA table_info(connections)`).all().map((c) => c.name);
     expect(connCols).toEqual(expect.arrayContaining([
-      'id', 'name', 'type', 'host', 'port', 'serial_port', 'baud_rate', 'active', 'last_connected',
+      'id', 'name', 'type', 'host', 'port', 'serial_port', 'baud_rate', 'active', 'last_connected', 'link_role',
     ]));
+    expect(tables).toContain('telemetry_archive');
   });
 
   it('שומר פרופיל חיבור ומחזיר אותו', () => {
