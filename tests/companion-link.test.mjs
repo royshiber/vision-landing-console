@@ -182,7 +182,7 @@ describe('one-Jetson connect defaults', () => {
   it('falls back to the one-Jetson default URL and strips quoted tokens', () => {
     const fallback = resolveCompanionConnectDefaults({ env: {} });
     expect(fallback.url).toBe('http://100.82.59.45:8081');
-    expect(fallback.source).toBe('default');
+    expect(fallback.source).toBe('builtin');
     expect(fallback.configured).toBe(false);
 
     const quoted = resolveCompanionConnectDefaults({
