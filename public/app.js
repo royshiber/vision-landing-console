@@ -14608,10 +14608,14 @@ function assistBuildOpsSignals(vision) {
   return ops;
 }
 
-/** Roy lock 2026-09-12 ask_voice_flight_confirm_always — voice/Ask flight actions need per-action confirm. */
-const ASK_VOICE_FLIGHT_CONFIRM_ALWAYS = true;
+/** Roy lock 2026-09-12 voice_direct_after_go — safe params apply after session GO; ARM/LAND stay blocked. */
+const ASK_VOICE_SAFETY_LOCK = 'voice_direct_after_go';
+const ASK_VOICE_GO_STORAGE_KEY = 'airvix.ask.voiceGo';
+var _askVoiceGoActive = false;
 const ASSIST_DEFAULT_HINT_HE = 'שינוי דורש אישור.';
+const ASSIST_DEFAULT_HINT_GO_HE = 'מופעל לקול. פרמטר מוחל בלי אישור לכל פעולה.';
 const ASSIST_MISSION_HINT_HE = 'הטסה. שינוי דורש אישור.';
+const ASSIST_MISSION_HINT_GO_HE = 'הטסה. מופעל לקול. פרמטר מוחל מיד.';
 const ASSIST_DEFAULT_PLACEHOLDER_HE = 'שאלה, יועץ, פתק, או בקשת פיתוח…';
 const ASSIST_MISSION_PLACEHOLDER_HE = 'הערה, תצפית, או שאלה';
 const ASSIST_DEFAULT_INVITE_HE = 'שאלו את AIRVIX Ask.';
@@ -14645,7 +14649,10 @@ function assistSyncMissionPosture() {
   const input = document.getElementById('assistInput');
   const invite = document.getElementById('assistEmptyInvite');
   const chips = document.getElementById('assistQuickChips');
-  if (hint) hint.textContent = mission ? ASSIST_MISSION_HINT_HE : ASSIST_DEFAULT_HINT_HE;
+  if (hint) {
+    if (_askVoiceGoActive) hint.textContent = mission ? ASSIST_MISSION_HINT_GO_HE : ASSIST_DEFAULT_HINT_GO_HE;
+    else hint.textContent = mission ? ASSIST_MISSION_HINT_HE : ASSIST_DEFAULT_HINT_HE;
+  }
   if (input) input.placeholder = mission ? ASSIST_MISSION_PLACEHOLDER_HE : ASSIST_DEFAULT_PLACEHOLDER_HE;
   if (invite) invite.textContent = mission ? ASSIST_MISSION_INVITE_HE : ASSIST_DEFAULT_INVITE_HE;
   if (chips) {
@@ -14806,6 +14813,65 @@ async function assistOpenCapabilityInDevelop() {
     text: 'הכרטיס נפתח בפיתוח.',
     kind: 'INFORMATION',
   });
+}
+
+function assistReadVoiceGoChrome() {
+  try { return localStorage.getItem(ASK_VOICE_GO_STORAGE_KEY) === '1'; } catch { return false; }
+}
+
+function assistWriteVoiceGoChrome(active) {
+  try { localStorage.setItem(ASK_VOICE_GO_STORAGE_KEY, active ? '1' : '0'); } catch { /* chrome only */ }
+}
+
+function assistSyncVoiceGoChrome(active) {
+  _askVoiceGoActive = active === true;
+  assistWriteVoiceGoChrome(_askVoiceGoActive);
+  const section = document.getElementById('assistVoiceGo');
+  const badge = document.getElementById('assistVoiceGoBadge');
+  const goBtn = document.getElementById('assistVoiceGoBtn');
+  const endBtn = document.getElementById('assistVoiceGoEndBtn');
+  const goHint = document.getElementById('assistVoiceGoHint');
+  if (section) section.dataset.go = _askVoiceGoActive ? '1' : '0';
+  if (badge) badge.textContent = _askVoiceGoActive ? 'מופעל לקול' : 'כבוי';
+  if (goBtn) goBtn.hidden = _askVoiceGoActive;
+  if (endBtn) endBtn.hidden = !_askVoiceGoActive;
+  if (goHint) {
+    goHint.textContent = _askVoiceGoActive
+      ? 'מופעל. שינוי פרמטר מוחל מיד. חימוש ונחיתה נשארים חסומים.'
+      : 'הפעלה מאפשרת החלת פרמטר בלי אישור לכל פעולה. חימוש ונחיתה נשארים חסומים.';
+  }
+  assistSyncMissionPosture();
+  const mic = document.getElementById('assistMicBtn');
+  if (mic && !mic.disabled) {
+    const label = assistMicTalkLabel();
+    mic.title = label;
+    mic.setAttribute('aria-label', label);
+  }
+}
+
+async function assistSetVoiceGo(active) {
+  const r = await fetch('/api/assist/voice-go', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ active: !!active }),
+  });
+  const data = await r.json().catch(() => ({}));
+  const next = data.ok ? data.ask_voice_go_active === true : false;
+  assistSyncVoiceGoChrome(next);
+  if (data.answer) {
+    assistAppendMessage({ role: 'assist', text: data.answer, kind: 'INFORMATION' });
+  }
+}
+
+async function assistRefreshVoiceGo() {
+  try {
+    const r = await fetch('/api/assist/session');
+    const data = await r.json().catch(() => ({}));
+    if (data.ok) assistSyncVoiceGoChrome(data.ask_voice_go_active === true);
+    else assistSyncVoiceGoChrome(false);
+  } catch {
+    assistSyncVoiceGoChrome(false);
+  }
 }
 
 function assistIsConfirmPhrase(text) {
@@ -15079,6 +15145,9 @@ async function assistSendText(rawText) {
     return;
   }
   const resp = data.response || {};
+  if (typeof resp.ask_voice_go_active === 'boolean') {
+    assistSyncVoiceGoChrome(resp.ask_voice_go_active);
+  }
   const meta = [resp.intent, resp.kind, resp.confidence != null ? `conf ${Number(resp.confidence).toFixed(2)}` : null]
     .filter(Boolean)
     .join(' · ');
@@ -16005,7 +16074,9 @@ function assistMicTalkLabel(state) {
   if (state === 'error') return 'שיחה עם AIRVIX Ask — שגיאת הקלטה';
   if (state === 'listening') return 'שיחה עם AIRVIX Ask — מאזין';
   if (state === 'blocked') return 'שיחה עם AIRVIX Ask — לא ניתן להתחיל';
-  return 'שיחה עם AIRVIX Ask. שינוי דורש אישור.';
+  return _askVoiceGoActive
+    ? 'שיחה עם AIRVIX Ask. פרמטר מוחל מיד.'
+    : 'שיחה עם AIRVIX Ask. שינוי דורש אישור.';
 }
 
 function syncAssistComposerSize() {
@@ -16159,6 +16230,10 @@ function initAssistUi() {
   document.getElementById('fdOpenAssistBtn')?.addEventListener('click', () => assistSetOpen(true));
   initMissionTalk();
   initAssistMic();
+  document.getElementById('assistVoiceGoBtn')?.addEventListener('click', () => { void assistSetVoiceGo(true); });
+  document.getElementById('assistVoiceGoEndBtn')?.addEventListener('click', () => { void assistSetVoiceGo(false); });
+  assistSyncVoiceGoChrome(assistReadVoiceGoChrome());
+  void assistRefreshVoiceGo();
   document.getElementById('assistConfirmBtn')?.addEventListener('click', () => { void assistConfirm(true); });
   document.getElementById('assistCancelBtn')?.addEventListener('click', () => { void assistConfirm(false); });
   document.getElementById('assistSuggestionApproveBtn')?.addEventListener('click', () => { void assistConfirm(true); });

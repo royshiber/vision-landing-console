@@ -570,6 +570,35 @@ describe('Assist HTTP API', () => {
     expect(meta.prohibited).toContain('DEPLOY');
     expect(meta.prohibited).toContain('CURSOR_AGENT_START');
     expect(meta.channels).toEqual(['text', 'voice']);
+    expect(meta.ask_voice_safety_lock).toBe('voice_direct_after_go');
+  });
+
+  it('session GO is server-enforced for param apply', async () => {
+    const before = await fetch(`${base}/api/assist/session`).then((r) => r.json());
+    expect(before.ask_voice_go_active).toBe(false);
+    const propose = await fetch(`${base}/api/assist/message`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: 'set LAND_SPEED to 80' }),
+    }).then((r) => r.json());
+    expect(propose.response.requires_confirmation).toBe(true);
+    expect(propose.response.applied_direct).toBeFalsy();
+
+    const armed = await fetch(`${base}/api/assist/voice-go`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ active: true }),
+    }).then((r) => r.json());
+    expect(armed.ask_voice_go_active).toBe(true);
+
+    const direct = await fetch(`${base}/api/assist/message`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: 'set LAND_SPEED to 81' }),
+    }).then((r) => r.json());
+    expect(direct.response.requires_confirmation).toBe(false);
+    expect(direct.response.applied_direct).toBe(true);
+    expect(direct.response.ask_voice_go_active).toBe(true);
   });
 });
 

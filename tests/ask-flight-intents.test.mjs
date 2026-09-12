@@ -9,9 +9,11 @@ import { resolveAssistIntent } from '../lib/assist/assist-intent-resolver.mjs';
 import { ASSIST_HE } from '../lib/assist/assist-hebrew.mjs';
 import { ASSIST_ACTION_TYPES, ASSIST_PROHIBITED_ACTIONS } from '../lib/assist/assist-types.mjs';
 import {
-  ASK_VOICE_FLIGHT_CONFIRM_ALWAYS,
+  ASK_VOICE_SAFETY_LOCK,
   isAskBlockedParamKey,
   isAskConfirmPhrase,
+  isAskGoEnablePhrase,
+  isAskGoDisablePhrase,
   askRequiresConfirmation,
 } from '../lib/assist/ask-safety.mjs';
 import { parseAskParamProposal, resolveAskFlightIntent } from '../lib/assist/ask-flight-intents.mjs';
@@ -38,11 +40,25 @@ function makeAssist({ applyParamChange } = {}) {
 }
 
 describe('Ask early-flight safety lock', () => {
-  it('keeps ask_voice_flight_confirm_always on', () => {
-    expect(ASK_VOICE_FLIGHT_CONFIRM_ALWAYS).toBe(true);
-    expect(askRequiresConfirmation('PROPOSE_PARAM_CHANGE', false)).toBe(true);
+  it('pins APP_VERSION at 1.02.307', () => {
+    const version = fs.readFileSync(path.join(repoRoot, 'version.js'), 'utf8');
+    const pkg = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8'));
+    expect(version).toContain("export const APP_VERSION = '1.02.307'");
+    expect(pkg.version).toBe('1.02.307');
+  });
+
+  it('locks voice_direct_after_go and gates confirm on session GO', () => {
+    expect(ASK_VOICE_SAFETY_LOCK).toBe('voice_direct_after_go');
+    expect(askRequiresConfirmation('PROPOSE_PARAM_CHANGE', false, false)).toBe(true);
+    expect(askRequiresConfirmation('PROPOSE_PARAM_CHANGE', false, true)).toBe(false);
+    expect(askRequiresConfirmation('CREATE_NOTE', true, true)).toBe(true);
     expect(isAskConfirmPhrase('מאשר')).toBe(true);
     expect(isAskConfirmPhrase('confirm')).toBe(true);
+    expect(isAskGoEnablePhrase('GO')).toBe(true);
+    expect(isAskGoEnablePhrase('יאללה')).toBe(true);
+    expect(isAskGoEnablePhrase('אשר GO')).toBe(true);
+    expect(isAskGoDisablePhrase('סיום GO')).toBe(true);
+    expect(isAskGoDisablePhrase('בטל GO')).toBe(true);
     expect(isAskBlockedParamKey('GPS_TYPE')).toBe(true);
     expect(isAskBlockedParamKey('EK3_SRC1_POSXY')).toBe(true);
     expect(isAskBlockedParamKey('LAND_SPEED')).toBe(false);
@@ -101,7 +117,7 @@ describe('Ask propose + confirm', () => {
     fs.rmSync(root, { recursive: true, force: true });
   });
 
-  it('requires confirm before any param apply', async () => {
+  it('requires confirm before any param apply when GO is off', async () => {
     const resp = await service.processInput({ text: 'set LAND_SPEED to 80' });
     expect(resp.intent).toBe('FLIGHT_PARAM');
     expect(resp.requires_confirmation).toBe(true);
@@ -144,6 +160,55 @@ describe('Ask propose + confirm', () => {
     expect(spoken.answer).toMatch(/אושר|לא נשלח/);
   });
 
+  it('applies a safe param without confirm after session GO', async () => {
+    expect(service.isAskVoiceGoActive()).toBe(false);
+    service.setAskVoiceGo(true);
+    expect(service.isAskVoiceGoActive()).toBe(true);
+    const resp = await service.processInput({ text: 'set LAND_SPEED to 80' });
+    expect(resp.intent).toBe('FLIGHT_PARAM');
+    expect(resp.requires_confirmation).toBe(false);
+    expect(resp.applied_direct).toBe(true);
+    expect(resp.action_proposal).toBe(null);
+    expect(resp.ask_voice_go_active).toBe(true);
+    expect(resp.ask_voice_safety_lock).toBe('voice_direct_after_go');
+    expect(resp.answer).toMatch(/הוחל|לא נשלח/);
+    expect(apply).toHaveBeenCalledTimes(1);
+    expect(apply.mock.calls[0][0].key).toBe('LAND_SPEED');
+    expect(apply.mock.calls[0][0].value).toBe(80);
+    expect(service._pendingSize()).toBe(0);
+  });
+
+  it('returns to confirm-required after ending GO', async () => {
+    service.setAskVoiceGo(true);
+    service.setAskVoiceGo(false);
+    const resp = await service.processInput({ text: 'set LAND_SPEED to 80' });
+    expect(resp.requires_confirmation).toBe(true);
+    expect(resp.kind).toBe('ACTION_REQUIRING_CONFIRMATION');
+    expect(apply).not.toHaveBeenCalled();
+  });
+
+  it('enables and ends GO from spoken phrases', async () => {
+    const on = await service.processInput({ text: 'יאללה', channel: 'voice' });
+    expect(on.ask_voice_go_active).toBe(true);
+    expect(on.voice_go.active).toBe(true);
+    expect(on.answer).toMatch(/הופעל/);
+    expect(service.isAskVoiceGoActive()).toBe(true);
+
+    const off = await service.processInput({ text: 'סיום GO', channel: 'voice' });
+    expect(off.ask_voice_go_active).toBe(false);
+    expect(off.voice_go.active).toBe(false);
+    expect(off.answer).toMatch(/כבוי/);
+  });
+
+  it('does not honor a client snapshot that claims GO is on', async () => {
+    const resp = await service.processInput({
+      text: 'set LAND_SPEED to 80',
+      context_snapshot: { askVoiceGoActive: true, ask_voice_go_active: true },
+    });
+    expect(resp.requires_confirmation).toBe(true);
+    expect(apply).not.toHaveBeenCalled();
+  });
+
   it('never calls apply for ARM or LAND intents', async () => {
     const arm = await service.processInput({ text: 'Please arm the aircraft' });
     expect(arm.blocked).toBe(true);
@@ -163,6 +228,27 @@ describe('Ask propose + confirm', () => {
     const nav = await service.processInput({ text: 'החלף מקור ניווט' });
     expect(nav.blocked).toBe(true);
     expect(nav.answer).toBe(ASSIST_HE.blockedNavSwitchAnswer);
+
+    expect(apply).not.toHaveBeenCalled();
+    expect(service._pendingSize()).toBe(0);
+  });
+
+  it('never applies ARM / LAND / nav-blocked params even after GO', async () => {
+    service.setAskVoiceGo(true);
+    const arm = await service.processInput({ text: 'Please arm the aircraft' });
+    expect(arm.blocked).toBe(true);
+    expect(arm.answer).toBe(ASSIST_HE.blockedFlightCommandAnswer);
+
+    const land = await service.processInput({ text: 'auto land now' });
+    expect(land.blocked).toBe(true);
+    expect(land.answer).toBe(ASSIST_HE.blockedFlightCommandAnswer);
+
+    const nav = await service.processInput({ text: 'set GPS_TYPE to 2' });
+    expect(nav.blocked).toBe(true);
+    expect(nav.answer).toBe(ASSIST_HE.blockedNavSwitchAnswer);
+
+    const ekf = await service.processInput({ text: 'set EK3_SRC1_POSXY to 5' });
+    expect(ekf.blocked).toBe(true);
 
     expect(apply).not.toHaveBeenCalled();
     expect(service._pendingSize()).toBe(0);
@@ -210,7 +296,7 @@ describe('Ask real-time suggestions', () => {
 });
 
 describe('Ask rail confirm chrome', () => {
-  it('makes confirm versus cancel obvious and keeps the voice phrase', () => {
+  it('makes confirm versus cancel obvious and shows session GO controls', () => {
     expect(html).toContain('id="assistProposalKicker"');
     expect(html).toContain('שינוי דורש אישור');
     expect(html).toContain('id="assistProposalVoiceHint"');
@@ -219,7 +305,14 @@ describe('Ask rail confirm chrome', () => {
     expect(html).toContain('id="assistCancelBtn"');
     expect(html).toContain('id="assistSuggestionApproveBtn"');
     expect(html).toContain('id="assistSuggestionDismissBtn"');
+    expect(html).toContain('id="assistVoiceGo"');
+    expect(html).toContain('id="assistVoiceGoBtn"');
+    expect(html).toContain('id="assistVoiceGoEndBtn"');
+    expect(html).toContain('סיום GO');
+    expect(html).toContain('הפעלה מאפשרת החלת פרמטר בלי אישור לכל פעולה');
     expect(js).toContain('function assistIsConfirmPhrase(');
-    expect(js).toContain('ask_voice_flight_confirm_always');
+    expect(js).toContain('voice_direct_after_go');
+    expect(js).toContain('function assistSetVoiceGo(');
+    expect(js).toContain('/api/assist/voice-go');
   });
 });
