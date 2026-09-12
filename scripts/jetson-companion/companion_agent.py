@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Vision Landing Console — Jetson companion: MAVLink relay + HTTP API + heartbeat.
 
-AGENT_VERSION 2.3.2 = 2.3.1 byte-level UART fan-out plus honest observe-only
-camera / runway HTTP status. No camera pipeline and no runway detector on
-current hardware — never invent camera_ok=true or runway detected/locked.
+AGENT_VERSION 2.3.3 = 2.3.2 plus honest observe-only optical-nav status.
+No camera pipeline, no VIO estimator, no EKF inject, no FC writes.
+Never invent camera_ok=true, runway detected/locked, or WGS84 position.
 
 Hardware default (Matek H743 SERIAL3 ↔ Jetson UART1):
   FC /dev/ttyTHS1 @ 921600, FC_READ_ONLY=1
@@ -39,7 +39,7 @@ FC_BAUD = int(os.environ.get("VLC_FC_BAUD", "921600"))
 FC_SERIAL_NAME = os.environ.get("VLC_FC_SERIAL_NAME", "SERIAL3")
 RELAY_PORT = int(os.environ.get("VLC_RELAY_PORT", "5770"))
 HTTP_PORT = int(os.environ.get("VLC_HTTP_PORT", "8081"))
-AGENT_VERSION = os.environ.get("VLC_AGENT_VERSION", "2.3.2")
+AGENT_VERSION = os.environ.get("VLC_AGENT_VERSION", "2.3.3")
 FC_READ_ONLY = os.environ.get("VLC_FC_READ_ONLY", "1").strip().lower() in {"1", "true", "yes", "on"}
 SKIP_RELAY = os.environ.get("VLC_SKIP_RELAY", "").strip().lower() in {"1", "true", "yes", "on"}
 HTTP_BIND = os.environ.get("VLC_HTTP_BIND", "0.0.0.0")
@@ -412,12 +412,48 @@ def video_status_payload():
     }
 
 
+def optical_nav_status_payload():
+    """Observe-only optical nav. Dual cameras are the landing pair; no pipeline yet."""
+    cameras = {
+        "cam1": {
+            "id": "cam1",
+            "role": "vio_forward",
+            "shared_with": "landing_vision",
+            "camera_ok": False,
+        },
+        "cam2": {
+            "id": "cam2",
+            "role": "optical_flow_down",
+            "shared_with": "landing_vision",
+            "camera_ok": False,
+        },
+    }
+    return {
+        "ok": True,
+        "observe_only": True,
+        "present": False,
+        "running": False,
+        "camera_ok": False,
+        "alt_ceiling_m": 300,
+        "position": None,
+        "velocity": None,
+        "age_ms": None,
+        "confidence": None,
+        "ekf_injected": False,
+        "display_only": True,
+        "cameras": cameras,
+        "implemented": False,
+        "note": "no optical-nav pipeline; cameras shared with landing/vision; camera_ok false; position null; not EKF fused",
+    }
+
+
 def extras_status_payload():
     return {
         "camera_ok": False,
         "camera_connected": False,
         "runway_detector": False,
         "runway_detected": None,
+        "optical_nav": optical_nav_status_payload(),
         "observe_only": True,
     }
 
@@ -439,6 +475,7 @@ def status_payload():
             "tempC": STATE.get("tempC"),
         },
         "vision": vision_status_payload(),
+        "optical_nav": optical_nav_status_payload(),
         "landing": landing_status_payload(),
         "video": video_status_payload(),
         "extras": extras_status_payload(),
@@ -455,6 +492,7 @@ def health_payload():
         "observe_only": True,
         **STATE,
         "vision": vision_status_payload(),
+        "optical_nav": optical_nav_status_payload(),
         "landing": landing_status_payload(),
         "video": video_status_payload(),
         "extras": extras_status_payload(),
@@ -539,6 +577,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(200, status_payload())
         if path in ("/api/status/vision", "/api/v1/status/vision"):
             return self._json(200, vision_status_payload())
+        if path in ("/api/status/optical-nav", "/api/v1/status/optical-nav"):
+            return self._json(200, optical_nav_status_payload())
         if path in ("/api/status/landing", "/api/v1/status/landing"):
             return self._json(200, landing_status_payload())
         if path in ("/api/status/video", "/api/v1/status/video"):

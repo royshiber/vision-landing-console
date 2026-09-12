@@ -1,5 +1,16 @@
 # Jetson Agent — ניווט ויזואלי Dual-Camera (VIO + Optical Flow)
 
+## חוזה נוכחי — תצוגה בלבד
+
+`scripts/jetson-companion/companion_agent.py` (גרסה `2.3.3`) מגיש סטטוס ניווט אופטי לצפייה בלבד:
+
+- `GET /api/v1/status` ו־`GET /api/v1/status/optical-nav`
+- שדות: `present`, `running`, `camera_ok`, `alt_ceiling_m=300`, `position`, `velocity`, `age_ms`, `confidence`, `cameras.cam1` / `cameras.cam2` (אותו זוג כמו נחיתה)
+- בלי מצלמה או בלי אומדן: `camera_ok=false`, `running=false`, `position=null`, `velocity=null`
+- `ekf_injected` תמיד `false`. אין כתיבה לבקר ואין החלפת מקור ניווט.
+
+הפרקים למטה מתארים צינור עתידי. הם אינם רשיון להזרים מיקום לבקר מהסוכן הנוכחי.
+
 ## סקירה ארכיטקטורה
 
 הג'טסון מריץ **שתי צינורות עיבוד מקביליים**:
@@ -539,14 +550,15 @@ curl -X POST http://192.168.1.100:4010/api/vision/flow \
 | שירות | פורט | תפקיד |
 |-------|------|--------|
 | MAVLink relay | TCP `5770` | גשר byte-level בין GCS (PC) ל-UART של FC. קורא UART אחד ומפזר לכל לקוח TCP. אסור לפרסר עם pymavlink על אותו פורט — זה גונב דופק HEARTBEAT מהממסר. |
-| HTTP API | `8081` | `/api/health`, `/api/v1/health`, `/api/v1/status`, `/api/v1/status/vision`, `/api/v1/status/landing`, `/api/v1/status/video`, `/api/logs`, `/api/transport-test`, `/api/install` |
+| HTTP API | `8081` | `/api/health`, `/api/v1/health`, `/api/v1/status`, `/api/v1/status/vision`, `/api/v1/status/optical-nav`, `/api/v1/status/landing`, `/api/v1/status/video`, `/api/logs`, `/api/transport-test`, `/api/install` |
 | Heartbeat | → PC `:4010` | `/api/jetson/heartbeat` — IP, relay, FC linked |
 
 `GET /api/health` already carries `cpuLoadPct`, `memPct`, and `tempC` (same names as the console heartbeat). The console tries Companion v1 (`/api/v1/health`, `/api/v1/status`) first; on HTTP 404 it maps this legacy health body onto Status gauges.
 
-Observe-only Experiment #1 fields (companion **2.3.2**, UART still the 2.3.1 fan-out):
+Observe-only Experiment #1 fields (companion **2.3.3**, UART still the 2.3.1 fan-out):
 
 - `GET /api/v1/status/vision` and health overlay `vision.camera_ok: false` — no camera pipeline on current hardware. Console readiness becomes **absent**, not unknown. Never `camera_ok: true` unless a real pipeline exists.
+- `GET /api/v1/status/optical-nav` and status/health `optical_nav` — `present/running/camera_ok` false, `alt_ceiling_m: 300`, `position`/`velocity` null, `ekf_injected: false`. Dual-camera hooks share the landing pair. Never invent WGS84.
 - `GET /api/v1/status/landing` and health overlay `landing.runway_detector: false` plus `source: "none"` — no runway detector. Console readiness becomes **absent**. A 404/501 on this path is **not_implemented**. Never invent runway detected or locked.
 - Lock fields are omitted — console lock stays **unknown**.
 - `GET /api/v1/status/video` reports `raw_pipeline: "none"`. No annotated stream.
@@ -584,8 +596,9 @@ After VERIFY, King may upload this repo file over the live 2.3.1 agent (UART fan
 ```bash
 # on the Jetson — replace the running script, then restart the agent process
 install -m 755 companion_agent.py "$HOME/vlc-companion/companion_agent.py"
-# expected: GET /api/health agentVersion 2.3.2
+# expected: GET /api/health agentVersion 2.3.3
 # expected: GET /api/v1/status/vision → camera_ok false
+# expected: GET /api/v1/status/optical-nav → camera_ok false, position null
 # expected: GET /api/v1/status/landing → runway_detector false
 ```
 
@@ -610,7 +623,7 @@ No camera hardware is required for that upload. Do not enable ARM / LAND / auto-
 
 | רכיב | מינימום | מומלץ |
 |------|---------|-------|
-| Jetson Agent | 2.0.0 | 2.3.2 (2.3.1 fan-out + honest vision/landing status) |
+| Jetson Agent | 2.0.0 | 2.3.3 (observe-only optical-nav + honest vision/landing status) |
 | ArduPilot | 4.4.x | 4.5.x (EKF3 stable) |
 | JetPack | 5.x | 6.x |
 | OpenCV | 4.5 | 4.8+ |

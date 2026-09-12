@@ -48,20 +48,24 @@ async function waitHttp(url, timeoutMs = 8000) {
 }
 
 describe('companion_agent observe-only vision / landing status', () => {
-  it('pins APP_VERSION at 1.02.299', () => {
+  it('pins APP_VERSION at 1.02.303', () => {
     const version = fs.readFileSync(path.join(repoRoot, 'version.js'), 'utf8');
     const pkg = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8'));
-    expect(version).toContain("export const APP_VERSION = '1.02.299'");
-    expect(pkg.version).toBe('1.02.299');
+    expect(version).toContain("export const APP_VERSION = '1.02.303'");
+    expect(pkg.version).toBe('1.02.303');
   });
 
   it('keeps 2.3.1 fan-out UART and reports explicit absent, never invented detect', () => {
     expect(agentSrc).toContain('uart_reader');
     expect(agentSrc).toContain('fanout_uart');
     expect(agentSrc).not.toMatch(/\.recv_match\s*\(/);
-    expect(agentSrc).toMatch(/AGENT_VERSION.*"2\.3\.2"/);
+    expect(agentSrc).toMatch(/AGENT_VERSION.*"2\.3\.3"/);
     expect(agentSrc).toContain('/api/v1/status/vision');
+    expect(agentSrc).toContain('/api/v1/status/optical-nav');
     expect(agentSrc).toContain('/api/v1/status/landing');
+    expect(agentSrc).toContain('optical_nav_status_payload');
+    expect(agentSrc).toContain('"ekf_injected": False');
+    expect(agentSrc).toContain('"alt_ceiling_m": 300');
     expect(agentSrc).toMatch(/"camera_ok": False/);
     expect(agentSrc).toMatch(/"runway_detector": False/);
     expect(agentSrc).not.toMatch(/"camera_ok": True/);
@@ -110,14 +114,15 @@ describe('companion_agent observe-only vision / landing status', () => {
   });
 
   it('serves honest absent camera / runway payloads on health and v1 status paths', async () => {
-    const [health, status, vision, landing, video] = await Promise.all([
+    const [health, status, vision, landing, video, opticalNav] = await Promise.all([
       fetch(`${base}/api/health`).then((r) => r.json()),
       fetch(`${base}/api/v1/status`).then((r) => r.json()),
       fetch(`${base}/api/v1/status/vision`).then((r) => r.json()),
       fetch(`${base}/api/v1/status/landing`).then((r) => r.json()),
       fetch(`${base}/api/v1/status/video`).then((r) => r.json()),
+      fetch(`${base}/api/v1/status/optical-nav`).then((r) => r.json()),
     ]);
-    expect(health.agentVersion).toBe('2.3.2');
+    expect(health.agentVersion).toBe('2.3.3');
     expect(health.vision.camera_ok).toBe(false);
     expect(health.landing.runway_detector).toBe(false);
     expect(health.landing.runway_detected).toBeNull();
@@ -132,7 +137,18 @@ describe('companion_agent observe-only vision / landing status', () => {
     expect(landing.target).toBeNull();
     expect(landing.lock_state).toBeUndefined();
     expect(video.raw_pipeline).toBe('none');
-    expect(JSON.stringify({ health, status, vision, landing })).not.toMatch(/"camera_ok":\s*true/i);
+    expect(opticalNav.camera_ok).toBe(false);
+    expect(opticalNav.running).toBe(false);
+    expect(opticalNav.present).toBe(false);
+    expect(opticalNav.position).toBeNull();
+    expect(opticalNav.velocity).toBeNull();
+    expect(opticalNav.ekf_injected).toBe(false);
+    expect(opticalNav.alt_ceiling_m).toBe(300);
+    expect(opticalNav.display_only).toBe(true);
+    expect(status.optical_nav.camera_ok).toBe(false);
+    expect(status.optical_nav.position).toBeNull();
+    expect(health.optical_nav.camera_ok).toBe(false);
+    expect(JSON.stringify({ health, status, vision, landing, opticalNav })).not.toMatch(/"camera_ok":\s*true/i);
     expect(JSON.stringify({ health, status, landing })).not.toMatch(/"runway_detected":\s*true/i);
     expect(JSON.stringify(landing)).not.toMatch(/locked/i);
   });

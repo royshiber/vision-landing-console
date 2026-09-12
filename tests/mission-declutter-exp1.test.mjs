@@ -41,13 +41,25 @@ function sliceFunction(src, name) {
 function missionOpsChrome(src) {
   const start = src.indexOf('class="mission-ops-chrome"');
   expect(start).toBeGreaterThan(0);
-  return src.slice(start, src.indexOf('</div>', start) + 6);
+  const open = src.lastIndexOf('<div', start);
+  let depth = 0;
+  for (let i = open; i < src.length; i++) {
+    if (src.startsWith('<div', i)) {
+      depth += 1;
+      i += 3;
+    } else if (src.startsWith('</div>', i)) {
+      depth -= 1;
+      if (depth === 0) return src.slice(start, i + 6);
+      i += 5;
+    }
+  }
+  throw new Error('unclosed mission-ops-chrome');
 }
 
 describe('Mission chrome declutter for Experiment #1', () => {
-  it('pins APP_VERSION at 1.02.299', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.299'");
-    expect(pkg.version).toBe('1.02.299');
+  it('pins APP_VERSION at 1.02.303', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.303'");
+    expect(pkg.version).toBe('1.02.303');
   });
 
   it('keeps one מוכנות glance and does not permanently show runway or lock chips', () => {

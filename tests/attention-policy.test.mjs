@@ -175,7 +175,7 @@ describe('C10.7a Attention Policy', () => {
     expect(css).toMatch(/\.assist-attention-badge\b/);
     expect(js).toContain("ATTENTION_POLICY_KEY = 'visionLandingAttentionPolicyV1'");
     expect(js).toContain("proactiveLevel: 'off'");
-    expect(version).toContain("export const APP_VERSION = '1.02.299'");
-    expect(pkg.version).toBe('1.02.299');
+    expect(version).toContain("export const APP_VERSION = '1.02.303'");
+    expect(pkg.version).toBe('1.02.303');
   });
 });

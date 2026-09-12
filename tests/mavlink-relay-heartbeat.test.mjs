@@ -136,7 +136,7 @@ describe('companion_agent.py byte-level relay', () => {
     expect(agentSrc).toContain('never recv_match');
     expect(agentSrc).toMatch(/fc_read_only/);
     expect(agentSrc).toMatch(/relay_tcp_to_uart/);
-    expect(agentSrc).toMatch(/AGENT_VERSION.*"2\.3\.2"/);
+    expect(agentSrc).toMatch(/AGENT_VERSION.*"2\.3\.3"/);
     expect(agentSrc).toContain('uart_reader → fanout_uart');
     expect(agentSrc).toContain('/dev/ttyTHS1');
     expect(agentSrc).toContain('921600');
@@ -146,6 +146,7 @@ describe('companion_agent.py byte-level relay', () => {
     expect(agentSrc).toContain('/api/transport-test');
     expect(agentSrc).toContain('/api/v1/health');
     expect(agentSrc).toContain('/api/v1/status/vision');
+    expect(agentSrc).toContain('/api/v1/status/optical-nav');
     expect(agentSrc).toContain('/api/v1/status/landing');
     expect(agentSrc).toContain('/api/logs');
     expect(agentSrc).toMatch(/"camera_ok": False/);
