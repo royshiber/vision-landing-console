@@ -277,7 +277,7 @@ describe('Mission layout contract — live boxes', () => {
     });
 
     expect(measured.platformTab).toBe(false);
-    expect(measured.version).toBe('1.02.308');
+    expect(measured.version).toBe('1.02.309');
     expect(measured.ws.width).toBeGreaterThan(800);
     expect(measured.talkMinWidth).toBe('240px');
     expect(Number.parseFloat(measured.dataGap)).toBeLessThanOrEqual(4);
@@ -555,7 +555,7 @@ describe('Mission layout contract — live boxes', () => {
     expect(clip.linkText).toBe('מחובר');
     expect(clip.linkTitle).toContain('טלמטריה');
     expect(clip.altText).toBe('--');
-    expect(clip.altTitle).toBe('אין גובה מהבקר עדיין');
+    expect(clip.altTitle).toBe('אין קישור');
     expect(clip.pillWrap).toBe('nowrap');
     expect(clip.pillOverflow).toBeLessThanOrEqual(1);
     for (const tile of clip.tiles) {

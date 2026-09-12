@@ -1811,17 +1811,18 @@
                 <button type="button" id="pfdVoiceFlightBtn" class="pfd-voice-flight-btn" title="פתיחת מהנדס קולי לפקודות טיסה">🎙 פקודות</button>
                 <span id="pfdArmedBadge" class="pfd-badge pfd-badge--disarmed" role="button" tabindex="0" title="מצב ARM — לחץ להסבר מוכנות">DISARMED</span>
                 <span id="pfdModeVal"    class="pfd-mode-val">--</span>
-                <div class="hud-nav-pill pfd-gps-pill" id="hudNavGps" data-status="unknown" title="מצב GPS">
+                <div class="hud-nav-pill pfd-gps-pill" id="hudNavGps" data-status="unknown" title="אין קישור">
                   <span class="hud-nav-icon">📡</span>
                   <span class="hud-nav-val" id="hudNavGpsVal">--</span>
                 </div>
               </div>
+              <p id="pfdHudWaitHint" class="pfd-hud-wait-hint" hidden></p>
 
               <div class="pfd-horizon-shell" id="pfdHorizonShell">
                 <div class="pfd-horizon-instrument">
                   <div class="pfd-side-tape pfd-side-tape--left">
                     <span class="pfd-tape-key">IAS</span>
-                    <strong class="pfd-tape-big" id="pfdAirspeedVal">--</strong>
+                    <strong class="pfd-tape-big" id="pfdAirspeedVal" title="אין קישור">--</strong>
                     <span class="pfd-tape-unit">m/s</span>
                   </div>
                   <div class="pfd-horizon-stage" id="pfdHorizonStage">
@@ -1832,7 +1833,7 @@
                   </div>
                   <div class="pfd-side-tape pfd-side-tape--right">
                     <span class="pfd-tape-key">ALT</span>
-                    <strong class="pfd-tape-big" id="pfdAltVal" title="אין גובה מהבקר עדיין">--</strong>
+                    <strong class="pfd-tape-big" id="pfdAltVal" title="אין קישור">--</strong>
                     <span class="pfd-tape-unit">m</span>
                   </div>
                   <div class="pfd-heading-lane">
@@ -1873,11 +1874,11 @@
               </div>
               <div class="mission-data-item mission-data-tile tele-hud-mini" data-mission-data-slot="1">
                 <dt class="mission-data-label">גובה</dt>
-                <dd class="mission-data-readout" dir="ltr"><strong class="mission-data-value" id="hudAltitude" title="אין גובה מהבקר עדיין">--</strong><span class="mission-data-unit">m</span></dd>
+                <dd class="mission-data-readout" dir="ltr"><strong class="mission-data-value" id="hudAltitude" title="אין קישור">--</strong><span class="mission-data-unit">m</span></dd>
               </div>
               <div class="mission-data-item mission-data-tile tele-hud-mini" data-mission-data-slot="2">
                 <dt class="mission-data-label">מהירות</dt>
-                <dd class="mission-data-readout" dir="ltr"><strong class="mission-data-value" id="hudAirspeed">--</strong><span class="mission-data-unit">m/s</span></dd>
+                <dd class="mission-data-readout" dir="ltr"><strong class="mission-data-value" id="hudAirspeed" title="אין קישור">--</strong><span class="mission-data-unit">m/s</span></dd>
               </div>
               <div class="mission-data-item mission-data-tile" data-mission-data-slot="3">
                 <dt class="mission-data-label">קישור</dt>

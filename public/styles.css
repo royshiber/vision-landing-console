@@ -10797,6 +10797,20 @@ html[data-evolve-preview="1"] #development {
   flex-shrink: 0;
   padding: 3px 7px !important;
 }
+.pfd-hud-wait-hint {
+  margin: 0;
+  padding: 2px 8px;
+  font-size: 0.62rem;
+  font-weight: 600;
+  color: #fde68a;
+  background: rgba(120, 80, 0, 0.32);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: center;
+  flex-shrink: 0;
+}
+.pfd-hud-wait-hint[hidden] { display: none; }
 
 /* Heading readout in the reserved PFD heading lane */
 .pfd-hdg-box {

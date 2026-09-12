@@ -4994,18 +4994,97 @@ const VLC_TOOLTIP_IAS_FROM_GS =
 /** MAVLink attitude vs nav packets arrived far apart — horizon vs tapes may not match one FC instant. */
 const VLC_TOOLTIP_HUD_TIME_SKEW =
   'פער זמן בין חבילות MAVLink — ייתכן עיוות זמני בין אופק לשאר מדי ה-HUD.';
-/** Live FC with roll/pitch but no VFR_HUD / GLOBAL_POSITION altitude yet (often waiting for GPS). */
-const VLC_TOOLTIP_ALT_WAITING = 'אין גובה מהבקר עדיין';
+/** Keep in sync with lib/hud-honesty.mjs */
+const VLC_TOOLTIP_NO_LINK = 'אין קישור';
+const VLC_TOOLTIP_ALT_WAITING = 'מחובר אך אין גובה מהבקר עדיין';
+const VLC_TOOLTIP_SPD_WAITING = 'מחובר אך אין מהירות מהבקר עדיין';
+const VLC_TOOLTIP_GPS_WAITING = 'מחובר אך אין מיקום לוויין מהבקר עדיין';
+const VLC_TOOLTIP_FIELD_WAITING = 'מחובר אך אין נתון מהבקר עדיין';
+const VLC_TOOLTIP_EKF_WAIT_GPS = 'הבקר ממתין ללוויין';
+const VLC_TOOLTIP_EKF_NO_FIX = 'הבקר מדווח שאין נעילת לוויין';
+const VLC_TOOLTIP_EKF_POS_FAULT = 'הבקר מדווח על תקלת מיקום';
 
 function altitudeIsFinite(alt) {
   return typeof alt === 'number' && Number.isFinite(alt);
+}
+
+function hudLinkLive(mav) {
+  if (!mav || typeof mav !== 'object') return false;
+  if (mav.connected === true || mav.listening === true) return true;
+  return Number(mav.heartbeatCount) > 0;
+}
+
+function hudFieldHonestyTitle(kind, mav, value) {
+  if (altitudeIsFinite(value)) return '';
+  if (hudLinkLive(mav)) {
+    if (kind === 'altitude') return VLC_TOOLTIP_ALT_WAITING;
+    if (kind === 'airspeed') return VLC_TOOLTIP_SPD_WAITING;
+    if (kind === 'gps' || kind === 'gpsVisionDelta') return VLC_TOOLTIP_GPS_WAITING;
+    return VLC_TOOLTIP_FIELD_WAITING;
+  }
+  return VLC_TOOLTIP_NO_LINK;
 }
 
 function altitudeTileHonestyTitle(mav) {
   if (altitudeIsFinite(mav?.altitude)) {
     return mav.hudTimeSkewWarn ? VLC_TOOLTIP_HUD_TIME_SKEW : '';
   }
-  return VLC_TOOLTIP_ALT_WAITING;
+  return hudFieldHonestyTitle('altitude', mav, mav?.altitude);
+}
+
+function airspeedTileHonestyTitle(mav) {
+  if (altitudeIsFinite(mav?.airspeed)) {
+    return mav.airspeedIsGroundspeedProxy ? VLC_TOOLTIP_IAS_FROM_GS : '';
+  }
+  return hudFieldHonestyTitle('airspeed', mav, mav?.airspeed);
+}
+
+function classifyEkfGpsStatusText(text) {
+  const raw = String(text || '').trim();
+  if (!raw) return null;
+  const t = raw.toLowerCase();
+  if (/\borigin set\b/.test(t) || /\bgps\b.*\bdetected\b/.test(t)) return null;
+  if (/\bwaiting for gps\b/.test(t) || /\bgps config\b/.test(t) || /\bahrs:\s*waiting\b/.test(t)) {
+    return VLC_TOOLTIP_EKF_WAIT_GPS;
+  }
+  if (/\bno gps\b/.test(t) || /\bno fix\b/.test(t) || /\bgps.*lost\b/.test(t)) {
+    return VLC_TOOLTIP_EKF_NO_FIX;
+  }
+  if (/\bekf\b.*\b(fail|error|lane)\b/.test(t) || /\bahrs\b.*\b(fail|error)\b/.test(t)) {
+    return VLC_TOOLTIP_EKF_POS_FAULT;
+  }
+  if (/\bekf\b/.test(t) && /\bgps\b/.test(t)) return VLC_TOOLTIP_EKF_WAIT_GPS;
+  return null;
+}
+
+function pickHudEkfGpsHint(statusTexts) {
+  const rows = Array.isArray(statusTexts) ? statusTexts : [];
+  for (const row of rows) {
+    const hint = classifyEkfGpsStatusText(row?.text ?? row);
+    if (hint) return { hint, sourceText: String(row?.text ?? row).trim() };
+  }
+  return null;
+}
+
+function formatGpsHudReadout(mav) {
+  const fix = mav?.gpsFixType;
+  const sats = mav?.gpsSats;
+  const hasFix = typeof fix === 'number' && Number.isFinite(fix);
+  const satsOk = typeof sats === 'number' && Number.isFinite(sats);
+  if (!hasFix) {
+    return {
+      text: '--',
+      title: hudFieldHonestyTitle('gps', mav, null),
+      status: 'unknown',
+    };
+  }
+  const label = GPS_FIX_LABELS[fix] ?? `Fix ${fix}`;
+  const satsStr = satsOk ? ` ${sats}🛰` : '';
+  return {
+    text: label + satsStr,
+    title: fix >= 2 ? '' : hudFieldHonestyTitle('gps', mav, null),
+    status: !hudLinkLive(mav) ? 'unknown' : fix >= 3 ? 'ok' : fix === 2 ? 'warn' : 'fail',
+  };
 }
 
 // ── Flight HUD PFD elements ────────────────────────────────────────────────────
@@ -5020,6 +5099,7 @@ const pfdAltVal        = document.getElementById('pfdAltVal');
 const pfdBattVal       = document.getElementById('pfdBattVal');
 const hudNavGpsPill    = document.getElementById('hudNavGps');
 const hudNavGpsVal     = document.getElementById('hudNavGpsVal');
+const pfdHudWaitHint   = document.getElementById('pfdHudWaitHint');
 const pfcMsgPrimaryHe  = document.getElementById('pfcMsgPrimaryHe');
 const pfcMsgScroll     = document.getElementById('pfcMsgScroll');
 const pfdOptMini       = document.getElementById('pfdOptMini');
@@ -5263,8 +5343,8 @@ function liveStatusToHudMavlink(s) {
     altitude: null,
     heading: null,
     recentStatusTexts: texts,
-    gpsFixType: null,
-    gpsSats: null,
+    gpsFixType: Number.isFinite(Number(s.gpsFixType)) ? Number(s.gpsFixType) : null,
+    gpsSats: Number.isFinite(Number(s.gpsSats)) ? Number(s.gpsSats) : null,
     batteryV: null,
     batteryPct: null,
     rollDeg: Number.isFinite(s.rollDeg) ? s.rollDeg : null,
@@ -5767,7 +5847,7 @@ function applyFlightHud(mav) {
   const airTape = pfdAirspeedVal?.closest('.pfd-side-tape');
   if (airTape) {
     airTape.classList.toggle('pfd-side-tape--airspeed-proxy', !!mav.airspeedIsGroundspeedProxy);
-    airTape.title = mav.airspeedIsGroundspeedProxy ? VLC_TOOLTIP_IAS_FROM_GS : '';
+    airTape.title = airspeedTileHonestyTitle(mav);
   }
   if (pfdHorizonShell) {
     pfdHorizonShell.classList.toggle('pfd-horizon-shell--time-skew', !!mav.hudTimeSkewWarn);
@@ -5776,6 +5856,7 @@ function applyFlightHud(mav) {
   if (pfdAirspeedVal) {
     const as = mav.airspeed;
     pfdAirspeedVal.textContent = typeof as === 'number' && Number.isFinite(as) ? as.toFixed(1) : '--';
+    pfdAirspeedVal.title = airspeedTileHonestyTitle(mav);
   }
   if (pfdAltVal) {
     const al = mav.altitude;
@@ -5792,18 +5873,27 @@ function applyFlightHud(mav) {
       : bv < 11.5 ? '#facc15' : '#4ade80';
   }
 
-  // GPS pill (top bar)
+  // GPS pill (top bar) — fix/sats when the FC sent them; never invent coordinates.
   if (hudNavGpsPill && hudNavGpsVal) {
-    const fix  = mav.gpsFixType;
-    const sats = mav.gpsSats;
-    const fixLabel = typeof fix === 'number' && Number.isFinite(fix) ? (GPS_FIX_LABELS[fix] ?? `Fix ${fix}`) : '--';
-    const satsStr  = typeof sats === 'number' && Number.isFinite(sats) ? ` ${sats}🛰` : '';
-    hudNavGpsVal.textContent = fixLabel + satsStr;
-    hudNavGpsPill.dataset.status = !mav.connected ? 'unknown'
-      : typeof fix !== 'number' || !Number.isFinite(fix) ? 'unknown'
-      : fix >= 3 ? 'ok'
-      : fix === 2 ? 'warn'
-      : 'fail';
+    const gpsRead = formatGpsHudReadout(mav);
+    hudNavGpsVal.textContent = gpsRead.text;
+    hudNavGpsPill.dataset.status = gpsRead.status;
+    const ekfHint = pickHudEkfGpsHint(mav.recentStatusTexts);
+    hudNavGpsPill.title = ekfHint?.hint || gpsRead.title || 'מצב GPS';
+  }
+  if (pfdHudWaitHint) {
+    const missingTape = !altitudeIsFinite(mav.altitude) || !altitudeIsFinite(mav.airspeed)
+      || !altitudeIsFinite(mav.gpsFixType);
+    const ekfHint = hudLinkLive(mav) && missingTape ? pickHudEkfGpsHint(mav.recentStatusTexts) : null;
+    if (ekfHint) {
+      pfdHudWaitHint.hidden = false;
+      pfdHudWaitHint.textContent = ekfHint.hint;
+      pfdHudWaitHint.title = ekfHint.sourceText;
+    } else {
+      pfdHudWaitHint.hidden = true;
+      pfdHudWaitHint.textContent = '';
+      pfdHudWaitHint.removeAttribute('title');
+    }
   }
   syncMissionFcEmptyNote(mav);
   syncMissionLayoutChrome();
@@ -5954,10 +6044,19 @@ function applyFcStatustextHud(mavlink) {
   const sig = JSON.stringify(raw.slice(0, 18));
   if (sig === _statustextSig) return;
   _statustextSig = sig;
-  const first = String(raw[0]?.text || '').trim();
+  const missingHud = !altitudeIsFinite(mavlink?.altitude)
+    || !altitudeIsFinite(mavlink?.airspeed)
+    || !altitudeIsFinite(mavlink?.gpsFixType);
+  const preferred = missingHud
+    ? (raw.find((r) => classifyEkfGpsStatusText(r?.text)) || raw[0])
+    : raw[0];
+  const ordered = preferred && preferred !== raw[0]
+    ? [preferred, ...raw.filter((r) => r !== preferred)]
+    : raw;
+  const first = String(ordered[0]?.text || '').trim();
   if (first) pfcMsgPrimaryHe.textContent = first;
   clearTimeout(_statustextTimer);
-  _statustextTimer = setTimeout(() => void translateAndRenderFcStatustext(raw.slice(0, 18)), 0);
+  _statustextTimer = setTimeout(() => void translateAndRenderFcStatustext(ordered.slice(0, 18)), 0);
 }
 
 async function translateAndRenderFcStatustext(rows) {
@@ -6311,11 +6410,13 @@ function applyTopbarFlightData(mav) {
   if (mav) latestHudMavlink = mav;
   if (!mav) {
     if (hudAltitudeEl) {
-      hudAltitudeEl.title = VLC_TOOLTIP_ALT_WAITING;
+      hudAltitudeEl.title = VLC_TOOLTIP_NO_LINK;
       const tile = hudAltitudeEl.closest('.mission-data-tile, .tele-hud-mini');
-      if (tile) tile.title = VLC_TOOLTIP_ALT_WAITING;
+      if (tile) tile.title = VLC_TOOLTIP_NO_LINK;
     }
-    if (pfdAltVal) pfdAltVal.title = VLC_TOOLTIP_ALT_WAITING;
+    if (hudAirspeedEl) hudAirspeedEl.title = VLC_TOOLTIP_NO_LINK;
+    if (pfdAltVal) pfdAltVal.title = VLC_TOOLTIP_NO_LINK;
+    if (pfdAirspeedVal) pfdAirspeedVal.title = VLC_TOOLTIP_NO_LINK;
     return;
   }
   const miniSpd = hudAirspeedEl?.closest('.tele-hud-mini');
@@ -6328,7 +6429,7 @@ function applyTopbarFlightData(mav) {
     hudAirspeedEl.textContent = (typeof spd === 'number' && Number.isFinite(spd))
       ? (useTile ? spd.toFixed(1) : `${spd.toFixed(1)} m/s`)
       : (useTile ? '--' : '-- m/s');
-    hudAirspeedEl.title = mav.airspeedIsGroundspeedProxy ? VLC_TOOLTIP_IAS_FROM_GS : '';
+    hudAirspeedEl.title = airspeedTileHonestyTitle(mav);
   }
   if (hudAltitudeEl) {
     const alt = mav.altitude;
@@ -16097,6 +16198,11 @@ function formatMissionDataValue(key, payload) {
     const meters = gpsVisionDeltaMeters(mapData?.gpsLat, mapData?.gpsLon, vision?.navLat, vision?.navLon);
     return Number.isFinite(meters) ? meters.toFixed(1) : '--';
   }
+  if (key === 'mavlink.gpsFixType') {
+    const fix = payload?.mavlink?.gpsFixType;
+    if (typeof fix !== 'number' || !Number.isFinite(fix)) return '--';
+    return GPS_FIX_LABELS[fix] ?? `Fix ${fix}`;
+  }
   if (key === 'mavlink.flightMode') {
     const raw = payload?.mavlink?.flightMode;
     return ARDUPILOT_PLANE_MODES[raw] ?? (payload?.mavlink?.connected ? `#${raw ?? '--'}` : '--');
@@ -16151,6 +16257,20 @@ function applyMissionDataGrid(payload) {
         const altTitle = altitudeTileHonestyTitle(payload?.mavlink || latestHudMavlink);
         valueEl.title = altTitle;
         item.title = altTitle;
+      } else if (slot.key === 'mavlink.airspeed' || valueEl.id === 'hudAirspeed') {
+        const spdTitle = airspeedTileHonestyTitle(payload?.mavlink || latestHudMavlink);
+        valueEl.title = spdTitle;
+        item.title = spdTitle;
+      } else if (slot.key === 'mavlink.gpsFixType' || slot.key === 'mavlink.gpsSats') {
+        const gpsTitle = hudFieldHonestyTitle('gps', payload?.mavlink || latestHudMavlink, payload?.mavlink?.gpsFixType);
+        valueEl.title = gpsTitle;
+        item.title = gpsTitle;
+      } else if (slot.key === 'mission.gpsVisionDelta' || valueEl.id === 'liveGpsVisionDelta') {
+        const deltaTitle = shown === '--'
+          ? hudFieldHonestyTitle('gpsVisionDelta', payload?.mavlink || latestHudMavlink, null)
+          : '';
+        valueEl.title = deltaTitle;
+        item.title = deltaTitle;
       }
     }
     const bar = item.querySelector('.confidence-fill');

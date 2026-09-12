@@ -84,18 +84,24 @@ function loadSizeFns() {
     sliceFunction(js, 'writeMissionSwap'),
     sliceFunction(js, 'shortMissionLinkReadout'),
     sliceFunction(js, 'altitudeIsFinite'),
+    sliceFunction(js, 'hudLinkLive'),
+    sliceFunction(js, 'hudFieldHonestyTitle'),
     sliceFunction(js, 'altitudeTileHonestyTitle'),
     "const VLC_TOOLTIP_HUD_TIME_SKEW = 'פער זמן בין חבילות MAVLink — ייתכן עיוות זמני בין אופק לשאר מדי ה-HUD.';",
-    "const VLC_TOOLTIP_ALT_WAITING = 'אין גובה מהבקר עדיין';",
+    "const VLC_TOOLTIP_NO_LINK = 'אין קישור';",
+    "const VLC_TOOLTIP_ALT_WAITING = 'מחובר אך אין גובה מהבקר עדיין';",
+    "const VLC_TOOLTIP_SPD_WAITING = 'מחובר אך אין מהירות מהבקר עדיין';",
+    "const VLC_TOOLTIP_GPS_WAITING = 'מחובר אך אין מיקום לוויין מהבקר עדיין';",
+    "const VLC_TOOLTIP_FIELD_WAITING = 'מחובר אך אין נתון מהבקר עדיין';",
     'return { defaultMissionSize, defaultMissionSwap, isLegacyDefaultMissionSize, missionAhRowPct, missionDataRowPx, readMissionSize, readMissionSwap, writeMissionSwap, altitudeTileHonestyTitle, shortMissionLinkReadout };',
   ].join('\n');
   return new Function(src)();
 }
 
 describe('Mission AH size bias + swap persistence', () => {
-  it('pins APP_VERSION at 1.02.308', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.308'");
-    expect(pkg.version).toBe('1.02.308');
+  it('pins APP_VERSION at 1.02.309', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.309'");
+    expect(pkg.version).toBe('1.02.309');
   });
 
   it('keeps mission-data labels and values on one ellipsized line', () => {
@@ -221,7 +227,7 @@ describe('Altitude tile honesty', () => {
       rollDeg: 1.2,
       pitchDeg: -4,
       altitude: null,
-    })).toBe('אין גובה מהבקר עדיין');
+    })).toBe('מחובר אך אין גובה מהבקר עדיין');
     expect(fns.altitudeTileHonestyTitle({
       connected: true,
       altitude: 88.4,
@@ -229,10 +235,10 @@ describe('Altitude tile honesty', () => {
     expect(fns.altitudeTileHonestyTitle({
       connected: false,
       altitude: null,
-    })).toBe('אין גובה מהבקר עדיין');
-    expect(fns.altitudeTileHonestyTitle(null)).toBe('אין גובה מהבקר עדיין');
-    expect(html).toMatch(/id="hudAltitude"[^>]*title="אין גובה מהבקר עדיין"/);
-    expect(js).toContain("const VLC_TOOLTIP_ALT_WAITING = 'אין גובה מהבקר עדיין'");
+    })).toBe('אין קישור');
+    expect(fns.altitudeTileHonestyTitle(null)).toBe('אין קישור');
+    expect(html).toMatch(/id="hudAltitude"[^>]*title="אין קישור"/);
+    expect(js).toContain("const VLC_TOOLTIP_ALT_WAITING = 'מחובר אך אין גובה מהבקר עדיין'");
     expect(sliceFunction(js, 'applyTopbarFlightData')).toContain('altitudeTileHonestyTitle(mav)');
     expect(sliceFunction(js, 'applyTopbarFlightData')).toContain("useTile ? '--'");
     expect(sliceFunction(js, 'applyMissionDataGrid')).toContain('hudAltitude');
@@ -274,7 +280,8 @@ describe('HUD message-interval request (no flight commands)', () => {
     ]));
     expect(frames.map((f) => f.msgId)).toEqual([MSG_REQUEST_DATA_STREAM]);
     expect(core).toContain('requestHudMessageRates()');
-    expect(core).toContain('conn.requestHudMessageRates()');
+    expect(core).toContain('maybeRequestHudRatesOnHeartbeat()');
+    expect(core).toContain('conn.maybeRequestHudRatesOnHeartbeat()');
     expect(core).toContain('scheduleHudMessageRatesRetry(2000)');
     expect(core).toContain('buildSetMessageIntervalPayload');
     expect(core).toContain('MAV_CMD_SET_MESSAGE_INTERVAL');
@@ -285,7 +292,7 @@ describe('HUD message-interval request (no flight commands)', () => {
     expect(method).toContain('_preferredTxVersion === 2');
     expect(method).toContain('MSG_COMMAND_LONG');
     expect(method).toContain('MSG_REQUEST_DATA_STREAM');
-    expect(core.indexOf('conn.requestHudMessageRates();')).toBeGreaterThan(core.indexOf('hudRatesOnHeartbeat = true'));
+    expect(core.indexOf('conn.maybeRequestHudRatesOnHeartbeat();')).toBeGreaterThan(core.indexOf('scheduleParamPull(400)'));
     expect(iv.readUInt16LE(2)).not.toBe(400);
     expect(iv.readUInt16LE(2)).not.toBe(176);
   });
