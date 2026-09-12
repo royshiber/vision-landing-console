@@ -4,9 +4,9 @@
     "date": "2026-09-12",
     "changes": [
       {
-        "type": "test",
-        "title": "Tests",
-        "detail": "optical-nav-display.test.mjs"
+        "type": "feat",
+        "title": "Display-only GPS | optical nav toggle",
+        "detail": "APP_VERSION 1.02.301. After master 1.02.299 (#119). Mission chrome has a compact GPS | אופטי display preference persisted in localStorage. Display and logging only — does not switch FC/EKF nav source. Map still shows both real tracks when GPS and optical WGS84 exist. Optical status stays -- unless camera_ok, estimator running, and a real position are reported. Companion observe-only status adds optical_nav (present, running, camera_ok, alt_ceiling_m=300, position/velocity null, ekf_injected false, dual-camera hooks shared with landing). Agent 2.3.3 stub never invents a fix. No ARM/LAND and no Companion apply/restart."
       }
     ]
   },
