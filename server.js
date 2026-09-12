@@ -178,10 +178,10 @@ function renderIndexHtml() {
   }
 }
 app.get(['/', '/index.html'], (_req, res) => {
-  res.type('html').set('Cache-Control', 'no-cache').send(renderIndexHtml());
+  res.type('html').set('Cache-Control', 'no-store, no-cache, must-revalidate').send(renderIndexHtml());
 });
 
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public'), { index: false }));
 
 /** Why: catch any unhandled errors thrown in route handlers. What: logs the error and returns a safe 500 JSON response. */
 app.use((err, req, res, _next) => {

@@ -7,6 +7,46 @@ const APP_VERSION_NEW = (() => {
 })();
 
 /**
+ * Classic script + mid-file `let` caused TDZ ReferenceErrors
+ * (assistPendingProposalId, terrainMap, latestJetsonFromServer) when SSE
+ * fired before the rest of app.js finished parsing. EventSource never opened.
+ * `var` at the top is initialized immediately (no TDZ).
+ */
+var latestVisionFromServer = null;
+var latestCompanionFromServer = null;
+var latestJetsonFromServer = null;
+var lastSseTerrainPayload = null;
+var terrainMap = null;
+var jetsonTelemetryMap = null;
+var jetsonStreetLayer = null;
+var terrainFlightLayers = { gps: null, vision: null, home: null, mission: null, replayTrack: null };
+var jetsonFlightLayers = { gps: null, vision: null, home: null, mission: null, replayTrack: null };
+var simLabReplayTrackPts = null;
+var simLabReplayMapSample = null;
+var showLoadedMissionPath = false;
+var assistPendingProposalId = null;
+var _assistPendingProposalId = null;
+function setAssistPendingProposalId(id) {
+  assistPendingProposalId = id;
+  _assistPendingProposalId = id;
+}
+
+(function syncHtmlCacheBustToServerVersion() {
+  const page = String(APP_VERSION_NEW || '').replace(/^v/i, '').trim();
+  fetch('/api/meta', { cache: 'no-store' }).then((r) => r.json()).then((d) => {
+    const live = String(d.appVersion || '').replace(/^v/i, '').trim();
+    if (!live || !page || live === page || page === '0.0.0') return;
+    const key = 'vlc.html-version-reload';
+    try {
+      if (sessionStorage.getItem(key) === live) return;
+      sessionStorage.setItem(key, live);
+    } catch { /* ignore quota */ }
+    console.warn('Stale HTML cache-bust', page, '→', live, '— reloading');
+    location.reload();
+  }).catch((err) => { console.warn('app version sync failed', err); });
+})();
+
+/**
  * Why: accidental browser zoom (Ctrl +/- / wheel) breaks dense cockpit layout proportions.
  * What: block accidental zoom-in/out shortcuts (leave Ctrl+0 available for reset).
  */
@@ -2201,10 +2241,7 @@ function renderJetsonVersionNotes() {
   diffEl.textContent = `מעבר מ־${inst} ל־${sel}. בגרסה היעד: ${rel.notesHe} · במה שרץ עכשיו: ${prevRel?.notesHe || 'אין תיאור במאגר לגרסה הנוכחית.'}`;
 }
 
-/** Why: keep latest SSE-delivered telemetry accessible to the confidence-bar simulation. What: updated by SSE handler; read by the 1s sim interval. */
-let latestVisionFromServer = null;
-let latestCompanionFromServer = null;
-let latestJetsonFromServer = null;
+/** Why: keep latest SSE-delivered telemetry accessible to the confidence-bar simulation. What: updated by SSE handler; declared at top of app.js (no TDZ). */
 
 /** Why: one fetch for manual refresh button (no need for polling anymore). What: pulls jetson status once on demand. */
 async function refreshJetsonStatus() {
@@ -5669,21 +5706,23 @@ function applySseTelemetryPayload(payload) {
 
 /** Why: single SSE connection replaces all client-side polling (vision 500ms + jetson 5s) with server-pushed 300ms events. What: EventSource from /api/stream; on 'telemetry' event updates all UI components and shared state. */
 (function startSseStream() {
-  void hydrateLiveConsoleOnBoot();
-  const src = new EventSource('/api/stream');
-  src.addEventListener('telemetry', (e) => {
-    try {
-      const payload = JSON.parse(e.data);
-      applySseTelemetryPayload(payload);
-    } catch (err) {
-      console.warn('SSE telemetry apply failed', err);
-    }
-  });
-  src.onerror = () => {
-    // SSE disconnected; mark as offline and retry automatically (browser reconnects)
-    if (jetsonStatusDot) jetsonStatusDot.className = 'status-dot offline';
-    jetsonWasOnlinePrev = false;
+  const boot = () => {
+    void hydrateLiveConsoleOnBoot();
+    const src = new EventSource('/api/stream');
+    src.addEventListener('telemetry', (e) => {
+      try {
+        const payload = JSON.parse(e.data);
+        applySseTelemetryPayload(payload);
+      } catch (err) {
+        console.warn('SSE telemetry apply failed', err);
+      }
+    });
+    src.onerror = () => {
+      if (jetsonStatusDot) jetsonStatusDot.className = 'status-dot offline';
+      jetsonWasOnlinePrev = false;
+    };
   };
+  queueMicrotask(boot);
 })();
 
 const flightSelect = document.getElementById('flightSelect');
@@ -7741,31 +7780,13 @@ const terrainClearBtn = document.getElementById('terrainClearBtn');
 const terrainCellCount = document.getElementById('terrainCellCount');
 const terrainAreaEst = document.getElementById('terrainAreaEst');
 
-let terrainMap = null;
 let terrainStreetLayer = null;
 let terrainSatLayer = null;
 let terrainCircles = [];
 let terrainLastCells = [];
 let terrainMappedOnly = false;
 let terrainActiveBase = 'street';
-
-/** @type {object | null} */
-let lastSseTerrainPayload = null;
-/** Set true after successful "הצג נתיב טעון" — draws home + mission on maps. */
-let showLoadedMissionPath = false;
-
-const jetsonTelemetryMap = null; // map removed from telemetry tab
-const jetsonStreetLayer = null;
-
-/** @type {{ gps: L.Marker | null, vision: L.Marker | null, home: L.CircleMarker | null, mission: L.Polyline | null, replayTrack: L.Polyline | null }} */
-const terrainFlightLayers = { gps: null, vision: null, home: null, mission: null, replayTrack: null };
-/** @type {{ gps: L.Marker | null, vision: L.Marker | null, home: L.CircleMarker | null, mission: L.Polyline | null, replayTrack: L.Polyline | null }} */
-const jetsonFlightLayers = { gps: null, vision: null, home: null, mission: null, replayTrack: null };
-
-/** Sim-lab .tlog replay — optional polyline + GPS marker overlay on terrain map. */
-let simLabReplayTrackPts = null;
-/** @type {{ gpsLat: number, gpsLon: number, globalHdgDeg?: number | null } | null} */
-let simLabReplayMapSample = null;
+/** terrainMap / lastSseTerrainPayload / overlay layers: declared at top of app.js (no TDZ). */
 
 const liveGpsVisionDeltaEl = document.getElementById('liveGpsVisionDelta');
 
@@ -13773,7 +13794,6 @@ const ASSIST_TAB_CAPABILITY = {
   flightEngineer: 'voice',
 };
 
-let _assistPendingProposalId = null;
 let _assistPendingBrief = null;
 let _assistHistory = [];
 let _assistRunPoll = null;
@@ -14089,7 +14109,7 @@ function assistSetProposalBar(response) {
   const brief = response?.capability_brief || proposal?.payload?.capability_brief || null;
   const isCap = proposal?.action === 'CREATE_DEVELOPMENT_TASK' && !!brief;
   if (response?.requires_confirmation && proposal?.id) {
-    _assistPendingProposalId = proposal.id;
+    setAssistPendingProposalId(proposal.id);
     _assistPendingBrief = isCap ? brief : null;
     textEl.textContent = response.answer || 'לאשר את הפעולה?';
     bar.hidden = false;
@@ -14102,7 +14122,7 @@ function assistSetProposalBar(response) {
       if (genericActions) genericActions.hidden = false;
     }
   } else {
-    _assistPendingProposalId = null;
+    setAssistPendingProposalId(null);
     _assistPendingBrief = null;
     bar.hidden = true;
     if (briefEl) briefEl.hidden = true;
