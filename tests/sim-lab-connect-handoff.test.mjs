@@ -110,13 +110,15 @@ describe('SITL connect handoff — no Assist lab route', () => {
     expect(resolveAssistIntent('sitl').slots?.route_id).not.toBe('lab');
     expect(resolveAssistIntent('סימולציה').slots?.route_id).not.toBe('lab');
     expect(resolveAssistIntent('Add a tab for landing confidence.').intent).toBe('DEVELOPMENT');
-    expect(resolveAssistIntent('Change param LAND_SPEED to 5').prohibited).toBe(true);
+    const param = resolveAssistIntent('Change param LAND_SPEED to 5');
+    expect(param.intent).toBe('FLIGHT_PARAM');
+    expect(param.slots.action).toBe('PROPOSE_PARAM_CHANGE');
   });
 });
 
 describe('SITL Lab connect handoff — version pin', () => {
-  it('pins APP_VERSION at 1.02.303', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.303'");
-    expect(pkg.version).toBe('1.02.303');
+  it('pins APP_VERSION at 1.02.304', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.304'");
+    expect(pkg.version).toBe('1.02.304');
   });
 });

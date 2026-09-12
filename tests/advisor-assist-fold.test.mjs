@@ -111,7 +111,10 @@ describe('Advisor → Assist fold — intent routing', () => {
     expect(resolveAssistIntent('What is the GPS status?').intent).toBe('QUESTION');
     expect(resolveAssistIntent('הערה: הסחף ימינה').intent).toBe('NOTE');
     expect(resolveAssistIntent('Add a tab for landing confidence.').intent).toBe('DEVELOPMENT');
-    expect(resolveAssistIntent('Change param LAND_SPEED to 5').prohibited).toBe(true);
+    const param = resolveAssistIntent('Change param LAND_SPEED to 5');
+    expect(param.prohibited).toBeFalsy();
+    expect(param.intent).toBe('FLIGHT_PARAM');
+    expect(param.slots.action).toBe('PROPOSE_PARAM_CHANGE');
   });
 });
 
@@ -192,7 +195,7 @@ describe('Advisor → Assist fold — chrome', () => {
     expect(css).toMatch(/\.advisor-assist-fold\b/);
     expect(css).toMatch(/\.assist-quick-chip\[hidden\]/);
     expect(js).toMatch(/function attentionSyncAssistChrome\(/);
-    expect(js).toContain("ASSIST_MISSION_HINT_HE = 'הטסה. הערה ותצפית בלבד.'");
+    expect(js).toContain("ASSIST_MISSION_HINT_HE = 'הטסה. שינוי דורש אישור.'");
   });
 
   it('does not add flight-command, apply, restart, or secret paths', () => {
@@ -204,8 +207,8 @@ describe('Advisor → Assist fold — chrome', () => {
     expect(html).not.toMatch(/id="companionApplyBtn"|id="companionRestartBtn"/);
   });
 
-  it('pins APP_VERSION at 1.02.303', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.303'");
-    expect(pkg.version).toBe('1.02.303');
+  it('pins APP_VERSION at 1.02.304', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.304'");
+    expect(pkg.version).toBe('1.02.304');
   });
 });

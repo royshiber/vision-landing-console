@@ -1,5 +1,21 @@
 [
   {
+    "version": "1.02.304",
+    "date": "2026-09-12",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "AIRVIX Ask spoken flight intents with per-action confirm",
+        "detail": "APP_VERSION 1.02.304. Roy lock ask_voice_flight_confirm_always: Ask accepts spoken/typed Hebrew and English flight intents. Safe param sets become confirm-required proposals (button or מאשר/confirm) and apply only through the existing engineer path. ARM / DISARM / LAND / RTL / auto-land / live EKF-nav switch stay blocked with Hebrew Human Gate copy and never call FC command APIs. Quiet-by-default suggestions (disconnect, missing alt, camera absent, recording off, optical --) need Approve/Dismiss. No invented telemetry. No Companion apply/restart."
+      },
+      {
+        "type": "test",
+        "title": "Tests",
+        "detail": "ask-flight-intents.test.mjs plus assist/mission-posture/fold updates for propose+confirm."
+      }
+    ]
+  },
+  {
     "version": "1.02.302",
     "date": "2026-09-12",
     "changes": [
