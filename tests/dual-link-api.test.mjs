@@ -134,6 +134,11 @@ describe('dual-link HTTP API', () => {
     expect(j.priority.flight).toBe(0);
     expect(j.recording.armed).toBe(false);
     expect(j.recording.session).toBeNull();
+    expect(j.sessionBytes).toBeNull();
+    expect(j.sessionFrames).toBeNull();
+    expect(j.lastWriteError).toBeNull();
+    expect(j.droppedWrites).toBe(0);
+    expect(j.linkUp).toBe(false);
     const dl = await fetch(`${base}/api/telemetry-archive/downlink`, { method: 'POST' });
     const body = await dl.json();
     expect(body.stub).toBe(true);
@@ -177,10 +182,15 @@ describe('dual-link HTTP API', () => {
     expect(started.ok).toBe(true);
     expect(started.recording.armed).toBe(true);
     expect(started.recording.session.storedPath).toMatch(/\.tlog$/);
+    expect(started.warnHe).toMatch(/יישאר ריק/);
     const getArmed = await fetch(`${base}/api/telemetry-archive`);
     const armedJson = await getArmed.json();
     expect(armedJson.recording.armed).toBe(true);
     expect(armedJson.recording.session).toBeTruthy();
+    expect(armedJson.sessionBytes).toBe(0);
+    expect(armedJson.sessionFrames).toBe(0);
+    expect(armedJson.lastWriteError).toBeNull();
+    expect(armedJson.droppedWrites).toBe(0);
     const stop = await fetch(`${base}/api/telemetry-archive/stop`, { method: 'POST' });
     const stopped = await stop.json();
     expect(stop.status).toBe(200);
@@ -188,6 +198,9 @@ describe('dual-link HTTP API', () => {
     expect(stopped.recording.armed).toBe(false);
     expect(stopped.closed.storedPath).toBe(started.recording.session.storedPath);
     expect(stopped.closed.bytes).toBe(0);
+    expect(stopped.empty).toBe(true);
+    expect(stopped.warnHe).toMatch(/לא נשמרה באית/);
+    expect(stopped.messageHe).toMatch(/לא נשמרה באית/);
     const getIdle = await fetch(`${base}/api/telemetry-archive`);
     const idleJson = await getIdle.json();
     expect(idleJson.recording.armed).toBe(false);

@@ -9,6 +9,11 @@ import {
   createTelemetryArchive,
   describeTelemetryArchive,
   TELEMETRY_ARCHIVE_REL,
+  finalizeOrphanArchiveRows,
+  operatorArchiveFeedback,
+  missionRecordCue,
+  zeroByteStopWarn,
+  ARCHIVE_COPY_HE,
 } from '../lib/telemetry-archive.mjs';
 
 describe('telemetry archive backpressure', () => {
@@ -121,5 +126,124 @@ describe('telemetry archive backpressure', () => {
     expect(discarded.discarded).toBe(true);
     expect(archive.isRecording()).toBe(false);
     expect(fs.existsSync(start.session.storedPath)).toBe(false);
+  });
+
+  it('sets recordingArmed only after openSession succeeds and rolls back on failure', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'vlc-archive-arm-'));
+    const db = {
+      prepare(sql) {
+        if (String(sql).includes('INSERT')) throw new Error('insert fail');
+        return { all: () => [], run: () => ({ lastInsertRowid: 0 }) };
+      },
+    };
+    const archive = createTelemetryArchive({ rootDir: root, db });
+    const start = archive.startRecording({ linkRole: 'radio' });
+    expect(start.ok).toBe(false);
+    expect(archive.isRecording()).toBe(false);
+    expect(archive.hasSession()).toBe(false);
+    expect(start.recording.armed).toBe(false);
+    const files = fs.readdirSync(path.join(root, 'flights', 'archive'));
+    expect(files.filter((n) => n.endsWith('.tlog'))).toEqual([]);
+  });
+
+  it('finalizes orphan telemetry_archive rows on boot', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'vlc-archive-orphan-'));
+    const dbPath = path.join(root, 'index.sqlite');
+    const db = openDatabase(dbPath);
+    const ins = db.prepare(
+      `INSERT INTO telemetry_archive (flight_id, link_role, stored_path, bytes, frames, downlink_state)
+       VALUES (?,?,?,?,?,?)`,
+    ).run(null, 'radio', path.join(root, 'orphan.tlog'), 0, 0, 'local');
+    const rowId = Number(ins.lastInsertRowid);
+    expect(db.prepare('SELECT ended_at FROM telemetry_archive WHERE id = ?').get(rowId).ended_at).toBeNull();
+    const archive = createTelemetryArchive({ rootDir: root, db });
+    expect(archive.bootOrphans.finalized).toBe(1);
+    const row = db.prepare('SELECT ended_at, downlink_state FROM telemetry_archive WHERE id = ?').get(rowId);
+    expect(row.ended_at).toBeTruthy();
+    expect(row.downlink_state).toBe('interrupted');
+    const again = finalizeOrphanArchiveRows(db);
+    expect(again.finalized).toBe(0);
+    db.close();
+  });
+
+  it('zero-byte Stop still closes and warns that nothing was recorded', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'vlc-archive-empty-'));
+    const archive = createTelemetryArchive({ rootDir: root, db: null });
+    const start = archive.startRecording({ linkRole: 'radio' });
+    const stop = archive.stopRecording();
+    expect(stop.ok).toBe(true);
+    expect(stop.closed.storedPath).toBe(start.session.storedPath);
+    expect(stop.closed.bytes).toBe(0);
+    expect(stop.empty).toBe(true);
+    expect(stop.warnHe).toBe(ARCHIVE_COPY_HE.stopEmpty);
+    expect(fs.existsSync(start.session.storedPath)).toBe(true);
+    expect(zeroByteStopWarn({ closed: { bytes: 0 } }).empty).toBe(true);
+    expect(zeroByteStopWarn({ closed: { bytes: 12 } }).warnHe).toBeNull();
+  });
+
+  it('records lastWriteError on drain failure and counts backpressure drops', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'vlc-archive-err-'));
+    const archive = createTelemetryArchive({ rootDir: root, db: null, maxPending: 1 });
+    const start = archive.startRecording({ linkRole: 'radio' });
+    expect(archive.appendRaw(Buffer.from([0xfe])).accepted).toBe(true);
+    const dropped = archive.appendRaw(Buffer.from([0xfd]));
+    expect(dropped.accepted).toBe(false);
+    expect(dropped.reason).toBe('archive_backpressure');
+    expect(archive.recordingState().droppedWrites).toBe(1);
+    expect(archive.describe(false).droppedWrites).toBe(1);
+    fs.closeSync(start.session.handle);
+    archive.drain();
+    expect(archive.recordingState().lastWriteError).toBeTruthy();
+    expect(archive.recordingState().lastWriteError.message).toBeTruthy();
+    archive.stopRecording();
+  });
+});
+
+describe('archive honesty helpers', () => {
+  it('never paints success when start/stop HTTP or ok is false', () => {
+    const fail = operatorArchiveFeedback({
+      ok: false,
+      httpOk: true,
+      messageHe: ARCHIVE_COPY_HE.startFail,
+    });
+    expect(fail.paintRecording).toBe(false);
+    expect(fail.kind).toBe('error');
+    expect(fail.textHe).toBe(ARCHIVE_COPY_HE.startFail);
+    const http = operatorArchiveFeedback({ httpOk: false, messageHe: null });
+    expect(http.paintRecording).toBe(false);
+    expect(http.textHe).toBe(ARCHIVE_COPY_HE.httpFail);
+    const warn = operatorArchiveFeedback({
+      ok: true,
+      httpOk: true,
+      messageHe: ARCHIVE_COPY_HE.startOk,
+      warnHe: ARCHIVE_COPY_HE.startNoLink,
+    });
+    expect(warn.paintRecording).toBe(true);
+    expect(warn.kind).toBe('warn');
+    expect(warn.textHe).toBe(ARCHIVE_COPY_HE.startNoLink);
+  });
+
+  it('builds a stall cue from real bytes only', () => {
+    const idle = missionRecordCue({ armed: false, bytes: 12 });
+    expect(idle.visible).toBe(false);
+    expect(idle.labelHe).toBeNull();
+    const live = missionRecordCue({ armed: true, bytes: 128, lastBytes: 64, lastChangeAt: 1, now: 2, linkUp: true });
+    expect(live.visible).toBe(true);
+    expect(live.stalled).toBe(false);
+    expect(live.labelHe).toBe('128 ב');
+    const stall = missionRecordCue({
+      armed: true,
+      bytes: 128,
+      lastBytes: 128,
+      lastChangeAt: 1,
+      now: 9000,
+      linkUp: true,
+    });
+    expect(stall.stalled).toBe(true);
+    expect(stall.labelHe).toMatch(/תקוע/);
+    const down = missionRecordCue({ armed: true, bytes: 0, lastBytes: 0, lastChangeAt: 1, now: 2, linkUp: false });
+    expect(down.stalled).toBe(true);
+    expect(down.labelHe).toMatch(/אין קישור/);
+    expect(down.bytesHe).toBe('0 ב');
   });
 });

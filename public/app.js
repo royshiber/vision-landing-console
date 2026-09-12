@@ -16198,15 +16198,97 @@ initFlightArchiveRecord();
 function initFlightArchiveRecord() {
   const btn = document.getElementById('missionRecordBtn');
   if (!btn) return;
+  const cueEl = document.getElementById('missionRecordCue');
+  const statusEl = document.getElementById('missionRecordStatus');
   let armed = false;
   let busy = false;
+  let lastBytes = null;
+  let lastChangeAt = 0;
+  let statusTimer = 0;
 
-  function paint(rec) {
+  function archiveOperatorFeedback(j, httpOk, fallbackHe) {
+    if (httpOk === false || j?.ok === false) {
+      return {
+        kind: 'error',
+        textHe: String(j?.messageHe || fallbackHe || 'אין תשובה מהשרת. ההקלטה לא השתנתה.'),
+        paintRecording: false,
+      };
+    }
+    if (j?.warnHe) return { kind: 'warn', textHe: String(j.warnHe), paintRecording: true };
+    return {
+      kind: 'ok',
+      textHe: j?.messageHe ? String(j.messageHe) : null,
+      paintRecording: true,
+    };
+  }
+
+  function formatArchiveBytesHe(bytes) {
+    const n = Number(bytes);
+    if (!Number.isFinite(n) || n < 0) return null;
+    if (n < 1024) return `${Math.round(n)} ב`;
+    const kb = n / 1024;
+    const shown = kb >= 10 ? String(Math.round(kb)) : String(kb.toFixed(1)).replace(/\.0$/, '');
+    return `${shown} ק״ב`;
+  }
+
+  function showRecordStatus(kind, textHe) {
+    if (!statusEl) return;
+    if (!textHe) {
+      statusEl.hidden = true;
+      statusEl.textContent = '';
+      return;
+    }
+    statusEl.hidden = false;
+    statusEl.dataset.kind = kind || 'ok';
+    statusEl.textContent = textHe;
+    if (statusTimer) window.clearTimeout(statusTimer);
+    statusTimer = window.setTimeout(() => {
+      statusEl.hidden = true;
+    }, 5000);
+  }
+
+  function paintCue(rec, extra = {}) {
+    if (!cueEl) return;
+    if (!armed) {
+      lastBytes = null;
+      lastChangeAt = 0;
+      cueEl.hidden = true;
+      cueEl.textContent = '';
+      cueEl.removeAttribute('data-stall');
+      return;
+    }
+    const bytes = rec?.session ? Number(rec.session.bytes) || 0 : null;
+    const now = Date.now();
+    if (Number.isFinite(bytes) && (lastBytes == null || bytes !== lastBytes)) {
+      lastBytes = bytes;
+      lastChangeAt = now;
+    }
+    const bytesHe = Number.isFinite(bytes) ? formatArchiveBytesHe(bytes) : null;
+    const flat = Number.isFinite(bytes)
+      && lastBytes != null
+      && bytes === lastBytes
+      && lastChangeAt > 0
+      && (now - lastChangeAt) >= 8000;
+    const down = extra.linkUp === false;
+    const writeErr = Boolean(rec?.lastWriteError || extra.lastWriteError);
+    const stalled = flat || down || writeErr;
+    let labelHe = bytesHe;
+    if (writeErr) labelHe = bytesHe ? `שגיאת כתיבה · ${bytesHe}` : 'שגיאת כתיבה';
+    else if (down) labelHe = bytesHe ? `אין קישור · ${bytesHe}` : 'אין קישור';
+    else if (flat) labelHe = bytesHe ? `תקוע · ${bytesHe}` : 'תקוע';
+    cueEl.hidden = !labelHe;
+    cueEl.textContent = labelHe || '';
+    if (stalled) cueEl.dataset.stall = '1';
+    else cueEl.removeAttribute('data-stall');
+  }
+
+  function paint(rec, extra = {}) {
     armed = !!rec?.armed;
     btn.dataset.recording = armed ? '1' : '0';
     btn.setAttribute('aria-pressed', armed ? 'true' : 'false');
     btn.textContent = armed ? 'מקליט' : 'הקלטה';
     btn.title = armed ? 'הקלטה פעילה לחצו לעצירה' : 'התחילו שמירת טיסה לארכיון';
+    paintCue(rec, extra);
   }
 
   async function refresh() {
@@ -16214,7 +16296,7 @@ function initFlightArchiveRecord() {
       const r = await fetch('/api/telemetry-archive', { cache: 'no-store' });
       if (!r.ok) return;
       const j = await r.json();
-      if (j?.recording) paint(j.recording);
+      if (j?.recording) paint(j.recording, { linkUp: j.linkUp, lastWriteError: j.lastWriteError });
     } catch {
       /* keep last paint */
     }
@@ -16224,6 +16306,7 @@ function initFlightArchiveRecord() {
     if (busy) return;
     busy = true;
     btn.disabled = true;
+    const starting = !armed;
     try {
       const path = armed ? '/api/telemetry-archive/stop' : '/api/telemetry-archive/start';
       const r = await fetch(path, {
@@ -16232,9 +16315,19 @@ function initFlightArchiveRecord() {
         body: '{}',
       });
       const j = await r.json().catch(() => ({}));
-      if (j?.recording) paint(j.recording);
-      else await refresh();
+      const feedback = archiveOperatorFeedback(
+        j,
+        r.ok,
+        starting ? 'לא הצלחנו לפתוח קובץ הקלטה.' : 'לא הצלחנו לעצור את ההקלטה.',
+      );
+      if (feedback.paintRecording && j?.recording) {
+        paint(j.recording, { linkUp: j.linkUp, lastWriteError: j.lastWriteError });
+      } else {
+        await refresh();
+      }
+      showRecordStatus(feedback.kind, feedback.textHe);
     } catch {
+      showRecordStatus('error', 'אין תשובה מהשרת. ההקלטה לא השתנתה.');
       await refresh();
     } finally {
       busy = false;
