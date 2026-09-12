@@ -65,7 +65,7 @@ Merge autonomy still on for independently VERIFIED safe draft PRs. Hard safety s
 ## Audit snapshot — 2026-09-12 (P2.1 camera / runway probe)
 
 **Master tip before this draft:** `1.02.284` @ `7441ec3` (#102 readiness + #99 companion MAVLink relay).  
-**This draft:** Honest camera/vision probe on the preferred readiness matrix. Display only.
+**This draft:** Honest camera/vision probe on the preferred readiness matrix. `APP_VERSION` **1.02.285**. Display only.
 
 ### Landed
 
