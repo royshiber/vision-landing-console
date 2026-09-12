@@ -205,6 +205,8 @@ describe('camera install UI copy', () => {
     expect(html).toContain('id="cameraInstallChecklist"');
     expect(html.indexOf('id="cameraInstallChecklist"')).toBeGreaterThan(html.indexOf('id="visionLandingReadinessList"'));
     expect(js).toContain('function renderCameraInstallChecklist');
+    expect(js).toContain('function cameraInstallBusy');
+    expect(js).toMatch(/tag === 'input' \|\| tag === 'textarea'/);
     expect(js).toContain('אישור ביצעתי');
     expect(js).toContain('קדמית');
     expect(js).toContain('מטה');

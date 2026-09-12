@@ -3768,7 +3768,9 @@ function paintPlndProfileHonesty(snapshot) {
 
 function cameraInstallBusy() {
   const active = document.activeElement;
-  return Boolean(active && active.closest && active.closest('.cic-panel'));
+  if (!active || !active.closest || !active.closest('.cic-panel')) return false;
+  const tag = String(active.tagName || '').toLowerCase();
+  return tag === 'input' || tag === 'textarea';
 }
 
 function currentCameraInstallOperator(checklist) {
