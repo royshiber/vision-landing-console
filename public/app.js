@@ -3567,11 +3567,19 @@ let latestVisionLandingReadiness = null;
 function renderVisionLandingReadiness(container, snapshot) {
   if (!container) return;
   container.innerHTML = '';
-  if (container.id === 'pfdReadinessBody' && snapshot?.purposeHe) {
-    const purpose = document.createElement('p');
-    purpose.className = 'vlr-purpose';
-    purpose.textContent = snapshot.purposeHe;
-    container.appendChild(purpose);
+  if (container.id === 'pfdReadinessBody') {
+    if (snapshot?.purposeHe) {
+      const purpose = document.createElement('p');
+      purpose.className = 'vlr-purpose';
+      purpose.textContent = snapshot.purposeHe;
+      container.appendChild(purpose);
+    }
+    if (snapshot?.successHe) {
+      const success = document.createElement('p');
+      success.className = 'vlr-success';
+      success.textContent = snapshot.successHe;
+      container.appendChild(success);
+    }
   }
   const rows = Array.isArray(snapshot?.rows) ? snapshot.rows : [];
   for (const row of rows) {
@@ -3580,6 +3588,9 @@ function renderVisionLandingReadiness(container, snapshot) {
     art.dataset.id = String(row.id || '');
     art.dataset.state = String(row.state || '');
     art.dataset.tone = String(row.tone || 'off');
+    art.dataset.stage = String(row.stage || 'experiment_1');
+    art.dataset.required = row.requiredForExperiment1 === false ? 'false' : 'true';
+    if (row.successCriterion) art.dataset.success = 'true';
     const name = document.createElement('span');
     name.className = 'vlr-name';
     name.textContent = row.nameHe || '';
@@ -3611,6 +3622,8 @@ function paintVisionLandingReadiness(snapshot) {
   latestVisionLandingReadiness = snapshot;
   const purposeEl = document.querySelector('#visionLandingReadiness .vlr-purpose');
   if (purposeEl && snapshot.purposeHe) purposeEl.textContent = snapshot.purposeHe;
+  const successEl = document.querySelector('#visionLandingReadiness .vlr-success');
+  if (successEl && snapshot.successHe) successEl.textContent = snapshot.successHe;
   renderVisionLandingReadiness(document.getElementById('visionLandingReadinessList'), snapshot);
   const popoverOpen = pfdReadinessPopover && !pfdReadinessPopover.classList.contains('hidden');
   if (popoverOpen) renderVisionLandingReadiness(pfdReadinessBody, snapshot);

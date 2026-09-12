@@ -4845,6 +4845,12 @@ body:has(#pulse.panel.visible) .layout {
   font-weight: 600;
   color: #8b97ab;
 }
+.vlr-success {
+  margin: 0;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #a8b4c8;
+}
 .vlr-list {
   display: flex;
   flex-direction: column;
@@ -4897,9 +4903,13 @@ body:has(#pulse.panel.visible) .layout {
   color: #fca5a5;
 }
 .vlr-row[data-tone="off"] .vlr-chip,
-.vlr-row[data-tone="closed"] .vlr-chip {
+.vlr-row[data-tone="closed"] .vlr-chip,
+.vlr-row[data-tone="later"] .vlr-chip {
   background: rgba(148, 168, 198, 0.1);
   color: #94a3b8;
+}
+.vlr-row[data-stage="later"] {
+  opacity: 0.86;
 }
 .vlr-missing {
   grid-area: missing;
