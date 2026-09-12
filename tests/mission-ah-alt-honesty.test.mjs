@@ -89,7 +89,8 @@ describe('Mission AH size bias + swap persistence', () => {
     expect(fns.missionDataRowPx(size.r2)).toBe(72);
     expect(css).toMatch(/--mission-ah-row:\s*66%/);
     expect(css).toMatch(/\.mission-region-horizon \.flight-hud \{[^}]*min-height:\s*52%/);
-    expect(css).toMatch(/\.mission-region-horizon \.flight-hud \{[^}]*max-height:\s*70%/);
+    expect(css).toMatch(/\.mission-region-horizon \.flight-hud \{[^}]*max-height:\s*calc\(100% - var\(--mission-data-h/);
+    expect(css).toMatch(/\.mission-region-horizon \.flight-hud \{[^}]*flex:\s*1 1 auto/);
     expect(css).toMatch(/max-height:\s*var\(--mission-data-h, 72px\)/);
     expect(sliceFunction(js, 'applyMissionSize')).toContain('--mission-ah-row');
     expect(sliceFunction(js, 'applyMissionSize')).toContain('--mission-data-h');

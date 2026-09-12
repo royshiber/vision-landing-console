@@ -9780,8 +9780,8 @@ html[data-evolve-preview="1"] #development {
 }
 
 /* Layout contract v2: map owns the workspace (≥65% height, majority width).
-   AH column is a flex stack: taller PFD + readable data strip + leftover filler.
-   PFD reclaim empty gap (~52–70% of the AH column). Data strip ≥ 64px.
+   AH column is a flex stack: taller PFD + readable data strip + messages.
+   PFD grows into leftover gap (min 52%). Data strip ≥ 64px.
    Messages sit in the AH stack — never an overlay on the map.
    map-horizon also swaps column tracks so the map keeps 1fr.
    Talk composer stays a panel, never a sliver. Gap ≤ 4px. */
@@ -9927,7 +9927,7 @@ html[data-evolve-preview="1"] #development {
   height: var(--mission-msg-h);
   min-height: 40px;
   flex: 0 0 auto;
-  margin-top: auto;
+  margin-top: 0;
   pointer-events: auto;
 }
 .mission-region[data-mission-region="talk"] {
@@ -10494,8 +10494,8 @@ html[data-evolve-preview="1"] #development {
 .mission-region-horizon .flight-hud {
   height: var(--mission-ah-row, 66%);
   min-height: 52%;
-  max-height: 70%;
-  flex: 0 0 auto;
+  max-height: calc(100% - var(--mission-data-h, 72px) - var(--mission-msg-h, 40px));
+  flex: 1 1 auto;
 }
 .mission-region-horizon .pfd-top-bar {
   min-height: 22px;

@@ -79,7 +79,8 @@ describe('Mission layout contract — static source', () => {
     expect(cssBlock(css, '.mission-region[data-mission-region="horizon"]')).toMatch(/align-self:\s*stretch/);
     expect(css).toMatch(/\.mission-region-horizon \.flight-hud \{[^}]*height:\s*var\(--mission-ah-row/);
     expect(css).toMatch(/\.mission-region-horizon \.flight-hud \{[^}]*min-height:\s*52%/);
-    expect(css).toMatch(/\.mission-region-horizon \.flight-hud \{[^}]*max-height:\s*70%/);
+    expect(css).toMatch(/\.mission-region-horizon \.flight-hud \{[^}]*max-height:\s*calc\(100% - var\(--mission-data-h/);
+    expect(css).toMatch(/\.mission-region-horizon \.flight-hud \{[^}]*flex:\s*1 1 auto/);
     expect(cssBlock(css, '.mission-horizon-filler')).toMatch(/flex:\s*0 1 0/);
     expect(cssBlock(css, '.mission-horizon-filler')).toMatch(/max-height:\s*18%/);
     expect(cssBlock(css, '.mission-horizon-filler')).toMatch(/background:\s*#1e293b/);
@@ -294,13 +295,14 @@ describe('Mission layout contract — live boxes', () => {
     expect(regions.messages.height).toBeLessThanOrEqual(40);
     expect(regions.horizon.width / ws.width).toBeLessThanOrEqual(0.22);
     expect(measured.hud.height / regions.horizon.height).toBeGreaterThanOrEqual(0.50);
-    expect(measured.hud.height / regions.horizon.height).toBeLessThanOrEqual(0.72);
+    expect(measured.hud.height / regions.horizon.height).toBeLessThanOrEqual(0.88);
     expect(measured.horizonPosition).toBe('relative');
     expect(regions.horizon.height / ws.height).toBeGreaterThanOrEqual(0.90);
     expect(measured.filler.height / regions.horizon.height).toBeLessThanOrEqual(0.20);
     expect(measured.fillerBg).not.toMatch(/rgba?\(\s*0,\s*0,\s*0/);
     expect(regions.data.height).toBeGreaterThanOrEqual(64);
     expect(regions.data.height).toBeLessThanOrEqual(76);
+    expect(regions.messages.top - regions.data.bottom).toBeLessThan(24);
     expect(regions.talk.width).toBeGreaterThanOrEqual(240);
     expect(regions.talk.height / ws.height).toBeGreaterThanOrEqual(0.90);
     expect(measured.well.height).toBeGreaterThanOrEqual(regions.talk.height * 0.40);

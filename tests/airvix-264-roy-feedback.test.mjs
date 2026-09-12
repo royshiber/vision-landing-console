@@ -77,10 +77,10 @@ describe('AIRVIX 1.02.264 Ask rename + premium horizon', () => {
   it('keeps the flyable Mission layout band from 263', () => {
     const workspace = cssBlock(css, '.mission-workspace[data-mission-layout="ops-v1"]');
     expect(workspace).toMatch(/--mission-map-min:\s*65%/);
-    expect(workspace).toMatch(/--mission-ah-row:\s*40%/);
+    expect(workspace).toMatch(/--mission-ah-row:\s*66%/);
     expect(workspace).toMatch(/grid-template-areas:\s*"horizon map talk"/);
-    expect(css).toMatch(/\.mission-region-horizon \.flight-hud \{[^}]*min-height:\s*35%/);
-    expect(css).toMatch(/\.mission-region-horizon \.flight-hud \{[^}]*max-height:\s*42%/);
+    expect(css).toMatch(/\.mission-region-horizon \.flight-hud \{[^}]*min-height:\s*52%/);
+    expect(css).toMatch(/\.mission-region-horizon \.flight-hud \{[^}]*max-height:\s*calc\(100% - var\(--mission-data-h/);
     expect(cssBlock(css, '.pfd-horizon-instrument')).toMatch(/"ias horizon alt"/);
   });
 
