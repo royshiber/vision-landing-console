@@ -62,27 +62,28 @@ Merge autonomy still on for independently VERIFIED safe draft PRs. Hard safety s
 
 ---
 
-## Audit snapshot — 2026-09-12 (P3.2 annotated vision cellular-only gate)
+## Audit snapshot — 2026-09-12 (honest Companion vision / landing status)
 
-**Master tip before this draft:** `1.02.290` after #110.  
-**This draft:** Annotated vision honesty gate. `APP_VERSION` **1.02.291**. Display only. No live stream invented.
+**Master tip before this draft:** `1.02.291` after #111.  
+**This draft:** Observe-only Companion camera + runway status. `APP_VERSION` **1.02.292**. Display only. No live camera required for tests.
 
 ### Landed
 
 - Experiment #1 checklist is on master: PIC hand-fly, observe-only, success = runway detect on final.
+- Annotated vision cellular-only honesty is on master (#111).
 - E3372 `modem_absent` honesty is on master (#110). Dual-link radio + cellular remain MAVLink.
 
 ### This draft
 
-Annotated vision is cellular-only. `modem_absent` or no annotated stream stays unavailable. Radio cannot satisfy the path. Connect, Readiness, and Mission empty states share the same Hebrew reasons.
+Live companion 2.3.1 had no vision/landing routes, so readiness stayed unknown. Repo agent 2.3.2 keeps the 2.3.1 UART fan-out and reports explicit `camera_ok: false` / `runway_detector: false` (absent). Landing path 404 stays not_implemented. Lock omitted stays unknown. Never invent detect or lock.
 
 ### Next pick
 
-Do not start #28 / #29. Prefer another display-only honesty or in-app development step — not flight commands.
+Do not start #28 / #29. King may upload the 2.3.2 agent after VERIFY. Prefer another display-only honesty or in-app development step — not flight commands.
 
 ### Ranked GAPS
 
-1. **Annotated vision cellular-only honesty** — this draft.
+1. **Honest Companion vision / landing status** — this draft.
 2. **Companion apply/restart** — Human Gate #28. No GO.
 3. **Live vehicle + auto landing** — Human Gate #29. No GO.
 

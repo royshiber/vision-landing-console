@@ -150,6 +150,33 @@ describe('Companion camera / runway probe honesty', () => {
     }).state).toBe('not_implemented');
   });
 
+  it('fetches Companion paths when overlay only has an empty mapped skeleton', async () => {
+    const filled = await collectCompanionVisionSignals({
+      overlay: {
+        vision: { camera_ok: null, running: null, health: null },
+        landing: { detected: false, display_only: true, target: null, validity: null },
+        video: { raw_pipeline: null },
+      },
+      client: {
+        getStatusVision: async () => ({ camera_ok: false, health: 'unavailable', running: false }),
+        getStatusVideo: async () => ({ raw_pipeline: 'none' }),
+        getStatusLanding: async () => ({ source: 'none', runway_detector: false, target: null, detections: [] }),
+      },
+    });
+    expect(filled.live.vision).toBe(true);
+    expect(filled.live.landing).toBe(true);
+    expect(filled.vision.camera_ok).toBe(false);
+    expect(filled.landing.runway_detector).toBe(false);
+    expect(probeCameraVision({
+      companion: reachable,
+      vision: filled.vision,
+    }).state).toBe('absent');
+    expect(probeRunwayDetect({
+      companion: reachable,
+      landing: filled.landing,
+    }).state).toBe('absent');
+  });
+
   it('fills missing overlay rows from Companion GET paths and marks a 404 landing path absent', async () => {
     const client = createCompanionMock({ scenario: 'healthy' });
     const filled = await collectCompanionVisionSignals({ overlay: {}, client });
@@ -238,6 +265,33 @@ describe('Experiment #1 readiness from probed Companion fields', () => {
     expect(body.experiment.runwayLockRequired).toBe(false);
     expect(row(body, 'runway_lock').state).toBe('unknown');
     expect(body.runwayLock.state).toBe('unknown');
+  });
+
+  it('maps explicit Companion absent / not_implemented without inventing detect or lock', () => {
+    const absent = buildVisionLandingReadiness({
+      companion: reachable,
+      overlay: {
+        vision: { camera_ok: false, health: 'unavailable', running: false },
+        video: { raw_pipeline: 'none' },
+        landing: { source: 'none', runway_detector: false, target: null, detections: [] },
+      },
+    });
+    expect(row(absent, 'camera_vision').state).toBe('absent');
+    expect(row(absent, 'runway_detect').state).toBe('absent');
+    expect(row(absent, 'runway_lock').state).toBe('unknown');
+    expect(absent.experimentSuccess).toBe(false);
+    expect(absent.sendFlightCommands).toBe(false);
+
+    const missingLanding = buildVisionLandingReadiness({
+      companion: reachable,
+      overlay: {
+        vision: { camera_ok: false },
+        landingPathAbsent: true,
+      },
+    });
+    expect(row(missingLanding, 'camera_vision').state).toBe('absent');
+    expect(row(missingLanding, 'runway_detect').state).toBe('not_implemented');
+    expect(missingLanding.experimentSuccess).toBe(false);
   });
 });
 

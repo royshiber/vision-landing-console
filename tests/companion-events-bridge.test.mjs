@@ -90,6 +90,29 @@ describe('companion event bridge', () => {
     expect(mapped.system.tempC).toBe(47.2);
   });
 
+  it('passes honest vision / landing overlay fields from legacy /api/health', () => {
+    const bundle = statusBundleFromLegacyHealth({
+      ok: true,
+      cpuLoadPct: 12,
+      memPct: 40,
+      tempC: 44,
+      agentVersion: '2.3.2',
+      vision: { camera_ok: false, health: 'unavailable', running: false },
+      landing: { source: 'none', runway_detector: false, target: null, detections: [] },
+      video: { raw_pipeline: 'none' },
+      extras: { camera_ok: false, runway_detector: false },
+    });
+    expect(bundle.vision.camera_ok).toBe(false);
+    expect(bundle.landing.runway_detector).toBe(false);
+    expect(bundle.extras.runway_detector).toBe(false);
+    const mapped = mapCompanionStatus(bundle);
+    expect(mapped.vision.camera_ok).toBe(false);
+    expect(mapped.landing.runway_detector).toBe(false);
+    expect(mapped.landing.source).toBe('none');
+    expect(mapped.extras.camera_ok).toBe(false);
+    expect(mapped.landing.lock_state).toBeNull();
+  });
+
   it('collectStatusBundle returns the legacy bundle when getStatus is HTTP 404', async () => {
     const health = { ok: true, cpuLoadPct: 33.5, memPct: 61, tempC: 47.2, agentVersion: '2.1.0' };
     const client = {

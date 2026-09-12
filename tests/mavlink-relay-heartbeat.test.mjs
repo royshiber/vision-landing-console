@@ -136,7 +136,8 @@ describe('companion_agent.py byte-level relay', () => {
     expect(agentSrc).toContain('never recv_match');
     expect(agentSrc).toMatch(/fc_read_only/);
     expect(agentSrc).toMatch(/relay_tcp_to_uart/);
-    expect(agentSrc).toMatch(/AGENT_VERSION.*"2\.3\.1"/);
+    expect(agentSrc).toMatch(/AGENT_VERSION.*"2\.3\.2"/);
+    expect(agentSrc).toContain('uart_reader → fanout_uart');
     expect(agentSrc).toContain('/dev/ttyTHS1');
     expect(agentSrc).toContain('921600');
     expect(agentSrc).toMatch(/VLC_FC_READ_ONLY", "1"/);
@@ -144,6 +145,13 @@ describe('companion_agent.py byte-level relay', () => {
     expect(agentSrc).toContain('tcp_to_uart_suppressed');
     expect(agentSrc).toContain('/api/transport-test');
     expect(agentSrc).toContain('/api/v1/health');
+    expect(agentSrc).toContain('/api/v1/status/vision');
+    expect(agentSrc).toContain('/api/v1/status/landing');
     expect(agentSrc).toContain('/api/logs');
+    expect(agentSrc).toMatch(/"camera_ok": False/);
+    expect(agentSrc).toMatch(/"runway_detector": False/);
+    expect(agentSrc).not.toMatch(/"camera_ok": True/);
+    expect(agentSrc).not.toMatch(/"runway_detected": True/);
+    expect(agentSrc).not.toMatch(/lock_state['"]\s*:\s*['"]locked/);
   });
 });

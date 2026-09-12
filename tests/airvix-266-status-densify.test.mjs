@@ -48,9 +48,9 @@ function pulsePanel() {
 }
 
 describe('AIRVIX 1.02.268 computer-status densify', () => {
-  it('pins APP_VERSION at 1.02.291', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.291'");
-    expect(pkg.version).toBe('1.02.291');
+  it('pins APP_VERSION at 1.02.292', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.292'");
+    expect(pkg.version).toBe('1.02.292');
   });
 
   it('keeps מסייע out of public UI', () => {

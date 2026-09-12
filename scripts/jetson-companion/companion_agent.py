@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Vision Landing Console — Jetson companion: MAVLink relay + HTTP API + heartbeat.
 
-Deployed live as AGENT_VERSION 2.3.1 (byte-level UART fan-out).
+AGENT_VERSION 2.3.2 = 2.3.1 byte-level UART fan-out plus honest observe-only
+camera / runway HTTP status. No camera pipeline and no runway detector on
+current hardware — never invent camera_ok=true or runway detected/locked.
 
 Hardware default (Matek H743 SERIAL3 ↔ Jetson UART1):
   FC /dev/ttyTHS1 @ 921600, FC_READ_ONLY=1
@@ -37,8 +39,10 @@ FC_BAUD = int(os.environ.get("VLC_FC_BAUD", "921600"))
 FC_SERIAL_NAME = os.environ.get("VLC_FC_SERIAL_NAME", "SERIAL3")
 RELAY_PORT = int(os.environ.get("VLC_RELAY_PORT", "5770"))
 HTTP_PORT = int(os.environ.get("VLC_HTTP_PORT", "8081"))
-AGENT_VERSION = os.environ.get("VLC_AGENT_VERSION", "2.3.1")
+AGENT_VERSION = os.environ.get("VLC_AGENT_VERSION", "2.3.2")
 FC_READ_ONLY = os.environ.get("VLC_FC_READ_ONLY", "1").strip().lower() in {"1", "true", "yes", "on"}
+SKIP_RELAY = os.environ.get("VLC_SKIP_RELAY", "").strip().lower() in {"1", "true", "yes", "on"}
+HTTP_BIND = os.environ.get("VLC_HTTP_BIND", "0.0.0.0")
 LOG_DIRS = [
     Path(os.environ.get("VLC_LOG_DIR", "")) if os.environ.get("VLC_LOG_DIR") else None,
     Path.home() / "logs",
@@ -348,12 +352,112 @@ def iter_log_files():
             yield p
 
 
+def _now_ts():
+    now_ns = int(time.time() * 1e9)
+    return {"t_monotonic_ns": now_ns, "t_utc_ns": now_ns}
+
+
+def vision_status_payload():
+    """Observe-only camera / vision. Default hardware has no pipeline — camera_ok is false."""
+    return {
+        "ok": True,
+        "observe_only": True,
+        "camera_ok": False,
+        "running": False,
+        "health": "unavailable",
+        "fps": None,
+        "latency_ms": None,
+        "last_valid": None,
+        "frame_id": None,
+        "source_id": "none",
+        "quality": {"confidence": None, "label": "unknown"},
+        "implemented": False,
+        "note": "no camera pipeline on this companion; camera_ok is false; not invented",
+    }
+
+
+def landing_status_payload():
+    """Observe-only runway detect / lock. Default hardware has no runway detector."""
+    return {
+        "ok": True,
+        "observe_only": True,
+        "timestamp": _now_ts(),
+        "source": "none",
+        "validity": "invalid",
+        "quality": {"confidence": None, "label": "unknown"},
+        "target": None,
+        "detections": [],
+        "runway_detector": False,
+        "runway_detected": None,
+        "implemented": False,
+        "present": False,
+        "enabled": False,
+        "note": "no runway detector on this companion; runway_detector is false; not invented",
+    }
+
+
+def video_status_payload():
+    """Observe-only video metadata. No annotated stream and no raw pipeline."""
+    return {
+        "ok": True,
+        "observe_only": True,
+        "raw_pipeline": "none",
+        "annotated_pipeline": "none",
+        "raw_fps": None,
+        "annotated_fps": None,
+        "bitrate_kbps": None,
+        "raw_kind": "raw",
+        "annotated_kind": "annotated",
+        "note": "no video pipeline on this companion; not invented",
+    }
+
+
+def extras_status_payload():
+    return {
+        "camera_ok": False,
+        "camera_connected": False,
+        "runway_detector": False,
+        "runway_detected": None,
+        "observe_only": True,
+    }
+
+
+def status_payload():
+    """Companion v1 status overlay. System gauges plus honest absent vision/landing."""
+    return {
+        "ok": True,
+        "timestamp": _now_ts(),
+        "companion_version": AGENT_VERSION,
+        "agentVersion": AGENT_VERSION,
+        "api_version": "1",
+        "observe_only": True,
+        "system": {
+            "cpu_percent": STATE.get("cpuLoadPct"),
+            "cpuLoadPct": STATE.get("cpuLoadPct"),
+            "memPct": STATE.get("memPct"),
+            "temperature_c": STATE.get("tempC"),
+            "tempC": STATE.get("tempC"),
+        },
+        "vision": vision_status_payload(),
+        "landing": landing_status_payload(),
+        "video": video_status_payload(),
+        "extras": extras_status_payload(),
+        "fc": {},
+        "mavlink": {},
+    }
+
+
 def health_payload():
     return {
         "ok": True,
         "agentVersion": AGENT_VERSION,
         "api_version": "1",
+        "observe_only": True,
         **STATE,
+        "vision": vision_status_payload(),
+        "landing": landing_status_payload(),
+        "video": video_status_payload(),
+        "extras": extras_status_payload(),
     }
 
 
@@ -429,7 +533,16 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(404, {"ok": False, "message": "not found"})
         if path in ("/api/health", "/api/v1/health"):
             # Console Status gauges read cpuLoadPct / memPct / tempC here when /api/v1/status is 404.
+            # vision / landing / video / extras are honest absent overlays for Experiment #1.
             return self._json(200, health_payload())
+        if path in ("/api/status", "/api/v1/status"):
+            return self._json(200, status_payload())
+        if path in ("/api/status/vision", "/api/v1/status/vision"):
+            return self._json(200, vision_status_payload())
+        if path in ("/api/status/landing", "/api/v1/status/landing"):
+            return self._json(200, landing_status_payload())
+        if path in ("/api/status/video", "/api/v1/status/video"):
+            return self._json(200, video_status_payload())
         if path in ("/api/transport-test", "/api/v1/transport-test"):
             return self._json(200, transport_test_payload(self_test=False))
         return self._json(404, {"ok": False})
@@ -466,11 +579,14 @@ def main():
     print(f"  Console: {CONSOLE_URL}")
     print(f"  FC: {FC_DEVICE} @ {FC_BAUD} ({FC_SERIAL_NAME})")
     print(f"  Relay TCP: 0.0.0.0:{RELAY_PORT}")
-    print(f"  HTTP: 0.0.0.0:{HTTP_PORT}")
+    print(f"  HTTP: {HTTP_BIND}:{HTTP_PORT}")
     print(f"  FC_READ_ONLY: {FC_READ_ONLY}")
-    threading.Thread(target=heartbeat_loop, daemon=True).start()
-    threading.Thread(target=mavlink_relay_server, daemon=True).start()
-    httpd = ThreadingHTTPServer(("0.0.0.0", HTTP_PORT), Handler)
+    if not SKIP_RELAY:
+        threading.Thread(target=heartbeat_loop, daemon=True).start()
+        threading.Thread(target=mavlink_relay_server, daemon=True).start()
+    else:
+        print("  SKIP_RELAY: HTTP observe-status only")
+    httpd = ThreadingHTTPServer((HTTP_BIND, HTTP_PORT), Handler)
     httpd.serve_forever()
 
 
