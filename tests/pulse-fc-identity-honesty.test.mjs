@@ -27,6 +27,9 @@ function sliceFunction(src, name) {
 function loadPulseIdentity() {
   const src = [
     sliceFunction(js, 'companionFiniteMetric'),
+    sliceFunction(js, 'pulseJetsonSystemMetrics'),
+    sliceFunction(js, 'pulseMavlinkLive'),
+    sliceFunction(js, 'companionHasDataPathClient'),
     sliceFunction(js, 'pulseFcObject'),
     sliceFunction(js, 'pulseCompanionFcLink'),
     sliceFunction(js, 'pulseResolveFcHonesty'),
@@ -35,7 +38,7 @@ function loadPulseIdentity() {
     sliceFunction(js, 'pulseFormatHbRate'),
     sliceFunction(js, 'pulseLinkKindLabel'),
     sliceFunction(js, 'pulseResolveFcIdentity'),
-    'return { pulseResolveFcHonesty, pulseResolveFcIdentity, pulseFormatHbAge, pulseFormatHbRate };',
+    'return { pulseResolveFcHonesty, pulseResolveFcIdentity, pulseFormatHbAge, pulseFormatHbRate, pulseJetsonSystemMetrics, companionHasDataPathClient };',
   ].join('\n');
   return new Function(src)();
 }
@@ -114,6 +117,94 @@ describe('Status Computers pulse identity honesty', () => {
     expect(snap.fcTempC).toBeNull();
   });
 
+  it('prefers live MAVLink identity when companion.fc is DISCONNECTED / DISABLED', () => {
+    const companion = {
+      mode: 'real',
+      reachable: true,
+      fc_heartbeat: true,
+      fc: {
+        status: 'DISCONNECTED',
+        heartbeat: false,
+        heartbeat_validity: 'invalid',
+        message_categories: { ATTITUDE: { validity: 'DISABLED' }, HEARTBEAT: { validity: 'DISABLED' } },
+      },
+    };
+    const mav = {
+      connected: true,
+      autopilotName: 'ArduPilot',
+      vehicleType: 'Fixed Wing',
+      sysId: 51,
+      lastHeartbeatAgeMs: 180,
+      heartbeatRateHz: 1.1,
+      heartbeatCount: 12,
+      fcLoadPct: null,
+      fcMemPct: null,
+      fcTempC: null,
+    };
+    const honesty = ui.pulseResolveFcHonesty(companion, mav);
+    expect(honesty.live).toBe(true);
+    expect(honesty.link).toBe('heartbeat');
+    expect(honesty.hasMetrics).toBe(false);
+    expect(honesty.showGcsMissingNote).toBe(true);
+    expect(honesty.load).toBeNull();
+    const ident = ui.pulseResolveFcIdentity(mav, honesty);
+    expect(ident.live).toBe(true);
+    expect(ident.autopilotName).toBe('ArduPilot');
+    expect(ident.vehicleType).toBe('Fixed Wing');
+    expect(ident.sysId).toBe(51);
+    expect(ident.heartbeatRateHz).toBeCloseTo(1.1);
+  });
+
+  it('uses mav.connected identity even when companion omitted fc_heartbeat', () => {
+    const honesty = ui.pulseResolveFcHonesty({
+      mode: 'real',
+      reachable: true,
+      fc: { status: 'DISCONNECTED', message_categories: { SYS_STATUS: { validity: 'DISABLED' } } },
+    }, {
+      connected: true,
+      autopilotName: 'ArduPilot',
+      vehicleType: 'Fixed Wing',
+      sysId: 51,
+      heartbeatRateHz: 0.98,
+    });
+    expect(honesty.live).toBe(true);
+    const ident = ui.pulseResolveFcIdentity({
+      connected: true,
+      autopilotName: 'ArduPilot',
+      vehicleType: 'Fixed Wing',
+      sysId: 51,
+      heartbeatRateHz: 0.98,
+    }, honesty);
+    expect(ident.vehicleType).toBe('Fixed Wing');
+    expect(ident.autopilotName).toBe('ArduPilot');
+    expect(ident.sysId).toBe(51);
+  });
+
+  it('surfaces Jetson cpu/mem/temp from companion.health without inventing FC gauges', () => {
+    const metrics = ui.pulseJetsonSystemMetrics({
+      mode: 'real',
+      reachable: true,
+      health: { cpuLoadPct: 37, memPct: 61, tempC: 46.5 },
+    }, {});
+    expect(metrics.load).toBe(37);
+    expect(metrics.mem).toBe(61);
+    expect(metrics.temp).toBe(46.5);
+    expect(ui.companionHasDataPathClient({
+      mode: 'real',
+      reachable: true,
+      health: { cpu_percent: 22, temperature_c: 41 },
+    })).toBe(true);
+    const honesty = ui.pulseResolveFcHonesty({
+      mode: 'real',
+      reachable: true,
+      health: { cpuLoadPct: 37 },
+      fc: { status: 'DISCONNECTED' },
+    }, { connected: true, vehicleType: 'Fixed Wing' });
+    expect(honesty.load).toBeNull();
+    expect(honesty.mem).toBeNull();
+    expect(honesty.temp).toBeNull();
+  });
+
   it('paints identity list from pulseRefresh and keeps honesty note', () => {
     expect(html).toContain('id="pulseFcIdentityList"');
     expect(html).toContain('id="pulseFcSysId"');
@@ -123,6 +214,8 @@ describe('Status Computers pulse identity honesty', () => {
     const refresh = sliceFunction(js, 'pulseRefresh');
     expect(refresh).toContain('pulsePaintFcIdentity');
     expect(refresh).toContain('pulseFcMetricsNote');
+    expect(refresh).toContain('pulseJetsonSystemMetrics');
+    expect(refresh).toContain('pulseResolveComputerHonesty(companion, mav)');
     expect(refresh).not.toMatch(/FLIGHT_ACTION|\/apply|\/restart|\bARM\b|\bLAND\b/);
   });
 });

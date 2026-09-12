@@ -3172,17 +3172,59 @@ function companionHasDataPathClient(companion) {
   if (companion.fc_heartbeat === true || companion.link?.fc === 'heartbeat') return true;
   if (companion.fc?.heartbeat === true || companion.fc?.heartbeat_validity === 'valid') return true;
   if (companion.mavlink?.heartbeat_ok === true) return true;
-  const sys = companion.system || {};
-  if (companionFiniteMetric(
-    sys.cpu_percent,
-    sys.cpuLoadPct,
-    sys.temperature_c,
-    sys.tempC,
-    sys.memPct,
-    sys.ram_used_mb,
-  ) != null) return true;
+  const metrics = pulseJetsonSystemMetrics(companion, null);
+  if (metrics.load != null || metrics.mem != null || metrics.temp != null) return true;
   if (companionFiniteMetric(companion.fc?.loadPct, companion.fc?.memPct, companion.fc?.tempC) != null) return true;
   return false;
+}
+
+/** Live GCS MAVLink identity wins over companion.fc.status DISCONNECTED / DISABLED. */
+function pulseMavlinkLive(mav) {
+  if (!mav || typeof mav !== 'object') return false;
+  if (mav.connected === true || mav.listening === true) return true;
+  if (Number(mav.heartbeatCount) > 0) return true;
+  if (mav.autopilotName || mav.vehicleType) return true;
+  return Number.isFinite(Number(mav.sysId));
+}
+
+/** Jetson gauges from companion.system / companion.health — never invent zeros. */
+function pulseJetsonSystemMetrics(companion, jetson) {
+  const src = companion && typeof companion === 'object' ? companion : {};
+  const sys = src.system && typeof src.system === 'object' ? src.system : {};
+  const health = src.health && typeof src.health === 'object' ? src.health : {};
+  const hsys = health.system && typeof health.system === 'object' ? health.system : {};
+  const jet = jetson && typeof jetson === 'object' ? jetson : {};
+  const ramUsed = companionFiniteMetric(sys.ram_used_mb, health.ram_used_mb, hsys.ram_used_mb);
+  const ramTotal = companionFiniteMetric(sys.ram_total_mb, health.ram_total_mb, hsys.ram_total_mb);
+  const memFromRam = ramUsed != null && ramTotal > 0 ? (ramUsed / ramTotal) * 100 : null;
+  return {
+    load: companionFiniteMetric(
+      sys.cpuLoadPct,
+      sys.cpu_percent,
+      health.cpuLoadPct,
+      health.cpu_percent,
+      hsys.cpuLoadPct,
+      hsys.cpu_percent,
+      jet.cpuLoadPct,
+    ),
+    mem: companionFiniteMetric(
+      sys.memPct,
+      health.memPct,
+      health.mem_pct,
+      hsys.memPct,
+      memFromRam,
+      jet.memPct,
+    ),
+    temp: companionFiniteMetric(
+      sys.tempC,
+      sys.temperature_c,
+      health.tempC,
+      health.temperature_c,
+      hsys.tempC,
+      hsys.temperature_c,
+      jet.tempC,
+    ),
+  };
 }
 
 function pulseFcObject(companion) {
@@ -3195,6 +3237,8 @@ function pulseCompanionFcLink(companion, mav) {
   const mode = src.mode || src.link?.mode || 'off';
   const jetsonUnreachable = mode === 'real' && src.reachable === false;
   const fcObj = pulseFcObject(src);
+  const fcStatus = String(fcObj.status || '').toUpperCase();
+  const fcDisabled = fcStatus === 'DISCONNECTED' || fcStatus === 'DISABLED';
   const fcHb = src.fc_heartbeat === true
     || src.link?.fc === 'heartbeat'
     || src.fc === 'heartbeat'
@@ -3204,10 +3248,10 @@ function pulseCompanionFcLink(companion, mav) {
     || src.link?.fc === 'linked'
     || src.fc === 'linked'
     || fcObj.connected === true;
-  if (jetsonUnreachable) return 'unlinked';
+  if (pulseMavlinkLive(mav)) return 'heartbeat';
   if (fcHb) return 'heartbeat';
-  if (fcLinked) return 'linked';
-  if (mav && mav.connected) return 'heartbeat';
+  if (jetsonUnreachable) return 'unlinked';
+  if (fcLinked && !fcDisabled) return 'linked';
   return 'unlinked';
 }
 
@@ -3264,8 +3308,9 @@ function pulseLinkKindLabel(link) {
 
 /** Known FC identity only — never invent load/mem/temp or firmware. */
 function pulseResolveFcIdentity(mav, honesty) {
-  const live = !!(honesty?.live);
-  const src = live && mav && typeof mav === 'object' ? mav : null;
+  const mavLive = pulseMavlinkLive(mav);
+  const live = mavLive || !!(honesty?.live);
+  const src = mavLive && mav && typeof mav === 'object' ? mav : null;
   return {
     live,
     autopilotName: src && src.autopilotName ? String(src.autopilotName) : null,
@@ -3273,7 +3318,7 @@ function pulseResolveFcIdentity(mav, honesty) {
     sysId: src ? pulseFiniteOrNull(src.sysId) : null,
     heartbeatAgeMs: src ? pulseFiniteOrNull(src.lastHeartbeatAgeMs) : null,
     heartbeatRateHz: src ? pulseFiniteOrNull(src.heartbeatRateHz) : null,
-    link: live ? (honesty.link || null) : null,
+    link: live ? (honesty?.link || (mavLive ? 'heartbeat' : null)) : null,
   };
 }
 
@@ -3567,7 +3612,8 @@ function pulseWriteVersionOffer(opts) {
 
 function pulseRefreshVersionOffers() {
   const companion = (typeof latestCompanionFromServer !== 'undefined' && latestCompanionFromServer) ? latestCompanionFromServer : {};
-  const honesty = pulseResolveComputerHonesty(companion);
+  const mavForOffers = (typeof latestHudMavlink !== 'undefined' && latestHudMavlink) ? latestHudMavlink : null;
+  const honesty = pulseResolveComputerHonesty(companion, mavForOffers);
   const liveCompanionVer = honesty.jetsonLive
     ? String(
       companion.version
@@ -3611,7 +3657,7 @@ function pulseRefreshVersionOffers() {
     consoleEl.dataset.offer = consoleVer ? 'current' : 'unknown';
     consoleEl.textContent = consoleVer ? 'מעודכן' : '--';
   }
-  const mav = (typeof latestHudMavlink !== 'undefined' && latestHudMavlink) ? latestHudMavlink : null;
+  const mav = mavForOffers;
   const fcVer = document.getElementById('pulseFcVersion');
   const fcId = document.getElementById('pulseFcIdentity');
   if (fcVer) {
@@ -3619,7 +3665,7 @@ function pulseRefreshVersionOffers() {
     fcVer.textContent = pulseIsPlaceholder(raw) ? '--' : String(raw);
   }
   if (fcId) {
-    if (!mav || !mav.connected) fcId.textContent = '--';
+    if (!pulseMavlinkLive(mav)) fcId.textContent = '--';
     else {
       const label = [mav.autopilotName, mav.vehicleType].filter(Boolean).join(' · ');
       fcId.textContent = label || '--';
@@ -3780,7 +3826,8 @@ function pulseRefresh() {
   const version = String(APP_VERSION_NEW || '').replace(/^v/i, '').trim() || '--';
   versionEl.textContent = version;
   const companion = (typeof latestCompanionFromServer !== 'undefined' && latestCompanionFromServer) ? latestCompanionFromServer : {};
-  const honesty = pulseResolveComputerHonesty(companion);
+  const mav = (typeof latestHudMavlink !== 'undefined' && latestHudMavlink) ? latestHudMavlink : null;
+  const honesty = pulseResolveComputerHonesty(companion, mav);
   const tokenHint = document.getElementById('companionTokenHint')?.textContent?.trim() || '';
   companionEl.textContent = honesty.jetsonLabelHe === 'מחובר' && tokenHint
     ? pulseCompanionLabel({
@@ -3806,12 +3853,11 @@ function pulseRefresh() {
     missionLink.title = linkText !== '--' ? linkText : '';
   }
   const jetson = (typeof latestJetsonFromServer !== 'undefined' && latestJetsonFromServer) ? latestJetsonFromServer : {};
-  const sys = companion.system || {};
+  const jetsonMetrics = pulseJetsonSystemMetrics(companion, jetson);
   const jetsonMissing = honesty.jetsonLive ? 'אין נתון' : '--';
-  pulseWriteComputerMetric('pulseJetsonLoad', pulseComputerMetricValue(honesty.jetsonLive, companionFiniteMetric(sys.cpuLoadPct, sys.cpu_percent, jetson.cpuLoadPct)), '%', jetsonMissing);
-  pulseWriteComputerMetric('pulseJetsonMem', pulseComputerMetricValue(honesty.jetsonLive, companionFiniteMetric(sys.memPct, jetson.memPct)), '%', jetsonMissing);
-  pulseWriteComputerMetric('pulseJetsonTemp', pulseComputerMetricValue(honesty.jetsonLive, companionFiniteMetric(sys.tempC, sys.temperature_c, jetson.tempC)), 'C', jetsonMissing);
-  const mav = (typeof latestHudMavlink !== 'undefined' && latestHudMavlink) ? latestHudMavlink : null;
+  pulseWriteComputerMetric('pulseJetsonLoad', pulseComputerMetricValue(honesty.jetsonLive, jetsonMetrics.load), '%', jetsonMissing);
+  pulseWriteComputerMetric('pulseJetsonMem', pulseComputerMetricValue(honesty.jetsonLive, jetsonMetrics.mem), '%', jetsonMissing);
+  pulseWriteComputerMetric('pulseJetsonTemp', pulseComputerMetricValue(honesty.jetsonLive, jetsonMetrics.temp), 'C', jetsonMissing);
   const fcHonesty = pulseResolveFcHonesty(companion, mav);
   if (aircraftEl) aircraftEl.textContent = fcHonesty.labelHe;
   aircraftEl?.closest('.pulse-computer-card')?.setAttribute('data-state', fcHonesty.card);
@@ -4015,16 +4061,16 @@ function formatPulseWidgetValue(key, payload) {
   }
   if (key === 'jetson.cpuLoadPct' || key === 'jetson.memPct' || key === 'jetson.tempC') {
     const companion = payload?.companion || (typeof latestCompanionFromServer !== 'undefined' ? latestCompanionFromServer : {});
-    const honesty = pulseResolveComputerHonesty(companion);
+    const honesty = pulseResolveComputerHonesty(companion, payload?.mavlink);
     const jetson = payload?.jetson || {};
-    const sys = companion?.system || {};
+    const metrics = pulseJetsonSystemMetrics(companion, jetson);
     const field = key.split('.')[1];
     const unit = key === 'jetson.tempC' ? 'C' : '%';
     const raw = field === 'cpuLoadPct'
-      ? companionFiniteMetric(sys.cpuLoadPct, sys.cpu_percent, jetson.cpuLoadPct)
+      ? metrics.load
       : field === 'memPct'
-        ? companionFiniteMetric(sys.memPct, jetson.memPct)
-        : companionFiniteMetric(sys.tempC, sys.temperature_c, jetson.tempC);
+        ? metrics.mem
+        : metrics.temp;
     return formatComputerMetric(
       pulseComputerMetricValue(honesty.jetsonLive, raw),
       unit,

@@ -1,5 +1,16 @@
 [
   {
+    "version": "1.02.297",
+    "date": "2026-09-12",
+    "changes": [
+      {
+        "type": "fix",
+        "title": "Status Computers prefers live MAVLink FC identity",
+        "detail": "APP_VERSION 1.02.297. After master 1.02.296. Pulse FC card uses live GCS MAVLink identity (vehicleType, autopilotName, sysId, heartbeat rate) when mav.connected even if companion.fc.status is DISCONNECTED and message_categories are DISABLED. Load/mem/temp stay -- with אין נתוני עומס מ־GCS until SYS_STATUS. Jetson gauges read companion.system and companion.health. PARAM_SET remains float|target|tc|name|type; connected WRITE still calls setParam. No ARM/LAND and no Companion apply/restart."
+      }
+    ]
+  },
+  {
     "version": "1.02.296",
     "date": "2026-09-12",
     "changes": [
