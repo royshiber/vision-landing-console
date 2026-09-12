@@ -692,6 +692,39 @@ let arduTargetState = { ...ARDU_TARGET_DEFAULTS_CLIENT };
 let lastServerSyncedCanonical = null;
 /** Why: compare editable Ardu targets to last FC READ. What: null until a successful READ while connected; updated after WRITE success. */
 let fcCurrentSnapshot = null;
+/** Why: WRITE must send only session edits, not the whole target template vs live FC. */
+let arduWriteBaseline = { ...arduTargetState };
+
+function arduValuesDiffer(a, b) {
+  if (a == null || b == null) return true;
+  const na = Number(a);
+  const nb = Number(b);
+  if (!Number.isFinite(na) || !Number.isFinite(nb)) return true;
+  return Math.abs(na - nb) > 1e-3;
+}
+
+function captureArduWriteBaseline() {
+  arduWriteBaseline = { ...arduTargetState };
+}
+
+/** Why: dirty = target vs session baseline, skipping keys that already match last READ. */
+function collectDirtyArduParams() {
+  const out = {};
+  for (const key of Object.keys(arduTargetState)) {
+    const value = Number(arduTargetState[key]);
+    if (!Number.isFinite(value)) continue;
+    if (!arduValuesDiffer(arduWriteBaseline[key], value)) continue;
+    if (
+      fcCurrentSnapshot
+      && Object.prototype.hasOwnProperty.call(fcCurrentSnapshot, key)
+      && !arduValuesDiffer(fcCurrentSnapshot[key], value)
+    ) {
+      continue;
+    }
+    out[key] = value;
+  }
+  return out;
+}
 
 /** Why: stable JSON for dirty detection vs last server persist. What: sorted keys for profile + arduTarget. */
 function canonicalServerPayloadStr() {
@@ -727,6 +760,10 @@ function countArduMismatchVsFc() {
   return n;
 }
 
+function countArduDirtyVsSession() {
+  return Object.keys(collectDirtyArduParams()).length;
+}
+
 /** Why: pilot sees pending WRITE לשרת vs WRITE לרחפן. What: fills #paramSyncBanner from baselines and diff counts. */
 function updateParamSyncBanner() {
   const el = document.getElementById('paramSyncBanner');
@@ -734,6 +771,7 @@ function updateParamSyncBanner() {
 
   const serverDirty = lastServerSyncedCanonical != null && canonicalServerPayloadStr() !== lastServerSyncedCanonical;
   const fcMis = countArduMismatchVsFc();
+  const sessionDirty = countArduDirtyVsSession();
 
   const lines = [];
   if (serverDirty) {
@@ -741,18 +779,19 @@ function updateParamSyncBanner() {
   }
   if (fcMis == null) {
     lines.push('לא בוצע READ מהרחפן — לא ידוע אם המטוס תואם ליעדים.');
-  } else if (fcMis > 0) {
-    lines.push(`יש שינויים ביעדי Ardu שלא נשלחו למטוס (${fcMis}) — «WRITE — לרחפן».`);
+  }
+  if (sessionDirty > 0) {
+    lines.push(`יש שינויים שערכת ולא נשלחו למטוס (${sessionDirty}) — «WRITE — לרחפן».`);
   }
 
   let level = 'ok';
-  if (serverDirty || (fcMis != null && fcMis > 0)) {
+  if (serverDirty || sessionDirty > 0) {
     level = 'warn';
   } else if (fcMis == null && !serverDirty) {
     level = 'info';
   }
 
-  if (!serverDirty && fcMis === 0) {
+  if (!serverDirty && sessionDirty === 0 && fcMis === 0) {
     lines.length = 0;
     lines.push('הכל מסונכרן: שמירה לשרת ויעדי Ardu כפי שנקראו מהמטוס.');
     level = 'ok';
@@ -1951,6 +1990,7 @@ async function loadVisionConfigFromServer(statusEl) {
     renderArduParamForm();
     syncConfigTextFromArdu();
     captureServerBaseline();
+    captureArduWriteBaseline();
     updateParamSyncBanner();
     if (statusEl) {
       statusEl.textContent = 'נטען מהשרת';
@@ -8026,7 +8066,7 @@ function renderArduDiff(current, target) {
   if (arduDiffSummary) {
     arduDiffSummary.textContent = mismatches === 0
       ? '✓ כל הפרמטרים כבר תואמים — אין צורך ב-WRITE לרחפן'
-      : `${mismatches} פרמטרים שונים או חסרים בבקר — לחץ WRITE לרחפן להחלתם${missingOnFc > 0 ? ` (${missingOnFc} לא בבקר)` : ''}`;
+      : `${mismatches} פרמטרים שונים או חסרים בבקר — WRITE לרחפן שולח רק מה שערכת בסשן זה${missingOnFc > 0 ? ` (${missingOnFc} לא בבקר)` : ''}`;
     arduDiffSummary.style.color = mismatches === 0 ? '#4ade80' : '#fbbf24';
   }
 }
@@ -8097,10 +8137,11 @@ if (arduWriteBtn) {
       arduWriteStatus.className = 'ardu-write-status';
     }
     try {
+      const dirtyParams = collectDirtyArduParams();
       const res = await fetch('/api/ardu/params/write', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: '{}',
+        body: JSON.stringify({ params: dirtyParams }),
       });
       const d = await res.json();
       if (!res.ok && d.code === 'armed') {
@@ -8118,9 +8159,23 @@ if (arduWriteBtn) {
           arduWriteStatus.textContent = 'לא מחובר — חבר MAVLink תחילה.';
           arduWriteStatus.className = 'ardu-write-status fail';
         }
+      } else if (!res.ok && d.code === 'bulk_cap') {
+        if (arduWriteStatus) {
+          arduWriteStatus.textContent = d.message || 'WRITE חסום — יותר מדי פרמטרים בבת אחת';
+          arduWriteStatus.className = 'ardu-write-status fail';
+        }
       } else if (d.ok) {
-        // Real write succeeded — update snapshot from echoed MAVLink values.
-        fcCurrentSnapshot = { ...arduTargetState };
+        const verified = d.verified && typeof d.verified === 'object' ? d.verified : {};
+        if (Object.keys(verified).length) {
+          if (!fcCurrentSnapshot || typeof fcCurrentSnapshot !== 'object') fcCurrentSnapshot = {};
+          for (const [k, v] of Object.entries(verified)) {
+            fcCurrentSnapshot[k] = v;
+            arduWriteBaseline[k] = arduTargetState[k];
+          }
+        }
+        if (d.written === 0) {
+          captureArduWriteBaseline();
+        }
         if (arduWriteStatus) {
           const simNote = d.simulated ? ' (סימולציה — אין MAVLink)' : '';
           const failNote = d.failed?.length ? ` — ${d.failed.length} פרמטרים נכשלו` : '';

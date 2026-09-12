@@ -60,9 +60,9 @@ function loadUiHonesty() {
 }
 
 describe('Status connected ⇔ data honesty', () => {
-  it('pins APP_VERSION at 1.02.297 after Status FC honesty', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.297'");
-    expect(pkg.version).toBe('1.02.297');
+  it('pins APP_VERSION at 1.02.298 after Status FC honesty', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.298'");
+    expect(pkg.version).toBe('1.02.298');
     expect(changelog).toContain('"version": "1.02.293"');
   });
 

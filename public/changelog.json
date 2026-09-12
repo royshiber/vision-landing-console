@@ -1,5 +1,16 @@
 [
   {
+    "version": "1.02.298",
+    "date": "2026-09-12",
+    "changes": [
+      {
+        "type": "fix",
+        "title": "Parameters WRITE sends only session-dirty keys",
+        "detail": "APP_VERSION 1.02.298. After master 1.02.297 (#116/#117). POST /api/ardu/params/write accepts { params } of operator-dirty keys only. Empty {} returns written:0 message אין שינוי and does not setParam the target template vs live FC. More than 40 items abort unless confirmBulk=true. Single-param /api/param-center/param-set unchanged. No ARM/LAND and no Companion apply/restart."
+      }
+    ]
+  },
+  {
     "version": "1.02.297",
     "date": "2026-09-12",
     "changes": [
