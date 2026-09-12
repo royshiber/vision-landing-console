@@ -884,6 +884,15 @@
               <div id="flightListWrap" class="flight-list-wrap"></div>
             </div>
             <div class="debrief-logs-col debrief-logs-col--history">
+              <div class="archive-sessions-card" id="archiveSessionsCard">
+                <div class="flights-mgr-header">
+                  <h3 class="flights-mgr-title">הקלטות ארכיון</h3>
+                  <button type="button" id="refreshArchiveSessionsBtn" title="רענן">⟳ רענן</button>
+                </div>
+                <p id="archiveSessionsEmpty" class="archive-sessions-empty">אין הקלטות ארכיון עדיין</p>
+                <div id="archiveSessionsList" class="archive-sessions-list" hidden></div>
+                <p id="archiveSessionsStatus" class="archive-sessions-status" aria-live="polite"></p>
+              </div>
               <div class="flights-mgr-header debrief-all-logs-head">
                 <h3 class="flights-mgr-title">כל הלוגים</h3>
                 <button type="button" id="refreshAllLogsBtn" title="רענן">⟳ רענן</button>

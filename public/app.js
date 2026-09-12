@@ -293,6 +293,7 @@ function applyDebriefSubtab(tabId = 'recordings', { save = true } = {}) {
     setTimeout(() => {
       if (typeof refreshFlightLists === 'function') refreshFlightLists();
       if (typeof refreshAllLogsTable === 'function') refreshAllLogsTable();
+      if (typeof refreshArchiveSessions === 'function') refreshArchiveSessions();
     }, 50);
   }
 }
@@ -6545,6 +6546,12 @@ const pullLogsBtn = document.getElementById('pullLogsBtn');
 const refreshAllLogsBtn = document.getElementById('refreshAllLogsBtn');
 const allLogsArduTbody = document.getElementById('allLogsArduTbody');
 const allLogsJetsonTbody = document.getElementById('allLogsJetsonTbody');
+const refreshArchiveSessionsBtn = document.getElementById('refreshArchiveSessionsBtn');
+const archiveSessionsEmpty = document.getElementById('archiveSessionsEmpty');
+const archiveSessionsList = document.getElementById('archiveSessionsList');
+const archiveSessionsStatus = document.getElementById('archiveSessionsStatus');
+const ARCHIVE_SESSIONS_EMPTY_HE = 'אין הקלטות ארכיון עדיין';
+const ARCHIVE_SESSIONS_LOAD_FAIL_HE = 'לא הצלחנו לטעון את רשימת ההקלטות.';
 
 /** Why: escape text/HTML for safe table cells and href. What: minimal entity encode for innerHTML rows. */
 function escapeAllLogsCell(s) {
@@ -6610,6 +6617,107 @@ async function handleDeleteLogClick(e) {
 }
 allLogsArduTbody?.addEventListener('click', handleDeleteLogClick);
 allLogsJetsonTbody?.addEventListener('click', handleDeleteLogClick);
+
+/** Why: show stored started_at as written. What: trim only — no invented timezone. */
+function formatArchiveSessionWhen(v) {
+  const s = String(v || '').trim();
+  return s || '—';
+}
+
+function archiveSessionFlagsHe(s) {
+  const flags = [];
+  if (s.interrupted || s.orphan) flags.push('נקטע');
+  if (s.empty) flags.push('ריק');
+  if (s.open && !s.interrupted && !s.orphan) flags.push('פתוח');
+  return flags;
+}
+
+function renderArchiveSessionsList(sessions) {
+  if (!archiveSessionsList || !archiveSessionsEmpty) return;
+  const list = Array.isArray(sessions) ? sessions : [];
+  if (!list.length) {
+    archiveSessionsEmpty.hidden = false;
+    archiveSessionsEmpty.textContent = ARCHIVE_SESSIONS_EMPTY_HE;
+    archiveSessionsList.hidden = true;
+    archiveSessionsList.innerHTML = '';
+    return;
+  }
+  archiveSessionsEmpty.hidden = true;
+  archiveSessionsList.hidden = false;
+  archiveSessionsList.innerHTML = list.map((s) => {
+    const id = Number(s.id) || 0;
+    const name = escapeAllLogsCell(s.basename || `סשן ${id}`);
+    const started = escapeAllLogsCell(formatArchiveSessionWhen(s.startedAt));
+    const ended = escapeAllLogsCell(s.endedAt ? formatArchiveSessionWhen(s.endedAt) : 'פתוח');
+    const bytesHe = escapeAllLogsCell(s.bytesHe || `${Number(s.bytes) || 0} ב`);
+    const roleHe = escapeAllLogsCell(s.linkRoleHe || (s.linkRole === 'cellular' ? 'סלולר' : 'רדיו'));
+    const flags = archiveSessionFlagsHe(s);
+    const flagsHe = flags.length ? ` · ${escapeAllLogsCell(flags.join(' · '))}` : '';
+    const pathVal = escapeAllLogsCell(s.storedPath || s.basename || '');
+    const copyBtn = pathVal
+      ? `<button type="button" class="archive-session-copy" data-copy-path="${pathVal}" title="העתק נתיב">העתק נתיב</button>`
+      : '';
+    const dl = s.downloadable && s.downloadUrl
+      ? `<a class="archive-session-dl" href="${escapeAllLogsCell(s.downloadUrl)}" download="${name}">הורדה</a>`
+      : '<span class="archive-session-nodl">אין קובץ</span>';
+    return `<article class="archive-session-row" data-session-id="${id}">
+      <div class="archive-session-main">
+        <strong class="archive-session-name">${name}</strong>
+        <span class="archive-session-meta">${started} → ${ended} · ${bytesHe} · ${roleHe}${flagsHe}</span>
+      </div>
+      <div class="archive-session-actions">${copyBtn} ${dl}</div>
+    </article>`;
+  }).join('');
+}
+
+async function refreshArchiveSessions() {
+  if (!archiveSessionsList && !archiveSessionsEmpty) return;
+  try {
+    const res = await fetch('/api/telemetry-archive/sessions', { cache: 'no-store' });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.ok === false) {
+      renderArchiveSessionsList([]);
+      if (archiveSessionsStatus) archiveSessionsStatus.textContent = data.messageHe || ARCHIVE_SESSIONS_LOAD_FAIL_HE;
+      return;
+    }
+    const sessions = Array.isArray(data.sessions) ? data.sessions : [];
+    renderArchiveSessionsList(sessions);
+    if (archiveSessionsEmpty && data.emptyHe && !sessions.length) {
+      archiveSessionsEmpty.textContent = data.emptyHe;
+    }
+    if (archiveSessionsStatus) {
+      archiveSessionsStatus.textContent = sessions.length ? `נטענו ${sessions.length} הקלטות ארכיון.` : '';
+    }
+  } catch {
+    renderArchiveSessionsList([]);
+    if (archiveSessionsStatus) archiveSessionsStatus.textContent = ARCHIVE_SESSIONS_LOAD_FAIL_HE;
+  }
+}
+
+async function copyArchiveSessionPath(rawPath) {
+  const text = String(rawPath || '').trim();
+  if (!text) return;
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+    } else {
+      throw new Error('no_clipboard');
+    }
+    if (archiveSessionsStatus) archiveSessionsStatus.textContent = 'הנתיב הועתק';
+  } catch {
+    window.prompt('העתיקו את הנתיב', text);
+  }
+}
+
+archiveSessionsList?.addEventListener('click', (e) => {
+  const btn = e.target.closest('.archive-session-copy');
+  if (!btn) return;
+  copyArchiveSessionPath(btn.dataset.copyPath || '');
+});
+
+refreshArchiveSessionsBtn?.addEventListener('click', () => {
+  refreshArchiveSessions();
+});
 
 pullLogsBtn?.addEventListener('click', () => {
   refreshAllLogsTable();
