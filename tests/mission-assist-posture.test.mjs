@@ -233,8 +233,8 @@ describe('C10.6 Mission chrome', () => {
     expect(posture).not.toMatch(/\/apply|\/restart|ARM|DISARM|LAND|JETSON_COMPANION|CURSOR_API_KEY/);
   });
 
-  it('pins APP_VERSION at 1.02.302', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.302'");
-    expect(pkg.version).toBe('1.02.302');
+  it('pins APP_VERSION at 1.02.303', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.303'");
+    expect(pkg.version).toBe('1.02.303');
   });
 });

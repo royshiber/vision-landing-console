@@ -1,33 +1,12 @@
 [
   {
-    "version": "1.02.303",
-    "date": "2026-09-12",
-    "changes": [
-      {
-        "type": "test",
-        "title": "Tests",
-        "detail": "advisor-assist-fold.test.mjs, airvix-259-roy-feedback.test.mjs, airvix-260-roy-feedback.test.mjs, airvix-263-roy-feedback.test.mjs, airvix-264-roy-feedback.test.mjs, airvix-265-status-develop.test.mjs, airvix-266-capability-intake.test.mjs, airvix-266-status-densify.test.mjs, airvix-268-capability-runway.test.mjs, airvix-269-ask-capability-brief.test.mjs, airvix-270-dual-link.test.mjs, airvix-271-hardware-intent-wizard.test.mjs, airvix-272-companion-link.test.mjs, airvix-272-concept-b-wizard.test.mjs, airvix-274-develop-chat-concept-b.test.mjs, annotated-vision-cellular-only.test.mjs, ardu-params-write.test.mjs, ardulab-assist-fold.test.mjs, attention-policy.test.mjs, auto-config-assist-fold.test.mjs, companion-observe-status.test.mjs, debrief-flights-fold.test.mjs, e3372-modem-absent-honesty.test.mjs, flight-engineer-assist-fold.test.mjs, jetson-cellular-e3372.test.mjs, mission-ah-alt-honesty.test.mjs, mission-assist-posture.test.mjs, mission-declutter-exp1.test.mjs, mission-layout-contract.test.mjs, mission-workspace-chrome.test.mjs, orphan-processes-remove.test.mjs, platform-capability-shells.test.mjs, readiness-merge.test.mjs, sim-lab-connect-handoff.test.mjs, status-connected-data-honesty.test.mjs, status-gauge-horizon-bleed.test.mjs, telemetry-platform-fold.test.mjs, vision-landing-readiness.test.mjs"
-      }
-    ]
-  },
-  {
     "version": "1.02.302",
     "date": "2026-09-12",
     "changes": [
       {
         "type": "feat",
-        "title": "Server library",
-        "detail": "optical-nav.mjs"
-      },
-      {
-        "type": "feat",
-        "title": "UI / app.js",
-        "detail": "app.js"
-      },
-      {
-        "type": "ui",
-        "title": "HTML layout",
-        "detail": "index.html"
+        "title": "Roy lock: GPS | optical stays display-only",
+        "detail": "APP_VERSION 1.02.302. Roy confirmed nav_toggle_display_only. Mission GPS | אופטי remains a display and logging preference in localStorage. This PR does not command an FC/EKF navigation-source switch. Optical honesty and observe-only companion optical_nav from 1.02.301 unchanged. No ARM/LAND and no Companion apply/restart."
       },
       {
         "type": "test",
