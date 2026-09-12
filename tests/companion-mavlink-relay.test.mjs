@@ -36,6 +36,14 @@ function sliceFunction(src, name) {
   throw new Error(`unclosed function ${name}`);
 }
 
+describe('server start re-opens a surviving Companion relay', () => {
+  it('calls ensureCompanionMavlinkRelay after companionService.start', () => {
+    const serverSrc = fs.readFileSync(path.join(repoRoot, 'server.js'), 'utf8');
+    expect(serverSrc).toContain('ensureCompanionMavlinkRelay');
+    expect(serverSrc).toMatch(/companionService\.start\(\)[\s\S]*ensureCompanionMavlinkRelay\(routeCtx\)/);
+  });
+});
+
 describe('companion MAVLink TCP relay target', () => {
   it('derives host:5770 from Companion HTTP base URL', () => {
     expect(DEFAULT_RELAY_PORT).toBe(5770);
@@ -217,5 +225,31 @@ describe('honesty: UART heartbeat is not a fake GCS stream', () => {
     expect(honesty.mem).toBeNull();
     expect(honesty.temp).toBeNull();
     expect(honesty.showGcsMissingNote).toBe(true);
+  });
+
+  it('Mission HUD empty copy uses ממסר hint when Companion has fc_heartbeat', () => {
+    const js = fs.readFileSync(path.join(repoRoot, 'public', 'app.js'), 'utf8');
+    const src = [
+      `const MISSION_FC_EMPTY_PRIMARY_HE = 'אין חיבור לבקר — לא מתקבלות הודעות MAVLink.';`,
+      `const MISSION_FC_EMPTY_NOTE_HE = 'אין חיבור לבקר. אין הודעות נכנסות.';`,
+      `const MISSION_FC_RELAY_HINT_HE = '${COMPANION_RELAY_HE.failedWhileHeartbeat}';`,
+      sliceFunction(js, 'companionReportsFcHeartbeat'),
+      sliceFunction(js, 'missionFcEmptyPrimaryHe'),
+      sliceFunction(js, 'missionFcEmptyNoteHe'),
+      'return { companionReportsFcHeartbeat, missionFcEmptyPrimaryHe, missionFcEmptyNoteHe };',
+    ].join('\n');
+    const ui = new Function(src)();
+    expect(ui.companionReportsFcHeartbeat({ fc_heartbeat: true })).toBe(true);
+    expect(ui.companionReportsFcHeartbeat({ link: { fc: 'heartbeat' } })).toBe(true);
+    expect(ui.companionReportsFcHeartbeat({ fc_heartbeat: false })).toBe(false);
+    expect(ui.missionFcEmptyPrimaryHe({ fc_heartbeat: true })).toBe(COMPANION_RELAY_HE.failedWhileHeartbeat);
+    expect(ui.missionFcEmptyNoteHe({ fc: 'heartbeat' })).toBe(COMPANION_RELAY_HE.failedWhileHeartbeat);
+    expect(ui.missionFcEmptyPrimaryHe({ hint_he: COMPANION_RELAY_HE.failedWhileHeartbeat, fc_heartbeat: true }))
+      .toBe(COMPANION_RELAY_HE.failedWhileHeartbeat);
+    expect(ui.missionFcEmptyPrimaryHe(null)).toBe('אין חיבור לבקר — לא מתקבלות הודעות MAVLink.');
+    expect(ui.missionFcEmptyNoteHe(null)).toBe('אין חיבור לבקר. אין הודעות נכנסות.');
+    expect(ui.missionFcEmptyPrimaryHe({ fc_heartbeat: true })).toMatch(/ממסר/);
+    expect(js).toMatch(/pfcMsgPrimaryHe\.textContent = missionFcEmptyPrimaryHe\(companion\)/);
+    expect(js).toMatch(/note\.textContent = missionFcEmptyNoteHe\(companion\)/);
   });
 });

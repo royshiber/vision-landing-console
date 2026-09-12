@@ -112,7 +112,9 @@ describe('SSE + Mission HUD pipeline wiring', () => {
   it('Mission STATUSTEXT hydrates from live radio status, not only SSE connected', () => {
     const apply = sliceFunction(js, 'applyFcStatustextHud');
     expect(apply).toMatch(/isHudMavlinkLive\(mavlink\)/);
-    expect(apply).toContain('אין חיבור לבקר — לא מתקבלות הודעות MAVLink.');
+    expect(apply).toMatch(/missionFcEmptyPrimaryHe\(companion\)/);
+    expect(js).toContain('אין חיבור לבקר — לא מתקבלות הודעות MAVLink.');
+    expect(js).toContain('דופק חי בבקר. ממסר הטלמטריה לא נפתח.');
     expect(apply).toMatch(/pfcMsgPrimaryHe\.textContent = first/);
     expect(js).toContain('function resolveHudMavlink(');
     expect(js).toContain('function liveStatusToHudMavlink(');

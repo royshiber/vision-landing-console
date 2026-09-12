@@ -4796,6 +4796,36 @@ function isHudMavlinkLive(mav) {
   return !!(mav && mav.connected === true);
 }
 
+const MISSION_FC_EMPTY_PRIMARY_HE = 'אין חיבור לבקר — לא מתקבלות הודעות MAVLink.';
+const MISSION_FC_EMPTY_NOTE_HE = 'אין חיבור לבקר. אין הודעות נכנסות.';
+const MISSION_FC_RELAY_HINT_HE = 'דופק חי בבקר. ממסר הטלמטריה לא נפתח.';
+
+function companionReportsFcHeartbeat(companion) {
+  if (!companion || typeof companion !== 'object') return false;
+  if (companion.fc_heartbeat === true) return true;
+  if (companion.fc === 'heartbeat') return true;
+  const link = companion.link;
+  if (link && typeof link === 'object') {
+    if (link.fc_heartbeat === true) return true;
+    if (link.fc === 'heartbeat') return true;
+  }
+  return false;
+}
+
+function missionFcEmptyPrimaryHe(companion) {
+  if (companionReportsFcHeartbeat(companion)) {
+    return companion.hint_he || companion.link?.hint_he || MISSION_FC_RELAY_HINT_HE;
+  }
+  return MISSION_FC_EMPTY_PRIMARY_HE;
+}
+
+function missionFcEmptyNoteHe(companion) {
+  if (companionReportsFcHeartbeat(companion)) {
+    return companion.hint_he || companion.link?.hint_he || MISSION_FC_RELAY_HINT_HE;
+  }
+  return MISSION_FC_EMPTY_NOTE_HE;
+}
+
 function liveStatusToHudMavlink(s) {
   if (!s || typeof s !== 'object') return null;
   const texts = Array.isArray(s.recentStatusTexts) ? s.recentStatusTexts : [];
@@ -4879,7 +4909,10 @@ function syncMissionFcEmptyNote(mav) {
     note.textContent = name ? `מחובר · ${name}` : 'מחובר לבקר.';
     return;
   }
-  note.textContent = 'אין חיבור לבקר. אין הודעות נכנסות.';
+  const companion = (typeof latestCompanionFromServer === 'object' && latestCompanionFromServer)
+    ? latestCompanionFromServer
+    : null;
+  note.textContent = missionFcEmptyNoteHe(companion);
 }
 
 function applyConnectPillFromLinks(links) {
@@ -5365,7 +5398,10 @@ function applyNavOpticalStatus(vision) {
 function applyFcStatustextHud(mavlink) {
   if (!pfcMsgPrimaryHe) return;
   if (!isHudMavlinkLive(mavlink)) {
-    pfcMsgPrimaryHe.textContent = 'אין חיבור לבקר — לא מתקבלות הודעות MAVLink.';
+    const companion = (typeof latestCompanionFromServer === 'object' && latestCompanionFromServer)
+      ? latestCompanionFromServer
+      : null;
+    pfcMsgPrimaryHe.textContent = missionFcEmptyPrimaryHe(companion);
     if (pfcMsgScroll) pfcMsgScroll.innerHTML = '';
     _statustextSig = '';
     syncMissionFcEmptyNote(null);
@@ -9066,6 +9102,9 @@ initAnnotatedVisionPanel();
       hasData: link.hasData,
       fc_linked: link.fc_linked,
       fc_heartbeat: link.fc_heartbeat,
+      fc: link.fc || prev.fc,
+      hint_he: link.hint_he || prev.hint_he,
+      mavlinkRelay: link.mavlinkRelay || prev.mavlinkRelay,
       pillLabelHe: link.pillLabelHe,
     };
     if (jetsonLinkChip) {
