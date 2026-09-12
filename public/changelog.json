@@ -1,5 +1,16 @@
 [
   {
+    "version": "1.02.309",
+    "date": "2026-09-12",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "First-flight FC HUD honesty — real values or Hebrew empty reason",
+        "detail": "APP_VERSION 1.02.309. After master 1.02.308 (#124). Mission PFD tapes and גובה/מהירות/GPS tiles show a real FC number when VFR_HUD, GLOBAL_POSITION_INT, or GPS_RAW_INT produced it. Missing fields stay -- with אין קישור or מחובר אך אין נתון מהבקר עדיין. GPS_RAW with 0,0 keeps fix/sats and never invents coordinates. EKF/GPS STATUSTEXT is classified into a compact Hebrew wait hint near the HUD. Stream rates are requested on first heartbeat and re-requested on reconnect, MAVLink1→2, or still-missing HUD (capped). Residual: some FCs omit VFR until a GPS origin — dashes stay honest, not faked. No ARM/LAND and no Companion apply/restart."
+      }
+    ]
+  },
+  {
     "version": "1.02.308",
     "date": "2026-09-12",
     "changes": [

@@ -43,9 +43,9 @@ function cssBlock(src, selector) {
 }
 
 describe('AIRVIX 1.02.264 Ask rename + premium horizon', () => {
-  it('pins APP_VERSION at 1.02.308', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.308'");
-    expect(pkg.version).toBe('1.02.308');
+  it('pins APP_VERSION at 1.02.309', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.309'");
+    expect(pkg.version).toBe('1.02.309');
   });
 
   it('fails if מסייע appears in public UI sources', () => {
