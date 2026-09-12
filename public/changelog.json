@@ -1,5 +1,16 @@
 [
   {
+    "version": "1.02.296",
+    "date": "2026-09-12",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "real Parameters WRITE + PARAM_SET wire fix",
+        "detail": "APP_VERSION 1.02.296. After master 1.02.295 (#115). PARAM_SET wire is float|target|tc|name|type (pymavlink SERIAL5_PROTOCOL hex fixture). Name-first is wrong and cannot change FC values. PARAM_REQUEST_READ stays index|target|tc|name. WRITE calls setParam when MAVLink is connected; offline stays simulated:true. FC-echoed paramTypes win (RC6_DZ=4). Same-value verify-by-read is not SET success. Status Computers shows Jetson health plus FC identity on heartbeat without inventing SYS_STATUS gauges. Companion fc_read_only=false is still required for live GCS→FC. No ARM/LAND and no Companion apply/restart."
+      }
+    ]
+  },
+  {
     "version": "1.02.295",
     "date": "2026-09-12",
     "changes": [

@@ -568,6 +568,9 @@ export VLC_CONSOLE_URL="http://<PC-IP>:4010"
 export VLC_COMPANION_TOKEN="<אותו COMPANION_SHARED_SECRET>"
 export VLC_FC_DEVICE="/dev/ttyTHS1"   # Matek SERIAL3 → Jetson UART1
 export VLC_FC_BAUD="921600"
+# Companion TX gate (external to the console). 1 = observe-only UART; 0 = GCS→FC.
+# PARAM_SET / PARAM_REQUEST_* frames from the console are valid either way.
+# Live Parameters WRITE needs 0 / fc_read_only=false on the Jetson.
 export VLC_FC_READ_ONLY="1"
 export VLC_FC_SERIAL_NAME="SERIAL3"
 export VLC_RELAY_PORT="5770"

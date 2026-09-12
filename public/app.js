@@ -3236,6 +3236,65 @@ function pulseResolveFcHonesty(companion, mav) {
   };
 }
 
+function pulseFiniteOrNull(v) {
+  if (v == null || v === '') return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+function pulseFormatHbAge(ms) {
+  const n = pulseFiniteOrNull(ms);
+  if (n == null) return null;
+  if (n < 1000) return `${Math.round(n)} ms`;
+  return `${(n / 1000).toFixed(1)} s`;
+}
+
+function pulseFormatHbRate(hz) {
+  const n = pulseFiniteOrNull(hz);
+  if (n == null) return null;
+  return `${n.toFixed(1)} Hz`;
+}
+
+function pulseLinkKindLabel(link) {
+  if (link === 'heartbeat') return 'דופק חי';
+  if (link === 'linked') return 'מקושר';
+  if (link === 'radio' || link === 'cellular') return String(link);
+  return null;
+}
+
+/** Known FC identity only — never invent load/mem/temp or firmware. */
+function pulseResolveFcIdentity(mav, honesty) {
+  const live = !!(honesty?.live);
+  const src = live && mav && typeof mav === 'object' ? mav : null;
+  return {
+    live,
+    autopilotName: src && src.autopilotName ? String(src.autopilotName) : null,
+    vehicleType: src && src.vehicleType ? String(src.vehicleType) : null,
+    sysId: src ? pulseFiniteOrNull(src.sysId) : null,
+    heartbeatAgeMs: src ? pulseFiniteOrNull(src.lastHeartbeatAgeMs) : null,
+    heartbeatRateHz: src ? pulseFiniteOrNull(src.heartbeatRateHz) : null,
+    link: live ? (honesty.link || null) : null,
+  };
+}
+
+function pulseWriteIdentityCell(id, value) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = value == null || value === '' ? '--' : String(value);
+}
+
+function pulsePaintFcIdentity(mav, honesty) {
+  const ident = pulseResolveFcIdentity(mav, honesty);
+  const list = document.getElementById('pulseFcIdentityList');
+  if (list) list.hidden = !ident.live;
+  pulseWriteIdentityCell('pulseFcAp', ident.autopilotName);
+  pulseWriteIdentityCell('pulseFcVehicle', ident.vehicleType);
+  pulseWriteIdentityCell('pulseFcSysId', ident.sysId != null ? String(ident.sysId) : null);
+  pulseWriteIdentityCell('pulseFcHbAge', pulseFormatHbAge(ident.heartbeatAgeMs));
+  pulseWriteIdentityCell('pulseFcHbRate', pulseFormatHbRate(ident.heartbeatRateHz));
+  pulseWriteIdentityCell('pulseFcLinkKind', pulseLinkKindLabel(ident.link));
+}
+
 function pulseResolveComputerHonesty(companion, mav) {
   const src = companion && typeof companion === 'object' ? companion : {};
   const mode = src.mode || src.link?.mode || 'off';
@@ -3510,7 +3569,13 @@ function pulseRefreshVersionOffers() {
   const companion = (typeof latestCompanionFromServer !== 'undefined' && latestCompanionFromServer) ? latestCompanionFromServer : {};
   const honesty = pulseResolveComputerHonesty(companion);
   const liveCompanionVer = honesty.jetsonLive
-    ? String(companion.version || companion.system?.version || '').trim()
+    ? String(
+      companion.version
+      || companion.agentVersion
+      || companion.system?.version
+      || companion.compatibility?.jetson?.agentVersion
+      || '',
+    ).trim()
     : '';
   if (!honesty.jetsonLive) {
     const valueEl = document.getElementById('pulseJetsonVersion');
@@ -3758,6 +3823,7 @@ function pulseRefresh() {
     fcNote.hidden = !fcHonesty.showGcsMissingNote;
     fcNote.textContent = 'אין נתוני עומס מ־GCS';
   }
+  pulsePaintFcIdentity(mav, fcHonesty);
   const companionLive = honesty.jetsonLive;
   const evolveText = pulseEvolveLine(document.getElementById('assistRunPanel'));
   const items = pulseBuildAttention({
@@ -4915,6 +4981,9 @@ function liveStatusToHudMavlink(s) {
     id: s.id ?? null,
     linkRole: s.linkRole || 'radio',
     heartbeatCount: Number(s.heartbeatCount) || 0,
+    sysId: Number.isFinite(Number(s.sysId)) ? Number(s.sysId) : null,
+    lastHeartbeatAgeMs: Number.isFinite(Number(s.lastHeartbeatAgeMs)) ? Number(s.lastHeartbeatAgeMs) : null,
+    heartbeatRateHz: Number.isFinite(Number(s.heartbeatRateHz)) ? Number(s.heartbeatRateHz) : null,
     armed: null,
     armedKnown: false,
     autopilotName: s.autopilotName || null,
@@ -4964,6 +5033,9 @@ function resolveHudMavlink(sseMav, liveStatus) {
       armed: sseMav?.armed ?? null,
       armedKnown: sseMav?.armedKnown === true,
       flightMode: sseMav?.flightMode ?? null,
+      sysId: sseMav?.sysId ?? fromLive.sysId,
+      lastHeartbeatAgeMs: sseMav?.lastHeartbeatAgeMs ?? fromLive.lastHeartbeatAgeMs,
+      heartbeatRateHz: sseMav?.heartbeatRateHz ?? fromLive.heartbeatRateHz,
     };
   }
   if (sseMav) return sseMav;

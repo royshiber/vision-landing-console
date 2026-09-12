@@ -15,6 +15,7 @@ import {
   MAV_DATA_STREAM_POSITION,
   MAV_DATA_STREAM_EXTRA1,
   MAV_DATA_STREAM_EXTRA2,
+  MSG_SYS_STATUS,
   MSG_ATTITUDE,
   MSG_GPS_RAW_INT,
   MSG_GLOBAL_POSITION_INT,
@@ -92,9 +93,9 @@ function loadSizeFns() {
 }
 
 describe('Mission AH size bias + swap persistence', () => {
-  it('pins APP_VERSION at 1.02.295', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.295'");
-    expect(pkg.version).toBe('1.02.295');
+  it('pins APP_VERSION at 1.02.296', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.296'");
+    expect(pkg.version).toBe('1.02.296');
   });
 
   it('keeps mission-data labels and values on one ellipsized line', () => {
@@ -250,6 +251,7 @@ describe('HUD message-interval request (no flight commands)', () => {
     expect(targets.streams.find((s) => s.id === MAV_DATA_STREAM_EXTRA1).rateHz).toBe(HUD_ATTITUDE_RATE_HZ);
     expect(targets.streams.find((s) => s.id === MAV_DATA_STREAM_EXTENDED_STATUS).rateHz).toBe(HUD_GPS_RATE_HZ);
     expect(targets.messages.map((m) => m.id)).toEqual([
+      MSG_SYS_STATUS,
       MSG_ATTITUDE,
       MSG_GLOBAL_POSITION_INT,
       MSG_VFR_HUD,
