@@ -164,9 +164,9 @@ describe('AIRVIX Mission chrome — talk is flight-safe', () => {
     expect(chip).toContain("kind === 'advisor'");
   });
 
-  it('pins APP_VERSION at 1.02.280', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.280'");
-    expect(pkg.version).toBe('1.02.280');
+  it('pins APP_VERSION at 1.02.281', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.281'");
+    expect(pkg.version).toBe('1.02.281');
   });
 
   it('keeps a rectangular glass artificial horizon with video HUD mode', () => {
@@ -179,10 +179,10 @@ describe('AIRVIX Mission chrome — talk is flight-safe', () => {
     expect(draw).toContain('#3DFF6A');
     expect(draw).toContain('createLinearGradient');
     expect(draw).toContain("if (!videoMode)");
+    expect(draw).toContain('const att = { x: 0, y: 0, w: W, h: H }');
     expect(draw).toContain('ctx.rect(att.x, att.y, att.w, att.h)');
-    expect(draw).toContain('drawVTape');
-    expect(draw).toContain("value == null ? '--'");
-    expect(draw).toContain("heading == null ? '--'");
+    expect(draw).not.toContain('drawVTape');
+    expect(draw).not.toContain('tapeW');
     expect(draw).toContain('fillRect(cx - 4.5, cy - 4.5, 9, 9)');
     expect(draw).toContain('formatHudAngleLabel');
     expect(draw).not.toMatch(/FLIGHT_ACTION|PARAM_SET|\/apply|\/restart/);

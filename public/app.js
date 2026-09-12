@@ -3783,6 +3783,84 @@ function renderPulseAddWidgetChips(result) {
   }
 }
 
+const PULSE_GAUGE_ARC = 'M8 46 A 32 32 0 0 1 72 46';
+
+function pulseWidgetGaugeKind(key) {
+  const k = String(key || '');
+  if (/temp/i.test(k)) return 'temp';
+  if (/mem/i.test(k)) return 'mem';
+  if (/LoadPct|cpuLoad|fcLoad/i.test(k)) return 'load';
+  return 'value';
+}
+
+function pulseWidgetDisplayText(widget, payload) {
+  const raw = formatPulseWidgetValue(widget?.key, payload);
+  const unit = String(widget?.unit || '');
+  if (!unit || raw === '--' || raw === 'אין נתון') return raw;
+  if (raw.includes(unit) || raw.includes('%') || /°/.test(raw)) return raw;
+  return `${raw} ${unit}`;
+}
+
+function pulseWidgetGaugeState(widget, display) {
+  const kind = pulseWidgetGaugeKind(widget?.key);
+  if (!display || display === '--' || display === 'אין נתון') {
+    return { kind, empty: true, pct: 0 };
+  }
+  const parsed = Number.parseFloat(display);
+  if (!Number.isFinite(parsed)) return { kind, empty: true, pct: 0 };
+  if (kind === 'load' || kind === 'mem') {
+    return { kind, empty: false, pct: pulseGaugePct(parsed, '%') };
+  }
+  if (kind === 'temp') {
+    return { kind, empty: false, pct: pulseGaugePct(parsed, 'C') };
+  }
+  return { kind, empty: true, pct: 0 };
+}
+
+function createPulseExtraGauge(widget, payload) {
+  const display = pulseWidgetDisplayText(widget, payload);
+  const state = pulseWidgetGaugeState(widget, display);
+  const tile = document.createElement('div');
+  tile.className = 'pulse-gauge pulse-extra-gauge';
+  tile.dataset.pulseWidgetId = widget.id;
+  tile.dataset.gauge = state.kind;
+  tile.classList.toggle('is-empty', state.empty);
+  tile.style.setProperty('--gauge-pct', String(state.pct));
+
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('class', 'pulse-gauge-svg');
+  svg.setAttribute('viewBox', '0 0 80 50');
+  svg.setAttribute('aria-hidden', 'true');
+  const track = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  track.setAttribute('class', 'pulse-gauge-track');
+  track.setAttribute('pathLength', '100');
+  track.setAttribute('d', PULSE_GAUGE_ARC);
+  const fill = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  fill.setAttribute('class', 'pulse-gauge-fill');
+  fill.setAttribute('pathLength', '100');
+  fill.setAttribute('d', PULSE_GAUGE_ARC);
+  svg.appendChild(track);
+  svg.appendChild(fill);
+
+  const dd = document.createElement('dd');
+  dd.dir = 'ltr';
+  dd.textContent = display;
+  const dt = document.createElement('dt');
+  dt.textContent = widget.label;
+  const remove = document.createElement('button');
+  remove.type = 'button';
+  remove.className = 'pulse-extra-remove';
+  remove.setAttribute('aria-label', 'הסירו');
+  remove.textContent = '×';
+  remove.addEventListener('click', () => removePulseWidget(widget.id));
+
+  tile.appendChild(svg);
+  tile.appendChild(dd);
+  tile.appendChild(dt);
+  tile.appendChild(remove);
+  return tile;
+}
+
 function refreshPulseExtraWidgets() {
   const payload = pulseWidgetPayload();
   const widgets = readPulseWidgets();
@@ -3793,24 +3871,7 @@ function refreshPulseExtraWidgets() {
   for (const widget of widgets) {
     const host = pulseExtraHost(widget.place);
     if (!host) continue;
-    const tile = document.createElement('div');
-    tile.className = 'pulse-extra-tile';
-    tile.dataset.pulseWidgetId = widget.id;
-    const dt = document.createElement('dt');
-    dt.textContent = widget.label;
-    const dd = document.createElement('dd');
-    dd.dir = 'ltr';
-    dd.textContent = formatPulseWidgetValue(widget.key, payload);
-    const remove = document.createElement('button');
-    remove.type = 'button';
-    remove.className = 'pulse-extra-remove';
-    remove.setAttribute('aria-label', 'הסירו');
-    remove.textContent = '×';
-    remove.addEventListener('click', () => removePulseWidget(widget.id));
-    tile.appendChild(dt);
-    tile.appendChild(dd);
-    tile.appendChild(remove);
-    host.appendChild(tile);
+    host.appendChild(createPulseExtraGauge(widget, payload));
   }
 }
 
@@ -4703,8 +4764,8 @@ hudAddSlotBtn?.addEventListener('click', () => {
 });
 
 /**
- * Rectangular glass PFD (mockup B) with optional video HUD (mockup C).
- * Same roll/pitch bindings. Tape numbers stay honest -- when missing.
+ * Full-bleed attitude in the Mission center cell. IAS / ALT / heading stay in HTML chrome.
+ * Roll / pitch stay honest -- when missing.
  *
  * @param {HTMLCanvasElement} canvas
  * @param {number|null} rollDeg
@@ -4728,39 +4789,21 @@ function drawHorizon(canvas, rollDeg, pitchDeg, opts = {}) {
   const rollDraw = showRoll ? rollBounded : 0;
   const pitchDraw = showPitch ? pitchBounded : 0;
   const rollRad = (rollDraw * Math.PI) / 180;
-  const airspeed = finiteHorizonTape(opts.airspeed);
-  const altitude = finiteHorizonTape(opts.altitude);
-  const heading = finiteHorizonTape(opts.heading);
-  const hud = videoMode ? '#3DFF6A' : '#f4f7fb';
+  const hud = videoMode ? '#3DFF6A' : '#f8f1d4';
   const skyZenith = videoMode ? 'rgba(18, 78, 148, 0.12)' : '#163e86';
   const skyMid = videoMode ? 'rgba(36, 118, 196, 0.10)' : '#2a78c8';
-  const skyHaze = videoMode ? 'rgba(120, 188, 232, 0.08)' : '#7ec4ea';
-  const gndHaze = videoMode ? 'rgba(186, 142, 78, 0.10)' : '#c49a58';
+  const skyHaze = videoMode ? 'rgba(120, 188, 232, 0.08)' : '#8ec8ee';
+  const gndHaze = videoMode ? 'rgba(186, 142, 78, 0.10)' : '#d4a45c';
   const gndMid = videoMode ? 'rgba(138, 87, 36, 0.10)' : '#8a5724';
-  const gndDeep = videoMode ? 'rgba(74, 42, 16, 0.12)' : '#4a2a10';
+  const gndDeep = videoMode ? 'rgba(74, 42, 16, 0.12)' : '#3d220c';
 
   ctx.clearRect(0, 0, W, H);
-  if (!videoMode) {
-    const well = ctx.createLinearGradient(0, 0, 0, H);
-    well.addColorStop(0, '#161b24');
-    well.addColorStop(1, '#0b0e14');
-    ctx.fillStyle = well;
-    ctx.fillRect(0, 0, W, H);
-  }
 
-  const pad = 4;
-  const tapeW = Math.max(36, Math.min(52, W * 0.15));
-  const hdgH = Math.max(20, Math.min(28, H * 0.11));
-  const att = {
-    x: pad + tapeW,
-    y: pad + 6,
-    w: Math.max(40, W - pad * 2 - tapeW * 2),
-    h: Math.max(40, H - pad * 2 - hdgH - 8),
-  };
+  const att = { x: 0, y: 0, w: W, h: H };
   const cx = att.x + att.w / 2;
   const cy = att.y + att.h / 2;
-  const pxPerDeg = att.h / 50;
-  const pitchPx = Math.max(-att.h * 0.72, Math.min(att.h * 0.72, pitchDraw * pxPerDeg));
+  const pxPerDeg = att.h / 48;
+  const pitchPx = Math.max(-att.h * 0.78, Math.min(att.h * 0.78, pitchDraw * pxPerDeg));
 
   ctx.save();
   ctx.beginPath();
@@ -4770,29 +4813,30 @@ function drawHorizon(canvas, rollDeg, pitchDeg, opts = {}) {
   ctx.translate(cx, cy);
   ctx.rotate(rollRad);
   if (!videoMode) {
-    const skyBand = ctx.createLinearGradient(0, -att.h * 0.52 + pitchPx, 0, pitchPx);
-    skyBand.addColorStop(0, skyZenith);
-    skyBand.addColorStop(0.42, skyMid);
+    const skyBand = ctx.createLinearGradient(0, -att.h * 1.15 + pitchPx, 0, pitchPx);
+    skyBand.addColorStop(0, '#0a1633');
+    skyBand.addColorStop(0.22, skyZenith);
+    skyBand.addColorStop(0.58, skyMid);
     skyBand.addColorStop(1, skyHaze);
     ctx.fillStyle = skyBand;
     ctx.fillRect(-att.w * 2, -att.h * 2 + pitchPx, att.w * 4, att.h * 2);
-    const gndBand = ctx.createLinearGradient(0, pitchPx, 0, att.h * 0.52 + pitchPx);
+    const gndBand = ctx.createLinearGradient(0, pitchPx, 0, att.h * 1.15 + pitchPx);
     gndBand.addColorStop(0, gndHaze);
-    gndBand.addColorStop(0.4, gndMid);
+    gndBand.addColorStop(0.28, gndMid);
     gndBand.addColorStop(1, gndDeep);
     ctx.fillStyle = gndBand;
     ctx.fillRect(-att.w * 2, pitchPx, att.w * 4, att.h * 2);
-    const haze = ctx.createLinearGradient(0, pitchPx - 18, 0, pitchPx + 18);
+    const haze = ctx.createLinearGradient(0, pitchPx - 22, 0, pitchPx + 22);
     haze.addColorStop(0, 'rgba(255, 236, 196, 0)');
-    haze.addColorStop(0.5, 'rgba(255, 236, 196, 0.22)');
+    haze.addColorStop(0.5, 'rgba(255, 228, 170, 0.28)');
     haze.addColorStop(1, 'rgba(255, 236, 196, 0)');
     ctx.fillStyle = haze;
-    ctx.fillRect(-att.w * 2, pitchPx - 18, att.w * 4, 36);
+    ctx.fillRect(-att.w * 2, pitchPx - 22, att.w * 4, 44);
   }
-  ctx.strokeStyle = videoMode ? hud : '#fff4d2';
-  ctx.lineWidth = videoMode ? 1.4 : 2.6;
-  ctx.shadowColor = videoMode ? 'rgba(61, 255, 106, 0.35)' : 'rgba(255, 236, 180, 0.55)';
-  ctx.shadowBlur = videoMode ? 4 : 8;
+  ctx.strokeStyle = videoMode ? hud : '#fff1c2';
+  ctx.lineWidth = videoMode ? 1.6 : 2.8;
+  ctx.shadowColor = videoMode ? 'rgba(61, 255, 106, 0.35)' : 'rgba(255, 228, 160, 0.65)';
+  ctx.shadowBlur = videoMode ? 4 : 10;
   ctx.beginPath();
   ctx.moveTo(-att.w * 2, pitchPx);
   ctx.lineTo(att.w * 2, pitchPx);
@@ -4803,60 +4847,55 @@ function drawHorizon(canvas, rollDeg, pitchDeg, opts = {}) {
   for (let p = -40; p <= 40; p += 5) {
     if (p === 0) continue;
     const y = pitchPx - p * pxPerDeg;
-    if (y < -att.h * 0.46 || y > att.h * 0.46) continue;
+    if (y < -att.h * 0.48 || y > att.h * 0.48) continue;
     const big = p % 10 === 0;
-    const hw = big ? 30 : 13;
+    const hw = big ? 34 : 14;
     ctx.strokeStyle = hud;
-    ctx.globalAlpha = big ? 0.95 : 0.55;
-    ctx.lineWidth = big ? 1.8 : 1;
+    ctx.globalAlpha = big ? 0.92 : 0.48;
+    ctx.lineWidth = big ? 1.7 : 1;
     ctx.beginPath();
     ctx.moveTo(-hw, y);
     ctx.lineTo(hw, y);
     ctx.stroke();
     if (big) {
-      ctx.globalAlpha = 1;
+      ctx.globalAlpha = 0.95;
       ctx.fillStyle = hud;
       ctx.textAlign = 'center';
-      ctx.fillText(String(Math.abs(p)), -hw - 12, y + 1);
-      ctx.fillText(String(Math.abs(p)), hw + 12, y + 1);
+      ctx.fillText(String(Math.abs(p)), -hw - 11, y + 1);
+      ctx.fillText(String(Math.abs(p)), hw + 11, y + 1);
     }
   }
   ctx.globalAlpha = 1;
   ctx.restore();
+  if (!videoMode) {
+    const vig = ctx.createRadialGradient(cx, cy, Math.min(W, H) * 0.28, cx, cy, Math.max(W, H) * 0.72);
+    vig.addColorStop(0, 'rgba(0,0,0,0)');
+    vig.addColorStop(1, 'rgba(6, 8, 14, 0.34)');
+    ctx.fillStyle = vig;
+    ctx.fillRect(att.x, att.y, att.w, att.h);
+  }
   ctx.restore();
 
-  if (!videoMode) {
-    const bezel = ctx.createLinearGradient(att.x, att.y, att.x, att.y + att.h);
-    bezel.addColorStop(0, 'rgba(236, 240, 248, 0.42)');
-    bezel.addColorStop(0.18, 'rgba(148, 163, 184, 0.22)');
-    bezel.addColorStop(1, 'rgba(15, 23, 42, 0.55)');
-    ctx.strokeStyle = bezel;
-    ctx.lineWidth = 2.4;
-    ctx.strokeRect(att.x + 1, att.y + 1, att.w - 2, att.h - 2);
-    ctx.strokeStyle = 'rgba(255,255,255,0.16)';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(att.x + 2.5, att.y + 2.5, att.w - 5, att.h - 5);
-  }
-
-  const arcR = Math.min(att.w, att.h) * 0.42;
+  const arcR = Math.min(att.w, att.h) * 0.46;
+  const arcY = att.y + 20;
   ctx.strokeStyle = hud;
-  ctx.lineWidth = videoMode ? 1.4 : 2;
+  ctx.lineWidth = videoMode ? 1.4 : 1.8;
+  ctx.globalAlpha = 0.88;
   ctx.beginPath();
-  ctx.arc(cx, att.y + 18, arcR, -Math.PI * 0.78, -Math.PI * 0.22);
+  ctx.arc(cx, arcY, arcR, -Math.PI * 0.78, -Math.PI * 0.22);
   ctx.stroke();
+  ctx.globalAlpha = 1;
   [-60, -45, -30, -20, -10, 0, 10, 20, 30, 45, 60].forEach((deg) => {
     const a = (-90 + deg) * Math.PI / 180;
     const big = deg === 0 || Math.abs(deg) === 30 || Math.abs(deg) === 60;
-    const tL = big ? 8 : 5;
-    const ox = cx;
-    const oy = att.y + 18;
+    const tL = big ? 8 : 4;
     ctx.beginPath();
-    ctx.moveTo(ox + Math.cos(a) * arcR, oy + Math.sin(a) * arcR);
-    ctx.lineTo(ox + Math.cos(a) * (arcR - tL), oy + Math.sin(a) * (arcR - tL));
+    ctx.moveTo(cx + Math.cos(a) * arcR, arcY + Math.sin(a) * arcR);
+    ctx.lineTo(cx + Math.cos(a) * (arcR - tL), arcY + Math.sin(a) * (arcR - tL));
     ctx.stroke();
   });
   ctx.save();
-  ctx.translate(cx, att.y + 18);
+  ctx.translate(cx, arcY);
   ctx.rotate(rollRad);
   ctx.fillStyle = videoMode ? hud : '#f4c430';
   ctx.beginPath();
@@ -4884,19 +4923,19 @@ function drawHorizon(canvas, rollDeg, pitchDeg, opts = {}) {
   } else {
     ctx.strokeStyle = '#f6d15a';
     ctx.fillStyle = '#f6d15a';
-    ctx.shadowColor = 'rgba(246, 209, 90, 0.45)';
-    ctx.shadowBlur = 6;
-    ctx.lineWidth = 3.4;
+    ctx.shadowColor = 'rgba(246, 209, 90, 0.5)';
+    ctx.shadowBlur = 8;
+    ctx.lineWidth = 3.2;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     ctx.beginPath();
-    ctx.moveTo(cx - 38, cy);
-    ctx.lineTo(cx - 11, cy);
-    ctx.moveTo(cx + 11, cy);
-    ctx.lineTo(cx + 38, cy);
-    ctx.moveTo(cx - 11, cy);
-    ctx.lineTo(cx, cy + 8);
-    ctx.lineTo(cx + 11, cy);
+    ctx.moveTo(cx - 42, cy);
+    ctx.lineTo(cx - 12, cy);
+    ctx.moveTo(cx + 12, cy);
+    ctx.lineTo(cx + 42, cy);
+    ctx.moveTo(cx - 12, cy);
+    ctx.lineTo(cx, cy + 9);
+    ctx.lineTo(cx + 12, cy);
     ctx.stroke();
     ctx.shadowBlur = 0;
     ctx.fillStyle = '#0b0e14';
@@ -4906,86 +4945,14 @@ function drawHorizon(canvas, rollDeg, pitchDeg, opts = {}) {
     ctx.strokeRect(cx - 4.5, cy - 4.5, 9, 9);
   }
 
-  const drawVTape = (x, value, step, digits) => {
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(x, att.y, tapeW - 4, att.h);
-    ctx.clip();
-    ctx.fillStyle = videoMode ? 'rgba(0,0,0,0.18)' : 'rgba(8,10,14,0.55)';
-    ctx.fillRect(x, att.y, tapeW - 4, att.h);
-    const mid = att.y + att.h / 2;
-    const px = att.h / (step * 8);
-    const center = value == null ? 0 : value;
-    ctx.strokeStyle = hud;
-    ctx.fillStyle = hud;
-    ctx.font = '700 9px "Space Grotesk", sans-serif';
-    ctx.textAlign = x < cx ? 'right' : 'left';
-    ctx.textBaseline = 'middle';
-    const labelX = x < cx ? x + tapeW - 10 : x + 8;
-    for (let v = center - step * 6; v <= center + step * 6; v += step) {
-      const y = mid - (v - center) * px;
-      if (y < att.y + 4 || y > att.y + att.h - 4) continue;
-      ctx.beginPath();
-      ctx.moveTo(x < cx ? x + tapeW - 8 : x + 2, y);
-      ctx.lineTo(x < cx ? x + tapeW - 14 : x + 8, y);
-      ctx.stroke();
-      if (Math.round(v / step) % 2 === 0) ctx.fillText(String(Math.round(v)), labelX, y);
-    }
-    ctx.restore();
-    ctx.fillStyle = videoMode ? 'rgba(0,0,0,0.35)' : '#0b0e14';
-    ctx.strokeStyle = hud;
-    ctx.lineWidth = 1.2;
-    const boxY = mid - 11;
-    ctx.fillRect(x + 1, boxY, tapeW - 6, 22);
-    ctx.strokeRect(x + 1, boxY, tapeW - 6, 22);
-    ctx.fillStyle = hud;
-    ctx.font = '800 12px "Space Grotesk", sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    const label = value == null ? '--' : value.toFixed(digits);
-    ctx.fillText(label, x + (tapeW - 4) / 2, mid + 1);
-  };
-  drawVTape(pad + 2, airspeed, 10, 0);
-  drawVTape(W - pad - tapeW + 2, altitude, 20, 0);
-
-  const hdgY = att.y + att.h + 4;
-  ctx.fillStyle = videoMode ? 'rgba(0,0,0,0.18)' : 'rgba(8,10,14,0.62)';
-  ctx.fillRect(att.x, hdgY, att.w, hdgH);
-  ctx.strokeStyle = hud;
-  ctx.strokeRect(att.x + 0.5, hdgY + 0.5, att.w - 1, hdgH - 1);
-  const hdgCenter = heading == null ? 0 : ((heading % 360) + 360) % 360;
-  const hdgPx = att.w / 90;
-  ctx.fillStyle = hud;
-  ctx.strokeStyle = hud;
-  ctx.font = '700 9px "Space Grotesk", sans-serif';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  for (let d = -50; d <= 50; d += 5) {
-    const h = (hdgCenter + d + 360) % 360;
-    const x = cx + d * hdgPx;
-    if (x < att.x + 6 || x > att.x + att.w - 6) continue;
-    ctx.beginPath();
-    ctx.moveTo(x, hdgY + 3);
-    ctx.lineTo(x, hdgY + (d % 10 === 0 ? 10 : 6));
-    ctx.stroke();
-    if (d % 10 === 0) ctx.fillText(String(Math.round(h)).padStart(3, '0'), x, hdgY + hdgH - 8);
-  }
-  ctx.fillStyle = videoMode ? 'rgba(0,0,0,0.35)' : '#0b0e14';
-  ctx.fillRect(cx - 22, hdgY + 1, 44, hdgH - 2);
-  ctx.strokeStyle = hud;
-  ctx.strokeRect(cx - 22, hdgY + 1, 44, hdgH - 2);
-  ctx.fillStyle = hud;
-  ctx.font = '800 11px "Space Grotesk", sans-serif';
-  ctx.fillText(heading == null ? '--' : `${Math.round(hdgCenter)}°`, cx, hdgY + hdgH / 2);
-
   ctx.font = '700 11px "Space Grotesk", sans-serif';
   ctx.textBaseline = 'alphabetic';
   ctx.fillStyle = showRoll ? hud : (videoMode ? 'rgba(61,255,106,0.4)' : 'rgba(248,250,252,0.4)');
   ctx.textAlign = 'left';
-  ctx.fillText(showRoll ? `R ${rollDraw >= 0 ? '+' : ''}${formatHudAngleLabel(rollDraw)}°` : 'R --', 8, H - 6);
+  ctx.fillText(showRoll ? `R ${rollDraw >= 0 ? '+' : ''}${formatHudAngleLabel(rollDraw)}°` : 'R --', 8, H - 8);
   ctx.fillStyle = showPitch ? hud : (videoMode ? 'rgba(61,255,106,0.4)' : 'rgba(248,250,252,0.4)');
   ctx.textAlign = 'right';
-  ctx.fillText(showPitch ? `P ${pitchDraw >= 0 ? '+' : ''}${formatHudAngleLabel(pitchDraw)}°` : 'P --', W - 8, H - 6);
+  ctx.fillText(showPitch ? `P ${pitchDraw >= 0 ? '+' : ''}${formatHudAngleLabel(pitchDraw)}°` : 'P --', W - 8, H - 8);
 }
 const GPS_FIX_LABELS = ['אין GPS', 'אין Fix', '2D Fix', '3D Fix', 'DGPS', 'RTK Float', 'RTK Fixed'];
 
