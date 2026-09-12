@@ -31,11 +31,15 @@ describe('index.html cache-bust always matches version.js', () => {
     expect(server).toMatch(/app\.get\(\['\/', '\/index\.html'\]/);
   });
 
-  it('reloads once when the HTML cache-bust lags /api/meta', () => {
+  it('shows a banner when app.js query or meta lags /api/meta (no silent stale tab)', () => {
     expect(js).toContain('function syncHtmlCacheBustToServerVersion');
+    expect(js).toContain('function readLoadedAppJsQueryVersion');
+    expect(js).toContain('function showAppVersionMismatchBanner');
     expect(js).toContain("fetch('/api/meta', { cache: 'no-store' })");
-    expect(js).toContain('vlc.html-version-reload');
-    expect(js).toContain('location.reload()');
+    expect(js).toContain('app.js?v=');
+    expect(html).toContain('id="appVersionMismatchBanner"');
+    expect(html).toContain('id="appVersionMismatchReload"');
+    expect(js).not.toContain('vlc.html-version-reload');
   });
 });
 

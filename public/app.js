@@ -31,18 +31,44 @@ function setAssistPendingProposalId(id) {
   _assistPendingProposalId = id;
 }
 
+function readLoadedAppJsQueryVersion() {
+  const scripts = document.getElementsByTagName('script');
+  for (let i = scripts.length - 1; i >= 0; i -= 1) {
+    const src = String(scripts[i].src || '');
+    const m = src.match(/app\.js\?v=([^&]+)/i);
+    if (m) return decodeURIComponent(m[1]).replace(/^v/i, '').trim();
+  }
+  return '';
+}
+
+function showAppVersionMismatchBanner(loaded, server) {
+  const bar = document.getElementById('appVersionMismatchBanner');
+  const meta = document.getElementById('appVersionMismatchMeta');
+  if (!bar) {
+    console.warn('APP_VERSION mismatch', { loaded, server });
+    return;
+  }
+  if (meta) meta.textContent = `app.js?v=${loaded || '—'} · server ${server || '—'}`;
+  bar.hidden = false;
+  bar.classList.remove('hidden');
+  const reloadBtn = document.getElementById('appVersionMismatchReload');
+  if (reloadBtn && !reloadBtn.dataset.bound) {
+    reloadBtn.dataset.bound = '1';
+    reloadBtn.addEventListener('click', () => location.reload());
+  }
+}
+
 (function syncHtmlCacheBustToServerVersion() {
   const page = String(APP_VERSION_NEW || '').replace(/^v/i, '').trim();
+  const loadedJs = readLoadedAppJsQueryVersion();
+  if (loadedJs && page && loadedJs !== page && page !== '0.0.0') {
+    showAppVersionMismatchBanner(loadedJs, page);
+  }
   fetch('/api/meta', { cache: 'no-store' }).then((r) => r.json()).then((d) => {
     const live = String(d.appVersion || '').replace(/^v/i, '').trim();
-    if (!live || !page || live === page || page === '0.0.0') return;
-    const key = 'vlc.html-version-reload';
-    try {
-      if (sessionStorage.getItem(key) === live) return;
-      sessionStorage.setItem(key, live);
-    } catch { /* ignore quota */ }
-    console.warn('Stale HTML cache-bust', page, '→', live, '— reloading');
-    location.reload();
+    const loaded = loadedJs || page;
+    if (!live || !loaded || live === loaded) return;
+    showAppVersionMismatchBanner(loaded, live);
   }).catch((err) => { console.warn('app version sync failed', err); });
 })();
 
