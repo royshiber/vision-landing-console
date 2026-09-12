@@ -1,9 +1,9 @@
 {
   "name": "vision-landing-console",
-  "version": "1.02.280",
+  "version": "1.02.281",
   "private": true,
   "type": "module",
-  "description": "Vision Landing Console \u2014 camera-based landing workflow with MAVLink, Jetson agent and Gemini advisor",
+  "description": "Vision Landing Console — camera-based landing workflow with MAVLink, Jetson agent and Gemini advisor",
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",

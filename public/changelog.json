@@ -1,5 +1,16 @@
 [
   {
+    "version": "1.02.281",
+    "date": "2026-09-12",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Telemetry archive records only while the operator arms it",
+        "detail": "APP_VERSION 1.02.281. Connect and idle MAVLink no longer open a flight archive file. Mission chrome הקלטה / מקליט starts and stops recording. Bytes write to data/flights/archive (.tlog + telemetry_archive) only while armed. Stop sets ended_at. GET /api/telemetry-archive exposes recording state. Cellular downlink stub unchanged. No flight commands and no Companion apply/restart."
+      }
+    ]
+  },
+  {
     "version": "1.02.280",
     "date": "2026-09-11",
     "changes": [

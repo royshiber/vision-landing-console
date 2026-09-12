@@ -6,4 +6,4 @@ Local MAVLink / flight logs for the Vision Landing Console.
 - Files: `archive/*.tlog` (gitignored)
 - Design: `docs/TELEMETRY_ARCHIVE.md`
 
-This directory is the dedicated persist path for live downlink. Uploaded operator logs remain in `log_artifacts`.
+This directory is the dedicated persist path for **operator-armed** live downlink (Start → Stop on Mission). Connect alone does not write here. Uploaded operator logs remain in `log_artifacts`.

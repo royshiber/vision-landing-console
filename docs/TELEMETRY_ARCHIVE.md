@@ -1,6 +1,8 @@
 # Telemetry archive
 
-Dedicated store for **all flight MAVLink bytes** the console sees, separate from uploaded `log_artifacts`.
+Dedicated store for flight MAVLink bytes the console is **explicitly asked to keep**, separate from uploaded `log_artifacts`.
+
+Recording is **operator-armed**. Default is not recording. Connect, power-on, and idle MAVLink do **not** open a session file. Bytes are written only after **Start** and until **Stop**.
 
 ## Location
 
@@ -14,6 +16,16 @@ Resolved at runtime from `lib/db.mjs` `dataDir` → `data/flights/archive/`. Ses
 
 Do not put secrets or Jetson addresses in these files' names.
 
+## Operator record gate
+
+1. Default: archive sink disabled. No new `.tlog` on mere connect.
+2. Mission chrome control **הקלטה** / **מקליט** (Start → Stop). Armed state is visible on the button.
+3. While armed: same path and format as before (`.tlog` + `telemetry_archive` row).
+4. **Stop** finalizes the session (`ended_at`, byte/frame counters).
+5. Optional **discard** (`POST /api/telemetry-archive/discard`) closes the session, deletes the file, and removes the index row.
+
+The in-process raw-byte sink still receives every MAVLink chunk the console sees. It **returns immediately** unless recording is armed.
+
 ## Schema (index)
 
 Table `telemetry_archive`:
@@ -25,7 +37,7 @@ Table `telemetry_archive`:
 | `link_role` | `radio` or `cellular` |
 | `stored_path` | Absolute path of the `.tlog` |
 | `bytes` / `frames` | Counters |
-| `started_at` / `ended_at` | Session window |
+| `started_at` / `ended_at` | Session window (`ended_at` set on Stop) |
 | `downlink_state` | `local` until a live modem sync exists |
 
 ## Priority and backpressure
@@ -33,7 +45,7 @@ Table `telemetry_archive`:
 Flight timing wins. The in-process queue (`lib/telemetry-archive.mjs`) has three levels:
 
 0. **FLIGHT** — parse and send MAVLink. Never waits on disk or modem.
-1. **ARCHIVE_WRITE** — local append. Dropped when the archive buffer is full.
+1. **ARCHIVE_WRITE** — local append. Dropped when the archive buffer is full. Enqueued only while recording is armed.
 2. **DOWNLINK_SYNC** — cellular export. Lowest. Capped so a slow modem cannot fill RAM.
 
 A drain tick (HTTP module, ~250 ms, `unref`) writes queued archive jobs. The MAVLink parse path only **enqueues**; it does not `fs.write` inline.
@@ -52,5 +64,8 @@ Jetson host files for a future Huawei E3372 USB stick live in `scripts/jetson-ce
 
 ## API
 
-- `GET /api/telemetry-archive` — path, schema, queue stats, modem stub status
+- `GET /api/telemetry-archive` — path, schema, queue stats, modem stub status, **`recording`** (`armed`, `session`, Hebrew note)
+- `POST /api/telemetry-archive/start` — arm recording and open a session file
+- `POST /api/telemetry-archive/stop` — disarm and finalize (`ended_at`)
+- `POST /api/telemetry-archive/discard` — disarm, delete the current file and index row
 - `POST /api/telemetry-archive/downlink` — enqueue a low-priority sync stub
