@@ -4675,13 +4675,7 @@ function altitudeTileHonestyTitle(mav) {
   if (altitudeIsFinite(mav?.altitude)) {
     return mav.hudTimeSkewWarn ? VLC_TOOLTIP_HUD_TIME_SKEW : '';
   }
-  const live = !!(mav && (
-    mav.connected === true
-    || mav.listening === true
-    || Number(mav.heartbeatCount) > 0
-    || (Number.isFinite(mav.rollDeg) && Number.isFinite(mav.pitchDeg))
-  ));
-  return live ? VLC_TOOLTIP_ALT_WAITING : '';
+  return VLC_TOOLTIP_ALT_WAITING;
 }
 
 // ── Flight HUD PFD elements ────────────────────────────────────────────────────
@@ -5874,7 +5868,15 @@ document.addEventListener('keydown', (e) => {
 
 function applyTopbarFlightData(mav) {
   if (mav) latestHudMavlink = mav;
-  if (!mav) return;
+  if (!mav) {
+    if (hudAltitudeEl) {
+      hudAltitudeEl.title = VLC_TOOLTIP_ALT_WAITING;
+      const tile = hudAltitudeEl.closest('.mission-data-tile, .tele-hud-mini');
+      if (tile) tile.title = VLC_TOOLTIP_ALT_WAITING;
+    }
+    if (pfdAltVal) pfdAltVal.title = VLC_TOOLTIP_ALT_WAITING;
+    return;
+  }
   const miniSpd = hudAirspeedEl?.closest('.tele-hud-mini');
   if (miniSpd) miniSpd.classList.toggle('tele-hud-mini--airspeed-proxy', !!mav.airspeedIsGroundspeedProxy);
   const miniAlt = hudAltitudeEl?.closest('.tele-hud-mini');
@@ -15455,6 +15457,10 @@ function applyMissionDataGrid(payload) {
       if (slot.key === 'mission.link') {
         const full = document.getElementById('connectPillLabel')?.textContent?.trim() || '';
         valueEl.title = full && shown !== '--' ? full : '';
+      } else if (slot.key === 'mavlink.altitude' || valueEl.id === 'hudAltitude') {
+        const altTitle = altitudeTileHonestyTitle(payload?.mavlink || latestHudMavlink);
+        valueEl.title = altTitle;
+        item.title = altTitle;
       }
     }
     const bar = item.querySelector('.confidence-fill');

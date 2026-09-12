@@ -228,10 +228,13 @@ describe('Altitude tile honesty', () => {
     expect(fns.altitudeTileHonestyTitle({
       connected: false,
       altitude: null,
-    })).toBe('');
+    })).toBe('אין גובה מהבקר עדיין');
+    expect(fns.altitudeTileHonestyTitle(null)).toBe('אין גובה מהבקר עדיין');
+    expect(html).toMatch(/id="hudAltitude"[^>]*title="אין גובה מהבקר עדיין"/);
     expect(js).toContain("const VLC_TOOLTIP_ALT_WAITING = 'אין גובה מהבקר עדיין'");
     expect(sliceFunction(js, 'applyTopbarFlightData')).toContain('altitudeTileHonestyTitle(mav)');
     expect(sliceFunction(js, 'applyTopbarFlightData')).toContain("useTile ? '--'");
+    expect(sliceFunction(js, 'applyMissionDataGrid')).toContain('hudAltitude');
   });
 });
 

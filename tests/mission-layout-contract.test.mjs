@@ -541,9 +541,12 @@ describe('Mission layout contract — live boxes', () => {
         };
       });
       const pillCs = getComputedStyle(pill);
+      const alt = document.getElementById('hudAltitude');
       return {
         linkText: link?.textContent,
         linkTitle: link?.title,
+        altText: alt?.textContent,
+        altTitle: alt?.title,
         tiles,
         pillWrap: pillCs.whiteSpace,
         pillOverflow: pill.scrollHeight - pill.clientHeight,
@@ -551,6 +554,8 @@ describe('Mission layout contract — live boxes', () => {
     });
     expect(clip.linkText).toBe('מחובר');
     expect(clip.linkTitle).toContain('טלמטריה');
+    expect(clip.altText).toBe('--');
+    expect(clip.altTitle).toBe('אין גובה מהבקר עדיין');
     expect(clip.pillWrap).toBe('nowrap');
     expect(clip.pillOverflow).toBeLessThanOrEqual(1);
     for (const tile of clip.tiles) {
