@@ -299,6 +299,10 @@ function applyMainTab(tabId, { save = true } = {}) {
     }
   }
   void syncServerAppVersion();
+  if ((tabId === 'pulse' || tabId === 'telemetry' || tabId === 'terrain')
+    && typeof refreshVisionLandingReadiness === 'function') {
+    void refreshVisionLandingReadiness();
+  }
   if (tabId === 'advisor') {
     void refreshAdvisorHealth();
   }
@@ -5124,62 +5128,125 @@ async function translateAndRenderFcStatustext(rows) {
   }
 }
 
+let latestVisionLandingReadiness = null;
+
 function positionPfdReadinessPopover() {
   const anchor = _readinessAnchor || missionReadinessGlance || pfdArmedBadge;
   if (!pfdReadinessPopover || !anchor || pfdReadinessPopover.classList.contains('hidden')) return;
   const r = anchor.getBoundingClientRect();
-  const w = Math.min(300, window.innerWidth - 16);
+  const w = Math.min(380, window.innerWidth - 16);
   const left = Math.max(8, Math.min(r.left, window.innerWidth - w - 8));
   pfdReadinessPopover.style.width = `${w}px`;
   pfdReadinessPopover.style.left = `${left}px`;
   pfdReadinessPopover.style.top = `${Math.min(r.bottom + 6, window.innerHeight - 120)}px`;
 }
 
-function buildReadinessListHtml(m) {
-  if (!pfdReadinessBody) return;
-  pfdReadinessBody.innerHTML = '';
-  const ul = document.createElement('ul');
-  function addLi(text) {
+function fillVisionLandingList(listEl, items) {
+  if (!listEl) return;
+  listEl.innerHTML = '';
+  for (const row of Array.isArray(items) ? items : []) {
     const li = document.createElement('li');
-    li.textContent = text;
-    ul.appendChild(li);
+    li.className = 'vlr-row';
+    li.dataset.id = row.id || '';
+    li.dataset.state = row.chip || 'off';
+    li.dataset.role = row.role || (row.blocker === false ? 'followOn' : 'blocker');
+    const name = document.createElement('span');
+    name.className = 'vlr-name';
+    name.textContent = row.nameHe || '';
+    const chip = document.createElement('span');
+    chip.className = 'vlr-chip';
+    chip.dataset.state = row.chip || 'off';
+    chip.textContent = row.chipHe || '';
+    const miss = document.createElement('span');
+    miss.className = 'vlr-missing';
+    miss.textContent = row.missingHe || '';
+    li.append(name, chip, miss);
+    listEl.appendChild(li);
   }
-  if (!m || !m.connected) {
-    addLi('אין חיבור לבקר הטיסה — התחבר בווידג׳ט MAVLink למעלה.');
-  } else {
-    if (m.armedKnown === false || m.armedKnown == null) {
-      addLi('לא התקבל heartbeat עם מצב ARM ברור — בדוק קישור ו-sys/comp.');
-    } else if (m.armed === true) {
-      addLi('המטוס במצב ARM — מנוע/מדחף פעילים לפי היחידה.');
-    } else {
-      addLi('DISARM — כבוי להפעלה; ארמה מותנית במצבים תקינים (GPS/פרה‑ארם וכו׳).');
-    }
-    const fix = m.gpsFixType;
-    if (typeof fix === 'number') {
-      addLi(fix >= 3 ? `GPS: תיקון מספיק לרוב המצבים (${fix}).` : `GPS: תיקון חלש (${fix}) — עשוי לחסום ARM או ניווט.`);
-    } else addLi('GPS: לא התקבל עדיין ערך תיקון.');
+}
 
-    if (typeof m.batteryV === 'number') {
-      addLi(`סוללה: ${m.batteryV.toFixed(1)} V${m.batteryPct != null ? ` — ${m.batteryPct}%` : ''}.`);
-    }
-    const rsts = Array.isArray(m.recentStatusTexts) ? m.recentStatusTexts : [];
-    const critical = rsts.filter((x) => typeof x.severity === 'number' && x.severity <= 4 && String(x.text || '').trim());
-    if (critical.length) {
-      addLi('הודעות אחרונות מהבקר:');
-      critical.slice(0, 5).forEach((c) => {
-        addLi(`[${c.severity}] ${c.text}`);
-      });
-    }
+function renderVisionLandingChecklist(host, payload, { includeQuestion = true } = {}) {
+  if (!host) return;
+  host.innerHTML = '';
+  if (includeQuestion) {
+    const q = document.createElement('p');
+    q.className = 'vlr-question';
+    q.textContent = payload.questionHe || 'אפשר להתחיל ניסוי אחד?';
+    host.appendChild(q);
   }
-  pfdReadinessBody.appendChild(ul);
+  if (payload.scopeHe) {
+    const scope = document.createElement('p');
+    scope.className = 'vlr-scope';
+    scope.textContent = payload.scopeHe;
+    host.appendChild(scope);
+  }
+  const ans = document.createElement('p');
+  ans.className = 'vlr-answer';
+  ans.dataset.state = payload.overallChip || 'off';
+  ans.textContent = payload.answerHe || 'בודקים';
+  const list = document.createElement('ul');
+  list.className = 'vlr-list';
+  fillVisionLandingList(list, payload.items);
+  host.append(ans, list);
+}
+
+function renderVisionLandingReadiness(payload) {
+  if (!payload || !payload.items) return;
+  latestVisionLandingReadiness = payload;
+  const chip = payload.overallChip || 'off';
+  if (missionReadinessGlance) {
+    missionReadinessGlance.dataset.state = chip;
+    missionReadinessGlance.title = payload.answerHe || 'מוכנות';
+  }
+  if (pfdReadinessBody) renderVisionLandingChecklist(pfdReadinessBody, payload, { includeQuestion: false });
+  const pulseAns = document.getElementById('pulseVlrAnswer');
+  const pulseList = document.getElementById('pulseVlrList');
+  if (pulseAns) {
+    pulseAns.dataset.state = chip;
+    pulseAns.textContent = payload.answerHe || 'בודקים';
+  }
+  fillVisionLandingList(pulseList, payload.items);
+  const diagAns = document.getElementById('diagVlrAnswer');
+  const diagList = document.getElementById('diagVlrList');
+  if (diagAns) {
+    diagAns.dataset.state = chip;
+    diagAns.textContent = payload.answerHe || 'בודקים';
+  }
+  fillVisionLandingList(diagList, payload.items);
+}
+
+async function refreshVisionLandingReadiness() {
+  try {
+    const r = await fetch('/api/vision-landing/readiness');
+    const d = await r.json();
+    if (!d || d.ok === false || !Array.isArray(d.items)) return;
+    renderVisionLandingReadiness(d);
+  } catch {
+    /* keep last honest snapshot */
+  }
+}
+
+function buildReadinessListHtml() {
+  if (!pfdReadinessBody) return;
+  if (latestVisionLandingReadiness) {
+    renderVisionLandingChecklist(pfdReadinessBody, latestVisionLandingReadiness);
+    return;
+  }
+  pfdReadinessBody.innerHTML = '';
+  const p = document.createElement('p');
+  p.className = 'vlr-answer';
+  p.textContent = 'בודקים';
+  pfdReadinessBody.appendChild(p);
+  void refreshVisionLandingReadiness();
 }
 
 function openPfdReadinessPopover(anchor) {
   if (!pfdReadinessPopover) return;
   _readinessAnchor = anchor || missionReadinessGlance || pfdArmedBadge;
-  buildReadinessListHtml(latestHudMavlink);
+  buildReadinessListHtml();
   pfdReadinessPopover.classList.remove('hidden');
   positionPfdReadinessPopover();
+  void refreshVisionLandingReadiness();
 }
 
 function closePfdReadinessPopover() {
@@ -5191,8 +5258,11 @@ function openDiagnosticsReadiness() {
   closePfdReadinessPopover();
   applyMainTab('telemetry');
   applyTeleSubtab('dash');
-  const strip = document.getElementById('readinessStrip') || document.getElementById('preflightCard');
+  const strip = document.getElementById('visionLandingReadinessStrip')
+    || document.getElementById('readinessStrip')
+    || document.getElementById('preflightCard');
   strip?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  void refreshVisionLandingReadiness();
 }
 
 function setupFlightHudChromeHandlers() {
@@ -5230,6 +5300,13 @@ function setupFlightHudChromeHandlers() {
   });
 }
 setupFlightHudChromeHandlers();
+void refreshVisionLandingReadiness();
+setInterval(() => {
+  const pulseOn = document.getElementById('pulse')?.classList.contains('visible');
+  const teleOn = document.getElementById('telemetry')?.classList.contains('visible');
+  const popoverOpen = pfdReadinessPopover && !pfdReadinessPopover.classList.contains('hidden');
+  if (pulseOn || teleOn || popoverOpen) void refreshVisionLandingReadiness();
+}, 5000);
 
 /** Retrieve a value from a nested payload object by dot-path, e.g. "mavlink.airspeed". */
 function getPayloadValue(payload, key) {

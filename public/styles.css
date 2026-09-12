@@ -9350,21 +9350,35 @@ html[data-evolve-preview="1"] #development {
   margin: 0;
   padding: 0 6px;
   height: 18px;
-  border: 1px solid rgba(16, 185, 129, 0.35);
+  border: 1px solid rgba(148, 163, 184, 0.35);
   border-radius: 3px;
-  background: rgba(16, 185, 129, 0.16);
-  color: #bbf7d0;
+  background: rgba(15, 23, 42, 0.35);
+  color: #cbd5e1;
   font: inherit;
   font-size: 0.6rem;
   font-weight: 700;
   letter-spacing: 0.02em;
   cursor: pointer;
 }
+.mission-readiness-glance[data-state="on"] {
+  border-color: rgba(16, 185, 129, 0.35);
+  background: rgba(16, 185, 129, 0.16);
+  color: #bbf7d0;
+}
+.mission-readiness-glance[data-state="warn"] {
+  border-color: rgba(251, 191, 36, 0.45);
+  background: rgba(245, 158, 11, 0.14);
+  color: #fde68a;
+}
+.mission-readiness-glance[data-state="off"] {
+  border-color: rgba(248, 113, 113, 0.35);
+  background: rgba(127, 29, 29, 0.22);
+  color: #fecaca;
+}
 .mission-readiness-glance:hover,
 .mission-readiness-glance:focus-visible {
-  border-color: rgba(74, 222, 128, 0.55);
-  background: rgba(16, 185, 129, 0.2);
   outline: none;
+  filter: brightness(1.08);
 }
 
 /**
@@ -10517,7 +10531,8 @@ html[data-evolve-preview="1"] #development {
 }
 .pfd-readiness-body ul {
   margin: 0;
-  padding-right: 18px;
+  padding: 0;
+  list-style: none;
 }
 .pfd-readiness-body li {
   margin-bottom: 6px;
@@ -10526,7 +10541,7 @@ html[data-evolve-preview="1"] #development {
   color: #e2e8f0;
 }
 .pfd-readiness-body {
-  max-height: 42vh;
+  max-height: 52vh;
   overflow-y: auto;
 }
 .pfd-readiness-actions {
@@ -11422,6 +11437,146 @@ html[data-evolve-preview="1"] #development {
   .terrain-map-rotatable { min-height: 240px; }
   #terrainMap { min-height: 240px; }
 }
+
+/* ── Vision landing readiness checklist ─────────────────────────────── */
+.vlr-card,
+.vlr-diag {
+  direction: rtl;
+  text-align: right;
+}
+.vlr-card {
+  margin-top: 10px;
+  padding: 12px 14px;
+}
+.vlr-diag {
+  margin: 8px 0 0;
+  padding: 10px 12px 18px;
+  border: 1px solid rgba(148, 168, 198, 0.16);
+  border-radius: 8px;
+  background: #121826;
+  color: #e8edf6;
+  flex: 0 0 auto;
+}
+#telemetry.panel.visible #teleDashPanel {
+  overflow-y: auto;
+  min-height: 0;
+  flex: 1 1 auto;
+  padding-bottom: 72px;
+}
+#telemetry.panel.visible .vlr-answer[data-state="on"] { color: #86efac; }
+#telemetry.panel.visible .vlr-answer[data-state="warn"] { color: #fde68a; }
+#telemetry.panel.visible .vlr-answer[data-state="off"] { color: #fecaca; }
+#telemetry.panel.visible .vlr-chip[data-state="on"] {
+  color: #86efac;
+  background: rgba(16, 185, 129, 0.14);
+}
+#telemetry.panel.visible .vlr-chip[data-state="warn"] {
+  color: #fde68a;
+  background: rgba(245, 158, 11, 0.14);
+}
+#telemetry.panel.visible .vlr-chip[data-state="off"] {
+  color: #fecaca;
+  background: rgba(127, 29, 29, 0.28);
+}
+#telemetry.panel.visible .vlr-missing { color: #94a3b8; }
+.vlr-title {
+  margin: 0 0 4px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: inherit;
+}
+.vlr-question {
+  margin: 0 0 4px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: inherit;
+}
+.vlr-scope {
+  margin: 0 0 6px;
+  font-size: 0.68rem;
+  line-height: 1.35;
+  color: #94a3b8;
+}
+.vlr-answer {
+  margin: 0 0 8px;
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+.vlr-answer[data-state="on"] { color: #15803d; }
+.vlr-answer[data-state="warn"] { color: #b45309; }
+.vlr-answer[data-state="off"] { color: #b91c1c; }
+.pfd-readiness-body .vlr-answer[data-state="on"] { color: #86efac; }
+.pfd-readiness-body .vlr-answer[data-state="warn"] { color: #fde68a; }
+.pfd-readiness-body .vlr-answer[data-state="off"] { color: #fecaca; }
+.vlr-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.vlr-row {
+  display: grid;
+  grid-template-columns: minmax(6.5rem, 1fr) auto;
+  grid-template-rows: auto auto;
+  gap: 2px 8px;
+  align-items: center;
+}
+.vlr-row[data-role="followOn"] .vlr-name {
+  font-weight: 500;
+}
+.vlr-name {
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+.vlr-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.6rem;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 0.64rem;
+  font-weight: 700;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  background: rgba(148, 163, 184, 0.12);
+  color: #64748b;
+}
+.vlr-chip[data-state="on"] {
+  border-color: rgba(22, 163, 74, 0.45);
+  background: rgba(22, 163, 74, 0.12);
+  color: #15803d;
+}
+.vlr-chip[data-state="warn"] {
+  border-color: rgba(217, 119, 6, 0.45);
+  background: rgba(245, 158, 11, 0.14);
+  color: #b45309;
+}
+.vlr-chip[data-state="off"] {
+  border-color: rgba(220, 38, 38, 0.4);
+  background: rgba(220, 38, 38, 0.1);
+  color: #b91c1c;
+}
+.pfd-readiness-body .vlr-chip[data-state="on"] {
+  color: #86efac;
+  background: rgba(16, 185, 129, 0.14);
+}
+.pfd-readiness-body .vlr-chip[data-state="warn"] {
+  color: #fde68a;
+  background: rgba(245, 158, 11, 0.14);
+}
+.pfd-readiness-body .vlr-chip[data-state="off"] {
+  color: #fecaca;
+  background: rgba(127, 29, 29, 0.28);
+}
+.vlr-missing {
+  grid-column: 1 / -1;
+  font-size: 0.66rem;
+  color: #64748b;
+  line-height: 1.35;
+}
+.pfd-readiness-body .vlr-missing { color: #94a3b8; }
 
 /* ── Pre-flight status card ─────────────────────────────────────────── */
 .preflight-card {

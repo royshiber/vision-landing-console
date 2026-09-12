@@ -1,5 +1,16 @@
 [
   {
+    "version": "1.02.283",
+    "date": "2026-09-12",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Experiment #1 readiness: PIC hand-fly, observe-only runway",
+        "detail": "APP_VERSION 1.02.283. Locked Experiment #1 copy: fixed-wing final, PIC hand-fly, observe-only runway detection mandatory. Operator question is אפשר להתחיל ניסוי אחד. Scope is גישה סופית. טייס מטיס. זיהוי מסלול לצפייה בלבד. Annotations and lock-status are follow-ons and do not block #1. Flight commands stay gated because the PIC hand-flies (Issue #29). Camera and heartbeat never invent OK. No Companion-real widening and no flight-command send."
+      }
+    ]
+  },
+  {
     "version": "1.02.282",
     "date": "2026-09-12",
     "changes": [
