@@ -3567,6 +3567,12 @@ let latestVisionLandingReadiness = null;
 function renderVisionLandingReadiness(container, snapshot) {
   if (!container) return;
   container.innerHTML = '';
+  if (container.id === 'pfdReadinessBody' && snapshot?.purposeHe) {
+    const purpose = document.createElement('p');
+    purpose.className = 'vlr-purpose';
+    purpose.textContent = snapshot.purposeHe;
+    container.appendChild(purpose);
+  }
   const rows = Array.isArray(snapshot?.rows) ? snapshot.rows : [];
   for (const row of rows) {
     const art = document.createElement('article');
@@ -3603,6 +3609,8 @@ function renderVisionLandingReadiness(container, snapshot) {
 function paintVisionLandingReadiness(snapshot) {
   if (!snapshot || snapshot.ok === false) return;
   latestVisionLandingReadiness = snapshot;
+  const purposeEl = document.querySelector('#visionLandingReadiness .vlr-purpose');
+  if (purposeEl && snapshot.purposeHe) purposeEl.textContent = snapshot.purposeHe;
   renderVisionLandingReadiness(document.getElementById('visionLandingReadinessList'), snapshot);
   const popoverOpen = pfdReadinessPopover && !pfdReadinessPopover.classList.contains('hidden');
   if (popoverOpen) renderVisionLandingReadiness(pfdReadinessBody, snapshot);

@@ -11,11 +11,13 @@ import {
   VISION_LANDING_READINESS_IDS,
   FLIGHT_COMMANDS_GATE,
   FLIGHT_COMMAND_TOKENS,
+  EXPERIMENT_PURPOSE_HE,
   buildVisionLandingReadiness,
   resolveCameraVisionState,
   resolveFcHeartbeatState,
   resolveJetsonCompanionState,
   resolvePlndProfileState,
+  resolveRunwayLockState,
   resolveTelemetryRecordingState,
   isGcsHeartbeatFresh,
 } from '../lib/vision-landing-readiness.mjs';
@@ -38,15 +40,21 @@ function listen(app) {
 }
 
 describe('Vision Landing Readiness honesty matrix', () => {
-  it('keeps seven honest ids and never invents camera or GPS', () => {
+  it('keeps Experiment 1 observe-only rows and never invents camera GPS or runway lock', () => {
     const empty = buildVisionLandingReadiness({});
     expect(empty.rows.map((r) => r.id)).toEqual([...VISION_LANDING_READINESS_IDS]);
-    expect(empty.invented).toEqual({ camera: false, gps: false });
+    expect(empty.invented).toEqual({ camera: false, gps: false, runway: false });
     expect(empty.rows.some((r) => /gps/i.test(r.id))).toBe(false);
     expect(empty.sendFlightCommands).toBe(false);
+    expect(empty.experiment.observeOnly).toBe(true);
+    expect(empty.experiment.picHandFlyFinal).toBe(true);
+    expect(empty.experiment.control).toBe(false);
+    expect(empty.purposeHe).toBe(EXPERIMENT_PURPOSE_HE);
     expect(empty.flightCommandsGate).toBe(FLIGHT_COMMANDS_GATE);
     expect(rowById(empty, 'camera_vision').state).toBe('unknown');
     expect(rowById(empty, 'camera_vision').stateHe).toBe('לא ידוע');
+    expect(rowById(empty, 'runway_lock').state).toBe('unknown');
+    expect(rowById(empty, 'runway_lock').stateHe).toBe('לא ידוע');
     expect(rowById(empty, 'jetson_companion').state).toBe('off');
     expect(rowById(empty, 'fc_heartbeat').state).toBe('unknown');
     expect(rowById(empty, 'plnd_profile').state).toBe('missing');
@@ -119,6 +127,47 @@ describe('Vision Landing Readiness honesty matrix', () => {
     expect(coreSrc).not.toMatch(/gpsFix|mockGps|sats/i);
   });
 
+  it('reports runway lock only from real Companion landing fields', () => {
+    expect(resolveRunwayLockState({})).toBe('unknown');
+    expect(resolveRunwayLockState({ companionReachable: true })).toBe('unknown');
+    expect(resolveRunwayLockState({ companionReachable: true, landing: {} })).toBe('unknown');
+    expect(resolveRunwayLockState({
+      companionReachable: false,
+      landing: { detected: true, validity: 'valid', confidence: 0.9 },
+    })).toBe('unknown');
+    expect(resolveRunwayLockState({
+      companionReachable: true,
+      landing: { detected: false },
+    })).toBe('not_locked');
+    expect(resolveRunwayLockState({
+      companionReachable: true,
+      landing: { detections: [{ label: 'runway' }], validity: 'degraded' },
+    })).toBe('detecting');
+    expect(resolveRunwayLockState({
+      companionReachable: true,
+      landing: { detected: true, validity: 'valid', confidence: 0.4 },
+    })).toBe('detecting');
+    expect(resolveRunwayLockState({
+      companionReachable: true,
+      landing: { detected: true, validity: 'valid', confidence: 0.8 },
+    })).toBe('locked_confident');
+    expect(resolveRunwayLockState({
+      companionReachable: true,
+      landing: { lock_state: 'locked-confident' },
+    })).toBe('locked_confident');
+    const unknown = buildVisionLandingReadiness({
+      companion: { jetson: 'off' },
+      overlay: { landing: { detected: true, validity: 'valid' } },
+    });
+    expect(rowById(unknown, 'runway_lock').state).toBe('unknown');
+    const locked = buildVisionLandingReadiness({
+      companion: { jetson: 'reachable' },
+      overlay: { landing: { detected: true, validity: 'valid', confidence: 0.85 } },
+    });
+    expect(rowById(locked, 'runway_lock').state).toBe('locked_confident');
+    expect(rowById(locked, 'runway_lock').stateHe).toBe('נעול בביטחון');
+  });
+
   it('treats PLND as present only from a live READ or a persisted store', () => {
     expect(resolvePlndProfileState({})).toBe('missing');
     expect(resolvePlndProfileState({ liveFcParams: { THR_MAX: 80 } })).toBe('missing');
@@ -168,7 +217,8 @@ describe('Vision Landing Readiness honesty matrix', () => {
     expect(gate.send).toBe(false);
     expect(gate.tokens).toEqual([...FLIGHT_COMMAND_TOKENS]);
     expect(gate.issue).toBe(29);
-    expect(gate.missingHe).toMatch(/שער אנושי/);
+    expect(gate.observeOnly).toBe(true);
+    expect(gate.missingHe).toMatch(/טייס מפקד מטיס ידנית עד הגמר/);
     expect(coreSrc).not.toMatch(/COMMAND_LONG|MAV_CMD_NAV_LAND|DO_SEND|flight-action-send/i);
     expect(apiSrc).not.toMatch(/COMMAND_LONG|MAV_CMD_COMPONENT_ARM|app\.post\('\/api\/flight/);
     expect(js).not.toMatch(/FLIGHT_ACTION/);
@@ -216,10 +266,12 @@ describe('GET /api/vision/landing-readiness', () => {
     const j = await r.json();
     expect(r.status).toBe(200);
     expect(j.ok).toBe(true);
-    expect(j.rows).toHaveLength(7);
-    expect(j.invented).toEqual({ camera: false, gps: false });
+    expect(j.rows).toHaveLength(8);
+    expect(j.invented).toEqual({ camera: false, gps: false, runway: false });
     expect(j.sendFlightCommands).toBe(false);
     expect(j.flightCommandsGate).toBe('closed');
+    expect(j.purposeHe).toMatch(/טייס מפקד מטיס ידנית עד הגמר/);
+    expect(rowById(j, 'runway_lock').state).toBe('unknown');
     expect(rowById(j, 'camera_vision').state).toBe('unknown');
     expect(rowById(j, 'annotated_video').state).toBe('modem_absent');
     expect(rowById(j, 'telemetry_recording').state).toBe('not-recording');
@@ -236,17 +288,19 @@ describe('GET /api/vision/landing-readiness', () => {
 });
 
 describe('Vision Landing Readiness UI', () => {
-  it('pins APP_VERSION at 1.02.281', () => {
+  it('pins APP_VERSION at 1.02.282', () => {
     const version = fs.readFileSync(path.join(repoRoot, 'version.js'), 'utf8');
     const pkg = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8'));
-    expect(version).toContain("export const APP_VERSION = '1.02.281'");
-    expect(pkg.version).toBe('1.02.281');
+    expect(version).toContain("export const APP_VERSION = '1.02.282'");
+    expect(pkg.version).toBe('1.02.282');
   });
 
   it('places the Hebrew chip panel on Status and opens the same rows from Mission', () => {
     expect(html).toContain('id="visionLandingReadiness"');
     expect(html).toContain('id="visionLandingReadinessList"');
     expect(html).toMatch(/class="vlr-title">מוכנות נחיתה לפי ראייה</);
+    expect(html).toContain('טייס מפקד מטיס ידנית עד הגמר');
+    expect(html).toContain('המערכת צופה בלבד');
     expect(html).toMatch(/id="pfdReadinessStatusBtn"[^>]*>מוכנות בסטטוס</);
     expect(html.indexOf('id="visionLandingReadiness"')).toBeGreaterThan(html.indexOf('data-computer="fc"'));
     expect(html.indexOf('id="visionLandingReadiness"')).toBeLessThan(html.indexOf('pulse-talk-card'));
@@ -255,6 +309,7 @@ describe('Vision Landing Readiness UI', () => {
     expect(js).toContain('function renderVisionLandingReadiness');
     expect(js).toContain('function refreshVisionLandingReadiness');
     expect(js).toContain("fetch('/api/vision/landing-readiness'");
+    expect(js).toContain('snapshot.purposeHe');
     expect(js).toContain('function openStatusReadiness');
     expect(js).toMatch(/applyMainTab\('pulse'\)/);
     expect(js).toContain('pfdReadinessStatusBtn');
