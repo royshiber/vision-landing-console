@@ -1,5 +1,16 @@
 [
   {
+    "version": "1.02.292",
+    "date": "2026-09-12",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Honest observe-only Companion camera and runway status",
+        "detail": "APP_VERSION 1.02.292. After master 1.02.291 (#111 annotated vision). companion_agent 2.3.2 keeps the 2.3.1 byte-level UART fan-out and adds observe-only GET /api/v1/status/vision, /status/landing, /status/video plus the same fields on /api/health. Default hardware reports camera_ok false and runway_detector false (absent). Landing path 404 stays not_implemented. Lock omitted stays unknown. Never invent camera_ok true or runway detected/locked. No flight commands and no Companion apply/restart."
+      }
+    ]
+  },
+  {
     "version": "1.02.291",
     "date": "2026-09-12",
     "changes": [
