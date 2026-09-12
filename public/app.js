@@ -3625,8 +3625,7 @@ function paintVisionLandingReadiness(snapshot) {
   const successEl = document.querySelector('#visionLandingReadiness .vlr-success');
   if (successEl && snapshot.successHe) successEl.textContent = snapshot.successHe;
   renderVisionLandingReadiness(document.getElementById('visionLandingReadinessList'), snapshot);
-  const popoverOpen = pfdReadinessPopover && !pfdReadinessPopover.classList.contains('hidden');
-  if (popoverOpen) renderVisionLandingReadiness(pfdReadinessBody, snapshot);
+  renderVisionLandingReadiness(pfdReadinessBody, snapshot);
 }
 
 async function refreshVisionLandingReadiness() {
@@ -4776,7 +4775,13 @@ let _statustextSig = '';
 let _statustextTimer = null;
 
 function isHudMavlinkLive(mav) {
-  return !!(mav && mav.connected === true);
+  if (!mav || typeof mav !== 'object') return false;
+  if (mav.connected === true) return true;
+  if (Number(mav.heartbeatCount) > 0) return true;
+  const listening = mav.listening === true;
+  const rollOk = typeof mav.rollDeg === 'number' && Number.isFinite(mav.rollDeg);
+  const pitchOk = typeof mav.pitchDeg === 'number' && Number.isFinite(mav.pitchDeg);
+  return !!(listening && rollOk && pitchOk);
 }
 
 function liveStatusToHudMavlink(s) {
@@ -4856,10 +4861,16 @@ function rememberLiveRadioStatus(status) {
 
 function syncMissionFcEmptyNote(mav) {
   const note = document.querySelector('.mission-horizon-filler-note');
+  const filler = document.querySelector('.mission-horizon-filler');
+  const live = isHudMavlinkLive(mav);
+  if (filler) {
+    filler.dataset.state = live ? 'live' : 'empty';
+    filler.classList.toggle('mission-horizon-filler--live', live);
+  }
   if (!note) return;
-  if (isHudMavlinkLive(mav)) {
+  if (live) {
     const name = [mav.autopilotName, mav.vehicleType].filter(Boolean).join(' · ');
-    note.textContent = name ? `מחובר · ${name}` : 'מחובר לבקר.';
+    note.textContent = name ? `מחובר · ${name}` : 'מחובר · בקר טיסה';
     return;
   }
   note.textContent = 'אין חיבור לבקר. אין הודעות נכנסות.';
@@ -5228,10 +5239,12 @@ const GPS_FIX_LABELS = ['אין GPS', 'אין Fix', '2D Fix', '3D Fix', 'DGPS', 
 function applyFlightHud(mav) {
   if (!mav) {
     latestHudMavlink = null;
+    syncMissionFcEmptyNote(null);
     syncMissionLayoutChrome();
     return;
   }
   latestHudMavlink = mav;
+  syncMissionFcEmptyNote(mav);
 
   // Attitude is independent of GPS / VFR tapes. Missing alt/IAS must not block roll/pitch,
   // and a links-only snapshot without angles must not wipe a live attitude.
@@ -5346,15 +5359,17 @@ function applyNavOpticalStatus(vision) {
 }
 
 function applyFcStatustextHud(mavlink) {
-  if (!pfcMsgPrimaryHe) return;
   if (!isHudMavlinkLive(mavlink)) {
-    pfcMsgPrimaryHe.textContent = 'אין חיבור לבקר — לא מתקבלות הודעות MAVLink.';
-    if (pfcMsgScroll) pfcMsgScroll.innerHTML = '';
-    _statustextSig = '';
+    if (pfcMsgPrimaryHe) {
+      pfcMsgPrimaryHe.textContent = 'אין חיבור לבקר — לא מתקבלות הודעות MAVLink.';
+      if (pfcMsgScroll) pfcMsgScroll.innerHTML = '';
+      _statustextSig = '';
+    }
     syncMissionFcEmptyNote(null);
     return;
   }
   syncMissionFcEmptyNote(mavlink);
+  if (!pfcMsgPrimaryHe) return;
   const raw = Array.isArray(mavlink.recentStatusTexts) ? mavlink.recentStatusTexts : [];
   if (!raw.length) {
     pfcMsgPrimaryHe.textContent = 'אין הודעות STATUSTEXT אחרונות — ריק מהבקר.';
@@ -5421,6 +5436,7 @@ function buildReadinessListHtml(_m) {
   p.className = 'vlr-missing';
   p.textContent = 'טוענים מוכנות נחיתה לפי ראייה';
   pfdReadinessBody.appendChild(p);
+  void refreshVisionLandingReadiness();
 }
 
 function openPfdReadinessPopover(anchor) {
@@ -5493,6 +5509,7 @@ function setupFlightHudChromeHandlers() {
   });
 }
 setupFlightHudChromeHandlers();
+void refreshVisionLandingReadiness();
 
 /** Retrieve a value from a nested payload object by dot-path, e.g. "mavlink.airspeed". */
 function getPayloadValue(payload, key) {

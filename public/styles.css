@@ -4828,6 +4828,13 @@ body:has(#pulse.panel.visible) .layout {
   background: #121826;
   border: 1px solid rgba(148, 168, 198, 0.14);
 }
+#pulse.panel.visible #visionLandingReadiness,
+#visionLandingReadiness.vlr-panel {
+  display: flex;
+  flex: 0 0 auto;
+  min-height: 8rem;
+  scroll-margin-block: 12px;
+}
 .vlr-head {
   display: flex;
   flex-direction: column;
@@ -10312,6 +10319,11 @@ html[data-evolve-preview="1"] #development {
   line-height: 1.35;
   color: #94a3b8;
   font-family: "Heebo", sans-serif;
+}
+.mission-horizon-filler[data-state="live"] .mission-horizon-filler-note,
+.mission-horizon-filler--live .mission-horizon-filler-note {
+  color: #86efac;
+  font-weight: 700;
 }
 .pfd-horizon-instrument {
   display: grid;
