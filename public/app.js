@@ -4036,7 +4036,9 @@ function companionConnectRender(status) {
     });
   }
   if (hintEl) {
-    hintEl.hidden = configuredReal;
+    const relay = status?.mavlinkRelay;
+    const relayDown = relay && relay.ok === false && !relay.skipped;
+    hintEl.hidden = configuredReal && !relayDown;
     hintEl.textContent = status?.hint_he || 'צריך כתובת ואסימון. כתובת לבד לא מספיקה.';
   }
   const hint = configuredReal ? String(status.token_hint || '').trim() : '';
@@ -4079,6 +4081,7 @@ async function companionConnectRefresh() {
       token_hint: data.token_hint,
       base_url: data.base_url,
       hint_he: data.hint_he,
+      mavlinkRelay: data.mavlinkRelay || data.mavlink_relay || null,
     });
   } catch {
     companionConnectRender({
