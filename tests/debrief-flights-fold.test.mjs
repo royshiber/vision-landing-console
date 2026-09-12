@@ -117,8 +117,8 @@ describe('C10.5a leftover #flights folds into תחקור', () => {
     expect(css).not.toMatch(/#flights\.panel\.visible\.flights-panel/);
   });
 
-  it('pins APP_VERSION at 1.02.301', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.301'");
-    expect(pkg.version).toBe('1.02.301');
+  it('pins APP_VERSION at 1.02.302', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.302'");
+    expect(pkg.version).toBe('1.02.302');
   });
 });

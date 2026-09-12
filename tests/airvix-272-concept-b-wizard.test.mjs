@@ -40,9 +40,9 @@ function developPanel() {
 }
 
 describe('AIRVIX 1.02.278 Concept B configuration wizard', () => {
-  it('pins APP_VERSION at 1.02.301', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.301'");
-    expect(pkg.version).toBe('1.02.301');
+  it('pins APP_VERSION at 1.02.302', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.302'");
+    expect(pkg.version).toBe('1.02.302');
     expect(changelog).toContain('"version": "1.02.277"');
   });
 
