@@ -65,7 +65,7 @@ Merge autonomy still on for independently VERIFIED safe draft PRs. Hard safety s
 ## Audit snapshot — 2026-09-12 (P2.2 PLND / vision-nav profile)
 
 **Master tip before this draft:** `1.02.286` after #105.  
-**This draft:** Honest PLND / vision-nav params profile surface. `APP_VERSION` **1.02.287**. Display only.
+**This draft:** Honest PLND / vision-nav params profile surface. `APP_VERSION` **1.02.288**. Display only. Rebased onto master 1.02.287 (#108).
 
 ### Landed
 
