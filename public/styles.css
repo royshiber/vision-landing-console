@@ -9565,9 +9565,9 @@ html[data-evolve-preview="1"] #development {
   align-items: center;
   justify-content: flex-end;
   gap: 4px;
-  min-height: 22px;
-  max-height: 22px;
-  flex: 0 0 22px;
+  min-height: 26px;
+  max-height: 26px;
+  flex: 0 0 26px;
   width: 100%;
   padding: 0 6px;
   background: #0b0e14;
@@ -9596,7 +9596,8 @@ html[data-evolve-preview="1"] #development {
 .mission-record-btn {
   margin: 0;
   padding: 0 6px;
-  height: 18px;
+  min-height: 24px;
+  height: 24px;
   border: 1px solid rgba(148, 163, 184, 0.35);
   border-radius: 3px;
   background: rgba(148, 163, 184, 0.12);
@@ -9642,7 +9643,8 @@ html[data-evolve-preview="1"] #development {
 .mission-readiness-glance {
   margin: 0;
   padding: 0 6px;
-  height: 18px;
+  min-height: 24px;
+  height: 24px;
   border: 1px solid rgba(16, 185, 129, 0.35);
   border-radius: 3px;
   background: rgba(16, 185, 129, 0.16);
@@ -9662,7 +9664,8 @@ html[data-evolve-preview="1"] #development {
 .mission-runway-glance {
   margin: 0;
   padding: 0 6px;
-  height: 18px;
+  min-height: 24px;
+  height: 24px;
   border: 1px solid rgba(148, 163, 184, 0.35);
   border-radius: 3px;
   background: rgba(15, 23, 42, 0.35);
@@ -9737,8 +9740,9 @@ html[data-evolve-preview="1"] #development {
 .mission-layout-btn {
   margin: 0;
   padding: 0;
-  width: 20px;
-  height: 18px;
+  width: 24px;
+  min-height: 24px;
+  height: 24px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -9776,28 +9780,28 @@ html[data-evolve-preview="1"] #development {
 }
 
 /* Layout contract v2: map owns the workspace (≥65% height, majority width).
-   Left column is one flex stack: readable PFD + data strip + secondary FC/status filler.
-   PFD content is 35–42% of the left column — a rectangle, not a postage stamp
-   and not a full-height stretched tower. Filler takes leftover only.
-   Messages collapsed ≤ 40px overlay — never a grid row.
-   Talk composer stays a horizontal strip at the bottom (grows 3–5 lines, never
-   a vertical sliver, never steals map width). Gap ≤ 4px. */
+   AH column is a flex stack: taller PFD + readable data strip + leftover filler.
+   PFD reclaim empty gap (~52–70% of the AH column). Data strip ≥ 64px.
+   Messages sit in the AH stack — never an overlay on the map.
+   map-horizon also swaps column tracks so the map keeps 1fr.
+   Talk composer stays a panel, never a sliver. Gap ≤ 4px. */
 .terrain-flight-shell.mission-workspace,
 .mission-workspace[data-mission-layout="ops-v1"] {
-  --mission-ah-col: 20%;
-  --mission-ah-row: 40%;
+  --mission-ah-col: 18%;
+  --mission-ah-row: 66%;
+  --mission-data-h: 72px;
   --mission-msg-h: 40px;
   --mission-map-min: 65%;
-  --mission-c1: minmax(132px, min(22%, var(--mission-ah-col)));
+  --mission-c1: minmax(132px, min(20%, var(--mission-ah-col)));
   --mission-c2: minmax(0, 1fr);
-  --mission-talk-col: 24%;
-  --mission-c3: minmax(240px, min(28%, var(--mission-talk-col)));
+  --mission-talk-col: 22%;
+  --mission-c3: minmax(240px, min(26%, var(--mission-talk-col)));
   --mission-r1: minmax(0, 1fr);
   --mission-r2: auto;
   --mission-r3: 0px;
   position: relative;
   display: grid;
-  grid-template-columns: minmax(132px, min(22%, var(--mission-ah-col))) minmax(0, 1fr) minmax(240px, min(28%, var(--mission-talk-col)));
+  grid-template-columns: minmax(132px, min(20%, var(--mission-ah-col))) minmax(0, 1fr) minmax(240px, min(26%, var(--mission-talk-col)));
   grid-template-rows: minmax(0, 1fr);
   grid-template-areas: "horizon map talk";
   flex: 1 1 0;
@@ -9812,6 +9816,7 @@ html[data-evolve-preview="1"] #development {
 }
 
 .mission-workspace[data-mission-swap="map-horizon"] {
+  grid-template-columns: minmax(0, 1fr) minmax(132px, min(20%, var(--mission-ah-col))) minmax(240px, min(26%, var(--mission-talk-col)));
   grid-template-areas: "map horizon talk";
 }
 
@@ -9905,21 +9910,23 @@ html[data-evolve-preview="1"] #development {
   grid-area: unset;
   position: static;
   flex: 0 0 auto;
-  max-height: 48px;
+  max-height: var(--mission-data-h, 72px);
+  min-height: 64px;
   height: auto;
   align-self: stretch;
 }
 .mission-region[data-mission-region="messages"] {
   grid-area: unset;
-  position: absolute;
-  left: 6px;
-  right: 6px;
-  bottom: 6px;
+  position: relative;
+  left: auto;
+  right: auto;
+  bottom: auto;
   top: auto;
-  z-index: 6;
+  z-index: 2;
   width: auto;
   height: var(--mission-msg-h);
   min-height: 0;
+  flex: 0 0 auto;
   pointer-events: auto;
 }
 .mission-region[data-mission-region="talk"] {
@@ -9999,8 +10006,8 @@ html[data-evolve-preview="1"] #development {
   border-top: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 0;
   background: #151b27;
-  max-height: 48px;
-  min-height: 0;
+  max-height: var(--mission-data-h, 72px);
+  min-height: 64px;
 }
 .mission-region-horizon .mission-region-data > .mission-region-title,
 .mission-region-horizon .mission-ask-chip {
@@ -10041,10 +10048,10 @@ html[data-evolve-preview="1"] #development {
   flex: 1 1 0;
   align-self: stretch;
   min-width: 64px;
-  min-height: 32px;
-  max-height: 44px;
+  min-height: 56px;
+  max-height: 68px;
   overflow: hidden;
-  padding: 2px 6px 3px;
+  padding: 4px 6px;
   border-radius: 3px;
   background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
   border: 1px solid rgba(148, 163, 184, 0.28);
@@ -10341,7 +10348,7 @@ html[data-evolve-preview="1"] #development {
 
 @media (max-width: 1100px) {
   .mission-workspace[data-mission-layout="ops-v1"] {
-    grid-template-columns: minmax(120px, min(22%, var(--mission-ah-col))) minmax(0, 1fr);
+    grid-template-columns: minmax(120px, min(20%, var(--mission-ah-col))) minmax(0, 1fr);
     grid-template-rows: minmax(0, 1fr) minmax(160px, 28%);
     grid-template-areas:
       "horizon map"
@@ -10349,6 +10356,7 @@ html[data-evolve-preview="1"] #development {
   }
 
   .mission-workspace[data-mission-swap="map-horizon"] {
+    grid-template-columns: minmax(0, 1fr) minmax(120px, min(20%, var(--mission-ah-col)));
     grid-template-areas:
       "map horizon"
       "talk talk";
@@ -10483,9 +10491,9 @@ html[data-evolve-preview="1"] #development {
   border: 0;
 }
 .mission-region-horizon .flight-hud {
-  height: var(--mission-ah-row, 40%);
-  min-height: 35%;
-  max-height: 42%;
+  height: var(--mission-ah-row, 66%);
+  min-height: 52%;
+  max-height: 70%;
   flex: 0 0 auto;
 }
 .mission-region-horizon .pfd-top-bar {
@@ -10513,7 +10521,7 @@ html[data-evolve-preview="1"] #development {
 }
 .mission-horizon-filler {
   flex: 0 1 auto;
-  max-height: 32%;
+  max-height: 18%;
   min-height: 0;
   margin-top: 0;
   display: flex;
@@ -10599,6 +10607,7 @@ html[data-evolve-preview="1"] #development {
 }
 .mission-region-horizon .pfd-horizon-chrome {
   min-height: 22px;
+  max-height: 28px;
   padding: 2px 4px;
 }
 .mission-region-horizon .hud-data-grid {
@@ -12260,6 +12269,12 @@ details.flight-manage summary {
   background: rgba(8, 12, 20, 0.78);
   direction: rtl;
   text-align: right;
+}
+.mission-region-horizon .mission-annotated-vision {
+  flex: 0 1 auto;
+  max-height: 72px;
+  overflow: auto;
+  padding: 4px 6px;
 }
 .mission-annotated-vision[hidden],
 .mission-annotated-vision.hidden {

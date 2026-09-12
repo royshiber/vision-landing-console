@@ -1718,7 +1718,7 @@
             <p id="missionLayoutHint" class="mission-layout-hint">גררו קצה לשינוי גודל. גררו כותרת להחלפה. גם בטיסה.</p>
           </div>
         </div>
-        <div class="terrain-flight-shell mission-workspace" data-mission-layout="ops-v1" data-mission-swap="horizon-map" data-mission-edit="on" data-layout-contract="v2">
+        <div class="terrain-flight-shell mission-workspace" data-mission-layout="ops-v1" data-mission-swap="map-horizon" data-mission-edit="on" data-layout-contract="v2">
           <div id="missionColSplit" class="mission-split mission-split-col"></div>
           <div id="missionColSplitB" class="mission-split mission-split-col"></div>
           <div id="missionRowSplit" class="mission-split mission-split-row"></div>
@@ -1745,7 +1745,7 @@
                   <div class="pfd-horizon-stage" id="pfdHorizonStage">
                     <video id="horizonVideoEl" class="pfd-horizon-video hidden" muted playsinline autoplay loop
                            aria-hidden="true" title="שידור וידאו מהטיסן"></video>
-                    <p id="horizonVideoEmpty" class="pfd-horizon-video-empty hidden">אין וידאו</p>
+                    <p id="horizonVideoEmpty" class="pfd-horizon-video-empty hidden">אין וידאו. דרושה כתובת זרם ממחשב המשימה.</p>
                     <canvas id="horizonCanvas"></canvas>
                   </div>
                   <div class="pfd-side-tape pfd-side-tape--right">
@@ -1834,6 +1834,18 @@
               <div id="hudDataGrid" class="hud-data-grid pfd-slots-strip" role="region" aria-label="נתונים מותאמים"></div>
               <p class="mission-horizon-filler-note">אין חיבור לבקר. אין הודעות נכנסות.</p>
             </aside>
+            <section class="mission-region mission-region-messages" data-mission-region="messages" data-messages-expanded="0" aria-label="הודעות מטוס">
+              <h3 class="mission-region-title">הודעות מטוס</h3>
+              <button type="button" id="missionMessagesToggle" class="mission-messages-toggle" aria-expanded="false" aria-controls="pfcMsgScroll" title="הצג או הסתר הודעות מטוס">הצג</button>
+              <div class="pfd-statustext-strip" id="pfdStatustextStrip">
+                <div class="pfc-msg-head">
+                  <span class="pfc-msg-label">הודעות מטוס</span>
+                  <span class="pfc-opt-mini" id="pfdOptMini" title="ניווט אופטי">👁 —</span>
+                </div>
+                <p class="pfc-msg-primary" id="pfcMsgPrimaryHe">אין חיבור לבקר — לא מתקבלות הודעות.</p>
+                <div class="pfc-msg-scroll" id="pfcMsgScroll" hidden></div>
+              </div>
+            </section>
           </section>
 
           <section class="mission-region mission-region-map" data-mission-region="map" aria-label="מפה">
@@ -1849,18 +1861,6 @@
                 <div id="terrainMap"></div>
               </div>
             </div>
-            <section class="mission-region mission-region-messages" data-mission-region="messages" data-messages-expanded="0" aria-label="הודעות מטוס">
-              <h3 class="mission-region-title">הודעות מטוס</h3>
-              <button type="button" id="missionMessagesToggle" class="mission-messages-toggle" aria-expanded="false" aria-controls="pfcMsgScroll" title="הצג או הסתר הודעות מטוס">הצג</button>
-              <div class="pfd-statustext-strip" id="pfdStatustextStrip">
-                <div class="pfc-msg-head">
-                  <span class="pfc-msg-label">הודעות מטוס</span>
-                  <span class="pfc-opt-mini" id="pfdOptMini" title="ניווט אופטי">👁 —</span>
-                </div>
-                <p class="pfc-msg-primary" id="pfcMsgPrimaryHe">אין חיבור לבקר — לא מתקבלות הודעות.</p>
-                <div class="pfc-msg-scroll" id="pfcMsgScroll" hidden></div>
-              </div>
-            </section>
           </section>
 
           <section class="mission-region mission-region-talk" data-mission-region="talk" aria-label="AIRVIX Ask">

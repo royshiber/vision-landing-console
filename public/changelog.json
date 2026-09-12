@@ -1,5 +1,16 @@
 [
   {
+    "version": "1.02.294",
+    "date": "2026-09-12",
+    "changes": [
+      {
+        "type": "ui",
+        "title": "Mission layout audit — map width, messages off map, AH reclaim, altitude honesty",
+        "detail": "APP_VERSION 1.02.294. After master 1.02.293 (#113). Default/saved map-horizon keeps the map on the wide 1fr track. Messages sit in the AH stack and no longer overlay the map. AH reclaims the empty center gap; data strip stays ≥64px so tiles remain readable. Ops chrome click targets are ≥24px. מוכנות popover flips left of Talk. גובה -- keeps an honest «אין גובה מהבקר עדיין» tooltip when altitude is still null. TCP/UDP/serial now request VFR_HUD and GLOBAL_POSITION_INT rates only (no ARM/LAND). Horizon video-behind-AH stays. No flight commands and no Companion apply/restart."
+      }
+    ]
+  },
+  {
     "version": "1.02.293",
     "date": "2026-09-12",
     "changes": [
