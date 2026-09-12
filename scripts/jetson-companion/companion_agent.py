@@ -1,5 +1,16 @@
 #!/usr/bin/env python3
-"""Vision Landing Console — Jetson companion: MAVLink relay + HTTP API + heartbeat."""
+"""Vision Landing Console — Jetson companion: MAVLink relay + HTTP API + heartbeat.
+
+Deployed live as AGENT_VERSION 2.3.1 (byte-level UART fan-out).
+
+Hardware default (Matek H743 SERIAL3 ↔ Jetson UART1):
+  FC /dev/ttyTHS1 @ 921600, FC_READ_ONLY=1
+
+The relay MUST stay byte-level:
+  uart_reader → fanout_uart
+  NEVER pymavlink recv_match() on the relay UART — that steals HEARTBEAT
+  bytes so TCP :5770 clients see bytesRx=0 while /api/health shows fc_heartbeat.
+"""
 
 from __future__ import annotations
 
@@ -20,12 +31,14 @@ except ImportError:
 
 CONSOLE_URL = os.environ.get("VLC_CONSOLE_URL", "http://127.0.0.1:4010").rstrip("/")
 TOKEN = os.environ.get("VLC_COMPANION_TOKEN", "")
-FC_DEVICE = os.environ.get("VLC_FC_DEVICE", "/dev/ttyTHS0")
-FC_BAUD = int(os.environ.get("VLC_FC_BAUD", "115200"))
+# Matek SERIAL3 (UART3) is wired to Jetson UART1 → /dev/ttyTHS1 @ 921600.
+FC_DEVICE = os.environ.get("VLC_FC_DEVICE", "/dev/ttyTHS1")
+FC_BAUD = int(os.environ.get("VLC_FC_BAUD", "921600"))
+FC_SERIAL_NAME = os.environ.get("VLC_FC_SERIAL_NAME", "SERIAL3")
 RELAY_PORT = int(os.environ.get("VLC_RELAY_PORT", "5770"))
 HTTP_PORT = int(os.environ.get("VLC_HTTP_PORT", "8081"))
-AGENT_VERSION = os.environ.get("VLC_AGENT_VERSION", "2.2.0")
-FC_READ_ONLY = os.environ.get("VLC_FC_READ_ONLY", "0").strip().lower() in {"1", "true", "yes", "on"}
+AGENT_VERSION = os.environ.get("VLC_AGENT_VERSION", "2.3.1")
+FC_READ_ONLY = os.environ.get("VLC_FC_READ_ONLY", "1").strip().lower() in {"1", "true", "yes", "on"}
 LOG_DIRS = [
     Path(os.environ.get("VLC_LOG_DIR", "")) if os.environ.get("VLC_LOG_DIR") else None,
     Path.home() / "logs",
@@ -38,6 +51,13 @@ STATE = {
     "relay_clients": 0,
     "fc_read_only": FC_READ_ONLY,
     "relay_tcp_to_uart": not FC_READ_ONLY,
+    "tcp_to_uart_suppressed": 0,
+    "uart_bytes_rx": 0,
+    "uart_bytes_tx": 0,
+    "last_heartbeat_at": None,
+    "fc_device": FC_DEVICE,
+    "fc_baud": FC_BAUD,
+    "fc_serial_name": FC_SERIAL_NAME,
     "cpuLoadPct": None,
     "memPct": None,
     "tempC": None,
@@ -46,6 +66,7 @@ STATE = {
 CLIENTS = []
 CLIENTS_LOCK = threading.Lock()
 UART_WRITE_LOCK = threading.Lock()
+STATE_LOCK = threading.Lock()
 HEARTBEAT_CRC_EXTRA = 50
 
 
@@ -93,6 +114,10 @@ def heartbeat_loop():
                 "companionHttpPort": HTTP_PORT,
                 "fcLinked": STATE["fc_linked"],
                 "fcHeartbeat": STATE["fc_heartbeat"],
+                "fcDevice": FC_DEVICE,
+                "fcBaud": FC_BAUD,
+                "fcSerialName": FC_SERIAL_NAME,
+                "fcReadOnly": FC_READ_ONLY,
             })
         except Exception as exc:
             print(f"[heartbeat] {exc}")
@@ -141,6 +166,14 @@ def chunk_has_heartbeat(data: bytes) -> bool:
             continue
         i += 1
     return False
+
+
+def canned_heartbeat_frame() -> bytes:
+    """MAVLink1 HEARTBEAT (ArduPilot Fixed Wing) for transport-test. Not sent to the FC."""
+    payload = bytes([0, 0, 0, 0, 1, 3, 0, 3, 3])
+    mid = bytes([len(payload), 7, 1, 1, 0])
+    crc = mav_crc(mid + payload + bytes([HEARTBEAT_CRC_EXTRA]))
+    return bytes([0xFE]) + mid + payload + bytes([crc & 0xFF, (crc >> 8) & 0xFF])
 
 
 def open_fc_serial():
@@ -206,10 +239,14 @@ def client_to_uart(client_sock, fc_serial):
             if not data:
                 break
             if FC_READ_ONLY:
+                with STATE_LOCK:
+                    STATE["tcp_to_uart_suppressed"] = int(STATE.get("tcp_to_uart_suppressed") or 0) + 1
                 continue
             try:
                 with UART_WRITE_LOCK:
                     fc_serial.write(data)
+                with STATE_LOCK:
+                    STATE["uart_bytes_tx"] = int(STATE.get("uart_bytes_tx") or 0) + len(data)
             except Exception:
                 break
     finally:
@@ -225,14 +262,20 @@ def uart_reader(fc_serial, stop):
             continue
         if not data:
             continue
+        with STATE_LOCK:
+            STATE["uart_bytes_rx"] = int(STATE.get("uart_bytes_rx") or 0) + len(data)
         if chunk_has_heartbeat(data):
             STATE["fc_heartbeat"] = True
+            STATE["last_heartbeat_at"] = time.time()
         fanout_uart(data)
 
 
 def mavlink_relay_server():
     """Byte-level UART ↔ TCP fan-out. One UART reader; pymavlink must not parse the same port."""
-    print(f"[relay] FC {FC_DEVICE} @ {FC_BAUD} → TCP :{RELAY_PORT} (read_only={FC_READ_ONLY})")
+    print(
+        f"[relay] FC {FC_DEVICE} @ {FC_BAUD} ({FC_SERIAL_NAME}) → TCP :{RELAY_PORT} "
+        f"(read_only={FC_READ_ONLY})"
+    )
     while True:
         srv = None
         fc_serial = None
@@ -242,6 +285,9 @@ def mavlink_relay_server():
             STATE["fc_linked"] = True
             STATE["fc_read_only"] = FC_READ_ONLY
             STATE["relay_tcp_to_uart"] = not FC_READ_ONLY
+            STATE["fc_device"] = FC_DEVICE
+            STATE["fc_baud"] = FC_BAUD
+            STATE["fc_serial_name"] = FC_SERIAL_NAME
             threading.Thread(target=uart_reader, args=(fc_serial, stop), daemon=True).start()
             srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -302,6 +348,49 @@ def iter_log_files():
             yield p
 
 
+def health_payload():
+    return {
+        "ok": True,
+        "agentVersion": AGENT_VERSION,
+        "api_version": "1",
+        **STATE,
+    }
+
+
+def transport_test_payload(self_test=False):
+    body = {
+        "ok": True,
+        "agentVersion": AGENT_VERSION,
+        "fc_device": FC_DEVICE,
+        "fc_baud": FC_BAUD,
+        "fc_serial_name": FC_SERIAL_NAME,
+        "matek_serial": FC_SERIAL_NAME,
+        "relay_port": RELAY_PORT,
+        "fc_read_only": FC_READ_ONLY,
+        "relay_tcp_to_uart": not FC_READ_ONLY,
+        "tcp_to_uart_suppressed": int(STATE.get("tcp_to_uart_suppressed") or 0),
+        "uart_bytes_rx": int(STATE.get("uart_bytes_rx") or 0),
+        "uart_bytes_tx": int(STATE.get("uart_bytes_tx") or 0),
+        "fc_linked": STATE.get("fc_linked") is True,
+        "fc_heartbeat": STATE.get("fc_heartbeat") is True,
+        "last_heartbeat_at": STATE.get("last_heartbeat_at"),
+        "relay_clients": int(STATE.get("relay_clients") or 0),
+        "fanout": "byte-level",
+        "recv_match": False,
+        "note": "byte-level uart_reader + fanout_uart; never recv_match on the relay UART",
+    }
+    if self_test:
+        frame = canned_heartbeat_frame()
+        body["self_test"] = {
+            "ok": True,
+            "heartbeat_detected": chunk_has_heartbeat(frame),
+            "bytes": len(frame),
+            "wrote_uart": False,
+        }
+        body["ok"] = body["self_test"]["heartbeat_detected"] is True
+    return body
+
+
 class Handler(BaseHTTPRequestHandler):
     def _auth_ok(self):
         if not TOKEN:
@@ -316,15 +405,18 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def _path(self):
+        return self.path.split("?", 1)[0]
+
     def do_GET(self):
         if not self._auth_ok():
             return self._json(401, {"ok": False, "message": "Unauthorized"})
-        if self.path == "/api/logs" or self.path == "/api/logs/":
+        path = self._path()
+        if path == "/api/logs" or path == "/api/logs/":
             logs = [{"name": p.name, "size": p.stat().st_size} for p in iter_log_files()]
             return self._json(200, {"ok": True, "logs": logs})
-        if self.path.startswith("/api/logs/"):
-            name = self.path.split("/api/logs/", 1)[1]
-            name = name.split("?", 1)[0]
+        if path.startswith("/api/logs/"):
+            name = path.split("/api/logs/", 1)[1]
             for p in iter_log_files():
                 if p.name == name:
                     data = p.read_bytes()
@@ -335,9 +427,11 @@ class Handler(BaseHTTPRequestHandler):
                     self.wfile.write(data)
                     return
             return self._json(404, {"ok": False, "message": "not found"})
-        if self.path == "/api/health":
+        if path in ("/api/health", "/api/v1/health"):
             # Console Status gauges read cpuLoadPct / memPct / tempC here when /api/v1/status is 404.
-            return self._json(200, {"ok": True, "agentVersion": AGENT_VERSION, **STATE})
+            return self._json(200, health_payload())
+        if path in ("/api/transport-test", "/api/v1/transport-test"):
+            return self._json(200, transport_test_payload(self_test=False))
         return self._json(404, {"ok": False})
 
     def do_POST(self):
@@ -349,7 +443,10 @@ class Handler(BaseHTTPRequestHandler):
             data = json.loads(raw.decode("utf-8"))
         except json.JSONDecodeError:
             data = {}
-        if self.path == "/api/install":
+        path = self._path()
+        if path in ("/api/transport-test", "/api/v1/transport-test"):
+            return self._json(200, transport_test_payload(self_test=True))
+        if path == "/api/install":
             script = data.get("script", "")
             version = data.get("version", AGENT_VERSION)
             dest = Path.home() / "vlc-companion" / "companion_agent.py"
@@ -367,9 +464,10 @@ class Handler(BaseHTTPRequestHandler):
 def main():
     print(f"Vision Landing Console companion {AGENT_VERSION}")
     print(f"  Console: {CONSOLE_URL}")
-    print(f"  FC: {FC_DEVICE} @ {FC_BAUD}")
+    print(f"  FC: {FC_DEVICE} @ {FC_BAUD} ({FC_SERIAL_NAME})")
     print(f"  Relay TCP: 0.0.0.0:{RELAY_PORT}")
     print(f"  HTTP: 0.0.0.0:{HTTP_PORT}")
+    print(f"  FC_READ_ONLY: {FC_READ_ONLY}")
     threading.Thread(target=heartbeat_loop, daemon=True).start()
     threading.Thread(target=mavlink_relay_server, daemon=True).start()
     httpd = ThreadingHTTPServer(("0.0.0.0", HTTP_PORT), Handler)

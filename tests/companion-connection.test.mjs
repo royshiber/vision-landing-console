@@ -6,7 +6,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { openDatabase, getConfig } from '../lib/db.mjs';
 import { createCompanionService, resolveCompanionMode } from '../lib/companion-service.mjs';
-import { registerCompanionConnectionApi } from '../lib/routes/companion-connection-api.mjs';
+import { ensureCompanionMavlinkRelay, registerCompanionConnectionApi } from '../lib/routes/companion-connection-api.mjs';
 import { registerCompanionProxyApi } from '../lib/routes/companion-proxy-api.mjs';
 import {
   COMPANION_CONNECTION_KEY,
@@ -271,6 +271,46 @@ describe('Companion in-product v1 connect', () => {
     expect(JSON.stringify(hydrated)).not.toContain(TOKEN);
     expect(restarted.companionService.mode).toBe('real');
     expect(logChunks.join('\n')).not.toContain(TOKEN);
+    const relay = await ensureCompanionMavlinkRelay(restarted.ctx);
+    expect(relay.ok).toBe(true);
+    expect(restarted.activateCalls).toHaveLength(1);
+    expect(restarted.activateCalls[0]).toMatchObject({
+      type: 'tcp',
+      host: 'jetson.example',
+      port: 5770,
+    });
+  });
+
+  it('surviving companion-connected state opens the MAVLink relay', async () => {
+    writeStoredCompanionConnection(db, {
+      connected: true,
+      mode: 'real',
+      baseUrl: BASE_URL,
+      token: TOKEN,
+    });
+    const started = await boot({
+      companionEnv: {
+        COMPANION_MODE: 'real',
+        JETSON_COMPANION_BASE_URL: BASE_URL,
+        JETSON_COMPANION_TOKEN: TOKEN,
+      },
+    });
+    expect(started.companionService.mode).toBe('real');
+    expect(started.activateCalls).toHaveLength(0);
+    const relay = await ensureCompanionMavlinkRelay(started.ctx);
+    expect(relay.ok).toBe(true);
+    expect(started.activateCalls).toHaveLength(1);
+    expect(started.activateCalls[0]).toMatchObject({
+      type: 'tcp',
+      host: 'jetson.example',
+      port: 5770,
+      linkRole: 'radio',
+    });
+    const status = await fetch(`${base}/api/companion/connection`).then((r) => r.json());
+    expect(status.mode).toBe('real');
+    expect(status.mavlinkRelay.ok).toBe(true);
+    expect(status.mavlinkRelay.host).toBe('jetson.example');
+    expect(JSON.stringify(status)).not.toContain(TOKEN);
   });
 
   it('keeps BOTH gate: URL alone leaves companion off', async () => {

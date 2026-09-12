@@ -1,5 +1,16 @@
 [
   {
+    "version": "1.02.286",
+    "date": "2026-09-12",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Jetson companion_agent 2.3.1 fan-out and Mission relay honesty",
+        "detail": "APP_VERSION 1.02.286. Rebased onto master 1.02.285 (#104 camera probe). Repo companion_agent.py matches live 2.3.1 byte-level UART fan-out: /dev/ttyTHS1 @ 921600, FC_READ_ONLY=1, Matek SERIAL3, uart_reader + fanout_uart, no recv_match on the relay UART, TCP→UART suppress counter, /api/health + /api/transport-test + logs. After server start, a surviving Companion-connected session opens the MAVLink TCP relay. When Companion reports fc_heartbeat but GCS has no frames, Mission shows דופק חי בבקר. ממסר הטלמטריה לא נפתח. isHudMavlinkLive treats connected / listening / heartbeat / finite roll+pitch as live; applyFlightHud syncs the horizon filler note. No flight commands. No Companion apply/restart."
+      }
+    ]
+  },
+  {
     "version": "1.02.285",
     "date": "2026-09-12",
     "changes": [

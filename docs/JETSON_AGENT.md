@@ -539,7 +539,7 @@ curl -X POST http://192.168.1.100:4010/api/vision/flow \
 | שירות | פורט | תפקיד |
 |-------|------|--------|
 | MAVLink relay | TCP `5770` | גשר byte-level בין GCS (PC) ל-UART של FC. קורא UART אחד ומפזר לכל לקוח TCP. אסור לפרסר עם pymavlink על אותו פורט — זה גונב דופק HEARTBEAT מהממסר. |
-| HTTP API | `8081` | `/api/health`, `/api/logs`, `/api/install` |
+| HTTP API | `8081` | `/api/health`, `/api/v1/health`, `/api/logs`, `/api/transport-test`, `/api/install` |
 | Heartbeat | → PC `:4010` | `/api/jetson/heartbeat` — IP, relay, FC linked |
 
 `GET /api/health` already carries `cpuLoadPct`, `memPct`, and `tempC` (same names as the console heartbeat). The console tries Companion v1 (`/api/v1/health`, `/api/v1/status`) first; on HTTP 404 it maps this legacy health body onto Status gauges. No `/api/v1/status` on the agent is required for those three numbers.
@@ -557,8 +557,10 @@ pip3 install pymavlink requests
 
 export VLC_CONSOLE_URL="http://<PC-IP>:4010"
 export VLC_COMPANION_TOKEN="<אותו COMPANION_SHARED_SECRET>"
-export VLC_FC_DEVICE="/dev/ttyTHS0"   # UART ל-Matek
-export VLC_FC_BAUD="115200"
+export VLC_FC_DEVICE="/dev/ttyTHS1"   # Matek SERIAL3 → Jetson UART1
+export VLC_FC_BAUD="921600"
+export VLC_FC_READ_ONLY="1"
+export VLC_FC_SERIAL_NAME="SERIAL3"
 export VLC_RELAY_PORT="5770"
 export VLC_HTTP_PORT="8081"
 
@@ -584,7 +586,7 @@ python3 companion_agent.py
 
 | רכיב | מינימום | מומלץ |
 |------|---------|-------|
-| Jetson Agent | 2.0.0 | 2.0.0+ |
+| Jetson Agent | 2.0.0 | 2.3.1 (companion_agent fan-out) |
 | ArduPilot | 4.4.x | 4.5.x (EKF3 stable) |
 | JetPack | 5.x | 6.x |
 | OpenCV | 4.5 | 4.8+ |

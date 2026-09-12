@@ -4793,7 +4793,40 @@ let _statustextSig = '';
 let _statustextTimer = null;
 
 function isHudMavlinkLive(mav) {
-  return !!(mav && mav.connected === true);
+  if (!mav || typeof mav !== 'object') return false;
+  if (mav.connected === true || mav.listening === true) return true;
+  if (Number(mav.heartbeatCount) > 0) return true;
+  return Number.isFinite(mav.rollDeg) && Number.isFinite(mav.pitchDeg);
+}
+
+const MISSION_FC_EMPTY_PRIMARY_HE = 'אין חיבור לבקר — לא מתקבלות הודעות MAVLink.';
+const MISSION_FC_EMPTY_NOTE_HE = 'אין חיבור לבקר. אין הודעות נכנסות.';
+const MISSION_FC_RELAY_HINT_HE = 'דופק חי בבקר. ממסר הטלמטריה לא נפתח.';
+
+function companionReportsFcHeartbeat(companion) {
+  if (!companion || typeof companion !== 'object') return false;
+  if (companion.fc_heartbeat === true) return true;
+  if (companion.fc === 'heartbeat') return true;
+  const link = companion.link;
+  if (link && typeof link === 'object') {
+    if (link.fc_heartbeat === true) return true;
+    if (link.fc === 'heartbeat') return true;
+  }
+  return false;
+}
+
+function missionFcEmptyPrimaryHe(companion) {
+  if (companionReportsFcHeartbeat(companion)) {
+    return companion.hint_he || companion.link?.hint_he || MISSION_FC_RELAY_HINT_HE;
+  }
+  return MISSION_FC_EMPTY_PRIMARY_HE;
+}
+
+function missionFcEmptyNoteHe(companion) {
+  if (companionReportsFcHeartbeat(companion)) {
+    return companion.hint_he || companion.link?.hint_he || MISSION_FC_RELAY_HINT_HE;
+  }
+  return MISSION_FC_EMPTY_NOTE_HE;
 }
 
 function liveStatusToHudMavlink(s) {
@@ -4879,7 +4912,10 @@ function syncMissionFcEmptyNote(mav) {
     note.textContent = name ? `מחובר · ${name}` : 'מחובר לבקר.';
     return;
   }
-  note.textContent = 'אין חיבור לבקר. אין הודעות נכנסות.';
+  const companion = (typeof latestCompanionFromServer === 'object' && latestCompanionFromServer)
+    ? latestCompanionFromServer
+    : null;
+  note.textContent = missionFcEmptyNoteHe(companion);
 }
 
 function applyConnectPillFromLinks(links) {
@@ -5245,6 +5281,7 @@ const GPS_FIX_LABELS = ['אין GPS', 'אין Fix', '2D Fix', '3D Fix', 'DGPS', 
 function applyFlightHud(mav) {
   if (!mav) {
     latestHudMavlink = null;
+    syncMissionFcEmptyNote(null);
     syncMissionLayoutChrome();
     return;
   }
@@ -5341,6 +5378,7 @@ function applyFlightHud(mav) {
       : fix === 2 ? 'warn'
       : 'fail';
   }
+  syncMissionFcEmptyNote(mav);
   syncMissionLayoutChrome();
 }
 
@@ -5365,7 +5403,10 @@ function applyNavOpticalStatus(vision) {
 function applyFcStatustextHud(mavlink) {
   if (!pfcMsgPrimaryHe) return;
   if (!isHudMavlinkLive(mavlink)) {
-    pfcMsgPrimaryHe.textContent = 'אין חיבור לבקר — לא מתקבלות הודעות MAVLink.';
+    const companion = (typeof latestCompanionFromServer === 'object' && latestCompanionFromServer)
+      ? latestCompanionFromServer
+      : null;
+    pfcMsgPrimaryHe.textContent = missionFcEmptyPrimaryHe(companion);
     if (pfcMsgScroll) pfcMsgScroll.innerHTML = '';
     _statustextSig = '';
     syncMissionFcEmptyNote(null);
@@ -9066,6 +9107,8 @@ initAnnotatedVisionPanel();
       hasData: link.hasData,
       fc_linked: link.fc_linked,
       fc_heartbeat: link.fc_heartbeat,
+      hint_he: link.hint_he || prev.hint_he,
+      mavlinkRelay: link.mavlinkRelay || prev.mavlinkRelay,
       pillLabelHe: link.pillLabelHe,
     };
     if (jetsonLinkChip) {
