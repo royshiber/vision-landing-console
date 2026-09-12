@@ -4793,7 +4793,10 @@ let _statustextSig = '';
 let _statustextTimer = null;
 
 function isHudMavlinkLive(mav) {
-  return !!(mav && mav.connected === true);
+  if (!mav || typeof mav !== 'object') return false;
+  if (mav.connected === true || mav.listening === true) return true;
+  if (Number(mav.heartbeatCount) > 0) return true;
+  return Number.isFinite(mav.rollDeg) && Number.isFinite(mav.pitchDeg);
 }
 
 const MISSION_FC_EMPTY_PRIMARY_HE = 'אין חיבור לבקר — לא מתקבלות הודעות MAVLink.';
@@ -5278,6 +5281,7 @@ const GPS_FIX_LABELS = ['אין GPS', 'אין Fix', '2D Fix', '3D Fix', 'DGPS', 
 function applyFlightHud(mav) {
   if (!mav) {
     latestHudMavlink = null;
+    syncMissionFcEmptyNote(null);
     syncMissionLayoutChrome();
     return;
   }
@@ -5374,6 +5378,7 @@ function applyFlightHud(mav) {
       : fix === 2 ? 'warn'
       : 'fail';
   }
+  syncMissionFcEmptyNote(mav);
   syncMissionLayoutChrome();
 }
 

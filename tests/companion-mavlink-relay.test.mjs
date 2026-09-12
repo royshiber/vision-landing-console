@@ -252,4 +252,21 @@ describe('honesty: UART heartbeat is not a fake GCS stream', () => {
     expect(js).toMatch(/pfcMsgPrimaryHe\.textContent = missionFcEmptyPrimaryHe\(companion\)/);
     expect(js).toMatch(/note\.textContent = missionFcEmptyNoteHe\(companion\)/);
   });
+
+  it('treats live SSE attitude as HUD-live so the filler note is not אין חיבור לבקר', () => {
+    const js = fs.readFileSync(path.join(repoRoot, 'public', 'app.js'), 'utf8');
+    const src = [
+      sliceFunction(js, 'isHudMavlinkLive'),
+      'return { isHudMavlinkLive };',
+    ].join('\n');
+    const ui = new Function(src)();
+    expect(ui.isHudMavlinkLive({ connected: true })).toBe(true);
+    expect(ui.isHudMavlinkLive({ listening: true })).toBe(true);
+    expect(ui.isHudMavlinkLive({ heartbeatCount: 3 })).toBe(true);
+    expect(ui.isHudMavlinkLive({ connected: false, rollDeg: 4.2, pitchDeg: -1.1 })).toBe(true);
+    expect(ui.isHudMavlinkLive({ connected: false, rollDeg: null, pitchDeg: null })).toBe(false);
+    expect(ui.isHudMavlinkLive(null)).toBe(false);
+    const hud = sliceFunction(js, 'applyFlightHud');
+    expect(hud).toMatch(/syncMissionFcEmptyNote\(mav\)/);
+  });
 });
