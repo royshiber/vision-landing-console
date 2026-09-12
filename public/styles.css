@@ -5182,11 +5182,18 @@ body:has(#pulse.panel.visible) .layout {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  flex: 1 1 100%;
   margin-top: 6px;
   padding: 8px;
   border-radius: 8px;
   background: rgba(8, 12, 20, 0.62);
   border: 1px solid rgba(148, 168, 198, 0.14);
+  direction: rtl;
+  text-align: right;
+}
+.mission-region-horizon .mission-live-camera {
+  max-height: 220px;
+  overflow: auto;
 }
 .mission-live-camera[hidden],
 .mission-live-camera.hidden {
@@ -11146,6 +11153,12 @@ html[data-evolve-preview="1"] #development {
   min-height: 22px;
   max-height: 28px;
   padding: 2px 4px;
+}
+.mission-region-horizon .pfd-horizon-chrome:has(#liveCameraPanel:not([hidden])),
+.mission-region-horizon .pfd-horizon-chrome:has(#annotatedVisionPanel:not([hidden])),
+.mission-region-horizon .pfd-horizon-chrome:has(#horizonVideoPanel:not(.hidden)) {
+  max-height: none;
+  overflow: visible;
 }
 .mission-region-horizon .hud-data-grid {
   display: grid;
