@@ -128,12 +128,13 @@ describe('Mission layout contract — static source', () => {
 
   it('reflows Pulse add-widget cards in an auto-placement grid', () => {
     const extras = cssBlock(css, '.pulse-extra-metrics,\n.pulse-extra-row');
-    expect(extras).toMatch(/grid-template-columns:\s*repeat\(auto-fill/);
     expect(extras).toMatch(/grid-auto-flow:\s*row/);
     expect(extras).toMatch(/position:\s*static/);
+    expect(css).toMatch(/\.pulse-extra-row\s*\{\s*grid-template-columns:\s*repeat\(auto-fill/);
+    expect(css).toMatch(/\.pulse-extra-metrics\s*\{\s*grid-template-columns:\s*repeat\(3/);
     expect(cssBlock(css, '.pulse-home.pulse-status-home')).toMatch(/overflow-y:\s*auto/);
-    expect(cssBlock(css, '.pulse-extra-tile')).not.toMatch(/position:\s*absolute/);
-    expect(js).toContain("tile.className = 'pulse-extra-tile'");
+    expect(cssBlock(css, '.pulse-extra-gauge')).not.toMatch(/position:\s*absolute/);
+    expect(js).toContain("tile.className = 'pulse-gauge pulse-extra-gauge'");
     expect(sliceFunction(js, 'refreshPulseExtraWidgets')).not.toMatch(/position\s*=\s*['"]absolute['"]/);
   });
 
@@ -275,7 +276,7 @@ describe('Mission layout contract — live boxes', () => {
     });
 
     expect(measured.platformTab).toBe(false);
-    expect(measured.version).toBe('1.02.280');
+    expect(measured.version).toBe('1.02.282');
     expect(measured.ws.width).toBeGreaterThan(800);
     expect(measured.talkMinWidth).toBe('240px');
     expect(Number.parseFloat(measured.dataGap)).toBeLessThanOrEqual(4);
@@ -329,6 +330,20 @@ describe('Mission layout contract — live boxes', () => {
     expect(measured.pfd.ias.right).toBeLessThanOrEqual(measured.pfd.stage.left + 1);
     expect(measured.pfd.alt.left).toBeGreaterThanOrEqual(measured.pfd.stage.right - 1);
     expect(measured.pfd.hdg.top).toBeGreaterThanOrEqual(measured.pfd.stage.bottom - 1);
+    const canvasBox = await page.evaluate(() => {
+      const box = (el) => {
+        const r = el.getBoundingClientRect();
+        return { left: r.left, top: r.top, right: r.right, bottom: r.bottom, width: r.width, height: r.height };
+      };
+      return {
+        canvas: box(document.getElementById('horizonCanvas')),
+        stage: box(document.getElementById('pfdHorizonStage')),
+      };
+    });
+    expect(Math.abs(canvasBox.canvas.width - canvasBox.stage.width)).toBeLessThanOrEqual(2);
+    expect(Math.abs(canvasBox.canvas.height - canvasBox.stage.height)).toBeLessThanOrEqual(2);
+    expect(canvasBox.canvas.width / canvasBox.stage.width).toBeGreaterThanOrEqual(0.97);
+    expect(canvasBox.canvas.height / canvasBox.stage.height).toBeGreaterThanOrEqual(0.97);
     const pfdParts = [measured.pfd.ias, measured.pfd.stage, measured.pfd.alt, measured.pfd.hdg, measured.pfd.videoToggle]
       .filter((part) => part && part.width > 2 && part.height > 2);
     for (let i = 0; i < pfdParts.length; i += 1) {
@@ -498,15 +513,19 @@ describe('Mission layout contract — live boxes', () => {
 
   it('keeps Pulse extra cards in flow without stacking', async () => {
     await page.click('[data-tab="pulse"]');
-    await page.waitForSelector('#pulseExtraRow .pulse-extra-tile');
+    await page.waitForSelector('#pulseExtraRow .pulse-gauge.pulse-extra-gauge');
     const pulse = await page.evaluate(() => {
       const box = (el) => {
         const r = el.getBoundingClientRect();
         return { left: r.left, top: r.top, right: r.right, bottom: r.bottom, width: r.width, height: r.height };
       };
-      const tiles = [...document.querySelectorAll('.pulse-extra-tile')].map((el) => ({
+      const tiles = [...document.querySelectorAll('.pulse-extra-gauge')].map((el) => ({
         ...box(el),
         position: getComputedStyle(el).position,
+        className: el.className,
+        hasSvg: !!el.querySelector('.pulse-gauge-svg'),
+        hasDt: !!el.querySelector('dt'),
+        hasDd: !!el.querySelector('dd'),
       }));
       const home = document.querySelector('.pulse-home.pulse-status-home');
       const homeBox = box(home);
@@ -524,6 +543,8 @@ describe('Mission layout contract — live boxes', () => {
     expect(pulse.platform).toBe(false);
     expect(pulse.panelDisplay).toMatch(/flex/);
     expect(pulse.tiles.length).toBeGreaterThanOrEqual(3);
+    expect(pulse.tiles.every((tile) => tile.className.includes('pulse-gauge'))).toBe(true);
+    expect(pulse.tiles.every((tile) => tile.hasSvg && tile.hasDt && tile.hasDd)).toBe(true);
     expect(pulse.overflowY).toMatch(/auto|scroll/);
     expect(pulse.homeHeight).toBeGreaterThan(200);
     expect(pulse.titleText).toContain('סטטוס מחשבים');

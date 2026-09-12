@@ -1,5 +1,16 @@
 [
   {
+    "version": "1.02.282",
+    "date": "2026-09-12",
+    "changes": [
+      {
+        "type": "ui",
+        "title": "Status custom gauges match locked cards; Mission AH fills the center stage",
+        "detail": "APP_VERSION 1.02.282. סטטוס מחשבים extra fields added via the Pulse composer now render as the same pulse-gauge cards as the locked load/mem/temp gauges (arc, value, unit, density). Mission artificial horizon sky/ground fills the entire center stage behind IAS/ALT/heading chrome — no inset canvas tapes. No invented telemetry, no flight commands, no Companion apply/restart."
+      }
+    ]
+  },
+  {
     "version": "1.02.281",
     "date": "2026-09-12",
     "changes": [

@@ -4829,7 +4829,9 @@ body:has(#pulse.panel.visible) .layout {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 4px;
 }
-.pulse-gauges .pulse-gauge {
+.pulse-gauges .pulse-gauge,
+.pulse-extra-metrics .pulse-gauge,
+.pulse-extra-row .pulse-gauge {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -4863,6 +4865,7 @@ body:has(#pulse.panel.visible) .layout {
 }
 .pulse-gauge[data-gauge="mem"] .pulse-gauge-fill { stroke: #4c8dff; }
 .pulse-gauge[data-gauge="temp"] .pulse-gauge-fill { stroke: #f0a04b; }
+.pulse-gauge[data-gauge="value"] .pulse-gauge-fill { stroke: #c4b5a0; }
 .pulse-gauge.is-empty .pulse-gauge-fill {
   stroke: rgba(148, 168, 198, 0.18);
   stroke-dasharray: 0 100;
@@ -5130,45 +5133,30 @@ body:has(#pulse.panel.visible) .layout {
 .pulse-extra-metrics,
 .pulse-extra-row {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
   grid-auto-flow: row;
-  gap: 8px;
+  gap: 4px;
   min-width: 0;
   position: static;
+}
+.pulse-extra-metrics {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.pulse-extra-row {
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
 }
 .pulse-extra-metrics:empty,
 .pulse-extra-row:empty {
   display: none;
 }
-.pulse-extra-tile {
+.pulse-extra-gauge {
   position: relative;
   inset: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
   min-width: 0;
-  padding: 8px 10px 8px;
-  border-radius: 8px;
-  background: #0d1320;
-  border: 1px solid rgba(148, 168, 198, 0.16);
-}
-.pulse-extra-tile dt {
-  margin: 0;
-  font-size: 0.66rem;
-  font-weight: 700;
-  color: #8b97ab;
-}
-.pulse-extra-tile dd {
-  margin: 0;
-  font-size: 0.92rem;
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-  color: #f2f6fb;
 }
 .pulse-extra-remove {
   position: absolute;
-  top: 4px;
-  inset-inline-end: 4px;
+  top: 2px;
+  inset-inline-end: 2px;
   border: 0;
   background: transparent;
   color: #7d8ba0;
@@ -10209,27 +10197,25 @@ html[data-evolve-preview="1"] #development {
   grid-template-areas:
     "ias horizon alt"
     "hdg hdg hdg";
-  gap: 4px;
+  gap: 3px;
   flex: 1 1 auto;
   min-height: 0;
   align-items: stretch;
-  padding: 4px 4px 0;
+  padding: 0;
 }
 .pfd-horizon-stage {
   grid-area: horizon;
   position: relative;
   min-width: 0;
   min-height: 0;
+  align-self: stretch;
   overflow: hidden;
-  border-radius: 8px;
+  border-radius: 4px;
   background:
-    radial-gradient(120% 70% at 50% 0%, rgba(255, 255, 255, 0.10), transparent 58%),
-    #10151d;
+    radial-gradient(120% 80% at 50% 18%, #2a78c8 0%, #163e86 58%, #0c1b3a 100%);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.16),
-    inset 0 -10px 16px rgba(0, 0, 0, 0.28),
-    0 0 0 1px rgba(212, 196, 150, 0.22),
-    0 0 0 3px #141820;
+    inset 0 1px 0 rgba(255, 248, 220, 0.22),
+    inset 0 0 0 1px rgba(212, 196, 150, 0.28);
 }
 .pfd-horizon-stage::after {
   content: "";
@@ -10238,8 +10224,8 @@ html[data-evolve-preview="1"] #development {
   z-index: 2;
   pointer-events: none;
   border-radius: inherit;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, transparent 22%);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.10);
+  background: linear-gradient(180deg, rgba(255, 248, 220, 0.08) 0%, transparent 28%);
+  box-shadow: inset 0 0 40px rgba(6, 8, 14, 0.18);
 }
 .pfd-heading-lane {
   grid-area: hdg;
@@ -10279,7 +10265,7 @@ html[data-evolve-preview="1"] #development {
   height: 100%;
   display: block;
   z-index: 1;
-  background: #10151d;
+  background: transparent;
 }
 
 /* Side tapes sit beside the canvas — never over video or labels */
@@ -10293,7 +10279,7 @@ html[data-evolve-preview="1"] #development {
   justify-content: center;
   gap: 1px;
   background: linear-gradient(180deg, #1c2433 0%, #0b0e14 58%, #07090d 100%);
-  border: 1px solid rgba(226, 232, 240, 0.62);
+  border: 1px solid rgba(212, 196, 150, 0.42);
   border-radius: 4px;
   padding: 5px 4px 4px;
   min-width: 0;

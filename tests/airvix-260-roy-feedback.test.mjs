@@ -26,10 +26,10 @@ function sliceFunction(src, name) {
   throw new Error(`unclosed function ${name}`);
 }
 
-describe('AIRVIX 1.02.261 Roy feedback (still holds on 1.02.280)', () => {
-  it('pins APP_VERSION at 1.02.280', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.280'");
-    expect(pkg.version).toBe('1.02.280');
+describe('AIRVIX 1.02.261 Roy feedback (still holds on 1.02.282)', () => {
+  it('pins APP_VERSION at 1.02.282', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.282'");
+    expect(pkg.version).toBe('1.02.282');
   });
 
   it('removes Platform from primary chrome and redirects Assist', () => {
@@ -121,7 +121,8 @@ describe('AIRVIX 1.02.261 Roy feedback (still holds on 1.02.280)', () => {
     expect(html).toMatch(/data-pulse-place="jetson"/);
     expect(html).toMatch(/data-pulse-place="fc"/);
     expect(html).toMatch(/data-pulse-place="row"/);
-    expect(css).toMatch(/\.pulse-extra-metrics,\s*\.pulse-extra-row\s*\{[^}]*grid-template-columns:\s*repeat\(auto-fill/);
+    expect(css).toMatch(/\.pulse-extra-metrics,\s*\.pulse-extra-row\s*\{[^}]*display:\s*grid/);
+    expect(css).toMatch(/\.pulse-extra-row\s*\{[^}]*grid-template-columns:\s*repeat\(auto-fill/);
     expect(css).toMatch(/\.pulse-extra-metrics:empty,\s*\.pulse-extra-row:empty/);
     expect(js).toContain("PULSE_WIDGETS_KEY = 'visionLandingPulseWidgetsV1'");
     expect(js).toContain('function suggestPulseWidgetFields(');
@@ -150,6 +151,8 @@ describe('AIRVIX 1.02.261 Roy feedback (still holds on 1.02.280)', () => {
       sliceFunction(js, 'formatComputerMetric'),
       sliceFunction(js, 'pulseComputerMetricValue'),
       sliceFunction(js, 'pulseIsPlaceholder'),
+      'function pulseResolveComputerHonesty() { return { jetsonLive: false }; }',
+      'function companionFiniteMetric() { return null; }',
       'function formatMissionDataValue() { return "--"; }',
       'return formatPulseWidgetValue("jetson.cpuLoadPct", { jetson: { cpuLoadPct: 41, online: false } });',
     ].join('\n');
