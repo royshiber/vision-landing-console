@@ -182,6 +182,7 @@ describe('dual-camera ingest honesty', () => {
     expect(js).toContain('תרגיל יבש');
     expect(js).toContain('/api/jetson/v1/cameras/');
     expect(css).toMatch(/\.mission-live-camera\b/);
+    expect(css).toMatch(/#liveCameraPanel:not\(\[hidden\]\)/);
     expect(js).not.toMatch(/FLIGHT_ACTION/);
   });
 });
