@@ -3704,7 +3704,17 @@ function paintVisionLandingReadiness(snapshot) {
     const runwayState = runway?.state || snapshot.runwayDetect || 'unknown';
     missionRunwayGlance.dataset.state = runwayState;
     missionRunwayGlance.textContent = RUNWAY_GLANCE_HE[runwayState] || RUNWAY_GLANCE_HE.unknown;
-    missionRunwayGlance.title = runway?.missingHe || 'זיהוי מסלול לצפייה. אין נעילה.';
+    missionRunwayGlance.title = runway?.missingHe || 'זיהוי מסלול לצפייה';
+  }
+  if (missionRunwayLockGlance) {
+    const lockRow = Array.isArray(snapshot.rows)
+      ? snapshot.rows.find((row) => row.id === 'runway_lock')
+      : null;
+    const lockState = lockRow?.state || snapshot.runwayLock?.state || 'unknown';
+    const lockSafe = RUNWAY_LOCK_GLANCE_HE[lockState] ? lockState : 'unknown';
+    missionRunwayLockGlance.dataset.state = lockSafe;
+    missionRunwayLockGlance.textContent = RUNWAY_LOCK_GLANCE_HE[lockSafe];
+    missionRunwayLockGlance.title = lockRow?.missingHe || 'נעילת מסלול לצפייה. אין המצאת נעילה.';
   }
 }
 
@@ -4701,12 +4711,19 @@ const pfdReadinessDiagBtn = document.getElementById('pfdReadinessDiagBtn');
 const pfdReadinessStatusBtn = document.getElementById('pfdReadinessStatusBtn');
 const missionReadinessGlance = document.getElementById('missionReadinessGlance');
 const missionRunwayGlance = document.getElementById('missionRunwayGlance');
+const missionRunwayLockGlance = document.getElementById('missionRunwayLockGlance');
 const RUNWAY_GLANCE_HE = Object.freeze({
   detected: 'מסלול · זוהה',
   not_detected: 'מסלול · לא זוהה',
   unknown: 'מסלול · לא ידוע',
   not_implemented: 'מסלול · אין גלאי',
   absent: 'מסלול · חסר',
+});
+const RUNWAY_LOCK_GLANCE_HE = Object.freeze({
+  unknown: 'נעילה · לא ידוע',
+  not: 'נעילה · אין',
+  detecting: 'נעילה · מזהה',
+  locked: 'נעילה · נעול',
 });
 let _readinessAnchor = null;
 // Kept as null — removed from HTML
@@ -5626,6 +5643,7 @@ function setupFlightHudChromeHandlers() {
   });
   missionReadinessGlance?.addEventListener('click', (e) => toggleReadinessPopover(e, missionReadinessGlance));
   missionRunwayGlance?.addEventListener('click', (e) => toggleReadinessPopover(e, missionRunwayGlance));
+  missionRunwayLockGlance?.addEventListener('click', (e) => toggleReadinessPopover(e, missionRunwayLockGlance));
   pfdReadinessCloseBtn?.addEventListener('click', () => closePfdReadinessPopover());
   pfdReadinessStatusBtn?.addEventListener('click', (e) => {
     e.preventDefault();
@@ -5642,6 +5660,7 @@ function setupFlightHudChromeHandlers() {
     if (pfdArmedBadge?.contains(e.target)) return;
     if (missionReadinessGlance?.contains(e.target)) return;
     if (missionRunwayGlance?.contains(e.target)) return;
+    if (missionRunwayLockGlance?.contains(e.target)) return;
     if (pfdReadinessPopover.contains(e.target)) return;
     closePfdReadinessPopover();
   });

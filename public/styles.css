@@ -9701,6 +9701,24 @@ html[data-evolve-preview="1"] #development {
   outline: none;
   filter: brightness(1.08);
 }
+.mission-runway-lock-glance[data-state="unknown"],
+.mission-runway-lock-glance[data-state="not"],
+.mission-runway-lock-glance[data-state="later"],
+.mission-runway-lock-glance[data-state="off"] {
+  border-color: rgba(148, 163, 184, 0.35);
+  background: rgba(15, 23, 42, 0.35);
+  color: #94a3b8;
+}
+.mission-runway-lock-glance[data-state="detecting"] {
+  border-color: rgba(251, 191, 36, 0.45);
+  background: rgba(245, 158, 11, 0.14);
+  color: #fde68a;
+}
+.mission-runway-lock-glance[data-state="locked"] {
+  border-color: rgba(16, 185, 129, 0.35);
+  background: rgba(16, 185, 129, 0.16);
+  color: #bbf7d0;
+}
 
 /**
  * Mission layout hook (locked):

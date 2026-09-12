@@ -62,19 +62,19 @@ Merge autonomy still on for independently VERIFIED safe draft PRs. Hard safety s
 
 ---
 
-## Audit snapshot — 2026-09-12 (P2.2 PLND / vision-nav profile)
+## Audit snapshot — 2026-09-12 (P2 runway lock status to GCS)
 
-**Master tip before this draft:** `1.02.286` after #105.  
-**This draft:** Honest PLND / vision-nav params profile surface. `APP_VERSION` **1.02.288**. Display only. Rebased onto master 1.02.287 (#108).
+**Master tip before this draft:** `1.02.288` after #107.  
+**This draft:** Honest observe-only runway lock chips. `APP_VERSION` **1.02.289**. Display only.
 
 ### Landed
 
-- Experiment #1 checklist is on master: PIC hand-fly, observe-only, success = runway detect on final. Lock and annotations are later.
-- Honest camera/vision probe is on master (#104). PLND does not fail Experiment #1.
+- Experiment #1 checklist is on master: PIC hand-fly, observe-only, success = runway detect on final.
+- Honest camera/vision probe and PLND profile are on master. Lock was a later-stage stub.
 
 ### This draft
 
-`plnd_profile` is informational (`requiredForExperiment1` false). Keys `PLND_ENABLED`, `PLND_TYPE`, `vision_enable_alt_m`, `vision_conf_min`, `flare_alt_m` show present / missing / unknown from a live FC READ, Companion, or a persisted store. No source is unknown. Looked source without the key is missing. Values are never invented. Parameters tab shows the same Hebrew honesty card; Status readiness deep-links there.
+`runway_lock` shows `not` / `detecting` / `locked` from an explicit Companion/vision lock field, or `unknown` when no lock signal exists. Detect + confidence never invents locked. `requiredForExperiment1` stays false. Mission detect glance stays detect-only; an adjacent lock glance never copies detect. `/api/vision/landing-readiness` adds `runwayLock: { state, source }`.
 
 ### Next pick
 
@@ -82,7 +82,7 @@ Do not start #28 / #29. Prefer another display-only honesty or in-app developmen
 
 ### Ranked GAPS
 
-1. **Honest PLND / vision-nav profile surface** — this draft.
+1. **Honest runway lock status to GCS** — this draft.
 2. **Companion apply/restart** — Human Gate #28. No GO.
 3. **Live vehicle + auto landing** — Human Gate #29. No GO.
 

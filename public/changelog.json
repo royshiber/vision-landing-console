@@ -1,5 +1,16 @@
 [
   {
+    "version": "1.02.289",
+    "date": "2026-09-12",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Honest runway lock status to GCS for Experiment #1",
+        "detail": "APP_VERSION 1.02.289. After master 1.02.288 (#107 PLND profile). runway_lock shows observe-only not / detecting / locked Hebrew chips from an explicit Companion or vision lock field. No lock signal stays unknown — never invented from detect or confidence. requiredForExperiment1 stays false; Experiment #1 success remains runway detect on final. Mission detect glance stays detect-only; adjacent lock glance never copies detect. GET /api/vision/landing-readiness adds runwayLock state + source. No flight commands and no Companion apply/restart."
+      }
+    ]
+  },
+  {
     "version": "1.02.288",
     "date": "2026-09-12",
     "changes": [
