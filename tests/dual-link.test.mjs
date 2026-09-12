@@ -33,9 +33,9 @@ describe('dual-link state machine', () => {
     });
     expect(both.canSelectActive).toBe(true);
     expect(both.active).toBe('cellular');
-    expect(both.radioLabelHe).toBe('טלמטריה רגילה');
+    expect(both.radioLabelHe).toBe('רדיו טלמטריה');
     expect(both.cellularLabelHe).toMatch(/סלולר/);
-    expect(both.pillLabelHe).toBe('שני קישורים · סלולר');
+    expect(both.pillLabelHe).toBe('שני קישורים · סלולר פעיל');
     expect(hebrewPillLabel({ radio: 'disconnected', cellular: 'disconnected' })).toBe('מנותק');
   });
 

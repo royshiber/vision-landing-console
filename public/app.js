@@ -9090,6 +9090,7 @@ initAnnotatedVisionPanel();
 
   const LS_KEY = 'vlc.connect.widget.v1';
   let currentId = null;
+  let latestLinksSnapshot = null;
   let statusPollTimer = null;
   let statPollTimer = null;
 
@@ -9454,9 +9455,9 @@ initAnnotatedVisionPanel();
     companionPrefillDefaultUrl(link.base_url);
     if (companionLinkBtn) {
       const connected = link.connected === true;
-      companionLinkBtn.textContent = connected ? 'מחובר' : 'חיבור';
+      companionLinkBtn.textContent = connected ? 'התנתק' : 'התחבר';
       companionLinkBtn.dataset.connected = connected ? '1' : '0';
-      companionLinkBtn.title = connected ? 'מחשב משימה מחובר. לחץ לניתוק.' : 'חיבור אוטומטי למחשב המשימה';
+      companionLinkBtn.title = connected ? 'רשת בית מחוברת. לחצו להתנתקות.' : 'התחברו לרשת בית';
     }
     if (typeof pulseRefresh === 'function') pulseRefresh();
   }
@@ -9505,11 +9506,66 @@ initAnnotatedVisionPanel();
     }
   }
 
+  function paintQuality(barsEl, pctEl, quality) {
+    const known = quality?.known === true && Number.isFinite(quality?.percent);
+    const bars = known ? Math.max(0, Math.min(4, Number(quality.bars) || 0)) : 0;
+    if (barsEl) {
+      barsEl.dataset.quality = known ? 'known' : 'unknown';
+      barsEl.dataset.bars = String(bars);
+      barsEl.title = known && quality.sourceHe ? quality.sourceHe : '';
+    }
+    if (pctEl) {
+      if (known) {
+        pctEl.hidden = false;
+        pctEl.textContent = `${Math.round(quality.percent)}%`;
+        pctEl.title = quality.sourceHe || '';
+      } else {
+        pctEl.hidden = true;
+        pctEl.textContent = '';
+        pctEl.title = '';
+      }
+    }
+  }
+
+  function paintCommRows(links) {
+    const rows = Array.isArray(links?.comm?.rows) ? links.comm.rows : [];
+    const byId = Object.fromEntries(rows.map((r) => [r.id, r]));
+    document.querySelectorAll('#commLinkRows .comm-link-row').forEach((el) => {
+      const id = el.dataset.link;
+      const row = byId[id];
+      if (!row) return;
+      el.dataset.state = row.state || 'off';
+      el.dataset.active = row.active ? '1' : '0';
+      const hint = el.querySelector('.comm-link-hint');
+      if (hint && row.hintHe) hint.textContent = row.hintHe;
+      paintQuality(
+        el.querySelector('.comm-link-bars'),
+        el.querySelector('.comm-link-pct'),
+        row.quality,
+      );
+    });
+    document.querySelectorAll('#missionLinkStrip .mission-link-chip').forEach((chip) => {
+      const row = byId[chip.dataset.link];
+      if (!row) return;
+      const state = row.state === 'connected' || row.state === 'live' || row.state === 'listening'
+        ? 'on'
+        : row.state === 'modem_absent' || row.state === 'absent' || row.state === 'empty'
+          ? (row.state === 'empty' ? 'warn' : 'absent')
+          : row.state === 'connecting' || row.state === 'error'
+            ? 'warn'
+            : 'off';
+      chip.dataset.state = state;
+      chip.dataset.quality = row.quality?.known ? 'known' : 'unknown';
+      chip.title = row.hintHe || row.nameHe || '';
+    });
+  }
+
   function applyDualLinkUi(links) {
     if (!links) return false;
+    latestLinksSnapshot = links;
     if (radioChip) {
       radioChip.dataset.state = chipStateFromLink(links.radio);
-      radioChip.textContent = `${links.radioLabelHe || 'טלמטריה רגילה'} · ${links.radioStatusHe || 'מנותק'}`;
+      radioChip.textContent = `${links.radioLabelHe || 'רדיו טלמטריה'} · ${links.radioStatusHe || 'מנותק'}`;
     }
     if (cellularChip) {
       cellularChip.dataset.state = chipStateFromLink(links.cellular);
@@ -9529,8 +9585,9 @@ initAnnotatedVisionPanel();
     }
     if (cellularConnectBtn) {
       const cellUp = links.cellular === 'connected' || links.cellular === 'listening';
-      cellularConnectBtn.textContent = cellUp ? 'ניתוק' : 'חיבור';
+      cellularConnectBtn.textContent = cellUp ? 'התנתק' : 'התחבר';
       cellularConnectBtn.dataset.connected = cellUp ? '1' : '0';
+      cellularConnectBtn.title = cellUp ? 'סלולר מחובר. לחצו להתנתקות.' : 'התחברו לסלולר';
     }
     if (activeLinkPicker) {
       activeLinkPicker.hidden = !links.canSelectActive;
@@ -9554,14 +9611,15 @@ initAnnotatedVisionPanel();
     const radioUp = links.radio === 'connected' || links.radio === 'listening';
     if (radioUp) {
       currentId = links.radioConnection?.id || currentId;
-      connBtn.textContent = 'DISCONNECT';
+      connBtn.textContent = 'התנתק';
       connBtn.dataset.connected = '1';
-      connBtn.title = 'מחובר בטלמטריה רגילה. לחץ לניתוק.';
+      connBtn.title = 'רדיו מחובר. לחצו להתנתקות.';
     } else {
-      connBtn.textContent = 'CONNECT';
+      connBtn.textContent = 'התחבר';
       connBtn.dataset.connected = '0';
-      connBtn.title = 'התחבר למטוס';
+      connBtn.title = 'התחברו לרדיו טלמטריה';
     }
+    try { paintCommRows(links); } catch (err) { console.warn('paintCommRows failed', err); }
     applyAnnotatedVision(links.video);
     try { hydrateMissionHudFromLiveLink(); } catch (err) { console.warn('hydrateMissionHudFromLiveLink failed', err); }
     return true;
@@ -9593,9 +9651,9 @@ initAnnotatedVisionPanel();
         rememberLiveRadioStatus(active.liveStatus);
         const age = active.liveStatus.lastHeartbeatAgeMs;
         setDot(age != null && age < 5000 ? 'on' : 'warn');
-        connBtn.textContent = 'DISCONNECT';
+        connBtn.textContent = 'התנתק';
         connBtn.dataset.connected = '1';
-        connBtn.title = `מחובר ל-${active.liveStatus.remoteAddr || active.name}. לחץ לניתוק.`;
+        connBtn.title = `מחובר ל-${active.liveStatus.remoteAddr || active.name}. לחצו להתנתקות.`;
         setPillLabel(`מחובר · ${active.liveStatus.remoteAddr || active.name}`);
       } else {
         const listening = connections.find((c) => c.liveStatus && c.liveStatus.listening);
@@ -9603,16 +9661,16 @@ initAnnotatedVisionPanel();
           currentId = listening.id;
           rememberLiveRadioStatus(listening.liveStatus);
           setDot('connecting');
-          connBtn.textContent = 'DISCONNECT';
+          connBtn.textContent = 'התנתק';
           connBtn.dataset.connected = '1';
           connBtn.title = `מאזין על ${listening.liveStatus.remoteAddr || listening.name} — ממתין ל-heartbeat`;
           setPillLabel(`מאזין · ${listening.liveStatus.remoteAddr || listening.name}`);
         } else {
           currentId = null;
           setDot('off');
-          connBtn.textContent = 'CONNECT';
+          connBtn.textContent = 'התחבר';
           connBtn.dataset.connected = '0';
-          connBtn.title = 'התחבר למטוס';
+          connBtn.title = 'התחברו לרדיו טלמטריה';
           setPillLabel('מנותק');
         }
       }
@@ -9634,13 +9692,11 @@ initAnnotatedVisionPanel();
           body: JSON.stringify({ role: 'cellular' }),
         });
         const j = await parseConnJsonResponse(r);
-        if (!j.ok) throw new Error(j.message || 'ניתוק סלולר נכשל');
+        if (!j.ok) throw new Error(j.message || 'התנתקות סלולר נכשלה');
       } else {
-        const hp = parseHostPort(cellularHostPort?.value);
-        if (!hp) {
-          alert('הזן יעד ברשת לסלולר.');
-          return;
-        }
+        const saved = latestLinksSnapshot?.endpoint;
+        const hp = parseHostPort(cellularHostPort?.value)
+          || (saved?.host && saved?.port ? { host: saved.host, port: saved.port } : { host: '0.0.0.0', port: 14560 });
         savePrefs();
         if (cellularModemStatus?.dataset.state !== 'absent') setDot('connecting');
         const r = await fetch('/api/links/connect', {
@@ -9695,18 +9751,18 @@ initAnnotatedVisionPanel();
           body: JSON.stringify({ role: 'radio' }),
         });
         const j = await parseConnJsonResponse(r);
-        if (!j.ok) throw new Error(j.message || 'disconnect failed');
+        if (!j.ok) throw new Error(j.message || 'התנתקות נכשלה');
       } else {
-        const type = typeSel.value;
+        const type = typeSel?.value || 'udp';
         savePrefs();
-        const body = { type, baudRate: Number(baudSel.value) || 57600 };
-        if (type === 'serial') {
-          if (!portList.value) { alert('בחר COM port תחילה'); return; }
+        const body = { type, baudRate: Number(baudSel?.value) || 57600 };
+        if (type === 'serial' && portList?.value) {
           body.serialPort = portList.value;
         } else {
-          const hp = parseHostPort(portInput.value);
-          if (!hp) { alert('הזן כתובת בפורמט host:port, למשל 0.0.0.0:14550'); return; }
-          body.host = hp.host; body.port = hp.port;
+          const hp = parseHostPort(portInput?.value) || { host: '0.0.0.0', port: 14550 };
+          body.type = type === 'serial' ? 'udp' : type;
+          body.host = hp.host;
+          body.port = hp.port;
         }
         setDot('connecting');
         const r = await fetch('/api/connections/quick-connect', {
@@ -9730,7 +9786,7 @@ initAnnotatedVisionPanel();
   async function onAutoConnectClick() {
     if (autoConnectInFlight) return;
     if (connBtn.dataset.connected === '1') {
-      alert('כבר מחובר — לחץ DISCONNECT לפני חיבור אוטומטי.');
+      alert('כבר מחובר — לחצו התנתק לפני חיבור אוטומטי.');
       return;
     }
     if (!(await syncConnectionApiGate())) {
@@ -9931,6 +9987,22 @@ initAnnotatedVisionPanel();
   if (activeLinkCellular) {
     activeLinkCellular.addEventListener('change', () => {
       if (activeLinkCellular.checked) void onActiveLinkPick('cellular');
+    });
+  }
+  document.querySelectorAll('#commLinkRows .comm-link-row').forEach((rowEl) => {
+    rowEl.addEventListener('click', (ev) => {
+      if (ev.target.closest('button')) return;
+      const pick = rowEl.dataset.link;
+      if ((pick === 'radio' || pick === 'cellular') && latestLinksSnapshot?.canSelectActive) {
+        void onActiveLinkPick(pick);
+      }
+    });
+  });
+  const rcStatusBtn = document.getElementById('rcStatusBtn');
+  if (rcStatusBtn) {
+    rcStatusBtn.addEventListener('click', (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
     });
   }
   statBtn.addEventListener('click', openStatModal);

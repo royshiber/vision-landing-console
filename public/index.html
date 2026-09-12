@@ -15,22 +15,78 @@
     <script src="https://cdn.jsdelivr.net/npm/leaflet-rotate@0.2.8/dist/leaflet-rotate.js" crossorigin=""></script>
   </head>
   <body>
-    <div id="connectWidget" class="connect-widget connect-widget-compact connect-widget-float" title="חיבור MAVLink למטוס — בסגנון Mission Planner">
-          <button type="button" id="connectToggleBtn" class="conn-pill" aria-expanded="false" aria-controls="connectPanel" title="פתח/סגור פאנל חיבור">
+    <div id="connectWidget" class="connect-widget connect-widget-compact connect-widget-float" title="קישורי תקשורת">
+          <button type="button" id="connectToggleBtn" class="conn-pill" aria-expanded="false" aria-controls="connectPanel" title="פתח או סגור את קישורי התקשורת">
             <span id="connectStatusDot" class="conn-dot" data-state="off" aria-label="מצב חיבור"></span>
             <span id="connectPillLabel" class="conn-pill-label">מנותק</span>
             <span class="conn-pill-caret" aria-hidden="true">▾</span>
           </button>
           <div id="connectPanel" class="conn-panel" hidden>
             <p id="connectApiUpgradeHint" class="conn-upgrade-hint hidden" role="alert"></p>
-            <section id="companionLinkBlock" class="conn-link-block conn-companion-block" aria-label="מחשב משימה">
+            <ul id="commLinkRows" class="comm-link-rows" aria-label="קישורי תקשורת">
+              <li class="comm-link-row" data-link="cellular" data-state="absent" data-active="0">
+                <div class="comm-link-quality">
+                  <div id="cellularQualityBars" class="comm-link-bars" data-quality="unknown" data-bars="0" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+                  <span id="cellularQualityPct" class="comm-link-pct" hidden></span>
+                </div>
+                <div class="comm-link-copy">
+                  <strong class="comm-link-name">סלולר</strong>
+                  <p id="cellularLinkHint" class="comm-link-hint">מודם לא מחובר</p>
+                </div>
+                <button type="button" id="cellularConnectBtn" class="conn-btn conn-btn-primary comm-link-action" title="התחבר לסלולר">התחבר</button>
+              </li>
+              <li class="comm-link-row" data-link="radio" data-state="off" data-active="0">
+                <div class="comm-link-quality">
+                  <div id="radioQualityBars" class="comm-link-bars" data-quality="unknown" data-bars="0" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+                  <span id="radioQualityPct" class="comm-link-pct" hidden></span>
+                </div>
+                <div class="comm-link-copy">
+                  <strong class="comm-link-name">רדיו טלמטריה</strong>
+                  <p id="radioLinkHint" class="comm-link-hint">הכל חוץ מווידאו · גיבוי כשאין סלולר</p>
+                </div>
+                <button type="button" id="connectBtn" class="conn-btn conn-btn-primary comm-link-action" title="התחבר לרדיו טלמטריה">התחבר</button>
+              </li>
+              <li class="comm-link-row" data-link="home" data-state="off" data-active="0">
+                <div class="comm-link-quality">
+                  <div id="homeQualityBars" class="comm-link-bars" data-quality="unknown" data-bars="0" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+                  <span id="homeQualityPct" class="comm-link-pct" hidden></span>
+                </div>
+                <div class="comm-link-copy">
+                  <strong class="comm-link-name">רשת בית</strong>
+                  <p id="companionLinkHint" class="comm-link-hint">רשת לבית · בדיקות מול מחשב משימה</p>
+                </div>
+                <button type="button" id="companionLinkBtn" class="conn-btn conn-btn-primary comm-link-action" title="התחבר לרשת בית">התחבר</button>
+              </li>
+              <li class="comm-link-row" data-link="rc" data-state="off" data-active="0">
+                <div class="comm-link-quality">
+                  <div id="rcQualityBars" class="comm-link-bars" data-quality="unknown" data-bars="0" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+                  <span id="rcQualityPct" class="comm-link-pct" hidden></span>
+                </div>
+                <div class="comm-link-copy">
+                  <strong class="comm-link-name">RC</strong>
+                  <p id="rcLinkHint" class="comm-link-hint">אין ערוצי שלט</p>
+                </div>
+                <button type="button" id="rcStatusBtn" class="conn-btn comm-link-action comm-link-action-status" title="שלט לבקר בלבד. אין חיבור נתונים.">סטטוס</button>
+              </li>
+            </ul>
+            <section id="companionLinkBlock" class="conn-link-block conn-companion-block comm-link-sr" aria-label="מחשב משימה">
               <div class="conn-dual-chips" aria-label="מצב מחשב משימה">
                 <span id="jetsonLinkChip" class="conn-link-chip" data-state="off">מחשב משימה · מנותק</span>
                 <span id="fcLinkChip" class="conn-link-chip" data-state="off">בקר טיסה · מנותק</span>
               </div>
-              <p id="companionLinkHint" class="conn-link-note">חיבור אוטומטי למחשב המשימה.</p>
-              <div class="conn-panel-actions">
-                <button type="button" id="companionLinkBtn" class="conn-btn conn-btn-primary" title="חיבור למחשב משימה">חיבור</button>
+            </section>
+            <section id="activeLinkPicker" class="conn-active-picker" hidden aria-label="קישור פעיל">
+              <h3 class="conn-link-title">קישור פעיל</h3>
+              <p class="conn-link-note">שני הקישורים מחוברים. בחרו מי מזרים פקודות וטלמטריה.</p>
+              <div class="conn-active-choices">
+                <label class="conn-active-choice">
+                  <input type="radio" name="activeLink" id="activeLinkRadio" value="radio" />
+                  <span>רדיו טלמטריה</span>
+                </label>
+                <label class="conn-active-choice">
+                  <input type="radio" name="activeLink" id="activeLinkCellular" value="cellular" />
+                  <span>סלולר</span>
+                </label>
               </div>
             </section>
             <details id="connectAdvanced" class="conn-advanced">
@@ -50,11 +106,11 @@
               </div>
             </section>
             <div class="conn-dual-chips conn-mav-chips" aria-label="מצב קישורים">
-              <span id="radioLinkChip" class="conn-link-chip" data-state="off">טלמטריה רגילה · מנותק</span>
+              <span id="radioLinkChip" class="conn-link-chip" data-state="off">רדיו טלמטריה · מנותק</span>
               <span id="cellularLinkChip" class="conn-link-chip" data-state="absent" data-reason="modem_absent">סלולר · מודם לא מחובר</span>
             </div>
-            <section class="conn-link-block" data-link-role="radio" aria-label="טלמטריה רגילה">
-              <h3 class="conn-link-title">טלמטריה רגילה</h3>
+            <section class="conn-link-block" data-link-role="radio" aria-label="רדיו טלמטריה">
+              <h3 class="conn-link-title">רדיו טלמטריה</h3>
             <div class="conn-panel-row">
               <label class="conn-panel-field">
                 <span>סוג</span>
@@ -83,37 +139,19 @@
               </label>
             </div>
             <div class="conn-panel-actions">
-              <button id="connectBtn" class="conn-btn conn-btn-primary" title="התחבר / נתק">CONNECT</button>
               <button type="button" id="connectAutoBtn" class="conn-btn conn-btn-auto" title="מזהה אוטומטית: FC ב-USB → Jetson relay → SITL מקומי">חיבור חכם</button>
               <button id="connectStatBtn" class="conn-btn" title="פתח חלון סטטיסטיקה מפורט">STAT</button>
             </div>
             </section>
             <section class="conn-link-block" data-link-role="cellular" aria-label="סלולר ממחשב משימה">
-              <h3 class="conn-link-title">סלולר (Jetson)</h3>
-              <p class="conn-link-note">MAVLink דרך סלולר ממחשב משימה. לא פקודות דרך HTTP.</p>
+              <h3 class="conn-link-title">סלולר</h3>
+              <p class="conn-link-note">דרך מחשב משימה. לא פקודות דרך HTTP.</p>
               <p id="cellularModemStatus" class="conn-modem-status" data-state="absent" data-reason="modem_absent">מודם לא מחובר</p>
               <p id="annotatedVideoConnectStatus" class="conn-annotated-status" data-state="absent" data-reason="modem_absent" data-path="cellular" data-available="false">ראייה מסומנת · אין שידור. מודם סלולר לא מחובר. ראייה מסומנת מגיעה רק ממחשב משימה.</p>
               <div class="conn-panel-row">
                 <label class="conn-panel-field" style="flex:1">
-                  <span>יעד MAVLink</span>
+                  <span>יעד</span>
                   <input id="cellularHostPort" class="conn-input" type="text" placeholder="0.0.0.0:14560" dir="ltr" autocomplete="off" />
-                </label>
-              </div>
-              <div class="conn-panel-actions">
-                <button type="button" id="cellularConnectBtn" class="conn-btn conn-btn-primary" title="חיבור סלולר">חיבור</button>
-              </div>
-            </section>
-            <section id="activeLinkPicker" class="conn-active-picker" hidden aria-label="קישור פעיל">
-              <h3 class="conn-link-title">קישור פעיל</h3>
-              <p class="conn-link-note">שני הקישורים מחוברים. בחרו מי מזרים פקודות וטלמטריה.</p>
-              <div class="conn-active-choices">
-                <label class="conn-active-choice">
-                  <input type="radio" name="activeLink" id="activeLinkRadio" value="radio" />
-                  <span>טלמטריה רגילה</span>
-                </label>
-                <label class="conn-active-choice">
-                  <input type="radio" name="activeLink" id="activeLinkCellular" value="cellular" />
-                  <span>סלולר</span>
                 </label>
               </div>
             </section>
@@ -1717,6 +1755,12 @@
 
       <section id="terrain" class="panel visible" data-workspace="mission">
         <div class="mission-ops-chrome">
+          <nav id="missionLinkStrip" class="mission-link-strip" aria-label="סטטוס קישורים">
+            <span class="mission-link-chip" data-link="radio" data-state="off" data-quality="unknown"><i class="mission-link-dots" aria-hidden="true"></i>רדיו</span>
+            <span class="mission-link-chip" data-link="cellular" data-state="absent" data-quality="unknown"><i class="mission-link-dots" aria-hidden="true"></i>סלולר</span>
+            <span class="mission-link-chip" data-link="home" data-state="off" data-quality="unknown"><i class="mission-link-dots" aria-hidden="true"></i>בית</span>
+            <span class="mission-link-chip" data-link="rc" data-state="off" data-quality="unknown"><i class="mission-link-dots" aria-hidden="true"></i>RC</span>
+          </nav>
           <p id="missionIdentity" class="mission-identity">הטסה · מרחב טיסה</p>
           <button type="button" id="missionRecordBtn" class="mission-record-btn" data-recording="0" aria-pressed="false" title="התחילו שמירת טיסה לארכיון">הקלטה</button>
           <button type="button" id="missionReadinessGlance" class="mission-readiness-glance" title="מוכנות">מוכנות</button>

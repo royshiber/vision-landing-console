@@ -1,5 +1,16 @@
 [
   {
+    "version": "1.02.299",
+    "date": "2026-09-12",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Four-row communications widget with honest quality",
+        "detail": "APP_VERSION 1.02.299. After master 1.02.298. Top-left connect is four locked rows: cellular via Jetson, radio telemetry, home network to the mission computer, and RC status only. Collapsed pill stays one line (מחובר · רדיו פעיל). Data-plane buttons are always התחבר or התנתק by state; RC stays סטטוס. Quality bars stay; a percent appears only from a finite trusted metric (modem CSQ / companion RSSI / RC_CHANNELS rssi) with a Hebrew source tooltip. Unknown stays grey bars and no fake utilization. Mission shows a compact four-chip strip. Host and token stay under מתקדם. No ARM/LAND and no Companion apply/restart."
+      }
+    ]
+  },
+  {
     "version": "1.02.298",
     "date": "2026-09-12",
     "changes": [
