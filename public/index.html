@@ -222,6 +222,14 @@
         <button type="button" id="assistCloseBtn" class="assist-close-btn" aria-label="סגור">✕</button>
       </header>
       <p id="assistRailHint" class="assist-rail-hint">שינוי דורש אישור.</p>
+      <section id="assistVoiceGo" class="assist-voice-go" data-go="0" aria-label="הפעלת החלה ישירה">
+        <div class="assist-voice-go-row">
+          <span id="assistVoiceGoBadge" class="assist-voice-go-badge">כבוי</span>
+          <button type="button" id="assistVoiceGoBtn" class="assist-btn assist-btn-confirm">GO</button>
+          <button type="button" id="assistVoiceGoEndBtn" class="assist-btn assist-btn-cancel" hidden>סיום GO</button>
+        </div>
+        <p id="assistVoiceGoHint" class="assist-voice-go-hint">הפעלה מאפשרת החלת פרמטר בלי אישור לכל פעולה. חימוש ונחיתה נשארים חסומים.</p>
+      </section>
       <section id="assistAgentConnect" class="assist-agent-connect operator-state" data-state="disconnected" aria-label="חיבור הסוכן">
         <p id="assistAgentStatus" class="assist-agent-status" aria-live="polite">הסוכן מנותק.</p>
         <p id="assistAgentHint" class="assist-agent-hint">חברו מפתח כדי לאשר שינוי.</p>

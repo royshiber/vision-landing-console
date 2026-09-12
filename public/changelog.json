@@ -1,5 +1,21 @@
 [
   {
+    "version": "1.02.307",
+    "date": "2026-09-12",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "AIRVIX Ask voice_direct_after_go — session GO applies safe params",
+        "detail": "APP_VERSION 1.02.307. After master 1.02.305 (#121 archive honesty). Roy 2026-09-12 Human Decision supersedes ask_voice_flight_confirm_always (#122). After explicit operator GO, safe Ask/voice param intents apply through the engineer path without per-action confirm. Until GO, confirm stays required (button / מאשר). ARM / DISARM / LAND / RTL / auto-land / live EKF-nav switch / deploy / restart stay blocked with Hebrew Human Gate copy. GO does not unlock them. Ask rail shows GO / סיום GO and an armed-for-voice state. Server enforces GO; localStorage is chrome only. No Companion apply/restart."
+      },
+      {
+        "type": "test",
+        "title": "Tests",
+        "detail": "ask-flight-intents.test.mjs, assist.test.mjs"
+      }
+    ]
+  },
+  {
     "version": "1.02.305",
     "date": "2026-09-12",
     "changes": [
