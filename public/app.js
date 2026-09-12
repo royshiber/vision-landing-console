@@ -9102,7 +9102,6 @@ initAnnotatedVisionPanel();
       hasData: link.hasData,
       fc_linked: link.fc_linked,
       fc_heartbeat: link.fc_heartbeat,
-      fc: link.fc || prev.fc,
       hint_he: link.hint_he || prev.hint_he,
       mavlinkRelay: link.mavlinkRelay || prev.mavlinkRelay,
       pillLabelHe: link.pillLabelHe,
