@@ -44,8 +44,18 @@ describe('dual-link state machine', () => {
     const radioOnly = annotatedVideoAvailability({ cellular: 'disconnected', modemPresent: true });
     expect(radioOnly.available).toBe(false);
     expect(radioOnly.path).toBe('cellular');
+    expect(radioOnly.neverRadio).toBe(true);
+    expect(radioOnly.radioSatisfies).toBe(false);
     expect(radioOnly.reasonHe).toMatch(/לא עוברת ברדיו/);
-    const live = annotatedVideoAvailability({ cellular: 'connected', modemPresent: true });
+    const cellUpNoStream = annotatedVideoAvailability({ cellular: 'connected', modemPresent: true });
+    expect(cellUpNoStream.available).toBe(false);
+    expect(cellUpNoStream.reason).toBe('stream_absent');
+    expect(cellUpNoStream.path).toBe('cellular');
+    const live = annotatedVideoAvailability({
+      cellular: 'connected',
+      modemPresent: true,
+      streamPresent: true,
+    });
     expect(live.available).toBe(true);
     expect(live.path).toBe('cellular');
     const absent = annotatedVideoAvailability({ cellular: 'connected', modemPresent: false });

@@ -108,8 +108,10 @@ describe('dual-link HTTP API', () => {
     const j = await r.json();
     expect(j.ok).toBe(true);
     expect(j.neverRadio).toBe(true);
+    expect(j.radioSatisfies).toBe(false);
     expect(j.path).toBe('cellular');
     expect(j.available).toBe(false);
+    expect(j.streamPresent).toBe(false);
     expect(j.reason).toBe('modem_absent');
     expect(j.cellular).toBe('modem_absent');
     expect(j.modem.present).toBe(false);

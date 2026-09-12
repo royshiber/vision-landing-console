@@ -3646,6 +3646,7 @@ function renderVisionLandingReadiness(container, snapshot) {
       art.dataset.reason = String(row.reason || '');
       art.dataset.path = String(row.path || 'cellular');
       art.dataset.available = row.available === true ? 'true' : 'false';
+      art.dataset.neverRadio = 'true';
     }
     const name = document.createElement('span');
     name.className = 'vlr-name';
@@ -8796,23 +8797,54 @@ if (annotationsToggleBtn) {
 refreshAdvisorHealth();
 setInterval(refreshAdvisorHealth, 60_000);
 
+const ANNOTATED_VISION_REASON_HE = Object.freeze({
+  modem_absent: 'אין שידור. מודם סלולר לא מחובר. ראייה מסומנת מגיעה רק ממחשב משימה.',
+  cellular_disconnected: 'אין שידור. סלולר מנותק. ראייה מסומנת לא עוברת ברדיו.',
+  stream_absent: 'אין שידור. אין זרם מסומן ממחשב משימה. ראייה מסומנת לא עוברת ברדיו.',
+  cellular_connected: 'ראייה מסומנת זמינה דרך סלולר ממחשב משימה.',
+});
+
+function annotatedVisionReasonHe(video) {
+  const reason = video?.reason;
+  if (video?.reasonHe) return video.reasonHe;
+  if (reason && ANNOTATED_VISION_REASON_HE[reason]) return ANNOTATED_VISION_REASON_HE[reason];
+  return ANNOTATED_VISION_REASON_HE.cellular_disconnected;
+}
+
+function annotatedVisionIsLive(video) {
+  return video?.available === true
+    && video?.path === 'cellular'
+    && video?.reason !== 'modem_absent'
+    && video?.reason !== 'stream_absent'
+    && video?.reason !== 'cellular_disconnected';
+}
+
 function applyAnnotatedVision(video) {
   const empty = document.getElementById('annotatedVisionEmpty');
   const panel = document.getElementById('annotatedVisionPanel');
   const frame = document.getElementById('annotatedVisionFrame');
-  const reason = video?.reason || (video?.available ? 'cellular_connected' : 'cellular_disconnected');
-  if (empty) {
-    empty.textContent = video?.reasonHe
-      || (reason === 'modem_absent'
-        ? 'אין שידור. מודם סלולר לא מחובר. ראייה מסומנת מגיעה רק ממחשב משימה.'
-        : 'אין שידור. סלולר מנותק.');
-  }
+  const connectStatus = document.getElementById('annotatedVideoConnectStatus');
+  const reason = video?.reason
+    || (video?.available ? 'cellular_connected' : 'cellular_disconnected');
+  const live = annotatedVisionIsLive(video);
+  const reasonHe = annotatedVisionReasonHe({ ...video, reason });
+  if (empty) empty.textContent = reasonHe;
   if (panel) {
-    panel.dataset.state = video?.available ? 'live' : (reason === 'modem_absent' ? 'modem_absent' : 'disconnected');
+    panel.dataset.state = live
+      ? 'live'
+      : (reason === 'modem_absent' || reason === 'stream_absent' ? reason : 'disconnected');
     panel.dataset.reason = reason;
-    panel.dataset.path = video?.path || 'cellular';
+    panel.dataset.path = 'cellular';
+    panel.dataset.available = live ? 'true' : 'false';
   }
-  if (frame) frame.hidden = !video?.available;
+  if (frame) frame.hidden = !live;
+  if (connectStatus) {
+    connectStatus.dataset.reason = reason;
+    connectStatus.dataset.path = 'cellular';
+    connectStatus.dataset.available = live ? 'true' : 'false';
+    connectStatus.dataset.state = live ? 'live' : (reason === 'modem_absent' ? 'absent' : 'off');
+    connectStatus.textContent = `ראייה מסומנת · ${reasonHe}`;
+  }
 }
 
 function initAnnotatedVisionPanel() {
