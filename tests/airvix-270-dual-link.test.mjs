@@ -28,9 +28,9 @@ function cssBlock(src, selector) {
 }
 
 describe('AIRVIX dual-link connect + cellular infrastructure', () => {
-  it('pins APP_VERSION at 1.02.289', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.289'");
-    expect(pkg.version).toBe('1.02.289');
+  it('pins APP_VERSION at 1.02.290', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.290'");
+    expect(pkg.version).toBe('1.02.290');
   });
 
   it('extends the מנותק connect panel with both link roles and an active picker', () => {
@@ -43,6 +43,8 @@ describe('AIRVIX dual-link connect + cellular infrastructure', () => {
     expect(html).toContain('id="radioLinkChip"');
     expect(html).toContain('id="cellularLinkChip"');
     expect(html).toMatch(/מודם לא מחובר/);
+    expect(html).toMatch(/id="cellularLinkChip"[^>]*data-state="absent"/);
+    expect(html).toMatch(/id="annotatedVisionPanel"[^>]*data-reason="modem_absent"/);
     expect(js).toContain("fetch('/api/links'");
     expect(js).toContain("role: 'cellular'");
     expect(js).toContain("fetch('/api/links/active'");

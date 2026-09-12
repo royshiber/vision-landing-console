@@ -1,5 +1,16 @@
 [
   {
+    "version": "1.02.290",
+    "date": "2026-09-12",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "E3372 cellular dry-run and modem_absent honesty",
+        "detail": "APP_VERSION 1.02.290. After master 1.02.289 (#109 runway lock). Console readiness, connect, and annotated-video stay modem_absent when the Huawei E3372 stick is unplugged — never an invented cellular link-up. Loopback connect may open a software socket but the honesty snapshot stays modem_absent and is not a command path. npm run cellular:dry-run plus scripts/jetson-cellular --dry-run exit 0 without hardware. Annotated vision remains cellular-only (P3.2 hook). No flight commands and no Companion apply/restart."
+      }
+    ]
+  },
+  {
     "version": "1.02.289",
     "date": "2026-09-12",
     "changes": [

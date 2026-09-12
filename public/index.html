@@ -51,7 +51,7 @@
             </section>
             <div class="conn-dual-chips conn-mav-chips" aria-label="מצב קישורים">
               <span id="radioLinkChip" class="conn-link-chip" data-state="off">טלמטריה רגילה · מנותק</span>
-              <span id="cellularLinkChip" class="conn-link-chip" data-state="off">סלולר · מודם לא מחובר</span>
+              <span id="cellularLinkChip" class="conn-link-chip" data-state="absent" data-reason="modem_absent">סלולר · מודם לא מחובר</span>
             </div>
             <section class="conn-link-block" data-link-role="radio" aria-label="טלמטריה רגילה">
               <h3 class="conn-link-title">טלמטריה רגילה</h3>
@@ -91,7 +91,7 @@
             <section class="conn-link-block" data-link-role="cellular" aria-label="סלולר ממחשב משימה">
               <h3 class="conn-link-title">סלולר (Jetson)</h3>
               <p class="conn-link-note">MAVLink דרך סלולר ממחשב משימה. לא פקודות דרך HTTP.</p>
-              <p id="cellularModemStatus" class="conn-modem-status" data-state="absent">מודם לא מחובר</p>
+              <p id="cellularModemStatus" class="conn-modem-status" data-state="absent" data-reason="modem_absent">מודם לא מחובר</p>
               <div class="conn-panel-row">
                 <label class="conn-panel-field" style="flex:1">
                   <span>יעד MAVLink</span>
@@ -1772,10 +1772,10 @@
                       <button type="button" id="horizonVideoApply" class="pfd-video-apply-btn">▶ הפעל</button>
                     </div>
                   </div>
-                  <div id="annotatedVisionPanel" class="mission-annotated-vision hidden" hidden data-state="disconnected">
+                  <div id="annotatedVisionPanel" class="mission-annotated-vision hidden" hidden data-state="modem_absent" data-reason="modem_absent" data-path="cellular">
                     <p class="mission-annotated-kicker">ראייה מסומנת</p>
                     <p class="mission-annotated-path">רק סלולר ממחשב משימה. לא ברדיו.</p>
-                    <p id="annotatedVisionEmpty" class="mission-annotated-empty">אין שידור. סלולר מנותק.</p>
+                    <p id="annotatedVisionEmpty" class="mission-annotated-empty">אין שידור. מודם סלולר לא מחובר. ראייה מסומנת מגיעה רק ממחשב משימה.</p>
                     <div id="annotatedVisionFrame" class="mission-annotated-frame" hidden></div>
                   </div>
                 </div>

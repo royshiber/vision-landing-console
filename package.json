@@ -1,6 +1,6 @@
 {
   "name": "vision-landing-console",
-  "version": "1.02.289",
+  "version": "1.02.290",
   "private": true,
   "type": "module",
   "description": "Vision Landing Console — camera-based landing workflow with MAVLink, Jetson agent and Gemini advisor",
@@ -28,7 +28,8 @@
     "build-param-embeddings": "node scripts/build-param-embeddings.mjs",
     "vendor:sync": "node scripts/vendor-sync.mjs",
     "setup:wsl-agent": "node scripts/setup-wsl-cursor-runtime.mjs",
-    "verify:wsl-agent": "node scripts/setup-wsl-cursor-runtime.mjs --verify-only"
+    "verify:wsl-agent": "node scripts/setup-wsl-cursor-runtime.mjs --verify-only",
+    "cellular:dry-run": "node scripts/cellular-modem-dry-run.mjs --dry-run"
   },
   "dependencies": {
     "@cursor/sdk": "1.0.28",

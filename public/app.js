@@ -3642,6 +3642,11 @@ function renderVisionLandingReadiness(container, snapshot) {
     art.dataset.stage = String(row.stage || 'experiment_1');
     art.dataset.required = row.requiredForExperiment1 === false ? 'false' : 'true';
     if (row.successCriterion) art.dataset.success = 'true';
+    if (row.id === 'annotated_video') {
+      art.dataset.reason = String(row.reason || '');
+      art.dataset.path = String(row.path || 'cellular');
+      art.dataset.available = row.available === true ? 'true' : 'false';
+    }
     const name = document.createElement('span');
     name.className = 'vlr-name';
     name.textContent = row.nameHe || '';
@@ -8795,10 +8800,18 @@ function applyAnnotatedVision(video) {
   const empty = document.getElementById('annotatedVisionEmpty');
   const panel = document.getElementById('annotatedVisionPanel');
   const frame = document.getElementById('annotatedVisionFrame');
+  const reason = video?.reason || (video?.available ? 'cellular_connected' : 'cellular_disconnected');
   if (empty) {
-    empty.textContent = video?.reasonHe || 'אין שידור. סלולר מנותק.';
+    empty.textContent = video?.reasonHe
+      || (reason === 'modem_absent'
+        ? 'אין שידור. מודם סלולר לא מחובר. ראייה מסומנת מגיעה רק ממחשב משימה.'
+        : 'אין שידור. סלולר מנותק.');
   }
-  if (panel) panel.dataset.state = video?.available ? 'live' : 'disconnected';
+  if (panel) {
+    panel.dataset.state = video?.available ? 'live' : (reason === 'modem_absent' ? 'modem_absent' : 'disconnected');
+    panel.dataset.reason = reason;
+    panel.dataset.path = video?.path || 'cellular';
+  }
   if (frame) frame.hidden = !video?.available;
 }
 
@@ -9210,6 +9223,7 @@ initAnnotatedVisionPanel();
   function chipStateFromLink(state) {
     if (state === 'connected') return 'on';
     if (state === 'listening' || state === 'connecting') return 'warn';
+    if (state === 'modem_absent') return 'absent';
     return 'off';
   }
 
@@ -9303,10 +9317,15 @@ initAnnotatedVisionPanel();
     }
     if (cellularChip) {
       cellularChip.dataset.state = chipStateFromLink(links.cellular);
-      cellularChip.textContent = `סלולר · ${links.cellularStatusHe || 'מנותק'}`;
+      cellularChip.dataset.reason = links.cellular === 'modem_absent' || links.modemPresent === false
+        ? 'modem_absent'
+        : (links.cellular || '');
+      cellularChip.textContent = `סלולר · ${links.cellularStatusHe || (links.modemPresent === false ? 'מודם לא מחובר' : 'מנותק')}`;
     }
     if (cellularModemStatus) {
-      cellularModemStatus.dataset.state = links.modemPresent ? 'present' : 'absent';
+      const absent = links.modemPresent !== true || links.cellular === 'modem_absent';
+      cellularModemStatus.dataset.state = absent ? 'absent' : 'present';
+      cellularModemStatus.dataset.reason = absent ? 'modem_absent' : (links.modem?.reason || '');
       cellularModemStatus.textContent = links.modem?.reasonHe || links.cellularStatusHe || 'מודם לא מחובר';
     }
     if (cellularHostPort && links.endpoint && !cellularHostPort.dataset.dirty) {
@@ -9427,7 +9446,7 @@ initAnnotatedVisionPanel();
           return;
         }
         savePrefs();
-        setDot('connecting');
+        if (cellularModemStatus?.dataset.state !== 'absent') setDot('connecting');
         const r = await fetch('/api/links/connect', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
