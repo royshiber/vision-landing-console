@@ -104,6 +104,8 @@ describe('SSE + Mission HUD pipeline wiring', () => {
     expect(core).toContain('buildSseMavlinkSnapshot');
     expect(core).toMatch(/const mavConn = getActiveConnection\?\.\(\);/);
     expect(core).toMatch(/const mavlink = buildSseMavlinkSnapshot\(mavConn\);/);
+    expect(core).toContain('function pushSseTelemetrySnapshot(');
+    expect(core).toMatch(/try \{ pushSseTelemetrySnapshot\(\); \}/);
     expect(core).not.toMatch(/const hud = composeHudTelemetryFields\(mavConn\);/);
   });
 
@@ -111,12 +113,42 @@ describe('SSE + Mission HUD pipeline wiring', () => {
     const apply = sliceFunction(js, 'applyFcStatustextHud');
     expect(apply).toMatch(/isHudMavlinkLive\(mavlink\)/);
     expect(apply).toContain('אין חיבור לבקר — לא מתקבלות הודעות MAVLink.');
+    expect(apply).toMatch(/pfcMsgPrimaryHe\.textContent = first/);
     expect(js).toContain('function resolveHudMavlink(');
     expect(js).toContain('function liveStatusToHudMavlink(');
     expect(js).toContain('function hydrateMissionHudFromLiveLink(');
-    expect(js).toMatch(/resolveHudMavlink\(payload\.mavlink,\s*latestLiveRadioStatus\)/);
+    expect(js).toContain('function hydrateLiveConsoleOnBoot(');
+    expect(js).toMatch(/void hydrateLiveConsoleOnBoot\(\)/);
+    expect(js).toMatch(/resolveHudMavlink\(payload\?\.mavlink,\s*latestLiveRadioStatus\)/);
     expect(js).toMatch(/rememberLiveRadioStatus\(active\.liveStatus\)/);
     expect(js).toMatch(/rememberLiveRadioStatus\(j\.connection\.liveStatus\)/);
+  });
+
+  it('does not swallow SSE apply errors and paints HUD before other SSE UI', () => {
+    const marker = '(function startSseStream()';
+    const start = js.indexOf(marker);
+    const end = js.indexOf('})();', start);
+    const boot = js.slice(start, end);
+    expect(boot).toMatch(/console\.warn\('SSE telemetry apply failed'/);
+    expect(boot).not.toMatch(/catch \{\s*\}/);
+    const apply = sliceFunction(js, 'applySseTelemetryPayload');
+    const hudIdx = apply.indexOf('applySseMissionHud');
+    const companionIdx = apply.indexOf('applyCompanionUi');
+    const mapIdx = apply.indexOf('updateFlightOverlaysOnAllMaps');
+    expect(hudIdx).toBeGreaterThan(0);
+    expect(companionIdx).toBeGreaterThan(hudIdx);
+    expect(mapIdx).toBeGreaterThan(hudIdx);
+    expect(apply).toMatch(/console\.warn\('SSE mission HUD apply failed'/);
+    expect(apply).toMatch(/console\.warn\('SSE companion UI failed'/);
+  });
+
+  it('AH keeps roll/pitch when alt/IAS are missing', () => {
+    const hud = sliceFunction(js, 'applyFlightHud');
+    expect(hud).toMatch(/Attitude is independent of GPS/);
+    expect(hud).toMatch(/if \(r != null\) _lastRoll = r/);
+    expect(hud).toMatch(/if \(p != null\) _lastPitch = p/);
+    expect(hud).toMatch(/drawHorizon\(horizonCanvas, _lastRoll, _lastPitch/);
+    expect(js).toMatch(/rollDeg: Number\.isFinite\(s\.rollDeg\) \? s\.rollDeg : null/);
   });
 
   it('does not invent gauges when hydrating from connections status', () => {

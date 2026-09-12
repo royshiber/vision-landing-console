@@ -26,6 +26,8 @@ describe('MavlinkConnection', () => {
     expect(status).toHaveProperty('type', 'tcp');
     expect(status).toHaveProperty('linkRole', 'radio');
     expect(status).toHaveProperty('lastHeartbeatAt', null);
+    expect(status).toHaveProperty('rollDeg', null);
+    expect(status).toHaveProperty('pitchDeg', null);
   });
 
   it('serial/telemetry נדחה ב-connect()', async () => {
