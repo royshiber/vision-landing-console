@@ -5103,7 +5103,8 @@ body:has(#pulse.panel.visible) .layout {
   font-weight: 800;
   color: #e2e8f0;
 }
-#control:not(.visible) .plnd-honesty {
+#control.panel:not(.visible) .plnd-honesty,
+#control:has(#autoConfig.visible) .plnd-honesty {
   display: none;
 }
 .pulse-computer-metrics {
