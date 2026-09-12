@@ -1,5 +1,16 @@
 [
   {
+    "version": "1.02.284",
+    "date": "2026-09-12",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Experiment 1 success is runway detect on final only",
+        "detail": "APP_VERSION 1.02.284. Mandatory success for fixed-wing Experiment 1 is runway detection on final. Annotations are not required. Runway-lock status to GCS is a later stage and shows as שלב מאוחר without blocking. PIC still hand-flies to final; observe-only; flight-commands gate CLOSED. No invented camera, GPS, lock, or annotations. No auto-land or control."
+      }
+    ]
+  },
+  {
     "version": "1.02.283",
     "date": "2026-09-12",
     "changes": [
