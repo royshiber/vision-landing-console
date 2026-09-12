@@ -41,7 +41,19 @@ function sliceFunction(src, name) {
 function missionOpsChrome(src) {
   const start = src.indexOf('class="mission-ops-chrome"');
   expect(start).toBeGreaterThan(0);
-  return src.slice(start, src.indexOf('</div>', start) + 6);
+  const open = src.lastIndexOf('<div', start);
+  let depth = 0;
+  for (let i = open; i < src.length; i++) {
+    if (src.startsWith('<div', i)) {
+      depth += 1;
+      i += 3;
+    } else if (src.startsWith('</div>', i)) {
+      depth -= 1;
+      if (depth === 0) return src.slice(start, i + 6);
+      i += 5;
+    }
+  }
+  throw new Error('unclosed mission-ops-chrome');
 }
 
 describe('Mission chrome declutter for Experiment #1', () => {

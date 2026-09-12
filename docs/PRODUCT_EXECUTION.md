@@ -79,7 +79,7 @@ Live companion 2.3.1 had no vision/landing routes, so readiness stayed unknown. 
 
 ### Next pick
 
-Do not start #28 / #29. King may upload the 2.3.2 agent after VERIFY. Prefer another display-only honesty or in-app development step — not flight commands.
+Do not start #28 / #29. King may upload the 2.3.3 agent after VERIFY. Prefer another display-only honesty or in-app development step — not flight commands.
 
 ### Ranked GAPS
 
