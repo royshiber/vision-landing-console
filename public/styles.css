@@ -4828,6 +4828,10 @@ body:has(#pulse.panel.visible) .layout {
   border-radius: 6px;
   background: #0d1320;
 }
+.pulse-fc-identity[hidden],
+.pulse-fc-metrics-note[hidden] {
+  display: none;
+}
 .pulse-fc-identity div {
   display: flex;
   justify-content: space-between;

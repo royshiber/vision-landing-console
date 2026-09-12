@@ -7,6 +7,7 @@ import { buildSseMavlinkSnapshot } from '../lib/sse-mavlink-snapshot.mjs';
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const js = fs.readFileSync(path.join(repoRoot, 'public', 'app.js'), 'utf8');
 const html = fs.readFileSync(path.join(repoRoot, 'public', 'index.html'), 'utf8');
+const css = fs.readFileSync(path.join(repoRoot, 'public', 'styles.css'), 'utf8');
 
 function sliceFunction(src, name) {
   const start = src.indexOf(`function ${name}(`);
@@ -118,6 +119,7 @@ describe('Status Computers pulse identity honesty', () => {
     expect(html).toContain('id="pulseFcSysId"');
     expect(html).toContain('id="pulseFcHbAge"');
     expect(html).toContain('id="pulseFcMetricsNote"');
+    expect(css).toMatch(/\.pulse-fc-identity\[hidden\]/);
     const refresh = sliceFunction(js, 'pulseRefresh');
     expect(refresh).toContain('pulsePaintFcIdentity');
     expect(refresh).toContain('pulseFcMetricsNote');
