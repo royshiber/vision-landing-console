@@ -69,6 +69,7 @@ Merge autonomy still on for independently VERIFIED safe draft PRs. Hard safety s
 
 ### Landed
 
+- **F4 Ask → Capability Brief** and **F3 / Concept B** remain on master from earlier drafts.
 - Mission glance **מוכנות**, Status **סטטוס מחשבים**, and diagnostics now share one honest Vision Landing checklist: Jetson reachability, FC heartbeat, camera/vision pipeline, PLND / vision-nav profile, cellular annotated video, recording, flight-command gate.
 - Camera / heartbeat / video never invent an OK. `modem_absent` is missing video. No manual-record API → not-recording. ARM / LAND / auto-land stay Human Gate #29 and are not enabled.
 - Companion BOTH gate unchanged. No Companion-real widening. No live vehicle.
@@ -79,7 +80,7 @@ Operator question: אפשר להתחיל ניסוי נחיתה ויזואלית?
 
 ### Next pick
 
-Do not start #28 / #29. Highest remaining GAP after this surface is still live-vehicle / auto-land (gated) or Companion apply/restart (gated). Prefer another display-only honesty or in-app development step — not flight commands.
+Do not start #28 / #29. F3 / Concept B already landed. Highest remaining GAP after this surface is still live-vehicle / auto-land (gated) or Companion apply/restart (gated). Prefer another display-only honesty or in-app development step — not flight commands.
 
 ### Ranked GAPS
 
