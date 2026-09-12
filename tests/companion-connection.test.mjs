@@ -53,7 +53,7 @@ function okFetch() {
   }));
 }
 
-function startApp({ fetchImpl, companionEnv = {}, db, extraServiceEnv = {} } = {}) {
+function startApp({ fetchImpl, companionEnv = {}, db, extraServiceEnv = {}, relay = {} } = {}) {
   const impl = fetchImpl || okFetch();
   const merged = mergeCompanionEnv(companionEnv, readStoredCompanionConnection(db));
   const companionService = createCompanionService(
@@ -62,16 +62,36 @@ function startApp({ fetchImpl, companionEnv = {}, db, extraServiceEnv = {} } = {
   );
   const app = express();
   app.use(express.json());
+  const activateCalls = [];
+  const deactivateCalls = [];
   const ctx = {
     db,
     companionService,
     companionEnv,
     companionFetchImpl: impl,
     companionTimeoutMs: 80,
+    jetsonState: { relayPort: 5770 },
+    activateMavlinkConnection: relay.activate || (async (cfg) => {
+      activateCalls.push(cfg);
+      return { id: cfg.id, connected: true };
+    }),
+    deactivateMavlinkConnection: relay.deactivate || ((id) => {
+      deactivateCalls.push(id);
+      return true;
+    }),
+    getAllMavlinkStatuses: relay.listStatuses || (() => []),
+    getMavlinkConnectionStatus: relay.statusOf || ((id) => ({
+      id,
+      type: 'tcp',
+      connected: true,
+      heartbeatCount: relay.heartbeatCount ?? 1,
+    })),
   };
+  if (typeof relay.open === 'function') ctx.openCompanionMavlinkRelay = relay.open;
+  if (typeof relay.close === 'function') ctx.closeCompanionMavlinkRelay = relay.close;
   registerCompanionConnectionApi(app, ctx);
   registerCompanionProxyApi(app, ctx);
-  return { app, companionService, fetchImpl: impl, ctx };
+  return { app, companionService, fetchImpl: impl, ctx, activateCalls, deactivateCalls };
 }
 
 describe('companion connection helpers', () => {
@@ -415,6 +435,9 @@ describe('Companion in-product v1 connect', () => {
     expect(connected.connected).toBe(true);
     expect(connected.status_he).toBe(COMPANION_HE.connected);
     expect(JSON.stringify(connected)).not.toContain(TOKEN);
+    expect(started.activateCalls[0]).toMatchObject({ type: 'tcp', host: '100.82.59.45', port: 5770 });
+    expect(connected.mavlinkRelay.host).toBe('100.82.59.45');
+    expect(connected.mavlinkRelay.port).toBe(5770);
     expect(started.fetchImpl).toHaveBeenCalled();
     const requested = String(started.fetchImpl.mock.calls[0][0] || '');
     expect(requested.startsWith(DEFAULT_COMPANION_BASE_URL)).toBe(true);
@@ -538,6 +561,62 @@ describe('Companion in-product v1 connect', () => {
     }).then((r) => r.json());
     expect(connected.ok).toBe(true);
     expect(connected.mode).toBe('real');
+    expect(JSON.stringify(connected)).not.toContain(TOKEN);
+  });
+
+  it('opens MAVLink TCP relay from Companion base URL on connect and closes on disconnect', async () => {
+    const started = await boot();
+    const connected = await fetch(`${base}/api/companion/connection/connect`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ base_url: BASE_URL, token: TOKEN }),
+    }).then((r) => r.json());
+    expect(connected.ok).toBe(true);
+    expect(started.activateCalls).toHaveLength(1);
+    expect(started.activateCalls[0]).toMatchObject({
+      type: 'tcp',
+      host: 'jetson.example',
+      port: 5770,
+      linkRole: 'radio',
+    });
+    expect(connected.mavlinkRelay.ok).toBe(true);
+    expect(connected.mavlinkRelay.host).toBe('jetson.example');
+    expect(connected.mavlinkRelay.port).toBe(5770);
+    const rows = db.prepare(`SELECT * FROM connections WHERE type = 'tcp'`).all();
+    expect(rows).toHaveLength(1);
+    expect(rows[0].host).toBe('jetson.example');
+    expect(Number(rows[0].port)).toBe(5770);
+    expect(Number(rows[0].active)).toBe(1);
+
+    const disconnected = await fetch(`${base}/api/companion/connection/disconnect`, {
+      method: 'POST',
+    }).then((r) => r.json());
+    expect(disconnected.connected).toBe(false);
+    expect(started.deactivateCalls.length).toBeGreaterThan(0);
+    expect(disconnected.mavlinkRelay == null || disconnected.mavlinkRelay.ok !== true).toBe(true);
+    const after = db.prepare(`SELECT active FROM connections WHERE type = 'tcp'`).all();
+    expect(after.every((r) => Number(r.active) === 0)).toBe(true);
+  });
+
+  it('keeps Companion connected when the relay TCP fails and says so in Hebrew', async () => {
+    const started = await boot({
+      relay: {
+        activate: async () => {
+          throw new Error('ECONNREFUSED');
+        },
+      },
+    });
+    const connected = await fetch(`${base}/api/companion/connection/connect`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ base_url: BASE_URL, token: TOKEN }),
+    }).then((r) => r.json());
+    expect(connected.ok).toBe(true);
+    expect(connected.mode).toBe('real');
+    expect(connected.connected).toBe(true);
+    expect(connected.mavlinkRelay.ok).toBe(false);
+    expect(connected.mavlinkRelay.status_he).toMatch(/ממסר/);
+    expect(started.companionService.mode).toBe('real');
     expect(JSON.stringify(connected)).not.toContain(TOKEN);
   });
 

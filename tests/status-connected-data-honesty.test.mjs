@@ -58,10 +58,10 @@ function loadUiHonesty() {
 }
 
 describe('Status connected ⇔ data honesty', () => {
-  it('pins APP_VERSION at 1.02.282 after Status FC honesty', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.282'");
-    expect(pkg.version).toBe('1.02.282');
-    expect(changelog).toContain('"version": "1.02.280"');
+  it('pins APP_VERSION at 1.02.283 after Status FC honesty', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.283'");
+    expect(pkg.version).toBe('1.02.283');
+    expect(changelog).toContain('"version": "1.02.283"');
   });
 
   it('never labels Jetson מחובר when unreachable', () => {

@@ -12415,6 +12415,39 @@ details.flight-manage summary {
   .connect-widget .conn-btn { padding: 3px 7px; }
 }
 
+.app-version-mismatch-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 6px 12px;
+  background: #78350f;
+  color: #fff7ed;
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+.app-version-mismatch-banner.hidden,
+.app-version-mismatch-banner[hidden] {
+  display: none;
+}
+.app-version-mismatch-banner p {
+  margin: 0;
+}
+.app-version-mismatch-meta {
+  font-family: ui-monospace, monospace;
+  font-size: 0.78rem;
+  opacity: 0.92;
+}
+.app-version-mismatch-banner button {
+  border: 0;
+  border-radius: 6px;
+  padding: 3px 10px;
+  background: #fde68a;
+  color: #78350f;
+  font: inherit;
+  cursor: pointer;
+}
+
 /* ── Changelog modal (structured) ──────────────────────────────────────────── */
 .cl-banner {
   padding: 8px 12px;

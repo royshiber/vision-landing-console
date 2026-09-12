@@ -538,7 +538,7 @@ curl -X POST http://192.168.1.100:4010/api/vision/flow \
 
 | שירות | פורט | תפקיד |
 |-------|------|--------|
-| MAVLink relay | TCP `5770` | גשר byte-level בין GCS (PC) ל-UART של FC |
+| MAVLink relay | TCP `5770` | גשר byte-level בין GCS (PC) ל-UART של FC. קורא UART אחד ומפזר לכל לקוח TCP. אסור לפרסר עם pymavlink על אותו פורט — זה גונב דופק HEARTBEAT מהממסר. |
 | HTTP API | `8081` | `/api/health`, `/api/logs`, `/api/install` |
 | Heartbeat | → PC `:4010` | `/api/jetson/heartbeat` — IP, relay, FC linked |
 
@@ -565,11 +565,15 @@ export VLC_HTTP_PORT="8081"
 python3 companion_agent.py
 ```
 
+### חיבור מחשב משימה — ממסר טלמטריה
+
+לחיצה על **חיבור** בפינת החיבור (מחשב משימה) פותחת גם TCP לממסר של הסוכן (`host:5770` מכתובת הבסיס). בלי הקלדת מארח. ניתוק סוגר את הממסר. אם הדופק בבקר חי והממסר נכשל — הקונסול מציג דופק חי בלי מדדים מזויפים.
+
 ### חיבור חכם מה-UI
 
 לחץ **«חיבור חכם»** — הסדר:
 1. USB serial ישיר ל-FC (אם מחובר)
-2. TCP relay ל-Jetson (`peerIp:5770` מ-heartbeat)
+2. TCP relay ל-Jetson (`peerIp:5770` מ-heartbeat, או מארח כתובת מחשב המשימה)
 3. SITL מקומי (UDP/TCP 14550/5760)
 
 משיכת לוגים: כפתור **«משוך לוגים מ-Jetson»** בטאב טלמטריה → `POST /api/jetson/pull-logs`.

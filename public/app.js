@@ -7,6 +7,72 @@ const APP_VERSION_NEW = (() => {
 })();
 
 /**
+ * Classic script + mid-file `let` caused TDZ ReferenceErrors
+ * (assistPendingProposalId, terrainMap, latestJetsonFromServer) when SSE
+ * fired before the rest of app.js finished parsing. EventSource never opened.
+ * `var` at the top is initialized immediately (no TDZ).
+ */
+var latestVisionFromServer = null;
+var latestCompanionFromServer = null;
+var latestJetsonFromServer = null;
+var lastSseTerrainPayload = null;
+var terrainMap = null;
+var jetsonTelemetryMap = null;
+var jetsonStreetLayer = null;
+var terrainFlightLayers = { gps: null, vision: null, home: null, mission: null, replayTrack: null };
+var jetsonFlightLayers = { gps: null, vision: null, home: null, mission: null, replayTrack: null };
+var simLabReplayTrackPts = null;
+var simLabReplayMapSample = null;
+var showLoadedMissionPath = false;
+var assistPendingProposalId = null;
+var _assistPendingProposalId = null;
+function setAssistPendingProposalId(id) {
+  assistPendingProposalId = id;
+  _assistPendingProposalId = id;
+}
+
+function readLoadedAppJsQueryVersion() {
+  const scripts = document.getElementsByTagName('script');
+  for (let i = scripts.length - 1; i >= 0; i -= 1) {
+    const src = String(scripts[i].src || '');
+    const m = src.match(/app\.js\?v=([^&]+)/i);
+    if (m) return decodeURIComponent(m[1]).replace(/^v/i, '').trim();
+  }
+  return '';
+}
+
+function showAppVersionMismatchBanner(loaded, server) {
+  const bar = document.getElementById('appVersionMismatchBanner');
+  const meta = document.getElementById('appVersionMismatchMeta');
+  if (!bar) {
+    console.warn('APP_VERSION mismatch', { loaded, server });
+    return;
+  }
+  if (meta) meta.textContent = `app.js?v=${loaded || '—'} · server ${server || '—'}`;
+  bar.hidden = false;
+  bar.classList.remove('hidden');
+  const reloadBtn = document.getElementById('appVersionMismatchReload');
+  if (reloadBtn && !reloadBtn.dataset.bound) {
+    reloadBtn.dataset.bound = '1';
+    reloadBtn.addEventListener('click', () => location.reload());
+  }
+}
+
+(function syncHtmlCacheBustToServerVersion() {
+  const page = String(APP_VERSION_NEW || '').replace(/^v/i, '').trim();
+  const loadedJs = readLoadedAppJsQueryVersion();
+  if (loadedJs && page && loadedJs !== page && page !== '0.0.0') {
+    showAppVersionMismatchBanner(loadedJs, page);
+  }
+  fetch('/api/meta', { cache: 'no-store' }).then((r) => r.json()).then((d) => {
+    const live = String(d.appVersion || '').replace(/^v/i, '').trim();
+    const loaded = loadedJs || page;
+    if (!live || !loaded || live === loaded) return;
+    showAppVersionMismatchBanner(loaded, live);
+  }).catch((err) => { console.warn('app version sync failed', err); });
+})();
+
+/**
  * Why: accidental browser zoom (Ctrl +/- / wheel) breaks dense cockpit layout proportions.
  * What: block accidental zoom-in/out shortcuts (leave Ctrl+0 available for reset).
  */
@@ -2201,10 +2267,7 @@ function renderJetsonVersionNotes() {
   diffEl.textContent = `מעבר מ־${inst} ל־${sel}. בגרסה היעד: ${rel.notesHe} · במה שרץ עכשיו: ${prevRel?.notesHe || 'אין תיאור במאגר לגרסה הנוכחית.'}`;
 }
 
-/** Why: keep latest SSE-delivered telemetry accessible to the confidence-bar simulation. What: updated by SSE handler; read by the 1s sim interval. */
-let latestVisionFromServer = null;
-let latestCompanionFromServer = null;
-let latestJetsonFromServer = null;
+/** Why: keep latest SSE-delivered telemetry accessible to the confidence-bar simulation. What: updated by SSE handler; declared at top of app.js (no TDZ). */
 
 /** Why: one fetch for manual refresh button (no need for polling anymore). What: pulls jetson status once on demand. */
 async function refreshJetsonStatus() {
@@ -4036,7 +4099,9 @@ function companionConnectRender(status) {
     });
   }
   if (hintEl) {
-    hintEl.hidden = configuredReal;
+    const relay = status?.mavlinkRelay;
+    const relayDown = relay && relay.ok === false && !relay.skipped;
+    hintEl.hidden = configuredReal && !relayDown;
     hintEl.textContent = status?.hint_he || 'צריך כתובת ואסימון. כתובת לבד לא מספיקה.';
   }
   const hint = configuredReal ? String(status.token_hint || '').trim() : '';
@@ -4079,6 +4144,7 @@ async function companionConnectRefresh() {
       token_hint: data.token_hint,
       base_url: data.base_url,
       hint_he: data.hint_he,
+      mavlinkRelay: data.mavlinkRelay || data.mavlink_relay || null,
     });
   } catch {
     companionConnectRender({
@@ -4624,8 +4690,130 @@ function initHorizonVideo() {
 initHorizonVideo();
 /** @type {object | null} snapshot from last SSE — readiness popover */
 let latestHudMavlink = null;
+/** Live radio `/api/connections` / `/api/links` status — HUD fallback when SSE mavlink is stale. */
+let latestLiveRadioStatus = null;
 let _statustextSig = '';
 let _statustextTimer = null;
+
+function isHudMavlinkLive(mav) {
+  return !!(mav && mav.connected === true);
+}
+
+function liveStatusToHudMavlink(s) {
+  if (!s || typeof s !== 'object') return null;
+  const texts = Array.isArray(s.recentStatusTexts) ? s.recentStatusTexts : [];
+  return {
+    connected: s.connected === true,
+    listening: s.listening === true,
+    id: s.id ?? null,
+    linkRole: s.linkRole || 'radio',
+    heartbeatCount: Number(s.heartbeatCount) || 0,
+    armed: null,
+    armedKnown: false,
+    autopilotName: s.autopilotName || null,
+    vehicleType: s.vehicleType || null,
+    flightMode: null,
+    airspeed: null,
+    groundspeed: null,
+    altitude: null,
+    heading: null,
+    recentStatusTexts: texts,
+    gpsFixType: null,
+    gpsSats: null,
+    batteryV: null,
+    batteryPct: null,
+    rollDeg: Number.isFinite(s.rollDeg) ? s.rollDeg : null,
+    pitchDeg: Number.isFinite(s.pitchDeg) ? s.pitchDeg : null,
+  };
+}
+
+/** Prefer live SSE gauges; if SSE hid a live radio, use /api/connections status (incl. STATUSTEXT). */
+function resolveHudMavlink(sseMav, liveStatus) {
+  const fromLive = liveStatusToHudMavlink(liveStatus);
+  if (sseMav?.connected === true) {
+    if (
+      fromLive
+      && (!Array.isArray(sseMav.recentStatusTexts) || sseMav.recentStatusTexts.length === 0)
+      && fromLive.recentStatusTexts.length
+    ) {
+      return { ...sseMav, recentStatusTexts: fromLive.recentStatusTexts };
+    }
+    return sseMav;
+  }
+  if (fromLive && fromLive.connected === true) {
+    return {
+      ...fromLive,
+      connected: true,
+      airspeed: sseMav?.airspeed ?? null,
+      groundspeed: sseMav?.groundspeed ?? null,
+      altitude: sseMav?.altitude ?? null,
+      heading: sseMav?.heading ?? null,
+      rollDeg: sseMav?.rollDeg ?? null,
+      pitchDeg: sseMav?.pitchDeg ?? null,
+      batteryV: sseMav?.batteryV ?? null,
+      batteryPct: sseMav?.batteryPct ?? null,
+      gpsFixType: sseMav?.gpsFixType ?? null,
+      gpsSats: sseMav?.gpsSats ?? null,
+      armed: sseMav?.armed ?? null,
+      armedKnown: sseMav?.armedKnown === true,
+      flightMode: sseMav?.flightMode ?? null,
+    };
+  }
+  return sseMav || fromLive;
+}
+
+function rememberLiveRadioStatus(status) {
+  if (!status || typeof status !== 'object') {
+    latestLiveRadioStatus = null;
+    return;
+  }
+  if (status.connected === true || status.listening === true) {
+    latestLiveRadioStatus = status;
+    return;
+  }
+  latestLiveRadioStatus = null;
+}
+
+function syncMissionFcEmptyNote(mav) {
+  const note = document.querySelector('.mission-horizon-filler-note');
+  if (!note) return;
+  if (isHudMavlinkLive(mav)) {
+    const name = [mav.autopilotName, mav.vehicleType].filter(Boolean).join(' · ');
+    note.textContent = name ? `מחובר · ${name}` : 'מחובר לבקר.';
+    return;
+  }
+  note.textContent = 'אין חיבור לבקר. אין הודעות נכנסות.';
+}
+
+function applyConnectPillFromLinks(links) {
+  const pill = document.getElementById('connectPillLabel');
+  if (pill && links?.pillLabelHe) pill.textContent = links.pillLabelHe;
+  if (links?.radioConnection) rememberLiveRadioStatus(links.radioConnection);
+  else if (links?.cellularConnection) rememberLiveRadioStatus(links.cellularConnection);
+  else rememberLiveRadioStatus(null);
+}
+
+async function hydrateLiveConsoleOnBoot() {
+  try {
+    const r = await fetch('/api/links', { cache: 'no-store' });
+    if (!r.ok) return;
+    const body = await r.json();
+    if (!body?.ok || !body.links) return;
+    applyConnectPillFromLinks(body.links);
+    hydrateMissionHudFromLiveLink();
+    document.dispatchEvent(new CustomEvent('vlc:links-snapshot', { detail: body.links }));
+  } catch (err) {
+    console.warn('hydrateLiveConsoleOnBoot failed', err);
+  }
+}
+
+function hydrateMissionHudFromLiveLink(sseMav) {
+  const resolved = resolveHudMavlink(sseMav !== undefined ? sseMav : latestHudMavlink, latestLiveRadioStatus);
+  applyTopbarFlightData(resolved);
+  applyFlightHud(resolved);
+  applyFcStatustextHud(resolved);
+  return resolved;
+}
 
 // ── Unified HUD data-grid ──────────────────────────────────────────────────
 const HUD_SLOTS_KEY_V2  = 'vlc_hud_slots_v2';
@@ -4965,17 +5153,20 @@ function applyFlightHud(mav) {
   }
   latestHudMavlink = mav;
 
-  // Horizon canvas — level when angles unknown or out-of-range garbage
+  // Attitude is independent of GPS / VFR tapes. Missing alt/IAS must not block roll/pitch,
+  // and a links-only snapshot without angles must not wipe a live attitude.
   const r = finiteHudAngleDeg(mav.rollDeg, 180);
   const p = finiteHudAngleDeg(mav.pitchDeg, 90);
-  _lastRoll = r;
-  _lastPitch = p;
+  if (r != null) _lastRoll = r;
+  else if (!mav.connected) _lastRoll = null;
+  if (p != null) _lastPitch = p;
+  else if (!mav.connected) _lastPitch = null;
   _horizonTape = {
     airspeed: finiteHorizonTape(mav.airspeed),
     altitude: finiteHorizonTape(mav.altitude),
     heading: finiteHorizonTape(mav.heading),
   };
-  drawHorizon(horizonCanvas, r, p, currentHorizonDrawOpts());
+  drawHorizon(horizonCanvas, _lastRoll, _lastPitch, currentHorizonDrawOpts());
 
   // Armed / mode (top bar)
   const armed = !!mav.armed;
@@ -5076,12 +5267,14 @@ function applyNavOpticalStatus(vision) {
 
 function applyFcStatustextHud(mavlink) {
   if (!pfcMsgPrimaryHe) return;
-  if (!mavlink?.connected) {
+  if (!isHudMavlinkLive(mavlink)) {
     pfcMsgPrimaryHe.textContent = 'אין חיבור לבקר — לא מתקבלות הודעות MAVLink.';
     if (pfcMsgScroll) pfcMsgScroll.innerHTML = '';
     _statustextSig = '';
+    syncMissionFcEmptyNote(null);
     return;
   }
+  syncMissionFcEmptyNote(mavlink);
   const raw = Array.isArray(mavlink.recentStatusTexts) ? mavlink.recentStatusTexts : [];
   if (!raw.length) {
     pfcMsgPrimaryHe.textContent = 'אין הודעות STATUSTEXT אחרונות — ריק מהבקר.';
@@ -5092,8 +5285,10 @@ function applyFcStatustextHud(mavlink) {
   const sig = JSON.stringify(raw.slice(0, 18));
   if (sig === _statustextSig) return;
   _statustextSig = sig;
+  const first = String(raw[0]?.text || '').trim();
+  if (first) pfcMsgPrimaryHe.textContent = first;
   clearTimeout(_statustextTimer);
-  _statustextTimer = setTimeout(() => void translateAndRenderFcStatustext(raw.slice(0, 18)), 400);
+  _statustextTimer = setTimeout(() => void translateAndRenderFcStatustext(raw.slice(0, 18)), 0);
 }
 
 async function translateAndRenderFcStatustext(rows) {
@@ -5381,7 +5576,7 @@ document.getElementById('hudParamShowAll')?.addEventListener('click', async () =
 });
 
 // Initial horizon draw — defer so ResizeObserver fires first
-requestAnimationFrame(() => drawHorizon(horizonCanvas, 0, 0, currentHorizonDrawOpts()));
+requestAnimationFrame(() => drawHorizon(horizonCanvas, _lastRoll, _lastPitch, currentHorizonDrawOpts()));
 
 // ── Map fly-to context menu ────────────────────────────────────────────────────
 const mapFlyToMenu    = document.getElementById('mapFlyToMenu');
@@ -5476,7 +5671,11 @@ function applyTopbarFlightData(mav) {
     const mode = ARDUPILOT_PLANE_MODES[mav.flightMode];
     hudFlightModeEl.textContent = mode ?? (mav.connected ? `#${mav.flightMode ?? '--'}` : '--');
   }
-  if (typeof pulseRefresh === 'function') pulseRefresh();
+  try {
+    if (typeof pulseRefresh === 'function') pulseRefresh();
+  } catch (err) {
+    console.warn('pulseRefresh failed', err);
+  }
 }
 
 // RC approval channel (updated by initFlightEngineer via checkStatus)
@@ -5484,53 +5683,72 @@ let feRcApprovalChannelGlobal = 7;
 /** Latest mavlink snapshot for Assist context (C10.2). */
 let _assistLastMav = null;
 
+function applySseMissionHud(payload) {
+  const hudMav = resolveHudMavlink(payload?.mavlink, latestLiveRadioStatus);
+  _assistLastMav = hudMav || payload?.mavlink || null;
+  applyTopbarFlightData(hudMav);
+  applyFlightHud(hudMav);
+  applyFcStatustextHud(hudMav);
+  return hudMav;
+}
+
+function applySseTelemetryPayload(payload) {
+  latestJetsonFromServer = payload.jetson;
+  latestVisionFromServer = payload.vision;
+  latestCompanionFromServer = payload.companion || null;
+  const jetsonOnline = Boolean(payload.jetson?.online);
+  try { applySseMissionHud(payload); } catch (err) { console.warn('SSE mission HUD apply failed', err); }
+  try { updateAdvisorSysStrip(payload.mavlink, payload.jetson, payload.appVersion); } catch (err) { console.warn('SSE advisor strip failed', err); }
+  try { applyJetsonUi(jetsonOnline, payload.jetson || {}); } catch (err) { console.warn('SSE jetson UI failed', err); }
+  try { applyVisionUi(payload.vision); } catch (err) { console.warn('SSE vision UI failed', err); }
+  try { applySlamUi(payload.slam); } catch (err) { console.warn('SSE slam UI failed', err); }
+  try { applyCompanionUi(payload.companion); } catch (err) { console.warn('SSE companion UI failed', err); }
+  try { applyNavOpticalStatus(payload.vision); } catch (err) { console.warn('SSE nav optical failed', err); }
+  try { applyHudCustomSlots(payload); } catch (err) { console.warn('SSE HUD slots failed', err); }
+  try { applyMissionDataGrid(payload); } catch (err) { console.warn('SSE mission grid failed', err); }
+  try {
+    if (payload.visionNav?.mode) applyVisionNavModeUi(payload.visionNav.mode);
+  } catch (err) { console.warn('SSE vision nav failed', err); }
+  try { updateFlightOverlaysOnAllMaps(payload); } catch (err) { console.warn('SSE map overlay failed', err); }
+  try {
+    if (payload.mavlink?.rcChannels) {
+      const rcVal = payload.mavlink.rcChannels[`chan${feRcApprovalChannelGlobal}_raw`];
+      if (rcVal > 1700) document.dispatchEvent(new CustomEvent('fe:rc-approve'));
+    }
+    document.dispatchEvent(new CustomEvent('vlc:telemetry', { detail: payload }));
+  } catch (err) { console.warn('SSE telemetry event failed', err); }
+  try {
+    if (jetsonOnline && !jetsonWasOnlinePrev) {
+      jetsonWasOnlinePrev = true;
+      refreshFlightLists().then(() => {
+        refreshAllLogsTable();
+        showAutoLogsBanner('Jetson מחובר — לוגים עודכנו אוטומטית');
+      });
+    } else if (!jetsonOnline) {
+      jetsonWasOnlinePrev = false;
+    }
+  } catch (err) { console.warn('SSE jetson online transition failed', err); }
+}
+
 /** Why: single SSE connection replaces all client-side polling (vision 500ms + jetson 5s) with server-pushed 300ms events. What: EventSource from /api/stream; on 'telemetry' event updates all UI components and shared state. */
 (function startSseStream() {
-  const src = new EventSource('/api/stream');
-  src.addEventListener('telemetry', (e) => {
-    try {
-      const payload = JSON.parse(e.data);
-      latestJetsonFromServer = payload.jetson;
-      latestVisionFromServer = payload.vision;
-      latestCompanionFromServer = payload.companion || null;
-      const jetsonOnline = Boolean(payload.jetson?.online);
-      updateAdvisorSysStrip(payload.mavlink, payload.jetson, payload.appVersion);
-      applyJetsonUi(jetsonOnline, payload.jetson || {});
-      applyVisionUi(payload.vision);
-      applySlamUi(payload.slam);
-      applyCompanionUi(payload.companion);
-      _assistLastMav = payload.mavlink || null;
-      applyTopbarFlightData(payload.mavlink);
-      applyFlightHud(payload.mavlink);
-      applyFcStatustextHud(payload.mavlink);
-      applyNavOpticalStatus(payload.vision);
-      applyHudCustomSlots(payload);
-      applyMissionDataGrid(payload);
-      if (payload.visionNav?.mode) applyVisionNavModeUi(payload.visionNav.mode);
-      updateFlightOverlaysOnAllMaps(payload);
-      // RC-switch param approval: dispatch event consumed by initFlightEngineer
-      if (payload.mavlink?.rcChannels) {
-        const rcVal = payload.mavlink.rcChannels[`chan${feRcApprovalChannelGlobal}_raw`];
-        if (rcVal > 1700) document.dispatchEvent(new CustomEvent('fe:rc-approve'));
+  const boot = () => {
+    void hydrateLiveConsoleOnBoot();
+    const src = new EventSource('/api/stream');
+    src.addEventListener('telemetry', (e) => {
+      try {
+        const payload = JSON.parse(e.data);
+        applySseTelemetryPayload(payload);
+      } catch (err) {
+        console.warn('SSE telemetry apply failed', err);
       }
-      document.dispatchEvent(new CustomEvent('vlc:telemetry', { detail: payload }));
-      /** Why: when Jetson transitions offline→online, auto-pull flight list and logs so operator sees current data. */
-      if (jetsonOnline && !jetsonWasOnlinePrev) {
-        jetsonWasOnlinePrev = true;
-        refreshFlightLists().then(() => {
-          refreshAllLogsTable();
-          showAutoLogsBanner('Jetson מחובר — לוגים עודכנו אוטומטית');
-        });
-      } else if (!jetsonOnline) {
-        jetsonWasOnlinePrev = false;
-      }
-    } catch {}
-  });
-  src.onerror = () => {
-    // SSE disconnected; mark as offline and retry automatically (browser reconnects)
-    if (jetsonStatusDot) jetsonStatusDot.className = 'status-dot offline';
-    jetsonWasOnlinePrev = false;
+    });
+    src.onerror = () => {
+      if (jetsonStatusDot) jetsonStatusDot.className = 'status-dot offline';
+      jetsonWasOnlinePrev = false;
+    };
   };
+  queueMicrotask(boot);
 })();
 
 const flightSelect = document.getElementById('flightSelect');
@@ -7588,31 +7806,13 @@ const terrainClearBtn = document.getElementById('terrainClearBtn');
 const terrainCellCount = document.getElementById('terrainCellCount');
 const terrainAreaEst = document.getElementById('terrainAreaEst');
 
-let terrainMap = null;
 let terrainStreetLayer = null;
 let terrainSatLayer = null;
 let terrainCircles = [];
 let terrainLastCells = [];
 let terrainMappedOnly = false;
 let terrainActiveBase = 'street';
-
-/** @type {object | null} */
-let lastSseTerrainPayload = null;
-/** Set true after successful "הצג נתיב טעון" — draws home + mission on maps. */
-let showLoadedMissionPath = false;
-
-const jetsonTelemetryMap = null; // map removed from telemetry tab
-const jetsonStreetLayer = null;
-
-/** @type {{ gps: L.Marker | null, vision: L.Marker | null, home: L.CircleMarker | null, mission: L.Polyline | null, replayTrack: L.Polyline | null }} */
-const terrainFlightLayers = { gps: null, vision: null, home: null, mission: null, replayTrack: null };
-/** @type {{ gps: L.Marker | null, vision: L.Marker | null, home: L.CircleMarker | null, mission: L.Polyline | null, replayTrack: L.Polyline | null }} */
-const jetsonFlightLayers = { gps: null, vision: null, home: null, mission: null, replayTrack: null };
-
-/** Sim-lab .tlog replay — optional polyline + GPS marker overlay on terrain map. */
-let simLabReplayTrackPts = null;
-/** @type {{ gpsLat: number, gpsLon: number, globalHdgDeg?: number | null } | null} */
-let simLabReplayMapSample = null;
+/** terrainMap / lastSseTerrainPayload / overlay layers: declared at top of app.js (no TDZ). */
 
 const liveGpsVisionDeltaEl = document.getElementById('liveGpsVisionDelta');
 
@@ -8875,8 +9075,13 @@ initAnnotatedVisionPanel();
       if (links.active === 'cellular' && activeLinkCellular) activeLinkCellular.checked = true;
       else if (activeLinkRadio) activeLinkRadio.checked = true;
     }
-    if (links.companion) applyCompanionLinkUi(links.companion);
+    applyConnectPillFromLinks(links);
     setPillLabel(links.pillLabelHe || 'מנותק');
+    try {
+      if (links.companion) applyCompanionLinkUi(links.companion);
+    } catch (err) {
+      console.warn('applyCompanionLinkUi failed', err);
+    }
     const anyUp = links.radio === 'connected' || links.cellular === 'connected';
     const anyWait = links.radio === 'listening' || links.cellular === 'listening'
       || links.radio === 'connecting' || links.cellular === 'connecting';
@@ -8896,6 +9101,7 @@ initAnnotatedVisionPanel();
       connBtn.title = 'התחבר למטוס';
     }
     applyAnnotatedVision(links.video);
+    try { hydrateMissionHudFromLiveLink(); } catch (err) { console.warn('hydrateMissionHudFromLiveLink failed', err); }
     return true;
   }
 
@@ -8922,6 +9128,7 @@ initAnnotatedVisionPanel();
       const active = connections.find((c) => c.liveStatus && c.liveStatus.connected);
       if (active) {
         currentId = active.id;
+        rememberLiveRadioStatus(active.liveStatus);
         const age = active.liveStatus.lastHeartbeatAgeMs;
         setDot(age != null && age < 5000 ? 'on' : 'warn');
         connBtn.textContent = 'DISCONNECT';
@@ -8932,6 +9139,7 @@ initAnnotatedVisionPanel();
         const listening = connections.find((c) => c.liveStatus && c.liveStatus.listening);
         if (listening) {
           currentId = listening.id;
+          rememberLiveRadioStatus(listening.liveStatus);
           setDot('connecting');
           connBtn.textContent = 'DISCONNECT';
           connBtn.dataset.connected = '1';
@@ -8946,6 +9154,7 @@ initAnnotatedVisionPanel();
           setPillLabel('מנותק');
         }
       }
+      hydrateMissionHudFromLiveLink();
     } catch (err) {
       console.warn('refreshConnectionStatus failed', err);
     }
@@ -9217,6 +9426,10 @@ initAnnotatedVisionPanel();
       const r = await fetch(`/api/connections/${currentId}/status`);
       const j = await r.json();
       if (!j.ok) throw new Error(j.message || 'status failed');
+      if (j.connection?.liveStatus) {
+        rememberLiveRadioStatus(j.connection.liveStatus);
+        hydrateMissionHudFromLiveLink();
+      }
       statBody.innerHTML = renderStatBody(j.connection);
     } catch (err) {
       statBody.innerHTML = `<div style="color: #b91c1c;">שגיאת קריאת סטטוס: ${esc(err.message || err)}</div>`;
@@ -9290,6 +9503,9 @@ initAnnotatedVisionPanel();
   }
   applyTypeUI();
   refreshSerialPorts();
+  document.addEventListener('vlc:links-snapshot', (e) => {
+    try { applyDualLinkUi(e.detail); } catch (err) { console.warn('applyDualLinkUi failed', err); }
+  });
   refreshConnectionStatus();
   void syncConnectionApiGate();
   if (prefs.serialPort) {
@@ -13604,7 +13820,6 @@ const ASSIST_TAB_CAPABILITY = {
   flightEngineer: 'voice',
 };
 
-let _assistPendingProposalId = null;
 let _assistPendingBrief = null;
 let _assistHistory = [];
 let _assistRunPoll = null;
@@ -13920,7 +14135,7 @@ function assistSetProposalBar(response) {
   const brief = response?.capability_brief || proposal?.payload?.capability_brief || null;
   const isCap = proposal?.action === 'CREATE_DEVELOPMENT_TASK' && !!brief;
   if (response?.requires_confirmation && proposal?.id) {
-    _assistPendingProposalId = proposal.id;
+    setAssistPendingProposalId(proposal.id);
     _assistPendingBrief = isCap ? brief : null;
     textEl.textContent = response.answer || 'לאשר את הפעולה?';
     bar.hidden = false;
@@ -13933,7 +14148,7 @@ function assistSetProposalBar(response) {
       if (genericActions) genericActions.hidden = false;
     }
   } else {
-    _assistPendingProposalId = null;
+    setAssistPendingProposalId(null);
     _assistPendingBrief = null;
     bar.hidden = true;
     if (briefEl) briefEl.hidden = true;

@@ -1,5 +1,16 @@
 [
   {
+    "version": "1.02.283",
+    "date": "2026-09-12",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Companion TCP 5770, live-radio HUD, and version-mismatch banner",
+        "detail": "APP_VERSION 1.02.283. Merge of Companion one-click Jetson TCP :5770, SSE/HUD following the live radio, cold-load paint, no empty SSE catch, and a banner when app.js?v= disagrees with the server. No flight commands. No Companion apply/restart."
+      }
+    ]
+  },
+  {
     "version": "1.02.282",
     "date": "2026-09-12",
     "changes": [

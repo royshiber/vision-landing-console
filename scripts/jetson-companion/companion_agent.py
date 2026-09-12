@@ -24,7 +24,8 @@ FC_DEVICE = os.environ.get("VLC_FC_DEVICE", "/dev/ttyTHS0")
 FC_BAUD = int(os.environ.get("VLC_FC_BAUD", "115200"))
 RELAY_PORT = int(os.environ.get("VLC_RELAY_PORT", "5770"))
 HTTP_PORT = int(os.environ.get("VLC_HTTP_PORT", "8081"))
-AGENT_VERSION = os.environ.get("VLC_AGENT_VERSION", "2.1.0")
+AGENT_VERSION = os.environ.get("VLC_AGENT_VERSION", "2.2.0")
+FC_READ_ONLY = os.environ.get("VLC_FC_READ_ONLY", "0").strip().lower() in {"1", "true", "yes", "on"}
 LOG_DIRS = [
     Path(os.environ.get("VLC_LOG_DIR", "")) if os.environ.get("VLC_LOG_DIR") else None,
     Path.home() / "logs",
@@ -35,10 +36,17 @@ STATE = {
     "fc_linked": False,
     "fc_heartbeat": False,
     "relay_clients": 0,
+    "fc_read_only": FC_READ_ONLY,
+    "relay_tcp_to_uart": not FC_READ_ONLY,
     "cpuLoadPct": None,
     "memPct": None,
     "tempC": None,
 }
+
+CLIENTS = []
+CLIENTS_LOCK = threading.Lock()
+UART_WRITE_LOCK = threading.Lock()
+HEARTBEAT_CRC_EXTRA = 50
 
 
 def auth_headers():
@@ -91,67 +99,164 @@ def heartbeat_loop():
         time.sleep(5)
 
 
-def relay_worker(client_sock, fc_serial):
-    STATE["relay_clients"] += 1
-    client_sock.settimeout(0.02)
+def mav_crc(data: bytes) -> int:
+    crc = 0xFFFF
+    for b in data:
+        tmp = (b ^ (crc & 0xFF)) & 0xFF
+        tmp = (tmp ^ ((tmp << 4) & 0xFF)) & 0xFF
+        crc = ((crc >> 8) ^ (tmp << 8) ^ (tmp << 3) ^ (tmp >> 4)) & 0xFFFF
+    return crc
+
+
+def chunk_has_heartbeat(data: bytes) -> bool:
+    """Detect a CRC-valid HEARTBEAT in raw UART bytes. Does not consume a parser buffer."""
+    i = 0
+    n = len(data)
+    while i < n:
+        if data[i] == 0xFE and i + 8 <= n:
+            ln = data[i + 1]
+            total = 8 + ln
+            if i + total > n:
+                break
+            if data[i + 5] == 0:
+                body = data[i + 1 : i + 6 + ln] + bytes([HEARTBEAT_CRC_EXTRA])
+                rx = data[i + 6 + ln] | (data[i + 7 + ln] << 8)
+                if mav_crc(body) == rx:
+                    return True
+            i += 1
+            continue
+        if data[i] == 0xFD and i + 12 <= n:
+            ln = data[i + 1]
+            signed = data[i + 2] & 0x01
+            total = 12 + ln + (13 if signed else 0)
+            if i + total > n:
+                break
+            if data[i + 7] == 0 and data[i + 8] == 0 and data[i + 9] == 0:
+                crc_off = i + 10 + ln
+                body = data[i + 1 : i + 10 + ln] + bytes([HEARTBEAT_CRC_EXTRA])
+                rx = data[crc_off] | (data[crc_off + 1] << 8)
+                if mav_crc(body) == rx:
+                    return True
+            i += 1
+            continue
+        i += 1
+    return False
+
+
+def open_fc_serial():
     try:
-        fc_serial.timeout = 0.02
-    except Exception:
+        import serial  # pyserial; usually present with pymavlink
+        ser = serial.Serial(FC_DEVICE, FC_BAUD, timeout=0.02)
+        return ser
+    except Exception as exc:
+        if mavutil is None:
+            raise RuntimeError(f"serial open failed: {exc}") from exc
+        conn = mavutil.mavlink_connection(f"{FC_DEVICE}:{FC_BAUD}", autoreconnect=True)
+        # Raw port only — never recv_match(); that would steal HEARTBEAT from the relay.
+        port = conn.port
+        try:
+            port.timeout = 0.02
+        except Exception:
+            pass
+        return port
+
+
+def fanout_uart(data: bytes):
+    dead = []
+    with CLIENTS_LOCK:
+        peers = list(CLIENTS)
+    for sock in peers:
+        try:
+            sock.sendall(data)
+        except OSError:
+            dead.append(sock)
+    if dead:
+        with CLIENTS_LOCK:
+            for sock in dead:
+                if sock in CLIENTS:
+                    CLIENTS.remove(sock)
+                    STATE["relay_clients"] = max(0, STATE["relay_clients"] - 1)
+                try:
+                    sock.close()
+                except OSError:
+                    pass
+
+
+def drop_client(sock):
+    with CLIENTS_LOCK:
+        if sock in CLIENTS:
+            CLIENTS.remove(sock)
+            STATE["relay_clients"] = max(0, STATE["relay_clients"] - 1)
+    try:
+        sock.close()
+    except OSError:
         pass
+
+
+def client_to_uart(client_sock, fc_serial):
+    client_sock.settimeout(0.2)
     try:
         while True:
             try:
                 data = client_sock.recv(4096)
-                if data:
-                    fc_serial.write(data)
             except socket.timeout:
-                pass
+                continue
             except OSError:
                 break
+            if not data:
+                break
+            if FC_READ_ONLY:
+                continue
             try:
-                data = fc_serial.read(4096)
-                if data:
-                    client_sock.sendall(data)
+                with UART_WRITE_LOCK:
+                    fc_serial.write(data)
             except Exception:
-                pass
+                break
     finally:
-        STATE["relay_clients"] = max(0, STATE["relay_clients"] - 1)
+        drop_client(client_sock)
+
+
+def uart_reader(fc_serial, stop):
+    while not stop.is_set():
         try:
-            client_sock.close()
-        except OSError:
-            pass
+            data = fc_serial.read(4096)
+        except Exception:
+            time.sleep(0.05)
+            continue
+        if not data:
+            continue
+        if chunk_has_heartbeat(data):
+            STATE["fc_heartbeat"] = True
+        fanout_uart(data)
 
 
 def mavlink_relay_server():
-    if mavutil is None:
-        print("[relay] pymavlink missing — pip install pymavlink")
-        return
-    fc_uri = f"{FC_DEVICE}:{FC_BAUD}"
-    print(f"[relay] FC {fc_uri} → TCP :{RELAY_PORT}")
+    """Byte-level UART ↔ TCP fan-out. One UART reader; pymavlink must not parse the same port."""
+    print(f"[relay] FC {FC_DEVICE} @ {FC_BAUD} → TCP :{RELAY_PORT} (read_only={FC_READ_ONLY})")
     while True:
-        fc = None
         srv = None
+        fc_serial = None
+        stop = threading.Event()
         try:
-            fc = mavutil.mavlink_connection(fc_uri, autoreconnect=True)
+            fc_serial = open_fc_serial()
             STATE["fc_linked"] = True
+            STATE["fc_read_only"] = FC_READ_ONLY
+            STATE["relay_tcp_to_uart"] = not FC_READ_ONLY
+            threading.Thread(target=uart_reader, args=(fc_serial, stop), daemon=True).start()
             srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             srv.bind(("0.0.0.0", RELAY_PORT))
             srv.listen(4)
             srv.settimeout(1.0)
-            fc_serial = fc.port
             while True:
-                try:
-                    msg = fc.recv_match(type="HEARTBEAT", blocking=False)
-                    if msg:
-                        STATE["fc_heartbeat"] = True
-                except Exception:
-                    pass
                 try:
                     client, addr = srv.accept()
                     print(f"[relay] GCS client {addr}")
+                    with CLIENTS_LOCK:
+                        CLIENTS.append(client)
+                        STATE["relay_clients"] = len(CLIENTS)
                     threading.Thread(
-                        target=relay_worker, args=(client, fc_serial), daemon=True
+                        target=client_to_uart, args=(client, fc_serial), daemon=True
                     ).start()
                 except socket.timeout:
                     continue
@@ -159,10 +264,24 @@ def mavlink_relay_server():
             STATE["fc_linked"] = False
             STATE["fc_heartbeat"] = False
             print(f"[relay] restart: {exc}")
+            stop.set()
+            with CLIENTS_LOCK:
+                for sock in CLIENTS:
+                    try:
+                        sock.close()
+                    except OSError:
+                        pass
+                CLIENTS.clear()
+                STATE["relay_clients"] = 0
             if srv:
                 try:
                     srv.close()
                 except OSError:
+                    pass
+            if fc_serial:
+                try:
+                    fc_serial.close()
+                except Exception:
                     pass
             time.sleep(3)
 
