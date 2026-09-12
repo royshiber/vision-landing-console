@@ -1,5 +1,21 @@
 [
   {
+    "version": "1.02.305",
+    "date": "2026-09-12",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Archive honesty — start/stop errors, real bytes, orphan finalize",
+        "detail": "APP_VERSION 1.02.305. After master 1.02.304 (#122 Ask confirm-gated intents). Mission הקלטה shows API messageHe and HTTP failures; a failed start/stop does not look armed. Recording arms only after the session file opens. GET /api/telemetry-archive exposes real session bytes/frames, lastWriteError, droppedWrites, and linkUp. Start without a MAVLink link is allowed and warns the file stays empty until bytes arrive. מוכנות follows live archive.isRecording(). Boot finalizes orphan telemetry_archive rows. Zero-byte Stop still closes and warns that nothing was recorded. No auto-record, no ARM/LAND, and no Companion apply/restart."
+      },
+      {
+        "type": "test",
+        "title": "Tests",
+        "detail": "telemetry-archive.test.mjs, archive-honesty.test.mjs, dual-link-api.test.mjs"
+      }
+    ]
+  },
+  {
     "version": "1.02.304",
     "date": "2026-09-12",
     "changes": [
