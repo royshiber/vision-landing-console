@@ -11449,12 +11449,36 @@ html[data-evolve-preview="1"] #development {
   padding: 12px 14px;
 }
 .vlr-diag {
-  margin: 8px 10px 0;
-  padding: 10px 12px;
-  border: 1px solid rgba(0, 71, 141, 0.12);
+  margin: 8px 0 0;
+  padding: 10px 12px 18px;
+  border: 1px solid rgba(148, 168, 198, 0.16);
   border-radius: 8px;
-  background: #f8fafc;
+  background: #121826;
+  color: #e8edf6;
+  flex: 0 0 auto;
 }
+#telemetry.panel.visible #teleDashPanel {
+  overflow-y: auto;
+  min-height: 0;
+  flex: 1 1 auto;
+  padding-bottom: 72px;
+}
+#telemetry.panel.visible .vlr-answer[data-state="on"] { color: #86efac; }
+#telemetry.panel.visible .vlr-answer[data-state="warn"] { color: #fde68a; }
+#telemetry.panel.visible .vlr-answer[data-state="off"] { color: #fecaca; }
+#telemetry.panel.visible .vlr-chip[data-state="on"] {
+  color: #86efac;
+  background: rgba(16, 185, 129, 0.14);
+}
+#telemetry.panel.visible .vlr-chip[data-state="warn"] {
+  color: #fde68a;
+  background: rgba(245, 158, 11, 0.14);
+}
+#telemetry.panel.visible .vlr-chip[data-state="off"] {
+  color: #fecaca;
+  background: rgba(127, 29, 29, 0.28);
+}
+#telemetry.panel.visible .vlr-missing { color: #94a3b8; }
 .vlr-title {
   margin: 0 0 4px;
   font-size: 0.82rem;

@@ -5164,12 +5164,15 @@ function fillVisionLandingList(listEl, items) {
   }
 }
 
-function renderVisionLandingChecklist(host, payload) {
+function renderVisionLandingChecklist(host, payload, { includeQuestion = true } = {}) {
   if (!host) return;
   host.innerHTML = '';
-  const q = document.createElement('p');
-  q.className = 'vlr-question';
-  q.textContent = payload.questionHe || 'אפשר להתחיל ניסוי נחיתה ויזואלית?';
+  if (includeQuestion) {
+    const q = document.createElement('p');
+    q.className = 'vlr-question';
+    q.textContent = payload.questionHe || 'אפשר להתחיל ניסוי נחיתה ויזואלית?';
+    host.appendChild(q);
+  }
   const ans = document.createElement('p');
   ans.className = 'vlr-answer';
   ans.dataset.state = payload.overallChip || 'off';
@@ -5177,7 +5180,7 @@ function renderVisionLandingChecklist(host, payload) {
   const list = document.createElement('ul');
   list.className = 'vlr-list';
   fillVisionLandingList(list, payload.items);
-  host.append(q, ans, list);
+  host.append(ans, list);
 }
 
 function renderVisionLandingReadiness(payload) {
@@ -5188,7 +5191,7 @@ function renderVisionLandingReadiness(payload) {
     missionReadinessGlance.dataset.state = chip;
     missionReadinessGlance.title = payload.answerHe || 'מוכנות';
   }
-  if (pfdReadinessBody) renderVisionLandingChecklist(pfdReadinessBody, payload);
+  if (pfdReadinessBody) renderVisionLandingChecklist(pfdReadinessBody, payload, { includeQuestion: false });
   const pulseAns = document.getElementById('pulseVlrAnswer');
   const pulseList = document.getElementById('pulseVlrList');
   if (pulseAns) {
