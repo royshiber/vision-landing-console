@@ -4799,6 +4799,21 @@ function isHudMavlinkLive(mav) {
   return Number.isFinite(mav.rollDeg) && Number.isFinite(mav.pitchDeg);
 }
 
+/** HUD still reflects a live FC — current arg, retained snapshot, radio, or last attitude. */
+function hudReflectsLiveFc(mav) {
+  if (isHudMavlinkLive(mav)) return true;
+  if (isHudMavlinkLive(latestHudMavlink)) return true;
+  if (isHudMavlinkLive(latestLiveRadioStatus)) return true;
+  return Number.isFinite(_lastRoll) && Number.isFinite(_lastPitch);
+}
+
+function resolveLiveHudMavlinkForNote(mav) {
+  if (isHudMavlinkLive(mav)) return mav;
+  if (isHudMavlinkLive(latestHudMavlink)) return latestHudMavlink;
+  if (isHudMavlinkLive(latestLiveRadioStatus)) return liveStatusToHudMavlink(latestLiveRadioStatus);
+  return null;
+}
+
 const MISSION_FC_EMPTY_PRIMARY_HE = 'אין חיבור לבקר — לא מתקבלות הודעות MAVLink.';
 const MISSION_FC_EMPTY_NOTE_HE = 'אין חיבור לבקר. אין הודעות נכנסות.';
 const MISSION_FC_RELAY_HINT_HE = 'דופק חי בבקר. ממסר הטלמטריה לא נפתח.';
@@ -4889,7 +4904,11 @@ function resolveHudMavlink(sseMav, liveStatus) {
       flightMode: sseMav?.flightMode ?? null,
     };
   }
-  return sseMav || fromLive;
+  if (sseMav) return sseMav;
+  if (fromLive) return fromLive;
+  // Missing SSE mavlink is not a disconnect. Keep the last live HUD snapshot.
+  if (isHudMavlinkLive(latestHudMavlink)) return latestHudMavlink;
+  return null;
 }
 
 function rememberLiveRadioStatus(status) {
@@ -4907,9 +4926,14 @@ function rememberLiveRadioStatus(status) {
 function syncMissionFcEmptyNote(mav) {
   const note = document.querySelector('.mission-horizon-filler-note');
   if (!note) return;
-  if (isHudMavlinkLive(mav)) {
-    const name = [mav.autopilotName, mav.vehicleType].filter(Boolean).join(' · ');
+  const liveMav = resolveLiveHudMavlinkForNote(mav);
+  if (liveMav) {
+    const name = [liveMav.autopilotName, liveMav.vehicleType].filter(Boolean).join(' · ');
     note.textContent = name ? `מחובר · ${name}` : 'מחובר לבקר.';
+    return;
+  }
+  if (hudReflectsLiveFc(mav)) {
+    note.textContent = 'מחובר לבקר.';
     return;
   }
   const companion = (typeof latestCompanionFromServer === 'object' && latestCompanionFromServer)
@@ -5280,8 +5304,8 @@ const GPS_FIX_LABELS = ['אין GPS', 'אין Fix', '2D Fix', '3D Fix', 'DGPS', 
 /** Update the PFD with the latest MAVLink snapshot. */
 function applyFlightHud(mav) {
   if (!mav) {
-    latestHudMavlink = null;
-    syncMissionFcEmptyNote(null);
+    // Missing snapshot ≠ disconnect. Keep last HUD frame and last honest note.
+    syncMissionFcEmptyNote(latestHudMavlink);
     syncMissionLayoutChrome();
     return;
   }
@@ -5403,6 +5427,10 @@ function applyNavOpticalStatus(vision) {
 function applyFcStatustextHud(mavlink) {
   if (!pfcMsgPrimaryHe) return;
   if (!isHudMavlinkLive(mavlink)) {
+    if (hudReflectsLiveFc(mavlink)) {
+      syncMissionFcEmptyNote(mavlink);
+      return;
+    }
     const companion = (typeof latestCompanionFromServer === 'object' && latestCompanionFromServer)
       ? latestCompanionFromServer
       : null;

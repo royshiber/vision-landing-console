@@ -122,7 +122,8 @@ describe('SSE + Mission HUD pipeline wiring', () => {
     expect(live).toMatch(/rollDeg/);
     const hudApply = sliceFunction(js, 'applyFlightHud');
     expect(hudApply).toMatch(/syncMissionFcEmptyNote\(mav\)/);
-    expect(hudApply).toMatch(/syncMissionFcEmptyNote\(null\)/);
+    expect(hudApply).toMatch(/syncMissionFcEmptyNote\(latestHudMavlink\)/);
+    expect(hudApply).not.toMatch(/latestHudMavlink = null/);
     expect(apply).toMatch(/pfcMsgPrimaryHe\.textContent = first/);
     expect(js).toContain('function resolveHudMavlink(');
     expect(js).toContain('function liveStatusToHudMavlink(');

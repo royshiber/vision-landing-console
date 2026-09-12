@@ -1,5 +1,16 @@
 [
   {
+    "version": "1.02.287",
+    "date": "2026-09-12",
+    "changes": [
+      {
+        "type": "fix",
+        "title": "Mission FC note stays honest while AH is live",
+        "detail": "APP_VERSION 1.02.287. A later null or non-live HUD snapshot no longer rewrites .mission-horizon-filler-note to אין חיבור לבקר while retained MAVLink / attitude is still live. applyFlightHud(null) keeps latestHudMavlink. applyFcStatustextHud consults hudReflectsLiveFc before empty copy. True disconnect still shows empty copy or the ממסר hint. No flight commands. No Companion apply/restart."
+      }
+    ]
+  },
+  {
     "version": "1.02.286",
     "date": "2026-09-12",
     "changes": [
