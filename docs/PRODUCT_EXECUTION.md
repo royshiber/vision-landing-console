@@ -62,35 +62,31 @@ Merge autonomy still on for independently VERIFIED safe draft PRs. Hard safety s
 
 ---
 
-## Audit snapshot — 2026-09-10 (F4 Ask → Capability Brief)
+## Audit snapshot — 2026-09-12 (Vision Landing Readiness)
 
-**Master tip before this draft:** `1.02.268` @ `2cffa19` (PR #88 — F2 Capability Runway).  
-**This draft:** F4 Ask → Capability Brief. `APP_VERSION` **1.02.269**. Stay draft until VERIFY.  
-**Tip after merge 269:** master carried F1 + F2 + F4. **F3 / Concept B** is this draft: Develop chat + live preview.
+**Master tip before this draft:** `1.02.280` @ `52cc425` (PR #98 — Jetson E3372 host pack).  
+**This draft:** Vision Landing Readiness checklist. `APP_VERSION` **1.02.281**. Stay draft until VERIFY. Display only.
 
 ### Landed
 
-- **F1 Capability Intake Studio** — master `1.02.267` via PR #87 `3897a70`. Now hidden under Concept B; composer remnants stay for Ask handoff.
-- **Develop Concept B** — this draft `1.02.278`. Locked split: live map preview left, Hebrew chat right. MCQ rows plus free text. After VERIFY, install payload is visible and the install is allowed without another in-UI ask. Local progress only. No live Jetson/FC apply. Parameters hook after land.
-- **F2 Capability Runway** — master `1.02.268` via PR #88 `2cffa19`. IDEA → RUNNING → VERIFY → PR → DONE from real task fields only.
-- C10.6 Mission flight-safe Assist stays: no `CREATE_DEVELOPMENT_TASK` on Mission; DEVELOPMENT / coding-agent start refused in spoken Hebrew.
-- AIRVIX Ask naming only. Jetson / מחשב משימה. No מסייע. No מלווה. No AH polish / «הגדל את האופק».
+- Mission glance **מוכנות**, Status **סטטוס מחשבים**, and diagnostics now share one honest Vision Landing checklist: Jetson reachability, FC heartbeat, camera/vision pipeline, PLND / vision-nav profile, cellular annotated video, recording, flight-command gate.
+- Camera / heartbeat / video never invent an OK. `modem_absent` is missing video. No manual-record API → not-recording. ARM / LAND / auto-land stay Human Gate #29 and are not enabled.
+- Companion BOTH gate unchanged. No Companion-real widening. No live vehicle.
 
-### This draft (F4)
+### This draft
 
-Ask on non-Mission surfaces drafts a Capability Brief (מה / למה / מודולים / FEATURE default) with **פתח בפיתוח** / **שמור טיוטה** / **התחל סוכן**. Handoff fills the F1 composer and switches to Develop. Save and start reuse `CREATE_DEVELOPMENT_TASK` and the existing agent stack. Mission still refuses.
+Operator question: אפשר להתחיל ניסוי נחיתה ויזואלית? Hebrew chips on / warn / off. Each row has a one-line מה חסר. Experiment stays not-ready while flight commands are gated.
 
 ### Next pick
 
-**F3** after this draft merges as 269. Do not start #28 / #29. Do not polish AH. Do not invent GPS or a Companion token.
+Do not start #28 / #29. Highest remaining GAP after this surface is still live-vehicle / auto-land (gated) or Companion apply/restart (gated). Prefer another display-only honesty or in-app development step — not flight commands.
 
 ### Ranked GAPS
 
-1. **F4 Ask → Capability Brief** — this draft. Version **1.02.269**.
-2. **F3** — next after merge 269.
-3. **Companion apply/restart** — Human Gate #28. No GO.
-4. **Live vehicle + auto landing** — Human Gate #29. No GO.
+1. **Vision Landing Readiness** — this draft.
+2. **Companion apply/restart** — Human Gate #28. No GO.
+3. **Live vehicle + auto landing** — Human Gate #29. No GO.
 
 ### Explicitly not next
 
-Do not spend cycles on AH polish, Pulse chrome, another runway polish pass, inventing a Companion token, Jetson apply/restart, flight commands, C10.7b voice/STT, or C10.4c-b Jetson deploy-wire move.
+Do not spend cycles on AH polish, Pulse chrome, inventing a Companion token, Jetson apply/restart, or flight-command send.

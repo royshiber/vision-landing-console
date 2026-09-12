@@ -41,7 +41,7 @@ function sliceFunction(src, name) {
 describe('Preflight / readiness MERGE — Mission glance + Diagnostics', () => {
   it('unifies operator Hebrew to מוכנות on Mission popover and diagnostics strip', () => {
     expect(html).toMatch(/id="missionReadinessGlance"[^>]*>מוכנות</);
-    expect(html).toMatch(/id="pfdReadinessTitle"[^>]*>מוכנות</);
+    expect(html).toMatch(/id="pfdReadinessTitle"[^>]*>אפשר להתחיל ניסוי נחיתה ויזואלית\?</);
     expect(html).toMatch(/class="tele-preflight-title">מוכנות</);
     expect(html).not.toContain('בדיקות מערכת');
     expect(html).not.toContain('מוכנות טיסה');
@@ -64,7 +64,7 @@ describe('Preflight / readiness MERGE — Mission glance + Diagnostics', () => {
     expect(chrome).not.toMatch(/ARM the|DISARM|LAND|FLIGHT_ACTION/);
     const jump = sliceFunction(js, 'openDiagnosticsReadiness');
     expect(jump).toMatch(/applyMainTab\('telemetry'\)/);
-    expect(jump).toMatch(/preflightCard|readinessStrip/);
+    expect(jump).toMatch(/visionLandingReadinessStrip|preflightCard|readinessStrip/);
     expect(html).toMatch(/id="pfdReadinessDiagBtn"[^>]*>רשימה באבחונים</);
   });
 
