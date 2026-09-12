@@ -59,6 +59,7 @@ describe('Preflight / readiness MERGE — Mission glance + Diagnostics', () => {
     expect(css).toMatch(/\.mission-readiness-glance\b/);
     const chrome = sliceFunction(js, 'setupFlightHudChromeHandlers');
     expect(chrome).toMatch(/missionReadinessGlance/);
+    expect(chrome).toMatch(/missionRunwayGlance/);
     expect(chrome).toMatch(/openPfdReadinessPopover/);
     expect(chrome).toMatch(/pfdArmedBadge/);
     expect(chrome).not.toMatch(/ARM the|DISARM|LAND|FLIGHT_ACTION/);

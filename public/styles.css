@@ -9490,6 +9490,45 @@ html[data-evolve-preview="1"] #development {
   background: rgba(16, 185, 129, 0.2);
   outline: none;
 }
+.mission-runway-glance {
+  margin: 0;
+  padding: 0 6px;
+  height: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 3px;
+  background: rgba(15, 23, 42, 0.35);
+  color: #cbd5e1;
+  font: inherit;
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+}
+.mission-runway-glance[data-state="detected"],
+.mission-runway-glance[data-state="on"] {
+  border-color: rgba(16, 185, 129, 0.35);
+  background: rgba(16, 185, 129, 0.16);
+  color: #bbf7d0;
+}
+.mission-runway-glance[data-state="not_detected"],
+.mission-runway-glance[data-state="warn"] {
+  border-color: rgba(251, 191, 36, 0.45);
+  background: rgba(245, 158, 11, 0.14);
+  color: #fde68a;
+}
+.mission-runway-glance[data-state="unknown"],
+.mission-runway-glance[data-state="not_implemented"],
+.mission-runway-glance[data-state="absent"],
+.mission-runway-glance[data-state="off"] {
+  border-color: rgba(248, 113, 113, 0.35);
+  background: rgba(127, 29, 29, 0.22);
+  color: #fecaca;
+}
+.mission-runway-glance:hover,
+.mission-runway-glance:focus-visible {
+  outline: none;
+  filter: brightness(1.08);
+}
 
 /**
  * Mission layout hook (locked):
