@@ -1,5 +1,21 @@
 [
   {
+    "version": "1.02.311",
+    "date": "2026-09-12",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Observe-only Jetson dual-camera ingest + honest status",
+        "detail": "APP_VERSION 1.02.311. After master 1.02.310 (#126). Companion 2.3.4 opens CAM1 קדמית and CAM2 מטה (configurable devices), reports present / fps / last_frame_age_ms / error, and serves a JPEG only when a frame exists. Absent device stays camera_ok false and אין פריים. VLC_CAMERA_DRY_RUN=1 is absent; synthetic reports fps/age with source=synthetic and never real. Console checklist and Mission פריים reuse that honesty. Annotated vision stays cellular-only. No ARM/LAND, no nav-source switch, and no Companion apply/restart."
+      },
+      {
+        "type": "test",
+        "title": "Tests",
+        "detail": "camera-ingest-honesty.test.mjs — absent not ok, synthetic fps/age, operator confirm does not invent camera_ok."
+      }
+    ]
+  },
+  {
     "version": "1.02.310",
     "date": "2026-09-12",
     "changes": [

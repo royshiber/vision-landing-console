@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Vision Landing Console — Jetson companion: MAVLink relay + HTTP API + heartbeat.
 
-AGENT_VERSION 2.3.3 = 2.3.2 plus honest observe-only optical-nav status.
-No camera pipeline, no VIO estimator, no EKF inject, no FC writes.
-Never invent camera_ok=true, runway detected/locked, or WGS84 position.
+AGENT_VERSION 2.3.4 = 2.3.3 plus observe-only dual-camera ingest + honest status.
+No VIO estimator, no EKF inject, no FC writes, no runway detect.
+Never invent camera_ok, frames, runway detected/locked, or WGS84 position.
+Dry-run never claims a real camera.
 
 Hardware default (Matek H743 SERIAL3 ↔ Jetson UART1):
   FC /dev/ttyTHS1 @ 921600, FC_READ_ONLY=1
@@ -39,7 +40,13 @@ FC_BAUD = int(os.environ.get("VLC_FC_BAUD", "921600"))
 FC_SERIAL_NAME = os.environ.get("VLC_FC_SERIAL_NAME", "SERIAL3")
 RELAY_PORT = int(os.environ.get("VLC_RELAY_PORT", "5770"))
 HTTP_PORT = int(os.environ.get("VLC_HTTP_PORT", "8081"))
-AGENT_VERSION = os.environ.get("VLC_AGENT_VERSION", "2.3.3")
+AGENT_VERSION = os.environ.get("VLC_AGENT_VERSION", "2.3.4")
+
+try:
+    from camera_ingest import ingest_frame_jpeg, ingest_snapshot
+except ImportError:
+    ingest_snapshot = None
+    ingest_frame_jpeg = None
 FC_READ_ONLY = os.environ.get("VLC_FC_READ_ONLY", "1").strip().lower() in {"1", "true", "yes", "on"}
 SKIP_RELAY = os.environ.get("VLC_SKIP_RELAY", "").strip().lower() in {"1", "true", "yes", "on"}
 HTTP_BIND = os.environ.get("VLC_HTTP_BIND", "0.0.0.0")
@@ -352,27 +359,129 @@ def iter_log_files():
             yield p
 
 
+def _camera_frame_id(path):
+    for cam_id in ("cam1", "cam2"):
+        for prefix in ("/api/v1/cameras/", "/api/cameras/"):
+            if path in (f"{prefix}{cam_id}/frame", f"{prefix}{cam_id}/frame.jpg"):
+                return cam_id
+    return None
+
+
 def _now_ts():
     now_ns = int(time.time() * 1e9)
     return {"t_monotonic_ns": now_ns, "t_utc_ns": now_ns}
 
 
-def vision_status_payload():
-    """Observe-only camera / vision. Default hardware has no pipeline — camera_ok is false."""
+def _ingest_or_absent():
+    """Honest ingest snapshot. Missing module or devices stay camera_ok false."""
+    if ingest_snapshot is None:
+        return {
+            "observe_only": True,
+            "implemented": False,
+            "dry_run": False,
+            "dry_run_mode": None,
+            "source": "absent",
+            "real": False,
+            "camera_ok": False,
+            "running": False,
+            "health": "unavailable",
+            "fps": None,
+            "frame_count": None,
+            "last_frame_age_ms": None,
+            "latency_ms": None,
+            "cameras": {
+                "cam1": {
+                    "id": "cam1",
+                    "role": "forward",
+                    "nav_role": "vio_forward",
+                    "shared_with": "landing_vision",
+                    "present": False,
+                    "camera_ok": False,
+                    "fps": None,
+                    "frame_count": None,
+                    "last_frame_age_ms": None,
+                    "error": "ingest_module_absent",
+                    "source": "absent",
+                    "dry_run": False,
+                    "real": False,
+                    "device": None,
+                    "has_frame": False,
+                },
+                "cam2": {
+                    "id": "cam2",
+                    "role": "down",
+                    "nav_role": "optical_flow_down",
+                    "shared_with": "landing_vision",
+                    "present": False,
+                    "camera_ok": False,
+                    "fps": None,
+                    "frame_count": None,
+                    "last_frame_age_ms": None,
+                    "error": "ingest_module_absent",
+                    "source": "absent",
+                    "dry_run": False,
+                    "real": False,
+                    "device": None,
+                    "has_frame": False,
+                },
+            },
+            "note": "camera ingest module missing; camera_ok is false; not invented",
+        }
+    return ingest_snapshot()
+
+
+def cameras_status_payload():
+    snap = _ingest_or_absent()
     return {
         "ok": True,
         "observe_only": True,
-        "camera_ok": False,
-        "running": False,
-        "health": "unavailable",
-        "fps": None,
+        "implemented": snap.get("implemented"),
+        "dry_run": snap.get("dry_run"),
+        "dry_run_mode": snap.get("dry_run_mode"),
+        "source": snap.get("source"),
+        "real": snap.get("real") is True,
+        "camera_ok": snap.get("camera_ok") is True,
+        "running": snap.get("running") is True,
+        "health": snap.get("health"),
+        "fps": snap.get("fps"),
+        "frame_count": snap.get("frame_count"),
+        "last_frame_age_ms": snap.get("last_frame_age_ms"),
+        "cameras": snap.get("cameras") or {},
+        "note": snap.get("note"),
+    }
+
+
+def vision_status_payload():
+    """Observe-only camera / vision. Absent device → camera_ok false. Dry-run is never real."""
+    snap = _ingest_or_absent()
+    any_ok = snap.get("camera_ok") is True
+    source_id = "none"
+    for key in ("cam1", "cam2"):
+        cam = (snap.get("cameras") or {}).get(key) or {}
+        if cam.get("camera_ok") is True:
+            source_id = key
+            break
+    return {
+        "ok": True,
+        "observe_only": True,
+        "camera_ok": any_ok,
+        "running": snap.get("running") is True,
+        "health": snap.get("health") or "unavailable",
+        "fps": snap.get("fps"),
         "latency_ms": None,
         "last_valid": None,
-        "frame_id": None,
-        "source_id": "none",
+        "frame_id": snap.get("frame_count"),
+        "frame_count": snap.get("frame_count"),
+        "last_frame_age_ms": snap.get("last_frame_age_ms"),
+        "age_ms": snap.get("last_frame_age_ms"),
+        "source_id": source_id,
+        "source": snap.get("source") or "absent",
+        "dry_run": snap.get("dry_run") is True,
+        "real": snap.get("real") is True,
+        "cameras": snap.get("cameras") or {},
         "quality": {"confidence": None, "label": "unknown"},
-        "implemented": False,
-        "note": "no camera pipeline on this companion; camera_ok is false; not invented",
+        "implemented": snap.get("implemented") is True,
+        "note": snap.get("note") or "no camera device; camera_ok is false; not invented",
     }
 
 
@@ -397,37 +506,52 @@ def landing_status_payload():
 
 
 def video_status_payload():
-    """Observe-only video metadata. No annotated stream and no raw pipeline."""
+    """Observe-only video metadata. Annotated stays off. Raw follows ingest honesty."""
+    snap = _ingest_or_absent()
+    any_ok = snap.get("camera_ok") is True
+    raw_name = "none"
+    if snap.get("dry_run") and snap.get("dry_run_mode") == "synthetic" and any_ok:
+        raw_name = "synthetic"
+    elif any_ok and snap.get("real") is True:
+        raw_name = "camera_ingest"
     return {
         "ok": True,
         "observe_only": True,
-        "raw_pipeline": "none",
+        "raw_pipeline": raw_name,
         "annotated_pipeline": "none",
-        "raw_fps": None,
+        "raw_fps": snap.get("fps") if any_ok else None,
         "annotated_fps": None,
         "bitrate_kbps": None,
         "raw_kind": "raw",
         "annotated_kind": "annotated",
-        "note": "no video pipeline on this companion; not invented",
+        "dry_run": snap.get("dry_run") is True,
+        "real": snap.get("real") is True,
+        "note": "annotated stream stays off; raw follows camera ingest; not invented",
     }
 
 
 def optical_nav_status_payload():
-    """Observe-only optical nav. Dual cameras are the landing pair; no pipeline yet."""
-    cameras = {
-        "cam1": {
-            "id": "cam1",
-            "role": "vio_forward",
+    """Observe-only optical nav. Estimator stays off. Per-camera ingest is shared with landing."""
+    snap = _ingest_or_absent()
+    raw_cams = snap.get("cameras") or {}
+    cameras = {}
+    for cam_id, nav_role in (("cam1", "vio_forward"), ("cam2", "optical_flow_down")):
+        src = raw_cams.get(cam_id) or {}
+        cameras[cam_id] = {
+            "id": cam_id,
+            "role": nav_role,
+            "mount_role": src.get("role"),
             "shared_with": "landing_vision",
-            "camera_ok": False,
-        },
-        "cam2": {
-            "id": "cam2",
-            "role": "optical_flow_down",
-            "shared_with": "landing_vision",
-            "camera_ok": False,
-        },
-    }
+            "present": src.get("present") is True,
+            "camera_ok": src.get("camera_ok") is True,
+            "fps": src.get("fps"),
+            "frame_count": src.get("frame_count"),
+            "last_frame_age_ms": src.get("last_frame_age_ms"),
+            "error": src.get("error"),
+            "source": src.get("source") or "absent",
+            "dry_run": src.get("dry_run") is True,
+            "real": src.get("real") is True,
+        }
     return {
         "ok": True,
         "observe_only": True,
@@ -442,18 +566,28 @@ def optical_nav_status_payload():
         "ekf_injected": False,
         "display_only": True,
         "cameras": cameras,
+        "ingest": {
+            "camera_ok": snap.get("camera_ok") is True,
+            "dry_run": snap.get("dry_run") is True,
+            "source": snap.get("source") or "absent",
+            "real": snap.get("real") is True,
+        },
         "implemented": False,
-        "note": "no optical-nav pipeline; cameras shared with landing/vision; camera_ok false; position null; not EKF fused",
+        "note": "no optical-nav estimator; cameras shared with landing/vision; position null; not EKF fused",
     }
 
 
 def extras_status_payload():
+    snap = _ingest_or_absent()
+    any_ok = snap.get("camera_ok") is True
     return {
-        "camera_ok": False,
-        "camera_connected": False,
+        "camera_ok": any_ok,
+        "camera_connected": any_ok,
         "runway_detector": False,
         "runway_detected": None,
         "optical_nav": optical_nav_status_payload(),
+        "cameras": snap.get("cameras") or {},
+        "dry_run": snap.get("dry_run") is True,
         "observe_only": True,
     }
 
@@ -577,6 +711,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(200, status_payload())
         if path in ("/api/status/vision", "/api/v1/status/vision"):
             return self._json(200, vision_status_payload())
+        if path in ("/api/status/cameras", "/api/v1/status/cameras"):
+            return self._json(200, cameras_status_payload())
         if path in ("/api/status/optical-nav", "/api/v1/status/optical-nav"):
             return self._json(200, optical_nav_status_payload())
         if path in ("/api/status/landing", "/api/v1/status/landing"):
@@ -585,6 +721,23 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(200, video_status_payload())
         if path in ("/api/transport-test", "/api/v1/transport-test"):
             return self._json(200, transport_test_payload(self_test=False))
+        cam_frame = _camera_frame_id(path)
+        if cam_frame:
+            jpeg = ingest_frame_jpeg(cam_frame) if ingest_frame_jpeg else None
+            if not jpeg:
+                return self._json(404, {
+                    "ok": False,
+                    "camera_ok": False,
+                    "reason": "no_frame",
+                    "note": "אין פריים",
+                })
+            self.send_response(200)
+            self.send_header("Content-Type", "image/jpeg")
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Content-Length", str(len(jpeg)))
+            self.end_headers()
+            self.wfile.write(jpeg)
+            return
         return self._json(404, {"ok": False})
 
     def do_POST(self):
@@ -621,6 +774,8 @@ def main():
     print(f"  Relay TCP: 0.0.0.0:{RELAY_PORT}")
     print(f"  HTTP: {HTTP_BIND}:{HTTP_PORT}")
     print(f"  FC_READ_ONLY: {FC_READ_ONLY}")
+    snap = _ingest_or_absent()
+    print(f"  Camera ingest: source={snap.get('source')} dry_run={snap.get('dry_run')}")
     if not SKIP_RELAY:
         threading.Thread(target=heartbeat_loop, daemon=True).start()
         threading.Thread(target=mavlink_relay_server, daemon=True).start()

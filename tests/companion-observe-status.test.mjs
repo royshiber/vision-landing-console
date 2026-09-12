@@ -48,18 +48,18 @@ async function waitHttp(url, timeoutMs = 8000) {
 }
 
 describe('companion_agent observe-only vision / landing status', () => {
-  it('pins APP_VERSION at 1.02.310', () => {
+  it('pins APP_VERSION at 1.02.311', () => {
     const version = fs.readFileSync(path.join(repoRoot, 'version.js'), 'utf8');
     const pkg = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8'));
-    expect(version).toContain("export const APP_VERSION = '1.02.310'");
-    expect(pkg.version).toBe('1.02.310');
+    expect(version).toContain("export const APP_VERSION = '1.02.311'");
+    expect(pkg.version).toBe('1.02.311');
   });
 
   it('keeps 2.3.1 fan-out UART and reports explicit absent, never invented detect', () => {
     expect(agentSrc).toContain('uart_reader');
     expect(agentSrc).toContain('fanout_uart');
     expect(agentSrc).not.toMatch(/\.recv_match\s*\(/);
-    expect(agentSrc).toMatch(/AGENT_VERSION.*"2\.3\.3"/);
+    expect(agentSrc).toMatch(/AGENT_VERSION.*"2\.3\.4"/);
     expect(agentSrc).toContain('/api/v1/status/vision');
     expect(agentSrc).toContain('/api/v1/status/optical-nav');
     expect(agentSrc).toContain('/api/v1/status/landing');
@@ -122,7 +122,7 @@ describe('companion_agent observe-only vision / landing status', () => {
       fetch(`${base}/api/v1/status/video`).then((r) => r.json()),
       fetch(`${base}/api/v1/status/optical-nav`).then((r) => r.json()),
     ]);
-    expect(health.agentVersion).toBe('2.3.3');
+    expect(health.agentVersion).toBe('2.3.4');
     expect(health.vision.camera_ok).toBe(false);
     expect(health.landing.runway_detector).toBe(false);
     expect(health.landing.runway_detected).toBeNull();

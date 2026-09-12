@@ -55,7 +55,7 @@ describe('companion event bridge', () => {
     });
     const merged = mergeTelemetryWithCompanion(
       {
-        appVersion: '1.02.310',
+        appVersion: '1.02.311',
         mavlink: { connected: false },
         jetson: { online: false, cpuLoadPct: null, ageMs: null },
         vision: { confidence: null, ageMs: null },

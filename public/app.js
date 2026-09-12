@@ -3856,6 +3856,36 @@ function renderCameraInstallChecklist(container, checklist, { compact = false } 
   }
   container.appendChild(roles);
 
+  const camStatus = document.createElement('div');
+  camStatus.className = 'cic-cam-status';
+  for (const camId of ['cam1', 'cam2']) {
+    const detail = checklist.perCamera?.detail?.[camId] || {};
+    const roleHe = camId === 'cam1'
+      ? (checklist.roles?.cam1?.labelHe || 'קדמית')
+      : (checklist.roles?.cam2?.labelHe || 'מטה');
+    const line = document.createElement('div');
+    line.className = 'cic-cam-row';
+    line.dataset.cam = camId;
+    line.dataset.ok = detail.camera_ok === true ? 'true' : 'false';
+    const name = document.createElement('span');
+    name.textContent = detail.dry_run ? `${roleHe} · תרגיל יבש` : roleHe;
+    if (detail.dry_run) name.classList.add('cic-cam-dry');
+    const meta = document.createElement('span');
+    meta.className = 'cic-cam-meta';
+    if (detail.fps != null || detail.last_frame_age_ms != null) {
+      meta.dir = 'ltr';
+      const bits = [];
+      if (detail.fps != null) bits.push(String(detail.fps));
+      if (detail.last_frame_age_ms != null) bits.push(String(detail.last_frame_age_ms));
+      meta.textContent = bits.join(' · ');
+    } else {
+      meta.textContent = 'אין פריים';
+    }
+    line.append(name, meta);
+    camStatus.appendChild(line);
+  }
+  container.appendChild(camStatus);
+
   const list = document.createElement('ol');
   list.className = 'cic-steps';
   for (const step of checklist.steps || []) {
@@ -4880,6 +4910,7 @@ function applyCompanionUi(companion) {
   setCompanionText('companionVidRawPh', rawVideo);
   setCompanionText('companionVidAnnPh', annotatedVideo);
   setCompanionText('companionVidRes', companionText(video.resolution));
+  applyLiveCameraPreview(companion);
 
   renderCompanionChannels(companion.channels);
   const categories = Object.entries(fc.message_categories || {});
@@ -9532,6 +9563,84 @@ function initAnnotatedVisionPanel() {
 }
 
 initAnnotatedVisionPanel();
+
+function liveCameraDetail(companion, camId) {
+  const vision = companion?.vision || {};
+  const nav = companion?.opticalNav || companion?.optical_nav || {};
+  return vision.cameras?.[camId] || nav.cameras?.[camId] || companion?.extras?.cameras?.[camId] || {};
+}
+
+function applyLiveCameraPreview(companion) {
+  const panel = document.getElementById('liveCameraPanel');
+  const empty = document.getElementById('liveCameraEmpty');
+  if (!panel) return;
+  const src = companion && typeof companion === 'object' ? companion : {};
+  let anyFrame = false;
+  let anyDry = false;
+  for (const camId of ['cam1', 'cam2']) {
+    const detail = liveCameraDetail(src, camId);
+    const meta = document.getElementById(camId === 'cam1' ? 'liveCameraCam1Meta' : 'liveCameraCam2Meta');
+    const img = document.getElementById(camId === 'cam1' ? 'liveCameraCam1Frame' : 'liveCameraCam2Frame');
+    const ok = detail.camera_ok === true
+      && (Number(detail.fps) > 0 || Number(detail.last_frame_age_ms) >= 0 || Number(detail.frame_count) > 0);
+    if (detail.dry_run === true || detail.source === 'synthetic') anyDry = true;
+    if (meta) {
+      if (ok) {
+        meta.dir = 'ltr';
+        const bits = [];
+        if (detail.fps != null) bits.push(String(detail.fps));
+        if (detail.last_frame_age_ms != null) bits.push(String(detail.last_frame_age_ms));
+        meta.textContent = bits.join(' · ') || 'ok';
+      } else {
+        meta.removeAttribute('dir');
+        meta.textContent = 'אין פריים';
+      }
+    }
+    if (img) {
+      if (ok) {
+        img.hidden = false;
+        img.alt = camId === 'cam1' ? 'קדמית' : 'מטה';
+        img.src = `/api/jetson/v1/cameras/${camId}/frame?t=${Date.now()}`;
+        img.onerror = () => {
+          img.hidden = true;
+          if (meta) {
+            meta.removeAttribute('dir');
+            meta.textContent = 'אין פריים';
+          }
+        };
+        anyFrame = true;
+      } else {
+        img.hidden = true;
+        img.removeAttribute('src');
+      }
+    }
+  }
+  panel.dataset.state = anyFrame ? 'ok' : 'missing';
+  panel.dataset.dryRun = anyDry ? 'true' : 'false';
+  if (empty) {
+    empty.textContent = anyFrame
+      ? (anyDry ? 'תרגיל יבש. לא מצלמה אמיתית.' : 'פריים חי')
+      : 'אין פריים';
+  }
+}
+
+function initLiveCameraPanel() {
+  const toggle = document.getElementById('liveCameraToggle');
+  const panel = document.getElementById('liveCameraPanel');
+  if (!toggle || !panel) return;
+  toggle.addEventListener('click', () => {
+    const willOpen = panel.hasAttribute('hidden') || panel.classList.contains('hidden');
+    panel.toggleAttribute('hidden', !willOpen);
+    panel.classList.toggle('hidden', !willOpen);
+    toggle.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+    toggle.classList.toggle('active', willOpen);
+    if (willOpen && typeof latestCompanionFromServer === 'object') {
+      applyLiveCameraPreview(latestCompanionFromServer);
+    }
+  });
+}
+
+initLiveCameraPanel();
 
 // ── Topbar CONNECT widget (Mission Planner style) ──────────────────────────
 (() => {

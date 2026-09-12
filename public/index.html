@@ -1855,6 +1855,7 @@
                 <div class="pfd-horizon-chrome">
                   <button type="button" id="horizonVideoToggle" class="pfd-video-toggle" title="שכבת וידאו חי מהטיסן">וידאו</button>
                   <button type="button" id="annotatedVisionToggle" class="pfd-video-toggle" title="ראייה מסומנת ממחשב משימה — רק סלולר" aria-expanded="false" aria-controls="annotatedVisionPanel">ראייה</button>
+                  <button type="button" id="liveCameraToggle" class="pfd-video-toggle" title="פריים חי מהמצלמות — בלי המצאה" aria-expanded="false" aria-controls="liveCameraPanel">פריים</button>
                   <div id="horizonVideoPanel" class="pfd-video-panel hidden">
                     <span class="pfd-video-label">זרם וידאו חי מהטיסן (MJPEG / HLS / RTSP)</span>
                     <div>
@@ -1868,6 +1869,22 @@
                     <p class="mission-annotated-path">רק סלולר ממחשב משימה. לא ברדיו.</p>
                     <p id="annotatedVisionEmpty" class="mission-annotated-empty">אין שידור. מודם לא מחובר.</p>
                     <div id="annotatedVisionFrame" class="mission-annotated-frame" hidden></div>
+                  </div>
+                  <div id="liveCameraPanel" class="mission-live-camera hidden" hidden data-state="missing">
+                    <p class="mission-live-camera-kicker">פריים חי</p>
+                    <p id="liveCameraEmpty" class="mission-live-camera-empty">אין פריים</p>
+                    <div class="mission-live-camera-grid">
+                      <figure class="mission-live-camera-slot" data-cam="cam1">
+                        <figcaption id="liveCameraCam1Label" class="mission-live-camera-label">קדמית</figcaption>
+                        <p id="liveCameraCam1Meta" class="mission-live-camera-meta">אין פריים</p>
+                        <img id="liveCameraCam1Frame" class="mission-live-camera-frame" alt="" hidden />
+                      </figure>
+                      <figure class="mission-live-camera-slot" data-cam="cam2">
+                        <figcaption id="liveCameraCam2Label" class="mission-live-camera-label">מטה</figcaption>
+                        <p id="liveCameraCam2Meta" class="mission-live-camera-meta">אין פריים</p>
+                        <img id="liveCameraCam2Frame" class="mission-live-camera-frame" alt="" hidden />
+                      </figure>
+                    </div>
                   </div>
                 </div>
               </div>
