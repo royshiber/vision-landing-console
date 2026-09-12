@@ -75,7 +75,7 @@ Merge autonomy still on for independently VERIFIED safe draft PRs. Hard safety s
 
 ### This draft
 
-Live companion 2.3.1 had no vision/landing routes, so readiness stayed unknown. Repo agent 2.3.2 keeps the 2.3.1 UART fan-out and reports explicit `camera_ok: false` / `runway_detector: false` (absent). Landing path 404 stays not_implemented. Lock omitted stays unknown. Never invent detect or lock.
+Live companion 2.3.1 had no vision/landing routes, so readiness stayed unknown. Repo agent 2.3.3 keeps the 2.3.1 UART fan-out and reports explicit `camera_ok: false` / `runway_detector: false` / optical-nav `position: null` (absent). Landing path 404 stays not_implemented. Lock omitted stays unknown. Never invent detect, lock, or WGS84.
 
 ### Next pick
 

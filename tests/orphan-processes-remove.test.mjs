@@ -67,8 +67,8 @@ describe('Orphan #processes dead DOM REMOVE', () => {
     expect(css).not.toMatch(/@keyframes activePulse/);
   });
 
-  it('pins APP_VERSION at 1.02.299', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.299'");
-    expect(pkg.version).toBe('1.02.299');
+  it('pins APP_VERSION at 1.02.300', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.300'");
+    expect(pkg.version).toBe('1.02.300');
   });
 });

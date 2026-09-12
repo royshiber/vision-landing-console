@@ -4845,6 +4845,11 @@ const hudNavGpsVal     = document.getElementById('hudNavGpsVal');
 const pfcMsgPrimaryHe  = document.getElementById('pfcMsgPrimaryHe');
 const pfcMsgScroll     = document.getElementById('pfcMsgScroll');
 const pfdOptMini       = document.getElementById('pfdOptMini');
+const missionNavDisplayGps = document.getElementById('missionNavDisplayGps');
+const missionNavDisplayOptical = document.getElementById('missionNavDisplayOptical');
+const missionNavDisplayStatus = document.getElementById('missionNavDisplayStatus');
+const NAV_DISPLAY_STORAGE_KEY = 'visionLandingNavDisplayV1';
+var lastNavDisplayPref = 'gps';
 const pfdVoiceFlightBtn = document.getElementById('pfdVoiceFlightBtn');
 const pfdReadinessPopover = document.getElementById('pfdReadinessPopover');
 const pfdReadinessBody = document.getElementById('pfdReadinessBody');
@@ -5626,22 +5631,113 @@ function applyFlightHud(mav) {
   syncMissionLayoutChrome();
 }
 
-/** Update the optical-nav indicator (compact strip near FC messages). */
-function applyNavOpticalStatus(vision) {
-  if (!pfdOptMini) return;
-  const ageMs = vision?.ageMs;
-  const conf  = vision?.confidence;
-  const active = typeof ageMs === 'number' && ageMs < 3000;
-  if (!active) {
-    pfdOptMini.textContent = '👁 לא פעיל';
-    pfdOptMini.title = 'Vision — אין נתוני פריים אחרונים';
-    return;
+/** Keep in sync with lib/optical-nav.mjs (classic script, not a module). */
+function resolveNavDisplayPreference(value) {
+  return String(value || '').trim().toLowerCase() === 'optical' ? 'optical' : 'gps';
+}
+
+function readNavDisplayPreference() {
+  try {
+    return resolveNavDisplayPreference(localStorage.getItem(NAV_DISPLAY_STORAGE_KEY));
+  } catch {
+    return 'gps';
   }
-  const pct = typeof conf === 'number' ? `${Math.round(conf * 100)}%` : '';
-  pfdOptMini.textContent = pct ? `👁 ${pct}` : '👁 פעיל';
-  pfdOptMini.title = pct
-    ? `Vision פעיל — ביטחון ${pct}`
-    : 'Vision פעיל';
+}
+
+function persistNavDisplayPreference(value) {
+  const next = resolveNavDisplayPreference(value);
+  lastNavDisplayPref = next;
+  try { localStorage.setItem(NAV_DISPLAY_STORAGE_KEY, next); } catch { /* ignore */ }
+  return next;
+}
+
+function normalizeOpticalNavClient(raw) {
+  const src = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : null;
+  if (!src) {
+    return {
+      present: false,
+      running: false,
+      camera_ok: false,
+      lat: null,
+      lon: null,
+      age_ms: null,
+      confidence: null,
+    };
+  }
+  const pos = src.position && typeof src.position === 'object' ? src.position : {};
+  const latN = Number(pos.lat ?? pos.latitude ?? src.lat ?? src.navLat);
+  const lonN = Number(pos.lon ?? pos.lng ?? pos.longitude ?? src.lon ?? src.navLon);
+  const lat = Number.isFinite(latN) ? latN : null;
+  const lon = Number.isFinite(lonN) ? lonN : null;
+  const confN = Number(src.confidence ?? src.quality?.confidence);
+  const ageN = Number(src.age_ms ?? src.ageMs);
+  return {
+    present: src.present === true,
+    running: src.running === true,
+    camera_ok: src.camera_ok === true || src.cameraOk === true,
+    lat,
+    lon,
+    age_ms: Number.isFinite(ageN) ? ageN : null,
+    confidence: Number.isFinite(confN) ? confN : null,
+  };
+}
+
+function opticalNavHasFixClient(nav) {
+  return nav?.camera_ok === true
+    && nav?.running === true
+    && Number.isFinite(nav?.lat)
+    && Number.isFinite(nav?.lon);
+}
+
+function opticalNavStatusHeClient(nav) {
+  if (!nav) return { text: '--', title: 'אין דיווח ניווט אופטי' };
+  if (nav.camera_ok !== true) return { text: '--', title: 'אין מצלמה לניווט אופטי' };
+  if (nav.running !== true) return { text: '--', title: 'אומדן אופטי לא רץ' };
+  if (!opticalNavHasFixClient(nav)) {
+    const age = Number.isFinite(nav.age_ms) ? `גיל ${Math.round(nav.age_ms)}ms` : 'אין מיקום';
+    return { text: '--', title: `אופטי רץ. ${age}` };
+  }
+  const pct = Number.isFinite(nav.confidence) ? `${Math.round(nav.confidence * 100)}%` : '';
+  return {
+    text: pct || 'פעיל',
+    title: pct ? `אופטי פעיל · ביטחון ${pct}` : 'אופטי פעיל',
+  };
+}
+
+function applyNavDisplayToggleUi(pref) {
+  const source = resolveNavDisplayPreference(pref);
+  lastNavDisplayPref = source;
+  if (missionNavDisplayGps) missionNavDisplayGps.setAttribute('aria-pressed', source === 'gps' ? 'true' : 'false');
+  if (missionNavDisplayOptical) missionNavDisplayOptical.setAttribute('aria-pressed', source === 'optical' ? 'true' : 'false');
+  document.getElementById('missionNavDisplay')?.setAttribute('data-source', source);
+}
+
+function setNavDisplayPreference(value) {
+  const next = persistNavDisplayPreference(value);
+  applyNavDisplayToggleUi(next);
+  try { updateFlightOverlaysOnAllMaps(lastSseTerrainPayload || {}); } catch { /* ignore */ }
+  return next;
+}
+
+function initMissionNavDisplay() {
+  applyNavDisplayToggleUi(readNavDisplayPreference());
+  missionNavDisplayGps?.addEventListener('click', () => setNavDisplayPreference('gps'));
+  missionNavDisplayOptical?.addEventListener('click', () => setNavDisplayPreference('optical'));
+}
+
+/** Update optical-nav honesty (toggle status + compact strip). Never invents a fix. */
+function applyNavOpticalStatus(vision, companion) {
+  const nav = normalizeOpticalNavClient(
+    companion?.opticalNav || companion?.optical_nav || vision?.opticalNav || vision?.optical_nav,
+  );
+  const status = opticalNavStatusHeClient(nav);
+  if (missionNavDisplayStatus) {
+    missionNavDisplayStatus.textContent = status.text;
+    missionNavDisplayStatus.title = status.title;
+  }
+  if (!pfdOptMini) return;
+  pfdOptMini.textContent = status.text === '--' ? '👁 --' : `👁 ${status.text}`;
+  pfdOptMini.title = status.title;
 }
 
 function applyFcStatustextHud(mavlink) {
@@ -6094,7 +6190,8 @@ function applySseTelemetryPayload(payload) {
   try { applyVisionUi(payload.vision); } catch (err) { console.warn('SSE vision UI failed', err); }
   try { applySlamUi(payload.slam); } catch (err) { console.warn('SSE slam UI failed', err); }
   try { applyCompanionUi(payload.companion); } catch (err) { console.warn('SSE companion UI failed', err); }
-  try { applyNavOpticalStatus(payload.vision); } catch (err) { console.warn('SSE nav optical failed', err); }
+  try { applyNavOpticalStatus(payload.vision, payload.companion); } catch (err) { console.warn('SSE nav optical failed', err); }
+  try { payload.navDisplay = { source: readNavDisplayPreference(), displayOnly: true }; } catch { /* ignore */ }
   try { applyHudCustomSlots(payload); } catch (err) { console.warn('SSE HUD slots failed', err); }
   try { applyMissionDataGrid(payload); } catch (err) { console.warn('SSE mission grid failed', err); }
   try {
@@ -8335,7 +8432,12 @@ function applyFlightOverlayToMap(map, layers) {
     layers.replayTrack = null;
   }
 
-  if (mapData && Number.isFinite(mapData.gpsLat) && Number.isFinite(mapData.gpsLon)) {
+  const displayPref = readNavDisplayPreference();
+  const gpsOk = mapData && Number.isFinite(mapData.gpsLat) && Number.isFinite(mapData.gpsLon);
+  const opticalOk = vision && Number.isFinite(vision.navLat) && Number.isFinite(vision.navLon);
+  const bothTracks = Boolean(gpsOk && opticalOk);
+
+  if (gpsOk) {
     const src = mapData.gpsSource;
     const planeTitle =
       src === 'SIMLAB_REPLAY'
@@ -8343,28 +8445,37 @@ function applyFlightOverlayToMap(map, layers) {
         : src === 'GLOBAL_POS'
           ? 'GPS / מיקום מסונן (EKF)'
           : 'GPS / DR';
+    const gpsPrimary = displayPref !== 'optical' || !opticalOk;
+    const gpsColor = gpsPrimary ? '#0b6bcb' : '#64748b';
     if (!layers.gps) {
       layers.gps = L.marker([mapData.gpsLat, mapData.gpsLon], {
-        icon: terrainPlaneDivIcon('#0b6bcb', hdg),
-        title: planeTitle,
+        icon: terrainPlaneDivIcon(gpsColor, hdg),
+        title: bothTracks ? `${planeTitle} · מסלול GPS` : planeTitle,
+        zIndexOffset: gpsPrimary ? 400 : 200,
       }).addTo(map);
     } else {
       layers.gps.setLatLng([mapData.gpsLat, mapData.gpsLon]);
-      layers.gps.setIcon(terrainPlaneDivIcon('#0b6bcb', hdg));
+      layers.gps.setIcon(terrainPlaneDivIcon(gpsColor, hdg));
+      layers.gps.setZIndexOffset(gpsPrimary ? 400 : 200);
     }
   } else if (layers.gps) {
     map.removeLayer(layers.gps);
     layers.gps = null;
   }
 
-  if (vision && Number.isFinite(vision.navLat) && Number.isFinite(vision.navLon)) {
+  if (opticalOk) {
+    const opticalPrimary = displayPref === 'optical';
+    const opticalColor = opticalPrimary ? '#ea580c' : '#9a3412';
     if (!layers.vision) {
       layers.vision = L.marker([vision.navLat, vision.navLon], {
-        icon: terrainPlaneDivIcon('#ea580c', null),
+        icon: terrainPlaneDivIcon(opticalColor, null),
         title: 'ניווט אופטי',
+        zIndexOffset: opticalPrimary ? 400 : 220,
       }).addTo(map);
     } else {
       layers.vision.setLatLng([vision.navLat, vision.navLon]);
+      layers.vision.setIcon(terrainPlaneDivIcon(opticalColor, null));
+      layers.vision.setZIndexOffset(opticalPrimary ? 400 : 220);
     }
   } else if (layers.vision) {
     map.removeLayer(layers.vision);
@@ -15886,6 +15997,7 @@ function initMissionLayout() {
   bindMissionSplitters();
   initMissionMessages();
   initMissionDataPicker();
+  initMissionNavDisplay();
   window.addEventListener('resize', () => requestAnimationFrame(placeMissionSplits));
 }
 

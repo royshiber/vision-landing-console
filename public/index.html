@@ -1755,12 +1755,20 @@
 
       <section id="terrain" class="panel visible" data-workspace="mission">
         <div class="mission-ops-chrome">
-          <nav id="missionLinkStrip" class="mission-link-strip" aria-label="סטטוס קישורים">
-            <span class="mission-link-chip" data-link="radio" data-state="off" data-quality="unknown"><i class="mission-link-dots" aria-hidden="true"></i>רדיו</span>
-            <span class="mission-link-chip" data-link="cellular" data-state="absent" data-quality="unknown"><i class="mission-link-dots" aria-hidden="true"></i>סלולר</span>
-            <span class="mission-link-chip" data-link="home" data-state="off" data-quality="unknown"><i class="mission-link-dots" aria-hidden="true"></i>בית</span>
-            <span class="mission-link-chip" data-link="rc" data-state="off" data-quality="unknown"><i class="mission-link-dots" aria-hidden="true"></i>RC</span>
-          </nav>
+          <div class="mission-ops-leading">
+            <nav id="missionLinkStrip" class="mission-link-strip" aria-label="סטטוס קישורים">
+              <span class="mission-link-chip" data-link="radio" data-state="off" data-quality="unknown"><i class="mission-link-dots" aria-hidden="true"></i>רדיו</span>
+              <span class="mission-link-chip" data-link="cellular" data-state="absent" data-quality="unknown"><i class="mission-link-dots" aria-hidden="true"></i>סלולר</span>
+              <span class="mission-link-chip" data-link="home" data-state="off" data-quality="unknown"><i class="mission-link-dots" aria-hidden="true"></i>בית</span>
+              <span class="mission-link-chip" data-link="rc" data-state="off" data-quality="unknown"><i class="mission-link-dots" aria-hidden="true"></i>RC</span>
+            </nav>
+            <div id="missionNavDisplay" class="mission-nav-display" role="radiogroup" aria-label="תצוגת מיקום">
+              <span class="mission-nav-display-kicker" title="תצוגה בלבד. לא מחליף את מקור הניווט בבקר.">תצוגה</span>
+              <button type="button" id="missionNavDisplayGps" class="mission-nav-display-btn" data-nav-display="gps" aria-pressed="true" title="הצג ושמור לפי GPS">GPS</button>
+              <button type="button" id="missionNavDisplayOptical" class="mission-nav-display-btn" data-nav-display="optical" aria-pressed="false" title="הצג ושמור לפי אופטי. תצוגה בלבד.">אופטי</button>
+              <span id="missionNavDisplayStatus" class="mission-nav-display-status" title="ניווט אופטי">--</span>
+            </div>
+          </div>
           <p id="missionIdentity" class="mission-identity">הטסה · מרחב טיסה</p>
           <button type="button" id="missionRecordBtn" class="mission-record-btn" data-recording="0" aria-pressed="false" title="התחילו שמירת טיסה לארכיון">הקלטה</button>
           <button type="button" id="missionReadinessGlance" class="mission-readiness-glance" title="מוכנות">מוכנות</button>

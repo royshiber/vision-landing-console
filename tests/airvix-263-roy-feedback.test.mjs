@@ -42,9 +42,9 @@ function cssBlock(src, selector) {
 }
 
 describe('AIRVIX 1.02.264 flyable Mission layout', () => {
-  it('pins APP_VERSION at 1.02.299', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.299'");
-    expect(pkg.version).toBe('1.02.299');
+  it('pins APP_VERSION at 1.02.300', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.300'");
+    expect(pkg.version).toBe('1.02.300');
   });
 
   it('keeps the map as the majority workspace and sizes the PFD in the readable band', () => {

@@ -9610,16 +9610,67 @@ html[data-evolve-preview="1"] #development {
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   pointer-events: auto;
 }
+.mission-ops-leading {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 6px;
+  margin-inline-end: auto;
+  min-width: 0;
+  max-width: min(72vw, 520px);
+}
 .mission-link-strip {
   display: inline-flex;
   flex-wrap: nowrap;
   align-items: center;
   gap: 4px;
-  margin-inline-end: auto;
   min-width: 0;
   max-width: min(52vw, 360px);
   overflow: hidden;
   direction: rtl;
+}
+.mission-nav-display {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 3px;
+  min-height: 20px;
+  padding: 0 2px;
+  flex: 0 0 auto;
+}
+.mission-nav-display-kicker {
+  font-size: 0.55rem;
+  font-weight: 700;
+  color: #94a3b8;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.mission-nav-display-btn {
+  margin: 0;
+  padding: 0 7px;
+  min-height: 20px;
+  height: 20px;
+  border: 1px solid rgba(148, 163, 184, 0.32);
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.45);
+  color: #94a3b8;
+  font: inherit;
+  font-size: 0.58rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.mission-nav-display-btn[aria-pressed="true"] {
+  border-color: rgba(125, 211, 252, 0.55);
+  background: rgba(14, 116, 144, 0.28);
+  color: #e0f2fe;
+}
+.mission-nav-display-status {
+  min-width: 1.4em;
+  font-size: 0.55rem;
+  font-weight: 700;
+  color: #94a3b8;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 .mission-link-chip {
   display: inline-flex;
