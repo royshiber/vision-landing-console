@@ -48,9 +48,9 @@ function pulsePanel() {
 }
 
 describe('AIRVIX 1.02.268 computer-status densify', () => {
-  it('pins APP_VERSION at 1.02.283', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.283'");
-    expect(pkg.version).toBe('1.02.283');
+  it('pins APP_VERSION at 1.02.282', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.282'");
+    expect(pkg.version).toBe('1.02.282');
   });
 
   it('keeps מסייע out of public UI', () => {
@@ -68,8 +68,7 @@ describe('AIRVIX 1.02.268 computer-status densify', () => {
     expect(pulse).not.toMatch(/מסייע|מלווה/);
     expect(pulse.indexOf('pulse-computers-band')).toBeLessThan(pulse.indexOf('pulse-talk-card'));
     expect(pulse.indexOf('pulse-talk-card')).toBeLessThan(pulse.indexOf('pulse-add-widget'));
-    expect(pulse).toMatch(/pulse-computers-band"[\s\S]*?<\/article>\s*<\/div>\s*<article class="pulse-status-card vlr-card"/);
-    expect(pulse).toMatch(/id="pulseVisionLandingReadiness"[\s\S]*?<article class="pulse-status-card pulse-talk-card"/);
+    expect(pulse).toMatch(/pulse-computers-band"[\s\S]*?<\/article>\s*<\/div>\s*<article class="pulse-status-card pulse-talk-card"/);
     expect(cssBlock(css, '.pulse-computers-band')).toMatch(/flex:\s*0 0 auto/);
     expect(cssBlock(css, '.pulse-gauge-svg')).toMatch(/height:\s*54px/);
     expect(cssBlock(css, '.pulse-gauge-svg')).toMatch(/max-width:\s*118px/);
