@@ -1,5 +1,63 @@
 [
   {
+<<<<<<< HEAD
+=======
+    "version": "1.02.284",
+    "date": "2026-09-12",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Companion TCP 5770, live-radio HUD, and version-mismatch banner",
+        "detail": "APP_VERSION 1.02.284. Merge of Companion one-click Jetson TCP :5770, SSE/HUD following the live radio, cold-load paint, no empty SSE catch, and a banner when app.js?v= disagrees with the server. No flight commands. No Companion apply/restart."
+      }
+    ]
+  },
+  {
+    "version": "1.02.286",
+    "date": "2026-09-12",
+    "changes": [
+      {
+        "type": "fix",
+        "title": "Version mismatch banner; keep SSE warn and Companion TCP 5770",
+        "detail": "APP_VERSION 1.02.286. If the loaded app.js?v= query or meta tag does not match /api/meta, show a banner instead of guessing a stale tab. SSE apply still console.warn (no empty catch). Companion connect still opens Jetson TCP :5770. No flight commands."
+      }
+    ]
+  },
+  {
+    "version": "1.02.285",
+    "date": "2026-09-12",
+    "changes": [
+      {
+        "type": "fix",
+        "title": "Fix stale app.js cache-bust and TDZ that blocked SSE",
+        "detail": "APP_VERSION 1.02.285. index.html cache-bust is always injected from version.js; raw static index is disabled and HTML is no-store. If the page version lags /api/meta, reload once. assistPendingProposalId, terrainMap, and latestJetsonFromServer are var-declared at the top of app.js so EventSource boot cannot TDZ. SSE starts after parse (queueMicrotask) and apply errors console.warn. Companion one-click still opens Jetson TCP :5770. No flight commands."
+      }
+    ]
+  },
+  {
+    "version": "1.02.284",
+    "date": "2026-09-12",
+    "changes": [
+      {
+        "type": "fix",
+        "title": "Paint Mission HUD and connect pill within one second of hard refresh",
+        "detail": "APP_VERSION 1.02.284. Cold load fetches /api/links immediately and SSE sends the first telemetry snapshot on connect. Mission HUD/STATUSTEXT apply first and isolated; other SSE UI failures console.warn instead of aborting the chain. AH keeps roll/pitch when alt/IAS/GPS are missing. STATUSTEXT shows English immediately then Hebrew. Companion one-click still opens Jetson TCP :5770. No flight commands."
+      }
+    ]
+  },
+  {
+    "version": "1.02.283",
+    "date": "2026-09-12",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Experiment #1 readiness: PIC hand-fly, observe-only runway",
+        "detail": "APP_VERSION 1.02.283. Locked Experiment #1 copy: fixed-wing final, PIC hand-fly, observe-only runway detection mandatory. Operator question is אפשר להתחיל ניסוי אחד. Scope is גישה סופית. טייס מטיס. זיהוי מסלול לצפייה בלבד. Annotations and lock-status are follow-ons and do not block #1. Flight commands stay gated because the PIC hand-flies (Issue #29). Camera and heartbeat never invent OK. No Companion-real widening and no flight-command send."
+      }
+    ]
+  },
+  {
+>>>>>>> 68a8788 (Bump APP_VERSION to 1.02.284 after rebase onto master 1.02.283.)
     "version": "1.02.282",
     "date": "2026-09-12",
     "changes": [

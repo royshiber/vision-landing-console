@@ -209,8 +209,8 @@ describe('Flight Engineer → Assist fold — chrome', () => {
     expect(html).toContain('id="pfdVoiceFlightBtn"');
   });
 
-  it('pins APP_VERSION at 1.02.283', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.283'");
-    expect(pkg.version).toBe('1.02.283');
+  it('pins APP_VERSION at 1.02.284', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.284'");
+    expect(pkg.version).toBe('1.02.284');
   });
 });
