@@ -3562,6 +3562,63 @@ function pulseRefreshVersionOffers() {
   }
 }
 
+let latestVisionLandingReadiness = null;
+
+function renderVisionLandingReadiness(container, snapshot) {
+  if (!container) return;
+  container.innerHTML = '';
+  const rows = Array.isArray(snapshot?.rows) ? snapshot.rows : [];
+  for (const row of rows) {
+    const art = document.createElement('article');
+    art.className = 'vlr-row';
+    art.dataset.id = String(row.id || '');
+    art.dataset.state = String(row.state || '');
+    art.dataset.tone = String(row.tone || 'off');
+    const name = document.createElement('span');
+    name.className = 'vlr-name';
+    name.textContent = row.nameHe || '';
+    const chip = document.createElement('span');
+    chip.className = 'vlr-chip';
+    chip.textContent = row.stateHe || '';
+    const miss = document.createElement('p');
+    miss.className = 'vlr-missing';
+    miss.textContent = row.missingHe || '';
+    art.append(name, chip, miss);
+    if (Array.isArray(row.tokens) && row.tokens.length) {
+      const toks = document.createElement('div');
+      toks.className = 'vlr-tokens';
+      toks.setAttribute('dir', 'ltr');
+      for (const token of row.tokens) {
+        const s = document.createElement('span');
+        s.className = 'vlr-token';
+        s.textContent = String(token);
+        toks.appendChild(s);
+      }
+      art.appendChild(toks);
+    }
+    container.appendChild(art);
+  }
+}
+
+function paintVisionLandingReadiness(snapshot) {
+  if (!snapshot || snapshot.ok === false) return;
+  latestVisionLandingReadiness = snapshot;
+  renderVisionLandingReadiness(document.getElementById('visionLandingReadinessList'), snapshot);
+  const popoverOpen = pfdReadinessPopover && !pfdReadinessPopover.classList.contains('hidden');
+  if (popoverOpen) renderVisionLandingReadiness(pfdReadinessBody, snapshot);
+}
+
+async function refreshVisionLandingReadiness() {
+  try {
+    const r = await fetch('/api/vision/landing-readiness', { cache: 'no-store' });
+    const snapshot = await r.json();
+    if (!r.ok || snapshot?.ok === false) return;
+    paintVisionLandingReadiness(snapshot);
+  } catch {
+    /* keep last honest snapshot */
+  }
+}
+
 function pulseRefresh() {
   const versionEl = document.getElementById('pulseVersion');
   const companionEl = document.getElementById('pulseCompanion');
@@ -3642,6 +3699,7 @@ function pulseRefresh() {
   pulseRefreshVersionOffers();
   if (typeof refreshPulseExtraWidgets === 'function') refreshPulseExtraWidgets();
   if (typeof platformRefresh === 'function') platformRefresh();
+  void refreshVisionLandingReadiness();
 }
 
 function platformMaintLabel() {
@@ -4540,6 +4598,7 @@ const pfdReadinessPopover = document.getElementById('pfdReadinessPopover');
 const pfdReadinessBody = document.getElementById('pfdReadinessBody');
 const pfdReadinessCloseBtn = document.getElementById('pfdReadinessCloseBtn');
 const pfdReadinessDiagBtn = document.getElementById('pfdReadinessDiagBtn');
+const pfdReadinessStatusBtn = document.getElementById('pfdReadinessStatusBtn');
 const missionReadinessGlance = document.getElementById('missionReadinessGlance');
 let _readinessAnchor = null;
 // Kept as null — removed from HTML
@@ -5323,50 +5382,24 @@ function positionPfdReadinessPopover() {
   const anchor = _readinessAnchor || missionReadinessGlance || pfdArmedBadge;
   if (!pfdReadinessPopover || !anchor || pfdReadinessPopover.classList.contains('hidden')) return;
   const r = anchor.getBoundingClientRect();
-  const w = Math.min(300, window.innerWidth - 16);
+  const w = Math.min(360, window.innerWidth - 16);
   const left = Math.max(8, Math.min(r.left, window.innerWidth - w - 8));
   pfdReadinessPopover.style.width = `${w}px`;
   pfdReadinessPopover.style.left = `${left}px`;
   pfdReadinessPopover.style.top = `${Math.min(r.bottom + 6, window.innerHeight - 120)}px`;
 }
 
-function buildReadinessListHtml(m) {
+function buildReadinessListHtml(_m) {
   if (!pfdReadinessBody) return;
+  if (latestVisionLandingReadiness?.rows) {
+    renderVisionLandingReadiness(pfdReadinessBody, latestVisionLandingReadiness);
+    return;
+  }
   pfdReadinessBody.innerHTML = '';
-  const ul = document.createElement('ul');
-  function addLi(text) {
-    const li = document.createElement('li');
-    li.textContent = text;
-    ul.appendChild(li);
-  }
-  if (!m || !m.connected) {
-    addLi('אין חיבור לבקר הטיסה — התחבר בווידג׳ט MAVLink למעלה.');
-  } else {
-    if (m.armedKnown === false || m.armedKnown == null) {
-      addLi('לא התקבל heartbeat עם מצב ARM ברור — בדוק קישור ו-sys/comp.');
-    } else if (m.armed === true) {
-      addLi('המטוס במצב ARM — מנוע/מדחף פעילים לפי היחידה.');
-    } else {
-      addLi('DISARM — כבוי להפעלה; ארמה מותנית במצבים תקינים (GPS/פרה‑ארם וכו׳).');
-    }
-    const fix = m.gpsFixType;
-    if (typeof fix === 'number') {
-      addLi(fix >= 3 ? `GPS: תיקון מספיק לרוב המצבים (${fix}).` : `GPS: תיקון חלש (${fix}) — עשוי לחסום ARM או ניווט.`);
-    } else addLi('GPS: לא התקבל עדיין ערך תיקון.');
-
-    if (typeof m.batteryV === 'number') {
-      addLi(`סוללה: ${m.batteryV.toFixed(1)} V${m.batteryPct != null ? ` — ${m.batteryPct}%` : ''}.`);
-    }
-    const rsts = Array.isArray(m.recentStatusTexts) ? m.recentStatusTexts : [];
-    const critical = rsts.filter((x) => typeof x.severity === 'number' && x.severity <= 4 && String(x.text || '').trim());
-    if (critical.length) {
-      addLi('הודעות אחרונות מהבקר:');
-      critical.slice(0, 5).forEach((c) => {
-        addLi(`[${c.severity}] ${c.text}`);
-      });
-    }
-  }
-  pfdReadinessBody.appendChild(ul);
+  const p = document.createElement('p');
+  p.className = 'vlr-missing';
+  p.textContent = 'טוענים מוכנות נחיתה לפי ראייה';
+  pfdReadinessBody.appendChild(p);
 }
 
 function openPfdReadinessPopover(anchor) {
@@ -5375,6 +5408,15 @@ function openPfdReadinessPopover(anchor) {
   buildReadinessListHtml(latestHudMavlink);
   pfdReadinessPopover.classList.remove('hidden');
   positionPfdReadinessPopover();
+  void refreshVisionLandingReadiness();
+}
+
+function openStatusReadiness() {
+  closePfdReadinessPopover();
+  applyMainTab('pulse');
+  const panel = document.getElementById('visionLandingReadiness');
+  panel?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  void refreshVisionLandingReadiness();
 }
 
 function closePfdReadinessPopover() {
@@ -5407,6 +5449,11 @@ function setupFlightHudChromeHandlers() {
   });
   missionReadinessGlance?.addEventListener('click', (e) => toggleReadinessPopover(e, missionReadinessGlance));
   pfdReadinessCloseBtn?.addEventListener('click', () => closePfdReadinessPopover());
+  pfdReadinessStatusBtn?.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    openStatusReadiness();
+  });
   pfdReadinessDiagBtn?.addEventListener('click', (e) => {
     e.preventDefault();
     e.stopPropagation();

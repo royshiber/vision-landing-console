@@ -4819,6 +4819,120 @@ body:has(#pulse.panel.visible) .layout {
   color: #8b97ab;
   text-align: center;
 }
+.vlr-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #121826;
+  border: 1px solid rgba(148, 168, 198, 0.14);
+}
+.vlr-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.vlr-title {
+  margin: 0;
+  font-size: 0.86rem;
+  font-weight: 800;
+  color: #f2f6fb;
+}
+.vlr-purpose {
+  margin: 0;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #8b97ab;
+}
+.vlr-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.vlr-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "name chip"
+    "missing missing"
+    "tokens tokens";
+  gap: 2px 10px;
+  align-items: center;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: rgba(8, 12, 20, 0.45);
+  border: 1px solid rgba(148, 168, 198, 0.08);
+}
+.vlr-name {
+  grid-area: name;
+  font-size: 0.76rem;
+  font-weight: 800;
+  color: #e8edf6;
+}
+.vlr-chip {
+  grid-area: chip;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 4.5rem;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 800;
+  line-height: 1.4;
+  background: rgba(148, 168, 198, 0.12);
+  color: #9aa8b8;
+}
+.vlr-row[data-tone="ok"] .vlr-chip {
+  background: rgba(61, 214, 140, 0.16);
+  color: #86efac;
+}
+.vlr-row[data-tone="warn"] .vlr-chip {
+  background: rgba(253, 230, 138, 0.14);
+  color: #fde68a;
+}
+.vlr-row[data-tone="bad"] .vlr-chip {
+  background: rgba(240, 113, 103, 0.16);
+  color: #fca5a5;
+}
+.vlr-row[data-tone="off"] .vlr-chip,
+.vlr-row[data-tone="closed"] .vlr-chip {
+  background: rgba(148, 168, 198, 0.1);
+  color: #94a3b8;
+}
+.vlr-missing {
+  grid-area: missing;
+  margin: 0;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: #8b97ab;
+}
+.vlr-missing:empty {
+  display: none;
+}
+.vlr-tokens {
+  grid-area: tokens;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.vlr-token {
+  display: inline-flex;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  background: rgba(148, 168, 198, 0.1);
+  color: #cbd5e1;
+}
+.pfd-readiness-body .vlr-list {
+  gap: 6px;
+}
+.pfd-readiness-body .vlr-row {
+  padding: 5px 6px;
+}
 .pulse-computer-metrics {
   display: grid;
   gap: 4px;
