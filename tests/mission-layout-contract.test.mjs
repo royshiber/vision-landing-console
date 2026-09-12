@@ -80,7 +80,7 @@ describe('Mission layout contract — static source', () => {
     expect(css).toMatch(/\.mission-region-horizon \.flight-hud \{[^}]*height:\s*var\(--mission-ah-row/);
     expect(css).toMatch(/\.mission-region-horizon \.flight-hud \{[^}]*min-height:\s*52%/);
     expect(css).toMatch(/\.mission-region-horizon \.flight-hud \{[^}]*max-height:\s*70%/);
-    expect(cssBlock(css, '.mission-horizon-filler')).toMatch(/flex:\s*0 1 auto/);
+    expect(cssBlock(css, '.mission-horizon-filler')).toMatch(/flex:\s*0 1 0/);
     expect(cssBlock(css, '.mission-horizon-filler')).toMatch(/max-height:\s*18%/);
     expect(cssBlock(css, '.mission-horizon-filler')).toMatch(/background:\s*#1e293b/);
     expect(cssBlock(css, '.mission-region-messages[data-messages-expanded="0"]')).toMatch(/max-height:\s*40px/);
@@ -484,22 +484,26 @@ describe('Mission layout contract — live boxes', () => {
     await writeShot(page, 'mission-assist-collapsed.png');
   }, 20000);
 
-  it('grows messages as an overlay drawer instead of a grid row', async () => {
-    await page.click('#missionMessagesToggle');
+  it('grows messages inside the AH stack without covering the map', async () => {
+    await page.evaluate(() => document.getElementById('missionMessagesToggle')?.click());
     const expanded = await page.evaluate(() => {
       const region = document.querySelector('[data-mission-region="messages"]');
       const map = document.querySelector('[data-mission-region="map"]');
+      const horizon = document.querySelector('[data-mission-region="horizon"]');
       const ws = document.querySelector('.mission-workspace');
       const rr = region.getBoundingClientRect();
       const mr = map.getBoundingClientRect();
+      const hr = horizon.getBoundingClientRect();
       const wr = ws.getBoundingClientRect();
+      const overlap = rr.left < mr.right - 1 && rr.right > mr.left + 1
+        && rr.top < mr.bottom - 1 && rr.bottom > mr.top + 1;
       return {
         expanded: region.dataset.messagesExpanded,
         msgH: rr.height,
         mapH: mr.height,
         wsH: wr.height,
-        msgBottom: rr.bottom,
-        mapBottom: mr.bottom,
+        overlap,
+        insideHorizon: rr.left >= hr.left - 2 && rr.right <= hr.right + 2,
         rows: getComputedStyle(ws).gridTemplateRows,
       };
     });
@@ -507,10 +511,11 @@ describe('Mission layout contract — live boxes', () => {
     expect(expanded.msgH).toBeGreaterThan(40);
     expect(expanded.msgH).toBeLessThanOrEqual(expanded.wsH * 0.45);
     expect(expanded.mapH / expanded.wsH).toBeGreaterThanOrEqual(0.65);
-    expect(Math.abs(expanded.msgBottom - expanded.mapBottom)).toBeLessThan(16);
+    expect(expanded.overlap).toBe(false);
+    expect(expanded.insideHorizon).toBe(true);
     expect(expanded.rows.split(' ').filter(Boolean).length).toBe(1);
     await writeShot(page, 'mission-aircraft-messages.png');
-    await page.click('#missionMessagesToggle');
+    await page.evaluate(() => document.getElementById('missionMessagesToggle')?.click());
   }, 20000);
 
   it('keeps Pulse extra cards in flow without stacking', async () => {

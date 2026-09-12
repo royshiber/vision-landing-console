@@ -9925,8 +9925,9 @@ html[data-evolve-preview="1"] #development {
   z-index: 2;
   width: auto;
   height: var(--mission-msg-h);
-  min-height: 0;
+  min-height: 40px;
   flex: 0 0 auto;
+  margin-top: auto;
   pointer-events: auto;
 }
 .mission-region[data-mission-region="talk"] {
@@ -10520,7 +10521,7 @@ html[data-evolve-preview="1"] #development {
   overflow: hidden;
 }
 .mission-horizon-filler {
-  flex: 0 1 auto;
+  flex: 0 1 0;
   max-height: 18%;
   min-height: 0;
   margin-top: 0;
