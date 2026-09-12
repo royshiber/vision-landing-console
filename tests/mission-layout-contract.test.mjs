@@ -277,7 +277,7 @@ describe('Mission layout contract — live boxes', () => {
     });
 
     expect(measured.platformTab).toBe(false);
-    expect(measured.version).toBe('1.02.294');
+    expect(measured.version).toBe('1.02.295');
     expect(measured.ws.width).toBeGreaterThan(800);
     expect(measured.talkMinWidth).toBe('240px');
     expect(Number.parseFloat(measured.dataGap)).toBeLessThanOrEqual(4);
@@ -518,6 +518,54 @@ describe('Mission layout contract — live boxes', () => {
     expect(expanded.rows.split(' ').filter(Boolean).length).toBe(1);
     await writeShot(page, 'mission-aircraft-messages.png');
     await page.evaluate(() => document.getElementById('missionMessagesToggle')?.click());
+  }, 20000);
+
+  it('does not clip mission-data glyphs when the connect phrase is long', async () => {
+    const clip = await page.evaluate(() => {
+      const pill = document.getElementById('connectPillLabel');
+      if (pill) pill.textContent = 'מחובר · טלמטריה רגילה';
+      if (typeof applyMissionDataGrid === 'function') applyMissionDataGrid({});
+      const link = document.getElementById('missionLink');
+      const tiles = [...document.querySelectorAll('.mission-data-tile')].map((el) => {
+        const label = el.querySelector('.mission-data-label');
+        const value = el.querySelector('.mission-data-value');
+        const cs = (node) => (node ? getComputedStyle(node) : null);
+        return {
+          tileH: el.getBoundingClientRect().height,
+          labelH: label?.getBoundingClientRect().height || 0,
+          valueH: value?.getBoundingClientRect().height || 0,
+          labelOverflow: label ? label.scrollHeight - label.clientHeight : 0,
+          valueOverflow: value ? value.scrollHeight - value.clientHeight : 0,
+          labelWrap: cs(label)?.whiteSpace,
+          valueWrap: cs(value)?.whiteSpace,
+        };
+      });
+      const pillCs = getComputedStyle(pill);
+      const alt = document.getElementById('hudAltitude');
+      return {
+        linkText: link?.textContent,
+        linkTitle: link?.title,
+        altText: alt?.textContent,
+        altTitle: alt?.title,
+        tiles,
+        pillWrap: pillCs.whiteSpace,
+        pillOverflow: pill.scrollHeight - pill.clientHeight,
+      };
+    });
+    expect(clip.linkText).toBe('מחובר');
+    expect(clip.linkTitle).toContain('טלמטריה');
+    expect(clip.altText).toBe('--');
+    expect(clip.altTitle).toBe('אין גובה מהבקר עדיין');
+    expect(clip.pillWrap).toBe('nowrap');
+    expect(clip.pillOverflow).toBeLessThanOrEqual(1);
+    for (const tile of clip.tiles) {
+      expect(tile.labelWrap).toBe('nowrap');
+      expect(tile.valueWrap).toBe('nowrap');
+      expect(tile.labelOverflow).toBeLessThanOrEqual(1);
+      expect(tile.valueOverflow).toBeLessThanOrEqual(1);
+      expect(tile.tileH).toBeGreaterThanOrEqual(56);
+      expect(tile.tileH).toBeLessThanOrEqual(76);
+    }
   }, 20000);
 
   it('keeps Pulse extra cards in flow without stacking', async () => {

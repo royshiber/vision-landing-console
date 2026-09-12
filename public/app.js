@@ -3736,7 +3736,10 @@ function pulseRefresh() {
   const linkText = (!agreedLink || agreedLink === 'לא מחובר' || agreedLink === 'מנותק') ? '--' : agreedLink;
   if (linkEl) linkEl.textContent = linkText;
   const missionLink = document.getElementById('missionLink');
-  if (missionLink) missionLink.textContent = linkText;
+  if (missionLink) {
+    missionLink.textContent = shortMissionLinkReadout(agreedLink);
+    missionLink.title = linkText !== '--' ? linkText : '';
+  }
   const jetson = (typeof latestJetsonFromServer !== 'undefined' && latestJetsonFromServer) ? latestJetsonFromServer : {};
   const sys = companion.system || {};
   const jetsonMissing = honesty.jetsonLive ? 'אין נתון' : '--';
@@ -4672,13 +4675,7 @@ function altitudeTileHonestyTitle(mav) {
   if (altitudeIsFinite(mav?.altitude)) {
     return mav.hudTimeSkewWarn ? VLC_TOOLTIP_HUD_TIME_SKEW : '';
   }
-  const live = !!(mav && (
-    mav.connected === true
-    || mav.listening === true
-    || Number(mav.heartbeatCount) > 0
-    || (Number.isFinite(mav.rollDeg) && Number.isFinite(mav.pitchDeg))
-  ));
-  return live ? VLC_TOOLTIP_ALT_WAITING : '';
+  return VLC_TOOLTIP_ALT_WAITING;
 }
 
 // ── Flight HUD PFD elements ────────────────────────────────────────────────────
@@ -5871,7 +5868,15 @@ document.addEventListener('keydown', (e) => {
 
 function applyTopbarFlightData(mav) {
   if (mav) latestHudMavlink = mav;
-  if (!mav) return;
+  if (!mav) {
+    if (hudAltitudeEl) {
+      hudAltitudeEl.title = VLC_TOOLTIP_ALT_WAITING;
+      const tile = hudAltitudeEl.closest('.mission-data-tile, .tele-hud-mini');
+      if (tile) tile.title = VLC_TOOLTIP_ALT_WAITING;
+    }
+    if (pfdAltVal) pfdAltVal.title = VLC_TOOLTIP_ALT_WAITING;
+    return;
+  }
   const miniSpd = hudAirspeedEl?.closest('.tele-hud-mini');
   if (miniSpd) miniSpd.classList.toggle('tele-hud-mini--airspeed-proxy', !!mav.airspeedIsGroundspeedProxy);
   const miniAlt = hudAltitudeEl?.closest('.tele-hud-mini');
@@ -15382,11 +15387,19 @@ function writeMissionDataSlots(slots) {
   missionLayoutStoreSet(MISSION_DATA_SLOTS_KEY, JSON.stringify(slots));
 }
 
+function shortMissionLinkReadout(full) {
+  const t = String(full || '').trim();
+  if (!t || t === 'לא מחובר' || t === 'מנותק') return '--';
+  if (t.startsWith('מאזין')) return 'מאזין';
+  if (t === 'מתחבר') return 'מתחבר';
+  if (t.includes('מחובר')) return 'מחובר';
+  return t;
+}
+
 function formatMissionDataValue(key, payload) {
   if (key === 'mission.link') {
     const linkLabel = document.getElementById('connectPillLabel')?.textContent?.trim() || '';
-    if (!linkLabel || linkLabel === 'לא מחובר' || linkLabel === 'מנותק') return '--';
-    return linkLabel;
+    return shortMissionLinkReadout(linkLabel);
   }
   if (key === 'mission.gpsVisionDelta') {
     const mapData = payload?.mavlink?.map;
@@ -15438,7 +15451,18 @@ function applyMissionDataGrid(payload) {
     const slot = slots[idx];
     if (!slot) return;
     const valueEl = item.querySelector('.mission-data-value');
-    if (valueEl) valueEl.textContent = formatMissionDataValue(slot.key, payload || {});
+    if (valueEl) {
+      const shown = formatMissionDataValue(slot.key, payload || {});
+      valueEl.textContent = shown;
+      if (slot.key === 'mission.link') {
+        const full = document.getElementById('connectPillLabel')?.textContent?.trim() || '';
+        valueEl.title = full && shown !== '--' ? full : '';
+      } else if (slot.key === 'mavlink.altitude' || valueEl.id === 'hudAltitude') {
+        const altTitle = altitudeTileHonestyTitle(payload?.mavlink || latestHudMavlink);
+        valueEl.title = altTitle;
+        item.title = altTitle;
+      }
+    }
     const bar = item.querySelector('.confidence-fill');
     if (bar && slot.key === 'vision.confidence') {
       const raw = getPayloadValue(payload, slot.key);
