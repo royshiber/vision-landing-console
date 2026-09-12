@@ -357,7 +357,16 @@ describe('Vision Landing Readiness honesty matrix', () => {
     expect(rowById(live, 'annotated_video').state).toBe('later');
     expect(rowById(live, 'annotated_video').stateHe).toBe('לא נדרש');
     expect(rowById(live, 'annotated_video').requiredForExperiment1).toBe(false);
-    expect(rowById(live, 'annotated_video').reason).toBe('cellular_connected');
+    expect(rowById(live, 'annotated_video').available).toBe(false);
+    expect(rowById(live, 'annotated_video').reason).toBe('stream_absent');
+    expect(rowById(live, 'annotated_video').radioSatisfies).toBe(false);
+    const streamed = buildVisionLandingReadiness({
+      video: { streamPresent: true, path: 'cellular' },
+      cellular: 'connected',
+      modemPresent: true,
+    });
+    expect(rowById(streamed, 'annotated_video').reason).toBe('cellular_connected');
+    expect(rowById(streamed, 'annotated_video').available).toBe(true);
     expect(resolveAnnotatedVideoHonesty({ modemPresent: false }).reason).toBe('modem_absent');
   });
 
@@ -470,11 +479,11 @@ describe('GET /api/vision/landing-readiness', () => {
 });
 
 describe('Vision Landing Readiness UI', () => {
-  it('pins APP_VERSION at 1.02.290', () => {
+  it('pins APP_VERSION at 1.02.291', () => {
     const version = fs.readFileSync(path.join(repoRoot, 'version.js'), 'utf8');
     const pkg = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8'));
-    expect(version).toContain("export const APP_VERSION = '1.02.290'");
-    expect(pkg.version).toBe('1.02.290');
+    expect(version).toContain("export const APP_VERSION = '1.02.291'");
+    expect(pkg.version).toBe('1.02.291');
   });
 
   it('places the Hebrew chip panel on Status and opens the same rows from Mission', () => {

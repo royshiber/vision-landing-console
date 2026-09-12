@@ -23,11 +23,11 @@ function rowById(snapshot, id) {
 }
 
 describe('P3.1 E3372 modem_absent honesty', () => {
-  it('pins APP_VERSION at 1.02.290', () => {
+  it('pins APP_VERSION at 1.02.291', () => {
     const version = fs.readFileSync(path.join(repoRoot, 'version.js'), 'utf8');
     const pkg = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8'));
-    expect(version).toContain("export const APP_VERSION = '1.02.290'");
-    expect(pkg.version).toBe('1.02.290');
+    expect(version).toContain("export const APP_VERSION = '1.02.291'");
+    expect(pkg.version).toBe('1.02.291');
   });
 
   it('probes absent by default and never invents a cellular link-up', () => {
@@ -79,7 +79,8 @@ describe('P3.1 E3372 modem_absent honesty', () => {
     expect(html).toMatch(/id="annotatedVisionPanel"[^>]*data-state="modem_absent"/);
     expect(html).toMatch(/אין שידור\. מודם סלולר לא מחובר/);
     expect(js).toMatch(/if \(state === 'modem_absent'\) return 'absent'/);
-    expect(js).toMatch(/panel\.dataset\.state = video\?\.available \? 'live' : \(reason === 'modem_absent' \? 'modem_absent' : 'disconnected'\)/);
+    expect(js).toMatch(/function annotatedVisionIsLive/);
+    expect(js).toMatch(/panel\.dataset\.path = 'cellular'/);
     expect(js).toMatch(/art\.dataset\.reason = String\(row\.reason \|\| ''\)/);
     expect(css).toMatch(/\.conn-link-chip\[data-state="absent"\]/);
     expect(css).toMatch(/\.mission-annotated-vision\[data-state="modem_absent"\]/);

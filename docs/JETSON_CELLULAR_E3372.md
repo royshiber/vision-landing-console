@@ -26,8 +26,9 @@ Operator README (IDs, mock path, scp): `scripts/jetson-cellular/README.md`.
 | `GET /api/links` | `cellular: modem_absent` | mock env may show a plugged-in modem |
 | Remote cellular host | refused `422` | not used |
 | Loopback connect | socket may open (`loopback_mock`) but snapshot stays `modem_absent` | not a live cell link |
-| `GET /api/links/annotated-video` | `available: false`, `reason: modem_absent` | still cellular-only |
+| `GET /api/links/annotated-video` | `available: false`, `reason: modem_absent`, `neverRadio: true` | still cellular-only; no fake live stream |
 | Readiness `annotated_video` | later / not required + `reason: modem_absent` | still not required for Experiment 1 |
+| No annotated stream | `reason: stream_absent` when modem is present and cellular is up | radio never satisfies |
 | `npm run cellular:dry-run` | JSON `modem_absent`, exit 0 | `CELLULAR_MODEM_MOCK=present` |
 | Jetson `e3372-status.sh` | `modem_absent` | `AIRVIX_CELLULAR_MOCK=present` |
 

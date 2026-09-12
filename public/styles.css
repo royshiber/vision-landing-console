@@ -12198,6 +12198,16 @@ details.flight-manage summary {
 .conn-modem-status[data-state="present"] {
   color: #86efac;
 }
+.conn-annotated-status {
+  margin: 4px 0 0;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #fbbf24;
+  font-family: "Heebo", sans-serif;
+}
+.conn-annotated-status[data-state="live"] {
+  color: #86efac;
+}
 .conn-active-picker {
   display: flex;
   flex-direction: column;
@@ -12261,10 +12271,14 @@ details.flight-manage summary {
 .mission-annotated-vision[data-state="live"] .mission-annotated-empty {
   color: #86efac;
 }
-.mission-annotated-vision[data-state="modem_absent"] .mission-annotated-empty {
+.mission-annotated-vision[data-state="modem_absent"] .mission-annotated-empty,
+.mission-annotated-vision[data-state="stream_absent"] .mission-annotated-empty,
+.mission-annotated-vision[data-state="disconnected"] .mission-annotated-empty {
   color: #fbbf24;
 }
-.vlr-row[data-id="annotated_video"][data-reason="modem_absent"] .vlr-missing {
+.vlr-row[data-id="annotated_video"][data-reason="modem_absent"] .vlr-missing,
+.vlr-row[data-id="annotated_video"][data-reason="stream_absent"] .vlr-missing,
+.vlr-row[data-id="annotated_video"][data-reason="cellular_disconnected"] .vlr-missing {
   color: #fbbf24;
 }
 .mission-annotated-frame {

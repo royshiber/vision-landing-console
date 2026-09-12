@@ -62,19 +62,19 @@ Merge autonomy still on for independently VERIFIED safe draft PRs. Hard safety s
 
 ---
 
-## Audit snapshot — 2026-09-12 (P2 runway lock status to GCS)
+## Audit snapshot — 2026-09-12 (P3.2 annotated vision cellular-only gate)
 
-**Master tip before this draft:** `1.02.288` after #107.  
-**This draft:** Honest observe-only runway lock chips. `APP_VERSION` **1.02.289**. Display only.
+**Master tip before this draft:** `1.02.290` after #110.  
+**This draft:** Annotated vision honesty gate. `APP_VERSION` **1.02.291**. Display only. No live stream invented.
 
 ### Landed
 
 - Experiment #1 checklist is on master: PIC hand-fly, observe-only, success = runway detect on final.
-- Honest camera/vision probe and PLND profile are on master. Lock was a later-stage stub.
+- E3372 `modem_absent` honesty is on master (#110). Dual-link radio + cellular remain MAVLink.
 
 ### This draft
 
-`runway_lock` shows `not` / `detecting` / `locked` from an explicit Companion/vision lock field, or `unknown` when no lock signal exists. Detect + confidence never invents locked. `requiredForExperiment1` stays false. Mission detect glance stays detect-only; an adjacent lock glance never copies detect. `/api/vision/landing-readiness` adds `runwayLock: { state, source }`.
+Annotated vision is cellular-only. `modem_absent` or no annotated stream stays unavailable. Radio cannot satisfy the path. Connect, Readiness, and Mission empty states share the same Hebrew reasons.
 
 ### Next pick
 
@@ -82,7 +82,7 @@ Do not start #28 / #29. Prefer another display-only honesty or in-app developmen
 
 ### Ranked GAPS
 
-1. **Honest runway lock status to GCS** — this draft.
+1. **Annotated vision cellular-only honesty** — this draft.
 2. **Companion apply/restart** — Human Gate #28. No GO.
 3. **Live vehicle + auto landing** — Human Gate #29. No GO.
 

@@ -1,5 +1,16 @@
 [
   {
+    "version": "1.02.291",
+    "date": "2026-09-12",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Annotated vision cellular-only gate with honest absent",
+        "detail": "APP_VERSION 1.02.291. After master 1.02.290 (#110 E3372 modem_absent). Annotated vision stays cellular-only from the mission computer. modem_absent or no annotated stream reports available:false with Hebrew absent copy. Radio cannot satisfy the video path. Cellular MAVLink up is not a live stream. Connect, Readiness, and Mission empty states share the same reasons. No live stream invented. No flight commands and no Companion apply/restart."
+      }
+    ]
+  },
+  {
     "version": "1.02.290",
     "date": "2026-09-12",
     "changes": [
