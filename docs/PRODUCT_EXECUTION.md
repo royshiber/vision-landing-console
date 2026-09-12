@@ -62,34 +62,30 @@ Merge autonomy still on for independently VERIFIED safe draft PRs. Hard safety s
 
 ---
 
-## Audit snapshot — 2026-09-10 (F4 Ask → Capability Brief)
+## Audit snapshot — 2026-09-12 (P2.1 camera / runway probe)
 
-**Master tip before this draft:** `1.02.268` @ `2cffa19` (PR #88 — F2 Capability Runway).  
-**This draft:** F4 Ask → Capability Brief. `APP_VERSION` **1.02.269**. Stay draft until VERIFY.  
-**Tip after merge 269:** master carried F1 + F2 + F4. **F3 / Concept B** is this draft: Develop chat + live preview.
+**Master tip before this draft:** `1.02.284` @ `7441ec3` (#102 readiness + #99 companion MAVLink relay).  
+**This draft:** Honest camera/vision probe on the preferred readiness matrix. `APP_VERSION` **1.02.285**. Display only.
 
 ### Landed
 
-- **F1 Capability Intake Studio** — master `1.02.267` via PR #87 `3897a70`. Now hidden under Concept B; composer remnants stay for Ask handoff.
-- **Develop Concept B** — this draft `1.02.278`. Locked split: live map preview left, Hebrew chat right. MCQ rows plus free text. After VERIFY, install payload is visible and the install is allowed without another in-UI ask. Local progress only. No live Jetson/FC apply. Parameters hook after land.
-- **F2 Capability Runway** — master `1.02.268` via PR #88 `2cffa19`. IDEA → RUNNING → VERIFY → PR → DONE from real task fields only.
-- C10.6 Mission flight-safe Assist stays: no `CREATE_DEVELOPMENT_TASK` on Mission; DEVELOPMENT / coding-agent start refused in spoken Hebrew.
-- AIRVIX Ask naming only. Jetson / מחשב משימה. No מסייע. No מלווה. No AH polish / «הגדל את האופק».
+- **F4 Ask → Capability Brief** and **F3 / Concept B** remain on master.
+- Companion TCP :5770 relay, live-radio HUD, and version-mismatch banner are on master (#99).
+- Experiment #1 checklist is on master (#102): PIC hand-fly, observe-only, success = runway detect on final. Lock and annotations are later.
 
-### This draft (F4)
+### This draft
 
-Ask on non-Mission surfaces drafts a Capability Brief (מה / למה / מודולים / FEATURE default) with **פתח בפיתוח** / **שמור טיוטה** / **התחל סוכן**. Handoff fills the F1 composer and switches to Develop. Save and start reuse `CREATE_DEVELOPMENT_TASK` and the existing agent stack. Mission still refuses.
+`camera_vision` resolves from reported Companion `camera_ok` only — health / raw pipeline never invent ok. `runway_detect` is observe-only (`unknown` / `not_detected` / `detected` / `not_implemented` / `absent`). Aruco landing-target is not a runway detect. PLND stays informational and does not fail Experiment #1. Mission glance shows runway detect state only — not lock.
 
 ### Next pick
 
-**F3** after this draft merges as 269. Do not start #28 / #29. Do not polish AH. Do not invent GPS or a Companion token.
+Do not start #28 / #29. Prefer another display-only honesty or in-app development step — not flight commands.
 
 ### Ranked GAPS
 
-1. **F4 Ask → Capability Brief** — this draft. Version **1.02.269**.
-2. **F3** — next after merge 269.
-3. **Companion apply/restart** — Human Gate #28. No GO.
-4. **Live vehicle + auto landing** — Human Gate #29. No GO.
+1. **Honest Exp #1 camera + runway probe** — this draft.
+2. **Companion apply/restart** — Human Gate #28. No GO.
+3. **Live vehicle + auto landing** — Human Gate #29. No GO.
 
 ### Explicitly not next
 

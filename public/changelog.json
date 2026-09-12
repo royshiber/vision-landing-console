@@ -1,5 +1,16 @@
 [
   {
+    "version": "1.02.285",
+    "date": "2026-09-12",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Honest camera probe on preferred Exp #1 readiness after rebase",
+        "detail": "APP_VERSION 1.02.285. Rebased onto master 1.02.284 (#102 readiness + #99 Companion MAVLink relay). camera_vision stays unknown unless Companion reports camera_ok. runway_detect is observe-only; Aruco landing-target is not_implemented, never a fake detect. PLND does not fail Experiment 1. Mission glance shows runway detect only. No flight commands and no Companion apply/restart."
+      }
+    ]
+  },
+  {
     "version": "1.02.284",
     "date": "2026-09-12",
     "changes": [
