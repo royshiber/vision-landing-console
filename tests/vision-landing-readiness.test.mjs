@@ -62,6 +62,11 @@ describe('Vision Landing Readiness honesty matrix', () => {
     expect(empty.flightCommandsGate).toBe(FLIGHT_COMMANDS_GATE);
     expect(rowById(empty, 'camera_vision').state).toBe('unknown');
     expect(rowById(empty, 'camera_vision').stateHe).toBe('לא ידוע');
+    expect(rowById(empty, 'camera_install').state).toBe('missing');
+    expect(rowById(empty, 'camera_install').stateHe).toBe('אין פריים');
+    expect(rowById(empty, 'camera_install').requiredForExperiment1).toBe(false);
+    expect(empty.cameraInstall.summary.cameraOk).toBeNull();
+    expect(empty.cameraInstall.liveFrame.stateHe).toBe('אין פריים');
     expect(rowById(empty, 'runway_detect').state).toBe('unknown');
     expect(rowById(empty, 'runway_detect').successCriterion).toBe(true);
     expect(rowById(empty, 'runway_lock').state).toBe('unknown');
@@ -440,7 +445,7 @@ describe('GET /api/vision/landing-readiness', () => {
     const j = await r.json();
     expect(r.status).toBe(200);
     expect(j.ok).toBe(true);
-    expect(j.rows).toHaveLength(9);
+    expect(j.rows).toHaveLength(10);
     expect(j.invented).toEqual({ camera: false, gps: false, runway: false, annotations: false, lock: false });
     expect(j.sendFlightCommands).toBe(false);
     expect(j.flightCommandsGate).toBe('closed');
@@ -452,6 +457,8 @@ describe('GET /api/vision/landing-readiness', () => {
     expect(rowById(j, 'runway_lock').requiredForExperiment1).toBe(false);
     expect(j.runwayLock).toEqual({ state: 'unknown', source: null });
     expect(rowById(j, 'camera_vision').state).toBe('unknown');
+    expect(rowById(j, 'camera_install').state).toBe('missing');
+    expect(j.cameraInstall.summary.cameraOk).toBeNull();
     expect(rowById(j, 'plnd_profile').state).toBe('unknown');
     expect(rowById(j, 'plnd_profile').requiredForExperiment1).toBe(false);
     expect(rowById(j, 'plnd_profile').keys.every((k) => k.value == null)).toBe(true);
@@ -479,16 +486,17 @@ describe('GET /api/vision/landing-readiness', () => {
 });
 
 describe('Vision Landing Readiness UI', () => {
-  it('pins APP_VERSION at 1.02.307', () => {
+  it('pins APP_VERSION at 1.02.308', () => {
     const version = fs.readFileSync(path.join(repoRoot, 'version.js'), 'utf8');
     const pkg = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8'));
-    expect(version).toContain("export const APP_VERSION = '1.02.307'");
-    expect(pkg.version).toBe('1.02.307');
+    expect(version).toContain("export const APP_VERSION = '1.02.308'");
+    expect(pkg.version).toBe('1.02.308');
   });
 
   it('places the Hebrew chip panel on Status and opens the same rows from Mission', () => {
     expect(html).toContain('id="visionLandingReadiness"');
     expect(html).toContain('id="visionLandingReadinessList"');
+    expect(html).toContain('id="cameraInstallChecklist"');
     expect(html).toMatch(/class="vlr-title">מוכנות נחיתה לפי ראייה</);
     expect(html).toContain('טייס מפקד מטיס ידנית עד הגמר');
     expect(html).toContain('המערכת צופה בלבד');
