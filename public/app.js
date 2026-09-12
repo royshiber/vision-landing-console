@@ -5632,6 +5632,9 @@ function applyFlightHud(mav) {
 }
 
 /** Keep in sync with lib/optical-nav.mjs (classic script, not a module). */
+/** Roy LOCKED 2026-09-12: nav_toggle_display_only — localStorage + map emphasis only. */
+const NAV_TOGGLE_LOCK = 'nav_toggle_display_only';
+const NAV_TOGGLE_MODE = 'display_only';
 function resolveNavDisplayPreference(value) {
   return String(value || '').trim().toLowerCase() === 'optical' ? 'optical' : 'gps';
 }
@@ -5707,12 +5710,18 @@ function opticalNavStatusHeClient(nav) {
 function applyNavDisplayToggleUi(pref) {
   const source = resolveNavDisplayPreference(pref);
   lastNavDisplayPref = source;
+  const root = document.getElementById('missionNavDisplay');
   if (missionNavDisplayGps) missionNavDisplayGps.setAttribute('aria-pressed', source === 'gps' ? 'true' : 'false');
   if (missionNavDisplayOptical) missionNavDisplayOptical.setAttribute('aria-pressed', source === 'optical' ? 'true' : 'false');
-  document.getElementById('missionNavDisplay')?.setAttribute('data-source', source);
+  if (root) {
+    root.setAttribute('data-source', source);
+    root.setAttribute('data-toggle-mode', NAV_TOGGLE_MODE);
+    root.setAttribute('data-toggle-lock', NAV_TOGGLE_LOCK);
+  }
 }
 
 function setNavDisplayPreference(value) {
+  // Display and logging preference only. Never command a flight-controller nav source.
   const next = persistNavDisplayPreference(value);
   applyNavDisplayToggleUi(next);
   try { updateFlightOverlaysOnAllMaps(lastSseTerrainPayload || {}); } catch { /* ignore */ }

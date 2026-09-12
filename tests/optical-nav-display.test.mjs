@@ -33,6 +33,8 @@ describe('Mission GPS | optical display toggle', () => {
     expect(html).toMatch(/id="missionNavDisplayGps"[^>]*>GPS</);
     expect(html).toMatch(/id="missionNavDisplayOptical"[^>]*>אופטי</);
     expect(html).toContain('תצוגה בלבד. לא מחליף את מקור הניווט בבקר.');
+    expect(html).toContain('data-toggle-lock="nav_toggle_display_only"');
+    expect(html).toContain('data-toggle-mode="display_only"');
     expect(html).toMatch(/id="missionNavDisplayStatus"[^>]*>--</);
     expect(css).toContain('.mission-nav-display');
     expect(css).toContain('.mission-ops-leading');
@@ -46,7 +48,11 @@ describe('Mission GPS | optical display toggle', () => {
     const apply = sliceFunction(js, 'applyNavOpticalStatus');
     const statusHe = sliceFunction(js, 'opticalNavStatusHeClient');
     const setPref = sliceFunction(js, 'setNavDisplayPreference');
+    expect(js).toContain('nav_toggle_display_only');
+    expect(js).toContain("NAV_TOGGLE_MODE = 'display_only'");
+    expect(persist).toContain('localStorage.setItem');
     expect(persist + apply + statusHe + setPref).not.toMatch(/ARM|DISARM|LAND|PARAM_SET|EK3_SRC|VISION_POSITION_ESTIMATE|COMMAND_LONG|\/apply|\/restart/);
+    expect(setPref).not.toMatch(/\bfetch\s*\(|XMLHttpRequest|setParam\s*\(/);
     expect(statusHe).toContain("אין מצלמה לניווט אופטי");
     expect(apply).toContain('👁 --');
   });

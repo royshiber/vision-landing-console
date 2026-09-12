@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   NAV_DISPLAY_GPS,
   NAV_DISPLAY_OPTICAL,
+  NAV_TOGGLE_LOCK,
+  NAV_TOGGLE_MODE,
   OPTICAL_NAV_ALT_CEILING_M,
   emptyOpticalNav,
   normalizeOpticalNav,
@@ -19,6 +21,13 @@ import {
 } from '../lib/companion-mock-fixtures.mjs';
 
 describe('optical-nav honesty', () => {
+  it('locks GPS | אופטי as display_only and never as an FC/EKF command', () => {
+    expect(NAV_TOGGLE_LOCK).toBe('nav_toggle_display_only');
+    expect(NAV_TOGGLE_MODE).toBe('display_only');
+    expect(emptyOpticalNav().ekf_injected).toBe(false);
+    expect(emptyOpticalNav().display_only).toBe(true);
+  });
+
   it('never invents WGS84 from NED or empty stubs', () => {
     const empty = normalizeOpticalNav(null);
     expect(empty.lat).toBeNull();

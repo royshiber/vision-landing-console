@@ -1,5 +1,31 @@
 [
   {
+    "version": "1.02.302",
+    "date": "2026-09-12",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Server library",
+        "detail": "optical-nav.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "UI / app.js",
+        "detail": "app.js"
+      },
+      {
+        "type": "ui",
+        "title": "HTML layout",
+        "detail": "index.html"
+      },
+      {
+        "type": "test",
+        "title": "Tests",
+        "detail": "optical-nav-display.test.mjs, optical-nav.test.mjs"
+      }
+    ]
+  },
+  {
     "version": "1.02.301",
     "date": "2026-09-12",
     "changes": [
