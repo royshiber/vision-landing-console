@@ -211,6 +211,9 @@ describe('camera install UI copy', () => {
     expect(js).toContain('קדמית');
     expect(js).toContain('מטה');
     expect(js).toContain('אין פריים');
+    expect(js).toContain('תרגיל יבש');
+    expect(js).toContain('cic-cam-status');
+    expect(html).toContain('id="liveCameraPanel"');
     expect(js).toContain('הערכה בלבד — לא כיול');
     expect(js).toContain("fetch('/api/vision/camera-install'");
     expect(css).toMatch(/\.cic-panel\b/);

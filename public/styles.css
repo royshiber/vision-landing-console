@@ -5153,6 +5153,95 @@ body:has(#pulse.panel.visible) .layout {
 .pfd-readiness-body .cic-lead {
   font-size: 0.6rem;
 }
+.cic-cam-status {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.cic-cam-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.68rem;
+  color: #d7deea;
+}
+.cic-cam-meta {
+  direction: ltr;
+  font-variant-numeric: tabular-nums;
+  color: #9aa8b8;
+}
+.cic-cam-row[data-ok="false"] .cic-cam-meta {
+  color: #fca5a5;
+}
+.cic-cam-dry {
+  color: #fde68a;
+  font-weight: 700;
+}
+.mission-live-camera {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1 1 100%;
+  margin-top: 6px;
+  padding: 8px;
+  border-radius: 8px;
+  background: rgba(8, 12, 20, 0.62);
+  border: 1px solid rgba(148, 168, 198, 0.14);
+  direction: rtl;
+  text-align: right;
+}
+.mission-region-horizon .mission-live-camera {
+  max-height: 220px;
+  overflow: auto;
+}
+.mission-live-camera[hidden],
+.mission-live-camera.hidden {
+  display: none;
+}
+.mission-live-camera-kicker {
+  margin: 0;
+  font-size: 0.68rem;
+  font-weight: 800;
+  color: #e8edf6;
+}
+.mission-live-camera-empty {
+  margin: 0;
+  font-size: 0.68rem;
+  color: #fca5a5;
+}
+.mission-live-camera[data-state="ok"] .mission-live-camera-empty {
+  display: none;
+}
+.mission-live-camera-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.mission-live-camera-slot {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.mission-live-camera-label {
+  font-size: 0.66rem;
+  font-weight: 800;
+  color: #d7deea;
+}
+.mission-live-camera-meta {
+  margin: 0;
+  font-size: 0.62rem;
+  color: #9aa8b8;
+}
+.mission-live-camera-frame {
+  width: 100%;
+  min-height: 72px;
+  max-height: 140px;
+  object-fit: contain;
+  border-radius: 6px;
+  background: #0b1018;
+}
 .vlr-row[data-tone="ok"] .vlr-chip {
   background: rgba(61, 214, 140, 0.16);
   color: #86efac;
@@ -11064,6 +11153,12 @@ html[data-evolve-preview="1"] #development {
   min-height: 22px;
   max-height: 28px;
   padding: 2px 4px;
+}
+.mission-region-horizon .pfd-horizon-chrome:has(#liveCameraPanel:not([hidden])),
+.mission-region-horizon .pfd-horizon-chrome:has(#annotatedVisionPanel:not([hidden])),
+.mission-region-horizon .pfd-horizon-chrome:has(#horizonVideoPanel:not(.hidden)) {
+  max-height: none;
+  overflow: visible;
 }
 .mission-region-horizon .hud-data-grid {
   display: grid;

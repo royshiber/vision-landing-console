@@ -136,7 +136,7 @@ describe('companion_agent.py byte-level relay', () => {
     expect(agentSrc).toContain('never recv_match');
     expect(agentSrc).toMatch(/fc_read_only/);
     expect(agentSrc).toMatch(/relay_tcp_to_uart/);
-    expect(agentSrc).toMatch(/AGENT_VERSION.*"2\.3\.3"/);
+    expect(agentSrc).toMatch(/AGENT_VERSION.*"2\.3\.4"/);
     expect(agentSrc).toContain('uart_reader → fanout_uart');
     expect(agentSrc).toContain('/dev/ttyTHS1');
     expect(agentSrc).toContain('921600');
