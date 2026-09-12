@@ -20,10 +20,10 @@ function wizardPanel() {
   return html.slice(start, custom);
 }
 
-describe('AIRVIX hardware-intent lock still holds on Concept B (1.02.284)', () => {
-  it('pins APP_VERSION at 1.02.284', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.284'");
-    expect(pkg.version).toBe('1.02.284');
+describe('AIRVIX hardware-intent lock still holds on Concept B (1.02.283)', () => {
+  it('pins APP_VERSION at 1.02.283', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.283'");
+    expect(pkg.version).toBe('1.02.283');
     expect(changelog).toContain('"version": "1.02.277"');
   });
 
