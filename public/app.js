@@ -12992,7 +12992,7 @@ const CAP_INTAKE_EXAMPLES = {
   },
   voice: {
     title: 'פקודות קוליות לממשק התפעול',
-    description: 'דיבור אל הממשק: פתיחת מסך, שאילתה, ורישום תצפית. לא פקודות טיסה.',
+    description: 'דיבור אל הממשק: פתיחת מסך, שאילתה, פתק, והצעת שינוי לאישור. בלי שליחה ישירה לבקר.',
     taxonomy: 'FEATURE',
     target: 'UI',
     priority: 'NORMAL',
@@ -14579,11 +14579,39 @@ function assistBuildContextSnapshot() {
       altitude_m: typeof mav.altitude === 'number' ? mav.altitude : null,
       airspeed_ms: typeof mav.airspeed === 'number' ? mav.airspeed : null,
     },
+    ops_signals: assistBuildOpsSignals(vision),
+    attention_policy: (typeof attentionReadPolicy === 'function' ? attentionReadPolicy() : {}).proactiveLevel || 'off',
   };
 }
 
+function assistBuildOpsSignals(vision) {
+  const ops = {};
+  const recBtn = document.getElementById('missionRecordBtn');
+  if (recBtn && recBtn.dataset.recording != null) {
+    ops.recording_on = recBtn.dataset.recording === '1';
+  }
+  try {
+    const companion = (typeof latestCompanionFromServer === 'object' && latestCompanionFromServer)
+      ? latestCompanionFromServer
+      : {};
+    const rawNav = companion.opticalNav || companion.optical_nav || vision?.opticalNav || vision?.optical_nav;
+    if (rawNav && typeof rawNav === 'object') {
+      const nav = typeof normalizeOpticalNavClient === 'function' ? normalizeOpticalNavClient(rawNav) : rawNav;
+      if (typeof nav?.camera_ok === 'boolean') ops.camera_ok = nav.camera_ok === true;
+      if (typeof opticalNavStatusHeClient === 'function') {
+        ops.optical_missing = opticalNavStatusHeClient(nav).text === '--';
+      }
+    }
+  } catch {
+    /* honesty only — omit if unread */
+  }
+  return ops;
+}
+
+/** Roy lock 2026-09-12 ask_voice_flight_confirm_always — voice/Ask flight actions need per-action confirm. */
+const ASK_VOICE_FLIGHT_CONFIRM_ALWAYS = true;
 const ASSIST_DEFAULT_HINT_HE = 'שינוי דורש אישור.';
-const ASSIST_MISSION_HINT_HE = 'הטסה. הערה ותצפית בלבד.';
+const ASSIST_MISSION_HINT_HE = 'הטסה. שינוי דורש אישור.';
 const ASSIST_DEFAULT_PLACEHOLDER_HE = 'שאלה, יועץ, פתק, או בקשת פיתוח…';
 const ASSIST_MISSION_PLACEHOLDER_HE = 'הערה, תצפית, או שאלה';
 const ASSIST_DEFAULT_INVITE_HE = 'שאלו את AIRVIX Ask.';
@@ -14672,13 +14700,14 @@ function assistSyncProposalWarn() {
   warn.hidden = !_assistPendingProposalId || _assistAgentConnected;
 }
 
-function assistAppendMessage({ role, text, meta, kind }) {
+function assistAppendMessage({ role, text, meta, kind, blocked }) {
   const box = document.getElementById('assistMessages');
   if (!box) return;
   const div = document.createElement('div');
   div.className = `assist-msg assist-msg-${role === 'user' ? 'user' : 'assist'}`;
   if (kind === 'PROPOSAL') div.classList.add('assist-msg-kind-proposal');
   if (kind === 'ACTION_REQUIRING_CONFIRMATION') div.classList.add('assist-msg-kind-confirm');
+  if (blocked) div.classList.add('assist-msg-kind-blocked');
   div.innerHTML = `<div class="assist-msg-body">${assistEscape(text)}</div>${meta ? `<span class="assist-msg-meta">${assistEscape(meta)}</span>` : ''}`;
   box.appendChild(div);
   box.scrollTop = box.scrollHeight;
@@ -14779,20 +14808,48 @@ async function assistOpenCapabilityInDevelop() {
   });
 }
 
+function assistIsConfirmPhrase(text) {
+  const q = String(text || '').trim().toLowerCase();
+  return q === 'מאשר' || q === 'confirm';
+}
+
+function assistIsCancelPhrase(text) {
+  const q = String(text || '').trim().toLowerCase();
+  return q === 'בטל' || q === 'cancel';
+}
+
+function assistSetSuggestionBar(suggestion) {
+  const bar = document.getElementById('assistSuggestionBar');
+  const textEl = document.getElementById('assistSuggestionText');
+  if (!bar || !textEl) return;
+  if (suggestion?.text_he && !suggestion?.proposal_id) {
+    textEl.textContent = suggestion.text_he;
+    bar.hidden = false;
+    return;
+  }
+  bar.hidden = true;
+}
+
 function assistSetProposalBar(response) {
   const bar = document.getElementById('assistProposalBar');
   const textEl = document.getElementById('assistProposalText');
   const briefEl = document.getElementById('assistCapabilityBrief');
   const genericActions = document.getElementById('assistProposalActions');
+  const kicker = document.getElementById('assistProposalKicker');
+  const voiceHint = document.getElementById('assistProposalVoiceHint');
   if (!bar || !textEl) return;
   const proposal = response?.action_proposal;
   const brief = response?.capability_brief || proposal?.payload?.capability_brief || null;
   const isCap = proposal?.action === 'CREATE_DEVELOPMENT_TASK' && !!brief;
+  const suggestion = response?.suggestion;
+  assistSetSuggestionBar(suggestion && !proposal ? suggestion : null);
   if (response?.requires_confirmation && proposal?.id) {
     setAssistPendingProposalId(proposal.id);
     _assistPendingBrief = isCap ? brief : null;
-    textEl.textContent = response.answer || 'לאשר את הפעולה?';
+    textEl.textContent = suggestion?.text_he || response.answer || 'לאשר את הפעולה?';
     bar.hidden = false;
+    if (kicker) kicker.hidden = !!isCap;
+    if (voiceHint) voiceHint.hidden = !!isCap;
     if (isCap) {
       assistRenderCapabilityBrief(brief);
       if (briefEl) briefEl.hidden = false;
@@ -14807,6 +14864,8 @@ function assistSetProposalBar(response) {
     bar.hidden = true;
     if (briefEl) briefEl.hidden = true;
     if (genericActions) genericActions.hidden = false;
+    if (kicker) kicker.hidden = false;
+    if (voiceHint) voiceHint.hidden = false;
   }
   assistSyncProposalWarn();
   assistRefreshCapabilityAgentCta();
@@ -14993,6 +15052,16 @@ function assistApplyNavigation(nav) {
 async function assistSendText(rawText) {
   const text = String(rawText || '').trim();
   if (!text) return;
+  if (_assistPendingProposalId && assistIsConfirmPhrase(text)) {
+    assistAppendMessage({ role: 'user', text });
+    await assistConfirm(true);
+    return;
+  }
+  if (_assistPendingProposalId && assistIsCancelPhrase(text)) {
+    assistAppendMessage({ role: 'user', text });
+    await assistConfirm(false);
+    return;
+  }
   assistAppendMessage({ role: 'user', text });
   const r = await fetch('/api/assist/message', {
     method: 'POST',
@@ -15013,8 +15082,17 @@ async function assistSendText(rawText) {
   const meta = [resp.intent, resp.kind, resp.confidence != null ? `conf ${Number(resp.confidence).toFixed(2)}` : null]
     .filter(Boolean)
     .join(' · ');
-  assistAppendMessage({ role: 'assist', text: resp.answer || '—', meta, kind: resp.kind });
+  assistAppendMessage({
+    role: 'assist',
+    text: resp.answer || '—',
+    meta,
+    kind: resp.kind,
+    blocked: resp.blocked === true,
+  });
   assistSetProposalBar(resp);
+  if (resp.confirm_result?.result?.navigation) {
+    assistApplyNavigation(resp.confirm_result.result.navigation);
+  }
   if (!resp.requires_confirmation && resp.action_proposal?.action === 'UI_NAVIGATION') {
     assistApplyNavigation(resp.action_proposal.payload);
   }
@@ -15927,7 +16005,7 @@ function assistMicTalkLabel(state) {
   if (state === 'error') return 'שיחה עם AIRVIX Ask — שגיאת הקלטה';
   if (state === 'listening') return 'שיחה עם AIRVIX Ask — מאזין';
   if (state === 'blocked') return 'שיחה עם AIRVIX Ask — לא ניתן להתחיל';
-  return 'שיחה עם AIRVIX Ask של הממשק. לא פקודות טיסה.';
+  return 'שיחה עם AIRVIX Ask. שינוי דורש אישור.';
 }
 
 function syncAssistComposerSize() {
@@ -15959,13 +16037,14 @@ function initAssistMic() {
   rec.lang = 'he-IL';
   rec.interimResults = false;
   rec.onresult = (e) => {
-    const t = e.results?.[0]?.[0]?.transcript || '';
+    const t = String(e.results?.[0]?.[0]?.transcript || '').trim();
     const input = document.getElementById('assistInput');
-    if (input && t) input.value = t;
+    if (input) input.value = '';
     syncAssistComposerSize();
     btn.classList.remove('recording');
     btn.setAttribute('aria-pressed', 'false');
     btn.title = assistMicTalkLabel();
+    if (t) void assistSendText(t);
   };
   rec.onend = () => {
     btn.classList.remove('recording');
@@ -16082,6 +16161,8 @@ function initAssistUi() {
   initAssistMic();
   document.getElementById('assistConfirmBtn')?.addEventListener('click', () => { void assistConfirm(true); });
   document.getElementById('assistCancelBtn')?.addEventListener('click', () => { void assistConfirm(false); });
+  document.getElementById('assistSuggestionApproveBtn')?.addEventListener('click', () => { void assistConfirm(true); });
+  document.getElementById('assistSuggestionDismissBtn')?.addEventListener('click', () => { void assistConfirm(false); });
   document.getElementById('assistCapOpenDevelopBtn')?.addEventListener('click', () => { void assistOpenCapabilityInDevelop(); });
   document.getElementById('assistCapSaveDraftBtn')?.addEventListener('click', () => { void assistConfirm(true, { startAgent: false }); });
   document.getElementById('assistCapStartAgentBtn')?.addEventListener('click', () => { void assistConfirm(true, { startAgent: true }); });

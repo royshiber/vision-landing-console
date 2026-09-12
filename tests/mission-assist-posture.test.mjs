@@ -84,7 +84,7 @@ function makeAssist({ withAgent = false } = {}) {
 describe('C10.6 Mission Assist context', () => {
   it('limits Mission available_actions and keeps flight writes off', () => {
     const fromTerrain = buildAssistContext({ current_tab: 'terrain' }, {
-      available_actions: ['UI_NAVIGATION', 'CREATE_NOTE', 'CREATE_OBSERVATION', 'CREATE_DEVELOPMENT_TASK'],
+      available_actions: ['UI_NAVIGATION', 'CREATE_NOTE', 'CREATE_OBSERVATION', 'CREATE_DEVELOPMENT_TASK', 'PROPOSE_PARAM_CHANGE'],
       policy_state: { flight_actions_allowed: true, deploy_allowed: true },
     });
     expect(fromTerrain.current_workspace).toBe('MISSION');
@@ -93,7 +93,12 @@ describe('C10.6 Mission Assist context', () => {
     expect(fromTerrain.policy_state.flight_actions_allowed).toBe(false);
     expect(fromTerrain.policy_state.param_writes_allowed).toBe(false);
     expect(fromTerrain.policy_state.deploy_allowed).toBe(false);
-    expect(fromTerrain.policy_state.requires_confirmation_for).toEqual(['CREATE_NOTE', 'CREATE_OBSERVATION']);
+    expect(fromTerrain.available_actions).toContain('PROPOSE_PARAM_CHANGE');
+    expect(fromTerrain.policy_state.requires_confirmation_for).toEqual([
+      'CREATE_NOTE',
+      'CREATE_OBSERVATION',
+      'PROPOSE_PARAM_CHANGE',
+    ]);
 
     const fromEngineer = buildAssistContext({ current_tab: 'flightEngineer' });
     expect(fromEngineer.current_workspace).toBe('MISSION');
@@ -216,7 +221,7 @@ describe('C10.6 Mission chrome', () => {
     expect(html).toMatch(/data-assist-chip="advisor"[^>]*>יועץ</);
     expect(html).toMatch(/data-assist-chip="ardulab"[^>]*>פיצ׳ר</);
     expect(html).toMatch(/data-assist-chip="flightEngineer"[^>]*>מהנדס</);
-    expect(js).toContain("ASSIST_MISSION_HINT_HE = 'הטסה. הערה ותצפית בלבד.'");
+    expect(js).toContain("ASSIST_MISSION_HINT_HE = 'הטסה. שינוי דורש אישור.'");
     expect(js).toContain("ASSIST_MISSION_PLACEHOLDER_HE = 'הערה, תצפית, או שאלה'");
     expect(js).toContain('function assistSyncMissionPosture(');
     expect(js).toContain('function assistIsMissionTab(');
@@ -233,8 +238,8 @@ describe('C10.6 Mission chrome', () => {
     expect(posture).not.toMatch(/\/apply|\/restart|ARM|DISARM|LAND|JETSON_COMPANION|CURSOR_API_KEY/);
   });
 
-  it('pins APP_VERSION at 1.02.303', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.303'");
-    expect(pkg.version).toBe('1.02.303');
+  it('pins APP_VERSION at 1.02.304', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.304'");
+    expect(pkg.version).toBe('1.02.304');
   });
 });

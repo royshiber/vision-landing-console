@@ -241,8 +241,17 @@
       <div id="assistMessages" class="assist-messages" role="log" aria-live="polite"></div>
       </div>
       <div id="assistRunPanel" class="assist-run-panel" data-kind="unavailable" hidden aria-live="polite"></div>
+      <div id="assistSuggestionBar" class="assist-suggestion-bar" hidden>
+        <p id="assistSuggestionText" class="assist-suggestion-text"></p>
+        <div class="assist-proposal-actions">
+          <button type="button" id="assistSuggestionApproveBtn" class="assist-btn assist-btn-confirm">אישור</button>
+          <button type="button" id="assistSuggestionDismissBtn" class="assist-btn assist-btn-cancel">דחייה</button>
+        </div>
+      </div>
       <div id="assistProposalBar" class="assist-proposal-bar" hidden>
+        <p id="assistProposalKicker" class="assist-proposal-kicker">שינוי דורש אישור</p>
         <p id="assistProposalText" class="assist-proposal-text"></p>
+        <p id="assistProposalVoiceHint" class="assist-proposal-voice-hint">אמרו מאשר או לחצו אישור.</p>
         <article id="assistCapabilityBrief" class="assist-cap-brief" hidden data-cap-brief="f4" aria-label="כרטיס יכולת">
           <h4 class="assist-cap-kicker">כרטיס יכולת</h4>
           <strong id="assistCapTitle" class="assist-cap-title">יכולת חדשה</strong>
@@ -274,7 +283,7 @@
           <button type="button" class="assist-quick-chip" data-assist-chip="flightEngineer" hidden>מהנדס</button>
         </div>
         <form id="assistForm" class="assist-form" autocomplete="off">
-          <button type="button" id="assistMicBtn" class="assist-mic-btn assist-mic-btn--invite" title="שיחה עם AIRVIX Ask של הממשק. לא פקודות טיסה." aria-label="שיחה עם AIRVIX Ask של הממשק. לא פקודות טיסה." aria-pressed="false">
+          <button type="button" id="assistMicBtn" class="assist-mic-btn assist-mic-btn--invite" title="שיחה עם AIRVIX Ask. שינוי דורש אישור." aria-label="שיחה עם AIRVIX Ask. שינוי דורש אישור." aria-pressed="false">
             <span class="assist-mic-icon" aria-hidden="true">🎙</span>
             <span class="assist-mic-label">שיחה עם AIRVIX Ask</span>
           </button>

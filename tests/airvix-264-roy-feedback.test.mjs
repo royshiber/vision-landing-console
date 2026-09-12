@@ -43,9 +43,9 @@ function cssBlock(src, selector) {
 }
 
 describe('AIRVIX 1.02.264 Ask rename + premium horizon', () => {
-  it('pins APP_VERSION at 1.02.303', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.303'");
-    expect(pkg.version).toBe('1.02.303');
+  it('pins APP_VERSION at 1.02.304', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.304'");
+    expect(pkg.version).toBe('1.02.304');
   });
 
   it('fails if מסייע appears in public UI sources', () => {
@@ -63,13 +63,13 @@ describe('AIRVIX 1.02.264 Ask rename + premium horizon', () => {
     expect(html).toMatch(/class="mission-region-title" draggable="true">AIRVIX Ask</);
     expect(html).toMatch(/id="pulseTalkBtn"[^>]*>שאלו את AIRVIX Ask</);
     expect(html).toMatch(/id="assistEmptyInvite"[^>]*>שאלו את AIRVIX Ask\.</);
-    expect(html).toMatch(/id="assistMicBtn"[^>]*title="שיחה עם AIRVIX Ask של הממשק\. לא פקודות טיסה\."/);
+    expect(html).toMatch(/id="assistMicBtn"[^>]*title="שיחה עם AIRVIX Ask\. שינוי דורש אישור\."/);
     expect(html).toMatch(/class="assist-mic-label">שיחה עם AIRVIX Ask</);
     expect(html).toMatch(/נקודה ב-AIRVIX Ask/);
     expect(js).toContain("ASSIST_DEFAULT_INVITE_HE = 'שאלו את AIRVIX Ask.'");
     expect(js).toContain("ASSIST_MISSION_INVITE_HE = 'שאלו את AIRVIX Ask, רשמו הערה, או תצפית.'");
     const mic = sliceFunction(js, 'assistMicTalkLabel');
-    expect(mic).toContain('שיחה עם AIRVIX Ask של הממשק. לא פקודות טיסה.');
+    expect(mic).toContain('שיחה עם AIRVIX Ask. שינוי דורש אישור.');
     expect(mic).not.toMatch(/רדיו|טייס|מטוס/);
     expect(mic).not.toMatch(/\bARM\b|\bDISARM\b|\bLAND\b/);
   });

@@ -93,9 +93,9 @@ function loadSizeFns() {
 }
 
 describe('Mission AH size bias + swap persistence', () => {
-  it('pins APP_VERSION at 1.02.303', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.303'");
-    expect(pkg.version).toBe('1.02.303');
+  it('pins APP_VERSION at 1.02.304', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.304'");
+    expect(pkg.version).toBe('1.02.304');
   });
 
   it('keeps mission-data labels and values on one ellipsized line', () => {

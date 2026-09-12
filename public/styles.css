@@ -17847,6 +17847,39 @@ body.mission-assist-docked .assist-rail.assist-rail--mission,
 .assist-msg-kind-unavailable { border-color: rgba(251, 191, 36, 0.45); }
 .assist-msg-kind-result { border-color: rgba(74, 222, 128, 0.5); }
 .assist-proposal-actions { display: flex; gap: 8px; }
+.assist-proposal-kicker {
+  margin: 0;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #bbf7d0;
+}
+.assist-proposal-voice-hint {
+  margin: 0;
+  font-size: 0.72rem;
+  color: #86efac;
+}
+.assist-proposal-bar .assist-btn-confirm {
+  min-height: 36px;
+  font-weight: 700;
+}
+.assist-proposal-bar .assist-btn-cancel {
+  min-height: 36px;
+}
+.assist-suggestion-bar {
+  border: 1px solid rgba(250, 204, 21, 0.4);
+  background: rgba(69, 26, 3, 0.35);
+  border-radius: 10px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.assist-suggestion-bar[hidden] { display: none !important; }
+.assist-suggestion-text { margin: 0; font-size: 0.78rem; color: #fde68a; }
+.assist-msg-kind-blocked {
+  border-color: rgba(248, 113, 113, 0.55);
+  background: rgba(127, 29, 29, 0.22);
+}
 .assist-composer {
   margin-top: auto;
   display: flex;

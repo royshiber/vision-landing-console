@@ -164,9 +164,9 @@ describe('AIRVIX Mission chrome — talk is flight-safe', () => {
     expect(chip).toContain("kind === 'advisor'");
   });
 
-  it('pins APP_VERSION at 1.02.303', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.303'");
-    expect(pkg.version).toBe('1.02.303');
+  it('pins APP_VERSION at 1.02.304', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.304'");
+    expect(pkg.version).toBe('1.02.304');
   });
 
   it('keeps a rectangular glass artificial horizon with video HUD mode', () => {
@@ -345,7 +345,7 @@ describe('AIRVIX Mission chrome — talk is flight-safe', () => {
 
   it('brightens Mission Assist and shows an honest microphone control', () => {
     expect(html).toContain('id="assistMicBtn"');
-    expect(html).toMatch(/id="assistMicBtn"[^>]*aria-label="שיחה עם AIRVIX Ask של הממשק\. לא פקודות טיסה\."/);
+    expect(html).toMatch(/id="assistMicBtn"[^>]*aria-label="שיחה עם AIRVIX Ask\. שינוי דורש אישור\."/);
     expect(html).toMatch(/class="assist-mic-label">שיחה עם AIRVIX Ask</);
     expect(css).toMatch(/\.mission-region-talk\s*\{[^}]*background:\s*#0f141c/);
     expect(css).toMatch(/#missionTalkHost \.assist-rail-title\s*\{[^}]*color:\s*#e8edf6/);

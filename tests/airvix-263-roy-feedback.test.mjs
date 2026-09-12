@@ -42,9 +42,9 @@ function cssBlock(src, selector) {
 }
 
 describe('AIRVIX 1.02.264 flyable Mission layout', () => {
-  it('pins APP_VERSION at 1.02.303', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.303'");
-    expect(pkg.version).toBe('1.02.303');
+  it('pins APP_VERSION at 1.02.304', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.304'");
+    expect(pkg.version).toBe('1.02.304');
   });
 
   it('keeps the map as the majority workspace and sizes the PFD in the readable band', () => {
@@ -75,11 +75,11 @@ describe('AIRVIX 1.02.264 flyable Mission layout', () => {
   });
 
   it('labels the microphone as interface Assist, not flight radio', () => {
-    expect(html).toMatch(/id="assistMicBtn"[^>]*title="שיחה עם AIRVIX Ask של הממשק\. לא פקודות טיסה\."/);
+    expect(html).toMatch(/id="assistMicBtn"[^>]*title="שיחה עם AIRVIX Ask\. שינוי דורש אישור\."/);
     expect(html).toMatch(/class="assist-mic-label">שיחה עם AIRVIX Ask</);
     expect(html).not.toContain('class="assist-mic-caption"');
     const mic = sliceFunction(js, 'assistMicTalkLabel');
-    expect(mic).toContain('שיחה עם AIRVIX Ask של הממשק. לא פקודות טיסה.');
+    expect(mic).toContain('שיחה עם AIRVIX Ask. שינוי דורש אישור.');
     expect(mic).not.toMatch(/רדיו|טייס|מטוס/);
     expect(mic).not.toMatch(/\bARM\b|\bDISARM\b|\bLAND\b/);
   });

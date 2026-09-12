@@ -119,7 +119,9 @@ describe('Auto-Config → Assist + Configuration fold — intent routing', () =>
     expect(resolveAssistIntent('What is the GPS status?').intent).toBe('QUESTION');
     expect(resolveAssistIntent('הערה: הסחף ימינה').intent).toBe('NOTE');
     expect(resolveAssistIntent('Add a tab for landing confidence.').intent).toBe('DEVELOPMENT');
-    expect(resolveAssistIntent('Change param LAND_SPEED to 5').prohibited).toBe(true);
+    const param = resolveAssistIntent('Change param LAND_SPEED to 5');
+    expect(param.intent).toBe('FLIGHT_PARAM');
+    expect(param.slots.action).toBe('PROPOSE_PARAM_CHANGE');
     expect(resolveAssistIntent('ARM the plane').prohibited).toBe(true);
   });
 });
@@ -189,7 +191,7 @@ describe('Auto-Config → Assist + Configuration fold — chrome', () => {
     expect(js).toContain("applyControlSubtab('autoConfig')");
     expect(js).toMatch(/action === 'auto-config'/);
     expect(js).toContain("autoConfig: 'configuration'");
-    expect(js).toContain("ASSIST_MISSION_HINT_HE = 'הטסה. הערה ותצפית בלבד.'");
+    expect(js).toContain("ASSIST_MISSION_HINT_HE = 'הטסה. שינוי דורש אישור.'");
     expect(js).toMatch(/tab === 'terrain' \|\| tab === 'flightEngineer'/);
     expect(html).toContain('id="featureDesigner"');
     expect(html).toContain('id="advisor"');
@@ -205,8 +207,8 @@ describe('Auto-Config → Assist + Configuration fold — chrome', () => {
     expect(html).not.toMatch(/id="companionApplyBtn"|id="companionRestartBtn"/);
   });
 
-  it('pins APP_VERSION at 1.02.303', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.303'");
-    expect(pkg.version).toBe('1.02.303');
+  it('pins APP_VERSION at 1.02.304', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.304'");
+    expect(pkg.version).toBe('1.02.304');
   });
 });

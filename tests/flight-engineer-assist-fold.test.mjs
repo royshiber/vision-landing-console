@@ -117,7 +117,9 @@ describe('Flight Engineer → Assist fold — intent routing', () => {
     expect(resolveAssistIntent('What is the GPS status?').intent).toBe('QUESTION');
     expect(resolveAssistIntent('הערה: הסחף ימינה').intent).toBe('NOTE');
     expect(resolveAssistIntent('Add a tab for landing confidence.').intent).toBe('DEVELOPMENT');
-    expect(resolveAssistIntent('Change param LAND_SPEED to 5').prohibited).toBe(true);
+    const param = resolveAssistIntent('Change param LAND_SPEED to 5');
+    expect(param.intent).toBe('FLIGHT_PARAM');
+    expect(param.slots.action).toBe('PROPOSE_PARAM_CHANGE');
     expect(resolveAssistIntent('ARM the plane').prohibited).toBe(true);
     expect(resolveAssistIntent('land now').prohibited).toBe(true);
   });
@@ -193,7 +195,7 @@ describe('Flight Engineer → Assist fold — chrome', () => {
     expect(js).toMatch(/flightEngineer:\s*'voice'/);
     expect(js).toContain("void assistSendText('פתח מהנדס')");
     expect(js).toContain('feOpenAssistBtn');
-    expect(js).toContain("ASSIST_MISSION_HINT_HE = 'הטסה. הערה ותצפית בלבד.'");
+    expect(js).toContain("ASSIST_MISSION_HINT_HE = 'הטסה. שינוי דורש אישור.'");
     expect(js).toMatch(/tab === 'terrain' \|\| tab === 'flightEngineer'/);
     expect(css).toMatch(/\.fe-assist-fold\b/);
     expect(css).toMatch(/\.assist-quick-chip\[hidden\]/);
@@ -209,8 +211,8 @@ describe('Flight Engineer → Assist fold — chrome', () => {
     expect(html).toContain('id="pfdVoiceFlightBtn"');
   });
 
-  it('pins APP_VERSION at 1.02.303', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.303'");
-    expect(pkg.version).toBe('1.02.303');
+  it('pins APP_VERSION at 1.02.304', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.304'");
+    expect(pkg.version).toBe('1.02.304');
   });
 });

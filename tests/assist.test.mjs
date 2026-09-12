@@ -154,7 +154,15 @@ describe('Assist intent routing', () => {
     expect(resolveAssistIntent('Please arm the aircraft').prohibited).toBe(true);
     expect(resolveAssistIntent('Deploy the release now').prohibited).toBe(true);
     expect(resolveAssistIntent('Start agent for this task').prohibited).toBe(true);
-    expect(resolveAssistIntent('Change param LAND_SPEED to 5').prohibited).toBe(true);
+  });
+
+  it('routes a safe param set to a confirm-required flight-param intent', () => {
+    const r = resolveAssistIntent('Change param LAND_SPEED to 5');
+    expect(r.prohibited).toBeFalsy();
+    expect(r.intent).toBe('FLIGHT_PARAM');
+    expect(r.slots.action).toBe('PROPOSE_PARAM_CHANGE');
+    expect(r.slots.key).toBe('LAND_SPEED');
+    expect(r.slots.value).toBe(5);
   });
 });
 
@@ -398,9 +406,10 @@ describe('Assist service proposals and confirmation', () => {
     expect(resp.intent).toBe('UNRESOLVED');
     expect(resp.action_proposal).toBe(null);
     expect(resp.requires_confirmation).toBe(false);
-    expect(resp.answer).toBe(ASSIST_HE.prohibitedAnswer);
+    expect(resp.answer).toBe(ASSIST_HE.blockedFlightCommandAnswer);
+    expect(resp.answer).toMatch(/שער אדם/);
     expect(resp.answer).not.toMatch(/prohibited/i);
-    expect(resp.next_step).toBe(ASSIST_HE.prohibitedNextStep);
+    expect(resp.next_step).toBe(ASSIST_HE.blockedFlightNextStep);
   });
 
   it('allows only safe action types', () => {
@@ -458,8 +467,8 @@ describe('Assist service proposals and confirmation', () => {
     expect(resp.kind).toBe('INFORMATION');
     expect(resp.requires_confirmation).toBe(false);
     expect(resp.action_proposal).toBe(null);
-    expect(resp.answer).toBe(ASSIST_HE.prohibitedAnswer);
-    expect(resp.answer).toMatch(/אסורה/);
+    expect(resp.answer).toBe(ASSIST_HE.blockedFlightCommandAnswer);
+    expect(resp.answer).toMatch(/שער אדם/);
     expect(resp.answer).not.toMatch(/That request maps/i);
   });
 
