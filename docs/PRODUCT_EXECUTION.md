@@ -65,18 +65,18 @@ Merge autonomy still on for independently VERIFIED safe draft PRs. Hard safety s
 ## Audit snapshot — 2026-09-12 (Vision Landing Readiness)
 
 **Master tip before this draft:** `1.02.280` @ `52cc425` (PR #98 — Jetson E3372 host pack).  
-**This draft:** Vision Landing Readiness checklist. `APP_VERSION` **1.02.281**. Stay draft until VERIFY. Display only.
+**This draft:** Vision Landing Readiness aligned to locked Experiment #1. `APP_VERSION` **1.02.283**. Rebased onto master after #101 (telemetry archive) and #100 (Status gauges / AH). Stay draft until King merges. Display only.
 
 ### Landed
 
 - **F4 Ask → Capability Brief** and **F3 / Concept B** remain on master from earlier drafts.
-- Mission glance **מוכנות**, Status **סטטוס מחשבים**, and diagnostics now share one honest Vision Landing checklist: Jetson reachability, FC heartbeat, camera/vision pipeline, PLND / vision-nav profile, cellular annotated video, recording, flight-command gate.
-- Camera / heartbeat / video never invent an OK. `modem_absent` is missing video. No manual-record API → not-recording. ARM / LAND / auto-land stay Human Gate #29 and are not enabled.
+- Mission glance **מוכנות**, Status **סטטוס מחשבים**, and diagnostics share one Experiment #1 checklist. Blockers: Jetson reachability, FC heartbeat, observe-only runway detection. Follow-ons (not #1 blockers): annotations, lock-status, PLND profile, gated flight commands.
+- Camera / heartbeat never invent an OK. `modem_absent` annotations stay honest and do not block #1. ARM / LAND / auto-land stay Human Gate #29 because the PIC hand-flies.
 - Companion BOTH gate unchanged. No Companion-real widening. No live vehicle.
 
 ### This draft
 
-Operator question: אפשר להתחיל ניסוי נחיתה ויזואלית? Hebrew chips on / warn / off. Each row has a one-line מה חסר. Experiment stays not-ready while flight commands are gated.
+Locked Experiment #1: fixed-wing final, PIC hand-fly, observe-only runway detection mandatory. Operator question: אפשר להתחיל ניסוי אחד? Scope: גישה סופית. טייס מטיס. זיהוי מסלול לצפייה בלבד. Annotations and lock-status are follow-ons — not #1 blockers. Flight commands stay gated because the PIC hand-flies.
 
 ### Next pick
 

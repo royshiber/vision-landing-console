@@ -5149,6 +5149,7 @@ function fillVisionLandingList(listEl, items) {
     li.className = 'vlr-row';
     li.dataset.id = row.id || '';
     li.dataset.state = row.chip || 'off';
+    li.dataset.role = row.role || (row.blocker === false ? 'followOn' : 'blocker');
     const name = document.createElement('span');
     name.className = 'vlr-name';
     name.textContent = row.nameHe || '';
@@ -5170,8 +5171,14 @@ function renderVisionLandingChecklist(host, payload, { includeQuestion = true } 
   if (includeQuestion) {
     const q = document.createElement('p');
     q.className = 'vlr-question';
-    q.textContent = payload.questionHe || 'אפשר להתחיל ניסוי נחיתה ויזואלית?';
+    q.textContent = payload.questionHe || 'אפשר להתחיל ניסוי אחד?';
     host.appendChild(q);
+  }
+  if (payload.scopeHe) {
+    const scope = document.createElement('p');
+    scope.className = 'vlr-scope';
+    scope.textContent = payload.scopeHe;
+    host.appendChild(scope);
   }
   const ans = document.createElement('p');
   ans.className = 'vlr-answer';

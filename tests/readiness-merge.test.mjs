@@ -41,7 +41,7 @@ function sliceFunction(src, name) {
 describe('Preflight / readiness MERGE — Mission glance + Diagnostics', () => {
   it('unifies operator Hebrew to מוכנות on Mission popover and diagnostics strip', () => {
     expect(html).toMatch(/id="missionReadinessGlance"[^>]*>מוכנות</);
-    expect(html).toMatch(/id="pfdReadinessTitle"[^>]*>אפשר להתחיל ניסוי נחיתה ויזואלית\?</);
+    expect(html).toMatch(/id="pfdReadinessTitle"[^>]*>אפשר להתחיל ניסוי אחד\?</);
     expect(html).toMatch(/class="tele-preflight-title">מוכנות</);
     expect(html).not.toContain('בדיקות מערכת');
     expect(html).not.toContain('מוכנות טיסה');
@@ -99,8 +99,8 @@ describe('Preflight / readiness MERGE — Mission glance + Diagnostics', () => {
     expect(js).not.toMatch(/FLIGHT_ACTION/);
   });
 
-  it('pins APP_VERSION at 1.02.282', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.282'");
-    expect(pkg.version).toBe('1.02.282');
+  it('pins APP_VERSION at 1.02.283', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.283'");
+    expect(pkg.version).toBe('1.02.283');
   });
 });

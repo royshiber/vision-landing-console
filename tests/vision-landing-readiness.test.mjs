@@ -13,6 +13,7 @@ import {
   flightCommandReadiness,
   MANUAL_RECORD_API_PRESENT,
   VISION_LANDING_QUESTION_HE,
+  VISION_LANDING_SCOPE_HE,
 } from '../lib/vision-landing-readiness.mjs';
 import { registerVisionLandingReadinessApi } from '../lib/routes/vision-landing-readiness-api.mjs';
 
@@ -72,23 +73,28 @@ describe('Vision Landing Readiness honesty', () => {
     expect(cam.chip).not.toBe('on');
   });
 
-  it('treats modem_absent annotated video as missing', () => {
+  it('treats modem_absent annotations as a follow-on, not an Experiment #1 blocker', () => {
     const body = buildVisionLandingReadiness(emptyInput);
     const video = body.items.find((r) => r.id === 'video');
     expect(video.state).toBe('modem_absent');
-    expect(video.chip).toBe('off');
+    expect(video.blocker).toBe(false);
+    expect(video.role).toBe('followOn');
     expect(video.missingHe).toMatch(/מודם/);
+    expect(video.missingHe).toMatch(/לא חוסם את ניסוי אחד/);
   });
 
   it('defaults recording to not-recording when no manual-record API exists', () => {
     expect(MANUAL_RECORD_API_PRESENT).toBe(false);
     const none = recordingReadiness({ recording: { apiPresent: false } });
+    expect(none.id).toBe('lock');
     expect(none.state).toBe('not_recording');
     expect(none.armed).toBe(false);
-    expect(none.chip).toBe('off');
+    expect(none.blocker).toBe(false);
+    expect(none.missingHe).toMatch(/לא חוסם את ניסוי אחד/);
     const armed = recordingReadiness({ recording: { apiPresent: true, armed: true } });
     expect(armed.state).toBe('armed');
     expect(armed.chip).toBe('on');
+    expect(armed.blocker).toBe(false);
   });
 
   it('keeps flight commands gated and never ready to send', () => {
@@ -109,9 +115,13 @@ describe('Vision Landing Readiness honesty', () => {
       recording: { apiPresent: false, armed: false },
     });
     expect(readySensors.sensorsReady).toBe(true);
-    expect(readySensors.experimentReady).toBe(false);
+    expect(readySensors.experimentReady).toBe(true);
+    expect(readySensors.picHandFly).toBe(true);
+    expect(readySensors.observeOnly).toBe(true);
     expect(readySensors.flightCommandsEnabled).toBe(false);
-    expect(readySensors.answerHe).toMatch(/פקודות טיסה חסומות/);
+    expect(readySensors.answerHe).toMatch(/טייס מטיס/);
+    expect(readySensors.answerHe).not.toMatch(/פקודות טיסה חסומות/);
+    expect(readySensors.items.find((r) => r.id === 'flightCommands').blocker).toBe(false);
     expect(engine).not.toMatch(/FLIGHT_ACTION|COMMAND_LONG|MAV_CMD_NAV_LAND|ARM_DISARM/);
     expect(api).not.toMatch(/app\.post\(/);
   });
@@ -127,16 +137,18 @@ describe('Vision Landing Readiness honesty', () => {
     expect(fc.state).toBe('unknown');
   });
 
-  it('reports PLND profile present only from known keys', () => {
+  it('reports PLND profile honestly and never blocks Experiment #1', () => {
     const missing = buildVisionLandingReadiness(emptyInput).items.find((r) => r.id === 'plnd');
     expect(missing.state).toBe('absent');
-    expect(missing.chip).toBe('off');
+    expect(missing.blocker).toBe(false);
+    expect(missing.missingHe).toMatch(/לא חוסם את ניסוי אחד/);
     const consoleOnly = buildVisionLandingReadiness({
       ...emptyInput,
       arduTarget: { PLND_ENABLED: 1, PLND_TYPE: 1 },
     }).items.find((r) => r.id === 'plnd');
     expect(consoleOnly.state).toBe('console');
     expect(consoleOnly.chip).toBe('warn');
+    expect(consoleOnly.blocker).toBe(false);
     const onFc = buildVisionLandingReadiness({
       ...emptyInput,
       arduTarget: { PLND_ENABLED: 1, PLND_TYPE: 1 },
@@ -144,6 +156,27 @@ describe('Vision Landing Readiness honesty', () => {
     }).items.find((r) => r.id === 'plnd');
     expect(onFc.state).toBe('present');
     expect(onFc.chip).toBe('on');
+  });
+
+  it('can mark Experiment #1 ready without annotations, lock-status, or flight commands', () => {
+    const body = buildVisionLandingReadiness({
+      companion: { jetson: 'reachable', fc: 'heartbeat', hasData: true, fc_heartbeat: true },
+      vision: { camera_ok: true, running: true, health: 'ok' },
+      dual: { cellular: 'modem_absent', modemPresent: false, video: { available: false, reason: 'modem_absent' } },
+      mavlink: { connected: true, heartbeatCount: 8, lastHeartbeatAgeMs: 300 },
+      arduTarget: {},
+      arduCurrent: null,
+      visionProfile: {},
+      recording: { apiPresent: false, armed: false },
+    });
+    expect(body.experiment).toBe(1);
+    expect(body.scopeHe).toBe(VISION_LANDING_SCOPE_HE);
+    expect(body.experimentReady).toBe(true);
+    expect(body.items.find((r) => r.id === 'video').blocker).toBe(false);
+    expect(body.items.find((r) => r.id === 'lock').blocker).toBe(false);
+    expect(body.items.find((r) => r.id === 'plnd').blocker).toBe(false);
+    expect(body.flightCommandsEnabled).toBe(false);
+    expect(body.answerHe).toMatch(/זיהוי מסלול לצפייה/);
   });
 
   it('exposes a live GET that stays display-only', async () => {
@@ -160,13 +193,19 @@ describe('Vision Landing Readiness honesty', () => {
     await new Promise((resolve) => server.close(resolve));
     expect(r.status).toBe(200);
     expect(j.ok).toBe(true);
+    expect(j.experiment).toBe(1);
     expect(j.questionHe).toBe(VISION_LANDING_QUESTION_HE);
+    expect(j.scopeHe).toBe(VISION_LANDING_SCOPE_HE);
     expect(j.experimentReady).toBe(false);
     expect(j.flightCommandsEnabled).toBe(false);
+    expect(j.picHandFly).toBe(true);
+    expect(j.observeOnly).toBe(true);
     const ids = j.items.map((row) => row.id);
-    expect(ids).toEqual(['jetson', 'fc', 'camera', 'plnd', 'video', 'recording', 'flightCommands']);
+    expect(ids).toEqual(['jetson', 'fc', 'camera', 'plnd', 'video', 'lock', 'flightCommands']);
     expect(j.items.find((row) => row.id === 'camera').state).not.toBe('ok');
-    expect(j.items.find((row) => row.id === 'recording').state).toBe('not_recording');
+    expect(j.items.find((row) => row.id === 'lock').state).toBe('not_recording');
+    expect(j.items.find((row) => row.id === 'lock').blocker).toBe(false);
+    expect(j.items.find((row) => row.id === 'video').blocker).toBe(false);
     expect(j.items.find((row) => row.id === 'flightCommands').enabled).toBe(false);
   });
 });
@@ -174,7 +213,8 @@ describe('Vision Landing Readiness honesty', () => {
 describe('Vision Landing Readiness UI', () => {
   it('places the checklist on Mission glance, Status, and diagnostics', () => {
     expect(html).toContain('id="missionReadinessGlance"');
-    expect(html).toMatch(/id="pfdReadinessTitle"[^>]*>אפשר להתחיל ניסוי נחיתה ויזואלית\?</);
+    expect(html).toMatch(/id="pfdReadinessTitle"[^>]*>אפשר להתחיל ניסוי אחד\?</);
+    expect(html).toContain('גישה סופית. טייס מטיס. זיהוי מסלול לצפייה בלבד.');
     expect(html).toContain('id="pulseVisionLandingReadiness"');
     expect(html).toContain('id="visionLandingReadinessStrip"');
     expect(html).toContain('id="pulseVlrList"');
@@ -200,6 +240,8 @@ describe('Vision Landing Readiness UI', () => {
   it('routes Assist נחיתה ויזואלית to Mission readiness', () => {
     expect(findAssistRoute('נחיתה ויזואלית')?.id).toBe('readiness');
     expect(findAssistRoute('ניסוי נחיתה')?.id).toBe('readiness');
+    expect(findAssistRoute('ניסוי אחד')?.id).toBe('readiness');
+    expect(resolveAssistIntent('ניסוי אחד').slots.route_id).toBe('readiness');
     expect(resolveAssistIntent('נחיתה ויזואלית').slots.route_id).toBe('readiness');
     expect(hebrewOpenRouteAnswer('readiness')).toBe('פותחים את המוכנות.');
     expect(resolveAssistIntent('ARM the plane').prohibited).toBe(true);
@@ -213,10 +255,10 @@ describe('Vision Landing Readiness registration', () => {
     expect(coreApi).toMatch(/visionLandingReadiness:\s*true/);
   });
 
-  it('pins APP_VERSION at 1.02.281', () => {
+  it('pins APP_VERSION at 1.02.283', () => {
     const version = fs.readFileSync(path.join(repoRoot, 'version.js'), 'utf8');
     const pkg = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8'));
-    expect(version).toContain("export const APP_VERSION = '1.02.281'");
-    expect(pkg.version).toBe('1.02.281');
+    expect(version).toContain("export const APP_VERSION = '1.02.283'");
+    expect(pkg.version).toBe('1.02.283');
   });
 });

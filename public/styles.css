@@ -11486,10 +11486,16 @@ html[data-evolve-preview="1"] #development {
   color: inherit;
 }
 .vlr-question {
-  margin: 0 0 6px;
+  margin: 0 0 4px;
   font-size: 0.78rem;
   font-weight: 600;
   color: inherit;
+}
+.vlr-scope {
+  margin: 0 0 6px;
+  font-size: 0.68rem;
+  line-height: 1.35;
+  color: #94a3b8;
 }
 .vlr-answer {
   margin: 0 0 8px;
@@ -11516,6 +11522,9 @@ html[data-evolve-preview="1"] #development {
   grid-template-rows: auto auto;
   gap: 2px 8px;
   align-items: center;
+}
+.vlr-row[data-role="followOn"] .vlr-name {
+  font-weight: 500;
 }
 .vlr-name {
   font-size: 0.72rem;
