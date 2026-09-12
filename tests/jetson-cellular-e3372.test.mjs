@@ -48,13 +48,13 @@ function lastJson(stdout) {
 }
 
 describe('Jetson Huawei E3372 host pack (software before hardware)', () => {
-  it('pins APP_VERSION at 1.02.292', () => {
+  it('pins APP_VERSION at 1.02.293', () => {
     const version = fs.readFileSync(path.join(repoRoot, 'version.js'), 'utf8');
     const pkg = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8'));
     const changelog = fs.readFileSync(path.join(repoRoot, 'public', 'changelog.json'), 'utf8');
-    expect(version).toContain("export const APP_VERSION = '1.02.292'");
-    expect(pkg.version).toBe('1.02.292');
-    expect(changelog).toContain('"version": "1.02.292"');
+    expect(version).toContain("export const APP_VERSION = '1.02.293'");
+    expect(pkg.version).toBe('1.02.293');
+    expect(changelog).toContain('"version": "1.02.293"');
   });
 
   it('ships the install pack with executable dry-run scripts', () => {

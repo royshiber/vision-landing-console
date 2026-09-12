@@ -1,5 +1,16 @@
 [
   {
+    "version": "1.02.293",
+    "date": "2026-09-12",
+    "changes": [
+      {
+        "type": "ui",
+        "title": "Declutter Mission chrome for Experiment #1 flyability",
+        "detail": "APP_VERSION 1.02.293. After master 1.02.292 (#112 honest Companion vision). Mission keeps one מוכנות entry. Always-on מסלול and נעילה glances are gone — Exp#1 rows stay in the readiness popover with short missingHe lines. Annotated vision stays cellular-only; the long modem_absent paragraph is not Mission default chrome and opens only behind ראייה. Connect advanced keeps the long honesty. Dual-link, PLND honesty, Companion 2.3.2 observe endpoints, and the flight-command gate are unchanged. No flight commands and no Companion apply/restart."
+      }
+    ]
+  },
+  {
     "version": "1.02.292",
     "date": "2026-09-12",
     "changes": [

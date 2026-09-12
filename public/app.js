@@ -3618,20 +3618,7 @@ function paintPlndProfileHonesty(snapshot) {
 function renderVisionLandingReadiness(container, snapshot) {
   if (!container) return;
   container.innerHTML = '';
-  if (container.id === 'pfdReadinessBody') {
-    if (snapshot?.purposeHe) {
-      const purpose = document.createElement('p');
-      purpose.className = 'vlr-purpose';
-      purpose.textContent = snapshot.purposeHe;
-      container.appendChild(purpose);
-    }
-    if (snapshot?.successHe) {
-      const success = document.createElement('p');
-      success.className = 'vlr-success';
-      success.textContent = snapshot.successHe;
-      container.appendChild(success);
-    }
-  }
+  const compact = container.id === 'pfdReadinessBody';
   const rows = Array.isArray(snapshot?.rows) ? snapshot.rows : [];
   for (const row of rows) {
     const art = document.createElement('article');
@@ -3658,13 +3645,13 @@ function renderVisionLandingReadiness(container, snapshot) {
     miss.className = 'vlr-missing';
     miss.textContent = row.missingHe || '';
     art.append(name, chip, miss);
-    if (Array.isArray(row.keys) && row.keys.length) {
+    if (!compact && Array.isArray(row.keys) && row.keys.length) {
       const list = document.createElement('ul');
       list.className = 'vlr-keys';
       appendPlndProfileKeys(list, row.keys, 'vlr-key');
       art.appendChild(list);
     }
-    if (Array.isArray(row.tokens) && row.tokens.length) {
+    if (!compact && Array.isArray(row.tokens) && row.tokens.length) {
       const toks = document.createElement('div');
       toks.className = 'vlr-tokens';
       toks.setAttribute('dir', 'ltr');
@@ -3703,25 +3690,6 @@ function paintVisionLandingReadiness(snapshot) {
   paintPlndProfileHonesty(snapshot);
   const popoverOpen = pfdReadinessPopover && !pfdReadinessPopover.classList.contains('hidden');
   if (popoverOpen) renderVisionLandingReadiness(pfdReadinessBody, snapshot);
-  if (missionRunwayGlance) {
-    const runway = Array.isArray(snapshot.rows)
-      ? snapshot.rows.find((row) => row.id === 'runway_detect')
-      : null;
-    const runwayState = runway?.state || snapshot.runwayDetect || 'unknown';
-    missionRunwayGlance.dataset.state = runwayState;
-    missionRunwayGlance.textContent = RUNWAY_GLANCE_HE[runwayState] || RUNWAY_GLANCE_HE.unknown;
-    missionRunwayGlance.title = runway?.missingHe || 'זיהוי מסלול לצפייה';
-  }
-  if (missionRunwayLockGlance) {
-    const lockRow = Array.isArray(snapshot.rows)
-      ? snapshot.rows.find((row) => row.id === 'runway_lock')
-      : null;
-    const lockState = lockRow?.state || snapshot.runwayLock?.state || 'unknown';
-    const lockSafe = RUNWAY_LOCK_GLANCE_HE[lockState] ? lockState : 'unknown';
-    missionRunwayLockGlance.dataset.state = lockSafe;
-    missionRunwayLockGlance.textContent = RUNWAY_LOCK_GLANCE_HE[lockSafe];
-    missionRunwayLockGlance.title = lockRow?.missingHe || 'נעילת מסלול לצפייה. אין המצאת נעילה.';
-  }
 }
 
 async function refreshVisionLandingReadiness() {
@@ -4716,21 +4684,6 @@ const pfdReadinessCloseBtn = document.getElementById('pfdReadinessCloseBtn');
 const pfdReadinessDiagBtn = document.getElementById('pfdReadinessDiagBtn');
 const pfdReadinessStatusBtn = document.getElementById('pfdReadinessStatusBtn');
 const missionReadinessGlance = document.getElementById('missionReadinessGlance');
-const missionRunwayGlance = document.getElementById('missionRunwayGlance');
-const missionRunwayLockGlance = document.getElementById('missionRunwayLockGlance');
-const RUNWAY_GLANCE_HE = Object.freeze({
-  detected: 'מסלול · זוהה',
-  not_detected: 'מסלול · לא זוהה',
-  unknown: 'מסלול · לא ידוע',
-  not_implemented: 'מסלול · אין גלאי',
-  absent: 'מסלול · חסר',
-});
-const RUNWAY_LOCK_GLANCE_HE = Object.freeze({
-  unknown: 'נעילה · לא ידוע',
-  not: 'נעילה · אין',
-  detecting: 'נעילה · מזהה',
-  locked: 'נעילה · נעול',
-});
 let _readinessAnchor = null;
 // Kept as null — removed from HTML
 const hudRollLabel = null;
@@ -5582,7 +5535,7 @@ function positionPfdReadinessPopover() {
   const anchor = _readinessAnchor || missionReadinessGlance || pfdArmedBadge;
   if (!pfdReadinessPopover || !anchor || pfdReadinessPopover.classList.contains('hidden')) return;
   const r = anchor.getBoundingClientRect();
-  const w = Math.min(360, window.innerWidth - 16);
+  const w = Math.min(280, window.innerWidth - 16);
   const left = Math.max(8, Math.min(r.left, window.innerWidth - w - 8));
   pfdReadinessPopover.style.width = `${w}px`;
   pfdReadinessPopover.style.left = `${left}px`;
@@ -5648,8 +5601,6 @@ function setupFlightHudChromeHandlers() {
     if (e.key === 'Enter' || e.key === ' ') toggleReadinessPopover(e, pfdArmedBadge);
   });
   missionReadinessGlance?.addEventListener('click', (e) => toggleReadinessPopover(e, missionReadinessGlance));
-  missionRunwayGlance?.addEventListener('click', (e) => toggleReadinessPopover(e, missionRunwayGlance));
-  missionRunwayLockGlance?.addEventListener('click', (e) => toggleReadinessPopover(e, missionRunwayLockGlance));
   pfdReadinessCloseBtn?.addEventListener('click', () => closePfdReadinessPopover());
   pfdReadinessStatusBtn?.addEventListener('click', (e) => {
     e.preventDefault();
@@ -5665,8 +5616,6 @@ function setupFlightHudChromeHandlers() {
     if (!pfdReadinessPopover || pfdReadinessPopover.classList.contains('hidden')) return;
     if (pfdArmedBadge?.contains(e.target)) return;
     if (missionReadinessGlance?.contains(e.target)) return;
-    if (missionRunwayGlance?.contains(e.target)) return;
-    if (missionRunwayLockGlance?.contains(e.target)) return;
     if (pfdReadinessPopover.contains(e.target)) return;
     closePfdReadinessPopover();
   });
@@ -8804,11 +8753,19 @@ const ANNOTATED_VISION_REASON_HE = Object.freeze({
   cellular_connected: 'ראייה מסומנת זמינה דרך סלולר ממחשב משימה.',
 });
 
-function annotatedVisionReasonHe(video) {
+const ANNOTATED_VISION_REASON_HE_MISSION = Object.freeze({
+  modem_absent: 'אין שידור. מודם לא מחובר.',
+  cellular_disconnected: 'אין שידור. סלולר מנותק.',
+  stream_absent: 'אין שידור. אין זרם מסומן.',
+  cellular_connected: 'שידור סלולר ממחשב משימה.',
+});
+
+function annotatedVisionReasonHe(video, { compact = false } = {}) {
   const reason = video?.reason;
-  if (video?.reasonHe) return video.reasonHe;
-  if (reason && ANNOTATED_VISION_REASON_HE[reason]) return ANNOTATED_VISION_REASON_HE[reason];
-  return ANNOTATED_VISION_REASON_HE.cellular_disconnected;
+  const map = compact ? ANNOTATED_VISION_REASON_HE_MISSION : ANNOTATED_VISION_REASON_HE;
+  if (!compact && video?.reasonHe) return video.reasonHe;
+  if (reason && map[reason]) return map[reason];
+  return map.cellular_disconnected;
 }
 
 function annotatedVisionIsLive(video) {
@@ -8828,7 +8785,8 @@ function applyAnnotatedVision(video) {
     || (video?.available ? 'cellular_connected' : 'cellular_disconnected');
   const live = annotatedVisionIsLive(video);
   const reasonHe = annotatedVisionReasonHe({ ...video, reason });
-  if (empty) empty.textContent = reasonHe;
+  const reasonHeMission = annotatedVisionReasonHe({ ...video, reason }, { compact: true });
+  if (empty) empty.textContent = reasonHeMission;
   if (panel) {
     panel.dataset.state = live
       ? 'live'

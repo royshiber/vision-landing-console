@@ -4938,10 +4938,7 @@ body:has(#pulse.panel.visible) .layout {
   color: #cbd5e1;
 }
 .pfd-readiness-body .vlr-list {
-  gap: 6px;
-}
-.pfd-readiness-body .vlr-row {
-  padding: 5px 6px;
+  gap: 4px;
 }
 .vlr-row {
   grid-template-areas:
@@ -10855,17 +10852,18 @@ html[data-evolve-preview="1"] #development {
 .pfd-readiness-popover {
   position: fixed;
   z-index: 950;
+  max-width: min(280px, calc(100vw - 16px));
   background: #0b1424;
   border: 1px solid rgba(0, 140, 255, 0.35);
   border-radius: var(--radius-md);
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55);
 }
 .pfd-readiness-inner {
-  padding: 10px 12px;
+  padding: 8px;
 }
 .pfd-readiness-title {
-  margin: 0 0 8px;
-  font-size: 0.8rem;
+  margin: 0 0 6px;
+  font-size: 0.74rem;
   color: #e8edf6;
 }
 .pfd-readiness-body ul {
@@ -10873,14 +10871,33 @@ html[data-evolve-preview="1"] #development {
   padding-right: 18px;
 }
 .pfd-readiness-body li {
-  margin-bottom: 6px;
-  font-size: 0.72rem;
-  line-height: 1.45;
+  margin-bottom: 4px;
+  font-size: 0.68rem;
+  line-height: 1.25;
   color: #e2e8f0;
 }
 .pfd-readiness-body {
-  max-height: 42vh;
+  max-height: 32vh;
   overflow-y: auto;
+}
+.pfd-readiness-body .vlr-purpose,
+.pfd-readiness-body .vlr-success,
+.pfd-readiness-body .vlr-keys,
+.pfd-readiness-body .vlr-tokens {
+  display: none;
+}
+.pfd-readiness-body .vlr-row {
+  padding: 3px 4px;
+  gap: 1px;
+}
+.pfd-readiness-body .vlr-missing {
+  font-size: 0.6rem;
+  line-height: 1.2;
+  margin: 1px 0 0;
+}
+.pfd-readiness-body .vlr-open-params {
+  margin-top: 2px;
+  font-size: 0.6rem;
 }
 .pfd-readiness-actions {
   display: flex;

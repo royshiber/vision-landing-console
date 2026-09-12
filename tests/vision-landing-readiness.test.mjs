@@ -479,11 +479,11 @@ describe('GET /api/vision/landing-readiness', () => {
 });
 
 describe('Vision Landing Readiness UI', () => {
-  it('pins APP_VERSION at 1.02.292', () => {
+  it('pins APP_VERSION at 1.02.293', () => {
     const version = fs.readFileSync(path.join(repoRoot, 'version.js'), 'utf8');
     const pkg = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8'));
-    expect(version).toContain("export const APP_VERSION = '1.02.292'");
-    expect(pkg.version).toBe('1.02.292');
+    expect(version).toContain("export const APP_VERSION = '1.02.293'");
+    expect(pkg.version).toBe('1.02.293');
   });
 
   it('places the Hebrew chip panel on Status and opens the same rows from Mission', () => {
@@ -494,15 +494,13 @@ describe('Vision Landing Readiness UI', () => {
     expect(html).toContain('המערכת צופה בלבד');
     expect(html).toContain('הצלחה היא זיהוי מסלול בגישת הגמר בלבד');
     expect(html).toContain('סימון ונעילה אינם נדרשים');
-    expect(html).toContain('id="missionRunwayGlance"');
-    expect(html).toContain('id="missionRunwayLockGlance"');
-    expect(js).toMatch(/missionRunwayGlance/);
-    expect(js).toMatch(/missionRunwayLockGlance/);
-    expect(js).toMatch(/RUNWAY_GLANCE_HE/);
-    expect(js).toMatch(/RUNWAY_LOCK_GLANCE_HE/);
-    expect(js).toMatch(/snapshot\.runwayLock\?\.state/);
+    expect(html).not.toContain('id="missionRunwayGlance"');
+    expect(html).not.toContain('id="missionRunwayLockGlance"');
+    expect(js).not.toMatch(/missionRunwayGlance/);
+    expect(js).not.toMatch(/missionRunwayLockGlance/);
+    expect(js).not.toMatch(/RUNWAY_GLANCE_HE/);
+    expect(js).not.toMatch(/RUNWAY_LOCK_GLANCE_HE/);
     expect(js).not.toMatch(/זיהוי מסלול לצפייה\. אין נעילה/);
-    expect(css).toMatch(/\.mission-runway-lock-glance\[data-state="locked"\]/);
     expect(html).toMatch(/id="pfdReadinessStatusBtn"[^>]*>מוכנות בסטטוס</);
     expect(html.indexOf('id="visionLandingReadiness"')).toBeGreaterThan(html.indexOf('data-computer="fc"'));
     expect(html.indexOf('id="visionLandingReadiness"')).toBeLessThan(html.indexOf('pulse-talk-card'));
