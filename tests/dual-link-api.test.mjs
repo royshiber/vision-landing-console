@@ -114,9 +114,65 @@ describe('dual-link HTTP API', () => {
     expect(j.schema.table).toBe('telemetry_archive');
     expect(j.downlink.stub).toBe(true);
     expect(j.priority.flight).toBe(0);
+    expect(j.recording.armed).toBe(false);
+    expect(j.recording.session).toBeNull();
     const dl = await fetch(`${base}/api/telemetry-archive/downlink`, { method: 'POST' });
     const body = await dl.json();
     expect(body.stub).toBe(true);
     expect(body.modemPresent).toBe(false);
+  });
+
+  it('does not arm recording or open a session file on mere connect', async () => {
+    const before = await fetch(`${base}/api/telemetry-archive`);
+    const beforeJson = await before.json();
+    expect(beforeJson.recording.armed).toBe(false);
+    const r = await fetch(`${base}/api/links/connect`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ role: 'cellular', type: 'udp', host: '127.0.0.1', port: 14611 + (process.pid % 40) }),
+    });
+    const connected = await r.json();
+    expect(r.status).toBe(200);
+    expect(connected.ok).toBe(true);
+    const mid = await fetch(`${base}/api/telemetry-archive`);
+    const midJson = await mid.json();
+    expect(midJson.recording.armed).toBe(false);
+    expect(midJson.recording.session).toBeNull();
+    const archiveDir = path.join(tmpData, 'flights', 'archive');
+    const files = fs.existsSync(archiveDir) ? fs.readdirSync(archiveDir) : [];
+    expect(files.filter((n) => n.endsWith('.tlog'))).toEqual([]);
+    await fetch(`${base}/api/links/disconnect`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ role: 'cellular' }),
+    });
+  });
+
+  it('Start then Stop gates the archive via HTTP', async () => {
+    const start = await fetch(`${base}/api/telemetry-archive/start`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ linkRole: 'radio' }),
+    });
+    const started = await start.json();
+    expect(start.status).toBe(200);
+    expect(started.ok).toBe(true);
+    expect(started.recording.armed).toBe(true);
+    expect(started.recording.session.storedPath).toMatch(/\.tlog$/);
+    const getArmed = await fetch(`${base}/api/telemetry-archive`);
+    const armedJson = await getArmed.json();
+    expect(armedJson.recording.armed).toBe(true);
+    expect(armedJson.recording.session).toBeTruthy();
+    const stop = await fetch(`${base}/api/telemetry-archive/stop`, { method: 'POST' });
+    const stopped = await stop.json();
+    expect(stop.status).toBe(200);
+    expect(stopped.ok).toBe(true);
+    expect(stopped.recording.armed).toBe(false);
+    expect(stopped.closed.storedPath).toBe(started.recording.session.storedPath);
+    expect(stopped.closed.bytes).toBe(0);
+    const getIdle = await fetch(`${base}/api/telemetry-archive`);
+    const idleJson = await getIdle.json();
+    expect(idleJson.recording.armed).toBe(false);
+    expect(idleJson.recording.session).toBeNull();
   });
 });

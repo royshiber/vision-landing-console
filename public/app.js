@@ -15212,3 +15212,59 @@ initFirstOpenActions();
 initPulseHome();
 initAttentionPolicyControls();
 initPlatformShell();
+initFlightArchiveRecord();
+
+function initFlightArchiveRecord() {
+  const btn = document.getElementById('missionRecordBtn');
+  if (!btn) return;
+  let armed = false;
+  let busy = false;
+
+  function paint(rec) {
+    armed = !!rec?.armed;
+    btn.dataset.recording = armed ? '1' : '0';
+    btn.setAttribute('aria-pressed', armed ? 'true' : 'false');
+    btn.textContent = armed ? 'מקליט' : 'הקלטה';
+    btn.title = armed ? 'הקלטה פעילה לחצו לעצירה' : 'התחילו שמירת טיסה לארכיון';
+  }
+
+  async function refresh() {
+    try {
+      const r = await fetch('/api/telemetry-archive', { cache: 'no-store' });
+      if (!r.ok) return;
+      const j = await r.json();
+      if (j?.recording) paint(j.recording);
+    } catch {
+      /* keep last paint */
+    }
+  }
+
+  async function toggle() {
+    if (busy) return;
+    busy = true;
+    btn.disabled = true;
+    try {
+      const path = armed ? '/api/telemetry-archive/stop' : '/api/telemetry-archive/start';
+      const r = await fetch(path, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: '{}',
+      });
+      const j = await r.json().catch(() => ({}));
+      if (j?.recording) paint(j.recording);
+      else await refresh();
+    } catch {
+      await refresh();
+    } finally {
+      busy = false;
+      btn.disabled = false;
+    }
+  }
+
+  btn.addEventListener('click', () => { void toggle(); });
+  void refresh();
+  setInterval(() => { void refresh(); }, 4000);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') void refresh();
+  });
+}

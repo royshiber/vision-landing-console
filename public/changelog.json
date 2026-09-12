@@ -1,5 +1,36 @@
 [
   {
+    "version": "1.02.281",
+    "date": "2026-09-12",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "DB schema",
+        "detail": "db.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "Server library",
+        "detail": "dual-link-api.mjs, telemetry-archive.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "UI / app.js",
+        "detail": "app.js"
+      },
+      {
+        "type": "ui",
+        "title": "HTML layout",
+        "detail": "index.html"
+      },
+      {
+        "type": "ui",
+        "title": "Styles",
+        "detail": "styles.css"
+      }
+    ]
+  },
+  {
     "version": "1.02.280",
     "date": "2026-09-11",
     "changes": [
