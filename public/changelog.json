@@ -1,5 +1,21 @@
 [
   {
+    "version": "1.02.310",
+    "date": "2026-09-12",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Debrief lists recent telemetry-archive sessions",
+        "detail": "APP_VERSION 1.02.310. After master 1.02.309 (#125 HUD honesty). תחקור → לוגים lists recent Mission Start/Stop .tlog sessions from GET /api/telemetry-archive/sessions (id, started/ended, bytes, link role, interrupted/orphan, basename). Zero-byte and interrupted rows stay honest. Copy path or download only when the file is a .tlog inside the archive root. Hebrew empty state when none exist. No auto-record, no ARM/LAND, and no Companion apply/restart."
+      },
+      {
+        "type": "test",
+        "title": "Tests",
+        "detail": "archive-sessions.test.mjs — API list/download safety plus תחקור Hebrew empty-state contract."
+      }
+    ]
+  },
+  {
     "version": "1.02.309",
     "date": "2026-09-12",
     "changes": [

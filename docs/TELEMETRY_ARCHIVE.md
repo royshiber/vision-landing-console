@@ -68,7 +68,11 @@ Jetson host files for a future Huawei E3372 USB stick live in `scripts/jetson-ce
 ## API
 
 - `GET /api/telemetry-archive` — path, schema, queue stats, modem stub status, **`recording`** (`armed`, `session` bytes/frames, `lastWriteError`, `droppedWrites`), `linkUp`
+- `GET /api/telemetry-archive/sessions` — recent index rows for תחקור: `id`, `startedAt`, `endedAt`, `bytes`, `linkRole`, `interrupted` / `orphan`, `empty`, `open`, basename, stored path, download URL only when the `.tlog` is inside the archive root. Hebrew `emptyHe` when the list is empty. No invented duration or rate.
+- `GET /api/telemetry-archive/sessions/:id/file` — download that session `.tlog` only when the stored path is a file under the archive root
 - `POST /api/telemetry-archive/start` — arm recording only after the session file opens. Soft-warns in Hebrew when the MAVLink link is down.
 - `POST /api/telemetry-archive/stop` — disarm and finalize (`ended_at`). Zero-byte stop still succeeds and warns that nothing was recorded.
 - `POST /api/telemetry-archive/discard` — disarm, delete the current file and index row
 - `POST /api/telemetry-archive/downlink` — enqueue a low-priority sync stub
+
+תחקור → לוגים lists these sessions with Hebrew empty / interrupted / zero-byte labels. Copy path and download do not start a recording.
