@@ -4924,6 +4924,149 @@ body:has(#pulse.panel.visible) .layout {
   background: rgba(148, 168, 198, 0.12);
   color: #9aa8b8;
 }
+.cic-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 8px;
+  border-radius: 8px;
+  background: rgba(8, 12, 20, 0.55);
+  border: 1px solid rgba(148, 168, 198, 0.12);
+}
+.cic-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.cic-title {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: #f2f6fb;
+}
+.cic-lead,
+.cic-warn,
+.cic-step-help,
+.cic-mount-title,
+.cic-mount-disclaimer {
+  margin: 0;
+  font-size: 0.68rem;
+  line-height: 1.35;
+  color: #8b97ab;
+}
+.cic-warn,
+.cic-mount-disclaimer {
+  color: #fde68a;
+  font-weight: 700;
+}
+.cic-roles {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.cic-role {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.cic-role-name {
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #e8edf6;
+}
+.cic-role-segs,
+.cic-step-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.cic-role-btn,
+.cic-confirm,
+.cic-mount-preset {
+  min-height: 28px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 168, 198, 0.2);
+  background: rgba(148, 168, 198, 0.08);
+  color: #d7deea;
+  font-size: 0.68rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+.cic-role-btn[aria-pressed="true"],
+.cic-confirm[aria-pressed="true"],
+.cic-mount-preset[aria-pressed="true"] {
+  background: rgba(61, 214, 140, 0.16);
+  border-color: rgba(61, 214, 140, 0.35);
+  color: #86efac;
+}
+.cic-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.cic-step {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: rgba(8, 12, 20, 0.45);
+  border: 1px solid rgba(148, 168, 198, 0.08);
+}
+.cic-step-top {
+  justify-content: space-between;
+}
+.cic-step-name {
+  font-size: 0.74rem;
+  font-weight: 800;
+  color: #e8edf6;
+}
+.cic-sys {
+  min-width: 4.2rem;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.64rem;
+  font-weight: 800;
+  text-align: center;
+  background: rgba(148, 168, 198, 0.12);
+  color: #9aa8b8;
+}
+.cic-sys[data-state="ok"] {
+  background: rgba(61, 214, 140, 0.16);
+  color: #86efac;
+}
+.cic-sys[data-state="missing"] {
+  background: rgba(248, 113, 113, 0.14);
+  color: #fca5a5;
+}
+.cic-mount {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.cic-mount-text {
+  min-height: 28px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 168, 198, 0.2);
+  background: rgba(8, 12, 20, 0.55);
+  color: #e8edf6;
+  font-size: 0.7rem;
+}
+.pfd-readiness-body .cic-panel {
+  margin-top: 6px;
+  padding: 6px;
+}
+.pfd-readiness-body .cic-step-help,
+.pfd-readiness-body .cic-lead {
+  font-size: 0.6rem;
+}
 .vlr-row[data-tone="ok"] .vlr-chip {
   background: rgba(61, 214, 140, 0.16);
   color: #86efac;

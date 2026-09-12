@@ -3766,6 +3766,168 @@ function paintPlndProfileHonesty(snapshot) {
   appendPlndProfileKeys(keysEl, row?.keys || [], 'plnd-honesty-key');
 }
 
+function cameraInstallBusy() {
+  const active = document.activeElement;
+  if (!active || !active.closest || !active.closest('.cic-panel')) return false;
+  const tag = String(active.tagName || '').toLowerCase();
+  return tag === 'input' || tag === 'textarea';
+}
+
+function currentCameraInstallOperator(checklist) {
+  const src = checklist?.operator || {};
+  const confirms = { ...(src.confirms || {}) };
+  const roles = { cam1: src.roles?.cam1 || 'forward', cam2: src.roles?.cam2 || 'down' };
+  const mount = { ...(src.mountNote || { kind: 'none', text: '', estimateOnly: true }) };
+  return { roles, confirms, mountNote: mount };
+}
+
+async function persistCameraInstallOperator(next) {
+  try {
+    const r = await fetch('/api/vision/camera-install', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(next),
+    });
+    const snap = await r.json();
+    if (!r.ok || snap?.ok === false) return;
+    await refreshVisionLandingReadiness();
+  } catch {
+    /* keep last honest snapshot */
+  }
+}
+
+function renderCameraInstallChecklist(container, checklist, { compact = false } = {}) {
+  if (!container) return;
+  container.innerHTML = '';
+  if (!checklist) return;
+  container.classList.add('cic-panel');
+  container.dataset.compact = compact ? 'true' : 'false';
+
+  const head = document.createElement('header');
+  head.className = 'cic-head';
+  const title = document.createElement('h5');
+  title.className = 'cic-title';
+  title.textContent = 'התקנת מצלמות';
+  const lead = document.createElement('p');
+  lead.className = 'cic-lead';
+  lead.textContent = 'שתי מצלמות עדיפות. אחת קדמית ואחת מטה.';
+  const warn = document.createElement('p');
+  warn.className = 'cic-warn';
+  warn.textContent = 'אין כיול אוטומטי. בלי מצלמה אין פריים.';
+  head.append(title, lead, warn);
+  container.appendChild(head);
+
+  const roles = document.createElement('div');
+  roles.className = 'cic-roles';
+  roles.setAttribute('role', 'group');
+  roles.setAttribute('aria-label', 'תפקידי מצלמות');
+  for (const camId of ['cam1', 'cam2']) {
+    const row = document.createElement('div');
+    row.className = 'cic-role';
+    row.dataset.cam = camId;
+    const lab = document.createElement('span');
+    lab.className = 'cic-role-name';
+    lab.textContent = camId === 'cam1' ? 'מצלמה 1' : 'מצלמה 2';
+    const segs = document.createElement('div');
+    segs.className = 'cic-role-segs';
+    for (const role of [
+      { id: 'forward', he: 'קדמית' },
+      { id: 'down', he: 'מטה' },
+    ]) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'cic-role-btn';
+      btn.dataset.cam = camId;
+      btn.dataset.role = role.id;
+      btn.textContent = role.he;
+      btn.setAttribute('aria-pressed', checklist.operator?.roles?.[camId] === role.id ? 'true' : 'false');
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const next = currentCameraInstallOperator(checklist);
+        next.roles[camId] = role.id;
+        persistCameraInstallOperator(next);
+      });
+      segs.appendChild(btn);
+    }
+    row.append(lab, segs);
+    roles.appendChild(row);
+  }
+  container.appendChild(roles);
+
+  const list = document.createElement('ol');
+  list.className = 'cic-steps';
+  for (const step of checklist.steps || []) {
+    const li = document.createElement('li');
+    li.className = 'cic-step';
+    li.dataset.id = step.id;
+    li.dataset.system = step.systemState || 'unknown';
+    const top = document.createElement('div');
+    top.className = 'cic-step-top';
+    const name = document.createElement('span');
+    name.className = 'cic-step-name';
+    name.textContent = step.nameHe || '';
+    const sys = document.createElement('span');
+    sys.className = 'cic-sys';
+    sys.dataset.state = step.systemState || 'unknown';
+    sys.textContent = step.systemStateHe || 'לא ידוע';
+    top.append(name, sys);
+    const help = document.createElement('p');
+    help.className = 'cic-step-help';
+    help.textContent = step.helpHe || '';
+    const confirm = document.createElement('button');
+    confirm.type = 'button';
+    confirm.className = 'cic-confirm';
+    confirm.setAttribute('aria-pressed', step.operatorConfirmed ? 'true' : 'false');
+    confirm.textContent = step.operatorConfirmed ? 'אושר שביצעתי' : 'אישור ביצעתי';
+    confirm.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const next = currentCameraInstallOperator(checklist);
+      next.confirms[step.id] = !step.operatorConfirmed;
+      persistCameraInstallOperator(next);
+    });
+    li.append(top, help, confirm);
+    list.appendChild(li);
+  }
+  container.appendChild(list);
+
+  const mount = document.createElement('div');
+  mount.className = 'cic-mount';
+  const mountTitle = document.createElement('p');
+  mountTitle.className = 'cic-mount-title';
+  mountTitle.textContent = 'הערכת זווית התקנה';
+  const disclaimer = document.createElement('p');
+  disclaimer.className = 'cic-mount-disclaimer';
+  disclaimer.textContent = checklist.mountNote?.disclaimerHe || 'הערכה בלבד — לא כיול';
+  const preset = document.createElement('button');
+  preset.type = 'button';
+  preset.className = 'cic-mount-preset';
+  preset.setAttribute('aria-pressed', checklist.mountNote?.kind === 'preset_45_down' ? 'true' : 'false');
+  preset.textContent = 'בערך 45° מטה';
+  preset.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const next = currentCameraInstallOperator(checklist);
+    next.mountNote.kind = next.mountNote.kind === 'preset_45_down' ? 'none' : 'preset_45_down';
+    persistCameraInstallOperator(next);
+  });
+  const free = document.createElement('input');
+  free.type = 'text';
+  free.className = 'cic-mount-text';
+  free.maxLength = 200;
+  free.placeholder = 'טקסט חופשי';
+  free.value = checklist.mountNote?.text || '';
+  free.addEventListener('change', () => {
+    const next = currentCameraInstallOperator(checklist);
+    next.mountNote.kind = 'free';
+    next.mountNote.text = free.value;
+    persistCameraInstallOperator(next);
+  });
+  mount.append(mountTitle, disclaimer, preset, free);
+  container.appendChild(mount);
+}
+
 function renderVisionLandingReadiness(container, snapshot) {
   if (!container) return;
   container.innerHTML = '';
@@ -3828,6 +3990,19 @@ function renderVisionLandingReadiness(container, snapshot) {
     }
     container.appendChild(art);
   }
+  if (snapshot?.cameraInstall) {
+    let host = container.querySelector('#pfdCameraInstallChecklist');
+    if (compact) {
+      if (!host) {
+        host = document.createElement('section');
+        host.id = 'pfdCameraInstallChecklist';
+        host.className = 'cic-panel cic-panel--compact';
+        host.setAttribute('aria-label', 'התקנת מצלמות');
+        container.appendChild(host);
+      }
+      if (!cameraInstallBusy()) renderCameraInstallChecklist(host, snapshot.cameraInstall, { compact: true });
+    }
+  }
 }
 
 function paintVisionLandingReadiness(snapshot) {
@@ -3838,6 +4013,9 @@ function paintVisionLandingReadiness(snapshot) {
   const successEl = document.querySelector('#visionLandingReadiness .vlr-success');
   if (successEl && snapshot.successHe) successEl.textContent = snapshot.successHe;
   renderVisionLandingReadiness(document.getElementById('visionLandingReadinessList'), snapshot);
+  if (!cameraInstallBusy()) {
+    renderCameraInstallChecklist(document.getElementById('cameraInstallChecklist'), snapshot.cameraInstall, { compact: false });
+  }
   paintPlndProfileHonesty(snapshot);
   const popoverOpen = pfdReadinessPopover && !pfdReadinessPopover.classList.contains('hidden');
   if (popoverOpen) renderVisionLandingReadiness(pfdReadinessBody, snapshot);

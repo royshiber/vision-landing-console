@@ -1,5 +1,21 @@
 [
   {
+    "version": "1.02.308",
+    "date": "2026-09-12",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Guided dual-camera install checklist + live-frame verify",
+        "detail": "APP_VERSION 1.02.308. After master 1.02.307 (#123). Roy 2026-09-12 lock: guided checklist with operator step confirm and live-frame verify. מוכנות / Status show CAM1 קדמית and CAM2 מטה roles, physical connect, honest Jetson wiring placeholder, Companion/pipeline from camera_ok or frame age only, and פריים חי only when fps/count/age are reported — else אין פריים. Operator אישור ביצעתי is stored on the server and never marks camera_ok. Mount note is הערכה בלבד — לא כיול. No automatic IMU/vision calibration. No ARM/LAND and no Jetson shell deploy."
+      },
+      {
+        "type": "test",
+        "title": "Tests",
+        "detail": "camera-install-checklist.test.mjs plus vision-landing-readiness honesty for the install row."
+      }
+    ]
+  },
+  {
     "version": "1.02.307",
     "date": "2026-09-12",
     "changes": [
