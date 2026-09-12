@@ -151,6 +151,8 @@ describe('AIRVIX 1.02.261 Roy feedback (still holds on 1.02.281)', () => {
       sliceFunction(js, 'formatComputerMetric'),
       sliceFunction(js, 'pulseComputerMetricValue'),
       sliceFunction(js, 'pulseIsPlaceholder'),
+      'function pulseResolveComputerHonesty() { return { jetsonLive: false }; }',
+      'function companionFiniteMetric() { return null; }',
       'function formatMissionDataValue() { return "--"; }',
       'return formatPulseWidgetValue("jetson.cpuLoadPct", { jetson: { cpuLoadPct: 41, online: false } });',
     ].join('\n');

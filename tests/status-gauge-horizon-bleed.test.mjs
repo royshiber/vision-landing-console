@@ -102,7 +102,9 @@ describe('Status custom widgets match locked gauge cards', () => {
 
 describe('Mission AH fills the center stage', () => {
   it('draws sky and ground across the whole canvas, not an inset PFD', () => {
-    const draw = sliceFunction(js, 'drawHorizon');
+    const start = js.indexOf('function drawHorizon(');
+    expect(start).toBeGreaterThanOrEqual(0);
+    const draw = js.slice(start, start + 16000);
     expect(draw).toContain('const att = { x: 0, y: 0, w: W, h: H }');
     expect(draw).toContain('ctx.rect(att.x, att.y, att.w, att.h)');
     expect(draw).toContain('#163e86');

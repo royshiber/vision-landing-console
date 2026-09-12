@@ -54,7 +54,7 @@ describe('AIRVIX 1.02.268 status densify + Develop concept A', () => {
     expect(html).toContain('id="pulseAddWidgetBtn"');
     expect(html).toContain('class="pulse-health-note"');
     expect(html).toMatch(/בריאות מחשב המשימה והכלי/);
-    expect(css).toMatch(/\.pulse-gauges \.pulse-gauge\s*\{[^}]*padding:\s*2px/);
+    expect(css).toMatch(/\.pulse-gauges \.pulse-gauge,[\s\S]*?padding:\s*2px/);
     expect(css).toMatch(/\.pulse-gauge-svg\s*\{[^}]*height:\s*54px/);
     expect(css).toMatch(/\.pulse-home\s*\{[^}]*gap:\s*6px/);
     expect(css).toMatch(/\.pulse-purpose\s*\{[^}]*clip:\s*rect\(0, 0, 0, 0\)/);

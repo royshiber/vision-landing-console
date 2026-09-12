@@ -73,7 +73,8 @@ describe('AIRVIX 1.02.268 computer-status densify', () => {
     expect(cssBlock(css, '.pulse-gauge-svg')).toMatch(/height:\s*54px/);
     expect(cssBlock(css, '.pulse-gauge-svg')).toMatch(/max-width:\s*118px/);
     expect(cssBlock(css, '.pulse-status-card')).toMatch(/padding:\s*6px 8px/);
-    expect(cssBlock(css, '.pulse-gauges .pulse-gauge')).toMatch(/padding:\s*2px/);
+    expect(css).toMatch(/\.pulse-gauges \.pulse-gauge,\s*\.pulse-extra-metrics \.pulse-gauge/);
+    expect(css).toMatch(/\.pulse-gauges \.pulse-gauge,[\s\S]*?padding:\s*2px/);
   });
 
   it('keeps AIRVIX Ask as a compact row and fills leftover height with add-widgets', () => {
