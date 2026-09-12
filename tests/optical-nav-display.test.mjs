@@ -59,8 +59,8 @@ describe('Mission GPS | optical display toggle', () => {
     expect(overlay).toContain('bothTracks');
     expect(overlay).toContain('ניווט אופטי');
     expect(js).toContain('function opticalNavHasFixClient(');
-    expect(js).toContain('nav.camera_ok === true');
-    expect(js).toContain('nav.running === true');
+    expect(js).toContain('nav?.camera_ok === true');
+    expect(js).toContain('nav?.running === true');
   });
 
   it('companion observe-only stub stays camera_ok false with null position', () => {

@@ -1,5 +1,16 @@
 [
   {
+    "version": "1.02.301",
+    "date": "2026-09-12",
+    "changes": [
+      {
+        "type": "test",
+        "title": "Tests",
+        "detail": "optical-nav-display.test.mjs"
+      }
+    ]
+  },
+  {
     "version": "1.02.300",
     "date": "2026-09-12",
     "changes": [
