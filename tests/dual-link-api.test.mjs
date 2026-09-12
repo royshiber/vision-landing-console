@@ -61,6 +61,8 @@ describe('dual-link HTTP API', () => {
     expect(j.links.canSelectActive).toBe(false);
     expect(j.links.video.path).toBe('cellular');
     expect(j.links.video.available).toBe(false);
+    expect(j.links.video.reason).toBe('modem_absent');
+    expect(j.links.cellularStatusHe).toMatch(/מודם לא מחובר/);
     expect(j.links.pillLabelHe).toBe('מנותק');
   });
 
@@ -86,7 +88,12 @@ describe('dual-link HTTP API', () => {
     expect(r.status).toBe(200);
     expect(j.ok).toBe(true);
     expect(j.role).toBe('cellular');
-    expect(j.links.cellular === 'listening' || j.links.cellular === 'connected').toBe(true);
+    expect(j.mode).toBe('loopback_mock');
+    expect(j.links.cellular).toBe('modem_absent');
+    expect(j.links.modemPresent).toBe(false);
+    expect(j.links.video.available).toBe(false);
+    expect(j.links.video.reason).toBe('modem_absent');
+    expect(j.links.commandLinkId == null || j.links.radioConnection?.id === j.links.commandLinkId).toBe(true);
     const cut = await fetch(`${base}/api/links/disconnect`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -103,7 +110,10 @@ describe('dual-link HTTP API', () => {
     expect(j.neverRadio).toBe(true);
     expect(j.path).toBe('cellular');
     expect(j.available).toBe(false);
-    expect(j.reasonHe).toMatch(/מחשב משימה|סלולר/);
+    expect(j.reason).toBe('modem_absent');
+    expect(j.cellular).toBe('modem_absent');
+    expect(j.modem.present).toBe(false);
+    expect(j.reasonHe).toMatch(/מודם סלולר לא מחובר/);
   });
 
   it('GET /api/telemetry-archive describes the dedicated store and downlink stub', async () => {

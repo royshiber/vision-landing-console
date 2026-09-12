@@ -6,6 +6,7 @@ import {
   cellularConnectGate,
   annotatedVideoAvailability,
   hebrewPillLabel,
+  chipStateFromLink,
   ANNOTATED_VIDEO_PATH,
 } from '../lib/dual-link.mjs';
 import { probeHuaweiE3372 } from '../lib/cellular-modem.mjs';
@@ -47,12 +48,21 @@ describe('dual-link state machine', () => {
     const live = annotatedVideoAvailability({ cellular: 'connected', modemPresent: true });
     expect(live.available).toBe(true);
     expect(live.path).toBe('cellular');
+    const absent = annotatedVideoAvailability({ cellular: 'connected', modemPresent: false });
+    expect(absent.available).toBe(false);
+    expect(absent.reason).toBe('modem_absent');
   });
 
   it('maps live MAVLink status onto link states including modem absent', () => {
     expect(liveStatusToLinkState({ connected: true })).toBe('connected');
     expect(liveStatusToLinkState({ listening: true, connected: false })).toBe('listening');
     expect(liveStatusToLinkState(null, { role: 'cellular', modemPresent: false })).toBe('modem_absent');
+    expect(liveStatusToLinkState(
+      { listening: true, connected: true },
+      { role: 'cellular', modemPresent: false },
+    )).toBe('modem_absent');
+    expect(chipStateFromLink('modem_absent')).toBe('absent');
+    expect(chipStateFromLink('connected')).toBe('on');
   });
 
   it('blocks remote cellular sockets when the modem is unplugged, but allows loopback mock', () => {
@@ -69,6 +79,7 @@ describe('Huawei E3372 probe', () => {
   it('defaults to unplugged and honors the mock-present env flag', () => {
     const absent = probeHuaweiE3372({ env: {}, existsSync: () => false });
     expect(absent.present).toBe(false);
+    expect(absent.reason).toBe('modem_absent');
     expect(absent.reasonHe).toMatch(/מודם לא מחובר/);
     const mock = probeHuaweiE3372({ env: { CELLULAR_MODEM_MOCK: 'present' } });
     expect(mock.present).toBe(true);

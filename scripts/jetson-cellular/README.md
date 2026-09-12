@@ -56,10 +56,11 @@ Stick mode exposes AT/QMI nodes. This pack **does not** send AT commands or writ
 
 On the **console** (this repo, any PC / VM):
 
-- `lib/cellular-modem.mjs` `probeHuaweiE3372` defaults to unplugged.
+- `lib/cellular-modem.mjs` `probeHuaweiE3372` defaults to `modem_absent`.
 - Dual-link `GET /api/links` reports `cellular: modem_absent` and `modemPresent: false`.
-- Remote cellular connect is refused (`422`). Loopback (`127.0.0.1`) may open a **software mock** MAVLink listener.
+- Remote cellular connect is refused (`422`). Loopback (`127.0.0.1`) may open a software socket (`loopback_mock`) but the honesty snapshot stays `modem_absent` — never an invented link-up.
 - `CELLULAR_MODEM_MOCK=present` is only for UI demos of a plugged-in modem.
+- Console dry-run: `npm run cellular:dry-run`.
 
 On the **Jetson** (this pack):
 

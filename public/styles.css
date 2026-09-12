@@ -12159,6 +12159,11 @@ details.flight-manage summary {
   color: #fde68a;
   background: rgba(245, 158, 11, 0.12);
 }
+.conn-link-chip[data-state="absent"] {
+  border-color: rgba(251, 191, 36, 0.4);
+  color: #fbbf24;
+  background: rgba(245, 158, 11, 0.1);
+}
 .conn-link-block {
   display: flex;
   flex-direction: column;
@@ -12255,6 +12260,12 @@ details.flight-manage summary {
 }
 .mission-annotated-vision[data-state="live"] .mission-annotated-empty {
   color: #86efac;
+}
+.mission-annotated-vision[data-state="modem_absent"] .mission-annotated-empty {
+  color: #fbbf24;
+}
+.vlr-row[data-id="annotated_video"][data-reason="modem_absent"] .vlr-missing {
+  color: #fbbf24;
 }
 .mission-annotated-frame {
   margin-top: 6px;

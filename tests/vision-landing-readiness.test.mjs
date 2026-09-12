@@ -22,6 +22,7 @@ import {
   resolveRunwayDetectState,
   resolveRunwayLockState,
   resolveTelemetryRecordingState,
+  resolveAnnotatedVideoHonesty,
   isGcsHeartbeatFresh,
   PLND_PROFILE_ALL_KEYS,
 } from '../lib/vision-landing-readiness.mjs';
@@ -78,6 +79,9 @@ describe('Vision Landing Readiness honesty matrix', () => {
     expect(rowById(empty, 'annotated_video').state).toBe('later');
     expect(rowById(empty, 'annotated_video').stateHe).toBe('לא נדרש');
     expect(rowById(empty, 'annotated_video').requiredForExperiment1).toBe(false);
+    expect(rowById(empty, 'annotated_video').reason).toBe('modem_absent');
+    expect(rowById(empty, 'annotated_video').available).toBe(false);
+    expect(empty.annotatedVideo.reason).toBe('modem_absent');
     expect(rowById(empty, 'telemetry_recording').state).toBe('not-recording');
     expect(rowById(empty, 'flight_commands_gate').state).toBe('closed');
   });
@@ -322,18 +326,39 @@ describe('Vision Landing Readiness honesty matrix', () => {
   it('does not require annotations for Experiment 1 even when a video path exists', () => {
     const absent = buildVisionLandingReadiness({
       video: { available: false, path: 'cellular', reason: 'modem_absent' },
+      cellular: 'modem_absent',
+      modemPresent: false,
     });
     expect(rowById(absent, 'annotated_video').state).toBe('later');
     expect(rowById(absent, 'annotated_video').stateHe).toBe('לא נדרש');
     expect(rowById(absent, 'annotated_video').requiredForExperiment1).toBe(false);
     expect(rowById(absent, 'annotated_video').tone).toBe('later');
     expect(rowById(absent, 'annotated_video').path).toBe('cellular');
+    expect(rowById(absent, 'annotated_video').reason).toBe('modem_absent');
+    expect(rowById(absent, 'annotated_video').available).toBe(false);
+    expect(rowById(absent, 'annotated_video').missingHe).toMatch(/מודם סלולר לא מחובר/);
+    expect(absent.annotatedVideo).toMatchObject({
+      available: false,
+      path: 'cellular',
+      reason: 'modem_absent',
+    });
+    const invented = buildVisionLandingReadiness({
+      video: { available: true, path: 'cellular', reason: 'cellular_connected' },
+      cellular: 'connected',
+      modemPresent: false,
+    });
+    expect(rowById(invented, 'annotated_video').available).toBe(false);
+    expect(rowById(invented, 'annotated_video').reason).toBe('modem_absent');
     const live = buildVisionLandingReadiness({
       video: { available: true, path: 'cellular', reason: 'cellular_connected' },
+      cellular: 'connected',
+      modemPresent: true,
     });
     expect(rowById(live, 'annotated_video').state).toBe('later');
     expect(rowById(live, 'annotated_video').stateHe).toBe('לא נדרש');
     expect(rowById(live, 'annotated_video').requiredForExperiment1).toBe(false);
+    expect(rowById(live, 'annotated_video').reason).toBe('cellular_connected');
+    expect(resolveAnnotatedVideoHonesty({ modemPresent: false }).reason).toBe('modem_absent');
   });
 
   it('defaults telemetry recording to not-recording unless a manual record API reports it', () => {
@@ -422,6 +447,9 @@ describe('GET /api/vision/landing-readiness', () => {
     expect(rowById(j, 'plnd_profile').requiredForExperiment1).toBe(false);
     expect(rowById(j, 'plnd_profile').keys.every((k) => k.value == null)).toBe(true);
     expect(rowById(j, 'annotated_video').state).toBe('later');
+    expect(rowById(j, 'annotated_video').reason).toBe('modem_absent');
+    expect(j.annotatedVideo.reason).toBe('modem_absent');
+    expect(j.annotatedVideo.available).toBe(false);
     expect(rowById(j, 'telemetry_recording').state).toBe('not-recording');
     expect(rowById(j, 'flight_commands_gate').tokens).toEqual(['ARM', 'LAND', 'auto-land']);
   });
@@ -442,11 +470,11 @@ describe('GET /api/vision/landing-readiness', () => {
 });
 
 describe('Vision Landing Readiness UI', () => {
-  it('pins APP_VERSION at 1.02.289', () => {
+  it('pins APP_VERSION at 1.02.290', () => {
     const version = fs.readFileSync(path.join(repoRoot, 'version.js'), 'utf8');
     const pkg = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8'));
-    expect(version).toContain("export const APP_VERSION = '1.02.289'");
-    expect(pkg.version).toBe('1.02.289');
+    expect(version).toContain("export const APP_VERSION = '1.02.290'");
+    expect(pkg.version).toBe('1.02.290');
   });
 
   it('places the Hebrew chip panel on Status and opens the same rows from Mission', () => {

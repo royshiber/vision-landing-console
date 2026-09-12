@@ -8,6 +8,7 @@ This document points at the **Jetson host pack** that can be copied later. It do
 
 `scripts/jetson-cellular/`
 
+- `npm run cellular:dry-run` — console honesty JSON. Unplugged → `modem_absent`. No sockets.
 - `install.sh --dry-run` — default. Validates files. No apt, no systemd, no USB switch.
 - `e3372-status.sh` — JSON. Unplugged → `modem_absent`.
 - `e3372-bringup.sh` — systemd oneshot when udev sees a Huawei id. Missing stick exits 0.
@@ -21,9 +22,13 @@ Operator README (IDs, mock path, scp): `scripts/jetson-cellular/README.md`.
 
 | Surface | Unplugged default | Software mock |
 |---|---|---|
-| `probeHuaweiE3372` | `present: false`, `reason: unplugged` | `CELLULAR_MODEM_MOCK=present` |
-| `GET /api/links` | `cellular: modem_absent` | loopback connect allowed |
+| `probeHuaweiE3372` | `present: false`, `reason: modem_absent` | `CELLULAR_MODEM_MOCK=present` |
+| `GET /api/links` | `cellular: modem_absent` | mock env may show a plugged-in modem |
 | Remote cellular host | refused `422` | not used |
+| Loopback connect | socket may open (`loopback_mock`) but snapshot stays `modem_absent` | not a live cell link |
+| `GET /api/links/annotated-video` | `available: false`, `reason: modem_absent` | still cellular-only |
+| Readiness `annotated_video` | later / not required + `reason: modem_absent` | still not required for Experiment 1 |
+| `npm run cellular:dry-run` | JSON `modem_absent`, exit 0 | `CELLULAR_MODEM_MOCK=present` |
 | Jetson `e3372-status.sh` | `modem_absent` | `AIRVIX_CELLULAR_MOCK=present` |
 
 Do not treat Companion-HTTP as the cellular command path.
