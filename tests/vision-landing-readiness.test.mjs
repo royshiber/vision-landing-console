@@ -47,7 +47,7 @@ describe('Vision Landing Readiness honesty matrix', () => {
   it('keeps Experiment 1 observe-only rows and never invents camera GPS or runway lock', () => {
     const empty = buildVisionLandingReadiness({});
     expect(empty.rows.map((r) => r.id)).toEqual([...VISION_LANDING_READINESS_IDS]);
-    expect(empty.invented).toEqual({ camera: false, gps: false, runway: false, annotations: false });
+    expect(empty.invented).toEqual({ camera: false, gps: false, runway: false, annotations: false, lock: false });
     expect(empty.rows.some((r) => /gps/i.test(r.id))).toBe(false);
     expect(empty.sendFlightCommands).toBe(false);
     expect(empty.experiment.observeOnly).toBe(true);
@@ -63,10 +63,12 @@ describe('Vision Landing Readiness honesty matrix', () => {
     expect(rowById(empty, 'camera_vision').stateHe).toBe('לא ידוע');
     expect(rowById(empty, 'runway_detect').state).toBe('unknown');
     expect(rowById(empty, 'runway_detect').successCriterion).toBe(true);
-    expect(rowById(empty, 'runway_lock').state).toBe('later');
-    expect(rowById(empty, 'runway_lock').stateHe).toBe('שלב מאוחר');
+    expect(rowById(empty, 'runway_lock').state).toBe('unknown');
+    expect(rowById(empty, 'runway_lock').stateHe).toBe('לא ידוע');
     expect(rowById(empty, 'runway_lock').requiredForExperiment1).toBe(false);
+    expect(rowById(empty, 'runway_lock').stage).toBe('later');
     expect(rowById(empty, 'runway_lock').tone).not.toBe('bad');
+    expect(empty.runwayLock).toEqual({ state: 'unknown', source: null });
     expect(rowById(empty, 'jetson_companion').state).toBe('off');
     expect(rowById(empty, 'fc_heartbeat').state).toBe('unknown');
     expect(rowById(empty, 'plnd_profile').state).toBe('unknown');
@@ -184,47 +186,77 @@ describe('Vision Landing Readiness honesty matrix', () => {
     expect(rowById(found, 'runway_detect').state).toBe('detected');
     expect(rowById(found, 'runway_detect').stateHe).toBe('מזוהה');
     expect(rowById(found, 'runway_detect').successCriterion).toBe(true);
-    expect(rowById(found, 'runway_lock').state).toBe('later');
+    expect(rowById(found, 'runway_lock').state).toBe('unknown');
     expect(rowById(found, 'runway_lock').requiredForExperiment1).toBe(false);
+    expect(found.runwayLock).toEqual({ state: 'unknown', source: null });
+    expect(found.experimentSuccess).toBe(true);
   });
 
-  it('keeps later-stage lock mapping off the Experiment 1 blocker path', () => {
+  it('surfaces honest lock states without inventing locked or blocking Experiment 1', () => {
     expect(resolveRunwayLockState({})).toBe('unknown');
     expect(resolveRunwayLockState({ companionReachable: true })).toBe('unknown');
     expect(resolveRunwayLockState({ companionReachable: true, landing: {} })).toBe('unknown');
     expect(resolveRunwayLockState({
       companionReachable: false,
-      landing: { detected: true, validity: 'valid', confidence: 0.9 },
+      landing: { lock_state: 'locked', detected: true, validity: 'valid', confidence: 0.9 },
     })).toBe('unknown');
     expect(resolveRunwayLockState({
       companionReachable: true,
       landing: { detected: false },
-    })).toBe('not_locked');
+    })).toBe('unknown');
     expect(resolveRunwayLockState({
       companionReachable: true,
       landing: { detections: [{ label: 'runway' }], validity: 'degraded' },
-    })).toBe('detecting');
+    })).toBe('unknown');
     expect(resolveRunwayLockState({
       companionReachable: true,
       landing: { detected: true, validity: 'valid', confidence: 0.4 },
-    })).toBe('detecting');
+    })).toBe('unknown');
     expect(resolveRunwayLockState({
       companionReachable: true,
       landing: { detected: true, validity: 'valid', confidence: 0.8 },
-    })).toBe('locked_confident');
+    })).toBe('unknown');
     expect(resolveRunwayLockState({
       companionReachable: true,
       landing: { lock_state: 'locked-confident' },
-    })).toBe('locked_confident');
-    const locked = buildVisionLandingReadiness({
+    })).toBe('locked');
+    expect(resolveRunwayLockState({
+      companionReachable: true,
+      landing: { lock: 'detecting' },
+    })).toBe('detecting');
+    expect(resolveRunwayLockState({
+      companionReachable: true,
+      landing: { locked: false },
+    })).toBe('not');
+    expect(resolveRunwayLockState({
+      companionReachable: true,
+      extras: { runway_lock: 'not' },
+    })).toBe('not');
+    const invented = buildVisionLandingReadiness({
       companion: { jetson: 'reachable' },
       overlay: { landing: { detected: true, validity: 'valid', confidence: 0.85 } },
     });
-    expect(rowById(locked, 'runway_lock').state).toBe('later');
-    expect(rowById(locked, 'runway_lock').stateHe).toBe('שלב מאוחר');
+    expect(rowById(invented, 'runway_lock').state).toBe('unknown');
+    expect(rowById(invented, 'runway_lock').stateHe).toBe('לא ידוע');
+    expect(rowById(invented, 'runway_lock').requiredForExperiment1).toBe(false);
+    expect(rowById(invented, 'runway_lock').tone).toBe('later');
+    expect(rowById(invented, 'runway_detect').state).toBe('not_implemented');
+    expect(invented.experimentSuccess).toBe(false);
+    expect(invented.runwayLock).toEqual({ state: 'unknown', source: null });
+
+    const locked = buildVisionLandingReadiness({
+      companion: { jetson: 'reachable' },
+      overlay: { landing: { source: 'runway', detections: [{ label: 'runway' }], lock_state: 'locked' } },
+    });
+    expect(rowById(locked, 'runway_detect').state).toBe('detected');
+    expect(rowById(locked, 'runway_lock').state).toBe('locked');
+    expect(rowById(locked, 'runway_lock').stateHe).toBe('נעול');
     expect(rowById(locked, 'runway_lock').requiredForExperiment1).toBe(false);
-    expect(rowById(locked, 'runway_lock').tone).toBe('later');
-    expect(rowById(locked, 'runway_detect').state).toBe('not_implemented');
+    expect(rowById(locked, 'runway_lock').source).toBe('landing.lock_state');
+    expect(locked.experiment.success).toBe('runway_detect_on_final');
+    expect(locked.experiment.runwayLockRequired).toBe(false);
+    expect(locked.experimentSuccess).toBe(true);
+    expect(locked.runwayLock).toEqual({ state: 'locked', source: 'landing.lock_state' });
   });
 
   it('treats a missing PLND profile as unknown until a real source is looked at', () => {
@@ -375,15 +407,16 @@ describe('GET /api/vision/landing-readiness', () => {
     expect(r.status).toBe(200);
     expect(j.ok).toBe(true);
     expect(j.rows).toHaveLength(9);
-    expect(j.invented).toEqual({ camera: false, gps: false, runway: false, annotations: false });
+    expect(j.invented).toEqual({ camera: false, gps: false, runway: false, annotations: false, lock: false });
     expect(j.sendFlightCommands).toBe(false);
     expect(j.flightCommandsGate).toBe('closed');
     expect(j.purposeHe).toMatch(/טייס מפקד מטיס ידנית עד הגמר/);
     expect(j.successHe).toMatch(/זיהוי מסלול בגישת הגמר בלבד/);
     expect(j.experiment.success).toBe('runway_detect_on_final');
     expect(rowById(j, 'runway_detect').state).toBe('unknown');
-    expect(rowById(j, 'runway_lock').state).toBe('later');
+    expect(rowById(j, 'runway_lock').state).toBe('unknown');
     expect(rowById(j, 'runway_lock').requiredForExperiment1).toBe(false);
+    expect(j.runwayLock).toEqual({ state: 'unknown', source: null });
     expect(rowById(j, 'camera_vision').state).toBe('unknown');
     expect(rowById(j, 'plnd_profile').state).toBe('unknown');
     expect(rowById(j, 'plnd_profile').requiredForExperiment1).toBe(false);
@@ -409,11 +442,11 @@ describe('GET /api/vision/landing-readiness', () => {
 });
 
 describe('Vision Landing Readiness UI', () => {
-  it('pins APP_VERSION at 1.02.288', () => {
+  it('pins APP_VERSION at 1.02.289', () => {
     const version = fs.readFileSync(path.join(repoRoot, 'version.js'), 'utf8');
     const pkg = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8'));
-    expect(version).toContain("export const APP_VERSION = '1.02.288'");
-    expect(pkg.version).toBe('1.02.288');
+    expect(version).toContain("export const APP_VERSION = '1.02.289'");
+    expect(pkg.version).toBe('1.02.289');
   });
 
   it('places the Hebrew chip panel on Status and opens the same rows from Mission', () => {
@@ -425,8 +458,14 @@ describe('Vision Landing Readiness UI', () => {
     expect(html).toContain('הצלחה היא זיהוי מסלול בגישת הגמר בלבד');
     expect(html).toContain('סימון ונעילה אינם נדרשים');
     expect(html).toContain('id="missionRunwayGlance"');
+    expect(html).toContain('id="missionRunwayLockGlance"');
     expect(js).toMatch(/missionRunwayGlance/);
+    expect(js).toMatch(/missionRunwayLockGlance/);
     expect(js).toMatch(/RUNWAY_GLANCE_HE/);
+    expect(js).toMatch(/RUNWAY_LOCK_GLANCE_HE/);
+    expect(js).toMatch(/snapshot\.runwayLock\?\.state/);
+    expect(js).not.toMatch(/זיהוי מסלול לצפייה\. אין נעילה/);
+    expect(css).toMatch(/\.mission-runway-lock-glance\[data-state="locked"\]/);
     expect(html).toMatch(/id="pfdReadinessStatusBtn"[^>]*>מוכנות בסטטוס</);
     expect(html.indexOf('id="visionLandingReadiness"')).toBeGreaterThan(html.indexOf('data-computer="fc"'));
     expect(html.indexOf('id="visionLandingReadiness"')).toBeLessThan(html.indexOf('pulse-talk-card'));

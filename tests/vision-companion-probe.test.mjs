@@ -5,6 +5,7 @@ import {
   collectCompanionVisionSignals,
   probeCameraVision,
   probeRunwayDetect,
+  probeRunwayLock,
 } from '../lib/vision-companion-probe.mjs';
 import { buildVisionLandingReadiness } from '../lib/vision-landing-readiness.mjs';
 
@@ -196,6 +197,8 @@ describe('Experiment #1 readiness from probed Companion fields', () => {
     expect(row(body, 'runway_detect').state).toBe('unknown');
     expect(row(body, 'annotated_video').requiredForExperiment1).toBe(false);
     expect(row(body, 'runway_lock').requiredForExperiment1).toBe(false);
+    expect(row(body, 'runway_lock').state).toBe('unknown');
+    expect(body.runwayLock).toEqual({ state: 'unknown', source: null });
     expect(row(body, 'plnd_profile').requiredForExperiment1).toBe(false);
   });
 
@@ -233,5 +236,49 @@ describe('Experiment #1 readiness from probed Companion fields', () => {
     expect(body.experimentSuccess).toBe(true);
     expect(body.experiment.observeOnly).toBe(true);
     expect(body.experiment.runwayLockRequired).toBe(false);
+    expect(row(body, 'runway_lock').state).toBe('unknown');
+    expect(body.runwayLock.state).toBe('unknown');
+  });
+});
+
+describe('Companion runway lock probe honesty', () => {
+  it('stays unknown without an explicit lock field and never invents locked from detect', () => {
+    expect(probeRunwayLock({
+      companion: reachable,
+      landing: { source: 'runway', detected: true, validity: 'valid', confidence: 0.95 },
+    }).state).toBe('unknown');
+    expect(probeRunwayLock({
+      companion: reachable,
+      landing: { detections: [{ label: 'runway' }] },
+    }).state).toBe('unknown');
+    expect(probeRunwayLock({ companion: { jetson: 'off' }, landing: { lock_state: 'locked' } }).state).toBe('unknown');
+    expect(probeRunwayLock({ companion: reachable }).state).toBe('unknown');
+    expect(probeRunwayLock({
+      companion: reachable,
+      landing: { source: 'aruco', validity: 'valid', detected: true, target: { marker_id: 17 } },
+    }).state).toBe('unknown');
+  });
+
+  it('maps explicit not / detecting / locked from Companion lock fields', () => {
+    const locked = probeRunwayLock({
+      companion: reachable,
+      landing: { lock_state: 'locked-confident' },
+    });
+    expect(locked.state).toBe('locked');
+    expect(locked.source).toBe('landing.lock_state');
+
+    const detecting = probeRunwayLock({
+      companion: reachable,
+      vision: { runway_lock: 'detecting' },
+    });
+    expect(detecting.state).toBe('detecting');
+    expect(detecting.source).toBe('vision.runway_lock');
+
+    const notLocked = probeRunwayLock({
+      companion: reachable,
+      extras: { locked: false },
+    });
+    expect(notLocked.state).toBe('not');
+    expect(notLocked.source).toBe('extras.locked');
   });
 });

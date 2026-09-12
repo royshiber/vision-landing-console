@@ -60,6 +60,7 @@ describe('Preflight / readiness MERGE — Mission glance + Diagnostics', () => {
     const chrome = sliceFunction(js, 'setupFlightHudChromeHandlers');
     expect(chrome).toMatch(/missionReadinessGlance/);
     expect(chrome).toMatch(/missionRunwayGlance/);
+    expect(chrome).toMatch(/missionRunwayLockGlance/);
     expect(chrome).toMatch(/openPfdReadinessPopover/);
     expect(chrome).toMatch(/pfdArmedBadge/);
     expect(chrome).not.toMatch(/ARM the|DISARM|LAND|FLIGHT_ACTION/);
@@ -100,8 +101,8 @@ describe('Preflight / readiness MERGE — Mission glance + Diagnostics', () => {
     expect(js).not.toMatch(/FLIGHT_ACTION/);
   });
 
-  it('pins APP_VERSION at 1.02.288', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.288'");
-    expect(pkg.version).toBe('1.02.288');
+  it('pins APP_VERSION at 1.02.289', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.289'");
+    expect(pkg.version).toBe('1.02.289');
   });
 });
