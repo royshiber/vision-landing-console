@@ -4627,8 +4627,106 @@ function initHorizonVideo() {
 initHorizonVideo();
 /** @type {object | null} snapshot from last SSE — readiness popover */
 let latestHudMavlink = null;
+/** Live radio `/api/connections` / `/api/links` status — HUD fallback when SSE mavlink is stale. */
+let latestLiveRadioStatus = null;
 let _statustextSig = '';
 let _statustextTimer = null;
+
+function isHudMavlinkLive(mav) {
+  return !!(mav && mav.connected === true);
+}
+
+function liveStatusToHudMavlink(s) {
+  if (!s || typeof s !== 'object') return null;
+  const texts = Array.isArray(s.recentStatusTexts) ? s.recentStatusTexts : [];
+  return {
+    connected: s.connected === true,
+    listening: s.listening === true,
+    id: s.id ?? null,
+    linkRole: s.linkRole || 'radio',
+    heartbeatCount: Number(s.heartbeatCount) || 0,
+    armed: null,
+    armedKnown: false,
+    autopilotName: s.autopilotName || null,
+    vehicleType: s.vehicleType || null,
+    flightMode: null,
+    airspeed: null,
+    groundspeed: null,
+    altitude: null,
+    heading: null,
+    recentStatusTexts: texts,
+    gpsFixType: null,
+    gpsSats: null,
+    batteryV: null,
+    batteryPct: null,
+  };
+}
+
+/** Prefer live SSE gauges; if SSE hid a live radio, use /api/connections status (incl. STATUSTEXT). */
+function resolveHudMavlink(sseMav, liveStatus) {
+  const fromLive = liveStatusToHudMavlink(liveStatus);
+  if (sseMav?.connected === true) {
+    if (
+      fromLive
+      && (!Array.isArray(sseMav.recentStatusTexts) || sseMav.recentStatusTexts.length === 0)
+      && fromLive.recentStatusTexts.length
+    ) {
+      return { ...sseMav, recentStatusTexts: fromLive.recentStatusTexts };
+    }
+    return sseMav;
+  }
+  if (fromLive && fromLive.connected === true) {
+    return {
+      ...fromLive,
+      connected: true,
+      airspeed: sseMav?.airspeed ?? null,
+      groundspeed: sseMav?.groundspeed ?? null,
+      altitude: sseMav?.altitude ?? null,
+      heading: sseMav?.heading ?? null,
+      rollDeg: sseMav?.rollDeg ?? null,
+      pitchDeg: sseMav?.pitchDeg ?? null,
+      batteryV: sseMav?.batteryV ?? null,
+      batteryPct: sseMav?.batteryPct ?? null,
+      gpsFixType: sseMav?.gpsFixType ?? null,
+      gpsSats: sseMav?.gpsSats ?? null,
+      armed: sseMav?.armed ?? null,
+      armedKnown: sseMav?.armedKnown === true,
+      flightMode: sseMav?.flightMode ?? null,
+    };
+  }
+  return sseMav || fromLive;
+}
+
+function rememberLiveRadioStatus(status) {
+  if (!status || typeof status !== 'object') {
+    latestLiveRadioStatus = null;
+    return;
+  }
+  if (status.connected === true || status.listening === true) {
+    latestLiveRadioStatus = status;
+    return;
+  }
+  latestLiveRadioStatus = null;
+}
+
+function syncMissionFcEmptyNote(mav) {
+  const note = document.querySelector('.mission-horizon-filler-note');
+  if (!note) return;
+  if (isHudMavlinkLive(mav)) {
+    const name = [mav.autopilotName, mav.vehicleType].filter(Boolean).join(' · ');
+    note.textContent = name ? `מחובר · ${name}` : 'מחובר לבקר.';
+    return;
+  }
+  note.textContent = 'אין חיבור לבקר. אין הודעות נכנסות.';
+}
+
+function hydrateMissionHudFromLiveLink(sseMav) {
+  const resolved = resolveHudMavlink(sseMav !== undefined ? sseMav : latestHudMavlink, latestLiveRadioStatus);
+  applyTopbarFlightData(resolved);
+  applyFlightHud(resolved);
+  applyFcStatustextHud(resolved);
+  return resolved;
+}
 
 // ── Unified HUD data-grid ──────────────────────────────────────────────────
 const HUD_SLOTS_KEY_V2  = 'vlc_hud_slots_v2';
@@ -5079,12 +5177,14 @@ function applyNavOpticalStatus(vision) {
 
 function applyFcStatustextHud(mavlink) {
   if (!pfcMsgPrimaryHe) return;
-  if (!mavlink?.connected) {
+  if (!isHudMavlinkLive(mavlink)) {
     pfcMsgPrimaryHe.textContent = 'אין חיבור לבקר — לא מתקבלות הודעות MAVLink.';
     if (pfcMsgScroll) pfcMsgScroll.innerHTML = '';
     _statustextSig = '';
+    syncMissionFcEmptyNote(null);
     return;
   }
+  syncMissionFcEmptyNote(mavlink);
   const raw = Array.isArray(mavlink.recentStatusTexts) ? mavlink.recentStatusTexts : [];
   if (!raw.length) {
     pfcMsgPrimaryHe.textContent = 'אין הודעות STATUSTEXT אחרונות — ריק מהבקר.';
@@ -5503,9 +5603,10 @@ let _assistLastMav = null;
       applySlamUi(payload.slam);
       applyCompanionUi(payload.companion);
       _assistLastMav = payload.mavlink || null;
-      applyTopbarFlightData(payload.mavlink);
-      applyFlightHud(payload.mavlink);
-      applyFcStatustextHud(payload.mavlink);
+      const hudMav = resolveHudMavlink(payload.mavlink, latestLiveRadioStatus);
+      applyTopbarFlightData(hudMav);
+      applyFlightHud(hudMav);
+      applyFcStatustextHud(hudMav);
       applyNavOpticalStatus(payload.vision);
       applyHudCustomSlots(payload);
       applyMissionDataGrid(payload);
@@ -8879,6 +8980,9 @@ initAnnotatedVisionPanel();
       else if (activeLinkRadio) activeLinkRadio.checked = true;
     }
     if (links.companion) applyCompanionLinkUi(links.companion);
+    if (links.radioConnection) rememberLiveRadioStatus(links.radioConnection);
+    else if (links.cellularConnection) rememberLiveRadioStatus(links.cellularConnection);
+    else rememberLiveRadioStatus(null);
     setPillLabel(links.pillLabelHe || 'מנותק');
     const anyUp = links.radio === 'connected' || links.cellular === 'connected';
     const anyWait = links.radio === 'listening' || links.cellular === 'listening'
@@ -8899,6 +9003,7 @@ initAnnotatedVisionPanel();
       connBtn.title = 'התחבר למטוס';
     }
     applyAnnotatedVision(links.video);
+    hydrateMissionHudFromLiveLink();
     return true;
   }
 
@@ -8925,6 +9030,7 @@ initAnnotatedVisionPanel();
       const active = connections.find((c) => c.liveStatus && c.liveStatus.connected);
       if (active) {
         currentId = active.id;
+        rememberLiveRadioStatus(active.liveStatus);
         const age = active.liveStatus.lastHeartbeatAgeMs;
         setDot(age != null && age < 5000 ? 'on' : 'warn');
         connBtn.textContent = 'DISCONNECT';
@@ -8935,6 +9041,7 @@ initAnnotatedVisionPanel();
         const listening = connections.find((c) => c.liveStatus && c.liveStatus.listening);
         if (listening) {
           currentId = listening.id;
+          rememberLiveRadioStatus(listening.liveStatus);
           setDot('connecting');
           connBtn.textContent = 'DISCONNECT';
           connBtn.dataset.connected = '1';
@@ -8949,6 +9056,7 @@ initAnnotatedVisionPanel();
           setPillLabel('מנותק');
         }
       }
+      hydrateMissionHudFromLiveLink();
     } catch (err) {
       console.warn('refreshConnectionStatus failed', err);
     }
@@ -9220,6 +9328,10 @@ initAnnotatedVisionPanel();
       const r = await fetch(`/api/connections/${currentId}/status`);
       const j = await r.json();
       if (!j.ok) throw new Error(j.message || 'status failed');
+      if (j.connection?.liveStatus) {
+        rememberLiveRadioStatus(j.connection.liveStatus);
+        hydrateMissionHudFromLiveLink();
+      }
       statBody.innerHTML = renderStatBody(j.connection);
     } catch (err) {
       statBody.innerHTML = `<div style="color: #b91c1c;">שגיאת קריאת סטטוס: ${esc(err.message || err)}</div>`;
