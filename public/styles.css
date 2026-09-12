@@ -4977,6 +4977,8 @@ body:has(#pulse.panel.visible) .layout {
   font-size: 0.6rem;
   font-weight: 700;
   color: #94a3b8;
+  direction: ltr;
+  unicode-bidi: isolate;
 }
 .vlr-key-chip {
   display: inline-flex;
@@ -4997,6 +4999,8 @@ body:has(#pulse.panel.visible) .layout {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-weight: 800;
   color: #e2e8f0;
+  direction: ltr;
+  unicode-bidi: isolate;
 }
 .vlr-open-params {
   grid-area: open;
@@ -5081,6 +5085,8 @@ body:has(#pulse.panel.visible) .layout {
   font-size: 0.62rem;
   font-weight: 700;
   color: #94a3b8;
+  direction: ltr;
+  unicode-bidi: isolate;
 }
 .plnd-honesty-key-chip {
   display: inline-flex;
@@ -5102,6 +5108,8 @@ body:has(#pulse.panel.visible) .layout {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-weight: 800;
   color: #e2e8f0;
+  direction: ltr;
+  unicode-bidi: isolate;
 }
 #control.panel:not(.visible) .plnd-honesty,
 #control:has(#autoConfig.visible) .plnd-honesty {
