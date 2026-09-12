@@ -9562,6 +9562,7 @@ html[data-evolve-preview="1"] #development {
   inset-inline-end: auto;
   z-index: 2;
   display: flex;
+  flex-wrap: nowrap;
   align-items: center;
   justify-content: flex-end;
   gap: 4px;
@@ -9577,6 +9578,11 @@ html[data-evolve-preview="1"] #development {
 }
 .mission-ops-chrome button {
   pointer-events: auto;
+  flex: 0 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .mission-sr-only,
 .mission-identity,
@@ -10050,7 +10056,7 @@ html[data-evolve-preview="1"] #development {
   align-self: stretch;
   min-width: 64px;
   min-height: 56px;
-  max-height: 68px;
+  max-height: none;
   overflow: hidden;
   padding: 4px 6px;
   border-radius: 3px;
@@ -10058,6 +10064,18 @@ html[data-evolve-preview="1"] #development {
   border: 1px solid rgba(148, 163, 184, 0.28);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
   cursor: context-menu;
+}
+
+.mission-data-item dt,
+.mission-data-label,
+.mission-data-item dd,
+.mission-data-readout,
+.mission-data-value,
+.mission-data-unit {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .mission-data-item dt,
@@ -10075,7 +10093,6 @@ html[data-evolve-preview="1"] #development {
   display: flex;
   align-items: baseline;
   gap: 4px;
-  min-width: 0;
 }
 
 .mission-data-value {
@@ -10088,6 +10105,7 @@ html[data-evolve-preview="1"] #development {
 }
 
 .mission-data-unit {
+  flex: 0 0 auto;
   font-size: 0.62rem;
   font-weight: 700;
   color: #94a3b8;
@@ -12055,8 +12073,10 @@ details.flight-manage summary {
 }
 .conn-pill {
   display: inline-flex;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 6px;
+  min-width: 0;
   padding: 5px 11px;
   background: rgba(255,255,255,0.1);
   border: 1px solid rgba(255,255,255,0.2);
@@ -12074,6 +12094,7 @@ details.flight-manage summary {
 }
 .conn-pill-label {
   font-weight: 600;
+  min-width: 0;
   max-width: 190px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -12167,6 +12188,8 @@ details.flight-manage summary {
 .conn-link-chip {
   display: inline-flex;
   align-items: center;
+  min-width: 0;
+  max-width: 100%;
   padding: 3px 8px;
   border-radius: 999px;
   font-size: 0.68rem;
@@ -12175,6 +12198,9 @@ details.flight-manage summary {
   border: 1px solid rgba(148, 163, 184, 0.35);
   background: rgba(15, 23, 42, 0.45);
   color: #cbd5e1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .conn-link-chip[data-state="on"] {
   border-color: rgba(52, 211, 153, 0.55);

@@ -1,5 +1,16 @@
 [
   {
+    "version": "1.02.295",
+    "date": "2026-09-12",
+    "changes": [
+      {
+        "type": "fix",
+        "title": "Mission tile text no longer clips; FC HUD rates after heartbeat",
+        "detail": "APP_VERSION 1.02.295. After master 1.02.294 (#114). Mission data labels and values nowrap with ellipsis so long connected text cannot hide behind the next row. The קישור tile shows מחובר when the pill is a long connected phrase. Connect pill, link chips, and ops chrome stay on one line. After the first FC heartbeat the GCS requests VFR_HUD, GLOBAL_POSITION_INT, GPS_RAW_INT, and ATTITUDE rates (MAVLink2 SET_MESSAGE_INTERVAL, else REQUEST_DATA_STREAM) and retries once after 2s. Altitude stays -- with אין גובה מהבקר עדיין until a real value arrives. No flight commands and no Companion apply/restart."
+      }
+    ]
+  },
+  {
     "version": "1.02.294",
     "date": "2026-09-12",
     "changes": [

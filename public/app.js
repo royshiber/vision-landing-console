@@ -3736,7 +3736,10 @@ function pulseRefresh() {
   const linkText = (!agreedLink || agreedLink === 'לא מחובר' || agreedLink === 'מנותק') ? '--' : agreedLink;
   if (linkEl) linkEl.textContent = linkText;
   const missionLink = document.getElementById('missionLink');
-  if (missionLink) missionLink.textContent = linkText;
+  if (missionLink) {
+    missionLink.textContent = shortMissionLinkReadout(agreedLink);
+    missionLink.title = linkText !== '--' ? linkText : '';
+  }
   const jetson = (typeof latestJetsonFromServer !== 'undefined' && latestJetsonFromServer) ? latestJetsonFromServer : {};
   const sys = companion.system || {};
   const jetsonMissing = honesty.jetsonLive ? 'אין נתון' : '--';
@@ -15382,11 +15385,19 @@ function writeMissionDataSlots(slots) {
   missionLayoutStoreSet(MISSION_DATA_SLOTS_KEY, JSON.stringify(slots));
 }
 
+function shortMissionLinkReadout(full) {
+  const t = String(full || '').trim();
+  if (!t || t === 'לא מחובר' || t === 'מנותק') return '--';
+  if (t.startsWith('מאזין')) return 'מאזין';
+  if (t === 'מתחבר') return 'מתחבר';
+  if (t.includes('מחובר')) return 'מחובר';
+  return t;
+}
+
 function formatMissionDataValue(key, payload) {
   if (key === 'mission.link') {
     const linkLabel = document.getElementById('connectPillLabel')?.textContent?.trim() || '';
-    if (!linkLabel || linkLabel === 'לא מחובר' || linkLabel === 'מנותק') return '--';
-    return linkLabel;
+    return shortMissionLinkReadout(linkLabel);
   }
   if (key === 'mission.gpsVisionDelta') {
     const mapData = payload?.mavlink?.map;
@@ -15438,7 +15449,14 @@ function applyMissionDataGrid(payload) {
     const slot = slots[idx];
     if (!slot) return;
     const valueEl = item.querySelector('.mission-data-value');
-    if (valueEl) valueEl.textContent = formatMissionDataValue(slot.key, payload || {});
+    if (valueEl) {
+      const shown = formatMissionDataValue(slot.key, payload || {});
+      valueEl.textContent = shown;
+      if (slot.key === 'mission.link') {
+        const full = document.getElementById('connectPillLabel')?.textContent?.trim() || '';
+        valueEl.title = full && shown !== '--' ? full : '';
+      }
+    }
     const bar = item.querySelector('.confidence-fill');
     if (bar && slot.key === 'vision.confidence') {
       const raw = getPayloadValue(payload, slot.key);

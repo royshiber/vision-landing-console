@@ -11,14 +11,20 @@ import {
   MSG_REQUEST_DATA_STREAM,
   MSG_COMMAND_LONG,
   MAV_CMD_SET_MESSAGE_INTERVAL,
+  MAV_DATA_STREAM_EXTENDED_STATUS,
   MAV_DATA_STREAM_POSITION,
   MAV_DATA_STREAM_EXTRA1,
   MAV_DATA_STREAM_EXTRA2,
   MSG_ATTITUDE,
+  MSG_GPS_RAW_INT,
   MSG_GLOBAL_POSITION_INT,
   MSG_VFR_HUD,
   HUD_STREAM_RATE_HZ,
+  HUD_ATTITUDE_RATE_HZ,
+  HUD_GPS_RATE_HZ,
   HUD_STREAM_INTERVAL_US,
+  HUD_ATTITUDE_INTERVAL_US,
+  HUD_GPS_INTERVAL_US,
 } from '../lib/mavlink-connection.mjs';
 import { buildSseMavlinkSnapshot } from '../lib/sse-mavlink-snapshot.mjs';
 
@@ -29,6 +35,21 @@ const js = fs.readFileSync(path.join(repoRoot, 'public', 'app.js'), 'utf8');
 const core = fs.readFileSync(path.join(repoRoot, 'lib', 'mavlink-connection.mjs'), 'utf8');
 const version = fs.readFileSync(path.join(repoRoot, 'version.js'), 'utf8');
 const pkg = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8'));
+
+function cssBlock(src, selector) {
+  const start = src.indexOf(selector);
+  expect(start, `missing selector ${selector}`).toBeGreaterThanOrEqual(0);
+  const brace = src.indexOf('{', start);
+  let depth = 0;
+  for (let i = brace; i < src.length; i++) {
+    if (src[i] === '{') depth += 1;
+    else if (src[i] === '}') {
+      depth -= 1;
+      if (depth === 0) return src.slice(start, i + 1);
+    }
+  }
+  throw new Error(`unclosed selector ${selector}`);
+}
 
 function sliceFunction(src, name) {
   const start = src.indexOf(`function ${name}(`);
@@ -60,19 +81,42 @@ function loadSizeFns() {
     sliceFunction(js, 'readMissionSize'),
     sliceFunction(js, 'readMissionSwap'),
     sliceFunction(js, 'writeMissionSwap'),
+    sliceFunction(js, 'shortMissionLinkReadout'),
     sliceFunction(js, 'altitudeIsFinite'),
     sliceFunction(js, 'altitudeTileHonestyTitle'),
     "const VLC_TOOLTIP_HUD_TIME_SKEW = 'פער זמן בין חבילות MAVLink — ייתכן עיוות זמני בין אופק לשאר מדי ה-HUD.';",
     "const VLC_TOOLTIP_ALT_WAITING = 'אין גובה מהבקר עדיין';",
-    'return { defaultMissionSize, defaultMissionSwap, isLegacyDefaultMissionSize, missionAhRowPct, missionDataRowPx, readMissionSize, readMissionSwap, writeMissionSwap, altitudeTileHonestyTitle };',
+    'return { defaultMissionSize, defaultMissionSwap, isLegacyDefaultMissionSize, missionAhRowPct, missionDataRowPx, readMissionSize, readMissionSwap, writeMissionSwap, altitudeTileHonestyTitle, shortMissionLinkReadout };',
   ].join('\n');
   return new Function(src)();
 }
 
 describe('Mission AH size bias + swap persistence', () => {
-  it('pins APP_VERSION at 1.02.294', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.294'");
-    expect(pkg.version).toBe('1.02.294');
+  it('pins APP_VERSION at 1.02.295', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.295'");
+    expect(pkg.version).toBe('1.02.295');
+  });
+
+  it('keeps mission-data labels and values on one ellipsized line', () => {
+    const tile = cssBlock(css, '.mission-data-tile');
+    expect(tile).toMatch(/min-height:\s*56px/);
+    expect(tile).toMatch(/max-height:\s*none/);
+    expect(tile).not.toMatch(/max-height:\s*44px/);
+    const typeBlock = cssBlock(css, '.mission-data-item dt');
+    expect(typeBlock).toMatch(/white-space:\s*nowrap/);
+    expect(typeBlock).toMatch(/text-overflow:\s*ellipsis/);
+    expect(typeBlock).toContain('.mission-data-label');
+    expect(typeBlock).toContain('.mission-data-value');
+    expect(cssBlock(css, '.conn-pill-label')).toMatch(/white-space:\s*nowrap/);
+    expect(cssBlock(css, '.conn-pill-label')).toMatch(/text-overflow:\s*ellipsis/);
+    expect(cssBlock(css, '.conn-link-chip')).toMatch(/white-space:\s*nowrap/);
+    expect(cssBlock(css, '.mission-ops-chrome')).toMatch(/flex-wrap:\s*nowrap/);
+    const fns = loadSizeFns();
+    expect(fns.shortMissionLinkReadout('מחובר · טלמטריה רגילה')).toBe('מחובר');
+    expect(fns.shortMissionLinkReadout('מחובר · 192.168.1.40:14550')).toBe('מחובר');
+    expect(fns.shortMissionLinkReadout('מנותק')).toBe('--');
+    expect(fns.shortMissionLinkReadout('מאזין · UDP')).toBe('מאזין');
+    expect(sliceFunction(js, 'formatMissionDataValue')).toContain('shortMissionLinkReadout');
   });
 
   it('defaults to a taller AH share and shorter data strip', () => {
@@ -195,15 +239,21 @@ describe('HUD message-interval request (no flight commands)', () => {
   it('builds REQUEST_DATA_STREAM and SET_MESSAGE_INTERVAL for VFR_HUD and GLOBAL_POSITION_INT', () => {
     const targets = hudMessageRateTargets();
     expect(targets.streams.map((s) => s.id)).toEqual([
+      MAV_DATA_STREAM_EXTENDED_STATUS,
       MAV_DATA_STREAM_POSITION,
       MAV_DATA_STREAM_EXTRA1,
       MAV_DATA_STREAM_EXTRA2,
     ]);
+    expect(targets.streams.find((s) => s.id === MAV_DATA_STREAM_EXTRA1).rateHz).toBe(HUD_ATTITUDE_RATE_HZ);
+    expect(targets.streams.find((s) => s.id === MAV_DATA_STREAM_EXTENDED_STATUS).rateHz).toBe(HUD_GPS_RATE_HZ);
     expect(targets.messages.map((m) => m.id)).toEqual([
       MSG_ATTITUDE,
       MSG_GLOBAL_POSITION_INT,
       MSG_VFR_HUD,
+      MSG_GPS_RAW_INT,
     ]);
+    expect(targets.messages.find((m) => m.id === MSG_ATTITUDE).intervalUs).toBe(HUD_ATTITUDE_INTERVAL_US);
+    expect(targets.messages.find((m) => m.id === MSG_GPS_RAW_INT).intervalUs).toBe(HUD_GPS_INTERVAL_US);
     const ds = buildRequestDataStreamPayload(1, 1, MAV_DATA_STREAM_EXTRA2, HUD_STREAM_RATE_HZ);
     expect(ds.length).toBe(6);
     expect(ds[2]).toBe(MAV_DATA_STREAM_EXTRA2);
@@ -216,18 +266,21 @@ describe('HUD message-interval request (no flight commands)', () => {
     expect(iv.readFloatLE(9)).toBe(HUD_STREAM_INTERVAL_US);
     const frames = parseMavlinkFrames(Buffer.concat([
       buildMavlink1Frame(MSG_REQUEST_DATA_STREAM, ds, 1),
-      buildMavlink1Frame(MSG_COMMAND_LONG, iv, 2),
     ]));
-    expect(frames.map((f) => f.msgId)).toEqual([MSG_REQUEST_DATA_STREAM, MSG_COMMAND_LONG]);
+    expect(frames.map((f) => f.msgId)).toEqual([MSG_REQUEST_DATA_STREAM]);
     expect(core).toContain('requestHudMessageRates()');
     expect(core).toContain('conn.requestHudMessageRates()');
+    expect(core).toContain('scheduleHudMessageRatesRetry(2000)');
     expect(core).toContain('buildSetMessageIntervalPayload');
     expect(core).toContain('MAV_CMD_SET_MESSAGE_INTERVAL');
     const methodStart = core.indexOf('requestHudMessageRates() {');
     expect(methodStart).toBeGreaterThan(0);
-    const method = core.slice(methodStart, methodStart + 1200);
+    const method = core.slice(methodStart, methodStart + 1600);
     expect(method).not.toMatch(/\bARM\b|\bDISARM\b|\bLAND\b|DO_REPOSITION|NAV_LAND|MAV_CMD_COMPONENT_ARM/);
-    expect(method).toContain('buildSetMessageIntervalPayload');
+    expect(method).toContain('_preferredTxVersion === 2');
+    expect(method).toContain('MSG_COMMAND_LONG');
+    expect(method).toContain('MSG_REQUEST_DATA_STREAM');
+    expect(core.indexOf('conn.requestHudMessageRates();')).toBeGreaterThan(core.indexOf('hudRatesOnHeartbeat = true'));
     expect(iv.readUInt16LE(2)).not.toBe(400);
     expect(iv.readUInt16LE(2)).not.toBe(176);
   });
