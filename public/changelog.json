@@ -1,5 +1,16 @@
 [
   {
+    "version": "1.02.288",
+    "date": "2026-09-12",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Honest PLND / vision-nav params profile for Experiment #1",
+        "detail": "APP_VERSION 1.02.288. Rebased onto master 1.02.287 (#108 Mission FC note). Parameters tab and Status readiness show the PLND / vision-nav profile as present, missing, or unknown from a live FC READ, Companion, or a persisted store. Keys: PLND_ENABLED, PLND_TYPE, vision_enable_alt_m, vision_conf_min, flare_alt_m. No invented numbers. requiredForExperiment1 stays false — Experiment #1 success is runway detect on final only. Deep-link opens the Hebrew honesty card on Parameters. No flight commands and no Companion apply/restart."
+      }
+    ]
+  },
+  {
     "version": "1.02.287",
     "date": "2026-09-12",
     "changes": [

@@ -14,6 +14,7 @@ import {
   EXPERIMENT_PURPOSE_HE,
   EXPERIMENT_SUCCESS_HE,
   buildVisionLandingReadiness,
+  buildPlndProfileHonesty,
   resolveCameraVisionState,
   resolveFcHeartbeatState,
   resolveJetsonCompanionState,
@@ -22,6 +23,7 @@ import {
   resolveRunwayLockState,
   resolveTelemetryRecordingState,
   isGcsHeartbeatFresh,
+  PLND_PROFILE_ALL_KEYS,
 } from '../lib/vision-landing-readiness.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -67,7 +69,10 @@ describe('Vision Landing Readiness honesty matrix', () => {
     expect(rowById(empty, 'runway_lock').tone).not.toBe('bad');
     expect(rowById(empty, 'jetson_companion').state).toBe('off');
     expect(rowById(empty, 'fc_heartbeat').state).toBe('unknown');
-    expect(rowById(empty, 'plnd_profile').state).toBe('missing');
+    expect(rowById(empty, 'plnd_profile').state).toBe('unknown');
+    expect(rowById(empty, 'plnd_profile').requiredForExperiment1).toBe(false);
+    expect(rowById(empty, 'plnd_profile').keys).toHaveLength(PLND_PROFILE_ALL_KEYS.length);
+    expect(rowById(empty, 'plnd_profile').keys.every((k) => k.state === 'unknown' && k.value == null)).toBe(true);
     expect(rowById(empty, 'annotated_video').state).toBe('later');
     expect(rowById(empty, 'annotated_video').stateHe).toBe('לא נדרש');
     expect(rowById(empty, 'annotated_video').requiredForExperiment1).toBe(false);
@@ -222,19 +227,64 @@ describe('Vision Landing Readiness honesty matrix', () => {
     expect(rowById(locked, 'runway_detect').state).toBe('not_implemented');
   });
 
-  it('treats PLND as present only from a live READ or a persisted store', () => {
-    expect(resolvePlndProfileState({})).toBe('missing');
+  it('treats a missing PLND profile as unknown until a real source is looked at', () => {
+    expect(resolvePlndProfileState({})).toBe('unknown');
     expect(resolvePlndProfileState({ liveFcParams: { THR_MAX: 80 } })).toBe('missing');
     expect(resolvePlndProfileState({ liveFcParams: { PLND_ENABLED: 1 } })).toBe('present');
     expect(resolvePlndProfileState({ persistedArduTarget: { PLND_TYPE: 1 } })).toBe('present');
     expect(resolvePlndProfileState({ persistedVisionProfile: { vision_enable_alt_m: 40 } })).toBe('present');
+    expect(resolvePlndProfileState({ companionParams: { vision_conf_min: 0.71 } })).toBe('present');
     const defaultsOnly = buildVisionLandingReadiness({
       liveFcParams: null,
       persistedArduTarget: null,
     });
-    expect(rowById(defaultsOnly, 'plnd_profile').state).toBe('missing');
+    expect(rowById(defaultsOnly, 'plnd_profile').state).toBe('unknown');
     expect(rowById(defaultsOnly, 'plnd_profile').requiredForExperiment1).toBe(false);
-    expect(rowById(defaultsOnly, 'plnd_profile').missingHe).toMatch(/אין פרופיל נחיתה לפי ראייה/);
+    expect(rowById(defaultsOnly, 'plnd_profile').missingHe).toMatch(/לא חוסם את הניסוי/);
+    expect(JSON.stringify(rowById(defaultsOnly, 'plnd_profile'))).not.toMatch(/55|0\.78|8\b/);
+  });
+
+  it('surfaces each PLND / vision-nav key as present, missing, or unknown without inventing values', () => {
+    const empty = buildPlndProfileHonesty({});
+    expect(empty.state).toBe('unknown');
+    expect(empty.invented).toBe(false);
+    expect(empty.keys.map((k) => k.key)).toEqual([...PLND_PROFILE_ALL_KEYS]);
+    expect(empty.keys.every((k) => k.state === 'unknown' && k.value == null && k.source == null)).toBe(true);
+
+    const looked = buildPlndProfileHonesty({ liveFcParams: { THR_MAX: 80 } });
+    expect(looked.state).toBe('missing');
+    expect(looked.keys.find((k) => k.key === 'PLND_ENABLED')).toMatchObject({ state: 'missing', value: null });
+    expect(looked.keys.find((k) => k.key === 'flare_alt_m')).toMatchObject({ state: 'unknown', value: null });
+
+    const live = buildVisionLandingReadiness({
+      liveFcParams: { PLND_ENABLED: 1, PLND_TYPE: 2 },
+    });
+    const liveRow = rowById(live, 'plnd_profile');
+    expect(liveRow.state).toBe('present');
+    expect(liveRow.requiredForExperiment1).toBe(false);
+    expect(liveRow.keys.find((k) => k.key === 'PLND_ENABLED')).toMatchObject({
+      state: 'present',
+      value: 1,
+      source: 'fc',
+      stateHe: 'קיים',
+    });
+    expect(liveRow.keys.find((k) => k.key === 'PLND_TYPE')).toMatchObject({ state: 'present', value: 2 });
+    expect(liveRow.keys.find((k) => k.key === 'vision_enable_alt_m')).toMatchObject({ state: 'unknown', value: null });
+    expect(liveRow.keys.find((k) => k.key === 'flare_alt_m').value).toBeNull();
+    expect(JSON.stringify(liveRow)).not.toMatch(/55|0\.78/);
+
+    const companion = buildVisionLandingReadiness({
+      companionParams: { vision_enable_alt_m: 42, vision_conf_min: 0.71 },
+    });
+    const companionRow = rowById(companion, 'plnd_profile');
+    expect(companionRow.state).toBe('present');
+    expect(companionRow.keys.find((k) => k.key === 'vision_enable_alt_m')).toMatchObject({
+      state: 'present',
+      value: 42,
+      source: 'companion',
+    });
+    expect(companionRow.keys.find((k) => k.key === 'flare_alt_m')).toMatchObject({ state: 'missing', value: null });
+    expect(companionRow.keys.find((k) => k.key === 'PLND_ENABLED')).toMatchObject({ state: 'unknown', value: null });
   });
 
   it('does not require annotations for Experiment 1 even when a video path exists', () => {
@@ -335,6 +385,9 @@ describe('GET /api/vision/landing-readiness', () => {
     expect(rowById(j, 'runway_lock').state).toBe('later');
     expect(rowById(j, 'runway_lock').requiredForExperiment1).toBe(false);
     expect(rowById(j, 'camera_vision').state).toBe('unknown');
+    expect(rowById(j, 'plnd_profile').state).toBe('unknown');
+    expect(rowById(j, 'plnd_profile').requiredForExperiment1).toBe(false);
+    expect(rowById(j, 'plnd_profile').keys.every((k) => k.value == null)).toBe(true);
     expect(rowById(j, 'annotated_video').state).toBe('later');
     expect(rowById(j, 'telemetry_recording').state).toBe('not-recording');
     expect(rowById(j, 'flight_commands_gate').tokens).toEqual(['ARM', 'LAND', 'auto-land']);
@@ -345,6 +398,12 @@ describe('GET /api/vision/landing-readiness', () => {
     const r = await fetch(`${base}/api/vision/landing-readiness`);
     const j = await r.json();
     expect(rowById(j, 'plnd_profile').state).toBe('present');
+    expect(rowById(j, 'plnd_profile').requiredForExperiment1).toBe(false);
+    expect(rowById(j, 'plnd_profile').keys.find((k) => k.key === 'PLND_ENABLED')).toMatchObject({
+      state: 'present',
+      value: 1,
+      source: 'persisted',
+    });
     expect(rowById(j, 'camera_vision').state).toBe('unknown');
   });
 });
@@ -382,6 +441,14 @@ describe('Vision Landing Readiness UI', () => {
     expect(js).toContain('function openStatusReadiness');
     expect(js).toMatch(/applyMainTab\('pulse'\)/);
     expect(js).toContain('pfdReadinessStatusBtn');
+    expect(html).toContain('id="plndProfileHonesty"');
+    expect(html).toContain('ערכים רק מקריאה אמיתית. אין המצאה. לא חוסם את ניסוי אחד.');
+    expect(html).toContain('id="plndProfileHonestyKeys"');
+    expect(css).toMatch(/\.plnd-honesty-key\b/);
+    expect(js).toContain('function paintPlndProfileHonesty');
+    expect(js).toContain('function openPlndProfileParams');
+    expect(js).toContain("applyControlSubtab('visionNavParams')");
+    expect(js).toContain('פתח בפרמטרים');
     expect(js).not.toMatch(/FLIGHT_ACTION/);
   });
 });
