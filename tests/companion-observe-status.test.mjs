@@ -48,11 +48,11 @@ async function waitHttp(url, timeoutMs = 8000) {
 }
 
 describe('companion_agent observe-only vision / landing status', () => {
-  it('pins APP_VERSION at 1.02.298', () => {
+  it('pins APP_VERSION at 1.02.299', () => {
     const version = fs.readFileSync(path.join(repoRoot, 'version.js'), 'utf8');
     const pkg = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8'));
-    expect(version).toContain("export const APP_VERSION = '1.02.298'");
-    expect(pkg.version).toBe('1.02.298');
+    expect(version).toContain("export const APP_VERSION = '1.02.299'");
+    expect(pkg.version).toBe('1.02.299');
   });
 
   it('keeps 2.3.1 fan-out UART and reports explicit absent, never invented detect', () => {

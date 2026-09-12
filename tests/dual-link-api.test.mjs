@@ -64,6 +64,12 @@ describe('dual-link HTTP API', () => {
     expect(j.links.video.reason).toBe('modem_absent');
     expect(j.links.cellularStatusHe).toMatch(/מודם לא מחובר/);
     expect(j.links.pillLabelHe).toBe('מנותק');
+    expect(j.links.comm.rows).toHaveLength(4);
+    expect(j.links.comm.rows.map((r) => r.id)).toEqual(['cellular', 'radio', 'home', 'rc']);
+    expect(j.links.comm.rows[0].hintHe).toMatch(/מודם לא מחובר/);
+    expect(j.links.comm.rows[0].quality.percent).toBeNull();
+    expect(j.links.comm.rows[0].actionHe).toBe('התחבר');
+    expect(j.links.comm.rows[3].actionHe).toBe('סטטוס');
   });
 
   it('refuses a remote cellular connect while the modem is unplugged', async () => {

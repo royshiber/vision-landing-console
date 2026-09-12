@@ -66,7 +66,7 @@ describe('companion health → Jetson / FC mapping', () => {
       companion: jetsonOnly,
     });
     expect(composed.pillLabelHe).not.toBe('מנותק');
-    expect(composed.pillLabelHe).toBe('מחובר · מחשב משימה');
+    expect(composed.pillLabelHe).toBe('מחובר · רשת בית');
   });
 
   it('keeps dual-link radio/cellular labels when those sockets are up', () => {

@@ -20,9 +20,9 @@ function connectPanel() {
 }
 
 describe('AIRVIX 1.02.272 Jetson↔FC topbar connect', () => {
-  it('pins APP_VERSION at 1.02.298', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.298'");
-    expect(pkg.version).toBe('1.02.298');
+  it('pins APP_VERSION at 1.02.299', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.299'");
+    expect(pkg.version).toBe('1.02.299');
     expect(changelog).toContain('"version": "1.02.272"');
   });
 
@@ -33,7 +33,7 @@ describe('AIRVIX 1.02.272 Jetson↔FC topbar connect', () => {
     expect(panel).toContain('id="companionLinkBtn"');
     expect(panel).toMatch(/מחשב משימה/);
     expect(panel).toMatch(/בקר טיסה/);
-    expect(panel).toMatch(/id="companionLinkBtn"[^>]*>חיבור</);
+    expect(panel).toMatch(/id="companionLinkBtn"[^>]*>התחבר</);
     expect(panel).toContain('id="connectAdvanced"');
     expect(panel).toMatch(/מתקדם/);
     expect(html).not.toContain('מסייע');
