@@ -3564,6 +3564,57 @@ function pulseRefreshVersionOffers() {
 
 let latestVisionLandingReadiness = null;
 
+function appendPlndProfileKeys(host, keys, itemClass) {
+  if (!host) return;
+  host.innerHTML = '';
+  if (!Array.isArray(keys) || !keys.length) return;
+  for (const key of keys) {
+    const li = document.createElement('li');
+    li.className = itemClass;
+    li.dataset.state = String(key.state || 'unknown');
+    const name = document.createElement('span');
+    name.className = `${itemClass}-name`;
+    name.textContent = key.nameHe || '';
+    const token = document.createElement('span');
+    token.className = `${itemClass}-token`;
+    token.dir = 'ltr';
+    token.textContent = key.key || '';
+    const chip = document.createElement('span');
+    chip.className = `${itemClass}-chip`;
+    chip.textContent = key.stateHe || '';
+    li.append(name, token, chip);
+    if (key.state === 'present' && key.value != null && key.value !== '') {
+      const value = document.createElement('span');
+      value.className = `${itemClass}-value`;
+      value.dir = 'ltr';
+      value.textContent = String(key.value);
+      li.appendChild(value);
+    }
+    host.appendChild(li);
+  }
+}
+
+function openPlndProfileParams() {
+  closePfdReadinessPopover();
+  applyMainTab('control');
+  applyControlSubtab('visionNavParams');
+  document.getElementById('plndProfileHonesty')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+}
+
+function paintPlndProfileHonesty(snapshot) {
+  const stateEl = document.getElementById('plndProfileHonestyState');
+  const keysEl = document.getElementById('plndProfileHonestyKeys');
+  if (!stateEl && !keysEl) return;
+  const row = Array.isArray(snapshot?.rows)
+    ? snapshot.rows.find((item) => item.id === 'plnd_profile')
+    : null;
+  if (stateEl) {
+    stateEl.dataset.state = String(row?.state || 'unknown');
+    stateEl.textContent = row?.stateHe || 'לא ידוע';
+  }
+  appendPlndProfileKeys(keysEl, row?.keys || [], 'plnd-honesty-key');
+}
+
 function renderVisionLandingReadiness(container, snapshot) {
   if (!container) return;
   container.innerHTML = '';
@@ -3601,6 +3652,12 @@ function renderVisionLandingReadiness(container, snapshot) {
     miss.className = 'vlr-missing';
     miss.textContent = row.missingHe || '';
     art.append(name, chip, miss);
+    if (Array.isArray(row.keys) && row.keys.length) {
+      const list = document.createElement('ul');
+      list.className = 'vlr-keys';
+      appendPlndProfileKeys(list, row.keys, 'vlr-key');
+      art.appendChild(list);
+    }
     if (Array.isArray(row.tokens) && row.tokens.length) {
       const toks = document.createElement('div');
       toks.className = 'vlr-tokens';
@@ -3612,6 +3669,18 @@ function renderVisionLandingReadiness(container, snapshot) {
         toks.appendChild(s);
       }
       art.appendChild(toks);
+    }
+    if (row.id === 'plnd_profile') {
+      const open = document.createElement('button');
+      open.type = 'button';
+      open.className = 'vlr-open-params';
+      open.textContent = 'פתח בפרמטרים';
+      open.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        openPlndProfileParams();
+      });
+      art.appendChild(open);
     }
     container.appendChild(art);
   }
@@ -3625,6 +3694,7 @@ function paintVisionLandingReadiness(snapshot) {
   const successEl = document.querySelector('#visionLandingReadiness .vlr-success');
   if (successEl && snapshot.successHe) successEl.textContent = snapshot.successHe;
   renderVisionLandingReadiness(document.getElementById('visionLandingReadinessList'), snapshot);
+  paintPlndProfileHonesty(snapshot);
   const popoverOpen = pfdReadinessPopover && !pfdReadinessPopover.classList.contains('hidden');
   if (popoverOpen) renderVisionLandingReadiness(pfdReadinessBody, snapshot);
   if (missionRunwayGlance) {

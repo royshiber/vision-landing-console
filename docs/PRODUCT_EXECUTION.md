@@ -62,20 +62,19 @@ Merge autonomy still on for independently VERIFIED safe draft PRs. Hard safety s
 
 ---
 
-## Audit snapshot — 2026-09-12 (P2.1 camera / runway probe)
+## Audit snapshot — 2026-09-12 (P2.2 PLND / vision-nav profile)
 
-**Master tip before this draft:** `1.02.284` @ `7441ec3` (#102 readiness + #99 companion MAVLink relay).  
-**This draft:** Honest camera/vision probe on the preferred readiness matrix. `APP_VERSION` **1.02.285**. Display only.
+**Master tip before this draft:** `1.02.286` after #105.  
+**This draft:** Honest PLND / vision-nav params profile surface. `APP_VERSION` **1.02.288**. Display only. Rebased onto master 1.02.287 (#108).
 
 ### Landed
 
-- **F4 Ask → Capability Brief** and **F3 / Concept B** remain on master.
-- Companion TCP :5770 relay, live-radio HUD, and version-mismatch banner are on master (#99).
-- Experiment #1 checklist is on master (#102): PIC hand-fly, observe-only, success = runway detect on final. Lock and annotations are later.
+- Experiment #1 checklist is on master: PIC hand-fly, observe-only, success = runway detect on final. Lock and annotations are later.
+- Honest camera/vision probe is on master (#104). PLND does not fail Experiment #1.
 
 ### This draft
 
-`camera_vision` resolves from reported Companion `camera_ok` only — health / raw pipeline never invent ok. `runway_detect` is observe-only (`unknown` / `not_detected` / `detected` / `not_implemented` / `absent`). Aruco landing-target is not a runway detect. PLND stays informational and does not fail Experiment #1. Mission glance shows runway detect state only — not lock.
+`plnd_profile` is informational (`requiredForExperiment1` false). Keys `PLND_ENABLED`, `PLND_TYPE`, `vision_enable_alt_m`, `vision_conf_min`, `flare_alt_m` show present / missing / unknown from a live FC READ, Companion, or a persisted store. No source is unknown. Looked source without the key is missing. Values are never invented. Parameters tab shows the same Hebrew honesty card; Status readiness deep-links there.
 
 ### Next pick
 
@@ -83,7 +82,7 @@ Do not start #28 / #29. Prefer another display-only honesty or in-app developmen
 
 ### Ranked GAPS
 
-1. **Honest Exp #1 camera + runway probe** — this draft.
+1. **Honest PLND / vision-nav profile surface** — this draft.
 2. **Companion apply/restart** — Human Gate #28. No GO.
 3. **Live vehicle + auto landing** — Human Gate #29. No GO.
 
