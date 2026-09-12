@@ -65,12 +65,12 @@ describe('Mission layout contract — static source', () => {
     const workspace = cssBlock(css, '.mission-workspace[data-mission-layout="ops-v1"]');
     expect(workspace).toMatch(/display:\s*grid/);
     expect(workspace).toMatch(/gap:\s*4px/);
-    expect(workspace).toMatch(/minmax\(132px, min\(22%, var\(--mission-ah-col\)\)\)/);
+    expect(workspace).toMatch(/minmax\(132px, min\(20%, var\(--mission-ah-col\)\)\)/);
     expect(workspace).toMatch(/minmax\(0, 1fr\)/);
-    expect(workspace).toMatch(/minmax\(240px, min\(28%, var\(--mission-talk-col\)\)\)/);
+    expect(workspace).toMatch(/minmax\(240px, min\(26%, var\(--mission-talk-col\)\)\)/);
     expect(workspace).toMatch(/--mission-msg-h:\s*40px/);
     expect(workspace).toMatch(/--mission-map-min:\s*65%/);
-    expect(workspace).toMatch(/--mission-ah-row:\s*40%/);
+    expect(workspace).toMatch(/--mission-ah-row:\s*66%/);
     expect(workspace).toMatch(/grid-template-rows:\s*minmax\(0, 1fr\)/);
     expect(workspace).toMatch(/grid-template-areas:\s*"horizon map talk"/);
     expect(workspace).not.toMatch(/"data\s+map talk"/);
@@ -78,16 +78,17 @@ describe('Mission layout contract — static source', () => {
     expect(cssBlock(css, '.mission-region[data-mission-region="map"]')).toMatch(/min-height:\s*var\(--mission-map-min/);
     expect(cssBlock(css, '.mission-region[data-mission-region="horizon"]')).toMatch(/align-self:\s*stretch/);
     expect(css).toMatch(/\.mission-region-horizon \.flight-hud \{[^}]*height:\s*var\(--mission-ah-row/);
-    expect(css).toMatch(/\.mission-region-horizon \.flight-hud \{[^}]*min-height:\s*35%/);
-    expect(css).toMatch(/\.mission-region-horizon \.flight-hud \{[^}]*max-height:\s*42%/);
-    expect(cssBlock(css, '.mission-horizon-filler')).toMatch(/flex:\s*0 1 auto/);
-    expect(cssBlock(css, '.mission-horizon-filler')).toMatch(/max-height:\s*32%/);
+    expect(css).toMatch(/\.mission-region-horizon \.flight-hud \{[^}]*min-height:\s*52%/);
+    expect(css).toMatch(/\.mission-region-horizon \.flight-hud \{[^}]*max-height:\s*calc\(100% - var\(--mission-data-h/);
+    expect(css).toMatch(/\.mission-region-horizon \.flight-hud \{[^}]*flex:\s*1 1 auto/);
+    expect(cssBlock(css, '.mission-horizon-filler')).toMatch(/flex:\s*0 1 0/);
+    expect(cssBlock(css, '.mission-horizon-filler')).toMatch(/max-height:\s*18%/);
     expect(cssBlock(css, '.mission-horizon-filler')).toMatch(/background:\s*#1e293b/);
     expect(cssBlock(css, '.mission-region-messages[data-messages-expanded="0"]')).toMatch(/max-height:\s*40px/);
-    expect(cssBlock(css, '.mission-region[data-mission-region="messages"]')).toMatch(/position:\s*absolute/);
+    expect(cssBlock(css, '.mission-region[data-mission-region="messages"]')).toMatch(/position:\s*relative/);
     expect(cssBlock(css, '.mission-region[data-mission-region="talk"]')).toMatch(/min-width:\s*240px/);
-    expect(cssBlock(css, '.mission-ops-chrome')).toMatch(/min-height:\s*22px/);
-    expect(cssBlock(css, '.mission-ops-chrome')).toMatch(/max-height:\s*22px/);
+    expect(cssBlock(css, '.mission-ops-chrome')).toMatch(/min-height:\s*26px/);
+    expect(cssBlock(css, '.mission-ops-chrome')).toMatch(/max-height:\s*26px/);
   });
 
   it('keeps PFD tapes, heading, video toggle, and video panel in flow', () => {
@@ -138,21 +139,21 @@ describe('Mission layout contract — static source', () => {
     expect(sliceFunction(js, 'refreshPulseExtraWidgets')).not.toMatch(/position\s*=\s*['"]absolute['"]/);
   });
 
-  it('clamps AH size shares to 22% and never writes raw fr tracks', () => {
+  it('clamps AH size shares to 20% and never writes raw fr tracks', () => {
     expect(js).toContain("MISSION_SIZE_KEY = 'visionLandingMissionSizeV4'");
     const apply = sliceFunction(js, 'applyMissionSize');
-    expect(apply).toContain('Math.min(22');
+    expect(apply).toContain('Math.min(20');
     expect(apply).toContain('--mission-ah-col');
-    expect(apply).not.toContain('--mission-ah-row');
+    expect(apply).toContain('--mission-ah-row');
     expect(apply).not.toMatch(/--mission-r1',\s*`\$\{size\.r1\}fr`/);
     expect(apply).not.toMatch(/--mission-c1',\s*`\$\{size\.c1\}fr`/);
     const size = new Function(`${sliceFunction(js, 'defaultMissionSize')}; return defaultMissionSize();`)();
-    expect(size.c1).toBeLessThanOrEqual(0.22);
+    expect(size.c1).toBeLessThanOrEqual(0.20);
     expect(size.c3).toBeLessThan(size.c2);
     const read = sliceFunction(js, 'readMissionSize');
-    expect(read).toMatch(/clampMissionFr\(raw\.c1, 0\.14, 0\.22/);
+    expect(read).toMatch(/clampMissionFr\(raw\.c1, 0\.14, 0\.20/);
     const split = sliceFunction(js, 'bindMissionSplitters');
-    expect(split).toMatch(/clampMissionFr\(base\.c1 \+ delta, 0\.14, 0\.22/);
+    expect(split).toMatch(/clampMissionFr\(base\.c1 \+ delta, 0\.14, 0\.20/);
     expect(sliceFunction(js, 'applyMissionAreas')).toContain("id === 'messages' || id === 'data'");
   });
 });
@@ -276,14 +277,15 @@ describe('Mission layout contract — live boxes', () => {
     });
 
     expect(measured.platformTab).toBe(false);
-    expect(measured.version).toBe('1.02.293');
+    expect(measured.version).toBe('1.02.294');
     expect(measured.ws.width).toBeGreaterThan(800);
     expect(measured.talkMinWidth).toBe('240px');
     expect(Number.parseFloat(measured.dataGap)).toBeLessThanOrEqual(4);
     expect(measured.dataOverflowX).toMatch(/auto|scroll/);
-    expect(measured.msgPosition).toBe('absolute');
+    expect(measured.msgPosition).toMatch(/relative|static/);
     expect(Number.parseFloat(measured.msgMaxHeight)).toBeLessThanOrEqual(40);
-    expect(measured.chromeHeight).toBeLessThanOrEqual(24);
+    expect(measured.chromeHeight).toBeGreaterThanOrEqual(24);
+    expect(measured.chromeHeight).toBeLessThanOrEqual(28);
 
     const { ws, regions } = measured;
     expect(regions.map.height / ws.height).toBeGreaterThanOrEqual(0.65);
@@ -291,15 +293,16 @@ describe('Mission layout contract — live boxes', () => {
     expect(measured.leaflet.height / regions.map.height).toBeGreaterThanOrEqual(0.90);
     expect(measured.leaflet.width / regions.map.width).toBeGreaterThanOrEqual(0.90);
     expect(regions.messages.height).toBeLessThanOrEqual(40);
-    expect(regions.horizon.width / ws.width).toBeLessThanOrEqual(0.22 + 0.02);
-    expect(measured.hud.height / regions.horizon.height).toBeGreaterThanOrEqual(0.35);
-    expect(measured.hud.height / regions.horizon.height).toBeLessThanOrEqual(0.42);
+    expect(regions.horizon.width / ws.width).toBeLessThanOrEqual(0.22);
+    expect(measured.hud.height / regions.horizon.height).toBeGreaterThanOrEqual(0.50);
+    expect(measured.hud.height / regions.horizon.height).toBeLessThanOrEqual(0.88);
     expect(measured.horizonPosition).toBe('relative');
     expect(regions.horizon.height / ws.height).toBeGreaterThanOrEqual(0.90);
-    expect(measured.filler.height).toBeGreaterThan(80);
-    expect(measured.filler.height / regions.horizon.height).toBeLessThanOrEqual(0.34);
+    expect(measured.filler.height / regions.horizon.height).toBeLessThanOrEqual(0.20);
     expect(measured.fillerBg).not.toMatch(/rgba?\(\s*0,\s*0,\s*0/);
-    expect(regions.data.height).toBeLessThanOrEqual(56);
+    expect(regions.data.height).toBeGreaterThanOrEqual(64);
+    expect(regions.data.height).toBeLessThanOrEqual(76);
+    expect(regions.messages.top - regions.data.bottom).toBeLessThan(24);
     expect(regions.talk.width).toBeGreaterThanOrEqual(240);
     expect(regions.talk.height / ws.height).toBeGreaterThanOrEqual(0.90);
     expect(measured.well.height).toBeGreaterThanOrEqual(regions.talk.height * 0.40);
@@ -309,8 +312,9 @@ describe('Mission layout contract — live boxes', () => {
 
     const overlayPair = (a, b) => {
       const skip = new Set([
-        'map|messages', 'messages|map',
         'horizon|data', 'data|horizon',
+        'horizon|messages', 'messages|horizon',
+        'data|messages', 'messages|data',
       ]);
       return skip.has(`${a}|${b}`);
     };
@@ -324,7 +328,7 @@ describe('Mission layout contract — live boxes', () => {
         ).toBe(false);
       }
     }
-    expect(interiorsIntersect(regions.messages, regions.map)).toBe(true);
+    expect(interiorsIntersect(regions.messages, regions.map)).toBe(false);
     expect(interiorsIntersect(regions.horizon, regions.map)).toBe(false);
 
     expect(measured.pfd.ias.right).toBeLessThanOrEqual(measured.pfd.stage.left + 1);
@@ -358,7 +362,7 @@ describe('Mission layout contract — live boxes', () => {
     }
 
     for (let i = 0; i < measured.tiles.length; i += 1) {
-      expect(measured.tiles[i].height).toBeLessThanOrEqual(48);
+      expect(measured.tiles[i].height).toBeLessThanOrEqual(72);
       for (let j = i + 1; j < measured.tiles.length; j += 1) {
         expect(interiorsIntersect(measured.tiles[i], measured.tiles[j]), 'data tiles overlap').toBe(false);
       }
@@ -482,22 +486,26 @@ describe('Mission layout contract — live boxes', () => {
     await writeShot(page, 'mission-assist-collapsed.png');
   }, 20000);
 
-  it('grows messages as an overlay drawer instead of a grid row', async () => {
-    await page.click('#missionMessagesToggle');
+  it('grows messages inside the AH stack without covering the map', async () => {
+    await page.evaluate(() => document.getElementById('missionMessagesToggle')?.click());
     const expanded = await page.evaluate(() => {
       const region = document.querySelector('[data-mission-region="messages"]');
       const map = document.querySelector('[data-mission-region="map"]');
+      const horizon = document.querySelector('[data-mission-region="horizon"]');
       const ws = document.querySelector('.mission-workspace');
       const rr = region.getBoundingClientRect();
       const mr = map.getBoundingClientRect();
+      const hr = horizon.getBoundingClientRect();
       const wr = ws.getBoundingClientRect();
+      const overlap = rr.left < mr.right - 1 && rr.right > mr.left + 1
+        && rr.top < mr.bottom - 1 && rr.bottom > mr.top + 1;
       return {
         expanded: region.dataset.messagesExpanded,
         msgH: rr.height,
         mapH: mr.height,
         wsH: wr.height,
-        msgBottom: rr.bottom,
-        mapBottom: mr.bottom,
+        overlap,
+        insideHorizon: rr.left >= hr.left - 2 && rr.right <= hr.right + 2,
         rows: getComputedStyle(ws).gridTemplateRows,
       };
     });
@@ -505,10 +513,11 @@ describe('Mission layout contract — live boxes', () => {
     expect(expanded.msgH).toBeGreaterThan(40);
     expect(expanded.msgH).toBeLessThanOrEqual(expanded.wsH * 0.45);
     expect(expanded.mapH / expanded.wsH).toBeGreaterThanOrEqual(0.65);
-    expect(Math.abs(expanded.msgBottom - expanded.mapBottom)).toBeLessThan(16);
+    expect(expanded.overlap).toBe(false);
+    expect(expanded.insideHorizon).toBe(true);
     expect(expanded.rows.split(' ').filter(Boolean).length).toBe(1);
     await writeShot(page, 'mission-aircraft-messages.png');
-    await page.click('#missionMessagesToggle');
+    await page.evaluate(() => document.getElementById('missionMessagesToggle')?.click());
   }, 20000);
 
   it('keeps Pulse extra cards in flow without stacking', async () => {

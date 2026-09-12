@@ -4661,6 +4661,25 @@ const VLC_TOOLTIP_IAS_FROM_GS =
 /** MAVLink attitude vs nav packets arrived far apart — horizon vs tapes may not match one FC instant. */
 const VLC_TOOLTIP_HUD_TIME_SKEW =
   'פער זמן בין חבילות MAVLink — ייתכן עיוות זמני בין אופק לשאר מדי ה-HUD.';
+/** Live FC with roll/pitch but no VFR_HUD / GLOBAL_POSITION altitude yet (often waiting for GPS). */
+const VLC_TOOLTIP_ALT_WAITING = 'אין גובה מהבקר עדיין';
+
+function altitudeIsFinite(alt) {
+  return typeof alt === 'number' && Number.isFinite(alt);
+}
+
+function altitudeTileHonestyTitle(mav) {
+  if (altitudeIsFinite(mav?.altitude)) {
+    return mav.hudTimeSkewWarn ? VLC_TOOLTIP_HUD_TIME_SKEW : '';
+  }
+  const live = !!(mav && (
+    mav.connected === true
+    || mav.listening === true
+    || Number(mav.heartbeatCount) > 0
+    || (Number.isFinite(mav.rollDeg) && Number.isFinite(mav.pitchDeg))
+  ));
+  return live ? VLC_TOOLTIP_ALT_WAITING : '';
+}
 
 // ── Flight HUD PFD elements ────────────────────────────────────────────────────
 const horizonCanvas    = document.getElementById('horizonCanvas');
@@ -5422,8 +5441,8 @@ function applyFlightHud(mav) {
   }
   if (pfdAltVal) {
     const al = mav.altitude;
-    pfdAltVal.textContent = typeof al === 'number' && Number.isFinite(al) ? al.toFixed(1) : '--';
-    pfdAltVal.title = mav.hudTimeSkewWarn ? VLC_TOOLTIP_HUD_TIME_SKEW : '';
+    pfdAltVal.textContent = altitudeIsFinite(al) ? al.toFixed(1) : '--';
+    pfdAltVal.title = altitudeTileHonestyTitle(mav);
   }
 
   // Battery (bottom bar)
@@ -5535,8 +5554,14 @@ function positionPfdReadinessPopover() {
   const anchor = _readinessAnchor || missionReadinessGlance || pfdArmedBadge;
   if (!pfdReadinessPopover || !anchor || pfdReadinessPopover.classList.contains('hidden')) return;
   const r = anchor.getBoundingClientRect();
+  const talk = document.querySelector('[data-mission-region="talk"]')?.getBoundingClientRect();
   const w = Math.min(280, window.innerWidth - 16);
-  const left = Math.max(8, Math.min(r.left, window.innerWidth - w - 8));
+  let left = r.right - w;
+  if (talk && left + w > talk.left - 8) left = talk.left - w - 8;
+  left = Math.max(8, Math.min(left, window.innerWidth - w - 8));
+  if (talk && left < talk.right && left + w > talk.left) {
+    left = Math.max(8, talk.left - w - 8);
+  }
   pfdReadinessPopover.style.width = `${w}px`;
   pfdReadinessPopover.style.left = `${left}px`;
   pfdReadinessPopover.style.top = `${Math.min(r.bottom + 6, window.innerHeight - 120)}px`;
@@ -5862,10 +5887,13 @@ function applyTopbarFlightData(mav) {
   if (hudAltitudeEl) {
     const alt = mav.altitude;
     const useTile = hudAltitudeEl.classList.contains('mission-data-value');
-    hudAltitudeEl.textContent = (typeof alt === 'number' && Number.isFinite(alt))
+    hudAltitudeEl.textContent = altitudeIsFinite(alt)
       ? (useTile ? alt.toFixed(1) : `${alt.toFixed(1)} m`)
       : (useTile ? '--' : '-- m');
-    hudAltitudeEl.title = mav.hudTimeSkewWarn ? VLC_TOOLTIP_HUD_TIME_SKEW : '';
+    const altTitle = altitudeTileHonestyTitle(mav);
+    hudAltitudeEl.title = altTitle;
+    const tile = hudAltitudeEl.closest('.mission-data-tile, .tele-hud-mini');
+    if (tile) tile.title = altTitle;
   }
   if (hudFlightModeEl) {
     const mode = ARDUPILOT_PLANE_MODES[mav.flightMode];
@@ -14928,7 +14956,30 @@ function clampMissionFr(value, min, max, fallback) {
 }
 
 function defaultMissionSize() {
-  return { c1: 0.20, c2: 1.20, c3: 0.24, r1: 0.78, r2: 0.22, r3: 0.00 };
+  return { c1: 0.18, c2: 1.20, c3: 0.22, r1: 0.88, r2: 0.18, r3: 0.00 };
+}
+
+function defaultMissionSwap() {
+  return 'map-horizon';
+}
+
+function isLegacyDefaultMissionSize(raw) {
+  if (!raw) return false;
+  const r1 = Number(raw.r1);
+  const r2 = Number(raw.r2);
+  return (r1 === 0.78 && r2 === 0.22) || (r1 === 0.84 && r2 === 0.16);
+}
+
+function missionAhRowPct(r1) {
+  const n = Number(r1);
+  if (!Number.isFinite(n)) return 66;
+  return Math.min(70, Math.max(52, Math.round(n * 75)));
+}
+
+function missionDataRowPx(r2) {
+  const n = Number(r2);
+  if (!Number.isFinite(n)) return 72;
+  return Math.min(76, Math.max(64, Math.round(n * 400)));
 }
 
 function defaultMissionAreas() {
@@ -14960,12 +15011,19 @@ function missionLayoutStoreSet(key, value) {
 }
 
 function readMissionSwap() {
-  if (missionLayoutStoreGet(MISSION_SWAP_KEY) === 'map-horizon') return 'map-horizon';
-  return 'horizon-map';
+  const raw = missionLayoutStoreGet(MISSION_SWAP_KEY);
+  if (raw === 'horizon-map') return 'horizon-map';
+  return 'map-horizon';
 }
 
 function writeMissionSwap(swap) {
-  missionLayoutStoreSet(MISSION_SWAP_KEY, swap === 'map-horizon' ? 'map-horizon' : 'horizon-map');
+  missionLayoutStoreSet(MISSION_SWAP_KEY, swap === 'horizon-map' ? 'horizon-map' : 'map-horizon');
+}
+
+function applyMissionSwap(swap) {
+  const ws = document.querySelector('.mission-workspace');
+  if (!ws) return;
+  ws.dataset.missionSwap = swap === 'horizon-map' ? 'horizon-map' : 'map-horizon';
 }
 
 function readMissionSize() {
@@ -14973,12 +15031,13 @@ function readMissionSize() {
     const raw = JSON.parse(missionLayoutStoreGet(MISSION_SIZE_KEY) || 'null');
     if (raw && typeof raw === 'object') {
       const fallback = defaultMissionSize();
+      const rows = isLegacyDefaultMissionSize(raw) ? fallback : raw;
       return {
-        c1: clampMissionFr(raw.c1, 0.14, 0.22, fallback.c1),
+        c1: clampMissionFr(raw.c1, 0.14, 0.20, fallback.c1),
         c2: clampMissionFr(raw.c2, 0.70, 1.80, fallback.c2),
-        c3: clampMissionFr(raw.c3, 0.20, 0.28, fallback.c3),
-        r1: clampMissionFr(raw.r1, 0.50, 0.90, fallback.r1),
-        r2: clampMissionFr(raw.r2, 0.10, 0.40, fallback.r2),
+        c3: clampMissionFr(raw.c3, 0.20, 0.26, fallback.c3),
+        r1: clampMissionFr(rows.r1, 0.70, 0.92, fallback.r1),
+        r2: clampMissionFr(rows.r2, 0.14, 0.22, fallback.r2),
         r3: 0,
       };
     }
@@ -15041,23 +15100,29 @@ function applyMissionSize(size) {
   const ws = document.querySelector('.mission-workspace');
   if (!ws || !size) return;
   _missionSize = size;
-  const ahCol = Math.min(22, Math.max(14, size.c1 * 100));
-  const talkCol = Math.min(28, Math.max(20, size.c3 * 100));
+  const ahCol = Math.min(20, Math.max(14, size.c1 * 100));
+  const talkCol = Math.min(26, Math.max(20, size.c3 * 100));
   ws.style.setProperty('--mission-ah-col', `${ahCol}%`);
   ws.style.setProperty('--mission-talk-col', `${talkCol}%`);
+  ws.style.setProperty('--mission-ah-row', `${missionAhRowPct(size.r1)}%`);
+  ws.style.setProperty('--mission-data-h', `${missionDataRowPx(size.r2)}px`);
   requestAnimationFrame(placeMissionSplits);
 }
 
 function toggleMissionHorizonMapSwap() {
-  swapMissionRegions('horizon', 'map');
+  const next = readMissionSwap() === 'map-horizon' ? 'horizon-map' : 'map-horizon';
+  writeMissionSwap(next);
+  applyMissionSwap(next);
 }
 
 function resetMissionLayout() {
-  writeMissionSwap('horizon-map');
+  const swap = defaultMissionSwap();
+  writeMissionSwap(swap);
   writeMissionSize(defaultMissionSize());
   writeMissionAreas(defaultMissionAreas());
   applyMissionSize(defaultMissionSize());
   applyMissionAreas(defaultMissionAreas());
+  applyMissionSwap(swap);
   syncMissionLayoutChrome();
 }
 
@@ -15190,12 +15255,16 @@ function bindMissionSplitters() {
     const next = { ...base };
     if (dragging === 'col') {
       const delta = (ev.clientX - start) / Math.max(1, rect.width);
-      next.c1 = clampMissionFr(base.c1 + delta, 0.14, 0.22, base.c1);
+      next.c1 = clampMissionFr(base.c1 + delta, 0.14, 0.20, base.c1);
       next.c2 = clampMissionFr(base.c2 - delta, 0.70, 1.80, base.c2);
     } else if (dragging === 'col2') {
       const delta = (ev.clientX - start) / Math.max(1, rect.width);
       next.c2 = clampMissionFr(base.c2 + delta, 0.70, 1.80, base.c2);
-      next.c3 = clampMissionFr(base.c3 - delta, 0.20, 0.28, base.c3);
+      next.c3 = clampMissionFr(base.c3 - delta, 0.20, 0.26, base.c3);
+    } else if (dragging === 'row') {
+      const delta = (ev.clientY - start) / Math.max(1, rect.height);
+      next.r1 = clampMissionFr(base.r1 + delta, 0.70, 0.92, base.r1);
+      next.r2 = clampMissionFr(base.r2 - delta, 0.14, 0.22, base.r2);
     } else {
       return;
     }
@@ -15532,8 +15601,11 @@ function initAssistMic() {
 }
 
 function initMissionLayout() {
-  applyMissionSize(readMissionSize());
+  const size = readMissionSize();
+  writeMissionSize(size);
+  applyMissionSize(size);
   applyMissionAreas(readMissionAreas());
+  applyMissionSwap(readMissionSwap());
   syncMissionLayoutChrome();
   document.getElementById('missionSwapHorizonMapBtn')?.addEventListener('click', () => {
     toggleMissionHorizonMapSwap();

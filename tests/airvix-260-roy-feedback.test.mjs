@@ -26,10 +26,10 @@ function sliceFunction(src, name) {
   throw new Error(`unclosed function ${name}`);
 }
 
-describe('AIRVIX 1.02.261 Roy feedback (still holds on 1.02.293)', () => {
-  it('pins APP_VERSION at 1.02.293', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.293'");
-    expect(pkg.version).toBe('1.02.293');
+describe('AIRVIX 1.02.261 Roy feedback (still holds on 1.02.294)', () => {
+  it('pins APP_VERSION at 1.02.294', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.294'");
+    expect(pkg.version).toBe('1.02.294');
   });
 
   it('removes Platform from primary chrome and redirects Assist', () => {
@@ -176,7 +176,7 @@ describe('AIRVIX 1.02.261 Roy feedback (still holds on 1.02.293)', () => {
     expect(css).toMatch(/--mission-msg-h:\s*40px/);
     expect(html).toMatch(/data-mission-region="messages"[^>]*data-messages-expanded="0"/);
     expect(css).toMatch(/\.mission-region-messages\[data-messages-expanded="0"\] \.pfc-msg-primary/);
-    expect(js).toContain('return { c1: 0.20, c2: 1.20, c3: 0.24, r1: 0.78, r2: 0.22, r3: 0.00 }');
+    expect(js).toContain('return { c1: 0.18, c2: 1.20, c3: 0.22, r1: 0.88, r2: 0.18, r3: 0.00 }');
   });
 
   it('keeps a clean rectangular PFD without overlay tapes', () => {

@@ -22,6 +22,7 @@ describe('composeHudTelemetryFields', () => {
     };
     const h = composeHudTelemetryFields(mavConn);
     expect(h.altitude).toBe(55);
+    expect(h.altitudeSource).toBe('global_relative');
     expect(h.groundspeed).toBe(22);
     expect(h.heading).toBe(180);
     expect(h.airspeed).toBe(22);
@@ -58,6 +59,25 @@ describe('composeHudTelemetryFields', () => {
     expect(h.airspeed).toBe(28);
     expect(h.groundspeed).toBe(31);
     expect(h.airspeedIsGroundspeedProxy).toBe(false);
+    expect(h.altitude).toBe(10);
+    expect(h.altitudeSource).toBe('global_relative');
+  });
+
+  it('labels VFR altitude as vfr_hud and stays null without a source', () => {
+    const withVfr = composeHudTelemetryFields({
+      lastVfrHud: { alt: 41.5, receivedWallMs: baseWall },
+      lastGlobalPos: null,
+      lastAttitude: { yawDeg: 0, receivedWallMs: baseWall },
+    });
+    expect(withVfr.altitude).toBe(41.5);
+    expect(withVfr.altitudeSource).toBe('vfr_hud');
+    const empty = composeHudTelemetryFields({
+      lastVfrHud: null,
+      lastGlobalPos: null,
+      lastAttitude: { rollDeg: 2, pitchDeg: -4, receivedWallMs: baseWall },
+    });
+    expect(empty.altitude).toBeNull();
+    expect(empty.altitudeSource).toBeNull();
   });
 
   it('sets hudTimeSkewWarn when receive timestamps diverge', () => {
