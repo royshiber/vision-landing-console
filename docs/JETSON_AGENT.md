@@ -538,7 +538,7 @@ curl -X POST http://192.168.1.100:4010/api/vision/flow \
 
 | שירות | פורט | תפקיד |
 |-------|------|--------|
-| MAVLink relay | TCP `5770` | גשר byte-level בין GCS (PC) ל-UART של FC |
+| MAVLink relay | TCP `5770` | גשר byte-level בין GCS (PC) ל-UART של FC. קורא UART אחד ומפזר לכל לקוח TCP. אסור לפרסר עם pymavlink על אותו פורט — זה גונב דופק HEARTBEAT מהממסר. |
 | HTTP API | `8081` | `/api/health`, `/api/logs`, `/api/install` |
 | Heartbeat | → PC `:4010` | `/api/jetson/heartbeat` — IP, relay, FC linked |
 
