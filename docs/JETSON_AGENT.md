@@ -2,7 +2,7 @@
 
 ## חוזה נוכחי — תצוגה בלבד
 
-`scripts/jetson-companion/companion_agent.py` (גרסה `2.3.5`) מגיש סטטוס ניווט אופטי לצפייה בלבד, צינור מצלמות כנה, וסטטוס מודם סלולר מקובץ המארח:
+`scripts/jetson-companion/companion_agent.py` (גרסה `2.3.6`) מגיש סטטוס ניווט אופטי לצפייה בלבד, צינור מצלמות כנה, סטטוס מודם סלולר מקובץ המארח, וסטטוס ראייה מסומנת כנה:
 
 - `GET /api/v1/status` ו־`GET /api/v1/status/optical-nav`
 - שדות: `present`, `running`, `camera_ok`, `alt_ceiling_m=300`, `position`, `velocity`, `age_ms`, `confidence`, `cameras.cam1` / `cameras.cam2` (אותו זוג כמו נחיתה)
@@ -556,13 +556,13 @@ curl -X POST http://192.168.1.100:4010/api/vision/flow \
 
 `GET /api/health` already carries `cpuLoadPct`, `memPct`, and `tempC` (same names as the console heartbeat). The console tries Companion v1 (`/api/v1/health`, `/api/v1/status`) first; on HTTP 404 it maps this legacy health body onto Status gauges.
 
-Observe-only Experiment #1 fields (companion **2.3.5**, UART still the 2.3.1 fan-out):
+Observe-only Experiment #1 fields (companion **2.3.6**, UART still the 2.3.1 fan-out):
 
 - `GET /api/v1/status/vision` / `status/cameras` report per-camera `present`, `fps`, `last_frame_age_ms`, `error`. Absent device → `camera_ok: false`, no JPEG. Dry-run synthetic reports fps/age with `source=synthetic` and never `real`. Never invent `camera_ok` from operator confirm.
 - `GET /api/v1/status/optical-nav` and status/health `optical_nav` — `present/running/camera_ok` false, `alt_ceiling_m: 300`, `position`/`velocity` null, `ekf_injected: false`. Dual-camera hooks share the landing pair. Never invent WGS84.
 - `GET /api/v1/status/landing` and health overlay `landing.runway_detector: false` plus `source: "none"` — no runway detector. Console readiness becomes **absent**. A 404/501 on this path is **not_implemented**. Never invent runway detected or locked.
 - Lock fields are omitted — console lock stays **unknown**.
-- `GET /api/v1/status/video` reports `raw_pipeline: "none"`. No annotated stream.
+- `GET /api/v1/status/video` reports `raw_pipeline: "none"`. `GET /api/v1/status/annotated-video` stays `available: false` with `modem_absent` or `stream_absent` until a real stream URL exists. Radio never satisfies video.
 
 King may upload `scripts/jetson-companion/companion_agent.py` to the Jetson after VERIFY (`~/vlc-companion/companion_agent.py`, then restart the agent). No live camera hardware is required for console tests. No ARM / LAND / auto-land.
 
@@ -597,7 +597,7 @@ After VERIFY, King may upload this repo file over the live 2.3.1 agent (UART fan
 ```bash
 # on the Jetson — replace the running script, then restart the agent process
 install -m 755 companion_agent.py "$HOME/vlc-companion/companion_agent.py"
-# expected: GET /api/health agentVersion 2.3.5
+# expected: GET /api/health agentVersion 2.3.6
 # expected: GET /api/v1/status/vision → camera_ok false when no device
 # expected: GET /api/v1/status/optical-nav → camera_ok false, position null
 # expected: GET /api/v1/status/landing → runway_detector false
@@ -624,7 +624,7 @@ No camera hardware is required for that upload. Do not enable ARM / LAND / auto-
 
 | רכיב | מינימום | מומלץ |
 |------|---------|-------|
-| Jetson Agent | 2.0.0 | 2.3.5 (observe-only dual-camera ingest + E3372 modem status file) |
+| Jetson Agent | 2.0.0 | 2.3.6 (observe-only dual-camera ingest + E3372 modem + annotated video honesty) |
 | ArduPilot | 4.4.x | 4.5.x (EKF3 stable) |
 | JetPack | 5.x | 6.x |
 | OpenCV | 4.5 | 4.8+ |
@@ -643,6 +643,7 @@ Software to copy later onto Orin / Xavier: `scripts/jetson-cellular/` (notes: `d
 ./scripts/jetson-cellular/e3372-status.sh --dry-run
 ./scripts/jetson-cellular/tailscale-check.sh --dry-run
 ./scripts/jetson-cellular/cellular-mavlink-endpoint.sh --dry-run
+./scripts/jetson-cellular/annotated-encoder-status.sh --dry-run
 ```
 
 Unplugged USB reports `modem_absent` and exits 0. `AIRVIX_CELLULAR_MOCK=present` is the software mock — same idea as console `CELLULAR_MODEM_MOCK=present`. `--apply` is for a Jetson on the bench, not a Cloud Agent VM. No flight commands and no Companion apply/restart.

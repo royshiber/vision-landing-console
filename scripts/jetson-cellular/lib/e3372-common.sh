@@ -61,6 +61,128 @@ e3372_mock_requested() {
   return 1
 }
 
+e3372_bind_force_requested() {
+  # CI / lab only. Never treat this as a live stick.
+  if e3372_env_flag AIRVIX_CELLULAR_BIND_FORCE; then
+    return 0
+  fi
+  if e3372_env_flag AIRVIX_CELLULAR_MAVLINK_BIND_FORCE; then
+    return 0
+  fi
+  return 1
+}
+
+e3372_status_says_present() {
+  _sf=$(e3372_status_file)
+  [ -f "${_sf}" ] || return 1
+  grep -q '"present": true' "${_sf}" 2>/dev/null
+}
+
+e3372_bind_allowed() {
+  if e3372_mock_requested; then
+    return 0
+  fi
+  if e3372_bind_force_requested; then
+    return 0
+  fi
+  if e3372_status_says_present; then
+    return 0
+  fi
+  return 1
+}
+
+e3372_annotated_stream_file() {
+  printf '%s\n' "${AIRVIX_ANNOTATED_STREAM_FILE:-/run/airvix/annotated-stream.status}"
+}
+
+e3372_annotated_stream_url() {
+  _url=$(printf '%s' "${AIRVIX_ANNOTATED_STREAM_URL:-}" | tr -d '\n\r')
+  if [ -n "${_url}" ]; then
+    printf '%s' "${_url}"
+    return 0
+  fi
+  _sf=$(e3372_annotated_stream_file)
+  [ -f "${_sf}" ] || return 1
+  _from_file=$(sed -n 's/.*"url"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "${_sf}" | head -n 1)
+  [ -n "${_from_file}" ] || return 1
+  printf '%s' "${_from_file}"
+}
+
+e3372_is_real_stream_url() {
+  _raw=$1
+  _u=$(printf '%s' "${_raw}" | tr '[:upper:]' '[:lower:]')
+  case "${_u}" in
+    ''|none|off|stopped|idle|absent|null|false) return 1 ;;
+    rtsp://*|rtsps://*|srt://*|udp://*|http://*|https://*) return 0 ;;
+    /*)
+      [ -e "${_raw}" ] || return 1
+      return 0
+      ;;
+    *) return 1 ;;
+  esac
+}
+
+e3372_bind_udp_once() {
+  # Bind documented UDP, then close. Does not send. Does not talk to an FC.
+  _host=$(e3372_mavlink_host)
+  _port=$(e3372_mavlink_port)
+  if command -v python3 >/dev/null 2>&1; then
+    python3 -c '
+import socket, sys
+host, port = sys.argv[1], int(sys.argv[2])
+sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+try:
+    sock.bind((host, port))
+except OSError as exc:
+    sys.stderr.write(str(exc) + "\n")
+    sys.exit(4)
+finally:
+    sock.close()
+' "${_host}" "${_port}"
+    return $?
+  fi
+  echo "python3 required to bind ${_host}:${_port}" >&2
+  return 4
+}
+
+e3372_bind_udp_hold() {
+  # Hold the UDP bind until SIGTERM/SIGINT. Recv only. Never send to an FC.
+  _host=$(e3372_mavlink_host)
+  _port=$(e3372_mavlink_port)
+  if ! command -v python3 >/dev/null 2>&1; then
+    echo "python3 required to bind ${_host}:${_port}" >&2
+    return 4
+  fi
+  python3 -c '
+import signal, socket, sys
+host, port = sys.argv[1], int(sys.argv[2])
+sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+try:
+    sock.bind((host, port))
+except OSError as exc:
+    sys.stderr.write(str(exc) + "\n")
+    sys.exit(4)
+stop = {"v": False}
+def _stop(_signum, _frame):
+    stop["v"] = True
+signal.signal(signal.SIGTERM, _stop)
+signal.signal(signal.SIGINT, _stop)
+sock.settimeout(0.5)
+print("listening", flush=True)
+while not stop["v"]:
+    try:
+        sock.recvfrom(2048)
+    except socket.timeout:
+        continue
+    except OSError:
+        break
+sock.close()
+' "${_host}" "${_port}"
+  return $?
+}
+
 e3372_is_jetson() {
   if [ -f /etc/nv_tegra_release ]; then
     return 0

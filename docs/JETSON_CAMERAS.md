@@ -23,12 +23,13 @@ CSI (later, on the Jetson with OpenCV / GStreamer): `VLC_CAM1_DEVICE=csi:0`.
 
 ## Agent
 
-Companion **2.3.5** (`scripts/jetson-companion/`):
+Companion **2.3.6** (`scripts/jetson-companion/`):
 
 - `companion_agent.py` — same UART fan-out as 2.3.1 / 2.3.3
 - `camera_ingest.py` — open two devices, capture, honest status + optional JPEG
+- `annotated_encoder.py` — observe-only annotated egress honesty. Never invents frames.
 
-Copy both files to `~/vlc-companion` (or `./scripts/jetson-companion/install.sh --apply` on a Jetson). Cloud Agent VMs stay `--dry-run`.
+Copy those files to `~/vlc-companion` (or `./scripts/jetson-companion/install.sh --apply` on a Jetson). Cloud Agent VMs stay `--dry-run`.
 
 ```
 export VLC_CAMERA_DRY_RUN=1          # absent honesty

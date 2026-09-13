@@ -19,7 +19,8 @@ This pack does **not** send flight commands, write the flight controller, apply 
 | `e3372-status.sh` | JSON snapshot. Unplugged → `modem_absent`. Includes `ip` only when the Huawei netdev has one. |
 | `e3372-bringup.sh` | Called by systemd when a matching USB id appears. Missing stick exits 0. |
 | `tailscale-check.sh` | Observe-only. Binary / `tailscale0` / optional BackendState. No ping. |
-| `cellular-mavlink-endpoint.sh` | Prints udp `0.0.0.0:14560` (console dual-link). `--status` adds status-file honesty. Does not bind. |
+| `cellular-mavlink-endpoint.sh` | Prints udp `0.0.0.0:14560`. `--dry-run` / `--status` never bind. `--bind` only with a present modem or CI mock. `--once` binds then exits. |
+| `annotated-encoder-status.sh` | Observe-only annotated egress honesty. `modem_absent` / `stream_absent` until a real stream URL exists. Never invents frames. |
 | `udev/99-huawei-e3372.rules` | usb_modeswitch + `SYSTEMD_WANTS` on HiLink net / stick tty. |
 | `systemd/airvix-e3372-status.service` | Boot: write status (absent is success). |
 | `systemd/airvix-e3372-bringup.service` | Device-triggered bring-up stub. |
@@ -95,10 +96,10 @@ sudo ./jetson-cellular/install.sh --apply
 
 - No live vehicle, UART FC, or MAVLink send.
 - No Companion apply / restart / GStreamer start.
-- No annotated-video encoder bind (document-only: bind to cellular, never radio).
+- No live annotated encoder. `annotated-encoder-status.sh` reports honest absent. Radio never satisfies video.
 - No APN, SIM PIN, tokens, or Tailscale / Jetson addresses in files.
 
-When the stick is on the bench, a later task can add DHCP wait, a cellular MAVLink bind on port `14560`, and annotated-video egress — each still gated by the constitution.
+When the stick is on the bench, run `cellular-mavlink-endpoint.sh --bind` on the Jetson (not from a Cloud Agent VM). Install does not start that bind. Annotated egress stays off until a real stream URL exists.
 
 ## Tailscale over cellular
 
@@ -106,6 +107,20 @@ Home tests already use Tailscale to the mission computer. After the E3372 appear
 
 ## Cellular MAVLink endpoint
 
-Console dual-link default: `udp 0.0.0.0:14560` (`lib/dual-link.mjs` `DEFAULT_CELLULAR_ENDPOINT`). Operator picks radio vs cellular for commands. Companion-HTTP is not that command path. `cellular-mavlink-endpoint.sh --dry-run` prints the documented bind and does not open a socket. `--status` also reports the host status file: missing file → `modem_absent` + `statusFileMissing`. Still does not bind.
+Console dual-link default: `udp 0.0.0.0:14560` (`lib/dual-link.mjs` `DEFAULT_CELLULAR_ENDPOINT`). Operator picks radio vs cellular for commands. Companion-HTTP is not that command path.
+
+```
+./scripts/jetson-cellular/cellular-mavlink-endpoint.sh --dry-run
+./scripts/jetson-cellular/cellular-mavlink-endpoint.sh --status
+./scripts/jetson-cellular/cellular-mavlink-endpoint.sh --bind --once
+```
+
+`--dry-run` / `--status` never open a socket. `--bind` refuses when the modem is absent unless `AIRVIX_CELLULAR_MOCK=present` or `AIRVIX_CELLULAR_BIND_FORCE=1`. `--once` binds, reports, and unbinds. Without `--once`, `--bind` stays in the foreground. Install does not enable a bind unit.
+
+```
+./scripts/jetson-cellular/annotated-encoder-status.sh --dry-run
+```
+
+Reports `modem_absent` or `stream_absent`. `available:true` only when a real stream URL or path exists. Radio never satisfies video.
 
 Full operator checklist: `docs/CELLULAR_FULL_OPS.md` / `docs/CELLULAR_FULL_OPS.he.md`.

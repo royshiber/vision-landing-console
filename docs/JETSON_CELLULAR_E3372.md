@@ -13,7 +13,8 @@ This document points at the **Jetson host pack** that can be copied later. It do
 - `e3372-status.sh` — JSON. Unplugged → `modem_absent`. `ip` / `error` only when known.
 - `e3372-bringup.sh` — systemd oneshot when udev sees a Huawei id. Missing stick exits 0.
 - `tailscale-check.sh` — observe-only Tailscale binary / iface. No ping.
-- `cellular-mavlink-endpoint.sh` — prints `udp 0.0.0.0:14560`. Does not bind.
+- `cellular-mavlink-endpoint.sh` — prints `udp 0.0.0.0:14560`. `--dry-run` / `--status` do not bind. `--bind` only with a present modem or CI mock.
+- `annotated-encoder-status.sh` — observe-only annotated egress. `modem_absent` / `stream_absent` until a real stream URL exists.
 
 Operator full-ops checklist: `docs/CELLULAR_FULL_OPS.md` (Hebrew: `docs/CELLULAR_FULL_OPS.he.md`).
 - `udev/99-huawei-e3372.rules` + `usb-modeswitch/12d1:1f01` + `12d1:14fe`.

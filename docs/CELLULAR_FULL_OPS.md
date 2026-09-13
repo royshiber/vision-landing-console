@@ -41,11 +41,21 @@ Does not ping a host and does not store an auth key. Verify from the console **�
 
 ```
 ./scripts/jetson-cellular/cellular-mavlink-endpoint.sh --dry-run
+./scripts/jetson-cellular/cellular-mavlink-endpoint.sh --status
+./scripts/jetson-cellular/cellular-mavlink-endpoint.sh --bind --once
 ```
+
+`--dry-run` / `--status` never bind. `--bind` opens documented `udp 0.0.0.0:14560` only when the status file says present, or `AIRVIX_CELLULAR_MOCK=present` / `AIRVIX_CELLULAR_BIND_FORCE=1` for CI. Absent modem refuses bind. Install does not auto-start bind. Cloud Agent VMs stay dry-run.
 
 On the console: סלולר → התחבר. If both radio and cellular are up, pick the active command link. Params READ/WRITE follow that MAVLink link (`getActiveConnection` / command-link id). Remote connect is refused while the modem is absent (unless loopback mock).
 
-7. **Video** — annotated vision stays off until a real annotated stream exists on cellular. Radio up does not unlock video. `GET /api/links/annotated-video` stays `available: false` with `modem_absent` or `stream_absent`.
+7. **Video** — annotated vision stays off until a real annotated stream URL/path exists on cellular. Radio up does not unlock video. `GET /api/links/annotated-video` stays `available: false` with `modem_absent` or `stream_absent` unless that URL exists. Jetson stub:
+
+```
+./scripts/jetson-cellular/annotated-encoder-status.sh --dry-run
+```
+
+Observe-only. Never invents frames. Companion `/api/v1/status/annotated-video` reports the same honesty.
 
 8. **Params** — with the active command link on cellular (or radio), use the existing parameter READ/WRITE APIs. This pack does not add a second write path.
 
@@ -64,7 +74,7 @@ The console **מוכנות** Status panel now shows the same honesty in-app:
 - Exp#1 field checklist (`fieldPreflight` on `GET /api/vision/landing-readiness`): four link rows, cameras dry-run / absent / live, Companion, MAVLink, archive ready, Tailscale, `modem_absent` (including status-file missing), PLND observe-only, Ask GO, and explicit **blocked** rows for ARM/LAND and live nav switch.
 - Staged **עדכון בקר ומחשב משימה** checklist: versions known, real link quality only, backup/rollback note, Human Gate required to flash. No flash button.
 
-`scripts/jetson-cellular/cellular-mavlink-endpoint.sh --status` prints the documented udp `:14560` bind plus status-file honesty (`statusFileMissing` when `/run/airvix/e3372.status` is absent). It does not bind.
+`scripts/jetson-cellular/cellular-mavlink-endpoint.sh --status` prints the documented udp `:14560` bind plus status-file honesty (`statusFileMissing` when `/run/airvix/e3372.status` is absent). It does not bind. `--bind` is operator-started and refuses `modem_absent` unless mock. Field checklist מוכנות includes an annotated-video row (`modem_absent` / `stream_absent` / available).
 
 ## Console honesty (no stick)
 
@@ -82,8 +92,8 @@ When Companion later reports `modem.present: true` from the Jetson status file, 
 
 - Live E3372 USB, SIM registration, and WAN address.
 - CSQ / real signal percent from the stick (no AT/HiLink scrape in this pack).
-- Binding the cellular MAVLink UDP socket on the Jetson (documented, not started here).
-- Annotated encoder egress over cell.
+- Operator-started `--bind` on a Jetson that actually has the stick (software bind is ready; Cloud Agent VMs stay dry-run).
+- Live annotated encoder frames from cameras. Software reports `stream_absent` until a real stream URL/path exists.
 - Operator verify that Tailscale stays up on the cell NIC.
 - Any FC firmware write — Human Gate, not this prep.
 

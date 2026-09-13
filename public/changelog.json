@@ -1,5 +1,21 @@
 [
   {
+    "version": "1.02.314",
+    "date": "2026-09-13",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Cellular MAVLink optional bind plus annotated encoder honesty",
+        "detail": "APP_VERSION 1.02.314. After master 1.02.313 (#129). Jetson cellular-mavlink-endpoint.sh can --bind udp 0.0.0.0:14560 only when the E3372 status file says present, or AIRVIX_CELLULAR_MOCK / AIRVIX_CELLULAR_BIND_FORCE for CI. --dry-run / --status never bind. Absent modem refuses bind. Install does not auto-start. Annotated encoder stub (Jetson script + Companion 2.3.6 /api/v1/status/annotated-video) reports modem_absent vs stream_absent and never invents frames. GET /api/links/annotated-video stays cellular-only; radio up does not unlock video. מוכנות field checklist adds an annotated-video row. No ARM/LAND and no live EKF switch."
+      },
+      {
+        "type": "test",
+        "title": "Tests",
+        "detail": "cellular-bind-annotated-encoder.test.mjs — bind-refuse-absent, FORCE mock bind --once, encoder stream_absent honesty, no false available, field-preflight annotated row, GET /api/links/annotated-video encoder stub fields."
+      }
+    ]
+  },
+  {
     "version": "1.02.313",
     "date": "2026-09-13",
     "changes": [

@@ -48,18 +48,19 @@ async function waitHttp(url, timeoutMs = 8000) {
 }
 
 describe('companion_agent observe-only vision / landing status', () => {
-  it('pins APP_VERSION at 1.02.313', () => {
+  it('pins APP_VERSION at 1.02.314', () => {
     const version = fs.readFileSync(path.join(repoRoot, 'version.js'), 'utf8');
     const pkg = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8'));
-    expect(version).toContain("export const APP_VERSION = '1.02.313'");
-    expect(pkg.version).toBe('1.02.313');
+    expect(version).toContain("export const APP_VERSION = '1.02.314'");
+    expect(pkg.version).toBe('1.02.314');
   });
 
   it('keeps 2.3.1 fan-out UART and reports explicit absent, never invented detect', () => {
     expect(agentSrc).toContain('uart_reader');
     expect(agentSrc).toContain('fanout_uart');
     expect(agentSrc).not.toMatch(/\.recv_match\s*\(/);
-    expect(agentSrc).toMatch(/AGENT_VERSION.*"2\.3\.5"/);
+    expect(agentSrc).toMatch(/AGENT_VERSION.*"2\.3\.6"/);
+    expect(agentSrc).toContain('/api/v1/status/annotated-video');
     expect(agentSrc).toContain('/api/v1/status/vision');
     expect(agentSrc).toContain('/api/v1/status/optical-nav');
     expect(agentSrc).toContain('/api/v1/status/landing');
@@ -117,7 +118,7 @@ describe('companion_agent observe-only vision / landing status', () => {
   });
 
   it('serves honest absent camera / runway payloads on health and v1 status paths', async () => {
-    const [health, status, vision, landing, video, opticalNav, modem] = await Promise.all([
+    const [health, status, vision, landing, video, opticalNav, modem, annotatedVideo] = await Promise.all([
       fetch(`${base}/api/health`).then((r) => r.json()),
       fetch(`${base}/api/v1/status`).then((r) => r.json()),
       fetch(`${base}/api/v1/status/vision`).then((r) => r.json()),
@@ -125,8 +126,9 @@ describe('companion_agent observe-only vision / landing status', () => {
       fetch(`${base}/api/v1/status/video`).then((r) => r.json()),
       fetch(`${base}/api/v1/status/optical-nav`).then((r) => r.json()),
       fetch(`${base}/api/v1/status/modem`).then((r) => r.json()),
+      fetch(`${base}/api/v1/status/annotated-video`).then((r) => r.json()),
     ]);
-    expect(health.agentVersion).toBe('2.3.5');
+    expect(health.agentVersion).toBe('2.3.6');
     expect(health.vision.camera_ok).toBe(false);
     expect(health.landing.runway_detector).toBe(false);
     expect(health.landing.runway_detected).toBeNull();
@@ -141,6 +143,15 @@ describe('companion_agent observe-only vision / landing status', () => {
     expect(landing.target).toBeNull();
     expect(landing.lock_state).toBeUndefined();
     expect(video.raw_pipeline).toBe('none');
+    expect(video.available).toBe(false);
+    expect(video.neverRadio).toBe(true);
+    expect(video.path).toBe('cellular');
+    expect(annotatedVideo.available).toBe(false);
+    expect(annotatedVideo.neverRadio).toBe(true);
+    expect(annotatedVideo.frames).toBe(false);
+    expect(annotatedVideo.inventedFrames).toBe(false);
+    expect(annotatedVideo.reason).toBe('modem_absent');
+    expect(annotatedVideo.path).toBe('cellular');
     expect(opticalNav.camera_ok).toBe(false);
     expect(modem.present).toBe(false);
     expect(modem.reason).toBe('modem_absent');
