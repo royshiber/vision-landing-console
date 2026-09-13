@@ -187,7 +187,7 @@ describe('Flight Engineer → Assist fold — chrome', () => {
     expect(html).toContain('id="feMicBtn"');
     expect(html).toContain('id="feAssistFoldNote"');
     expect(html).toContain('id="feOpenAssistBtn"');
-    expect(html).toMatch(/id="feAssistFoldNote"[^>]*>[\s\S]*שאלו את AIRVIX Ask./);
+    expect(html).toMatch(/id="feAssistFoldNote"[^>]*>[\s\S]*שאלו את <bdi dir="ltr">AIRVIX Ask<\/bdi>\./);
     expect(html).toMatch(/data-assist-chip="flightEngineer"[^>]*>מהנדס</);
     expect(html).toMatch(/data-assist-chip="advisor"[^>]*>יועץ</);
     expect(html).toContain('id="advisorAssistFoldNote"');
@@ -211,8 +211,8 @@ describe('Flight Engineer → Assist fold — chrome', () => {
     expect(html).toContain('id="pfdVoiceFlightBtn"');
   });
 
-  it('pins APP_VERSION at 1.02.314', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.314'");
-    expect(pkg.version).toBe('1.02.314');
+  it('pins APP_VERSION at 1.02.315', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.315'");
+    expect(pkg.version).toBe('1.02.315');
   });
 });

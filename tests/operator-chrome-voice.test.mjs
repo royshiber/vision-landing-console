@@ -34,8 +34,8 @@ describe('Operator chrome voice and lab chrome gone', () => {
     expect(html).not.toContain('ממשק ניסוי מהיר');
     expect(html).not.toContain('פתיחת מסייע');
     expect(html).not.toContain('פתיחת פרמטרים');
-    expect(html).toMatch(/data-first-action="assist">AIRVIX Ask</);
-    expect(html).toMatch(/id="pulseTalkBtn"[^>]*>שאלו את AIRVIX Ask</);
+    expect(html).toMatch(/data-first-action="assist"><bdi dir="ltr">AIRVIX Ask<\/bdi></);
+    expect(html).toMatch(/id="pulseTalkBtn"[^>]*>שאלו את <bdi dir="ltr">AIRVIX Ask<\/bdi></);
     expect(html).toMatch(/data-first-action="params">פרמטרים</);
     expect(html).toMatch(/data-first-action="companion">חברו Jetson</);
     expect(html).toMatch(/id="connectPillLabel"[^>]*>מנותק</);

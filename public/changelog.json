@@ -1,5 +1,21 @@
 [
   {
+    "version": "1.02.315",
+    "date": "2026-09-13",
+    "changes": [
+      {
+        "type": "fix",
+        "title": "Ask RTL / BiDi Hebrew captions on Mission mobile",
+        "detail": "APP_VERSION 1.02.315. After master 1.02.314 (#130). Mission workspace stays direction:ltr for the map grid. Ask rail, Mission talk column, and composer isolate as RTL so Hebrew periods and mixed AIRVIX Ask / GO tokens stop reversing in mobile Chrome. English product names use <bdi> / FSI–PDI; trailing punctuation gets RLM. GO / סיום GO / כבוי keep the same meaning. No ARM/LAND and no Companion apply/restart."
+      },
+      {
+        "type": "test",
+        "title": "Tests",
+        "detail": "rtl-bidi.test.mjs — isolate AIRVIX Ask and GO, RLM on Hebrew periods. ask-rtl-chrome.test.mjs — Mission grid stays LTR, Ask rail dir=rtl, invite wraps on a narrow column."
+      }
+    ]
+  },
+  {
     "version": "1.02.314",
     "date": "2026-09-13",
     "changes": [

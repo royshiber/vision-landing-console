@@ -214,7 +214,7 @@ describe('C10.6 Mission chrome', () => {
 
   it('uses a flight-safe Assist hint on Mission tabs', () => {
     expect(html).toMatch(/id="assistRailHint"[^>]*>שינוי דורש אישור\.</);
-    expect(html).toMatch(/id="assistEmptyInvite"[^>]*>שאלו את AIRVIX Ask.</);
+    expect(html).toMatch(/id="assistEmptyInvite"[^>]*>שאלו את <bdi dir="ltr">AIRVIX Ask<\/bdi>\./);
     expect(html).toMatch(/id="assistQuickChips"[^>]*hidden/);
     expect(html).toMatch(/data-assist-chip="note">הערה</);
     expect(html).toMatch(/data-assist-chip="observation">תצפית</);
@@ -238,8 +238,8 @@ describe('C10.6 Mission chrome', () => {
     expect(posture).not.toMatch(/\/apply|\/restart|ARM|DISARM|LAND|JETSON_COMPANION|CURSOR_API_KEY/);
   });
 
-  it('pins APP_VERSION at 1.02.314', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.314'");
-    expect(pkg.version).toBe('1.02.314');
+  it('pins APP_VERSION at 1.02.315', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.315'");
+    expect(pkg.version).toBe('1.02.315');
   });
 });

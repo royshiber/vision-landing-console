@@ -344,7 +344,7 @@ describe('Assist connect chrome', () => {
     expect(html).toMatch(/id="assistAgentDisconnectBtn"[^>]*>ניתוק</);
     expect(html).toMatch(/מפתח חיבור/);
     expect(html).toMatch(/id="assistMessagesEmpty"[^>]*assist-empty-stage/);
-    expect(html).toMatch(/שאלו את AIRVIX Ask./);
+    expect(html).toMatch(/שאלו את <bdi dir="ltr">AIRVIX Ask<\/bdi>\./);
     expect(html).toMatch(/id="assistProposalWarn"/);
     expect(html).toMatch(/חברו מפתח לפני אישור/);
     expect(html).not.toMatch(/CURSOR_API_KEY/);
