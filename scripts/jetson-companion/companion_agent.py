@@ -600,6 +600,7 @@ def _absent_modem(reason="modem_absent", error=None):
         "flightCommands": False,
         "neverRadioVideo": True,
         "source": "status_file",
+        "statusFileMissing": False,
     }
 
 
@@ -615,7 +616,10 @@ def modem_status_payload():
         return body
     path = Path(MODEM_STATUS_FILE)
     if not path.is_file():
-        return _absent_modem("modem_absent")
+        body = _absent_modem("modem_absent")
+        body["statusFileMissing"] = True
+        body["reasonHe"] = "מודם לא מחובר. אין קובץ סטטוס במחשב משימה."
+        return body
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
     except Exception as exc:

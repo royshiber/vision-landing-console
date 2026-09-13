@@ -59,6 +59,13 @@ On the console: סלולר → התחבר. If both radio and cellular are up, pi
 
 `GET /api/links/update-readiness` is status only: `autoDeployFc: false`, `fcFirmwareHumanGate: true`.
 
+The console **מוכנות** Status panel now shows the same honesty in-app:
+
+- Exp#1 field checklist (`fieldPreflight` on `GET /api/vision/landing-readiness`): four link rows, cameras dry-run / absent / live, Companion, MAVLink, archive ready, Tailscale, `modem_absent` (including status-file missing), PLND observe-only, Ask GO, and explicit **blocked** rows for ARM/LAND and live nav switch.
+- Staged **עדכון בקר ומחשב משימה** checklist: versions known, real link quality only, backup/rollback note, Human Gate required to flash. No flash button.
+
+`scripts/jetson-cellular/cellular-mavlink-endpoint.sh --status` prints the documented udp `:14560` bind plus status-file honesty (`statusFileMissing` when `/run/airvix/e3372.status` is absent). It does not bind.
+
 ## Console honesty (no stick)
 
 | Surface | Default |

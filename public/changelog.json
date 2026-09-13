@@ -1,5 +1,21 @@
 [
   {
+    "version": "1.02.313",
+    "date": "2026-09-13",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Exp#1 field preflight + FC update readiness in מוכנות",
+        "detail": "APP_VERSION 1.02.313. After master 1.02.312 (#128). Status מוכנות adds an Exp#1 / first-flight field checklist that reuses existing honesty gates: four link rows, cameras dry-run vs absent vs live, Companion, MAVLink, archive ready, Tailscale, modem_absent including a missing Jetson status file, PLND observe-only, Ask GO, and explicit blocked rows for ARM/LAND and live nav switch. Staged עדכון בקר / מחשב משימה is status only — versions known, real link quality, backup note, Human Gate to flash. No flash button. Cellular endpoint --status stays modem_absent when the status file is missing. No ARM/LAND and no live EKF switch."
+      },
+      {
+        "type": "test",
+        "title": "Tests",
+        "detail": "field-preflight.test.mjs — absent/dry-run/blocked honesty, status-file missing, Ask GO still blocks ARM/LAND, update checklist never flashes."
+      }
+    ]
+  },
+  {
     "version": "1.02.312",
     "date": "2026-09-13",
     "changes": [

@@ -371,9 +371,9 @@ describe('Parameters UI WRITE sends dirty keys only', () => {
   const version = fs.readFileSync(path.join(repoRoot, 'version.js'), 'utf8');
   const pkg = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8'));
 
-  it('pins APP_VERSION at 1.02.312 after dirty-only WRITE', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.312'");
-    expect(pkg.version).toBe('1.02.312');
+  it('pins APP_VERSION at 1.02.313 after dirty-only WRITE', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.313'");
+    expect(pkg.version).toBe('1.02.313');
   });
 
   it('collects session-dirty params and posts them as body.params', () => {

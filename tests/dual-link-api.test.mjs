@@ -90,6 +90,10 @@ describe('dual-link HTTP API', () => {
     expect(j.steps[2].humanGate).toBe(true);
     expect(j.steps[2].ok).toBe(false);
     expect(j.modem.present).toBe(false);
+    expect(j.fieldUpdate.autoFlash).toBe(false);
+    expect(j.fieldUpdate.fcFirmwareHumanGate).toBe(true);
+    expect(j.fieldUpdate.steps.find((s) => s.id === 'fc_flash_gate').humanGate).toBe(true);
+    expect(j.fieldUpdate.steps.find((s) => s.id === 'fc_flash_gate').ok).toBe(false);
   });
 
   it('refuses a remote cellular connect while the modem is unplugged', async () => {

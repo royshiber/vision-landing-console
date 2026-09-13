@@ -3959,6 +3959,83 @@ function renderCameraInstallChecklist(container, checklist, { compact = false } 
   container.appendChild(mount);
 }
 
+function renderFieldPreflightRows(container, field, { compact = false } = {}) {
+  if (!container) return;
+  container.innerHTML = '';
+  const rows = Array.isArray(field?.rows) ? field.rows : [];
+  for (const row of rows) {
+    const art = document.createElement('article');
+    art.className = 'vlr-row';
+    art.dataset.id = String(row.id || '');
+    art.dataset.state = String(row.state || '');
+    art.dataset.tone = String(row.tone || 'absent');
+    art.dataset.required = row.requiredForExperiment1 === true ? 'true' : 'false';
+    if (row.statusFileMissing === true) art.dataset.statusFile = 'missing';
+    if (row.reason) art.dataset.reason = String(row.reason);
+    const name = document.createElement('span');
+    name.className = 'vlr-name';
+    name.textContent = row.nameHe || '';
+    const chip = document.createElement('span');
+    chip.className = 'vlr-chip';
+    chip.textContent = row.stateHe || '';
+    const miss = document.createElement('p');
+    miss.className = 'vlr-missing';
+    miss.textContent = row.missingHe || '';
+    art.append(name, chip, miss);
+    if (!compact && Array.isArray(row.tokens) && row.tokens.length) {
+      const toks = document.createElement('div');
+      toks.className = 'vlr-tokens';
+      toks.setAttribute('dir', 'ltr');
+      for (const token of row.tokens) {
+        const s = document.createElement('span');
+        s.className = 'vlr-token';
+        s.textContent = String(token);
+        toks.appendChild(s);
+      }
+      art.appendChild(toks);
+    }
+    container.appendChild(art);
+  }
+}
+
+function renderUpdateReadinessSteps(container, update) {
+  if (!container) return;
+  container.innerHTML = '';
+  const steps = Array.isArray(update?.steps) ? update.steps : [];
+  for (const step of steps) {
+    const art = document.createElement('article');
+    art.className = 'vlr-row';
+    art.dataset.id = String(step.id || '');
+    art.dataset.tone = String(step.tone || (step.ok ? 'ok' : 'absent'));
+    art.dataset.humanGate = step.humanGate === true ? 'true' : 'false';
+    const name = document.createElement('span');
+    name.className = 'vlr-name';
+    name.textContent = step.he || '';
+    const chip = document.createElement('span');
+    chip.className = 'vlr-chip';
+    chip.textContent = step.humanGate
+      ? 'אישור'
+      : (step.ok ? 'ידוע' : 'חסר');
+    art.append(name, chip);
+    container.appendChild(art);
+  }
+}
+
+function paintFieldPreflight(snapshot, { compact = false } = {}) {
+  const field = snapshot?.fieldPreflight;
+  if (!field) return;
+  const title = document.getElementById('fieldPreflightTitle');
+  const purpose = document.getElementById('fieldPreflightPurpose');
+  if (!compact && title && field.titleHe) title.textContent = field.titleHe;
+  if (!compact && purpose && field.purposeHe) purpose.textContent = field.purposeHe;
+  if (!compact) {
+    renderFieldPreflightRows(document.getElementById('fieldPreflightList'), field, { compact: false });
+    const updateLead = document.querySelector('#updateReadinessChecklist .vlr-update-lead');
+    if (updateLead && field.update?.leadHe) updateLead.textContent = field.update.leadHe;
+    renderUpdateReadinessSteps(document.getElementById('updateReadinessList'), field.update);
+  }
+}
+
 function renderVisionLandingReadiness(container, snapshot) {
   if (!container) return;
   container.innerHTML = '';
@@ -4007,7 +4084,24 @@ function renderVisionLandingReadiness(container, snapshot) {
       }
       art.appendChild(toks);
     }
-    if (row.id === 'plnd_profile') {
+    container.appendChild(art);
+  }
+  if (compact && snapshot?.fieldPreflight) {
+    const wrap = document.createElement('section');
+    wrap.className = 'vlr-field';
+    wrap.setAttribute('aria-label', snapshot.fieldPreflight.titleHe || 'מוכנות שדה לניסוי אחד');
+    const head = document.createElement('p');
+    head.className = 'vlr-purpose';
+    head.textContent = snapshot.fieldPreflight.titleHe || 'מוכנות שדה · ניסוי אחד';
+    wrap.appendChild(head);
+    const list = document.createElement('div');
+    list.className = 'vlr-list';
+    list.id = 'pfdFieldPreflightList';
+    wrap.appendChild(list);
+    container.appendChild(wrap);
+    renderFieldPreflightRows(list, snapshot.fieldPreflight, { compact: true });
+  }
+  if (snapshot?.cameraInstall) {
       const open = document.createElement('button');
       open.type = 'button';
       open.className = 'vlr-open-params';
@@ -4020,6 +4114,21 @@ function renderVisionLandingReadiness(container, snapshot) {
       art.appendChild(open);
     }
     container.appendChild(art);
+  }
+  if (compact && snapshot?.fieldPreflight) {
+    const wrap = document.createElement('section');
+    wrap.className = 'vlr-field';
+    wrap.setAttribute('aria-label', snapshot.fieldPreflight.titleHe || 'מוכנות שדה לניסוי אחד');
+    const head = document.createElement('p');
+    head.className = 'vlr-purpose';
+    head.textContent = snapshot.fieldPreflight.titleHe || 'מוכנות שדה · ניסוי אחד';
+    wrap.appendChild(head);
+    const list = document.createElement('div');
+    list.className = 'vlr-list';
+    list.id = 'pfdFieldPreflightList';
+    wrap.appendChild(list);
+    container.appendChild(wrap);
+    renderFieldPreflightRows(list, snapshot.fieldPreflight, { compact: true });
   }
   if (snapshot?.cameraInstall) {
     let host = container.querySelector('#pfdCameraInstallChecklist');
@@ -4044,6 +4153,7 @@ function paintVisionLandingReadiness(snapshot) {
   const successEl = document.querySelector('#visionLandingReadiness .vlr-success');
   if (successEl && snapshot.successHe) successEl.textContent = snapshot.successHe;
   renderVisionLandingReadiness(document.getElementById('visionLandingReadinessList'), snapshot);
+  paintFieldPreflight(snapshot, { compact: false });
   if (!cameraInstallBusy()) {
     renderCameraInstallChecklist(document.getElementById('cameraInstallChecklist'), snapshot.cameraInstall, { compact: false });
   }
@@ -10235,9 +10345,14 @@ initLiveCameraPanel();
     }
     if (cellularModemStatus) {
       const absent = links.modemPresent !== true || links.cellular === 'modem_absent';
+      const missingFile = links.modem?.statusFileMissing === true;
       cellularModemStatus.dataset.state = absent ? 'absent' : 'present';
       cellularModemStatus.dataset.reason = absent ? 'modem_absent' : (links.modem?.reason || '');
-      cellularModemStatus.textContent = links.modem?.reasonHe || links.cellularStatusHe || 'מודם לא מחובר';
+      cellularModemStatus.dataset.source = links.modem?.source || '';
+      cellularModemStatus.dataset.statusFile = missingFile ? 'missing' : (absent ? 'unknown' : 'present');
+      const iface = absent ? '' : (links.modem?.iface || '');
+      const extra = !absent && iface ? ` · ${iface}` : '';
+      cellularModemStatus.textContent = (links.modem?.reasonHe || links.cellularStatusHe || 'מודם לא מחובר') + extra;
     }
     if (cellularHostPort && links.endpoint && !cellularHostPort.dataset.dirty) {
       cellularHostPort.value = `${links.endpoint.host}:${links.endpoint.port}`;

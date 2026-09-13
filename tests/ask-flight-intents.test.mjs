@@ -40,11 +40,11 @@ function makeAssist({ applyParamChange } = {}) {
 }
 
 describe('Ask early-flight safety lock', () => {
-  it('pins APP_VERSION at 1.02.312', () => {
+  it('pins APP_VERSION at 1.02.313', () => {
     const version = fs.readFileSync(path.join(repoRoot, 'version.js'), 'utf8');
     const pkg = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8'));
-    expect(version).toContain("export const APP_VERSION = '1.02.312'");
-    expect(pkg.version).toBe('1.02.312');
+    expect(version).toContain("export const APP_VERSION = '1.02.313'");
+    expect(pkg.version).toBe('1.02.313');
   });
 
   it('locks voice_direct_after_go and gates confirm on session GO', () => {
