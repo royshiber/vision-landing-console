@@ -1,16 +1,5 @@
 [
   {
-    "version": "1.02.316",
-    "date": "2026-09-13",
-    "changes": [
-      {
-        "type": "test",
-        "title": "Tests",
-        "detail": "ask-rtl-chrome.test.mjs"
-      }
-    ]
-  },
-  {
     "version": "1.02.315",
     "date": "2026-09-13",
     "changes": [
