@@ -183,9 +183,9 @@ describe('Advisor → Assist fold — chrome', () => {
     expect(html).toMatch(/data-prompt="יש לי נדנוד לפני ההצפה, מה לשנות\?"/);
     expect(html).toContain('id="advisorAssistFoldNote"');
     expect(html).toContain('id="advisorOpenAssistBtn"');
-    expect(html).toMatch(/id="advisorAssistFoldNote"[^>]*>[\s\S]*שאלו את AIRVIX Ask./);
+    expect(html).toMatch(/id="advisorAssistFoldNote"[^>]*>[\s\S]*שאלו את <bdi dir="ltr">AIRVIX Ask<\/bdi>\./);
     expect(html).toMatch(/data-assist-chip="advisor"[^>]*>יועץ</);
-    expect(html).toMatch(/id="assistEmptyInvite"[^>]*>שאלו את AIRVIX Ask.</);
+    expect(html).toMatch(/id="assistEmptyInvite"[^>]*>שאלו את <bdi dir="ltr">AIRVIX Ask<\/bdi>\./);
     expect(js).toContain("ASSIST_TAB_WORKSPACE");
     expect(js).toMatch(/advisor:\s*'LAB'/);
     expect(js).toMatch(/advisor:\s*'advisor'/);
@@ -207,8 +207,8 @@ describe('Advisor → Assist fold — chrome', () => {
     expect(html).not.toMatch(/id="companionApplyBtn"|id="companionRestartBtn"/);
   });
 
-  it('pins APP_VERSION at 1.02.314', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.314'");
-    expect(pkg.version).toBe('1.02.314');
+  it('pins APP_VERSION at 1.02.315', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.315'");
+    expect(pkg.version).toBe('1.02.315');
   });
 });

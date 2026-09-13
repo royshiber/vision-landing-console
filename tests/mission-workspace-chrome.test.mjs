@@ -164,9 +164,9 @@ describe('AIRVIX Mission chrome — talk is flight-safe', () => {
     expect(chip).toContain("kind === 'advisor'");
   });
 
-  it('pins APP_VERSION at 1.02.314', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.314'");
-    expect(pkg.version).toBe('1.02.314');
+  it('pins APP_VERSION at 1.02.315', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.315'");
+    expect(pkg.version).toBe('1.02.315');
   });
 
   it('keeps a rectangular glass artificial horizon with video HUD mode', () => {
@@ -346,7 +346,7 @@ describe('AIRVIX Mission chrome — talk is flight-safe', () => {
   it('brightens Mission Assist and shows an honest microphone control', () => {
     expect(html).toContain('id="assistMicBtn"');
     expect(html).toMatch(/id="assistMicBtn"[^>]*aria-label="שיחה עם AIRVIX Ask\. שינוי דורש אישור\."/);
-    expect(html).toMatch(/class="assist-mic-label">שיחה עם AIRVIX Ask</);
+    expect(html).toMatch(/class="assist-mic-label">שיחה עם <bdi dir="ltr">AIRVIX Ask<\/bdi></);
     expect(css).toMatch(/\.mission-region-talk\s*\{[^}]*background:\s*#0f141c/);
     expect(css).toMatch(/#missionTalkHost \.assist-rail-title\s*\{[^}]*color:\s*#e8edf6/);
     expect(css).toMatch(/\.assist-mic-btn\b/);
@@ -581,7 +581,7 @@ describe('AIRVIX Mission chrome — operator naming', () => {
     expect(html).toMatch(/class="pulse-computer-who">Jetson</);
     expect(html).toMatch(/<h4>הכלי<\/h4>/);
     expect(html).toMatch(/data-pulse-kind="assist"/);
-    expect(html).toMatch(/id="pulseTalkBtn"[^>]*>שאלו את AIRVIX Ask</);
+    expect(html).toMatch(/id="pulseTalkBtn"[^>]*>שאלו את <bdi dir="ltr">AIRVIX Ask<\/bdi></);
     expect(html).toMatch(/data-first-action="companion">חברו Jetson</);
     expect(html).toMatch(/id="teleNextStep"[^>]*>חברו מחשב משימה\. כתובת לבד לא מספיקה\.</);
     expect(html).not.toContain('מלווה');

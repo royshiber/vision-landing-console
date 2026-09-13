@@ -215,13 +215,13 @@
       <button type="button" id="appVersionMismatchReload">רענון</button>
     </div>
 
-    <button type="button" id="assistToggleBtn" class="assist-toggle-btn assist-toggle-float" title="AIRVIX Ask — דברו" aria-label="AIRVIX Ask — דברו" aria-expanded="false" aria-controls="assistRail"><span class="assist-toggle-mic" aria-hidden="true">🎙</span><span class="assist-toggle-he">AIRVIX Ask</span><span id="assistAttentionDot" class="assist-attention-dot" hidden></span></button>
+    <button type="button" id="assistToggleBtn" class="assist-toggle-btn assist-toggle-float" title="AIRVIX Ask — דברו" aria-label="AIRVIX Ask — דברו" aria-expanded="false" aria-controls="assistRail"><span class="assist-toggle-mic" aria-hidden="true">🎙</span><span class="assist-toggle-he"><bdi dir="ltr">AIRVIX Ask</bdi></span><span id="assistAttentionDot" class="assist-attention-dot" hidden></span></button>
 
     <div id="assistRailDock">
-    <aside id="assistRail" class="assist-rail" hidden aria-label="AIRVIX Ask">
+    <aside id="assistRail" class="assist-rail" hidden dir="rtl" aria-label="AIRVIX Ask">
       <header class="assist-rail-head">
         <div class="assist-rail-titles">
-          <strong class="assist-rail-title">AIRVIX Ask</strong>
+          <strong class="assist-rail-title"><bdi dir="ltr">AIRVIX Ask</bdi></strong>
           <span class="assist-rail-mark" aria-hidden="true">ASSIST</span>
           <span id="assistContextChip" class="assist-context-chip">—</span>
           <span id="assistAttentionBadge" class="assist-attention-badge" hidden></span>
@@ -232,8 +232,8 @@
       <section id="assistVoiceGo" class="assist-voice-go" data-go="0" aria-label="הפעלת החלה ישירה">
         <div class="assist-voice-go-row">
           <span id="assistVoiceGoBadge" class="assist-voice-go-badge">כבוי</span>
-          <button type="button" id="assistVoiceGoBtn" class="assist-btn assist-btn-confirm">GO</button>
-          <button type="button" id="assistVoiceGoEndBtn" class="assist-btn assist-btn-cancel" hidden>סיום GO</button>
+          <button type="button" id="assistVoiceGoBtn" class="assist-btn assist-btn-confirm" dir="ltr">GO</button>
+          <button type="button" id="assistVoiceGoEndBtn" class="assist-btn assist-btn-cancel" hidden>סיום <bdi dir="ltr">GO</bdi></button>
         </div>
         <p id="assistVoiceGoHint" class="assist-voice-go-hint">הפעלה מאפשרת החלת פרמטר בלי אישור לכל פעולה. חימוש ונחיתה נשארים חסומים.</p>
       </section>
@@ -251,7 +251,7 @@
       </section>
         <div class="assist-transcript-well">
         <div id="assistMessagesEmpty" class="assist-empty-stage">
-        <p id="assistEmptyInvite" class="assist-empty-invite">שאלו את AIRVIX Ask.</p>
+        <p id="assistEmptyInvite" class="assist-empty-invite">שאלו את <bdi dir="ltr">AIRVIX Ask</bdi>.</p>
       </div>
       <div id="assistMessages" class="assist-messages" role="log" aria-live="polite"></div>
       </div>
@@ -276,7 +276,7 @@
             <div class="assist-cap-row"><dt>מודולים</dt><dd id="assistCapModules">—</dd></div>
             <div class="assist-cap-row"><dt>סיווג</dt><dd id="assistCapTaxonomy">FEATURE</dd></div>
           </dl>
-          <p id="assistCapUnavailableNote" class="assist-cap-unavailable" hidden>סוכן הפיתוח אינו זמין. חברו אותו ב-AIRVIX Ask.</p>
+          <p id="assistCapUnavailableNote" class="assist-cap-unavailable" hidden>סוכן הפיתוח אינו זמין. חברו אותו ב-<bdi dir="ltr">AIRVIX Ask</bdi>.</p>
           <div class="assist-cap-actions">
             <button type="button" id="assistCapOpenDevelopBtn" class="assist-btn assist-btn-confirm">פתח בפיתוח</button>
             <button type="button" id="assistCapSaveDraftBtn" class="assist-btn assist-btn-cancel">שמור טיוטה</button>
@@ -300,9 +300,9 @@
         <form id="assistForm" class="assist-form" autocomplete="off">
           <button type="button" id="assistMicBtn" class="assist-mic-btn assist-mic-btn--invite" title="שיחה עם AIRVIX Ask. שינוי דורש אישור." aria-label="שיחה עם AIRVIX Ask. שינוי דורש אישור." aria-pressed="false">
             <span class="assist-mic-icon" aria-hidden="true">🎙</span>
-            <span class="assist-mic-label">שיחה עם AIRVIX Ask</span>
+            <span class="assist-mic-label">שיחה עם <bdi dir="ltr">AIRVIX Ask</bdi></span>
           </button>
-          <textarea id="assistInput" class="assist-input" rows="1" maxlength="2000" placeholder="שאלה, יועץ, פתק, או בקשת פיתוח…"></textarea>
+          <textarea id="assistInput" class="assist-input" rows="1" maxlength="2000" dir="rtl" placeholder="שאלה, יועץ, פתק, או בקשת פיתוח…"></textarea>
           <button type="submit" id="assistSendBtn" class="assist-btn assist-btn-send">שלח</button>
         </form>
       </div>
@@ -341,7 +341,7 @@
             </div>
             <label class="gs-attention-badge-opt" for="gsAttentionBadge">
               <input type="checkbox" id="gsAttentionBadge" checked />
-              נקודה ב-AIRVIX Ask
+              נקודה ב-<bdi dir="ltr">AIRVIX Ask</bdi>
             </label>
           </section>
           <section class="gs-section">
@@ -541,10 +541,10 @@
           </section>
           <article class="pulse-status-card pulse-talk-card" data-pulse-kind="assist">
             <div class="pulse-talk-copy">
-              <h4>AIRVIX Ask</h4>
+              <h4><bdi dir="ltr">AIRVIX Ask</bdi></h4>
               <p id="pulseAssist">מנותק</p>
             </div>
-            <button type="button" id="pulseTalkBtn" class="first-open-btn pulse-talk-btn" data-first-action="assist">שאלו את AIRVIX Ask</button>
+            <button type="button" id="pulseTalkBtn" class="first-open-btn pulse-talk-btn" data-first-action="assist">שאלו את <bdi dir="ltr">AIRVIX Ask</bdi></button>
           </article>
           <section class="pulse-add-widget" aria-label="הוספת מד">
             <p class="pulse-add-widget-title">מה להציג עוד</p>
@@ -976,7 +976,7 @@
           <button type="button" id="companionDisconnectBtn" class="assist-btn assist-btn-cancel" hidden>ניתוק</button>
         </section>
         <nav class="first-open-actions" data-first-open="telemetry" aria-label="פעולה הבאה">
-          <button type="button" class="first-open-btn" data-first-action="assist">AIRVIX Ask</button>
+          <button type="button" class="first-open-btn" data-first-action="assist"><bdi dir="ltr">AIRVIX Ask</bdi></button>
           <button type="button" class="first-open-btn first-open-btn-quiet" data-first-action="params">פרמטרים</button>
         </nav>
         </div>
@@ -1286,7 +1286,7 @@
               <p id="maintNextStep" class="operator-state-next">חברו מחשב משימה. כתובת לבד לא מספיקה.</p>
               <nav class="first-open-actions" data-first-open="maintenance" aria-label="פעולה הבאה">
                 <button type="button" class="first-open-btn" data-first-action="companion">חברו Jetson</button>
-                <button type="button" class="first-open-btn first-open-btn-quiet" data-first-action="assist">AIRVIX Ask</button>
+                <button type="button" class="first-open-btn first-open-btn-quiet" data-first-action="assist"><bdi dir="ltr">AIRVIX Ask</bdi></button>
                 <button type="button" class="first-open-btn first-open-btn-quiet" data-first-action="params">פרמטרים</button>
               </nav>
               <button type="button" id="maintRefreshBtn" class="policy-btn">רענון</button>
@@ -1574,7 +1574,7 @@
               <button type="button" id="capStartAgentBtn" class="policy-btn cap-start-btn">התחל סוכן יכולת</button>
               <button type="button" id="devTaskCreateBtn" class="policy-btn cap-draft-btn">שמור טיוטה</button>
             </div>
-            <p id="capAgentUnavailableNote" class="cap-unavailable-note" hidden>סוכן הפיתוח אינו זמין. חברו אותו ב-AIRVIX Ask.</p>
+            <p id="capAgentUnavailableNote" class="cap-unavailable-note" hidden>סוכן הפיתוח אינו זמין. חברו אותו ב-<bdi dir="ltr">AIRVIX Ask</bdi>.</p>
             <p id="devTaskCreateResult" class="maint-rel-result" hidden></p>
             <p class="cap-loop-foot">משתמש → ממשק מוצר → Agent API → Cursor → ענף → אימות → תוצאה</p>
           </div>
@@ -1702,7 +1702,7 @@
               </div>
               <p id="devDetailTitle" class="devtasks-title">—</p>
               <p id="devDetailDescription" class="devtasks-description">—</p>
-              <p id="devAgentUnavailableNote" class="devtasks-unavailable-note" hidden>סוכן הפיתוח אינו זמין. חברו אותו ב-AIRVIX Ask.</p>
+              <p id="devAgentUnavailableNote" class="devtasks-unavailable-note" hidden>סוכן הפיתוח אינו זמין. חברו אותו ב-<bdi dir="ltr">AIRVIX Ask</bdi>.</p>
               <div class="devtasks-edit">
                 <label>עדיפות <select id="devDetailPriority" class="kpi-input"></select></label>
                 <label>סיווג <select id="devDetailTaxonomy" class="kpi-input"></select></label>
@@ -1991,10 +1991,10 @@
             </div>
           </section>
 
-          <section class="mission-region mission-region-talk" data-mission-region="talk" aria-label="AIRVIX Ask">
-            <h3 class="mission-region-title" draggable="true">AIRVIX Ask</h3>
+          <section class="mission-region mission-region-talk" data-mission-region="talk" dir="rtl" aria-label="AIRVIX Ask">
+            <h3 class="mission-region-title" draggable="true"><bdi dir="ltr">AIRVIX Ask</bdi></h3>
             <p id="missionTalkHint" class="mission-talk-hint">הטסה. הערה ותצפית בלבד.</p>
-            <div id="missionTalkHost" class="mission-talk-host"></div>
+            <div id="missionTalkHost" class="mission-talk-host" dir="rtl"></div>
           </section>
 
           <div id="pfdReadinessPopover" class="pfd-readiness-popover hidden" role="dialog" aria-modal="false" aria-labelledby="pfdReadinessTitle">
@@ -2039,8 +2039,8 @@
 
       <section id="advisor" class="panel">
         <p id="advisorAssistFoldNote" class="advisor-assist-fold">
-          שאלו את AIRVIX Ask.
-          <button type="button" id="advisorOpenAssistBtn" class="advisor-assist-fold-btn">AIRVIX Ask</button>
+          שאלו את <bdi dir="ltr">AIRVIX Ask</bdi>.
+          <button type="button" id="advisorOpenAssistBtn" class="advisor-assist-fold-btn"><bdi dir="ltr">AIRVIX Ask</bdi></button>
         </p>
         <details class="adv-info-panel" id="advInfoPanel" aria-label="מצב מערכת, יועץ ושקיפות">
           <summary class="adv-info-summary">
@@ -2181,8 +2181,8 @@
            ══════════════════════════════════════════════════════════════════ -->
       <section id="featureDesigner" class="panel fd-panel">
         <p id="fdAssistFoldNote" class="fd-assist-fold">
-          שאלו את AIRVIX Ask.
-          <button type="button" id="fdOpenAssistBtn" class="fd-assist-fold-btn">AIRVIX Ask</button>
+          שאלו את <bdi dir="ltr">AIRVIX Ask</bdi>.
+          <button type="button" id="fdOpenAssistBtn" class="fd-assist-fold-btn"><bdi dir="ltr">AIRVIX Ask</bdi></button>
         </p>
         <div class="fd-layout">
 
@@ -2291,8 +2291,8 @@
       <!-- ══ Flight Engineer Panel ══════════════════════════════════════════ -->
       <section id="flightEngineer" class="panel fe-panel">
         <p id="feAssistFoldNote" class="fe-assist-fold">
-          שאלו את AIRVIX Ask.
-          <button type="button" id="feOpenAssistBtn" class="fe-assist-fold-btn">AIRVIX Ask</button>
+          שאלו את <bdi dir="ltr">AIRVIX Ask</bdi>.
+          <button type="button" id="feOpenAssistBtn" class="fe-assist-fold-btn"><bdi dir="ltr">AIRVIX Ask</bdi></button>
         </p>
         <div class="fe-header">
           <div class="fe-header-left">

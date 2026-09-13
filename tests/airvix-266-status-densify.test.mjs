@@ -48,9 +48,9 @@ function pulsePanel() {
 }
 
 describe('AIRVIX 1.02.268 computer-status densify', () => {
-  it('pins APP_VERSION at 1.02.314', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.314'");
-    expect(pkg.version).toBe('1.02.314');
+  it('pins APP_VERSION at 1.02.315', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.315'");
+    expect(pkg.version).toBe('1.02.315');
   });
 
   it('keeps מסייע out of public UI', () => {
@@ -79,8 +79,8 @@ describe('AIRVIX 1.02.268 computer-status densify', () => {
 
   it('keeps AIRVIX Ask as a compact row and fills leftover height with add-widgets', () => {
     const pulse = pulsePanel();
-    expect(pulse).toMatch(/<h4>AIRVIX Ask<\/h4>/);
-    expect(pulse).toMatch(/id="pulseTalkBtn"[^>]*>שאלו את AIRVIX Ask</);
+    expect(pulse).toMatch(/<h4><bdi dir="ltr">AIRVIX Ask<\/bdi><\/h4>/);
+    expect(pulse).toMatch(/id="pulseTalkBtn"[^>]*>שאלו את <bdi dir="ltr">AIRVIX Ask<\/bdi></);
     expect(pulse).toContain('id="pulseAddWidgetInput"');
     expect(pulse).toContain('id="pulseAddWidgetBtn"');
     expect(pulse).toContain('id="pulseAddWidgetChips"');

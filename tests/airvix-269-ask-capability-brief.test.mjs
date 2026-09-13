@@ -98,10 +98,10 @@ function makeAssist({ withAgent = false } = {}) {
   return { root, store, service };
 }
 
-describe('AIRVIX 1.02.269 Ask → Capability Brief F4 (still holds on 1.02.314)', () => {
-  it('pins APP_VERSION at 1.02.314', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.314'");
-    expect(pkg.version).toBe('1.02.314');
+describe('AIRVIX 1.02.269 Ask → Capability Brief F4 (still holds on 1.02.315)', () => {
+  it('pins APP_VERSION at 1.02.315', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.315'");
+    expect(pkg.version).toBe('1.02.315');
     expect(changelog).toContain('"version": "1.02.269"');
     expect(changelog).toContain('"version": "1.02.272"');
   });
@@ -123,7 +123,7 @@ describe('AIRVIX 1.02.269 Ask → Capability Brief F4 (still holds on 1.02.314)'
     expect(html).toMatch(/id="assistCapOpenDevelopBtn"[^>]*>פתח בפיתוח</);
     expect(html).toMatch(/id="assistCapSaveDraftBtn"[^>]*>שמור טיוטה</);
     expect(html).toMatch(/id="assistCapStartAgentBtn"[^>]*>התחל סוכן</);
-    expect(html).toContain('סוכן הפיתוח אינו זמין. חברו אותו ב-AIRVIX Ask.');
+    expect(html).toMatch(/סוכן הפיתוח אינו זמין\. חברו אותו ב-<bdi dir="ltr">AIRVIX Ask<\/bdi>\./);
     expect(css).toContain('.assist-cap-brief');
     expect(css).toContain('.assist-rail:not(.assist-rail--mission) .assist-proposal-bar');
     expect(css).toContain('max-height: 42vh');

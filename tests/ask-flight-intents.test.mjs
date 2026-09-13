@@ -40,11 +40,11 @@ function makeAssist({ applyParamChange } = {}) {
 }
 
 describe('Ask early-flight safety lock', () => {
-  it('pins APP_VERSION at 1.02.314', () => {
+  it('pins APP_VERSION at 1.02.315', () => {
     const version = fs.readFileSync(path.join(repoRoot, 'version.js'), 'utf8');
     const pkg = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8'));
-    expect(version).toContain("export const APP_VERSION = '1.02.314'");
-    expect(pkg.version).toBe('1.02.314');
+    expect(version).toContain("export const APP_VERSION = '1.02.315'");
+    expect(pkg.version).toBe('1.02.315');
   });
 
   it('locks voice_direct_after_go and gates confirm on session GO', () => {
@@ -308,7 +308,7 @@ describe('Ask rail confirm chrome', () => {
     expect(html).toContain('id="assistVoiceGo"');
     expect(html).toContain('id="assistVoiceGoBtn"');
     expect(html).toContain('id="assistVoiceGoEndBtn"');
-    expect(html).toContain('סיום GO');
+    expect(html).toMatch(/סיום <bdi dir="ltr">GO<\/bdi>/);
     expect(html).toContain('הפעלה מאפשרת החלת פרמטר בלי אישור לכל פעולה');
     expect(js).toContain('function assistIsConfirmPhrase(');
     expect(js).toContain('voice_direct_after_go');

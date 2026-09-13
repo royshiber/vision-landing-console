@@ -15271,6 +15271,34 @@ function assistBuildOpsSignals(vision) {
 const ASK_VOICE_SAFETY_LOCK = 'voice_direct_after_go';
 const ASK_VOICE_GO_STORAGE_KEY = 'airvix.ask.voiceGo';
 var _askVoiceGoActive = false;
+const BIDI_FSI = '\u2068';
+const BIDI_PDI = '\u2069';
+const BIDI_RLM = '\u200F';
+const ASK_LTR_TOKENS = Object.freeze(['AIRVIX Ask', 'GO', 'Jetson']);
+
+function isolateLtrToken(token) {
+  const s = String(token ?? '');
+  if (!s) return '';
+  return `${BIDI_FSI}${s}${BIDI_PDI}`;
+}
+
+function rtlMarkEndPunct(text) {
+  return String(text ?? '').replace(/([.!?…]+)(\s*)$/u, `${BIDI_RLM}$1$2`);
+}
+
+function rtlSafeAskText(text, extraTokens) {
+  const extras = Array.isArray(extraTokens) ? extraTokens : [];
+  const tokens = [...ASK_LTR_TOKENS, ...extras]
+    .filter(Boolean)
+    .sort((a, b) => b.length - a.length);
+  let out = String(text ?? '');
+  for (const tok of tokens) {
+    if (!out.includes(tok)) continue;
+    out = out.split(tok).join(isolateLtrToken(tok));
+  }
+  return rtlMarkEndPunct(out);
+}
+
 const ASSIST_DEFAULT_HINT_HE = 'שינוי דורש אישור.';
 const ASSIST_DEFAULT_HINT_GO_HE = 'מופעל לקול. פרמטר מוחל בלי אישור לכל פעולה.';
 const ASSIST_MISSION_HINT_HE = 'הטסה. שינוי דורש אישור.';
@@ -15309,11 +15337,11 @@ function assistSyncMissionPosture() {
   const invite = document.getElementById('assistEmptyInvite');
   const chips = document.getElementById('assistQuickChips');
   if (hint) {
-    if (_askVoiceGoActive) hint.textContent = mission ? ASSIST_MISSION_HINT_GO_HE : ASSIST_DEFAULT_HINT_GO_HE;
-    else hint.textContent = mission ? ASSIST_MISSION_HINT_HE : ASSIST_DEFAULT_HINT_HE;
+    if (_askVoiceGoActive) hint.textContent = rtlSafeAskText(mission ? ASSIST_MISSION_HINT_GO_HE : ASSIST_DEFAULT_HINT_GO_HE);
+    else hint.textContent = rtlSafeAskText(mission ? ASSIST_MISSION_HINT_HE : ASSIST_DEFAULT_HINT_HE);
   }
-  if (input) input.placeholder = mission ? ASSIST_MISSION_PLACEHOLDER_HE : ASSIST_DEFAULT_PLACEHOLDER_HE;
-  if (invite) invite.textContent = mission ? ASSIST_MISSION_INVITE_HE : ASSIST_DEFAULT_INVITE_HE;
+  if (input) input.placeholder = rtlSafeAskText(mission ? ASSIST_MISSION_PLACEHOLDER_HE : ASSIST_DEFAULT_PLACEHOLDER_HE);
+  if (invite) invite.textContent = rtlSafeAskText(mission ? ASSIST_MISSION_INVITE_HE : ASSIST_DEFAULT_INVITE_HE);
   if (chips) {
     chips.querySelectorAll('[data-assist-chip]').forEach((btn) => {
       const kind = btn.dataset.assistChip;
@@ -15374,7 +15402,7 @@ function assistAppendMessage({ role, text, meta, kind, blocked }) {
   if (kind === 'PROPOSAL') div.classList.add('assist-msg-kind-proposal');
   if (kind === 'ACTION_REQUIRING_CONFIRMATION') div.classList.add('assist-msg-kind-confirm');
   if (blocked) div.classList.add('assist-msg-kind-blocked');
-  div.innerHTML = `<div class="assist-msg-body">${assistEscape(text)}</div>${meta ? `<span class="assist-msg-meta">${assistEscape(meta)}</span>` : ''}`;
+  div.innerHTML = `<div class="assist-msg-body">${assistEscape(rtlSafeAskText(text))}</div>${meta ? `<span class="assist-msg-meta">${assistEscape(meta)}</span>` : ''}`;
   box.appendChild(div);
   box.scrollTop = box.scrollHeight;
   _assistHistory.push({ role, text, meta, kind, ts: Date.now() });
@@ -15409,7 +15437,7 @@ function assistRefreshCapabilityAgentCta() {
       : 'סוכן הפיתוח אינו זמין. חברו אותו ב-AIRVIX Ask.');
   if (note) {
     note.hidden = available || !_assistPendingBrief;
-    if (!available) note.textContent = reason;
+    if (!available) note.textContent = rtlSafeAskText(reason);
   }
   if (startBtn) {
     startBtn.disabled = false;
@@ -15491,13 +15519,13 @@ function assistSyncVoiceGoChrome(active) {
   const endBtn = document.getElementById('assistVoiceGoEndBtn');
   const goHint = document.getElementById('assistVoiceGoHint');
   if (section) section.dataset.go = _askVoiceGoActive ? '1' : '0';
-  if (badge) badge.textContent = _askVoiceGoActive ? 'מופעל לקול' : 'כבוי';
+  if (badge) badge.textContent = rtlSafeAskText(_askVoiceGoActive ? 'מופעל לקול' : 'כבוי');
   if (goBtn) goBtn.hidden = _askVoiceGoActive;
   if (endBtn) endBtn.hidden = !_askVoiceGoActive;
   if (goHint) {
-    goHint.textContent = _askVoiceGoActive
+    goHint.textContent = rtlSafeAskText(_askVoiceGoActive
       ? 'מופעל. שינוי פרמטר מוחל מיד. חימוש ונחיתה נשארים חסומים.'
-      : 'הפעלה מאפשרת החלת פרמטר בלי אישור לכל פעולה. חימוש ונחיתה נשארים חסומים.';
+      : 'הפעלה מאפשרת החלת פרמטר בלי אישור לכל פעולה. חימוש ונחיתה נשארים חסומים.');
   }
   assistSyncMissionPosture();
   const mic = document.getElementById('assistMicBtn');
@@ -15548,7 +15576,7 @@ function assistSetSuggestionBar(suggestion) {
   const textEl = document.getElementById('assistSuggestionText');
   if (!bar || !textEl) return;
   if (suggestion?.text_he && !suggestion?.proposal_id) {
-    textEl.textContent = suggestion.text_he;
+    textEl.textContent = rtlSafeAskText(suggestion.text_he);
     bar.hidden = false;
     return;
   }
@@ -15571,7 +15599,7 @@ function assistSetProposalBar(response) {
   if (response?.requires_confirmation && proposal?.id) {
     setAssistPendingProposalId(proposal.id);
     _assistPendingBrief = isCap ? brief : null;
-    textEl.textContent = suggestion?.text_he || response.answer || 'לאשר את הפעולה?';
+    textEl.textContent = rtlSafeAskText(suggestion?.text_he || response.answer || 'לאשר את הפעולה?');
     bar.hidden = false;
     if (kicker) kicker.hidden = !!isCap;
     if (voiceHint) voiceHint.hidden = !!isCap;
@@ -15902,7 +15930,7 @@ function assistSetConnectError(text) {
   if (!err) return;
   const msg = String(text || '').trim();
   err.hidden = !msg;
-  err.textContent = msg;
+  err.textContent = rtlSafeAskText(msg);
 }
 
 function assistSetConnectBusy(busy) {
@@ -15939,12 +15967,12 @@ function assistRenderAgentConnection(status) {
     : '';
   card.dataset.state = errorText ? 'error' : (connected ? 'connected' : 'disconnected');
   assistSyncProposalWarn();
-  statusEl.textContent = connected
+  statusEl.textContent = rtlSafeAskText(connected
     ? (status.status_he || 'הסוכן מחובר ומוכן.')
-    : (status.status_he || status.reason_he || 'הסוכן מנותק.');
+    : (status.status_he || status.reason_he || 'הסוכן מנותק.'));
   if (hintEl) {
     hintEl.hidden = connected;
-    hintEl.textContent = 'חברו מפתח כדי לאשר שינוי.';
+    hintEl.textContent = rtlSafeAskText('חברו מפתח כדי לאשר שינוי.');
   }
   if (keyHintEl) {
     const hint = connected ? String(status.key_hint || '').trim() : '';
@@ -16748,13 +16776,13 @@ function initMissionDataPicker() {
 }
 
 function assistMicTalkLabel(state) {
-  if (state === 'unavailable') return 'שיחה עם AIRVIX Ask אינה זמינה בדפדפן זה';
-  if (state === 'error') return 'שיחה עם AIRVIX Ask — שגיאת הקלטה';
-  if (state === 'listening') return 'שיחה עם AIRVIX Ask — מאזין';
-  if (state === 'blocked') return 'שיחה עם AIRVIX Ask — לא ניתן להתחיל';
-  return _askVoiceGoActive
+  if (state === 'unavailable') return rtlSafeAskText('שיחה עם AIRVIX Ask אינה זמינה בדפדפן זה');
+  if (state === 'error') return rtlSafeAskText('שיחה עם AIRVIX Ask — שגיאת הקלטה');
+  if (state === 'listening') return rtlSafeAskText('שיחה עם AIRVIX Ask — מאזין');
+  if (state === 'blocked') return rtlSafeAskText('שיחה עם AIRVIX Ask — לא ניתן להתחיל');
+  return rtlSafeAskText(_askVoiceGoActive
     ? 'שיחה עם AIRVIX Ask. פרמטר מוחל מיד.'
-    : 'שיחה עם AIRVIX Ask. שינוי דורש אישור.';
+    : 'שיחה עם AIRVIX Ask. שינוי דורש אישור.');
 }
 
 function syncAssistComposerSize() {
