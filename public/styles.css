@@ -5302,6 +5302,12 @@ body:has(#pulse.panel.visible) .layout {
   margin-top: 6px;
   padding-top: 6px;
 }
+.vlr-field-title {
+  margin: 0 0 4px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: #e8edf6;
+}
 .vlr-row[data-stage="later"] {
   opacity: 0.86;
 }

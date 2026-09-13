@@ -223,6 +223,9 @@ describe('Exp#1 field preflight API and UI', () => {
     expect(js).toContain('function paintFieldPreflight');
     expect(js).toContain('function renderUpdateReadinessSteps');
     expect(js).toContain('dataset.statusFile');
+    expect(js).toContain('FIELD_PREFLIGHT_COMPACT_IDS');
+    expect(js).toContain('arm_land_blocked');
+    expect(js).toContain('nav_switch_blocked');
   });
 
   it('keeps the cellular endpoint status path honest when the file is missing', () => {

@@ -3959,10 +3959,25 @@ function renderCameraInstallChecklist(container, checklist, { compact = false } 
   container.appendChild(mount);
 }
 
+const FIELD_PREFLIGHT_COMPACT_IDS = Object.freeze([
+  'link_cellular',
+  'link_radio',
+  'cameras',
+  'companion',
+  'mavlink',
+  'modem',
+  'ask_go',
+  'arm_land_blocked',
+  'nav_switch_blocked',
+]);
+
 function renderFieldPreflightRows(container, field, { compact = false } = {}) {
   if (!container) return;
   container.innerHTML = '';
-  const rows = Array.isArray(field?.rows) ? field.rows : [];
+  const all = Array.isArray(field?.rows) ? field.rows : [];
+  const rows = compact
+    ? all.filter((row) => FIELD_PREFLIGHT_COMPACT_IDS.includes(row.id))
+    : all;
   for (const row of rows) {
     const art = document.createElement('article');
     art.className = 'vlr-row';
@@ -4084,24 +4099,7 @@ function renderVisionLandingReadiness(container, snapshot) {
       }
       art.appendChild(toks);
     }
-    container.appendChild(art);
-  }
-  if (compact && snapshot?.fieldPreflight) {
-    const wrap = document.createElement('section');
-    wrap.className = 'vlr-field';
-    wrap.setAttribute('aria-label', snapshot.fieldPreflight.titleHe || 'מוכנות שדה לניסוי אחד');
-    const head = document.createElement('p');
-    head.className = 'vlr-purpose';
-    head.textContent = snapshot.fieldPreflight.titleHe || 'מוכנות שדה · ניסוי אחד';
-    wrap.appendChild(head);
-    const list = document.createElement('div');
-    list.className = 'vlr-list';
-    list.id = 'pfdFieldPreflightList';
-    wrap.appendChild(list);
-    container.appendChild(wrap);
-    renderFieldPreflightRows(list, snapshot.fieldPreflight, { compact: true });
-  }
-  if (snapshot?.cameraInstall) {
+    if (row.id === 'plnd_profile') {
       const open = document.createElement('button');
       open.type = 'button';
       open.className = 'vlr-open-params';
@@ -4120,7 +4118,7 @@ function renderVisionLandingReadiness(container, snapshot) {
     wrap.className = 'vlr-field';
     wrap.setAttribute('aria-label', snapshot.fieldPreflight.titleHe || 'מוכנות שדה לניסוי אחד');
     const head = document.createElement('p');
-    head.className = 'vlr-purpose';
+    head.className = 'vlr-field-title';
     head.textContent = snapshot.fieldPreflight.titleHe || 'מוכנות שדה · ניסוי אחד';
     wrap.appendChild(head);
     const list = document.createElement('div');
