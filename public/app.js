@@ -16786,6 +16786,7 @@ function openMissionDataPicker(slotIdx, x, y) {
   const input = document.getElementById('missionDataPickerInput');
   if (input) input.value = '';
   renderMissionDataPickerChips(suggestMissionDataFields(''));
+  if (picker.parentElement !== document.body) document.body.appendChild(picker);
   picker.classList.remove('hidden');
   picker.setAttribute('data-open-slot', String(slotIdx));
   const currentHint = document.getElementById('missionDataPickerCurrent');

@@ -10698,10 +10698,12 @@ html[data-evolve-preview="1"] #development {
 .mission-data-picker {
   position: fixed;
   z-index: 860;
+  display: flex;
+  flex-direction: column;
   min-width: 240px;
   max-width: min(320px, 94vw);
-  max-height: min(320px, 70vh);
-  overflow: auto;
+  max-height: min(360px, 72vh);
+  overflow: hidden;
   padding: 10px;
   border-radius: 12px;
   background: #f8fafc;
@@ -10753,7 +10755,8 @@ html[data-evolve-preview="1"] #development {
   flex-direction: column;
   gap: 4px;
   margin: 0 0 8px;
-  max-height: 148px;
+  min-height: 0;
+  flex: 1 1 auto;
   overflow: auto;
 }
 
@@ -10792,6 +10795,7 @@ html[data-evolve-preview="1"] #development {
 .mission-data-picker-actions {
   display: flex;
   gap: 6px;
+  flex: 0 0 auto;
 }
 
 .mission-data-picker-btn {

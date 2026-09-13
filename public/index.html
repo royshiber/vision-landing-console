@@ -1942,18 +1942,6 @@
                 </dd>
               </div>
             </dl>
-            <div id="missionDataPicker" class="mission-data-picker hidden" role="dialog" aria-labelledby="missionDataPickerTitle" aria-modal="true">
-              <p id="missionDataPickerTitle" class="mission-data-picker-title">בחירת נתון</p>
-              <p id="missionDataPickerCurrent" class="mission-data-picker-current"></p>
-              <input id="missionDataPickerInput" class="mission-data-picker-input" type="search" maxlength="120" placeholder="חיפוש שדה" autocomplete="off" />
-              <p id="missionDataPickerHint" class="mission-data-picker-hint">כתבו בעברית או לפי מפתח שדה. בחירה מחליפה רק את האריח.</p>
-              <div id="missionDataPickerChips" class="mission-data-picker-chips" role="listbox" aria-label="הצעות שדה"></div>
-              <div class="mission-data-picker-actions">
-                <button type="button" id="missionDataPickerApply" class="mission-data-picker-btn">אישור</button>
-                <button type="button" id="missionDataPickerSuggest" class="mission-data-picker-btn mission-data-picker-btn--quiet">הצע</button>
-                <button type="button" id="missionDataPickerClose" class="mission-data-picker-btn mission-data-picker-btn--quiet">ביטול</button>
-              </div>
-            </div>
           </section>
             <aside id="missionHorizonFiller" class="mission-horizon-filler" aria-label="מצב בקר">
               <p class="mission-horizon-filler-kicker">מצב בקר</p>
@@ -2017,6 +2005,19 @@
             <button id="hudCtxEdit"   class="hud-ctx-item" role="menuitem">✎ ערוך / הוסף נתון</button>
             <div class="hud-ctx-sep"></div>
             <button id="hudCtxDelete" class="hud-ctx-item hud-ctx-danger" role="menuitem">✕ מחק נתון</button>
+          </div>
+        </div>
+
+        <div id="missionDataPicker" class="mission-data-picker hidden" role="dialog" aria-labelledby="missionDataPickerTitle" aria-modal="true">
+          <p id="missionDataPickerTitle" class="mission-data-picker-title">בחירת נתון</p>
+          <p id="missionDataPickerCurrent" class="mission-data-picker-current"></p>
+          <input id="missionDataPickerInput" class="mission-data-picker-input" type="search" maxlength="120" placeholder="חיפוש שדה" autocomplete="off" />
+          <p id="missionDataPickerHint" class="mission-data-picker-hint">כתבו בעברית או לפי מפתח שדה. בחירה מחליפה רק את האריח.</p>
+          <div id="missionDataPickerChips" class="mission-data-picker-chips" role="listbox" aria-label="הצעות שדה"></div>
+          <div class="mission-data-picker-actions">
+            <button type="button" id="missionDataPickerApply" class="mission-data-picker-btn">אישור</button>
+            <button type="button" id="missionDataPickerSuggest" class="mission-data-picker-btn mission-data-picker-btn--quiet">הצע</button>
+            <button type="button" id="missionDataPickerClose" class="mission-data-picker-btn mission-data-picker-btn--quiet">ביטול</button>
           </div>
         </div>
 

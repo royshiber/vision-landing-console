@@ -93,6 +93,8 @@ describe('Mission data-slot field picker', () => {
     expect(bind).toContain('520');
     expect(open).toContain("classList.remove('hidden')");
     expect(open).toContain('data-open-slot');
+    expect(open).toContain('document.body.appendChild(picker)');
+    expect(html).not.toMatch(/id="missionDataGrid"[\s\S]{0,800}id="missionDataPicker"/);
     expect(init).toContain('missionDataPickerApply');
     expect(init + bind + open).not.toMatch(/FLIGHT_ACTION|PARAM_SET|\/apply|\/restart/);
     expect(init + bind).not.toMatch(/\bARM\b|\bDISARM\b|\bLAND\b/);
