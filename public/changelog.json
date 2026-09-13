@@ -5,28 +5,8 @@
     "changes": [
       {
         "type": "feat",
-        "title": "Server library",
-        "detail": "ask-flight-intents.mjs, ask-llm-intent.mjs, assist-context.mjs, assist-hebrew.mjs, assist-intent-resolver.mjs, assist-service.mjs, spoken-units.mjs"
-      },
-      {
-        "type": "feat",
-        "title": "UI / app.js",
-        "detail": "app.js"
-      },
-      {
-        "type": "ui",
-        "title": "HTML layout",
-        "detail": "index.html"
-      },
-      {
-        "type": "ui",
-        "title": "Styles",
-        "detail": "styles.css"
-      },
-      {
-        "type": "test",
-        "title": "Tests",
-        "detail": "advisor-assist-fold.test.mjs, airvix-259-roy-feedback.test.mjs, airvix-260-roy-feedback.test.mjs, airvix-263-roy-feedback.test.mjs, airvix-264-roy-feedback.test.mjs, airvix-265-status-develop.test.mjs, airvix-266-capability-intake.test.mjs, airvix-266-status-densify.test.mjs, airvix-268-capability-runway.test.mjs, airvix-269-ask-capability-brief.test.mjs, airvix-270-dual-link.test.mjs, airvix-271-hardware-intent-wizard.test.mjs, airvix-272-companion-link.test.mjs, airvix-272-concept-b-wizard.test.mjs, airvix-274-develop-chat-concept-b.test.mjs, annotated-vision-cellular-only.test.mjs, archive-sessions.test.mjs, ardu-params-write.test.mjs, ardulab-assist-fold.test.mjs, ask-flight-intents.test.mjs, ask-rtl-chrome.test.mjs, ask-spoken-units.test.mjs, attention-policy.test.mjs, auto-config-assist-fold.test.mjs, camera-ingest-honesty.test.mjs, cellular-full-ops-prep.test.mjs, companion-observe-status.test.mjs, debrief-flights-fold.test.mjs, e3372-modem-absent-honesty.test.mjs, flight-engineer-assist-fold.test.mjs, jetson-cellular-e3372.test.mjs, mission-ah-alt-honesty.test.mjs, mission-assist-posture.test.mjs, mission-declutter-exp1.test.mjs, mission-layout-contract.test.mjs, mission-workspace-chrome.test.mjs, orphan-processes-remove.test.mjs, platform-capability-shells.test.mjs, readiness-merge.test.mjs, sim-lab-connect-handoff.test.mjs, status-connected-data-honesty.test.mjs, status-gauge-horizon-bleed.test.mjs, telemetry-platform-fold.test.mjs, vision-landing-readiness.test.mjs"
+        "title": "Ask spoken units, talk-back honesty, and free-form voice",
+        "detail": "APP_VERSION 1.02.319. After master 1.02.318. Settings add spoken units for altitude, speed, distance, and vertical rate (metric, km/h, m/s, knots, feet, ft/min). Ask readbacks speak and show those units; HUD numbers stay as-is. Angles stay degrees. Missing ELEVENLABS_API_KEY shows דיבור-חזרה לא מחובר and uses browser speechSynthesis only — no fake ElevenLabs. Ask answers play through the existing TTS path and ttsVolume. Free-form Hebrew/English is classified by Gemini onto the gated FLIGHT_OP / PARAM / QUESTION pipelines; regex remains a fast path. ARM / DISARM stay blocked even when paraphrased. Params still need confirm. LAND / RTL / MODE still require GO. No invented telemetry."
       }
     ]
   },
