@@ -64,8 +64,7 @@ describe('AIRVIX Ask RTL / BiDi chrome', () => {
   });
 
   it('lets the Mission invite wrap on a narrow Ask column', () => {
-    const invite = cssBlock(css, '#missionTalkHost .assist-empty-invite');
-    expect(invite).toMatch(/white-space:\s*normal/);
-    expect(invite).not.toMatch(/white-space:\s*nowrap/);
+    expect(css).toMatch(/#missionTalkHost \.assist-empty-invite \{\n[^}]*white-space:\s*normal/);
+    expect(css).not.toMatch(/#missionTalkHost \.assist-empty-invite \{\n[^}]*white-space:\s*nowrap/);
   });
 });
