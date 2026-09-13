@@ -12193,7 +12193,13 @@ initLiveCameraPanel();
 (function initGlobalSettings() {
   const STORAGE_KEY = 'vlc_settings_v1';
   function defaults() {
-    return { ttsVolume: 1, elevenVoiceId: '', feSttLangOverride: '', browserVoiceURI: '' };
+    return {
+      ttsVolume: 1,
+      elevenVoiceId: '',
+      feSttLangOverride: '',
+      browserVoiceURI: '',
+      spokenUnits: { altitude: 'm', speed: 'ms', distance: 'm', verticalRate: 'ms' },
+    };
   }
   function load() {
     try {
@@ -12223,6 +12229,118 @@ initLiveCameraPanel();
   const sttSel      = document.getElementById('gsSttLang');
   const permBody    = document.getElementById('gsPermissionsBody');
   const sttHint     = document.getElementById('gsSttHint');
+  const spokenSels  = {
+    altitude: document.getElementById('gsSpokenAlt'),
+    speed: document.getElementById('gsSpokenSpeed'),
+    distance: document.getElementById('gsSpokenDist'),
+    verticalRate: document.getElementById('gsSpokenVrate'),
+  };
+  const gsTalkback  = document.getElementById('gsTalkbackStatus');
+
+  function normalizeSpokenUnits(raw) {
+    const src = raw && typeof raw === 'object' ? raw : {};
+    const pick = (kind, allowed, fallback) => (allowed.includes(src[kind]) ? src[kind] : fallback);
+    return {
+      altitude: pick('altitude', ['m', 'ft'], 'm'),
+      speed: pick('speed', ['ms', 'kmh', 'kn'], 'ms'),
+      distance: pick('distance', ['m', 'km', 'ft'], 'm'),
+      verticalRate: pick('verticalRate', ['ms', 'ftmin'], 'ms'),
+    };
+  }
+
+  window.__vlcGetSpokenUnits = function vlcGetSpokenUnits() {
+    return normalizeSpokenUnits(window.__vlcSettings?.spokenUnits);
+  };
+
+  const TALKBACK_OFF_HE = 'דיבור-חזרה לא מחובר';
+  const TALKBACK_ON_HE = 'דיבור-חזרה מחובר';
+  let _vlcTalkbackEleven = false;
+
+  function paintTalkbackStatus(connected) {
+    _vlcTalkbackEleven = connected === true;
+    const mode = connected ? 'on' : 'off';
+    const label = connected ? TALKBACK_ON_HE : TALKBACK_OFF_HE;
+    const nodes = [gsTalkback, document.getElementById('assistTalkbackStatus')];
+    for (const el of nodes) {
+      if (!el) continue;
+      el.dataset.talkback = mode;
+      el.textContent = label;
+    }
+  }
+
+  async function refreshTalkbackStatus() {
+    try {
+      const r = await fetch('/api/flight-engineer/status');
+      const d = await r.json();
+      paintTalkbackStatus(d.elevenlabs === true);
+      return d.elevenlabs === true;
+    } catch {
+      paintTalkbackStatus(false);
+      return false;
+    }
+  }
+  window.__vlcRefreshTalkbackStatus = refreshTalkbackStatus;
+
+  function speakBrowserFallback(text) {
+    if (!('speechSynthesis' in window)) return;
+    try { speechSynthesis.cancel(); } catch { /* ignore */ }
+    const utt = new SpeechSynthesisUtterance(text);
+    utt.lang = (() => {
+      const t = String(text || '');
+      if (/[\u0590-\u05FF]/.test(t)) return 'he-IL';
+      if (/[\u4e00-\u9fff]/.test(t)) return 'zh-CN';
+      return 'en-US';
+    })();
+    utt.rate = 1.05;
+    const rawVu = Number(window.__vlcSettings?.ttsVolume ?? 1);
+    utt.volume = Math.min(1, Math.max(0, Number.isFinite(rawVu) ? rawVu : 1));
+    const voices = speechSynthesis.getVoices();
+    const uri = window.__vlcSettings?.browserVoiceURI;
+    if (uri) {
+      const picked = voices.find((x) => x.voiceURI === uri);
+      if (picked) utt.voice = picked;
+    } else {
+      const preferred = voices.find((v) =>
+        v.lang.startsWith(utt.lang.split('-')[0]) && !v.name.includes('compact'));
+      if (preferred) utt.voice = preferred;
+    }
+    speechSynthesis.speak(utt);
+  }
+
+  window.__vlcSpeakAnswer = async function vlcSpeakAnswer(text) {
+    const spoken = String(text || '').trim();
+    if (!spoken) return;
+    if (_vlcTalkbackEleven) {
+      try {
+        const vid = String(window.__vlcSettings?.elevenVoiceId || '').trim();
+        const payload = { text: spoken };
+        if (vid) payload.voiceId = vid;
+        const resp = await fetch('/api/flight-engineer/tts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (resp.status === 204) {
+          paintTalkbackStatus(false);
+          speakBrowserFallback(spoken);
+          return;
+        }
+        if (resp.ok) {
+          const blob = await resp.blob();
+          const url = URL.createObjectURL(blob);
+          const audio = new Audio(url);
+          const rawVol = Number(window.__vlcSettings?.ttsVolume ?? 1);
+          audio.volume = Math.min(1, Math.max(0, Number.isFinite(rawVol) ? rawVol : 1));
+          audio.onended = () => URL.revokeObjectURL(url);
+          audio.onerror = () => { URL.revokeObjectURL(url); speakBrowserFallback(spoken); };
+          await audio.play();
+          return;
+        }
+      } catch { /* browser fallback */ }
+    }
+    speakBrowserFallback(spoken);
+  };
+  void refreshTalkbackStatus();
 
   async function openModal() {
     modal.hidden = false;
@@ -12231,6 +12349,7 @@ initLiveCameraPanel();
     populateBrowserVoices();
     syncFormFromStore();
     refreshSttHint();
+    void refreshTalkbackStatus();
   }
 
   function closeModal() {
@@ -12251,6 +12370,10 @@ initLiveCameraPanel();
       const id = s.elevenVoiceId || '';
       elevenSel.value = id && [...elevenSel.options].some((o) => o.value === id) ? id : '';
     }
+    const units = normalizeSpokenUnits(s.spokenUnits);
+    Object.entries(spokenSels).forEach(([kind, el]) => {
+      if (el) el.value = units[kind];
+    });
   }
 
   async function refreshPermissions() {
@@ -12345,6 +12468,15 @@ initLiveCameraPanel();
   browserSel?.addEventListener('change', () => {
     window.__vlcSettings.browserVoiceURI = String(browserSel.value || '').trim();
     window.__vlcPersistSettings();
+  });
+
+  Object.entries(spokenSels).forEach(([kind, el]) => {
+    el?.addEventListener('change', () => {
+      const next = normalizeSpokenUnits(window.__vlcSettings.spokenUnits);
+      next[kind] = el.value;
+      window.__vlcSettings.spokenUnits = normalizeSpokenUnits(next);
+      window.__vlcPersistSettings();
+    });
   });
 
   sttSel?.addEventListener('change', () => {
@@ -12469,8 +12601,10 @@ initLiveCameraPanel();
           else elLabel = `ElevenLabs ✓ ${t.model}`;
         }
         setTtsMode('elevenlabs', elLabel);
+        try { window.__vlcRefreshTalkbackStatus?.(); } catch { /* ignore */ }
       } else {
-        setTtsMode('browser', 'Browser TTS');
+        setTtsMode('browser', 'דיבור-חזרה לא מחובר');
+        try { window.__vlcRefreshTalkbackStatus?.(); } catch { /* ignore */ }
       }
       if (d.rcApprovalChannel) {
         feRcApprovalChannel = d.rcApprovalChannel;
@@ -15264,6 +15398,9 @@ function assistBuildContextSnapshot() {
     current_capability: (subtab && ASSIST_TAB_CAPABILITY[subtab]) || ASSIST_TAB_CAPABILITY[tab] || null,
     assist_open: !document.getElementById('assistRail')?.hidden,
     channel: 'text',
+    spoken_units: (typeof window.__vlcGetSpokenUnits === 'function'
+      ? window.__vlcGetSpokenUnits()
+      : { altitude: 'm', speed: 'ms', distance: 'm', verticalRate: 'ms' }),
     aircraft_state: {
       connected: mav.connected === true,
       flight_mode: ARDUPILOT_PLANE_MODES[mav.flightMode] || (mav.flightMode != null ? String(mav.flightMode) : null),
@@ -15272,6 +15409,9 @@ function assistBuildContextSnapshot() {
       vision_confidence: conf,
       altitude_m: typeof mav.altitude === 'number' ? mav.altitude : null,
       airspeed_ms: typeof mav.airspeed === 'number' ? mav.airspeed : null,
+      groundspeed_ms: typeof mav.groundspeed === 'number' ? mav.groundspeed : null,
+      climb_rate_ms: typeof mav.climbRate === 'number' ? mav.climbRate : null,
+      distance_m: typeof mav.distanceToHome === 'number' ? mav.distanceToHome : null,
     },
     ops_signals: assistBuildOpsSignals(vision),
     attention_policy: (typeof attentionReadPolicy === 'function' ? attentionReadPolicy() : {}).proactiveLevel || 'off',
@@ -15837,7 +15977,13 @@ function assistApplyNavigation(nav) {
   assistRefreshContextChip();
 }
 
-async function assistSendText(rawText) {
+async function assistSpeakAnswer(text) {
+  try {
+    await window.__vlcSpeakAnswer?.(text);
+  } catch { /* talk-back optional */ }
+}
+
+async function assistSendText(rawText, { channel = 'text' } = {}) {
   const text = String(rawText || '').trim();
   if (!text) return;
   if (_assistPendingProposalId && assistIsConfirmPhrase(text)) {
@@ -15851,19 +15997,23 @@ async function assistSendText(rawText) {
     return;
   }
   assistAppendMessage({ role: 'user', text });
+  const snap = assistBuildContextSnapshot();
+  snap.channel = channel === 'voice' ? 'voice' : 'text';
   const r = await fetch('/api/assist/message', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       text,
-      channel: 'text',
-      context: assistBuildContextSnapshot(),
+      channel: snap.channel,
+      context: snap,
     }),
   });
   const data = await r.json().catch(() => ({}));
   if (!r.ok || !data.ok) {
-    assistAppendMessage({ role: 'assist', text: data.message || 'שליחת ההודעה נכשלה.', kind: 'INFORMATION' });
+    const failText = data.message || 'שליחת ההודעה נכשלה.';
+    assistAppendMessage({ role: 'assist', text: failText, kind: 'INFORMATION' });
     assistSetProposalBar(null);
+    void assistSpeakAnswer(failText);
     return;
   }
   const resp = data.response || {};
@@ -15880,6 +16030,7 @@ async function assistSendText(rawText) {
     kind: resp.kind,
     blocked: resp.blocked === true,
   });
+  void assistSpeakAnswer(resp.answer || '');
   assistSetProposalBar(resp);
   if (resp.confirm_result?.result?.navigation) {
     assistApplyNavigation(resp.confirm_result.result.navigation);
@@ -15904,16 +16055,20 @@ async function assistConfirm(confirm, { startAgent = true, silent = false } = {}
   const data = await r.json().catch(() => ({}));
   assistSetProposalBar(null);
   if (!r.ok || !data.ok) {
-    assistAppendMessage({ role: 'assist', text: data.answer || data.message || 'האישור נכשל', kind: 'INFORMATION' });
+    const failText = data.answer || data.message || 'האישור נכשל';
+    assistAppendMessage({ role: 'assist', text: failText, kind: 'INFORMATION' });
+    void assistSpeakAnswer(failText);
     return;
   }
   if (!confirm) {
     if (!silent) {
+      const cancelText = data.answer || 'הפעולה בוטלה.';
       assistAppendMessage({
         role: 'assist',
-        text: data.answer || 'הפעולה בוטלה.',
+        text: cancelText,
         kind: 'INFORMATION',
       });
+      void assistSpeakAnswer(cancelText);
     }
     return;
   }
@@ -15921,11 +16076,13 @@ async function assistConfirm(confirm, { startAgent = true, silent = false } = {}
     const taskId = data.result.task?.id;
     const draftOnly = startAgent === false || data.result.agent_runtime === 'NOT_STARTED';
     if (draftOnly && data.result.agent_started !== true) {
+      const draftText = data.answer || 'הטיוטה נשמרה בפיתוח.';
       assistAppendMessage({
         role: 'assist',
-        text: data.answer || 'הטיוטה נשמרה בפיתוח.',
+        text: draftText,
         kind: 'INFORMATION',
       });
+      void assistSpeakAnswer(draftText);
     } else {
       assistRenderRunStatus({
         answer: data.answer,
@@ -15949,11 +16106,13 @@ async function assistConfirm(confirm, { startAgent = true, silent = false } = {}
       }
     }
   } else {
+    const doneText = data.answer || 'אושר.';
     assistAppendMessage({
       role: 'assist',
-      text: data.answer || 'אושר.',
+      text: doneText,
       kind: 'INFORMATION',
     });
+    void assistSpeakAnswer(doneText);
   }
   if (data.result?.navigation) {
     assistApplyNavigation(data.result.navigation);
@@ -16934,7 +17093,7 @@ function initAssistMic() {
     btn.classList.remove('recording');
     btn.setAttribute('aria-pressed', 'false');
     btn.title = assistMicTalkLabel();
-    if (t) void assistSendText(t);
+    if (t) void assistSendText(t, { channel: 'voice' });
   };
   rec.onend = () => {
     btn.classList.remove('recording');
@@ -17078,6 +17237,7 @@ function initAssistUi() {
   assistRefreshContextChip();
   assistSyncMessagesEmpty();
   assistSyncProposalWarn();
+  void window.__vlcRefreshTalkbackStatus?.();
 }
 
 initAssistUi();

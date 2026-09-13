@@ -13490,6 +13490,21 @@ details.flight-manage summary {
   color: var(--text-muted);
   line-height: 1.4;
 }
+.gs-talkback-status {
+  margin: 0 0 10px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+.gs-talkback-status[data-talkback="off"] {
+  color: #b45309;
+}
+.gs-talkback-status[data-talkback="on"] {
+  color: #15803d;
+}
+.gs-section#gsSpokenUnits .gs-label {
+  margin-top: 10px;
+}
 .gs-attention-levels {
   display: flex;
   flex-wrap: wrap;
@@ -17962,6 +17977,17 @@ body.mission-assist-docked .assist-rail.assist-rail--mission,
   color: rgba(255, 255, 255, 0.45);
   line-height: 1.35;
 }
+.assist-talkback-status {
+  display: inline-block;
+  margin-inline-start: 6px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: rgba(253, 186, 116, 0.92);
+  unicode-bidi: isolate;
+}
+.assist-talkback-status[data-talkback="on"] {
+  color: rgba(134, 239, 172, 0.92);
+}
 .assist-voice-go {
   border: 1px solid rgba(148, 163, 184, 0.28);
   background: rgba(15, 23, 42, 0.42);
@@ -18029,6 +18055,7 @@ body.mission-assist-docked .assist-rail.assist-rail--mission,
 .assist-agent-hint,
 .assist-empty-invite,
 .assist-rail-hint,
+.assist-talkback-status,
 .assist-voice-go-hint,
 .assist-proposal-text,
 .assist-proposal-warn,
