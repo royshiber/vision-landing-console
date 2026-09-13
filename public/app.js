@@ -13686,7 +13686,7 @@ const CAP_INTAKE_EXAMPLES = {
   },
   voice: {
     title: 'פקודות קוליות לממשק התפעול',
-    description: 'דיבור אל הממשק: פתיחת מסך, שאילתה, פתק, והצעת שינוי לאישור. בלי שליחה ישירה לבקר.',
+    description: 'דיבור אל הממשק: פתיחת מסך, שאילתה, פתק, נחיתה ומצב אחרי שיחת קול, והצעת שינוי פרמטר לאישור. חימוש ונטרול חסומים.',
     taxonomy: 'FEATURE',
     target: 'UI',
     priority: 'NORMAL',
@@ -15302,8 +15302,8 @@ function assistBuildOpsSignals(vision) {
   return ops;
 }
 
-/** Roy lock 2026-09-12 voice_direct_after_go — safe params apply after session GO; ARM/LAND stay blocked. */
-const ASK_VOICE_SAFETY_LOCK = 'voice_direct_after_go';
+/** Roy lock 2026-09-13 voice_session_go — GO opens voice; params always confirm; ARM/DISARM never. */
+const ASK_VOICE_SAFETY_LOCK = 'voice_session_go';
 const ASK_VOICE_GO_STORAGE_KEY = 'airvix.ask.voiceGo';
 var _askVoiceGoActive = false;
 const BIDI_FSI = '\u2068';
@@ -15559,8 +15559,8 @@ function assistSyncVoiceGoChrome(active) {
   if (endBtn) endBtn.hidden = !_askVoiceGoActive;
   if (goHint) {
     goHint.textContent = rtlSafeAskText(_askVoiceGoActive
-      ? 'מופעל. שינוי פרמטר מוחל מיד. חימוש ונחיתה נשארים חסומים.'
-      : 'הפעלה מאפשרת החלת פרמטר בלי אישור לכל פעולה. חימוש ונחיתה נשארים חסומים.');
+      ? 'שיחת קול פתוחה. נחיתה ומצב בלי אישור. חימוש ונטרול חסומים. שינוי פרמטר דורש אישור.'
+      : 'הפעלה פותחת שיחת קול. אחריה נחיתה ומצב בלי אישור לכל פעולה. חימוש ונטרול חסומים. שינוי פרמטר דורש אישור.');
   }
   assistSyncMissionPosture();
   const mic = document.getElementById('assistMicBtn');
@@ -15598,7 +15598,7 @@ async function assistRefreshVoiceGo() {
 
 function assistIsConfirmPhrase(text) {
   const q = String(text || '').trim().toLowerCase();
-  return q === 'מאשר' || q === 'confirm';
+  return q === 'מאשר' || q === 'confirm' || q === 'כן' || q === 'אשר' || q === 'yes';
 }
 
 function assistIsCancelPhrase(text) {

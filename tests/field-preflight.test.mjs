@@ -126,14 +126,14 @@ describe('Exp#1 field preflight honesty', () => {
     expect(rowById(snap, 'link_cellular').tone).toBe('absent');
   });
 
-  it('keeps ARM / LAND and live nav switch blocked after Ask GO', () => {
+  it('keeps ARM / DISARM and live nav switch blocked after Ask GO', () => {
     expect(resolveAskGoState(true)).toBe('on');
     expect(resolveAskGoState(false)).toBe('off');
     const go = buildFieldPreflight({ askGoActive: true });
     expect(rowById(go, 'ask_go').state).toBe('on');
-    expect(rowById(go, 'ask_go').missingHe).toMatch(/חימוש ונחיתה חסומים/);
+    expect(rowById(go, 'ask_go').missingHe).toMatch(/חימוש חסום/);
     expect(rowById(go, 'arm_land_blocked').tone).toBe('blocked');
-    expect(rowById(go, 'arm_land_blocked').tokens).toEqual(['ARM', 'LAND', 'auto-land']);
+    expect(rowById(go, 'arm_land_blocked').tokens).toEqual(['ARM', 'DISARM']);
     expect(rowById(go, 'nav_switch_blocked').tone).toBe('blocked');
     expect(go.sendFlightCommands).toBe(false);
     expect(go.liveNavSwitch).toBe(false);
@@ -166,7 +166,7 @@ describe('Exp#1 field preflight honesty', () => {
     expect(update.steps.find((s) => s.id === 'link_quality').ok).toBe(false);
     expect(update.steps.find((s) => s.id === 'fc_version').ok).toBe(false);
     const known = buildUpdateReadinessChecklist({
-      consoleVersion: '1.02.317',
+      consoleVersion: '1.02.318',
       jetsonVersion: '2.3.5',
       fcVersion: 'ArduPlane 4.5',
       linkQuality: { known: true, percent: 50, bars: 2 },

@@ -10697,7 +10697,7 @@ html[data-evolve-preview="1"] #development {
 
 .mission-data-picker {
   position: fixed;
-  z-index: 860;
+  z-index: 9600;
   display: flex;
   flex-direction: column;
   min-width: 240px;

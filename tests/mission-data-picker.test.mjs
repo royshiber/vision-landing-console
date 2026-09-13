@@ -82,6 +82,7 @@ describe('Mission data-slot field picker', () => {
     expect(html).toContain('data-mission-data-slot="0"');
     expect(html).toContain('קליק ימני או לחיצה ארוכה על אריח לבחירת שדה');
     expect(css).toMatch(/\.mission-data-picker\s*\{[^}]*position:\s*fixed/);
+    expect(css).toMatch(/\.mission-data-picker\s*\{[^}]*z-index:\s*9600/);
     expect(css).toMatch(/\.mission-data-picker\s*\{[^}]*direction:\s*rtl/);
     expect(css).toMatch(/\.mission-data-picker-chip-mav\s*\{[^}]*direction:\s*ltr/);
     const init = sliceFunction(js, 'initMissionDataPicker');

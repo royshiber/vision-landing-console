@@ -407,7 +407,7 @@ describe('Assist service proposals and confirmation', () => {
     expect(resp.action_proposal).toBe(null);
     expect(resp.requires_confirmation).toBe(false);
     expect(resp.answer).toBe(ASSIST_HE.blockedFlightCommandAnswer);
-    expect(resp.answer).toMatch(/שער אדם/);
+    expect(resp.answer).toMatch(/חימוש/);
     expect(resp.answer).not.toMatch(/prohibited/i);
     expect(resp.next_step).toBe(ASSIST_HE.blockedFlightNextStep);
   });
@@ -468,7 +468,7 @@ describe('Assist service proposals and confirmation', () => {
     expect(resp.requires_confirmation).toBe(false);
     expect(resp.action_proposal).toBe(null);
     expect(resp.answer).toBe(ASSIST_HE.blockedFlightCommandAnswer);
-    expect(resp.answer).toMatch(/שער אדם/);
+    expect(resp.answer).toMatch(/חימוש/);
     expect(resp.answer).not.toMatch(/That request maps/i);
   });
 
@@ -570,7 +570,7 @@ describe('Assist HTTP API', () => {
     expect(meta.prohibited).toContain('DEPLOY');
     expect(meta.prohibited).toContain('CURSOR_AGENT_START');
     expect(meta.channels).toEqual(['text', 'voice']);
-    expect(meta.ask_voice_safety_lock).toBe('voice_direct_after_go');
+    expect(meta.ask_voice_safety_lock).toBe('voice_session_go');
   });
 
   it('session GO is server-enforced for param apply', async () => {
@@ -596,8 +596,8 @@ describe('Assist HTTP API', () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text: 'set LAND_SPEED to 81' }),
     }).then((r) => r.json());
-    expect(direct.response.requires_confirmation).toBe(false);
-    expect(direct.response.applied_direct).toBe(true);
+    expect(direct.response.requires_confirmation).toBe(true);
+    expect(direct.response.applied_direct).toBeFalsy();
     expect(direct.response.ask_voice_go_active).toBe(true);
   });
 });

@@ -1,5 +1,16 @@
 [
   {
+    "version": "1.02.318",
+    "date": "2026-09-13",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Ask voice_session_go: LAND/RTL after GO, params confirm, ARM never",
+        "detail": "APP_VERSION 1.02.318. After master 1.02.317 (#131 picker). Roy lock voice_session_go / land_ok_go_session: GO only opens the Ask voice session. After GO, LAND / RTL / return-home and mode changes apply with no per-action confirm via SET_MODE (LAND=14, RTL=11). Offline FC stays honest: not sent. Parameter changes always require confirmation; oral כן / אשר / מאשר / confirm / yes is enough. ARM / DISARM stay blocked at intent and applyAskFlightOp; never COMMAND_LONG 400. Mission picker from #131 kept; z-index raised to 9600 so Ask talk cannot steal clicks."
+      }
+    ]
+  },
+  {
     "version": "1.02.317",
     "date": "2026-09-13",
     "changes": [

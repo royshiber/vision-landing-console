@@ -40,20 +40,23 @@ function makeAssist({ applyParamChange } = {}) {
 }
 
 describe('Ask early-flight safety lock', () => {
-  it('pins APP_VERSION at 1.02.317', () => {
+  it('pins APP_VERSION at 1.02.318', () => {
     const version = fs.readFileSync(path.join(repoRoot, 'version.js'), 'utf8');
     const pkg = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8'));
-    expect(version).toContain("export const APP_VERSION = '1.02.317'");
-    expect(pkg.version).toBe('1.02.317');
+    expect(version).toContain("export const APP_VERSION = '1.02.318'");
+    expect(pkg.version).toBe('1.02.318');
   });
 
-  it('locks voice_direct_after_go and gates confirm on session GO', () => {
-    expect(ASK_VOICE_SAFETY_LOCK).toBe('voice_direct_after_go');
+  it('locks voice_session_go — params always confirm, GO is session only', () => {
+    expect(ASK_VOICE_SAFETY_LOCK).toBe('voice_session_go');
     expect(askRequiresConfirmation('PROPOSE_PARAM_CHANGE', false, false)).toBe(true);
-    expect(askRequiresConfirmation('PROPOSE_PARAM_CHANGE', false, true)).toBe(false);
+    expect(askRequiresConfirmation('PROPOSE_PARAM_CHANGE', false, true)).toBe(true);
     expect(askRequiresConfirmation('CREATE_NOTE', true, true)).toBe(true);
     expect(isAskConfirmPhrase('מאשר')).toBe(true);
     expect(isAskConfirmPhrase('confirm')).toBe(true);
+    expect(isAskConfirmPhrase('כן')).toBe(true);
+    expect(isAskConfirmPhrase('אשר')).toBe(true);
+    expect(isAskConfirmPhrase('yes')).toBe(true);
     expect(isAskGoEnablePhrase('GO')).toBe(true);
     expect(isAskGoEnablePhrase('יאללה')).toBe(true);
     expect(isAskGoEnablePhrase('אשר GO')).toBe(true);
@@ -92,15 +95,30 @@ describe('Ask flight-intent detection', () => {
     });
   });
 
-  it('blocks ARM / LAND / RTL / auto-land / nav switch', () => {
+  it('blocks ARM / DISARM and nav switch; LAND / RTL are session flight ops', () => {
     expect(resolveAskFlightIntent('Please arm the aircraft').blocked_kind).toBe('ARM');
     expect(resolveAskFlightIntent('חמש את המטוס').blocked_kind).toBe('ARM');
-    expect(resolveAskFlightIntent('land now').blocked_kind).toBe('LANDING_COMMAND');
-    expect(resolveAskFlightIntent('נחיתה אוטומטית').blocked_kind).toBe('LANDING_COMMAND');
-    expect(resolveAskFlightIntent('RTL').blocked_kind).toBe('LANDING_COMMAND');
+    expect(resolveAskFlightIntent('disarm now').blocked_kind).toBe('DISARM');
+    expect(resolveAskFlightIntent('land now').intent).toBe('FLIGHT_OP');
+    expect(resolveAskFlightIntent('land now').slots.kind).toBe('LAND');
+    expect(resolveAskFlightIntent('נחיתה אוטומטית').slots.kind).toBe('LAND');
+    expect(resolveAskFlightIntent('RTL').slots.kind).toBe('RTL');
+    expect(resolveAskFlightIntent('חזור הביתה').slots.kind).toBe('RTL');
+    expect(resolveAskFlightIntent('mode to FBWA').slots.kind).toBe('MODE_CHANGE');
     expect(resolveAskFlightIntent('החלף מקור ניווט').blocked_kind).toBe('NAV_SOURCE_SWITCH');
     expect(resolveAssistIntent('set GPS_TYPE to 2').blocked).toBe(true);
     expect(resolveAssistIntent('set EK3_SRC1_POSXY to 5').blocked).toBe(true);
+  });
+
+  it('reads back Mission fields without inventing numbers', () => {
+    expect(resolveAskFlightIntent('מה הגובה').slots.topic).toBe('altitude');
+    expect(resolveAskFlightIntent('what is the altitude').slots.topic).toBe('altitude');
+    expect(resolveAskFlightIntent('מה המהירות').slots.topic).toBe('speed');
+    expect(resolveAskFlightIntent('מה המוד').slots.topic).toBe('mode');
+    expect(resolveAskFlightIntent('מה הסוללה').slots.topic).toBe('battery');
+    expect(resolveAskFlightIntent('מצב GPS').slots.topic).toBe('gps');
+    expect(resolveAskFlightIntent('מה הקישור').slots.topic).toBe('link');
+    expect(resolveAskFlightIntent('מה אני רואה').slots.topic).toBe('seeing');
   });
 });
 
@@ -160,22 +178,21 @@ describe('Ask propose + confirm', () => {
     expect(spoken.answer).toMatch(/אושר|לא נשלח/);
   });
 
-  it('applies a safe param without confirm after session GO', async () => {
+  it('still requires confirm for a safe param after session GO', async () => {
     expect(service.isAskVoiceGoActive()).toBe(false);
     service.setAskVoiceGo(true);
     expect(service.isAskVoiceGoActive()).toBe(true);
     const resp = await service.processInput({ text: 'set LAND_SPEED to 80' });
     expect(resp.intent).toBe('FLIGHT_PARAM');
-    expect(resp.requires_confirmation).toBe(false);
-    expect(resp.applied_direct).toBe(true);
-    expect(resp.action_proposal).toBe(null);
+    expect(resp.requires_confirmation).toBe(true);
+    expect(resp.applied_direct).toBeUndefined();
+    expect(resp.action_proposal.action).toBe('PROPOSE_PARAM_CHANGE');
     expect(resp.ask_voice_go_active).toBe(true);
-    expect(resp.ask_voice_safety_lock).toBe('voice_direct_after_go');
-    expect(resp.answer).toMatch(/הוחל|לא נשלח/);
+    expect(resp.ask_voice_safety_lock).toBe('voice_session_go');
+    expect(apply).not.toHaveBeenCalled();
+    const spoken = await service.processInput({ text: 'כן', channel: 'voice' });
     expect(apply).toHaveBeenCalledTimes(1);
-    expect(apply.mock.calls[0][0].key).toBe('LAND_SPEED');
-    expect(apply.mock.calls[0][0].value).toBe(80);
-    expect(service._pendingSize()).toBe(0);
+    expect(spoken.confirm_result.ok).toBe(true);
   });
 
   it('returns to confirm-required after ending GO', async () => {
@@ -191,7 +208,7 @@ describe('Ask propose + confirm', () => {
     const on = await service.processInput({ text: 'יאללה', channel: 'voice' });
     expect(on.ask_voice_go_active).toBe(true);
     expect(on.voice_go.active).toBe(true);
-    expect(on.answer).toMatch(/הופעל/);
+    expect(on.answer).toMatch(/נפתחה|הופעל/);
     expect(service.isAskVoiceGoActive()).toBe(true);
 
     const off = await service.processInput({ text: 'סיום GO', channel: 'voice' });
@@ -209,21 +226,16 @@ describe('Ask propose + confirm', () => {
     expect(apply).not.toHaveBeenCalled();
   });
 
-  it('never calls apply for ARM or LAND intents', async () => {
+  it('never calls apply for ARM or DISARM intents', async () => {
     const arm = await service.processInput({ text: 'Please arm the aircraft' });
     expect(arm.blocked).toBe(true);
     expect(arm.action_proposal).toBe(null);
     expect(arm.answer).toBe(ASSIST_HE.blockedFlightCommandAnswer);
-    expect(arm.answer).toMatch(/שער אדם/);
-    expect(arm.answer).toMatch(/לא בטיסות ראשונות/);
+    expect(arm.answer).toMatch(/חימוש/);
 
-    const land = await service.processInput({ text: 'auto land now' });
-    expect(land.blocked).toBe(true);
-    expect(land.action_proposal).toBe(null);
-    expect(land.answer).toBe(ASSIST_HE.blockedFlightCommandAnswer);
-
-    const rtl = await service.processInput({ text: 'RTL' });
-    expect(rtl.blocked).toBe(true);
+    const disarm = await service.processInput({ text: 'disarm now' });
+    expect(disarm.blocked).toBe(true);
+    expect(disarm.answer).toBe(ASSIST_HE.blockedFlightCommandAnswer);
 
     const nav = await service.processInput({ text: 'החלף מקור ניווט' });
     expect(nav.blocked).toBe(true);
@@ -233,15 +245,59 @@ describe('Ask propose + confirm', () => {
     expect(service._pendingSize()).toBe(0);
   });
 
-  it('never applies ARM / LAND / nav-blocked params even after GO', async () => {
+  it('defers LAND / RTL until GO, then sends with no per-action confirm', async () => {
+    const flight = vi.fn(async ({ kind }) => ({
+      ok: true,
+      sent: false,
+      method: 'offline',
+      kind,
+      customMode: kind === 'RTL' ? 11 : 14,
+      note: ASSIST_HE.flightOpOffline,
+    }));
+    const boxed = makeAssist();
+    const svc = createAssistService({
+      repoRoot: boxed.root,
+      persistence: createAssistPersistence(boxed.root),
+      applyParamChange: boxed.apply,
+      applyFlightOp: flight,
+    });
+    try {
+      const before = await svc.processInput({ text: 'auto land now' });
+      expect(before.intent).toBe('FLIGHT_OP');
+      expect(before.requires_confirmation).toBe(false);
+      expect(before.answer).toBe(ASSIST_HE.voiceSessionRequired);
+      expect(flight).not.toHaveBeenCalled();
+
+      svc.setAskVoiceGo(true);
+      const land = await svc.processInput({ text: 'auto land now' });
+      expect(land.intent).toBe('FLIGHT_OP');
+      expect(land.requires_confirmation).toBe(false);
+      expect(land.action_proposal).toBe(null);
+      expect(land.flight_op.kind).toBe('LAND');
+      expect(flight).toHaveBeenCalledTimes(1);
+      expect(flight.mock.calls[0][0].kind).toBe('LAND');
+
+      const rtl = await svc.processInput({ text: 'חזור הביתה' });
+      expect(rtl.flight_op.kind).toBe('RTL');
+      expect(rtl.requires_confirmation).toBe(false);
+
+      const mode = await svc.processInput({ text: 'mode to FBWA' });
+      expect(mode.flight_op.kind).toBe('MODE_CHANGE');
+      expect(flight.mock.calls[2][0].mode).toBe('FBWA');
+
+      const arm = await svc.processInput({ text: 'Please arm the aircraft' });
+      expect(arm.blocked).toBe(true);
+      expect(boxed.apply).not.toHaveBeenCalled();
+    } finally {
+      fs.rmSync(boxed.root, { recursive: true, force: true });
+    }
+  });
+
+  it('never applies ARM / nav-blocked params even after GO', async () => {
     service.setAskVoiceGo(true);
     const arm = await service.processInput({ text: 'Please arm the aircraft' });
     expect(arm.blocked).toBe(true);
     expect(arm.answer).toBe(ASSIST_HE.blockedFlightCommandAnswer);
-
-    const land = await service.processInput({ text: 'auto land now' });
-    expect(land.blocked).toBe(true);
-    expect(land.answer).toBe(ASSIST_HE.blockedFlightCommandAnswer);
 
     const nav = await service.processInput({ text: 'set GPS_TYPE to 2' });
     expect(nav.blocked).toBe(true);
@@ -300,7 +356,7 @@ describe('Ask rail confirm chrome', () => {
     expect(html).toContain('id="assistProposalKicker"');
     expect(html).toContain('שינוי דורש אישור');
     expect(html).toContain('id="assistProposalVoiceHint"');
-    expect(html).toContain('אמרו מאשר או לחצו אישור.');
+    expect(html).toContain('אמרו כן, אשר, או מאשר, או לחצו אישור.');
     expect(html).toContain('id="assistConfirmBtn"');
     expect(html).toContain('id="assistCancelBtn"');
     expect(html).toContain('id="assistSuggestionApproveBtn"');
@@ -308,11 +364,41 @@ describe('Ask rail confirm chrome', () => {
     expect(html).toContain('id="assistVoiceGo"');
     expect(html).toContain('id="assistVoiceGoBtn"');
     expect(html).toContain('id="assistVoiceGoEndBtn"');
-    expect(html).toMatch(/סיום <bdi dir="ltr">GO<\/bdi>/);
-    expect(html).toContain('הפעלה מאפשרת החלת פרמטר בלי אישור לכל פעולה');
+    expect(html).toMatch(/id="assistVoiceGoEndBtn"[^>]*>סיום <bdi dir="ltr">GO<\/bdi>/);
+    expect(html).toContain('הפעלה פותחת שיחת קול');
     expect(js).toContain('function assistIsConfirmPhrase(');
-    expect(js).toContain('voice_direct_after_go');
+    expect(js).toContain('voice_session_go');
+    expect(js).toContain("q === 'כן'");
     expect(js).toContain('function assistSetVoiceGo(');
     expect(js).toContain('/api/assist/voice-go');
+  });
+});
+
+describe('Ask voice session SET_MODE vs ARM', () => {
+  it('maps LAND / RTL to SET_MODE and refuses ARM at apply', async () => {
+    const { buildSetModePayload, ASK_PLANE_MODE_LAND, ASK_PLANE_MODE_RTL } = await import('../lib/mavlink-connection.mjs');
+    const { applyAskFlightOp, resolveAskFlightOpCustomMode } = await import('../lib/flight-actions-service.mjs');
+    expect(resolveAskFlightOpCustomMode('LAND')).toBe(ASK_PLANE_MODE_LAND);
+    expect(resolveAskFlightOpCustomMode('RTL')).toBe(ASK_PLANE_MODE_RTL);
+    expect(resolveAskFlightOpCustomMode('MODE_CHANGE', { mode: 'FBWA' })).toBe(5);
+    expect(resolveAskFlightOpCustomMode('ARM')).toBe(null);
+    const payload = buildSetModePayload(1, ASK_PLANE_MODE_LAND);
+    expect(payload.length).toBe(6);
+    expect(payload.readUInt32LE(2)).toBe(ASK_PLANE_MODE_LAND);
+    const setArduPlaneMode = vi.fn();
+    const arm = await applyAskFlightOp(null, {
+      kind: 'ARM',
+      mavConn: { connected: true, setArduPlaneMode },
+    });
+    expect(arm.blocked).toBe(true);
+    expect(arm.sent).toBe(false);
+    expect(setArduPlaneMode).not.toHaveBeenCalled();
+    const land = await applyAskFlightOp(null, {
+      kind: 'LAND',
+      mavConn: { connected: false },
+    });
+    expect(land.sent).toBe(false);
+    expect(land.method).toBe('offline');
+    expect(land.customMode).toBe(ASK_PLANE_MODE_LAND);
   });
 });
