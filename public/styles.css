@@ -5250,15 +5250,63 @@ body:has(#pulse.panel.visible) .layout {
   background: rgba(253, 230, 138, 0.14);
   color: #fde68a;
 }
-.vlr-row[data-tone="bad"] .vlr-chip {
+.vlr-row[data-tone="bad"] .vlr-chip,
+.vlr-row[data-tone="fail"] .vlr-chip {
   background: rgba(240, 113, 103, 0.16);
   color: #fca5a5;
+}
+.vlr-row[data-tone="blocked"] .vlr-chip {
+  background: rgba(251, 146, 60, 0.16);
+  color: #fdba74;
+}
+.vlr-row[data-tone="absent"] .vlr-chip {
+  background: rgba(148, 168, 198, 0.1);
+  color: #94a3b8;
 }
 .vlr-row[data-tone="off"] .vlr-chip,
 .vlr-row[data-tone="closed"] .vlr-chip,
 .vlr-row[data-tone="later"] .vlr-chip {
   background: rgba(148, 168, 198, 0.1);
   color: #94a3b8;
+}
+.vlr-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(148, 168, 198, 0.12);
+}
+.vlr-update {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  border-radius: 8px;
+  background: rgba(8, 12, 20, 0.45);
+  border: 1px solid rgba(148, 168, 198, 0.1);
+}
+.vlr-update-title {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: #f2f6fb;
+}
+.vlr-update-lead {
+  margin: 0;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #fdba74;
+}
+.pfd-readiness-body .vlr-field {
+  margin-top: 6px;
+  padding-top: 6px;
+}
+.vlr-field-title {
+  margin: 0 0 4px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: #e8edf6;
 }
 .vlr-row[data-stage="later"] {
   opacity: 0.86;

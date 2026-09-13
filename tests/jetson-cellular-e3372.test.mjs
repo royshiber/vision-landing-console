@@ -50,12 +50,12 @@ function lastJson(stdout) {
 }
 
 describe('Jetson Huawei E3372 host pack (software before hardware)', () => {
-  it('pins APP_VERSION at 1.02.312', () => {
+  it('pins APP_VERSION at 1.02.313', () => {
     const version = fs.readFileSync(path.join(repoRoot, 'version.js'), 'utf8');
     const pkg = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8'));
     const changelog = fs.readFileSync(path.join(repoRoot, 'public', 'changelog.json'), 'utf8');
-    expect(version).toContain("export const APP_VERSION = '1.02.312'");
-    expect(pkg.version).toBe('1.02.312');
+    expect(version).toContain("export const APP_VERSION = '1.02.313'");
+    expect(pkg.version).toBe('1.02.313');
     expect(changelog).toContain('"version": "1.02.293"');
   });
 
@@ -121,6 +121,14 @@ describe('Jetson Huawei E3372 host pack (software before hardware)', () => {
     expect(ep.bound).toBe(false);
     expect(ep.port).toBe(14560);
     expect(ep.companionHttpCommandPath).toBe(false);
+
+    const endpointStatus = run('cellular-mavlink-endpoint.sh', ['--status']);
+    expect(endpointStatus.status, endpointStatus.stderr).toBe(0);
+    const eps = lastJson(endpointStatus.stdout);
+    expect(eps.bound).toBe(false);
+    expect(eps.statusFileMissing).toBe(true);
+    expect(eps.modemPresent).toBe(false);
+    expect(eps.reason).toBe('modem_absent');
 
     const apply = run('install.sh', ['--apply']);
     expect(apply.status).toBe(1);

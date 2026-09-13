@@ -48,11 +48,11 @@ async function waitHttp(url, timeoutMs = 8000) {
 }
 
 describe('companion_agent observe-only vision / landing status', () => {
-  it('pins APP_VERSION at 1.02.312', () => {
+  it('pins APP_VERSION at 1.02.313', () => {
     const version = fs.readFileSync(path.join(repoRoot, 'version.js'), 'utf8');
     const pkg = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8'));
-    expect(version).toContain("export const APP_VERSION = '1.02.312'");
-    expect(pkg.version).toBe('1.02.312');
+    expect(version).toContain("export const APP_VERSION = '1.02.313'");
+    expect(pkg.version).toBe('1.02.313');
   });
 
   it('keeps 2.3.1 fan-out UART and reports explicit absent, never invented detect', () => {
@@ -144,6 +144,7 @@ describe('companion_agent observe-only vision / landing status', () => {
     expect(opticalNav.camera_ok).toBe(false);
     expect(modem.present).toBe(false);
     expect(modem.reason).toBe('modem_absent');
+    expect(modem.statusFileMissing).toBe(true);
     expect(health.modem.present).toBe(false);
     expect(status.modem.present).toBe(false);
     expect(modem.companionHttpCommandPath).toBe(false);
