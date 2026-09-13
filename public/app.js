@@ -10176,6 +10176,49 @@ initLiveCameraPanel();
     });
   }
 
+  function paintCellularOpsChecklist(links) {
+    const list = document.getElementById('cellularOpsChecklist');
+    if (!list) return;
+    const modemPresent = links?.modemPresent === true || links?.modem?.present === true;
+    const jetsonOk = links?.companion?.jetson === 'reachable' || links?.companion?.jetson === 'mock';
+    const videoOk = links?.video?.available === true;
+    const paramsHe = links?.ops?.commandLink === 'cellular'
+      ? 'פרמטרים בקישור סלולר הפעיל'
+      : links?.ops?.commandLink === 'radio'
+        ? 'פרמטרים בקישור רדיו הפעיל'
+        : 'פרמטרים עוברים בקישור הפעיל לפקודות';
+    const items = {
+      modem: {
+        ok: modemPresent,
+        he: links?.modem?.reasonHe || (modemPresent ? 'מודם זוהה' : 'מודם לא מחובר'),
+      },
+      jetson: {
+        ok: jetsonOk,
+        he: jetsonOk ? 'מחשב משימה מגיב' : 'מחשב משימה — אין הגעה',
+      },
+      params: {
+        ok: Boolean(links?.ops?.commandLink),
+        he: paramsHe,
+      },
+      video: {
+        ok: videoOk,
+        he: links?.video?.reasonHe || (videoOk
+          ? 'ראייה מסומנת בסלולר'
+          : 'ראייה מסומנת רק בסלולר · אין שידור'),
+      },
+      update: {
+        ok: false,
+        he: 'עדכון בקר נשאר לאישור. אין הבזקה מכאן.',
+      },
+    };
+    list.querySelectorAll('[data-step]').forEach((el) => {
+      const step = items[el.dataset.step];
+      if (!step) return;
+      el.dataset.ok = step.ok ? '1' : '0';
+      el.textContent = step.he;
+    });
+  }
+
   function applyDualLinkUi(links) {
     if (!links) return false;
     latestLinksSnapshot = links;
@@ -10237,6 +10280,7 @@ initLiveCameraPanel();
     }
     try { paintCommRows(links); } catch (err) { console.warn('paintCommRows failed', err); }
     applyAnnotatedVision(links.video);
+    try { paintCellularOpsChecklist(links); } catch (err) { console.warn('paintCellularOpsChecklist failed', err); }
     try { hydrateMissionHudFromLiveLink(); } catch (err) { console.warn('hydrateMissionHudFromLiveLink failed', err); }
     return true;
   }

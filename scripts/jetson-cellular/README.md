@@ -16,8 +16,10 @@ This pack does **not** send flight commands, write the flight controller, apply 
 | Path | Role |
 |---|---|
 | `install.sh` | Default `--dry-run`. `--apply` only on a Jetson (or `--force-lab`). |
-| `e3372-status.sh` | JSON snapshot. Unplugged → `modem_absent`. |
+| `e3372-status.sh` | JSON snapshot. Unplugged → `modem_absent`. Includes `ip` only when the Huawei netdev has one. |
 | `e3372-bringup.sh` | Called by systemd when a matching USB id appears. Missing stick exits 0. |
+| `tailscale-check.sh` | Observe-only. Binary / `tailscale0` / optional BackendState. No ping. |
+| `cellular-mavlink-endpoint.sh` | Prints udp `0.0.0.0:14560` (console dual-link). Does not bind. |
 | `udev/99-huawei-e3372.rules` | usb_modeswitch + `SYSTEMD_WANTS` on HiLink net / stick tty. |
 | `systemd/airvix-e3372-status.service` | Boot: write status (absent is success). |
 | `systemd/airvix-e3372-bringup.service` | Device-triggered bring-up stub. |
@@ -97,3 +99,13 @@ sudo ./jetson-cellular/install.sh --apply
 - No APN, SIM PIN, tokens, or Tailscale / Jetson addresses in files.
 
 When the stick is on the bench, a later task can add DHCP wait, a cellular MAVLink bind on port `14560`, and annotated-video egress — each still gated by the constitution.
+
+## Tailscale over cellular
+
+Home tests already use Tailscale to the mission computer. After the E3372 appears, **keep Tailscale up** so the same Companion HTTP path works on cell. This pack only checks (`tailscale-check.sh --dry-run`). It does not start Tailscale, print a host address, or store an auth key.
+
+## Cellular MAVLink endpoint
+
+Console dual-link default: `udp 0.0.0.0:14560` (`lib/dual-link.mjs` `DEFAULT_CELLULAR_ENDPOINT`). Operator picks radio vs cellular for commands. Companion-HTTP is not that command path. `cellular-mavlink-endpoint.sh --dry-run` prints the documented bind and does not open a socket.
+
+Full operator checklist: `docs/CELLULAR_FULL_OPS.md` / `docs/CELLULAR_FULL_OPS.he.md`.

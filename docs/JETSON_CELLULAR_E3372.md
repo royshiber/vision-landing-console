@@ -10,8 +10,12 @@ This document points at the **Jetson host pack** that can be copied later. It do
 
 - `npm run cellular:dry-run` — console honesty JSON. Unplugged → `modem_absent`. No sockets.
 - `install.sh --dry-run` — default. Validates files. No apt, no systemd, no USB switch.
-- `e3372-status.sh` — JSON. Unplugged → `modem_absent`.
+- `e3372-status.sh` — JSON. Unplugged → `modem_absent`. `ip` / `error` only when known.
 - `e3372-bringup.sh` — systemd oneshot when udev sees a Huawei id. Missing stick exits 0.
+- `tailscale-check.sh` — observe-only Tailscale binary / iface. No ping.
+- `cellular-mavlink-endpoint.sh` — prints `udp 0.0.0.0:14560`. Does not bind.
+
+Operator full-ops checklist: `docs/CELLULAR_FULL_OPS.md` (Hebrew: `docs/CELLULAR_FULL_OPS.he.md`).
 - `udev/99-huawei-e3372.rules` + `usb-modeswitch/12d1:1f01` + `12d1:14fe`.
 - `systemd/airvix-e3372-status.service` + `airvix-e3372-bringup.service`.
 - `pack.sh` — tarball for `scp`. Does not SSH.

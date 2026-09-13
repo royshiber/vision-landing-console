@@ -70,6 +70,26 @@ describe('dual-link HTTP API', () => {
     expect(j.links.comm.rows[0].quality.percent).toBeNull();
     expect(j.links.comm.rows[0].actionHe).toBe('התחבר');
     expect(j.links.comm.rows[3].actionHe).toBe('סטטוס');
+    expect(j.links.ops.companionHttpCommandPath).toBe(false);
+    expect(j.links.ops.paramsFollowCommandLink).toBe(true);
+    expect(j.links.ops.flightCommands).toBe(false);
+    expect(j.links.update.autoDeployFc).toBe(false);
+    expect(j.links.update.fcFirmwareHumanGate).toBe(true);
+  });
+
+  it('GET /api/links/update-readiness stays status-only without FC flash', async () => {
+    const r = await fetch(`${base}/api/links/update-readiness`);
+    const j = await r.json();
+    expect(r.status).toBe(200);
+    expect(j.ok).toBe(true);
+    expect(j.autoDeployFc).toBe(false);
+    expect(j.fcFirmwareHumanGate).toBe(true);
+    expect(j.companionApplyRestart).toBe(false);
+    expect(j.companionHttpCommandPath).toBe(false);
+    expect(j.steps.map((s) => s.id)).toEqual(['jetson_reachable', 'companion_install', 'fc_firmware']);
+    expect(j.steps[2].humanGate).toBe(true);
+    expect(j.steps[2].ok).toBe(false);
+    expect(j.modem.present).toBe(false);
   });
 
   it('refuses a remote cellular connect while the modem is unplugged', async () => {
