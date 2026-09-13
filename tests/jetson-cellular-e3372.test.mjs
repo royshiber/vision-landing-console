@@ -17,6 +17,7 @@ const PACK_FILES = [
   'e3372-bringup.sh',
   'tailscale-check.sh',
   'cellular-mavlink-endpoint.sh',
+  'annotated-encoder-status.sh',
   'pack.sh',
   'lib/e3372-common.sh',
   'udev/99-huawei-e3372.rules',
@@ -50,12 +51,12 @@ function lastJson(stdout) {
 }
 
 describe('Jetson Huawei E3372 host pack (software before hardware)', () => {
-  it('pins APP_VERSION at 1.02.313', () => {
+  it('pins APP_VERSION at 1.02.314', () => {
     const version = fs.readFileSync(path.join(repoRoot, 'version.js'), 'utf8');
     const pkg = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8'));
     const changelog = fs.readFileSync(path.join(repoRoot, 'public', 'changelog.json'), 'utf8');
-    expect(version).toContain("export const APP_VERSION = '1.02.313'");
-    expect(pkg.version).toBe('1.02.313');
+    expect(version).toContain("export const APP_VERSION = '1.02.314'");
+    expect(pkg.version).toBe('1.02.314');
     expect(changelog).toContain('"version": "1.02.293"');
   });
 
@@ -64,7 +65,7 @@ describe('Jetson Huawei E3372 host pack (software before hardware)', () => {
       const abs = path.join(pack, rel);
       expect(fs.existsSync(abs), rel).toBe(true);
     }
-    for (const rel of ['install.sh', 'e3372-status.sh', 'e3372-bringup.sh', 'tailscale-check.sh', 'cellular-mavlink-endpoint.sh', 'pack.sh']) {
+    for (const rel of ['install.sh', 'e3372-status.sh', 'e3372-bringup.sh', 'tailscale-check.sh', 'cellular-mavlink-endpoint.sh', 'annotated-encoder-status.sh', 'pack.sh']) {
       expect(fs.statSync(path.join(pack, rel)).mode & 0o111, rel).toBeTruthy();
     }
   });
@@ -129,6 +130,25 @@ describe('Jetson Huawei E3372 host pack (software before hardware)', () => {
     expect(eps.statusFileMissing).toBe(true);
     expect(eps.modemPresent).toBe(false);
     expect(eps.reason).toBe('modem_absent');
+
+    const refused = run('cellular-mavlink-endpoint.sh', ['--bind'], {
+      AIRVIX_E3372_STATUS_FILE: path.join(os.tmpdir(), `e3372-missing-${Date.now()}.status`),
+      AIRVIX_CELLULAR_MOCK: '',
+      CELLULAR_MODEM_MOCK: '',
+      AIRVIX_CELLULAR_BIND_FORCE: '',
+    });
+    expect(refused.status).toBe(1);
+    const refusedJson = lastJson(refused.stdout);
+    expect(refusedJson.bound).toBe(false);
+    expect(refusedJson.reason).toBe('modem_absent');
+
+    const encoder = run('annotated-encoder-status.sh', ['--dry-run']);
+    expect(encoder.status, encoder.stderr).toBe(0);
+    const enc = lastJson(encoder.stdout);
+    expect(enc.available).toBe(false);
+    expect(enc.neverRadio).toBe(true);
+    expect(enc.frames).toBe(false);
+    expect(enc.reason === 'modem_absent' || enc.reason === 'stream_absent').toBe(true);
 
     const apply = run('install.sh', ['--apply']);
     expect(apply.status).toBe(1);

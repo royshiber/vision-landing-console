@@ -3966,6 +3966,7 @@ const FIELD_PREFLIGHT_COMPACT_IDS = Object.freeze([
   'companion',
   'mavlink',
   'modem',
+  'annotated_video',
   'ask_go',
   'arm_land_blocked',
   'nav_switch_blocked',
@@ -3987,6 +3988,11 @@ function renderFieldPreflightRows(container, field, { compact = false } = {}) {
     art.dataset.required = row.requiredForExperiment1 === true ? 'true' : 'false';
     if (row.statusFileMissing === true) art.dataset.statusFile = 'missing';
     if (row.reason) art.dataset.reason = String(row.reason);
+    if (row.id === 'annotated_video') {
+      art.dataset.path = String(row.path || 'cellular');
+      art.dataset.available = row.available === true ? 'true' : 'false';
+      art.dataset.neverRadio = 'true';
+    }
     const name = document.createElement('span');
     name.className = 'vlr-name';
     name.textContent = row.nameHe || '';

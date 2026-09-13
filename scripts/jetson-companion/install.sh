@@ -20,7 +20,7 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-FILES=(companion_agent.py camera_ingest.py README.md)
+FILES=(companion_agent.py camera_ingest.py annotated_encoder.py README.md)
 
 echo "{\"ok\":true,\"mode\":\"$MODE\",\"dest\":\"$DEST\",\"files\":[\"${FILES[*]}\"]}"
 

@@ -37,7 +37,7 @@ export VLC_CAM2_ROLE=down
 
 CSI example: `VLC_CAM1_DEVICE=csi:0` (needs Jetson OpenCV / GStreamer later).
 
-6. Start the existing 2.3.5 agent (UART fan-out unchanged; modem status is observe-only):
+6. Start the existing 2.3.6 agent (UART fan-out unchanged; modem and annotated-video status are observe-only):
 
 ```
 python3 companion_agent.py
@@ -47,11 +47,13 @@ python3 companion_agent.py
 
 ```
 curl -s http://127.0.0.1:8081/api/v1/status/cameras
+curl -s http://127.0.0.1:8081/api/v1/status/annotated-video
 curl -s -o /tmp/cam1.jpg -w '%{http_code}\n' http://127.0.0.1:8081/api/v1/cameras/cam1/frame
 ```
 
 Absent device → `camera_ok: false`, no JPEG, Hebrew empty state **אין פריים**.
 Live frames → fps + `last_frame_age_ms` + JPEG. Annotated vision stays **cellular-only**.
+`/api/v1/status/annotated-video` stays `available: false` with `modem_absent` or `stream_absent` until a real stream URL exists. Radio never satisfies that path.
 
 ## Dry-run (no cameras)
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Vision Landing Console — Jetson companion: MAVLink relay + HTTP API + heartbeat.
 
-AGENT_VERSION 2.3.5 = 2.3.4 plus observe-only Huawei E3372 status from the host file.
+AGENT_VERSION 2.3.6 = 2.3.5 plus observe-only annotated encoder honesty over cellular.
 No VIO estimator, no EKF inject, no FC writes, no runway detect.
 Never invent camera_ok, frames, runway detected/locked, or WGS84 position.
 Dry-run never claims a real camera.
@@ -40,7 +40,7 @@ FC_BAUD = int(os.environ.get("VLC_FC_BAUD", "921600"))
 FC_SERIAL_NAME = os.environ.get("VLC_FC_SERIAL_NAME", "SERIAL3")
 RELAY_PORT = int(os.environ.get("VLC_RELAY_PORT", "5770"))
 HTTP_PORT = int(os.environ.get("VLC_HTTP_PORT", "8081"))
-AGENT_VERSION = os.environ.get("VLC_AGENT_VERSION", "2.3.5")
+AGENT_VERSION = os.environ.get("VLC_AGENT_VERSION", "2.3.6")
 MODEM_STATUS_FILE = os.environ.get("AIRVIX_E3372_STATUS_FILE", "/run/airvix/e3372.status")
 
 try:
@@ -48,6 +48,10 @@ try:
 except ImportError:
     ingest_snapshot = None
     ingest_frame_jpeg = None
+try:
+    from annotated_encoder import annotated_encoder_status
+except ImportError:
+    annotated_encoder_status = None
 FC_READ_ONLY = os.environ.get("VLC_FC_READ_ONLY", "1").strip().lower() in {"1", "true", "yes", "on"}
 SKIP_RELAY = os.environ.get("VLC_SKIP_RELAY", "").strip().lower() in {"1", "true", "yes", "on"}
 HTTP_BIND = os.environ.get("VLC_HTTP_BIND", "0.0.0.0")
@@ -506,8 +510,44 @@ def landing_status_payload():
     }
 
 
+def annotated_video_status_payload():
+    """Observe-only annotated egress. Never invents frames. Cellular only."""
+    if annotated_encoder_status:
+        return annotated_encoder_status(modem=modem_status_payload())
+    modem = modem_status_payload()
+    present = modem.get("present") is True
+    reason = "stream_absent" if present else "modem_absent"
+    reason_he = (
+        "אין שידור. אין זרם מסומן ממחשב משימה. ראייה מסומנת לא עוברת ברדיו."
+        if present
+        else "אין שידור. מודם סלולר לא מחובר. ראייה מסומנת מגיעה רק ממחשב משימה."
+    )
+    return {
+        "ok": True,
+        "observe_only": True,
+        "dry_run": True,
+        "available": False,
+        "path": "cellular",
+        "neverRadio": True,
+        "radioSatisfies": False,
+        "streamPresent": False,
+        "streamUrl": None,
+        "annotated_stream_url": None,
+        "frames": False,
+        "inventedFrames": False,
+        "annotated_pipeline": "none",
+        "annotated_fps": None,
+        "modemPresent": present,
+        "reason": reason,
+        "reasonHe": reason_he,
+        "companionHttpCommandPath": False,
+        "flightCommands": False,
+        "noteHe": "ראייה מסומנת רק בסלולר. בלי זרם אין שידור.",
+    }
+
+
 def video_status_payload():
-    """Observe-only video metadata. Annotated stays off. Raw follows ingest honesty."""
+    """Observe-only video metadata. Annotated stays off unless a real stream URL exists."""
     snap = _ingest_or_absent()
     any_ok = snap.get("camera_ok") is True
     raw_name = "none"
@@ -515,11 +555,12 @@ def video_status_payload():
         raw_name = "synthetic"
     elif any_ok and snap.get("real") is True:
         raw_name = "camera_ingest"
+    enc = annotated_video_status_payload()
     return {
         "ok": True,
         "observe_only": True,
         "raw_pipeline": raw_name,
-        "annotated_pipeline": "none",
+        "annotated_pipeline": enc.get("annotated_pipeline") or "none",
         "raw_fps": snap.get("fps") if any_ok else None,
         "annotated_fps": None,
         "bitrate_kbps": None,
@@ -527,7 +568,18 @@ def video_status_payload():
         "annotated_kind": "annotated",
         "dry_run": snap.get("dry_run") is True,
         "real": snap.get("real") is True,
+        "available": enc.get("available") is True,
+        "streamPresent": enc.get("streamPresent") is True,
+        "annotated_stream_url": enc.get("annotated_stream_url") or enc.get("streamUrl"),
+        "path": "cellular",
+        "neverRadio": True,
+        "radioSatisfies": False,
+        "reason": enc.get("reason") or "modem_absent",
+        "reasonHe": enc.get("reasonHe"),
+        "frames": False,
+        "inventedFrames": False,
         "note": "annotated stream stays off; raw follows camera ingest; not invented",
+        "noteHe": enc.get("noteHe") or "ראייה מסומנת רק בסלולר. בלי זרם אין שידור.",
     }
 
 
@@ -793,6 +845,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(200, landing_status_payload())
         if path in ("/api/status/video", "/api/v1/status/video"):
             return self._json(200, video_status_payload())
+        if path in ("/api/status/annotated-video", "/api/v1/status/annotated-video"):
+            return self._json(200, annotated_video_status_payload())
         if path in ("/api/status/modem", "/api/v1/status/modem"):
             return self._json(200, modem_status_payload())
         if path in ("/api/transport-test", "/api/v1/transport-test"):

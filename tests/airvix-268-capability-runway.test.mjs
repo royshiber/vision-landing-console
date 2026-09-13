@@ -45,9 +45,9 @@ function runwayLane() {
 }
 
 describe('AIRVIX 1.02.268 Capability Runway Kanban F2', () => {
-  it('pins APP_VERSION at 1.02.313', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.313'");
-    expect(pkg.version).toBe('1.02.313');
+  it('pins APP_VERSION at 1.02.314', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.314'");
+    expect(pkg.version).toBe('1.02.314');
     expect(changelog).toContain('"version": "1.02.268"');
   });
 

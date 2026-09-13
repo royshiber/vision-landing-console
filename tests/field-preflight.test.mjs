@@ -50,6 +50,9 @@ describe('Exp#1 field preflight honesty', () => {
     expect(rowById(empty, 'link_cellular').tone).toBe('absent');
     expect(rowById(empty, 'modem').state).toBe('modem_absent');
     expect(rowById(empty, 'modem').tone).toBe('absent');
+    expect(rowById(empty, 'annotated_video').reason).toBe('modem_absent');
+    expect(rowById(empty, 'annotated_video').available).toBe(false);
+    expect(rowById(empty, 'annotated_video').neverRadio).toBe(true);
     expect(rowById(empty, 'cameras').state).toBe('unknown');
     expect(rowById(empty, 'cameras').stateHe).not.toBe('חי');
     expect(rowById(empty, 'companion').state).toBe('off');
@@ -163,7 +166,7 @@ describe('Exp#1 field preflight honesty', () => {
     expect(update.steps.find((s) => s.id === 'link_quality').ok).toBe(false);
     expect(update.steps.find((s) => s.id === 'fc_version').ok).toBe(false);
     const known = buildUpdateReadinessChecklist({
-      consoleVersion: '1.02.313',
+      consoleVersion: '1.02.314',
       jetsonVersion: '2.3.5',
       fcVersion: 'ArduPlane 4.5',
       linkQuality: { known: true, percent: 50, bars: 2 },
