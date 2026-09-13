@@ -1,5 +1,21 @@
 [
   {
+    "version": "1.02.312",
+    "date": "2026-09-13",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Cellular full-ops prep — modem honesty, Tailscale check, update readiness",
+        "detail": "APP_VERSION 1.02.312. After master 1.02.311 (#127). Roy 2026-09-13: full ops over cellular, not telemetry-only. Extends the existing dual-link / E3372 pack: Jetson status JSON adds ip/error and the documented udp :14560 MAVLink second path; tailscale-check.sh is observe-only; Companion 2.3.5 reports /api/v1/status/modem from the host status file (absent without USB). Console cellular row uses that report when present and stays modem_absent otherwise. Quality % only from a real metric. Params follow the operator-picked MAVLink command link. Annotated vision stays cellular-only. GET /api/links/update-readiness is status only — no FC flash, no Companion apply/restart. Operator checklist: docs/CELLULAR_FULL_OPS.md and .he.md. No ARM/LAND."
+      },
+      {
+        "type": "test",
+        "title": "Tests",
+        "detail": "cellular-full-ops-prep.test.mjs plus E3372 dry-run, dual-link command pick, annotated-never-radio, and Companion modem_absent honesty."
+      }
+    ]
+  },
+  {
     "version": "1.02.311",
     "date": "2026-09-12",
     "changes": [

@@ -141,13 +141,58 @@ e3372_json_str() {
   fi
 }
 
+e3372_mavlink_type() {
+  _t=$(printf '%s' "${AIRVIX_CELLULAR_MAVLINK_TYPE:-udp}" | tr '[:upper:]' '[:lower:]')
+  if [ "${_t}" = "tcp" ]; then
+    printf 'tcp'
+  else
+    printf 'udp'
+  fi
+}
+
+e3372_mavlink_host() {
+  _h=$(printf '%s' "${AIRVIX_CELLULAR_MAVLINK_HOST:-0.0.0.0}" | tr -d '[:space:]')
+  [ -n "${_h}" ] || _h="0.0.0.0"
+  printf '%s' "${_h}"
+}
+
+e3372_mavlink_port() {
+  _p=$(printf '%s' "${AIRVIX_CELLULAR_MAVLINK_PORT:-14560}" | tr -d '[:space:]')
+  case "${_p}" in
+    ''|*[!0-9]*) printf '14560' ;;
+    *) printf '%s' "${_p}" ;;
+  esac
+}
+
+e3372_iface_ip() {
+  # USB ethernet address only. Not a WAN / public IP. Never invent.
+  _if=$1
+  [ -n "${_if}" ] || return 1
+  case "${_if}" in
+    /dev/*|12d1:*|mock0|null) return 1 ;;
+  esac
+  [ -d "/sys/class/net/${_if}" ] || return 1
+  if command -v ip >/dev/null 2>&1; then
+    ip -4 -o addr show dev "${_if}" 2>/dev/null | awk '{ print $4 }' | awk -F/ '{ print $1; exit }'
+    return 0
+  fi
+  return 1
+}
+
 e3372_write_status() {
-  # Args: present(true|false) state transport iface reason
+  # Args: present(true|false) state transport iface reason [error]
   _present=$1
   _state=$2
   _transport=$3
   _iface=$4
   _reason=$5
+  _error=${6:-}
+  _ip=""
+  if [ "${_present}" = "true" ] && [ -n "${_iface}" ] && [ "${_iface}" != "null" ]; then
+    _ip=$(e3372_iface_ip "${_iface}" || true)
+  fi
+  [ -n "${_ip}" ] || _ip="null"
+  [ -n "${_error}" ] || _error="null"
   _file=$(e3372_status_file)
   _dir=$(dirname -- "${_file}")
   if [ "${AIRVIX_E3372_DRY_RUN:-0}" = "1" ]; then
@@ -164,9 +209,14 @@ e3372_write_status() {
     "  \"state\": $(e3372_json_str "${_state}")," \
     "  \"transport\": $(e3372_json_str "${_transport}")," \
     "  \"iface\": $(e3372_json_str "${_iface}")," \
+    "  \"ip\": $(e3372_json_str "${_ip}")," \
+    "  \"error\": $(e3372_json_str "${_error}")," \
     "  \"reason\": $(e3372_json_str "${_reason}")," \
     "  \"role\": \"cellular\"," \
     "  \"videoPath\": \"cellular\"," \
+    "  \"mavlinkType\": \"$(e3372_mavlink_type)\"," \
+    "  \"mavlinkHost\": \"$(e3372_mavlink_host)\"," \
+    "  \"mavlinkPort\": $(e3372_mavlink_port)," \
     "  \"mavlinkSecondPath\": true," \
     "  \"companionHttpCommandPath\": false," \
     "  \"flightCommands\": false," \

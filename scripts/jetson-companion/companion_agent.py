@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Vision Landing Console — Jetson companion: MAVLink relay + HTTP API + heartbeat.
 
-AGENT_VERSION 2.3.4 = 2.3.3 plus observe-only dual-camera ingest + honest status.
+AGENT_VERSION 2.3.5 = 2.3.4 plus observe-only Huawei E3372 status from the host file.
 No VIO estimator, no EKF inject, no FC writes, no runway detect.
 Never invent camera_ok, frames, runway detected/locked, or WGS84 position.
 Dry-run never claims a real camera.
@@ -40,7 +40,8 @@ FC_BAUD = int(os.environ.get("VLC_FC_BAUD", "921600"))
 FC_SERIAL_NAME = os.environ.get("VLC_FC_SERIAL_NAME", "SERIAL3")
 RELAY_PORT = int(os.environ.get("VLC_RELAY_PORT", "5770"))
 HTTP_PORT = int(os.environ.get("VLC_HTTP_PORT", "8081"))
-AGENT_VERSION = os.environ.get("VLC_AGENT_VERSION", "2.3.4")
+AGENT_VERSION = os.environ.get("VLC_AGENT_VERSION", "2.3.5")
+MODEM_STATUS_FILE = os.environ.get("AIRVIX_E3372_STATUS_FILE", "/run/airvix/e3372.status")
 
 try:
     from camera_ingest import ingest_frame_jpeg, ingest_snapshot
@@ -577,6 +578,73 @@ def optical_nav_status_payload():
     }
 
 
+def _env_flag_on(name):
+    return os.environ.get(name, "").strip().lower() in {"present", "1", "true", "yes", "on"}
+
+
+def _absent_modem(reason="modem_absent", error=None):
+    return {
+        "ok": True,
+        "present": False,
+        "model": "Huawei E3372",
+        "state": "modem_absent",
+        "transport": None,
+        "iface": None,
+        "ip": None,
+        "error": error,
+        "reason": reason,
+        "role": "cellular",
+        "videoPath": "cellular",
+        "mavlinkSecondPath": True,
+        "companionHttpCommandPath": False,
+        "flightCommands": False,
+        "neverRadioVideo": True,
+        "source": "status_file",
+    }
+
+
+def modem_status_payload():
+    """Observe-only E3372 snapshot. Missing file → modem_absent. Never invents up."""
+    if _env_flag_on("AIRVIX_CELLULAR_MOCK") or _env_flag_on("CELLULAR_MODEM_MOCK"):
+        body = _absent_modem("mock_present")
+        body["present"] = True
+        body["state"] = "mock_present"
+        body["transport"] = "mock"
+        body["iface"] = "mock0"
+        body["reason"] = "mock_present"
+        return body
+    path = Path(MODEM_STATUS_FILE)
+    if not path.is_file():
+        return _absent_modem("modem_absent")
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        return _absent_modem("status_unreadable", error=str(exc)[:160])
+    if not isinstance(data, dict):
+        return _absent_modem("status_invalid", error="not_object")
+    present = data.get("present") is True
+    ip = data.get("ip") if isinstance(data.get("ip"), str) and data.get("ip") else None
+    err = data.get("error") if isinstance(data.get("error"), str) and data.get("error") else None
+    return {
+        "ok": True,
+        "present": present,
+        "model": data.get("model") or "Huawei E3372",
+        "state": data.get("state") or ("present" if present else "modem_absent"),
+        "transport": data.get("transport"),
+        "iface": data.get("iface"),
+        "ip": ip,
+        "error": err,
+        "reason": data.get("reason") or ("device_node" if present else "modem_absent"),
+        "role": "cellular",
+        "videoPath": "cellular",
+        "mavlinkSecondPath": True,
+        "companionHttpCommandPath": False,
+        "flightCommands": False,
+        "neverRadioVideo": True,
+        "source": "status_file",
+    }
+
+
 def extras_status_payload():
     snap = _ingest_or_absent()
     any_ok = snap.get("camera_ok") is True
@@ -613,6 +681,7 @@ def status_payload():
         "landing": landing_status_payload(),
         "video": video_status_payload(),
         "extras": extras_status_payload(),
+        "modem": modem_status_payload(),
         "fc": {},
         "mavlink": {},
     }
@@ -630,6 +699,7 @@ def health_payload():
         "landing": landing_status_payload(),
         "video": video_status_payload(),
         "extras": extras_status_payload(),
+        "modem": modem_status_payload(),
     }
 
 
@@ -719,6 +789,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(200, landing_status_payload())
         if path in ("/api/status/video", "/api/v1/status/video"):
             return self._json(200, video_status_payload())
+        if path in ("/api/status/modem", "/api/v1/status/modem"):
+            return self._json(200, modem_status_payload())
         if path in ("/api/transport-test", "/api/v1/transport-test"):
             return self._json(200, transport_test_payload(self_test=False))
         cam_frame = _camera_frame_id(path)

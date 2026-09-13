@@ -23,7 +23,7 @@ CSI (later, on the Jetson with OpenCV / GStreamer): `VLC_CAM1_DEVICE=csi:0`.
 
 ## Agent
 
-Companion **2.3.4** (`scripts/jetson-companion/`):
+Companion **2.3.5** (`scripts/jetson-companion/`):
 
 - `companion_agent.py` — same UART fan-out as 2.3.1 / 2.3.3
 - `camera_ingest.py` — open two devices, capture, honest status + optional JPEG

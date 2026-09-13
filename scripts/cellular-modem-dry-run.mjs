@@ -11,8 +11,11 @@ import { probeHuaweiE3372 } from '../lib/cellular-modem.mjs';
 import {
   annotatedVideoAvailability,
   cellularConnectGate,
+  cellularUpdateReadiness,
+  commandLinkOpsPath,
   summarizeDualLink,
 } from '../lib/dual-link.mjs';
+import { resolveCellularModem } from '../lib/cellular-modem.mjs';
 
 const dry = process.argv.includes('--dry-run') || process.argv.includes('--dry');
 const existsSync = dry ? () => false : fs.existsSync;
@@ -32,6 +35,15 @@ const remote = cellularConnectGate({
   host: '10.0.0.8',
 });
 
+const resolved = resolveCellularModem({ local: modem, companionModem: null });
+const ops = commandLinkOpsPath({
+  active: links.active,
+  modemPresent: resolved.present,
+  companionReachable: false,
+  video,
+});
+const update = cellularUpdateReadiness({ companionReachable: false });
+
 const snapshot = {
   ok: true,
   dryRun: true,
@@ -39,9 +51,12 @@ const snapshot = {
   present: modem.present,
   reason: modem.reason,
   reasonHe: modem.reasonHe,
+  source: resolved.source,
   cellular: links.cellular,
   modemPresent: links.modemPresent,
   video,
+  ops,
+  update,
   remoteConnect: {
     allowed: remote.allowed,
     mode: remote.mode,
@@ -49,6 +64,7 @@ const snapshot = {
   },
   flightCommands: false,
   companionHttpCommandPath: false,
+  autoDeployFc: false,
 };
 
 process.stdout.write(`${JSON.stringify(snapshot, null, 2)}\n`);

@@ -148,6 +148,13 @@
               <p class="conn-link-note">דרך מחשב משימה. לא פקודות דרך HTTP.</p>
               <p id="cellularModemStatus" class="conn-modem-status" data-state="absent" data-reason="modem_absent">מודם לא מחובר</p>
               <p id="annotatedVideoConnectStatus" class="conn-annotated-status" data-state="absent" data-reason="modem_absent" data-path="cellular" data-available="false">ראייה מסומנת · אין שידור. מודם סלולר לא מחובר. ראייה מסומנת מגיעה רק ממחשב משימה.</p>
+              <ul id="cellularOpsChecklist" class="conn-ops-checklist" aria-label="מוכנות סלולר">
+                <li data-step="modem" data-ok="0">מודם לא מחובר</li>
+                <li data-step="jetson" data-ok="0">מחשב משימה — אין הגעה</li>
+                <li data-step="params">פרמטרים עוברים בקישור הפעיל לפקודות</li>
+                <li data-step="video" data-ok="0">ראייה מסומנת רק בסלולר · אין שידור</li>
+                <li data-step="update">עדכון בקר נשאר לאישור. אין הבזקה מכאן.</li>
+              </ul>
               <div class="conn-panel-row">
                 <label class="conn-panel-field" style="flex:1">
                   <span>יעד</span>

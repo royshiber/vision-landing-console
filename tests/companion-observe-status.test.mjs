@@ -48,18 +48,18 @@ async function waitHttp(url, timeoutMs = 8000) {
 }
 
 describe('companion_agent observe-only vision / landing status', () => {
-  it('pins APP_VERSION at 1.02.311', () => {
+  it('pins APP_VERSION at 1.02.312', () => {
     const version = fs.readFileSync(path.join(repoRoot, 'version.js'), 'utf8');
     const pkg = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8'));
-    expect(version).toContain("export const APP_VERSION = '1.02.311'");
-    expect(pkg.version).toBe('1.02.311');
+    expect(version).toContain("export const APP_VERSION = '1.02.312'");
+    expect(pkg.version).toBe('1.02.312');
   });
 
   it('keeps 2.3.1 fan-out UART and reports explicit absent, never invented detect', () => {
     expect(agentSrc).toContain('uart_reader');
     expect(agentSrc).toContain('fanout_uart');
     expect(agentSrc).not.toMatch(/\.recv_match\s*\(/);
-    expect(agentSrc).toMatch(/AGENT_VERSION.*"2\.3\.4"/);
+    expect(agentSrc).toMatch(/AGENT_VERSION.*"2\.3\.5"/);
     expect(agentSrc).toContain('/api/v1/status/vision');
     expect(agentSrc).toContain('/api/v1/status/optical-nav');
     expect(agentSrc).toContain('/api/v1/status/landing');
@@ -88,6 +88,9 @@ describe('companion_agent observe-only vision / landing status', () => {
         VLC_SKIP_RELAY: '1',
         VLC_CONSOLE_URL: 'http://127.0.0.1:1',
         VLC_FC_DEVICE: '/dev/null',
+        AIRVIX_CELLULAR_MOCK: '',
+        CELLULAR_MODEM_MOCK: '',
+        AIRVIX_E3372_STATUS_FILE: '/tmp/airvix-e3372-missing.status',
       },
       stdio: ['ignore', 'pipe', 'pipe'],
     });
@@ -114,15 +117,16 @@ describe('companion_agent observe-only vision / landing status', () => {
   });
 
   it('serves honest absent camera / runway payloads on health and v1 status paths', async () => {
-    const [health, status, vision, landing, video, opticalNav] = await Promise.all([
+    const [health, status, vision, landing, video, opticalNav, modem] = await Promise.all([
       fetch(`${base}/api/health`).then((r) => r.json()),
       fetch(`${base}/api/v1/status`).then((r) => r.json()),
       fetch(`${base}/api/v1/status/vision`).then((r) => r.json()),
       fetch(`${base}/api/v1/status/landing`).then((r) => r.json()),
       fetch(`${base}/api/v1/status/video`).then((r) => r.json()),
       fetch(`${base}/api/v1/status/optical-nav`).then((r) => r.json()),
+      fetch(`${base}/api/v1/status/modem`).then((r) => r.json()),
     ]);
-    expect(health.agentVersion).toBe('2.3.4');
+    expect(health.agentVersion).toBe('2.3.5');
     expect(health.vision.camera_ok).toBe(false);
     expect(health.landing.runway_detector).toBe(false);
     expect(health.landing.runway_detected).toBeNull();
@@ -138,6 +142,12 @@ describe('companion_agent observe-only vision / landing status', () => {
     expect(landing.lock_state).toBeUndefined();
     expect(video.raw_pipeline).toBe('none');
     expect(opticalNav.camera_ok).toBe(false);
+    expect(modem.present).toBe(false);
+    expect(modem.reason).toBe('modem_absent');
+    expect(health.modem.present).toBe(false);
+    expect(status.modem.present).toBe(false);
+    expect(modem.companionHttpCommandPath).toBe(false);
+    expect(modem.flightCommands).toBe(false);
     expect(opticalNav.running).toBe(false);
     expect(opticalNav.present).toBe(false);
     expect(opticalNav.position).toBeNull();

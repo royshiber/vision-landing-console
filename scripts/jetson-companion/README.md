@@ -37,7 +37,7 @@ export VLC_CAM2_ROLE=down
 
 CSI example: `VLC_CAM1_DEVICE=csi:0` (needs Jetson OpenCV / GStreamer later).
 
-6. Start the existing 2.3.4 agent (UART fan-out unchanged):
+6. Start the existing 2.3.5 agent (UART fan-out unchanged; modem status is observe-only):
 
 ```
 python3 companion_agent.py

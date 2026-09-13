@@ -15,6 +15,8 @@ const PACK_FILES = [
   'install.sh',
   'e3372-status.sh',
   'e3372-bringup.sh',
+  'tailscale-check.sh',
+  'cellular-mavlink-endpoint.sh',
   'pack.sh',
   'lib/e3372-common.sh',
   'udev/99-huawei-e3372.rules',
@@ -48,12 +50,12 @@ function lastJson(stdout) {
 }
 
 describe('Jetson Huawei E3372 host pack (software before hardware)', () => {
-  it('pins APP_VERSION at 1.02.311', () => {
+  it('pins APP_VERSION at 1.02.312', () => {
     const version = fs.readFileSync(path.join(repoRoot, 'version.js'), 'utf8');
     const pkg = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8'));
     const changelog = fs.readFileSync(path.join(repoRoot, 'public', 'changelog.json'), 'utf8');
-    expect(version).toContain("export const APP_VERSION = '1.02.311'");
-    expect(pkg.version).toBe('1.02.311');
+    expect(version).toContain("export const APP_VERSION = '1.02.312'");
+    expect(pkg.version).toBe('1.02.312');
     expect(changelog).toContain('"version": "1.02.293"');
   });
 
@@ -62,7 +64,7 @@ describe('Jetson Huawei E3372 host pack (software before hardware)', () => {
       const abs = path.join(pack, rel);
       expect(fs.existsSync(abs), rel).toBe(true);
     }
-    for (const rel of ['install.sh', 'e3372-status.sh', 'e3372-bringup.sh', 'pack.sh']) {
+    for (const rel of ['install.sh', 'e3372-status.sh', 'e3372-bringup.sh', 'tailscale-check.sh', 'cellular-mavlink-endpoint.sh', 'pack.sh']) {
       expect(fs.statSync(path.join(pack, rel)).mode & 0o111, rel).toBeTruthy();
     }
   });
@@ -83,6 +85,10 @@ describe('Jetson Huawei E3372 host pack (software before hardware)', () => {
     expect(absent.videoPath).toBe('cellular');
     expect(absent.companionHttpCommandPath).toBe(false);
     expect(absent.flightCommands).toBe(false);
+    expect(absent.ip).toBeNull();
+    expect(absent.error).toBeNull();
+    expect(absent.mavlinkPort).toBe(14560);
+    expect(absent.mavlinkType).toBe('udp');
 
     const mock = run('e3372-status.sh', ['--dry-run', '--mock']);
     expect(mock.status, mock.stderr).toBe(0);
@@ -100,6 +106,21 @@ describe('Jetson Huawei E3372 host pack (software before hardware)', () => {
     const packed = run('pack.sh', ['--dry-run']);
     expect(packed.status, packed.stderr).toBe(0);
     expect(packed.stdout).toMatch(/99-huawei-e3372\.rules/);
+
+    const tail = run('tailscale-check.sh', ['--dry-run']);
+    expect(tail.status, tail.stderr).toBe(0);
+    const tailJson = lastJson(tail.stdout);
+    expect(tailJson.ok).toBe(true);
+    expect(tailJson.dryRun).toBe(true);
+    expect(tailJson.up).toBe(false);
+    expect(tailJson.flightCommands).toBe(false);
+
+    const endpoint = run('cellular-mavlink-endpoint.sh', ['--dry-run']);
+    expect(endpoint.status, endpoint.stderr).toBe(0);
+    const ep = lastJson(endpoint.stdout);
+    expect(ep.bound).toBe(false);
+    expect(ep.port).toBe(14560);
+    expect(ep.companionHttpCommandPath).toBe(false);
 
     const apply = run('install.sh', ['--apply']);
     expect(apply.status).toBe(1);
@@ -145,6 +166,16 @@ describe('Jetson Huawei E3372 host pack (software before hardware)', () => {
     expect(env).not.toMatch(/100\.82\.59\.45/);
     expect(readme).not.toMatch(/100\.82\.59\.45/);
     expect(docs).not.toMatch(/100\.82\.59\.45/);
+    const fullOps = fs.readFileSync(path.join(repoRoot, 'docs', 'CELLULAR_FULL_OPS.md'), 'utf8');
+    const fullOpsHe = fs.readFileSync(path.join(repoRoot, 'docs', 'CELLULAR_FULL_OPS.he.md'), 'utf8');
+    expect(fullOps).toMatch(/modem_absent/);
+    expect(fullOps).toMatch(/14560/);
+    expect(fullOps).toMatch(/Human Gate/);
+    expect(fullOps).not.toMatch(/100\.82\.59\.45/);
+    expect(fullOpsHe).toMatch(/מודם לא מחובר/);
+    expect(fullOpsHe).not.toMatch(/100\.82\.59\.45/);
+    expect(readme).toMatch(/tailscale-check/);
+    expect(readme).toMatch(/cellular-mavlink-endpoint/);
   });
 
   it('leaves console dual-link on the mock / absent path until USB exists', () => {
