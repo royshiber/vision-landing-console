@@ -166,7 +166,7 @@ describe('Exp#1 field preflight honesty', () => {
     expect(update.steps.find((s) => s.id === 'link_quality').ok).toBe(false);
     expect(update.steps.find((s) => s.id === 'fc_version').ok).toBe(false);
     const known = buildUpdateReadinessChecklist({
-      consoleVersion: '1.02.315',
+      consoleVersion: '1.02.316',
       jetsonVersion: '2.3.5',
       fcVersion: 'ArduPlane 4.5',
       linkQuality: { known: true, percent: 50, bars: 2 },

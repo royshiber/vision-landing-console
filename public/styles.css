@@ -10697,7 +10697,7 @@ html[data-evolve-preview="1"] #development {
 
 .mission-data-picker {
   position: fixed;
-  z-index: 80;
+  z-index: 860;
   min-width: 240px;
   max-width: min(320px, 94vw);
   max-height: min(320px, 70vh);

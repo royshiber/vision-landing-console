@@ -16794,8 +16794,10 @@ function openMissionDataPicker(slotIdx, x, y) {
     currentHint.textContent = current?.label ? `${current.label}${mav ? ` · ${mav}` : ''}` : '';
   }
   const width = Math.min(300, window.innerWidth - 16);
-  const left = Math.min(Math.max(8, x - 24), Math.max(8, window.innerWidth - width - 8));
-  const top = Math.min(Math.max(8, y + 8), Math.max(8, window.innerHeight - 240));
+  let left = x + 12;
+  if (left + width > window.innerWidth - 16) left = x - width - 12;
+  left = Math.min(Math.max(8, left), Math.max(8, window.innerWidth - width - 8));
+  const top = Math.min(Math.max(8, y + 8), Math.max(8, window.innerHeight - 260));
   picker.style.left = `${left}px`;
   picker.style.top = `${top}px`;
   picker.style.width = `${width}px`;
