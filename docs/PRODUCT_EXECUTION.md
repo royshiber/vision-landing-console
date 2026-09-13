@@ -30,6 +30,8 @@ User
 
 Also the product: full flight ops, full params, full Jetson UI control, full auto landing.
 
+Related architecture (docs only, 2026-09-13): custom flight skills live in [`docs/JETSON_FLIGHT_SKILLS.md`](./JETSON_FLIGHT_SKILLS.md). Ask is NLU; Jetson executes non-native maneuvers; FC stays inner-loop. Not a flight-command GO.
+
 Measure by **capabilities closed** and **distance to vision**, not PR count.
 
 ---
