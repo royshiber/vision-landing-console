@@ -1,5 +1,16 @@
 [
   {
+    "version": "1.02.320",
+    "date": "2026-09-13",
+    "changes": [
+      {
+        "type": "test",
+        "title": "Tests",
+        "detail": "ask-spoken-units.test.mjs"
+      }
+    ]
+  },
+  {
     "version": "1.02.319",
     "date": "2026-09-13",
     "changes": [

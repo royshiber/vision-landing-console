@@ -49,7 +49,7 @@ describe('spoken units conversion honesty', () => {
   it('keeps SI metric as the default', () => {
     expect(normalizeSpokenUnits(null)).toEqual(DEFAULT_SPOKEN_UNITS);
     expect(formatSpokenMeasure('altitude', 120, null)).toBe('120 מטר');
-    expect(formatSpokenMeasure('speed', 18, null)).toBe('18.0 מטר לשנייה');
+    expect(formatSpokenMeasure('speed', 18, null)).toBe('18 מטר לשנייה');
     expect(formatSpokenMeasure('verticalRate', 2.5, null)).toBe('2.5 מטר לשנייה');
     expect(formatSpokenMeasure('distance', 1500, { distance: 'km' })).toBe('1.5 קילומטר');
   });
@@ -58,7 +58,7 @@ describe('spoken units conversion honesty', () => {
     const ft = convertSpokenMeasure('altitude', 100, { altitude: 'ft' });
     expect(ft.value).toBeCloseTo(328.084, 2);
     expect(formatSpokenMeasure('altitude', 100, { altitude: 'ft' })).toMatch(/רגל/);
-    expect(formatSpokenMeasure('speed', 10, { speed: 'kmh' })).toBe('36.0 קילומטר לשעה');
+    expect(formatSpokenMeasure('speed', 10, { speed: 'kmh' })).toBe('36 קילומטר לשעה');
     expect(formatSpokenMeasure('speed', 10, { speed: 'kn' })).toMatch(/קשר/);
     expect(formatSpokenMeasure('verticalRate', 1, { verticalRate: 'ftmin' })).toMatch(/רגל לדקה/);
     expect(formatSpokenMeasure('altitude', null, { altitude: 'ft' })).toBe('--');
@@ -72,7 +72,7 @@ describe('spoken units conversion honesty', () => {
     const feet = hebrewReadbackAnswer('altitude', ac, { altitude: 'ft' });
     expect(feet).toMatch(/^גובה\n328 רגל$/);
     const speed = hebrewReadbackAnswer('speed', ac, { speed: 'kmh' });
-    expect(speed).toContain('אוויר 36.0 קילומטר לשעה');
+    expect(speed).toContain('אוויר 36 קילומטר לשעה');
     expect(speed).toContain('קרקע 28.8 קילומטר לשעה');
     const climb = hebrewReadbackAnswer('climb', ac, { verticalRate: 'ftmin' });
     expect(climb).toMatch(/קצב אנכי/);
