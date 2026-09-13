@@ -10696,10 +10696,14 @@ html[data-evolve-preview="1"] #development {
 }
 
 .mission-data-picker {
-  position: absolute;
-  z-index: 8;
+  position: fixed;
+  z-index: 860;
+  display: flex;
+  flex-direction: column;
   min-width: 240px;
-  max-width: min(320px, 92%);
+  max-width: min(320px, 94vw);
+  max-height: min(360px, 72vh);
+  overflow: hidden;
   padding: 10px;
   border-radius: 12px;
   background: #f8fafc;
@@ -10711,11 +10715,20 @@ html[data-evolve-preview="1"] #development {
 .mission-data-picker.hidden { display: none; }
 
 .mission-data-picker-title {
-  margin: 0 0 6px;
+  margin: 0 0 4px;
   font-size: 0.74rem;
   font-weight: 800;
   color: #0f172a;
   font-family: "Heebo", sans-serif;
+}
+
+.mission-data-picker-current {
+  margin: 0 0 6px;
+  min-height: 1em;
+  font-size: 0.62rem;
+  color: #64748b;
+  font-family: "Heebo", sans-serif;
+  direction: rtl;
 }
 
 .mission-data-picker-input {
@@ -10739,21 +10752,40 @@ html[data-evolve-preview="1"] #development {
 
 .mission-data-picker-chips {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
+  flex-direction: column;
+  gap: 4px;
   margin: 0 0 8px;
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow: auto;
 }
 
 .mission-data-picker-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
   border: 1px solid #cbd5e1;
   background: #e2e8f0;
   color: #0f172a;
-  border-radius: 999px;
-  padding: 3px 9px;
+  border-radius: 8px;
+  padding: 5px 8px;
   font-size: 0.66rem;
   font-weight: 700;
   font-family: "Heebo", sans-serif;
   cursor: pointer;
+  text-align: start;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.mission-data-picker-chip-mav {
+  font-family: "Space Grotesk", ui-monospace, monospace;
+  font-size: 0.58rem;
+  font-weight: 600;
+  color: #334155;
+  direction: ltr;
+  unicode-bidi: isolate;
 }
 
 .mission-data-picker-chip:hover {
@@ -10763,6 +10795,7 @@ html[data-evolve-preview="1"] #development {
 .mission-data-picker-actions {
   display: flex;
   gap: 6px;
+  flex: 0 0 auto;
 }
 
 .mission-data-picker-btn {

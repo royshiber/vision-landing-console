@@ -23,11 +23,11 @@ function rowById(snapshot, id) {
 }
 
 describe('P3.1 E3372 modem_absent honesty', () => {
-  it('pins APP_VERSION at 1.02.315', () => {
+  it('pins APP_VERSION at 1.02.317', () => {
     const version = fs.readFileSync(path.join(repoRoot, 'version.js'), 'utf8');
     const pkg = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8'));
-    expect(version).toContain("export const APP_VERSION = '1.02.315'");
-    expect(pkg.version).toBe('1.02.315');
+    expect(version).toContain("export const APP_VERSION = '1.02.317'");
+    expect(pkg.version).toBe('1.02.317');
   });
 
   it('probes absent by default and never invents a cellular link-up', () => {
