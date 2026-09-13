@@ -366,6 +366,7 @@ Suggested presentation (implementation later): rail, drawer, or compact composer
 
 - Text  
 - Voice (STT → intent → policy → answer/action → TTS / ElevenLabs)  
+  Custom flight skills (Ask → Jetson executor, FC inner-loop never bypassed): [`JETSON_FLIGHT_SKILLS.md`](./JETSON_FLIGHT_SKILLS.md). Architecture lock only; not a `FLIGHT_ACTION` unlock.  
 
 UI remains primary (~70%). During Mission with hands on RC, voice share may rise without changing the overall product bet.
 

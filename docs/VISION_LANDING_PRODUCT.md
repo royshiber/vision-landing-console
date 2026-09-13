@@ -28,6 +28,7 @@ Related:
 - [`CELLULAR_FULL_OPS.md`](./CELLULAR_FULL_OPS.md) — annotated video is cellular-only
 - [`TELEMETRY_ARCHIVE.md`](./TELEMETRY_ARCHIVE.md) — operator-armed recording
 - [`ADVISOR_SAFETY.md`](./ADVISOR_SAFETY.md) — advisor must never become a silent FC writer
+- [`JETSON_FLIGHT_SKILLS.md`](./JETSON_FLIGHT_SKILLS.md) — custom flight skills (Ask → Jetson); not this vision-landing path
 - [`COMMERCIAL_CAPABILITIES.he.md`](./COMMERCIAL_CAPABILITIES.he.md) — outbound commercial summary; do not list unbuilt vision-land as shipped
 
 ---

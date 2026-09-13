@@ -10,6 +10,12 @@
 docs/VISION_LANDING_PRODUCT.md
 ```
 
+תרגילי טיסה מיוחדים הם מסמך אחר:
+
+```
+docs/JETSON_FLIGHT_SKILLS.he.md
+```
+
 ---
 
 ## למה זה חשוב
