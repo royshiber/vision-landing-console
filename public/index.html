@@ -224,6 +224,7 @@
           <strong class="assist-rail-title"><bdi dir="ltr">AIRVIX Ask</bdi></strong>
           <span class="assist-rail-mark" aria-hidden="true">ASSIST</span>
           <span id="assistContextChip" class="assist-context-chip">—</span>
+          <span id="assistTalkbackStatus" class="assist-talkback-status" data-talkback="unknown">בודקים דיבור-חזרה…</span>
           <span id="assistAttentionBadge" class="assist-attention-badge" hidden></span>
         </div>
         <button type="button" id="assistCloseBtn" class="assist-close-btn" aria-label="סגור">✕</button>
@@ -356,8 +357,35 @@
             </div>
             <p class="gs-hint">חלה על ElevenLabs וביצוע קול בדפדפן. עוצמת המערכת ב-Windows עדיין משפיעה על השמע.</p>
           </section>
+          <section class="gs-section" id="gsSpokenUnits">
+            <h3 class="gs-h">יחידות דיבור</h3>
+            <p class="gs-hint">חל על מה ש<bdi dir="ltr">AIRVIX Ask</bdi> אומר ומציג בשורת הדיבור. מספרי המכשיר נשארים כפי שהם. זוויות נשארות מעלות.</p>
+            <label class="gs-label" for="gsSpokenAlt">גובה</label>
+            <select id="gsSpokenAlt" class="gs-select" data-spoken-kind="altitude">
+              <option value="m">מטרים</option>
+              <option value="ft">רגל</option>
+            </select>
+            <label class="gs-label" for="gsSpokenSpeed">מהירות</label>
+            <select id="gsSpokenSpeed" class="gs-select" data-spoken-kind="speed">
+              <option value="ms">מטר לשנייה</option>
+              <option value="kmh">קילומטר לשעה</option>
+              <option value="kn">קשר</option>
+            </select>
+            <label class="gs-label" for="gsSpokenDist">מרחק</label>
+            <select id="gsSpokenDist" class="gs-select" data-spoken-kind="distance">
+              <option value="m">מטרים</option>
+              <option value="km">קילומטר</option>
+              <option value="ft">רגל</option>
+            </select>
+            <label class="gs-label" for="gsSpokenVrate">קצב אנכי</label>
+            <select id="gsSpokenVrate" class="gs-select" data-spoken-kind="verticalRate">
+              <option value="ms">מטר לשנייה</option>
+              <option value="ftmin">רגל לדקה</option>
+            </select>
+          </section>
           <section class="gs-section">
             <h3 class="gs-h">קול ElevenLabs</h3>
+            <p id="gsTalkbackStatus" class="gs-talkback-status" data-talkback="unknown">בודקים דיבור-חזרה…</p>
             <label class="gs-label" for="gsElevenVoice">בחר קול (כשמוגדר מפתח בשרת)</label>
             <select id="gsElevenVoice" class="gs-select"></select>
           </section>

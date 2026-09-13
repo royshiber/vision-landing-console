@@ -1,5 +1,16 @@
 [
   {
+    "version": "1.02.319",
+    "date": "2026-09-13",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Ask spoken units, talk-back honesty, and free-form voice",
+        "detail": "APP_VERSION 1.02.319. After master 1.02.318. Settings add spoken units for altitude, speed, distance, and vertical rate (metric, km/h, m/s, knots, feet, ft/min). Ask readbacks speak and show those units; HUD numbers stay as-is. Angles stay degrees. Missing ELEVENLABS_API_KEY shows דיבור-חזרה לא מחובר and uses browser speechSynthesis only — no fake ElevenLabs. Ask answers play through the existing TTS path and ttsVolume. Free-form Hebrew/English is classified by Gemini onto the gated FLIGHT_OP / PARAM / QUESTION pipelines; regex remains a fast path. ARM / DISARM stay blocked even when paraphrased. Params still need confirm. LAND / RTL / MODE still require GO. No invented telemetry."
+      }
+    ]
+  },
+  {
     "version": "1.02.318",
     "date": "2026-09-13",
     "changes": [
