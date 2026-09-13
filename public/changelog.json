@@ -1,5 +1,21 @@
 [
   {
+    "version": "1.02.316",
+    "date": "2026-09-13",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Mission data tiles: right-click picker for telemetry fields",
+        "detail": "APP_VERSION 1.02.316. After master 1.02.315 (#132 Ask RTL). Right-click or long-press a Mission numeric tile opens בחירת נתון at the pointer: Hebrew search, suggestion list with technical keys such as VFR_HUD.alt and ATTITUDE.pitch, click-to-apply or אישור / ביטול. Choice persists per slot in localStorage. Reuses the existing HUD / Status field catalog. Missing or unknown values stay --. GPS 0,0 is not shown as a coordinate. PFD IAS/ALT tapes stay fixed. No ARM/LAND and no Ask GO change."
+      },
+      {
+        "type": "test",
+        "title": "Tests",
+        "detail": "mission-data-picker.test.mjs — picker open contract, persist per slot, honesty dashes, catalog sync including VFR_HUD.alt / ATTITUDE.pitch."
+      }
+    ]
+  },
+  {
     "version": "1.02.315",
     "date": "2026-09-13",
     "changes": [

@@ -68,6 +68,17 @@ describe('suggestMissionDataFields', () => {
     expect(miss.chips.every((c) => typeof c.key === 'string')).toBe(true);
     expect(JSON.stringify(miss)).not.toMatch(/12\.4/);
   });
+
+  it('matches technical MAVLink keys used in the suggestion list', () => {
+    const alt = suggestMissionDataFields('VFR_HUD.alt');
+    expect(alt.exact?.key).toBe('mavlink.altitude');
+    expect(alt.chips[0].mav).toBe('VFR_HUD.alt');
+    const pitch = suggestMissionDataFields('ATTITUDE.pitch');
+    expect(pitch.exact?.key).toBe('mavlink.pitchDeg');
+    expect(pitch.chips[0].mav).toBe('ATTITUDE.pitch');
+    expect(FLIGHT_HUD_CATALOG.some((e) => e.key === 'mavlink.fcLoadPct' && e.mav === 'SYS_STATUS.load')).toBe(true);
+    expect(FLIGHT_HUD_CATALOG.some((e) => e.key === 'mavlink.gpsLat')).toBe(false);
+  });
 });
 
 describe('parseHudGeminiResolution', () => {

@@ -1911,7 +1911,7 @@
             <section class="mission-region mission-region-data" data-mission-region="data" aria-label="נתונים">
             <h3 class="mission-region-title" draggable="true">נתונים</h3>
             <button type="button" id="missionAskDataBtn" class="mission-ask-chip">שאלו על הנתונים</button>
-            <p class="mission-data-hint">קליק ימני על אריח לבחירת שדה.</p>
+            <p class="mission-data-hint">קליק ימני או לחיצה ארוכה על אריח לבחירת שדה.</p>
             <dl id="missionDataGrid" class="mission-data-grid" aria-label="מדדי טיסה">
               <div class="mission-data-item mission-data-tile" data-mission-data-slot="0">
                 <dt class="mission-data-label">מוד</dt>
@@ -1942,14 +1942,16 @@
                 </dd>
               </div>
             </dl>
-            <div id="missionDataPicker" class="mission-data-picker hidden" role="dialog" aria-label="בחירת שדה">
-              <p class="mission-data-picker-title">מה להציג באריח</p>
-              <input id="missionDataPickerInput" class="mission-data-picker-input" type="text" maxlength="120" placeholder="למשל מהירות קרקע או גובה" autocomplete="off" />
-              <p id="missionDataPickerHint" class="mission-data-picker-hint">כתבו בעברית או באנגלית. נציע שדות שהקונסולה כבר מכירה.</p>
-              <div id="missionDataPickerChips" class="mission-data-picker-chips"></div>
+            <div id="missionDataPicker" class="mission-data-picker hidden" role="dialog" aria-labelledby="missionDataPickerTitle" aria-modal="true">
+              <p id="missionDataPickerTitle" class="mission-data-picker-title">בחירת נתון</p>
+              <p id="missionDataPickerCurrent" class="mission-data-picker-current"></p>
+              <input id="missionDataPickerInput" class="mission-data-picker-input" type="search" maxlength="120" placeholder="חיפוש שדה" autocomplete="off" />
+              <p id="missionDataPickerHint" class="mission-data-picker-hint">כתבו בעברית או לפי מפתח שדה. בחירה מחליפה רק את האריח.</p>
+              <div id="missionDataPickerChips" class="mission-data-picker-chips" role="listbox" aria-label="הצעות שדה"></div>
               <div class="mission-data-picker-actions">
-                <button type="button" id="missionDataPickerSuggest" class="mission-data-picker-btn">הצע</button>
-                <button type="button" id="missionDataPickerClose" class="mission-data-picker-btn mission-data-picker-btn--quiet">סגור</button>
+                <button type="button" id="missionDataPickerApply" class="mission-data-picker-btn">אישור</button>
+                <button type="button" id="missionDataPickerSuggest" class="mission-data-picker-btn mission-data-picker-btn--quiet">הצע</button>
+                <button type="button" id="missionDataPickerClose" class="mission-data-picker-btn mission-data-picker-btn--quiet">ביטול</button>
               </div>
             </div>
           </section>

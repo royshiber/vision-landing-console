@@ -216,24 +216,32 @@ const MISSION_DATA_SLOTS_KEY = 'visionLandingMissionDataSlotsV1';
 const PULSE_WIDGETS_KEY = 'visionLandingPulseWidgetsV1';
 const MISSION_REGION_IDS = Object.freeze(['horizon', 'map', 'data', 'messages', 'talk']);
 const MISSION_DATA_CATALOG = Object.freeze([
-  { key: 'mavlink.airspeed', label: 'מהירות אוויר', unit: 'm/s', tokens: ['ias', 'airspeed', 'אוויר', 'מהירות'] },
-  { key: 'mavlink.groundspeed', label: 'מהירות קרקעית', unit: 'm/s', tokens: ['gs', 'groundspeed', 'קרקע', 'מהירות'] },
-  { key: 'mavlink.climbRate', label: 'מהירות אנכית', unit: 'm/s', tokens: ['climb', 'אנכי', 'עלייה'] },
-  { key: 'mavlink.altitude', label: 'גובה', unit: 'm', tokens: ['alt', 'altitude', 'גובה'] },
-  { key: 'mavlink.heading', label: 'כיוון אף', unit: '°', tokens: ['hdg', 'heading', 'כיוון'] },
-  { key: 'mavlink.flightMode', label: 'מוד', unit: '', tokens: ['mode', 'מוד', 'מצב'] },
-  { key: 'mavlink.armed', label: 'מצב ARM', unit: '', tokens: ['arm', 'armed'] },
-  { key: 'mavlink.batteryV', label: 'מתח סוללה', unit: 'V', tokens: ['volt', 'מתח'] },
-  { key: 'mavlink.batteryPct', label: 'טעינת סוללה', unit: '%', tokens: ['battery', 'סוללה'] },
-  { key: 'mavlink.rollDeg', label: 'רול', unit: '°', tokens: ['roll', 'רול'] },
-  { key: 'mavlink.pitchDeg', label: 'פיץ׳', unit: '°', tokens: ['pitch', 'פיץ'] },
-  { key: 'mavlink.gpsFixType', label: 'Fix GPS', unit: '', tokens: ['fix', 'gps'] },
-  { key: 'mavlink.gpsSats', label: 'לוויינים GPS', unit: '', tokens: ['sats', 'לוויינים'] },
+  { key: 'mavlink.airspeed', label: 'מהירות אוויר', unit: 'm/s', mav: 'VFR_HUD.airspeed', tokens: ['ias', 'airspeed', 'אוויר', 'מהירות'] },
+  { key: 'mavlink.groundspeed', label: 'מהירות קרקעית', unit: 'm/s', mav: 'VFR_HUD.groundspeed', tokens: ['gs', 'groundspeed', 'קרקע', 'מהירות'] },
+  { key: 'mavlink.climbRate', label: 'מהירות אנכית', unit: 'm/s', mav: 'VFR_HUD.climb', tokens: ['climb', 'אנכי', 'עלייה'] },
+  { key: 'mavlink.altitude', label: 'גובה', unit: 'm', mav: 'VFR_HUD.alt', tokens: ['alt', 'altitude', 'גובה'] },
+  { key: 'mavlink.heading', label: 'כיוון אף', unit: '°', mav: 'VFR_HUD.heading', tokens: ['hdg', 'heading', 'כיוון'] },
+  { key: 'mavlink.flightMode', label: 'מוד טיסה', unit: '', mav: 'HEARTBEAT.custom_mode', tokens: ['mode', 'מוד', 'מצב'] },
+  { key: 'mavlink.armed', label: 'מצב ARM', unit: '', mav: 'HEARTBEAT.base_mode', tokens: ['arm', 'armed'] },
+  { key: 'mavlink.batteryV', label: 'מתח סוללה', unit: 'V', mav: 'SYS_STATUS.voltage_battery', tokens: ['volt', 'מתח'] },
+  { key: 'mavlink.batteryPct', label: 'טעינת סוללה', unit: '%', mav: 'SYS_STATUS.battery_remaining', tokens: ['battery', 'סוללה'] },
+  { key: 'mavlink.fcLoadPct', label: 'עומס FC', unit: '%', mav: 'SYS_STATUS.load', tokens: ['load', 'עומס'] },
+  { key: 'mavlink.rollDeg', label: 'רול', unit: '°', mav: 'ATTITUDE.roll', tokens: ['roll', 'רול'] },
+  { key: 'mavlink.pitchDeg', label: 'פיץ׳', unit: '°', mav: 'ATTITUDE.pitch', tokens: ['pitch', 'פיץ'] },
+  { key: 'mavlink.gpsFixType', label: 'Fix GPS', unit: '', mav: 'GPS_RAW_INT.fix_type', tokens: ['fix', 'gps'] },
+  { key: 'mavlink.gpsSats', label: 'לוויינים GPS', unit: '', mav: 'GPS_RAW_INT.satellites_visible', tokens: ['sats', 'לוויינים'] },
   { key: 'vision.confidence', label: 'ביטחון נחיתה', unit: '%', tokens: ['confidence', 'ביטחון', 'נחיתה'] },
+  { key: 'vision.headingErrorDeg', label: 'שגיאת כיוון Vision', unit: '°', tokens: ['heading error', 'שגיאת כיוון'] },
   { key: 'mission.link', label: 'קישור', unit: '', tokens: ['link', 'קישור', 'rssi'] },
   { key: 'mission.gpsVisionDelta', label: 'הפרש ראייה', unit: 'm', tokens: ['הפרש', 'ראייה', 'delta'] },
+  { key: 'slam.posX', label: 'SLAM X', unit: 'm', tokens: ['slam x'] },
+  { key: 'slam.posY', label: 'SLAM Y', unit: 'm', tokens: ['slam y'] },
+  { key: 'slam.posZ', label: 'SLAM Z', unit: 'm', tokens: ['slam z'] },
+  { key: 'slam.yawDeg', label: 'SLAM יאו', unit: '°', tokens: ['slam yaw'] },
+  { key: 'slam.mapQuality', label: 'איכות מפת SLAM', unit: '', tokens: ['map quality', 'איכות'] },
   { key: 'jetson.cpuLoadPct', label: 'עומס CPU Jetson', unit: '%', tokens: ['cpu', 'עומס'] },
   { key: 'jetson.tempC', label: 'טמפ׳ Jetson', unit: '°C', tokens: ['temp', 'טמפ'] },
+  { key: 'jetson.memPct', label: 'זיכרון Jetson', unit: '%', tokens: ['mem', 'זיכרון'] },
 ]);
 const DEFAULT_MISSION_DATA_SLOTS = Object.freeze([
   { key: 'mavlink.flightMode', label: 'מוד', unit: '' },
@@ -5598,6 +5606,18 @@ function hydrateMissionHudFromLiveLink(sseMav) {
   applyTopbarFlightData(resolved);
   applyFlightHud(resolved);
   applyFcStatustextHud(resolved);
+  if (typeof applyMissionDataGrid === 'function') {
+    try {
+      applyMissionDataGrid({
+        mavlink: resolved,
+        vision: typeof lastSseTerrainPayload !== 'undefined' ? lastSseTerrainPayload?.vision : null,
+        jetson: typeof latestJetsonFromServer !== 'undefined' ? latestJetsonFromServer : null,
+        slam: typeof lastSseTerrainPayload !== 'undefined' ? lastSseTerrainPayload?.slam : null,
+      });
+    } catch {
+      /* grid is optional in sliced tests */
+    }
+  }
   return resolved;
 }
 
@@ -6552,6 +6572,18 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') closeMapFlyToMenu();
 });
 
+function missionTileBoundKey(el) {
+  const item = el && typeof el.closest === 'function' ? el.closest('[data-mission-data-slot]') : null;
+  if (!item) return null;
+  try {
+    const slots = readMissionDataSlots();
+    const idx = Number(item.dataset.missionDataSlot);
+    return slots[idx]?.key || null;
+  } catch {
+    return null;
+  }
+}
+
 function applyTopbarFlightData(mav) {
   if (mav) latestHudMavlink = mav;
   if (!mav) {
@@ -6569,7 +6601,8 @@ function applyTopbarFlightData(mav) {
   if (miniSpd) miniSpd.classList.toggle('tele-hud-mini--airspeed-proxy', !!mav.airspeedIsGroundspeedProxy);
   const miniAlt = hudAltitudeEl?.closest('.tele-hud-mini');
   if (miniAlt) miniAlt.classList.toggle('tele-hud-mini--time-skew', !!mav.hudTimeSkewWarn);
-  if (hudAirspeedEl) {
+  const airspeedBound = typeof missionTileBoundKey === 'function' ? missionTileBoundKey(hudAirspeedEl) : null;
+  if (hudAirspeedEl && (!airspeedBound || airspeedBound === 'mavlink.airspeed')) {
     const spd = mav.airspeed;
     const useTile = hudAirspeedEl.classList.contains('mission-data-value');
     hudAirspeedEl.textContent = (typeof spd === 'number' && Number.isFinite(spd))
@@ -6577,7 +6610,8 @@ function applyTopbarFlightData(mav) {
       : (useTile ? '--' : '-- m/s');
     hudAirspeedEl.title = airspeedTileHonestyTitle(mav);
   }
-  if (hudAltitudeEl) {
+  const altitudeBound = typeof missionTileBoundKey === 'function' ? missionTileBoundKey(hudAltitudeEl) : null;
+  if (hudAltitudeEl && (!altitudeBound || altitudeBound === 'mavlink.altitude')) {
     const alt = mav.altitude;
     const useTile = hudAltitudeEl.classList.contains('mission-data-value');
     hudAltitudeEl.textContent = altitudeIsFinite(alt)
@@ -6588,7 +6622,8 @@ function applyTopbarFlightData(mav) {
     const tile = hudAltitudeEl.closest('.mission-data-tile, .tele-hud-mini');
     if (tile) tile.title = altTitle;
   }
-  if (hudFlightModeEl) {
+  const modeBound = typeof missionTileBoundKey === 'function' ? missionTileBoundKey(hudFlightModeEl) : null;
+  if (hudFlightModeEl && (!modeBound || modeBound === 'mavlink.flightMode')) {
     const mode = ARDUPILOT_PLANE_MODES[mav.flightMode];
     hudFlightModeEl.textContent = mode ?? (mav.connected ? `#${mav.flightMode ?? '--'}` : '--');
   }
@@ -16531,14 +16566,21 @@ function initMissionMessages() {
 function suggestMissionDataFields(text) {
   const raw = String(text || '').trim().toLowerCase().replace(/\s+/g, ' ');
   if (!raw) {
-    return { chips: MISSION_DATA_CATALOG.slice(0, 6), hint: 'כתבו מה להציג, או בחרו אפשרות.', exact: null };
+    return { chips: MISSION_DATA_CATALOG.slice(0, 8), hint: 'כתבו מה להציג, או בחרו אפשרות.', exact: null };
   }
   const ranked = MISSION_DATA_CATALOG.map((entry) => {
     let score = 0;
     const label = String(entry.label || '').toLowerCase();
+    const mav = String(entry.mav || '').toLowerCase();
+    if (mav && (raw === mav || raw.includes(mav))) score += 96;
     if (raw.includes(label) || (label && label.includes(raw) && raw.length >= 3)) score += 80;
     const keyPart = String(entry.key || '').split('.')[1] || '';
     if (keyPart && raw.includes(keyPart.toLowerCase())) score += 22;
+    if (mav) {
+      const mavField = mav.split('.')[1] || '';
+      if (mavField.length >= 2 && raw.includes(mavField)) score += 28;
+      if (raw.includes(mav.split('.')[0])) score += 10;
+    }
     for (const token of entry.tokens || []) {
       if (token.length >= 2 && raw.includes(String(token).toLowerCase())) score += 14;
     }
@@ -16551,13 +16593,13 @@ function suggestMissionDataFields(text) {
   const second = ranked[1];
   if (second && top.score - second.score < 10) {
     return {
-      chips: ranked.filter((r) => r.score >= top.score - 8).slice(0, 5).map((r) => r.entry),
+      chips: ranked.filter((r) => r.score >= top.score - 8).slice(0, 6).map((r) => r.entry),
       hint: 'לא זוהה במדויק. נסחו מחדש או בחרו אפשרות.',
       exact: null,
     };
   }
   return {
-    chips: ranked.slice(0, 5).map((r) => r.entry),
+    chips: ranked.slice(0, 6).map((r) => r.entry),
     hint: 'בחרו אפשרות, או נסחו מחדש.',
     exact: top.entry,
   };
@@ -16575,7 +16617,7 @@ function readMissionDataSlots() {
     return raw.map((slot, i) => {
       const found = MISSION_DATA_CATALOG.find((e) => e.key === slot?.key);
       if (!found) return fallback[i];
-      return { key: found.key, label: found.label, unit: found.unit };
+      return { key: found.key, label: found.label, unit: found.unit, mav: found.mav || '' };
     });
   } catch {
     return fallback;
@@ -16596,6 +16638,13 @@ function shortMissionLinkReadout(full) {
 }
 
 function formatMissionDataValue(key, payload) {
+  if (key === 'mavlink.gpsLat' || key === 'mavlink.gpsLon' || key === 'mavlink.map.gpsLat' || key === 'mavlink.map.gpsLon') {
+    const mapData = payload?.mavlink?.map;
+    const raw = key.endsWith('gpsLat') ? mapData?.gpsLat : mapData?.gpsLon;
+    if (typeof raw !== 'number' || !Number.isFinite(raw)) return '--';
+    if (raw === 0 && (mapData?.gpsLat === 0 || mapData?.gpsLat == null) && (mapData?.gpsLon === 0 || mapData?.gpsLon == null)) return '--';
+    return raw.toFixed(5);
+  }
   if (key === 'mission.link') {
     const linkLabel = document.getElementById('connectPillLabel')?.textContent?.trim() || '';
     return shortMissionLinkReadout(linkLabel);
@@ -16700,7 +16749,18 @@ function renderMissionDataPickerChips(result) {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'mission-data-picker-chip';
-    btn.textContent = chip.unit ? `${chip.label} · ${chip.unit}` : chip.label;
+    btn.dataset.fieldKey = chip.key;
+    const name = document.createElement('span');
+    name.className = 'mission-data-picker-chip-label';
+    name.textContent = chip.unit ? `${chip.label} · ${chip.unit}` : chip.label;
+    btn.appendChild(name);
+    if (chip.mav) {
+      const mav = document.createElement('code');
+      mav.className = 'mission-data-picker-chip-mav';
+      mav.dir = 'ltr';
+      mav.textContent = chip.mav;
+      btn.appendChild(mav);
+    }
     btn.addEventListener('click', () => {
       applyMissionDataSlotChoice(chip);
     });
@@ -16711,7 +16771,9 @@ function renderMissionDataPickerChips(result) {
 let _missionDataPickerSlot = -1;
 
 function closeMissionDataPicker() {
-  document.getElementById('missionDataPicker')?.classList.add('hidden');
+  const picker = document.getElementById('missionDataPicker');
+  picker?.classList.add('hidden');
+  picker?.removeAttribute('data-open-slot');
   _missionDataPickerSlot = -1;
 }
 
@@ -16722,22 +16784,28 @@ function openMissionDataPicker(slotIdx, x, y) {
   const slots = readMissionDataSlots();
   const current = slots[slotIdx];
   const input = document.getElementById('missionDataPickerInput');
-  if (input) input.value = current?.label || '';
-  renderMissionDataPickerChips(suggestMissionDataFields(input?.value || ''));
+  if (input) input.value = '';
+  renderMissionDataPickerChips(suggestMissionDataFields(''));
   picker.classList.remove('hidden');
-  const host = picker.closest('.mission-region-data') || document.body;
-  const hr = host.getBoundingClientRect();
-  const left = Math.min(Math.max(8, x - hr.left - 20), Math.max(8, hr.width - 260));
-  const top = Math.min(Math.max(8, y - hr.top + 8), Math.max(8, hr.height - 160));
+  picker.setAttribute('data-open-slot', String(slotIdx));
+  const currentHint = document.getElementById('missionDataPickerCurrent');
+  if (currentHint) {
+    const mav = current?.mav || MISSION_DATA_CATALOG.find((e) => e.key === current?.key)?.mav || current?.key || '';
+    currentHint.textContent = current?.label ? `${current.label}${mav ? ` · ${mav}` : ''}` : '';
+  }
+  const width = Math.min(300, window.innerWidth - 16);
+  const left = Math.min(Math.max(8, x - 24), Math.max(8, window.innerWidth - width - 8));
+  const top = Math.min(Math.max(8, y + 8), Math.max(8, window.innerHeight - 240));
   picker.style.left = `${left}px`;
   picker.style.top = `${top}px`;
+  picker.style.width = `${width}px`;
   setTimeout(() => input?.focus(), 30);
 }
 
 function applyMissionDataSlotChoice(entry) {
   if (_missionDataPickerSlot < 0 || !entry?.key) return;
   const slots = readMissionDataSlots();
-  slots[_missionDataPickerSlot] = { key: entry.key, label: entry.label, unit: entry.unit || '' };
+  slots[_missionDataPickerSlot] = { key: entry.key, label: entry.label, unit: entry.unit || '', mav: entry.mav || '' };
   writeMissionDataSlots(slots);
   applyMissionDataGrid({
     mavlink: latestHudMavlink,
@@ -16748,14 +16816,46 @@ function applyMissionDataSlotChoice(entry) {
   closeMissionDataPicker();
 }
 
+function confirmMissionDataPickerChoice() {
+  const text = document.getElementById('missionDataPickerInput')?.value || '';
+  const result = suggestMissionDataFields(text);
+  renderMissionDataPickerChips(result);
+  const pick = result.exact || result.chips[0];
+  if (pick) applyMissionDataSlotChoice(pick);
+}
+
+function bindMissionDataSlotPress(item) {
+  item.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    openMissionDataPicker(Number(item.dataset.missionDataSlot), e.clientX, e.clientY);
+  });
+  let pressTimer = 0;
+  const clearPress = () => {
+    if (pressTimer) window.clearTimeout(pressTimer);
+    pressTimer = 0;
+  };
+  item.addEventListener('touchstart', (e) => {
+    if (!e.touches || e.touches.length !== 1) return;
+    const t = e.touches[0];
+    clearPress();
+    pressTimer = window.setTimeout(() => {
+      pressTimer = 0;
+      openMissionDataPicker(Number(item.dataset.missionDataSlot), t.clientX, t.clientY);
+    }, 520);
+  }, { passive: true });
+  item.addEventListener('touchend', clearPress);
+  item.addEventListener('touchmove', clearPress);
+  item.addEventListener('touchcancel', clearPress);
+}
+
 function initMissionDataPicker() {
   applyMissionDataSlotsChrome(readMissionDataSlots());
   document.querySelectorAll('[data-mission-data-slot]').forEach((item) => {
-    item.addEventListener('contextmenu', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      openMissionDataPicker(Number(item.dataset.missionDataSlot), e.clientX, e.clientY);
-    });
+    bindMissionDataSlotPress(item);
+  });
+  document.getElementById('missionDataPickerApply')?.addEventListener('click', () => {
+    confirmMissionDataPickerChoice();
   });
   document.getElementById('missionDataPickerSuggest')?.addEventListener('click', () => {
     const text = document.getElementById('missionDataPickerInput')?.value || '';
@@ -16766,7 +16866,17 @@ function initMissionDataPicker() {
   document.getElementById('missionDataPickerInput')?.addEventListener('input', () => {
     renderMissionDataPickerChips(suggestMissionDataFields(document.getElementById('missionDataPickerInput')?.value || ''));
   });
+  document.getElementById('missionDataPickerInput')?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      confirmMissionDataPickerChoice();
+    }
+    if (e.key === 'Escape') closeMissionDataPicker();
+  });
   document.getElementById('missionDataPickerClose')?.addEventListener('click', () => closeMissionDataPicker());
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeMissionDataPicker();
+  });
   document.addEventListener('click', (e) => {
     const picker = document.getElementById('missionDataPicker');
     if (!picker || picker.classList.contains('hidden')) return;
