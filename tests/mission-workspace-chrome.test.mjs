@@ -137,6 +137,7 @@ describe('AIRVIX Mission chrome — workspace regions', () => {
     expect(html).toContain('id="liveGpsVisionDelta"');
     expect(html).toContain('id="liveConfidenceText"');
     expect(html).toContain('id="pfdStatustextStrip"');
+    expect(html).toContain('id="pfdHorizonMsgLog"');
     expect(html).toContain('id="pfcMsgScroll"');
     expect(html).toContain('id="missionTalkHost"');
     expect(html).toMatch(/id="missionTalkHint"[^>]*>דברו להטסה\. אחרי הפעלה — נחיתה ומצב בלי אישור\. חימוש חסום\. פרמטר דורש אישור\.</);
@@ -164,9 +165,9 @@ describe('AIRVIX Mission chrome — talk is flight-safe', () => {
     expect(chip).toContain("kind === 'advisor'");
   });
 
-  it('pins APP_VERSION at 1.02.319', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.319'");
-    expect(pkg.version).toBe('1.02.319');
+  it('pins APP_VERSION at 1.02.320', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.320'");
+    expect(pkg.version).toBe('1.02.320');
   });
 
   it('keeps a rectangular glass artificial horizon with video HUD mode', () => {

@@ -10345,9 +10345,10 @@ html[data-evolve-preview="1"] #development {
 }
 
 /* Layout contract v2: map owns the workspace (≥65% height, majority width).
-   AH column is a flex stack: taller PFD + readable data strip + messages.
+   AH column is a flex stack: taller PFD + readable data strip + slim history.
    PFD grows into leftover gap (min 52%). Data strip ≥ 64px.
-   Messages sit in the AH stack — never an overlay on the map.
+   Live aircraft messages are frameless stacked lines on the AH/video side.
+   History stays a slim secondary strip in the AH stack — never an overlay on the map.
    map-horizon also swaps column tracks so the map keeps 1fr.
    Talk composer stays a panel, never a sliver. Gap ≤ 4px. */
 .terrain-flight-shell.mission-workspace,
@@ -10377,7 +10378,7 @@ html[data-evolve-preview="1"] #development {
 }
 
 .mission-workspace[data-mission-layout="ops-v1"]:has([data-mission-region="messages"][data-messages-expanded="1"]) {
-  --mission-msg-h: min(42%, 280px);
+  --mission-msg-h: min(18%, 96px);
 }
 
 .mission-workspace[data-mission-swap="map-horizon"] {
@@ -10508,7 +10509,7 @@ html[data-evolve-preview="1"] #development {
 }
 .mission-region-messages[data-messages-expanded="1"] {
   height: var(--mission-msg-h);
-  max-height: min(42%, 280px);
+  max-height: min(18%, 96px);
 }
 
 .mission-region-title {
@@ -10562,6 +10563,11 @@ html[data-evolve-preview="1"] #development {
 .mission-region-messages {
   background: #11161f;
   position: relative;
+}
+.mission-region-horizon > .mission-region-messages {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
 }
 .mission-region-data {
   flex-direction: row;
@@ -10821,8 +10827,9 @@ html[data-evolve-preview="1"] #development {
   align-items: center;
   gap: 6px;
   padding: 0 6px;
-  background: #1e3a5f;
-  border: 1px solid rgba(147, 197, 253, 0.45);
+  background: transparent;
+  border: 0;
+  box-shadow: none;
   cursor: pointer;
 }
 .mission-messages-toggle {
@@ -10847,17 +10854,6 @@ html[data-evolve-preview="1"] #development {
   font-weight: 800;
   color: #f8fafc;
 }
-.mission-region-messages[data-messages-expanded="0"] .pfc-msg-primary {
-  margin: 0;
-  font-size: 0.68rem;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
-.mission-region-messages[data-messages-expanded="0"] .pfc-msg-head,
 .mission-region-messages[data-messages-expanded="0"] .pfc-msg-scroll {
   display: none;
 }
@@ -10865,8 +10861,10 @@ html[data-evolve-preview="1"] #development {
 .mission-region-messages[data-messages-expanded="1"] {
   flex-direction: column;
   align-items: stretch;
-  padding: 4px 6px;
-  background: #1e3a5f;
+  padding: 2px 6px;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
   cursor: default;
 }
 .mission-region-messages[data-messages-expanded="1"] .pfc-msg-scroll {
@@ -10917,14 +10915,17 @@ html[data-evolve-preview="1"] #development {
   font-size: 0.78rem;
 }
 
-.mission-region-messages .pfd-statustext-strip {
+.mission-region-messages .pfd-statustext-strip,
+.mission-region-messages .pfd-statustext-strip--history {
   flex: 1 1 auto;
   min-height: 0;
   max-height: none;
   margin: 0;
+  padding: 0;
   border-radius: 0;
   border: 0;
   background: transparent;
+  box-shadow: none;
   display: flex;
   align-items: center;
   min-width: 0;
@@ -11213,6 +11214,66 @@ html[data-evolve-preview="1"] #development {
   border-radius: inherit;
   background: linear-gradient(180deg, rgba(255, 248, 220, 0.08) 0%, transparent 28%);
   box-shadow: inset 0 0 40px rgba(6, 8, 14, 0.18);
+}
+
+/* Live STATUSTEXT: frameless stacked print-log on the AH / video side */
+.pfd-horizon-msg-log {
+  position: absolute;
+  z-index: 4;
+  top: 6px;
+  bottom: 6px;
+  inset-inline-start: 6px;
+  inset-inline-end: auto;
+  left: auto;
+  right: auto;
+  width: max-content;
+  max-width: 54%;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: flex-start;
+  gap: 1px;
+  overflow: hidden;
+  pointer-events: none;
+  background: none;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  outline: none;
+}
+.pfd-horizon-msg-log .pfd-horizon-msg-line,
+.pfd-horizon-msg-log .pfc-msg-primary {
+  display: block;
+  margin: 0;
+  padding: 0;
+  max-width: 100%;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  border-radius: 0;
+  font-family: "Heebo", sans-serif;
+  font-size: 0.68rem;
+  font-weight: 800;
+  line-height: 1.28;
+  color: #ffffff;
+  text-align: start;
+  white-space: normal;
+  overflow: hidden;
+  text-overflow: unset;
+  -webkit-line-clamp: unset;
+  -webkit-box-orient: unset;
+  unicode-bidi: isolate;
+  text-shadow:
+    0 0 2px #000,
+    0 1px 2px #000,
+    1px 1px 0 #000,
+    -1px -1px 0 #000,
+    0 0 8px rgba(0, 0, 0, 0.9);
+}
+.pfd-horizon-msg-log .pfd-horizon-msg-line--warn {
+  color: #ff2a2a;
 }
 .pfd-heading-lane {
   grid-area: hdg;
