@@ -1886,6 +1886,9 @@
                            aria-hidden="true" title="שידור וידאו מהטיסן"></video>
                     <p id="horizonVideoEmpty" class="pfd-horizon-video-empty hidden">אין וידאו. דרושה כתובת זרם ממחשב המשימה.</p>
                     <canvas id="horizonCanvas"></canvas>
+                    <div id="pfdHorizonMsgLog" class="pfd-horizon-msg-log" dir="rtl" aria-live="polite" aria-label="הודעות מטוס">
+                      <p class="pfd-horizon-msg-line pfc-msg-primary" id="pfcMsgPrimaryHe" dir="auto">אין חיבור לבקר — לא מתקבלות הודעות.</p>
+                    </div>
                   </div>
                   <div class="pfd-side-tape pfd-side-tape--right">
                     <span class="pfd-tape-key">ALT</span>
@@ -1982,13 +1985,9 @@
             </aside>
             <section class="mission-region mission-region-messages" data-mission-region="messages" data-messages-expanded="0" aria-label="הודעות מטוס">
               <h3 class="mission-region-title">הודעות מטוס</h3>
-              <button type="button" id="missionMessagesToggle" class="mission-messages-toggle" aria-expanded="false" aria-controls="pfcMsgScroll" title="הצג או הסתר הודעות מטוס">הצג</button>
-              <div class="pfd-statustext-strip" id="pfdStatustextStrip">
-                <div class="pfc-msg-head">
-                  <span class="pfc-msg-label">הודעות מטוס</span>
-                  <span class="pfc-opt-mini" id="pfdOptMini" title="ניווט אופטי">👁 —</span>
-                </div>
-                <p class="pfc-msg-primary" id="pfcMsgPrimaryHe">אין חיבור לבקר — לא מתקבלות הודעות.</p>
+              <button type="button" id="missionMessagesToggle" class="mission-messages-toggle" aria-expanded="false" aria-controls="pfcMsgScroll" title="הצג או הסתר היסטוריית הודעות">הצג</button>
+              <div class="pfd-statustext-strip pfd-statustext-strip--history" id="pfdStatustextStrip">
+                <span class="pfc-opt-mini" id="pfdOptMini" title="ניווט אופטי">👁 —</span>
                 <div class="pfc-msg-scroll" id="pfcMsgScroll" hidden></div>
               </div>
             </section>

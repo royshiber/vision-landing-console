@@ -85,6 +85,11 @@ describe('Mission layout contract — static source', () => {
     expect(cssBlock(css, '.mission-horizon-filler')).toMatch(/max-height:\s*18%/);
     expect(cssBlock(css, '.mission-horizon-filler')).toMatch(/background:\s*#1e293b/);
     expect(cssBlock(css, '.mission-region-messages[data-messages-expanded="0"]')).toMatch(/max-height:\s*40px/);
+    expect(cssBlock(css, '.mission-region-messages[data-messages-expanded="1"]')).toMatch(/max-height:\s*min\(18%, 96px\)/);
+    expect(cssBlock(css, '.pfd-horizon-msg-log')).toMatch(/inset-inline-start:\s*6px/);
+    expect(cssBlock(css, '.pfd-horizon-msg-log')).toMatch(/background:\s*none/);
+    expect(cssBlock(css, '.pfd-horizon-msg-log')).toMatch(/border:\s*0/);
+    expect(cssBlock(css, '.pfd-horizon-msg-log')).not.toMatch(/left:\s*50%/);
     expect(cssBlock(css, '.mission-region[data-mission-region="messages"]')).toMatch(/position:\s*relative/);
     expect(cssBlock(css, '.mission-region[data-mission-region="talk"]')).toMatch(/min-width:\s*240px/);
     expect(cssBlock(css, '.mission-ops-chrome')).toMatch(/min-height:\s*26px/);
@@ -277,7 +282,7 @@ describe('Mission layout contract — live boxes', () => {
     });
 
     expect(measured.platformTab).toBe(false);
-    expect(measured.version).toBe('1.02.319');
+    expect(measured.version).toBe('1.02.320');
     expect(measured.ws.width).toBeGreaterThan(800);
     expect(measured.talkMinWidth).toBe('240px');
     expect(Number.parseFloat(measured.dataGap)).toBeLessThanOrEqual(4);
@@ -487,18 +492,42 @@ describe('Mission layout contract — live boxes', () => {
   }, 20000);
 
   it('grows messages inside the AH stack without covering the map', async () => {
-    await page.evaluate(() => document.getElementById('missionMessagesToggle')?.click());
+    await page.evaluate(() => {
+      if (typeof applyFcStatustextHud === 'function') {
+        applyFcStatustextHud({
+          connected: true,
+          listening: true,
+          heartbeatCount: 8,
+          recentStatusTexts: [
+            { severity: 6, text: 'EKF3 IMU0 is using GPS' },
+            { severity: 2, text: 'PreArm: Compass not healthy' },
+            { severity: 6, text: 'ArduPlane V4.5.0' },
+          ],
+        });
+      }
+      document.getElementById('missionMessagesToggle')?.click();
+    });
     const expanded = await page.evaluate(() => {
       const region = document.querySelector('[data-mission-region="messages"]');
       const map = document.querySelector('[data-mission-region="map"]');
       const horizon = document.querySelector('[data-mission-region="horizon"]');
+      const stage = document.getElementById('pfdHorizonStage');
+      const log = document.getElementById('pfdHorizonMsgLog');
+      const ias = document.querySelector('.pfd-side-tape--left');
+      const alt = document.querySelector('.pfd-side-tape--right');
       const ws = document.querySelector('.mission-workspace');
       const rr = region.getBoundingClientRect();
       const mr = map.getBoundingClientRect();
       const hr = horizon.getBoundingClientRect();
       const wr = ws.getBoundingClientRect();
+      const sr = stage.getBoundingClientRect();
+      const lr = log.getBoundingClientRect();
       const overlap = rr.left < mr.right - 1 && rr.right > mr.left + 1
         && rr.top < mr.bottom - 1 && rr.bottom > mr.top + 1;
+      const logCs = getComputedStyle(log);
+      const lineCs = getComputedStyle(log.querySelector('.pfd-horizon-msg-line') || log);
+      const interiors = (a, b) => a.left < b.right - 1 && a.right > b.left + 1
+        && a.top < b.bottom - 1 && a.bottom > b.top + 1;
       return {
         expanded: region.dataset.messagesExpanded,
         msgH: rr.height,
@@ -507,15 +536,35 @@ describe('Mission layout contract — live boxes', () => {
         overlap,
         insideHorizon: rr.left >= hr.left - 2 && rr.right <= hr.right + 2,
         rows: getComputedStyle(ws).gridTemplateRows,
+        logInsideStage: lr.left >= sr.left - 2 && lr.right <= sr.right + 2
+          && lr.top >= sr.top - 2 && lr.bottom <= sr.bottom + 2,
+        logOnSide: (lr.left - sr.left) < sr.width * 0.45 || (sr.right - lr.right) < sr.width * 0.45,
+        logNotCentered: Math.abs((lr.left + lr.right) / 2 - (sr.left + sr.right) / 2) > 8,
+        logLines: log.querySelectorAll('.pfd-horizon-msg-line').length,
+        logBorder: logCs.borderTopWidth,
+        logBg: logCs.backgroundColor,
+        lineColor: lineCs.color,
+        lineShadow: lineCs.textShadow,
+        overlapIas: interiors(lr, ias.getBoundingClientRect()),
+        overlapAlt: interiors(lr, alt.getBoundingClientRect()),
       };
     });
     expect(expanded.expanded).toBe('1');
     expect(expanded.msgH).toBeGreaterThan(40);
-    expect(expanded.msgH).toBeLessThanOrEqual(expanded.wsH * 0.45);
+    expect(expanded.msgH).toBeLessThanOrEqual(96);
     expect(expanded.mapH / expanded.wsH).toBeGreaterThanOrEqual(0.65);
     expect(expanded.overlap).toBe(false);
     expect(expanded.insideHorizon).toBe(true);
     expect(expanded.rows.split(' ').filter(Boolean).length).toBe(1);
+    expect(expanded.logInsideStage).toBe(true);
+    expect(expanded.logOnSide).toBe(true);
+    expect(expanded.logNotCentered).toBe(true);
+    expect(expanded.logLines).toBeGreaterThanOrEqual(3);
+    expect(Number.parseFloat(expanded.logBorder)).toBe(0);
+    expect(expanded.logBg).toMatch(/rgba\(\s*0,\s*0,\s*0,\s*0\s*\)|transparent/);
+    expect(expanded.lineShadow).not.toBe('none');
+    expect(expanded.overlapIas).toBe(false);
+    expect(expanded.overlapAlt).toBe(false);
     await writeShot(page, 'mission-aircraft-messages.png');
     await page.evaluate(() => document.getElementById('missionMessagesToggle')?.click());
   }, 20000);

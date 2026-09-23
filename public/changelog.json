@@ -1,5 +1,21 @@
 [
   {
+    "version": "1.02.320",
+    "date": "2026-09-18",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Mission aircraft messages as frameless side lines on the AH",
+        "detail": "APP_VERSION 1.02.320. After master 1.02.319. Live FC STATUSTEXT on Mission is a print-log of stacked high-contrast lines on the side of the artificial horizon (or video in that slot): no frame, pill, box, or border. Hebrew/RTL with dir=auto per line. The bottom messages strip is demoted to slim history expand. No ARM/LAND and no Companion apply/restart."
+      },
+      {
+        "type": "test",
+        "title": "Tests",
+        "detail": "mission-messages-side-log.test.mjs — overlay inside AH stage, frameless high-contrast stack, slim history, paint contract. mission-layout-contract live overlay geometry and no tape overlap."
+      }
+    ]
+  },
+  {
     "version": "1.02.319",
     "date": "2026-09-13",
     "changes": [

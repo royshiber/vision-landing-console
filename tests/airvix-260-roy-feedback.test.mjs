@@ -26,10 +26,10 @@ function sliceFunction(src, name) {
   throw new Error(`unclosed function ${name}`);
 }
 
-describe('AIRVIX 1.02.261 Roy feedback (still holds on 1.02.319)', () => {
-  it('pins APP_VERSION at 1.02.319', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.319'");
-    expect(pkg.version).toBe('1.02.319');
+describe('AIRVIX 1.02.261 Roy feedback (still holds on 1.02.320)', () => {
+  it('pins APP_VERSION at 1.02.320', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.320'");
+    expect(pkg.version).toBe('1.02.320');
   });
 
   it('removes Platform from primary chrome and redirects Assist', () => {
@@ -175,7 +175,8 @@ describe('AIRVIX 1.02.261 Roy feedback (still holds on 1.02.319)', () => {
     expect(css).toMatch(/--mission-map-min:\s*65%/);
     expect(css).toMatch(/--mission-msg-h:\s*40px/);
     expect(html).toMatch(/data-mission-region="messages"[^>]*data-messages-expanded="0"/);
-    expect(css).toMatch(/\.mission-region-messages\[data-messages-expanded="0"\] \.pfc-msg-primary/);
+    expect(css).toMatch(/\.mission-region-messages\[data-messages-expanded="0"\]/);
+    expect(css).toMatch(/\.pfd-horizon-msg-log\s*\{/);
     expect(js).toContain('return { c1: 0.18, c2: 1.20, c3: 0.22, r1: 0.88, r2: 0.18, r3: 0.00 }');
   });
 

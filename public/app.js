@@ -5256,6 +5256,7 @@ const hudNavGpsVal     = document.getElementById('hudNavGpsVal');
 const pfdHudWaitHint   = document.getElementById('pfdHudWaitHint');
 const pfcMsgPrimaryHe  = document.getElementById('pfcMsgPrimaryHe');
 const pfcMsgScroll     = document.getElementById('pfcMsgScroll');
+const pfdHorizonMsgLog = document.getElementById('pfdHorizonMsgLog');
 const pfdOptMini       = document.getElementById('pfdOptMini');
 const missionNavDisplayGps = document.getElementById('missionNavDisplayGps');
 const missionNavDisplayOptical = document.getElementById('missionNavDisplayOptical');
@@ -6183,6 +6184,53 @@ function applyNavOpticalStatus(vision, companion) {
   pfdOptMini.title = status.title;
 }
 
+function statusTextLineWarn(sev) {
+  return typeof sev === 'number' && Number.isFinite(sev) && sev <= 4;
+}
+
+function paintFcStatustextOverlay(items) {
+  const rows = Array.isArray(items) ? items : [];
+  const first = String(rows[0]?.text || '').trim();
+  if (pfcMsgPrimaryHe) {
+    pfcMsgPrimaryHe.textContent = first;
+    pfcMsgPrimaryHe.dir = 'auto';
+    pfcMsgPrimaryHe.classList?.toggle?.('pfd-horizon-msg-line--warn', statusTextLineWarn(rows[0]?.severity));
+  }
+  if (!pfdHorizonMsgLog || typeof pfdHorizonMsgLog.querySelectorAll !== 'function') return;
+  if (typeof pfdHorizonMsgLog.appendChild !== 'function') return;
+  pfdHorizonMsgLog.querySelectorAll('[data-horizon-msg-extra="1"]').forEach((node) => node.remove());
+  const hostDoc = pfdHorizonMsgLog.ownerDocument || (typeof document !== 'undefined' ? document : null);
+  if (!hostDoc || typeof hostDoc.createElement !== 'function') return;
+  for (let i = 1; i < Math.min(rows.length, 8); i += 1) {
+    const line = String(rows[i]?.text || '').trim();
+    if (!line) continue;
+    const p = hostDoc.createElement('p');
+    p.dataset.horizonMsgExtra = '1';
+    p.className = 'pfd-horizon-msg-line' + (statusTextLineWarn(rows[i]?.severity) ? ' pfd-horizon-msg-line--warn' : '');
+    p.dir = 'auto';
+    p.textContent = line;
+    pfdHorizonMsgLog.appendChild(p);
+  }
+}
+
+function paintFcStatustextHistory(items) {
+  if (!pfcMsgScroll) return;
+  pfcMsgScroll.innerHTML = '';
+  if (typeof pfcMsgScroll.appendChild !== 'function') return;
+  const hostDoc = pfcMsgScroll.ownerDocument || (typeof document !== 'undefined' ? document : null);
+  if (!hostDoc || typeof hostDoc.createElement !== 'function') return;
+  const rows = Array.isArray(items) ? items : [];
+  for (let i = 0; i < Math.min(rows.length, 18); i += 1) {
+    const line = String(rows[i]?.text || '').trim();
+    if (!line) continue;
+    const p = hostDoc.createElement('p');
+    p.className = 'pfc-msg-line' + (statusTextLineWarn(rows[i]?.severity) ? ' pfc-msg-line--warn' : '');
+    p.dir = 'auto';
+    p.textContent = line;
+    pfcMsgScroll.appendChild(p);
+  }
+}
+
 function applyFcStatustextHud(mavlink) {
   if (!pfcMsgPrimaryHe) return;
   if (!isHudMavlinkLive(mavlink)) {
@@ -6194,7 +6242,8 @@ function applyFcStatustextHud(mavlink) {
       ? latestCompanionFromServer
       : null;
     pfcMsgPrimaryHe.textContent = missionFcEmptyPrimaryHe(companion);
-    if (pfcMsgScroll) pfcMsgScroll.innerHTML = '';
+    paintFcStatustextOverlay([{ text: pfcMsgPrimaryHe.textContent, severity: 6 }]);
+    paintFcStatustextHistory([]);
     _statustextSig = '';
     syncMissionFcEmptyNote(null);
     return;
@@ -6202,8 +6251,10 @@ function applyFcStatustextHud(mavlink) {
   syncMissionFcEmptyNote(mavlink);
   const raw = Array.isArray(mavlink.recentStatusTexts) ? mavlink.recentStatusTexts : [];
   if (!raw.length) {
-    pfcMsgPrimaryHe.textContent = 'אין הודעות STATUSTEXT אחרונות — ריק מהבקר.';
-    if (pfcMsgScroll) pfcMsgScroll.innerHTML = '';
+    const emptyLive = 'אין הודעות STATUSTEXT אחרונות — ריק מהבקר.';
+    pfcMsgPrimaryHe.textContent = emptyLive;
+    paintFcStatustextOverlay([{ text: emptyLive, severity: 6 }]);
+    paintFcStatustextHistory([]);
     _statustextSig = '';
     return;
   }
@@ -6221,6 +6272,8 @@ function applyFcStatustextHud(mavlink) {
     : raw;
   const first = String(ordered[0]?.text || '').trim();
   if (first) pfcMsgPrimaryHe.textContent = first;
+  paintFcStatustextOverlay(ordered.slice(0, 8));
+  paintFcStatustextHistory(ordered.slice(0, 18));
   clearTimeout(_statustextTimer);
   _statustextTimer = setTimeout(() => void translateAndRenderFcStatustext(ordered.slice(0, 18)), 0);
 }
@@ -6236,18 +6289,13 @@ async function translateAndRenderFcStatustext(rows) {
     });
     const d = await resp.json();
     const he = Array.isArray(d.he) ? d.he : texts;
-    if (pfcMsgPrimaryHe && (he[0] || texts[0])) pfcMsgPrimaryHe.textContent = he[0] || texts[0] || '';
-    if (!pfcMsgScroll) return;
-    pfcMsgScroll.innerHTML = '';
-    for (let i = 1; i < Math.min(rows.length, 8); i += 1) {
-      const line = String(he[i] ?? texts[i] ?? rows[i]?.text ?? '').trim();
-      if (!line) continue;
-      const p = document.createElement('p');
-      const sev = rows[i]?.severity;
-      p.className = 'pfc-msg-line' + (typeof sev === 'number' && sev <= 4 ? ' pfc-msg-line--warn' : '');
-      p.textContent = line;
-      pfcMsgScroll.appendChild(p);
-    }
+    const translated = rows.map((row, i) => ({
+      severity: row?.severity,
+      text: String(he[i] ?? texts[i] ?? row?.text ?? '').trim(),
+    })).filter((row) => row.text);
+    if (pfcMsgPrimaryHe && translated[0]?.text) pfcMsgPrimaryHe.textContent = translated[0].text;
+    paintFcStatustextOverlay(translated.slice(0, 8));
+    paintFcStatustextHistory(translated.slice(0, 18));
   } catch {
     if (pfcMsgPrimaryHe) pfcMsgPrimaryHe.textContent = texts[0] || '';
   }
