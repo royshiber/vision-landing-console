@@ -50,14 +50,20 @@ describe('companion FC label, telemetry, and uplinks', () => {
       'utf8',
     );
     expect(proxy).toContain('/network/uplinks');
+    expect(proxy).toContain('/network/uplinks/:link');
     expect(proxy).not.toMatch(/uplinks\/(enable|disable)/);
     expect(yaml).toContain('/network/uplinks:');
+    expect(yaml).toContain('/network/uplinks/{link}:');
     expect(yaml).toContain('uplinkStatus:');
+    expect(yaml).toContain('uplinkControl:');
     const mock = createCompanionMock();
     const health = await mock.getHealth();
     const uplinks = await mock.getNetworkUplinks();
     expect(health.capabilities.uplinkStatus).toBe(true);
-    expect(uplinks.read_only).toBe(true);
+    expect(health.capabilities.uplinkControl).toBe(true);
+    expect(uplinks.read_only).toBe(false);
+    expect(uplinks.wifi.enabled).toBe(true);
+    expect(uplinks.wifi.up).toBe(false);
     expect(uplinks.wifi.up).toBe(false);
     expect(uplinks.wifi.signal_dbm).toBeNull();
     expect(uplinks.cellular.signal.rssi).toBeNull();

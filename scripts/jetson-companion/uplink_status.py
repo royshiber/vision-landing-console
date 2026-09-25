@@ -1,7 +1,7 @@
-"""Read-only Wi-Fi / Huawei E3372 HiLink status.
+"""Wi-Fi / Huawei E3372 HiLink status.
 
-No enable, disable, APN write, or modem restart. Signal is reported only
-from a real HiLink reply. A missing iface or a failed read stays null.
+Signal is reported only from a real HiLink reply. A missing iface or a
+failed read stays null. Link on/off lives in uplink_control.py.
 """
 
 from __future__ import annotations
@@ -351,7 +351,7 @@ def uplinks_payload():
         wifi_link = {"ssid": None, "signal_dbm": None}
     hilink = hilink_status()
     signal = hilink["signal"] if hilink.get("probed") else _empty_signal()
-    return {
+    body = {
         "ok": True,
         "read_only": True,
         "wifi": {
@@ -372,3 +372,8 @@ def uplinks_payload():
         },
         "default_iface": default_iface,
     }
+    try:
+        from uplink_control import annotate_uplinks
+    except ImportError:
+        return body
+    return annotate_uplinks(body)

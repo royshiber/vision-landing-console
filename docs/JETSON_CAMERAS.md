@@ -32,7 +32,7 @@ Each slot has its own supervisor thread. It looks again about every 2 seconds, o
 
 ## Agent
 
-Companion **2.3.8** (`scripts/jetson-companion/`):
+Companion **2.3.9** (`scripts/jetson-companion/`):
 
 - `companion_agent.py` — same UART fan-out as 2.3.1
 - `camera_ingest.py` — supervisor, device plan, JPEG, in-process frame bus

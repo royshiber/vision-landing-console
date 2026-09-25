@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """Vision Landing Console — Jetson companion: MAVLink relay + HTTP API + heartbeat.
 
-AGENT_VERSION 2.3.8 = 2.3.7 plus an honest FC telemetry snapshot, HiLink
-modem/uplink reads, and the Matek TX3/RX3 port label (ArduPilot SERIAL4).
+AGENT_VERSION 2.3.9 = 2.3.8 plus operator uplink on/off (Wi-Fi and Huawei
+cellular) that refuses to drop the last working link. 2.3.8 added an honest
+FC telemetry snapshot, HiLink modem/uplink reads, and the Matek TX3/RX3 port
+label (ArduPilot SERIAL4).
 No VIO estimator, no EKF inject, no FC writes, no runway detect.
 Gimbal and camera control are not flight commands.
 Never invent camera_ok, frames, gimbal attitude, runway detected/locked, or WGS84 position.
@@ -44,7 +46,7 @@ RELAY_PORT = int(os.environ.get("VLC_RELAY_PORT", "5770"))
 HTTP_PORT = int(os.environ.get("VLC_HTTP_PORT", "8081"))
 HTTP_IDLE_S = float(os.environ.get("VLC_HTTP_IDLE_S", "30") or "30")
 HTTP_MAX_BODY = 16 * 1024 * 1024
-AGENT_VERSION = os.environ.get("VLC_AGENT_VERSION", "2.3.8")
+AGENT_VERSION = os.environ.get("VLC_AGENT_VERSION", "2.3.9")
 MODEM_STATUS_FILE = os.environ.get("AIRVIX_E3372_STATUS_FILE", "/run/airvix/e3372.status")
 
 try:
@@ -99,10 +101,18 @@ except ImportError:
         return {
             "ok": True,
             "read_only": True,
-            "wifi": {"iface": "wlP1p1s0", "up": False, "ssid": None, "signal_dbm": None, "ip": None, "default_route": False},
-            "cellular": {"iface": None, "up": False, "ip": None, "route_metric": None, "signal": None, "default_route": False},
+            "wifi": {"iface": "wlP1p1s0", "up": False, "enabled": True, "ssid": None, "signal_dbm": None, "ip": None, "default_route": False},
+            "cellular": {"iface": None, "up": False, "enabled": True, "ip": None, "route_metric": None, "signal": None, "default_route": False},
             "default_iface": None,
+            "boot_fallback": None,
         }
+try:
+    from uplink_control import apply_boot_policy, set_uplink
+except ImportError:
+    apply_boot_policy = None
+
+    def set_uplink(_kind, _enabled):
+        return 503, {"ok": False, "reason": "uplink_control_absent", "message": "שליטת קישור לא זמינה"}
 FC_READ_ONLY = os.environ.get("VLC_FC_READ_ONLY", "1").strip().lower() in {"1", "true", "yes", "on"}
 SKIP_RELAY = os.environ.get("VLC_SKIP_RELAY", "").strip().lower() in {"1", "true", "yes", "on"}
 HTTP_BIND = os.environ.get("VLC_HTTP_BIND", "0.0.0.0")
@@ -135,6 +145,16 @@ CLIENTS_LOCK = threading.Lock()
 UART_WRITE_LOCK = threading.Lock()
 STATE_LOCK = threading.Lock()
 HEARTBEAT_CRC_EXTRA = 50
+
+
+def _uplink_kind(path):
+    for prefix in ("/api/v1/network/uplinks/", "/api/network/uplinks/"):
+        if path.startswith(prefix):
+            kind = path[len(prefix):]
+            if kind in {"wifi", "cellular"}:
+                return kind
+            return ""
+    return None
 
 
 def auth_headers():
@@ -869,7 +889,7 @@ def health_payload():
         "agentVersion": AGENT_VERSION,
         "api_version": "1",
         "observe_only": True,
-        "capabilities": {"uplinkStatus": True},
+        "capabilities": {"uplinkStatus": True, "uplinkControl": apply_boot_policy is not None},
         "fc": fc_status_payload(),
         **STATE,
         "vision": vision_status_payload(),
@@ -1072,6 +1092,9 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(200, modem_status_payload())
         if path in ("/api/v1/network/uplinks", "/api/network/uplinks"):
             return self._json(200, uplinks_payload())
+        uplink_kind = _uplink_kind(path)
+        if uplink_kind:
+            return self._json(405, {"ok": False, "reason": "method_not_allowed", "message": "נדרש POST"})
         if path in ("/api/status/gimbal", "/api/v1/status/gimbal"):
             return self._json(200, gimbal_status_payload(start=True))
         if path in ("/api/transport-test", "/api/v1/transport-test"):
@@ -1118,6 +1141,11 @@ class Handler(BaseHTTPRequestHandler):
                 })
             code, body = gimbal_command(action, data if isinstance(data, dict) else {})
             return self._json(code, body)
+        uplink_kind = _uplink_kind(path)
+        if uplink_kind:
+            enabled = data.get("enabled") if isinstance(data, dict) else None
+            code, body = set_uplink(uplink_kind, enabled)
+            return self._json(code, body)
         if path == "/api/install":
             script = data.get("script", "")
             version = data.get("version", AGENT_VERSION)
@@ -1155,6 +1183,13 @@ def main():
     if want_gimbal_poll and get_gimbal_link is not None:
         get_gimbal_link(start=True)
         print("  Gimbal poll: on (control still requires VLC_GIMBAL_CONTROL_ENABLED=1)")
+    boot_flag = os.environ.get("VLC_UPLINK_BOOT", "1").strip().lower()
+    if apply_boot_policy is not None and boot_flag not in {"0", "false", "no", "off"}:
+        try:
+            report = apply_boot_policy() or {}
+            print(f"  Uplink boot: fallback={report.get('fallback')}")
+        except Exception:
+            print("  Uplink boot: skipped")
     idle = HTTP_IDLE_S if HTTP_IDLE_S > 0 else 30
     Handler.timeout = idle
     httpd = CompanionHTTPServer((HTTP_BIND, HTTP_PORT), Handler)

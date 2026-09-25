@@ -30,7 +30,7 @@ python3 camera_ingest.py --resolve
 
 4. Copy this folder to `~/vlc-companion` (or `install.sh --apply` on a Jetson).
 5. Optional gimbal: `docs/SIYI_A8_GIMBAL.md` and `./siyi-net.sh`.
-6. Start the 2.3.8 agent (UART fan-out unchanged):
+6. Start the 2.3.9 agent (UART fan-out unchanged):
 
 ```
 python3 companion_agent.py
@@ -71,6 +71,9 @@ CSI without a GStreamer OpenCV build reports `csi_requires_gstreamer_opencv`.
 | `VLC_E3372_HILINK_URL` | unset (probe `http://192.168.8.1` only when a Huawei `enx*` iface exists) |
 | `VLC_WIFI_IFACE` | `wlP1p1s0` |
 | `VLC_CELL_IFACE` | unset (auto: `enx*` whose USB parent is vendor `12d1`) |
+| `VLC_CELL_NM_CONNECTION` | `Wired connection 2` (APN profile `uinternet`, not rewritten) |
+| `VLC_UPLINKS_STATE` | `/var/lib/airvix/uplinks.json` |
+| `VLC_UPLINK_REACH_HOST` | `1.1.1.1` (ping `-I` the link that would remain) |
 
 USB open requests MJPG, then YUYV.
 

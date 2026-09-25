@@ -186,6 +186,7 @@ class Host:
 def test_uplink():
     os.environ.pop("VLC_E3372_HILINK_URL", None)
     os.environ.pop("VLC_CELL_IFACE", None)
+    os.environ["VLC_UPLINKS_STATE"] = "/tmp/airvix-uplinks-fixture-missing.json"
     reset_uplink_caches()
     clock = [0.0]
     set_clock(lambda: clock[0])
@@ -251,7 +252,8 @@ def test_uplink():
     clock[0] = 20.0
     calls["n"] = 0
     body = uplinks_payload()
-    check(body["read_only"] is True, "read only")
+    check(body["read_only"] is False, "control is available")
+    check(body["wifi"]["enabled"] is True and body["cellular"]["enabled"] is True, body)
     check(body["wifi"]["iface"] == "wlP1p1s0", body["wifi"])
     check(body["wifi"]["up"] is True and body["wifi"]["ssid"] == "lab-net", body["wifi"])
     check(body["wifi"]["signal_dbm"] == -48, body["wifi"])

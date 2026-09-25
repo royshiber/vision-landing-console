@@ -127,7 +127,7 @@ paths:
       operationId: getNetworkUplinks
       x-safety-tier: READ_ONLY
       x-mutability: READ_ONLY
-      summary: Read-only Wi-Fi and Huawei cellular uplink snapshot. No enable or disable.
+      summary: Wi-Fi and Huawei cellular snapshot. enabled is the operator preference. up is the live interface.
       responses:
         "200":
           description: UplinkStatus
@@ -135,6 +135,40 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/UplinkStatus"
+
+  /network/uplinks/{link}:
+    post:
+      tags: [status]
+      operationId: setNetworkUplink
+      x-safety-tier: RUNTIME_WRITE
+      x-mutability: RUNTIME_WRITE
+      summary: Enable or disable Wi-Fi or cellular. Refuses to drop the last working uplink. Not a flight command.
+      parameters:
+        - name: link
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [wifi, cellular]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UplinkCommand"
+      responses:
+        "200":
+          description: UplinkStatus after the change
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UplinkStatus"
+        "401":
+          description: Missing or wrong companion token
+        "409":
+          description: Other link is not up with a working default route
+        "503":
+          description: NetworkManager rejected the change
 
   /status/mavlink:
     get:
@@ -778,6 +812,13 @@ components:
       type: string
       enum: [camera_optical, body_frd, body_flu, ned_local, wgs84, target]
 
+    UplinkCommand:
+      type: object
+      additionalProperties: false
+      required: [enabled]
+      properties:
+        enabled: { type: boolean }
+
     UplinkStatus:
       type: object
       additionalProperties: false
@@ -785,6 +826,7 @@ components:
       properties:
         ok: { type: boolean }
         read_only: { type: boolean }
+        boot_fallback: { type: [string, "null"] }
         default_iface: { type: [string, "null"] }
         wifi:
           type: object
@@ -792,6 +834,7 @@ components:
           properties:
             iface: { type: [string, "null"] }
             up: { type: boolean }
+            enabled: { type: boolean }
             ssid: { type: [string, "null"] }
             signal_dbm: { type: [number, "null"] }
             ip: { type: [string, "null"] }
@@ -802,6 +845,7 @@ components:
           properties:
             iface: { type: [string, "null"] }
             up: { type: boolean }
+            enabled: { type: boolean }
             ip: { type: [string, "null"] }
             route_metric: { type: [integer, "null"] }
             default_route: { type: boolean }
@@ -822,6 +866,7 @@ components:
           type: object
           properties:
             uplinkStatus: { type: boolean }
+            uplinkControl: { type: boolean }
 
     VersionResponse:
       type: object
