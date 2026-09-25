@@ -4,29 +4,14 @@
     "date": "2026-09-25",
     "changes": [
       {
-        "type": "feat",
-        "title": "Server library",
-        "detail": "arducopter-flight-modes.mjs, arduplane-flight-modes.mjs, assist-hebrew.mjs, do-land-start.mjs, flight-actions-service.mjs, sse-mavlink-snapshot.mjs, vehicle-mode-family.mjs"
-      },
-      {
-        "type": "feat",
-        "title": "MAVLink connection",
-        "detail": "mavlink-connection.mjs"
-      },
-      {
-        "type": "feat",
-        "title": "UI / app.js",
-        "detail": "app.js"
-      },
-      {
-        "type": "feat",
-        "title": "Frontend",
-        "detail": "sim-lab.mjs"
+        "type": "fix",
+        "title": "Fixed-wing land sends DO_LAND_START, never mode 14",
+        "detail": "APP_VERSION 1.02.321. After master 1.02.320. Voice and console land for fixed-wing reads the FC mission and sends MAV_CMD_DO_LAND_START only when that mission contains a DO_LAND_START item. No marker, an empty mission, an unreadable mission, or a copter sends nothing and says why in Hebrew. ArduPlane custom mode 14 is AVOID_ADSB, not LAND. Mode names follow the official ArduPlane and ArduCopter tables. GCS and companion heartbeats no longer overwrite autopilot mode or ARM. ARM and DISARM stay blocked. No live vehicle, no Companion apply/restart."
       },
       {
         "type": "test",
         "title": "Tests",
-        "detail": "advisor-assist-fold.test.mjs, airvix-259-roy-feedback.test.mjs, airvix-260-roy-feedback.test.mjs, airvix-263-roy-feedback.test.mjs, airvix-264-roy-feedback.test.mjs, airvix-265-status-develop.test.mjs, airvix-266-capability-intake.test.mjs, airvix-266-status-densify.test.mjs, airvix-268-capability-runway.test.mjs, airvix-269-ask-capability-brief.test.mjs, airvix-270-dual-link.test.mjs, airvix-271-hardware-intent-wizard.test.mjs, airvix-272-companion-link.test.mjs, airvix-272-concept-b-wizard.test.mjs, airvix-274-develop-chat-concept-b.test.mjs, annotated-vision-cellular-only.test.mjs, archive-sessions.test.mjs, ardu-params-write.test.mjs, ardulab-assist-fold.test.mjs, arduplane-flight-modes.test.mjs, ask-do-land-start.test.mjs, ask-flight-intents.test.mjs, ask-rtl-chrome.test.mjs, attention-policy.test.mjs, auto-config-assist-fold.test.mjs, camera-ingest-honesty.test.mjs, companion-observe-status.test.mjs, debrief-flights-fold.test.mjs, e3372-modem-absent-honesty.test.mjs, flight-engineer-assist-fold.test.mjs, jetson-cellular-e3372.test.mjs, mavlink-heartbeat-hygiene.test.mjs, mavlink-relay-heartbeat.test.mjs, mission-ah-alt-honesty.test.mjs, mission-assist-posture.test.mjs, mission-declutter-exp1.test.mjs, mission-fc-empty-note-honesty.test.mjs, mission-layout-contract.test.mjs, mission-messages-side-log.test.mjs, mission-workspace-chrome.test.mjs, orphan-processes-remove.test.mjs, platform-capability-shells.test.mjs, readiness-merge.test.mjs, sim-lab-connect-handoff.test.mjs, status-connected-data-honesty.test.mjs, status-gauge-horizon-bleed.test.mjs, telemetry-platform-fold.test.mjs, vision-landing-readiness.test.mjs"
+        "detail": "arduplane-flight-modes.test.mjs — plane and copter tables vs mode.h, HUD and sim-lab stay in sync, mode 14 is not LAND. ask-do-land-start.test.mjs — mission present, absent, empty, unreadable stale cache, copter refusal, ACK accept/reject/timeout. mavlink-heartbeat-hygiene.test.mjs — GCS and companion heartbeats do not clear ARM or change mode."
       }
     ]
   },
