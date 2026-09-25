@@ -251,7 +251,7 @@ describe('Ask propose + confirm', () => {
       sent: false,
       method: 'offline',
       kind,
-      customMode: kind === 'RTL' ? 11 : 14,
+      customMode: kind === 'RTL' ? 11 : null,
       note: ASSIST_HE.flightOpOffline,
     }));
     const boxed = makeAssist();
@@ -375,30 +375,43 @@ describe('Ask rail confirm chrome', () => {
 });
 
 describe('Ask voice session SET_MODE vs ARM', () => {
-  it('maps LAND / RTL to SET_MODE and refuses ARM at apply', async () => {
-    const { buildSetModePayload, ASK_PLANE_MODE_LAND, ASK_PLANE_MODE_RTL } = await import('../lib/mavlink-connection.mjs');
+  it('maps RTL to SET_MODE, refuses LAND as a mode, and refuses ARM at apply', async () => {
+    const { buildSetModePayload, ASK_PLANE_MODE_RTL } = await import('../lib/mavlink-connection.mjs');
     const { applyAskFlightOp, resolveAskFlightOpCustomMode } = await import('../lib/flight-actions-service.mjs');
-    expect(resolveAskFlightOpCustomMode('LAND')).toBe(ASK_PLANE_MODE_LAND);
+    expect(resolveAskFlightOpCustomMode('LAND')).toBe(null);
     expect(resolveAskFlightOpCustomMode('RTL')).toBe(ASK_PLANE_MODE_RTL);
+    expect(resolveAskFlightOpCustomMode('RTL')).toBe(11);
     expect(resolveAskFlightOpCustomMode('MODE_CHANGE', { mode: 'FBWA' })).toBe(5);
+    expect(resolveAskFlightOpCustomMode('MODE_CHANGE', { mode: 'TAKEOFF' })).toBe(13);
+    expect(resolveAskFlightOpCustomMode('MODE_CHANGE', { mode: 'THERMAL' })).toBe(null);
+    expect(resolveAskFlightOpCustomMode('MODE_CHANGE', { mode: 'AVOID_ADSB' })).toBe(null);
+    expect(resolveAskFlightOpCustomMode('MODE_CHANGE', { mode: '14' })).toBe(null);
+    expect(resolveAskFlightOpCustomMode('MODE_CHANGE', { mode: 'LAND' })).toBe(null);
     expect(resolveAskFlightOpCustomMode('ARM')).toBe(null);
-    const payload = buildSetModePayload(1, ASK_PLANE_MODE_LAND);
+    const payload = buildSetModePayload(1, ASK_PLANE_MODE_RTL);
     expect(payload.length).toBe(6);
-    expect(payload.readUInt32LE(2)).toBe(ASK_PLANE_MODE_LAND);
+    expect(payload.readUInt32LE(0)).toBe(ASK_PLANE_MODE_RTL);
+    expect(payload[4]).toBe(1);
+    expect(payload[5]).toBe(1);
     const setArduPlaneMode = vi.fn();
+    const sendDoLandStart = vi.fn();
     const arm = await applyAskFlightOp(null, {
       kind: 'ARM',
-      mavConn: { connected: true, setArduPlaneMode },
+      mavConn: { connected: true, setArduPlaneMode, sendDoLandStart },
     });
     expect(arm.blocked).toBe(true);
     expect(arm.sent).toBe(false);
     expect(setArduPlaneMode).not.toHaveBeenCalled();
+    expect(sendDoLandStart).not.toHaveBeenCalled();
     const land = await applyAskFlightOp(null, {
       kind: 'LAND',
-      mavConn: { connected: false },
+      mavConn: { connected: false, setArduPlaneMode, sendDoLandStart },
     });
     expect(land.sent).toBe(false);
     expect(land.method).toBe('offline');
-    expect(land.customMode).toBe(ASK_PLANE_MODE_LAND);
+    expect(land.customMode).toBe(null);
+    expect(land.command).toBe(null);
+    expect(setArduPlaneMode).not.toHaveBeenCalled();
+    expect(sendDoLandStart).not.toHaveBeenCalled();
   });
 });

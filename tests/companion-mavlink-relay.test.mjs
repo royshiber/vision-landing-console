@@ -205,6 +205,7 @@ describe('honesty: UART heartbeat is not a fake GCS stream', () => {
     const js = fs.readFileSync(path.join(repoRoot, 'public', 'app.js'), 'utf8');
     const src = [
       sliceFunction(js, 'companionFiniteMetric'),
+      sliceFunction(js, 'pulseMavlinkLive'),
       sliceFunction(js, 'pulseFcObject'),
       sliceFunction(js, 'pulseCompanionFcLink'),
       sliceFunction(js, 'pulseResolveFcHonesty'),

@@ -118,7 +118,7 @@ describe('MAVLink CRC stream parser (Jetson raw relay)', () => {
       host: '127.0.0.1',
       port: 5770,
     });
-    const frame = buildMavlink1Frame(0, hbPayload(), 1);
+    const frame = buildFcHeartbeat(1);
     const junk = Buffer.from([0xfe, 0x09, 0x00, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
     conn._handleData(Buffer.concat([junk, frame]));
     expect(conn.heartbeatCount).toBe(1);

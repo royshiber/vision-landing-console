@@ -5559,7 +5559,8 @@ body:has(#pulse.panel.visible) .layout {
 .pulse-gauge[data-gauge="mem"] .pulse-gauge-fill { stroke: #4c8dff; }
 .pulse-gauge[data-gauge="temp"] .pulse-gauge-fill { stroke: #f0a04b; }
 .pulse-gauge[data-gauge="value"] .pulse-gauge-fill { stroke: #c4b5a0; }
-.pulse-gauge.is-empty .pulse-gauge-fill {
+.pulse-gauge.is-empty .pulse-gauge-fill,
+.pulse-gauge.is-neutral .pulse-gauge-fill {
   stroke: rgba(148, 168, 198, 0.18);
   stroke-dasharray: 0 100;
 }

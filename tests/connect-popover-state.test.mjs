@@ -7,6 +7,7 @@ import { fileURLToPath } from 'url';
 import { openDatabase, getConfig } from '../lib/db.mjs';
 import {
   barsFromRsrpDbm,
+  snapshotRcLink,
   barsFromRssiDbm,
   deriveHomeDisplay,
   deriveMavlinkDisplay,
@@ -75,6 +76,41 @@ describe('connect popover state, bars, and actions', () => {
     });
     expect(live.connected).toBe(true);
     expect(live.tone).toBe('ok');
+
+    const boundary = deriveMavlinkDisplay({
+      connected: true,
+      heartbeatCount: 2,
+      lastHeartbeatAgeMs: 3000,
+    });
+    expect(boundary.connected).toBe(true);
+
+    const justStale = deriveMavlinkDisplay({
+      connected: true,
+      heartbeatCount: 2,
+      lastHeartbeatAgeMs: 3001,
+    });
+    expect(justStale.connected).toBe(false);
+    expect(justStale.statusHe).toBe('דופק ישן');
+
+    const framesOnly = deriveMavlinkDisplay({
+      connected: true,
+      heartbeatCount: 0,
+      framesRx: 40,
+      lastHeartbeatAgeMs: 200,
+    });
+    expect(framesOnly.connected).toBe(false);
+    expect(framesOnly.state).toBe('listening');
+
+    const linkDown = deriveMavlinkDisplay({
+      connected: false,
+      listening: false,
+      heartbeatCount: 8,
+      framesRx: 40,
+      lastHeartbeatAgeMs: 200,
+    });
+    expect(linkDown.connected).toBe(false);
+    expect(linkDown.state).toBe('off');
+    expect(linkDown.statusHe).toBe('מנותק');
   });
 
   it('marks home reachable without FC data as degraded', () => {
@@ -101,6 +137,25 @@ describe('connect popover state, bars, and actions', () => {
     });
     expect(old.connected).toBe(false);
     expect(old.state).toBe('degraded');
+
+    const relayDown = deriveHomeDisplay({
+      jetson: 'reachable',
+      fc: 'heartbeat',
+      fc_heartbeat: true,
+      healthAgeMs: 200,
+      mavlinkRelay: { ok: false, connected: false, heartbeat: false, error: 'socket_closed' },
+    });
+    expect(relayDown.connected).toBe(false);
+    expect(relayDown.statusHe).toBe('אין נתוני בקר');
+
+    const relayStale = deriveHomeDisplay({
+      jetson: 'reachable',
+      fc: 'heartbeat',
+      fc_heartbeat: true,
+      mavlinkRelay: { ok: false, connected: true, heartbeat: false, error: 'heartbeat_stale' },
+    });
+    expect(relayStale.connected).toBe(false);
+    expect(relayStale.statusHe).toBe('דופק ישן');
   });
 
   it('keeps the button label as the action and danger only on disconnect', () => {
@@ -144,6 +199,15 @@ describe('connect popover state, bars, and actions', () => {
     expect(age.percent).toBeNull();
     expect(age.sourceHe).toBe('לפי זמן דופק');
     expect(qualityFromHeartbeatAge(null).known).toBe(false);
+    expect(qualityFromHeartbeatAge(3001).bars).toBe(0);
+    const decodedRc = snapshotRcLink([{
+      hasRcChannels: true,
+      rcRssi: 200,
+      rcAgeMs: 100,
+      rcChannels: null,
+    }]);
+    expect(decodedRc.state).toBe('off');
+    expect(decodedRc.quality.known).toBe(false);
     expect(qualityFromHttpRtt(null).known).toBe(false);
     expect(qualityFromTrustedPercent(null).percent).toBeNull();
     const unknown = qualityFromCompanionSignal({ present: true });

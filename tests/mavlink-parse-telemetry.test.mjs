@@ -75,21 +75,23 @@ describe('MAVLink telemetry parsers (wire layout + truncation)', () => {
     p.writeInt16LE(-99, 16);
     p.writeUInt16LE(50, 18);
     expect(parseVfrHud(p)?.heading).toBeNull();
-    expect(parseVfrHud(Buffer.alloc(19))).toBeNull();
+    const truncated = parseVfrHud(Buffer.alloc(19));
+    expect(truncated).not.toBeNull();
+    expect(truncated.throttle).toBe(0);
+    expect(parseVfrHud(Buffer.alloc(15))).toBeNull();
   });
 
-  it('parseGpsRawInt: lat/lon at aligned offsets; accepts 20B truncated v2', () => {
+  it('parseGpsRawInt: wire order lat @8 lon @12; 20B truncation zero-extends fix and sats', () => {
     const p = Buffer.alloc(20);
     p.writeBigUInt64LE(0n, 0);
-    p.writeUInt8(3, 8);
-    p.writeInt32LE(Math.round(37.1234567 * 1e7), 12);
-    p.writeInt32LE(Math.round(-122.9876543 * 1e7), 16);
+    p.writeInt32LE(Math.round(37.1234567 * 1e7), 8);
+    p.writeInt32LE(Math.round(-122.9876543 * 1e7), 12);
     const g = parseGpsRawInt(p);
     expect(g).not.toBeNull();
-    expect(g.fixType).toBe(3);
+    expect(g.fixType).toBe(0);
     expect(g.lat).toBeCloseTo(37.1234567, 5);
     expect(g.lon).toBeCloseTo(-122.9876543, 5);
-    expect(g.satellites).toBeNull();
+    expect(g.satellites).toBe(0);
   });
 
   it('parseGlobalPositionInt: lat/lon with partial payload omits heading', () => {
@@ -113,22 +115,22 @@ describe('MAVLink telemetry parsers (wire layout + truncation)', () => {
   });
 
   it('parseSysStatus: mV / cA → V / A with sentinels', () => {
-    const p = Buffer.alloc(19);
+    const p = Buffer.alloc(31);
     p.fill(0, 0, 14);
     p.writeUInt16LE(12_345, 14); // 12.35 V
     p.writeInt16LE(234, 16); // 23.4 A
-    p.writeInt8(88, 18);
+    p.writeInt8(88, 30);
     expect(parseSysStatus(p)).toEqual({
       load_pct: 0,
       voltage_V: 12.35,
       current_A: 2.34,
       remaining_pct: 88,
     });
-    const q = Buffer.alloc(19);
+    const q = Buffer.alloc(31);
     q.fill(0, 0, 14);
     q.writeUInt16LE(0xffff, 14);
     q.writeInt16LE(-1, 16);
-    q.writeInt8(-1, 18);
+    q.writeInt8(-1, 30);
     expect(parseSysStatus(q)).toEqual({
       load_pct: 0,
       voltage_V: null,
