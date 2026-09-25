@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """Vision Landing Console — Jetson companion: MAVLink relay + HTTP API + heartbeat.
 
-AGENT_VERSION 2.3.6 = 2.3.5 plus observe-only annotated encoder honesty over cellular.
+AGENT_VERSION 2.3.7 = 2.3.6 plus per-slot camera supervisor, stable V4L map,
+cam3 RTSP gimbal ingest, and SIYI A8 UDP status/control (control off by default).
 No VIO estimator, no EKF inject, no FC writes, no runway detect.
-Never invent camera_ok, frames, runway detected/locked, or WGS84 position.
+Gimbal and camera control are not flight commands.
+Never invent camera_ok, frames, gimbal attitude, runway detected/locked, or WGS84 position.
 Dry-run never claims a real camera.
 
 Hardware default (Matek H743 SERIAL3 ↔ Jetson UART1):
@@ -40,14 +42,21 @@ FC_BAUD = int(os.environ.get("VLC_FC_BAUD", "921600"))
 FC_SERIAL_NAME = os.environ.get("VLC_FC_SERIAL_NAME", "SERIAL3")
 RELAY_PORT = int(os.environ.get("VLC_RELAY_PORT", "5770"))
 HTTP_PORT = int(os.environ.get("VLC_HTTP_PORT", "8081"))
-AGENT_VERSION = os.environ.get("VLC_AGENT_VERSION", "2.3.6")
+AGENT_VERSION = os.environ.get("VLC_AGENT_VERSION", "2.3.7")
 MODEM_STATUS_FILE = os.environ.get("AIRVIX_E3372_STATUS_FILE", "/run/airvix/e3372.status")
 
 try:
-    from camera_ingest import ingest_frame_jpeg, ingest_snapshot
+    from camera_ingest import CAM_IDS, ingest_frame_jpeg, ingest_snapshot
 except ImportError:
+    CAM_IDS = ("cam1", "cam2", "cam3")
     ingest_snapshot = None
     ingest_frame_jpeg = None
+try:
+    from siyi_sdk import gimbal_command, gimbal_status, get_link as get_gimbal_link
+except ImportError:
+    gimbal_command = None
+    gimbal_status = None
+    get_gimbal_link = None
 try:
     from annotated_encoder import annotated_encoder_status
 except ImportError:
@@ -364,12 +373,63 @@ def iter_log_files():
             yield p
 
 
+_SLOT_FALLBACK = (
+    ("cam1", "forward", "vio_forward", True),
+    ("cam2", "down", "optical_flow_down", True),
+    ("cam3", "gimbal", "gimbal_observe", False),
+)
+_GIMBAL_ACTIONS = {
+    "/api/v1/gimbal/rate": "rate",
+    "/api/gimbal/rate": "rate",
+    "/api/v1/gimbal/angle": "angle",
+    "/api/gimbal/angle": "angle",
+    "/api/v1/gimbal/center": "center",
+    "/api/gimbal/center": "center",
+    "/api/v1/gimbal/zoom": "zoom",
+    "/api/gimbal/zoom": "zoom",
+    "/api/v1/gimbal/mode": "mode",
+    "/api/gimbal/mode": "mode",
+    "/api/v1/gimbal/photo": "photo",
+    "/api/gimbal/photo": "photo",
+    "/api/v1/gimbal/record": "record",
+    "/api/gimbal/record": "record",
+}
+
+
 def _camera_frame_id(path):
-    for cam_id in ("cam1", "cam2"):
+    ids = CAM_IDS if CAM_IDS else ("cam1", "cam2", "cam3")
+    for cam_id in ids:
         for prefix in ("/api/v1/cameras/", "/api/cameras/"):
             if path in (f"{prefix}{cam_id}/frame", f"{prefix}{cam_id}/frame.jpg"):
                 return cam_id
     return None
+
+
+def _fallback_cameras(error):
+    cameras = {}
+    for cam_id, role, nav_role, enabled in _SLOT_FALLBACK:
+        cameras[cam_id] = {
+            "id": cam_id,
+            "role": role,
+            "nav_role": nav_role,
+            "shared_with": "landing_vision",
+            "enabled": enabled,
+            "state": "disabled" if not enabled else "absent",
+            "present": False,
+            "camera_ok": False,
+            "fps": None,
+            "frame_count": None,
+            "last_frame_age_ms": None,
+            "error": "disabled" if not enabled else error,
+            "source": "absent",
+            "dry_run": False,
+            "real": False,
+            "device": None,
+            "requested_device": None,
+            "resolved_device": None,
+            "has_frame": False,
+        }
+    return cameras
 
 
 def _now_ts():
@@ -394,42 +454,8 @@ def _ingest_or_absent():
             "frame_count": None,
             "last_frame_age_ms": None,
             "latency_ms": None,
-            "cameras": {
-                "cam1": {
-                    "id": "cam1",
-                    "role": "forward",
-                    "nav_role": "vio_forward",
-                    "shared_with": "landing_vision",
-                    "present": False,
-                    "camera_ok": False,
-                    "fps": None,
-                    "frame_count": None,
-                    "last_frame_age_ms": None,
-                    "error": "ingest_module_absent",
-                    "source": "absent",
-                    "dry_run": False,
-                    "real": False,
-                    "device": None,
-                    "has_frame": False,
-                },
-                "cam2": {
-                    "id": "cam2",
-                    "role": "down",
-                    "nav_role": "optical_flow_down",
-                    "shared_with": "landing_vision",
-                    "present": False,
-                    "camera_ok": False,
-                    "fps": None,
-                    "frame_count": None,
-                    "last_frame_age_ms": None,
-                    "error": "ingest_module_absent",
-                    "source": "absent",
-                    "dry_run": False,
-                    "real": False,
-                    "device": None,
-                    "has_frame": False,
-                },
-            },
+            "cameras": _fallback_cameras("ingest_module_absent"),
+            "slots": ["cam1", "cam2", "cam3"],
             "note": "camera ingest module missing; camera_ok is false; not invented",
         }
     return ingest_snapshot()
@@ -461,9 +487,12 @@ def vision_status_payload():
     snap = _ingest_or_absent()
     any_ok = snap.get("camera_ok") is True
     source_id = "none"
-    for key in ("cam1", "cam2"):
-        cam = (snap.get("cameras") or {}).get(key) or {}
-        if cam.get("camera_ok") is True:
+    raw_cams = snap.get("cameras") or {}
+    order = [cam_id for cam_id in ("cam1", "cam2", "cam3") if cam_id in raw_cams]
+    order.extend(cam_id for cam_id in raw_cams if cam_id not in order)
+    for key in order:
+        cam = raw_cams.get(key) or {}
+        if cam.get("camera_ok") is True and cam.get("enabled") is not False:
             source_id = key
             break
     return {
@@ -588,13 +617,25 @@ def optical_nav_status_payload():
     snap = _ingest_or_absent()
     raw_cams = snap.get("cameras") or {}
     cameras = {}
-    for cam_id, nav_role in (("cam1", "vio_forward"), ("cam2", "optical_flow_down")):
+    order = [cam_id for cam_id in ("cam1", "cam2", "cam3") if cam_id in raw_cams]
+    order.extend(cam_id for cam_id in raw_cams if cam_id not in order)
+    if not order:
+        order = ["cam1", "cam2", "cam3"]
+    for cam_id in order:
         src = raw_cams.get(cam_id) or {}
+        mount = src.get("role") or {"cam1": "forward", "cam2": "down", "cam3": "gimbal"}.get(cam_id)
+        nav_role = src.get("nav_role") or {
+            "forward": "vio_forward",
+            "down": "optical_flow_down",
+            "gimbal": "gimbal_observe",
+        }.get(mount, "landing_vision")
         cameras[cam_id] = {
             "id": cam_id,
             "role": nav_role,
-            "mount_role": src.get("role"),
+            "mount_role": mount,
             "shared_with": "landing_vision",
+            "enabled": src.get("enabled") is not False if src else cam_id != "cam3",
+            "state": src.get("state"),
             "present": src.get("present") is True,
             "camera_ok": src.get("camera_ok") is True,
             "fps": src.get("fps"),
@@ -604,6 +645,7 @@ def optical_nav_status_payload():
             "source": src.get("source") or "absent",
             "dry_run": src.get("dry_run") is True,
             "real": src.get("real") is True,
+            "resolved_device": src.get("resolved_device"),
         }
     return {
         "ok": True,
@@ -738,9 +780,31 @@ def status_payload():
         "video": video_status_payload(),
         "extras": extras_status_payload(),
         "modem": modem_status_payload(),
+        "gimbal": gimbal_status_payload(start=False),
         "fc": {},
         "mavlink": {},
     }
+
+
+def gimbal_status_payload(start=False):
+    """Honest gimbal snapshot. present is true only after a fresh SDK reply."""
+    if gimbal_status is None:
+        return {
+            "ok": True,
+            "present": False,
+            "firmware": None,
+            "hardware_id": None,
+            "attitude": None,
+            "zoom": None,
+            "mode": None,
+            "recording": None,
+            "age_ms": None,
+            "control_enabled": False,
+            "polling": False,
+            "error": "sdk_module_absent",
+            "note": "no gimbal reply; not invented",
+        }
+    return gimbal_status(start=start)
 
 
 def health_payload():
@@ -756,6 +820,7 @@ def health_payload():
         "video": video_status_payload(),
         "extras": extras_status_payload(),
         "modem": modem_status_payload(),
+        "gimbal": gimbal_status_payload(start=False),
     }
 
 
@@ -849,6 +914,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(200, annotated_video_status_payload())
         if path in ("/api/status/modem", "/api/v1/status/modem"):
             return self._json(200, modem_status_payload())
+        if path in ("/api/status/gimbal", "/api/v1/status/gimbal"):
+            return self._json(200, gimbal_status_payload(start=True))
         if path in ("/api/transport-test", "/api/v1/transport-test"):
             return self._json(200, transport_test_payload(self_test=False))
         cam_frame = _camera_frame_id(path)
@@ -882,6 +949,17 @@ class Handler(BaseHTTPRequestHandler):
         path = self._path()
         if path in ("/api/transport-test", "/api/v1/transport-test"):
             return self._json(200, transport_test_payload(self_test=True))
+        action = _GIMBAL_ACTIONS.get(path)
+        if action:
+            if gimbal_command is None:
+                return self._json(503, {
+                    "ok": False,
+                    "reason": "sdk_module_absent",
+                    "message": "שליטת גימבל לא זמינה",
+                    "sent": False,
+                })
+            code, body = gimbal_command(action, data if isinstance(data, dict) else {})
+            return self._json(code, body)
         if path == "/api/install":
             script = data.get("script", "")
             version = data.get("version", AGENT_VERSION)
@@ -906,11 +984,19 @@ def main():
     print(f"  FC_READ_ONLY: {FC_READ_ONLY}")
     snap = _ingest_or_absent()
     print(f"  Camera ingest: source={snap.get('source')} dry_run={snap.get('dry_run')}")
+    poll_raw = os.environ.get("VLC_GIMBAL_POLL")
+    if poll_raw is None or str(poll_raw).strip() == "":
+        want_gimbal_poll = not SKIP_RELAY
+    else:
+        want_gimbal_poll = str(poll_raw).strip().lower() in {"1", "true", "yes", "on"}
     if not SKIP_RELAY:
         threading.Thread(target=heartbeat_loop, daemon=True).start()
         threading.Thread(target=mavlink_relay_server, daemon=True).start()
     else:
         print("  SKIP_RELAY: HTTP observe-status only")
+    if want_gimbal_poll and get_gimbal_link is not None:
+        get_gimbal_link(start=True)
+        print("  Gimbal poll: on (control still requires VLC_GIMBAL_CONTROL_ENABLED=1)")
     httpd = ThreadingHTTPServer((HTTP_BIND, HTTP_PORT), Handler)
     httpd.serve_forever()
 

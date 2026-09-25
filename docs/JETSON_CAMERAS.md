@@ -1,35 +1,43 @@
-# Dual-camera ingest — install notes
+# Camera ingest — install notes
 
-Observe-only. Experiment #1 later adds runway detect. This ship is **camera ingest + status honesty**.
+Observe-only. This ship is the companion camera supervisor (hot-plug, stable V4L map, CSI, RTSP) plus an optional third gimbal slot. It does not send flight commands.
 
-Hebrew checklist in the console (מוכנות / התקנת מצלמות) stays the operator path. This file is the Jetson side.
+Hebrew checklist in the console stays the operator path. Gimbal wiring for Roy is in `docs/SIYI_A8_GIMBAL.md`.
 
-## What Roy plugs in
+## Slots
 
-1. **CAM1 קדמית** — forward-facing USB or CSI.
-2. **CAM2 מטה** — downward-facing USB or CSI. Different models are OK.
-3. Confirm roles on the console checklist. Operator **אישור ביצעתי** does **not** mark `camera_ok`.
+| Id | Default role | Default device | Enabled |
+|---|---|---|---|
+| `cam1` | forward / קדמית | `auto` | yes |
+| `cam2` | down / מטה | `auto` | yes |
+| `cam3` | gimbal / גימבל | `rtsp://192.168.144.25:8554/main.264` | only when `VLC_CAM3_ENABLED=1` |
 
-Suggested first USB mapping:
+`auto` lists `/dev/v4l/by-id/*-video-index0` (the capture node, not the metadata node). If that directory is empty it falls back to `/dev/video*` that actually advertise video capture, in index order. The first free node goes to cam1, the second to cam2. An explicit env value always wins and is not given to another `auto` slot.
 
-| Camera | Default device | Role env |
-|---|---|---|
-| CAM1 קדמית | `/dev/video0` | `VLC_CAM1_ROLE=forward` |
-| CAM2 מטה | `/dev/video1` | `VLC_CAM2_ROLE=down` |
+Each slot has its own supervisor thread. It looks again about every 2 seconds, opens when the device appears, and reopens with backoff after a bad read or unplug. That thread never touches the MAVLink UART relay.
 
-If `ls /dev/video*` shows different nodes, set `VLC_CAM1_DEVICE` / `VLC_CAM2_DEVICE`.
+## States
 
-CSI (later, on the Jetson with OpenCV / GStreamer): `VLC_CAM1_DEVICE=csi:0`.
+`camera_ok` is true only while frames are actually arriving (`state: streaming`). Dry-run synthetic frames are `source: synthetic` and `real: false`.
+
+| `state` | Meaning |
+|---|---|
+| `absent` | No device for this slot |
+| `opening` | Device is there; no frame yet |
+| `streaming` | A frame was just read |
+| `read_failed` | Open or read failed; supervisor will retry |
+| `opencv_unavailable` | Python has no cv2 |
+| `csi_requires_gstreamer_opencv` | `csi:N` needs OpenCV built with GStreamer |
+| `disabled` | Slot is off (`cam3` until enabled) |
 
 ## Agent
 
-Companion **2.3.6** (`scripts/jetson-companion/`):
+Companion **2.3.7** (`scripts/jetson-companion/`):
 
-- `companion_agent.py` — same UART fan-out as 2.3.1 / 2.3.3
-- `camera_ingest.py` — open two devices, capture, honest status + optional JPEG
-- `annotated_encoder.py` — observe-only annotated egress honesty. Never invents frames.
-
-Copy those files to `~/vlc-companion` (or `./scripts/jetson-companion/install.sh --apply` on a Jetson). Cloud Agent VMs stay `--dry-run`.
+- `companion_agent.py` — same UART fan-out as 2.3.1
+- `camera_ingest.py` — supervisor, device plan, JPEG, in-process frame bus
+- `siyi_sdk.py` — gimbal UDP client (control off by default)
+- `siyi-net.sh` — Ethernet profile for the gimbal, not Wi-Fi
 
 ```
 export VLC_CAMERA_DRY_RUN=1          # absent honesty
@@ -39,21 +47,31 @@ export VLC_CAMERA_DRY_RUN=synthetic  # CI frames; never real
 Verify on the Jetson:
 
 ```
+python3 camera_ingest.py --resolve
 curl -s http://127.0.0.1:8081/api/v1/status/cameras
-curl -s http://127.0.0.1:8081/api/v1/status/vision
+curl -s -o /tmp/cam1.jpg -w '%{http_code}\n' http://127.0.0.1:8081/api/v1/cameras/cam1/frame.jpg
 ```
 
-Console Mission **פריים** shows JPEGs from `/api/jetson/v1/cameras/cam1/frame` when Companion reports frames. Without frames: **אין פריים**.
+`--resolve` prints the device each slot actually got. Absent device → `camera_ok: false`, no JPEG.
 
-**ראייה מסומנת** stays cellular-only. This preview is ingest JPEGs, not the annotated stream.
+## USB bandwidth
 
-## Honesty
+USB cameras are asked for MJPG, then YUYV if MJPG does not stick. Per slot:
 
-| Situation | `camera_ok` | Frames | `source` |
-|---|---|---|---|
-| No device | false | none | `absent` |
-| Dry-run absent | false | none | `absent` (`dry_run`) |
-| Dry-run synthetic | true (synthetic only) | JPEG + fps/age | `synthetic` (`real: false`) |
-| Real USB/CSI capturing | true | JPEG + fps/age | `real` |
+```
+VLC_CAM1_WIDTH=1280
+VLC_CAM1_HEIGHT=720
+VLC_CAM1_FPS=15
+```
 
-Optical-nav estimator stays off (`optical_nav.camera_ok` false, position null). No ARM / LAND / nav-source switch.
+Globals `VLC_CAMERA_WIDTH` / `HEIGHT` / `FPS` apply when the slot value is unset (default 640×480 @ 10).
+
+## CSI and RTSP
+
+`VLC_CAM1_DEVICE=csi:0` opens `nvarguscamerasrc` only when `cv2.getBuildInformation()` reports GStreamer. Otherwise the state is `csi_requires_gstreamer_opencv`, not `absent`.
+
+`rtsp://...` prefers the Jetson hardware decode pipeline (TCP, low latency, newest frame only). `VLC_CAM3_CODEC=h264|h265|auto` (default `auto`). If GStreamer OpenCV cannot open it, the slot falls back to the FFmpeg backend with TCP and a one-frame buffer.
+
+A tracker in the same process can call `get_frame_bus().subscribe(...)` or `latest(cam_id)`. Only the newest packet per slot is kept.
+
+Optical-nav estimator stays off. No flight-command send.
