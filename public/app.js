@@ -3227,13 +3227,13 @@ function companionHasDataPathClient(companion) {
   return false;
 }
 
-/** Live GCS MAVLink identity wins over companion.fc.status DISCONNECTED / DISABLED. */
+/** A listening socket or a finite sysId is not a live FC. Need a fresh autopilot heartbeat. */
 function pulseMavlinkLive(mav) {
   if (!mav || typeof mav !== 'object') return false;
-  if (mav.connected === true || mav.listening === true) return true;
-  if (Number(mav.heartbeatCount) > 0) return true;
-  if (mav.autopilotName || mav.vehicleType) return true;
-  return Number.isFinite(Number(mav.sysId));
+  if (mav.connected !== true) return false;
+  if (!(Number(mav.heartbeatCount) > 0)) return false;
+  const age = Number(mav.lastHeartbeatAgeMs);
+  return Number.isFinite(age) && age >= 0 && age <= 3000;
 }
 
 /** Jetson gauges from companion.system / companion.health — never invent zeros. */
@@ -3309,8 +3309,9 @@ function pulseResolveFcHonesty(companion, mav) {
   const fcObj = pulseFcObject(companion);
   const load = companionFiniteMetric(fcObj.loadPct, fcObj.load_pct, mav?.fcLoadPct);
   const mem = companionFiniteMetric(fcObj.memPct, fcObj.mem_pct, mav?.fcMemPct);
+  const memFreeKB = companionFiniteMetric(mav?.fcMemFreeKB);
   const temp = companionFiniteMetric(fcObj.tempC, fcObj.temp_c, mav?.fcTempC);
-  const hasMetrics = load != null || mem != null || temp != null;
+  const hasMetrics = load != null || mem != null || memFreeKB != null || temp != null;
   const live = link === 'heartbeat' || link === 'linked';
   const labelHe = link === 'heartbeat' ? 'דופק חי' : link === 'linked' ? 'מקושר' : 'מנותק';
   const card = link === 'heartbeat' ? 'heartbeat' : link === 'linked' ? 'linked' : 'disconnected';
@@ -3325,6 +3326,7 @@ function pulseResolveFcHonesty(companion, mav) {
     gaugeMissing: showGcsMissingNote ? '--' : (live ? 'אין נתון' : '--'),
     load: live ? load : null,
     mem: live ? mem : null,
+    memFreeKB: live && mem == null ? memFreeKB : null,
     temp: live ? temp : null,
   };
 }
@@ -3565,6 +3567,7 @@ function formatComputerMetric(value, unit, missingLabel = '--') {
   if (value == null || value === '') return missingLabel;
   const n = Number(value);
   if (!Number.isFinite(n)) return missingLabel;
+  if (unit === 'KBfree') return `${Math.round(n)} KB פנוי`;
   if (unit === '%') return `${Math.round(n)}%`;
   if (unit === 'C') {
     const rounded = Math.round(n * 10) / 10;
@@ -3593,8 +3596,10 @@ function pulseWriteComputerMetric(id, value, unit, missingLabel = '--') {
   const gauge = el?.closest('.pulse-gauge');
   if (!gauge) return;
   const has = value != null && Number.isFinite(Number(value));
+  const neutral = unit === 'KBfree' && has;
+  gauge.classList.toggle('is-neutral', neutral);
   gauge.classList.toggle('is-empty', !has);
-  gauge.style.setProperty('--gauge-pct', has ? String(pulseGaugePct(value, unit)) : '0');
+  gauge.style.setProperty('--gauge-pct', has && !neutral ? String(pulseGaugePct(value, unit)) : '0');
 }
 
 function pulseParseVersionTuple(raw) {
@@ -4233,7 +4238,11 @@ function pulseRefresh() {
   if (aircraftEl) aircraftEl.textContent = fcHonesty.labelHe;
   aircraftEl?.closest('.pulse-computer-card')?.setAttribute('data-state', fcHonesty.card);
   pulseWriteComputerMetric('pulseFcLoad', fcHonesty.load, '%', fcHonesty.gaugeMissing);
-  pulseWriteComputerMetric('pulseFcMem', fcHonesty.mem, '%', fcHonesty.gaugeMissing);
+  if (fcHonesty.mem == null && fcHonesty.memFreeKB != null) {
+    pulseWriteComputerMetric('pulseFcMem', fcHonesty.memFreeKB, 'KBfree', fcHonesty.gaugeMissing);
+  } else {
+    pulseWriteComputerMetric('pulseFcMem', fcHonesty.mem, '%', fcHonesty.gaugeMissing);
+  }
   pulseWriteComputerMetric('pulseFcTemp', fcHonesty.temp, 'C', fcHonesty.gaugeMissing);
   const fcNote = document.getElementById('pulseFcMetricsNote');
   if (fcNote) {
@@ -4335,6 +4344,8 @@ const PULSE_WIDGET_CATALOG = Object.freeze([
   { key: 'jetson.version', label: 'גרסת Jetson', unit: '', place: 'jetson', tokens: ['version', 'גרסה'] },
   { key: 'mavlink.fcLoadPct', label: 'עומס FC', unit: '%', place: 'fc', tokens: ['fc', 'עומס', 'load'] },
   { key: 'mavlink.fcMemPct', label: 'זיכרון FC', unit: '%', place: 'fc', tokens: ['mem', 'זיכרון'] },
+  { key: 'mavlink.fcMemFreeKB', label: 'זיכרון פנוי', unit: 'KB', place: 'fc', tokens: ['mem', 'זיכרון', 'פנוי'] },
+  { key: 'mavlink.fcMcuVoltageV', label: 'מתח MCU', unit: 'V', place: 'fc', tokens: ['mcu', 'מתח'] },
   { key: 'mavlink.fcTempC', label: 'טמפ׳ FC', unit: '°C', place: 'fc', tokens: ['temp', 'טמפ'] },
   { key: 'mavlink.flightMode', label: 'מוד', unit: '', place: 'fc', tokens: ['mode', 'מוד'] },
   { key: 'mavlink.altitude', label: 'גובה', unit: 'm', place: 'fc', tokens: ['alt', 'גובה'] },
@@ -5131,13 +5142,49 @@ function updateAdvisorSysStrip(mavlink, jetson, appVersion) {
   updateAdvInfoPeek();
 }
 
-/** ArduPlane flight mode names by custom_mode number — keep keys in sync with `lib/arduplane-flight-modes.mjs` (tlog replay). */
+/** ArduPlane custom_mode names. Keep in sync with `lib/arduplane-flight-modes.mjs`. Mode 14 is AVOID_ADSB. */
 const ARDUPILOT_PLANE_MODES = {
   0:'MANUAL', 1:'CIRCLE', 2:'STABILIZE', 3:'TRAINING', 4:'ACRO',
   5:'FBWA', 6:'FBWB', 7:'CRUISE', 8:'AUTOTUNE', 10:'AUTO', 11:'RTL',
-  12:'LOITER', 14:'LAND', 15:'GUIDED', 17:'QSTABILIZE', 18:'QHOVER',
-  19:'QLOITER', 20:'QLAND', 21:'QRTL', 22:'THERMAL', 25:'TAKEOFF',
+  12:'LOITER', 13:'TAKEOFF', 14:'AVOID_ADSB', 15:'GUIDED', 16:'INITIALISING',
+  17:'QSTABILIZE', 18:'QHOVER', 19:'QLOITER', 20:'QLAND', 21:'QRTL',
+  22:'QAUTOTUNE', 23:'QACRO', 24:'THERMAL', 25:'LOITER_ALT_QLAND', 26:'AUTOLAND',
 };
+/** ArduCopter custom_mode names. Keep in sync with `lib/arducopter-flight-modes.mjs`. */
+const ARDUPILOT_COPTER_MODES = {
+  0:'STABILIZE', 1:'ACRO', 2:'ALT_HOLD', 3:'AUTO', 4:'GUIDED', 5:'LOITER',
+  6:'RTL', 7:'CIRCLE', 9:'LAND', 11:'DRIFT', 13:'SPORT', 14:'FLIP',
+  15:'AUTOTUNE', 16:'POSHOLD', 17:'BRAKE', 18:'THROW', 19:'AVOID_ADSB',
+  20:'GUIDED_NOGPS', 21:'SMART_RTL', 22:'FLOWHOLD', 23:'FOLLOW', 24:'ZIGZAG',
+  25:'SYSTEMID', 26:'AUTOROTATE', 27:'AUTO_RTL', 28:'TURTLE',
+};
+const COPTER_MAV_TYPES = { 2: true, 3: true, 4: true, 13: true, 14: true, 15: true };
+const COPTER_TYPE_NAMES = {
+  Quadrotor: true, Hexarotor: true, Octorotor: true, Tricopter: true, Helicopter: true, Coaxial: true,
+};
+
+function vlcModeFamily(mav) {
+  const mavType = Number(mav?.mavType);
+  if (COPTER_MAV_TYPES[mavType]) return 'copter';
+  const name = String(mav?.vehicleType || '');
+  if (COPTER_TYPE_NAMES[name]) return 'copter';
+  if (/^type(2|3|4|13|14|15)$/.test(name)) return 'copter';
+  return 'plane';
+}
+
+function vlcFlightModeName(raw, mav) {
+  const n = Number(raw);
+  if (!Number.isInteger(n)) return null;
+  const table = vlcModeFamily(mav) === 'copter' ? ARDUPILOT_COPTER_MODES : ARDUPILOT_PLANE_MODES;
+  return Object.prototype.hasOwnProperty.call(table, n) ? table[n] : null;
+}
+
+function vlcFlightModeText(raw, mav, connected) {
+  const name = vlcFlightModeName(raw, mav);
+  if (name) return name;
+  if (!connected) return '--';
+  return '#' + (raw ?? '--');
+}
 const hudAirspeedEl  = document.getElementById('hudAirspeed');
 const hudAltitudeEl  = document.getElementById('hudAltitude');
 const hudFlightModeEl = document.getElementById('hudFlightMode');
@@ -5476,6 +5523,47 @@ function missionFcEmptyNoteHe(companion) {
   return MISSION_FC_EMPTY_NOTE_HE;
 }
 
+function hudSysId(raw) {
+  if (raw == null || raw === '') return null;
+  const n = Number(raw);
+  if (!Number.isInteger(n) || n < 1 || n > 254) return null;
+  return n;
+}
+
+function hudFiniteOrNull(v) {
+  if (v == null || v === '') return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+function hudFcMetricFields(src) {
+  const s = src && typeof src === 'object' ? src : {};
+  return {
+    fcLoadPct: hudFiniteOrNull(s.fcLoadPct),
+    fcMemFreeKB: hudFiniteOrNull(s.fcMemFreeKB),
+    fcMemPct: hudFiniteOrNull(s.fcMemPct),
+    fcTempC: hudFiniteOrNull(s.fcTempC),
+    fcMcuVoltageV: hudFiniteOrNull(s.fcMcuVoltageV),
+    batteryV: hudFiniteOrNull(s.batteryV),
+    batteryPct: hudFiniteOrNull(s.batteryPct),
+    batteryCurrentA: hudFiniteOrNull(s.batteryCurrentA),
+    batteryConsumedMah: hudFiniteOrNull(s.batteryConsumedMah),
+    gpsFixType: hudFiniteOrNull(s.gpsFixType),
+    gpsSats: hudFiniteOrNull(s.gpsSats),
+    rcChannels: s.rcChannels && typeof s.rcChannels === 'object' ? s.rcChannels : null,
+  };
+}
+
+function preferHudFcMetrics(sseMav, live) {
+  const fromSse = hudFcMetricFields(sseMav);
+  const fromLive = hudFcMetricFields(live);
+  const out = {};
+  for (const key of Object.keys(fromSse)) {
+    out[key] = fromSse[key] != null ? fromSse[key] : fromLive[key];
+  }
+  return out;
+}
+
 function liveStatusToHudMavlink(s) {
   if (!s || typeof s !== 'object') return null;
   const texts = Array.isArray(s.recentStatusTexts) ? s.recentStatusTexts : [];
@@ -5485,25 +5573,23 @@ function liveStatusToHudMavlink(s) {
     id: s.id ?? null,
     linkRole: s.linkRole || 'radio',
     heartbeatCount: Number(s.heartbeatCount) || 0,
-    sysId: Number.isFinite(Number(s.sysId)) ? Number(s.sysId) : null,
+    sysId: hudSysId(s.sysId),
     lastHeartbeatAgeMs: Number.isFinite(Number(s.lastHeartbeatAgeMs)) ? Number(s.lastHeartbeatAgeMs) : null,
     heartbeatRateHz: Number.isFinite(Number(s.heartbeatRateHz)) ? Number(s.heartbeatRateHz) : null,
     armed: null,
     armedKnown: false,
     autopilotName: s.autopilotName || null,
     vehicleType: s.vehicleType || null,
+    mavType: Number.isFinite(Number(s.mavType)) ? Number(s.mavType) : null,
     flightMode: null,
     airspeed: null,
     groundspeed: null,
     altitude: null,
     heading: null,
     recentStatusTexts: texts,
-    gpsFixType: Number.isFinite(Number(s.gpsFixType)) ? Number(s.gpsFixType) : null,
-    gpsSats: Number.isFinite(Number(s.gpsSats)) ? Number(s.gpsSats) : null,
-    batteryV: null,
-    batteryPct: null,
     rollDeg: Number.isFinite(s.rollDeg) ? s.rollDeg : null,
     pitchDeg: Number.isFinite(s.pitchDeg) ? s.pitchDeg : null,
+    ...hudFcMetricFields(s),
   };
 }
 
@@ -5523,6 +5609,7 @@ function resolveHudMavlink(sseMav, liveStatus) {
   if (fromLive && fromLive.connected === true) {
     return {
       ...fromLive,
+      ...preferHudFcMetrics(sseMav, fromLive),
       connected: true,
       airspeed: sseMav?.airspeed ?? null,
       groundspeed: sseMav?.groundspeed ?? null,
@@ -5530,14 +5617,10 @@ function resolveHudMavlink(sseMav, liveStatus) {
       heading: sseMav?.heading ?? null,
       rollDeg: sseMav?.rollDeg ?? null,
       pitchDeg: sseMav?.pitchDeg ?? null,
-      batteryV: sseMav?.batteryV ?? null,
-      batteryPct: sseMav?.batteryPct ?? null,
-      gpsFixType: sseMav?.gpsFixType ?? null,
-      gpsSats: sseMav?.gpsSats ?? null,
       armed: sseMav?.armed ?? null,
       armedKnown: sseMav?.armedKnown === true,
       flightMode: sseMav?.flightMode ?? null,
-      sysId: sseMav?.sysId ?? fromLive.sysId,
+      sysId: hudSysId(sseMav?.sysId) ?? fromLive.sysId,
       lastHeartbeatAgeMs: sseMav?.lastHeartbeatAgeMs ?? fromLive.lastHeartbeatAgeMs,
       heartbeatRateHz: sseMav?.heartbeatRateHz ?? fromLive.heartbeatRateHz,
     };
@@ -5695,7 +5778,7 @@ function applyHudGrid(payload) {
     if (raw == null) { valEl.textContent = '--'; return; }
     if (typeof raw === 'number' && !Number.isFinite(raw)) { valEl.textContent = '--'; return; }
     if (slot.key === 'mavlink.flightMode') {
-      valEl.textContent = ARDUPILOT_PLANE_MODES[raw] ?? (raw != null ? '#' + raw : '--');
+      valEl.textContent = vlcFlightModeText(raw, payload?.mavlink, payload?.mavlink?.connected === true);
     } else if (typeof raw === 'number') {
       if (!Number.isFinite(raw)) { valEl.textContent = '--'; return; }
       const a = Math.abs(raw);
@@ -5994,7 +6077,7 @@ function applyFlightHud(mav) {
     }
   }
   if (pfdModeVal) {
-    pfdModeVal.textContent = ARDUPILOT_PLANE_MODES[mav.flightMode] ?? (mav.connected ? `#${mav.flightMode ?? '--'}` : '--');
+    pfdModeVal.textContent = vlcFlightModeText(mav.flightMode, mav, mav.connected === true);
   }
 
   // Heading (top bar)
@@ -6035,7 +6118,7 @@ function applyFlightHud(mav) {
   if (pfdBattVal) {
     const bv = mav.batteryV;
     const bvOk = typeof bv === 'number' && Number.isFinite(bv);
-    pfdBattVal.textContent = bvOk ? `${bv.toFixed(1)} V` : '-- V';
+    pfdBattVal.textContent = bvOk ? `${(bv < 1 ? bv.toFixed(2) : bv.toFixed(1))} V` : '-- V';
     pfdBattVal.style.color = !bvOk ? '' : bv < 10.5 ? '#f87171'
       : bv < 11.5 ? '#facc15' : '#4ade80';
   }
@@ -6672,8 +6755,7 @@ function applyTopbarFlightData(mav) {
   }
   const modeBound = typeof missionTileBoundKey === 'function' ? missionTileBoundKey(hudFlightModeEl) : null;
   if (hudFlightModeEl && (!modeBound || modeBound === 'mavlink.flightMode')) {
-    const mode = ARDUPILOT_PLANE_MODES[mav.flightMode];
-    hudFlightModeEl.textContent = mode ?? (mav.connected ? `#${mav.flightMode ?? '--'}` : '--');
+    hudFlightModeEl.textContent = vlcFlightModeText(mav.flightMode, mav, mav.connected === true);
   }
   try {
     if (typeof pulseRefresh === 'function') pulseRefresh();
@@ -15451,7 +15533,7 @@ function assistBuildContextSnapshot() {
       : { altitude: 'm', speed: 'ms', distance: 'm', verticalRate: 'ms' }),
     aircraft_state: {
       connected: mav.connected === true,
-      flight_mode: ARDUPILOT_PLANE_MODES[mav.flightMode] || (mav.flightMode != null ? String(mav.flightMode) : null),
+      flight_mode: vlcFlightModeName(mav.flightMode, mav) || (Number.isInteger(Number(mav.flightMode)) ? `#${mav.flightMode}` : null),
       armed: typeof mav.armed === 'boolean' ? mav.armed : null,
       gps_ok: typeof mav.gpsFixType === 'number' ? mav.gpsFixType >= 3 : null,
       vision_confidence: conf,
@@ -16869,7 +16951,7 @@ function formatMissionDataValue(key, payload) {
   }
   if (key === 'mavlink.flightMode') {
     const raw = payload?.mavlink?.flightMode;
-    return ARDUPILOT_PLANE_MODES[raw] ?? (payload?.mavlink?.connected ? `#${raw ?? '--'}` : '--');
+    return vlcFlightModeText(raw, payload?.mavlink, payload?.mavlink?.connected === true);
   }
   if (key === 'mavlink.armed') {
     if (!payload?.mavlink?.connected) return '--';
