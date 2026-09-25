@@ -1,0 +1,250 @@
+/* Flight book (תחקור → טיסות). Prefixed .fb- . Layout contract flightbook-v1. */
+#debriefFlightbookPanel.fb-panel {
+  display: none;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  direction: rtl;
+}
+#debriefFlightbookPanel.fb-panel.visible {
+  display: flex;
+  flex-direction: column;
+}
+#recordings:has(#debriefFlightbookPanel.visible) .panel-header .actions {
+  display: none;
+}
+
+.fb-shell {
+  display: grid;
+  grid-template-columns: minmax(300px, 380px) minmax(0, 1fr);
+  gap: 8px;
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+  direction: rtl;
+}
+.fb-list,
+.fb-main {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: #11161f;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+}
+.fb-list { overflow: hidden; }
+.fb-main { overflow: auto; padding: 10px 12px 16px; gap: 10px; }
+
+.fb-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px;
+  align-items: center;
+}
+.fb-filters input,
+.fb-filters select {
+  background: #0f141c;
+  color: #e8edf6;
+  border: 1px solid rgba(148, 168, 198, 0.28);
+  border-radius: 8px;
+  padding: 4px 8px;
+  font: inherit;
+  max-width: 100%;
+}
+.fb-filters label {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  font-size: 0.78rem;
+  color: #cbd5e1;
+}
+.fb-sync {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 0 8px 8px;
+  font-size: 0.78rem;
+  color: #94a3b8;
+}
+.fb-sync button,
+.fb-btn {
+  background: #1d4ed8;
+  color: #fff;
+  border: 0;
+  border-radius: 8px;
+  padding: 4px 10px;
+  cursor: pointer;
+  font: inherit;
+}
+.fb-sync-err { color: #fecaca; }
+
+.fb-list-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 0 8px 8px;
+}
+.fb-card {
+  width: 100%;
+  text-align: right;
+  background: #0f141c;
+  color: #e8edf6;
+  border: 1px solid rgba(148, 168, 198, 0.18);
+  border-radius: 10px;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  min-width: 0;
+  overflow: hidden;
+  /* Three default flights must overflow the list column at 1920×1080. */
+  min-height: calc((100vh - 160px) / 2.15);
+}
+.fb-card.is-on { border-color: #38bdf8; }
+.fb-card-top, .fb-card-badges, .fb-modes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+  min-width: 0;
+}
+.fb-card h3 { margin: 0; font-size: 1rem; }
+.fb-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px 8px;
+  margin: 6px 0;
+  font-size: 0.78rem;
+  color: #cbd5e1;
+}
+.fb-stats span, .fb-card h3, .fb-when { min-width: 0; overflow-wrap: anywhere; }
+.fb-chip, .fb-badge {
+  border-radius: 999px;
+  padding: 1px 7px;
+  font-size: 0.72rem;
+  background: #1e293b;
+  color: #e2e8f0;
+}
+.fb-badge[data-sev="warning"] { background: #92400e; color: #ffedd5; }
+.fb-badge[data-sev="error"] { background: #9f1239; color: #ffe4e6; }
+.fb-badge[data-sev="critical"] { background: #7f1d1d; color: #fee2e2; }
+.fb-badge[data-sev="ok"] { background: #14532d; color: #dcfce7; }
+
+.fb-empty {
+  margin: 12px;
+  padding: 16px;
+  border: 1px dashed rgba(148, 168, 198, 0.35);
+  border-radius: 10px;
+  color: #e2e8f0;
+  line-height: 1.5;
+}
+
+.fb-kpi, .fb-debrief, .fb-artifacts, .fb-split, .fb-plots { min-width: 0; }
+.fb-kpi {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  align-items: flex-end;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.fb-kpi h2 { margin: 0; font-size: 1.15rem; }
+.fb-kpi-stats { display: flex; flex-wrap: wrap; gap: 8px 12px; font-size: 0.82rem; }
+.fb-dl { display: flex; flex-wrap: wrap; gap: 6px; }
+.fb-dl a, .fb-dl span {
+  font-size: 0.75rem;
+  color: #bae6fd;
+}
+.fb-dl span { color: #fca5a5; }
+
+.fb-debrief {
+  background: #0f141c;
+  border: 1px solid rgba(148, 168, 198, 0.18);
+  border-radius: 10px;
+  padding: 8px 10px;
+}
+.fb-debrief h3 { margin: 0 0 6px; font-size: 0.95rem; }
+.fb-cite {
+  border: 1px solid rgba(56, 189, 248, 0.5);
+  background: transparent;
+  color: #7dd3fc;
+  border-radius: 999px;
+  padding: 0 6px;
+  cursor: pointer;
+  font: inherit;
+}
+
+.fb-split {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.9fr) minmax(280px, 1.1fr);
+  gap: 8px;
+  min-height: 300px;
+}
+.fb-timeline, .fb-map {
+  min-width: 0;
+  min-height: 280px;
+  background: #0f141c;
+  border: 1px solid rgba(148, 168, 198, 0.16);
+  border-radius: 10px;
+}
+.fb-timeline { display: flex; flex-direction: column; max-height: 460px; }
+.fb-phase-filters { display: flex; flex-wrap: wrap; gap: 4px; padding: 6px; }
+.fb-phase-filters button {
+  background: #1e293b;
+  color: #e2e8f0;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 0.72rem;
+  padding: 2px 8px;
+  cursor: pointer;
+}
+.fb-phase-filters button.is-on { border-color: #38bdf8; }
+.fb-timeline-scroll { flex: 1 1 auto; min-height: 0; overflow: auto; }
+.fb-phase { margin: 0; padding: 4px 8px; color: #94a3b8; font-size: 0.75rem; position: sticky; top: 0; background: #0f141c; }
+.fb-event {
+  width: 100%;
+  text-align: right;
+  background: transparent;
+  color: #e8edf6;
+  border: 0;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  padding: 6px 8px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.8rem;
+}
+.fb-event.is-on { background: rgba(56, 189, 248, 0.15); }
+.fb-event[data-sev="warning"] { box-shadow: inset -3px 0 0 #f59e0b; }
+.fb-event[data-sev="error"], .fb-event[data-sev="critical"] { box-shadow: inset -3px 0 0 #f43f5e; }
+.fb-map { height: 100%; min-height: 280px; }
+.fb-map-missing { margin: 12px; color: #e2e8f0; }
+
+.fb-plots { display: flex; flex-direction: column; gap: 8px; }
+.fb-plot {
+  min-height: 110px;
+  background: #0f141c;
+  border: 1px solid rgba(148, 168, 198, 0.16);
+  border-radius: 10px;
+  padding: 6px 8px 8px;
+  position: relative;
+}
+.fb-plot h3 { margin: 0 0 4px; font-size: 0.82rem; }
+.fb-plot svg { width: 100%; height: 86px; display: block; touch-action: none; }
+.fb-plot-empty { min-height: 86px; display: flex; align-items: center; color: #94a3b8; }
+.fb-hover {
+  position: absolute;
+  top: 6px;
+  left: 8px;
+  font-size: 0.72rem;
+  color: #e2e8f0;
+  background: rgba(15, 20, 28, 0.9);
+  border-radius: 6px;
+  padding: 2px 6px;
+  pointer-events: none;
+}
+.fb-artifacts { font-size: 0.8rem; }
+.fb-artifacts li { margin: 4px 0; }
+
+.fb-bdi { unicode-bidi: isolate; }

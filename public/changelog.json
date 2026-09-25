@@ -1,5 +1,16 @@
 [
   {
+    "version": "1.02.324",
+    "date": "2026-09-25",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Flight book (Part A): cloud flights list, timeline, plots, map",
+        "detail": "APP_VERSION 1.02.324. תחקור gains a טיסות sub-tab. Mock fixtures or a read-only B2/S3 key. Off or missing keys show the Hebrew not-configured state and never fake flights. Events sync for search; series, track, and summary load on open with sha256 checks. Gemini debrief is not in this version."
+      }
+    ]
+  },
+  {
     "version": "1.02.320",
     "date": "2026-09-18",
     "changes": [

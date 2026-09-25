@@ -10,6 +10,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
     <link rel="icon" href="./icon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="./styles.css?v=__APP_VERSION__" />
+    <link rel="stylesheet" href="./modules/flightbook.css?v=__APP_VERSION__" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
     <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
     <script src="https://cdn.jsdelivr.net/npm/leaflet-rotate@0.2.8/dist/leaflet-rotate.js" crossorigin=""></script>
@@ -849,6 +850,7 @@
       <section id="recordings" class="panel recordings-panel-flex">
         <div class="panel-header">
           <div class="tele-subtabs" role="tablist" aria-label="תתי טאבים תחקור">
+            <button type="button" class="tele-subtab" id="debriefFlightbookBtn" data-debrief-tab="flightbook">טיסות</button>
             <button type="button" class="tele-subtab active" id="debriefRecBtn" data-debrief-tab="recordings">הקלטות</button>
             <button type="button" class="tele-subtab" id="debriefLogsBtn" data-debrief-tab="logs">לוגים</button>
           </div>
@@ -861,6 +863,7 @@
             <button id="annotationsToggleBtn" class="badge clickable" title="הפעל/כבה אנוטציות על הוידאו">אנוטציות: פועל</button>
           </div>
         </div>
+        <div id="debriefFlightbookPanel" class="tele-subpanel fb-panel" data-debrief-panel="flightbook" data-layout-contract="flightbook-v1" dir="rtl"></div>
         <div id="debriefRecordingsPanel" class="recordings-layout tele-subpanel visible" data-debrief-panel="recordings">
           <div class="video-column">
             <div class="video-wrapper">
@@ -2444,6 +2447,7 @@
       }
     }
     </script>
+    <script type="module" src="./modules/flightbook.mjs?v=__APP_VERSION__"></script>
     <script src="./app.js?v=__APP_VERSION__"></script>
   </body>
 </html>

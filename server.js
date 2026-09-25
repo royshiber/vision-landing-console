@@ -13,6 +13,7 @@ import { correlationMiddleware } from './lib/request-context.mjs';
 import { createCompanionService } from './lib/companion-service.mjs';
 import { mergeCompanionEnv, readStoredCompanionConnection, snapshotCompanionEnv } from './lib/companion-connection.mjs';
 import { ensureCompanionMavlinkRelay } from './lib/routes/companion-connection-api.mjs';
+import { scheduleFlightLogsBootSync } from './lib/flight-logs/sync.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -203,6 +204,7 @@ if (_isMain) {
       .catch((err) =>
         logger.warn({ err }, 'Companion bridge start failed'),
       );
+    scheduleFlightLogsBootSync(routeCtx);
     logger.info({ port: PORT, host: HOST, version: APP_VERSION }, `Vision Landing Console started`);
     const hostLabel = HOST === '0.0.0.0' ? 'localhost' : HOST;
     console.log(`Vision Landing Console v${APP_VERSION}: http://${hostLabel}:${PORT}`);

@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "airvix.flight.event/1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "t_utc", "t_rel_s", "src", "type", "sev", "msg", "origin"],
+  "properties": {
+    "id": { "type": "string" },
+    "t_utc": { "type": "string" },
+    "t_rel_s": { "type": "number" },
+    "src": { "enum": ["fc", "flight", "companion", "link", "vision", "console", "system"] },
+    "type": { "type": "string" },
+    "sev": { "enum": ["info", "notice", "warning", "error", "critical"] },
+    "msg": { "type": "string" },
+    "msg_he": { "type": ["string", "null"] },
+    "data": { "type": ["object", "null"] },
+    "origin": { "enum": ["tlog", "bin", "journal", "health_poll", "console"] },
+    "cause_id": { "type": ["string", "null"] },
+    "count": { "type": "integer", "minimum": 1 },
+    "last_t_rel_s": { "type": ["number", "null"] }
+  }
+}

@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "airvix.flight.manifest/1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema", "manifest_rev", "flight_id", "vehicle_id", "classification", "state",
+    "end_reason", "times", "segments", "detector", "versions", "artifacts", "counts",
+    "upload", "created_utc", "updated_utc"
+  ],
+  "properties": {
+    "schema": { "const": "airvix.flight.manifest/1" },
+    "manifest_rev": { "type": "integer", "minimum": 1 },
+    "flight_id": { "type": "string" },
+    "vehicle_id": { "type": "string" },
+    "classification": { "enum": ["flight", "ground_run", "bench", "unknown_no_telemetry"] },
+    "state": { "enum": ["in_flight", "processing", "uploading", "awaiting_fc_log", "complete", "partial"] },
+    "end_reason": { "type": "string" },
+    "times": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["arm_utc", "time_source"],
+      "properties": {
+        "arm_utc": { "type": "string" },
+        "takeoff_utc": { "type": ["string", "null"] },
+        "landed_utc": { "type": ["string", "null"] },
+        "disarm_utc": { "type": ["string", "null"] },
+        "window_start_utc": { "type": "string" },
+        "window_end_utc": { "type": "string" },
+        "time_source": { "enum": ["ntp", "fc_system_time", "jetson_unsynced"] },
+        "jetson_minus_fc_s": { "type": ["number", "null"] }
+      }
+    },
+    "segments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["n", "air_time_s"],
+        "properties": {
+          "n": { "type": "integer" },
+          "takeoff_utc": { "type": ["string", "null"] },
+          "landed_utc": { "type": ["string", "null"] },
+          "air_time_s": { "type": "number" }
+        }
+      }
+    },
+    "detector": { "type": "object" },
+    "versions": { "type": "object" },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "kind", "state"],
+        "properties": {
+          "name": { "type": "string" },
+          "kind": { "type": "string" },
+          "key": { "type": "string" },
+          "bytes": { "type": ["integer", "null"] },
+          "sha256": { "type": ["string", "null"] },
+          "state": { "enum": ["pending", "uploading", "uploaded", "unavailable", "skipped"] },
+          "reason": { "type": ["string", "null"] },
+          "chunked": { "type": "boolean" }
+        }
+      }
+    },
+    "counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["events", "warnings", "errors", "critical"],
+      "properties": {
+        "events": { "type": "integer" },
+        "warnings": { "type": "integer" },
+        "errors": { "type": "integer" },
+        "critical": { "type": "integer" }
+      }
+    },
+    "upload": { "type": "object" },
+    "created_utc": { "type": "string" },
+    "updated_utc": { "type": "string" }
+  }
+}

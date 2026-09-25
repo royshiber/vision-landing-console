@@ -35,11 +35,11 @@ function listen(app) {
 }
 
 describe('P3.2 annotated vision cellular-only honesty gate', () => {
-  it('pins APP_VERSION at 1.02.320', () => {
+  it('pins APP_VERSION at 1.02.324', () => {
     const version = fs.readFileSync(path.join(repoRoot, 'version.js'), 'utf8');
     const pkg = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8'));
-    expect(version).toContain("export const APP_VERSION = '1.02.320'");
-    expect(pkg.version).toBe('1.02.320');
+    expect(version).toContain("export const APP_VERSION = '1.02.324'");
+    expect(pkg.version).toBe('1.02.324');
   });
 
   it('modem_absent makes annotated video unavailable on the cellular path', () => {

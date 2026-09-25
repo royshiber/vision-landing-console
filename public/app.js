@@ -283,10 +283,11 @@ function _subtabIds() {
 function initDebriefTelemetrySubtab() {
   // Telemetry is now its own main tab — no longer moved into recordings.
 }
-function applyDebriefSubtab(tabId = 'recordings', { save = true } = {}) {
-  const wanted = tabId === 'logs' ? 'logs' : 'recordings';
+function applyDebriefSubtab(tabId = 'flightbook', { save = true } = {}) {
+  const wanted = tabId === 'logs' || tabId === 'recordings' || tabId === 'flightbook' ? tabId : 'flightbook';
   debriefTabButtons.forEach((btn) => btn.classList.toggle('active', btn.dataset.debriefTab === wanted));
-  [debriefRecordingsPanel, debriefLogsPanel].forEach((panel) => {
+  const debriefFlightbookPanel = document.getElementById('debriefFlightbookPanel');
+  [debriefRecordingsPanel, debriefLogsPanel, debriefFlightbookPanel].forEach((panel) => {
     if (!panel) return;
     panel.classList.toggle('visible', panel.dataset.debriefPanel === wanted);
   });
@@ -297,6 +298,7 @@ function applyDebriefSubtab(tabId = 'recordings', { save = true } = {}) {
       /* ignore */
     }
   }
+  document.dispatchEvent(new CustomEvent('airvix:debrief-subtab', { detail: { tab: wanted } }));
   if (wanted === 'logs') {
     setTimeout(() => {
       if (typeof refreshFlightLists === 'function') refreshFlightLists();
@@ -383,6 +385,12 @@ function applyMainTab(tabId, { save = true } = {}) {
   if (tabId === 'telemetry') {
     setTimeout(() => onTelemetryTabActivated(), 60);
   }
+  if (tabId === 'recordings') {
+    let stored = '';
+    try { stored = sessionStorage.getItem('visionLandingDebriefSubtabV1') || ''; } catch { /* ignore */ }
+    const known = stored === 'logs' || stored === 'recordings' || stored === 'flightbook';
+    applyDebriefSubtab(known ? stored : 'flightbook', { save: false });
+  }
   if (tabId === 'terrain') {
     setTimeout(() => {
       if (typeof onTerrainTabActivated === 'function') onTerrainTabActivated();
@@ -450,7 +458,8 @@ function restoreLastUiTab() {
     applyMainTab(appDefaultWorkspaceTab(), { save: false });
   }
   if (main === 'recordings') {
-    applyDebriefSubtab(debriefSub === 'logs' ? 'logs' : 'recordings', { save: false });
+    const known = debriefSub === 'logs' || debriefSub === 'recordings' || debriefSub === 'flightbook';
+    applyDebriefSubtab(known ? debriefSub : 'flightbook', { save: false });
   }
   if (main === 'control') {
     try {
