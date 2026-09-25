@@ -1,12 +1,12 @@
 [
   {
-    "version": "1.02.322",
+    "version": "1.02.325",
     "date": "2026-09-25",
     "changes": [
       {
         "type": "feat",
-        "title": "Companion FC SERIAL4 telemetry and uplink status",
-        "detail": "APP_VERSION 1.02.322. Companion 2.3.8. FC port label defaults to SERIAL4 (Matek TX3/RX3). FC status connects only on a fresh autopilot heartbeat and reports mode, armed, load, battery, MEMINFO, and MCU temperature from real MAVLink bytes. Modem status reads Huawei HiLink signal when the stick is present, and GET /api/v1/network/uplinks reports Wi-Fi and cellular read-only. E3372 bring-up no longer treats Jetson usb0 as the modem. No ARM/LAND and no console UI."
+        "title": "Companion cameras, SERIAL4 FC telemetry, and uplink status",
+        "detail": "APP_VERSION 1.02.325. Companion 2.3.8. Per-slot camera supervisor, cam3 RTSP, SIYI A8 SDK with control off by default, and HTTP/1.1 keep-alive. FC port label defaults to SERIAL4 (Matek TX3/RX3). FC status connects only on a fresh autopilot heartbeat and reports mode, armed, load, battery, MEMINFO, and MCU temperature from real MAVLink bytes. Modem status reads Huawei HiLink signal when the stick is present, and GET /api/v1/network/uplinks reports Wi-Fi and cellular read-only. E3372 bring-up no longer treats Jetson usb0 as the modem. No ARM/LAND and no console UI."
       }
     ]
   },
@@ -15,9 +15,14 @@
     "date": "2026-09-25",
     "changes": [
       {
-        "type": "feat",
-        "title": "Companion camera supervisor, cam3 RTSP, and SIYI A8 gimbal SDK",
-        "detail": "APP_VERSION 1.02.321. Companion 2.3.7. Per-slot camera supervisor reopens USB cameras without restarting the MAVLink relay. Stable V4L by-id mapping, MJPG request, CSI and RTSP sources, and a disabled-by-default cam3 gimbal slot. SIYI UDP SDK with honest absent status and control endpoints gated off unless VLC_GIMBAL_CONTROL_ENABLED=1. Companion HTTP is HTTP/1.1 keep-alive with Content-Length on every response and a 30s idle timeout. No ARM/LAND and no console UI."
+        "type": "fix",
+        "title": "Fixed-wing land sends DO_LAND_START, never mode 14",
+        "detail": "APP_VERSION 1.02.321. After master 1.02.320. Voice and console land for fixed-wing reads the FC mission and sends MAV_CMD_DO_LAND_START only when that mission contains a DO_LAND_START item. No marker, an empty mission, an unreadable mission, or a copter sends nothing and says why in Hebrew. Voice mode changes use a per-vehicle allowlist. AVOID_ADSB, INITIALISING, and a numeric mode are refused. AUTOLAND, QLAND, and LOITER_ALT_QLAND use DO_LAND_START, not SET_MODE. ArduPlane custom mode 14 is AVOID_ADSB, not LAND. Mode names follow the official ArduPlane and ArduCopter tables. GCS and companion heartbeats no longer overwrite autopilot mode or ARM. ARM and DISARM stay blocked. FC gauges decode the live MAVLink stream: SYS_STATUS remaining is at offset 30, truncated MAVLink2 payloads are zero-extended, MEMINFO is free kilobytes with no invented percent, and MCU_STATUS supplies temperature. A listening socket without a fresh autopilot heartbeat shows מנותק, not דופק חי. The companion MAVLink TCP relay reconnects after the socket closes (1s, 2s, 5s, then 10s) until a manual disconnect. A closed console socket, or an autopilot heartbeat older than 3s, is reported down instead of connected from the companion cache. No live vehicle, no Companion apply/restart."
+      },
+      {
+        "type": "test",
+        "title": "Tests",
+        "detail": "arduplane-flight-modes.test.mjs — plane and copter tables vs mode.h, HUD and sim-lab stay in sync, mode 14 is not LAND. ask-do-land-start.test.mjs — mission present, absent, empty, unreadable stale cache, copter refusal, ACK accept/reject/timeout. mavlink-heartbeat-hygiene.test.mjs — GCS and companion heartbeats do not clear ARM or change mode."
       }
     ]
   },

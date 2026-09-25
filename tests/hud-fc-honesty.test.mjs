@@ -128,11 +128,11 @@ describe('HUD field honesty helper', () => {
 
 describe('GPS_RAW honesty without invented coordinates', () => {
   it('keeps fix and sats when lat/lon are still 0,0', () => {
-    const p = Buffer.alloc(33);
-    p.writeUInt8(1, 8);
+    const p = Buffer.alloc(30);
+    p.writeUInt8(1, 28);
+    p.writeInt32LE(0, 8);
     p.writeInt32LE(0, 12);
-    p.writeInt32LE(0, 16);
-    p.writeUInt8(5, 32);
+    p.writeUInt8(5, 29);
     const g = parseGpsRawInt(p);
     expect(g).not.toBeNull();
     expect(g.lat).toBeNull();

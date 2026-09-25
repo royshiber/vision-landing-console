@@ -77,6 +77,12 @@ function loadHonestyUi() {
     `const MISSION_FC_RELAY_HINT_HE = ${JSON.stringify(RELAY_HINT)};`,
     'const GPS_FIX_LABELS = [];',
     "const ARDUPILOT_PLANE_MODES = { 0: 'MANUAL' };",
+    `function vlcFlightModeText(raw, _mav, connected) {
+      const n = Number(raw);
+      if (Number.isInteger(n) && Object.prototype.hasOwnProperty.call(ARDUPILOT_PLANE_MODES, n)) return ARDUPILOT_PLANE_MODES[n];
+      if (!connected) return '--';
+      return '#' + (raw ?? '--');
+    }`,
     "const VLC_TOOLTIP_IAS_FROM_GS = '';",
     "const VLC_TOOLTIP_HUD_TIME_SKEW = '';",
     "const VLC_TOOLTIP_NO_LINK = 'אין קישור';",

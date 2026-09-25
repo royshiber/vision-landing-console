@@ -26,10 +26,10 @@ function sliceFunction(src, name) {
   throw new Error(`unclosed function ${name}`);
 }
 
-describe('AIRVIX 1.02.261 Roy feedback (still holds on 1.02.322)', () => {
-  it('pins APP_VERSION at 1.02.322', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.322'");
-    expect(pkg.version).toBe('1.02.322');
+describe('AIRVIX 1.02.261 Roy feedback (still holds on 1.02.325)', () => {
+  it('pins APP_VERSION at 1.02.325', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.325'");
+    expect(pkg.version).toBe('1.02.325');
   });
 
   it('removes Platform from primary chrome and redirects Assist', () => {
@@ -148,6 +148,7 @@ describe('AIRVIX 1.02.261 Roy feedback (still holds on 1.02.322)', () => {
   it('never invents pulse widget numbers and adds no flight writes', () => {
     const src = [
       sliceFunction(js, 'formatPulseWidgetValue'),
+      sliceFunction(js, 'pulseJetsonSystemMetrics'),
       sliceFunction(js, 'formatComputerMetric'),
       sliceFunction(js, 'pulseComputerMetricValue'),
       sliceFunction(js, 'pulseIsPlaceholder'),
