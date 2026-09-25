@@ -11,6 +11,17 @@
     ]
   },
   {
+    "version": "1.02.323",
+    "date": "2026-09-25",
+    "changes": [
+      {
+        "type": "ui",
+        "title": "Discreet Mission FC messages toggle",
+        "detail": "APP_VERSION 1.02.323. The Mission STATUSTEXT log no longer covers the horizon. A small הודעות control shows or hides a compact 12px strip (collapsed cap 72px, internal scroll). The choice is stored in localStorage and defaults to hidden. Unread warnings and errors show only as a severity-colored count badge. No flight commands."
+      }
+    ]
+  },
+  {
     "version": "1.02.321",
     "date": "2026-09-25",
     "changes": [
