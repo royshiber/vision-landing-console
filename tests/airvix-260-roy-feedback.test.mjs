@@ -148,6 +148,7 @@ describe('AIRVIX 1.02.261 Roy feedback (still holds on 1.02.321)', () => {
   it('never invents pulse widget numbers and adds no flight writes', () => {
     const src = [
       sliceFunction(js, 'formatPulseWidgetValue'),
+      sliceFunction(js, 'pulseJetsonSystemMetrics'),
       sliceFunction(js, 'formatComputerMetric'),
       sliceFunction(js, 'pulseComputerMetricValue'),
       sliceFunction(js, 'pulseIsPlaceholder'),

@@ -29,6 +29,7 @@ function sliceFunction(src, name) {
 function loadFcHonesty() {
   const src = [
     sliceFunction(js, 'companionFiniteMetric'),
+    sliceFunction(js, 'pulseMavlinkLive'),
     sliceFunction(js, 'pulseFcObject'),
     sliceFunction(js, 'pulseCompanionFcLink'),
     sliceFunction(js, 'pulseResolveFcHonesty'),
@@ -120,7 +121,14 @@ describe('Status FC honest gauges (UART heartbeat vs GCS load)', () => {
       reachable: true,
       fc_heartbeat: true,
       fc: {},
-    }, { connected: true, fcLoadPct: 22.4, fcMemPct: null, fcTempC: 31 });
+    }, {
+      connected: true,
+      heartbeatCount: 4,
+      lastHeartbeatAgeMs: 200,
+      fcLoadPct: 22.4,
+      fcMemPct: null,
+      fcTempC: 31,
+    });
     expect(honesty.load).toBeCloseTo(22.4);
     expect(honesty.mem).toBeNull();
     expect(honesty.temp).toBe(31);

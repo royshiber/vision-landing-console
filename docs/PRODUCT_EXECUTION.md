@@ -68,7 +68,7 @@ Merge autonomy still on for independently VERIFIED safe draft PRs. Hard safety s
 
 **Master tip before this draft:** `1.02.320` at `498c356`.
 
-Voice and console "land" for fixed-wing no longer sends ArduPlane custom mode 14. That number is AVOID_ADSB. Land sends `MAV_CMD_DO_LAND_START` only after a fresh mission read shows a DO_LAND_START item. No marker, an unreadable mission, or a copter sends nothing and says why in Hebrew. Voice mode changes use a per-vehicle allowlist. AVOID_ADSB, INITIALISING, and numeric mode strings are not sent. AUTOLAND, QLAND, and LOITER_ALT_QLAND use the same DO_LAND_START path, not SET_MODE. ARM / DISARM stay blocked. Heartbeat vehicle state ignores GCS and companion heartbeats.
+Voice and console "land" for fixed-wing no longer sends ArduPlane custom mode 14. That number is AVOID_ADSB. Land sends `MAV_CMD_DO_LAND_START` only after a fresh mission read shows a DO_LAND_START item. No marker, an unreadable mission, or a copter sends nothing and says why in Hebrew. Voice mode changes use a per-vehicle allowlist. AVOID_ADSB, INITIALISING, and numeric mode strings are not sent. AUTOLAND, QLAND, and LOITER_ALT_QLAND use the same DO_LAND_START path, not SET_MODE. ARM / DISARM stay blocked. Heartbeat vehicle state ignores GCS and companion heartbeats. Status-tab FC gauges read the locked autopilot only: truncated MAVLink2 payloads are zero-extended, battery remaining is SYS_STATUS offset 30, memory is free kilobytes from MEMINFO, and temperature comes from MCU_STATUS. A listening socket with no fresh heartbeat shows disconnected, not a live pulse.
 
 This does not connect a live vehicle and does not add ARM, DISARM, or Companion apply / restart.
 
