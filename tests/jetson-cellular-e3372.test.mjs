@@ -15,6 +15,7 @@ const PACK_FILES = [
   'install.sh',
   'e3372-status.sh',
   'e3372-bringup.sh',
+  'e3372-boot-trigger.sh',
   'tailscale-check.sh',
   'cellular-mavlink-endpoint.sh',
   'annotated-encoder-status.sh',
@@ -51,12 +52,12 @@ function lastJson(stdout) {
 }
 
 describe('Jetson Huawei E3372 host pack (software before hardware)', () => {
-  it('pins APP_VERSION at 1.02.321', () => {
+  it('pins APP_VERSION at 1.02.322', () => {
     const version = fs.readFileSync(path.join(repoRoot, 'version.js'), 'utf8');
     const pkg = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8'));
     const changelog = fs.readFileSync(path.join(repoRoot, 'public', 'changelog.json'), 'utf8');
-    expect(version).toContain("export const APP_VERSION = '1.02.321'");
-    expect(pkg.version).toBe('1.02.321');
+    expect(version).toContain("export const APP_VERSION = '1.02.322'");
+    expect(pkg.version).toBe('1.02.322');
     expect(changelog).toContain('"version": "1.02.293"');
   });
 
@@ -167,8 +168,11 @@ describe('Jetson Huawei E3372 host pack (software before hardware)', () => {
     const bringUnit = read('systemd/airvix-e3372-bringup.service');
     expect(statusUnit).toMatch(/SuccessExitStatus=0/);
     expect(bringUnit).toMatch(/SuccessExitStatus=0/);
-    expect(bringUnit).toMatch(/ConditionPathExists=\|\/dev\/cdc-wdm0/);
+    expect(bringUnit).toMatch(/e3372-boot-trigger\.sh/);
+    expect(bringUnit).not.toMatch(/usb0/);
     expect(bringUnit).not.toMatch(/ConditionPathExists=.*ttyUSB0/);
+    expect(udev).toMatch(/ACTION!="remove", SUBSYSTEM=="net"/);
+    expect(udev).not.toMatch(/ACTION=="add", SUBSYSTEM=="net"/);
     expect(statusUnit + bringUnit).not.toMatch(/ExecStart=.*companion|systemctl restart|mavlink_to_fc/i);
 
     const switchA = read('usb-modeswitch/12d1:1f01');

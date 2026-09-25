@@ -1,5 +1,16 @@
 [
   {
+    "version": "1.02.322",
+    "date": "2026-09-25",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Companion FC SERIAL4 telemetry and uplink status",
+        "detail": "APP_VERSION 1.02.322. Companion 2.3.8. FC port label defaults to SERIAL4 (Matek TX3/RX3). FC status connects only on a fresh autopilot heartbeat and reports mode, armed, load, battery, MEMINFO, and MCU temperature from real MAVLink bytes. Modem status reads Huawei HiLink signal when the stick is present, and GET /api/v1/network/uplinks reports Wi-Fi and cellular read-only. E3372 bring-up no longer treats Jetson usb0 as the modem. No ARM/LAND and no console UI."
+      }
+    ]
+  },
+  {
     "version": "1.02.321",
     "date": "2026-09-25",
     "changes": [

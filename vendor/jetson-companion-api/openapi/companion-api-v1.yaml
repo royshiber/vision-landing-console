@@ -121,6 +121,21 @@ paths:
               schema:
                 $ref: "#/components/schemas/FcStatus"
 
+  /network/uplinks:
+    get:
+      tags: [status]
+      operationId: getNetworkUplinks
+      x-safety-tier: READ_ONLY
+      x-mutability: READ_ONLY
+      summary: Read-only Wi-Fi and Huawei cellular uplink snapshot. No enable or disable.
+      responses:
+        "200":
+          description: UplinkStatus
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UplinkStatus"
+
   /status/mavlink:
     get:
       tags: [status]
@@ -763,6 +778,37 @@ components:
       type: string
       enum: [camera_optical, body_frd, body_flu, ned_local, wgs84, target]
 
+    UplinkStatus:
+      type: object
+      additionalProperties: false
+      required: [ok, read_only, wifi, cellular]
+      properties:
+        ok: { type: boolean }
+        read_only: { type: boolean }
+        default_iface: { type: [string, "null"] }
+        wifi:
+          type: object
+          additionalProperties: false
+          properties:
+            iface: { type: [string, "null"] }
+            up: { type: boolean }
+            ssid: { type: [string, "null"] }
+            signal_dbm: { type: [number, "null"] }
+            ip: { type: [string, "null"] }
+            default_route: { type: boolean }
+        cellular:
+          type: object
+          additionalProperties: false
+          properties:
+            iface: { type: [string, "null"] }
+            up: { type: boolean }
+            ip: { type: [string, "null"] }
+            route_metric: { type: [integer, "null"] }
+            default_route: { type: boolean }
+            signal:
+              type: [object, "null"]
+              additionalProperties: true
+
     HealthResponse:
       type: object
       required: [ok, api_version]
@@ -772,6 +818,10 @@ components:
         api_version:
           type: string
           example: "1"
+        capabilities:
+          type: object
+          properties:
+            uplinkStatus: { type: boolean }
 
     VersionResponse:
       type: object
@@ -884,8 +934,24 @@ components:
         global_position_int: { $ref: "#/components/schemas/CachedMessage" }
         armed:
           type: [boolean, "null"]
-          description: Derived from HEARTBEAT base_mode if present; observe-only
+          description: Derived from HEARTBEAT base_mode if present; observe-only. Null when the autopilot heartbeat is not fresh.
         custom_mode: { type: [integer, "null"] }
+        status: { type: [string, "null"] }
+        connected: { type: [boolean, "null"] }
+        heartbeat_validity: { type: [string, "null"] }
+        mode: { type: [string, "null"] }
+        autopilot: { type: [integer, "null"] }
+        system_id: { type: [integer, "null"] }
+        component_id: { type: [integer, "null"] }
+        load_pct: { type: [number, "null"] }
+        loadPct: { type: [number, "null"] }
+        battery_v: { type: [number, "null"] }
+        battery_pct: { type: [integer, "null"] }
+        battery_source: { type: [string, "null"] }
+        meminfo_free_kb: { type: [number, "null"] }
+        mcu_temp_c: { type: [number, "null"] }
+        temperature_c: { type: [number, "null"] }
+        last_heartbeat_age_ms: { type: [integer, "null"] }
 
     ChannelStatus:
       type: object

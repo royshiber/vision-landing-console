@@ -30,7 +30,7 @@ python3 camera_ingest.py --resolve
 
 4. Copy this folder to `~/vlc-companion` (or `install.sh --apply` on a Jetson).
 5. Optional gimbal: `docs/SIYI_A8_GIMBAL.md` and `./siyi-net.sh`.
-6. Start the 2.3.7 agent (UART fan-out unchanged):
+6. Start the 2.3.8 agent (UART fan-out unchanged):
 
 ```
 python3 companion_agent.py
@@ -67,6 +67,10 @@ CSI without a GStreamer OpenCV build reports `csi_requires_gstreamer_opencv`.
 | `VLC_SIYI_TIMEOUT_S` / `VLC_SIYI_POLL_S` / `VLC_SIYI_STALE_S` | `0.4` / `0.5` / `2` |
 | `VLC_GIMBAL_POLL` | on with the relay; off when `VLC_SKIP_RELAY=1` unless set to `1` |
 | `VLC_HTTP_IDLE_S` | `30` (keep-alive idle timeout; HTTP/1.1, Content-Length on every response) |
+| `VLC_FC_SERIAL_NAME` | `SERIAL4` (Matek pads TX3/RX3, `SERIAL4_PROTOCOL=2`) |
+| `VLC_E3372_HILINK_URL` | unset (probe `http://192.168.8.1` only when a Huawei `enx*` iface exists) |
+| `VLC_WIFI_IFACE` | `wlP1p1s0` |
+| `VLC_CELL_IFACE` | unset (auto: `enx*` whose USB parent is vendor `12d1`) |
 
 USB open requests MJPG, then YUYV.
 

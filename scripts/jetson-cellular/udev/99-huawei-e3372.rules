@@ -10,10 +10,11 @@ ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="12d1", ATTR{idProduct}=="1f01"
 ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="12d1", ATTR{idProduct}=="14fe", RUN+="/usr/sbin/usb_modeswitch -v 12d1 -p 14fe -J"
 ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="12d1", ATTR{idProduct}=="1446", RUN+="/usr/sbin/usb_modeswitch -v 12d1 -p 1446 -J"
 
-# HiLink CDC ethernet after switch — start bring-up when the netdev appears.
-ACTION=="add", SUBSYSTEM=="net", ATTRS{idVendor}=="12d1", ATTRS{idProduct}=="14dc", TAG+="systemd", ENV{SYSTEMD_WANTS}="airvix-e3372-bringup.service"
-ACTION=="add", SUBSYSTEM=="net", ATTRS{idVendor}=="12d1", ATTRS{idProduct}=="14db", TAG+="systemd", ENV{SYSTEMD_WANTS}="airvix-e3372-bringup.service"
-ACTION=="add", SUBSYSTEM=="net", ATTRS{idVendor}=="12d1", ATTRS{idProduct}=="155e", TAG+="systemd", ENV{SYSTEMD_WANTS}="airvix-e3372-bringup.service"
+# HiLink CDC ethernet after switch — start bring-up when the netdev appears
+# or changes. remove must not re-trigger. usb0 is not a Huawei netdev.
+ACTION!="remove", SUBSYSTEM=="net", ATTRS{idVendor}=="12d1", ATTRS{idProduct}=="14dc", TAG+="systemd", ENV{SYSTEMD_WANTS}="airvix-e3372-bringup.service"
+ACTION!="remove", SUBSYSTEM=="net", ATTRS{idVendor}=="12d1", ATTRS{idProduct}=="14db", TAG+="systemd", ENV{SYSTEMD_WANTS}="airvix-e3372-bringup.service"
+ACTION!="remove", SUBSYSTEM=="net", ATTRS{idVendor}=="12d1", ATTRS{idProduct}=="155e", TAG+="systemd", ENV{SYSTEMD_WANTS}="airvix-e3372-bringup.service"
 
 # Stick / option tty after switch.
 ACTION=="add", SUBSYSTEM=="tty", ATTRS{idVendor}=="12d1", ATTRS{idProduct}=="1506", TAG+="systemd", ENV{SYSTEMD_WANTS}="airvix-e3372-bringup.service"

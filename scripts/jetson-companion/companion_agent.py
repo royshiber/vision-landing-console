@@ -1,16 +1,15 @@
 #!/usr/bin/env python3
 """Vision Landing Console — Jetson companion: MAVLink relay + HTTP API + heartbeat.
 
-AGENT_VERSION 2.3.7 = 2.3.6 plus per-slot camera supervisor, stable V4L map,
-cam3 RTSP gimbal ingest, SIYI A8 UDP status/control (control off by default),
-and HTTP/1.1 keep-alive on the companion API.
+AGENT_VERSION 2.3.8 = 2.3.7 plus an honest FC telemetry snapshot, HiLink
+modem/uplink reads, and the Matek TX3/RX3 port label (ArduPilot SERIAL4).
 No VIO estimator, no EKF inject, no FC writes, no runway detect.
 Gimbal and camera control are not flight commands.
 Never invent camera_ok, frames, gimbal attitude, runway detected/locked, or WGS84 position.
 Dry-run never claims a real camera.
 
-Hardware default (Matek H743 SERIAL3 ↔ Jetson UART1):
-  FC /dev/ttyTHS1 @ 921600, FC_READ_ONLY=1
+Hardware default (Matek H743 pads TX3/RX3 = ArduPilot SERIAL4 ↔ Jetson UART1):
+  FC /dev/ttyTHS1 @ 921600, FC_READ_ONLY=1, VLC_FC_SERIAL_NAME=SERIAL4
 
 The relay MUST stay byte-level:
   uart_reader → fanout_uart
@@ -37,15 +36,15 @@ except ImportError:
 
 CONSOLE_URL = os.environ.get("VLC_CONSOLE_URL", "http://127.0.0.1:4010").rstrip("/")
 TOKEN = os.environ.get("VLC_COMPANION_TOKEN", "")
-# Matek SERIAL3 (UART3) is wired to Jetson UART1 → /dev/ttyTHS1 @ 921600.
+# Matek pads TX3/RX3 are ArduPilot SERIAL4 (SERIAL4_PROTOCOL=2) on Jetson UART1.
 FC_DEVICE = os.environ.get("VLC_FC_DEVICE", "/dev/ttyTHS1")
 FC_BAUD = int(os.environ.get("VLC_FC_BAUD", "921600"))
-FC_SERIAL_NAME = os.environ.get("VLC_FC_SERIAL_NAME", "SERIAL3")
+FC_SERIAL_NAME = os.environ.get("VLC_FC_SERIAL_NAME", "SERIAL4")
 RELAY_PORT = int(os.environ.get("VLC_RELAY_PORT", "5770"))
 HTTP_PORT = int(os.environ.get("VLC_HTTP_PORT", "8081"))
 HTTP_IDLE_S = float(os.environ.get("VLC_HTTP_IDLE_S", "30") or "30")
 HTTP_MAX_BODY = 16 * 1024 * 1024
-AGENT_VERSION = os.environ.get("VLC_AGENT_VERSION", "2.3.7")
+AGENT_VERSION = os.environ.get("VLC_AGENT_VERSION", "2.3.8")
 MODEM_STATUS_FILE = os.environ.get("AIRVIX_E3372_STATUS_FILE", "/run/airvix/e3372.status")
 
 try:
@@ -64,6 +63,46 @@ try:
     from annotated_encoder import annotated_encoder_status
 except ImportError:
     annotated_encoder_status = None
+try:
+    from fc_telemetry import fc_link_flags, fc_status_payload, observe_uart_bytes
+except ImportError:
+    def observe_uart_bytes(_data):
+        return None
+
+    def fc_link_flags():
+        return {"connected": False, "heartbeat_wall": None}
+
+    def fc_status_payload():
+        return {
+            "ok": True,
+            "status": "disconnected",
+            "connected": False,
+            "heartbeat_validity": "invalid",
+            "armed": None,
+            "mode": None,
+            "custom_mode": None,
+            "load_pct": None,
+            "battery_v": None,
+            "battery_pct": None,
+            "meminfo_free_kb": None,
+            "mcu_temp_c": None,
+            "last_heartbeat_age_ms": None,
+            "heartbeat": {"validity": "invalid", "system_id": None, "component_id": None, "fields": {}},
+        }
+try:
+    from uplink_status import enrich_modem, uplinks_payload
+except ImportError:
+    def enrich_modem(body):
+        return body
+
+    def uplinks_payload():
+        return {
+            "ok": True,
+            "read_only": True,
+            "wifi": {"iface": "wlP1p1s0", "up": False, "ssid": None, "signal_dbm": None, "ip": None, "default_route": False},
+            "cellular": {"iface": None, "up": False, "ip": None, "route_metric": None, "signal": None, "default_route": False},
+            "default_iface": None,
+        }
 FC_READ_ONLY = os.environ.get("VLC_FC_READ_ONLY", "1").strip().lower() in {"1", "true", "yes", "on"}
 SKIP_RELAY = os.environ.get("VLC_SKIP_RELAY", "").strip().lower() in {"1", "true", "yes", "on"}
 HTTP_BIND = os.environ.get("VLC_HTTP_BIND", "0.0.0.0")
@@ -290,11 +329,15 @@ def uart_reader(fc_serial, stop):
             continue
         if not data:
             continue
+        # Copy only. fanout_uart still forwards the original bytes.
+        # chunk_has_heartbeat() stays for transport-test; link state is the passive observer.
+        observe_uart_bytes(data)
+        flags = fc_link_flags()
         with STATE_LOCK:
             STATE["uart_bytes_rx"] = int(STATE.get("uart_bytes_rx") or 0) + len(data)
-        if chunk_has_heartbeat(data):
-            STATE["fc_heartbeat"] = True
-            STATE["last_heartbeat_at"] = time.time()
+            STATE["fc_heartbeat"] = flags["connected"] is True
+            if flags.get("heartbeat_wall") is not None:
+                STATE["last_heartbeat_at"] = flags["heartbeat_wall"]
         fanout_uart(data)
 
 
@@ -710,23 +753,23 @@ def modem_status_payload():
         body["transport"] = "mock"
         body["iface"] = "mock0"
         body["reason"] = "mock_present"
-        return body
+        return enrich_modem(body)
     path = Path(MODEM_STATUS_FILE)
     if not path.is_file():
         body = _absent_modem("modem_absent")
         body["statusFileMissing"] = True
         body["reasonHe"] = "מודם לא מחובר. אין קובץ סטטוס במחשב משימה."
-        return body
+        return enrich_modem(body)
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
     except Exception as exc:
-        return _absent_modem("status_unreadable", error=str(exc)[:160])
+        return enrich_modem(_absent_modem("status_unreadable", error=str(exc)[:160]))
     if not isinstance(data, dict):
-        return _absent_modem("status_invalid", error="not_object")
+        return enrich_modem(_absent_modem("status_invalid", error="not_object"))
     present = data.get("present") is True
     ip = data.get("ip") if isinstance(data.get("ip"), str) and data.get("ip") else None
     err = data.get("error") if isinstance(data.get("error"), str) and data.get("error") else None
-    return {
+    return enrich_modem({
         "ok": True,
         "present": present,
         "model": data.get("model") or "Huawei E3372",
@@ -743,7 +786,15 @@ def modem_status_payload():
         "flightCommands": False,
         "neverRadioVideo": True,
         "source": "status_file",
-    }
+    })
+
+
+def _refresh_fc_link():
+    flags = fc_link_flags()
+    with STATE_LOCK:
+        STATE["fc_heartbeat"] = flags["connected"] is True
+        if flags.get("heartbeat_wall") is not None:
+            STATE["last_heartbeat_at"] = flags["heartbeat_wall"]
 
 
 def extras_status_payload():
@@ -763,6 +814,7 @@ def extras_status_payload():
 
 def status_payload():
     """Companion v1 status overlay. System gauges plus honest absent vision/landing."""
+    _refresh_fc_link()
     return {
         "ok": True,
         "timestamp": _now_ts(),
@@ -784,7 +836,7 @@ def status_payload():
         "extras": extras_status_payload(),
         "modem": modem_status_payload(),
         "gimbal": gimbal_status_payload(start=False),
-        "fc": {},
+        "fc": fc_status_payload(),
         "mavlink": {},
     }
 
@@ -811,11 +863,14 @@ def gimbal_status_payload(start=False):
 
 
 def health_payload():
+    _refresh_fc_link()
     return {
         "ok": True,
         "agentVersion": AGENT_VERSION,
         "api_version": "1",
         "observe_only": True,
+        "capabilities": {"uplinkStatus": True},
+        "fc": fc_status_payload(),
         **STATE,
         "vision": vision_status_payload(),
         "optical_nav": optical_nav_status_payload(),
@@ -1011,8 +1066,12 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(200, video_status_payload())
         if path in ("/api/status/annotated-video", "/api/v1/status/annotated-video"):
             return self._json(200, annotated_video_status_payload())
+        if path in ("/api/status/fc", "/api/v1/status/fc"):
+            return self._json(200, fc_status_payload())
         if path in ("/api/status/modem", "/api/v1/status/modem"):
             return self._json(200, modem_status_payload())
+        if path in ("/api/v1/network/uplinks", "/api/network/uplinks"):
+            return self._json(200, uplinks_payload())
         if path in ("/api/status/gimbal", "/api/v1/status/gimbal"):
             return self._json(200, gimbal_status_payload(start=True))
         if path in ("/api/transport-test", "/api/v1/transport-test"):

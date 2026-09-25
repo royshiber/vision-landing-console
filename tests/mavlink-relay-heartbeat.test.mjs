@@ -136,12 +136,13 @@ describe('companion_agent.py byte-level relay', () => {
     expect(agentSrc).toContain('never recv_match');
     expect(agentSrc).toMatch(/fc_read_only/);
     expect(agentSrc).toMatch(/relay_tcp_to_uart/);
-    expect(agentSrc).toMatch(/AGENT_VERSION.*"2\.3\.7"/);
+    expect(agentSrc).toMatch(/AGENT_VERSION.*"2\.3\.8"/);
     expect(agentSrc).toContain('uart_reader → fanout_uart');
     expect(agentSrc).toContain('/dev/ttyTHS1');
     expect(agentSrc).toContain('921600');
     expect(agentSrc).toMatch(/VLC_FC_READ_ONLY", "1"/);
-    expect(agentSrc).toContain('SERIAL3');
+    expect(agentSrc).toContain('SERIAL4');
+    expect(agentSrc).toMatch(/VLC_FC_SERIAL_NAME", "SERIAL4"/);
     expect(agentSrc).toContain('tcp_to_uart_suppressed');
     expect(agentSrc).toContain('/api/transport-test');
     expect(agentSrc).toContain('/api/v1/health');
