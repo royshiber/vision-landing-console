@@ -23,7 +23,7 @@ describe('SITL connect handoff — shared connect widget only', () => {
     expect(appJs).toContain('window.__vlcConnectWidget');
     expect(appJs).toContain('function applySitlPreset');
     expect(appJs).toContain('function connectNow');
-    expect(appJs).toMatch(/fetch\('\/api\/connections\/quick-connect'/);
+    expect(appJs).toMatch(/fetch\('\/api\/links\/connect'/);
     expect(html).not.toContain('id="simLab"');
     expect(html).not.toContain('sim-lab.mjs');
     expect(html).toContain('id="connectWidget"');
@@ -117,8 +117,8 @@ describe('SITL connect handoff — no Assist lab route', () => {
 });
 
 describe('SITL Lab connect handoff — version pin', () => {
-  it('pins APP_VERSION at 1.02.320', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.320'");
-    expect(pkg.version).toBe('1.02.320');
+  it('pins APP_VERSION at 1.02.322', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.322'");
+    expect(pkg.version).toBe('1.02.322');
   });
 });

@@ -1,5 +1,16 @@
 [
   {
+    "version": "1.02.322",
+    "date": "2026-09-25",
+    "changes": [
+      {
+        "type": "fix",
+        "title": "Connect popover: real link status, bars, buttons",
+        "detail": "APP_VERSION 1.02.322. After master 1.02.320. A row is green only with live data (heartbeat under 5s, or a fresh companion health response that also has a flight-controller heartbeat). A listener with no frames is waiting, not connected. Row tone carries the state; the button is the action, and only התנתק is danger. Bars use real RSRP/RSSI or heartbeat age / HTTP round-trip; unknown stays empty with אין נתונים. Radio connect opens the companion relay and radio disconnect clears the relay cache. Home connect and disconnect are HTTP only and keep the stored token. Per-link enable prefs persist in the console. When the companion has no uplink control, the saved preference says so in Hebrew. No ARM/LAND and no Companion apply/restart."
+      }
+    ]
+  },
+  {
     "version": "1.02.320",
     "date": "2026-09-18",
     "changes": [

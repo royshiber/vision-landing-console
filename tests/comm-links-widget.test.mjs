@@ -51,10 +51,13 @@ describe('four-row communications widget', () => {
     expect(html).toMatch(/id="connectBtn"[^>]*>התחבר</);
     expect(html).toMatch(/id="companionLinkBtn"[^>]*>התחבר</);
     expect(html).toMatch(/id="rcStatusBtn"[^>]*>סטטוס</);
-    expect(js).toContain("cellularConnectBtn.textContent = cellUp ? 'התנתק' : 'התחבר'");
-    expect(js).toContain("connBtn.textContent = 'התנתק'");
-    expect(js).toContain("companionLinkBtn.textContent = connected ? 'התנתק' : 'התחבר'");
+    expect(js).toContain('function paintRowAction(');
+    expect(js).toContain("btn.dataset.action = disconnect ? 'disconnect' : (label === 'סטטוס' ? 'status' : 'connect')");
+    expect(js).toContain("via: 'relay'");
+    expect(js).toContain('httpOnly: true');
     expect(js).not.toMatch(/cellularConnectBtn\.textContent = cellUp \? 'ניתוק' : 'חיבור'/);
+    expect(css).not.toMatch(/#companionLinkBtn\.conn-btn-primary\[data-connected="1"\]/);
+    expect(css).toMatch(/\.comm-link-rows \.conn-btn\[data-action="disconnect"\]/);
     expect(html).not.toMatch(/id="connectBtn"[^>]*>CONNECT</);
   });
 
