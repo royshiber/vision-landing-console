@@ -78,8 +78,8 @@ describe('Mission messages toggle — source contract', () => {
     expect(collapsed).toMatch(/max-height:\s*min\(40px,\s*var\(--mission-msg-collapsed-max,\s*72px\)\)/);
     const scroll = cssBlock(css, '.mission-region-messages .pfc-msg-scroll');
     expect(scroll).toMatch(/font-family:\s*"Heebo"/);
-    expect(scroll).toMatch(/font-size:\s*13px/);
-    expect(scroll).toMatch(/line-height:\s*1\.25/);
+    expect(scroll).toMatch(/font-size:\s*12px/);
+    expect(scroll).toMatch(/line-height:\s*1\.15/);
     expect(scroll).toMatch(/overflow-y:\s*auto/);
     expect(scroll).toMatch(/direction:\s*rtl/);
     expect(cssBlock(css, '.mission-region-messages .pfc-msg-line,\n.mission-region-messages .pfc-msg-line--warn')).toMatch(/color:\s*inherit/);
@@ -309,7 +309,7 @@ describe('Mission messages toggle — live layout', () => {
       expect(measured.messages.height, label).toBeLessThanOrEqual(shown ? 96 : 72);
       expect(measured.map.height / measured.ws.height, label).toBeGreaterThanOrEqual(0.55);
       expect(measured.scrollFont, label).toMatch(/Heebo/);
-      expect(measured.scrollSize, label).toBe('13px');
+      expect(measured.scrollSize, label).toBe('12px');
       const lineRatio = Number.parseFloat(measured.scrollLine) / Number.parseFloat(measured.scrollSize);
       expect(lineRatio, label).toBeGreaterThan(1);
       expect(lineRatio, label).toBeLessThan(1.45);

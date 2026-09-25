@@ -49,6 +49,7 @@ describe('Status Computers pulse identity honesty', () => {
   it('live heartbeat without SYS_STATUS still shows identity; gauges stay empty', () => {
     const mav = {
       connected: true,
+      heartbeatCount: 8,
       autopilotName: 'ArduPilot',
       vehicleType: 'Fixed Wing',
       sysId: 51,
@@ -162,17 +163,21 @@ describe('Status Computers pulse identity honesty', () => {
       fc: { status: 'DISCONNECTED', message_categories: { SYS_STATUS: { validity: 'DISABLED' } } },
     }, {
       connected: true,
+      heartbeatCount: 6,
       autopilotName: 'ArduPilot',
       vehicleType: 'Fixed Wing',
       sysId: 51,
+      lastHeartbeatAgeMs: 180,
       heartbeatRateHz: 0.98,
     });
     expect(honesty.live).toBe(true);
     const ident = ui.pulseResolveFcIdentity({
       connected: true,
+      heartbeatCount: 6,
       autopilotName: 'ArduPilot',
       vehicleType: 'Fixed Wing',
       sysId: 51,
+      lastHeartbeatAgeMs: 180,
       heartbeatRateHz: 0.98,
     }, honesty);
     expect(ident.vehicleType).toBe('Fixed Wing');
