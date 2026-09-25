@@ -99,9 +99,9 @@ function makeAssist({ withAgent = false } = {}) {
 }
 
 describe('AIRVIX 1.02.269 Ask → Capability Brief F4 (still holds on 1.02.320)', () => {
-  it('pins APP_VERSION at 1.02.320', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.320'");
-    expect(pkg.version).toBe('1.02.320');
+  it('pins APP_VERSION at 1.02.323', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.323'");
+    expect(pkg.version).toBe('1.02.323');
     expect(changelog).toContain('"version": "1.02.269"');
     expect(changelog).toContain('"version": "1.02.272"');
   });

@@ -42,9 +42,9 @@ function cssBlock(src, selector) {
 }
 
 describe('AIRVIX 1.02.264 flyable Mission layout', () => {
-  it('pins APP_VERSION at 1.02.320', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.320'");
-    expect(pkg.version).toBe('1.02.320');
+  it('pins APP_VERSION at 1.02.323', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.323'");
+    expect(pkg.version).toBe('1.02.323');
   });
 
   it('keeps the map as the majority workspace and sizes the PFD in the readable band', () => {
@@ -88,11 +88,12 @@ describe('AIRVIX 1.02.264 flyable Mission layout', () => {
     expect(html).toMatch(/data-mission-region="messages"[^>]*aria-label="הודעות מטוס"/);
     expect(html).toMatch(/class="mission-region-title">הודעות מטוס</);
     expect(html).toMatch(/id="pfdHorizonMsgLog"/);
-    expect(html).toMatch(/id="missionMessagesToggle"[^>]*>הצג</);
-    expect(css).toMatch(/\.mission-region-messages\[data-messages-expanded="0"\]\s*\{[^}]*max-height:\s*40px/);
+    expect(html).toMatch(/class="mission-messages-toggle-label">הודעות</);
+    expect(html).toMatch(/title="הודעות"/);
+    expect(css).toMatch(/\.mission-region-messages\[data-messages-expanded="0"\]\s*\{[^}]*max-height:\s*min\(40px,\s*var\(--mission-msg-collapsed-max,\s*72px\)\)/);
     const apply = sliceFunction(js, 'applyMissionMessagesExpanded');
-    expect(apply).toContain('הצג');
-    expect(apply).toContain('הסתר');
+    expect(apply).toContain('הודעות');
+    expect(apply).not.toContain('הסתר');
   });
 
   it('keeps leftover companion Hebrew out of public UI and commercial copy', () => {
