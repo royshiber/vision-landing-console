@@ -14,7 +14,12 @@ export function mountMap(el, track) {
   if (!window.L || !track || !Array.isArray(track.features)) {
     el.innerHTML = `<p class="fb-map-missing">${!window.L ? 'המפה לא זמינה' : 'אין נתוני מסלול'}</p>`;
     el.dataset.fbMapSel = '';
-    return { setCursor() {}, destroy() {} };
+    return {
+      setCursor(t) {
+        el.dataset.fbMapSel = t == null || t === '' ? '' : String(t);
+      },
+      destroy() {},
+    };
   }
   const map = window.L.map(el, { zoomControl: true });
   window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {

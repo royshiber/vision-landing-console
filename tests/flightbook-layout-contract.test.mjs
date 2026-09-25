@@ -42,6 +42,8 @@ function startServer(port, env) {
       HOST: '127.0.0.1',
       PORT: String(port),
       SQLITE_PATH: sqlite,
+      GEMINI_API_KEY: '',
+      FLIGHT_DEBRIEF_MOCK: '',
       ...env,
     },
     stdio: ['ignore', 'pipe', 'pipe'],

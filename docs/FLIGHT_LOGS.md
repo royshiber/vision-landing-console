@@ -2,7 +2,7 @@
 
 The console reads flights that the mission computer uploads to a private S3-compatible bucket (Backblaze B2). The laptop key is **read-only**. This document is the console side. The uploader lives on the Jetson and is out of scope here.
 
-Part A shows the flight list, timeline, plots, and map. Part B (Gemini debrief) is not in this build. The debrief card shows deterministic `summary.insights` until that lands.
+The flight page shows the list, timeline, plots, map, and a Hebrew Gemini debrief. The debrief may cite only that flight's fact sheet. The server checks every number, time, and mode. A sentence that fails the check stays on screen greyed, with לא אומת. No `GEMINI_API_KEY` returns the Hebrew not-configured line and the automatic insights only.
 
 ## Modes
 
@@ -58,11 +58,23 @@ Design §6.1 says every small artifact is fetched on first open. This console in
 
 תחקור → **טיסות** (first sub-tab). With no stored sub-tab, opening תחקור lands here. הקלטות and לוגים are unchanged. A stored legacy `flights` main tab still opens לוגים.
 
-The list is the right column (RTL). Each card is "טיסה N" for that vehicle (oldest is 1), Asia/Jerusalem time, air time, max altitude, max airspeed and groundspeed, distance, mode chips, a warnings badge, upload state (✓ הושלם / ממתין ללוג בקר / חלקי / פגום), and a debrief badge (אין תחקיר until Part B).
+The list is the right column (RTL). Each card is "טיסה N" for that vehicle (oldest is 1), Asia/Jerusalem time, air time, max altitude, max airspeed and groundspeed, distance, mode chips, a warnings badge, upload state (✓ הושלם / ממתין ללוג בקר / חלקי / פגום), and a debrief badge (אין תחקיר / יש תחקיר).
 
 Filters: date range, only flights with warnings, mode, event text, and "הצג סשנים קרקעיים" (bench / ground sessions stay hidden until that is on).
 
-The flight page order is: KPI and time-source badge and downloads (Hebrew reason when a file is missing), תובנות אוטומטיות with citation chips, timeline | map, then stacked plots (altitude, air/ground speed, throttle, roll/pitch, battery, GPS). Choosing an event or a citation moves the plot cursor and the map marker. Numbers, units, times, and mode names sit in `bdi dir=ltr`.
+The flight page order is: KPI and time-source badge and downloads (Hebrew reason when a file is missing), the debrief card, timeline | map, then stacked plots (altitude, air/ground speed, throttle, roll/pitch, battery, GPS). Choosing an event or a citation moves the plot cursor and the map marker. Numbers, units, times, and mode names sit in `bdi dir=ltr`.
+
+## Debrief
+
+`GET /api/flight-logs/flights/:uid/debrief` returns a cached debrief when the fact-sheet digest and `prompt_version` (`flight-debrief/1`) match. `POST` with `{ "force": true }` writes a new row.
+
+No `GEMINI_API_KEY` (exact copy):
+
+> אין מפתח Gemini. מוצגות תובנות אוטומטיות בלבד.
+
+The model is the existing `getGeminiModelChain()` path (`GEMINI_API_KEY`, temperature 0.2, JSON schema). It may use only fact-sheet IDs. Advice never includes apply, arm, disarm, parameter changes, or commands. More than 20% of sentences failing the check triggers one retry, then status `partial` and the banner חלק מהמשפטים לא אומתו מול עובדות הטיסה.
+
+`FLIGHT_DEBRIEF_MOCK` (`ok`, `partial`, `nokey`) is honored only when `FLIGHT_LOGS_MODE=mock`, for tests. It does not call Gemini.
 
 Arrow keys move in the list. Enter opens the highlighted flight.
 

@@ -84,7 +84,7 @@ describe('Mission layout contract — static source', () => {
     expect(cssBlock(css, '.mission-horizon-filler')).toMatch(/flex:\s*0 1 0/);
     expect(cssBlock(css, '.mission-horizon-filler')).toMatch(/max-height:\s*18%/);
     expect(cssBlock(css, '.mission-horizon-filler')).toMatch(/background:\s*#1e293b/);
-    expect(cssBlock(css, '.mission-region-messages[data-messages-expanded="0"]')).toMatch(/max-height:\s*40px/);
+    expect(cssBlock(css, '.mission-region-messages[data-messages-expanded="0"]')).toMatch(/max-height:\s*min\(40px,\s*var\(--mission-msg-collapsed-max,\s*72px\)\)/);
     expect(cssBlock(css, '.mission-region-messages[data-messages-expanded="1"]')).toMatch(/max-height:\s*min\(18%, 96px\)/);
     expect(cssBlock(css, '.pfd-horizon-msg-log')).toMatch(/inset-inline-start:\s*6px/);
     expect(cssBlock(css, '.pfd-horizon-msg-log')).toMatch(/background:\s*none/);
@@ -536,10 +536,8 @@ describe('Mission layout contract — live boxes', () => {
         overlap,
         insideHorizon: rr.left >= hr.left - 2 && rr.right <= hr.right + 2,
         rows: getComputedStyle(ws).gridTemplateRows,
-        logInsideStage: lr.left >= sr.left - 2 && lr.right <= sr.right + 2
-          && lr.top >= sr.top - 2 && lr.bottom <= sr.bottom + 2,
-        logOnSide: (lr.left - sr.left) < sr.width * 0.45 || (sr.right - lr.right) < sr.width * 0.45,
-        logNotCentered: Math.abs((lr.left + lr.right) / 2 - (sr.left + sr.right) / 2) > 8,
+        logDisplay: logCs.display,
+        logOverlapsStage: interiors(lr, sr),
         logLines: log.querySelectorAll('.pfd-horizon-msg-line').length,
         logBorder: logCs.borderTopWidth,
         logBg: logCs.backgroundColor,
@@ -556,9 +554,8 @@ describe('Mission layout contract — live boxes', () => {
     expect(expanded.overlap).toBe(false);
     expect(expanded.insideHorizon).toBe(true);
     expect(expanded.rows.split(' ').filter(Boolean).length).toBe(1);
-    expect(expanded.logInsideStage).toBe(true);
-    expect(expanded.logOnSide).toBe(true);
-    expect(expanded.logNotCentered).toBe(true);
+    expect(expanded.logDisplay).toBe('none');
+    expect(expanded.logOverlapsStage).toBe(false);
     expect(expanded.logLines).toBeGreaterThanOrEqual(3);
     expect(Number.parseFloat(expanded.logBorder)).toBe(0);
     expect(expanded.logBg).toMatch(/rgba\(\s*0,\s*0,\s*0,\s*0\s*\)|transparent/);

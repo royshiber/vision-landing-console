@@ -164,7 +164,32 @@
   border-radius: 10px;
   padding: 8px 10px;
 }
-.fb-debrief h3 { margin: 0 0 6px; font-size: 0.95rem; }
+.fb-debrief h3, .fb-debrief h4 { margin: 0 0 6px; font-size: 0.95rem; }
+.fb-debrief h4 { margin-top: 8px; font-size: 0.82rem; color: #cbd5e1; }
+.fb-debrief-head { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.fb-debrief-status, .fb-summary, .fb-sentence { margin: 0 0 6px; }
+.fb-verdict {
+  border-radius: 999px;
+  padding: 1px 8px;
+  font-size: 0.78rem;
+}
+.fb-verdict.is-ok { background: #14532d; color: #bbf7d0; }
+.fb-verdict.is-attention { background: #713f12; color: #fde68a; }
+.fb-verdict.is-problem { background: #7f1d1d; color: #fecaca; }
+.fb-sentence.is-unverified { color: #94a3b8; }
+.fb-unverified { color: #fbbf24; font-size: 0.75rem; margin-inline-start: 4px; }
+.fb-banner { margin: 0 0 6px; color: #fde68a; }
+.fb-debrief-foot { margin: 8px 0 0; font-size: 0.72rem; color: #94a3b8; }
+.fb-regen {
+  margin-inline-start: auto;
+  border: 1px solid rgba(148, 168, 198, 0.4);
+  background: transparent;
+  color: inherit;
+  border-radius: 8px;
+  padding: 2px 8px;
+  cursor: pointer;
+  font: inherit;
+}
 .fb-cite {
   border: 1px solid rgba(56, 189, 248, 0.5);
   background: transparent;

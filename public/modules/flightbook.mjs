@@ -217,6 +217,108 @@ function filteredEvents() {
   });
 }
 
+const VERDICT_HE = { ok: 'תקין', attention: 'דורש תשומת לב', problem: 'בעיה' };
+const NO_GEMINI_KEY_HE = 'אין מפתח Gemini. מוצגות תובנות אוטומטיות בלבד.';
+let debriefSeq = 0;
+
+function insightBlock(insights) {
+  if (!insights?.length) return '<p>אין תובנות אוטומטיות לטיסה הזו.</p>';
+  return insights.map((ins) => `
+    <p>${esc(ins.text_he)}
+      <button type="button" class="fb-cite" data-t="${esc(ins.from_rel_s)}">${bdi(tPlus(ins.from_rel_s))}</button>
+    </p>`).join('');
+}
+
+function bindCites(host) {
+  host.querySelectorAll('.fb-cite').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      if (btn.dataset.t == null || btn.dataset.t === '') return;
+      setCursor(btn.dataset.t);
+    });
+  });
+}
+
+function sentenceRow(row) {
+  const chips = (row.chips || []).map((chip) => {
+    const t = chip.t_rel_s == null ? '' : chip.t_rel_s;
+    return `<button type="button" class="fb-cite" data-t="${esc(t)}">${bdi(chip.label || chip.id)}</button>`;
+  }).join(' ');
+  const mark = row.unverified ? '<span class="fb-unverified">⚠ לא אומת</span>' : '';
+  return `<p class="fb-sentence${row.unverified ? ' is-unverified' : ''}">${esc(row.text_he)} ${chips} ${mark}</p>`;
+}
+
+function sectionBlock(title, rows) {
+  const body = rows?.length ? rows.map(sentenceRow).join('') : '<p>אין נתונים</p>';
+  return `<h4>${esc(title)}</h4>${body}`;
+}
+
+function paintDebrief(host, payload) {
+  if (!payload?.available) {
+    host.dataset.state = 'nokey';
+    delete host.dataset.status;
+    const insights = payload?.insights?.length ? payload.insights : (state.bundle?.summary?.insights || []);
+    host.innerHTML = `
+      <h3>תחקיר</h3>
+      <p class="fb-debrief-status">${esc(payload?.messageHe || NO_GEMINI_KEY_HE)}</p>
+      <h4>תובנות אוטומטיות</h4>
+      ${insightBlock(insights)}`;
+    bindCites(host);
+    return;
+  }
+  const d = payload.debrief || {};
+  host.dataset.state = 'ready';
+  host.dataset.status = payload.status || '';
+  const unknowns = (d.unknowns_he || []).length
+    ? d.unknowns_he.map((line) => `<p>${esc(line)}</p>`).join('')
+    : '<p>אין</p>';
+  host.innerHTML = `
+    <div class="fb-debrief-head">
+      <h3>תחקיר</h3>
+      <span class="fb-verdict is-${esc(d.verdict)}">${esc(VERDICT_HE[d.verdict] || d.verdict || '')}</span>
+      <button type="button" class="fb-regen" id="fbRegen">צור מחדש</button>
+    </div>
+    ${payload.bannerHe ? `<p class="fb-banner">${esc(payload.bannerHe)}</p>` : ''}
+    <p class="fb-summary">${esc(d.summary_he || '')}</p>
+    ${sectionBlock('מה קרה', d.what_happened)}
+    ${sectionBlock('למה', d.why)}
+    ${sectionBlock('מה לעשות', d.what_to_do)}
+    <h4>לא ידוע</h4>
+    ${unknowns}
+    <p class="fb-debrief-foot">${esc(payload.model || '')} · ${bdi(payload.created_at || '')}</p>`;
+  host.querySelector('#fbRegen')?.addEventListener('click', () => { void loadDebrief(true); });
+  bindCites(host);
+}
+
+async function loadDebrief(force) {
+  const uid = state.bundle?.flight?.flight_uid;
+  const host = root.querySelector('[data-fb="debrief"]');
+  if (!uid || !host) return;
+  const seq = ++debriefSeq;
+  host.dataset.state = 'loading';
+  const status = host.querySelector('.fb-debrief-status');
+  if (status) status.textContent = 'טוען תחקיר…';
+  try {
+    const payload = await api(`/api/flight-logs/flights/${encodeURIComponent(uid)}/debrief`, force ? {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ force: true }),
+    } : undefined);
+    if (seq !== debriefSeq || state.bundle?.flight?.flight_uid !== uid) return;
+    paintDebrief(host, payload);
+    if (payload.available) {
+      const row = state.flights.find((f) => f.flight_uid === uid);
+      if (row && row.debriefBadgeHe !== 'יש תחקיר') {
+        row.debriefBadgeHe = 'יש תחקיר';
+        paintList();
+      }
+    }
+  } catch (err) {
+    if (seq !== debriefSeq) return;
+    host.dataset.state = 'error';
+    host.innerHTML = `<h3>תחקיר</h3><p class="fb-debrief-status">${esc(err.messageHe || 'שגיאה בטעינת התחקיר')}</p>`;
+  }
+}
+
 function paintFlight() {
   const main = root.querySelector('#fbMain');
   if (!state.bundle) {
@@ -248,13 +350,11 @@ function paintFlight() {
       <div class="fb-dl">${downloads}</div>
       <label>שם מקומי <input id="fbLabel" value="${esc(f.user_label || '')}" maxlength="80" /></label>
     </header>
-    <section class="fb-debrief" data-fb="debrief">
-      <h3>תובנות אוטומטיות</h3>
-      <p>תחקיר Gemini יגיע בחלק ב. בינתיים מוצגות תובנות שנבנו מהלוג.</p>
-      ${insights.length ? insights.map((ins) => `
-        <p>${esc(ins.text_he)}
-          <button type="button" class="fb-cite" data-t="${esc(ins.from_rel_s)}">${bdi(tPlus(ins.from_rel_s))}</button>
-        </p>`).join('') : '<p>אין תובנות אוטומטיות לטיסה הזו.</p>'}
+    <section class="fb-debrief" data-fb="debrief" data-state="loading">
+      <h3>תחקיר</h3>
+      <p class="fb-debrief-status">טוען תחקיר…</p>
+      <h4>תובנות אוטומטיות</h4>
+      ${insightBlock(insights)}
     </section>
     <div class="fb-split">
       <section class="fb-timeline" data-fb="timeline">
@@ -287,6 +387,9 @@ function paintFlight() {
   });
   map = mountMap(main.querySelector('#fbMapHost'), state.bundle.track);
   if (state.cursor != null) setCursor(state.cursor, { scroll: false });
+  const debriefHost = main.querySelector('[data-fb="debrief"]');
+  if (debriefHost) bindCites(debriefHost);
+  void loadDebrief(false);
 }
 
 function paintTimeline() {

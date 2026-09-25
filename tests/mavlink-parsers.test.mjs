@@ -8,15 +8,15 @@ import {
 } from '../lib/mavlink-connection.mjs';
 
 describe('MAVLink payload parsers', () => {
-  it('parseGpsRawInt uses common.xml layout (fix @8, lat @12, lon @16, sats @32)', () => {
-    const p = Buffer.alloc(42);
+  it('parseGpsRawInt uses wire order (lat @8, lon @12, fix @28, sats @29)', () => {
+    const p = Buffer.alloc(30);
     p.writeBigUInt64LE(BigInt(123456789), 0);
-    p.writeUInt8(3, 8);
+    p.writeUInt8(3, 28);
     const latE7 = Math.round(-35.281 * 1e7);
     const lonE7 = Math.round(149.1234 * 1e7);
-    p.writeInt32LE(latE7, 12);
-    p.writeInt32LE(lonE7, 16);
-    p.writeUInt8(9, 32);
+    p.writeInt32LE(latE7, 8);
+    p.writeInt32LE(lonE7, 12);
+    p.writeUInt8(9, 29);
     const g = parseGpsRawInt(p);
     expect(g).not.toBeNull();
     expect(g.fixType).toBe(3);
@@ -67,15 +67,16 @@ describe('MAVLink payload parsers', () => {
     expect(gpi.hdgDeg).toBeCloseTo(90.02, 2);
   });
 
-  it('parseSysStatus reads battery_remaining at offset 18 (MAVLink common SYS_STATUS)', () => {
-    const p = Buffer.alloc(19);
+  it('parseSysStatus reads battery_remaining at offset 30 (not drop_rate_comm @18)', () => {
+    const p = Buffer.alloc(31);
     p.writeUInt32LE(1, 0);
     p.writeUInt32LE(2, 4);
     p.writeUInt32LE(3, 8);
     p.writeUInt16LE(0, 12); // load
     p.writeUInt16LE(12_620, 14); // 12620 mV
     p.writeInt16LE(-1, 16); // no current
-    p.writeInt8(77, 18);
+    p.writeInt8(77, 30);
+    p.writeInt8(99, 18); // drop_rate_comm must not be read as remaining
     const s = parseSysStatus(p);
     expect(s.remaining_pct).toBe(77);
     expect(s.voltage_V).toBeCloseTo(12.62, 3);
@@ -84,18 +85,18 @@ describe('MAVLink payload parsers', () => {
   });
 
   it('parseSysStatus reads load at offset 12 as percent and blanks invalid load', () => {
-    const p = Buffer.alloc(19);
+    const p = Buffer.alloc(31);
     p.writeUInt16LE(412, 12); // 41.2%
     p.writeUInt16LE(12_620, 14);
     p.writeInt16LE(-1, 16);
-    p.writeInt8(50, 18);
+    p.writeInt8(50, 30);
     const s = parseSysStatus(p);
     expect(s.load_pct).toBeCloseTo(41.2, 5);
-    const q = Buffer.alloc(19);
+    const q = Buffer.alloc(31);
     q.writeUInt16LE(0xffff, 12);
     q.writeUInt16LE(0xffff, 14);
     q.writeInt16LE(-1, 16);
-    q.writeInt8(-1, 18);
+    q.writeInt8(-1, 30);
     expect(parseSysStatus(q).load_pct).toBeNull();
   });
 });

@@ -5559,7 +5559,8 @@ body:has(#pulse.panel.visible) .layout {
 .pulse-gauge[data-gauge="mem"] .pulse-gauge-fill { stroke: #4c8dff; }
 .pulse-gauge[data-gauge="temp"] .pulse-gauge-fill { stroke: #f0a04b; }
 .pulse-gauge[data-gauge="value"] .pulse-gauge-fill { stroke: #c4b5a0; }
-.pulse-gauge.is-empty .pulse-gauge-fill {
+.pulse-gauge.is-empty .pulse-gauge-fill,
+.pulse-gauge.is-neutral .pulse-gauge-fill {
   stroke: rgba(148, 168, 198, 0.18);
   stroke-dasharray: 0 100;
 }
@@ -10357,7 +10358,9 @@ html[data-evolve-preview="1"] #development {
   --mission-ah-row: 66%;
   --mission-data-h: 72px;
   --mission-msg-h: 40px;
+  --mission-msg-collapsed-max: 72px;
   --mission-map-min: 65%;
+  --mission-map-floor: 55%;
   --mission-c1: minmax(132px, min(20%, var(--mission-ah-col)));
   --mission-c2: minmax(0, 1fr);
   --mission-talk-col: 22%;
@@ -10505,7 +10508,7 @@ html[data-evolve-preview="1"] #development {
 }
 .mission-region-messages[data-messages-expanded="0"] {
   height: 40px;
-  max-height: 40px;
+  max-height: min(40px, var(--mission-msg-collapsed-max, 72px));
 }
 .mission-region-messages[data-messages-expanded="1"] {
   height: var(--mission-msg-h);
@@ -10834,18 +10837,64 @@ html[data-evolve-preview="1"] #development {
 }
 .mission-messages-toggle {
   position: static;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   align-self: center;
   margin: 0;
-  border: 0;
+  border: 1px solid rgba(148, 163, 184, 0.28);
   border-radius: 4px;
-  padding: 2px 8px;
-  background: #e2e8f0;
-  color: #0f172a;
-  font-size: 0.62rem;
-  font-weight: 800;
+  padding: 1px 6px;
+  min-height: 22px;
+  background: transparent;
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 600;
   font-family: "Heebo", sans-serif;
+  line-height: 1.2;
   cursor: pointer;
   flex: 0 0 auto;
+  direction: rtl;
+}
+.mission-messages-toggle-icon {
+  width: 12px;
+  height: 12px;
+  flex: 0 0 auto;
+  display: block;
+}
+.mission-messages-toggle-label {
+  font: inherit;
+  line-height: inherit;
+}
+.mission-messages-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.28);
+  color: #e2e8f0;
+  font-family: "Heebo", sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+}
+.mission-messages-badge[data-severity="warn"] {
+  background: #f59e0b;
+  color: #1c1404;
+}
+.mission-messages-badge[data-severity="error"] {
+  background: #dc2626;
+  color: #fff;
+}
+.mission-messages-badge[data-severity="info"] {
+  background: rgba(148, 163, 184, 0.28);
+  color: #e2e8f0;
+}
+.mission-messages-badge[hidden] {
+  display: none;
 }
 .mission-region-messages .mission-region-title {
   padding: 0;
@@ -10853,6 +10902,18 @@ html[data-evolve-preview="1"] #development {
   font-size: 0.68rem;
   font-weight: 800;
   color: #f8fafc;
+}
+.mission-region-messages > .mission-region-title {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+.mission-region-messages[data-messages-expanded="0"] .pfd-statustext-strip {
+  display: none;
 }
 .mission-region-messages[data-messages-expanded="0"] .pfc-msg-scroll {
   display: none;
@@ -10867,8 +10928,21 @@ html[data-evolve-preview="1"] #development {
   box-shadow: none;
   cursor: default;
 }
+.mission-region-messages[data-messages-expanded="1"] .pfd-statustext-strip {
+  flex-direction: column;
+  align-items: stretch;
+  width: 100%;
+}
 .mission-region-messages[data-messages-expanded="1"] .pfc-msg-scroll {
   display: block;
+}
+.mission-region-messages .pfc-opt-mini {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
 }
 
 .mission-talk-chips {
@@ -10933,7 +11007,25 @@ html[data-evolve-preview="1"] #development {
 
 .mission-region-messages .pfc-msg-scroll {
   max-height: none;
+  min-height: 0;
   flex: 1 1 auto;
+  overflow-x: hidden;
+  overflow-y: auto;
+  direction: rtl;
+  font-family: "Heebo", "Segoe UI", system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.15;
+  color: #cbd5e1;
+}
+.mission-region-messages .pfc-msg-line,
+.mission-region-messages .pfc-msg-line--warn {
+  margin: 0;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: inherit;
+  color: inherit;
 }
 
 .mission-region-map {
@@ -11218,6 +11310,7 @@ html[data-evolve-preview="1"] #development {
 
 /* Live STATUSTEXT: frameless stacked print-log on the AH / video side */
 .pfd-horizon-msg-log {
+  display: none;
   position: absolute;
   z-index: 4;
   top: 6px;
@@ -11230,7 +11323,6 @@ html[data-evolve-preview="1"] #development {
   max-width: 54%;
   margin: 0;
   padding: 0;
-  display: flex;
   flex-direction: column;
   justify-content: flex-start;
   align-items: flex-start;
