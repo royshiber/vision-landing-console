@@ -49,14 +49,14 @@ if (!canvas) {
   const pfBatt   = document.getElementById('simLabPfBatt');
   const pfFcLog  = document.getElementById('simLabFcLog');
 
-  // ArduPlane custom-mode numbers → names
+  // ArduPlane custom-mode numbers → names. Keep in sync with lib/arduplane-flight-modes.mjs.
   const AP_MODES = {
     0: 'MANUAL', 1: 'CIRCLE', 2: 'STABILIZE', 3: 'TRAINING', 4: 'ACRO',
-    5: 'FBW-A', 6: 'FBW-B', 7: 'CRUISE', 8: 'AUTOTUNE',
-    10: 'AUTO', 11: 'RTL', 12: 'LOITER', 13: 'TAKEOFF', 14: 'ADSB',
-    15: 'GUIDED', 16: 'INIT', 17: 'QSTABILIZE', 18: 'QHOVER',
+    5: 'FBWA', 6: 'FBWB', 7: 'CRUISE', 8: 'AUTOTUNE',
+    10: 'AUTO', 11: 'RTL', 12: 'LOITER', 13: 'TAKEOFF', 14: 'AVOID_ADSB',
+    15: 'GUIDED', 16: 'INITIALISING', 17: 'QSTABILIZE', 18: 'QHOVER',
     19: 'QLOITER', 20: 'QLAND', 21: 'QRTL', 22: 'QAUTOTUNE',
-    23: 'QACRO', 24: 'THERMAL', 25: 'LOITER_ALT',
+    23: 'QACRO', 24: 'THERMAL', 25: 'LOITER_ALT_QLAND', 26: 'AUTOLAND',
   };
 
   let renderer;
@@ -1587,7 +1587,7 @@ if (!canvas) {
 
     // Flight mode name
     if (m.flightMode != null) {
-      const name = AP_MODES[m.flightMode] ?? `MODE ${m.flightMode}`;
+      const name = AP_MODES[m.flightMode] ?? `#${m.flightMode}`;
       setChip(pfMode, name, 'neutral');
     } else {
       setChip(pfMode, '—', 'neutral');

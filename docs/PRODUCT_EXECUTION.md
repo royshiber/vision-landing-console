@@ -64,6 +64,22 @@ Merge autonomy still on for independently VERIFIED safe draft PRs. Hard safety s
 
 ---
 
+## Audit snapshot — 2026-09-25 (ArduPlane land command)
+
+**Master tip before this draft:** `1.02.320` at `498c356`.
+
+Voice and console "land" for fixed-wing no longer sends ArduPlane custom mode 14. That number is AVOID_ADSB. Land sends `MAV_CMD_DO_LAND_START` only after a fresh mission read shows a DO_LAND_START item. No marker, an unreadable mission, or a copter sends nothing and says why in Hebrew. ARM / DISARM stay blocked. Heartbeat vehicle state ignores GCS and companion heartbeats.
+
+This does not connect a live vehicle and does not add ARM, DISARM, or Companion apply / restart.
+
+SIM badge, simulator preset, sim tagging, mode-change confirmation, and extra voice phrases stay for later PRs.
+
+### Next pick
+
+Do not start Companion apply/restart or a live-vehicle connect. Those stay Human Gates.
+
+---
+
 ## Audit snapshot — 2026-09-12 (honest Companion vision / landing status)
 
 **Master tip before this draft:** `1.02.291` after #111.  

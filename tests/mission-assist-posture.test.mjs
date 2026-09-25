@@ -239,7 +239,7 @@ describe('C10.6 Mission chrome', () => {
   });
 
   it('pins APP_VERSION at 1.02.320', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.320'");
-    expect(pkg.version).toBe('1.02.320');
+    expect(version).toContain("export const APP_VERSION = '1.02.321'");
+    expect(pkg.version).toBe('1.02.321');
   });
 });

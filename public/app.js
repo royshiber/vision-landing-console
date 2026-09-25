@@ -5131,13 +5131,49 @@ function updateAdvisorSysStrip(mavlink, jetson, appVersion) {
   updateAdvInfoPeek();
 }
 
-/** ArduPlane flight mode names by custom_mode number — keep keys in sync with `lib/arduplane-flight-modes.mjs` (tlog replay). */
+/** ArduPlane custom_mode names. Keep in sync with `lib/arduplane-flight-modes.mjs`. Mode 14 is AVOID_ADSB. */
 const ARDUPILOT_PLANE_MODES = {
   0:'MANUAL', 1:'CIRCLE', 2:'STABILIZE', 3:'TRAINING', 4:'ACRO',
   5:'FBWA', 6:'FBWB', 7:'CRUISE', 8:'AUTOTUNE', 10:'AUTO', 11:'RTL',
-  12:'LOITER', 14:'LAND', 15:'GUIDED', 17:'QSTABILIZE', 18:'QHOVER',
-  19:'QLOITER', 20:'QLAND', 21:'QRTL', 22:'THERMAL', 25:'TAKEOFF',
+  12:'LOITER', 13:'TAKEOFF', 14:'AVOID_ADSB', 15:'GUIDED', 16:'INITIALISING',
+  17:'QSTABILIZE', 18:'QHOVER', 19:'QLOITER', 20:'QLAND', 21:'QRTL',
+  22:'QAUTOTUNE', 23:'QACRO', 24:'THERMAL', 25:'LOITER_ALT_QLAND', 26:'AUTOLAND',
 };
+/** ArduCopter custom_mode names. Keep in sync with `lib/arducopter-flight-modes.mjs`. */
+const ARDUPILOT_COPTER_MODES = {
+  0:'STABILIZE', 1:'ACRO', 2:'ALT_HOLD', 3:'AUTO', 4:'GUIDED', 5:'LOITER',
+  6:'RTL', 7:'CIRCLE', 9:'LAND', 11:'DRIFT', 13:'SPORT', 14:'FLIP',
+  15:'AUTOTUNE', 16:'POSHOLD', 17:'BRAKE', 18:'THROW', 19:'AVOID_ADSB',
+  20:'GUIDED_NOGPS', 21:'SMART_RTL', 22:'FLOWHOLD', 23:'FOLLOW', 24:'ZIGZAG',
+  25:'SYSTEMID', 26:'AUTOROTATE', 27:'AUTO_RTL', 28:'TURTLE',
+};
+const COPTER_MAV_TYPES = { 2: true, 3: true, 4: true, 13: true, 14: true, 15: true };
+const COPTER_TYPE_NAMES = {
+  Quadrotor: true, Hexarotor: true, Octorotor: true, Tricopter: true, Helicopter: true, Coaxial: true,
+};
+
+function vlcModeFamily(mav) {
+  const mavType = Number(mav?.mavType);
+  if (COPTER_MAV_TYPES[mavType]) return 'copter';
+  const name = String(mav?.vehicleType || '');
+  if (COPTER_TYPE_NAMES[name]) return 'copter';
+  if (/^type(2|3|4|13|14|15)$/.test(name)) return 'copter';
+  return 'plane';
+}
+
+function vlcFlightModeName(raw, mav) {
+  const n = Number(raw);
+  if (!Number.isInteger(n)) return null;
+  const table = vlcModeFamily(mav) === 'copter' ? ARDUPILOT_COPTER_MODES : ARDUPILOT_PLANE_MODES;
+  return Object.prototype.hasOwnProperty.call(table, n) ? table[n] : null;
+}
+
+function vlcFlightModeText(raw, mav, connected) {
+  const name = vlcFlightModeName(raw, mav);
+  if (name) return name;
+  if (!connected) return '--';
+  return '#' + (raw ?? '--');
+}
 const hudAirspeedEl  = document.getElementById('hudAirspeed');
 const hudAltitudeEl  = document.getElementById('hudAltitude');
 const hudFlightModeEl = document.getElementById('hudFlightMode');
@@ -5492,6 +5528,7 @@ function liveStatusToHudMavlink(s) {
     armedKnown: false,
     autopilotName: s.autopilotName || null,
     vehicleType: s.vehicleType || null,
+    mavType: Number.isFinite(Number(s.mavType)) ? Number(s.mavType) : null,
     flightMode: null,
     airspeed: null,
     groundspeed: null,
@@ -5695,7 +5732,7 @@ function applyHudGrid(payload) {
     if (raw == null) { valEl.textContent = '--'; return; }
     if (typeof raw === 'number' && !Number.isFinite(raw)) { valEl.textContent = '--'; return; }
     if (slot.key === 'mavlink.flightMode') {
-      valEl.textContent = ARDUPILOT_PLANE_MODES[raw] ?? (raw != null ? '#' + raw : '--');
+      valEl.textContent = vlcFlightModeText(raw, payload?.mavlink, payload?.mavlink?.connected === true);
     } else if (typeof raw === 'number') {
       if (!Number.isFinite(raw)) { valEl.textContent = '--'; return; }
       const a = Math.abs(raw);
@@ -5994,7 +6031,7 @@ function applyFlightHud(mav) {
     }
   }
   if (pfdModeVal) {
-    pfdModeVal.textContent = ARDUPILOT_PLANE_MODES[mav.flightMode] ?? (mav.connected ? `#${mav.flightMode ?? '--'}` : '--');
+    pfdModeVal.textContent = vlcFlightModeText(mav.flightMode, mav, mav.connected === true);
   }
 
   // Heading (top bar)
@@ -6672,8 +6709,7 @@ function applyTopbarFlightData(mav) {
   }
   const modeBound = typeof missionTileBoundKey === 'function' ? missionTileBoundKey(hudFlightModeEl) : null;
   if (hudFlightModeEl && (!modeBound || modeBound === 'mavlink.flightMode')) {
-    const mode = ARDUPILOT_PLANE_MODES[mav.flightMode];
-    hudFlightModeEl.textContent = mode ?? (mav.connected ? `#${mav.flightMode ?? '--'}` : '--');
+    hudFlightModeEl.textContent = vlcFlightModeText(mav.flightMode, mav, mav.connected === true);
   }
   try {
     if (typeof pulseRefresh === 'function') pulseRefresh();
@@ -15451,7 +15487,7 @@ function assistBuildContextSnapshot() {
       : { altitude: 'm', speed: 'ms', distance: 'm', verticalRate: 'ms' }),
     aircraft_state: {
       connected: mav.connected === true,
-      flight_mode: ARDUPILOT_PLANE_MODES[mav.flightMode] || (mav.flightMode != null ? String(mav.flightMode) : null),
+      flight_mode: vlcFlightModeName(mav.flightMode, mav) || (Number.isInteger(Number(mav.flightMode)) ? `#${mav.flightMode}` : null),
       armed: typeof mav.armed === 'boolean' ? mav.armed : null,
       gps_ok: typeof mav.gpsFixType === 'number' ? mav.gpsFixType >= 3 : null,
       vision_confidence: conf,
@@ -16869,7 +16905,7 @@ function formatMissionDataValue(key, payload) {
   }
   if (key === 'mavlink.flightMode') {
     const raw = payload?.mavlink?.flightMode;
-    return ARDUPILOT_PLANE_MODES[raw] ?? (payload?.mavlink?.connected ? `#${raw ?? '--'}` : '--');
+    return vlcFlightModeText(raw, payload?.mavlink, payload?.mavlink?.connected === true);
   }
   if (key === 'mavlink.armed') {
     if (!payload?.mavlink?.connected) return '--';
