@@ -13496,6 +13496,25 @@ details.flight-manage summary {
 .connect-widget .comm-link-rows .conn-btn[data-action="disconnect"]:hover {
   background: #b91c1c;
 }
+/* Home and cellular must not inherit the green connect primary. Disconnect stays red. */
+.connect-widget #companionLinkBtn.conn-btn-primary,
+.connect-widget #cellularConnectBtn.conn-btn-primary {
+  background: rgba(148, 163, 184, 0.16);
+  color: #e8edf6;
+  border-color: rgba(148, 163, 184, 0.35);
+}
+.connect-widget #companionLinkBtn.conn-btn-primary[data-connected="1"],
+.connect-widget #cellularConnectBtn.conn-btn-primary[data-connected="1"],
+.connect-widget #companionLinkBtn.conn-btn-primary[data-action="disconnect"],
+.connect-widget #cellularConnectBtn.conn-btn-primary[data-action="disconnect"] {
+  background: #dc2626;
+  color: #fff;
+  border-color: #b91c1c;
+}
+.connect-widget #companionLinkBtn.conn-btn-primary[data-action="disconnect"]:hover,
+.connect-widget #cellularConnectBtn.conn-btn-primary[data-action="disconnect"]:hover {
+  background: #b91c1c;
+}
 .connect-widget .comm-link-rows .conn-btn.is-pending {
   opacity: 0.65;
 }

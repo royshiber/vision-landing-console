@@ -11,6 +11,7 @@ import {
   barsFromRssiDbm,
   deriveHomeDisplay,
   deriveMavlinkDisplay,
+  displayFromUplink,
   qualityFromCompanionSignal,
   qualityFromHeartbeatAge,
   qualityFromHttpRtt,
@@ -18,10 +19,13 @@ import {
   readLinkPrefs,
   rowActionStyle,
   summarizeCommLinks,
+  uplinkRefusalHe,
   UPLINK_CONSOLE_ONLY_HE,
+  UPLINK_LAST_LINK_HE,
+  UPLINK_UNSUPPORTED_HE,
   writeLinkPrefs,
 } from '../lib/comm-links.mjs';
-import { applyLinkPrefs, disconnectLink } from '../lib/dual-link-runtime.mjs';
+import { applyLinkPrefs, disconnectLink, setCompanionUplink } from '../lib/dual-link-runtime.mjs';
 import { registerDualLinkApi } from '../lib/routes/dual-link-api.mjs';
 import {
   disconnectCompanionSession,
@@ -242,7 +246,8 @@ describe('connect popover state, bars, and actions', () => {
     expect(css).toMatch(/data-tone="wait"/);
     expect(css).toMatch(/data-tone="bad"/);
     expect(css).toMatch(/data-tone="off"/);
-    expect(css).not.toMatch(/#companionLinkBtn\.conn-btn-primary/);
+    expect(css).toMatch(/#companionLinkBtn\.conn-btn-primary\[data-action="disconnect"\][\s\S]*?#dc2626/);
+    expect(css).not.toMatch(/#companionLinkBtn\.conn-btn-primary\[data-connected="1"\]\s*\{[^}]*#16a34a/);
     expect(css).toMatch(/\[data-action="disconnect"\][\s\S]*#dc2626/);
   });
 });
@@ -404,5 +409,139 @@ describe('home disconnect keeps the radio relay and the token', () => {
     const direct = await disconnectCompanionSession(ctx, { httpOnly: true });
     expect(direct.mode === 'off' || direct.mode === 'mock' || direct.connected === false).toBe(true);
     expect(ctx.lastCompanionMavlinkRelay?.id).toBe(6);
+  });
+});
+
+describe('cellular and home uplink buttons', () => {
+  it('derives the row from enabled versus up', () => {
+    expect(displayFromUplink({ enabled: false, up: false })).toMatchObject({
+      tone: 'off',
+      connected: false,
+      sessionOpen: false,
+      statusHe: 'מושבת',
+    });
+    expect(displayFromUplink({ enabled: true, up: true })).toMatchObject({
+      tone: 'ok',
+      connected: true,
+      sessionOpen: true,
+      statusHe: 'מחובר',
+    });
+    expect(displayFromUplink({ enabled: true, up: false })).toMatchObject({
+      tone: 'wait',
+      connected: false,
+      sessionOpen: true,
+      statusHe: 'לא עלה',
+    });
+    expect(uplinkRefusalHe({ reason_he: 'אי אפשר עכשיו' })).toBe('אי אפשר עכשיו');
+    expect(uplinkRefusalHe({ message: 'cannot disconnect the last active link' })).toBe(UPLINK_LAST_LINK_HE);
+
+    const live = summarizeCommLinks({
+      modemPresent: true,
+      uplinkControl: true,
+      uplinks: {
+        wifi: { enabled: true, up: true, signal_dbm: -55 },
+        cellular: { enabled: true, up: false },
+      },
+      companion: { jetson: 'reachable', hint_he: 'מחשב משימה מחובר' },
+    });
+    const home = live.rows.find((r) => r.id === 'home');
+    const cell = live.rows.find((r) => r.id === 'cellular');
+    expect(home).toMatchObject({ tone: 'ok', statusHe: 'מחובר', actionHe: 'התנתק', uplinkControl: true });
+    expect(home.quality.bars).toBe(4);
+    expect(cell).toMatchObject({ tone: 'wait', statusHe: 'לא עלה', actionHe: 'התנתק', uplinkControl: true });
+
+    const locked = summarizeCommLinks({
+      modemPresent: true,
+      uplinkControl: false,
+      uplinks: { wifi: { enabled: true, up: true, signal_dbm: -60 } },
+      companion: { jetson: 'reachable' },
+    });
+    const lockedHome = locked.rows.find((r) => r.id === 'home');
+    expect(lockedHome.statusHe).toBe('מחובר');
+    expect(lockedHome.actionHe).toBe('התחבר');
+    expect(lockedHome.uplinkControl).toBe(false);
+  });
+
+  it('posts the companion uplink and shows a Hebrew 409 without pretending', async () => {
+    const tmpPath = path.join(os.tmpdir(), `test-vlc-uplink-${Date.now()}-${process.pid}.sqlite`);
+    const db = openDatabase(tmpPath);
+    const calls = [];
+    writeStoredCompanionConnection(db, {
+      connected: true,
+      mode: 'real',
+      baseUrl: 'http://127.0.0.1:9',
+      token: 'keep-me',
+    });
+    const ctx = {
+      db,
+      lastCompanionMavlinkRelay: { ok: true, id: 4, connected: true },
+      networkUplinks: {
+        wifi: { enabled: true, up: true },
+        cellular: { enabled: true, up: true },
+      },
+      companionService: {
+        mode: 'off',
+        getSseOverlay: () => ({ companion: { health: { capabilities: { uplinkControl: true } } } }),
+      },
+      postNetworkUplink: async (which, enabled) => {
+        calls.push({ which, enabled });
+        if (which === 'wifi' && enabled === false) {
+          const err = new Error('conflict');
+          err.status = 409;
+          err.body = { code: 'last_active_link', message: 'cannot disconnect the last active link' };
+          throw err;
+        }
+        return { enabled, up: enabled === true };
+      },
+    };
+    const app = express();
+    app.use(express.json());
+    registerDualLinkApi(app, ctx);
+    const server = await listen(app);
+    const base = `http://127.0.0.1:${server.address().port}`;
+    try {
+      const refused = await setCompanionUplink(ctx, { role: 'home', enabled: false });
+      expect(refused.ok).toBe(false);
+      expect(refused.status).toBe(409);
+      expect(refused.messageHe).toBe(UPLINK_LAST_LINK_HE);
+      expect(calls).toEqual([{ which: 'wifi', enabled: false }]);
+      expect(ctx.lastCompanionMavlinkRelay?.id).toBe(4);
+      expect(getConfig(db, COMPANION_CONNECTION_KEY).token).toBe('keep-me');
+      expect(readLinkPrefs(db).home).toBe(true);
+
+      const unsupported = await setCompanionUplink({
+        db,
+        postNetworkUplink: async () => { throw new Error('should not post'); },
+      }, { role: 'cellular', enabled: false });
+      expect(unsupported.messageHe).toBe(UPLINK_UNSUPPORTED_HE);
+      expect(unsupported.uplinkControl).toBe(false);
+
+      calls.length = 0;
+      const posted = await fetch(`${base}/api/links/uplink`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: 'cellular', enabled: true }),
+      });
+      const postedBody = await posted.json();
+      expect(posted.status).toBe(200);
+      expect(postedBody.ok).toBe(true);
+      expect(calls).toEqual([{ which: 'cellular', enabled: true }]);
+      expect(postedBody.links.comm.rows.find((r) => r.id === 'cellular').statusHe).toBe('מחובר');
+
+      const denied = await fetch(`${base}/api/links/uplink`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: 'home', enabled: false }),
+      });
+      const deniedBody = await denied.json();
+      expect(denied.status).toBe(409);
+      expect(deniedBody.messageHe).toBe(UPLINK_LAST_LINK_HE);
+      expect(getConfig(db, COMPANION_CONNECTION_KEY).token).toBe('keep-me');
+      expect(ctx.lastCompanionMavlinkRelay?.id).toBe(4);
+    } finally {
+      await new Promise((resolve) => server.close(resolve));
+      db.close();
+      try { fs.unlinkSync(tmpPath); } catch { /* ignore */ }
+    }
   });
 });

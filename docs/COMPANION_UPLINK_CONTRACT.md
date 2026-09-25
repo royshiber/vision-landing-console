@@ -1,45 +1,47 @@
-# Companion uplink contract (not implemented on companion 2.3.6)
+# Companion uplink contract (console wired for companion 2.3.9)
 
-The console stores per-link enablement in `commLinks.enabled.{cellular,home,radio}` and exposes `GET` / `POST /api/links/prefs`.
+The console stores radio enablement in `commLinks.enabled.radio` and exposes `GET` / `POST /api/links/prefs`.
 
-A disabled link is not auto-opened and is not auto-reopened. The row shows grey `מושבת`.
+Cellular and home (Wi-Fi) connect / disconnect buttons do not use that preference to claim the Jetson switched. They call `POST /api/links/uplink` with `{ role: "cellular" | "home", enabled }`. The console maps `home` to companion `wifi` and posts `POST /api/v1/network/uplinks/{wifi|cellular}` with `{ "enabled": true | false }`.
 
-Turning Wi-Fi or cellular off on the Jetson needs endpoints that companion 2.3.6 does not ship. The console checks `health.capabilities.uplinkControl === true` or a successful probe of `GET /api/v1/network/uplinks`. When that capability is missing, the preference is still saved and the row says the Jetson cannot yet switch the uplink off remotely.
+Feature detection is `health.capabilities.uplinkControl === true`. When that flag is missing, both buttons stay disabled. The tooltip is exactly `גרסת ה-Jetson לא תומכת בשליטה בערוץ`. The console does not save a preference and does not report that the channel changed.
 
-Do not implement these routes inside `scripts/jetson-companion/` from the console change. The companion follow-up is:
+Row state for those two links comes from `GET /api/v1/network/uplinks`:
 
-## `GET /api/v1/status/modem`
+- `enabled: false` — grey `מושבת`, button `התחבר`
+- `enabled: true` and `up: true` — green `מחובר`, button `התנתק` (red)
+- `enabled: true` and `up: false` — yellow `לא עלה`, button `התנתק`
 
-Add a real signal from HiLink `192.168.8.1`:
+A 409 from the companion is shown in Hebrew. A Hebrew `reason_he` / `message_he` is used as-is. A last-active-link refusal becomes `אי אפשר לנתק את הערוץ הפעיל האחרון`. Anything else is `הפעולה נדחתה`.
 
-- `/api/device/signal`: `rssi`, `rsrp`, `rsrq`, `sinr`
-- `/api/monitoring/status`: `ConnectionStatus`, `CurrentNetworkType`, `SignalIcon`
-- WAN address
-- `age_ms`
+Wi-Fi `signal_dbm` fills the home bars. Missing signal stays empty with `אין נתונים`.
 
-The console maps RSRP dBm to bars: at or above -80 is 4, -90 is 3, -100 is 2, -110 is 1, otherwise 0. RSSI dBm uses -65 / -75 / -85 / -95. The raw number is the tooltip. Missing fields stay empty bars and `אין נתונים`. No invented percent.
+Radio stays the companion MAVLink relay. The Wi-Fi button does not close that relay and does not wipe the stored token.
+
+Do not implement these routes inside `scripts/jetson-companion/` from the console change. Companion 2.3.9 (PR #139 follow-up) owns the Jetson side:
 
 ## `GET /api/v1/network/uplinks`
 
-Per uplink (`wifi` on `wlan*`, `cellular` on `enx0c5b8f279a64`):
+Per uplink (`wifi`, `cellular`):
 
-- `up`, `ip`, default-route / metric
-- which uplink carries Tailscale
-- Wi-Fi SSID and RSSI dBm
-- `age_ms`
-
-The console cannot tell which uplink carries Tailscale until this report exists. It must not claim cellular carries MAVLink without this evidence.
+- `enabled` — the switch
+- `up` — the iface is actually up
+- `ip`, default route
+- Wi-Fi SSID and `signal_dbm`
 
 ## `POST /api/v1/network/uplinks/{wifi|cellular}`
 
 Body: `{ "enabled": true | false }`.
 
-Persist the choice. Roy's policy: the Jetson auto-connects to both Wi-Fi and cellular unless one was disabled from the UI.
-
-Safety: refuse to disable the uplink that currently carries the console session unless the body sets `force: true`.
-
 Advertise support with `health.capabilities.uplinkControl = true`.
 
-## Optional cellular MAVLink egress
+Safety: refuse to disable the last active uplink. The console surfaces that 409 in Hebrew and does not pretend the link went down.
 
-If a separate cellular MAVLink path is wanted, the Jetson pushes to the console UDP port 14560 over the cell path. Until that exists, the console cellular row is modem state plus signal plus uplink honesty. A bare UDP listener is waiting, never connected.
+## `GET /api/v1/status/modem`
+
+Still the cellular signal source when the uplink report has no dBm:
+
+- RSRP at or above -80 is 4 bars, -90 is 3, -100 is 2, -110 is 1, otherwise 0
+- RSSI dBm uses -65 / -75 / -85 / -95
+
+No invented percent.

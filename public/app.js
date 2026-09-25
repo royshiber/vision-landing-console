@@ -10356,13 +10356,19 @@ initLiveCameraPanel();
     if (typeof pulseRefresh === 'function') pulseRefresh();
   }
 
+  const UPLINK_UNSUPPORTED_HE = 'גרסת ה-Jetson לא תומכת בשליטה בערוץ';
+
   function setRowPending(id, pending) {
     const row = document.querySelector(`#commLinkRows .comm-link-row[data-link="${id}"]`);
     const btn = row?.querySelector('.comm-link-action');
     if (!btn) return;
-    btn.disabled = !!pending;
     btn.classList.toggle('is-pending', !!pending);
     btn.setAttribute('aria-busy', pending ? 'true' : 'false');
+    if (!pending && btn.dataset.uplinkLocked === '1') {
+      btn.disabled = true;
+      return;
+    }
+    btn.disabled = !!pending;
   }
 
   function setRowMessage(id, text) {
@@ -10384,53 +10390,12 @@ initLiveCameraPanel();
   }
 
   async function onCompanionLinkClick() {
-    if (!companionLinkBtn) return;
-    const disconnect = companionLinkBtn.dataset.action === 'disconnect';
-    setRowMessage('home', '');
-    setRowPending('home', true);
+    if (!companionLinkBtn || companionLinkBtn.disabled || companionLinkBtn.dataset.uplinkLocked === '1') return;
+    const turnOn = companionLinkBtn.dataset.action !== 'disconnect';
     try {
-      if (disconnect) {
-        const r = await fetch('/api/companion/connection/disconnect', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ httpOnly: true }),
-        });
-        const j = await parseConnJsonResponse(r);
-        if (!j.ok && j.mode !== 'mock' && j.mode !== 'off') throw new Error(j.status_he || 'ניתוק נכשל');
-        applyCompanionLinkUi(j.jetson ? j : null);
-      } else {
-        setDot('connecting');
-        setPillLabel('מתחבר');
-        const linkToken = document.getElementById('companionLinkToken');
-        const linkUrl = document.getElementById('companionLinkUrl');
-        const r = await fetch('/api/companion/link/connect', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            httpOnly: true,
-            ...(String(linkUrl?.value || '').trim() ? { base_url: String(linkUrl.value).trim() } : {}),
-            ...(String(linkToken?.value || '').trim() ? { token: String(linkToken.value).trim() } : {}),
-          }),
-        });
-        const j = await parseConnJsonResponse(r);
-        if (companionNeedsToken(j) || j.needAdvanced || j.error === 'need_advanced') {
-          if (companionNeedsToken(j)) companionOpenTokenAdvanced();
-          else if (connectAdvanced) connectAdvanced.open = true;
-          const msg = j.hint_he || j.status_he || (companionNeedsToken(j) ? 'חסר אסימון. הזינו אותו במתקדם.' : 'פתחו מתקדם רק אם חסרה כתובת.');
-          if (companionLinkHint) companionLinkHint.textContent = msg;
-          throw new Error(j.status_he || (companionNeedsToken(j) ? 'חסר אסימון' : 'חסרה כתובת במתקדם'));
-        }
-        if (!j.ok && j.connected !== true && j.jetson !== 'reachable' && j.jetson !== 'mock') {
-          throw new Error(j.status_he || j.message || 'חיבור מחשב משימה נכשל');
-        }
-        applyCompanionLinkUi(j);
-      }
-    } catch (err) {
-      setDot('err');
-      setRowMessage('home', err.message || String(err));
-    } finally {
-      setRowPending('home', false);
-      await refreshConnectionStatus();
+      await postUplink('home', turnOn);
+    } catch {
+      /* message already inline */
     }
   }
 
@@ -10473,10 +10438,27 @@ initLiveCameraPanel();
       if (hint && row.hintHe) hint.textContent = row.hintHe;
       const status = el.querySelector('.comm-link-status');
       if (status) status.textContent = row.statusHe || (row.quality?.known ? '' : 'אין נתונים');
+      const uplinkRow = id === 'cellular' || id === 'home';
+      const uplinkLocked = uplinkRow && row.uplinkControl !== true;
       const enable = el.querySelector('.comm-link-switch input');
-      if (enable && !enable.dataset.pending) enable.checked = row.enabled !== false;
+      if (enable) {
+        enable.disabled = uplinkLocked;
+        if (uplinkLocked) enable.title = UPLINK_UNSUPPORTED_HE;
+        else enable.removeAttribute('title');
+        if (!enable.dataset.pending) enable.checked = row.enabled !== false;
+      }
       const btn = el.querySelector('.comm-link-action');
-      if (btn && !btn.classList.contains('is-pending')) paintRowAction(btn, row.actionHe, row.statusHe);
+      if (btn && !btn.classList.contains('is-pending')) {
+        if (uplinkLocked) {
+          paintRowAction(btn, 'התחבר', UPLINK_UNSUPPORTED_HE);
+          btn.disabled = true;
+          btn.dataset.uplinkLocked = '1';
+        } else {
+          paintRowAction(btn, row.actionHe, row.statusHe);
+          if (btn.dataset.uplinkLocked === '1') delete btn.dataset.uplinkLocked;
+          btn.disabled = false;
+        }
+      }
       paintQuality(
         el.querySelector('.comm-link-bars'),
         el.querySelector('.comm-link-pct'),
@@ -10689,15 +10671,39 @@ initLiveCameraPanel();
     }
   }
 
-  async function onCellularConnectClick() {
-    if (!cellularConnectBtn) return;
-    const turnOff = cellularConnectBtn.dataset.action === 'disconnect';
+  async function postUplink(role, enabled) {
+    const rowId = role === 'wifi' || role === 'home' ? 'home' : 'cellular';
+    setRowMessage(rowId, '');
+    setRowPending(rowId, true);
+    const box = document.getElementById(`${rowId}LinkEnable`);
+    if (box) box.dataset.pending = '1';
     try {
-      await postLinkPref('cellular', !turnOff);
+      const r = await fetch('/api/links/uplink', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: rowId, enabled: enabled === true }),
+      });
+      const j = await parseConnJsonResponse(r);
+      if (j.links) applyDualLinkUi(j.links);
+      if (!r.ok || j.ok === false) throw new Error(j.messageHe || j.message || 'הפעולה נדחתה');
+      return j;
+    } catch (err) {
+      setRowMessage(rowId, err.message || String(err));
+      throw err;
+    } finally {
+      if (box) delete box.dataset.pending;
+      setRowPending(rowId, false);
+      await refreshConnectionStatus();
+    }
+  }
+
+  async function onCellularConnectClick() {
+    if (!cellularConnectBtn || cellularConnectBtn.disabled || cellularConnectBtn.dataset.uplinkLocked === '1') return;
+    const turnOn = cellularConnectBtn.dataset.action !== 'disconnect';
+    try {
+      await postUplink('cellular', turnOn);
     } catch {
       /* message already inline */
-    } finally {
-      await refreshConnectionStatus();
     }
   }
 
@@ -10994,7 +11000,11 @@ initLiveCameraPanel();
     const box = document.getElementById(`${role}LinkEnable`);
     if (!box) continue;
     box.addEventListener('change', () => {
-      void postLinkPref(role, box.checked).catch(() => {}).finally(() => { void refreshConnectionStatus(); });
+      if (role === 'radio') {
+        void postLinkPref(role, box.checked).catch(() => {}).finally(() => { void refreshConnectionStatus(); });
+        return;
+      }
+      void postUplink(role, box.checked).catch(() => {});
     });
   }
   document.querySelectorAll('#commLinkRows .comm-link-row').forEach((rowEl) => {

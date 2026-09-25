@@ -72,6 +72,11 @@ const scenarios = {
       state: 'live',
       quality: qualityFromMavlinkRssi(200, 'עוצמת אות שלט'),
     },
+    uplinkControl: true,
+    uplinks: {
+      wifi: { enabled: true, up: true, signal_dbm: -55 },
+      cellular: { enabled: true, up: true },
+    },
   }), {
     radio: 'connected',
     cellular: 'connected',
@@ -102,6 +107,11 @@ const scenarios = {
     },
     radio: 'disconnected',
     companion: { jetson: 'off', hint_he: 'חברו מחשב משימה בלחיצה.' },
+    uplinkControl: true,
+    uplinks: {
+      wifi: { enabled: false, up: false },
+      cellular: { enabled: true, up: true },
+    },
   }), {
     cellular: 'connected',
     modemPresent: true,
@@ -233,16 +243,38 @@ describe('connect popover layout and mocked states', () => {
           expect(byId.home).toMatchObject({ tone: 'ok', status: 'מחובר', action: 'התנתק' });
           expect(Number(byId.cellular.bars)).toBeGreaterThan(0);
           expect(Number(byId.radio.bars)).toBeGreaterThan(0);
+          expect(Number(byId.home.bars)).toBeGreaterThan(0);
+          const homeBg = await page.locator('#companionLinkBtn').evaluate((el) => getComputedStyle(el).backgroundColor);
+          const cellBg = await page.locator('#cellularConnectBtn').evaluate((el) => getComputedStyle(el).backgroundColor);
+          expect(homeBg).toBe('rgb(220, 38, 38)');
+          expect(cellBg).toBe('rgb(220, 38, 38)');
+          expect(homeBg).not.toBe('rgb(22, 163, 74)');
         } else if (name === 'cellular-only') {
           expect(byId.cellular).toMatchObject({ tone: 'ok', status: 'מחובר', action: 'התנתק' });
           expect(byId.radio).toMatchObject({ tone: 'off', status: 'מנותק', action: 'התחבר' });
-          expect(byId.home).toMatchObject({ tone: 'off', status: 'מנותק', action: 'התחבר' });
+          expect(byId.home).toMatchObject({ tone: 'off', status: 'מושבת', action: 'התחבר' });
           expect(byId.rc.status).toBe('אין נתונים');
         } else {
           expect(byId.cellular).toMatchObject({ tone: 'off', status: 'אין מודם', action: 'התחבר' });
           expect(byId.radio).toMatchObject({ tone: 'off', status: 'מנותק', action: 'התחבר' });
           expect(byId.home).toMatchObject({ tone: 'off', status: 'מנותק', action: 'התחבר' });
           expect(byId.rc.status).toBe('אין נתונים');
+          const locked = await page.locator('#companionLinkBtn').evaluate((el) => ({
+            disabled: el.disabled,
+            title: el.title,
+            action: el.dataset.action,
+            bg: getComputedStyle(el).backgroundColor,
+          }));
+          expect(locked.disabled).toBe(true);
+          expect(locked.title).toBe('גרסת ה-Jetson לא תומכת בשליטה בערוץ');
+          expect(locked.action).toBe('connect');
+          expect(locked.bg).not.toBe('rgb(22, 163, 74)');
+          const cellLocked = await page.locator('#cellularConnectBtn').evaluate((el) => ({
+            disabled: el.disabled,
+            title: el.title,
+          }));
+          expect(cellLocked.disabled).toBe(true);
+          expect(cellLocked.title).toBe('גרסת ה-Jetson לא תומכת בשליטה בערוץ');
         }
         const file = path.join(shotDir, `${name}.png`);
         await page.screenshot({ path: file, fullPage: false });

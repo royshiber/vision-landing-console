@@ -54,9 +54,15 @@ describe('four-row communications widget', () => {
     expect(js).toContain('function paintRowAction(');
     expect(js).toContain("btn.dataset.action = disconnect ? 'disconnect' : (label === 'סטטוס' ? 'status' : 'connect')");
     expect(js).toContain("via: 'relay'");
-    expect(js).toContain('httpOnly: true');
+    expect(js).toContain("fetch('/api/links/uplink'");
+    expect(js).toContain('גרסת ה-Jetson לא תומכת בשליטה בערוץ');
     expect(js).not.toMatch(/cellularConnectBtn\.textContent = cellUp \? 'ניתוק' : 'חיבור'/);
-    expect(css).not.toMatch(/#companionLinkBtn\.conn-btn-primary\[data-connected="1"\]/);
+    const homeDisconnect = cssBlock(
+      css,
+      '.connect-widget #companionLinkBtn.conn-btn-primary[data-action="disconnect"]',
+    );
+    expect(homeDisconnect).toMatch(/#dc2626/);
+    expect(homeDisconnect).not.toMatch(/#16a34a/);
     expect(css).toMatch(/\.comm-link-rows \.conn-btn\[data-action="disconnect"\]/);
     expect(html).not.toMatch(/id="connectBtn"[^>]*>CONNECT</);
   });
