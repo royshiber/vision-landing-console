@@ -6,7 +6,7 @@
       {
         "type": "feat",
         "title": "Companion camera supervisor, cam3 RTSP, and SIYI A8 gimbal SDK",
-        "detail": "APP_VERSION 1.02.321. Companion 2.3.7. Per-slot camera supervisor reopens USB cameras without restarting the MAVLink relay. Stable V4L by-id mapping, MJPG request, CSI and RTSP sources, and a disabled-by-default cam3 gimbal slot. SIYI UDP SDK with honest absent status and control endpoints gated off unless VLC_GIMBAL_CONTROL_ENABLED=1. No ARM/LAND and no console UI."
+        "detail": "APP_VERSION 1.02.321. Companion 2.3.7. Per-slot camera supervisor reopens USB cameras without restarting the MAVLink relay. Stable V4L by-id mapping, MJPG request, CSI and RTSP sources, and a disabled-by-default cam3 gimbal slot. SIYI UDP SDK with honest absent status and control endpoints gated off unless VLC_GIMBAL_CONTROL_ENABLED=1. Companion HTTP is HTTP/1.1 keep-alive with Content-Length on every response and a 30s idle timeout. No ARM/LAND and no console UI."
       }
     ]
   },

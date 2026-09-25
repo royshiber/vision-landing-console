@@ -2,7 +2,8 @@
 """Vision Landing Console — Jetson companion: MAVLink relay + HTTP API + heartbeat.
 
 AGENT_VERSION 2.3.7 = 2.3.6 plus per-slot camera supervisor, stable V4L map,
-cam3 RTSP gimbal ingest, and SIYI A8 UDP status/control (control off by default).
+cam3 RTSP gimbal ingest, SIYI A8 UDP status/control (control off by default),
+and HTTP/1.1 keep-alive on the companion API.
 No VIO estimator, no EKF inject, no FC writes, no runway detect.
 Gimbal and camera control are not flight commands.
 Never invent camera_ok, frames, gimbal attitude, runway detected/locked, or WGS84 position.
@@ -42,6 +43,8 @@ FC_BAUD = int(os.environ.get("VLC_FC_BAUD", "921600"))
 FC_SERIAL_NAME = os.environ.get("VLC_FC_SERIAL_NAME", "SERIAL3")
 RELAY_PORT = int(os.environ.get("VLC_RELAY_PORT", "5770"))
 HTTP_PORT = int(os.environ.get("VLC_HTTP_PORT", "8081"))
+HTTP_IDLE_S = float(os.environ.get("VLC_HTTP_IDLE_S", "30") or "30")
+HTTP_MAX_BODY = 16 * 1024 * 1024
 AGENT_VERSION = os.environ.get("VLC_AGENT_VERSION", "2.3.7")
 MODEM_STATUS_FILE = os.environ.get("AIRVIX_E3372_STATUS_FILE", "/run/airvix/e3372.status")
 
@@ -858,22 +861,123 @@ def transport_test_payload(self_test=False):
     return body
 
 
+class CompanionHTTPServer(ThreadingHTTPServer):
+    """One thread per connection. Idle keep-alive sockets die with the process."""
+
+    daemon_threads = True
+
+
 class Handler(BaseHTTPRequestHandler):
+    # HTTP/1.0 closes after every response. HTTP/1.1 keeps the socket when
+    # every response carries Content-Length (or is a bodiless 204/304).
+    protocol_version = "HTTP/1.1"
+    timeout = 30
+
     def _auth_ok(self):
         if not TOKEN:
             return True
         return self.headers.get("X-Companion-Token") == TOKEN or self.headers.get("Authorization", "").replace("Bearer ", "") == TOKEN
 
-    def _json(self, code, obj):
-        body = json.dumps(obj).encode("utf-8")
-        self.send_response(code)
-        self.send_header("Content-Type", "application/json")
-        self.send_header("Content-Length", str(len(body)))
-        self.end_headers()
-        self.wfile.write(body)
-
     def _path(self):
         return self.path.split("?", 1)[0]
+
+    def _send_bytes(self, code, body, content_type, extra=None):
+        payload = body if isinstance(body, (bytes, bytearray)) else bytes(body)
+        self.send_response(code)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Length", str(len(payload)))
+        for key, value in extra or ():
+            self.send_header(key, value)
+        self.end_headers()
+        if self.command != "HEAD":
+            self.wfile.write(payload)
+        try:
+            self.wfile.flush()
+        except Exception:
+            self.close_connection = True
+
+    def _json(self, code, obj):
+        self._send_bytes(code, json.dumps(obj).encode("utf-8"), "application/json")
+
+    def send_error(self, code, message=None, explain=None):
+        """JSON error with Content-Length. Do not force Connection: close."""
+        self._json(int(code), {
+            "ok": False,
+            "message": message or "error",
+            "explain": explain,
+        })
+
+    def _read_request_body(self):
+        transfer = (self.headers.get("Transfer-Encoding") or "").lower()
+        if "chunked" in transfer:
+            return self._read_chunked()
+        raw_len = self.headers.get("Content-Length")
+        if raw_len is None:
+            return b""
+        try:
+            length = int(raw_len)
+        except ValueError:
+            self.close_connection = True
+            raise ValueError("bad_length")
+        if length < 0 or length > HTTP_MAX_BODY:
+            self.close_connection = True
+            raise ValueError("bad_length")
+        if length == 0:
+            return b""
+        data = self.rfile.read(length)
+        if len(data) != length:
+            self.close_connection = True
+            raise ValueError("short_body")
+        return data
+
+    def _read_chunked(self):
+        chunks = []
+        total = 0
+        while True:
+            line = self.rfile.readline(65537)
+            if not line or len(line) > 65536:
+                self.close_connection = True
+                raise ValueError("bad_chunk")
+            try:
+                size = int(line.split(b";", 1)[0].strip(), 16)
+            except ValueError:
+                self.close_connection = True
+                raise ValueError("bad_chunk")
+            if size == 0:
+                while True:
+                    trailer = self.rfile.readline(65537)
+                    if trailer in (b"\r\n", b"\n", b""):
+                        break
+                return b"".join(chunks)
+            if size < 0 or total + size > HTTP_MAX_BODY:
+                self.close_connection = True
+                raise ValueError("chunk_too_large")
+            data = self.rfile.read(size)
+            if len(data) != size:
+                self.close_connection = True
+                raise ValueError("short_chunk")
+            delim = self.rfile.read(2)
+            if delim not in (b"\r\n", b"\n"):
+                self.close_connection = True
+                raise ValueError("bad_chunk_end")
+            chunks.append(data)
+            total += size
+
+    def do_HEAD(self):
+        self.do_GET()
+
+    def do_OPTIONS(self):
+        self.send_response(204)
+        self.send_header("Allow", "GET, HEAD, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Methods", "GET, HEAD, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Companion-Token")
+        self.send_header("Access-Control-Max-Age", "600")
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+        try:
+            self.wfile.flush()
+        except Exception:
+            self.close_connection = True
 
     def do_GET(self):
         if not self._auth_ok():
@@ -886,12 +990,7 @@ class Handler(BaseHTTPRequestHandler):
             name = path.split("/api/logs/", 1)[1]
             for p in iter_log_files():
                 if p.name == name:
-                    data = p.read_bytes()
-                    self.send_response(200)
-                    self.send_header("Content-Type", "application/octet-stream")
-                    self.send_header("Content-Length", str(len(data)))
-                    self.end_headers()
-                    self.wfile.write(data)
+                    self._send_bytes(200, p.read_bytes(), "application/octet-stream")
                     return
             return self._json(404, {"ok": False, "message": "not found"})
         if path in ("/api/health", "/api/v1/health"):
@@ -928,20 +1027,20 @@ class Handler(BaseHTTPRequestHandler):
                     "reason": "no_frame",
                     "note": "אין פריים",
                 })
-            self.send_response(200)
-            self.send_header("Content-Type", "image/jpeg")
-            self.send_header("Cache-Control", "no-store")
-            self.send_header("Content-Length", str(len(jpeg)))
-            self.end_headers()
-            self.wfile.write(jpeg)
+            self._send_bytes(200, jpeg, "image/jpeg", extra=(("Cache-Control", "no-store"),))
             return
         return self._json(404, {"ok": False})
 
     def do_POST(self):
+        try:
+            raw = self._read_request_body()
+        except Exception:
+            self.close_connection = True
+            return self._json(400, {"ok": False, "message": "bad body"})
         if not self._auth_ok():
             return self._json(401, {"ok": False, "message": "Unauthorized"})
-        length = int(self.headers.get("Content-Length", 0))
-        raw = self.rfile.read(length) if length else b"{}"
+        if not raw:
+            raw = b"{}"
         try:
             data = json.loads(raw.decode("utf-8"))
         except json.JSONDecodeError:
@@ -997,7 +1096,11 @@ def main():
     if want_gimbal_poll and get_gimbal_link is not None:
         get_gimbal_link(start=True)
         print("  Gimbal poll: on (control still requires VLC_GIMBAL_CONTROL_ENABLED=1)")
-    httpd = ThreadingHTTPServer((HTTP_BIND, HTTP_PORT), Handler)
+    idle = HTTP_IDLE_S if HTTP_IDLE_S > 0 else 30
+    Handler.timeout = idle
+    httpd = CompanionHTTPServer((HTTP_BIND, HTTP_PORT), Handler)
+    httpd.daemon_threads = True
+    print(f"  HTTP keep-alive: HTTP/1.1 idle {idle:g}s")
     httpd.serve_forever()
 
 
