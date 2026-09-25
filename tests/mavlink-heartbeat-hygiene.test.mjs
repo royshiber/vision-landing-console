@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildMavlink1Frame, MavlinkConnection } from '../lib/mavlink-connection.mjs';
+import { buildMavlink1Frame, IGNORED_HEARTBEAT_COMPID_HINT, MavlinkConnection } from '../lib/mavlink-connection.mjs';
 import { isFcArmed } from '../lib/advisor-apply.mjs';
 
 function heartbeatFrame({
@@ -67,6 +67,10 @@ describe('autopilot heartbeat hygiene', () => {
     expect(c.sysId).toBe(1);
     expect(c.vehicleType).toBe('Fixed Wing');
     expect(c.heartbeatCount).toBe(1);
+    expect(c.getStatus().ignoredHeartbeats.count).toBe(1);
+    expect(c.getStatus().ignoredHeartbeats.sysId).toBe(255);
+    expect(c.getStatus().ignoredHeartbeats.compId).toBe(190);
+    expect(c.getStatus().ignoredHeartbeats.hintHe).toBe(null);
   });
 
   it('does not let a companion heartbeat change the mode', () => {
@@ -108,6 +112,26 @@ describe('autopilot heartbeat hygiene', () => {
     expect(c.sysId).toBe(1);
     expect(c.fcTargetCompId).toBe(1);
     expect(c.mavType).toBe(1);
+    const ignored = c.getStatus().ignoredHeartbeats;
+    expect(ignored.count).toBe(3);
+    expect(ignored.sysId).toBe(42);
+    expect(ignored.compId).toBe(1);
+    expect(ignored.type).toBe(1);
+    expect(ignored.autopilot).toBe(3);
+    expect(ignored.hintHe).toBe(IGNORED_HEARTBEAT_COMPID_HINT);
+  });
+
+  it('clears the locked autopilot system id on disconnect', () => {
+    const c = conn();
+    c._handleData(heartbeatFrame({ sysId: 1, customMode: 10 }));
+    expect(c._lockedAutopilotSysId).toBe(1);
+    c.disconnect();
+    expect(c._lockedAutopilotSysId).toBe(null);
+    c.connected = true;
+    c._handleData(heartbeatFrame({ sysId: 7, customMode: 5, baseMode: 0x81 }));
+    expect(c._lockedAutopilotSysId).toBe(7);
+    expect(c.sysId).toBe(7);
+    expect(c.lastCustomMode).toBe(5);
   });
 
   it('still accepts a later autopilot heartbeat on the locked system id', () => {

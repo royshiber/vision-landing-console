@@ -40,7 +40,7 @@ function makeAssist({ applyParamChange } = {}) {
 }
 
 describe('Ask early-flight safety lock', () => {
-  it('pins APP_VERSION at 1.02.320', () => {
+  it('pins APP_VERSION at 1.02.321', () => {
     const version = fs.readFileSync(path.join(repoRoot, 'version.js'), 'utf8');
     const pkg = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8'));
     expect(version).toContain("export const APP_VERSION = '1.02.321'");
@@ -383,8 +383,9 @@ describe('Ask voice session SET_MODE vs ARM', () => {
     expect(resolveAskFlightOpCustomMode('RTL')).toBe(11);
     expect(resolveAskFlightOpCustomMode('MODE_CHANGE', { mode: 'FBWA' })).toBe(5);
     expect(resolveAskFlightOpCustomMode('MODE_CHANGE', { mode: 'TAKEOFF' })).toBe(13);
-    expect(resolveAskFlightOpCustomMode('MODE_CHANGE', { mode: 'THERMAL' })).toBe(24);
-    expect(resolveAskFlightOpCustomMode('MODE_CHANGE', { mode: 'AVOID_ADSB' })).toBe(14);
+    expect(resolveAskFlightOpCustomMode('MODE_CHANGE', { mode: 'THERMAL' })).toBe(null);
+    expect(resolveAskFlightOpCustomMode('MODE_CHANGE', { mode: 'AVOID_ADSB' })).toBe(null);
+    expect(resolveAskFlightOpCustomMode('MODE_CHANGE', { mode: '14' })).toBe(null);
     expect(resolveAskFlightOpCustomMode('MODE_CHANGE', { mode: 'LAND' })).toBe(null);
     expect(resolveAskFlightOpCustomMode('ARM')).toBe(null);
     const payload = buildSetModePayload(1, ASK_PLANE_MODE_RTL);
