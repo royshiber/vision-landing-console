@@ -1,21 +1,5 @@
 [
   {
-    "version": "1.02.337",
-    "date": "2026-09-26",
-    "changes": [
-      {
-        "type": "docs",
-        "title": "Documentation",
-        "detail": "CAM0_DEPLOY.md"
-      },
-      {
-        "type": "chore",
-        "title": "Build scripts",
-        "detail": "bench.py, jpegenc.py, marker.py, modules.py, png16.py, companion_agent.py, test_cam0_rate.py"
-      }
-    ]
-  },
-  {
     "version": "1.02.336",
     "date": "2026-09-26",
     "changes": [
