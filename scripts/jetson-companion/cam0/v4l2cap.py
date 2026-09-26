@@ -6,7 +6,10 @@ often short or empty on this driver, so they are dropped until one is the
 expected size and not all zeros.
 
 Before streaming, sensor_mode=0 and bypass_mode=0 are set (ioctl, then
-v4l2-ctl if the control names are not enumerated).
+v4l2-ctl if that ioctl does not stick). The pixelformat is tried as Y10
+and then RG10. nv_ov9281 exposes the mono sensor as RG10 and rejects Y10.
+Both layouts are 10-bit samples in 16-bit little-endian words. There is
+no debayer step.
 """
 
 from __future__ import annotations
@@ -24,7 +27,17 @@ import numpy as np
 
 from .rawfmt import to_code10, to_mono8
 
-RG10 = 0x30314752  # 'RG10'
+def fourcc(code):
+    text = str(code)
+    if len(text) < 4:
+        text = text + (" " * (4 - len(text)))
+    raw = text[:4].encode("ascii")
+    return int.from_bytes(raw, "little")
+
+
+Y10 = fourcc("Y10 ")  # V4L2_PIX_FMT_Y10, trailing space
+RG10 = fourcc("RG10")  # V4L2_PIX_FMT_SRGGB10; mono samples on nv_ov9281
+FORMAT_TRY = ("Y10", "RG10")
 V4L2_BUF_TYPE_VIDEO_CAPTURE = 1
 V4L2_MEMORY_MMAP = 1
 V4L2_MEMORY_DMABUF = 4
@@ -140,9 +153,69 @@ VIDIOC_STREAMOFF = _ioc(_IOW, 19, ctypes.sizeof(ctypes.c_int))
 VIDIOC_S_CTRL = _ioc(_IOWR, 28, ctypes.sizeof(_v4l2_control))
 VIDIOC_QUERYCTRL = _ioc(_IOWR, 44, ctypes.sizeof(_v4l2_queryctrl))
 
+_IOCTL_NAMES = {
+    VIDIOC_S_FMT: "VIDIOC_S_FMT",
+    VIDIOC_REQBUFS: "VIDIOC_REQBUFS",
+    VIDIOC_QUERYBUF: "VIDIOC_QUERYBUF",
+    VIDIOC_EXPBUF: "VIDIOC_EXPBUF",
+    VIDIOC_QBUF: "VIDIOC_QBUF",
+    VIDIOC_DQBUF: "VIDIOC_DQBUF",
+    VIDIOC_STREAMON: "VIDIOC_STREAMON",
+    VIDIOC_STREAMOFF: "VIDIOC_STREAMOFF",
+    VIDIOC_S_CTRL: "VIDIOC_S_CTRL",
+    VIDIOC_QUERYCTRL: "VIDIOC_QUERYCTRL",
+}
+
+
+def describe_capture_error(exc):
+    """Errno and message. Callers must not store only the exception type name."""
+    if isinstance(exc, OSError):
+        err = exc.errno
+        detail = exc.strerror or str(exc) or "OSError"
+        if err is not None and f"[Errno {err}]" not in detail and f"Errno {err}" not in detail:
+            text = f"OSError: [Errno {err}] {detail}"
+        else:
+            text = f"OSError: {exc}"
+    else:
+        text = f"{type(exc).__name__}: {exc}"
+    return text[:240]
+
+
+def choose_pixelformat(set_fmt, formats=FORMAT_TRY):
+    """Try Y10, then RG10. set_fmt(name) raises OSError to reject that fourcc."""
+    errors = []
+    for name in formats:
+        try:
+            set_fmt(name)
+        except OSError as exc:
+            errors.append((name, exc))
+            continue
+        return name
+    if not errors:
+        raise OSError(errno.EINVAL, "VIDIOC_S_FMT failed; no pixelformat")
+    last = errors[-1][1]
+    parts = []
+    for name, exc in errors:
+        err = exc.errno
+        detail = exc.strerror or str(exc) or "OSError"
+        if err is not None:
+            parts.append(f"{name}: [Errno {err}] {detail}")
+        else:
+            parts.append(f"{name}: {detail}")
+    message = "VIDIOC_S_FMT failed; " + "; ".join(parts)
+    err = last.errno if last.errno is not None else errno.EINVAL
+    raise OSError(err, message)
+
 
 def _ioctl(fd, request, arg):
-    return fcntl.ioctl(fd, request, arg)
+    try:
+        return fcntl.ioctl(fd, request, arg)
+    except OSError as exc:
+        name = _IOCTL_NAMES.get(int(request), "ioctl")
+        detail = exc.strerror or "OSError"
+        if exc.errno is None:
+            raise OSError(f"{name}: {detail}") from exc
+        raise OSError(exc.errno, f"{name}: {detail}") from exc
 
 
 def read_temperature_c():
@@ -179,6 +252,7 @@ class V4l2Source:
         self.real = True
         self.source = "v4l2"
         self.temperature_c = None
+        self.pixelformat = None
 
     def set_exposure_gain(self, exposure_us, gain):
         self.exposure_us = int(exposure_us)
@@ -241,21 +315,21 @@ class V4l2Source:
         return found
 
     def _prime_modes(self):
-        self._set_named("sensor_mode", 0)
-        self._set_named("bypass_mode", 0)
-        missing = [n for n in ("sensor_mode", "bypass_mode") if n not in self._ctrls]
-        if not missing:
+        stuck = self._set_named("sensor_mode", 0) and self._set_named("bypass_mode", 0)
+        if stuck:
+            self.mode_prime = "ioctl"
             return
         try:
-            subprocess.run(
+            proc = subprocess.run(
                 ["v4l2-ctl", "-d", self.device, "--set-ctrl=sensor_mode=0,bypass_mode=0"],
                 check=False,
                 timeout=3,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
             )
+            self.mode_prime = "v4l2-ctl" if proc.returncode == 0 else "unset"
         except Exception:
-            pass
+            self.mode_prime = "unset"
 
     def open(self):
         self.close()
@@ -264,10 +338,20 @@ class V4l2Source:
         self._prime_modes()
         fmt = _v4l2_format()
         fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE
-        # pix format sits at the start of the 200-byte union.
-        pix = struct_pix(self.width, self.height)
-        ctypes.memmove(ctypes.addressof(fmt.fmt), pix, len(pix))
-        _ioctl(self.fd, VIDIOC_S_FMT, fmt)
+
+        def set_fmt(name):
+            code = Y10 if name == "Y10" else RG10
+            pix = struct_pix(self.width, self.height, code)
+            ctypes.memmove(ctypes.addressof(fmt.fmt), pix, len(pix))
+            _ioctl(self.fd, VIDIOC_S_FMT, fmt)
+
+        try:
+            self.pixelformat = choose_pixelformat(set_fmt)
+        except OSError as exc:
+            modes = getattr(self, "mode_prime", "unset")
+            detail = exc.strerror or str(exc)
+            err = exc.errno if exc.errno is not None else errno.EINVAL
+            raise OSError(err, f"{detail} (modes={modes})") from exc
         req = _v4l2_requestbuffers(count=self.buffers, type=V4L2_BUF_TYPE_VIDEO_CAPTURE, memory=V4L2_MEMORY_MMAP)
         _ioctl(self.fd, VIDIOC_REQBUFS, req)
         count = int(req.count) or self.buffers
@@ -358,6 +442,7 @@ class V4l2Source:
             "gain": self.gain,
             "dropped": self.dropped,
             "source": "v4l2",
+            "pixelformat": self.pixelformat,
             "real": True,
             "temperature_c": self.temperature_c,
             "dmabuf": self._dmabufs[buf.index] is not None,
@@ -365,14 +450,15 @@ class V4l2Source:
         }
 
 
-def struct_pix(width, height):
-    # v4l2_pix_format prefix: width, height, pixelformat, field, bytesperline, sizeimage, colorspace
+def struct_pix(width, height, pixelformat=RG10):
+    # v4l2_pix_format prefix: width, height, pixelformat, field, bytesperline, sizeimage, colorspace.
+    # 10-bit samples occupy 16-bit little-endian words, so the stride is width * 2.
     bpl = int(width) * 2
     size = bpl * int(height)
     return ctypes.create_string_buffer(
         int(width).to_bytes(4, "little")
         + int(height).to_bytes(4, "little")
-        + int(RG10).to_bytes(4, "little")
+        + int(pixelformat).to_bytes(4, "little")
         + int(V4L2_FIELD_NONE).to_bytes(4, "little")
         + int(bpl).to_bytes(4, "little")
         + int(size).to_bytes(4, "little")

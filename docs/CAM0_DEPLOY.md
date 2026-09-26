@@ -1,4 +1,4 @@
-# Cam0 deploy (Jetson, companion 2.5.1)
+# Cam0 deploy (Jetson, companion 2.5.2)
 
 The camera service is a thread inside `airvix-companion`. No camera must
 not stop the companion. This host does not SSH to the Jetson and does not
@@ -60,7 +60,7 @@ sudo systemctl restart airvix-companion
 curl -s http://127.0.0.1:8081/api/health
 ```
 
-Expect `agentVersion` `2.5.1`.
+Expect `agentVersion` `2.5.2`.
 
 ## Hardware check
 

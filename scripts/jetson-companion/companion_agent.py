@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Vision Landing Console — Jetson companion: MAVLink relay + HTTP API + heartbeat.
 
-AGENT_VERSION 2.5.1 adds the OV9281 Cam0 pipeline (capture, AE, frame bus,
+AGENT_VERSION 2.5.2 signs Cloud Storage with GOOG4-HMAC-SHA256 and x-goog
+headers only, and starts the flight logger from vlc-companion. 2.5.1 adds
+the OV9281 Cam0 pipeline (capture, AE, frame bus,
 marker output, calibration, stream, record) on top of the 2.5.0 flight logger.
 It does not send flight commands. 2.5.0 reads a separate flight-log status
 file into health. 2.3.11 added HiLink signal bars from SignalIcon /
@@ -50,7 +52,7 @@ RELAY_PORT = int(os.environ.get("VLC_RELAY_PORT", "5770"))
 HTTP_PORT = int(os.environ.get("VLC_HTTP_PORT", "8081"))
 HTTP_IDLE_S = float(os.environ.get("VLC_HTTP_IDLE_S", "30") or "30")
 HTTP_MAX_BODY = 16 * 1024 * 1024
-AGENT_VERSION = os.environ.get("VLC_AGENT_VERSION", "2.5.1")
+AGENT_VERSION = os.environ.get("VLC_AGENT_VERSION", "2.5.2")
 MODEM_STATUS_FILE = os.environ.get("AIRVIX_E3372_STATUS_FILE", "/run/airvix/e3372.status")
 
 try:

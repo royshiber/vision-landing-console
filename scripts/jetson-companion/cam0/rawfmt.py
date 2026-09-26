@@ -1,7 +1,8 @@
-"""OV9281 / tegra RG10 sample layout.
+"""OV9281 / tegra mono sample layout.
 
-The sensor is mono. V4L2 labels the pixels RG10. Each sample is a 16-bit
-little-endian word, left-justified:
+The sensor is mono. nv_ov9281 labels the pixels RG10 (a Bayer fourcc). Y10
+is the same 10-bit sample when a driver accepts it. Neither path is debayered.
+Each sample is a 16-bit little-endian word, left-justified:
 
   container12 = uint16 >> 4     # 0..4095
   code10      = uint16 >> 6     # 0..1023, the significant 10 bits

@@ -85,7 +85,8 @@ def main(argv=None):
             src.set_exposure_gain(ae.state.exposure_us, ae.state.gain)
             last = frame
     except Exception as exc:
-        report["steps"].append({"capture": "error", "error": type(exc).__name__})
+        from .v4l2cap import describe_capture_error
+        report["steps"].append({"capture": "error", "error": describe_capture_error(exc)})
         print(json.dumps(report, indent=2))
         return 1
     finally:

@@ -286,10 +286,13 @@ class UploaderTests(unittest.TestCase):
 
         def opener(url, body, headers):
             seen["url"] = url
+            seen["headers"] = headers
             seen["authorization"] = headers["Authorization"]
             seen["generation"] = headers.get("x-goog-if-generation-match")
             seen["body"] = body
             self.assertNotIn("uploadId", url)
+            for name in headers:
+                self.assertFalse(str(name).lower().startswith("x-amz-"), name)
             import base64
 
             md5_b64 = base64.b64encode(hashlib.md5(body).digest()).decode("ascii")
@@ -315,10 +318,14 @@ class UploaderTests(unittest.TestCase):
             up.enqueue_file("f1", "summary.json", str(path), "v1/plane/summary.json", "summary", 20)
             self.assertTrue(up.step())
             self.assertTrue(seen["url"].startswith("https://storage.googleapis.com/airvix-flights/v1/plane/summary.json"))
-            self.assertIn("/auto/s3/aws4_request", seen["authorization"])
+            self.assertIn("/auto/storage/goog4_request", seen["authorization"])
+            self.assertNotIn("x-amz-", seen["authorization"])
             self.assertIn("Credential=GOOG1EXAMPLE/", seen["authorization"])
-            self.assertTrue(seen["authorization"].startswith("AWS4-HMAC-SHA256 "))
+            self.assertTrue(seen["authorization"].startswith("GOOG4-HMAC-SHA256 "))
             self.assertEqual(seen["generation"], "0")
+            self.assertEqual(seen["headers"].get("x-goog-meta-sha256"), hashlib.sha256(b'{"ok":1}').hexdigest())
+            self.assertIn("x-goog-date", seen["headers"])
+            self.assertIn("x-goog-content-sha256", seen["headers"])
             self.assertIn("x-goog-if-generation-match", seen["authorization"])
             self.assertEqual(up._conn.execute("SELECT state FROM jobs").fetchone()["state"], "done")
             up.close()
@@ -328,6 +335,8 @@ class UploaderTests(unittest.TestCase):
 
         def opener_region(url, body, headers):
             seen["authorization"] = headers["Authorization"]
+            for name in headers:
+                self.assertFalse(str(name).lower().startswith("x-amz-"), name)
             return 200, hashlib.md5(body).hexdigest(), None
 
         with tempfile.TemporaryDirectory() as tmp:
@@ -343,7 +352,8 @@ class UploaderTests(unittest.TestCase):
             )
             up.enqueue_file("f1", "summary.json", str(path), "v1/plane/summary.json", "summary", 20)
             self.assertTrue(up.step())
-            self.assertIn("/me-west1/s3/aws4_request", seen["authorization"])
+            self.assertIn("/auto/storage/goog4_request", seen["authorization"])
+            self.assertNotIn("/me-west1/", seen["authorization"])
             up.close()
 
     def test_gcs_existing_object_is_success_without_get(self):
@@ -353,6 +363,8 @@ class UploaderTests(unittest.TestCase):
         def opener(url, body, headers):
             calls["n"] += 1
             self.assertEqual(headers.get("x-goog-if-generation-match"), "0")
+            for name in headers:
+                self.assertFalse(str(name).lower().startswith("x-amz-"), name)
             self.assertNotIn("uploadId", url)
             self.assertFalse(url.endswith("?acl"))
             return 412, None, None

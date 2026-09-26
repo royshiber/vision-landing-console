@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
 """Durable S3-compatible upload queue. No-op when credentials or the enable flag are missing.
 
-Works with path-style S3. The provisioned store is Google Cloud Storage
-interoperability: endpoint https://storage.googleapis.com, region auto,
-HMAC key. The uploader key is create-only, so every upload is one PUT of a
-unique object key. There is no HEAD, GET, LIST, DELETE, or overwrite.
+Works with path-style S3. The provisioned store is Google Cloud Storage:
+endpoint https://storage.googleapis.com, signed with GOOG4-HMAC-SHA256 and
+only x-goog-* headers. Other endpoints stay AWS SigV4. The uploader key is
+create-only, so every upload is one PUT of a unique object key. There is no
+HEAD, GET, LIST, DELETE, or overwrite. A 412 means the object is already stored.
 """
 
 from __future__ import print_function
@@ -329,17 +330,19 @@ class LogUploader(object):
         md5 = md5_b64(body)
         digest = sha256_hex(body)
         content_type, encoding = _content_headers(row["name"])
+        endpoint = self.cfg.get("endpoint")
+        gcs = is_gcs_endpoint(endpoint)
+        meta_header = "x-goog-meta-sha256" if gcs else "x-amz-meta-sha256"
         headers = {
             "Content-Type": content_type,
             "Content-MD5": md5,
-            "x-amz-meta-sha256": digest,
+            meta_header: digest,
         }
         if encoding:
             headers["Content-Encoding"] = encoding
-        headers.update(create_only_headers(self.cfg.get("endpoint")))
-        secure = str(self.cfg.get("endpoint") or "").startswith("https://") or "://" not in str(self.cfg.get("endpoint") or "")
+        headers.update(create_only_headers(endpoint))
+        secure = str(endpoint or "").startswith("https://") or "://" not in str(endpoint or "")
         # Tests pass http://127.0.0.1:port
-        endpoint = self.cfg.get("endpoint")
         if str(endpoint).startswith("http://"):
             secure = False
         url, host, uri = path_style_url(endpoint, self.cfg["bucket"], row["key"], secure=secure)
@@ -355,20 +358,31 @@ class LogUploader(object):
             headers=headers,
             body=body,
         )
-        req_headers = {
-            "Content-Type": content_type,
-            "Content-MD5": md5,
-            "x-amz-meta-sha256": digest,
-            "x-amz-date": amz,
-            "x-amz-content-sha256": signed["payload_hash"],
-            "Authorization": signed["authorization"],
-            "Host": host,
-        }
+        if gcs:
+            req_headers = {
+                "Content-Type": content_type,
+                "Content-MD5": md5,
+                "x-goog-meta-sha256": digest,
+                "x-goog-date": amz,
+                "x-goog-content-sha256": signed["payload_hash"],
+                "x-goog-if-generation-match": "0",
+                "Authorization": signed["authorization"],
+                "Host": host,
+            }
+        else:
+            req_headers = {
+                "Content-Type": content_type,
+                "Content-MD5": md5,
+                "x-amz-meta-sha256": digest,
+                "x-amz-date": amz,
+                "x-amz-content-sha256": signed["payload_hash"],
+                "Authorization": signed["authorization"],
+                "Host": host,
+            }
         if encoding:
             req_headers["Content-Encoding"] = encoding
-        generation = headers.get("x-goog-if-generation-match")
-        if generation:
-            req_headers["x-goog-if-generation-match"] = generation
+        if gcs:
+            req_headers = {key: value for key, value in req_headers.items() if not str(key).lower().startswith("x-amz-")}
         self._throttle(len(body))
         try:
             status, etag, retry_after, extra = self._send(url, body, req_headers)
