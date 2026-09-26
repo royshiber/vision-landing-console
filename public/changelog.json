@@ -1,5 +1,16 @@
 [
   {
+    "version": "1.02.336",
+    "date": "2026-09-26",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "OV9281 Cam0 pipeline, frame bus, and console panel",
+        "detail": "APP_VERSION 1.02.336. Companion 2.5.1. After master 1.02.335. Cam0 captures the OV9281, regulates exposure, tags attitude, and publishes on a shared-memory bus. Marker pose is overlay only and never sends a flight command. The Hebrew panel shows אין אות without a frame. The existing debrief Cam0 tile and horizon camera use companion camera cam0. Recording writes frames.jsonl beside the flight log."
+      }
+    ]
+  },
+  {
     "version": "1.02.335",
     "date": "2026-09-26",
     "changes": [

@@ -595,6 +595,53 @@
               </section>
             </section>
             <section id="cameraInstallChecklist" class="cic-panel" aria-label="התקנת מצלמות"></section>
+            <section id="cam0Panel" class="cam0-panel" dir="rtl" aria-label="מצלמה אפס" data-camera-source="cam0">
+              <header class="cam0-head">
+                <h3 class="cam0-title">מצלמה אפס</h3>
+                <p id="cam0Honesty" class="cam0-honesty">אין אות</p>
+              </header>
+              <div class="cam0-layout">
+                <div class="cam0-stage" id="cam0Stage">
+                  <p id="cam0Empty" class="cam0-empty">אין אות</p>
+                  <img id="cam0Frame" class="cam0-frame" alt="" hidden />
+                  <canvas id="cam0Overlay" class="cam0-overlay" hidden></canvas>
+                </div>
+                <div class="cam0-side">
+                  <canvas id="cam0Hist" class="cam0-hist" width="180" height="56" aria-label="היסטוגרמה"></canvas>
+                  <dl class="cam0-stats">
+                    <div><dt>קצב</dt><dd id="cam0Fps" dir="ltr">—</dd></div>
+                    <div><dt>השהיה</dt><dd id="cam0Latency" dir="ltr">—</dd></div>
+                    <div><dt>נפילות</dt><dd id="cam0Drops" dir="ltr">—</dd></div>
+                  </dl>
+                  <div class="cam0-controls">
+                    <label class="cam0-check"><input type="checkbox" id="cam0Ae" /> חשיפה אוטומטית</label>
+                    <label>חשיפה <input id="cam0Exposure" type="number" min="10" max="100001" step="10" dir="ltr" /></label>
+                    <label>הגבר <input id="cam0Gain" type="number" min="16" max="256" step="1" dir="ltr" /></label>
+                    <label>רזולוציה
+                      <select id="cam0Res" dir="ltr">
+                        <option value="1280x800">1280×800</option>
+                        <option value="1280x720">1280×720</option>
+                      </select>
+                    </label>
+                    <label>קצב יעד <input id="cam0FpsSet" type="number" min="1" max="60" step="1" dir="ltr" /></label>
+                    <button type="button" id="cam0Record" class="cam0-btn">הקלטה</button>
+                    <span id="cam0RecDot" class="cam0-rec" hidden>מקליט</span>
+                    <button type="button" id="cam0Snap" class="cam0-btn">צילום</button>
+                    <label class="cam0-check"><input type="checkbox" id="cam0OverlayToggle" checked /> זיהויים</label>
+                  </div>
+                  <section class="cam0-calib" aria-label="כיול">
+                    <h4>כיול</h4>
+                    <p class="cam0-calib-lead">החזיקו לוח שחמט מול המצלמה. כל צילום נשמר, ואז פותרים.</p>
+                    <p id="cam0CalibState" class="cam0-calib-state">עדיין אין כיול.</p>
+                    <div class="cam0-controls">
+                      <button type="button" id="cam0CalibCap" class="cam0-btn">צילום לוח</button>
+                      <button type="button" id="cam0CalibSolve" class="cam0-btn">פתרון</button>
+                    </div>
+                  </section>
+                </div>
+              </div>
+              <select id="cam0SourceAdapter" class="cam0-source-adapter" data-camera-source-picker hidden aria-hidden="true"></select>
+            </section>
           </section>
           <article class="pulse-status-card pulse-talk-card" data-pulse-kind="assist">
             <div class="pulse-talk-copy">
@@ -901,7 +948,7 @@
             </div>
             <div id="debriefCamGrid" class="debrief-cam-grid video-wrapper" data-count="1" data-layout="cameras">
               <p id="debriefCamEmpty" class="debrief-cam-empty" hidden>בחרו מצלמה</p>
-              <figure class="debrief-cam-tile" data-cam="cam0" data-api="cam1" data-mono="1" data-slot="0" data-signal="none">
+              <figure class="debrief-cam-tile" data-cam="cam0" data-api="cam0" data-mono="1" data-slot="0" data-signal="none">
                 <div class="debrief-cam-stage">
                   <video id="flightVideo" class="debrief-cam-media" controls playsinline></video>
                   <img class="debrief-cam-live debrief-cam-media" alt="" hidden />
@@ -1986,6 +2033,12 @@
                     <p class="mission-live-camera-kicker">פריים חי</p>
                     <p id="liveCameraEmpty" class="mission-live-camera-empty">אין פריים</p>
                     <div class="mission-live-camera-grid">
+                      <figure class="mission-live-camera-slot" data-cam="cam0">
+                        <figcaption id="liveCameraCam0Label" class="mission-live-camera-label">אפס</figcaption>
+                        <p id="liveCameraCam0Meta" class="mission-live-camera-meta">אין אות</p>
+                        <img id="liveCameraCam0Frame" class="mission-live-camera-frame" alt="" hidden />
+                        <canvas id="liveCameraCam0Overlay" class="mission-live-camera-overlay" hidden></canvas>
+                      </figure>
                       <figure class="mission-live-camera-slot" data-cam="cam1">
                         <figcaption id="liveCameraCam1Label" class="mission-live-camera-label">קדמית</figcaption>
                         <p id="liveCameraCam1Meta" class="mission-live-camera-meta">אין פריים</p>
@@ -2513,6 +2566,7 @@
     </script>
     <script type="module" src="./modules/flightbook.mjs?v=__APP_VERSION__"></script>
     <script type="module" src="./modules/debrief-cameras.mjs?v=__APP_VERSION__"></script>
+    <script type="module" src="./modules/cam0-panel.mjs?v=__APP_VERSION__"></script>
     <script src="./app.js?v=__APP_VERSION__"></script>
   </body>
 </html>

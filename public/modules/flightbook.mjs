@@ -4,6 +4,7 @@
  */
 import { mountMap } from './flightbook-map.mjs';
 import { mountPlots } from './flightbook-plots.mjs';
+import { pickFrame } from './cam0-replay.mjs';
 
 const NOT_CONFIGURED = 'אחסון הטיסות בענן לא הוגדר. הוסיפו מפתח קריאה בקובץ \u200e.env\u200f (ראו docs/FLIGHT_LOGS.md)';
 const NO_FLIGHTS = 'עדיין אין טיסות. אחרי טיסה מחשב המשימה יעלה אותה אוטומטית.';
@@ -15,6 +16,8 @@ const state = {
   bundle: null,
   events: [],
   cursor: null,
+  cam0Frames: [],
+  cam0FlightId: null,
   listIndex: 0,
   filters: { from: '', to: '', warnings: false, mode: '', q: '', includeGround: false },
   src: '',
@@ -363,6 +366,14 @@ function paintFlight() {
       </section>
       <div class="fb-map" data-fb="map" id="fbMapHost"></div>
     </div>
+    <section class="fb-cam0" data-fb="cam0">
+      <h3>מצלמה אפס</h3>
+      <p id="fbCam0Status" class="fb-cam0-status">אין אות</p>
+      <div class="fb-cam0-stage">
+        <img id="fbCam0Frame" alt="" hidden />
+        <canvas id="fbCam0Overlay" hidden></canvas>
+      </div>
+    </section>
     <div id="fbPlots"></div>
     <section class="fb-artifacts" data-fb="artifacts">
       <h3>קבצים</h3>
@@ -387,6 +398,7 @@ function paintFlight() {
   });
   map = mountMap(main.querySelector('#fbMapHost'), state.bundle.track);
   if (state.cursor != null) setCursor(state.cursor, { scroll: false });
+  void loadCam0(f);
   const debriefHost = main.querySelector('[data-fb="debrief"]');
   if (debriefHost) bindCites(debriefHost);
   void loadDebrief(false);
@@ -434,10 +446,85 @@ function paintTimeline() {
   });
 }
 
+function paintCam0At(t) {
+  const status = root.querySelector('#fbCam0Status');
+  const img = root.querySelector('#fbCam0Frame');
+  const canvas = root.querySelector('#fbCam0Overlay');
+  const row = pickFrame(state.cam0Frames, t) || (t == null ? state.cam0Frames[0] : null);
+  if (!status || !img) return;
+  if (!state.cam0FlightId || !row) {
+    status.textContent = 'אין אות';
+    img.hidden = true;
+    img.removeAttribute('src');
+    if (canvas) canvas.hidden = true;
+    return;
+  }
+  status.textContent = '';
+  img.hidden = false;
+  img.src = `/api/jetson/v1/cam0/recordings/${encodeURIComponent(state.cam0FlightId)}/frame.jpg?i=${encodeURIComponent(row.i)}`;
+  if (!canvas) return;
+  img.onload = () => {
+    const dets = row.detections || [];
+    canvas.hidden = dets.length === 0;
+    if (!dets.length) return;
+    const rect = img.getBoundingClientRect();
+    canvas.width = Math.max(1, Math.round(rect.width));
+    canvas.height = Math.max(1, Math.round(rect.height));
+    const ctx = canvas.getContext('2d');
+    if (!ctx || !img.naturalWidth) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.strokeStyle = '#fbbf24';
+    ctx.fillStyle = '#fbbf24';
+    const dx = canvas.width / img.naturalWidth;
+    const dy = canvas.height / img.naturalHeight;
+    for (const det of dets) {
+      const pts = (det.corners || []).map((p) => [p[0] * dx, p[1] * dy]);
+      if (pts.length < 4) continue;
+      ctx.beginPath();
+      ctx.moveTo(pts[0][0], pts[0][1]);
+      for (const p of pts.slice(1)) ctx.lineTo(p[0], p[1]);
+      ctx.closePath();
+      ctx.stroke();
+    }
+  };
+}
+
+async function loadCam0(flight) {
+  state.cam0Frames = [];
+  state.cam0FlightId = null;
+  paintCam0At(state.cursor);
+  try {
+    const res = await fetch('/api/jetson/v1/cam0/recordings');
+    if (!res.ok) return;
+    const body = await res.json();
+    const data = body?.data && body.lane === 'NEW' ? body.data : body;
+    const rows = data?.recordings || [];
+    if (!rows.length) return;
+    const arm = Date.parse(flight?.arm_utc || flight?.times?.arm_utc || '') || null;
+    let chosen = rows[rows.length - 1];
+    if (arm) {
+      const hit = rows.find((row) => String(row.flight_id || '').includes(String(flight.flight_id || '')));
+      if (hit) chosen = hit;
+    }
+    const metaRes = await fetch(`/api/jetson/v1/cam0/recordings/${encodeURIComponent(chosen.flight_id)}`);
+    if (!metaRes.ok) return;
+    const metaBody = await metaRes.json();
+    const meta = metaBody?.data && metaBody.lane === 'NEW' ? metaBody.data : metaBody;
+    state.cam0Frames = meta.frames || [];
+    state.cam0FlightId = chosen.flight_id;
+    paintCam0At(state.cursor);
+  } catch {
+    state.cam0Frames = [];
+    state.cam0FlightId = null;
+    paintCam0At(state.cursor);
+  }
+}
+
 function setCursor(t, { scroll = true } = {}) {
   state.cursor = t;
   plots?.setCursor(t);
   map?.setCursor(t);
+  paintCam0At(t);
   root.querySelectorAll('.fb-event').forEach((btn) => {
     btn.classList.toggle('is-on', btn.dataset.t === String(t));
   });

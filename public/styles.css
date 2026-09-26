@@ -19683,4 +19683,45 @@ body:has(#control.panel.visible) .ardu-top-cats-host {
   .app-update-actions button { flex: 1 1 auto; min-height: 36px; }
 }
 
-
+.cam0-panel {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.72);
+  color: #e2e8f0;
+}
+.cam0-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.cam0-title { margin: 0; font-size: 18px; }
+.cam0-honesty { margin: 0; color: #fbbf24; }
+.cam0-layout { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(200px, 0.8fr); gap: 12px; }
+.cam0-stage { position: relative; min-height: 140px; background: #020617; border-radius: 8px; overflow: hidden; }
+.cam0-frame { display: block; width: 100%; height: auto; }
+.cam0-overlay, .mission-live-camera-overlay, .fb-cam0-stage canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.cam0-empty { margin: 0; padding: 28px 12px; text-align: center; color: #94a3b8; }
+.cam0-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin: 8px 0; }
+.cam0-stats div { background: rgba(15, 23, 42, 0.9); border-radius: 8px; padding: 6px; }
+.cam0-stats dt { font-size: 12px; color: #94a3b8; }
+.cam0-stats dd { margin: 0; font-variant-numeric: tabular-nums; }
+.cam0-controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.cam0-controls label { display: flex; gap: 6px; align-items: center; font-size: 13px; }
+.cam0-controls input, .cam0-controls select { max-width: 110px; }
+.cam0-btn { border: 1px solid rgba(148, 163, 184, 0.45); background: #0f172a; color: inherit; border-radius: 8px; padding: 6px 10px; }
+.cam0-rec { color: #f87171; font-weight: 700; }
+.cam0-hist { width: 100%; height: 56px; background: #020617; border-radius: 6px; }
+.cam0-calib-lead, .cam0-calib-state { margin: 4px 0; font-size: 13px; color: #cbd5e1; }
+.cam0-source-adapter { display: none; }
+.mission-live-camera-slot { position: relative; }
+.fb-cam0 { margin: 12px 0; }
+.fb-cam0-stage { position: relative; background: #020617; min-height: 80px; border-radius: 8px; }
+.fb-cam0-stage img { display: block; width: 100%; height: auto; }
+@media (max-width: 720px) {
+  .cam0-layout { grid-template-columns: 1fr; }
+  .cam0-controls input, .cam0-controls select { max-width: 100%; }
+}

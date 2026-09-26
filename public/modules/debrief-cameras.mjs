@@ -1,12 +1,13 @@
 /**
- * Debrief camera grid: Cam0 (CSI slot cam1, mono), Cam1 (CSI slot cam2), A8 (SIYI RTSP cam3).
+ * Debrief camera grid: Cam0 is the OV9281 (companion camera cam0, mono),
+ * Cam1 is companion cam2, A8 is the SIYI RTSP slot cam3.
  * Live frames come only from the companion camera API. A loaded debrief file keeps the
  * existing playback clock on #flightVideo and synced clones. No invented signal.
  */
 
 const STORAGE_KEY = 'vlc.debrief.cameras.v1';
 const SLOTS = [
-  { id: 'cam0', apiId: 'cam1', mono: true },
+  { id: 'cam0', apiId: 'cam0', mono: true },
   { id: 'cam1', apiId: 'cam2', mono: false },
   { id: 'a8', apiId: 'cam3', mono: false },
 ];

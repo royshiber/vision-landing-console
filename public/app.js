@@ -5485,7 +5485,7 @@ initHorizonVideo();
 const HORIZON_CAMERA_KEY = 'vlc.horizon.bgCamera.v1';
 const HORIZON_CAMERA_SLOTS = [
   { id: 'none', label: 'בלי מצלמה', apiId: null, mono: false },
-  { id: 'cam0', label: 'Cam0', apiId: 'cam1', mono: true },
+  { id: 'cam0', label: 'Cam0', apiId: 'cam0', mono: true },
   { id: 'cam1', label: 'Cam1', apiId: 'cam2', mono: false },
   { id: 'a8', label: 'A8', apiId: 'cam3', mono: false },
 ];

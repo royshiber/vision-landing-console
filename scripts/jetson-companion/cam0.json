@@ -1,0 +1,31 @@
+{
+  "enabled": true,
+  "source": "v4l2",
+  "device": "/dev/video0",
+  "width": 1280,
+  "height": 800,
+  "fps": 60,
+  "vehicle_id": "airvix",
+  "record_root": "/home/royshiber/vlc-companion/flight-logs",
+  "calibration_dir": "/home/royshiber/vlc-companion/cam0-calibration",
+  "auto_record_on_arm": false,
+  "marker_size_m": 0.16,
+  "marker_enabled": true,
+  "ae": {
+    "enabled": true,
+    "target_mean": 0.42,
+    "target_percentile": 0.78,
+    "hysteresis": 0.035,
+    "exposure_us_min": 10,
+    "exposure_us_max": 100001,
+    "prefer_exposure_us_max": 4000,
+    "gain_min": 16,
+    "gain_max": 256,
+    "flicker_quantum_us": 10000,
+    "exposure_us": 2000,
+    "gain": 32
+  },
+  "stream": { "fps": 8, "quality": 55, "max_width": 640 },
+  "synthetic": { "width": 160, "height": 120, "fps": 15, "marker_id": 7, "marker_px": 54 },
+  "bus_slots": 3
+}
