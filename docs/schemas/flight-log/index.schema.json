@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "airvix.flight.index/1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema", "flight_id", "vehicle_id", "classification", "state", "manifest_rev",
+    "arm_utc", "time_source", "modes", "warnings", "errors", "critical", "end_reason",
+    "has_fc_log", "updated_utc"
+  ],
+  "properties": {
+    "schema": { "const": "airvix.flight.index/1" },
+    "flight_id": { "type": "string", "minLength": 8 },
+    "vehicle_id": { "type": "string" },
+    "classification": { "enum": ["flight", "ground_run", "bench", "unknown_no_telemetry"] },
+    "state": { "enum": ["in_flight", "processing", "uploading", "awaiting_fc_log", "complete", "partial"] },
+    "manifest_rev": { "type": "integer", "minimum": 1 },
+    "arm_utc": { "type": "string" },
+    "takeoff_utc": { "type": ["string", "null"] },
+    "landed_utc": { "type": ["string", "null"] },
+    "disarm_utc": { "type": ["string", "null"] },
+    "time_source": { "enum": ["ntp", "fc_system_time", "jetson_unsynced"] },
+    "duration_s": { "type": ["number", "null"] },
+    "air_time_s": { "type": ["number", "null"] },
+    "max_rel_alt_m": { "type": ["number", "null"] },
+    "max_airspeed_mps": { "type": ["number", "null"] },
+    "max_groundspeed_mps": { "type": ["number", "null"] },
+    "distance_m": { "type": ["number", "null"] },
+    "modes": { "type": "array", "items": { "type": "string" } },
+    "warnings": { "type": "integer", "minimum": 0 },
+    "errors": { "type": "integer", "minimum": 0 },
+    "critical": { "type": "integer", "minimum": 0 },
+    "end_reason": { "type": "string" },
+    "has_fc_log": { "type": "boolean" },
+    "artifacts_pending": { "type": "integer", "minimum": 0 },
+    "updated_utc": { "type": "string" }
+  }
+}

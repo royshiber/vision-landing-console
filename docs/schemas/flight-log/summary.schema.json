@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "airvix.flight.summary/1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "derive_rev", "sources", "stats", "modes", "facts", "insights", "coverage"],
+  "properties": {
+    "schema": { "const": "airvix.flight.summary/1" },
+    "derive_rev": { "type": "integer" },
+    "sources": { "type": "array", "items": { "type": "string" } },
+    "stats": { "type": "object" },
+    "modes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["mode", "from_rel_s", "to_rel_s", "dur_s"],
+        "additionalProperties": false,
+        "properties": {
+          "mode": { "type": "string" },
+          "from_rel_s": { "type": "number" },
+          "to_rel_s": { "type": "number" },
+          "dur_s": { "type": "number" }
+        }
+      }
+    },
+    "takeoff": { "type": ["object", "null"] },
+    "landing": { "type": ["object", "null"] },
+    "facts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "key", "value", "unit", "src"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string" },
+          "key": { "type": "string" },
+          "value": { "type": ["number", "string", "boolean", "null"] },
+          "unit": { "type": "string" },
+          "t_rel_s": { "type": ["number", "null"] },
+          "src": { "type": "string" }
+        }
+      }
+    },
+    "insights": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "rule", "sev", "text_he", "evidence"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string" },
+          "rule": { "type": "string" },
+          "sev": { "enum": ["info", "notice", "warning", "error", "critical"] },
+          "text_he": { "type": "string" },
+          "from_rel_s": { "type": ["number", "null"] },
+          "to_rel_s": { "type": ["number", "null"] },
+          "evidence": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    "coverage": { "type": "object" }
+  }
+}

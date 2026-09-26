@@ -171,7 +171,7 @@ describe('connect popover layout and mocked states', () => {
           contentType: 'application/json',
           body: JSON.stringify({
             ok: true,
-            appVersion: '1.02.326',
+            appVersion: '1.02.327',
             features: { mavlinkQuickConnect: true, dualLink: true },
           }),
         });
