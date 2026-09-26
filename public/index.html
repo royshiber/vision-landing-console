@@ -2226,21 +2226,19 @@
           <section class="mission-region mission-region-horizon" data-mission-region="horizon" aria-label="אופק">
             <h3 class="mission-region-title" draggable="true">אופק</h3>
             <aside id="flightHud" class="flight-hud" aria-label="HUD טיסה חופשית">
-              <div class="pfd-top-bar">
-                <button type="button" id="pfdVoiceFlightBtn" class="pfd-voice-flight-btn" title="פתיחת מהנדס קולי לפקודות טיסה">🎙 פקודות</button>
+              <div id="flightArmRow" class="flight-arm-row pfd-command-line pfd-top-bar" data-arm-link="off">
+                <span id="pfdModeVal" class="pfd-mode-val">—</span>
                 <span id="pfdArmedBadge" class="pfd-badge pfd-badge--disarmed" role="button" tabindex="0" title="מצב ARM — לחץ להסבר מוכנות">DISARMED</span>
-                <span id="pfdModeVal"    class="pfd-mode-val">—</span>
                 <div class="hud-nav-pill pfd-gps-pill" id="hudNavGps" data-status="unknown" title="אין קישור">
                   <span class="hud-nav-icon">📡</span>
                   <span class="hud-nav-val" id="hudNavGpsVal">—</span>
                 </div>
-              </div>
-              <div id="flightArmRow" class="flight-arm-row" data-arm-link="off">
                 <button type="button" id="flightArmBtn" class="flight-arm-btn" disabled>חימוש ARM</button>
                 <button type="button" id="flightDisarmBtn" class="flight-arm-btn" disabled>נטרול DISARM</button>
-                <p id="flightArmReason" class="flight-arm-reason">אין חיבור לבקר הטיסה</p>
-                <p id="flightArmRefusal" class="flight-arm-refusal" hidden></p>
-                <div id="flightArmDialog" class="flight-arm-dialog" hidden>
+                <p id="flightArmReason" class="flight-arm-reason" role="button" tabindex="0" aria-expanded="false">אין חיבור לבקר הטיסה</p>
+                <p id="flightArmRefusal" class="flight-arm-refusal" role="button" tabindex="0" aria-expanded="false" hidden></p>
+              </div>
+              <div id="flightArmDialog" class="flight-arm-dialog" hidden>
                   <p id="flightArmDialogText" class="flight-arm-dialog-text">אשרו חימוש</p>
                   <div class="flight-arm-dialog-actions">
                     <button type="button" id="flightArmCancel" class="flight-arm-btn">ביטול</button>
@@ -2254,7 +2252,6 @@
                     <button type="button" id="flightDisarmConfirm" class="flight-arm-btn flight-arm-btn--danger">נטרול DISARM</button>
                   </div>
                 </div>
-              </div>
               <p id="pfdHudWaitHint" class="pfd-hud-wait-hint" hidden></p>
 
               <div class="pfd-horizon-shell" id="pfdHorizonShell">
@@ -2311,6 +2308,7 @@
                   </div>
                 </div>
                 <div class="pfd-horizon-chrome" role="radiogroup" aria-label="תצוגת מכשירים">
+                  <button type="button" id="pfdVoiceFlightBtn" class="pfd-voice-flight-btn" title="פתיחת מהנדס קולי לפקודות טיסה">🎙 פקודות</button>
                   <button type="button" id="horizonVideoToggle" class="pfd-video-toggle" title="וידאו מהמצלמות" aria-pressed="false">וידאו</button>
                   <button type="button" id="annotatedVisionToggle" class="pfd-video-toggle" title="ראייה מסומנת" aria-pressed="false">ראייה</button>
                   <button type="button" id="liveCameraToggle" class="pfd-video-toggle" title="פריים חי" aria-pressed="false">פריים</button>

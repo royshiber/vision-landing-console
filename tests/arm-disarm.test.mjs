@@ -213,6 +213,7 @@ describe('ARM DISARM ui contract', () => {
     expect(html).not.toContain('21196');
     expect(html).toContain('אשרו חימוש');
     expect(html).toContain('אשרו נטרול');
+    expect(js).toContain('function translatePrearmText(');
     expect(js).toContain('openFlightArmDialog');
     expect(js).toContain('FLIGHT_ARM_HOLD_MS = 1500');
     expect(js).toContain('initFlightArmControls();');
@@ -220,5 +221,29 @@ describe('ARM DISARM ui contract', () => {
     const armCss = css.slice(css.indexOf('#flightArmRow'), css.indexOf('#flightArmRow') + 1800);
     expect(armCss).toMatch(/font-size:\s*clamp\(11px/);
     expect(armCss).not.toMatch(/text-overflow:\s*ellipsis/);
+  });
+
+  it('translates known pre-arm lines to Hebrew and keeps unknown text', () => {
+    const js = fs.readFileSync(path.join(repoRoot, 'public/app.js'), 'utf8');
+    const start = js.indexOf('function translatePrearmText(');
+    const brace = js.indexOf('{', start);
+    let depth = 0;
+    let end = brace;
+    for (let i = brace; i < js.length; i += 1) {
+      if (js[i] === '{') depth += 1;
+      else if (js[i] === '}') {
+        depth -= 1;
+        if (depth === 0) {
+          end = i + 1;
+          break;
+        }
+      }
+    }
+    const translate = new Function(`${js.slice(start, end)}; return translatePrearmText;`)();
+    expect(translate('Arm: 3D Accel calibration needed')).toBe('לא ניתן לחמש: נדרש כיול מד תאוצה');
+    expect(translate('PreArm: GPS speed error 1.2m/s Need 3D Fix')).toBe('לא ניתן לחמש: שגיאת מהירות לוויין');
+    expect(translate('PreArm: Compass not healthy')).toBe('לא ניתן לחמש: המצפן לא תקין');
+    expect(translate('something the console does not know')).toBe('something the console does not know');
+    expect(translate('אין חיבור לבקר הטיסה')).toBe('אין חיבור לבקר הטיסה');
   });
 });

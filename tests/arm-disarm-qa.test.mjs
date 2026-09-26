@@ -176,7 +176,7 @@ describe('ARM DISARM flight screen', () => {
           }
           if (state.id === 'refused') {
             expect(ui.refusalHidden).toBe(false);
-            expect(ui.refusal).toBe(PREARM);
+            expect(ui.refusal).toBe('לא ניתן לחמש: שגיאת מהירות לוויין');
           }
         }
       }
@@ -245,7 +245,7 @@ describe('ARM DISARM flight screen', () => {
       expect(await page.locator('#flightArmDialogText').textContent()).toBe('אשרו חימוש');
       await page.locator('#flightArmConfirm').click();
       expect(posts.filter((p) => p.action === 'arm')).toHaveLength(1);
-      await page.waitForFunction(() => (document.getElementById('flightArmRefusal')?.textContent || '').includes('PreArm'));
+      await page.waitForFunction(() => (document.getElementById('flightArmRefusal')?.textContent || '').includes('שגיאת מהירות לוויין'));
       await page.mouse.move(x, y);
       await page.mouse.down();
       await page.waitForTimeout(1600);

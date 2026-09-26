@@ -7602,6 +7602,67 @@ function flightArmLinkLive(mav) {
   return true;
 }
 
+function translatePrearmText(raw) {
+  const line = String(raw || '').trim();
+  if (!line) return '';
+  const rules = [
+    [/3d accel calibration needed/i, 'לא ניתן לחמש: נדרש כיול מד תאוצה'],
+    [/gps speed error/i, 'לא ניתן לחמש: שגיאת מהירות לוויין'],
+    [/need 3d fix|need gps/i, 'לא ניתן לחמש: נדרש מיקום לווייני'],
+    [/compass not healthy/i, 'לא ניתן לחמש: המצפן לא תקין'],
+    [/waiting for navigation/i, 'לא ניתן לחמש: ממתינים לבדיקות ניווט'],
+    [/rc not (calibrated|found)/i, 'לא ניתן לחמש: נדרש כיול שלט'],
+    [/throttle/i, 'לא ניתן לחמש: המצערת לא במצב נמוך'],
+    [/safety switch/i, 'לא ניתן לחמש: מתג הבטיחות פתוח'],
+    [/gyro/i, 'לא ניתן לחמש: נדרש כיול גירוסקופ'],
+    [/accel/i, 'לא ניתן לחמש: נדרש כיול מד תאוצה'],
+    [/compass|mag field/i, 'לא ניתן לחמש: נדרש כיול מצפן'],
+    [/ahrs not healthy/i, 'לא ניתן לחמש: מערכת הייחוס לא תקינה'],
+    [/battery/i, 'לא ניתן לחמש: הסוללה לא תקינה'],
+    [/radio failsafe/i, 'לא ניתן לחמש: אבד קשר רדיו'],
+    [/logging failed/i, 'לא ניתן לחמש: הרישום נכשל'],
+    [/ekf/i, 'לא ניתן לחמש: הערכת המצב לא תקינה'],
+    [/baro/i, 'לא ניתן לחמש: מד הגובה לא תקין'],
+    [/fence/i, 'לא ניתן לחמש: נדרש מיקום לגדר'],
+  ];
+  for (const [re, he] of rules) {
+    if (re.test(line)) return he;
+  }
+  return line;
+}
+
+function paintPrearmBadge(el, raw) {
+  if (!el) return;
+  const line = String(raw || '').trim();
+  el.classList.remove('is-open');
+  el.setAttribute('aria-expanded', 'false');
+  if (!line) {
+    el.hidden = true;
+    el.textContent = '';
+    delete el.dataset.raw;
+    return;
+  }
+  const shown = translatePrearmText(line);
+  el.hidden = false;
+  el.dataset.raw = line;
+  el.textContent = shown;
+}
+
+function togglePrearmBadge(el) {
+  if (!el || el.hidden) return;
+  const open = el.classList.toggle('is-open');
+  el.setAttribute('aria-expanded', open ? 'true' : 'false');
+  const raw = el.dataset.raw || '';
+  const shown = translatePrearmText(raw);
+  el.textContent = shown;
+  if (open && raw && raw !== shown) {
+    const extra = document.createElement('span');
+    extra.className = 'flight-arm-warn-raw';
+    extra.textContent = raw;
+    el.appendChild(extra);
+  }
+}
+
 function syncFlightArmControls(mav) {
   const row = document.getElementById('flightArmRow');
   const armBtn = document.getElementById('flightArmBtn');
@@ -7614,12 +7675,11 @@ function syncFlightArmControls(mav) {
     disarmBtn.disabled = true;
     armBtn.title = 'אין חיבור לבקר הטיסה';
     disarmBtn.title = 'אין חיבור לבקר הטיסה';
-    reason.hidden = false;
-    reason.textContent = 'אין חיבור לבקר הטיסה';
+    paintPrearmBadge(reason, 'אין חיבור לבקר הטיסה');
     if (row) row.dataset.armLink = 'off';
     return;
   }
-  reason.hidden = true;
+  paintPrearmBadge(reason, '');
   const armed = mav.armed === true;
   armBtn.disabled = armed;
   disarmBtn.disabled = !armed;
@@ -7630,15 +7690,7 @@ function syncFlightArmControls(mav) {
 
 function showFlightArmRefusal(text) {
   const note = document.getElementById('flightArmRefusal');
-  if (!note) return;
-  const line = String(text || '').trim();
-  if (!line) {
-    note.hidden = true;
-    note.textContent = '';
-    return;
-  }
-  note.hidden = false;
-  note.textContent = line;
+  paintPrearmBadge(note, text);
 }
 
 function closeFlightDisarmDialog() {
@@ -7778,6 +7830,15 @@ function initFlightArmControls() {
   document.getElementById('flightArmConfirm')?.addEventListener('click', () => {
     sendFlightArm();
   });
+  for (const id of ['flightArmReason', 'flightArmRefusal']) {
+    const badge = document.getElementById(id);
+    badge?.addEventListener('click', () => togglePrearmBadge(badge));
+    badge?.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+      event.preventDefault();
+      togglePrearmBadge(badge);
+    });
+  }
   syncFlightArmControls(latestHudMavlink);
 }
 

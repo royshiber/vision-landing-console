@@ -11746,7 +11746,9 @@ html[data-evolve-preview="1"] #development {
 }
 .pfd-gps-pill {
   flex-shrink: 0;
-  padding: 3px 7px !important;
+  padding: 0 5px !important;
+  min-height: 0;
+  line-height: 1.25;
 }
 .pfd-hud-wait-hint {
   margin: 0;
@@ -11816,15 +11818,48 @@ html[data-evolve-preview="1"] #development {
   max-height: calc(100% - var(--mission-data-h, 72px) - var(--mission-msg-h, 40px));
   flex: 1 1 auto;
 }
+.mission-region-horizon .pfd-command-line {
+  display: flex;
+  flex-flow: row wrap;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 4px;
+  background: rgba(0, 0, 0, 0.55);
+  flex: 0 0 auto;
+  min-width: 0;
+  max-width: 100%;
+}
+.mission-region-horizon .pfd-command-line > .pfd-top-bar,
+.mission-region-horizon .pfd-command-line > .flight-arm-row {
+  display: contents;
+}
 .mission-region-horizon .pfd-top-bar {
-  min-height: 22px;
-  padding: 2px 6px;
+  min-height: 0;
+  padding: 0;
   flex-wrap: nowrap;
-  overflow-x: auto;
-  gap: 4px;
+  overflow: visible;
+  gap: 3px;
 }
 .mission-region-horizon .pfd-top-bar > * {
   flex-shrink: 0;
+}
+.mission-region-horizon .pfd-mode-val {
+  flex: 0 0 auto;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: rgba(250, 204, 21, 0.12);
+  border: 1px solid rgba(250, 204, 21, 0.35);
+  overflow: visible;
+  text-overflow: clip;
+  font-size: clamp(11px, 0.62rem, 8rem);
+  line-height: 1.25;
+}
+.mission-region-horizon .pfd-voice-flight-btn,
+.mission-region-horizon .pfd-badge,
+.mission-region-horizon .pfd-gps-pill {
+  padding: 0 5px;
+  line-height: 1.25;
+  min-height: 0;
 }
 .mission-region-horizon .pfd-bottom-bar {
   display: flex;
@@ -20284,14 +20319,14 @@ body:has(#control.panel.visible) .ardu-top-cats-host {
 .mission-region-horizon .mission-region-data {
   flex-direction: column;
   align-items: stretch;
-  max-height: min(148px, 32%);
+  max-height: none;
   height: auto;
   min-width: 0;
   min-height: 0;
   width: 100%;
   max-width: 100%;
-  flex: 1 1 auto;
-  overflow: auto;
+  flex: 0 1 auto;
+  overflow: visible;
   align-self: stretch;
   box-sizing: border-box;
 }
@@ -20309,18 +20344,21 @@ body:has(#control.panel.visible) .ardu-top-cats-host {
   box-sizing: border-box;
 }
 .mission-region-horizon .mission-data-tile {
-  padding: 2px 4px;
+  padding: 1px 3px;
+  min-height: 0;
+  gap: 0;
 }
 .mission-region-horizon .mission-data-confidence .mission-data-readout {
   flex-direction: row;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 1px 4px;
 }
 .mission-region-horizon .mission-data-confidence .confidence-track {
-  flex: 1 0 100%;
+  flex: 1 1 24px;
   height: 3px;
   margin: 0;
+  min-width: 16px;
 }
 .mission-region-horizon .mission-data-tile {
   flex: 1 1 auto;
@@ -20357,11 +20395,11 @@ body:has(#control.panel.visible) .ardu-top-cats-host {
   max-width: 100%;
   height: auto;
   display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 2px;
+  flex-flow: row wrap;
+  align-items: center;
+  gap: 1px 6px;
   overflow: hidden;
-  padding: 1px 4px 0;
+  padding: 0 4px;
   box-sizing: border-box;
 }
 .mission-region-data > .pfd-bottom-bar,
@@ -20407,17 +20445,17 @@ body:has(#control.panel.visible) .ardu-top-cats-host {
 .mission-horizon-filler .hud-data-grid:empty { display: none; }
 .mission-region-data .mission-horizon-filler > .mission-horizon-filler-kicker {
   position: static;
-  width: 100%;
+  width: auto;
   height: auto;
   margin: 0;
   overflow: visible;
   white-space: nowrap;
   font-size: clamp(11px, 0.62rem, 8rem);
-  line-height: 1;
+  line-height: 1.15;
 }
 .mission-region-data .mission-horizon-filler-note {
   position: static;
-  width: 100%;
+  width: auto;
   max-width: 100%;
   height: auto;
   margin: 0;
@@ -20425,7 +20463,8 @@ body:has(#control.panel.visible) .ardu-top-cats-host {
   white-space: normal;
   overflow-wrap: anywhere;
   text-overflow: unset;
-  line-height: 1.35;
+  line-height: 1.15;
+  flex: 1 1 auto;
 }
 .mission-region-data > .pfd-bottom-bar {
   position: sticky;
@@ -20704,11 +20743,11 @@ html body :is(
 }
 
 .mission-region-horizon .pfd-top-bar {
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   align-content: flex-start;
   height: auto;
-  min-height: 26px;
+  min-height: 0;
   max-height: none;
   overflow: visible;
   row-gap: 2px;
@@ -20730,11 +20769,11 @@ html body :is(
 .mission-region-horizon .pfd-voice-flight-btn {
   overflow: visible;
   text-overflow: clip;
-  white-space: normal;
+  white-space: nowrap;
   height: auto;
   max-height: none;
-  font-size: clamp(11px, 0.72rem, 13px);
-  line-height: 1.3;
+  font-size: clamp(11px, 0.62rem, 13px);
+  line-height: 1.25;
 }
 .mission-region-horizon .hud-nav-pill {
   flex: 0 1 auto;
@@ -21041,31 +21080,34 @@ html body :is(
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  align-content: flex-start;
-  gap: 4px;
-  padding: 4px 6px;
+  align-content: center;
+  gap: 3px;
+  padding: 1px 4px;
   width: 100%;
   max-width: 100%;
   min-width: 0;
   box-sizing: border-box;
   flex: 0 0 auto;
   overflow: visible;
-  background: rgba(0, 0, 0, 0.45);
+  background: rgba(0, 0, 0, 0.55);
+  height: auto;
+  min-height: 0;
+  max-height: none;
 }
 .flight-arm-btn {
-  flex: 1 1 0;
+  flex: 0 0 auto;
   min-width: 0;
-  font-size: clamp(11px, 0.72rem, 14px);
-  line-height: 1.35;
-  min-height: 28px;
+  font-size: clamp(11px, 0.62rem, 14px);
+  line-height: 1.15;
+  min-height: 0;
   height: auto;
-  padding: 2px 4px;
+  padding: 1px 5px;
   max-width: 100%;
   overflow: visible;
-  white-space: normal;
-  overflow-wrap: anywhere;
+  white-space: nowrap;
+  overflow-wrap: normal;
   text-overflow: clip;
-  border-radius: 6px;
+  border-radius: 999px;
   border: 1px solid rgba(148, 163, 184, 0.45);
   background: rgba(15, 23, 42, 0.92);
   color: #e2e8f0;
@@ -21089,8 +21131,8 @@ html body :is(
 .flight-arm-dialog-text {
   flex: 1 1 100%;
   margin: 0;
-  font-size: clamp(11px, 0.72rem, 14px);
-  line-height: 1.35;
+  font-size: clamp(11px, 0.62rem, 14px);
+  line-height: 1.25;
   max-width: 100%;
   height: auto;
   overflow: visible;
@@ -21098,6 +21140,29 @@ html body :is(
   overflow-wrap: anywhere;
   text-overflow: clip;
   color: #fde68a;
+}
+.flight-arm-reason,
+.flight-arm-refusal {
+  flex: 1 1 auto;
+  width: auto;
+  max-width: 100%;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: rgba(120, 53, 15, 0.55);
+  border: 1px solid rgba(251, 191, 36, 0.45);
+  cursor: pointer;
+}
+.flight-arm-reason.is-open,
+.flight-arm-refusal.is-open {
+  flex: 1 1 100%;
+  border-radius: 6px;
+  white-space: normal;
+}
+.flight-arm-warn-raw {
+  display: block;
+  margin-top: 2px;
+  color: #fef3c7;
+  font-weight: 500;
 }
 .flight-arm-dialog {
   flex: 1 1 100%;
@@ -22586,11 +22651,20 @@ body:has(#pulse.panel.visible) .pulse-home.pulse-status-home {
 }
 .mission-region-horizon .mission-data-tile {
   min-height: 56px;
-  padding: 1px 4px;
+  padding: 1px 3px;
+}
+.mission-region-horizon .mission-data-tile.tele-hud-mini {
+  padding: 1px 3px !important;
+  min-width: 0 !important;
+  text-align: start;
+}
+.mission-region-horizon .tele-hud-mini span,
+.mission-region-horizon .tele-hud-mini strong {
+  display: inline;
 }
 @media (max-height: 800px) {
   .mission-region-horizon .mission-data-tile {
-    min-height: 40px;
+    min-height: 56px;
   }
 }
 .mission-region-horizon .pfd-horizon-shell {
