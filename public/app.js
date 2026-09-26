@@ -15,6 +15,10 @@ const APP_VERSION_NEW = (() => {
 var latestVisionFromServer = null;
 var latestCompanionFromServer = null;
 var latestJetsonFromServer = null;
+
+function readLatestHudMavlink() {
+  try { return latestHudMavlink || null; } catch { return null; }
+}
 var lastSseTerrainPayload = null;
 var terrainMap = null;
 var jetsonTelemetryMap = null;
@@ -3680,7 +3684,7 @@ function pulseWriteVersionOffer(opts) {
 
 function pulseRefreshVersionOffers() {
   const companion = (typeof latestCompanionFromServer !== 'undefined' && latestCompanionFromServer) ? latestCompanionFromServer : {};
-  const mavForOffers = (typeof latestHudMavlink !== 'undefined' && latestHudMavlink) ? latestHudMavlink : null;
+  const mavForOffers = readLatestHudMavlink();
   const honesty = pulseResolveComputerHonesty(companion, mavForOffers);
   const liveCompanionVer = honesty.jetsonLive
     ? String(
@@ -4084,10 +4088,384 @@ function paintFieldPreflight(snapshot, { compact = false } = {}) {
   }
 }
 
+const PULSE_VLR_CATEGORY = Object.freeze({
+  jetson_companion: 'jetson',
+  fc_heartbeat: 'fc',
+  telemetry_recording: 'fc',
+  camera_vision: 'vision',
+  camera_install: 'vision',
+  runway_detect: 'vision',
+  runway_lock: 'vision',
+  annotated_video: 'vision',
+  plnd_profile: 'landing',
+  flight_commands_gate: 'landing',
+});
+
+const PULSE_VLR_FOLD = Object.freeze({
+  jetson_companion: 'pulseJetsonFold',
+  fc_heartbeat: 'pulseFcFold',
+  camera_install: 'pulseCameraInstallFold',
+});
+
+const PULSE_SUMMARY_CATS = Object.freeze([
+  { id: 'links', title: 'חיבורים' },
+  { id: 'jetson', title: 'מחשב משימה' },
+  { id: 'fc', title: 'בקר טיסה' },
+  { id: 'vision', title: 'מצלמות וראייה' },
+  { id: 'landing', title: 'נחיתה' },
+]);
+
+function pulseStatusBucket(tone, state) {
+  const t = String(tone || '');
+  const s = String(state || '');
+  if (s === 'unknown' || t === 'off' || s === 'off') return 'unknown';
+  if (
+    t === 'ok' || s === 'ok' || s === 'closed' || s === 'present' || s === 'connected'
+    || s === 'heartbeat' || s === 'reachable' || s === 'mock' || s === 'detected'
+    || s === 'locked' || s === 'recording'
+  ) return 'ok';
+  if (
+    t === 'bad' || t === 'fail' || s === 'error' || s === 'unreachable' || s === 'unlinked'
+    || s === 'absent' || s === 'not_implemented'
+  ) return 'error';
+  if (
+    t === 'warn' || t === 'wait' || t === 'blocked' || s === 'missing' || s === 'linked'
+    || s === 'degraded' || s === 'not_detected' || s === 'detecting' || s === 'not-recording'
+  ) return 'warning';
+  return 'unknown';
+}
+
+function pulseLinkBucket(row) {
+  if (!row) return 'unknown';
+  const tone = String(row.tone || '');
+  const state = String(row.state || '');
+  const status = String(row.statusHe || '');
+  if (!status || status === 'אין נתונים' || status === 'לא ידוע' || state === 'absent' || state === 'modem_absent') return 'unknown';
+  if (tone === 'ok' || state === 'connected') return 'ok';
+  if (tone === 'bad' || state === 'error') return 'error';
+  if (tone === 'wait' || state === 'degraded' || state === 'listening' || state === 'connecting' || state === 'off' || state === 'disabled') return 'warning';
+  return 'unknown';
+}
+
+function pulseSetStatusRow(row, { pill, reason, bucket, tone }) {
+  if (!row) return;
+  const pillEl = row.querySelector('[data-metric-pill], [data-link-pill], .status-row-pill');
+  const reasonEl = row.querySelector('[data-metric-reason], [data-link-reason], .status-row-reason');
+  if (pillEl) pillEl.textContent = pill || 'לא ידוע';
+  if (reasonEl) reasonEl.textContent = reason || '';
+  row.dataset.statusBucket = bucket || 'unknown';
+  row.dataset.tone = tone || 'off';
+}
+
+function pulseKnownText(text) {
+  const s = String(text || '').trim();
+  if (!s || s === '--' || s === '—' || s === '-' || s === 'אין נתון') return '';
+  return s;
+}
+
+function pulseRefreshSummary() {
+  const nav = document.getElementById('pulseSummary');
+  if (!nav) return;
+  const labels = { ok: 'תקין', warning: 'אזהרה', error: 'תקלה', unknown: 'לא ידוע' };
+  nav.replaceChildren();
+  for (const cat of PULSE_SUMMARY_CATS) {
+    const root = document.querySelector(`[data-pulse-cat="${cat.id}"]`);
+    const counts = { ok: 0, warning: 0, error: 0, unknown: 0 };
+    root?.querySelectorAll('[data-status-bucket]').forEach((el) => {
+      const hiddenAncestor = el.closest('[hidden]');
+      if (hiddenAncestor && hiddenAncestor !== root) return;
+      const bucket = el.dataset.statusBucket;
+      if (Object.prototype.hasOwnProperty.call(counts, bucket)) counts[bucket] += 1;
+    });
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'pulse-summary-cat';
+    btn.dataset.pulseJump = cat.id;
+    const title = document.createElement('span');
+    title.className = 'pulse-summary-title';
+    title.textContent = cat.title;
+    const countsEl = document.createElement('span');
+    countsEl.className = 'pulse-summary-counts';
+    for (const key of ['ok', 'warning', 'error', 'unknown']) {
+      const bit = document.createElement('span');
+      bit.className = 'pulse-count';
+      bit.dataset.bucket = key;
+      bit.textContent = `${labels[key]} ${counts[key]}`;
+      countsEl.appendChild(bit);
+    }
+    btn.append(title, countsEl);
+    nav.appendChild(btn);
+  }
+}
+
+function pulseJumpToCategory(id) {
+  const target = document.querySelector(`[data-pulse-cat="${id}"]`);
+  if (!target) return;
+  document.querySelectorAll('.pulse-cat').forEach((el) => {
+    el.classList.toggle('is-highlight', el === target);
+  });
+  target.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+}
+
+function pulseToggleStatusRow(row) {
+  if (!row) return;
+  const open = row.classList.toggle('is-open');
+  const main = row.querySelector('.status-row-main');
+  if (main?.tagName === 'BUTTON') main.setAttribute('aria-expanded', open ? 'true' : 'false');
+  const details = row.querySelector(':scope > .status-row-details');
+  if (details) details.hidden = !open || details.childElementCount === 0;
+  const fold = row.dataset.fold ? document.getElementById(row.dataset.fold) : null;
+  if (fold) {
+    if (fold.tagName === 'DETAILS') fold.open = open;
+    else fold.hidden = !open;
+  }
+}
+
+function initPulseStatusBoard() {
+  const root = document.getElementById('pulse');
+  if (!root || root.dataset.statusBoard === '1') return;
+  root.dataset.statusBoard = '1';
+  root.addEventListener('click', (e) => {
+    const jump = e.target.closest('[data-pulse-jump]');
+    if (jump && root.contains(jump)) {
+      e.preventDefault();
+      pulseJumpToCategory(jump.dataset.pulseJump);
+      return;
+    }
+    if (e.target.closest('.vlr-open-params, .pulse-connect-btn, .pulse-version-offer, [data-first-action]')) return;
+    const main = e.target.closest('.status-row-main');
+    if (!main || !root.contains(main)) return;
+    const row = main.closest('.status-row, .vlr-row');
+    if (!row) return;
+    const details = row.querySelector(':scope > .status-row-details');
+    const fold = row.dataset.fold ? document.getElementById(row.dataset.fold) : null;
+    if (!(details && details.childElementCount > 0) && !fold && main.tagName !== 'BUTTON') return;
+    e.preventDefault();
+    pulseToggleStatusRow(row);
+  });
+}
+
+function paintPulseCommStatus(links) {
+  const rows = Array.isArray(links?.comm?.rows) ? links.comm.rows : [];
+  const byId = Object.fromEntries(rows.map((r) => [r.id, r]));
+  for (const id of ['home', 'cellular', 'radio', 'rc']) {
+    const el = document.querySelector(`#pulseLinkStatusRows [data-link="${id}"]`);
+    const row = byId[id];
+    if (!el) continue;
+    if (!row) {
+      pulseSetStatusRow(el, { pill: 'לא ידוע', reason: '', bucket: 'unknown', tone: 'off' });
+      continue;
+    }
+    pulseSetStatusRow(el, {
+      pill: row.statusHe || 'לא ידוע',
+      reason: row.hintHe || '',
+      bucket: pulseLinkBucket(row),
+      tone: row.tone || 'off',
+    });
+  }
+  pulsePaintRelayRow();
+  pulseRefreshSummary();
+}
+
+function pulsePaintRelayRow() {
+  const el = document.querySelector('#pulseLinkStatusRows [data-link="relay"]');
+  if (!el) return;
+  const companion = (typeof latestCompanionFromServer !== 'undefined' && latestCompanionFromServer) ? latestCompanionFromServer : {};
+  const relay = companion?.mavlinkRelay;
+  if (!relay || typeof relay !== 'object') {
+    pulseSetStatusRow(el, { pill: 'לא ידוע', reason: '', bucket: 'unknown', tone: 'off' });
+    return;
+  }
+  const skipped = relay.skipped === 'live_radio' || relay.skipped === 'mock';
+  const up = relay.heartbeat === true || relay.ok === true || skipped;
+  const down = relay.ok === false && !skipped;
+  const pill = relay.heartbeat === true || relay.ok === true
+    ? 'פתוח'
+    : skipped
+      ? 'לא נדרש'
+      : down
+        ? 'סגור'
+        : 'לא ידוע';
+  const bucket = up ? 'ok' : down ? 'error' : 'unknown';
+  pulseSetStatusRow(el, {
+    pill,
+    reason: relay.status_he ? String(relay.status_he) : '',
+    bucket,
+    tone: bucket === 'ok' ? 'ok' : bucket === 'error' ? 'bad' : 'off',
+  });
+}
+
+function pulsePaintMetric(hostId, metric, fact) {
+  pulseSetStatusRow(document.querySelector(`#${hostId} [data-metric="${metric}"]`), fact);
+}
+
+function pulseServiceBucket(value) {
+  const s = String(value ?? '').trim().toLowerCase();
+  if (!s) return 'unknown';
+  if (/^(ok|running|active|up|true|healthy)$/.test(s)) return 'ok';
+  if (/fail|error|down|stop|dead|false|unhealthy/.test(s)) return 'error';
+  return 'unknown';
+}
+
+function pulsePaintJetsonFacts(companion) {
+  const version = pulseKnownText(document.getElementById('pulseJetsonVersion')?.textContent);
+  const versionState = pulseKnownText(document.getElementById('pulseJetsonVersionState')?.textContent);
+  pulsePaintMetric('pulseJetsonMetricRows', 'jetson-version', {
+    pill: version || 'לא ידוע',
+    reason: version ? versionState : '',
+    bucket: version ? 'ok' : 'unknown',
+    tone: version ? 'ok' : 'off',
+  });
+  for (const [metric, id] of [
+    ['jetson-load', 'pulseJetsonLoad'],
+    ['jetson-mem', 'pulseJetsonMem'],
+    ['jetson-temp', 'pulseJetsonTemp'],
+  ]) {
+    const text = pulseKnownText(document.getElementById(id)?.textContent);
+    pulsePaintMetric('pulseJetsonMetricRows', metric, {
+      pill: text || 'לא ידוע',
+      reason: '',
+      bucket: text ? 'ok' : 'unknown',
+      tone: text ? 'ok' : 'off',
+    });
+  }
+  const disk = companionFiniteMetric(companion?.system?.disk_used_percent);
+  pulsePaintMetric('pulseJetsonMetricRows', 'jetson-disk', {
+    pill: disk == null ? 'לא ידוע' : `${Math.round(disk)}%`,
+    reason: '',
+    bucket: disk == null ? 'unknown' : 'ok',
+    tone: disk == null ? 'off' : 'ok',
+  });
+  const subs = companion?.diagnostics?.subsystems;
+  const entries = subs && typeof subs === 'object' ? Object.entries(subs) : [];
+  const row = document.querySelector('#pulseJetsonMetricRows [data-metric="jetson-services"]');
+  const details = row?.querySelector('.status-row-details');
+  if (details) {
+    details.replaceChildren();
+    for (const [name, state] of entries) {
+      const line = document.createElement('p');
+      line.className = 'status-service-line';
+      line.textContent = `${name} · ${state == null || state === '' ? 'לא ידוע' : state}`;
+      details.appendChild(line);
+    }
+  }
+  if (!entries.length) {
+    pulsePaintMetric('pulseJetsonMetricRows', 'jetson-services', {
+      pill: 'לא ידוע', reason: '', bucket: 'unknown', tone: 'off',
+    });
+  } else {
+    const buckets = entries.map(([, value]) => pulseServiceBucket(value));
+    const bucket = buckets.includes('error') ? 'error' : buckets.includes('unknown') ? 'unknown' : 'ok';
+    pulsePaintMetric('pulseJetsonMetricRows', 'jetson-services', {
+      pill: String(entries.length),
+      reason: entries.slice(0, 3).map(([name]) => name).join(' · '),
+      bucket,
+      tone: bucket === 'ok' ? 'ok' : bucket === 'error' ? 'bad' : 'off',
+    });
+  }
+}
+
+function pulsePaintFcFacts(companion, mav) {
+  const live = pulseMavlinkLive(mav);
+  const mode = live ? pulseKnownText(vlcFlightModeText(mav?.flightMode, mav, mav?.connected === true)) : '';
+  pulsePaintMetric('pulseFcMetricRows', 'fc-mode', {
+    pill: mode || 'לא ידוע', reason: '', bucket: mode ? 'ok' : 'unknown', tone: mode ? 'ok' : 'off',
+  });
+  let armPill = 'לא ידוע';
+  let armBucket = 'unknown';
+  let armTone = 'off';
+  if (live && mav?.armedKnown === true && mav.armed === true) {
+    armPill = 'ARMED';
+    armBucket = 'ok';
+    armTone = 'ok';
+  } else if (live && mav?.armedKnown === true && mav.armed === false) {
+    armPill = 'DISARMED';
+    armBucket = 'ok';
+    armTone = 'ok';
+  }
+  pulsePaintMetric('pulseFcMetricRows', 'fc-arm', { pill: armPill, reason: '', bucket: armBucket, tone: armTone });
+  const fix = live ? Number(mav?.gpsFixType) : NaN;
+  const gpsLabels = pulseOptionalBinding(() => GPS_FIX_LABELS) || [];
+  const gps = Number.isFinite(fix) ? (gpsLabels[fix] ?? `Fix ${fix}`) : '';
+  pulsePaintMetric('pulseFcMetricRows', 'fc-gps', {
+    pill: gps || 'לא ידוע', reason: '', bucket: gps ? 'ok' : 'unknown', tone: gps ? 'ok' : 'off',
+  });
+  const bits = [];
+  if (live && Number.isFinite(Number(mav?.batteryV))) bits.push(`${Number(mav.batteryV).toFixed(1)} V`);
+  if (live && Number.isFinite(Number(mav?.batteryPct))) bits.push(`${Math.round(Number(mav.batteryPct))}%`);
+  pulsePaintMetric('pulseFcMetricRows', 'fc-battery', {
+    pill: bits.length ? bits.join(' · ') : 'לא ידוע',
+    reason: '',
+    bucket: bits.length ? 'ok' : 'unknown',
+    tone: bits.length ? 'ok' : 'off',
+  });
+  const injected = companion?.navigation?.ekf_injected;
+  if (injected === true) {
+    pulsePaintMetric('pulseFcMetricRows', 'fc-ekf', { pill: 'מוזרק', reason: '', bucket: 'ok', tone: 'ok' });
+  } else if (injected === false) {
+    pulsePaintMetric('pulseFcMetricRows', 'fc-ekf', { pill: 'לא מוזרק', reason: '', bucket: 'warning', tone: 'warn' });
+  } else {
+    pulsePaintMetric('pulseFcMetricRows', 'fc-ekf', { pill: 'לא ידוע', reason: '', bucket: 'unknown', tone: 'off' });
+  }
+  let syncPill = 'לא ידוע';
+  let syncReason = '';
+  let syncBucket = 'unknown';
+  let syncTone = 'off';
+  try {
+    const serverDirty = lastServerSyncedCanonical != null && canonicalServerPayloadStr() !== lastServerSyncedCanonical;
+    const fcMis = countArduMismatchVsFc();
+    const sessionDirty = countArduDirtyVsSession();
+    if (!serverDirty && sessionDirty === 0 && fcMis === 0) {
+      syncPill = 'מסונכרן';
+      syncBucket = 'ok';
+      syncTone = 'ok';
+    } else if (serverDirty || sessionDirty > 0 || (fcMis != null && fcMis > 0)) {
+      syncPill = 'פער';
+      syncBucket = 'warning';
+      syncTone = 'warn';
+      if (fcMis != null && fcMis > 0) syncReason = `${fcMis} שונים מהבקר`;
+      else if (sessionDirty > 0) syncReason = `${sessionDirty} לא נשלחו`;
+      else syncReason = 'לא נשמר לשרת';
+    } else if (fcMis == null) {
+      syncReason = 'לא בוצע READ מהרחפן';
+    }
+  } catch {
+    syncPill = 'לא ידוע';
+  }
+  pulsePaintMetric('pulseFcMetricRows', 'fc-params', {
+    pill: syncPill, reason: syncReason, bucket: syncBucket, tone: syncTone,
+  });
+}
+
+function pulseOptionalBinding(read) {
+  try { return read(); } catch { return null; }
+}
+
+function pulseRefreshStatusBoard() {
+  const companion = (typeof latestCompanionFromServer !== 'undefined' && latestCompanionFromServer) ? latestCompanionFromServer : {};
+  const mav = readLatestHudMavlink();
+  pulsePaintRelayRow();
+  pulsePaintJetsonFacts(companion);
+  pulsePaintFcFacts(companion, mav);
+  pulseRefreshSummary();
+}
+
 function renderVisionLandingReadiness(container, snapshot) {
   if (!container) return;
-  container.innerHTML = '';
   const compact = container.id === 'pfdReadinessBody';
+  const distribute = container.id === 'visionLandingReadinessList';
+  const openRowIds = new Set();
+  if (distribute) {
+    document.querySelectorAll('[data-vlr-host]').forEach((host) => {
+      host.querySelectorAll(':scope > .vlr-row').forEach((el) => {
+        const details = el.querySelector(':scope > .status-row-details');
+        if (details && !details.hidden && el.dataset.id) openRowIds.add(el.dataset.id);
+        el.remove();
+      });
+    });
+  } else {
+    container.innerHTML = '';
+  }
   const rows = Array.isArray(snapshot?.rows) ? snapshot.rows : [];
   for (const row of rows) {
     const art = document.createElement('article');
@@ -4113,12 +4491,12 @@ function renderVisionLandingReadiness(container, snapshot) {
     const miss = document.createElement('p');
     miss.className = 'vlr-missing';
     miss.textContent = row.missingHe || '';
-    art.append(name, chip, miss);
+    const detailNodes = [];
     if (!compact && Array.isArray(row.keys) && row.keys.length) {
       const list = document.createElement('ul');
       list.className = 'vlr-keys';
       appendPlndProfileKeys(list, row.keys, 'vlr-key');
-      art.appendChild(list);
+      detailNodes.push(list);
     }
     if (!compact && Array.isArray(row.tokens) && row.tokens.length) {
       const toks = document.createElement('div');
@@ -4130,7 +4508,7 @@ function renderVisionLandingReadiness(container, snapshot) {
         s.textContent = String(token);
         toks.appendChild(s);
       }
-      art.appendChild(toks);
+      detailNodes.push(toks);
     }
     if (row.id === 'plnd_profile') {
       const open = document.createElement('button');
@@ -4142,10 +4520,35 @@ function renderVisionLandingReadiness(container, snapshot) {
         e.stopPropagation();
         openPlndProfileParams();
       });
-      art.appendChild(open);
+      detailNodes.push(open);
     }
-    container.appendChild(art);
+    if (distribute) {
+      art.classList.add('status-row');
+      art.dataset.statusBucket = pulseStatusBucket(row.tone, row.state);
+      const fold = PULSE_VLR_FOLD[row.id];
+      if (fold) art.dataset.fold = fold;
+      const rowOpen = openRowIds.has(String(row.id || ''));
+      const main = document.createElement('button');
+      main.type = 'button';
+      main.className = 'status-row-main';
+      main.setAttribute('aria-expanded', rowOpen ? 'true' : 'false');
+      main.append(name, miss, chip);
+      art.appendChild(main);
+      const details = document.createElement('div');
+      details.className = 'status-row-details';
+      details.hidden = !rowOpen;
+      for (const node of detailNodes) details.appendChild(node);
+      art.appendChild(details);
+      const cat = PULSE_VLR_CATEGORY[row.id] || 'vision';
+      const host = document.querySelector(`[data-vlr-host="${cat}"]`) || container;
+      host.appendChild(art);
+    } else {
+      art.append(name, chip, miss);
+      for (const node of detailNodes) art.appendChild(node);
+      container.appendChild(art);
+    }
   }
+  if (distribute) pulseRefreshSummary();
   if (compact && snapshot?.fieldPreflight) {
     const wrap = document.createElement('section');
     wrap.className = 'vlr-field';
@@ -4216,7 +4619,7 @@ function pulseRefresh() {
   const version = String(APP_VERSION_NEW || '').replace(/^v/i, '').trim() || '--';
   versionEl.textContent = version;
   const companion = (typeof latestCompanionFromServer !== 'undefined' && latestCompanionFromServer) ? latestCompanionFromServer : {};
-  const mav = (typeof latestHudMavlink !== 'undefined' && latestHudMavlink) ? latestHudMavlink : null;
+  const mav = readLatestHudMavlink();
   const honesty = pulseResolveComputerHonesty(companion, mav);
   const tokenHint = document.getElementById('companionTokenHint')?.textContent?.trim() || '';
   companionEl.textContent = honesty.jetsonLabelHe === 'מחובר' && tokenHint
@@ -4292,6 +4695,7 @@ function pulseRefresh() {
   pulseRefreshVersionOffers();
   if (typeof refreshPulseExtraWidgets === 'function') refreshPulseExtraWidgets();
   if (typeof platformRefresh === 'function') platformRefresh();
+  try { pulseRefreshStatusBoard(); } catch { /* let bindings may still be initializing */ }
   void refreshVisionLandingReadiness();
 }
 
@@ -4438,7 +4842,7 @@ function writePulseWidgets(list) {
 
 function pulseWidgetPayload() {
   return {
-    mavlink: typeof latestHudMavlink !== 'undefined' ? latestHudMavlink : null,
+    mavlink: readLatestHudMavlink(),
     vision: typeof lastSseTerrainPayload !== 'undefined' ? lastSseTerrainPayload?.vision : null,
     jetson: typeof latestJetsonFromServer !== 'undefined' ? latestJetsonFromServer : null,
     slam: typeof lastSseTerrainPayload !== 'undefined' ? lastSseTerrainPayload?.slam : null,
@@ -4655,6 +5059,7 @@ function initPulseHome() {
     });
   });
   initPulseAddWidget();
+  initPulseStatusBoard();
   pulseRefresh();
 }
 
@@ -10787,6 +11192,7 @@ initLiveCameraPanel();
       chip.dataset.quality = row.quality?.known ? 'known' : 'unknown';
       chip.title = row.hintHe || row.nameHe || '';
     });
+    if (typeof paintPulseCommStatus === 'function') paintPulseCommStatus(links);
   }
 
   function paintCellularOpsChecklist(links) {
