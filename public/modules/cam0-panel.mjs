@@ -263,8 +263,13 @@ function init() {
     }
   });
 
-  void refresh();
-  setInterval(() => { void refresh(); }, 700);
+  function panelShown() {
+    return panel.getClientRects().length > 0;
+  }
+
+  document.querySelector('[data-tab="pulse"]')?.addEventListener('click', () => { void refresh(); });
+  if (panelShown()) void refresh();
+  setInterval(() => { if (panelShown()) void refresh(); }, 700);
 }
 
 init();
