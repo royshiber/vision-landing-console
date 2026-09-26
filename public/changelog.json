@@ -1,21 +1,5 @@
 [
   {
-    "version": "1.02.337",
-    "date": "2026-09-26",
-    "changes": [
-      {
-        "type": "test",
-        "title": "Tests",
-        "detail": "cam0-pipeline.test.mjs, camera-ingest-honesty.test.mjs, companion-observe-status.test.mjs"
-      },
-      {
-        "type": "chore",
-        "title": "Build scripts",
-        "detail": "companion_agent.py, flightlog_common.py, flightlog_service.py, mav_frames.py, mav_tap.py, test_flightlog_cpu.py, test_tap_and_service.py, tlog_writer.py"
-      }
-    ]
-  },
-  {
     "version": "1.02.336",
     "date": "2026-09-26",
     "changes": [
