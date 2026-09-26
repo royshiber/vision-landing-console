@@ -84,8 +84,8 @@ describe('Mission layout contract — static source', () => {
     expect(cssBlock(css, '.mission-horizon-filler')).toMatch(/flex:\s*0 1 0/);
     expect(cssBlock(css, '.mission-horizon-filler')).toMatch(/max-height:\s*18%/);
     expect(cssBlock(css, '.mission-horizon-filler')).toMatch(/background:\s*#1e293b/);
-    expect(cssBlock(css, '.mission-region-messages[data-messages-expanded="0"]')).toMatch(/max-height:\s*min\(40px,\s*var\(--mission-msg-collapsed-max,\s*72px\)\)/);
-    expect(cssBlock(css, '.mission-region-messages[data-messages-expanded="1"]')).toMatch(/max-height:\s*min\(18%, 96px\)/);
+    expect(cssBlock(css, '.mission-region-messages[data-messages-expanded="0"]')).toMatch(/max-height:\s*none/);
+    expect(cssBlock(css, '.mission-region-messages[data-messages-expanded="1"]')).toMatch(/max-height:\s*none/);
     expect(cssBlock(css, '.pfd-horizon-msg-log')).toMatch(/inset-inline-start:\s*6px/);
     expect(cssBlock(css, '.pfd-horizon-msg-log')).toMatch(/background:\s*none/);
     expect(cssBlock(css, '.pfd-horizon-msg-log')).toMatch(/border:\s*0/);
@@ -289,13 +289,13 @@ describe('Mission layout contract — live boxes', () => {
     });
 
     expect(measured.platformTab).toBe(false);
-    expect(measured.version).toBe('1.02.355');
+    expect(measured.version).toBe('1.02.356');
     expect(measured.ws.width).toBeGreaterThan(800);
     expect(measured.talkMinWidth).toBe('0px');
     expect(Number.parseFloat(measured.dataGap)).toBeLessThanOrEqual(4);
     expect(measured.dataOverflowX).toMatch(/auto|scroll|visible/);
     expect(measured.msgPosition).toMatch(/relative|static/);
-    expect(Number.parseFloat(measured.msgMaxHeight)).toBeLessThanOrEqual(40);
+    expect(measured.msgMaxHeight).toMatch(/none/);
     expect(measured.chromeHeight).toBeGreaterThanOrEqual(24);
     expect(measured.chromeHeight).toBeLessThanOrEqual(28);
 
@@ -304,7 +304,7 @@ describe('Mission layout contract — live boxes', () => {
     expect(regions.map.width / ws.width).toBeGreaterThan(0.50);
     expect(measured.leaflet.height / regions.map.height).toBeGreaterThanOrEqual(0.90);
     expect(measured.leaflet.width / regions.map.width).toBeGreaterThanOrEqual(0.90);
-    expect(regions.messages.height).toBeLessThanOrEqual(40);
+    expect(regions.messages.height).toBeGreaterThanOrEqual(120);
     expect(regions.horizon.width / ws.width).toBeLessThanOrEqual(0.22);
     expect(measured.hud.height / regions.horizon.height).toBeGreaterThanOrEqual(0.50);
     expect(measured.hud.height / regions.horizon.height).toBeLessThanOrEqual(0.88);
@@ -516,7 +516,6 @@ describe('Mission layout contract — live boxes', () => {
           ],
         });
       }
-      document.getElementById('missionMessagesToggle')?.click();
     });
     const expanded = await page.evaluate(() => {
       const region = document.querySelector('[data-mission-region="messages"]');
@@ -559,8 +558,7 @@ describe('Mission layout contract — live boxes', () => {
       };
     });
     expect(expanded.expanded).toBe('1');
-    expect(expanded.msgH).toBeGreaterThan(40);
-    expect(expanded.msgH).toBeLessThanOrEqual(96);
+    expect(expanded.msgH).toBeGreaterThanOrEqual(120);
     expect(expanded.mapH / expanded.wsH).toBeGreaterThanOrEqual(0.65);
     expect(expanded.overlap).toBe(false);
     expect(expanded.insideHorizon).toBe(true);
@@ -574,7 +572,6 @@ describe('Mission layout contract — live boxes', () => {
     expect(expanded.overlapIas).toBe(false);
     expect(expanded.overlapAlt).toBe(false);
     await writeShot(page, 'mission-aircraft-messages.png');
-    await page.evaluate(() => document.getElementById('missionMessagesToggle')?.click());
   }, 20000);
 
   it('does not clip mission-data glyphs when the connect phrase is long', async () => {
