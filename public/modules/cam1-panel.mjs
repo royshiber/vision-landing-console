@@ -175,6 +175,7 @@ function init() {
     btn0.setAttribute('aria-selected', String(!on1));
     btn1.setAttribute('aria-selected', String(on1));
     if (!on1) stopStream();
+    document.dispatchEvent(new CustomEvent('vlc-debrief-open-cam', { detail: which }));
     nextAt = 0;
     void tick();
   }

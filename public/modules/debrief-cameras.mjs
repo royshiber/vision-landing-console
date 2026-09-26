@@ -3,25 +3,30 @@
  * A loaded debrief file plays only in #flightVideo, never inside a live tile.
  */
 
-const STORAGE_KEY = 'vlc.debrief.cameras.v1';
+const STORAGE_KEY = 'vlc.debrief.cameras.v2';
+const LEGACY_KEY = 'vlc.debrief.cameras.v1';
+const DEFAULT_OPEN = ['cam0', 'cam1'];
 const CAM1_STREAM = '/api/jetson/v1/cam1/stream.mjpg';
 const SLOTS = [
   { id: 'cam0', apiId: 'cam0', mono: true, hold: '' },
   { id: 'cam1', apiId: 'cam1', mono: true, hold: CAM1_STREAM },
   { id: 'a8', apiId: 'cam3', mono: false, hold: '' },
 ];
+const streamHolds = new Map();
 
 const grid = document.getElementById('debriefCamGrid');
 const master = document.getElementById('flightVideo');
 
 function readOpen() {
+  try { localStorage.removeItem(LEGACY_KEY); } catch { /* ignore */ }
   try {
-    const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) || '');
-    if (!Array.isArray(raw)) return ['cam0'];
-    const ids = raw.filter((id) => SLOTS.some((slot) => slot.id === id));
-    return ids;
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw == null || raw === '') return [...DEFAULT_OPEN];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [...DEFAULT_OPEN];
+    return parsed.filter((id) => SLOTS.some((slot) => slot.id === id));
   } catch {
-    return ['cam0'];
+    return [...DEFAULT_OPEN];
   }
 }
 
@@ -90,37 +95,25 @@ function releaseTile(tile) {
   img.hidden = true;
   img.removeAttribute('src');
   img.dataset.hold = '';
+  img.dataset.primed = '';
   img.classList.remove('is-mono');
 }
 
-function holdStream(tile, url, mono) {
-  const img = tile.querySelector('.debrief-cam-live');
-  const note = tile.querySelector('.debrief-cam-nosignal');
-  if (!img) return;
-  img.classList.toggle('is-mono', mono);
-  img.onload = () => {
-    tile.dataset.signal = 'live';
-    img.hidden = false;
-    if (note) note.hidden = true;
-  };
-  img.onerror = () => {
-    tile.dataset.signal = 'none';
-    img.hidden = true;
-    if (note) {
-      note.hidden = false;
-      note.textContent = 'אין אות';
-    }
-  };
-  if (img.dataset.hold !== url) {
-    img.dataset.hold = url;
-    img.hidden = true;
-    tile.dataset.signal = 'wait';
-    if (note) {
-      note.hidden = false;
-      note.textContent = 'אין אות';
-    }
-    img.src = url;
+function ensureHold(url) {
+  if (!url) return;
+  let img = streamHolds.get(url);
+  if (!img) {
+    img = new Image();
+    streamHolds.set(url, img);
   }
+  if (!String(img.src || '').includes(url)) img.src = url;
+}
+
+function dropHold(url) {
+  const img = streamHolds.get(url);
+  if (!img) return;
+  img.removeAttribute('src');
+  streamHolds.delete(url);
 }
 
 function paintTile(tile, slot, streaming) {
@@ -130,14 +123,13 @@ function paintTile(tile, slot, streaming) {
   if (tile.hidden) {
     tile.dataset.signal = 'none';
     releaseTile(tile);
+    if (slot.hold) dropHold(slot.hold);
     if (note) note.hidden = true;
     return;
   }
-  if (slot.hold) {
-    holdStream(tile, slot.hold, slot.mono || tile.dataset.mono === '1');
-    return;
-  }
-  if (streaming && img && !tile.hidden) {
+  if (slot.hold) ensureHold(slot.hold);
+  const wantFrames = streaming || Boolean(slot.hold);
+  if (wantFrames && img && !tile.hidden) {
     tile.dataset.signal = 'live';
     img.hidden = false;
     if (tile.dataset.mono === '1') img.classList.add('is-mono');
@@ -184,6 +176,18 @@ function render(companion) {
   }
 }
 
+function openSlot(id) {
+  if (!SLOTS.some((slot) => slot.id === id)) return;
+  const cur = readOpen();
+  if (cur.includes(id)) {
+    render(latestCompanion);
+    return;
+  }
+  const ordered = SLOTS.map((slot) => slot.id).filter((slotId) => cur.includes(slotId) || slotId === id);
+  writeOpen(ordered);
+  render(latestCompanion);
+}
+
 function bind() {
   if (!grid) return;
   const open = readOpen();
@@ -206,6 +210,9 @@ function bind() {
   });
   document.addEventListener('vlc-companion-cameras', (event) => {
     render(event.detail);
+  });
+  document.addEventListener('vlc-debrief-open-cam', (event) => {
+    openSlot(event.detail);
   });
 }
 
