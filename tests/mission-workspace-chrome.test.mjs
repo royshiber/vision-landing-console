@@ -60,10 +60,10 @@ describe('AIRVIX Mission chrome — top strip gone', () => {
     expect(css).toMatch(/\.mission-ops-chrome\s*\{[^}]*position:\s*relative/);
     expect(css).toMatch(/\.mission-ops-chrome\s*\{[^}]*min-height:\s*26px/);
     expect(css).toMatch(/\.mission-workspace\[data-mission-layout="ops-v1"\]\s*\{[^}]*gap:\s*4px/);
-    expect(css).toMatch(/--mission-ah-col:\s*18%/);
+    expect(css).toMatch(/--mission-ah-col:\s*0\.18fr/);
     expect(css).toMatch(/--mission-map-min:\s*65%/);
     expect(css).toMatch(/--mission-msg-h:\s*40px/);
-    expect(css).toMatch(/--mission-c3:\s*minmax\(240px, min\(26%, var\(--mission-talk-col\)\)\)/);
+    expect(css).toMatch(/--mission-c3:\s*minmax\(var\(--mission-col-floor\), var\(--mission-talk-col\)\)/);
     expect(css).toMatch(/--mission-r1:\s*minmax\(0, 1fr\)/);
     expect(css).toMatch(/\.mission-region\s*\{[^}]*border-radius:\s*4px/);
   });
@@ -74,9 +74,9 @@ describe('AIRVIX Mission chrome — top strip gone', () => {
     expect(size.c2).toBeGreaterThan(size.c1);
     expect(size.c1).toBeLessThanOrEqual(0.20);
     expect(size.r3).toBe(0);
-    expect(css).toMatch(/minmax\(132px, min\(20%, var\(--mission-ah-col\)\)\)/);
-    expect(css).toMatch(/minmax\(0, 1fr\)/);
-    expect(css).toMatch(/minmax\(240px, min\(26%, var\(--mission-talk-col\)\)\)/);
+    expect(css).toMatch(/minmax\(var\(--mission-col-floor, 32px\), var\(--mission-ah-col, 0\.18fr\)\)/);
+    expect(css).toMatch(/minmax\(var\(--mission-col-floor, 32px\), var\(--mission-map-col, 0\.60fr\)\)/);
+    expect(css).toMatch(/minmax\(var\(--mission-col-floor, 32px\), var\(--mission-talk-col, 0\.22fr\)\)/);
     expect(css).toMatch(/\.mission-region-horizon \.pfd-horizon-shell\s*\{[^}]*aspect-ratio:\s*auto/);
     expect(css).toMatch(/\.pfd-horizon-instrument\s*\{[^}]*grid-template-columns:\s*46px minmax\(0, 1fr\) 46px/);
     expect(css).toMatch(/\.pfd-side-tape\s*\{[^}]*position:\s*static/);
@@ -165,9 +165,9 @@ describe('AIRVIX Mission chrome — talk is flight-safe', () => {
     expect(chip).toContain("kind === 'advisor'");
   });
 
-  it('pins APP_VERSION at 1.02.352', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.352'");
-    expect(pkg.version).toBe('1.02.352');
+  it('pins APP_VERSION at 1.02.353', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.353'");
+    expect(pkg.version).toBe('1.02.353');
   });
 
   it('keeps a rectangular glass artificial horizon with video HUD mode', () => {

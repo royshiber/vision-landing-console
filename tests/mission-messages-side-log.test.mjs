@@ -42,9 +42,9 @@ function cssBlock(src, selector) {
 }
 
 describe('Mission aircraft messages — side print-log', () => {
-  it('pins APP_VERSION at 1.02.352', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.352'");
-    expect(pkg.version).toBe('1.02.352');
+  it('pins APP_VERSION at 1.02.353', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.353'");
+    expect(pkg.version).toBe('1.02.353');
   });
 
   it('places the live feed inside the AH / video stage, not a centered box', () => {

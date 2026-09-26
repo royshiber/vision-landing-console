@@ -99,9 +99,9 @@ function loadSizeFns() {
 }
 
 describe('Mission AH size bias + swap persistence', () => {
-  it('pins APP_VERSION at 1.02.352', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.352'");
-    expect(pkg.version).toBe('1.02.352');
+  it('pins APP_VERSION at 1.02.353', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.353'");
+    expect(pkg.version).toBe('1.02.353');
   });
 
   it('fits mission-data text inside the tile instead of an ellipsis', () => {
@@ -191,7 +191,7 @@ describe('Mission AH size bias + swap persistence', () => {
     expect(mapBlock).not.toContain('data-mission-region="messages"');
     expect(css).toContain('data-mission-swap="map-horizon"');
     expect(css).toContain('data-mission-swap="horizon-map"');
-    expect(css).toContain('grid-template-columns: minmax(0, 1fr) minmax(132px, min(20%, var(--mission-ah-col)))');
+    expect(css).toContain('grid-template-columns: minmax(var(--mission-col-floor, 32px), var(--mission-map-col, 0.60fr)) minmax(var(--mission-col-floor, 32px), var(--mission-ah-col, 0.18fr))');
     expect(css).toMatch(/data-mission-swap="map-horizon"\] \{\s*grid-template-areas: "map horizon talk"/);
     expect(css).toMatch(/data-mission-swap="horizon-map"\] \{\s*grid-template-areas: "horizon map talk"/);
     expect(sliceFunction(js, 'applyMissionSwap')).toContain('refreshMissionSwapSurfaces');

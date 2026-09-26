@@ -10865,26 +10865,29 @@ html[data-evolve-preview="1"] #development {
    History stays a slim secondary strip in the AH stack — never an overlay on the map.
    Both swap modes keep the same tracks: wide, then the narrow tile, then talk.
    map-horizon puts the map on the wide track. horizon-map puts the horizon there.
-   Talk composer stays a panel, never a sliver. Gap ≤ 4px. */
+   Each track is a free fr share. The floor is 32px so a collapsed column stays visible.
+   Gap ≤ 4px. */
 .terrain-flight-shell.mission-workspace,
 .mission-workspace[data-mission-layout="ops-v1"] {
-  --mission-ah-col: 18%;
+  --mission-col-floor: 32px;
+  --mission-map-col: 0.60fr;
+  --mission-ah-col: 0.18fr;
+  --mission-talk-col: 0.22fr;
   --mission-ah-row: 66%;
   --mission-data-h: 72px;
   --mission-msg-h: 40px;
   --mission-msg-collapsed-max: 72px;
   --mission-map-min: 65%;
   --mission-map-floor: 55%;
-  --mission-c1: minmax(132px, min(20%, var(--mission-ah-col)));
-  --mission-c2: minmax(0, 1fr);
-  --mission-talk-col: 22%;
-  --mission-c3: minmax(240px, min(26%, var(--mission-talk-col)));
+  --mission-c1: minmax(var(--mission-col-floor), var(--mission-ah-col));
+  --mission-c2: minmax(var(--mission-col-floor), var(--mission-map-col));
+  --mission-c3: minmax(var(--mission-col-floor), var(--mission-talk-col));
   --mission-r1: minmax(0, 1fr);
   --mission-r2: auto;
   --mission-r3: 0px;
   position: relative;
   display: grid;
-  grid-template-columns: minmax(132px, min(20%, var(--mission-ah-col))) minmax(0, 1fr) minmax(240px, min(26%, var(--mission-talk-col)));
+  grid-template-columns: minmax(var(--mission-col-floor, 32px), var(--mission-ah-col, 0.18fr)) minmax(var(--mission-col-floor, 32px), var(--mission-map-col, 0.60fr)) minmax(var(--mission-col-floor, 32px), var(--mission-talk-col, 0.22fr));
   grid-template-rows: minmax(0, 1fr);
   grid-template-areas: "horizon map talk";
   flex: 1 1 0;
@@ -10900,7 +10903,7 @@ html[data-evolve-preview="1"] #development {
 
 .mission-workspace[data-mission-swap="map-horizon"],
 .mission-workspace[data-mission-swap="horizon-map"] {
-  grid-template-columns: minmax(0, 1fr) minmax(132px, min(20%, var(--mission-ah-col))) minmax(240px, min(26%, var(--mission-talk-col)));
+  grid-template-columns: minmax(var(--mission-col-floor, 32px), var(--mission-map-col, 0.60fr)) minmax(var(--mission-col-floor, 32px), var(--mission-ah-col, 0.18fr)) minmax(var(--mission-col-floor, 32px), var(--mission-talk-col, 0.22fr));
 }
 
 .mission-workspace[data-mission-swap="map-horizon"] {
@@ -10919,6 +10922,8 @@ html[data-evolve-preview="1"] #development {
   margin: 0;
   background: transparent;
   touch-action: none;
+  user-select: none;
+  pointer-events: auto;
 }
 .mission-split-col::after,
 .mission-split-row::after {
@@ -11034,7 +11039,7 @@ html[data-evolve-preview="1"] #development {
 }
 .mission-region[data-mission-region="talk"] {
   grid-area: talk;
-  min-width: 240px;
+  min-width: 0;
   height: 100%;
 }
 .mission-region-messages[data-messages-expanded="0"] {
