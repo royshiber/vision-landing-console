@@ -2,7 +2,7 @@
 
 ## חוזה נוכחי — תצוגה בלבד
 
-`scripts/jetson-companion/companion_agent.py` (גרסה `2.6.2`) מגיש סטטוס ניווט אופטי לצפייה בלבד, צינור מצלמות כנה, סטטוס מודם סלולר מקובץ המארח, שליטה בקישורי רשת, גיבויי גרסה, וסטטוס ראייה מסומנת כנה:
+`scripts/jetson-companion/companion_agent.py` (גרסה `2.6.5`) מגיש סטטוס ניווט אופטי לצפייה בלבד, צינור מצלמות כנה, סטטוס מודם סלולר מקובץ המארח, שליטה בקישורי רשת, גיבויי גרסה, וסטטוס ראייה מסומנת כנה:
 
 - `GET /api/v1/status` ו־`GET /api/v1/status/optical-nav`
 - שדות: `present`, `running`, `camera_ok`, `alt_ceiling_m=300`, `position`, `velocity`, `age_ms`, `confidence`, `cameras.cam1` / `cameras.cam2` (אותו זוג כמו נחיתה)
@@ -599,7 +599,7 @@ After VERIFY, King may upload this repo file over the live 2.3.1 agent (UART fan
 ```bash
 # on the Jetson — replace the running script, then restart the agent process
 install -m 755 companion_agent.py "$HOME/vlc-companion/companion_agent.py"
-# expected: GET /api/health agentVersion 2.6.2
+# expected: GET /api/health agentVersion 2.6.5
 # expected: GET /api/v1/status/vision → camera_ok false when no device
 # expected: GET /api/v1/status/optical-nav → camera_ok false, position null
 # expected: GET /api/v1/status/landing → runway_detector false
