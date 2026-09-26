@@ -3,9 +3,12 @@ import { createCompanionApiClient } from '../lib/companion-api-client.mjs';
 import { summarizeCommLinks } from '../lib/comm-links.mjs';
 import { hebrewUiError } from '../lib/link-attribution.mjs';
 import {
+  HOME_LAN_ABSENT_HE,
   classifyCompanionUrl,
   hebrewTransportError,
+  hostSharesSubnet,
   isLocalSerialRadio,
+  lanProbeErrorHe,
   pickActiveCompanionProbe,
 } from '../lib/link-attribution.mjs';
 import fs from 'fs';
@@ -194,5 +197,67 @@ describe('link attribution', () => {
     expect(lan.rttMs).toBeNull();
     expect(lan.errorHe).toBe('אין הגעה לכתובת');
     expect(lan.errorHe).not.toMatch(/Failed to fetch/);
+  });
+
+  const hotspot = {
+    bridge100: [{ address: '172.20.10.4', netmask: '255.255.255.240', family: 'IPv4', internal: false }],
+    lo: [{ address: '127.0.0.1', netmask: '255.0.0.0', family: 'IPv4', internal: true }],
+  };
+  const homeLan = {
+    eth0: [{ address: '192.168.1.50', netmask: '255.255.255.0', family: 'IPv4', internal: false }],
+  };
+
+  it('reads host subnets from interface netmasks', () => {
+    expect(hostSharesSubnet('192.168.1.122', hotspot)).toBe(false);
+    expect(hostSharesSubnet('192.168.1.122', homeLan)).toBe(true);
+    expect(hostSharesSubnet('172.20.10.2', hotspot)).toBe(true);
+    expect(hostSharesSubnet('192.168.1.122', {
+      eth0: [{ address: '192.168.1.50', cidr: '192.168.1.50/24', family: 'IPv4', internal: false }],
+    })).toBe(true);
+  });
+
+  it('says the computer is off the home LAN when that URL times out off-subnet', async () => {
+    const abort = Object.assign(new Error('The operation was aborted'), { name: 'AbortError' });
+    expect(lanProbeErrorHe('http://192.168.1.122:8081', abort, hotspot)).toBe(HOME_LAN_ABSENT_HE);
+    expect(lanProbeErrorHe('http://192.168.1.122:8081', abort, homeLan)).toBe('הכתובת לא הגיבה בזמן');
+    expect(lanProbeErrorHe('http://100.82.59.45:8081', abort, hotspot)).toBe('הכתובת לא הגיבה בזמן');
+    expect(lanProbeErrorHe('http://192.168.1.122:8081', new Error('Failed to fetch'), hotspot)).toBe('אין הגעה לכתובת');
+
+    const fetchImpl = vi.fn(async () => { throw abort; });
+    const client = createCompanionApiClient({
+      baseUrl: 'http://192.168.1.122:8081',
+      fetchImpl,
+      failoverTimeoutMs: 200,
+      networkInterfaces: hotspot,
+    });
+    const snap = await client.refreshCompanionPaths({ force: true });
+    const lan = snap.paths.find((p) => p.transport === 'lan');
+    expect(lan.ok).toBe(false);
+    expect(lan.errorHe).toBe(HOME_LAN_ABSENT_HE);
+    const links = summarizeCommLinks({
+      pathProbes: snap,
+      companion: { jetson: 'unreachable' },
+    });
+    const home = links.rows.find((r) => r.id === 'home');
+    expect(home.statusHe).toBe(HOME_LAN_ABSENT_HE);
+    expect(home.errorHe).toBe('');
+    expect(`${home.statusHe} ${home.errorHe}`).not.toMatch(/לא מגיב|הכתובת לא הגיבה בזמן/);
+
+    const onSubnet = createCompanionApiClient({
+      baseUrl: 'http://192.168.1.122:8081',
+      fetchImpl,
+      failoverTimeoutMs: 200,
+      networkInterfaces: homeLan,
+    });
+    const stillThere = await onSubnet.refreshCompanionPaths({ force: true });
+    const same = stillThere.paths.find((p) => p.transport === 'lan');
+    expect(same.errorHe).toBe('הכתובת לא הגיבה בזמן');
+    const sameLinks = summarizeCommLinks({
+      pathProbes: stillThere,
+      companion: { jetson: 'unreachable' },
+    });
+    const sameHome = sameLinks.rows.find((r) => r.id === 'home');
+    expect(sameHome.statusHe).toBe('לא מגיב');
+    expect(sameHome.errorHe).toBe('הכתובת לא הגיבה בזמן');
   });
 });

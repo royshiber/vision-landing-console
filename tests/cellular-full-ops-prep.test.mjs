@@ -26,7 +26,7 @@ const html = fs.readFileSync(path.join(repoRoot, 'public', 'index.html'), 'utf8'
 const js = fs.readFileSync(path.join(repoRoot, 'public', 'app.js'), 'utf8');
 
 describe('cellular full-ops prep honesty', () => {
-  it('pins APP_VERSION at 1.02.350', () => {
+  it('pins APP_VERSION at 1.02.351', () => {
     const version = fs.readFileSync(path.join(repoRoot, 'version.js'), 'utf8');
     const pkg = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8'));
     expect(version).toMatch(/export const APP_VERSION = '1\.02\.\d+'/);
