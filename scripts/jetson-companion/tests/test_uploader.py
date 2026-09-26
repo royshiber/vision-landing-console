@@ -1,0 +1,217 @@
+# -*- coding: utf-8 -*-
+"""Upload queue against a fake signer target. No real B2."""
+
+from __future__ import print_function
+
+import hashlib
+import json
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+
+from log_uploader import LogUploader, credentials_present  # noqa: E402
+
+
+def _cfg(**over):
+    cfg = {
+        "enabled_flag": True,
+        "endpoint": "http://127.0.0.1:9",
+        "region": "us-west-004",
+        "bucket": "airvix-test",
+        "key_id": "KEYID",
+        "app_key": "not-a-real-secret",
+        "prefix": "v1",
+        "cellular": "all",
+        "cell_daily_mb": 500,
+        "while_armed": "control_only",
+        "bw_kbps": 0,
+        "bw_inflight_kbps": 0,
+        "part_bytes": 8 * 1024 * 1024,
+        "env_file": "",
+        "network_override": "wifi",
+    }
+    cfg.update(over)
+    return cfg
+
+
+class Clock(object):
+    def __init__(self):
+        self.t = 1_700_000_000.0
+
+    def __call__(self):
+        return self.t
+
+
+class UploaderTests(unittest.TestCase):
+    def test_missing_credentials_are_a_noop(self):
+        cfg = _cfg(endpoint="", app_key="", enabled_flag=True)
+        self.assertFalse(credentials_present(cfg))
+        with tempfile.TemporaryDirectory() as tmp:
+            up = LogUploader(tmp, cfg=cfg, sleep_fn=lambda _s: None, now_fn=Clock())
+            path = Path(tmp) / "a.bin"
+            path.write_bytes(b"hello")
+            up.enqueue_file("f1", "a.bin", str(path), "v1/veh/a.bin", "tlog", 30)
+            self.assertFalse(up.step())
+            status = up.status()
+            self.assertFalse(status["enabled"])
+            self.assertEqual(status["credential"], "absent")
+            self.assertEqual(status["reason"], "no_credential")
+            self.assertTrue(path.is_file())
+            up.close()
+
+    def test_single_put_and_chunked_parts(self):
+        clock = Clock()
+        store = {}
+
+        def opener(url, body, headers):
+            self.assertIn("Content-MD5", headers)
+            self.assertIn("x-amz-meta-sha256", headers)
+            store[url] = body
+            return 200, '"' + hashlib.md5(body).hexdigest() + '"', None
+
+        with tempfile.TemporaryDirectory() as tmp:
+            small = Path(tmp) / "summary.json"
+            small.write_bytes(b"{}")
+            big = Path(tmp) / "telemetry.tlog.gz"
+            big.write_bytes(b"abcdefghij" * 3)
+            up = LogUploader(
+                tmp,
+                cfg=_cfg(part_bytes=8),
+                sleep_fn=lambda _s: None,
+                now_fn=clock,
+                rand_fn=lambda: 0,
+                opener=opener,
+            )
+            up.enqueue_file("f1", "summary.json", str(small), "v1/v/summary.json", "summary", 20)
+            up.enqueue_file("f1", "telemetry.tlog.gz", str(big), "v1/v/telemetry.tlog.gz", "tlog", 30)
+            self.assertTrue((big.parent / "telemetry.tlog.gz.parts.json").is_file() or Path(str(big) + ".parts.json").is_file())
+            did = up.run_ready(20)
+            self.assertGreaterEqual(did, 2)
+            self.assertTrue(any(url.endswith("summary.json") for url in store))
+            self.assertTrue(any(".part" in url for url in store))
+            self.assertTrue(any(url.endswith(".parts.json") for url in store))
+            man = json.loads(Path(str(big) + ".parts.json").read_text(encoding="utf-8"))
+            self.assertEqual(man["sha256"], hashlib.sha256(big.read_bytes()).hexdigest())
+            up.close()
+
+    def test_resume_after_dropped_put(self):
+        clock = Clock()
+        calls = {"n": 0}
+        saved = {}
+
+        def opener(url, body, headers):
+            calls["n"] += 1
+            saved["body"] = body
+            if calls["n"] == 1:
+                raise ConnectionResetError("dropped")
+            return 200, hashlib.md5(body).hexdigest(), None
+
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "m.json"
+            path.write_bytes(b"payload-bytes")
+            up = LogUploader(tmp, cfg=_cfg(), sleep_fn=lambda _s: None, now_fn=clock, rand_fn=lambda: 0, opener=opener)
+            up.enqueue_file("f1", "m.json", str(path), "v1/v/m.json", "manifest", 10)
+            up.step()
+            clock.t += 1000
+            up2 = LogUploader(tmp, cfg=_cfg(), sleep_fn=lambda _s: None, now_fn=clock, rand_fn=lambda: 0, opener=opener)
+            up2.step()
+            self.assertEqual(saved["body"], b"payload-bytes")
+            self.assertEqual(hashlib.sha256(saved["body"]).hexdigest(), hashlib.sha256(path.read_bytes()).hexdigest())
+            row = up2._conn.execute("SELECT state FROM jobs").fetchone()
+            self.assertEqual(row["state"], "done")
+            up.close()
+            up2.close()
+
+    def test_retry_after_and_auth_and_policies(self):
+        clock = Clock()
+        mode = {"code": 503, "retry": "7"}
+
+        def opener(url, body, headers):
+            return mode["code"], "nope", mode["retry"]
+
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "e.json"
+            path.write_bytes(b"{}")
+            index = Path(tmp) / "index.json"
+            index.write_bytes(b'{"schema":"airvix.flight.index/1"}')
+            up = LogUploader(tmp, cfg=_cfg(), sleep_fn=lambda _s: None, now_fn=clock, rand_fn=lambda: 0, opener=opener)
+            up.enqueue_file("f1", "e.json", str(path), "v1/v/e.json", "events", 20)
+            up.step()
+            self.assertEqual(up.last_error, "http_503")
+            row = up._conn.execute("SELECT next_attempt_utc FROM jobs WHERE name='e.json'").fetchone()
+            self.assertGreaterEqual(row["next_attempt_utc"], clock.t + 6)
+
+            mode["code"] = 403
+            mode["retry"] = None
+            clock.t += 100
+            for _ in range(3):
+                up.step()
+                clock.t += 10000
+            self.assertTrue(up.status()["auth_failed"])
+            self.assertEqual(up.disable_reason(), "auth_failed")
+            self.assertFalse(up.step())
+            up.close()
+
+        clock = Clock()
+        stored = {}
+
+        def ok(url, body, headers):
+            stored[url] = body
+            return 200, hashlib.md5(body).hexdigest(), None
+
+        with tempfile.TemporaryDirectory() as tmp:
+            big = Path(tmp) / "telemetry.tlog.gz"
+            big.write_bytes(b"x" * 1000)
+            index = Path(tmp) / "index.json"
+            index.write_bytes(b'{"ok":1}')
+            up = LogUploader(tmp, cfg=_cfg(network_override="wifi"), sleep_fn=lambda _s: None, now_fn=clock, rand_fn=lambda: 0, opener=ok)
+            up.armed = True
+            up.enqueue_file("f1", "telemetry.tlog.gz", str(big), "v1/v/telemetry.tlog.gz", "tlog", 30)
+            up.enqueue_file("f1", "index.json", str(index), "v1/v/index.json", "index", 10)
+            up.run_ready(10)
+            self.assertTrue(any(url.endswith("index.json") for url in stored))
+            self.assertFalse(any("telemetry" in url for url in stored))
+            up.close()
+
+        clock = Clock()
+        stored = {}
+        with tempfile.TemporaryDirectory() as tmp:
+            blob = Path(tmp) / "series.json.gz"
+            blob.write_bytes(b"y" * 5000)
+            up = LogUploader(
+                tmp,
+                cfg=_cfg(network_override="cellular", cell_daily_mb=0.0001),
+                sleep_fn=lambda _s: None,
+                now_fn=clock,
+                rand_fn=lambda: 0,
+                opener=ok,
+            )
+            up.enqueue_file("f1", "series.json.gz", str(blob), "v1/v/series.json.gz", "series", 20)
+            up.step()
+            self.assertEqual(stored, {})
+            self.assertEqual(up._conn.execute("SELECT last_error FROM jobs").fetchone()["last_error"], "policy_hold")
+            up.close()
+
+    def test_etag_mismatch(self):
+        clock = Clock()
+
+        def opener(url, body, headers):
+            return 200, '"deadbeef"', None
+
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "a.json"
+            path.write_bytes(b"abc")
+            up = LogUploader(tmp, cfg=_cfg(), sleep_fn=lambda _s: None, now_fn=clock, rand_fn=lambda: 0, opener=opener)
+            up.enqueue_file("f1", "a.json", str(path), "v1/v/a.json", "summary", 20)
+            up.step()
+            self.assertEqual(up.last_error, "etag_mismatch")
+            self.assertEqual(up._conn.execute("SELECT state FROM jobs").fetchone()["state"], "pending")
+            up.close()
+
+
+if __name__ == "__main__":
+    unittest.main()

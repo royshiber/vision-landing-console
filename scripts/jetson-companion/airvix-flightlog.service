@@ -1,0 +1,14 @@
+[Unit]
+Description=AIRVIX flight logger (disabled until AIRVIX_FLIGHTLOG_ENABLED=1)
+After=airvix-companion.service
+
+[Service]
+User=royshiber
+EnvironmentFile=-/etc/airvix/flightlog.env
+Nice=10
+IOSchedulingClass=idle
+Restart=on-failure
+ExecStart=/home/royshiber/mavlink-env/bin/python3 /opt/airvix/jetson-companion/flightlog_service.py
+
+[Install]
+WantedBy=multi-user.target

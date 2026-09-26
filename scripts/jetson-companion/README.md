@@ -142,3 +142,7 @@ Rollback: put the 2.3.9 agent files back and remove `/etc/sudoers.d/airvix-uplin
 ## Frame bus
 
 `get_frame_bus()` keeps the newest packet per slot (`jpeg`, optional `bgr`, `frame_count`). A later tracker subscribes in-process. Packets are not queued.
+
+## Flight logger
+
+Part A lives in `flightlog_service.py` and is off unless `AIRVIX_FLIGHTLOG_ENABLED=1`. It is a separate process. The companion only reads `/run/airvix/flightlog.json`. Install does not enable the unit unless `--enable-flightlog` is passed with `--apply`, and that flag only copies the unit. See `docs/FLIGHT_LOGS_JETSON.md`.
