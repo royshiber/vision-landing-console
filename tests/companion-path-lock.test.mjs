@@ -36,6 +36,7 @@ describe('companion path lock', () => {
     expect(refused.status).toBe(409);
     expect(refused.reason).toBe('path_lock');
     expect(refused.messageHe).toBe(UPLINK_PATH_LOCK_HE);
+    expect(UPLINK_PATH_LOCK_HE).toBe('אי אפשר לכבות את הקישור שבשימוש, כי אין עוד דרך פעילה למחשב המשימה.');
     expect(refused.messageHe).not.toMatch(/\.env|docs\//);
     expect(calls).toEqual([]);
   });
