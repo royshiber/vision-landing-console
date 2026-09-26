@@ -1,36 +1,5 @@
 [
   {
-    "version": "1.02.336",
-    "date": "2026-09-26",
-    "changes": [
-      {
-        "type": "feat",
-        "title": "Server library",
-        "detail": "s3-client.mjs"
-      },
-      {
-        "type": "docs",
-        "title": "Commercial capabilities overview",
-        "detail": "COMMERCIAL_CAPABILITIES.he.md"
-      },
-      {
-        "type": "docs",
-        "title": "Documentation",
-        "detail": "FLIGHT_LOGS.md, FLIGHT_LOGS_JETSON.md, JETSON_AGENT.md, JETSON_CAMERAS.md"
-      },
-      {
-        "type": "chore",
-        "title": "Config",
-        "detail": ".env.example"
-      },
-      {
-        "type": "chore",
-        "title": "Build scripts",
-        "detail": "README.md, flightlog.env.example, log_uploader.py, s3_sigv4.py, test_e2e.py, test_events.py, test_sigv4.py, test_tap_and_service.py, test_uploader.py"
-      }
-    ]
-  },
-  {
     "version": "1.02.335",
     "date": "2026-09-26",
     "changes": [
