@@ -85,7 +85,7 @@
       ver.append(versionNode(row.version));
       const when = document.createElement('p');
       when.className = 'vr-note';
-      when.append('תאריך פריסה ');
+      when.append('תאריך דיפלוי ');
       when.append(document.createTextNode(formatWhen(row.deployedAt)));
       const mark = document.createElement('p');
       mark.className = 'vr-note';

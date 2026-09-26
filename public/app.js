@@ -1636,12 +1636,12 @@ function renderArduFcPresenceBadge(f) {
     return '<span class="ardu-fc-presence ardu-fc-presence--virtual" title="שדה פרופיל בקונסולה — לא פרמטר ArduPilot על בקר הטיסה">פרופיל</span>';
   }
   if (!fcCurrentSnapshot || typeof fcCurrentSnapshot !== 'object') {
-    return '<span class="ardu-fc-presence ardu-fc-presence--unknown" title="בצעו קריאה מבקר הטיסה כדי לבדוק אם השם קיים בקושחה">לא נקרא</span>';
+    return '<span class="ardu-fc-presence ardu-fc-presence--unknown" title="בצעו קריאה מבקר הטיסה כדי לבדוק אם השם קיים בפירמוור">לא נקרא</span>';
   }
   if (Object.prototype.hasOwnProperty.call(fcCurrentSnapshot, f.key)) {
     return '<span class="ardu-fc-presence ardu-fc-presence--ok" title="מפתח זה הופיע ברשימת הפרמטרים מבקר הטיסה">בבקר</span>';
   }
-    return '<span class="ardu-fc-presence ardu-fc-presence--missing" title="לא הופיע אחרי קריאה. ייתכן שאין פרמטר בשם זה בגרסת הקושחה. הכתיבה לבקר הטיסה עלולה להיכשל">לא בבקר</span>';
+    return '<span class="ardu-fc-presence ardu-fc-presence--missing" title="לא הופיע אחרי קריאה. ייתכן שאין פרמטר בשם זה בגרסת הפירמוור. הכתיבה לבקר הטיסה עלולה להיכשל">לא בבקר</span>';
 }
 
 function arduFcCardMissingClass(f) {
