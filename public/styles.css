@@ -19344,9 +19344,9 @@ body:has(#control.panel.visible) .ardu-top-cats-host {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 4px;
+  gap: 2px;
   overflow: hidden;
-  padding: 4px 6px 2px;
+  padding: 1px 4px 0;
   box-sizing: border-box;
 }
 .mission-region-data > .pfd-bottom-bar,
@@ -19375,7 +19375,7 @@ body:has(#control.panel.visible) .ardu-top-cats-host {
   overflow: hidden;
 }
 .mission-horizon-filler .hud-slot {
-  padding: 2px 6px;
+  padding: 1px 4px;
   gap: 0;
 }
 .mission-horizon-filler .hud-slot-val {
@@ -19390,12 +19390,15 @@ body:has(#control.panel.visible) .ardu-top-cats-host {
   max-width: 100%;
 }
 .mission-horizon-filler .hud-data-grid:empty { display: none; }
-.mission-horizon-filler-kicker {
-  position: absolute;
-  width: 0;
-  height: 0;
+.mission-region-data .mission-horizon-filler > .mission-horizon-filler-kicker {
+  position: static;
+  width: 100%;
+  height: auto;
   margin: 0;
-  overflow: hidden;
+  overflow: visible;
+  white-space: nowrap;
+  font-size: 0.62rem;
+  line-height: 1;
 }
 .mission-region-data .mission-horizon-filler-note {
   position: static;
@@ -19413,8 +19416,21 @@ body:has(#control.panel.visible) .ardu-top-cats-host {
   position: static;
   width: 100%;
   flex: 0 0 auto;
-  min-height: 22px;
-  padding: 1px 6px;
+  min-height: 20px;
+  padding: 0 6px;
+}
+.mission-region-horizon .pfd-top-bar {
+  flex-wrap: wrap;
+  overflow: visible;
+  height: auto;
+  max-height: none;
+}
+.mission-region-horizon .pfd-mode-val {
+  flex: 0 0 auto;
+  overflow: visible;
+  text-overflow: unset;
+  white-space: nowrap;
+  max-width: 100%;
 }
 .mission-region-horizon .pfd-horizon-chrome {
   max-height: none;
@@ -19481,6 +19497,11 @@ body:has(#control.panel.visible) .ardu-top-cats-host {
     font-size: 0.62rem;
     letter-spacing: 0;
   }
+  html, body {
+    height: auto;
+    min-height: 100%;
+    overflow: visible;
+  }
   body:has(#terrain.panel.visible) .layout,
   #terrain.panel.visible {
     flex: 0 0 auto;
@@ -19503,8 +19524,8 @@ body:has(#control.panel.visible) .ardu-top-cats-host {
     overflow: visible;
   }
   .mission-region[data-mission-region="map"] {
-    min-height: 124px;
-    height: 128px;
+    min-height: 220px;
+    height: 220px;
     flex: 0 0 auto;
   }
   .mission-region[data-mission-region="messages"] {
@@ -19522,6 +19543,9 @@ body:has(#control.panel.visible) .ardu-top-cats-host {
   }
   .mission-region-horizon .mission-data-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .mission-region-horizon .mission-data-tile {
+    min-height: 48px;
   }
   .mission-region-horizon .pfd-top-bar {
     flex-wrap: wrap;

@@ -172,6 +172,42 @@ describe('Flight screen overlap', () => {
           if (border.top < -1 || border.bottom > window.innerHeight + 1) outside.push(`y ${name}`);
         }
       }
+      const inkBox = (el) => {
+        const text = [...el.childNodes].find((n) => n.nodeType === Node.TEXT_NODE && n.textContent.trim());
+        if (text) {
+          const range = document.createRange();
+          range.selectNodeContents(text);
+          const r = range.getBoundingClientRect();
+          if (r.width > 1 && r.height > 1) return r;
+        }
+        return el.getBoundingClientRect();
+      };
+      const stacked = [];
+      const hosts = document.querySelectorAll('.mission-data-tile, .hud-slot, .mission-horizon-filler');
+      for (const host of hosts) {
+        const texts = [...host.querySelectorAll(
+          '.mission-data-label, .mission-data-value, .mission-data-unit, .hud-slot-label, .hud-slot-val, .mission-horizon-filler-kicker, .mission-horizon-filler-note',
+        )].filter((el) => {
+          if (el.hidden || el.closest('[hidden]')) return false;
+          const cs = getComputedStyle(el);
+          if (cs.display === 'none' || cs.visibility === 'hidden') return false;
+          return (el.textContent || '').trim().length > 0;
+        });
+        const leaves = texts.filter((el) => !texts.some((other) => other !== el && el.contains(other)));
+        for (let i = 0; i < leaves.length; i += 1) {
+          for (let j = i + 1; j < leaves.length; j += 1) {
+            const a = inkBox(leaves[i]);
+            const b = inkBox(leaves[j]);
+            const iw = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+            const ih = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+            if (iw > 2 && ih > 2) {
+              const an = (leaves[i].textContent || '').trim().slice(0, 16);
+              const bn = (leaves[j].textContent || '').trim().slice(0, 16);
+              stacked.push(`${an} ∩ ${bn}`);
+            }
+          }
+        }
+      }
       const missing = [];
       const zoomIn = document.querySelector('.leaflet-control-zoom-in');
       const zoomOut = document.querySelector('.leaflet-control-zoom-out');
@@ -188,7 +224,9 @@ describe('Flight screen overlap', () => {
       const compass = document.querySelector('.terrain-compass')?.getBoundingClientRect();
       if (overlapBox(zoomBox, toolbar)) hits.push('zoom ∩ map-layer');
       if (overlapBox(zoomBox, compass)) hits.push('zoom ∩ compass');
-      return { hits, clips, outside, missing };
+      if (overlapBox(compass, toolbar)) hits.push('compass ∩ map-layer');
+      const mapH = document.querySelector('[data-mission-region="map"]')?.getBoundingClientRect().height || 0;
+      return { hits, clips, outside, missing, stacked, mapH };
     }, connectOpen);
   }
 
@@ -199,6 +237,10 @@ describe('Flight screen overlap', () => {
       await page.waitForSelector('[data-mission-region="map"]');
       await page.waitForSelector('.leaflet-control-zoom-in', { timeout: 8000 });
       await page.waitForTimeout(300);
+      await page.evaluate(() => {
+        const mode = document.getElementById('pfdModeVal');
+        if (mode) mode.textContent = 'MANUAL';
+      });
       await page.screenshot({ path: path.join(shotDir, `flight-${name}.png`) });
       if (name === '1366x768') {
         await page.locator('[data-mission-region="horizon"]').screenshot({
@@ -210,6 +252,8 @@ describe('Flight screen overlap', () => {
       expect(closed.clips, closed.clips.join('\n')).toEqual([]);
       expect(closed.outside, closed.outside.join('\n')).toEqual([]);
       expect(closed.missing, closed.missing.join('\n')).toEqual([]);
+      expect(closed.stacked, closed.stacked.join('\n')).toEqual([]);
+      if (name === '360x800') expect(closed.mapH).toBeGreaterThanOrEqual(220);
       await page.click('#connectToggleBtn');
       await page.waitForSelector('#connectPanel:not([hidden])');
       await page.waitForTimeout(200);
