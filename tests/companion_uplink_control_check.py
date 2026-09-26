@@ -19,12 +19,15 @@ os.environ.pop("VLC_UPLINK_REACH", None)
 from uplink_control import (  # noqa: E402
     apply_boot_policy,
     load_prefs,
+    note_console_request,
     reset_uplink_control,
     save_prefs,
+    set_clock,
     set_nm_runner,
     set_presence,
     set_reachability,
     set_uplink,
+    tick_wifi_revert,
     uplink_nm_argv,
 )
 from uplink_status import (  # noqa: E402
@@ -113,6 +116,8 @@ def main():
         return apply_boot_policy()
 
     reset_uplink_control()
+    clock_box = {"t": 0.0}
+    set_clock(lambda: clock_box["t"])
     reset_uplink_caches()
     set_host_reader(host)
     set_hilink_fetcher(fail_fetch)
@@ -385,6 +390,40 @@ def main():
     check("--active" in cell_live_text, cell_live_text)
     check("connection up" not in cell_live_text and "device connect" not in cell_live_text, cell_live_text)
     check("device set" not in cell_live_text, cell_live_text)
+
+    clock_box["t"] = 10000.0
+    set_clock(lambda: clock_box["t"])
+    reset_uplink_caches()
+    set_host_reader(host)
+    host.up = {"wlP1p1s0": True, "enx0c5b8f279a64": True}
+    host.route_rows = [
+        {"iface": "wlP1p1s0", "metric": 600},
+        {"iface": "enx0c5b8f279a64", "metric": 50},
+    ]
+    set_nm_runner(runner)
+    set_presence(lambda kind: True)
+    set_reachability(lambda _iface: True)
+    save_prefs({"wifi": {"enabled": True}, "cellular": {"enabled": True}})
+    calls.clear()
+    code, body = set_uplink("wifi", False)
+    check(code == 200, body)
+    clock_box["t"] += 59
+    waiting = tick_wifi_revert()
+    check(waiting == "waiting", waiting)
+    check(load_prefs()["wifi"]["enabled"] is False, "wifi stays off inside the minute")
+    note_console_request()
+    clock_box["t"] += 2
+    check(tick_wifi_revert() == "kept", "a later console request keeps wifi off")
+    check(load_prefs()["wifi"]["enabled"] is False, load_prefs())
+    check("wifi-up" not in calls, calls)
+
+    code, body = set_uplink("wifi", False)
+    check(code == 200, body)
+    calls.clear()
+    clock_box["t"] += 61
+    check(tick_wifi_revert() == "reverted", "silence brings wifi back")
+    check(load_prefs()["wifi"]["enabled"] is True, load_prefs())
+    check(calls == ["wifi-up"], calls)
 
     print("ok")
 

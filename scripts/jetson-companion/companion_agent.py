@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 """Vision Landing Console — Jetson companion: MAVLink relay + HTTP API + heartbeat.
 
-AGENT_VERSION 2.6.0 adds the second OV9281 (CAM1) on /api/v1/cam1.
+AGENT_VERSION 2.6.2 turns Wi-Fi back on if the console is silent for 60 seconds
+after that link was disabled, and 2.6.1 reports CAM1 from the OV9281 symlink while it is idle,
+and serves that camera on /api/v1/cameras/cam1/frame. 2.6.0 adds CAM1 on
+/api/v1/cam1.
 Capture and JPEG run only while a client holds the stream, capped at 30 fps
 and 15 Hz, so the 60 fps CAM0 path stays the priority. It also lists
 timestamped backups of the companion tree and can restore one. 2.5.5 keeps the flight
@@ -63,7 +66,7 @@ RELAY_PORT = int(os.environ.get("VLC_RELAY_PORT", "5770"))
 HTTP_PORT = int(os.environ.get("VLC_HTTP_PORT", "8081"))
 HTTP_IDLE_S = float(os.environ.get("VLC_HTTP_IDLE_S", "30") or "30")
 HTTP_MAX_BODY = 16 * 1024 * 1024
-AGENT_VERSION = os.environ.get("VLC_AGENT_VERSION", "2.6.0")
+AGENT_VERSION = os.environ.get("VLC_AGENT_VERSION", "2.6.2")
 MODEM_STATUS_FILE = os.environ.get("AIRVIX_E3372_STATUS_FILE", "/run/airvix/e3372.status")
 
 try:
@@ -629,12 +632,61 @@ def _cam0_slot():
     }
 
 
+def _cam1_slot():
+    """Second OV9281. Idle with the symlink present is not device_absent."""
+    try:
+        from cam0.cam1 import get_service
+        svc = get_service()
+        health = svc.health()
+    except Exception:
+        return None
+    streaming = health.get("camera_ok") is True and health.get("state") == "streaming"
+    present = health.get("state") not in {None, "absent", "disabled"}
+    return {
+        "id": "cam1",
+        "role": "forward",
+        "nav_role": "vio_forward",
+        "shared_with": "landing_vision",
+        "enabled": True,
+        "state": health.get("state") or "absent",
+        "present": bool(present or streaming),
+        "camera_ok": streaming,
+        "fps": health.get("fps") if streaming else None,
+        "frame_count": svc.jpeg_count if streaming else None,
+        "last_frame_age_ms": health.get("latency_ms") if streaming else None,
+        "error": health.get("error"),
+        "source": health.get("source") or "absent",
+        "dry_run": health.get("source") == "synthetic",
+        "real": health.get("real") is True,
+        "device": health.get("resolved_device"),
+        "requested_device": health.get("requested_device"),
+        "resolved_device": health.get("resolved_device"),
+        "has_frame": bool(streaming and svc.jpeg),
+        "flight_commands": False,
+    }
+
+
+def _apply_ov9281(cameras):
+    """Cam0 and the OV9281 Cam1 replace the ingest slots when they are the real devices."""
+    cameras = dict(cameras or {})
+    slot0 = _cam0_slot()
+    if slot0 is not None:
+        cameras["cam0"] = slot0
+    slot1 = _cam1_slot()
+    if slot1 is None:
+        return cameras
+    prev = cameras.get("cam1") if isinstance(cameras.get("cam1"), dict) else {}
+    ov_here = slot1.get("present") is True or slot1.get("camera_ok") is True
+    ingest_here = prev.get("camera_ok") is True or bool(prev.get("resolved_device"))
+    if ov_here or not ingest_here:
+        cameras["cam1"] = slot1
+    return cameras
+
+
 def cameras_status_payload():
     snap = _ingest_or_absent()
-    cameras = dict(snap.get("cameras") or {})
-    slot = _cam0_slot()
-    if slot is not None:
-        cameras["cam0"] = slot
+    cameras = _apply_ov9281(snap.get("cameras") or {})
+    slot = cameras.get("cam0") if isinstance(cameras.get("cam0"), dict) else _cam0_slot()
     return {
         "ok": True,
         "observe_only": True,
@@ -660,12 +712,11 @@ def vision_status_payload():
     snap = _ingest_or_absent()
     any_ok = snap.get("camera_ok") is True
     source_id = "none"
-    raw_cams = dict(snap.get("cameras") or {})
-    slot = _cam0_slot()
-    if slot is not None:
-        raw_cams["cam0"] = slot
-        if slot.get("camera_ok") is True:
+    raw_cams = _apply_ov9281(snap.get("cameras") or {})
+    for cam in raw_cams.values():
+        if isinstance(cam, dict) and cam.get("camera_ok") is True:
             any_ok = True
+            break
     order = [cam_id for cam_id in ("cam1", "cam2", "cam3") if cam_id in raw_cams]
     order.extend(cam_id for cam_id in raw_cams if cam_id not in order)
     for key in order:
@@ -824,7 +875,27 @@ def optical_nav_status_payload():
             "dry_run": src.get("dry_run") is True,
             "real": src.get("real") is True,
             "resolved_device": src.get("resolved_device"),
+            "requested_device": src.get("requested_device"),
         }
+    slot1 = _cam1_slot()
+    if slot1 is not None:
+        prev = cameras.get("cam1") or {}
+        ov_here = slot1.get("present") is True or slot1.get("camera_ok") is True
+        ingest_here = prev.get("camera_ok") is True or bool(prev.get("resolved_device"))
+        if ov_here or not ingest_here:
+            cameras["cam1"] = {
+                **prev,
+                "state": slot1.get("state"),
+                "present": slot1.get("present") is True,
+                "camera_ok": slot1.get("camera_ok") is True,
+                "fps": slot1.get("fps"),
+                "error": slot1.get("error"),
+                "source": slot1.get("source") or "absent",
+                "resolved_device": slot1.get("resolved_device"),
+                "requested_device": slot1.get("requested_device"),
+                "real": slot1.get("real") is True,
+                "dry_run": slot1.get("dry_run") is True,
+            }
     return {
         "ok": True,
         "observe_only": True,
@@ -1194,6 +1265,13 @@ class Handler(BaseHTTPRequestHandler):
             chunks.append(data)
             total += size
 
+    def _note_console(self):
+        try:
+            from uplink_control import note_console_request
+            note_console_request()
+        except Exception:
+            return
+
     def do_HEAD(self):
         self.do_GET()
 
@@ -1213,6 +1291,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         if not self._auth_ok():
             return self._json(401, {"ok": False, "message": "Unauthorized"})
+        self._note_console()
         path = self._path()
         if path == "/api/logs" or path == "/api/logs/":
             logs = [{"name": p.name, "size": p.stat().st_size} for p in iter_log_files()]
@@ -1296,6 +1375,7 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(400, {"ok": False, "message": "bad body"})
         if not self._auth_ok():
             return self._json(401, {"ok": False, "message": "Unauthorized"})
+        self._note_console()
         if not raw:
             raw = b"{}"
         try:

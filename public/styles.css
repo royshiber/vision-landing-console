@@ -13485,6 +13485,17 @@ details.flight-manage summary {
   border-color: rgba(96, 165, 250, 0.45);
   background: rgba(37, 99, 235, 0.14);
 }
+.comm-link-row[data-link="home"][data-active="1"] .comm-link-name::after,
+.comm-link-row[data-link="cellular"][data-active="1"] .comm-link-name::after {
+  content: " · בשימוש";
+  font-weight: 700;
+}
+.comm-link-row[data-link="home"][data-active="1"] .comm-link-name,
+.comm-link-row[data-link="cellular"][data-active="1"] .comm-link-name {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
+}
 .comm-link-row[data-state="absent"] {
   border-color: rgba(251, 191, 36, 0.28);
 }
@@ -19786,6 +19797,61 @@ body:has(#control.panel.visible) .ardu-top-cats-host {
   background: #0f766e;
   border-color: #0f766e;
 }
+.gimbal-pad {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 8px 0 4px;
+  direction: rtl;
+}
+.gimbal-pad-reason {
+  margin: 0;
+  font-size: clamp(11px, 0.78rem, 14px);
+  line-height: 1.35;
+  color: #facc15;
+}
+.gimbal-pad[data-state="live"] .gimbal-pad-reason { display: none; }
+.gimbal-pad-stick {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(4.6rem, 1fr));
+  grid-template-areas:
+    ". up ."
+    "left . right"
+    ". down .";
+  gap: 4px;
+  width: min(16rem, 100%);
+}
+.gimbal-pad-btn[data-gimbal="up"] { grid-area: up; }
+.gimbal-pad-btn[data-gimbal="down"] { grid-area: down; }
+.gimbal-pad-btn[data-gimbal="left"] { grid-area: left; }
+.gimbal-pad-btn[data-gimbal="right"] { grid-area: right; }
+.gimbal-pad-zoom {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.gimbal-pad-btn {
+  min-height: 32px;
+  min-width: 4.6rem;
+  padding: 4px 8px;
+  font-size: clamp(11px, 0.78rem, 14px);
+  line-height: 1.25;
+  white-space: normal;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.gimbal-pad-btn:disabled { opacity: 0.5; }
+.gimbal-pad-btn.is-held { outline: 2px solid #38bdf8; }
+.gimbal-pad-lock[aria-pressed="true"] {
+  background: #0f766e;
+  border-color: #5eead4;
+  color: #ecfeff;
+}
+.gimbal-pad-lock[aria-pressed="false"] {
+  background: transparent;
+  border-color: rgba(148, 163, 184, 0.6);
+}
 .video-column .debrief-cam-grid {
   display: grid;
   gap: 4px;
@@ -21033,9 +21099,10 @@ body:has(#telemetry.panel.visible) #telemetry .tele-dash-sub {
 .update-indicator[hidden] { display: none; }
 .conn-companion-active {
   margin: 4px 0 0;
-  font-size: 0.75rem;
-  line-height: 1.35;
+  font-size: clamp(11px, 0.75rem, 14px);
+  line-height: 1.5;
   color: var(--text-muted, #cbd5e1);
+  overflow-wrap: anywhere;
 }
 #gsCheckUpdatesBtn,
 #versionCheckUpdatesBtn {
@@ -22072,17 +22139,6 @@ body:has(#pulse.panel.visible) .pulse-home.pulse-status-home {
   white-space: normal;
   font-size: 14px;
   line-height: 1.4;
-}
-.cam0-status-link {
-  border: 0;
-  background: transparent;
-  color: var(--primary);
-  font: inherit;
-  font-weight: 700;
-  text-decoration: underline;
-  cursor: pointer;
-  padding: 0;
-  white-space: nowrap;
 }
 .cam0-panel {
   margin-top: 12px;

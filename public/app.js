@@ -292,8 +292,8 @@ function _subtabIds() {
 function initDebriefTelemetrySubtab() {
   // Telemetry is now its own main tab — no longer moved into recordings.
 }
-function applyDebriefSubtab(tabId = 'flightbook', { save = true } = {}) {
-  const wanted = tabId === 'logs' || tabId === 'recordings' || tabId === 'flightbook' ? tabId : 'flightbook';
+function applyDebriefSubtab(tabId = 'recordings', { save = true } = {}) {
+  const wanted = tabId === 'logs' || tabId === 'recordings' || tabId === 'flightbook' ? tabId : 'recordings';
   debriefTabButtons.forEach((btn) => btn.classList.toggle('active', btn.dataset.debriefTab === wanted));
   const debriefFlightbookPanel = document.getElementById('debriefFlightbookPanel');
   [debriefRecordingsPanel, debriefLogsPanel, debriefFlightbookPanel].forEach((panel) => {
@@ -396,10 +396,7 @@ function applyMainTab(tabId, { save = true } = {}) {
     setTimeout(() => onTelemetryTabActivated(), 60);
   }
   if (tabId === 'recordings') {
-    let stored = '';
-    try { stored = sessionStorage.getItem('visionLandingDebriefSubtabV1') || ''; } catch { /* ignore */ }
-    const known = stored === 'logs' || stored === 'recordings' || stored === 'flightbook';
-    applyDebriefSubtab(known ? stored : 'flightbook', { save: false });
+    applyDebriefSubtab('recordings', { save });
   }
   if (tabId === 'terrain') {
     setTimeout(() => {
@@ -866,7 +863,7 @@ function restoreLastUiTab() {
   }
   if (main === 'recordings') {
     const known = debriefSub === 'logs' || debriefSub === 'recordings' || debriefSub === 'flightbook';
-    applyDebriefSubtab(known ? debriefSub : 'flightbook', { save: false });
+    applyDebriefSubtab(known ? debriefSub : 'recordings', { save: false });
   }
   if (main === 'control') {
     try {
@@ -6734,7 +6731,7 @@ const HORIZON_CAMERA_KEY = 'vlc.horizon.bgCamera.v1';
 const HORIZON_CAMERA_SLOTS = [
   { id: 'none', label: 'בלי מצלמה', apiId: null, mono: false },
   { id: 'cam0', label: 'Cam0', apiId: 'cam0', mono: true },
-  { id: 'cam1', label: 'Cam1', apiId: 'cam2', mono: false },
+  { id: 'cam1', label: 'Cam1', apiId: 'cam1', mono: true, hold: '/api/jetson/v1/cam1/stream.mjpg' },
   { id: 'a8', label: 'A8', apiId: 'cam3', mono: false },
 ];
 
@@ -6784,9 +6781,36 @@ function applyHorizonCamera(companion) {
     _horizonCameraLive = false;
     img.hidden = true;
     img.removeAttribute('src');
+    img.dataset.hold = '';
     img.classList.remove('is-mono');
     if (note) note.hidden = true;
+  } else if (slot.hold) {
+    img.classList.toggle('is-mono', slot.mono);
+    img.onload = () => {
+      _horizonCameraLive = true;
+      img.hidden = false;
+      if (note) note.hidden = true;
+      pfdHorizonShell?.classList.toggle('pfd-horizon-shell--video-active', _horizonVideoMode || _horizonCameraLive);
+      drawHorizon(horizonCanvas, _lastRoll, _lastPitch, currentHorizonDrawOpts());
+    };
+    img.onerror = () => {
+      _horizonCameraLive = false;
+      img.hidden = true;
+      if (note) note.hidden = false;
+      pfdHorizonShell?.classList.toggle('pfd-horizon-shell--video-active', _horizonVideoMode);
+      drawHorizon(horizonCanvas, _lastRoll, _lastPitch, currentHorizonDrawOpts());
+    };
+    if (img.dataset.hold !== slot.hold) {
+      img.dataset.hold = slot.hold;
+      img.hidden = true;
+      if (note) note.hidden = false;
+      img.src = slot.hold;
+    } else if (img.complete && img.naturalWidth > 0 && !img.hidden) {
+      _horizonCameraLive = true;
+      if (note) note.hidden = true;
+    }
   } else {
+    img.dataset.hold = '';
     const detail = horizonCameraDetail(companion, slot.apiId);
     const live = horizonSlotStreaming(detail);
     img.classList.toggle('is-mono', slot.mono);

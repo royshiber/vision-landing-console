@@ -24,11 +24,15 @@ _SERVICE_LOCK = threading.Lock()
 def load_config(env=None):
     src = env if env is not None else os.environ
     source = (src.get("VLC_CAM1_SOURCE") or "v4l2").strip().lower()
-    if src.get("VLC_CAM1_DEVICE"):
-        device = src["VLC_CAM1_DEVICE"].strip()
+    pinned = str(src.get("VLC_CAM1_DEVICE") or "").strip()
+    if pinned:
+        device = pinned
+        requested = pinned
     elif source == "synthetic":
         device = "/dev/airvix-cam1"
+        requested = "/dev/airvix-cam1"
     else:
+        requested = "/dev/airvix-cam1"
         device = resolve_device(
             stable_path="/dev/airvix-cam1",
             name_token="10-0060",
@@ -38,6 +42,8 @@ def load_config(env=None):
     return {
         "source": source,
         "device": device,
+        "requested_device": requested,
+        "pinned": bool(pinned),
         "width": 1280,
         "height": 800,
         "fps": CAPTURE_FPS_MAX,
@@ -106,7 +112,9 @@ class Cam1Service:
             return self.camera_ok
 
     def health(self):
+        self._reresolve_if_idle()
         present = self._device_present()
+        requested = self.config.get("requested_device") or self.config.get("device")
         with self._lock:
             streaming = self.camera_ok and self.state == "streaming"
             payload = {
@@ -120,7 +128,9 @@ class Cam1Service:
                 "temperature_c": None if self._frame is None else self._frame.get("temperature_c"),
                 "error": self.error,
                 "source": "absent" if not present and not streaming else self.config.get("source"),
-                "device": self.config.get("device"),
+                "device": self.config.get("device") if (present or streaming) else None,
+                "requested_device": requested,
+                "resolved_device": self.config.get("device") if (present or streaming) else None,
                 "clients": self.clients,
                 "flight_commands": False,
                 "real": bool(streaming and self._frame and self._frame.get("real") is True),
@@ -130,8 +140,32 @@ class Cam1Service:
             payload["camera_ok"] = False
             payload["fps"] = None
             payload["source"] = "absent"
+            payload["error"] = "device_absent"
+            payload["device"] = None
+            payload["resolved_device"] = None
             payload["note"] = "לא מחובר"
+        elif present and not streaming and payload["state"] in {None, "absent", "idle"}:
+            payload["state"] = "idle"
+            payload["error"] = None
+            payload["camera_ok"] = False
+            payload["fps"] = None
         return payload
+
+    def _reresolve_if_idle(self):
+        """Pick up a udev symlink that appears after boot. Never while a client holds capture."""
+        if self.config.get("source") == "synthetic" or self.config.get("pinned"):
+            return
+        with self._lock:
+            if self._opened or self.clients > 0 or self.camera_ok:
+                return
+        device = resolve_device(
+            stable_path="/dev/airvix-cam1",
+            name_token="10-0060",
+            fallback="/dev/airvix-cam1",
+            sysfs_root=os.environ.get("VLC_V4L_SYSFS") or "/sys/class/video4linux",
+        )
+        self.config["device"] = device
+        self.config["requested_device"] = "/dev/airvix-cam1"
 
     def status(self):
         health = self.health()
@@ -398,8 +432,28 @@ def reset_service():
             thread.join(timeout=2.0)
 
 
+_FRAME_PATHS = {
+    "/api/v1/cameras/cam1/frame",
+    "/api/v1/cameras/cam1/frame.jpg",
+    "/api/cameras/cam1/frame",
+    "/api/cameras/cam1/frame.jpg",
+}
+
+
 def try_handle(handler, body=None):
     path = handler.path.split("?", 1)[0]
+    if path in _FRAME_PATHS and handler.command == "GET":
+        svc = get_service()
+        jpeg = svc.frame_jpeg()
+        if jpeg:
+            handler._send_bytes(200, jpeg, "image/jpeg", extra=(("Cache-Control", "no-store"),))
+            return True
+        health = svc.health()
+        owns = health.get("state") not in {None, "absent", "disabled"} or bool(health.get("resolved_device"))
+        if owns:
+            handler._json(404, {"ok": False, "camera_ok": False, "reason": "no_frame", "note": "אין אות", "flight_commands": False})
+            return True
+        return False
     if not path.startswith("/api/v1/cam1"):
         return False
     method = handler.command

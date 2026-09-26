@@ -322,6 +322,12 @@ class SiyiLink:
         result = {"ok": True, "sent": True, "confirmed": bool(needs_ack and isinstance(decoded, dict)), "cmd": cmd}
         if isinstance(decoded, dict):
             result["ack"] = self._apply_ack(cmd, decoded["data"])
+        if action == "mode":
+            mode = MODE_ALIASES.get(str(body.get("mode") or "").strip().lower())
+            if mode:
+                with self._lock:
+                    self.mode = mode
+                result["mode"] = mode
         entry = {"action": action, "cmd": cmd, "ok": True, "confirmed": result["confirmed"]}
         self._log(entry)
         return 200, result

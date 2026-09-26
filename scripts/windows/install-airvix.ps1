@@ -8,8 +8,8 @@
   * Downloads vision-landing-console (branch master) to %LOCALAPPDATA%\AIRVIX\console
     (keeps .env, data\ and var\ on update), runs "npm ci".
   * Asks ONCE (masked) for secrets and stores them only in the local .env.
-  * Writes JETSON_COMPANION_BASE_URL as home LAN, then Tailscale (comma-separated).
-  * Writes JETSON_SOCKS_PROXY when the userspace task is in place.
+  * Writes JETSON_COMPANION_BASE_URL and JETSON_COMPANION_BASE_URLS as home LAN, then Tailscale.
+  * Writes JETSON_COMPANION_SOCKS_PROXY and JETSON_SOCKS_PROXY for userspace Tailscale.
   * Creates desktop shortcuts "AIRVIX" and "AIRVIX Update".
 
   No secrets are embedded in this file. Keep this file ASCII-only
@@ -44,6 +44,7 @@ $TailscaleCompanionUrl = "http://${JetsonIp}:${CompanionPort}"
 $CompanionCandidates = @($HomeCompanionUrl, $TailscaleCompanionUrl)
 $CompanionBaseUrl  = ($CompanionCandidates -join ',')
 $JetsonSocksProxy  = 'socks5h://127.0.0.1:1055'
+$JetsonCompanionSocksProxy = 'socks5://127.0.0.1:1055'
 $TailscaleTaskName = 'AIRVIX-Tailscale-Safe'
 $RelayPort         = 5770            # console derives relay host from JETSON_COMPANION_BASE_URL + default 5770
 $TailnetSuffix     = 'tail8fb31b.ts.net'
@@ -261,8 +262,10 @@ function Enable-AirvixTailscaleUserspace([string]$TsExe) {
 function Set-JetsonSocksProxyInEnv {
     $lines = Read-EnvLines
     Set-EnvValue $lines 'JETSON_SOCKS_PROXY' $JetsonSocksProxy
+    Set-EnvValue $lines 'JETSON_COMPANION_SOCKS_PROXY' $JetsonCompanionSocksProxy
     Save-EnvLines $lines
     Write-Ok "JETSON_SOCKS_PROXY=$JetsonSocksProxy"
+    Write-Ok "JETSON_COMPANION_SOCKS_PROXY=$JetsonCompanionSocksProxy"
 }
 function Get-TailscaleStatus([string]$TsExe) {
     $raw = Get-NativeOutput $TsExe @('status', '--json')
@@ -550,6 +553,9 @@ function Update-EnvFile([bool]$Interactive) {
     Set-EnvValue $lines 'HOST' '127.0.0.1'
     Set-EnvValue $lines 'COMPANION_MODE' 'real'
     Set-EnvValue $lines 'JETSON_COMPANION_BASE_URL' $CompanionBaseUrl
+    Set-EnvValue $lines 'JETSON_COMPANION_BASE_URLS' $CompanionBaseUrl
+    Set-EnvValue $lines 'JETSON_COMPANION_SOCKS_PROXY' $JetsonCompanionSocksProxy
+    Set-EnvValue $lines 'JETSON_SOCKS_PROXY' $JetsonSocksProxy
     Set-EnvValue $lines 'COMPANION_TIMEOUT_MS' '8000'
     if ($Interactive -or -not (Get-EnvValue $lines 'JETSON_COMPANION_TOKEN')) {
         Write-Info 'Secrets are stored ONLY in the local file below (never uploaded):'

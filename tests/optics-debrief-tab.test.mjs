@@ -34,6 +34,8 @@ const FAKE_EVENTS = [
 describe('Optics debrief tab — source', () => {
   it('renames the top tab, hides development, and drops sample events', () => {
     expect(html).toMatch(/data-tab="recordings"[^>]*>אופטיקה ותחקור</);
+    expect(html).not.toContain('id="cam0StatusLink"');
+    expect(html).toContain('id="cam0StatusText"');
     expect(html).toMatch(/data-tab="development"[^>]*hidden|hidden[^>]*data-tab="development"/);
     expect(html).not.toMatch(/data-tab="recordings"[^>]*>תחקור</);
     expect(js).not.toContain('eventSamples');
@@ -113,6 +115,7 @@ describe('Optics debrief tab — live layout', () => {
         panelH: rec ? rec.clientHeight : 0,
         emptyH: Math.round(box.height),
         emptyOnScreen: box.height > 20 && box.top < window.innerHeight && box.bottom > 0,
+        emptyText: empty ? empty.textContent : '',
         envVisual: visual(empty, '.env'),
         docsVisual: visual(empty, 'docs/FLIGHT_LOGS.md'),
         spaced,
@@ -285,8 +288,10 @@ describe('Optics debrief tab — live layout', () => {
         const shell = await shellReport(page);
         expect(shell.panelH, `panel ${shell.panelH}px`).toBeGreaterThan(200);
         expect(shell.emptyOnScreen, `empty ${shell.emptyH}px`).toBe(true);
-        expect(shell.envVisual).toBe('.env');
-        expect(shell.docsVisual.startsWith('docs/')).toBe(true);
+        expect(shell.emptyText).toContain('הוסיפו מפתח קריאה');
+        expect(shell.emptyText).not.toMatch(/\.env|docs\//);
+        expect(shell.envVisual).toBe('');
+        expect(shell.docsVisual).toBe('');
         expect(shell.spaced, shell.spaced.join('\n')).toEqual([]);
         await openOptics(page);
         const report = await audit(page);

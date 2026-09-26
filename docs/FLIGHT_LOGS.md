@@ -10,7 +10,8 @@ The flight page shows the list, timeline, plots, map, and a Hebrew Gemini debrie
 
 | Mode | When | What the UI shows |
 | --- | --- | --- |
-| `off` | Unset or anything other than `mock` / `cloud` | No flights. Hebrew not-configured state. |
+| `off` | Explicit `off` / `0` / `false` / `no` | No flights. Hebrew line says storage is off. |
+| unset | All five keys below are set | Treated as `cloud`. A partial key set stays **not configured** and names the gap. |
 | `mock` | Local fixtures under `tests/fixtures/flight-logs` | Those fixtures only. Never used as a stand-in for a real bucket. |
 | `cloud` | All five `AIRVIX_S3_*` values below are set (`FLIGHT_CLOUD_*` still works as aliases) | Read-only bucket. A URL or a partial key set stays **not configured**. |
 
@@ -18,7 +19,9 @@ Mock and off never invent flights in the production UI. If the bucket is not con
 
 Not configured (exact copy):
 
-> אחסון הטיסות בענן לא הוגדר. הוסיפו מפתח קריאה בקובץ ‎.env‎ (ראו docs/FLIGHT_LOGS.md)
+> אחסון הטיסות בענן לא הוגדר. הוסיפו מפתח קריאה.
+
+A partial key set names the gap in plain Hebrew (address, region, store name, read key, or the key secret). It does not name files or documents. Explicit off says אחסון הטיסות כבוי.
 
 No flights yet:
 

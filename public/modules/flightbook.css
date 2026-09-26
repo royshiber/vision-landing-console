@@ -63,8 +63,52 @@
   display: inline-flex;
   gap: 4px;
   align-items: center;
-  font-size: 0.78rem;
+  font-size: clamp(11px, 0.78rem, 14px);
   color: #cbd5e1;
+}
+.he-date-wrap {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  direction: rtl;
+  min-width: 0;
+}
+.he-date-caption {
+  font-size: clamp(11px, 0.78rem, 14px);
+  color: #cbd5e1;
+}
+.he-date {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+  direction: ltr;
+}
+.he-date input {
+  width: 3.6rem;
+  min-width: 3.2rem;
+  padding: 4px 2px;
+  font-size: clamp(11px, 0.78rem, 14px);
+  text-align: center;
+}
+.he-date input[data-part="month"] {
+  width: 4.6rem;
+}
+.he-date input[data-part="year"] {
+  width: 4.8rem;
+}
+.he-date input::placeholder {
+  color: #94a3b8;
+  opacity: 1;
+}
+.he-date-sep {
+  color: #94a3b8;
+  font-size: clamp(11px, 0.78rem, 14px);
 }
 .fb-sync {
   display: flex;

@@ -4,10 +4,11 @@
  */
 
 const STORAGE_KEY = 'vlc.debrief.cameras.v1';
+const CAM1_STREAM = '/api/jetson/v1/cam1/stream.mjpg';
 const SLOTS = [
-  { id: 'cam0', apiId: 'cam0', mono: true },
-  { id: 'cam1', apiId: 'cam2', mono: false },
-  { id: 'a8', apiId: 'cam3', mono: false },
+  { id: 'cam0', apiId: 'cam0', mono: true, hold: '' },
+  { id: 'cam1', apiId: 'cam1', mono: true, hold: CAM1_STREAM },
+  { id: 'a8', apiId: 'cam3', mono: false, hold: '' },
 ];
 
 const grid = document.getElementById('debriefCamGrid');
@@ -83,10 +84,59 @@ function applyLayout(open) {
   }
 }
 
-function paintTile(tile, streaming) {
+function releaseTile(tile) {
+  const img = tile.querySelector('.debrief-cam-live');
+  if (!img) return;
+  img.hidden = true;
+  img.removeAttribute('src');
+  img.dataset.hold = '';
+  img.classList.remove('is-mono');
+}
+
+function holdStream(tile, url, mono) {
+  const img = tile.querySelector('.debrief-cam-live');
+  const note = tile.querySelector('.debrief-cam-nosignal');
+  if (!img) return;
+  img.classList.toggle('is-mono', mono);
+  img.onload = () => {
+    tile.dataset.signal = 'live';
+    img.hidden = false;
+    if (note) note.hidden = true;
+  };
+  img.onerror = () => {
+    tile.dataset.signal = 'none';
+    img.hidden = true;
+    if (note) {
+      note.hidden = false;
+      note.textContent = 'אין אות';
+    }
+  };
+  if (img.dataset.hold !== url) {
+    img.dataset.hold = url;
+    img.hidden = true;
+    tile.dataset.signal = 'wait';
+    if (note) {
+      note.hidden = false;
+      note.textContent = 'אין אות';
+    }
+    img.src = url;
+  }
+}
+
+function paintTile(tile, slot, streaming) {
   const img = tile.querySelector('.debrief-cam-live');
   const note = tile.querySelector('.debrief-cam-nosignal');
   const apiId = tile.dataset.api;
+  if (tile.hidden) {
+    tile.dataset.signal = 'none';
+    releaseTile(tile);
+    if (note) note.hidden = true;
+    return;
+  }
+  if (slot.hold) {
+    holdStream(tile, slot.hold, slot.mono || tile.dataset.mono === '1');
+    return;
+  }
   if (streaming && img && !tile.hidden) {
     tile.dataset.signal = 'live';
     img.hidden = false;
@@ -130,7 +180,7 @@ function render(companion) {
     const tile = grid.querySelector(`.debrief-cam-tile[data-cam="${slot.id}"]`);
     if (!tile) continue;
     const detail = slotDetail(latestCompanion, slot.apiId);
-    paintTile(tile, slotStreaming(detail));
+    paintTile(tile, slot, slotStreaming(detail));
   }
 }
 
