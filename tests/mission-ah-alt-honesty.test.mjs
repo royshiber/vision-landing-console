@@ -123,7 +123,7 @@ describe('Mission AH size bias + swap persistence', () => {
     expect(fns.shortMissionLinkReadout('מחובר · 192.168.1.40:14550')).toBe('מחובר');
     expect(fns.shortMissionLinkReadout('מנותק')).toBe('--');
     expect(fns.shortMissionLinkReadout('מאזין · UDP')).toBe('מאזין');
-    expect(sliceFunction(js, 'formatMissionDataValue')).toContain('shortMissionLinkReadout');
+    expect(sliceFunction(js, 'formatMissionDataValue')).toContain('missionLinkTileLabel');
   });
 
   it('defaults to a taller AH share and shorter data strip', () => {
@@ -198,8 +198,12 @@ describe('Mission AH size bias + swap persistence', () => {
     expect(sliceFunction(js, 'refreshMissionSwapSurfaces')).toContain('resizeHorizonCanvas');
     expect(css).toMatch(/\.mission-region\[data-mission-region="messages"\]\s*\{[^}]*position:\s*relative/);
     expect(css).not.toMatch(/data-mission-region="messages"\][^{]*\{[^}]*left:\s*6px/);
-    expect(sliceFunction(js, 'positionPfdReadinessPopover')).toContain('[data-mission-region="talk"]');
-    expect(sliceFunction(js, 'positionPfdReadinessPopover')).toContain('talk.left - w - 8');
+    expect(sliceFunction(js, 'positionPfdReadinessPopover')).toContain('button, a, input, select, .leaflet-control');
+    expect(sliceFunction(js, 'missionLinkTileLabel')).toContain('בקר חי');
+    expect(sliceFunction(js, 'missionLinkTileLabel')).toContain('חסר אסימון');
+    expect(sliceFunction(js, 'missionLinkTileLabel')).toContain('בדקו כתובת');
+    expect(sliceFunction(js, 'setInstrumentView')).toContain('annotatedVisionPanel');
+    expect(sliceFunction(js, 'setInstrumentView')).toContain('liveCameraPanel');
   });
 
   it('defaults to map-horizon and keeps a saved horizon-map choice', () => {
@@ -220,7 +224,9 @@ describe('Mission AH size bias + swap persistence', () => {
   it('keeps the horizon video empty-state honest about a stream address', () => {
     expect(html).toContain('id="horizonVideoToggle"');
     expect(html).toContain('id="horizonVideoUrl"');
-    expect(html).toMatch(/id="horizonVideoEmpty"[^>]*>אין וידאו\. דרושה כתובת זרם ממחשב המשימה\.</);
+    expect(html).toMatch(/id="horizonVideoEmpty"[^>]*>אין זרם מצלמה</);
+    expect(html).toMatch(/id="gsHorizonVideo"/);
+    expect(html).not.toMatch(/id="terrain"[\s\S]*id="horizonVideoUrl"/);
     expect(js).toContain("HORIZON_VIDEO_URL_KEY = 'vlc.horizon.videoUrl'");
   });
 });

@@ -4128,7 +4128,7 @@ function renderVisionLandingReadiness(container, snapshot) {
       }
       art.appendChild(toks);
     }
-    if (row.id === 'plnd_profile') {
+    if (row.id === 'plnd_profile' && !compact) {
       const open = document.createElement('button');
       open.type = 'button';
       open.className = 'vlr-open-params';
@@ -4141,34 +4141,6 @@ function renderVisionLandingReadiness(container, snapshot) {
       art.appendChild(open);
     }
     container.appendChild(art);
-  }
-  if (compact && snapshot?.fieldPreflight) {
-    const wrap = document.createElement('section');
-    wrap.className = 'vlr-field';
-    wrap.setAttribute('aria-label', snapshot.fieldPreflight.titleHe || 'מוכנות שדה לניסוי אחד');
-    const head = document.createElement('p');
-    head.className = 'vlr-field-title';
-    head.textContent = snapshot.fieldPreflight.titleHe || 'מוכנות שדה · ניסוי אחד';
-    wrap.appendChild(head);
-    const list = document.createElement('div');
-    list.className = 'vlr-list';
-    list.id = 'pfdFieldPreflightList';
-    wrap.appendChild(list);
-    container.appendChild(wrap);
-    renderFieldPreflightRows(list, snapshot.fieldPreflight, { compact: true });
-  }
-  if (snapshot?.cameraInstall) {
-    let host = container.querySelector('#pfdCameraInstallChecklist');
-    if (compact) {
-      if (!host) {
-        host = document.createElement('section');
-        host.id = 'pfdCameraInstallChecklist';
-        host.className = 'cic-panel cic-panel--compact';
-        host.setAttribute('aria-label', 'התקנת מצלמות');
-        container.appendChild(host);
-      }
-      if (!cameraInstallBusy()) renderCameraInstallChecklist(host, snapshot.cameraInstall, { compact: true });
-    }
   }
 }
 
@@ -4235,8 +4207,9 @@ function pulseRefresh() {
   if (linkEl) linkEl.textContent = linkText;
   const missionLink = document.getElementById('missionLink');
   if (missionLink) {
-    missionLink.textContent = shortMissionLinkReadout(agreedLink);
-    missionLink.title = linkText !== '--' ? linkText : '';
+    const tile = missionLinkTileLabel(companion, mav, linkLabel);
+    missionLink.textContent = tile;
+    missionLink.title = tile && tile !== '--' ? tile : '';
   }
   const jetson = (typeof latestJetsonFromServer !== 'undefined' && latestJetsonFromServer) ? latestJetsonFromServer : {};
   const jetsonMetrics = pulseJetsonSystemMetrics(companion, jetson);
@@ -5434,39 +5407,132 @@ function setHorizonVideoActive(active, url) {
   try { localStorage.setItem(HORIZON_VIDEO_ON_KEY, _horizonVideoMode ? '1' : '0'); } catch {}
 }
 
+const INSTRUMENT_VIEW_KEY = 'vlc.instrumentView.v1';
+const INSTRUMENT_VIEWS = Object.freeze(['horizon', 'video', 'vision', 'frame']);
+
+function readInstrumentView() {
+  try {
+    const raw = localStorage.getItem(INSTRUMENT_VIEW_KEY);
+    if (INSTRUMENT_VIEWS.includes(raw)) return raw;
+  } catch { /* ignore */ }
+  return 'horizon';
+}
+
+function instrumentVideoEmptyReason(companion) {
+  const comp = companion && typeof companion === 'object' ? companion : {};
+  const link = comp.link && typeof comp.link === 'object' ? comp.link : comp;
+  if (link.needToken === true || comp.needToken === true || link.focusField === 'token' || comp.focusField === 'token' || comp.error === 'token_empty') {
+    return 'חסר אסימון';
+  }
+  if (link.jetson === 'unreachable' || (comp.mode === 'real' && comp.reachable === false)) {
+    return 'בדקו כתובת';
+  }
+  return 'אין זרם מצלמה';
+}
+
+function paintInstrumentVideo(companion) {
+  const img = document.getElementById('instrumentVideoFrame');
+  const empty = document.getElementById('horizonVideoEmpty');
+  const override = (document.getElementById('horizonVideoUrl')?.value || localStorage.getItem(HORIZON_VIDEO_URL_KEY) || '').trim();
+  let liveId = null;
+  for (const apiId of ['cam1', 'cam2', 'cam3']) {
+    if (horizonSlotStreaming(horizonCameraDetail(companion, apiId))) {
+      liveId = apiId;
+      break;
+    }
+  }
+  if (readInstrumentView() !== 'video') {
+    if (img) {
+      img.hidden = true;
+      img.removeAttribute('src');
+    }
+    if (empty) empty.hidden = true;
+    return;
+  }
+  if (liveId && img) {
+    img.hidden = false;
+    const stamp = Number(img.dataset.stamp || 0);
+    if (Date.now() - stamp > 700) {
+      img.dataset.stamp = String(Date.now());
+      img.src = `/api/jetson/v1/cameras/${liveId}/frame?t=${Date.now()}`;
+    }
+    setHorizonVideoActive(false, '');
+    if (empty) empty.hidden = true;
+    return;
+  }
+  if (img) {
+    img.hidden = true;
+    img.removeAttribute('src');
+  }
+  if (horizonVideoHasPlayableSource(override)) {
+    setHorizonVideoActive(true, override);
+    if (empty) empty.hidden = true;
+    return;
+  }
+  setHorizonVideoActive(false, '');
+  if (empty) {
+    empty.hidden = false;
+    empty.textContent = instrumentVideoEmptyReason(companion);
+  }
+}
+
+function setInstrumentView(next) {
+  const view = INSTRUMENT_VIEWS.includes(next) ? next : 'horizon';
+  try { localStorage.setItem(INSTRUMENT_VIEW_KEY, view); } catch { /* ignore */ }
+  const shell = document.getElementById('pfdHorizonShell');
+  if (shell) shell.dataset.instrumentView = view;
+  const show = (id, on) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.hidden = !on;
+    el.classList.toggle('hidden', !on);
+  };
+  show('annotatedVisionPanel', view === 'vision');
+  show('liveCameraPanel', view === 'frame');
+  show('instrumentVideoFrame', false);
+  show('horizonVideoEmpty', false);
+  const chips = {
+    video: document.getElementById('horizonVideoToggle'),
+    vision: document.getElementById('annotatedVisionToggle'),
+    frame: document.getElementById('liveCameraToggle'),
+  };
+  for (const [mode, btn] of Object.entries(chips)) {
+    const on = view === mode;
+    btn?.classList.toggle('active', on);
+    btn?.setAttribute('aria-pressed', on ? 'true' : 'false');
+  }
+  if (view !== 'video') setHorizonVideoActive(false, '');
+  const companion = typeof latestCompanionFromServer === 'object' ? latestCompanionFromServer : null;
+  if (view === 'video') paintInstrumentVideo(companion);
+  if (view === 'frame' && typeof applyLiveCameraPreview === 'function') applyLiveCameraPreview(companion);
+  if (typeof resizeHorizonCanvas === 'function') resizeHorizonCanvas();
+}
+
 function initHorizonVideo() {
   const videoEl = document.getElementById('horizonVideoEl');
-  const toggleBtn = document.getElementById('horizonVideoToggle');
-  const panel = document.getElementById('horizonVideoPanel');
   const urlInput = document.getElementById('horizonVideoUrl');
   const applyBtn = document.getElementById('horizonVideoApply');
-  if (!toggleBtn || !panel || !videoEl) return;
+  if (!videoEl) return;
 
   const savedUrl = localStorage.getItem(HORIZON_VIDEO_URL_KEY) || '';
   if (urlInput && savedUrl) urlInput.value = savedUrl;
 
   function applyVideoUrl() {
     const url = urlInput?.value.trim() || '';
-    if (!url) {
-      setHorizonVideoActive(true, '');
-      return;
-    }
-    try { localStorage.setItem(HORIZON_VIDEO_URL_KEY, url); } catch {}
-    panel.classList.add('hidden');
-    setHorizonVideoActive(true, url);
+    try { localStorage.setItem(HORIZON_VIDEO_URL_KEY, url); } catch { /* ignore */ }
+    if (readInstrumentView() === 'video') paintInstrumentVideo(typeof latestCompanionFromServer === 'object' ? latestCompanionFromServer : null);
   }
 
-  toggleBtn.addEventListener('click', () => {
-    if (_horizonVideoMode) {
-      setHorizonVideoActive(false, '');
-      panel.classList.add('hidden');
-    } else {
-      const url = urlInput?.value.trim() || savedUrl;
-      setHorizonVideoActive(true, url);
-      if (!horizonVideoHasPlayableSource(url)) panel.classList.remove('hidden');
-    }
-  });
-
+  const chips = {
+    horizonVideoToggle: 'video',
+    annotatedVisionToggle: 'vision',
+    liveCameraToggle: 'frame',
+  };
+  for (const [id, mode] of Object.entries(chips)) {
+    document.getElementById(id)?.addEventListener('click', () => {
+      setInstrumentView(readInstrumentView() === mode ? 'horizon' : mode);
+    });
+  }
   if (applyBtn) applyBtn.addEventListener('click', applyVideoUrl);
   if (urlInput) {
     urlInput.addEventListener('keydown', (e) => {
@@ -5474,9 +5540,8 @@ function initHorizonVideo() {
     });
   }
 
-  if (localStorage.getItem(HORIZON_VIDEO_ON_KEY) === '1') {
-    setHorizonVideoActive(true, savedUrl);
-  }
+  const savedView = localStorage.getItem(HORIZON_VIDEO_ON_KEY) === '1' ? 'video' : readInstrumentView();
+  setInstrumentView(savedView);
 }
 initHorizonVideo();
 
@@ -6638,20 +6703,35 @@ async function translateAndRenderFcStatustext(rows) {
 }
 
 function positionPfdReadinessPopover() {
-  const anchor = _readinessAnchor || missionReadinessGlance || pfdArmedBadge;
-  if (!pfdReadinessPopover || !anchor || pfdReadinessPopover.classList.contains('hidden')) return;
-  const r = anchor.getBoundingClientRect();
-  const talk = document.querySelector('[data-mission-region="talk"]')?.getBoundingClientRect();
-  const w = Math.min(280, window.innerWidth - 16);
-  let left = r.right - w;
-  if (talk && left + w > talk.left - 8) left = talk.left - w - 8;
-  left = Math.max(8, Math.min(left, window.innerWidth - w - 8));
-  if (talk && left < talk.right && left + w > talk.left) {
-    left = Math.max(8, talk.left - w - 8);
+  const pop = pfdReadinessPopover;
+  if (!pop || pop.classList.contains('hidden')) return;
+  const w = Math.min(240, window.innerWidth - 16);
+  pop.style.width = `${w}px`;
+  const h = Math.max(pop.offsetHeight, 96);
+  const blockers = [...document.querySelectorAll('button, a, input, select, .leaflet-control')].filter((el) => {
+    if (pop.contains(el)) return false;
+    const r = el.getBoundingClientRect();
+    return r.width > 2 && r.height > 2;
+  }).map((el) => el.getBoundingClientRect());
+  const hits = (left, top) => {
+    const box = { left, top, right: left + w, bottom: top + h };
+    let n = 0;
+    for (const b of blockers) {
+      if (box.left < b.right - 1 && box.right > b.left + 1 && box.top < b.bottom - 1 && box.bottom > b.top + 1) n += 1;
+    }
+    return n;
+  };
+  let best = { left: 8, top: 36, n: Infinity };
+  for (let top = 32; top <= window.innerHeight - h - 4; top += 28) {
+    for (let left = 8; left <= window.innerWidth - w - 4; left += 28) {
+      const n = hits(left, top);
+      if (n < best.n) best = { left, top, n };
+      if (n === 0) break;
+    }
+    if (best.n === 0) break;
   }
-  pfdReadinessPopover.style.width = `${w}px`;
-  pfdReadinessPopover.style.left = `${left}px`;
-  pfdReadinessPopover.style.top = `${Math.min(r.bottom + 6, window.innerHeight - 120)}px`;
+  pop.style.left = `${best.left}px`;
+  pop.style.top = `${best.top}px`;
 }
 
 function buildReadinessListHtml(_m) {
@@ -9900,8 +9980,20 @@ if (terrainClearBtn) {
 }
 
 async function requestAndShowLoadedMissionPath(btn) {
+  const on = btn?.getAttribute('aria-pressed') === 'true';
+  if (on) {
+    showLoadedMissionPath = false;
+    btn.setAttribute('aria-pressed', 'false');
+    btn.classList.remove('active');
+    updateFlightOverlaysOnAllMaps();
+    return;
+  }
+  if (btn) {
+    btn.setAttribute('aria-pressed', 'true');
+    btn.classList.add('active');
+    btn.disabled = true;
+  }
   try {
-    if (btn) btn.disabled = true;
     const res = await fetch('/api/mavlink/mission-refresh', { method: 'POST' });
     const d = await res.json().catch(() => ({}));
     if (res.ok && d.ok) {
@@ -9909,7 +10001,7 @@ async function requestAndShowLoadedMissionPath(btn) {
       updateFlightOverlaysOnAllMaps();
     }
   } catch {
-    /* ignore */
+    /* keep the toggle; the path stays empty until a mission exists */
   } finally {
     if (btn) btn.disabled = false;
   }
@@ -10030,16 +10122,17 @@ const ANNOTATED_VISION_REASON_HE = Object.freeze({
 });
 
 const ANNOTATED_VISION_REASON_HE_MISSION = Object.freeze({
-  modem_absent: 'אין שידור. מודם לא מחובר.',
-  cellular_disconnected: 'אין שידור. סלולר מנותק.',
-  stream_absent: 'אין שידור. אין זרם מסומן.',
-  cellular_connected: 'שידור סלולר ממחשב משימה.',
+  modem_absent: 'אין זרם מסומן',
+  cellular_disconnected: 'אין זרם מסומן',
+  stream_absent: 'אין זרם מסומן',
+  cellular_connected: 'שידור מסומן',
 });
 
 function annotatedVisionReasonHe(video, { compact = false } = {}) {
   const reason = video?.reason;
   const map = compact ? ANNOTATED_VISION_REASON_HE_MISSION : ANNOTATED_VISION_REASON_HE;
   if (!compact && video?.reasonHe) return video.reasonHe;
+  if (compact) return map[reason] || 'אין זרם מסומן';
   if (reason && map[reason]) return map[reason];
   return map.cellular_disconnected;
 }
@@ -10082,16 +10175,7 @@ function applyAnnotatedVision(video) {
 }
 
 function initAnnotatedVisionPanel() {
-  const toggle = document.getElementById('annotatedVisionToggle');
-  const panel = document.getElementById('annotatedVisionPanel');
-  if (!toggle || !panel) return;
-  toggle.addEventListener('click', () => {
-    const willOpen = panel.hasAttribute('hidden') || panel.classList.contains('hidden');
-    panel.toggleAttribute('hidden', !willOpen);
-    panel.classList.toggle('hidden', !willOpen);
-    toggle.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
-    toggle.classList.toggle('active', willOpen);
-  });
+  /* View selection is owned by setInstrumentView. */
 }
 
 initAnnotatedVisionPanel();
@@ -10156,22 +10240,11 @@ function applyLiveCameraPreview(companion) {
   }
   document.dispatchEvent(new CustomEvent('vlc-companion-cameras', { detail: companion }));
   if (typeof applyHorizonCamera === 'function') applyHorizonCamera(companion);
+  if (typeof paintInstrumentVideo === 'function') paintInstrumentVideo(src);
 }
 
 function initLiveCameraPanel() {
-  const toggle = document.getElementById('liveCameraToggle');
-  const panel = document.getElementById('liveCameraPanel');
-  if (!toggle || !panel) return;
-  toggle.addEventListener('click', () => {
-    const willOpen = panel.hasAttribute('hidden') || panel.classList.contains('hidden');
-    panel.toggleAttribute('hidden', !willOpen);
-    panel.classList.toggle('hidden', !willOpen);
-    toggle.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
-    toggle.classList.toggle('active', willOpen);
-    if (willOpen && typeof latestCompanionFromServer === 'object') {
-      applyLiveCameraPreview(latestCompanionFromServer);
-    }
-  });
+  /* View selection is owned by setInstrumentView. */
 }
 
 initLiveCameraPanel();
@@ -17060,19 +17133,44 @@ function placeMissionSplits() {
     el,
     r: el.getBoundingClientRect(),
   })).filter((x) => !overlayIds.has(x.el.dataset.missionRegion) && x.r.width > 8 && x.r.height > 8);
-  if (items.length < 2) return;
   const wr = ws.getBoundingClientRect();
-  const cols = clusterMissionRects(items, (x) => x.r.left, 28);
-  const placeCol = (el, leftGroup, rightGroup) => {
-    if (!el || !leftGroup || !rightGroup) return;
-    const left = leftGroup.reduce((m, x) => (x.r.right > m.r.right ? x : m));
-    const right = rightGroup.reduce((m, x) => (x.r.left < m.r.left ? x : m));
-    const top = Math.min(...leftGroup.concat(rightGroup).map((x) => x.r.top)) - wr.top;
-    const bottom = Math.max(...leftGroup.concat(rightGroup).map((x) => x.r.bottom)) - wr.top;
-    placeMissionSplitBox(el, ((left.r.right + right.r.left) / 2) - wr.left - 4, top, 8, Math.max(8, bottom - top));
-  };
-  placeCol(col, cols[0], cols[1]);
-  placeCol(colB, cols[1], cols[2]);
+  const gaps = [];
+  for (let i = 0; i < items.length; i += 1) {
+    for (let j = 0; j < items.length; j += 1) {
+      if (i === j) continue;
+      const a = items[i];
+      const b = items[j];
+      const overlap = Math.min(a.r.bottom, b.r.bottom) - Math.max(a.r.top, b.r.top);
+      if (overlap < 40) continue;
+      const gap = b.r.left - a.r.right;
+      if (gap < -1 || gap > 28) continue;
+      const mid = ((a.r.right + b.r.left) / 2) - wr.left;
+      const width = Math.max(4, Math.min(6, gap + 2));
+      gaps.push({
+        x: mid - (width / 2),
+        top: Math.max(a.r.top, b.r.top) - wr.top,
+        width,
+        height: overlap,
+      });
+    }
+  }
+  gaps.sort((p, q) => p.x - q.x);
+  const uniq = [];
+  for (const g of gaps) {
+    const prev = uniq[uniq.length - 1];
+    if (prev && Math.abs((prev.x + prev.width / 2) - (g.x + g.width / 2)) < 16) {
+      if (g.height > prev.height) uniq[uniq.length - 1] = g;
+    } else uniq.push(g);
+  }
+  [col, colB].forEach((el, i) => {
+    const g = uniq[i];
+    if (!el) return;
+    if (!g) {
+      placeMissionSplitBox(el, 0, 0, 0, 0);
+      return;
+    }
+    placeMissionSplitBox(el, g.x, g.top, g.width, Math.max(8, g.height));
+  });
   if (row) {
     row.hidden = true;
     placeMissionSplitBox(row, 0, 0, 0, 0);
@@ -17306,6 +17404,45 @@ function shortMissionLinkReadout(full) {
   return t;
 }
 
+function missionLinkHealthDown(companion) {
+  const comp = companion && typeof companion === 'object' ? companion : {};
+  const link = comp.link && typeof comp.link === 'object' ? comp.link : {};
+  return link.jetson === 'unreachable'
+    || comp.jetson === 'unreachable'
+    || comp.unavailable === true
+    || (comp.mode === 'real' && comp.reachable === false);
+}
+
+function missionLinkNeedsToken(companion) {
+  const comp = companion && typeof companion === 'object' ? companion : {};
+  const link = comp.link && typeof comp.link === 'object' ? comp.link : {};
+  return link.needToken === true
+    || comp.needToken === true
+    || link.focusField === 'token'
+    || comp.focusField === 'token'
+    || comp.error === 'token_empty'
+    || link.error === 'token_empty';
+}
+
+function missionLinkTileLabel(companion, mav, pillText) {
+  const comp = companion && typeof companion === 'object' ? companion : {};
+  const mavLive = (typeof isHudMavlinkLive === 'function' && isHudMavlinkLive(mav))
+    || (typeof companionReportsFcHeartbeat === 'function' && companionReportsFcHeartbeat(comp));
+  const pill = String(pillText || '').trim();
+  const pillSaysDown = !pill || pill === 'מנותק' || pill === 'לא מחובר' || pill.includes('לא מגיב');
+  if (mavLive) {
+    if (!pillSaysDown) {
+      const short = shortMissionLinkReadout(pill);
+      if (short && short !== '--') return short;
+    }
+    return 'בקר חי';
+  }
+  if (missionLinkHealthDown(comp) || pill.includes('לא מגיב')) {
+    return missionLinkNeedsToken(comp) ? 'חסר אסימון' : 'בדקו כתובת';
+  }
+  return shortMissionLinkReadout(pill || comp.pillLabelHe || comp.link?.pillLabelHe || '');
+}
+
 function formatMissionDataValue(key, payload) {
   if (key === 'mavlink.gpsLat' || key === 'mavlink.gpsLon' || key === 'mavlink.map.gpsLat' || key === 'mavlink.map.gpsLon') {
     const mapData = payload?.mavlink?.map;
@@ -17316,7 +17453,9 @@ function formatMissionDataValue(key, payload) {
   }
   if (key === 'mission.link') {
     const linkLabel = document.getElementById('connectPillLabel')?.textContent?.trim() || '';
-    return shortMissionLinkReadout(linkLabel);
+    const companion = (typeof latestCompanionFromServer === 'object' && latestCompanionFromServer) ? latestCompanionFromServer : {};
+    const mav = payload?.mavlink || (typeof latestHudMavlink !== 'undefined' ? latestHudMavlink : null);
+    return missionLinkTileLabel(companion, mav, linkLabel);
   }
   if (key === 'mission.gpsVisionDelta') {
     const mapData = payload?.mavlink?.map;

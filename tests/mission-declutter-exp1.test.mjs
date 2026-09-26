@@ -79,15 +79,16 @@ describe('Mission chrome declutter for Experiment #1', () => {
 
   it('hides annotated empty copy until ראייה opens and keeps Mission lines short', () => {
     expect(html).toMatch(/id="annotatedVisionToggle"[^>]*>ראייה</);
-    expect(html).toMatch(/id="annotatedVisionPanel"[^>]*class="mission-annotated-vision hidden"/);
+    expect(html).toMatch(/id="annotatedVisionPanel"[^>]*class="[^"]*mission-annotated-vision[^"]*\bhidden\b/);
     expect(html).toMatch(/id="annotatedVisionPanel"[^>]*\bhidden\b/);
-    expect(html).toMatch(/id="annotatedVisionEmpty"[^>]*>אין שידור\. מודם לא מחובר\.</);
+    expect(html).toMatch(/id="annotatedVisionEmpty"[^>]*>אין זרם מסומן</);
     const missionSlice = html.slice(
       html.indexOf('id="annotatedVisionPanel"'),
       html.indexOf('id="annotatedVisionFrame"'),
     );
     expect(missionSlice).not.toContain(ANNOTATED_VIDEO_REASON_HE.modem_absent);
-    expect(missionSlice).toContain(ANNOTATED_VIDEO_REASON_HE_MISSION.modem_absent);
+    expect(missionSlice).not.toContain(ANNOTATED_VIDEO_REASON_HE_MISSION.modem_absent);
+    expect(missionSlice).toContain('אין זרם מסומן');
     expect(js).toContain('ANNOTATED_VISION_REASON_HE_MISSION');
     expect(js).toMatch(/annotatedVisionReasonHe\(\{ \.\.\.video, reason \}, \{ compact: true \}\)/);
     expect(css).toMatch(/\.mission-annotated-vision\[hidden\],\s*\.mission-annotated-vision\.hidden/);

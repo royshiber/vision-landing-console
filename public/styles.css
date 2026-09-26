@@ -5199,9 +5199,11 @@ body:has(#pulse.panel.visible) .layout {
   direction: rtl;
   text-align: right;
 }
-.mission-region-horizon .mission-live-camera {
-  max-height: 220px;
-  overflow: auto;
+.mission-region-horizon .mission-live-camera.instrument-stage-view {
+  max-height: none;
+  overflow: hidden;
+  margin: 0;
+  flex: none;
 }
 .mission-live-camera[hidden],
 .mission-live-camera.hidden {
@@ -11153,6 +11155,10 @@ html[data-evolve-preview="1"] #development {
       "horizon map"
       "talk talk";
   }
+  #missionTalkHost .assist-input.assist-input--grown {
+    min-height: 2.2em;
+    max-height: 2.6em;
+  }
 }
 
 /* ── Flight HUD — fills the Mission horizon region ──────── */
@@ -11484,15 +11490,31 @@ html[data-evolve-preview="1"] #development {
   min-height: 28px;
 }
 .mission-region-horizon .pfd-horizon-chrome {
-  min-height: 22px;
-  max-height: 28px;
+  flex: 0 0 26px;
+  height: 26px;
+  min-height: 26px;
+  max-height: 26px;
   padding: 2px 4px;
+  flex-wrap: nowrap;
+  overflow: hidden;
 }
-.mission-region-horizon .pfd-horizon-chrome:has(#liveCameraPanel:not([hidden])),
-.mission-region-horizon .pfd-horizon-chrome:has(#annotatedVisionPanel:not([hidden])),
-.mission-region-horizon .pfd-horizon-chrome:has(#horizonVideoPanel:not(.hidden)) {
+.pfd-horizon-stage .instrument-stage-view {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  margin: 0;
   max-height: none;
-  overflow: visible;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+.pfd-horizon-stage .instrument-stage-view[hidden] {
+  display: none !important;
+}
+#instrumentVideoFrame {
+  object-fit: cover;
+  background: #0b0e14;
 }
 .mission-region-horizon .hud-data-grid {
   display: grid;
@@ -13366,11 +13388,11 @@ details.flight-manage summary {
   direction: rtl;
   text-align: right;
 }
-.mission-region-horizon .mission-annotated-vision {
-  flex: 0 1 auto;
-  max-height: 72px;
-  overflow: auto;
-  padding: 4px 6px;
+.mission-region-horizon .mission-annotated-vision.instrument-stage-view {
+  flex: none;
+  max-height: none;
+  overflow: hidden;
+  padding: 6px;
 }
 .mission-annotated-vision[hidden],
 .mission-annotated-vision.hidden {
@@ -18275,6 +18297,15 @@ body.mission-assist-docked .assist-rail.assist-rail--mission,
   max-height: 7.5em;
   overflow-y: auto;
 }
+#missionTalkHost .assist-agent-offline {
+  flex: 0 0 auto;
+  min-height: 1.15em;
+  overflow: hidden;
+}
+#missionTalkHost .assist-voice-go,
+#missionTalkHost .assist-composer {
+  flex-shrink: 0;
+}
 #missionTalkHost .assist-mic-btn {
   flex: 0 0 36px;
   flex-direction: row;
@@ -19397,20 +19428,21 @@ body:has(#control.panel.visible) .ardu-top-cats-host {
 /* ── Flight column: horizon, heading, sources, wrapping tiles, messages ── */
 .mission-region-horizon > .flight-hud {
   max-height: none;
-  flex: 1 1 auto;
-  min-height: 0;
+  flex: 3 1 0;
+  min-height: 120px;
   overflow: hidden;
 }
 .mission-region-horizon .mission-region-data {
   flex-direction: column;
   align-items: stretch;
-  max-height: none;
+  max-height: min(148px, 32%);
   height: auto;
   min-width: 0;
+  min-height: 0;
   width: 100%;
   max-width: 100%;
-  flex: 0 0 auto;
-  overflow: hidden;
+  flex: 1 1 auto;
+  overflow: auto;
   align-self: stretch;
   box-sizing: border-box;
 }
@@ -19451,9 +19483,18 @@ body:has(#control.panel.visible) .ardu-top-cats-host {
 .mission-region-horizon .mission-data-label,
 .mission-region-horizon .mission-data-value,
 .mission-region-horizon .mission-data-unit {
-  overflow: visible;
+  overflow: hidden;
   text-overflow: unset;
   letter-spacing: 0;
+  max-width: 100%;
+}
+.mission-region-horizon #missionLink {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: clip;
+  line-height: 1.15;
+  font-size: 0.62rem;
   max-width: 100%;
 }
 .mission-region-horizon .mission-data-label {
@@ -19538,17 +19579,21 @@ body:has(#control.panel.visible) .ardu-top-cats-host {
   line-height: 1.35;
 }
 .mission-region-data > .pfd-bottom-bar {
-  position: static;
+  position: sticky;
+  bottom: 0;
   width: 100%;
   flex: 0 0 auto;
   min-height: 20px;
   padding: 0 6px;
+  background: #151b27;
+  z-index: 2;
 }
 .mission-region-horizon .pfd-top-bar {
-  flex-wrap: wrap;
-  overflow: visible;
-  height: auto;
-  max-height: none;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  height: 26px;
+  max-height: 26px;
 }
 .mission-region-horizon .pfd-mode-val {
   flex: 0 0 auto;
@@ -19558,10 +19603,18 @@ body:has(#control.panel.visible) .ardu-top-cats-host {
   max-width: 100%;
 }
 .mission-region-horizon .pfd-horizon-chrome {
-  max-height: none;
-  min-height: 28px;
-  overflow: visible;
-  flex-wrap: wrap;
+  max-height: 26px;
+  min-height: 26px;
+  height: 26px;
+  overflow: hidden;
+  flex-wrap: nowrap;
+}
+.mission-region-horizon .pfd-video-toggle {
+  flex: 1 1 auto;
+  min-width: max-content;
+  padding: 0 3px;
+  font-size: 0.62rem;
+  line-height: 22px;
 }
 .debrief-cam-tile .lock-indicator {
   top: auto;
@@ -19572,6 +19625,13 @@ body:has(#control.panel.visible) .ardu-top-cats-host {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+.mission-region-map .leaflet-control-attribution a {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: bottom;
 }
 @media (max-width: 720px) {
   .app-chrome {
@@ -19614,7 +19674,7 @@ body:has(#control.panel.visible) .ardu-top-cats-host {
     max-width: 100%;
   }
   .app-chrome {
-    padding: 4px 8px 4px;
+    padding: 44px 8px 4px;
     gap: 4px;
   }
   .app-chrome .tab {
@@ -19724,7 +19784,7 @@ body:has(#control.panel.visible) .ardu-top-cats-host {
   }
   .mission-region[data-mission-region="talk"] {
     min-width: 0;
-    min-height: 140px;
+    min-height: 168px;
     height: auto;
   }
   .mission-region-map .leaflet-bottom.leaflet-left {
