@@ -21368,22 +21368,68 @@ body:has(#pulse.panel.visible) .pulse-home.pulse-status-home {
   max-height: none;
   overflow: visible;
 }
+.mission-region-horizon .mission-data-tile {
+  min-height: 56px;
+  padding: 1px 4px;
+}
+@media (max-height: 800px) {
+  .mission-region-horizon .mission-data-tile {
+    min-height: 40px;
+  }
+}
+.mission-region-horizon .pfd-horizon-shell {
+  min-height: 0;
+}
+.mission-region-horizon .pfd-horizon-instrument {
+  grid-template-rows: minmax(0, 1fr) auto;
+}
 .mission-region-data > .mission-horizon-filler {
   position: static;
-  flex: 0 1 auto;
+  flex: 0 0 auto;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1px 6px;
   max-height: none;
   height: auto;
   overflow: visible;
   z-index: 0;
+  padding: 1px 4px;
 }
-.mission-region-horizon .pfd-horizon-chrome,
+.mission-region-data .mission-horizon-filler > .mission-horizon-filler-kicker,
+.mission-region-data .mission-horizon-filler-note {
+  width: auto;
+  flex: 0 1 auto;
+  order: 1;
+}
+.mission-horizon-filler .hud-data-grid {
+  flex: 1 0 100%;
+  order: 2;
+}
+.mission-horizon-filler .hud-slot {
+  display: flex;
+  flex-direction: row;
+  align-items: baseline;
+  gap: 4px;
+  min-height: 0;
+  padding: 0 4px;
+  line-height: 1.15;
+}
+.mission-region-horizon .pfd-horizon-chrome {
+  position: relative;
+  z-index: 4;
+}
+.flight-arm-btn {
+  flex: 0 0 auto;
+  min-width: 0;
+}
 .mission-region-horizon .pfd-video-toggle {
   position: static;
   z-index: 1;
 }
 .mission-region-horizon .pfd-horizon-instrument {
   position: relative;
-  z-index: 2;
+  z-index: 1;
 }
 .mission-region-horizon .pfd-side-tape,
 .mission-region-horizon .pfd-heading-lane,
@@ -21610,11 +21656,17 @@ body:has(#pulse.panel.visible) .pulse-home.pulse-status-home {
     min-height: 0;
     max-height: 28px;
   }
-  .mission-region-horizon .pfd-horizon-shell,
+  .mission-region-horizon .pfd-horizon-shell {
+    flex: 1 1 auto;
+    min-height: 0;
+    height: auto;
+    overflow: hidden;
+  }
   .mission-region-horizon .pfd-horizon-instrument {
     flex: 1 1 auto;
     min-height: 0;
     height: auto;
+    overflow: hidden;
   }
   .mission-region-horizon .pfd-horizon-instrument {
     grid-template-rows: minmax(120px, 1fr) 22px;
@@ -21622,13 +21674,23 @@ body:has(#pulse.panel.visible) .pulse-home.pulse-status-home {
   .mission-region-horizon .pfd-horizon-stage {
     min-height: 120px;
   }
-  #flightArmRow {
-    flex-wrap: nowrap;
+  .mission-region-horizon .pfd-horizon-chrome {
+    height: auto;
+    min-height: 0;
     max-height: none;
-    padding: 2px 4px;
+    padding: 0 4px;
+    flex: 0 0 auto;
+  }
+  #flightArmRow {
+    flex-wrap: wrap;
+    max-height: none;
+    padding: 1px 4px;
   }
   .mission-region-horizon .mission-data-tile {
-    min-height: 36px;
-    padding: 1px 4px;
+    min-height: 32px;
+    padding: 0 4px;
+  }
+  .mission-region-data > .mission-horizon-filler {
+    padding: 0 4px;
   }
 }

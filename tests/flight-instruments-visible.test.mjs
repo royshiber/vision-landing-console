@@ -68,18 +68,21 @@ function layoutScript({ selectors, scrollEach, scrollGrid }) {
     };
   }
   if (scrollGrid) document.querySelector('#missionDataGrid')?.scrollIntoView({ block: 'start', inline: 'nearest' });
-  const filler = document.querySelector('#missionHorizonFiller');
-  const fillerRect = filler ? filler.getBoundingClientRect() : null;
+  function fillerNow() {
+    const filler = document.querySelector('#missionHorizonFiller');
+    return filler ? filler.getBoundingClientRect() : null;
+  }
   const rows = (selectors || []).map((sel) => {
     const el = document.querySelector(sel);
     if (!el) return { id: sel, missing: true, w: 0, h: 0, boxW: 0, boxH: 0, clipW: 0, clipH: 0, hitOk: false, hit: '', underFiller: false };
     const row = measure(el, !!scrollEach);
-    row.underFiller = overlaps(row.rect, fillerRect);
+    row.underFiller = overlaps(row.rect, fillerNow());
     return row;
   });
+  if (scrollGrid) document.querySelector('#missionDataGrid')?.scrollIntoView({ block: 'start', inline: 'nearest' });
   const tiles = [...document.querySelectorAll('.mission-data-tile')].map((el) => {
     const row = measure(el, false);
-    row.underFiller = overlaps(row.rect, fillerRect);
+    row.underFiller = overlaps(row.rect, fillerNow());
     return row;
   });
   return {
@@ -88,7 +91,10 @@ function layoutScript({ selectors, scrollEach, scrollGrid }) {
     scrollY: window.scrollY,
     pageH: document.documentElement.scrollHeight,
     viewH: window.innerHeight,
-    filler: fillerRect ? { top: fillerRect.top, height: fillerRect.height, bottom: fillerRect.bottom } : null,
+    filler: (() => {
+      const live = fillerNow();
+      return live ? { top: live.top, height: live.height, bottom: live.bottom } : null;
+    })(),
   };
 }
 
