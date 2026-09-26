@@ -38,7 +38,7 @@ class AeConfig:
 class AeState:
     enabled: bool = True
     exposure_us: int = 2000
-    gain: int = 32
+    gain: int = 16
     mean: float | None = None
     percentile: float | None = None
     last_error: float | None = None
@@ -47,7 +47,13 @@ class AeState:
 
 
 class AutoExposure:
-    def __init__(self, config=None, exposure_us=2000, gain=32):
+    """Short exposure first. Gain absorbs brightness before the shutter opens.
+
+    Exposure never passes prefer_exposure_us_max, and never passes the frame
+    time 1e6/fps. A 100 ms shutter would cap the sensor below 30 fps.
+    """
+
+    def __init__(self, config=None, exposure_us=2000, gain=16):
         self.config = config or AeConfig()
         lim = self.config.limits
         self.state = AeState(
@@ -82,7 +88,15 @@ class AutoExposure:
             exposure = int(_clamp(steps * quantum, lim.exposure_us_min, lim.exposure_us_max))
         return exposure
 
-    def update(self, mean, percentile):
+    def exposure_cap_us(self, fps=None):
+        lim = self.config.limits
+        cap = int(lim.prefer_exposure_us_max)
+        if fps:
+            cap = min(cap, int(1_000_000 / max(1, int(fps))))
+        cap = min(cap, int(lim.exposure_us_max))
+        return max(int(lim.exposure_us_min), cap)
+
+    def update(self, mean, percentile, fps=None):
         """mean and percentile are 0..1 of the 10-bit full scale."""
         self.state.mean = None if mean is None else float(mean)
         self.state.percentile = None if percentile is None else float(percentile)
@@ -99,20 +113,24 @@ class AutoExposure:
             return self.snapshot()
         self.state.settled = False
         lim = self.config.limits
-        product = max(1.0, float(self.state.exposure_us) * float(self.state.gain))
-        ratio = target / max(0.02, float(mean))
-        ratio = _clamp(ratio, 0.5, 1.8)
-        desired = product * ratio
-        prefer = float(lim.prefer_exposure_us_max)
-        gain = float(lim.gain_min)
-        exposure = desired / gain
-        if exposure > prefer:
-            exposure = prefer
-            gain = desired / max(1.0, exposure)
+        cap = self.exposure_cap_us(fps)
+        # Percentile only widens the deadband above. The step follows the mean,
+        # so a bright marker does not pin the shutter shut.
+        hold = float(min(max(int(self.state.exposure_us), int(lim.exposure_us_min)), cap))
+        ratio = _clamp(target / max(0.02, float(mean)), 0.5, 1.8)
+        desired = max(1.0, hold * float(self.state.gain) * ratio)
+        gain = desired / hold
         if gain > lim.gain_max:
             gain = float(lim.gain_max)
             exposure = desired / gain
-        self.state.exposure_us = self._snap_exposure(exposure)
+        elif gain < lim.gain_min:
+            gain = float(lim.gain_min)
+            exposure = desired / gain
+        else:
+            exposure = hold
+        exposure = _clamp(exposure, lim.exposure_us_min, cap)
+        snapped = min(self._snap_exposure(exposure), cap)
+        self.state.exposure_us = int(snapped)
         self.state.gain = int(_clamp(int(round(gain)), lim.gain_min, lim.gain_max))
         return self.snapshot()
 
@@ -130,4 +148,5 @@ class AutoExposure:
             "settled": s.settled,
             "target_mean": self.config.target_mean,
             "prefer_exposure_us_max": self.config.limits.prefer_exposure_us_max,
+            "exposure_cap_us": self.exposure_cap_us(),
         }

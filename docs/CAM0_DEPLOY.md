@@ -1,4 +1,4 @@
-# Cam0 deploy (Jetson, companion 2.5.3)
+# Cam0 deploy (Jetson, companion 2.5.4)
 
 The camera service is a thread inside `airvix-companion`. No camera must
 not stop the companion. This host does not SSH to the Jetson and does not
@@ -60,7 +60,7 @@ sudo systemctl restart airvix-companion
 curl -s http://127.0.0.1:8081/api/health
 ```
 
-Expect `agentVersion` `2.5.3`.
+Expect `agentVersion` `2.5.4`.
 
 ## Hardware check
 
@@ -80,3 +80,14 @@ v4l2-ctl -d /dev/video0 --set-ctrl=sensor_mode=0,bypass_mode=0
 ```
 
 The capture path sets those itself when the controls exist.
+
+If verify reports `capture: busy`, the companion already holds the camera.
+Stop it, then retry:
+
+```
+systemctl --user stop airvix-companion
+python3 -m cam0.bench --seconds 5
+```
+
+`cam0.bench` prints capture fps, per-stage milliseconds, CPU percent, and the
+exposure and gain applied. It does not invent a frame rate.

@@ -96,7 +96,7 @@ describe('dual-camera ingest honesty', () => {
     expect(agentSrc).toContain('uart_reader');
     expect(agentSrc).toContain('fanout_uart');
     expect(agentSrc).not.toMatch(/\.recv_match\s*\(/);
-    expect(agentSrc).toMatch(/AGENT_VERSION.*"2\.5\.3"/);
+    expect(agentSrc).toMatch(/AGENT_VERSION.*"2\.5\.4"/);
     expect(agentSrc).toContain('/api/v1/status/cameras');
     expect(agentSrc).toContain('/api/v1/cameras/');
     expect(agentSrc).not.toMatch(/"camera_ok": True/);

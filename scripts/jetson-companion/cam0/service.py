@@ -18,11 +18,11 @@ from .calibration import (
     save_calibration,
     solve_intrinsics,
 )
-from .jpegenc import encode_gray_jpeg
+from .jpegenc import JpegWorker
 from .marker import MarkerModule
 from .modules import ModuleHost
 from .png16 import encode_png16
-from .rawfmt import mean_and_percentile
+from .rawfmt import frame_stats
 from .record import Recorder
 
 _SERVICE = None
@@ -57,7 +57,7 @@ def load_config(path=None, env=None):
             "gain_max": 256,
             "flicker_quantum_us": 10000,
             "exposure_us": 2000,
-            "gain": 32,
+            "gain": 16,
         },
         "stream": {"fps": 8, "quality": 55, "max_width": 640},
         "synthetic": {"width": 160, "height": 120, "fps": 15, "marker_id": 7, "marker_px": 54},
@@ -115,7 +115,7 @@ class Cam0Service:
                 limits=limits,
             ),
             exposure_us=int(ae_cfg.get("exposure_us", 2000)),
-            gain=int(ae_cfg.get("gain", 32)),
+            gain=int(ae_cfg.get("gain", 16)),
         )
         self.tagger = AttitudeTagger()
         self.recorder = Recorder(config.get("record_root"), config.get("vehicle_id"))
@@ -131,6 +131,9 @@ class Cam0Service:
         self.fps = None
         self.jpeg = None
         self.snapshot_png = None
+        self._snapshot_raw = None
+        self._stages_ms = {}
+        self._encoder = JpegWorker()
         self.latest_meta = {}
         self._intervals = []
         self._last_mono = None
@@ -147,11 +150,14 @@ class Cam0Service:
             self.camera_ok = False
             return
         self._stop.clear()
+        self._encoder.start()
         self._thread = threading.Thread(target=self._guard, name="cam0", daemon=True)
         self._thread.start()
 
     def stop(self):
         self._stop.set()
+        if self._encoder:
+            self._encoder.stop()
         if self.host:
             self.host.stop()
         if self.source is not None and hasattr(self.source, "close"):
@@ -215,7 +221,11 @@ class Cam0Service:
             )
             self.state = "opening"
             self.source.open()
-        self.source.set_exposure_gain(self.ae.state.exposure_us, self.ae.state.gain)
+        self.source.set_exposure_gain(
+            self.ae.state.exposure_us,
+            self.ae.state.gain,
+            fps=self.config.get("fps"),
+        )
         frame = self.source.read()
         self._ensure_bus(frame["width"], frame["height"])
         self._publish(frame)
@@ -254,13 +264,20 @@ class Cam0Service:
             self._publish(frame)
 
     def _publish(self, frame):
-        code = frame["code10"]
-        mean, pct = mean_and_percentile(code, 90.0)
+        t0 = time.perf_counter()
+        mean, pct = frame_stats(frame, 90.0)
+        t1 = time.perf_counter()
         if self.ae.state.enabled:
-            self.ae.update(mean, pct)
-            self.source.set_exposure_gain(self.ae.state.exposure_us, self.ae.state.gain)
+            self.ae.update(mean, pct, fps=self.config.get("fps"))
+            self.source.set_exposure_gain(
+                self.ae.state.exposure_us,
+                self.ae.state.gain,
+                fps=self.config.get("fps"),
+            )
+        t2 = time.perf_counter()
         tag = self.tagger.tag(frame["t_monotonic_ns"], frame["t_utc_ns"])
         self._maybe_arm(tag.get("armed"))
+        # Marker runs on its own thread. Capture only reads the latest result.
         detections = []
         if self.host:
             latest = self.host.latest("marker")
@@ -286,7 +303,8 @@ class Cam0Service:
             "width": frame["width"],
             "height": frame["height"],
         }
-        self.bus.publish(frame["mono8"], meta, code)
+        self.bus.publish(frame["mono8"], meta, None)
+        t3 = time.perf_counter()
         now = time.monotonic()
         if self._last_mono is not None:
             self._intervals.append(now - self._last_mono)
@@ -297,21 +315,29 @@ class Cam0Service:
             fps = round((len(self._intervals)) / max(1e-6, sum(self._intervals)), 2)
         stream = self.config.get("stream") or {}
         min_gap = 1.0 / max(1.0, float(stream.get("fps", 8)))
-        jpeg = self.jpeg
-        if now >= self._stream_next or jpeg is None:
-            jpeg = encode_gray_jpeg(
+        if now >= self._stream_next or self._encoder.latest() is None:
+            self._encoder.submit(
                 frame["mono8"],
                 quality=int(stream.get("quality", 55)),
                 max_width=int(stream.get("max_width", 640)),
             )
             self._stream_next = now + min_gap
-            self.snapshot_png = encode_png16(frame["raw_u16"])
-        if self.recorder.active:
+        jpeg = self._encoder.latest()
+        if self.recorder.active and jpeg:
             meta["detections"] = detections
             self.recorder.write(jpeg, meta)
+        stages = dict((frame.get("stages_ms") or {}))
+        stages["stats"] = round((t1 - t0) * 1000.0, 3)
+        stages["ae"] = round((t2 - t1) * 1000.0, 3)
+        stages["publish"] = round((t3 - t2) * 1000.0, 3)
+        if self._encoder.stage_ms is not None:
+            stages["jpeg"] = self._encoder.stage_ms
         with self._lock:
             self.jpeg = jpeg
+            self._snapshot_raw = frame.get("raw_u16")
+            self.snapshot_png = None
             self.latest_meta = meta
+            self._stages_ms = stages
             self.fps = fps
             self.camera_ok = True
             self.state = "streaming"
@@ -337,7 +363,11 @@ class Cam0Service:
             if body.get("ae_enabled") is not True and (body.get("manual") is True or not self.ae.state.enabled):
                 self.ae.set_manual(body.get("exposure_us"), body.get("gain"))
                 if self.source is not None:
-                    self.source.set_exposure_gain(self.ae.state.exposure_us, self.ae.state.gain)
+                    self.source.set_exposure_gain(
+                        self.ae.state.exposure_us,
+                        self.ae.state.gain,
+                        fps=self.config.get("fps"),
+                    )
         stream = self.config.setdefault("stream", {})
         if isinstance(body.get("stream"), dict):
             stream.update(body["stream"])
@@ -351,6 +381,17 @@ class Cam0Service:
             self.config["auto_record_on_arm"] = bool(body["auto_record_on_arm"])
         return self.settings()
 
+    def _ae_status(self):
+        ae = self.ae.snapshot()
+        src = self.source
+        if src is None:
+            return ae
+        for key in ("exposure_driver", "exposure_unit", "gain_driver"):
+            val = getattr(src, key, None)
+            if val is not None:
+                ae[key] = val
+        return ae
+
     def settings(self):
         return {
             "ok": True,
@@ -359,7 +400,7 @@ class Cam0Service:
             "width": self.config.get("width"),
             "height": self.config.get("height"),
             "fps": self.config.get("fps"),
-            "ae": self.ae.snapshot(),
+            "ae": self._ae_status(),
             "stream": self.config.get("stream"),
             "auto_record_on_arm": bool(self.config.get("auto_record_on_arm")),
             "marker_size_m": self.config.get("marker_size_m"),
@@ -372,6 +413,7 @@ class Cam0Service:
             fps = self.fps
             state = self.state
             error = self.error
+            stages = dict(self._stages_ms)
             camera_ok = self.camera_ok and state == "streaming"
         age = None
         if meta.get("t_monotonic_ns"):
@@ -393,7 +435,8 @@ class Cam0Service:
             "dropped": meta.get("dropped"),
             "latency_ms": meta.get("latency_ms"),
             "temperature_c": temp,
-            "ae": self.ae.snapshot(),
+            "ae": self._ae_status(),
+            "stages_ms": stages,
             "exposure_us": meta.get("exposure_us"),
             "gain": meta.get("gain"),
             "width": meta.get("width"),
@@ -432,9 +475,13 @@ class Cam0Service:
         return self.jpeg
 
     def snapshot_bytes(self):
-        if not self.status()["has_frame"]:
+        if not self.status()["camera_ok"]:
             return None
-        return self.snapshot_png
+        with self._lock:
+            raw = self._snapshot_raw
+        if raw is None:
+            return None
+        return encode_png16(raw)
 
     def detections(self):
         latest = self.host.latest("marker") if self.host else None

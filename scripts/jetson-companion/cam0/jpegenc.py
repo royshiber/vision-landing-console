@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import threading
+import time
+
 import numpy as np
 
 _STD_LUMA_Q = np.array([
@@ -115,6 +118,60 @@ def _downscale(gray, max_width):
         return gray
     step = int(np.ceil(gray.shape[1] / float(max_width)))
     return np.ascontiguousarray(gray[::step, ::step])
+
+
+class JpegWorker:
+    """Encodes the newest downscaled frame off the capture thread."""
+
+    def __init__(self, encode=None):
+        self._encode = encode or encode_gray_jpeg
+        self._lock = threading.Lock()
+        self._pending = None
+        self._jpeg = None
+        self._stop = threading.Event()
+        self._wake = threading.Event()
+        self.stage_ms = None
+        self._thread = threading.Thread(target=self._run, name="cam0-jpeg", daemon=True)
+
+    def start(self):
+        self._stop.clear()
+        if self._thread.is_alive():
+            return
+        self._thread = threading.Thread(target=self._run, name="cam0-jpeg", daemon=True)
+        self._thread.start()
+
+    def stop(self):
+        self._stop.set()
+        self._wake.set()
+
+    def submit(self, gray, quality=55, max_width=640):
+        small = _downscale(np.asarray(gray, dtype=np.uint8), max_width)
+        with self._lock:
+            self._pending = (np.ascontiguousarray(small), int(quality))
+        self._wake.set()
+
+    def latest(self):
+        with self._lock:
+            return self._jpeg
+
+    def _run(self):
+        while not self._stop.is_set():
+            self._wake.wait(0.25)
+            self._wake.clear()
+            with self._lock:
+                job = self._pending
+                self._pending = None
+            if job is None:
+                continue
+            t0 = time.perf_counter()
+            try:
+                jpeg = self._encode(job[0], quality=job[1], max_width=None)
+            except Exception:
+                continue
+            ms = (time.perf_counter() - t0) * 1000.0
+            with self._lock:
+                self._jpeg = jpeg
+                self.stage_ms = round(ms, 3)
 
 
 def encode_gray_jpeg(gray, quality=70, max_width=None):

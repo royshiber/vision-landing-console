@@ -23,7 +23,7 @@
     "gain_max": 256,
     "flicker_quantum_us": 10000,
     "exposure_us": 2000,
-    "gain": 32
+    "gain": 16
   },
   "stream": { "fps": 8, "quality": 55, "max_width": 640 },
   "synthetic": { "width": 160, "height": 120, "fps": 15, "marker_id": 7, "marker_px": 54 },
