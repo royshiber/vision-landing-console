@@ -66,6 +66,10 @@ VLC_CAM1_FPS=15
 
 Globals `VLC_CAMERA_WIDTH` / `HEIGHT` / `FPS` apply when the slot value is unset (default 640×480 @ 10).
 
+## OV9281 on CAM0
+
+The OmniVision OV9281 (1MP global-shutter mono) is not an Argus sensor. `nvarguscamerasrc` and `VLC_CAM1_DEVICE=csi:N` do not apply. The out-of-tree driver and the CAM0 overlay live in `scripts/jetson-camera-drivers/ov9281/`. Capture is V4L2 (`/dev/video0`, pixelformat `RG10`, read as mono). That pack does not send flight commands and does not apply or restart Companion.
+
 ## CSI and RTSP
 
 `VLC_CAM1_DEVICE=csi:0` opens `nvarguscamerasrc` only when `cv2.getBuildInformation()` reports GStreamer. Otherwise the state is `csi_requires_gstreamer_opencv`, not `absent`.

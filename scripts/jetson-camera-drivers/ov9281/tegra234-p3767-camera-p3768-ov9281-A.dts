@@ -1,0 +1,266 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * CAM0 overlay for OmniVision OV9281 on Jetson Orin Nano devkit
+ * (p3767-0000 module + p3768 carrier). Same shape as NVIDIA's
+ * tegra234-p3767-camera-p3768-imx219-A.dtbo: one 2-lane sensor on the
+ * "A" connector, cam_i2cmux channel 0, tegra-camera-platform module0.
+ *
+ * On that imx219-A binding the CAM0 socket is CSI port-index 1
+ * (tegra_sinterface "serial_b"), not CSI serial_a. serial_a / port-index 0
+ * is not wired to a camera connector on Orin Nano. Change BOTH macros
+ * together if a decompile of the stock imx219-A.dtbo on this board shows
+ * a different pair (some notes call silk-screen CAM0 "CSI-C": serial_c / 2).
+ *
+ * Argus and the ISP do not process a mono sensor. This prebuilt
+ * tegra-camera.ko rejects pixel_phase "y". Every mode is declared as
+ * bayer RAW10 with pixel_phase "rggb", which sensor_common turns into
+ * bayer_rggb10 / V4L2_PIX_FMT_SRGGB10 / MEDIA_BUS_FMT_SRGGB10_1X10.
+ * The CSI payload is still mono. Capture with v4l2-ctl pixelformat RG10
+ * and treat the samples as luminance. Do not use nvarguscamerasrc.
+ * sensor_common has no bayer_*8 entry, so an 8-bit mode is not listed.
+ *
+ * discontinuous_clk is "no". The driver leaves 0x4800 bit5 clear and
+ * programs a 1456-pixel line (1280 + 176). That is the mainline
+ * continuous-clock geometry. Gating the clock on that line makes VI
+ * discard every frame with err_data 0x20000 (CAPTURE_CHANNEL_ERROR_FORCE_FE).
+ */
+
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/tegra234-p3767-0000-common.h>
+
+#define OV9281_CAM_PORT_INDEX 1
+#define OV9281_CAM_SINTERFACE "serial_b"
+
+/ {
+	overlay-name = "Camera OV9281-A";
+	jetson-header-name = "Jetson 22pin CSI Connector";
+	compatible = JETSON_COMPATIBLE_P3768;
+
+	fragment@0 {
+		target-path = "/";
+		__overlay__ {
+			tegra-capture-vi {
+				status = "okay";
+				num-channels = <1>;
+				ports {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					port@0 {
+						reg = <0>;
+						ov9281_vi_in0: endpoint {
+							port-index = <OV9281_CAM_PORT_INDEX>;
+							bus-width = <2>;
+							remote-endpoint = <&ov9281_csi_out0>;
+						};
+					};
+				};
+			};
+
+			tegra-camera-platform {
+				compatible = "nvidia, tegra-camera-platform";
+				num_csi_lanes = <2>;
+				max_lane_speed = <1500000>;
+				min_bits_per_pixel = <8>;
+				vi_peak_byte_per_pixel = <2>;
+				vi_bw_margin_pct = <25>;
+				max_pixel_rate = <240000000>;
+				isp_peak_byte_per_pixel = <2>;
+				isp_bw_margin_pct = <25>;
+				modules {
+					module0 {
+						badge = "ov9281_cam0";
+						position = "front";
+						orientation = "0";
+						drivernode0 {
+							pcl_id = "v4l2_sensor";
+							devname = "ov9281 9-0060";
+							proc-device-tree = "/proc/device-tree/bus@0/cam_i2cmux/i2c@0/ov9281_a@60";
+							sysfs-device-tree = "/sys/firmware/devicetree/base/bus@0/cam_i2cmux/i2c@0/ov9281_a@60";
+						};
+					};
+				};
+			};
+
+			bus@0 {
+				host1x@13e00000 {
+					nvcsi@15a00000 {
+						status = "okay";
+						num-channels = <1>;
+						#address-cells = <1>;
+						#size-cells = <0>;
+						channel@0 {
+							reg = <0>;
+							ports {
+								#address-cells = <1>;
+								#size-cells = <0>;
+								port@0 {
+									reg = <0>;
+									ov9281_csi_in0: endpoint@0 {
+										port-index = <OV9281_CAM_PORT_INDEX>;
+										bus-width = <2>;
+										remote-endpoint = <&ov9281_out0>;
+									};
+								};
+								port@1 {
+									reg = <1>;
+									ov9281_csi_out0: endpoint@1 {
+										remote-endpoint = <&ov9281_vi_in0>;
+									};
+								};
+							};
+						};
+					};
+				};
+
+				cam_i2cmux {
+					status = "okay";
+					compatible = "i2c-mux-gpio";
+					#address-cells = <1>;
+					#size-cells = <0>;
+					mux-gpios = <&gpio_aon CAM_I2C_MUX GPIO_ACTIVE_HIGH>;
+					i2c-parent = <&cam_i2c>;
+					i2c@0 {
+						status = "okay";
+						reg = <0>;
+						#address-cells = <1>;
+						#size-cells = <0>;
+						ov9281_a@60 {
+							status = "okay";
+							compatible = "ovti,ov9281";
+							reg = <0x60>;
+							reset-gpios = <&gpio CAM0_PWDN GPIO_ACTIVE_HIGH>;
+							/*
+							 * Same clock consumer names as the other
+							 * tegra234 camera overlays (bpmp EXTPERIPH1,
+							 * clock-names extperiph1, mclk extperiph1).
+							 * mclk without clocks/clock-names makes
+							 * devm_clk_get("extperiph1") return -ENOENT.
+							 */
+							clocks = <&bpmp TEGRA234_CLK_EXTPERIPH1>,
+								<&bpmp TEGRA234_CLK_EXTPERIPH1>;
+							clock-names = "extperiph1", "pllp_grtba";
+							mclk = "extperiph1";
+							devnode = "video0";
+							physical_w = "3.840";
+							physical_h = "2.400";
+							sensor_model = "ov9281";
+							use_sensor_mode_id = "true";
+
+							/* mode0: 1280x800 RAW10 @ 60 fps */
+							mode0 {
+								mclk_khz = "24000";
+								num_lanes = "2";
+								tegra_sinterface = OV9281_CAM_SINTERFACE;
+								phy_mode = "DPHY";
+								discontinuous_clk = "no";
+								dpcm_enable = "false";
+								cil_settletime = "0";
+								lane_polarity = "6";
+								active_w = "1280";
+								active_h = "800";
+								mode_type = "bayer";
+								pixel_phase = "rggb";
+								csi_pixel_bit_depth = "10";
+								readout_orientation = "0";
+								line_length = "1456";
+								inherent_gain = "1";
+								mclk_multiplier = "4";
+								pix_clk_hz = "160000000";
+								gain_factor = "16";
+								framerate_factor = "1000000";
+								exposure_factor = "1000000";
+								min_gain_val = "16";
+								max_gain_val = "255";
+								step_gain_val = "1";
+								default_gain = "64";
+								min_hdr_ratio = "1";
+								max_hdr_ratio = "1";
+								min_framerate = "10000000";
+								max_framerate = "120000000";
+								step_framerate = "1";
+								default_framerate = "60000000";
+								min_exp_time = "10";
+								max_exp_time = "100000";
+								step_exp_time = "1";
+								/* 10000 us = 10 ms. Gain 64 is 0x3509 = 4x (code/16). */
+								default_exp_time = "10000";
+								embedded_metadata_height = "0";
+							};
+
+							/* mode1: 1280x720 RAW10 @ 60 fps */
+							mode1 {
+								mclk_khz = "24000";
+								num_lanes = "2";
+								tegra_sinterface = OV9281_CAM_SINTERFACE;
+								phy_mode = "DPHY";
+								discontinuous_clk = "no";
+								dpcm_enable = "false";
+								cil_settletime = "0";
+								lane_polarity = "6";
+								active_w = "1280";
+								active_h = "720";
+								mode_type = "bayer";
+								pixel_phase = "rggb";
+								csi_pixel_bit_depth = "10";
+								readout_orientation = "0";
+								line_length = "1456";
+								inherent_gain = "1";
+								mclk_multiplier = "4";
+								pix_clk_hz = "160000000";
+								gain_factor = "16";
+								framerate_factor = "1000000";
+								exposure_factor = "1000000";
+								min_gain_val = "16";
+								max_gain_val = "255";
+								step_gain_val = "1";
+								default_gain = "64";
+								min_hdr_ratio = "1";
+								max_hdr_ratio = "1";
+								min_framerate = "10000000";
+								max_framerate = "120000000";
+								step_framerate = "1";
+								default_framerate = "60000000";
+								min_exp_time = "10";
+								max_exp_time = "100000";
+								step_exp_time = "1";
+								default_exp_time = "10000";
+								embedded_metadata_height = "0";
+							};
+
+							ports {
+								#address-cells = <1>;
+								#size-cells = <0>;
+								port@0 {
+									reg = <0>;
+									ov9281_out0: endpoint {
+										port-index = <OV9281_CAM_PORT_INDEX>;
+										bus-width = <2>;
+										remote-endpoint = <&ov9281_csi_in0>;
+									};
+								};
+							};
+						};
+					};
+				};
+			};
+		};
+	};
+
+	/*
+	 * imx219-A hogs CAM0_PWDN and CAM1_PWDN low. CAM0_PWDN is the reset
+	 * the driver requests, so it is not hogged here. CAM1 stays low.
+	 */
+	fragment@1 {
+		target = <&gpio>;
+		__overlay__ {
+			ov9281-cam1-pwdn {
+				gpio-hog;
+				output-low;
+				gpios = <CAM1_PWDN 0>;
+				label = "cam1-pwdn";
+			};
+		};
+	};
+};

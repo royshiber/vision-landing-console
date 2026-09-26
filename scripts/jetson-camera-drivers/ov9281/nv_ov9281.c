@@ -1,0 +1,1549 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * nv_ov9281.c — OmniVision OV9281 (1MP global-shutter mono) for Jetson.
+ *
+ * Out-of-tree tegracam sensor driver for L4T 39.x (kernel 6.8 tegra).
+ * Modelled on NVIDIA's public nv_imx219.c / the r36 nv_imx* probe path
+ * (tegracam_device_register, sensor_mode, gain / exposure / frame rate).
+ *
+ * Register tables are the mainline Linux 6.8 ov9282 driver
+ * (drivers/media/i2c/ov9282.c, GPL-2.0, Intel), which binds ovti,ov9281
+ * and checks chip id 0x9281. Arducam has no L4T 39 driver; this module
+ * is the replacement. It does not send flight commands.
+ *
+ * Argus / the ISP does not process mono. Capture is V4L2 on /dev/video0.
+ */
+
+#include <linux/clk.h>
+#include <linux/delay.h>
+#include <linux/gpio.h>
+#include <linux/i2c.h>
+#include <linux/math64.h>
+#include <linux/module.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
+#include <linux/of_gpio.h>
+#include <linux/regmap.h>
+#include <linux/regulator/consumer.h>
+#include <linux/slab.h>
+#include <linux/string.h>
+#include <linux/sysfs.h>
+#include <linux/version.h>
+
+#include <media/media-entity.h>
+#include <media/tegra_v4l2_camera.h>
+#include <media/tegracam_core.h>
+#include <media/tegracam_utils.h>
+#include <media/v4l2-ctrls.h>
+#include <media/v4l2-dev.h>
+#include <media/v4l2-mediabus.h>
+
+#define OV9281_CHIP_ID			0x9281
+#define OV9281_REG_CHIP_ID		0x300a
+
+#define OV9281_REG_MODE_SELECT		0x0100
+#define OV9281_REG_SOFTWARE_RESET	0x0103
+#define OV9281_REG_HOLD			0x3308
+/*
+ * OV9281 latches exposure through 0x3208, not the 0x3308 hold mainline
+ * ov9282 also writes. 0x00 opens the group, 0x10 closes it, 0xa0 launches
+ * it into the active frame. Without the launch, 0x3500 can change in the
+ * shadow registers while the picture stays on the previous exposure.
+ */
+#define OV9281_REG_GROUP_UPDATE		0x3208
+#define OV9281_GROUP_HOLD		0x00
+#define OV9281_GROUP_END		0x10
+#define OV9281_GROUP_LAUNCH		0xa0
+#define OV9281_REG_AEC_CTRL		0x3503
+#define OV9281_REG_EXPOSURE		0x3500
+#define OV9281_REG_AGAIN		0x3509
+#define OV9281_REG_HTS			0x380c
+#define OV9281_REG_VTS			0x380e
+#define OV9281_REG_MIPI_CTRL00		0x4800
+#define OV9281_REG_PLL_CTRL_0D		0x030d
+#define OV9281_REG_ANA_CORE_2		0x3662
+#define OV9281_REG_TEST_PATTERN		0x5e00
+/* Rockchip ov9281: bit7 enables the pattern, bits[1:0] select the bar. */
+#define OV9281_TEST_PATTERN_ENABLE	0x80
+
+#define OV9281_MODE_STANDBY		0x00
+#define OV9281_MODE_STREAMING		0x01
+#define OV9281_PLL_RAW10		0x50
+#define OV9281_PLL_RAW8			0x60
+#define OV9281_ANA_RAW10		0x05
+#define OV9281_ANA_RAW8			0x07
+/* 0x4800 bit5 gates the clock lane. Continuous clock leaves it clear. */
+#define OV9281_MIPI_CLOCK_CONTINUOUS	0x00
+#define OV9281_MIPI_CLOCK_GATED		0x20
+
+#define OV9281_TABLE_WAIT_MS		0xfffe
+#define OV9281_TABLE_END		0xffff
+
+#define OV9281_AGAIN_MIN		0x10
+#define OV9281_AGAIN_MAX		0xff
+#define OV9281_EXPOSURE_MIN_LINES	1
+#define OV9281_EXPOSURE_OFFSET		12
+/*
+ * Pixel line length for the continuous MIPI clock: 1280 active + 176
+ * blank. ov9282.c writes 0x380c as (width + hblank) >> 1, so the
+ * register value is half of this. The non-continuous minimum is 1530
+ * (hblank 250). This pack does not use that mode.
+ */
+#define OV9281_LINE_LENGTH		1456
+#define OV9281_DEFAULT_FPS		60
+/*
+ * Exposure is microseconds (exposure_factor 1000000). 10 ms at
+ * 160 MHz and a 1456-pixel line is about 1099 lines.
+ * The gain control is the 0x3509 code. Sensor gain is code/16:
+ * 16 is 1x, 64 is 4x, 255 is about 16x. 32x does not fit in 0x3509.
+ * tegracam's INTEGER64 range update clamps a current value of 0 to
+ * the minimum, so the live value comes up as min_exp_time / min_framerate
+ * even when the DT default is higher. The probe path writes these
+ * defaults into the V4L2 controls, and stream start writes them again
+ * after the software reset.
+ */
+#define OV9281_DEFAULT_EXPOSURE_US	10000
+#define OV9281_DEFAULT_GAIN		64
+#define OV9281_DEFAULT_FRAME_RATE	60000000
+
+#define OV9281_MODE_1280X800_RAW10	0
+#define OV9281_MODE_1280X720_RAW10	1
+
+/*
+ * Link is 400 MHz DDR (800 Mbps/lane), 2 lanes, from ov9282.c.
+ * RAW10 pixel rate = 400e6 * 2 * 2 / 10.
+ * camera_common maps V4L2_PIX_FMT_SRGGB10 to MEDIA_BUS_FMT_SRGGB10_1X10.
+ * sensor_common on this tegra-camera.ko has no bayer_*8 string, so RAW8
+ * is not a registered mode. MEDIA_BUS_FMT_SRGGB8_1X8 is the table entry
+ * that would match V4L2_PIX_FMT_SRGGB8 if that string is added later.
+ */
+#define OV9281_PIXCLK_RAW10		160000000U
+#define OV9281_MBUS_RAW10		MEDIA_BUS_FMT_SRGGB10_1X10
+#define OV9281_MBUS_RAW8		MEDIA_BUS_FMT_SRGGB8_1X8
+#define OV9281_MCLK_HZ			24000000UL
+
+static const u32 ctrl_cid_list[] = {
+	TEGRA_CAMERA_CID_GAIN,
+	TEGRA_CAMERA_CID_EXPOSURE,
+	TEGRA_CAMERA_CID_FRAME_RATE,
+	TEGRA_CAMERA_CID_SENSOR_MODE_ID,
+};
+
+struct ov9281 {
+	struct i2c_client *i2c_client;
+	struct v4l2_subdev *subdev;
+	struct camera_common_data *s_data;
+	struct tegracam_device *tc_dev;
+	u32 frame_length;
+	u32 test_pattern;
+	u32 exposure_packed;
+	u8 gain_code;
+	char timing_cache[512];
+	bool timing_cache_valid;
+};
+
+struct ov9281_mode {
+	u32 width;
+	u32 height;
+	u32 pix_clk_hz;
+	u32 line_length;
+	u32 min_frame_length;
+	u8 bpp;
+	const struct reg_8 *timing;
+};
+
+static struct regmap_config ov9281_regmap_config = {
+	.reg_bits = 16,
+	.val_bits = 8,
+	.cache_type = REGCACHE_NONE,
+#if KERNEL_VERSION(5, 4, 0) > LINUX_VERSION_CODE
+	.use_single_rw = true,
+#else
+	.use_single_read = true,
+	.use_single_write = true,
+#endif
+};
+
+/*
+ * Common registers from Linux v6.8 drivers/media/i2c/ov9282.c.
+ * No software reset here: that would wipe the clock setup done around it.
+ * 0x4800 is continuous (bit5 clear) to match line length 1456 and
+ * discontinuous_clk = "no". Gating the clock on this line length makes
+ * the VI force frame end on every frame (err_data 0x20000).
+ */
+static const struct reg_8 ov9281_common_regs[] = {
+	{0x0302, 0x32},
+	{0x030e, 0x02},
+	{0x3001, 0x00},
+	{0x3004, 0x00},
+	{0x3005, 0x00},
+	{0x3006, 0x04},
+	{0x3011, 0x0a},
+	{0x3013, 0x18},
+	{0x301c, 0xf0},
+	{0x3022, 0x01},
+	{0x3030, 0x10},
+	{0x3039, 0x32},
+	{0x303a, 0x00},
+	{0x3503, 0x08},
+	{0x3505, 0x8c},
+	{0x3507, 0x03},
+	{0x3508, 0x00},
+	{0x3610, 0x80},
+	{0x3611, 0xa0},
+	{0x3620, 0x6e},
+	{0x3632, 0x56},
+	{0x3633, 0x78},
+	{0x3666, 0x00},
+	{0x366f, 0x5a},
+	{0x3680, 0x84},
+	{0x3712, 0x80},
+	{0x372d, 0x22},
+	{0x3731, 0x80},
+	{0x3732, 0x30},
+	{0x377d, 0x22},
+	{0x3788, 0x02},
+	{0x3789, 0xa4},
+	{0x378a, 0x00},
+	{0x378b, 0x4a},
+	{0x3799, 0x20},
+	{0x3881, 0x42},
+	{0x38a8, 0x02},
+	{0x38a9, 0x80},
+	{0x38b1, 0x00},
+	{0x38c4, 0x00},
+	{0x38c5, 0xc0},
+	{0x38c6, 0x04},
+	{0x38c7, 0x80},
+	{0x3920, 0xff},
+	{0x4010, 0x40},
+	{0x4043, 0x40},
+	{0x4307, 0x30},
+	{0x4317, 0x00},
+	{0x4501, 0x00},
+	{0x450a, 0x08},
+	{0x4601, 0x04},
+	{0x470f, 0x00},
+	{0x4f07, 0x00},
+	{0x4800, OV9281_MIPI_CLOCK_CONTINUOUS},
+	{0x5000, 0x9f},
+	{0x5001, 0x00},
+	/* Off in the table. apply_controls writes the test_pattern control after. */
+	{0x5e00, 0x00},
+	{0x5d00, 0x07},
+	{0x5d01, 0x00},
+	{0x0101, 0x01},
+	{0x1000, 0x03},
+	{0x5a08, 0x84},
+	{OV9281_TABLE_END, 0x00},
+};
+
+/* 1280x800 full array. From ov9282.c mode_1280x800_regs. */
+static const struct reg_8 ov9281_timing_1280x800[] = {
+	{0x3778, 0x00},
+	{0x3800, 0x00},
+	{0x3801, 0x00},
+	{0x3802, 0x00},
+	{0x3803, 0x00},
+	{0x3804, 0x05},
+	{0x3805, 0x0f},
+	{0x3806, 0x03},
+	{0x3807, 0x2f},
+	{0x3808, 0x05},
+	{0x3809, 0x00},
+	{0x3810, 0x00},
+	{0x3811, 0x08},
+	{0x3812, 0x00},
+	{0x3813, 0x08},
+	{0x3814, 0x11},
+	{0x3815, 0x11},
+	{0x3820, 0x40},
+	{0x3821, 0x00},
+	{0x4003, 0x40},
+	{0x4008, 0x04},
+	{0x4009, 0x0b},
+	{0x400c, 0x00},
+	{0x400d, 0x07},
+	{0x4507, 0x00},
+	{0x4509, 0x00},
+	{0x380a, 0x03},
+	{0x380b, 0x20},
+	{OV9281_TABLE_END, 0x00},
+};
+
+/* 1280x720, top of the 800-line array. From ov9282.c mode_1280x720_regs. */
+static const struct reg_8 ov9281_timing_1280x720[] = {
+	{0x3778, 0x00},
+	{0x3800, 0x00},
+	{0x3801, 0x00},
+	{0x3802, 0x00},
+	{0x3803, 0x00},
+	{0x3804, 0x05},
+	{0x3805, 0x0f},
+	{0x3806, 0x02},
+	{0x3807, 0xdf},
+	{0x3808, 0x05},
+	{0x3809, 0x00},
+	{0x3810, 0x00},
+	{0x3811, 0x08},
+	{0x3812, 0x00},
+	{0x3813, 0x08},
+	{0x3814, 0x11},
+	{0x3815, 0x11},
+	{0x3820, 0x3c},
+	{0x3821, 0x84},
+	{0x4003, 0x40},
+	{0x4008, 0x02},
+	{0x4009, 0x05},
+	{0x400c, 0x00},
+	{0x400d, 0x03},
+	{0x4507, 0x00},
+	{0x4509, 0x80},
+	{0x380a, 0x02},
+	{0x380b, 0xd0},
+	{OV9281_TABLE_END, 0x00},
+};
+
+static const struct ov9281_mode ov9281_modes[] = {
+	{
+		.width = 1280,
+		.height = 800,
+		.pix_clk_hz = OV9281_PIXCLK_RAW10,
+		.line_length = OV9281_LINE_LENGTH,
+		.min_frame_length = 910,
+		.bpp = 10,
+		.timing = ov9281_timing_1280x800,
+	},
+	{
+		.width = 1280,
+		.height = 720,
+		.pix_clk_hz = OV9281_PIXCLK_RAW10,
+		.line_length = OV9281_LINE_LENGTH,
+		.min_frame_length = 761,
+		.bpp = 10,
+		.timing = ov9281_timing_1280x720,
+	},
+};
+
+static const int ov9281_60fps[] = { OV9281_DEFAULT_FPS };
+
+static const struct camera_common_frmfmt ov9281_frmfmt[] = {
+	{{1280, 800}, ov9281_60fps, 1, 0, OV9281_MODE_1280X800_RAW10},
+	{{1280, 720}, ov9281_60fps, 1, 0, OV9281_MODE_1280X720_RAW10},
+};
+
+static const struct of_device_id ov9281_of_match[] = {
+	{ .compatible = "ovti,ov9281" },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, ov9281_of_match);
+
+static int ov9281_read_reg(struct camera_common_data *s_data, u16 addr, u8 *val)
+{
+	unsigned int reg_val = 0;
+	int err;
+
+	err = regmap_read(s_data->regmap, addr, &reg_val);
+	if (err)
+		return err;
+	*val = reg_val & 0xff;
+	return 0;
+}
+
+static int ov9281_write_reg(struct camera_common_data *s_data, u16 addr, u8 val)
+{
+	int err;
+
+	err = regmap_write(s_data->regmap, addr, val);
+	if (err)
+		dev_err(s_data->dev, "i2c write failed, 0x%04x = 0x%02x (%d)\n",
+			addr, val, err);
+	return err;
+}
+
+static int ov9281_write_table(struct ov9281 *priv, const struct reg_8 *table)
+{
+	return regmap_util_write_table_8(priv->s_data->regmap, table, NULL, 0,
+					 OV9281_TABLE_WAIT_MS, OV9281_TABLE_END);
+}
+
+static const struct ov9281_mode *ov9281_current_mode(struct camera_common_data *s_data)
+{
+	if (s_data->mode < 0 ||
+	    s_data->mode >= (int)ARRAY_SIZE(ov9281_modes))
+		return NULL;
+	return &ov9281_modes[s_data->mode];
+}
+
+/* Matches camera_common_color_fmts for V4L2_PIX_FMT_SRGGB10 / SRGGB8. */
+static u32 ov9281_mbus_code(const struct ov9281_mode *mode)
+{
+	if (mode->bpp == 8)
+		return OV9281_MBUS_RAW8;
+	return OV9281_MBUS_RAW10;
+}
+
+static u32 ov9281_frame_length_for_fps(const struct ov9281_mode *mode, u32 fps)
+{
+	u32 fl;
+
+	if (!fps)
+		fps = OV9281_DEFAULT_FPS;
+	fl = mode->pix_clk_hz / mode->line_length / fps;
+	if (fl < mode->min_frame_length)
+		fl = mode->min_frame_length;
+	if (fl > 0xffff)
+		fl = 0xffff;
+	return fl;
+}
+
+static int ov9281_write_hts_vts(struct camera_common_data *s_data,
+				const struct ov9281_mode *mode, u32 frame_length)
+{
+	/* 0x380c is in units of two pixels. See ov9282_set_ctrl HBLANK. */
+	u32 hts_reg = mode->line_length / 2;
+	int err;
+
+	err = ov9281_write_reg(s_data, OV9281_REG_HTS, (hts_reg >> 8) & 0xff);
+	if (err)
+		return err;
+	err = ov9281_write_reg(s_data, OV9281_REG_HTS + 1, hts_reg & 0xff);
+	if (err)
+		return err;
+	err = ov9281_write_reg(s_data, OV9281_REG_VTS, (frame_length >> 8) & 0xff);
+	if (err)
+		return err;
+	return ov9281_write_reg(s_data, OV9281_REG_VTS + 1, frame_length & 0xff);
+}
+
+static int ov9281_group_launch(struct camera_common_data *s_data)
+{
+	int err;
+
+	err = ov9281_write_reg(s_data, OV9281_REG_GROUP_UPDATE, OV9281_GROUP_END);
+	if (err)
+		return err;
+	return ov9281_write_reg(s_data, OV9281_REG_GROUP_UPDATE, OV9281_GROUP_LAUNCH);
+}
+
+static int ov9281_set_group_hold(struct tegracam_device *tc_dev, bool val)
+{
+	struct camera_common_data *s_data = tc_dev->s_data;
+
+	if (val)
+		return ov9281_write_reg(s_data, OV9281_REG_GROUP_UPDATE, OV9281_GROUP_HOLD);
+	return ov9281_group_launch(s_data);
+}
+
+static int ov9281_hold_begin(struct camera_common_data *s_data)
+{
+	return ov9281_write_reg(s_data, OV9281_REG_GROUP_UPDATE, OV9281_GROUP_HOLD);
+}
+
+static int ov9281_hold_end(struct camera_common_data *s_data)
+{
+	return ov9281_group_launch(s_data);
+}
+
+static int ov9281_set_gain(struct tegracam_device *tc_dev, s64 val)
+{
+	struct camera_common_data *s_data = tc_dev->s_data;
+	struct ov9281 *priv = tegracam_get_privdata(tc_dev);
+	u8 gain;
+	int err;
+	int held;
+
+	if (val < OV9281_AGAIN_MIN)
+		val = OV9281_AGAIN_MIN;
+	if (val > OV9281_AGAIN_MAX)
+		val = OV9281_AGAIN_MAX;
+	gain = (u8)val;
+	if (priv)
+		priv->gain_code = gain;
+	err = ov9281_hold_begin(s_data);
+	if (err)
+		return err;
+	err = ov9281_write_reg(s_data, OV9281_REG_AGAIN, gain);
+	held = ov9281_hold_end(s_data);
+	if (err)
+		dev_err(s_data->dev, "ov9281 gain 0x%02x write failed (%d)\n", gain, err);
+	else if (held)
+		dev_err(s_data->dev, "ov9281 gain hold release failed (%d)\n", held);
+	else
+		dev_info(s_data->dev, "ov9281 gain code 0x%02x (%u/16x)\n", gain, gain);
+	return err ? err : held;
+}
+
+static int ov9281_set_frame_rate(struct tegracam_device *tc_dev, s64 val)
+{
+	struct camera_common_data *s_data = tc_dev->s_data;
+	struct ov9281 *priv = tegracam_get_privdata(tc_dev);
+	const struct sensor_mode_properties *props;
+	const struct ov9281_mode *mode;
+	u32 factor;
+	u32 fps;
+	u32 frame_length;
+	int err;
+
+	mode = ov9281_current_mode(s_data);
+	if (!mode)
+		return -EINVAL;
+
+	props = &s_data->sensor_props.sensor_modes[s_data->mode_prop_idx];
+	factor = props->control_properties.framerate_factor;
+	if (!factor)
+		factor = 1000000;
+	if (val <= 0)
+		return -EINVAL;
+	fps = (u32)div64_u64((u64)val, factor);
+	if (!fps)
+		fps = 1;
+
+	if (props->signal_properties.pixel_clock.val &&
+	    props->image_properties.line_length) {
+		frame_length = (u32)div64_u64(props->signal_properties.pixel_clock.val *
+					      (u64)factor,
+					      (u64)props->image_properties.line_length *
+					      (u64)val);
+	} else {
+		frame_length = ov9281_frame_length_for_fps(mode, fps);
+	}
+	if (frame_length < mode->min_frame_length)
+		frame_length = mode->min_frame_length;
+	if (frame_length > 0xffff)
+		frame_length = 0xffff;
+
+	err = ov9281_hold_begin(s_data);
+	if (err)
+		return err;
+	err = ov9281_write_reg(s_data, OV9281_REG_VTS, (frame_length >> 8) & 0xff);
+	if (!err)
+		err = ov9281_write_reg(s_data, OV9281_REG_VTS + 1, frame_length & 0xff);
+	if (!err)
+		priv->frame_length = frame_length;
+	{
+		int held = ov9281_hold_end(s_data);
+
+		if (err)
+			dev_err(s_data->dev, "ov9281 frame_rate %lld VTS %u write failed (%d)\n",
+				val, frame_length, err);
+		else if (held)
+			dev_err(s_data->dev, "ov9281 frame_rate hold release failed (%d)\n", held);
+		else
+			dev_info(s_data->dev, "ov9281 frame_rate %lld -> %u fps VTS %u\n",
+				 val, fps, frame_length);
+		return err ? err : held;
+	}
+}
+
+static int ov9281_set_exposure(struct tegracam_device *tc_dev, s64 val)
+{
+	struct camera_common_data *s_data = tc_dev->s_data;
+	struct ov9281 *priv = tegracam_get_privdata(tc_dev);
+	const struct sensor_mode_properties *props;
+	const struct ov9281_mode *mode;
+	u32 factor;
+	u32 line_length;
+	u64 pix_clk;
+	u32 coarse;
+	u32 limit;
+	u32 packed;
+	int err;
+
+	mode = ov9281_current_mode(s_data);
+	if (!mode)
+		return -EINVAL;
+
+	props = &s_data->sensor_props.sensor_modes[s_data->mode_prop_idx];
+	factor = props->control_properties.exposure_factor;
+	if (!factor)
+		factor = 1000000;
+	pix_clk = props->signal_properties.pixel_clock.val;
+	line_length = props->image_properties.line_length;
+	if (!pix_clk)
+		pix_clk = mode->pix_clk_hz;
+	if (!line_length)
+		line_length = mode->line_length;
+	if (val < 0)
+		val = 0;
+
+	coarse = (u32)div64_u64((u64)val * pix_clk, (u64)factor * line_length);
+	if (coarse < OV9281_EXPOSURE_MIN_LINES)
+		coarse = OV9281_EXPOSURE_MIN_LINES;
+	limit = priv->frame_length;
+	if (limit <= OV9281_EXPOSURE_OFFSET)
+		limit = mode->min_frame_length;
+	if (coarse > limit - OV9281_EXPOSURE_OFFSET)
+		coarse = limit - OV9281_EXPOSURE_OFFSET;
+
+	/* Mainline ov9282 writes the line count in the top 20 bits. */
+	packed = coarse << 4;
+	priv->exposure_packed = packed;
+	err = ov9281_hold_begin(s_data);
+	if (err)
+		return err;
+	err = ov9281_write_reg(s_data, OV9281_REG_EXPOSURE, (packed >> 16) & 0xff);
+	if (!err)
+		err = ov9281_write_reg(s_data, OV9281_REG_EXPOSURE + 1, (packed >> 8) & 0xff);
+	if (!err)
+		err = ov9281_write_reg(s_data, OV9281_REG_EXPOSURE + 2, packed & 0xff);
+	{
+		int held = ov9281_hold_end(s_data);
+
+		if (err)
+			dev_err(s_data->dev,
+				"ov9281 exposure %lld us coarse %u write failed (%d)\n",
+				val, coarse, err);
+		else if (held)
+			dev_err(s_data->dev, "ov9281 exposure hold release failed (%d)\n", held);
+		else
+			dev_info(s_data->dev,
+				 "ov9281 exposure %lld us coarse %u lines packed 0x%06x\n",
+				 val, coarse, packed);
+		return err ? err : held;
+	}
+}
+
+static struct tegracam_ctrl_ops ov9281_ctrl_ops = {
+	.numctrls = ARRAY_SIZE(ctrl_cid_list),
+	.ctrl_cid_list = ctrl_cid_list,
+	.set_gain = ov9281_set_gain,
+	.set_exposure = ov9281_set_exposure,
+	.set_frame_rate = ov9281_set_frame_rate,
+	.set_group_hold = ov9281_set_group_hold,
+};
+
+static int ov9281_power_on(struct camera_common_data *s_data)
+{
+	struct camera_common_power_rail *pw = s_data->power;
+	struct camera_common_pdata *pdata = s_data->pdata;
+	struct device *dev = s_data->dev;
+	int err = 0;
+
+	if (!pw)
+		return -EFAULT;
+	if (pw->state == SWITCH_ON)
+		return 0;
+
+	dev_dbg(dev, "power on\n");
+	if (pdata && pdata->power_on) {
+		err = pdata->power_on(pw);
+		if (err) {
+			dev_err(dev, "platform power_on failed (%d)\n", err);
+			return err;
+		}
+		pw->state = SWITCH_ON;
+		return 0;
+	}
+
+	/*
+	 * Same order as nv_imx219 on CAM0_PWDN: hold the pin low, wait,
+	 * enable regulators, wait, drive the pin high, then wait before I2C.
+	 * GPIO_ACTIVE_HIGH in the overlay means electrical high lets the
+	 * sensor run. The caller owns the 24 MHz clock. board_setup enables
+	 * it before this function so the chip-id read sees a clock.
+	 * camera_common_s_power enables it after power_on and disables it
+	 * on power off, so this function does not touch the clock.
+	 */
+	if (pw->reset_gpio)
+		gpio_direction_output(pw->reset_gpio, 0);
+	usleep_range(10, 20);
+
+	if (pw->avdd) {
+		err = regulator_enable(pw->avdd);
+		if (err)
+			goto avdd_fail;
+	}
+	if (pw->iovdd) {
+		err = regulator_enable(pw->iovdd);
+		if (err)
+			goto iovdd_fail;
+	}
+	if (pw->dvdd) {
+		err = regulator_enable(pw->dvdd);
+		if (err)
+			goto dvdd_fail;
+	}
+
+	usleep_range(10, 20);
+	if (pw->reset_gpio)
+		gpio_set_value_cansleep(pw->reset_gpio, 1);
+
+	/* imx219 waits t4+t5+t9 after releasing reset before I2C. */
+	usleep_range(10000, 10100);
+	pw->state = SWITCH_ON;
+	return 0;
+
+dvdd_fail:
+	if (pw->iovdd)
+		regulator_disable(pw->iovdd);
+iovdd_fail:
+	if (pw->avdd)
+		regulator_disable(pw->avdd);
+avdd_fail:
+	dev_err(dev, "power on failed (%d)\n", err);
+	return err;
+}
+
+static int ov9281_power_off(struct camera_common_data *s_data)
+{
+	struct camera_common_power_rail *pw = s_data->power;
+	struct camera_common_pdata *pdata = s_data->pdata;
+	int err = 0;
+
+	if (!pw)
+		return -EFAULT;
+	if (pw->state == SWITCH_OFF)
+		return 0;
+
+	if (pdata && pdata->power_off) {
+		err = pdata->power_off(pw);
+		if (err)
+			return err;
+		pw->state = SWITCH_OFF;
+		return 0;
+	}
+
+	if (pw->reset_gpio)
+		gpio_set_value_cansleep(pw->reset_gpio, 0);
+	usleep_range(1000, 1500);
+	if (pw->dvdd)
+		regulator_disable(pw->dvdd);
+	if (pw->iovdd)
+		regulator_disable(pw->iovdd);
+	if (pw->avdd)
+		regulator_disable(pw->avdd);
+	pw->state = SWITCH_OFF;
+	return 0;
+}
+
+static int ov9281_power_get(struct tegracam_device *tc_dev)
+{
+	struct device *dev = tc_dev->dev;
+	struct camera_common_data *s_data = tc_dev->s_data;
+	struct camera_common_power_rail *pw = s_data->power;
+	struct camera_common_pdata *pdata = s_data->pdata;
+	struct clk *parent;
+	int err = 0;
+
+	if (!pdata || !pw) {
+		dev_err(dev, "power rail missing\n");
+		return -EFAULT;
+	}
+
+	if (pdata->mclk_name) {
+		pw->mclk = devm_clk_get(dev, pdata->mclk_name);
+		if (IS_ERR(pw->mclk)) {
+			dev_err(dev, "clock %s lookup failed (%ld)\n",
+				pdata->mclk_name, PTR_ERR(pw->mclk));
+			return PTR_ERR(pw->mclk);
+		}
+		if (pdata->parentclk_name) {
+			parent = devm_clk_get(dev, pdata->parentclk_name);
+			if (IS_ERR(parent)) {
+				dev_err(dev, "parent clock %s lookup failed (%ld)\n",
+					pdata->parentclk_name, PTR_ERR(parent));
+				return PTR_ERR(parent);
+			}
+			{
+				int perr = clk_set_parent(pw->mclk, parent);
+
+				if (perr)
+					dev_err(dev, "clk_set_parent(%s) failed (%d)\n",
+						pdata->parentclk_name, perr);
+			}
+		}
+		dev_info(dev, "clock %s ready\n", pdata->mclk_name);
+	}
+
+	if (pdata->regulators.avdd)
+		err |= camera_common_regulator_get(dev, &pw->avdd,
+						   pdata->regulators.avdd);
+	if (pdata->regulators.iovdd)
+		err |= camera_common_regulator_get(dev, &pw->iovdd,
+						   pdata->regulators.iovdd);
+	if (pdata->regulators.dvdd)
+		err |= camera_common_regulator_get(dev, &pw->dvdd,
+						   pdata->regulators.dvdd);
+	if (err) {
+		dev_err(dev, "regulator get failed\n");
+		return -EINVAL;
+	}
+
+	pw->reset_gpio = pdata->reset_gpio;
+	if (pw->reset_gpio) {
+		err = gpio_request(pw->reset_gpio, "ov9281_reset");
+		if (err < 0) {
+			dev_err(dev, "reset gpio %u request failed (%d)\n",
+				pw->reset_gpio, err);
+			pw->reset_gpio = 0;
+			return err;
+		}
+		err = gpio_direction_output(pw->reset_gpio, 0);
+		if (err < 0) {
+			gpio_free(pw->reset_gpio);
+			pw->reset_gpio = 0;
+			return err;
+		}
+	}
+
+	pw->state = SWITCH_OFF;
+	return 0;
+}
+
+static int ov9281_power_put(struct tegracam_device *tc_dev)
+{
+	struct camera_common_data *s_data = tc_dev->s_data;
+	struct camera_common_power_rail *pw = s_data->power;
+	if (!pw)
+		return -EFAULT;
+
+	if (pw->dvdd)
+		devm_regulator_put(pw->dvdd);
+	if (pw->avdd)
+		devm_regulator_put(pw->avdd);
+	if (pw->iovdd)
+		devm_regulator_put(pw->iovdd);
+	pw->dvdd = NULL;
+	pw->avdd = NULL;
+	pw->iovdd = NULL;
+
+	if (pw->reset_gpio) {
+		gpio_free(pw->reset_gpio);
+		pw->reset_gpio = 0;
+	}
+	return 0;
+}
+
+static struct camera_common_pdata *ov9281_parse_dt(struct tegracam_device *tc_dev)
+{
+	struct device *dev = tc_dev->dev;
+	struct device_node *np = dev->of_node;
+	struct camera_common_pdata *board;
+	int gpio;
+	int err;
+
+	if (!np)
+		return NULL;
+
+	if (!of_match_device(ov9281_of_match, dev)) {
+		dev_err(dev, "no matching compatible\n");
+		return NULL;
+	}
+
+	board = devm_kzalloc(dev, sizeof(*board), GFP_KERNEL);
+	if (!board)
+		return NULL;
+
+	gpio = of_get_named_gpio(np, "reset-gpios", 0);
+	if (gpio == -EPROBE_DEFER)
+		return ERR_PTR(-EPROBE_DEFER);
+	if (gpio < 0) {
+		dev_err(dev, "reset-gpios missing (%d). CAM0_PWDN is main GPIO H.6\n",
+			gpio);
+		return NULL;
+	}
+	board->reset_gpio = (unsigned int)gpio;
+
+	err = of_property_read_string(np, "mclk", &board->mclk_name);
+	if (err)
+		board->mclk_name = NULL;
+	err = of_property_read_string_index(np, "clock-names", 1,
+					    &board->parentclk_name);
+	if (err)
+		board->parentclk_name = NULL;
+	of_property_read_string(np, "avdd-reg", &board->regulators.avdd);
+	of_property_read_string(np, "iovdd-reg", &board->regulators.iovdd);
+	of_property_read_string(np, "dvdd-reg", &board->regulators.dvdd);
+	board->has_eeprom = of_property_read_bool(np, "has-eeprom");
+	return board;
+}
+
+static int ov9281_read_u8(struct camera_common_data *s_data, u16 reg, u8 *val)
+{
+	return ov9281_read_reg(s_data, reg, val);
+}
+
+/*
+ * 0 off, 1..4 vertical color bars. Register value matches the Rockchip
+ * ov9281 driver: (pattern - 1) | bit7.
+ */
+static const char * const ov9281_test_pattern_menu[] = {
+	"Disabled",
+	"Vertical Color Bar Type 1",
+	"Vertical Color Bar Type 2",
+	"Vertical Color Bar Type 3",
+	"Vertical Color Bar Type 4",
+};
+
+static u8 ov9281_test_pattern_reg(u32 pattern)
+{
+	if (!pattern)
+		return 0;
+	if (pattern > 4)
+		pattern = 4;
+	return (u8)((pattern - 1) | OV9281_TEST_PATTERN_ENABLE);
+}
+
+static s64 ov9281_ctrl_int64(struct camera_common_data *s_data, u32 id, s64 fallback)
+{
+	struct v4l2_ctrl *ctrl;
+
+	if (!s_data || !s_data->ctrl_handler)
+		return fallback;
+	ctrl = v4l2_ctrl_find(s_data->ctrl_handler, id);
+	if (!ctrl)
+		return fallback;
+	if (ctrl->type == V4L2_CTRL_TYPE_INTEGER64 && ctrl->p_cur.p_s64)
+		return *ctrl->p_cur.p_s64;
+	return ctrl->val;
+}
+
+static int ov9281_test_pattern_s_ctrl(struct v4l2_ctrl *ctrl)
+{
+	struct ov9281 *priv = ctrl->priv;
+	struct camera_common_data *s_data;
+	u8 reg;
+	int err = 0;
+
+	if (!priv || !priv->s_data)
+		return -EINVAL;
+	if (ctrl->id != V4L2_CID_TEST_PATTERN)
+		return -EINVAL;
+	s_data = priv->s_data;
+	priv->test_pattern = (u32)ctrl->val;
+	reg = ov9281_test_pattern_reg(priv->test_pattern);
+	if (s_data->power && s_data->power->state == SWITCH_ON)
+		err = ov9281_write_reg(s_data, OV9281_REG_TEST_PATTERN, reg);
+	if (err)
+		dev_err(s_data->dev, "ov9281 test_pattern %u -> 0x5e00=0x%02x failed (%d)\n",
+			priv->test_pattern, reg, err);
+	else
+		dev_info(s_data->dev, "ov9281 test_pattern %u -> 0x5e00=0x%02x\n",
+			 priv->test_pattern, reg);
+	return err;
+}
+
+static const struct v4l2_ctrl_ops ov9281_test_pattern_ops = {
+	.s_ctrl = ov9281_test_pattern_s_ctrl,
+};
+
+/*
+ * tegracam calls set_exposure only when the sensor is already powered.
+ * A v4l2-ctl write before streaming updates the control and returns
+ * success without touching I2C. set_mode then does a software reset,
+ * which clears 0x3500 and 0x3509, and the framework does not replay the
+ * controls. Read them back here and write the sensor.
+ */
+static int ov9281_apply_controls(struct tegracam_device *tc_dev, const char *when)
+{
+	struct ov9281 *priv = tegracam_get_privdata(tc_dev);
+	struct camera_common_data *s_data = tc_dev->s_data;
+	s64 exposure, gain, frame_rate;
+	u8 tp;
+	int err;
+
+	exposure = ov9281_ctrl_int64(s_data, TEGRA_CAMERA_CID_EXPOSURE,
+				     OV9281_DEFAULT_EXPOSURE_US);
+	gain = ov9281_ctrl_int64(s_data, TEGRA_CAMERA_CID_GAIN,
+				 OV9281_DEFAULT_GAIN);
+	frame_rate = ov9281_ctrl_int64(s_data, TEGRA_CAMERA_CID_FRAME_RATE,
+				       OV9281_DEFAULT_FRAME_RATE);
+
+	err = ov9281_set_frame_rate(tc_dev, frame_rate);
+	if (err)
+		return err;
+	err = ov9281_set_exposure(tc_dev, exposure);
+	if (err)
+		return err;
+	err = ov9281_set_gain(tc_dev, gain);
+	if (err)
+		return err;
+	tp = ov9281_test_pattern_reg(priv->test_pattern);
+	err = ov9281_write_reg(s_data, OV9281_REG_TEST_PATTERN, tp);
+	if (err)
+		dev_err(s_data->dev, "ov9281 apply %s test_pattern write failed (%d)\n",
+			when, err);
+	else
+		dev_info(s_data->dev,
+			 "ov9281 apply %s exposure=%lld gain=%lld frame_rate=%lld test_pattern=%u reg5e00=0x%02x\n",
+			 when, exposure, gain, frame_rate, priv->test_pattern, tp);
+	return err;
+}
+
+/*
+ * Window, line time, exposure, gain, MIPI clock, and RAW10/RAW8 selects.
+ * err_data 0x20000 is CAPTURE_CHANNEL_ERROR_FORCE_FE (camrtc-capture.h
+ * bit 17): VI forced frame end. A gated clock (0x4800 bit5) with a
+ * 1456-pixel line, or a RAW8 datatype while VI expects RAW10, does that.
+ *
+ * regs[] order: 3808 3809 380a 380b 380c 380d 380e 380f 4800 3662 030d
+ *               3500 3501 3502 3509 5e00 3503 3208
+ */
+#define OV9281_TIMING_NREGS 18
+
+static const u16 ov9281_timing_addrs[OV9281_TIMING_NREGS] = {
+	0x3808, 0x3809, 0x380a, 0x380b, 0x380c, 0x380d, 0x380e, 0x380f,
+	0x4800, 0x3662, 0x030d,
+	0x3500, 0x3501, 0x3502, 0x3509, OV9281_REG_TEST_PATTERN,
+	OV9281_REG_AEC_CTRL, OV9281_REG_GROUP_UPDATE,
+};
+
+static int ov9281_format_timing(char *buf, size_t len, const u8 *regs)
+{
+	u16 width, height, hts, vts;
+	const char *clock;
+	const char *format;
+
+	width = ((u16)regs[0] << 8) | regs[1];
+	height = ((u16)regs[2] << 8) | regs[3];
+	hts = ((u16)regs[4] << 8) | regs[5];
+	vts = ((u16)regs[6] << 8) | regs[7];
+	clock = (regs[8] & OV9281_MIPI_CLOCK_GATED) ? "gated" : "continuous";
+	if (regs[10] == OV9281_PLL_RAW10 && regs[9] == OV9281_ANA_RAW10)
+		format = "RAW10";
+	else if (regs[10] == OV9281_PLL_RAW8 && regs[9] == OV9281_ANA_RAW8)
+		format = "RAW8";
+	else
+		format = "unknown";
+
+	return scnprintf(buf, len,
+			 "3808=%02x 3809=%02x 380a=%02x 380b=%02x 380c=%02x 380d=%02x 380e=%02x 380f=%02x 4800=%02x 3662=%02x 030d=%02x 3500=%02x 3501=%02x 3502=%02x 3509=%02x 5e00=%02x 3503=%02x 3208=%02x width=%u height=%u hts_px=%u vts=%u clock=%s format=%s",
+			 regs[0], regs[1], regs[2], regs[3], regs[4], regs[5],
+			 regs[6], regs[7], regs[8], regs[9], regs[10],
+			 regs[11], regs[12], regs[13], regs[14], regs[15],
+			 regs[16], regs[17],
+			 width, height, (u32)hts * 2, vts, clock, format);
+}
+
+static int ov9281_read_timing_regs(struct camera_common_data *s_data, u8 *regs,
+				   u16 *failed_addr)
+{
+	int i;
+	int err = 0;
+
+	for (i = 0; i < OV9281_TIMING_NREGS; i++) {
+		err = ov9281_read_u8(s_data, ov9281_timing_addrs[i], &regs[i]);
+		if (err) {
+			if (failed_addr)
+				*failed_addr = ov9281_timing_addrs[i];
+			return err;
+		}
+	}
+	return 0;
+}
+
+static void ov9281_store_timing_cache(struct camera_common_data *s_data, const char *line)
+{
+	struct ov9281 *priv = s_data->priv;
+
+	if (!priv)
+		return;
+	scnprintf(priv->timing_cache, sizeof(priv->timing_cache), "%s", line);
+	priv->timing_cache_valid = true;
+}
+
+static int ov9281_log_timing(struct camera_common_data *s_data, const char *when)
+{
+	u8 regs[OV9281_TIMING_NREGS];
+	char line[512];
+	u16 width, height, hts;
+	u16 failed = 0;
+	int err;
+
+	err = ov9281_read_timing_regs(s_data, regs, &failed);
+	if (err) {
+		dev_err(s_data->dev, "ov9281 timing %s read 0x%04x failed (%d)\n",
+			when, failed, err);
+		return err;
+	}
+	ov9281_format_timing(line, sizeof(line), regs);
+	ov9281_store_timing_cache(s_data, line);
+	dev_info(s_data->dev, "ov9281 timing %s %s\n", when, line);
+	{
+		struct ov9281 *priv = s_data->priv;
+		u32 got = ((u32)regs[11] << 16) | ((u32)regs[12] << 8) | regs[13];
+
+		if (priv && priv->exposure_packed && got != priv->exposure_packed)
+			dev_err(s_data->dev,
+				"ov9281 exposure readback 0x%06x wanted 0x%06x\n",
+				got, priv->exposure_packed);
+		if (priv && priv->gain_code && regs[14] != priv->gain_code)
+			dev_err(s_data->dev,
+				"ov9281 gain readback 0x%02x wanted 0x%02x\n",
+				regs[14], priv->gain_code);
+	}
+
+	width = ((u16)regs[0] << 8) | regs[1];
+	height = ((u16)regs[2] << 8) | regs[3];
+	hts = ((u16)regs[4] << 8) | regs[5];
+	if (width != 1280 || (height != 800 && height != 720) ||
+	    !(regs[10] == OV9281_PLL_RAW10 && regs[9] == OV9281_ANA_RAW10) ||
+	    (regs[8] & OV9281_MIPI_CLOCK_GATED) ||
+	    (u32)hts * 2 != OV9281_LINE_LENGTH) {
+		dev_err(s_data->dev,
+			"ov9281 timing mismatch: want 1280x800 or 1280x720 RAW10 continuous line %u\n",
+			OV9281_LINE_LENGTH);
+	}
+	return 0;
+}
+
+static ssize_t ov9281_timing_show(struct device *dev,
+				   struct device_attribute *attr, char *buf)
+{
+	struct camera_common_data *s_data = to_camera_common_data(dev);
+	struct ov9281 *priv;
+	u8 regs[OV9281_TIMING_NREGS];
+	char line[512];
+	u16 failed = 0;
+	int err;
+
+	(void)attr;
+	if (!s_data)
+		return -ENODEV;
+	priv = s_data->priv;
+	err = ov9281_read_timing_regs(s_data, regs, &failed);
+	if (err) {
+		if (priv && priv->timing_cache_valid)
+			return sysfs_emit(buf, "%s source=cached\n", priv->timing_cache);
+		return sysfs_emit(buf, "read 0x%04x failed (%d)\n", failed, err);
+	}
+	ov9281_format_timing(line, sizeof(line), regs);
+	ov9281_store_timing_cache(s_data, line);
+	return sysfs_emit(buf, "%s source=live\n", line);
+}
+
+static DEVICE_ATTR_RO(ov9281_timing);
+
+static int ov9281_set_bitdepth(struct camera_common_data *s_data, u8 bpp)
+{
+	int err;
+
+	if (bpp == 8) {
+		err = ov9281_write_reg(s_data, OV9281_REG_PLL_CTRL_0D, OV9281_PLL_RAW8);
+		if (err)
+			return err;
+		return ov9281_write_reg(s_data, OV9281_REG_ANA_CORE_2, OV9281_ANA_RAW8);
+	}
+	err = ov9281_write_reg(s_data, OV9281_REG_PLL_CTRL_0D, OV9281_PLL_RAW10);
+	if (err)
+		return err;
+	return ov9281_write_reg(s_data, OV9281_REG_ANA_CORE_2, OV9281_ANA_RAW10);
+}
+
+static int ov9281_set_mode(struct tegracam_device *tc_dev)
+{
+	struct ov9281 *priv = tegracam_get_privdata(tc_dev);
+	struct camera_common_data *s_data = tc_dev->s_data;
+	const struct ov9281_mode *mode;
+	int err;
+
+	mode = ov9281_current_mode(s_data);
+	if (!mode) {
+		dev_err(tc_dev->dev, "sensor mode %d out of range\n", s_data->mode);
+		return -EINVAL;
+	}
+
+	err = ov9281_write_reg(s_data, OV9281_REG_SOFTWARE_RESET, 0x01);
+	if (err)
+		return err;
+	msleep(10);
+
+	err = ov9281_write_table(priv, ov9281_common_regs);
+	if (err) {
+		dev_err(tc_dev->dev, "common registers failed (%d)\n", err);
+		return err;
+	}
+	err = ov9281_write_table(priv, mode->timing);
+	if (err) {
+		dev_err(tc_dev->dev, "mode %d timing failed (%d)\n", s_data->mode, err);
+		return err;
+	}
+	err = ov9281_set_bitdepth(s_data, mode->bpp);
+	if (err)
+		return err;
+
+	priv->frame_length = ov9281_frame_length_for_fps(mode, OV9281_DEFAULT_FPS);
+	err = ov9281_write_hts_vts(s_data, mode, priv->frame_length);
+	if (err)
+		return err;
+
+	/*
+	 * Software reset cleared exposure and gain. Replay the V4L2 values
+	 * before the framework's range update, and again in start_streaming
+	 * after that update (it can clamp an out-of-range INTEGER64 to min).
+	 */
+	err = ov9281_apply_controls(tc_dev, "set_mode");
+	if (err)
+		return err;
+
+	dev_info(tc_dev->dev, "mode %d %ux%u RAW%u VTS %u line %u mbus 0x%x\n",
+		 s_data->mode, mode->width, mode->height, mode->bpp,
+		 priv->frame_length, mode->line_length, ov9281_mbus_code(mode));
+	ov9281_log_timing(s_data, "set_mode");
+	return 0;
+}
+
+static int ov9281_start_streaming(struct tegracam_device *tc_dev)
+{
+	struct camera_common_data *s_data = tc_dev->s_data;
+	int err;
+
+	err = ov9281_apply_controls(tc_dev, "stream");
+	if (err)
+		return err;
+	ov9281_log_timing(s_data, "stream");
+	return ov9281_write_reg(s_data, OV9281_REG_MODE_SELECT, OV9281_MODE_STREAMING);
+}
+
+static int ov9281_stop_streaming(struct tegracam_device *tc_dev)
+{
+	struct camera_common_data *s_data = tc_dev->s_data;
+
+	dev_dbg(tc_dev->dev, "stop streaming\n");
+	return ov9281_write_reg(s_data, OV9281_REG_MODE_SELECT, OV9281_MODE_STANDBY);
+}
+
+static struct camera_common_sensor_ops ov9281_common_ops = {
+	.numfrmfmts = ARRAY_SIZE(ov9281_frmfmt),
+	.frmfmt_table = ov9281_frmfmt,
+	.power_on = ov9281_power_on,
+	.power_off = ov9281_power_off,
+	.write_reg = ov9281_write_reg,
+	.read_reg = ov9281_read_reg,
+	.parse_dt = ov9281_parse_dt,
+	.power_get = ov9281_power_get,
+	.power_put = ov9281_power_put,
+	.set_mode = ov9281_set_mode,
+	.start_streaming = ov9281_start_streaming,
+	.stop_streaming = ov9281_stop_streaming,
+};
+
+static int ov9281_read_chip_id(struct camera_common_data *s_data, u16 *id)
+{
+	u8 hi = 0, lo = 0;
+	int err;
+
+	err = ov9281_read_reg(s_data, OV9281_REG_CHIP_ID, &hi);
+	if (err)
+		return err;
+	err = ov9281_read_reg(s_data, OV9281_REG_CHIP_ID + 1, &lo);
+	if (err)
+		return err;
+	*id = ((u16)hi << 8) | lo;
+	return 0;
+}
+
+static int ov9281_enable_mclk(struct camera_common_data *s_data)
+{
+	struct camera_common_power_rail *pw = s_data->power;
+	unsigned long rate;
+	int err;
+
+	if (!pw || !pw->mclk) {
+		dev_err(s_data->dev, "mclk is not available\n");
+		return -ENODEV;
+	}
+	rate = s_data->def_clk_freq ? s_data->def_clk_freq : OV9281_MCLK_HZ;
+	err = clk_set_rate(pw->mclk, rate);
+	if (err) {
+		dev_err(s_data->dev, "clk_set_rate(%lu) failed (%d)\n", rate, err);
+		return err;
+	}
+	err = clk_prepare_enable(pw->mclk);
+	if (err) {
+		dev_err(s_data->dev, "mclk enable failed (%d)\n", err);
+		return err;
+	}
+	dev_info(s_data->dev, "mclk enabled at %lu Hz\n", rate);
+	return 0;
+}
+
+static int ov9281_board_setup(struct ov9281 *priv)
+{
+	struct camera_common_data *s_data = priv->s_data;
+	struct device *dev = s_data->dev;
+	struct camera_common_power_rail *pw = s_data->power;
+	u16 id = 0;
+	int err;
+	int id_err;
+	bool powered = false;
+	bool clock_on = false;
+
+	err = ov9281_enable_mclk(s_data);
+	if (err) {
+		dev_err(dev, "mclk before chip-id read failed (%d)\n", err);
+	} else {
+		clock_on = true;
+		dev_info(dev, "power on for chip-id (reset gpio %u)\n",
+			 pw && pw->reset_gpio ? pw->reset_gpio : 0);
+		err = ov9281_power_on(s_data);
+		if (err)
+			dev_err(dev, "power on before chip-id read failed (%d)\n", err);
+		else
+			powered = true;
+	}
+
+	id_err = ov9281_read_chip_id(s_data, &id);
+	if (id_err) {
+		dev_err(dev, "chip id read failed (%d)\n", id_err);
+		if (!err)
+			err = id_err;
+	} else if (id != OV9281_CHIP_ID) {
+		dev_err(dev, "chip id 0x%04x != 0x%04x\n", id, OV9281_CHIP_ID);
+		if (!err)
+			err = -ENODEV;
+	} else {
+		dev_info(dev, "ov9281 chip id 0x%04x at i2c addr 0x%02x\n",
+			 id, priv->i2c_client->addr);
+	}
+
+	if (powered)
+		ov9281_power_off(s_data);
+	if (clock_on && pw && pw->mclk)
+		clk_disable_unprepare(pw->mclk);
+	return err;
+}
+
+static void ov9281_program_one_default(struct camera_common_data *s_data,
+				      u32 id, s64 val, const char *name)
+{
+	struct v4l2_ctrl *ctrl;
+	int err;
+
+	if (!s_data || !s_data->ctrl_handler)
+		return;
+	ctrl = v4l2_ctrl_find(s_data->ctrl_handler, id);
+	if (!ctrl) {
+		dev_err(s_data->dev, "ov9281 missing %s control\n", name);
+		return;
+	}
+	err = v4l2_ctrl_s_ctrl_int64(ctrl, val);
+	if (err)
+		dev_err(s_data->dev, "ov9281 default %s=%lld failed (%d)\n", name, val, err);
+	else
+		dev_info(s_data->dev, "ov9281 default %s=%lld\n", name, val);
+}
+
+/*
+ * tegracam_init_ctrl_ranges() runs inside handler init, while the sensor
+ * is off. For INTEGER64, v4l2 clamps a current value of 0 up to the
+ * minimum and does not move it to the DT default. Push the defaults
+ * into the controls here. Power is still off, so this only updates the
+ * V4L2 cache; ov9281_apply_controls writes the sensor at stream start.
+ */
+static void ov9281_program_ctrl_defaults(struct camera_common_data *s_data)
+{
+	ov9281_program_one_default(s_data, TEGRA_CAMERA_CID_EXPOSURE,
+				   OV9281_DEFAULT_EXPOSURE_US, "exposure");
+	ov9281_program_one_default(s_data, TEGRA_CAMERA_CID_GAIN,
+				   OV9281_DEFAULT_GAIN, "gain");
+	ov9281_program_one_default(s_data, TEGRA_CAMERA_CID_FRAME_RATE,
+				   OV9281_DEFAULT_FRAME_RATE, "frame_rate");
+}
+
+static struct video_device *ov9281_video_downstream(struct media_entity *entity, int depth)
+{
+	struct media_link *link;
+
+	if (!entity || depth > 6)
+		return NULL;
+	if (entity->obj_type == MEDIA_ENTITY_TYPE_VIDEO_DEVICE)
+		return media_entity_to_video_device(entity);
+	list_for_each_entry(link, &entity->links, list) {
+		struct video_device *vdev;
+
+		if (link->source->entity != entity)
+			continue;
+		vdev = ov9281_video_downstream(link->sink->entity, depth + 1);
+		if (vdev)
+			return vdev;
+	}
+	return NULL;
+}
+
+static void ov9281_install_test_pattern(struct ov9281 *priv)
+{
+	struct v4l2_ctrl_handler *hdl;
+	struct v4l2_ctrl *ctrl;
+	struct video_device *vdev;
+	int err;
+
+	if (!priv || !priv->s_data || !priv->s_data->ctrl_handler)
+		return;
+	hdl = priv->s_data->ctrl_handler;
+	ctrl = v4l2_ctrl_new_std_menu_items(hdl, &ov9281_test_pattern_ops,
+					    V4L2_CID_TEST_PATTERN,
+					    ARRAY_SIZE(ov9281_test_pattern_menu) - 1,
+					    0, 0, ov9281_test_pattern_menu);
+	if (!ctrl) {
+		dev_err(priv->s_data->dev, "ov9281 test_pattern control failed (%d)\n",
+			hdl->error);
+		return;
+	}
+	ctrl->priv = priv;
+	priv->test_pattern = 0;
+
+	/*
+	 * VI copies the sensor handler when the channel binds, which is
+	 * inside tegracam_v4l2subdev_register, before this control exists.
+	 * Push the new control onto that video node. If the node is not
+	 * linked yet, the later copy takes the whole handler.
+	 */
+	if (!priv->subdev)
+		return;
+	vdev = ov9281_video_downstream(&priv->subdev->entity, 0);
+	if (!vdev || !vdev->ctrl_handler) {
+		dev_info(priv->s_data->dev,
+			 "ov9281 test_pattern is on the sensor; video node not linked yet\n");
+		return;
+	}
+	err = v4l2_ctrl_add_handler(vdev->ctrl_handler, hdl, NULL, false);
+	if (err)
+		dev_err(priv->s_data->dev,
+			"ov9281 test_pattern inherit on %s failed (%d)\n",
+			video_device_node_name(vdev), err);
+	else
+		dev_info(priv->s_data->dev, "ov9281 test_pattern on %s\n",
+			 video_device_node_name(vdev));
+}
+
+static int ov9281_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+
+	(void)fh;
+	dev_dbg(&client->dev, "subdev open\n");
+	return 0;
+}
+
+static const struct v4l2_subdev_internal_ops ov9281_subdev_internal_ops = {
+	.open = ov9281_open,
+};
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 3, 0)
+static int ov9281_probe(struct i2c_client *client)
+#else
+static int ov9281_probe(struct i2c_client *client, const struct i2c_device_id *id)
+#endif
+{
+	struct device *dev = &client->dev;
+	struct tegracam_device *tc_dev;
+	struct ov9281 *priv;
+	int err;
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 3, 0)
+	(void)id;
+#endif
+	dev_info(dev, "probing ov9281 at i2c addr 0x%02x\n", client->addr);
+
+	if (!IS_ENABLED(CONFIG_OF) || !client->dev.of_node)
+		return -EINVAL;
+
+	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
+	tc_dev = devm_kzalloc(dev, sizeof(*tc_dev), GFP_KERNEL);
+	if (!tc_dev)
+		return -ENOMEM;
+
+	priv->i2c_client = client;
+	tc_dev->client = client;
+	tc_dev->dev = dev;
+	strscpy(tc_dev->name, "ov9281", sizeof(tc_dev->name));
+	tc_dev->dev_regmap_config = &ov9281_regmap_config;
+	tc_dev->sensor_ops = &ov9281_common_ops;
+	tc_dev->v4l2sd_internal_ops = &ov9281_subdev_internal_ops;
+	tc_dev->tcctrl_ops = &ov9281_ctrl_ops;
+
+	err = tegracam_device_register(tc_dev);
+	if (err) {
+		dev_err(dev, "tegracam register failed (%d)\n", err);
+		return err;
+	}
+
+	priv->tc_dev = tc_dev;
+	priv->s_data = tc_dev->s_data;
+	priv->subdev = &tc_dev->s_data->subdev;
+	tegracam_set_privdata(tc_dev, priv);
+
+	err = ov9281_board_setup(priv);
+	if (err) {
+		dev_err(dev, "board setup failed (%d)\n", err);
+		goto unregister;
+	}
+
+	err = tegracam_v4l2subdev_register(tc_dev, true);
+	if (err) {
+		dev_err(dev, "v4l2 subdev register failed (%d)\n", err);
+		goto unregister;
+	}
+
+	ov9281_install_test_pattern(priv);
+	ov9281_program_ctrl_defaults(priv->s_data);
+
+	err = device_create_file(dev, &dev_attr_ov9281_timing);
+	if (err) {
+		dev_err(dev, "ov9281_timing sysfs failed (%d)\n", err);
+		goto unregister_subdev;
+	}
+
+	dev_info(dev, "ov9281 registered. Argus cannot process mono; use V4L2\n");
+	return 0;
+
+unregister_subdev:
+	tegracam_v4l2subdev_unregister(tc_dev);
+unregister:
+	tegracam_device_unregister(tc_dev);
+	return err;
+}
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
+static void ov9281_remove(struct i2c_client *client)
+#else
+static int ov9281_remove(struct i2c_client *client)
+#endif
+{
+	struct camera_common_data *s_data = to_camera_common_data(&client->dev);
+	struct ov9281 *priv;
+
+	if (!s_data)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
+		return;
+#else
+		return 0;
+#endif
+	priv = s_data->priv;
+	device_remove_file(&client->dev, &dev_attr_ov9281_timing);
+	if (priv && priv->tc_dev) {
+		tegracam_v4l2subdev_unregister(priv->tc_dev);
+		tegracam_device_unregister(priv->tc_dev);
+	}
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 1, 0)
+	return 0;
+#endif
+}
+
+static const struct i2c_device_id ov9281_id[] = {
+	{ "ov9281", 0 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, ov9281_id);
+
+static struct i2c_driver ov9281_i2c_driver = {
+	.driver = {
+		.name = "ov9281",
+		.owner = THIS_MODULE,
+		.of_match_table = of_match_ptr(ov9281_of_match),
+	},
+	.probe = ov9281_probe,
+	.remove = ov9281_remove,
+	.id_table = ov9281_id,
+};
+
+module_i2c_driver(ov9281_i2c_driver);
+
+MODULE_DESCRIPTION("NVIDIA tegracam driver for OmniVision OV9281 mono global shutter");
+MODULE_AUTHOR("AIRVIX");
+MODULE_LICENSE("GPL");
+MODULE_SOFTDEP("pre: tegra-camera");
