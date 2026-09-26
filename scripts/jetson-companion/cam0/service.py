@@ -174,7 +174,8 @@ class Cam0Service:
                     continue
                 self._pump()
             except Exception as exc:
-                self.error = type(exc).__name__
+                from .v4l2cap import describe_capture_error
+                self.error = describe_capture_error(exc)
                 self.state = "read_failed"
                 self.camera_ok = False
                 if self.source is not None and hasattr(self.source, "close"):

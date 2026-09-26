@@ -1,5 +1,16 @@
 [
   {
+    "version": "1.02.337",
+    "date": "2026-09-26",
+    "changes": [
+      {
+        "type": "chore",
+        "title": "Build scripts",
+        "detail": "rawfmt.py, service.py, v4l2cap.py, verify_hardware.py, test_v4l2cap.py"
+      }
+    ]
+  },
+  {
     "version": "1.02.336",
     "date": "2026-09-26",
     "changes": [
