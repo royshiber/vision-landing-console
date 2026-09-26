@@ -23,6 +23,29 @@
             <span class="conn-pill-caret" aria-hidden="true">▾</span>
           </button>
           <div id="connectPanel" class="conn-panel" hidden>
+            <section id="workLinkPicker" class="work-link-picker" aria-label="קישור לעבודה">
+              <h3 class="conn-link-title">קישור לעבודה</h3>
+              <p id="workLinkPath" class="work-link-path">נתיב פעיל: אוטומטי</p>
+              <div class="work-link-choices">
+                <label><input type="radio" name="workLink" id="workLinkAuto" value="auto" checked /> אוטומטי</label>
+                <label><input type="radio" name="workLink" id="workLinkHome" value="home" /> רשת בית</label>
+                <label><input type="radio" name="workLink" id="workLinkCellular" value="cellular" /> סלולר</label>
+                <label><input type="radio" name="workLink" id="workLinkRf" value="rf" /> RF</label>
+              </div>
+              <p id="rfReducedReason" class="work-link-reason" hidden>במצב RF אין וידאו</p>
+              <p id="rfCompanionLine" class="work-link-reason" hidden></p>
+              <div class="work-link-serial">
+                <label class="conn-panel-field">פורט
+                  <select id="rfComPort" class="conn-select" dir="ltr" title="פורט RF"></select>
+                </label>
+                <label class="conn-panel-field">קצב
+                  <select id="rfBaud" class="conn-select" dir="ltr" title="קצב RF">
+                    <option>9600</option><option>19200</option><option>38400</option>
+                    <option selected>57600</option><option>115200</option><option>230400</option>
+                  </select>
+                </label>
+              </div>
+            </section>
             <p id="connectApiUpgradeHint" class="conn-upgrade-hint hidden" role="alert"></p>
             <ul id="commLinkRows" class="comm-link-rows" aria-label="קישורי תקשורת">
               <li class="comm-link-row" data-link="cellular" data-state="absent" data-tone="off" data-active="0">

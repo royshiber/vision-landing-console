@@ -64,7 +64,15 @@ function attitudeOf(gimbal) {
   };
 }
 
+function rfWork() {
+  return typeof document !== 'undefined' && document.body?.dataset?.workPath === 'rf';
+}
+
 export function gimbalPadView(companion) {
+  if (rfWork()) {
+    const locked = document.body?.dataset?.rfGimbalMode === 'lock';
+    return { enabled: true, reasonHe: '', locked };
+  }
   const reachable = companion?.reachable === true && companion?.mode !== 'off';
   const gimbal = gimbalSnapshot(companion);
   const locked = gimbal?.mode === 'lock';
@@ -113,7 +121,34 @@ function unwrap(body) {
   return body;
 }
 
-async function postJson(url, body) {
+function postJson(url, body) {
+  if (rfWork()) {
+    let action = 'rate';
+    if (String(url).includes('zoom')) action = 'zoom';
+    else if (String(url).includes('mode')) action = 'mode';
+    return postRf({ kind: 'gimbal', action, ...body });
+  }
+  return postHttp(url, body);
+}
+
+async function postRf(body) {
+  const res = await fetch('/api/links/rf-action', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  let parsed = null;
+  try { parsed = await res.json(); } catch { parsed = null; }
+  if (!res.ok) {
+    const err = new Error('gimbal');
+    err.status = res.status;
+    err.body = unwrap(parsed) || parsed;
+    throw err;
+  }
+  return unwrap(parsed);
+}
+
+async function postHttp(url, body) {
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
