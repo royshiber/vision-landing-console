@@ -5,28 +5,8 @@
     "changes": [
       {
         "type": "feat",
-        "title": "Server library",
-        "detail": "app-update.mjs, companion-api-client.mjs, companion-connection.mjs, companion-service.mjs, jetson-companion-proxy.mjs, app-update-api.mjs, companion-connection-api.mjs, http-register.mjs"
-      },
-      {
-        "type": "feat",
-        "title": "UI / app.js",
-        "detail": "app.js"
-      },
-      {
-        "type": "feat",
-        "title": "Server routes",
-        "detail": "server.js"
-      },
-      {
-        "type": "ui",
-        "title": "HTML layout",
-        "detail": "index.html"
-      },
-      {
-        "type": "ui",
-        "title": "Styles",
-        "detail": "styles.css"
+        "title": "הודעת עדכון בקונסולה ועדכון בלחיצה",
+        "detail": "APP_VERSION 1.02.332. כשיש גרסה חדשה ב־master מופיע פס בעברית עם כפתור עדכן עכשיו ואחר כך. העדכון רץ בנפרד, שומר הגדרות ונתונים, ומשאיר עותק לחזרה אם הוא נכשל. חסום כשהמטוס חמוש או באוויר. כתובת מחשב המשימה יכולה להיות שתי כתובות, והקונסולה נשארת על הראשונה שמגיבה. אין פקודות טיסה."
       }
     ]
   },
