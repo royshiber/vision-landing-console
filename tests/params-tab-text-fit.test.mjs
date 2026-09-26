@@ -275,6 +275,10 @@ print(len(thumbs))
       await page.waitForSelector('#paramSubtabSelect');
       await page.selectOption('#paramSubtabSelect', 'ardu-ekf');
       await page.waitForSelector('#fcGroupList [data-param-key="EK3_ENABLE"]');
+      const closedWizard = await page.locator('#autoConfig').evaluate((el) => getComputedStyle(el).display);
+      expect(closedWizard, `${vp.name} wizard closed`).toBe('none');
+      const listH = await page.locator('#fcGroupList').evaluate((el) => el.clientHeight);
+      expect(listH, `${vp.name} group list`).toBeGreaterThanOrEqual(120);
       await audit(`${vp.name} no-read`);
       expect(await page.locator('[data-param-key="EK3_ENABLE"] .fc-group-now').innerText()).toBe('לא ידוע');
       expect(await page.locator('[data-param-key="EK3_ENABLE"] .fc-group-next').getAttribute('placeholder')).toBe('—');
@@ -361,8 +365,56 @@ print(len(thumbs))
 
       await page.click('[data-subtab="autoConfig"]');
       await page.waitForSelector('#acWhatList .ac-choice', { timeout: 15000 });
+      const wizardFit = await page.evaluate(() => {
+        const ask = document.querySelector('.assist-toggle-btn');
+        const body = document.querySelector('.ac-step-body');
+        const br = body.getBoundingClientRect();
+        const covered = [];
+        for (const el of document.querySelectorAll('#acWhatList .ac-choice, .ac-step-nav button, #acApplyBtn')) {
+          const r = el.getBoundingClientRect();
+          if (r.width < 2 || r.height < 2 || r.top > br.bottom - 4 || r.bottom < br.top + 4) continue;
+          const y = Math.min(br.bottom - 4, Math.max(br.top + 4, r.top + 12));
+          const x = Math.min(r.right - 8, Math.max(r.left + 8, (r.left + r.right) / 2));
+          const hit = document.elementFromPoint(x, y);
+          if (hit === ask || (ask && ask.contains(hit))) covered.push((el.id || el.textContent || '').trim().slice(0, 24));
+        }
+        return { body: body.clientHeight, covered };
+      });
+      expect(wizardFit.body, `${vp.name} wizard body`).toBeGreaterThanOrEqual(80);
+      expect(wizardFit.covered, `${vp.name} ask covers wizard`).toEqual([]);
+      await page.locator('#acWhatList .ac-choice').first().click();
+      await page.waitForSelector('#acWhereList .ac-choice');
+      await page.locator('#acWhereList .ac-choice').first().click();
+      await page.locator('#acApplyBtn').scrollIntoViewIfNeeded();
+      await page.waitForFunction(() => {
+        const el = document.getElementById('acApplyBtn');
+        const r = el?.getBoundingClientRect();
+        return r && r.height > 20 && r.top < window.innerHeight && r.bottom > 0;
+      });
+      const applyHit = await page.evaluate(() => {
+        const ask = document.querySelector('.assist-toggle-btn');
+        const el = document.getElementById('acApplyBtn');
+        const r = el.getBoundingClientRect();
+        const x = Math.min(r.right - 8, Math.max(r.left + 8, (r.left + r.right) / 2));
+        const y = Math.min(r.bottom - 4, Math.max(r.top + 4, r.top + r.height / 2));
+        const hit = document.elementFromPoint(x, y);
+        return { covered: !!(hit === ask || (ask && ask.contains(hit))), h: Math.round(r.height) };
+      });
+      expect(applyHit.covered, `${vp.name} ask covers apply`).toBe(false);
+      expect(applyHit.h, `${vp.name} apply`).toBeGreaterThan(20);
       await audit(`${vp.name} wizard`);
       await shot(`${vp.name}-wizard`);
+
+      await page.fill('#arduParamSearchInput', 'GPS');
+      await page.click('#arduParamSmartSearchBtn');
+      await page.waitForSelector('.ardu-smart-result-card', { timeout: 20000 });
+      const smart = await page.locator('#arduSmartSearchResults').innerText();
+      expect(smart, `${vp.name} smart current`).toContain('לא ידוע');
+      expect(smart, `${vp.name} smart score`).not.toContain('התאמה');
+      expect(smart, `${vp.name} smart fake`).not.toMatch(/ערך נוכחי:\s*(900|1000)\b/);
+      await audit(`${vp.name} smart`);
+      await shot(`${vp.name}-smart`);
+      await page.click('#arduParamSearchClearBtn');
     }
 
     readArmed = true;
@@ -374,4 +426,25 @@ print(len(thumbs))
     expect(await page.locator('.fc-file-restore').getAttribute('title')).toContain('חמוש');
     await shot('360x740-restore-armed');
   }, 300000);
+
+  it('shows a failed FC write when there is no link', async () => {
+    const clean = await browser.newPage();
+    await clean.addInitScript(() => { try { sessionStorage.clear(); } catch { /* ignore */ } });
+    await clean.setViewportSize({ width: 1024, height: 576 });
+    await clean.goto(BASE, { waitUntil: 'domcontentloaded' });
+    await clean.click('[data-tab="control"]');
+    await clean.waitForSelector('#arduWriteBtn');
+    expect(await clean.locator('#arduWriteBtn').isDisabled()).toBe(true);
+    await clean.evaluate(() => { document.getElementById('arduWriteBtn').disabled = false; });
+    await clean.click('#arduWriteBtn');
+    await clean.waitForFunction(() => (document.getElementById('paramToolFaultText')?.textContent || '').includes('אין קישור'));
+    const cls = await clean.locator('#arduWriteStatus').getAttribute('class');
+    expect(cls).toContain('fail');
+    expect(cls).not.toContain('success');
+    expect(await clean.locator('#arduWriteBtn').isDisabled()).toBe(true);
+    const file = path.join(qaDir, '1024x576-write-no-link.png');
+    await clean.screenshot({ path: file, fullPage: false });
+    shots.push(file);
+    await clean.close();
+  }, 60000);
 });

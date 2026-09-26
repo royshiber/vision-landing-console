@@ -659,7 +659,7 @@
               <p id="fcToolMeta" class="param-tool-meta">קריאה אחרונה: לא ידוע · לא מסונכרן: לא ידוע</p>
               <div class="param-tool-actions">
                 <button type="button" id="arduReadBtn" class="param-tool-btn param-tool-btn--primary" title="קורא פרמטרים מה-FC דרך MAVLink">קריאה</button>
-                <button type="button" id="arduWriteBtn" class="param-tool-btn param-tool-btn--secondary" title="שולח יעדי ArduPilot ל-FC דרך MAVLink">כתיבה</button>
+                <button type="button" id="arduWriteBtn" class="param-tool-btn param-tool-btn--secondary" disabled title="אין קישור לבקר. הכתיבה חסומה.">כתיבה</button>
               </div>
             </section>
             <div class="param-tool-files">
@@ -691,6 +691,7 @@
           <div id="arduSearchStatus" class="vision-config-status param-center-search-status" aria-live="polite"></div>
           <div id="arduSmartSearchResults" class="ardu-smart-results hidden param-center-smart-results" aria-live="polite"></div>
         </div>
+        <div id="paramSyncBanner" class="param-sync-banner param-sync-banner--info" role="status" aria-live="polite"></div>
         <div id="autoLogsBanner" class="auto-logs-banner hidden" role="status" aria-live="polite"></div>
         <section id="plndProfileHonesty" class="plnd-honesty" aria-label="פרופיל נחיתה לפי ראייה">
           <header class="plnd-honesty-head">
@@ -798,7 +799,6 @@
           </div>
         </div>
 
-        <div id="paramSyncBanner" class="param-sync-banner param-sync-banner--info" role="status" aria-live="polite"></div>
         <pre id="configText" class="config-text-hidden" aria-hidden="true"></pre>
       </section>
 

@@ -20054,7 +20054,7 @@ body:has(#control.panel.visible) .ardu-top-cats-host {
     grid-template-columns: minmax(0, 1fr);
   }
   .param-tool-seg {
-    flex-basis: 100%;
+    flex: 1 1 0;
   }
 }
 
@@ -20343,12 +20343,12 @@ body:has(#control.panel.visible) .ardu-top-cats-host {
 }
 
 #control.panel.visible {
-  padding-bottom: 96px;
+  padding-bottom: 40px;
 }
 #control.panel.visible > .subpanel.visible {
   flex: 1 1 auto;
   min-height: 0;
-  overflow: auto;
+  overflow: hidden;
 }
 #control.panel.visible > #paramSyncBanner {
   flex: 0 0 auto;
@@ -20407,6 +20407,117 @@ body:has(#control.panel.visible) .ardu-top-cats-host {
     padding: 8px 4px;
     min-width: 0;
     width: 100%;
+  }
+}
+
+/* Params tab: selected list and wizard fill the space above the Ask button.
+   The wizard stays closed until its subtab is chosen. */
+.param-toolbar {
+  align-items: flex-start;
+}
+#control.panel.visible #arduWriteStatus,
+#control.panel.visible #visionConfigStatus {
+  position: static;
+  width: auto;
+  height: auto;
+  clip: auto;
+  overflow: visible;
+  flex: 1 1 100%;
+  min-width: 0;
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+@media (min-width: 721px) {
+  #control.panel.visible #arduWriteStatus,
+  #control.panel.visible #visionConfigStatus {
+    flex: 1 1 180px;
+    align-self: center;
+  }
+}
+@media (max-width: 720px) {
+  #control.panel.visible {
+    padding-bottom: 56px;
+  }
+  #control.panel.visible .param-tool-seg {
+    flex: 1 1 0;
+    gap: 2px;
+  }
+  #control.panel.visible .param-tool-files {
+    flex: 1 1 100%;
+  }
+  #control.panel.visible .param-tool-actions {
+    flex-wrap: nowrap;
+  }
+  #control.panel.visible .ac-step-head {
+    padding: 4px 8px;
+    gap: 4px;
+  }
+  #control.panel.visible .ac-step-nav {
+    flex-wrap: nowrap;
+  }
+  #control.panel.visible .ac-step-nav button {
+    min-height: 28px;
+    padding: 2px 8px;
+    white-space: nowrap;
+  }
+  #control.panel.visible .ac-saved {
+    max-height: 40px;
+    padding: 4px 8px;
+  }
+}
+#control.panel.visible #arduWriteStatus:empty,
+#control.panel.visible #visionConfigStatus:empty {
+  display: none;
+}
+#control.panel.visible #autoConfig.subpanel.visible.ac-panel {
+  height: auto;
+  min-height: 0;
+  overflow: hidden;
+}
+#control.panel.visible #autoConfig .ac-step-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+#control.panel.visible #autoConfig .ac-saved {
+  flex: 0 1 auto;
+  max-height: 64px;
+  overflow: auto;
+}
+#arduParams.ardu-params--group .fc-group-list {
+  min-height: 120px;
+}
+#control.panel.visible .param-tool-btn.ardu-write-disconnected,
+#control.panel.visible #arduWriteBtn:disabled {
+  border-color: rgba(252, 165, 165, 0.75);
+  color: #fecaca;
+}
+@media (max-height: 820px), (max-width: 720px) {
+  #control.panel.visible .panel-header {
+    margin-bottom: 0;
+  }
+  #control.panel.visible .param-tool-seg {
+    padding: 4px 6px;
+    gap: 2px;
+  }
+  #control.panel.visible .param-tool-btn {
+    min-height: 28px;
+    padding: 4px 8px;
+  }
+  #control.panel.visible .param-center-search-bar {
+    padding: 2px 0;
+    margin-bottom: 0;
+    gap: 2px;
+  }
+  #control.panel.visible > #paramSyncBanner {
+    padding: 4px 8px;
+    margin-bottom: 4px;
+  }
+  #control.panel.visible .fc-group-pane {
+    gap: 4px;
   }
 }
 

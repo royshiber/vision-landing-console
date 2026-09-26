@@ -2030,18 +2030,22 @@ wireArduCategorySubtabsOnce();
 
     const buildCard = (m, isOutside) => {
       const he = cleanHe(m.label_he, m.param_key) || cleanHe(m.label_en, m.param_key) || m.param_key;
-      const conf = Number.isFinite(Number(m.confidence)) ? Math.round(Number(m.confidence) * 100) : null;
+      const conf = m.confidence == null || !Number.isFinite(Number(m.confidence))
+        ? null
+        : Math.round(Number(m.confidence) * 100);
       const keyAttr = escapeAttr(m.param_key);
       const keyTxt = escapeSmartHtml(m.param_key);
       const heTxt = escapeSmartHtml(he);
       const editorId = `smart-edit-${m.param_key.replace(/[^A-Za-z0-9]/g, '_')}`;
       const enumValues = m.enum_values && typeof m.enum_values === 'object' ? m.enum_values : null;
       const formatValue = (v) => {
-        if (v == null || v === '') return 'לא נקרא מה-FC';
+        if (v == null || v === '') return 'לא ידוע';
         const label = enumValues?.[String(v)];
         return label ? `${v} (${label})` : String(v);
       };
-      const currentValue = m.live_value ?? arduTargetState?.[m.param_key] ?? null;
+      const currentValue = m.available_on_fc === true && m.live_value != null && m.live_value !== ''
+        ? m.live_value
+        : null;
       const defaultText = m.default_value == null
         ? 'לא מופיע במאגר הרשמי'
         : formatValue(m.default_value);
@@ -2115,15 +2119,19 @@ wireArduCategorySubtabsOnce();
       const keyTxt = escapeSmartHtml(key);
       const desc = escapeSmartHtml(String(m.description || m.description_en || key).slice(0, 90));
       const feat = escapeSmartHtml(String(m.feature_name || ''));
-      const cur = m.current_value ?? m.default_value ?? 0;
+      const cur = m.available_on_fc === true && m.current_value != null && m.current_value !== ''
+        ? m.current_value
+        : null;
+      const curText = cur == null ? 'לא ידוע' : String(cur);
+      const defaultText = m.default_value == null || m.default_value === '' ? 'לא ידוע' : String(m.default_value);
       const editorId = `fd-smart-edit-${key.replace(/[^A-Za-z0-9]/g, '_')}`;
       return `<li class="ardu-smart-result-card fd-custom-result-card">
         <div class="ardu-smart-result-key">${keyTxt} <span class="fd-custom-badge" title="פרמטר מפיצ'ר מותאם">✨ Custom</span></div>
         <div class="ardu-smart-result-he">${desc}</div>
         ${feat ? `<div class="fd-custom-feature-tag">פיצ'ר: ${feat}</div>` : ''}
         <div class="ardu-smart-meta">
-          <span>ערך נוכחי: <strong>${escapeSmartHtml(String(cur))}</strong></span>
-          <span>ברירת מחדל: <strong>${escapeSmartHtml(String(m.default_value ?? 0))}</strong></span>
+          <span>ערך נוכחי: <strong>${escapeSmartHtml(curText)}</strong></span>
+          <span>ברירת מחדל: <strong>${escapeSmartHtml(defaultText)}</strong></span>
         </div>
         <div class="ardu-smart-inline-editor" id="${editorId}">
           <input type="number" class="ardu-smart-inline-input fd-custom-param-input" placeholder="ערך חדש"
@@ -9829,18 +9837,24 @@ if (arduReadBtn) {
  * Update the WRITE button appearance based on MAVLink / ARMED state.
  * Called after READ and also periodically via the SSE telemetry handler.
  */
+let arduWriteGate = { mavlinkConnected: false, armed: null };
+
 function refreshArduWriteBtnState(arduStatus) {
   if (!arduWriteBtn) return;
   const { mavlinkConnected, armed } = arduStatus || {};
+  arduWriteGate = { mavlinkConnected: !!mavlinkConnected, armed: armed === true ? true : armed === false ? false : null };
   if (!mavlinkConnected) {
+    arduWriteBtn.disabled = true;
     arduWriteBtn.classList.remove('ardu-write-armed');
     arduWriteBtn.classList.add('ardu-write-disconnected');
-    arduWriteBtn.title = 'לא מחובר MAVLink — WRITE יפעל במצב סימולציה בלבד';
+    arduWriteBtn.title = 'אין קישור לבקר. הכתיבה חסומה.';
   } else if (armed === true) {
+    arduWriteBtn.disabled = true;
     arduWriteBtn.classList.add('ardu-write-armed');
     arduWriteBtn.classList.remove('ardu-write-disconnected');
-    arduWriteBtn.title = 'המטוס ARMED — WRITE חסום. Disarm ונסה שוב.';
+    arduWriteBtn.title = 'המטוס חמוש. הכתיבה חסומה עד לניטרול.';
   } else {
+    arduWriteBtn.disabled = false;
     arduWriteBtn.classList.remove('ardu-write-armed', 'ardu-write-disconnected');
     arduWriteBtn.title = 'כתוב פרמטרים ל-FC דרך MAVLink';
   }
@@ -9849,6 +9863,18 @@ function refreshArduWriteBtnState(arduStatus) {
 /** Why: WRITE to FC via real MAVLink (or simulated if disconnected). */
 if (arduWriteBtn) {
   arduWriteBtn.addEventListener('click', async () => {
+    if (!arduWriteGate.mavlinkConnected || arduWriteGate.armed === true) {
+      const blocked = arduWriteGate.armed === true
+        ? 'המטוס חמוש. הכתיבה חסומה עד לניטרול.'
+        : 'אין קישור לבקר. הכתיבה לא נשלחה.';
+      if (arduWriteStatus) {
+        arduWriteStatus.textContent = blocked;
+        arduWriteStatus.className = 'ardu-write-status fail';
+      }
+      showParamToolFault(blocked);
+      refreshArduWriteBtnState(arduWriteGate);
+      return;
+    }
     arduWriteBtn.disabled = true;
     if (arduWriteStatus) {
       arduWriteStatus.textContent = 'שולח…';
@@ -9864,6 +9890,13 @@ if (arduWriteBtn) {
           arduWriteStatus.className = 'ardu-write-status fail';
         }
         showParamToolFault(outcome.text, () => arduWriteBtn.click());
+      } else if (d.simulated || d.via === 'offline') {
+        const blocked = 'אין קישור לבקר. הכתיבה לא נשלחה.';
+        if (arduWriteStatus) {
+          arduWriteStatus.textContent = blocked;
+          arduWriteStatus.className = 'ardu-write-status fail';
+        }
+        showParamToolFault(blocked);
       } else if (d.ok) {
         const verified = d.verified && typeof d.verified === 'object' ? d.verified : {};
         if (Object.keys(verified).length) {
@@ -9877,9 +9910,8 @@ if (arduWriteBtn) {
           captureArduWriteBaseline();
         }
         if (arduWriteStatus) {
-          const simNote = d.simulated ? ' (סימולציה — אין MAVLink)' : '';
           const failNote = d.failed?.length ? ` — ${d.failed.length} פרמטרים נכשלו` : '';
-          arduWriteStatus.textContent = (d.message || 'WRITE הושלם') + simNote + failNote;
+          arduWriteStatus.textContent = (d.message || 'WRITE הושלם') + failNote;
           arduWriteStatus.className = d.failed?.length ? 'ardu-write-status warn' : 'ardu-write-status success';
         }
         if (fcCurrentSnapshot && arduDiffTable && arduDiffSection) {
@@ -9901,7 +9933,7 @@ if (arduWriteBtn) {
         arduWriteStatus.className = 'ardu-write-status fail';
       }
     } finally {
-      arduWriteBtn.disabled = false;
+      refreshArduWriteBtnState(arduWriteGate);
     }
   });
 }
