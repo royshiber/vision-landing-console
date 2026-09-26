@@ -12,7 +12,7 @@ import socket
 import tempfile
 from pathlib import Path
 
-FLIGHTLOG_VERSION = "2.5.0"
+FLIGHTLOG_VERSION = "2.5.5"
 DERIVE_REV = 1
 DETECTOR_VERSION = "1.0.0"
 PART_BYTES_DEFAULT = 8 * 1024 * 1024

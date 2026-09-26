@@ -11,7 +11,7 @@ from pathlib import Path
 from flight_detector import DetectorParams, FlightDetector, TICK_S, apply_obs, params_digest, sample_from_latest
 from flight_events import obs_from_message
 from flight_packager import package_flight
-from flightlog_common import atomic_write_json, env_float, flight_id_for, index_key, utc_iso
+from flightlog_common import atomic_write_json, disk_free_mb, env_float, flight_id_for, index_key, utc_iso
 from system_events import SystemEvents
 
 PREROLL_DEFAULT = 60.0
@@ -283,7 +283,7 @@ class FlightLogger(object):
                 ranges.append((_parse_iso(times.get("window_start_utc")), _parse_iso(times.get("window_end_utc"))))
         try:
             self.writer.set_protected(ranges)
-            self.writer.prune()
+            self.writer.prune_if_needed(disk_free_mb=disk_free_mb(self.spool))
         except Exception:
             pass
 
