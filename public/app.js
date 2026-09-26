@@ -365,6 +365,7 @@ function applyMainTab(tabId, { save = true } = {}) {
   panels.forEach((p) => p.classList.remove('visible'));
   const tab = tabs.find((t) => t.dataset.tab === tabId);
   const panel = document.getElementById(tabId);
+  if (tab?.hidden) tab.hidden = false;
   if (tab) tab.classList.add('active');
   if (panel) panel.classList.add('visible');
   setParamCenterChromeVisible(tabId === 'control');
@@ -5156,6 +5157,7 @@ function vlcModeFamily(mav) {
 }
 
 function vlcFlightModeName(raw, mav) {
+  if (raw == null || raw === '') return null;
   const n = Number(raw);
   if (!Number.isInteger(n)) return null;
   const table = vlcModeFamily(mav) === 'copter' ? ARDUPILOT_COPTER_MODES : ARDUPILOT_PLANE_MODES;
@@ -5163,10 +5165,10 @@ function vlcFlightModeName(raw, mav) {
 }
 
 function vlcFlightModeText(raw, mav, connected) {
+  if (connected !== true || raw == null || raw === '') return '—';
   const name = vlcFlightModeName(raw, mav);
   if (name) return name;
-  if (!connected) return '--';
-  return '#' + (raw ?? '--');
+  return '#' + raw;
 }
 const hudAirspeedEl  = document.getElementById('hudAirspeed');
 const hudAltitudeEl  = document.getElementById('hudAltitude');
@@ -6127,6 +6129,11 @@ function drawHorizon(canvas, rollDeg, pitchDeg, opts = {}) {
   const showPitch = pitchBounded != null;
   const rollDraw = showRoll ? rollBounded : 0;
   const pitchDraw = showPitch ? pitchBounded : 0;
+  if (!showRoll && !showPitch && !videoMode) {
+    ctx.fillStyle = '#12161f';
+    ctx.fillRect(0, 0, W, H);
+    return;
+  }
   const rollRad = (rollDraw * Math.PI) / 180;
   const hud = videoMode ? '#3DFF6A' : '#f8f1d4';
   const skyZenith = videoMode ? 'rgba(18, 78, 148, 0.12)' : '#163e86';
@@ -6487,6 +6494,7 @@ function applyFlightHud(mav) {
     heading: finiteHorizonTape(mav.heading),
   };
   drawHorizon(horizonCanvas, _lastRoll, _lastPitch, currentHorizonDrawOpts());
+  syncHorizonNoData();
 
   // Armed / mode (top bar)
   const armed = !!mav.armed;
@@ -6950,8 +6958,13 @@ function openDiagnosticsReadiness() {
 
 function setupFlightHudChromeHandlers() {
   pfdVoiceFlightBtn?.addEventListener('click', () => {
-    document.querySelector('.tab[data-tab="flightEngineer"]')?.click();
-    setTimeout(() => document.getElementById('feMicBtn')?.click(), 220);
+    applyMainTab('terrain');
+    const input = document.getElementById('assistInput');
+    if (input) {
+      input.focus();
+      return;
+    }
+    document.getElementById('assistToggleBtn')?.click();
   });
   function toggleReadinessPopover(e, anchor) {
     e.preventDefault();
@@ -7139,7 +7152,16 @@ document.getElementById('hudParamShowAll')?.addEventListener('click', async () =
 });
 
 // Initial horizon draw — defer so ResizeObserver fires first
-requestAnimationFrame(() => drawHorizon(horizonCanvas, _lastRoll, _lastPitch, currentHorizonDrawOpts()));
+function syncHorizonNoData() {
+  const note = document.getElementById('horizonNoData');
+  if (!note) return;
+  note.hidden = _lastRoll != null || _lastPitch != null;
+}
+
+requestAnimationFrame(() => {
+  drawHorizon(horizonCanvas, _lastRoll, _lastPitch, currentHorizonDrawOpts());
+  syncHorizonNoData();
+});
 
 // ── Map fly-to context menu ────────────────────────────────────────────────────
 const mapFlyToMenu    = document.getElementById('mapFlyToMenu');
@@ -9201,6 +9223,11 @@ if (versionModal) {
   versionModal.addEventListener('click', (e) => {
     if (e.target === versionModal) versionModal.classList.add('hidden');
   });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !versionModal.classList.contains('hidden')) {
+      versionModal.classList.add('hidden');
+    }
+  });
 }
 
 function bindEventContextMenu() {
@@ -10150,6 +10177,14 @@ if (terrainClearBtn) {
   });
 }
 
+function showTerrainPathNote(text) {
+  const note = document.getElementById('terrainPathNote');
+  if (!note) return;
+  const line = String(text || '').trim();
+  note.hidden = !line;
+  note.textContent = line;
+}
+
 async function requestAndShowLoadedMissionPath(btn) {
   const on = btn?.getAttribute('aria-pressed') === 'true';
   if (on) {
@@ -10169,10 +10204,24 @@ async function requestAndShowLoadedMissionPath(btn) {
     const d = await res.json().catch(() => ({}));
     if (res.ok && d.ok) {
       showLoadedMissionPath = true;
+      showTerrainPathNote('');
       updateFlightOverlaysOnAllMaps();
+    } else {
+      showLoadedMissionPath = false;
+      if (btn) {
+        btn.setAttribute('aria-pressed', 'false');
+        btn.classList.remove('active');
+      }
+      const noLink = res.status === 422 || d?.error === 'no_link' || d?.error === 'not_connected';
+      showTerrainPathNote(noLink ? 'אין קישור לבקר. אין משימה טעונה.' : 'לא הצלחנו לטעון את הנתיב.');
     }
   } catch {
-    /* keep the toggle; the path stays empty until a mission exists */
+    showLoadedMissionPath = false;
+    if (btn) {
+      btn.setAttribute('aria-pressed', 'false');
+      btn.classList.remove('active');
+    }
+    showTerrainPathNote('אין קישור לבקר. אין משימה טעונה.');
   } finally {
     if (btn) btn.disabled = false;
   }
@@ -11528,6 +11577,10 @@ initLiveCameraPanel();
     rcStatusBtn.addEventListener('click', (ev) => {
       ev.preventDefault();
       ev.stopPropagation();
+      const hint = document.getElementById('rcLinkHint');
+      const status = document.getElementById('rcLinkStatus');
+      if (hint) hint.textContent = 'שלט בלבד. אין קישור נתונים.';
+      if (status) status.textContent = 'אין סטטוס חיבור לשלט.';
     });
   }
   statBtn.addEventListener('click', openStatModal);
@@ -16119,7 +16172,7 @@ function assistBuildContextSnapshot() {
       : { altitude: 'm', speed: 'ms', distance: 'm', verticalRate: 'ms' }),
     aircraft_state: {
       connected: mav.connected === true,
-      flight_mode: vlcFlightModeName(mav.flightMode, mav) || (Number.isInteger(Number(mav.flightMode)) ? `#${mav.flightMode}` : null),
+      flight_mode: mav.connected === true ? (vlcFlightModeName(mav.flightMode, mav) || null) : null,
       armed: typeof mav.armed === 'boolean' ? mav.armed : null,
       gps_ok: typeof mav.gpsFixType === 'number' ? mav.gpsFixType >= 3 : null,
       vision_confidence: conf,
@@ -18111,7 +18164,8 @@ function initFlightArchiveRecord() {
   function formatArchiveBytesHe(bytes) {
     const n = Number(bytes);
     if (!Number.isFinite(n) || n < 0) return null;
-    if (n < 1024) return `${Math.round(n)} ב`;
+    if (n === 0) return 'ריק';
+    if (n < 1024) return `${Math.round(n)} בתים`;
     const kb = n / 1024;
     const shown = kb >= 10 ? String(Math.round(kb)) : String(kb.toFixed(1)).replace(/\.0$/, '');
     return `${shown} ק״ב`;
@@ -18160,7 +18214,7 @@ function initFlightArchiveRecord() {
     const stalled = flat || down || writeErr;
     let labelHe = bytesHe;
     if (writeErr) labelHe = bytesHe ? `שגיאת כתיבה · ${bytesHe}` : 'שגיאת כתיבה';
-    else if (down) labelHe = bytesHe ? `אין קישור · ${bytesHe}` : 'אין קישור';
+    else if (down) labelHe = 'אין קישור';
     else if (flat) labelHe = bytesHe ? `תקוע · ${bytesHe}` : 'תקוע';
     cueEl.hidden = !labelHe;
     cueEl.textContent = labelHe || '';

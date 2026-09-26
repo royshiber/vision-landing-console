@@ -215,6 +215,7 @@
         <button class="tab tab-ops" data-tab="control" title="פרמטרים">פרמטרים</button>
         <button class="tab tab-ops" data-tab="recordings" title="תחקור">תחקור</button>
         <button class="tab tab-quiet" hidden data-tab="telemetry" title="אבחונים">אבחונים</button>
+        <button class="tab tab-ops" data-tab="flightEngineer" title="מהנדס" hidden>מהנדס</button>
         <button class="tab tab-ops" data-tab="development" title="פיתוח" hidden>פיתוח</button>
       </nav>
       <div class="app-chrome-tools">
@@ -1930,7 +1931,7 @@
               <div class="pfd-top-bar">
                 <button type="button" id="pfdVoiceFlightBtn" class="pfd-voice-flight-btn" title="פתיחת מהנדס קולי לפקודות טיסה">🎙 פקודות</button>
                 <span id="pfdArmedBadge" class="pfd-badge pfd-badge--disarmed" role="button" tabindex="0" title="מצב ARM — לחץ להסבר מוכנות">DISARMED</span>
-                <span id="pfdModeVal"    class="pfd-mode-val">--</span>
+                <span id="pfdModeVal"    class="pfd-mode-val">—</span>
                 <div class="hud-nav-pill pfd-gps-pill" id="hudNavGps" data-status="unknown" title="אין קישור">
                   <span class="hud-nav-icon">📡</span>
                   <span class="hud-nav-val" id="hudNavGpsVal">--</span>
@@ -1966,6 +1967,7 @@
                     <p id="horizonVideoEmpty" class="pfd-horizon-video-empty instrument-stage-view" hidden>אין זרם מצלמה</p>
                     <p id="horizonCameraNote" class="pfd-horizon-nosignal" hidden>אין אות</p>
                     <canvas id="horizonCanvas"></canvas>
+                    <p id="horizonNoData" class="horizon-no-data">אין נתונים</p>
                     <div id="annotatedVisionPanel" class="mission-annotated-vision hidden instrument-stage-view" hidden data-state="stream_absent" data-reason="stream_absent" data-path="companion" data-available="false">
                       <p class="mission-annotated-kicker">ראייה מסומנת</p>
                       <p id="annotatedVisionEmpty" class="mission-annotated-empty">אין זרם מסומן</p>
@@ -2076,6 +2078,7 @@
                 <button type="button" id="terrainLayerStreetBtn" class="terrain-layer-btn active" title="OpenStreetMap">מפת רחוב</button>
                 <button type="button" id="terrainLayerSatBtn" class="terrain-layer-btn" title="תצלום לווין (Esri)">לווין</button>
                   <button type="button" id="terrainShowLoadedPathBtn" class="terrain-layer-btn" title="רענן משימה והצג נתיב טעון על המפה" aria-pressed="false">הצג נתיב טעון</button>
+                  <p id="terrainPathNote" class="terrain-path-note" hidden></p>
               </div>
               <div id="terrainMapRotatable" class="terrain-map-rotatable">
                 <div id="terrainMap"></div>

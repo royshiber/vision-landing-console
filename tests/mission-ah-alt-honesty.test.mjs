@@ -113,7 +113,7 @@ describe('Mission AH size bias + swap persistence', () => {
     expect(contractAt).toBeGreaterThan(0);
     const contract = css.slice(contractAt);
     expect(contract).toMatch(/font-size:\s*clamp\(11px/);
-    expect(contract).toMatch(/overflow-wrap:\s*anywhere/);
+    expect(contract).toMatch(/overflow-wrap:\s*break-word/);
     expect(contract).not.toMatch(/text-overflow:\s*ellipsis/);
     expect(contract).toMatch(/#missionLink/);
     expect(contract).toMatch(/mission-horizon-filler-kicker/);

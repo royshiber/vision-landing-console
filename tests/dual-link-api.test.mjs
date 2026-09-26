@@ -223,8 +223,8 @@ describe('dual-link HTTP API', () => {
     expect(stopped.closed.storedPath).toBe(started.recording.session.storedPath);
     expect(stopped.closed.bytes).toBe(0);
     expect(stopped.empty).toBe(true);
-    expect(stopped.warnHe).toMatch(/לא נשמרה באית/);
-    expect(stopped.messageHe).toMatch(/לא נשמרה באית/);
+    expect(stopped.warnHe).toMatch(/לא נשמרו נתונים/);
+    expect(stopped.messageHe).toMatch(/לא נשמרו נתונים/);
     const getIdle = await fetch(`${base}/api/telemetry-archive`);
     const idleJson = await getIdle.json();
     expect(idleJson.recording.armed).toBe(false);

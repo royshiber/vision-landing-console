@@ -11131,8 +11131,8 @@ html[data-evolve-preview="1"] #development {
 
 @media (max-width: 1100px) {
   .mission-workspace[data-mission-layout="ops-v1"] {
-    grid-template-columns: minmax(120px, min(20%, var(--mission-ah-col))) minmax(0, 1fr);
-    grid-template-rows: minmax(0, 1fr) minmax(160px, 28%);
+    grid-template-columns: minmax(200px, 28%) minmax(0, 1fr);
+    grid-template-rows: minmax(240px, 1fr) minmax(200px, 36%);
     grid-template-areas:
       "horizon map"
       "talk talk";
@@ -11140,8 +11140,8 @@ html[data-evolve-preview="1"] #development {
 
   .mission-workspace[data-mission-swap="map-horizon"],
   .mission-workspace[data-mission-swap="horizon-map"] {
-    grid-template-columns: minmax(0, 1fr) minmax(120px, min(20%, var(--mission-ah-col)));
-    grid-template-rows: minmax(0, 1fr) minmax(160px, 28%);
+    grid-template-columns: minmax(0, 1fr) minmax(200px, 28%);
+    grid-template-rows: minmax(240px, 1fr) minmax(200px, 36%);
   }
 
   .mission-workspace[data-mission-swap="map-horizon"] {
@@ -19830,8 +19830,8 @@ html body :is(
 ) {
   white-space: normal !important;
   text-overflow: clip !important;
-  overflow-wrap: anywhere !important;
-  word-break: break-word !important;
+  overflow-wrap: break-word !important;
+  word-break: normal !important;
   max-width: 100%;
   box-sizing: border-box;
 }
@@ -20264,6 +20264,165 @@ html body :is(
 .pfd-tape-key,
 .pfd-tape-unit {
   line-height: 1.35;
+}
+
+/* Home shell: the connection pill, Ask, and map chrome stay in their own lane. */
+html[dir="rtl"] :is(p, button, span, h1, h2, h3, h4, label, li, strong) {
+  letter-spacing: 0;
+}
+.mission-horizon-filler-note,
+.mission-record-status,
+.mission-record-cue,
+.terrain-path-note,
+.horizon-no-data,
+.conn-link-chip,
+.operator-state-status,
+.operator-state-next {
+  direction: rtl;
+  unicode-bidi: isolate;
+}
+.horizon-no-data {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  background: rgba(8, 10, 16, 0.78);
+  color: #e8edf6;
+  font-size: clamp(11px, 0.95rem, 18px);
+  font-weight: 700;
+  pointer-events: none;
+}
+.horizon-no-data[hidden] { display: none; }
+.terrain-path-note {
+  flex: 1 1 100%;
+  margin: 0;
+  padding: 2px 6px;
+  color: #fecaca;
+  background: rgba(15, 23, 42, 0.92);
+  font-size: clamp(11px, 0.72rem, 14px);
+  line-height: 1.35;
+  white-space: normal;
+}
+.terrain-path-note[hidden] { display: none; }
+.conn-link-chip {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  height: auto;
+  max-width: 100%;
+}
+.mission-region-map > .mission-region-title {
+  z-index: 2;
+}
+.modal {
+  z-index: var(--z-modal-overlay);
+}
+.assist-rail:not(.assist-rail--mission) {
+  top: 44px;
+  height: calc(100dvh - 44px);
+  z-index: 180;
+}
+.assist-toggle-btn.assist-toggle-float {
+  position: static;
+  align-self: flex-end;
+  margin: 6px 12px 0;
+  min-height: 36px;
+  padding: 6px 12px;
+  z-index: 2;
+}
+.mission-record-status {
+  position: static;
+  flex: 1 0 100%;
+  max-width: 100%;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  pointer-events: none;
+}
+.mission-ops-chrome:has(#missionRecordStatus:not([hidden])) {
+  max-height: none;
+  height: auto;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+}
+.mission-region-horizon .hud-nav-val,
+.hud-nav-val {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  max-width: 100%;
+}
+.assist-btn-send,
+#missionTalkHost .assist-btn-send {
+  flex: 0 0 auto;
+  min-width: max-content;
+  overflow: visible;
+  position: static;
+}
+body:has(#telemetry.panel.visible) #telemetry,
+body:has(#telemetry.panel.visible) #telemetry h3,
+body:has(#telemetry.panel.visible) #telemetry .operator-state-status,
+body:has(#telemetry.panel.visible) #telemetry .operator-state-next,
+body:has(#telemetry.panel.visible) #telemetry .tele-dash-head,
+body:has(#telemetry.panel.visible) #telemetry .tele-dash-sub {
+  color: #e8edf6;
+}
+@media (max-width: 1100px) and (min-width: 721px) {
+  .mission-region-horizon .pfd-horizon-stage {
+    min-height: 140px;
+    height: 140px;
+    flex: 0 0 140px;
+  }
+  .mission-region-horizon .pfd-horizon-instrument {
+    min-height: 148px;
+    grid-template-rows: 140px 22px;
+  }
+  .mission-region-horizon .mission-region-data {
+    max-height: 40px;
+    overflow: hidden;
+  }
+}
+@media (max-width: 720px) {
+  .connect-widget.connect-widget-float {
+    position: static;
+    top: auto;
+    inset-inline-end: auto;
+    max-width: 100%;
+    width: 100%;
+    z-index: 2;
+    padding: 4px 8px 0;
+  }
+  .app-chrome {
+    padding: 4px 8px;
+  }
+  .mission-region[data-mission-region="map"] {
+    height: 220px;
+    min-height: 220px;
+    max-height: 220px;
+  }
+  .mission-region[data-mission-region="horizon"] {
+    height: 180px;
+    min-height: 0;
+    max-height: 180px;
+    overflow: hidden;
+  }
+  .mission-region-horizon .pfd-horizon-instrument,
+  .mission-region-horizon .pfd-horizon-shell,
+  .mission-region-horizon .pfd-horizon-stage {
+    min-height: 0;
+    height: 110px;
+    max-height: 110px;
+  }
+  .mission-region-talk,
+  #missionTalkHost {
+    min-height: 200px;
+  }
+  .param-center-search-bar .ardu-search-row {
+    grid-template-columns: 1fr;
+  }
 }
 
 
