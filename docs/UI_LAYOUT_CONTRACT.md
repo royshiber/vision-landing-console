@@ -22,7 +22,7 @@ For every visible element that owns a direct text node:
 
 The parent tile is `parentElement`. Fixed boxes are their own tile. Absolutely positioned boxes are checked against `offsetParent`. A scrollport may contain text in its scroll size; that text still has to fit its own box. Inline runs with no client box must keep their line boxes inside the parent tile.
 
-Also reject sibling text boxes that overlap inside the horizon top bar, a data tile, or the controller-status block.
+Also reject sibling text boxes that overlap inside the horizon top bar, a data tile, the controller-status block, or the flight arm row.
 
 Run it on every tab (הטסה, סטטוס מחשבים, פרמטרים, תחקור) and the settings dialog, at every viewport in `tests/text-fit-matrix.test.mjs`, with live-like long values.
 

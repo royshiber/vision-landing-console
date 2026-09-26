@@ -1936,6 +1936,19 @@
                   <span class="hud-nav-val" id="hudNavGpsVal">--</span>
                 </div>
               </div>
+              <div id="flightArmRow" class="flight-arm-row" data-arm-link="off">
+                <button type="button" id="flightArmBtn" class="flight-arm-btn" disabled>חימוש ARM</button>
+                <button type="button" id="flightDisarmBtn" class="flight-arm-btn" disabled>נטרול DISARM</button>
+                <p id="flightArmReason" class="flight-arm-reason">אין טלמטריה מהבקר</p>
+                <p id="flightArmRefusal" class="flight-arm-refusal" hidden></p>
+                <div id="flightDisarmDialog" class="flight-arm-dialog" hidden>
+                  <p id="flightDisarmDialogText" class="flight-arm-dialog-text">לאשר נטרול</p>
+                  <div class="flight-arm-dialog-actions">
+                    <button type="button" id="flightDisarmCancel" class="flight-arm-btn">ביטול</button>
+                    <button type="button" id="flightDisarmConfirm" class="flight-arm-btn flight-arm-btn--danger">נטרול DISARM</button>
+                  </div>
+                </div>
+              </div>
               <p id="pfdHudWaitHint" class="pfd-hud-wait-hint" hidden></p>
 
               <div class="pfd-horizon-shell" id="pfdHorizonShell">

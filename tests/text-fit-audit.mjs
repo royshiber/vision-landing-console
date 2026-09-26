@@ -121,7 +121,7 @@ export function collectTextFitFailures(slack = 1) {
   });
 
   const overlapRoots = document.querySelectorAll(
-    '.mission-horizon-filler, .mission-data-tile, .pfd-top-bar, .mission-data-readout',
+    '.mission-horizon-filler, .mission-data-tile, .pfd-top-bar, .mission-data-readout, #flightArmRow',
   );
   overlapRoots.forEach((root) => {
     if (hidden(root)) return;

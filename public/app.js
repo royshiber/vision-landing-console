@@ -5835,8 +5835,9 @@ function liveStatusToHudMavlink(s) {
     sysId: hudSysId(s.sysId),
     lastHeartbeatAgeMs: Number.isFinite(Number(s.lastHeartbeatAgeMs)) ? Number(s.lastHeartbeatAgeMs) : null,
     heartbeatRateHz: Number.isFinite(Number(s.heartbeatRateHz)) ? Number(s.heartbeatRateHz) : null,
-    armed: null,
-    armedKnown: false,
+    armed: s.armed === true ? true : (s.armed === false ? false : null),
+    armedKnown: s.armedKnown === true,
+    flying: s.flying === true,
     autopilotName: s.autopilotName || null,
     vehicleType: s.vehicleType || null,
     mavType: Number.isFinite(Number(s.mavType)) ? Number(s.mavType) : null,
@@ -5878,6 +5879,7 @@ function resolveHudMavlink(sseMav, liveStatus) {
       pitchDeg: sseMav?.pitchDeg ?? null,
       armed: sseMav?.armed ?? null,
       armedKnown: sseMav?.armedKnown === true,
+      flying: sseMav?.flying === true || fromLive.flying === true,
       flightMode: sseMav?.flightMode ?? null,
       sysId: hudSysId(sseMav?.sysId) ?? fromLive.sysId,
       lastHeartbeatAgeMs: sseMav?.lastHeartbeatAgeMs ?? fromLive.lastHeartbeatAgeMs,
@@ -6293,10 +6295,178 @@ function drawHorizon(canvas, rollDeg, pitchDeg, opts = {}) {
 }
 const GPS_FIX_LABELS = ['אין GPS', 'אין Fix', '2D Fix', '3D Fix', 'DGPS', 'RTK Float', 'RTK Fixed'];
 
+const FLIGHT_ARM_HOLD_MS = 1500;
+let flightArmHoldTimer = null;
+let flightArmHolding = false;
+let flightArmBusy = false;
+let flightDisarmSecond = false;
+
+function flightArmLinkLive(mav) {
+  if (!mav || mav.connected !== true || mav.armedKnown !== true) return false;
+  const age = Number(mav.lastHeartbeatAgeMs);
+  if (Number.isFinite(age) && age > 5000) return false;
+  return true;
+}
+
+function syncFlightArmControls(mav) {
+  const row = document.getElementById('flightArmRow');
+  const armBtn = document.getElementById('flightArmBtn');
+  const disarmBtn = document.getElementById('flightDisarmBtn');
+  const reason = document.getElementById('flightArmReason');
+  if (!armBtn || !disarmBtn || !reason) return;
+  const live = flightArmLinkLive(mav);
+  if (!live) {
+    armBtn.disabled = true;
+    disarmBtn.disabled = true;
+    armBtn.title = 'אין טלמטריה מהבקר';
+    disarmBtn.title = 'אין טלמטריה מהבקר';
+    reason.hidden = false;
+    reason.textContent = 'אין טלמטריה מהבקר';
+    if (row) row.dataset.armLink = 'off';
+    return;
+  }
+  reason.hidden = true;
+  const armed = mav.armed === true;
+  armBtn.disabled = armed;
+  disarmBtn.disabled = !armed;
+  armBtn.title = armed ? 'הכלי כבר חמוש' : 'החזיקו לחימוש';
+  disarmBtn.title = armed ? 'נטרול דורש אישור' : 'הכלי כבר מנוטרל';
+  if (row) row.dataset.armLink = armed ? 'armed' : 'disarmed';
+}
+
+function showFlightArmRefusal(text) {
+  const note = document.getElementById('flightArmRefusal');
+  if (!note) return;
+  const line = String(text || '').trim();
+  if (!line) {
+    note.hidden = true;
+    note.textContent = '';
+    return;
+  }
+  note.hidden = false;
+  note.textContent = line;
+}
+
+function closeFlightDisarmDialog() {
+  flightDisarmSecond = false;
+  const dialog = document.getElementById('flightDisarmDialog');
+  if (dialog) dialog.hidden = true;
+}
+
+async function postFlightArmDisarm(action, confirmFlying) {
+  const res = await fetch('/api/mavlink/arm-disarm', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action, confirmFlying: confirmFlying === true }),
+  });
+  const data = await res.json().catch(() => ({}));
+  return { status: res.status, data };
+}
+
+async function sendFlightArm() {
+  if (flightArmBusy || !flightArmLinkLive(latestHudMavlink) || latestHudMavlink?.armed === true) return;
+  flightArmBusy = true;
+  try {
+    const { data } = await postFlightArmDisarm('arm', false);
+    if (data?.ok === true) {
+      showFlightArmRefusal('');
+      return;
+    }
+    const fc = String(data?.prearm || '').trim();
+    showFlightArmRefusal(fc || 'הבקר סירב לחימוש');
+  } catch {
+    showFlightArmRefusal('השליחה נכשלה');
+  } finally {
+    flightArmBusy = false;
+  }
+}
+
+function cancelFlightArmHold() {
+  flightArmHolding = false;
+  if (flightArmHoldTimer) clearTimeout(flightArmHoldTimer);
+  flightArmHoldTimer = null;
+  document.getElementById('flightArmBtn')?.classList.remove('is-holding');
+}
+
+const FLIGHT_DISARM_AIR_HE = 'הבקר מדווח שהכלי באוויר. נטרול עכשיו עלול להפיל את הכלי. לאשר נטרול שוב.';
+
+function showFlightDisarmAirWarning() {
+  flightDisarmSecond = true;
+  const text = document.getElementById('flightDisarmDialogText');
+  if (text) text.textContent = FLIGHT_DISARM_AIR_HE;
+}
+
+async function confirmFlightDisarm() {
+  if (flightArmBusy) return;
+  const clientFlying = latestHudMavlink?.flying === true;
+  if (clientFlying && !flightDisarmSecond) {
+    showFlightDisarmAirWarning();
+    return;
+  }
+  flightArmBusy = true;
+  try {
+    const { data } = await postFlightArmDisarm('disarm', flightDisarmSecond === true);
+    if (data?.error === 'flying' && data?.sent !== true && flightDisarmSecond !== true) {
+      showFlightDisarmAirWarning();
+      return;
+    }
+    closeFlightDisarmDialog();
+    if (data?.ok !== true) {
+      const fc = String(data?.prearm || data?.message || '').trim();
+      showFlightArmRefusal(fc || 'הבקר סירב לנטרול');
+    } else {
+      showFlightArmRefusal('');
+    }
+  } catch {
+    closeFlightDisarmDialog();
+    showFlightArmRefusal('השליחה נכשלה');
+  } finally {
+    flightArmBusy = false;
+  }
+}
+
+function initFlightArmControls() {
+  const armBtn = document.getElementById('flightArmBtn');
+  const disarmBtn = document.getElementById('flightDisarmBtn');
+  if (!armBtn || armBtn.dataset.bound === '1') return;
+  armBtn.dataset.bound = '1';
+  armBtn.addEventListener('pointerdown', (event) => {
+    if (armBtn.disabled || flightArmBusy) return;
+    event.preventDefault();
+    flightArmHolding = true;
+    armBtn.classList.add('is-holding');
+    if (flightArmHoldTimer) clearTimeout(flightArmHoldTimer);
+    flightArmHoldTimer = setTimeout(() => {
+      if (!flightArmHolding) return;
+      cancelFlightArmHold();
+      sendFlightArm();
+    }, FLIGHT_ARM_HOLD_MS);
+  });
+  armBtn.addEventListener('pointerup', cancelFlightArmHold);
+  armBtn.addEventListener('pointerleave', cancelFlightArmHold);
+  armBtn.addEventListener('pointercancel', cancelFlightArmHold);
+  disarmBtn?.addEventListener('click', () => {
+    if (disarmBtn.disabled) return;
+    flightDisarmSecond = false;
+    const text = document.getElementById('flightDisarmDialogText');
+    if (text) text.textContent = 'לאשר נטרול';
+    const dialog = document.getElementById('flightDisarmDialog');
+    if (dialog) dialog.hidden = false;
+  });
+  document.getElementById('flightDisarmCancel')?.addEventListener('click', closeFlightDisarmDialog);
+  document.getElementById('flightDisarmConfirm')?.addEventListener('click', () => {
+    confirmFlightDisarm();
+  });
+  syncFlightArmControls(latestHudMavlink);
+}
+
+initFlightArmControls();
+
 /** Update the PFD with the latest MAVLink snapshot. */
 function applyFlightHud(mav) {
   if (!mav) {
     // Missing snapshot ≠ disconnect. Keep last HUD frame and last honest note.
+    syncFlightArmControls(latestHudMavlink);
     syncMissionFcEmptyNote(latestHudMavlink);
     syncMissionLayoutChrome();
     return;
@@ -6335,6 +6505,7 @@ function applyFlightHud(mav) {
       pfdArmedBadge.title       = armed ? 'במצב ARM — לחץ להסבר מוכנות' : 'DISARMED — לחץ לבדיקת מוכנות / הודעות';
     }
   }
+  syncFlightArmControls(mav);
   if (pfdModeVal) {
     pfdModeVal.textContent = vlcFlightModeText(mav.flightMode, mav, mav.connected === true);
   }
