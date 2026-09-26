@@ -70,21 +70,28 @@ class Cam1Service:
     def acquire(self):
         with self._lock:
             self.clients += 1
+            # A thread that is winding down still looks alive. Clear stop so it
+            # keeps the new client instead of exiting into a 404.
+            self._stop.clear()
             if self._thread is not None and self._thread.is_alive():
                 return
-            self._stop.clear()
             self._thread = threading.Thread(target=self._run, name="cam1-capture", daemon=True)
             self._thread.start()
 
     def release(self):
-        join = None
         with self._lock:
             self.clients = max(0, self.clients - 1)
             if self.clients == 0:
                 self._stop.set()
-                join = self._thread
-        if join is not None and join is not threading.current_thread():
-            join.join(timeout=2.0)
+
+    def _should_stop(self):
+        """True only when no client remains. A new client clears the stop."""
+        with self._lock:
+            if self.clients > 0:
+                if self._stop.is_set():
+                    self._stop.clear()
+                return False
+            return True
 
     def wait_camera(self, timeout=1.5):
         deadline = time.monotonic() + timeout
@@ -92,10 +99,9 @@ class Cam1Service:
             with self._lock:
                 if self.camera_ok:
                     return True
-                if self.state == "absent":
+                if self.clients <= 0:
                     return False
-            if self._stop.wait(0.05):
-                return False
+            self._stop.wait(0.05)
         with self._lock:
             return self.camera_ok
 
@@ -143,6 +149,7 @@ class Cam1Service:
             "gain": self.config.get("gain"),
             "ae": {"enabled": bool(self.config.get("ae_enabled"))},
             "stream": settings["stream"],
+            "capture_fps": settings.get("fps"),
             "dry_run": self.config.get("source") == "synthetic",
         }
 
@@ -239,86 +246,45 @@ class Cam1Service:
         src.open()
         return src
 
+    def _mark_open_failed(self, error):
+        with self._lock:
+            self.error = error or "open_failed"
+            self.camera_ok = False
+            self.fps = None
+            self._opened = False
+            self.state = "error"
+
     def _run(self):
         source = None
+        delay = 0.15
         try:
-            try:
-                source = self._open_source()
-            except Exception as exc:
-                source = None
-                with self._lock:
-                    self.error = type(exc).__name__
-            if source is None:
-                with self._lock:
-                    self.state = "absent"
-                    self.camera_ok = False
-                    self.fps = None
-                    self._opened = False
-                self._stop.wait(1.0)
-                return
-            with self._lock:
-                self._opened = True
-                self.state = "streaming"
-                self.error = None
-            cap_fps = max(1, min(CAPTURE_FPS_MAX, int(self.config.get("fps") or CAPTURE_FPS_MAX)))
-            next_frame = time.monotonic()
-            next_jpeg = 0.0
-            win_t = time.monotonic()
-            win_n = 0
-            while not self._stop.is_set():
-                now = time.monotonic()
-                if now < next_frame:
-                    if self._stop.wait(next_frame - now):
-                        break
-                cap_fps = max(1, min(CAPTURE_FPS_MAX, int(self.config.get("fps") or CAPTURE_FPS_MAX)))
-                next_frame = time.monotonic() + (1.0 / cap_fps)
+            while not self._should_stop():
                 try:
-                    frame = source.read()
+                    source = self._open_source()
                 except Exception as exc:
-                    with self._lock:
-                        self.error = type(exc).__name__
-                        self.camera_ok = False
-                        self.fps = None
-                    if self._stop.wait(0.5):
-                        break
+                    source = None
+                    self._mark_open_failed(type(exc).__name__)
+                if source is None:
+                    self._mark_open_failed(self.error or "open_failed")
+                    self._stop.wait(delay)
+                    delay = min(2.0, delay * 2)
                     continue
-                win_n += 1
-                elapsed = time.monotonic() - win_t
-                fps = None
-                if elapsed >= 0.4:
-                    fps = round(win_n / elapsed, 1)
-                    win_t = time.monotonic()
-                    win_n = 0
-                with self._lock:
-                    self._frame = frame
-                    raw = frame.get("raw_u16")
-                    self._raw = None if raw is None else raw
-                    self.camera_ok = True
-                    self.state = "streaming"
-                    if fps is not None:
-                        self.fps = fps
-                    dirty = self.config.pop("settings_dirty", False)
-                    exposure = int(self.config.get("exposure_us") or 2000)
-                    gain = int(self.config.get("gain") or 16)
-                if dirty and hasattr(source, "set_exposure_gain"):
+                delay = 0.15
+                try:
+                    self._capture(source)
+                finally:
                     try:
-                        source.set_exposure_gain(exposure, gain, fps=cap_fps)
+                        source.close()
                     except Exception:
                         pass
-                if time.monotonic() >= next_jpeg:
-                    stream = self.config.get("stream") or {}
-                    jpeg_hz = max(1, min(JPEG_HZ, int(stream.get("fps") or JPEG_HZ)))
-                    next_jpeg = time.monotonic() + (1.0 / jpeg_hz)
-                    mono = frame.get("mono8")
-                    if mono is not None:
-                        jpeg = encode_gray_jpeg(
-                            mono,
-                            quality=int(stream.get("quality") or 55),
-                            max_width=int(stream.get("max_width") or 640),
-                        )
-                        with self._lock:
-                            self.jpeg = jpeg
-                            self.jpeg_count += 1
+                    source = None
+                with self._lock:
+                    self._opened = False
+                    self.camera_ok = False
+                    self.fps = None
+                    if self.clients > 0 and self.state == "streaming":
+                        self.state = "error"
+                        self.error = self.error or "read_failed"
         finally:
             if source is not None:
                 try:
@@ -332,8 +298,81 @@ class Cam1Service:
                 self.jpeg = None
                 self._frame = None
                 self._raw = None
-                if self.state != "absent":
-                    self.state = "idle"
+                if self._thread is threading.current_thread():
+                    self._thread = None
+                if self.clients > 0:
+                    self._stop.clear()
+                    self._thread = threading.Thread(target=self._run, name="cam1-capture", daemon=True)
+                    self._thread.start()
+                else:
+                    self.state = "idle" if self._device_present() else "absent"
+                    self.error = None
+
+    def _capture(self, source):
+        with self._lock:
+            self._opened = True
+            self.state = "streaming"
+            self.error = None
+        cap_fps = max(1, min(CAPTURE_FPS_MAX, int(self.config.get("fps") or CAPTURE_FPS_MAX)))
+        next_frame = time.monotonic()
+        next_jpeg = 0.0
+        win_t = time.monotonic()
+        win_n = 0
+        while not self._should_stop():
+            now = time.monotonic()
+            if now < next_frame:
+                self._stop.wait(next_frame - now)
+                if self._should_stop():
+                    return
+            cap_fps = max(1, min(CAPTURE_FPS_MAX, int(self.config.get("fps") or CAPTURE_FPS_MAX)))
+            next_frame = time.monotonic() + (1.0 / cap_fps)
+            try:
+                frame = source.read()
+            except Exception as exc:
+                with self._lock:
+                    self.error = type(exc).__name__
+                    self.camera_ok = False
+                    self.fps = None
+                    self.state = "error"
+                self._stop.wait(0.5)
+                return
+            win_n += 1
+            elapsed = time.monotonic() - win_t
+            fps = None
+            if elapsed >= 0.4:
+                fps = round(win_n / elapsed, 1)
+                win_t = time.monotonic()
+                win_n = 0
+            with self._lock:
+                self._frame = frame
+                raw = frame.get("raw_u16")
+                self._raw = None if raw is None else raw
+                self.camera_ok = True
+                self.state = "streaming"
+                if fps is not None:
+                    self.fps = fps
+                dirty = self.config.pop("settings_dirty", False)
+                exposure = int(self.config.get("exposure_us") or 2000)
+                gain = int(self.config.get("gain") or 16)
+            if dirty and hasattr(source, "set_exposure_gain"):
+                try:
+                    source.set_exposure_gain(exposure, gain, fps=cap_fps)
+                except Exception:
+                    pass
+            if time.monotonic() >= next_jpeg:
+                stream = self.config.get("stream") or {}
+                jpeg_hz = max(1, min(JPEG_HZ, int(stream.get("fps") or JPEG_HZ)))
+                next_jpeg = time.monotonic() + (1.0 / jpeg_hz)
+                mono = frame.get("mono8")
+                if mono is not None:
+                    jpeg = encode_gray_jpeg(
+                        mono,
+                        quality=int(stream.get("quality") or 55),
+                        max_width=int(stream.get("max_width") or 640),
+                    )
+                    with self._lock:
+                        self.jpeg = jpeg
+                        self.jpeg_count += 1
 
 
 def get_service(env=None):

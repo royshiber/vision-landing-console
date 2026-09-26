@@ -2,7 +2,14 @@
  * CAM1 panel. The stream request is the only thing that starts capture.
  * A failed health check stays "לא מחובר" and never invents a rate.
  */
-const NO_SIGNAL = 'אין אות';
+import {
+  honestyText,
+  nextStreamDelayMs,
+  settingsPayload,
+  statusPhrase,
+  targetFpsValue,
+} from './cam1-status.mjs';
+
 const REASON_LINK = 'אין קישור למחשב המשימה. הפקדים כבויים.';
 const REASON_CAM = 'אין אות מהמצלמה. הפקדים כבויים.';
 const ERR_SETTING = 'ההגדרה לא נשמרה. הערך חזר לקודם.';
@@ -93,6 +100,11 @@ function init() {
   let polling = false;
   let pollMs = 700;
   let nextAt = 0;
+  let lastBody = null;
+  let streamError = false;
+  let streamAttempt = 0;
+  let fpsTouched = false;
+  let retryTimer = 0;
 
   function showError(message) {
     if (!error) return;
@@ -130,11 +142,22 @@ function init() {
     }
   }
 
-  function paintStatusLine(connected, fps) {
+  function paintStatusLine(body) {
     const line = document.getElementById('cam1StatusText');
     if (!line) return;
-    const rate = fps == null || fps === '' ? '—' : String(fps);
-    line.textContent = `מצלמה אחת · ${connected ? 'מחובר' : 'לא מחובר'} · קצב ${rate}`;
+    line.textContent = statusPhrase(body, streamError);
+  }
+
+  function paintHonesty(body) {
+    const textValue = honestyText(body, streamError);
+    if (honesty) honesty.textContent = textValue;
+    const has = !streamError && body?.camera_ok === true && body?.has_frame === true && textValue !== 'השידור נכשל. ננסה שוב.';
+    if (empty) {
+      empty.hidden = has;
+      empty.textContent = 'אין אות';
+    }
+    if (img) img.hidden = !has;
+    if (histEmpty) histEmpty.hidden = has;
   }
 
   function stopStream() {
@@ -166,9 +189,10 @@ function init() {
     } catch {
       body = null;
     }
-    const connected = body?.camera_ok === true;
+    lastBody = body;
+    const connected = body?.camera_ok === true && !streamError && body?.state !== 'error';
     const fps = connected && body.fps != null ? body.fps : null;
-    paintStatusLine(connected, fps);
+    paintStatusLine(body);
     setControls(connected, body ? REASON_CAM : REASON_LINK);
     text('cam1Fps', fps);
     text('cam1Latency', connected && body.latency_ms != null ? body.latency_ms : null);
@@ -176,21 +200,15 @@ function init() {
     const visible = panel.getClientRects().length > 0;
     const canStream = visible && body && body.ok !== false && body.state !== 'absent';
     if (!canStream) {
+      streamError = false;
+      streamAttempt = 0;
+      clearTimeout(retryTimer);
       stopStream();
-      if (empty) {
-        empty.hidden = false;
-        empty.textContent = NO_SIGNAL;
-      }
-      if (honesty) honesty.textContent = NO_SIGNAL;
-      if (histEmpty) histEmpty.hidden = false;
+      paintHonesty(body);
       return body != null;
     }
-    if (img && !String(img.src || '').includes('cam1/stream.mjpg')) img.src = STREAM;
-    const has = connected && body.has_frame === true;
-    if (img) img.hidden = !has;
-    if (empty) empty.hidden = has;
-    if (honesty) honesty.textContent = has ? (body.real === true ? 'פריים חי' : 'פריים חי') : NO_SIGNAL;
-    if (histEmpty) histEmpty.hidden = has;
+    if (!streamError && img && !String(img.src || '').includes('cam1/stream.mjpg')) img.src = STREAM;
+    paintHonesty(body);
     if (ae && document.activeElement !== ae) ae.checked = body.ae?.enabled === true;
     if (exposure && document.activeElement !== exposure && body.exposure_us != null) exposure.value = String(body.exposure_us);
     if (gain && document.activeElement !== gain && body.gain != null) gain.value = String(body.gain);
@@ -198,33 +216,53 @@ function init() {
       const next = `${body.width}x${body.height}`;
       if ([...res.options].some((opt) => opt.value === next)) res.value = next;
     }
-    if (fpsSet && document.activeElement !== fpsSet && body.stream?.fps != null) fpsSet.value = String(body.stream.fps);
+    const captureFps = targetFpsValue(body);
+    if (fpsSet && document.activeElement !== fpsSet && !fpsTouched && captureFps != null) fpsSet.value = captureFps;
     if (!pushing && ![ae, exposure, gain, res, fpsSet].includes(document.activeElement)) applied = readForm();
     drawHist(hist, img);
     return true;
   }
 
+  function scheduleStreamRetry() {
+    clearTimeout(retryTimer);
+    const wait = nextStreamDelayMs(streamAttempt);
+    streamAttempt += 1;
+    retryTimer = setTimeout(() => {
+      if (panel.hidden || !lastBody || lastBody.state === 'absent') return;
+      streamError = false;
+      if (img) img.src = `${STREAM}?t=${Date.now()}`;
+    }, wait);
+  }
+
   img?.addEventListener('load', () => {
-    img.hidden = false;
-    if (empty) empty.hidden = true;
-    if (honesty) honesty.textContent = 'פריים חי';
-    if (histEmpty) histEmpty.hidden = true;
+    streamError = false;
+    streamAttempt = 0;
+    paintHonesty(lastBody);
+    paintStatusLine(lastBody);
     drawHist(hist, img);
+  });
+  img?.addEventListener('error', () => {
+    if (!img.getAttribute('src')) return;
+    streamError = true;
+    img.hidden = true;
+    paintHonesty(lastBody);
+    paintStatusLine(lastBody);
+    text('cam1Fps', null);
+    scheduleStreamRetry();
   });
 
   async function pushSettings() {
     pushing = true;
     const [w, h] = String(res?.value || '1280x800').split('x').map((n) => Number(n));
-    const body = {
-      ae: { enabled: ae?.checked === true },
-      exposure_us: exposure?.value === '' ? undefined : Number(exposure.value),
-      gain: gain?.value === '' ? undefined : Number(gain.value),
+    const body = settingsPayload({
+      ae: ae?.checked === true,
+      exposure: exposure?.value || '',
+      gain: gain?.value || '',
       width: w,
       height: h,
-      fps: fpsSet?.value === '' ? undefined : Number(fpsSet.value),
-      manual: ae?.checked !== true,
-      stream: { fps: 15 },
-    };
+      fps: fpsSet?.value || '',
+      fpsTouched,
+    });
     try {
       await api('/api/jetson/v1/cam1/settings', {
         method: 'POST',
@@ -241,6 +279,7 @@ function init() {
     }
   }
 
+  fpsSet?.addEventListener('input', () => { fpsTouched = true; });
   ae?.addEventListener('change', () => { void pushSettings(); });
   exposure?.addEventListener('change', () => { void pushSettings(); });
   gain?.addEventListener('change', () => { void pushSettings(); });

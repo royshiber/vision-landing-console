@@ -23,7 +23,7 @@ describe('Linux updater dry-run', () => {
     expect(out).toContain('preserve=.env,data,var');
     expect(out).toContain('rollback=previous-code');
     expect(out).toContain('swap=after-success');
-    expect(out).toContain('restart=./restart.sh');
+    expect(out).toContain('restart=updater-owned');
     expect(out).toContain(`app-dir=${repoRoot}`);
     expect(fs.statSync(path.join(repoRoot, 'server.js')).mtimeMs).toBe(before);
     expect(fs.existsSync(path.join(repoRoot, '.env'))).toBe(false);

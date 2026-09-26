@@ -18,6 +18,26 @@ function unwrap(body) {
   return body;
 }
 
+let companionAnswers = null;
+let companionCheckedAt = 0;
+
+async function companionCanAnswer() {
+  if (companionAnswers != null && Date.now() - companionCheckedAt < 2000) return companionAnswers;
+  companionCheckedAt = Date.now();
+  try {
+    const res = await fetch('/api/jetson/v1', { cache: 'no-store' });
+    if (!res.ok) {
+      companionAnswers = false;
+      return false;
+    }
+    const info = await res.json();
+    companionAnswers = info?.mode === 'mock' || info?.mode === 'real';
+  } catch {
+    companionAnswers = false;
+  }
+  return companionAnswers;
+}
+
 async function api(path, opts) {
   const res = await fetch(path, opts);
   const ctype = res.headers.get('content-type') || '';
@@ -186,7 +206,7 @@ function init() {
     const line = document.getElementById('cam0StatusText');
     if (!line) return;
     const rate = fps == null || fps === '' ? '—' : String(fps);
-    line.textContent = `מצלמה אפס · ${connected ? 'מחובר' : 'לא מחובר'} · קצב ${rate}`;
+    line.textContent = `CAM0 · ${connected ? 'מחובר' : 'לא מחובר'} · קצב ${rate}`;
   }
 
   function paintSignal(has, drill) {
@@ -201,6 +221,12 @@ function init() {
 
   async function refresh() {
     let body = null;
+    if (!(await companionCanAnswer())) {
+      paintStatusLine(false, null);
+      setControls(false, REASON_LINK);
+      paintSignal(false, false);
+      return false;
+    }
     try {
       body = await api('/api/jetson/v1/cam0/status');
     } catch {

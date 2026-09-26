@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import tempfile
+import threading
 import time
 import unittest
 from pathlib import Path
@@ -169,9 +170,74 @@ class Cam1BudgetTests(unittest.TestCase):
         self.assertIsNotNone(svc.frame_jpeg())
         svc.release()
         self.assertEqual(svc.clients, 0)
+        deadline = time.monotonic() + 2
+        while time.monotonic() < deadline:
+            health = svc.health()
+            if fast.closed and not health["camera_ok"] and health["fps"] is None:
+                break
+            time.sleep(0.02)
         self.assertTrue(fast.closed)
         self.assertFalse(svc.health()["camera_ok"])
         self.assertIsNone(svc.health()["fps"])
+
+    def test_gain_only_keeps_capture_fps(self):
+        svc = self._service()
+        self.assertEqual(svc.config["fps"], 30)
+        body = svc.apply_settings({"gain": 40, "stream": {"fps": 8}})
+        self.assertEqual(body["fps"], 30)
+        self.assertEqual(body["gain"], 40)
+        self.assertEqual(body["stream"]["fps"], 8)
+        self.assertEqual(svc.status()["capture_fps"], 30)
+        self.assertIsNone(svc._thread)
+
+    def test_failed_open_retries_without_a_new_acquire(self):
+        svc = self._service()
+        fast = FastSource()
+        calls = {"n": 0}
+
+        def open_source():
+            calls["n"] += 1
+            if calls["n"] == 1:
+                return None
+            return fast
+
+        svc._open_source = open_source
+        svc.acquire()
+        try:
+            self.assertEqual(svc.clients, 1)
+            self.assertTrue(svc.wait_camera(3), "a failed open must retry while the client holds")
+            self.assertGreaterEqual(calls["n"], 2)
+        finally:
+            svc.release()
+
+    def test_stop_start_while_thread_alive_does_not_fail_wait(self):
+        svc = self._service()
+        fast = FastSource()
+        hold = threading.Event()
+
+        def read():
+            fast.reads += 1
+            if fast.reads > 1:
+                hold.wait(3)
+            return _fast_frame()
+
+        fast.read = read
+        svc._open_source = lambda: fast
+        svc.config["source"] = "synthetic"
+        svc.acquire()
+        self.assertTrue(svc.wait_camera(2))
+        self.assertTrue(svc._thread.is_alive())
+        with svc._lock:
+            svc.clients = 0
+            svc._stop.set()
+        svc.acquire()
+        try:
+            self.assertTrue(svc._thread.is_alive())
+            self.assertFalse(svc._stop.is_set())
+            self.assertTrue(svc.wait_camera(2), "stop/start must not 404 the next stream")
+        finally:
+            hold.set()
+            svc.release()
 
     def test_health_route_does_not_acquire(self):
         reset_service()

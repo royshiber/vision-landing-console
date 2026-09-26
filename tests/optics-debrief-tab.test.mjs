@@ -257,7 +257,9 @@ describe('Optics debrief tab — live layout', () => {
           if (parseFloat(cs.fontSize) < 11) fonts.push(`${label}: ${cs.fontSize}`);
         }
       }
-      const digits = ['#cam1Fps', '#cam1Latency', '#cam1Drops', '#cam1StatusText'].some((sel) => /\d/.test(document.querySelector(sel)?.textContent || ''));
+      const rateDigits = ['#cam1Fps', '#cam1Latency', '#cam1Drops'].some((sel) => /\d/.test(document.querySelector(sel)?.textContent || ''));
+      const statusRate = /קצב\s*\d/.test(document.querySelector('#cam1StatusText')?.textContent || '');
+      const digits = rateDigits || statusRate;
       return {
         hiddenCam0: document.getElementById('cam0Panel')?.hidden === true,
         status: document.getElementById('cam1StatusText')?.textContent || '',
