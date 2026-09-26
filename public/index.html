@@ -214,7 +214,8 @@
         <button class="tab tab-fly active" data-tab="terrain" title="הטסה">הטסה</button>
         <button class="tab tab-ops" data-tab="pulse" title="סטטוס מחשבים">סטטוס מחשבים</button>
         <button class="tab tab-ops" data-tab="control" title="פרמטרים">פרמטרים</button>
-        <button class="tab tab-ops" data-tab="recordings" title="אופטיקה ותחקור">אופטיקה ותחקור</button>
+        <button class="tab tab-ops" data-tab="optics" title="אופטיקה">אופטיקה</button>
+        <button class="tab tab-ops" data-tab="recordings" title="תחקור">תחקור</button>
         <button class="tab tab-quiet" hidden data-tab="telemetry" title="אבחונים">אבחונים</button>
         <button class="tab tab-ops" data-tab="flightEngineer" title="מהנדס" hidden>מהנדס</button>
         <button class="tab tab-ops" hidden data-tab="development" title="פיתוח">פיתוח</button>
@@ -874,10 +875,8 @@
         <div class="panel-header">
           <div class="param-toolbar" aria-label="סנכרון פרמטרים">
             <section class="param-tool-seg" aria-label="גיבוי בקונסולה">
-              <header class="param-tool-head">
-                <h3 class="param-tool-title">גיבוי בקונסולה</h3>
-                <p id="jetsonToolState" class="param-tool-state" data-state="unknown">לא ידוע</p>
-              </header>
+              <h3 class="param-tool-title">גיבוי</h3>
+              <p id="jetsonToolState" class="param-tool-state" data-state="unknown">לא ידוע</p>
               <p id="jetsonToolMeta" class="param-tool-meta">קריאה אחרונה: לא ידוע · לא מסונכרן: לא ידוע</p>
               <div class="param-tool-actions">
                 <button type="button" id="visionConfigReadBtn" class="param-tool-btn param-tool-btn--primary" title="טוען את הגיבוי השמור בקונסולה">קריאה</button>
@@ -885,10 +884,8 @@
               </div>
             </section>
             <section class="param-tool-seg" aria-label="FC">
-              <header class="param-tool-head">
-                <h3 class="param-tool-title">בקר הטיסה <bdi dir="ltr">(FC)</bdi></h3>
-                <p id="fcToolState" class="param-tool-state" data-state="unknown">לא ידוע</p>
-              </header>
+              <h3 class="param-tool-title">בקר</h3>
+              <p id="fcToolState" class="param-tool-state" data-state="unknown">לא ידוע</p>
               <p id="fcToolMeta" class="param-tool-meta">קריאה אחרונה: לא ידוע · לא מסונכרן: לא ידוע</p>
               <div class="param-tool-actions">
                 <button type="button" id="arduReadBtn" class="param-tool-btn param-tool-btn--primary" title="קורא פרמטרים מבקר הטיסה">קריאה</button>
@@ -924,6 +921,7 @@
           <div id="arduSearchStatus" class="vision-config-status param-center-search-status" aria-live="polite"></div>
           <div id="arduSmartSearchResults" class="ardu-smart-results hidden param-center-smart-results" aria-live="polite"></div>
         </div>
+        <div id="paramWriteResult" class="param-write-result" hidden></div>
         <div id="paramSyncBanner" class="param-sync-banner param-sync-banner--info" role="status" aria-live="polite"></div>
         <div id="autoLogsBanner" class="auto-logs-banner hidden" role="status" aria-live="polite"></div>
         <section id="plndProfileHonesty" class="plnd-honesty" aria-label="פרופיל נחיתה לפי ראייה">
@@ -955,14 +953,16 @@
               <div class="fc-group-split">
                 <ul id="fcGroupList" class="fc-group-list" aria-label="פרמטרי הקבוצה"></ul>
                 <aside id="fcChangePane" class="fc-change-pane" aria-label="שינויים שנכתבו">
-                  <h3 class="fc-change-title">שינויים שנכתבו</h3>
-                  <ul id="fcChangeList" class="fc-change-list"></ul>
-                  <section class="fc-file-history" aria-label="היסטוריית קבצי פרמטרים">
-                    <h3 class="fc-file-title">קובץ פרמטרים אחרון</h3>
-                    <p id="fcFileLatest" class="fc-file-latest">אין קובץ שמור</p>
-                    <ul id="fcFileList" class="fc-file-list"></ul>
-                    <p id="fcFileStatus" class="fc-file-status" aria-live="polite"></p>
-                  </section>
+                  <details id="fcChangeFold" class="fc-change-fold" open>
+                    <summary class="fc-change-title">שינויים שנכתבו</summary>
+                    <ul id="fcChangeList" class="fc-change-list"></ul>
+                    <details class="fc-file-history" open>
+                      <summary class="fc-file-title">קובץ אחרון</summary>
+                      <p id="fcFileLatest" class="fc-file-latest">אין קובץ שמור</p>
+                      <ul id="fcFileList" class="fc-file-list"></ul>
+                      <p id="fcFileStatus" class="fc-file-status" aria-live="polite"></p>
+                    </details>
+                  </details>
                 </aside>
               </div>
               <div class="fc-group-actions">
@@ -1035,34 +1035,9 @@
         <pre id="configText" class="config-text-hidden" aria-hidden="true"></pre>
       </section>
 
-      <section id="recordings" class="panel recordings-panel-flex">
-        <div class="panel-header">
-          <div class="tele-subtabs" role="tablist" aria-label="תתי טאבים תחקור">
-            <button type="button" class="tele-subtab" id="debriefFlightbookBtn" data-debrief-tab="flightbook">טיסות</button>
-            <button type="button" class="tele-subtab active" id="debriefRecBtn" data-debrief-tab="recordings">הקלטות</button>
-            <button type="button" class="tele-subtab" id="debriefLogsBtn" data-debrief-tab="logs">לוגים</button>
-          </div>
-          <div class="actions">
-            <label class="file-btn">
-              טען וידאו
-              <input id="videoInput" type="file" accept="video/*" title="טוען הקלטת טיסה להצגה" />
-            </label>
-            <span id="selectedRecordingLabel" class="flight-summary-inline">לוג נבחר: —</span>
-            <button id="annotationsToggleBtn" class="badge clickable" title="הפעל/כבה אנוטציות על הוידאו">אנוטציות: פועל</button>
-          </div>
-        </div>
-        <div id="debriefFlightbookPanel" class="tele-subpanel fb-panel" data-debrief-panel="flightbook" data-layout-contract="flightbook-v1" dir="rtl"></div>
-        <div id="debriefRecordingsPanel" class="recordings-layout tele-subpanel visible" data-debrief-panel="recordings">
-          <div class="video-column">
-            <div class="debrief-player" id="debriefPlayer">
-              <p class="debrief-player-kicker">הקלטת תחקור</p>
-              <div class="debrief-player-stage">
-                <video id="flightVideo" controls playsinline hidden></video>
-                <canvas id="annotationCanvas"></canvas>
-                <div id="lockIndicator" class="lock-indicator" hidden></div>
-                <p id="debriefPlayerEmpty" class="debrief-player-empty">לא נטען וידאו</p>
-              </div>
-            </div>
+      <section id="optics" class="panel optics-panel" dir="rtl" aria-label="אופטיקה">
+        <div class="optics-live">
+          <div class="optics-tiles">
             <div class="debrief-cam-toolbar" role="group" aria-label="מצלמות">
               <button type="button" class="debrief-cam-toggle" data-debrief-cam="cam0" aria-pressed="true">CAM0</button>
               <button type="button" class="debrief-cam-toggle" data-debrief-cam="cam1" aria-pressed="true">CAM1</button>
@@ -1092,38 +1067,35 @@
                 <figcaption class="debrief-cam-label">גימבל</figcaption>
               </figure>
             </div>
-            <section id="gimbalPad" class="gimbal-pad" dir="rtl" aria-label="שליטת גימבל" data-state="down">
-              <p id="gimbalPadReason" class="gimbal-pad-reason">אין קישור למחשב המשימה</p>
+          </div>
+          <section id="gimbalPad" class="gimbal-pad" dir="rtl" aria-label="שליטת גימבל" data-state="down">
+            <h3 class="gimbal-pad-title">גימבל</h3>
+            <button type="button" id="gimbalLockBtn" class="gimbal-pad-btn gimbal-pad-lock" data-gimbal="lock" aria-pressed="false" disabled aria-describedby="gimbalPadReason">משוחרר</button>
+            <p id="gimbalPadReason" class="gimbal-pad-reason">אין קישור למחשב המשימה</p>
+            <p id="gimbalAngles" class="gimbal-pad-angles"><span>יאו</span> <span id="gimbalYaw" dir="ltr">—</span> <span>פיץ׳</span> <span id="gimbalPitch" dir="ltr">—</span></p>
+            <div class="gimbal-pad-play">
               <div class="gimbal-pad-stick" dir="ltr">
-                <button type="button" class="gimbal-pad-btn" data-gimbal="up" disabled aria-describedby="gimbalPadReason">מעלה</button>
-                <button type="button" class="gimbal-pad-btn" data-gimbal="left" disabled aria-describedby="gimbalPadReason">שמאלה</button>
-                <button type="button" class="gimbal-pad-btn" data-gimbal="right" disabled aria-describedby="gimbalPadReason">ימינה</button>
-                <button type="button" class="gimbal-pad-btn" data-gimbal="down" disabled aria-describedby="gimbalPadReason">מטה</button>
+                <button type="button" class="gimbal-pad-btn" data-gimbal="up" disabled aria-label="מעלה" aria-describedby="gimbalPadReason">▲</button>
+                <button type="button" class="gimbal-pad-btn" data-gimbal="left" disabled aria-label="שמאלה" aria-describedby="gimbalPadReason">◀</button>
+                <button type="button" class="gimbal-pad-btn gimbal-pad-center" data-gimbal="center" disabled aria-label="מרכז" aria-describedby="gimbalPadReason">מרכז</button>
+                <button type="button" class="gimbal-pad-btn" data-gimbal="right" disabled aria-label="ימינה" aria-describedby="gimbalPadReason">▶</button>
+                <button type="button" class="gimbal-pad-btn" data-gimbal="down" disabled aria-label="מטה" aria-describedby="gimbalPadReason">▼</button>
               </div>
-              <div class="gimbal-pad-zoom">
-                <button type="button" class="gimbal-pad-btn" data-gimbal="zoom-in" disabled aria-describedby="gimbalPadReason">זום פנימה</button>
-                <button type="button" class="gimbal-pad-btn" data-gimbal="zoom-out" disabled aria-describedby="gimbalPadReason">זום החוצה</button>
+              <div class="gimbal-pad-zoom" dir="ltr">
+                <button type="button" class="gimbal-pad-btn" data-gimbal="zoom-in" disabled aria-label="זום פנימה" aria-describedby="gimbalPadReason">+</button>
+                <p id="gimbalZoomLevel" class="gimbal-zoom-level"><span>זום</span> <span id="gimbalZoomValue" dir="ltr">—</span></p>
+                <button type="button" class="gimbal-pad-btn" data-gimbal="zoom-out" disabled aria-label="זום החוצה" aria-describedby="gimbalPadReason">−</button>
               </div>
-              <button type="button" id="gimbalLockBtn" class="gimbal-pad-btn gimbal-pad-lock" data-gimbal="lock" aria-pressed="false" disabled aria-describedby="gimbalPadReason">משוחרר</button>
-            </section>
-            <div class="annotation-legend">
-              <span class="legend-item locked">■ ננעל</span>
-              <span class="legend-item searching">■ מחפש</span>
-              <span class="legend-item no-lock">■ אין נעילה</span>
-              <span id="annotConfidence" class="annot-confidence-inline">ביטחון: --%</span>
             </div>
-            <input id="timelineRange" type="range" min="0" max="100" value="0" />
-          </div>
-          <div class="events-column">
-            <h3>אירועים</h3>
-            <div id="eventsList" class="events-list"></div>
-          </div>
-          
+            <p class="gimbal-pad-keys">הזיזו בחצים. שנו את הזום בפלוס ובמינוס.</p>
+          </section>
+        </div>
+        <div class="optics-calib">
           <div class="optics-cam-switch" role="tablist" aria-label="בחירת מצלמה">
             <button type="button" role="tab" id="opticsCam0Btn" class="optics-cam-btn is-active" aria-selected="true" aria-controls="cam0Panel">CAM0</button>
             <button type="button" role="tab" id="opticsCam1Btn" class="optics-cam-btn" aria-selected="false" aria-controls="cam1Panel">CAM1</button>
           </div>
-<section id="cam0Panel" class="cam0-panel" dir="rtl" aria-label="CAM0" data-camera-source="cam0">
+          <section id="cam0Panel" class="cam0-panel" dir="rtl" aria-label="CAM0" data-camera-source="cam0">
             <header class="cam0-head">
               <h3 class="cam0-title">CAM0</h3>
               <p id="cam0Honesty" class="cam0-honesty">אין אות</p>
@@ -1147,36 +1119,44 @@
                   <div><dt>השהיה</dt><dd id="cam0Latency" dir="ltr">—</dd></div>
                   <div><dt>נפילות</dt><dd id="cam0Drops" dir="ltr">—</dd></div>
                 </dl>
-                <div class="cam0-controls">
-                  <label class="cam0-check"><input type="checkbox" id="cam0Ae" disabled /> חשיפה אוטומטית</label>
-                  <label>חשיפה <input id="cam0Exposure" type="number" min="10" max="100001" step="10" dir="ltr" disabled /></label>
-                  <label>הגבר <input id="cam0Gain" type="number" min="16" max="256" step="1" dir="ltr" disabled /></label>
-                  <label>רזולוציה
-                    <select id="cam0Res" dir="ltr" disabled>
-                      <option value="1280x800">1280×800</option>
-                      <option value="1280x720">1280×720</option>
-                    </select>
-                  </label>
-                  <label>קצב יעד <input id="cam0FpsSet" type="number" min="1" max="60" step="1" dir="ltr" disabled /></label>
-                  <button type="button" id="cam0Record" class="cam0-btn" disabled>הקלטה</button>
-                  <span id="cam0RecDot" class="cam0-rec" hidden>מקליט</span>
-                  <button type="button" id="cam0Snap" class="cam0-btn" disabled>צילום</button>
-                  <label class="cam0-check"><input type="checkbox" id="cam0OverlayToggle" checked /> זיהויים</label>
+                <div class="cam0-controls optics-groups">
+                  <div class="optics-field-group">
+                    <p class="optics-field-kicker">חשיפה</p>
+                    <label class="cam0-check"><input type="checkbox" id="cam0Ae" disabled /> <span class="optics-field-name">חשיפה אוטומטית</span></label>
+                    <label><span class="optics-field-name">חשיפה</span> <input id="cam0Exposure" type="number" min="10" max="100001" step="10" dir="ltr" disabled /></label>
+                    <label><span class="optics-field-name">הגבר</span> <input id="cam0Gain" type="number" min="16" max="256" step="1" dir="ltr" disabled /></label>
+                  </div>
+                  <div class="optics-field-group">
+                    <p class="optics-field-kicker">תמונה</p>
+                    <label><span class="optics-field-name">זווית ראייה (מעלות)</span> <input id="cam0Fov" type="number" min="20" max="180" step="1" dir="ltr" value="120" /></label>
+                    <label><span class="optics-field-name">רזולוציה</span>
+                      <select id="cam0Res" dir="ltr" disabled>
+                        <option value="1280x800">1280×800</option>
+                        <option value="1280x720">1280×720</option>
+                      </select>
+                    </label>
+                    <label><span class="optics-field-name">קצב יעד</span> <input id="cam0FpsSet" type="number" min="1" max="60" step="1" dir="ltr" disabled /></label>
+                  </div>
+                  <div class="optics-field-group">
+                    <p class="optics-field-kicker">הקלטה</p>
+                    <button type="button" id="cam0Record" class="cam0-btn" disabled>הקלטה</button>
+                    <span id="cam0RecDot" class="cam0-rec" hidden>מקליט</span>
+                    <button type="button" id="cam0Snap" class="cam0-btn" disabled>צילום</button>
+                    <label class="cam0-check"><input type="checkbox" id="cam0OverlayToggle" checked /> <span class="optics-field-name">זיהויים</span></label>
+                  </div>
                 </div>
                 <section class="cam0-calib" aria-label="כיול">
                   <h4>כיול</h4>
-                  <p class="cam0-calib-lead">החזיקו לוח שחמט מול המצלמה. כל צילום נשמר, ואז פותרים.</p>
+                  <p class="cam0-calib-lead">החזיקו לוח שחמט מול המצלמה.</p>
                   <p id="cam0CalibState" class="cam0-calib-state">עדיין אין כיול.</p>
-                  <div class="cam0-controls">
-                    <button type="button" id="cam0CalibCap" class="cam0-btn" disabled>צילום לוח</button>
-                    <button type="button" id="cam0CalibSolve" class="cam0-btn" disabled>פתרון</button>
-                  </div>
+                  <button type="button" id="cam0CalibCap" class="cam0-btn" disabled>צילום לוח</button>
+                  <button type="button" id="cam0CalibSolve" class="cam0-btn" disabled>פתרון</button>
                 </section>
               </div>
             </div>
             <select id="cam0SourceAdapter" class="cam0-source-adapter" data-camera-source-picker hidden aria-hidden="true"></select>
           </section>
-          <section id="cam1Panel" class="cam0-panel cam1-panel" dir="rtl" aria-label="CAM1" hidden>
+          <section id="cam1Panel" class="cam0-panel cam1-panel" dir="rtl" aria-label="CAM1">
             <header class="cam0-head">
               <h3 class="cam0-title cam1-title">CAM1</h3>
               <p id="cam1Honesty" class="cam0-honesty">אין אות</p>
@@ -1199,22 +1179,68 @@
                   <div><dt>השהיה</dt><dd id="cam1Latency" dir="ltr">—</dd></div>
                   <div><dt>נפילות</dt><dd id="cam1Drops" dir="ltr">—</dd></div>
                 </dl>
-                <div class="cam0-controls">
-                  <label class="cam0-check"><input type="checkbox" id="cam1Ae" disabled /> חשיפה אוטומטית</label>
-                  <label>חשיפה <input id="cam1Exposure" type="number" min="10" max="100001" step="10" dir="ltr" disabled /></label>
-                  <label>הגבר <input id="cam1Gain" type="number" min="16" max="256" step="1" dir="ltr" disabled /></label>
-                  <label>רזולוציה
-                    <select id="cam1Res" dir="ltr" disabled>
-                      <option value="1280x800">1280×800</option>
-                      <option value="1280x720">1280×720</option>
-                    </select>
-                  </label>
-                  <label>קצב יעד <input id="cam1FpsSet" type="number" min="1" max="30" step="1" dir="ltr" disabled /></label>
-                  <button type="button" id="cam1Snap" class="cam0-btn" disabled>צילום</button>
+                <div class="cam0-controls optics-groups">
+                  <div class="optics-field-group">
+                    <p class="optics-field-kicker">חשיפה</p>
+                    <label class="cam0-check"><input type="checkbox" id="cam1Ae" disabled /> <span class="optics-field-name">חשיפה אוטומטית</span></label>
+                    <label><span class="optics-field-name">חשיפה</span> <input id="cam1Exposure" type="number" min="10" max="100001" step="10" dir="ltr" disabled /></label>
+                    <label><span class="optics-field-name">הגבר</span> <input id="cam1Gain" type="number" min="16" max="256" step="1" dir="ltr" disabled /></label>
+                  </div>
+                  <div class="optics-field-group">
+                    <p class="optics-field-kicker">תמונה</p>
+                    <label><span class="optics-field-name">זווית ראייה (מעלות)</span> <input id="cam1Fov" type="number" min="20" max="180" step="1" dir="ltr" value="79" /></label>
+                    <label><span class="optics-field-name">רזולוציה</span>
+                      <select id="cam1Res" dir="ltr" disabled>
+                        <option value="1280x800">1280×800</option>
+                        <option value="1280x720">1280×720</option>
+                      </select>
+                    </label>
+                    <label><span class="optics-field-name">קצב יעד</span> <input id="cam1FpsSet" type="number" min="1" max="30" step="1" dir="ltr" disabled /></label>
+                    <button type="button" id="cam1Snap" class="cam0-btn" disabled>צילום</button>
+                  </div>
                 </div>
               </div>
             </div>
           </section>
+        </div>
+      </section>
+
+      <section id="recordings" class="panel recordings-panel-flex">
+        <div class="panel-header">
+          <div class="tele-subtabs" role="tablist" aria-label="תתי טאבים תחקור">
+            <button type="button" class="tele-subtab" id="debriefFlightbookBtn" data-debrief-tab="flightbook">טיסות</button>
+            <button type="button" class="tele-subtab active" id="debriefRecBtn" data-debrief-tab="recordings">הקלטות</button>
+            <button type="button" class="tele-subtab" id="debriefLogsBtn" data-debrief-tab="logs">לוגים</button>
+          </div>
+          <div class="actions">
+            <label class="file-btn">
+              טען וידאו
+              <input id="videoInput" type="file" accept="video/*" title="טוען הקלטת טיסה להצגה" />
+            </label>
+            <span id="selectedRecordingLabel" class="flight-summary-inline">לוג נבחר: —</span>
+            <button id="annotationsToggleBtn" class="badge clickable" title="הפעל/כבה אנוטציות על הוידאו">אנוטציות: פועל</button>
+          </div>
+        </div>
+        <div id="debriefFlightbookPanel" class="tele-subpanel fb-panel" data-debrief-panel="flightbook" data-layout-contract="flightbook-v1" dir="rtl"></div>
+        <div id="debriefRecordingsPanel" class="recordings-layout tele-subpanel visible" data-debrief-panel="recordings">
+          <div class="video-column">
+            <div class="debrief-player" id="debriefPlayer">
+              <p class="debrief-player-kicker">הקלטת תחקור</p>
+              <div class="debrief-player-stage">
+                <video id="flightVideo" controls playsinline hidden></video>
+                <canvas id="annotationCanvas"></canvas>
+                <div id="lockIndicator" class="lock-indicator" hidden></div>
+                <p id="debriefPlayerEmpty" class="debrief-player-empty">לא נטען וידאו</p>
+              </div>
+            </div>
+            <div class="annotation-legend">
+              <span class="legend-item locked">■ ננעל</span>
+              <span class="legend-item searching">■ מחפש</span>
+              <span class="legend-item no-lock">■ אין נעילה</span>
+              <span id="annotConfidence" class="annot-confidence-inline">ביטחון: --%</span>
+            </div>
+            <input id="timelineRange" type="range" min="0" max="100" value="0" />
+          </div>
 
         </div>
         <div id="debriefLogsPanel" class="tele-subpanel debrief-logs-panel flights-panel" data-debrief-panel="logs">

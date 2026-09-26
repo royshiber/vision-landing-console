@@ -65,9 +65,9 @@ describe('Mission layout contract — static source', () => {
     const workspace = cssBlock(css, '.mission-workspace[data-mission-layout="ops-v1"]');
     expect(workspace).toMatch(/display:\s*grid/);
     expect(workspace).toMatch(/gap:\s*4px/);
-    expect(workspace).toMatch(/minmax\(132px, min\(20%, var\(--mission-ah-col\)\)\)/);
-    expect(workspace).toMatch(/minmax\(0, 1fr\)/);
-    expect(workspace).toMatch(/minmax\(240px, min\(26%, var\(--mission-talk-col\)\)\)/);
+    expect(workspace).toMatch(/minmax\(var\(--mission-col-floor, 32px\), var\(--mission-ah-col, 0\.18fr\)\)/);
+    expect(workspace).toMatch(/minmax\(var\(--mission-col-floor, 32px\), var\(--mission-map-col, 0\.60fr\)\)/);
+    expect(workspace).toMatch(/minmax\(var\(--mission-col-floor, 32px\), var\(--mission-talk-col, 0\.22fr\)\)/);
     expect(workspace).toMatch(/--mission-msg-h:\s*40px/);
     expect(workspace).toMatch(/--mission-map-min:\s*65%/);
     expect(workspace).toMatch(/--mission-ah-row:\s*66%/);
@@ -91,7 +91,7 @@ describe('Mission layout contract — static source', () => {
     expect(cssBlock(css, '.pfd-horizon-msg-log')).toMatch(/border:\s*0/);
     expect(cssBlock(css, '.pfd-horizon-msg-log')).not.toMatch(/left:\s*50%/);
     expect(cssBlock(css, '.mission-region[data-mission-region="messages"]')).toMatch(/position:\s*relative/);
-    expect(cssBlock(css, '.mission-region[data-mission-region="talk"]')).toMatch(/min-width:\s*240px/);
+    expect(cssBlock(css, '.mission-region[data-mission-region="talk"]')).toMatch(/min-width:\s*0/);
     expect(cssBlock(css, '.mission-ops-chrome')).toMatch(/min-height:\s*26px/);
     expect(cssBlock(css, '.mission-ops-chrome')).toMatch(/max-height:\s*26px/);
   });
@@ -144,21 +144,27 @@ describe('Mission layout contract — static source', () => {
     expect(sliceFunction(js, 'refreshPulseExtraWidgets')).not.toMatch(/position\s*=\s*['"]absolute['"]/);
   });
 
-  it('clamps AH size shares to 20% and never writes raw fr tracks', () => {
+  it('sizes each mission column from the pointer and keeps row clamps', () => {
     expect(js).toContain("MISSION_SIZE_KEY = 'visionLandingMissionSizeV4'");
     const apply = sliceFunction(js, 'applyMissionSize');
-    expect(apply).toContain('Math.min(20');
+    expect(apply).toContain('--mission-map-col');
     expect(apply).toContain('--mission-ah-col');
+    expect(apply).toContain('--mission-talk-col');
     expect(apply).toContain('--mission-ah-row');
+    expect(apply).not.toContain('Math.min(20');
     expect(apply).not.toMatch(/--mission-r1',\s*`\$\{size\.r1\}fr`/);
     expect(apply).not.toMatch(/--mission-c1',\s*`\$\{size\.c1\}fr`/);
     const size = new Function(`${sliceFunction(js, 'defaultMissionSize')}; return defaultMissionSize();`)();
     expect(size.c1).toBeLessThanOrEqual(0.20);
     expect(size.c3).toBeLessThan(size.c2);
     const read = sliceFunction(js, 'readMissionSize');
-    expect(read).toMatch(/clampMissionFr\(raw\.c1, 0\.14, 0\.20/);
+    expect(read).toMatch(/clampMissionFr\(raw\.c1, 0\.02, 8000/);
+    expect(read).toMatch(/clampMissionFr\(rows\.r1, 0\.70, 0\.92/);
     const split = sliceFunction(js, 'bindMissionSplitters');
-    expect(split).toMatch(/clampMissionFr\(base\.c1 \+ delta, 0\.14, 0\.20/);
+    expect(split).toContain('missionSplitAtPointer');
+    expect(split).toContain('pointerdown');
+    expect(split).toContain('pointermove');
+    expect(split).not.toContain('base.c1 + delta');
     expect(sliceFunction(js, 'applyMissionAreas')).toContain("id === 'messages' || id === 'data'");
   });
 });
@@ -282,9 +288,9 @@ describe('Mission layout contract — live boxes', () => {
     });
 
     expect(measured.platformTab).toBe(false);
-    expect(measured.version).toBe('1.02.346');
+    expect(measured.version).toBe('1.02.353');
     expect(measured.ws.width).toBeGreaterThan(800);
-    expect(measured.talkMinWidth).toBe('240px');
+    expect(measured.talkMinWidth).toBe('0px');
     expect(Number.parseFloat(measured.dataGap)).toBeLessThanOrEqual(4);
     expect(measured.dataOverflowX).toMatch(/auto|scroll|visible/);
     expect(measured.msgPosition).toMatch(/relative|static/);

@@ -42,6 +42,7 @@ export function settingsPayload(form) {
     stream: { fps: 15 },
   };
   if (form.fpsTouched && form.fps !== '' && form.fps != null) body.fps = Number(form.fps);
+  if (form.fov != null && form.fov !== '') body.fov_deg = Number(form.fov);
   return body;
 }
 

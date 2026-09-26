@@ -99,9 +99,9 @@ function loadSizeFns() {
 }
 
 describe('Mission AH size bias + swap persistence', () => {
-  it('pins APP_VERSION at 1.02.346', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.346'");
-    expect(pkg.version).toBe('1.02.346');
+  it('pins APP_VERSION at 1.02.353', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.353'");
+    expect(pkg.version).toBe('1.02.353');
   });
 
   it('fits mission-data text inside the tile instead of an ellipsis', () => {
@@ -191,7 +191,7 @@ describe('Mission AH size bias + swap persistence', () => {
     expect(mapBlock).not.toContain('data-mission-region="messages"');
     expect(css).toContain('data-mission-swap="map-horizon"');
     expect(css).toContain('data-mission-swap="horizon-map"');
-    expect(css).toContain('grid-template-columns: minmax(0, 1fr) minmax(132px, min(20%, var(--mission-ah-col)))');
+    expect(css).toContain('grid-template-columns: minmax(var(--mission-col-floor, 32px), var(--mission-map-col, 0.60fr)) minmax(var(--mission-col-floor, 32px), var(--mission-ah-col, 0.18fr))');
     expect(css).toMatch(/data-mission-swap="map-horizon"\] \{\s*grid-template-areas: "map horizon talk"/);
     expect(css).toMatch(/data-mission-swap="horizon-map"\] \{\s*grid-template-areas: "horizon map talk"/);
     expect(sliceFunction(js, 'applyMissionSwap')).toContain('refreshMissionSwapSurfaces');
@@ -280,14 +280,18 @@ describe('HUD message-interval request (no flight commands)', () => {
     expect(targets.messages.find((m) => m.id === MSG_GPS_RAW_INT).intervalUs).toBe(HUD_GPS_INTERVAL_US);
     const ds = buildRequestDataStreamPayload(1, 1, MAV_DATA_STREAM_EXTRA2, HUD_STREAM_RATE_HZ);
     expect(ds.length).toBe(6);
-    expect(ds[2]).toBe(MAV_DATA_STREAM_EXTRA2);
-    expect(ds.readUInt16LE(3)).toBe(HUD_STREAM_RATE_HZ);
+    expect(ds.readUInt16LE(0)).toBe(HUD_STREAM_RATE_HZ);
+    expect(ds[2]).toBe(1);
+    expect(ds[3]).toBe(1);
+    expect(ds[4]).toBe(MAV_DATA_STREAM_EXTRA2);
     expect(ds[5]).toBe(1);
     const iv = buildSetMessageIntervalPayload(1, 1, MSG_VFR_HUD, HUD_STREAM_INTERVAL_US);
     expect(iv.length).toBe(33);
-    expect(iv.readUInt16LE(2)).toBe(MAV_CMD_SET_MESSAGE_INTERVAL);
-    expect(iv.readFloatLE(5)).toBe(MSG_VFR_HUD);
-    expect(iv.readFloatLE(9)).toBe(HUD_STREAM_INTERVAL_US);
+    expect(iv.readFloatLE(0)).toBe(MSG_VFR_HUD);
+    expect(iv.readFloatLE(4)).toBe(HUD_STREAM_INTERVAL_US);
+    expect(iv.readUInt16LE(28)).toBe(MAV_CMD_SET_MESSAGE_INTERVAL);
+    expect(iv[30]).toBe(1);
+    expect(iv[31]).toBe(1);
     const frames = parseMavlinkFrames(Buffer.concat([
       buildMavlink1Frame(MSG_REQUEST_DATA_STREAM, ds, 1),
     ]));
@@ -306,8 +310,8 @@ describe('HUD message-interval request (no flight commands)', () => {
     expect(method).toContain('MSG_COMMAND_LONG');
     expect(method).toContain('MSG_REQUEST_DATA_STREAM');
     expect(core.indexOf('conn.maybeRequestHudRatesOnHeartbeat();')).toBeGreaterThan(core.indexOf('scheduleParamPull(400)'));
-    expect(iv.readUInt16LE(2)).not.toBe(400);
-    expect(iv.readUInt16LE(2)).not.toBe(176);
+    expect(iv.readUInt16LE(28)).not.toBe(400);
+    expect(iv.readUInt16LE(28)).not.toBe(176);
   });
 
   it('SSE snapshot exposes altitudeSource without inventing altitude', () => {

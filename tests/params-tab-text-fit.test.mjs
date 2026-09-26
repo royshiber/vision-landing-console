@@ -525,10 +525,11 @@ print(len(thumbs))
     expect(await clean.locator('#arduWriteBtn').isDisabled()).toBe(true);
     await clean.evaluate(() => { document.getElementById('arduWriteBtn').disabled = false; });
     await clean.click('#arduWriteBtn');
-    await clean.waitForFunction(() => (document.getElementById('paramToolFaultText')?.textContent || '').includes('אין חיבור לבקר הטיסה'));
+    await clean.waitForFunction(() => (document.getElementById('paramWriteResult')?.textContent || '').includes('אין חיבור לבקר הטיסה'));
+    expect(await clean.locator('#paramWriteResult').getAttribute('data-tone')).toBe('bad');
+    expect(await clean.locator('#paramToolFault').isHidden()).toBe(true);
     const cls = await clean.locator('#arduWriteStatus').getAttribute('class');
-    expect(cls).toContain('fail');
-    expect(cls).not.toContain('success');
+    expect(cls || '').not.toContain('success');
     expect(await clean.locator('#arduWriteBtn').isDisabled()).toBe(true);
     const file = path.join(qaDir, '1024x576-write-no-link.png');
     await clean.screenshot({ path: file, fullPage: false });

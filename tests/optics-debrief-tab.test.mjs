@@ -32,12 +32,20 @@ const FAKE_EVENTS = [
 ];
 
 describe('Optics debrief tab — source', () => {
-  it('renames the top tab, hides development, and drops sample events', () => {
-    expect(html).toMatch(/data-tab="recordings"[^>]*>אופטיקה ותחקור</);
+  it('splits optics from debrief and keeps the recordings deep link', () => {
+    expect(html).toMatch(/data-tab="optics"[^>]*>אופטיקה</);
+    expect(html).toMatch(/data-tab="recordings"[^>]*>תחקור</);
+    expect(html).not.toMatch(/אופטיקה ותחקור/);
+    expect(html).not.toContain('class="events-column"');
+    expect(html).not.toContain('id="eventsList"');
     expect(html).not.toContain('id="cam0StatusLink"');
     expect(html).toContain('id="cam0StatusText"');
     expect(html).toMatch(/data-tab="development"[^>]*hidden|hidden[^>]*data-tab="development"/);
-    expect(html).not.toMatch(/data-tab="recordings"[^>]*>תחקור</);
+    expect(html.indexOf('id="optics"')).toBeLessThan(html.indexOf('id="debriefCamGrid"'));
+    expect(html.indexOf('id="debriefCamGrid"')).toBeLessThan(html.indexOf('id="recordings"'));
+    expect(html).toContain('id="cam0Fov"');
+    expect(html).toContain('id="cam1Fov"');
+    expect(js).toContain("if (tabId === 'flights')");
     expect(js).not.toContain('eventSamples');
     for (const line of FAKE_EVENTS) expect(js).not.toContain(line);
     expect(js).toContain('אין אירועים');
@@ -124,9 +132,10 @@ describe('Optics debrief tab — live layout', () => {
   }
 
   async function openOptics(page) {
-    await openDebrief(page);
-    await page.locator('#debriefRecBtn').evaluate((el) => el.click());
-    await page.waitForSelector('#eventsList .event-empty', { timeout: 8000 });
+    await page.goto(BASE, { waitUntil: 'domcontentloaded', timeout: 15000 });
+    await page.locator('[data-tab="optics"]').evaluate((el) => el.click());
+    await page.waitForSelector('#optics.panel.visible #gimbalPad[data-state="down"]', { timeout: 8000 });
+    await page.waitForSelector('#cam0Reason', { timeout: 8000 });
   }
 
   async function audit(page) {
@@ -143,8 +152,11 @@ describe('Optics debrief tab — live layout', () => {
         return { left: r.left, top: r.top, right: r.right, bottom: r.bottom, width: r.width, height: r.height };
       };
       const dev = document.querySelector('[data-tab="development"]');
-      const tab = document.querySelector('[data-tab="recordings"]');
+      const tab = document.querySelector('[data-tab="optics"]');
       const events = document.getElementById('eventsList');
+      const optics = document.getElementById('optics');
+      const grid = document.getElementById('debriefCamGrid');
+      const pad = document.getElementById('gimbalPad');
       const textFit = [];
       const selectors = [
         '.app-chrome .tab',
@@ -224,7 +236,13 @@ describe('Optics debrief tab — live layout', () => {
         clones: document.querySelectorAll('.debrief-cam-clone').length,
         notes,
         lockHidden: document.getElementById('lockIndicator')?.hidden === true,
-        cam0InOptics: panel?.closest('#recordings') != null,
+        cam0InOptics: panel?.closest('#optics') != null,
+        eventsGone: events == null,
+        reason: document.getElementById('gimbalPadReason')?.textContent || '',
+        upDisabled: document.querySelector('[data-gimbal="up"]')?.disabled === true,
+        scroll: optics ? optics.scrollHeight - optics.clientHeight : 999,
+        beside: Boolean(grid && pad) && pad.getBoundingClientRect().right <= grid.getBoundingClientRect().left + 12,
+        fovBottom: document.getElementById('cam0Fov')?.getBoundingClientRect().bottom || 0,
         cam0InPulse: panel?.closest('#pulse') != null,
         statusInPulse: document.getElementById('cam0StatusLine')?.closest('#pulse') != null,
         cam1InPulse: document.getElementById('cam1StatusLine')?.closest('#pulse') != null,
@@ -265,6 +283,7 @@ describe('Optics debrief tab — live layout', () => {
       const digits = rateDigits || statusRate;
       return {
         hiddenCam0: document.getElementById('cam0Panel')?.hidden === true,
+        cam0Shown: document.getElementById('cam0Panel')?.hidden !== true,
         status: document.getElementById('cam1StatusText')?.textContent || '',
         reason: document.getElementById('cam1Reason')?.textContent || '',
         fps: document.getElementById('cam1Fps')?.textContent || '',
@@ -284,23 +303,19 @@ describe('Optics debrief tab — live layout', () => {
         hasTouch: width <= 360,
       });
       try {
-        await openDebrief(page);
-        const shell = await shellReport(page);
-        expect(shell.panelH, `panel ${shell.panelH}px`).toBeGreaterThan(200);
-        expect(shell.emptyOnScreen, `empty ${shell.emptyH}px`).toBe(true);
-        expect(shell.emptyText).toContain('הוסיפו מפתח קריאה');
-        expect(shell.emptyText).not.toMatch(/\.env|docs\//);
-        expect(shell.envVisual).toBe('');
-        expect(shell.docsVisual).toBe('');
-        expect(shell.spaced, shell.spaced.join('\n')).toEqual([]);
         await openOptics(page);
         const report = await audit(page);
         await page.screenshot({ path: path.join(shotDir, `optics-debrief-${name}.png`), fullPage: false });
+        if (name === '1366x768' || name === '1440x900') {
+          await page.screenshot({ path: path.join(shotDir, `optics-${name}.png`), fullPage: false });
+        }
         expect(report.dir).toBe('rtl');
-        expect(report.tab).toBe('אופטיקה ותחקור');
+        expect(report.tab).toBe('אופטיקה');
         expect(report.devHidden).toBe(true);
-        expect(report.eventsText).toContain('אין אירועים');
+        expect(report.eventsGone).toBe(true);
         expect(report.fakes).toEqual([]);
+        expect(report.reason).toContain('אין קישור');
+        expect(report.upDisabled).toBe(true);
         expect(report.textFit, report.textFit.join('\n')).toEqual([]);
         expect(report.overlaps, report.overlaps.join('\n')).toEqual([]);
         expect(report.pillOnBadge).toBe(false);
@@ -309,15 +324,21 @@ describe('Optics debrief tab — live layout', () => {
         expect(report.videoInPlayer).toBe(true);
         expect(report.videoInTile).toBe(false);
         expect(report.clones).toBe(0);
-        expect(report.notes).toEqual(['אין אות']);
+        expect(report.notes).toEqual(['אין אות', 'אין אות']);
         expect(report.lockHidden).toBe(true);
         expect(report.cam0InOptics).toBe(true);
         expect(report.cam0InPulse).toBe(false);
         expect(report.statusInPulse).toBe(true);
         expect(report.cam1InPulse).toBe(true);
+        if (width >= 1024) expect(report.beside).toBe(true);
+        if (width >= 1366 && height >= 768) {
+          expect(report.scroll, `scroll ${report.scroll}`).toBeLessThan(48);
+          expect(report.fovBottom).toBeLessThanOrEqual(height);
+        }
         const cam1 = await auditCam1(page);
         await page.screenshot({ path: path.join(shotDir, `optics-cam1-${name}.png`), fullPage: false });
-        expect(cam1.hiddenCam0).toBe(true);
+        expect(cam1.cam0Shown).toBe(true);
+        expect(cam1.hiddenCam0).toBe(false);
         expect(cam1.status).toContain('לא מחובר');
         expect(cam1.reason).toContain('אין קישור');
         expect(cam1.fps).toBe('—');
@@ -349,6 +370,7 @@ describe('Optics debrief tab — live layout', () => {
       const reverted = await page.locator('#cam0Exposure').inputValue();
       expect(reverted).not.toBe('5000');
 
+      await page.locator('[data-tab="recordings"]').evaluate((el) => el.click());
       await page.locator('#debriefLogsBtn').evaluate((el) => el.click());
       await page.waitForSelector('#debriefLogsPanel.visible #refreshArchiveSessionsBtn');
       await page.locator('#refreshArchiveSessionsBtn').evaluate((el) => el.scrollIntoView({ block: 'center' }));

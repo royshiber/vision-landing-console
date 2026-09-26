@@ -185,6 +185,21 @@ const scenarios = {
       },
     },
   }), { modemPresent: true, cellularStatusHe: 'מחובר' }),
+  'home-off-lan': payload(summarizeCommLinks({
+    pathProbes: {
+      paths: [
+        {
+          id: 'home',
+          transport: 'lan',
+          url: 'http://192.168.1.122:8081',
+          ok: false,
+          rttMs: null,
+          errorHe: 'המחשב לא מחובר לרשת הבית',
+        },
+      ],
+    },
+    companion: { jetson: 'unreachable' },
+  })),
   'all-down': payload(summarizeCommLinks({
     modemPresent: false,
     radio: 'disconnected',
@@ -239,7 +254,7 @@ describe('connect popover layout and mocked states', () => {
           contentType: 'application/json',
           body: JSON.stringify({
             ok: true,
-            appVersion: '1.02.346',
+            appVersion: '1.02.353',
             features: { mavlinkQuickConnect: true, dualLink: true },
           }),
         });
@@ -387,6 +402,32 @@ describe('connect popover layout and mocked states', () => {
       } finally {
         await page.close();
       }
+    }
+  }, 20000);
+
+  it('shows the computer is off the home LAN instead of a timed-out address', async () => {
+    const page = await openScenario('home-off-lan');
+    try {
+      await assertLayout(page);
+      const fit = await page.locator('#homeLinkStatus').evaluate((el) => {
+        const parent = el.parentElement;
+        return {
+          text: el.textContent,
+          overflowX: el.scrollWidth - el.clientWidth,
+          overflowY: el.scrollHeight - el.clientHeight,
+          parentOverflow: parent.scrollWidth - parent.clientWidth,
+        };
+      });
+      expect(fit.text).toBe('המחשב לא מחובר לרשת הבית');
+      expect(fit.overflowX).toBeLessThanOrEqual(1);
+      expect(fit.overflowY).toBeLessThanOrEqual(1);
+      expect(fit.parentOverflow).toBeLessThanOrEqual(1);
+      expect(await page.locator('#homeLinkError').isHidden()).toBe(true);
+      const file = path.join(shotDir, 'home-off-lan.png');
+      await page.screenshot({ path: file, fullPage: false });
+      expect(fs.statSync(file).size).toBeGreaterThan(1000);
+    } finally {
+      await page.close();
     }
   }, 20000);
 

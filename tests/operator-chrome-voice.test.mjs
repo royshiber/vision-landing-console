@@ -46,7 +46,8 @@ describe('Operator chrome voice and lab chrome gone', () => {
     expect(html).toMatch(/class="tab tab-ops"[^>]*data-tab="pulse"[^>]*>סטטוס מחשבים</);
     expect(html).not.toMatch(/data-tab="platform"/);
     expect(html).toMatch(/class="tab tab-ops"[^>]*data-tab="control"[^>]*>פרמטרים</);
-    expect(html).toMatch(/class="tab tab-ops"[^>]*data-tab="recordings"[^>]*>אופטיקה ותחקור</);
+    expect(html).toMatch(/class="tab tab-ops"[^>]*data-tab="optics"[^>]*>אופטיקה</);
+    expect(html).toMatch(/class="tab tab-ops"[^>]*data-tab="recordings"[^>]*>תחקור</);
     expect(html).toMatch(/data-tab="telemetry"[^>]*>אבחונים</);
     expect(html).not.toMatch(/data-tab="maintenance"/);
     expect(html).toMatch(/class="tab tab-ops"[^>]*data-tab="development"[^>]*>פיתוח</);
