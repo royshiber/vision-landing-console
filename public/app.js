@@ -432,6 +432,167 @@ function applyControlSubtab(subId, { save = true, selectOverride = null } = {}) 
       /* ignore */
     }
   }
+  syncParamGroupChrome();
+}
+
+function activeParamSelectValue() {
+  return document.getElementById('paramSubtabSelect')?.value || '';
+}
+
+function isCatalogParamGroup(val) {
+  return /^ardu-/.test(val || '') && val !== 'ardu-jetson';
+}
+
+function syncParamGroupChrome() {
+  const val = activeParamSelectValue();
+  const honesty = document.getElementById('plndProfileHonesty');
+  const showHonesty = val === 'landingParams' || val === 'visionNavParams';
+  if (honesty) honesty.hidden = !showHonesty;
+  const control = document.getElementById('control');
+  if (control) control.dataset.paramGroup = val;
+  const ardu = document.getElementById('arduParams');
+  const catalog = isCatalogParamGroup(val);
+  if (ardu) ardu.classList.toggle('ardu-params--group', catalog && ardu.classList.contains('visible'));
+  const pane = document.getElementById('fcGroupPane');
+  if (pane) pane.hidden = !catalog || !ardu?.classList.contains('visible');
+}
+
+let fcParamGroups = [];
+const fcGroupDraft = {};
+
+function fcPresence(key) {
+  if (!fcCurrentSnapshot || typeof fcCurrentSnapshot !== 'object') return { state: 'unknown', text: 'לא ידוע' };
+  if (!Object.prototype.hasOwnProperty.call(fcCurrentSnapshot, key)) return { state: 'missing', text: 'חסר' };
+  const value = fcCurrentSnapshot[key];
+  if (value == null || value === '') return { state: 'unknown', text: 'לא ידוע' };
+  return { state: 'present', text: String(value) };
+}
+
+function currentCatalogGroup() {
+  const val = activeParamSelectValue();
+  if (!isCatalogParamGroup(val)) return null;
+  return fcParamGroups.find((group) => group.id === val.slice('ardu-'.length)) || null;
+}
+
+function renderFcGroupList() {
+  const list = document.getElementById('fcGroupList');
+  const lead = document.getElementById('fcGroupLead');
+  const group = currentCatalogGroup();
+  syncParamGroupChrome();
+  if (!list || !group) return;
+  const query = String(arduSearchQuery || '').trim().toLowerCase();
+  const unread = !fcCurrentSnapshot || typeof fcCurrentSnapshot !== 'object';
+  let keys = group.id === 'all'
+    ? (unread ? [] : Object.keys(fcCurrentSnapshot).sort())
+    : group.keys.slice();
+  if (query) keys = keys.filter((key) => key.toLowerCase().includes(query));
+  if (lead) {
+    lead.textContent = group.id === 'all' && unread ? 'לא ידוע' : group.labelHe;
+  }
+  list.replaceChildren();
+  if (!keys.length) {
+    const empty = document.createElement('li');
+    empty.className = 'fc-group-empty';
+    empty.textContent = group.id === 'all' && unread ? 'לא ידוע' : (query ? 'אין התאמה בקבוצה' : 'אין פרמטרים בקבוצה');
+    list.appendChild(empty);
+  }
+  const readOnly = group.id === 'all';
+  for (const key of keys) {
+    const presence = fcPresence(key);
+    const li = document.createElement('li');
+    li.className = 'fc-group-row';
+    li.dataset.paramKey = key;
+    const keyEl = document.createElement('span');
+    keyEl.className = 'fc-group-key';
+    keyEl.textContent = key;
+    const nowEl = document.createElement('span');
+    nowEl.className = 'fc-group-now';
+    nowEl.dataset.state = presence.state;
+    nowEl.textContent = presence.text;
+    li.append(keyEl, nowEl);
+    if (!readOnly) {
+      const input = document.createElement('input');
+      input.type = 'number';
+      input.className = 'fc-group-next';
+      input.step = 'any';
+      input.setAttribute('aria-label', key);
+      input.placeholder = presence.text;
+      if (Object.prototype.hasOwnProperty.call(fcGroupDraft, key)) input.value = String(fcGroupDraft[key]);
+      input.addEventListener('input', () => {
+        const raw = input.value.trim();
+        if (raw === '' || !Number.isFinite(Number(raw))) delete fcGroupDraft[key];
+        else fcGroupDraft[key] = Number(raw);
+        syncGroupApplyBtn();
+      });
+      li.appendChild(input);
+    }
+    list.appendChild(li);
+  }
+  syncGroupApplyBtn();
+}
+
+function syncGroupApplyBtn() {
+  const btn = document.getElementById('fcGroupApply');
+  const group = currentCatalogGroup();
+  if (!btn) return;
+  if (!group || group.id === 'all') {
+    btn.hidden = true;
+    btn.disabled = true;
+    return;
+  }
+  btn.hidden = false;
+  const allowed = new Set(group.keys);
+  btn.disabled = !Object.keys(fcGroupDraft).some((key) => allowed.has(key));
+}
+
+function applyFcGroupDraft() {
+  const group = currentCatalogGroup();
+  if (!group || group.id === 'all') return;
+  const keys = group.keys.filter((key) => Object.prototype.hasOwnProperty.call(fcGroupDraft, key));
+  if (!keys.length) return;
+  const rows = keys.map((key) => ({
+    key,
+    currentText: fcPresence(key).text,
+    nextText: String(fcGroupDraft[key]),
+  }));
+  const params = {};
+  for (const key of keys) params[key] = fcGroupDraft[key];
+  openGuardedFcWriteConfirm(rows, async () => {
+    const status = document.getElementById('fcGroupStatus');
+    if (status) status.textContent = 'שולח…';
+    try {
+      const { res, data } = await postGuardedFcParams(params);
+      const outcome = fcWriteOutcome(res, data);
+      if (status) status.textContent = outcome.text;
+      if (data.ok && data.verified && typeof data.verified === 'object') {
+        if (!fcCurrentSnapshot || typeof fcCurrentSnapshot !== 'object') fcCurrentSnapshot = {};
+        for (const [key, value] of Object.entries(data.verified)) fcCurrentSnapshot[key] = value;
+      }
+      if (outcome.level !== 'fail') {
+        for (const key of keys) delete fcGroupDraft[key];
+      }
+      renderFcGroupList();
+      updateParamSyncBanner();
+    } catch (err) {
+      if (status) status.textContent = `כתיבה ל-FC נכשלה. הסיבה: ${hebrewRequestFault(err)}`;
+    }
+  });
+}
+
+async function loadFcParamGroups() {
+  const lead = document.getElementById('fcGroupLead');
+  try {
+    const res = await fetch('/api/ardu/param-groups');
+    if (!res.ok) throw Object.assign(new Error('http'), { res });
+    const data = await res.json();
+    fcParamGroups = Array.isArray(data.groups) ? data.groups : [];
+  } catch (err) {
+    fcParamGroups = [];
+    if (lead && isCatalogParamGroup(activeParamSelectValue())) {
+      lead.textContent = `טעינת הקבוצות נכשלה. הסיבה: ${hebrewRequestFault(err, err?.res)}`;
+    }
+  }
+  if (isCatalogParamGroup(activeParamSelectValue())) renderFcGroupList();
 }
 function updateArduTopCatsVisibility() {
   if (!arduTopCatsHost) return;
@@ -1479,18 +1640,21 @@ wireArduCategorySubtabsOnce();
     const val = sel.value;
     const arduMatch = val.match(/^ardu-(.+)$/);
     if (arduMatch) {
-      const slug = arduMatch[1];
       applyControlSubtab('arduParams', { selectOverride: val });
-      // Navigate the hidden #arduCatSelect to the matching category slug.
-      requestAnimationFrame(() => {
-        const catSel = document.getElementById('arduCatSelect');
-        if (catSel) {
-          catSel.value = slug;
-          catSel.dispatchEvent(new Event('change', { bubbles: true }));
-        }
-      });
+      if (val === 'ardu-jetson') {
+        requestAnimationFrame(() => {
+          const catSel = document.getElementById('arduCatSelect');
+          if (catSel) {
+            catSel.value = 'jetson';
+            catSel.dispatchEvent(new Event('change', { bubbles: true }));
+          }
+        });
+      } else {
+        renderFcGroupList();
+      }
     } else {
       applyControlSubtab(val);
+      renderFcGroupList();
     }
   });
 })();
@@ -1776,6 +1940,7 @@ wireArduCategorySubtabsOnce();
     renderArduSmartSearchPanel();
     renderArduParamForm();
     renderParams();
+    renderFcGroupList();
     setStatus(arduSearchQuery ? `מסנן לפי: ${arduSearchQuery}` : '');
   }
 
@@ -1792,6 +1957,7 @@ wireArduCategorySubtabsOnce();
     renderArduSmartSearchPanel();
     renderArduParamForm();
     renderParams();
+    renderFcGroupList();
     setStatus('');
   });
 
@@ -2327,6 +2493,11 @@ renderArduParamForm();
 syncConfigTextFromArdu();
 loadVisionConfigFromServer(visionConfigStatus);
 void refreshJetsonLink();
+document.getElementById('fcGroupApply')?.addEventListener('click', () => applyFcGroupDraft());
+document.addEventListener('vlc:fc-params', () => {
+  if (isCatalogParamGroup(activeParamSelectValue())) renderFcGroupList();
+});
+void loadFcParamGroups();
 
 const eventsList = document.getElementById('eventsList');
 const eventContextMenu = document.getElementById('eventContextMenu');

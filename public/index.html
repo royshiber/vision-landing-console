@@ -452,14 +452,22 @@
             <option value="landingParams" selected>נחיתה</option>
             <option value="abortParams">בטיחות וביטול</option>
             <option value="visionNavParams">ניווט לפי תמונה</option>
-            <optgroup label="— ArduPilot —">
-              <option value="ardu-jetson">📡 תקשורת Jetson</option>
+            <optgroup label="— ArduPilot —" id="paramGroupOptions">
+              <option value="ardu-jetson">תקשורת מחשב משימה</option>
               <option value="ardu-ekf">EKF / AHRS</option>
-              <option value="ardu-plnd">נחיתה מדויקת (Vision)</option>
-              <option value="ardu-land">נחיתה כללית</option>
-              <option value="ardu-limits">גבולות טיסה</option>
+              <option value="ardu-plnd">נחיתה מדויקת</option>
+              <option value="ardu-land">נחיתה</option>
+              <option value="ardu-tecs">TECS / מהירות</option>
+              <option value="ardu-nav">ניווט L1</option>
+              <option value="ardu-failsafe">כשל בטוח</option>
+              <option value="ardu-serial">טורי / טלמטריה</option>
+              <option value="ardu-battery">סוללה</option>
+              <option value="ardu-rc">שלט ויציאות סרוו</option>
+              <option value="ardu-rangefinder">מד טווח</option>
+              <option value="ardu-gps">GPS</option>
+              <option value="ardu-arming">חימוש</option>
               <option value="ardu-logs">לוגים</option>
-              <option value="ardu-safety">בטיחות</option>
+              <option value="ardu-all">כל הפרמטרים</option>
             </optgroup>
             <option value="customParams">✨ Custom שלי</option>
           </select>
@@ -708,6 +716,14 @@
             <div id="arduDiffTable" class="ardu-diff-table"></div>
           </div>
           <div class="ardu-form-region">
+            <div id="fcGroupPane" class="fc-group-pane" hidden>
+              <p id="fcGroupLead" class="fc-group-lead"></p>
+              <ul id="fcGroupList" class="fc-group-list" aria-label="פרמטרי הקבוצה"></ul>
+              <div class="fc-group-actions">
+                <button type="button" id="fcGroupApply" class="param-tool-btn param-tool-btn--primary" disabled>החלה</button>
+                <p id="fcGroupStatus" class="fc-group-status" aria-live="polite"></p>
+              </div>
+            </div>
             <div id="arduParamFormPanels" class="ardu-param-form-panels" role="region" aria-label="שדות פרמטרי ArduPilot"></div>
           </div>
           <div class="ardu-param-file-actions">
