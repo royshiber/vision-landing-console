@@ -787,7 +787,7 @@ function countArduDirtyVsSession() {
   return Object.keys(collectDirtyArduParams()).length;
 }
 
-/** Why: pilot sees pending WRITE לשרת vs WRITE לרחפן. What: fills #paramSyncBanner from baselines and diff counts. */
+/** Why: pilot sees pending writes to the mission computer vs the FC. What: fills #paramSyncBanner from baselines and diff counts. */
 function updateParamSyncBanner() {
   const el = document.getElementById('paramSyncBanner');
   if (!el) return;
@@ -798,13 +798,13 @@ function updateParamSyncBanner() {
 
   const lines = [];
   if (serverDirty) {
-    lines.push('יש שינויים שלא נשמרו לשרת — לחץ «WRITE — לשרת».');
+    lines.push('יש שינויים שלא נשמרו למחשב המשימה.');
   }
   if (fcMis == null) {
-    lines.push('לא בוצע READ מהרחפן — לא ידוע אם המטוס תואם ליעדים.');
+    lines.push('לא בוצעה קריאה מה-FC. לא ידוע אם המטוס תואם ליעדים.');
   }
   if (sessionDirty > 0) {
-    lines.push(`יש שינויים שערכת ולא נשלחו למטוס (${sessionDirty}) — «WRITE — לרחפן».`);
+    lines.push(`יש שינויים שלא נשלחו ל-FC (${sessionDirty}).`);
   }
 
   let level = 'ok';
@@ -816,11 +816,12 @@ function updateParamSyncBanner() {
 
   if (!serverDirty && sessionDirty === 0 && fcMis === 0) {
     lines.length = 0;
-    lines.push('הכל מסונכרן: שמירה לשרת ויעדי Ardu כפי שנקראו מהמטוס.');
+    lines.push('הכל מסונכרן: שמירה למחשב המשימה ויעדי Ardu כפי שנקראו מהמטוס.');
     level = 'ok';
   }
 
   el.className = `param-sync-banner param-sync-banner--${level}`;
+  if (typeof refreshParamToolbarMeta === 'function') refreshParamToolbarMeta();
   el.innerHTML = lines.map((t) => `<span class="param-sync-line">${t}</span>`).join('');
 }
 
@@ -1233,7 +1234,7 @@ function renderArduFcPresenceBadge(f) {
     return '<span class="ardu-fc-presence ardu-fc-presence--virtual" title="שדה פרופיל בקונסולה — לא פרמטר ArduPilot על הבקר">פרופיל</span>';
   }
   if (!fcCurrentSnapshot || typeof fcCurrentSnapshot !== 'object') {
-    return '<span class="ardu-fc-presence ardu-fc-presence--unknown" title="בצע «READ — מהרחפן» כדי לבדוק אם השם קיים בקושחה">לא נקרא</span>';
+    return '<span class="ardu-fc-presence ardu-fc-presence--unknown" title="בצעו קריאה מה-FC כדי לבדוק אם השם קיים בקושחה">לא נקרא</span>';
   }
   if (Object.prototype.hasOwnProperty.call(fcCurrentSnapshot, f.key)) {
     return '<span class="ardu-fc-presence ardu-fc-presence--ok" title="מפתח זה הופיע ברשימת הפרמטרים מהבקר (אחרי READ אחרון)">בבקר</span>';
@@ -1621,7 +1622,7 @@ wireArduCategorySubtabsOnce();
       const editorId = `smart-edit-${m.param_key.replace(/[^A-Za-z0-9]/g, '_')}`;
       const enumValues = m.enum_values && typeof m.enum_values === 'object' ? m.enum_values : null;
       const formatValue = (v) => {
-        if (v == null || v === '') return 'לא נקרא מהרחפן';
+        if (v == null || v === '') return 'לא נקרא מה-FC';
         const label = enumValues?.[String(v)];
         return label ? `${v} (${label})` : String(v);
       };
@@ -1655,7 +1656,7 @@ wireArduCategorySubtabsOnce();
         <div class="ardu-smart-help-panel" id="${panelId}"></div>
         <div class="ardu-smart-inline-editor" id="${editorId}">
           ${valueEditor}
-          <button type="button" class="ardu-smart-send-btn" data-param-key="${keyAttr}" title="שלח לרחפן">שלח ✈</button>
+          <button type="button" class="ardu-smart-send-btn" data-param-key="${keyAttr}" title="שלח ל-FC">שלח ל-FC</button>
           <span class="ardu-smart-send-status"></span>
         </div>`;
 
@@ -1928,7 +1929,7 @@ wireArduCategorySubtabsOnce();
         return;
       }
       if (d.via === 'offline') {
-        statusEl.textContent = '⚠ נשמר (לא מחובר לרחפן)';
+        statusEl.textContent = 'נשמר בשרת בלבד. אין חיבור ל-FC.';
         statusEl.className = 'ardu-smart-send-status warn';
       } else {
         const echo = d.value != null ? ` (FC: ${d.value})` : '';
@@ -1985,11 +1986,114 @@ wireArduCategorySubtabsOnce();
   smartResultsEl?.addEventListener('click', handleSmartResultOpen);
 })();
 
+let jetsonReadAt = null;
+let fcReadAt = null;
+let jetsonLinkState = 'unknown';
+let fcLinkState = 'unknown';
+let paramToolRetryAction = null;
+
+function hebrewRequestFault(err, res) {
+  if (res && !res.ok) return `השרת החזיר ${res.status}`;
+  const msg = String(err?.message || '').trim();
+  if (!msg || /failed to fetch|networkerror|load failed|network request failed/i.test(msg)) return 'אין תשובה מהשרת';
+  return msg;
+}
+
+function formatToolClock(ts) {
+  if (!ts) return 'לא ידוע';
+  try {
+    return new Date(ts).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+  } catch {
+    return 'לא ידוע';
+  }
+}
+
+function showParamToolFault(text, retry) {
+  const box = document.getElementById('paramToolFault');
+  const msg = document.getElementById('paramToolFaultText');
+  if (msg) msg.textContent = text;
+  if (box) box.hidden = false;
+  paramToolRetryAction = typeof retry === 'function' ? retry : null;
+}
+
+function clearParamToolFault() {
+  const box = document.getElementById('paramToolFault');
+  if (box) box.hidden = true;
+  paramToolRetryAction = null;
+}
+
+function resolvedFcLink() {
+  if (fcLinkState !== 'unknown') return fcLinkState;
+  try {
+    if (window.__vlcConnectWidget && typeof window.__vlcConnectWidget.isConnected === 'function') {
+      return window.__vlcConnectWidget.isConnected() ? 'ok' : 'down';
+    }
+  } catch { /* widget not ready */ }
+  return 'unknown';
+}
+
+function refreshParamToolbarMeta() {
+  const jetsonState = document.getElementById('jetsonToolState');
+  const jetsonMeta = document.getElementById('jetsonToolMeta');
+  const fcStateEl = document.getElementById('fcToolState');
+  const fcMeta = document.getElementById('fcToolMeta');
+  const serverKnown = lastServerSyncedCanonical != null;
+  const serverDirty = serverKnown && canonicalServerPayloadStr() !== lastServerSyncedCanonical;
+  const sessionDirty = countArduDirtyVsSession();
+  const fcKnown = !!(fcCurrentSnapshot && typeof fcCurrentSnapshot === 'object');
+  const fcLink = resolvedFcLink();
+  if (jetsonState) {
+    const state = jetsonLinkState === 'ok' ? (serverDirty ? 'dirty' : 'ok') : jetsonLinkState;
+    jetsonState.dataset.state = state;
+    jetsonState.textContent = jetsonLinkState === 'ok'
+      ? (serverDirty ? 'יש שינוי' : 'מחובר')
+      : jetsonLinkState === 'down' ? 'מנותק' : 'לא ידוע';
+  }
+  if (jetsonMeta) {
+    const dirty = !serverKnown ? 'לא ידוע' : serverDirty ? '1' : '0';
+    jetsonMeta.textContent = `קריאה אחרונה: ${formatToolClock(jetsonReadAt)} · לא מסונכרן: ${dirty}`;
+  }
+  if (fcStateEl) {
+    const state = fcLink === 'ok' ? (sessionDirty > 0 ? 'dirty' : 'ok') : fcLink;
+    fcStateEl.dataset.state = state;
+    fcStateEl.textContent = fcLink === 'ok'
+      ? (sessionDirty > 0 ? 'יש שינוי' : 'מחובר')
+      : fcLink === 'down' ? 'מנותק' : 'לא ידוע';
+  }
+  if (fcMeta) {
+    const dirty = !fcKnown ? 'לא ידוע' : String(sessionDirty);
+    fcMeta.textContent = `קריאה אחרונה: ${formatToolClock(fcReadAt)} · לא מסונכרן: ${dirty}`;
+  }
+}
+
+async function refreshJetsonLink() {
+  try {
+    const res = await fetch('/api/rpi/status');
+    if (!res.ok) {
+      jetsonLinkState = 'unknown';
+    } else {
+      const body = await res.json();
+      jetsonLinkState = body?.online === true ? 'ok' : 'down';
+    }
+  } catch {
+    jetsonLinkState = 'unknown';
+  }
+  refreshParamToolbarMeta();
+}
+
 /** Why: hydrate UI from server after boot or READ; what: merges profile + FC target, re-renders sliders and Ardu form. */
 async function loadVisionConfigFromServer(statusEl) {
   try {
     const res = await fetch('/api/vision/config');
-    if (!res.ok) throw new Error(String(res.status));
+    if (!res.ok) {
+      const fault = `קריאת מחשב המשימה נכשלה. הסיבה: ${hebrewRequestFault(null, res)}`;
+      showParamToolFault(fault, () => loadVisionConfigFromServer(statusEl));
+      if (statusEl) {
+        statusEl.textContent = fault;
+        statusEl.className = 'vision-config-status fail';
+      }
+      return;
+    }
     const d = await res.json();
     if (d.profile && typeof d.profile === 'object') {
       Object.keys(profileState).forEach((key) => {
@@ -2014,14 +2118,19 @@ async function loadVisionConfigFromServer(statusEl) {
     syncConfigTextFromArdu();
     captureServerBaseline();
     captureArduWriteBaseline();
+    jetsonReadAt = Date.now();
+    clearParamToolFault();
     updateParamSyncBanner();
+    void refreshJetsonLink();
     if (statusEl) {
-      statusEl.textContent = 'נטען מהשרת';
+      statusEl.textContent = 'נטען ממחשב המשימה';
       statusEl.className = 'vision-config-status ok';
     }
-  } catch {
+  } catch (err) {
+    const fault = `קריאת מחשב המשימה נכשלה. הסיבה: ${hebrewRequestFault(err)}`;
+    showParamToolFault(fault, () => loadVisionConfigFromServer(statusEl));
     if (statusEl) {
-      statusEl.textContent = 'שגיאת רשת';
+      statusEl.textContent = fault;
       statusEl.className = 'vision-config-status fail';
     }
   }
@@ -2041,20 +2150,27 @@ async function saveVisionConfigToServer(statusEl) {
       body: JSON.stringify({ profile: profilePayload, arduTarget: { ...arduTargetState } }),
     });
     const d = await res.json();
-    if (d.ok) {
-      captureServerBaseline();
-      updateParamSyncBanner();
+    if (!res.ok || !d.ok) {
+      const fault = `כתיבה למחשב המשימה נכשלה. הסיבה: ${d.message || hebrewRequestFault(null, res)}`;
+      showParamToolFault(fault, () => saveVisionConfigToServer(statusEl));
       if (statusEl) {
-        statusEl.textContent = 'נשמר בשרת';
-        statusEl.className = 'vision-config-status ok';
+        statusEl.textContent = fault;
+        statusEl.className = 'vision-config-status fail';
       }
-    } else if (statusEl) {
-      statusEl.textContent = 'נכשל';
-      statusEl.className = 'vision-config-status fail';
+      return;
     }
-  } catch {
+    captureServerBaseline();
+    clearParamToolFault();
+    updateParamSyncBanner();
     if (statusEl) {
-      statusEl.textContent = 'שגיאת רשת';
+      statusEl.textContent = 'נשמר במחשב המשימה';
+      statusEl.className = 'vision-config-status ok';
+    }
+  } catch (err) {
+    const fault = `כתיבה למחשב המשימה נכשלה. הסיבה: ${hebrewRequestFault(err)}`;
+    showParamToolFault(fault, () => saveVisionConfigToServer(statusEl));
+    if (statusEl) {
+      statusEl.textContent = fault;
       statusEl.className = 'vision-config-status fail';
     }
   }
@@ -2069,6 +2185,35 @@ if (visionConfigReadBtn) {
 if (visionConfigWriteBtn) {
   visionConfigWriteBtn.addEventListener('click', () => saveVisionConfigToServer(visionConfigStatus));
 }
+const paramFileMenuBtn = document.getElementById('paramFileMenuBtn');
+const paramFileMenu = document.getElementById('paramFileMenu');
+function closeParamFileMenu() {
+  if (!paramFileMenu || !paramFileMenuBtn) return;
+  paramFileMenu.hidden = true;
+  paramFileMenuBtn.setAttribute('aria-expanded', 'false');
+}
+if (paramFileMenuBtn && paramFileMenu) {
+  paramFileMenuBtn.addEventListener('click', (ev) => {
+    ev.stopPropagation();
+    const willOpen = paramFileMenu.hidden;
+    paramFileMenu.hidden = !willOpen;
+    paramFileMenuBtn.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+  });
+  document.addEventListener('click', (ev) => {
+    if (paramFileMenu.hidden) return;
+    if (paramFileMenu.contains(ev.target) || paramFileMenuBtn.contains(ev.target)) return;
+    closeParamFileMenu();
+  });
+}
+document.getElementById('paramToolRetry')?.addEventListener('click', () => {
+  const run = paramToolRetryAction;
+  if (typeof run === 'function') void run();
+});
+setInterval(() => {
+  const panel = document.getElementById('control');
+  if (!panel || !panel.classList.contains('visible')) return;
+  void refreshJetsonLink();
+}, 4000);
 
 if (saveProfileBtn) {
   saveProfileBtn.addEventListener('click', async () => {
@@ -2101,10 +2246,11 @@ if (saveProfileBtn) {
       } else {
         saveProfileBtn.textContent = '⚠ שגיאה';
       }
-    } catch {
-      saveProfileBtn.textContent = '⚠ שגיאת רשת';
+    } catch (err) {
+      saveProfileBtn.textContent = 'שמירה';
+      showParamToolFault(`שמירת הפרופיל נכשלה. הסיבה: ${hebrewRequestFault(err)}`, () => saveProfileBtn.click());
     }
-    setTimeout(() => { saveProfileBtn.textContent = 'שמור פרופיל'; }, 1800);
+    setTimeout(() => { saveProfileBtn.textContent = 'שמירה'; }, 1800);
   });
 }
 
@@ -2179,7 +2325,8 @@ updateDeveloperModeUI();
 renderParams();
 renderArduParamForm();
 syncConfigTextFromArdu();
-loadVisionConfigFromServer(null);
+loadVisionConfigFromServer(visionConfigStatus);
+void refreshJetsonLink();
 
 const eventsList = document.getElementById('eventsList');
 const eventContextMenu = document.getElementById('eventContextMenu');
@@ -8273,6 +8420,35 @@ function openConfigChangeConfirm(patch, onConfirm) {
   applyConfirmModal.classList.remove('hidden');
 }
 
+function openGuardedFcWriteConfirm(rows, onConfirm) {
+  _pendingConfigChange = typeof onConfirm === 'function' ? onConfirm : null;
+  _pendingApply = null;
+  _applyNeedsInflightOverride = false;
+  if (applyInflightBlock) applyInflightBlock.classList.add('hidden');
+  const lines = (rows || []).map((row) => `${row.key}: ${row.currentText} → ${row.nextText}`);
+  if (!applyConfirmModal || !_pendingConfigChange) {
+    if (_pendingConfigChange && window.confirm(`כתיבה ל-FC\n${lines.join('\n')}`)) {
+      const run = _pendingConfigChange;
+      _pendingConfigChange = null;
+      void run();
+    }
+    return;
+  }
+  applyConfirmTitle.textContent = 'אישור כתיבה ל-FC';
+  const htmlRows = (rows || []).map((row) => (
+    `<tr><th>פרמטר</th><td><strong>${escapeHtml(row.key)}</strong></td></tr>`
+    + `<tr><th>עכשיו ב-FC</th><td>${escapeHtml(row.currentText)}</td></tr>`
+    + `<tr><th>ייכתב</th><td><strong>${escapeHtml(row.nextText)}</strong></td></tr>`
+  ));
+  applyConfirmBody.innerHTML = `<table class="apply-table">${htmlRows.join('')}</table><p class="apply-detail">הכתיבה עוברת במסלול הכתיבה הקיים לבקר.</p>`;
+  if (applyConfirmTypeInput) {
+    applyConfirmTypeInput.classList.add('hidden');
+    applyConfirmTypeInput.value = '';
+  }
+  if (applyConfirmOkBtn) applyConfirmOkBtn.disabled = false;
+  applyConfirmModal.classList.remove('hidden');
+}
+
 async function executeApply() {
   if (_pendingConfigChange) {
     const run = _pendingConfigChange;
@@ -9123,46 +9299,100 @@ function renderArduDiff(current, target) {
   ).length;
   if (arduDiffSummary) {
     arduDiffSummary.textContent = mismatches === 0
-      ? '✓ כל הפרמטרים כבר תואמים — אין צורך ב-WRITE לרחפן'
-      : `${mismatches} פרמטרים שונים או חסרים בבקר — WRITE לרחפן שולח רק מה שערכת בסשן זה${missingOnFc > 0 ? ` (${missingOnFc} לא בבקר)` : ''}`;
+      ? 'כל הפרמטרים כבר תואמים. אין צורך בכתיבה ל-FC.'
+      : `${mismatches} פרמטרים שונים או חסרים בבקר. הכתיבה ל-FC שולחת רק מה שערכת בסשן זה${missingOnFc > 0 ? ` (${missingOnFc} לא בבקר)` : ''}`;
     arduDiffSummary.style.color = mismatches === 0 ? '#4ade80' : '#fbbf24';
   }
 }
 
-if (arduReadBtn) {
-  arduReadBtn.addEventListener('click', async () => {
-    arduReadBtn.textContent = '⏳ קורא…';
-    try {
-      const res = await fetch('/api/ardu/params');
-      const d = await res.json();
-      arduReadBtn.textContent = '📥 READ — מהרחפן';
-      // Update WRITE button state based on MAVLink presence + ARMED status.
-      refreshArduWriteBtnState(d);
-      if (!d.connected || !d.current) {
-        fcCurrentSnapshot = null;
-        clearArduDiff();
-        if (arduWriteStatus) {
-          const hint = d.mavlinkConnected
-            ? `MAVLink מחובר אך פרמטרים עדיין לא התקבלו (${d.paramCount ?? 0})`
-            : 'לא מחובר — חבר דרך ה-Connect widget תחילה';
-          arduWriteStatus.textContent = hint;
-          arduWriteStatus.className = 'ardu-write-status fail';
-        }
-      } else {
-        fcCurrentSnapshot = { ...d.current };
-        renderArduDiff(d.current, arduTargetState);
-        const paramStr = d.paramCount != null ? ` (${d.paramCount} פרמטרים)` : '';
-        if (arduWriteStatus) {
-          arduWriteStatus.textContent = `READ הושלם${paramStr} — תגיות «בבקר / לא בבקר» מתעדכנות בכרטיסים`;
-          arduWriteStatus.className = 'ardu-write-status success';
-        }
-      }
-      updateParamSyncBanner();
-      renderArduParamForm();
-    } catch {
-      arduReadBtn.textContent = '📥 READ — מהרחפן';
-    }
+async function postGuardedFcParams(params) {
+  const res = await fetch('/api/ardu/params/write', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ params }),
   });
+  let data = {};
+  try {
+    data = await res.json();
+  } catch {
+    data = { ok: false, message: `השרת החזיר ${res.status}` };
+  }
+  return { res, data };
+}
+
+function fcWriteOutcome(res, data) {
+  if (!res.ok && data.code === 'armed') return { level: 'fail', text: 'המטוס חמוש. הכתיבה חסומה עד לניטרול.' };
+  if (!res.ok && data.code === 'armed_unknown') return { level: 'fail', text: 'מצב החימוש לא ידוע. הכתיבה חסומה עד לדופק תקין.' };
+  if (!res.ok && data.code === 'not_connected') return { level: 'fail', text: 'אין חיבור ל-FC. חברו ואז נסו שוב.' };
+  if (!res.ok && data.code === 'bulk_cap') return { level: 'fail', text: data.message || 'הכתיבה חסומה. יותר מדי פרמטרים בבת אחת.' };
+  if (data.ok) {
+    const sim = data.simulated ? ' סימולציה, אין MAVLink.' : '';
+    const fail = data.failed?.length ? ` ${data.failed.length} פרמטרים נכשלו.` : '';
+    const rejectedKeys = data.rejected && typeof data.rejected === 'object' ? Object.keys(data.rejected) : [];
+    const rejected = rejectedKeys.length ? ` נדחו: ${rejectedKeys.join(', ')}.` : '';
+    return {
+      level: data.failed?.length || rejectedKeys.length ? 'warn' : 'ok',
+      text: `${data.message || 'הכתיבה הושלמה'}.${sim}${fail}${rejected}`,
+    };
+  }
+  return { level: 'fail', text: data.message || 'הכתיבה נכשלה' };
+}
+
+async function readFcParams() {
+  if (!arduReadBtn) return;
+  arduReadBtn.disabled = true;
+  try {
+    const res = await fetch('/api/ardu/params');
+    if (!res.ok) {
+      const fault = `קריאה מה-FC נכשלה. הסיבה: ${hebrewRequestFault(null, res)}`;
+      showParamToolFault(fault, () => readFcParams());
+      if (arduWriteStatus) {
+        arduWriteStatus.textContent = fault;
+        arduWriteStatus.className = 'ardu-write-status fail';
+      }
+      return;
+    }
+    const d = await res.json();
+    refreshArduWriteBtnState(d);
+    fcLinkState = d.mavlinkConnected ? 'ok' : 'down';
+    if (!d.connected || !d.current) {
+      fcCurrentSnapshot = null;
+      clearArduDiff();
+      const hint = d.mavlinkConnected
+        ? `יש חיבור, ועדיין אין פרמטרים (${d.paramCount ?? 0}).`
+        : 'אין חיבור ל-FC.';
+      if (arduWriteStatus) {
+        arduWriteStatus.textContent = hint;
+        arduWriteStatus.className = 'ardu-write-status fail';
+      }
+    } else {
+      fcCurrentSnapshot = { ...d.current };
+      fcReadAt = Date.now();
+      clearParamToolFault();
+      renderArduDiff(d.current, arduTargetState);
+      const paramStr = d.paramCount != null ? ` (${d.paramCount})` : '';
+      if (arduWriteStatus) {
+        arduWriteStatus.textContent = `הקריאה הושלמה${paramStr}`;
+        arduWriteStatus.className = 'ardu-write-status success';
+      }
+    }
+    updateParamSyncBanner();
+    renderArduParamForm();
+    document.dispatchEvent(new CustomEvent('vlc:fc-params'));
+  } catch (err) {
+    const fault = `קריאה מה-FC נכשלה. הסיבה: ${hebrewRequestFault(err)}`;
+    showParamToolFault(fault, () => readFcParams());
+    if (arduWriteStatus) {
+      arduWriteStatus.textContent = fault;
+      arduWriteStatus.className = 'ardu-write-status fail';
+    }
+  } finally {
+    arduReadBtn.disabled = false;
+  }
+}
+
+if (arduReadBtn) {
+  arduReadBtn.addEventListener('click', () => { void readFcParams(); });
 }
 
 /**
@@ -9196,32 +9426,14 @@ if (arduWriteBtn) {
     }
     try {
       const dirtyParams = collectDirtyArduParams();
-      const res = await fetch('/api/ardu/params/write', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ params: dirtyParams }),
-      });
-      const d = await res.json();
-      if (!res.ok && d.code === 'armed') {
+      const { res, data: d } = await postGuardedFcParams(dirtyParams);
+      const outcome = fcWriteOutcome(res, d);
+      if (!res.ok && (d.code === 'armed' || d.code === 'armed_unknown' || d.code === 'not_connected' || d.code === 'bulk_cap')) {
         if (arduWriteStatus) {
-          arduWriteStatus.textContent = '⛔ ARMED — WRITE חסום. Disarm תחילה.';
+          arduWriteStatus.textContent = outcome.text;
           arduWriteStatus.className = 'ardu-write-status fail';
         }
-      } else if (!res.ok && d.code === 'armed_unknown') {
-        if (arduWriteStatus) {
-          arduWriteStatus.textContent = '⚠ מצב ARMED לא ידוע — WRITE חסום עד לקבלת heartbeat.';
-          arduWriteStatus.className = 'ardu-write-status fail';
-        }
-      } else if (!res.ok && d.code === 'not_connected') {
-        if (arduWriteStatus) {
-          arduWriteStatus.textContent = 'לא מחובר — חבר MAVLink תחילה.';
-          arduWriteStatus.className = 'ardu-write-status fail';
-        }
-      } else if (!res.ok && d.code === 'bulk_cap') {
-        if (arduWriteStatus) {
-          arduWriteStatus.textContent = d.message || 'WRITE חסום — יותר מדי פרמטרים בבת אחת';
-          arduWriteStatus.className = 'ardu-write-status fail';
-        }
+        showParamToolFault(outcome.text, () => arduWriteBtn.click());
       } else if (d.ok) {
         const verified = d.verified && typeof d.verified === 'object' ? d.verified : {};
         if (Object.keys(verified).length) {
@@ -9251,9 +9463,11 @@ if (arduWriteBtn) {
       }
       updateParamSyncBanner();
       renderArduParamForm();
-    } catch {
+    } catch (err) {
+      const fault = `כתיבה ל-FC נכשלה. הסיבה: ${hebrewRequestFault(err)}`;
+      showParamToolFault(fault, () => arduWriteBtn.click());
       if (arduWriteStatus) {
-        arduWriteStatus.textContent = 'שגיאת רשת';
+        arduWriteStatus.textContent = fault;
         arduWriteStatus.className = 'ardu-write-status fail';
       }
     } finally {
@@ -11403,657 +11617,286 @@ initLiveCameraPanel();
   };
 })();
 
-/* ─── AUTO-CONFIG WIZARD (Concept B) ─── */
+/* ─── AUTO-CONFIG WIZARD ─── */
 (function initAutoConfigWizard() {
-  const acBWhatList        = document.getElementById('acBWhatList');
-  const acBPortGrid        = document.getElementById('acBPortGrid');
-  const acBOutcomeList     = document.getElementById('acBOutcomeList');
-  const acBWhatFree        = document.getElementById('acBWhatFree');
-  const acBWhereFree       = document.getElementById('acBWhereFree');
-  const acBExpectFree      = document.getElementById('acBExpectFree');
-  const acBWhatFreeRadio   = document.getElementById('acBWhatFreeRadio');
-  const acBWhereFreeRadio  = document.getElementById('acBWhereFreeRadio');
-  const acBHostFc          = document.getElementById('acBHostFc');
-  const acBHostJetson      = document.getElementById('acBHostJetson');
-  const acBHostNote        = document.getElementById('acBHostNote');
-  const acBCardWhere       = document.getElementById('acBCardWhere');
-  const acBSummary         = document.getElementById('acBSummary');
-  const acBSave            = document.getElementById('acBSave');
-  const acBNext            = document.getElementById('acBNext');
-  const acBProgress        = document.getElementById('acBProgress');
-  const acSymptoms         = document.getElementById('acSymptoms');
-  const acPlanBtn          = document.getElementById('acPlanBtn');
-  const acPlanBtnLabel     = acPlanBtn?.querySelector('.ac-plan-btn-label');
-  const acStatus           = document.getElementById('acStatus');
-  const acResults          = document.getElementById('acResults');
-  const acSummaryBox       = document.getElementById('acSummaryBox');
-  const acWarningsBox      = document.getElementById('acWarningsBox');
-  const acChecksSection    = document.getElementById('acChecksSection');
-  const acChecksList       = document.getElementById('acChecksList');
-  const acParamsSection    = document.getElementById('acParamsSection');
-  const acParamsList       = document.getElementById('acParamsList');
-  const acPhaseBar         = document.getElementById('acPhaseBar');
-  const acPhaseDetail      = document.getElementById('acPhaseDetail');
-  const acEmptyState       = document.getElementById('acEmptyState');
-  const acHistoryDetails   = document.getElementById('acHistoryDetails');
-  const acHistoryTbody     = document.getElementById('acHistoryTbody');
-  const acHistoryCount     = document.getElementById('acHistoryCount');
-  const acHistoryClearBtn  = document.getElementById('acHistoryClearBtn');
+  const whatList = document.getElementById('acWhatList');
+  const whereList = document.getElementById('acWhereList');
+  const paramList = document.getElementById('acParamList');
+  const applyBtn = document.getElementById('acApplyBtn');
+  const applyStatus = document.getElementById('acApplyStatus');
+  const savedList = document.getElementById('acSavedList');
+  const catalogFault = document.getElementById('acCatalogFault');
+  const catalogRetry = document.getElementById('acCatalogRetry');
+  const stepWhat = document.getElementById('acStepWhat');
+  const stepWhere = document.getElementById('acStepWhere');
+  const stepParams = document.getElementById('acStepParams');
+  const goWhat = document.getElementById('acGoWhat');
+  const goWhere = document.getElementById('acGoWhere');
+  const goParams = document.getElementById('acGoParams');
+  if (!whatList || !applyBtn || !whereList || !paramList || !savedList) return;
 
-  if (!acBWhatList || !acPlanBtn) return;
+  const STORE_KEY = 'vlc.fcWizard.runs.v1';
+  let catalog = [];
+  let peripheralId = '';
+  let whereId = '';
+  let step = 'what';
 
-  function acEsc(s) {
-    return String(s ?? '')
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
+  function selectedPeripheral() {
+    return catalog.find((item) => item.id === peripheralId) || null;
   }
 
-  // ── Phase bar helpers ──────────────────────────────────────────────────────
-  const PHASES = ['acPhase1', 'acPhase2', 'acPhase3', 'acPhase4'];
-
-  function setPhase(active, detail) {
-    if (!acPhaseBar) return;
-    acPhaseBar.classList.remove('hidden');
-    if (acEmptyState) acEmptyState.style.display = 'none';
-    PHASES.forEach((id, idx) => {
-      const el = document.getElementById(id);
-      if (!el) return;
-      el.classList.remove('ac-phase--active', 'ac-phase--done', 'ac-phase--pending');
-      if (idx < active)      el.classList.add('ac-phase--done');
-      else if (idx === active) el.classList.add('ac-phase--active');
-      else                   el.classList.add('ac-phase--pending');
-    });
-    if (acPhaseDetail && detail != null) acPhaseDetail.textContent = detail;
+  function selectedWhere() {
+    const peripheral = selectedPeripheral();
+    if (!peripheral) return null;
+    return (peripheral.wheres || []).find((item) => item.id === whereId) || null;
   }
 
-  function resetPhase() {
-    if (acPhaseBar) acPhaseBar.classList.add('hidden');
-    if (acEmptyState) acEmptyState.style.display = '';
+  function currentText(key) {
+    if (!fcCurrentSnapshot || typeof fcCurrentSnapshot !== 'object') return 'לא ידוע';
+    if (!Object.prototype.hasOwnProperty.call(fcCurrentSnapshot, key)) return 'לא ידוע';
+    const value = fcCurrentSnapshot[key];
+    if (value == null || value === '') return 'לא ידוע';
+    return String(value);
   }
 
-  // ── History log ───────────────────────────────────────────────────────────
-  let _acHistory = [];
-
-  function addHistoryEntry(component, paramKey, value, fcResponse, ok) {
-    const now = new Date();
-    const timeStr = now.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    _acHistory.unshift({ time: timeStr, component: component || '—', paramKey, value, fcResponse, ok });
-    renderHistory();
-    if (acHistoryDetails) acHistoryDetails.classList.remove('hidden');
-    if (acHistoryCount)   acHistoryCount.textContent = String(_acHistory.length);
+  function showFault(text) {
+    if (catalogFault) {
+      catalogFault.hidden = false;
+      catalogFault.textContent = text;
+    }
+    if (catalogRetry) catalogRetry.hidden = false;
   }
 
-  function renderHistory() {
-    if (!acHistoryTbody) return;
-    acHistoryTbody.innerHTML = _acHistory.map((e) => `
-      <tr class="${e.ok ? 'ac-hist-ok' : 'ac-hist-fail'}">
-        <td>${e.time}</td>
-        <td>${e.component}</td>
-        <td class="ac-hist-key">${e.paramKey}</td>
-        <td>${e.value}</td>
-        <td>${e.fcResponse || '—'}</td>
-        <td>${e.ok ? '✔ הצליח' : '✘ נכשל'}</td>
-      </tr>`).join('');
-    if (acHistoryCount) acHistoryCount.textContent = String(_acHistory.length);
+  function clearFault() {
+    if (catalogFault) {
+      catalogFault.hidden = true;
+      catalogFault.textContent = '';
+    }
+    if (catalogRetry) catalogRetry.hidden = true;
   }
 
-  acHistoryClearBtn?.addEventListener('click', () => {
-    _acHistory = [];
-    renderHistory();
-    if (acHistoryDetails) acHistoryDetails.classList.add('hidden');
-  });
-
-  const AC_FREE = '__free__';
-  const AC_STORE = 'vlc.ac.conceptB.v1';
-
-  let selectedComponent = null;
-  let catalog = { hardware: [], ports: { fc: [], jetson: [] }, outcomes: [] };
-  let step = emptyConceptBStep();
-  let savedSteps = [];
-
-  function emptyConceptBStep() {
-    return {
-      hardwareId: '',
-      hardwareFree: '',
-      host: 'fc',
-      portId: '',
-      portFree: '',
-      outcomeIds: [],
-      outcomeFree: '',
-    };
+  function showStep(next) {
+    step = next;
+    if (stepWhat) stepWhat.hidden = next !== 'what';
+    if (stepWhere) stepWhere.hidden = next !== 'where';
+    if (stepParams) stepParams.hidden = next !== 'params';
+    if (goWhat) goWhat.setAttribute('aria-current', next === 'what' ? 'step' : 'false');
+    if (goWhere) {
+      goWhere.disabled = !peripheralId;
+      goWhere.setAttribute('aria-current', next === 'where' ? 'step' : 'false');
+    }
+    if (goParams) {
+      goParams.disabled = !selectedWhere();
+      goParams.setAttribute('aria-current', next === 'params' ? 'step' : 'false');
+    }
+    if (next === 'params') renderParams();
   }
 
-  function normalizeConceptBStep(raw) {
-    const src = raw && typeof raw === 'object' ? raw : {};
-    return {
-      hardwareId: String(src.hardwareId || '').trim(),
-      hardwareFree: String(src.hardwareFree || ''),
-      host: src.host === 'jetson' ? 'jetson' : 'fc',
-      portId: String(src.portId || '').trim(),
-      portFree: String(src.portFree || ''),
-      outcomeIds: Array.isArray(src.outcomeIds) ? src.outcomeIds.map((id) => String(id || '').trim()).filter(Boolean) : [],
-      outcomeFree: String(src.outcomeFree || ''),
-    };
+  function choiceButton(title, detail, checked) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'ac-choice';
+    btn.setAttribute('role', 'radio');
+    btn.setAttribute('aria-checked', checked ? 'true' : 'false');
+    const titleEl = document.createElement('span');
+    titleEl.className = 'ac-choice-title';
+    titleEl.textContent = title;
+    const detailEl = document.createElement('span');
+    detailEl.className = 'ac-choice-detail';
+    detailEl.textContent = detail || '';
+    btn.append(titleEl, detailEl);
+    return btn;
   }
 
-  function hardwarePreset(id) {
-    return catalog.hardware.find((h) => h.id === id) || null;
+  function renderWhat() {
+    whatList.replaceChildren();
+    for (const item of catalog) {
+      const btn = choiceButton(item.labelHe || item.id, item.detailHe || '', item.id === peripheralId);
+      btn.dataset.peripheralId = item.id;
+      btn.addEventListener('click', () => {
+        if (peripheralId !== item.id) whereId = '';
+        peripheralId = item.id;
+        renderWhat();
+        renderWhere();
+        showStep('where');
+      });
+      whatList.appendChild(btn);
+    }
   }
 
-  function applyHardwarePreset(id) {
-    const preset = hardwarePreset(id);
-    if (!preset) {
-      step.hardwareId = AC_FREE;
+  function renderWhere() {
+    whereList.replaceChildren();
+    const peripheral = selectedPeripheral();
+    for (const item of peripheral?.wheres || []) {
+      const btn = choiceButton(item.labelHe || item.id, '', item.id === whereId);
+      btn.dataset.whereId = item.id;
+      btn.addEventListener('click', () => {
+        whereId = item.id;
+        renderWhere();
+        showStep('params');
+      });
+      whereList.appendChild(btn);
+    }
+  }
+
+  function renderParams() {
+    paramList.replaceChildren();
+    const where = selectedWhere();
+    const params = where?.params || [];
+    applyBtn.disabled = params.length === 0;
+    for (const item of params) {
+      const li = document.createElement('li');
+      li.className = 'ac-param-row';
+      const keyEl = document.createElement('span');
+      keyEl.className = 'ac-param-key';
+      keyEl.textContent = item.key;
+      const nowEl = document.createElement('span');
+      nowEl.className = 'ac-param-now';
+      nowEl.textContent = currentText(item.key);
+      const nextEl = document.createElement('span');
+      nextEl.className = 'ac-param-next';
+      nextEl.textContent = String(item.value);
+      const meanEl = document.createElement('span');
+      meanEl.className = 'ac-param-mean';
+      meanEl.textContent = item.meaningHe || '';
+      li.append(keyEl, nowEl, nextEl, meanEl);
+      paramList.appendChild(li);
+    }
+  }
+
+  function loadRuns() {
+    try {
+      const raw = localStorage.getItem(STORE_KEY);
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function saveRun(entry) {
+    const runs = loadRuns();
+    runs.unshift(entry);
+    try {
+      localStorage.setItem(STORE_KEY, JSON.stringify(runs.slice(0, 20)));
+    } catch { /* storage full or blocked */ }
+  }
+
+  function renderSaved() {
+    const runs = loadRuns();
+    savedList.replaceChildren();
+    if (!runs.length) {
+      const empty = document.createElement('li');
+      empty.className = 'ac-saved-empty';
+      empty.textContent = 'אין רשומות שמורות';
+      savedList.appendChild(empty);
       return;
     }
-    step.hardwareId = preset.id;
-    step.hardwareFree = '';
-    step.host = preset.suggestHost || 'fc';
-    step.portId = preset.suggestPort || '';
-    step.portFree = '';
-    step.outcomeIds = Array.isArray(preset.suggestOutcomes) ? [...preset.suggestOutcomes] : [];
-  }
-
-  function hardwareLabel() {
-    if (step.hardwareId === AC_FREE || step.hardwareFree.trim()) {
-      return step.hardwareFree.trim() || 'אחר';
-    }
-    return hardwarePreset(step.hardwareId)?.labelHe || '';
-  }
-
-  function portLabel() {
-    if (step.portId === AC_FREE || step.portFree.trim()) {
-      return step.portFree.trim() || 'שקע אחר';
-    }
-    const ports = step.host === 'jetson' ? catalog.ports.jetson : catalog.ports.fc;
-    return (ports || []).find((p) => p.id === step.portId)?.label || step.portId || '';
-  }
-
-  function outcomeLabels() {
-    const labels = [];
-    for (const id of step.outcomeIds) {
-      const o = catalog.outcomes.find((x) => x.id === id);
-      if (o) labels.push(o.token);
-    }
-    if (step.outcomeFree.trim()) labels.push(step.outcomeFree.trim());
-    return labels;
-  }
-
-  function buildSummaryHe() {
-    const what = hardwareLabel();
-    const port = portLabel();
-    const outcomes = outcomeLabels();
-    const hostHe = step.host === 'jetson' ? 'מחשב משימה' : 'בקר טיסה';
-    const hasWhat = Boolean(what && what !== 'אחר');
-    const hasFreeWhat = step.hardwareId === AC_FREE && Boolean(step.hardwareFree.trim());
-    const hasPort = Boolean(port && port !== 'שקע אחר');
-    const hasFreePort = step.portId === AC_FREE && Boolean(step.portFree.trim());
-    const hasExpect = outcomes.length > 0;
-    if (!hasWhat && !hasFreeWhat && !hasPort && !hasFreePort && !hasExpect) {
-      return 'בחרו מה חיברתם, לאן, ומה מצפים.';
-    }
-    const whatPart = what || 'רכיב';
-    const wherePart = port ? ` ל${hostHe} בשקע ${port}` : ` ל${hostHe}`;
-    const expectPart = hasExpect ? ` מצפה ל־${outcomes.join(' · ')}.` : '.';
-    return `חיברתי ${whatPart}${wherePart}.${expectPart}`;
-  }
-
-  function isStepSavable() {
-    const hasWhat = (step.hardwareId && step.hardwareId !== AC_FREE) || Boolean(step.hardwareFree.trim());
-    const hasWhere = (step.portId && step.portId !== AC_FREE) || Boolean(step.portFree.trim());
-    const hasExpect = step.outcomeIds.length > 0 || Boolean(step.outcomeFree.trim());
-    return hasWhat || hasWhere || hasExpect;
-  }
-
-  function recipeTypeOf() {
-    return hardwarePreset(step.hardwareId)?.componentId || selectedComponent;
-  }
-
-  function persistConceptB() {
-    try {
-      localStorage.setItem(AC_STORE, JSON.stringify({ step, saved: savedSteps }));
-    } catch { /* ignore */ }
-  }
-
-  function loadPersistedConceptB() {
-    try {
-      const raw = JSON.parse(localStorage.getItem(AC_STORE) || 'null');
-      if (raw?.step) step = normalizeConceptBStep(raw.step);
-      if (Array.isArray(raw?.saved)) savedSteps = raw.saved.map((s) => normalizeConceptBStep(s));
-    } catch { /* ignore */ }
-  }
-
-  function liveOf(key) {
-    const mav = (typeof _assistLastMav === 'object' && _assistLastMav) ? _assistLastMav : {};
-    const companion = (typeof latestCompanionFromServer === 'object' && latestCompanionFromServer) ? latestCompanionFromServer : {};
-    const vision = (typeof latestVisionFromServer === 'object' && latestVisionFromServer) ? latestVisionFromServer : {};
-    if (key === 'gps3d') {
-      if (typeof mav.gpsFixType !== 'number') return 'off';
-      return mav.gpsFixType >= 3 ? 'live' : 'wait';
-    }
-    if (key === 'heartbeat') {
-      const mavHb = companion?.mavlink?.heartbeat_ok === true;
-      const fcHb = companion?.fc?.heartbeat_validity === 'ok' || companion?.fc?.heartbeat_ok === true;
-      if (mavHb || fcHb) return 'live';
-      if (mav.connected === true) return 'wait';
-      return 'off';
-    }
-    if (key === 'telemetry') return mav.connected === true ? 'live' : 'off';
-    if (key === 'vision') {
-      const age = vision.ageMs;
-      if (typeof age === 'number' && age < 3000) return 'live';
-      return 'off';
-    }
-    if (key === 'rc') return mav.rcChannels ? 'live' : 'off';
-    return 'off';
-  }
-
-  function liveHe(state) {
-    if (state === 'live') return 'חי';
-    if (state === 'wait') return 'ממתין';
-    return 'אין נתון';
-  }
-
-  function syncFreeChrome() {
-    const whatFree = step.hardwareId === AC_FREE;
-    const whereFree = step.portId === AC_FREE;
-    acBWhatFreeRadio && (acBWhatFreeRadio.checked = whatFree);
-    acBWhereFreeRadio && (acBWhereFreeRadio.checked = whereFree);
-    if (acBWhatFree && document.activeElement !== acBWhatFree) acBWhatFree.value = step.hardwareFree;
-    if (acBWhereFree && document.activeElement !== acBWhereFree) acBWhereFree.value = step.portFree;
-    if (acBExpectFree && document.activeElement !== acBExpectFree) acBExpectFree.value = step.outcomeFree;
-    acBWhatFree?.closest('.ac-b-free')?.setAttribute('data-on', whatFree ? '1' : '0');
-    acBWhereFree?.closest('.ac-b-free')?.setAttribute('data-on', whereFree ? '1' : '0');
-    acBExpectFree?.closest('.ac-b-free')?.setAttribute('data-on', step.outcomeFree.trim() ? '1' : '0');
-    acBWhatList?.querySelectorAll('.ac-b-opt').forEach((el) => {
-      const input = el.querySelector('input');
-      const on = Boolean(input) && step.hardwareId === input.value;
-      el.dataset.on = on ? '1' : '0';
-      if (input) input.checked = on;
-    });
-    acBPortGrid?.querySelectorAll('.ac-b-port').forEach((el) => {
-      el.dataset.on = step.portId === el.dataset.port ? '1' : '0';
-    });
-  }
-
-  function renderWhatList() {
-    acBWhatList.innerHTML = catalog.hardware.map((h) => `
-      <label class="ac-b-opt" data-on="${step.hardwareId === h.id ? '1' : '0'}">
-        <input type="radio" name="acBWhat" value="${acEsc(h.id)}" ${step.hardwareId === h.id ? 'checked' : ''}>
-        <span class="ac-b-opt-body">
-          <span class="ac-b-opt-title">${acEsc(h.labelHe)}</span>
-          <span class="ac-b-model">${acEsc(h.modelHe)}</span>
-          <span class="ac-b-opt-detail">${acEsc(h.detailHe)}</span>
-        </span>
-      </label>`).join('');
-    acBWhatList.querySelectorAll('input[name="acBWhat"]').forEach((input) => {
-      input.addEventListener('change', () => {
-        applyHardwarePreset(input.value);
-        selectedComponent = recipeTypeOf();
-        persistConceptB();
-        renderConceptB();
-      });
-    });
-  }
-
-  function renderPortGrid() {
-    const ports = step.host === 'jetson' ? catalog.ports.jetson : catalog.ports.fc;
-    acBPortGrid.innerHTML = (ports || []).map((p) => `
-      <button type="button" class="ac-b-port" data-port="${acEsc(p.id)}" data-on="${step.portId === p.id ? '1' : '0'}">${acEsc(p.label)}</button>`).join('');
-    acBPortGrid.querySelectorAll('[data-port]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        step.portId = btn.dataset.port;
-        step.portFree = '';
-        persistConceptB();
-        renderConceptB();
-      });
-    });
-  }
-
-  function renderOutcomes() {
-    acBOutcomeList.innerHTML = catalog.outcomes.map((o) => {
-      const on = step.outcomeIds.includes(o.id);
-      const live = liveOf(o.liveKey);
-      return `
-        <label class="ac-b-outcome" data-on="${on ? '1' : '0'}">
-          <input type="checkbox" value="${acEsc(o.id)}" ${on ? 'checked' : ''}>
-          <span class="ac-b-opt-body">
-            <span class="ac-b-expect-token">${acEsc(o.token)}</span>
-            <span class="ac-b-opt-title">${acEsc(o.titleHe)}</span>
-            <span class="ac-b-opt-detail">${acEsc(o.observeHe)}</span>
-          </span>
-          <span class="ac-b-live" data-live="${live}">${liveHe(live)}</span>
-        </label>`;
-    }).join('');
-    acBOutcomeList.querySelectorAll('input[type="checkbox"]').forEach((input) => {
-      input.addEventListener('change', () => {
-        const id = input.value;
-        if (input.checked) {
-          if (!step.outcomeIds.includes(id)) step.outcomeIds.push(id);
-        } else {
-          step.outcomeIds = step.outcomeIds.filter((x) => x !== id);
-        }
-        persistConceptB();
-        renderConceptB();
-      });
-    });
-  }
-
-  function renderHost() {
-    acBHostFc?.setAttribute('aria-pressed', step.host === 'fc' ? 'true' : 'false');
-    acBHostJetson?.setAttribute('aria-pressed', step.host === 'jetson' ? 'true' : 'false');
-    if (acBCardWhere) acBCardWhere.dataset.host = step.host;
-    if (acBHostNote) {
-      acBHostNote.dataset.host = step.host;
-      acBHostNote.textContent = step.host === 'jetson'
-        ? 'שקעים על מחשב המשימה.'
-        : 'שקעים על לוח הבקר.';
+    for (const run of runs) {
+      const li = document.createElement('li');
+      li.className = 'ac-saved-item';
+      const when = formatToolClock(run.at);
+      const outcome = run.ok ? 'נכתב' : 'לא נכתב';
+      li.textContent = `${when} · ${run.peripheralLabelHe || 'לא ידוע'} · ${run.whereLabelHe || 'לא ידוע'} · ${outcome}`;
+      savedList.appendChild(li);
     }
   }
 
-  function renderConceptB() {
-    if (acEmptyState) acEmptyState.classList.add('hidden');
-    selectedComponent = recipeTypeOf();
-    renderWhatList();
-    renderHost();
-    renderPortGrid();
-    renderOutcomes();
-    syncFreeChrome();
-    if (acBSummary) acBSummary.textContent = buildSummaryHe();
-    if (acBProgress) {
-      acBProgress.textContent = savedSteps.length
-        ? `נשמרו ${savedSteps.length}`
-        : 'אין רשומות שמורות';
-    }
-    if (acSymptoms) {
-      const label = hardwareLabel();
-      acSymptoms.placeholder = label && label !== 'אחר'
-        ? `מה לא תואם לציפייה ברכיב ${label}`
-        : 'מה לא תואם לציפייה. אין פקודות טיסה מכאן.';
-      acSymptoms.classList.toggle('ac-textarea--ready', Boolean(selectedComponent));
-    }
-  }
-
-  function saveCurrentStep() {
-    if (!isStepSavable()) {
-      if (acBSummary) acBSummary.textContent = 'אין מה לשמור עדיין.';
-      return false;
-    }
-    savedSteps.push({ ...normalizeConceptBStep(step), savedAt: new Date().toISOString() });
-    persistConceptB();
-    if (acBSave) {
-      acBSave.dataset.flash = '1';
-      setTimeout(() => { if (acBSave) acBSave.dataset.flash = '0'; }, 700);
-    }
-    addHistoryEntry(hardwareLabel() || '—', 'wizard-step', portLabel() || '—', buildSummaryHe(), true);
-    renderConceptB();
-    return true;
-  }
-
-  function goNextStep() {
-    if (isStepSavable()) saveCurrentStep();
-    step = emptyConceptBStep();
-    persistConceptB();
-    renderConceptB();
-  }
-
-  function setHost(host) {
-    step.host = host === 'jetson' ? 'jetson' : 'fc';
-    const ports = step.host === 'jetson' ? catalog.ports.jetson : catalog.ports.fc;
-    if (step.portId !== AC_FREE && !(ports || []).some((p) => p.id === step.portId)) {
-      step.portId = '';
-    }
-    persistConceptB();
-    renderConceptB();
-  }
-
-  acBHostFc?.addEventListener('click', () => setHost('fc'));
-  acBHostJetson?.addEventListener('click', () => setHost('jetson'));
-  acBWhatFreeRadio?.addEventListener('change', () => {
-    if (!acBWhatFreeRadio.checked) return;
-    step.hardwareId = AC_FREE;
-    persistConceptB();
-    renderConceptB();
-    acBWhatFree?.focus();
-  });
-  acBWhereFreeRadio?.addEventListener('change', () => {
-    if (!acBWhereFreeRadio.checked) return;
-    step.portId = AC_FREE;
-    persistConceptB();
-    renderConceptB();
-    acBWhereFree?.focus();
-  });
-  acBWhatFree?.addEventListener('input', () => {
-    step.hardwareId = AC_FREE;
-    step.hardwareFree = acBWhatFree.value;
-    persistConceptB();
-    if (acBSummary) acBSummary.textContent = buildSummaryHe();
-    syncFreeChrome();
-  });
-  acBWhereFree?.addEventListener('input', () => {
-    step.portId = AC_FREE;
-    step.portFree = acBWhereFree.value;
-    persistConceptB();
-    if (acBSummary) acBSummary.textContent = buildSummaryHe();
-    syncFreeChrome();
-  });
-  acBExpectFree?.addEventListener('input', () => {
-    step.outcomeFree = acBExpectFree.value;
-    persistConceptB();
-    if (acBSummary) acBSummary.textContent = buildSummaryHe();
-    syncFreeChrome();
-  });
-  acBSave?.addEventListener('click', () => { saveCurrentStep(); });
-  acBNext?.addEventListener('click', () => { goNextStep(); });
-  document.addEventListener('vlc:telemetry', () => {
-    if (!catalog.outcomes.length) return;
-    renderOutcomes();
-  });
-
-  /** Fetch Concept B catalog and restore the last draft. */
-  async function loadComponentTypes() {
-    loadPersistedConceptB();
+  async function loadCatalog() {
+    clearFault();
     try {
       const res = await fetch('/api/auto-config/components');
-      const d = await res.json();
-      if (!d.ok) return;
-      if (d.conceptB) {
-        catalog = {
-          hardware: Array.isArray(d.conceptB.hardware) ? d.conceptB.hardware : [],
-          ports: {
-            fc: Array.isArray(d.conceptB.ports?.fc) ? d.conceptB.ports.fc : [],
-            jetson: Array.isArray(d.conceptB.ports?.jetson) ? d.conceptB.ports.jetson : [],
-          },
-          outcomes: Array.isArray(d.conceptB.outcomes) ? d.conceptB.outcomes : [],
-        };
-      }
-      renderConceptB();
-    } catch (err) {
-      if (acBSummary) acBSummary.textContent = 'שגיאה בטעינת רשימת רכיבים';
-      console.error('[auto-config] loadComponentTypes failed', err);
-    }
-  }
-
-  /** Risk badge HTML */
-  function riskBadge(risk) {
-    const label = risk === 'high' ? 'סיכון גבוה' : risk === 'medium' ? 'סיכון בינוני' : 'סיכון נמוך';
-    return `<span class="ac-risk-badge ${risk}">${label}</span>`;
-  }
-
-  /** Apply a single param change via the existing param-set endpoint. */
-  async function applyParamChange(paramKey, value, applyBtn, statusEl) {
-    const numVal = Number(value);
-    if (!Number.isFinite(numVal)) {
-      statusEl.textContent = 'ערך לא תקין';
-      statusEl.className = 'ac-param-apply-status fail';
-      return;
-    }
-    applyBtn.disabled = true;
-    statusEl.textContent = 'שולח…';
-    statusEl.className = 'ac-param-apply-status';
-    setPhase(2, `שולח ${paramKey} = ${numVal} לרחפן…`);
-    try {
-      const res = await fetch('/api/param-center/param-set', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ param: paramKey, value: numVal }),
-      });
-      const d = await res.json();
-      if (!res.ok || !d.ok) {
-        const errMsg = d.message || 'שגיאה';
-        statusEl.textContent = `✘ ${errMsg}`;
-        statusEl.className = 'ac-param-apply-status fail';
-        setPhase(2, `✘ ${paramKey}: ${errMsg}`);
-        addHistoryEntry(selectedComponent, paramKey, numVal, errMsg, false);
-        applyBtn.disabled = false;
+      if (!res.ok) {
+        showFault(`טעינת הרכיבים נכשלה. הסיבה: ${hebrewRequestFault(null, res)}`);
         return;
       }
-      if (d.via === 'offline') {
-        statusEl.textContent = '⚠ נשמר (לא מחובר לרחפן)';
-        setPhase(3, `⚠ ${paramKey} = ${numVal} נשמר. אין חיבור לרחפן.`);
-        addHistoryEntry(selectedComponent, paramKey, numVal, 'נשמר (לא מחובר)', true);
-      } else {
-        const echo = d.value != null ? ` (FC: ${d.value})` : '';
-        statusEl.textContent = `✔ נשלח${echo}`;
-        setPhase(3, `✔ ${paramKey} = ${numVal} נשלח ואושר על-ידי FC${echo}.`);
-        addHistoryEntry(selectedComponent, paramKey, numVal, d.value != null ? `FC: ${d.value}` : 'אושר', true);
+      const data = await res.json();
+      const list = data?.peripheralWizard?.peripherals;
+      if (!Array.isArray(list) || list.length === 0) {
+        catalog = [];
+        whatList.replaceChildren();
+        showFault('קטלוג הרכיבים ריק.');
+        return;
       }
+      catalog = list;
+      if (peripheralId && !selectedPeripheral()) {
+        peripheralId = '';
+        whereId = '';
+      }
+      renderWhat();
+      renderWhere();
+      showStep(selectedWhere() ? step : peripheralId ? 'where' : 'what');
     } catch (err) {
-      const errMsg = err?.message || 'שגיאת רשת';
-      statusEl.textContent = `✘ ${errMsg}`;
-      statusEl.className = 'ac-param-apply-status fail';
-      setPhase(2, `✘ שגיאת רשת בשליחת ${paramKey}`);
-      addHistoryEntry(selectedComponent, paramKey, numVal, errMsg, false);
-      applyBtn.disabled = false;
+      catalog = [];
+      whatList.replaceChildren();
+      showFault(`טעינת הרכיבים נכשלה. הסיבה: ${hebrewRequestFault(err)}`);
     }
   }
 
-  /** Render the recipe into the results area. */
-  function renderRecipe(recipe) {
-    // Summary
-    acSummaryBox.textContent = recipe.summary || '';
-
-    // Warnings
-    if (recipe.warnings && recipe.warnings.length > 0) {
-      acWarningsBox.innerHTML = recipe.warnings
-        .map((w) => `<div class="ac-warning-item">${w}</div>`)
-        .join('');
-      acWarningsBox.classList.remove('hidden');
-    } else {
-      acWarningsBox.classList.add('hidden');
-    }
-
-    // Checks
-    if (recipe.checks && recipe.checks.length > 0) {
-      acChecksList.innerHTML = recipe.checks.map((c) => `
-        <div class="ac-check-card" data-check-id="${c.id}">
-          <input type="checkbox" class="ac-check-checkbox" id="chk-${c.id}" aria-label="סמן כבוצע: ${c.title}">
-          <div class="ac-check-body">
-            <div class="ac-check-title"><label for="chk-${c.id}" style="cursor:pointer">${c.title}</label></div>
-            <div class="ac-check-desc">${c.description}</div>
-            ${c.expected ? `<div class="ac-check-expected">✓ ${c.expected}</div>` : ''}
-          </div>
-        </div>
-      `).join('');
-      acChecksSection.classList.remove('hidden');
-    } else {
-      acChecksSection.classList.add('hidden');
-    }
-
-    // Param changes
-    if (recipe.param_changes && recipe.param_changes.length > 0) {
-      acParamsList.innerHTML = '';
-      recipe.param_changes.forEach((p) => {
-        const card = document.createElement('div');
-        card.className = `ac-param-card risk-${p.risk || 'low'}`;
-
-        const currentBlock = p.current_value != null
-          ? `<span>ערך נוכחי: <strong>${p.current_value}</strong></span>`
-          : '<span class="ac-optional">ערך נוכחי לא ידוע</span>';
-
-        card.innerHTML = `
-          <div class="ac-param-header">
-            <span class="ac-param-key">${p.param_key}</span>
-            ${riskBadge(p.risk || 'low')}
-          </div>
-          <div class="ac-param-values">
-            ${currentBlock}
-            <span>ערך מומלץ: <strong>${p.recommended_value}</strong></span>
-          </div>
-          ${p.reason ? `<div class="ac-param-reason">${p.reason}</div>` : ''}
-          ${p.success_condition ? `<div class="ac-param-success">תנאי הצלחה: ${p.success_condition}</div>` : ''}
-          <div class="ac-param-apply-row">
-            <input class="ac-param-val-input" type="text" value="${p.recommended_value}" aria-label="ערך לשליחה עבור ${p.param_key}">
-            <button class="ac-param-apply-btn" type="button">החל המלצה</button>
-            <span class="ac-param-apply-status"></span>
-          </div>
-        `;
-
-        const applyBtn = card.querySelector('.ac-param-apply-btn');
-        const valInput = card.querySelector('.ac-param-val-input');
-        const statusEl = card.querySelector('.ac-param-apply-status');
-        applyBtn.addEventListener('click', () => {
-          applyParamChange(p.param_key, valInput.value.trim(), applyBtn, statusEl);
+  applyBtn.addEventListener('click', () => {
+    const peripheral = selectedPeripheral();
+    const where = selectedWhere();
+    if (!peripheral || !where || !where.params?.length) return;
+    const rows = where.params.map((item) => ({
+      key: item.key,
+      currentText: currentText(item.key),
+      nextText: String(item.value),
+    }));
+    openGuardedFcWriteConfirm(rows, async () => {
+      applyBtn.disabled = true;
+      if (applyStatus) applyStatus.textContent = 'שולח…';
+      try {
+        const params = {};
+        for (const item of where.params) params[item.key] = item.value;
+        const { res, data } = await postGuardedFcParams(params);
+        const outcome = fcWriteOutcome(res, data);
+        if (applyStatus) applyStatus.textContent = outcome.text;
+        if (data.ok && data.verified && typeof data.verified === 'object') {
+          if (!fcCurrentSnapshot || typeof fcCurrentSnapshot !== 'object') fcCurrentSnapshot = {};
+          for (const [key, value] of Object.entries(data.verified)) fcCurrentSnapshot[key] = value;
+        }
+        saveRun({
+          at: Date.now(),
+          peripheralId: peripheral.id,
+          peripheralLabelHe: peripheral.labelHe || peripheral.id,
+          whereId: where.id,
+          whereLabelHe: where.labelHe || where.id,
+          params: where.params.map((item) => {
+            const shown = currentText(item.key);
+            return {
+              key: item.key,
+              value: item.value,
+              current: shown === 'לא ידוע' ? null : shown,
+            };
+          }),
+          result: outcome.text,
+          ok: outcome.level === 'ok',
         });
-
-        acParamsList.appendChild(card);
-      });
-      acParamsSection.classList.remove('hidden');
-    } else {
-      acParamsSection.classList.add('hidden');
-    }
-
-    acResults.classList.remove('hidden');
-    acResults.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  }
-
-  /** Run the plan request. */
-  acPlanBtn.addEventListener('click', async () => {
-    const symptoms = acSymptoms?.value.trim() ?? '';
-    if (!selectedComponent) {
-      if (acStatus) acStatus.textContent = 'בחר סוג רכיב תחילה';
-      return;
-    }
-    if (!symptoms) {
-      if (acStatus) acStatus.textContent = 'תאר את הבעיה תחילה (שדה 2)';
-      return;
-    }
-
-    acPlanBtn.disabled = true;
-    if (acPlanBtnLabel) acPlanBtnLabel.textContent = 'מנתח…';
-    if (acStatus) acStatus.textContent = '';
-    acResults?.classList.add('hidden');
-    setPhase(0, 'שולח בקשה ל-AI — בונה תוכנית קונפיגורציה…');
-
-    try {
-      const res = await fetch('/api/auto-config/plan', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ componentType: selectedComponent, symptoms }),
-      });
-      const d = await res.json();
-      if (!res.ok || !d.ok) {
-        const msg = d.message || 'שגיאת שרת';
-        if (acStatus) acStatus.textContent = `✘ ${msg}`;
-        setPhase(0, `✘ נכשל: ${msg}`);
-        acPlanBtn.disabled = false;
-        if (acPlanBtnLabel) acPlanBtnLabel.textContent = 'בדיקות';
-        return;
+        renderParams();
+        renderSaved();
+        updateParamSyncBanner();
+        if (outcome.level === 'fail') showParamToolFault(outcome.text, () => applyBtn.click());
+        else clearParamToolFault();
+      } catch (err) {
+        const fault = `כתיבה ל-FC נכשלה. הסיבה: ${hebrewRequestFault(err)}`;
+        if (applyStatus) applyStatus.textContent = fault;
+        showParamToolFault(fault, () => applyBtn.click());
+      } finally {
+        applyBtn.disabled = !(selectedWhere()?.params?.length);
       }
-      setPhase(1, 'המלצות מוכנות לבדיקה.');
-      renderRecipe(d.recipe);
-    } catch (err) {
-      const msg = err?.message || 'שגיאת רשת';
-      if (acStatus) acStatus.textContent = `✘ ${msg}`;
-      setPhase(0, `✘ ${msg}`);
-    }
-    acPlanBtn.disabled = false;
-    if (acPlanBtnLabel) acPlanBtnLabel.textContent = 'בדיקות';
+    });
   });
 
-  loadComponentTypes();
+  goWhat?.addEventListener('click', () => showStep('what'));
+  goWhere?.addEventListener('click', () => { if (peripheralId) showStep('where'); });
+  goParams?.addEventListener('click', () => { if (selectedWhere()) showStep('params'); });
+  catalogRetry?.addEventListener('click', () => { void loadCatalog(); });
+  document.addEventListener('vlc:fc-params', () => { if (step === 'params') renderParams(); });
+
+  applyBtn.disabled = true;
+  renderSaved();
+  showStep('what');
+  void loadCatalog();
 })();
 
 /* ─── CUSTOM PARAMS PANEL ─── */
@@ -12140,7 +11983,7 @@ initLiveCameraPanel();
             </div>
             <div class="cp-param-editor" id="cp-edit-${esc}">
               <input type="number" class="cp-param-input" data-cp-key="${escapeAttr(key)}" placeholder="ערך חדש" step="any" value="${escapeAttr(String(cur))}" aria-label="ערך עבור ${escapeAttr(key)}" />
-              <button type="button" class="cp-param-send" data-cp-key="${escapeAttr(key)}" title="שלח לרחפן">שלח ✈</button>
+              <button type="button" class="cp-param-send" data-cp-key="${escapeAttr(key)}" title="שלח ל-FC">שלח ל-FC</button>
               <span class="cp-param-status"></span>
             </div>
           </div>`;

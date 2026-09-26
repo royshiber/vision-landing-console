@@ -182,9 +182,9 @@ describe('Auto-Config → Assist + Configuration fold — service', () => {
 describe('Auto-Config → Assist + Configuration fold — chrome', () => {
   it('keeps #autoConfig under Parameter Center after Platform tab removal', () => {
     expect(html).toContain('id="autoConfig"');
-    expect(html).toContain('data-ac-model="concept-b"');
-    expect(html).toContain('id="acBCardWhat"');
-    expect(html).toContain('id="acPlanBtn"');
+    expect(html).toContain('data-ac-model="peripheral-steps"');
+    expect(html).toContain('id="acWhatList"');
+    expect(html).toContain('id="acApplyBtn"');
     expect(html).toMatch(/class="subtab"[^>]*data-subtab="autoConfig"[^>]*>אשף קונפיגורציה</);
     expect(html).not.toContain('data-platform-go');
     expect(html).toMatch(/class="tab tab-ops"[^>]*data-tab="control"[^>]*>פרמטרים</);

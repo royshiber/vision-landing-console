@@ -46,62 +46,33 @@ describe('AIRVIX 1.02.278 Concept B configuration wizard', () => {
     expect(changelog).toContain('"version": "1.02.277"');
   });
 
-  it('renders three numbered tall cards in RTL with locked titles', () => {
+  it('renders a three-step peripheral wizard in RTL', () => {
     const panel = wizardPanel();
-    expect(panel).toContain('data-ac-model="concept-b"');
-    expect(panel).toContain('id="acBCardWhat"');
-    expect(panel).toContain('id="acBCardWhere"');
-    expect(panel).toContain('id="acBCardExpect"');
-    expect(panel).toContain('מה חיברתי');
-    expect(panel).toContain('לאן חיברתי');
-    expect(panel).toContain('מה אני מצפה שיקרה');
-    expect(panel).toContain('data-step="1"');
-    expect(panel).toContain('data-step="2"');
-    expect(panel).toContain('data-step="3"');
-    expect(css).toContain('.ac-b-grid');
-    expect(css).toContain('direction: rtl');
-    expect(css).toContain('grid-template-columns: repeat(3, minmax(0, 1fr))');
+    expect(panel).toContain('data-ac-model="peripheral-steps"');
+    expect(panel).toContain('dir="rtl"');
+    expect(panel).toContain('id="acWhatList"');
+    expect(panel).toContain('id="acWhereList"');
+    expect(panel).toContain('id="acParamList"');
+    expect(panel).toContain('id="acApplyBtn"');
+    expect(panel).toContain('id="acSavedList"');
+    expect(panel).toContain('מה חיברתם');
+    expect(panel).toContain('>לאן<');
+    expect(panel).toContain('פרמטרים');
+    expect(css).toContain('#autoConfig.subpanel:not(.visible)');
+    expect(css).toContain('display: none !important');
   });
 
-  it('keeps a first-class free-text field on every card', () => {
-    const panel = wizardPanel();
-    expect(panel).toContain('id="acBWhatFree"');
-    expect(panel).toContain('id="acBWhereFree"');
-    expect(panel).toContain('id="acBExpectFree"');
-    expect(panel.match(/או כתוב חופשי…/g)?.length).toBeGreaterThanOrEqual(3);
-    expect(panel.match(/>אחר</g)?.length).toBeGreaterThanOrEqual(3);
-    expect(js).toContain('applyHardwarePreset');
-    expect(js).toContain("step.hardwareId = AC_FREE");
-    expect(js).toContain("step.portId = AC_FREE");
-    expect(js).toContain('step.outcomeFree');
-    expect(js).toContain('el.dataset.on = on ? \'1\' : \'0\'');
-  });
-
-  it('uses FC vs mission-computer segmented control and a pin grid', () => {
-    const panel = wizardPanel();
-    expect(panel).toContain('id="acBHostFc"');
-    expect(panel).toContain('id="acBHostJetson"');
-    expect(panel).toContain('בקר טיסה');
-    expect(panel).toContain('מחשב משימה');
-    expect(panel).toContain('id="acBPortGrid"');
-    expect(css).toContain('.ac-b-seg-btn[data-host="fc"]');
-    expect(css).toContain('.ac-b-seg-btn[data-host="jetson"]');
-    expect(js).toContain("setHost('jetson')");
-    expect(js).toContain('acBPortGrid');
-  });
-
-  it('has an outcome checklist with live status and a footer save/next', () => {
-    const panel = wizardPanel();
-    expect(panel).toContain('id="acBOutcomeList"');
-    expect(panel).toContain('id="acBSummary"');
-    expect(panel).toContain('id="acBSave"');
-    expect(panel).toContain('id="acBNext"');
-    expect(panel).toMatch(/>שמור</);
-    expect(panel).toMatch(/>הבא</);
-    expect(js).toContain('function liveOf');
-    expect(js).toContain("key === 'gps3d'");
-    expect(js).toContain("key === 'heartbeat'");
-    expect(css).toContain('.ac-b-live');
+  it('applies through the existing guarded FC write after confirm', () => {
+    expect(js).toContain('function openGuardedFcWriteConfirm');
+    expect(js).toContain('postGuardedFcParams(params)');
+    expect(js).toContain("fetch('/api/ardu/params/write'");
+    expect(js).toContain('vlc.fcWizard.runs.v1');
+    expect(js).toContain("return 'לא ידוע'");
+    const wizardStart = js.indexOf('function initAutoConfigWizard');
+    const wizardEnd = js.indexOf('CUSTOM PARAMS PANEL', wizardStart);
+    const wizard = js.slice(wizardStart, wizardEnd);
+    expect(wizard).not.toContain('/api/param-center/param-set');
+    expect(wizard).toContain('openGuardedFcWriteConfirm');
   });
 
   it('does not redesign Develop / Capability Intake', () => {
@@ -120,7 +91,8 @@ describe('AIRVIX 1.02.278 Concept B configuration wizard', () => {
     expect(panel).not.toContain('מלווה');
     expect(panel).not.toMatch(/https?:\/\//);
     expect(js).toContain('מחשב משימה');
-    expect(commercial).toContain('שלוש כרטיסיות');
+    expect(commercial).toContain('אשף קונפיגורציה');
+    expect(commercial).toContain('מסלול הכתיבה הקיים');
   });
 
   it('does not add companion apply/restart or flight-command chrome in the wizard', () => {

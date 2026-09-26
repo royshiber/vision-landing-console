@@ -379,9 +379,10 @@ describe('Parameters UI WRITE sends dirty keys only', () => {
   it('collects session-dirty params and posts them as body.params', () => {
     expect(js).toContain('function collectDirtyArduParams()');
     expect(js).toContain('function captureArduWriteBaseline()');
-    expect(js).toContain('body: JSON.stringify({ params: dirtyParams })');
+    expect(js).toContain('postGuardedFcParams(dirtyParams)');
+    expect(js).toContain('body: JSON.stringify({ params })');
     expect(js).not.toMatch(/fetch\('\/api\/ardu\/params\/write'[\s\S]{0,220}body: '\{\}'/);
     expect(js).toContain("d.code === 'bulk_cap'");
-    expect(js).toContain('WRITE לרחפן שולח רק מה שערכת בסשן זה');
+    expect(js).toContain('הכתיבה ל-FC שולחת רק מה שערכת בסשן זה');
   });
 });
