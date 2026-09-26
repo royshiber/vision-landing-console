@@ -1014,7 +1014,7 @@ function localAdvisorReply(q) {
     return 'SLAM/GPS: הפעל SLAM כשיש כיסוי ויזואלי מספיק. GPS נדרש לפחות ל-8 לוויינים לניווט עצמאי. בדוק Loop Closures > 0 לאמות שהמפה תקינה.';
   }
   if (text.includes('פרמטר') || text.includes('param') || text.includes('הגדר') || text.includes('שנה')) {
-    return 'שינוי פרמטר: שנו פרמטר אחד בכל טיסה, שמרו פרופיל לפני השינוי, ועשו קריאה מהמטוס אחרי הכתיבה לבקר כדי לוודא שנשמר.';
+    return 'שינוי פרמטר: שנו פרמטר אחד בכל טיסה, שמרו פרופיל לפני השינוי, וקראו פרמטרים מבקר הטיסה אחרי הכתיבה כדי לוודא שנשמר.';
   }
   return 'שאל אותי על: נדנוד, הצפה, מהירות גישה, ABORT, המראה, Jetson, SLAM/GPS, או פרמטרים ספציפיים. לתשובות מתקדמות — הוסף GEMINI_API_KEY ל-.env.';
 }
@@ -1217,7 +1217,7 @@ function updateParamSyncBanner() {
 
   if (!serverDirty && sessionDirty === 0 && fcMis === 0) {
     lines.length = 0;
-    lines.push('הכל מסונכרן: הגיבוי בקונסולה ויעדים כפי שנקראו מבקר הטיסה.');
+    lines.push('הכול מסונכרן: הגיבוי בקונסולה תואם למה שנקרא מבקר הטיסה.');
     level = 'ok';
   }
 
@@ -1556,30 +1556,30 @@ function persistArduFavorites() {
 
 /** Why: `?` tooltips on ArduPilot form — short Hebrew, parameter name in English in title bar only via label. */
 const ARDU_PARAM_HELP = {
-  companion_serial_port: 'בחירת פורט פיזי שאליו מחובר מחשב המשימה. אם החיבור בפועל הוא SERIAL3 ואתה משאיר SERIAL2, ה‑FC ישדר בפורט הלא נכון ותראה ניתוקים/חוסר נתונים. שנה רק כשאתה בטוח בחיווט.',
+  companion_serial_port: 'בחירת פורט פיזי שאליו מחובר מחשב המשימה. אם החיבור בפועל הוא SERIAL3 ואתה משאיר SERIAL2, בקר הטיסה ישדר בפורט הלא נכון ותראה ניתוקים/חוסר נתונים. שנה רק כשאתה בטוח בחיווט.',
   companion_sr_bucket: 'קובע מאיזה SRx יוצאים קצבי הטלמטריה למחשב המשימה. ברוב המקרים תואם לאותו מספר של SERIALx, אבל יש מערכות שבהן זה מופרד. אם אתה רואה heartbeat בלי נתונים עשירים, בדוק את הערך הזה.',
-  EK3_ENABLE: 'מפעיל את EKF3 כחישוב הניווט הראשי. שינוי פרמטר זה משפיע על התנהגות FC גלובלית ולכן מבוצע רק על הקרקע ובזהירות.',
+  EK3_ENABLE: 'מפעיל את EKF3 כחישוב הניווט הראשי. שינוי פרמטר זה משפיע על התנהגות בקר הטיסה ולכן מבוצע רק על הקרקע ובזהירות.',
   AHRS_EKF_TYPE: 'בוחר מנוע EKF בשכבת AHRS. ערך 3 הוא EKF3 ברוב גרסאות Plane. שינוי כאן יכול להשפיע על יציבות חישוב Attitude ו‑Position.',
   EK3_GPS_TYPE: 'מגדיר כמה ואיך EKF3 מסתמך על GPS. מתאים בעיקר לניסויי GPS/vision coupling — לא לשנות בלי להבין את מקור המיקום הפעיל בניסוי.',
   EK3_ALT_SOURCE: 'מקור הגובה הראשי של EKF3 (לרוב ברומטר/טווח/שילוב). אם מקור הגובה לא נכון תראה פרופיל גובה לא יציב ב‑final.',
-  PLND_ENABLED: 'מפעיל Precision Landing בצד FC. כשכבוי, נתוני נחיתה מדויקת ממחשב המשימה יתקבלו אך לא יניעו לוגיקת נחיתה ייעודית.',
+  PLND_ENABLED: 'מפעיל Precision Landing בבקר הטיסה. כשכבוי, נתוני נחיתה מדויקת ממחשב המשימה יתקבלו אך לא יניעו לוגיקת נחיתה ייעודית.',
   PLND_TYPE: 'סוג קלט נחיתה מדויקת. ערך 1 לרוב מייצג MAVLink ולכן מתאים לאינטגרציה עם מחשב משימה.',
-  PLND_BUS: 'ערוץ/Bus ממנו FC מצפה לקבל PLND. ברוב תרחישי MAVLink נשאר ברירת מחדל, אבל במערכות היברידיות צריך התאמה מפורשת.',
-  PLND_LAG: 'פיצוי עיכוב בין המדידה הוויזואלית לבין השימוש ב‑FC. אם גבוה מדי התיקון מגיע מאוחר; אם נמוך מדי מתקבלת תגובת יתר.',
-  PLND_XY_DIST_MAX: 'רדיוס אופקי שבו FC עדיין מוכן להשתמש בנתוני PLND. קטן מדי יבטל תיקונים מוקדם, גדול מדי עלול לאפשר תיקונים אגרסיביים רחוקים.',
-  PLND_STRICT: 'מצב הקשחה ללוגיקת PLND. במצב קשיח FC פחות סלחני לנתונים חלשים ולכן מתאים לשטח יציב/תצפית טובה, פחות לרוח ותנאים קשים.',
+  PLND_BUS: 'ערוץ/Bus שממנו בקר הטיסה מצפה לקבל PLND. ברוב תרחישי MAVLink נשאר ברירת מחדל, אבל במערכות היברידיות צריך התאמה מפורשת.',
+  PLND_LAG: 'פיצוי עיכוב בין המדידה הוויזואלית לבין השימוש בבקר הטיסה. אם גבוה מדי התיקון מגיע מאוחר; אם נמוך מדי מתקבלת תגובת יתר.',
+  PLND_XY_DIST_MAX: 'רדיוס אופקי שבו בקר הטיסה עדיין מוכן להשתמש בנתוני PLND. קטן מדי יבטל תיקונים מוקדם, גדול מדי עלול לאפשר תיקונים אגרסיביים רחוקים.',
+  PLND_STRICT: 'מצב הקשחה ללוגיקת PLND. במצב קשיח בקר הטיסה פחות סלחני לנתונים חלשים ולכן מתאים לשטח יציב/תצפית טובה, פחות לרוח ותנאים קשים.',
   LOG_DISARMED: 'רישום לוג גם כשהכלי Disarmed. חיוני לתחקור חיבור/פרמטרים לפני המראה, אבל מגדיל נפח לוג לאורך זמן.',
   LOG_REPLAY: 'שומר נתונים שמתאימים ל‑replay/ניתוח עומק. שימושי מאוד לניסויים, עם עלות כתיבה גדולה יותר.',
   LOG_BITMASK: 'בחירת סוגי הודעות בלוג כ‑bitmask. אם חסרים נתונים בתחקור — צריך להרחיב; אם עומס I/O גבוה — צריך לצמצם.',
   LAND_SPEED: 'מהירות הנמכה סופית בס״מ/ש. גבוה מדי ייתן נגיעה קשה, נמוך מדי עלול למשוך זמן final ולגרור תיקוני יתר ברוח.',
   LAND_SPEED_HIGH: 'מהירות נחיתה בשלבים גבוהים יותר (כשנתמך בפירמוור). עוזר לבנות מעבר הדרגתי בין final ל‑flare.',
   LAND_ALT_LOW: 'גובה המעבר לשלב נחיתה נמוך. קובע מתי לוגיקת low-alt ננעלת על התנהגות סופית.',
-  LAND_ABORT_PWM: 'סף/ערך PWM שמוגדר ללוגיקת abort בצד FC (אם הקונפיג תומך). פרמטר רגיש — לשנות רק בניסוי מבוקר.',
+  LAND_ABORT_PWM: 'סף/ערך PWM שמוגדר ללוגיקת abort בבקר הטיסה (אם הקונפיג תומך). פרמטר רגיש — לשנות רק בניסוי מבוקר.',
   LIM_PITCH_CD: 'מגבלת זווית אף מקסימלית ביחידות סנטי-מעלה (למשל 3000 = 30°). פרמטר ArduPlane קנוני לזווית פיץ׳ מקסימלית.',
   LIM_ROLL_CD: 'מגבלת זווית גלגול מקסימלית ביחידות סנטי-מעלה.',
   RLL2SRV_RMAX: 'קצב גלגול מקסימלי (deg/s) — מגביל כמה מהר המטוס רשאי לגלגל. זה פרמטר של קצב (rate), לא של זווית יעד.',
   FS_THR_ENABLE: 'מצב הפעלת failsafe אובדן throttle/RC. זה פרמטר בטיחותי קריטי שמשנה התנהגות בעת אובדן קישור.',
-  FS_THR_VALUE: 'ערך PWM שמתחתיו FC מחשיב מצב failsafe. חייב להתאים לקליברציה של המקלט כדי להימנע מהפעלות שווא.',
+  FS_THR_VALUE: 'ערך PWM שמתחתיו בקר הטיסה מחשיב מצב failsafe. חייב להתאים לקליברציה של המקלט כדי להימנע מהפעלות שווא.',
   ARMING_CHECK: 'bitmask בדיקות pre-arm. מאפשר לפתוח/לסגור בדיקות בטיחות. מומלץ לתעד כל שינוי כי זה משפיע ישירות על רמת הבטיחות בהמראה.',
 };
 
@@ -1632,15 +1632,15 @@ function coerceArduFieldValue(field, raw) {
 /** Why: after READ, show whether each schema param key appears in the FC parameter list (MAVLink). What: pill next to title + optional card outline. */
 function renderArduFcPresenceBadge(f) {
   if (f.virtual) {
-    return '<span class="ardu-fc-presence ardu-fc-presence--virtual" title="שדה פרופיל בקונסולה — לא פרמטר ArduPilot על הבקר">פרופיל</span>';
+    return '<span class="ardu-fc-presence ardu-fc-presence--virtual" title="שדה פרופיל בקונסולה — לא פרמטר ArduPilot על בקר הטיסה">פרופיל</span>';
   }
   if (!fcCurrentSnapshot || typeof fcCurrentSnapshot !== 'object') {
-    return '<span class="ardu-fc-presence ardu-fc-presence--unknown" title="בצעו קריאה מה-FC כדי לבדוק אם השם קיים בקושחה">לא נקרא</span>';
+    return '<span class="ardu-fc-presence ardu-fc-presence--unknown" title="בצעו קריאה מבקר הטיסה כדי לבדוק אם השם קיים בקושחה">לא נקרא</span>';
   }
   if (Object.prototype.hasOwnProperty.call(fcCurrentSnapshot, f.key)) {
-    return '<span class="ardu-fc-presence ardu-fc-presence--ok" title="מפתח זה הופיע ברשימת הפרמטרים מהבקר (אחרי READ אחרון)">בבקר</span>';
+    return '<span class="ardu-fc-presence ardu-fc-presence--ok" title="מפתח זה הופיע ברשימת הפרמטרים מבקר הטיסה">בבקר</span>';
   }
-  return '<span class="ardu-fc-presence ardu-fc-presence--missing" title="לא הופיע אחרי קריאה. ייתכן שאין פרמטר בשם זה בגרסת הקושחה. הכתיבה לבקר עלולה להיכשל">לא בבקר</span>';
+    return '<span class="ardu-fc-presence ardu-fc-presence--missing" title="לא הופיע אחרי קריאה. ייתכן שאין פרמטר בשם זה בגרסת הקושחה. הכתיבה לבקר הטיסה עלולה להיכשל">לא בבקר</span>';
 }
 
 function arduFcCardMissingClass(f) {

@@ -18,7 +18,9 @@ describe('FC parameter Hebrew descriptions', () => {
     expect(FC_PARAM_DESCRIPTIONS.EK3_ENABLE).toBe('הפעלת מסנן הניווט EKF3');
     expect(FC_PARAM_DESCRIPTIONS.PLND_STRICT).toBe('רמת הדיוק הנדרשת בנחיתה המדויקת');
     expect(FC_PARAM_DESCRIPTIONS.ARMING_RUDDER).toBe('חימוש באמצעות הגה הכיוון');
-    expect(FC_PARAM_DESCRIPTIONS.AHRS_EKF_TYPE).toBe('איזה מסנן ניווט בשימוש בטיסה');
+    expect(FC_PARAM_DESCRIPTIONS.AHRS_EKF_TYPE).toBe('איזה EKF מחשב מיקום וזוויות. ברירת מחדל: 3.');
+    expect(FC_PARAM_DESCRIPTIONS.TECS_TIME_CONST).toBe('כמה מהר המטוס מתקן גובה ומהירות. ערך נמוך מגיב חד יותר, ערך גבוה חלק יותר.');
+    expect(FC_PARAM_DESCRIPTIONS.SERIAL1_BAUD).toBe('מהירות התקשורת ביציאה הטורית 1');
     expect(FC_PARAM_DESCRIPTIONS.FS_GCS_ENABL).toContain('Failsafe');
     expect(FC_PARAM_DESCRIPTIONS.RC1_MIN).toBe('דופק מזערי של ערוץ שלט 1');
     expect(JSON.stringify(FC_PARAM_DESCRIPTIONS)).not.toMatch(/כשל בטוח|מפעיל כשל|בהגאי|להטסה/);
