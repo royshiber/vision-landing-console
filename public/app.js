@@ -141,7 +141,11 @@ function applyServerAppVersion(ver) {
   const m = document.querySelector('meta[name="app-version"]');
   if (m) m.setAttribute('content', v);
   const vb = document.getElementById('versionBtn');
-  if (vb) vb.textContent = `v${v}`;
+  if (vb) {
+    const dot = vb.querySelector('#updateIndicator');
+    vb.textContent = `v${v}`;
+    if (dot) vb.appendChild(dot);
+  }
   if (document.title && (document.title.startsWith('AIRVIX') || document.title.startsWith('Vision Landing Console'))) {
     document.title = `AIRVIX v${v}`;
   }

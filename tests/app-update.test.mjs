@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import express from 'express';
 import os from 'os';
 import path from 'path';
-import { mkdtempSync } from 'fs';
+import { mkdtempSync, readFileSync } from 'fs';
 import {
   assessUpdateSafety,
   buildUpdaterLaunch,
@@ -178,5 +178,16 @@ describe('update status and apply', () => {
     expect(launch.args).toContain('-UpdateOnly');
     expect(launch.args).toContain('-WindowStyle');
     expect(launch.args).toContain('Hidden');
+  });
+});
+
+describe('update indicator survives version badge refresh', () => {
+  it('puts the dot back after the badge text is rewritten', () => {
+    const js = readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
+    const start = js.indexOf('function applyServerAppVersion');
+    const end = js.indexOf('async function syncServerAppVersion');
+    const fn = js.slice(start, end);
+    expect(fn).toContain("querySelector('#updateIndicator')");
+    expect(fn).toContain('appendChild(dot)');
   });
 });
