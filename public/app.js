@@ -10642,13 +10642,25 @@ initLiveCameraPanel();
     btn.disabled = !!pending;
   }
 
+  function hebrewRowError(err) {
+    const raw = String(err?.message || err || '').trim();
+    if (!raw) return 'הפעולה נכשלה';
+    if (/[\u0590-\u05FF]/.test(raw) && !/failed to fetch|networkerror|typeerror/i.test(raw)) return raw;
+    if (/abort|timeout|timed out/i.test(raw)) return 'הפעולה ארכה יותר מדי';
+    if (/failed to fetch|networkerror|load failed|network request failed|typeerror/i.test(raw)) {
+      return 'אין קשר לשרת הקונסולה';
+    }
+    return 'הפעולה נכשלה';
+  }
+
   function setRowMessage(id, text) {
     const row = document.querySelector(`#commLinkRows .comm-link-row[data-link="${id}"]`);
     const el = row?.querySelector('.comm-link-error');
     if (!el) return;
     const msg = String(text || '').trim();
-    el.hidden = !msg;
-    el.textContent = msg;
+    const safe = /failed to fetch|networkerror|^typeerror\b/i.test(msg) ? 'אין קשר לשרת הקונסולה' : msg;
+    el.hidden = !safe;
+    el.textContent = safe;
   }
 
   function paintRowAction(btn, label, title) {
@@ -10707,6 +10719,21 @@ initLiveCameraPanel();
       el.dataset.active = row.active ? '1' : '0';
       const hint = el.querySelector('.comm-link-hint');
       if (hint && row.hintHe) hint.textContent = row.hintHe;
+      const errEl = el.querySelector('.comm-link-error');
+      if (errEl) {
+        const current = String(errEl.textContent || '');
+        const rawEnglish = /failed to fetch|networkerror|^typeerror\b/i.test(current);
+        if (typeof row.errorHe === 'string') {
+          const safe = /failed to fetch|networkerror|^typeerror\b/i.test(row.errorHe)
+            ? 'אין הגעה לכתובת'
+            : row.errorHe;
+          errEl.hidden = !safe;
+          errEl.textContent = safe;
+        } else if (rawEnglish) {
+          errEl.hidden = true;
+          errEl.textContent = '';
+        }
+      }
       const status = el.querySelector('.comm-link-status');
       if (status) status.textContent = row.statusHe || (row.quality?.known ? '' : 'אין נתונים');
       const uplinkRow = id === 'cellular' || id === 'home';
@@ -10942,7 +10969,7 @@ initLiveCameraPanel();
       if (j.links) applyDualLinkUi(j.links);
       return j;
     } catch (err) {
-      setRowMessage(role, err.message || String(err));
+      setRowMessage(role, hebrewRowError(err));
       throw err;
     } finally {
       if (box) delete box.dataset.pending;
@@ -10967,7 +10994,7 @@ initLiveCameraPanel();
       if (!r.ok || j.ok === false) throw new Error(j.messageHe || j.message || 'הפעולה נדחתה');
       return j;
     } catch (err) {
-      setRowMessage(rowId, err.message || String(err));
+      setRowMessage(rowId, hebrewRowError(err));
       throw err;
     } finally {
       if (box) delete box.dataset.pending;
@@ -11062,7 +11089,7 @@ initLiveCameraPanel();
       }
     } catch (err) {
       setDot('err');
-      setRowMessage('radio', err.message || String(err));
+      setRowMessage('radio', hebrewRowError(err));
     } finally {
       setRowPending('radio', false);
       await refreshConnectionStatus();

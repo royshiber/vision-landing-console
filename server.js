@@ -12,7 +12,7 @@ import { registerHttpRoutes } from './lib/routes/http-register.mjs';
 import { correlationMiddleware } from './lib/request-context.mjs';
 import { createCompanionService } from './lib/companion-service.mjs';
 import { mergeCompanionEnv, readStoredCompanionConnection, snapshotCompanionEnv } from './lib/companion-connection.mjs';
-import { ensureCompanionMavlinkRelay } from './lib/routes/companion-connection-api.mjs';
+import { ensureCompanionMavlinkRelay, retargetCompanionRelay } from './lib/routes/companion-connection-api.mjs';
 import { scheduleFlightLogsBootSync } from './lib/flight-logs/sync.mjs';
 import { createAppUpdateService } from './lib/app-update.mjs';
 
@@ -159,6 +159,13 @@ const routeCtx = {
 };
 
 registerHttpRoutes(app, routeCtx);
+if (typeof companionService.setOnActiveUrl === 'function') {
+  companionService.setOnActiveUrl((url) => {
+    retargetCompanionRelay(routeCtx, url).catch((err) => {
+      logger.warn({ err: err?.message }, 'companion relay retarget failed');
+    });
+  });
+}
 
 /** Why: serve the SPA only after API routes so /api/* is never shadowed by files under public/. What: static assets for the browser UI. */
 app.use('/uploads', express.static(uploadsDir));
