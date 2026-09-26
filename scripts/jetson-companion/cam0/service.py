@@ -18,6 +18,7 @@ from .calibration import (
     save_calibration,
     solve_intrinsics,
 )
+from .devices import resolve_device
 from .jpegenc import JpegWorker
 from .marker import MarkerModule
 from .modules import ModuleHost
@@ -75,6 +76,13 @@ def load_config(path=None, env=None):
         defaults["source"] = src["VLC_CAM0_SOURCE"].strip().lower()
     if src.get("VLC_CAM0_DEVICE"):
         defaults["device"] = src["VLC_CAM0_DEVICE"].strip()
+    elif str(defaults.get("source") or "").lower() == "v4l2":
+        defaults["device"] = resolve_device(
+            stable_path="/dev/airvix-cam0",
+            name_token="9-0060",
+            fallback="/dev/video0",
+            sysfs_root=src.get("VLC_V4L_SYSFS") or "/sys/class/video4linux",
+        )
     if src.get("VLC_CAM0_ENABLED"):
         defaults["enabled"] = src["VLC_CAM0_ENABLED"].strip().lower() in {"1", "true", "yes", "on"}
     if src.get("VLC_CAM0_RECORD_ROOT"):
@@ -448,6 +456,7 @@ class Cam0Service:
             "clock_offset_ns": meta.get("clock_offset_ns"),
             "clock_source": meta.get("clock_source"),
             "attitude": meta.get("attitude"),
+            "device": self.config.get("device") if self.config.get("source") == "v4l2" else None,
             "calibration_nominal": bool(getattr(self, "calibration_nominal", False)),
             "error": error,
             "has_frame": self.jpeg is not None and camera_ok,

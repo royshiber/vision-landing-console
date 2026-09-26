@@ -1,0 +1,4 @@
+# Stable names for the dual OV9281. video node order is not stable:
+# video0 can be the sensor at 10-0060 (CAM1) and video1 the one at 9-0060 (CAM0).
+SUBSYSTEM=="video4linux", ATTR{name}=="vi-output, ov9281 9-0060", SYMLINK+="airvix-cam0"
+SUBSYSTEM=="video4linux", ATTR{name}=="vi-output, ov9281 10-0060", SYMLINK+="airvix-cam1"

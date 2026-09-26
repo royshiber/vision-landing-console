@@ -370,7 +370,7 @@ function paintFlight() {
       <div class="fb-map" data-fb="map" id="fbMapHost"></div>
     </div>
     <section class="fb-cam0" data-fb="cam0">
-      <h3>מצלמה אפס</h3>
+      <h3>CAM0</h3>
       <p id="fbCam0Status" class="fb-cam0-status">אין אות</p>
       <div class="fb-cam0-stage">
         <img id="fbCam0Frame" alt="" hidden />
