@@ -10420,75 +10420,77 @@ initLiveCameraPanel();
     if (companionLinkHint && link.hint_he) companionLinkHint.textContent = link.hint_he;
     companionPrefillDefaultUrl(link.base_url);
     if (companionLinkBtn) {
-      const connected = link.connected === true;
-      companionLinkBtn.textContent = connected ? 'התנתק' : 'התחבר';
-      companionLinkBtn.dataset.connected = connected ? '1' : '0';
-      companionLinkBtn.title = connected ? 'רשת בית מחוברת. לחצו להתנתקות.' : 'התחברו לרשת בית';
+      const home = latestLinksSnapshot?.comm?.rows?.find((r) => r.id === 'home');
+      const label = home?.actionHe || (link.connected === true ? 'התנתק' : 'התחבר');
+      paintRowAction(companionLinkBtn, label, home?.statusHe);
     }
     if (typeof pulseRefresh === 'function') pulseRefresh();
   }
 
+  const UPLINK_UNSUPPORTED_HE = 'גרסת ה-Jetson לא תומכת בשליטה בערוץ';
+
+  function setRowPending(id, pending) {
+    const row = document.querySelector(`#commLinkRows .comm-link-row[data-link="${id}"]`);
+    const btn = row?.querySelector('.comm-link-action');
+    if (!btn) return;
+    btn.classList.toggle('is-pending', !!pending);
+    btn.setAttribute('aria-busy', pending ? 'true' : 'false');
+    if (!pending && btn.dataset.uplinkLocked === '1') {
+      btn.disabled = true;
+      return;
+    }
+    btn.disabled = !!pending;
+  }
+
+  function setRowMessage(id, text) {
+    const row = document.querySelector(`#commLinkRows .comm-link-row[data-link="${id}"]`);
+    const el = row?.querySelector('.comm-link-error');
+    if (!el) return;
+    const msg = String(text || '').trim();
+    el.hidden = !msg;
+    el.textContent = msg;
+  }
+
+  function paintRowAction(btn, label, title) {
+    if (!btn || !label) return;
+    btn.textContent = label;
+    const disconnect = label === 'התנתק';
+    btn.dataset.action = disconnect ? 'disconnect' : (label === 'סטטוס' ? 'status' : 'connect');
+    btn.dataset.connected = disconnect ? '1' : '0';
+    if (title) btn.title = title;
+  }
+
   async function onCompanionLinkClick() {
-    if (!companionLinkBtn) return;
-    const connected = companionLinkBtn.dataset.connected === '1';
-    companionLinkBtn.disabled = true;
+    if (!companionLinkBtn || companionLinkBtn.disabled || companionLinkBtn.dataset.uplinkLocked === '1') return;
+    const turnOn = companionLinkBtn.dataset.action !== 'disconnect';
     try {
-      if (connected) {
-        const r = await fetch('/api/companion/connection/disconnect', { method: 'POST' });
-        const j = await parseConnJsonResponse(r);
-        if (!j.ok && j.mode !== 'mock' && j.mode !== 'off') throw new Error(j.status_he || 'ניתוק נכשל');
-        applyCompanionLinkUi(j.jetson ? j : null);
-      } else {
-        setDot('connecting');
-        setPillLabel('מתחבר');
-        const linkToken = document.getElementById('companionLinkToken');
-        const linkUrl = document.getElementById('companionLinkUrl');
-        const r = await fetch('/api/companion/link/connect', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            ...(String(linkUrl?.value || '').trim() ? { base_url: String(linkUrl.value).trim() } : {}),
-            ...(String(linkToken?.value || '').trim() ? { token: String(linkToken.value).trim() } : {}),
-          }),
-        });
-        const j = await parseConnJsonResponse(r);
-        if (companionNeedsToken(j) || j.needAdvanced || j.error === 'need_advanced') {
-          if (companionNeedsToken(j)) companionOpenTokenAdvanced();
-          else if (connectAdvanced) connectAdvanced.open = true;
-          if (companionLinkHint) companionLinkHint.textContent = j.hint_he || j.status_he || (companionNeedsToken(j) ? 'חסר אסימון. הזינו אותו במתקדם.' : 'פתחו מתקדם רק אם חסרה כתובת.');
-          throw new Error(j.status_he || (companionNeedsToken(j) ? 'חסר אסימון' : 'חסרה כתובת במתקדם'));
-        }
-        if (!j.ok && j.connected !== true && j.jetson !== 'reachable' && j.jetson !== 'mock') {
-          throw new Error(j.status_he || j.message || 'חיבור מחשב משימה נכשל');
-        }
-        applyCompanionLinkUi(j);
-      }
-    } catch (err) {
-      setDot('err');
-      if (companionLinkHint) companionLinkHint.textContent = err.message || String(err);
-    } finally {
-      companionLinkBtn.disabled = false;
-      await refreshConnectionStatus();
+      await postUplink('home', turnOn);
+    } catch {
+      /* message already inline */
     }
   }
 
   function paintQuality(barsEl, pctEl, quality) {
-    const known = quality?.known === true && Number.isFinite(quality?.percent);
-    const bars = known ? Math.max(0, Math.min(4, Number(quality.bars) || 0)) : 0;
+    const barsN = Number(quality?.bars);
+    const known = quality?.known === true && Number.isFinite(barsN);
+    const bars = known ? Math.max(0, Math.min(4, barsN)) : 0;
+    const tip = known
+      ? (quality.tooltipHe || quality.sourceHe || '')
+      : 'אין נתונים';
     if (barsEl) {
       barsEl.dataset.quality = known ? 'known' : 'unknown';
       barsEl.dataset.bars = String(bars);
-      barsEl.title = known && quality.sourceHe ? quality.sourceHe : '';
+      barsEl.title = tip;
     }
     if (pctEl) {
-      if (known) {
+      if (known && Number.isFinite(quality.percent)) {
         pctEl.hidden = false;
         pctEl.textContent = `${Math.round(quality.percent)}%`;
-        pctEl.title = quality.sourceHe || '';
+        pctEl.title = quality.sourceHe || tip;
       } else {
         pctEl.hidden = true;
         pctEl.textContent = '';
-        pctEl.title = '';
+        pctEl.title = tip;
       }
     }
   }
@@ -10501,9 +10503,33 @@ initLiveCameraPanel();
       const row = byId[id];
       if (!row) return;
       el.dataset.state = row.state || 'off';
+      el.dataset.tone = row.tone || 'off';
       el.dataset.active = row.active ? '1' : '0';
       const hint = el.querySelector('.comm-link-hint');
       if (hint && row.hintHe) hint.textContent = row.hintHe;
+      const status = el.querySelector('.comm-link-status');
+      if (status) status.textContent = row.statusHe || (row.quality?.known ? '' : 'אין נתונים');
+      const uplinkRow = id === 'cellular' || id === 'home';
+      const uplinkLocked = uplinkRow && row.uplinkControl !== true;
+      const enable = el.querySelector('.comm-link-switch input');
+      if (enable) {
+        enable.disabled = uplinkLocked;
+        if (uplinkLocked) enable.title = UPLINK_UNSUPPORTED_HE;
+        else enable.removeAttribute('title');
+        if (!enable.dataset.pending) enable.checked = row.enabled !== false;
+      }
+      const btn = el.querySelector('.comm-link-action');
+      if (btn && !btn.classList.contains('is-pending')) {
+        if (uplinkLocked) {
+          paintRowAction(btn, 'התחבר', UPLINK_UNSUPPORTED_HE);
+          btn.disabled = true;
+          btn.dataset.uplinkLocked = '1';
+        } else {
+          paintRowAction(btn, row.actionHe, row.statusHe);
+          if (btn.dataset.uplinkLocked === '1') delete btn.dataset.uplinkLocked;
+          btn.disabled = false;
+        }
+      }
       paintQuality(
         el.querySelector('.comm-link-bars'),
         el.querySelector('.comm-link-pct'),
@@ -10513,13 +10539,15 @@ initLiveCameraPanel();
     document.querySelectorAll('#missionLinkStrip .mission-link-chip').forEach((chip) => {
       const row = byId[chip.dataset.link];
       if (!row) return;
-      const state = row.state === 'connected' || row.state === 'live' || row.state === 'listening'
+      const state = row.tone === 'ok' || row.state === 'connected' || row.state === 'live'
         ? 'on'
-        : row.state === 'modem_absent' || row.state === 'absent' || row.state === 'empty'
-          ? (row.state === 'empty' ? 'warn' : 'absent')
-          : row.state === 'connecting' || row.state === 'error'
+        : row.tone === 'wait' || row.state === 'listening' || row.state === 'degraded' || row.state === 'connecting' || row.state === 'empty'
+          ? 'warn'
+          : row.state === 'error'
             ? 'warn'
-            : 'off';
+            : row.state === 'modem_absent' || row.state === 'absent'
+              ? 'absent'
+              : 'off';
       chip.dataset.state = state;
       chip.dataset.quality = row.quality?.known ? 'known' : 'unknown';
       chip.title = row.hintHe || row.nameHe || '';
@@ -10597,11 +10625,10 @@ initLiveCameraPanel();
     if (cellularHostPort && links.endpoint && !cellularHostPort.dataset.dirty) {
       cellularHostPort.value = `${links.endpoint.host}:${links.endpoint.port}`;
     }
-    if (cellularConnectBtn) {
-      const cellUp = links.cellular === 'connected' || links.cellular === 'listening';
-      cellularConnectBtn.textContent = cellUp ? 'התנתק' : 'התחבר';
-      cellularConnectBtn.dataset.connected = cellUp ? '1' : '0';
-      cellularConnectBtn.title = cellUp ? 'סלולר מחובר. לחצו להתנתקות.' : 'התחברו לסלולר';
+    if (cellularConnectBtn && !cellularConnectBtn.classList.contains('is-pending')) {
+      const cellRow = links.comm?.rows?.find((r) => r.id === 'cellular');
+      const cellLabel = cellRow?.actionHe || 'התחבר';
+      paintRowAction(cellularConnectBtn, cellLabel, cellRow?.statusHe || 'ערוץ סלולרי במחשב המשימה');
     }
     if (activeLinkPicker) {
       activeLinkPicker.hidden = !links.canSelectActive;
@@ -10622,16 +10649,11 @@ initLiveCameraPanel();
     else if (anyUp) setDot(links.radio === 'connected' || links.cellular === 'connected' ? 'on' : 'warn');
     else if (anyWait) setDot('connecting');
     else setDot('off');
-    const radioUp = links.radio === 'connected' || links.radio === 'listening';
-    if (radioUp) {
-      currentId = links.radioConnection?.id || currentId;
-      connBtn.textContent = 'התנתק';
-      connBtn.dataset.connected = '1';
-      connBtn.title = 'רדיו מחובר. לחצו להתנתקות.';
-    } else {
-      connBtn.textContent = 'התחבר';
-      connBtn.dataset.connected = '0';
-      connBtn.title = 'התחברו לרדיו טלמטריה';
+    const radioRow = links.comm?.rows?.find((r) => r.id === 'radio');
+    const radioOpen = radioRow ? radioRow.sessionOpen === true : (links.radio === 'connected' || links.radio === 'listening');
+    if (radioOpen) currentId = links.radioConnection?.id || currentId;
+    if (connBtn && !connBtn.classList.contains('is-pending')) {
+      paintRowAction(connBtn, radioRow?.actionHe || (radioOpen ? 'התנתק' : 'התחבר'), radioRow?.statusHe || 'רדיו טלמטריה');
     }
     try { paintCommRows(links); } catch (err) { console.warn('paintCommRows failed', err); }
     applyAnnotatedVision(links.video);
@@ -10664,28 +10686,28 @@ initLiveCameraPanel();
       if (active) {
         currentId = active.id;
         rememberLiveRadioStatus(active.liveStatus);
-        const age = active.liveStatus.lastHeartbeatAgeMs;
-        setDot(age != null && age < 5000 ? 'on' : 'warn');
-        connBtn.textContent = 'התנתק';
-        connBtn.dataset.connected = '1';
-        connBtn.title = `מחובר ל-${active.liveStatus.remoteAddr || active.name}. לחצו להתנתקות.`;
-        setPillLabel(`מחובר · ${active.liveStatus.remoteAddr || active.name}`);
+        const age = Number(active.liveStatus.lastHeartbeatAgeMs);
+        const hb = Number(active.liveStatus.heartbeatCount) || 0;
+        const live = hb > 0 && Number.isFinite(age) && age >= 0 && age <= 3000;
+        setDot(live ? 'on' : 'warn');
+        paintRowAction(connBtn, 'התנתק', live
+          ? `מחובר ל-${active.liveStatus.remoteAddr || active.name}. לחצו להתנתקות.`
+          : `השקע פתוח · ${active.liveStatus.remoteAddr || active.name} — ממתין לדופק`);
+        setPillLabel(live
+          ? `מחובר · ${active.liveStatus.remoteAddr || active.name}`
+          : `ממתין · ${active.liveStatus.remoteAddr || active.name}`);
       } else {
         const listening = connections.find((c) => c.liveStatus && c.liveStatus.listening);
         if (listening) {
           currentId = listening.id;
           rememberLiveRadioStatus(listening.liveStatus);
           setDot('connecting');
-          connBtn.textContent = 'התנתק';
-          connBtn.dataset.connected = '1';
-          connBtn.title = `מאזין על ${listening.liveStatus.remoteAddr || listening.name} — ממתין ל-heartbeat`;
+          paintRowAction(connBtn, 'התנתק', `מאזין על ${listening.liveStatus.remoteAddr || listening.name} — ממתין לדופק`);
           setPillLabel(`מאזין · ${listening.liveStatus.remoteAddr || listening.name}`);
         } else {
           currentId = null;
           setDot('off');
-          connBtn.textContent = 'התחבר';
-          connBtn.dataset.connected = '0';
-          connBtn.title = 'התחברו לרדיו טלמטריה';
+          paintRowAction(connBtn, 'התחבר', 'התחברו לרדיו טלמטריה');
           setPillLabel('מנותק');
         }
       }
@@ -10695,44 +10717,64 @@ initLiveCameraPanel();
     }
   }
 
-  async function onCellularConnectClick() {
-    if (!cellularConnectBtn) return;
-    const connected = cellularConnectBtn.dataset.connected === '1';
-    cellularConnectBtn.disabled = true;
+  async function postLinkPref(role, enabled) {
+    setRowMessage(role, '');
+    setRowPending(role, true);
+    const box = document.getElementById(`${role}LinkEnable`);
+    if (box) box.dataset.pending = '1';
     try {
-      if (connected) {
-        const r = await fetch('/api/links/disconnect', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ role: 'cellular' }),
-        });
-        const j = await parseConnJsonResponse(r);
-        if (!j.ok) throw new Error(j.message || 'התנתקות סלולר נכשלה');
-      } else {
-        const saved = latestLinksSnapshot?.endpoint;
-        const hp = parseHostPort(cellularHostPort?.value)
-          || (saved?.host && saved?.port ? { host: saved.host, port: saved.port } : { host: '0.0.0.0', port: 14560 });
-        savePrefs();
-        if (cellularModemStatus?.dataset.state !== 'absent') setDot('connecting');
-        const r = await fetch('/api/links/connect', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            role: 'cellular',
-            type: 'udp',
-            host: hp.host,
-            port: hp.port,
-          }),
-        });
-        const j = await parseConnJsonResponse(r);
-        if (!j.ok) throw new Error(j.message || 'חיבור סלולר נכשל');
-      }
+      const r = await fetch('/api/links/prefs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ [role]: enabled === true }),
+      });
+      const j = await parseConnJsonResponse(r);
+      if (!j.ok) throw new Error(j.message || 'שמירת ההגדרה נכשלה');
+      if (j.noticeHe) setRowMessage(role, j.noticeHe);
+      if (j.links) applyDualLinkUi(j.links);
+      return j;
     } catch (err) {
-      setDot('err');
-      alert(`שגיאת סלולר: ${err.message || err}`);
+      setRowMessage(role, err.message || String(err));
+      throw err;
     } finally {
-      cellularConnectBtn.disabled = false;
+      if (box) delete box.dataset.pending;
+      setRowPending(role, false);
+    }
+  }
+
+  async function postUplink(role, enabled) {
+    const rowId = role === 'wifi' || role === 'home' ? 'home' : 'cellular';
+    setRowMessage(rowId, '');
+    setRowPending(rowId, true);
+    const box = document.getElementById(`${rowId}LinkEnable`);
+    if (box) box.dataset.pending = '1';
+    try {
+      const r = await fetch('/api/links/uplink', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: rowId, enabled: enabled === true }),
+      });
+      const j = await parseConnJsonResponse(r);
+      if (j.links) applyDualLinkUi(j.links);
+      if (!r.ok || j.ok === false) throw new Error(j.messageHe || j.message || 'הפעולה נדחתה');
+      return j;
+    } catch (err) {
+      setRowMessage(rowId, err.message || String(err));
+      throw err;
+    } finally {
+      if (box) delete box.dataset.pending;
+      setRowPending(rowId, false);
       await refreshConnectionStatus();
+    }
+  }
+
+  async function onCellularConnectClick() {
+    if (!cellularConnectBtn || cellularConnectBtn.disabled || cellularConnectBtn.dataset.uplinkLocked === '1') return;
+    const turnOn = cellularConnectBtn.dataset.action !== 'disconnect';
+    try {
+      await postUplink('cellular', turnOn);
+    } catch {
+      /* message already inline */
     }
   }
 
@@ -10749,15 +10791,23 @@ initLiveCameraPanel();
     await refreshConnectionStatus();
   }
 
+  function radioTargetIsManual() {
+    const type = typeSel?.value || 'udp';
+    if (type === 'serial') return Boolean(portList?.value);
+    if (type === 'tcp') return Boolean(parseHostPort(portInput?.value));
+    const hp = parseHostPort(portInput?.value);
+    if (!hp) return false;
+    if ((hp.host === '0.0.0.0' || hp.host === '') && Number(hp.port) === 14550) return false;
+    return true;
+  }
+
   async function onConnectClick() {
-    const connected = connBtn.dataset.connected === '1';
-    connBtn.disabled = true;
+    const connected = connBtn.dataset.action === 'disconnect' || connBtn.dataset.connected === '1';
+    setRowMessage('radio', '');
+    setRowPending('radio', true);
     try {
       if (!(await syncConnectionApiGate())) {
-        alert(
-          'תהליך Node על הפורט הזה הוא בילד ישן — אין נתיבי חיבור מהיר (/api/connections/*). עצור את השרת והפעל שוב מתיקיית VisionLandingConsole (npm start או node server.js).',
-        );
-        return;
+        throw new Error('השרת שרץ כאן ישן. עצרו אותו והפעילו שוב מתיקיית הקונסולה.');
       }
       if (connected) {
         const r = await fetch('/api/links/disconnect', {
@@ -10767,10 +10817,11 @@ initLiveCameraPanel();
         });
         const j = await parseConnJsonResponse(r);
         if (!j.ok) throw new Error(j.message || 'התנתקות נכשלה');
-      } else {
+        if (j.links) applyDualLinkUi(j.links);
+      } else if (radioTargetIsManual()) {
         const type = typeSel?.value || 'udp';
         savePrefs();
-        const body = { type, baudRate: Number(baudSel?.value) || 57600 };
+        const body = { role: 'radio', type, baudRate: Number(baudSel?.value) || 57600 };
         if (type === 'serial' && portList?.value) {
           body.serialPort = portList.value;
         } else {
@@ -10780,20 +10831,32 @@ initLiveCameraPanel();
           body.port = hp.port;
         }
         setDot('connecting');
-        const r = await fetch('/api/connections/quick-connect', {
+        const r = await fetch('/api/links/connect', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body),
         });
         const j = await parseConnJsonResponse(r);
-        if (!j.ok) throw new Error(j.message || 'connect failed');
+        if (!j.ok) throw new Error(j.message || 'החיבור נכשל');
         currentId = j.id;
+        if (j.links) applyDualLinkUi(j.links);
+      } else {
+        setDot('connecting');
+        const r = await fetch('/api/links/connect', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ role: 'radio', via: 'relay' }),
+        });
+        const j = await parseConnJsonResponse(r);
+        if (!j.ok) throw new Error(j.message || 'ממסר הטלמטריה לא נפתח');
+        currentId = j.id || currentId;
+        if (j.links) applyDualLinkUi(j.links);
       }
     } catch (err) {
       setDot('err');
-      alert(`שגיאת חיבור: ${err.message || err}`);
+      setRowMessage('radio', err.message || String(err));
     } finally {
-      connBtn.disabled = false;
+      setRowPending('radio', false);
       await refreshConnectionStatus();
     }
   }
@@ -11004,9 +11067,20 @@ initLiveCameraPanel();
       if (activeLinkCellular.checked) void onActiveLinkPick('cellular');
     });
   }
+  for (const role of ['cellular', 'home', 'radio']) {
+    const box = document.getElementById(`${role}LinkEnable`);
+    if (!box) continue;
+    box.addEventListener('change', () => {
+      if (role === 'radio') {
+        void postLinkPref(role, box.checked).catch(() => {}).finally(() => { void refreshConnectionStatus(); });
+        return;
+      }
+      void postUplink(role, box.checked).catch(() => {});
+    });
+  }
   document.querySelectorAll('#commLinkRows .comm-link-row').forEach((rowEl) => {
     rowEl.addEventListener('click', (ev) => {
-      if (ev.target.closest('button')) return;
+      if (ev.target.closest('button, input, label, a')) return;
       const pick = rowEl.dataset.link;
       if ((pick === 'radio' || pick === 'cellular') && latestLinksSnapshot?.canSelectActive) {
         void onActiveLinkPick(pick);

@@ -6,7 +6,7 @@ import {
   joinCompanionUrl,
   resolveCompanionV1BaseUrl,
 } from '../lib/companion-api-client.mjs';
-import { COMPANION_V1_PATHS } from '../lib/companion-v1-paths.mjs';
+import { COMPANION_READ_METHODS, COMPANION_V1_PATHS, COMPANION_WRITE_METHODS } from '../lib/companion-v1-paths.mjs';
 
 function jsonResponse(obj, status = 200) {
   return new Response(JSON.stringify(obj), {
@@ -172,6 +172,36 @@ describe('CompanionApiClient', () => {
   it('fails closed when base URL missing', async () => {
     const client = createCompanionApiClient({ baseUrl: null, fetchImpl: vi.fn() });
     await expect(client.getHealth()).rejects.toMatchObject({ kind: 'config' });
+  });
+
+  it('reads uplinks and posts setNetworkUplink exactly as companion 2.3.9', async () => {
+    const calls = [];
+    const fetchImpl = vi.fn(async (url, init) => {
+      calls.push({ url: String(url), method: init?.method || 'GET', body: init?.body || null });
+      return jsonResponse({ ok: true, wifi: { enabled: true, up: true } });
+    });
+    const client = createCompanionApiClient({
+      baseUrl: 'http://127.0.0.1:9',
+      fetchImpl,
+      timeoutMs: 200,
+    });
+    await client.getNetworkUplinks();
+    await client.setNetworkUplink('wifi', { enabled: false });
+    await client.setNetworkUplink('cellular', { enabled: true });
+    expect(calls[0]).toEqual({
+      url: 'http://127.0.0.1:9/api/v1/network/uplinks',
+      method: 'GET',
+      body: null,
+    });
+    expect(calls[1].url).toBe('http://127.0.0.1:9/api/v1/network/uplinks/wifi');
+    expect(calls[1].method).toBe('POST');
+    expect(JSON.parse(calls[1].body)).toEqual({ enabled: false });
+    expect(calls[2].url).toBe('http://127.0.0.1:9/api/v1/network/uplinks/cellular');
+    expect(JSON.parse(calls[2].body)).toEqual({ enabled: true });
+    expect(COMPANION_READ_METHODS).toContain('getNetworkUplinks');
+    expect(COMPANION_WRITE_METHODS).toContain('setNetworkUplink');
+    expect(COMPANION_V1_PATHS.networkUplinks).toBe('/api/v1/network/uplinks');
+    expect(() => client.setNetworkUplink('radio', { enabled: true })).toThrowError(/bad_link/);
   });
 
   it('sends PATCH runtime and PUT policy only as writes', async () => {

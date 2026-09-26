@@ -25,7 +25,7 @@
           <div id="connectPanel" class="conn-panel" hidden>
             <p id="connectApiUpgradeHint" class="conn-upgrade-hint hidden" role="alert"></p>
             <ul id="commLinkRows" class="comm-link-rows" aria-label="קישורי תקשורת">
-              <li class="comm-link-row" data-link="cellular" data-state="absent" data-active="0">
+              <li class="comm-link-row" data-link="cellular" data-state="absent" data-tone="off" data-active="0">
                 <div class="comm-link-quality">
                   <div id="cellularQualityBars" class="comm-link-bars" data-quality="unknown" data-bars="0" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
                   <span id="cellularQualityPct" class="comm-link-pct" hidden></span>
@@ -33,10 +33,13 @@
                 <div class="comm-link-copy">
                   <strong class="comm-link-name">סלולר</strong>
                   <p id="cellularLinkHint" class="comm-link-hint">מודם לא מחובר</p>
+                  <p id="cellularLinkStatus" class="comm-link-status">אין נתונים</p>
+                  <p id="cellularLinkError" class="comm-link-error" hidden></p>
+                  <label class="comm-link-switch"><input type="checkbox" id="cellularLinkEnable" checked /><span>פעיל</span></label>
                 </div>
-                <button type="button" id="cellularConnectBtn" class="conn-btn conn-btn-primary comm-link-action" title="התחבר לסלולר">התחבר</button>
+                <button type="button" id="cellularConnectBtn" class="conn-btn conn-btn-primary comm-link-action" data-action="connect" title="הפעל או כבה את ערוץ הסלולר">התחבר</button>
               </li>
-              <li class="comm-link-row" data-link="radio" data-state="off" data-active="0">
+              <li class="comm-link-row" data-link="radio" data-state="off" data-tone="off" data-active="0">
                 <div class="comm-link-quality">
                   <div id="radioQualityBars" class="comm-link-bars" data-quality="unknown" data-bars="0" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
                   <span id="radioQualityPct" class="comm-link-pct" hidden></span>
@@ -44,10 +47,13 @@
                 <div class="comm-link-copy">
                   <strong class="comm-link-name">רדיו טלמטריה</strong>
                   <p id="radioLinkHint" class="comm-link-hint">הכל חוץ מווידאו · גיבוי כשאין סלולר</p>
+                  <p id="radioLinkStatus" class="comm-link-status">אין נתונים</p>
+                  <p id="radioLinkError" class="comm-link-error" hidden></p>
+                  <label class="comm-link-switch"><input type="checkbox" id="radioLinkEnable" checked /><span>פעיל</span></label>
                 </div>
-                <button type="button" id="connectBtn" class="conn-btn conn-btn-primary comm-link-action" title="התחבר לרדיו טלמטריה">התחבר</button>
+                <button type="button" id="connectBtn" class="conn-btn conn-btn-primary comm-link-action" data-action="connect" title="התחבר לרדיו טלמטריה">התחבר</button>
               </li>
-              <li class="comm-link-row" data-link="home" data-state="off" data-active="0">
+              <li class="comm-link-row" data-link="home" data-state="off" data-tone="off" data-active="0">
                 <div class="comm-link-quality">
                   <div id="homeQualityBars" class="comm-link-bars" data-quality="unknown" data-bars="0" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
                   <span id="homeQualityPct" class="comm-link-pct" hidden></span>
@@ -55,10 +61,13 @@
                 <div class="comm-link-copy">
                   <strong class="comm-link-name">רשת בית</strong>
                   <p id="companionLinkHint" class="comm-link-hint">רשת לבית · בדיקות מול מחשב משימה</p>
+                  <p id="homeLinkStatus" class="comm-link-status">אין נתונים</p>
+                  <p id="homeLinkError" class="comm-link-error" hidden></p>
+                  <label class="comm-link-switch"><input type="checkbox" id="homeLinkEnable" checked /><span>פעיל</span></label>
                 </div>
-                <button type="button" id="companionLinkBtn" class="conn-btn conn-btn-primary comm-link-action" title="התחבר לרשת בית">התחבר</button>
+                <button type="button" id="companionLinkBtn" class="conn-btn conn-btn-primary comm-link-action" data-action="connect" title="התחבר לרשת בית">התחבר</button>
               </li>
-              <li class="comm-link-row" data-link="rc" data-state="off" data-active="0">
+              <li class="comm-link-row" data-link="rc" data-state="off" data-tone="off" data-active="0">
                 <div class="comm-link-quality">
                   <div id="rcQualityBars" class="comm-link-bars" data-quality="unknown" data-bars="0" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
                   <span id="rcQualityPct" class="comm-link-pct" hidden></span>
@@ -66,6 +75,7 @@
                 <div class="comm-link-copy">
                   <strong class="comm-link-name">RC</strong>
                   <p id="rcLinkHint" class="comm-link-hint">אין ערוצי שלט</p>
+                  <p id="rcLinkStatus" class="comm-link-status">אין נתונים</p>
                 </div>
                 <button type="button" id="rcStatusBtn" class="conn-btn comm-link-action comm-link-action-status" title="שלט לבקר בלבד. אין חיבור נתונים.">סטטוס</button>
               </li>

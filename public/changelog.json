@@ -1,5 +1,16 @@
 [
   {
+    "version": "1.02.327",
+    "date": "2026-09-26",
+    "changes": [
+      {
+        "type": "fix",
+        "title": "Connect popover uses companion uplink control",
+        "detail": "APP_VERSION 1.02.327. After master 1.02.326. The connect popover keeps live link color, real bars, and red disconnect, including רשת בית. Cellular and home buttons call setNetworkUplink, which posts /api/v1/network/uplinks/{wifi|cellular} {enabled} only when health.capabilities.uplinkControl is true. Row state comes from GET /api/v1/network/uplinks (enabled versus up). Without that capability the button is disabled and the tooltip is גרסת ה-Jetson לא תומכת בשליטה בערוץ. A Hebrew 409 message is shown as sent, including אי אפשר לכבות את הקישור האחרון. The Wi-Fi button does not close the radio relay or wipe the token. No ARM/LAND and no Companion apply/restart."
+      }
+    ]
+  },
+  {
     "version": "1.02.326",
     "date": "2026-09-26",
     "changes": [

@@ -28,7 +28,9 @@ describe('four-link communications model', () => {
     expect(qualityFromMavlinkRssi(255).known).toBe(false);
     expect(qualityFromMavlinkRssi(null).percent).toBeNull();
     expect(qualityFromCompanionSignal(null).known).toBe(false);
-    expect(qualityFromCompanionSignal({ rsrp: -95 }).known).toBe(false);
+    expect(qualityFromCompanionSignal({ rsrp: -95 }).percent).toBeNull();
+    expect(qualityFromCompanionSignal({ rsrp: -95 }).bars).toBe(2);
+    expect(qualityFromCompanionSignal({ rsrp: -95 }).known).toBe(true);
     expect(qualityFromCompanionSignal({ rssi: 255 }).known).toBe(false);
   });
 
