@@ -2187,16 +2187,8 @@ const timelineRange = document.getElementById('timelineRange');
 const flightVideo = document.getElementById('flightVideo');
 const videoInput = document.getElementById('videoInput');
 
-const eventSamples = [
-  { t: 5, type: 'Vision', msg: 'Vision lock acquired', key: 'vision_conf_min' },
-  { t: 9, type: 'Control', msg: 'Cross-track correction started', key: 'xtrack_gain' },
-  { t: 14, type: 'Laser', msg: 'Laser altitude valid', key: 'laser_detect_alt_m' },
-  { t: 18, type: 'Flare', msg: 'Flare phase entered', key: 'flare_alt_m' },
-  { t: 21, type: 'Flare', msg: 'Pitch-up command applied', key: 'flare_pitch_up_deg' },
-  { t: 24, type: 'Motor', msg: 'Motor hold window started', key: 'motor_hold_s' },
-  { t: 27, type: 'Safety', msg: 'Confidence dropped below abort threshold', key: 'abort_conf_min' },
-  { t: 31, type: 'Takeoff', msg: 'Runway spool phase started', key: 'to_motor_spool_s' },
-];
+// Real flight events only. Nothing is synthesized for an empty log.
+const flightEvents = [];
 
 function formatEventRow(ev) {
   const val = profileState[ev.key];
@@ -2216,11 +2208,18 @@ function formatEventRow(ev) {
 
 function refreshEventsFromParams() {
   if (!eventsList) return;
+  const countEl = document.getElementById('eventsCount');
+  if (countEl) countEl.textContent = String(flightEvents.length);
+  if (!flightEvents.length) {
+    eventsList.innerHTML = '<div class="event-item event-empty">אין אירועים</div>';
+    bindEventContextMenu();
+    return;
+  }
   const t = Number(timelineRange?.value || 0);
-  const near = eventSamples.filter((ev) => ev.t >= t - 14 && ev.t <= t + 14);
+  const near = flightEvents.filter((ev) => ev.t >= t - 14 && ev.t <= t + 14);
   eventsList.innerHTML = near.length
     ? near.map(formatEventRow).join('')
-    : '<div class="event-item">אין אירועים סביב הזמן הנוכחי.</div>';
+    : '<div class="event-item event-empty">אין אירועים סביב הזמן הנוכחי</div>';
   bindEventContextMenu();
 }
 
@@ -7599,7 +7598,7 @@ setInterval(() => {
   const takeoffReady = checks.every((c) => c.pass);
   if (linkState) linkState.textContent = sourceLabel;
   if (lastRefresh) lastRefresh.textContent = new Date().toLocaleTimeString();
-  if (eventsCount) eventsCount.textContent = String(eventSamples.length);
+  if (eventsCount) eventsCount.textContent = String(flightEvents.length);
   if (telemetryConfidence) telemetryConfidence.textContent = pct != null ? `${pct}%` : '—';
   if (abortState) abortState.textContent = isAbort ? `ABORT (${lowConfidenceSeconds.toFixed(0)}s)` : `ARMED (${lowConfidenceSeconds.toFixed(0)}s)`;
   if (takeoffState) takeoffState.textContent = takeoffReady ? 'READY' : 'HOLD';
@@ -8956,7 +8955,7 @@ if (versionModal) {
 
 function bindEventContextMenu() {
   if (!eventsList || !eventContextMenu) return;
-  eventsList.querySelectorAll('.event-item').forEach((node) => {
+  eventsList.querySelectorAll('.event-item[data-event-key]').forEach((node) => {
     node.addEventListener('contextmenu', (e) => {
       e.preventDefault();
       selectedContextEvent = {
@@ -15848,8 +15847,8 @@ const ASSIST_TAB_HE = Object.freeze({
   control: 'פרמטרים',
   telemetry: 'טלמטריה',
   maintenance: 'תחזוקה',
-  recordings: 'תחקור',
-  flights: 'תחקור',
+  recordings: 'אופטיקה ותחקור',
+  flights: 'אופטיקה ותחקור',
   advisor: 'יועץ',
   featureDesigner: 'פיצ׳ר',
   flightEngineer: 'מהנדס טיסה',
