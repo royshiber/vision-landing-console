@@ -5,6 +5,8 @@ After=airvix-companion.service
 [Service]
 User=royshiber
 EnvironmentFile=-/etc/airvix/flightlog.env
+EnvironmentFile=-%h/vlc-companion/flightlog-storage.env
+EnvironmentFile=-/home/royshiber/vlc-companion/flightlog-storage.env
 Nice=10
 IOSchedulingClass=idle
 Restart=on-failure

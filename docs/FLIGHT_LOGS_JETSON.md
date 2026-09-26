@@ -31,13 +31,14 @@ systemctl disable --now airvix-flightlog
 | AIRVIX_FLIGHTLOG_JOURNAL_UNITS | companion, flightlog, modem, NetworkManager, tailscaled | journalctl -u list |
 | AIRVIX_VEHICLE_ID | hostname | Key prefix |
 | AIRVIX_FD_* | design §3 | Detector thresholds |
-| AIRVIX_UPLOAD_ENABLED | 0 | Upload master switch |
-| AIRVIX_UPLOAD_ENDPOINT | empty | S3 endpoint. GCS: `https://storage.googleapis.com` |
-| AIRVIX_UPLOAD_REGION | empty | SigV4 region. GCS: `auto` or a location such as `me-west1` |
-| AIRVIX_UPLOAD_BUCKET | empty | Bucket |
-| AIRVIX_UPLOAD_KEY_ID | empty | Access key / HMAC access id. Status reports present or absent only |
-| AIRVIX_UPLOAD_SECRET | empty | Secret / HMAC secret. Never logged. `AIRVIX_UPLOAD_APP_KEY` is an alias |
-| AIRVIX_UPLOAD_PREFIX | v1 | Key prefix |
+| AIRVIX_S3_ENDPOINT | empty | S3 endpoint. GCS: `https://storage.googleapis.com` |
+| AIRVIX_S3_REGION | empty | SigV4 region. GCS: `auto` |
+| AIRVIX_S3_BUCKET | empty | Bucket. Provisioned name: `airvix-flight-logs-489409` |
+| AIRVIX_S3_KEY_ID | empty | HMAC access id. Status reports present or absent only |
+| AIRVIX_S3_SECRET | empty | HMAC secret. Never logged |
+| AIRVIX_UPLOAD_ENABLED | unset | Unset follows credentials. `0` forces idle |
+| AIRVIX_UPLOAD_* | empty | Aliases for the `AIRVIX_S3_*` names. `AIRVIX_UPLOAD_APP_KEY` aliases the secret |
+| AIRVIX_UPLOAD_PREFIX | v1 | Key prefix. `AIRVIX_S3_PREFIX` wins when set |
 | AIRVIX_UPLOAD_CELLULAR | all | all, core, or never |
 | AIRVIX_UPLOAD_CELL_DAILY_MB | 500 | Non-control cellular cap |
 | AIRVIX_UPLOAD_WHILE_ARMED | control_only | control_only or none |
@@ -45,7 +46,9 @@ systemctl disable --now airvix-flightlog
 
 Copy `scripts/jetson-companion/flightlog.env.example` to `/etc/airvix/flightlog.env`.
 
-If any of endpoint, region, bucket, key id, or secret is empty, upload stays disabled: `uploader.enabled` false, `reason` `no_credential`, `credential` `absent`. The process does not crash. Packages remain in the spool. Segments that overlap a flight whose upload is not complete are kept. Other segments follow the 14-day / 2048 MB cap. Setting the variables later and restarting drains the SQLite queue.
+The Jetson file is `~/vlc-companion/flightlog-storage.env`, mode 600. The unit loads it with `EnvironmentFile=-%h/vlc-companion/flightlog-storage.env` and the absolute path `/home/royshiber/vlc-companion/flightlog-storage.env`. A missing file does not stop the unit. The process also reads that file when the variables are still unset.
+
+If endpoint, region, bucket, key id, or secret is empty, upload stays disabled: `uploader.enabled` false, `reason` `no_credential`, `credential` `absent`. When all five `AIRVIX_S3_*` values are set and `AIRVIX_UPLOAD_ENABLED` is unset, upload turns on. `AIRVIX_UPLOAD_ENABLED=0` forces idle. The process does not crash. Packages remain in the spool. Segments that overlap a flight whose upload is not complete are kept. Other segments follow the 14-day / 2048 MB cap. Setting the variables later and restarting drains the SQLite queue.
 
 ## Spool
 
@@ -79,18 +82,27 @@ Local relay clients on `127.0.0.1` count as `local_tap_clients` when `VLC_LOCAL_
 
 ## Object storage (S3)
 
-The uploader speaks path-style S3 (AWS Signature Version 4, `AWS4-HMAC-SHA256`, service `s3`). It does not send flight commands or write parameters.
+The uploader speaks path-style S3 (AWS Signature Version 4, `AWS4-HMAC-SHA256`, service `s3`, region `auto`). It does not send flight commands or write parameters.
 
-Google Cloud Storage interoperability:
+The Jetson HMAC key is create-only. A new object PUT returns 200. GET, DELETE, LIST, and overwrite are denied. The uploader therefore uses a single PUT per object. It does not call HEAD, GET, or LIST to see if a key exists. Large files are split into separate part objects (`.partNNNN` plus `.parts.json`), each its own PUT, not an S3 multipart session. On Google Cloud Storage the PUT sends `x-goog-if-generation-match: 0`. A 412 means the object is already stored and the job is done. The uploader does not read it back.
+
+Keys are unique per flight and per segment:
+
+- `v1/<vehicle_id>/flights/<flight_id>/<artifact>`
+- `v1/<vehicle_id>/index/<flight_id>.json` once, when the package is closed
+- `v1/<vehicle_id>/index/<flight_id>--in_flight.json` and `--processing.json` for earlier states
+
+Google Cloud Storage interoperability, file `~/vlc-companion/flightlog-storage.env` mode 600:
 
 | Setting | Value |
 | --- | --- |
-| `AIRVIX_UPLOAD_ENDPOINT` | `https://storage.googleapis.com` |
-| `AIRVIX_UPLOAD_REGION` | `auto`, or the bucket location `me-west1` |
-| `AIRVIX_UPLOAD_KEY_ID` | HMAC access id |
-| `AIRVIX_UPLOAD_SECRET` | HMAC secret |
+| `AIRVIX_S3_ENDPOINT` | `https://storage.googleapis.com` |
+| `AIRVIX_S3_REGION` | `auto` |
+| `AIRVIX_S3_BUCKET` | `airvix-flight-logs-489409` |
+| `AIRVIX_S3_KEY_ID` | HMAC access id |
+| `AIRVIX_S3_SECRET` | HMAC secret |
 
-Create an HMAC key that can create objects only, limited to the flight bucket and the name prefix `v1/<vehicle_id>/`. Put the access id and secret in `/etc/airvix/flightlog.env` on the Jetson. Do not commit them. The status file and HTTP responses never include the secret. Use the global endpoint. The signer puts the bucket in the path (`/bucket/key`), not in the host.
+Do not commit the secret. The status file and HTTP responses never include it. Use the global endpoint. The signer puts the bucket in the path (`/bucket/key`), not in the host. `AIRVIX_UPLOAD_*` names, including `AIRVIX_UPLOAD_APP_KEY`, remain aliases.
 
 ## Flight controller stream
 
@@ -102,5 +114,5 @@ Recommend `SR3_EXTRA3 >= 1` so the tap sees position. The Jetson does not write 
 2. Copy files with `install.sh --apply` on the Jetson.
 3. Install `/etc/airvix/flightlog.env` with placeholders first and confirm status `enabled: false`.
 4. Only then set `AIRVIX_FLIGHTLOG_ENABLED=1` and enable the unit.
-5. Add the S3 variables only after the write-only HMAC key exists. For GCS use endpoint `https://storage.googleapis.com` and region `auto` or `me-west1`.
+5. Put the create-only HMAC values in `~/vlc-companion/flightlog-storage.env` (mode 600). Endpoint `https://storage.googleapis.com`, region `auto`, bucket `airvix-flight-logs-489409`.
 6. Rollback with `systemctl disable --now airvix-flightlog`.

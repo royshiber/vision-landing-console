@@ -223,9 +223,64 @@ def object_key(prefix, vehicle_id, flight_id, name):
     return "%s/%s/flights/%s/%s" % (prefix, vehicle_id, flight_id, name)
 
 
-def index_key(prefix, vehicle_id, flight_id):
+def index_key(prefix, vehicle_id, flight_id, variant=None):
+    """One object per flight, plus a distinct key for each in-progress variant.
+
+    The canonical index is written once. in_flight and processing never reuse
+    that key, because a create-only bucket rejects overwrite.
+    """
     prefix = (prefix or "v1").strip("/")
-    return "%s/%s/index/%s.json" % (prefix, vehicle_id, flight_id)
+    name = "%s.json" % flight_id
+    if variant and str(variant) not in ("final", "complete"):
+        safe = "".join(ch if ch.isalnum() or ch in "-_" else "-" for ch in str(variant))
+        name = "%s--%s.json" % (flight_id, safe or "state")
+    return "%s/%s/index/%s" % (prefix, vehicle_id, name)
+
+
+def apply_env_file(path, override=False):
+    """Load KEY=VALUE lines. Empty values and comments are skipped. Never logs values."""
+    file_path = Path(path)
+    try:
+        text = file_path.read_text(encoding="utf-8")
+    except OSError:
+        return False
+    for raw in text.splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("export "):
+            line = line[len("export ") :].strip()
+        if "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        key = key.strip()
+        if not key or not re.match(r"^[A-Za-z_][A-Za-z0-9_]*$", key):
+            continue
+        value = value.strip()
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
+            value = value[1:-1]
+        if value == "":
+            continue
+        if not override and os.environ.get(key):
+            continue
+        os.environ[key] = value
+    return True
+
+
+def apply_storage_env():
+    """Fill unset storage vars from the Jetson file, then the optional system file."""
+    home = os.environ.get("HOME") or ""
+    paths = []
+    if home:
+        paths.append(str(Path(home) / "vlc-companion" / "flightlog-storage.env"))
+    paths.append("/home/royshiber/vlc-companion/flightlog-storage.env")
+    paths.append("/etc/airvix/flightlog.env")
+    seen = set()
+    for path in paths:
+        if path in seen:
+            continue
+        seen.add(path)
+        apply_env_file(path, override=False)
 
 
 def public_status(doc):

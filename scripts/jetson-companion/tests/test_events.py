@@ -70,11 +70,19 @@ class EventTests(unittest.TestCase):
         self.assertEqual(mode["cause_id"], fail["id"])
 
     def test_redaction(self):
-        raw = "Authorization: Bearer abc123\nAIRVIX_UPLOAD_APP_KEY=supersecretvalue\nAIRVIX_UPLOAD_SECRET=othersecretvalue\n"
+        raw = (
+            "Authorization: Bearer abc123\n"
+            "AIRVIX_UPLOAD_APP_KEY=supersecretvalue\n"
+            "AIRVIX_UPLOAD_SECRET=othersecretvalue\n"
+            "AIRVIX_S3_SECRET=gcssecretvalue\n"
+            "AIRVIX_S3_KEY_ID=GOOG1EXAMPLE\n"
+        )
         clean = redact_text(raw)
         self.assertNotIn("abc123", clean)
         self.assertNotIn("supersecretvalue", clean)
         self.assertNotIn("othersecretvalue", clean)
+        self.assertNotIn("gcssecretvalue", clean)
+        self.assertNotIn("GOOG1EXAMPLE", clean)
         self.assertIn("[redacted]", clean)
 
 

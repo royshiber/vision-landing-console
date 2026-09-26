@@ -130,7 +130,7 @@ class E2ETests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             journal = Path(tmp) / "journal.jsonl"
             journal.write_text(
-                '{"MESSAGE":"Bearer abc123"}\nAIRVIX_UPLOAD_APP_KEY=supersecretvalue\nAIRVIX_UPLOAD_SECRET=othersecretvalue\n',
+                '{"MESSAGE":"Bearer abc123"}\nAIRVIX_UPLOAD_APP_KEY=supersecretvalue\nAIRVIX_UPLOAD_SECRET=othersecretvalue\nAIRVIX_S3_SECRET=gcssecretvalue\n',
                 encoding="utf-8",
             )
             os.environ["AIRVIX_FLIGHTLOG_JOURNAL_OVERRIDE"] = str(journal)
@@ -204,6 +204,7 @@ class E2ETests(unittest.TestCase):
             self.assertNotIn("abc123", blob)
             self.assertNotIn("supersecretvalue", blob)
             self.assertNotIn("othersecretvalue", blob)
+            self.assertNotIn("gcssecretvalue", blob)
             self.assertIn("[redacted]", journal_txt)
             from pymavlink import mavutil
 

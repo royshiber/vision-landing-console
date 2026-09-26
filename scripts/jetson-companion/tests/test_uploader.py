@@ -71,6 +71,8 @@ class UploaderTests(unittest.TestCase):
         def opener(url, body, headers):
             self.assertIn("Content-MD5", headers)
             self.assertIn("x-amz-meta-sha256", headers)
+            self.assertNotIn("x-goog-if-generation-match", headers)
+            self.assertNotIn("uploadId", url)
             store[url] = body
             return 200, '"' + hashlib.md5(body).hexdigest() + '"', None
 
@@ -198,8 +200,10 @@ class UploaderTests(unittest.TestCase):
             up.close()
 
     def test_secret_env_prefers_secret_and_accepts_app_key_alias(self):
-        previous = {name: os.environ.get(name) for name in ("AIRVIX_UPLOAD_SECRET", "AIRVIX_UPLOAD_APP_KEY")}
+        names = ("AIRVIX_S3_SECRET", "AIRVIX_UPLOAD_SECRET", "AIRVIX_UPLOAD_APP_KEY", "AIRVIX_UPLOAD_ENABLED")
+        previous = {name: os.environ.get(name) for name in names}
         try:
+            os.environ.pop("AIRVIX_S3_SECRET", None)
             os.environ["AIRVIX_UPLOAD_SECRET"] = "hmac-secret"
             os.environ["AIRVIX_UPLOAD_APP_KEY"] = "alias-secret"
             self.assertEqual(load_upload_config()["app_key"], "hmac-secret")
@@ -215,6 +219,67 @@ class UploaderTests(unittest.TestCase):
                 else:
                     os.environ[name] = value
 
+    def test_s3_env_wires_gcs_and_keeps_upload_aliases(self):
+        names = (
+            "AIRVIX_S3_ENDPOINT",
+            "AIRVIX_S3_REGION",
+            "AIRVIX_S3_BUCKET",
+            "AIRVIX_S3_KEY_ID",
+            "AIRVIX_S3_SECRET",
+            "AIRVIX_UPLOAD_ENABLED",
+            "AIRVIX_UPLOAD_ENDPOINT",
+            "AIRVIX_UPLOAD_REGION",
+            "AIRVIX_UPLOAD_BUCKET",
+            "AIRVIX_UPLOAD_KEY_ID",
+            "AIRVIX_UPLOAD_SECRET",
+            "AIRVIX_UPLOAD_APP_KEY",
+        )
+        previous = {name: os.environ.get(name) for name in names}
+        try:
+            for name in names:
+                os.environ.pop(name, None)
+            os.environ["AIRVIX_S3_ENDPOINT"] = "https://storage.googleapis.com"
+            os.environ["AIRVIX_S3_REGION"] = "auto"
+            os.environ["AIRVIX_S3_BUCKET"] = "airvix-flight-logs-489409"
+            os.environ["AIRVIX_S3_KEY_ID"] = "GOOG1EXAMPLE"
+            os.environ["AIRVIX_S3_SECRET"] = "not-a-real-hmac-secret"
+            os.environ["AIRVIX_UPLOAD_ENDPOINT"] = "https://example.invalid"
+            cfg = load_upload_config()
+            self.assertTrue(cfg["enabled_flag"])
+            self.assertEqual(cfg["endpoint"], "https://storage.googleapis.com")
+            self.assertEqual(cfg["region"], "auto")
+            self.assertEqual(cfg["bucket"], "airvix-flight-logs-489409")
+            self.assertEqual(cfg["key_id"], "GOOG1EXAMPLE")
+            self.assertEqual(cfg["app_key"], "not-a-real-hmac-secret")
+            os.environ["AIRVIX_UPLOAD_ENABLED"] = "0"
+            self.assertFalse(load_upload_config()["enabled_flag"])
+            for name in (
+                "AIRVIX_S3_ENDPOINT",
+                "AIRVIX_S3_REGION",
+                "AIRVIX_S3_BUCKET",
+                "AIRVIX_S3_KEY_ID",
+                "AIRVIX_S3_SECRET",
+                "AIRVIX_UPLOAD_ENABLED",
+            ):
+                os.environ.pop(name, None)
+            os.environ["AIRVIX_UPLOAD_ENDPOINT"] = "https://s3.example"
+            os.environ["AIRVIX_UPLOAD_REGION"] = "us-west-004"
+            os.environ["AIRVIX_UPLOAD_BUCKET"] = "alias-bucket"
+            os.environ["AIRVIX_UPLOAD_KEY_ID"] = "ALIASKEY"
+            os.environ["AIRVIX_UPLOAD_APP_KEY"] = "alias-secret"
+            alias = load_upload_config()
+            self.assertEqual(alias["endpoint"], "https://s3.example")
+            self.assertEqual(alias["region"], "us-west-004")
+            self.assertEqual(alias["bucket"], "alias-bucket")
+            self.assertEqual(alias["app_key"], "alias-secret")
+            self.assertTrue(alias["enabled_flag"])
+        finally:
+            for name, value in previous.items():
+                if value is None:
+                    os.environ.pop(name, None)
+                else:
+                    os.environ[name] = value
+
     def test_gcs_interop_put_accepts_goog_hash(self):
         clock = Clock()
         seen = {}
@@ -222,7 +287,9 @@ class UploaderTests(unittest.TestCase):
         def opener(url, body, headers):
             seen["url"] = url
             seen["authorization"] = headers["Authorization"]
+            seen["generation"] = headers.get("x-goog-if-generation-match")
             seen["body"] = body
+            self.assertNotIn("uploadId", url)
             import base64
 
             md5_b64 = base64.b64encode(hashlib.md5(body).digest()).decode("ascii")
@@ -251,6 +318,8 @@ class UploaderTests(unittest.TestCase):
             self.assertIn("/auto/s3/aws4_request", seen["authorization"])
             self.assertIn("Credential=GOOG1EXAMPLE/", seen["authorization"])
             self.assertTrue(seen["authorization"].startswith("AWS4-HMAC-SHA256 "))
+            self.assertEqual(seen["generation"], "0")
+            self.assertIn("x-goog-if-generation-match", seen["authorization"])
             self.assertEqual(up._conn.execute("SELECT state FROM jobs").fetchone()["state"], "done")
             up.close()
 
@@ -276,6 +345,103 @@ class UploaderTests(unittest.TestCase):
             self.assertTrue(up.step())
             self.assertIn("/me-west1/s3/aws4_request", seen["authorization"])
             up.close()
+
+    def test_gcs_existing_object_is_success_without_get(self):
+        clock = Clock()
+        calls = {"n": 0}
+
+        def opener(url, body, headers):
+            calls["n"] += 1
+            self.assertEqual(headers.get("x-goog-if-generation-match"), "0")
+            self.assertNotIn("uploadId", url)
+            self.assertFalse(url.endswith("?acl"))
+            return 412, None, None
+
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "summary.json"
+            path.write_bytes(b"{}")
+            up = LogUploader(
+                tmp,
+                cfg=_cfg(endpoint="https://storage.googleapis.com", region="auto", bucket="airvix-flight-logs-489409"),
+                sleep_fn=lambda _s: None,
+                now_fn=clock,
+                rand_fn=lambda: 0,
+                opener=opener,
+            )
+            up.enqueue_file("f1", "summary.json", str(path), "v1/plane/flights/f1/summary.json", "summary", 20)
+            self.assertTrue(up.step())
+            self.assertEqual(calls["n"], 1)
+            self.assertEqual(up._conn.execute("SELECT state FROM jobs").fetchone()["state"], "done")
+            self.assertFalse(up.status()["auth_failed"])
+            up.close()
+
+    def test_index_keys_stay_unique_per_variant(self):
+        from flightlog_common import index_key
+
+        final = index_key("v1", "plane", "FID")
+        inflight = index_key("v1", "plane", "FID", "in_flight")
+        processing = index_key("v1", "plane", "FID", "processing")
+        self.assertEqual(final, "v1/plane/index/FID.json")
+        self.assertEqual(inflight, "v1/plane/index/FID--in_flight.json")
+        self.assertEqual(processing, "v1/plane/index/FID--processing.json")
+        self.assertEqual(len({final, inflight, processing}), 3)
+
+    def test_storage_env_file_fills_unset_s3_vars(self):
+        names = (
+            "HOME",
+            "AIRVIX_S3_ENDPOINT",
+            "AIRVIX_S3_REGION",
+            "AIRVIX_S3_BUCKET",
+            "AIRVIX_S3_KEY_ID",
+            "AIRVIX_S3_SECRET",
+            "AIRVIX_UPLOAD_ENDPOINT",
+            "AIRVIX_UPLOAD_REGION",
+            "AIRVIX_UPLOAD_BUCKET",
+            "AIRVIX_UPLOAD_KEY_ID",
+            "AIRVIX_UPLOAD_SECRET",
+            "AIRVIX_UPLOAD_APP_KEY",
+            "AIRVIX_UPLOAD_ENABLED",
+        )
+        previous = {name: os.environ.get(name) for name in names}
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                os.environ["HOME"] = tmp
+                for name in names:
+                    if name != "HOME":
+                        os.environ.pop(name, None)
+                folder = Path(tmp) / "vlc-companion"
+                folder.mkdir()
+                (folder / "flightlog-storage.env").write_text(
+                    "\n".join(
+                        [
+                            "# mode 600 on the Jetson; values here are fixtures",
+                            "AIRVIX_S3_ENDPOINT=https://storage.googleapis.com",
+                            "AIRVIX_S3_REGION=auto",
+                            "AIRVIX_S3_BUCKET=airvix-flight-logs-489409",
+                            "AIRVIX_S3_KEY_ID=GOOG1EXAMPLE",
+                            'AIRVIX_S3_SECRET="not-a-real-hmac-secret"',
+                            "AIRVIX_S3_SECRET_BLANK=",
+                            "export AIRVIX_UPLOAD_ENABLED=0",
+                        ]
+                    )
+                    + "\n",
+                    encoding="utf-8",
+                )
+                os.environ["AIRVIX_S3_REGION"] = "already-set"
+                cfg = load_upload_config()
+                self.assertEqual(cfg["region"], "already-set")
+                self.assertEqual(cfg["endpoint"], "https://storage.googleapis.com")
+                self.assertEqual(cfg["bucket"], "airvix-flight-logs-489409")
+                self.assertEqual(cfg["key_id"], "GOOG1EXAMPLE")
+                self.assertEqual(cfg["app_key"], "not-a-real-hmac-secret")
+                self.assertFalse(cfg["enabled_flag"])
+                self.assertNotIn("AIRVIX_S3_SECRET_BLANK", os.environ)
+        finally:
+            for name, value in previous.items():
+                if value is None:
+                    os.environ.pop(name, None)
+                else:
+                    os.environ[name] = value
 
     def test_etag_mismatch(self):
         clock = Clock()

@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 """Durable S3-compatible upload queue. No-op when credentials or the enable flag are missing.
 
-Works with path-style S3, including Google Cloud Storage interoperability
-(endpoint https://storage.googleapis.com, HMAC key id and secret, region auto
-or a bucket location such as me-west1).
+Works with path-style S3. The provisioned store is Google Cloud Storage
+interoperability: endpoint https://storage.googleapis.com, region auto,
+HMAC key. The uploader key is create-only, so every upload is one PUT of a
+unique object key. There is no HEAD, GET, LIST, DELETE, or overwrite.
 """
 
 from __future__ import print_function
@@ -22,6 +23,7 @@ from pathlib import Path
 from flightlog_common import (
     CONTROL_MAX_BYTES,
     PART_BYTES_DEFAULT,
+    apply_storage_env,
     env_float,
     env_int,
     env_str,
@@ -30,7 +32,7 @@ from flightlog_common import (
     sha256_file,
     utc_iso,
 )
-from s3_sigv4 import path_style_url, sha256_hex, sign_request
+from s3_sigv4 import normalize_host, path_style_url, sha256_hex, sign_request
 
 CORE_KINDS = {"index", "manifest", "summary", "events", "series", "track"}
 CONTROL_KINDS = {"index", "manifest"}
@@ -40,20 +42,55 @@ def credentials_present(cfg):
     return bool(cfg.get("endpoint") and cfg.get("region") and cfg.get("bucket") and cfg.get("key_id") and cfg.get("app_key"))
 
 
+def first_env(*names):
+    for name in names:
+        value = env_str(name, "")
+        if value:
+            return value
+    return ""
+
+
 def upload_secret_from_env():
-    """HMAC / S3 secret. AIRVIX_UPLOAD_SECRET wins; AIRVIX_UPLOAD_APP_KEY is an alias."""
-    return env_str("AIRVIX_UPLOAD_SECRET", "") or env_str("AIRVIX_UPLOAD_APP_KEY", "")
+    """HMAC secret. AIRVIX_S3_SECRET wins. Older UPLOAD_SECRET / APP_KEY names are aliases."""
+    return first_env("AIRVIX_S3_SECRET", "AIRVIX_UPLOAD_SECRET", "AIRVIX_UPLOAD_APP_KEY")
+
+
+def upload_enabled_from_env(creds_present):
+    """Unset follows credentials. Explicit 0 stays idle. Explicit 1 still needs credentials."""
+    raw = os.environ.get("AIRVIX_UPLOAD_ENABLED")
+    if raw is None or str(raw).strip() == "":
+        return bool(creds_present)
+    return str(raw).strip().lower() in {"1", "true", "yes", "on"}
+
+
+def is_gcs_endpoint(endpoint):
+    host = normalize_host(endpoint).split("/")[0].split(":")[0].lower()
+    return host == "storage.googleapis.com" or host.endswith(".storage.googleapis.com")
+
+
+def create_only_headers(endpoint):
+    """GCS objectCreator: succeed only when the object does not exist. No prior HEAD."""
+    if is_gcs_endpoint(endpoint):
+        return {"x-goog-if-generation-match": "0"}
+    return {}
 
 
 def load_upload_config():
+    apply_storage_env()
+    endpoint = first_env("AIRVIX_S3_ENDPOINT", "AIRVIX_UPLOAD_ENDPOINT")
+    region = first_env("AIRVIX_S3_REGION", "AIRVIX_UPLOAD_REGION")
+    bucket = first_env("AIRVIX_S3_BUCKET", "AIRVIX_UPLOAD_BUCKET")
+    key_id = first_env("AIRVIX_S3_KEY_ID", "AIRVIX_UPLOAD_KEY_ID")
+    secret = upload_secret_from_env()
+    creds = bool(endpoint and region and bucket and key_id and secret)
     return {
-        "enabled_flag": env_str("AIRVIX_UPLOAD_ENABLED", "0").lower() in {"1", "true", "yes", "on"},
-        "endpoint": env_str("AIRVIX_UPLOAD_ENDPOINT", ""),
-        "region": env_str("AIRVIX_UPLOAD_REGION", ""),
-        "bucket": env_str("AIRVIX_UPLOAD_BUCKET", ""),
-        "key_id": env_str("AIRVIX_UPLOAD_KEY_ID", ""),
-        "app_key": upload_secret_from_env(),
-        "prefix": env_str("AIRVIX_UPLOAD_PREFIX", "v1") or "v1",
+        "enabled_flag": upload_enabled_from_env(creds),
+        "endpoint": endpoint,
+        "region": region,
+        "bucket": bucket,
+        "key_id": key_id,
+        "app_key": secret,
+        "prefix": first_env("AIRVIX_S3_PREFIX", "AIRVIX_UPLOAD_PREFIX") or "v1",
         "cellular": env_str("AIRVIX_UPLOAD_CELLULAR", "all") or "all",
         "cell_daily_mb": env_float("AIRVIX_UPLOAD_CELL_DAILY_MB", 500),
         "while_armed": env_str("AIRVIX_UPLOAD_WHILE_ARMED", "control_only") or "control_only",
@@ -299,6 +336,7 @@ class LogUploader(object):
         }
         if encoding:
             headers["Content-Encoding"] = encoding
+        headers.update(create_only_headers(self.cfg.get("endpoint")))
         secure = str(self.cfg.get("endpoint") or "").startswith("https://") or "://" not in str(self.cfg.get("endpoint") or "")
         # Tests pass http://127.0.0.1:port
         endpoint = self.cfg.get("endpoint")
@@ -328,6 +366,9 @@ class LogUploader(object):
         }
         if encoding:
             req_headers["Content-Encoding"] = encoding
+        generation = headers.get("x-goog-if-generation-match")
+        if generation:
+            req_headers["x-goog-if-generation-match"] = generation
         self._throttle(len(body))
         try:
             status, etag, retry_after, extra = self._send(url, body, req_headers)
@@ -336,6 +377,10 @@ class LogUploader(object):
             return
         if status in (401, 403):
             self._auth_fail(row, status)
+            return
+        # Create-only precondition: the object is already stored. Do not GET it.
+        if status == 412:
+            self._succeed(row)
             return
         if status == 503 or status == 429 or status >= 500:
             wait = _retry_after_seconds(retry_after)

@@ -9,6 +9,9 @@ data/uploads/
 data/flights/archive/
 data/flights/cloud/
 .env
+# Jetson HMAC file. The example is tracked; the live file is mode 600 and stays off git.
+scripts/jetson-companion/flightlog-storage.env
+**/flightlog-storage.env
 debug-*.log
 *.bak
 

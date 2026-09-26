@@ -12,7 +12,7 @@ The flight page shows the list, timeline, plots, map, and a Hebrew Gemini debrie
 | --- | --- | --- |
 | `off` | Unset or anything other than `mock` / `cloud` | No flights. Hebrew not-configured state. |
 | `mock` | Local fixtures under `tests/fixtures/flight-logs` | Those fixtures only. Never used as a stand-in for a real bucket. |
-| `cloud` | All five `FLIGHT_CLOUD_*` values below are set | Read-only bucket. A URL or a partial key set stays **not configured**. |
+| `cloud` | All five `AIRVIX_S3_*` values below are set (`FLIGHT_CLOUD_*` still works as aliases) | Read-only bucket. A URL or a partial key set stays **not configured**. |
 
 Mock and off never invent flights in the production UI. If the bucket is not configured, the list is empty even when older rows are still in SQLite.
 
@@ -26,24 +26,19 @@ No flights yet:
 
 ## Read-only key
 
-The console key can list and read objects in this bucket only. Do not grant write, delete, or other buckets.
+The console key can GET and LIST objects in this bucket only. It cannot PUT, overwrite, or delete. The Jetson uploader key is a different HMAC key and is create-only.
 
-Google Cloud Storage (S3 interoperability), the chosen store:
+Google Cloud Storage (S3 interoperability). Same variable names as the Jetson file, with the read-only key in the console `.env`:
 
-- `FLIGHT_CLOUD_ENDPOINT` = `https://storage.googleapis.com`
-- `FLIGHT_CLOUD_REGION` = `auto`, or the bucket location `me-west1`
-- `FLIGHT_CLOUD_KEY_ID` = HMAC access id
-- `FLIGHT_CLOUD_APP_KEY` = HMAC secret
+- `AIRVIX_S3_ENDPOINT` = `https://storage.googleapis.com`
+- `AIRVIX_S3_REGION` = `auto`
+- `AIRVIX_S3_BUCKET` = `airvix-flight-logs-489409`
+- `AIRVIX_S3_KEY_ID` = HMAC access id
+- `AIRVIX_S3_SECRET` = HMAC secret
 
-Commented names in `.env.example` (no values in git):
+`FLIGHT_CLOUD_ENDPOINT`, `FLIGHT_CLOUD_REGION`, `FLIGHT_CLOUD_BUCKET`, `FLIGHT_CLOUD_KEY_ID`, `FLIGHT_CLOUD_APP_KEY`, and `FLIGHT_CLOUD_SECRET` remain aliases. `AIRVIX_S3_PREFIX` or `FLIGHT_CLOUD_PREFIX` defaults to `v1`. `AIRVIX_S3_VEHICLES` or `FLIGHT_CLOUD_VEHICLES` is an optional comma list; otherwise the console lists vehicle prefixes. The secret is never logged and never sent to the browser.
 
-- `FLIGHT_CLOUD_ENDPOINT` — S3 endpoint, path-style
-- `FLIGHT_CLOUD_REGION` — SigV4 region (`auto` or `me-west1` on GCS)
-- `FLIGHT_CLOUD_BUCKET`
-- `FLIGHT_CLOUD_KEY_ID` — access key / HMAC access id
-- `FLIGHT_CLOUD_APP_KEY` — secret / HMAC secret; never logged, never sent to the browser
-- `FLIGHT_CLOUD_PREFIX` — optional, default `v1`
-- `FLIGHT_CLOUD_VEHICLES` — optional comma list; otherwise the console lists vehicle prefixes
+The reader lists `v1/<vehicle>/index/` and keeps one object per flight. `…/<flight_id>.json` wins over `…/<flight_id>--in_flight.json` and `--processing.json`. It does not HEAD an object to decide. Downloads use GET. Chunked artifacts are GET of `.parts.json` and each `.partNNNN`.
 
 Object layout: `v1/<vehicle_id>/index/<flight_id>.json` and `v1/<vehicle_id>/flights/<flight_id>/…`. Schemas are in `docs/schemas/flight-log/`.
 

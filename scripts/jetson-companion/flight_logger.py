@@ -237,9 +237,9 @@ class FlightLogger(object):
             try:
                 self.uploader.enqueue_file(
                     self.flight_id,
-                    "index.json",
+                    "index-%s.json" % state_name,
                     str(path),
-                    index_key(self.prefix, self.vehicle_id, self.flight_id),
+                    index_key(self.prefix, self.vehicle_id, self.flight_id, state_name),
                     "index",
                     10,
                 )
