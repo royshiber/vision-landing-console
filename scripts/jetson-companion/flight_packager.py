@@ -313,7 +313,7 @@ def _manifest(session, flight_id, vehicle_id, prefix, classification, state, win
             "evidence": evidence,
         },
         "versions": {
-            "companion_agent": env_str("VLC_AGENT_VERSION", "2.6.1") or "2.6.1",
+            "companion_agent": env_str("VLC_AGENT_VERSION", "2.6.2") or "2.6.2",
             "flightlog": FLIGHTLOG_VERSION,
             "derive_rev": DERIVE_REV,
             "fc_firmware": None if not derive else derive.get("fc_firmware"),

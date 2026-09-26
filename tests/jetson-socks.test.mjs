@@ -28,6 +28,10 @@ describe('Tailscale SOCKS routing', () => {
     expect(proxyRouteForTarget('192.168.1.122', proxyEnv)).toMatchObject({ via: 'direct', reason: 'not_cgnat' });
     expect(proxyRouteForTarget('8.8.8.8', proxyEnv)).toMatchObject({ via: 'direct', reason: 'not_cgnat' });
     expect(proxyRouteForTarget('100.82.59.45', proxyEnv)).toMatchObject({ via: 'proxy', reason: 'cgnat' });
+    expect(proxyRouteForTarget('100.82.59.45', {
+      JETSON_COMPANION_SOCKS_PROXY: 'socks5://127.0.0.1:1055',
+      JETSON_SOCKS_PROXY: 'socks5h://127.0.0.1:9999',
+    }).proxy.href).toBe('socks5://127.0.0.1:1055');
     expect(proxyRouteForTarget('100.82.59.45', {})).toMatchObject({ via: 'direct', reason: 'unset' });
     expect(proxyRouteForTarget('100.82.59.45', { JETSON_SOCKS_PROXY: '' })).toMatchObject({ via: 'direct', reason: 'unset' });
   });
@@ -121,6 +125,9 @@ describe('Tailscale SOCKS routing', () => {
     expect(ps1).toContain('--outbound-http-proxy-listen=localhost:1056');
     expect(ps1).toContain('JETSON_SOCKS_PROXY');
     expect(ps1).toContain('socks5h://127.0.0.1:1055');
+    expect(ps1).toContain('JETSON_COMPANION_BASE_URLS');
+    expect(ps1).toContain('JETSON_COMPANION_SOCKS_PROXY');
+    expect(ps1).toContain('socks5://127.0.0.1:1055');
     expect(ps1).toContain('401 counts as reachable');
     expect(ps1).toContain('Get-UserspaceAdminPrompt');
     expect(ps1).not.toMatch(/Start-Service\s+-Name\s+'Tailscale'/);

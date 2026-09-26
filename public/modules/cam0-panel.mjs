@@ -398,11 +398,6 @@ function init() {
     return !!line && line.getClientRects().length > 0;
   }
 
-  document.getElementById('cam0StatusLink')?.addEventListener('click', () => {
-    document.querySelector('[data-tab="recordings"]')?.click();
-    document.getElementById('debriefRecBtn')?.click();
-  });
-
   async function tick() {
     if (polling || pushing) return;
     if (!panelShown() && !lineShown()) {

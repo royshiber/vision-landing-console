@@ -42,6 +42,9 @@ describe('four-row communications widget', () => {
     expect(main).not.toMatch(/host:8081/);
     expect(main).not.toContain('id="connectPortInput"');
     expect(main).not.toContain('id="cellularHostPort"');
+    expect(panel.indexOf('id="companionActiveLink"')).toBeGreaterThan(panel.indexOf('id="commLinkRows"'));
+    expect(panel.indexOf('id="companionActiveLink"')).toBeLessThan(panel.indexOf('id="companionLinkBlock"'));
+    expect(css).toContain('content: " · בשימוש"');
     expect(panel.indexOf('id="connectPortInput"')).toBeGreaterThan(panel.indexOf('id="connectAdvanced"'));
     expect(panel.indexOf('id="cellularHostPort"')).toBeGreaterThan(panel.indexOf('id="connectAdvanced"'));
   });

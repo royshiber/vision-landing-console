@@ -13485,6 +13485,17 @@ details.flight-manage summary {
   border-color: rgba(96, 165, 250, 0.45);
   background: rgba(37, 99, 235, 0.14);
 }
+.comm-link-row[data-link="home"][data-active="1"] .comm-link-name::after,
+.comm-link-row[data-link="cellular"][data-active="1"] .comm-link-name::after {
+  content: " · בשימוש";
+  font-weight: 700;
+}
+.comm-link-row[data-link="home"][data-active="1"] .comm-link-name,
+.comm-link-row[data-link="cellular"][data-active="1"] .comm-link-name {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
+}
 .comm-link-row[data-state="absent"] {
   border-color: rgba(251, 191, 36, 0.28);
 }
@@ -21033,9 +21044,10 @@ body:has(#telemetry.panel.visible) #telemetry .tele-dash-sub {
 .update-indicator[hidden] { display: none; }
 .conn-companion-active {
   margin: 4px 0 0;
-  font-size: 0.75rem;
-  line-height: 1.35;
+  font-size: clamp(11px, 0.75rem, 14px);
+  line-height: 1.5;
   color: var(--text-muted, #cbd5e1);
+  overflow-wrap: anywhere;
 }
 #gsCheckUpdatesBtn,
 #versionCheckUpdatesBtn {
@@ -22072,17 +22084,6 @@ body:has(#pulse.panel.visible) .pulse-home.pulse-status-home {
   white-space: normal;
   font-size: 14px;
   line-height: 1.4;
-}
-.cam0-status-link {
-  border: 0;
-  background: transparent;
-  color: var(--primary);
-  font: inherit;
-  font-weight: 700;
-  text-decoration: underline;
-  cursor: pointer;
-  padding: 0;
-  white-space: nowrap;
 }
 .cam0-panel {
   margin-top: 12px;

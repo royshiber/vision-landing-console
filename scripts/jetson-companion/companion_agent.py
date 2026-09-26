@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Vision Landing Console — Jetson companion: MAVLink relay + HTTP API + heartbeat.
 
-AGENT_VERSION 2.6.1 reports CAM1 from the OV9281 symlink while it is idle,
+AGENT_VERSION 2.6.2 turns Wi-Fi back on if the console is silent for 60 seconds
+after that link was disabled, and 2.6.1 reports CAM1 from the OV9281 symlink while it is idle,
 and serves that camera on /api/v1/cameras/cam1/frame. 2.6.0 adds CAM1 on
 /api/v1/cam1.
 Capture and JPEG run only while a client holds the stream, capped at 30 fps
@@ -65,7 +66,7 @@ RELAY_PORT = int(os.environ.get("VLC_RELAY_PORT", "5770"))
 HTTP_PORT = int(os.environ.get("VLC_HTTP_PORT", "8081"))
 HTTP_IDLE_S = float(os.environ.get("VLC_HTTP_IDLE_S", "30") or "30")
 HTTP_MAX_BODY = 16 * 1024 * 1024
-AGENT_VERSION = os.environ.get("VLC_AGENT_VERSION", "2.6.1")
+AGENT_VERSION = os.environ.get("VLC_AGENT_VERSION", "2.6.2")
 MODEM_STATUS_FILE = os.environ.get("AIRVIX_E3372_STATUS_FILE", "/run/airvix/e3372.status")
 
 try:
@@ -1264,6 +1265,13 @@ class Handler(BaseHTTPRequestHandler):
             chunks.append(data)
             total += size
 
+    def _note_console(self):
+        try:
+            from uplink_control import note_console_request
+            note_console_request()
+        except Exception:
+            return
+
     def do_HEAD(self):
         self.do_GET()
 
@@ -1283,6 +1291,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         if not self._auth_ok():
             return self._json(401, {"ok": False, "message": "Unauthorized"})
+        self._note_console()
         path = self._path()
         if path == "/api/logs" or path == "/api/logs/":
             logs = [{"name": p.name, "size": p.stat().st_size} for p in iter_log_files()]
@@ -1366,6 +1375,7 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(400, {"ok": False, "message": "bad body"})
         if not self._auth_ok():
             return self._json(401, {"ok": False, "message": "Unauthorized"})
+        self._note_console()
         if not raw:
             raw = b"{}"
         try:

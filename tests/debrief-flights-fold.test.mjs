@@ -91,21 +91,21 @@ describe('C10.5a leftover #flights folds into תחקור', () => {
     const restore = sliceFunction(js, 'restoreLastUiTab');
     const openLogs = sliceFunction(js, 'openDebriefLogs');
     expect(applyDebrief).not.toMatch(/applyMainTab\(\s*'flights'/);
-    // Flight book is a third תחקור sub-tab and the default when nothing is stored.
-    // הקלטות and לוגים still restore. Legacy main tab "flights" still folds to לוגים.
+    // Cameras (הקלטות) are the default. A stored sub-tab still restores on reload.
+    // The top tab itself always opens the cameras view. Legacy "flights" still folds to לוגים.
     expect(applyDebrief).toMatch(/tabId === 'logs' \|\| tabId === 'recordings' \|\| tabId === 'flightbook'/);
-    expect(applyDebrief).toMatch(/\? tabId : 'flightbook'/);
+    expect(applyDebrief).toMatch(/\? tabId : 'recordings'/);
     expect(applyDebrief).toMatch(/airvix:debrief-subtab/);
     expect(applyMain).toMatch(/if \(tabId === 'flights'\)/);
     expect(applyMain).toMatch(/openDebriefLogs\(/);
-    expect(applyMain).toMatch(/stored === 'logs' \|\| stored === 'recordings' \|\| stored === 'flightbook'/);
-    expect(applyMain).toMatch(/known \? stored : 'flightbook'/);
+    expect(applyMain).toMatch(/applyDebriefSubtab\(\s*'recordings'/);
+    expect(applyMain).not.toMatch(/known \? stored : 'flightbook'/);
     expect(openLogs).toMatch(/applyMainTab\(\s*'recordings'/);
     expect(openLogs).toMatch(/applyDebriefSubtab\(\s*'logs'/);
     expect(restore).toMatch(/if \(main === 'flights'\)/);
     expect(restore).toMatch(/debriefSub = 'logs'/);
     expect(restore).toMatch(/debriefSub === 'logs' \|\| debriefSub === 'recordings' \|\| debriefSub === 'flightbook'/);
-    expect(restore).toMatch(/known \? debriefSub : 'flightbook'/);
+    expect(restore).toMatch(/known \? debriefSub : 'recordings'/);
     const simLab = fs.readFileSync(path.join(repoRoot, 'public', 'sim-lab.mjs'), 'utf8');
     expect(simLab).toContain("document.getElementById('debriefLogsBtn')?.click()");
     expect(simLab).not.toContain('.tab[data-tab="flights"]');

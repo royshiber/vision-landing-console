@@ -292,8 +292,8 @@ function _subtabIds() {
 function initDebriefTelemetrySubtab() {
   // Telemetry is now its own main tab — no longer moved into recordings.
 }
-function applyDebriefSubtab(tabId = 'flightbook', { save = true } = {}) {
-  const wanted = tabId === 'logs' || tabId === 'recordings' || tabId === 'flightbook' ? tabId : 'flightbook';
+function applyDebriefSubtab(tabId = 'recordings', { save = true } = {}) {
+  const wanted = tabId === 'logs' || tabId === 'recordings' || tabId === 'flightbook' ? tabId : 'recordings';
   debriefTabButtons.forEach((btn) => btn.classList.toggle('active', btn.dataset.debriefTab === wanted));
   const debriefFlightbookPanel = document.getElementById('debriefFlightbookPanel');
   [debriefRecordingsPanel, debriefLogsPanel, debriefFlightbookPanel].forEach((panel) => {
@@ -396,10 +396,7 @@ function applyMainTab(tabId, { save = true } = {}) {
     setTimeout(() => onTelemetryTabActivated(), 60);
   }
   if (tabId === 'recordings') {
-    let stored = '';
-    try { stored = sessionStorage.getItem('visionLandingDebriefSubtabV1') || ''; } catch { /* ignore */ }
-    const known = stored === 'logs' || stored === 'recordings' || stored === 'flightbook';
-    applyDebriefSubtab(known ? stored : 'flightbook', { save: false });
+    applyDebriefSubtab('recordings', { save });
   }
   if (tabId === 'terrain') {
     setTimeout(() => {
@@ -866,7 +863,7 @@ function restoreLastUiTab() {
   }
   if (main === 'recordings') {
     const known = debriefSub === 'logs' || debriefSub === 'recordings' || debriefSub === 'flightbook';
-    applyDebriefSubtab(known ? debriefSub : 'flightbook', { save: false });
+    applyDebriefSubtab(known ? debriefSub : 'recordings', { save: false });
   }
   if (main === 'control') {
     try {

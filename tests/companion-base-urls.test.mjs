@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   createCompanionApiClient,
   parseCompanionBaseUrls,
+  resolveCompanionBaseUrlList,
   resolveCompanionV1BaseUrl,
 } from '../lib/companion-api-client.mjs';
 import { resolveCompanionMode } from '../lib/companion-service.mjs';
@@ -65,5 +66,30 @@ describe('companion base URL fallback', () => {
     expect(companionLinkLabelHe('http://192.168.1.122:8081')).toBe('רשת בית');
     expect(validateCompanionBaseUrl(list).ok).toBe(true);
     expect(relayHostFromCompanionBaseUrl(list)).toBe('192.168.1.122');
+  });
+
+  it('prefers JETSON_COMPANION_BASE_URLS and still requires COMPANION_MODE=real', () => {
+    const urls = 'http://192.168.1.122:8081,http://100.82.59.45:8081';
+    expect(resolveCompanionBaseUrlList({
+      JETSON_COMPANION_BASE_URLS: urls,
+      JETSON_COMPANION_BASE_URL: 'http://10.0.0.9:8081',
+    })).toEqual([
+      'http://192.168.1.122:8081',
+      'http://100.82.59.45:8081',
+      'http://10.0.0.9:8081',
+    ]);
+    expect(resolveCompanionMode({
+      COMPANION_MODE: 'real',
+      JETSON_COMPANION_BASE_URL: '',
+      JETSON_COMPANION_BASE_URLS: urls,
+    })).toBe('real');
+    expect(resolveCompanionMode({
+      JETSON_COMPANION_BASE_URLS: urls,
+    })).toBe('off');
+    expect(resolveCompanionMode({
+      COMPANION_MODE: 'real',
+      JETSON_COMPANION_BASE_URL: '',
+      JETSON_COMPANION_BASE_URLS: '',
+    })).toBe('off');
   });
 });

@@ -34,6 +34,8 @@ const FAKE_EVENTS = [
 describe('Optics debrief tab — source', () => {
   it('renames the top tab, hides development, and drops sample events', () => {
     expect(html).toMatch(/data-tab="recordings"[^>]*>אופטיקה ותחקור</);
+    expect(html).not.toContain('id="cam0StatusLink"');
+    expect(html).toContain('id="cam0StatusText"');
     expect(html).toMatch(/data-tab="development"[^>]*hidden|hidden[^>]*data-tab="development"/);
     expect(html).not.toMatch(/data-tab="recordings"[^>]*>תחקור</);
     expect(js).not.toContain('eventSamples');

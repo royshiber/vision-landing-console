@@ -14,6 +14,8 @@ import json
 import os
 import re
 import subprocess
+import threading
+import time
 from pathlib import Path
 
 from uplink_status import _oper_up, _routes, _wifi_iface, cellular_iface_name
@@ -27,6 +29,11 @@ _RUNNER = None
 _REACH = None
 _PRESENCE = None
 BOOT_FALLBACK = None
+_CLOCK = None
+_GUARD = {"armed": None, "seen": False}
+_GUARD_LOCK = threading.Lock()
+_REVERT_THREAD = None
+WIFI_REVERT_S = 60.0
 
 
 def set_nm_runner(fn):
@@ -45,11 +52,95 @@ def set_presence(fn):
 
 
 def reset_uplink_control():
-    global _RUNNER, _REACH, _PRESENCE, BOOT_FALLBACK
+    global _RUNNER, _REACH, _PRESENCE, BOOT_FALLBACK, _CLOCK
     _RUNNER = None
     _REACH = None
     _PRESENCE = None
     BOOT_FALLBACK = None
+    _CLOCK = None
+    with _GUARD_LOCK:
+        _GUARD["armed"] = None
+        _GUARD["seen"] = False
+
+
+def set_clock(fn):
+    """Tests inject a monotonic clock. A fake clock does not start the revert thread."""
+    global _CLOCK
+    _CLOCK = fn
+
+
+def _now():
+    if _CLOCK is not None:
+        return float(_CLOCK())
+    return time.monotonic()
+
+
+def note_console_request():
+    """A live console request after Wi-Fi went down means another path still works."""
+    with _GUARD_LOCK:
+        if _GUARD["armed"] is not None:
+            _GUARD["seen"] = True
+
+
+def _revert_seconds():
+    raw = os.environ.get("VLC_WIFI_REVERT_S", "").strip()
+    if not raw:
+        return WIFI_REVERT_S
+    try:
+        value = float(raw)
+    except ValueError:
+        return WIFI_REVERT_S
+    return value if value > 0 else WIFI_REVERT_S
+
+
+def arm_wifi_revert():
+    with _GUARD_LOCK:
+        _GUARD["armed"] = _now()
+        _GUARD["seen"] = False
+    if _CLOCK is None:
+        _ensure_revert_thread()
+
+
+def clear_wifi_revert():
+    with _GUARD_LOCK:
+        _GUARD["armed"] = None
+        _GUARD["seen"] = False
+
+
+def tick_wifi_revert():
+    """Re-enable Wi-Fi if the console has not been heard since it was turned off."""
+    with _GUARD_LOCK:
+        armed = _GUARD["armed"]
+        if armed is None:
+            return "idle"
+        if _now() - armed < _revert_seconds():
+            return "waiting"
+        seen = _GUARD["seen"]
+        _GUARD["armed"] = None
+        _GUARD["seen"] = False
+    if seen:
+        return "kept"
+    code, _body = set_uplink("wifi", True)
+    return "reverted" if code == 200 else "revert_failed"
+
+
+def _ensure_revert_thread():
+    global _REVERT_THREAD
+    if _REVERT_THREAD is not None and _REVERT_THREAD.is_alive():
+        return
+
+    def loop():
+        while _CLOCK is None:
+            time.sleep(1.0)
+            if _CLOCK is not None:
+                return
+            try:
+                tick_wifi_revert()
+            except Exception:
+                pass
+
+    _REVERT_THREAD = threading.Thread(target=loop, name="wifi-revert", daemon=True)
+    _REVERT_THREAD.start()
 
 
 def state_path():
@@ -252,6 +343,10 @@ def set_uplink(kind, enabled):
         save_prefs(prefs)
     except OSError:
         return 503, {"ok": False, "reason": "persist_failed", "message": "שמירת הבחירה נכשלה"}
+    if kind == "wifi" and enabled is False:
+        arm_wifi_revert()
+    elif kind == "wifi" and enabled is True:
+        clear_wifi_revert()
     return 200, uplinks_view()
 
 
