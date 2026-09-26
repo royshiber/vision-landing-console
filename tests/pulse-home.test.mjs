@@ -60,11 +60,11 @@ describe('C10.3 Pulse home', () => {
     expect(html).toMatch(/id="pulseTalkBtn"[^>]*>שאלו את <bdi dir="ltr">AIRVIX Ask<\/bdi></);
     expect(html).toMatch(/id="pulseVersion"[^>]*>--</);
     expect(html).toMatch(/id="pulseJetsonVersion"[^>]*>--</);
-    expect(html).toMatch(/id="pulseFcVersion"[^>]*>--</);
+    expect(html).toMatch(/id="pulseFcVersion"[^>]*>לא ידוע</);
     expect(html).toMatch(/id="pulseJetsonUpdateBtn"[^>]*data-first-action="jetson-version"/);
     expect(html).toMatch(/id="pulseHomePulseBtn"[^>]*>סטטוס מחשבים</);
     expect(html).toMatch(/<span>בתוך סטטוס מחשבים</);
-    expect(html).toMatch(/id="pulseLink"[^>]*>--</);
+    expect(html).toMatch(/id="pulseLink"[^>]*>לא ידוע</);
     expect(html).toMatch(/id="pulseAircraft"[^>]*>מנותק</);
     expect(html).toMatch(/id="pulseJetsonLoad"[^>]*>--</);
     expect(html).toMatch(/id="pulseJetsonMem"[^>]*>--</);
@@ -276,6 +276,6 @@ describe('C10.3 Pulse home', () => {
     expect(html).toMatch(/id="pulseJetsonUpdateBtn"[^>]*hidden/);
     expect(html).toMatch(/id="pulseJetsonVersionState"[^>]*>מעודכן</);
     expect(html).toMatch(/id="pulseConsoleVersionState"[^>]*>מעודכן</);
-    expect(html).toMatch(/id="pulseFcIdentity"[^>]*>--</);
+    expect(html).toMatch(/id="pulseFcIdentity"[^>]*>לא ידוע</);
   });
 });
