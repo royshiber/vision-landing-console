@@ -6070,6 +6070,13 @@ body:has(#pulse.panel.visible) .layout {
   font-weight: 800;
   color: #f2f6fb;
 }
+.pulse-cat-head .vlr-title {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 16px;
+  color: #8b97ab;
+}
 .pulse-cat .vlr-purpose,
 .pulse-cat .vlr-success {
   display: block;
@@ -6092,8 +6099,7 @@ body:has(#pulse.panel.visible) .layout {
   gap: 3px;
   min-width: 0;
 }
-.status-row,
-.pulse-cat .vlr-row {
+.status-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   grid-template-areas: "main" "details";
@@ -6101,6 +6107,19 @@ body:has(#pulse.panel.visible) .layout {
   padding: 0;
   border: 0;
   background: transparent;
+  min-width: 0;
+}
+#pulse .vlr-field .vlr-row,
+#pulse .vlr-update .vlr-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "name chip"
+    "missing missing"
+    "tokens tokens";
+  gap: 2px 8px;
+  align-items: start;
+  padding: 4px 6px;
   min-width: 0;
 }
 .status-row-main {
@@ -6293,6 +6312,9 @@ button.status-row-main {
 @media (min-width: 1600px) {
   .pulse-cat-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  #pulseCatLanding {
+    grid-column: 1 / -1;
   }
 }
 @media (max-width: 700px) {
@@ -20034,6 +20056,19 @@ body:has(#control.panel.visible) .ardu-top-cats-host {
   .app-update-actions button { flex: 1 1 auto; min-height: 36px; }
 }
 
+#pulse .pulse-cat-fold .pulse-gauges {
+  display: none;
+}
+#pulse .pulse-cat-fold :is(dt, dd, p, span, button, h4, h5, label),
+#pulse .pulse-cat-more :is(dt, dd, p, span, button, h4, h5, label, li, summary),
+#pulse .vlr-field :is(.vlr-name, .vlr-chip, .vlr-missing, .vlr-title, .vlr-purpose, .vlr-update-title, .vlr-update-lead, .vlr-token) {
+  font-size: 11px;
+  line-height: 16px;
+}
+body:has(#pulse.panel.visible) .pulse-home.pulse-status-home {
+  padding-bottom: 120px;
+  scroll-padding-bottom: 120px;
+}
 @media (max-width: 720px) {
   body:has(#pulse.panel.visible),
   body:has(#pulse.panel.visible) .layout,
@@ -20043,6 +20078,9 @@ body:has(#control.panel.visible) .ardu-top-cats-host {
     height: auto;
     min-height: min-content;
     overflow: visible;
+  }
+  body:has(#pulse.panel.visible) .pulse-home.pulse-status-home {
+    padding-bottom: 120px;
   }
 }
 

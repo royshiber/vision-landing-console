@@ -3228,7 +3228,7 @@ function operatorOpenFirstAction(action) {
 function pulseIsPlaceholder(text) {
   const s = String(text || '').trim();
   if (!s) return true;
-  if (s === '--' || s === '—' || s === '-') return true;
+  if (s === '--' || s === '—' || s === '-' || s === 'לא ידוע' || s === 'אין נתון') return true;
   return /^--(\s|$|%|m)/i.test(s);
 }
 
@@ -3419,7 +3419,7 @@ function pulseResolveFcIdentity(mav, honesty) {
 function pulseWriteIdentityCell(id, value) {
   const el = document.getElementById(id);
   if (!el) return;
-  el.textContent = value == null || value === '' ? '--' : String(value);
+  el.textContent = value == null || value === '' ? 'לא ידוע' : String(value);
 }
 
 function pulsePaintFcIdentity(mav, honesty) {
@@ -3759,13 +3759,13 @@ function pulseRefreshVersionOffers() {
   const fcId = document.getElementById('pulseFcIdentity');
   if (fcVer) {
     const raw = mav?.autopilotVersion || mav?.flightSwVersion || mav?.version || '';
-    fcVer.textContent = pulseIsPlaceholder(raw) ? '--' : String(raw);
+    fcVer.textContent = pulseIsPlaceholder(raw) ? 'לא ידוע' : String(raw);
   }
   if (fcId) {
-    if (!pulseMavlinkLive(mav)) fcId.textContent = '--';
+    if (!pulseMavlinkLive(mav)) fcId.textContent = 'לא ידוע';
     else {
       const label = [mav.autopilotName, mav.vehicleType].filter(Boolean).join(' · ');
-      fcId.textContent = label || '--';
+      fcId.textContent = label || 'לא ידוע';
     }
   }
 }
@@ -4184,16 +4184,113 @@ function pulseSetStatusRow(row, { pill, reason, bucket, tone }) {
 
 function pulseKnownText(text) {
   const s = String(text || '').trim();
-  if (!s || s === '--' || s === '—' || s === '-' || s === 'אין נתון') return '';
+  if (!s || s === '--' || s === '—' || s === '-' || s === 'אין נתון' || s === 'לא ידוע') return '';
   return s;
+}
+
+const pulseOpenByKey = new Map();
+
+function pulseRowStorageKey(row) {
+  return String(row?.dataset?.id || row?.dataset?.metric || '');
+}
+
+function pulseRowDetails(row) {
+  return row?.querySelector(':scope > .status-row-details') || null;
+}
+
+function pulseRowExpandable(row) {
+  if (!row) return false;
+  if (row.dataset.fold) return true;
+  const details = pulseRowDetails(row);
+  return !!(details && details.childElementCount > 0);
+}
+
+function pulseApplyOpen(row, open) {
+  if (!row) return;
+  const key = pulseRowStorageKey(row);
+  const next = !!open;
+  if (key) pulseOpenByKey.set(key, next);
+  row.classList.toggle('is-open', next);
+  const main = row.querySelector(':scope > .status-row-main');
+  if (main?.tagName === 'BUTTON') main.setAttribute('aria-expanded', next ? 'true' : 'false');
+  const details = pulseRowDetails(row);
+  if (details) details.hidden = !next || details.childElementCount === 0;
+  const fold = row.dataset.fold ? document.getElementById(row.dataset.fold) : null;
+  if (fold) {
+    if (fold.tagName === 'DETAILS') fold.open = next;
+    else fold.hidden = !next;
+  }
+}
+
+function pulseSyncExpandAffordance(row) {
+  if (!row) return;
+  const expandable = pulseRowExpandable(row);
+  let main = row.querySelector(':scope > .status-row-main');
+  if (!main) return;
+  if (expandable && main.tagName !== 'BUTTON') {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'status-row-main';
+    while (main.firstChild) btn.appendChild(main.firstChild);
+    main.replaceWith(btn);
+    main = btn;
+  } else if (!expandable && main.tagName === 'BUTTON') {
+    const div = document.createElement('div');
+    div.className = 'status-row-main';
+    while (main.firstChild) div.appendChild(main.firstChild);
+    main.replaceWith(div);
+    main = div;
+    main.removeAttribute('aria-expanded');
+  }
+  if (main.tagName === 'BUTTON') {
+    const open = pulseOpenByKey.get(pulseRowStorageKey(row)) === true;
+    main.setAttribute('aria-expanded', open ? 'true' : 'false');
+  } else {
+    main.removeAttribute('aria-expanded');
+    row.classList.remove('is-open');
+  }
+}
+
+function pulseBindFoldToggle(row) {
+  const foldId = row?.dataset?.fold;
+  if (!foldId) return;
+  const fold = document.getElementById(foldId);
+  if (!fold || fold.tagName !== 'DETAILS' || fold.dataset.pulseBound === '1') return;
+  fold.dataset.pulseBound = '1';
+  fold.addEventListener('toggle', () => {
+    const key = row.dataset.id;
+    if (key) pulseOpenByKey.set(key, fold.open);
+    row.classList.toggle('is-open', fold.open);
+    const main = row.querySelector(':scope > .status-row-main');
+    if (main?.tagName === 'BUTTON') main.setAttribute('aria-expanded', fold.open ? 'true' : 'false');
+  });
 }
 
 function pulseRefreshSummary() {
   const nav = document.getElementById('pulseSummary');
   if (!nav) return;
   const labels = { ok: 'תקין', warning: 'אזהרה', error: 'תקלה', unknown: 'לא ידוע' };
-  nav.replaceChildren();
   for (const cat of PULSE_SUMMARY_CATS) {
+    let btn = nav.querySelector(`:scope > [data-pulse-jump="${cat.id}"]`);
+    if (!btn) {
+      btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'pulse-summary-cat';
+      btn.dataset.pulseJump = cat.id;
+      const title = document.createElement('span');
+      title.className = 'pulse-summary-title';
+      title.textContent = cat.title;
+      const countsEl = document.createElement('span');
+      countsEl.className = 'pulse-summary-counts';
+      for (const key of ['ok', 'warning', 'error', 'unknown']) {
+        const bit = document.createElement('span');
+        bit.className = 'pulse-count';
+        bit.dataset.bucket = key;
+        countsEl.appendChild(bit);
+      }
+      btn.append(title, countsEl);
+      nav.appendChild(btn);
+    }
     const root = document.querySelector(`[data-pulse-cat="${cat.id}"]`);
     const counts = { ok: 0, warning: 0, error: 0, unknown: 0 };
     root?.querySelectorAll('[data-status-bucket]').forEach((el) => {
@@ -4202,48 +4299,35 @@ function pulseRefreshSummary() {
       const bucket = el.dataset.statusBucket;
       if (Object.prototype.hasOwnProperty.call(counts, bucket)) counts[bucket] += 1;
     });
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'pulse-summary-cat';
-    btn.dataset.pulseJump = cat.id;
-    const title = document.createElement('span');
-    title.className = 'pulse-summary-title';
-    title.textContent = cat.title;
-    const countsEl = document.createElement('span');
-    countsEl.className = 'pulse-summary-counts';
     for (const key of ['ok', 'warning', 'error', 'unknown']) {
-      const bit = document.createElement('span');
-      bit.className = 'pulse-count';
-      bit.dataset.bucket = key;
-      bit.textContent = `${labels[key]} ${counts[key]}`;
-      countsEl.appendChild(bit);
+      const bit = btn.querySelector(`[data-bucket="${key}"]`);
+      const text = `${labels[key]} ${counts[key]}`;
+      if (bit && bit.textContent !== text) bit.textContent = text;
     }
-    btn.append(title, countsEl);
-    nav.appendChild(btn);
+    const on = root?.classList.contains('is-highlight') === true;
+    const pressed = on ? 'true' : 'false';
+    if (btn.getAttribute('aria-pressed') !== pressed) btn.setAttribute('aria-pressed', pressed);
+    if (on) btn.setAttribute('aria-current', 'true');
+    else btn.removeAttribute('aria-current');
   }
 }
 
 function pulseJumpToCategory(id) {
   const target = document.querySelector(`[data-pulse-cat="${id}"]`);
   if (!target) return;
+  const clear = target.classList.contains('is-highlight');
   document.querySelectorAll('.pulse-cat').forEach((el) => {
-    el.classList.toggle('is-highlight', el === target);
+    el.classList.toggle('is-highlight', !clear && el === target);
   });
-  target.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  if (!clear) target.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  pulseRefreshSummary();
 }
 
 function pulseToggleStatusRow(row) {
-  if (!row) return;
-  const open = row.classList.toggle('is-open');
-  const main = row.querySelector('.status-row-main');
-  if (main?.tagName === 'BUTTON') main.setAttribute('aria-expanded', open ? 'true' : 'false');
-  const details = row.querySelector(':scope > .status-row-details');
-  if (details) details.hidden = !open || details.childElementCount === 0;
-  const fold = row.dataset.fold ? document.getElementById(row.dataset.fold) : null;
-  if (fold) {
-    if (fold.tagName === 'DETAILS') fold.open = open;
-    else fold.hidden = !open;
-  }
+  if (!row || !pulseRowExpandable(row)) return;
+  const key = pulseRowStorageKey(row);
+  const next = key ? pulseOpenByKey.get(key) !== true : !row.classList.contains('is-open');
+  pulseApplyOpen(row, next);
 }
 
 function initPulseStatusBoard() {
@@ -4262,9 +4346,7 @@ function initPulseStatusBoard() {
     if (!main || !root.contains(main)) return;
     const row = main.closest('.status-row, .vlr-row');
     if (!row) return;
-    const details = row.querySelector(':scope > .status-row-details');
-    const fold = row.dataset.fold ? document.getElementById(row.dataset.fold) : null;
-    if (!(details && details.childElementCount > 0) && !fold && main.tagName !== 'BUTTON') return;
+    if (!pulseRowExpandable(row)) return;
     e.preventDefault();
     pulseToggleStatusRow(row);
   });
@@ -4364,8 +4446,16 @@ function pulsePaintJetsonFacts(companion) {
   const subs = companion?.diagnostics?.subsystems;
   const entries = subs && typeof subs === 'object' ? Object.entries(subs) : [];
   const row = document.querySelector('#pulseJetsonMetricRows [data-metric="jetson-services"]');
-  const details = row?.querySelector('.status-row-details');
-  if (details) {
+  let details = row?.querySelector(':scope > .status-row-details');
+  const sig = entries.map(([name, state]) => `${name}:${state ?? ''}`).join('|');
+  if (row && entries.length && !details) {
+    details = document.createElement('div');
+    details.className = 'status-row-details';
+    details.hidden = true;
+    row.appendChild(details);
+  }
+  if (details && details.dataset.sig !== sig) {
+    details.dataset.sig = sig;
     details.replaceChildren();
     for (const [name, state] of entries) {
       const line = document.createElement('p');
@@ -4375,6 +4465,12 @@ function pulsePaintJetsonFacts(companion) {
     }
   }
   if (!entries.length) {
+    if (details) {
+      details.replaceChildren();
+      details.dataset.sig = '';
+      details.hidden = true;
+    }
+    if (row) pulseOpenByKey.set('jetson-services', false);
     pulsePaintMetric('pulseJetsonMetricRows', 'jetson-services', {
       pill: 'לא ידוע', reason: '', bucket: 'unknown', tone: 'off',
     });
@@ -4387,6 +4483,10 @@ function pulsePaintJetsonFacts(companion) {
       bucket,
       tone: bucket === 'ok' ? 'ok' : bucket === 'error' ? 'bad' : 'off',
     });
+  }
+  if (row) {
+    pulseSyncExpandAffordance(row);
+    pulseApplyOpen(row, pulseOpenByKey.get('jetson-services') === true && entries.length > 0);
   }
 }
 
@@ -4475,47 +4575,83 @@ function pulseRefreshStatusBoard() {
   pulseRefreshSummary();
 }
 
+function pulseDetailSignature(row) {
+  const keys = Array.isArray(row?.keys)
+    ? row.keys.map((key) => `${key.key || ''}:${key.state || ''}:${key.nameHe || ''}`).join(',')
+    : '';
+  const tokens = Array.isArray(row?.tokens) ? row.tokens.join(',') : '';
+  return `${keys}|${tokens}|${row?.id === 'plnd_profile' ? 'params' : ''}`;
+}
+
+function pulseUpsertStatusRow(row, detailNodes) {
+  const id = String(row?.id || '');
+  const cat = PULSE_VLR_CATEGORY[row.id] || 'vision';
+  const host = document.querySelector(`[data-vlr-host="${cat}"]`);
+  if (!host || !id) return null;
+  let art = host.querySelector(`:scope > .vlr-row[data-id="${id}"]`);
+  if (!art) {
+    art = document.createElement('article');
+    art.className = 'vlr-row status-row';
+    art.dataset.id = id;
+    const main = document.createElement('div');
+    main.className = 'status-row-main';
+    const name = document.createElement('span');
+    name.className = 'vlr-name';
+    const miss = document.createElement('p');
+    miss.className = 'vlr-missing';
+    const chip = document.createElement('span');
+    chip.className = 'vlr-chip';
+    main.append(name, miss, chip);
+    const details = document.createElement('div');
+    details.className = 'status-row-details';
+    details.hidden = true;
+    art.append(main, details);
+    host.appendChild(art);
+  } else if (art.parentElement !== host) {
+    host.appendChild(art);
+  }
+  art.dataset.state = String(row.state || '');
+  art.dataset.tone = String(row.tone || 'off');
+  art.dataset.stage = String(row.stage || 'experiment_1');
+  art.dataset.required = row.requiredForExperiment1 === false ? 'false' : 'true';
+  art.dataset.statusBucket = pulseStatusBucket(row.tone, row.state);
+  if (row.successCriterion) art.dataset.success = 'true';
+  else delete art.dataset.success;
+  if (row.id === 'annotated_video') {
+    art.dataset.reason = String(row.reason || '');
+    art.dataset.path = String(row.path || 'cellular');
+    art.dataset.available = row.available === true ? 'true' : 'false';
+    art.dataset.neverRadio = 'true';
+  }
+  const fold = PULSE_VLR_FOLD[row.id];
+  if (fold) art.dataset.fold = fold;
+  else delete art.dataset.fold;
+  const nameEl = art.querySelector('.vlr-name');
+  const chipEl = art.querySelector('.vlr-chip');
+  const missEl = art.querySelector('.vlr-missing');
+  if (nameEl && nameEl.textContent !== (row.nameHe || '')) nameEl.textContent = row.nameHe || '';
+  if (chipEl && chipEl.textContent !== (row.stateHe || '')) chipEl.textContent = row.stateHe || '';
+  if (missEl && missEl.textContent !== (row.missingHe || '')) missEl.textContent = row.missingHe || '';
+  const details = art.querySelector(':scope > .status-row-details');
+  const sig = pulseDetailSignature(row);
+  if (details && details.dataset.sig !== sig) {
+    details.dataset.sig = sig;
+    details.replaceChildren(...detailNodes);
+  }
+  pulseSyncExpandAffordance(art);
+  pulseBindFoldToggle(art);
+  pulseApplyOpen(art, pulseOpenByKey.get(id) === true);
+  return art;
+}
+
 function renderVisionLandingReadiness(container, snapshot) {
   if (!container) return;
   const compact = container.id === 'pfdReadinessBody';
   const distribute = container.id === 'visionLandingReadinessList';
-  const openRowIds = new Set();
-  if (distribute) {
-    document.querySelectorAll('[data-vlr-host]').forEach((host) => {
-      host.querySelectorAll(':scope > .vlr-row').forEach((el) => {
-        const details = el.querySelector(':scope > .status-row-details');
-        if (details && !details.hidden && el.dataset.id) openRowIds.add(el.dataset.id);
-        el.remove();
-      });
-    });
-  } else {
-    container.innerHTML = '';
-  }
+  if (!distribute) container.innerHTML = '';
   const rows = Array.isArray(snapshot?.rows) ? snapshot.rows : [];
+  const seen = new Set();
   for (const row of rows) {
-    const art = document.createElement('article');
-    art.className = 'vlr-row';
-    art.dataset.id = String(row.id || '');
-    art.dataset.state = String(row.state || '');
-    art.dataset.tone = String(row.tone || 'off');
-    art.dataset.stage = String(row.stage || 'experiment_1');
-    art.dataset.required = row.requiredForExperiment1 === false ? 'false' : 'true';
-    if (row.successCriterion) art.dataset.success = 'true';
-    if (row.id === 'annotated_video') {
-      art.dataset.reason = String(row.reason || '');
-      art.dataset.path = String(row.path || 'cellular');
-      art.dataset.available = row.available === true ? 'true' : 'false';
-      art.dataset.neverRadio = 'true';
-    }
-    const name = document.createElement('span');
-    name.className = 'vlr-name';
-    name.textContent = row.nameHe || '';
-    const chip = document.createElement('span');
-    chip.className = 'vlr-chip';
-    chip.textContent = row.stateHe || '';
-    const miss = document.createElement('p');
-    miss.className = 'vlr-missing';
-    miss.textContent = row.missingHe || '';
     const detailNodes = [];
     if (!compact && Array.isArray(row.keys) && row.keys.length) {
       const list = document.createElement('ul');
@@ -4548,32 +4684,57 @@ function renderVisionLandingReadiness(container, snapshot) {
       detailNodes.push(open);
     }
     if (distribute) {
-      art.classList.add('status-row');
-      art.dataset.statusBucket = pulseStatusBucket(row.tone, row.state);
-      const fold = PULSE_VLR_FOLD[row.id];
-      if (fold) art.dataset.fold = fold;
-      const rowOpen = openRowIds.has(String(row.id || ''));
-      const main = document.createElement('button');
-      main.type = 'button';
-      main.className = 'status-row-main';
-      main.setAttribute('aria-expanded', rowOpen ? 'true' : 'false');
-      main.append(name, miss, chip);
-      art.appendChild(main);
-      const details = document.createElement('div');
-      details.className = 'status-row-details';
-      details.hidden = !rowOpen;
-      for (const node of detailNodes) details.appendChild(node);
-      art.appendChild(details);
-      const cat = PULSE_VLR_CATEGORY[row.id] || 'vision';
-      const host = document.querySelector(`[data-vlr-host="${cat}"]`) || container;
-      host.appendChild(art);
+      seen.add(String(row.id || ''));
+      pulseUpsertStatusRow(row, detailNodes);
     } else {
+      const art = document.createElement('article');
+      art.className = 'vlr-row';
+      art.dataset.id = String(row.id || '');
+      art.dataset.state = String(row.state || '');
+      art.dataset.tone = String(row.tone || 'off');
+      art.dataset.stage = String(row.stage || 'experiment_1');
+      art.dataset.required = row.requiredForExperiment1 === false ? 'false' : 'true';
+      if (row.successCriterion) art.dataset.success = 'true';
+      if (row.id === 'annotated_video') {
+        art.dataset.reason = String(row.reason || '');
+        art.dataset.path = String(row.path || 'cellular');
+        art.dataset.available = row.available === true ? 'true' : 'false';
+        art.dataset.neverRadio = 'true';
+      }
+      const name = document.createElement('span');
+      name.className = 'vlr-name';
+      name.textContent = row.nameHe || '';
+      const chip = document.createElement('span');
+      chip.className = 'vlr-chip';
+      chip.textContent = row.stateHe || '';
+      const miss = document.createElement('p');
+      miss.className = 'vlr-missing';
+      miss.textContent = row.missingHe || '';
       art.append(name, chip, miss);
       for (const node of detailNodes) art.appendChild(node);
       container.appendChild(art);
     }
   }
-  if (distribute) pulseRefreshSummary();
+  if (distribute) {
+    document.querySelectorAll('[data-vlr-host] > .vlr-row').forEach((el) => {
+      if (!seen.has(el.dataset.id || '')) el.remove();
+    });
+    const byHost = new Map();
+    for (const row of rows) {
+      const cat = PULSE_VLR_CATEGORY[row.id] || 'vision';
+      const host = document.querySelector(`[data-vlr-host="${cat}"]`);
+      const art = host?.querySelector(`:scope > .vlr-row[data-id="${row.id}"]`);
+      if (!host || !art) continue;
+      if (!byHost.has(host)) byHost.set(host, []);
+      byHost.get(host).push(art);
+    }
+    for (const [host, arts] of byHost) {
+      arts.forEach((art, index) => {
+        if (host.children[index] !== art) host.insertBefore(art, host.children[index] || null);
+      });
+    }
+    pulseRefreshSummary();
+  }
   if (compact && snapshot?.fieldPreflight) {
     const wrap = document.createElement('section');
     wrap.className = 'vlr-field';
@@ -4663,7 +4824,7 @@ function pulseRefresh() {
   const linkLabel = document.getElementById('connectPillLabel')?.textContent?.trim() || '';
   const pillFromCompanion = companion.pillLabelHe || companion.link?.pillLabelHe || '';
   const agreedLink = pillFromCompanion || linkLabel;
-  const linkText = (!agreedLink || agreedLink === 'לא מחובר' || agreedLink === 'מנותק') ? '--' : agreedLink;
+  const linkText = (!agreedLink || agreedLink === 'לא מחובר' || agreedLink === 'מנותק') ? 'לא ידוע' : agreedLink;
   if (linkEl) linkEl.textContent = linkText;
   const missionLink = document.getElementById('missionLink');
   if (missionLink) {
@@ -4672,7 +4833,7 @@ function pulseRefresh() {
   }
   const jetson = (typeof latestJetsonFromServer !== 'undefined' && latestJetsonFromServer) ? latestJetsonFromServer : {};
   const jetsonMetrics = pulseJetsonSystemMetrics(companion, jetson);
-  const jetsonMissing = honesty.jetsonLive ? 'אין נתון' : '--';
+  const jetsonMissing = honesty.jetsonLive ? 'אין נתון' : 'לא ידוע';
   pulseWriteComputerMetric('pulseJetsonLoad', pulseComputerMetricValue(honesty.jetsonLive, jetsonMetrics.load), '%', jetsonMissing);
   pulseWriteComputerMetric('pulseJetsonMem', pulseComputerMetricValue(honesty.jetsonLive, jetsonMetrics.mem), '%', jetsonMissing);
   pulseWriteComputerMetric('pulseJetsonTemp', pulseComputerMetricValue(honesty.jetsonLive, jetsonMetrics.temp), 'C', jetsonMissing);

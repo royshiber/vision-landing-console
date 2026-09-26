@@ -261,4 +261,124 @@ describe('Status tab layout contract', () => {
     const label = await page.locator('.vlr-row[data-id="plnd_profile"] .vlr-open-params').textContent();
     expect(label).toBe('פתח בפרמטרים');
   }, 30000);
+
+  it('keeps a row open or closed across polling ticks', async () => {
+    await openStatus(1440, 900);
+    const empty = await page.evaluate(() => {
+      const main = document.querySelector('.vlr-row[data-id="camera_vision"] .status-row-main');
+      return { tag: main.tagName, expanded: main.getAttribute('aria-expanded') };
+    });
+    expect(empty.tag).toBe('DIV');
+    expect(empty.expanded).toBeNull();
+    const sameNode = await page.evaluate(async () => {
+      const row = document.querySelector('.vlr-row[data-id="plnd_profile"]');
+      const main = row.querySelector('.status-row-main');
+      main.click();
+      await refreshVisionLandingReadiness();
+      pulseRefresh();
+      await new Promise((r) => setTimeout(r, 300));
+      const still = document.querySelector('.vlr-row[data-id="plnd_profile"]');
+      const open = {
+        same: still === row,
+        expanded: still.querySelector('.status-row-main').getAttribute('aria-expanded'),
+        hidden: still.querySelector('.status-row-details').hidden,
+      };
+      still.querySelector('.status-row-main').click();
+      await refreshVisionLandingReadiness();
+      pulseRefresh();
+      await new Promise((r) => setTimeout(r, 300));
+      const closed = document.querySelector('.vlr-row[data-id="plnd_profile"]');
+      const fold = document.querySelector('.vlr-row[data-id="jetson_companion"]');
+      fold.querySelector('.status-row-main').click();
+      await refreshVisionLandingReadiness();
+      fold.querySelector('.status-row-main').click();
+      await refreshVisionLandingReadiness();
+      return {
+        open,
+        closed: {
+          same: closed === row,
+          expanded: closed.querySelector('.status-row-main').getAttribute('aria-expanded'),
+          hidden: closed.querySelector('.status-row-details').hidden,
+          cls: closed.classList.contains('is-open'),
+        },
+        foldHidden: document.getElementById('pulseJetsonFold').hidden,
+        foldExpanded: fold.querySelector('.status-row-main').getAttribute('aria-expanded'),
+      };
+    });
+    expect(sameNode.open.same).toBe(true);
+    expect(sameNode.open.expanded).toBe('true');
+    expect(sameNode.open.hidden).toBe(false);
+    expect(sameNode.closed.same).toBe(true);
+    expect(sameNode.closed.expanded).toBe('false');
+    expect(sameNode.closed.hidden).toBe(true);
+    expect(sameNode.closed.cls).toBe(false);
+    expect(sameNode.foldHidden).toBe(true);
+    expect(sameNode.foldExpanded).toBe('false');
+  }, 30000);
+
+  it('keeps keyboard focus while the status board polls', async () => {
+    await openStatus(1366, 768);
+    const focused = await page.evaluate(async () => {
+      const summary = document.querySelector('.pulse-summary-cat');
+      summary.focus();
+      const start = Date.now();
+      while (Date.now() - start < 1600) {
+        pulseRefresh();
+        await new Promise((r) => setTimeout(r, 200));
+      }
+      const summaryHeld = document.activeElement === summary;
+      const row = document.querySelector('.vlr-row[data-id="plnd_profile"] .status-row-main');
+      row.focus();
+      const start2 = Date.now();
+      while (Date.now() - start2 < 1600) {
+        pulseRefresh();
+        await new Promise((r) => setTimeout(r, 200));
+      }
+      return { summaryHeld, rowHeld: document.activeElement === row };
+    });
+    expect(focused.summaryHeld).toBe(true);
+    expect(focused.rowHeld).toBe(true);
+  }, 30000);
+
+  it('draws field-preflight rows apart and clears the ask button', async () => {
+    await openStatus(1024, 576);
+    await page.click('#pulseCatLanding .pulse-cat-more > summary');
+    const field = await page.evaluate(() => {
+      const row = document.querySelector('#fieldPreflightList .vlr-row');
+      const box = (el) => {
+        const r = el.getBoundingClientRect();
+        return { left: r.left, top: r.top, right: r.right, bottom: r.bottom, h: r.height };
+      };
+      const name = box(row.querySelector('.vlr-name'));
+      const chip = box(row.querySelector('.vlr-chip'));
+      const miss = box(row.querySelector('.vlr-missing'));
+      const hit = (a, b) => a.left < b.right - 1 && a.right > b.left + 1 && a.top < b.bottom - 1 && a.bottom > b.top + 1;
+      const fonts = [...document.querySelectorAll('#fieldPreflightList .vlr-name, #fieldPreflightList .vlr-chip, #fieldPreflightList .vlr-missing')]
+        .map((el) => parseFloat(getComputedStyle(el).fontSize));
+      return { nameH: name.h, chipH: chip.h, overlap: hit(name, chip) || hit(name, miss) || hit(chip, miss), fonts };
+    });
+    expect(field.nameH).toBeGreaterThan(10);
+    expect(field.chipH).toBeGreaterThan(10);
+    expect(field.overlap).toBe(false);
+    expect(Math.min(...field.fonts)).toBeGreaterThanOrEqual(11);
+    for (const [w, h] of [[360, 740], [1024, 576]]) {
+      await page.setViewportSize({ width: w, height: h });
+      await page.evaluate(() => {
+        const home = document.querySelector('.pulse-home');
+        if (home) home.scrollTop = home.scrollHeight;
+        window.scrollTo(0, document.documentElement.scrollHeight);
+      });
+      await page.waitForTimeout(100);
+      const covered = await page.evaluate(() => {
+        const ask = document.getElementById('assistToggleBtn').getBoundingClientRect();
+        const nodes = [document.querySelector('.pulse-version-line'), document.querySelector('.pulse-home-pref')];
+        return nodes.map((el) => {
+          const r = el.getBoundingClientRect();
+          const hit = ask.left < r.right - 1 && ask.right > r.left + 1 && ask.top < r.bottom - 1 && ask.bottom > r.top + 1;
+          return { hit, askTop: ask.top, bottom: r.bottom };
+        });
+      });
+      expect(covered.every((row) => row.hit === false), JSON.stringify(covered)).toBe(true);
+    }
+  }, 30000);
 });
