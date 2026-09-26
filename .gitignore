@@ -15,6 +15,8 @@ scripts/jetson-companion/flightlog-storage.env
 **/flightlog-storage.env
 debug-*.log
 *.bak
+__pycache__/
+*.pyc
 
 # Sim Lab: Three.js + es-module-shims copied from node_modules (`npm run vendor:sync`)
 public/vendor/

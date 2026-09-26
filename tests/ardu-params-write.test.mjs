@@ -306,7 +306,7 @@ describe('POST /api/ardu/params/write', () => {
     }
   });
 
-  it('labels simulated:true and writes only dirty keys when disconnected', async () => {
+  it('refuses a disconnected write and does not publish the stored copy', async () => {
     const setParam = vi.fn();
     vi.spyOn(mavlinkConnection, 'getActiveConnection').mockReturnValue({
       connected: false,
@@ -325,6 +325,9 @@ describe('POST /api/ardu/params/write', () => {
       expect(emptyBody.written).toBe(0);
       expect(emptyBody.message).toBe('אין שינוי');
       expect(setParam).not.toHaveBeenCalled();
+      const before = await fetch(`${handle.base}/api/ardu/param-files`);
+      const beforeFiles = await before.json();
+      const beforeIds = (beforeFiles.files || []).map((file) => file.id);
 
       const res = await fetch(`${handle.base}/api/ardu/params/write`, {
         method: 'POST',
@@ -332,12 +335,21 @@ describe('POST /api/ardu/params/write', () => {
         body: JSON.stringify({ params: { LAND_SPEED: 91 } }),
       });
       const body = await res.json();
-      expect(res.status).toBe(200);
-      expect(body.ok).toBe(true);
-      expect(body.simulated).toBe(true);
-      expect(body.via).toBe('offline');
-      expect(body.written).toBe(1);
+      expect(res.status).toBe(409);
+      expect(body.ok).toBe(false);
+      expect(body.code).toBe('not_connected');
+      expect(body.simulated).toBe(false);
+      expect(body.written).toBe(0);
+      expect(body.message).toBe('אין חיבור לבקר הטיסה');
       expect(setParam).not.toHaveBeenCalled();
+      const after = await fetch(`${handle.base}/api/ardu/param-files`);
+      const afterFiles = await after.json();
+      expect((afterFiles.files || []).map((file) => file.id)).toEqual(beforeIds);
+      const read = await fetch(`${handle.base}/api/ardu/params`);
+      const readBody = await read.json();
+      expect(readBody.mavlinkConnected).toBe(false);
+      expect(readBody.connected).toBe(false);
+      expect(readBody.current).toBeNull();
     } finally {
       await stopCoreApi(handle);
     }
@@ -371,18 +383,21 @@ describe('Parameters UI WRITE sends dirty keys only', () => {
   const version = fs.readFileSync(path.join(repoRoot, 'version.js'), 'utf8');
   const pkg = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8'));
 
-  it('pins APP_VERSION at 1.02.337 after dirty-only WRITE', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.337'");
-    expect(pkg.version).toBe('1.02.337');
+  it('pins APP_VERSION at 1.02.343 after dirty-only WRITE', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.343'");
+    expect(pkg.version).toBe('1.02.343');
   });
 
   it('collects session-dirty params and posts them as body.params', () => {
     expect(js).toContain('function collectDirtyArduParams()');
     expect(js).toContain('function captureArduWriteBaseline()');
-    expect(js).toContain('postGuardedFcParams(dirtyParams)');
+    expect(js).toContain('commitGuardedFcWrite(dirtyParams)');
+    expect(js).toContain('postGuardedFcParams(requested)');
     expect(js).toContain('body: JSON.stringify({ params })');
     expect(js).not.toMatch(/fetch\('\/api\/ardu\/params\/write'[\s\S]{0,220}body: '\{\}'/);
-    expect(js).toContain("d.code === 'bulk_cap'");
-    expect(js).toContain('הכתיבה ל-FC שולחת רק מה שערכת בסשן זה');
+    expect(fs.readFileSync(path.join(repoRoot, 'public/modules/fc-write-ack.mjs'), 'utf8')).toContain("data?.code === 'bulk_cap'");
+    expect(js).toContain('הכתיבה לבקר שולחת רק מה שערכתם בסשן זה');
+    expect(js).toContain('commitGuardedFcWrite');
+    expect(js).toContain('אין חיבור לבקר הטיסה');
   });
 });

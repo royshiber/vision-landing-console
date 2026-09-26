@@ -282,7 +282,7 @@ describe('Mission layout contract — live boxes', () => {
     });
 
     expect(measured.platformTab).toBe(false);
-    expect(measured.version).toBe('1.02.337');
+    expect(measured.version).toBe('1.02.343');
     expect(measured.ws.width).toBeGreaterThan(800);
     expect(measured.talkMinWidth).toBe('240px');
     expect(Number.parseFloat(measured.dataGap)).toBeLessThanOrEqual(4);
@@ -616,7 +616,9 @@ describe('Mission layout contract — live boxes', () => {
 
   it('keeps Pulse extra cards in flow without stacking', async () => {
     await page.click('[data-tab="pulse"]');
-    await page.waitForSelector('#pulseExtraRow .pulse-gauge.pulse-extra-gauge');
+    const addSummary = page.locator('.pulse-add-widget > summary');
+    if (await addSummary.count()) await addSummary.click();
+    await page.waitForSelector('#pulseExtraRow .pulse-gauge.pulse-extra-gauge', { state: 'visible' });
     const pulse = await page.evaluate(() => {
       const box = (el) => {
         const r = el.getBoundingClientRect();

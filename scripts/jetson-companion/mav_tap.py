@@ -8,10 +8,7 @@ import socket
 import threading
 import time
 
-try:
-    from pymavlink.dialects.v20 import ardupilotmega as _dialect
-except ImportError:
-    _dialect = None
+from mav_frames import FrameSplitter
 
 
 class MavTap(object):
@@ -34,8 +31,6 @@ class MavTap(object):
         self._ever_connected = False
 
     def start(self):
-        if _dialect is None:
-            raise RuntimeError("pymavlink_missing")
         self._threads = [
             threading.Thread(target=self._reader_loop, name="flightlog-tap-read", daemon=True),
             threading.Thread(target=self._decode_loop, name="flightlog-tap-decode", daemon=True),
@@ -101,8 +96,7 @@ class MavTap(object):
                 self.drops += 1
 
     def _decode_loop(self):
-        parser = _dialect.MAVLink(None)
-        parser.robust_parsing = True
+        splitter = FrameSplitter()
         while not self.stop.is_set():
             if self.stall is not None:
                 while not self.stall.is_set() and not self.stop.is_set():
@@ -113,21 +107,15 @@ class MavTap(object):
                 received_at, data = self.queue.get(timeout=0.2)
             except queue.Empty:
                 continue
-            before = int(getattr(parser, "total_receive_errors", 0) or 0)
             try:
-                parsed = parser.parse_buffer(data)
+                frames = splitter.feed(data)
             except Exception:
                 self.bad_data += 1
                 continue
-            after = int(getattr(parser, "total_receive_errors", 0) or 0)
-            if after > before:
-                self.bad_data += after - before
-            for msg in parsed or []:
-                if msg is None or msg.get_type() == "BAD_DATA":
-                    self.bad_data += 1
-                    continue
-                raw = msg.get_msgbuf()
-                frame = bytes(raw) if raw else b""
+            if splitter.skipped:
+                self.bad_data += splitter.skipped
+                splitter.skipped = 0
+            for frame, msg in frames:
                 self.frames += 1
                 self.last_msg_mono = time.monotonic()
                 try:

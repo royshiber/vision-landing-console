@@ -214,9 +214,9 @@
         <button class="tab tab-fly active" data-tab="terrain" title="הטסה">הטסה</button>
         <button class="tab tab-ops" data-tab="pulse" title="סטטוס מחשבים">סטטוס מחשבים</button>
         <button class="tab tab-ops" data-tab="control" title="פרמטרים">פרמטרים</button>
-        <button class="tab tab-ops" data-tab="recordings" title="תחקור">תחקור</button>
+        <button class="tab tab-ops" data-tab="recordings" title="אופטיקה ותחקור">אופטיקה ותחקור</button>
         <button class="tab tab-quiet" hidden data-tab="telemetry" title="אבחונים">אבחונים</button>
-        <button class="tab tab-ops" data-tab="development" title="פיתוח">פיתוח</button>
+        <button class="tab tab-ops" hidden data-tab="development" title="פיתוח">פיתוח</button>
       </nav>
       <div class="app-chrome-tools">
         <span class="app-chrome-brand" aria-label="AIRVIX">AIRVIX</span>
@@ -459,7 +459,7 @@
               <option value="ardu-land">נחיתה</option>
               <option value="ardu-tecs">TECS / מהירות</option>
               <option value="ardu-nav">ניווט L1</option>
-              <option value="ardu-failsafe">כשל בטוח</option>
+              <option value="ardu-failsafe">Failsafe</option>
               <option value="ardu-serial">טורי / טלמטריה</option>
               <option value="ardu-battery">סוללה</option>
               <option value="ardu-rc">שלט ויציאות סרוו</option>
@@ -476,14 +476,108 @@
         <div id="arduTopCatsHost" class="ardu-top-cats-host hidden" role="tablist" aria-label="קטגוריות ArduPilot"></div>
       </div>
 
-      <section id="pulse" class="panel" aria-label="סטטוס מחשבים">
+      <section id="pulse" class="panel" aria-label="סטטוס מחשבים" data-layout-contract="status-v1">
         <div class="pulse-home pulse-status-home">
           <header class="pulse-hero">
             <h3 class="pulse-title">סטטוס מחשבים</h3>
             <p class="pulse-purpose">סטטוס מחשבים</p>
             <p class="pulse-health-note">בריאות מחשב המשימה והכלי. לא שינוי מוצר.</p>
           </header>
-          <div class="pulse-status-grid pulse-computers-band" aria-label="סטטוס מחשבים">
+          <p id="cam0StatusLine" class="cam0-status-line">
+            <span id="cam0StatusText">מצלמה אפס · לא מחובר · קצב —</span>
+            <button type="button" id="cam0StatusLink" class="cam0-status-link">אופטיקה ותחקור</button>
+          </p>
+          <nav id="pulseSummary" class="pulse-summary" aria-label="סיכום קטגוריות"></nav>
+          <div id="pulseCatGrid" class="pulse-cat-grid">
+            <article class="pulse-cat" id="pulseCatLinks" data-pulse-cat="links">
+              <header class="pulse-cat-head"><h4>חיבורים</h4></header>
+              <div class="pulse-cat-rows" id="pulseLinkStatusRows">
+                <article class="status-row" data-link="home" data-status-bucket="unknown" data-tone="off">
+                  <div class="status-row-main">
+                    <span class="status-row-name">רשת בית</span>
+                    <span class="status-row-reason" data-link-reason></span>
+                    <span class="status-row-pill" data-link-pill>לא ידוע</span>
+                  </div>
+                </article>
+                <article class="status-row" data-link="cellular" data-status-bucket="unknown" data-tone="off">
+                  <div class="status-row-main">
+                    <span class="status-row-name">סלולר</span>
+                    <span class="status-row-reason" data-link-reason></span>
+                    <span class="status-row-pill" data-link-pill>לא ידוע</span>
+                  </div>
+                </article>
+                <article class="status-row" data-link="radio" data-status-bucket="unknown" data-tone="off">
+                  <div class="status-row-main">
+                    <span class="status-row-name">רדיו טלמטריה</span>
+                    <span class="status-row-reason" data-link-reason></span>
+                    <span class="status-row-pill" data-link-pill>לא ידוע</span>
+                  </div>
+                </article>
+                <article class="status-row" data-link="rc" data-status-bucket="unknown" data-tone="off">
+                  <div class="status-row-main">
+                    <span class="status-row-name">RC</span>
+                    <span class="status-row-reason" data-link-reason></span>
+                    <span class="status-row-pill" data-link-pill>לא ידוע</span>
+                  </div>
+                </article>
+                <article class="status-row" data-link="relay" data-status-bucket="unknown" data-tone="off">
+                  <div class="status-row-main">
+                    <span class="status-row-name">ממסר</span>
+                    <span class="status-row-reason" data-link-reason></span>
+                    <span class="status-row-pill" data-link-pill>לא ידוע</span>
+                  </div>
+                </article>
+              </div>
+            </article>
+            <article class="pulse-cat" id="pulseCatJetson" data-pulse-cat="jetson">
+              <header class="pulse-cat-head"><h4>מחשב משימה</h4></header>
+              <div class="pulse-cat-rows">
+                <div id="pulseHostJetson" data-vlr-host="jetson"></div>
+                <div id="pulseJetsonMetricRows" class="pulse-metric-rows">
+                  <article class="status-row" data-metric="jetson-version" data-status-bucket="unknown" data-tone="off">
+                    <div class="status-row-main">
+                      <span class="status-row-name">גרסה</span>
+                      <span class="status-row-reason" data-metric-reason></span>
+                      <span class="status-row-pill" data-metric-pill>לא ידוע</span>
+                    </div>
+                  </article>
+                  <article class="status-row" data-metric="jetson-load" data-status-bucket="unknown" data-tone="off">
+                    <div class="status-row-main">
+                      <span class="status-row-name">עומס</span>
+                      <span class="status-row-reason" data-metric-reason></span>
+                      <span class="status-row-pill" data-metric-pill>לא ידוע</span>
+                    </div>
+                  </article>
+                  <article class="status-row" data-metric="jetson-mem" data-status-bucket="unknown" data-tone="off">
+                    <div class="status-row-main">
+                      <span class="status-row-name">זיכרון</span>
+                      <span class="status-row-reason" data-metric-reason></span>
+                      <span class="status-row-pill" data-metric-pill>לא ידוע</span>
+                    </div>
+                  </article>
+                  <article class="status-row" data-metric="jetson-temp" data-status-bucket="unknown" data-tone="off">
+                    <div class="status-row-main">
+                      <span class="status-row-name">טמפרטורה</span>
+                      <span class="status-row-reason" data-metric-reason></span>
+                      <span class="status-row-pill" data-metric-pill>לא ידוע</span>
+                    </div>
+                  </article>
+                  <article class="status-row" data-metric="jetson-disk" data-status-bucket="unknown" data-tone="off">
+                    <div class="status-row-main">
+                      <span class="status-row-name">דיסק</span>
+                      <span class="status-row-reason" data-metric-reason></span>
+                      <span class="status-row-pill" data-metric-pill>לא ידוע</span>
+                    </div>
+                  </article>
+                  <article class="status-row" data-metric="jetson-services" data-status-bucket="unknown" data-tone="off">
+                    <div class="status-row-main">
+                      <span class="status-row-name">שירותים</span>
+                      <span class="status-row-reason" data-metric-reason></span>
+                      <span class="status-row-pill" data-metric-pill>לא ידוע</span>
+                    </div>
+                  </article>
+                </div>
+                <div id="pulseJetsonFold" class="pulse-cat-fold" hidden>
             <article class="pulse-status-card pulse-computer-card" data-pulse-kind="companion" data-computer="jetson">
               <header class="pulse-computer-head">
                 <div class="pulse-computer-name">
@@ -529,12 +623,64 @@
                 </div>
               </div>
             </article>
+                </div>
+              </div>
+            </article>
+            <article class="pulse-cat" id="pulseCatFc" data-pulse-cat="fc">
+              <header class="pulse-cat-head"><h4>בקר טיסה</h4></header>
+              <div class="pulse-cat-rows">
+                <div id="pulseHostFc" data-vlr-host="fc"></div>
+                <div id="pulseFcMetricRows" class="pulse-metric-rows">
+                  <article class="status-row" data-metric="fc-mode" data-status-bucket="unknown" data-tone="off">
+                    <div class="status-row-main">
+                      <span class="status-row-name">מוד</span>
+                      <span class="status-row-reason" data-metric-reason></span>
+                      <span class="status-row-pill" data-metric-pill>לא ידוע</span>
+                    </div>
+                  </article>
+                  <article class="status-row" data-metric="fc-arm" data-status-bucket="unknown" data-tone="off">
+                    <div class="status-row-main">
+                      <span class="status-row-name">חימוש</span>
+                      <span class="status-row-reason" data-metric-reason></span>
+                      <span class="status-row-pill" data-metric-pill>לא ידוע</span>
+                    </div>
+                  </article>
+                  <article class="status-row" data-metric="fc-gps" data-status-bucket="unknown" data-tone="off">
+                    <div class="status-row-main">
+                      <span class="status-row-name">GPS</span>
+                      <span class="status-row-reason" data-metric-reason></span>
+                      <span class="status-row-pill" data-metric-pill>לא ידוע</span>
+                    </div>
+                  </article>
+                  <article class="status-row" data-metric="fc-battery" data-status-bucket="unknown" data-tone="off">
+                    <div class="status-row-main">
+                      <span class="status-row-name">סוללה</span>
+                      <span class="status-row-reason" data-metric-reason></span>
+                      <span class="status-row-pill" data-metric-pill>לא ידוע</span>
+                    </div>
+                  </article>
+                  <article class="status-row" data-metric="fc-ekf" data-status-bucket="unknown" data-tone="off">
+                    <div class="status-row-main">
+                      <span class="status-row-name">EKF</span>
+                      <span class="status-row-reason" data-metric-reason></span>
+                      <span class="status-row-pill" data-metric-pill>לא ידוע</span>
+                    </div>
+                  </article>
+                  <article class="status-row" data-metric="fc-params" data-status-bucket="unknown" data-tone="off">
+                    <div class="status-row-main">
+                      <span class="status-row-name">סנכרון פרמטרים</span>
+                      <span class="status-row-reason" data-metric-reason></span>
+                      <span class="status-row-pill" data-metric-pill>לא ידוע</span>
+                    </div>
+                  </article>
+                </div>
+                <div id="pulseFcFold" class="pulse-cat-fold" hidden>
             <article class="pulse-status-card pulse-computer-card" data-pulse-kind="aircraft" data-computer="fc">
               <header class="pulse-computer-head">
                 <div class="pulse-computer-name">
                   <h4>הכלי</h4>
                   <p class="pulse-computer-who">FC</p>
-                  <p class="pulse-status-note">קישור <span id="pulseLink" dir="ltr">--</span></p>
+                  <p class="pulse-status-note">קישור <span id="pulseLink" dir="ltr">לא ידוע</span></p>
                 </div>
                 <p id="pulseAircraft" class="pulse-computer-state">מנותק</p>
               </header>
@@ -577,33 +723,48 @@
               <div class="pulse-computer-foot">
                 <div class="pulse-version-block" data-version-kind="fc">
                   <p class="pulse-version-k">זהות</p>
-                  <p id="pulseFcVersion" class="pulse-version-v" dir="ltr">--</p>
-                  <p id="pulseFcIdentity" class="pulse-version-state">--</p>
+                  <p id="pulseFcVersion" class="pulse-version-v" dir="ltr">לא ידוע</p>
+                  <p id="pulseFcIdentity" class="pulse-version-state">לא ידוע</p>
                 </div>
               </div>
             </article>
-          </div>
-          <section id="visionLandingReadiness" class="vlr-panel" aria-label="מוכנות נחיתה לפי ראייה">
-            <header class="vlr-head">
-              <h4 class="vlr-title">מוכנות נחיתה לפי ראייה</h4>
+                </div>
+              </div>
+            </article>
+            <section id="visionLandingReadiness" class="pulse-cat" data-pulse-cat="vision" aria-label="מצלמות וראייה">
+              <header class="pulse-cat-head">
+                <h4>מצלמות וראייה</h4>
+                <p class="vlr-title">מוכנות נחיתה לפי ראייה</p>
+              </header>
               <p class="vlr-purpose">ניסוי כנף קבועה. טייס מפקד מטיס ידנית עד הגמר. המערכת צופה בלבד.</p>
               <p class="vlr-success">הצלחה היא זיהוי מסלול בגישת הגמר בלבד. סימון ונעילה אינם נדרשים.</p>
-            </header>
-            <div id="visionLandingReadinessList" class="vlr-list"></div>
-            <section id="fieldPreflight" class="vlr-field" aria-label="מוכנות שדה לניסוי אחד">
-              <header class="vlr-head">
-                <h4 class="vlr-title" id="fieldPreflightTitle">מוכנות שדה · ניסוי אחד</h4>
-                <p class="vlr-purpose" id="fieldPreflightPurpose">רשימת שדה לפני טיסה ראשונה. בלי המצאת חומרה.</p>
-              </header>
-              <div id="fieldPreflightList" class="vlr-list"></div>
-              <section id="updateReadinessChecklist" class="vlr-update" aria-label="עדכון בקר ומחשב משימה">
-                <h5 class="vlr-update-title">עדכון בקר ומחשב משימה</h5>
-                <p class="vlr-update-lead">הבזקה דורשת אישור. אין הבזקה מכאן.</p>
-                <div id="updateReadinessList" class="vlr-list"></div>
-              </section>
+              <div id="visionLandingReadinessList" class="vlr-list" data-vlr-host="vision"></div>
+              <details id="pulseCameraInstallFold" class="pulse-cat-more">
+                <summary>התקנת מצלמות</summary>
+                <section id="cameraInstallChecklist" class="cic-panel" aria-label="התקנת מצלמות"></section>
+              </details>
             </section>
-            <section id="cameraInstallChecklist" class="cic-panel" aria-label="התקנת מצלמות"></section>
-          </section>
+            <article class="pulse-cat" id="pulseCatLanding" data-pulse-cat="landing">
+              <header class="pulse-cat-head"><h4>נחיתה</h4></header>
+              <div id="pulseHostLanding" class="pulse-cat-rows" data-vlr-host="landing"></div>
+              <details class="pulse-cat-more">
+                <summary>מוכנות שדה</summary>
+                <section id="fieldPreflight" class="vlr-field" aria-label="מוכנות שדה לניסוי אחד">
+                  <header class="vlr-head">
+                    <h4 class="vlr-title" id="fieldPreflightTitle">מוכנות שדה · ניסוי אחד</h4>
+                    <p class="vlr-purpose" id="fieldPreflightPurpose">רשימת שדה לפני טיסה ראשונה. בלי המצאת חומרה.</p>
+                  </header>
+                  <div id="fieldPreflightList" class="vlr-list"></div>
+                  <section id="updateReadinessChecklist" class="vlr-update" aria-label="עדכון בקר ומחשב משימה">
+                    <h5 class="vlr-update-title">עדכון בקר ומחשב משימה</h5>
+                    <p class="vlr-update-lead">הבזקה דורשת אישור. אין הבזקה מכאן.</p>
+                    <div id="updateReadinessList" class="vlr-list"></div>
+                  </section>
+                </section>
+              </details>
+            </article>
+          </div>
+          <div class="pulse-dock">
           <article class="pulse-status-card pulse-talk-card" data-pulse-kind="assist">
             <div class="pulse-talk-copy">
               <h4><bdi dir="ltr">AIRVIX Ask</bdi></h4>
@@ -611,8 +772,8 @@
             </div>
             <button type="button" id="pulseTalkBtn" class="first-open-btn pulse-talk-btn" data-first-action="assist">שאלו את <bdi dir="ltr">AIRVIX Ask</bdi></button>
           </article>
-          <section class="pulse-add-widget" aria-label="הוספת מד">
-            <p class="pulse-add-widget-title">מה להציג עוד</p>
+          <details class="pulse-add-widget" aria-label="הוספת מד">
+            <summary class="pulse-add-widget-title">מה להציג עוד</summary>
             <div class="pulse-add-widget-row">
               <input id="pulseAddWidgetInput" class="pulse-add-widget-input" type="text" maxlength="120" placeholder="למשל עומס או גובה" autocomplete="off" />
               <button type="button" id="pulseAddWidgetBtn" class="pulse-add-widget-btn">הוסיפו</button>
@@ -626,7 +787,7 @@
             </div>
             <div id="pulseAddWidgetChips" class="pulse-add-widget-chips"></div>
             <div id="pulseExtraRow" class="pulse-extra-row" aria-label="מדדים נוספים"></div>
-          </section>
+          </details>
           <section id="pulseAttention" class="pulse-attention" hidden aria-label="תשומת לב"></section>
           <p class="pulse-version-line">קונסולה <span id="pulseVersion" dir="ltr">--</span> <span id="pulseConsoleVersionState" class="pulse-version-state" data-offer="current">מעודכן</span></p>
           <button type="button" id="pulseEvolveGlance" class="pulse-evolve" hidden>משימה רצה</button>
@@ -635,31 +796,32 @@
             <button type="button" id="pulseHomePulseBtn" class="pulse-home-pref-btn is-active" data-pulse-home="pulse">סטטוס מחשבים</button>
             <button type="button" id="pulseHomeTeleBtn" class="pulse-home-pref-btn" data-pulse-home="telemetry">טלמטריה</button>
           </p>
+          </div>
         </div>
       </section>
       <section id="control" class="panel" data-layout-contract="params-v1" dir="rtl">
         <div class="panel-header">
           <div class="param-toolbar" aria-label="סנכרון פרמטרים">
-            <section class="param-tool-seg" aria-label="מחשב משימה">
+            <section class="param-tool-seg" aria-label="גיבוי בקונסולה">
               <header class="param-tool-head">
-                <h3 class="param-tool-title">מחשב משימה <bdi dir="ltr">(Jetson)</bdi></h3>
+                <h3 class="param-tool-title">גיבוי בקונסולה</h3>
                 <p id="jetsonToolState" class="param-tool-state" data-state="unknown">לא ידוע</p>
               </header>
               <p id="jetsonToolMeta" class="param-tool-meta">קריאה אחרונה: לא ידוע · לא מסונכרן: לא ידוע</p>
               <div class="param-tool-actions">
-                <button type="button" id="visionConfigReadBtn" class="param-tool-btn param-tool-btn--primary" title="טוען את פרופיל המסך ופרמטרי ArduPilot השמורים">קריאה</button>
-                <button type="button" id="visionConfigWriteBtn" class="param-tool-btn param-tool-btn--secondary" title="שומר את פרופיל המסך ופרמטרי ArduPilot">כתיבה</button>
+                <button type="button" id="visionConfigReadBtn" class="param-tool-btn param-tool-btn--primary" title="טוען את הגיבוי השמור בקונסולה">קריאה</button>
+                <button type="button" id="visionConfigWriteBtn" class="param-tool-btn param-tool-btn--secondary" title="שומר גיבוי בקונסולה">כתיבה</button>
               </div>
             </section>
-            <section class="param-tool-seg" aria-label="בקר טיסה">
+            <section class="param-tool-seg" aria-label="FC">
               <header class="param-tool-head">
-                <h3 class="param-tool-title">בקר טיסה <bdi dir="ltr">(FC)</bdi></h3>
+                <h3 class="param-tool-title">בקר הטיסה <bdi dir="ltr">(FC)</bdi></h3>
                 <p id="fcToolState" class="param-tool-state" data-state="unknown">לא ידוע</p>
               </header>
               <p id="fcToolMeta" class="param-tool-meta">קריאה אחרונה: לא ידוע · לא מסונכרן: לא ידוע</p>
               <div class="param-tool-actions">
-                <button type="button" id="arduReadBtn" class="param-tool-btn param-tool-btn--primary" title="קורא פרמטרים מה-FC דרך MAVLink">קריאה</button>
-                <button type="button" id="arduWriteBtn" class="param-tool-btn param-tool-btn--secondary" disabled title="אין קישור לבקר. הכתיבה חסומה.">כתיבה</button>
+                <button type="button" id="arduReadBtn" class="param-tool-btn param-tool-btn--primary" title="קורא פרמטרים מבקר הטיסה">קריאה</button>
+                <button type="button" id="arduWriteBtn" class="param-tool-btn param-tool-btn--secondary" disabled title="אין חיבור לבקר הטיסה">כתיבה לבקר</button>
               </div>
             </section>
             <div class="param-tool-files">
@@ -821,38 +983,42 @@
         <div id="debriefFlightbookPanel" class="tele-subpanel fb-panel" data-debrief-panel="flightbook" data-layout-contract="flightbook-v1" dir="rtl"></div>
         <div id="debriefRecordingsPanel" class="recordings-layout tele-subpanel visible" data-debrief-panel="recordings">
           <div class="video-column">
+            <div class="debrief-player" id="debriefPlayer">
+              <p class="debrief-player-kicker">הקלטת תחקור</p>
+              <div class="debrief-player-stage">
+                <video id="flightVideo" controls playsinline hidden></video>
+                <canvas id="annotationCanvas"></canvas>
+                <div id="lockIndicator" class="lock-indicator" hidden></div>
+                <p id="debriefPlayerEmpty" class="debrief-player-empty">לא נטען וידאו</p>
+              </div>
+            </div>
             <div class="debrief-cam-toolbar" role="group" aria-label="מצלמות">
-              <button type="button" class="debrief-cam-toggle" data-debrief-cam="cam0" aria-pressed="true">Cam0</button>
-              <button type="button" class="debrief-cam-toggle" data-debrief-cam="cam1" aria-pressed="false">Cam1</button>
-              <button type="button" class="debrief-cam-toggle" data-debrief-cam="a8" aria-pressed="false">A8</button>
+              <button type="button" class="debrief-cam-toggle" data-debrief-cam="cam0" aria-pressed="true">מצלמה אפס</button>
+              <button type="button" class="debrief-cam-toggle" data-debrief-cam="cam1" aria-pressed="false">מצלמה 1</button>
+              <button type="button" class="debrief-cam-toggle" data-debrief-cam="a8" aria-pressed="false">גימבל</button>
             </div>
             <div id="debriefCamGrid" class="debrief-cam-grid video-wrapper" data-count="1" data-layout="cameras">
               <p id="debriefCamEmpty" class="debrief-cam-empty" hidden>בחרו מצלמה</p>
-              <figure class="debrief-cam-tile" data-cam="cam0" data-api="cam1" data-mono="1" data-slot="0" data-signal="none">
+              <figure class="debrief-cam-tile" data-cam="cam0" data-api="cam0" data-mono="1" data-slot="0" data-signal="none">
                 <div class="debrief-cam-stage">
-                  <video id="flightVideo" class="debrief-cam-media" controls playsinline></video>
                   <img class="debrief-cam-live debrief-cam-media" alt="" hidden />
-                  <canvas id="annotationCanvas"></canvas>
                   <p class="debrief-cam-nosignal">אין אות</p>
-                  <div id="lockIndicator" class="lock-indicator no-lock">אין נעילה</div>
                 </div>
-                <figcaption class="debrief-cam-label">Cam0</figcaption>
+                <figcaption class="debrief-cam-label">מצלמה אפס</figcaption>
               </figure>
               <figure class="debrief-cam-tile" data-cam="cam1" data-api="cam2" data-slot="1" data-signal="none" hidden>
                 <div class="debrief-cam-stage">
-                  <video class="debrief-cam-clone debrief-cam-media" muted playsinline></video>
                   <img class="debrief-cam-live debrief-cam-media" alt="" hidden />
                   <p class="debrief-cam-nosignal">אין אות</p>
                 </div>
-                <figcaption class="debrief-cam-label">Cam1</figcaption>
+                <figcaption class="debrief-cam-label">מצלמה 1</figcaption>
               </figure>
               <figure class="debrief-cam-tile" data-cam="a8" data-api="cam3" data-slot="2" data-signal="none" hidden>
                 <div class="debrief-cam-stage">
-                  <video class="debrief-cam-clone debrief-cam-media" muted playsinline></video>
                   <img class="debrief-cam-live debrief-cam-media" alt="" hidden />
                   <p class="debrief-cam-nosignal">אין אות</p>
                 </div>
-                <figcaption class="debrief-cam-label">A8</figcaption>
+                <figcaption class="debrief-cam-label">גימבל</figcaption>
               </figure>
             </div>
             <div class="annotation-legend">
@@ -864,9 +1030,62 @@
             <input id="timelineRange" type="range" min="0" max="100" value="0" />
           </div>
           <div class="events-column">
-            <h3>אירועים סביב הזמן הנוכחי</h3>
+            <h3>אירועים</h3>
             <div id="eventsList" class="events-list"></div>
           </div>
+          <section id="cam0Panel" class="cam0-panel" dir="rtl" aria-label="מצלמה אפס" data-camera-source="cam0">
+            <header class="cam0-head">
+              <h3 class="cam0-title">מצלמה אפס</h3>
+              <p id="cam0Honesty" class="cam0-honesty">אין אות</p>
+            </header>
+            <p id="cam0Reason" class="cam0-reason">אין קישור למחשב המשימה. הפקדים כבויים.</p>
+            <p id="cam0Error" class="cam0-error" role="alert" hidden></p>
+            <div class="cam0-layout">
+              <div class="cam0-stage" id="cam0Stage">
+                <p id="cam0Empty" class="cam0-empty">אין אות</p>
+                <img id="cam0Frame" class="cam0-frame" alt="" hidden />
+                <canvas id="cam0Overlay" class="cam0-overlay" hidden></canvas>
+              </div>
+              <div class="cam0-side">
+                <div class="cam0-hist-wrap">
+                  <p class="cam0-hist-label">היסטוגרמה</p>
+                  <canvas id="cam0Hist" class="cam0-hist" width="180" height="56" aria-label="היסטוגרמה"></canvas>
+                  <p id="cam0HistEmpty" class="cam0-hist-empty">אין נתונים</p>
+                </div>
+                <dl class="cam0-stats">
+                  <div><dt>קצב</dt><dd id="cam0Fps" dir="ltr">—</dd></div>
+                  <div><dt>השהיה</dt><dd id="cam0Latency" dir="ltr">—</dd></div>
+                  <div><dt>נפילות</dt><dd id="cam0Drops" dir="ltr">—</dd></div>
+                </dl>
+                <div class="cam0-controls">
+                  <label class="cam0-check"><input type="checkbox" id="cam0Ae" disabled /> חשיפה אוטומטית</label>
+                  <label>חשיפה <input id="cam0Exposure" type="number" min="10" max="100001" step="10" dir="ltr" disabled /></label>
+                  <label>הגבר <input id="cam0Gain" type="number" min="16" max="256" step="1" dir="ltr" disabled /></label>
+                  <label>רזולוציה
+                    <select id="cam0Res" dir="ltr" disabled>
+                      <option value="1280x800">1280×800</option>
+                      <option value="1280x720">1280×720</option>
+                    </select>
+                  </label>
+                  <label>קצב יעד <input id="cam0FpsSet" type="number" min="1" max="60" step="1" dir="ltr" disabled /></label>
+                  <button type="button" id="cam0Record" class="cam0-btn" disabled>הקלטה</button>
+                  <span id="cam0RecDot" class="cam0-rec" hidden>מקליט</span>
+                  <button type="button" id="cam0Snap" class="cam0-btn" disabled>צילום</button>
+                  <label class="cam0-check"><input type="checkbox" id="cam0OverlayToggle" checked /> זיהויים</label>
+                </div>
+                <section class="cam0-calib" aria-label="כיול">
+                  <h4>כיול</h4>
+                  <p class="cam0-calib-lead">החזיקו לוח שחמט מול המצלמה. כל צילום נשמר, ואז פותרים.</p>
+                  <p id="cam0CalibState" class="cam0-calib-state">עדיין אין כיול.</p>
+                  <div class="cam0-controls">
+                    <button type="button" id="cam0CalibCap" class="cam0-btn" disabled>צילום לוח</button>
+                    <button type="button" id="cam0CalibSolve" class="cam0-btn" disabled>פתרון</button>
+                  </div>
+                </section>
+              </div>
+            </div>
+            <select id="cam0SourceAdapter" class="cam0-source-adapter" data-camera-source-picker hidden aria-hidden="true"></select>
+          </section>
         </div>
         <div id="debriefLogsPanel" class="tele-subpanel debrief-logs-panel flights-panel" data-debrief-panel="logs">
           <div class="debrief-logs-grid">
@@ -1913,6 +2132,12 @@
                     <p class="mission-live-camera-kicker">פריים חי</p>
                     <p id="liveCameraEmpty" class="mission-live-camera-empty">אין פריים</p>
                     <div class="mission-live-camera-grid">
+                      <figure class="mission-live-camera-slot" data-cam="cam0">
+                        <figcaption id="liveCameraCam0Label" class="mission-live-camera-label">אפס</figcaption>
+                        <p id="liveCameraCam0Meta" class="mission-live-camera-meta">אין אות</p>
+                        <img id="liveCameraCam0Frame" class="mission-live-camera-frame" alt="" hidden />
+                        <canvas id="liveCameraCam0Overlay" class="mission-live-camera-overlay" hidden></canvas>
+                      </figure>
                       <figure class="mission-live-camera-slot" data-cam="cam1">
                         <figcaption id="liveCameraCam1Label" class="mission-live-camera-label">קדמית</figcaption>
                         <p id="liveCameraCam1Meta" class="mission-live-camera-meta">אין פריים</p>
@@ -2440,6 +2665,8 @@
     </script>
     <script type="module" src="./modules/flightbook.mjs?v=__APP_VERSION__"></script>
     <script type="module" src="./modules/debrief-cameras.mjs?v=__APP_VERSION__"></script>
+    <script type="module" src="./modules/cam0-panel.mjs?v=__APP_VERSION__"></script>
+    <script type="module" src="./modules/fc-write-ack.mjs?v=__APP_VERSION__"></script>
     <script src="./app.js?v=__APP_VERSION__"></script>
   </body>
 </html>

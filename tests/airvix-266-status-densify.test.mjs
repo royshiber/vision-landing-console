@@ -48,9 +48,9 @@ function pulsePanel() {
 }
 
 describe('AIRVIX 1.02.268 computer-status densify', () => {
-  it('pins APP_VERSION at 1.02.337', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.337'");
-    expect(pkg.version).toBe('1.02.337');
+  it('pins APP_VERSION at 1.02.343', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.343'");
+    expect(pkg.version).toBe('1.02.343');
   });
 
   it('keeps מסייע out of public UI', () => {
@@ -59,17 +59,26 @@ describe('AIRVIX 1.02.268 computer-status densify', () => {
     expect(css.includes('מסייע')).toBe(false);
   });
 
-  it('packs Jetson and FC into a tight top band with larger gauges', () => {
+  it('packs Jetson and FC into category cards with a summary strip', () => {
     const pulse = pulsePanel();
-    expect(pulse).toMatch(/class="pulse-status-grid pulse-computers-band"/);
+    expect(pulse).toMatch(/data-layout-contract="status-v1"/);
+    expect(pulse).toMatch(/id="pulseSummary"/);
+    expect(pulse).toMatch(/id="pulseCatGrid"/);
+    expect(pulse).toMatch(/data-pulse-cat="links"/);
+    expect(pulse).toMatch(/data-pulse-cat="jetson"/);
+    expect(pulse).toMatch(/data-pulse-cat="fc"/);
+    expect(pulse).toMatch(/data-pulse-cat="vision"/);
+    expect(pulse).toMatch(/data-pulse-cat="landing"/);
     expect(pulse).toMatch(/class="pulse-computer-who">Jetson</);
     expect(pulse).toMatch(/<h4>מחשב משימה<\/h4>/);
     expect(pulse).toMatch(/data-computer="fc"/);
     expect(pulse).not.toMatch(/מסייע|מלווה/);
-    expect(pulse.indexOf('pulse-computers-band')).toBeLessThan(pulse.indexOf('pulse-talk-card'));
+    expect(pulse.indexOf('data-pulse-cat="jetson"')).toBeLessThan(pulse.indexOf('id="visionLandingReadiness"'));
+    expect(pulse.indexOf('id="visionLandingReadiness"')).toBeLessThan(pulse.indexOf('pulse-talk-card'));
     expect(pulse.indexOf('pulse-talk-card')).toBeLessThan(pulse.indexOf('pulse-add-widget'));
-    expect(pulse).toMatch(/pulse-computers-band"[\s\S]*?<\/article>\s*<\/div>\s*<section id="visionLandingReadiness"[\s\S]*?<\/section>\s*<article class="pulse-status-card pulse-talk-card"/);
-    expect(cssBlock(css, '.pulse-computers-band')).toMatch(/flex:\s*0 0 auto/);
+    expect(cssBlock(css, '.pulse-cat-grid')).toMatch(/grid-template-columns:\s*repeat\(3/);
+    expect(css).toMatch(/@media \(min-width:\s*1600px\)[\s\S]*\.pulse-cat-grid\s*\{[^}]*repeat\(4/);
+    expect(css).toMatch(/@media \(max-width:\s*700px\)[\s\S]*\.pulse-cat-grid\s*\{[^}]*grid-template-columns:\s*1fr/);
     expect(cssBlock(css, '.pulse-gauge-svg')).toMatch(/height:\s*54px/);
     expect(cssBlock(css, '.pulse-gauge-svg')).toMatch(/max-width:\s*118px/);
     expect(cssBlock(css, '.pulse-status-card')).toMatch(/padding:\s*6px 8px/);

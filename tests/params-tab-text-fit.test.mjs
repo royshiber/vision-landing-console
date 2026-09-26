@@ -140,6 +140,41 @@ describe('Parameters tab text fit', () => {
     }
   }
 
+  async function visibleSpan(selector) {
+    return page.evaluate((sel) => {
+      const el = document.querySelector(sel);
+      if (!el) return { height: 0, width: 0 };
+      const base = el.getBoundingClientRect();
+      let top = base.top;
+      let bottom = base.bottom;
+      let left = base.left;
+      let right = base.right;
+      const clips = (value) => value === 'hidden' || value === 'clip' || value === 'auto' || value === 'scroll';
+      let node = el.parentElement;
+      while (node) {
+        const s = getComputedStyle(node);
+        const clipY = clips(s.overflowY) || s.overflow === 'hidden' || s.overflow === 'clip';
+        const clipX = clips(s.overflowX) || s.overflow === 'hidden' || s.overflow === 'clip';
+        if (clipY || clipX) {
+          const p = node.getBoundingClientRect();
+          if (clipY) {
+            top = Math.max(top, p.top);
+            bottom = Math.min(bottom, p.bottom);
+          }
+          if (clipX) {
+            left = Math.max(left, p.left);
+            right = Math.min(right, p.right);
+          }
+        }
+        node = node.parentElement;
+      }
+      return {
+        height: Math.max(0, bottom - top),
+        width: Math.max(0, right - left),
+      };
+    }, selector);
+  }
+
   async function shot(name) {
     const file = path.join(qaDir, `${name}.png`);
     await page.screenshot({ path: file, fullPage: false });
@@ -277,8 +312,31 @@ print(len(thumbs))
       await page.waitForSelector('#fcGroupList [data-param-key="EK3_ENABLE"]');
       const closedWizard = await page.locator('#autoConfig').evaluate((el) => getComputedStyle(el).display);
       expect(closedWizard, `${vp.name} wizard closed`).toBe('none');
-      const listH = await page.locator('#fcGroupList').evaluate((el) => el.clientHeight);
-      expect(listH, `${vp.name} group list`).toBeGreaterThanOrEqual(120);
+      const listH = await visibleSpan('#fcGroupList');
+      expect(listH.height, `${vp.name} group list`).toBeGreaterThanOrEqual(120);
+      if (vp.width <= 360) {
+        const rows = await page.evaluate(() => {
+          const clips = (value) => value === 'hidden' || value === 'clip' || value === 'auto' || value === 'scroll';
+          const visibleH = (el) => {
+            const base = el.getBoundingClientRect();
+            let top = base.top;
+            let bottom = base.bottom;
+            let node = el.parentElement;
+            while (node) {
+              const s = getComputedStyle(node);
+              if (clips(s.overflowY) || s.overflow === 'hidden' || s.overflow === 'clip') {
+                const p = node.getBoundingClientRect();
+                top = Math.max(top, p.top);
+                bottom = Math.min(bottom, p.bottom);
+              }
+              node = node.parentElement;
+            }
+            return Math.max(0, bottom - top);
+          };
+          return [...document.querySelectorAll('#fcGroupList .fc-group-row')].filter((row) => visibleH(row) >= 8).length;
+        });
+        expect(rows, `${vp.name} visible rows`).toBeGreaterThanOrEqual(3);
+      }
       await audit(`${vp.name} no-read`);
       expect(await page.locator('[data-param-key="EK3_ENABLE"] .fc-group-now').innerText()).toBe('לא ידוע');
       expect(await page.locator('[data-param-key="EK3_ENABLE"] .fc-group-next').getAttribute('placeholder')).toBe('—');
@@ -349,7 +407,7 @@ print(len(thumbs))
         const body = document.getElementById('applyConfirmBody');
         return modal && !modal.classList.contains('hidden') && body && body.innerText.includes('EK3_ENABLE');
       });
-      expect(await page.locator('#applyConfirmTitle').innerText()).toContain('אישור כתיבה');
+      expect(await page.locator('#applyConfirmTitle').innerText()).toContain('כתיבה לבקר');
       await shot(`${vp.name}-restore`);
       await page.click('#applyConfirmCancelBtn');
       await page.waitForFunction(() => document.getElementById('applyConfirmModal').classList.contains('hidden'));
@@ -378,7 +436,20 @@ print(len(thumbs))
           const hit = document.elementFromPoint(x, y);
           if (hit === ask || (ask && ask.contains(hit))) covered.push((el.id || el.textContent || '').trim().slice(0, 24));
         }
-        return { body: body.clientHeight, covered };
+        const clips = (value) => value === 'hidden' || value === 'clip' || value === 'auto' || value === 'scroll';
+        let top = br.top;
+        let bottom = br.bottom;
+        let node = body.parentElement;
+        while (node) {
+          const s = getComputedStyle(node);
+          if (clips(s.overflowY) || s.overflow === 'hidden' || s.overflow === 'clip') {
+            const p = node.getBoundingClientRect();
+            top = Math.max(top, p.top);
+            bottom = Math.min(bottom, p.bottom);
+          }
+          node = node.parentElement;
+        }
+        return { body: Math.max(0, bottom - top), covered };
       });
       expect(wizardFit.body, `${vp.name} wizard body`).toBeGreaterThanOrEqual(80);
       expect(wizardFit.covered, `${vp.name} ask covers wizard`).toEqual([]);
@@ -402,6 +473,23 @@ print(len(thumbs))
       });
       expect(applyHit.covered, `${vp.name} ask covers apply`).toBe(false);
       expect(applyHit.h, `${vp.name} apply`).toBeGreaterThan(20);
+      const contrast = await page.evaluate(() => {
+        const el = document.querySelector('.ac-param-row .ac-param-key');
+        if (!el) return 0;
+        const parse = (color) => {
+          const match = color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+          return match ? [Number(match[1]), Number(match[2]), Number(match[3])] : [0, 0, 0];
+        };
+        const lin = (value) => {
+          const s = value / 255;
+          return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+        };
+        const lum = (rgb) => 0.2126 * lin(rgb[0]) + 0.7152 * lin(rgb[1]) + 0.0722 * lin(rgb[2]);
+        const fg = lum(parse(getComputedStyle(el).color));
+        const bg = lum(parse(getComputedStyle(el.parentElement).backgroundColor));
+        return (Math.max(fg, bg) + 0.05) / (Math.min(fg, bg) + 0.05);
+      });
+      expect(contrast, `${vp.name} param name contrast`).toBeGreaterThanOrEqual(4.5);
       await audit(`${vp.name} wizard`);
       await shot(`${vp.name}-wizard`);
 
@@ -437,7 +525,7 @@ print(len(thumbs))
     expect(await clean.locator('#arduWriteBtn').isDisabled()).toBe(true);
     await clean.evaluate(() => { document.getElementById('arduWriteBtn').disabled = false; });
     await clean.click('#arduWriteBtn');
-    await clean.waitForFunction(() => (document.getElementById('paramToolFaultText')?.textContent || '').includes('אין קישור'));
+    await clean.waitForFunction(() => (document.getElementById('paramToolFaultText')?.textContent || '').includes('אין חיבור לבקר הטיסה'));
     const cls = await clean.locator('#arduWriteStatus').getAttribute('class');
     expect(cls).toContain('fail');
     expect(cls).not.toContain('success');
@@ -447,4 +535,56 @@ print(len(thumbs))
     shots.push(file);
     await clean.close();
   }, 60000);
+
+  it('keeps the list and wizard visible while the update banner is showing', async () => {
+    const sizes = [
+      { width: 1024, height: 576, name: '1024x576-banner' },
+      { width: 360, height: 740, name: '360x740-banner' },
+    ];
+    for (const vp of sizes) {
+      await page.setViewportSize({ width: vp.width, height: vp.height });
+      await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+      await page.evaluate(() => {
+        const banner = document.getElementById('appUpdateBanner');
+        banner.hidden = false;
+        document.getElementById('appUpdateBannerText').textContent = 'יש עדכון לקונסולה';
+      });
+      await page.click('[data-tab="control"]');
+      await page.selectOption('#paramSubtabSelect', 'ardu-ekf');
+      await page.waitForSelector('#fcGroupList [data-param-key="EK3_ENABLE"]');
+      const list = await visibleSpan('#fcGroupList');
+      expect(list.height, `${vp.name} list`).toBeGreaterThanOrEqual(120);
+      await page.waitForSelector('.fc-file-restore');
+      await page.locator('.fc-file-restore').scrollIntoViewIfNeeded();
+      const restoreCovered = await page.evaluate(() => {
+        const ask = document.querySelector('.assist-toggle-btn');
+        const el = document.querySelector('.fc-file-restore');
+        const r = el.getBoundingClientRect();
+        const x = Math.min(r.right - 4, Math.max(r.left + 4, (r.left + r.right) / 2));
+        const y = Math.min(window.innerHeight - 2, Math.max(2, r.top + r.height / 2));
+        const hit = document.elementFromPoint(x, y);
+        return !!(hit === ask || (ask && ask.contains(hit)));
+      });
+      expect(restoreCovered, `${vp.name} ask covers restore`).toBe(false);
+      await page.click('[data-subtab="autoConfig"]');
+      await page.waitForSelector('#acWhatList .ac-choice');
+      const wizard = await visibleSpan('.ac-step-body');
+      expect(wizard.height, `${vp.name} wizard`).toBeGreaterThanOrEqual(80);
+      const covered = await page.evaluate(() => {
+        const ask = document.querySelector('.assist-toggle-btn');
+        const hits = [];
+        for (const el of document.querySelectorAll('.ac-step-nav button, #acWhatList .ac-choice')) {
+          const r = el.getBoundingClientRect();
+          if (r.width < 2 || r.height < 2 || r.bottom < 2 || r.top > window.innerHeight - 2) continue;
+          const x = Math.min(r.right - 4, Math.max(r.left + 4, (r.left + r.right) / 2));
+          const y = Math.min(r.bottom - 2, Math.max(r.top + 2, (r.top + r.bottom) / 2));
+          const hit = document.elementFromPoint(x, y);
+          if (hit === ask || (ask && ask.contains(hit))) hits.push((el.textContent || '').trim().slice(0, 24));
+        }
+        return hits;
+      });
+      expect(covered, `${vp.name} ask covers wizard`).toEqual([]);
+      await shot(vp.name);
+    }
+  }, 90000);
 });

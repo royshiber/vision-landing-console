@@ -16,6 +16,12 @@ const names = new Set(Object.keys(dump.params || {}));
 describe('FC parameter Hebrew descriptions', () => {
   it('keeps one table, only for real names, and leaves unknown keys blank', () => {
     expect(FC_PARAM_DESCRIPTIONS.EK3_ENABLE).toBe('הפעלת מסנן הניווט EKF3');
+    expect(FC_PARAM_DESCRIPTIONS.PLND_STRICT).toBe('רמת הדיוק הנדרשת בנחיתה המדויקת');
+    expect(FC_PARAM_DESCRIPTIONS.ARMING_RUDDER).toBe('חימוש באמצעות הגה הכיוון');
+    expect(FC_PARAM_DESCRIPTIONS.AHRS_EKF_TYPE).toBe('איזה מסנן ניווט בשימוש בטיסה');
+    expect(FC_PARAM_DESCRIPTIONS.FS_GCS_ENABL).toContain('Failsafe');
+    expect(FC_PARAM_DESCRIPTIONS.RC1_MIN).toBe('דופק מזערי של ערוץ שלט 1');
+    expect(JSON.stringify(FC_PARAM_DESCRIPTIONS)).not.toMatch(/כשל בטוח|מפעיל כשל|בהגאי|להטסה/);
     expect(FC_PARAM_DESCRIPTIONS.LAND_FLARE_ALT).toBe('גובה תחילת היישור לפני נגיעה');
     expect(FC_PARAM_DESCRIPTIONS.ARMING_CHECK).toBeUndefined();
     expect(fcParamHebrew('ARMING_CHECK')).toBe('');

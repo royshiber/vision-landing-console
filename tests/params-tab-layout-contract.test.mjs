@@ -57,8 +57,8 @@ describe('Parameters tab layout contract — static source', () => {
     expect(html).toContain('id="fcToolState"');
     expect(html).toContain('id="paramToolFault"');
     expect(html).toContain('id="paramFileMenu"');
-    expect(html).toContain('מחשב משימה');
-    expect(html).toContain('בקר טיסה');
+    expect(html).toContain('גיבוי בקונסולה');
+    expect(html).toContain('בקר הטיסה');
     expect(css).toContain('#autoConfig.subpanel:not(.visible)');
     expect(css).toContain('.param-file-menu[hidden]');
     const panel = html.slice(html.indexOf('id="control"'), html.indexOf('id="recordings"'));
@@ -178,7 +178,7 @@ describe('Parameters tab layout contract — live boxes', () => {
 
       await page.click('#acApplyBtn');
       await page.waitForSelector('#applyConfirmModal:not(.hidden)');
-      expect(await page.locator('#applyConfirmTitle').innerText()).toContain('FC');
+      expect(await page.locator('#applyConfirmTitle').innerText()).toContain('כתיבה לבקר');
       await page.click('#applyConfirmCancelBtn');
       await page.waitForFunction(() => document.getElementById('applyConfirmModal')?.classList.contains('hidden') === true);
       expect(writes, vp.name).toEqual([]);

@@ -23,6 +23,12 @@
   height: 100%;
   direction: rtl;
 }
+@media (max-width: 720px) {
+  .fb-shell {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .fb-card { min-height: 0; }
+}
 .fb-list,
 .fb-main {
   min-width: 0;
