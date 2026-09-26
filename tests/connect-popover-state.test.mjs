@@ -433,6 +433,10 @@ describe('cellular and home uplink buttons', () => {
       statusHe: 'לא עלה',
     });
     expect(uplinkRefusalHe({ reason_he: 'אי אפשר עכשיו' })).toBe('אי אפשר עכשיו');
+    expect(uplinkRefusalHe({
+      reason: 'last_uplink',
+      message: 'אי אפשר לכבות את הקישור האחרון',
+    })).toBe('אי אפשר לכבות את הקישור האחרון');
     expect(uplinkRefusalHe({ message: 'cannot disconnect the last active link' })).toBe(UPLINK_LAST_LINK_HE);
 
     const live = summarizeCommLinks({
@@ -483,15 +487,18 @@ describe('cellular and home uplink buttons', () => {
         mode: 'off',
         getSseOverlay: () => ({ companion: { health: { capabilities: { uplinkControl: true } } } }),
       },
-      postNetworkUplink: async (which, enabled) => {
-        calls.push({ which, enabled });
-        if (which === 'wifi' && enabled === false) {
+      setNetworkUplink: async (which, body) => {
+        calls.push({ which, enabled: body?.enabled });
+        if (which === 'wifi' && body?.enabled === false) {
           const err = new Error('conflict');
           err.status = 409;
-          err.body = { code: 'last_active_link', message: 'cannot disconnect the last active link' };
+          err.body = { ok: false, reason: 'last_uplink', message: 'אי אפשר לכבות את הקישור האחרון' };
           throw err;
         }
-        return { enabled, up: enabled === true };
+        return {
+          wifi: { enabled: true, up: true },
+          cellular: { enabled: body?.enabled === true, up: true },
+        };
       },
     };
     const app = express();
@@ -503,7 +510,7 @@ describe('cellular and home uplink buttons', () => {
       const refused = await setCompanionUplink(ctx, { role: 'home', enabled: false });
       expect(refused.ok).toBe(false);
       expect(refused.status).toBe(409);
-      expect(refused.messageHe).toBe(UPLINK_LAST_LINK_HE);
+      expect(refused.messageHe).toBe('אי אפשר לכבות את הקישור האחרון');
       expect(calls).toEqual([{ which: 'wifi', enabled: false }]);
       expect(ctx.lastCompanionMavlinkRelay?.id).toBe(4);
       expect(getConfig(db, COMPANION_CONNECTION_KEY).token).toBe('keep-me');
@@ -511,7 +518,7 @@ describe('cellular and home uplink buttons', () => {
 
       const unsupported = await setCompanionUplink({
         db,
-        postNetworkUplink: async () => { throw new Error('should not post'); },
+        setNetworkUplink: async () => { throw new Error('should not post'); },
       }, { role: 'cellular', enabled: false });
       expect(unsupported.messageHe).toBe(UPLINK_UNSUPPORTED_HE);
       expect(unsupported.uplinkControl).toBe(false);
@@ -535,7 +542,7 @@ describe('cellular and home uplink buttons', () => {
       });
       const deniedBody = await denied.json();
       expect(denied.status).toBe(409);
-      expect(deniedBody.messageHe).toBe(UPLINK_LAST_LINK_HE);
+      expect(deniedBody.messageHe).toBe('אי אפשר לכבות את הקישור האחרון');
       expect(getConfig(db, COMPANION_CONNECTION_KEY).token).toBe('keep-me');
       expect(ctx.lastCompanionMavlinkRelay?.id).toBe(4);
     } finally {

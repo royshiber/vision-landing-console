@@ -1,12 +1,34 @@
 [
   {
-    "version": "1.02.322",
-    "date": "2026-09-25",
+    "version": "1.02.326",
+    "date": "2026-09-26",
     "changes": [
       {
         "type": "fix",
-        "title": "Connect popover: real link status, bars, buttons",
-        "detail": "APP_VERSION 1.02.322. After master 1.02.321. A row is green only with a live autopilot heartbeat younger than 3s, or a fresh companion health response whose relay heartbeat is also live. A listener with no heartbeat, a closed socket, and a heartbeat older than 3s are not connected. The popover uses the relay reconnect and link-down status and the decoded FC telemetry. Row tone carries the state; the button is the action, and only התנתק is danger, including the home-row disconnect. Bars use real RSRP/RSSI or heartbeat age / HTTP round-trip; unknown stays empty with אין נתונים. Radio connect opens the companion relay and radio disconnect clears the relay cache. Cellular and home buttons call companion POST /api/v1/network/uplinks/{wifi|cellular} when health.capabilities.uplinkControl is true. Row state comes from GET /api/v1/network/uplinks (enabled versus up). Without that capability the button is disabled and the tooltip is גרסת ה-Jetson לא תומכת בשליטה בערוץ. A 409 refusal is shown in Hebrew, including the last active link. The Wi-Fi button does not close the radio relay or wipe the token. No ARM/LAND and no Companion apply/restart."
+        "title": "Connect popover uses companion uplink control",
+        "detail": "APP_VERSION 1.02.326. After master 1.02.325. The connect popover keeps live link color, real bars, and red disconnect, including רשת בית. Cellular and home buttons call setNetworkUplink, which posts /api/v1/network/uplinks/{wifi|cellular} {enabled} only when health.capabilities.uplinkControl is true. Row state comes from GET /api/v1/network/uplinks (enabled versus up). Without that capability the button is disabled and the tooltip is גרסת ה-Jetson לא תומכת בשליטה בערוץ. A Hebrew 409 message is shown as sent, including אי אפשר לכבות את הקישור האחרון. The Wi-Fi button does not close the radio relay or wipe the token. No ARM/LAND and no Companion apply/restart."
+      }
+    ]
+  },
+  {
+    "version": "1.02.325",
+    "date": "2026-09-25",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Companion cameras, SERIAL4 FC telemetry, and uplink status",
+        "detail": "APP_VERSION 1.02.325. Companion 2.3.9. Per-slot camera supervisor, cam3 RTSP, SIYI A8 SDK with control off by default, and HTTP/1.1 keep-alive. FC port label defaults to SERIAL4 (Matek TX3/RX3). FC status connects only on a fresh autopilot heartbeat and reports mode, armed, load, battery, MEMINFO, and MCU temperature from real MAVLink bytes. Modem status reads Huawei HiLink signal when the stick is present. GET /api/v1/network/uplinks reports operator enabled versus live up. POST /api/v1/network/uplinks/{wifi|cellular} turns a link on or off and refuses to drop the last working link. E3372 bring-up no longer treats Jetson usb0 as the modem. No ARM/LAND and no console UI."
+      }
+    ]
+  },
+  {
+    "version": "1.02.323",
+    "date": "2026-09-25",
+    "changes": [
+      {
+        "type": "ui",
+        "title": "Discreet Mission FC messages toggle",
+        "detail": "APP_VERSION 1.02.323. The Mission STATUSTEXT log no longer covers the horizon. A small הודעות control shows or hides a compact 12px strip (collapsed cap 72px, internal scroll). The choice is stored in localStorage and defaults to hidden. Unread warnings and errors show only as a severity-colored count badge. No flight commands."
       }
     ]
   },

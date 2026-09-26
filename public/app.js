@@ -212,6 +212,7 @@ const MISSION_SWAP_KEY = 'visionLandingMissionSwapV1';
 const MISSION_SIZE_KEY = 'visionLandingMissionSizeV4';
 const MISSION_AREAS_KEY = 'visionLandingMissionAreasV2';
 const MISSION_MESSAGES_KEY = 'visionLandingMissionMessagesV1';
+const MISSION_MESSAGES_SEEN_KEY = 'visionLandingMissionMessagesSeenV1';
 const MISSION_DATA_SLOTS_KEY = 'visionLandingMissionDataSlotsV1';
 const PULSE_WIDGETS_KEY = 'visionLandingPulseWidgetsV1';
 const MISSION_REGION_IDS = Object.freeze(['horizon', 'map', 'data', 'messages', 'talk']);
@@ -5470,6 +5471,8 @@ let latestHudMavlink = null;
 let latestLiveRadioStatus = null;
 let _statustextSig = '';
 let _statustextTimer = null;
+let _missionMessagesRows = [];
+let _missionMessagesSeenSig = null;
 
 function isHudMavlinkLive(mav) {
   if (!mav || typeof mav !== 'object') return false;
@@ -6314,6 +6317,57 @@ function paintFcStatustextHistory(items) {
   }
 }
 
+function missionMessagesSeveritySig(rows) {
+  return (Array.isArray(rows) ? rows : [])
+    .map((row) => (Number.isFinite(Number(row?.severity)) ? String(Number(row.severity)) : ''))
+    .join(',');
+}
+
+function readMissionMessagesSeenSig() {
+  if (_missionMessagesSeenSig != null) return _missionMessagesSeenSig;
+  _missionMessagesSeenSig = missionLayoutStoreGet(MISSION_MESSAGES_SEEN_KEY) || '';
+  return _missionMessagesSeenSig;
+}
+
+function writeMissionMessagesSeenSig(sig) {
+  _missionMessagesSeenSig = sig;
+  missionLayoutStoreSet(MISSION_MESSAGES_SEEN_KEY, sig);
+}
+
+/** Badge only. Message lines stay in the normal UI color. */
+function syncMissionMessagesBadge(rows) {
+  const badge = document.getElementById('missionMessagesBadge');
+  if (!badge) return;
+  const list = (Array.isArray(rows) ? rows : [])
+    .map((row) => ({ severity: Number(row?.severity), text: String(row?.text || '').trim() }))
+    .filter((row) => row.text);
+  const sig = missionMessagesSeveritySig(list);
+  if (readMissionMessagesExpanded()) {
+    writeMissionMessagesSeenSig(sig);
+    badge.hidden = true;
+    badge.textContent = '';
+    badge.dataset.severity = 'none';
+    return;
+  }
+  if (!list.length || sig === readMissionMessagesSeenSig()) {
+    badge.hidden = true;
+    badge.textContent = '';
+    badge.dataset.severity = 'none';
+    return;
+  }
+  const notable = list.filter((row) => statusTextLineWarn(row.severity));
+  const count = notable.length || list.length;
+  let worst = 9;
+  for (const row of notable) {
+    if (row.severity < worst) worst = row.severity;
+  }
+  badge.hidden = false;
+  badge.textContent = String(count);
+  badge.dataset.severity = notable.length
+    ? (worst <= 3 ? 'error' : 'warn')
+    : 'info';
+}
+
 function applyFcStatustextHud(mavlink) {
   if (!pfcMsgPrimaryHe) return;
   if (!isHudMavlinkLive(mavlink)) {
@@ -6326,8 +6380,10 @@ function applyFcStatustextHud(mavlink) {
       : null;
     pfcMsgPrimaryHe.textContent = missionFcEmptyPrimaryHe(companion);
     paintFcStatustextOverlay([{ text: pfcMsgPrimaryHe.textContent, severity: 6 }]);
-    paintFcStatustextHistory([]);
+    paintFcStatustextHistory([{ text: pfcMsgPrimaryHe.textContent, severity: 6 }]);
     _statustextSig = '';
+    _missionMessagesRows = [];
+    syncMissionMessagesBadge([]);
     syncMissionFcEmptyNote(null);
     return;
   }
@@ -6337,8 +6393,10 @@ function applyFcStatustextHud(mavlink) {
     const emptyLive = 'אין הודעות STATUSTEXT אחרונות — ריק מהבקר.';
     pfcMsgPrimaryHe.textContent = emptyLive;
     paintFcStatustextOverlay([{ text: emptyLive, severity: 6 }]);
-    paintFcStatustextHistory([]);
+    paintFcStatustextHistory([{ text: emptyLive, severity: 6 }]);
     _statustextSig = '';
+    _missionMessagesRows = [];
+    syncMissionMessagesBadge([]);
     return;
   }
   const sig = JSON.stringify(raw.slice(0, 18));
@@ -6355,8 +6413,10 @@ function applyFcStatustextHud(mavlink) {
     : raw;
   const first = String(ordered[0]?.text || '').trim();
   if (first) pfcMsgPrimaryHe.textContent = first;
+  _missionMessagesRows = ordered.slice(0, 18);
   paintFcStatustextOverlay(ordered.slice(0, 8));
-  paintFcStatustextHistory(ordered.slice(0, 18));
+  paintFcStatustextHistory(_missionMessagesRows);
+  syncMissionMessagesBadge(_missionMessagesRows);
   clearTimeout(_statustextTimer);
   _statustextTimer = setTimeout(() => void translateAndRenderFcStatustext(ordered.slice(0, 18)), 0);
 }
@@ -6377,8 +6437,10 @@ async function translateAndRenderFcStatustext(rows) {
       text: String(he[i] ?? texts[i] ?? row?.text ?? '').trim(),
     })).filter((row) => row.text);
     if (pfcMsgPrimaryHe && translated[0]?.text) pfcMsgPrimaryHe.textContent = translated[0].text;
+    _missionMessagesRows = translated.slice(0, 18);
     paintFcStatustextOverlay(translated.slice(0, 8));
-    paintFcStatustextHistory(translated.slice(0, 18));
+    paintFcStatustextHistory(_missionMessagesRows);
+    syncMissionMessagesBadge(_missionMessagesRows);
   } catch {
     if (pfcMsgPrimaryHe) pfcMsgPrimaryHe.textContent = texts[0] || '';
   }
@@ -16892,12 +16954,16 @@ function applyMissionMessagesExpanded(expanded) {
   const region = document.querySelector('[data-mission-region="messages"]');
   const scroll = document.getElementById('pfcMsgScroll');
   const toggle = document.getElementById('missionMessagesToggle');
+  const log = document.getElementById('pfdHorizonMsgLog');
   if (region) region.dataset.messagesExpanded = expanded ? '1' : '0';
   if (scroll) scroll.hidden = !expanded;
+  if (log) log.hidden = true;
   if (toggle) {
     toggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
-    toggle.textContent = expanded ? 'הסתר' : 'הצג';
+    toggle.title = 'הודעות';
+    toggle.setAttribute('aria-label', 'הודעות');
   }
+  syncMissionMessagesBadge(_missionMessagesRows);
 }
 
 function toggleMissionMessages() {

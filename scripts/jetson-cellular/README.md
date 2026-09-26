@@ -40,14 +40,14 @@ Retail E3372 sticks usually enumerate first as USB storage (a Windows driver CD)
 | `12d1:1f01` | First id — mass storage / CD-ROM (HiLink E3372h). |
 | `12d1:14fe` | First id — some firmware. |
 | `12d1:1446` | First id — some E3372s. |
-| `12d1:14dc` / `14db` / `155e` | After switch — HiLink CDC ethernet (`usb0` / `enx…`). |
+| `12d1:14dc` / `14db` / `155e` | After switch — HiLink CDC ethernet (`enx…`, vendor `12d1`). `usb0` is the Jetson gadget, not this modem. |
 | `12d1:1506` / `1001` | After switch — stick / option (`ttyUSB*`, sometimes `cdc-wdm0`). |
 
 Ubuntu / JetPack already ship `usb-modeswitch` + `usb-modeswitch-data`. This pack:
 
 1. Installs those packages on `--apply`.
 2. Drops a udev rule that calls `usb_modeswitch -J` (HuaweiNewMode) if the distro rule is missing.
-3. Starts `airvix-e3372-bringup.service` when a **Huawei** net or tty node appears.
+3. Starts `airvix-e3372-bringup.service` when a **Huawei** net or tty node appears. The boot oneshot runs only if `cdc-wdm0` exists or an `enx*` netdev is Huawei `12d1`. Net udev lines use `ACTION!="remove"`.
 
 `--dry-run` and Cloud Agent tests never invoke `usb_modeswitch` against hardware.
 

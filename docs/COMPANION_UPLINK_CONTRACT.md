@@ -2,7 +2,7 @@
 
 The console stores radio enablement in `commLinks.enabled.radio` and exposes `GET` / `POST /api/links/prefs`.
 
-Cellular and home (Wi-Fi) connect / disconnect buttons do not use that preference to claim the Jetson switched. They call `POST /api/links/uplink` with `{ role: "cellular" | "home", enabled }`. The console maps `home` to companion `wifi` and posts `POST /api/v1/network/uplinks/{wifi|cellular}` with `{ "enabled": true | false }`.
+Cellular and home (Wi-Fi) connect / disconnect buttons do not use that preference to claim the Jetson switched. They call `POST /api/links/uplink` with `{ role: "cellular" | "home", enabled }`. The console maps `home` to companion `wifi` and calls `setNetworkUplink(link, { enabled })`, which posts `POST /api/v1/network/uplinks/{wifi|cellular}` with `{ "enabled": true | false }`.
 
 Feature detection is `health.capabilities.uplinkControl === true`. When that flag is missing, both buttons stay disabled. The tooltip is exactly `גרסת ה-Jetson לא תומכת בשליטה בערוץ`. The console does not save a preference and does not report that the channel changed.
 
@@ -12,7 +12,7 @@ Row state for those two links comes from `GET /api/v1/network/uplinks`:
 - `enabled: true` and `up: true` — green `מחובר`, button `התנתק` (red)
 - `enabled: true` and `up: false` — yellow `לא עלה`, button `התנתק`
 
-A 409 from the companion is shown in Hebrew. A Hebrew `reason_he` / `message_he` is used as-is. A last-active-link refusal becomes `אי אפשר לנתק את הערוץ הפעיל האחרון`. Anything else is `הפעולה נדחתה`.
+A 409 from the companion is shown in Hebrew. Companion 2.3.9 sends `message: "אי אפשר לכבות את הקישור האחרון"` with `reason: "last_uplink"`, and that message is shown as-is. A non-Hebrew last-link refusal becomes `אי אפשר לנתק את הערוץ הפעיל האחרון`. Anything else is `הפעולה נדחתה`.
 
 Wi-Fi `signal_dbm` fills the home bars. Missing signal stays empty with `אין נתונים`.
 

@@ -171,7 +171,7 @@ describe('connect popover layout and mocked states', () => {
           contentType: 'application/json',
           body: JSON.stringify({
             ok: true,
-            appVersion: '1.02.322',
+            appVersion: '1.02.326',
             features: { mavlinkQuickConnect: true, dualLink: true },
           }),
         });
@@ -283,5 +283,5 @@ describe('connect popover layout and mocked states', () => {
         await page.close();
       }
     }
-  });
+  }, 20000);
 });

@@ -174,7 +174,7 @@ describe('CompanionApiClient', () => {
     await expect(client.getHealth()).rejects.toMatchObject({ kind: 'config' });
   });
 
-  it('reads and posts network uplinks without joining the mock method lists', async () => {
+  it('reads uplinks and posts setNetworkUplink exactly as companion 2.3.9', async () => {
     const calls = [];
     const fetchImpl = vi.fn(async (url, init) => {
       calls.push({ url: String(url), method: init?.method || 'GET', body: init?.body || null });
@@ -186,8 +186,8 @@ describe('CompanionApiClient', () => {
       timeoutMs: 200,
     });
     await client.getNetworkUplinks();
-    await client.postNetworkUplink('wifi', false);
-    await client.postNetworkUplink('cellular', true);
+    await client.setNetworkUplink('wifi', { enabled: false });
+    await client.setNetworkUplink('cellular', { enabled: true });
     expect(calls[0]).toEqual({
       url: 'http://127.0.0.1:9/api/v1/network/uplinks',
       method: 'GET',
@@ -198,9 +198,10 @@ describe('CompanionApiClient', () => {
     expect(JSON.parse(calls[1].body)).toEqual({ enabled: false });
     expect(calls[2].url).toBe('http://127.0.0.1:9/api/v1/network/uplinks/cellular');
     expect(JSON.parse(calls[2].body)).toEqual({ enabled: true });
-    expect(COMPANION_READ_METHODS).not.toContain('getNetworkUplinks');
-    expect(COMPANION_WRITE_METHODS).not.toContain('postNetworkUplink');
+    expect(COMPANION_READ_METHODS).toContain('getNetworkUplinks');
+    expect(COMPANION_WRITE_METHODS).toContain('setNetworkUplink');
     expect(COMPANION_V1_PATHS.networkUplinks).toBe('/api/v1/network/uplinks');
+    expect(() => client.setNetworkUplink('radio', { enabled: true })).toThrowError(/bad_link/);
   });
 
   it('sends PATCH runtime and PUT policy only as writes', async () => {

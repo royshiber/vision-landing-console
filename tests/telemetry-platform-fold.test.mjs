@@ -104,8 +104,8 @@ describe('Telemetry dash MERGE into Pulse + Platform diagnostics', () => {
     expect(html).toContain('id="companionB2Grid"');
   });
 
-  it('pins APP_VERSION at 1.02.322', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.322'");
-    expect(pkg.version).toBe('1.02.322');
+  it('pins APP_VERSION at 1.02.326', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.326'");
+    expect(pkg.version).toBe('1.02.326');
   });
 });
