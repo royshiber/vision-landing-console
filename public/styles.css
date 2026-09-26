@@ -1935,7 +1935,7 @@ input[type="range"] {
 
 .recordings-layout {
   display: grid;
-  grid-template-columns: 1fr minmax(260px, 32%);
+  grid-template-columns: minmax(0, 1fr);
   gap: 12px;
   flex: none;
   height: auto;
@@ -19797,51 +19797,245 @@ body:has(#control.panel.visible) .ardu-top-cats-host {
   background: #0f766e;
   border-color: #0f766e;
 }
-.gimbal-pad {
+#optics.panel.visible {
+  display: flex !important;
+  flex-direction: column;
+  gap: 8px;
+  overflow: auto;
+  min-height: 0;
+}
+#optics button,
+#optics .debrief-cam-label,
+#optics .debrief-cam-nosignal,
+#optics .debrief-cam-toggle,
+#optics .optics-field-name,
+#optics .optics-field-kicker,
+#optics .gimbal-pad-title,
+#optics .gimbal-pad-reason,
+#optics .gimbal-pad-angles,
+#optics .gimbal-pad-keys,
+#optics .gimbal-zoom-level,
+#optics .cam0-title,
+#optics .cam0-honesty,
+#optics .cam0-reason,
+#optics .cam0-calib-lead,
+#optics .cam0-calib-state {
+  letter-spacing: normal;
+  text-transform: none;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+}
+.optics-live {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(248px, 300px);
+  gap: 8px;
+  align-items: stretch;
+  min-width: 0;
+}
+.optics-tiles { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+#optics .debrief-cam-grid {
+  display: grid;
+  gap: 4px;
+  height: 220px;
+  min-height: 160px;
+  background: #000;
+  align-content: stretch;
+  align-items: stretch;
+}
+#optics .debrief-cam-grid[data-count="2"],
+#optics .debrief-cam-grid[data-count="1"] {
+  grid-template-rows: minmax(0, 1fr);
+}
+.optics-calib {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+}
+#optics .optics-cam-switch { grid-column: 1 / -1; margin: 0; }
+#optics .cam0-panel {
+  margin: 0;
+  padding: 8px;
+}
+#optics .cam0-stage,
+#optics .cam0-hist-wrap { display: none; }
+#optics .cam0-layout { display: block; }
+#optics .cam0-title { font-size: clamp(11px, 0.95rem, 16px); }
+#optics .cam0-head { margin-bottom: 2px; }
+#optics .cam0-reason,
+#optics .cam0-honesty,
+#optics .cam0-calib-lead,
+#optics .cam0-calib-state {
+  margin: 0;
+  font-size: clamp(11px, 0.75rem, 13px);
+  line-height: 1.35;
+}
+#optics .cam0-stats { margin: 4px 0; gap: 4px; }
+#optics .cam0-stats div { padding: 2px 4px; }
+#optics .cam0-stats dt,
+#optics .cam0-stats dd { font-size: clamp(11px, 0.72rem, 13px); }
+#optics .optics-groups {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+#optics #cam1Panel .optics-groups { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+#optics .optics-field-group {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+}
+#optics .optics-field-kicker {
+  margin: 0;
+  font-size: clamp(11px, 0.72rem, 13px);
+  line-height: 1.3;
+  color: #94a3b8;
+}
+#optics .optics-field-group label {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+  min-width: 0;
+  max-width: 100%;
+  font-size: clamp(11px, 0.72rem, 13px);
+}
+#optics .cam0-check { flex-direction: row; align-items: center; }
+#optics .optics-field-name {
+  display: block;
+  min-width: 0;
+  font-size: clamp(11px, 0.72rem, 13px);
+  line-height: 1.3;
+}
+#optics .cam0-controls input,
+#optics .cam0-controls select {
+  width: 100%;
+  max-width: none;
+  min-height: 28px;
+  box-sizing: border-box;
+}
+#optics .cam0-btn {
+  min-height: 32px;
+  font-size: clamp(11px, 0.75rem, 13px);
+  letter-spacing: normal;
+  text-transform: none;
+  white-space: normal;
+}
+#optics .cam0-calib {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  margin-top: 6px;
+}
+#optics .cam0-calib h4 {
+  margin: 0;
+  font-size: clamp(11px, 0.8rem, 14px);
+  letter-spacing: normal;
+  text-transform: none;
+}
+#optics .cam0-calib-lead { flex: 1 1 100%; }
+.gimbal-pad {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  align-content: start;
   gap: 6px;
-  margin: 8px 0 4px;
+  margin: 0;
+  padding: 8px;
   direction: rtl;
+  min-width: 0;
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  border-radius: 12px;
+  background: #0b1220;
+}
+.gimbal-pad-title { grid-column: 1; }
+.gimbal-pad-lock { grid-column: 2; width: auto; min-width: 6.5rem; }
+.gimbal-pad-reason,
+.gimbal-pad-angles,
+.gimbal-pad-play,
+.gimbal-pad-keys { grid-column: 1 / -1; }
+.gimbal-pad[data-state="down"] {
+  border-color: rgba(250, 204, 21, 0.75);
+}
+.gimbal-pad-title {
+  margin: 0;
+  font-size: clamp(11px, 1rem, 18px);
+  line-height: 1.3;
 }
 .gimbal-pad-reason {
   margin: 0;
+  padding: 6px 8px;
   font-size: clamp(11px, 0.78rem, 14px);
   line-height: 1.35;
   color: #facc15;
+  background: rgba(250, 204, 21, 0.12);
+  border-radius: 8px;
 }
-.gimbal-pad[data-state="live"] .gimbal-pad-reason { display: none; }
+.gimbal-pad[data-state="live"] .gimbal-pad-reason:empty { display: none; }
+.gimbal-pad-angles,
+.gimbal-zoom-level,
+.gimbal-pad-keys {
+  margin: 0;
+  font-size: clamp(11px, 0.75rem, 13px);
+  line-height: 1.35;
+}
+.gimbal-pad-play {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
 .gimbal-pad-stick {
   display: grid;
-  grid-template-columns: repeat(3, minmax(4.6rem, 1fr));
+  grid-template-columns: repeat(3, 52px);
   grid-template-areas:
     ". up ."
-    "left . right"
+    "left center right"
     ". down .";
   gap: 4px;
-  width: min(16rem, 100%);
+  direction: ltr;
 }
 .gimbal-pad-btn[data-gimbal="up"] { grid-area: up; }
 .gimbal-pad-btn[data-gimbal="down"] { grid-area: down; }
 .gimbal-pad-btn[data-gimbal="left"] { grid-area: left; }
 .gimbal-pad-btn[data-gimbal="right"] { grid-area: right; }
+.gimbal-pad-btn[data-gimbal="center"] { grid-area: center; }
 .gimbal-pad-zoom {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
+  align-items: center;
   gap: 4px;
 }
 .gimbal-pad-btn {
-  min-height: 32px;
-  min-width: 4.6rem;
-  padding: 4px 8px;
-  font-size: clamp(11px, 0.78rem, 14px);
-  line-height: 1.25;
+  min-height: 48px;
+  min-width: 48px;
+  padding: 4px;
+  font-size: clamp(11px, 1.05rem, 20px);
+  line-height: 1.2;
   white-space: normal;
   text-transform: none;
   letter-spacing: 0;
+  justify-content: center;
 }
-.gimbal-pad-btn:disabled { opacity: 0.5; }
+.gimbal-pad-center {
+  font-size: 11px;
+  line-height: 1.2;
+  padding: 2px;
+}
+.gimbal-pad-lock {
+  font-size: clamp(11px, 0.95rem, 18px);
+}
+.gimbal-pad-lock {
+  min-height: 40px;
+  min-width: 8rem;
+  font-weight: 800;
+}
+.gimbal-pad-btn:disabled { opacity: 0.45; }
 .gimbal-pad-btn.is-held { outline: 2px solid #38bdf8; }
 .gimbal-pad-lock[aria-pressed="true"] {
   background: #0f766e;
@@ -19851,6 +20045,45 @@ body:has(#control.panel.visible) .ardu-top-cats-host {
 .gimbal-pad-lock[aria-pressed="false"] {
   background: transparent;
   border-color: rgba(148, 163, 184, 0.6);
+}
+@media (max-width: 900px) {
+  .optics-live,
+  .optics-calib,
+  #optics .optics-groups,
+  #optics #cam1Panel .optics-groups {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-height: 820px) {
+  #optics .debrief-cam-grid { height: 132px; min-height: 100px; }
+  #optics .cam0-panel { padding: 6px; }
+  #optics .cam0-stats { display: none; }
+  #optics .optics-field-group label {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+  #optics .cam0-controls input,
+  #optics .cam0-controls select {
+    width: 6.2rem;
+    max-width: 48%;
+    flex: 0 0 auto;
+  }
+  #optics .cam0-calib { margin-top: 4px; }
+  #optics .cam0-calib-lead { flex: 1 1 12rem; }
+  .gimbal-pad { padding: 6px; gap: 4px; }
+  .gimbal-pad-btn { min-height: 40px; min-width: 40px; }
+  .gimbal-pad-center { min-width: 40px; font-size: 11px; }
+  .gimbal-pad-stick { grid-template-columns: repeat(3, 40px); }
+}
+@media (max-width: 720px) {
+  #optics .debrief-cam-grid {
+    height: auto;
+    min-height: 0;
+  }
+  #optics .debrief-cam-grid[data-count="2"] {
+    grid-template-rows: minmax(120px, auto) minmax(120px, auto);
+  }
 }
 .video-column .debrief-cam-grid {
   display: grid;
@@ -21782,6 +22015,7 @@ body:has(#telemetry.panel.visible) #telemetry .tele-dash-sub {
   }
 }
 @media (max-width: 720px) {
+  .app-chrome { padding-top: 46px; }
   .param-center-search-bar .ardu-search-row {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
@@ -22519,6 +22753,11 @@ body:has(#pulse.panel.visible) .pulse-home.pulse-status-home {
     min-height: 36px;
     max-height: 40px;
     overflow: hidden;
+    padding-inline-end: 140px;
+  }
+  .app-chrome .tab {
+    padding: 4px 6px;
+    font-size: 11px;
   }
   .mission-ops-chrome {
     max-height: 26px;

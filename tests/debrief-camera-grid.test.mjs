@@ -59,8 +59,7 @@ describe('Debrief camera grid and horizon menu — live', () => {
 
   async function openDebrief() {
     await page.goto(BASE, { waitUntil: 'domcontentloaded' });
-    await page.click('[data-tab="recordings"]');
-    await page.click('#debriefRecBtn');
+    await page.click('[data-tab="optics"]');
     await page.waitForSelector('#debriefCamGrid');
   }
 
@@ -138,8 +137,7 @@ describe('Debrief camera grid and horizon menu — live', () => {
     await page.screenshot({ path: path.join(shotDir, 'grid-3.png') });
 
     await page.reload({ waitUntil: 'domcontentloaded' });
-    await page.click('[data-tab="recordings"]');
-    await page.click('#debriefRecBtn');
+    await page.click('[data-tab="optics"]');
     await page.waitForSelector('#debriefCamGrid[data-count="3"]');
     expect(await page.locator('.debrief-cam-tile:not([hidden])').count()).toBe(3);
   }, 30000);

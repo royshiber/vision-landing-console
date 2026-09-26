@@ -8,6 +8,7 @@ import {
   LOCKED_HE,
   NO_REPLY_HE,
   UNLOCKED_HE,
+  gimbalKeyAction,
   gimbalMoveBody,
   gimbalPadView,
   gimbalStopBody,
@@ -73,23 +74,45 @@ describe('gimbal pad state', () => {
     expect(gimbalZoomBody('stop')).toEqual({ zoom: 0 });
   });
 
-  it('places the pad on the cameras view and stops on release or blur', () => {
-    const panel = html.slice(html.indexOf('id="debriefRecordingsPanel"'), html.indexOf('id="debriefLogsPanel"'));
+  it('places the pad on the optics view and stops on release or blur', () => {
+    const panel = html.slice(html.indexOf('id="optics"'), html.indexOf('id="recordings"'));
     expect(panel).toContain('id="gimbalPad"');
-    for (const dir of ['up', 'down', 'left', 'right', 'zoom-in', 'zoom-out', 'lock']) {
+    for (const dir of ['up', 'down', 'left', 'right', 'center', 'zoom-in', 'zoom-out', 'lock']) {
       expect(panel).toContain(`data-gimbal="${dir}"`);
     }
     expect(panel).toContain('משוחרר');
+    expect(panel).toContain('id="gimbalYaw"');
+    expect(panel).toContain('id="gimbalZoomValue"');
     expect(mod).toContain("addEventListener('pointerup', release)");
     expect(mod).toContain("addEventListener('blur', release)");
     expect(mod).toContain('/api/jetson/v1/gimbal/rate');
     expect(mod).toContain('/api/jetson/v1/gimbal/zoom');
+    expect(mod).toContain('/api/jetson/v1/gimbal/center');
     expect(mod).toContain("/api/jetson/v1/gimbal/mode");
+    expect(mod).toContain('ArrowUp');
+    expect(mod).toContain("getElementById('optics')");
     expect(mod).toContain("mode: next");
     expect(mod).toContain("'lock'");
     expect(mod).toContain("'follow'");
     expect(mod).not.toMatch(/ARM|DISARM|\/land|flight command/i);
     expect(css).toMatch(/\.gimbal-pad-btn \{[\s\S]*font-size:\s*clamp\(11px/);
     expect(css).toContain('.gimbal-pad-lock[aria-pressed="true"]');
+  });
+
+  it('maps arrow keys to motion and plus or minus to zoom', () => {
+    expect(gimbalKeyAction('ArrowUp')).toEqual({ hold: 'up', kind: 'rate' });
+    expect(gimbalKeyAction('ArrowLeft')).toEqual({ hold: 'left', kind: 'rate' });
+    expect(gimbalKeyAction('+')).toEqual({ hold: 'zoom-in', kind: 'zoom' });
+    expect(gimbalKeyAction('-')).toEqual({ hold: 'zoom-out', kind: 'zoom' });
+    expect(gimbalKeyAction('a')).toBeNull();
+  });
+
+  it('keeps live angles when the gimbal answers and hides them when the link is down', () => {
+    expect(gimbalPadView({
+      reachable: true,
+      mode: 'real',
+      health: { gimbal: { present: true, mode: 'follow', control_enabled: true, attitude: { yaw: 12.34, pitch: -3 }, zoom: 2 } },
+    })).toMatchObject({ enabled: true, yaw: 12.34, pitch: -3, zoom: 2 });
+    expect(gimbalPadView(null)).toMatchObject({ yaw: null, pitch: null, zoom: null });
   });
 });

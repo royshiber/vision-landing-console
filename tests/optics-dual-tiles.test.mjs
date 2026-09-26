@@ -65,7 +65,7 @@ describe('Optics CAM0 and CAM1 tiles', () => {
       localStorage.setItem('vlc.debrief.cameras.v1', JSON.stringify(['cam0']));
     });
     await page.goto(BASE, { waitUntil: 'domcontentloaded' });
-    await page.click('[data-tab="recordings"]');
+    await page.click('[data-tab="optics"]');
     await page.waitForSelector('#debriefCamGrid');
     await page.evaluate((detail) => {
       document.dispatchEvent(new CustomEvent('vlc-companion-cameras', { detail }));

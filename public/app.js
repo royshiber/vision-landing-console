@@ -342,7 +342,7 @@ function isEvolvePreviewFrame() {
 function evolvePreviewAllowedTab(tabId) {
   const raw = String(tabId || '').trim();
   if (raw === 'platform' || raw === 'maintenance' || raw === 'development' || raw === 'pulse') return 'terrain';
-  if (['terrain', 'control', 'recordings', 'telemetry'].includes(raw)) return raw;
+  if (['terrain', 'control', 'recordings', 'optics', 'telemetry'].includes(raw)) return raw;
   return 'terrain';
 }
 
@@ -17088,6 +17088,7 @@ const ASSIST_TAB_WORKSPACE = {
   telemetry: 'PLATFORM',
   maintenance: 'PLATFORM',
   recordings: 'PLATFORM',
+  optics: 'PLATFORM',
   flights: 'PLATFORM',
   advisor: 'LAB',
   featureDesigner: 'EVOLVE',
@@ -17102,6 +17103,7 @@ const ASSIST_TAB_CAPABILITY = {
   telemetry: 'diagnostics',
   maintenance: 'companion',
   recordings: 'debrief',
+  optics: 'video',
   flights: 'debrief',
   landingParams: 'landing',
   abortParams: 'landing',
@@ -17150,8 +17152,9 @@ const ASSIST_TAB_HE = Object.freeze({
   control: 'פרמטרים',
   telemetry: 'טלמטריה',
   maintenance: 'תחזוקה',
-  recordings: 'אופטיקה ותחקור',
-  flights: 'אופטיקה ותחקור',
+  recordings: 'תחקור',
+  optics: 'אופטיקה',
+  flights: 'תחקור',
   advisor: 'יועץ',
   featureDesigner: 'פיצ׳ר',
   flightEngineer: 'מהנדס טיסה',

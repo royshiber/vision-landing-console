@@ -43,7 +43,7 @@ describe('camera FOV controls', () => {
   it('persists each camera, rejects 19, and keeps the label inside its box', async () => {
     const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
     await page.goto(BASE, { waitUntil: 'domcontentloaded' });
-    await page.click('[data-tab="recordings"]');
+    await page.click('[data-tab="optics"]');
     await page.waitForSelector('#cam0Fov');
     const defaults = await page.evaluate(() => ({
       cam0: document.querySelector('#cam0Fov').value,
@@ -64,7 +64,7 @@ describe('camera FOV controls', () => {
     await page.dispatchEvent('#cam0Fov', 'change');
     expect(await page.inputValue('#cam0Fov')).toBe('100');
     await page.reload({ waitUntil: 'domcontentloaded' });
-    await page.click('[data-tab="recordings"]');
+    await page.click('[data-tab="optics"]');
     await page.waitForSelector('#cam0Fov');
     expect(await page.inputValue('#cam0Fov')).toBe('100');
     expect(await page.inputValue('#cam1Fov')).toBe('79');

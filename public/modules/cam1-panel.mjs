@@ -171,13 +171,10 @@ function init() {
 
   function selectCam(which) {
     const on1 = which === 'cam1';
-    if (cam0) cam0.hidden = on1;
-    panel.hidden = !on1;
     btn0.classList.toggle('is-active', !on1);
     btn1.classList.toggle('is-active', on1);
     btn0.setAttribute('aria-selected', String(!on1));
     btn1.setAttribute('aria-selected', String(on1));
-    if (!on1) stopStream();
     document.dispatchEvent(new CustomEvent('vlc-debrief-open-cam', { detail: which }));
     nextAt = 0;
     void tick();
@@ -232,7 +229,7 @@ function init() {
     const wait = nextStreamDelayMs(streamAttempt);
     streamAttempt += 1;
     retryTimer = setTimeout(() => {
-      if (panel.hidden || !lastBody || lastBody.state === 'absent') return;
+      if (panel.hidden || panel.getClientRects().length === 0 || !lastBody || lastBody.state === 'absent') return;
       streamError = false;
       if (img) img.src = `${STREAM}?t=${Date.now()}`;
     }, wait);
