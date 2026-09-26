@@ -1,31 +1,5 @@
 [
   {
-    "version": "1.02.337",
-    "date": "2026-09-26",
-    "changes": [
-      {
-        "type": "test",
-        "title": "Tests",
-        "detail": "cam0-pipeline.test.mjs, camera-ingest-honesty.test.mjs, companion-observe-status.test.mjs"
-      },
-      {
-        "type": "docs",
-        "title": "Documentation",
-        "detail": "CAM0_DEPLOY.md"
-      },
-      {
-        "type": "docs",
-        "title": "Commercial capabilities overview",
-        "detail": "COMMERCIAL_CAPABILITIES.he.md"
-      },
-      {
-        "type": "chore",
-        "title": "Build scripts",
-        "detail": "__init__.py, v4l2cap.py, companion_agent.py, test_tap_and_service.py, test_v4l2cap.py"
-      }
-    ]
-  },
-  {
     "version": "1.02.336",
     "date": "2026-09-26",
     "changes": [
