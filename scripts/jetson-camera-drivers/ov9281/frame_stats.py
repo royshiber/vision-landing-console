@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """Print mean and stddev of one OV9281 frame and write an 8-bit PNG.
 
-Y10 / Y10  frames are little-endian 16-bit samples with 10 valid bits.
-GREY frames are 8-bit. A flat black capture (mean near 0, stddev near 0)
-is printed as classification black so a dead sensor is obvious.
+RG10 (and the Y10 alias) frames are little-endian 16-bit samples with
+10 valid bits. The sensor is mono; the RGGB pattern is only how
+tegra-camera names the stream. RGGB (and the GREY alias) frames are
+8-bit. A flat black capture (mean near 0, stddev near 0) is printed as
+classification black so a dead sensor is obvious.
 """
 
 import argparse
@@ -33,14 +35,21 @@ def write_png_gray8(path, image):
         fh.write(png)
 
 
-def decode_frame(buf, pixelformat):
+def _kind(pixelformat):
     fmt = pixelformat.strip().upper()
-    if fmt in ("Y10", "Y10 ", "GREY10", "Y16"):
+    if fmt in ("RG10", "RG10 ", "SRGGB10", "Y10", "Y10 ", "GREY10", "Y16"):
+        return 10
+    if fmt in ("RGGB", "SRGGB8", "GREY", "GRAY", "Y8"):
+        return 8
+    raise SystemExit(f"unsupported pixelformat {pixelformat}")
+
+
+def decode_frame(buf, pixelformat):
+    bits = _kind(pixelformat)
+    if bits == 10:
         samples = np.frombuffer(buf, dtype="<u2")
         return np.bitwise_and(samples, 0x03FF).astype(np.float64), 10
-    if fmt in ("GREY", "GRAY", "Y8"):
-        return np.frombuffer(buf, dtype=np.uint8).astype(np.float64), 8
-    raise SystemExit(f"unsupported pixelformat {pixelformat}")
+    return np.frombuffer(buf, dtype=np.uint8).astype(np.float64), 8
 
 
 def main(argv):
@@ -48,18 +57,16 @@ def main(argv):
     parser.add_argument("raw")
     parser.add_argument("--width", type=int, default=1280)
     parser.add_argument("--height", type=int, default=800)
-    parser.add_argument("--pixelformat", default="Y10")
+    parser.add_argument("--pixelformat", default="RG10")
     parser.add_argument("--png", required=True)
     parser.add_argument("--frame", type=int, default=0)
     args = parser.parse_args(argv)
 
-    fmt = args.pixelformat.strip().upper()
-    if fmt in ("Y10", "Y10 ", "GREY10", "Y16"):
+    bits = _kind(args.pixelformat)
+    if bits == 10:
         frame_bytes = args.width * args.height * 2
-    elif fmt in ("GREY", "GRAY", "Y8"):
-        frame_bytes = args.width * args.height
     else:
-        raise SystemExit(f"unsupported pixelformat {args.pixelformat}")
+        frame_bytes = args.width * args.height
 
     with open(args.raw, "rb") as fh:
         data = fh.read()

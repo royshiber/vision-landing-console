@@ -22,7 +22,7 @@ frame[::17] = 800
 frame.tofile("${tmpdir}/raw.bin")
 PY
 python3 "${ROOT}/frame_stats.py" "${tmpdir}/raw.bin" \
-  --width 1280 --height 800 --pixelformat Y10 \
+  --width 1280 --height 800 --pixelformat RG10 \
   --png "${tmpdir}/frame.png" | tee "${tmpdir}/stats.txt"
 grep -q '^mean ' "${tmpdir}/stats.txt"
 grep -q '^stddev ' "${tmpdir}/stats.txt"
@@ -33,16 +33,26 @@ np.zeros(1280 * 800, dtype=np.uint8).tofile("${tmpdir}/black.raw")
 PY
 python3 "${ROOT}/frame_stats.py" "${tmpdir}/black.raw" \
   --pixelformat GREY --png "${tmpdir}/black.png" | grep -q 'classification black'
+python3 "${ROOT}/frame_stats.py" "${tmpdir}/raw.bin" \
+  --width 1280 --height 800 --pixelformat Y10 \
+  --png "${tmpdir}/y10.png" | grep -q 'classification varied'
+python3 "${ROOT}/frame_stats.py" "${tmpdir}/black.raw" \
+  --pixelformat RGGB --png "${tmpdir}/rggb.png" | grep -q 'classification black'
 
 "${ROOT}/build.sh" --dtbo-only
 if ! command -v dtc >/dev/null 2>&1; then
   echo "dtc missing" >&2
   exit 1
 fi
-dtc -I dtb -O dts "${ROOT}/tegra234-p3767-camera-p3768-ov9281-A.dtbo" \
-  | grep -q 'serial_b'
-dtc -I dtb -O dts "${ROOT}/tegra234-p3767-camera-p3768-ov9281-A.dtbo" \
-  | grep -q 'ovti,ov9281'
+dtbo_dts=$(dtc -I dtb -O dts "${ROOT}/tegra234-p3767-camera-p3768-ov9281-A.dtbo")
+printf '%s\n' "${dtbo_dts}" | grep -q 'serial_b'
+printf '%s\n' "${dtbo_dts}" | grep -q 'ovti,ov9281'
+printf '%s\n' "${dtbo_dts}" | grep -q 'rggb'
+printf '%s\n' "${dtbo_dts}" | grep -q 'extperiph1'
+if printf '%s\n' "${dtbo_dts}" | grep -q 'pixel_phase = "y"'; then
+  echo "overlay still declares pixel_phase y" >&2
+  exit 1
+fi
 
 if [[ ! -f "${KSRC}/Makefile" ]]; then
   echo "kernel tree ${KSRC} is missing; overlay and script tests passed" >&2

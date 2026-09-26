@@ -46,7 +46,11 @@ fi
 echo "formats on ${DEV}:"
 v4l2-ctl -d "${DEV}" --list-formats-ext
 
-# sensor_mode 0 is 1280x800 RAW10. bypass_mode=0 keeps the frame in V4L2.
+# sensor_mode 0 is 1280x800 RAW10 declared as bayer rggb.
+# The fourcc is RG10: 10-bit samples in 16-bit little-endian words.
+# Treat those words as mono luminance. RGGB is the 8-bit alias and is
+# not a mode this tegra-camera.ko will register. bypass_mode=0 keeps
+# the frame in V4L2.
 v4l2-ctl -d "${DEV}" --set-ctrl=sensor_mode=0
 if ! v4l2-ctl -d "${DEV}" --set-ctrl=bypass_mode=0 >/tmp/ov9281-bypass.err 2>&1; then
   if grep -qi 'unknown control' /tmp/ov9281-bypass.err; then
@@ -60,7 +64,7 @@ fi
 pixelformat=""
 raw="${OUT}/frame.raw"
 rm -f "${raw}"
-for fmt in Y10 GREY; do
+for fmt in RG10 RGGB; do
   if v4l2-ctl -d "${DEV}" \
       --set-fmt-video=width=${WIDTH},height=${HEIGHT},pixelformat=${fmt} \
       --stream-mmap --stream-count=10 --stream-to="${raw}"; then
@@ -71,7 +75,7 @@ for fmt in Y10 GREY; do
 done
 
 if [[ -z "${pixelformat}" || ! -s "${raw}" ]]; then
-  echo "capture failed for Y10 and GREY" >&2
+  echo "capture failed for RG10 and RGGB" >&2
   exit 1
 fi
 

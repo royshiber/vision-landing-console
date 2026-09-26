@@ -31,6 +31,7 @@
 #include <media/tegra_v4l2_camera.h>
 #include <media/tegracam_core.h>
 #include <media/tegracam_utils.h>
+#include <media/v4l2-mediabus.h>
 
 #define OV9281_CHIP_ID			0x9281
 #define OV9281_REG_CHIP_ID		0x300a
@@ -66,15 +67,19 @@
 
 #define OV9281_MODE_1280X800_RAW10	0
 #define OV9281_MODE_1280X720_RAW10	1
-#define OV9281_MODE_1280X800_RAW8	2
-#define OV9281_MODE_1280X720_RAW8	3
 
 /*
  * Link is 400 MHz DDR (800 Mbps/lane), 2 lanes, from ov9282.c.
- * RAW10 pixel rate = 400e6 * 2 * 2 / 10. RAW8 divides by 8.
+ * RAW10 pixel rate = 400e6 * 2 * 2 / 10.
+ * camera_common maps V4L2_PIX_FMT_SRGGB10 to MEDIA_BUS_FMT_SRGGB10_1X10.
+ * sensor_common on this tegra-camera.ko has no bayer_*8 string, so RAW8
+ * is not a registered mode. MEDIA_BUS_FMT_SRGGB8_1X8 is the table entry
+ * that would match V4L2_PIX_FMT_SRGGB8 if that string is added later.
  */
 #define OV9281_PIXCLK_RAW10		160000000U
-#define OV9281_PIXCLK_RAW8		200000000U
+#define OV9281_MBUS_RAW10		MEDIA_BUS_FMT_SRGGB10_1X10
+#define OV9281_MBUS_RAW8		MEDIA_BUS_FMT_SRGGB8_1X8
+#define OV9281_MCLK_HZ			24000000UL
 
 static const u32 ctrl_cid_list[] = {
 	TEGRA_CAMERA_CID_GAIN,
@@ -270,24 +275,6 @@ static const struct ov9281_mode ov9281_modes[] = {
 		.bpp = 10,
 		.timing = ov9281_timing_1280x720,
 	},
-	{
-		.width = 1280,
-		.height = 800,
-		.pix_clk_hz = OV9281_PIXCLK_RAW8,
-		.line_length = OV9281_LINE_LENGTH,
-		.min_frame_length = 910,
-		.bpp = 8,
-		.timing = ov9281_timing_1280x800,
-	},
-	{
-		.width = 1280,
-		.height = 720,
-		.pix_clk_hz = OV9281_PIXCLK_RAW8,
-		.line_length = OV9281_LINE_LENGTH,
-		.min_frame_length = 761,
-		.bpp = 8,
-		.timing = ov9281_timing_1280x720,
-	},
 };
 
 static const int ov9281_60fps[] = { OV9281_DEFAULT_FPS };
@@ -295,8 +282,6 @@ static const int ov9281_60fps[] = { OV9281_DEFAULT_FPS };
 static const struct camera_common_frmfmt ov9281_frmfmt[] = {
 	{{1280, 800}, ov9281_60fps, 1, 0, OV9281_MODE_1280X800_RAW10},
 	{{1280, 720}, ov9281_60fps, 1, 0, OV9281_MODE_1280X720_RAW10},
-	{{1280, 800}, ov9281_60fps, 1, 0, OV9281_MODE_1280X800_RAW8},
-	{{1280, 720}, ov9281_60fps, 1, 0, OV9281_MODE_1280X720_RAW8},
 };
 
 static const struct of_device_id ov9281_of_match[] = {
@@ -340,6 +325,14 @@ static const struct ov9281_mode *ov9281_current_mode(struct camera_common_data *
 	    s_data->mode >= (int)ARRAY_SIZE(ov9281_modes))
 		return NULL;
 	return &ov9281_modes[s_data->mode];
+}
+
+/* Matches camera_common_color_fmts for V4L2_PIX_FMT_SRGGB10 / SRGGB8. */
+static u32 ov9281_mbus_code(const struct ov9281_mode *mode)
+{
+	if (mode->bpp == 8)
+		return OV9281_MBUS_RAW8;
+	return OV9281_MBUS_RAW10;
 }
 
 static u32 ov9281_frame_length_for_fps(const struct ov9281_mode *mode, u32 fps)
@@ -529,8 +522,18 @@ static int ov9281_power_on(struct camera_common_data *s_data)
 		return 0;
 	}
 
+	/*
+	 * Same order as nv_imx219 on CAM0_PWDN: hold the pin low, wait,
+	 * enable regulators, wait, drive the pin high, then wait before I2C.
+	 * GPIO_ACTIVE_HIGH in the overlay means electrical high lets the
+	 * sensor run. The caller owns the 24 MHz clock. board_setup enables
+	 * it before this function so the chip-id read sees a clock.
+	 * camera_common_s_power enables it after power_on and disables it
+	 * on power off, so this function does not touch the clock.
+	 */
 	if (pw->reset_gpio)
 		gpio_direction_output(pw->reset_gpio, 0);
+	usleep_range(10, 20);
 
 	if (pw->avdd) {
 		err = regulator_enable(pw->avdd);
@@ -548,17 +551,12 @@ static int ov9281_power_on(struct camera_common_data *s_data)
 			goto dvdd_fail;
 	}
 
-	usleep_range(1000, 1500);
+	usleep_range(10, 20);
 	if (pw->reset_gpio)
 		gpio_set_value_cansleep(pw->reset_gpio, 1);
 
-	err = camera_common_mclk_enable(s_data);
-	if (err)
-		dev_warn(dev, "mclk enable failed (%d); continuing if the module has its own clock\n",
-			 err);
-
-	/* OV9281 needs the clock stable before the first I2C transaction. */
-	usleep_range(10000, 12000);
+	/* imx219 waits t4+t5+t9 after releasing reset before I2C. */
+	usleep_range(10000, 10100);
 	pw->state = SWITCH_ON;
 	return 0;
 
@@ -592,7 +590,6 @@ static int ov9281_power_off(struct camera_common_data *s_data)
 		return 0;
 	}
 
-	camera_common_mclk_disable(s_data);
 	if (pw->reset_gpio)
 		gpio_set_value_cansleep(pw->reset_gpio, 0);
 	usleep_range(1000, 1500);
@@ -623,14 +620,26 @@ static int ov9281_power_get(struct tegracam_device *tc_dev)
 	if (pdata->mclk_name) {
 		pw->mclk = devm_clk_get(dev, pdata->mclk_name);
 		if (IS_ERR(pw->mclk)) {
-			dev_info(dev, "no clock %s (%ld); using camera_common mclk\n",
-				 pdata->mclk_name, PTR_ERR(pw->mclk));
-			pw->mclk = NULL;
-		} else if (pdata->parentclk_name) {
-			parent = devm_clk_get(dev, pdata->parentclk_name);
-			if (!IS_ERR(parent))
-				clk_set_parent(pw->mclk, parent);
+			dev_err(dev, "clock %s lookup failed (%ld)\n",
+				pdata->mclk_name, PTR_ERR(pw->mclk));
+			return PTR_ERR(pw->mclk);
 		}
+		if (pdata->parentclk_name) {
+			parent = devm_clk_get(dev, pdata->parentclk_name);
+			if (IS_ERR(parent)) {
+				dev_err(dev, "parent clock %s lookup failed (%ld)\n",
+					pdata->parentclk_name, PTR_ERR(parent));
+				return PTR_ERR(parent);
+			}
+			{
+				int perr = clk_set_parent(pw->mclk, parent);
+
+				if (perr)
+					dev_err(dev, "clk_set_parent(%s) failed (%d)\n",
+						pdata->parentclk_name, perr);
+			}
+		}
+		dev_info(dev, "clock %s ready\n", pdata->mclk_name);
 	}
 
 	if (pdata->regulators.avdd)
@@ -725,6 +734,10 @@ static struct camera_common_pdata *ov9281_parse_dt(struct tegracam_device *tc_de
 	err = of_property_read_string(np, "mclk", &board->mclk_name);
 	if (err)
 		board->mclk_name = NULL;
+	err = of_property_read_string_index(np, "clock-names", 1,
+					    &board->parentclk_name);
+	if (err)
+		board->parentclk_name = NULL;
 	of_property_read_string(np, "avdd-reg", &board->regulators.avdd);
 	of_property_read_string(np, "iovdd-reg", &board->regulators.iovdd);
 	of_property_read_string(np, "dvdd-reg", &board->regulators.dvdd);
@@ -785,9 +798,9 @@ static int ov9281_set_mode(struct tegracam_device *tc_dev)
 	if (err)
 		return err;
 
-	dev_info(tc_dev->dev, "mode %d %ux%u RAW%u VTS %u\n",
+	dev_info(tc_dev->dev, "mode %d %ux%u RAW%u VTS %u mbus 0x%x\n",
 		 s_data->mode, mode->width, mode->height, mode->bpp,
-		 priv->frame_length);
+		 priv->frame_length, ov9281_mbus_code(mode));
 	return 0;
 }
 
@@ -837,36 +850,74 @@ static int ov9281_read_chip_id(struct camera_common_data *s_data, u16 *id)
 	return 0;
 }
 
+static int ov9281_enable_mclk(struct camera_common_data *s_data)
+{
+	struct camera_common_power_rail *pw = s_data->power;
+	unsigned long rate;
+	int err;
+
+	if (!pw || !pw->mclk) {
+		dev_err(s_data->dev, "mclk is not available\n");
+		return -ENODEV;
+	}
+	rate = s_data->def_clk_freq ? s_data->def_clk_freq : OV9281_MCLK_HZ;
+	err = clk_set_rate(pw->mclk, rate);
+	if (err) {
+		dev_err(s_data->dev, "clk_set_rate(%lu) failed (%d)\n", rate, err);
+		return err;
+	}
+	err = clk_prepare_enable(pw->mclk);
+	if (err) {
+		dev_err(s_data->dev, "mclk enable failed (%d)\n", err);
+		return err;
+	}
+	dev_info(s_data->dev, "mclk enabled at %lu Hz\n", rate);
+	return 0;
+}
+
 static int ov9281_board_setup(struct ov9281 *priv)
 {
 	struct camera_common_data *s_data = priv->s_data;
 	struct device *dev = s_data->dev;
+	struct camera_common_power_rail *pw = s_data->power;
 	u16 id = 0;
 	int err;
+	int id_err;
+	bool powered = false;
+	bool clock_on = false;
 
-	err = ov9281_power_on(s_data);
+	err = ov9281_enable_mclk(s_data);
 	if (err) {
-		dev_err(dev, "power on before chip-id read failed (%d)\n", err);
-		return err;
+		dev_err(dev, "mclk before chip-id read failed (%d)\n", err);
+	} else {
+		clock_on = true;
+		dev_info(dev, "power on for chip-id (reset gpio %u)\n",
+			 pw && pw->reset_gpio ? pw->reset_gpio : 0);
+		err = ov9281_power_on(s_data);
+		if (err)
+			dev_err(dev, "power on before chip-id read failed (%d)\n", err);
+		else
+			powered = true;
 	}
 
-	err = ov9281_read_chip_id(s_data, &id);
-	if (err) {
-		dev_err(dev, "chip id read failed (%d). Check I2C address, mux GPIO, power and clock\n",
-			err);
-		goto out;
-	}
-	if (id != OV9281_CHIP_ID) {
+	id_err = ov9281_read_chip_id(s_data, &id);
+	if (id_err) {
+		dev_err(dev, "chip id read failed (%d)\n", id_err);
+		if (!err)
+			err = id_err;
+	} else if (id != OV9281_CHIP_ID) {
 		dev_err(dev, "chip id 0x%04x != 0x%04x\n", id, OV9281_CHIP_ID);
-		err = -ENODEV;
-		goto out;
+		if (!err)
+			err = -ENODEV;
+	} else {
+		dev_info(dev, "ov9281 chip id 0x%04x at i2c addr 0x%02x\n",
+			 id, priv->i2c_client->addr);
 	}
 
-	dev_info(dev, "ov9281 chip id 0x%04x at i2c addr 0x%02x\n",
-		 id, priv->i2c_client->addr);
-	err = 0;
-out:
-	ov9281_power_off(s_data);
+	if (powered)
+		ov9281_power_off(s_data);
+	if (clock_on && pw && pw->mclk)
+		clk_disable_unprepare(pw->mclk);
 	return err;
 }
 

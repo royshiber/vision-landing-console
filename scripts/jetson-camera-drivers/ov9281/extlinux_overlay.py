@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
-"""Idempotent OVERLAYS edits for /boot/extlinux/extlinux.conf.
+"""Idempotent extlinux.conf edits for the OV9281 overlay.
 
-Only the default LABEL (or an explicit one) gains the dtbo. Other stanzas
-are left unchanged. add() is safe to run twice. remove() drops the path
-from every stanza and deletes an OVERLAYS line that becomes empty.
+UEFI ignores an OVERLAYS line on a label that has no FDT line. jetson-io
+writes a new JetsonIO label with both. These helpers do the same when
+jetson-io is not installed, and remove that label on uninstall.
 """
 
 import argparse
 import sys
+import tempfile
 
 
 def _strip_comment(text):
@@ -129,6 +130,110 @@ def remove_overlay(text, dtbo):
     return out
 
 
+def _set_default(lines, label):
+    for i, line in enumerate(lines):
+        body = _strip_comment(line).strip()
+        if body.upper().startswith("DEFAULT "):
+            indent = _indent_of(line)
+            lines[i] = f"{indent}DEFAULT {label}"
+            return
+    lines.insert(0, f"DEFAULT {label}")
+
+
+def _stanza_field(lines, start, end, key):
+    key = key.upper()
+    for i in range(start + 1, end):
+        body = _strip_comment(lines[i]).strip()
+        parts = body.split(None, 1)
+        if parts and parts[0].upper() == key:
+            return parts[1] if len(parts) == 2 else ""
+    return None
+
+
+def _copy_boot_lines(lines, start, end, indent):
+    kept = []
+    for key in ("MENU", "LINUX", "INITRD", "APPEND"):
+        if key == "MENU":
+            for i in range(start + 1, end):
+                body = _strip_comment(lines[i]).strip()
+                if body.upper().startswith("MENU LABEL"):
+                    kept.append(f"{indent}{body}")
+                    break
+            continue
+        value = _stanza_field(lines, start, end, key)
+        if value is not None:
+            kept.append(f"{indent}{key} {value}")
+    return kept
+
+
+def jetsonio_ready(text, dtbo, label="JetsonIO"):
+    lines = text.splitlines()
+    if _default_label(lines) != label:
+        return False
+    bounds = [b for b in _stanza_bounds(lines) if b[2] == label]
+    if not bounds:
+        return False
+    start, end, _name = bounds[0]
+    fdt = _stanza_field(lines, start, end, "FDT")
+    overlays = _stanza_field(lines, start, end, "OVERLAYS")
+    if not fdt:
+        return False
+    return dtbo in _split_paths(overlays or "")
+
+
+def add_jetsonio(text, dtbo, fdt, label="JetsonIO", source="primary"):
+    if jetsonio_ready(text, dtbo, label):
+        return text if text.endswith("\n") else text + "\n"
+    lines = text.splitlines()
+    bounds = _stanza_bounds(lines)
+    src = [b for b in bounds if b[2] == source]
+    if not src:
+        raise SystemExit(f"extlinux.conf has no LABEL {source}")
+    src_start, src_end, _name = src[0]
+    indent = _stanza_indent(lines, src_start, src_end)
+    block = [f"LABEL {label}"]
+    block.extend(_copy_boot_lines(lines, src_start, src_end, indent))
+    block.append(f"{indent}FDT {fdt}")
+    block.append(f"{indent}OVERLAYS {dtbo}")
+    existing = [b for b in bounds if b[2] == label]
+    if existing:
+        start, end, _name = existing[0]
+        lines[start:end] = block + [""]
+    else:
+        if lines and lines[-1].strip():
+            lines.append("")
+        lines.extend(block)
+        lines.append("")
+    _set_default(lines, label)
+    out = "\n".join(lines)
+    if not out.endswith("\n"):
+        out += "\n"
+    return out
+
+
+def remove_jetsonio(text, dtbo, label="JetsonIO", restore="primary"):
+    lines = text.splitlines()
+    default_before = _default_label(lines)
+    bounds = _stanza_bounds(lines)
+    existing = [b for b in bounds if b[2] == label]
+    removed_label = False
+    if existing:
+        start, end, _name = existing[0]
+        while end < len(lines) and lines[end].strip() == "":
+            end += 1
+        del lines[start:end]
+        removed_label = True
+    stripped = remove_overlay("\n".join(lines) + ("\n" if text.endswith("\n") or lines else "\n"), dtbo)
+    lines = stripped.splitlines()
+    if removed_label or default_before == label:
+        if any(b[2] == restore for b in _stanza_bounds(lines)):
+            _set_default(lines, restore)
+    out = "\n".join(lines)
+    if out and not out.endswith("\n"):
+        out += "\n"
+    return out
+
+
 def _self_test():
     sample = (
         "TIMEOUT 30\n"
@@ -181,27 +286,133 @@ def _self_test():
         raise SystemExit("empty OVERLAYS line was kept")
     if remove_overlay(cleared, dtbo) != cleared:
         raise SystemExit("remove is not idempotent")
+
+    fdt = "/boot/dtb/kernel_tegra234-p3768-0000+p3767-0005-nv-super.dtb"
+    stray = add_overlay(sample, dtbo)
+    if jetsonio_ready(stray, dtbo):
+        raise SystemExit("OVERLAYS without FDT must not count as JetsonIO")
+    # install.sh strips the ignored primary line, then adds the new label.
+    # add_jetsonio itself must not copy that OVERLAYS line into JetsonIO.
+    kept = add_jetsonio(stray, dtbo, fdt)
+    if kept.split("LABEL JetsonIO", 1)[1].count(dtbo) != 1:
+        raise SystemExit(f"JetsonIO copied the primary OVERLAYS line:\n{kept}")
+    created = add_jetsonio(remove_overlay(stray, dtbo), dtbo, fdt)
+    if not jetsonio_ready(created, dtbo):
+        raise SystemExit(f"add_jetsonio did not produce a bootable label:\n{created}")
+    if "DEFAULT JetsonIO" not in created.split("LABEL", 1)[0]:
+        raise SystemExit("DEFAULT was not switched to JetsonIO")
+    primary = created.split("LABEL JetsonIO", 1)[0]
+    if dtbo in primary:
+        raise SystemExit(f"primary still lists the dtbo:\n{created}")
+    jetson = created.split("LABEL JetsonIO", 1)[1]
+    for needle in (f"FDT {fdt}", f"OVERLAYS {dtbo}", "LINUX /boot/Image", "APPEND ${cbootargs}"):
+        if needle not in jetson:
+            raise SystemExit(f"JetsonIO stanza missing {needle}:\n{created}")
+    if "LABEL backup" not in created or "OVERLAYS /boot/other.dtbo" not in created:
+        raise SystemExit("add_jetsonio touched the backup stanza")
+    if add_jetsonio(created, dtbo, fdt) != created:
+        raise SystemExit("add_jetsonio is not idempotent")
+
+    # The board today: jetson-io label plus the ignored primary OVERLAYS line.
+    board = (
+        "TIMEOUT 30\n"
+        "DEFAULT JetsonIO\n"
+        "\n"
+        "LABEL primary\n"
+        "\tMENU LABEL primary kernel\n"
+        "\tLINUX /boot/Image\n"
+        "\tINITRD /boot/initrd\n"
+        "\tAPPEND ${cbootargs} root=/dev/mmcblk0p1\n"
+        f"\tOVERLAYS {dtbo}\n"
+        "\n"
+        "LABEL JetsonIO\n"
+        "\tMENU LABEL Custom Header Config: <CSI Camera OV9281-A>\n"
+        "\tLINUX /boot/Image\n"
+        "\tINITRD /boot/initrd\n"
+        "\tAPPEND ${cbootargs} root=/dev/mmcblk0p1\n"
+        f"\tFDT {fdt}\n"
+        f"\tOVERLAYS {dtbo}\n"
+    )
+    if not jetsonio_ready(board, dtbo):
+        raise SystemExit("current board extlinux was not recognised")
+    reverted = remove_jetsonio(board, dtbo)
+    if "LABEL JetsonIO" in reverted or dtbo in reverted:
+        raise SystemExit(f"remove_jetsonio left the label or the dtbo:\n{reverted}")
+    if "DEFAULT primary" not in reverted:
+        raise SystemExit("remove_jetsonio did not restore DEFAULT primary")
+    if "LINUX /boot/Image" not in reverted or "INITRD /boot/initrd" not in reverted:
+        raise SystemExit("remove_jetsonio dropped the primary boot files")
+    if remove_jetsonio(reverted, dtbo) != reverted:
+        raise SystemExit("remove_jetsonio is not idempotent")
+    untouched = (
+        "DEFAULT backup\n"
+        "\n"
+        "LABEL primary\n"
+        "\tLINUX /boot/Image\n"
+        "\n"
+        "LABEL backup\n"
+        "\tLINUX /boot/Image.backup\n"
+    )
+    if remove_jetsonio(untouched, dtbo) != untouched:
+        raise SystemExit("remove_jetsonio rewrote a file that was not ours")
+
+    with tempfile.TemporaryDirectory() as tmp:
+        path = tmp + "/extlinux.conf"
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write(sample)
+        if main(["has-jetsonio", "--file", path, "--dtbo", dtbo]) != 1:
+            raise SystemExit("has-jetsonio should fail before the label exists")
+        if main(["add-jetsonio", "--file", path, "--dtbo", dtbo, "--fdt", fdt]) != 0:
+            raise SystemExit("add-jetsonio cli failed")
+        if main(["has-jetsonio", "--file", path, "--dtbo", dtbo]) != 0:
+            raise SystemExit("has-jetsonio should pass after add-jetsonio")
+        if main(["add-jetsonio", "--file", path, "--dtbo", dtbo, "--fdt", fdt]) != 0:
+            raise SystemExit("second add-jetsonio cli failed")
+        with open(path, encoding="utf-8") as fh:
+            written = fh.read()
+        if written.count("LABEL JetsonIO") != 1 or written.count(dtbo) != 1:
+            raise SystemExit(f"cli add duplicated the label:\n{written}")
+        if main(["remove-jetsonio", "--file", path, "--dtbo", dtbo]) != 0:
+            raise SystemExit("remove-jetsonio cli failed")
+        with open(path, encoding="utf-8") as fh:
+            written = fh.read()
+        if "LABEL JetsonIO" in written or dtbo in written or "DEFAULT primary" not in written:
+            raise SystemExit(f"cli remove did not restore primary:\n{written}")
     print("extlinux_overlay self-test ok")
 
 
 def main(argv):
-    parser = argparse.ArgumentParser(description="edit extlinux OVERLAYS")
-    parser.add_argument("action", nargs="?", choices=("add", "remove"))
+    parser = argparse.ArgumentParser(description="edit extlinux for the OV9281 overlay")
+    parser.add_argument(
+        "action",
+        nargs="?",
+        choices=("add", "remove", "has-jetsonio", "add-jetsonio", "remove-jetsonio"),
+    )
     parser.add_argument("--self-test", action="store_true")
     parser.add_argument("--file")
     parser.add_argument("--dtbo")
+    parser.add_argument("--fdt")
     parser.add_argument("--label")
     args = parser.parse_args(argv)
     if args.self_test:
         _self_test()
         return 0
-    if args.action not in ("add", "remove"):
-        parser.error("add or remove is required")
+    if args.action not in ("add", "remove", "has-jetsonio", "add-jetsonio", "remove-jetsonio"):
+        parser.error("an action is required")
     if not args.file or not args.dtbo:
-        parser.error("add/remove need --file and --dtbo")
+        parser.error("--file and --dtbo are required")
     with open(args.file, "r", encoding="utf-8") as fh:
         text = fh.read()
-    if args.action == "add":
+    label = args.label or "JetsonIO"
+    if args.action == "has-jetsonio":
+        return 0 if jetsonio_ready(text, args.dtbo, label=label) else 1
+    if args.action == "add-jetsonio":
+        if not args.fdt:
+            parser.error("add-jetsonio needs --fdt")
+        updated = add_jetsonio(text, args.dtbo, args.fdt, label=label)
+    elif args.action == "remove-jetsonio":
+        updated = remove_jetsonio(text, args.dtbo, label=label)
+    elif args.action == "add":
         updated = add_overlay(text, args.dtbo, label=args.label)
     else:
         updated = remove_overlay(text, args.dtbo)

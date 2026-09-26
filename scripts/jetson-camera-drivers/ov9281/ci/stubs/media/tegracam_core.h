@@ -84,6 +84,7 @@ struct camera_common_data {
 	} sensor_props;
 	int mode;
 	int mode_prop_idx;
+	int def_clk_freq;
 	void *priv;
 };
 

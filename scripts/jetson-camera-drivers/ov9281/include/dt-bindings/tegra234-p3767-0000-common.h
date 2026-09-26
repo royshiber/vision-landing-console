@@ -60,4 +60,7 @@
 #define CAM1_PWDN	TEGRA234_MAIN_GPIO(AC, 0)
 #define CAM_I2C_MUX	TEGRA234_AON_GPIO(CC, 3)
 
+/* include/dt-bindings/clock/tegra234-clock.h — output of EXTPERIPH1 mux. */
+#define TEGRA234_CLK_EXTPERIPH1 36
+
 #endif

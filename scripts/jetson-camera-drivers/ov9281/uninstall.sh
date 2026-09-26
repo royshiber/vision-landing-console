@@ -1,6 +1,10 @@
 #!/bin/bash
-# Full revert of install.sh: restore the extlinux snapshot taken at first
-# install, delete the module and the dtbo, then depmod.
+# Remove the OV9281 module and the JetsonIO extlinux label.
+# Sets DEFAULT back to primary and deletes label JetsonIO. Also strips
+# this dtbo from any OVERLAYS line, including the one UEFI ignored on
+# primary. Does not restore extlinux.conf.ov9281.bak over the live file:
+# that snapshot can predate later jetson-io edits on a board that already
+# has the JetsonIO label.
 # Safe to run again after a successful uninstall.
 set -euo pipefail
 
@@ -26,12 +30,22 @@ if [[ ! -f /etc/nv_tegra_release ]] && [[ "$(uname -r)" != *tegra* ]]; then
   exit 1
 fi
 
-if [[ -f "${BACKUP}" && -f "${EXTLINUX}" ]]; then
-  cp -a "${BACKUP}" "${EXTLINUX}"
-  rm -f "${BACKUP}"
-elif [[ -f "${EXTLINUX}" ]]; then
-  python3 "${ROOT}/extlinux_overlay.py" remove --file "${EXTLINUX}" --dtbo "${DTBO_BOOT}"
+if [[ -f "${EXTLINUX}" ]]; then
+  python3 "${ROOT}/extlinux_overlay.py" remove-jetsonio --file "${EXTLINUX}" --dtbo "${DTBO_BOOT}"
+  if python3 "${ROOT}/extlinux_overlay.py" has-jetsonio --file "${EXTLINUX}" --dtbo "${DTBO_BOOT}"; then
+    echo "JetsonIO still applies ${DTBO_BOOT}" >&2
+    exit 1
+  fi
+  if grep -q 'LABEL JetsonIO' "${EXTLINUX}"; then
+    echo "LABEL JetsonIO is still in ${EXTLINUX}" >&2
+    exit 1
+  fi
 fi
+
+# The snapshot is the pre-overlay file from the first install. The live
+# file is now primary again. Drop the snapshot so a later install records
+# the current primary instead of restoring an older copy.
+rm -f "${BACKUP}"
 
 krel=$(uname -r)
 moddir="/lib/modules/${krel}/updates/drivers/media/i2c"
@@ -46,5 +60,5 @@ if lsmod | grep -q '^nv_ov9281 '; then
   fi
 fi
 
-echo "OV9281 CAM0 driver and overlay removed."
-echo "Reboot so the kernel drops the overlay."
+echo "OV9281 CAM0 driver removed. DEFAULT is primary. Label JetsonIO is gone."
+echo "Reboot so UEFI stops applying the overlay."
