@@ -21003,6 +21003,162 @@ body:has(#telemetry.panel.visible) #telemetry .tele-dash-sub {
   .app-update-actions button { flex: 1 1 auto; min-height: 36px; }
 }
 
+/* Versions and rollback — gear dialog. Text wraps inside its box. */
+#gsVersions {
+  font-size: 13px;
+  line-height: 1.4;
+  min-width: 0;
+}
+#gsVersions [hidden] { display: none !important; }
+#gsVersions .gs-h,
+#gsVersions .vr-h {
+  font-size: 15px;
+  line-height: 1.35;
+  margin: 0 0 6px;
+  overflow-wrap: anywhere;
+}
+#gsVersions .vr-sub { margin-top: 8px; }
+#gsVersions .vr-lead,
+#gsVersions .vr-note,
+#gsVersions .vr-progress,
+#gsVersions .vr-error,
+#gsVersions .vr-fromto,
+#gsVersions .vr-dl,
+#gsVersions .vr-btn,
+#gsVersions .vr-backup {
+  font-size: 13px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: normal;
+  text-overflow: clip;
+  max-width: 100%;
+}
+#gsVersions .vr-lead { margin: 0 0 8px; }
+#gsVersions .vr-card {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px;
+  margin: 0 0 8px;
+  min-width: 0;
+}
+#gsVersions .vr-dl {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+}
+#gsVersions .vr-dl > div {
+  display: grid;
+  grid-template-columns: minmax(0, 7.5em) minmax(0, 1fr);
+  gap: 6px;
+  align-items: start;
+}
+#gsVersions .vr-dl dt,
+#gsVersions .vr-dl dd {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  min-width: 0;
+}
+#gsVersions .vr-dl dd { font-weight: 700; }
+#gsVersions .vr-btn {
+  display: inline-block;
+  width: auto;
+  max-width: 100%;
+  margin-top: 8px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  height: auto;
+  text-align: center;
+}
+#gsVersions .vr-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+#gsVersions .vr-btn-danger {
+  background: #9f1239;
+  color: #fff;
+  border-color: #9f1239;
+}
+#gsVersions .vr-backups {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+#gsVersions .vr-backup {
+  display: grid;
+  gap: 2px;
+  padding: 6px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.04);
+}
+#gsVersions .vr-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+#gsVersions .vr-confirm,
+#gsVersions .vr-progress,
+#gsVersions .vr-error {
+  margin-top: 8px;
+  padding: 8px;
+  border-radius: 8px;
+}
+#gsVersions .vr-confirm {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  margin: 0;
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.45);
+  overflow: auto;
+}
+#gsVersions .vr-confirm[hidden] { display: none; }
+#gsVersions .vr-confirm-card {
+  width: min(420px, 100%);
+  max-height: calc(100vh - 32px);
+  overflow: auto;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--surface, #fff);
+  color: var(--text, #111);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.28);
+}
+#gsVersions .vr-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+#gsVersions .vr-spin {
+  width: 12px;
+  height: 12px;
+  flex: 0 0 12px;
+  border: 2px solid currentColor;
+  border-inline-end-color: transparent;
+  border-radius: 50%;
+  animation: vr-spin 0.8s linear infinite;
+}
+@keyframes vr-spin { to { transform: rotate(360deg); } }
+#gsVersions .vr-backup { gap: 2px; padding: 6px; }
+#gsVersions .vr-progress { background: rgba(37, 99, 235, 0.12); }
+#gsVersions .vr-error { background: rgba(159, 18, 57, 0.12); }
+#gsVersions .vr-update { margin-top: 4px; }
+@media (max-width: 420px) {
+  #gsVersions .vr-dl > div { grid-template-columns: minmax(0, 1fr); }
+}
+
+
 #pulse .pulse-cat-fold .pulse-gauges {
   display: none;
 }

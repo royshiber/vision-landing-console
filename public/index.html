@@ -351,6 +351,60 @@
           <button type="button" class="conn-modal-close" data-close="1" aria-label="סגור">✕</button>
         </header>
         <div class="conn-modal-body global-settings-body">
+          <section class="gs-section" id="gsVersions" dir="rtl" data-versions-view="settings" data-vr-state="normal" aria-label="גרסאות ושחזור">
+            <h3 class="gs-h" id="gsVersionsTitle">גרסאות ושחזור</h3>
+            <p class="vr-lead">הגרסאות המותקנות, ושחזור לגרסה שעבדה.</p>
+            <article class="vr-card" id="vrConsole" data-vr="console">
+              <h4 class="vr-h">הקונסולה</h4>
+              <dl class="vr-dl">
+                <div><dt>גרסה</dt><dd id="vrConsoleVersion">גרסה לא ידועה</dd></div>
+                <div><dt>זמן התקנה</dt><dd id="vrConsoleInstalled">תאריך לא ידוע</dd></div>
+                <div><dt>גרסה קודמת</dt><dd id="vrConsolePrevious">גרסה לא ידועה</dd></div>
+              </dl>
+              <p id="vrConsoleRollbackNote" class="vr-note">אין גרסה קודמת לשחזור</p>
+              <button type="button" id="vrConsoleRollbackBtn" class="vr-btn" disabled>שחזור לגרסה קודמת</button>
+            </article>
+            <article class="vr-card" id="vrCompanion" data-vr="companion">
+              <h4 class="vr-h">מחשב המשימה</h4>
+              <p id="vrCompanionLink" class="vr-note">אין קישור למחשב המשימה</p>
+              <dl class="vr-dl">
+                <div><dt>גרסה</dt><dd id="vrCompanionVersion">גרסה לא ידועה</dd></div>
+                <div><dt>זמן פריסה</dt><dd id="vrCompanionDeployed">תאריך לא ידוע</dd></div>
+                <div><dt>מזהה שינוי</dt><dd id="vrCompanionSha">גרסה לא ידועה</dd></div>
+              </dl>
+              <h4 class="vr-h vr-sub">גיבויים</h4>
+              <ul id="vrBackups" class="vr-backups"></ul>
+            </article>
+            <article class="vr-card" id="vrFc">
+              <h4 class="vr-h">גיבוי פרמטרים</h4>
+              <p id="vrFcSnapshot" class="vr-note">תאריך לא ידוע</p>
+            </article>
+            <article class="vr-card" id="vrKnown">
+              <h4 class="vr-h">עבד טוב</h4>
+              <p id="vrKnownGoodStatus" class="vr-note">לא סומן</p>
+              <button type="button" id="vrKnownGoodBtn" class="vr-btn">סמנו שעבד טוב</button>
+              <p id="vrKnownGoodError" class="vr-error" role="alert" hidden></p>
+            </article>
+            <div id="gsAppUpdate" class="vr-update">
+              <p id="gsAppUpdateStatus" class="vr-note">בודקים אם יש עדכון.</p>
+              <button type="button" id="gsCheckUpdatesBtn" class="vr-btn">בדקו עדכונים</button>
+            </div>
+            <div id="vrConfirm" class="vr-confirm" role="dialog" aria-modal="true" aria-labelledby="vrConfirmTitle" tabindex="-1" hidden>
+              <div class="vr-confirm-card">
+                <p id="vrConfirmTitle" class="vr-h">אישור שחזור</p>
+                <p id="vrConfirmFrom" class="vr-fromto"></p>
+                <p id="vrConfirmTo" class="vr-fromto"></p>
+                <p id="vrConfirmWhen" class="vr-note"></p>
+                <div class="vr-actions">
+                  <button type="button" id="vrConfirmYes" class="vr-btn vr-btn-danger">אשרו שחזור</button>
+                  <button type="button" id="vrConfirmNo" class="vr-btn">בטלו</button>
+                </div>
+              </div>
+            </div>
+            <p id="vrProgress" class="vr-progress" role="status" aria-live="polite" tabindex="-1" hidden><span class="vr-spin" aria-hidden="true"></span><span id="vrProgressText">משחזרים גרסה</span></p>
+            <p id="vrError" class="vr-error" role="alert" aria-live="assertive" tabindex="-1" hidden></p>
+            <button type="button" id="vrDismiss" class="vr-btn" hidden>סגרו</button>
+          </section>
           <section class="gs-section" id="gsAttentionPolicy">
             <h3 class="gs-h" id="gsAttentionTitle">התערבות</h3>
             <div class="gs-attention-levels" role="radiogroup" aria-labelledby="gsAttentionTitle">
@@ -449,11 +503,6 @@
               <option value="auto_client">אוטומטי לפי הדפדפן</option>
             </select>
             <p id="gsSttHint" class="gs-hint"></p>
-          </section>
-          <section class="gs-section" id="gsAppUpdate">
-            <h3 class="gs-h">גרסת הקונסולה</h3>
-            <p id="gsAppUpdateStatus" class="gs-hint">בודקים אם יש עדכון.</p>
-            <button type="button" id="gsCheckUpdatesBtn">בדוק עדכונים</button>
           </section>
         </div>
       </div>
@@ -2733,7 +2782,7 @@
       <div class="modal-card">
         <div id="versionModalContent"><!-- filled by app.js VERSION_HISTORY --></div>
         <button id="closeVersionModalBtn">סגור</button>
-        <button type="button" id="versionCheckUpdatesBtn">בדוק עדכונים</button>
+        <button type="button" id="versionCheckUpdatesBtn">בדקו עדכונים</button>
       </div>
     </div>
 
@@ -2769,5 +2818,6 @@
     <script type="module" src="./modules/debrief-cameras.mjs?v=__APP_VERSION__"></script>
     <script type="module" src="./modules/cam0-panel.mjs?v=__APP_VERSION__"></script>
     <script src="./app.js?v=__APP_VERSION__"></script>
+    <script src="./versions-rollback.js?v=__APP_VERSION__"></script>
   </body>
 </html>

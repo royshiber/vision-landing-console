@@ -23,6 +23,7 @@ param(
     [string]$UserLocalAppData = '',
     [string]$UserDesktop = '',
     [switch]$UpdateOnly,
+    [switch]$Rollback,
     [switch]$ElevatedChild
 )
 
@@ -831,6 +832,21 @@ $script:updateTouchedApp = $false
 function Invoke-Main {
     New-Item -ItemType Directory -Path $Root -Force | Out-Null
     Write-Host ''
+    if ($Rollback) {
+        Write-Host '  AIRVIX ground console - ROLLBACK' -ForegroundColor Cyan
+        $rollback = Join-Path $Root 'rollback'
+        if (-not (Test-Path -LiteralPath (Join-Path $rollback 'server.js'))) {
+            Write-UpdateStatus 'failed' 'previous tree missing'
+            throw 'previous tree missing'
+        }
+        Write-UpdateStatus 'rolling_back' ''
+        Stop-AirvixServer (Get-EnvPort)
+        Copy-CodeTree $rollback $AppDir
+        Start-ExistingAirvixServer
+        Write-UpdateStatus 'ok' ''
+        Write-Host '  Restored the previous console code. Settings and data were kept.' -ForegroundColor Green
+        return
+    }
     if ($UpdateOnly) { Write-Host '  AIRVIX ground console - UPDATE' -ForegroundColor Cyan }
     else { Write-Host '  AIRVIX ground console - Windows installer' -ForegroundColor Cyan }
     Write-Host "  Install folder: $Root"
