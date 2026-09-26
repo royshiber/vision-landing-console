@@ -5351,21 +5351,23 @@ function formatHudAngleLabel(deg) {
 }
 
 // ── ResizeObserver: keep canvas pixel size = CSS size × devicePixelRatio ──────
-if (horizonCanvas && pfdHorizonShell) {
-  const _resizeCanvas = () => {
-    const stage = document.getElementById('pfdHorizonStage') || pfdHorizonShell;
-    const { width, height } = stage.getBoundingClientRect();
-    if (width > 10 && height > 10) {
-      const dpr = window.devicePixelRatio || 1;
-      horizonCanvas.width  = Math.round(width  * dpr);
-      horizonCanvas.height = Math.round(height * dpr);
-      horizonCanvas.style.width  = width  + 'px';
-      horizonCanvas.style.height = height + 'px';
-      drawHorizon(horizonCanvas, _lastRoll, _lastPitch, currentHorizonDrawOpts());
-    }
-  };
+function resizeHorizonCanvas() {
   const stage = document.getElementById('pfdHorizonStage') || pfdHorizonShell;
-  new ResizeObserver(_resizeCanvas).observe(stage);
+  if (!horizonCanvas || !stage) return;
+  const { width, height } = stage.getBoundingClientRect();
+  if (width > 10 && height > 10) {
+    const dpr = window.devicePixelRatio || 1;
+    horizonCanvas.width  = Math.round(width  * dpr);
+    horizonCanvas.height = Math.round(height * dpr);
+    horizonCanvas.style.width  = width  + 'px';
+    horizonCanvas.style.height = height + 'px';
+    drawHorizon(horizonCanvas, _lastRoll, _lastPitch, currentHorizonDrawOpts());
+  }
+}
+
+if (horizonCanvas && pfdHorizonShell) {
+  const stage = document.getElementById('pfdHorizonStage') || pfdHorizonShell;
+  new ResizeObserver(() => resizeHorizonCanvas()).observe(stage);
 }
 
 let _horizonVideoMode = false;
@@ -16904,10 +16906,28 @@ function writeMissionSwap(swap) {
   missionLayoutStoreSet(MISSION_SWAP_KEY, swap === 'horizon-map' ? 'horizon-map' : 'map-horizon');
 }
 
+function refreshMissionSwapSurfaces() {
+  const kick = () => {
+    try {
+      if (terrainMap && typeof terrainMap.invalidateSize === 'function') {
+        terrainMap.invalidateSize();
+      }
+    } catch {
+      /* map not ready */
+    }
+    resizeHorizonCanvas();
+  };
+  requestAnimationFrame(() => {
+    kick();
+    requestAnimationFrame(kick);
+  });
+}
+
 function applyMissionSwap(swap) {
   const ws = document.querySelector('.mission-workspace');
   if (!ws) return;
   ws.dataset.missionSwap = swap === 'horizon-map' ? 'horizon-map' : 'map-horizon';
+  refreshMissionSwapSurfaces();
 }
 
 function readMissionSize() {

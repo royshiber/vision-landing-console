@@ -10358,7 +10358,8 @@ html[data-evolve-preview="1"] #development {
    PFD grows into leftover gap (min 52%). Data strip ≥ 64px.
    Live aircraft messages are frameless stacked lines on the AH/video side.
    History stays a slim secondary strip in the AH stack — never an overlay on the map.
-   map-horizon also swaps column tracks so the map keeps 1fr.
+   Both swap modes keep the same tracks: wide, then the narrow tile, then talk.
+   map-horizon puts the map on the wide track. horizon-map puts the horizon there.
    Talk composer stays a panel, never a sliver. Gap ≤ 4px. */
 .terrain-flight-shell.mission-workspace,
 .mission-workspace[data-mission-layout="ops-v1"] {
@@ -10392,9 +10393,17 @@ html[data-evolve-preview="1"] #development {
   --mission-msg-h: min(18%, 96px);
 }
 
-.mission-workspace[data-mission-swap="map-horizon"] {
+.mission-workspace[data-mission-swap="map-horizon"],
+.mission-workspace[data-mission-swap="horizon-map"] {
   grid-template-columns: minmax(0, 1fr) minmax(132px, min(20%, var(--mission-ah-col))) minmax(240px, min(26%, var(--mission-talk-col)));
+}
+
+.mission-workspace[data-mission-swap="map-horizon"] {
   grid-template-areas: "map horizon talk";
+}
+
+.mission-workspace[data-mission-swap="horizon-map"] {
+  grid-template-areas: "horizon map talk";
 }
 
 .mission-split {
@@ -10484,6 +10493,15 @@ html[data-evolve-preview="1"] #development {
   border: 0;
   border-radius: 0;
   background: #0b0e14;
+}
+.mission-workspace[data-mission-swap="horizon-map"] .mission-region[data-mission-region="map"] {
+  min-height: 0;
+  height: 100%;
+}
+.mission-workspace[data-mission-swap="horizon-map"] .mission-region-horizon > .flight-hud {
+  height: auto;
+  min-height: 0;
+  flex: 1 1 auto;
 }
 .mission-region[data-mission-region="data"] {
   grid-area: unset;
@@ -11118,10 +11136,21 @@ html[data-evolve-preview="1"] #development {
       "talk talk";
   }
 
-  .mission-workspace[data-mission-swap="map-horizon"] {
+  .mission-workspace[data-mission-swap="map-horizon"],
+  .mission-workspace[data-mission-swap="horizon-map"] {
     grid-template-columns: minmax(0, 1fr) minmax(120px, min(20%, var(--mission-ah-col)));
+    grid-template-rows: minmax(0, 1fr) minmax(160px, 28%);
+  }
+
+  .mission-workspace[data-mission-swap="map-horizon"] {
     grid-template-areas:
       "map horizon"
+      "talk talk";
+  }
+
+  .mission-workspace[data-mission-swap="horizon-map"] {
+    grid-template-areas:
+      "horizon map"
       "talk talk";
   }
 }
@@ -19623,6 +19652,20 @@ body:has(#control.panel.visible) .ardu-top-cats-host {
     min-height: 220px;
     height: 220px;
     flex: 0 0 auto;
+  }
+  .mission-workspace[data-mission-swap="horizon-map"] .mission-region[data-mission-region="map"] {
+    min-height: 120px;
+    height: 140px;
+  }
+  .mission-workspace[data-mission-swap="horizon-map"] .mission-region[data-mission-region="horizon"] {
+    min-height: 280px;
+  }
+  .mission-workspace[data-mission-swap="horizon-map"] .mission-region-horizon .pfd-horizon-stage {
+    min-height: 240px;
+    height: 260px;
+  }
+  .mission-workspace[data-mission-swap="horizon-map"] .mission-region-horizon .pfd-horizon-instrument {
+    min-height: 292px;
   }
   .mission-region[data-mission-region="messages"] {
     height: auto;

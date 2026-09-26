@@ -664,7 +664,9 @@ describe('Mission layout contract — live boxes', () => {
   }, 45000);
 
   it('keeps Develop Concept B chat and preview from overlapping', async () => {
-    await page.locator('[data-tab="development"]').click({ force: true });
+    await page.evaluate(() => {
+      if (typeof applyMainTab === 'function') applyMainTab('development');
+    });
     await page.waitForFunction(() => document.getElementById('development')?.classList.contains('visible'));
     await page.waitForSelector('.develop-b-shell', { state: 'visible', timeout: 15000 });
     const evolve = await page.evaluate(() => {
