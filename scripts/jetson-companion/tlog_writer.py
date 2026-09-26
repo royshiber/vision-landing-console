@@ -12,7 +12,9 @@ from pathlib import Path
 from flightlog_common import env_float, env_int
 
 SEGMENT_S = 600.0
-FSYNC_S = 5.0
+FLUSH_S = 1.0
+FLUSH_BYTES = 64 * 1024
+FSYNC_S = FLUSH_S
 
 
 def pack_record(unix_s, frame):
@@ -61,7 +63,9 @@ class TlogWriter(object):
         self._fh = None
         self._path = None
         self._seg_start = None
-        self._last_fsync = 0.0
+        self._pending = bytearray()
+        self._last_flush = time.monotonic()
+        self._now = time.monotonic
         self.segment = None
         self._lock = threading.Lock()
 
@@ -70,24 +74,27 @@ class TlogWriter(object):
             return
         with self._lock:
             self._rotate(float(unix_s))
-            self._fh.write(pack_record(unix_s, frame))
-            now = time.time()
-            if now - self._last_fsync >= FSYNC_S:
+            self._pending.extend(pack_record(unix_s, frame))
+            if (self._now() - self._last_flush) >= FLUSH_S or len(self._pending) >= FLUSH_BYTES:
                 self._flush_locked()
-                self._last_fsync = now
 
     def flush(self):
         with self._lock:
             self._flush_locked()
 
     def _flush_locked(self):
+        if self._fh is not None and self._pending:
+            self._fh.write(self._pending)
+            self._pending.clear()
         if self._fh is None:
+            self._last_flush = self._now()
             return
         self._fh.flush()
         try:
             os.fsync(self._fh.fileno())
         except OSError:
             pass
+        self._last_flush = self._now()
 
     def close(self):
         with self._lock:
@@ -180,7 +187,7 @@ class TlogWriter(object):
         self._path = path
         self._seg_start = unix_s
         self.segment = str(path)
-        self._last_fsync = time.time()
+        self._last_flush = self._now()
 
     def _segments(self):
         return sorted(self.root.glob("*/*.tlog"))
