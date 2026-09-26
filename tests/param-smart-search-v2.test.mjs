@@ -29,6 +29,25 @@ describe('runParamSmartSearchV2', () => {
     expect(Array.isArray(r.matches)).toBe(true);
   });
 
+  it('does not invent a live value or a match score without an FC read', async () => {
+    const unread = await runParamSmartSearchV2('אוטוטיון', { liveParams: null, maxResults: 5 });
+    expect(unread.ok).toBe(true);
+    expect(unread.results.length).toBeGreaterThan(0);
+    for (const row of unread.results) {
+      expect(row.live_value).toBeNull();
+      expect(row.available_on_fc).toBe(false);
+      expect(row.confidence).toBeNull();
+    }
+    const read = await runParamSmartSearchV2('אוטוטיון', {
+      liveParams: { AUTOTUNE_LEVEL: 6 },
+      maxResults: 5,
+    });
+    const hit = read.results.find((row) => row.param_key === 'AUTOTUNE_LEVEL');
+    expect(hit?.live_value).toBe(6);
+    expect(hit?.available_on_fc).toBe(true);
+    expect(hit?.confidence).toBeNull();
+  });
+
   it('maps "יציאת סרוו מספר 2" to SERVO2_FUNCTION, not EKF', async () => {
     const r = await runParamSmartSearchV2('יציאת סרוו מספר 2', { liveParams: null, maxResults: 5 });
     expect(r.ok).toBe(true);

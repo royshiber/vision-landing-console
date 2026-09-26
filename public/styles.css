@@ -668,6 +668,8 @@ body:has(#terrain.panel.visible) .layout {
 
 .param-sync-line {
   display: block;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .panel-header {
@@ -891,6 +893,9 @@ body:has(#terrain.panel.visible) .layout {
 
 .param-center-smart-results:not(.hidden) {
   max-height: min(40vh, 320px);
+}
+#control.panel.visible .param-center-smart-results:not(.hidden) {
+  max-height: min(22vh, 140px);
 }
 
 .ardu-top-cats-host {
@@ -1139,8 +1144,8 @@ body:has(#terrain.panel.visible) .layout {
   border-radius: 6px;
   background: rgba(0, 71, 141, 0.035);
   color: var(--text-muted);
-  font-size: clamp(11px, 0.66rem, 8rem);
-  line-height: 1.25;
+  font-size: 12px;
+  line-height: 1.35;
 }
 .ardu-smart-meta strong {
   color: var(--text);
@@ -1157,7 +1162,7 @@ body:has(#terrain.panel.visible) .layout {
   border: 1px solid var(--primary);
   color: var(--primary);
   background: #fff;
-  font-size: 0.68rem;
+  font-size: 12px;
   font-weight: 900;
   cursor: pointer;
   transition: background 0.12s, color 0.12s;
@@ -1256,12 +1261,12 @@ body:has(#terrain.panel.visible) .layout {
 /* FC presence pills — after READ, compare MAVLink param keys to schema */
 .ardu-fc-presence {
   flex-shrink: 0;
-  font-size: 0.68rem;
+  font-size: 12px;
   font-weight: 700;
   padding: 0.14rem 0.5rem;
   border-radius: 999px;
   letter-spacing: 0.02em;
-  white-space: nowrap;
+  white-space: normal;
 }
 .ardu-fc-presence--virtual {
   background: rgba(100, 116, 139, 0.22);
@@ -1422,14 +1427,28 @@ body:has(#terrain.panel.visible) .layout {
 /* Ardu subpanel: do NOT use overflow-y:auto on the whole column — it breaks flex height
    allocation; the middle “form” region then collapses to 0px. Scroll only inside .ardu-param-form-panels. */
 #arduParams.subpanel.visible {
-  display: grid !important;
-  grid-template-rows: auto 60vh auto auto;
-  overflow-x: hidden;
-  overflow-y: hidden;
+  display: flex !important;
+  flex-direction: column;
+  overflow: hidden;
   gap: 6px;
   min-height: 0;
-  flex: 1 1 0;
-  align-content: start;
+  flex: 1 1 auto;
+}
+#arduParams.subpanel.visible .ardu-form-region {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+  height: auto;
+}
+#arduParams.subpanel.visible #arduParamFormPanels {
+  overflow-x: hidden;
+  overflow-y: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+}
+#arduParams.subpanel.visible #paramSyncBanner {
+  flex-shrink: 0;
 }
 
 .ardu-cat-subtabs-wrap {
@@ -1525,7 +1544,7 @@ body:has(#terrain.panel.visible) .layout {
   body:has(#terrain.panel.visible) .layout { padding: 0; gap: 0; }
   .app-chrome { min-height: 36px; padding: 3px 10px; padding-inline-end: 168px; }
   .tabs { padding-bottom: 2px; }
-  .tab { padding: 6px 11px; font-size: 0.68rem; }
+  .tab { padding: 6px 11px; font-size: 12px; }
   .subtab { padding: 5px 10px; font-size: 0.72rem; }
   .panel { padding: 6px 10px 8px; }
   #control .subpanel.visible { padding-top: 6px; }
@@ -1534,7 +1553,7 @@ body:has(#terrain.panel.visible) .layout {
   #arduParams #arduParamFormPanels .param-title { font-size: 0.72rem; }
   #paramCenterSearchBar .ardu-search-row { gap: 3px; }
   #paramCenterSearchBar .ardu-search-row .btn-secondary-lg,
-  #paramCenterSearchBar .ardu-search-row .btn-primary-lg { padding: 4px 8px; font-size: 0.68rem; }
+  #paramCenterSearchBar .ardu-search-row .btn-primary-lg { padding: 6px 8px; font-size: 12px; }
 }
 
 /**
@@ -1557,17 +1576,28 @@ body:has(#terrain.panel.visible) .layout {
 
 #arduParams #paramSyncBanner {
   margin-top: 0;
-  padding: 4px 8px;
-  font-size: 0.72rem;
+  padding: 8px 10px;
+  font-size: 12px;
+  line-height: 1.4;
   min-height: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
 }
 
 /* ArduPilot redesign: form region fills middle row. */
 #arduParams #arduParamFormPanels .param-card {
   padding: 6px 8px;
+  min-width: 0;
+}
+#arduParams #arduParamFormPanels .param-top {
+  flex-wrap: wrap;
+  min-width: 0;
+}
+#arduParams #arduParamFormPanels .param-title {
+  min-width: 0;
+  flex: 1 1 8rem;
+  overflow-wrap: anywhere;
 }
 
 #arduParams #arduParamFormPanels .param-title {
@@ -1763,9 +1793,10 @@ body:has(#terrain.panel.visible) .layout {
 }
 
 .ardu-field-key {
-  font-size: 0.68rem;
+  font-size: 12px;
   color: var(--text-muted);
   font-family: ui-monospace, monospace;
+  overflow-wrap: anywhere;
 }
 
 .param-card {
@@ -5533,9 +5564,10 @@ body:has(#pulse.panel.visible) .layout {
 }
 .plnd-honesty-note {
   margin: 0;
-  font-size: 0.68rem;
+  font-size: 12px;
   font-weight: 600;
   color: #8b97ab;
+  overflow-wrap: anywhere;
 }
 .plnd-honesty-state {
   margin: 0;
@@ -5571,7 +5603,7 @@ body:has(#pulse.panel.visible) .layout {
 }
 .plnd-honesty-key-token {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: clamp(11px, 0.62rem, 8rem);
+  font-size: 12px;
   font-weight: 700;
   color: #94a3b8;
   direction: ltr;
@@ -8730,13 +8762,20 @@ html[data-evolve-preview="1"] #development {
 
 #control.panel.visible #autoConfig.subpanel.visible {
   display: flex;
+  flex-direction: column;
   flex: 1 1 auto;
   min-height: 0;
+  overflow: auto;
+}
+
+#autoConfig.subpanel:not(.visible) {
+  display: none !important;
 }
 
 .ac-panel[data-ac-model="hardware-intent"],
-.ac-panel[data-ac-model="concept-b"] {
-  display: flex;
+.ac-panel[data-ac-model="concept-b"],
+.ac-panel[data-ac-model="peripheral-steps"] {
+  flex-direction: column;
   flex: 1 1 auto;
   min-height: 0;
   background: transparent;
@@ -10115,7 +10154,17 @@ html[data-evolve-preview="1"] #development {
   border: 1px solid var(--border);
 }
 
-.diff-inner { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
+.diff-inner {
+  width: 100%;
+  max-width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.diff-inner th,
+.diff-inner td {
+  overflow-wrap: anywhere;
+}
 
 .diff-inner th {
   background: var(--surface-raised);
@@ -10130,9 +10179,10 @@ html[data-evolve-preview="1"] #development {
 .diff-inner td { padding: 5px 10px; border-bottom: 1px solid var(--border); color: var(--text); }
 
 .diff-fc-col {
-  white-space: nowrap;
-  font-size: 0.78rem;
+  white-space: normal;
+  font-size: 12px;
   vertical-align: middle;
+  overflow-wrap: anywhere;
 }
 .diff-fc-mark {
   font-weight: 700;
@@ -14619,8 +14669,9 @@ details.flight-manage summary {
   color: #e8edf6;
 }
 .cp-hint {
-  font-size: 0.68rem;
+  font-size: 12px;
   color: rgba(180,200,230,0.5);
+  overflow-wrap: anywhere;
 }
 .cp-toolbar {
   display: flex;
@@ -20175,9 +20226,10 @@ body:has(#control.panel.visible) .ardu-top-cats-host {
     gap: 4px;
   }
   .app-chrome .tab {
-    padding: 4px 8px;
-    font-size: clamp(11px, 0.62rem, 8rem);
+    padding: 6px 8px;
+    font-size: 12px;
     letter-spacing: 0;
+    white-space: nowrap;
   }
   html, body {
     height: auto;
@@ -21003,6 +21055,795 @@ body:has(#telemetry.panel.visible) #telemetry .tele-dash-sub {
   .app-update-actions button { flex: 1 1 auto; min-height: 36px; }
 }
 
+/* Parameters toolbar — two segments plus a file menu */
+.param-toolbar {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+}
+.param-tool-seg {
+  flex: 1 1 260px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: #121826;
+  border: 1px solid rgba(148, 168, 198, 0.16);
+}
+.param-tool-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+.param-tool-title {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: #f8fafc;
+}
+.param-tool-state,
+.param-tool-meta {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  color: #94a3b8;
+  overflow-wrap: anywhere;
+}
+.param-tool-state[data-state="ok"] { color: #86efac; }
+.param-tool-state[data-state="down"] { color: #fca5a5; }
+.param-tool-state[data-state="dirty"] { color: #fde68a; }
+.param-tool-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.param-tool-btn {
+  min-height: 32px;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 168, 198, 0.22);
+  background: #0b0e14;
+  color: #e8edf6;
+  font-family: "Heebo", sans-serif;
+  font-weight: 800;
+  font-size: 0.75rem;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+.param-tool-btn--primary {
+  background: #0c4a6e;
+  border-color: rgba(56, 189, 248, 0.45);
+  color: #e0f2fe;
+}
+.param-tool-btn--secondary {
+  background: transparent;
+  color: #cbd5e1;
+}
+.param-tool-btn--quiet {
+  background: #121826;
+}
+.param-tool-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.param-tool-files {
+  position: relative;
+  flex: 0 0 auto;
+  align-self: flex-start;
+}
+.param-file-menu[hidden],
+.param-tool-fault[hidden],
+.ac-step-panel[hidden],
+.ac-step-fault[hidden],
+#acCatalogRetry[hidden] {
+  display: none !important;
+}
+.param-file-menu {
+  position: absolute;
+  z-index: 30;
+  inset-inline-end: 0;
+  top: calc(100% + 4px);
+  min-width: 160px;
+  max-width: min(240px, calc(100vw - 24px));
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px;
+  border-radius: 10px;
+  background: #121826;
+  border: 1px solid rgba(148, 168, 198, 0.22);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+.param-file-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 32px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #e8edf6;
+  font-family: "Heebo", sans-serif;
+  font-weight: 700;
+  font-size: 0.75rem;
+  text-align: start;
+  padding: 6px 8px;
+  cursor: pointer;
+}
+.param-file-item:hover,
+.param-file-item:focus-visible {
+  background: #152033;
+}
+.param-file-item--file input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+.param-tool-fault {
+  flex: 1 1 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(127, 29, 29, 0.35);
+  border: 1px solid rgba(252, 165, 165, 0.4);
+}
+.param-tool-fault-text {
+  margin: 0;
+  flex: 1 1 180px;
+  min-width: 0;
+  color: #fecaca;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+.param-tool-live {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+.ac-step-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px 4px;
+  flex-shrink: 0;
+}
+.ac-step-title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #f8fafc;
+}
+.ac-step-lead {
+  margin: 2px 0 0;
+  font-size: 0.72rem;
+  color: #94a3b8;
+}
+.ac-step-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ac-step-nav button {
+  min-height: 32px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 168, 198, 0.22);
+  background: #0b0e14;
+  color: #cbd5e1;
+  font-family: "Heebo", sans-serif;
+  font-weight: 800;
+  font-size: 0.72rem;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+.ac-step-nav button[aria-current="step"] {
+  background: #0c4a6e;
+  border-color: #38bdf8;
+  color: #e0f2fe;
+}
+.ac-step-nav button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.ac-step-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 4px 10px 8px;
+}
+.ac-choice-list,
+.ac-param-list,
+.ac-saved-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ac-choice {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  min-height: 44px;
+  text-align: start;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 168, 198, 0.18);
+  background: #121826;
+  color: #f8fafc;
+  font-family: "Heebo", sans-serif;
+  padding: 8px 10px;
+  cursor: pointer;
+}
+.ac-choice[aria-checked="true"],
+.ac-choice[data-on="1"] {
+  border-color: #38bdf8;
+  background: #152033;
+}
+.ac-choice-title {
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+.ac-choice-detail {
+  font-size: 12px;
+  color: #94a3b8;
+  overflow-wrap: anywhere;
+}
+.ac-param-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) auto auto minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #121826;
+  border: 1px solid rgba(148, 168, 198, 0.14);
+  min-width: 0;
+}
+.ac-param-key,
+.ac-param-next {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.72rem;
+  font-weight: 800;
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+.ac-param-key { color: #7dd3fc; }
+.ac-param-next { color: #f8fafc; }
+.ac-param-now,
+.ac-param-mean {
+  font-size: 0.72rem;
+  color: #cbd5e1;
+  min-width: 0;
+}
+.ac-apply-status,
+.ac-step-fault {
+  margin: 8px 0 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #fde68a;
+}
+.ac-step-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+.ac-saved {
+  flex-shrink: 0;
+  padding: 8px 10px 10px;
+  border-top: 1px solid rgba(148, 168, 198, 0.14);
+}
+.ac-saved-title {
+  margin: 0 0 6px;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+.ac-saved-item {
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: #0b0e14;
+  border: 1px solid rgba(148, 168, 198, 0.14);
+  font-size: 0.72rem;
+  color: #e2e8f0;
+}
+.ac-saved-empty {
+  margin: 0;
+  color: #94a3b8;
+  font-size: 0.72rem;
+}
+@media (max-width: 720px) {
+  .ac-param-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .param-tool-seg {
+    flex: 1 1 0;
+  }
+}
+
+#plndProfileHonesty[hidden],
+#fcGroupPane[hidden] {
+  display: none !important;
+}
+#arduParams.subpanel.visible.ardu-params--group {
+  display: flex !important;
+  flex-direction: column;
+  flex: 1 1 auto;
+  overflow: hidden;
+  min-height: 0;
+}
+#arduParams.ardu-params--group .ardu-form-region {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+  height: auto;
+  overflow: hidden;
+}
+#arduParams.ardu-params--group .fc-group-pane {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+#arduParams.ardu-params--group .fc-group-split {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+#arduParams.ardu-params--group .fc-group-list,
+#arduParams.ardu-params--group .fc-change-pane {
+  min-height: 0;
+  overflow: auto;
+}
+@media (max-width: 720px) {
+  html:has(#control.panel.visible),
+  body:has(#control.panel.visible) {
+    height: 100%;
+    min-height: 100%;
+    overflow: hidden;
+  }
+  body:has(#control.panel.visible) .layout {
+    flex: 1 1 auto;
+    min-height: 0;
+    height: auto;
+    overflow: hidden;
+  }
+  #control.panel.visible {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+  }
+}
+#arduParams.ardu-params--group #arduParamFormPanels,
+#arduParams.ardu-params--group .ardu-param-file-actions,
+#arduParams.ardu-params--group #arduDiffSection {
+  display: none;
+}
+.fc-group-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  min-width: 0;
+}
+.fc-group-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 280px);
+  gap: 10px;
+  min-width: 0;
+  min-height: 0;
+}
+.fc-group-lead,
+.fc-group-status,
+.fc-group-empty,
+.fc-change-title,
+.fc-file-title,
+.fc-file-latest,
+.fc-file-status,
+.fc-change-empty {
+  margin: 0;
+  padding: 0 10px;
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.fc-change-title,
+.fc-file-title {
+  color: #e2e8f0;
+  font-size: 13px;
+  padding: 0 0 6px;
+}
+.fc-group-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr));
+  gap: 6px;
+  align-content: start;
+  margin: 0;
+  padding: 0 4px 8px;
+  list-style: none;
+  min-width: 0;
+}
+.fc-group-empty {
+  grid-column: 1 / -1;
+}
+.fc-group-row {
+  display: grid;
+  grid-template-columns: minmax(6.5rem, 0.85fr) minmax(0, 1.5fr) auto auto minmax(4.2rem, 5.2rem);
+  gap: 6px 8px;
+  align-items: start;
+  min-width: 0;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: #121826;
+  border: 1px solid rgba(148, 168, 198, 0.14);
+}
+.fc-group-row--pending {
+  border-color: #fbbf24;
+  background: #1c1708;
+}
+.fc-group-row--written {
+  border-color: #4ade80;
+}
+.fc-group-key {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  font-weight: 800;
+  color: #7dd3fc;
+  direction: ltr;
+  unicode-bidi: isolate;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.fc-group-he,
+.fc-group-meta {
+  font-size: 12px;
+  font-weight: 700;
+  color: #cbd5e1;
+  overflow-wrap: anywhere;
+  min-width: 0;
+  line-height: 1.35;
+}
+.fc-group-now {
+  font-size: 12px;
+  font-weight: 800;
+  color: #e2e8f0;
+  direction: ltr;
+  unicode-bidi: isolate;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.fc-group-now[data-state="unknown"],
+.fc-group-now[data-state="missing"] {
+  color: #fde68a;
+}
+.fc-group-meta {
+  direction: ltr;
+  unicode-bidi: isolate;
+  color: #94a3b8;
+}
+.fc-group-next {
+  width: 100%;
+  min-width: 0;
+  min-height: 32px;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 168, 198, 0.22);
+  background: #0b0e14;
+  color: #f8fafc;
+  padding: 4px 8px;
+  font-size: 12px;
+  direction: ltr;
+}
+.fc-group-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px 10px;
+}
+.fc-change-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  padding: 8px;
+  border-radius: 8px;
+  background: #0e131c;
+  border: 1px solid rgba(148, 168, 198, 0.14);
+}
+.fc-change-list,
+.fc-file-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  min-width: 0;
+}
+.fc-change-row,
+.fc-file-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+  min-width: 0;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(148, 168, 198, 0.12);
+  font-size: 12px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+.fc-change-key,
+.fc-file-when {
+  font-weight: 800;
+  color: #e2e8f0;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.fc-change-key {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+.fc-change-vals,
+.fc-change-time,
+.fc-change-result,
+.fc-file-meta {
+  color: #cbd5e1;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.fc-change-vals {
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+.fc-change-row[data-result="pending"] .fc-change-result {
+  color: #fde68a;
+}
+.fc-change-row[data-result="confirmed"] .fc-change-result {
+  color: #4ade80;
+}
+.fc-change-row[data-result="failed"] .fc-change-result {
+  color: #fca5a5;
+}
+.fc-file-restore {
+  font-size: 12px;
+  font-weight: 800;
+  min-height: 32px;
+  padding: 4px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 168, 198, 0.28);
+  background: #172033;
+  color: #f8fafc;
+}
+.fc-file-restore:disabled {
+  opacity: 0.55;
+}
+.fc-file-history {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+@media (max-width: 720px) {
+  .fc-group-split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .fc-group-list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .fc-group-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  #arduParams.ardu-params--group .fc-group-split {
+    overflow: auto;
+    padding-bottom: 8px;
+  }
+  #arduParams.ardu-params--group .fc-group-list,
+  #arduParams.ardu-params--group .fc-change-pane {
+    overflow: visible;
+  }
+}
+
+#control.panel.visible {
+  padding-bottom: 40px;
+}
+#control.panel.visible > .subpanel.visible {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+#control.panel.visible > #paramSyncBanner {
+  flex: 0 0 auto;
+  max-width: 100%;
+}
+#control.panel.visible > #plndProfileHonesty:not([hidden]) {
+  flex: 0 1 auto;
+  max-height: 140px;
+  min-height: 0;
+  overflow: auto;
+}
+.param-center-search-bar .ardu-search-row .btn-secondary-lg,
+.param-center-search-bar .ardu-search-row .btn-primary-lg {
+  white-space: normal;
+  line-height: 1.3;
+}
+@media (max-width: 1100px) {
+  .app-chrome {
+    flex-wrap: wrap;
+    align-items: center;
+    height: auto;
+    padding: 6px 8px;
+    row-gap: 4px;
+  }
+  .app-chrome .tabs {
+    flex: 1 1 100%;
+    flex-wrap: wrap;
+    overflow: visible;
+    width: 100%;
+    min-width: 0;
+    gap: 4px;
+  }
+  .app-chrome .tab {
+    font-size: 12px;
+    padding: 6px 8px;
+    flex: 0 1 auto;
+  }
+  .app-chrome-tools {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+}
+@media (max-width: 720px) {
+  .param-center-search-bar .ardu-search-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .param-center-search-bar .ardu-search-row input[type="search"] {
+    grid-column: 1 / -1;
+    font-size: 12px;
+    min-width: 0;
+    width: 100%;
+  }
+  .param-center-search-bar .ardu-search-row .btn-secondary-lg,
+  .param-center-search-bar .ardu-search-row .btn-primary-lg {
+    font-size: 12px;
+    padding: 8px 4px;
+    min-width: 0;
+    width: 100%;
+  }
+}
+
+/* Params tab: selected list and wizard fill the space above the Ask button.
+   The wizard stays closed until its subtab is chosen. */
+.param-toolbar {
+  align-items: flex-start;
+}
+#control.panel.visible #arduWriteStatus,
+#control.panel.visible #visionConfigStatus {
+  position: static;
+  width: auto;
+  height: auto;
+  clip: auto;
+  overflow: visible;
+  flex: 1 1 100%;
+  min-width: 0;
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+@media (min-width: 721px) {
+  #control.panel.visible #arduWriteStatus,
+  #control.panel.visible #visionConfigStatus {
+    flex: 1 1 180px;
+    align-self: center;
+  }
+}
+@media (max-width: 720px) {
+  #control.panel.visible {
+    padding-bottom: 56px;
+  }
+  #control.panel.visible .param-tool-seg {
+    flex: 1 1 0;
+    gap: 2px;
+  }
+  #control.panel.visible .param-tool-files {
+    flex: 1 1 100%;
+  }
+  #control.panel.visible .param-tool-actions {
+    flex-wrap: nowrap;
+  }
+  #control.panel.visible .ac-step-head {
+    padding: 4px 8px;
+    gap: 4px;
+  }
+  #control.panel.visible .ac-step-nav {
+    flex-wrap: nowrap;
+  }
+  #control.panel.visible .ac-step-nav button {
+    min-height: 28px;
+    padding: 2px 8px;
+    white-space: nowrap;
+  }
+  #control.panel.visible .ac-saved {
+    max-height: 40px;
+    padding: 4px 8px;
+  }
+}
+#control.panel.visible #arduWriteStatus:empty,
+#control.panel.visible #visionConfigStatus:empty {
+  display: none;
+}
+#control.panel.visible #autoConfig.subpanel.visible.ac-panel {
+  height: auto;
+  min-height: 0;
+  overflow: hidden;
+}
+#control.panel.visible #autoConfig .ac-step-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+#control.panel.visible #autoConfig .ac-saved {
+  flex: 0 1 auto;
+  max-height: 64px;
+  overflow: auto;
+}
+#arduParams.ardu-params--group .fc-group-list {
+  min-height: 120px;
+}
+#control.panel.visible .param-tool-btn.ardu-write-disconnected,
+#control.panel.visible #arduWriteBtn:disabled {
+  border-color: rgba(252, 165, 165, 0.75);
+  color: #fecaca;
+}
+@media (max-height: 820px), (max-width: 720px) {
+  #control.panel.visible .panel-header {
+    margin-bottom: 0;
+  }
+  #control.panel.visible .param-tool-seg {
+    padding: 4px 6px;
+    gap: 2px;
+  }
+  #control.panel.visible .param-tool-btn {
+    min-height: 28px;
+    padding: 4px 8px;
+  }
+  #control.panel.visible .param-center-search-bar {
+    padding: 2px 0;
+    margin-bottom: 0;
+    gap: 2px;
+  }
+  #control.panel.visible > #paramSyncBanner {
+    padding: 4px 8px;
+    margin-bottom: 4px;
+  }
+  #control.panel.visible .fc-group-pane {
+    gap: 4px;
+  }
+}
+
 .recordings-layout > .cam0-panel,
 .recordings-layout > .optics-cam-switch { grid-column: 1 / -1; }
 .optics-cam-switch {
@@ -21693,4 +22534,98 @@ body:has(#pulse.panel.visible) .pulse-home.pulse-status-home {
   .mission-region-data > .mission-horizon-filler {
     padding: 0 4px;
   }
+/* Params tab: keep the list and wizard visibly tall, and keep Ask off the controls. */
+html:has(#control.panel.visible),
+body:has(#control.panel.visible) {
+  height: auto;
+  min-height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+body:has(#control.panel.visible) .layout,
+#control.panel.visible,
+#control.panel.visible > .subpanel.visible,
+#arduParams.subpanel.visible.ardu-params--group,
+#arduParams.ardu-params--group .ardu-form-region,
+#arduParams.ardu-params--group .fc-group-pane,
+#arduParams.ardu-params--group .fc-group-split,
+#control.panel.visible #autoConfig.subpanel.visible,
+#control.panel.visible #autoConfig.subpanel.visible.ac-panel,
+#control.panel.visible #autoConfig .ac-step-body {
+  overflow: visible !important;
+  height: auto !important;
+  max-height: none !important;
+  min-height: min-content;
+  flex: 0 0 auto !important;
+}
+#arduParams.ardu-params--group .fc-group-list,
+#control.panel.visible #fcGroupList {
+  min-height: 168px;
+  overflow: visible;
+}
+#control.panel.visible #autoConfig .ac-step-body {
+  min-height: 80px;
+}
+#control.panel.visible .ac-param-row .ac-param-key {
+  background: transparent;
+  color: #f8fafc;
+  padding: 0;
+}
+body:has(#control.panel.visible) .assist-toggle-btn.assist-toggle-float {
+  position: static;
+  inset: auto;
+  width: auto;
+  max-width: calc(100% - 20px);
+  margin: 4px 10px 0;
+  align-self: flex-start;
+  flex: 0 0 auto;
+  min-height: 36px;
+  padding: 6px 12px;
+  white-space: nowrap;
+  z-index: var(--z-assist-float);
+}
+@media (max-width: 720px) {
+  body:has(#control.panel.visible) .app-chrome {
+    padding-top: 6px;
+  }
+  html:has(#control.panel.visible),
+  body:has(#control.panel.visible),
+  body:has(#control.panel.visible) .layout,
+  #control.panel.visible {
+    overflow-x: hidden;
+    overflow-y: auto !important;
+    height: auto !important;
+    min-height: 100%;
+    flex: 0 0 auto;
+  }
+  #control.panel.visible .fc-group-row {
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr) auto minmax(3.2rem, 4.2rem);
+    grid-template-areas: "key he now input" "meta meta meta meta";
+    align-items: center;
+    gap: 2px 6px;
+    padding: 3px 6px;
+  }
+  #control.panel.visible .param-tool-seg {
+    flex: 1 1 100%;
+  }
+  #control.panel.visible .param-tool-actions {
+    flex-wrap: wrap;
+  }
+  #control.panel.visible .param-tool-btn {
+    white-space: normal;
+  }
+  #control.panel.visible .plnd-honesty,
+  #control.panel.visible .plnd-honesty-keys,
+  #control.panel.visible .plnd-honesty-key {
+    min-width: 0;
+    max-width: 100%;
+  }
+  #control.panel.visible .plnd-honesty-key {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  #control.panel.visible .fc-group-key { grid-area: key; }
+  #control.panel.visible .fc-group-he { grid-area: he; }
+  #control.panel.visible .fc-group-now { grid-area: now; }
+  #control.panel.visible .fc-group-next { grid-area: input; }
+  #control.panel.visible .fc-group-meta { grid-area: meta; }
 }
