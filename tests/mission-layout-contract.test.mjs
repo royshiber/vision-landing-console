@@ -615,7 +615,9 @@ describe('Mission layout contract — live boxes', () => {
 
   it('keeps Pulse extra cards in flow without stacking', async () => {
     await page.click('[data-tab="pulse"]');
-    await page.waitForSelector('#pulseExtraRow .pulse-gauge.pulse-extra-gauge');
+    const addSummary = page.locator('.pulse-add-widget > summary');
+    if (await addSummary.count()) await addSummary.click();
+    await page.waitForSelector('#pulseExtraRow .pulse-gauge.pulse-extra-gauge', { state: 'visible' });
     const pulse = await page.evaluate(() => {
       const box = (el) => {
         const r = el.getBoundingClientRect();
