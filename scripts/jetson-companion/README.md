@@ -30,7 +30,7 @@ python3 camera_ingest.py --resolve
 
 4. Copy this folder to `~/vlc-companion` (or `install.sh --apply` on a Jetson).
 5. Optional gimbal: `docs/SIYI_A8_GIMBAL.md` and `./siyi-net.sh`.
-6. Start the 2.3.11 agent (UART fan-out unchanged):
+6. Start the 2.5.0 agent (UART fan-out unchanged):
 
 ```
 python3 companion_agent.py
@@ -125,7 +125,7 @@ sudo systemctl daemon-reload
 ```
 
 5. Skip udev. Do not run a global udev trigger. A modem-only nudge is optional and must name that one device; this runbook does not do it.
-6. Restart the agent as `royshiber`. `GET /api/health` reports `agentVersion` `2.3.11`.
+6. Restart the agent as `royshiber`. `GET /api/health` reports `agentVersion` `2.5.0`.
 
 `wifi-up` and `cell-up` do nothing when that connection is already active. Startup does not take a live link down.
 
@@ -145,4 +145,4 @@ Rollback: put the 2.3.9 agent files back and remove `/etc/sudoers.d/airvix-uplin
 
 ## Flight logger
 
-Part A lives in `flightlog_service.py` and is off unless `AIRVIX_FLIGHTLOG_ENABLED=1`. It is a separate process. The companion only reads `/run/airvix/flightlog.json`. Install does not enable the unit unless `--enable-flightlog` is passed with `--apply`, and that flag only copies the unit. See `docs/FLIGHT_LOGS_JETSON.md`.
+Part A lives in `flightlog_service.py` and is off unless `AIRVIX_FLIGHTLOG_ENABLED=1`. It is a separate process. The companion only reads `/run/airvix/flightlog.json`. Install does not enable the unit unless `--enable-flightlog` is passed with `--apply`, and that flag only copies the unit. Upload is path-style S3 and stays idle without a secret. Google Cloud Storage uses endpoint `https://storage.googleapis.com` and region `auto` or `me-west1`. See `docs/FLIGHT_LOGS_JETSON.md`.

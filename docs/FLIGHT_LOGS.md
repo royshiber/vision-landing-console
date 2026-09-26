@@ -1,6 +1,6 @@
 # Flight book (console)
 
-The console reads flights that the mission computer uploads to a private S3-compatible bucket (Backblaze B2). The laptop key is **read-only**. This document is the console side. The uploader lives on the Jetson and is out of scope here.
+The console reads flights that the mission computer uploads to a private S3-compatible bucket. The laptop key is **read-only**. This document is the console side. The uploader lives on the Jetson (`docs/FLIGHT_LOGS_JETSON.md`).
 
 The flight page shows the list, timeline, plots, map, and a Hebrew Gemini debrief. The debrief may cite only that flight's fact sheet. The server checks every number, time, and mode. A sentence that fails the check stays on screen greyed, with לא אומת. No `GEMINI_API_KEY` returns the Hebrew not-configured line and the automatic insights only.
 
@@ -26,15 +26,22 @@ No flights yet:
 
 ## Read-only key
 
-Create an application key that can **listFiles** and **readFiles** on this bucket only. Do not grant write, delete, or other buckets.
+The console key can list and read objects in this bucket only. Do not grant write, delete, or other buckets.
+
+Google Cloud Storage (S3 interoperability), the chosen store:
+
+- `FLIGHT_CLOUD_ENDPOINT` = `https://storage.googleapis.com`
+- `FLIGHT_CLOUD_REGION` = `auto`, or the bucket location `me-west1`
+- `FLIGHT_CLOUD_KEY_ID` = HMAC access id
+- `FLIGHT_CLOUD_APP_KEY` = HMAC secret
 
 Commented names in `.env.example` (no values in git):
 
 - `FLIGHT_CLOUD_ENDPOINT` — S3 endpoint, path-style
-- `FLIGHT_CLOUD_REGION`
+- `FLIGHT_CLOUD_REGION` — SigV4 region (`auto` or `me-west1` on GCS)
 - `FLIGHT_CLOUD_BUCKET`
-- `FLIGHT_CLOUD_KEY_ID`
-- `FLIGHT_CLOUD_APP_KEY` — the secret; never logged, never sent to the browser
+- `FLIGHT_CLOUD_KEY_ID` — access key / HMAC access id
+- `FLIGHT_CLOUD_APP_KEY` — secret / HMAC secret; never logged, never sent to the browser
 - `FLIGHT_CLOUD_PREFIX` — optional, default `v1`
 - `FLIGHT_CLOUD_VEHICLES` — optional comma list; otherwise the console lists vehicle prefixes
 

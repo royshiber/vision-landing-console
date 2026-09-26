@@ -1,5 +1,10 @@
 # -*- coding: utf-8 -*-
-"""Stdlib AWS Signature Version 4 for path-style S3 (B2 / R2 / S3). No boto3."""
+"""Stdlib AWS Signature Version 4 for path-style S3. No boto3.
+
+Google Cloud Storage interoperability uses the same AWS4-HMAC-SHA256 scope:
+host storage.googleapis.com, URI /<bucket>/<key>, region auto or a bucket
+location such as me-west1, service s3. HMAC access id and secret are the key.
+"""
 
 from __future__ import print_function
 

@@ -64,6 +64,7 @@ class ServiceTests(unittest.TestCase):
             env["AIRVIX_FLIGHTLOG_DIR"] = tmp
             env["AIRVIX_FLIGHTLOG_STATUS_FILE"] = str(status)
             env["AIRVIX_UPLOAD_ENABLED"] = "0"
+            env["AIRVIX_UPLOAD_SECRET"] = ""
             env["AIRVIX_UPLOAD_APP_KEY"] = ""
             proc = subprocess.run(
                 [sys.executable, str(ROOT / "flightlog_service.py")],

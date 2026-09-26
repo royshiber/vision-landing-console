@@ -1,5 +1,10 @@
 # -*- coding: utf-8 -*-
-"""Durable S3/B2 upload queue. No-op when credentials or the enable flag are missing."""
+"""Durable S3-compatible upload queue. No-op when credentials or the enable flag are missing.
+
+Works with path-style S3, including Google Cloud Storage interoperability
+(endpoint https://storage.googleapis.com, HMAC key id and secret, region auto
+or a bucket location such as me-west1).
+"""
 
 from __future__ import print_function
 
@@ -35,6 +40,11 @@ def credentials_present(cfg):
     return bool(cfg.get("endpoint") and cfg.get("region") and cfg.get("bucket") and cfg.get("key_id") and cfg.get("app_key"))
 
 
+def upload_secret_from_env():
+    """HMAC / S3 secret. AIRVIX_UPLOAD_SECRET wins; AIRVIX_UPLOAD_APP_KEY is an alias."""
+    return env_str("AIRVIX_UPLOAD_SECRET", "") or env_str("AIRVIX_UPLOAD_APP_KEY", "")
+
+
 def load_upload_config():
     return {
         "enabled_flag": env_str("AIRVIX_UPLOAD_ENABLED", "0").lower() in {"1", "true", "yes", "on"},
@@ -42,7 +52,7 @@ def load_upload_config():
         "region": env_str("AIRVIX_UPLOAD_REGION", ""),
         "bucket": env_str("AIRVIX_UPLOAD_BUCKET", ""),
         "key_id": env_str("AIRVIX_UPLOAD_KEY_ID", ""),
-        "app_key": env_str("AIRVIX_UPLOAD_APP_KEY", ""),
+        "app_key": upload_secret_from_env(),
         "prefix": env_str("AIRVIX_UPLOAD_PREFIX", "v1") or "v1",
         "cellular": env_str("AIRVIX_UPLOAD_CELLULAR", "all") or "all",
         "cell_daily_mb": env_float("AIRVIX_UPLOAD_CELL_DAILY_MB", 500),
@@ -320,7 +330,7 @@ class LogUploader(object):
             req_headers["Content-Encoding"] = encoding
         self._throttle(len(body))
         try:
-            status, etag, retry_after = self._send(url, body, req_headers)
+            status, etag, retry_after, extra = self._send(url, body, req_headers)
         except Exception as exc:
             self._fail(row, "network", type(exc).__name__)
             return
@@ -336,23 +346,31 @@ class LogUploader(object):
         if status != 200:
             self._fail(row, "http_%s" % status, None)
             return
-        md5_hex = hashlib.md5(body).hexdigest()
-        if not (etag_matches_md5(etag, md5_hex) or _etag_matches(etag, digest)):
+        if not upload_integrity_ok(etag, body, extra):
             self._fail(row, "etag_mismatch", None)
             return
         self._succeed(row)
 
     def _send(self, url, body, headers):
         if self.opener is not None:
-            return self.opener(url, body, headers)
+            result = self.opener(url, body, headers)
+            status, etag, retry_after = result[0], result[1], result[2]
+            extra = result[3] if len(result) > 3 and result[3] else {}
+            return status, etag, retry_after, extra
         req = urllib.request.Request(url, data=body, method="PUT")
         for key, value in headers.items():
             req.add_header(key, value)
         try:
             with urllib.request.urlopen(req, timeout=30) as resp:
-                return resp.status, resp.headers.get("ETag"), resp.headers.get("Retry-After")
+                return resp.status, resp.headers.get("ETag"), resp.headers.get("Retry-After"), _hash_headers(resp.headers)
         except urllib.error.HTTPError as exc:
-            return exc.code, exc.headers.get("ETag") if exc.headers else None, exc.headers.get("Retry-After") if exc.headers else None
+            hdrs = exc.headers
+            return (
+                exc.code,
+                hdrs.get("ETag") if hdrs else None,
+                hdrs.get("Retry-After") if hdrs else None,
+                _hash_headers(hdrs),
+            )
 
     def _throttle(self, nbytes):
         if self.armed and self._is_control_size(nbytes):
@@ -524,23 +542,62 @@ class LogUploader(object):
         self._conn.commit()
 
 
-def _etag_matches(etag, sha_hex):
-    """Single-part S3 ETag is the MD5 hex. We also accept the sha256 meta echo used by the fake."""
+def etag_token(etag):
+    """Normalize an S3 or GCS ETag. Strips a weak prefix and one pair of quotes."""
     if not etag:
-        return False
-    token = str(etag).strip().strip('"').lower()
-    if token == sha_hex.lower():
-        return True
-    # MD5 etag (32 hex) is the S3 single-PUT contract. Caller passes sha, so compare md5 too
-    # when the server returns md5. The worker passes sha; we accept either if the server
-    # echoes x-amz-meta-sha256. MD5 match is checked by the caller via a second path:
-    return False
+        return ""
+    token = str(etag).strip()
+    if len(token) >= 2 and token[:2].lower() == "w/":
+        token = token[2:].strip()
+    if len(token) >= 2 and token[0] == '"' and token[-1] == '"':
+        token = token[1:-1]
+    return token.lower()
+
+
+def _etag_matches(etag, sha_hex):
+    """Accept a sha256 echo used by the local fake server."""
+    token = etag_token(etag)
+    return bool(token) and token == str(sha_hex).lower()
 
 
 def etag_matches_md5(etag, md5_hex):
-    if not etag:
+    token = etag_token(etag)
+    return bool(token) and token == str(md5_hex).lower()
+
+
+def goog_hash_matches_body(header, body):
+    """GCS XML responses include x-goog-hash: crc32c=<b64>,md5=<b64>."""
+    if not header or body is None:
         return False
-    return str(etag).strip().strip('"').lower() == md5_hex.lower()
+    import base64
+
+    expect = base64.b64encode(hashlib.md5(body).digest()).decode("ascii")
+    for part in str(header).split(","):
+        piece = part.strip()
+        if piece.lower().startswith("md5="):
+            return piece.split("=", 1)[1].strip() == expect
+    return False
+
+
+def upload_integrity_ok(etag, body, extra=None):
+    """Single-part PUT: S3/B2 ETag is MD5 hex. GCS also sends x-goog-hash md5."""
+    md5_hex = hashlib.md5(body).hexdigest()
+    if etag_matches_md5(etag, md5_hex) or _etag_matches(etag, sha256_hex(body)):
+        return True
+    header = ""
+    if extra:
+        header = extra.get("x-goog-hash") or extra.get("X-Goog-Hash") or ""
+    return goog_hash_matches_body(header, body)
+
+
+def _hash_headers(headers):
+    if not headers:
+        return {}
+    try:
+        goog = headers.get("x-goog-hash")
+    except Exception:
+        goog = None
+    return {"x-goog-hash": goog} if goog else {}
 
 
 def _content_headers(name):

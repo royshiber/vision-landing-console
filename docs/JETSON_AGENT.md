@@ -2,13 +2,15 @@
 
 ## חוזה נוכחי — תצוגה בלבד
 
-`scripts/jetson-companion/companion_agent.py` (גרסה `2.3.11`) מגיש סטטוס ניווט אופטי לצפייה בלבד, צינור מצלמות כנה, סטטוס מודם סלולר מקובץ המארח, שליטה בקישורי רשת, וסטטוס ראייה מסומנת כנה:
+`scripts/jetson-companion/companion_agent.py` (גרסה `2.5.0`) מגיש סטטוס ניווט אופטי לצפייה בלבד, צינור מצלמות כנה, סטטוס מודם סלולר מקובץ המארח, שליטה בקישורי רשת, וסטטוס ראייה מסומנת כנה:
 
 - `GET /api/v1/status` ו־`GET /api/v1/status/optical-nav`
 - שדות: `present`, `running`, `camera_ok`, `alt_ceiling_m=300`, `position`, `velocity`, `age_ms`, `confidence`, `cameras.cam1` / `cameras.cam2` (אותו זוג כמו נחיתה)
 - בלי מצלמה או בלי אומדן: `optical_nav.camera_ok=false`, `running=false`, `position=null`, `velocity=null`
 - צינור מצלמות: `GET /api/v1/status/cameras` ו־`/api/v1/cameras/cam1/frame` — `camera_ok` ופריים רק מדיווח אמיתי או תרגיל יבש מסומן. בלי התקן: אין פריים.
 - `ekf_injected` תמיד `false`. אין כתיבה לבקר ואין החלפת מקור ניווט. הערות התקנה: `docs/JETSON_CAMERAS.md`.
+- לוגר טיסה הוא תהליך נפרד, כבוי אלא אם `AIRVIX_FLIGHTLOG_ENABLED=1`. הסוכן רק קורא את `/run/airvix/flightlog.json` אל `flight_log`. אין POST. פירוט ב־`docs/FLIGHT_LOGS_JETSON.md`.
+- לוגר טיסה הוא תהליך נפרד, כבוי אלא אם `AIRVIX_FLIGHTLOG_ENABLED=1`. הסוכן רק קורא את `/run/airvix/flightlog.json` אל `flight_log`. אין POST. פירוט ב־`docs/FLIGHT_LOGS_JETSON.md`.
 
 הפרקים למטה מתארים צינור עתידי. הם אינם רשיון להזרים מיקום לבקר מהסוכן הנוכחי.
 
@@ -597,7 +599,7 @@ After VERIFY, King may upload this repo file over the live 2.3.1 agent (UART fan
 ```bash
 # on the Jetson — replace the running script, then restart the agent process
 install -m 755 companion_agent.py "$HOME/vlc-companion/companion_agent.py"
-# expected: GET /api/health agentVersion 2.3.11
+# expected: GET /api/health agentVersion 2.5.0
 # expected: GET /api/v1/status/vision → camera_ok false when no device
 # expected: GET /api/v1/status/optical-nav → camera_ok false, position null
 # expected: GET /api/v1/status/landing → runway_detector false

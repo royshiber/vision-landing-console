@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
-"""Upload queue against a fake signer target. No real B2."""
+"""Upload queue against a fake signer target. No live bucket."""
 
 from __future__ import print_function
 
 import hashlib
 import json
+import os
 import sys
 import tempfile
 import unittest
@@ -13,7 +14,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from log_uploader import LogUploader, credentials_present  # noqa: E402
+from log_uploader import LogUploader, credentials_present, load_upload_config  # noqa: E402
 
 
 def _cfg(**over):
@@ -194,6 +195,86 @@ class UploaderTests(unittest.TestCase):
             up.step()
             self.assertEqual(stored, {})
             self.assertEqual(up._conn.execute("SELECT last_error FROM jobs").fetchone()["last_error"], "policy_hold")
+            up.close()
+
+    def test_secret_env_prefers_secret_and_accepts_app_key_alias(self):
+        previous = {name: os.environ.get(name) for name in ("AIRVIX_UPLOAD_SECRET", "AIRVIX_UPLOAD_APP_KEY")}
+        try:
+            os.environ["AIRVIX_UPLOAD_SECRET"] = "hmac-secret"
+            os.environ["AIRVIX_UPLOAD_APP_KEY"] = "alias-secret"
+            self.assertEqual(load_upload_config()["app_key"], "hmac-secret")
+            del os.environ["AIRVIX_UPLOAD_SECRET"]
+            self.assertEqual(load_upload_config()["app_key"], "alias-secret")
+            os.environ["AIRVIX_UPLOAD_APP_KEY"] = ""
+            self.assertEqual(load_upload_config()["app_key"], "")
+            self.assertFalse(credentials_present(load_upload_config()))
+        finally:
+            for name, value in previous.items():
+                if value is None:
+                    os.environ.pop(name, None)
+                else:
+                    os.environ[name] = value
+
+    def test_gcs_interop_put_accepts_goog_hash(self):
+        clock = Clock()
+        seen = {}
+
+        def opener(url, body, headers):
+            seen["url"] = url
+            seen["authorization"] = headers["Authorization"]
+            seen["body"] = body
+            import base64
+
+            md5_b64 = base64.b64encode(hashlib.md5(body).digest()).decode("ascii")
+            return 200, '"not-an-md5-etag"', None, {"x-goog-hash": "crc32c=AAAAAA==,md5=%s" % md5_b64}
+
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "summary.json"
+            path.write_bytes(b'{"ok":1}')
+            up = LogUploader(
+                tmp,
+                cfg=_cfg(
+                    endpoint="https://storage.googleapis.com",
+                    region="auto",
+                    bucket="airvix-flights",
+                    key_id="GOOG1EXAMPLE",
+                    app_key="not-a-real-hmac-secret",
+                ),
+                sleep_fn=lambda _s: None,
+                now_fn=clock,
+                rand_fn=lambda: 0,
+                opener=opener,
+            )
+            up.enqueue_file("f1", "summary.json", str(path), "v1/plane/summary.json", "summary", 20)
+            self.assertTrue(up.step())
+            self.assertTrue(seen["url"].startswith("https://storage.googleapis.com/airvix-flights/v1/plane/summary.json"))
+            self.assertIn("/auto/s3/aws4_request", seen["authorization"])
+            self.assertIn("Credential=GOOG1EXAMPLE/", seen["authorization"])
+            self.assertTrue(seen["authorization"].startswith("AWS4-HMAC-SHA256 "))
+            self.assertEqual(up._conn.execute("SELECT state FROM jobs").fetchone()["state"], "done")
+            up.close()
+
+        clock = Clock()
+        seen = {}
+
+        def opener_region(url, body, headers):
+            seen["authorization"] = headers["Authorization"]
+            return 200, hashlib.md5(body).hexdigest(), None
+
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "summary.json"
+            path.write_bytes(b"{}")
+            up = LogUploader(
+                tmp,
+                cfg=_cfg(endpoint="https://storage.googleapis.com", region="me-west1", bucket="airvix-flights"),
+                sleep_fn=lambda _s: None,
+                now_fn=clock,
+                rand_fn=lambda: 0,
+                opener=opener_region,
+            )
+            up.enqueue_file("f1", "summary.json", str(path), "v1/plane/summary.json", "summary", 20)
+            self.assertTrue(up.step())
+            self.assertIn("/me-west1/s3/aws4_request", seen["authorization"])
             up.close()
 
     def test_etag_mismatch(self):

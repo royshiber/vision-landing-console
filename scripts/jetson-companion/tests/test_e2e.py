@@ -120,6 +120,7 @@ class E2ETests(unittest.TestCase):
         os.environ["AIRVIX_FLIGHTLOG_DERIVE_INLINE"] = "1"
         os.environ["AIRVIX_UPLOAD_ENABLED"] = "0"
         os.environ["AIRVIX_UPLOAD_ENDPOINT"] = ""
+        os.environ["AIRVIX_UPLOAD_SECRET"] = ""
         os.environ["AIRVIX_UPLOAD_APP_KEY"] = ""
         frames = list(iter_records(FIX))
         self.assertGreater(len(frames), 10)
@@ -128,7 +129,10 @@ class E2ETests(unittest.TestCase):
         wall0 = time.perf_counter()
         with tempfile.TemporaryDirectory() as tmp:
             journal = Path(tmp) / "journal.jsonl"
-            journal.write_text('{"MESSAGE":"Bearer abc123"}\nAIRVIX_UPLOAD_APP_KEY=supersecretvalue\n', encoding="utf-8")
+            journal.write_text(
+                '{"MESSAGE":"Bearer abc123"}\nAIRVIX_UPLOAD_APP_KEY=supersecretvalue\nAIRVIX_UPLOAD_SECRET=othersecretvalue\n',
+                encoding="utf-8",
+            )
             os.environ["AIRVIX_FLIGHTLOG_JOURNAL_OVERRIDE"] = str(journal)
             httpd = ThreadingHTTPServer(("127.0.0.1", 0), _Health)
             http_port = httpd.server_address[1]
@@ -199,6 +203,7 @@ class E2ETests(unittest.TestCase):
             blob = journal_txt + "\n" + system_txt + "\n" + json.dumps(manifest)
             self.assertNotIn("abc123", blob)
             self.assertNotIn("supersecretvalue", blob)
+            self.assertNotIn("othersecretvalue", blob)
             self.assertIn("[redacted]", journal_txt)
             from pymavlink import mavutil
 

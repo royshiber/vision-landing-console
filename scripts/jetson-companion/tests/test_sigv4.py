@@ -58,6 +58,35 @@ class SigV4Tests(unittest.TestCase):
         )
         self.assertEqual(signed["signature"], "5fa00fa31553b73ebf1942676e86291e8372ff2a2260956d9b8aae1d763fbf31")
 
+    def test_gcs_path_style_regions(self):
+        from s3_sigv4 import path_style_url
+
+        for region in ("auto", "me-west1"):
+            url, host, uri = path_style_url(
+                "https://storage.googleapis.com",
+                "airvix-flights",
+                "v1/plane/summary.json",
+                secure=True,
+            )
+            self.assertEqual(url, "https://storage.googleapis.com/airvix-flights/v1/plane/summary.json")
+            self.assertEqual(host, "storage.googleapis.com")
+            self.assertEqual(uri, "/airvix-flights/v1/plane/summary.json")
+            signed = sign_request(
+                "PUT",
+                host,
+                uri,
+                "GOOG1EXAMPLE",
+                "not-a-real-hmac-secret",
+                region,
+                "20190311T192918Z",
+                headers={"Content-Type": "application/json"},
+                body=b"{}",
+            )
+            self.assertIn("/%s/s3/aws4_request" % region, signed["authorization"])
+            self.assertTrue(signed["authorization"].startswith("AWS4-HMAC-SHA256 "))
+            self.assertIn("x-amz-content-sha256", signed["signed_headers"])
+            self.assertNotIn("GOOG4", signed["authorization"])
+
 
 if __name__ == "__main__":
     unittest.main()

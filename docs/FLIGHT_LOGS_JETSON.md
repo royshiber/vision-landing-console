@@ -32,11 +32,11 @@ systemctl disable --now airvix-flightlog
 | AIRVIX_VEHICLE_ID | hostname | Key prefix |
 | AIRVIX_FD_* | design §3 | Detector thresholds |
 | AIRVIX_UPLOAD_ENABLED | 0 | Upload master switch |
-| AIRVIX_UPLOAD_ENDPOINT | empty | B2/S3 endpoint |
-| AIRVIX_UPLOAD_REGION | empty | SigV4 region |
+| AIRVIX_UPLOAD_ENDPOINT | empty | S3 endpoint. GCS: `https://storage.googleapis.com` |
+| AIRVIX_UPLOAD_REGION | empty | SigV4 region. GCS: `auto` or a location such as `me-west1` |
 | AIRVIX_UPLOAD_BUCKET | empty | Bucket |
-| AIRVIX_UPLOAD_KEY_ID | empty | Key id. Status reports present or absent only |
-| AIRVIX_UPLOAD_APP_KEY | empty | Secret. Never logged |
+| AIRVIX_UPLOAD_KEY_ID | empty | Access key / HMAC access id. Status reports present or absent only |
+| AIRVIX_UPLOAD_SECRET | empty | Secret / HMAC secret. Never logged. `AIRVIX_UPLOAD_APP_KEY` is an alias |
 | AIRVIX_UPLOAD_PREFIX | v1 | Key prefix |
 | AIRVIX_UPLOAD_CELLULAR | all | all, core, or never |
 | AIRVIX_UPLOAD_CELL_DAILY_MB | 500 | Non-control cellular cap |
@@ -45,7 +45,7 @@ systemctl disable --now airvix-flightlog
 
 Copy `scripts/jetson-companion/flightlog.env.example` to `/etc/airvix/flightlog.env`.
 
-If any of endpoint, region, bucket, key id, or app key is empty, upload stays disabled: `uploader.enabled` false, `reason` `no_credential`, `credential` `absent`. The process does not crash. Packages remain in the spool. Segments that overlap a flight whose upload is not complete are kept. Other segments follow the 14-day / 2048 MB cap. Setting the variables later and restarting drains the SQLite queue.
+If any of endpoint, region, bucket, key id, or secret is empty, upload stays disabled: `uploader.enabled` false, `reason` `no_credential`, `credential` `absent`. The process does not crash. Packages remain in the spool. Segments that overlap a flight whose upload is not complete are kept. Other segments follow the 14-day / 2048 MB cap. Setting the variables later and restarting drains the SQLite queue.
 
 ## Spool
 
@@ -77,9 +77,20 @@ The companion exposes the same document at `GET /api/flight-log/status` and `GET
 
 Local relay clients on `127.0.0.1` count as `local_tap_clients` when `VLC_LOCAL_TAP_SEPARATE=1` (default). They are still fanned out. They are not counted in `relay_clients`.
 
-## Backblaze key
+## Object storage (S3)
 
-Create a write-only application key (`writeFiles` only) limited to the flight bucket and name prefix `v1/<vehicle_id>/`. Put the key id and application key in `/etc/airvix/flightlog.env` on the Jetson. Do not commit them. The status file and HTTP responses never include the secret.
+The uploader speaks path-style S3 (AWS Signature Version 4, `AWS4-HMAC-SHA256`, service `s3`). It does not send flight commands or write parameters.
+
+Google Cloud Storage interoperability:
+
+| Setting | Value |
+| --- | --- |
+| `AIRVIX_UPLOAD_ENDPOINT` | `https://storage.googleapis.com` |
+| `AIRVIX_UPLOAD_REGION` | `auto`, or the bucket location `me-west1` |
+| `AIRVIX_UPLOAD_KEY_ID` | HMAC access id |
+| `AIRVIX_UPLOAD_SECRET` | HMAC secret |
+
+Create an HMAC key that can create objects only, limited to the flight bucket and the name prefix `v1/<vehicle_id>/`. Put the access id and secret in `/etc/airvix/flightlog.env` on the Jetson. Do not commit them. The status file and HTTP responses never include the secret. Use the global endpoint. The signer puts the bucket in the path (`/bucket/key`), not in the host.
 
 ## Flight controller stream
 
@@ -91,5 +102,5 @@ Recommend `SR3_EXTRA3 >= 1` so the tap sees position. The Jetson does not write 
 2. Copy files with `install.sh --apply` on the Jetson.
 3. Install `/etc/airvix/flightlog.env` with placeholders first and confirm status `enabled: false`.
 4. Only then set `AIRVIX_FLIGHTLOG_ENABLED=1` and enable the unit.
-5. Add B2 variables only after the write-only key exists.
+5. Add the S3 variables only after the write-only HMAC key exists. For GCS use endpoint `https://storage.googleapis.com` and region `auto` or `me-west1`.
 6. Rollback with `systemctl disable --now airvix-flightlog`.
