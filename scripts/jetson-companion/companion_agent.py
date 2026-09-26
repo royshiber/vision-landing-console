@@ -1041,21 +1041,13 @@ def _versions_dest():
 
 
 def _versions_blocked():
-    """None only when the live flight state is disarmed and not flying."""
-    override = os.environ.get("VLC_VERSIONS_REFUSE")
-    if override == "1":
-        return "armed"
-    if override == "0":
-        return None
-    if override == "unknown":
-        return "unknown"
-    if override == "in_flight":
-        return "in_flight"
+    """None only when this process sees a fresh disarmed, not-flying heartbeat."""
     try:
         payload = fc_status_payload()
     except Exception:
         payload = None
-    armed, in_flight = _flight_gate_fields(payload)
+    connected = isinstance(payload, dict) and payload.get("connected") is True
+    armed, in_flight = _flight_gate_fields(payload) if connected else (None, None)
     try:
         version_rollback.write_flight_gate(_versions_dest(), armed, in_flight)
     except Exception:

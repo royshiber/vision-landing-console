@@ -56,7 +56,7 @@
     node.hidden = !on;
   }
   function targetName(kind) {
-    return kind === 'console' ? 'קונסולה' : 'מחשב המשימה';
+    return kind === 'console' ? 'הקונסולה' : 'מחשב המשימה';
   }
   function paintBackups(companion, busy) {
     const list = el('vrBackups');
@@ -94,7 +94,7 @@
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'vr-btn vr-backup-btn';
-      btn.textContent = 'לשחזר לגיבוי זה';
+      btn.textContent = 'שחזור מגיבוי זה';
       btn.disabled = busy;
       btn.addEventListener('click', () => {
         if (busy) return;
@@ -114,7 +114,7 @@
       return;
     }
     const how = known.source === 'flight' ? 'סומן אחרי טיסה בלי שגיאות' : 'סומן ידנית';
-    knownNode.append(`${how} ${formatWhen(known.at)}. קונסולה `);
+    knownNode.append(`${how} ${formatWhen(known.at)}. הקונסולה `);
     knownNode.append(versionNode(known.consoleVersion));
     knownNode.append('. מחשב המשימה ');
     knownNode.append(versionNode(known.companionVersion));
@@ -142,7 +142,8 @@
     text('vrCompanionLink', companion.linked ? 'מקושר' : 'אין קישור למחשב המשימה');
     setVersion('vrCompanionVersion', companion.linked ? companion.version : null);
     text('vrCompanionDeployed', companion.linked ? formatWhen(companion.deployedAt) : null);
-    setVersion('vrCompanionSha', companion.linked ? companion.gitSha : null);
+    const sha = companion.gitSha || companion.version || null;
+    setVersion('vrCompanionSha', companion.linked ? sha : null);
     paintBackups(companion, busy);
     const fcAt = view?.fcParams?.snapshotAt;
     text('vrFcSnapshot', fcAt ? formatWhen(fcAt) : null);
@@ -370,7 +371,7 @@
     const console = latest?.console;
     if (!console?.rollbackAvailable) return;
     if (phaseOf(latest) === 'progress') return;
-    openConfirm('console', console.version, console.previousVersion, null, null);
+    openConfirm('console', console.version, console.previousVersion, null, console.previousInstalledAt || console.installedAt);
   });
   el('vrConfirmNo')?.addEventListener('click', () => closeConfirm());
   el('vrConfirmYes')?.addEventListener('click', () => { void sendRollback(); });

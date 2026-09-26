@@ -279,16 +279,20 @@ def release_claim(dest: Path) -> None:
         pass
 
 
+def _block_line(detail: str) -> str:
+    return f"לא ניתן לשחזר כרגע: {detail}"
+
+
 def _block_message(reason: str) -> str:
     table = {
-        "armed": "המטוס חמוש. אין שחזור.",
-        "in_flight": "המטוס באוויר. אין שחזור.",
-        "unknown": "מצב הטיסה לא ידוע. אין שחזור.",
-        "stale": "מצב הטיסה ישן. אין שחזור.",
-        "missing": "אין מצב טיסה ממחשב המשימה. אין שחזור.",
-        "busy": "שחזור כבר מתבצע.",
+        "armed": _block_line("המטוס חמוש."),
+        "in_flight": _block_line("המטוס באוויר."),
+        "unknown": _block_line("מצב הטיסה לא ידוע."),
+        "stale": _block_line("מצב הטיסה לא עדכני."),
+        "missing": _block_line("אין מצב טיסה ממחשב המשימה."),
+        "busy": _block_line("שחזור כבר מתבצע."),
     }
-    return table.get(reason, "אין שחזור.")
+    return table.get(reason, "לא ניתן לשחזר כרגע.")
 
 
 def _block_body(reason: str) -> dict:
@@ -366,17 +370,6 @@ def read_flight_gate(dest: Path, now: float | None = None, max_age: float = GATE
 
 def read_flight_block():
     """Worker gate. Reads the file the running companion just wrote. Never a private empty observer."""
-    override = os.environ.get("VLC_VERSIONS_REFUSE")
-    if override == "1":
-        return "armed"
-    if override == "0":
-        return None
-    if override == "unknown":
-        return "unknown"
-    if override == "stale":
-        return "stale"
-    if override == "in_flight":
-        return "in_flight"
     dest = Path(os.environ.get("VLC_COMPANION_DEST") or (Path.home() / "vlc-companion"))
     return read_flight_gate(dest)
 
@@ -551,8 +544,6 @@ def build_context(running_version: str, armed_value=None):
     def blocked():
         if armed_value is True:
             return "armed"
-        if armed_value is False:
-            return None
         return read_flight_block()
 
     return {

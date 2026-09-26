@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import express from 'express';
+import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -11,6 +12,7 @@ import {
   findPreviousConsole,
   maybeAutoKnownGood,
   readLastFcParamSnapshotAt,
+  readTreeStamp,
 } from '../lib/versions-view.mjs';
 import { registerVersionsApi } from '../lib/routes/versions-api.mjs';
 
@@ -82,7 +84,35 @@ describe('versions view data', () => {
     const appRoot = path.join(parent, 'console');
     fs.mkdirSync(path.join(parent, 'airvix-rollback', 'console'), { recursive: true });
     fs.writeFileSync(path.join(parent, 'airvix-rollback', 'console', 'version.js'), "export const APP_VERSION = '1.02.335';\n");
-    expect(findPreviousConsole(appRoot)).toMatchObject({ available: true, version: '1.02.335' });
+    const previous = findPreviousConsole(appRoot);
+    expect(previous).toMatchObject({ available: true, version: '1.02.335' });
+    expect(Date.parse(previous.installedAt)).not.toBeNaN();
+  });
+
+  it('fills an install time from the manifest, then the file time, then git', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'airvix-stamp-'));
+    fs.writeFileSync(path.join(dir, 'version.js'), "export const APP_VERSION = '1.02.341';\n");
+    const fromFile = readTreeStamp(dir);
+    expect(Date.parse(fromFile.at)).not.toBeNaN();
+    fs.writeFileSync(path.join(dir, 'airvix-deploy.json'), JSON.stringify({
+      deployed_at: '2026-09-01T00:00:00Z',
+      git_sha: '',
+    }));
+    expect(readTreeStamp(dir)).toMatchObject({ at: '2026-09-01T00:00:00Z', sha: null });
+    fs.rmSync(path.join(dir, 'airvix-deploy.json'));
+    const fromFileAgain = readTreeStamp(dir);
+    expect(Date.parse(fromFileAgain.at)).not.toBeNaN();
+    fs.rmSync(path.join(dir, 'version.js'));
+    const git = (args) => spawnSync('git', args, { cwd: dir, encoding: 'utf8' });
+    git(['init']);
+    fs.writeFileSync(path.join(dir, 'version.js'), "export const APP_VERSION = '1.02.341';\n");
+    git(['config', 'user.email', 'stamp@example.com']);
+    git(['config', 'user.name', 'Stamp']);
+    git(['add', 'version.js']);
+    git(['commit', '-m', 'stamp']);
+    fs.rmSync(path.join(dir, 'version.js'));
+    const fromGit = readTreeStamp(dir);
+    expect(Date.parse(fromGit.at)).not.toBeNaN();
   });
 });
 
@@ -110,6 +140,7 @@ describe('versions rollback route', () => {
     expect(view.console.version).toBe('1.02.338');
     expect(view.console.previousVersion).toBe('1.02.335');
     expect(view.console.installedAt).toBeNull();
+    expect(Date.parse(view.console.previousInstalledAt)).not.toBeNaN();
     expect(view.fcParams.snapshotAt).toBeNull();
     const denied = await fetch(`${base}/api/versions/rollback/console`, {
       method: 'POST',

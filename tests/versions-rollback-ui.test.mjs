@@ -34,6 +34,7 @@ function viewPayload(linked) {
       version: '1.02.338',
       installedAt: linked ? '2026-09-26T08:15:00Z' : '2026-09-26T08:15:00Z',
       previousVersion: '1.02.335',
+      previousInstalledAt: '2026-09-20T08:00:00Z',
       rollbackAvailable: true,
       rollbackUnavailableReason: null,
     },
@@ -248,7 +249,11 @@ describe('versions and rollback view', () => {
           }
           if (state === 'confirm') {
             expect(phase).toBe('confirm');
-            expect(await textOf('#vrConfirmTitle')).toContain('קונסולה');
+            expect(await textOf('#vrConfirmTitle')).toContain('הקונסולה');
+            expect(await textOf('#vrConfirmWhen')).not.toBe('תאריך לא ידוע');
+            expect(await textOf('#vrConsoleInstalled')).not.toBe('תאריך לא ידוע');
+            expect(await textOf('#vrConsoleRollbackBtn')).toBe('שחזור לגרסה קודמת');
+            expect(await textOf('#gsCheckUpdatesBtn')).toBe('בדקו עדכונים');
             expect(await textOf('#vrConfirmFrom')).toContain('1.02.338');
             expect(await textOf('#vrConfirmTo')).toContain('1.02.335');
             expect(await textOf('#vrConfirm')).not.toContain('אל אין מידע');
@@ -307,6 +312,7 @@ describe('versions and rollback view', () => {
         versionCalls += 1;
         const payload = viewPayload(true);
         payload.knownGood = null;
+        payload.companion.gitSha = '';
         payload.companion.backups.push({
           id: '20260918T080000Z',
           version: null,
@@ -330,6 +336,8 @@ describe('versions and rollback view', () => {
     await page.locator('.vr-backup-btn').nth(1).click();
     await page.waitForSelector('#vrConfirm:not([hidden])');
     const confirmText = await page.locator('#vrConfirm').textContent();
+    expect(await page.locator('#vrCompanionSha').textContent()).toBe('2.6.0');
+    expect(await page.locator('.vr-backup-btn').first().textContent()).toBe('שחזור מגיבוי זה');
     expect(confirmText).toContain('מחשב המשימה');
     expect(confirmText).toContain('גרסה לא ידועה');
     expect(confirmText).toContain('תאריך');

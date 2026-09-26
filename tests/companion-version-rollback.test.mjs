@@ -39,8 +39,35 @@ function seed(root) {
   return { live, backup };
 }
 
-function spawnAgent(port, root, extra) {
-  const child = spawn('python3', [agentPath], {
+function heartbeatLauncher(mode) {
+  const baseMode = mode === 'armed' ? 0x80 : 0;
+  const systemStatus = mode === 'in_flight' ? 4 : 3;
+  return `
+import threading, time, runpy, sys
+sys.path.insert(0, ${JSON.stringify(path.dirname(agentPath))})
+import companion_agent as agent
+
+def frame():
+    payload = bytes([0, 0, 0, 0, 1, 3, ${baseMode}, ${systemStatus}, 3])
+    body = bytes([len(payload), 1, 1, 1, 0]) + payload
+    crc = agent.mav_crc(body + bytes([50]))
+    return bytes([0xFE]) + body + bytes([crc & 0xFF, (crc >> 8) & 0xFF])
+
+blob = frame()
+
+def pump():
+    while True:
+        agent.observe_uart_bytes(blob)
+        time.sleep(0.4)
+
+threading.Thread(target=pump, daemon=True).start()
+time.sleep(0.05)
+runpy.run_path(${JSON.stringify(agentPath)}, run_name="__main__")
+`;
+}
+
+function spawnAgent(port, root, extra, flight) {
+  const child = spawn('python3', flight ? ['-c', heartbeatLauncher(flight)] : [agentPath], {
     env: {
       ...process.env,
       VLC_HTTP_BIND: '127.0.0.1',
@@ -54,6 +81,7 @@ function spawnAgent(port, root, extra) {
       VLC_COMPANION_DEST: path.join(root, 'vlc-companion'),
       VLC_VERSIONS_INLINE: '1',
       VLC_VERSIONS_HEALTH_TIMEOUT_S: '0.2',
+      VLC_VERSIONS_REFUSE: '0',
       ...extra,
     },
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -120,7 +148,7 @@ describe('companion version rollback endpoint', () => {
     seed(root);
     const log = path.join(root, 'restart.log');
     const port = await freePort();
-    spawnAgent(port, root, { VLC_VERSIONS_REFUSE: '1', VLC_VERSIONS_RESTART_LOG: log, VLC_VERSIONS_HEALTH: 'ok' });
+    spawnAgent(port, root, { VLC_VERSIONS_RESTART_LOG: log, VLC_VERSIONS_HEALTH: 'ok' }, 'armed');
     await waitHttp(port);
     const listed = await fetch(`http://127.0.0.1:${port}/api/v1/versions`, {
       headers: { 'X-Companion-Token': 'versions-test' },
@@ -143,7 +171,7 @@ describe('companion version rollback endpoint', () => {
     seed(root);
     const log = path.join(root, 'restart.log');
     const port = await freePort();
-    spawnAgent(port, root, { VLC_VERSIONS_REFUSE: '0', VLC_VERSIONS_RESTART_LOG: log, VLC_VERSIONS_HEALTH: 'fail' });
+    spawnAgent(port, root, { VLC_VERSIONS_RESTART_LOG: log, VLC_VERSIONS_HEALTH: 'fail' }, 'disarmed');
     await waitHttp(port);
     const rolled = await postRollback(port, { confirm: true, backup_id: '20260926T100000Z' });
     expect(rolled.status).toBe(200);

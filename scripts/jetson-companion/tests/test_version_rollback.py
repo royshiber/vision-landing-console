@@ -1,6 +1,7 @@
 """Unit tests for companion backup restore: armed refusal and auto-revert."""
 
 import json
+import os
 import sys
 import tempfile
 import time
@@ -165,7 +166,10 @@ class RollbackTests(unittest.TestCase):
     def test_http_claim_rejects_a_second_swap(self):
         with tempfile.TemporaryDirectory() as tmp:
             live, _backup = _tree(Path(tmp))
-            ctx = vr.build_context("2.6.0", False)
+            vr.write_flight_gate(live, False, False)
+            previous = os.environ.get("VLC_COMPANION_DEST")
+            os.environ["VLC_COMPANION_DEST"] = str(live)
+            ctx = vr.build_context("2.6.0", None)
             ctx["inline"] = False
             ctx["dest"] = live
             spawned = []
@@ -185,6 +189,10 @@ class RollbackTests(unittest.TestCase):
             finally:
                 vr.spawn_worker = original
                 vr.release_claim(live)
+                if previous is None:
+                    os.environ.pop("VLC_COMPANION_DEST", None)
+                else:
+                    os.environ["VLC_COMPANION_DEST"] = previous
             self.assertEqual(first, 202)
             self.assertEqual(second, 409)
             self.assertEqual(second_body["reason"], "busy")
@@ -217,7 +225,7 @@ class RollbackTests(unittest.TestCase):
             )
             self.assertEqual(status, 409)
             self.assertEqual(body["reason"], "stale")
-            self.assertEqual(body["message"], "מצב הטיסה ישן. אין שחזור.")
+            self.assertEqual(body["message"], "לא ניתן לשחזר כרגע: מצב הטיסה לא עדכני.")
             self.assertEqual((live / "marker.txt").read_text(encoding="utf-8"), "LIVE")
             self.assertEqual(restarts, [])
             vr.write_flight_gate(live, False, False, now)
@@ -233,7 +241,76 @@ class RollbackTests(unittest.TestCase):
             self.assertTrue(body["ok"])
             self.assertEqual(restarts, ["restart"])
 
+    def test_env_allow_does_not_skip_the_gate(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            live, _backup = _tree(Path(tmp))
+            previous_refuse = os.environ.get("VLC_VERSIONS_REFUSE")
+            previous_dest = os.environ.get("VLC_COMPANION_DEST")
+            os.environ["VLC_VERSIONS_REFUSE"] = "0"
+            os.environ["VLC_COMPANION_DEST"] = str(live)
+            try:
+                self.assertEqual(vr.read_flight_block(), "missing")
+                vr.write_flight_gate(live, True, False)
+                self.assertEqual(vr.read_flight_block(), "armed")
+            finally:
+                if previous_refuse is None:
+                    os.environ.pop("VLC_VERSIONS_REFUSE", None)
+                else:
+                    os.environ["VLC_VERSIONS_REFUSE"] = previous_refuse
+                if previous_dest is None:
+                    os.environ.pop("VLC_COMPANION_DEST", None)
+                else:
+                    os.environ["VLC_COMPANION_DEST"] = previous_dest
+        root = Path(__file__).resolve().parents[1]
+        for name in ("version_rollback.py", "companion_agent.py"):
+            self.assertNotIn("VLC_VERSIONS_REFUSE", (root / name).read_text(encoding="utf-8"))
 
+    def test_live_heartbeat_is_the_gate(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            live, _backup = _tree(Path(tmp))
+            previous_refuse = os.environ.get("VLC_VERSIONS_REFUSE")
+            previous_dest = os.environ.get("VLC_COMPANION_DEST")
+            os.environ["VLC_VERSIONS_REFUSE"] = "0"
+            os.environ["VLC_COMPANION_DEST"] = str(live)
+            import companion_agent
+            from fc_telemetry import reset_fc_observer
+            try:
+                reset_fc_observer()
+                self.assertEqual(companion_agent._versions_blocked(), "unknown")
+                companion_agent.observe_uart_bytes(_heartbeat(0x80, 3))
+                self.assertEqual(companion_agent._versions_blocked(), "armed")
+                reset_fc_observer()
+                companion_agent.observe_uart_bytes(_heartbeat(0, 4))
+                self.assertEqual(companion_agent._versions_blocked(), "in_flight")
+                reset_fc_observer()
+                companion_agent.observe_uart_bytes(_heartbeat(0, 3))
+                self.assertIsNone(companion_agent._versions_blocked())
+            finally:
+                reset_fc_observer()
+                if previous_refuse is None:
+                    os.environ.pop("VLC_VERSIONS_REFUSE", None)
+                else:
+                    os.environ["VLC_VERSIONS_REFUSE"] = previous_refuse
+                if previous_dest is None:
+                    os.environ.pop("VLC_COMPANION_DEST", None)
+                else:
+                    os.environ["VLC_COMPANION_DEST"] = previous_dest
+
+
+def _heartbeat(base_mode: int, system_status: int) -> bytes:
+    payload = bytes([0, 0, 0, 0, 1, 3, base_mode, system_status, 3])
+    body = bytes([len(payload), 1, 1, 1, 0]) + payload
+    crc = vr_crc(body + bytes([50]))
+    return bytes([0xFE]) + body + bytes([crc & 0xFF, (crc >> 8) & 0xFF])
+
+
+def vr_crc(data: bytes) -> int:
+    crc = 0xFFFF
+    for byte in data:
+        tmp = (byte ^ (crc & 0xFF)) & 0xFF
+        tmp = (tmp ^ ((tmp << 4) & 0xFF)) & 0xFF
+        crc = ((crc >> 8) ^ (tmp << 8) ^ (tmp << 3) ^ (tmp >> 4)) & 0xFFFF
+    return crc
 
 
 if __name__ == "__main__":
