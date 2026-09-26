@@ -651,6 +651,8 @@ body:has(#terrain.panel.visible) .layout {
 
 .param-sync-line {
   display: block;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .panel-header {
@@ -1239,12 +1241,12 @@ body:has(#terrain.panel.visible) .layout {
 /* FC presence pills — after READ, compare MAVLink param keys to schema */
 .ardu-fc-presence {
   flex-shrink: 0;
-  font-size: 0.68rem;
+  font-size: 12px;
   font-weight: 700;
   padding: 0.14rem 0.5rem;
   border-radius: 999px;
   letter-spacing: 0.02em;
-  white-space: nowrap;
+  white-space: normal;
 }
 .ardu-fc-presence--virtual {
   background: rgba(100, 116, 139, 0.22);
@@ -1405,14 +1407,28 @@ body:has(#terrain.panel.visible) .layout {
 /* Ardu subpanel: do NOT use overflow-y:auto on the whole column — it breaks flex height
    allocation; the middle “form” region then collapses to 0px. Scroll only inside .ardu-param-form-panels. */
 #arduParams.subpanel.visible {
-  display: grid !important;
-  grid-template-rows: auto 60vh auto auto;
-  overflow-x: hidden;
-  overflow-y: hidden;
+  display: flex !important;
+  flex-direction: column;
+  overflow: hidden;
   gap: 6px;
   min-height: 0;
-  flex: 1 1 0;
-  align-content: start;
+  flex: 1 1 auto;
+}
+#arduParams.subpanel.visible .ardu-form-region {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+  height: auto;
+}
+#arduParams.subpanel.visible #arduParamFormPanels {
+  overflow-x: hidden;
+  overflow-y: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+}
+#arduParams.subpanel.visible #paramSyncBanner {
+  flex-shrink: 0;
 }
 
 .ardu-cat-subtabs-wrap {
@@ -1508,7 +1524,7 @@ body:has(#terrain.panel.visible) .layout {
   body:has(#terrain.panel.visible) .layout { padding: 0; gap: 0; }
   .app-chrome { min-height: 36px; padding: 3px 10px; padding-inline-end: 160px; }
   .tabs { padding-bottom: 2px; }
-  .tab { padding: 6px 11px; font-size: 0.68rem; }
+  .tab { padding: 6px 11px; font-size: 12px; }
   .subtab { padding: 5px 10px; font-size: 0.72rem; }
   .panel { padding: 6px 10px 8px; }
   #control .subpanel.visible { padding-top: 6px; }
@@ -1517,7 +1533,7 @@ body:has(#terrain.panel.visible) .layout {
   #arduParams #arduParamFormPanels .param-title { font-size: 0.72rem; }
   #paramCenterSearchBar .ardu-search-row { gap: 3px; }
   #paramCenterSearchBar .ardu-search-row .btn-secondary-lg,
-  #paramCenterSearchBar .ardu-search-row .btn-primary-lg { padding: 4px 8px; font-size: 0.68rem; }
+  #paramCenterSearchBar .ardu-search-row .btn-primary-lg { padding: 6px 8px; font-size: 12px; }
 }
 
 /**
@@ -1540,17 +1556,28 @@ body:has(#terrain.panel.visible) .layout {
 
 #arduParams #paramSyncBanner {
   margin-top: 0;
-  padding: 4px 8px;
-  font-size: 0.72rem;
+  padding: 8px 10px;
+  font-size: 12px;
+  line-height: 1.4;
   min-height: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
 }
 
 /* ArduPilot redesign: form region fills middle row. */
 #arduParams #arduParamFormPanels .param-card {
   padding: 6px 8px;
+  min-width: 0;
+}
+#arduParams #arduParamFormPanels .param-top {
+  flex-wrap: wrap;
+  min-width: 0;
+}
+#arduParams #arduParamFormPanels .param-title {
+  min-width: 0;
+  flex: 1 1 8rem;
+  overflow-wrap: anywhere;
 }
 
 #arduParams #arduParamFormPanels .param-title {
@@ -1746,9 +1773,10 @@ body:has(#terrain.panel.visible) .layout {
 }
 
 .ardu-field-key {
-  font-size: 0.68rem;
+  font-size: 12px;
   color: var(--text-muted);
   font-family: ui-monospace, monospace;
+  overflow-wrap: anywhere;
 }
 
 .param-card {
@@ -5445,9 +5473,10 @@ body:has(#pulse.panel.visible) .layout {
 }
 .plnd-honesty-note {
   margin: 0;
-  font-size: 0.68rem;
+  font-size: 12px;
   font-weight: 600;
   color: #8b97ab;
+  overflow-wrap: anywhere;
 }
 .plnd-honesty-state {
   margin: 0;
@@ -5483,7 +5512,7 @@ body:has(#pulse.panel.visible) .layout {
 }
 .plnd-honesty-key-token {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 0.62rem;
+  font-size: 12px;
   font-weight: 700;
   color: #94a3b8;
   direction: ltr;
@@ -9664,7 +9693,17 @@ html[data-evolve-preview="1"] #development {
   border: 1px solid var(--border);
 }
 
-.diff-inner { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
+.diff-inner {
+  width: 100%;
+  max-width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.diff-inner th,
+.diff-inner td {
+  overflow-wrap: anywhere;
+}
 
 .diff-inner th {
   background: var(--surface-raised);
@@ -9679,9 +9718,10 @@ html[data-evolve-preview="1"] #development {
 .diff-inner td { padding: 5px 10px; border-bottom: 1px solid var(--border); color: var(--text); }
 
 .diff-fc-col {
-  white-space: nowrap;
-  font-size: 0.78rem;
+  white-space: normal;
+  font-size: 12px;
   vertical-align: middle;
+  overflow-wrap: anywhere;
 }
 .diff-fc-mark {
   font-weight: 700;
@@ -14118,8 +14158,9 @@ details.flight-manage summary {
   color: #e8edf6;
 }
 .cp-hint {
-  font-size: 0.68rem;
+  font-size: 12px;
   color: rgba(180,200,230,0.5);
+  overflow-wrap: anywhere;
 }
 .cp-toolbar {
   display: flex;
@@ -19500,9 +19541,10 @@ body:has(#control.panel.visible) .ardu-top-cats-host {
     gap: 4px;
   }
   .app-chrome .tab {
-    padding: 4px 8px;
-    font-size: 0.62rem;
+    padding: 6px 8px;
+    font-size: 12px;
     letter-spacing: 0;
+    white-space: nowrap;
   }
   html, body {
     height: auto;
@@ -19727,9 +19769,10 @@ body:has(#control.panel.visible) .ardu-top-cats-host {
 .param-tool-state,
 .param-tool-meta {
   margin: 0;
-  font-size: 0.68rem;
+  font-size: 12px;
   font-weight: 700;
   color: #94a3b8;
+  overflow-wrap: anywhere;
 }
 .param-tool-state[data-state="ok"] { color: #86efac; }
 .param-tool-state[data-state="down"] { color: #fca5a5; }
@@ -19940,8 +19983,9 @@ body:has(#control.panel.visible) .ardu-top-cats-host {
   font-weight: 800;
 }
 .ac-choice-detail {
-  font-size: 0.68rem;
+  font-size: 12px;
   color: #94a3b8;
+  overflow-wrap: anywhere;
 }
 .ac-param-row {
   display: grid;
@@ -20143,6 +20187,74 @@ body:has(#control.panel.visible) .ardu-top-cats-host {
 @media (max-width: 720px) {
   .fc-group-row {
     grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+#control.panel.visible {
+  padding-bottom: 96px;
+}
+#control.panel.visible > .subpanel.visible {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+#control.panel.visible > #paramSyncBanner {
+  flex: 0 0 auto;
+  max-width: 100%;
+}
+#control.panel.visible > #plndProfileHonesty:not([hidden]) {
+  flex: 0 1 auto;
+  max-height: 140px;
+  min-height: 0;
+  overflow: auto;
+}
+.param-center-search-bar .ardu-search-row .btn-secondary-lg,
+.param-center-search-bar .ardu-search-row .btn-primary-lg {
+  white-space: normal;
+  line-height: 1.3;
+}
+@media (max-width: 1100px) {
+  .app-chrome {
+    flex-wrap: wrap;
+    align-items: center;
+    height: auto;
+    padding: 6px 8px;
+    row-gap: 4px;
+  }
+  .app-chrome .tabs {
+    flex: 1 1 100%;
+    flex-wrap: wrap;
+    overflow: visible;
+    width: 100%;
+    min-width: 0;
+    gap: 4px;
+  }
+  .app-chrome .tab {
+    font-size: 12px;
+    padding: 6px 8px;
+    flex: 0 1 auto;
+  }
+  .app-chrome-tools {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+}
+@media (max-width: 720px) {
+  .param-center-search-bar .ardu-search-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .param-center-search-bar .ardu-search-row input[type="search"] {
+    grid-column: 1 / -1;
+    font-size: 12px;
+    min-width: 0;
+    width: 100%;
+  }
+  .param-center-search-bar .ardu-search-row .btn-secondary-lg,
+  .param-center-search-bar .ardu-search-row .btn-primary-lg {
+    font-size: 12px;
+    padding: 8px 4px;
+    min-width: 0;
+    width: 100%;
   }
 }
 

@@ -683,7 +683,7 @@
         </div>
         <div id="paramCenterSearchBar" class="param-center-search-bar" role="search" aria-label="חיפוש פרמטרים">
           <div class="ardu-search-row">
-            <input id="arduParamSearchInput" type="search" placeholder="חיפוש פרמטר בשפה חופשית (למשל: נחיתה קשה / LAND_SPEED)" dir="rtl" />
+            <input id="arduParamSearchInput" type="search" placeholder="חיפוש פרמטר" dir="rtl" title="חיפוש לפי שם או תיאור" />
             <button type="button" id="arduParamSearchBtn" class="btn-secondary-lg" title="חיפוש לפי שם/תיאור">חפש</button>
             <button type="button" id="arduParamSearchClearBtn" class="btn-secondary-lg" title="נקה חיפוש">נקה</button>
             <button type="button" id="arduParamSmartSearchBtn" class="btn-primary-lg" title="חיפוש חכם לפי טקסט חופשי עם Gemini">חיפוש חכם</button>
@@ -730,7 +730,6 @@
             <button type="button" id="downloadParamBtn" class="btn-secondary-lg" title="הורדת קובץ .param לייבוא ל-Mission Planner">⬇ הורד .param</button>
             <button type="button" id="applyToMpBtn" class="btn-secondary-lg" title="שולח לשרת ניסיון יישום (אם הוגדר)">שליחה ל-Mission Planner</button>
           </div>
-          <div id="paramSyncBanner" class="param-sync-banner param-sync-banner--info" role="status" aria-live="polite"></div>
           <pre id="mpOut" class="mp-out-hidden"></pre>
         </div>
         <div id="autoConfig" class="subpanel ac-panel" data-ac-model="peripheral-steps" dir="rtl">
@@ -787,6 +786,7 @@
           </div>
         </div>
 
+        <div id="paramSyncBanner" class="param-sync-banner param-sync-banner--info" role="status" aria-live="polite"></div>
         <pre id="configText" class="config-text-hidden" aria-hidden="true"></pre>
       </section>
 

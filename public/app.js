@@ -516,7 +516,7 @@ function renderFcGroupList() {
       input.className = 'fc-group-next';
       input.step = 'any';
       input.setAttribute('aria-label', key);
-      input.placeholder = presence.text;
+      input.placeholder = '—';
       if (Object.prototype.hasOwnProperty.call(fcGroupDraft, key)) input.value = String(fcGroupDraft[key]);
       input.addEventListener('input', () => {
         const raw = input.value.trim();
