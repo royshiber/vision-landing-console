@@ -117,6 +117,74 @@ const scenarios = {
     modemPresent: true,
     cellularStatusHe: 'מחובר',
   }),
+  'signal-dbm': payload(summarizeCommLinks({
+    modemPresent: true,
+    uplinkControl: true,
+    companion: { jetson: 'reachable', hint_he: 'מחשב משימה מחובר.' },
+    uplinks: {
+      wifi: { enabled: true, up: false },
+      cellular: {
+        enabled: true,
+        up: true,
+        signal: { rssi: null, rsrp: -78, rsrq: null, sinr: null },
+        signal_icon: 2,
+        signal_max: 5,
+        network_label: 'LTE',
+        operator: { short: 'Partner', full: 'Partner' },
+      },
+    },
+  }), { modemPresent: true, cellularStatusHe: 'מחובר' }),
+  'signal-icon-5': payload(summarizeCommLinks({
+    modemPresent: true,
+    uplinkControl: true,
+    companion: { jetson: 'reachable', hint_he: 'מחשב משימה מחובר.' },
+    uplinks: {
+      wifi: { enabled: true, up: false },
+      cellular: {
+        enabled: true,
+        up: true,
+        signal: { rssi: null, rsrp: null, rsrq: null, sinr: null },
+        signal_icon: 5,
+        signal_max: 5,
+        network_label: 'LTE',
+        operator: { short: 'Partner', full: 'Partner' },
+      },
+    },
+  }), { modemPresent: true, cellularStatusHe: 'מחובר' }),
+  'signal-icon-2': payload(summarizeCommLinks({
+    modemPresent: true,
+    uplinkControl: true,
+    companion: { jetson: 'reachable', hint_he: 'מחשב משימה מחובר.' },
+    uplinks: {
+      wifi: { enabled: true, up: false },
+      cellular: {
+        enabled: true,
+        up: true,
+        signal: { rssi: null, rsrp: null, rsrq: null, sinr: null },
+        signal_icon: 2,
+        signal_max: 5,
+        network_label: 'LTE',
+        operator: { short: 'Partner', full: 'Partner' },
+      },
+    },
+  }), { modemPresent: true, cellularStatusHe: 'מחובר' }),
+  'signal-none': payload(summarizeCommLinks({
+    modemPresent: true,
+    uplinkControl: true,
+    companion: { jetson: 'reachable', hint_he: 'מחשב משימה מחובר.' },
+    uplinks: {
+      wifi: { enabled: true, up: false },
+      cellular: {
+        enabled: true,
+        up: true,
+        signal: { rssi: null, rsrp: null, rsrq: null, sinr: null },
+        signal_icon: null,
+        signal_max: null,
+        network_label: null,
+        operator: { short: null, full: null },
+      },
+    },
+  }), { modemPresent: true, cellularStatusHe: 'מחובר' }),
   'all-down': payload(summarizeCommLinks({
     modemPresent: false,
     radio: 'disconnected',
@@ -171,7 +239,7 @@ describe('connect popover layout and mocked states', () => {
           contentType: 'application/json',
           body: JSON.stringify({
             ok: true,
-            appVersion: '1.02.327',
+            appVersion: '1.02.328',
             features: { mavlinkQuickConnect: true, dualLink: true },
           }),
         });
@@ -197,6 +265,11 @@ describe('connect popover layout and mocked states', () => {
       status: el.querySelector('.comm-link-status')?.textContent || '',
       action: el.querySelector('.comm-link-action')?.textContent || '',
       bars: el.querySelector('.comm-link-bars')?.dataset.bars || '',
+      quality: el.querySelector('.comm-link-bars')?.dataset.quality || '',
+      tip: el.querySelector('.comm-link-bars')?.title || '',
+      meta: el.querySelector('.comm-link-meta')?.hidden
+        ? ''
+        : (el.querySelector('.comm-link-meta')?.textContent || ''),
     })));
   }
 
@@ -276,6 +349,34 @@ describe('connect popover layout and mocked states', () => {
           expect(cellLocked.disabled).toBe(true);
           expect(cellLocked.title).toBe('גרסת ה-Jetson לא תומכת בשליטה בערוץ');
         }
+        const file = path.join(shotDir, `${name}.png`);
+        await page.screenshot({ path: file, fullPage: false });
+        expect(fs.statSync(file).size).toBeGreaterThan(1000);
+      } finally {
+        await page.close();
+      }
+    }
+  }, 20000);
+
+  it('shows dBm bars, icon 5/5, icon 2/5, and an empty modem without clipping', async () => {
+    const expectCell = {
+      'signal-dbm': { bars: '4', quality: 'known', meta: 'LTE · Partner', tip: /דציבל/ },
+      'signal-icon-5': { bars: '4', quality: 'known', meta: 'LTE · Partner', tip: /המודם לא מדווח ערכי דציבל, רק פסים/ },
+      'signal-icon-2': { bars: '2', quality: 'known', meta: 'LTE · Partner', tip: /2 מתוך 5/ },
+      'signal-none': { bars: '0', quality: 'unknown', meta: '', tip: /אין נתונים/ },
+    };
+    for (const name of Object.keys(expectCell)) {
+      const page = await openScenario(name);
+      try {
+        await assertLayout(page);
+        const rows = await rowSnapshot(page);
+        const cell = Object.fromEntries(rows.map((row) => [row.id, row])).cellular;
+        const want = expectCell[name];
+        expect(cell.bars, name).toBe(want.bars);
+        expect(cell.quality, name).toBe(want.quality);
+        expect(cell.meta, name).toBe(want.meta);
+        expect(cell.tip, name).toMatch(want.tip);
+        if (name === 'signal-dbm') expect(cell.tip).not.toMatch(/המודם לא מדווח/);
         const file = path.join(shotDir, `${name}.png`);
         await page.screenshot({ path: file, fullPage: false });
         expect(fs.statSync(file).size).toBeGreaterThan(1000);

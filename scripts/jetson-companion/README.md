@@ -30,7 +30,7 @@ python3 camera_ingest.py --resolve
 
 4. Copy this folder to `~/vlc-companion` (or `install.sh --apply` on a Jetson).
 5. Optional gimbal: `docs/SIYI_A8_GIMBAL.md` and `./siyi-net.sh`.
-6. Start the 2.3.10 agent (UART fan-out unchanged):
+6. Start the 2.3.11 agent (UART fan-out unchanged):
 
 ```
 python3 companion_agent.py
@@ -98,7 +98,7 @@ Console: `npm run camera:dry-run`.
 
 Never changes Wi-Fi or the cellular profile. Details: `docs/SIYI_A8_GIMBAL.md`.
 
-## Uplink control on the Jetson (2.3.10)
+## Uplink control on the Jetson (2.3.11)
 
 The agent runs as `royshiber` from `/home/royshiber/vlc-companion`.
 NetworkManager changes use a root-owned script. The sudoers rule names that path only.
@@ -125,7 +125,7 @@ sudo systemctl daemon-reload
 ```
 
 5. Skip udev. Do not run a global udev trigger. A modem-only nudge is optional and must name that one device; this runbook does not do it.
-6. Restart the agent as `royshiber`. `GET /api/health` reports `agentVersion` `2.3.10`.
+6. Restart the agent as `royshiber`. `GET /api/health` reports `agentVersion` `2.3.11`.
 
 `wifi-up` and `cell-up` do nothing when that connection is already active. Startup does not take a live link down.
 

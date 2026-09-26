@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Vision Landing Console — Jetson companion: MAVLink relay + HTTP API + heartbeat.
 
-AGENT_VERSION 2.3.10 = 2.3.9 plus a HiLink modem that counts as up when
-operstate is "unknown" and carrier is 1 or NetworkManager is connected, and
-uplink bring-up that does not bounce a link that is already active. 2.3.9
-added operator uplink on/off (Wi-Fi and Huawei cellular) that refuses to drop
-the last working link.
+AGENT_VERSION 2.3.11 = 2.3.10 plus HiLink signal bars from SignalIcon /
+maxsignal, a CurrentNetworkTypeEx label, and the PLMN operator name.
+dBm fields stay null when the modem leaves them empty. 2.3.10 counted a
+HiLink modem as up when operstate is "unknown" and carrier is 1 or
+NetworkManager is connected, and did not bounce a link that is already active.
 No VIO estimator, no EKF inject, no FC writes, no runway detect.
 Gimbal and camera control are not flight commands.
 Never invent camera_ok, frames, gimbal attitude, runway detected/locked, or WGS84 position.
@@ -47,7 +47,7 @@ RELAY_PORT = int(os.environ.get("VLC_RELAY_PORT", "5770"))
 HTTP_PORT = int(os.environ.get("VLC_HTTP_PORT", "8081"))
 HTTP_IDLE_S = float(os.environ.get("VLC_HTTP_IDLE_S", "30") or "30")
 HTTP_MAX_BODY = 16 * 1024 * 1024
-AGENT_VERSION = os.environ.get("VLC_AGENT_VERSION", "2.3.10")
+AGENT_VERSION = os.environ.get("VLC_AGENT_VERSION", "2.3.11")
 MODEM_STATUS_FILE = os.environ.get("AIRVIX_E3372_STATUS_FILE", "/run/airvix/e3372.status")
 
 try:

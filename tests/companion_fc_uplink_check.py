@@ -34,6 +34,20 @@ MCU = "fd0900000001011f2b00b411e40c0000000001ec45"
 SES = "<response><SesInfo>SessionID=abc</SesInfo><TokInfo>tok-1</TokInfo></response>"
 SIGNAL = "<response><rssi>-75dBm</rssi><rsrp>-95dBm</rsrp><rsrq>-11dB</rsrq><sinr>15dB</sinr></response>"
 MON = "<response><ConnectionStatus>901</ConnectionStatus><CurrentNetworkTypeEx>101</CurrentNetworkTypeEx><SignalIcon>4</SignalIcon></response>"
+SIGNAL_EMPTY = (
+    "<response><rssi></rssi><rsrp></rsrp><rsrq></rsrq><sinr></sinr>"
+    "<pci></pci><cell_id></cell_id><lte_bandinfo></lte_bandinfo><mode>7</mode></response>"
+)
+MON_ICON = (
+    "<response><SignalIcon>5</SignalIcon><maxsignal>5</maxsignal>"
+    "<CurrentNetworkTypeEx>101</CurrentNetworkTypeEx><ConnectionStatus>901</ConnectionStatus>"
+    "<SignalStrength></SignalStrength></response>"
+)
+PLMN = (
+    "<response><FullName>Partner</FullName><ShortName>Partner</ShortName>"
+    "<Numeric>42501</Numeric><Rat>7</Rat></response>"
+)
+SIGNAL_PARA = "<response><Rscp>-145dBm</Rscp><Ecio>-32dB</Ecio></response>"
 
 
 def b(hex_str):
@@ -209,6 +223,8 @@ def test_uplink():
             return SIGNAL
         if url.endswith("/api/monitoring/status"):
             return MON
+        if url.endswith("/api/net/current-plmn"):
+            return "<response></response>"
         raise SystemExit("unexpected " + url)
 
     os.environ["VLC_E3372_HILINK_URL"] = "http://192.168.8.1"
@@ -216,7 +232,7 @@ def test_uplink():
     host = Host()
     set_host_reader(host)
     snap = hilink_status()
-    check(calls["n"] == 3, calls["n"])
+    check(calls["n"] == 4, calls["n"])
     check(calls["saw_token"] is True, "token")
     check(snap["signal"]["rssi"] == -75, snap["signal"])
     check(snap["signal"]["rsrp"] == -95, snap["signal"])
@@ -226,15 +242,18 @@ def test_uplink():
     check(snap["connection_label"] == "connected", snap["connection_label"])
     check(snap["network_type"] == "101", snap["network_type"])
     check(snap["signal_icon"] == 4, snap["signal_icon"])
+    check(snap["signal_max"] is None, snap["signal_max"])
+    check(snap["network_label"] == "LTE", snap["network_label"])
+    check(snap["operator"]["short"] is None and snap["operator"]["full"] is None, snap["operator"])
     check(snap["wan_ip"] == "192.168.8.100", snap["wan_ip"])
     check(snap["age_ms"] == 0, snap["age_ms"])
     hilink_status()
-    check(calls["n"] == 3, "cache must hold for 5s")
+    check(calls["n"] == 4, "cache must hold for 5s")
     clock[0] = 4.0
     aged = hilink_status()
     check(aged["age_ms"] == 4000, aged["age_ms"])
     check(aged["signal"]["rssi"] == -75, "cached signal")
-    check(calls["n"] == 3, "still cached")
+    check(calls["n"] == 4, "still cached")
 
     def fail(_url, _headers, _timeout):
         calls["n"] += 1
@@ -265,6 +284,9 @@ def test_uplink():
     check(body["cellular"]["route_metric"] == 50, body["cellular"])
     check(body["cellular"]["default_route"] is True, body["cellular"])
     check(body["cellular"]["signal"]["rsrp"] == -95, body["cellular"])
+    check(body["cellular"]["signal_icon"] == 4, body["cellular"])
+    check(body["cellular"]["network_label"] == "LTE", body["cellular"])
+    check(body["cellular"]["signal_max"] is None, body["cellular"])
     check(body["default_iface"] == "enx0c5b8f279a64", body["default_iface"])
 
     host.routes = lambda: None
@@ -280,7 +302,119 @@ def test_uplink():
     check(quiet["wifi"]["ip"] is None and quiet["cellular"]["ip"] is None, "down has no invented ip")
 
 
+def test_e3372_icon():
+    """E3372h-153 hides dBm. Bars come from SignalIcon, not signal-para."""
+    os.environ["VLC_E3372_HILINK_URL"] = "http://192.168.8.1"
+    reset_uplink_caches()
+    clock = [100.0]
+    set_clock(lambda: clock[0])
+    urls = []
+
+    def fetch(url, headers, timeout):
+        check(timeout <= 0.5, timeout)
+        urls.append(url)
+        if url.endswith("/api/webserver/SesTokInfo"):
+            return SES
+        check(headers.get("Cookie") == "SessionID=abc", headers)
+        check(headers.get("__RequestVerificationToken") == "tok-1", headers)
+        if url.endswith("/api/device/signal"):
+            return SIGNAL_EMPTY
+        if url.endswith("/api/monitoring/status"):
+            return MON_ICON
+        if url.endswith("/api/net/current-plmn"):
+            return PLMN
+        if "signal-para" in url:
+            raise SystemExit("signal-para must not be read")
+        raise SystemExit("unexpected " + url)
+
+    set_hilink_fetcher(fetch)
+    snap = hilink_status()
+    check(all("signal-para" not in url for url in urls), urls)
+    check(sum(1 for url in urls if url.endswith("/api/net/current-plmn")) == 1, urls)
+    check(snap["signal"]["rssi"] is None, snap["signal"])
+    check(snap["signal"]["rsrp"] is None, snap["signal"])
+    check(snap["signal"]["rsrq"] is None, snap["signal"])
+    check(snap["signal"]["sinr"] is None, snap["signal"])
+    check(snap["signal_icon"] == 5, snap["signal_icon"])
+    check(snap["signal_max"] == 5, snap["signal_max"])
+    check(snap["network_type"] == "101", snap["network_type"])
+    check(snap["network_label"] == "LTE", snap["network_label"])
+    check(snap["operator"]["short"] == "Partner", snap["operator"])
+    check(snap["operator"]["full"] == "Partner", snap["operator"])
+    check("Rscp" not in str(snap["signal"]), snap["signal"])
+
+    hilink_status()
+    check(sum(1 for url in urls if url.endswith("/api/net/current-plmn")) == 1, "plmn stays in the cache")
+
+    def typed(url, headers, timeout):
+        check(timeout <= 0.5, timeout)
+        if url.endswith("/api/webserver/SesTokInfo"):
+            return SES
+        if url.endswith("/api/device/signal"):
+            return SIGNAL_EMPTY
+        if url.endswith("/api/monitoring/status"):
+            code = typed.code
+            return (
+                "<response><SignalIcon>2</SignalIcon><maxsignal>5</maxsignal>"
+                f"<CurrentNetworkTypeEx>{code}</CurrentNetworkTypeEx>"
+                "<ConnectionStatus>901</ConnectionStatus></response>"
+            )
+        if url.endswith("/api/net/current-plmn"):
+            raise OSError("plmn down")
+        raise SystemExit("unexpected " + url)
+
+    typed.code = "1011"
+    clock[0] = 110.0
+    set_hilink_fetcher(typed)
+    lte_plus = hilink_status()
+    check(lte_plus["network_label"] == "LTE+", lte_plus["network_label"])
+    check(lte_plus["signal_icon"] == 2, lte_plus["signal_icon"])
+    check(lte_plus["operator"]["short"] is None, lte_plus["operator"])
+    check(lte_plus["signal"]["rsrp"] is None, "plmn failure must not invent rsrp")
+
+    for code, label in (("3", "EDGE"), ("7", "HSPA"), ("41", "WCDMA"), ("999", None), ("0", None)):
+        typed.code = code
+        clock[0] += 10.0
+        got = hilink_status()
+        check(got["network_label"] == label, (code, got["network_label"]))
+        check(got["network_type"] == code, got["network_type"])
+
+    typed.code = "101"
+    clock[0] += 10.0
+
+    def empty_max(url, headers, timeout):
+        if url.endswith("/api/webserver/SesTokInfo"):
+            return SES
+        if url.endswith("/api/device/signal"):
+            return SIGNAL_EMPTY
+        if url.endswith("/api/monitoring/status"):
+            return "<response><SignalIcon></SignalIcon><maxsignal></maxsignal><CurrentNetworkTypeEx>101</CurrentNetworkTypeEx></response>"
+        if url.endswith("/api/net/current-plmn"):
+            return "<response><ShortName> </ShortName><FullName></FullName></response>"
+        raise SystemExit(url)
+
+    set_hilink_fetcher(empty_max)
+    blank_icon = hilink_status()
+    check(blank_icon["signal_icon"] is None, blank_icon["signal_icon"])
+    check(blank_icon["signal_max"] is None, blank_icon["signal_max"])
+    check(blank_icon["network_label"] == "LTE", blank_icon["network_label"])
+    check(blank_icon["operator"]["short"] is None and blank_icon["operator"]["full"] is None, blank_icon["operator"])
+
+    host = Host()
+    set_host_reader(host)
+    set_hilink_fetcher(fetch)
+    clock[0] += 10.0
+    body = uplinks_payload()
+    cell = body["cellular"]
+    check(cell["signal"]["rssi"] is None and cell["signal"]["rsrp"] is None, cell["signal"])
+    check(cell["signal_icon"] == 5 and cell["signal_max"] == 5, cell)
+    check(cell["network_label"] == "LTE", cell)
+    check(cell["operator"]["short"] == "Partner" and cell["operator"]["full"] == "Partner", cell["operator"])
+    check(SIGNAL_PARA not in str(cell), "signal-para values must not appear")
+
+
 if __name__ == "__main__":
     test_fc()
     test_uplink()
+    test_e3372_icon()
     print("ok")

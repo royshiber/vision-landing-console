@@ -1,5 +1,16 @@
 [
   {
+    "version": "1.02.328",
+    "date": "2026-09-26",
+    "changes": [
+      {
+        "type": "fix",
+        "title": "Cellular bars use the modem icon when dBm is empty",
+        "detail": "APP_VERSION 1.02.328. Companion 2.3.11. HiLink signal keeps rssi/rsrp/rsrq/sinr null when the stick leaves them empty, and does not read signal-para. The uplink cellular block adds signal_max, a network label (101 LTE, 1011 LTE+), and the PLMN operator. The connect popover draws dBm bars when those exist, otherwise SignalIcon out of maxsignal, and shows the network and operator beside the bars. The tooltip says the modem reports bars only. No flight commands and no uplink control change."
+      }
+    ]
+  },
+  {
     "version": "1.02.327",
     "date": "2026-09-26",
     "changes": [

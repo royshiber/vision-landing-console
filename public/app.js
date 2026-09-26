@@ -10535,6 +10535,14 @@ initLiveCameraPanel();
         el.querySelector('.comm-link-pct'),
         row.quality,
       );
+      const meta = el.querySelector('.comm-link-meta');
+      if (meta) {
+        const caption = [row.quality?.networkLabel, row.quality?.operator].filter(Boolean).join(' · ');
+        meta.hidden = !caption;
+        meta.textContent = caption;
+        if (caption && row.quality?.tooltipHe) meta.title = row.quality.tooltipHe;
+        else meta.removeAttribute('title');
+      }
     });
     document.querySelectorAll('#missionLinkStrip .mission-link-chip').forEach((chip) => {
       const row = byId[chip.dataset.link];
