@@ -131,7 +131,7 @@ python3 frame_stats.py /tmp/ov9281.raw --width 1280 --height 800 \
 
 **`/dev/video0` missing but the chip id is in dmesg.** The tegracam platform matches `devname` / `sysfs-device-tree`. The i2c bus number in `devname = "ov9281 9-0060"` can differ. Read the client name from dmesg (`ov9281 10-0060` or similar) and set `devname` to that exact string. The sysfs path must match the node that actually probed.
 
-**Black PNG with a good probe.** Port, lanes, or `discontinuous_clk`. The driver sets MIPI register `0x4800` to `0x20` (gated clock) to match `discontinuous_clk = "yes"`. If you switch the DT to `"no"`, also change that register to `0x00`.
+**Every frame dropped, `err_data 131072`.** That is `0x20000`, bit 17 of the VI channel errors in `camrtc-capture.h`: `CAPTURE_CHANNEL_ERROR_FORCE_FE` (frame end forced). The link is up and frames arrive at 60 fps, but VI aborts each one. This pack keeps the clock continuous: `discontinuous_clk = "no"` and `0x4800 = 0x00`, with line length 1456. Do not set bit 5 of `0x4800` unless `line_length` is at least 1530. `dmesg` line `ov9281 timing` and `/sys/bus/i2c/devices/9-0060/ov9281_timing` show the width, height, HTS, VTS, clock bit, and RAW10 registers read back at stream start.
 
 **`Unsupported pixel format` / `Failed to read mode0 image props`.** The overlay still has `pixel_phase = "y"`, or an 8-bit mode. This `tegra-camera.ko` only accepts bayer 10/12/14. Rebuild and reinstall this overlay (`pixel_phase = "rggb"`, depth 10) and reboot. Do not rebuild `tegra-camera.ko`.
 

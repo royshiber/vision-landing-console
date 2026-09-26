@@ -18,6 +18,11 @@
  * The CSI payload is still mono. Capture with v4l2-ctl pixelformat RG10
  * and treat the samples as luminance. Do not use nvarguscamerasrc.
  * sensor_common has no bayer_*8 entry, so an 8-bit mode is not listed.
+ *
+ * discontinuous_clk is "no". The driver leaves 0x4800 bit5 clear and
+ * programs a 1456-pixel line (1280 + 176). That is the mainline
+ * continuous-clock geometry. Gating the clock on that line makes VI
+ * discard every frame with err_data 0x20000 (CAPTURE_CHANNEL_ERROR_FORCE_FE).
  */
 
 /dts-v1/;
@@ -149,7 +154,7 @@
 								num_lanes = "2";
 								tegra_sinterface = OV9281_CAM_SINTERFACE;
 								phy_mode = "DPHY";
-								discontinuous_clk = "yes";
+								discontinuous_clk = "no";
 								dpcm_enable = "false";
 								cil_settletime = "0";
 								lane_polarity = "6";
@@ -189,7 +194,7 @@
 								num_lanes = "2";
 								tegra_sinterface = OV9281_CAM_SINTERFACE;
 								phy_mode = "DPHY";
-								discontinuous_clk = "yes";
+								discontinuous_clk = "no";
 								dpcm_enable = "false";
 								cil_settletime = "0";
 								lane_polarity = "6";

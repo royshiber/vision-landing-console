@@ -26,6 +26,8 @@
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
+#include <linux/string.h>
+#include <linux/sysfs.h>
 #include <linux/version.h>
 
 #include <media/tegra_v4l2_camera.h>
@@ -53,7 +55,9 @@
 #define OV9281_PLL_RAW8			0x60
 #define OV9281_ANA_RAW10		0x05
 #define OV9281_ANA_RAW8			0x07
-#define OV9281_GATED_CLOCK		0x20
+/* 0x4800 bit5 gates the clock lane. Continuous clock leaves it clear. */
+#define OV9281_MIPI_CLOCK_CONTINUOUS	0x00
+#define OV9281_MIPI_CLOCK_GATED		0x20
 
 #define OV9281_TABLE_WAIT_MS		0xfffe
 #define OV9281_TABLE_END		0xffff
@@ -62,6 +66,12 @@
 #define OV9281_AGAIN_MAX		0xff
 #define OV9281_EXPOSURE_MIN_LINES	1
 #define OV9281_EXPOSURE_OFFSET		12
+/*
+ * Pixel line length for the continuous MIPI clock: 1280 active + 176
+ * blank. ov9282.c writes 0x380c as (width + hblank) >> 1, so the
+ * register value is half of this. The non-continuous minimum is 1530
+ * (hblank 250). This pack does not use that mode.
+ */
 #define OV9281_LINE_LENGTH		1456
 #define OV9281_DEFAULT_FPS		60
 
@@ -121,8 +131,9 @@ static struct regmap_config ov9281_regmap_config = {
 /*
  * Common registers from Linux v6.8 drivers/media/i2c/ov9282.c.
  * No software reset here: that would wipe the clock setup done around it.
- * 0x4800 bit5 selects the gated (non-continuous) MIPI clock that the
- * overlay's discontinuous_clk = "yes" describes.
+ * 0x4800 is continuous (bit5 clear) to match line length 1456 and
+ * discontinuous_clk = "no". Gating the clock on this line length makes
+ * the VI force frame end on every frame (err_data 0x20000).
  */
 static const struct reg_8 ov9281_common_regs[] = {
 	{0x0302, 0x32},
@@ -178,7 +189,7 @@ static const struct reg_8 ov9281_common_regs[] = {
 	{0x4601, 0x04},
 	{0x470f, 0x00},
 	{0x4f07, 0x00},
-	{0x4800, OV9281_GATED_CLOCK},
+	{0x4800, OV9281_MIPI_CLOCK_CONTINUOUS},
 	{0x5000, 0x9f},
 	{0x5001, 0x00},
 	{0x5e00, 0x00},
@@ -352,6 +363,7 @@ static u32 ov9281_frame_length_for_fps(const struct ov9281_mode *mode, u32 fps)
 static int ov9281_write_hts_vts(struct camera_common_data *s_data,
 				const struct ov9281_mode *mode, u32 frame_length)
 {
+	/* 0x380c is in units of two pixels. See ov9282_set_ctrl HBLANK. */
 	u32 hts_reg = mode->line_length / 2;
 	int err;
 
@@ -745,6 +757,120 @@ static struct camera_common_pdata *ov9281_parse_dt(struct tegracam_device *tc_de
 	return board;
 }
 
+static int ov9281_read_u8(struct camera_common_data *s_data, u16 reg, u8 *val)
+{
+	return ov9281_read_reg(s_data, reg, val);
+}
+
+/*
+ * Read the window, line time, MIPI clock bit, and RAW10/RAW8 selects.
+ * Called at stream start and from the ov9281_timing sysfs attribute.
+ * err_data 0x20000 is CAPTURE_CHANNEL_ERROR_FORCE_FE (camrtc-capture.h
+ * bit 17): VI forced frame end. A gated clock (0x4800 bit5) with a
+ * 1456-pixel line, or a RAW8 datatype while VI expects RAW10, does that.
+ */
+static int ov9281_log_timing(struct camera_common_data *s_data, const char *when)
+{
+	u16 width = 0, height = 0, hts = 0, vts = 0;
+	u8 mipi = 0, ana = 0, pll = 0;
+	u8 b3808 = 0, b3809 = 0, b380a = 0, b380b = 0;
+	u8 b380c = 0, b380d = 0, b380e = 0, b380f = 0;
+	const char *clock;
+	const char *format;
+	int err;
+
+	err = ov9281_read_u8(s_data, 0x3808, &b3808);
+	if (!err)
+		err = ov9281_read_u8(s_data, 0x3809, &b3809);
+	if (!err)
+		err = ov9281_read_u8(s_data, 0x380a, &b380a);
+	if (!err)
+		err = ov9281_read_u8(s_data, 0x380b, &b380b);
+	if (!err)
+		err = ov9281_read_u8(s_data, 0x380c, &b380c);
+	if (!err)
+		err = ov9281_read_u8(s_data, 0x380d, &b380d);
+	if (!err)
+		err = ov9281_read_u8(s_data, 0x380e, &b380e);
+	if (!err)
+		err = ov9281_read_u8(s_data, 0x380f, &b380f);
+	if (!err)
+		err = ov9281_read_u8(s_data, OV9281_REG_MIPI_CTRL00, &mipi);
+	if (!err)
+		err = ov9281_read_u8(s_data, OV9281_REG_ANA_CORE_2, &ana);
+	if (!err)
+		err = ov9281_read_u8(s_data, OV9281_REG_PLL_CTRL_0D, &pll);
+	if (err) {
+		dev_err(s_data->dev, "ov9281 timing %s read failed (%d)\n", when, err);
+		return err;
+	}
+
+	width = ((u16)b3808 << 8) | b3809;
+	height = ((u16)b380a << 8) | b380b;
+	hts = ((u16)b380c << 8) | b380d;
+	vts = ((u16)b380e << 8) | b380f;
+	clock = (mipi & OV9281_MIPI_CLOCK_GATED) ? "gated" : "continuous";
+	if (pll == OV9281_PLL_RAW10 && ana == OV9281_ANA_RAW10)
+		format = "RAW10";
+	else if (pll == OV9281_PLL_RAW8 && ana == OV9281_ANA_RAW8)
+		format = "RAW8";
+	else
+		format = "unknown";
+
+	dev_info(s_data->dev,
+		 "ov9281 timing %s 3808=%02x 3809=%02x 380a=%02x 380b=%02x 380c=%02x 380d=%02x 380e=%02x 380f=%02x 4800=%02x 3662=%02x 030d=%02x width=%u height=%u hts_px=%u vts=%u clock=%s format=%s\n",
+		 when, b3808, b3809, b380a, b380b, b380c, b380d, b380e, b380f,
+		 mipi, ana, pll, width, height, (u32)hts * 2, vts, clock, format);
+
+	if (width != 1280 || (height != 800 && height != 720) ||
+	    strcmp(format, "RAW10") || (mipi & OV9281_MIPI_CLOCK_GATED) ||
+	    (u32)hts * 2 != OV9281_LINE_LENGTH) {
+		dev_err(s_data->dev,
+			"ov9281 timing mismatch: want 1280x800 or 1280x720 RAW10 continuous line %u\n",
+			OV9281_LINE_LENGTH);
+	}
+	return 0;
+}
+
+static ssize_t ov9281_timing_show(struct device *dev,
+				   struct device_attribute *attr, char *buf)
+{
+	struct camera_common_data *s_data = to_camera_common_data(dev);
+	u16 width = 0, height = 0, hts = 0, vts = 0;
+	u8 regs[11];
+	static const u16 addrs[] = {
+		0x3808, 0x3809, 0x380a, 0x380b, 0x380c, 0x380d, 0x380e, 0x380f,
+		0x4800, 0x3662, 0x030d,
+	};
+	int i;
+	int err = 0;
+
+	(void)attr;
+	if (!s_data)
+		return -ENODEV;
+	for (i = 0; i < (int)ARRAY_SIZE(addrs); i++) {
+		err = ov9281_read_u8(s_data, addrs[i], &regs[i]);
+		if (err)
+			return sysfs_emit(buf, "ov9281 timing read 0x%04x failed (%d)\n",
+					  addrs[i], err);
+	}
+	width = ((u16)regs[0] << 8) | regs[1];
+	height = ((u16)regs[2] << 8) | regs[3];
+	hts = ((u16)regs[4] << 8) | regs[5];
+	vts = ((u16)regs[6] << 8) | regs[7];
+	return sysfs_emit(buf,
+			  "3808=%02x 3809=%02x 380a=%02x 380b=%02x 380c=%02x 380d=%02x 380e=%02x 380f=%02x 4800=%02x 3662=%02x 030d=%02x width=%u height=%u hts_px=%u vts=%u clock=%s format=%s\n",
+			  regs[0], regs[1], regs[2], regs[3], regs[4], regs[5],
+			  regs[6], regs[7], regs[8], regs[9], regs[10],
+			  width, height, (u32)hts * 2, vts,
+			  (regs[8] & OV9281_MIPI_CLOCK_GATED) ? "gated" : "continuous",
+			  (regs[10] == OV9281_PLL_RAW10 && regs[9] == OV9281_ANA_RAW10) ? "RAW10" :
+			  (regs[10] == OV9281_PLL_RAW8 && regs[9] == OV9281_ANA_RAW8) ? "RAW8" :
+			  "unknown");
+}
+
+static DEVICE_ATTR_RO(ov9281_timing);
+
 static int ov9281_set_bitdepth(struct camera_common_data *s_data, u8 bpp)
 {
 	int err;
@@ -798,9 +924,10 @@ static int ov9281_set_mode(struct tegracam_device *tc_dev)
 	if (err)
 		return err;
 
-	dev_info(tc_dev->dev, "mode %d %ux%u RAW%u VTS %u mbus 0x%x\n",
+	dev_info(tc_dev->dev, "mode %d %ux%u RAW%u VTS %u line %u mbus 0x%x\n",
 		 s_data->mode, mode->width, mode->height, mode->bpp,
-		 priv->frame_length, ov9281_mbus_code(mode));
+		 priv->frame_length, mode->line_length, ov9281_mbus_code(mode));
+	ov9281_log_timing(s_data, "set_mode");
 	return 0;
 }
 
@@ -808,7 +935,7 @@ static int ov9281_start_streaming(struct tegracam_device *tc_dev)
 {
 	struct camera_common_data *s_data = tc_dev->s_data;
 
-	dev_dbg(tc_dev->dev, "start streaming\n");
+	ov9281_log_timing(s_data, "stream");
 	return ov9281_write_reg(s_data, OV9281_REG_MODE_SELECT, OV9281_MODE_STREAMING);
 }
 
@@ -992,9 +1119,17 @@ static int ov9281_probe(struct i2c_client *client, const struct i2c_device_id *i
 		goto unregister;
 	}
 
+	err = device_create_file(dev, &dev_attr_ov9281_timing);
+	if (err) {
+		dev_err(dev, "ov9281_timing sysfs failed (%d)\n", err);
+		goto unregister_subdev;
+	}
+
 	dev_info(dev, "ov9281 registered. Argus cannot process mono; use V4L2\n");
 	return 0;
 
+unregister_subdev:
+	tegracam_v4l2subdev_unregister(tc_dev);
 unregister:
 	tegracam_device_unregister(tc_dev);
 	return err;
@@ -1016,6 +1151,7 @@ static int ov9281_remove(struct i2c_client *client)
 		return 0;
 #endif
 	priv = s_data->priv;
+	device_remove_file(&client->dev, &dev_attr_ov9281_timing);
 	if (priv && priv->tc_dev) {
 		tegracam_v4l2subdev_unregister(priv->tc_dev);
 		tegracam_device_unregister(priv->tc_dev);

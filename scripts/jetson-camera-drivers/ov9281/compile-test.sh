@@ -49,6 +49,7 @@ printf '%s\n' "${dtbo_dts}" | grep -q 'serial_b'
 printf '%s\n' "${dtbo_dts}" | grep -q 'ovti,ov9281'
 printf '%s\n' "${dtbo_dts}" | grep -q 'rggb'
 printf '%s\n' "${dtbo_dts}" | grep -q 'extperiph1'
+printf '%s\n' "${dtbo_dts}" | grep -q 'discontinuous_clk = "no"'
 if printf '%s\n' "${dtbo_dts}" | grep -q 'pixel_phase = "y"'; then
   echo "overlay still declares pixel_phase y" >&2
   exit 1
