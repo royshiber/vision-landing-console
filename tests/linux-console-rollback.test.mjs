@@ -73,6 +73,12 @@ describe('linux updater rollback', () => {
     const sibling = path.join(parent, 'airvix-failed');
     writeApp(app, '1.02.338');
     writeApp(prev, '1.02.335');
+    const ranRestart = path.join(parent, 'ran-old-restart');
+    const ranServer = path.join(parent, 'ran-server');
+    const oldRestart = `#!/bin/sh\necho ran > ${ranRestart}\n`;
+    fs.writeFileSync(path.join(prev, 'restart.sh'), oldRestart);
+    fs.writeFileSync(path.join(app, 'restart.sh'), oldRestart);
+    fs.writeFileSync(path.join(prev, 'server.js'), `require('fs').writeFileSync(${JSON.stringify(ranServer)}, 'yes');\n`);
     fs.mkdirSync(sibling, { recursive: true });
     fs.writeFileSync(path.join(sibling, 'keep.txt'), 'stay');
     fs.mkdirSync(path.join(app, 'data'), { recursive: true });
@@ -111,6 +117,9 @@ describe('linux updater rollback', () => {
     expect(portAlive).toBe(true);
     expect(fs.readFileSync(path.join(sibling, 'keep.txt'), 'utf8')).toBe('stay');
     expect(fs.readFileSync(path.join(parent, 'update.log'), 'utf8')).toContain('port 45123');
+    expect(text).not.toContain('sh ./restart.sh');
+    expect(fs.existsSync(path.join(parent, 'ran-old-restart'))).toBe(false);
+    expect(fs.readFileSync(path.join(parent, 'ran-server'), 'utf8')).toBe('yes');
     const names = fs.readdirSync(path.join(parent, 'airvix-rollback'));
     expect(names.some((name) => name.startsWith('failed-') || name.startsWith('outgoing-') || name.startsWith('replaced-') || name === 'console')).toBe(true);
   });

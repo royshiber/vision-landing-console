@@ -81,6 +81,22 @@ stop_install() {
   done
 }
 
+start_console() {
+  PORT=$(resolve_port)
+  log "stop install port $PORT"
+  log "restart=updater-owned"
+  stop_install
+  if ! command -v node >/dev/null 2>&1; then
+    log "node missing"
+    return 1
+  fi
+  console_log="${TMPDIR:-/tmp}/airvix-console.log"
+  (
+    cd "$APP_DIR" || exit 1
+    nohup node server.js >> "$console_log" 2>&1 &
+  )
+}
+
 stamp() {
   date -u +%Y%m%dT%H%M%SZ
 }
@@ -125,7 +141,7 @@ if [ "$ROLLBACK_MODE" = 1 ] && [ "$DRY" = 1 ]; then
   echo "rollback-dry-run"
   echo "source=$ROLLBACK/console"
   echo "preserve=.env,data,var"
-  echo "restart=./restart.sh"
+  echo "restart=updater-owned"
   exit 0
 fi
 
@@ -139,7 +155,7 @@ if [ "$DRY" = 1 ]; then
   echo "preserve=.env,data,var"
   echo "rollback=previous-code"
   echo "swap=after-success"
-  echo "restart=./restart.sh"
+  echo "restart=updater-owned"
   exit 0
 fi
 
@@ -205,14 +221,9 @@ if [ "$ROLLBACK_MODE" = 1 ]; then
   fi
   mv "$OUT" "$ROLLBACK/console"
   prune_backup_copies "$ROLLBACK"
-  log "restart=./restart.sh"
-  if [ -f "$APP_DIR/restart.sh" ]; then
-    if ! (cd "$APP_DIR" && sh ./restart.sh) >> "$LOG" 2>&1; then
-      log "rollback restart failed"
-      fail "restart failed"
-    fi
-  else
-    fail "restart.sh missing"
+  if ! start_console; then
+    log "rollback restart failed"
+    fail "restart failed"
   fi
   write_status ok ""
   log "AIRVIX rollback done"
@@ -329,25 +340,17 @@ restore_previous() {
   done
   rm -rf "$hold"
   prune_backup_copies "$ROLLBACK"
-  if [ -f "$APP_DIR/restart.sh" ]; then
-    (cd "$APP_DIR" && sh ./restart.sh) >> "$LOG" 2>&1 || true
-  fi
+  start_console || true
   return 0
 }
 
 log "preserve=.env,data,var"
 log "exclude=.env,data,var,node_modules"
-log "restart=./restart.sh"
-if [ -f "$APP_DIR/restart.sh" ]; then
-  if ! (cd "$APP_DIR" && sh ./restart.sh) >> "$LOG" 2>&1; then
-    log "restart failed; restoring previous code"
-    restore_previous || true
-    fail "restart failed"
-  fi
-else
-  log "restart.sh missing; restoring previous code"
+log "restart=updater-owned"
+if ! start_console; then
+  log "restart failed; restoring previous code"
   restore_previous || true
-  fail "restart.sh missing"
+  fail "restart failed"
 fi
 
 write_status ok ""

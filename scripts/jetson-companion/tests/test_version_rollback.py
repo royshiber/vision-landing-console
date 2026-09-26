@@ -3,6 +3,7 @@
 import json
 import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -189,6 +190,49 @@ class RollbackTests(unittest.TestCase):
             self.assertEqual(second_body["reason"], "busy")
             self.assertEqual(len(spawned), 1)
             self.assertEqual(first_body["state"], "restarting")
+
+    def test_flight_gate_cases(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            live, _backup = _tree(Path(tmp))
+            now = time.time()
+            self.assertEqual(vr.read_flight_gate(live, now), "missing")
+            vr.write_flight_gate(live, False, False, now)
+            self.assertIsNone(vr.read_flight_gate(live, now))
+            vr.write_flight_gate(live, True, False, now)
+            self.assertEqual(vr.read_flight_gate(live, now), "armed")
+            vr.write_flight_gate(live, False, True, now)
+            self.assertEqual(vr.read_flight_gate(live, now), "in_flight")
+            vr.write_flight_gate(live, None, False, now)
+            self.assertEqual(vr.read_flight_gate(live, now), "unknown")
+            vr.write_flight_gate(live, False, False, now - 4)
+            self.assertEqual(vr.read_flight_gate(live, now), "stale")
+            restarts = []
+            status, body = vr.perform_rollback(
+                live,
+                "20260926T100000Z",
+                blocked=lambda: vr.read_flight_gate(live, now),
+                restart=lambda: restarts.append("restart"),
+                wait_healthy=lambda _timeout: True,
+                running_version="2.6.0",
+            )
+            self.assertEqual(status, 409)
+            self.assertEqual(body["reason"], "stale")
+            self.assertEqual(body["message"], "מצב הטיסה ישן. אין שחזור.")
+            self.assertEqual((live / "marker.txt").read_text(encoding="utf-8"), "LIVE")
+            self.assertEqual(restarts, [])
+            vr.write_flight_gate(live, False, False, now)
+            status, body = vr.perform_rollback(
+                live,
+                "20260926T100000Z",
+                blocked=lambda: vr.read_flight_gate(live, now),
+                restart=lambda: restarts.append("restart"),
+                wait_healthy=lambda _timeout: True,
+                running_version="2.6.0",
+            )
+            self.assertEqual(status, 200)
+            self.assertTrue(body["ok"])
+            self.assertEqual(restarts, ["restart"])
+
 
 
 

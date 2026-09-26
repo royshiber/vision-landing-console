@@ -70,7 +70,7 @@ describe('versions view data', () => {
       fcSnapshotAt: null,
     });
     expect(view.console.rollbackAvailable).toBe(false);
-    expect(view.console.rollbackUnavailableReason).toContain('לא זמינה');
+    expect(view.console.rollbackUnavailableReason).toContain('לשחזור');
     expect(view.companion.linked).toBe(false);
     expect(view.companion.version).toBeNull();
     expect(view.fcParams.snapshotAt).toBeNull();
@@ -205,7 +205,7 @@ describe('versions rollback route', () => {
       body,
     });
     expect(second.status).toBe(409);
-    expect((await second.json()).message).toContain('כבר רצה');
+    expect((await second.json()).message).toContain('מתבצע');
     release();
     expect((await first).status).toBe(202);
     const startedAt = new Date(Date.now() - 46000).toISOString();
@@ -214,7 +214,7 @@ describe('versions rollback route', () => {
     fs.writeFileSync(statePath, JSON.stringify(stored));
     const timed = await fetch(`${base}/api/versions`).then((r) => r.json());
     expect(timed.rollback.state).toBe('failed');
-    expect(timed.rollback.error).toContain('לא הסתיימה');
+    expect(timed.rollback.error).toContain('לא הסתיים');
     const dismissed = await fetch(`${base}/api/versions/rollback/dismiss`, { method: 'POST', body: '{}' });
     expect(dismissed.status).toBe(200);
     const after = await fetch(`${base}/api/versions`).then((r) => r.json());
@@ -258,7 +258,7 @@ describe('versions rollback route', () => {
               reverted: true,
               backup_id: '20260926T100000Z',
               finished_at: new Date().toISOString(),
-              message: 'השירות לא עלה. הוחזרה הגרסה הקודמת.',
+              message: 'השירות לא עלה. שוחזרה הגרסה הקודמת.',
             },
           };
         },
@@ -274,7 +274,7 @@ describe('versions rollback route', () => {
     const base = `http://127.0.0.1:${server.address().port}`;
     const view = await fetch(`${base}/api/versions`).then((r) => r.json());
     expect(view.rollback.state).toBe('failed');
-    expect(view.rollback.error).toContain('הוחזרה הגרסה הקודמת');
+    expect(view.rollback.error).toContain('שוחזרה הגרסה הקודמת');
     const mark = await fetch(`${base}/api/versions/known-good`, { method: 'POST', body: '{}' });
     const markBody = await mark.json();
     expect(mark.status).toBe(403);

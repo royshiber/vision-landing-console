@@ -357,38 +357,38 @@
           <button type="button" class="conn-modal-close" data-close="1" aria-label="סגור">✕</button>
         </header>
         <div class="conn-modal-body global-settings-body">
-          <section class="gs-section" id="gsVersions" dir="rtl" data-versions-view="settings" data-vr-state="normal" aria-label="גרסאות והחזרה">
-            <h3 class="gs-h" id="gsVersionsTitle">גרסאות והחזרה</h3>
-            <p class="vr-lead">הגרסאות המותקנות, וחזרה לגרסה שעבדה.</p>
+          <section class="gs-section" id="gsVersions" dir="rtl" data-versions-view="settings" data-vr-state="normal" aria-label="גרסאות ושחזור">
+            <h3 class="gs-h" id="gsVersionsTitle">גרסאות ושחזור</h3>
+            <p class="vr-lead">הגרסאות המותקנות, ושחזור לגרסה שעבדה.</p>
             <article class="vr-card" id="vrConsole" data-vr="console">
               <h4 class="vr-h">קונסולה</h4>
               <dl class="vr-dl">
-                <div><dt>גרסה</dt><dd id="vrConsoleVersion">אין מידע</dd></div>
-                <div><dt>זמן התקנה</dt><dd id="vrConsoleInstalled">אין מידע</dd></div>
-                <div><dt>גרסה קודמת</dt><dd id="vrConsolePrevious">אין מידע</dd></div>
+                <div><dt>גרסה</dt><dd id="vrConsoleVersion">גרסה לא ידועה</dd></div>
+                <div><dt>זמן התקנה</dt><dd id="vrConsoleInstalled">תאריך לא ידוע</dd></div>
+                <div><dt>גרסה קודמת</dt><dd id="vrConsolePrevious">גרסה לא ידועה</dd></div>
               </dl>
-              <p id="vrConsoleRollbackNote" class="vr-note">אין עותק של הגרסה הקודמת. החזרה לא זמינה.</p>
-              <button type="button" id="vrConsoleRollbackBtn" class="vr-btn" disabled>חזרה לגרסה הקודמת</button>
+              <p id="vrConsoleRollbackNote" class="vr-note">אין גרסה קודמת לשחזור</p>
+              <button type="button" id="vrConsoleRollbackBtn" class="vr-btn" disabled>לשחזר לגרסה קודמת</button>
             </article>
             <article class="vr-card" id="vrCompanion" data-vr="companion">
-              <h4 class="vr-h">מחשב משימה</h4>
-              <p id="vrCompanionLink" class="vr-note">אין מידע</p>
+              <h4 class="vr-h">מחשב המשימה</h4>
+              <p id="vrCompanionLink" class="vr-note">אין קישור למחשב המשימה</p>
               <dl class="vr-dl">
-                <div><dt>גרסה</dt><dd id="vrCompanionVersion">אין מידע</dd></div>
-                <div><dt>זמן פריסה</dt><dd id="vrCompanionDeployed">אין מידע</dd></div>
-                <div><dt>מזהה שינוי</dt><dd id="vrCompanionSha">אין מידע</dd></div>
+                <div><dt>גרסה</dt><dd id="vrCompanionVersion">גרסה לא ידועה</dd></div>
+                <div><dt>זמן פריסה</dt><dd id="vrCompanionDeployed">תאריך לא ידוע</dd></div>
+                <div><dt>מזהה שינוי</dt><dd id="vrCompanionSha">גרסה לא ידועה</dd></div>
               </dl>
               <h4 class="vr-h vr-sub">גיבויים</h4>
               <ul id="vrBackups" class="vr-backups"></ul>
             </article>
             <article class="vr-card" id="vrFc">
-              <h4 class="vr-h">תמונת מצב פרמטרים</h4>
-              <p id="vrFcSnapshot" class="vr-note">אין מידע</p>
+              <h4 class="vr-h">גיבוי פרמטרים</h4>
+              <p id="vrFcSnapshot" class="vr-note">תאריך לא ידוע</p>
             </article>
             <article class="vr-card" id="vrKnown">
               <h4 class="vr-h">עבד טוב</h4>
               <p id="vrKnownGoodStatus" class="vr-note">לא סומן</p>
-              <button type="button" id="vrKnownGoodBtn" class="vr-btn">סמן שעבד טוב</button>
+              <button type="button" id="vrKnownGoodBtn" class="vr-btn">סמנו שעבד טוב</button>
               <p id="vrKnownGoodError" class="vr-error" role="alert" hidden></p>
             </article>
             <div id="gsAppUpdate" class="vr-update">
@@ -397,19 +397,19 @@
             </div>
             <div id="vrConfirm" class="vr-confirm" role="dialog" aria-modal="true" aria-labelledby="vrConfirmTitle" tabindex="-1" hidden>
               <div class="vr-confirm-card">
-                <p id="vrConfirmTitle" class="vr-h">אישור החזרה</p>
+                <p id="vrConfirmTitle" class="vr-h">אישור שחזור</p>
                 <p id="vrConfirmFrom" class="vr-fromto"></p>
                 <p id="vrConfirmTo" class="vr-fromto"></p>
                 <p id="vrConfirmWhen" class="vr-note"></p>
                 <div class="vr-actions">
-                  <button type="button" id="vrConfirmYes" class="vr-btn vr-btn-danger">אישור החזרה</button>
-                  <button type="button" id="vrConfirmNo" class="vr-btn">ביטול</button>
+                  <button type="button" id="vrConfirmYes" class="vr-btn vr-btn-danger">אשרו שחזור</button>
+                  <button type="button" id="vrConfirmNo" class="vr-btn">בטלו</button>
                 </div>
               </div>
             </div>
-            <p id="vrProgress" class="vr-progress" role="status" aria-live="polite" hidden><span class="vr-spin" aria-hidden="true"></span><span id="vrProgressText">מחזירים גרסה</span></p>
-            <p id="vrError" class="vr-error" role="alert" hidden></p>
-            <button type="button" id="vrDismiss" class="vr-btn" hidden>סגור</button>
+            <p id="vrProgress" class="vr-progress" role="status" aria-live="polite" tabindex="-1" hidden><span class="vr-spin" aria-hidden="true"></span><span id="vrProgressText">משחזרים גרסה</span></p>
+            <p id="vrError" class="vr-error" role="alert" aria-live="assertive" tabindex="-1" hidden></p>
+            <button type="button" id="vrDismiss" class="vr-btn" hidden>סגרו</button>
           </section>
           <section class="gs-section" id="gsAttentionPolicy">
             <h3 class="gs-h" id="gsAttentionTitle">התערבות</h3>
@@ -517,7 +517,7 @@
         <div id="arduTopCatsHost" class="ardu-top-cats-host hidden" role="tablist" aria-label="קטגוריות ArduPilot"></div>
       </div>
 
-      <section id="pulse" class="panel" aria-label="סטטוס מחשבים">
+      <section id="pulse" class="panel" aria-label="סטטוס מחשבים" data-layout-contract="status-v1">
         <div class="pulse-home pulse-status-home">
           <header class="pulse-hero">
             <h3 class="pulse-title">סטטוס מחשבים</h3>
@@ -528,7 +528,97 @@
             <span id="cam0StatusText">מצלמה אפס · לא מחובר · קצב —</span>
             <button type="button" id="cam0StatusLink" class="cam0-status-link">אופטיקה ותחקור</button>
           </p>
-          <div class="pulse-status-grid pulse-computers-band" aria-label="סטטוס מחשבים">
+          <nav id="pulseSummary" class="pulse-summary" aria-label="סיכום קטגוריות"></nav>
+          <div id="pulseCatGrid" class="pulse-cat-grid">
+            <article class="pulse-cat" id="pulseCatLinks" data-pulse-cat="links">
+              <header class="pulse-cat-head"><h4>חיבורים</h4></header>
+              <div class="pulse-cat-rows" id="pulseLinkStatusRows">
+                <article class="status-row" data-link="home" data-status-bucket="unknown" data-tone="off">
+                  <div class="status-row-main">
+                    <span class="status-row-name">רשת בית</span>
+                    <span class="status-row-reason" data-link-reason></span>
+                    <span class="status-row-pill" data-link-pill>לא ידוע</span>
+                  </div>
+                </article>
+                <article class="status-row" data-link="cellular" data-status-bucket="unknown" data-tone="off">
+                  <div class="status-row-main">
+                    <span class="status-row-name">סלולר</span>
+                    <span class="status-row-reason" data-link-reason></span>
+                    <span class="status-row-pill" data-link-pill>לא ידוע</span>
+                  </div>
+                </article>
+                <article class="status-row" data-link="radio" data-status-bucket="unknown" data-tone="off">
+                  <div class="status-row-main">
+                    <span class="status-row-name">רדיו טלמטריה</span>
+                    <span class="status-row-reason" data-link-reason></span>
+                    <span class="status-row-pill" data-link-pill>לא ידוע</span>
+                  </div>
+                </article>
+                <article class="status-row" data-link="rc" data-status-bucket="unknown" data-tone="off">
+                  <div class="status-row-main">
+                    <span class="status-row-name">RC</span>
+                    <span class="status-row-reason" data-link-reason></span>
+                    <span class="status-row-pill" data-link-pill>לא ידוע</span>
+                  </div>
+                </article>
+                <article class="status-row" data-link="relay" data-status-bucket="unknown" data-tone="off">
+                  <div class="status-row-main">
+                    <span class="status-row-name">ממסר</span>
+                    <span class="status-row-reason" data-link-reason></span>
+                    <span class="status-row-pill" data-link-pill>לא ידוע</span>
+                  </div>
+                </article>
+              </div>
+            </article>
+            <article class="pulse-cat" id="pulseCatJetson" data-pulse-cat="jetson">
+              <header class="pulse-cat-head"><h4>מחשב משימה</h4></header>
+              <div class="pulse-cat-rows">
+                <div id="pulseHostJetson" data-vlr-host="jetson"></div>
+                <div id="pulseJetsonMetricRows" class="pulse-metric-rows">
+                  <article class="status-row" data-metric="jetson-version" data-status-bucket="unknown" data-tone="off">
+                    <div class="status-row-main">
+                      <span class="status-row-name">גרסה</span>
+                      <span class="status-row-reason" data-metric-reason></span>
+                      <span class="status-row-pill" data-metric-pill>לא ידוע</span>
+                    </div>
+                  </article>
+                  <article class="status-row" data-metric="jetson-load" data-status-bucket="unknown" data-tone="off">
+                    <div class="status-row-main">
+                      <span class="status-row-name">עומס</span>
+                      <span class="status-row-reason" data-metric-reason></span>
+                      <span class="status-row-pill" data-metric-pill>לא ידוע</span>
+                    </div>
+                  </article>
+                  <article class="status-row" data-metric="jetson-mem" data-status-bucket="unknown" data-tone="off">
+                    <div class="status-row-main">
+                      <span class="status-row-name">זיכרון</span>
+                      <span class="status-row-reason" data-metric-reason></span>
+                      <span class="status-row-pill" data-metric-pill>לא ידוע</span>
+                    </div>
+                  </article>
+                  <article class="status-row" data-metric="jetson-temp" data-status-bucket="unknown" data-tone="off">
+                    <div class="status-row-main">
+                      <span class="status-row-name">טמפרטורה</span>
+                      <span class="status-row-reason" data-metric-reason></span>
+                      <span class="status-row-pill" data-metric-pill>לא ידוע</span>
+                    </div>
+                  </article>
+                  <article class="status-row" data-metric="jetson-disk" data-status-bucket="unknown" data-tone="off">
+                    <div class="status-row-main">
+                      <span class="status-row-name">דיסק</span>
+                      <span class="status-row-reason" data-metric-reason></span>
+                      <span class="status-row-pill" data-metric-pill>לא ידוע</span>
+                    </div>
+                  </article>
+                  <article class="status-row" data-metric="jetson-services" data-status-bucket="unknown" data-tone="off">
+                    <div class="status-row-main">
+                      <span class="status-row-name">שירותים</span>
+                      <span class="status-row-reason" data-metric-reason></span>
+                      <span class="status-row-pill" data-metric-pill>לא ידוע</span>
+                    </div>
+                  </article>
+                </div>
+                <div id="pulseJetsonFold" class="pulse-cat-fold" hidden>
             <article class="pulse-status-card pulse-computer-card" data-pulse-kind="companion" data-computer="jetson">
               <header class="pulse-computer-head">
                 <div class="pulse-computer-name">
@@ -574,12 +664,64 @@
                 </div>
               </div>
             </article>
+                </div>
+              </div>
+            </article>
+            <article class="pulse-cat" id="pulseCatFc" data-pulse-cat="fc">
+              <header class="pulse-cat-head"><h4>בקר טיסה</h4></header>
+              <div class="pulse-cat-rows">
+                <div id="pulseHostFc" data-vlr-host="fc"></div>
+                <div id="pulseFcMetricRows" class="pulse-metric-rows">
+                  <article class="status-row" data-metric="fc-mode" data-status-bucket="unknown" data-tone="off">
+                    <div class="status-row-main">
+                      <span class="status-row-name">מוד</span>
+                      <span class="status-row-reason" data-metric-reason></span>
+                      <span class="status-row-pill" data-metric-pill>לא ידוע</span>
+                    </div>
+                  </article>
+                  <article class="status-row" data-metric="fc-arm" data-status-bucket="unknown" data-tone="off">
+                    <div class="status-row-main">
+                      <span class="status-row-name">חימוש</span>
+                      <span class="status-row-reason" data-metric-reason></span>
+                      <span class="status-row-pill" data-metric-pill>לא ידוע</span>
+                    </div>
+                  </article>
+                  <article class="status-row" data-metric="fc-gps" data-status-bucket="unknown" data-tone="off">
+                    <div class="status-row-main">
+                      <span class="status-row-name">GPS</span>
+                      <span class="status-row-reason" data-metric-reason></span>
+                      <span class="status-row-pill" data-metric-pill>לא ידוע</span>
+                    </div>
+                  </article>
+                  <article class="status-row" data-metric="fc-battery" data-status-bucket="unknown" data-tone="off">
+                    <div class="status-row-main">
+                      <span class="status-row-name">סוללה</span>
+                      <span class="status-row-reason" data-metric-reason></span>
+                      <span class="status-row-pill" data-metric-pill>לא ידוע</span>
+                    </div>
+                  </article>
+                  <article class="status-row" data-metric="fc-ekf" data-status-bucket="unknown" data-tone="off">
+                    <div class="status-row-main">
+                      <span class="status-row-name">EKF</span>
+                      <span class="status-row-reason" data-metric-reason></span>
+                      <span class="status-row-pill" data-metric-pill>לא ידוע</span>
+                    </div>
+                  </article>
+                  <article class="status-row" data-metric="fc-params" data-status-bucket="unknown" data-tone="off">
+                    <div class="status-row-main">
+                      <span class="status-row-name">סנכרון פרמטרים</span>
+                      <span class="status-row-reason" data-metric-reason></span>
+                      <span class="status-row-pill" data-metric-pill>לא ידוע</span>
+                    </div>
+                  </article>
+                </div>
+                <div id="pulseFcFold" class="pulse-cat-fold" hidden>
             <article class="pulse-status-card pulse-computer-card" data-pulse-kind="aircraft" data-computer="fc">
               <header class="pulse-computer-head">
                 <div class="pulse-computer-name">
                   <h4>הכלי</h4>
                   <p class="pulse-computer-who">FC</p>
-                  <p class="pulse-status-note">קישור <span id="pulseLink" dir="ltr">--</span></p>
+                  <p class="pulse-status-note">קישור <span id="pulseLink" dir="ltr">לא ידוע</span></p>
                 </div>
                 <p id="pulseAircraft" class="pulse-computer-state">מנותק</p>
               </header>
@@ -622,33 +764,48 @@
               <div class="pulse-computer-foot">
                 <div class="pulse-version-block" data-version-kind="fc">
                   <p class="pulse-version-k">זהות</p>
-                  <p id="pulseFcVersion" class="pulse-version-v" dir="ltr">--</p>
-                  <p id="pulseFcIdentity" class="pulse-version-state">--</p>
+                  <p id="pulseFcVersion" class="pulse-version-v" dir="ltr">לא ידוע</p>
+                  <p id="pulseFcIdentity" class="pulse-version-state">לא ידוע</p>
                 </div>
               </div>
             </article>
-          </div>
-          <section id="visionLandingReadiness" class="vlr-panel" aria-label="מוכנות נחיתה לפי ראייה">
-            <header class="vlr-head">
-              <h4 class="vlr-title">מוכנות נחיתה לפי ראייה</h4>
+                </div>
+              </div>
+            </article>
+            <section id="visionLandingReadiness" class="pulse-cat" data-pulse-cat="vision" aria-label="מצלמות וראייה">
+              <header class="pulse-cat-head">
+                <h4>מצלמות וראייה</h4>
+                <p class="vlr-title">מוכנות נחיתה לפי ראייה</p>
+              </header>
               <p class="vlr-purpose">ניסוי כנף קבועה. טייס מפקד מטיס ידנית עד הגמר. המערכת צופה בלבד.</p>
               <p class="vlr-success">הצלחה היא זיהוי מסלול בגישת הגמר בלבד. סימון ונעילה אינם נדרשים.</p>
-            </header>
-            <div id="visionLandingReadinessList" class="vlr-list"></div>
-            <section id="fieldPreflight" class="vlr-field" aria-label="מוכנות שדה לניסוי אחד">
-              <header class="vlr-head">
-                <h4 class="vlr-title" id="fieldPreflightTitle">מוכנות שדה · ניסוי אחד</h4>
-                <p class="vlr-purpose" id="fieldPreflightPurpose">רשימת שדה לפני טיסה ראשונה. בלי המצאת חומרה.</p>
-              </header>
-              <div id="fieldPreflightList" class="vlr-list"></div>
-              <section id="updateReadinessChecklist" class="vlr-update" aria-label="עדכון בקר ומחשב משימה">
-                <h5 class="vlr-update-title">עדכון בקר ומחשב משימה</h5>
-                <p class="vlr-update-lead">הבזקה דורשת אישור. אין הבזקה מכאן.</p>
-                <div id="updateReadinessList" class="vlr-list"></div>
-              </section>
+              <div id="visionLandingReadinessList" class="vlr-list" data-vlr-host="vision"></div>
+              <details id="pulseCameraInstallFold" class="pulse-cat-more">
+                <summary>התקנת מצלמות</summary>
+                <section id="cameraInstallChecklist" class="cic-panel" aria-label="התקנת מצלמות"></section>
+              </details>
             </section>
-            <section id="cameraInstallChecklist" class="cic-panel" aria-label="התקנת מצלמות"></section>
-          </section>
+            <article class="pulse-cat" id="pulseCatLanding" data-pulse-cat="landing">
+              <header class="pulse-cat-head"><h4>נחיתה</h4></header>
+              <div id="pulseHostLanding" class="pulse-cat-rows" data-vlr-host="landing"></div>
+              <details class="pulse-cat-more">
+                <summary>מוכנות שדה</summary>
+                <section id="fieldPreflight" class="vlr-field" aria-label="מוכנות שדה לניסוי אחד">
+                  <header class="vlr-head">
+                    <h4 class="vlr-title" id="fieldPreflightTitle">מוכנות שדה · ניסוי אחד</h4>
+                    <p class="vlr-purpose" id="fieldPreflightPurpose">רשימת שדה לפני טיסה ראשונה. בלי המצאת חומרה.</p>
+                  </header>
+                  <div id="fieldPreflightList" class="vlr-list"></div>
+                  <section id="updateReadinessChecklist" class="vlr-update" aria-label="עדכון בקר ומחשב משימה">
+                    <h5 class="vlr-update-title">עדכון בקר ומחשב משימה</h5>
+                    <p class="vlr-update-lead">הבזקה דורשת אישור. אין הבזקה מכאן.</p>
+                    <div id="updateReadinessList" class="vlr-list"></div>
+                  </section>
+                </section>
+              </details>
+            </article>
+          </div>
+          <div class="pulse-dock">
           <article class="pulse-status-card pulse-talk-card" data-pulse-kind="assist">
             <div class="pulse-talk-copy">
               <h4><bdi dir="ltr">AIRVIX Ask</bdi></h4>
@@ -656,8 +813,8 @@
             </div>
             <button type="button" id="pulseTalkBtn" class="first-open-btn pulse-talk-btn" data-first-action="assist">שאלו את <bdi dir="ltr">AIRVIX Ask</bdi></button>
           </article>
-          <section class="pulse-add-widget" aria-label="הוספת מד">
-            <p class="pulse-add-widget-title">מה להציג עוד</p>
+          <details class="pulse-add-widget" aria-label="הוספת מד">
+            <summary class="pulse-add-widget-title">מה להציג עוד</summary>
             <div class="pulse-add-widget-row">
               <input id="pulseAddWidgetInput" class="pulse-add-widget-input" type="text" maxlength="120" placeholder="למשל עומס או גובה" autocomplete="off" />
               <button type="button" id="pulseAddWidgetBtn" class="pulse-add-widget-btn">הוסיפו</button>
@@ -671,7 +828,7 @@
             </div>
             <div id="pulseAddWidgetChips" class="pulse-add-widget-chips"></div>
             <div id="pulseExtraRow" class="pulse-extra-row" aria-label="מדדים נוספים"></div>
-          </section>
+          </details>
           <section id="pulseAttention" class="pulse-attention" hidden aria-label="תשומת לב"></section>
           <p class="pulse-version-line">קונסולה <span id="pulseVersion" dir="ltr">--</span> <span id="pulseConsoleVersionState" class="pulse-version-state" data-offer="current">מעודכן</span></p>
           <button type="button" id="pulseEvolveGlance" class="pulse-evolve" hidden>משימה רצה</button>
@@ -680,6 +837,7 @@
             <button type="button" id="pulseHomePulseBtn" class="pulse-home-pref-btn is-active" data-pulse-home="pulse">סטטוס מחשבים</button>
             <button type="button" id="pulseHomeTeleBtn" class="pulse-home-pref-btn" data-pulse-home="telemetry">טלמטריה</button>
           </p>
+          </div>
         </div>
       </section>
       <section id="control" class="panel">

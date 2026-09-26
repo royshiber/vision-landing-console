@@ -110,6 +110,7 @@ except ImportError:
 def observe_uart_bytes(data):
     """Passive FC parse, then Cam0 attitude tagging. Never writes the UART."""
     _fc_observe_uart(data)
+    _publish_flight_gate()
     try:
         from cam0.service import get_service
         svc = get_service()
@@ -117,6 +118,39 @@ def observe_uart_bytes(data):
             svc.observe_mavlink(data)
     except Exception:
         return None
+
+_gate_write_at = 0.0
+
+
+def _flight_gate_fields(payload):
+    armed = None
+    in_flight = None
+    if isinstance(payload, dict) and payload.get("connected") is True:
+        flag = payload.get("armed")
+        armed = flag if isinstance(flag, bool) else None
+        status = ((payload.get("heartbeat") or {}).get("fields") or {}).get("system_status")
+        if status in (4, 5, 6, 8):
+            in_flight = True
+        elif isinstance(status, int):
+            in_flight = False
+    return armed, in_flight
+
+
+def _publish_flight_gate(force=False):
+    global _gate_write_at
+    now = time.time()
+    if not force and now - _gate_write_at < 0.5:
+        return
+    try:
+        payload = fc_status_payload()
+    except Exception:
+        return
+    armed, in_flight = _flight_gate_fields(payload)
+    try:
+        version_rollback.write_flight_gate(_versions_dest(), armed, in_flight, now)
+        _gate_write_at = now
+    except Exception:
+        return
 try:
     from uplink_status import enrich_modem, uplinks_payload
 except ImportError:
@@ -1007,7 +1041,7 @@ def _versions_dest():
 
 
 def _versions_blocked():
-    """None when the flight controller is explicitly not armed. Anything else blocks."""
+    """None only when the live flight state is disarmed and not flying."""
     override = os.environ.get("VLC_VERSIONS_REFUSE")
     if override == "1":
         return "armed"
@@ -1015,18 +1049,18 @@ def _versions_blocked():
         return None
     if override == "unknown":
         return "unknown"
+    if override == "in_flight":
+        return "in_flight"
     try:
         payload = fc_status_payload()
     except Exception:
+        payload = None
+    armed, in_flight = _flight_gate_fields(payload)
+    try:
+        version_rollback.write_flight_gate(_versions_dest(), armed, in_flight)
+    except Exception:
         return "unknown"
-    if not isinstance(payload, dict):
-        return "unknown"
-    flag = payload.get("armed")
-    if flag is True:
-        return "armed"
-    if flag is False:
-        return None
-    return "unknown"
+    return version_rollback.decide_flight_gate(armed, in_flight)
 
 
 def transport_test_payload(self_test=False):

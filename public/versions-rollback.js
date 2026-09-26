@@ -1,26 +1,27 @@
 (function initVersionsRollback() {
   const root = document.getElementById('gsVersions');
   if (!root) return;
-  const UNKNOWN = 'אין מידע';
   const UNKNOWN_VERSION = 'גרסה לא ידועה';
+  const UNKNOWN_DATE = 'תאריך לא ידוע';
   let latest = null;
   let pending = null;
   let localPhase = 'idle';
   let pollTimer = null;
   let sending = false;
+  let announcedPhase = null;
 
   function el(id) { return document.getElementById(id); }
   function text(id, value) {
     const node = el(id);
     if (!node) return;
-    node.textContent = value == null || value === '' ? UNKNOWN : String(value);
+    node.textContent = value == null || value === '' ? UNKNOWN_DATE : String(value);
   }
   function setVersion(id, value) {
     const node = el(id);
     if (!node) return;
     node.replaceChildren();
     if (value == null || value === '') {
-      node.textContent = UNKNOWN;
+      node.textContent = UNKNOWN_VERSION;
       return;
     }
     const bdi = document.createElement('bdi');
@@ -35,7 +36,7 @@
     return bdi;
   }
   function formatWhen(value) {
-    if (!value) return UNKNOWN;
+    if (!value) return UNKNOWN_DATE;
     const raw = String(value).trim();
     const iso = raw.includes('T') ? raw : raw.replace(' ', 'T');
     const date = new Date(iso.endsWith('Z') || iso.includes('+') ? iso : `${iso}Z`);
@@ -55,7 +56,7 @@
     node.hidden = !on;
   }
   function targetName(kind) {
-    return kind === 'console' ? 'קונסולה' : 'מחשב משימה';
+    return kind === 'console' ? 'קונסולה' : 'מחשב המשימה';
   }
   function paintBackups(companion, busy) {
     const list = el('vrBackups');
@@ -64,7 +65,7 @@
     if (!companion?.linked) {
       const item = document.createElement('li');
       item.className = 'vr-backup';
-      item.textContent = UNKNOWN;
+      item.textContent = UNKNOWN_DATE;
       list.appendChild(item);
       return;
     }
@@ -93,7 +94,7 @@
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'vr-btn vr-backup-btn';
-      btn.textContent = 'החזרה לגיבוי זה';
+      btn.textContent = 'לשחזר לגיבוי זה';
       btn.disabled = busy;
       btn.addEventListener('click', () => {
         if (busy) return;
@@ -115,9 +116,8 @@
     const how = known.source === 'flight' ? 'סומן אחרי טיסה בלי שגיאות' : 'סומן ידנית';
     knownNode.append(`${how} ${formatWhen(known.at)}. קונסולה `);
     knownNode.append(versionNode(known.consoleVersion));
-    knownNode.append('. מחשב משימה ');
-    if (known.companionVersion) knownNode.append(versionNode(known.companionVersion));
-    else knownNode.append('בלי גרסה');
+    knownNode.append('. מחשב המשימה ');
+    knownNode.append(versionNode(known.companionVersion));
     if (known.source === 'flight' && known.flightId != null) {
       knownNode.append(`. טיסה ${known.flightId}`);
     }
@@ -135,16 +135,14 @@
     const consoleBtn = el('vrConsoleRollbackBtn');
     if (note) {
       note.hidden = console.rollbackAvailable === true;
-      note.textContent = console.rollbackUnavailableReason || 'אין עותק של הגרסה הקודמת. החזרה לא זמינה.';
+      note.textContent = console.rollbackUnavailableReason || 'אין גרסה קודמת לשחזור';
     }
     if (consoleBtn) consoleBtn.disabled = console.rollbackAvailable !== true || busy;
     const companion = view?.companion || {};
     text('vrCompanionLink', companion.linked ? 'מקושר' : 'אין קישור למחשב המשימה');
-    if (companion.linked) setVersion('vrCompanionVersion', companion.version);
-    else text('vrCompanionVersion', null);
+    setVersion('vrCompanionVersion', companion.linked ? companion.version : null);
     text('vrCompanionDeployed', companion.linked ? formatWhen(companion.deployedAt) : null);
-    if (companion.linked) setVersion('vrCompanionSha', companion.gitSha);
-    else text('vrCompanionSha', null);
+    setVersion('vrCompanionSha', companion.linked ? companion.gitSha : null);
     paintBackups(companion, busy);
     const fcAt = view?.fcParams?.snapshotAt;
     text('vrFcSnapshot', fcAt ? formatWhen(fcAt) : null);
@@ -155,7 +153,7 @@
     show(confirm, phase === 'confirm');
     if (confirm) confirm.setAttribute('aria-hidden', phase === 'confirm' ? 'false' : 'true');
     if (phase === 'confirm' && pending) {
-      text('vrConfirmTitle', `אישור החזרה של ${targetName(pending.kind)}`);
+      text('vrConfirmTitle', `אישור שחזור של ${targetName(pending.kind)}`);
       const from = el('vrConfirmFrom');
       if (from) {
         from.replaceChildren();
@@ -169,7 +167,7 @@
         to.append(versionNode(pending.to));
       }
       const when = el('vrConfirmWhen');
-      if (when) when.textContent = `תאריך ${formatWhen(pending.when)}`;
+      if (when) when.textContent = pending.when ? `תאריך ${formatWhen(pending.when)}` : UNKNOWN_DATE;
     }
     const progress = el('vrProgress');
     show(progress, phase === 'progress');
@@ -179,7 +177,7 @@
       const to = pending?.to || view?.rollback?.to || UNKNOWN_VERSION;
       const kind = pending?.kind || view?.rollback?.kind;
       progressText.replaceChildren();
-      progressText.append(`מחזירים את ${targetName(kind)}. מ־`);
+      progressText.append(`משחזרים את ${targetName(kind)}. מ־`);
       progressText.append(versionNode(from));
       progressText.append(' אל ');
       progressText.append(versionNode(to));
@@ -188,11 +186,25 @@
     const failed = phase === 'failed';
     show(error, failed);
     if (error && failed) {
-      error.textContent = pending?.error || view?.rollback?.error || 'ההחזרה נכשלה.';
+      error.textContent = pending?.error || view?.rollback?.error || 'השחזור נכשל.';
     }
     const dismiss = el('vrDismiss');
     show(dismiss, failed);
     if (phase === 'confirm') focusConfirm();
+    if ((phase === 'progress' || phase === 'failed') && phase !== announcedPhase) revealOutcome(phase);
+    announcedPhase = phase;
+  }
+  function revealOutcome(phase) {
+    const node = phase === 'failed' ? el('vrError') : el('vrProgress');
+    if (!node) return;
+    const go = () => {
+      if (!node.isConnected || node.hidden) return;
+      node.tabIndex = -1;
+      node.scrollIntoView({ block: 'center', inline: 'nearest' });
+      node.focus();
+    };
+    go();
+    setTimeout(go, 0);
   }
   function focusConfirm() {
     const dialog = el('vrConfirm');
@@ -242,7 +254,7 @@
       localPhase = 'failed';
       pending = {
         ...(pending || {}),
-        error: data.rollback.error || pending?.error || 'ההחזרה נכשלה.',
+        error: data.rollback.error || pending?.error || 'השחזור נכשל.',
         kind: data.rollback.kind,
         from: data.rollback.from,
         to: data.rollback.to,
@@ -285,7 +297,7 @@
         try { await load(); } catch { /* server reconcile owns the terminal state */ }
         if (localPhase === 'running') {
           localPhase = 'failed';
-          if (pending) pending.error = 'ההחזרה לא הסתיימה.';
+          if (pending) pending.error = 'השחזור לא הסתיים.';
           paint(latest);
         }
         return;
@@ -335,12 +347,12 @@
       data = await res.json().catch(() => ({}));
     } catch (err) {
       res = null;
-      data = { message: err?.message || 'ההחזרה נכשלה.' };
+      data = { message: err?.message || 'השחזור נכשל.' };
     }
     sending = false;
     if (!res || !res.ok || data.ok === false) {
       localPhase = 'failed';
-      pending.error = data.message || 'ההחזרה נכשלה.';
+      pending.error = data.message || 'השחזור נכשל.';
       paint(latest);
       return;
     }
@@ -425,7 +437,7 @@
   }, true);
   void load().catch(() => {
     paint({
-      console: { version: document.querySelector('meta[name="app-version"]')?.content || null, rollbackAvailable: false, rollbackUnavailableReason: 'אין עותק של הגרסה הקודמת. החזרה לא זמינה.' },
+      console: { version: document.querySelector('meta[name="app-version"]')?.content || null, rollbackAvailable: false, rollbackUnavailableReason: 'אין גרסה קודמת לשחזור' },
       companion: { linked: false },
       fcParams: { snapshotAt: null },
       knownGood: null,

@@ -280,15 +280,15 @@ def release_claim(dest: Path) -> None:
 
 
 def _block_message(reason: str) -> str:
-    if reason == "armed":
-        return "המטוס חמוש. אין החזרה."
-    if reason == "in_flight":
-        return "המטוס באוויר. אין החזרה."
-    if reason == "unknown":
-        return "מצב הטיסה לא ידוע. אין החזרה."
-    if reason == "busy":
-        return "החזרה כבר רצה."
-    return "אין החזרה."
+    table = {
+        "armed": "המטוס חמוש. אין שחזור.",
+        "in_flight": "המטוס באוויר. אין שחזור.",
+        "unknown": "מצב הטיסה לא ידוע. אין שחזור.",
+        "stale": "מצב הטיסה ישן. אין שחזור.",
+        "missing": "אין מצב טיסה ממחשב המשימה. אין שחזור.",
+        "busy": "שחזור כבר מתבצע.",
+    }
+    return table.get(reason, "אין שחזור.")
 
 
 def _block_body(reason: str) -> dict:
@@ -306,13 +306,66 @@ def _block_reason(blocked, armed) -> str | None:
         return "armed"
     if reason is False or reason is None or reason == "":
         return None
-    if reason in ("armed", "in_flight", "unknown"):
+    if reason in ("armed", "in_flight", "unknown", "stale", "missing"):
         return reason
     return "unknown"
 
 
+GATE_NAME = "fc-flight-gate.json"
+GATE_MAX_AGE_S = 3.0
+_FLYING_STATUSES = {4, 5, 6, 8}
+
+
+def flight_gate_path(dest: Path) -> Path:
+    return backups_root(Path(dest)) / GATE_NAME
+
+
+def decide_flight_gate(armed, in_flight) -> str | None:
+    """None only when the aircraft is explicitly disarmed and not flying."""
+    if armed is True:
+        return "armed"
+    if in_flight is True:
+        return "in_flight"
+    if armed is False and in_flight is False:
+        return None
+    return "unknown"
+
+
+def write_flight_gate(dest: Path, armed, in_flight, now: float | None = None) -> None:
+    path = flight_gate_path(dest)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    body = {
+        "written_at": time.time() if now is None else float(now),
+        "armed": armed if isinstance(armed, bool) else None,
+        "in_flight": in_flight if isinstance(in_flight, bool) else None,
+    }
+    tmp = path.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps(body, ensure_ascii=False) + "\n", encoding="utf-8")
+    os.replace(tmp, path)
+
+
+def read_flight_gate(dest: Path, now: float | None = None, max_age: float = GATE_MAX_AGE_S) -> str | None:
+    """None when a fresh gate says disarmed and not flying. Otherwise a block reason."""
+    path = flight_gate_path(dest)
+    if not path.is_file():
+        return "missing"
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return "unknown"
+    if not isinstance(data, dict):
+        return "unknown"
+    written = data.get("written_at")
+    if not isinstance(written, (int, float)):
+        return "unknown"
+    age = (time.time() if now is None else float(now)) - float(written)
+    if age < 0 or age > float(max_age):
+        return "stale"
+    return decide_flight_gate(data.get("armed"), data.get("in_flight"))
+
+
 def read_flight_block():
-    """Fail closed. Only an explicit not-armed reading is safe."""
+    """Worker gate. Reads the file the running companion just wrote. Never a private empty observer."""
     override = os.environ.get("VLC_VERSIONS_REFUSE")
     if override == "1":
         return "armed"
@@ -320,19 +373,12 @@ def read_flight_block():
         return None
     if override == "unknown":
         return "unknown"
-    try:
-        import companion_agent
-        payload = companion_agent.fc_status_payload()
-    except Exception:
-        return "unknown"
-    if not isinstance(payload, dict):
-        return "unknown"
-    flag = payload.get("armed")
-    if flag is True:
-        return "armed"
-    if flag is False:
-        return None
-    return "unknown"
+    if override == "stale":
+        return "stale"
+    if override == "in_flight":
+        return "in_flight"
+    dest = Path(os.environ.get("VLC_COMPANION_DEST") or (Path.home() / "vlc-companion"))
+    return read_flight_gate(dest)
 
 
 def perform_rollback(dest: Path, backup_id: str, *, armed=False, blocked=None, restart, wait_healthy, running_version: str, timeout_s=HEALTH_TIMEOUT_S, lock_fh=None) -> tuple[int, dict]:
@@ -406,7 +452,7 @@ def perform_rollback(dest: Path, backup_id: str, *, armed=False, blocked=None, r
                 "to": to_version,
                 "backup_id": backup_id,
                 "reverted": False,
-                "message": "הגרסה הוחזרה.",
+                "message": "הגרסה שוחזרה.",
             }
             _write_result(dest, body)
             return 200, body
@@ -428,7 +474,7 @@ def perform_rollback(dest: Path, backup_id: str, *, armed=False, blocked=None, r
             "to": to_version,
             "backup_id": backup_id,
             "reverted": reverted,
-            "message": "השירות לא עלה. הוחזרה הגרסה הקודמת." if reverted else "השירות לא עלה והחזרה אוטומטית נכשלה.",
+            "message": "השירות לא עלה. שוחזרה הגרסה הקודמת." if reverted else "השירות לא עלה והשחזור האוטומטי נכשל.",
         }
         try:
             _write_result(dest, body)
@@ -583,7 +629,7 @@ def http_post(path: str, data: dict, ctx: dict) -> tuple[int, dict]:
             "ok": True,
             "state": "restarting",
             "backup_id": backup_id,
-            "message": "מחזירים גרסה.",
+            "message": "משחזרים גרסה.",
         }
     return perform_rollback(
         dest,

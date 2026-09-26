@@ -115,7 +115,7 @@ describe('versions and rollback view', () => {
           return route.fulfill({
             status: 409,
             contentType: 'application/json',
-            body: JSON.stringify({ ok: false, message: 'ההחזרה נכשלה. השירות לא עלה.' }),
+            body: JSON.stringify({ ok: false, message: 'השחזור נכשל. השירות לא עלה.' }),
           });
         }
         return route.fulfill({
@@ -243,8 +243,8 @@ describe('versions and rollback view', () => {
           const textOf = async (selector) => (await page.locator(selector).textContent()) || '';
           if (state === 'no-companion') {
             expect(phase).toBe('no-companion');
-            expect(await textOf('#vrCompanionVersion')).toBe('אין מידע');
-            expect(await textOf('#vrFcSnapshot')).toBe('אין מידע');
+            expect(await textOf('#vrCompanionVersion')).toBe('גרסה לא ידועה');
+            expect(await textOf('#vrFcSnapshot')).toBe('תאריך לא ידוע');
           }
           if (state === 'confirm') {
             expect(phase).toBe('confirm');
@@ -264,13 +264,17 @@ describe('versions and rollback view', () => {
             expect(await textOf('#vrProgress')).toContain('1.02.338');
             expect(await textOf('#vrProgress')).toContain('1.02.335');
             expect(await page.locator('#vrProgress').getAttribute('role')).toBe('status');
+            expect(await page.locator('#vrProgress').getAttribute('aria-live')).toBe('polite');
+            expect(await page.evaluate(() => document.activeElement?.id)).toBe('vrProgress');
             expect(await page.locator('#vrConsoleRollbackBtn').isDisabled()).toBe(true);
             expect(await page.locator('.vr-backup-btn').first().isDisabled()).toBe(true);
           }
           if (state === 'failed') {
             expect(phase).toBe('failed');
-            expect(await textOf('#vrError')).toContain('ההחזרה נכשלה');
+            expect(await textOf('#vrError')).toContain('השחזור נכשל');
             expect(await page.locator('#vrDismiss').isVisible()).toBe(true);
+            expect(await page.locator('#vrError').getAttribute('aria-live')).toBe('assertive');
+            expect(await page.evaluate(() => document.activeElement?.id)).toBe('vrError');
           }
           if (state === 'no-companion') {
             expect(await textOf('#vrKnownGoodStatus')).toBe('לא סומן');
@@ -326,7 +330,7 @@ describe('versions and rollback view', () => {
     await page.locator('.vr-backup-btn').nth(1).click();
     await page.waitForSelector('#vrConfirm:not([hidden])');
     const confirmText = await page.locator('#vrConfirm').textContent();
-    expect(confirmText).toContain('מחשב משימה');
+    expect(confirmText).toContain('מחשב המשימה');
     expect(confirmText).toContain('גרסה לא ידועה');
     expect(confirmText).toContain('תאריך');
     expect(confirmText).not.toContain('אל אין מידע');
