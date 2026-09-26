@@ -1,5 +1,36 @@
 [
   {
+    "version": "1.02.337",
+    "date": "2026-09-26",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Server library",
+        "detail": "companion-api-client.mjs, companion-mock.mjs, companion-v1-paths.mjs, companion-proxy-api.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "Frontend",
+        "detail": "cam1-panel.mjs"
+      },
+      {
+        "type": "ui",
+        "title": "HTML layout",
+        "detail": "index.html"
+      },
+      {
+        "type": "ui",
+        "title": "Styles",
+        "detail": "styles.css"
+      },
+      {
+        "type": "test",
+        "title": "Tests",
+        "detail": "cam0-pipeline.test.mjs, camera-ingest-honesty.test.mjs, companion-observe-status.test.mjs, optics-debrief-tab.test.mjs"
+      }
+    ]
+  },
+  {
     "version": "1.02.336",
     "date": "2026-09-26",
     "changes": [

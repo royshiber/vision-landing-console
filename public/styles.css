@@ -19822,7 +19822,34 @@ body:has(#control.panel.visible) .ardu-top-cats-host {
   .app-update-actions button { flex: 1 1 auto; min-height: 36px; }
 }
 
-.recordings-layout > .cam0-panel { grid-column: 1 / -1; }
+.recordings-layout > .cam0-panel,
+.recordings-layout > .optics-cam-switch { grid-column: 1 / -1; }
+.optics-cam-switch {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+  overflow: visible;
+  white-space: normal;
+}
+.optics-cam-btn {
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  background: #0f172a;
+  color: #e8edf6;
+  border-radius: 8px;
+  padding: 6px 12px;
+  min-height: 32px;
+  font-size: 14px;
+  line-height: 1.35;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  cursor: pointer;
+}
+.optics-cam-btn.is-active {
+  border-color: rgba(125, 211, 252, 0.8);
+  color: #e0f2fe;
+}
 .cam0-status-line {
   display: flex;
   flex-wrap: wrap;
@@ -19836,6 +19863,8 @@ body:has(#control.panel.visible) .ardu-top-cats-host {
   color: var(--text);
   overflow: visible;
   white-space: normal;
+  font-size: 14px;
+  line-height: 1.4;
 }
 .cam0-status-link {
   border: 0;
