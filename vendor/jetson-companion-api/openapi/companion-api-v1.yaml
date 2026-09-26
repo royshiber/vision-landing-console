@@ -849,6 +849,16 @@ components:
             ip: { type: [string, "null"] }
             route_metric: { type: [integer, "null"] }
             default_route: { type: boolean }
+            signal_icon: { type: [integer, "null"] }
+            signal_max: { type: [integer, "null"] }
+            network_type: { type: [string, "null"] }
+            network_label: { type: [string, "null"] }
+            operator:
+              type: [object, "null"]
+              additionalProperties: false
+              properties:
+                short: { type: [string, "null"] }
+                full: { type: [string, "null"] }
             signal:
               type: [object, "null"]
               additionalProperties: true

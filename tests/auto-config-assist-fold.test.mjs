@@ -207,8 +207,8 @@ describe('Auto-Config → Assist + Configuration fold — chrome', () => {
     expect(html).not.toMatch(/id="companionApplyBtn"|id="companionRestartBtn"/);
   });
 
-  it('pins APP_VERSION at 1.02.327', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.327'");
-    expect(pkg.version).toBe('1.02.327');
+  it('pins APP_VERSION at 1.02.328', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.328'");
+    expect(pkg.version).toBe('1.02.328');
   });
 });

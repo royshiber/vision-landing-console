@@ -25,6 +25,34 @@ CONNECTION_LABELS = {
     "902": "disconnected",
 }
 
+# CurrentNetworkTypeEx → short label. Unknown codes stay null. Do not invent one.
+# 101 / 19 are LTE. 1011 is LTE-A (shown as LTE+). The rest are common 2G/3G codes.
+NETWORK_LABELS = {
+    "1": "GSM",
+    "2": "GPRS",
+    "3": "EDGE",
+    "4": "WCDMA",
+    "5": "HSDPA",
+    "6": "HSUPA",
+    "7": "HSPA",
+    "8": "TD-SCDMA",
+    "9": "HSPA+",
+    "19": "LTE",
+    "41": "WCDMA",
+    "42": "HSDPA",
+    "43": "HSUPA",
+    "44": "HSPA",
+    "45": "HSPA+",
+    "46": "DC-HSPA+",
+    "61": "TD-SCDMA",
+    "62": "TD-HSDPA",
+    "63": "TD-HSUPA",
+    "64": "TD-HSPA",
+    "65": "TD-HSPA+",
+    "101": "LTE",
+    "1011": "LTE+",
+}
+
 _LOCK = threading.Lock()
 _cache = None
 _fetcher = None
@@ -70,6 +98,34 @@ def _num_prefix(text):
     if "." in raw:
         return float(raw)
     return int(raw)
+
+
+def _int_or_none(text):
+    number = _num_prefix(text)
+    if isinstance(number, bool) or number is None:
+        return None
+    if isinstance(number, int):
+        return number
+    if isinstance(number, float) and number.is_integer():
+        return int(number)
+    return None
+
+
+def _name_or_none(text):
+    if text is None:
+        return None
+    cleaned = str(text).strip()
+    return cleaned or None
+
+
+def _blank_operator():
+    return {"short": None, "full": None}
+
+
+def _network_label(code):
+    if code is None or str(code).strip() == "":
+        return None
+    return NETWORK_LABELS.get(str(code).strip())
 
 
 def _xml_tag(xml, tag):
@@ -129,7 +185,10 @@ def _blank_hilink():
         "connection_status": None,
         "connection_label": None,
         "network_type": None,
+        "network_label": None,
         "signal_icon": None,
+        "signal_max": None,
+        "operator": _blank_operator(),
         "wan_ip": None,
         "age_ms": None,
         "signal_seen": False,
@@ -149,6 +208,8 @@ def _fetch_hilink(base):
         headers["__RequestVerificationToken"] = tok
     signal_xml = fetch(f"{base}/api/device/signal", headers, timeout)
     status_xml = fetch(f"{base}/api/monitoring/status", headers, timeout)
+    # /api/net/signal-para is a 3G placeholder on this firmware. Never read it.
+    operator = _fetch_operator(fetch, base, headers, timeout)
     signal = {
         "rssi": _num_prefix(_xml_tag(signal_xml, "rssi")),
         "rsrp": _num_prefix(_xml_tag(signal_xml, "rsrp")),
@@ -156,8 +217,8 @@ def _fetch_hilink(base):
         "sinr": _num_prefix(_xml_tag(signal_xml, "sinr")),
     }
     connection = _xml_tag(status_xml, "ConnectionStatus")
-    icon_raw = _xml_tag(status_xml, "SignalIcon")
-    icon = _num_prefix(icon_raw) if icon_raw is not None else None
+    icon = _int_or_none(_xml_tag(status_xml, "SignalIcon"))
+    network_type = _xml_tag(status_xml, "CurrentNetworkTypeEx")
     seen = any(signal[k] is not None for k in signal) or connection is not None or icon is not None
     body = {
         "probed": True,
@@ -165,12 +226,27 @@ def _fetch_hilink(base):
         "signal": signal,
         "connection_status": connection,
         "connection_label": CONNECTION_LABELS.get(str(connection)) if connection else None,
-        "network_type": _xml_tag(status_xml, "CurrentNetworkTypeEx"),
-        "signal_icon": icon if icon is not None else icon_raw,
+        "network_type": network_type,
+        "network_label": _network_label(network_type),
+        "signal_icon": icon,
+        "signal_max": _int_or_none(_xml_tag(status_xml, "maxsignal")),
+        "operator": operator,
         "wan_ip": _iface_ipv4(cellular_iface_name()),
         "signal_seen": seen,
     }
     return body
+
+
+def _fetch_operator(fetch, base, headers, timeout):
+    """Best-effort PLMN. A failure leaves the operator null and does not fail signal."""
+    try:
+        xml = fetch(f"{base}/api/net/current-plmn", headers, timeout)
+    except Exception:
+        return _blank_operator()
+    return {
+        "short": _name_or_none(_xml_tag(xml, "ShortName")),
+        "full": _name_or_none(_xml_tag(xml, "FullName")),
+    }
 
 
 def hilink_status():
@@ -197,6 +273,11 @@ def hilink_status():
 def _with_age(body, now, fetched_at):
     out = dict(body)
     out["signal"] = dict(body.get("signal") or _empty_signal())
+    operator = body.get("operator") if isinstance(body.get("operator"), dict) else _blank_operator()
+    out["operator"] = {
+        "short": operator.get("short"),
+        "full": operator.get("full"),
+    }
     out["age_ms"] = int(round((now - fetched_at) * 1000))
     return out
 
@@ -210,7 +291,10 @@ def enrich_modem(body):
     body["connection_status"] = snap["connection_status"]
     body["connection_label"] = snap["connection_label"]
     body["network_type"] = snap["network_type"]
+    body["network_label"] = snap.get("network_label")
     body["signal_icon"] = snap["signal_icon"]
+    body["signal_max"] = snap.get("signal_max")
+    body["operator"] = dict(snap.get("operator") or _blank_operator())
     body["wan_ip"] = snap["wan_ip"]
     body["age_ms"] = snap["age_ms"]
     body["hilink_probed"] = snap["probed"] is True
@@ -416,6 +500,11 @@ def uplinks_payload():
             "ip": _iface_ipv4(cell_name) if cell_name and _oper_up(cell_name) else None,
             "route_metric": cell_metric,
             "signal": signal,
+            "signal_icon": hilink.get("signal_icon"),
+            "signal_max": hilink.get("signal_max"),
+            "network_type": hilink.get("network_type"),
+            "network_label": hilink.get("network_label"),
+            "operator": dict(hilink.get("operator") or _blank_operator()),
             "default_route": bool(cell_name) and default_iface == cell_name,
         },
         "default_iface": default_iface,
