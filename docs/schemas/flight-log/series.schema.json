@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "airvix.flight.series/1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["t0_utc", "series"],
+  "properties": {
+    "t0_utc": { "type": "string" },
+    "series": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["t", "v", "unit", "src"],
+        "properties": {
+          "t": { "type": "array", "items": { "type": "number" } },
+          "v": { "type": "array", "items": { "type": ["number", "null"] } },
+          "unit": { "type": "string" },
+          "src": { "type": "string" }
+        }
+      }
+    }
+  }
+}

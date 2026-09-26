@@ -91,14 +91,21 @@ describe('C10.5a leftover #flights folds into תחקור', () => {
     const restore = sliceFunction(js, 'restoreLastUiTab');
     const openLogs = sliceFunction(js, 'openDebriefLogs');
     expect(applyDebrief).not.toMatch(/applyMainTab\(\s*'flights'/);
-    expect(applyDebrief).toMatch(/tabId === 'logs' \? 'logs' : 'recordings'/);
+    // Flight book is a third תחקור sub-tab and the default when nothing is stored.
+    // הקלטות and לוגים still restore. Legacy main tab "flights" still folds to לוגים.
+    expect(applyDebrief).toMatch(/tabId === 'logs' \|\| tabId === 'recordings' \|\| tabId === 'flightbook'/);
+    expect(applyDebrief).toMatch(/\? tabId : 'flightbook'/);
+    expect(applyDebrief).toMatch(/airvix:debrief-subtab/);
     expect(applyMain).toMatch(/if \(tabId === 'flights'\)/);
     expect(applyMain).toMatch(/openDebriefLogs\(/);
+    expect(applyMain).toMatch(/stored === 'logs' \|\| stored === 'recordings' \|\| stored === 'flightbook'/);
+    expect(applyMain).toMatch(/known \? stored : 'flightbook'/);
     expect(openLogs).toMatch(/applyMainTab\(\s*'recordings'/);
     expect(openLogs).toMatch(/applyDebriefSubtab\(\s*'logs'/);
     expect(restore).toMatch(/if \(main === 'flights'\)/);
     expect(restore).toMatch(/debriefSub = 'logs'/);
-    expect(restore).toMatch(/applyDebriefSubtab\(debriefSub === 'logs' \? 'logs' : 'recordings'/);
+    expect(restore).toMatch(/debriefSub === 'logs' \|\| debriefSub === 'recordings' \|\| debriefSub === 'flightbook'/);
+    expect(restore).toMatch(/known \? debriefSub : 'flightbook'/);
     const simLab = fs.readFileSync(path.join(repoRoot, 'public', 'sim-lab.mjs'), 'utf8');
     expect(simLab).toContain("document.getElementById('debriefLogsBtn')?.click()");
     expect(simLab).not.toContain('.tab[data-tab="flights"]');
@@ -117,8 +124,8 @@ describe('C10.5a leftover #flights folds into תחקור', () => {
     expect(css).not.toMatch(/#flights\.panel\.visible\.flights-panel/);
   });
 
-  it('pins APP_VERSION at 1.02.325', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.325'");
-    expect(pkg.version).toBe('1.02.325');
+  it('pins APP_VERSION at 1.02.326', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.326'");
+    expect(pkg.version).toBe('1.02.326');
   });
 });

@@ -1,5 +1,16 @@
 [
   {
+    "version": "1.02.326",
+    "date": "2026-09-26",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Flight book: cloud flights, timeline, plots, map, grounded debrief",
+        "detail": "APP_VERSION 1.02.326. After master 1.02.325. תחקור gains a טיסות sub-tab. Mock fixtures or a read-only B2/S3 key. Off or missing keys show a Hebrew not-configured state and never fake flights. Gemini debrief is Hebrew, cited, and server-checked; sentences that fail the check are marked לא אומת. No GEMINI_API_KEY shows תובנות אוטומטיות only."
+      }
+    ]
+  },
+  {
     "version": "1.02.325",
     "date": "2026-09-25",
     "changes": [
