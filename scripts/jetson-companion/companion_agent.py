@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """Vision Landing Console — Jetson companion: MAVLink relay + HTTP API + heartbeat.
 
-AGENT_VERSION 2.3.11 = 2.3.10 plus HiLink signal bars from SignalIcon /
-maxsignal, a CurrentNetworkTypeEx label, and the PLMN operator name.
-dBm fields stay null when the modem leaves them empty. 2.3.10 counted a
-HiLink modem as up when operstate is "unknown" and carrier is 1 or
-NetworkManager is connected, and did not bounce a link that is already active.
+AGENT_VERSION 2.6.0 = 2.3.11 plus a disabled auto-land shadow machine.
+The machine defaults off, logs decisions only, and has no transport.
 No VIO estimator, no EKF inject, no FC writes, no runway detect.
+2.3.11 added HiLink signal bars from SignalIcon / maxsignal, a
+CurrentNetworkTypeEx label, and the PLMN operator name. dBm fields stay
+null when the modem leaves them empty.
 Gimbal and camera control are not flight commands.
 Never invent camera_ok, frames, gimbal attitude, runway detected/locked, or WGS84 position.
 Dry-run never claims a real camera.
@@ -47,7 +47,7 @@ RELAY_PORT = int(os.environ.get("VLC_RELAY_PORT", "5770"))
 HTTP_PORT = int(os.environ.get("VLC_HTTP_PORT", "8081"))
 HTTP_IDLE_S = float(os.environ.get("VLC_HTTP_IDLE_S", "30") or "30")
 HTTP_MAX_BODY = 16 * 1024 * 1024
-AGENT_VERSION = os.environ.get("VLC_AGENT_VERSION", "2.3.11")
+AGENT_VERSION = os.environ.get("VLC_AGENT_VERSION", "2.6.0")
 MODEM_STATUS_FILE = os.environ.get("AIRVIX_E3372_STATUS_FILE", "/run/airvix/e3372.status")
 
 try:
@@ -66,6 +66,31 @@ try:
     from annotated_encoder import annotated_encoder_status
 except ImportError:
     annotated_encoder_status = None
+try:
+    from autoland import autoland_status_payload, feed_downlink_bytes
+except ImportError:
+    def feed_downlink_bytes(_data):
+        return None
+
+    def autoland_status_payload():
+        return {
+            "ok": True,
+            "reported": False,
+            "enabled": False,
+            "shadow": None,
+            "disabled": True,
+            "labelHe": "מושבת",
+            "state": None,
+            "stateHe": None,
+            "gates": None,
+            "commands": None,
+            "abortReason": None,
+            "abortReasonHe": None,
+            "commandsSent": 0,
+            "transport": False,
+            "paramWrites": False,
+            "flightCommandsSent": False,
+        }
 try:
     from fc_telemetry import fc_link_flags, fc_status_payload, observe_uart_bytes
 except ImportError:
@@ -353,6 +378,7 @@ def uart_reader(fc_serial, stop):
         # Copy only. fanout_uart still forwards the original bytes.
         # chunk_has_heartbeat() stays for transport-test; link state is the passive observer.
         observe_uart_bytes(data)
+        feed_downlink_bytes(data)
         flags = fc_link_flags()
         with STATE_LOCK:
             STATE["uart_bytes_rx"] = int(STATE.get("uart_bytes_rx") or 0) + len(data)
@@ -853,6 +879,7 @@ def status_payload():
         "vision": vision_status_payload(),
         "optical_nav": optical_nav_status_payload(),
         "landing": landing_status_payload(),
+        "autoland": autoland_status_payload(),
         "video": video_status_payload(),
         "extras": extras_status_payload(),
         "modem": modem_status_payload(),
@@ -896,6 +923,7 @@ def health_payload():
         "vision": vision_status_payload(),
         "optical_nav": optical_nav_status_payload(),
         "landing": landing_status_payload(),
+        "autoland": autoland_status_payload(),
         "video": video_status_payload(),
         "extras": extras_status_payload(),
         "modem": modem_status_payload(),
@@ -1083,6 +1111,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(200, optical_nav_status_payload())
         if path in ("/api/status/landing", "/api/v1/status/landing"):
             return self._json(200, landing_status_payload())
+        if path in ("/api/status/autoland", "/api/v1/status/autoland"):
+            return self._json(200, autoland_status_payload())
         if path in ("/api/status/video", "/api/v1/status/video"):
             return self._json(200, video_status_payload())
         if path in ("/api/status/annotated-video", "/api/v1/status/annotated-video"):

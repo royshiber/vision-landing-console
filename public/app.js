@@ -4200,6 +4200,84 @@ async function refreshVisionLandingReadiness() {
   }
 }
 
+function renderAutoLandPanel(body) {
+  const panel = document.getElementById('autoLandPanel');
+  if (!panel) return;
+  const reported = body?.reported === true;
+  const enabled = reported && body?.enabled === true;
+  panel.dataset.enabled = enabled ? 'true' : 'false';
+  const banner = document.getElementById('autoLandDisabled');
+  if (banner) banner.textContent = enabled ? 'פעיל' : 'מושבת';
+  const stateEl = document.getElementById('autoLandState');
+  if (stateEl) stateEl.textContent = reported && body.stateHe ? body.stateHe : '';
+  const gatesEl = document.getElementById('autoLandGates');
+  if (gatesEl) {
+    gatesEl.replaceChildren();
+    const gates = reported && Array.isArray(body.gates) ? body.gates : null;
+    if (!gates) {
+      const empty = document.createElement('p');
+      empty.className = 'al-empty';
+      empty.textContent = body?.reasonHe || 'אין דיווח מהמחשב המלווה';
+      gatesEl.appendChild(empty);
+    } else {
+      for (const gate of gates) {
+        const row = document.createElement('div');
+        row.className = 'al-gate';
+        row.dataset.ok = gate.ok === true ? 'true' : 'false';
+        const dot = document.createElement('span');
+        dot.className = 'al-dot';
+        const reason = document.createElement('span');
+        reason.className = 'al-reason';
+        reason.textContent = typeof gate.reasonHe === 'string' ? gate.reasonHe : '';
+        row.append(dot, reason);
+        gatesEl.appendChild(row);
+      }
+    }
+  }
+  const shadowEl = document.getElementById('autoLandShadow');
+  if (shadowEl) {
+    shadowEl.replaceChildren();
+    const commands = reported && Array.isArray(body.commands) ? body.commands : null;
+    if (!commands || commands.length === 0) {
+      const empty = document.createElement('p');
+      empty.className = 'al-empty';
+      empty.textContent = reported ? 'אין פקודה שהייתה נשלחת' : 'אין דיווח';
+      shadowEl.appendChild(empty);
+    } else {
+      for (const command of commands.slice(-8)) {
+        const row = document.createElement('div');
+        row.className = 'al-cmd';
+        const kind = document.createElement('span');
+        kind.className = 'al-kind';
+        kind.dir = 'ltr';
+        kind.textContent = typeof command.kind === 'string' ? command.kind : '';
+        const reason = document.createElement('span');
+        reason.className = 'al-reason';
+        reason.textContent = typeof command.reasonHe === 'string' ? command.reasonHe : '';
+        row.append(kind, reason);
+        shadowEl.appendChild(row);
+      }
+    }
+  }
+  const abortEl = document.getElementById('autoLandAbort');
+  if (abortEl) {
+    if (!reported) abortEl.textContent = 'אין דיווח';
+    else if (body.abortReasonHe) abortEl.textContent = body.fallbackHe ? `${body.abortReasonHe}. ${body.fallbackHe}` : body.abortReasonHe;
+    else abortEl.textContent = 'אין ביטול';
+  }
+}
+
+async function refreshAutoLandPanel() {
+  try {
+    const r = await fetch('/api/autoland/status', { cache: 'no-store' });
+    const body = await r.json();
+    if (!r.ok || body?.ok === false) return;
+    renderAutoLandPanel(body);
+  } catch {
+    /* keep the disabled banner already in the page */
+  }
+}
+
 function pulseRefresh() {
   const versionEl = document.getElementById('pulseVersion');
   const companionEl = document.getElementById('pulseCompanion');
@@ -4289,6 +4367,7 @@ function pulseRefresh() {
   if (typeof refreshPulseExtraWidgets === 'function') refreshPulseExtraWidgets();
   if (typeof platformRefresh === 'function') platformRefresh();
   void refreshVisionLandingReadiness();
+  void refreshAutoLandPanel();
 }
 
 function platformMaintLabel() {

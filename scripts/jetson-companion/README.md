@@ -30,7 +30,7 @@ python3 camera_ingest.py --resolve
 
 4. Copy this folder to `~/vlc-companion` (or `install.sh --apply` on a Jetson).
 5. Optional gimbal: `docs/SIYI_A8_GIMBAL.md` and `./siyi-net.sh`.
-6. Start the 2.3.11 agent (UART fan-out unchanged):
+6. Start the 2.6.0 agent (UART fan-out unchanged, auto-land disabled):
 
 ```
 python3 companion_agent.py
@@ -98,7 +98,7 @@ Console: `npm run camera:dry-run`.
 
 Never changes Wi-Fi or the cellular profile. Details: `docs/SIYI_A8_GIMBAL.md`.
 
-## Uplink control on the Jetson (2.3.11)
+## Uplink control on the Jetson (2.6.0)
 
 The agent runs as `royshiber` from `/home/royshiber/vlc-companion`.
 NetworkManager changes use a root-owned script. The sudoers rule names that path only.
@@ -125,7 +125,7 @@ sudo systemctl daemon-reload
 ```
 
 5. Skip udev. Do not run a global udev trigger. A modem-only nudge is optional and must name that one device; this runbook does not do it.
-6. Restart the agent as `royshiber`. `GET /api/health` reports `agentVersion` `2.3.11`.
+6. Restart the agent as `royshiber`. `GET /api/health` reports `agentVersion` `2.6.0`. Auto-land stays disabled: `GET /api/v1/status/autoland` reports `enabled` false and sends nothing.
 
 `wifi-up` and `cell-up` do nothing when that connection is already active. Startup does not take a live link down.
 

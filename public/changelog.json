@@ -1,5 +1,16 @@
 [
   {
+    "version": "1.02.331",
+    "date": "2026-09-26",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Disabled auto-land shadow, off by default",
+        "detail": "APP_VERSION 1.02.331. Companion 2.6.0. Fixed-wing auto-land state machine stays off: AUTOLAND_ENABLED defaults false, the console has no enable control and shows מושבת, and the only MAVLink path is a guarded send that does not transmit. Shadow mode logs LANDING_TARGET, SET_MODE, and DO_LAND_START decisions. Abort holds the FC's existing RTL or LOITER failsafe and writes no parameters. No flight commands are sent."
+      }
+    ]
+  },
+  {
     "version": "1.02.330",
     "date": "2026-09-26",
     "changes": [
