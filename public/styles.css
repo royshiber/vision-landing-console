@@ -19797,6 +19797,61 @@ body:has(#control.panel.visible) .ardu-top-cats-host {
   background: #0f766e;
   border-color: #0f766e;
 }
+.gimbal-pad {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 8px 0 4px;
+  direction: rtl;
+}
+.gimbal-pad-reason {
+  margin: 0;
+  font-size: clamp(11px, 0.78rem, 14px);
+  line-height: 1.35;
+  color: #facc15;
+}
+.gimbal-pad[data-state="live"] .gimbal-pad-reason { display: none; }
+.gimbal-pad-stick {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(4.6rem, 1fr));
+  grid-template-areas:
+    ". up ."
+    "left . right"
+    ". down .";
+  gap: 4px;
+  width: min(16rem, 100%);
+}
+.gimbal-pad-btn[data-gimbal="up"] { grid-area: up; }
+.gimbal-pad-btn[data-gimbal="down"] { grid-area: down; }
+.gimbal-pad-btn[data-gimbal="left"] { grid-area: left; }
+.gimbal-pad-btn[data-gimbal="right"] { grid-area: right; }
+.gimbal-pad-zoom {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.gimbal-pad-btn {
+  min-height: 32px;
+  min-width: 4.6rem;
+  padding: 4px 8px;
+  font-size: clamp(11px, 0.78rem, 14px);
+  line-height: 1.25;
+  white-space: normal;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.gimbal-pad-btn:disabled { opacity: 0.5; }
+.gimbal-pad-btn.is-held { outline: 2px solid #38bdf8; }
+.gimbal-pad-lock[aria-pressed="true"] {
+  background: #0f766e;
+  border-color: #5eead4;
+  color: #ecfeff;
+}
+.gimbal-pad-lock[aria-pressed="false"] {
+  background: transparent;
+  border-color: rgba(148, 163, 184, 0.6);
+}
 .video-column .debrief-cam-grid {
   display: grid;
   gap: 4px;

@@ -1092,6 +1092,20 @@
                 <figcaption class="debrief-cam-label">גימבל</figcaption>
               </figure>
             </div>
+            <section id="gimbalPad" class="gimbal-pad" dir="rtl" aria-label="שליטת גימבל" data-state="down">
+              <p id="gimbalPadReason" class="gimbal-pad-reason">אין קישור למחשב המשימה</p>
+              <div class="gimbal-pad-stick" dir="ltr">
+                <button type="button" class="gimbal-pad-btn" data-gimbal="up" disabled aria-describedby="gimbalPadReason">מעלה</button>
+                <button type="button" class="gimbal-pad-btn" data-gimbal="left" disabled aria-describedby="gimbalPadReason">שמאלה</button>
+                <button type="button" class="gimbal-pad-btn" data-gimbal="right" disabled aria-describedby="gimbalPadReason">ימינה</button>
+                <button type="button" class="gimbal-pad-btn" data-gimbal="down" disabled aria-describedby="gimbalPadReason">מטה</button>
+              </div>
+              <div class="gimbal-pad-zoom">
+                <button type="button" class="gimbal-pad-btn" data-gimbal="zoom-in" disabled aria-describedby="gimbalPadReason">זום פנימה</button>
+                <button type="button" class="gimbal-pad-btn" data-gimbal="zoom-out" disabled aria-describedby="gimbalPadReason">זום החוצה</button>
+              </div>
+              <button type="button" id="gimbalLockBtn" class="gimbal-pad-btn gimbal-pad-lock" data-gimbal="lock" aria-pressed="false" disabled aria-describedby="gimbalPadReason">משוחרר</button>
+            </section>
             <div class="annotation-legend">
               <span class="legend-item locked">■ ננעל</span>
               <span class="legend-item searching">■ מחפש</span>
@@ -2791,6 +2805,7 @@
     </script>
     <script type="module" src="./modules/flightbook.mjs?v=__APP_VERSION__"></script>
     <script type="module" src="./modules/debrief-cameras.mjs?v=__APP_VERSION__"></script>
+    <script type="module" src="./modules/gimbal-pad.mjs?v=__APP_VERSION__"></script>
     <script type="module" src="./modules/cam0-panel.mjs?v=__APP_VERSION__"></script>
     <script type="module" src="./modules/fc-write-ack.mjs?v=__APP_VERSION__"></script>
     <script type="module" src="./modules/cam1-panel.mjs?v=__APP_VERSION__"></script>
