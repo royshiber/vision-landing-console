@@ -58,127 +58,131 @@ describe('Status tab layout contract', () => {
     await page.waitForTimeout(250);
   }
 
-  async function measure() {
+  async function audit() {
     return page.evaluate(() => {
       const box = (el) => {
         const r = el.getBoundingClientRect();
         return { left: r.left, top: r.top, right: r.right, bottom: r.bottom, width: r.width, height: r.height };
       };
-      const cats = [...document.querySelectorAll('.pulse-cat')].map((el) => ({
+      const shown = (el) => {
+        if (!el || el.closest('[hidden]')) return false;
+        const cs = getComputedStyle(el);
+        if (cs.display === 'none' || cs.visibility === 'hidden') return false;
+        const r = el.getBoundingClientRect();
+        return r.width > 1 && r.height > 1;
+      };
+      const ownText = (el) => [...el.childNodes]
+        .filter((n) => n.nodeType === Node.TEXT_NODE)
+        .map((n) => n.textContent.trim())
+        .filter(Boolean)
+        .join(' ');
+      const root = document.getElementById('pulse');
+      const textFails = [];
+      for (const el of root.querySelectorAll('*')) {
+        if (!shown(el)) continue;
+        const text = ownText(el);
+        if (!text) continue;
+        const cs = getComputedStyle(el);
+        const font = parseFloat(cs.fontSize);
+        const card = el.closest('.pulse-cat');
+        const er = el.getBoundingClientRect();
+        const cr = card ? card.getBoundingClientRect() : null;
+        const overflowX = el.scrollWidth - el.clientWidth;
+        const overflowY = el.scrollHeight - el.clientHeight;
+        const inside = !cr || (
+          er.left >= cr.left - 1 && er.right <= cr.right + 1
+          && er.top >= cr.top - 1 && er.bottom <= cr.bottom + 1
+        );
+        if (overflowX > 0 || overflowY > 0 || font < 11 || !inside) {
+          textFails.push({
+            text: text.slice(0, 80),
+            tag: el.tagName,
+            cls: el.className && String(el.className).slice(0, 80),
+            overflowX,
+            overflowY,
+            font,
+            inside,
+          });
+        }
+      }
+      const cats = [...document.querySelectorAll('.pulse-cat')].filter(shown).map((el) => ({
         id: el.dataset.pulseCat,
         ...box(el),
       }));
-      const summary = [...document.querySelectorAll('.pulse-summary-cat')].map(box);
-      const rows = [...document.querySelectorAll('.pulse-cat .status-row-main')].map((el) => {
-        const r = box(el);
-        const name = el.querySelector('.status-row-name, .vlr-name');
-        const pill = el.querySelector('.status-row-pill, .vlr-chip');
-        const nameBox = name ? box(name) : null;
-        const pillBox = pill ? box(pill) : null;
-        return {
-          ...r,
-          nameOverflow: name ? name.scrollWidth - name.clientWidth : 0,
-          pillText: pill?.textContent || '',
-          nameInside: !nameBox || (nameBox.left >= r.left - 1 && nameBox.right <= r.right + 1),
-          pillInside: !pillBox || (pillBox.left >= r.left - 1 && pillBox.right <= r.right + 1),
-        };
+      const overlaps = [];
+      const groups = [
+        [...document.querySelectorAll('.pulse-summary-cat')],
+        [...document.querySelectorAll('.pulse-cat')],
+        [...document.querySelectorAll('.pulse-dock > *')],
+      ];
+      document.querySelectorAll('.status-row-main, .pulse-cat-rows, .vlr-list').forEach((parent) => {
+        groups.push([...parent.children]);
       });
-      const home = document.querySelector('.pulse-home.pulse-status-home');
+      for (const group of groups) {
+        const vis = group.filter(shown);
+        for (let i = 0; i < vis.length; i += 1) {
+          for (let j = i + 1; j < vis.length; j += 1) {
+            const a = box(vis[i]);
+            const b = box(vis[j]);
+            const hit = a.left < b.right - 1 && a.right > b.left + 1 && a.top < b.bottom - 1 && a.bottom > b.top + 1;
+            if (hit) {
+              overlaps.push({
+                a: (vis[i].dataset.pulseCat || vis[i].className || vis[i].textContent || '').toString().slice(0, 40),
+                b: (vis[j].dataset.pulseCat || vis[j].className || vis[j].textContent || '').toString().slice(0, 40),
+              });
+            }
+          }
+        }
+      }
       const grid = document.getElementById('pulseCatGrid');
       const cols = getComputedStyle(grid).gridTemplateColumns.split(' ').filter(Boolean);
       return {
+        textFails,
+        overlaps,
         cats,
-        summary,
-        rows,
         cols: cols.length,
-        homeScroll: home.scrollHeight - home.clientHeight,
-        docOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
         dir: document.documentElement.getAttribute('dir'),
-        vh: window.innerHeight,
+        docOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
         vw: window.innerWidth,
       };
     });
   }
 
-  it('fits every category on one screen at 1366x768 without page scroll', async () => {
-    await openStatus(1366, 768);
-    const m = await measure();
+  const viewports = [
+    [1024, 576, 3],
+    [1280, 720, 3],
+    [1366, 768, 3],
+    [1440, 900, 3],
+    [1920, 1080, 4],
+    [360, 740, 1],
+  ];
+
+  it.each(viewports)('keeps every visible status string inside its box at %ix%i', async (width, height, cols) => {
+    await openStatus(width, height);
+    const m = await audit();
     expect(m.dir).toBe('rtl');
-    expect(m.cols).toBe(3);
+    expect(m.cols).toBe(cols);
     expect(m.cats.map((c) => c.id)).toEqual(['links', 'jetson', 'fc', 'vision', 'landing']);
-    expect(m.homeScroll).toBeLessThanOrEqual(2);
     expect(m.docOverflow).toBeLessThanOrEqual(1);
-    expect(m.summary.length).toBe(5);
+    expect(m.textFails, JSON.stringify(m.textFails, null, 2)).toEqual([]);
+    expect(m.overlaps, JSON.stringify(m.overlaps, null, 2)).toEqual([]);
     for (const cat of m.cats) {
-      expect(cat.top).toBeGreaterThanOrEqual(-1);
-      expect(cat.bottom).toBeLessThanOrEqual(m.vh + 1);
+      expect(cat.left).toBeGreaterThanOrEqual(-1);
+      expect(cat.right).toBeLessThanOrEqual(m.vw + 1);
       expect(cat.width).toBeGreaterThan(80);
-      expect(cat.height).toBeGreaterThan(40);
     }
-    for (let i = 0; i < m.cats.length; i += 1) {
-      for (let j = i + 1; j < m.cats.length; j += 1) {
-        expect(interiorsIntersect(m.cats[i], m.cats[j]), `${m.cats[i].id} overlaps ${m.cats[j].id}`).toBe(false);
-      }
-    }
-    for (const row of m.rows) {
-      expect(row.pillInside, row.pillText).toBe(true);
-      expect(row.nameInside).toBe(true);
-      expect(row.height).toBeGreaterThan(16);
-    }
-    await page.screenshot({ path: path.join(shotDir, '1366x768.png') });
+    await page.screenshot({ path: path.join(shotDir, `${width}x${height}.png`) });
   }, 30000);
 
-  it('uses four columns at 1920x1080 and one column at 360x800', async () => {
-    await openStatus(1920, 1080);
-    const wide = await measure();
-    expect(wide.cols).toBe(4);
-    expect(wide.homeScroll).toBeLessThanOrEqual(2);
-    expect(wide.docOverflow).toBeLessThanOrEqual(1);
-    for (let i = 0; i < wide.cats.length; i += 1) {
-      for (let j = i + 1; j < wide.cats.length; j += 1) {
-        expect(interiorsIntersect(wide.cats[i], wide.cats[j])).toBe(false);
-      }
-      expect(wide.cats[i].bottom).toBeLessThanOrEqual(wide.vh + 1);
-    }
-    await page.screenshot({ path: path.join(shotDir, '1920x1080.png') });
-
-    await openStatus(360, 800);
-    const narrow = await measure();
-    expect(narrow.cols).toBe(1);
-    expect(narrow.docOverflow).toBeLessThanOrEqual(1);
-    for (const cat of narrow.cats) {
-      expect(cat.left).toBeGreaterThanOrEqual(-1);
-      expect(cat.right).toBeLessThanOrEqual(narrow.vw + 1);
-    }
+  it('keeps the opened parameter action inside the landing card', async () => {
+    await openStatus(1024, 576);
     await page.evaluate(() => {
-      const btn = document.querySelector('.vlr-row[data-id="plnd_profile"] .status-row-main');
-      const home = document.querySelector('.pulse-home.pulse-status-home');
-      if (home && btn) {
-        const homeRect = home.getBoundingClientRect();
-        const btnRect = btn.getBoundingClientRect();
-        home.scrollTop += (btnRect.top - homeRect.top) - 12;
-      }
-      btn?.click();
+      document.querySelector('.vlr-row[data-id="plnd_profile"] .status-row-main')?.click();
     });
-    const overlap = await page.evaluate(() => {
-      const row = document.querySelector('.vlr-row[data-id="plnd_profile"]');
-      const btn = row.querySelector('.vlr-open-params');
-      const pill = row.querySelector('.vlr-chip');
-      const a = btn.getBoundingClientRect();
-      const b = pill.getBoundingClientRect();
-      const card = row.closest('.pulse-cat').getBoundingClientRect();
-      const cs = getComputedStyle(btn);
-      return {
-        overlap: a.left < b.right - 1 && a.right > b.left + 1 && a.top < b.bottom - 1 && a.bottom > b.top + 1,
-        inside: a.left >= card.left - 1 && a.right <= card.right + 1,
-        label: btn.textContent,
-        visible: cs.display !== 'none' && cs.visibility !== 'hidden' && a.width > 0 && a.height > 0,
-      };
-    });
-    expect(overlap.visible).toBe(true);
-    expect(overlap.label).toBe('פתח בפרמטרים');
-    expect(overlap.overlap).toBe(false);
-    expect(overlap.inside).toBe(true);
-    await page.screenshot({ path: path.join(shotDir, '360x800.png') });
-  }, 40000);
+    const m = await audit();
+    expect(m.textFails, JSON.stringify(m.textFails, null, 2)).toEqual([]);
+    expect(m.overlaps, JSON.stringify(m.overlaps, null, 2)).toEqual([]);
+    const label = await page.locator('.vlr-row[data-id="plnd_profile"] .vlr-open-params').textContent();
+    expect(label).toBe('פתח בפרמטרים');
+  }, 30000);
 });

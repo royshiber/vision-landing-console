@@ -4819,9 +4819,12 @@ body:has(#pulse.panel.visible) .layout {
 }
 .pulse-health-note {
   margin: 0;
-  font-size: 0.68rem;
+  font-size: 11px;
   font-weight: 600;
   color: #8b97ab;
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 .pulse-status-grid {
   display: grid;
@@ -5990,8 +5993,9 @@ body:has(#pulse.panel.visible) .layout {
   flex-direction: column;
   align-items: flex-start;
   gap: 2px;
-  flex: 1 1 150px;
-  min-width: 0;
+  flex: 1 1 11rem;
+  min-width: min-content;
+  max-width: 100%;
   padding: 4px 8px;
   border-radius: 8px;
   border: 1px solid rgba(148, 168, 198, 0.18);
@@ -6006,20 +6010,24 @@ body:has(#pulse.panel.visible) .layout {
   border-color: #4c8dff;
 }
 .pulse-summary-title {
-  font-size: 0.72rem;
+  font-size: 12px;
   font-weight: 800;
-  line-height: 1.2;
+  line-height: 1.3;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 .pulse-summary-counts {
   display: flex;
   flex-wrap: wrap;
   gap: 4px 8px;
   min-width: 0;
+  max-width: 100%;
 }
 .pulse-count {
-  font-size: 0.62rem;
+  display: inline-block;
+  font-size: 11px;
   font-weight: 700;
-  line-height: 1.2;
+  line-height: 16px;
   white-space: nowrap;
 }
 .pulse-count[data-bucket="ok"] { color: #86efac; }
@@ -6027,7 +6035,8 @@ body:has(#pulse.panel.visible) .layout {
 .pulse-count[data-bucket="error"] { color: #fca5a5; }
 .pulse-count[data-bucket="unknown"] { color: #94a3b8; }
 .pulse-cat-grid {
-  flex: 1 1 auto;
+  flex: 0 0 auto;
+  height: auto;
   min-height: 0;
   min-width: 0;
   display: grid;
@@ -6035,12 +6044,12 @@ body:has(#pulse.panel.visible) .layout {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   grid-auto-rows: auto;
   align-content: start;
-  overflow: hidden;
+  overflow: visible;
 }
 .pulse-cat {
   min-width: 0;
-  min-height: 0;
-  overflow: auto;
+  min-height: min-content;
+  overflow: visible;
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -6063,13 +6072,16 @@ body:has(#pulse.panel.visible) .layout {
 }
 .pulse-cat .vlr-purpose,
 .pulse-cat .vlr-success {
-  display: -webkit-box;
-  -webkit-line-clamp: 1;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+  display: block;
   position: static;
   width: auto;
   height: auto;
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.35;
+  white-space: normal;
+  overflow: visible;
+  overflow-wrap: anywhere;
   clip: auto;
 }
 .pulse-cat-rows,
@@ -6094,14 +6106,14 @@ body:has(#pulse.panel.visible) .layout {
 .status-row-main {
   grid-area: main;
   display: grid;
-  grid-template-columns: minmax(6.5rem, 1.4fr) minmax(0, 1fr) auto;
-  grid-template-areas: "name reason pill";
-  gap: 6px;
-  align-items: center;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: "name pill" "reason reason";
+  gap: 2px 8px;
+  align-items: start;
   width: 100%;
   min-width: 0;
   min-height: 26px;
-  padding: 2px 6px;
+  padding: 3px 6px;
   border: 0;
   border-radius: 6px;
   background: rgba(8, 12, 20, 0.55);
@@ -6109,6 +6121,7 @@ body:has(#pulse.panel.visible) .layout {
   font: inherit;
   text-align: start;
   cursor: default;
+  overflow: visible;
 }
 button.status-row-main {
   cursor: pointer;
@@ -6117,44 +6130,48 @@ button.status-row-main {
 .pulse-cat .status-row-main .vlr-name {
   grid-area: name;
   min-width: 0;
-  font-size: 0.72rem;
+  font-size: 12px;
   font-weight: 800;
+  line-height: 18px;
   color: #e8edf6;
   white-space: normal;
-  overflow: hidden;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+  overflow: visible;
+  overflow-wrap: anywhere;
 }
 .status-row-reason,
 .pulse-cat .status-row-main .vlr-missing {
   grid-area: reason;
   min-width: 0;
   margin: 0;
-  font-size: 0.62rem;
+  font-size: 11px;
   font-weight: 600;
+  line-height: 16px;
   color: #8b97ab;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  overflow: visible;
+  overflow-wrap: anywhere;
+}
+.status-row-reason:empty,
+.pulse-cat .status-row-main .vlr-missing:empty {
+  display: none;
 }
 .status-row-pill,
 .pulse-cat .status-row-main .vlr-chip {
   grid-area: pill;
   justify-self: end;
+  align-self: start;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 3.6rem;
-  max-width: 7.5rem;
+  width: max-content;
+  max-width: none;
   padding: 1px 7px;
   border-radius: 999px;
-  font-size: 0.64rem;
+  font-size: 11px;
   font-weight: 800;
-  line-height: 1.35;
+  line-height: 16px;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow: visible;
   background: rgba(148, 168, 198, 0.12);
   color: #9aa8b8;
 }
@@ -6172,10 +6189,16 @@ button.status-row-main {
 .pulse-cat-fold[hidden] {
   display: none !important;
 }
+#pulse details:not([open]) > :not(summary) {
+  display: none !important;
+}
 .status-service-line {
   margin: 0;
-  font-size: 0.64rem;
+  font-size: 11px;
+  line-height: 1.35;
   color: #a8b4c8;
+  white-space: normal;
+  overflow: visible;
   overflow-wrap: anywhere;
 }
 .pulse-cat-fold {
@@ -6189,9 +6212,43 @@ button.status-row-main {
 }
 .pulse-cat-more > summary {
   cursor: pointer;
-  font-size: 0.68rem;
+  font-size: 11px;
   font-weight: 800;
+  line-height: 1.35;
   color: #cbd5e1;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+#pulse .pulse-talk-copy p,
+#pulse .pulse-talk-btn,
+#pulse .pulse-version-line,
+#pulse .pulse-add-widget-title,
+#pulse .pulse-home-pref-btn,
+#pulse .pulse-version-k,
+#pulse .pulse-version-state,
+#pulse .vlr-token,
+#pulse .vlr-key,
+#pulse .vlr-key-token,
+#pulse .vlr-key-name,
+#pulse .vlr-key-chip,
+#pulse .vlr-open-params {
+  font-size: 11px;
+  line-height: 16px;
+}
+#pulse .pulse-talk-btn,
+#pulse .pulse-add-widget-title,
+#pulse .pulse-home-pref-btn,
+#pulse .vlr-token,
+#pulse .vlr-key {
+  white-space: normal;
+  overflow: visible;
+  overflow-wrap: anywhere;
+}
+#pulse .pulse-fc-identity dd {
+  overflow: visible;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-overflow: unset;
 }
 .pulse-dock {
   display: flex;
@@ -6248,11 +6305,7 @@ button.status-row-main {
     min-height: min-content;
   }
   .pulse-summary-cat {
-    flex: 1 1 calc(50% - 6px);
-  }
-  .status-row-main {
-    grid-template-columns: minmax(0, 1fr) auto;
-    grid-template-areas: "name pill" "reason pill";
+    flex: 1 1 100%;
   }
 }
 
