@@ -1,0 +1,460 @@
+{
+  "note": "Known calques. The scanner fails only when a banned term shows up beyond this list. Removing a row is safe.",
+  "offenders": [
+    {
+      "file": "lib/assist/assist-hebrew.mjs",
+      "line": 9,
+      "term": "ענף",
+      "text": "התחלת סוכן תרוץ על ענף מבודד.",
+      "suggested": "התחלת סוכן תרוץ על בראנץ׳ מבודד."
+    },
+    {
+      "file": "lib/assist/assist-hebrew.mjs",
+      "line": 10,
+      "term": "ענף",
+      "text": "לא יתבצע מיזוג לענף הראשי.",
+      "suggested": "לא יתבצע מיזוג לבראנץ׳ הראשי."
+    },
+    {
+      "file": "lib/assist/assist-hebrew.mjs",
+      "line": 12,
+      "term": "תצורת",
+      "text": "לא תוחל תצורת מחשב משימה.",
+      "suggested": "לא תוחל קונפיגורציה של מחשב המשימה."
+    },
+    {
+      "file": "lib/assist/assist-hebrew.mjs",
+      "line": 40,
+      "term": "פריסה",
+      "text": "AIRVIX Ask לא ישלח פקודות טיסה, לא יחליף מקור ניווט בבקר, ולא יפעיל פריסה או סוכן בלי מסלול מאושר.",
+      "suggested": "AIRVIX Ask לא ישלח פקודות טיסה, לא יחליף מקור ניווט בבקר, ולא יפעיל דיפלוי או סוכן בלי מסלול מאושר."
+    },
+    {
+      "file": "lib/assist/assist-hebrew.mjs",
+      "line": 54,
+      "term": "פריסה",
+      "text": "הבקשה היא פריסה, הפעלה מחדש, או פעולת מערכת.",
+      "suggested": "הבקשה היא דיפלוי, הפעלה מחדש, או פעולת מערכת."
+    },
+    {
+      "file": "lib/assist/assist-hebrew.mjs",
+      "line": 114,
+      "term": "ענף",
+      "text": "המשימה נוצרה.\nהסוכן רץ על הענף המבודד.",
+      "suggested": "המשימה נוצרה.\nהסוכן רץ על הבראנץ׳ המבודד."
+    },
+    {
+      "file": "lib/assist/assist-hebrew.mjs",
+      "line": 115,
+      "term": "ענף",
+      "text": "המשימה נוצרה.\nהסוכן הופעל על הענף המבודד.",
+      "suggested": "המשימה נוצרה.\nהסוכן הופעל על הבראנץ׳ המבודד."
+    },
+    {
+      "file": "lib/assist/assist-hebrew.mjs",
+      "line": 117,
+      "term": "ענף",
+      "text": "המשימה נוצרה.\nיצירת הענף המבודד נכשלה.\nלא הופעל סוכן.",
+      "suggested": "המשימה נוצרה.\nיצירת הבראנץ׳ המבודד נכשלה.\nלא הופעל סוכן."
+    },
+    {
+      "file": "lib/assist/assist-hebrew.mjs",
+      "line": 120,
+      "term": "ענף",
+      "text": "הסוכן רץ על הענף המבודד.",
+      "suggested": "הסוכן רץ על הבראנץ׳ המבודד."
+    },
+    {
+      "file": "lib/assist/assist-hebrew.mjs",
+      "line": 121,
+      "term": "ענף",
+      "text": "הסוכן ממתין בתור על הענף המבודד.",
+      "suggested": "הסוכן ממתין בתור על הבראנץ׳ המבודד."
+    },
+    {
+      "file": "lib/assist/assist-hebrew.mjs",
+      "line": 122,
+      "term": "ענף",
+      "text": "הסוכן ממתין על הענף המבודד.",
+      "suggested": "הסוכן ממתין על הבראנץ׳ המבודד."
+    },
+    {
+      "file": "lib/assist/assist-hebrew.mjs",
+      "line": 123,
+      "term": "ענף",
+      "text": "הסוכן סיים על הענף המבודד.",
+      "suggested": "הסוכן סיים על הבראנץ׳ המבודד."
+    },
+    {
+      "file": "lib/assist/assist-hebrew.mjs",
+      "line": 124,
+      "term": "ענף",
+      "text": "הסוכן נכשל על הענף המבודד.",
+      "suggested": "הסוכן נכשל על הבראנץ׳ המבודד."
+    },
+    {
+      "file": "lib/assist/assist-hebrew.mjs",
+      "line": 131,
+      "term": "ענף",
+      "text": "ענף",
+      "suggested": "בראנץ׳"
+    },
+    {
+      "file": "lib/assist/assist-hebrew.mjs",
+      "line": 202,
+      "term": "תצורה",
+      "text": "תצורה",
+      "suggested": "קונפיגורציה"
+    },
+    {
+      "file": "lib/auto-config-recipes.mjs",
+      "line": 428,
+      "term": "תצורה",
+      "text": "אתה מהנדס תצורה ArduPilot מומחה. המשתמש מדווח על בעיה עם רכיב.",
+      "suggested": "אתה מהנדס קונפיגורציה ArduPilot מומחה. המשתמש מדווח על בעיה עם רכיב."
+    },
+    {
+      "file": "lib/auto-config-recipes.mjs",
+      "line": 472,
+      "term": "מחרוזת",
+      "text": "- recommended_value חייב להיות מחרוזת (גם אם מספר).",
+      "suggested": "- recommended_value חייב להיות טקסט (גם אם מספר)."
+    },
+    {
+      "file": "lib/companion-connection.mjs",
+      "line": 28,
+      "term": "אסימון",
+      "text": "חסר אסימון",
+      "suggested": "חסר טוקן"
+    },
+    {
+      "file": "lib/companion-connection.mjs",
+      "line": 29,
+      "term": "אסימון",
+      "text": "חסר אסימון. הזינו אותו במתקדם.",
+      "suggested": "חסר טוקן. הזינו אותו במתקדם."
+    },
+    {
+      "file": "lib/companion-connection.mjs",
+      "line": 37,
+      "term": "אסימון",
+      "text": "האסימון נדחה. בדקו את האסימון ונסו שוב.",
+      "suggested": "הטוקן נדחה. בדקו את הטוקן ונסו שוב."
+    },
+    {
+      "file": "lib/companion-connection.mjs",
+      "line": 38,
+      "term": "אסימון",
+      "text": "כתובת לבד לא מספיקה. צריך גם אסימון.",
+      "suggested": "כתובת לבד לא מספיקה. צריך גם טוקן."
+    },
+    {
+      "file": "lib/companion-connection.mjs",
+      "line": 41,
+      "term": "אסימון",
+      "text": "צריך כתובת ואסימון. כתובת לבד לא מספיקה.",
+      "suggested": "צריך כתובת וטוקן. כתובת לבד לא מספיקה."
+    },
+    {
+      "file": "lib/companion-link.mjs",
+      "line": 242,
+      "term": "אסימון",
+      "text": "חסר אסימון. הזינו אותו במתקדם.",
+      "suggested": "חסר טוקן. הזינו אותו במתקדם."
+    },
+    {
+      "file": "lib/develop-chat.mjs",
+      "line": 353,
+      "term": "ענף",
+      "text": "בונה את הקוד על ענף מבודד. תצוגה חיה בלבד. אין העלאה ואין התקנה.",
+      "suggested": "בונה את הקוד על בראנץ׳ מבודד. תצוגה חיה בלבד. אין העלאה ואין התקנה."
+    },
+    {
+      "file": "lib/routes/core-api.mjs",
+      "line": 183,
+      "term": "מחרוזת",
+      "text": "חסרה מחרוזת חיפוש",
+      "suggested": "חסר טקסט לחיפוש"
+    },
+    {
+      "file": "lib/routes/core-api.mjs",
+      "line": 1235,
+      "term": "קושחה",
+      "text": "לא דווחה גרסת קושחה",
+      "suggested": "לא דווחה גרסת פירמוור"
+    },
+    {
+      "file": "public/app.js",
+      "line": 1240,
+      "term": "קושחה",
+      "text": "בצע «READ — מהרחפן» כדי לבדוק אם השם קיים בקושחה",
+      "suggested": "בצע «READ — מהרחפן» כדי לבדוק אם השם קיים בפירמוור"
+    },
+    {
+      "file": "public/app.js",
+      "line": 1245,
+      "term": "קושחה",
+      "text": "לא הופיע אחרי READ — ייתכן שאין פרמטר בשם זה בגרסת הקושחה; WRITE עלול להיכשל",
+      "suggested": "לא הופיע אחרי READ — ייתכן שאין פרמטר בשם זה בגרסת הפירמוור; WRITE עלול להיכשל"
+    },
+    {
+      "file": "public/app.js",
+      "line": 3146,
+      "term": "אסימון",
+      "text": "חסר אסימון",
+      "suggested": "חסר טוקן"
+    },
+    {
+      "file": "public/app.js",
+      "line": 5363,
+      "term": "אסימון",
+      "text": "צריך כתובת ואסימון. כתובת לבד לא מספיקה.",
+      "suggested": "צריך כתובת וטוקן. כתובת לבד לא מספיקה."
+    },
+    {
+      "file": "public/app.js",
+      "line": 5434,
+      "term": "אסימון",
+      "text": "חסר אסימון",
+      "suggested": "חסר טוקן"
+    },
+    {
+      "file": "public/app.js",
+      "line": 5439,
+      "term": "אסימון",
+      "text": "חסר אסימון",
+      "suggested": "חסר טוקן"
+    },
+    {
+      "file": "public/app.js",
+      "line": 5545,
+      "term": "אסימון",
+      "text": "חסר אסימון",
+      "suggested": "חסר טוקן"
+    },
+    {
+      "file": "public/app.js",
+      "line": 5591,
+      "term": "אסימון",
+      "text": "מחשב משימה לא מגיב. בדקו כתובת ואסימון.",
+      "suggested": "מחשב משימה לא מגיב. בדקו כתובת וטוקן."
+    },
+    {
+      "file": "public/app.js",
+      "line": 14926,
+      "term": "ענף",
+      "text": "מפעיל שולט בשכבת התצוגה מתוך המוצר, בלי לצאת לענף חיצוני.",
+      "suggested": "מפעיל שולט בשכבת התצוגה מתוך המוצר, בלי לצאת לבראנץ׳ חיצוני."
+    },
+    {
+      "file": "public/app.js",
+      "line": 15274,
+      "term": "ענף",
+      "text": "היקף היכולת חייב להישאר מבודד בענף",
+      "suggested": "היקף היכולת חייב להישאר מבודד בבראנץ׳"
+    },
+    {
+      "file": "public/app.js",
+      "line": 15406,
+      "term": "ענף",
+      "text": "יוצר יכולת ומפעיל סוכן על ענף מבודד",
+      "suggested": "יוצר יכולת ומפעיל סוכן על בראנץ׳ מבודד"
+    },
+    {
+      "file": "public/app.js",
+      "line": 15806,
+      "term": "ענף",
+      "text": "להפעיל סוכן פיתוח?\n\nכותרת: ${title}\nתיאור: ${desc}\nסיווג: ${taxonomy}\nיעד: ${target}\nעדיפות: ${priority}\n\nאזהרה: הסוכן ישנה קוד בענף וב-worktree מבודדים.\nענף: ${branch}\nworktree: ${worktree}",
+      "suggested": "להפעיל סוכן פיתוח?\n\nכותרת: ${title}\nתיאור: ${desc}\nסיווג: ${taxonomy}\nיעד: ${target}\nעדיפות: ${priority}\n\nאזהרה: הסוכן ישנה קוד בבראנץ׳ וב-worktree מבודדים.\nבראנץ׳: ${branch}\nworktree: ${worktree}"
+    },
+    {
+      "file": "public/app.js",
+      "line": 15827,
+      "term": "ענף",
+      "text": "ליצור worktree מבודד?\n\nענף: ${branch}\nworktree: ${worktree}",
+      "suggested": "ליצור worktree מבודד?\n\nבראנץ׳: ${branch}\nworktree: ${worktree}"
+    },
+    {
+      "file": "public/app.js",
+      "line": 16446,
+      "term": "תצורה",
+      "text": "תצורה",
+      "suggested": "קונפיגורציה"
+    },
+    {
+      "file": "public/app.js",
+      "line": 16738,
+      "term": "ענף",
+      "text": "יוצר יכולת ומפעיל סוכן על ענף מבודד",
+      "suggested": "יוצר יכולת ומפעיל סוכן על בראנץ׳ מבודד"
+    },
+    {
+      "file": "public/app.js",
+      "line": 16980,
+      "term": "ענף",
+      "text": "ענף",
+      "suggested": "בראנץ׳"
+    },
+    {
+      "file": "public/app.js",
+      "line": 17021,
+      "term": "ענף",
+      "text": "הסוכן סיים על הענף המבודד.",
+      "suggested": "הסוכן סיים על הבראנץ׳ המבודד."
+    },
+    {
+      "file": "public/app.js",
+      "line": 17022,
+      "term": "ענף",
+      "text": "הסוכן נכשל על הענף המבודד.",
+      "suggested": "הסוכן נכשל על הבראנץ׳ המבודד."
+    },
+    {
+      "file": "public/app.js",
+      "line": 17024,
+      "term": "ענף",
+      "text": "הסוכן ממתין בתור על הענף המבודד.",
+      "suggested": "הסוכן ממתין בתור על הבראנץ׳ המבודד."
+    },
+    {
+      "file": "public/app.js",
+      "line": 17025,
+      "term": "ענף",
+      "text": "הסוכן ממתין על הענף המבודד.",
+      "suggested": "הסוכן ממתין על הבראנץ׳ המבודד."
+    },
+    {
+      "file": "public/app.js",
+      "line": 17028,
+      "term": "ענף",
+      "text": "הסוכן רץ על הענף המבודד.",
+      "suggested": "הסוכן רץ על הבראנץ׳ המבודד."
+    },
+    {
+      "file": "public/index.html",
+      "line": 109,
+      "term": "אסימון",
+      "text": "אסימון מחשב משימה",
+      "suggested": "טוקן מחשב משימה"
+    },
+    {
+      "file": "public/index.html",
+      "line": 112,
+      "term": "אסימון",
+      "text": "אסימון",
+      "suggested": "טוקן"
+    },
+    {
+      "file": "public/index.html",
+      "line": 1268,
+      "term": "אסימון",
+      "text": "צריך כתובת ואסימון. כתובת לבד לא מספיקה.",
+      "suggested": "צריך כתובת וטוקן. כתובת לבד לא מספיקה."
+    },
+    {
+      "file": "public/index.html",
+      "line": 1277,
+      "term": "אסימון",
+      "text": "אסימון",
+      "suggested": "טוקן"
+    },
+    {
+      "file": "public/index.html",
+      "line": 1544,
+      "term": "נקודת קצה",
+      "text": "GCS ↔ RFD900X ↔ FC — Jetson אינו נקודת קצה רדיו",
+      "suggested": "GCS ↔ RFD900X ↔ FC — Jetson אינו קצה הרדיו"
+    },
+    {
+      "file": "public/index.html",
+      "line": 1569,
+      "term": "תצורה",
+      "text": "תצורה לפי שכבת בטיחות",
+      "suggested": "קונפיגורציה לפי שכבת בטיחות"
+    },
+    {
+      "file": "public/index.html",
+      "line": 1572,
+      "term": "תצורה",
+      "text": "שמור תצורה",
+      "suggested": "שמור קונפיגורציה"
+    },
+    {
+      "file": "public/index.html",
+      "line": 1622,
+      "term": "ענף",
+      "text": "ענף —",
+      "suggested": "בראנץ׳ —"
+    },
+    {
+      "file": "public/index.html",
+      "line": 1658,
+      "term": "פריסה",
+      "text": "מצב פריסה: —",
+      "suggested": "מצב דיפלוי: —"
+    },
+    {
+      "file": "public/index.html",
+      "line": 1691,
+      "term": "תצורה",
+      "text": "גיבוי תצורה",
+      "suggested": "גיבוי קונפיגורציה"
+    },
+    {
+      "file": "public/index.html",
+      "line": 1822,
+      "term": "ענף",
+      "text": "ענף",
+      "suggested": "בראנץ׳"
+    },
+    {
+      "file": "public/index.html",
+      "line": 1886,
+      "term": "ענף",
+      "text": "משתמש → ממשק מוצר → Agent API → Cursor → ענף → אימות → תוצאה",
+      "suggested": "משתמש → ממשק מוצר → Agent API → Cursor → בראנץ׳ → אימות → תוצאה"
+    },
+    {
+      "file": "public/index.html",
+      "line": 1907,
+      "term": "בקשת מיזוג",
+      "text": "בדיקות ובקשת מיזוג",
+      "suggested": "בדיקות ו-PR"
+    },
+    {
+      "file": "public/index.html",
+      "line": 1913,
+      "term": "בקשת מיזוג",
+      "text": "בקשת מיזוג",
+      "suggested": "PR"
+    },
+    {
+      "file": "public/index.html",
+      "line": 1915,
+      "term": "בקשת מיזוג",
+      "text": "בקשת מיזוג",
+      "suggested": "PR"
+    },
+    {
+      "file": "public/index.html",
+      "line": 1920,
+      "term": "בקשת מיזוג",
+      "text": "אין בקשת מיזוג עדיין.",
+      "suggested": "אין PR עדיין."
+    },
+    {
+      "file": "public/index.html",
+      "line": 2028,
+      "term": "ענף",
+      "text": "ענף —",
+      "suggested": "בראנץ׳ —"
+    },
+    {
+      "file": "public/index.html",
+      "line": 2385,
+      "term": "קושחה",
+      "text": "גרסה = איזה תוכנה מותקנת. פרמטרים = ערכי הגדרה בתוך הקושחה (נשמרים ב־FC / בפרופיל בשרת). אינם משנים מספר גרסת הקונסול.",
+      "suggested": "גרסה = איזה תוכנה מותקנת. פרמטרים = ערכי הגדרה בתוך הפירמוור (נשמרים ב־FC / בפרופיל בשרת). אינם משנים מספר גרסת הקונסול."
+    }
+  ]
+}

@@ -1,5 +1,26 @@
 [
   {
+    "version": "1.02.340",
+    "date": "2026-09-26",
+    "changes": [
+      {
+        "type": "test",
+        "title": "Tests",
+        "detail": "hebrew-copy-baseline.json, hebrew-copy-glossary.test.mjs"
+      },
+      {
+        "type": "docs",
+        "title": "Documentation",
+        "detail": "hebrew-copy-glossary.md"
+      },
+      {
+        "type": "chore",
+        "title": "Build scripts",
+        "detail": "hebrew-copy-scan.mjs"
+      }
+    ]
+  },
+  {
     "version": "1.02.339",
     "date": "2026-09-26",
     "changes": [
