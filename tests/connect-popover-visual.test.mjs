@@ -44,10 +44,10 @@ const scenarios = {
     radio: 'connected',
     cellular: 'connected',
     modemPresent: true,
-    radioViaRelay: true,
     radioLive: {
       connected: true,
-      type: 'tcp',
+      type: 'serial',
+      serialPort: 'COM5',
       heartbeatCount: 8,
       framesRx: 40,
       lastHeartbeatAgeMs: 280,
@@ -239,7 +239,7 @@ describe('connect popover layout and mocked states', () => {
           contentType: 'application/json',
           body: JSON.stringify({
             ok: true,
-            appVersion: '1.02.335',
+            appVersion: '1.02.340',
             features: { mavlinkQuickConnect: true, dualLink: true },
           }),
         });

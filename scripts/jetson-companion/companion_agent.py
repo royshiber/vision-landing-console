@@ -1,7 +1,19 @@
 #!/usr/bin/env python3
 """Vision Landing Console — Jetson companion: MAVLink relay + HTTP API + heartbeat.
 
-AGENT_VERSION 2.3.11 = 2.3.10 plus HiLink signal bars from SignalIcon /
+AGENT_VERSION 2.5.5 keeps the flight logger under one tenth of a core at
+100 messages per second: the tlog stores raw frames, only detector messages
+are parsed, and tlog plus status flush about once a second. 2.5.4 keeps
+capture at the sensor rate: PNG only on a snapshot, JPEG on another thread
+via cv2.imencode when OpenCV imports (numpy Huffman is only the fallback),
+and auto exposure starts short and raises gain before the shutter. 2.5.3 aligns
+v4l2_format with the 64-bit kernel so VIDIOC_S_FMT
+is accepted. 2.5.2 signs Cloud Storage with GOOG4-HMAC-SHA256 and x-goog
+headers only, and starts the flight logger from vlc-companion. 2.5.1 adds
+the OV9281 Cam0 pipeline (capture, AE, frame bus,
+marker output, calibration, stream, record) on top of the 2.5.0 flight logger.
+It does not send flight commands. 2.5.0 reads a separate flight-log status
+file into health. 2.3.11 added HiLink signal bars from SignalIcon /
 maxsignal, a CurrentNetworkTypeEx label, and the PLMN operator name.
 dBm fields stay null when the modem leaves them empty. 2.3.10 counted a
 HiLink modem as up when operstate is "unknown" and carrier is 1 or
@@ -47,7 +59,7 @@ RELAY_PORT = int(os.environ.get("VLC_RELAY_PORT", "5770"))
 HTTP_PORT = int(os.environ.get("VLC_HTTP_PORT", "8081"))
 HTTP_IDLE_S = float(os.environ.get("VLC_HTTP_IDLE_S", "30") or "30")
 HTTP_MAX_BODY = 16 * 1024 * 1024
-AGENT_VERSION = os.environ.get("VLC_AGENT_VERSION", "2.3.11")
+AGENT_VERSION = os.environ.get("VLC_AGENT_VERSION", "2.5.5")
 MODEM_STATUS_FILE = os.environ.get("AIRVIX_E3372_STATUS_FILE", "/run/airvix/e3372.status")
 
 try:
@@ -67,9 +79,9 @@ try:
 except ImportError:
     annotated_encoder_status = None
 try:
-    from fc_telemetry import fc_link_flags, fc_status_payload, observe_uart_bytes
+    from fc_telemetry import fc_link_flags, fc_status_payload, observe_uart_bytes as _fc_observe_uart
 except ImportError:
-    def observe_uart_bytes(_data):
+    def _fc_observe_uart(_data):
         return None
 
     def fc_link_flags():
@@ -92,6 +104,18 @@ except ImportError:
             "last_heartbeat_age_ms": None,
             "heartbeat": {"validity": "invalid", "system_id": None, "component_id": None, "fields": {}},
         }
+
+
+def observe_uart_bytes(data):
+    """Passive FC parse, then Cam0 attitude tagging. Never writes the UART."""
+    _fc_observe_uart(data)
+    try:
+        from cam0.service import get_service
+        svc = get_service()
+        if svc is not None:
+            svc.observe_mavlink(data)
+    except Exception:
+        return None
 try:
     from uplink_status import enrich_modem, uplinks_payload
 except ImportError:
@@ -127,6 +151,7 @@ STATE = {
     "fc_linked": False,
     "fc_heartbeat": False,
     "relay_clients": 0,
+    "local_tap_clients": 0,
     "fc_read_only": FC_READ_ONLY,
     "relay_tcp_to_uart": not FC_READ_ONLY,
     "tcp_to_uart_suppressed": 0,
@@ -142,6 +167,7 @@ STATE = {
 }
 
 CLIENTS = []
+LOCAL_TAP_SOCKS = set()
 CLIENTS_LOCK = threading.Lock()
 UART_WRITE_LOCK = threading.Lock()
 STATE_LOCK = threading.Lock()
@@ -282,6 +308,12 @@ def open_fc_serial():
         return port
 
 
+def _client_counts():
+    taps = len(LOCAL_TAP_SOCKS)
+    STATE["local_tap_clients"] = taps
+    STATE["relay_clients"] = max(0, len(CLIENTS) - taps)
+
+
 def fanout_uart(data: bytes):
     dead = []
     with CLIENTS_LOCK:
@@ -291,23 +323,16 @@ def fanout_uart(data: bytes):
             sock.sendall(data)
         except OSError:
             dead.append(sock)
-    if dead:
-        with CLIENTS_LOCK:
-            for sock in dead:
-                if sock in CLIENTS:
-                    CLIENTS.remove(sock)
-                    STATE["relay_clients"] = max(0, STATE["relay_clients"] - 1)
-                try:
-                    sock.close()
-                except OSError:
-                    pass
+    for sock in dead:
+        drop_client(sock)
 
 
 def drop_client(sock):
     with CLIENTS_LOCK:
         if sock in CLIENTS:
             CLIENTS.remove(sock)
-            STATE["relay_clients"] = max(0, STATE["relay_clients"] - 1)
+        LOCAL_TAP_SOCKS.discard(sock)
+        _client_counts()
     try:
         sock.close()
     except OSError:
@@ -392,7 +417,10 @@ def mavlink_relay_server():
                     print(f"[relay] GCS client {addr}")
                     with CLIENTS_LOCK:
                         CLIENTS.append(client)
-                        STATE["relay_clients"] = len(CLIENTS)
+                        separate = os.environ.get("VLC_LOCAL_TAP_SEPARATE", "1").strip().lower() in {"1", "true", "yes", "on"}
+                        if separate and addr[0] == "127.0.0.1":
+                            LOCAL_TAP_SOCKS.add(client)
+                        _client_counts()
                     threading.Thread(
                         target=client_to_uart, args=(client, fc_serial), daemon=True
                     ).start()
@@ -410,7 +438,9 @@ def mavlink_relay_server():
                     except OSError:
                         pass
                 CLIENTS.clear()
+                LOCAL_TAP_SOCKS.clear()
                 STATE["relay_clients"] = 0
+                STATE["local_tap_clients"] = 0
             if srv:
                 try:
                     srv.close()
@@ -528,8 +558,41 @@ def _ingest_or_absent():
     return ingest_snapshot()
 
 
+def _cam0_slot():
+    """Cam0 is a sibling of cam1..cam3. It does not change their honesty."""
+    try:
+        from cam0.service import service_status
+        st = service_status()
+    except Exception:
+        return None
+    return {
+        "id": "cam0",
+        "role": "down",
+        "nav_role": "landing_marker",
+        "shared_with": "landing_vision",
+        "enabled": st.get("state") != "disabled",
+        "state": st.get("state"),
+        "present": st.get("camera_ok") is True,
+        "camera_ok": st.get("camera_ok") is True,
+        "fps": st.get("fps"),
+        "frame_count": st.get("frame_index"),
+        "last_frame_age_ms": st.get("last_frame_age_ms"),
+        "error": st.get("error"),
+        "source": st.get("source") or "absent",
+        "dry_run": st.get("dry_run") is True,
+        "real": st.get("real") is True,
+        "device": "/dev/video0" if st.get("source") == "v4l2" else None,
+        "has_frame": st.get("has_frame") is True,
+        "flight_commands": False,
+    }
+
+
 def cameras_status_payload():
     snap = _ingest_or_absent()
+    cameras = dict(snap.get("cameras") or {})
+    slot = _cam0_slot()
+    if slot is not None:
+        cameras["cam0"] = slot
     return {
         "ok": True,
         "observe_only": True,
@@ -544,7 +607,8 @@ def cameras_status_payload():
         "fps": snap.get("fps"),
         "frame_count": snap.get("frame_count"),
         "last_frame_age_ms": snap.get("last_frame_age_ms"),
-        "cameras": snap.get("cameras") or {},
+        "cameras": cameras,
+        "cam0": slot,
         "note": snap.get("note"),
     }
 
@@ -554,7 +618,12 @@ def vision_status_payload():
     snap = _ingest_or_absent()
     any_ok = snap.get("camera_ok") is True
     source_id = "none"
-    raw_cams = snap.get("cameras") or {}
+    raw_cams = dict(snap.get("cameras") or {})
+    slot = _cam0_slot()
+    if slot is not None:
+        raw_cams["cam0"] = slot
+        if slot.get("camera_ok") is True:
+            any_ok = True
     order = [cam_id for cam_id in ("cam1", "cam2", "cam3") if cam_id in raw_cams]
     order.extend(cam_id for cam_id in raw_cams if cam_id not in order)
     for key in order:
@@ -579,7 +648,7 @@ def vision_status_payload():
         "source": snap.get("source") or "absent",
         "dry_run": snap.get("dry_run") is True,
         "real": snap.get("real") is True,
-        "cameras": snap.get("cameras") or {},
+        "cameras": raw_cams,
         "quality": {"confidence": None, "label": "unknown"},
         "implemented": snap.get("implemented") is True,
         "note": snap.get("note") or "no camera device; camera_ok is false; not invented",
@@ -765,6 +834,28 @@ def _absent_modem(reason="modem_absent", error=None):
     }
 
 
+def flightlog_status_payload():
+    """Read the flight logger status file. Missing or garbage stays honest."""
+    path = Path(os.environ.get("AIRVIX_FLIGHTLOG_STATUS_FILE", "/run/airvix/flightlog.json"))
+    if not path.is_file():
+        return {"ok": True, "present": False, "state": "absent"}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        return {"ok": True, "present": False, "state": "absent", "error": str(exc)[:160]}
+    if not isinstance(data, dict):
+        return {"ok": True, "present": False, "state": "absent", "error": "not_object"}
+    body = {}
+    for key, value in data.items():
+        lk = str(key).lower()
+        if any(tok in lk for tok in ("secret", "token", "password", "app_key", "authorization")):
+            continue
+        body[key] = value
+    body["ok"] = True
+    body["present"] = True
+    return body
+
+
 def modem_status_payload():
     """Observe-only E3372 snapshot. Missing file → modem_absent. Never invents up."""
     if _env_flag_on("AIRVIX_CELLULAR_MOCK") or _env_flag_on("CELLULAR_MODEM_MOCK"):
@@ -856,6 +947,7 @@ def status_payload():
         "video": video_status_payload(),
         "extras": extras_status_payload(),
         "modem": modem_status_payload(),
+        "flight_log": flightlog_status_payload(),
         "gimbal": gimbal_status_payload(start=False),
         "fc": fc_status_payload(),
         "mavlink": {},
@@ -899,6 +991,7 @@ def health_payload():
         "video": video_status_payload(),
         "extras": extras_status_payload(),
         "modem": modem_status_payload(),
+        "flight_log": flightlog_status_payload(),
         "gimbal": gimbal_status_payload(start=False),
     }
 
@@ -1091,6 +1184,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(200, fc_status_payload())
         if path in ("/api/status/modem", "/api/v1/status/modem"):
             return self._json(200, modem_status_payload())
+        if path in ("/api/flight-log/status", "/api/v1/flight-log/status"):
+            return self._json(200, flightlog_status_payload())
         if path in ("/api/v1/network/uplinks", "/api/network/uplinks"):
             return self._json(200, uplinks_payload())
         uplink_kind = _uplink_kind(path)
@@ -1100,6 +1195,12 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(200, gimbal_status_payload(start=True))
         if path in ("/api/transport-test", "/api/v1/transport-test"):
             return self._json(200, transport_test_payload(self_test=False))
+        try:
+            from cam0.api import try_handle as cam0_try_handle
+            if cam0_try_handle(self):
+                return
+        except Exception:
+            pass
         cam_frame = _camera_frame_id(path)
         if cam_frame:
             jpeg = ingest_frame_jpeg(cam_frame) if ingest_frame_jpeg else None
@@ -1147,6 +1248,12 @@ class Handler(BaseHTTPRequestHandler):
             enabled = data.get("enabled") if isinstance(data, dict) else None
             code, body = set_uplink(uplink_kind, enabled)
             return self._json(code, body)
+        try:
+            from cam0.api import try_handle as cam0_try_handle
+            if cam0_try_handle(self, data if isinstance(data, dict) else {}):
+                return
+        except Exception:
+            pass
         if path == "/api/install":
             script = data.get("script", "")
             version = data.get("version", AGENT_VERSION)
@@ -1171,6 +1278,15 @@ def main():
     print(f"  FC_READ_ONLY: {FC_READ_ONLY}")
     snap = _ingest_or_absent()
     print(f"  Camera ingest: source={snap.get('source')} dry_run={snap.get('dry_run')}")
+    try:
+        from cam0.service import start_service
+        cam0 = start_service()
+        if cam0 is None:
+            print("  Cam0: off")
+        else:
+            print(f"  Cam0: source={cam0.config.get('source')} state={cam0.state}")
+    except Exception as exc:
+        print(f"  Cam0: off ({type(exc).__name__})")
     poll_raw = os.environ.get("VLC_GIMBAL_POLL")
     if poll_raw is None or str(poll_raw).strip() == "":
         want_gimbal_poll = not SKIP_RELAY

@@ -1,0 +1,10 @@
+{
+  "classification": "bench",
+  "end_reason": "disarmed",
+  "landing_offset": null,
+  "name": "bench",
+  "segments": 0,
+  "t0": 1700000000.0,
+  "tail_s": 2,
+  "takeoff_offset": null
+}

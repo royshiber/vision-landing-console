@@ -1,0 +1,19 @@
+[Unit]
+Description=AIRVIX flight logger (disabled until AIRVIX_FLIGHTLOG_ENABLED=1)
+After=airvix-companion.service
+
+[Service]
+User=royshiber
+EnvironmentFile=-/etc/airvix/flightlog.env
+EnvironmentFile=-%h/vlc-companion/flightlog-storage.env
+EnvironmentFile=-/home/royshiber/vlc-companion/flightlog-storage.env
+Nice=10
+IOSchedulingClass=idle
+Restart=on-failure
+RuntimeDirectory=airvix
+RuntimeDirectoryPreserve=yes
+StateDirectory=airvix airvix/flightlog
+ExecStart=/home/royshiber/mavlink-env/bin/python3 /home/royshiber/vlc-companion/flightlog_service.py
+
+[Install]
+WantedBy=multi-user.target

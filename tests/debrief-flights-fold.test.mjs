@@ -45,7 +45,7 @@ function capture(src, re, label) {
 
 describe('C10.5a leftover #flights folds into תחקור', () => {
   it('keeps one debrief tab on the shelf and no leftover flights chrome', () => {
-    expect(html).toMatch(/class="tab tab-ops"[^>]*data-tab="recordings"[^>]*>תחקור</);
+    expect(html).toMatch(/class="tab tab-ops"[^>]*data-tab="recordings"[^>]*>אופטיקה ותחקור</);
     expect(html).not.toMatch(/data-tab="flights"/);
     expect(html).not.toContain('לוגים והעלאות');
     expect(html).not.toContain('openFlightsFromDebriefBtn');
@@ -117,15 +117,15 @@ describe('C10.5a leftover #flights folds into תחקור', () => {
     expect(findAssistRoute('לוגים')?.tab).toBe('recordings');
     expect(findAssistRoute('טיסות')?.tab).toBe('recordings');
     expect(findAssistRoute('flights')?.tab).toBe('recordings');
-    expect(hebrewLookingAtAnswer('PLATFORM', 'debrief', 'recordings')).toContain('מסך נוכחי: תחקור.');
-    expect(hebrewLookingAtAnswer('PLATFORM', 'debrief', 'flights')).toContain('מסך נוכחי: תחקור.');
+    expect(hebrewLookingAtAnswer('PLATFORM', 'debrief', 'recordings')).toContain('מסך נוכחי: אופטיקה ותחקור.');
+    expect(hebrewLookingAtAnswer('PLATFORM', 'debrief', 'flights')).toContain('מסך נוכחי: אופטיקה ותחקור.');
     expect(css).toMatch(/#debriefLogsPanel\.debrief-logs-panel\.visible/);
     expect(css).toMatch(/\.debrief-logs-grid\b/);
     expect(css).not.toMatch(/#flights\.panel\.visible\.flights-panel/);
   });
 
-  it('pins APP_VERSION at 1.02.335', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.335'");
-    expect(pkg.version).toBe('1.02.335');
+  it('pins APP_VERSION at 1.02.340', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.340'");
+    expect(pkg.version).toBe('1.02.340');
   });
 });

@@ -88,6 +88,7 @@
                 <span id="jetsonLinkChip" class="conn-link-chip" data-state="off">מחשב משימה · מנותק</span>
                 <span id="fcLinkChip" class="conn-link-chip" data-state="off">בקר טיסה · מנותק</span>
               </div>
+              <p id="companionActiveLink" class="conn-companion-active" hidden></p>
             </section>
             <section id="activeLinkPicker" class="conn-active-picker" hidden aria-label="קישור פעיל">
               <h3 class="conn-link-title">קישור פעיל</h3>
@@ -213,21 +214,30 @@
         <button class="tab tab-fly active" data-tab="terrain" title="הטסה">הטסה</button>
         <button class="tab tab-ops" data-tab="pulse" title="סטטוס מחשבים">סטטוס מחשבים</button>
         <button class="tab tab-ops" data-tab="control" title="פרמטרים">פרמטרים</button>
-        <button class="tab tab-ops" data-tab="recordings" title="תחקור">תחקור</button>
+        <button class="tab tab-ops" data-tab="recordings" title="אופטיקה ותחקור">אופטיקה ותחקור</button>
         <button class="tab tab-quiet" hidden data-tab="telemetry" title="אבחונים">אבחונים</button>
         <button class="tab tab-ops" data-tab="flightEngineer" title="מהנדס" hidden>מהנדס</button>
-        <button class="tab tab-ops" data-tab="development" title="פיתוח" hidden>פיתוח</button>
+        <button class="tab tab-ops" hidden data-tab="development" title="פיתוח">פיתוח</button>
       </nav>
       <div class="app-chrome-tools">
         <span class="app-chrome-brand" aria-label="AIRVIX">AIRVIX</span>
         <button type="button" id="globalSettingsBtn" class="global-settings-btn" title="הגדרות כלליות" aria-haspopup="dialog" aria-controls="globalSettingsModal">⚙</button>
-        <button id="versionBtn" class="badge clickable" title="לחץ כדי לראות מה עודכן בגרסה">v__APP_VERSION__</button>
+        <button id="versionBtn" class="badge clickable" title="לחץ כדי לראות מה עודכן בגרסה">v__APP_VERSION__<span id="updateIndicator" class="update-indicator" hidden></span></button>
       </div>
     </header>
     <div id="appVersionMismatchBanner" class="app-version-mismatch-banner hidden" role="alert" hidden>
       <p id="appVersionMismatchHe">הסקריפט שנטען אינו תואם לשרת. פתחו כרטיסייה חדשה בפורט הנכון או רעננו.</p>
       <p id="appVersionMismatchMeta" class="app-version-mismatch-meta" dir="ltr"></p>
       <button type="button" id="appVersionMismatchReload">רענון</button>
+    </div>
+    <div id="appUpdateBanner" class="app-update-banner" hidden role="status" aria-live="polite">
+      <p id="appUpdateBannerText"></p>
+      <ul id="appUpdateChangelog" hidden></ul>
+      <div class="app-update-actions">
+        <button type="button" id="appUpdateApplyBtn">עדכן עכשיו</button>
+        <button type="button" id="appUpdateSnoozeBtn" class="app-update-later">אחר כך</button>
+      </div>
+      <p id="appUpdateError" class="app-update-error" hidden></p>
     </div>
 
     <button type="button" id="assistToggleBtn" class="assist-toggle-btn assist-toggle-float" title="AIRVIX Ask — דברו" aria-label="AIRVIX Ask — דברו" aria-expanded="false" aria-controls="assistRail"><span class="assist-toggle-mic" aria-hidden="true">🎙</span><span class="assist-toggle-he"><bdi dir="ltr">AIRVIX Ask</bdi></span><span id="assistAttentionDot" class="assist-attention-dot" hidden></span></button>
@@ -440,6 +450,11 @@
             </select>
             <p id="gsSttHint" class="gs-hint"></p>
           </section>
+          <section class="gs-section" id="gsAppUpdate">
+            <h3 class="gs-h">גרסת הקונסולה</h3>
+            <p id="gsAppUpdateStatus" class="gs-hint">בודקים אם יש עדכון.</p>
+            <button type="button" id="gsCheckUpdatesBtn">בדוק עדכונים</button>
+          </section>
         </div>
       </div>
     </div>
@@ -480,6 +495,10 @@
             <p class="pulse-purpose">סטטוס מחשבים</p>
             <p class="pulse-health-note">בריאות מחשב המשימה והכלי. לא שינוי מוצר.</p>
           </header>
+          <p id="cam0StatusLine" class="cam0-status-line">
+            <span id="cam0StatusText">מצלמה אפס · לא מחובר · קצב —</span>
+            <button type="button" id="cam0StatusLink" class="cam0-status-link">אופטיקה ותחקור</button>
+          </p>
           <div class="pulse-status-grid pulse-computers-band" aria-label="סטטוס מחשבים">
             <article class="pulse-status-card pulse-computer-card" data-pulse-kind="companion" data-computer="jetson">
               <header class="pulse-computer-head">
@@ -899,38 +918,42 @@
         <div id="debriefFlightbookPanel" class="tele-subpanel fb-panel" data-debrief-panel="flightbook" data-layout-contract="flightbook-v1" dir="rtl"></div>
         <div id="debriefRecordingsPanel" class="recordings-layout tele-subpanel visible" data-debrief-panel="recordings">
           <div class="video-column">
+            <div class="debrief-player" id="debriefPlayer">
+              <p class="debrief-player-kicker">הקלטת תחקור</p>
+              <div class="debrief-player-stage">
+                <video id="flightVideo" controls playsinline hidden></video>
+                <canvas id="annotationCanvas"></canvas>
+                <div id="lockIndicator" class="lock-indicator" hidden></div>
+                <p id="debriefPlayerEmpty" class="debrief-player-empty">לא נטען וידאו</p>
+              </div>
+            </div>
             <div class="debrief-cam-toolbar" role="group" aria-label="מצלמות">
-              <button type="button" class="debrief-cam-toggle" data-debrief-cam="cam0" aria-pressed="true">Cam0</button>
-              <button type="button" class="debrief-cam-toggle" data-debrief-cam="cam1" aria-pressed="false">Cam1</button>
-              <button type="button" class="debrief-cam-toggle" data-debrief-cam="a8" aria-pressed="false">A8</button>
+              <button type="button" class="debrief-cam-toggle" data-debrief-cam="cam0" aria-pressed="true">מצלמה אפס</button>
+              <button type="button" class="debrief-cam-toggle" data-debrief-cam="cam1" aria-pressed="false">מצלמה 1</button>
+              <button type="button" class="debrief-cam-toggle" data-debrief-cam="a8" aria-pressed="false">גימבל</button>
             </div>
             <div id="debriefCamGrid" class="debrief-cam-grid video-wrapper" data-count="1" data-layout="cameras">
               <p id="debriefCamEmpty" class="debrief-cam-empty" hidden>בחרו מצלמה</p>
-              <figure class="debrief-cam-tile" data-cam="cam0" data-api="cam1" data-mono="1" data-slot="0" data-signal="none">
+              <figure class="debrief-cam-tile" data-cam="cam0" data-api="cam0" data-mono="1" data-slot="0" data-signal="none">
                 <div class="debrief-cam-stage">
-                  <video id="flightVideo" class="debrief-cam-media" controls playsinline></video>
                   <img class="debrief-cam-live debrief-cam-media" alt="" hidden />
-                  <canvas id="annotationCanvas"></canvas>
                   <p class="debrief-cam-nosignal">אין אות</p>
-                  <div id="lockIndicator" class="lock-indicator no-lock">אין נעילה</div>
                 </div>
-                <figcaption class="debrief-cam-label">Cam0</figcaption>
+                <figcaption class="debrief-cam-label">מצלמה אפס</figcaption>
               </figure>
               <figure class="debrief-cam-tile" data-cam="cam1" data-api="cam2" data-slot="1" data-signal="none" hidden>
                 <div class="debrief-cam-stage">
-                  <video class="debrief-cam-clone debrief-cam-media" muted playsinline></video>
                   <img class="debrief-cam-live debrief-cam-media" alt="" hidden />
                   <p class="debrief-cam-nosignal">אין אות</p>
                 </div>
-                <figcaption class="debrief-cam-label">Cam1</figcaption>
+                <figcaption class="debrief-cam-label">מצלמה 1</figcaption>
               </figure>
               <figure class="debrief-cam-tile" data-cam="a8" data-api="cam3" data-slot="2" data-signal="none" hidden>
                 <div class="debrief-cam-stage">
-                  <video class="debrief-cam-clone debrief-cam-media" muted playsinline></video>
                   <img class="debrief-cam-live debrief-cam-media" alt="" hidden />
                   <p class="debrief-cam-nosignal">אין אות</p>
                 </div>
-                <figcaption class="debrief-cam-label">A8</figcaption>
+                <figcaption class="debrief-cam-label">גימבל</figcaption>
               </figure>
             </div>
             <div class="annotation-legend">
@@ -942,9 +965,62 @@
             <input id="timelineRange" type="range" min="0" max="100" value="0" />
           </div>
           <div class="events-column">
-            <h3>אירועים סביב הזמן הנוכחי</h3>
+            <h3>אירועים</h3>
             <div id="eventsList" class="events-list"></div>
           </div>
+          <section id="cam0Panel" class="cam0-panel" dir="rtl" aria-label="מצלמה אפס" data-camera-source="cam0">
+            <header class="cam0-head">
+              <h3 class="cam0-title">מצלמה אפס</h3>
+              <p id="cam0Honesty" class="cam0-honesty">אין אות</p>
+            </header>
+            <p id="cam0Reason" class="cam0-reason">אין קישור למחשב המשימה. הפקדים כבויים.</p>
+            <p id="cam0Error" class="cam0-error" role="alert" hidden></p>
+            <div class="cam0-layout">
+              <div class="cam0-stage" id="cam0Stage">
+                <p id="cam0Empty" class="cam0-empty">אין אות</p>
+                <img id="cam0Frame" class="cam0-frame" alt="" hidden />
+                <canvas id="cam0Overlay" class="cam0-overlay" hidden></canvas>
+              </div>
+              <div class="cam0-side">
+                <div class="cam0-hist-wrap">
+                  <p class="cam0-hist-label">היסטוגרמה</p>
+                  <canvas id="cam0Hist" class="cam0-hist" width="180" height="56" aria-label="היסטוגרמה"></canvas>
+                  <p id="cam0HistEmpty" class="cam0-hist-empty">אין נתונים</p>
+                </div>
+                <dl class="cam0-stats">
+                  <div><dt>קצב</dt><dd id="cam0Fps" dir="ltr">—</dd></div>
+                  <div><dt>השהיה</dt><dd id="cam0Latency" dir="ltr">—</dd></div>
+                  <div><dt>נפילות</dt><dd id="cam0Drops" dir="ltr">—</dd></div>
+                </dl>
+                <div class="cam0-controls">
+                  <label class="cam0-check"><input type="checkbox" id="cam0Ae" disabled /> חשיפה אוטומטית</label>
+                  <label>חשיפה <input id="cam0Exposure" type="number" min="10" max="100001" step="10" dir="ltr" disabled /></label>
+                  <label>הגבר <input id="cam0Gain" type="number" min="16" max="256" step="1" dir="ltr" disabled /></label>
+                  <label>רזולוציה
+                    <select id="cam0Res" dir="ltr" disabled>
+                      <option value="1280x800">1280×800</option>
+                      <option value="1280x720">1280×720</option>
+                    </select>
+                  </label>
+                  <label>קצב יעד <input id="cam0FpsSet" type="number" min="1" max="60" step="1" dir="ltr" disabled /></label>
+                  <button type="button" id="cam0Record" class="cam0-btn" disabled>הקלטה</button>
+                  <span id="cam0RecDot" class="cam0-rec" hidden>מקליט</span>
+                  <button type="button" id="cam0Snap" class="cam0-btn" disabled>צילום</button>
+                  <label class="cam0-check"><input type="checkbox" id="cam0OverlayToggle" checked /> זיהויים</label>
+                </div>
+                <section class="cam0-calib" aria-label="כיול">
+                  <h4>כיול</h4>
+                  <p class="cam0-calib-lead">החזיקו לוח שחמט מול המצלמה. כל צילום נשמר, ואז פותרים.</p>
+                  <p id="cam0CalibState" class="cam0-calib-state">עדיין אין כיול.</p>
+                  <div class="cam0-controls">
+                    <button type="button" id="cam0CalibCap" class="cam0-btn" disabled>צילום לוח</button>
+                    <button type="button" id="cam0CalibSolve" class="cam0-btn" disabled>פתרון</button>
+                  </div>
+                </section>
+              </div>
+            </div>
+            <select id="cam0SourceAdapter" class="cam0-source-adapter" data-camera-source-picker hidden aria-hidden="true"></select>
+          </section>
         </div>
         <div id="debriefLogsPanel" class="tele-subpanel debrief-logs-panel flights-panel" data-debrief-panel="logs">
           <div class="debrief-logs-grid">
@@ -2491,6 +2567,7 @@
       <div class="modal-card">
         <div id="versionModalContent"><!-- filled by app.js VERSION_HISTORY --></div>
         <button id="closeVersionModalBtn">סגור</button>
+        <button type="button" id="versionCheckUpdatesBtn">בדוק עדכונים</button>
       </div>
     </div>
 
@@ -2524,6 +2601,7 @@
     </script>
     <script type="module" src="./modules/flightbook.mjs?v=__APP_VERSION__"></script>
     <script type="module" src="./modules/debrief-cameras.mjs?v=__APP_VERSION__"></script>
+    <script type="module" src="./modules/cam0-panel.mjs?v=__APP_VERSION__"></script>
     <script src="./app.js?v=__APP_VERSION__"></script>
   </body>
 </html>

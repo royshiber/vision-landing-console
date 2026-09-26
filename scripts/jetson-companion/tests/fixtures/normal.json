@@ -1,0 +1,15 @@
+{
+  "classification": "flight",
+  "end_reason": "disarmed",
+  "landing_offset": 330.0,
+  "modes": [
+    "FBWA",
+    "AUTO",
+    "RTL"
+  ],
+  "name": "normal",
+  "segments": 1,
+  "t0": 1700000000.0,
+  "tail_s": 2,
+  "takeoff_offset": 40.0
+}
