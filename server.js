@@ -2,7 +2,7 @@ import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
-import { readFileSync, statSync } from 'fs';
+import { readFileSync, statSync, mkdirSync, writeFileSync } from 'fs';
 import rateLimit from 'express-rate-limit';
 import multer from 'multer';
 import { openDatabase, uploadsDir } from './lib/db.mjs';
@@ -221,6 +221,13 @@ if (_isMain) {
     scheduleFlightLogsBootSync(routeCtx);
     updateService.start();
     logger.info({ port: PORT, host: HOST, version: APP_VERSION }, `Vision Landing Console started`);
+    try {
+      const pidDir = path.join(__dirname, 'data');
+      mkdirSync(pidDir, { recursive: true });
+      writeFileSync(path.join(pidDir, 'console.pid'), `${process.pid}\n`);
+    } catch (err) {
+      logger.warn({ err }, 'console pidfile write failed');
+    }
     const hostLabel = HOST === '0.0.0.0' ? 'localhost' : HOST;
     console.log(`Vision Landing Console v${APP_VERSION}: http://${hostLabel}:${PORT}`);
   });

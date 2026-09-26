@@ -19828,6 +19828,7 @@ body:has(#control.panel.visible) .ardu-top-cats-host {
   line-height: 1.4;
   min-width: 0;
 }
+#gsVersions [hidden] { display: none !important; }
 #gsVersions .gs-h,
 #gsVersions .vr-h {
   font-size: 15px;
@@ -19930,7 +19931,45 @@ body:has(#control.panel.visible) .ardu-top-cats-host {
   padding: 8px;
   border-radius: 8px;
 }
-#gsVersions .vr-confirm { background: rgba(180, 83, 9, 0.12); }
+#gsVersions .vr-confirm {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  margin: 0;
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.45);
+  overflow: auto;
+}
+#gsVersions .vr-confirm[hidden] { display: none; }
+#gsVersions .vr-confirm-card {
+  width: min(420px, 100%);
+  max-height: calc(100vh - 32px);
+  overflow: auto;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--surface, #fff);
+  color: var(--text, #111);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.28);
+}
+#gsVersions .vr-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+#gsVersions .vr-spin {
+  width: 12px;
+  height: 12px;
+  flex: 0 0 12px;
+  border: 2px solid currentColor;
+  border-inline-end-color: transparent;
+  border-radius: 50%;
+  animation: vr-spin 0.8s linear infinite;
+}
+@keyframes vr-spin { to { transform: rotate(360deg); } }
+#gsVersions .vr-backup { gap: 2px; padding: 6px; }
 #gsVersions .vr-progress { background: rgba(37, 99, 235, 0.12); }
 #gsVersions .vr-error { background: rgba(159, 18, 57, 0.12); }
 #gsVersions .vr-update { margin-top: 4px; }

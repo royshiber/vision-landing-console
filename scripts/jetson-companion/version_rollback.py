@@ -11,6 +11,7 @@ Refuses while the flight controller reports armed.
 from __future__ import annotations
 
 import calendar
+import fcntl
 import json
 import os
 import shutil
@@ -198,92 +199,246 @@ def _swap_trees(live: Path, backup: Path) -> None:
 def _write_result(dest: Path, payload: dict) -> None:
     root = backups_root(dest)
     root.mkdir(parents=True, exist_ok=True)
+    body = dict(payload)
+    body.setdefault("finished_at", time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()))
     path = root / RESULT_NAME
     tmp = path.with_suffix(".json.tmp")
-    tmp.write_text(json.dumps(payload, ensure_ascii=False) + "\n", encoding="utf-8")
+    tmp.write_text(json.dumps(body, ensure_ascii=False) + "\n", encoding="utf-8")
     os.replace(tmp, path)
 
 
-def perform_rollback(dest: Path, backup_id: str, *, armed, restart, wait_healthy, running_version: str, timeout_s=HEALTH_TIMEOUT_S) -> tuple[int, dict]:
-    dest = Path(dest)
-    if armed is True:
-        body = {
-            "ok": False,
-            "reason": "armed",
-            "message": "המטוס חמוש. אין החזרה.",
-        }
-        return 409, body
-    if not valid_backup_id(backup_id):
-        return 400, {"ok": False, "reason": "bad_backup", "message": "גיבוי לא מוכר."}
-    backup = backups_root(dest) / backup_id
-    if not backup.is_dir():
-        return 404, {"ok": False, "reason": "missing", "message": "הגיבוי לא נמצא."}
-    live_manifest = read_manifest(dest) or {}
-    backup_manifest = read_manifest(backup) or {}
-    from_version = _clean(live_manifest.get("version")) or _clean(running_version)
-    to_version = _clean(backup_manifest.get("version"))
+def lock_file(dest: Path) -> Path:
+    root = backups_root(Path(dest))
+    root.mkdir(parents=True, exist_ok=True)
+    return root / ".rollback.lock"
+
+
+def claim_file(dest: Path) -> Path:
+    root = backups_root(Path(dest))
+    root.mkdir(parents=True, exist_ok=True)
+    return root / ".rollback.claim"
+
+
+def acquire_rollback_lock(dest: Path, blocking: bool = False):
+    path = lock_file(dest)
+    fh = open(path, "a+")
+    flags = fcntl.LOCK_EX | (0 if blocking else fcntl.LOCK_NB)
     try:
-        _swap_trees(dest, backup)
-    except Exception as err:
-        body = {
-            "ok": False,
-            "reason": "swap_failed",
-            "message": "החלפת התיקייה נכשלה.",
-            "detail": str(err),
-            "from": from_version,
-            "to": to_version,
-            "reverted": False,
-        }
-        _write_result(dest, {"state": "failed", **body})
-        return 500, body
-    restart_error = None
+        fcntl.flock(fh.fileno(), flags)
+    except BlockingIOError:
+        fh.close()
+        return None
+    return fh
+
+
+def release_rollback_lock(fh) -> None:
+    if fh is None:
+        return
     try:
-        restart()
-    except Exception as err:
-        restart_error = str(err)
-    healthy = False
-    if restart_error is None:
+        fcntl.flock(fh.fileno(), fcntl.LOCK_UN)
+    except OSError:
+        pass
+    try:
+        fh.close()
+    except OSError:
+        pass
+
+
+def claim_rollback(dest: Path) -> bool:
+    """Atomic claim so a second request is rejected before a worker starts."""
+    path = claim_file(dest)
+    try:
+        fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o644)
+    except FileExistsError:
         try:
-            healthy = wait_healthy(timeout_s) is True
+            age = time.time() - path.stat().st_mtime
+        except OSError:
+            return False
+        if age < 90:
+            return False
+        fh = acquire_rollback_lock(dest, blocking=False)
+        if fh is None:
+            return False
+        try:
+            if path.exists() and time.time() - path.stat().st_mtime >= 90:
+                path.unlink()
+        finally:
+            release_rollback_lock(fh)
+        return claim_rollback(dest)
+    try:
+        os.write(fd, str(time.time()).encode("ascii"))
+    finally:
+        os.close(fd)
+    return True
+
+
+def release_claim(dest: Path) -> None:
+    try:
+        claim_file(dest).unlink()
+    except OSError:
+        pass
+
+
+def _block_message(reason: str) -> str:
+    if reason == "armed":
+        return "המטוס חמוש. אין החזרה."
+    if reason == "in_flight":
+        return "המטוס באוויר. אין החזרה."
+    if reason == "unknown":
+        return "מצב הטיסה לא ידוע. אין החזרה."
+    if reason == "busy":
+        return "החזרה כבר רצה."
+    return "אין החזרה."
+
+
+def _block_body(reason: str) -> dict:
+    return {"ok": False, "reason": reason, "message": _block_message(reason)}
+
+
+def _block_reason(blocked, armed) -> str | None:
+    if blocked is None:
+        return "armed" if armed is True else None
+    try:
+        reason = blocked()
+    except Exception:
+        return "unknown"
+    if reason is True:
+        return "armed"
+    if reason is False or reason is None or reason == "":
+        return None
+    if reason in ("armed", "in_flight", "unknown"):
+        return reason
+    return "unknown"
+
+
+def read_flight_block():
+    """Fail closed. Only an explicit not-armed reading is safe."""
+    override = os.environ.get("VLC_VERSIONS_REFUSE")
+    if override == "1":
+        return "armed"
+    if override == "0":
+        return None
+    if override == "unknown":
+        return "unknown"
+    try:
+        import companion_agent
+        payload = companion_agent.fc_status_payload()
+    except Exception:
+        return "unknown"
+    if not isinstance(payload, dict):
+        return "unknown"
+    flag = payload.get("armed")
+    if flag is True:
+        return "armed"
+    if flag is False:
+        return None
+    return "unknown"
+
+
+def perform_rollback(dest: Path, backup_id: str, *, armed=False, blocked=None, restart, wait_healthy, running_version: str, timeout_s=HEALTH_TIMEOUT_S, lock_fh=None) -> tuple[int, dict]:
+    dest = Path(dest)
+    own_lock = lock_fh is None
+    fh = lock_fh if lock_fh is not None else acquire_rollback_lock(dest, blocking=False)
+    if fh is None:
+        return 409, _block_body("busy")
+    try:
+        reason = _block_reason(blocked, armed)
+        if reason:
+            body = _block_body(reason)
+            body.update({"state": "failed", "reverted": False, "backup_id": backup_id})
+            try:
+                _write_result(dest, body)
+            except Exception:
+                pass
+            return 409, body
+        if not valid_backup_id(backup_id):
+            return 400, {"ok": False, "reason": "bad_backup", "message": "גיבוי לא מוכר."}
+        backup = backups_root(dest) / backup_id
+        if not backup.is_dir():
+            return 404, {"ok": False, "reason": "missing", "message": "הגיבוי לא נמצא."}
+        live_manifest = read_manifest(dest) or {}
+        backup_manifest = read_manifest(backup) or {}
+        from_version = _clean(live_manifest.get("version")) or _clean(running_version)
+        to_version = _clean(backup_manifest.get("version"))
+        reason = _block_reason(blocked, armed)
+        if reason:
+            body = _block_body(reason)
+            body.update({
+                "from": from_version,
+                "to": to_version,
+                "backup_id": backup_id,
+                "state": "failed",
+                "reverted": False,
+            })
+            _write_result(dest, body)
+            return 409, body
+        try:
+            _swap_trees(dest, backup)
+        except Exception as err:
+            body = {
+                "ok": False,
+                "reason": "swap_failed",
+                "message": "החלפת התיקייה נכשלה.",
+                "detail": str(err),
+                "from": from_version,
+                "to": to_version,
+                "reverted": False,
+                "state": "failed",
+            }
+            _write_result(dest, body)
+            return 500, body
+        restart_error = None
+        try:
+            restart()
+        except Exception as err:
+            restart_error = str(err)
+        healthy = False
+        if restart_error is None:
+            try:
+                healthy = wait_healthy(timeout_s) is True
+            except Exception:
+                healthy = False
+        if healthy:
+            body = {
+                "ok": True,
+                "state": "done",
+                "from": from_version,
+                "to": to_version,
+                "backup_id": backup_id,
+                "reverted": False,
+                "message": "הגרסה הוחזרה.",
+            }
+            _write_result(dest, body)
+            return 200, body
+        reverted = False
+        try:
+            _swap_trees(dest, backup)
+            reverted = True
+            try:
+                restart()
+            except Exception:
+                pass
         except Exception:
-            healthy = False
-    if healthy:
+            reverted = False
         body = {
-            "ok": True,
-            "state": "done",
+            "ok": False,
+            "state": "failed",
+            "reason": "unhealthy" if restart_error is None else "restart_failed",
             "from": from_version,
             "to": to_version,
             "backup_id": backup_id,
-            "reverted": False,
-            "message": "הגרסה הוחזרה.",
+            "reverted": reverted,
+            "message": "השירות לא עלה. הוחזרה הגרסה הקודמת." if reverted else "השירות לא עלה והחזרה אוטומטית נכשלה.",
         }
-        _write_result(dest, body)
-        return 200, body
-    reverted = False
-    try:
-        _swap_trees(dest, backup)
-        reverted = True
         try:
-            restart()
+            _write_result(dest, body)
         except Exception:
             pass
-    except Exception:
-        reverted = False
-    body = {
-        "ok": False,
-        "state": "failed",
-        "reason": "unhealthy" if restart_error is None else "restart_failed",
-        "from": from_version,
-        "to": to_version,
-        "backup_id": backup_id,
-        "reverted": reverted,
-        "message": "השירות לא עלה. הוחזרה הגרסה הקודמת." if reverted else "השירות לא עלה והחזרה אוטומטית נכשלה.",
-    }
-    try:
-        _write_result(dest, body)
-    except Exception:
-        pass
-    return 200, body
+        return 200, body
+    finally:
+        if own_lock:
+            release_rollback_lock(fh)
+            release_claim(dest)
 
 
 def default_restart() -> None:
@@ -332,7 +487,7 @@ def _env_health(mode: str | None, url: str, timeout_s: float):
     return wait
 
 
-def build_context(running_version: str, armed_value):
+def build_context(running_version: str, armed_value=None):
     dest = Path(os.environ.get("VLC_COMPANION_DEST") or (Path.home() / "vlc-companion"))
     inline = os.environ.get("VLC_VERSIONS_INLINE") == "1"
     health_mode = os.environ.get("VLC_VERSIONS_HEALTH")
@@ -346,9 +501,18 @@ def build_context(running_version: str, armed_value):
     else:
         restart = default_restart
         wait_healthy = lambda timeout: default_wait_healthy(health_url, timeout)
+
+    def blocked():
+        if armed_value is True:
+            return "armed"
+        if armed_value is False:
+            return None
+        return read_flight_block()
+
     return {
         "dest": dest,
         "armed": armed_value is True,
+        "blocked": blocked,
         "restart": restart,
         "wait_healthy": wait_healthy,
         "running_version": running_version,
@@ -398,14 +562,23 @@ def http_post(path: str, data: dict, ctx: dict) -> tuple[int, dict]:
     if not isinstance(data, dict) or data.get("confirm") is not True:
         return 400, {"ok": False, "reason": "confirm", "message": "נדרש אישור מפורש."}
     backup_id = str(data.get("backup_id") or "")
+    blocked = ctx.get("blocked")
+    armed = ctx.get("armed") is True
     if ctx.get("inline") is not True:
-        if ctx["armed"] is True:
-            return 409, {"ok": False, "reason": "armed", "message": "המטוס חמוש. אין החזרה."}
+        reason = _block_reason(blocked, armed)
+        if reason:
+            return 409, _block_body(reason)
         if not valid_backup_id(backup_id):
             return 400, {"ok": False, "reason": "bad_backup", "message": "גיבוי לא מוכר."}
         if not (backups_root(dest) / backup_id).is_dir():
             return 404, {"ok": False, "reason": "missing", "message": "הגיבוי לא נמצא."}
-        spawn_worker(backup_id, ctx["running_version"])
+        if not claim_rollback(dest):
+            return 409, _block_body("busy")
+        try:
+            spawn_worker(backup_id, ctx["running_version"])
+        except Exception:
+            release_claim(dest)
+            raise
         return 202, {
             "ok": True,
             "state": "restarting",
@@ -415,7 +588,8 @@ def http_post(path: str, data: dict, ctx: dict) -> tuple[int, dict]:
     return perform_rollback(
         dest,
         backup_id,
-        armed=ctx["armed"],
+        armed=armed,
+        blocked=blocked,
         restart=ctx["restart"],
         wait_healthy=ctx["wait_healthy"],
         running_version=ctx["running_version"],
@@ -440,12 +614,12 @@ def _cli(argv: list[str]) -> int:
     if "--rollback-worker" in argv:
         backup_id = argv[argv.index("--backup-id") + 1]
         running = argv[argv.index("--running-version") + 1] if "--running-version" in argv else ""
-        armed = os.environ.get("VLC_VERSIONS_REFUSE") == "1"
-        ctx = build_context(running, armed)
+        ctx = build_context(running, None)
         status, body = perform_rollback(
             ctx["dest"],
             backup_id,
-            armed=ctx["armed"],
+            armed=False,
+            blocked=ctx["blocked"],
             restart=ctx["restart"],
             wait_healthy=ctx["wait_healthy"],
             running_version=ctx["running_version"],

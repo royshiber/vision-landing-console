@@ -97,6 +97,100 @@ class RollbackTests(unittest.TestCase):
             stored = json.loads((vr.backups_root(dest) / snap["id"] / vr.MANIFEST_NAME).read_text(encoding="utf-8"))
             self.assertEqual(stored["deployed_at"], "2026-09-26T12:00:00Z")
 
+    def test_second_swap_is_rejected_while_the_lock_is_held(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            live, _backup = _tree(Path(tmp))
+            held = vr.acquire_rollback_lock(live)
+            self.assertIsNotNone(held)
+            try:
+                status, body = vr.perform_rollback(
+                    live,
+                    "20260926T100000Z",
+                    armed=False,
+                    restart=lambda: None,
+                    wait_healthy=lambda _timeout: True,
+                    running_version="2.6.0",
+                )
+            finally:
+                vr.release_rollback_lock(held)
+            self.assertEqual(status, 409)
+            self.assertEqual(body["reason"], "busy")
+            self.assertEqual((live / "marker.txt").read_text(encoding="utf-8"), "LIVE")
+
+    def test_failed_armed_check_is_blocked(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            live, _backup = _tree(Path(tmp))
+
+            def blocked():
+                raise RuntimeError("fc down")
+
+            status, body = vr.perform_rollback(
+                live,
+                "20260926T100000Z",
+                blocked=blocked,
+                restart=lambda: None,
+                wait_healthy=lambda _timeout: True,
+                running_version="2.6.0",
+            )
+            self.assertEqual(status, 409)
+            self.assertEqual(body["reason"], "unknown")
+            self.assertEqual((live / "marker.txt").read_text(encoding="utf-8"), "LIVE")
+
+    def test_recheck_blocks_immediately_before_the_swap(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            live, _backup = _tree(Path(tmp))
+            calls = {"n": 0}
+
+            def blocked():
+                calls["n"] += 1
+                return None if calls["n"] == 1 else "armed"
+
+            status, body = vr.perform_rollback(
+                live,
+                "20260926T100000Z",
+                blocked=blocked,
+                restart=lambda: None,
+                wait_healthy=lambda _timeout: True,
+                running_version="2.6.0",
+            )
+            self.assertGreaterEqual(calls["n"], 2)
+            self.assertEqual(status, 409)
+            self.assertEqual(body["reason"], "armed")
+            self.assertEqual(body["state"], "failed")
+            self.assertEqual((live / "marker.txt").read_text(encoding="utf-8"), "LIVE")
+            stored = json.loads((vr.backups_root(live) / vr.RESULT_NAME).read_text(encoding="utf-8"))
+            self.assertEqual(stored["state"], "failed")
+
+    def test_http_claim_rejects_a_second_swap(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            live, _backup = _tree(Path(tmp))
+            ctx = vr.build_context("2.6.0", False)
+            ctx["inline"] = False
+            ctx["dest"] = live
+            spawned = []
+            original = vr.spawn_worker
+            vr.spawn_worker = lambda *args, **kwargs: spawned.append(args)
+            try:
+                first, first_body = vr.http_post(
+                    "/api/v1/versions/rollback",
+                    {"confirm": True, "backup_id": "20260926T100000Z"},
+                    ctx,
+                )
+                second, second_body = vr.http_post(
+                    "/api/v1/versions/rollback",
+                    {"confirm": True, "backup_id": "20260926T100000Z"},
+                    ctx,
+                )
+            finally:
+                vr.spawn_worker = original
+                vr.release_claim(live)
+            self.assertEqual(first, 202)
+            self.assertEqual(second, 409)
+            self.assertEqual(second_body["reason"], "busy")
+            self.assertEqual(len(spawned), 1)
+            self.assertEqual(first_body["state"], "restarting")
+
+
 
 if __name__ == "__main__":
     unittest.main()

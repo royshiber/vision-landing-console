@@ -248,17 +248,32 @@ describe('versions and rollback view', () => {
           }
           if (state === 'confirm') {
             expect(phase).toBe('confirm');
+            expect(await textOf('#vrConfirmTitle')).toContain('קונסולה');
             expect(await textOf('#vrConfirmFrom')).toContain('1.02.338');
             expect(await textOf('#vrConfirmTo')).toContain('1.02.335');
+            expect(await textOf('#vrConfirm')).not.toContain('אל אין מידע');
+            const box = await page.locator('#vrConfirmYes').boundingBox();
+            expect(box.y).toBeGreaterThanOrEqual(0);
+            expect(box.y + box.height).toBeLessThanOrEqual(viewport.height + 1);
+            expect(await page.evaluate(() => document.activeElement?.id)).toBe('vrConfirmYes');
+            const ltr = await page.locator('#vrConfirmFrom bdi').getAttribute('dir');
+            expect(ltr).toBe('ltr');
           }
           if (state === 'progress') {
             expect(phase).toBe('progress');
             expect(await textOf('#vrProgress')).toContain('1.02.338');
             expect(await textOf('#vrProgress')).toContain('1.02.335');
+            expect(await page.locator('#vrProgress').getAttribute('role')).toBe('status');
+            expect(await page.locator('#vrConsoleRollbackBtn').isDisabled()).toBe(true);
+            expect(await page.locator('.vr-backup-btn').first().isDisabled()).toBe(true);
           }
           if (state === 'failed') {
             expect(phase).toBe('failed');
             expect(await textOf('#vrError')).toContain('ההחזרה נכשלה');
+            expect(await page.locator('#vrDismiss').isVisible()).toBe(true);
+          }
+          if (state === 'no-companion') {
+            expect(await textOf('#vrKnownGoodStatus')).toBe('לא סומן');
           }
           const file = path.join(shotDir, `${label}.png`);
           await page.locator('#gsVersions').screenshot({ path: file });
@@ -270,6 +285,60 @@ describe('versions and rollback view', () => {
       }
     }
   }, 180000);
+
+  it('traps confirm focus, names an unversioned backup, and shows the known-good error', async () => {
+    const page = await browser.newPage({ viewport: { width: 1280, height: 720 }, locale: 'he-IL' });
+    let versionCalls = 0;
+    await page.route('**/api/**', (route) => {
+      const url = route.request().url();
+      const method = route.request().method();
+      if (url.includes('/api/versions/known-good') && method === 'POST') {
+        return route.fulfill({
+          status: 403,
+          contentType: 'application/json',
+          body: JSON.stringify({ ok: false, message: 'אסור לסמן' }),
+        });
+      }
+      if (url.includes('/api/versions')) {
+        versionCalls += 1;
+        const payload = viewPayload(true);
+        payload.knownGood = null;
+        payload.companion.backups.push({
+          id: '20260918T080000Z',
+          version: null,
+          deployedAt: '2026-09-18T08:00:00Z',
+          gitSha: null,
+          knownGood: false,
+        });
+        return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(payload) });
+      }
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, available: false, current: '1.02.338', latest: '1.02.338' }) });
+    });
+    await page.goto(base, { waitUntil: 'domcontentloaded' });
+    const before = versionCalls;
+    const nextLoad = page.waitForResponse((res) => res.url().includes('/api/versions') && res.request().method() === 'GET');
+    await page.click('#globalSettingsBtn');
+    await nextLoad;
+    expect(versionCalls).toBeGreaterThan(before);
+    await page.click('#vrKnownGoodBtn');
+    await page.waitForSelector('#vrKnownGoodError:not([hidden])');
+    expect(await page.locator('#vrKnownGoodError').textContent()).toBe('אסור לסמן');
+    await page.locator('.vr-backup-btn').nth(1).click();
+    await page.waitForSelector('#vrConfirm:not([hidden])');
+    const confirmText = await page.locator('#vrConfirm').textContent();
+    expect(confirmText).toContain('מחשב משימה');
+    expect(confirmText).toContain('גרסה לא ידועה');
+    expect(confirmText).toContain('תאריך');
+    expect(confirmText).not.toContain('אל אין מידע');
+    await page.keyboard.press('Tab');
+    expect(await page.evaluate(() => document.activeElement?.id)).toBe('vrConfirmNo');
+    await page.keyboard.press('Tab');
+    expect(await page.evaluate(() => document.activeElement?.id)).toBe('vrConfirmYes');
+    await page.keyboard.press('Escape');
+    expect(await page.locator('#vrConfirm').isHidden()).toBe(true);
+    expect(await page.locator('#globalSettingsModal').isVisible()).toBe(true);
+    await page.close();
+  }, 60000);
 });
 
 function composeSheet(items) {

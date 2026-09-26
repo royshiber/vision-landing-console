@@ -376,35 +376,40 @@
               <dl class="vr-dl">
                 <div><dt>גרסה</dt><dd id="vrCompanionVersion">אין מידע</dd></div>
                 <div><dt>זמן פריסה</dt><dd id="vrCompanionDeployed">אין מידע</dd></div>
-                <div><dt>מזהה קוד</dt><dd id="vrCompanionSha">אין מידע</dd></div>
+                <div><dt>מזהה שינוי</dt><dd id="vrCompanionSha">אין מידע</dd></div>
               </dl>
               <h4 class="vr-h vr-sub">גיבויים</h4>
               <ul id="vrBackups" class="vr-backups"></ul>
             </article>
             <article class="vr-card" id="vrFc">
-              <h4 class="vr-h">צילום פרמטרי בקר</h4>
+              <h4 class="vr-h">תמונת מצב פרמטרים</h4>
               <p id="vrFcSnapshot" class="vr-note">אין מידע</p>
             </article>
             <article class="vr-card" id="vrKnown">
               <h4 class="vr-h">עבד טוב</h4>
-              <p id="vrKnownGoodStatus" class="vr-note">אין מידע</p>
+              <p id="vrKnownGoodStatus" class="vr-note">לא סומן</p>
               <button type="button" id="vrKnownGoodBtn" class="vr-btn">סמן שעבד טוב</button>
+              <p id="vrKnownGoodError" class="vr-error" role="alert" hidden></p>
             </article>
             <div id="gsAppUpdate" class="vr-update">
               <p id="gsAppUpdateStatus" class="vr-note">בודקים אם יש עדכון.</p>
               <button type="button" id="gsCheckUpdatesBtn" class="vr-btn">בדוק עדכונים</button>
             </div>
-            <div id="vrConfirm" class="vr-confirm" hidden>
-              <p id="vrConfirmTitle" class="vr-h">אישור החזרה</p>
-              <p id="vrConfirmFrom" class="vr-fromto">אין מידע</p>
-              <p id="vrConfirmTo" class="vr-fromto">אין מידע</p>
-              <div class="vr-actions">
-                <button type="button" id="vrConfirmYes" class="vr-btn vr-btn-danger">אישור החזרה</button>
-                <button type="button" id="vrConfirmNo" class="vr-btn">ביטול</button>
+            <div id="vrConfirm" class="vr-confirm" role="dialog" aria-modal="true" aria-labelledby="vrConfirmTitle" tabindex="-1" hidden>
+              <div class="vr-confirm-card">
+                <p id="vrConfirmTitle" class="vr-h">אישור החזרה</p>
+                <p id="vrConfirmFrom" class="vr-fromto"></p>
+                <p id="vrConfirmTo" class="vr-fromto"></p>
+                <p id="vrConfirmWhen" class="vr-note"></p>
+                <div class="vr-actions">
+                  <button type="button" id="vrConfirmYes" class="vr-btn vr-btn-danger">אישור החזרה</button>
+                  <button type="button" id="vrConfirmNo" class="vr-btn">ביטול</button>
+                </div>
               </div>
             </div>
-            <p id="vrProgress" class="vr-progress" hidden>מחזירים גרסה</p>
+            <p id="vrProgress" class="vr-progress" role="status" aria-live="polite" hidden><span class="vr-spin" aria-hidden="true"></span><span id="vrProgressText">מחזירים גרסה</span></p>
             <p id="vrError" class="vr-error" role="alert" hidden></p>
+            <button type="button" id="vrDismiss" class="vr-btn" hidden>סגור</button>
           </section>
           <section class="gs-section" id="gsAttentionPolicy">
             <h3 class="gs-h" id="gsAttentionTitle">התערבות</h3>
