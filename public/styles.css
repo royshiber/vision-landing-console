@@ -877,6 +877,9 @@ body:has(#terrain.panel.visible) .layout {
 .param-center-smart-results:not(.hidden) {
   max-height: min(40vh, 320px);
 }
+#control.panel.visible .param-center-smart-results:not(.hidden) {
+  max-height: min(22vh, 140px);
+}
 
 .ardu-top-cats-host {
   display: inline-flex;
@@ -1124,8 +1127,8 @@ body:has(#terrain.panel.visible) .layout {
   border-radius: 6px;
   background: rgba(0, 71, 141, 0.035);
   color: var(--text-muted);
-  font-size: 0.66rem;
-  line-height: 1.25;
+  font-size: 12px;
+  line-height: 1.35;
 }
 .ardu-smart-meta strong {
   color: var(--text);
@@ -1142,7 +1145,7 @@ body:has(#terrain.panel.visible) .layout {
   border: 1px solid var(--primary);
   color: var(--primary);
   background: #fff;
-  font-size: 0.68rem;
+  font-size: 12px;
   font-weight: 900;
   cursor: pointer;
   transition: background 0.12s, color 0.12s;

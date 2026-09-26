@@ -29,7 +29,7 @@ function startServer(port) {
       GEMINI_API_KEY: '',
       COMPANION_MODE: 'off',
     },
-    stdio: ['ignore', 'pipe', 'pipe'],
+    stdio: 'ignore',
   });
 }
 
