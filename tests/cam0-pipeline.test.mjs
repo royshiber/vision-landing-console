@@ -242,7 +242,7 @@ describe('cam0 companion HTTP', () => {
     expect(denied.status).toBe(401);
     const health = await fetch(`${base}/api/health`, { headers: { Authorization: `Bearer ${token}` } });
     const body = await health.json();
-    expect(body.agentVersion).toBe('2.5.2');
+    expect(body.agentVersion).toBe('2.5.3');
     expect(body.ok).toBe(true);
   });
 

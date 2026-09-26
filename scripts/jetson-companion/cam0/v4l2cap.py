@@ -108,7 +108,15 @@ class _v4l2_requestbuffers(ctypes.Structure):
 
 class _v4l2_format(ctypes.Structure):
     class _fmt(ctypes.Union):
-        _fields_ = [("raw", ctypes.c_uint8 * 200)]
+        # linux/videodev2.h: the fmt union includes v4l2_window, which holds
+        # pointers, so the union is pointer-aligned. On 64-bit that puts 4
+        # bytes of padding after type and makes sizeof(struct v4l2_format) 208.
+        # A byte array alone is 1-byte aligned and yields 204, so VIDIOC_S_FMT
+        # is ENOTTY (0xc0cc5605 instead of 0xc0d05605).
+        _fields_ = [
+            ("raw", ctypes.c_uint8 * 200),
+            ("_align", ctypes.c_void_p),
+        ]
 
     _fields_ = [("type", ctypes.c_uint32), ("fmt", _fmt)]
 

@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import ctypes
 import errno
 import fcntl
 import mmap
@@ -17,12 +18,44 @@ sys.path.insert(0, str(ROOT))
 from cam0.rawfmt import to_code10  # noqa: E402
 from cam0.v4l2cap import (  # noqa: E402
     RG10,
+    VIDIOC_EXPBUF,
+    VIDIOC_QBUF,
+    VIDIOC_QUERYCTRL,
+    VIDIOC_REQBUFS,
+    VIDIOC_S_CTRL,
+    VIDIOC_S_FMT,
     Y10,
     V4l2Source,
+    _v4l2_buffer,
+    _v4l2_control,
+    _v4l2_exportbuffer,
+    _v4l2_format,
+    _v4l2_queryctrl,
+    _v4l2_requestbuffers,
     choose_pixelformat,
     describe_capture_error,
     struct_pix,
 )
+
+
+class V4l2AbiTests(unittest.TestCase):
+    def test_format_and_buffer_ioctls_match_64bit_kernel(self):
+        if ctypes.sizeof(ctypes.c_void_p) != 8:
+            self.skipTest("these ioctl numbers are the 64-bit videodev2 ABI")
+        self.assertEqual(_v4l2_format.fmt.offset, 8)
+        self.assertEqual(ctypes.sizeof(_v4l2_format), 208)
+        self.assertEqual(VIDIOC_S_FMT, 0xC0D05605)
+        self.assertEqual(ctypes.sizeof(_v4l2_buffer), 88)
+        self.assertEqual(VIDIOC_QBUF, 0xC058560F)
+        # linux/videodev2.h: no pointers, so these sizes are the same on 32-bit.
+        self.assertEqual(ctypes.sizeof(_v4l2_requestbuffers), 20)
+        self.assertEqual(VIDIOC_REQBUFS, 0xC0145608)
+        self.assertEqual(ctypes.sizeof(_v4l2_exportbuffer), 64)
+        self.assertEqual(VIDIOC_EXPBUF, 0xC0405610)
+        self.assertEqual(ctypes.sizeof(_v4l2_control), 8)
+        self.assertEqual(VIDIOC_S_CTRL, 0xC008561C)
+        self.assertEqual(ctypes.sizeof(_v4l2_queryctrl), 68)
+        self.assertEqual(VIDIOC_QUERYCTRL, 0xC044562C)
 
 
 class PixelformatFallbackTests(unittest.TestCase):
