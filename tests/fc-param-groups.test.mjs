@@ -54,7 +54,8 @@ describe('FC parameter groups', () => {
     expect(html).toContain('id="fcGroupPane"');
     expect(app).toContain('renderFcGroupList()');
     expect(app).toContain("val === 'landingParams' || val === 'visionNavParams'");
-    expect(app).toContain("keys.filter((key) => key.toLowerCase().includes(query))");
+    expect(app).toContain('key.toLowerCase().includes(query)');
+    expect(app).toContain('fcParamMeta[key]?.he');
     expect(app).toContain('openGuardedFcWriteConfirm');
     expect(app).toContain('void loadFcParamGroups()');
   });

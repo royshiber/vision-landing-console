@@ -20081,8 +20081,13 @@ body:has(#control.panel.visible) .ardu-top-cats-host {
   min-height: 0;
   overflow: hidden;
 }
-#arduParams.ardu-params--group .fc-group-list {
+#arduParams.ardu-params--group .fc-group-split {
   flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+#arduParams.ardu-params--group .fc-group-list,
+#arduParams.ardu-params--group .fc-change-pane {
   min-height: 0;
   overflow: auto;
 }
@@ -20117,54 +20122,101 @@ body:has(#control.panel.visible) .ardu-top-cats-host {
   min-height: 0;
   min-width: 0;
 }
+.fc-group-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 280px);
+  gap: 10px;
+  min-width: 0;
+  min-height: 0;
+}
 .fc-group-lead,
 .fc-group-status,
-.fc-group-empty {
+.fc-group-empty,
+.fc-change-title,
+.fc-file-title,
+.fc-file-latest,
+.fc-file-status,
+.fc-change-empty {
   margin: 0;
   padding: 0 10px;
   color: #94a3b8;
-  font-size: 0.75rem;
+  font-size: 12px;
   font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.fc-change-title,
+.fc-file-title {
+  color: #e2e8f0;
+  font-size: 13px;
+  padding: 0 0 6px;
 }
 .fc-group-list {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr));
   gap: 6px;
+  align-content: start;
   margin: 0;
-  padding: 0 10px 8px;
+  padding: 0 4px 8px;
   list-style: none;
   min-width: 0;
 }
+.fc-group-empty {
+  grid-column: 1 / -1;
+}
 .fc-group-row {
   display: grid;
-  grid-template-columns: minmax(0, 1.4fr) auto minmax(72px, 140px);
-  gap: 8px;
-  align-items: center;
+  grid-template-columns: minmax(6.5rem, 0.85fr) minmax(0, 1.5fr) auto auto minmax(4.2rem, 5.2rem);
+  gap: 6px 8px;
+  align-items: start;
   min-width: 0;
-  padding: 8px 10px;
+  padding: 6px 8px;
   border-radius: 8px;
   background: #121826;
   border: 1px solid rgba(148, 168, 198, 0.14);
 }
+.fc-group-row--pending {
+  border-color: #fbbf24;
+  background: #1c1708;
+}
+.fc-group-row--written {
+  border-color: #4ade80;
+}
 .fc-group-key {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 0.72rem;
+  font-size: 12px;
   font-weight: 800;
   color: #7dd3fc;
   direction: ltr;
   unicode-bidi: isolate;
   overflow-wrap: anywhere;
+  min-width: 0;
+}
+.fc-group-he,
+.fc-group-meta {
+  font-size: 12px;
+  font-weight: 700;
+  color: #cbd5e1;
+  overflow-wrap: anywhere;
+  min-width: 0;
+  line-height: 1.35;
 }
 .fc-group-now {
-  font-size: 0.75rem;
+  font-size: 12px;
   font-weight: 800;
   color: #e2e8f0;
   direction: ltr;
   unicode-bidi: isolate;
+  overflow-wrap: anywhere;
+  min-width: 0;
 }
 .fc-group-now[data-state="unknown"],
 .fc-group-now[data-state="missing"] {
   color: #fde68a;
+}
+.fc-group-meta {
+  direction: ltr;
+  unicode-bidi: isolate;
+  color: #94a3b8;
 }
 .fc-group-next {
   width: 100%;
@@ -20175,6 +20227,7 @@ body:has(#control.panel.visible) .ardu-top-cats-host {
   background: #0b0e14;
   color: #f8fafc;
   padding: 4px 8px;
+  font-size: 12px;
   direction: ltr;
 }
 .fc-group-actions {
@@ -20184,9 +20237,108 @@ body:has(#control.panel.visible) .ardu-top-cats-host {
   gap: 8px;
   padding: 0 10px 10px;
 }
+.fc-change-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  padding: 8px;
+  border-radius: 8px;
+  background: #0e131c;
+  border: 1px solid rgba(148, 168, 198, 0.14);
+}
+.fc-change-list,
+.fc-file-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  min-width: 0;
+}
+.fc-change-row,
+.fc-file-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+  min-width: 0;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(148, 168, 198, 0.12);
+  font-size: 12px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+.fc-change-key,
+.fc-file-when {
+  font-weight: 800;
+  color: #e2e8f0;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.fc-change-key {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+.fc-change-vals,
+.fc-change-time,
+.fc-change-result,
+.fc-file-meta {
+  color: #cbd5e1;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.fc-change-vals {
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+.fc-change-row[data-result="pending"] .fc-change-result {
+  color: #fde68a;
+}
+.fc-change-row[data-result="confirmed"] .fc-change-result {
+  color: #4ade80;
+}
+.fc-change-row[data-result="failed"] .fc-change-result {
+  color: #fca5a5;
+}
+.fc-file-restore {
+  font-size: 12px;
+  font-weight: 800;
+  min-height: 32px;
+  padding: 4px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 168, 198, 0.28);
+  background: #172033;
+  color: #f8fafc;
+}
+.fc-file-restore:disabled {
+  opacity: 0.55;
+}
+.fc-file-history {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
 @media (max-width: 720px) {
+  .fc-group-split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .fc-group-list {
+    grid-template-columns: minmax(0, 1fr);
+  }
   .fc-group-row {
     grid-template-columns: minmax(0, 1fr);
+  }
+  #arduParams.ardu-params--group .fc-group-split {
+    overflow: auto;
+    padding-bottom: 8px;
+  }
+  #arduParams.ardu-params--group .fc-group-list,
+  #arduParams.ardu-params--group .fc-change-pane {
+    overflow: visible;
   }
 }
 

@@ -718,7 +718,19 @@
           <div class="ardu-form-region">
             <div id="fcGroupPane" class="fc-group-pane" hidden>
               <p id="fcGroupLead" class="fc-group-lead"></p>
-              <ul id="fcGroupList" class="fc-group-list" aria-label="פרמטרי הקבוצה"></ul>
+              <div class="fc-group-split">
+                <ul id="fcGroupList" class="fc-group-list" aria-label="פרמטרי הקבוצה"></ul>
+                <aside id="fcChangePane" class="fc-change-pane" aria-label="שינויים שנכתבו">
+                  <h3 class="fc-change-title">שינויים שנכתבו</h3>
+                  <ul id="fcChangeList" class="fc-change-list"></ul>
+                  <section class="fc-file-history" aria-label="היסטוריית קבצי פרמטרים">
+                    <h3 class="fc-file-title">קובץ פרמטרים אחרון</h3>
+                    <p id="fcFileLatest" class="fc-file-latest">אין קובץ שמור</p>
+                    <ul id="fcFileList" class="fc-file-list"></ul>
+                    <p id="fcFileStatus" class="fc-file-status" aria-live="polite"></p>
+                  </section>
+                </aside>
+              </div>
               <div class="fc-group-actions">
                 <button type="button" id="fcGroupApply" class="param-tool-btn param-tool-btn--primary" disabled>החלה</button>
                 <p id="fcGroupStatus" class="fc-group-status" aria-live="polite"></p>

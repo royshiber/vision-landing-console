@@ -458,7 +458,12 @@ function syncParamGroupChrome() {
 }
 
 let fcParamGroups = [];
+let fcParamMeta = {};
+let fcParamFiles = [];
+let fcArmed = null;
 const fcGroupDraft = {};
+const fcDraftMeta = {};
+let fcChangeLog = [];
 
 function fcPresence(key) {
   if (!fcCurrentSnapshot || typeof fcCurrentSnapshot !== 'object') return { state: 'unknown', text: 'לא ידוע' };
@@ -474,6 +479,225 @@ function currentCatalogGroup() {
   return fcParamGroups.find((group) => group.id === val.slice('ardu-'.length)) || null;
 }
 
+function fcMetaText(key) {
+  const meta = fcParamMeta[key] || {};
+  return [meta.units, meta.range].filter(Boolean).join(' · ');
+}
+
+function formatFcWhen(at) {
+  const date = new Date(at);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleString('he-IL', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+}
+
+function fcWriteResultForKey(data, key) {
+  const failedList = Array.isArray(data?.failed) ? data.failed : [];
+  const failed = failedList.some((item) => {
+    if (typeof item === 'string') return item === key;
+    return item?.key === key || item?.name === key || item?.param === key;
+  });
+  if (failed || (data?.rejected && Object.prototype.hasOwnProperty.call(data.rejected, key))) return 'failed';
+  if (!data?.ok) return 'failed';
+  if (data.verified && Object.prototype.hasOwnProperty.call(data.verified, key)) return 'confirmed';
+  if (data.simulated) return 'unconfirmed';
+  if (data.written > 0) return 'confirmed';
+  return 'failed';
+}
+
+const FC_RESULT_LABEL = {
+  pending: 'ממתין',
+  confirmed: 'הבקר אישר',
+  failed: 'נכשל',
+  unconfirmed: 'לא אושר מהבקר',
+};
+
+function paintFcRow(key) {
+  const row = document.querySelector(`#fcGroupList [data-param-key="${CSS.escape(key)}"]`);
+  if (!row) return;
+  const pending = Object.prototype.hasOwnProperty.call(fcGroupDraft, key);
+  row.classList.toggle('fc-group-row--pending', pending);
+  row.classList.toggle('fc-group-row--written', !pending && fcChangeLog.some((entry) => entry.key === key));
+}
+
+function renderFcChangePane() {
+  const list = document.getElementById('fcChangeList');
+  if (!list) return;
+  const items = [];
+  for (const [key, value] of Object.entries(fcGroupDraft)) {
+    const meta = fcDraftMeta[key] || { at: Date.now(), oldText: fcPresence(key).text };
+    items.push({ key, oldText: meta.oldText, newText: String(value), at: meta.at, result: 'pending' });
+  }
+  items.push(...fcChangeLog);
+  list.replaceChildren();
+  if (!items.length) {
+    const empty = document.createElement('li');
+    empty.className = 'fc-change-empty';
+    empty.textContent = 'אין שינויים';
+    list.appendChild(empty);
+    return;
+  }
+  for (const item of items) {
+    const li = document.createElement('li');
+    li.className = 'fc-change-row';
+    li.dataset.result = item.result;
+    const keyEl = document.createElement('span');
+    keyEl.className = 'fc-change-key';
+    keyEl.textContent = item.key;
+    const vals = document.createElement('span');
+    vals.className = 'fc-change-vals';
+    vals.textContent = `${item.oldText} → ${item.newText}`;
+    const time = document.createElement('span');
+    time.className = 'fc-change-time';
+    time.textContent = formatFcWhen(item.at);
+    const result = document.createElement('span');
+    result.className = 'fc-change-result';
+    result.textContent = FC_RESULT_LABEL[item.result] || '';
+    li.append(keyEl, vals, time, result);
+    list.appendChild(li);
+  }
+}
+
+function pushFcWriteLog(keys, data, nextByKey) {
+  const at = Date.now();
+  for (const key of keys) {
+    const next = nextByKey && Object.prototype.hasOwnProperty.call(nextByKey, key)
+      ? nextByKey[key]
+      : fcGroupDraft[key];
+    fcChangeLog.unshift({
+      key,
+      oldText: fcDraftMeta[key]?.oldText || fcPresence(key).text,
+      newText: next == null ? '' : String(next),
+      at,
+      result: fcWriteResultForKey(data, key),
+    });
+  }
+  fcChangeLog = fcChangeLog.slice(0, 80);
+}
+
+function fcFileSourceLabel(source) {
+  if (source === 'read') return 'קריאה מהבקר';
+  if (source === 'write') return 'כתיבה לבקר';
+  return '';
+}
+
+function renderFcParamFiles() {
+  const latest = document.getElementById('fcFileLatest');
+  const list = document.getElementById('fcFileList');
+  if (!list) return;
+  const armed = fcArmed === true;
+  if (!fcParamFiles.length) {
+    if (latest) latest.textContent = 'אין קובץ שמור';
+    list.replaceChildren();
+    return;
+  }
+  const top = fcParamFiles[0];
+  const topSource = fcFileSourceLabel(top.source);
+  if (latest) {
+    latest.textContent = [formatFcWhen(top.savedAt), topSource, String(top.count ?? '')].filter(Boolean).join(' · ');
+  }
+  list.replaceChildren();
+  for (const file of fcParamFiles) {
+    const li = document.createElement('li');
+    li.className = 'fc-file-row';
+    const when = document.createElement('span');
+    when.className = 'fc-file-when';
+    when.textContent = formatFcWhen(file.savedAt);
+    const meta = document.createElement('span');
+    meta.className = 'fc-file-meta';
+    meta.textContent = [fcFileSourceLabel(file.source), file.count != null ? String(file.count) : ''].filter(Boolean).join(' · ');
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'fc-file-restore';
+    btn.dataset.fileId = file.id;
+    btn.textContent = 'שחזר';
+    btn.disabled = armed;
+    if (armed) btn.title = 'המטוס חמוש. השחזור חסום עד לניטרול.';
+    li.append(when, meta, btn);
+    list.appendChild(li);
+  }
+}
+
+async function loadFcParamFiles() {
+  try {
+    const res = await fetch('/api/ardu/param-files');
+    if (!res.ok) throw Object.assign(new Error('http'), { res });
+    const data = await res.json();
+    fcParamFiles = Array.isArray(data.files) ? data.files : [];
+  } catch {
+    fcParamFiles = [];
+  }
+  renderFcParamFiles();
+}
+
+function diffFcSnapshot(snapshotParams, current) {
+  const params = snapshotParams && typeof snapshotParams === 'object' ? snapshotParams : {};
+  const rows = [];
+  for (const key of Object.keys(params).sort()) {
+    const nextText = String(params[key]);
+    let currentText = 'לא ידוע';
+    let changed = true;
+    if (current && typeof current === 'object') {
+      if (!Object.prototype.hasOwnProperty.call(current, key)) currentText = 'חסר';
+      else {
+        currentText = current[key] == null || current[key] === '' ? 'לא ידוע' : String(current[key]);
+        changed = currentText !== nextText;
+      }
+    }
+    rows.push({ key, currentText, nextText, changed });
+  }
+  return rows;
+}
+
+async function restoreFcParamFile(id) {
+  const status = document.getElementById('fcFileStatus');
+  if (fcArmed === true) {
+    if (status) status.textContent = 'המטוס חמוש. השחזור חסום עד לניטרול.';
+    return;
+  }
+  if (status) status.textContent = '';
+  try {
+    const res = await fetch(`/api/ardu/param-files/${encodeURIComponent(id)}`);
+    if (!res.ok) throw Object.assign(new Error('http'), { res });
+    const data = await res.json();
+    const params = data.file?.params;
+    const changed = diffFcSnapshot(params, fcCurrentSnapshot).filter((row) => row.changed);
+    const writable = {};
+    const rows = [];
+    for (const row of changed) {
+      const n = Number(row.nextText);
+      if (!Number.isFinite(n)) continue;
+      writable[row.key] = n;
+      rows.push(row);
+    }
+    if (!rows.length) {
+      if (status) status.textContent = 'אין הבדל';
+      return;
+    }
+    openGuardedFcWriteConfirm(rows, async () => {
+      if (status) status.textContent = 'שולח…';
+      try {
+        const { res: writeRes, data: writeData } = await postGuardedFcParams(writable);
+        const outcome = fcWriteOutcome(writeRes, writeData);
+        if (status) status.textContent = outcome.text;
+        pushFcWriteLog(Object.keys(writable), writeData, writable);
+        if (writeData.ok && writeData.verified && typeof writeData.verified === 'object') {
+          if (!fcCurrentSnapshot || typeof fcCurrentSnapshot !== 'object') fcCurrentSnapshot = {};
+          for (const [key, value] of Object.entries(writeData.verified)) fcCurrentSnapshot[key] = value;
+        }
+        renderFcGroupList();
+        renderFcChangePane();
+        void loadFcParamFiles();
+      } catch (err) {
+        pushFcWriteLog(Object.keys(writable), { ok: false, failed: Object.keys(writable).map((key) => ({ param: key })) }, writable);
+        renderFcChangePane();
+        if (status) status.textContent = `כתיבה ל-FC נכשלה. הסיבה: ${hebrewRequestFault(err)}`;
+      }
+    });
+  } catch (err) {
+    if (status) status.textContent = `טעינת הקובץ נכשלה. הסיבה: ${hebrewRequestFault(err, err?.res)}`;
+  }
+}
+
 function renderFcGroupList() {
   const list = document.getElementById('fcGroupList');
   const lead = document.getElementById('fcGroupLead');
@@ -485,7 +709,9 @@ function renderFcGroupList() {
   let keys = group.id === 'all'
     ? (unread ? [] : Object.keys(fcCurrentSnapshot).sort())
     : group.keys.slice();
-  if (query) keys = keys.filter((key) => key.toLowerCase().includes(query));
+  if (query) {
+    keys = keys.filter((key) => key.toLowerCase().includes(query) || String(fcParamMeta[key]?.he || '').toLowerCase().includes(query));
+  }
   if (lead) {
     lead.textContent = group.id === 'all' && unread ? 'לא ידוע' : group.labelHe;
   }
@@ -505,11 +731,17 @@ function renderFcGroupList() {
     const keyEl = document.createElement('span');
     keyEl.className = 'fc-group-key';
     keyEl.textContent = key;
+    const heEl = document.createElement('span');
+    heEl.className = 'fc-group-he';
+    heEl.textContent = fcParamMeta[key]?.he || '';
     const nowEl = document.createElement('span');
     nowEl.className = 'fc-group-now';
     nowEl.dataset.state = presence.state;
     nowEl.textContent = presence.text;
-    li.append(keyEl, nowEl);
+    const metaEl = document.createElement('span');
+    metaEl.className = 'fc-group-meta';
+    metaEl.textContent = fcMetaText(key);
+    li.append(keyEl, heEl, nowEl, metaEl);
     if (!readOnly) {
       const input = document.createElement('input');
       input.type = 'number';
@@ -520,15 +752,25 @@ function renderFcGroupList() {
       if (Object.prototype.hasOwnProperty.call(fcGroupDraft, key)) input.value = String(fcGroupDraft[key]);
       input.addEventListener('input', () => {
         const raw = input.value.trim();
-        if (raw === '' || !Number.isFinite(Number(raw))) delete fcGroupDraft[key];
-        else fcGroupDraft[key] = Number(raw);
+        if (raw === '' || !Number.isFinite(Number(raw))) {
+          delete fcGroupDraft[key];
+          delete fcDraftMeta[key];
+        } else {
+          if (!fcDraftMeta[key]) fcDraftMeta[key] = { at: Date.now(), oldText: presence.text };
+          fcGroupDraft[key] = Number(raw);
+        }
+        paintFcRow(key);
+        renderFcChangePane();
         syncGroupApplyBtn();
       });
       li.appendChild(input);
     }
+    if (Object.prototype.hasOwnProperty.call(fcGroupDraft, key)) li.classList.add('fc-group-row--pending');
+    else if (fcChangeLog.some((entry) => entry.key === key)) li.classList.add('fc-group-row--written');
     list.appendChild(li);
   }
   syncGroupApplyBtn();
+  renderFcChangePane();
 }
 
 function syncGroupApplyBtn() {
@@ -564,16 +806,23 @@ function applyFcGroupDraft() {
       const { res, data } = await postGuardedFcParams(params);
       const outcome = fcWriteOutcome(res, data);
       if (status) status.textContent = outcome.text;
+      pushFcWriteLog(keys, data);
       if (data.ok && data.verified && typeof data.verified === 'object') {
         if (!fcCurrentSnapshot || typeof fcCurrentSnapshot !== 'object') fcCurrentSnapshot = {};
         for (const [key, value] of Object.entries(data.verified)) fcCurrentSnapshot[key] = value;
       }
       if (outcome.level !== 'fail') {
-        for (const key of keys) delete fcGroupDraft[key];
+        for (const key of keys) {
+          delete fcGroupDraft[key];
+          delete fcDraftMeta[key];
+        }
       }
       renderFcGroupList();
       updateParamSyncBanner();
+      void loadFcParamFiles();
     } catch (err) {
+      pushFcWriteLog(keys, { ok: false, failed: keys.map((key) => ({ param: key })) });
+      renderFcChangePane();
       if (status) status.textContent = `כתיבה ל-FC נכשלה. הסיבה: ${hebrewRequestFault(err)}`;
     }
   });
@@ -586,6 +835,7 @@ async function loadFcParamGroups() {
     if (!res.ok) throw Object.assign(new Error('http'), { res });
     const data = await res.json();
     fcParamGroups = Array.isArray(data.groups) ? data.groups : [];
+    fcParamMeta = data.meta && typeof data.meta === 'object' ? data.meta : {};
   } catch (err) {
     fcParamGroups = [];
     if (lead && isCatalogParamGroup(activeParamSelectValue())) {
@@ -593,6 +843,7 @@ async function loadFcParamGroups() {
     }
   }
   if (isCatalogParamGroup(activeParamSelectValue())) renderFcGroupList();
+  void loadFcParamFiles();
 }
 function updateArduTopCatsVisibility() {
   if (!arduTopCatsHost) return;
@@ -2494,6 +2745,11 @@ syncConfigTextFromArdu();
 loadVisionConfigFromServer(visionConfigStatus);
 void refreshJetsonLink();
 document.getElementById('fcGroupApply')?.addEventListener('click', () => applyFcGroupDraft());
+document.getElementById('fcFileList')?.addEventListener('click', (event) => {
+  const btn = event.target.closest('.fc-file-restore');
+  if (!btn || btn.disabled) return;
+  void restoreFcParamFile(btn.dataset.fileId);
+});
 document.addEventListener('vlc:fc-params', () => {
   if (isCatalogParamGroup(activeParamSelectValue())) renderFcGroupList();
 });
@@ -9513,7 +9769,7 @@ async function readFcParams() {
   if (!arduReadBtn) return;
   arduReadBtn.disabled = true;
   try {
-    const res = await fetch('/api/ardu/params');
+    const res = await fetch('/api/ardu/params?record=1');
     if (!res.ok) {
       const fault = `קריאה מה-FC נכשלה. הסיבה: ${hebrewRequestFault(null, res)}`;
       showParamToolFault(fault, () => readFcParams());
@@ -9524,6 +9780,7 @@ async function readFcParams() {
       return;
     }
     const d = await res.json();
+    fcArmed = d.armed === true ? true : d.armed === false ? false : null;
     refreshArduWriteBtnState(d);
     fcLinkState = d.mavlinkConnected ? 'ok' : 'down';
     if (!d.connected || !d.current) {
@@ -9549,6 +9806,8 @@ async function readFcParams() {
     }
     updateParamSyncBanner();
     renderArduParamForm();
+    renderFcParamFiles();
+    void loadFcParamFiles();
     document.dispatchEvent(new CustomEvent('vlc:fc-params'));
   } catch (err) {
     const fault = `קריאה מה-FC נכשלה. הסיבה: ${hebrewRequestFault(err)}`;

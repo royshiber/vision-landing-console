@@ -51,6 +51,8 @@ describe('Parameters tab text fit', () => {
   let serverProc = null;
   let browser = null;
   let page = null;
+  let readArmed = false;
+  let writePosts = 0;
   const shots = [];
 
   async function audit(label) {
@@ -61,6 +63,7 @@ describe('Parameters tab text fit', () => {
       const roots = [
         document.querySelector('.app-chrome'),
         document.getElementById('control'),
+        document.getElementById('applyConfirmModal'),
         document.querySelector('.assist-toggle-btn'),
       ].filter(Boolean);
       const seen = new Set();
@@ -153,9 +156,9 @@ describe('Parameters tab text fit', () => {
     await page.addInitScript(() => {
       try { sessionStorage.clear(); } catch { /* ignore */ }
     });
-    await page.route('**/api/ardu/params', async (route) => {
+    await page.route(/\/api\/ardu\/params(?:\?|$)/, async (route) => {
       if (route.request().method() !== 'GET') {
-        await route.continue();
+        await route.fallback();
         return;
       }
       await route.fulfill({
@@ -165,11 +168,64 @@ describe('Parameters tab text fit', () => {
           ok: true,
           connected: true,
           mavlinkConnected: true,
-          armed: false,
-          paramCount: 2,
-          current: { EK3_ENABLE: 1, GPS_TYPE: 1 },
+          armed: readArmed,
+          paramCount: 3,
+          current: { EK3_ENABLE: 1, GPS_TYPE: 1, STAT_RUNTIME: 10 },
         }),
       });
+    });
+    await page.route(/\/api\/ardu\/params\/write$/, async (route) => {
+      const body = route.request().postDataJSON() || {};
+      const verified = body.params && typeof body.params === 'object' ? body.params : {};
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          ok: true,
+          simulated: false,
+          written: Object.keys(verified).length,
+          failed: [],
+          verified,
+          rejected: {},
+          message: 'WRITE SUCCESS',
+        }),
+      });
+    });
+    await page.route(/\/api\/ardu\/param-files/, async (route) => {
+      const url = new URL(route.request().url());
+      if (url.pathname.includes('/param-files/')) {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            ok: true,
+            file: {
+              id: '1700000000000-read-abcd1234',
+              source: 'read',
+              savedAt: '2026-09-26T08:00:00.000Z',
+              count: 2,
+              params: { EK3_ENABLE: 2, GPS_TYPE: 1 },
+            },
+          }),
+        });
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          ok: true,
+          files: [{
+            id: '1700000000000-read-abcd1234',
+            source: 'read',
+            savedAt: '2026-09-26T08:00:00.000Z',
+            count: 2,
+          }],
+        }),
+      });
+    });
+    page.on('request', (req) => {
+      if (req.method() === 'POST' && req.url().includes('/api/ardu/params/write')) writePosts += 1;
     });
   }, 40000);
 
@@ -205,7 +261,7 @@ print(len(thumbs))
       execFileSync('python3', [path.join(qaDir, '_sheet.py')], { stdio: 'inherit' });
       fs.rmSync(path.join(qaDir, '_sheet.py'), { force: true });
     }
-  });
+  }, 60000);
 
   it('keeps params text inside its boxes in RTL across the size matrix', async () => {
     await page.goto(BASE, { waitUntil: 'domcontentloaded' });
@@ -252,10 +308,70 @@ print(len(thumbs))
       await shot(`${vp.name}-search`);
       await page.click('#arduParamSearchClearBtn');
 
+      await page.selectOption('#paramSubtabSelect', 'ardu-ekf');
+      await page.waitForSelector('#fcGroupList [data-param-key="EK3_ENABLE"] .fc-group-he');
+      expect(await page.locator('[data-param-key="EK3_ENABLE"] .fc-group-he').innerText()).toBe('הפעלת מסנן הניווט EKF3');
+      await page.selectOption('#paramSubtabSelect', 'ardu-land');
+      await page.waitForSelector('[data-param-key="LAND_FLARE_ALT"] .fc-group-meta');
+      expect(await page.locator('[data-param-key="LAND_FLARE_ALT"] .fc-group-he').innerText()).toBe('גובה תחילת היישור לפני נגיעה');
+      expect(await page.locator('[data-param-key="LAND_FLARE_ALT"] .fc-group-meta').innerText()).toContain('m');
+      await page.selectOption('#paramSubtabSelect', 'ardu-all');
+      await page.waitForSelector('[data-param-key="STAT_RUNTIME"]');
+      expect(await page.locator('[data-param-key="STAT_RUNTIME"] .fc-group-he').innerText()).toBe('');
+      const columns = await page.locator('#fcGroupList').evaluate((el) => getComputedStyle(el).gridTemplateColumns.split(' ').length);
+      if (vp.width >= 1440) expect(columns, vp.name).toBeGreaterThan(1);
+      if (vp.width <= 360) expect(columns, vp.name).toBe(1);
+
+      await page.selectOption('#paramSubtabSelect', 'ardu-ekf');
+      await page.waitForSelector('#fcGroupList [data-param-key="EK3_ENABLE"] .fc-group-next');
+      await page.fill('[data-param-key="EK3_ENABLE"] .fc-group-next', '0');
+      await page.waitForFunction(() => document.querySelector('#fcChangeList')?.innerText.includes('ממתין'));
+      expect(await page.locator('[data-param-key="EK3_ENABLE"]').getAttribute('class')).toContain('fc-group-row--pending');
+      await page.locator('#fcChangePane').scrollIntoViewIfNeeded();
+      await audit(`${vp.name} pending`);
+      await shot(`${vp.name}-pending`);
+
+      await page.locator('#fcFileList').scrollIntoViewIfNeeded();
+      await page.waitForSelector('.fc-file-restore');
+      expect(await page.locator('#fcFileLatest').innerText()).toContain('קריאה מהבקר');
+      expect(await page.locator('#fcFileLatest').innerText()).toContain('2');
+      await audit(`${vp.name} history`);
+      await shot(`${vp.name}-history`);
+
+      const postsBeforeRestore = writePosts;
+      await page.click('.fc-file-restore');
+      await page.waitForFunction(() => {
+        const modal = document.getElementById('applyConfirmModal');
+        const body = document.getElementById('applyConfirmBody');
+        return modal && !modal.classList.contains('hidden') && body && body.innerText.includes('EK3_ENABLE');
+      });
+      expect(await page.locator('#applyConfirmTitle').innerText()).toContain('אישור כתיבה');
+      await shot(`${vp.name}-restore`);
+      await page.click('#applyConfirmCancelBtn');
+      await page.waitForFunction(() => document.getElementById('applyConfirmModal').classList.contains('hidden'));
+      expect(writePosts, `${vp.name} restore cancel`).toBe(postsBeforeRestore);
+
+      await page.click('#fcGroupApply');
+      await page.waitForFunction(() => !document.getElementById('applyConfirmModal').classList.contains('hidden'));
+      await page.click('#applyConfirmOkBtn');
+      await page.waitForFunction(() => document.querySelector('#fcChangeList')?.innerText.includes('הבקר אישר'));
+      await page.locator('#fcChangePane').scrollIntoViewIfNeeded();
+      await audit(`${vp.name} written`);
+      await shot(`${vp.name}-written`);
+
       await page.click('[data-subtab="autoConfig"]');
       await page.waitForSelector('#acWhatList .ac-choice', { timeout: 15000 });
       await audit(`${vp.name} wizard`);
       await shot(`${vp.name}-wizard`);
     }
-  }, 180000);
+
+    readArmed = true;
+    await page.setViewportSize({ width: 360, height: 740 });
+    await page.click('[data-tab="control"]');
+    await page.selectOption('#paramSubtabSelect', 'ardu-ekf');
+    await page.click('#arduReadBtn');
+    await page.waitForFunction(() => document.querySelector('.fc-file-restore')?.disabled === true);
+    expect(await page.locator('.fc-file-restore').getAttribute('title')).toContain('חמוש');
+    await shot('360x740-restore-armed');
+  }, 300000);
 });

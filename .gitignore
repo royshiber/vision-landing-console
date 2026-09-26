@@ -6,6 +6,7 @@ data/*.wal
 data/*.shm
 data/*.log
 data/uploads/
+data/fc-param-files/
 data/flights/archive/
 data/flights/cloud/
 .env
