@@ -200,7 +200,7 @@ describe('Mission AH size bias + swap persistence', () => {
     expect(css).toMatch(/\.mission-region\[data-mission-region="messages"\]\s*\{[^}]*position:\s*relative/);
     expect(css).not.toMatch(/data-mission-region="messages"\][^{]*\{[^}]*left:\s*6px/);
     expect(sliceFunction(js, 'positionPfdReadinessPopover')).toContain('button, a, input, select, .leaflet-control');
-    expect(sliceFunction(js, 'missionLinkTileLabel')).toContain('בקר חי');
+    expect(sliceFunction(js, 'missionLinkTileLabel')).toContain('בקר מחובר');
     expect(sliceFunction(js, 'missionLinkTileLabel')).toContain('חסר טוקן');
     expect(sliceFunction(js, 'missionLinkTileLabel')).toContain('בדקו כתובת');
     expect(sliceFunction(js, 'setInstrumentView')).toContain('annotatedVisionPanel');

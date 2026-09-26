@@ -161,7 +161,7 @@ describe('ARM DISARM flight screen', () => {
             expect(ui.armDisabled).toBe(true);
             expect(ui.disarmDisabled).toBe(true);
             expect(ui.reasonHidden).toBe(false);
-            expect(ui.reason).toBe('אין טלמטריה מהבקר');
+            expect(ui.reason).toBe('אין חיבור לבקר הטיסה');
             expect(ui.link).toBe('off');
           } else if (state.id === 'disarmed' || state.id === 'refused') {
             expect(ui.armDisabled).toBe(false);
@@ -263,7 +263,7 @@ describe('ARM DISARM flight screen', () => {
       expect(await page.locator('#flightDisarmDialogText').textContent()).toBe('אשרו נטרול');
       expect(posts.filter((p) => p.action === 'disarm')).toHaveLength(0);
       await page.locator('#flightDisarmConfirm').click();
-      await page.waitForFunction(() => (document.getElementById('flightDisarmDialogText')?.textContent || '').includes('אשרו שוב נטרול'));
+      await page.waitForFunction(() => (document.getElementById('flightDisarmDialogText')?.textContent || '').includes('אשרו נטרול שוב.'));
       expect(posts.filter((p) => p.action === 'disarm')).toHaveLength(1);
       expect(posts.find((p) => p.action === 'disarm').confirmFlying).toBe(false);
       expect(posts.filter((p) => p.action === 'disarm' && p.confirmFlying === true)).toHaveLength(0);
@@ -284,7 +284,7 @@ describe('ARM DISARM flight screen', () => {
       await page.locator('#flightDisarmBtn').click();
       await page.locator('#flightDisarmConfirm').click();
       expect(posts).toHaveLength(0);
-      expect(await page.locator('#flightDisarmDialogText').textContent()).toContain('אשרו שוב נטרול');
+      expect(await page.locator('#flightDisarmDialogText').textContent()).toContain('אשרו נטרול שוב.');
       const fit = await page.evaluate(collectTextFitFailures, 1);
       expect(fit.fails).toEqual([]);
       const clipped = await page.evaluate(() => {
@@ -313,7 +313,7 @@ describe('ARM DISARM flight screen', () => {
       }));
       expect(stale.arm).toBe(true);
       expect(stale.disarm).toBe(true);
-      expect(stale.reason).toBe('אין טלמטריה מהבקר');
+      expect(stale.reason).toBe('אין חיבור לבקר הטיסה');
     } finally {
       await page.close();
     }

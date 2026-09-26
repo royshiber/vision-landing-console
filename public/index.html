@@ -2272,7 +2272,7 @@
               <div id="flightArmRow" class="flight-arm-row" data-arm-link="off">
                 <button type="button" id="flightArmBtn" class="flight-arm-btn" disabled>חימוש ARM</button>
                 <button type="button" id="flightDisarmBtn" class="flight-arm-btn" disabled>נטרול DISARM</button>
-                <p id="flightArmReason" class="flight-arm-reason">אין טלמטריה מהבקר</p>
+                <p id="flightArmReason" class="flight-arm-reason">אין חיבור לבקר הטיסה</p>
                 <p id="flightArmRefusal" class="flight-arm-refusal" hidden></p>
                 <div id="flightArmDialog" class="flight-arm-dialog" hidden>
                   <p id="flightArmDialogText" class="flight-arm-dialog-text">אשרו חימוש</p>
@@ -2427,6 +2427,7 @@
 
           <section class="mission-region mission-region-talk" data-mission-region="talk" dir="rtl" aria-label="AIRVIX Ask">
             <h3 class="mission-region-title" draggable="true"><bdi dir="ltr">AIRVIX Ask</bdi></h3>
+            <button type="button" id="missionAskCloseBtn" class="mission-ask-close" aria-label="סגור">סגור</button>
             <p id="missionTalkHint" class="mission-talk-hint">דברו להטסה. אחרי ההפעלה, נחיתה ושינוי מצב מתבצעים בלי אישור נוסף. חימוש נשאר חסום, ושינוי פרמטר עדיין דורש אישור.</p>
             <div id="missionTalkHost" class="mission-talk-host" dir="rtl"></div>
           </section>

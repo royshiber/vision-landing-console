@@ -21345,17 +21345,36 @@ body:has(#pulse.panel.visible) .pulse-home.pulse-status-home {
     flex: 0 0 auto;
   }
 }
+.mission-region-horizon > .flight-hud {
+  height: auto;
+  min-height: 0;
+  max-height: none;
+  flex: 1 1 0;
+}
+.mission-region[data-mission-region="data"],
 .mission-region-horizon .mission-region-data {
   display: flex;
   flex-direction: column;
-  overflow: hidden;
-  max-height: min(196px, 40%);
-  min-height: 96px;
+  overflow: visible;
+  max-height: none;
+  min-height: 0;
+  height: auto;
+  flex: 0 0 auto;
 }
 .mission-region-horizon .mission-data-grid {
-  flex: 1 1 auto;
-  min-height: 64px;
-  overflow: auto;
+  flex: 0 0 auto;
+  min-height: 0;
+  height: auto;
+  max-height: none;
+  overflow: visible;
+}
+.mission-region-data > .mission-horizon-filler {
+  position: static;
+  flex: 0 1 auto;
+  max-height: none;
+  height: auto;
+  overflow: visible;
+  z-index: 0;
 }
 .mission-region-horizon .pfd-horizon-chrome,
 .mission-region-horizon .pfd-video-toggle {
@@ -21427,16 +21446,30 @@ body:has(#pulse.panel.visible) .pulse-home.pulse-status-home {
   }
   .mission-workspace[data-ask-open="1"] .mission-region[data-mission-region="talk"] {
     display: flex;
-    position: fixed;
-    z-index: 40;
+    position: absolute;
+    z-index: 6;
     inset-inline-end: 8px;
-    top: 52px;
+    top: 8px;
     bottom: 8px;
-    width: min(360px, calc(100vw - 16px));
+    width: min(360px, calc(100% - 16px));
     height: auto;
     min-height: 0;
     overflow: auto;
     box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+  }
+  .mission-ask-close { display: none; }
+  .mission-workspace[data-ask-open="1"] .mission-ask-close {
+    display: inline-flex;
+    align-self: flex-start;
+    margin: 4px 8px 0;
+    min-height: 28px;
+    padding: 2px 10px;
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    border-radius: 6px;
+    background: #0f172a;
+    color: #e8edf6;
+    font: inherit;
+    cursor: pointer;
   }
   .mission-region[data-mission-region="horizon"] {
     height: auto;
@@ -21518,5 +21551,84 @@ body:has(#pulse.panel.visible) .pulse-home.pulse-status-home {
   .mission-region-talk,
   #missionTalkHost {
     min-height: 0;
+  }
+}
+
+/* 1024x576: the whole horizon column, battery included, fits with no page scroll. */
+@media (max-width: 1100px) and (max-height: 640px) {
+  html:has(#terrain.panel.visible),
+  body:has(#terrain.panel.visible) {
+    height: 100%;
+    max-height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+  }
+  body:has(#terrain.panel.visible) .layout,
+  #terrain.panel.visible {
+    flex: 1 1 auto;
+    height: auto;
+    max-height: 100%;
+    min-height: 0;
+    overflow: hidden;
+  }
+  .app-chrome {
+    flex-wrap: nowrap;
+    min-height: 36px;
+    max-height: 40px;
+    overflow: hidden;
+  }
+  .mission-ops-chrome {
+    max-height: 26px;
+    flex: 0 0 26px;
+  }
+  .mission-layout-hint,
+  .mission-data-hint { display: none; }
+  .mission-workspace[data-mission-layout="ops-v1"],
+  .mission-workspace[data-mission-swap="map-horizon"],
+  .mission-workspace[data-mission-swap="horizon-map"] {
+    height: 100%;
+    min-height: 0;
+    max-height: 100%;
+    grid-template-rows: minmax(0, 1fr);
+    overflow: hidden;
+  }
+  .mission-region[data-mission-region="horizon"] {
+    height: 100%;
+    min-height: 0;
+    max-height: 100%;
+    overflow: hidden;
+  }
+  .mission-region-horizon > .flight-hud {
+    flex: 1 1 0;
+    min-height: 0;
+    height: auto;
+    max-height: none;
+    overflow: hidden;
+  }
+  .mission-region[data-mission-region="messages"] {
+    height: 28px;
+    min-height: 0;
+    max-height: 28px;
+  }
+  .mission-region-horizon .pfd-horizon-shell,
+  .mission-region-horizon .pfd-horizon-instrument {
+    flex: 1 1 auto;
+    min-height: 0;
+    height: auto;
+  }
+  .mission-region-horizon .pfd-horizon-instrument {
+    grid-template-rows: minmax(120px, 1fr) 22px;
+  }
+  .mission-region-horizon .pfd-horizon-stage {
+    min-height: 120px;
+  }
+  #flightArmRow {
+    flex-wrap: nowrap;
+    max-height: none;
+    padding: 2px 4px;
+  }
+  .mission-region-horizon .mission-data-tile {
+    min-height: 36px;
+    padding: 1px 4px;
   }
 }

@@ -6933,8 +6933,8 @@ const GPS_FIX_LABELS = ['אין GPS', 'אין Fix', '2D Fix', '3D Fix', 'DGPS', 
 const FLIGHT_ARM_HOLD_MS = 1500;
 const FLIGHT_ARM_CONFIRM_HE = 'אשרו חימוש';
 const FLIGHT_DISARM_CONFIRM_HE = 'אשרו נטרול';
-const FLIGHT_DISARM_AGAIN_HE = 'אשרו שוב נטרול';
-const FLIGHT_DISARM_UNKNOWN_HE = 'מצב הטיסה לא ידוע. אשרו שוב נטרול';
+const FLIGHT_DISARM_AGAIN_HE = 'אשרו נטרול שוב.';
+const FLIGHT_DISARM_UNKNOWN_HE = 'מצב הטיסה לא ידוע. אשרו נטרול שוב.';
 let flightArmHoldTimer = null;
 let flightArmHolding = false;
 let flightArmBusy = false;
@@ -6957,10 +6957,10 @@ function syncFlightArmControls(mav) {
   if (!live) {
     armBtn.disabled = true;
     disarmBtn.disabled = true;
-    armBtn.title = 'אין טלמטריה מהבקר';
-    disarmBtn.title = 'אין טלמטריה מהבקר';
+    armBtn.title = 'אין חיבור לבקר הטיסה';
+    disarmBtn.title = 'אין חיבור לבקר הטיסה';
     reason.hidden = false;
-    reason.textContent = 'אין טלמטריה מהבקר';
+    reason.textContent = 'אין חיבור לבקר הטיסה';
     if (row) row.dataset.armLink = 'off';
     return;
   }
@@ -7128,15 +7128,28 @@ function initFlightArmControls() {
 
 initFlightArmControls();
 
+function setMissionAskOpen(open) {
+  const btn = document.getElementById('missionAskToggleBtn');
+  const ws = document.querySelector('.mission-workspace');
+  if (!ws) return;
+  ws.dataset.askOpen = open ? '1' : '0';
+  btn?.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+
 function initMissionAskToggle() {
   const btn = document.getElementById('missionAskToggleBtn');
   const ws = document.querySelector('.mission-workspace');
   if (!btn || !ws || btn.dataset.bound === '1') return;
   btn.dataset.bound = '1';
   btn.addEventListener('click', () => {
-    const open = ws.dataset.askOpen !== '1';
-    ws.dataset.askOpen = open ? '1' : '0';
-    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    setMissionAskOpen(ws.dataset.askOpen !== '1');
+  });
+  document.getElementById('missionAskCloseBtn')?.addEventListener('click', () => {
+    setMissionAskOpen(false);
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape' || ws.dataset.askOpen !== '1') return;
+    setMissionAskOpen(false);
   });
 }
 initMissionAskToggle();
@@ -18377,7 +18390,7 @@ function missionLinkTileLabel(companion, mav, pillText) {
       const short = shortMissionLinkReadout(pill);
       if (short && short !== '—') return short;
     }
-    return 'בקר חי';
+    return 'בקר מחובר';
   }
   if (missionLinkHealthDown(comp) || pill.includes('לא מגיב')) {
     return missionLinkNeedsToken(comp) ? 'חסר טוקן' : 'בדקו כתובת';
