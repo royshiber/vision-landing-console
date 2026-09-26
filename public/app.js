@@ -7701,10 +7701,12 @@ function initMissionAskToggle() {
     setMissionAskOpen(ws.dataset.askOpen !== '1');
   });
   document.getElementById('missionAskCloseBtn')?.addEventListener('click', () => {
+    if (!window.matchMedia('(max-width: 1100px)').matches) return;
     setMissionAskOpen(false);
   });
   document.addEventListener('keydown', (event) => {
     if (event.key !== 'Escape' || ws.dataset.askOpen !== '1') return;
+    if (!window.matchMedia('(max-width: 1100px)').matches) return;
     setMissionAskOpen(false);
   });
 }

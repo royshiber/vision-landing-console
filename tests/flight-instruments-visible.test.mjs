@@ -307,4 +307,24 @@ describe('flight instruments visible area', () => {
     await page.click('#missionAskCloseBtn');
     await page.waitForFunction(() => document.querySelector('.mission-workspace')?.dataset.askOpen === '0');
   }, 30000);
+
+  it('hides סגור when Ask is docked and Escape leaves the dock open', async () => {
+    for (const width of [1280, 1440, 1920]) {
+      await paint({ name: String(width), width, height: 900 }, { banner: false, linked: false });
+      await page.evaluate(() => {
+        document.querySelector('.mission-workspace').dataset.askOpen = '1';
+      });
+      const closeDisplay = await page.locator('#missionAskCloseBtn').evaluate((el) => getComputedStyle(el).display);
+      expect(closeDisplay, String(width)).toBe('none');
+      const talkBefore = await page.locator('[data-mission-region="talk"]').evaluate((el) => getComputedStyle(el).display);
+      expect(talkBefore, String(width)).not.toBe('none');
+      await page.keyboard.press('Escape');
+      const after = await page.evaluate(() => ({
+        askOpen: document.querySelector('.mission-workspace').dataset.askOpen,
+        talk: getComputedStyle(document.querySelector('[data-mission-region="talk"]')).display,
+      }));
+      expect(after.askOpen, String(width)).toBe('1');
+      expect(after.talk, String(width)).not.toBe('none');
+    }
+  }, 30000);
 });

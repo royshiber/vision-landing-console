@@ -22166,7 +22166,8 @@ body:has(#pulse.panel.visible) .pulse-home.pulse-status-home {
 
 /* Flight instruments stay fully visible. The battery bar is in flow.
    Below 1100px the Ask panel is an overlay, not a 183px row. */
-#missionAskToggleBtn { display: none; }
+#missionAskToggleBtn,
+.mission-ask-close { display: none; }
 
 .mission-region-data > .pfd-bottom-bar {
   position: static;
@@ -22344,7 +22345,6 @@ body:has(#pulse.panel.visible) .pulse-home.pulse-status-home {
     overflow: auto;
     box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
   }
-  .mission-ask-close { display: none; }
   .mission-workspace[data-ask-open="1"] .mission-ask-close {
     display: inline-flex;
     align-self: flex-start;
