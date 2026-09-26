@@ -1,36 +1,5 @@
 [
   {
-    "version": "1.02.336",
-    "date": "2026-09-26",
-    "changes": [
-      {
-        "type": "feat",
-        "title": "Server library",
-        "detail": "provider.mjs, s3-client.mjs, sync.mjs"
-      },
-      {
-        "type": "test",
-        "title": "Tests",
-        "detail": "flight-logs.test.mjs"
-      },
-      {
-        "type": "docs",
-        "title": "Commercial capabilities overview",
-        "detail": "COMMERCIAL_CAPABILITIES.he.md"
-      },
-      {
-        "type": "docs",
-        "title": "Documentation",
-        "detail": "FLIGHT_LOGS.md, FLIGHT_LOGS_JETSON.md"
-      },
-      {
-        "type": "chore",
-        "title": "Config",
-        "detail": ".env.example"
-      }
-    ]
-  },
-  {
     "version": "1.02.335",
     "date": "2026-09-26",
     "changes": [
