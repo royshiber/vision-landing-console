@@ -20,30 +20,30 @@ function wizardPanel() {
   return html.slice(start, custom);
 }
 
-describe('AIRVIX hardware-intent lock still holds on Concept B (1.02.342)', () => {
-  it('pins APP_VERSION at 1.02.342', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.342'");
-    expect(pkg.version).toBe('1.02.342');
+describe('AIRVIX hardware-intent lock still holds on Concept B (1.02.343)', () => {
+  it('pins APP_VERSION at 1.02.343', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.343'");
+    expect(pkg.version).toBe('1.02.343');
     expect(changelog).toContain('"version": "1.02.277"');
   });
 
-  it('keeps the three locked questions and the recommendation fold', () => {
+  it('keeps a working peripheral step flow on the parameters tab', () => {
     const panel = wizardPanel();
-    expect(panel).toContain('data-ac-model="concept-b"');
-    expect(panel).toContain('מה חיברתי');
-    expect(panel).toContain('לאן חיברתי');
-    expect(panel).toContain('מה אני מצפה שיקרה');
-    expect(panel).toContain('id="acPlanBtn"');
+    expect(panel).toContain('data-ac-model="peripheral-steps"');
+    expect(panel).toContain('id="acGoWhat"');
+    expect(panel).toContain('id="acGoWhere"');
+    expect(panel).toContain('id="acGoParams"');
+    expect(panel).toContain('id="acApplyBtn"');
     expect(js).toContain('בקר טיסה');
     expect(js).toContain('מחשב משימה');
-    expect(js).toContain('conceptB');
+    expect(js).toContain('function openGuardedFcWriteConfirm');
   });
 
   it('keeps FC and Jetson visually distinct and RTL-safe', () => {
-    expect(css).toContain('.ac-b-seg-btn[data-host="fc"]');
-    expect(css).toContain('.ac-b-seg-btn[data-host="jetson"]');
+    expect(css).toContain('.param-tool-seg');
+    expect(css).toContain('.ac-param-key');
     expect(css).toContain('unicode-bidi: isolate');
-    expect(css).toContain('.ac-b-card');
+    expect(html).toContain('data-layout-contract="params-v1"');
   });
 
   it('does not turn Develop into Mission polish and keeps Mission contract markers', () => {
@@ -58,7 +58,8 @@ describe('AIRVIX hardware-intent lock still holds on Concept B (1.02.342)', () =
     expect(panel).not.toContain('מסייע');
     expect(panel).not.toContain('מלווה');
     expect(js).toContain('מחשב משימה');
-    expect(commercial).toContain('אשף קונפיגורציה לפי כוונת חומרה');
+    expect(commercial).toContain('אשף קונפיגורציה');
+    expect(commercial).toContain('בקר טיסה');
   });
 
   it('does not add companion apply/restart or flight-command chrome in the wizard', () => {

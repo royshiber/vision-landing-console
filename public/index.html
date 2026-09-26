@@ -501,14 +501,22 @@
             <option value="landingParams" selected>נחיתה</option>
             <option value="abortParams">בטיחות וביטול</option>
             <option value="visionNavParams">ניווט לפי תמונה</option>
-            <optgroup label="— ArduPilot —">
-              <option value="ardu-jetson">📡 תקשורת Jetson</option>
+            <optgroup label="— ArduPilot —" id="paramGroupOptions">
+              <option value="ardu-jetson">תקשורת מחשב משימה</option>
               <option value="ardu-ekf">EKF / AHRS</option>
-              <option value="ardu-plnd">נחיתה מדויקת (Vision)</option>
-              <option value="ardu-land">נחיתה כללית</option>
-              <option value="ardu-limits">גבולות טיסה</option>
+              <option value="ardu-plnd">נחיתה מדויקת</option>
+              <option value="ardu-land">נחיתה</option>
+              <option value="ardu-tecs">TECS / מהירות</option>
+              <option value="ardu-nav">ניווט L1</option>
+              <option value="ardu-failsafe">Failsafe</option>
+              <option value="ardu-serial">טורי / טלמטריה</option>
+              <option value="ardu-battery">סוללה</option>
+              <option value="ardu-rc">שלט ויציאות סרוו</option>
+              <option value="ardu-rangefinder">מד טווח</option>
+              <option value="ardu-gps">GPS</option>
+              <option value="ardu-arming">חימוש</option>
               <option value="ardu-logs">לוגים</option>
-              <option value="ardu-safety">בטיחות</option>
+              <option value="ardu-all">כל הפרמטרים</option>
             </optgroup>
             <option value="customParams">✨ Custom שלי</option>
           </select>
@@ -843,38 +851,53 @@
           </div>
         </div>
       </section>
-      <section id="control" class="panel">
+      <section id="control" class="panel" data-layout-contract="params-v1" dir="rtl">
         <div class="panel-header">
-          <div class="ctrl-sync-bar">
-            <!-- Server sync pill -->
-            <div class="ctrl-sync-group" aria-label="סנכרון עם שרת">
-              <span class="ctrl-sync-label">שרת</span>
-              <button type="button" id="visionConfigReadBtn" class="ctrl-sync-btn ctrl-sync-btn--read" title="טוען מהשרת את פרופיל המסך ופרמטרי ArduPilot השמורים">📥 READ</button>
-              <button type="button" id="visionConfigWriteBtn" class="ctrl-sync-btn ctrl-sync-btn--write" title="שומר לשרת את פרופיל המסך ופרמטרי ArduPilot">📤 WRITE</button>
+          <div class="param-toolbar" aria-label="סנכרון פרמטרים">
+            <section class="param-tool-seg" aria-label="גיבוי בקונסולה">
+              <header class="param-tool-head">
+                <h3 class="param-tool-title">גיבוי בקונסולה</h3>
+                <p id="jetsonToolState" class="param-tool-state" data-state="unknown">לא ידוע</p>
+              </header>
+              <p id="jetsonToolMeta" class="param-tool-meta">קריאה אחרונה: לא ידוע · לא מסונכרן: לא ידוע</p>
+              <div class="param-tool-actions">
+                <button type="button" id="visionConfigReadBtn" class="param-tool-btn param-tool-btn--primary" title="טוען את הגיבוי השמור בקונסולה">קריאה</button>
+                <button type="button" id="visionConfigWriteBtn" class="param-tool-btn param-tool-btn--secondary" title="שומר גיבוי בקונסולה">כתיבה</button>
+              </div>
+            </section>
+            <section class="param-tool-seg" aria-label="FC">
+              <header class="param-tool-head">
+                <h3 class="param-tool-title">בקר הטיסה <bdi dir="ltr">(FC)</bdi></h3>
+                <p id="fcToolState" class="param-tool-state" data-state="unknown">לא ידוע</p>
+              </header>
+              <p id="fcToolMeta" class="param-tool-meta">קריאה אחרונה: לא ידוע · לא מסונכרן: לא ידוע</p>
+              <div class="param-tool-actions">
+                <button type="button" id="arduReadBtn" class="param-tool-btn param-tool-btn--primary" title="קורא פרמטרים מבקר הטיסה">קריאה</button>
+                <button type="button" id="arduWriteBtn" class="param-tool-btn param-tool-btn--secondary" disabled title="אין חיבור לבקר הטיסה">כתיבה לבקר</button>
+              </div>
+            </section>
+            <div class="param-tool-files">
+              <button type="button" id="paramFileMenuBtn" class="param-tool-btn param-tool-btn--quiet" aria-expanded="false" aria-controls="paramFileMenu">קובץ</button>
+              <div id="paramFileMenu" class="param-file-menu" hidden>
+                <button type="button" id="saveProfileBtn" class="param-file-item" title="שמירת פרופיל">שמירה</button>
+                <button type="button" id="exportProfileBtn" class="param-file-item" title="ייצוא פרופיל לקובץ JSON">ייצוא JSON</button>
+                <label class="param-file-item param-file-item--file" title="טעינת פרופיל מקובץ JSON">
+                  <span>ייבוא JSON</span>
+                  <input id="importProfileInput" type="file" accept=".json,application/json" />
+                </label>
+              </div>
             </div>
-            <!-- FC sync pill -->
-            <div class="ctrl-sync-group" aria-label="סנכרון עם רחפן">
-              <span class="ctrl-sync-label">רחפן</span>
-              <button type="button" id="arduReadBtn" class="ctrl-sync-btn ctrl-sync-btn--read" title="קורא פרמטרים מה-FC דרך MAVLink">📥 READ</button>
-              <button type="button" id="arduWriteBtn" class="ctrl-sync-btn ctrl-sync-btn--write" title="שולח יעדי ArduPilot ל-FC דרך MAVLink">📤 WRITE</button>
+            <div id="paramToolFault" class="param-tool-fault" hidden role="alert">
+              <p id="paramToolFaultText" class="param-tool-fault-text"></p>
+              <button type="button" id="paramToolRetry" class="param-tool-btn param-tool-btn--primary">נסו שוב</button>
             </div>
-            <!-- Profile actions pill -->
-            <div class="ctrl-sync-sep" aria-hidden="true"></div>
-            <div class="ctrl-profile-group">
-              <button id="saveProfileBtn" class="ctrl-profile-btn" title="שמור פרופיל מקומי">💾 שמור</button>
-              <button id="exportProfileBtn" class="ctrl-profile-btn" title="ייצוא פרופיל לקובץ JSON">⬇ JSON</button>
-              <label class="ctrl-profile-btn ctrl-profile-btn--file" title="טעינת פרופיל מקובץ JSON">
-                <span>⬆ JSON</span>
-                <input id="importProfileInput" type="file" accept=".json,application/json" />
-              </label>
-            </div>
-            <span id="arduWriteStatus" class="ardu-write-status action-status" aria-live="polite"></span>
-            <span id="visionConfigStatus" class="vision-config-status action-status"></span>
+            <span id="arduWriteStatus" class="ardu-write-status action-status param-tool-live" aria-live="polite"></span>
+            <span id="visionConfigStatus" class="vision-config-status action-status param-tool-live"></span>
           </div>
         </div>
         <div id="paramCenterSearchBar" class="param-center-search-bar" role="search" aria-label="חיפוש פרמטרים">
           <div class="ardu-search-row">
-            <input id="arduParamSearchInput" type="search" placeholder="חיפוש פרמטר בשפה חופשית (למשל: נחיתה קשה / LAND_SPEED)" dir="rtl" />
+            <input id="arduParamSearchInput" type="search" placeholder="חיפוש פרמטר" dir="rtl" title="חיפוש לפי שם או תיאור" />
             <button type="button" id="arduParamSearchBtn" class="btn-secondary-lg" title="חיפוש לפי שם/תיאור">חפש</button>
             <button type="button" id="arduParamSearchClearBtn" class="btn-secondary-lg" title="נקה חיפוש">נקה</button>
             <button type="button" id="arduParamSmartSearchBtn" class="btn-primary-lg" title="חיפוש חכם לפי טקסט חופשי עם Gemini">חיפוש חכם</button>
@@ -882,6 +905,7 @@
           <div id="arduSearchStatus" class="vision-config-status param-center-search-status" aria-live="polite"></div>
           <div id="arduSmartSearchResults" class="ardu-smart-results hidden param-center-smart-results" aria-live="polite"></div>
         </div>
+        <div id="paramSyncBanner" class="param-sync-banner param-sync-banner--info" role="status" aria-live="polite"></div>
         <div id="autoLogsBanner" class="auto-logs-banner hidden" role="status" aria-live="polite"></div>
         <section id="plndProfileHonesty" class="plnd-honesty" aria-label="פרופיל נחיתה לפי ראייה">
           <header class="plnd-honesty-head">
@@ -902,169 +926,72 @@
         </div>
         <div id="arduParams" class="subpanel">
           <div id="arduDiffSection" class="ardu-diff-section-hidden">
-            <h3 class="ardu-diff-h3">השוואה לרחפן (אחרי READ)</h3>
+            <h3 class="ardu-diff-h3">השוואה לבקר הטיסה (אחרי קריאה)</h3>
             <p id="arduDiffSummary" class="ardu-diff-summary"></p>
             <div id="arduDiffTable" class="ardu-diff-table"></div>
           </div>
           <div class="ardu-form-region">
+            <div id="fcGroupPane" class="fc-group-pane" hidden>
+              <p id="fcGroupLead" class="fc-group-lead"></p>
+              <div class="fc-group-split">
+                <ul id="fcGroupList" class="fc-group-list" aria-label="פרמטרי הקבוצה"></ul>
+                <aside id="fcChangePane" class="fc-change-pane" aria-label="שינויים שנכתבו">
+                  <h3 class="fc-change-title">שינויים שנכתבו</h3>
+                  <ul id="fcChangeList" class="fc-change-list"></ul>
+                  <section class="fc-file-history" aria-label="היסטוריית קבצי פרמטרים">
+                    <h3 class="fc-file-title">קובץ פרמטרים אחרון</h3>
+                    <p id="fcFileLatest" class="fc-file-latest">אין קובץ שמור</p>
+                    <ul id="fcFileList" class="fc-file-list"></ul>
+                    <p id="fcFileStatus" class="fc-file-status" aria-live="polite"></p>
+                  </section>
+                </aside>
+              </div>
+              <div class="fc-group-actions">
+                <button type="button" id="fcGroupApply" class="param-tool-btn param-tool-btn--primary" disabled>החלה</button>
+                <p id="fcGroupStatus" class="fc-group-status" aria-live="polite"></p>
+              </div>
+            </div>
             <div id="arduParamFormPanels" class="ardu-param-form-panels" role="region" aria-label="שדות פרמטרי ArduPilot"></div>
           </div>
           <div class="ardu-param-file-actions">
             <button type="button" id="downloadParamBtn" class="btn-secondary-lg" title="הורדת קובץ .param לייבוא ל-Mission Planner">⬇ הורד .param</button>
             <button type="button" id="applyToMpBtn" class="btn-secondary-lg" title="שולח לשרת ניסיון יישום (אם הוגדר)">שליחה ל-Mission Planner</button>
           </div>
-          <div id="paramSyncBanner" class="param-sync-banner param-sync-banner--info" role="status" aria-live="polite"></div>
           <pre id="mpOut" class="mp-out-hidden"></pre>
         </div>
-        <!-- Auto-Config wizard panel — Concept B three tall cards -->
-        <div id="autoConfig" class="subpanel ac-panel" data-ac-model="concept-b">
-
-          <header class="ac-b-head">
-            <div class="ac-b-head-text">
-              <h3 class="ac-b-title">אשף קונפיגורציה</h3>
-              <p class="ac-b-lead">מה חיברתי. לאן חיברתי. מה אני מצפה שיקרה.</p>
+        <div id="autoConfig" class="subpanel ac-panel" data-ac-model="peripheral-steps" dir="rtl">
+          <header class="ac-step-head">
+            <div class="ac-step-head-text">
+              <h3 class="ac-step-title">אשף קונפיגורציה</h3>
+              <p class="ac-step-lead">בחרו רכיב, יעד, וראו את הפרמטרים לפני כתיבה.</p>
             </div>
-            <p id="acBProgress" class="ac-b-progress" aria-live="polite"></p>
+            <ol class="ac-step-nav" id="acStepNav">
+              <li><button type="button" id="acGoWhat" data-ac-jump="what">מה חיברתם</button></li>
+              <li><button type="button" id="acGoWhere" data-ac-jump="where">לאן</button></li>
+              <li><button type="button" id="acGoParams" data-ac-jump="params">פרמטרים</button></li>
+            </ol>
           </header>
-
-          <div id="acBGrid" class="ac-b-grid" dir="rtl">
-            <article id="acBCardWhat" class="ac-b-card" data-card="what" data-step="1">
-              <header class="ac-b-card-head">
-                <span class="ac-b-num" aria-hidden="true">1</span>
-                <h4 class="ac-b-card-title">מה חיברתי</h4>
-              </header>
-              <div id="acBWhatList" class="ac-b-list" role="radiogroup" aria-label="מה חיברתי"></div>
-              <div class="ac-b-free">
-                <label class="ac-b-free-opt" for="acBWhatFreeRadio">
-                  <input type="radio" name="acBWhat" id="acBWhatFreeRadio" value="__free__">
-                  <span>אחר</span>
-                </label>
-                <input id="acBWhatFree" class="ac-b-free-input" type="text" dir="rtl" placeholder="או כתוב חופשי…" autocomplete="off">
+          <div class="ac-step-body">
+            <section id="acStepWhat" class="ac-step-panel" data-step-panel="what">
+              <div id="acWhatList" class="ac-choice-list" role="radiogroup" aria-label="מה חיברתם"></div>
+              <p id="acCatalogFault" class="ac-step-fault" hidden></p>
+              <button type="button" id="acCatalogRetry" class="param-tool-btn param-tool-btn--primary" hidden>נסו שוב</button>
+            </section>
+            <section id="acStepWhere" class="ac-step-panel" data-step-panel="where" hidden>
+              <div id="acWhereList" class="ac-choice-list" role="radiogroup" aria-label="יעד החיבור"></div>
+            </section>
+            <section id="acStepParams" class="ac-step-panel" data-step-panel="params" hidden>
+              <ul id="acParamList" class="ac-param-list" aria-label="פרמטרים שייכתבו"></ul>
+              <p id="acApplyStatus" class="ac-apply-status" aria-live="polite"></p>
+              <div class="ac-step-actions">
+                <button type="button" id="acApplyBtn" class="param-tool-btn param-tool-btn--primary">החלה</button>
               </div>
-            </article>
-
-            <article id="acBCardWhere" class="ac-b-card" data-card="where" data-step="2">
-              <header class="ac-b-card-head">
-                <span class="ac-b-num" aria-hidden="true">2</span>
-                <h4 class="ac-b-card-title">לאן חיברתי</h4>
-              </header>
-              <div class="ac-b-seg" role="tablist" aria-label="יעד חיבור">
-                <button type="button" id="acBHostFc" class="ac-b-seg-btn" data-host="fc" aria-pressed="true">בקר טיסה</button>
-                <button type="button" id="acBHostJetson" class="ac-b-seg-btn" data-host="jetson" aria-pressed="false">מחשב משימה</button>
-              </div>
-              <p id="acBHostNote" class="ac-b-host-note" data-host="fc">שקעים על לוח הבקר.</p>
-              <div id="acBPortGrid" class="ac-b-ports" role="radiogroup" aria-label="שקע או פין"></div>
-              <div class="ac-b-free">
-                <label class="ac-b-free-opt" for="acBWhereFreeRadio">
-                  <input type="radio" name="acBPort" id="acBWhereFreeRadio" value="__free__">
-                  <span>אחר</span>
-                </label>
-                <input id="acBWhereFree" class="ac-b-free-input" type="text" dir="rtl" placeholder="או כתוב חופשי…" autocomplete="off">
-              </div>
-            </article>
-
-            <article id="acBCardExpect" class="ac-b-card" data-card="expect" data-step="3">
-              <header class="ac-b-card-head">
-                <span class="ac-b-num" aria-hidden="true">3</span>
-                <h4 class="ac-b-card-title">מה אני מצפה שיקרה</h4>
-              </header>
-              <div id="acBOutcomeList" class="ac-b-outcomes" role="group" aria-label="ציפיות"></div>
-              <div class="ac-b-free">
-                <label class="ac-b-free-opt" for="acBExpectFree">
-                  <span>אחר</span>
-                </label>
-                <input id="acBExpectFree" class="ac-b-free-input" type="text" dir="rtl" placeholder="או כתוב חופשי…" autocomplete="off">
-              </div>
-            </article>
+            </section>
           </div>
-
-          <footer class="ac-b-foot">
-            <p id="acBSummary" class="ac-b-summary" aria-live="polite"></p>
-            <div class="ac-b-actions">
-              <button type="button" id="acBSave" class="ac-b-save">שמור</button>
-              <button type="button" id="acBNext" class="ac-b-next">הבא</button>
-            </div>
-          </footer>
-
-          <div class="ac-body ac-b-secondary">
-            <details id="acAskFold" class="ac-ask-fold">
-              <summary class="ac-ask-summary">שאלה על הרכיב הזה</summary>
-              <div class="ac-ask-body">
-                <div class="ac-toolbar-input-row">
-                  <textarea id="acSymptoms" class="ac-textarea" rows="2"
-                    placeholder="מה לא תואם לציפייה. אין פקודות טיסה מכאן."></textarea>
-                  <button id="acPlanBtn" type="button" class="ac-plan-btn" title="המלצות בדיקה בלבד">
-                    <span class="ac-plan-btn-label">בדיקות</span>
-                  </button>
-                </div>
-                <span id="acStatus" class="ac-status" aria-live="polite"></span>
-              </div>
-            </details>
-
-            <div id="acPhaseBar" class="ac-phase-bar hidden" aria-live="polite">
-              <div class="ac-phase-steps">
-                <div class="ac-phase-step" id="acPhase1">
-                  <span class="ac-phase-dot"></span>
-                  <span class="ac-phase-text">בניית תוכנית</span>
-                </div>
-                <div class="ac-phase-sep">→</div>
-                <div class="ac-phase-step" id="acPhase2">
-                  <span class="ac-phase-dot"></span>
-                  <span class="ac-phase-text">המלצות מוכנות</span>
-                </div>
-                <div class="ac-phase-sep">→</div>
-                <div class="ac-phase-step" id="acPhase3">
-                  <span class="ac-phase-dot"></span>
-                  <span class="ac-phase-text">מוכן לבדיקה</span>
-                </div>
-                <div class="ac-phase-sep">→</div>
-                <div class="ac-phase-step" id="acPhase4">
-                  <span class="ac-phase-dot"></span>
-                  <span class="ac-phase-text">אושר</span>
-                </div>
-              </div>
-              <div id="acPhaseDetail" class="ac-phase-detail"></div>
-            </div>
-
-            <div id="acEmptyState" class="ac-empty-state hidden">
-              <p class="ac-empty-title">אין כרטיס</p>
-              <p class="ac-empty-sub">בחרו רכיב למעלה.</p>
-            </div>
-
-            <div id="acResults" class="ac-results hidden" aria-live="polite">
-              <div id="acSummaryBox" class="ac-summary-box"></div>
-              <div id="acWarningsBox" class="ac-warnings-box hidden"></div>
-              <div id="acChecksSection" class="ac-section hidden">
-                <h3 class="ac-section-title">בדיקות מומלצות</h3>
-                <div id="acChecksList" class="ac-checks-list"></div>
-              </div>
-              <div id="acParamsSection" class="ac-section hidden">
-                <h3 class="ac-section-title">המלצות פרמטרים</h3>
-                <p class="ac-params-note">המלצה בלבד. אין שליחת פקודת טיסה מכאן.</p>
-                <div id="acParamsList" class="ac-params-list"></div>
-              </div>
-            </div>
-
-            <details id="acHistoryDetails" class="ac-history-details hidden">
-              <summary class="ac-history-summary">
-                <span>היסטוריית ניסיונות</span>
-                <span id="acHistoryCount" class="ac-history-count">0</span>
-              </summary>
-              <div class="ac-history-body">
-                <table class="ac-history-table" aria-label="היסטוריית קונפיגורציה">
-                  <thead>
-                    <tr>
-                      <th>שעה</th><th>רכיב</th><th>פרמטר</th>
-                      <th>ערך</th><th>תגובה</th><th>תוצאה</th>
-                    </tr>
-                  </thead>
-                  <tbody id="acHistoryTbody"></tbody>
-                </table>
-                <button type="button" id="acHistoryClearBtn" class="ac-history-clear-btn">נקה היסטוריה</button>
-              </div>
-            </details>
-
-          </div>
+          <section class="ac-saved" aria-label="רשומות שמורות">
+            <h4 class="ac-saved-title">רשומות שמורות</h4>
+            <ul id="acSavedList" class="ac-saved-list"></ul>
+          </section>
         </div>
 
         <!-- Custom params sub-panel -->
@@ -1073,7 +1000,7 @@
             <div class="cp-panel-header">
               <div class="cp-header-row">
                 <h3 class="cp-title">✨ הפרמטרים המותאמים שלי</h3>
-                <span class="cp-hint">פרמטרים מותאמים · קליק ימני לסינון / שלח ישירות לרחפן</span>
+                <span class="cp-hint">פרמטרים מותאמים. קליק ימני לסינון, או שליחה לבקר הטיסה.</span>
               </div>
               <div class="cp-toolbar">
                 <input id="cpSearchInput" type="search" class="cp-search" placeholder="חפש לפי שם, תיאור, פיצ'ר…" dir="rtl" />
@@ -2836,6 +2763,7 @@
     <script type="module" src="./modules/flightbook.mjs?v=__APP_VERSION__"></script>
     <script type="module" src="./modules/debrief-cameras.mjs?v=__APP_VERSION__"></script>
     <script type="module" src="./modules/cam0-panel.mjs?v=__APP_VERSION__"></script>
+    <script type="module" src="./modules/fc-write-ack.mjs?v=__APP_VERSION__"></script>
     <script type="module" src="./modules/cam1-panel.mjs?v=__APP_VERSION__"></script>
     <script src="./app.js?v=__APP_VERSION__"></script>
     <script src="./versions-rollback.js?v=__APP_VERSION__"></script>
