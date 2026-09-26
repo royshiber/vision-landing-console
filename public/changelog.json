@@ -1,36 +1,5 @@
 [
   {
-    "version": "1.02.340",
-    "date": "2026-09-26",
-    "changes": [
-      {
-        "type": "feat",
-        "title": "UI / app.js",
-        "detail": "app.js"
-      },
-      {
-        "type": "feat",
-        "title": "Frontend",
-        "detail": "changelog.json"
-      },
-      {
-        "type": "ui",
-        "title": "HTML layout",
-        "detail": "index.html"
-      },
-      {
-        "type": "ui",
-        "title": "Styles",
-        "detail": "styles.css"
-      },
-      {
-        "type": "test",
-        "title": "Tests",
-        "detail": "pulse-home.test.mjs, status-layout-contract.test.mjs"
-      }
-    ]
-  },
-  {
     "version": "1.02.339",
     "date": "2026-09-26",
     "changes": [
