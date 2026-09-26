@@ -99,9 +99,10 @@ describe('Mission layout contract — static source', () => {
   it('keeps PFD tapes, heading, video toggle, and video panel in flow', () => {
     expect(cssBlock(css, '.pfd-horizon-instrument')).toMatch(/direction:\s*ltr/);
     expect(cssBlock(css, '.pfd-horizon-instrument')).toMatch(/grid-template-areas:/);
-    expect(cssBlock(css, '.pfd-horizon-instrument')).toMatch(/"ias horizon alt"/);
-    expect(cssBlock(css, '.pfd-horizon-instrument')).toMatch(/"hdg hdg hdg"/);
-    expect(cssBlock(css, '.pfd-side-tape')).toMatch(/position:\s*static/);
+    expect(cssBlock(css, '.pfd-horizon-instrument')).toMatch(/"horizon"/);
+    expect(cssBlock(css, '.pfd-horizon-instrument')).toMatch(/"hdg"/);
+    expect(cssBlock(css, '.pfd-horizon-instrument')).not.toMatch(/"ias horizon alt"/);
+    expect(cssBlock(css, '.pfd-side-tape')).toMatch(/position:\s*absolute/);
     expect(cssBlock(css, '.pfd-heading-lane')).toMatch(/position:\s*static/);
     expect(cssBlock(css, '.pfd-video-toggle')).toMatch(/position:\s*static/);
     expect(cssBlock(css, '.pfd-video-panel')).toMatch(/position:\s*static/);
@@ -288,7 +289,7 @@ describe('Mission layout contract — live boxes', () => {
     });
 
     expect(measured.platformTab).toBe(false);
-    expect(measured.version).toBe('1.02.354');
+    expect(measured.version).toBe('1.02.355');
     expect(measured.ws.width).toBeGreaterThan(800);
     expect(measured.talkMinWidth).toBe('0px');
     expect(Number.parseFloat(measured.dataGap)).toBeLessThanOrEqual(4);
@@ -342,8 +343,9 @@ describe('Mission layout contract — live boxes', () => {
     expect(interiorsIntersect(regions.messages, regions.map)).toBe(false);
     expect(interiorsIntersect(regions.horizon, regions.map)).toBe(false);
 
-    expect(measured.pfd.ias.right).toBeLessThanOrEqual(measured.pfd.stage.left + 1);
-    expect(measured.pfd.alt.left).toBeGreaterThanOrEqual(measured.pfd.stage.right - 1);
+    expect(measured.pfd.stage.left).toBeLessThanOrEqual(measured.pfd.ias.left + 1);
+    expect(measured.pfd.stage.right).toBeGreaterThanOrEqual(measured.pfd.alt.right - 1);
+    expect(measured.pfd.ias.right).toBeLessThan(measured.pfd.alt.left);
     expect(measured.pfd.hdg.top).toBeGreaterThanOrEqual(measured.pfd.stage.bottom - 1);
     const canvasBox = await page.evaluate(() => {
       const box = (el) => {
@@ -361,8 +363,11 @@ describe('Mission layout contract — live boxes', () => {
     expect(canvasBox.canvas.height / canvasBox.stage.height).toBeGreaterThanOrEqual(0.97);
     const pfdParts = [measured.pfd.ias, measured.pfd.stage, measured.pfd.alt, measured.pfd.hdg, measured.pfd.videoToggle]
       .filter((part) => part && part.width > 2 && part.height > 2);
+    const hudOverlay = (a, b) => (a === measured.pfd.stage && (b === measured.pfd.ias || b === measured.pfd.alt))
+      || (b === measured.pfd.stage && (a === measured.pfd.ias || a === measured.pfd.alt));
     for (let i = 0; i < pfdParts.length; i += 1) {
       for (let j = i + 1; j < pfdParts.length; j += 1) {
+        if (hudOverlay(pfdParts[i], pfdParts[j])) continue;
         expect(interiorsIntersect(pfdParts[i], pfdParts[j]), 'PFD chrome overlap').toBe(false);
       }
     }

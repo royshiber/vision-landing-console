@@ -42,9 +42,9 @@ function cssBlock(src, selector) {
 }
 
 describe('AIRVIX 1.02.264 flyable Mission layout', () => {
-  it('pins APP_VERSION at 1.02.354', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.354'");
-    expect(pkg.version).toBe('1.02.354');
+  it('pins APP_VERSION at 1.02.355', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.355'");
+    expect(pkg.version).toBe('1.02.355');
   });
 
   it('keeps the map as the majority workspace and sizes the PFD in the readable band', () => {
@@ -55,7 +55,8 @@ describe('AIRVIX 1.02.264 flyable Mission layout', () => {
     expect(css).toMatch(/\.mission-region-horizon \.flight-hud \{[^}]*min-height:\s*52%/);
     expect(css).toMatch(/\.mission-region-horizon \.flight-hud \{[^}]*max-height:\s*calc\(100% - var\(--mission-data-h/);
     expect(css).not.toMatch(/\.mission-region-horizon \.flight-hud \{[^}]*260px/);
-    expect(cssBlock(css, '.pfd-horizon-instrument')).toMatch(/"ias horizon alt"/);
+    expect(cssBlock(css, '.pfd-horizon-instrument')).toMatch(/"horizon"/);
+    expect(cssBlock(css, '.pfd-horizon-instrument')).not.toMatch(/"ias horizon alt"/);
   });
 
   it('grows a horizontal Assist textarea without a vertical sliver', () => {

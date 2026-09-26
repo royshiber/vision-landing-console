@@ -6700,7 +6700,9 @@ function paintInstrumentVideo(companion) {
       img.dataset.stamp = String(Date.now());
       img.src = `/api/jetson/v1/cameras/${liveId}/frame?t=${Date.now()}`;
     }
-    setHorizonVideoActive(false, '');
+    _horizonVideoMode = true;
+    pfdHorizonShell?.classList.add('pfd-horizon-shell--video-active');
+    drawHorizon(horizonCanvas, _lastRoll, _lastPitch, currentHorizonDrawOpts());
     if (empty) {
       empty.hidden = true;
       empty.classList.add('hidden');

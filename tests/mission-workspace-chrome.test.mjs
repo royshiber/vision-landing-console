@@ -78,8 +78,8 @@ describe('AIRVIX Mission chrome — top strip gone', () => {
     expect(css).toMatch(/minmax\(var\(--mission-col-floor, 32px\), var\(--mission-map-col, 0\.60fr\)\)/);
     expect(css).toMatch(/minmax\(var\(--mission-col-floor, 32px\), var\(--mission-talk-col, 0\.22fr\)\)/);
     expect(css).toMatch(/\.mission-region-horizon \.pfd-horizon-shell\s*\{[^}]*aspect-ratio:\s*auto/);
-    expect(css).toMatch(/\.pfd-horizon-instrument\s*\{[^}]*grid-template-columns:\s*46px minmax\(0, 1fr\) 46px/);
-    expect(css).toMatch(/\.pfd-side-tape\s*\{[^}]*position:\s*static/);
+    expect(css).toMatch(/\.pfd-horizon-instrument\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\)/);
+    expect(css).toMatch(/\.pfd-side-tape\s*\{[^}]*position:\s*absolute/);
   });
 
   it('keeps three primary Mission surfaces and quiets extra chrome', () => {
@@ -165,9 +165,9 @@ describe('AIRVIX Mission chrome — talk is flight-safe', () => {
     expect(chip).toContain("kind === 'advisor'");
   });
 
-  it('pins APP_VERSION at 1.02.354', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.354'");
-    expect(pkg.version).toBe('1.02.354');
+  it('pins APP_VERSION at 1.02.355', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.355'");
+    expect(pkg.version).toBe('1.02.355');
   });
 
   it('keeps a rectangular glass artificial horizon with video HUD mode', () => {

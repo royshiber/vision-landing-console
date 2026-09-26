@@ -11917,12 +11917,13 @@ html[data-evolve-preview="1"] #development {
 .pfd-horizon-instrument {
   display: grid;
   direction: ltr;
-  grid-template-columns: 46px minmax(0, 1fr) 46px;
+  position: relative;
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: minmax(0, 1fr) 28px;
   grid-template-areas:
-    "ias horizon alt"
-    "hdg hdg hdg";
-  gap: 3px;
+    "horizon"
+    "hdg";
+  gap: 0;
   flex: 1 1 auto;
   min-height: 0;
   align-items: stretch;
@@ -11931,11 +11932,14 @@ html[data-evolve-preview="1"] #development {
 .pfd-horizon-stage {
   grid-area: horizon;
   position: relative;
+  width: 100%;
+  height: 100%;
   min-width: 0;
   min-height: 0;
   align-self: stretch;
+  justify-self: stretch;
   overflow: hidden;
-  border-radius: 4px;
+  border-radius: 0;
   background:
     radial-gradient(120% 80% at 50% 18%, #2a78c8 0%, #163e86 58%, #0c1b3a 100%);
   box-shadow:
@@ -12076,61 +12080,66 @@ html[data-evolve-preview="1"] #development {
   background: transparent;
 }
 
-/* Side tapes sit beside the canvas — never over video or labels */
+/* IAS and ALT float on the attitude, so sky, ground, and video run edge to edge behind them. */
 .pfd-side-tape {
-  position: static;
-  top: auto;
-  transform: none;
+  position: absolute;
+  top: calc(50% - 14px);
+  transform: translateY(-50%);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 1px;
-  background: linear-gradient(180deg, #1c2433 0%, #0b0e14 58%, #07090d 100%);
-  border: 1px solid rgba(212, 196, 150, 0.42);
+  gap: 0;
+  width: auto;
+  min-width: 48px;
+  max-width: 72px;
+  height: auto;
+  background: rgba(8, 12, 18, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.28);
   border-radius: 4px;
-  padding: 5px 4px 4px;
-  min-width: 0;
-  pointer-events: none;
-  z-index: auto;
+  padding: 2px 5px;
+  pointer-events: auto;
+  z-index: 6;
   opacity: 1;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.14),
-    inset 0 -8px 12px rgba(0, 0, 0, 0.28);
+  box-shadow: none;
 }
-.pfd-side-tape--left  { grid-area: ias; left: auto; }
-.pfd-side-tape--right { grid-area: alt; right: auto; }
+.pfd-side-tape--left  { left: 4px; right: auto; }
+.pfd-side-tape--right { right: 4px; left: auto; }
 .pfd-tape-key {
-  font-size: clamp(11px, 0.5rem, 8rem);
+  font-size: clamp(11px, 0.62rem, 13px);
   font-weight: 700;
-  letter-spacing: 0.08em;
-  color: #94a3b8;
+  letter-spacing: 0.04em;
+  color: #f8fafc;
   text-transform: uppercase;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
 }
 .pfd-tape-big {
-  font-size: 1.18rem;
+  font-size: clamp(11px, 1rem, 16px);
   font-weight: 800;
   font-family: "Space Grotesk", monospace;
   color: #f8fafc;
-  line-height: 1;
+  line-height: 1.15;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
 }
 .pfd-side-tape--left  .pfd-tape-big { color: #f8fafc; }
 .pfd-side-tape--right .pfd-tape-big { color: #f8fafc; }
 .pfd-horizon-shell--video-active .pfd-side-tape {
-  background: rgba(0, 0, 0, 0.42);
-  border-color: #3dff6a;
+  background: rgba(8, 12, 18, 0.4);
+  border-color: rgba(255, 255, 255, 0.28);
 }
 .pfd-horizon-shell--video-active .pfd-tape-key,
 .pfd-horizon-shell--video-active .pfd-tape-unit,
 .pfd-horizon-shell--video-active .pfd-tape-big,
 .pfd-horizon-shell--video-active .pfd-side-tape--left .pfd-tape-big,
 .pfd-horizon-shell--video-active .pfd-side-tape--right .pfd-tape-big {
-  color: #3dff6a;
+  color: #f8fafc;
   filter: none;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
 }
 .pfd-tape-unit {
-  font-size: 0.55rem;
-  color: rgba(180,200,230,0.5);
+  font-size: clamp(11px, 0.62rem, 13px);
+  color: #f8fafc;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
 }
 
 .pfd-side-tape--airspeed-proxy .pfd-tape-big {
@@ -12156,8 +12165,16 @@ html[data-evolve-preview="1"] #development {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  z-index: 0;
+  object-position: center;
+  z-index: 1;
   background: #0b0e14;
+}
+.pfd-horizon-shell--video-active canvas {
+  z-index: 4;
+  pointer-events: none;
+}
+.pfd-horizon-shell--video-active .pfd-horizon-stage::after {
+  opacity: 0;
 }
 .pfd-horizon-video.hidden { display: none; }
 .pfd-horizon-shell--video-active canvas {
@@ -20256,9 +20273,10 @@ body:has(#control.panel.visible) .ardu-top-cats-host {
   inset: 0;
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: cover;
+  object-position: center;
   background: #000;
-  z-index: 0;
+  z-index: 1;
 }
 .pfd-horizon-camera[hidden] { display: none; }
 .pfd-horizon-nosignal {
@@ -21184,9 +21202,9 @@ html body :is(
   max-width: 100%;
 }
 .pfd-side-tape {
-  padding: 0 3px;
+  padding: 2px 5px;
   gap: 0;
-  min-height: min-content;
+  min-height: 0;
   overflow: visible;
 }
 .pfd-tape-big {
@@ -22721,12 +22739,29 @@ body:has(#pulse.panel.visible) .pulse-home.pulse-status-home {
   position: relative;
   z-index: 1;
 }
-.mission-region-horizon .pfd-side-tape,
 .mission-region-horizon .pfd-heading-lane,
 .mission-region-horizon .mission-data-tile,
 .mission-region-data > .pfd-bottom-bar {
   position: relative;
   z-index: 3;
+}
+.mission-region-horizon .pfd-side-tape {
+  position: absolute;
+  z-index: 6;
+  background: rgba(8, 12, 18, 0.4);
+}
+.mission-region-horizon .pfd-horizon-instrument {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas:
+    "horizon"
+    "hdg";
+  gap: 0;
+}
+.mission-region-horizon .pfd-horizon-stage {
+  border-radius: 0;
+}
+.pfd-horizon-shell--video-active .pfd-horizon-video-empty {
+  z-index: 5;
 }
 
 @media (max-height: 640px) {

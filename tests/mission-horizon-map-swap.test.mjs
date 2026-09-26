@@ -148,8 +148,10 @@ describe('Horizon/map size swap — layout', () => {
       expect(interiorsIntersect(before.map, before.horizon)).toBe(false);
       expect(interiorsIntersect(before.horizon, before.talk)).toBe(false);
       expect(interiorsIntersect(before.map, before.talk)).toBe(false);
-      expect(interiorsIntersect(before.ias, before.stage)).toBe(false);
-      expect(interiorsIntersect(before.alt, before.stage)).toBe(false);
+      expect(interiorsIntersect(before.ias, before.stage)).toBe(true);
+      expect(interiorsIntersect(before.alt, before.stage)).toBe(true);
+      expect(before.stage.left).toBeLessThanOrEqual(before.ias.left + 2);
+      expect(before.stage.right).toBeGreaterThanOrEqual(before.alt.right - 2);
 
       if (viewport.layout !== 'stack') {
         expect(before.map.width).toBeGreaterThan(before.horizon.width * 1.4);
@@ -200,8 +202,10 @@ describe('Horizon/map size swap — layout', () => {
       expect(interiorsIntersect(after.map, after.horizon)).toBe(false);
       expect(interiorsIntersect(after.horizon, after.talk)).toBe(false);
       expect(interiorsIntersect(after.map, after.talk)).toBe(false);
-      expect(interiorsIntersect(after.ias, after.stage)).toBe(false);
-      expect(interiorsIntersect(after.alt, after.stage)).toBe(false);
+      expect(interiorsIntersect(after.ias, after.stage)).toBe(true);
+      expect(interiorsIntersect(after.alt, after.stage)).toBe(true);
+      expect(after.stage.left).toBeLessThanOrEqual(after.ias.left + 2);
+      expect(after.stage.right).toBeGreaterThanOrEqual(after.alt.right - 2);
       expect(interiorsIntersect(after.ias, after.alt)).toBe(false);
       if (after.zoom && after.compass) {
         expect(interiorsIntersect(after.zoom, after.compass)).toBe(false);

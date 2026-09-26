@@ -26,10 +26,10 @@ function sliceFunction(src, name) {
   throw new Error(`unclosed function ${name}`);
 }
 
-describe('AIRVIX 1.02.261 Roy feedback (still holds on 1.02.354)', () => {
-  it('pins APP_VERSION at 1.02.354', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.354'");
-    expect(pkg.version).toBe('1.02.354');
+describe('AIRVIX 1.02.261 Roy feedback (still holds on 1.02.355)', () => {
+  it('pins APP_VERSION at 1.02.355', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.355'");
+    expect(pkg.version).toBe('1.02.355');
   });
 
   it('removes Platform from primary chrome and redirects Assist', () => {
@@ -186,7 +186,7 @@ describe('AIRVIX 1.02.261 Roy feedback (still holds on 1.02.354)', () => {
     expect(html).toContain('class="pfd-horizon-instrument"');
     expect(html).toContain('class="pfd-horizon-chrome"');
     expect(html).toContain('class="pfd-heading-lane"');
-    expect(css).toMatch(/\.pfd-side-tape\s*\{[^}]*position:\s*static/);
+    expect(css).toMatch(/\.pfd-side-tape\s*\{[^}]*position:\s*absolute/);
     expect(css).toMatch(/\.pfd-video-toggle\s*\{[^}]*position:\s*static/);
     expect(css).toMatch(/\.pfd-video-panel\s*\{[^}]*position:\s*static/);
     expect(css).toMatch(/\.mission-data-grid\s*\{[^}]*flex-flow:\s*row nowrap/);
