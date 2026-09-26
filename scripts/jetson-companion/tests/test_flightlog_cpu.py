@@ -14,9 +14,10 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from flight_events import obs_from_message  # noqa: E402
+from flight_logger import FlightLogger  # noqa: E402
 from flightlog_service import FlightLogService  # noqa: E402
 from mav_frames import FrameSplitter  # noqa: E402
-from tlog_writer import TlogWriter, iter_records  # noqa: E402
+from tlog_writer import TlogWriter, iter_records, pack_record  # noqa: E402
 
 FIX = Path(__file__).resolve().parent / "fixtures" / "hand.tlog"
 
@@ -121,6 +122,44 @@ class FlightlogCpuTests(unittest.TestCase):
         obs = obs_from_message(0, vfr)
         self.assertAlmostEqual(obs["airspeed"], 4.0, places=3)
         self.assertEqual(obs["sysid"], 1)
+
+    def test_tick_cost_does_not_grow_with_tlog_size(self):
+        import flight_logger
+        import tlog_writer
+
+        frame = _mav2(30, b"\x00" * 28)
+        rec = pack_record(1_700_000_000.0, frame)
+        blob = rec * ((50 * 1024 * 1024) // len(rec))
+        self.assertGreaterEqual(len(blob), 50 * 1024 * 1024 - len(rec))
+        calls = []
+        original = tlog_writer.iter_records
+
+        def wrapped(path):
+            calls.append(str(path))
+            return original(path)
+
+        tlog_writer.iter_records = wrapped
+        previous_disk = flight_logger.disk_free_mb
+        flight_logger.disk_free_mb = lambda path: 100000
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                day = Path(tmp) / "tlog" / "20260926"
+                day.mkdir(parents=True)
+                (day / "120000Z.tlog").write_bytes(blob)
+                writer = TlogWriter(tmp, quota_mb=4096, retention_days=30)
+                logger = FlightLogger(tmp, "airvix-test", writer)
+                costs = []
+                base = 1_800_000_000.0
+                for i in range(4):
+                    t0 = time.perf_counter()
+                    logger.tick(now=base + i)
+                    costs.append((time.perf_counter() - t0) * 1000.0)
+                writer.close()
+        finally:
+            tlog_writer.iter_records = original
+            flight_logger.disk_free_mb = previous_disk
+        self.assertEqual(calls, [])
+        self.assertLess(max(costs), 5.0)
 
     def test_split_frame_survives_a_short_read(self):
         frame = _mav2(74, struct_vfr())

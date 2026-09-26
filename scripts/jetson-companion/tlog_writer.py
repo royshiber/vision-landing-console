@@ -15,6 +15,9 @@ SEGMENT_S = 600.0
 FLUSH_S = 1.0
 FLUSH_BYTES = 64 * 1024
 FSYNC_S = FLUSH_S
+PRUNE_INTERVAL_S = 60.0
+# Same floor as companion.disk_low. Prune is not an idle-path scan.
+DISK_FREE_MIN_MB = 500.0
 
 
 def pack_record(unix_s, frame):
@@ -63,6 +66,10 @@ class TlogWriter(object):
         self._fh = None
         self._path = None
         self._seg_start = None
+        self._seg_first = None
+        self._seg_last = None
+        self._span_cache = {}
+        self._last_prune = 0.0
         self._pending = bytearray()
         self._last_flush = time.monotonic()
         self._now = time.monotonic
@@ -73,7 +80,12 @@ class TlogWriter(object):
         if not frame:
             return
         with self._lock:
-            self._rotate(float(unix_s))
+            ts = float(unix_s)
+            self._rotate(ts)
+            if self._seg_first is None or ts < self._seg_first:
+                self._seg_first = ts
+            if self._seg_last is None or ts > self._seg_last:
+                self._seg_last = ts
             self._pending.extend(pack_record(unix_s, frame))
             if (self._now() - self._last_flush) >= FLUSH_S or len(self._pending) >= FLUSH_BYTES:
                 self._flush_locked()
@@ -99,6 +111,7 @@ class TlogWriter(object):
     def close(self):
         with self._lock:
             self._flush_locked()
+            self._seal_span_locked()
             if self._fh is not None:
                 self._fh.close()
                 self._fh = None
@@ -133,13 +146,33 @@ class TlogWriter(object):
                 pass
         return total / (1024.0 * 1024.0)
 
+    def prune_if_needed(self, now=None, disk_free_mb=None):
+        """Prune at most every 60s, and only when the quota or disk floor requires it.
+
+        Idle ticks must not read tlog bytes. Span checks stay on the cached
+        first and last timestamps.
+        """
+        mono = self._now()
+        if self._last_prune and (mono - self._last_prune) < PRUNE_INTERVAL_S:
+            return False
+        if not self._prune_required(disk_free_mb):
+            return False
+        self._last_prune = mono
+        self.prune(now=now)
+        return True
+
+    def _prune_required(self, disk_free_mb):
+        if disk_free_mb is not None and float(disk_free_mb) < DISK_FREE_MIN_MB:
+            return True
+        return self.quota_used_mb() + 1e-6 >= self.quota_mb
+
     def prune(self, now=None):
         """Drop old unprotected segments. Never delete a segment overlapping an open upload."""
         now = time.time() if now is None else now
         cutoff = now - self.retention_days * 86400.0
         files = self._segments()
         for path in files:
-            span = _segment_span(path)
+            span = self._span_of(path)
             if span is None:
                 continue
             if _overlaps(span, self.protected_ranges):
@@ -157,7 +190,7 @@ class TlogWriter(object):
         for path in files:
             if used <= limit:
                 break
-            span = _segment_span(path)
+            span = self._span_of(path)
             if span is not None and _overlaps(span, self.protected_ranges):
                 continue
             if self._path is not None and path.resolve() == Path(self._path).resolve():
@@ -173,9 +206,12 @@ class TlogWriter(object):
         if self._fh is not None and self._seg_start is not None and (unix_s - self._seg_start) < SEGMENT_S:
             return
         self._flush_locked()
+        self._seal_span_locked()
         if self._fh is not None:
             self._fh.close()
             self._fh = None
+        self._seg_first = None
+        self._seg_last = None
         import datetime
 
         dt = datetime.datetime.fromtimestamp(unix_s, datetime.timezone.utc)
@@ -188,9 +224,82 @@ class TlogWriter(object):
         self._seg_start = unix_s
         self.segment = str(path)
         self._last_flush = self._now()
+        if path.stat().st_size > 0:
+            span = self._span_of(path)
+            if span is not None:
+                self._seg_first, self._seg_last = span
+                self._seg_start = span[0]
+
+    def _seal_span_locked(self):
+        if self._path is None or self._seg_first is None:
+            return
+        last = self._seg_last if self._seg_last is not None else self._seg_first
+        span = (float(self._seg_first), float(last))
+        path = Path(self._path)
+        try:
+            size = path.stat().st_size
+        except OSError:
+            size = None
+        if size is not None:
+            try:
+                Path(str(path) + ".span").write_text("%s %s %s\n" % (span[0], span[1], int(size)))
+            except OSError:
+                pass
+            try:
+                st = path.stat()
+                self._span_cache[str(path)] = (st.st_size, _mtime_ns(st), span)
+            except OSError:
+                pass
+
+    def _span_of(self, path):
+        """First and last record time. The open segment is tracked in memory."""
+        path = Path(path)
+        if (
+            self._path is not None
+            and self._seg_first is not None
+            and path.resolve() == Path(self._path).resolve()
+        ):
+            last = self._seg_last if self._seg_last is not None else self._seg_first
+            return (self._seg_first, last)
+        try:
+            st = path.stat()
+        except OSError:
+            return None
+        key = str(path)
+        mtime = _mtime_ns(st)
+        cached = self._span_cache.get(key)
+        if cached and cached[0] == st.st_size and cached[1] == mtime:
+            return cached[2]
+        span = _span_from_sidecar(path, st.st_size)
+        if span is None:
+            span = _segment_span(path)
+        if span is None:
+            return None
+        self._span_cache[key] = (st.st_size, mtime, span)
+        return span
 
     def _segments(self):
         return sorted(self.root.glob("*/*.tlog"))
+
+
+def _mtime_ns(st):
+    return getattr(st, "st_mtime_ns", int(st.st_mtime * 1e9))
+
+
+def _span_from_sidecar(path, size):
+    side = Path(str(path) + ".span")
+    if not side.is_file():
+        return None
+    try:
+        parts = side.read_text(encoding="utf-8").split()
+        first = float(parts[0])
+        last = float(parts[1])
+        recorded = int(parts[2]) if len(parts) > 2 else None
+    except Exception:
+        return None
+    if recorded is not None and recorded != int(size):
+        return None
+    return (first, last)
 
 
 def _segment_span(path):

@@ -3,9 +3,11 @@
 
 from __future__ import print_function
 
+import ast
 import json
 import os
 import queue
+import re
 import socket
 import subprocess
 import sys
@@ -184,6 +186,45 @@ class CompanionHookTests(unittest.TestCase):
     def _get(self, port, path):
         with urllib.request.urlopen("http://127.0.0.1:%s%s" % (port, path), timeout=2) as resp:
             return json.loads(resp.read().decode("utf-8"))
+
+
+class InstallFilesTests(unittest.TestCase):
+    def test_local_imports_are_copied(self):
+        text = (ROOT / "install.sh").read_text(encoding="utf-8")
+        files = _shell_list(text, "FILES")
+        dirs = _shell_list(text, "DIRS")
+        installed = [ROOT / name for name in files if name.endswith(".py")]
+        for folder in dirs:
+            installed.extend((ROOT / folder).rglob("*.py"))
+        local = {path.stem for path in ROOT.glob("*.py")}
+        missing = []
+        for path in installed:
+            for name in _imported_modules(path):
+                if name in local and ("%s.py" % name) not in files:
+                    missing.append("%s -> %s" % (path.name, name))
+        self.assertEqual(missing, [])
+
+
+def _shell_list(text, name):
+    match = re.search(r"%s=\(([^)]*)\)" % name, text)
+    if match is None:
+        raise AssertionError("missing %s" % name)
+    return match.group(1).split()
+
+
+def _imported_modules(path):
+    tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    found = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                found.append(alias.name.split(".")[0])
+        elif isinstance(node, ast.ImportFrom):
+            if node.level:
+                continue
+            if node.module:
+                found.append(node.module.split(".")[0])
+    return found
 
 
 if __name__ == "__main__":
