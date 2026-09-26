@@ -600,7 +600,7 @@ describe('Mission layout contract — live boxes', () => {
     });
     expect(clip.linkText).toBe('מחובר');
     expect(clip.linkTitle).toContain('טלמטריה');
-    expect(clip.altText).toBe('--');
+    expect(clip.altText).toBe('—');
     expect(clip.altTitle).toBe('אין קישור');
     expect(clip.pillWrap).toBe('normal');
     expect(clip.pillOverflow).toBeLessThanOrEqual(1);

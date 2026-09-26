@@ -68,10 +68,10 @@ describe('Operator chrome voice and lab chrome gone', () => {
   });
 
   it('uses spoken Companion connect and disconnected next-step copy', () => {
-    expect(html).toMatch(/id="companionConnectHint"[^>]*>צריך כתובת ואסימון\. כתובת לבד לא מספיקה\.</);
+    expect(html).toMatch(/id="companionConnectHint"[^>]*>צריך כתובת וטוקן\. כתובת לבד לא מספיקה\.</);
     expect(html).toMatch(/id="teleNextStep"[^>]*>חברו מחשב משימה\. כתובת לבד לא מספיקה\.</);
     expect(html).toMatch(/id="maintNextStep"[^>]*>חברו מחשב משימה\. כתובת לבד לא מספיקה\.</);
-    expect(COMPANION_HE.hint).toBe('צריך כתובת ואסימון. כתובת לבד לא מספיקה.');
+    expect(COMPANION_HE.hint).toBe('צריך כתובת וטוקן. כתובת לבד לא מספיקה.');
     expect(COMPANION_HE.bothGate).toMatch(/כתובת לבד לא מספיקה/);
     expect(js).not.toContain('כתובת לבד לא מחברת');
     expect(html).not.toContain('כתובת לבד לא מחברת');

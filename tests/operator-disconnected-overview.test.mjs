@@ -80,7 +80,7 @@ describe('Disconnected-first operator overview', () => {
     expect(html).toContain('סוכן קוד');
     expect(html).toMatch(/id="assistAgentSettingsLink"/);
     expect(html).toMatch(/id="companionConnectStatus"[^>]*>Jetson מנותק</);
-    expect(html).toMatch(/id="companionConnectHint"[^>]*>צריך כתובת ואסימון\. כתובת לבד לא מספיקה\.</);
+    expect(html).toMatch(/id="companionConnectHint"[^>]*>צריך כתובת וטוקן\. כתובת לבד לא מספיקה\.</);
     expect(html).toMatch(/id="maintNextStep"[^>]*>חברו מחשב משימה\. כתובת לבד לא מספיקה\.</);
     expect(html).toMatch(/id="teleNextStep"[^>]*>חברו מחשב משימה\. כתובת לבד לא מספיקה\.</);
     expect(html).toMatch(/id="assistAgentConnect"[^>]*\boperator-state\b/);

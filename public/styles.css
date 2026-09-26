@@ -20884,17 +20884,20 @@ body:has(#telemetry.panel.visible) #telemetry .tele-dash-sub {
 }
 @media (max-width: 1100px) and (min-width: 721px) {
   .mission-region-horizon .pfd-horizon-stage {
-    min-height: 140px;
-    height: 140px;
-    flex: 0 0 140px;
+    min-height: 120px;
+    height: auto;
+    max-height: none;
+    flex: 0 1 auto;
   }
   .mission-region-horizon .pfd-horizon-instrument {
     min-height: 148px;
-    grid-template-rows: 140px 22px;
+    height: auto;
+    grid-template-rows: minmax(120px, 1fr) 28px;
   }
   .mission-region-horizon .mission-region-data {
-    max-height: 40px;
-    overflow: hidden;
+    max-height: none;
+    min-height: 120px;
+    overflow: visible;
   }
 }
 @media (max-width: 720px) {
@@ -20904,17 +20907,17 @@ body:has(#telemetry.panel.visible) #telemetry .tele-dash-sub {
     max-height: 220px;
   }
   .mission-region[data-mission-region="horizon"] {
-    height: 180px;
+    height: auto;
     min-height: 0;
-    max-height: 180px;
-    overflow: hidden;
+    max-height: none;
+    overflow: visible;
   }
   .mission-region-horizon .pfd-horizon-instrument,
   .mission-region-horizon .pfd-horizon-shell,
   .mission-region-horizon .pfd-horizon-stage {
-    min-height: 0;
-    height: 110px;
-    max-height: 110px;
+    min-height: 120px;
+    height: auto;
+    max-height: none;
   }
   .mission-region-talk,
   #missionTalkHost {
@@ -21132,4 +21135,202 @@ body:has(#pulse.panel.visible) .pulse-home.pulse-status-home {
 @media (max-width: 720px) {
   .cam0-layout { grid-template-columns: 1fr; }
   .cam0-controls input, .cam0-controls select { max-width: 100%; }
+}
+
+/* Flight instruments stay fully visible. The battery bar is in flow.
+   Below 1100px the Ask panel is an overlay, not a 183px row. */
+#missionAskToggleBtn { display: none; }
+
+.mission-region-data > .pfd-bottom-bar {
+  position: static;
+  flex: 0 0 auto;
+  z-index: 1;
+  margin-top: auto;
+}
+@media (min-width: 1101px) {
+  .mission-region-horizon .mission-region-data {
+    display: flex;
+    flex-direction: column;
+    overflow: visible;
+    max-height: none;
+  }
+  .mission-region-horizon .mission-data-grid {
+    overflow: visible;
+    flex: 0 0 auto;
+  }
+}
+.mission-region-horizon .mission-region-data {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  max-height: min(196px, 40%);
+  min-height: 96px;
+}
+.mission-region-horizon .mission-data-grid {
+  flex: 1 1 auto;
+  min-height: 64px;
+  overflow: auto;
+}
+.mission-region-horizon .pfd-horizon-chrome,
+.mission-region-horizon .pfd-video-toggle {
+  position: static;
+  z-index: 1;
+}
+.mission-region-horizon .pfd-horizon-instrument {
+  position: relative;
+  z-index: 2;
+}
+.mission-region-horizon .pfd-side-tape,
+.mission-region-horizon .pfd-heading-lane,
+.mission-region-horizon .mission-data-tile,
+.mission-region-data > .pfd-bottom-bar {
+  position: relative;
+  z-index: 3;
+}
+
+@media (max-height: 640px) {
+  .app-update-banner {
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 8px;
+    max-height: 28px;
+    padding: 2px 8px;
+    overflow: hidden;
+  }
+  .app-update-banner ul,
+  .app-update-banner .app-update-error { display: none; }
+  #appUpdateBannerText {
+    flex: 1 1 auto;
+    min-width: 0;
+    margin: 0;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+  .app-update-actions { flex: 0 0 auto; flex-wrap: nowrap; }
+  .app-update-banner button { min-height: 22px; padding: 0 8px; }
+}
+
+@media (max-width: 1100px) {
+  #missionAskToggleBtn { display: inline-flex; }
+  html:has(#terrain.panel.visible),
+  body:has(#terrain.panel.visible),
+  body:has(#terrain.panel.visible) .layout,
+  #terrain.panel.visible {
+    height: auto;
+    min-height: 100%;
+    overflow: visible;
+  }
+  .mission-workspace[data-mission-layout="ops-v1"],
+  .mission-workspace[data-mission-swap="map-horizon"],
+  .mission-workspace[data-mission-swap="horizon-map"] {
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 38%);
+    grid-template-rows: minmax(420px, 1fr);
+    grid-template-areas: "map horizon";
+    height: auto;
+    min-height: 420px;
+    overflow: visible;
+  }
+  .mission-workspace[data-mission-swap="horizon-map"] {
+    grid-template-areas: "horizon map";
+  }
+  .mission-region[data-mission-region="talk"] {
+    display: none;
+    min-width: 0;
+    min-height: 0;
+    height: auto;
+  }
+  .mission-workspace[data-ask-open="1"] .mission-region[data-mission-region="talk"] {
+    display: flex;
+    position: fixed;
+    z-index: 40;
+    inset-inline-end: 8px;
+    top: 52px;
+    bottom: 8px;
+    width: min(360px, calc(100vw - 16px));
+    height: auto;
+    min-height: 0;
+    overflow: auto;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+  }
+  .mission-region[data-mission-region="horizon"] {
+    height: auto;
+    min-height: 420px;
+    max-height: none;
+    overflow: visible;
+  }
+  .mission-region-horizon > .flight-hud,
+  .mission-region-horizon .pfd-horizon-shell {
+    height: auto;
+    min-height: 0;
+    max-height: none;
+    overflow: visible;
+    flex: 0 0 auto;
+  }
+  .mission-region-horizon .pfd-horizon-instrument {
+    min-height: 148px;
+    height: auto;
+    max-height: none;
+    grid-template-rows: minmax(120px, 1fr) 28px;
+  }
+  .mission-region-horizon .pfd-horizon-stage {
+    min-height: 120px;
+    height: auto;
+    max-height: none;
+  }
+  .mission-region-horizon .mission-region-data {
+    max-height: none;
+    min-height: 120px;
+    height: auto;
+    overflow: visible;
+    flex: 0 0 auto;
+  }
+  .mission-region-horizon .mission-data-grid {
+    min-height: 88px;
+    overflow: visible;
+  }
+}
+
+@media (max-width: 720px) {
+  .mission-workspace[data-mission-layout="ops-v1"],
+  .mission-workspace[data-mission-swap="map-horizon"],
+  .mission-workspace[data-mission-swap="horizon-map"] {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    grid-template-areas:
+      "map"
+      "horizon";
+    min-height: 0;
+    height: auto;
+  }
+  .mission-region[data-mission-region="map"] {
+    height: 220px;
+    min-height: 220px;
+    max-height: 220px;
+  }
+  .mission-region[data-mission-region="horizon"] {
+    height: auto;
+    min-height: 0;
+    max-height: none;
+    overflow: visible;
+  }
+  .mission-region-horizon .pfd-horizon-instrument,
+  .mission-region-horizon .pfd-horizon-shell,
+  .mission-region-horizon .pfd-horizon-stage {
+    min-height: 120px;
+    height: auto;
+    max-height: none;
+  }
+  .mission-region-horizon .mission-data-grid {
+    grid-template-columns: 1fr;
+    height: auto;
+    min-height: 0;
+  }
+  .mission-region-horizon .mission-data-tile {
+    min-height: 44px;
+    height: auto;
+  }
+  .mission-region-talk,
+  #missionTalkHost {
+    min-height: 0;
+  }
 }

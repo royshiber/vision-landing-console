@@ -241,23 +241,29 @@ describe('ARM DISARM flight screen', () => {
       await page.mouse.down();
       await page.waitForTimeout(1600);
       await page.mouse.up();
+      expect(posts.filter((p) => p.action === 'arm')).toHaveLength(0);
+      expect(await page.locator('#flightArmDialogText').textContent()).toBe('אשרו חימוש');
+      await page.locator('#flightArmConfirm').click();
       expect(posts.filter((p) => p.action === 'arm')).toHaveLength(1);
       await page.waitForFunction(() => (document.getElementById('flightArmRefusal')?.textContent || '').includes('PreArm'));
       await page.mouse.move(x, y);
       await page.mouse.down();
       await page.waitForTimeout(1600);
       await page.mouse.up();
+      expect(posts.filter((p) => p.action === 'arm')).toHaveLength(1);
+      await page.locator('#flightArmConfirm').click();
       expect(posts.filter((p) => p.action === 'arm')).toHaveLength(2);
       for (const body of posts) expect(JSON.stringify(body)).not.toContain('21196');
 
       await page.evaluate((mav) => applyFlightHud(mav), hud({
         connected: true, armedKnown: true, armed: true, flying: false, lastHeartbeatAgeMs: 100,
+        landedState: 1, landedStateAgeMs: 100,
       }));
       await page.locator('#flightDisarmBtn').click();
-      expect(await page.locator('#flightDisarmDialogText').textContent()).toBe('לאשר נטרול');
+      expect(await page.locator('#flightDisarmDialogText').textContent()).toBe('אשרו נטרול');
       expect(posts.filter((p) => p.action === 'disarm')).toHaveLength(0);
       await page.locator('#flightDisarmConfirm').click();
-      await page.waitForFunction(() => (document.getElementById('flightDisarmDialogText')?.textContent || '').includes('באוויר'));
+      await page.waitForFunction(() => (document.getElementById('flightDisarmDialogText')?.textContent || '').includes('אשרו שוב נטרול'));
       expect(posts.filter((p) => p.action === 'disarm')).toHaveLength(1);
       expect(posts.find((p) => p.action === 'disarm').confirmFlying).toBe(false);
       expect(posts.filter((p) => p.action === 'disarm' && p.confirmFlying === true)).toHaveLength(0);
@@ -273,11 +279,12 @@ describe('ARM DISARM flight screen', () => {
       posts.length = 0;
       await page.evaluate((mav) => applyFlightHud(mav), hud({
         connected: true, armedKnown: true, armed: true, flying: true, lastHeartbeatAgeMs: 100,
+        landedState: 2, landedStateAgeMs: 100,
       }));
       await page.locator('#flightDisarmBtn').click();
       await page.locator('#flightDisarmConfirm').click();
       expect(posts).toHaveLength(0);
-      expect(await page.locator('#flightDisarmDialogText').textContent()).toContain('באוויר');
+      expect(await page.locator('#flightDisarmDialogText').textContent()).toContain('אשרו שוב נטרול');
       const fit = await page.evaluate(collectTextFitFailures, 1);
       expect(fit.fails).toEqual([]);
       const clipped = await page.evaluate(() => {

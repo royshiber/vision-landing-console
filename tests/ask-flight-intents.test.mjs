@@ -364,7 +364,8 @@ describe('Ask rail confirm chrome', () => {
     expect(html).toContain('id="assistVoiceGo"');
     expect(html).toContain('id="assistVoiceGoToggle"');
     expect(html).toContain('פקודות קול ללא אישור');
-    expect(html).toContain('נחיתה ומצב בלי אישור. חימוש ונטרול חסומים. פרמטר דורש אישור.');
+    expect(html).toContain('מה עדיין דורש אישור');
+    expect(html).toContain('אחרי ההפעלה, נחיתה ושינוי מצב מתבצעים בלי אישור נוסף. חימוש ונטרול נשארים חסומים, ושינוי פרמטר עדיין דורש אישור.');
     expect(html).not.toContain('id="assistVoiceGoBtn"');
     expect(html).not.toContain('id="assistVoiceGoEndBtn"');
     expect(js).toContain('function assistIsConfirmPhrase(');

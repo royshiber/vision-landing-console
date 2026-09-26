@@ -174,7 +174,7 @@ describe('one-Jetson connect defaults', () => {
     expect(missing.needToken).toBe(true);
     expect(missing.focusField).toBe('token');
     expect(missing.connected).toBe(false);
-    expect(missing.hint_he).toMatch(/אסימון/);
+    expect(missing.hint_he).toMatch(/טוקן/);
     expect(missing.hint_he).not.toMatch(/חסרה כתובת/);
     expect(missing.jetsonStatusHe).not.toBe('מחובר');
   });

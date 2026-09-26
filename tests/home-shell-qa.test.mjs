@@ -101,9 +101,14 @@ describe('home shell QA', () => {
   it('1024x576: the horizon is visible and Ask is not a strip', async () => {
     const page = await openHome(1024, 576);
     const stage = await box(page, '#pfdHorizonStage');
+    expect(stage.h).toBeGreaterThanOrEqual(120);
+    const talkClosed = await page.locator('[data-mission-region="talk"]').evaluate((el) => getComputedStyle(el).display);
+    expect(talkClosed).toBe('none');
+    await page.click('#missionAskToggleBtn');
     const talk = await box(page, '#missionTalkHost');
-    expect(stage.h).toBeGreaterThan(80);
     expect(talk.h).toBeGreaterThan(160);
+    const stageAfter = await box(page, '#pfdHorizonStage');
+    expect(stageAfter.h).toBeGreaterThanOrEqual(120);
     await page.screenshot({ path: path.join(shots, '1024-home.png') });
     await page.close();
   }, 30000);
@@ -135,7 +140,7 @@ describe('home shell QA', () => {
     await page.click('#assistSendBtn');
     await page.waitForFunction(() => {
       const nodes = [...document.querySelectorAll('#assistMessages .assist-msg, #assistTranscript .assist-bubble, .assist-message')];
-      return nodes.some((n) => /אין מידע|מצב טיסה/.test(n.textContent || ''));
+      return nodes.some((n) => /אין נתונים|מצב טיסה/.test(n.textContent || ''));
     }, null, { timeout: 8000 }).catch(() => {});
     const answer = await page.locator('#assistMessages, #assistTranscript, .assist-transcript').innerText().catch(() => '');
     expect(answer).not.toMatch(/MANUAL/);
@@ -212,6 +217,7 @@ describe('home shell QA', () => {
 
   it('Ask at 360 starts inside the screen', async () => {
     const page = await openHome(360, 740, true);
+    await page.click('#missionAskToggleBtn');
     const talk = await box(page, '#missionTalkHost');
     expect(talk.y).toBeLessThan(740);
     expect(talk.h).toBeGreaterThan(160);

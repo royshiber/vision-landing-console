@@ -96,7 +96,7 @@ describe('Text fit matrix', () => {
             set('pfdArmedBadge', 'DISARMED');
             set('hudNavGpsVal', 'NO GPS FIX');
             const note = document.querySelector('.mission-horizon-filler-note');
-            if (note) note.textContent = 'אין חיבור לבקר. אין הודעות נכנסות.';
+            if (note) note.textContent = 'אין חיבור לבקר הטיסה';
             const health = document.querySelector('.pulse-health-note');
             if (health) health.textContent = 'מחשב משימה לא מגיב לבדיקת הבריאות דרך הרשת';
             set('pulseJetsonLoad', '98.6%');

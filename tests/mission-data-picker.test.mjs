@@ -115,13 +115,13 @@ describe('Mission data-slot field picker', () => {
 
   it('keeps empty and unknown fields honest', () => {
     const fns = loadSlotFns();
-    expect(fns.formatMissionDataValue('mavlink.altitude', { mavlink: {} })).toBe('--');
-    expect(fns.formatMissionDataValue('mavlink.airspeed', { mavlink: { airspeed: null } })).toBe('--');
-    expect(fns.formatMissionDataValue('mavlink.pitchDeg', { mavlink: { connected: true } })).toBe('--');
-    expect(fns.formatMissionDataValue('mavlink.gpsLat', { mavlink: { map: { gpsLat: 0, gpsLon: 0 } } })).toBe('--');
-    expect(fns.formatMissionDataValue('mavlink.gpsLon', { mavlink: { map: {} } })).toBe('--');
-    expect(fns.formatMissionDataValue('mavlink.gpsSats', { mavlink: { gpsSats: null } })).toBe('--');
-    expect(fns.formatMissionDataValue('unknown.field', { mavlink: { altitude: 12 } })).toBe('--');
+    expect(fns.formatMissionDataValue('mavlink.altitude', { mavlink: {} })).toBe('—');
+    expect(fns.formatMissionDataValue('mavlink.airspeed', { mavlink: { airspeed: null } })).toBe('—');
+    expect(fns.formatMissionDataValue('mavlink.pitchDeg', { mavlink: { connected: true } })).toBe('—');
+    expect(fns.formatMissionDataValue('mavlink.gpsLat', { mavlink: { map: { gpsLat: 0, gpsLon: 0 } } })).toBe('—');
+    expect(fns.formatMissionDataValue('mavlink.gpsLon', { mavlink: { map: {} } })).toBe('—');
+    expect(fns.formatMissionDataValue('mavlink.gpsSats', { mavlink: { gpsSats: null } })).toBe('—');
+    expect(fns.formatMissionDataValue('unknown.field', { mavlink: { altitude: 12 } })).toBe('—');
     expect(fns.formatMissionDataValue('mavlink.altitude', { mavlink: { altitude: 41.5 } })).toBe('41.5');
     const bogus = fns.suggestMissionDataFields('קו רוחב 32.1');
     expect(JSON.stringify(bogus)).not.toMatch(/32\.1/);

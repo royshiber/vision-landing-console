@@ -3144,7 +3144,7 @@ function companionNeedsToken(data) {
   return data.needToken === true
     || data.focusField === 'token'
     || data.error === 'token_empty'
-    || data.status_he === 'חסר אסימון';
+    || data.status_he === 'חסר טוקן';
 }
 
 function companionIsLive(source) {
@@ -5334,7 +5334,7 @@ function companionConnectRender(status) {
     const relay = status?.mavlinkRelay;
     const relayDown = relay && relay.ok === false && !relay.skipped;
     hintEl.hidden = configuredReal && !relayDown;
-    hintEl.textContent = status?.hint_he || 'צריך כתובת ואסימון. כתובת לבד לא מספיקה.';
+    hintEl.textContent = status?.hint_he || 'צריך כתובת וטוקן. כתובת לבד לא מספיקה.';
   }
   const hint = configuredReal ? String(status.token_hint || '').trim() : '';
   if (tokenHintEl) {
@@ -5405,12 +5405,12 @@ async function companionConnectSubmit(event) {
     return;
   }
   if (!token) {
-    companionConnectSetError('חסר אסימון');
+    companionConnectSetError('חסר טוקן');
     companionConnectRender({
       ok: false,
       mode: 'off',
       connected: false,
-      status_he: 'חסר אסימון',
+      status_he: 'חסר טוקן',
       base_url: baseUrl,
     });
     return;
@@ -5516,7 +5516,7 @@ async function companionQuickConnect() {
         const adv = document.getElementById('companionConnectAdvanced');
         if (adv) adv.open = true;
       }
-      companionConnectSetError(data.status_he || (companionNeedsToken(data) ? 'חסר אסימון' : 'פתחו מתקדם רק אם חסרה כתובת.'));
+      companionConnectSetError(data.status_he || (companionNeedsToken(data) ? 'חסר טוקן' : 'פתחו מתקדם רק אם חסרה כתובת.'));
       companionConnectRender({
         ok: false,
         mode: data.mode || 'off',
@@ -5562,7 +5562,7 @@ function applyCompanionUi(companion) {
   const unavailableEl = document.getElementById('companionApiUnavailable');
   if (unavailableEl) {
     unavailableEl.hidden = !unavailable;
-    unavailableEl.textContent = unavailable ? 'מחשב משימה לא מגיב. בדקו כתובת ואסימון.' : '';
+    unavailableEl.textContent = unavailable ? 'מחשב משימה לא מגיב. בדקו כתובת וטוקן.' : '';
   }
   const live = companionIsLive(companion) && !unavailable;
   companionSetLiveChrome(live);
@@ -5868,7 +5868,7 @@ function formatGpsHudReadout(mav) {
   const satsOk = typeof sats === 'number' && Number.isFinite(sats);
   if (!hasFix) {
     return {
-      text: '--',
+      text: '—',
       title: hudFieldHonestyTitle('gps', mav, null),
       status: 'unknown',
     };
@@ -5983,8 +5983,10 @@ function horizonVideoHasPlayableSource(url) {
 function syncHorizonVideoEmpty(hasVideo) {
   const emptyEl = document.getElementById('horizonVideoEmpty');
   if (!emptyEl) return;
-  const showEmpty = !!_horizonVideoMode && !hasVideo;
+  const showEmpty = !hasVideo && (_horizonVideoMode || readInstrumentView() === 'video');
+  emptyEl.hidden = !showEmpty;
   emptyEl.classList.toggle('hidden', !showEmpty);
+  if (showEmpty) emptyEl.textContent = 'אין זרם מצלמה';
 }
 
 function setHorizonVideoActive(active, url) {
@@ -6008,8 +6010,8 @@ function setHorizonVideoActive(active, url) {
         syncHorizonVideoEmpty(false);
       });
     } else {
+      videoEl.onerror = null;
       videoEl.removeAttribute('src');
-      videoEl.src = '';
       videoEl.classList.add('hidden');
     }
   }
@@ -6033,7 +6035,7 @@ function instrumentVideoEmptyReason(companion) {
   const comp = companion && typeof companion === 'object' ? companion : {};
   const link = comp.link && typeof comp.link === 'object' ? comp.link : comp;
   if (link.needToken === true || comp.needToken === true || link.focusField === 'token' || comp.focusField === 'token' || comp.error === 'token_empty') {
-    return 'חסר אסימון';
+    return 'חסר טוקן';
   }
   if (link.jetson === 'unreachable' || (comp.mode === 'real' && comp.reachable === false)) {
     return 'בדקו כתובת';
@@ -6057,7 +6059,10 @@ function paintInstrumentVideo(companion) {
       img.hidden = true;
       img.removeAttribute('src');
     }
-    if (empty) empty.hidden = true;
+    if (empty) {
+      empty.hidden = true;
+      empty.classList.add('hidden');
+    }
     return;
   }
   if (liveId && img) {
@@ -6068,7 +6073,10 @@ function paintInstrumentVideo(companion) {
       img.src = `/api/jetson/v1/cameras/${liveId}/frame?t=${Date.now()}`;
     }
     setHorizonVideoActive(false, '');
-    if (empty) empty.hidden = true;
+    if (empty) {
+      empty.hidden = true;
+      empty.classList.add('hidden');
+    }
     return;
   }
   if (img) {
@@ -6077,13 +6085,17 @@ function paintInstrumentVideo(companion) {
   }
   if (horizonVideoHasPlayableSource(override)) {
     setHorizonVideoActive(true, override);
-    if (empty) empty.hidden = true;
+    if (empty) {
+      empty.hidden = true;
+      empty.classList.add('hidden');
+    }
     return;
   }
   setHorizonVideoActive(false, '');
   if (empty) {
     empty.hidden = false;
-    empty.textContent = instrumentVideoEmptyReason(companion);
+    empty.classList.remove('hidden');
+    empty.textContent = 'אין זרם מצלמה';
   }
 }
 
@@ -6115,6 +6127,12 @@ function setInstrumentView(next) {
   if (view !== 'video') setHorizonVideoActive(false, '');
   const companion = typeof latestCompanionFromServer === 'object' ? latestCompanionFromServer : null;
   if (view === 'video') paintInstrumentVideo(companion);
+  const videoEmpty = document.getElementById('horizonVideoEmpty');
+  if (view === 'video' && videoEmpty && !videoEmpty.hidden) {
+    chips.video?.classList.remove('active');
+    chips.video?.setAttribute('aria-pressed', 'false');
+    if (!String(videoEmpty.textContent || '').trim()) videoEmpty.textContent = 'אין זרם מצלמה';
+  }
   if (view === 'frame' && typeof applyLiveCameraPreview === 'function') applyLiveCameraPreview(companion);
   if (typeof resizeHorizonCanvas === 'function') resizeHorizonCanvas();
 }
@@ -6363,8 +6381,9 @@ function resolveLiveHudMavlinkForNote(mav) {
   return null;
 }
 
-const MISSION_FC_EMPTY_PRIMARY_HE = 'אין חיבור לבקר — לא מתקבלות הודעות MAVLink.';
-const MISSION_FC_EMPTY_NOTE_HE = 'אין חיבור לבקר. אין הודעות נכנסות.';
+const MISSION_FC_EMPTY_PRIMARY_HE = 'אין חיבור לבקר הטיסה';
+const MISSION_FC_EMPTY_NOTE_HE = 'אין חיבור לבקר הטיסה';
+const MISSION_FC_LINKED_HE = 'בקר מחובר';
 const MISSION_FC_RELAY_HINT_HE = 'דופק חי בבקר. ממסר הטלמטריה לא נפתח.';
 
 function companionReportsFcHeartbeat(companion) {
@@ -6522,11 +6541,11 @@ function syncMissionFcEmptyNote(mav) {
   const liveMav = resolveLiveHudMavlinkForNote(mav);
   if (liveMav) {
     const name = [liveMav.autopilotName, liveMav.vehicleType].filter(Boolean).join(' · ');
-    note.textContent = name ? `מחובר · ${name}` : 'מחובר לבקר.';
+    note.textContent = name ? `${MISSION_FC_LINKED_HE} · ${name}` : MISSION_FC_LINKED_HE;
     return;
   }
   if (hudReflectsLiveFc(mav)) {
-    note.textContent = 'מחובר לבקר.';
+    note.textContent = MISSION_FC_LINKED_HE;
     return;
   }
   const companion = (typeof latestCompanionFromServer === 'object' && latestCompanionFromServer)
@@ -6624,7 +6643,7 @@ function renderHudGrid() {
     const lbl = slot.label.replace(/</g,'&lt;').replace(/>/g,'&gt;');
     const unt = slot.unit ? '<span class="hud-slot-unit">' + slot.unit.replace(/</g,'&lt;') + '</span>' : '';
     div.innerHTML = '<span class="hud-slot-label">' + lbl + '</span>' +
-      '<strong class="hud-slot-val" id="hudSlotVal' + idx + '">--</strong>' + unt;
+      '<strong class="hud-slot-val" id="hudSlotVal' + idx + '">—</strong>' + unt;
     div.addEventListener('contextmenu', (e) => {
       e.preventDefault(); e.stopPropagation();
       showHudCtxMenu(idx, e.clientX, e.clientY);
@@ -6647,14 +6666,14 @@ function applyHudGrid(payload) {
     const valEl = document.getElementById('hudSlotVal' + idx);
     if (!valEl) return;
     const raw = getPayloadValue(payload, slot.key);
-    if (raw == null) { valEl.textContent = '--'; return; }
-    if (typeof raw === 'number' && !Number.isFinite(raw)) { valEl.textContent = '--'; return; }
+    if (raw == null) { valEl.textContent = '—'; return; }
+    if (typeof raw === 'number' && !Number.isFinite(raw)) { valEl.textContent = '—'; return; }
     if (slot.key === 'mavlink.flightMode') {
       valEl.textContent = vlcFlightModeText(raw, payload?.mavlink, payload?.mavlink?.connected === true);
     } else if (typeof raw === 'number') {
-      if (!Number.isFinite(raw)) { valEl.textContent = '--'; return; }
+      if (!Number.isFinite(raw)) { valEl.textContent = '—'; return; }
       const a = Math.abs(raw);
-      if (a > 1e6 || (a > 0 && a < 1e-9)) { valEl.textContent = '--'; return; }
+      if (a > 1e6 || (a > 0 && a < 1e-9)) { valEl.textContent = '—'; return; }
       const dec = Number.isInteger(raw) ? 0 : (a < 10 ? 2 : 1);
       valEl.textContent = raw.toFixed(dec) + (slot.unit ? ' ' + slot.unit : '');
     } else {
@@ -6904,14 +6923,18 @@ function drawHorizon(canvas, rollDeg, pitchDeg, opts = {}) {
   ctx.textBaseline = 'alphabetic';
   ctx.fillStyle = showRoll ? hud : (videoMode ? 'rgba(61,255,106,0.4)' : 'rgba(248,250,252,0.4)');
   ctx.textAlign = 'left';
-  ctx.fillText(showRoll ? `R ${rollDraw >= 0 ? '+' : ''}${formatHudAngleLabel(rollDraw)}°` : 'R --', 8, H - 8);
+  ctx.fillText(showRoll ? `R ${rollDraw >= 0 ? '+' : ''}${formatHudAngleLabel(rollDraw)}°` : 'R —', 8, H - 8);
   ctx.fillStyle = showPitch ? hud : (videoMode ? 'rgba(61,255,106,0.4)' : 'rgba(248,250,252,0.4)');
   ctx.textAlign = 'right';
-  ctx.fillText(showPitch ? `P ${pitchDraw >= 0 ? '+' : ''}${formatHudAngleLabel(pitchDraw)}°` : 'P --', W - 8, H - 8);
+  ctx.fillText(showPitch ? `P ${pitchDraw >= 0 ? '+' : ''}${formatHudAngleLabel(pitchDraw)}°` : 'P —', W - 8, H - 8);
 }
 const GPS_FIX_LABELS = ['אין GPS', 'אין Fix', '2D Fix', '3D Fix', 'DGPS', 'RTK Float', 'RTK Fixed'];
 
 const FLIGHT_ARM_HOLD_MS = 1500;
+const FLIGHT_ARM_CONFIRM_HE = 'אשרו חימוש';
+const FLIGHT_DISARM_CONFIRM_HE = 'אשרו נטרול';
+const FLIGHT_DISARM_AGAIN_HE = 'אשרו שוב נטרול';
+const FLIGHT_DISARM_UNKNOWN_HE = 'מצב הטיסה לא ידוע. אשרו שוב נטרול';
 let flightArmHoldTimer = null;
 let flightArmHolding = false;
 let flightArmBusy = false;
@@ -6979,11 +7002,25 @@ async function postFlightArmDisarm(action, confirmFlying) {
   return { status: res.status, data };
 }
 
+function closeFlightArmDialog() {
+  const dialog = document.getElementById('flightArmDialog');
+  if (dialog) dialog.hidden = true;
+}
+
+function openFlightArmDialog() {
+  if (flightArmBusy || !flightArmLinkLive(latestHudMavlink) || latestHudMavlink?.armed === true) return;
+  const text = document.getElementById('flightArmDialogText');
+  if (text) text.textContent = FLIGHT_ARM_CONFIRM_HE;
+  const dialog = document.getElementById('flightArmDialog');
+  if (dialog) dialog.hidden = false;
+}
+
 async function sendFlightArm() {
   if (flightArmBusy || !flightArmLinkLive(latestHudMavlink) || latestHudMavlink?.armed === true) return;
   flightArmBusy = true;
   try {
     const { data } = await postFlightArmDisarm('arm', false);
+    closeFlightArmDialog();
     if (data?.ok === true) {
       showFlightArmRefusal('');
       return;
@@ -6991,6 +7028,7 @@ async function sendFlightArm() {
     const fc = String(data?.prearm || '').trim();
     showFlightArmRefusal(fc || 'הבקר סירב לחימוש');
   } catch {
+    closeFlightArmDialog();
     showFlightArmRefusal('השליחה נכשלה');
   } finally {
     flightArmBusy = false;
@@ -7004,26 +7042,34 @@ function cancelFlightArmHold() {
   document.getElementById('flightArmBtn')?.classList.remove('is-holding');
 }
 
-const FLIGHT_DISARM_AIR_HE = 'הבקר מדווח שהכלי באוויר. נטרול עכשיו עלול להפיל את הכלי. לאשר נטרול שוב.';
+function flightDisarmGate(mav) {
+  const raw = mav?.landedState;
+  const age = Number(mav?.landedStateAgeMs);
+  const fresh = Number.isInteger(raw) && Number.isFinite(age) && age <= 5000;
+  if (!fresh) return 'unknown';
+  if (mav?.flying === true || raw === 2 || raw === 3) return 'flying';
+  return 'ground';
+}
 
-function showFlightDisarmAirWarning() {
+function showFlightDisarmSecond(kind) {
   flightDisarmSecond = true;
   const text = document.getElementById('flightDisarmDialogText');
-  if (text) text.textContent = FLIGHT_DISARM_AIR_HE;
+  if (text) text.textContent = kind === 'unknown' ? FLIGHT_DISARM_UNKNOWN_HE : FLIGHT_DISARM_AGAIN_HE;
 }
 
 async function confirmFlightDisarm() {
   if (flightArmBusy) return;
-  const clientFlying = latestHudMavlink?.flying === true;
-  if (clientFlying && !flightDisarmSecond) {
-    showFlightDisarmAirWarning();
+  const gate = flightDisarmGate(latestHudMavlink);
+  if (gate !== 'ground' && !flightDisarmSecond) {
+    showFlightDisarmSecond(gate);
     return;
   }
   flightArmBusy = true;
   try {
     const { data } = await postFlightArmDisarm('disarm', flightDisarmSecond === true);
-    if (data?.error === 'flying' && data?.sent !== true && flightDisarmSecond !== true) {
-      showFlightDisarmAirWarning();
+    if ((data?.error === 'flying' || data?.error === 'flight_state_unknown') && data?.sent !== true && flightDisarmSecond !== true) {
+      flightArmBusy = false;
+      showFlightDisarmSecond(data.error === 'flight_state_unknown' ? 'unknown' : 'flying');
       return;
     }
     closeFlightDisarmDialog();
@@ -7055,7 +7101,7 @@ function initFlightArmControls() {
     flightArmHoldTimer = setTimeout(() => {
       if (!flightArmHolding) return;
       cancelFlightArmHold();
-      sendFlightArm();
+      openFlightArmDialog();
     }, FLIGHT_ARM_HOLD_MS);
   });
   armBtn.addEventListener('pointerup', cancelFlightArmHold);
@@ -7065,7 +7111,7 @@ function initFlightArmControls() {
     if (disarmBtn.disabled) return;
     flightDisarmSecond = false;
     const text = document.getElementById('flightDisarmDialogText');
-    if (text) text.textContent = 'לאשר נטרול';
+    if (text) text.textContent = FLIGHT_DISARM_CONFIRM_HE;
     const dialog = document.getElementById('flightDisarmDialog');
     if (dialog) dialog.hidden = false;
   });
@@ -7073,10 +7119,27 @@ function initFlightArmControls() {
   document.getElementById('flightDisarmConfirm')?.addEventListener('click', () => {
     confirmFlightDisarm();
   });
+  document.getElementById('flightArmCancel')?.addEventListener('click', closeFlightArmDialog);
+  document.getElementById('flightArmConfirm')?.addEventListener('click', () => {
+    sendFlightArm();
+  });
   syncFlightArmControls(latestHudMavlink);
 }
 
 initFlightArmControls();
+
+function initMissionAskToggle() {
+  const btn = document.getElementById('missionAskToggleBtn');
+  const ws = document.querySelector('.mission-workspace');
+  if (!btn || !ws || btn.dataset.bound === '1') return;
+  btn.dataset.bound = '1';
+  btn.addEventListener('click', () => {
+    const open = ws.dataset.askOpen !== '1';
+    ws.dataset.askOpen = open ? '1' : '0';
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  });
+}
+initMissionAskToggle();
 
 /** Update the PFD with the latest MAVLink snapshot. */
 function applyFlightHud(mav) {
@@ -7109,14 +7172,15 @@ function applyFlightHud(mav) {
   const armed = !!mav.armed;
   if (pfdArmedBadge) {
     if (!mav.connected) {
-      pfdArmedBadge.textContent = 'ללא FC';
-      pfdArmedBadge.className   = 'pfd-badge pfd-badge--unknown';
-      pfdArmedBadge.title       = 'אין חיבור MAVLink — לחץ לפרטים';
+      pfdArmedBadge.hidden = true;
+      pfdArmedBadge.textContent = '';
     } else if (!mav.armedKnown) {
+      pfdArmedBadge.hidden = false;
       pfdArmedBadge.textContent = 'ARM ?';
       pfdArmedBadge.className   = 'pfd-badge pfd-badge--unknown';
       pfdArmedBadge.title       = 'לא התקבל מידע ARM מלא — לחץ לפרטים';
     } else {
+      pfdArmedBadge.hidden = false;
       pfdArmedBadge.textContent = armed ? 'ARMED' : 'DISARMED';
       pfdArmedBadge.className   = 'pfd-badge ' + (armed ? 'pfd-badge--armed' : 'pfd-badge--disarmed');
       pfdArmedBadge.title       = armed ? 'במצב ARM — לחץ להסבר מוכנות' : 'DISARMED — לחץ לבדיקת מוכנות / הודעות';
@@ -7135,7 +7199,7 @@ function applyFlightHud(mav) {
       pfdHdgVal.textContent = `${Math.round(hdgNorm)}°`;
       pfdHdgArrow.style.transform = `rotate(${hdgNorm}deg)`;
     } else {
-      pfdHdgVal.textContent = '---°';
+      pfdHdgVal.textContent = '—';
       pfdHdgArrow.style.transform = 'rotate(0deg)';
     }
   }
@@ -7152,12 +7216,12 @@ function applyFlightHud(mav) {
   }
   if (pfdAirspeedVal) {
     const as = mav.airspeed;
-    pfdAirspeedVal.textContent = typeof as === 'number' && Number.isFinite(as) ? as.toFixed(1) : '--';
+    pfdAirspeedVal.textContent = typeof as === 'number' && Number.isFinite(as) ? as.toFixed(1) : '—';
     pfdAirspeedVal.title = airspeedTileHonestyTitle(mav);
   }
   if (pfdAltVal) {
     const al = mav.altitude;
-    pfdAltVal.textContent = altitudeIsFinite(al) ? al.toFixed(1) : '--';
+    pfdAltVal.textContent = altitudeIsFinite(al) ? al.toFixed(1) : '—';
     pfdAltVal.title = altitudeTileHonestyTitle(mav);
   }
 
@@ -7165,7 +7229,7 @@ function applyFlightHud(mav) {
   if (pfdBattVal) {
     const bv = mav.batteryV;
     const bvOk = typeof bv === 'number' && Number.isFinite(bv);
-    pfdBattVal.textContent = bvOk ? `${(bv < 1 ? bv.toFixed(2) : bv.toFixed(1))} V` : '-- V';
+    pfdBattVal.textContent = bvOk ? `${(bv < 1 ? bv.toFixed(2) : bv.toFixed(1))} V` : '—';
     pfdBattVal.style.color = !bvOk ? '' : bv < 10.5 ? '#f87171'
       : bv < 11.5 ? '#facc15' : '#4ade80';
   }
@@ -7258,12 +7322,12 @@ function opticalNavHasFixClient(nav) {
 }
 
 function opticalNavStatusHeClient(nav) {
-  if (!nav) return { text: '--', title: 'אין דיווח ניווט אופטי' };
-  if (nav.camera_ok !== true) return { text: '--', title: 'אין מצלמה לניווט אופטי' };
-  if (nav.running !== true) return { text: '--', title: 'אומדן אופטי לא רץ' };
+  if (!nav) return { text: '—', title: 'אין דיווח ניווט אופטי' };
+  if (nav.camera_ok !== true) return { text: '—', title: 'אין מצלמה לניווט אופטי' };
+  if (nav.running !== true) return { text: '—', title: 'אומדן אופטי לא רץ' };
   if (!opticalNavHasFixClient(nav)) {
     const age = Number.isFinite(nav.age_ms) ? `גיל ${Math.round(nav.age_ms)}ms` : 'אין מיקום';
-    return { text: '--', title: `אופטי רץ. ${age}` };
+    return { text: '—', title: `אופטי רץ. ${age}` };
   }
   const pct = Number.isFinite(nav.confidence) ? `${Math.round(nav.confidence * 100)}%` : '';
   return {
@@ -7310,7 +7374,7 @@ function applyNavOpticalStatus(vision, companion) {
     missionNavDisplayStatus.title = status.title;
   }
   if (!pfdOptMini) return;
-  pfdOptMini.textContent = status.text === '--' ? '👁 --' : `👁 ${status.text}`;
+  pfdOptMini.textContent = status.text === '—' ? '👁 —' : `👁 ${status.text}`;
   pfdOptMini.title = status.title;
 }
 
@@ -7873,7 +7937,7 @@ function applyTopbarFlightData(mav) {
     const useTile = hudAirspeedEl.classList.contains('mission-data-value');
     hudAirspeedEl.textContent = (typeof spd === 'number' && Number.isFinite(spd))
       ? (useTile ? spd.toFixed(1) : `${spd.toFixed(1)} m/s`)
-      : (useTile ? '--' : '-- m/s');
+      : '—';
     hudAirspeedEl.title = airspeedTileHonestyTitle(mav);
   }
   const altitudeBound = typeof missionTileBoundKey === 'function' ? missionTileBoundKey(hudAltitudeEl) : null;
@@ -7882,7 +7946,7 @@ function applyTopbarFlightData(mav) {
     const useTile = hudAltitudeEl.classList.contains('mission-data-value');
     hudAltitudeEl.textContent = altitudeIsFinite(alt)
       ? (useTile ? alt.toFixed(1) : `${alt.toFixed(1)} m`)
-      : (useTile ? '--' : '-- m');
+      : '—';
     const altTitle = altitudeTileHonestyTitle(mav);
     hudAltitudeEl.title = altTitle;
     const tile = hudAltitudeEl.closest('.mission-data-tile, .tele-hud-mini');
@@ -8485,7 +8549,7 @@ setInterval(() => {
   if (takeoffState) takeoffState.textContent = takeoffReady ? 'READY' : 'HOLD';
   if (liveConfidenceText) {
     const useTile = liveConfidenceText.classList.contains('mission-data-value');
-    liveConfidenceText.textContent = pct != null ? (useTile ? String(pct) : `${pct}%`) : (useTile ? '--' : '--');
+    liveConfidenceText.textContent = pct != null ? (useTile ? String(pct) : `${pct}%`) : '—';
   }
   if (liveConfidenceBar) liveConfidenceBar.style.width = pct != null ? `${pct}%` : '0%';
   if (liveConfidenceBar) liveConfidenceBar.classList.toggle('bar-live', visionFresh);
@@ -10217,7 +10281,7 @@ function paintLiveGpsVisionDelta(mapData, vision) {
   if (!liveGpsVisionDeltaEl) return;
   const meters = gpsVisionDeltaMeters(mapData?.gpsLat, mapData?.gpsLon, vision?.navLat, vision?.navLon);
   if (liveGpsVisionDeltaEl.classList.contains('mission-data-value')) {
-    liveGpsVisionDeltaEl.textContent = Number.isFinite(meters) ? meters.toFixed(1) : '--';
+    liveGpsVisionDeltaEl.textContent = Number.isFinite(meters) ? meters.toFixed(1) : '—';
     return;
   }
   liveGpsVisionDeltaEl.textContent = formatGpsVisionDeltaMeters(meters);
@@ -16855,7 +16919,7 @@ function assistBuildOpsSignals(vision) {
       const nav = typeof normalizeOpticalNavClient === 'function' ? normalizeOpticalNavClient(rawNav) : rawNav;
       if (typeof nav?.camera_ok === 'boolean') ops.camera_ok = nav.camera_ok === true;
       if (typeof opticalNavStatusHeClient === 'function') {
-        ops.optical_missing = opticalNavStatusHeClient(nav).text === '--';
+        ops.optical_missing = opticalNavStatusHeClient(nav).text === '—';
       }
     }
   } catch {
@@ -16897,10 +16961,11 @@ function rtlSafeAskText(text, extraTokens) {
 }
 
 const ASSIST_DEFAULT_HINT_HE = 'שינוי דורש אישור.';
-const ASSIST_DEFAULT_HINT_GO_HE = 'נחיתה ומצב בלי אישור. פרמטר דורש אישור.';
+const ASSIST_VOICE_SENTENCE_HE = 'אחרי ההפעלה, נחיתה ושינוי מצב מתבצעים בלי אישור נוסף. חימוש ונטרול נשארים חסומים, ושינוי פרמטר עדיין דורש אישור.';
+const ASSIST_DEFAULT_HINT_GO_HE = ASSIST_VOICE_SENTENCE_HE;
 const ASSIST_MISSION_HINT_HE = 'הטסה. שינוי דורש אישור.';
-const ASSIST_MISSION_HINT_GO_HE = 'הטסה. נחיתה ומצב בלי אישור.';
-const ASSIST_VOICE_GO_HINT_HE = 'נחיתה ומצב בלי אישור. חימוש ונטרול חסומים. פרמטר דורש אישור.';
+const ASSIST_MISSION_HINT_GO_HE = 'הטסה. אחרי ההפעלה, נחיתה ושינוי מצב מתבצעים בלי אישור נוסף. חימוש נשאר חסום, ושינוי פרמטר עדיין דורש אישור.';
+const ASSIST_VOICE_GO_HINT_HE = ASSIST_VOICE_SENTENCE_HE;
 const ASSIST_DEFAULT_PLACEHOLDER_HE = 'שאלה, יועץ, פתק, או בקשת פיתוח…';
 const ASSIST_MISSION_PLACEHOLDER_HE = 'הערה, תצפית, או שאלה';
 const ASSIST_DEFAULT_INVITE_HE = 'שאלו את AIRVIX Ask.';
@@ -18274,7 +18339,7 @@ function writeMissionDataSlots(slots) {
 
 function shortMissionLinkReadout(full) {
   const t = String(full || '').trim();
-  if (!t || t === 'לא מחובר' || t === 'מנותק') return '--';
+  if (!t || t === 'לא מחובר' || t === 'מנותק') return '—';
   if (t.startsWith('מאזין')) return 'מאזין';
   if (t === 'מתחבר') return 'מתחבר';
   if (t.includes('מחובר')) return 'מחובר';
@@ -18310,12 +18375,12 @@ function missionLinkTileLabel(companion, mav, pillText) {
   if (mavLive) {
     if (!pillSaysDown) {
       const short = shortMissionLinkReadout(pill);
-      if (short && short !== '--') return short;
+      if (short && short !== '—') return short;
     }
     return 'בקר חי';
   }
   if (missionLinkHealthDown(comp) || pill.includes('לא מגיב')) {
-    return missionLinkNeedsToken(comp) ? 'חסר אסימון' : 'בדקו כתובת';
+    return missionLinkNeedsToken(comp) ? 'חסר טוקן' : 'בדקו כתובת';
   }
   return shortMissionLinkReadout(pill || comp.pillLabelHe || comp.link?.pillLabelHe || '');
 }
@@ -18324,8 +18389,8 @@ function formatMissionDataValue(key, payload) {
   if (key === 'mavlink.gpsLat' || key === 'mavlink.gpsLon' || key === 'mavlink.map.gpsLat' || key === 'mavlink.map.gpsLon') {
     const mapData = payload?.mavlink?.map;
     const raw = key.endsWith('gpsLat') ? mapData?.gpsLat : mapData?.gpsLon;
-    if (typeof raw !== 'number' || !Number.isFinite(raw)) return '--';
-    if (raw === 0 && (mapData?.gpsLat === 0 || mapData?.gpsLat == null) && (mapData?.gpsLon === 0 || mapData?.gpsLon == null)) return '--';
+    if (typeof raw !== 'number' || !Number.isFinite(raw)) return '—';
+    if (raw === 0 && (mapData?.gpsLat === 0 || mapData?.gpsLat == null) && (mapData?.gpsLon === 0 || mapData?.gpsLon == null)) return '—';
     return raw.toFixed(5);
   }
   if (key === 'mission.link') {
@@ -18338,11 +18403,11 @@ function formatMissionDataValue(key, payload) {
     const mapData = payload?.mavlink?.map;
     const vision = payload?.vision;
     const meters = gpsVisionDeltaMeters(mapData?.gpsLat, mapData?.gpsLon, vision?.navLat, vision?.navLon);
-    return Number.isFinite(meters) ? meters.toFixed(1) : '--';
+    return Number.isFinite(meters) ? meters.toFixed(1) : '—';
   }
   if (key === 'mavlink.gpsFixType') {
     const fix = payload?.mavlink?.gpsFixType;
-    if (typeof fix !== 'number' || !Number.isFinite(fix)) return '--';
+    if (typeof fix !== 'number' || !Number.isFinite(fix)) return '—';
     return GPS_FIX_LABELS[fix] ?? `Fix ${fix}`;
   }
   if (key === 'mavlink.flightMode') {
@@ -18350,16 +18415,16 @@ function formatMissionDataValue(key, payload) {
     return vlcFlightModeText(raw, payload?.mavlink, payload?.mavlink?.connected === true);
   }
   if (key === 'mavlink.armed') {
-    if (!payload?.mavlink?.connected) return '--';
-    if (payload.mavlink.armedKnown === false) return '--';
+    if (!payload?.mavlink?.connected) return '—';
+    if (payload.mavlink.armedKnown === false) return '—';
     return payload.mavlink.armed ? 'ARMED' : 'DISARMED';
   }
   const raw = getPayloadValue(payload, key);
-  if (raw == null) return '--';
+  if (raw == null) return '—';
   if (typeof raw === 'number') {
-    if (!Number.isFinite(raw)) return '--';
+    if (!Number.isFinite(raw)) return '—';
     const a = Math.abs(raw);
-    if (a > 1e6 || (a > 0 && a < 1e-9)) return '--';
+    if (a > 1e6 || (a > 0 && a < 1e-9)) return '—';
     if (key === 'vision.confidence' && raw <= 1) return String(Math.round(raw * 100));
     const dec = Number.isInteger(raw) ? 0 : (a < 10 ? 2 : 1);
     return raw.toFixed(dec);
@@ -18394,7 +18459,7 @@ function applyMissionDataGrid(payload) {
       valueEl.textContent = shown;
       if (slot.key === 'mission.link') {
         const full = document.getElementById('connectPillLabel')?.textContent?.trim() || '';
-        valueEl.title = full && shown !== '--' ? full : '';
+        valueEl.title = full && shown !== '—' ? full : '';
       } else if (slot.key === 'mavlink.altitude' || valueEl.id === 'hudAltitude') {
         const altTitle = altitudeTileHonestyTitle(payload?.mavlink || latestHudMavlink);
         valueEl.title = altTitle;
@@ -18408,7 +18473,7 @@ function applyMissionDataGrid(payload) {
         valueEl.title = gpsTitle;
         item.title = gpsTitle;
       } else if (slot.key === 'mission.gpsVisionDelta' || valueEl.id === 'liveGpsVisionDelta') {
-        const deltaTitle = shown === '--'
+        const deltaTitle = shown === '—'
           ? hudFieldHonestyTitle('gpsVisionDelta', payload?.mavlink || latestHudMavlink, null)
           : '';
         valueEl.title = deltaTitle;

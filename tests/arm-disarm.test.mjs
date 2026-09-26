@@ -54,6 +54,12 @@ describe('ARM DISARM command frame', () => {
     expect(isVehicleFlying({ lastLandedState: 2, lastLandedStateAt: Date.now() - 6000 })).toBe(false);
     expect(isVehicleFlying({ lastLandedState: 2, lastLandedStateAt: Date.now() })).toBe(true);
     expect(isVehicleFlying({ lastLandedState: 3, lastLandedStateAt: Date.now() })).toBe(true);
+    const { flightStateForDisarm } = await import('../lib/arm-disarm.mjs');
+    expect(flightStateForDisarm({}).needsSecondConfirm).toBe(true);
+    expect(flightStateForDisarm({}).uncertain).toBe(true);
+    expect(flightStateForDisarm({ lastLandedState: null, lastLandedStateAt: Date.now() }).uncertain).toBe(true);
+    expect(flightStateForDisarm({ lastLandedState: 2, lastLandedStateAt: Date.now() - 6000 }).uncertain).toBe(true);
+    expect(flightStateForDisarm({ lastLandedState: 1, lastLandedStateAt: Date.now() }).needsSecondConfirm).toBe(false);
     expect(prearmFailureText([{ text: 'hello' }, { text: 'PreArm: Need GPS' }])).toBe('PreArm: Need GPS');
     expect(prearmFailureText(['ok'])).toBe(null);
   });
@@ -171,6 +177,27 @@ describe('ARM DISARM http', () => {
     res = await post({ action: 'disarm', confirmFlying: true });
     expect(res.data.sent).toBe(true);
     expect(send).toHaveBeenLastCalledWith({ arm: false });
+    state.conn = {
+      connected: true,
+      lastBaseMode: 209,
+      lastLandedState: null,
+      lastLandedStateAt: null,
+      statusTexts: [],
+      sendComponentArmDisarm: send,
+    };
+    res = await post({ action: 'disarm' });
+    expect(res.status).toBe(409);
+    expect(res.data.sent).toBe(false);
+    expect(res.data.error).toBe('flight_state_unknown');
+    expect(res.data.flightStateUnknown).toBe(true);
+    expect(res.data.message).toMatch(/מצב הטיסה לא ידוע/);
+    expect(send).toHaveBeenCalledTimes(2);
+    state.conn.lastLandedState = 1;
+    state.conn.lastLandedStateAt = Date.now() - 6000;
+    res = await post({ action: 'disarm' });
+    expect(res.status).toBe(409);
+    expect(res.data.error).toBe('flight_state_unknown');
+    expect(send).toHaveBeenCalledTimes(2);
   });
 });
 
@@ -184,10 +211,13 @@ describe('ARM DISARM ui contract', () => {
     expect(html).toContain('נטרול DISARM');
     expect(html).toContain('אין טלמטריה מהבקר');
     expect(html).not.toContain('21196');
+    expect(html).toContain('אשרו חימוש');
+    expect(html).toContain('אשרו נטרול');
+    expect(js).toContain('openFlightArmDialog');
     expect(js).toContain('FLIGHT_ARM_HOLD_MS = 1500');
     expect(js).toContain('initFlightArmControls();');
     expect(js).not.toContain('21196');
-    const armCss = css.slice(css.indexOf('#flightArmRow'));
+    const armCss = css.slice(css.indexOf('#flightArmRow'), css.indexOf('#flightArmRow') + 1800);
     expect(armCss).toMatch(/font-size:\s*clamp\(11px/);
     expect(armCss).not.toMatch(/text-overflow:\s*ellipsis/);
   });

@@ -122,7 +122,7 @@ describe('Mission AH size bias + swap persistence', () => {
     const fns = loadSizeFns();
     expect(fns.shortMissionLinkReadout('מחובר · טלמטריה רגילה')).toBe('מחובר');
     expect(fns.shortMissionLinkReadout('מחובר · 192.168.1.40:14550')).toBe('מחובר');
-    expect(fns.shortMissionLinkReadout('מנותק')).toBe('--');
+    expect(fns.shortMissionLinkReadout('מנותק')).toBe('—');
     expect(fns.shortMissionLinkReadout('מאזין · UDP')).toBe('מאזין');
     expect(sliceFunction(js, 'formatMissionDataValue')).toContain('missionLinkTileLabel');
   });
@@ -201,7 +201,7 @@ describe('Mission AH size bias + swap persistence', () => {
     expect(css).not.toMatch(/data-mission-region="messages"\][^{]*\{[^}]*left:\s*6px/);
     expect(sliceFunction(js, 'positionPfdReadinessPopover')).toContain('button, a, input, select, .leaflet-control');
     expect(sliceFunction(js, 'missionLinkTileLabel')).toContain('בקר חי');
-    expect(sliceFunction(js, 'missionLinkTileLabel')).toContain('חסר אסימון');
+    expect(sliceFunction(js, 'missionLinkTileLabel')).toContain('חסר טוקן');
     expect(sliceFunction(js, 'missionLinkTileLabel')).toContain('בדקו כתובת');
     expect(sliceFunction(js, 'setInstrumentView')).toContain('annotatedVisionPanel');
     expect(sliceFunction(js, 'setInstrumentView')).toContain('liveCameraPanel');
@@ -250,10 +250,10 @@ describe('Altitude tile honesty', () => {
       altitude: null,
     })).toBe('אין קישור');
     expect(fns.altitudeTileHonestyTitle(null)).toBe('אין קישור');
-    expect(html).toMatch(/id="hudAltitude"[^>]*title="אין קישור"/);
+    expect(html).toMatch(/id="hudAltitude"[^>]*title="אין נתונים"/);
     expect(js).toContain("const VLC_TOOLTIP_ALT_WAITING = 'מחובר אך אין גובה מהבקר עדיין'");
     expect(sliceFunction(js, 'applyTopbarFlightData')).toContain('altitudeTileHonestyTitle(mav)');
-    expect(sliceFunction(js, 'applyTopbarFlightData')).toContain("useTile ? '--'");
+    expect(sliceFunction(js, 'applyTopbarFlightData')).toContain(": '—';");
     expect(sliceFunction(js, 'applyMissionDataGrid')).toContain('hudAltitude');
   });
 });
