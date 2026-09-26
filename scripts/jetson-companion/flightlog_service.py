@@ -47,6 +47,7 @@ class FlightLogService(object):
         self.tap = None
         self.tap_error = None
         self._threads = []
+        self._status_mono = 0.0
 
     def disabled_status(self, reason):
         return {
@@ -77,8 +78,13 @@ class FlightLogService(object):
             "version": FLIGHTLOG_VERSION,
         }
 
-    def write_status(self, doc):
+    def write_status(self, doc, force=False):
+        now = time.monotonic()
+        if not force and self._status_mono and (now - self._status_mono) < 1.0:
+            return False
+        self._status_mono = now
         atomic_write_json(self.status_file, public_status(doc))
+        return True
 
     def build_status(self):
         view = self.logger.status_view() if self.logger else {"state": "idle", "current_flight_id": None, "detector": {}, "flights_local": []}
@@ -192,7 +198,7 @@ class FlightLogService(object):
             except Exception:
                 pass
         try:
-            self.write_status(self.build_status() if self.logger else self.disabled_status("stopped"))
+            self.write_status(self.build_status() if self.logger else self.disabled_status("stopped"), force=True)
         except Exception:
             pass
         if self.uploader is not None:
@@ -213,13 +219,13 @@ def main(argv):
     self_test = "--self-test" in argv
     if not env_flag("AIRVIX_FLIGHTLOG_ENABLED", "0"):
         doc = service.disabled_status("disabled")
-        service.write_status(doc)
+        service.write_status(doc, force=True)
         if self_test:
             print(json.dumps(doc, sort_keys=True))
         return 0
     if not pymavlink_ok():
         doc = service.disabled_status("pymavlink_missing")
-        service.write_status(doc)
+        service.write_status(doc, force=True)
         if self_test:
             print(json.dumps(doc, sort_keys=True))
         return 0
@@ -228,7 +234,7 @@ def main(argv):
         service.uploader = LogUploader(service.spool, cfg=load_upload_config())
         doc = service.build_status()
         doc["enabled"] = True
-        service.write_status(doc)
+        service.write_status(doc, force=True)
         print(json.dumps(public_status(doc), sort_keys=True))
         service.uploader.close()
         service.writer.close()

@@ -10,6 +10,7 @@ import { openDatabase } from '../lib/db.mjs';
 import { decimateMinMax } from '../lib/flight-logs/decimate.mjs';
 import { NOT_CONFIGURED_HE } from '../lib/flight-logs/messages.mjs';
 import { parseJsonMaybeGzip, reassembleChunks, sha256Hex } from '../lib/flight-logs/objects.mjs';
+import crypto from 'node:crypto';
 import { presignGetUrl, signAwsRequest } from '../lib/flight-logs/s3-client.mjs';
 import { validateSchema } from '../lib/flight-logs/schema.mjs';
 import {
@@ -113,6 +114,81 @@ describe('flight log SigV4', () => {
     });
     expect(url).toContain('X-Amz-Expires=300');
     expect(url).toContain('X-Amz-Signature=');
+    expect(url).not.toContain(SECRET);
+  });
+
+  it('signs GCS GET and LIST with GOOG4 headers only', () => {
+    const secret = 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY';
+    const amzDate = '20190301T190859Z';
+    const canonical = [
+      'GET',
+      '/example-bucket/tabby.jpeg',
+      '',
+      'host:storage.googleapis.com',
+      'x-goog-content-sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+      'x-goog-date:20190301T190859Z',
+      '',
+      'host;x-goog-content-sha256;x-goog-date',
+      'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+    ].join('\n');
+    const mac = (key, msg) => crypto.createHmac('sha256', key).update(msg).digest();
+    let key = mac(`GOOG4${secret}`, '20190301');
+    key = mac(key, 'auto');
+    key = mac(key, 'storage');
+    key = mac(key, 'goog4_request');
+    const hashed = crypto.createHash('sha256').update(canonical).digest('hex');
+    const stringToSign = ['GOOG4-HMAC-SHA256', amzDate, '20190301/auto/storage/goog4_request', hashed].join('\n');
+    const expected = crypto.createHmac('sha256', key).update(stringToSign).digest('hex');
+    expect(expected).toBe('f3a63605da392b4fabe0b746170b83facf06afdc935abbff04fa37db0a1cac1e');
+    const signed = signAwsRequest({
+      method: 'GET',
+      host: 'storage.googleapis.com',
+      uri: '/example-bucket/tabby.jpeg',
+      accessKeyId: 'GOOG1EXAMPLE',
+      secretAccessKey: secret,
+      region: 'me-west1',
+      service: 's3',
+      amzDate,
+    });
+    expect(signed.signature).toBe(expected);
+    expect(signed.authorization.startsWith('GOOG4-HMAC-SHA256 ')).toBe(true);
+    expect(signed.scope).toBe('20190301/auto/storage/goog4_request');
+    expect(Object.keys(signed.headers).some((name) => name.toLowerCase().startsWith('x-amz-'))).toBe(false);
+    const listed = signAwsRequest({
+      method: 'GET',
+      host: 'storage.googleapis.com',
+      uri: '/airvix-flight-logs-489409',
+      query: { 'list-type': '2', prefix: 'v1/' },
+      accessKeyId: 'GOOG1EXAMPLE',
+      secretAccessKey: secret,
+      region: 'me-west1',
+      service: 's3',
+      amzDate,
+      body: '',
+    });
+    expect(listed.authorization.startsWith('GOOG4-HMAC-SHA256 ')).toBe(true);
+    expect(listed.scope).toContain('/auto/storage/goog4_request');
+    expect(Object.keys(listed.headers).some((name) => name.toLowerCase().startsWith('x-amz-'))).toBe(false);
+    expect(listed.headers['x-goog-date']).toBe(amzDate);
+    expect(listed.headers['x-goog-content-sha256']).toBeTruthy();
+  });
+
+  it('presigns a GCS GET with X-Goog query parameters', () => {
+    const { url } = presignGetUrl({
+      endpoint: 'https://storage.googleapis.com',
+      bucket: 'airvix-flights',
+      key: 'v1/airvix01/index/flight.json',
+      accessKeyId: 'GOOG1EXAMPLE',
+      secretAccessKey: SECRET,
+      region: 'me-west1',
+      expires: 300,
+      amzDate: '20260920T070000Z',
+    });
+    expect(url).toContain('X-Goog-Algorithm=GOOG4-HMAC-SHA256');
+    expect(url).toContain('X-Goog-Expires=300');
+    expect(url).toContain('auto%2Fstorage%2Fgoog4_request');
+    expect(url).toContain('X-Goog-Signature=');
+    expect(url).not.toMatch(/X-Amz-/i);
     expect(url).not.toContain(SECRET);
   });
 });

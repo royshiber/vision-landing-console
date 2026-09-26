@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-"""Stdlib AWS Signature Version 4 for path-style S3. No boto3.
+"""Stdlib request signing for path-style S3. No boto3.
 
-Google Cloud Storage interoperability uses the same AWS4-HMAC-SHA256 scope:
-host storage.googleapis.com, URI /<bucket>/<key>, region auto or a bucket
-location such as me-west1, service s3. HMAC access id and secret are the key.
+storage.googleapis.com uses the GCS HMAC V4 scheme: GOOG4-HMAC-SHA256,
+scope <date>/auto/storage/goog4_request, and only x-goog-* headers.
+Every other host stays AWS Signature Version 4 with x-amz-* headers.
 """
 
 from __future__ import print_function
@@ -29,11 +29,16 @@ def _hmac(key, msg):
     return hmac.new(key, msg, hashlib.sha256).digest()
 
 
-def signing_key(secret, date_stamp, region, service):
-    k_date = _hmac("AWS4" + secret, date_stamp)
+def is_gcs_host(host):
+    name = str(host or "").split("/")[0].split(":")[0].lower()
+    return name == "storage.googleapis.com" or name.endswith(".storage.googleapis.com")
+
+
+def signing_key(secret, date_stamp, region, service, prefix="AWS4", terminator="aws4_request"):
+    k_date = _hmac(prefix + secret, date_stamp)
     k_region = _hmac(k_date, region)
     k_service = _hmac(k_region, service)
-    return _hmac(k_service, "aws4_request")
+    return _hmac(k_service, terminator)
 
 
 def encode_rfc3986(value):
@@ -87,13 +92,34 @@ def sign_request(
         body = body.encode("utf-8")
     body = body or b""
     digest = payload_hash or sha256_hex(body)
+    gcs = is_gcs_host(host)
     hdrs = {}
     for key, value in (headers or {}).items():
-        hdrs[str(key).lower().strip()] = " ".join(str(value).strip().split())
+        name = str(key).lower().strip()
+        if gcs and name.startswith("x-amz-meta-"):
+            name = "x-goog-meta-" + name[len("x-amz-meta-") :]
+        if gcs and name.startswith("x-amz-"):
+            continue
+        hdrs[name] = " ".join(str(value).strip().split())
     hdrs["host"] = host
-    hdrs["x-amz-date"] = amz_date
-    if content_sha_header:
-        hdrs["x-amz-content-sha256"] = digest
+    if gcs:
+        hdrs["x-goog-date"] = amz_date
+        if content_sha_header:
+            hdrs["x-goog-content-sha256"] = digest
+        algorithm = "GOOG4-HMAC-SHA256"
+        scope_region = "auto"
+        scope_service = "storage"
+        prefix = "GOOG4"
+        terminator = "goog4_request"
+    else:
+        hdrs["x-amz-date"] = amz_date
+        if content_sha_header:
+            hdrs["x-amz-content-sha256"] = digest
+        algorithm = "AWS4-HMAC-SHA256"
+        scope_region = region
+        scope_service = service
+        prefix = "AWS4"
+        terminator = "aws4_request"
     names = sorted(hdrs.keys())
     canonical_headers = "".join("%s:%s\n" % (name, hdrs[name]) for name in names)
     signed_headers = ";".join(names)
@@ -108,10 +134,15 @@ def sign_request(
         ]
     )
     date_stamp = amz_date[:8]
-    scope = "%s/%s/%s/aws4_request" % (date_stamp, region, service)
-    string_to_sign = "\n".join(["AWS4-HMAC-SHA256", amz_date, scope, sha256_hex(canonical)])
-    signature = hmac.new(signing_key(secret, date_stamp, region, service), string_to_sign.encode("utf-8"), hashlib.sha256).hexdigest()
-    authorization = "AWS4-HMAC-SHA256 Credential=%s/%s, SignedHeaders=%s, Signature=%s" % (
+    scope = "%s/%s/%s/%s" % (date_stamp, scope_region, scope_service, terminator)
+    string_to_sign = "\n".join([algorithm, amz_date, scope, sha256_hex(canonical)])
+    signature = hmac.new(
+        signing_key(secret, date_stamp, scope_region, scope_service, prefix=prefix, terminator=terminator),
+        string_to_sign.encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+    authorization = "%s Credential=%s/%s, SignedHeaders=%s, Signature=%s" % (
+        algorithm,
         access_key,
         scope,
         signed_headers,

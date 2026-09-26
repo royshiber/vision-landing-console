@@ -6,7 +6,18 @@
       {
         "type": "feat",
         "title": "גרסאות והחזרה במקום אחד",
-        "detail": "APP_VERSION 1.02.338. בהגדרות מוצגות גרסת הקונסולה, גרסת מחשב המשימה, הגיבויים, וצילום פרמטרי הבקר. כשאין נתון מוצג אין מידע. אפשר לסמן שעבד טוב, ואחרי טיסה שנשמרה בלי שגיאות הסימון נרשם לבד. החזרת מחשב המשימה מחליפה גיבוי ומחזירה אותו אם השירות לא עולה. החזרת הקונסולה משתמשת בעותק שנשמר, או מסבירה שאין עותק. כל החזרה מציגה מאיזו גרסה לאיזו ומבקשת אישור. אין החזרה כשהמטוס חמוש. אין פקודות טיסה."
+        "detail": "APP_VERSION 1.02.338. בהגדרות מוצגות גרסת הקונסולה, גרסת מחשב המשימה, הגיבויים, ותמונת מצב פרמטרים של הבקר אם נשמרה. כשאין נתון מוצג אין מידע. אפשר לסמן שעבד טוב. אחרי טיסה שנשמרה בלי שגיאות הסימון נרשם לבד. החזרה אחת בכל פעם. אם היא לא מסתיימת תוך זמן קצר זה נרשם ככישלון. מחשב המשימה מחזיר את התיקייה אם השירות לא עולה. הקונסולה חוזרת רק כשיש עותק שמור. כל החזרה מציגה את היעד ומבקשת אישור. אין החזרה כשהמטוס חמוש, באוויר, או כשמצב הטיסה לא ידוע. אין פקודות טיסה."
+      }
+    ]
+  },
+  {
+    "version": "1.02.336",
+    "date": "2026-09-26",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "OV9281 Cam0 pipeline, frame bus, and console panel",
+        "detail": "APP_VERSION 1.02.336. Companion 2.5.1. After master 1.02.335. Cam0 captures the OV9281, regulates exposure, tags attitude, and publishes on a shared-memory bus. Marker pose is overlay only and never sends a flight command. The Hebrew panel shows אין אות without a frame. The existing debrief Cam0 tile and horizon camera use companion camera cam0. Recording writes frames.jsonl beside the flight log. The top tab is אופטיקה ותחקור. פיתוח is hidden. The debrief event list shows real events only."
       }
     ]
   },

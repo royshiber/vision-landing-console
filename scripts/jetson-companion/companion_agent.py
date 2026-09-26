@@ -2,8 +2,19 @@
 """Vision Landing Console — Jetson companion: MAVLink relay + HTTP API + heartbeat.
 
 AGENT_VERSION 2.6.0 lists timestamped backups of the companion tree and can
-restore one. 2.5.0 reads a separate flight-log status file into health.
-2.3.11 added HiLink signal bars from SignalIcon /
+restore one. 2.5.5 keeps the flight logger under one tenth of a core at
+100 messages per second: the tlog stores raw frames, only detector messages
+are parsed, and tlog plus status flush about once a second. 2.5.4 keeps
+capture at the sensor rate: PNG only on a snapshot, JPEG on another thread
+via cv2.imencode when OpenCV imports (numpy Huffman is only the fallback),
+and auto exposure starts short and raises gain before the shutter. 2.5.3 aligns
+v4l2_format with the 64-bit kernel so VIDIOC_S_FMT
+is accepted. 2.5.2 signs Cloud Storage with GOOG4-HMAC-SHA256 and x-goog
+headers only, and starts the flight logger from vlc-companion. 2.5.1 adds
+the OV9281 Cam0 pipeline (capture, AE, frame bus,
+marker output, calibration, stream, record) on top of the 2.5.0 flight logger.
+It does not send flight commands. 2.5.0 reads a separate flight-log status
+file into health. 2.3.11 added HiLink signal bars from SignalIcon /
 maxsignal, a CurrentNetworkTypeEx label, and the PLMN operator name.
 dBm fields stay null when the modem leaves them empty. 2.3.10 counted a
 HiLink modem as up when operstate is "unknown" and carrier is 1 or
@@ -69,9 +80,9 @@ try:
 except ImportError:
     annotated_encoder_status = None
 try:
-    from fc_telemetry import fc_link_flags, fc_status_payload, observe_uart_bytes
+    from fc_telemetry import fc_link_flags, fc_status_payload, observe_uart_bytes as _fc_observe_uart
 except ImportError:
-    def observe_uart_bytes(_data):
+    def _fc_observe_uart(_data):
         return None
 
     def fc_link_flags():
@@ -94,6 +105,18 @@ except ImportError:
             "last_heartbeat_age_ms": None,
             "heartbeat": {"validity": "invalid", "system_id": None, "component_id": None, "fields": {}},
         }
+
+
+def observe_uart_bytes(data):
+    """Passive FC parse, then Cam0 attitude tagging. Never writes the UART."""
+    _fc_observe_uart(data)
+    try:
+        from cam0.service import get_service
+        svc = get_service()
+        if svc is not None:
+            svc.observe_mavlink(data)
+    except Exception:
+        return None
 try:
     from uplink_status import enrich_modem, uplinks_payload
 except ImportError:
@@ -540,8 +563,41 @@ def _ingest_or_absent():
     return ingest_snapshot()
 
 
+def _cam0_slot():
+    """Cam0 is a sibling of cam1..cam3. It does not change their honesty."""
+    try:
+        from cam0.service import service_status
+        st = service_status()
+    except Exception:
+        return None
+    return {
+        "id": "cam0",
+        "role": "down",
+        "nav_role": "landing_marker",
+        "shared_with": "landing_vision",
+        "enabled": st.get("state") != "disabled",
+        "state": st.get("state"),
+        "present": st.get("camera_ok") is True,
+        "camera_ok": st.get("camera_ok") is True,
+        "fps": st.get("fps"),
+        "frame_count": st.get("frame_index"),
+        "last_frame_age_ms": st.get("last_frame_age_ms"),
+        "error": st.get("error"),
+        "source": st.get("source") or "absent",
+        "dry_run": st.get("dry_run") is True,
+        "real": st.get("real") is True,
+        "device": "/dev/video0" if st.get("source") == "v4l2" else None,
+        "has_frame": st.get("has_frame") is True,
+        "flight_commands": False,
+    }
+
+
 def cameras_status_payload():
     snap = _ingest_or_absent()
+    cameras = dict(snap.get("cameras") or {})
+    slot = _cam0_slot()
+    if slot is not None:
+        cameras["cam0"] = slot
     return {
         "ok": True,
         "observe_only": True,
@@ -556,7 +612,8 @@ def cameras_status_payload():
         "fps": snap.get("fps"),
         "frame_count": snap.get("frame_count"),
         "last_frame_age_ms": snap.get("last_frame_age_ms"),
-        "cameras": snap.get("cameras") or {},
+        "cameras": cameras,
+        "cam0": slot,
         "note": snap.get("note"),
     }
 
@@ -566,7 +623,12 @@ def vision_status_payload():
     snap = _ingest_or_absent()
     any_ok = snap.get("camera_ok") is True
     source_id = "none"
-    raw_cams = snap.get("cameras") or {}
+    raw_cams = dict(snap.get("cameras") or {})
+    slot = _cam0_slot()
+    if slot is not None:
+        raw_cams["cam0"] = slot
+        if slot.get("camera_ok") is True:
+            any_ok = True
     order = [cam_id for cam_id in ("cam1", "cam2", "cam3") if cam_id in raw_cams]
     order.extend(cam_id for cam_id in raw_cams if cam_id not in order)
     for key in order:
@@ -591,7 +653,7 @@ def vision_status_payload():
         "source": snap.get("source") or "absent",
         "dry_run": snap.get("dry_run") is True,
         "real": snap.get("real") is True,
-        "cameras": snap.get("cameras") or {},
+        "cameras": raw_cams,
         "quality": {"confidence": None, "label": "unknown"},
         "implemented": snap.get("implemented") is True,
         "note": snap.get("note") or "no camera device; camera_ok is false; not invented",
@@ -944,16 +1006,27 @@ def _versions_dest():
     return Path(raw) if raw else (Path.home() / "vlc-companion")
 
 
-def _versions_armed():
+def _versions_blocked():
+    """None when the flight controller is explicitly not armed. Anything else blocks."""
     override = os.environ.get("VLC_VERSIONS_REFUSE")
     if override == "1":
-        return True
+        return "armed"
     if override == "0":
-        return False
+        return None
+    if override == "unknown":
+        return "unknown"
     try:
-        return fc_status_payload().get("armed") is True
+        payload = fc_status_payload()
     except Exception:
-        return False
+        return "unknown"
+    if not isinstance(payload, dict):
+        return "unknown"
+    flag = payload.get("armed")
+    if flag is True:
+        return "armed"
+    if flag is False:
+        return None
+    return "unknown"
 
 
 def transport_test_payload(self_test=False):
@@ -1160,6 +1233,12 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(503, {"ok": False, "message": "אין מידע"})
             code, body = version_rollback.http_get(_versions_dest(), AGENT_VERSION)
             return self._json(code, body)
+        try:
+            from cam0.api import try_handle as cam0_try_handle
+            if cam0_try_handle(self):
+                return
+        except Exception:
+            pass
         cam_frame = _camera_frame_id(path)
         if cam_frame:
             jpeg = ingest_frame_jpeg(cam_frame) if ingest_frame_jpeg else None
@@ -1210,10 +1289,17 @@ class Handler(BaseHTTPRequestHandler):
         if path in ("/api/v1/versions/rollback", "/api/v1/versions/known-good"):
             if version_rollback is None:
                 return self._json(503, {"ok": False, "message": "אין מידע"})
-            ctx = version_rollback.build_context(AGENT_VERSION, _versions_armed())
+            ctx = version_rollback.build_context(AGENT_VERSION)
             ctx["dest"] = _versions_dest()
+            ctx["blocked"] = _versions_blocked
             code, body = version_rollback.http_post(path, data if isinstance(data, dict) else {}, ctx)
             return self._json(code, body)
+        try:
+            from cam0.api import try_handle as cam0_try_handle
+            if cam0_try_handle(self, data if isinstance(data, dict) else {}):
+                return
+        except Exception:
+            pass
         if path == "/api/install":
             script = data.get("script", "")
             version = data.get("version", AGENT_VERSION)
@@ -1238,6 +1324,15 @@ def main():
     print(f"  FC_READ_ONLY: {FC_READ_ONLY}")
     snap = _ingest_or_absent()
     print(f"  Camera ingest: source={snap.get('source')} dry_run={snap.get('dry_run')}")
+    try:
+        from cam0.service import start_service
+        cam0 = start_service()
+        if cam0 is None:
+            print("  Cam0: off")
+        else:
+            print(f"  Cam0: source={cam0.config.get('source')} state={cam0.state}")
+    except Exception as exc:
+        print(f"  Cam0: off ({type(exc).__name__})")
     poll_raw = os.environ.get("VLC_GIMBAL_POLL")
     if poll_raw is None or str(poll_raw).strip() == "":
         want_gimbal_poll = not SKIP_RELAY
