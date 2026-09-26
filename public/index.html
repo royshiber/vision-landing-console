@@ -24,6 +24,8 @@
           </button>
           <div id="connectPanel" class="conn-panel" hidden>
             <p id="connectApiUpgradeHint" class="conn-upgrade-hint hidden" role="alert"></p>
+            <button type="button" id="connectSimPresetBtn" class="conn-btn conn-btn-sim">סימולטור</button>
+            <p id="connectSimPresetHint" class="conn-sim-hint">מטוס וירטואלי על המחשב. לא כלי אמיתי.</p>
             <ul id="commLinkRows" class="comm-link-rows" aria-label="קישורי תקשורת">
               <li class="comm-link-row" data-link="cellular" data-state="absent" data-tone="off" data-active="0">
                 <div class="comm-link-quality">
@@ -218,6 +220,7 @@
         <button class="tab tab-ops" data-tab="development" title="פיתוח">פיתוח</button>
       </nav>
       <div class="app-chrome-tools">
+        <span id="simVehicleBadge" class="sim-vehicle-badge" hidden dir="ltr" title="מחובר לסימולטור. זה לא מטוס אמיתי." aria-label="מחובר לסימולטור. זה לא מטוס אמיתי.">SIM</span>
         <span class="app-chrome-brand" aria-label="AIRVIX">AIRVIX</span>
         <button type="button" id="globalSettingsBtn" class="global-settings-btn" title="הגדרות כלליות" aria-haspopup="dialog" aria-controls="globalSettingsModal">⚙</button>
         <button id="versionBtn" class="badge clickable" title="לחץ כדי לראות מה עודכן בגרסה">v__APP_VERSION__</button>

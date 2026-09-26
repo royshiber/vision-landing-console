@@ -34,6 +34,59 @@ npm run start:clean
 
 פתח: [http://localhost:4010](http://localhost:4010)
 
+## סימולטור על ווינדוס
+
+ההפעלה היא על המחשב הנייד של המפעיל. לא על לינוקס ולא על שרת. אין צורך בהרשאת מנהל.
+
+1. לחצו פעמיים על הקובץ:
+
+```bat
+scripts\windows\Start-AIRVIX-SITL.bat
+```
+
+2. הסקריפט מוריד פעם אחת את בניין המטוס היציב מאתר הקושחה הרשמי, שומר אותו בתיקיית המשתמש, ובודק שהתהליך באמת רץ.
+3. פתחו את הקונסולה. בפאנל החיבור לחצו על הכפתור:
+
+```text
+סימולטור
+```
+
+4. החיבור הוא אל המחשב המקומי בפורט
+
+```text
+5760
+```
+
+5. תג בכותרת מופיע רק כשהכלי המחובר הוא סימולטור. מטוס אמיתי לא מקבל את התג.
+
+מיקום הבית ברירת המחדל הוא ליד תל אביב. אפשר לשנות אותו בהפעלה, למשל:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\windows\Start-AIRVIX-SITL.ps1 -HomeLat 32.0853 -HomeLon 34.7818 -HomeAlt 15 -HomeHdg 90
+```
+
+תחנה נוספת, כמו מתכנן משימה או תחנת קרקע, יכולה להאזין במקביל על פורט
+
+```text
+14550
+```
+
+כדי לבטל את היציאה הנוספת:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\windows\Start-AIRVIX-SITL.ps1 -NoGcsUdp
+```
+
+### ריאלפלייט
+
+אפשר להשתמש בריאלפלייט כמנוע הפיזיקה. קודם פותחים את המשחק ומפעילים את קישור פלייטאקסיס. אחר כך:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\windows\Start-AIRVIX-SITL.ps1 -Physics flightaxis
+```
+
+בלי הקישור במשחק הסימולטור נסגר, והחלון כותב למה. אין כשל שקט.
+
 ## משתני סביבה (`.env`)
 
 | משתנה | משמעות |

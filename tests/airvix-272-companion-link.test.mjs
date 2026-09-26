@@ -20,9 +20,9 @@ function connectPanel() {
 }
 
 describe('AIRVIX 1.02.272 Jetson↔FC topbar connect', () => {
-  it('pins APP_VERSION at 1.02.330', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.330'");
-    expect(pkg.version).toBe('1.02.330');
+  it('pins APP_VERSION at 1.02.333', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.333'");
+    expect(pkg.version).toBe('1.02.333');
     expect(changelog).toContain('"version": "1.02.272"');
   });
 
