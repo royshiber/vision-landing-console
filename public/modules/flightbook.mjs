@@ -6,7 +6,7 @@ import { mountMap } from './flightbook-map.mjs';
 import { mountPlots } from './flightbook-plots.mjs';
 import { pickFrame } from './cam0-replay.mjs';
 
-const NOT_CONFIGURED = 'אחסון הטיסות בענן לא הוגדר. הוסיפו מפתח קריאה בקובץ \u200e.env\u200f (ראו docs/FLIGHT_LOGS.md)';
+const NOT_CONFIGURED = 'אחסון הטיסות בענן לא הוגדר. הוסיפו מפתח קריאה בקובץ \u2066.env\u2069 (ראו \u2066docs/FLIGHT_LOGS.md\u2069)';
 const NO_FLIGHTS = 'עדיין אין טיסות. אחרי טיסה מחשב המשימה יעלה אותה אוטומטית.';
 
 const state = {

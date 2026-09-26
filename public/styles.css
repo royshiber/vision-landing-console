@@ -1912,6 +1912,21 @@ input[type="range"] {
   overflow: auto;
   min-height: 0;
 }
+#recordings button,
+#recordings .file-btn,
+#recordings .tele-subtab,
+#recordings .fb-empty,
+#recordings .fb-filters label,
+#recordings .debrief-cam-label,
+#recordings .debrief-cam-nosignal,
+#recordings .debrief-cam-toggle {
+  letter-spacing: normal;
+  text-transform: none;
+}
+body:has(#recordings.panel.visible) .app-chrome-brand,
+body:has(#recordings.panel.visible) .assist-toggle-btn {
+  letter-spacing: normal;
+}
 
 #recordings > .panel-header {
   flex-wrap: wrap;
@@ -19550,6 +19565,21 @@ body:has(#control.panel.visible) .ardu-top-cats-host {
     height: auto;
     min-height: 100%;
     overflow: visible;
+  }
+  /* Mission scrolls as a document. Every other tab, including optics, must fill the viewport or flex basis 0 collapses the panel to its padding. */
+  html:not(:has(#terrain.panel.visible)),
+  body:not(:has(#terrain.panel.visible)) {
+    height: 100%;
+    overflow: hidden;
+  }
+  body:not(:has(#terrain.panel.visible)) .layout {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+  }
+  #recordings.panel.visible.recordings-panel-flex {
+    flex: 1 1 auto;
+    min-height: 0;
   }
   body:has(#terrain.panel.visible) .layout,
   #terrain.panel.visible {

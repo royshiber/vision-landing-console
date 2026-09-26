@@ -72,10 +72,56 @@ describe('Optics debrief tab — live layout', () => {
     if (serverProc && !serverProc.killed) serverProc.kill('SIGTERM');
   });
 
-  async function openOptics(page) {
+  async function openDebrief(page) {
     await page.goto(BASE, { waitUntil: 'domcontentloaded', timeout: 15000 });
-    await page.click('[data-tab="recordings"]', { timeout: 8000 });
-    await page.click('#debriefRecBtn', { timeout: 8000 });
+    await page.locator('[data-tab="recordings"]').evaluate((el) => el.click());
+    await page.waitForSelector('#recordings.panel.visible #debriefFlightbookPanel.visible .fb-empty', { timeout: 8000 });
+  }
+
+  async function shellReport(page) {
+    return page.evaluate(() => {
+      const rec = document.getElementById('recordings');
+      const empty = document.querySelector('#debriefFlightbookPanel .fb-empty');
+      const visual = (el, token) => {
+        if (!el) return '';
+        const node = [...el.childNodes].find((n) => n.nodeType === 3 && n.textContent.includes(token));
+        if (!node) return '';
+        const s = node.textContent;
+        const i = s.indexOf(token);
+        const range = document.createRange();
+        const parts = [];
+        for (let k = 0; k < token.length; k += 1) {
+          range.setStart(node, i + k);
+          range.setEnd(node, i + k + 1);
+          const r = range.getBoundingClientRect();
+          parts.push({ ch: token[k], x: r.x + r.width / 2 });
+        }
+        return parts.sort((a, b) => a.x - b.x).map((p) => p.ch).join('');
+      };
+      const spaced = [];
+      for (const el of document.querySelectorAll('#recordings button, #recordings .fb-empty, #recordings .tele-subtab, .app-chrome-brand, #assistToggleBtn')) {
+        const cs = getComputedStyle(el);
+        if (cs.display === 'none' || cs.visibility === 'hidden') continue;
+        const ls = cs.letterSpacing;
+        if (ls !== 'normal' && parseFloat(ls) > 0.3) {
+          spaced.push(`${(el.innerText || el.className || '').trim().slice(0, 24)}:${ls}`);
+        }
+      }
+      const box = empty ? empty.getBoundingClientRect() : { height: 0, top: 0, bottom: 0 };
+      return {
+        panelH: rec ? rec.clientHeight : 0,
+        emptyH: Math.round(box.height),
+        emptyOnScreen: box.height > 20 && box.top < window.innerHeight && box.bottom > 0,
+        envVisual: visual(empty, '.env'),
+        docsVisual: visual(empty, 'docs/FLIGHT_LOGS.md'),
+        spaced,
+      };
+    });
+  }
+
+  async function openOptics(page) {
+    await openDebrief(page);
+    await page.locator('#debriefRecBtn').evaluate((el) => el.click());
     await page.waitForSelector('#eventsList .event-empty', { timeout: 8000 });
   }
 
@@ -154,8 +200,19 @@ describe('Optics debrief tab — live layout', () => {
 
   for (const [name, width, height] of VIEWPORTS) {
     it(`fits the optics tab at ${name}`, async () => {
-      const page = await browser.newPage({ viewport: { width, height } });
+      const page = await browser.newPage({
+        viewport: { width, height },
+        isMobile: width <= 360,
+        hasTouch: width <= 360,
+      });
       try {
+        await openDebrief(page);
+        const shell = await shellReport(page);
+        expect(shell.panelH, `panel ${shell.panelH}px`).toBeGreaterThan(200);
+        expect(shell.emptyOnScreen, `empty ${shell.emptyH}px`).toBe(true);
+        expect(shell.envVisual).toBe('.env');
+        expect(shell.docsVisual.startsWith('docs/')).toBe(true);
+        expect(shell.spaced, shell.spaced.join('\n')).toEqual([]);
         await openOptics(page);
         const report = await audit(page);
         await page.screenshot({ path: path.join(shotDir, `optics-debrief-${name}.png`), fullPage: false });
