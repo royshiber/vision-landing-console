@@ -26,7 +26,8 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-FILES=(companion_agent.py camera_ingest.py siyi_sdk.py siyi-net.sh annotated_encoder.py fc_telemetry.py uplink_status.py uplink_control.py uplink-nm.sh airvix-uplink.sudoers README.md flightlog_service.py flightlog_common.py flight_detector.py flight_events.py flight_logger.py flight_packager.py flight_derive.py tlog_writer.py mav_tap.py log_uploader.py s3_sigv4.py system_events.py airvix-flightlog.service flightlog.env.example flightlog-storage.env.example)
+FILES=(companion_agent.py camera_ingest.py siyi_sdk.py siyi-net.sh annotated_encoder.py fc_telemetry.py uplink_status.py uplink_control.py uplink-nm.sh airvix-uplink.sudoers README.md flightlog_service.py flightlog_common.py flight_detector.py flight_events.py flight_logger.py flight_packager.py flight_derive.py tlog_writer.py mav_tap.py log_uploader.py s3_sigv4.py system_events.py airvix-flightlog.service flightlog.env.example flightlog-storage.env.example cam0.json)
+DIRS=(cam0)
 
 echo "{\"ok\":true,\"mode\":\"$MODE\",\"dest\":\"$DEST\",\"nm_bin\":\"$NM_BIN\",\"files\":[\"${FILES[*]}\"]}"
 
@@ -37,7 +38,13 @@ if [[ "$MODE" == "dry-run" ]]; then
       exit 1
     fi
   done
-  echo '{"ok":true,"applied":false,"flightlog_unit":false,"note":"dry-run; nothing copied. uplink-nm.sh sudo target is the root-owned /opt path, not the home copy. --enable-flightlog does not install or start the unit in dry-run"}'
+  for d in "${DIRS[@]}"; do
+    if [[ ! -d "$ROOT/$d" ]]; then
+      echo "{\"ok\":false,\"missing\":\"$d\"}" >&2
+      exit 1
+    fi
+  done
+  echo '{"ok":true,"applied":false,"flightlog_unit":false,"note":"dry-run; nothing copied. uplink-nm.sh sudo target is the root-owned /opt path, not the home copy. --enable-flightlog does not install or start the unit in dry-run. cam0/ is the OV9281 package."}'
   exit 0
 fi
 
@@ -58,6 +65,10 @@ for f in "${FILES[@]}"; do
     continue
   fi
   install -m 755 "$ROOT/$f" "$DEST/$f"
+done
+for d in "${DIRS[@]}"; do
+  rm -rf "$DEST/$d"
+  cp -a "$ROOT/$d" "$DEST/$d"
 done
 install -o root -g root -m 0755 "$ROOT/uplink-nm.sh" "$NM_BIN"
 FLIGHTLOG_UNIT=false

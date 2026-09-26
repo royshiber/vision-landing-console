@@ -107,10 +107,18 @@ class CompanionHookTests(unittest.TestCase):
         agent = (REPO / "scripts" / "jetson-companion" / "companion_agent.py").read_text(encoding="utf-8")
         self.assertIn("uart_reader", agent)
         self.assertIn("fanout_uart", agent)
-        self.assertIn('"2.5.0"', agent)
+        self.assertIn('"2.5.3"', agent)
         unit = (ROOT / "airvix-flightlog.service").read_text(encoding="utf-8")
         self.assertIn("EnvironmentFile=-%h/vlc-companion/flightlog-storage.env", unit)
         self.assertIn("EnvironmentFile=-/home/royshiber/vlc-companion/flightlog-storage.env", unit)
+        self.assertIn(
+            "ExecStart=/home/royshiber/mavlink-env/bin/python3 /home/royshiber/vlc-companion/flightlog_service.py",
+            unit,
+        )
+        self.assertNotIn("/opt/airvix/jetson-companion/flightlog_service.py", unit)
+        self.assertIn("RuntimeDirectory=airvix\n", unit)
+        self.assertIn("RuntimeDirectoryPreserve=yes", unit)
+        self.assertIn("StateDirectory=airvix airvix/flightlog", unit)
         self.assertNotIn("ARM", agent)
         self.assertNotIn(".recv_match(", agent)
         joined = "\n".join(path.read_text(encoding="utf-8") for path in ROOT.glob("flight*.py"))

@@ -381,4 +381,44 @@ describe('Status tab layout contract', () => {
       expect(covered.every((row) => row.hit === false), JSON.stringify(covered)).toBe(true);
     }
   }, 30000);
+
+  it('keeps the connect pill off the tab row, badge, and gear at 360', async () => {
+    await openStatus(360, 740);
+    const hit = await page.evaluate(() => {
+      const box = (el) => {
+        const r = el.getBoundingClientRect();
+        return { left: r.left, top: r.top, right: r.right, bottom: r.bottom };
+      };
+      const overlapPx = (a, b) => {
+        const x = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+        const y = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+        return { x: Math.round(x), y: Math.round(y), hit: x > 1 && y > 1 };
+      };
+      const pill = box(document.getElementById('connectToggleBtn'));
+      const targets = [
+        ...document.querySelectorAll('.app-chrome .tab:not([hidden])'),
+        document.getElementById('versionBtn'),
+        document.getElementById('globalSettingsBtn'),
+      ];
+      return targets.map((el) => ({
+        label: (el.id || el.textContent || '').trim().slice(0, 24),
+        ...overlapPx(pill, box(el)),
+      })).filter((row) => row.hit);
+    });
+    expect(hit, JSON.stringify(hit)).toEqual([]);
+  }, 30000);
+
+  it('polls landing readiness once every two seconds', async () => {
+    let hits = 0;
+    const onResponse = (res) => {
+      if (res.url().includes('/api/vision/landing-readiness')) hits += 1;
+    };
+    page.on('response', onResponse);
+    await page.setViewportSize({ width: 1280, height: 720 });
+    await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+    await page.waitForTimeout(5000);
+    page.off('response', onResponse);
+    expect(hits).toBeGreaterThanOrEqual(2);
+    expect(hits).toBeLessThanOrEqual(6);
+  }, 30000);
 });
