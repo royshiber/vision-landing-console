@@ -10,7 +10,15 @@ describe('RF work link', () => {
   it('keeps a forced path and falls back to RF only in automatic', () => {
     expect(chooseWorkPath({ mode: 'home', httpResults: [], serialPort: 'COM3' }).path).toBe('home');
     expect(chooseWorkPath({ mode: 'cellular', httpResults: [], serialPort: 'COM3' }).path).toBe('cellular');
-    expect(chooseWorkPath({ mode: 'rf', serialPort: '' }).path).toBe('rf');
+    const missing = chooseWorkPath({ mode: 'rf', serialPort: '' });
+    expect(missing.path).toBe('none');
+    expect(missing.reasonHe).toBe('בחרו פורט');
+    expect(planWorkLink({ mode: 'rf', serialPort: '' })).toMatchObject({
+      path: 'none',
+      connectSerial: false,
+      disconnectSerial: true,
+    });
+    expect(chooseWorkPath({ mode: 'rf', serialPort: 'COM3' }).path).toBe('rf');
     const fallback = planWorkLink({ mode: 'auto', httpResults: [], serialPort: 'COM3' });
     expect(fallback).toMatchObject({ path: 'rf', fallback: true, connectSerial: true, reduced: true });
     expect(fallback.reasonHe).toBe('במצב RF אין וידאו');

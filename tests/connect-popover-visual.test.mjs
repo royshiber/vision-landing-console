@@ -21,7 +21,7 @@ function payload(comm, extra = {}) {
     links: {
       radio: extra.radio || 'disconnected',
       cellular: extra.cellular || 'disconnected',
-      radioLabelHe: 'רדיו טלמטריה',
+      radioLabelHe: 'RF',
       radioStatusHe: extra.radioStatusHe || 'מנותק',
       cellularStatusHe: extra.cellularStatusHe || 'מנותק',
       modemPresent: extra.modemPresent === true,

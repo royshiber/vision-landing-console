@@ -9,6 +9,7 @@ export const NO_REPLY_HE = 'אין מענה מהגימבל';
 export const CONTROL_OFF_HE = 'שליטת הגימבל כבויה';
 export const LOCKED_HE = 'נעול';
 export const UNLOCKED_HE = 'משוחרר';
+export const RF_GIMBAL_REASON_HE = 'במצב RF אין וידאו';
 
 const RATE_URL = '/api/jetson/v1/gimbal/rate';
 const ZOOM_URL = '/api/jetson/v1/gimbal/zoom';
@@ -70,8 +71,7 @@ function rfWork() {
 
 export function gimbalPadView(companion) {
   if (rfWork()) {
-    const locked = document.body?.dataset?.rfGimbalMode === 'lock';
-    return { enabled: true, reasonHe: '', locked };
+    return { enabled: false, reasonHe: RF_GIMBAL_REASON_HE, locked: false };
   }
   const reachable = companion?.reachable === true && companion?.mode !== 'off';
   const gimbal = gimbalSnapshot(companion);

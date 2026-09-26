@@ -23,14 +23,14 @@
             <span class="conn-pill-caret" aria-hidden="true">▾</span>
           </button>
           <div id="connectPanel" class="conn-panel" hidden>
-            <section id="workLinkPicker" class="work-link-picker" aria-label="קישור לעבודה">
-              <h3 class="conn-link-title">קישור לעבודה</h3>
+            <section id="workLinkPicker" class="work-link-picker" aria-label="ערוץ תקשורת">
+              <h3 class="conn-link-title">ערוץ תקשורת</h3>
               <p id="workLinkPath" class="work-link-path">נתיב פעיל: אוטומטי</p>
-              <div class="work-link-choices">
-                <label><input type="radio" name="workLink" id="workLinkAuto" value="auto" checked /> אוטומטי</label>
-                <label><input type="radio" name="workLink" id="workLinkHome" value="home" /> רשת בית</label>
-                <label><input type="radio" name="workLink" id="workLinkCellular" value="cellular" /> סלולר</label>
-                <label><input type="radio" name="workLink" id="workLinkRf" value="rf" /> RF</label>
+              <div class="work-link-choices conn-active-choices">
+                <label class="conn-active-choice"><input type="radio" name="workLink" id="workLinkAuto" value="auto" checked /> <span>אוטומטי</span></label>
+                <label class="conn-active-choice"><input type="radio" name="workLink" id="workLinkHome" value="home" /> <span>רשת בית</span></label>
+                <label class="conn-active-choice"><input type="radio" name="workLink" id="workLinkCellular" value="cellular" /> <span>סלולר</span></label>
+                <label class="conn-active-choice"><input type="radio" name="workLink" id="workLinkRf" value="rf" /> <span>RF</span></label>
               </div>
               <p id="rfReducedReason" class="work-link-reason" hidden>במצב RF אין וידאו</p>
               <p id="rfCompanionLine" class="work-link-reason" hidden></p>
@@ -71,13 +71,13 @@
                   <span id="radioQualityPct" class="comm-link-pct" hidden></span>
                 </div>
                 <div class="comm-link-copy">
-                  <strong class="comm-link-name">רדיו טלמטריה</strong>
+                  <strong class="comm-link-name">RF</strong>
                   <p id="radioLinkHint" class="comm-link-hint">הכל חוץ מווידאו · גיבוי כשאין סלולר</p>
                   <p id="radioLinkStatus" class="comm-link-status">אין נתונים</p>
                   <p id="radioLinkError" class="comm-link-error" hidden></p>
                   <label class="comm-link-switch"><input type="checkbox" id="radioLinkEnable" checked /><span>פעיל</span></label>
                 </div>
-                <button type="button" id="connectBtn" class="conn-btn conn-btn-primary comm-link-action" data-action="connect" title="התחבר לרדיו טלמטריה">התחבר</button>
+                <button type="button" id="connectBtn" class="conn-btn conn-btn-primary comm-link-action" data-action="connect" title="התחבר ל-RF">התחבר</button>
               </li>
               <li class="comm-link-row" data-link="home" data-state="off" data-tone="off" data-active="0">
                 <div class="comm-link-quality">
@@ -119,7 +119,7 @@
               <div class="conn-active-choices">
                 <label class="conn-active-choice">
                   <input type="radio" name="activeLink" id="activeLinkRadio" value="radio" />
-                  <span>רדיו טלמטריה</span>
+                  <span>RF</span>
                 </label>
                 <label class="conn-active-choice">
                   <input type="radio" name="activeLink" id="activeLinkCellular" value="cellular" />
@@ -144,11 +144,11 @@
               </div>
             </section>
             <div class="conn-dual-chips conn-mav-chips" aria-label="מצב קישורים">
-              <span id="radioLinkChip" class="conn-link-chip" data-state="off">רדיו טלמטריה · מנותק</span>
+              <span id="radioLinkChip" class="conn-link-chip" data-state="off">RF · מנותק</span>
               <span id="cellularLinkChip" class="conn-link-chip" data-state="absent" data-reason="modem_absent">סלולר · מודם לא מחובר</span>
             </div>
-            <section class="conn-link-block" data-link-role="radio" aria-label="רדיו טלמטריה">
-              <h3 class="conn-link-title">רדיו טלמטריה</h3>
+            <section class="conn-link-block" data-link-role="radio" aria-label="RF">
+              <h3 class="conn-link-title">RF</h3>
             <div class="conn-panel-row">
               <label class="conn-panel-field">
                 <span>סוג</span>
@@ -603,7 +603,7 @@
                 </article>
                 <article class="status-row" data-link="radio" data-status-bucket="unknown" data-tone="off">
                   <div class="status-row-main">
-                    <span class="status-row-name">רדיו טלמטריה</span>
+                    <span class="status-row-name">RF</span>
                     <span class="status-row-reason" data-link-reason></span>
                     <span class="status-row-pill" data-link-pill>לא ידוע</span>
                   </div>
@@ -1059,6 +1059,7 @@
       </section>
 
       <section id="optics" class="panel optics-panel" dir="rtl" aria-label="אופטיקה">
+        <p id="rfOpticsNotice" class="rf-optics-notice" hidden>במצב RF אין וידאו</p>
         <div class="optics-live">
           <div class="optics-tiles">
             <div class="debrief-cam-toolbar" role="group" aria-label="מצלמות">
@@ -2215,7 +2216,7 @@
         <div class="mission-ops-chrome">
           <div class="mission-ops-leading">
             <nav id="missionLinkStrip" class="mission-link-strip" aria-label="סטטוס קישורים">
-              <span class="mission-link-chip" data-link="radio" data-state="off" data-quality="unknown"><i class="mission-link-dots" aria-hidden="true"></i>רדיו</span>
+              <span class="mission-link-chip" data-link="radio" data-state="off" data-quality="unknown"><i class="mission-link-dots" aria-hidden="true"></i>RF</span>
               <span class="mission-link-chip" data-link="cellular" data-state="absent" data-quality="unknown"><i class="mission-link-dots" aria-hidden="true"></i>סלולר</span>
               <span class="mission-link-chip" data-link="home" data-state="off" data-quality="unknown"><i class="mission-link-dots" aria-hidden="true"></i>בית</span>
               <span class="mission-link-chip" data-link="rc" data-state="off" data-quality="unknown"><i class="mission-link-dots" aria-hidden="true"></i>RC</span>

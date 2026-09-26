@@ -35,7 +35,10 @@ describe('AIRVIX dual-link connect + cellular infrastructure', () => {
 
   it('extends the מנותק connect panel with both link roles and an active picker', () => {
     expect(html).toMatch(/id="connectPillLabel"[^>]*>מנותק</);
-    expect(html).toContain('רדיו טלמטריה');
+    expect(html).toContain('>RF<');
+    expect(html).toContain('ערוץ תקשורת');
+    expect(html).not.toContain('קישור לעבודה');
+    expect(html).not.toContain('רדיו טלמטריה');
     expect(html).toContain('סלולר');
     expect(html).toContain('id="cellularHostPort"');
     expect(html).toContain('id="cellularConnectBtn"');
