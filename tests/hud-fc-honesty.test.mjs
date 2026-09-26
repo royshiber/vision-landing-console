@@ -247,10 +247,10 @@ describe('Mission UI copy stays in sync with the honesty helper', () => {
     expect(js).toContain('function hudFieldHonestyTitle(');
     expect(js).toContain('function airspeedTileHonestyTitle(');
     expect(js).toContain('pfdHudWaitHint');
-    expect(html).toMatch(/id="hudAltitude"[^>]*title="אין קישור"/);
-    expect(html).toMatch(/id="hudAirspeed"[^>]*title="אין קישור"/);
-    expect(html).toMatch(/id="pfdAltVal"[^>]*title="אין קישור"/);
-    expect(html).toMatch(/id="pfdAirspeedVal"[^>]*title="אין קישור"/);
+    expect(html).toMatch(/id="hudAltitude"[^>]*title="אין נתונים"/);
+    expect(html).toMatch(/id="hudAirspeed"[^>]*title="אין נתונים"/);
+    expect(html).toMatch(/id="pfdAltVal"[^>]*title="אין נתונים"/);
+    expect(html).toMatch(/id="pfdAirspeedVal"[^>]*title="אין נתונים"/);
     expect(html).toContain('id="pfdHudWaitHint"');
     expect(js).toContain('classifyEkfGpsStatusText');
     expect(js).toContain('formatGpsHudReadout');

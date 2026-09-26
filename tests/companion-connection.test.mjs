@@ -117,7 +117,7 @@ describe('companion connection helpers', () => {
   it('maps CompanionApiError kinds including 401 to Hebrew', () => {
     expect(hebrewCompanionError(new CompanionApiError({ kind: 'http', status: 401, message: 'nope' })))
       .toBe(COMPANION_HE.unauthorized);
-    expect(COMPANION_HE.unauthorized).toMatch(/אסימון/);
+    expect(COMPANION_HE.unauthorized).toMatch(/טוקן/);
     expect(COMPANION_HE.hint).toMatch(/כתובת לבד לא מספיקה/);
     expect(COMPANION_HE.bothGate).toMatch(/כתובת לבד לא מספיקה/);
     expect(hebrewCompanionError(new CompanionApiError({ kind: 'timeout', message: 't' })))
@@ -682,8 +682,8 @@ describe('Companion connect chrome', () => {
     expect(html).toMatch(/id="companionConnectBtn"[^>]*>חיבור</);
     expect(html).toMatch(/id="companionDisconnectBtn"[^>]*>ניתוק</);
     expect(html).toMatch(/>כתובת</);
-    expect(html).toMatch(/אסימון/);
-    expect(html).toMatch(/צריך כתובת ואסימון/);
+    expect(html).toMatch(/טוקן/);
+    expect(html).toMatch(/צריך כתובת וטוקן/);
     expect(html).toMatch(/כתובת לבד לא מספיקה/);
     expect(html).toMatch(/id="companionConnectForm"[^>]*novalidate/);
     expect(html).toMatch(/id="companionBaseUrl"[^>]*type="text"/);

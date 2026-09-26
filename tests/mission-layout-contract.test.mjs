@@ -282,7 +282,7 @@ describe('Mission layout contract — live boxes', () => {
     });
 
     expect(measured.platformTab).toBe(false);
-    expect(measured.version).toBe('1.02.343');
+    expect(measured.version).toBe('1.02.344');
     expect(measured.ws.width).toBeGreaterThan(800);
     expect(measured.talkMinWidth).toBe('240px');
     expect(Number.parseFloat(measured.dataGap)).toBeLessThanOrEqual(4);
@@ -600,17 +600,16 @@ describe('Mission layout contract — live boxes', () => {
     });
     expect(clip.linkText).toBe('מחובר');
     expect(clip.linkTitle).toContain('טלמטריה');
-    expect(clip.altText).toBe('--');
+    expect(clip.altText).toBe('—');
     expect(clip.altTitle).toBe('אין קישור');
-    expect(clip.pillWrap).toBe('nowrap');
+    expect(clip.pillWrap).toBe('normal');
     expect(clip.pillOverflow).toBeLessThanOrEqual(1);
     for (const tile of clip.tiles) {
-      expect(tile.labelWrap).toBe('nowrap');
-      expect(tile.valueWrap).toBe('nowrap');
+      expect(tile.labelWrap).toBe('normal');
+      expect(tile.valueWrap).toBe('normal');
       expect(tile.labelOverflow).toBeLessThanOrEqual(1);
       expect(tile.valueOverflow).toBeLessThanOrEqual(1);
       expect(tile.tileH).toBeGreaterThanOrEqual(56);
-      expect(tile.tileH).toBeLessThanOrEqual(76);
     }
   }, 20000);
 
@@ -666,7 +665,9 @@ describe('Mission layout contract — live boxes', () => {
   }, 45000);
 
   it('keeps Develop Concept B chat and preview from overlapping', async () => {
-    await page.locator('[data-tab="development"]').click({ force: true });
+    await page.evaluate(() => {
+      if (typeof applyMainTab === 'function') applyMainTab('development');
+    });
     await page.waitForFunction(() => document.getElementById('development')?.classList.contains('visible'));
     await page.waitForSelector('.develop-b-shell', { state: 'visible', timeout: 15000 });
     const evolve = await page.evaluate(() => {

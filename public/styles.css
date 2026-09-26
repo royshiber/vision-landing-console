@@ -276,7 +276,11 @@ h1, h2, .panel-header h2 {
   border-color: rgba(167, 243, 208, 0.28);
 }
 
-body.mission-assist-docked .assist-toggle-btn {
+body.mission-assist-docked .assist-toggle-btn,
+body.assist-open .assist-toggle-btn.assist-toggle-float {
+  display: none !important;
+}
+.app-chrome .tab[hidden] {
   display: none !important;
 }
 
@@ -347,7 +351,7 @@ h1 { margin: 0; font-size: 1.25rem; color: var(--text); }
   margin-inline-start: 4px;
   border: 1px solid var(--border);
   border-radius: 50%;
-  font-size: 0.64rem;
+  font-size: clamp(11px, 0.64rem, 8rem);
   color: var(--text-muted);
   cursor: help;
   vertical-align: middle;
@@ -430,7 +434,7 @@ body:has(#terrain.panel.visible) .layout {
 
 .tab-lab {
   font-weight: 600;
-  font-size: 0.64rem;
+  font-size: clamp(11px, 0.64rem, 8rem);
   letter-spacing: 0.04em;
   color: var(--text-subtle);
   background: transparent;
@@ -461,7 +465,7 @@ body:has(#terrain.panel.visible) .layout {
 
 .tab-lab-toggle {
   font-weight: 600;
-  font-size: 0.64rem;
+  font-size: clamp(11px, 0.64rem, 8rem);
   letter-spacing: 0.04em;
   color: var(--text-subtle);
   background: transparent;
@@ -715,7 +719,7 @@ body:has(#terrain.panel.visible) .layout {
   padding: 0 9px;
   background: var(--surface-container);
   border-left: 1px solid var(--border);
-  font-size: 0.61rem;
+  font-size: clamp(11px, 0.61rem, 8rem);
   font-weight: 800;
   font-family: "Space Grotesk", "Heebo", sans-serif;
   letter-spacing: 0.1em;
@@ -1058,7 +1062,7 @@ body:has(#terrain.panel.visible) .layout {
 
 /* Why / reason row — subtle */
 .ardu-smart-result-why {
-  font-size: 0.65rem;
+  font-size: clamp(11px, 0.65rem, 8rem);
   line-height: 1.2;
   color: var(--text-muted);
   font-style: italic;
@@ -1066,7 +1070,7 @@ body:has(#terrain.panel.visible) .layout {
 
 /* Confidence badge */
 .ardu-smart-result-confidence {
-  font-size: 0.62rem;
+  font-size: clamp(11px, 0.62rem, 8rem);
   color: var(--primary);
   opacity: 0.75;
 }
@@ -1119,7 +1123,7 @@ body:has(#terrain.panel.visible) .layout {
 
 /* "Outside" label badge */
 .ardu-smart-outside-badge {
-  font-size: 0.6rem;
+  font-size: clamp(11px, 0.6rem, 8rem);
   font-weight: 700;
   color: var(--text-muted);
   background: var(--surface-low);
@@ -3738,7 +3742,7 @@ button:hover,
 
 .tele-dash-head .section-badge {
   margin-inline-start: 0;
-  font-size: 0.62rem;
+  font-size: clamp(11px, 0.62rem, 8rem);
   font-weight: 700;
   padding: 3px 9px;
   max-width: 100%;
@@ -3754,7 +3758,7 @@ button:hover,
 
 .tele-dash-sub {
   display: block;
-  font-size: 0.62rem;
+  font-size: clamp(11px, 0.62rem, 8rem);
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: none;
@@ -3806,7 +3810,7 @@ button:hover,
 .tele-vision-group:last-child { margin-bottom: 0; }
 
 .tele-group-label {
-  font-size: 0.6rem;
+  font-size: clamp(11px, 0.6rem, 8rem);
   font-weight: 800;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -3856,7 +3860,7 @@ button:hover,
 /* Stitch: label — tiny uppercase with letter-spacing */
 .tele-dash-col .tele-card span,
 .tele-group-cards .tele-card span {
-  font-size: 0.63rem;
+  font-size: clamp(11px, 0.63rem, 8rem);
   line-height: 1.3;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -3957,7 +3961,7 @@ button:hover,
 }
 
 .jst-label {
-  font-size: 0.6rem;
+  font-size: clamp(11px, 0.6rem, 8rem);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -4113,7 +4117,7 @@ button:hover,
 }
 
 .jetson-install-badge {
-  font-size: 0.65rem;
+  font-size: clamp(11px, 0.65rem, 8rem);
   font-weight: 700;
   padding: 2px 8px;
   border-radius: 999px;
@@ -5042,7 +5046,7 @@ body:has(#pulse.panel.visible) .layout {
   min-width: 0;
 }
 .pulse-fc-identity dt {
-  font-size: 0.62rem;
+  font-size: clamp(11px, 0.62rem, 8rem);
   font-weight: 700;
   color: #8b97ab;
 }
@@ -5234,7 +5238,7 @@ body:has(#pulse.panel.visible) .layout {
   min-width: 4.2rem;
   padding: 2px 8px;
   border-radius: 999px;
-  font-size: 0.64rem;
+  font-size: clamp(11px, 0.64rem, 8rem);
   font-weight: 800;
   text-align: center;
   background: rgba(148, 168, 198, 0.12);
@@ -5268,7 +5272,7 @@ body:has(#pulse.panel.visible) .layout {
 }
 .pfd-readiness-body .cic-step-help,
 .pfd-readiness-body .cic-lead {
-  font-size: 0.6rem;
+  font-size: clamp(11px, 0.6rem, 8rem);
 }
 .cic-cam-status {
   display: flex;
@@ -5308,9 +5312,11 @@ body:has(#pulse.panel.visible) .layout {
   direction: rtl;
   text-align: right;
 }
-.mission-region-horizon .mission-live-camera {
-  max-height: 220px;
-  overflow: auto;
+.mission-region-horizon .mission-live-camera.instrument-stage-view {
+  max-height: none;
+  overflow: hidden;
+  margin: 0;
+  flex: none;
 }
 .mission-live-camera[hidden],
 .mission-live-camera.hidden {
@@ -5342,13 +5348,13 @@ body:has(#pulse.panel.visible) .layout {
   gap: 4px;
 }
 .mission-live-camera-label {
-  font-size: 0.66rem;
+  font-size: clamp(11px, 0.66rem, 8rem);
   font-weight: 800;
   color: #d7deea;
 }
 .mission-live-camera-meta {
   margin: 0;
-  font-size: 0.62rem;
+  font-size: clamp(11px, 0.62rem, 8rem);
   color: #9aa8b8;
 }
 .mission-live-camera-frame {
@@ -5448,7 +5454,7 @@ body:has(#pulse.panel.visible) .layout {
   display: inline-flex;
   padding: 1px 6px;
   border-radius: 999px;
-  font-size: 0.62rem;
+  font-size: clamp(11px, 0.62rem, 8rem);
   font-weight: 700;
   letter-spacing: 0.02em;
   background: rgba(148, 168, 198, 0.1);
@@ -5479,7 +5485,7 @@ body:has(#pulse.panel.visible) .layout {
   grid-template-columns: minmax(0, 1fr) auto auto auto;
   gap: 6px;
   align-items: center;
-  font-size: 0.66rem;
+  font-size: clamp(11px, 0.66rem, 8rem);
   font-weight: 600;
   color: #a8b4c8;
 }
@@ -5488,7 +5494,7 @@ body:has(#pulse.panel.visible) .layout {
 }
 .vlr-key-token {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 0.6rem;
+  font-size: clamp(11px, 0.6rem, 8rem);
   font-weight: 700;
   color: #94a3b8;
   direction: ltr;
@@ -5525,7 +5531,7 @@ body:has(#pulse.panel.visible) .layout {
   border-radius: 999px;
   background: transparent;
   color: #cbd5e1;
-  font-size: 0.66rem;
+  font-size: clamp(11px, 0.66rem, 8rem);
   font-weight: 800;
   cursor: pointer;
 }
@@ -5770,7 +5776,7 @@ body:has(#pulse.panel.visible) .layout {
 }
 .pulse-version-k {
   margin: 0;
-  font-size: 0.62rem;
+  font-size: clamp(11px, 0.62rem, 8rem);
   font-weight: 700;
   letter-spacing: 0.04em;
   color: #7d8ba0;
@@ -6621,7 +6627,7 @@ button.status-row-main {
 }
 
 .companion-tier {
-  font-size: 0.62rem;
+  font-size: clamp(11px, 0.62rem, 8rem);
   color: var(--text-muted);
 }
 
@@ -8063,7 +8069,7 @@ html[data-evolve-preview="1"] #development {
 }
 .policy-cat-label { flex: 1; }
 .policy-cat-dir {
-  font-size: 0.62rem;
+  font-size: clamp(11px, 0.62rem, 8rem);
   padding: 2px 6px;
   border: 1px solid var(--border);
   border-radius: 6px;
@@ -8427,7 +8433,7 @@ html[data-evolve-preview="1"] #development {
   background: #00478d;
   color: #fff;
   border-radius: 999px;
-  font-size: 0.62rem;
+  font-size: clamp(11px, 0.62rem, 8rem);
   padding: 1px 7px;
   font-weight: 700;
 }
@@ -8670,7 +8676,7 @@ html[data-evolve-preview="1"] #development {
 }
 
 .ac-risk-badge {
-  font-size: 0.61rem;
+  font-size: clamp(11px, 0.61rem, 8rem);
   font-weight: 700;
   letter-spacing: 0.06em;
   padding: 2px 7px;
@@ -8872,7 +8878,7 @@ html[data-evolve-preview="1"] #development {
 
 .ac-q-kicker {
   margin: 0;
-  font-size: 0.62rem;
+  font-size: clamp(11px, 0.62rem, 8rem);
   font-weight: 800;
   letter-spacing: 0.08em;
   color: #7dd3fc;
@@ -8948,7 +8954,7 @@ html[data-evolve-preview="1"] #development {
 
 .ac-wire-host-name {
   margin: 0 0 4px;
-  font-size: 0.66rem;
+  font-size: clamp(11px, 0.66rem, 8rem);
   font-weight: 800;
   color: #cbd5e1;
 }
@@ -9003,7 +9009,7 @@ html[data-evolve-preview="1"] #development {
 }
 
 .ac-walk-head {
-  font-size: 0.62rem;
+  font-size: clamp(11px, 0.62rem, 8rem);
   font-weight: 800;
   color: #94a3b8;
   letter-spacing: 0.04em;
@@ -9038,7 +9044,7 @@ html[data-evolve-preview="1"] #development {
 .ac-walk-seen {
   color: #64748b;
   font-weight: 700;
-  font-size: 0.66rem;
+  font-size: clamp(11px, 0.66rem, 8rem);
 }
 
 .ac-walk-none {
@@ -9302,7 +9308,7 @@ html[data-evolve-preview="1"] #development {
   display: inline-flex;
   align-items: center;
   font-family: "Space Grotesk", ui-monospace, monospace;
-  font-size: 0.66rem;
+  font-size: clamp(11px, 0.66rem, 8rem);
   font-weight: 700;
   padding: 1px 6px;
   border-radius: 5px;
@@ -9347,7 +9353,7 @@ html[data-evolve-preview="1"] #development {
 
 .ac-b-host-note {
   margin: 6px 8px 0;
-  font-size: 0.66rem;
+  font-size: clamp(11px, 0.66rem, 8rem);
   color: #94a3b8;
   flex-shrink: 0;
 }
@@ -9434,7 +9440,7 @@ html[data-evolve-preview="1"] #development {
   align-items: center;
   border-radius: 999px;
   padding: 2px 7px;
-  font-size: 0.62rem;
+  font-size: clamp(11px, 0.62rem, 8rem);
   font-weight: 800;
   white-space: nowrap;
 }
@@ -9608,7 +9614,7 @@ html[data-evolve-preview="1"] #development {
   padding: 5px 8px !important;
   text-align: center;
 }
-.tele-hud-mini span { display: block; font-size: 0.66rem; }
+.tele-hud-mini span { display: block; font-size: clamp(11px, 0.66rem, 8rem); }
 .tele-hud-mini strong { display: block; font-size: 0.92rem; letter-spacing: 0.01em; color: #93c5fd !important; }
 .tele-hud-mini--airspeed-proxy strong { color: #fdba74 !important; }
 .tele-hud-mini--time-skew strong {
@@ -9631,7 +9637,7 @@ html[data-evolve-preview="1"] #development {
 }
 
 .tele-preflight-title {
-  font-size: 0.66rem;
+  font-size: clamp(11px, 0.66rem, 8rem);
   font-weight: 700;
   letter-spacing: 0.07em;
   text-transform: uppercase;
@@ -9701,7 +9707,7 @@ html[data-evolve-preview="1"] #development {
   position: absolute;
   top: 4px;
   inset-inline-end: 6px;
-  font-size: 0.62rem;
+  font-size: clamp(11px, 0.62rem, 8rem);
   font-weight: 700;
   letter-spacing: 0.06em;
   padding: 1px 5px;
@@ -9856,7 +9862,7 @@ html[data-evolve-preview="1"] #development {
   font-size: 0.68rem;
   line-height: 1.2;
 }
-.adv-info-tight-row .adv-sys-k { margin-inline-end: 3px; font-size: 0.65rem; }
+.adv-info-tight-row .adv-sys-k { margin-inline-end: 3px; font-size: clamp(11px, 0.65rem, 8rem); }
 .adv-info-tight-row .adv-sys-v { font-weight: 600; font-size: 0.68rem; }
 .adv-compact-gemini {
   flex: 1 1 160px;
@@ -9900,14 +9906,14 @@ html[data-evolve-preview="1"] #development {
 .adv-info-explain[open] > .adv-info-explain-summary { margin-bottom: 2px; }
 .adv-sys-hint--compact {
   margin: 0 8px 4px 8px !important;
-  font-size: 0.65rem !important;
+  font-size: clamp(11px, 0.65rem, 8rem) !important;
   line-height: 1.3 !important;
   color: var(--text-muted, var(--text-muted)) !important;
 }
 .adv-chat-safety-hint--compact {
   margin: 0 8px 6px 8px !important;
   padding: 4px 0 !important;
-  font-size: 0.65rem !important;
+  font-size: clamp(11px, 0.65rem, 8rem) !important;
   line-height: 1.3 !important;
   background: transparent !important;
   border: none !important;
@@ -10529,7 +10535,7 @@ html[data-evolve-preview="1"] #development {
   background: rgba(15, 23, 42, 0.45);
   color: #94a3b8;
   font: inherit;
-  font-size: 0.58rem;
+  font-size: clamp(11px, 0.58rem, 8rem);
   font-weight: 700;
   cursor: pointer;
 }
@@ -10557,7 +10563,7 @@ html[data-evolve-preview="1"] #development {
   border: 1px solid rgba(148, 163, 184, 0.28);
   background: rgba(15, 23, 42, 0.45);
   color: #94a3b8;
-  font-size: 0.58rem;
+  font-size: clamp(11px, 0.58rem, 8rem);
   font-weight: 700;
   font-family: "Heebo", sans-serif;
   white-space: nowrap;
@@ -10676,7 +10682,7 @@ html[data-evolve-preview="1"] #development {
   background: rgba(148, 163, 184, 0.12);
   color: #cbd5e1;
   font: inherit;
-  font-size: 0.6rem;
+  font-size: clamp(11px, 0.6rem, 8rem);
   font-weight: 700;
   letter-spacing: 0.02em;
   cursor: pointer;
@@ -10723,7 +10729,7 @@ html[data-evolve-preview="1"] #development {
   background: rgba(16, 185, 129, 0.16);
   color: #bbf7d0;
   font: inherit;
-  font-size: 0.6rem;
+  font-size: clamp(11px, 0.6rem, 8rem);
   font-weight: 700;
   letter-spacing: 0.02em;
   cursor: pointer;
@@ -10744,7 +10750,7 @@ html[data-evolve-preview="1"] #development {
   background: rgba(15, 23, 42, 0.35);
   color: #cbd5e1;
   font: inherit;
-  font-size: 0.6rem;
+  font-size: clamp(11px, 0.6rem, 8rem);
   font-weight: 700;
   letter-spacing: 0.02em;
   cursor: pointer;
@@ -10846,7 +10852,7 @@ html[data-evolve-preview="1"] #development {
 
 .mission-layout-hint {
   margin: 0;
-  font-size: 0.62rem;
+  font-size: clamp(11px, 0.62rem, 8rem);
   font-weight: 500;
   color: #64748b;
   font-family: "Heebo", sans-serif;
@@ -10857,7 +10863,8 @@ html[data-evolve-preview="1"] #development {
    PFD grows into leftover gap (min 52%). Data strip ≥ 64px.
    Live aircraft messages are frameless stacked lines on the AH/video side.
    History stays a slim secondary strip in the AH stack — never an overlay on the map.
-   map-horizon also swaps column tracks so the map keeps 1fr.
+   Both swap modes keep the same tracks: wide, then the narrow tile, then talk.
+   map-horizon puts the map on the wide track. horizon-map puts the horizon there.
    Talk composer stays a panel, never a sliver. Gap ≤ 4px. */
 .terrain-flight-shell.mission-workspace,
 .mission-workspace[data-mission-layout="ops-v1"] {
@@ -10891,9 +10898,17 @@ html[data-evolve-preview="1"] #development {
   --mission-msg-h: min(18%, 96px);
 }
 
-.mission-workspace[data-mission-swap="map-horizon"] {
+.mission-workspace[data-mission-swap="map-horizon"],
+.mission-workspace[data-mission-swap="horizon-map"] {
   grid-template-columns: minmax(0, 1fr) minmax(132px, min(20%, var(--mission-ah-col))) minmax(240px, min(26%, var(--mission-talk-col)));
+}
+
+.mission-workspace[data-mission-swap="map-horizon"] {
   grid-template-areas: "map horizon talk";
+}
+
+.mission-workspace[data-mission-swap="horizon-map"] {
+  grid-template-areas: "horizon map talk";
 }
 
 .mission-split {
@@ -10984,6 +10999,15 @@ html[data-evolve-preview="1"] #development {
   border-radius: 0;
   background: #0b0e14;
 }
+.mission-workspace[data-mission-swap="horizon-map"] .mission-region[data-mission-region="map"] {
+  min-height: 0;
+  height: 100%;
+}
+.mission-workspace[data-mission-swap="horizon-map"] .mission-region-horizon > .flight-hud {
+  height: auto;
+  min-height: 0;
+  flex: 1 1 auto;
+}
 .mission-region[data-mission-region="data"] {
   grid-area: unset;
   position: static;
@@ -11029,7 +11053,7 @@ html[data-evolve-preview="1"] #development {
   z-index: 1;
   margin: 0;
   padding: 2px 6px 0;
-  font-size: 0.58rem;
+  font-size: clamp(11px, 0.58rem, 8rem);
   font-weight: 600;
   letter-spacing: 0.01em;
   color: rgba(226, 232, 240, 0.72);
@@ -11058,7 +11082,7 @@ html[data-evolve-preview="1"] #development {
   background: rgba(16, 185, 129, 0.14);
   color: #bbf7d0;
   font: inherit;
-  font-size: 0.58rem;
+  font-size: clamp(11px, 0.58rem, 8rem);
   font-weight: 700;
   font-family: "Heebo", sans-serif;
   cursor: pointer;
@@ -11161,7 +11185,7 @@ html[data-evolve-preview="1"] #development {
 
 .mission-data-item dt,
 .mission-data-label {
-  font-size: 0.62rem;
+  font-size: clamp(11px, 0.62rem, 8rem);
   font-weight: 800;
   letter-spacing: 0.04em;
   color: #93c5fd;
@@ -11187,7 +11211,7 @@ html[data-evolve-preview="1"] #development {
 
 .mission-data-unit {
   flex: 0 0 auto;
-  font-size: 0.62rem;
+  font-size: clamp(11px, 0.62rem, 8rem);
   font-weight: 700;
   color: #94a3b8;
   font-family: "Space Grotesk", sans-serif;
@@ -11243,7 +11267,7 @@ html[data-evolve-preview="1"] #development {
 .mission-data-picker-current {
   margin: 0 0 6px;
   min-height: 1em;
-  font-size: 0.62rem;
+  font-size: clamp(11px, 0.62rem, 8rem);
   color: #64748b;
   font-family: "Heebo", sans-serif;
   direction: rtl;
@@ -11263,7 +11287,7 @@ html[data-evolve-preview="1"] #development {
 
 .mission-data-picker-hint {
   margin: 6px 0;
-  font-size: 0.66rem;
+  font-size: clamp(11px, 0.66rem, 8rem);
   color: #475569;
   line-height: 1.35;
 }
@@ -11288,7 +11312,7 @@ html[data-evolve-preview="1"] #development {
   color: #0f172a;
   border-radius: 8px;
   padding: 5px 8px;
-  font-size: 0.66rem;
+  font-size: clamp(11px, 0.66rem, 8rem);
   font-weight: 700;
   font-family: "Heebo", sans-serif;
   cursor: pointer;
@@ -11299,7 +11323,7 @@ html[data-evolve-preview="1"] #development {
 
 .mission-data-picker-chip-mav {
   font-family: "Space Grotesk", ui-monospace, monospace;
-  font-size: 0.58rem;
+  font-size: clamp(11px, 0.58rem, 8rem);
   font-weight: 600;
   color: #334155;
   direction: ltr;
@@ -11386,7 +11410,7 @@ html[data-evolve-preview="1"] #development {
   background: rgba(148, 163, 184, 0.28);
   color: #e2e8f0;
   font-family: "Heebo", sans-serif;
-  font-size: 10px;
+  font-size: clamp(11px, 10px, 8rem);
   font-weight: 700;
   line-height: 1;
 }
@@ -11610,18 +11634,33 @@ html[data-evolve-preview="1"] #development {
 
 @media (max-width: 1100px) {
   .mission-workspace[data-mission-layout="ops-v1"] {
-    grid-template-columns: minmax(120px, min(20%, var(--mission-ah-col))) minmax(0, 1fr);
-    grid-template-rows: minmax(0, 1fr) minmax(160px, 28%);
+    grid-template-columns: minmax(200px, 28%) minmax(0, 1fr);
+    grid-template-rows: minmax(240px, 1fr) minmax(200px, 36%);
     grid-template-areas:
       "horizon map"
       "talk talk";
   }
 
+  .mission-workspace[data-mission-swap="map-horizon"],
+  .mission-workspace[data-mission-swap="horizon-map"] {
+    grid-template-columns: minmax(0, 1fr) minmax(200px, 28%);
+    grid-template-rows: minmax(240px, 1fr) minmax(200px, 36%);
+  }
+
   .mission-workspace[data-mission-swap="map-horizon"] {
-    grid-template-columns: minmax(0, 1fr) minmax(120px, min(20%, var(--mission-ah-col)));
     grid-template-areas:
       "map horizon"
       "talk talk";
+  }
+
+  .mission-workspace[data-mission-swap="horizon-map"] {
+    grid-template-areas:
+      "horizon map"
+      "talk talk";
+  }
+  #missionTalkHost .assist-input.assist-input--grown {
+    min-height: 2.2em;
+    max-height: 2.6em;
   }
 }
 
@@ -11661,7 +11700,7 @@ html[data-evolve-preview="1"] #development {
   background: rgba(139, 92, 246, 0.22);
   border: 1px solid rgba(167, 139, 250, 0.45);
   color: #ede9fe;
-  font-size: 0.6rem;
+  font-size: clamp(11px, 0.6rem, 8rem);
   font-weight: 700;
   border-radius: 6px;
   padding: 3px 8px;
@@ -11670,7 +11709,7 @@ html[data-evolve-preview="1"] #development {
 }
 .pfd-voice-flight-btn:hover { background: rgba(139, 92, 246, 0.36); }
 .pfd-badge {
-  font-size: 0.6rem;
+  font-size: clamp(11px, 0.6rem, 8rem);
   font-weight: 800;
   font-family: "Space Grotesk", monospace;
   letter-spacing: 0.08em;
@@ -11707,7 +11746,7 @@ html[data-evolve-preview="1"] #development {
 .pfd-hud-wait-hint {
   margin: 0;
   padding: 2px 8px;
-  font-size: 0.62rem;
+  font-size: clamp(11px, 0.62rem, 8rem);
   font-weight: 600;
   color: #fde68a;
   background: rgba(120, 80, 0, 0.32);
@@ -11954,15 +11993,31 @@ html[data-evolve-preview="1"] #development {
   min-height: 28px;
 }
 .mission-region-horizon .pfd-horizon-chrome {
-  min-height: 22px;
-  max-height: 28px;
+  flex: 0 0 26px;
+  height: 26px;
+  min-height: 26px;
+  max-height: 26px;
   padding: 2px 4px;
+  flex-wrap: nowrap;
+  overflow: hidden;
 }
-.mission-region-horizon .pfd-horizon-chrome:has(#liveCameraPanel:not([hidden])),
-.mission-region-horizon .pfd-horizon-chrome:has(#annotatedVisionPanel:not([hidden])),
-.mission-region-horizon .pfd-horizon-chrome:has(#horizonVideoPanel:not(.hidden)) {
+.pfd-horizon-stage .instrument-stage-view {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  margin: 0;
   max-height: none;
-  overflow: visible;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+.pfd-horizon-stage .instrument-stage-view[hidden] {
+  display: none !important;
+}
+#instrumentVideoFrame {
+  object-fit: cover;
+  background: #0b0e14;
 }
 .mission-region-horizon .hud-data-grid {
   display: grid;
@@ -12006,7 +12061,7 @@ html[data-evolve-preview="1"] #development {
 .pfd-side-tape--left  { grid-area: ias; left: auto; }
 .pfd-side-tape--right { grid-area: alt; right: auto; }
 .pfd-tape-key {
-  font-size: 0.5rem;
+  font-size: clamp(11px, 0.5rem, 8rem);
   font-weight: 700;
   letter-spacing: 0.08em;
   color: #94a3b8;
@@ -12096,7 +12151,7 @@ html[data-evolve-preview="1"] #development {
   border: 1px solid rgba(255,255,255,0.25);
   border-radius: 6px;
   color: rgba(255,255,255,0.85);
-  font-size: 0.62rem;
+  font-size: clamp(11px, 0.62rem, 8rem);
   font-weight: 700;
   font-family: "Space Grotesk", "Heebo", sans-serif;
   padding: 3px 8px;
@@ -12126,7 +12181,7 @@ html[data-evolve-preview="1"] #development {
 }
 .pfd-video-panel.hidden { display: none; }
 .pfd-video-label {
-  font-size: 0.6rem;
+  font-size: clamp(11px, 0.6rem, 8rem);
   color: rgba(148,210,230,0.8);
   font-weight: 600;
   font-family: "Space Grotesk", "Heebo", sans-serif;
@@ -12139,7 +12194,7 @@ html[data-evolve-preview="1"] #development {
   border: 1px solid rgba(255,255,255,0.15);
   border-radius: 6px;
   color: #e2e8f0;
-  font-size: 0.65rem;
+  font-size: clamp(11px, 0.65rem, 8rem);
   padding: 4px 8px;
   font-family: "Fira Code", "Courier New", monospace;
   min-width: 0;
@@ -12153,7 +12208,7 @@ html[data-evolve-preview="1"] #development {
   border: none;
   border-radius: 6px;
   padding: 4px 10px;
-  font-size: 0.65rem;
+  font-size: clamp(11px, 0.65rem, 8rem);
   font-weight: 800;
   cursor: pointer;
   font-family: "Space Grotesk", "Heebo", sans-serif;
@@ -12180,13 +12235,13 @@ html[data-evolve-preview="1"] #development {
   align-items: center;
 }
 .pfc-msg-label {
-  font-size: 0.58rem;
+  font-size: clamp(11px, 0.58rem, 8rem);
   font-weight: 700;
   letter-spacing: 0.06em;
   color: rgba(125, 211, 252, 0.88);
 }
 .pfc-opt-mini {
-  font-size: 0.58rem;
+  font-size: clamp(11px, 0.58rem, 8rem);
   color: #94a3b8;
 }
 .pfc-msg-primary {
@@ -12200,7 +12255,7 @@ html[data-evolve-preview="1"] #development {
   -webkit-box-orient: vertical;
 }
 .pfc-msg-scroll {
-  font-size: 0.62rem;
+  font-size: clamp(11px, 0.62rem, 8rem);
   line-height: 1.35;
   color: rgba(203, 213, 225, 0.88);
   max-height: 2.8rem;
@@ -12254,13 +12309,13 @@ html[data-evolve-preview="1"] #development {
   gap: 1px;
 }
 .pfd-readiness-body .vlr-missing {
-  font-size: 0.6rem;
+  font-size: clamp(11px, 0.6rem, 8rem);
   line-height: 1.2;
   margin: 1px 0 0;
 }
 .pfd-readiness-body .vlr-open-params {
   margin-top: 2px;
-  font-size: 0.6rem;
+  font-size: clamp(11px, 0.6rem, 8rem);
 }
 .pfd-readiness-actions {
   display: flex;
@@ -12313,7 +12368,7 @@ html[data-evolve-preview="1"] #development {
 .pfd-opt-pill {
   flex: 1;
   padding: 3px 6px !important;
-  font-size: 0.62rem !important;
+  font-size: clamp(11px, 0.62rem, 8rem) !important;
 }
 .pfd-add-btn {
   background: rgba(0,140,255,0.12);
@@ -12345,11 +12400,11 @@ html[data-evolve-preview="1"] #development {
   min-height: 0;
 }
 .pfd-slots-strip .hud-slot-val { font-size: 0.9rem; }
-.pfd-slots-strip .hud-slot-label { font-size: 0.5rem; }
+.pfd-slots-strip .hud-slot-label { font-size: clamp(11px, 0.5rem, 8rem); }
 
 /* Legacy label kept for backward compat */
 .hud-metric-label {
-  font-size: 0.63rem;
+  font-size: clamp(11px, 0.63rem, 8rem);
   color: rgba(180,200,230,0.7);
   white-space: nowrap;
   overflow: hidden;
@@ -12363,7 +12418,7 @@ html[data-evolve-preview="1"] #development {
   white-space: nowrap;
 }
 .hud-metric-val em {
-  font-size: 0.62rem;
+  font-size: clamp(11px, 0.62rem, 8rem);
   font-weight: 400;
   color: rgba(160,185,220,0.65);
   font-style: normal;
@@ -12409,7 +12464,7 @@ html[data-evolve-preview="1"] #development {
   line-height: 1;
 }
 .hud-nav-label {
-  font-size: 0.62rem;
+  font-size: clamp(11px, 0.62rem, 8rem);
   font-weight: 700;
   color: rgba(255,255,255,0.55);
   text-transform: uppercase;
@@ -12469,7 +12524,7 @@ html[data-evolve-preview="1"] #development {
 }
 
 .hud-slot-label {
-  font-size: 0.58rem;
+  font-size: clamp(11px, 0.58rem, 8rem);
   font-weight: 600;
   color: rgba(200,220,255,0.52);
   text-transform: uppercase;
@@ -12488,7 +12543,7 @@ html[data-evolve-preview="1"] #development {
   filter: drop-shadow(0 0 4px color-mix(in srgb, var(--sc) 50%, transparent));
 }
 .hud-slot-unit {
-  font-size: 0.6rem;
+  font-size: clamp(11px, 0.6rem, 8rem);
   font-weight: 500;
   color: color-mix(in srgb, var(--sc) 55%, rgba(255,255,255,0.3));
   align-self: flex-end;
@@ -13025,7 +13080,7 @@ html[data-evolve-preview="1"] #development {
 }
 
 .compass-cardinal {
-  font-size: 9px;
+  font-size: clamp(11px, 9px, 8rem);
   font-weight: 800;
   font-family: "Space Grotesk", "Heebo", sans-serif;
   letter-spacing: 0.04em;
@@ -13036,7 +13091,7 @@ html[data-evolve-preview="1"] #development {
 
 .north-cardinal {
   fill: #e11d48;
-  font-size: 10.5px;
+  font-size: clamp(11px, 10.5px, 8rem);
 }
 
 .compass-rose-group {
@@ -13045,7 +13100,7 @@ html[data-evolve-preview="1"] #development {
 }
 
 .compass-deg-label {
-  font-size: 9px;
+  font-size: clamp(11px, 9px, 8rem);
   font-weight: 700;
   font-family: "Space Grotesk", "Heebo", ui-monospace, monospace;
   fill: rgba(0, 71, 141, 0.8);
@@ -13061,7 +13116,7 @@ html[data-evolve-preview="1"] #development {
   border-radius: 5px;
   background: linear-gradient(180deg, #0056a8 0%, var(--primary) 100%);
   color: #fff;
-  font-size: 0.62rem;
+  font-size: clamp(11px, 0.62rem, 8rem);
   font-weight: 800;
   font-family: "Space Grotesk", "Heebo", sans-serif;
   border: none;
@@ -13481,7 +13536,7 @@ details.flight-manage summary {
   background: #34d399;
 }
 .comm-link-pct {
-  font-size: 0.58rem;
+  font-size: clamp(11px, 0.58rem, 8rem);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   font-family: "Heebo", sans-serif;
@@ -13518,7 +13573,7 @@ details.flight-manage summary {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 0.66rem;
+  font-size: clamp(11px, 0.66rem, 8rem);
   font-weight: 700;
   line-height: 1.3;
   color: #cbd5e1;
@@ -13529,7 +13584,7 @@ details.flight-manage summary {
 .comm-link-meta[hidden] { display: none; }
 .comm-link-hint {
   margin: 0;
-  font-size: 0.66rem;
+  font-size: clamp(11px, 0.66rem, 8rem);
   line-height: 1.35;
   color: #94a3b8;
   font-family: "Heebo", sans-serif;
@@ -13539,7 +13594,7 @@ details.flight-manage summary {
 }
 .comm-link-status {
   margin: 0;
-  font-size: 0.66rem;
+  font-size: clamp(11px, 0.66rem, 8rem);
   font-weight: 700;
   line-height: 1.3;
   font-family: "Heebo", sans-serif;
@@ -13554,7 +13609,7 @@ details.flight-manage summary {
 .comm-link-row[data-tone="off"] .comm-link-status { color: #94a3b8; }
 .comm-link-error {
   margin: 0;
-  font-size: 0.64rem;
+  font-size: clamp(11px, 0.64rem, 8rem);
   line-height: 1.35;
   color: #fecaca;
   font-family: "Heebo", sans-serif;
@@ -13566,7 +13621,7 @@ details.flight-manage summary {
   align-items: center;
   gap: 4px;
   margin-top: 2px;
-  font-size: 0.62rem;
+  font-size: clamp(11px, 0.62rem, 8rem);
   color: #94a3b8;
   font-family: "Heebo", sans-serif;
 }
@@ -13836,11 +13891,11 @@ details.flight-manage summary {
   direction: rtl;
   text-align: right;
 }
-.mission-region-horizon .mission-annotated-vision {
-  flex: 0 1 auto;
-  max-height: 72px;
-  overflow: auto;
-  padding: 4px 6px;
+.mission-region-horizon .mission-annotated-vision.instrument-stage-view {
+  flex: none;
+  max-height: none;
+  overflow: hidden;
+  padding: 6px;
 }
 .mission-annotated-vision[hidden],
 .mission-annotated-vision.hidden {
@@ -13855,7 +13910,7 @@ details.flight-manage summary {
 }
 .mission-annotated-path {
   margin: 2px 0 0;
-  font-size: 0.62rem;
+  font-size: clamp(11px, 0.62rem, 8rem);
   color: #94a3b8;
   font-family: "Heebo", sans-serif;
 }
@@ -13963,7 +14018,7 @@ details.flight-manage summary {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.65rem;
+  font-size: clamp(11px, 0.65rem, 8rem);
   font-weight: 700;
   z-index: 1;
   flex-shrink: 0;
@@ -14650,7 +14705,7 @@ details.flight-manage summary {
 .cp-features-grid { display: flex; flex-direction: column; gap: var(--space-4); }
 .cp-group { display: flex; flex-direction: column; gap: var(--space-2); }
 .cp-group-label {
-  font-size: 0.62rem;
+  font-size: clamp(11px, 0.62rem, 8rem);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -14688,7 +14743,7 @@ details.flight-manage summary {
   flex: 1;
 }
 .cp-card-badge {
-  font-size: 0.58rem;
+  font-size: clamp(11px, 0.58rem, 8rem);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -14697,7 +14752,7 @@ details.flight-manage summary {
 }
 .cp-badge--active { background: rgba(16,185,129,0.2);  color: #6ee7b7; border: 1px solid rgba(16,185,129,0.3); }
 .cp-badge--draft  { background: rgba(245,158,11,0.15); color: #fcd34d; border: 1px solid rgba(245,158,11,0.25); }
-.cp-card-count { font-size: 0.62rem; color: rgba(150,180,220,0.45); margin-right: auto; }
+.cp-card-count { font-size: clamp(11px, 0.62rem, 8rem); color: rgba(150,180,220,0.45); margin-right: auto; }
 .cp-card-desc { margin: 0; font-size: 0.72rem; color: rgba(180,200,230,0.55); line-height: 1.4; }
 
 /* Param rows */
@@ -14728,12 +14783,12 @@ details.flight-manage summary {
   flex-shrink: 0;
 }
 .cp-param-unit {
-  font-size: 0.62rem;
+  font-size: clamp(11px, 0.62rem, 8rem);
   color: rgba(150,180,220,0.5);
   flex-shrink: 0;
 }
 .cp-param-desc {
-  font-size: 0.65rem;
+  font-size: clamp(11px, 0.65rem, 8rem);
   color: rgba(180,200,230,0.55);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -14771,7 +14826,7 @@ details.flight-manage summary {
 }
 .cp-param-send:hover { background: rgba(0,140,255,0.22); }
 .cp-param-send:disabled { opacity: 0.5; pointer-events: none; }
-.cp-param-status { font-size: 0.65rem; min-width: 28px; }
+.cp-param-status { font-size: clamp(11px, 0.65rem, 8rem); min-width: 28px; }
 .cp-param-status.ok  { color: #6ee7b7; }
 .cp-param-status.err { color: #fca5a5; }
 
@@ -14884,7 +14939,7 @@ details.flight-manage summary {
   line-height: 1.2;
 }
 .fd-sidebar-brand-sub {
-  font-size: 0.65rem;
+  font-size: clamp(11px, 0.65rem, 8rem);
   font-weight: 500;
   color: rgba(255,255,255,0.65);
   letter-spacing: 0.06em;
@@ -15232,7 +15287,7 @@ details.flight-manage summary {
 }
 
 .fd-status-badge {
-  font-size: 0.63rem;
+  font-size: clamp(11px, 0.63rem, 8rem);
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -15324,7 +15379,7 @@ details.flight-manage summary {
 .fd-message.assistant { align-self: flex-start; }
 
 .fd-message-role {
-  font-size: 0.62rem;
+  font-size: clamp(11px, 0.62rem, 8rem);
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -15434,7 +15489,7 @@ details.flight-manage summary {
   display: inline-block;
   background: linear-gradient(135deg, #00478d, var(--primary-container));
   color: #fff;
-  font-size: 0.66rem;
+  font-size: clamp(11px, 0.66rem, 8rem);
   font-weight: 700;
   padding: 2px 8px;
   border-radius: 999px;
@@ -15605,7 +15660,7 @@ details.flight-manage summary {
 }
 
 .fd-param-type-badge {
-  font-size: 0.62rem;
+  font-size: clamp(11px, 0.62rem, 8rem);
   font-weight: 700;
   letter-spacing: 0.05em;
   padding: 2px 7px;
@@ -15689,7 +15744,7 @@ details.flight-manage summary {
 
 /* Custom feature tag in smart-search results */
 .fd-custom-feature-tag {
-  font-size: 0.63rem;
+  font-size: clamp(11px, 0.63rem, 8rem);
   font-weight: 700;
   letter-spacing: 0.05em;
   padding: 2px 8px;
@@ -15999,7 +16054,7 @@ details.flight-manage summary {
   min-width: 0;
 }
 .fe-mic-label {
-  font-size: 0.62rem;
+  font-size: clamp(11px, 0.62rem, 8rem);
   font-weight: 800;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -16029,7 +16084,7 @@ details.flight-manage summary {
   flex-shrink: 0;
 }
 .fe-vad-label {
-  font-size: 0.58rem;
+  font-size: clamp(11px, 0.58rem, 8rem);
   font-weight: 700;
   color: var(--text-subtle);
   letter-spacing: 0.03em;
@@ -16099,7 +16154,7 @@ details.flight-manage summary {
   box-shadow: var(--shadow-card);
 }
 .fe-msg-time {
-  font-size: 0.6rem;
+  font-size: clamp(11px, 0.6rem, 8rem);
   color: var(--text-subtle);
   padding: 0 5px;
 }
@@ -16188,7 +16243,7 @@ details.flight-manage summary {
   border-radius: 18px 18px 0 0;
 }
 .fe-welcome-kicker {
-  font-size: 0.62rem;
+  font-size: clamp(11px, 0.62rem, 8rem);
   font-weight: 800;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -16373,7 +16428,7 @@ details.flight-manage summary {
 }
 .fe-reject-btn:hover { background: #fef2f2; border-color: #fca5a5; color: #b91c1c; }
 .fe-approval-rc-hint {
-  font-size: 0.62rem;
+  font-size: clamp(11px, 0.62rem, 8rem);
   color: var(--text-subtle);
   padding-top: 2px;
 }
@@ -16412,7 +16467,7 @@ details.flight-manage summary {
   letter-spacing: -0.01em;
 }
 .fe-notes-caption {
-  font-size: 0.64rem;
+  font-size: clamp(11px, 0.64rem, 8rem);
   color: var(--text-subtle);
   line-height: 1.3;
 }
@@ -16449,7 +16504,7 @@ details.flight-manage summary {
 .fe-note-item[data-cat="action"]  { border-color: rgba(234,179,8,0.45); background: linear-gradient(180deg,#ffffff,#fffbeb); }
 .fe-note-item[data-cat="reminder"] { border-color: rgba(34,197,94,0.35); background: linear-gradient(180deg,#ffffff,#ecfdf5); }
 .fe-note-meta {
-  font-size: 0.58rem;
+  font-size: clamp(11px, 0.58rem, 8rem);
   color: var(--text-subtle);
   display: flex;
   gap: 8px;
@@ -16463,7 +16518,7 @@ details.flight-manage summary {
   border: none;
   border-radius: 4px;
   color: #b91c1c;
-  font-size: 0.65rem;
+  font-size: clamp(11px, 0.65rem, 8rem);
   cursor: pointer;
   padding: 2px 5px;
   opacity: 0;
@@ -16913,7 +16968,7 @@ details.flight-manage summary {
 }
 .sim-lab-tape-label {
   display: block;
-  font-size: 0.65rem;
+  font-size: clamp(11px, 0.65rem, 8rem);
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: rgba(226, 232, 255, 0.58);
@@ -17236,7 +17291,7 @@ details.flight-manage summary {
 
 .sim-lab-event-kind {
   font-family: ui-monospace, monospace;
-  font-size: 0.66rem;
+  font-size: clamp(11px, 0.66rem, 8rem);
   letter-spacing: 0.03em;
   text-transform: uppercase;
 }
@@ -17493,7 +17548,7 @@ details.flight-manage summary {
 }
 .flight-list-row:hover { background: rgba(255,255,255,0.06); }
 .flight-list-num {
-  font-size: 0.65rem;
+  font-size: clamp(11px, 0.65rem, 8rem);
   color: var(--text-muted, rgba(255,255,255,0.35));
   font-family: "Fira Code", monospace;
   flex-shrink: 0;
@@ -17510,7 +17565,7 @@ details.flight-manage summary {
   white-space: nowrap;
 }
 .flight-list-date {
-  font-size: 0.62rem;
+  font-size: clamp(11px, 0.62rem, 8rem);
   color: var(--text-muted, rgba(255,255,255,0.35));
   font-family: "Space Grotesk", sans-serif;
   flex-shrink: 0;
@@ -17584,7 +17639,7 @@ details.flight-manage summary {
 }
 
 .sl-section-title {
-  font-size: 0.64rem;
+  font-size: clamp(11px, 0.64rem, 8rem);
   font-weight: 800;
   letter-spacing: 0.09em;
   text-transform: uppercase;
@@ -17660,13 +17715,13 @@ details.flight-manage summary {
   background: transparent;
   border-color: transparent;
   color: var(--text-muted);
-  font-size: 0.66rem;
+  font-size: clamp(11px, 0.66rem, 8rem);
 }
 .sl-btn--ghost:hover { color: var(--primary); background: transparent; }
 
 /* Meta / status line */
 .sl-meta {
-  font-size: 0.64rem;
+  font-size: clamp(11px, 0.64rem, 8rem);
   color: var(--text-muted);
   line-height: 1.4;
   margin: 0;
@@ -17699,7 +17754,7 @@ details.flight-manage summary {
 
 /* key legend inside more */
 .sl-keys summary {
-  font-size: 0.65rem;
+  font-size: clamp(11px, 0.65rem, 8rem);
   cursor: pointer;
   color: var(--text-muted);
   padding: 2px 0;
@@ -17738,7 +17793,7 @@ details.flight-manage summary {
   background: rgba(0,0,0,0.45);
   border-radius: 5px;
   padding: 3px 8px;
-  font-size: 0.63rem;
+  font-size: clamp(11px, 0.63rem, 8rem);
   color: rgba(255,255,255,0.75);
   cursor: pointer;
   user-select: none;
@@ -17807,7 +17862,7 @@ details.flight-manage summary {
 /* ── Responsive ──────────────────────────────────────────────────── */
 @media (max-width: 640px) {
   .sl-sidebar { width: 150px; }
-  .sl-preset-btn { font-size: 0.65rem; padding: 5px 8px; }
+  .sl-preset-btn { font-size: clamp(11px, 0.65rem, 8rem); padding: 5px 8px; }
 }
 
 @media (max-width: 480px) {
@@ -17969,7 +18024,7 @@ details.flight-manage summary {
 }
 
 .sl-qs2-conn-sub {
-  font-size: 0.6rem;
+  font-size: clamp(11px, 0.6rem, 8rem);
   color: rgba(255,255,255,0.45);
   font-family: "Space Grotesk", "Heebo", sans-serif;
   white-space: nowrap;
@@ -17985,14 +18040,14 @@ details.flight-manage summary {
   border: 1px solid rgba(255,255,255,0.1);
   border-radius: 20px;
   padding: 2px 9px;
-  font-size: 0.65rem;
+  font-size: clamp(11px, 0.65rem, 8rem);
   color: rgba(255,255,255,0.55);
   font-family: "Space Grotesk", "Heebo", sans-serif;
 }
 
 .sl-qs2-or {
   text-align: center;
-  font-size: 0.65rem;
+  font-size: clamp(11px, 0.65rem, 8rem);
   color: rgba(255,255,255,0.28);
   font-family: "Space Grotesk", "Heebo", sans-serif;
 }
@@ -18044,7 +18099,7 @@ details.flight-manage summary {
 }
 
 .sl-preset-sub {
-  font-size: 0.6rem;
+  font-size: clamp(11px, 0.6rem, 8rem);
   font-weight: 500;
   opacity: 0.7;
   font-family: "Fira Code", "Courier New", monospace;
@@ -18087,7 +18142,7 @@ details.flight-manage summary {
   align-items: center;
 }
 .sl-pf-title {
-  font-size: 0.62rem;
+  font-size: clamp(11px, 0.62rem, 8rem);
   font-weight: 700;
   font-family: "Heebo", sans-serif;
   color: rgba(226, 232, 240, 0.62);
@@ -18156,7 +18211,7 @@ details.flight-manage summary {
 .sl-pf-log:empty { display: none; }
 
 .sl-pf-log-item {
-  font-size: 0.62rem;
+  font-size: clamp(11px, 0.62rem, 8rem);
   font-family: "Fira Code", "Courier New", monospace;
   color: rgba(255,255,255,0.5);
   line-height: 1.45;
@@ -18226,7 +18281,7 @@ details.flight-manage summary {
 }
 
 .sl-wiz-step-label {
-  font-size: 0.6rem;
+  font-size: clamp(11px, 0.6rem, 8rem);
   font-weight: 600;
   color: rgba(255,255,255,0.35);
   font-family: "Space Grotesk", "Heebo", sans-serif;
@@ -18377,7 +18432,7 @@ details.flight-manage summary {
   flex: 1;
 }
 .sl-wiz-conn-desc {
-  font-size: 0.65rem;
+  font-size: clamp(11px, 0.65rem, 8rem);
   color: rgba(255,255,255,0.45);
   font-family: "Space Grotesk", "Heebo", sans-serif;
 }
@@ -18408,7 +18463,7 @@ details.flight-manage summary {
 .sl-wiz-conn-status.err { color: #f87171; }
 
 .sl-wiz-divider {
-  font-size: 0.65rem;
+  font-size: clamp(11px, 0.65rem, 8rem);
   color: rgba(255,255,255,0.22);
   text-align: center;
   font-family: "Space Grotesk", "Heebo", sans-serif;
@@ -18473,7 +18528,7 @@ details.flight-manage summary {
   max-width: 100%;
   padding: 1px 7px;
   border-radius: 999px;
-  font-size: 0.66rem;
+  font-size: clamp(11px, 0.66rem, 8rem);
   font-weight: 700;
   color: #fff7ed;
   background: rgba(245, 158, 11, 0.28);
@@ -18508,8 +18563,8 @@ details.flight-manage summary {
   z-index: 8600;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 12px 12px 14px;
+  gap: 6px;
+  padding: 8px 8px 8px;
   background: rgba(12, 18, 28, 0.96);
   border-inline-start: 1px solid rgba(255, 255, 255, 0.1);
   box-shadow: -8px 0 28px rgba(0, 0, 0, 0.35);
@@ -18538,13 +18593,26 @@ details.flight-manage summary {
 .assist-rail:not(.assist-rail--mission) .assist-form {
   min-width: 0;
 }
+.assist-rail .assist-mic-btn,
 .assist-rail:not(.assist-rail--mission) .assist-mic-btn {
-  min-width: 48px;
-  max-width: 72px;
-  padding: 8px;
+  flex: 0 0 36px;
+  width: 36px;
+  min-width: 36px;
+  max-width: 36px;
+  min-height: 36px;
+  height: 36px;
+  padding: 0;
+  flex-direction: row;
 }
+.assist-rail .assist-mic-label,
 .assist-rail:not(.assist-rail--mission) .assist-mic-label {
   display: none;
+}
+.assist-rail .assist-btn-send {
+  flex: 0 0 auto;
+  position: static;
+  padding: 6px 8px;
+  white-space: nowrap;
 }
 .assist-rail[hidden] { display: none !important; }
 body.mission-assist-docked .assist-rail,
@@ -18707,8 +18775,12 @@ body.mission-assist-docked .assist-rail.assist-rail--mission,
   display: flex;
   flex-flow: row nowrap;
   align-items: flex-end;
+  gap: 4px;
   min-width: 0;
   width: 100%;
+}
+#missionTalkHost .assist-empty-stage {
+  min-height: 0;
 }
 #missionTalkHost .assist-input {
   flex: 1 1 auto;
@@ -18729,13 +18801,25 @@ body.mission-assist-docked .assist-rail.assist-rail--mission,
   max-height: 7.5em;
   overflow-y: auto;
 }
-#missionTalkHost .assist-mic-btn {
+#missionTalkHost .assist-agent-offline {
   flex: 0 0 auto;
-  flex-direction: column;
-  max-width: 96px;
-  min-width: 88px;
-  padding: 8px 6px;
-  gap: 4px;
+  min-height: 1.15em;
+  overflow: hidden;
+}
+#missionTalkHost .assist-voice-go,
+#missionTalkHost .assist-composer {
+  flex-shrink: 0;
+}
+#missionTalkHost .assist-mic-btn {
+  flex: 0 0 36px;
+  flex-direction: row;
+  width: 36px;
+  max-width: 36px;
+  min-width: 36px;
+  min-height: 36px;
+  height: 36px;
+  padding: 0;
+  gap: 0;
 }
 #missionTalkHost .mission-talk-hint,
 .mission-region-talk .mission-talk-hint {
@@ -18746,19 +18830,19 @@ body.mission-assist-docked .assist-rail.assist-rail--mission,
   background: rgba(16, 185, 129, 0.22);
   color: #ecfdf5;
   border-color: rgba(74, 222, 128, 0.42);
-  min-height: 56px;
-  min-width: 88px;
-  max-width: 96px;
-  flex: 0 0 auto;
-  flex-direction: column;
-  padding: 8px 6px;
-  gap: 4px;
+  min-height: 36px;
+  min-width: 36px;
+  max-width: 36px;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  flex-direction: row;
+  padding: 0;
+  gap: 0;
 }
-#missionTalkHost .assist-mic-label {
-  white-space: normal;
-  text-align: center;
-  font-size: 0.62rem;
-  line-height: 1.15;
+#missionTalkHost .assist-mic-label,
+.mission-region-talk .assist-mic-label {
+  display: none;
 }
 .assist-rail-head {
   display: flex;
@@ -18766,21 +18850,15 @@ body.mission-assist-docked .assist-rail.assist-rail--mission,
   justify-content: space-between;
   gap: 8px;
 }
-.assist-rail-titles { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.assist-rail-titles { display: flex; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0; }
 .assist-rail-title {
   font-family: "Heebo", "Space Grotesk", sans-serif;
-  font-size: 1.15rem;
-  letter-spacing: 0.04em;
+  font-size: 0.92rem;
+  letter-spacing: 0.02em;
   font-weight: 800;
   color: #ecfdf5;
 }
-.assist-rail-mark {
-  font-family: "Space Grotesk", sans-serif;
-  font-size: 0.58rem;
-  letter-spacing: 0.16em;
-  color: rgba(187, 247, 208, 0.55);
-  font-weight: 600;
-}
+.assist-rail-mark { display: none; }
 .assist-context-chip {
   font-size: 0.68rem;
   color: rgba(187, 247, 208, 0.85);
@@ -18815,50 +18893,114 @@ body.mission-assist-docked .assist-rail.assist-rail--mission,
   color: rgba(134, 239, 172, 0.92);
 }
 .assist-voice-go {
-  border: 1px solid rgba(148, 163, 184, 0.28);
-  background: rgba(15, 23, 42, 0.42);
-  border-radius: 12px;
-  padding: 8px 10px;
+  border: 0;
+  background: transparent;
+  padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-}
-.assist-voice-go[data-go="1"] {
-  border-color: rgba(251, 191, 36, 0.7);
-  background: rgba(120, 53, 15, 0.38);
-  box-shadow: inset 0 0 0 1px rgba(251, 191, 36, 0.18);
+  gap: 4px;
+  min-width: 0;
 }
 .assist-voice-go-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
+  gap: 6px;
+  flex-wrap: nowrap;
   min-width: 0;
 }
-.assist-voice-go-row .assist-btn {
+.assist-voice-go-toggle {
   flex: 1 1 auto;
   min-width: 0;
-  max-width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 32px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: rgba(15, 23, 42, 0.42);
+  color: #e2e8f0;
+  font-family: "Heebo", sans-serif;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.2;
+  cursor: pointer;
+  text-align: start;
+}
+.assist-voice-go-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.assist-voice-go[data-go="1"] .assist-voice-go-toggle {
+  border-color: rgba(251, 191, 36, 0.9);
+  background: rgba(120, 53, 15, 0.62);
+  color: #fde68a;
+  box-shadow: inset 0 0 0 1px rgba(251, 191, 36, 0.28);
 }
 .assist-voice-go-badge {
-  font-size: 0.72rem;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  padding: 1px 8px;
+  background: rgba(148, 163, 184, 0.22);
+  color: #e2e8f0;
+  font-size: clamp(11px, 0.66rem, 8rem);
   font-weight: 800;
-  letter-spacing: 0.02em;
-  color: rgba(226, 232, 240, 0.82);
-  unicode-bidi: isolate;
-}
-#assistVoiceGoBtn {
-  direction: ltr;
   unicode-bidi: isolate;
 }
 .assist-voice-go[data-go="1"] .assist-voice-go-badge {
-  color: #fde68a;
+  background: #fbbf24;
+  color: #1c1917;
+}
+.assist-info-btn {
+  flex: 0 0 28px;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  background: transparent;
+  color: rgba(226, 232, 240, 0.8);
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 0.75rem;
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
 }
 .assist-voice-go-hint {
   margin: 0;
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   color: rgba(226, 232, 240, 0.72);
-  line-height: 1.4;
+  line-height: 1.3;
+}
+.assist-voice-go-hint[hidden] { display: none !important; }
+.assist-agent-offline {
+  margin: 0;
+  min-height: 0;
+  line-height: 1.2;
+}
+.assist-agent-offline[hidden] { display: none !important; }
+.assist-agent-settings-link {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  color: rgba(226, 232, 240, 0.5);
+  font-family: "Heebo", sans-serif;
+  font-size: 0.68rem;
+  font-weight: 600;
+  line-height: 1.2;
+  text-decoration: underline;
+  cursor: pointer;
+}
+#gsCodingAgent .assist-agent-connect {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  gap: 6px;
+  box-shadow: none;
 }
 .assist-agent-connect {
   border: 1px solid rgba(148, 163, 184, 0.28);
@@ -18929,11 +19071,13 @@ body.mission-assist-docked .assist-rail.assist-rail--mission,
   display: none !important;
 }
 .assist-agent-connect[data-state="connected"] .assist-agent-form,
-.assist-agent-connect[data-state="connected"] .assist-agent-hint {
+.assist-agent-connect[data-state="connected"] .assist-agent-hint,
+.assist-agent-connect[data-key="1"] .assist-agent-form,
+.assist-agent-connect[data-key="1"] .assist-agent-hint {
   display: none !important;
 }
-.assist-agent-connect:not([data-state="connected"]) #assistAgentDisconnectBtn,
-.assist-agent-connect:not([data-state="connected"]) .assist-agent-key-hint {
+.assist-agent-connect:not([data-state="connected"]):not([data-key="1"]) #assistAgentDisconnectBtn,
+.assist-agent-connect:not([data-key="1"]) .assist-agent-key-hint {
   display: none !important;
 }
 .assist-agent-label {
@@ -19039,7 +19183,7 @@ body.mission-assist-docked .assist-rail.assist-rail--mission,
 .assist-msg-meta {
   display: block;
   margin-top: 4px;
-  font-size: 0.65rem;
+  font-size: clamp(11px, 0.65rem, 8rem);
   color: rgba(255, 255, 255, 0.4);
   font-family: "Space Grotesk", monospace;
 }
@@ -19287,28 +19431,40 @@ body.mission-assist-docked .assist-rail.assist-rail--mission,
 }
 .assist-composer {
   margin-top: auto;
+  position: relative;
+  z-index: 2;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 4px;
+  min-width: 0;
+  width: 100%;
 }
 .assist-quick-chips {
   display: flex;
-  gap: 6px;
+  gap: 4px;
   justify-content: flex-start;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  min-width: 0;
+  overflow: hidden;
 }
 .assist-quick-chips[hidden] { display: none !important; }
 .assist-quick-chip[hidden] { display: none !important; }
 .assist-quick-chip {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
   border-radius: 999px;
   border: 1px solid rgba(187, 247, 208, 0.22);
   background: rgba(20, 83, 45, 0.28);
   color: rgba(187, 247, 208, 0.88);
-  padding: 3px 10px;
-  font-size: 0.68rem;
+  padding: 2px 8px;
+  font-size: clamp(11px, 0.66rem, 8rem);
   font-weight: 700;
   font-family: "Heebo", sans-serif;
   cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .assist-quick-chip:hover {
   border-color: rgba(74, 222, 128, 0.4);
@@ -19354,7 +19510,7 @@ body.mission-assist-docked .assist-rail.assist-rail--mission,
 .assist-form {
   display: flex;
   flex-flow: row nowrap;
-  gap: 8px;
+  gap: 4px;
   align-items: flex-end;
   min-width: 0;
   width: 100%;
@@ -19818,20 +19974,21 @@ body:has(#control.panel.visible) .ardu-top-cats-host {
 /* ── Flight column: horizon, heading, sources, wrapping tiles, messages ── */
 .mission-region-horizon > .flight-hud {
   max-height: none;
-  flex: 1 1 auto;
-  min-height: 0;
+  flex: 3 1 0;
+  min-height: 120px;
   overflow: hidden;
 }
 .mission-region-horizon .mission-region-data {
   flex-direction: column;
   align-items: stretch;
-  max-height: none;
+  max-height: min(148px, 32%);
   height: auto;
   min-width: 0;
+  min-height: 0;
   width: 100%;
   max-width: 100%;
-  flex: 0 0 auto;
-  overflow: hidden;
+  flex: 1 1 auto;
+  overflow: auto;
   align-self: stretch;
   box-sizing: border-box;
 }
@@ -19872,13 +20029,22 @@ body:has(#control.panel.visible) .ardu-top-cats-host {
 .mission-region-horizon .mission-data-label,
 .mission-region-horizon .mission-data-value,
 .mission-region-horizon .mission-data-unit {
-  overflow: visible;
+  overflow: hidden;
   text-overflow: unset;
   letter-spacing: 0;
   max-width: 100%;
 }
+.mission-region-horizon #missionLink {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: clip;
+  line-height: 1.15;
+  font-size: clamp(11px, 0.62rem, 8rem);
+  max-width: 100%;
+}
 .mission-region-horizon .mission-data-label {
-  font-size: 0.58rem;
+  font-size: clamp(11px, 0.58rem, 8rem);
 }
 .mission-region-data > .mission-horizon-filler {
   flex: 0 0 auto;
@@ -19943,7 +20109,7 @@ body:has(#control.panel.visible) .ardu-top-cats-host {
   margin: 0;
   overflow: visible;
   white-space: nowrap;
-  font-size: 0.62rem;
+  font-size: clamp(11px, 0.62rem, 8rem);
   line-height: 1;
 }
 .mission-region-data .mission-horizon-filler-note {
@@ -19959,17 +20125,21 @@ body:has(#control.panel.visible) .ardu-top-cats-host {
   line-height: 1.35;
 }
 .mission-region-data > .pfd-bottom-bar {
-  position: static;
+  position: sticky;
+  bottom: 0;
   width: 100%;
   flex: 0 0 auto;
   min-height: 20px;
   padding: 0 6px;
+  background: #151b27;
+  z-index: 2;
 }
 .mission-region-horizon .pfd-top-bar {
-  flex-wrap: wrap;
-  overflow: visible;
-  height: auto;
-  max-height: none;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  height: 26px;
+  max-height: 26px;
 }
 .mission-region-horizon .pfd-mode-val {
   flex: 0 0 auto;
@@ -19979,10 +20149,18 @@ body:has(#control.panel.visible) .ardu-top-cats-host {
   max-width: 100%;
 }
 .mission-region-horizon .pfd-horizon-chrome {
-  max-height: none;
-  min-height: 28px;
-  overflow: visible;
-  flex-wrap: wrap;
+  max-height: 26px;
+  min-height: 26px;
+  height: 26px;
+  overflow: hidden;
+  flex-wrap: nowrap;
+}
+.mission-region-horizon .pfd-video-toggle {
+  flex: 1 1 auto;
+  min-width: max-content;
+  padding: 0 3px;
+  font-size: clamp(11px, 0.62rem, 8rem);
+  line-height: 22px;
 }
 .lock-indicator[hidden] { display: none !important; }
 .debrief-player .lock-indicator {
@@ -19996,6 +20174,13 @@ body:has(#control.panel.visible) .ardu-top-cats-host {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+.mission-region-map .leaflet-control-attribution a {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: bottom;
 }
 @media (max-width: 720px) {
   .app-chrome {
@@ -20092,6 +20277,20 @@ body:has(#control.panel.visible) .ardu-top-cats-host {
     height: 220px;
     flex: 0 0 auto;
   }
+  .mission-workspace[data-mission-swap="horizon-map"] .mission-region[data-mission-region="map"] {
+    min-height: 120px;
+    height: 140px;
+  }
+  .mission-workspace[data-mission-swap="horizon-map"] .mission-region[data-mission-region="horizon"] {
+    min-height: 280px;
+  }
+  .mission-workspace[data-mission-swap="horizon-map"] .mission-region-horizon .pfd-horizon-stage {
+    min-height: 240px;
+    height: 260px;
+  }
+  .mission-workspace[data-mission-swap="horizon-map"] .mission-region-horizon .pfd-horizon-instrument {
+    min-height: 292px;
+  }
   .mission-region[data-mission-region="messages"] {
     height: auto;
     min-height: 32px;
@@ -20149,7 +20348,7 @@ body:has(#control.panel.visible) .ardu-top-cats-host {
   }
   .mission-region[data-mission-region="talk"] {
     min-width: 0;
-    min-height: 140px;
+    min-height: 168px;
     height: auto;
   }
   .mission-region-map .leaflet-bottom.leaflet-left {
@@ -20169,6 +20368,615 @@ body:has(#control.panel.visible) .ardu-top-cats-host {
   }
   .mission-region-map .leaflet-control-attribution {
     display: none;
+  }
+}
+
+/* TEXT FIT CONTRACT
+   Visible text stays inside its own box.
+   Floor is 11px. Wrap instead of clipping. Do not fake a fit with hidden overflow.
+   See docs/UI_LAYOUT_CONTRACT.md and tests/text-fit-audit.mjs. */
+html body :is(
+  span, p, a, button, label, dt, dd, strong, em, b, small, li,
+  h1, h2, h3, h4, figcaption, th, td, legend, summary, caption
+):not(
+  .mission-region-title,
+  .visually-hidden,
+  .config-text-hidden,
+  .mission-sr-only,
+  .mission-identity,
+  .mission-layout-hint,
+  .mission-data-hint,
+  .mission-talk-hint,
+  .mission-ask-chip,
+  .pfc-opt-mini,
+  .comm-link-sr,
+  .pulse-purpose
+) {
+  white-space: normal !important;
+  text-overflow: clip !important;
+  overflow-wrap: break-word !important;
+  word-break: normal !important;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.mission-region-horizon .pfd-top-bar {
+  flex-wrap: wrap;
+  align-items: center;
+  align-content: flex-start;
+  height: auto;
+  min-height: 26px;
+  max-height: none;
+  overflow: visible;
+  row-gap: 2px;
+}
+.mission-region-horizon .pfd-top-bar > * {
+  flex: 0 1 auto;
+  min-width: min(100%, max-content);
+  max-width: 100%;
+  height: auto;
+  overflow: visible;
+  text-overflow: clip;
+  font-size: clamp(11px, 0.72rem, 13px);
+  line-height: 1.3;
+}
+.mission-region-horizon .pfd-mode-val,
+.mission-region-horizon .pfd-badge,
+.mission-region-horizon .hud-nav-val,
+.mission-region-horizon .hud-nav-icon,
+.mission-region-horizon .pfd-voice-flight-btn {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  height: auto;
+  max-height: none;
+  font-size: clamp(11px, 0.72rem, 13px);
+  line-height: 1.3;
+}
+.mission-region-horizon .hud-nav-pill {
+  flex: 0 1 auto;
+  min-width: min(100%, max-content);
+  max-width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.mission-region-horizon .mission-data-tile,
+.mission-region-horizon .mission-data-item {
+  overflow: visible;
+  height: auto;
+  max-height: none;
+  min-width: 0;
+  min-height: 56px;
+}
+.mission-region-horizon .mission-data-label,
+.mission-region-horizon .mission-data-unit,
+.mission-region-horizon .mission-data-readout,
+.mission-region-horizon #missionLink {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  height: auto;
+  max-height: none;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  font-size: clamp(11px, 0.75rem, 13px);
+  line-height: 1.35;
+}
+.mission-region-horizon .mission-data-value {
+  display: inline;
+  max-width: 100%;
+  height: auto;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  font-size: clamp(11px, 0.92rem, 18px);
+  line-height: 1.3;
+}
+.mission-region-horizon .mission-data-readout {
+  display: flex;
+  flex-wrap: wrap;
+  min-width: 0;
+  max-width: 100%;
+  height: auto;
+}
+
+.mission-region-data > .mission-horizon-filler,
+.mission-region-data .mission-horizon-filler > * {
+  overflow: visible;
+  height: auto;
+  max-height: none;
+}
+.mission-region-data .mission-horizon-filler > .mission-horizon-filler-kicker,
+.mission-region-data .mission-horizon-filler-note {
+  flex: 0 0 auto;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  height: auto;
+  overflow: visible;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+  font-size: clamp(11px, 0.78rem, 14px);
+  line-height: 1.35;
+}
+
+.mission-region-horizon .pfd-horizon-chrome {
+  height: auto;
+  min-height: 26px;
+  max-height: none;
+  overflow: visible;
+  flex-wrap: wrap;
+}
+.mission-region-horizon .pfd-video-toggle {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  height: auto;
+  overflow: visible;
+  white-space: normal;
+  font-size: clamp(11px, 0.75rem, 13px);
+  line-height: 1.3;
+}
+
+.pfd-tape-big,
+.pfd-tape-key,
+.pfd-tape-unit,
+.pfd-hdg-arrow,
+.pfd-hdg-val,
+.hud-nav-icon,
+.assist-mic-icon,
+.assist-toggle-mic,
+.mission-messages-toggle-label,
+.param-title {
+  line-height: 1.35;
+  height: auto;
+  max-height: none;
+  overflow: visible;
+  text-overflow: clip;
+}
+.pfd-tape-key,
+.pfd-tape-unit {
+  font-size: clamp(11px, 0.7rem, 12px);
+}
+
+.tabs,
+.tele-subtabs,
+.subtabs {
+  flex-wrap: wrap;
+  max-width: 100%;
+}
+.tab,
+.subtab,
+.tele-subtab {
+  max-width: 100%;
+  min-width: 0;
+  height: auto;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  font-size: clamp(11px, 0.75rem, 14px);
+  line-height: 1.3;
+}
+
+.conn-pill {
+  flex-wrap: wrap;
+  max-width: 100%;
+  height: auto;
+}
+.conn-pill-label {
+  max-width: min(240px, 100%);
+  height: auto;
+  overflow: visible;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+  font-size: clamp(11px, 0.78rem, 14px);
+  line-height: 1.35;
+}
+
+.param-title,
+.pulse-health-note,
+.pulse-title,
+.gs-hint,
+.assist-empty-invite {
+  max-width: 100%;
+  height: auto;
+  max-height: none;
+  overflow: visible;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+  line-height: 1.35;
+}
+.pulse-health-note,
+.gs-hint,
+.assist-empty-invite {
+  font-size: clamp(11px, 0.8rem, 16px);
+}
+
+.mission-region-map .leaflet-bottom {
+  max-width: calc(100% - 8px);
+}
+.mission-region-map .leaflet-control-attribution {
+  max-width: 100%;
+  width: auto;
+  height: auto;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  overflow: visible;
+  text-overflow: clip;
+  font-size: clamp(11px, 0.7rem, 12px);
+  line-height: 1.3;
+}
+.mission-region-map .leaflet-control-attribution a {
+  display: inline;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  overflow: visible;
+  text-overflow: clip;
+  font-size: clamp(11px, 0.7rem, 12px);
+  line-height: 1.3;
+}
+.leaflet-bar a {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 26px !important;
+  height: 26px !important;
+  max-width: 26px !important;
+  max-height: 26px !important;
+  padding: 0 !important;
+  font-size: 16px !important;
+  line-height: 1 !important;
+  overflow: hidden !important;
+}
+.leaflet-bar a span {
+  display: block !important;
+  line-height: 1.35 !important;
+  height: auto !important;
+  max-height: none !important;
+  font-size: 14px !important;
+  overflow: visible !important;
+}
+
+.mission-nav-display-kicker,
+.mission-nav-display-status,
+.mission-record-cue,
+.assist-toggle-en {
+  font-size: clamp(11px, 0.75rem, 13px);
+  line-height: 1.3;
+  max-width: 100%;
+  height: auto;
+  overflow: visible;
+  white-space: normal;
+  text-overflow: clip;
+}
+.mission-nav-display,
+.mission-link-strip,
+.mission-ops-leading {
+  flex-wrap: wrap;
+  max-width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.assist-toggle-btn.assist-toggle-float .assist-toggle-he,
+.assist-toggle-btn.assist-toggle-float .assist-toggle-he bdi {
+  display: inline-block;
+  line-height: 1.35;
+  height: auto;
+  max-width: 100%;
+  overflow: visible;
+}
+
+#missionTalkHost .assist-empty-stage,
+.mission-talk-host .assist-empty-stage,
+#missionTalkHost .assist-messages-empty {
+  min-height: min-content;
+  height: auto;
+  overflow: visible;
+}
+#missionTalkHost .assist-empty-invite,
+#missionTalkHost .assist-empty-invite bdi {
+  line-height: 1.45;
+  max-width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.pulse-gauge dd,
+.pulse-computer-metrics dd {
+  align-self: center;
+  line-height: 1.5 !important;
+  height: auto !important;
+  max-height: none;
+  overflow: visible !important;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.ac-b-card {
+  height: auto;
+  min-height: min-content;
+  overflow: visible;
+}
+.ac-b-grid {
+  min-height: min-content;
+  overflow: visible;
+}
+.pulse-add-widget {
+  min-height: min-content;
+  height: auto;
+  overflow: visible;
+}
+.pulse-add-widget-title,
+.pulse-add-widget-hint {
+  max-width: 100%;
+  height: auto;
+  overflow: visible;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+}
+
+.global-settings-btn {
+  width: 34px;
+  height: 34px;
+  max-width: 34px;
+  max-height: 34px;
+  line-height: 32px;
+  overflow: visible;
+}
+
+#flightArmRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  align-content: flex-start;
+  gap: 4px;
+  padding: 4px 6px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  flex: 0 0 auto;
+  overflow: visible;
+  background: rgba(0, 0, 0, 0.45);
+}
+.flight-arm-btn {
+  flex: 1 1 0;
+  min-width: 0;
+  font-size: clamp(11px, 0.72rem, 14px);
+  line-height: 1.35;
+  min-height: 28px;
+  height: auto;
+  padding: 2px 4px;
+  max-width: 100%;
+  overflow: visible;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+  border-radius: 6px;
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  background: rgba(15, 23, 42, 0.92);
+  color: #e2e8f0;
+  font-family: "Heebo", "Segoe UI", sans-serif;
+  font-weight: 700;
+  cursor: pointer;
+}
+.flight-arm-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.flight-arm-btn.is-holding {
+  outline: 2px solid #facc15;
+}
+.flight-arm-btn--danger {
+  border-color: rgba(248, 113, 113, 0.75);
+  color: #fecaca;
+}
+.flight-arm-reason,
+.flight-arm-refusal,
+.flight-arm-dialog-text {
+  flex: 1 1 100%;
+  margin: 0;
+  font-size: clamp(11px, 0.72rem, 14px);
+  line-height: 1.35;
+  max-width: 100%;
+  height: auto;
+  overflow: visible;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+  color: #fde68a;
+}
+.flight-arm-dialog {
+  flex: 1 1 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: 100%;
+  overflow: visible;
+}
+.flight-arm-dialog[hidden],
+.flight-arm-refusal[hidden],
+.flight-arm-reason[hidden] {
+  display: none;
+}
+.flight-arm-dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-width: 100%;
+}
+.pfd-side-tape {
+  padding: 0 3px;
+  gap: 0;
+  min-height: min-content;
+  overflow: visible;
+}
+.pfd-tape-big {
+  font-size: clamp(11px, 1rem, 16px);
+  line-height: 1.35;
+}
+.pfd-tape-key,
+.pfd-tape-unit {
+  line-height: 1.35;
+}
+
+/* Home shell: the connection pill, Ask, and map chrome stay in their own lane. */
+html[dir="rtl"] :is(p, button, span, h1, h2, h3, h4, label, li, strong) {
+  letter-spacing: 0;
+}
+.mission-horizon-filler-note,
+.mission-record-status,
+.mission-record-cue,
+.terrain-path-note,
+.horizon-no-data,
+.conn-link-chip,
+.operator-state-status,
+.operator-state-next {
+  direction: rtl;
+  unicode-bidi: isolate;
+}
+.horizon-no-data {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  background: rgba(8, 10, 16, 0.78);
+  color: #e8edf6;
+  font-size: clamp(11px, 0.95rem, 18px);
+  font-weight: 700;
+  pointer-events: none;
+}
+.horizon-no-data[hidden] { display: none; }
+.terrain-path-note {
+  flex: 1 1 100%;
+  margin: 0;
+  padding: 2px 6px;
+  color: #fecaca;
+  background: rgba(15, 23, 42, 0.92);
+  font-size: clamp(11px, 0.72rem, 14px);
+  line-height: 1.35;
+  white-space: normal;
+}
+.terrain-path-note[hidden] { display: none; }
+.conn-link-chip {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  height: auto;
+  max-width: 100%;
+}
+.mission-region-map > .mission-region-title {
+  z-index: 2;
+}
+.modal {
+  z-index: var(--z-modal-overlay);
+}
+.assist-rail:not(.assist-rail--mission) {
+  top: 44px;
+  height: calc(100dvh - 44px);
+  z-index: 180;
+}
+.assist-toggle-btn.assist-toggle-float {
+  position: static;
+  align-self: flex-end;
+  margin: 6px 12px 0;
+  min-height: 36px;
+  padding: 6px 12px;
+  z-index: 2;
+}
+.mission-record-status {
+  position: static;
+  flex: 1 0 100%;
+  max-width: 100%;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  pointer-events: none;
+}
+.mission-ops-chrome:has(#missionRecordStatus:not([hidden])) {
+  max-height: none;
+  height: auto;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+}
+.mission-region-horizon .hud-nav-val,
+.hud-nav-val {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  max-width: 100%;
+}
+.assist-btn-send,
+#missionTalkHost .assist-btn-send {
+  flex: 0 0 auto;
+  min-width: max-content;
+  overflow: visible;
+  position: static;
+}
+body:has(#telemetry.panel.visible) #telemetry,
+body:has(#telemetry.panel.visible) #telemetry h3,
+body:has(#telemetry.panel.visible) #telemetry .operator-state-status,
+body:has(#telemetry.panel.visible) #telemetry .operator-state-next,
+body:has(#telemetry.panel.visible) #telemetry .tele-dash-head,
+body:has(#telemetry.panel.visible) #telemetry .tele-dash-sub {
+  color: #e8edf6;
+}
+@media (max-width: 1100px) and (min-width: 721px) {
+  .mission-region-horizon .pfd-horizon-stage {
+    min-height: 120px;
+    height: auto;
+    max-height: none;
+    flex: 0 1 auto;
+  }
+  .mission-region-horizon .pfd-horizon-instrument {
+    min-height: 148px;
+    height: auto;
+    grid-template-rows: minmax(120px, 1fr) 28px;
+  }
+  .mission-region-horizon .mission-region-data {
+    max-height: none;
+    min-height: 120px;
+    overflow: visible;
+  }
+}
+@media (max-width: 720px) {
+  .mission-region[data-mission-region="map"] {
+    height: 220px;
+    min-height: 220px;
+    max-height: 220px;
+  }
+  .mission-region[data-mission-region="horizon"] {
+    height: auto;
+    min-height: 0;
+    max-height: none;
+    overflow: visible;
+  }
+  .mission-region-horizon .pfd-horizon-instrument,
+  .mission-region-horizon .pfd-horizon-shell,
+  .mission-region-horizon .pfd-horizon-stage {
+    min-height: 120px;
+    height: auto;
+    max-height: none;
+  }
+  .mission-region-talk,
+  #missionTalkHost {
+    min-height: 200px;
+  }
+  .param-center-search-bar .ardu-search-row {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -21356,6 +22164,376 @@ body:has(#pulse.panel.visible) .pulse-home.pulse-status-home {
   .cam0-controls input, .cam0-controls select { max-width: 100%; }
 }
 
+/* Flight instruments stay fully visible. The battery bar is in flow.
+   Below 1100px the Ask panel is an overlay, not a 183px row. */
+#missionAskToggleBtn,
+.mission-ask-close { display: none; }
+
+.mission-region-data > .pfd-bottom-bar {
+  position: static;
+  flex: 0 0 auto;
+  z-index: 1;
+  margin-top: auto;
+}
+@media (min-width: 1101px) {
+  .mission-region-horizon .mission-region-data {
+    display: flex;
+    flex-direction: column;
+    overflow: visible;
+    max-height: none;
+  }
+  .mission-region-horizon .mission-data-grid {
+    overflow: visible;
+    flex: 0 0 auto;
+  }
+}
+.mission-region-horizon > .flight-hud {
+  height: auto;
+  min-height: 0;
+  max-height: none;
+  flex: 1 1 0;
+}
+.mission-region[data-mission-region="data"],
+.mission-region-horizon .mission-region-data {
+  display: flex;
+  flex-direction: column;
+  overflow: visible;
+  max-height: none;
+  min-height: 0;
+  height: auto;
+  flex: 0 0 auto;
+}
+.mission-region-horizon .mission-data-grid {
+  flex: 0 0 auto;
+  min-height: 0;
+  height: auto;
+  max-height: none;
+  overflow: visible;
+}
+.mission-region-horizon .mission-data-tile {
+  min-height: 56px;
+  padding: 1px 4px;
+}
+@media (max-height: 800px) {
+  .mission-region-horizon .mission-data-tile {
+    min-height: 40px;
+  }
+}
+.mission-region-horizon .pfd-horizon-shell {
+  min-height: 0;
+}
+.mission-region-horizon .pfd-horizon-instrument {
+  grid-template-rows: minmax(0, 1fr) auto;
+}
+.mission-region-data > .mission-horizon-filler {
+  position: static;
+  flex: 0 0 auto;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1px 6px;
+  max-height: none;
+  height: auto;
+  overflow: visible;
+  z-index: 0;
+  padding: 1px 4px;
+}
+.mission-region-data .mission-horizon-filler > .mission-horizon-filler-kicker,
+.mission-region-data .mission-horizon-filler-note {
+  width: auto;
+  flex: 0 1 auto;
+  order: 1;
+}
+.mission-horizon-filler .hud-data-grid {
+  flex: 1 0 100%;
+  order: 2;
+}
+.mission-horizon-filler .hud-slot {
+  display: flex;
+  flex-direction: row;
+  align-items: baseline;
+  gap: 4px;
+  min-height: 0;
+  padding: 0 4px;
+  line-height: 1.15;
+}
+.mission-region-horizon .pfd-horizon-chrome {
+  position: relative;
+  z-index: 4;
+}
+.flight-arm-btn {
+  flex: 0 0 auto;
+  min-width: 0;
+}
+.mission-region-horizon .pfd-video-toggle {
+  position: static;
+  z-index: 1;
+}
+.mission-region-horizon .pfd-horizon-instrument {
+  position: relative;
+  z-index: 1;
+}
+.mission-region-horizon .pfd-side-tape,
+.mission-region-horizon .pfd-heading-lane,
+.mission-region-horizon .mission-data-tile,
+.mission-region-data > .pfd-bottom-bar {
+  position: relative;
+  z-index: 3;
+}
+
+@media (max-height: 640px) {
+  .app-update-banner {
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 8px;
+    max-height: 28px;
+    padding: 2px 8px;
+    overflow: hidden;
+  }
+  .app-update-banner ul,
+  .app-update-banner .app-update-error { display: none; }
+  #appUpdateBannerText {
+    flex: 1 1 auto;
+    min-width: 0;
+    margin: 0;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+  .app-update-actions { flex: 0 0 auto; flex-wrap: nowrap; }
+  .app-update-banner button { min-height: 22px; padding: 0 8px; }
+}
+
+@media (max-width: 1100px) {
+  #missionAskToggleBtn { display: inline-flex; }
+  html:has(#terrain.panel.visible),
+  body:has(#terrain.panel.visible),
+  body:has(#terrain.panel.visible) .layout,
+  #terrain.panel.visible {
+    height: auto;
+    min-height: 100%;
+    overflow: visible;
+  }
+  .mission-workspace[data-mission-layout="ops-v1"],
+  .mission-workspace[data-mission-swap="map-horizon"],
+  .mission-workspace[data-mission-swap="horizon-map"] {
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 38%);
+    grid-template-rows: minmax(420px, 1fr);
+    grid-template-areas: "map horizon";
+    height: auto;
+    min-height: 420px;
+    overflow: visible;
+  }
+  .mission-workspace[data-mission-swap="horizon-map"] {
+    grid-template-areas: "horizon map";
+  }
+  .mission-region[data-mission-region="talk"] {
+    display: none;
+    min-width: 0;
+    min-height: 0;
+    height: auto;
+  }
+  .mission-workspace[data-ask-open="1"] .mission-region[data-mission-region="talk"] {
+    display: flex;
+    position: absolute;
+    z-index: 6;
+    inset-inline-end: 8px;
+    top: 8px;
+    bottom: 8px;
+    width: min(360px, calc(100% - 16px));
+    height: auto;
+    min-height: 0;
+    overflow: auto;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+  }
+  .mission-workspace[data-ask-open="1"] .mission-ask-close {
+    display: inline-flex;
+    align-self: flex-start;
+    margin: 4px 8px 0;
+    min-height: 28px;
+    padding: 2px 10px;
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    border-radius: 6px;
+    background: #0f172a;
+    color: #e8edf6;
+    font: inherit;
+    cursor: pointer;
+  }
+  .mission-region[data-mission-region="horizon"] {
+    height: auto;
+    min-height: 420px;
+    max-height: none;
+    overflow: visible;
+  }
+  .mission-region-horizon > .flight-hud,
+  .mission-region-horizon .pfd-horizon-shell {
+    height: auto;
+    min-height: 0;
+    max-height: none;
+    overflow: visible;
+    flex: 0 0 auto;
+  }
+  .mission-region-horizon .pfd-horizon-instrument {
+    min-height: 148px;
+    height: auto;
+    max-height: none;
+    grid-template-rows: minmax(120px, 1fr) 28px;
+  }
+  .mission-region-horizon .pfd-horizon-stage {
+    min-height: 120px;
+    height: auto;
+    max-height: none;
+  }
+  .mission-region-horizon .mission-region-data {
+    max-height: none;
+    min-height: 120px;
+    height: auto;
+    overflow: visible;
+    flex: 0 0 auto;
+  }
+  .mission-region-horizon .mission-data-grid {
+    min-height: 88px;
+    overflow: visible;
+  }
+}
+
+@media (max-width: 720px) {
+  .mission-workspace[data-mission-layout="ops-v1"],
+  .mission-workspace[data-mission-swap="map-horizon"],
+  .mission-workspace[data-mission-swap="horizon-map"] {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    grid-template-areas:
+      "map"
+      "horizon";
+    min-height: 0;
+    height: auto;
+  }
+  .mission-region[data-mission-region="map"] {
+    height: 220px;
+    min-height: 220px;
+    max-height: 220px;
+  }
+  .mission-region[data-mission-region="horizon"] {
+    height: auto;
+    min-height: 0;
+    max-height: none;
+    overflow: visible;
+  }
+  .mission-region-horizon .pfd-horizon-instrument,
+  .mission-region-horizon .pfd-horizon-shell,
+  .mission-region-horizon .pfd-horizon-stage {
+    min-height: 120px;
+    height: auto;
+    max-height: none;
+  }
+  .mission-region-horizon .mission-data-grid {
+    grid-template-columns: 1fr;
+    height: auto;
+    min-height: 0;
+  }
+  .mission-region-horizon .mission-data-tile {
+    min-height: 44px;
+    height: auto;
+  }
+  .mission-region-talk,
+  #missionTalkHost {
+    min-height: 0;
+  }
+}
+
+/* 1024x576: the whole horizon column, battery included, fits with no page scroll. */
+@media (max-width: 1100px) and (max-height: 640px) {
+  html:has(#terrain.panel.visible),
+  body:has(#terrain.panel.visible) {
+    height: 100%;
+    max-height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+  }
+  body:has(#terrain.panel.visible) .layout,
+  #terrain.panel.visible {
+    flex: 1 1 auto;
+    height: auto;
+    max-height: 100%;
+    min-height: 0;
+    overflow: hidden;
+  }
+  .app-chrome {
+    flex-wrap: nowrap;
+    min-height: 36px;
+    max-height: 40px;
+    overflow: hidden;
+  }
+  .mission-ops-chrome {
+    max-height: 26px;
+    flex: 0 0 26px;
+  }
+  .mission-layout-hint,
+  .mission-data-hint { display: none; }
+  .mission-workspace[data-mission-layout="ops-v1"],
+  .mission-workspace[data-mission-swap="map-horizon"],
+  .mission-workspace[data-mission-swap="horizon-map"] {
+    height: 100%;
+    min-height: 0;
+    max-height: 100%;
+    grid-template-rows: minmax(0, 1fr);
+    overflow: hidden;
+  }
+  .mission-region[data-mission-region="horizon"] {
+    height: 100%;
+    min-height: 0;
+    max-height: 100%;
+    overflow: hidden;
+  }
+  .mission-region-horizon > .flight-hud {
+    flex: 1 1 0;
+    min-height: 0;
+    height: auto;
+    max-height: none;
+    overflow: hidden;
+  }
+  .mission-region[data-mission-region="messages"] {
+    height: 28px;
+    min-height: 0;
+    max-height: 28px;
+  }
+  .mission-region-horizon .pfd-horizon-shell {
+    flex: 1 1 auto;
+    min-height: 0;
+    height: auto;
+    overflow: hidden;
+  }
+  .mission-region-horizon .pfd-horizon-instrument {
+    flex: 1 1 auto;
+    min-height: 0;
+    height: auto;
+    overflow: hidden;
+  }
+  .mission-region-horizon .pfd-horizon-instrument {
+    grid-template-rows: minmax(120px, 1fr) 22px;
+  }
+  .mission-region-horizon .pfd-horizon-stage {
+    min-height: 120px;
+  }
+  .mission-region-horizon .pfd-horizon-chrome {
+    height: auto;
+    min-height: 0;
+    max-height: none;
+    padding: 0 4px;
+    flex: 0 0 auto;
+  }
+  #flightArmRow {
+    flex-wrap: wrap;
+    max-height: none;
+    padding: 1px 4px;
+  }
+  .mission-region-horizon .mission-data-tile {
+    min-height: 32px;
+    padding: 0 4px;
+  }
+  .mission-region-data > .mission-horizon-filler {
+    padding: 0 4px;
+  }
 /* Params tab: keep the list and wizard visibly tall, and keep Ask off the controls. */
 html:has(#control.panel.visible),
 body:has(#control.panel.visible) {

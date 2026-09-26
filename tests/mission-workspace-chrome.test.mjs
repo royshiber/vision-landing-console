@@ -140,15 +140,15 @@ describe('AIRVIX Mission chrome — workspace regions', () => {
     expect(html).toContain('id="pfdHorizonMsgLog"');
     expect(html).toContain('id="pfcMsgScroll"');
     expect(html).toContain('id="missionTalkHost"');
-    expect(html).toMatch(/id="missionTalkHint"[^>]*>דברו להטסה\. אחרי הפעלה — נחיתה ומצב בלי אישור\. חימוש חסום\. פרמטר דורש אישור\.</);
+    expect(html).toMatch(/id="missionTalkHint"[^>]*>דברו להטסה\. אחרי ההפעלה, נחיתה ושינוי מצב מתבצעים בלי אישור נוסף\. חימוש נשאר חסום, ושינוי פרמטר עדיין דורש אישור\.</);
     expect(css).toMatch(/data-mission-region="horizon\|map\|data\|messages\|talk"/);
     expect(css).toMatch(/grid-template-areas:/);
   });
 
   it('keeps empty GPS honest and does not invent a number', () => {
-    expect(html).toMatch(/id="liveGpsVisionDelta"[^>]*>--</);
+    expect(html).toMatch(/id="liveGpsVisionDelta"[^>]*>—</);
     expect(html).toMatch(/class="mission-data-unit">m</);
-    expect(html).toMatch(/id="hudNavGpsVal">--</);
+    expect(html).toMatch(/id="hudNavGpsVal">—</);
     expect(js).toContain('formatGpsVisionDeltaMeters');
   });
 });
@@ -165,9 +165,9 @@ describe('AIRVIX Mission chrome — talk is flight-safe', () => {
     expect(chip).toContain("kind === 'advisor'");
   });
 
-  it('pins APP_VERSION at 1.02.343', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.343'");
-    expect(pkg.version).toBe('1.02.343');
+  it('pins APP_VERSION at 1.02.344', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.344'");
+    expect(pkg.version).toBe('1.02.344');
   });
 
   it('keeps a rectangular glass artificial horizon with video HUD mode', () => {
@@ -192,7 +192,7 @@ describe('AIRVIX Mission chrome — talk is flight-safe', () => {
   it('toggles video under the artificial horizon and stays honest with no feed', () => {
     expect(html).toContain('id="horizonVideoEl"');
     expect(html).toContain('id="horizonVideoToggle"');
-    expect(html).toMatch(/id="horizonVideoEmpty"[^>]*>אין וידאו\. דרושה כתובת זרם ממחשב המשימה\.</);
+    expect(html).toMatch(/id="horizonVideoEmpty"[^>]*>אין זרם מצלמה</);
     expect(css).toMatch(/\.pfd-horizon-shell--video-active canvas\s*\{[^}]*background:\s*transparent/);
     expect(css).toMatch(/\.pfd-horizon-video-empty\s*\{/);
     expect(js).toContain('function setHorizonVideoActive(');
@@ -568,6 +568,9 @@ describe('AIRVIX Mission chrome — default open + layout policy', () => {
       sliceFunction(js, 'readMissionAreas'),
       sliceFunction(js, 'writeMissionAreas'),
       sliceFunction(js, 'writeMissionSwap'),
+      'function resizeHorizonCanvas() {}',
+      'let terrainMap = null;',
+      sliceFunction(js, 'refreshMissionSwapSurfaces'),
       sliceFunction(js, 'applyMissionSwap'),
       sliceFunction(js, 'applyMissionAreas').replace('requestAnimationFrame(placeMissionSplits);', ''),
       sliceFunction(js, 'applyMissionSize').replace('requestAnimationFrame(placeMissionSplits);', ''),

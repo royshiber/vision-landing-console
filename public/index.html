@@ -106,10 +106,10 @@
             </section>
             <details id="connectAdvanced" class="conn-advanced">
               <summary class="conn-advanced-summary">מתקדם</summary>
-            <section id="companionLinkAdvanced" class="conn-link-block" aria-label="אסימון מחשב משימה">
+            <section id="companionLinkAdvanced" class="conn-link-block" aria-label="טוקן מחשב משימה">
               <div class="conn-panel-row">
                 <label class="conn-panel-field" style="flex:1">
-                  <span>אסימון</span>
+                  <span>טוקן</span>
                   <input id="companionLinkToken" class="conn-input" type="password" maxlength="500" dir="ltr" autocomplete="off" />
                 </label>
               </div>
@@ -216,6 +216,7 @@
         <button class="tab tab-ops" data-tab="control" title="פרמטרים">פרמטרים</button>
         <button class="tab tab-ops" data-tab="recordings" title="אופטיקה ותחקור">אופטיקה ותחקור</button>
         <button class="tab tab-quiet" hidden data-tab="telemetry" title="אבחונים">אבחונים</button>
+        <button class="tab tab-ops" data-tab="flightEngineer" title="מהנדס" hidden>מהנדס</button>
         <button class="tab tab-ops" hidden data-tab="development" title="פיתוח">פיתוח</button>
       </nav>
       <div class="app-chrome-tools">
@@ -254,26 +255,19 @@
         <button type="button" id="assistCloseBtn" class="assist-close-btn" aria-label="סגור">✕</button>
       </header>
       <p id="assistRailHint" class="assist-rail-hint">שינוי דורש אישור.</p>
-      <section id="assistVoiceGo" class="assist-voice-go" data-go="0" aria-label="פתיחת שיחת קול">
+      <section id="assistVoiceGo" class="assist-voice-go" data-go="0" aria-label="פקודות קול ללא אישור">
         <div class="assist-voice-go-row">
-          <span id="assistVoiceGoBadge" class="assist-voice-go-badge">כבוי</span>
-          <button type="button" id="assistVoiceGoBtn" class="assist-btn assist-btn-confirm" dir="ltr">GO</button>
-          <button type="button" id="assistVoiceGoEndBtn" class="assist-btn assist-btn-cancel" hidden>סיום <bdi dir="ltr">GO</bdi></button>
+          <button type="button" id="assistVoiceGoToggle" class="assist-voice-go-toggle" aria-pressed="false">
+            <span class="assist-voice-go-label">פקודות קול ללא אישור</span>
+            <span id="assistVoiceGoBadge" class="assist-voice-go-badge">כבוי</span>
+          </button>
+          <button type="button" id="assistVoiceGoInfo" class="assist-info-btn" aria-expanded="false" aria-controls="assistVoiceGoHint" aria-label="מה עדיין דורש אישור" title="אחרי ההפעלה, נחיתה ושינוי מצב מתבצעים בלי אישור נוסף. חימוש ונטרול נשארים חסומים, ושינוי פרמטר עדיין דורש אישור.">ⓘ</button>
         </div>
-        <p id="assistVoiceGoHint" class="assist-voice-go-hint">הפעלה פותחת שיחת קול. אחריה נחיתה ומצב בלי אישור לכל פעולה. חימוש ונטרול חסומים. שינוי פרמטר דורש אישור.</p>
+        <p id="assistVoiceGoHint" class="assist-voice-go-hint" hidden>אחרי ההפעלה, נחיתה ושינוי מצב מתבצעים בלי אישור נוסף. חימוש ונטרול נשארים חסומים, ושינוי פרמטר עדיין דורש אישור.</p>
       </section>
-      <section id="assistAgentConnect" class="assist-agent-connect operator-state" data-state="disconnected" aria-label="חיבור הסוכן">
-        <p id="assistAgentStatus" class="assist-agent-status" aria-live="polite">הסוכן מנותק.</p>
-        <p id="assistAgentHint" class="assist-agent-hint">חברו מפתח כדי לאשר שינוי.</p>
-        <p id="assistAgentKeyHint" class="assist-agent-key-hint" hidden dir="ltr"></p>
-        <form id="assistAgentConnectForm" class="assist-agent-form" autocomplete="off">
-          <label class="assist-agent-label" for="assistAgentKey">מפתח חיבור</label>
-          <input id="assistAgentKey" class="assist-agent-key" type="password" maxlength="500" dir="ltr" autocomplete="off" />
-          <p id="assistAgentConnectError" class="assist-agent-error" hidden></p>
-          <button type="submit" id="assistAgentConnectBtn" class="assist-btn assist-btn-confirm" disabled>חיבור</button>
-        </form>
-        <button type="button" id="assistAgentDisconnectBtn" class="assist-btn assist-btn-cancel" hidden>ניתוק</button>
-      </section>
+      <p id="assistAgentOfflineNote" class="assist-agent-offline">
+        <button type="button" id="assistAgentSettingsLink" class="assist-agent-settings-link">הסוכן מנותק</button>
+      </p>
         <div class="assist-transcript-well">
         <div id="assistMessagesEmpty" class="assist-empty-stage">
         <p id="assistEmptyInvite" class="assist-empty-invite">שאלו את <bdi dir="ltr">AIRVIX Ask</bdi>.</p>
@@ -375,7 +369,7 @@
               <p id="vrCompanionLink" class="vr-note">אין קישור למחשב המשימה</p>
               <dl class="vr-dl">
                 <div><dt>גרסה</dt><dd id="vrCompanionVersion">גרסה לא ידועה</dd></div>
-                <div><dt>זמן פריסה</dt><dd id="vrCompanionDeployed">תאריך לא ידוע</dd></div>
+                <div><dt>זמן דיפלוי</dt><dd id="vrCompanionDeployed">תאריך לא ידוע</dd></div>
                 <div><dt>מזהה שינוי</dt><dd id="vrCompanionSha">גרסה לא ידועה</dd></div>
               </dl>
               <h4 class="vr-h vr-sub">גיבויים</h4>
@@ -434,6 +428,32 @@
               <span id="gsVolumeLabel" class="gs-value">100%</span>
             </div>
             <p class="gs-hint">חלה על ElevenLabs וביצוע קול בדפדפן. עוצמת המערכת ב-Windows עדיין משפיעה על השמע.</p>
+          </section>
+          <section class="gs-section" id="gsCodingAgent">
+            <h3 class="gs-h">סוכן קוד</h3>
+            <section id="assistAgentConnect" class="assist-agent-connect operator-state" data-state="disconnected" data-key="0" aria-label="חיבור הסוכן">
+              <p id="assistAgentStatus" class="assist-agent-status" aria-live="polite">הסוכן מנותק.</p>
+              <p id="assistAgentKeyHint" class="assist-agent-key-hint" hidden dir="ltr"></p>
+              <p id="assistAgentHint" class="assist-agent-hint" hidden>הזינו מפתח כדי לחבר את הסוכן.</p>
+              <form id="assistAgentConnectForm" class="assist-agent-form" autocomplete="off">
+                <label class="assist-agent-label" for="assistAgentKey">מפתח חיבור</label>
+                <input id="assistAgentKey" class="assist-agent-key" type="password" maxlength="500" dir="ltr" autocomplete="off" spellcheck="false" />
+                <p id="assistAgentConnectError" class="assist-agent-error" hidden></p>
+                <button type="submit" id="assistAgentConnectBtn" class="assist-btn assist-btn-confirm" disabled>חיבור</button>
+              </form>
+              <button type="button" id="assistAgentDisconnectBtn" class="assist-btn assist-btn-cancel" hidden>ניתוק</button>
+            </section>
+          </section>
+          <section class="gs-section" id="gsHorizonVideo">
+            <h3 class="gs-h">זרם וידאו</h3>
+            <p class="gs-hint">ברירת המחדל היא מצלמות מחשב המשימה. כתובת כאן מחליפה את הזרם.</p>
+            <div id="horizonVideoPanel" class="pfd-video-panel">
+              <label class="gs-label" for="horizonVideoUrl">כתובת חלופית</label>
+              <div>
+                <input type="text" id="horizonVideoUrl" class="pfd-video-url-input" dir="ltr" autocomplete="off" spellcheck="false" />
+                <button type="button" id="horizonVideoApply" class="pfd-video-apply-btn">שמירה</button>
+              </div>
+            </div>
           </section>
           <section class="gs-section" id="gsSpokenUnits">
             <h3 class="gs-h">יחידות דיבור</h3>
@@ -1289,7 +1309,7 @@
         <div class="first-open-stage-fill" data-first-open-stage>
         <section id="companionConnect" class="companion-connect companion-connect--hero assist-agent-connect operator-state" data-state="disconnected" aria-label="חיבור Jetson">
           <p id="companionConnectStatus" class="assist-agent-status" aria-live="polite">Jetson מנותק</p>
-          <p id="companionConnectHint" class="assist-agent-hint">צריך כתובת ואסימון. כתובת לבד לא מספיקה.</p>
+          <p id="companionConnectHint" class="assist-agent-hint">צריך כתובת וטוקן. כתובת לבד לא מספיקה.</p>
           <p id="companionConnectPathHint" class="assist-agent-key-hint" hidden dir="ltr">/api/v1/*</p>
           <p id="companionTokenHint" class="assist-agent-key-hint" hidden dir="ltr"></p>
           <button type="button" id="companionQuickConnectBtn" class="assist-btn assist-btn-confirm">חיבור</button>
@@ -1298,7 +1318,7 @@
           <form id="companionConnectForm" class="assist-agent-form" autocomplete="off" novalidate>
             <label class="assist-agent-label" for="companionBaseUrl">כתובת</label>
             <input id="companionBaseUrl" class="assist-agent-key" type="text" inputmode="url" maxlength="500" dir="ltr" autocomplete="off" placeholder="http://host:8081" />
-            <label class="assist-agent-label" for="companionToken">אסימון</label>
+            <label class="assist-agent-label" for="companionToken">טוקן</label>
             <input id="companionToken" class="assist-agent-key" type="password" maxlength="500" dir="ltr" autocomplete="off" />
             <p id="companionConnectError" class="assist-agent-error" hidden></p>
             <button type="submit" id="companionConnectBtn" class="assist-btn assist-btn-confirm" disabled>חיבור</button>
@@ -2143,7 +2163,7 @@
               <span class="mission-nav-display-kicker" title="תצוגה בלבד. לא מחליף את מקור הניווט בבקר.">תצוגה</span>
               <button type="button" id="missionNavDisplayGps" class="mission-nav-display-btn" data-nav-display="gps" aria-pressed="true" title="הצג ושמור לפי GPS">GPS</button>
               <button type="button" id="missionNavDisplayOptical" class="mission-nav-display-btn" data-nav-display="optical" aria-pressed="false" title="הצג ושמור לפי אופטי. תצוגה בלבד.">אופטי</button>
-              <span id="missionNavDisplayStatus" class="mission-nav-display-status" title="ניווט אופטי">--</span>
+              <span id="missionNavDisplayStatus" class="mission-nav-display-status" title="ניווט אופטי">—</span>
             </div>
           </div>
           <p id="missionIdentity" class="mission-identity">הטסה · מרחב טיסה</p>
@@ -2154,6 +2174,7 @@
           </div>
           <button type="button" id="missionReadinessGlance" class="mission-readiness-glance" title="מוכנות">מוכנות</button>
           <div class="mission-layout-bar">
+            <button type="button" id="missionAskToggleBtn" class="mission-layout-btn" title="שאלה" aria-label="שאלה" aria-expanded="false" aria-controls="missionTalkHost">שאל</button>
             <button type="button" id="missionSwapHorizonMapBtn" class="mission-layout-btn" title="החלף אופק ומפה" aria-label="החלף אופק ומפה">⇄</button>
             <button type="button" id="missionResetLayoutBtn" class="mission-layout-btn" title="איפוס סידור" aria-label="איפוס סידור">↺</button>
             <p id="missionLayoutHint" class="mission-layout-hint">גררו קצה לשינוי גודל. גררו כותרת להחלפה. גם בטיסה.</p>
@@ -2169,10 +2190,30 @@
               <div class="pfd-top-bar">
                 <button type="button" id="pfdVoiceFlightBtn" class="pfd-voice-flight-btn" title="פתיחת מהנדס קולי לפקודות טיסה">🎙 פקודות</button>
                 <span id="pfdArmedBadge" class="pfd-badge pfd-badge--disarmed" role="button" tabindex="0" title="מצב ARM — לחץ להסבר מוכנות">DISARMED</span>
-                <span id="pfdModeVal"    class="pfd-mode-val">--</span>
+                <span id="pfdModeVal"    class="pfd-mode-val">—</span>
                 <div class="hud-nav-pill pfd-gps-pill" id="hudNavGps" data-status="unknown" title="אין קישור">
                   <span class="hud-nav-icon">📡</span>
-                  <span class="hud-nav-val" id="hudNavGpsVal">--</span>
+                  <span class="hud-nav-val" id="hudNavGpsVal">—</span>
+                </div>
+              </div>
+              <div id="flightArmRow" class="flight-arm-row" data-arm-link="off">
+                <button type="button" id="flightArmBtn" class="flight-arm-btn" disabled>חימוש ARM</button>
+                <button type="button" id="flightDisarmBtn" class="flight-arm-btn" disabled>נטרול DISARM</button>
+                <p id="flightArmReason" class="flight-arm-reason">אין חיבור לבקר הטיסה</p>
+                <p id="flightArmRefusal" class="flight-arm-refusal" hidden></p>
+                <div id="flightArmDialog" class="flight-arm-dialog" hidden>
+                  <p id="flightArmDialogText" class="flight-arm-dialog-text">אשרו חימוש</p>
+                  <div class="flight-arm-dialog-actions">
+                    <button type="button" id="flightArmCancel" class="flight-arm-btn">ביטול</button>
+                    <button type="button" id="flightArmConfirm" class="flight-arm-btn">אשרו חימוש</button>
+                  </div>
+                </div>
+                <div id="flightDisarmDialog" class="flight-arm-dialog" hidden>
+                  <p id="flightDisarmDialogText" class="flight-arm-dialog-text">אשרו נטרול</p>
+                  <div class="flight-arm-dialog-actions">
+                    <button type="button" id="flightDisarmCancel" class="flight-arm-btn">ביטול</button>
+                    <button type="button" id="flightDisarmConfirm" class="flight-arm-btn flight-arm-btn--danger">נטרול DISARM</button>
+                  </div>
                 </div>
               </div>
               <p id="pfdHudWaitHint" class="pfd-hud-wait-hint" hidden></p>
@@ -2181,72 +2222,59 @@
                 <div class="pfd-horizon-instrument">
                   <div class="pfd-side-tape pfd-side-tape--left">
                     <span class="pfd-tape-key">IAS</span>
-                    <strong class="pfd-tape-big" id="pfdAirspeedVal" title="אין קישור">--</strong>
+                    <strong class="pfd-tape-big" id="pfdAirspeedVal" title="אין נתונים">—</strong>
                     <span class="pfd-tape-unit">m/s</span>
                   </div>
                   <div class="pfd-horizon-stage" id="pfdHorizonStage">
                     <video id="horizonVideoEl" class="pfd-horizon-video hidden" muted playsinline autoplay loop
                            aria-hidden="true" title="שידור וידאו מהטיסן"></video>
                     <img id="horizonCameraBg" class="pfd-horizon-camera" alt="" hidden />
-                    <p id="horizonVideoEmpty" class="pfd-horizon-video-empty hidden">אין וידאו. דרושה כתובת זרם ממחשב המשימה.</p>
+                    <img id="instrumentVideoFrame" class="instrument-stage-view" alt="" hidden />
+                    <p id="horizonVideoEmpty" class="pfd-horizon-video-empty instrument-stage-view" hidden>אין זרם מצלמה</p>
                     <p id="horizonCameraNote" class="pfd-horizon-nosignal" hidden>אין אות</p>
                     <canvas id="horizonCanvas"></canvas>
+                    <p id="horizonNoData" class="horizon-no-data">אין נתונים</p>
+                    <div id="annotatedVisionPanel" class="mission-annotated-vision hidden instrument-stage-view" hidden data-state="stream_absent" data-reason="stream_absent" data-path="companion" data-available="false">
+                      <p class="mission-annotated-kicker">ראייה מסומנת</p>
+                      <p id="annotatedVisionEmpty" class="mission-annotated-empty">אין זרם מסומן</p>
+                      <div id="annotatedVisionFrame" class="mission-annotated-frame" hidden></div>
+                    </div>
+                    <div id="liveCameraPanel" class="mission-live-camera instrument-stage-view" hidden data-state="missing">
+                      <p class="mission-live-camera-kicker">פריים חי</p>
+                      <p id="liveCameraEmpty" class="mission-live-camera-empty">אין פריים</p>
+                      <div class="mission-live-camera-grid">
+                        <figure class="mission-live-camera-slot" data-cam="cam1">
+                          <figcaption id="liveCameraCam1Label" class="mission-live-camera-label">קדמית</figcaption>
+                          <p id="liveCameraCam1Meta" class="mission-live-camera-meta">אין פריים</p>
+                          <img id="liveCameraCam1Frame" class="mission-live-camera-frame" alt="" hidden />
+                        </figure>
+                        <figure class="mission-live-camera-slot" data-cam="cam2">
+                          <figcaption id="liveCameraCam2Label" class="mission-live-camera-label">מטה</figcaption>
+                          <p id="liveCameraCam2Meta" class="mission-live-camera-meta">אין פריים</p>
+                          <img id="liveCameraCam2Frame" class="mission-live-camera-frame" alt="" hidden />
+                        </figure>
+                      </div>
+                    </div>
                     <div id="pfdHorizonMsgLog" class="pfd-horizon-msg-log" dir="rtl" aria-live="polite" aria-label="הודעות מטוס" hidden>
-                      <p class="pfd-horizon-msg-line pfc-msg-primary" id="pfcMsgPrimaryHe" dir="auto">אין חיבור לבקר — לא מתקבלות הודעות.</p>
+                      <p class="pfd-horizon-msg-line pfc-msg-primary" id="pfcMsgPrimaryHe" dir="auto">אין חיבור לבקר הטיסה</p>
                     </div>
                   </div>
                   <div class="pfd-side-tape pfd-side-tape--right">
                     <span class="pfd-tape-key">ALT</span>
-                    <strong class="pfd-tape-big" id="pfdAltVal" title="אין קישור">--</strong>
+                    <strong class="pfd-tape-big" id="pfdAltVal" title="אין נתונים">—</strong>
                     <span class="pfd-tape-unit">m</span>
                   </div>
                   <div class="pfd-heading-lane">
                     <div class="pfd-hdg-box" id="pfdHdgBox" title="כיוון אף (Heading)">
                       <span class="pfd-hdg-arrow" id="pfdHdgArrow">↑</span>
-                      <span class="pfd-hdg-val"   id="pfdHdgVal">---°</span>
+                      <span class="pfd-hdg-val"   id="pfdHdgVal">—</span>
                     </div>
                   </div>
                 </div>
-                <div class="pfd-horizon-chrome">
-                  <button type="button" id="horizonVideoToggle" class="pfd-video-toggle" title="שכבת וידאו חי מהטיסן">וידאו</button>
-                  <button type="button" id="annotatedVisionToggle" class="pfd-video-toggle" title="ראייה מסומנת ממחשב משימה — רק סלולר" aria-expanded="false" aria-controls="annotatedVisionPanel">ראייה</button>
-                  <button type="button" id="liveCameraToggle" class="pfd-video-toggle" title="פריים חי מהמצלמות — בלי המצאה" aria-expanded="false" aria-controls="liveCameraPanel">פריים</button>
-                  <div id="horizonVideoPanel" class="pfd-video-panel hidden">
-                    <span class="pfd-video-label">זרם וידאו חי מהטיסן (MJPEG / HLS / RTSP)</span>
-                    <div>
-                      <input type="text" id="horizonVideoUrl" class="pfd-video-url-input"
-                        placeholder="http://192.168.1.x:8080/stream" autocomplete="off" />
-                      <button type="button" id="horizonVideoApply" class="pfd-video-apply-btn">▶ הפעל</button>
-                    </div>
-                  </div>
-                  <div id="annotatedVisionPanel" class="mission-annotated-vision hidden" hidden data-state="modem_absent" data-reason="modem_absent" data-path="cellular" data-available="false">
-                    <p class="mission-annotated-kicker">ראייה מסומנת</p>
-                    <p class="mission-annotated-path">רק סלולר ממחשב משימה. לא ברדיו.</p>
-                    <p id="annotatedVisionEmpty" class="mission-annotated-empty">אין שידור. מודם לא מחובר.</p>
-                    <div id="annotatedVisionFrame" class="mission-annotated-frame" hidden></div>
-                  </div>
-                  <div id="liveCameraPanel" class="mission-live-camera hidden" hidden data-state="missing">
-                    <p class="mission-live-camera-kicker">פריים חי</p>
-                    <p id="liveCameraEmpty" class="mission-live-camera-empty">אין פריים</p>
-                    <div class="mission-live-camera-grid">
-                      <figure class="mission-live-camera-slot" data-cam="cam0">
-                        <figcaption id="liveCameraCam0Label" class="mission-live-camera-label">אפס</figcaption>
-                        <p id="liveCameraCam0Meta" class="mission-live-camera-meta">אין אות</p>
-                        <img id="liveCameraCam0Frame" class="mission-live-camera-frame" alt="" hidden />
-                        <canvas id="liveCameraCam0Overlay" class="mission-live-camera-overlay" hidden></canvas>
-                      </figure>
-                      <figure class="mission-live-camera-slot" data-cam="cam1">
-                        <figcaption id="liveCameraCam1Label" class="mission-live-camera-label">קדמית</figcaption>
-                        <p id="liveCameraCam1Meta" class="mission-live-camera-meta">אין פריים</p>
-                        <img id="liveCameraCam1Frame" class="mission-live-camera-frame" alt="" hidden />
-                      </figure>
-                      <figure class="mission-live-camera-slot" data-cam="cam2">
-                        <figcaption id="liveCameraCam2Label" class="mission-live-camera-label">מטה</figcaption>
-                        <p id="liveCameraCam2Meta" class="mission-live-camera-meta">אין פריים</p>
-                        <img id="liveCameraCam2Frame" class="mission-live-camera-frame" alt="" hidden />
-                      </figure>
-                    </div>
-                  </div>
+                <div class="pfd-horizon-chrome" role="radiogroup" aria-label="תצוגת מכשירים">
+                  <button type="button" id="horizonVideoToggle" class="pfd-video-toggle" title="וידאו מהמצלמות" aria-pressed="false">וידאו</button>
+                  <button type="button" id="annotatedVisionToggle" class="pfd-video-toggle" title="ראייה מסומנת" aria-pressed="false">ראייה</button>
+                  <button type="button" id="liveCameraToggle" class="pfd-video-toggle" title="פריים חי" aria-pressed="false">פריים</button>
                 </div>
               </div>
             </aside>
@@ -2257,29 +2285,29 @@
             <dl id="missionDataGrid" class="mission-data-grid" aria-label="מדדי טיסה">
               <div class="mission-data-item mission-data-tile" data-mission-data-slot="0">
                 <dt class="mission-data-label">מוד</dt>
-                <dd class="mission-data-readout"><strong class="mission-data-value" id="hudFlightMode">--</strong></dd>
+                <dd class="mission-data-readout"><strong class="mission-data-value" id="hudFlightMode">—</strong></dd>
               </div>
               <div class="mission-data-item mission-data-tile tele-hud-mini" data-mission-data-slot="1">
                 <dt class="mission-data-label">גובה</dt>
-                <dd class="mission-data-readout" dir="ltr"><strong class="mission-data-value" id="hudAltitude" title="אין קישור">--</strong><span class="mission-data-unit">m</span></dd>
+                <dd class="mission-data-readout" dir="ltr"><strong class="mission-data-value" id="hudAltitude" title="אין נתונים">—</strong><span class="mission-data-unit">m</span></dd>
               </div>
               <div class="mission-data-item mission-data-tile tele-hud-mini" data-mission-data-slot="2">
                 <dt class="mission-data-label">מהירות</dt>
-                <dd class="mission-data-readout" dir="ltr"><strong class="mission-data-value" id="hudAirspeed" title="אין קישור">--</strong><span class="mission-data-unit">m/s</span></dd>
+                <dd class="mission-data-readout" dir="ltr"><strong class="mission-data-value" id="hudAirspeed" title="אין נתונים">—</strong><span class="mission-data-unit">m/s</span></dd>
               </div>
               <div class="mission-data-item mission-data-tile" data-mission-data-slot="3">
                 <dt class="mission-data-label">קישור</dt>
-                <dd class="mission-data-readout" dir="ltr"><strong class="mission-data-value" id="missionLink">--</strong></dd>
+                <dd class="mission-data-readout" dir="ltr"><strong class="mission-data-value" id="missionLink">—</strong></dd>
               </div>
               <div class="mission-data-item mission-data-tile" data-mission-data-slot="4">
                 <dt class="mission-data-label">הפרש ראייה</dt>
-                <dd class="mission-data-readout" dir="ltr"><strong class="mission-data-value" id="liveGpsVisionDelta">--</strong><span class="mission-data-unit">m</span></dd>
+                <dd class="mission-data-readout" dir="ltr"><strong class="mission-data-value" id="liveGpsVisionDelta">—</strong><span class="mission-data-unit">m</span></dd>
               </div>
               <div class="mission-data-item mission-data-tile mission-data-confidence" data-mission-data-slot="5">
                 <dt class="mission-data-label">ביטחון נחיתה</dt>
                 <dd class="mission-data-readout">
                   <div class="confidence-track"><div id="liveConfidenceBar" class="confidence-fill"></div></div>
-                  <strong class="mission-data-value" id="liveConfidenceText">--</strong>
+                  <strong class="mission-data-value" id="liveConfidenceText">—</strong>
                   <span class="mission-data-unit">%</span>
                 </dd>
               </div>
@@ -2287,10 +2315,10 @@
             <aside id="missionHorizonFiller" class="mission-horizon-filler" aria-label="מצב בקר">
               <p class="mission-horizon-filler-kicker">מצב בקר</p>
               <div id="hudDataGrid" class="hud-data-grid pfd-slots-strip" role="region" aria-label="נתונים מותאמים"></div>
-              <p class="mission-horizon-filler-note">אין חיבור לבקר. אין הודעות נכנסות.</p>
+              <p class="mission-horizon-filler-note">אין חיבור לבקר הטיסה</p>
             </aside>
             <div class="pfd-bottom-bar">
-              <span class="pfd-batt" id="pfdBattVal">-- V</span>
+              <span class="pfd-batt" id="pfdBattVal">—</span>
               <button id="hudAddSlotBtn" class="pfd-add-btn" title="הוסף נתון מותאם">＋</button>
             </div>
           </section>
@@ -2315,7 +2343,8 @@
                 <span class="terrain-toolbar-label">שכבה:</span>
                 <button type="button" id="terrainLayerStreetBtn" class="terrain-layer-btn active" title="OpenStreetMap">מפת רחוב</button>
                 <button type="button" id="terrainLayerSatBtn" class="terrain-layer-btn" title="תצלום לווין (Esri)">לווין</button>
-                <button type="button" id="terrainShowLoadedPathBtn" class="terrain-layer-btn" title="רענן משימה והצג נתיב טעון על המפה">הצג נתיב טעון</button>
+                  <button type="button" id="terrainShowLoadedPathBtn" class="terrain-layer-btn" title="רענן משימה והצג נתיב טעון על המפה" aria-pressed="false">הצג נתיב טעון</button>
+                  <p id="terrainPathNote" class="terrain-path-note" hidden></p>
               </div>
               <div id="terrainMapRotatable" class="terrain-map-rotatable">
                 <div id="terrainMap"></div>
@@ -2325,7 +2354,8 @@
 
           <section class="mission-region mission-region-talk" data-mission-region="talk" dir="rtl" aria-label="AIRVIX Ask">
             <h3 class="mission-region-title" draggable="true"><bdi dir="ltr">AIRVIX Ask</bdi></h3>
-            <p id="missionTalkHint" class="mission-talk-hint">דברו להטסה. אחרי הפעלה — נחיתה ומצב בלי אישור. חימוש חסום. פרמטר דורש אישור.</p>
+            <button type="button" id="missionAskCloseBtn" class="mission-ask-close" aria-label="סגור">סגור</button>
+            <p id="missionTalkHint" class="mission-talk-hint">דברו להטסה. אחרי ההפעלה, נחיתה ושינוי מצב מתבצעים בלי אישור נוסף. חימוש נשאר חסום, ושינוי פרמטר עדיין דורש אישור.</p>
             <div id="missionTalkHost" class="mission-talk-host" dir="rtl"></div>
           </section>
 

@@ -99,31 +99,32 @@ function loadSizeFns() {
 }
 
 describe('Mission AH size bias + swap persistence', () => {
-  it('pins APP_VERSION at 1.02.343', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.343'");
-    expect(pkg.version).toBe('1.02.343');
+  it('pins APP_VERSION at 1.02.344', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.344'");
+    expect(pkg.version).toBe('1.02.344');
   });
 
-  it('keeps mission-data labels and values on one ellipsized line', () => {
+  it('fits mission-data text inside the tile instead of an ellipsis', () => {
     const tile = cssBlock(css, '.mission-data-tile');
     expect(tile).toMatch(/min-height:\s*56px/);
     expect(tile).toMatch(/max-height:\s*none/);
     expect(tile).not.toMatch(/max-height:\s*44px/);
-    const typeBlock = cssBlock(css, '.mission-data-item dt');
-    expect(typeBlock).toMatch(/white-space:\s*nowrap/);
-    expect(typeBlock).toMatch(/text-overflow:\s*ellipsis/);
-    expect(typeBlock).toContain('.mission-data-label');
-    expect(typeBlock).toContain('.mission-data-value');
-    expect(cssBlock(css, '.conn-pill-label')).toMatch(/white-space:\s*nowrap/);
-    expect(cssBlock(css, '.conn-pill-label')).toMatch(/text-overflow:\s*ellipsis/);
-    expect(cssBlock(css, '.conn-link-chip')).toMatch(/white-space:\s*nowrap/);
+    const contractAt = css.indexOf('TEXT FIT CONTRACT');
+    expect(contractAt).toBeGreaterThan(0);
+    const contract = css.slice(contractAt);
+    expect(contract).toMatch(/font-size:\s*clamp\(11px/);
+    expect(contract).toMatch(/overflow-wrap:\s*break-word/);
+    expect(contract).not.toMatch(/text-overflow:\s*ellipsis/);
+    expect(contract).toMatch(/#missionLink/);
+    expect(contract).toMatch(/mission-horizon-filler-kicker/);
+    expect(contract).toMatch(/\.pfd-mode-val/);
     expect(cssBlock(css, '.mission-ops-chrome')).toMatch(/flex-wrap:\s*nowrap/);
     const fns = loadSizeFns();
     expect(fns.shortMissionLinkReadout('מחובר · טלמטריה רגילה')).toBe('מחובר');
     expect(fns.shortMissionLinkReadout('מחובר · 192.168.1.40:14550')).toBe('מחובר');
-    expect(fns.shortMissionLinkReadout('מנותק')).toBe('--');
+    expect(fns.shortMissionLinkReadout('מנותק')).toBe('—');
     expect(fns.shortMissionLinkReadout('מאזין · UDP')).toBe('מאזין');
-    expect(sliceFunction(js, 'formatMissionDataValue')).toContain('shortMissionLinkReadout');
+    expect(sliceFunction(js, 'formatMissionDataValue')).toContain('missionLinkTileLabel');
   });
 
   it('defaults to a taller AH share and shorter data strip', () => {
@@ -189,11 +190,21 @@ describe('Mission AH size bias + swap persistence', () => {
     expect(horizonBlock).toContain('data-mission-region="messages"');
     expect(mapBlock).not.toContain('data-mission-region="messages"');
     expect(css).toContain('data-mission-swap="map-horizon"');
+    expect(css).toContain('data-mission-swap="horizon-map"');
     expect(css).toContain('grid-template-columns: minmax(0, 1fr) minmax(132px, min(20%, var(--mission-ah-col)))');
+    expect(css).toMatch(/data-mission-swap="map-horizon"\] \{\s*grid-template-areas: "map horizon talk"/);
+    expect(css).toMatch(/data-mission-swap="horizon-map"\] \{\s*grid-template-areas: "horizon map talk"/);
+    expect(sliceFunction(js, 'applyMissionSwap')).toContain('refreshMissionSwapSurfaces');
+    expect(sliceFunction(js, 'refreshMissionSwapSurfaces')).toContain('terrainMap.invalidateSize');
+    expect(sliceFunction(js, 'refreshMissionSwapSurfaces')).toContain('resizeHorizonCanvas');
     expect(css).toMatch(/\.mission-region\[data-mission-region="messages"\]\s*\{[^}]*position:\s*relative/);
     expect(css).not.toMatch(/data-mission-region="messages"\][^{]*\{[^}]*left:\s*6px/);
-    expect(sliceFunction(js, 'positionPfdReadinessPopover')).toContain('[data-mission-region="talk"]');
-    expect(sliceFunction(js, 'positionPfdReadinessPopover')).toContain('talk.left - w - 8');
+    expect(sliceFunction(js, 'positionPfdReadinessPopover')).toContain('button, a, input, select, .leaflet-control');
+    expect(sliceFunction(js, 'missionLinkTileLabel')).toContain('בקר מחובר');
+    expect(sliceFunction(js, 'missionLinkTileLabel')).toContain('חסר טוקן');
+    expect(sliceFunction(js, 'missionLinkTileLabel')).toContain('בדקו כתובת');
+    expect(sliceFunction(js, 'setInstrumentView')).toContain('annotatedVisionPanel');
+    expect(sliceFunction(js, 'setInstrumentView')).toContain('liveCameraPanel');
   });
 
   it('defaults to map-horizon and keeps a saved horizon-map choice', () => {
@@ -214,7 +225,9 @@ describe('Mission AH size bias + swap persistence', () => {
   it('keeps the horizon video empty-state honest about a stream address', () => {
     expect(html).toContain('id="horizonVideoToggle"');
     expect(html).toContain('id="horizonVideoUrl"');
-    expect(html).toMatch(/id="horizonVideoEmpty"[^>]*>אין וידאו\. דרושה כתובת זרם ממחשב המשימה\.</);
+    expect(html).toMatch(/id="horizonVideoEmpty"[^>]*>אין זרם מצלמה</);
+    expect(html).toMatch(/id="gsHorizonVideo"/);
+    expect(html).not.toMatch(/id="terrain"[\s\S]*id="horizonVideoUrl"/);
     expect(js).toContain("HORIZON_VIDEO_URL_KEY = 'vlc.horizon.videoUrl'");
   });
 });
@@ -237,10 +250,10 @@ describe('Altitude tile honesty', () => {
       altitude: null,
     })).toBe('אין קישור');
     expect(fns.altitudeTileHonestyTitle(null)).toBe('אין קישור');
-    expect(html).toMatch(/id="hudAltitude"[^>]*title="אין קישור"/);
+    expect(html).toMatch(/id="hudAltitude"[^>]*title="אין נתונים"/);
     expect(js).toContain("const VLC_TOOLTIP_ALT_WAITING = 'מחובר אך אין גובה מהבקר עדיין'");
     expect(sliceFunction(js, 'applyTopbarFlightData')).toContain('altitudeTileHonestyTitle(mav)');
-    expect(sliceFunction(js, 'applyTopbarFlightData')).toContain("useTile ? '--'");
+    expect(sliceFunction(js, 'applyTopbarFlightData')).toContain(": '—';");
     expect(sliceFunction(js, 'applyMissionDataGrid')).toContain('hudAltitude');
   });
 });

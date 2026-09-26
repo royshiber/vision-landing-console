@@ -113,7 +113,7 @@ describe('SSE + Mission HUD pipeline wiring', () => {
     const apply = sliceFunction(js, 'applyFcStatustextHud');
     expect(apply).toMatch(/isHudMavlinkLive\(mavlink\)/);
     expect(apply).toMatch(/missionFcEmptyPrimaryHe\(companion\)/);
-    expect(js).toContain('אין חיבור לבקר — לא מתקבלות הודעות MAVLink.');
+    expect(js).toContain('אין חיבור לבקר הטיסה');
     expect(js).toContain('דופק חי בבקר. ממסר הטלמטריה לא נפתח.');
     const live = sliceFunction(js, 'isHudMavlinkLive');
     expect(live).toMatch(/mav\.connected === true/);

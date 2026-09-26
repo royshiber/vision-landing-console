@@ -1,0 +1,16 @@
+---
+description: Visible text must fit inside its own box
+alwaysApply: true
+---
+
+# Text fit
+
+Every visible string stays inside its own box. The contract is `docs/UI_LAYOUT_CONTRACT.md`. The check is `tests/text-fit-audit.mjs`.
+
+- Do not clip text. Do not use an ellipsis to fake a fit.
+- Wrap to two lines where the tile allows it. Use a longer wrap only when two lines still overflow.
+- Shorten Hebrew labels when a line cannot fit at 11px.
+- Set `font-size` with `clamp(11px, …, …)`. Never go below 11px. Never shrink text that is already readable.
+- Give crowded rows a sensible min width and let the row wrap.
+- Do not set `overflow: hidden` on a text box to hide the overflow.
+- For every visible text box: `scrollWidth <= clientWidth`, `scrollHeight <= clientHeight`, and the box lies inside its parent tile.

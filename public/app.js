@@ -373,6 +373,7 @@ function applyMainTab(tabId, { save = true } = {}) {
   panels.forEach((p) => p.classList.remove('visible'));
   const tab = tabs.find((t) => t.dataset.tab === tabId);
   const panel = document.getElementById(tabId);
+  if (tab?.hidden) tab.hidden = false;
   if (tab) tab.classList.add('active');
   if (panel) panel.classList.add('visible');
   setParamCenterChromeVisible(tabId === 'control');
@@ -1635,12 +1636,12 @@ function renderArduFcPresenceBadge(f) {
     return '<span class="ardu-fc-presence ardu-fc-presence--virtual" title="שדה פרופיל בקונסולה — לא פרמטר ArduPilot על בקר הטיסה">פרופיל</span>';
   }
   if (!fcCurrentSnapshot || typeof fcCurrentSnapshot !== 'object') {
-    return '<span class="ardu-fc-presence ardu-fc-presence--unknown" title="בצעו קריאה מבקר הטיסה כדי לבדוק אם השם קיים בקושחה">לא נקרא</span>';
+    return '<span class="ardu-fc-presence ardu-fc-presence--unknown" title="בצעו קריאה מבקר הטיסה כדי לבדוק אם השם קיים בפירמוור">לא נקרא</span>';
   }
   if (Object.prototype.hasOwnProperty.call(fcCurrentSnapshot, f.key)) {
     return '<span class="ardu-fc-presence ardu-fc-presence--ok" title="מפתח זה הופיע ברשימת הפרמטרים מבקר הטיסה">בבקר</span>';
   }
-    return '<span class="ardu-fc-presence ardu-fc-presence--missing" title="לא הופיע אחרי קריאה. ייתכן שאין פרמטר בשם זה בגרסת הקושחה. הכתיבה לבקר הטיסה עלולה להיכשל">לא בבקר</span>';
+    return '<span class="ardu-fc-presence ardu-fc-presence--missing" title="לא הופיע אחרי קריאה. ייתכן שאין פרמטר בשם זה בגרסת הפירמוור. הכתיבה לבקר הטיסה עלולה להיכשל">לא בבקר</span>';
 }
 
 function arduFcCardMissingClass(f) {
@@ -3699,7 +3700,7 @@ function companionNeedsToken(data) {
   return data.needToken === true
     || data.focusField === 'token'
     || data.error === 'token_empty'
-    || data.status_he === 'חסר אסימון';
+    || data.status_he === 'חסר טוקן';
 }
 
 function companionIsLive(source) {
@@ -5226,7 +5227,7 @@ function renderVisionLandingReadiness(container, snapshot) {
       }
       detailNodes.push(toks);
     }
-    if (row.id === 'plnd_profile') {
+    if (row.id === 'plnd_profile' && !compact) {
       const open = document.createElement('button');
       open.type = 'button';
       open.className = 'vlr-open-params';
@@ -5289,34 +5290,6 @@ function renderVisionLandingReadiness(container, snapshot) {
       });
     }
     pulseRefreshSummary();
-  }
-  if (compact && snapshot?.fieldPreflight) {
-    const wrap = document.createElement('section');
-    wrap.className = 'vlr-field';
-    wrap.setAttribute('aria-label', snapshot.fieldPreflight.titleHe || 'מוכנות שדה לניסוי אחד');
-    const head = document.createElement('p');
-    head.className = 'vlr-field-title';
-    head.textContent = snapshot.fieldPreflight.titleHe || 'מוכנות שדה · ניסוי אחד';
-    wrap.appendChild(head);
-    const list = document.createElement('div');
-    list.className = 'vlr-list';
-    list.id = 'pfdFieldPreflightList';
-    wrap.appendChild(list);
-    container.appendChild(wrap);
-    renderFieldPreflightRows(list, snapshot.fieldPreflight, { compact: true });
-  }
-  if (snapshot?.cameraInstall) {
-    let host = container.querySelector('#pfdCameraInstallChecklist');
-    if (compact) {
-      if (!host) {
-        host = document.createElement('section');
-        host.id = 'pfdCameraInstallChecklist';
-        host.className = 'cic-panel cic-panel--compact';
-        host.setAttribute('aria-label', 'התקנת מצלמות');
-        container.appendChild(host);
-      }
-      if (!cameraInstallBusy()) renderCameraInstallChecklist(host, snapshot.cameraInstall, { compact: true });
-    }
   }
 }
 
@@ -5398,8 +5371,9 @@ function pulseRefresh() {
   if (linkEl) linkEl.textContent = linkText;
   const missionLink = document.getElementById('missionLink');
   if (missionLink) {
-    missionLink.textContent = shortMissionLinkReadout(agreedLink);
-    missionLink.title = linkText !== '--' ? linkText : '';
+    const tile = missionLinkTileLabel(companion, mav, linkLabel);
+    missionLink.textContent = tile;
+    missionLink.title = tile && tile !== '--' ? tile : '';
   }
   const jetson = (typeof latestJetsonFromServer !== 'undefined' && latestJetsonFromServer) ? latestJetsonFromServer : {};
   const jetsonMetrics = pulseJetsonSystemMetrics(companion, jetson);
@@ -5916,7 +5890,7 @@ function companionConnectRender(status) {
     const relay = status?.mavlinkRelay;
     const relayDown = relay && relay.ok === false && !relay.skipped;
     hintEl.hidden = configuredReal && !relayDown;
-    hintEl.textContent = status?.hint_he || 'צריך כתובת ואסימון. כתובת לבד לא מספיקה.';
+    hintEl.textContent = status?.hint_he || 'צריך כתובת וטוקן. כתובת לבד לא מספיקה.';
   }
   const hint = configuredReal ? String(status.token_hint || '').trim() : '';
   if (tokenHintEl) {
@@ -5987,12 +5961,12 @@ async function companionConnectSubmit(event) {
     return;
   }
   if (!token) {
-    companionConnectSetError('חסר אסימון');
+    companionConnectSetError('חסר טוקן');
     companionConnectRender({
       ok: false,
       mode: 'off',
       connected: false,
-      status_he: 'חסר אסימון',
+      status_he: 'חסר טוקן',
       base_url: baseUrl,
     });
     return;
@@ -6098,7 +6072,7 @@ async function companionQuickConnect() {
         const adv = document.getElementById('companionConnectAdvanced');
         if (adv) adv.open = true;
       }
-      companionConnectSetError(data.status_he || (companionNeedsToken(data) ? 'חסר אסימון' : 'פתחו מתקדם רק אם חסרה כתובת.'));
+      companionConnectSetError(data.status_he || (companionNeedsToken(data) ? 'חסר טוקן' : 'פתחו מתקדם רק אם חסרה כתובת.'));
       companionConnectRender({
         ok: false,
         mode: data.mode || 'off',
@@ -6144,7 +6118,7 @@ function applyCompanionUi(companion) {
   const unavailableEl = document.getElementById('companionApiUnavailable');
   if (unavailableEl) {
     unavailableEl.hidden = !unavailable;
-    unavailableEl.textContent = unavailable ? 'מחשב משימה לא מגיב. בדקו כתובת ואסימון.' : '';
+    unavailableEl.textContent = unavailable ? 'מחשב משימה לא מגיב. בדקו כתובת וטוקן.' : '';
   }
   const live = companionIsLive(companion) && !unavailable;
   companionSetLiveChrome(live);
@@ -6348,6 +6322,7 @@ function vlcModeFamily(mav) {
 }
 
 function vlcFlightModeName(raw, mav) {
+  if (raw == null || raw === '') return null;
   const n = Number(raw);
   if (!Number.isInteger(n)) return null;
   const table = vlcModeFamily(mav) === 'copter' ? ARDUPILOT_COPTER_MODES : ARDUPILOT_PLANE_MODES;
@@ -6355,10 +6330,10 @@ function vlcFlightModeName(raw, mav) {
 }
 
 function vlcFlightModeText(raw, mav, connected) {
+  if (connected !== true || raw == null || raw === '') return '—';
   const name = vlcFlightModeName(raw, mav);
   if (name) return name;
-  if (!connected) return '--';
-  return '#' + (raw ?? '--');
+  return '#' + raw;
 }
 const hudAirspeedEl  = document.getElementById('hudAirspeed');
 const hudAltitudeEl  = document.getElementById('hudAltitude');
@@ -6449,7 +6424,7 @@ function formatGpsHudReadout(mav) {
   const satsOk = typeof sats === 'number' && Number.isFinite(sats);
   if (!hasFix) {
     return {
-      text: '--',
+      text: '—',
       title: hudFieldHonestyTitle('gps', mav, null),
       status: 'unknown',
     };
@@ -6516,21 +6491,23 @@ function formatHudAngleLabel(deg) {
 }
 
 // ── ResizeObserver: keep canvas pixel size = CSS size × devicePixelRatio ──────
-if (horizonCanvas && pfdHorizonShell) {
-  const _resizeCanvas = () => {
-    const stage = document.getElementById('pfdHorizonStage') || pfdHorizonShell;
-    const { width, height } = stage.getBoundingClientRect();
-    if (width > 10 && height > 10) {
-      const dpr = window.devicePixelRatio || 1;
-      horizonCanvas.width  = Math.round(width  * dpr);
-      horizonCanvas.height = Math.round(height * dpr);
-      horizonCanvas.style.width  = width  + 'px';
-      horizonCanvas.style.height = height + 'px';
-      drawHorizon(horizonCanvas, _lastRoll, _lastPitch, currentHorizonDrawOpts());
-    }
-  };
+function resizeHorizonCanvas() {
   const stage = document.getElementById('pfdHorizonStage') || pfdHorizonShell;
-  new ResizeObserver(_resizeCanvas).observe(stage);
+  if (!horizonCanvas || !stage) return;
+  const { width, height } = stage.getBoundingClientRect();
+  if (width > 10 && height > 10) {
+    const dpr = window.devicePixelRatio || 1;
+    horizonCanvas.width  = Math.round(width  * dpr);
+    horizonCanvas.height = Math.round(height * dpr);
+    horizonCanvas.style.width  = width  + 'px';
+    horizonCanvas.style.height = height + 'px';
+    drawHorizon(horizonCanvas, _lastRoll, _lastPitch, currentHorizonDrawOpts());
+  }
+}
+
+if (horizonCanvas && pfdHorizonShell) {
+  const stage = document.getElementById('pfdHorizonStage') || pfdHorizonShell;
+  new ResizeObserver(() => resizeHorizonCanvas()).observe(stage);
 }
 
 let _horizonVideoMode = false;
@@ -6562,8 +6539,10 @@ function horizonVideoHasPlayableSource(url) {
 function syncHorizonVideoEmpty(hasVideo) {
   const emptyEl = document.getElementById('horizonVideoEmpty');
   if (!emptyEl) return;
-  const showEmpty = !!_horizonVideoMode && !hasVideo;
+  const showEmpty = !hasVideo && (_horizonVideoMode || readInstrumentView() === 'video');
+  emptyEl.hidden = !showEmpty;
   emptyEl.classList.toggle('hidden', !showEmpty);
+  if (showEmpty) emptyEl.textContent = 'אין זרם מצלמה';
 }
 
 function setHorizonVideoActive(active, url) {
@@ -6587,8 +6566,8 @@ function setHorizonVideoActive(active, url) {
         syncHorizonVideoEmpty(false);
       });
     } else {
+      videoEl.onerror = null;
       videoEl.removeAttribute('src');
-      videoEl.src = '';
       videoEl.classList.add('hidden');
     }
   }
@@ -6597,39 +6576,148 @@ function setHorizonVideoActive(active, url) {
   try { localStorage.setItem(HORIZON_VIDEO_ON_KEY, _horizonVideoMode ? '1' : '0'); } catch {}
 }
 
+const INSTRUMENT_VIEW_KEY = 'vlc.instrumentView.v1';
+const INSTRUMENT_VIEWS = Object.freeze(['horizon', 'video', 'vision', 'frame']);
+
+function readInstrumentView() {
+  try {
+    const raw = localStorage.getItem(INSTRUMENT_VIEW_KEY);
+    if (INSTRUMENT_VIEWS.includes(raw)) return raw;
+  } catch { /* ignore */ }
+  return 'horizon';
+}
+
+function instrumentVideoEmptyReason(companion) {
+  const comp = companion && typeof companion === 'object' ? companion : {};
+  const link = comp.link && typeof comp.link === 'object' ? comp.link : comp;
+  if (link.needToken === true || comp.needToken === true || link.focusField === 'token' || comp.focusField === 'token' || comp.error === 'token_empty') {
+    return 'חסר טוקן';
+  }
+  if (link.jetson === 'unreachable' || (comp.mode === 'real' && comp.reachable === false)) {
+    return 'בדקו כתובת';
+  }
+  return 'אין זרם מצלמה';
+}
+
+function paintInstrumentVideo(companion) {
+  const img = document.getElementById('instrumentVideoFrame');
+  const empty = document.getElementById('horizonVideoEmpty');
+  const override = (document.getElementById('horizonVideoUrl')?.value || localStorage.getItem(HORIZON_VIDEO_URL_KEY) || '').trim();
+  let liveId = null;
+  for (const apiId of ['cam1', 'cam2', 'cam3']) {
+    if (horizonSlotStreaming(horizonCameraDetail(companion, apiId))) {
+      liveId = apiId;
+      break;
+    }
+  }
+  if (readInstrumentView() !== 'video') {
+    if (img) {
+      img.hidden = true;
+      img.removeAttribute('src');
+    }
+    if (empty) {
+      empty.hidden = true;
+      empty.classList.add('hidden');
+    }
+    return;
+  }
+  if (liveId && img) {
+    img.hidden = false;
+    const stamp = Number(img.dataset.stamp || 0);
+    if (Date.now() - stamp > 700) {
+      img.dataset.stamp = String(Date.now());
+      img.src = `/api/jetson/v1/cameras/${liveId}/frame?t=${Date.now()}`;
+    }
+    setHorizonVideoActive(false, '');
+    if (empty) {
+      empty.hidden = true;
+      empty.classList.add('hidden');
+    }
+    return;
+  }
+  if (img) {
+    img.hidden = true;
+    img.removeAttribute('src');
+  }
+  if (horizonVideoHasPlayableSource(override)) {
+    setHorizonVideoActive(true, override);
+    if (empty) {
+      empty.hidden = true;
+      empty.classList.add('hidden');
+    }
+    return;
+  }
+  setHorizonVideoActive(false, '');
+  if (empty) {
+    empty.hidden = false;
+    empty.classList.remove('hidden');
+    empty.textContent = 'אין זרם מצלמה';
+  }
+}
+
+function setInstrumentView(next) {
+  const view = INSTRUMENT_VIEWS.includes(next) ? next : 'horizon';
+  try { localStorage.setItem(INSTRUMENT_VIEW_KEY, view); } catch { /* ignore */ }
+  const shell = document.getElementById('pfdHorizonShell');
+  if (shell) shell.dataset.instrumentView = view;
+  const show = (id, on) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.hidden = !on;
+    el.classList.toggle('hidden', !on);
+  };
+  show('annotatedVisionPanel', view === 'vision');
+  show('liveCameraPanel', view === 'frame');
+  show('instrumentVideoFrame', false);
+  show('horizonVideoEmpty', false);
+  const chips = {
+    video: document.getElementById('horizonVideoToggle'),
+    vision: document.getElementById('annotatedVisionToggle'),
+    frame: document.getElementById('liveCameraToggle'),
+  };
+  for (const [mode, btn] of Object.entries(chips)) {
+    const on = view === mode;
+    btn?.classList.toggle('active', on);
+    btn?.setAttribute('aria-pressed', on ? 'true' : 'false');
+  }
+  if (view !== 'video') setHorizonVideoActive(false, '');
+  const companion = typeof latestCompanionFromServer === 'object' ? latestCompanionFromServer : null;
+  if (view === 'video') paintInstrumentVideo(companion);
+  const videoEmpty = document.getElementById('horizonVideoEmpty');
+  if (view === 'video' && videoEmpty && !videoEmpty.hidden) {
+    chips.video?.classList.remove('active');
+    chips.video?.setAttribute('aria-pressed', 'false');
+    if (!String(videoEmpty.textContent || '').trim()) videoEmpty.textContent = 'אין זרם מצלמה';
+  }
+  if (view === 'frame' && typeof applyLiveCameraPreview === 'function') applyLiveCameraPreview(companion);
+  if (typeof resizeHorizonCanvas === 'function') resizeHorizonCanvas();
+}
+
 function initHorizonVideo() {
   const videoEl = document.getElementById('horizonVideoEl');
-  const toggleBtn = document.getElementById('horizonVideoToggle');
-  const panel = document.getElementById('horizonVideoPanel');
   const urlInput = document.getElementById('horizonVideoUrl');
   const applyBtn = document.getElementById('horizonVideoApply');
-  if (!toggleBtn || !panel || !videoEl) return;
+  if (!videoEl) return;
 
   const savedUrl = localStorage.getItem(HORIZON_VIDEO_URL_KEY) || '';
   if (urlInput && savedUrl) urlInput.value = savedUrl;
 
   function applyVideoUrl() {
     const url = urlInput?.value.trim() || '';
-    if (!url) {
-      setHorizonVideoActive(true, '');
-      return;
-    }
-    try { localStorage.setItem(HORIZON_VIDEO_URL_KEY, url); } catch {}
-    panel.classList.add('hidden');
-    setHorizonVideoActive(true, url);
+    try { localStorage.setItem(HORIZON_VIDEO_URL_KEY, url); } catch { /* ignore */ }
+    if (readInstrumentView() === 'video') paintInstrumentVideo(typeof latestCompanionFromServer === 'object' ? latestCompanionFromServer : null);
   }
 
-  toggleBtn.addEventListener('click', () => {
-    if (_horizonVideoMode) {
-      setHorizonVideoActive(false, '');
-      panel.classList.add('hidden');
-    } else {
-      const url = urlInput?.value.trim() || savedUrl;
-      setHorizonVideoActive(true, url);
-      if (!horizonVideoHasPlayableSource(url)) panel.classList.remove('hidden');
-    }
-  });
-
+  const chips = {
+    horizonVideoToggle: 'video',
+    annotatedVisionToggle: 'vision',
+    liveCameraToggle: 'frame',
+  };
+  for (const [id, mode] of Object.entries(chips)) {
+    document.getElementById(id)?.addEventListener('click', () => {
+      setInstrumentView(readInstrumentView() === mode ? 'horizon' : mode);
+    });
+  }
   if (applyBtn) applyBtn.addEventListener('click', applyVideoUrl);
   if (urlInput) {
     urlInput.addEventListener('keydown', (e) => {
@@ -6637,9 +6725,8 @@ function initHorizonVideo() {
     });
   }
 
-  if (localStorage.getItem(HORIZON_VIDEO_ON_KEY) === '1') {
-    setHorizonVideoActive(true, savedUrl);
-  }
+  const savedView = localStorage.getItem(HORIZON_VIDEO_ON_KEY) === '1' ? 'video' : readInstrumentView();
+  setInstrumentView(savedView);
 }
 initHorizonVideo();
 
@@ -6850,8 +6937,9 @@ function resolveLiveHudMavlinkForNote(mav) {
   return null;
 }
 
-const MISSION_FC_EMPTY_PRIMARY_HE = 'אין חיבור לבקר — לא מתקבלות הודעות MAVLink.';
-const MISSION_FC_EMPTY_NOTE_HE = 'אין חיבור לבקר. אין הודעות נכנסות.';
+const MISSION_FC_EMPTY_PRIMARY_HE = 'אין חיבור לבקר הטיסה';
+const MISSION_FC_EMPTY_NOTE_HE = 'אין חיבור לבקר הטיסה';
+const MISSION_FC_LINKED_HE = 'בקר מחובר';
 const MISSION_FC_RELAY_HINT_HE = 'דופק חי בבקר. ממסר הטלמטריה לא נפתח.';
 
 function companionReportsFcHeartbeat(companion) {
@@ -6933,8 +7021,9 @@ function liveStatusToHudMavlink(s) {
     sysId: hudSysId(s.sysId),
     lastHeartbeatAgeMs: Number.isFinite(Number(s.lastHeartbeatAgeMs)) ? Number(s.lastHeartbeatAgeMs) : null,
     heartbeatRateHz: Number.isFinite(Number(s.heartbeatRateHz)) ? Number(s.heartbeatRateHz) : null,
-    armed: null,
-    armedKnown: false,
+    armed: s.armed === true ? true : (s.armed === false ? false : null),
+    armedKnown: s.armedKnown === true,
+    flying: s.flying === true,
     autopilotName: s.autopilotName || null,
     vehicleType: s.vehicleType || null,
     mavType: Number.isFinite(Number(s.mavType)) ? Number(s.mavType) : null,
@@ -6976,6 +7065,7 @@ function resolveHudMavlink(sseMav, liveStatus) {
       pitchDeg: sseMav?.pitchDeg ?? null,
       armed: sseMav?.armed ?? null,
       armedKnown: sseMav?.armedKnown === true,
+      flying: sseMav?.flying === true || fromLive.flying === true,
       flightMode: sseMav?.flightMode ?? null,
       sysId: hudSysId(sseMav?.sysId) ?? fromLive.sysId,
       lastHeartbeatAgeMs: sseMav?.lastHeartbeatAgeMs ?? fromLive.lastHeartbeatAgeMs,
@@ -7007,11 +7097,11 @@ function syncMissionFcEmptyNote(mav) {
   const liveMav = resolveLiveHudMavlinkForNote(mav);
   if (liveMav) {
     const name = [liveMav.autopilotName, liveMav.vehicleType].filter(Boolean).join(' · ');
-    note.textContent = name ? `מחובר · ${name}` : 'מחובר לבקר.';
+    note.textContent = name ? `${MISSION_FC_LINKED_HE} · ${name}` : MISSION_FC_LINKED_HE;
     return;
   }
   if (hudReflectsLiveFc(mav)) {
-    note.textContent = 'מחובר לבקר.';
+    note.textContent = MISSION_FC_LINKED_HE;
     return;
   }
   const companion = (typeof latestCompanionFromServer === 'object' && latestCompanionFromServer)
@@ -7109,7 +7199,7 @@ function renderHudGrid() {
     const lbl = slot.label.replace(/</g,'&lt;').replace(/>/g,'&gt;');
     const unt = slot.unit ? '<span class="hud-slot-unit">' + slot.unit.replace(/</g,'&lt;') + '</span>' : '';
     div.innerHTML = '<span class="hud-slot-label">' + lbl + '</span>' +
-      '<strong class="hud-slot-val" id="hudSlotVal' + idx + '">--</strong>' + unt;
+      '<strong class="hud-slot-val" id="hudSlotVal' + idx + '">—</strong>' + unt;
     div.addEventListener('contextmenu', (e) => {
       e.preventDefault(); e.stopPropagation();
       showHudCtxMenu(idx, e.clientX, e.clientY);
@@ -7132,14 +7222,14 @@ function applyHudGrid(payload) {
     const valEl = document.getElementById('hudSlotVal' + idx);
     if (!valEl) return;
     const raw = getPayloadValue(payload, slot.key);
-    if (raw == null) { valEl.textContent = '--'; return; }
-    if (typeof raw === 'number' && !Number.isFinite(raw)) { valEl.textContent = '--'; return; }
+    if (raw == null) { valEl.textContent = '—'; return; }
+    if (typeof raw === 'number' && !Number.isFinite(raw)) { valEl.textContent = '—'; return; }
     if (slot.key === 'mavlink.flightMode') {
       valEl.textContent = vlcFlightModeText(raw, payload?.mavlink, payload?.mavlink?.connected === true);
     } else if (typeof raw === 'number') {
-      if (!Number.isFinite(raw)) { valEl.textContent = '--'; return; }
+      if (!Number.isFinite(raw)) { valEl.textContent = '—'; return; }
       const a = Math.abs(raw);
-      if (a > 1e6 || (a > 0 && a < 1e-9)) { valEl.textContent = '--'; return; }
+      if (a > 1e6 || (a > 0 && a < 1e-9)) { valEl.textContent = '—'; return; }
       const dec = Number.isInteger(raw) ? 0 : (a < 10 ? 2 : 1);
       valEl.textContent = raw.toFixed(dec) + (slot.unit ? ' ' + slot.unit : '');
     } else {
@@ -7223,6 +7313,11 @@ function drawHorizon(canvas, rollDeg, pitchDeg, opts = {}) {
   const showPitch = pitchBounded != null;
   const rollDraw = showRoll ? rollBounded : 0;
   const pitchDraw = showPitch ? pitchBounded : 0;
+  if (!showRoll && !showPitch && !videoMode) {
+    ctx.fillStyle = '#12161f';
+    ctx.fillRect(0, 0, W, H);
+    return;
+  }
   const rollRad = (rollDraw * Math.PI) / 180;
   const hud = videoMode ? '#3DFF6A' : '#f8f1d4';
   const skyZenith = videoMode ? 'rgba(18, 78, 148, 0.12)' : '#163e86';
@@ -7384,17 +7479,244 @@ function drawHorizon(canvas, rollDeg, pitchDeg, opts = {}) {
   ctx.textBaseline = 'alphabetic';
   ctx.fillStyle = showRoll ? hud : (videoMode ? 'rgba(61,255,106,0.4)' : 'rgba(248,250,252,0.4)');
   ctx.textAlign = 'left';
-  ctx.fillText(showRoll ? `R ${rollDraw >= 0 ? '+' : ''}${formatHudAngleLabel(rollDraw)}°` : 'R --', 8, H - 8);
+  ctx.fillText(showRoll ? `R ${rollDraw >= 0 ? '+' : ''}${formatHudAngleLabel(rollDraw)}°` : 'R —', 8, H - 8);
   ctx.fillStyle = showPitch ? hud : (videoMode ? 'rgba(61,255,106,0.4)' : 'rgba(248,250,252,0.4)');
   ctx.textAlign = 'right';
-  ctx.fillText(showPitch ? `P ${pitchDraw >= 0 ? '+' : ''}${formatHudAngleLabel(pitchDraw)}°` : 'P --', W - 8, H - 8);
+  ctx.fillText(showPitch ? `P ${pitchDraw >= 0 ? '+' : ''}${formatHudAngleLabel(pitchDraw)}°` : 'P —', W - 8, H - 8);
 }
 const GPS_FIX_LABELS = ['אין GPS', 'אין Fix', '2D Fix', '3D Fix', 'DGPS', 'RTK Float', 'RTK Fixed'];
+
+const FLIGHT_ARM_HOLD_MS = 1500;
+const FLIGHT_ARM_CONFIRM_HE = 'אשרו חימוש';
+const FLIGHT_DISARM_CONFIRM_HE = 'אשרו נטרול';
+const FLIGHT_DISARM_AGAIN_HE = 'אשרו נטרול שוב.';
+const FLIGHT_DISARM_UNKNOWN_HE = 'מצב הטיסה לא ידוע. אשרו נטרול שוב.';
+let flightArmHoldTimer = null;
+let flightArmHolding = false;
+let flightArmBusy = false;
+let flightDisarmSecond = false;
+
+function flightArmLinkLive(mav) {
+  if (!mav || mav.connected !== true || mav.armedKnown !== true) return false;
+  const age = Number(mav.lastHeartbeatAgeMs);
+  if (Number.isFinite(age) && age > 5000) return false;
+  return true;
+}
+
+function syncFlightArmControls(mav) {
+  const row = document.getElementById('flightArmRow');
+  const armBtn = document.getElementById('flightArmBtn');
+  const disarmBtn = document.getElementById('flightDisarmBtn');
+  const reason = document.getElementById('flightArmReason');
+  if (!armBtn || !disarmBtn || !reason) return;
+  const live = flightArmLinkLive(mav);
+  if (!live) {
+    armBtn.disabled = true;
+    disarmBtn.disabled = true;
+    armBtn.title = 'אין חיבור לבקר הטיסה';
+    disarmBtn.title = 'אין חיבור לבקר הטיסה';
+    reason.hidden = false;
+    reason.textContent = 'אין חיבור לבקר הטיסה';
+    if (row) row.dataset.armLink = 'off';
+    return;
+  }
+  reason.hidden = true;
+  const armed = mav.armed === true;
+  armBtn.disabled = armed;
+  disarmBtn.disabled = !armed;
+  armBtn.title = armed ? 'הכלי כבר חמוש' : 'החזיקו לחימוש';
+  disarmBtn.title = armed ? 'נטרול דורש אישור' : 'הכלי כבר מנוטרל';
+  if (row) row.dataset.armLink = armed ? 'armed' : 'disarmed';
+}
+
+function showFlightArmRefusal(text) {
+  const note = document.getElementById('flightArmRefusal');
+  if (!note) return;
+  const line = String(text || '').trim();
+  if (!line) {
+    note.hidden = true;
+    note.textContent = '';
+    return;
+  }
+  note.hidden = false;
+  note.textContent = line;
+}
+
+function closeFlightDisarmDialog() {
+  flightDisarmSecond = false;
+  const dialog = document.getElementById('flightDisarmDialog');
+  if (dialog) dialog.hidden = true;
+}
+
+async function postFlightArmDisarm(action, confirmFlying) {
+  const res = await fetch('/api/mavlink/arm-disarm', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action, confirmFlying: confirmFlying === true }),
+  });
+  const data = await res.json().catch(() => ({}));
+  return { status: res.status, data };
+}
+
+function closeFlightArmDialog() {
+  const dialog = document.getElementById('flightArmDialog');
+  if (dialog) dialog.hidden = true;
+}
+
+function openFlightArmDialog() {
+  if (flightArmBusy || !flightArmLinkLive(latestHudMavlink) || latestHudMavlink?.armed === true) return;
+  const text = document.getElementById('flightArmDialogText');
+  if (text) text.textContent = FLIGHT_ARM_CONFIRM_HE;
+  const dialog = document.getElementById('flightArmDialog');
+  if (dialog) dialog.hidden = false;
+}
+
+async function sendFlightArm() {
+  if (flightArmBusy || !flightArmLinkLive(latestHudMavlink) || latestHudMavlink?.armed === true) return;
+  flightArmBusy = true;
+  try {
+    const { data } = await postFlightArmDisarm('arm', false);
+    closeFlightArmDialog();
+    if (data?.ok === true) {
+      showFlightArmRefusal('');
+      return;
+    }
+    const fc = String(data?.prearm || '').trim();
+    showFlightArmRefusal(fc || 'הבקר סירב לחימוש');
+  } catch {
+    closeFlightArmDialog();
+    showFlightArmRefusal('השליחה נכשלה');
+  } finally {
+    flightArmBusy = false;
+  }
+}
+
+function cancelFlightArmHold() {
+  flightArmHolding = false;
+  if (flightArmHoldTimer) clearTimeout(flightArmHoldTimer);
+  flightArmHoldTimer = null;
+  document.getElementById('flightArmBtn')?.classList.remove('is-holding');
+}
+
+function flightDisarmGate(mav) {
+  const raw = mav?.landedState;
+  const age = Number(mav?.landedStateAgeMs);
+  const fresh = Number.isInteger(raw) && Number.isFinite(age) && age <= 5000;
+  if (!fresh) return 'unknown';
+  if (mav?.flying === true || raw === 2 || raw === 3) return 'flying';
+  return 'ground';
+}
+
+function showFlightDisarmSecond(kind) {
+  flightDisarmSecond = true;
+  const text = document.getElementById('flightDisarmDialogText');
+  if (text) text.textContent = kind === 'unknown' ? FLIGHT_DISARM_UNKNOWN_HE : FLIGHT_DISARM_AGAIN_HE;
+}
+
+async function confirmFlightDisarm() {
+  if (flightArmBusy) return;
+  const gate = flightDisarmGate(latestHudMavlink);
+  if (gate !== 'ground' && !flightDisarmSecond) {
+    showFlightDisarmSecond(gate);
+    return;
+  }
+  flightArmBusy = true;
+  try {
+    const { data } = await postFlightArmDisarm('disarm', flightDisarmSecond === true);
+    if ((data?.error === 'flying' || data?.error === 'flight_state_unknown') && data?.sent !== true && flightDisarmSecond !== true) {
+      flightArmBusy = false;
+      showFlightDisarmSecond(data.error === 'flight_state_unknown' ? 'unknown' : 'flying');
+      return;
+    }
+    closeFlightDisarmDialog();
+    if (data?.ok !== true) {
+      const fc = String(data?.prearm || data?.message || '').trim();
+      showFlightArmRefusal(fc || 'הבקר סירב לנטרול');
+    } else {
+      showFlightArmRefusal('');
+    }
+  } catch {
+    closeFlightDisarmDialog();
+    showFlightArmRefusal('השליחה נכשלה');
+  } finally {
+    flightArmBusy = false;
+  }
+}
+
+function initFlightArmControls() {
+  const armBtn = document.getElementById('flightArmBtn');
+  const disarmBtn = document.getElementById('flightDisarmBtn');
+  if (!armBtn || armBtn.dataset.bound === '1') return;
+  armBtn.dataset.bound = '1';
+  armBtn.addEventListener('pointerdown', (event) => {
+    if (armBtn.disabled || flightArmBusy) return;
+    event.preventDefault();
+    flightArmHolding = true;
+    armBtn.classList.add('is-holding');
+    if (flightArmHoldTimer) clearTimeout(flightArmHoldTimer);
+    flightArmHoldTimer = setTimeout(() => {
+      if (!flightArmHolding) return;
+      cancelFlightArmHold();
+      openFlightArmDialog();
+    }, FLIGHT_ARM_HOLD_MS);
+  });
+  armBtn.addEventListener('pointerup', cancelFlightArmHold);
+  armBtn.addEventListener('pointerleave', cancelFlightArmHold);
+  armBtn.addEventListener('pointercancel', cancelFlightArmHold);
+  disarmBtn?.addEventListener('click', () => {
+    if (disarmBtn.disabled) return;
+    flightDisarmSecond = false;
+    const text = document.getElementById('flightDisarmDialogText');
+    if (text) text.textContent = FLIGHT_DISARM_CONFIRM_HE;
+    const dialog = document.getElementById('flightDisarmDialog');
+    if (dialog) dialog.hidden = false;
+  });
+  document.getElementById('flightDisarmCancel')?.addEventListener('click', closeFlightDisarmDialog);
+  document.getElementById('flightDisarmConfirm')?.addEventListener('click', () => {
+    confirmFlightDisarm();
+  });
+  document.getElementById('flightArmCancel')?.addEventListener('click', closeFlightArmDialog);
+  document.getElementById('flightArmConfirm')?.addEventListener('click', () => {
+    sendFlightArm();
+  });
+  syncFlightArmControls(latestHudMavlink);
+}
+
+initFlightArmControls();
+
+function setMissionAskOpen(open) {
+  const btn = document.getElementById('missionAskToggleBtn');
+  const ws = document.querySelector('.mission-workspace');
+  if (!ws) return;
+  ws.dataset.askOpen = open ? '1' : '0';
+  btn?.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+
+function initMissionAskToggle() {
+  const btn = document.getElementById('missionAskToggleBtn');
+  const ws = document.querySelector('.mission-workspace');
+  if (!btn || !ws || btn.dataset.bound === '1') return;
+  btn.dataset.bound = '1';
+  btn.addEventListener('click', () => {
+    setMissionAskOpen(ws.dataset.askOpen !== '1');
+  });
+  document.getElementById('missionAskCloseBtn')?.addEventListener('click', () => {
+    if (!window.matchMedia('(max-width: 1100px)').matches) return;
+    setMissionAskOpen(false);
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape' || ws.dataset.askOpen !== '1') return;
+    if (!window.matchMedia('(max-width: 1100px)').matches) return;
+    setMissionAskOpen(false);
+  });
+}
+initMissionAskToggle();
 
 /** Update the PFD with the latest MAVLink snapshot. */
 function applyFlightHud(mav) {
   if (!mav) {
     // Missing snapshot ≠ disconnect. Keep last HUD frame and last honest note.
+    syncFlightArmControls(latestHudMavlink);
     syncMissionFcEmptyNote(latestHudMavlink);
     syncMissionLayoutChrome();
     return;
@@ -7415,24 +7737,27 @@ function applyFlightHud(mav) {
     heading: finiteHorizonTape(mav.heading),
   };
   drawHorizon(horizonCanvas, _lastRoll, _lastPitch, currentHorizonDrawOpts());
+  syncHorizonNoData();
 
   // Armed / mode (top bar)
   const armed = !!mav.armed;
   if (pfdArmedBadge) {
     if (!mav.connected) {
-      pfdArmedBadge.textContent = 'ללא FC';
-      pfdArmedBadge.className   = 'pfd-badge pfd-badge--unknown';
-      pfdArmedBadge.title       = 'אין חיבור MAVLink — לחץ לפרטים';
+      pfdArmedBadge.hidden = true;
+      pfdArmedBadge.textContent = '';
     } else if (!mav.armedKnown) {
+      pfdArmedBadge.hidden = false;
       pfdArmedBadge.textContent = 'ARM ?';
       pfdArmedBadge.className   = 'pfd-badge pfd-badge--unknown';
       pfdArmedBadge.title       = 'לא התקבל מידע ARM מלא — לחץ לפרטים';
     } else {
+      pfdArmedBadge.hidden = false;
       pfdArmedBadge.textContent = armed ? 'ARMED' : 'DISARMED';
       pfdArmedBadge.className   = 'pfd-badge ' + (armed ? 'pfd-badge--armed' : 'pfd-badge--disarmed');
       pfdArmedBadge.title       = armed ? 'במצב ARM — לחץ להסבר מוכנות' : 'DISARMED — לחץ לבדיקת מוכנות / הודעות';
     }
   }
+  syncFlightArmControls(mav);
   if (pfdModeVal) {
     pfdModeVal.textContent = vlcFlightModeText(mav.flightMode, mav, mav.connected === true);
   }
@@ -7445,7 +7770,7 @@ function applyFlightHud(mav) {
       pfdHdgVal.textContent = `${Math.round(hdgNorm)}°`;
       pfdHdgArrow.style.transform = `rotate(${hdgNorm}deg)`;
     } else {
-      pfdHdgVal.textContent = '---°';
+      pfdHdgVal.textContent = '—';
       pfdHdgArrow.style.transform = 'rotate(0deg)';
     }
   }
@@ -7462,12 +7787,12 @@ function applyFlightHud(mav) {
   }
   if (pfdAirspeedVal) {
     const as = mav.airspeed;
-    pfdAirspeedVal.textContent = typeof as === 'number' && Number.isFinite(as) ? as.toFixed(1) : '--';
+    pfdAirspeedVal.textContent = typeof as === 'number' && Number.isFinite(as) ? as.toFixed(1) : '—';
     pfdAirspeedVal.title = airspeedTileHonestyTitle(mav);
   }
   if (pfdAltVal) {
     const al = mav.altitude;
-    pfdAltVal.textContent = altitudeIsFinite(al) ? al.toFixed(1) : '--';
+    pfdAltVal.textContent = altitudeIsFinite(al) ? al.toFixed(1) : '—';
     pfdAltVal.title = altitudeTileHonestyTitle(mav);
   }
 
@@ -7475,7 +7800,7 @@ function applyFlightHud(mav) {
   if (pfdBattVal) {
     const bv = mav.batteryV;
     const bvOk = typeof bv === 'number' && Number.isFinite(bv);
-    pfdBattVal.textContent = bvOk ? `${(bv < 1 ? bv.toFixed(2) : bv.toFixed(1))} V` : '-- V';
+    pfdBattVal.textContent = bvOk ? `${(bv < 1 ? bv.toFixed(2) : bv.toFixed(1))} V` : '—';
     pfdBattVal.style.color = !bvOk ? '' : bv < 10.5 ? '#f87171'
       : bv < 11.5 ? '#facc15' : '#4ade80';
   }
@@ -7568,12 +7893,12 @@ function opticalNavHasFixClient(nav) {
 }
 
 function opticalNavStatusHeClient(nav) {
-  if (!nav) return { text: '--', title: 'אין דיווח ניווט אופטי' };
-  if (nav.camera_ok !== true) return { text: '--', title: 'אין מצלמה לניווט אופטי' };
-  if (nav.running !== true) return { text: '--', title: 'אומדן אופטי לא רץ' };
+  if (!nav) return { text: '—', title: 'אין דיווח ניווט אופטי' };
+  if (nav.camera_ok !== true) return { text: '—', title: 'אין מצלמה לניווט אופטי' };
+  if (nav.running !== true) return { text: '—', title: 'אומדן אופטי לא רץ' };
   if (!opticalNavHasFixClient(nav)) {
     const age = Number.isFinite(nav.age_ms) ? `גיל ${Math.round(nav.age_ms)}ms` : 'אין מיקום';
-    return { text: '--', title: `אופטי רץ. ${age}` };
+    return { text: '—', title: `אופטי רץ. ${age}` };
   }
   const pct = Number.isFinite(nav.confidence) ? `${Math.round(nav.confidence * 100)}%` : '';
   return {
@@ -7620,7 +7945,7 @@ function applyNavOpticalStatus(vision, companion) {
     missionNavDisplayStatus.title = status.title;
   }
   if (!pfdOptMini) return;
-  pfdOptMini.textContent = status.text === '--' ? '👁 --' : `👁 ${status.text}`;
+  pfdOptMini.textContent = status.text === '—' ? '👁 —' : `👁 ${status.text}`;
   pfdOptMini.title = status.title;
 }
 
@@ -7801,20 +8126,35 @@ async function translateAndRenderFcStatustext(rows) {
 }
 
 function positionPfdReadinessPopover() {
-  const anchor = _readinessAnchor || missionReadinessGlance || pfdArmedBadge;
-  if (!pfdReadinessPopover || !anchor || pfdReadinessPopover.classList.contains('hidden')) return;
-  const r = anchor.getBoundingClientRect();
-  const talk = document.querySelector('[data-mission-region="talk"]')?.getBoundingClientRect();
-  const w = Math.min(280, window.innerWidth - 16);
-  let left = r.right - w;
-  if (talk && left + w > talk.left - 8) left = talk.left - w - 8;
-  left = Math.max(8, Math.min(left, window.innerWidth - w - 8));
-  if (talk && left < talk.right && left + w > talk.left) {
-    left = Math.max(8, talk.left - w - 8);
+  const pop = pfdReadinessPopover;
+  if (!pop || pop.classList.contains('hidden')) return;
+  const w = Math.min(240, window.innerWidth - 16);
+  pop.style.width = `${w}px`;
+  const h = Math.max(pop.offsetHeight, 96);
+  const blockers = [...document.querySelectorAll('button, a, input, select, .leaflet-control')].filter((el) => {
+    if (pop.contains(el)) return false;
+    const r = el.getBoundingClientRect();
+    return r.width > 2 && r.height > 2;
+  }).map((el) => el.getBoundingClientRect());
+  const hits = (left, top) => {
+    const box = { left, top, right: left + w, bottom: top + h };
+    let n = 0;
+    for (const b of blockers) {
+      if (box.left < b.right - 1 && box.right > b.left + 1 && box.top < b.bottom - 1 && box.bottom > b.top + 1) n += 1;
+    }
+    return n;
+  };
+  let best = { left: 8, top: 36, n: Infinity };
+  for (let top = 32; top <= window.innerHeight - h - 4; top += 28) {
+    for (let left = 8; left <= window.innerWidth - w - 4; left += 28) {
+      const n = hits(left, top);
+      if (n < best.n) best = { left, top, n };
+      if (n === 0) break;
+    }
+    if (best.n === 0) break;
   }
-  pfdReadinessPopover.style.width = `${w}px`;
-  pfdReadinessPopover.style.left = `${left}px`;
-  pfdReadinessPopover.style.top = `${Math.min(r.bottom + 6, window.innerHeight - 120)}px`;
+  pop.style.left = `${best.left}px`;
+  pop.style.top = `${best.top}px`;
 }
 
 function buildReadinessListHtml(_m) {
@@ -7862,8 +8202,13 @@ function openDiagnosticsReadiness() {
 
 function setupFlightHudChromeHandlers() {
   pfdVoiceFlightBtn?.addEventListener('click', () => {
-    document.querySelector('.tab[data-tab="flightEngineer"]')?.click();
-    setTimeout(() => document.getElementById('feMicBtn')?.click(), 220);
+    applyMainTab('terrain');
+    const input = document.getElementById('assistInput');
+    if (input) {
+      input.focus();
+      return;
+    }
+    document.getElementById('assistToggleBtn')?.click();
   });
   function toggleReadinessPopover(e, anchor) {
     e.preventDefault();
@@ -8051,7 +8396,16 @@ document.getElementById('hudParamShowAll')?.addEventListener('click', async () =
 });
 
 // Initial horizon draw — defer so ResizeObserver fires first
-requestAnimationFrame(() => drawHorizon(horizonCanvas, _lastRoll, _lastPitch, currentHorizonDrawOpts()));
+function syncHorizonNoData() {
+  const note = document.getElementById('horizonNoData');
+  if (!note) return;
+  note.hidden = _lastRoll != null || _lastPitch != null;
+}
+
+requestAnimationFrame(() => {
+  drawHorizon(horizonCanvas, _lastRoll, _lastPitch, currentHorizonDrawOpts());
+  syncHorizonNoData();
+});
 
 // ── Map fly-to context menu ────────────────────────────────────────────────────
 const mapFlyToMenu    = document.getElementById('mapFlyToMenu');
@@ -8154,7 +8508,7 @@ function applyTopbarFlightData(mav) {
     const useTile = hudAirspeedEl.classList.contains('mission-data-value');
     hudAirspeedEl.textContent = (typeof spd === 'number' && Number.isFinite(spd))
       ? (useTile ? spd.toFixed(1) : `${spd.toFixed(1)} m/s`)
-      : (useTile ? '--' : '-- m/s');
+      : '—';
     hudAirspeedEl.title = airspeedTileHonestyTitle(mav);
   }
   const altitudeBound = typeof missionTileBoundKey === 'function' ? missionTileBoundKey(hudAltitudeEl) : null;
@@ -8163,7 +8517,7 @@ function applyTopbarFlightData(mav) {
     const useTile = hudAltitudeEl.classList.contains('mission-data-value');
     hudAltitudeEl.textContent = altitudeIsFinite(alt)
       ? (useTile ? alt.toFixed(1) : `${alt.toFixed(1)} m`)
-      : (useTile ? '--' : '-- m');
+      : '—';
     const altTitle = altitudeTileHonestyTitle(mav);
     hudAltitudeEl.title = altTitle;
     const tile = hudAltitudeEl.closest('.mission-data-tile, .tele-hud-mini');
@@ -8766,7 +9120,7 @@ setInterval(() => {
   if (takeoffState) takeoffState.textContent = takeoffReady ? 'READY' : 'HOLD';
   if (liveConfidenceText) {
     const useTile = liveConfidenceText.classList.contains('mission-data-value');
-    liveConfidenceText.textContent = pct != null ? (useTile ? String(pct) : `${pct}%`) : (useTile ? '--' : '--');
+    liveConfidenceText.textContent = pct != null ? (useTile ? String(pct) : `${pct}%`) : '—';
   }
   if (liveConfidenceBar) liveConfidenceBar.style.width = pct != null ? `${pct}%` : '0%';
   if (liveConfidenceBar) liveConfidenceBar.classList.toggle('bar-live', visionFresh);
@@ -10145,6 +10499,11 @@ if (versionModal) {
   versionModal.addEventListener('click', (e) => {
     if (e.target === versionModal) versionModal.classList.add('hidden');
   });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !versionModal.classList.contains('hidden')) {
+      versionModal.classList.add('hidden');
+    }
+  });
 }
 
 function bindEventContextMenu() {
@@ -10597,7 +10956,7 @@ function paintLiveGpsVisionDelta(mapData, vision) {
   if (!liveGpsVisionDeltaEl) return;
   const meters = gpsVisionDeltaMeters(mapData?.gpsLat, mapData?.gpsLon, vision?.navLat, vision?.navLon);
   if (liveGpsVisionDeltaEl.classList.contains('mission-data-value')) {
-    liveGpsVisionDeltaEl.textContent = Number.isFinite(meters) ? meters.toFixed(1) : '--';
+    liveGpsVisionDeltaEl.textContent = Number.isFinite(meters) ? meters.toFixed(1) : '—';
     return;
   }
   liveGpsVisionDeltaEl.textContent = formatGpsVisionDeltaMeters(meters);
@@ -11166,17 +11525,51 @@ if (terrainClearBtn) {
   });
 }
 
+function showTerrainPathNote(text) {
+  const note = document.getElementById('terrainPathNote');
+  if (!note) return;
+  const line = String(text || '').trim();
+  note.hidden = !line;
+  note.textContent = line;
+}
+
 async function requestAndShowLoadedMissionPath(btn) {
+  const on = btn?.getAttribute('aria-pressed') === 'true';
+  if (on) {
+    showLoadedMissionPath = false;
+    btn.setAttribute('aria-pressed', 'false');
+    btn.classList.remove('active');
+    updateFlightOverlaysOnAllMaps();
+    return;
+  }
+  if (btn) {
+    btn.setAttribute('aria-pressed', 'true');
+    btn.classList.add('active');
+    btn.disabled = true;
+  }
   try {
-    if (btn) btn.disabled = true;
     const res = await fetch('/api/mavlink/mission-refresh', { method: 'POST' });
     const d = await res.json().catch(() => ({}));
     if (res.ok && d.ok) {
       showLoadedMissionPath = true;
+      showTerrainPathNote('');
       updateFlightOverlaysOnAllMaps();
+    } else {
+      showLoadedMissionPath = false;
+      if (btn) {
+        btn.setAttribute('aria-pressed', 'false');
+        btn.classList.remove('active');
+      }
+      const noLink = res.status === 422 || d?.error === 'no_link' || d?.error === 'not_connected';
+      showTerrainPathNote(noLink ? 'אין קישור לבקר. אין משימה טעונה.' : 'לא הצלחנו לטעון את הנתיב.');
     }
   } catch {
-    /* ignore */
+    showLoadedMissionPath = false;
+    if (btn) {
+      btn.setAttribute('aria-pressed', 'false');
+      btn.classList.remove('active');
+    }
+    showTerrainPathNote('אין קישור לבקר. אין משימה טעונה.');
   } finally {
     if (btn) btn.disabled = false;
   }
@@ -11299,16 +11692,17 @@ const ANNOTATED_VISION_REASON_HE = Object.freeze({
 });
 
 const ANNOTATED_VISION_REASON_HE_MISSION = Object.freeze({
-  modem_absent: 'אין שידור. מודם לא מחובר.',
-  cellular_disconnected: 'אין שידור. סלולר מנותק.',
-  stream_absent: 'אין שידור. אין זרם מסומן.',
-  cellular_connected: 'שידור סלולר ממחשב משימה.',
+  modem_absent: 'אין זרם מסומן',
+  cellular_disconnected: 'אין זרם מסומן',
+  stream_absent: 'אין זרם מסומן',
+  cellular_connected: 'שידור מסומן',
 });
 
 function annotatedVisionReasonHe(video, { compact = false } = {}) {
   const reason = video?.reason;
   const map = compact ? ANNOTATED_VISION_REASON_HE_MISSION : ANNOTATED_VISION_REASON_HE;
   if (!compact && video?.reasonHe) return video.reasonHe;
+  if (compact) return map[reason] || 'אין זרם מסומן';
   if (reason && map[reason]) return map[reason];
   return map.cellular_disconnected;
 }
@@ -11351,16 +11745,7 @@ function applyAnnotatedVision(video) {
 }
 
 function initAnnotatedVisionPanel() {
-  const toggle = document.getElementById('annotatedVisionToggle');
-  const panel = document.getElementById('annotatedVisionPanel');
-  if (!toggle || !panel) return;
-  toggle.addEventListener('click', () => {
-    const willOpen = panel.hasAttribute('hidden') || panel.classList.contains('hidden');
-    panel.toggleAttribute('hidden', !willOpen);
-    panel.classList.toggle('hidden', !willOpen);
-    toggle.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
-    toggle.classList.toggle('active', willOpen);
-  });
+  /* View selection is owned by setInstrumentView. */
 }
 
 initAnnotatedVisionPanel();
@@ -11425,22 +11810,11 @@ function applyLiveCameraPreview(companion) {
   }
   document.dispatchEvent(new CustomEvent('vlc-companion-cameras', { detail: companion }));
   if (typeof applyHorizonCamera === 'function') applyHorizonCamera(companion);
+  if (typeof paintInstrumentVideo === 'function') paintInstrumentVideo(src);
 }
 
 function initLiveCameraPanel() {
-  const toggle = document.getElementById('liveCameraToggle');
-  const panel = document.getElementById('liveCameraPanel');
-  if (!toggle || !panel) return;
-  toggle.addEventListener('click', () => {
-    const willOpen = panel.hasAttribute('hidden') || panel.classList.contains('hidden');
-    panel.toggleAttribute('hidden', !willOpen);
-    panel.classList.toggle('hidden', !willOpen);
-    toggle.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
-    toggle.classList.toggle('active', willOpen);
-    if (willOpen && typeof latestCompanionFromServer === 'object') {
-      applyLiveCameraPreview(latestCompanionFromServer);
-    }
-  });
+  /* View selection is owned by setInstrumentView. */
 }
 
 initLiveCameraPanel();
@@ -12595,6 +12969,10 @@ initLiveCameraPanel();
     rcStatusBtn.addEventListener('click', (ev) => {
       ev.preventDefault();
       ev.stopPropagation();
+      const hint = document.getElementById('rcLinkHint');
+      const status = document.getElementById('rcLinkStatus');
+      if (hint) hint.textContent = 'שלט בלבד. אין קישור נתונים.';
+      if (status) status.textContent = 'אין סטטוס חיבור לשלט.';
     });
   }
   statBtn.addEventListener('click', openStatModal);
@@ -13852,9 +14230,14 @@ initLiveCameraPanel();
       'שינוי השפה נכנס לתוקף בהפעלה הבאה של המיקרופון (או ריענון דף). ברירת השרת נקבעת ב־FE_STT_LANG.';
   }
 
-  btn.addEventListener('click', () => {
+  window.__vlcOpenSettings = async (focusId) => {
     if (!opsChromeAlwaysReachable('settings')) return;
-    openModal();
+    await openModal();
+    if (focusId) document.getElementById(focusId)?.scrollIntoView({ block: 'nearest' });
+  };
+
+  btn.addEventListener('click', () => {
+    void window.__vlcOpenSettings();
   });
   closeBtns.forEach((el) => el.addEventListener('click', closeModal));
 
@@ -16808,7 +17191,7 @@ function assistBuildContextSnapshot() {
       : { altitude: 'm', speed: 'ms', distance: 'm', verticalRate: 'ms' }),
     aircraft_state: {
       connected: mav.connected === true,
-      flight_mode: vlcFlightModeName(mav.flightMode, mav) || (Number.isInteger(Number(mav.flightMode)) ? `#${mav.flightMode}` : null),
+      flight_mode: mav.connected === true ? (vlcFlightModeName(mav.flightMode, mav) || null) : null,
       armed: typeof mav.armed === 'boolean' ? mav.armed : null,
       gps_ok: typeof mav.gpsFixType === 'number' ? mav.gpsFixType >= 3 : null,
       vision_confidence: conf,
@@ -16838,7 +17221,7 @@ function assistBuildOpsSignals(vision) {
       const nav = typeof normalizeOpticalNavClient === 'function' ? normalizeOpticalNavClient(rawNav) : rawNav;
       if (typeof nav?.camera_ok === 'boolean') ops.camera_ok = nav.camera_ok === true;
       if (typeof opticalNavStatusHeClient === 'function') {
-        ops.optical_missing = opticalNavStatusHeClient(nav).text === '--';
+        ops.optical_missing = opticalNavStatusHeClient(nav).text === '—';
       }
     }
   } catch {
@@ -16880,9 +17263,11 @@ function rtlSafeAskText(text, extraTokens) {
 }
 
 const ASSIST_DEFAULT_HINT_HE = 'שינוי דורש אישור.';
-const ASSIST_DEFAULT_HINT_GO_HE = 'מופעל לקול. פרמטר מוחל בלי אישור לכל פעולה.';
+const ASSIST_VOICE_SENTENCE_HE = 'אחרי ההפעלה, נחיתה ושינוי מצב מתבצעים בלי אישור נוסף. חימוש ונטרול נשארים חסומים, ושינוי פרמטר עדיין דורש אישור.';
+const ASSIST_DEFAULT_HINT_GO_HE = ASSIST_VOICE_SENTENCE_HE;
 const ASSIST_MISSION_HINT_HE = 'הטסה. שינוי דורש אישור.';
-const ASSIST_MISSION_HINT_GO_HE = 'הטסה. מופעל לקול. פרמטר מוחל מיד.';
+const ASSIST_MISSION_HINT_GO_HE = 'הטסה. אחרי ההפעלה, נחיתה ושינוי מצב מתבצעים בלי אישור נוסף. חימוש נשאר חסום, ושינוי פרמטר עדיין דורש אישור.';
+const ASSIST_VOICE_GO_HINT_HE = ASSIST_VOICE_SENTENCE_HE;
 const ASSIST_DEFAULT_PLACEHOLDER_HE = 'שאלה, יועץ, פתק, או בקשת פיתוח…';
 const ASSIST_MISSION_PLACEHOLDER_HE = 'הערה, תצפית, או שאלה';
 const ASSIST_DEFAULT_INVITE_HE = 'שאלו את AIRVIX Ask.';
@@ -17095,18 +17480,12 @@ function assistSyncVoiceGoChrome(active) {
   assistWriteVoiceGoChrome(_askVoiceGoActive);
   const section = document.getElementById('assistVoiceGo');
   const badge = document.getElementById('assistVoiceGoBadge');
-  const goBtn = document.getElementById('assistVoiceGoBtn');
-  const endBtn = document.getElementById('assistVoiceGoEndBtn');
+  const toggle = document.getElementById('assistVoiceGoToggle');
   const goHint = document.getElementById('assistVoiceGoHint');
   if (section) section.dataset.go = _askVoiceGoActive ? '1' : '0';
-  if (badge) badge.textContent = rtlSafeAskText(_askVoiceGoActive ? 'מופעל לקול' : 'כבוי');
-  if (goBtn) goBtn.hidden = _askVoiceGoActive;
-  if (endBtn) endBtn.hidden = !_askVoiceGoActive;
-  if (goHint) {
-    goHint.textContent = rtlSafeAskText(_askVoiceGoActive
-      ? 'שיחת קול פתוחה. נחיתה ומצב בלי אישור. חימוש ונטרול חסומים. שינוי פרמטר דורש אישור.'
-      : 'הפעלה פותחת שיחת קול. אחריה נחיתה ומצב בלי אישור לכל פעולה. חימוש ונטרול חסומים. שינוי פרמטר דורש אישור.');
-  }
+  if (badge) badge.textContent = _askVoiceGoActive ? 'פעיל' : 'כבוי';
+  if (toggle) toggle.setAttribute('aria-pressed', _askVoiceGoActive ? 'true' : 'false');
+  if (goHint) goHint.textContent = rtlSafeAskText(ASSIST_VOICE_GO_HINT_HE);
   assistSyncMissionPosture();
   const mic = document.getElementById('assistMicBtn');
   if (mic && !mic.disabled) {
@@ -17116,13 +17495,17 @@ function assistSyncVoiceGoChrome(active) {
   }
 }
 
+let _askVoiceGoEpoch = 0;
+
 async function assistSetVoiceGo(active) {
+  const epoch = ++_askVoiceGoEpoch;
   const r = await fetch('/api/assist/voice-go', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ active: !!active }),
   });
   const data = await r.json().catch(() => ({}));
+  if (epoch !== _askVoiceGoEpoch) return;
   const next = data.ok ? data.ask_voice_go_active === true : false;
   assistSyncVoiceGoChrome(next);
   if (data.answer) {
@@ -17131,12 +17514,15 @@ async function assistSetVoiceGo(active) {
 }
 
 async function assistRefreshVoiceGo() {
+  const epoch = _askVoiceGoEpoch;
   try {
     const r = await fetch('/api/assist/session');
     const data = await r.json().catch(() => ({}));
+    if (epoch !== _askVoiceGoEpoch) return;
     if (data.ok) assistSyncVoiceGoChrome(data.ask_voice_go_active === true);
     else assistSyncVoiceGoChrome(false);
   } catch {
+    if (epoch !== _askVoiceGoEpoch) return;
     assistSyncVoiceGoChrome(false);
   }
 }
@@ -17558,31 +17944,40 @@ function assistRenderAgentConnection(status) {
   const keyHintEl = document.getElementById('assistAgentKeyHint');
   const form = document.getElementById('assistAgentConnectForm');
   const disconnectBtn = document.getElementById('assistAgentDisconnectBtn');
+  const offline = document.getElementById('assistAgentOfflineNote');
   if (!card || !statusEl) return;
   const connected = status?.connected === true && status?.runtime === 'READY';
+  const keyPresent = status?.key_present === true || connected;
   _assistAgentConnected = connected;
   const errorText = !connected && status?.ok === false
     ? (status.status_he || status.reason_he || 'החיבור לסוכן נכשל.')
     : '';
   card.dataset.state = errorText ? 'error' : (connected ? 'connected' : 'disconnected');
+  card.dataset.key = keyPresent ? '1' : '0';
   assistSyncProposalWarn();
   statusEl.textContent = rtlSafeAskText(connected
     ? (status.status_he || 'הסוכן מחובר ומוכן.')
     : (status.status_he || status.reason_he || 'הסוכן מנותק.'));
   if (hintEl) {
-    hintEl.hidden = connected;
-    hintEl.textContent = rtlSafeAskText('חברו מפתח כדי לאשר שינוי.');
+    hintEl.hidden = keyPresent;
+    if (!keyPresent) hintEl.textContent = rtlSafeAskText('הזינו מפתח כדי לחבר את הסוכן.');
   }
   if (keyHintEl) {
-    const hint = connected ? String(status.key_hint || '').trim() : '';
+    const hint = keyPresent ? String(status?.key_hint || '').trim() : '';
     keyHintEl.hidden = !hint;
     keyHintEl.textContent = hint;
   }
-  if (form) form.hidden = connected;
-  if (disconnectBtn) {
-    disconnectBtn.hidden = !connected;
-    disconnectBtn.setAttribute('aria-hidden', connected ? 'false' : 'true');
+  if (form) form.hidden = keyPresent;
+  if (keyPresent) {
+    const keyEl = document.getElementById('assistAgentKey');
+    if (keyEl) keyEl.value = '';
   }
+  if (disconnectBtn) {
+    const showDisconnect = connected || (keyPresent && !connected);
+    disconnectBtn.hidden = !showDisconnect;
+    disconnectBtn.setAttribute('aria-hidden', showDisconnect ? 'false' : 'true');
+  }
+  if (offline) offline.hidden = connected;
   if (!errorText) assistSetConnectError('');
   assistSyncConnectButton();
   if (typeof pulseRefresh === 'function') pulseRefresh();
@@ -17600,6 +17995,7 @@ async function assistRefreshAgentConnection() {
       status_he: data.status_he,
       reason_he: data.reason_he,
       key_hint: data.key_hint,
+      key_present: data.key_present === true,
     });
   } catch {
     assistRenderAgentConnection({
@@ -17654,6 +18050,8 @@ async function assistConnectAgent(event) {
         connected: false,
         status_he: data.status_he || data.reason_he || 'החיבור לסוכן נכשל.',
         reason_he: data.reason_he,
+        key_hint: data.key_hint,
+        key_present: data.key_present === true,
       });
       return;
     }
@@ -17679,9 +18077,11 @@ async function assistDisconnectAgent() {
     const data = await r.json().catch(() => ({}));
     assistRenderAgentConnection({
       ok: r.ok,
-      runtime: 'UNAVAILABLE',
+      runtime: data.runtime || 'UNAVAILABLE',
       connected: false,
       status_he: data.status_he || 'הסוכן מנותק.',
+      key_hint: null,
+      key_present: data.key_present === true,
     });
   } catch {
     assistRenderAgentConnection({
@@ -17823,10 +18223,28 @@ function writeMissionSwap(swap) {
   missionLayoutStoreSet(MISSION_SWAP_KEY, swap === 'horizon-map' ? 'horizon-map' : 'map-horizon');
 }
 
+function refreshMissionSwapSurfaces() {
+  const kick = () => {
+    try {
+      if (terrainMap && typeof terrainMap.invalidateSize === 'function') {
+        terrainMap.invalidateSize();
+      }
+    } catch {
+      /* map not ready */
+    }
+    resizeHorizonCanvas();
+  };
+  requestAnimationFrame(() => {
+    kick();
+    requestAnimationFrame(kick);
+  });
+}
+
 function applyMissionSwap(swap) {
   const ws = document.querySelector('.mission-workspace');
   if (!ws) return;
   ws.dataset.missionSwap = swap === 'horizon-map' ? 'horizon-map' : 'map-horizon';
+  refreshMissionSwapSurfaces();
 }
 
 function readMissionSize() {
@@ -17959,19 +18377,44 @@ function placeMissionSplits() {
     el,
     r: el.getBoundingClientRect(),
   })).filter((x) => !overlayIds.has(x.el.dataset.missionRegion) && x.r.width > 8 && x.r.height > 8);
-  if (items.length < 2) return;
   const wr = ws.getBoundingClientRect();
-  const cols = clusterMissionRects(items, (x) => x.r.left, 28);
-  const placeCol = (el, leftGroup, rightGroup) => {
-    if (!el || !leftGroup || !rightGroup) return;
-    const left = leftGroup.reduce((m, x) => (x.r.right > m.r.right ? x : m));
-    const right = rightGroup.reduce((m, x) => (x.r.left < m.r.left ? x : m));
-    const top = Math.min(...leftGroup.concat(rightGroup).map((x) => x.r.top)) - wr.top;
-    const bottom = Math.max(...leftGroup.concat(rightGroup).map((x) => x.r.bottom)) - wr.top;
-    placeMissionSplitBox(el, ((left.r.right + right.r.left) / 2) - wr.left - 4, top, 8, Math.max(8, bottom - top));
-  };
-  placeCol(col, cols[0], cols[1]);
-  placeCol(colB, cols[1], cols[2]);
+  const gaps = [];
+  for (let i = 0; i < items.length; i += 1) {
+    for (let j = 0; j < items.length; j += 1) {
+      if (i === j) continue;
+      const a = items[i];
+      const b = items[j];
+      const overlap = Math.min(a.r.bottom, b.r.bottom) - Math.max(a.r.top, b.r.top);
+      if (overlap < 40) continue;
+      const gap = b.r.left - a.r.right;
+      if (gap < -1 || gap > 28) continue;
+      const mid = ((a.r.right + b.r.left) / 2) - wr.left;
+      const width = Math.max(4, Math.min(6, gap + 2));
+      gaps.push({
+        x: mid - (width / 2),
+        top: Math.max(a.r.top, b.r.top) - wr.top,
+        width,
+        height: overlap,
+      });
+    }
+  }
+  gaps.sort((p, q) => p.x - q.x);
+  const uniq = [];
+  for (const g of gaps) {
+    const prev = uniq[uniq.length - 1];
+    if (prev && Math.abs((prev.x + prev.width / 2) - (g.x + g.width / 2)) < 16) {
+      if (g.height > prev.height) uniq[uniq.length - 1] = g;
+    } else uniq.push(g);
+  }
+  [col, colB].forEach((el, i) => {
+    const g = uniq[i];
+    if (!el) return;
+    if (!g) {
+      placeMissionSplitBox(el, 0, 0, 0, 0);
+      return;
+    }
+    placeMissionSplitBox(el, g.x, g.top, g.width, Math.max(8, g.height));
+  });
   if (row) {
     row.hidden = true;
     placeMissionSplitBox(row, 0, 0, 0, 0);
@@ -18198,34 +18641,75 @@ function writeMissionDataSlots(slots) {
 
 function shortMissionLinkReadout(full) {
   const t = String(full || '').trim();
-  if (!t || t === 'לא מחובר' || t === 'מנותק') return '--';
+  if (!t || t === 'לא מחובר' || t === 'מנותק') return '—';
   if (t.startsWith('מאזין')) return 'מאזין';
   if (t === 'מתחבר') return 'מתחבר';
   if (t.includes('מחובר')) return 'מחובר';
   return t;
 }
 
+function missionLinkHealthDown(companion) {
+  const comp = companion && typeof companion === 'object' ? companion : {};
+  const link = comp.link && typeof comp.link === 'object' ? comp.link : {};
+  return link.jetson === 'unreachable'
+    || comp.jetson === 'unreachable'
+    || comp.unavailable === true
+    || (comp.mode === 'real' && comp.reachable === false);
+}
+
+function missionLinkNeedsToken(companion) {
+  const comp = companion && typeof companion === 'object' ? companion : {};
+  const link = comp.link && typeof comp.link === 'object' ? comp.link : {};
+  return link.needToken === true
+    || comp.needToken === true
+    || link.focusField === 'token'
+    || comp.focusField === 'token'
+    || comp.error === 'token_empty'
+    || link.error === 'token_empty';
+}
+
+function missionLinkTileLabel(companion, mav, pillText) {
+  const comp = companion && typeof companion === 'object' ? companion : {};
+  const mavLive = (typeof isHudMavlinkLive === 'function' && isHudMavlinkLive(mav))
+    || (typeof companionReportsFcHeartbeat === 'function' && companionReportsFcHeartbeat(comp));
+  const pill = String(pillText || '').trim();
+  const pillSaysDown = !pill || pill === 'מנותק' || pill === 'לא מחובר' || pill.includes('לא מגיב');
+  if (mavLive) {
+    if (!pillSaysDown) {
+      const short = shortMissionLinkReadout(pill);
+      if (short && short !== '—') return short;
+    }
+    return 'בקר מחובר';
+  }
+  if (missionLinkHealthDown(comp) || pill.includes('לא מגיב')) {
+    return missionLinkNeedsToken(comp) ? 'חסר טוקן' : 'בדקו כתובת';
+  }
+  return shortMissionLinkReadout(pill || comp.pillLabelHe || comp.link?.pillLabelHe || '');
+}
+
 function formatMissionDataValue(key, payload) {
   if (key === 'mavlink.gpsLat' || key === 'mavlink.gpsLon' || key === 'mavlink.map.gpsLat' || key === 'mavlink.map.gpsLon') {
     const mapData = payload?.mavlink?.map;
     const raw = key.endsWith('gpsLat') ? mapData?.gpsLat : mapData?.gpsLon;
-    if (typeof raw !== 'number' || !Number.isFinite(raw)) return '--';
-    if (raw === 0 && (mapData?.gpsLat === 0 || mapData?.gpsLat == null) && (mapData?.gpsLon === 0 || mapData?.gpsLon == null)) return '--';
+    if (typeof raw !== 'number' || !Number.isFinite(raw)) return '—';
+    if (raw === 0 && (mapData?.gpsLat === 0 || mapData?.gpsLat == null) && (mapData?.gpsLon === 0 || mapData?.gpsLon == null)) return '—';
     return raw.toFixed(5);
   }
   if (key === 'mission.link') {
     const linkLabel = document.getElementById('connectPillLabel')?.textContent?.trim() || '';
-    return shortMissionLinkReadout(linkLabel);
+    const companion = (typeof latestCompanionFromServer === 'object' && latestCompanionFromServer) ? latestCompanionFromServer : {};
+    const mav = payload?.mavlink || (typeof latestHudMavlink !== 'undefined' ? latestHudMavlink : null);
+    return missionLinkTileLabel(companion, mav, linkLabel);
   }
   if (key === 'mission.gpsVisionDelta') {
     const mapData = payload?.mavlink?.map;
     const vision = payload?.vision;
     const meters = gpsVisionDeltaMeters(mapData?.gpsLat, mapData?.gpsLon, vision?.navLat, vision?.navLon);
-    return Number.isFinite(meters) ? meters.toFixed(1) : '--';
+    return Number.isFinite(meters) ? meters.toFixed(1) : '—';
   }
   if (key === 'mavlink.gpsFixType') {
     const fix = payload?.mavlink?.gpsFixType;
-    if (typeof fix !== 'number' || !Number.isFinite(fix)) return '--';
+    if (typeof fix !== 'number' || !Number.isFinite(fix)) return '—';
     return GPS_FIX_LABELS[fix] ?? `Fix ${fix}`;
   }
   if (key === 'mavlink.flightMode') {
@@ -18233,16 +18717,16 @@ function formatMissionDataValue(key, payload) {
     return vlcFlightModeText(raw, payload?.mavlink, payload?.mavlink?.connected === true);
   }
   if (key === 'mavlink.armed') {
-    if (!payload?.mavlink?.connected) return '--';
-    if (payload.mavlink.armedKnown === false) return '--';
+    if (!payload?.mavlink?.connected) return '—';
+    if (payload.mavlink.armedKnown === false) return '—';
     return payload.mavlink.armed ? 'ARMED' : 'DISARMED';
   }
   const raw = getPayloadValue(payload, key);
-  if (raw == null) return '--';
+  if (raw == null) return '—';
   if (typeof raw === 'number') {
-    if (!Number.isFinite(raw)) return '--';
+    if (!Number.isFinite(raw)) return '—';
     const a = Math.abs(raw);
-    if (a > 1e6 || (a > 0 && a < 1e-9)) return '--';
+    if (a > 1e6 || (a > 0 && a < 1e-9)) return '—';
     if (key === 'vision.confidence' && raw <= 1) return String(Math.round(raw * 100));
     const dec = Number.isInteger(raw) ? 0 : (a < 10 ? 2 : 1);
     return raw.toFixed(dec);
@@ -18277,7 +18761,7 @@ function applyMissionDataGrid(payload) {
       valueEl.textContent = shown;
       if (slot.key === 'mission.link') {
         const full = document.getElementById('connectPillLabel')?.textContent?.trim() || '';
-        valueEl.title = full && shown !== '--' ? full : '';
+        valueEl.title = full && shown !== '—' ? full : '';
       } else if (slot.key === 'mavlink.altitude' || valueEl.id === 'hudAltitude') {
         const altTitle = altitudeTileHonestyTitle(payload?.mavlink || latestHudMavlink);
         valueEl.title = altTitle;
@@ -18291,7 +18775,7 @@ function applyMissionDataGrid(payload) {
         valueEl.title = gpsTitle;
         item.title = gpsTitle;
       } else if (slot.key === 'mission.gpsVisionDelta' || valueEl.id === 'liveGpsVisionDelta') {
-        const deltaTitle = shown === '--'
+        const deltaTitle = shown === '—'
           ? hudFieldHonestyTitle('gpsVisionDelta', payload?.mavlink || latestHudMavlink, null)
           : '';
         valueEl.title = deltaTitle;
@@ -18617,8 +19101,20 @@ function initAssistUi() {
   document.getElementById('fdOpenAssistBtn')?.addEventListener('click', () => assistSetOpen(true));
   initMissionTalk();
   initAssistMic();
-  document.getElementById('assistVoiceGoBtn')?.addEventListener('click', () => { void assistSetVoiceGo(true); });
-  document.getElementById('assistVoiceGoEndBtn')?.addEventListener('click', () => { void assistSetVoiceGo(false); });
+  document.getElementById('assistVoiceGoToggle')?.addEventListener('click', () => {
+    void assistSetVoiceGo(!_askVoiceGoActive);
+  });
+  document.getElementById('assistVoiceGoInfo')?.addEventListener('click', () => {
+    const hint = document.getElementById('assistVoiceGoHint');
+    const info = document.getElementById('assistVoiceGoInfo');
+    if (!hint || !info) return;
+    const open = hint.hidden;
+    hint.hidden = !open;
+    info.setAttribute('aria-expanded', open ? 'true' : 'false');
+  });
+  document.getElementById('assistAgentSettingsLink')?.addEventListener('click', () => {
+    void window.__vlcOpenSettings?.('gsCodingAgent');
+  });
   assistSyncVoiceGoChrome(assistReadVoiceGoChrome());
   void assistRefreshVoiceGo();
   document.getElementById('assistConfirmBtn')?.addEventListener('click', () => { void assistConfirm(true); });
@@ -18688,7 +19184,8 @@ function initFlightArchiveRecord() {
   function formatArchiveBytesHe(bytes) {
     const n = Number(bytes);
     if (!Number.isFinite(n) || n < 0) return null;
-    if (n < 1024) return `${Math.round(n)} ב`;
+    if (n === 0) return 'ריק';
+    if (n < 1024) return `${Math.round(n)} בתים`;
     const kb = n / 1024;
     const shown = kb >= 10 ? String(Math.round(kb)) : String(kb.toFixed(1)).replace(/\.0$/, '');
     return `${shown} ק״ב`;
@@ -18737,7 +19234,7 @@ function initFlightArchiveRecord() {
     const stalled = flat || down || writeErr;
     let labelHe = bytesHe;
     if (writeErr) labelHe = bytesHe ? `שגיאת כתיבה · ${bytesHe}` : 'שגיאת כתיבה';
-    else if (down) labelHe = bytesHe ? `אין קישור · ${bytesHe}` : 'אין קישור';
+    else if (down) labelHe = 'אין קישור';
     else if (flat) labelHe = bytesHe ? `תקוע · ${bytesHe}` : 'תקוע';
     cueEl.hidden = !labelHe;
     cueEl.textContent = labelHe || '';

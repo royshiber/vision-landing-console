@@ -1,5 +1,16 @@
 [
   {
+    "version": "1.02.344",
+    "date": "2026-09-26",
+    "changes": [
+      {
+        "type": "feature",
+        "title": "חימוש ונטרול, ושאלת AIRVIX בלי חפיפות",
+        "detail": "APP_VERSION 1.02.344. אחרי המאסטר עם אופטיקה, סטטוס, ולוגר הטיסה. חימוש הוא החזקה ואז אשרו חימוש, ובלי האישור לא נשלח דבר. נטרול הוא אשרו נטרול, ואשרו נטרול שוב כשהכלי באוויר או כשמצב הטיסה לא ידוע. אין נטרול בכוח. בלי בקר מוצג אין חיבור לבקר הטיסה. אופק בלי נתונים מעומעם. גלולת החיבור נשארת כמו במאסטר. פקודות הקול נשארות חסומות לחימוש."
+      }
+    ]
+  },
+  {
     "version": "1.02.343",
     "date": "2026-09-26",
     "changes": [
@@ -751,7 +762,7 @@
       {
         "type": "fix",
         "title": "One-click חיבור uses the baked Jetson Tailscale URL plus stored or env token",
-        "detail": "APP_VERSION 1.02.274. Topbar חיבור no longer fails with need_advanced / חסרה כתובת when COMPANION_MODE=off and JETSON_COMPANION_BASE_URL is empty. One-click uses stored URL, else env URL, else the product default http://100.82.59.45:8081, plus token from JETSON_COMPANION_TOKEN / COMPANION_SHARED_SECRET / stored DB, without opening מתקדם when both are available. A missing token shows חסר אסימון and focuses the מתקדם token field only — never claims מחובר. Successful connect persists URL+token. BOTH gate unchanged: real only after connect applies mode+URL. No flight commands, no Companion apply/restart, no secrets in UI JSON. Develop chat unchanged."
+        "detail": "APP_VERSION 1.02.274. Topbar חיבור no longer fails with need_advanced / חסרה כתובת when COMPANION_MODE=off and JETSON_COMPANION_BASE_URL is empty. One-click uses stored URL, else env URL, else the product default http://100.82.59.45:8081, plus token from JETSON_COMPANION_TOKEN / COMPANION_SHARED_SECRET / stored DB, without opening מתקדם when both are available. A missing token shows חסר טוקן and focuses the מתקדם token field only — never claims מחובר. Successful connect persists URL+token. BOTH gate unchanged: real only after connect applies mode+URL. No flight commands, no Companion apply/restart, no secrets in UI JSON. Develop chat unchanged."
       }
     ]
   },

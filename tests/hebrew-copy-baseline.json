@@ -128,48 +128,6 @@
       "suggested": "- recommended_value חייב להיות טקסט (גם אם מספר)."
     },
     {
-      "file": "lib/companion-connection.mjs",
-      "line": 28,
-      "term": "אסימון",
-      "text": "חסר אסימון",
-      "suggested": "חסר טוקן"
-    },
-    {
-      "file": "lib/companion-connection.mjs",
-      "line": 29,
-      "term": "אסימון",
-      "text": "חסר אסימון. הזינו אותו במתקדם.",
-      "suggested": "חסר טוקן. הזינו אותו במתקדם."
-    },
-    {
-      "file": "lib/companion-connection.mjs",
-      "line": 37,
-      "term": "אסימון",
-      "text": "האסימון נדחה. בדקו את האסימון ונסו שוב.",
-      "suggested": "הטוקן נדחה. בדקו את הטוקן ונסו שוב."
-    },
-    {
-      "file": "lib/companion-connection.mjs",
-      "line": 38,
-      "term": "אסימון",
-      "text": "כתובת לבד לא מספיקה. צריך גם אסימון.",
-      "suggested": "כתובת לבד לא מספיקה. צריך גם טוקן."
-    },
-    {
-      "file": "lib/companion-connection.mjs",
-      "line": 41,
-      "term": "אסימון",
-      "text": "צריך כתובת ואסימון. כתובת לבד לא מספיקה.",
-      "suggested": "צריך כתובת וטוקן. כתובת לבד לא מספיקה."
-    },
-    {
-      "file": "lib/companion-link.mjs",
-      "line": 242,
-      "term": "אסימון",
-      "text": "חסר אסימון. הזינו אותו במתקדם.",
-      "suggested": "חסר טוקן. הזינו אותו במתקדם."
-    },
-    {
       "file": "lib/develop-chat.mjs",
       "line": 353,
       "term": "ענף",
@@ -189,69 +147,6 @@
       "term": "קושחה",
       "text": "לא דווחה גרסת קושחה",
       "suggested": "לא דווחה גרסת פירמוור"
-    },
-    {
-      "file": "public/app.js",
-      "line": 1240,
-      "term": "קושחה",
-      "text": "בצע «READ — מהרחפן» כדי לבדוק אם השם קיים בקושחה",
-      "suggested": "בצע «READ — מהרחפן» כדי לבדוק אם השם קיים בפירמוור"
-    },
-    {
-      "file": "public/app.js",
-      "line": 1245,
-      "term": "קושחה",
-      "text": "לא הופיע אחרי READ — ייתכן שאין פרמטר בשם זה בגרסת הקושחה; WRITE עלול להיכשל",
-      "suggested": "לא הופיע אחרי READ — ייתכן שאין פרמטר בשם זה בגרסת הפירמוור; WRITE עלול להיכשל"
-    },
-    {
-      "file": "public/app.js",
-      "line": 3146,
-      "term": "אסימון",
-      "text": "חסר אסימון",
-      "suggested": "חסר טוקן"
-    },
-    {
-      "file": "public/app.js",
-      "line": 5363,
-      "term": "אסימון",
-      "text": "צריך כתובת ואסימון. כתובת לבד לא מספיקה.",
-      "suggested": "צריך כתובת וטוקן. כתובת לבד לא מספיקה."
-    },
-    {
-      "file": "public/app.js",
-      "line": 5434,
-      "term": "אסימון",
-      "text": "חסר אסימון",
-      "suggested": "חסר טוקן"
-    },
-    {
-      "file": "public/app.js",
-      "line": 5439,
-      "term": "אסימון",
-      "text": "חסר אסימון",
-      "suggested": "חסר טוקן"
-    },
-    {
-      "file": "public/app.js",
-      "line": 5545,
-      "term": "אסימון",
-      "text": "חסר אסימון",
-      "suggested": "חסר טוקן"
-    },
-    {
-      "file": "public/app.js",
-      "line": 5591,
-      "term": "אסימון",
-      "text": "מחשב משימה לא מגיב. בדקו כתובת ואסימון.",
-      "suggested": "מחשב משימה לא מגיב. בדקו כתובת וטוקן."
-    },
-    {
-      "file": "public/app.js",
-      "line": 12636,
-      "term": "קונפיגורציה",
-      "text": "שולח בקשה ל-AI — בונה תוכנית קונפיגורציה…",
-      "suggested": "שולח בקשה ל-AI — בונה תוכנית הגדרות…"
     },
     {
       "file": "public/app.js",
@@ -353,20 +248,6 @@
     },
     {
       "file": "public/index.html",
-      "line": 109,
-      "term": "אסימון",
-      "text": "אסימון מחשב משימה",
-      "suggested": "טוקן מחשב משימה"
-    },
-    {
-      "file": "public/index.html",
-      "line": 112,
-      "term": "אסימון",
-      "text": "אסימון",
-      "suggested": "טוקן"
-    },
-    {
-      "file": "public/index.html",
       "line": 466,
       "term": "קונפיגורציה",
       "text": "אשף קונפיגורציה",
@@ -378,27 +259,6 @@
       "term": "קונפיגורציה",
       "text": "אשף קונפיגורציה",
       "suggested": "אשף הגדרות"
-    },
-    {
-      "file": "public/index.html",
-      "line": 1002,
-      "term": "קונפיגורציה",
-      "text": "היסטוריית קונפיגורציה",
-      "suggested": "היסטוריית הגדרות"
-    },
-    {
-      "file": "public/index.html",
-      "line": 1268,
-      "term": "אסימון",
-      "text": "צריך כתובת ואסימון. כתובת לבד לא מספיקה.",
-      "suggested": "צריך כתובת וטוקן. כתובת לבד לא מספיקה."
-    },
-    {
-      "file": "public/index.html",
-      "line": 1277,
-      "term": "אסימון",
-      "text": "אסימון",
-      "suggested": "טוקן"
     },
     {
       "file": "public/index.html",

@@ -27,9 +27,9 @@ function cssBlock(src, selector) {
 }
 
 describe('AIRVIX Ask RTL / BiDi chrome', () => {
-  it('pins APP_VERSION at 1.02.343', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.343'");
-    expect(pkg.version).toBe('1.02.343');
+  it('pins APP_VERSION at 1.02.344', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.344'");
+    expect(pkg.version).toBe('1.02.344');
   });
 
   it('keeps the Mission grid LTR while isolating Ask as RTL', () => {
@@ -47,8 +47,10 @@ describe('AIRVIX Ask RTL / BiDi chrome', () => {
     expect(html).toMatch(/class="assist-rail-title"[^>]*>\s*<bdi dir="ltr">AIRVIX Ask<\/bdi>/);
     expect(html).toMatch(/id="assistEmptyInvite"[^>]*>שאלו את <bdi dir="ltr">AIRVIX Ask<\/bdi>\./);
     expect(html).toMatch(/class="assist-mic-label">שיחה עם <bdi dir="ltr">AIRVIX Ask<\/bdi>/);
-    expect(html).toMatch(/id="assistVoiceGoBtn"[^>]*\bdir="ltr"[^>]*>GO</);
-    expect(html).toMatch(/id="assistVoiceGoEndBtn"[^>]*>סיום <bdi dir="ltr">GO<\/bdi>/);
+    expect(html).toMatch(/id="assistVoiceGoToggle"/);
+    expect(html).toContain('פקודות קול ללא אישור');
+    expect(html).not.toMatch(/id="assistVoiceGoBtn"/);
+    expect(html).not.toMatch(/id="assistVoiceGoEndBtn"/);
     expect(html).not.toContain('מסייע');
     expect(js).not.toContain('מסייע');
   });
@@ -58,7 +60,7 @@ describe('AIRVIX Ask RTL / BiDi chrome', () => {
     expect(js).toContain('function rtlSafeAskText(');
     expect(js).toContain("invite.textContent = rtlSafeAskText(");
     expect(js).toContain('statusEl.textContent = rtlSafeAskText(');
-    expect(js).toContain("hintEl.textContent = rtlSafeAskText('חברו מפתח כדי לאשר שינוי.')");
+    expect(js).toContain("hintEl.textContent = rtlSafeAskText('הזינו מפתח כדי לחבר את הסוכן.')");
     expect(js).toContain('assistEscape(rtlSafeAskText(text))');
     expect(rtlSafeAskText('שאלו את AIRVIX Ask.')).toContain(BIDI_FSI);
   });
