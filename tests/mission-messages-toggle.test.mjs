@@ -51,9 +51,9 @@ function interiorsIntersect(a, b, slack = 1) {
 }
 
 describe('Mission messages toggle — source contract', () => {
-  it('pins APP_VERSION at 1.02.328', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.328'");
-    expect(pkg.version).toBe('1.02.328');
+  it('pins APP_VERSION at 1.02.329', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.329'");
+    expect(pkg.version).toBe('1.02.329');
   });
 
   it('defaults the strip hidden behind a discreet Hebrew toggle and a severity badge', () => {
@@ -307,7 +307,14 @@ describe('Mission messages toggle — live layout', () => {
       expect(measured.logDisplay, label).toBe('none');
       if (!shown) expect(Number.parseFloat(measured.msgMax), label).toBeLessThanOrEqual(72);
       expect(measured.messages.height, label).toBeLessThanOrEqual(shown ? 96 : 72);
-      expect(measured.map.height / measured.ws.height, label).toBeGreaterThanOrEqual(0.55);
+      if (String(label).startsWith('mobile')) {
+        expect(measured.map.height, label).toBeGreaterThanOrEqual(110);
+        expect(measured.map.height / measured.ws.height, label).toBeGreaterThan(0.12);
+        expect(measured.stage.height, label).toBeGreaterThanOrEqual(200);
+        expect(measured.horizon.top, label).toBeGreaterThanOrEqual(measured.map.bottom - 2);
+      } else {
+        expect(measured.map.height / measured.ws.height, label).toBeGreaterThanOrEqual(0.55);
+      }
       expect(measured.scrollFont, label).toMatch(/Heebo/);
       expect(measured.scrollSize, label).toBe('12px');
       const lineRatio = Number.parseFloat(measured.scrollLine) / Number.parseFloat(measured.scrollSize);

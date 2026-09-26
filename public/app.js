@@ -5377,9 +5377,11 @@ function finiteHorizonTape(n) {
   return typeof n === 'number' && Number.isFinite(n) ? n : null;
 }
 
+let _horizonCameraLive = false;
+
 function currentHorizonDrawOpts() {
   return {
-    videoMode: _horizonVideoMode,
+    videoMode: _horizonVideoMode || _horizonCameraLive,
     airspeed: _horizonTape.airspeed,
     altitude: _horizonTape.altitude,
     heading: _horizonTape.heading,
@@ -5405,7 +5407,8 @@ function setHorizonVideoActive(active, url) {
   const playable = !!active && horizonVideoHasPlayableSource(url);
   _horizonVideoMode = !!active;
   toggleBtn?.classList.toggle('active', _horizonVideoMode);
-  pfdHorizonShell?.classList.toggle('pfd-horizon-shell--video-active', _horizonVideoMode);
+  const cameraBackdrop = typeof _horizonCameraLive !== 'undefined' && _horizonCameraLive;
+  pfdHorizonShell?.classList.toggle('pfd-horizon-shell--video-active', _horizonVideoMode || cameraBackdrop);
   if (videoEl) {
     videoEl.onerror = () => {
       videoEl.classList.add('hidden');
@@ -5474,6 +5477,183 @@ function initHorizonVideo() {
   }
 }
 initHorizonVideo();
+
+const HORIZON_CAMERA_KEY = 'vlc.horizon.bgCamera.v1';
+const HORIZON_CAMERA_SLOTS = [
+  { id: 'none', label: 'בלי מצלמה', apiId: null, mono: false },
+  { id: 'cam0', label: 'Cam0', apiId: 'cam1', mono: true },
+  { id: 'cam1', label: 'Cam1', apiId: 'cam2', mono: false },
+  { id: 'a8', label: 'A8', apiId: 'cam3', mono: false },
+];
+
+function readHorizonCamera() {
+  try {
+    const raw = localStorage.getItem(HORIZON_CAMERA_KEY) || 'none';
+    return HORIZON_CAMERA_SLOTS.some((slot) => slot.id === raw) ? raw : 'none';
+  } catch {
+    return 'none';
+  }
+}
+
+function horizonSlotStreaming(detail) {
+  if (!detail || detail.camera_ok !== true) return false;
+  if (detail.enabled === false) return false;
+  if (detail.state && detail.state !== 'streaming') return false;
+  if (detail.has_frame === false) return false;
+  const fps = Number(detail.fps);
+  const age = Number(detail.last_frame_age_ms);
+  const count = Number(detail.frame_count);
+  return (Number.isFinite(fps) && fps > 0)
+    || (Number.isFinite(age) && age >= 0)
+    || (Number.isFinite(count) && count > 0);
+}
+
+function horizonCameraDetail(companion, apiId) {
+  const src = companion && typeof companion === 'object' ? companion : {};
+  return src.vision?.cameras?.[apiId]
+    || src.opticalNav?.cameras?.[apiId]
+    || src.optical_nav?.cameras?.[apiId]
+    || src.extras?.cameras?.[apiId]
+    || src.cameras?.[apiId]
+    || null;
+}
+
+function applyHorizonCamera(companion) {
+  const choice = readHorizonCamera();
+  const slot = HORIZON_CAMERA_SLOTS.find((item) => item.id === choice) || HORIZON_CAMERA_SLOTS[0];
+  const img = document.getElementById('horizonCameraBg');
+  const note = document.getElementById('horizonCameraNote');
+  const menu = document.getElementById('horizonCameraMenu');
+  menu?.querySelectorAll('[data-horizon-cam]').forEach((btn) => {
+    btn.setAttribute('aria-checked', btn.dataset.horizonCam === choice ? 'true' : 'false');
+  });
+  if (!img) return;
+  if (!slot.apiId) {
+    _horizonCameraLive = false;
+    img.hidden = true;
+    img.removeAttribute('src');
+    img.classList.remove('is-mono');
+    if (note) note.hidden = true;
+  } else {
+    const detail = horizonCameraDetail(companion, slot.apiId);
+    const live = horizonSlotStreaming(detail);
+    img.classList.toggle('is-mono', slot.mono);
+    if (live) {
+      _horizonCameraLive = true;
+      img.hidden = false;
+      if (note) note.hidden = true;
+      const stamp = Number(img.dataset.stamp || 0);
+      if (Date.now() - stamp > 700) {
+        img.dataset.stamp = String(Date.now());
+        img.src = `/api/jetson/v1/cameras/${slot.apiId}/frame?t=${Date.now()}`;
+      }
+      img.onerror = () => {
+        _horizonCameraLive = false;
+        img.hidden = true;
+        img.removeAttribute('src');
+        if (note) note.hidden = false;
+        pfdHorizonShell?.classList.toggle('pfd-horizon-shell--video-active', _horizonVideoMode);
+        drawHorizon(horizonCanvas, _lastRoll, _lastPitch, currentHorizonDrawOpts());
+      };
+    } else {
+      _horizonCameraLive = false;
+      img.hidden = true;
+      img.removeAttribute('src');
+      if (note) note.hidden = false;
+    }
+  }
+  const urlVideo = document.getElementById('horizonVideoEl');
+  if (urlVideo && _horizonCameraLive) urlVideo.classList.add('hidden');
+  else if (urlVideo && _horizonVideoMode) urlVideo.classList.remove('hidden');
+  pfdHorizonShell?.classList.toggle('pfd-horizon-shell--video-active', _horizonVideoMode || _horizonCameraLive);
+  drawHorizon(horizonCanvas, _lastRoll, _lastPitch, currentHorizonDrawOpts());
+}
+
+function initHorizonCameraMenu() {
+  const stage = document.getElementById('pfdHorizonStage');
+  if (!stage || document.getElementById('horizonCameraMenu')) return;
+  const menu = document.createElement('div');
+  menu.id = 'horizonCameraMenu';
+  menu.className = 'horizon-cam-menu';
+  menu.hidden = true;
+  menu.setAttribute('role', 'menu');
+  menu.setAttribute('aria-label', 'מצלמת רקע לאופק');
+  menu.dir = 'rtl';
+  for (const slot of HORIZON_CAMERA_SLOTS) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'horizon-cam-menu-item';
+    btn.setAttribute('role', 'menuitemradio');
+    btn.dataset.horizonCam = slot.id;
+    btn.textContent = slot.label;
+    btn.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      try { localStorage.setItem(HORIZON_CAMERA_KEY, slot.id); } catch { /* ignore */ }
+      menu.hidden = true;
+      applyHorizonCamera(typeof latestCompanionFromServer === 'object' ? latestCompanionFromServer : null);
+    });
+    menu.appendChild(btn);
+  }
+  document.body.appendChild(menu);
+
+  let openedAt = 0;
+  function closeMenu() { menu.hidden = true; }
+  function openMenu(x, y) {
+    openedAt = Date.now();
+    menu.hidden = false;
+    menu.style.left = '0px';
+    menu.style.top = '0px';
+    const rect = menu.getBoundingClientRect();
+    const left = Math.max(8, Math.min(x, window.innerWidth - rect.width - 8));
+    const top = Math.max(8, Math.min(y, window.innerHeight - rect.height - 8));
+    menu.style.left = `${left}px`;
+    menu.style.top = `${top}px`;
+  }
+
+  stage.addEventListener('contextmenu', (event) => {
+    event.preventDefault();
+    openMenu(event.clientX, event.clientY);
+  });
+
+  let hold = null;
+  stage.addEventListener('touchstart', (event) => {
+    if (event.touches.length !== 1) return;
+    const t = event.touches[0];
+    const start = { x: t.clientX, y: t.clientY };
+    hold = window.setTimeout(() => openMenu(start.x, start.y), 550);
+    stage.dataset.holdX = String(start.x);
+    stage.dataset.holdY = String(start.y);
+  }, { passive: true });
+  stage.addEventListener('touchmove', (event) => {
+    if (!hold || !event.touches[0]) return;
+    const t = event.touches[0];
+    const dx = t.clientX - Number(stage.dataset.holdX || 0);
+    const dy = t.clientY - Number(stage.dataset.holdY || 0);
+    if (Math.hypot(dx, dy) > 12) {
+      window.clearTimeout(hold);
+      hold = null;
+    }
+  }, { passive: true });
+  const clearHold = () => {
+    if (hold) window.clearTimeout(hold);
+    hold = null;
+  };
+  stage.addEventListener('touchend', clearHold, { passive: true });
+  stage.addEventListener('touchcancel', clearHold, { passive: true });
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') closeMenu();
+  });
+  document.addEventListener('pointerdown', (event) => {
+    if (menu.hidden) return;
+    if (Date.now() - openedAt < 450) return;
+    if (menu.contains(event.target)) return;
+    closeMenu();
+  });
+  applyHorizonCamera(null);
+}
+initHorizonCameraMenu();
 /** @type {object | null} snapshot from last SSE — readiness popover */
 let latestHudMavlink = null;
 /** Live radio `/api/connections` / `/api/links` status — HUD fallback when SSE mavlink is stale. */
@@ -9972,6 +10152,8 @@ function applyLiveCameraPreview(companion) {
       ? (anyDry ? 'תרגיל יבש. לא מצלמה אמיתית.' : 'פריים חי')
       : 'אין פריים';
   }
+  document.dispatchEvent(new CustomEvent('vlc-companion-cameras', { detail: companion }));
+  if (typeof applyHorizonCamera === 'function') applyHorizonCamera(companion);
 }
 
 function initLiveCameraPanel() {
@@ -16616,7 +16798,7 @@ function assistSetOpen(open) {
     document.body.classList.remove('assist-open');
     assistRefreshContextChip();
     void assistRefreshAgentConnection();
-    document.getElementById('assistInput')?.focus();
+    document.getElementById('assistInput')?.focus({ preventScroll: true });
     return;
   }
   rail.hidden = !open;

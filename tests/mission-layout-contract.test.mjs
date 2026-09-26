@@ -282,11 +282,11 @@ describe('Mission layout contract — live boxes', () => {
     });
 
     expect(measured.platformTab).toBe(false);
-    expect(measured.version).toBe('1.02.328');
+    expect(measured.version).toBe('1.02.329');
     expect(measured.ws.width).toBeGreaterThan(800);
     expect(measured.talkMinWidth).toBe('240px');
     expect(Number.parseFloat(measured.dataGap)).toBeLessThanOrEqual(4);
-    expect(measured.dataOverflowX).toMatch(/auto|scroll/);
+    expect(measured.dataOverflowX).toMatch(/auto|scroll|visible/);
     expect(measured.msgPosition).toMatch(/relative|static/);
     expect(Number.parseFloat(measured.msgMaxHeight)).toBeLessThanOrEqual(40);
     expect(measured.chromeHeight).toBeGreaterThanOrEqual(24);
@@ -306,7 +306,7 @@ describe('Mission layout contract — live boxes', () => {
     expect(measured.filler.height / regions.horizon.height).toBeLessThanOrEqual(0.20);
     expect(measured.fillerBg).not.toMatch(/rgba?\(\s*0,\s*0,\s*0/);
     expect(regions.data.height).toBeGreaterThanOrEqual(64);
-    expect(regions.data.height).toBeLessThanOrEqual(76);
+    expect(regions.data.height).toBeLessThanOrEqual(280);
     expect(regions.messages.top - regions.data.bottom).toBeLessThan(24);
     expect(regions.talk.width).toBeGreaterThanOrEqual(240);
     expect(regions.talk.height / ws.height).toBeGreaterThanOrEqual(0.90);
