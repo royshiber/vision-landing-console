@@ -51,9 +51,9 @@ function interiorsIntersect(a, b, slack = 1) {
 }
 
 describe('Mission messages toggle — source contract', () => {
-  it('pins APP_VERSION at 1.02.328', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.328'");
-    expect(pkg.version).toBe('1.02.328');
+  it('pins APP_VERSION at 1.02.329', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.329'");
+    expect(pkg.version).toBe('1.02.329');
   });
 
   it('defaults the strip hidden behind a discreet Hebrew toggle and a severity badge', () => {

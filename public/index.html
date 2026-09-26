@@ -879,10 +879,39 @@
         <div id="debriefFlightbookPanel" class="tele-subpanel fb-panel" data-debrief-panel="flightbook" data-layout-contract="flightbook-v1" dir="rtl"></div>
         <div id="debriefRecordingsPanel" class="recordings-layout tele-subpanel visible" data-debrief-panel="recordings">
           <div class="video-column">
-            <div class="video-wrapper">
-              <video id="flightVideo" controls></video>
-              <canvas id="annotationCanvas"></canvas>
-              <div id="lockIndicator" class="lock-indicator no-lock">אין נעילה</div>
+            <div class="debrief-cam-toolbar" role="group" aria-label="מצלמות">
+              <button type="button" class="debrief-cam-toggle" data-debrief-cam="cam0" aria-pressed="true">Cam0</button>
+              <button type="button" class="debrief-cam-toggle" data-debrief-cam="cam1" aria-pressed="false">Cam1</button>
+              <button type="button" class="debrief-cam-toggle" data-debrief-cam="a8" aria-pressed="false">A8</button>
+            </div>
+            <div id="debriefCamGrid" class="debrief-cam-grid video-wrapper" data-count="1" data-layout="cameras">
+              <p id="debriefCamEmpty" class="debrief-cam-empty" hidden>בחרו מצלמה</p>
+              <figure class="debrief-cam-tile" data-cam="cam0" data-api="cam1" data-mono="1" data-slot="0" data-signal="none">
+                <div class="debrief-cam-stage">
+                  <video id="flightVideo" class="debrief-cam-media" controls playsinline></video>
+                  <img class="debrief-cam-live debrief-cam-media" alt="" hidden />
+                  <canvas id="annotationCanvas"></canvas>
+                  <p class="debrief-cam-nosignal">אין אות</p>
+                  <div id="lockIndicator" class="lock-indicator no-lock">אין נעילה</div>
+                </div>
+                <figcaption class="debrief-cam-label">Cam0</figcaption>
+              </figure>
+              <figure class="debrief-cam-tile" data-cam="cam1" data-api="cam2" data-slot="1" data-signal="none" hidden>
+                <div class="debrief-cam-stage">
+                  <video class="debrief-cam-clone debrief-cam-media" muted playsinline></video>
+                  <img class="debrief-cam-live debrief-cam-media" alt="" hidden />
+                  <p class="debrief-cam-nosignal">אין אות</p>
+                </div>
+                <figcaption class="debrief-cam-label">Cam1</figcaption>
+              </figure>
+              <figure class="debrief-cam-tile" data-cam="a8" data-api="cam3" data-slot="2" data-signal="none" hidden>
+                <div class="debrief-cam-stage">
+                  <video class="debrief-cam-clone debrief-cam-media" muted playsinline></video>
+                  <img class="debrief-cam-live debrief-cam-media" alt="" hidden />
+                  <p class="debrief-cam-nosignal">אין אות</p>
+                </div>
+                <figcaption class="debrief-cam-label">A8</figcaption>
+              </figure>
             </div>
             <div class="annotation-legend">
               <span class="legend-item locked">■ ננעל</span>
@@ -1900,7 +1929,9 @@
                   <div class="pfd-horizon-stage" id="pfdHorizonStage">
                     <video id="horizonVideoEl" class="pfd-horizon-video hidden" muted playsinline autoplay loop
                            aria-hidden="true" title="שידור וידאו מהטיסן"></video>
+                    <img id="horizonCameraBg" class="pfd-horizon-camera" alt="" hidden />
                     <p id="horizonVideoEmpty" class="pfd-horizon-video-empty hidden">אין וידאו. דרושה כתובת זרם ממחשב המשימה.</p>
+                    <p id="horizonCameraNote" class="pfd-horizon-nosignal" hidden>אין אות</p>
                     <canvas id="horizonCanvas"></canvas>
                     <div id="pfdHorizonMsgLog" class="pfd-horizon-msg-log" dir="rtl" aria-live="polite" aria-label="הודעות מטוס" hidden>
                       <p class="pfd-horizon-msg-line pfc-msg-primary" id="pfcMsgPrimaryHe" dir="auto">אין חיבור לבקר — לא מתקבלות הודעות.</p>
@@ -1992,15 +2023,15 @@
           </section>
             <aside id="missionHorizonFiller" class="mission-horizon-filler" aria-label="מצב בקר">
               <p class="mission-horizon-filler-kicker">מצב בקר</p>
-              <div class="pfd-bottom-bar">
-                <span class="pfd-batt" id="pfdBattVal">-- V</span>
-                <button id="hudAddSlotBtn" class="pfd-add-btn" title="הוסף נתון מותאם">＋</button>
-              </div>
               <div id="hudDataGrid" class="hud-data-grid pfd-slots-strip" role="region" aria-label="נתונים מותאמים"></div>
               <p class="mission-horizon-filler-note">אין חיבור לבקר. אין הודעות נכנסות.</p>
             </aside>
             <section class="mission-region mission-region-messages" data-mission-region="messages" data-messages-expanded="0" dir="rtl" aria-label="הודעות מטוס">
               <h3 class="mission-region-title">הודעות מטוס</h3>
+              <div class="pfd-bottom-bar">
+                <span class="pfd-batt" id="pfdBattVal">-- V</span>
+                <button id="hudAddSlotBtn" class="pfd-add-btn" title="הוסף נתון מותאם">＋</button>
+              </div>
               <button type="button" id="missionMessagesToggle" class="mission-messages-toggle" aria-expanded="false" aria-controls="pfcMsgScroll" title="הודעות" aria-label="הודעות">
                 <svg class="mission-messages-toggle-icon" viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><rect x="1.2" y="2" width="9.6" height="6.6" rx="1" fill="none" stroke="currentColor" stroke-width="1.3"></rect><path d="M3 4.6h6M3 6.6h4" stroke="currentColor" stroke-width="1.1" fill="none"></path></svg>
                 <span class="mission-messages-toggle-label">הודעות</span>
@@ -2465,6 +2496,7 @@
     }
     </script>
     <script type="module" src="./modules/flightbook.mjs?v=__APP_VERSION__"></script>
+    <script type="module" src="./modules/debrief-cameras.mjs?v=__APP_VERSION__"></script>
     <script src="./app.js?v=__APP_VERSION__"></script>
   </body>
 </html>

@@ -85,10 +85,14 @@
   --tele-card-shadow: var(--shadow-card);
   --tele-panel-shadow: var(--shadow-panel);
 
-  /* Stacking: ops chrome above panels; connect float above chrome; modals above all */
+  /* Stacking scale: panels, map UI inside an isolated shell, menus, chrome, floats, modals */
+  --z-panel: 1;
+  --z-map-ui: 3;
+  --z-hud: 4;
   --z-topbar-chrome: 200;
   --z-connect-float: 520;
   --z-assist-float: 530;
+  --z-menu: 640;
   --z-modal-overlay: 9800;
 }
 
@@ -10589,8 +10593,10 @@ html[data-evolve-preview="1"] #development {
 .mission-region-horizon .mission-region-data > .mission-region-title,
 .mission-region-horizon .mission-ask-chip {
   position: absolute;
-  width: 1px;
-  height: 1px;
+  width: 0;
+  height: 0;
+  padding: 0;
+  border: 0;
   overflow: hidden;
   clip: rect(0, 0, 0, 0);
 }
@@ -10626,7 +10632,7 @@ html[data-evolve-preview="1"] #development {
   gap: 0;
   flex: 1 1 0;
   align-self: stretch;
-  min-width: 64px;
+  min-width: 84px;
   min-height: 56px;
   max-height: none;
   overflow: hidden;
@@ -10905,12 +10911,25 @@ html[data-evolve-preview="1"] #development {
 }
 .mission-region-messages > .mission-region-title {
   position: absolute;
-  width: 1px;
-  height: 1px;
-  margin: -1px;
+  width: 0;
+  height: 0;
+  padding: 0;
+  margin: 0;
+  border: 0;
   overflow: hidden;
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
+}
+.mission-region-messages .pfd-bottom-bar {
+  position: static;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  gap: 4px;
+  background: transparent;
+  border: 0;
 }
 .mission-region-messages[data-messages-expanded="0"] .pfd-statustext-strip {
   display: none;
@@ -10927,14 +10946,24 @@ html[data-evolve-preview="1"] #development {
   border: 0;
   box-shadow: none;
   cursor: default;
+  overflow: hidden;
+  min-height: 0;
 }
 .mission-region-messages[data-messages-expanded="1"] .pfd-statustext-strip {
+  flex: 1 1 auto;
   flex-direction: column;
   align-items: stretch;
   width: 100%;
+  min-height: 0;
+  overflow: hidden;
 }
 .mission-region-messages[data-messages-expanded="1"] .pfc-msg-scroll {
   display: block;
+  flex: 1 1 0;
+  min-height: 0;
+  height: 0;
+  max-height: none;
+  overflow-y: auto;
 }
 .mission-region-messages .pfc-opt-mini {
   position: absolute;
@@ -11032,10 +11061,24 @@ html[data-evolve-preview="1"] #development {
   position: relative;
 }
 .mission-region-map .terrain-map-overlay-toolbar {
-  top: 6px;
+  top: 4px;
   bottom: auto;
-  right: 8px;
+  right: 6px;
   left: auto;
+  max-width: calc(100% - 88px);
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  z-index: var(--z-map-ui);
+}
+.mission-region-map .leaflet-top.leaflet-left {
+  top: 28px;
+  left: 6px;
+  z-index: var(--z-map-ui);
+}
+.mission-region-map > .mission-region-title {
+  z-index: calc(var(--z-map-ui) + 1);
+  max-width: 72px;
+  pointer-events: none;
 }
 .mission-region-map .terrain-map-shell {
   flex: 1 1 0;
@@ -11221,7 +11264,12 @@ html[data-evolve-preview="1"] #development {
 .mission-region-horizon .pfd-top-bar {
   min-height: 22px;
   padding: 2px 6px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  gap: 4px;
+}
+.mission-region-horizon .pfd-top-bar > * {
+  flex-shrink: 0;
 }
 .mission-region-horizon .pfd-bottom-bar {
   display: flex;
@@ -11247,12 +11295,19 @@ html[data-evolve-preview="1"] #development {
   min-height: 0;
   margin-top: 0;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  align-items: center;
   gap: 6px;
-  padding: 8px;
+  padding: 0 6px;
   background: #1e293b;
   border-top: 1px solid rgba(148, 163, 184, 0.22);
-  overflow: auto;
+  overflow: hidden;
+}
+.mission-horizon-filler > * {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .mission-horizon-filler-kicker {
   margin: 0;
@@ -19000,6 +19055,276 @@ body:has(#control.panel.visible) .ardu-top-cats-host {
 #recordings.panel.visible .video-column .video-wrapper {
   background: #0b0e14;
   border-color: rgba(255, 255, 255, 0.08);
+}
+
+/* ── Debrief camera grid ─────────────────────────────────── */
+.debrief-cam-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0 0 4px;
+  direction: rtl;
+}
+.debrief-cam-toggle {
+  min-height: 28px;
+  padding: 2px 10px;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 0.78rem;
+}
+.debrief-cam-toggle[aria-pressed="true"] {
+  background: #0f766e;
+  border-color: #0f766e;
+}
+.video-column .debrief-cam-grid {
+  display: grid;
+  gap: 4px;
+  align-content: stretch;
+  align-items: stretch;
+  justify-content: stretch;
+  background: #000;
+}
+.debrief-cam-grid[data-count="0"] {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.debrief-cam-grid[data-count="1"] {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+}
+.debrief-cam-grid[data-count="2"] {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+}
+.debrief-cam-grid[data-count="3"] {
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+}
+.debrief-cam-grid[data-count="3"] .debrief-cam-tile[data-slot="0"] {
+  grid-column: 1;
+  grid-row: 1 / span 2;
+}
+.debrief-cam-grid[data-count="3"] .debrief-cam-tile[data-slot="1"] {
+  grid-column: 2;
+  grid-row: 1;
+}
+.debrief-cam-grid[data-count="3"] .debrief-cam-tile[data-slot="2"] {
+  grid-column: 2;
+  grid-row: 2;
+}
+.debrief-cam-empty {
+  margin: 0;
+  color: #cbd5e1;
+  font-size: 0.9rem;
+}
+.debrief-cam-tile {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  background: #000;
+  overflow: hidden;
+}
+.debrief-cam-stage {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  background: #000;
+}
+.debrief-cam-tile .debrief-cam-media,
+.video-column .debrief-cam-tile video,
+.video-column .debrief-cam-tile img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  object-fit: contain;
+  background: #000;
+}
+.debrief-cam-tile[data-mono="1"] .debrief-cam-media,
+.debrief-cam-live.is-mono,
+.pfd-horizon-camera.is-mono {
+  filter: grayscale(1);
+}
+.debrief-cam-nosignal {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #e2e8f0;
+  background: #0b0e14;
+  font-size: 0.85rem;
+  font-weight: 700;
+  pointer-events: none;
+}
+.debrief-cam-nosignal[hidden],
+.debrief-cam-live[hidden],
+.debrief-cam-tile[hidden] {
+  display: none;
+}
+.debrief-cam-label {
+  position: absolute;
+  top: 6px;
+  inset-inline-start: 6px;
+  z-index: 2;
+  margin: 0;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(8, 12, 20, 0.72);
+  color: #f8fafc;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+@media (max-width: 720px) {
+  .debrief-cam-grid[data-count="2"],
+  .debrief-cam-grid[data-count="3"] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .debrief-cam-grid[data-count="2"] {
+    grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .debrief-cam-grid[data-count="3"] {
+    grid-template-rows: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .debrief-cam-grid[data-count="3"] .debrief-cam-tile[data-slot] {
+    grid-column: 1;
+    grid-row: auto;
+  }
+}
+
+/* ── Horizon camera backdrop + context menu ─────────────── */
+.pfd-horizon-camera {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #000;
+  z-index: 0;
+}
+.pfd-horizon-camera[hidden] { display: none; }
+.pfd-horizon-nosignal {
+  position: absolute;
+  z-index: 5;
+  bottom: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(8, 12, 20, 0.78);
+  color: #f8fafc;
+  font-size: 0.68rem;
+  font-weight: 700;
+  pointer-events: none;
+  white-space: nowrap;
+}
+.pfd-horizon-nosignal[hidden] { display: none; }
+.horizon-cam-menu {
+  position: fixed;
+  z-index: var(--z-menu);
+  min-width: 148px;
+  margin: 0;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: #11161f;
+  color: #f8fafc;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+}
+.horizon-cam-menu[hidden] { display: none; }
+.horizon-cam-menu-item {
+  text-transform: none;
+  letter-spacing: 0;
+  justify-content: flex-start;
+  width: 100%;
+  background: transparent;
+  color: #f8fafc;
+  border: 0;
+  border-radius: 6px;
+  min-height: 32px;
+}
+.horizon-cam-menu-item[aria-checked="true"] {
+  background: rgba(15, 118, 110, 0.45);
+}
+
+/* ── Flight screen: keep strips inside their columns ────── */
+.mission-region-horizon .mission-data-grid {
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+  flex: 1 1 auto;
+}
+.mission-horizon-filler .hud-data-grid {
+  max-height: 16px;
+  overflow: hidden;
+}
+.mission-horizon-filler .hud-data-grid:empty { display: none; }
+.mission-horizon-filler-kicker {
+  position: absolute;
+  width: 0;
+  height: 0;
+  margin: 0;
+  overflow: hidden;
+}
+.mission-region-horizon > .mission-horizon-filler {
+  flex: 0 0 auto;
+  min-height: 16px;
+  max-height: 22px;
+}
+.debrief-cam-tile .lock-indicator {
+  top: auto;
+  bottom: 8px;
+}
+.mission-region-map .leaflet-control-attribution {
+  max-width: 46%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+@media (max-width: 720px) {
+  .app-chrome {
+    padding-inline-end: 8px;
+  }
+  .mission-ops-chrome {
+    max-height: none;
+    height: auto;
+    flex: 0 0 auto;
+    flex-wrap: wrap;
+    row-gap: 4px;
+    padding-block: 4px;
+  }
+  .mission-ops-leading,
+  .mission-link-strip {
+    max-width: 100%;
+    flex-wrap: wrap;
+    overflow: visible;
+  }
+  .mission-link-chip {
+    overflow: visible;
+    text-overflow: clip;
+  }
+  .mission-region[data-mission-region="talk"] {
+    min-width: 0;
+  }
+  .terrain-compass-svg {
+    width: 72px;
+    height: 72px;
+  }
+  .terrain-compass-wrap {
+    margin-bottom: 8px;
+    margin-inline-start: 4px;
+  }
 }
 
 
