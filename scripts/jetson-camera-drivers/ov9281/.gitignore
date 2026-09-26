@@ -1,0 +1,11 @@
+*.ko
+*.o
+*.mod
+*.mod.c
+*.mod.o
+*.dtbo
+*.dts.preprocessed
+.*.cmd
+modules.order
+Module.symvers
+nv_ov9281.mod
