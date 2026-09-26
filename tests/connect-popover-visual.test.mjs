@@ -301,6 +301,38 @@ describe('connect popover layout and mocked states', () => {
     for (const row of clip.rowOverflow) {
       expect(row.overflow, row.id).toBeLessThanOrEqual(1);
     }
+    const mapHit = await page.evaluate(() => {
+      const panel = document.getElementById('connectPanel');
+      const panelRect = panel.getBoundingClientRect();
+      const controls = [...document.querySelectorAll(
+        '#terrainLayerStreetBtn, #terrainLayerSatBtn, #terrainShowLoadedPathBtn, .leaflet-control',
+      )];
+      const overlaps = [];
+      const paintedOnTop = [];
+      for (const el of controls) {
+        const rect = el.getBoundingClientRect();
+        if (rect.width < 2 || rect.height < 2) continue;
+        const overlapsPanel = rect.left < panelRect.right - 1
+          && rect.right > panelRect.left + 1
+          && rect.top < panelRect.bottom - 1
+          && rect.bottom > panelRect.top + 1;
+        if (!overlapsPanel) continue;
+        overlaps.push(el.id || el.className);
+        const x = Math.min(Math.max(rect.left + rect.width / 2, panelRect.left + 2), panelRect.right - 2);
+        const y = Math.min(Math.max(rect.top + rect.height / 2, panelRect.top + 2), panelRect.bottom - 2);
+        const top = document.elementFromPoint(x, y);
+        if (!top || !panel.contains(top)) {
+          paintedOnTop.push({
+            id: el.id || '',
+            text: (el.textContent || '').trim().slice(0, 40),
+            top: top ? (top.id || top.className || top.tagName) : '',
+          });
+        }
+      }
+      return { overlaps, paintedOnTop };
+    });
+    expect(mapHit.overlaps.length, 'map controls must sit under the open popover').toBeGreaterThan(0);
+    expect(mapHit.paintedOnTop).toEqual([]);
   }
 
   it('renders all up, cellular only, and all down without clipping at 360px', async () => {

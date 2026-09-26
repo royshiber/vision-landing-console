@@ -12126,6 +12126,9 @@ html[data-evolve-preview="1"] #development {
   margin-top: 0;
   height: 100%;
   position: relative;
+  /* Toolbar and Leaflet controls use z-index 1000. Keep that inside the map
+     so it cannot paint over the connect popover (z-index --z-connect-float). */
+  isolation: isolate;
 }
 
 /* Layer controls overlay — floats on top of the map, bottom-right corner */
