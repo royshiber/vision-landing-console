@@ -12169,6 +12169,12 @@ initLiveCameraPanel();
         }
         if (prev && ports.some((p) => p.path === prev)) portList.value = prev;
       }
+      const rfPort = document.getElementById('rfComPort');
+      if (rfPort) {
+        const rfPrev = rfPort.value;
+        rfPort.innerHTML = portList.innerHTML;
+        if (rfPrev) rfPort.value = rfPrev;
+      }
     } catch (err) {
       console.warn('refreshSerialPorts failed', err);
     }
@@ -12560,6 +12566,11 @@ initLiveCameraPanel();
     applyAnnotatedVision(links.video);
     try { paintCellularOpsChecklist(links); } catch (err) { console.warn('paintCellularOpsChecklist failed', err); }
     try { hydrateMissionHudFromLiveLink(); } catch (err) { console.warn('hydrateMissionHudFromLiveLink failed', err); }
+    try {
+      if (links.radioConnection?.rfCompanion) paintRfCompanion(links.radioConnection.rfCompanion);
+    } catch (err) {
+      console.warn('paintRfCompanion failed', err);
+    }
     return true;
   }
 
@@ -12613,6 +12624,8 @@ initLiveCameraPanel();
         }
       }
       hydrateMissionHudFromLiveLink();
+      const rfConn = connections.find((c) => c.liveStatus?.rfCompanion);
+      if (rfConn) paintRfCompanion(rfConn.liveStatus.rfCompanion);
     } catch (err) {
       console.warn('refreshConnectionStatus failed', err);
     }
@@ -12645,6 +12658,24 @@ initLiveCameraPanel();
 
   async function postUplink(role, enabled) {
     const rowId = role === 'wifi' || role === 'home' ? 'home' : 'cellular';
+    if (document.body?.dataset?.workPath === 'rf') {
+      setRowPending(rowId, true);
+      try {
+        const r = await fetch('/api/links/rf-action', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ kind: 'uplink', role: rowId, enabled: enabled === true }),
+        });
+        const j = await parseConnJsonResponse(r);
+        if (!r.ok || j.ok === false) throw new Error(j.message || 'הפעולה נדחתה');
+        return j;
+      } catch (err) {
+        setRowMessage(rowId, hebrewRowError(err));
+        throw err;
+      } finally {
+        setRowPending(rowId, false);
+      }
+    }
     setRowMessage(rowId, '');
     setRowPending(rowId, true);
     const box = document.getElementById(`${rowId}LinkEnable`);
@@ -12926,6 +12957,7 @@ initLiveCameraPanel();
       if (j.connection?.liveStatus) {
         rememberLiveRadioStatus(j.connection.liveStatus);
         hydrateMissionHudFromLiveLink();
+        if (j.connection.liveStatus.rfCompanion) paintRfCompanion(j.connection.liveStatus.rfCompanion);
       }
       statBody.innerHTML = renderStatBody(j.connection);
     } catch (err) {
@@ -13014,6 +13046,99 @@ initLiveCameraPanel();
       else if (panel && !panel.hidden) closePanel();
     }
   });
+  const RF_VIDEO_REASON_HE = 'במצב RF אין וידאו';
+  function paintWorkPath(result) {
+    const path = result?.path || 'auto';
+    document.body.dataset.workPath = path === 'rf' ? 'rf' : '';
+    const label = document.getElementById('workLinkPath');
+    if (label) {
+      label.textContent = result?.pathLabelHe || (
+        path === 'home' ? 'נתיב פעיל: רשת בית'
+        : path === 'cellular' ? 'נתיב פעיל: סלולר'
+        : path === 'rf' ? 'נתיב פעיל: RF'
+        : path === 'none' ? 'נתיב פעיל: אין נתיב'
+        : 'נתיב פעיל: אוטומטי'
+      );
+    }
+    const reason = document.getElementById('rfReducedReason');
+    if (reason) reason.hidden = path !== 'rf';
+    const line = document.getElementById('rfCompanionLine');
+    if (line && path !== 'rf') line.hidden = true;
+    const boxes = '#cam0Panel button, #cam0Panel input, #cam0Panel select, #cam1Panel button, #cam1Panel input, #cam1Panel select';
+    if (path === 'rf') {
+      for (const id of ['cam0Reason', 'cam1Reason']) {
+        const el = document.getElementById(id);
+        if (!el) continue;
+        el.hidden = false;
+        el.textContent = RF_VIDEO_REASON_HE;
+      }
+      document.querySelectorAll(boxes).forEach((el) => {
+        el.dataset.rfLock = '1';
+        el.disabled = true;
+      });
+    } else {
+      for (const id of ['cam0Reason', 'cam1Reason']) {
+        const el = document.getElementById(id);
+        if (el && el.textContent === RF_VIDEO_REASON_HE) el.textContent = '';
+      }
+      document.querySelectorAll('[data-rf-lock="1"]').forEach((el) => {
+        el.disabled = false;
+        delete el.dataset.rfLock;
+      });
+    }
+  }
+  function paintRfCompanion(status) {
+    const line = document.getElementById('rfCompanionLine');
+    if (!line || document.body.dataset.workPath !== 'rf') return;
+    if (!status) {
+      line.hidden = true;
+      return;
+    }
+    const parts = [];
+    if (status.wifi === 1) parts.push('רשת בית פעילה');
+    else if (status.wifi === 0) parts.push('רשת בית כבויה');
+    if (status.cell === 1) parts.push('סלולר פעיל');
+    else if (status.cell === 0) parts.push('סלולר כבוי');
+    if (status.cam0 === 1) parts.push('מצלמה ראשונה חיה');
+    else if (status.cam0 === 0) parts.push('מצלמה ראשונה בלי אות');
+    if (status.cam1 === 1) parts.push('מצלמה שנייה חיה');
+    else if (status.cam1 === 0) parts.push('מצלמה שנייה בלי אות');
+    line.hidden = parts.length === 0;
+    line.textContent = parts.join(' · ');
+    if (status.mode === 1) document.body.dataset.rfGimbalMode = 'lock';
+    else if (status.mode === 0) document.body.dataset.rfGimbalMode = 'follow';
+  }
+  async function postWorkLink() {
+    const picked = document.querySelector('input[name="workLink"]:checked');
+    const mode = picked?.value || 'auto';
+    const serialPort = document.getElementById('rfComPort')?.value || '';
+    const baudRate = Number(document.getElementById('rfBaud')?.value) || 57600;
+    if (mode === 'rf') paintWorkPath({ path: 'rf', pathLabelHe: 'נתיב פעיל: RF' });
+    try {
+      const r = await fetch('/api/links/work', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode, serialPort, baudRate }),
+      });
+      const j = await r.json();
+      if (j && (j.ok || j.path)) paintWorkPath(j);
+    } catch (err) {
+      console.warn('work link failed', err);
+    }
+  }
+  for (const id of ['workLinkAuto', 'workLinkHome', 'workLinkCellular', 'workLinkRf']) {
+    document.getElementById(id)?.addEventListener('change', () => { void postWorkLink(); });
+  }
+  document.getElementById('rfComPort')?.addEventListener('change', () => { void postWorkLink(); });
+  document.getElementById('rfBaud')?.addEventListener('change', () => { void postWorkLink(); });
+  void fetch('/api/links/work').then((r) => r.json()).then((j) => {
+    const map = { auto: 'workLinkAuto', home: 'workLinkHome', cellular: 'workLinkCellular', rf: 'workLinkRf' };
+    const box = document.getElementById(map[j?.mode] || 'workLinkAuto');
+    if (box) box.checked = true;
+    const baud = document.getElementById('rfBaud');
+    if (baud && j?.baudRate) baud.value = String(j.baudRate);
+    return postWorkLink();
+  }).catch(() => {});
   if (toggleBtn) toggleBtn.addEventListener('click', (ev) => { ev.stopPropagation(); togglePanel(); });
   document.addEventListener('click', (ev) => {
     if (!panel || panel.hidden) return;

@@ -22685,3 +22685,28 @@ body:has(#control.panel.visible) .assist-toggle-btn.assist-toggle-float {
   #control.panel.visible .fc-group-next { grid-area: input; }
   #control.panel.visible .fc-group-meta { grid-area: meta; }
 }
+.work-link-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin: 0 0 10px;
+  min-width: 0;
+}
+.work-link-picker .conn-link-title,
+.work-link-path,
+.work-link-reason,
+.work-link-choices label {
+  font-size: clamp(11px, 1.6vw, 14px);
+  min-width: 0;
+}
+.work-link-choices,
+.work-link-serial {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+}
+.work-link-serial,
+.work-link-reason {
+  width: 100%;
+  margin: 0;
+}
