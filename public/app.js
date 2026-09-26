@@ -141,7 +141,11 @@ function applyServerAppVersion(ver) {
   const m = document.querySelector('meta[name="app-version"]');
   if (m) m.setAttribute('content', v);
   const vb = document.getElementById('versionBtn');
-  if (vb) vb.textContent = `v${v}`;
+  if (vb) {
+    const dot = vb.querySelector('#updateIndicator');
+    vb.textContent = `v${v}`;
+    if (dot) vb.appendChild(dot);
+  }
   if (document.title && (document.title.startsWith('AIRVIX') || document.title.startsWith('Vision Landing Console'))) {
     document.title = `AIRVIX v${v}`;
   }
@@ -10600,6 +10604,20 @@ initLiveCameraPanel();
       fcLinkChip.textContent = `${link.fcLabelHe || 'בקר טיסה'} · ${link.fcStatusHe || 'מנותק'}`;
     }
     if (companionLinkHint && link.hint_he) companionLinkHint.textContent = link.hint_he;
+    const activeLinkEl = document.getElementById('companionActiveLink');
+    if (activeLinkEl) {
+      const label = String(link.active_link_he || '').trim();
+      const url = String(link.active_base_url || '').trim();
+      if (label || url) {
+        activeLinkEl.hidden = false;
+        const safeLabel = label.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        const safeUrl = url.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        activeLinkEl.innerHTML = `קישור בשימוש: ${safeLabel} <bdi dir="ltr">${safeUrl}</bdi>`;
+      } else {
+        activeLinkEl.hidden = true;
+        activeLinkEl.textContent = '';
+      }
+    }
     companionPrefillDefaultUrl(link.base_url);
     if (companionLinkBtn) {
       const home = latestLinksSnapshot?.comm?.rows?.find((r) => r.id === 'home');
@@ -10624,13 +10642,25 @@ initLiveCameraPanel();
     btn.disabled = !!pending;
   }
 
+  function hebrewRowError(err) {
+    const raw = String(err?.message || err || '').trim();
+    if (!raw) return 'הפעולה נכשלה';
+    if (/[\u0590-\u05FF]/.test(raw) && !/failed to fetch|networkerror|typeerror/i.test(raw)) return raw;
+    if (/abort|timeout|timed out/i.test(raw)) return 'הפעולה ארכה יותר מדי';
+    if (/failed to fetch|networkerror|load failed|network request failed|typeerror/i.test(raw)) {
+      return 'אין קשר לשרת הקונסולה';
+    }
+    return 'הפעולה נכשלה';
+  }
+
   function setRowMessage(id, text) {
     const row = document.querySelector(`#commLinkRows .comm-link-row[data-link="${id}"]`);
     const el = row?.querySelector('.comm-link-error');
     if (!el) return;
     const msg = String(text || '').trim();
-    el.hidden = !msg;
-    el.textContent = msg;
+    const safe = /failed to fetch|networkerror|^typeerror\b/i.test(msg) ? 'אין קשר לשרת הקונסולה' : msg;
+    el.hidden = !safe;
+    el.textContent = safe;
   }
 
   function paintRowAction(btn, label, title) {
@@ -10689,6 +10719,21 @@ initLiveCameraPanel();
       el.dataset.active = row.active ? '1' : '0';
       const hint = el.querySelector('.comm-link-hint');
       if (hint && row.hintHe) hint.textContent = row.hintHe;
+      const errEl = el.querySelector('.comm-link-error');
+      if (errEl) {
+        const current = String(errEl.textContent || '');
+        const rawEnglish = /failed to fetch|networkerror|^typeerror\b/i.test(current);
+        if (typeof row.errorHe === 'string') {
+          const safe = /failed to fetch|networkerror|^typeerror\b/i.test(row.errorHe)
+            ? 'אין הגעה לכתובת'
+            : row.errorHe;
+          errEl.hidden = !safe;
+          errEl.textContent = safe;
+        } else if (rawEnglish) {
+          errEl.hidden = true;
+          errEl.textContent = '';
+        }
+      }
       const status = el.querySelector('.comm-link-status');
       if (status) status.textContent = row.statusHe || (row.quality?.known ? '' : 'אין נתונים');
       const uplinkRow = id === 'cellular' || id === 'home';
@@ -10924,7 +10969,7 @@ initLiveCameraPanel();
       if (j.links) applyDualLinkUi(j.links);
       return j;
     } catch (err) {
-      setRowMessage(role, err.message || String(err));
+      setRowMessage(role, hebrewRowError(err));
       throw err;
     } finally {
       if (box) delete box.dataset.pending;
@@ -10949,7 +10994,7 @@ initLiveCameraPanel();
       if (!r.ok || j.ok === false) throw new Error(j.messageHe || j.message || 'הפעולה נדחתה');
       return j;
     } catch (err) {
-      setRowMessage(rowId, err.message || String(err));
+      setRowMessage(rowId, hebrewRowError(err));
       throw err;
     } finally {
       if (box) delete box.dataset.pending;
@@ -11044,7 +11089,7 @@ initLiveCameraPanel();
       }
     } catch (err) {
       setDot('err');
-      setRowMessage('radio', err.message || String(err));
+      setRowMessage('radio', hebrewRowError(err));
     } finally {
       setRowPending('radio', false);
       await refreshConnectionStatus();
@@ -17865,3 +17910,177 @@ function initFlightArchiveRecord() {
     if (document.visibilityState === 'visible') void refresh();
   });
 }
+
+(function initAppUpdateNotice() {
+  const banner = document.getElementById('appUpdateBanner');
+  const textEl = document.getElementById('appUpdateBannerText');
+  const listEl = document.getElementById('appUpdateChangelog');
+  const applyBtn = document.getElementById('appUpdateApplyBtn');
+  const snoozeBtn = document.getElementById('appUpdateSnoozeBtn');
+  const errorEl = document.getElementById('appUpdateError');
+  const indicator = document.getElementById('updateIndicator');
+  const settingsStatus = document.getElementById('gsAppUpdateStatus');
+  const SNOOZE_KEY = 'airvixUpdateSnoozeV1';
+  if (!banner || !textEl) return;
+
+  let latestStatus = null;
+  let polling = false;
+  let confirmUnknown = false;
+
+  function esc(s) {
+    return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+  function cmpVer(a, b) {
+    const pa = String(a || '0').split('.').map((n) => parseInt(n, 10) || 0);
+    const pb = String(b || '0').split('.').map((n) => parseInt(n, 10) || 0);
+    const n = Math.max(pa.length, pb.length);
+    for (let i = 0; i < n; i += 1) {
+      const d = (pa[i] || 0) - (pb[i] || 0);
+      if (d) return d;
+    }
+    return 0;
+  }
+  function snoozed(version) {
+    try {
+      const raw = JSON.parse(localStorage.getItem(SNOOZE_KEY) || 'null');
+      if (!raw || raw.version !== version) return false;
+      return Date.now() < Number(raw.until);
+    } catch {
+      return false;
+    }
+  }
+  function setError(message, logPath) {
+    if (!errorEl) return;
+    if (!message) {
+      errorEl.hidden = true;
+      errorEl.textContent = '';
+      return;
+    }
+    errorEl.hidden = false;
+    const path = logPath ? ` לוג: ${logPath}` : '';
+    errorEl.textContent = `${message}${path}`;
+  }
+  function paint(status) {
+    latestStatus = status;
+    const available = status?.available === true;
+    if (indicator) indicator.hidden = !available;
+    if (settingsStatus) {
+      if (status?.error === 'offline' && !available) settingsStatus.textContent = 'לא ניתן לבדוק עכשיו.';
+      else if (available) settingsStatus.textContent = `גרסה חדשה זמינה: ${status.latest} (מותקנת ${status.current})`;
+      else settingsStatus.textContent = `מותקנת ${status?.current || ''}. אין עדכון חדש.`;
+    }
+    if (!available || snoozed(status.latest)) {
+      if (!polling) banner.hidden = true;
+      return;
+    }
+    banner.hidden = false;
+    textEl.textContent = `גרסה חדשה זמינה: ${status.latest} (מותקנת ${status.current})`;
+    if (listEl) {
+      const lines = Array.isArray(status.changelog) ? status.changelog.filter(Boolean).slice(0, 6) : [];
+      listEl.hidden = lines.length === 0;
+      listEl.innerHTML = lines.map((line) => `<li><bdi dir="ltr">${esc(line)}</bdi></li>`).join('');
+    }
+    if (applyBtn && !polling) {
+      applyBtn.disabled = status.blockedReason === 'armed' || status.blockedReason === 'in_flight';
+      if (status.needsConfirmation) {
+        applyBtn.textContent = 'אשר עדכון';
+        confirmUnknown = true;
+      } else {
+        applyBtn.textContent = 'עדכן עכשיו';
+        confirmUnknown = false;
+      }
+      if (status.blockedReason === 'armed' || status.blockedReason === 'in_flight') {
+        setError(status.message || '', null);
+      }
+    }
+  }
+  async function loadStatus(refresh) {
+    const url = refresh ? '/api/v1/update/status?refresh=1' : '/api/v1/update/status';
+    const res = await fetch(url, { cache: 'no-store' });
+    if (!res.ok) throw new Error('status');
+    const data = await res.json();
+    paint(data);
+    return data;
+  }
+  async function pollUntil(expected, logPath) {
+    polling = true;
+    banner.hidden = false;
+    textEl.textContent = 'מעדכן...';
+    if (applyBtn) applyBtn.disabled = true;
+    if (snoozeBtn) snoozeBtn.disabled = true;
+    const started = Date.now();
+    while (Date.now() - started < 12 * 60 * 1000) {
+      await new Promise((r) => setTimeout(r, 2000));
+      try {
+        const res = await fetch('/api/v1/update/status', { cache: 'no-store' });
+        if (!res.ok) continue;
+        const data = await res.json();
+        if (cmpVer(data.current, expected) >= 0) {
+          location.reload();
+          return;
+        }
+        if (data.applyError && data.applying === false) {
+          polling = false;
+          setError(String(data.applyError), data.logPath || logPath);
+          textEl.textContent = 'העדכון נכשל. הגרסה הקודמת נשארה.';
+          if (applyBtn) applyBtn.disabled = false;
+          if (snoozeBtn) snoozeBtn.disabled = false;
+          return;
+        }
+      } catch {
+        textEl.textContent = 'מעדכן...';
+      }
+    }
+    polling = false;
+    setError('העדכון לא הסתיים.', logPath);
+    if (applyBtn) applyBtn.disabled = false;
+    if (snoozeBtn) snoozeBtn.disabled = false;
+  }
+  async function applyUpdate() {
+    setError('', null);
+    const res = await fetch('/api/v1/update/apply', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ confirmUnknown }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.status === 409 && data.needsConfirmation) {
+      confirmUnknown = true;
+      if (applyBtn) applyBtn.textContent = 'אשר עדכון';
+      setError(data.message || 'אשר שוב כדי לעדכן.', null);
+      return;
+    }
+    if (!res.ok || data.ok === false) {
+      setError(data.message || 'העדכון נכשל.', data.logPath);
+      return;
+    }
+    await pollUntil(data.latest || latestStatus?.latest, data.logPath);
+  }
+  applyBtn?.addEventListener('click', () => { void applyUpdate(); });
+  snoozeBtn?.addEventListener('click', () => {
+    const version = latestStatus?.latest;
+    if (version) {
+      localStorage.setItem(SNOOZE_KEY, JSON.stringify({ version, until: Date.now() + 24 * 60 * 60 * 1000 }));
+    }
+    banner.hidden = true;
+  });
+  async function manualCheck() {
+    if (settingsStatus) settingsStatus.textContent = 'בודקים...';
+    try {
+      const data = await loadStatus(true);
+      if (data?.available) banner.hidden = false;
+    } catch {
+      if (settingsStatus) settingsStatus.textContent = 'לא ניתן לבדוק עכשיו.';
+    }
+  }
+  document.getElementById('gsCheckUpdatesBtn')?.addEventListener('click', () => { void manualCheck(); });
+  document.getElementById('versionCheckUpdatesBtn')?.addEventListener('click', () => { void manualCheck(); });
+  indicator?.addEventListener('click', (ev) => {
+    ev.stopPropagation();
+    banner.hidden = false;
+  });
+  void loadStatus(false).then((data) => {
+    if (!data?.lastChecked) return loadStatus(true);
+    return data;
+  }).catch(() => {});
+})();

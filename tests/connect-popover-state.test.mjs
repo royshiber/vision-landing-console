@@ -231,13 +231,15 @@ describe('connect popover state, bars, and actions', () => {
       cellularSignal: { rsrp: -88 },
       companion: { jetson: 'reachable', fc_heartbeat: true, fc: 'heartbeat', httpRttMs: 40 },
     });
-    expect(relay.rows.find((r) => r.id === 'radio').hintHe).toBe('דרך מחשב משימה · ממסר');
-    expect(relay.rows.find((r) => r.id === 'radio').quality.sourceHe).toBe('לפי זמן דופק');
+    expect(relay.rows.find((r) => r.id === 'radio').connected).toBe(false);
+    expect(relay.rows.find((r) => r.id === 'radio').statusHe).toBe('לא מחובר');
+    expect(relay.rows.find((r) => r.id === 'radio').hintHe).not.toBe('דרך מחשב משימה · ממסר');
     expect(relay.rows.find((r) => r.id === 'cellular').connected).toBe(false);
     expect(relay.rows.find((r) => r.id === 'cellular').statusHe).toBe('אות בלבד');
     expect(relay.rows.find((r) => r.id === 'cellular').quality.bars).toBe(3);
     expect(relay.rows.find((r) => r.id === 'home').quality.known).toBe(true);
     expect(relay.rows.find((r) => r.id === 'home').connected).toBe(true);
+    expect(relay.pillLabelHe).toBe('מחובר · רשת בית');
   });
 
   it('styles disconnect as danger inside the popover and not green for connect', () => {

@@ -45,13 +45,13 @@ if [ -f .git/MERGE_HEAD ] || [ -f .git/CHERRY_PICK_HEAD ]; then
 fi
 
 # Only bump when real source files are staged (skip docs-only / version-only commits).
-STAGED=$(git diff --cached --name-only --diff-filter=ACMR | grep -vE '^(version\\.js|package\\.json|package-lock\\.json|public/changelog\\.json)$' || true)
+STAGED=$(git diff --cached --name-only --diff-filter=ACMR | grep -vE '^(version\\.js|version\\.json|package\\.json|package-lock\\.json|public/changelog\\.json)$' || true)
 if [ -z "$STAGED" ]; then
   exit 0
 fi
 
 node scripts/bump-version.mjs --silent || exit 1
-git add version.js package.json package-lock.json public/changelog.json 2>/dev/null || true
+git add version.js version.json package.json package-lock.json public/changelog.json 2>/dev/null || true
 exit 0
 `;
 
