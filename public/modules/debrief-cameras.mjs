@@ -1,8 +1,6 @@
 /**
- * Debrief camera grid: Cam0 is the OV9281 (companion camera cam0, mono),
- * Cam1 is companion cam2, A8 is the SIYI RTSP slot cam3.
- * Live frames come only from the companion camera API. A loaded debrief file keeps the
- * existing playback clock on #flightVideo and synced clones. No invented signal.
+ * Debrief camera grid. Live tiles show a companion frame or אין אות.
+ * A loaded debrief file plays only in #flightVideo, never inside a live tile.
  */
 
 const STORAGE_KEY = 'vlc.debrief.cameras.v1';
@@ -59,6 +57,13 @@ function recordingActive() {
   return src.length > 0 && !src.endsWith('/');
 }
 
+function paintPlayer() {
+  const empty = document.getElementById('debriefPlayerEmpty');
+  const has = recordingActive();
+  if (master) master.hidden = !has;
+  if (empty) empty.hidden = has;
+}
+
 function applyLayout(open) {
   if (!grid) return;
   const tiles = [...grid.querySelectorAll('.debrief-cam-tile')];
@@ -78,53 +83,11 @@ function applyLayout(open) {
   }
 }
 
-function placeRecording(open) {
-  if (!master || !grid) return;
-  const hasFile = recordingActive();
-  const tiles = SLOTS.map((slot) => grid.querySelector(`.debrief-cam-tile[data-cam="${slot.id}"]`)).filter(Boolean);
-  const host = tiles.find((tile) => open.includes(tile.dataset.cam) && tile.dataset.signal !== 'live') || null;
-  const canvas = document.getElementById('annotationCanvas');
-  const lock = document.getElementById('lockIndicator');
-  if (host) {
-    const stage = host.querySelector('.debrief-cam-stage');
-    if (stage && master.parentElement !== stage) stage.insertBefore(master, stage.firstChild);
-    if (canvas && stage && canvas.parentElement !== stage) stage.appendChild(canvas);
-    if (lock && stage && lock.parentElement !== stage) stage.appendChild(lock);
-  }
-  master.hidden = !hasFile || !host;
-  for (const tile of tiles) {
-    const clone = tile.querySelector('.debrief-cam-clone');
-    const showClone = hasFile && open.includes(tile.dataset.cam) && tile.dataset.signal !== 'live' && tile !== host;
-    if (!clone) continue;
-    if (showClone) {
-      if (clone.src !== master.currentSrc && master.currentSrc) clone.src = master.currentSrc;
-      clone.hidden = false;
-    } else {
-      clone.hidden = true;
-      clone.pause?.();
-    }
-  }
-  syncClones();
-}
-
-function syncClones() {
-  if (!master || !recordingActive()) return;
-  const t = master.currentTime;
-  for (const clone of grid?.querySelectorAll('.debrief-cam-clone') || []) {
-    if (clone.hidden) continue;
-    if (clone.readyState >= 1 && Number.isFinite(t) && Math.abs(clone.currentTime - t) > 0.35) {
-      try { clone.currentTime = t; } catch { /* ignore */ }
-    }
-    if (master.paused) clone.pause();
-    else clone.play().catch(() => {});
-  }
-}
-
-function paintTile(tile, detail, streaming) {
+function paintTile(tile, streaming) {
   const img = tile.querySelector('.debrief-cam-live');
   const note = tile.querySelector('.debrief-cam-nosignal');
   const apiId = tile.dataset.api;
-  if (streaming && img) {
+  if (streaming && img && !tile.hidden) {
     tile.dataset.signal = 'live';
     img.hidden = false;
     if (tile.dataset.mono === '1') img.classList.add('is-mono');
@@ -137,17 +100,21 @@ function paintTile(tile, detail, streaming) {
       tile.dataset.signal = 'none';
       img.hidden = true;
       img.removeAttribute('src');
-      if (note) note.hidden = recordingActive();
+      if (note) note.hidden = tile.hidden;
     };
     if (note) note.hidden = true;
-  } else {
-    tile.dataset.signal = 'none';
-    if (img) {
-      img.hidden = true;
-      img.removeAttribute('src');
-      img.dataset.primed = '';
-    }
-    if (note) note.hidden = recordingActive() && !tile.hidden;
+    return;
+  }
+  tile.dataset.signal = 'none';
+  if (img) {
+    img.hidden = true;
+    img.removeAttribute('src');
+    img.classList.remove('is-mono');
+    img.dataset.primed = '';
+  }
+  if (note) {
+    note.hidden = tile.hidden;
+    note.textContent = 'אין אות';
   }
 }
 
@@ -157,14 +124,14 @@ function render(companion) {
   latestCompanion = companion && typeof companion === 'object' ? companion : latestCompanion;
   const open = readOpen();
   applyLayout(open);
+  paintPlayer();
   if (!grid) return;
   for (const slot of SLOTS) {
     const tile = grid.querySelector(`.debrief-cam-tile[data-cam="${slot.id}"]`);
     if (!tile) continue;
     const detail = slotDetail(latestCompanion, slot.apiId);
-    paintTile(tile, detail, !tile.hidden && slotStreaming(detail));
+    paintTile(tile, slotStreaming(detail));
   }
-  placeRecording(open);
 }
 
 function bind() {
@@ -182,22 +149,13 @@ function bind() {
       render(latestCompanion);
     });
   }
-  master?.addEventListener('play', syncClones);
-  master?.addEventListener('pause', syncClones);
-  master?.addEventListener('seeked', syncClones);
-  master?.addEventListener('timeupdate', syncClones);
-  master?.addEventListener('loadedmetadata', () => render(latestCompanion));
-  master?.addEventListener('emptied', () => render(latestCompanion));
+  master?.addEventListener('loadedmetadata', () => paintPlayer());
+  master?.addEventListener('emptied', () => paintPlayer());
   document.getElementById('videoInput')?.addEventListener('change', () => {
     setTimeout(() => render(latestCompanion), 0);
   });
   document.addEventListener('vlc-companion-cameras', (event) => {
     render(event.detail);
-  });
-  window.addEventListener('resize', () => {
-    if (master && document.getElementById('annotationCanvas')) {
-      master.dispatchEvent(new Event('timeupdate'));
-    }
   });
 }
 

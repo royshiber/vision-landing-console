@@ -325,7 +325,10 @@ async function loadDebrief(force) {
 function paintFlight() {
   const main = root.querySelector('#fbMain');
   if (!state.bundle) {
-    main.innerHTML = `<p class="fb-empty">${state.flights.length ? 'בחרו טיסה מהרשימה.' : ''}</p>`;
+    const emptyMsg = state.flights.length
+      ? 'בחרו טיסה מהרשימה.'
+      : (state.status?.messageHe || (state.status?.configured ? NO_FLIGHTS : NOT_CONFIGURED));
+    main.innerHTML = `<p class="fb-empty">${esc(emptyMsg)}</p>`;
     return;
   }
   const f = state.bundle.flight;

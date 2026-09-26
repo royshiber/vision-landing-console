@@ -9946,13 +9946,14 @@ function drawAnnotations(video, canvas) {
   const conf = latestVisionFromServer?.confidence ?? null;
   const lateral = latestVisionFromServer?.lateralOffsetM ?? null;
 
-  // No live data — show "no data" overlay instead of fake animations.
   if (conf === null || lateral === null) {
+    if (lockIndicator) lockIndicator.hidden = true;
+    if (video.hidden || !canvas.width || !canvas.height) return;
     ctx.save();
-    ctx.font = 'bold 13px monospace';
+    ctx.font = 'bold 13px Heebo, sans-serif';
     ctx.fillStyle = 'rgba(250,204,21,0.85)';
     ctx.textAlign = 'center';
-    ctx.fillText('NO LIVE VISION DATA', canvas.width / 2, canvas.height * 0.12);
+    ctx.fillText('אין נתוני ראייה', canvas.width / 2, 22);
     ctx.textAlign = 'left';
     ctx.restore();
     return;
@@ -9988,7 +9989,8 @@ function drawAnnotations(video, canvas) {
   ctx.setLineDash([]);
 
   if (lockIndicator) {
-    lockIndicator.textContent = isLocked ? 'ננעל ✓' : isSearching ? 'מחפש…' : 'אין נעילה';
+    lockIndicator.hidden = false;
+    lockIndicator.textContent = isLocked ? 'ננעל' : isSearching ? 'מחפש' : 'אין נעילה';
     lockIndicator.className = `lock-indicator ${isLocked ? 'locked' : isSearching ? 'searching' : 'no-lock'}`;
   }
   if (annotConfidence) annotConfidence.textContent = `ביטחון: ${Math.round(conf * 100)}%`;
@@ -10003,7 +10005,7 @@ if (flightVideo && annotationCanvas) {
   flightVideo.addEventListener('ended', () => {
     clearInterval(annotationTimer);
     annotationCanvas.getContext('2d').clearRect(0, 0, annotationCanvas.width, annotationCanvas.height);
-    if (lockIndicator) { lockIndicator.textContent = 'אין נעילה'; lockIndicator.className = 'lock-indicator no-lock'; }
+    if (lockIndicator) lockIndicator.hidden = true;
   });
   flightVideo.addEventListener('timeupdate', () => {
     if (flightVideo.paused) drawAnnotations(flightVideo, annotationCanvas);

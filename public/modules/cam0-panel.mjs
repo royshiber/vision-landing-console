@@ -5,6 +5,13 @@ import { bindCameraSourcePickers, cameraFrameUrl } from './camera-sources.mjs';
 
 const NO_SIGNAL = 'אין אות';
 const DRILL = 'תרגיל. לא מצלמה אמיתית.';
+const REASON_LINK = 'אין קישור למחשב המשימה. הפקדים כבויים.';
+const REASON_CAM = 'אין אות מהמצלמה. הפקדים כבויים.';
+const ERR_SETTING = 'ההגדרה לא נשמרה. הערך חזר לקודם.';
+const ERR_SNAP = 'הצילום נכשל.';
+const ERR_REC_START = 'ההקלטה לא התחילה.';
+const ERR_REC_STOP = 'עצירת ההקלטה נכשלה.';
+const CONTROL_IDS = ['cam0Ae', 'cam0Exposure', 'cam0Gain', 'cam0Res', 'cam0FpsSet', 'cam0Record', 'cam0Snap', 'cam0CalibCap', 'cam0CalibSolve'];
 
 function unwrap(body) {
   if (body && body.lane === 'NEW' && body.data && typeof body.data === 'object') return body.data;
@@ -127,47 +134,115 @@ function init() {
   const rec = document.getElementById('cam0Record');
   const recDot = document.getElementById('cam0RecDot');
   const overlayToggle = document.getElementById('cam0OverlayToggle');
+  const reason = document.getElementById('cam0Reason');
+  const error = document.getElementById('cam0Error');
+  const histEmpty = document.getElementById('cam0HistEmpty');
   let status = null;
   let detections = [];
   let recording = false;
+  let applied = { ae: false, exposure: '', gain: '', res: '1280x800', fps: '' };
+  let pollMs = 700;
+  let nextAt = 0;
+  let polling = false;
+  let pushing = false;
+
+  function showError(message) {
+    if (!error) return;
+    error.hidden = !message;
+    error.textContent = message || '';
+  }
+
+  function readForm() {
+    return {
+      ae: ae?.checked === true,
+      exposure: exposure?.value || '',
+      gain: gain?.value || '',
+      res: res?.value || '1280x800',
+      fps: fpsSet?.value || '',
+    };
+  }
+
+  function writeForm(values) {
+    if (!values) return;
+    if (ae) ae.checked = values.ae === true;
+    if (exposure) exposure.value = values.exposure || '';
+    if (gain) gain.value = values.gain || '';
+    if (res) res.value = values.res || '1280x800';
+    if (fpsSet) fpsSet.value = values.fps || '';
+  }
+
+  function setControls(on, why) {
+    for (const id of CONTROL_IDS) {
+      const el = document.getElementById(id);
+      if (el) el.disabled = !on;
+    }
+    if (reason) {
+      reason.hidden = !!on;
+      reason.textContent = on ? '' : why;
+    }
+  }
+
+  function paintStatusLine(connected, fps) {
+    const line = document.getElementById('cam0StatusText');
+    if (!line) return;
+    const rate = fps == null || fps === '' ? '—' : String(fps);
+    line.textContent = `מצלמה אפס · ${connected ? 'מחובר' : 'לא מחובר'} · קצב ${rate}`;
+  }
 
   function paintSignal(has, drill) {
     if (empty) empty.hidden = has;
     if (empty && !has) empty.textContent = NO_SIGNAL;
     if (honesty) honesty.textContent = has ? (drill ? DRILL : 'פריים חי') : NO_SIGNAL;
+    if (histEmpty) histEmpty.hidden = has;
     if (img) img.hidden = !has;
     if (slotImg) slotImg.hidden = !has;
     if (slotMeta) slotMeta.textContent = has ? (drill ? DRILL : '') : NO_SIGNAL;
   }
 
   async function refresh() {
+    let body = null;
     try {
-      status = await api('/api/jetson/v1/cam0/status');
+      body = await api('/api/jetson/v1/cam0/status');
     } catch {
-      status = null;
+      body = null;
+    }
+    status = body;
+    const cameraOk = body?.camera_ok === true;
+    const fps = cameraOk && body.fps != null ? body.fps : null;
+    paintStatusLine(cameraOk, fps);
+    setControls(cameraOk, body ? REASON_CAM : REASON_LINK);
+    if (!body) {
       paintSignal(false, false);
       text('cam0Fps', null);
       text('cam0Latency', null);
       text('cam0Drops', null);
-      return;
+      recording = false;
+      if (recDot) recDot.hidden = true;
+      return false;
     }
-    const has = status.camera_ok === true && status.has_frame === true;
-    const drill = status.real !== true || status.dry_run === true || status.source === 'synthetic';
+    const has = cameraOk && body.has_frame === true;
+    const drill = body.real !== true || body.dry_run === true || body.source === 'synthetic';
     paintSignal(has, drill && has);
-    text('cam0Fps', has && status.fps != null ? status.fps : null, true);
-    text('cam0Latency', has && status.latency_ms != null ? status.latency_ms : null, true);
-    text('cam0Drops', status.dropped != null ? status.dropped : null, true);
-    if (ae && document.activeElement !== ae) ae.checked = status.ae?.enabled === true;
-    if (exposure && document.activeElement !== exposure && status.exposure_us != null) exposure.value = String(status.exposure_us);
-    if (gain && document.activeElement !== gain && status.gain != null) gain.value = String(status.gain);
-    if (fpsSet && document.activeElement !== fpsSet && status.stream?.fps != null) fpsSet.value = String(status.stream.fps);
-    recording = status.recording?.recording === true;
+    text('cam0Fps', fps, true);
+    text('cam0Latency', has && body.latency_ms != null ? body.latency_ms : null, true);
+    text('cam0Drops', body.dropped != null ? body.dropped : null, true);
+    if (ae && document.activeElement !== ae) ae.checked = body.ae?.enabled === true;
+    if (exposure && document.activeElement !== exposure && body.exposure_us != null) exposure.value = String(body.exposure_us);
+    if (gain && document.activeElement !== gain && body.gain != null) gain.value = String(body.gain);
+    if (res && document.activeElement !== res && body.width && body.height) {
+      const next = `${body.width}x${body.height}`;
+      if ([...res.options].some((opt) => opt.value === next)) res.value = next;
+    }
+    if (fpsSet && document.activeElement !== fpsSet && body.stream?.fps != null) fpsSet.value = String(body.stream.fps);
+    if (!pushing && ![ae, exposure, gain, res, fpsSet].includes(document.activeElement)) applied = readForm();
+    recording = body.recording?.recording === true;
     if (recDot) recDot.hidden = !recording;
+    if (!panelShown()) return true;
     if (has) {
       const url = cameraFrameUrl('cam0');
       if (img) {
         img.dataset.srcW = String(status.width || '');
-        img.dataset.srcH = String(status.height || '');
+        img.dataset.srcH = String(body.height || '');
         img.src = url;
       }
       if (slotImg) slotImg.src = url;
@@ -183,6 +258,7 @@ function init() {
     drawDetections(overlay, img, detections, overlayToggle?.checked !== false);
     drawDetections(slotOverlay, slotImg || img, detections, overlayToggle?.checked !== false);
     drawHist(hist, img);
+    return true;
   }
 
   img?.addEventListener('load', () => {
@@ -195,6 +271,7 @@ function init() {
   });
 
   async function pushSettings(extra) {
+    pushing = true;
     const [w, h] = String(res?.value || '1280x800').split('x').map((n) => Number(n));
     const body = {
       ae: { enabled: ae?.checked === true },
@@ -213,8 +290,13 @@ function init() {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify(body),
       });
+      applied = readForm();
+      showError('');
     } catch {
-      /* the next poll shows the last accepted state */
+      writeForm(applied);
+      showError(ERR_SETTING);
+    } finally {
+      pushing = false;
     }
   }
 
@@ -225,16 +307,34 @@ function init() {
   fpsSet?.addEventListener('change', () => { void pushSettings(); });
   rec?.addEventListener('click', async () => {
     const path = recording ? '/api/jetson/v1/cam0/record/stop' : '/api/jetson/v1/cam0/record/start';
+    const stopping = recording;
     try {
       await api(path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
-    } catch { /* status poll reports the truth */ }
+      showError('');
+    } catch {
+      showError(stopping ? ERR_REC_STOP : ERR_REC_START);
+    }
     void refresh();
   });
-  document.getElementById('cam0Snap')?.addEventListener('click', () => {
-    const a = document.createElement('a');
-    a.href = `/api/jetson/v1/cam0/snapshot.png?t=${Date.now()}`;
-    a.download = 'cam0.png';
-    a.click();
+  document.getElementById('cam0Snap')?.addEventListener('click', async () => {
+    try {
+      const res = await fetch(`/api/jetson/v1/cam0/snapshot.png?t=${Date.now()}`);
+      const ctype = res.headers.get('content-type') || '';
+      if (!res.ok || !ctype.includes('image')) {
+        showError(ERR_SNAP);
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'cam0.png';
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      showError('');
+    } catch {
+      showError(ERR_SNAP);
+    }
   });
   document.getElementById('cam0CalibCap')?.addEventListener('click', async () => {
     const state = document.getElementById('cam0CalibState');
@@ -267,9 +367,33 @@ function init() {
     return panel.getClientRects().length > 0;
   }
 
-  document.querySelector('[data-tab="pulse"]')?.addEventListener('click', () => { void refresh(); });
-  if (panelShown()) void refresh();
-  setInterval(() => { if (panelShown()) void refresh(); }, 700);
+  function lineShown() {
+    const line = document.getElementById('cam0StatusLine');
+    return !!line && line.getClientRects().length > 0;
+  }
+
+  document.getElementById('cam0StatusLink')?.addEventListener('click', () => {
+    document.querySelector('[data-tab="recordings"]')?.click();
+    document.getElementById('debriefRecBtn')?.click();
+  });
+
+  async function tick() {
+    if (polling || pushing) return;
+    if (!panelShown() && !lineShown()) {
+      pollMs = 700;
+      nextAt = 0;
+      return;
+    }
+    if (Date.now() < nextAt) return;
+    polling = true;
+    const ok = await refresh();
+    polling = false;
+    pollMs = ok ? 700 : Math.min(15000, Math.max(1400, pollMs * 2));
+    nextAt = Date.now() + pollMs;
+  }
+
+  void tick();
+  setInterval(() => { void tick(); }, 700);
 }
 
 init();

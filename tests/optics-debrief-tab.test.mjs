@@ -13,6 +13,7 @@ const js = fs.readFileSync(path.join(repoRoot, 'public', 'app.js'), 'utf8');
 
 const VIEWPORTS = [
   ['1024x576', 1024, 576],
+  ['1280x720', 1280, 720],
   ['1366x768', 1366, 768],
   ['1440x900', 1440, 900],
   ['1920x1080', 1920, 1080],
@@ -154,6 +155,12 @@ describe('Optics debrief tab — live layout', () => {
         '.debrief-cam-toggle',
         '.debrief-cam-nosignal',
         '.debrief-cam-label',
+        '.debrief-player-kicker',
+        '.debrief-player-empty',
+        '#cam0StatusText',
+        '.cam0-title',
+        '#cam0Reason',
+        '.cam0-hist-label',
       ];
       for (const sel of selectors) {
         for (const el of document.querySelectorAll(sel)) {
@@ -186,6 +193,14 @@ describe('Optics debrief tab — live layout', () => {
       function interiors(a, b) {
         return a.left < b.right - 2 && a.right > b.left + 2 && a.top < b.bottom - 2 && a.bottom > b.top - 2;
       }
+      const hit = (a, b) => a && b && a.left < b.right - 2 && a.right > b.left + 2 && a.top < b.bottom - 2 && a.bottom > b.top - 2;
+      const pill = document.getElementById('connectToggleBtn')?.getBoundingClientRect();
+      const badge = document.getElementById('versionBtn')?.getBoundingClientRect();
+      const gear = document.getElementById('globalSettingsBtn')?.getBoundingClientRect();
+      const tabBox = tab?.getBoundingClientRect();
+      const video = document.getElementById('flightVideo');
+      const panel = document.getElementById('cam0Panel');
+      const notes = [...document.querySelectorAll('.debrief-cam-tile:not([hidden]) .debrief-cam-nosignal')].map((el) => el.textContent.trim());
       return {
         dir: document.documentElement.getAttribute('dir'),
         tab: tab ? tab.textContent.trim() : '',
@@ -194,6 +209,17 @@ describe('Optics debrief tab — live layout', () => {
         fakes: fakes.filter((line) => (events?.innerText || '').includes(line)),
         textFit,
         overlaps,
+        pillOnBadge: hit(pill, badge),
+        pillOnGear: hit(pill, gear),
+        pillOnTab: hit(pill, tabBox),
+        videoInPlayer: video?.closest('#debriefPlayer') != null,
+        videoInTile: video?.closest('.debrief-cam-tile') != null,
+        clones: document.querySelectorAll('.debrief-cam-clone').length,
+        notes,
+        lockHidden: document.getElementById('lockIndicator')?.hidden === true,
+        cam0InOptics: panel?.closest('#recordings') != null,
+        cam0InPulse: panel?.closest('#pulse') != null,
+        statusInPulse: document.getElementById('cam0StatusLine')?.closest('#pulse') != null,
       };
     }, FAKE_EVENTS);
   }
@@ -223,9 +249,81 @@ describe('Optics debrief tab — live layout', () => {
         expect(report.fakes).toEqual([]);
         expect(report.textFit, report.textFit.join('\n')).toEqual([]);
         expect(report.overlaps, report.overlaps.join('\n')).toEqual([]);
+        expect(report.pillOnBadge).toBe(false);
+        expect(report.pillOnGear).toBe(false);
+        expect(report.pillOnTab).toBe(false);
+        expect(report.videoInPlayer).toBe(true);
+        expect(report.videoInTile).toBe(false);
+        expect(report.clones).toBe(0);
+        expect(report.notes).toEqual(['אין אות']);
+        expect(report.lockHidden).toBe(true);
+        expect(report.cam0InOptics).toBe(true);
+        expect(report.cam0InPulse).toBe(false);
+        expect(report.statusInPulse).toBe(true);
       } finally {
         await page.close();
       }
     }, 30000);
   }
+
+  it('keeps the logs archive clickable at 1024 and explains a dead camera', async () => {
+    const page = await browser.newPage({ viewport: { width: 1024, height: 576 } });
+    try {
+      await openOptics(page);
+      const offline = await page.evaluate(() => ({
+        disabled: ['cam0Ae', 'cam0Exposure', 'cam0Gain', 'cam0Res', 'cam0FpsSet', 'cam0Record', 'cam0Snap'].every((id) => document.getElementById(id)?.disabled),
+        reason: document.getElementById('cam0Reason')?.textContent || '',
+        status: document.getElementById('cam0StatusText')?.textContent || '',
+      }));
+      expect(offline.disabled).toBe(true);
+      expect(offline.reason).toContain('אין קישור');
+      expect(offline.status).toContain('לא מחובר');
+      await page.locator('#cam0Exposure').evaluate((el) => { el.disabled = false; el.value = '5000'; });
+      await page.locator('#cam0Exposure').evaluate((el) => el.dispatchEvent(new Event('change', { bubbles: true })));
+      await page.waitForFunction(() => (document.getElementById('cam0Error')?.textContent || '').includes('לא נשמרה'));
+      const reverted = await page.locator('#cam0Exposure').inputValue();
+      expect(reverted).not.toBe('5000');
+
+      await page.locator('#debriefLogsBtn').evaluate((el) => el.click());
+      await page.waitForSelector('#debriefLogsPanel.visible #refreshArchiveSessionsBtn');
+      await page.locator('#refreshArchiveSessionsBtn').evaluate((el) => el.scrollIntoView({ block: 'center' }));
+      const logs = await page.evaluate(() => {
+        const btn = document.getElementById('refreshArchiveSessionsBtn');
+        const card = document.querySelector('.log-upload-card');
+        const arch = document.getElementById('archiveSessionsCard');
+        const title = document.querySelector('.log-upload-title');
+        const r = btn.getBoundingClientRect();
+        const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+        const cr = card.getBoundingClientRect();
+        const ar = arch.getBoundingClientRect();
+        const overlap = cr.left < ar.right - 2 && cr.right > ar.left + 2 && cr.top < ar.bottom - 2 && cr.bottom > ar.top - 2;
+        const cs = getComputedStyle(title);
+        return {
+          hit: top?.id || '',
+          overlap,
+          titleColor: cs.color,
+          titleBg: getComputedStyle(card).backgroundColor,
+        };
+      });
+      expect(logs.hit).toBe('refreshArchiveSessionsBtn');
+      expect(logs.overlap).toBe(false);
+      const contrast = await page.evaluate(() => {
+        const parse = (c) => c.match(/\d+/g).map(Number);
+        const title = document.querySelector('.log-upload-title');
+        const card = document.querySelector('.log-upload-card');
+        const [tr, tg, tb] = parse(getComputedStyle(title).color);
+        const [br, bg, bb] = parse(getComputedStyle(card).backgroundColor);
+        const lin = (v) => { const s = v / 255; return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4; };
+        const L = (r, g, b) => 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+        const a = L(tr, tg, tb);
+        const b = L(br, bg, bb);
+        const ratio = (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+        return ratio;
+      });
+      expect(contrast).toBeGreaterThan(4);
+      await page.screenshot({ path: path.join(shotDir, 'optics-logs-1024.png'), fullPage: false });
+    } finally {
+      await page.close();
+    }
+  }, 30000);
 });
