@@ -97,7 +97,8 @@ describe('Optics CAM0 and CAM1 tiles', () => {
           return {
             count: document.getElementById('debriefCamGrid').dataset.count,
             hidden: tiles.map((el) => el.hidden),
-            pressed: ['cam0', 'cam1', 'a8'].map((id) => document.querySelector(`[data-debrief-cam="${id}"]`).getAttribute('aria-pressed')),
+            pressed: document.querySelector('[data-debrief-cam="a8"]')?.getAttribute('aria-pressed'),
+            camToggles: document.querySelectorAll('[data-debrief-cam="cam0"], [data-debrief-cam="cam1"]').length,
             sideBySide: Math.abs(rs[0].top - rs[1].top) < 8
               && rs[0].width > 40
               && rs[1].width > 40
@@ -108,7 +109,8 @@ describe('Optics CAM0 and CAM1 tiles', () => {
         });
         expect(box.count).toBe('2');
         expect(box.hidden).toEqual([false, false]);
-        expect(box.pressed).toEqual(['true', 'true', 'false']);
+        expect(box.pressed).toBe('false');
+        expect(box.camToggles).toBe(0);
         expect(box.sideBySide).toBe(true);
         expect(box.legacy).toBeNull();
         expect(box.gimbal).toBe(true);
@@ -118,32 +120,20 @@ describe('Optics CAM0 and CAM1 tiles', () => {
     }, 30000);
   }
 
-  it('toggles each pill and #opticsCam1Btn opens the CAM1 tile', async () => {
+  it('keeps both tiles and uses #opticsCam1Btn for the settings tab', async () => {
     const page = await browser.newPage({ viewport: { width: 1024, height: 576 } });
     try {
-      const frames = await openOptics(page);
-      const before = frames.cam1;
-      await page.click('[data-debrief-cam="cam1"]');
-      await page.waitForFunction(() => document.querySelector('.debrief-cam-tile[data-cam="cam1"]').hidden === true);
-      expect(await page.getAttribute('[data-debrief-cam="cam1"]', 'aria-pressed')).toBe('false');
-
+      await openOptics(page);
+      expect(await page.locator('.debrief-cam-tile[data-cam="cam0"]').isHidden()).toBe(false);
+      expect(await page.locator('.debrief-cam-tile[data-cam="cam1"]').isHidden()).toBe(false);
       await page.click('#opticsCam1Btn');
-      await page.waitForFunction(() => {
-        const tile = document.querySelector('.debrief-cam-tile[data-cam="cam1"]');
-        const src = tile.querySelector('.debrief-cam-live')?.getAttribute('src') || '';
-        return tile.hidden === false && src.includes('/api/jetson/v1/cameras/cam1/frame');
-      });
       expect(await page.getAttribute('#opticsCam1Btn', 'aria-selected')).toBe('true');
-      expect(await page.getAttribute('[data-debrief-cam="cam1"]', 'aria-pressed')).toBe('true');
-      expect(frames.cam1).toBeGreaterThan(before);
-
+      expect(await page.locator('.debrief-cam-tile[data-cam="cam1"]').isHidden()).toBe(false);
+      expect(await page.locator('.debrief-cam-tile[data-cam="cam0"]').isHidden()).toBe(false);
       await page.click('[data-debrief-cam="a8"]');
       await page.waitForFunction(() => document.getElementById('debriefCamGrid').dataset.count === '3');
       expect(await page.locator('.debrief-cam-tile[data-cam="a8"]').isHidden()).toBe(false);
-
-      await page.click('[data-debrief-cam="cam0"]');
-      await page.waitForFunction(() => document.querySelector('.debrief-cam-tile[data-cam="cam0"]').hidden === true);
-      expect(await page.getAttribute('[data-debrief-cam="cam0"]', 'aria-pressed')).toBe('false');
+      expect(await page.locator('.debrief-cam-tile[data-cam="cam0"]').isHidden()).toBe(false);
       expect(await page.locator('.debrief-cam-tile[data-cam="cam1"]').isHidden()).toBe(false);
     } finally {
       await page.close();

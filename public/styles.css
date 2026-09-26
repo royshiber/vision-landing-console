@@ -1948,8 +1948,12 @@ input[type="range"] {
 #recordings.panel.visible.recordings-panel-flex {
   display: flex !important;
   flex-direction: column;
-  overflow: auto;
+  overflow: hidden;
   min-height: 0;
+  height: 100%;
+  padding: 4px 8px 6px;
+  gap: 4px;
+  border-radius: 0;
 }
 #recordings button,
 #recordings .file-btn,
@@ -4505,10 +4509,47 @@ button:hover,
 }
 
 .recordings-layout.tele-subpanel.visible {
-  display: grid;
-  flex: none;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
   height: auto;
-  min-height: min-content;
+  min-height: 0;
+  overflow: hidden;
+}
+#recordings .video-column {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+#recordings .debrief-player {
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+}
+#recordings .debrief-player-kicker { flex: 0 0 auto; }
+#recordings .debrief-player-stage {
+  flex: 1 1 auto;
+  min-height: 180px;
+  height: auto;
+}
+#recordings .debrief-player-stage video {
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  object-fit: contain;
+}
+#recordings .debrief-player-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0;
 }
 
 .telemetry-subpanel.visible {
@@ -11047,7 +11088,7 @@ html[data-evolve-preview="1"] #development {
   height: auto;
   max-height: none;
   flex: 1 1 0;
-  min-height: 120px;
+  min-height: 210px;
 }
 
 .mission-region-title {
@@ -11494,7 +11535,7 @@ html[data-evolve-preview="1"] #development {
   box-shadow: none;
   cursor: default;
   overflow: hidden;
-  min-height: 120px;
+  min-height: 210px;
 }
 .mission-region-messages[data-messages-expanded="1"] .pfd-statustext-strip {
   flex: 1 1 auto;
@@ -19918,12 +19959,21 @@ body:has(#control.panel.visible) .ardu-top-cats-host {
   background: #0f766e;
   border-color: #0f766e;
 }
+body:has(#optics.panel.visible) .layout,
+body:has(#recordings.panel.visible) .layout {
+  max-width: none;
+  padding: 0;
+  gap: 0;
+}
 #optics.panel.visible {
   display: flex !important;
   flex-direction: column;
-  gap: 8px;
-  overflow: auto;
+  gap: 6px;
+  overflow: hidden;
   min-height: 0;
+  height: 100%;
+  padding: 4px 8px 6px;
+  border-radius: 0;
 }
 #optics button,
 #optics .debrief-cam-label,
@@ -19954,17 +20004,28 @@ body:has(#control.panel.visible) .ardu-top-cats-host {
   gap: 8px;
   align-items: stretch;
   min-width: 0;
+  flex: 1 1 auto;
+  min-height: 0;
 }
-.optics-tiles { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.optics-tiles { min-width: 0; min-height: 0; height: 100%; display: flex; flex-direction: column; gap: 4px; }
 #optics .debrief-cam-grid {
   display: grid;
   gap: 4px;
-  height: 220px;
-  min-height: 160px;
+  flex: 1 1 auto;
+  height: auto;
+  min-height: 0;
   background: #000;
   align-content: stretch;
   align-items: stretch;
 }
+.optics-fov-hint {
+  display: block;
+  margin-top: 2px;
+  color: #fecaca;
+  font-size: clamp(11px, 0.72rem, 13px);
+  line-height: 1.3;
+}
+.optics-fov-hint[hidden] { display: none; }
 #optics .debrief-cam-grid[data-count="2"],
 #optics .debrief-cam-grid[data-count="1"] {
   grid-template-rows: minmax(0, 1fr);
@@ -19974,6 +20035,10 @@ body:has(#control.panel.visible) .ardu-top-cats-host {
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 8px;
   align-items: start;
+  flex: 0 1 auto;
+  max-height: 38%;
+  min-height: 0;
+  overflow: auto;
 }
 #optics .optics-cam-switch { grid-column: 1 / -1; margin: 0; }
 #optics .cam0-panel {
@@ -20225,7 +20290,12 @@ body:has(#control.panel.visible) .ardu-top-cats-host {
 }
 .debrief-cam-grid[data-count="2"] {
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  grid-template-rows: minmax(160px, auto);
+  grid-template-rows: minmax(0, 1fr);
+}
+#optics .debrief-cam-grid[data-count="1"],
+#optics .debrief-cam-grid[data-count="2"] {
+  grid-template-rows: minmax(0, 1fr);
+  height: 100%;
 }
 .debrief-cam-grid[data-count="3"] {
   grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
@@ -20323,6 +20393,11 @@ body:has(#control.panel.visible) .ardu-top-cats-host {
   .debrief-cam-grid[data-count="2"] {
     grid-template-rows: minmax(120px, auto) minmax(120px, auto);
   }
+  #optics .debrief-cam-grid[data-count="2"] {
+    height: 100%;
+    min-height: 280px;
+    grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+  }
   .debrief-cam-grid[data-count="3"] {
     grid-template-rows: minmax(100px, auto) minmax(100px, auto) minmax(100px, auto);
   }
@@ -20415,7 +20490,7 @@ body:has(#control.panel.visible) .ardu-top-cats-host {
 }
 .mission-region-horizon .mission-data-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 2px;
   padding: 0 2px;
   min-width: 0;
@@ -20453,10 +20528,18 @@ body:has(#control.panel.visible) .ardu-top-cats-host {
 .mission-region-horizon .mission-data-label,
 .mission-region-horizon .mission-data-value,
 .mission-region-horizon .mission-data-unit {
-  overflow: hidden;
-  text-overflow: unset;
+  overflow: visible;
+  text-overflow: clip;
   letter-spacing: 0;
   max-width: 100%;
+}
+.mission-region-horizon .mission-data-label {
+  white-space: normal;
+  line-height: 1.15;
+  overflow-wrap: break-word;
+}
+.mission-region-horizon .mission-data-confidence {
+  grid-column: span 2;
 }
 .mission-region-horizon #missionLink {
   display: block;
@@ -21161,7 +21244,7 @@ html body :is(
 
 #flightArmRow {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   align-content: center;
   gap: 3px;
@@ -21226,18 +21309,42 @@ html body :is(
 }
 .flight-arm-reason,
 .flight-arm-refusal {
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   width: auto;
-  max-width: 100%;
-  padding: 0 6px;
+  max-width: none;
+  white-space: nowrap;
+  padding: 0 4px;
   border-radius: 999px;
   background: rgba(120, 53, 15, 0.55);
   border: 1px solid rgba(251, 191, 36, 0.45);
   cursor: pointer;
 }
+#flightArmRow {
+  gap: 2px;
+  padding: 1px 2px;
+}
+#flightArmRow > * {
+  flex-shrink: 0;
+}
+#flightArmRow .pfd-badge {
+  letter-spacing: 0;
+  padding: 0 3px;
+  font-size: 11px;
+}
+#flightArmRow .pfd-mode-val,
+#flightArmRow .pfd-gps-pill,
+#flightArmRow .flight-arm-btn {
+  padding: 0 3px;
+}
+#flightArmRow:has(.is-open),
+#flightArmRow:has(.flight-arm-refusal:not([hidden])) {
+  flex-wrap: wrap;
+}
 .flight-arm-reason.is-open,
-.flight-arm-refusal.is-open {
+.flight-arm-refusal.is-open,
+.flight-arm-refusal:not([hidden]) {
   flex: 1 1 100%;
+  max-width: 100%;
   border-radius: 6px;
   white-space: normal;
 }
@@ -21555,8 +21662,12 @@ body:has(#telemetry.panel.visible) #telemetry .tele-dash-sub {
   position: absolute;
   width: 1px;
   height: 1px;
+  margin: -1px;
+  padding: 0;
   overflow: hidden;
-  clip: rect(0 0 0 0);
+  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 .param-tool-state[data-state="ok"] { color: #86efac; }
 .param-tool-state[data-state="down"] { color: #fca5a5; }
@@ -22713,7 +22824,7 @@ body:has(#pulse.panel.visible) .pulse-home.pulse-status-home {
   height: auto;
   min-height: 0;
   max-height: none;
-  flex: 3.2 1 0;
+  flex: 1.45 1 0;
 }
 .mission-region[data-mission-region="data"],
 .mission-region-horizon .mission-region-data {
@@ -23149,7 +23260,10 @@ body:has(#control.panel.visible) .layout {
   color: #f8fafc;
   padding: 0;
 }
-body:has(#control.panel.visible) .assist-toggle-btn.assist-toggle-float {
+body:has(#control.panel.visible) .assist-toggle-btn.assist-toggle-float,
+body:has(#optics.panel.visible) .assist-toggle-btn.assist-toggle-float,
+body:has(#recordings.panel.visible) .assist-toggle-btn.assist-toggle-float,
+body:has(#terrain.panel.visible) .assist-toggle-btn.assist-toggle-float {
   position: fixed;
   top: auto;
   bottom: 8px;

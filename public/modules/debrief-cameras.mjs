@@ -19,15 +19,13 @@ const master = document.getElementById('flightVideo');
 
 function readOpen() {
   try { localStorage.removeItem(LEGACY_KEY); } catch { /* ignore */ }
+  let extra = [];
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw == null || raw === '') return [...DEFAULT_OPEN];
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [...DEFAULT_OPEN];
-    return parsed.filter((id) => SLOTS.some((slot) => slot.id === id));
-  } catch {
-    return [...DEFAULT_OPEN];
-  }
+    const parsed = raw ? JSON.parse(raw) : [];
+    if (Array.isArray(parsed)) extra = parsed.filter((id) => id === 'a8');
+  } catch { /* keep both cameras */ }
+  return [...DEFAULT_OPEN, ...extra];
 }
 
 function writeOpen(ids) {

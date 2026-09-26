@@ -60,9 +60,18 @@ describe('camera FOV controls', () => {
     expect(fit).toBe(true);
     await page.fill('#cam0Fov', '100');
     await page.dispatchEvent('#cam0Fov', 'change');
+    await page.fill('#cam0Fov', '10');
+    await page.dispatchEvent('#cam0Fov', 'input');
+    expect(await page.locator('#cam0FovHint').textContent()).toBe('טווח 20–180°');
+    expect(await page.locator('#cam0FovHint').isHidden()).toBe(false);
     await page.fill('#cam0Fov', '19');
     await page.dispatchEvent('#cam0Fov', 'change');
     expect(await page.inputValue('#cam0Fov')).toBe('100');
+    expect(await page.locator('#cam0FovHint').textContent()).toBe('טווח 20–180°');
+    await page.fill('#cam1Fov', '500');
+    await page.dispatchEvent('#cam1Fov', 'input');
+    expect(await page.locator('#cam1FovHint').textContent()).toBe('טווח 20–180°');
+    expect(await page.locator('#cam1FovHint').isHidden()).toBe(false);
     await page.reload({ waitUntil: 'domcontentloaded' });
     await page.click('[data-tab="optics"]');
     await page.waitForSelector('#cam0Fov');

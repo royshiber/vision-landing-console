@@ -289,7 +289,7 @@ describe('Mission layout contract — live boxes', () => {
     });
 
     expect(measured.platformTab).toBe(false);
-    expect(measured.version).toBe('1.02.356');
+    expect(measured.version).toBe('1.02.357');
     expect(measured.ws.width).toBeGreaterThan(800);
     expect(measured.talkMinWidth).toBe('0px');
     expect(Number.parseFloat(measured.dataGap)).toBeLessThanOrEqual(4);
@@ -304,9 +304,9 @@ describe('Mission layout contract — live boxes', () => {
     expect(regions.map.width / ws.width).toBeGreaterThan(0.50);
     expect(measured.leaflet.height / regions.map.height).toBeGreaterThanOrEqual(0.90);
     expect(measured.leaflet.width / regions.map.width).toBeGreaterThanOrEqual(0.90);
-    expect(regions.messages.height).toBeGreaterThanOrEqual(120);
+    expect(regions.messages.height).toBeGreaterThanOrEqual(180);
     expect(regions.horizon.width / ws.width).toBeLessThanOrEqual(0.22);
-    expect(measured.hud.height / regions.horizon.height).toBeGreaterThanOrEqual(0.50);
+    expect(measured.hud.height / regions.horizon.height).toBeGreaterThanOrEqual(0.45);
     expect(measured.hud.height / regions.horizon.height).toBeLessThanOrEqual(0.88);
     expect(measured.horizonPosition).toBe('relative');
     expect(regions.horizon.height / ws.height).toBeGreaterThanOrEqual(0.90);

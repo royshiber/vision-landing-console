@@ -9,7 +9,7 @@ import {
   statusPhrase,
   targetFpsValue,
 } from './cam1-status.mjs';
-import { readStoredFov, writeStoredFov } from './camera-fov.mjs';
+import { bindFovField, readStoredFov } from './camera-fov.mjs';
 
 const REASON_LINK = 'אין קישור למחשב המשימה. הפקדים כבויים.';
 const REASON_CAM = 'אין אות מהמצלמה. הפקדים כבויים.';
@@ -290,13 +290,7 @@ function init() {
   gain?.addEventListener('change', () => { void pushSettings(); });
   res?.addEventListener('change', () => { void pushSettings(); });
   fpsSet?.addEventListener('change', () => { void pushSettings(); });
-  fov?.addEventListener('change', () => {
-    const saved = writeStoredFov(localStorage, 'cam1', fov.value);
-    fov.value = String(saved.value);
-    if (!saved.ok) {
-      showError('הזווית חייבת להיות בין 20 ל-180 מעלות.');
-      return;
-    }
+  bindFovField(fov, document.getElementById('cam1FovHint'), localStorage, 'cam1', () => {
     showError('');
     void pushSettings({ quiet: true });
   });

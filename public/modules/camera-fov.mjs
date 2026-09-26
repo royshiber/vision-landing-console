@@ -27,6 +27,32 @@ export function readStoredFov(storage, camId) {
   }
 }
 
+export const FOV_HINT_HE = 'טווח 20–180°';
+
+export function bindFovField(input, hint, storage, camId, onOk) {
+  if (!input) return;
+  const showHint = (bad) => {
+    if (!hint) return;
+    hint.hidden = !bad;
+    hint.textContent = bad ? FOV_HINT_HE : '';
+  };
+  const commit = () => {
+    const saved = writeStoredFov(storage, camId, input.value);
+    if (!saved.ok) {
+      input.value = String(saved.value);
+      showHint(true);
+      return;
+    }
+    showHint(false);
+    if (typeof onOk === 'function') onOk(saved.value);
+  };
+  input.addEventListener('input', () => {
+    const raw = String(input.value ?? '').trim();
+    showHint(raw !== '' && !parseFov(raw).ok);
+  });
+  input.addEventListener('change', commit);
+}
+
 export function writeStoredFov(storage, camId, value) {
   const fallback = FOV_DEFAULTS[camId] ?? FOV_DEFAULTS.cam0;
   const check = parseFov(value);

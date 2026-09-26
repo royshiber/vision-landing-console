@@ -877,7 +877,7 @@
             <section class="param-tool-seg" aria-label="גיבוי בקונסולה">
               <h3 class="param-tool-title">גיבוי</h3>
               <p id="jetsonToolState" class="param-tool-state" data-state="unknown">לא ידוע</p>
-              <p id="jetsonToolMeta" class="param-tool-meta">קריאה אחרונה: לא ידוע · לא מסונכרן: לא ידוע</p>
+              <p id="jetsonToolMeta" class="param-tool-meta"></p>
               <div class="param-tool-actions">
                 <button type="button" id="visionConfigReadBtn" class="param-tool-btn param-tool-btn--primary" title="טוען את הגיבוי השמור בקונסולה">קריאה</button>
                 <button type="button" id="visionConfigWriteBtn" class="param-tool-btn param-tool-btn--secondary" title="שומר גיבוי בקונסולה">כתיבה</button>
@@ -886,7 +886,7 @@
             <section class="param-tool-seg" aria-label="FC">
               <h3 class="param-tool-title">בקר</h3>
               <p id="fcToolState" class="param-tool-state" data-state="unknown">לא ידוע</p>
-              <p id="fcToolMeta" class="param-tool-meta">קריאה אחרונה: לא ידוע · לא מסונכרן: לא ידוע</p>
+              <p id="fcToolMeta" class="param-tool-meta"></p>
               <div class="param-tool-actions">
                 <button type="button" id="arduReadBtn" class="param-tool-btn param-tool-btn--primary" title="קורא פרמטרים מבקר הטיסה">קריאה</button>
                 <button type="button" id="arduWriteBtn" class="param-tool-btn param-tool-btn--secondary" disabled title="אין חיבור לבקר הטיסה">כתיבה לבקר</button>
@@ -1039,8 +1039,6 @@
         <div class="optics-live">
           <div class="optics-tiles">
             <div class="debrief-cam-toolbar" role="group" aria-label="מצלמות">
-              <button type="button" class="debrief-cam-toggle" data-debrief-cam="cam0" aria-pressed="true">CAM0</button>
-              <button type="button" class="debrief-cam-toggle" data-debrief-cam="cam1" aria-pressed="true">CAM1</button>
               <button type="button" class="debrief-cam-toggle" data-debrief-cam="a8" aria-pressed="false">גימבל</button>
             </div>
             <div id="debriefCamGrid" class="debrief-cam-grid video-wrapper" data-count="2" data-layout="cameras">
@@ -1128,7 +1126,7 @@
                   </div>
                   <div class="optics-field-group">
                     <p class="optics-field-kicker">תמונה</p>
-                    <label><span class="optics-field-name">זווית ראייה (מעלות)</span> <input id="cam0Fov" type="number" min="20" max="180" step="1" dir="ltr" value="120" /></label>
+                    <label><span class="optics-field-name">זווית ראייה (מעלות)</span> <input id="cam0Fov" type="number" min="20" max="180" step="1" dir="ltr" value="120" /> <span id="cam0FovHint" class="optics-fov-hint" hidden>טווח 20–180°</span></label>
                     <label><span class="optics-field-name">רזולוציה</span>
                       <select id="cam0Res" dir="ltr" disabled>
                         <option value="1280x800">1280×800</option>
@@ -1188,7 +1186,7 @@
                   </div>
                   <div class="optics-field-group">
                     <p class="optics-field-kicker">תמונה</p>
-                    <label><span class="optics-field-name">זווית ראייה (מעלות)</span> <input id="cam1Fov" type="number" min="20" max="180" step="1" dir="ltr" value="79" /></label>
+                    <label><span class="optics-field-name">זווית ראייה (מעלות)</span> <input id="cam1Fov" type="number" min="20" max="180" step="1" dir="ltr" value="79" /> <span id="cam1FovHint" class="optics-fov-hint" hidden>טווח 20–180°</span></label>
                     <label><span class="optics-field-name">רזולוציה</span>
                       <select id="cam1Res" dir="ltr" disabled>
                         <option value="1280x800">1280×800</option>
@@ -2233,9 +2231,9 @@
                   <span class="hud-nav-icon">📡</span>
                   <span class="hud-nav-val" id="hudNavGpsVal">—</span>
                 </div>
-                <button type="button" id="flightArmBtn" class="flight-arm-btn" disabled>חימוש ARM</button>
-                <button type="button" id="flightDisarmBtn" class="flight-arm-btn" disabled>נטרול DISARM</button>
-                <p id="flightArmReason" class="flight-arm-reason" role="button" tabindex="0" aria-expanded="false">אין חיבור לבקר הטיסה</p>
+                <button type="button" id="flightArmBtn" class="flight-arm-btn" disabled aria-label="חימוש" title="חימוש">ARM</button>
+                <button type="button" id="flightDisarmBtn" class="flight-arm-btn" disabled aria-label="נטרול" title="נטרול">DISARM</button>
+                <p id="flightArmReason" class="flight-arm-reason" role="button" tabindex="0" aria-expanded="false" title="אין חיבור לבקר הטיסה">אין קשר</p>
                 <p id="flightArmRefusal" class="flight-arm-refusal" role="button" tabindex="0" aria-expanded="false" hidden></p>
               </div>
               <div id="flightArmDialog" class="flight-arm-dialog" hidden>

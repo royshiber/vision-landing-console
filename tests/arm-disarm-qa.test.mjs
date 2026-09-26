@@ -161,7 +161,7 @@ describe('ARM DISARM flight screen', () => {
             expect(ui.armDisabled).toBe(true);
             expect(ui.disarmDisabled).toBe(true);
             expect(ui.reasonHidden).toBe(false);
-            expect(ui.reason).toBe('אין חיבור לבקר הטיסה');
+            expect(ui.reason).toBe('אין קשר');
             expect(ui.link).toBe('off');
           } else if (state.id === 'disarmed' || state.id === 'refused') {
             expect(ui.armDisabled).toBe(false);
@@ -313,7 +313,7 @@ describe('ARM DISARM flight screen', () => {
       }));
       expect(stale.arm).toBe(true);
       expect(stale.disarm).toBe(true);
-      expect(stale.reason).toBe('אין חיבור לבקר הטיסה');
+      expect(stale.reason).toBe('אין קשר');
     } finally {
       await page.close();
     }

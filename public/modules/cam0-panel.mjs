@@ -5,8 +5,8 @@ import { bindCameraSourcePickers, cameraFrameUrl } from './camera-sources.mjs';
 import {
   distanceMFromCorners,
   MARKER_SIZE_M,
+  bindFovField,
   readStoredFov,
-  writeStoredFov,
 } from './camera-fov.mjs';
 
 const NO_SIGNAL = 'אין אות';
@@ -350,13 +350,7 @@ function init() {
   gain?.addEventListener('change', () => { void pushSettings(); });
   res?.addEventListener('change', () => { void pushSettings(); });
   fpsSet?.addEventListener('change', () => { void pushSettings(); });
-  fov?.addEventListener('change', () => {
-    const saved = writeStoredFov(localStorage, 'cam0', fov.value);
-    fov.value = String(saved.value);
-    if (!saved.ok) {
-      showError('הזווית חייבת להיות בין 20 ל-180 מעלות.');
-      return;
-    }
+  bindFovField(fov, document.getElementById('cam0FovHint'), localStorage, 'cam0', () => {
     showError('');
     drawDetections(overlay, img, detections, overlayToggle?.checked !== false);
     drawDetections(slotOverlay, slotImg || img, detections, overlayToggle?.checked !== false);

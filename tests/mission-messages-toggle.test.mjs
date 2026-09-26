@@ -51,9 +51,9 @@ function interiorsIntersect(a, b, slack = 1) {
 }
 
 describe('Mission messages toggle — source contract', () => {
-  it('pins APP_VERSION at 1.02.356', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.356'");
-    expect(pkg.version).toBe('1.02.356');
+  it('pins APP_VERSION at 1.02.357', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.357'");
+    expect(pkg.version).toBe('1.02.357');
   });
 
   it('keeps the message list open, readable, and LTR inside the RTL column', () => {
@@ -76,7 +76,7 @@ describe('Mission messages toggle — source contract', () => {
     expect(js).toContain('function collapseConsecutiveFcStatus(');
     const open = cssBlock(css, '.mission-region-messages[data-messages-expanded="1"]');
     expect(open).toMatch(/max-height:\s*none/);
-    expect(open).toMatch(/min-height:\s*120px/);
+    expect(open).toMatch(/min-height:\s*210px/);
     const scroll = cssBlock(css, '.mission-region-messages .pfc-msg-scroll');
     expect(scroll).toMatch(/font-family:\s*"Heebo"/);
     expect(scroll).toMatch(/font-size:\s*clamp\(13px/);
@@ -144,12 +144,18 @@ describe('Mission messages toggle — source contract', () => {
     }, history);
     expect(result.all).toHaveLength(2);
     expect(result.all[0].title).toBe('EKF3 waiting for GPS config data');
-    expect(result.all[0].text).toContain('ממתינים להגדרת לוויין');
+    expect(result.all[0].text).toContain('EKF3 ממתינים להגדרת GPS');
+    expect(result.all[0].text).not.toContain('לוויין');
     expect(result.all[0].text).toContain('×4');
     expect(result.all[0].className).toContain('pfc-msg-line--warn');
     expect(result.all[0].time).toMatch(/^\d{2}:\d{2}:\d{2}$/);
     expect(result.all[1].title).toBe('ArduPlane V4.5.0');
     expect(result.warn).toEqual(['EKF3 waiting for GPS config data']);
+    const translate = new Function(`${sliceFunction(js, 'translateFcStatusText')}; return translateFcStatusText;`)();
+    expect(translate('Compass not healthy')).toBe('המצפן לא תקין');
+    expect(translate('PreArm: Compass not healthy')).toBe('לא ניתן לחמש: המצפן לא תקין');
+    expect(translate('EKF3 IMU0 is using GPS')).toBe('EKF משתמש ב-GPS');
+    expect(translate('EKF3 waiting for GPS config data')).toBe('EKF3 ממתינים להגדרת GPS');
   });
 
   it('persists the toggle and paints severity only on the unread badge', () => {
@@ -370,8 +376,9 @@ describe('Mission messages toggle — live layout', () => {
       expect(measured.scrollDir, label).toBe('ltr');
       expect(measured.expanded, label).toBe('1');
       expect(measured.logDisplay, label).toBe('none');
-      expect(measured.messages.height, label).toBeGreaterThanOrEqual(120);
-      expect(measured.scrollH, label).toBeGreaterThanOrEqual(80);
+      const scrollFloor = String(label).startsWith('mobile') ? 40 : 180;
+      expect(measured.messages.height, label).toBeGreaterThanOrEqual(scrollFloor === 180 ? 180 : 28);
+      expect(measured.scrollH, label).toBeGreaterThanOrEqual(scrollFloor);
       if (String(label).startsWith('mobile')) {
         expect(measured.map.height, label).toBeGreaterThanOrEqual(110);
         expect(measured.map.height / measured.ws.height, label).toBeGreaterThan(0.12);
@@ -432,7 +439,8 @@ describe('Mission messages toggle — live layout', () => {
       }));
     });
     expect(painted[0].title).toBe('EKF3 waiting for GPS config data');
-    expect(painted[0].text).toContain('ממתינים להגדרת לוויין');
+    expect(painted[0].text).toContain('EKF3 ממתינים להגדרת GPS');
+    expect(painted[0].text).not.toContain('לוויין');
     expect(painted[0].text).toContain('×4');
     expect(painted[0].className).toContain('pfc-msg-line--warn');
     expect(painted[0].dir).toBe('ltr');

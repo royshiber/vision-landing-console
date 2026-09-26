@@ -2414,6 +2414,7 @@ let jetsonReadAt = null;
 let fcReadAt = null;
 let jetsonLinkState = 'unknown';
 let fcLinkState = 'unknown';
+let backupLoadState = 'unknown';
 let paramToolRetryAction = null;
 
 function hebrewRequestFault(err, res) {
@@ -2516,19 +2517,24 @@ function refreshParamToolbarMeta() {
   const serverKnown = lastServerSyncedCanonical != null;
   const serverDirty = serverKnown && canonicalServerPayloadStr() !== lastServerSyncedCanonical;
   const sessionDirty = countArduDirtyVsSession();
-  const fcKnown = !!(fcCurrentSnapshot && typeof fcCurrentSnapshot === 'object');
   const fcLink = resolvedFcLink();
   if (jetsonState) {
-    const state = jetsonLinkState === 'ok' ? (serverDirty ? 'dirty' : 'ok') : jetsonLinkState;
+    let state = 'unknown';
+    let label = 'לא ידוע';
+    if (backupLoadState === 'fail') {
+      state = 'down';
+      label = 'נכשל';
+    } else if (serverKnown && serverDirty) {
+      state = 'dirty';
+      label = 'יש שינוי';
+    } else if (serverKnown || backupLoadState === 'ok') {
+      state = 'ok';
+      label = 'נטען';
+    }
     jetsonState.dataset.state = state;
-    jetsonState.textContent = jetsonLinkState === 'ok'
-      ? (serverDirty ? 'יש שינוי' : 'מחובר')
-      : jetsonLinkState === 'down' ? 'מנותק' : 'לא ידוע';
+    jetsonState.textContent = label;
   }
-  if (jetsonMeta) {
-    const dirty = !serverKnown ? 'לא ידוע' : serverDirty ? '1' : '0';
-    jetsonMeta.textContent = `קריאה אחרונה: ${formatToolClock(jetsonReadAt)} · לא מסונכרן: ${dirty}`;
-  }
+  if (jetsonMeta) jetsonMeta.textContent = '';
   if (fcStateEl) {
     const state = fcLink === 'ok' ? (sessionDirty > 0 ? 'dirty' : 'ok') : fcLink;
     fcStateEl.dataset.state = state;
@@ -2536,10 +2542,7 @@ function refreshParamToolbarMeta() {
       ? (sessionDirty > 0 ? 'יש שינוי' : 'מחובר')
       : fcLink === 'down' ? 'מנותק' : 'לא ידוע';
   }
-  if (fcMeta) {
-    const dirty = !fcKnown ? 'לא ידוע' : String(sessionDirty);
-    fcMeta.textContent = `קריאה אחרונה: ${formatToolClock(fcReadAt)} · לא מסונכרן: ${dirty}`;
-  }
+  if (fcMeta) fcMeta.textContent = '';
 }
 
 async function refreshJetsonLink() {
@@ -2563,10 +2566,12 @@ async function loadVisionConfigFromServer(statusEl) {
     const res = await fetch('/api/vision/config');
     if (!res.ok) {
       const fault = `קריאת הגיבוי בקונסולה נכשלה. הסיבה: ${hebrewRequestFault(null, res)}`;
+      backupLoadState = 'fail';
       showParamToolFault(fault, () => loadVisionConfigFromServer(statusEl));
+      refreshParamToolbarMeta();
       if (statusEl) {
-        statusEl.textContent = fault;
-        statusEl.className = 'vision-config-status fail';
+        statusEl.textContent = '';
+        statusEl.className = 'vision-config-status';
       }
       return;
     }
@@ -2595,19 +2600,23 @@ async function loadVisionConfigFromServer(statusEl) {
     captureServerBaseline();
     captureArduWriteBaseline();
     jetsonReadAt = Date.now();
+    backupLoadState = 'ok';
     clearParamToolFault();
     updateParamSyncBanner();
+    refreshParamToolbarMeta();
     void refreshJetsonLink();
     if (statusEl) {
-      statusEl.textContent = 'נטען מגיבוי בקונסולה';
-      statusEl.className = 'vision-config-status ok';
+      statusEl.textContent = '';
+      statusEl.className = 'vision-config-status';
     }
   } catch (err) {
     const fault = `קריאת הגיבוי בקונסולה נכשלה. הסיבה: ${hebrewRequestFault(err)}`;
+    backupLoadState = 'fail';
     showParamToolFault(fault, () => loadVisionConfigFromServer(statusEl));
+    refreshParamToolbarMeta();
     if (statusEl) {
-      statusEl.textContent = fault;
-      statusEl.className = 'vision-config-status fail';
+      statusEl.textContent = '';
+      statusEl.className = 'vision-config-status';
     }
   }
 }
@@ -2636,11 +2645,13 @@ async function saveVisionConfigToServer(statusEl) {
       return;
     }
     captureServerBaseline();
+    backupLoadState = 'ok';
     clearParamToolFault();
     updateParamSyncBanner();
+    refreshParamToolbarMeta();
     if (statusEl) {
-      statusEl.textContent = 'נשמר בגיבוי בקונסולה';
-      statusEl.className = 'vision-config-status ok';
+      statusEl.textContent = '';
+      statusEl.className = 'vision-config-status';
     }
   } catch (err) {
     const fault = `כתיבה לגיבוי בקונסולה נכשלה. הסיבה: ${hebrewRequestFault(err)}`;
@@ -7638,6 +7649,7 @@ function paintPrearmBadge(el, raw) {
   const line = String(raw || '').trim();
   el.classList.remove('is-open');
   el.setAttribute('aria-expanded', 'false');
+  delete el.dataset.short;
   if (!line) {
     el.hidden = true;
     el.textContent = '';
@@ -7650,11 +7662,27 @@ function paintPrearmBadge(el, raw) {
   el.textContent = shown;
 }
 
+function paintNoLinkReason(el) {
+  if (!el) return;
+  el.classList.remove('is-open');
+  el.setAttribute('aria-expanded', 'false');
+  el.hidden = false;
+  el.dataset.raw = 'אין חיבור לבקר הטיסה';
+  el.dataset.short = 'אין קשר';
+  el.title = 'אין חיבור לבקר הטיסה';
+  el.textContent = 'אין קשר';
+}
+
 function togglePrearmBadge(el) {
   if (!el || el.hidden) return;
   const open = el.classList.toggle('is-open');
   el.setAttribute('aria-expanded', open ? 'true' : 'false');
   const raw = el.dataset.raw || '';
+  const short = el.dataset.short || '';
+  if (!open && short) {
+    el.textContent = short;
+    return;
+  }
   const shown = translatePrearmText(raw);
   el.textContent = shown;
   if (open && raw && raw !== shown) {
@@ -7677,7 +7705,7 @@ function syncFlightArmControls(mav) {
     disarmBtn.disabled = true;
     armBtn.title = 'אין חיבור לבקר הטיסה';
     disarmBtn.title = 'אין חיבור לבקר הטיסה';
-    paintPrearmBadge(reason, 'אין חיבור לבקר הטיסה');
+    paintNoLinkReason(reason);
     if (row) row.dataset.armLink = 'off';
     return;
   }
@@ -8153,18 +8181,42 @@ function fcStatusTimeLabel(row) {
 function translateFcStatusText(raw) {
   const line = String(raw || '').trim();
   if (!line) return '';
+  const prearm = /^prearm\s*:/i.test(line);
   const rules = [
-    [/ekf3 waiting for gps config/i, 'ממתינים להגדרת לוויין'],
-    [/imu\d*.*using gps|is using gps/i, 'ההערכה משתמשת בלוויין'],
-    [/ekf variance/i, 'סטיית ההערכה גבוהה'],
-    [/gps\s*\d*\s*:\s*not healthy/i, 'לוויין לא תקין'],
+    [/ekf3 waiting for gps config/i, 'EKF3 ממתינים להגדרת GPS'],
+    [/imu\d*.*using gps|is using gps/i, 'EKF משתמש ב-GPS'],
+    [/ekf variance/i, 'סטיית EKF גבוהה'],
+    [/gps\s*\d*\s*:\s*not healthy/i, 'GPS לא תקין'],
     [/battery failsafe/i, 'כשל סוללה'],
-    [/waiting for gps/i, 'ממתינים ללוויין'],
+    [/waiting for gps/i, 'ממתינים ל-GPS'],
+    [/compass not healthy/i, 'המצפן לא תקין'],
+    [/3d accel calibration needed/i, 'נדרש כיול מד תאוצה'],
+    [/gps speed error/i, 'שגיאת מהירות GPS'],
+    [/need 3d fix|need gps/i, 'נדרש מיקום GPS'],
+    [/waiting for navigation/i, 'ממתינים לבדיקות ניווט'],
+    [/rc not (calibrated|found)/i, 'נדרש כיול שלט'],
+    [/throttle/i, 'המצערת לא במצב נמוך'],
+    [/safety switch/i, 'מתג הבטיחות פתוח'],
+    [/gyro/i, 'נדרש כיול גירוסקופ'],
+    [/accel/i, 'נדרש כיול מד תאוצה'],
+    [/compass|mag field/i, 'נדרש כיול מצפן'],
+    [/ahrs not healthy/i, 'מערכת הייחוס לא תקינה'],
+    [/battery/i, 'הסוללה לא תקינה'],
+    [/radio failsafe/i, 'אבד קשר רדיו'],
+    [/logging failed/i, 'הרישום נכשל'],
+    [/ekf/i, 'EKF לא תקין'],
+    [/baro/i, 'מד הגובה לא תקין'],
+    [/fence/i, 'נדרש מיקום לגדר'],
   ];
-  for (const [re, he] of rules) {
-    if (re.test(line)) return he;
+  let he = '';
+  for (const [re, text] of rules) {
+    if (re.test(line)) {
+      he = text;
+      break;
+    }
   }
-  return translatePrearmText(line);
+  if (!he) return line;
+  return prearm ? `לא ניתן לחמש: ${he}` : he;
 }
 
 function collapseConsecutiveFcStatus(rows) {

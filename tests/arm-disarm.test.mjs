@@ -207,9 +207,12 @@ describe('ARM DISARM ui contract', () => {
     const js = fs.readFileSync(path.join(repoRoot, 'public/app.js'), 'utf8');
     const css = fs.readFileSync(path.join(repoRoot, 'public/styles.css'), 'utf8');
     expect(html).toContain('id="flightArmBtn"');
-    expect(html).toContain('חימוש ARM');
-    expect(html).toContain('נטרול DISARM');
+    expect(html).toContain('aria-label="חימוש"');
+    expect(html).toContain('>ARM</button>');
+    expect(html).toContain('aria-label="נטרול"');
+    expect(html).toContain('>DISARM</button>');
     expect(html).toContain('אין חיבור לבקר הטיסה');
+    expect(html).toContain('אין קשר');
     expect(html).not.toContain('21196');
     expect(html).toContain('אשרו חימוש');
     expect(html).toContain('אשרו נטרול');
