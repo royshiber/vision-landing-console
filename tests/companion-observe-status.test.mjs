@@ -59,7 +59,7 @@ describe('companion_agent observe-only vision / landing status', () => {
     expect(agentSrc).toContain('uart_reader');
     expect(agentSrc).toContain('fanout_uart');
     expect(agentSrc).not.toMatch(/\.recv_match\s*\(/);
-    expect(agentSrc).toMatch(/AGENT_VERSION.*"2\.5\.2"/);
+    expect(agentSrc).toMatch(/AGENT_VERSION.*"2\.5\.3"/);
     expect(agentSrc).toContain('/api/v1/status/annotated-video');
     expect(agentSrc).toContain('/api/v1/status/vision');
     expect(agentSrc).toContain('/api/v1/status/optical-nav');
@@ -128,7 +128,7 @@ describe('companion_agent observe-only vision / landing status', () => {
       fetch(`${base}/api/v1/status/modem`).then((r) => r.json()),
       fetch(`${base}/api/v1/status/annotated-video`).then((r) => r.json()),
     ]);
-    expect(health.agentVersion).toBe('2.5.2');
+    expect(health.agentVersion).toBe('2.5.3');
     expect(health.capabilities.uplinkStatus).toBe(true);
     expect(health.capabilities.uplinkControl).toBe(true);
     expect(health.fc.connected).toBe(false);
