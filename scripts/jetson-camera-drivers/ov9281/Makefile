@@ -5,7 +5,12 @@
 obj-m += nv_ov9281.o
 
 NVIDIA_INCLUDE ?= /usr/src/nvidia/nvidia-public/include
+# Parent of the generated nvidia/ directory (srctree.nvconftest).
+NVIDIA_CONFTEST ?=
 ccflags-y += -I$(NVIDIA_INCLUDE)
+ifneq ($(NVIDIA_CONFTEST),)
+ccflags-y += -I$(NVIDIA_CONFTEST)
+endif
 
 ifneq ($(COMPILE_TEST_STUBS),)
 ccflags-y += -I$(COMPILE_TEST_STUBS)

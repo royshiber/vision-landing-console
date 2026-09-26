@@ -132,3 +132,13 @@ python3 frame_stats.py /tmp/ov9281.raw --width 1280 --height 800 \
 | `compile-test.sh` | host build against mainline 6.8 with stub tegracam headers |
 
 `compile-test.sh` does not replace `build.sh` on the board. The 6.8 tegra headers and `Module.symvers` are only on the Jetson.
+
+## nvidia/conftest.h
+
+`camera_common.h` includes `nvidia/conftest.h`. That file is not installed on the Jetson. `build.sh` generates it before compiling the module, using NVIDIA's own conftest Makefile and `conftest.sh` vendored unmodified from the public L4T 39.2.1 tree:
+
+https://gitlab.com/nvidia/nv-tegra/linux-nv-oot/-/tree/e71bacb7c611f880c5f341263967f13de54de3a9/scripts/conftest
+
+Commit `e71bacb7c611f880c5f341263967f13de54de3a9` on branch `l4t/l4t-r39.2.1`. The copy lives in `third_party/nvidia-oot-conftest/`. The script runs it against `/lib/modules/$(uname -r)/build` so the `NV_*` feature macros follow this kernel. The generated header is `out/nvidia-conftest/nvidia/conftest.h`, and the module compile adds that parent directory to the include path. Do not hand-edit the generated header.
+
+After the link, `build.sh` checks that `modinfo` vermagic's kernel release equals `uname -r`, and that every undefined symbol from `nm -u` is in the kernel `Module.symvers` or `/usr/src/nvidia/nvidia-public/Module.symvers`. Either mismatch fails the build.

@@ -9,6 +9,7 @@ KSRC="${OV9281_KSRC:-/tmp/linux-6.8.12}"
 CROSS="${CROSS_COMPILE:-aarch64-linux-gnu-}"
 
 python3 "${ROOT}/extlinux_overlay.py" --self-test
+"${ROOT}/build.sh" --self-test
 
 tmpdir=$(mktemp -d)
 trap 'rm -rf "${tmpdir}"' EXIT

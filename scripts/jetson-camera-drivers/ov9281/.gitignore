@@ -6,6 +6,7 @@
 *.dtbo
 *.dts.preprocessed
 .*.cmd
+out/
 modules.order
 Module.symvers
 nv_ov9281.mod
