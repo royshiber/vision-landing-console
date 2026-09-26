@@ -4439,7 +4439,7 @@ function renderCameraInstallChecklist(container, checklist, { compact = false } 
     row.dataset.cam = camId;
     const lab = document.createElement('span');
     lab.className = 'cic-role-name';
-    lab.textContent = camId === 'cam1' ? 'מצלמה 1' : 'מצלמה 2';
+    lab.textContent = camId === 'cam1' ? 'CAM1' : 'CAM2';
     const segs = document.createElement('div');
     segs.className = 'cic-role-segs';
     for (const role of [

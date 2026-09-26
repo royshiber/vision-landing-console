@@ -357,6 +357,60 @@
           <button type="button" class="conn-modal-close" data-close="1" aria-label="סגור">✕</button>
         </header>
         <div class="conn-modal-body global-settings-body">
+          <section class="gs-section" id="gsVersions" dir="rtl" data-versions-view="settings" data-vr-state="normal" aria-label="גרסאות ושחזור">
+            <h3 class="gs-h" id="gsVersionsTitle">גרסאות ושחזור</h3>
+            <p class="vr-lead">הגרסאות המותקנות, ושחזור לגרסה שעבדה.</p>
+            <article class="vr-card" id="vrConsole" data-vr="console">
+              <h4 class="vr-h">הקונסולה</h4>
+              <dl class="vr-dl">
+                <div><dt>גרסה</dt><dd id="vrConsoleVersion">גרסה לא ידועה</dd></div>
+                <div><dt>זמן התקנה</dt><dd id="vrConsoleInstalled">תאריך לא ידוע</dd></div>
+                <div><dt>גרסה קודמת</dt><dd id="vrConsolePrevious">גרסה לא ידועה</dd></div>
+              </dl>
+              <p id="vrConsoleRollbackNote" class="vr-note">אין גרסה קודמת לשחזור</p>
+              <button type="button" id="vrConsoleRollbackBtn" class="vr-btn" disabled>שחזור לגרסה קודמת</button>
+            </article>
+            <article class="vr-card" id="vrCompanion" data-vr="companion">
+              <h4 class="vr-h">מחשב המשימה</h4>
+              <p id="vrCompanionLink" class="vr-note">אין קישור למחשב המשימה</p>
+              <dl class="vr-dl">
+                <div><dt>גרסה</dt><dd id="vrCompanionVersion">גרסה לא ידועה</dd></div>
+                <div><dt>זמן פריסה</dt><dd id="vrCompanionDeployed">תאריך לא ידוע</dd></div>
+                <div><dt>מזהה שינוי</dt><dd id="vrCompanionSha">גרסה לא ידועה</dd></div>
+              </dl>
+              <h4 class="vr-h vr-sub">גיבויים</h4>
+              <ul id="vrBackups" class="vr-backups"></ul>
+            </article>
+            <article class="vr-card" id="vrFc">
+              <h4 class="vr-h">גיבוי פרמטרים</h4>
+              <p id="vrFcSnapshot" class="vr-note">תאריך לא ידוע</p>
+            </article>
+            <article class="vr-card" id="vrKnown">
+              <h4 class="vr-h">עבד טוב</h4>
+              <p id="vrKnownGoodStatus" class="vr-note">לא סומן</p>
+              <button type="button" id="vrKnownGoodBtn" class="vr-btn">סמנו שעבד טוב</button>
+              <p id="vrKnownGoodError" class="vr-error" role="alert" hidden></p>
+            </article>
+            <div id="gsAppUpdate" class="vr-update">
+              <p id="gsAppUpdateStatus" class="vr-note">בודקים אם יש עדכון.</p>
+              <button type="button" id="gsCheckUpdatesBtn" class="vr-btn">בדקו עדכונים</button>
+            </div>
+            <div id="vrConfirm" class="vr-confirm" role="dialog" aria-modal="true" aria-labelledby="vrConfirmTitle" tabindex="-1" hidden>
+              <div class="vr-confirm-card">
+                <p id="vrConfirmTitle" class="vr-h">אישור שחזור</p>
+                <p id="vrConfirmFrom" class="vr-fromto"></p>
+                <p id="vrConfirmTo" class="vr-fromto"></p>
+                <p id="vrConfirmWhen" class="vr-note"></p>
+                <div class="vr-actions">
+                  <button type="button" id="vrConfirmYes" class="vr-btn vr-btn-danger">אשרו שחזור</button>
+                  <button type="button" id="vrConfirmNo" class="vr-btn">בטלו</button>
+                </div>
+              </div>
+            </div>
+            <p id="vrProgress" class="vr-progress" role="status" aria-live="polite" tabindex="-1" hidden><span class="vr-spin" aria-hidden="true"></span><span id="vrProgressText">משחזרים גרסה</span></p>
+            <p id="vrError" class="vr-error" role="alert" aria-live="assertive" tabindex="-1" hidden></p>
+            <button type="button" id="vrDismiss" class="vr-btn" hidden>סגרו</button>
+          </section>
           <section class="gs-section" id="gsAttentionPolicy">
             <h3 class="gs-h" id="gsAttentionTitle">התערבות</h3>
             <div class="gs-attention-levels" role="radiogroup" aria-labelledby="gsAttentionTitle">
@@ -430,11 +484,6 @@
             </select>
             <p id="gsSttHint" class="gs-hint"></p>
           </section>
-          <section class="gs-section" id="gsAppUpdate">
-            <h3 class="gs-h">גרסת הקונסולה</h3>
-            <p id="gsAppUpdateStatus" class="gs-hint">בודקים אם יש עדכון.</p>
-            <button type="button" id="gsCheckUpdatesBtn">בדוק עדכונים</button>
-          </section>
         </div>
       </div>
     </div>
@@ -484,8 +533,11 @@
             <p class="pulse-health-note">בריאות מחשב המשימה והכלי. לא שינוי מוצר.</p>
           </header>
           <p id="cam0StatusLine" class="cam0-status-line">
-            <span id="cam0StatusText">מצלמה אפס · לא מחובר · קצב —</span>
+            <span id="cam0StatusText">CAM0 · לא מחובר · קצב —</span>
             <button type="button" id="cam0StatusLink" class="cam0-status-link">אופטיקה ותחקור</button>
+          </p>
+          <p id="cam1StatusLine" class="cam0-status-line">
+            <span id="cam1StatusText">CAM1 · לא מחובר · קצב —</span>
           </p>
           <nav id="pulseSummary" class="pulse-summary" aria-label="סיכום קטגוריות"></nav>
           <div id="pulseCatGrid" class="pulse-cat-grid">
@@ -993,8 +1045,8 @@
               </div>
             </div>
             <div class="debrief-cam-toolbar" role="group" aria-label="מצלמות">
-              <button type="button" class="debrief-cam-toggle" data-debrief-cam="cam0" aria-pressed="true">מצלמה אפס</button>
-              <button type="button" class="debrief-cam-toggle" data-debrief-cam="cam1" aria-pressed="false">מצלמה 1</button>
+              <button type="button" class="debrief-cam-toggle" data-debrief-cam="cam0" aria-pressed="true">CAM0</button>
+              <button type="button" class="debrief-cam-toggle" data-debrief-cam="cam1" aria-pressed="false">CAM1</button>
               <button type="button" class="debrief-cam-toggle" data-debrief-cam="a8" aria-pressed="false">גימבל</button>
             </div>
             <div id="debriefCamGrid" class="debrief-cam-grid video-wrapper" data-count="1" data-layout="cameras">
@@ -1004,14 +1056,14 @@
                   <img class="debrief-cam-live debrief-cam-media" alt="" hidden />
                   <p class="debrief-cam-nosignal">אין אות</p>
                 </div>
-                <figcaption class="debrief-cam-label">מצלמה אפס</figcaption>
+                <figcaption class="debrief-cam-label">CAM0</figcaption>
               </figure>
               <figure class="debrief-cam-tile" data-cam="cam1" data-api="cam2" data-slot="1" data-signal="none" hidden>
                 <div class="debrief-cam-stage">
                   <img class="debrief-cam-live debrief-cam-media" alt="" hidden />
                   <p class="debrief-cam-nosignal">אין אות</p>
                 </div>
-                <figcaption class="debrief-cam-label">מצלמה 1</figcaption>
+                <figcaption class="debrief-cam-label">CAM1</figcaption>
               </figure>
               <figure class="debrief-cam-tile" data-cam="a8" data-api="cam3" data-slot="2" data-signal="none" hidden>
                 <div class="debrief-cam-stage">
@@ -1033,9 +1085,14 @@
             <h3>אירועים</h3>
             <div id="eventsList" class="events-list"></div>
           </div>
-          <section id="cam0Panel" class="cam0-panel" dir="rtl" aria-label="מצלמה אפס" data-camera-source="cam0">
+          
+          <div class="optics-cam-switch" role="tablist" aria-label="בחירת מצלמה">
+            <button type="button" role="tab" id="opticsCam0Btn" class="optics-cam-btn is-active" aria-selected="true" aria-controls="cam0Panel">CAM0</button>
+            <button type="button" role="tab" id="opticsCam1Btn" class="optics-cam-btn" aria-selected="false" aria-controls="cam1Panel">CAM1</button>
+          </div>
+<section id="cam0Panel" class="cam0-panel" dir="rtl" aria-label="CAM0" data-camera-source="cam0">
             <header class="cam0-head">
-              <h3 class="cam0-title">מצלמה אפס</h3>
+              <h3 class="cam0-title">CAM0</h3>
               <p id="cam0Honesty" class="cam0-honesty">אין אות</p>
             </header>
             <p id="cam0Reason" class="cam0-reason">אין קישור למחשב המשימה. הפקדים כבויים.</p>
@@ -1086,6 +1143,46 @@
             </div>
             <select id="cam0SourceAdapter" class="cam0-source-adapter" data-camera-source-picker hidden aria-hidden="true"></select>
           </section>
+          <section id="cam1Panel" class="cam0-panel cam1-panel" dir="rtl" aria-label="CAM1" hidden>
+            <header class="cam0-head">
+              <h3 class="cam0-title cam1-title">CAM1</h3>
+              <p id="cam1Honesty" class="cam0-honesty">אין אות</p>
+            </header>
+            <p id="cam1Reason" class="cam0-reason">אין קישור למחשב המשימה. הפקדים כבויים.</p>
+            <p id="cam1Error" class="cam0-error" role="alert" hidden></p>
+            <div class="cam0-layout">
+              <div class="cam0-stage" id="cam1Stage">
+                <p id="cam1Empty" class="cam0-empty">אין אות</p>
+                <img id="cam1Frame" class="cam0-frame" alt="" hidden />
+              </div>
+              <div class="cam0-side">
+                <div class="cam0-hist-wrap">
+                  <p class="cam0-hist-label">היסטוגרמה</p>
+                  <canvas id="cam1Hist" class="cam0-hist" width="180" height="56" aria-label="היסטוגרמה"></canvas>
+                  <p id="cam1HistEmpty" class="cam0-hist-empty">אין נתונים</p>
+                </div>
+                <dl class="cam0-stats">
+                  <div><dt>קצב</dt><dd id="cam1Fps" dir="ltr">—</dd></div>
+                  <div><dt>השהיה</dt><dd id="cam1Latency" dir="ltr">—</dd></div>
+                  <div><dt>נפילות</dt><dd id="cam1Drops" dir="ltr">—</dd></div>
+                </dl>
+                <div class="cam0-controls">
+                  <label class="cam0-check"><input type="checkbox" id="cam1Ae" disabled /> חשיפה אוטומטית</label>
+                  <label>חשיפה <input id="cam1Exposure" type="number" min="10" max="100001" step="10" dir="ltr" disabled /></label>
+                  <label>הגבר <input id="cam1Gain" type="number" min="16" max="256" step="1" dir="ltr" disabled /></label>
+                  <label>רזולוציה
+                    <select id="cam1Res" dir="ltr" disabled>
+                      <option value="1280x800">1280×800</option>
+                      <option value="1280x720">1280×720</option>
+                    </select>
+                  </label>
+                  <label>קצב יעד <input id="cam1FpsSet" type="number" min="1" max="30" step="1" dir="ltr" disabled /></label>
+                  <button type="button" id="cam1Snap" class="cam0-btn" disabled>צילום</button>
+                </div>
+              </div>
+            </div>
+          </section>
+
         </div>
         <div id="debriefLogsPanel" class="tele-subpanel debrief-logs-panel flights-panel" data-debrief-panel="logs">
           <div class="debrief-logs-grid">
@@ -2631,7 +2728,7 @@
       <div class="modal-card">
         <div id="versionModalContent"><!-- filled by app.js VERSION_HISTORY --></div>
         <button id="closeVersionModalBtn">סגור</button>
-        <button type="button" id="versionCheckUpdatesBtn">בדוק עדכונים</button>
+        <button type="button" id="versionCheckUpdatesBtn">בדקו עדכונים</button>
       </div>
     </div>
 
@@ -2667,6 +2764,8 @@
     <script type="module" src="./modules/debrief-cameras.mjs?v=__APP_VERSION__"></script>
     <script type="module" src="./modules/cam0-panel.mjs?v=__APP_VERSION__"></script>
     <script type="module" src="./modules/fc-write-ack.mjs?v=__APP_VERSION__"></script>
+    <script type="module" src="./modules/cam1-panel.mjs?v=__APP_VERSION__"></script>
     <script src="./app.js?v=__APP_VERSION__"></script>
+    <script src="./versions-rollback.js?v=__APP_VERSION__"></script>
   </body>
 </html>

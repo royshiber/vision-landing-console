@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
 """Vision Landing Console — Jetson companion: MAVLink relay + HTTP API + heartbeat.
 
-AGENT_VERSION 2.5.5 keeps the flight logger under one tenth of a core at
+AGENT_VERSION 2.6.0 adds the second OV9281 (CAM1) on /api/v1/cam1.
+Capture and JPEG run only while a client holds the stream, capped at 30 fps
+and 15 Hz, so the 60 fps CAM0 path stays the priority. It also lists
+timestamped backups of the companion tree and can restore one. 2.5.5 keeps the flight
+logger under one tenth of a core at
 100 messages per second: the tlog stores raw frames, only detector messages
 are parsed, and tlog plus status flush about once a second. 2.5.4 keeps
 capture at the sensor rate: PNG only on a snapshot, JPEG on another thread
@@ -59,7 +63,7 @@ RELAY_PORT = int(os.environ.get("VLC_RELAY_PORT", "5770"))
 HTTP_PORT = int(os.environ.get("VLC_HTTP_PORT", "8081"))
 HTTP_IDLE_S = float(os.environ.get("VLC_HTTP_IDLE_S", "30") or "30")
 HTTP_MAX_BODY = 16 * 1024 * 1024
-AGENT_VERSION = os.environ.get("VLC_AGENT_VERSION", "2.5.5")
+AGENT_VERSION = os.environ.get("VLC_AGENT_VERSION", "2.6.0")
 MODEM_STATUS_FILE = os.environ.get("AIRVIX_E3372_STATUS_FILE", "/run/airvix/e3372.status")
 
 try:
@@ -109,6 +113,7 @@ except ImportError:
 def observe_uart_bytes(data):
     """Passive FC parse, then Cam0 attitude tagging. Never writes the UART."""
     _fc_observe_uart(data)
+    _publish_flight_gate()
     try:
         from cam0.service import get_service
         svc = get_service()
@@ -116,6 +121,39 @@ def observe_uart_bytes(data):
             svc.observe_mavlink(data)
     except Exception:
         return None
+
+_gate_write_at = 0.0
+
+
+def _flight_gate_fields(payload):
+    armed = None
+    in_flight = None
+    if isinstance(payload, dict) and payload.get("connected") is True:
+        flag = payload.get("armed")
+        armed = flag if isinstance(flag, bool) else None
+        status = ((payload.get("heartbeat") or {}).get("fields") or {}).get("system_status")
+        if status in (4, 5, 6, 8):
+            in_flight = True
+        elif isinstance(status, int):
+            in_flight = False
+    return armed, in_flight
+
+
+def _publish_flight_gate(force=False):
+    global _gate_write_at
+    now = time.time()
+    if not force and now - _gate_write_at < 0.5:
+        return
+    try:
+        payload = fc_status_payload()
+    except Exception:
+        return
+    armed, in_flight = _flight_gate_fields(payload)
+    try:
+        version_rollback.write_flight_gate(_versions_dest(), armed, in_flight, now)
+        _gate_write_at = now
+    except Exception:
+        return
 try:
     from uplink_status import enrich_modem, uplinks_payload
 except ImportError:
@@ -138,6 +176,10 @@ except ImportError:
 
     def set_uplink(_kind, _enabled):
         return 503, {"ok": False, "reason": "uplink_control_absent", "message": "שליטת קישור לא זמינה"}
+try:
+    import version_rollback
+except ImportError:
+    version_rollback = None
 FC_READ_ONLY = os.environ.get("VLC_FC_READ_ONLY", "1").strip().lower() in {"1", "true", "yes", "on"}
 SKIP_RELAY = os.environ.get("VLC_SKIP_RELAY", "").strip().lower() in {"1", "true", "yes", "on"}
 HTTP_BIND = os.environ.get("VLC_HTTP_BIND", "0.0.0.0")
@@ -581,7 +623,7 @@ def _cam0_slot():
         "source": st.get("source") or "absent",
         "dry_run": st.get("dry_run") is True,
         "real": st.get("real") is True,
-        "device": "/dev/video0" if st.get("source") == "v4l2" else None,
+        "device": st.get("device"),
         "has_frame": st.get("has_frame") is True,
         "flight_commands": False,
     }
@@ -996,6 +1038,26 @@ def health_payload():
     }
 
 
+def _versions_dest():
+    raw = os.environ.get("VLC_COMPANION_DEST")
+    return Path(raw) if raw else (Path.home() / "vlc-companion")
+
+
+def _versions_blocked():
+    """None only when this process sees a fresh disarmed, not-flying heartbeat."""
+    try:
+        payload = fc_status_payload()
+    except Exception:
+        payload = None
+    connected = isinstance(payload, dict) and payload.get("connected") is True
+    armed, in_flight = _flight_gate_fields(payload) if connected else (None, None)
+    try:
+        version_rollback.write_flight_gate(_versions_dest(), armed, in_flight)
+    except Exception:
+        return "unknown"
+    return version_rollback.decide_flight_gate(armed, in_flight)
+
+
 def transport_test_payload(self_test=False):
     body = {
         "ok": True,
@@ -1195,6 +1257,17 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(200, gimbal_status_payload(start=True))
         if path in ("/api/transport-test", "/api/v1/transport-test"):
             return self._json(200, transport_test_payload(self_test=False))
+        if path in ("/api/v1/versions", "/api/v1/versions/backups"):
+            if version_rollback is None:
+                return self._json(503, {"ok": False, "message": "אין מידע"})
+            code, body = version_rollback.http_get(_versions_dest(), AGENT_VERSION)
+            return self._json(code, body)
+        try:
+            from cam0.cam1 import try_handle as cam1_try_handle
+            if cam1_try_handle(self):
+                return
+        except Exception:
+            pass
         try:
             from cam0.api import try_handle as cam0_try_handle
             if cam0_try_handle(self):
@@ -1248,6 +1321,20 @@ class Handler(BaseHTTPRequestHandler):
             enabled = data.get("enabled") if isinstance(data, dict) else None
             code, body = set_uplink(uplink_kind, enabled)
             return self._json(code, body)
+        if path in ("/api/v1/versions/rollback", "/api/v1/versions/known-good"):
+            if version_rollback is None:
+                return self._json(503, {"ok": False, "message": "אין מידע"})
+            ctx = version_rollback.build_context(AGENT_VERSION)
+            ctx["dest"] = _versions_dest()
+            ctx["blocked"] = _versions_blocked
+            code, body = version_rollback.http_post(path, data if isinstance(data, dict) else {}, ctx)
+            return self._json(code, body)
+        try:
+            from cam0.cam1 import try_handle as cam1_try_handle
+            if cam1_try_handle(self, data if isinstance(data, dict) else {}):
+                return
+        except Exception:
+            pass
         try:
             from cam0.api import try_handle as cam0_try_handle
             if cam0_try_handle(self, data if isinstance(data, dict) else {}):
@@ -1287,6 +1374,12 @@ def main():
             print(f"  Cam0: source={cam0.config.get('source')} state={cam0.state}")
     except Exception as exc:
         print(f"  Cam0: off ({type(exc).__name__})")
+    try:
+        from cam0.cam1 import get_service as cam1_service
+        cam1 = cam1_service()
+        print(f"  Cam1: idle device={cam1.config.get('device')} clients={cam1.clients}")
+    except Exception as exc:
+        print(f"  Cam1: off ({type(exc).__name__})")
     poll_raw = os.environ.get("VLC_GIMBAL_POLL")
     if poll_raw is None or str(poll_raw).strip() == "":
         want_gimbal_poll = not SKIP_RELAY
