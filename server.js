@@ -14,6 +14,7 @@ import { createCompanionService } from './lib/companion-service.mjs';
 import { mergeCompanionEnv, readStoredCompanionConnection, snapshotCompanionEnv } from './lib/companion-connection.mjs';
 import { ensureCompanionMavlinkRelay } from './lib/routes/companion-connection-api.mjs';
 import { scheduleFlightLogsBootSync } from './lib/flight-logs/sync.mjs';
+import { createAppUpdateService } from './lib/app-update.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -85,6 +86,10 @@ const jetsonState = {
 const JETSON_COMPANION_BASE_URL = (process.env.JETSON_COMPANION_BASE_URL || '').trim();
 const companionEnv = snapshotCompanionEnv(process.env);
 const companionService = createCompanionService(mergeCompanionEnv(companionEnv, readStoredCompanionConnection(db)));
+const updateService = createAppUpdateService({
+  appRoot: __dirname,
+  getCurrentVersion: getAppVersion,
+});
 
 const visionNavModeState = { mode: 'prior_mission_map' };
 
@@ -146,6 +151,7 @@ const routeCtx = {
   JETSON_COMPANION_BASE_URL,
   companionService,
   companionEnv,
+  updateService,
   advisorChatLimiter,
   arduTargetParams: { ...ARDU_TARGET_DEFAULTS },
   visionProfileStore: {},
@@ -205,6 +211,7 @@ if (_isMain) {
         logger.warn({ err }, 'Companion bridge start failed'),
       );
     scheduleFlightLogsBootSync(routeCtx);
+    updateService.start();
     logger.info({ port: PORT, host: HOST, version: APP_VERSION }, `Vision Landing Console started`);
     const hostLabel = HOST === '0.0.0.0' ? 'localhost' : HOST;
     console.log(`Vision Landing Console v${APP_VERSION}: http://${hostLabel}:${PORT}`);

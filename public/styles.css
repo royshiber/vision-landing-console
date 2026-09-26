@@ -19608,4 +19608,79 @@ body:has(#control.panel.visible) .ardu-top-cats-host {
   }
 }
 
+.app-update-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  flex: 0 0 auto;
+  position: static;
+  z-index: 1;
+  margin: 0;
+  padding: 8px 12px;
+  background: #0f2744;
+  color: #e8edf6;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 0.84rem;
+  line-height: 1.35;
+}
+.app-update-banner[hidden] { display: none; }
+.app-update-banner p { margin: 0; }
+.app-update-banner ul {
+  flex: 1 1 100%;
+  margin: 0;
+  padding-inline-start: 1.1rem;
+}
+.app-update-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.app-update-banner button {
+  border: 0;
+  border-radius: 6px;
+  min-height: 32px;
+  padding: 4px 12px;
+  background: #38bdf8;
+  color: #082033;
+  font: inherit;
+  cursor: pointer;
+}
+.app-update-banner button.app-update-later {
+  background: transparent;
+  color: #e8edf6;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+}
+.app-update-error { flex: 1 1 100%; color: #fecaca; }
+.update-indicator {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-inline-start: 6px;
+  border-radius: 50%;
+  background: #38bdf8;
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.25);
+  vertical-align: middle;
+}
+.update-indicator[hidden] { display: none; }
+.conn-companion-active {
+  margin: 4px 0 0;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  color: var(--text-muted, #cbd5e1);
+}
+#gsCheckUpdatesBtn,
+#versionCheckUpdatesBtn {
+  margin-top: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  min-height: 32px;
+  padding: 4px 10px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+@media (max-width: 420px) {
+  .app-update-banner { font-size: 0.78rem; padding: 8px; }
+  .app-update-actions { flex: 1 1 100%; }
+  .app-update-actions button { flex: 1 1 auto; min-height: 36px; }
+}
+
 

@@ -88,6 +88,7 @@
                 <span id="jetsonLinkChip" class="conn-link-chip" data-state="off">מחשב משימה · מנותק</span>
                 <span id="fcLinkChip" class="conn-link-chip" data-state="off">בקר טיסה · מנותק</span>
               </div>
+              <p id="companionActiveLink" class="conn-companion-active" hidden></p>
             </section>
             <section id="activeLinkPicker" class="conn-active-picker" hidden aria-label="קישור פעיל">
               <h3 class="conn-link-title">קישור פעיל</h3>
@@ -220,13 +221,22 @@
       <div class="app-chrome-tools">
         <span class="app-chrome-brand" aria-label="AIRVIX">AIRVIX</span>
         <button type="button" id="globalSettingsBtn" class="global-settings-btn" title="הגדרות כלליות" aria-haspopup="dialog" aria-controls="globalSettingsModal">⚙</button>
-        <button id="versionBtn" class="badge clickable" title="לחץ כדי לראות מה עודכן בגרסה">v__APP_VERSION__</button>
+        <button id="versionBtn" class="badge clickable" title="לחץ כדי לראות מה עודכן בגרסה">v__APP_VERSION__<span id="updateIndicator" class="update-indicator" hidden></span></button>
       </div>
     </header>
     <div id="appVersionMismatchBanner" class="app-version-mismatch-banner hidden" role="alert" hidden>
       <p id="appVersionMismatchHe">הסקריפט שנטען אינו תואם לשרת. פתחו כרטיסייה חדשה בפורט הנכון או רעננו.</p>
       <p id="appVersionMismatchMeta" class="app-version-mismatch-meta" dir="ltr"></p>
       <button type="button" id="appVersionMismatchReload">רענון</button>
+    </div>
+    <div id="appUpdateBanner" class="app-update-banner" hidden role="status" aria-live="polite">
+      <p id="appUpdateBannerText"></p>
+      <ul id="appUpdateChangelog" hidden></ul>
+      <div class="app-update-actions">
+        <button type="button" id="appUpdateApplyBtn">עדכן עכשיו</button>
+        <button type="button" id="appUpdateSnoozeBtn" class="app-update-later">אחר כך</button>
+      </div>
+      <p id="appUpdateError" class="app-update-error" hidden></p>
     </div>
 
     <button type="button" id="assistToggleBtn" class="assist-toggle-btn assist-toggle-float" title="AIRVIX Ask — דברו" aria-label="AIRVIX Ask — דברו" aria-expanded="false" aria-controls="assistRail"><span class="assist-toggle-mic" aria-hidden="true">🎙</span><span class="assist-toggle-he"><bdi dir="ltr">AIRVIX Ask</bdi></span><span id="assistAttentionDot" class="assist-attention-dot" hidden></span></button>
@@ -419,6 +429,11 @@
               <option value="auto_client">אוטומטי לפי הדפדפן</option>
             </select>
             <p id="gsSttHint" class="gs-hint"></p>
+          </section>
+          <section class="gs-section" id="gsAppUpdate">
+            <h3 class="gs-h">גרסת הקונסולה</h3>
+            <p id="gsAppUpdateStatus" class="gs-hint">בודקים אם יש עדכון.</p>
+            <button type="button" id="gsCheckUpdatesBtn">בדוק עדכונים</button>
           </section>
         </div>
       </div>
@@ -2464,6 +2479,7 @@
       <div class="modal-card">
         <div id="versionModalContent"><!-- filled by app.js VERSION_HISTORY --></div>
         <button id="closeVersionModalBtn">סגור</button>
+        <button type="button" id="versionCheckUpdatesBtn">בדוק עדכונים</button>
       </div>
     </div>
 

@@ -289,6 +289,7 @@
 - **PM2:** סקריפטים `start:pm2`, `logs:pm2` — ריצה שרתית רציפה.
 - **Tauri (אופציונלי):** `tauri:dev` / `tauri:build` — חבילת דסקטופ.
 - **חשיפת רשת:** ברירת מחדל localhost; חשיפה ל־LAN דורשת מודעות אבטחה.
+- **עדכון מהקונסולה:** בדיקה מול גרסת master, הודעה בעברית, וכפתור עדכון אחד. העדכון נחסם כשהמטוס חמוש או באוויר. קובץ ההגדרות והנתונים נשמרים, ויש עותק לחזרה אם העדכון נכשל.
 
 ---
 
@@ -318,6 +319,7 @@
 | קידומת / נושא | דוגמאות לשימוש |
 |-----------------|----------------|
 | **`/api/health`, `/api/meta`** | בריאות, גרסה |
+| **`/api/v1/update`** | בדיקת גרסה ועדכון מקומי בלחיצה. חסום בזמן חימוש או טיסה |
 | **`/api/param-center/*`** | סכימה, חיפוש חכם, param-set מבוקר |
 | **`/api/jetson/*`**, **`/api/rpi/*`** | סטטוס, heartbeat, reboot |
 | **`/api/vision/*`** | פריימים, VIO, flow, slam |
@@ -418,6 +420,9 @@
 | `smart-search-eval.mjs` | הערכת איכות חיפוש חכם |
 | `vlc-smoke.mjs` | בדיקת smoke בסיסית למערכת |
 | `restart-console.mjs` | ניקוי פורט והפעלה מחדש |
+| `scripts/windows/install-airvix.ps1` | התקנה ועדכון ב־Windows. שומר הגדרות ונתונים. לא מתקין Tailscale |
+| `scripts/linux/update-airvix.sh` | עדכון Linux מהארכיון של master, ואז הפעלה מחדש |
+| `restart.sh` | הפעלה מחדש של הקונסולה על המחשב |
 | `install-git-hooks.mjs` | Git hooks ל־bump גרסה בשגרת קומיטים |
 | `build-http-register.mjs`, `pack-core-api.mjs` | כלי אריזה פנימית |
 | `scripts/jetson-camera-drivers/ov9281/` | דרייבר OV9281 ל־CAM0, overlay, התקנה ואימות V4L2 על ה־Jetson |

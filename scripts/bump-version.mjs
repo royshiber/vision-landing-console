@@ -31,6 +31,7 @@ const VERSION_FILE   = path.join(repoRoot, 'version.js');
 const PKG_FILE       = path.join(repoRoot, 'package.json');
 const LOCK_FILE      = path.join(repoRoot, 'package-lock.json');
 const CHANGELOG_FILE = path.join(repoRoot, 'public', 'changelog.json');
+const VERSION_JSON   = path.join(repoRoot, 'version.json');
 
 const args = process.argv.slice(2);
 const silent = args.includes('--silent');
@@ -226,6 +227,8 @@ try {
   writeAppVersion(text, current, next);
   updateJsonVersion(PKG_FILE, next);
   updateJsonVersion(LOCK_FILE, next);
+  writeFileSync(VERSION_JSON, JSON.stringify({ version: next }, null, 2) + '\n', 'utf8');
+  log(`version.json: ${next}`);
   prependChangelogEntry(next, customDesc);
 
   if (!silent) console.log(`✓ גרסה עודכנה: ${current} → ${next}`);
