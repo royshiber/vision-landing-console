@@ -14,15 +14,31 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'
 /** Stems, longest first. A single Hebrew proclitic may precede a stem. */
 export const BANNED_STEMS = [
   { stem: 'בקשת מיזוג', approved: 'PR', concept: 'pull request', phrase: true },
-  { stem: 'נקודת קצה', approved: 'קצה', concept: 'endpoint', phrase: true },
-  { stem: 'תצורת', approved: 'קונפיגורציית', concept: 'configuration' },
-  { stem: 'תצורה', approved: 'קונפיגורציה', concept: 'configuration' },
+  { stem: 'נקודות קצה', approved: 'endpoints', concept: 'endpoint', phrase: true },
+  { stem: 'נקודת קצה', approved: 'endpoint', concept: 'endpoint', phrase: true },
+  { stem: 'תצורת', approved: 'הגדרות', devApproved: 'קונפיגורציית', concept: 'configuration' },
+  { stem: 'תצורה', approved: 'הגדרות', devApproved: 'קונפיגורציה', concept: 'configuration' },
+  { stem: 'קונפיגורציה', approved: 'הגדרות', devApproved: null, concept: 'configuration' },
+  { stem: 'קצה', approved: 'endpoint', concept: 'endpoint' },
   { stem: 'אסימון', approved: 'טוקן', concept: 'token' },
   { stem: 'קושחה', approved: 'פירמוור', concept: 'firmware' },
   { stem: 'מחרוזת', approved: 'טקסט', concept: 'text' },
   { stem: 'פריסה', approved: 'דיפלוי', concept: 'deploy' },
   { stem: 'ענף', approved: 'בראנץ׳', concept: 'branch' },
 ];
+
+/** Prompts and intent keywords. קונפיגורציה is allowed here. UI copy is not. */
+const DEV_FILES = new Set([
+  'lib/auto-config-recipes.mjs',
+  'lib/gemini-advisor.mjs',
+  'lib/assist/assist-intent-resolver.mjs',
+  'lib/assist/assist-routes.mjs',
+]);
+
+function approvedFor(entry, rel) {
+  if (DEV_FILES.has(rel) && Object.prototype.hasOwnProperty.call(entry, 'devApproved')) return entry.devApproved;
+  return entry.approved;
+}
 
 const PROCLITIC = 'בהוכלמש';
 const HE = '\\u0590-\\u05FF';
@@ -69,15 +85,18 @@ const PATTERNS = BANNED_STEMS.map((entry) => ({ ...entry, re: stemPattern(entry)
 
 const PHRASE_OVERRIDES = [
   ['חסרה מחרוזת חיפוש', 'חסר טקסט לחיפוש'],
-  ['לא תוחל תצורת מחשב משימה.', 'לא תוחל קונפיגורציה של מחשב המשימה.'],
-  ['Jetson אינו נקודת קצה רדיו', 'Jetson אינו קצה הרדיו'],
+  ['לא תוחל תצורת מחשב משימה.', 'לא יוחלו הגדרות של מחשב המשימה.'],
+  ['Jetson אינו נקודת קצה רדיו', 'Jetson אינו endpoint רדיו'],
+  ['גררו קצה לשינוי גודל', 'גררו את הפינה לשינוי גודל'],
 ];
 
-export function suggest(text) {
+export function suggest(text, rel = '') {
   let next = text;
   for (const [from, to] of PHRASE_OVERRIDES) next = next.split(from).join(to);
   for (const entry of PATTERNS) {
-    next = next.replace(entry.re, (...args) => joinPrefix(args[1] || '', entry.approved));
+    const approved = approvedFor(entry, rel);
+    if (approved == null) continue;
+    next = next.replace(entry.re, (...args) => joinPrefix(args[1] || '', approved));
   }
   return next;
 }
@@ -118,8 +137,11 @@ export function scanText(rel, text) {
     if (!/[\u0590-\u05FF]/.test(line)) return;
     const found = [];
     for (const entry of PATTERNS) {
+      if (approvedFor(entry, rel) == null) continue;
       entry.re.lastIndex = 0;
-      if (entry.re.test(line)) found.push(entry.stem);
+      if (!entry.re.test(line)) continue;
+      if (found.some((longer) => longer !== entry.stem && longer.includes(entry.stem))) continue;
+      found.push(entry.stem);
     }
     if (!found.length) return;
     const current = visibleText(line, found);
@@ -128,7 +150,7 @@ export function scanText(rel, text) {
       line: index + 1,
       term: found.join(', '),
       text: current,
-      suggested: suggest(current),
+      suggested: suggest(current, rel),
     });
   });
   return hits;

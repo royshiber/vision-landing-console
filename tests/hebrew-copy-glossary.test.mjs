@@ -55,6 +55,24 @@ describe('hebrew copy glossary', () => {
     }
     expect(glossary).toContain('הזינו');
     expect(glossary).toContain('בקר טיסה');
+    expect(glossary).toContain('קוד יציאה');
+    expect(glossary).toContain('יציאת PWM');
+    expect(glossary).toContain('would actually say out loud');
+  });
+
+  it('uses endpoint in English and הגדרות in UI copy', () => {
+    const radio = scanText('public/index.html', '<span>Jetson אינו נקודת קצה רדיו</span>');
+    expect(radio[0].suggested).toBe('Jetson אינו endpoint רדיו');
+    const edge = scanText('public/app.js', "hint.textContent = 'גררו קצה לשינוי גודל. גררו כותרת להחלפה. גם בטיסה.'");
+    expect(edge[0].suggested).toContain('גררו את הפינה לשינוי גודל');
+    expect(edge[0].suggested).not.toContain('קצה');
+    const ui = scanText('public/index.html', '<button>שמור תצורה</button>');
+    expect(ui[0].suggested).toBe('שמור הגדרות');
+    const wizard = scanText('public/index.html', '<button>אשף קונפיגורציה</button>');
+    expect(wizard[0].suggested).toBe('אשף הגדרות');
+    const prompt = scanText('lib/auto-config-recipes.mjs', 'אתה מהנדס תצורה ArduPilot מומחה.');
+    expect(prompt[0].suggested).toBe('אתה מהנדס קונפיגורציה ArduPilot מומחה.');
+    expect(scanText('lib/auto-config-recipes.mjs', "labels: 'אשף קונפיגורציה'")).toEqual([]);
   });
 
   it('suggests the token sentence and the search sentence', () => {

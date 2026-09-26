@@ -20,7 +20,7 @@
       "line": 12,
       "term": "תצורת",
       "text": "לא תוחל תצורת מחשב משימה.",
-      "suggested": "לא תוחל קונפיגורציה של מחשב המשימה."
+      "suggested": "לא יוחלו הגדרות של מחשב המשימה."
     },
     {
       "file": "lib/assist/assist-hebrew.mjs",
@@ -104,7 +104,14 @@
       "line": 202,
       "term": "תצורה",
       "text": "תצורה",
-      "suggested": "קונפיגורציה"
+      "suggested": "הגדרות"
+    },
+    {
+      "file": "lib/assist/assist-hebrew.mjs",
+      "line": 240,
+      "term": "קונפיגורציה",
+      "text": "פותחים את אשף הקונפיגורציה.",
+      "suggested": "פותחים את אשף ההגדרות."
     },
     {
       "file": "lib/auto-config-recipes.mjs",
@@ -241,6 +248,13 @@
     },
     {
       "file": "public/app.js",
+      "line": 12636,
+      "term": "קונפיגורציה",
+      "text": "שולח בקשה ל-AI — בונה תוכנית קונפיגורציה…",
+      "suggested": "שולח בקשה ל-AI — בונה תוכנית הגדרות…"
+    },
+    {
+      "file": "public/app.js",
       "line": 14926,
       "term": "ענף",
       "text": "מפעיל שולט בשכבת התצוגה מתוך המוצר, בלי לצאת לענף חיצוני.",
@@ -279,7 +293,7 @@
       "line": 16446,
       "term": "תצורה",
       "text": "תצורה",
-      "suggested": "קונפיגורציה"
+      "suggested": "הגדרות"
     },
     {
       "file": "public/app.js",
@@ -331,6 +345,13 @@
       "suggested": "הסוכן רץ על הבראנץ׳ המבודד."
     },
     {
+      "file": "public/app.js",
+      "line": 17706,
+      "term": "קצה",
+      "text": "גררו קצה לשינוי גודל. גררו כותרת להחלפה. גם בטיסה.",
+      "suggested": "גררו את הפינה לשינוי גודל. גררו כותרת להחלפה. גם בטיסה."
+    },
+    {
       "file": "public/index.html",
       "line": 109,
       "term": "אסימון",
@@ -343,6 +364,27 @@
       "term": "אסימון",
       "text": "אסימון",
       "suggested": "טוקן"
+    },
+    {
+      "file": "public/index.html",
+      "line": 466,
+      "term": "קונפיגורציה",
+      "text": "אשף קונפיגורציה",
+      "suggested": "אשף הגדרות"
+    },
+    {
+      "file": "public/index.html",
+      "line": 872,
+      "term": "קונפיגורציה",
+      "text": "אשף קונפיגורציה",
+      "suggested": "אשף הגדרות"
+    },
+    {
+      "file": "public/index.html",
+      "line": 1002,
+      "term": "קונפיגורציה",
+      "text": "היסטוריית קונפיגורציה",
+      "suggested": "היסטוריית הגדרות"
     },
     {
       "file": "public/index.html",
@@ -363,21 +405,21 @@
       "line": 1544,
       "term": "נקודת קצה",
       "text": "GCS ↔ RFD900X ↔ FC — Jetson אינו נקודת קצה רדיו",
-      "suggested": "GCS ↔ RFD900X ↔ FC — Jetson אינו קצה הרדיו"
+      "suggested": "GCS ↔ RFD900X ↔ FC — Jetson אינו endpoint רדיו"
     },
     {
       "file": "public/index.html",
       "line": 1569,
       "term": "תצורה",
       "text": "תצורה לפי שכבת בטיחות",
-      "suggested": "קונפיגורציה לפי שכבת בטיחות"
+      "suggested": "הגדרות לפי שכבת בטיחות"
     },
     {
       "file": "public/index.html",
       "line": 1572,
       "term": "תצורה",
       "text": "שמור תצורה",
-      "suggested": "שמור קונפיגורציה"
+      "suggested": "שמור הגדרות"
     },
     {
       "file": "public/index.html",
@@ -398,7 +440,7 @@
       "line": 1691,
       "term": "תצורה",
       "text": "גיבוי תצורה",
-      "suggested": "גיבוי קונפיגורציה"
+      "suggested": "גיבוי הגדרות"
     },
     {
       "file": "public/index.html",
@@ -448,6 +490,13 @@
       "term": "ענף",
       "text": "ענף —",
       "suggested": "בראנץ׳ —"
+    },
+    {
+      "file": "public/index.html",
+      "line": 2135,
+      "term": "קצה",
+      "text": "גררו קצה לשינוי גודל. גררו כותרת להחלפה. גם בטיסה.",
+      "suggested": "גררו את הפינה לשינוי גודל. גררו כותרת להחלפה. גם בטיסה."
     },
     {
       "file": "public/index.html",
