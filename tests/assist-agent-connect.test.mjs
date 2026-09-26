@@ -206,6 +206,8 @@ describe('Assist in-product agent connect', () => {
     const before = await fetch(`${base}/api/assist/agent`).then((r) => r.json());
     expect(before.runtime).toBe('UNAVAILABLE');
     expect(before.connect_available).toBe(true);
+    expect(before.key_present).toBe(false);
+    expect(before.key_hint).toBe(null);
     expect(JSON.stringify(before)).not.toContain(SECRET);
 
     const connected = await fetch(`${base}/api/assist/agent/connect`, {
@@ -218,6 +220,7 @@ describe('Assist in-product agent connect', () => {
     expect(connected.connected).toBe(true);
     expect(connected.status_he).toMatch(/מחובר/);
     expect(connected.key_hint).toBe(maskConnectionKey(SECRET));
+    expect(connected.key_present).toBe(true);
     expect(JSON.stringify(connected)).not.toContain(SECRET);
     expect(connected.live_applied).toBe(true);
 
@@ -274,6 +277,7 @@ describe('Assist in-product agent connect', () => {
     expect(disconnected.connected).toBe(false);
     expect(disconnected.status_he).toMatch(/מנותק/);
     expect(disconnected.key_hint).toBe(null);
+    expect(disconnected.key_present).toBe(false);
     expect(JSON.stringify(disconnected)).not.toContain(SECRET);
     expect(readStoredConnection(db).apiKey).toBe(null);
 
@@ -291,6 +295,7 @@ describe('Assist in-product agent connect', () => {
     });
     const status = await fetch(`${base}/api/assist/agent`).then((r) => r.json());
     expect(status.runtime).toBe('READY');
+    expect(status.key_present).toBe(true);
     expect(status.key_hint).toBe(maskConnectionKey(SECRET));
     expect(JSON.stringify(status)).not.toContain(SECRET);
     const conf = (await confirmDevelopment(base)).conf;
@@ -336,13 +341,24 @@ describe('Assist in-product agent connect', () => {
 describe('Assist connect chrome', () => {
   const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
-  it('puts a Hebrew connect control on the Assist rail', () => {
+  it('puts the coding-agent key in settings and keeps it off the Ask rail', () => {
     const html = fs.readFileSync(path.join(repoRoot, 'public', 'index.html'), 'utf8');
-    expect(html).toMatch(/id="assistAgentConnect"/);
-    expect(html).toMatch(/id="assistAgentKey"[^>]*type="password"/);
-    expect(html).toMatch(/id="assistAgentConnectBtn"[^>]*>חיבור</);
-    expect(html).toMatch(/id="assistAgentDisconnectBtn"[^>]*>ניתוק</);
-    expect(html).toMatch(/מפתח חיבור/);
+    const railStart = html.indexOf('<aside id="assistRail"');
+    const railEnd = html.indexOf('</aside>', railStart);
+    const rail = html.slice(railStart, railEnd);
+    const settingsStart = html.indexOf('id="gsCodingAgent"');
+    const settingsEnd = html.indexOf('id="gsSpokenUnits"');
+    const settings = html.slice(settingsStart, settingsEnd);
+    expect(rail).not.toContain('id="assistAgentKey"');
+    expect(rail).not.toContain('מפתח חיבור');
+    expect(rail).toContain('id="assistAgentSettingsLink"');
+    expect(rail).toContain('פקודות קול ללא אישור');
+    expect(settings).toContain('סוכן קוד');
+    expect(settings).toMatch(/id="assistAgentConnect"/);
+    expect(settings).toMatch(/id="assistAgentKey"[^>]*type="password"/);
+    expect(settings).toMatch(/id="assistAgentConnectBtn"[^>]*>חיבור</);
+    expect(settings).toMatch(/id="assistAgentDisconnectBtn"[^>]*>ניתוק</);
+    expect(settings).toMatch(/מפתח חיבור/);
     expect(html).toMatch(/id="assistMessagesEmpty"[^>]*assist-empty-stage/);
     expect(html).toMatch(/שאלו את <bdi dir="ltr">AIRVIX Ask<\/bdi>\./);
     expect(html).toMatch(/id="assistProposalWarn"/);

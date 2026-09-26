@@ -12912,9 +12912,14 @@ initLiveCameraPanel();
       'שינוי השפה נכנס לתוקף בהפעלה הבאה של המיקרופון (או ריענון דף). ברירת השרת נקבעת ב־FE_STT_LANG.';
   }
 
-  btn.addEventListener('click', () => {
+  window.__vlcOpenSettings = async (focusId) => {
     if (!opsChromeAlwaysReachable('settings')) return;
-    openModal();
+    await openModal();
+    if (focusId) document.getElementById(focusId)?.scrollIntoView({ block: 'nearest' });
+  };
+
+  btn.addEventListener('click', () => {
+    void window.__vlcOpenSettings();
   });
   closeBtns.forEach((el) => el.addEventListener('click', closeModal));
 
@@ -15940,9 +15945,10 @@ function rtlSafeAskText(text, extraTokens) {
 }
 
 const ASSIST_DEFAULT_HINT_HE = 'שינוי דורש אישור.';
-const ASSIST_DEFAULT_HINT_GO_HE = 'מופעל לקול. פרמטר מוחל בלי אישור לכל פעולה.';
+const ASSIST_DEFAULT_HINT_GO_HE = 'נחיתה ומצב בלי אישור. פרמטר דורש אישור.';
 const ASSIST_MISSION_HINT_HE = 'הטסה. שינוי דורש אישור.';
-const ASSIST_MISSION_HINT_GO_HE = 'הטסה. מופעל לקול. פרמטר מוחל מיד.';
+const ASSIST_MISSION_HINT_GO_HE = 'הטסה. נחיתה ומצב בלי אישור.';
+const ASSIST_VOICE_GO_HINT_HE = 'נחיתה ומצב בלי אישור. חימוש ונטרול חסומים. פרמטר דורש אישור.';
 const ASSIST_DEFAULT_PLACEHOLDER_HE = 'שאלה, יועץ, פתק, או בקשת פיתוח…';
 const ASSIST_MISSION_PLACEHOLDER_HE = 'הערה, תצפית, או שאלה';
 const ASSIST_DEFAULT_INVITE_HE = 'שאלו את AIRVIX Ask.';
@@ -16155,18 +16161,12 @@ function assistSyncVoiceGoChrome(active) {
   assistWriteVoiceGoChrome(_askVoiceGoActive);
   const section = document.getElementById('assistVoiceGo');
   const badge = document.getElementById('assistVoiceGoBadge');
-  const goBtn = document.getElementById('assistVoiceGoBtn');
-  const endBtn = document.getElementById('assistVoiceGoEndBtn');
+  const toggle = document.getElementById('assistVoiceGoToggle');
   const goHint = document.getElementById('assistVoiceGoHint');
   if (section) section.dataset.go = _askVoiceGoActive ? '1' : '0';
-  if (badge) badge.textContent = rtlSafeAskText(_askVoiceGoActive ? 'מופעל לקול' : 'כבוי');
-  if (goBtn) goBtn.hidden = _askVoiceGoActive;
-  if (endBtn) endBtn.hidden = !_askVoiceGoActive;
-  if (goHint) {
-    goHint.textContent = rtlSafeAskText(_askVoiceGoActive
-      ? 'שיחת קול פתוחה. נחיתה ומצב בלי אישור. חימוש ונטרול חסומים. שינוי פרמטר דורש אישור.'
-      : 'הפעלה פותחת שיחת קול. אחריה נחיתה ומצב בלי אישור לכל פעולה. חימוש ונטרול חסומים. שינוי פרמטר דורש אישור.');
-  }
+  if (badge) badge.textContent = _askVoiceGoActive ? 'פעיל' : 'כבוי';
+  if (toggle) toggle.setAttribute('aria-pressed', _askVoiceGoActive ? 'true' : 'false');
+  if (goHint) goHint.textContent = rtlSafeAskText(ASSIST_VOICE_GO_HINT_HE);
   assistSyncMissionPosture();
   const mic = document.getElementById('assistMicBtn');
   if (mic && !mic.disabled) {
@@ -16176,13 +16176,17 @@ function assistSyncVoiceGoChrome(active) {
   }
 }
 
+let _askVoiceGoEpoch = 0;
+
 async function assistSetVoiceGo(active) {
+  const epoch = ++_askVoiceGoEpoch;
   const r = await fetch('/api/assist/voice-go', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ active: !!active }),
   });
   const data = await r.json().catch(() => ({}));
+  if (epoch !== _askVoiceGoEpoch) return;
   const next = data.ok ? data.ask_voice_go_active === true : false;
   assistSyncVoiceGoChrome(next);
   if (data.answer) {
@@ -16191,12 +16195,15 @@ async function assistSetVoiceGo(active) {
 }
 
 async function assistRefreshVoiceGo() {
+  const epoch = _askVoiceGoEpoch;
   try {
     const r = await fetch('/api/assist/session');
     const data = await r.json().catch(() => ({}));
+    if (epoch !== _askVoiceGoEpoch) return;
     if (data.ok) assistSyncVoiceGoChrome(data.ask_voice_go_active === true);
     else assistSyncVoiceGoChrome(false);
   } catch {
+    if (epoch !== _askVoiceGoEpoch) return;
     assistSyncVoiceGoChrome(false);
   }
 }
@@ -16618,31 +16625,40 @@ function assistRenderAgentConnection(status) {
   const keyHintEl = document.getElementById('assistAgentKeyHint');
   const form = document.getElementById('assistAgentConnectForm');
   const disconnectBtn = document.getElementById('assistAgentDisconnectBtn');
+  const offline = document.getElementById('assistAgentOfflineNote');
   if (!card || !statusEl) return;
   const connected = status?.connected === true && status?.runtime === 'READY';
+  const keyPresent = status?.key_present === true || connected;
   _assistAgentConnected = connected;
   const errorText = !connected && status?.ok === false
     ? (status.status_he || status.reason_he || 'החיבור לסוכן נכשל.')
     : '';
   card.dataset.state = errorText ? 'error' : (connected ? 'connected' : 'disconnected');
+  card.dataset.key = keyPresent ? '1' : '0';
   assistSyncProposalWarn();
   statusEl.textContent = rtlSafeAskText(connected
     ? (status.status_he || 'הסוכן מחובר ומוכן.')
     : (status.status_he || status.reason_he || 'הסוכן מנותק.'));
   if (hintEl) {
-    hintEl.hidden = connected;
-    hintEl.textContent = rtlSafeAskText('חברו מפתח כדי לאשר שינוי.');
+    hintEl.hidden = keyPresent;
+    if (!keyPresent) hintEl.textContent = rtlSafeAskText('הזינו מפתח כדי לחבר את הסוכן.');
   }
   if (keyHintEl) {
-    const hint = connected ? String(status.key_hint || '').trim() : '';
+    const hint = keyPresent ? String(status?.key_hint || '').trim() : '';
     keyHintEl.hidden = !hint;
     keyHintEl.textContent = hint;
   }
-  if (form) form.hidden = connected;
-  if (disconnectBtn) {
-    disconnectBtn.hidden = !connected;
-    disconnectBtn.setAttribute('aria-hidden', connected ? 'false' : 'true');
+  if (form) form.hidden = keyPresent;
+  if (keyPresent) {
+    const keyEl = document.getElementById('assistAgentKey');
+    if (keyEl) keyEl.value = '';
   }
+  if (disconnectBtn) {
+    const showDisconnect = connected || (keyPresent && !connected);
+    disconnectBtn.hidden = !showDisconnect;
+    disconnectBtn.setAttribute('aria-hidden', showDisconnect ? 'false' : 'true');
+  }
+  if (offline) offline.hidden = connected;
   if (!errorText) assistSetConnectError('');
   assistSyncConnectButton();
   if (typeof pulseRefresh === 'function') pulseRefresh();
@@ -16660,6 +16676,7 @@ async function assistRefreshAgentConnection() {
       status_he: data.status_he,
       reason_he: data.reason_he,
       key_hint: data.key_hint,
+      key_present: data.key_present === true,
     });
   } catch {
     assistRenderAgentConnection({
@@ -16714,6 +16731,8 @@ async function assistConnectAgent(event) {
         connected: false,
         status_he: data.status_he || data.reason_he || 'החיבור לסוכן נכשל.',
         reason_he: data.reason_he,
+        key_hint: data.key_hint,
+        key_present: data.key_present === true,
       });
       return;
     }
@@ -16739,9 +16758,11 @@ async function assistDisconnectAgent() {
     const data = await r.json().catch(() => ({}));
     assistRenderAgentConnection({
       ok: r.ok,
-      runtime: 'UNAVAILABLE',
+      runtime: data.runtime || 'UNAVAILABLE',
       connected: false,
       status_he: data.status_he || 'הסוכן מנותק.',
+      key_hint: null,
+      key_present: data.key_present === true,
     });
   } catch {
     assistRenderAgentConnection({
@@ -17677,8 +17698,20 @@ function initAssistUi() {
   document.getElementById('fdOpenAssistBtn')?.addEventListener('click', () => assistSetOpen(true));
   initMissionTalk();
   initAssistMic();
-  document.getElementById('assistVoiceGoBtn')?.addEventListener('click', () => { void assistSetVoiceGo(true); });
-  document.getElementById('assistVoiceGoEndBtn')?.addEventListener('click', () => { void assistSetVoiceGo(false); });
+  document.getElementById('assistVoiceGoToggle')?.addEventListener('click', () => {
+    void assistSetVoiceGo(!_askVoiceGoActive);
+  });
+  document.getElementById('assistVoiceGoInfo')?.addEventListener('click', () => {
+    const hint = document.getElementById('assistVoiceGoHint');
+    const info = document.getElementById('assistVoiceGoInfo');
+    if (!hint || !info) return;
+    const open = hint.hidden;
+    hint.hidden = !open;
+    info.setAttribute('aria-expanded', open ? 'true' : 'false');
+  });
+  document.getElementById('assistAgentSettingsLink')?.addEventListener('click', () => {
+    void window.__vlcOpenSettings?.('gsCodingAgent');
+  });
   assistSyncVoiceGoChrome(assistReadVoiceGoChrome());
   void assistRefreshVoiceGo();
   document.getElementById('assistConfirmBtn')?.addEventListener('click', () => { void assistConfirm(true); });

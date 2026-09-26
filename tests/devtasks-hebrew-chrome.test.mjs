@@ -27,6 +27,7 @@ describe('Development Tasks Hebrew chrome', () => {
     expect(label).toBe('פיתוח');
     expect(label).not.toBe('DEVELOPMENT');
     expect(m[0]).toContain('title="פיתוח"');
+    expect(m[0]).toMatch(/\bhidden\b/);
   });
 
   it('does not keep Create task / Start development / Deploy release as visible chrome', () => {

@@ -37,9 +37,9 @@ function developmentPanel() {
 }
 
 describe('AIRVIX 1.02.268 Capability Intake Studio F1', () => {
-  it('pins APP_VERSION at 1.02.330', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.330'");
-    expect(pkg.version).toBe('1.02.330');
+  it('pins APP_VERSION at 1.02.335', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.335'");
+    expect(pkg.version).toBe('1.02.335');
     expect(changelog).toContain('"version": "1.02.268"');
   });
 

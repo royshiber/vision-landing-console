@@ -40,11 +40,11 @@ function makeAssist({ applyParamChange } = {}) {
 }
 
 describe('Ask early-flight safety lock', () => {
-  it('pins APP_VERSION at 1.02.330', () => {
+  it('pins APP_VERSION at 1.02.335', () => {
     const version = fs.readFileSync(path.join(repoRoot, 'version.js'), 'utf8');
     const pkg = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8'));
-    expect(version).toContain("export const APP_VERSION = '1.02.330'");
-    expect(pkg.version).toBe('1.02.330');
+    expect(version).toContain("export const APP_VERSION = '1.02.335'");
+    expect(pkg.version).toBe('1.02.335');
   });
 
   it('locks voice_session_go — params always confirm, GO is session only', () => {
@@ -362,10 +362,11 @@ describe('Ask rail confirm chrome', () => {
     expect(html).toContain('id="assistSuggestionApproveBtn"');
     expect(html).toContain('id="assistSuggestionDismissBtn"');
     expect(html).toContain('id="assistVoiceGo"');
-    expect(html).toContain('id="assistVoiceGoBtn"');
-    expect(html).toContain('id="assistVoiceGoEndBtn"');
-    expect(html).toMatch(/id="assistVoiceGoEndBtn"[^>]*>סיום <bdi dir="ltr">GO<\/bdi>/);
-    expect(html).toContain('הפעלה פותחת שיחת קול');
+    expect(html).toContain('id="assistVoiceGoToggle"');
+    expect(html).toContain('פקודות קול ללא אישור');
+    expect(html).toContain('נחיתה ומצב בלי אישור. חימוש ונטרול חסומים. פרמטר דורש אישור.');
+    expect(html).not.toContain('id="assistVoiceGoBtn"');
+    expect(html).not.toContain('id="assistVoiceGoEndBtn"');
     expect(js).toContain('function assistIsConfirmPhrase(');
     expect(js).toContain('voice_session_go');
     expect(js).toContain("q === 'כן'");
