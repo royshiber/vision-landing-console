@@ -1,0 +1,10 @@
+{
+  "classification": "ground_run",
+  "end_reason": "disarmed",
+  "landing_offset": null,
+  "name": "taxi",
+  "segments": 0,
+  "t0": 1700000000.0,
+  "tail_s": 2,
+  "takeoff_offset": null
+}

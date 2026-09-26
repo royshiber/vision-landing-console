@@ -1,0 +1,11 @@
+{
+  "classification": "flight",
+  "end_reason": "fc_link_lost",
+  "expect_restored": true,
+  "landing_offset": 139.0,
+  "name": "linkloss",
+  "segments": 1,
+  "t0": 1700000000.0,
+  "tail_s": 130,
+  "takeoff_offset": 20.0
+}

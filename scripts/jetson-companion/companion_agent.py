@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Vision Landing Console — Jetson companion: MAVLink relay + HTTP API + heartbeat.
 
-AGENT_VERSION 2.3.11 = 2.3.10 plus HiLink signal bars from SignalIcon /
+AGENT_VERSION 2.5.0 reads a separate flight-log status file into health.
+2.3.11 added HiLink signal bars from SignalIcon /
 maxsignal, a CurrentNetworkTypeEx label, and the PLMN operator name.
 dBm fields stay null when the modem leaves them empty. 2.3.10 counted a
 HiLink modem as up when operstate is "unknown" and carrier is 1 or
@@ -47,7 +48,7 @@ RELAY_PORT = int(os.environ.get("VLC_RELAY_PORT", "5770"))
 HTTP_PORT = int(os.environ.get("VLC_HTTP_PORT", "8081"))
 HTTP_IDLE_S = float(os.environ.get("VLC_HTTP_IDLE_S", "30") or "30")
 HTTP_MAX_BODY = 16 * 1024 * 1024
-AGENT_VERSION = os.environ.get("VLC_AGENT_VERSION", "2.3.11")
+AGENT_VERSION = os.environ.get("VLC_AGENT_VERSION", "2.5.0")
 MODEM_STATUS_FILE = os.environ.get("AIRVIX_E3372_STATUS_FILE", "/run/airvix/e3372.status")
 
 try:
@@ -127,6 +128,7 @@ STATE = {
     "fc_linked": False,
     "fc_heartbeat": False,
     "relay_clients": 0,
+    "local_tap_clients": 0,
     "fc_read_only": FC_READ_ONLY,
     "relay_tcp_to_uart": not FC_READ_ONLY,
     "tcp_to_uart_suppressed": 0,
@@ -142,6 +144,7 @@ STATE = {
 }
 
 CLIENTS = []
+LOCAL_TAP_SOCKS = set()
 CLIENTS_LOCK = threading.Lock()
 UART_WRITE_LOCK = threading.Lock()
 STATE_LOCK = threading.Lock()
@@ -282,6 +285,12 @@ def open_fc_serial():
         return port
 
 
+def _client_counts():
+    taps = len(LOCAL_TAP_SOCKS)
+    STATE["local_tap_clients"] = taps
+    STATE["relay_clients"] = max(0, len(CLIENTS) - taps)
+
+
 def fanout_uart(data: bytes):
     dead = []
     with CLIENTS_LOCK:
@@ -291,23 +300,16 @@ def fanout_uart(data: bytes):
             sock.sendall(data)
         except OSError:
             dead.append(sock)
-    if dead:
-        with CLIENTS_LOCK:
-            for sock in dead:
-                if sock in CLIENTS:
-                    CLIENTS.remove(sock)
-                    STATE["relay_clients"] = max(0, STATE["relay_clients"] - 1)
-                try:
-                    sock.close()
-                except OSError:
-                    pass
+    for sock in dead:
+        drop_client(sock)
 
 
 def drop_client(sock):
     with CLIENTS_LOCK:
         if sock in CLIENTS:
             CLIENTS.remove(sock)
-            STATE["relay_clients"] = max(0, STATE["relay_clients"] - 1)
+        LOCAL_TAP_SOCKS.discard(sock)
+        _client_counts()
     try:
         sock.close()
     except OSError:
@@ -392,7 +394,10 @@ def mavlink_relay_server():
                     print(f"[relay] GCS client {addr}")
                     with CLIENTS_LOCK:
                         CLIENTS.append(client)
-                        STATE["relay_clients"] = len(CLIENTS)
+                        separate = os.environ.get("VLC_LOCAL_TAP_SEPARATE", "1").strip().lower() in {"1", "true", "yes", "on"}
+                        if separate and addr[0] == "127.0.0.1":
+                            LOCAL_TAP_SOCKS.add(client)
+                        _client_counts()
                     threading.Thread(
                         target=client_to_uart, args=(client, fc_serial), daemon=True
                     ).start()
@@ -410,7 +415,9 @@ def mavlink_relay_server():
                     except OSError:
                         pass
                 CLIENTS.clear()
+                LOCAL_TAP_SOCKS.clear()
                 STATE["relay_clients"] = 0
+                STATE["local_tap_clients"] = 0
             if srv:
                 try:
                     srv.close()
@@ -765,6 +772,28 @@ def _absent_modem(reason="modem_absent", error=None):
     }
 
 
+def flightlog_status_payload():
+    """Read the flight logger status file. Missing or garbage stays honest."""
+    path = Path(os.environ.get("AIRVIX_FLIGHTLOG_STATUS_FILE", "/run/airvix/flightlog.json"))
+    if not path.is_file():
+        return {"ok": True, "present": False, "state": "absent"}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        return {"ok": True, "present": False, "state": "absent", "error": str(exc)[:160]}
+    if not isinstance(data, dict):
+        return {"ok": True, "present": False, "state": "absent", "error": "not_object"}
+    body = {}
+    for key, value in data.items():
+        lk = str(key).lower()
+        if any(tok in lk for tok in ("secret", "token", "password", "app_key", "authorization")):
+            continue
+        body[key] = value
+    body["ok"] = True
+    body["present"] = True
+    return body
+
+
 def modem_status_payload():
     """Observe-only E3372 snapshot. Missing file → modem_absent. Never invents up."""
     if _env_flag_on("AIRVIX_CELLULAR_MOCK") or _env_flag_on("CELLULAR_MODEM_MOCK"):
@@ -856,6 +885,7 @@ def status_payload():
         "video": video_status_payload(),
         "extras": extras_status_payload(),
         "modem": modem_status_payload(),
+        "flight_log": flightlog_status_payload(),
         "gimbal": gimbal_status_payload(start=False),
         "fc": fc_status_payload(),
         "mavlink": {},
@@ -899,6 +929,7 @@ def health_payload():
         "video": video_status_payload(),
         "extras": extras_status_payload(),
         "modem": modem_status_payload(),
+        "flight_log": flightlog_status_payload(),
         "gimbal": gimbal_status_payload(start=False),
     }
 
@@ -1091,6 +1122,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(200, fc_status_payload())
         if path in ("/api/status/modem", "/api/v1/status/modem"):
             return self._json(200, modem_status_payload())
+        if path in ("/api/flight-log/status", "/api/v1/flight-log/status"):
+            return self._json(200, flightlog_status_payload())
         if path in ("/api/v1/network/uplinks", "/api/network/uplinks"):
             return self._json(200, uplinks_payload())
         uplink_kind = _uplink_kind(path)

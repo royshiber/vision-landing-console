@@ -18,6 +18,7 @@ import {
   syncFlightLogs,
 } from '../lib/flight-logs/sync.mjs';
 import { formatJerusalem, formatTPlus } from '../lib/flight-logs/time.mjs';
+import { flightLogsConfig, preferIndexObjects } from '../lib/flight-logs/provider.mjs';
 import { registerFlightLogsApi } from '../lib/routes/flight-logs-api.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -33,6 +34,13 @@ const ENV_KEYS = [
   'FLIGHT_CLOUD_APP_KEY',
   'FLIGHT_CLOUD_PREFIX',
   'FLIGHT_CLOUD_VEHICLES',
+  'AIRVIX_S3_ENDPOINT',
+  'AIRVIX_S3_REGION',
+  'AIRVIX_S3_BUCKET',
+  'AIRVIX_S3_KEY_ID',
+  'AIRVIX_S3_SECRET',
+  'AIRVIX_S3_PREFIX',
+  'AIRVIX_S3_VEHICLES',
 ];
 
 let savedEnv = null;
@@ -106,6 +114,50 @@ describe('flight log SigV4', () => {
     expect(url).toContain('X-Amz-Expires=300');
     expect(url).toContain('X-Amz-Signature=');
     expect(url).not.toContain(SECRET);
+  });
+});
+
+describe('flight log cloud config', () => {
+  it('reads AIRVIX_S3_* and keeps FLIGHT_CLOUD_* as aliases', () => {
+    process.env.FLIGHT_LOGS_MODE = 'cloud';
+    process.env.AIRVIX_S3_ENDPOINT = 'https://storage.googleapis.com';
+    process.env.AIRVIX_S3_REGION = 'auto';
+    process.env.AIRVIX_S3_BUCKET = 'airvix-flight-logs-489409';
+    process.env.AIRVIX_S3_KEY_ID = 'GOOG1EXAMPLE';
+    process.env.AIRVIX_S3_SECRET = SECRET;
+    process.env.FLIGHT_CLOUD_ENDPOINT = 'https://example.invalid';
+    const cfg = flightLogsConfig();
+    expect(cfg.cloudReady).toBe(true);
+    expect(cfg.endpoint).toBe('https://storage.googleapis.com');
+    expect(cfg.region).toBe('auto');
+    expect(cfg.bucket).toBe('airvix-flight-logs-489409');
+    expect(cfg.keyId).toBe('GOOG1EXAMPLE');
+    expect(cfg.appKey).toBe(SECRET);
+    delete process.env.AIRVIX_S3_ENDPOINT;
+    delete process.env.AIRVIX_S3_REGION;
+    delete process.env.AIRVIX_S3_BUCKET;
+    delete process.env.AIRVIX_S3_KEY_ID;
+    delete process.env.AIRVIX_S3_SECRET;
+    process.env.FLIGHT_CLOUD_ENDPOINT = 'https://storage.googleapis.com';
+    process.env.FLIGHT_CLOUD_REGION = 'auto';
+    process.env.FLIGHT_CLOUD_BUCKET = 'alias-bucket';
+    process.env.FLIGHT_CLOUD_KEY_ID = 'ALIASKEY';
+    process.env.FLIGHT_CLOUD_APP_KEY = SECRET;
+    const alias = flightLogsConfig();
+    expect(alias.endpoint).toBe('https://storage.googleapis.com');
+    expect(alias.bucket).toBe('alias-bucket');
+    expect(alias.appKey).toBe(SECRET);
+  });
+
+  it('keeps the canonical index when an in-progress key also exists', () => {
+    const chosen = preferIndexObjects([
+      { key: 'v1/plane/index/FID--in_flight.json', etag: 'a', size: 1 },
+      { key: 'v1/plane/index/FID--processing.json', etag: 'b', size: 1 },
+      { key: 'v1/plane/index/FID.json', etag: 'c', size: 2 },
+    ]);
+    expect(chosen).toHaveLength(1);
+    expect(chosen[0].key).toBe('v1/plane/index/FID.json');
+    expect(chosen[0].flightId).toBe('FID');
   });
 });
 
