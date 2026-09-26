@@ -1,0 +1,324 @@
+"""Operator on/off for Wi-Fi and Huawei cellular. Not a flight command.
+
+POST persists the choice in /var/lib/airvix/uplinks.json and asks NetworkManager
+through uplink-nm.sh (sudo -n). A link is turned down only when the other link
+is up, owns a default route, and answers a reachability probe. Cellular is
+never stored as disabled while the Wi-Fi interface is absent.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import re
+import subprocess
+from pathlib import Path
+
+from uplink_status import _oper_up, _routes, _wifi_iface, cellular_iface_name
+
+LAST_UPLINK_MESSAGE = "אי אפשר לכבות את הקישור האחרון"
+NM_FAIL_MESSAGE = "שינוי הקישור נכשל"
+BAD_BODY_MESSAGE = "גוף הבקשה לא תקין"
+
+_RUNNER = None
+_REACH = None
+_PRESENCE = None
+BOOT_FALLBACK = None
+
+
+def set_nm_runner(fn):
+    global _RUNNER
+    _RUNNER = fn
+
+
+def set_reachability(fn):
+    global _REACH
+    _REACH = fn
+
+
+def set_presence(fn):
+    global _PRESENCE
+    _PRESENCE = fn
+
+
+def reset_uplink_control():
+    global _RUNNER, _REACH, _PRESENCE, BOOT_FALLBACK
+    _RUNNER = None
+    _REACH = None
+    _PRESENCE = None
+    BOOT_FALLBACK = None
+
+
+def state_path():
+    raw = os.environ.get("VLC_UPLINKS_STATE", "/var/lib/airvix/uplinks.json").strip()
+    return Path(raw or "/var/lib/airvix/uplinks.json")
+
+
+def default_prefs():
+    return {"wifi": {"enabled": True}, "cellular": {"enabled": True}}
+
+
+def _stored_flags():
+    """File contents. Missing or broken file means both links stay enabled."""
+    path = state_path()
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError, UnicodeError):
+        return None
+    if not isinstance(data, dict):
+        return None
+
+    def flag(key):
+        node = data.get(key)
+        if isinstance(node, dict) and isinstance(node.get("enabled"), bool):
+            return node["enabled"]
+        return True
+
+    return {"wifi": {"enabled": flag("wifi")}, "cellular": {"enabled": flag("cellular")}}
+
+
+def load_prefs():
+    stored = _stored_flags()
+    if stored is None:
+        return default_prefs()
+    if stored["wifi"]["enabled"] is False and stored["cellular"]["enabled"] is False:
+        return default_prefs()
+    return stored
+
+
+def save_prefs(prefs):
+    path = state_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "wifi": {"enabled": prefs["wifi"]["enabled"] is True},
+        "cellular": {"enabled": prefs["cellular"]["enabled"] is True},
+    }
+    if payload["wifi"]["enabled"] is False and payload["cellular"]["enabled"] is False:
+        payload = default_prefs()
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    tmp.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    tmp.replace(path)
+    return payload
+
+
+def iface_present(kind):
+    if _PRESENCE is not None:
+        return _PRESENCE(kind) is True
+    if kind == "wifi":
+        return Path(f"/sys/class/net/{_wifi_iface()}").exists()
+    name = cellular_iface_name()
+    return bool(name) and Path(f"/sys/class/net/{name}").exists()
+
+
+def _iface_name(kind):
+    if kind == "wifi":
+        return _wifi_iface()
+    return cellular_iface_name()
+
+
+def _is_up(kind):
+    if not iface_present(kind):
+        return False
+    name = _iface_name(kind)
+    return bool(name) and _oper_up(name) is True
+
+
+def _has_default_route(iface):
+    routes = _routes()
+    if not isinstance(routes, list) or not iface:
+        return False
+    return any(route.get("iface") == iface for route in routes)
+
+
+def reachability_ok(iface):
+    if not iface:
+        return False
+    if _REACH is not None:
+        return _REACH(iface) is True
+    flag = os.environ.get("VLC_UPLINK_REACH", "").strip()
+    if flag == "1":
+        return True
+    if flag == "0":
+        return False
+    host = os.environ.get("VLC_UPLINK_REACH_HOST", "1.1.1.1").strip() or "1.1.1.1"
+    if not re.fullmatch(r"[A-Za-z0-9._:-]{1,253}", host):
+        return False
+    try:
+        proc = subprocess.run(
+            ["ping", "-I", iface, "-c", "1", "-W", "1", host],
+            timeout=2.5,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return proc.returncode == 0
+
+
+def other_link_ready(kind):
+    other = "cellular" if kind == "wifi" else "wifi"
+    if not iface_present(other):
+        return False
+    name = _iface_name(other)
+    if not name or not _is_up(other):
+        return False
+    if not _has_default_route(name):
+        return False
+    return reachability_ok(name)
+
+
+def run_nm(action):
+    if action not in {"wifi-up", "wifi-down", "cell-up", "cell-down"}:
+        raise ValueError("bad action")
+    if _RUNNER is not None:
+        result = _RUNNER(action)
+        # True == 1 in Python, so an exit code of 1 must not count as success.
+        ok = result is None or result is True or (result == 0 and result is not False)
+        if not ok:
+            raise RuntimeError("nm failed")
+        return
+    override = os.environ.get("VLC_UPLINK_NM", "").strip()
+    script = override or str(Path(__file__).resolve().with_name("uplink-nm.sh"))
+    cmd = [script, action] if override else ["sudo", "-n", script, action]
+    proc = subprocess.run(cmd, timeout=8, text=True, capture_output=True, check=False)
+    if proc.returncode != 0:
+        raise RuntimeError("nm failed")
+
+
+def annotate_uplinks(body):
+    if not isinstance(body, dict):
+        return body
+    prefs = load_prefs()
+    body["read_only"] = False
+    wifi = body.get("wifi") if isinstance(body.get("wifi"), dict) else {}
+    cell = body.get("cellular") if isinstance(body.get("cellular"), dict) else {}
+    wifi["enabled"] = prefs["wifi"]["enabled"] is True
+    cell["enabled"] = prefs["cellular"]["enabled"] is True
+    body["wifi"] = wifi
+    body["cellular"] = cell
+    body["boot_fallback"] = BOOT_FALLBACK
+    return body
+
+
+def uplinks_view():
+    from uplink_status import uplinks_payload
+
+    return uplinks_payload()
+
+
+def _refuse_last():
+    return 409, {
+        "ok": False,
+        "reason": "last_uplink",
+        "message": LAST_UPLINK_MESSAGE,
+    }
+
+
+def set_uplink(kind, enabled):
+    if kind not in {"wifi", "cellular"}:
+        return 404, {"ok": False, "reason": "bad_link", "message": "קישור לא מוכר"}
+    if not isinstance(enabled, bool):
+        return 400, {"ok": False, "reason": "bad_body", "message": BAD_BODY_MESSAGE}
+    if enabled is False:
+        if kind == "cellular" and not iface_present("wifi"):
+            return _refuse_last()
+        if not other_link_ready(kind):
+            return _refuse_last()
+    action = ("wifi-up" if enabled else "wifi-down") if kind == "wifi" else ("cell-up" if enabled else "cell-down")
+    try:
+        run_nm(action)
+    except Exception:
+        return 503, {"ok": False, "reason": "nmcli_failed", "message": NM_FAIL_MESSAGE}
+    prefs = load_prefs()
+    prefs[kind]["enabled"] = enabled
+    if prefs["cellular"]["enabled"] is False and not iface_present("wifi"):
+        prefs["cellular"]["enabled"] = True
+    try:
+        save_prefs(prefs)
+    except OSError:
+        return 503, {"ok": False, "reason": "persist_failed", "message": "שמירת הבחירה נכשלה"}
+    return 200, uplinks_view()
+
+
+def apply_boot_policy():
+    """Both links auto-connect unless the operator disabled one.
+
+    If the enabled link is not available, bring the other up and report it.
+    Never leave the file saying cellular is off when Wi-Fi is absent.
+    """
+    global BOOT_FALLBACK
+    wifi_ok = iface_present("wifi")
+    cell_ok = iface_present("cellular")
+    stored = _stored_flags() or default_prefs()
+    changed = False
+    if stored["wifi"]["enabled"] is False and stored["cellular"]["enabled"] is False:
+        stored = default_prefs()
+        changed = True
+    if not wifi_ok and stored["cellular"]["enabled"] is not True:
+        stored["cellular"]["enabled"] = True
+        changed = True
+    if changed:
+        try:
+            save_prefs(stored)
+        except OSError:
+            pass
+    prefs = load_prefs()
+
+    def up(kind):
+        if kind == "wifi" and not wifi_ok:
+            return False
+        if kind == "cellular" and not cell_ok:
+            return False
+        try:
+            run_nm("wifi-up" if kind == "wifi" else "cell-up")
+        except Exception:
+            return False
+        return _is_up(kind)
+
+    def down(kind):
+        if kind == "wifi" and not wifi_ok:
+            return
+        if kind == "cellular" and not cell_ok:
+            return
+        try:
+            run_nm("wifi-down" if kind == "wifi" else "cell-down")
+        except Exception:
+            return
+
+    if prefs["wifi"]["enabled"] and wifi_ok:
+        up("wifi")
+    if prefs["cellular"]["enabled"] and cell_ok:
+        up("cellular")
+
+    fallback = None
+    if prefs["wifi"]["enabled"] and wifi_ok and not _is_up("wifi") and cell_ok:
+        if up("cellular") or _is_up("cellular"):
+            fallback = "cellular"
+    if prefs["cellular"]["enabled"] and cell_ok and not _is_up("cellular") and wifi_ok:
+        if up("wifi") or _is_up("wifi"):
+            if fallback is None:
+                fallback = "wifi"
+
+    if not wifi_ok and cell_ok and not _is_up("cellular"):
+        up("cellular")
+        fallback = "cellular"
+    if not cell_ok and wifi_ok and not _is_up("wifi"):
+        up("wifi")
+        fallback = "wifi"
+
+    wifi_live = _is_up("wifi")
+    cell_live = _is_up("cellular")
+    if wifi_ok and prefs["wifi"]["enabled"] is False and cell_live:
+        down("wifi")
+    if cell_ok and prefs["cellular"]["enabled"] is False and wifi_live and wifi_ok:
+        down("cellular")
+
+    if not _is_up("wifi") and not _is_up("cellular"):
+        if cell_ok and (up("cellular") or _is_up("cellular")):
+            fallback = fallback or "cellular"
+        elif wifi_ok and (up("wifi") or _is_up("wifi")):
+            fallback = fallback or "wifi"
+
+    BOOT_FALLBACK = fallback
+    return {"fallback": fallback, "prefs": load_prefs()}
