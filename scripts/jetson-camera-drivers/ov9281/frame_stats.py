@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
 """Print mean and stddev of one OV9281 frame and write an 8-bit PNG.
 
-RG10 (and the Y10 alias) frames are little-endian 16-bit samples with
-10 valid bits. The sensor is mono; the RGGB pattern is only how
-tegra-camera names the stream. RGGB (and the GREY alias) frames are
-8-bit. A flat black capture (mean near 0, stddev near 0) is printed as
-classification black so a dead sensor is obvious.
+RG10 (and the Y10 alias) frames are little-endian 16-bit words. V4L2
+SRGGB10 puts the 10 bits in the low end of each word. Tegra's T_R16
+capture can sit higher in the word. The script picks the lowest right
+shift that puts every sample in 10 bits and prints that shift.
+The sensor is mono; the RGGB pattern is only how tegra-camera names
+the stream. RGGB (and the GREY alias) frames are 8-bit. A flat black
+capture (mean near 0, stddev near 0) is printed as classification
+black so a dead sensor is obvious.
 """
 
 import argparse
@@ -44,12 +47,33 @@ def _kind(pixelformat):
     raise SystemExit(f"unsupported pixelformat {pixelformat}")
 
 
+def detect_alignment(raw_u16, bits=10):
+    """Lowest right shift whose window holds every sample.
+
+    A word that already fits in 10 bits is shift 0 (V4L2 SRGGB10).
+    A dark frame does not fill the top of that window, so this is the
+    smallest shift that still keeps the highest set bit, not a guess
+    that the data is left-justified in the 16-bit container.
+    """
+    if raw_u16.size == 0:
+        return 0
+    highest = int(raw_u16.max())
+    shift = 0
+    limit = 16 - bits
+    while shift < limit and (highest >> (shift + bits)) != 0:
+        shift += 1
+    return shift
+
+
 def decode_frame(buf, pixelformat):
     bits = _kind(pixelformat)
     if bits == 10:
-        samples = np.frombuffer(buf, dtype="<u2")
-        return np.bitwise_and(samples, 0x03FF).astype(np.float64), 10
-    return np.frombuffer(buf, dtype=np.uint8).astype(np.float64), 8
+        raw = np.frombuffer(buf, dtype="<u2")
+        shift = detect_alignment(raw, 10)
+        samples = (raw >> shift) & np.uint16(0x03FF)
+        return samples.astype(np.float64), 10, shift, int(raw.min()), int(raw.max())
+    samples = np.frombuffer(buf, dtype=np.uint8).astype(np.float64)
+    return samples, 8, 0, int(samples.min()) if samples.size else 0, int(samples.max()) if samples.size else 0
 
 
 def main(argv):
@@ -75,7 +99,7 @@ def main(argv):
         raise SystemExit(f"short capture: {len(data)} bytes, need {need}")
 
     buf = data[args.frame * frame_bytes : (args.frame + 1) * frame_bytes]
-    samples, bits = decode_frame(buf, args.pixelformat)
+    samples, bits, shift, raw_min, raw_max = decode_frame(buf, args.pixelformat)
     if samples.size != args.width * args.height:
         raise SystemExit("frame size does not match width*height")
 
@@ -97,6 +121,10 @@ def main(argv):
     print(f"mean {mean:.4f}")
     print(f"stddev {stddev:.4f}")
     print(f"classification {classification}")
+    if bits == 10:
+        print(f"alignment shift {shift}")
+        print(f"raw_u16_min {raw_min}")
+        print(f"raw_u16_max {raw_max}")
     print(f"png {args.png}")
     return 0
 

@@ -30,9 +30,12 @@
 #include <linux/sysfs.h>
 #include <linux/version.h>
 
+#include <media/media-entity.h>
 #include <media/tegra_v4l2_camera.h>
 #include <media/tegracam_core.h>
 #include <media/tegracam_utils.h>
+#include <media/v4l2-ctrls.h>
+#include <media/v4l2-dev.h>
 #include <media/v4l2-mediabus.h>
 
 #define OV9281_CHIP_ID			0x9281
@@ -48,6 +51,9 @@
 #define OV9281_REG_MIPI_CTRL00		0x4800
 #define OV9281_REG_PLL_CTRL_0D		0x030d
 #define OV9281_REG_ANA_CORE_2		0x3662
+#define OV9281_REG_TEST_PATTERN		0x5e00
+/* Rockchip ov9281: bit7 enables the pattern, bits[1:0] select the bar. */
+#define OV9281_TEST_PATTERN_ENABLE	0x80
 
 #define OV9281_MODE_STANDBY		0x00
 #define OV9281_MODE_STREAMING		0x01
@@ -74,6 +80,20 @@
  */
 #define OV9281_LINE_LENGTH		1456
 #define OV9281_DEFAULT_FPS		60
+/*
+ * Exposure is microseconds (exposure_factor 1000000). 10 ms at
+ * 160 MHz and a 1456-pixel line is about 1099 lines.
+ * The gain control is the 0x3509 code. Sensor gain is code/16:
+ * 16 is 1x, 64 is 4x, 255 is about 16x. 32x does not fit in 0x3509.
+ * tegracam's INTEGER64 range update clamps a current value of 0 to
+ * the minimum, so the live value comes up as min_exp_time / min_framerate
+ * even when the DT default is higher. The probe path writes these
+ * defaults into the V4L2 controls, and stream start writes them again
+ * after the software reset.
+ */
+#define OV9281_DEFAULT_EXPOSURE_US	10000
+#define OV9281_DEFAULT_GAIN		64
+#define OV9281_DEFAULT_FRAME_RATE	60000000
 
 #define OV9281_MODE_1280X800_RAW10	0
 #define OV9281_MODE_1280X720_RAW10	1
@@ -104,6 +124,9 @@ struct ov9281 {
 	struct camera_common_data *s_data;
 	struct tegracam_device *tc_dev;
 	u32 frame_length;
+	u32 test_pattern;
+	char timing_cache[512];
+	bool timing_cache_valid;
 };
 
 struct ov9281_mode {
@@ -192,6 +215,7 @@ static const struct reg_8 ov9281_common_regs[] = {
 	{0x4800, OV9281_MIPI_CLOCK_CONTINUOUS},
 	{0x5000, 0x9f},
 	{0x5001, 0x00},
+	/* Off in the table. apply_controls writes the test_pattern control after. */
 	{0x5e00, 0x00},
 	{0x5d00, 0x07},
 	{0x5d01, 0x00},
@@ -386,18 +410,40 @@ static int ov9281_set_group_hold(struct tegracam_device *tc_dev, bool val)
 	return ov9281_write_reg(s_data, OV9281_REG_HOLD, val ? 1 : 0);
 }
 
+static int ov9281_hold_begin(struct camera_common_data *s_data)
+{
+	return ov9281_write_reg(s_data, OV9281_REG_HOLD, 1);
+}
+
+static int ov9281_hold_end(struct camera_common_data *s_data)
+{
+	return ov9281_write_reg(s_data, OV9281_REG_HOLD, 0);
+}
+
 static int ov9281_set_gain(struct tegracam_device *tc_dev, s64 val)
 {
 	struct camera_common_data *s_data = tc_dev->s_data;
 	u8 gain;
+	int err;
+	int held;
 
 	if (val < OV9281_AGAIN_MIN)
 		val = OV9281_AGAIN_MIN;
 	if (val > OV9281_AGAIN_MAX)
 		val = OV9281_AGAIN_MAX;
 	gain = (u8)val;
-	dev_dbg(s_data->dev, "analog gain code 0x%02x\n", gain);
-	return ov9281_write_reg(s_data, OV9281_REG_AGAIN, gain);
+	err = ov9281_hold_begin(s_data);
+	if (err)
+		return err;
+	err = ov9281_write_reg(s_data, OV9281_REG_AGAIN, gain);
+	held = ov9281_hold_end(s_data);
+	if (err)
+		dev_err(s_data->dev, "ov9281 gain 0x%02x write failed (%d)\n", gain, err);
+	else if (held)
+		dev_err(s_data->dev, "ov9281 gain hold release failed (%d)\n", held);
+	else
+		dev_info(s_data->dev, "ov9281 gain code 0x%02x (%u/16x)\n", gain, gain);
+	return err ? err : held;
 }
 
 static int ov9281_set_frame_rate(struct tegracam_device *tc_dev, s64 val)
@@ -439,15 +485,27 @@ static int ov9281_set_frame_rate(struct tegracam_device *tc_dev, s64 val)
 	if (frame_length > 0xffff)
 		frame_length = 0xffff;
 
-	dev_dbg(s_data->dev, "frame rate %u fps, VTS %u\n", fps, frame_length);
+	err = ov9281_hold_begin(s_data);
+	if (err)
+		return err;
 	err = ov9281_write_reg(s_data, OV9281_REG_VTS, (frame_length >> 8) & 0xff);
-	if (err)
-		return err;
-	err = ov9281_write_reg(s_data, OV9281_REG_VTS + 1, frame_length & 0xff);
-	if (err)
-		return err;
-	priv->frame_length = frame_length;
-	return 0;
+	if (!err)
+		err = ov9281_write_reg(s_data, OV9281_REG_VTS + 1, frame_length & 0xff);
+	if (!err)
+		priv->frame_length = frame_length;
+	{
+		int held = ov9281_hold_end(s_data);
+
+		if (err)
+			dev_err(s_data->dev, "ov9281 frame_rate %lld VTS %u write failed (%d)\n",
+				val, frame_length, err);
+		else if (held)
+			dev_err(s_data->dev, "ov9281 frame_rate hold release failed (%d)\n", held);
+		else
+			dev_info(s_data->dev, "ov9281 frame_rate %lld -> %u fps VTS %u\n",
+				 val, fps, frame_length);
+		return err ? err : held;
+	}
 }
 
 static int ov9281_set_exposure(struct tegracam_device *tc_dev, s64 val)
@@ -492,14 +550,29 @@ static int ov9281_set_exposure(struct tegracam_device *tc_dev, s64 val)
 
 	/* Mainline ov9282 writes the line count in the top 20 bits. */
 	packed = coarse << 4;
-	dev_dbg(s_data->dev, "exposure %lld us, coarse %u lines\n", val, coarse);
+	err = ov9281_hold_begin(s_data);
+	if (err)
+		return err;
 	err = ov9281_write_reg(s_data, OV9281_REG_EXPOSURE, (packed >> 16) & 0xff);
-	if (err)
-		return err;
-	err = ov9281_write_reg(s_data, OV9281_REG_EXPOSURE + 1, (packed >> 8) & 0xff);
-	if (err)
-		return err;
-	return ov9281_write_reg(s_data, OV9281_REG_EXPOSURE + 2, packed & 0xff);
+	if (!err)
+		err = ov9281_write_reg(s_data, OV9281_REG_EXPOSURE + 1, (packed >> 8) & 0xff);
+	if (!err)
+		err = ov9281_write_reg(s_data, OV9281_REG_EXPOSURE + 2, packed & 0xff);
+	{
+		int held = ov9281_hold_end(s_data);
+
+		if (err)
+			dev_err(s_data->dev,
+				"ov9281 exposure %lld us coarse %u write failed (%d)\n",
+				val, coarse, err);
+		else if (held)
+			dev_err(s_data->dev, "ov9281 exposure hold release failed (%d)\n", held);
+		else
+			dev_info(s_data->dev,
+				 "ov9281 exposure %lld us coarse %u lines packed 0x%06x\n",
+				 val, coarse, packed);
+		return err ? err : held;
+	}
 }
 
 static struct tegracam_ctrl_ops ov9281_ctrl_ops = {
@@ -763,67 +836,209 @@ static int ov9281_read_u8(struct camera_common_data *s_data, u16 reg, u8 *val)
 }
 
 /*
- * Read the window, line time, MIPI clock bit, and RAW10/RAW8 selects.
- * Called at stream start and from the ov9281_timing sysfs attribute.
+ * 0 off, 1..4 vertical color bars. Register value matches the Rockchip
+ * ov9281 driver: (pattern - 1) | bit7.
+ */
+static const char * const ov9281_test_pattern_menu[] = {
+	"Disabled",
+	"Vertical Color Bar Type 1",
+	"Vertical Color Bar Type 2",
+	"Vertical Color Bar Type 3",
+	"Vertical Color Bar Type 4",
+};
+
+static u8 ov9281_test_pattern_reg(u32 pattern)
+{
+	if (!pattern)
+		return 0;
+	if (pattern > 4)
+		pattern = 4;
+	return (u8)((pattern - 1) | OV9281_TEST_PATTERN_ENABLE);
+}
+
+static s64 ov9281_ctrl_int64(struct camera_common_data *s_data, u32 id, s64 fallback)
+{
+	struct v4l2_ctrl *ctrl;
+
+	if (!s_data || !s_data->ctrl_handler)
+		return fallback;
+	ctrl = v4l2_ctrl_find(s_data->ctrl_handler, id);
+	if (!ctrl)
+		return fallback;
+	if (ctrl->type == V4L2_CTRL_TYPE_INTEGER64 && ctrl->p_cur.p_s64)
+		return *ctrl->p_cur.p_s64;
+	return ctrl->val;
+}
+
+static int ov9281_test_pattern_s_ctrl(struct v4l2_ctrl *ctrl)
+{
+	struct ov9281 *priv = ctrl->priv;
+	struct camera_common_data *s_data;
+	u8 reg;
+	int err = 0;
+
+	if (!priv || !priv->s_data)
+		return -EINVAL;
+	if (ctrl->id != V4L2_CID_TEST_PATTERN)
+		return -EINVAL;
+	s_data = priv->s_data;
+	priv->test_pattern = (u32)ctrl->val;
+	reg = ov9281_test_pattern_reg(priv->test_pattern);
+	if (s_data->power && s_data->power->state == SWITCH_ON)
+		err = ov9281_write_reg(s_data, OV9281_REG_TEST_PATTERN, reg);
+	if (err)
+		dev_err(s_data->dev, "ov9281 test_pattern %u -> 0x5e00=0x%02x failed (%d)\n",
+			priv->test_pattern, reg, err);
+	else
+		dev_info(s_data->dev, "ov9281 test_pattern %u -> 0x5e00=0x%02x\n",
+			 priv->test_pattern, reg);
+	return err;
+}
+
+static const struct v4l2_ctrl_ops ov9281_test_pattern_ops = {
+	.s_ctrl = ov9281_test_pattern_s_ctrl,
+};
+
+/*
+ * tegracam calls set_exposure only when the sensor is already powered.
+ * A v4l2-ctl write before streaming updates the control and returns
+ * success without touching I2C. set_mode then does a software reset,
+ * which clears 0x3500 and 0x3509, and the framework does not replay the
+ * controls. Read them back here and write the sensor.
+ */
+static int ov9281_apply_controls(struct tegracam_device *tc_dev, const char *when)
+{
+	struct ov9281 *priv = tegracam_get_privdata(tc_dev);
+	struct camera_common_data *s_data = tc_dev->s_data;
+	s64 exposure, gain, frame_rate;
+	u8 tp;
+	int err;
+
+	exposure = ov9281_ctrl_int64(s_data, TEGRA_CAMERA_CID_EXPOSURE,
+				     OV9281_DEFAULT_EXPOSURE_US);
+	gain = ov9281_ctrl_int64(s_data, TEGRA_CAMERA_CID_GAIN,
+				 OV9281_DEFAULT_GAIN);
+	frame_rate = ov9281_ctrl_int64(s_data, TEGRA_CAMERA_CID_FRAME_RATE,
+				       OV9281_DEFAULT_FRAME_RATE);
+
+	err = ov9281_write_reg(s_data, OV9281_REG_HOLD, 0);
+	if (err)
+		return err;
+	err = ov9281_set_frame_rate(tc_dev, frame_rate);
+	if (err)
+		return err;
+	err = ov9281_set_exposure(tc_dev, exposure);
+	if (err)
+		return err;
+	err = ov9281_set_gain(tc_dev, gain);
+	if (err)
+		return err;
+	tp = ov9281_test_pattern_reg(priv->test_pattern);
+	err = ov9281_write_reg(s_data, OV9281_REG_TEST_PATTERN, tp);
+	if (err)
+		dev_err(s_data->dev, "ov9281 apply %s test_pattern write failed (%d)\n",
+			when, err);
+	else
+		dev_info(s_data->dev,
+			 "ov9281 apply %s exposure=%lld gain=%lld frame_rate=%lld test_pattern=%u reg5e00=0x%02x\n",
+			 when, exposure, gain, frame_rate, priv->test_pattern, tp);
+	return err;
+}
+
+/*
+ * Window, line time, exposure, gain, MIPI clock, and RAW10/RAW8 selects.
  * err_data 0x20000 is CAPTURE_CHANNEL_ERROR_FORCE_FE (camrtc-capture.h
  * bit 17): VI forced frame end. A gated clock (0x4800 bit5) with a
  * 1456-pixel line, or a RAW8 datatype while VI expects RAW10, does that.
+ *
+ * regs[] order: 3808 3809 380a 380b 380c 380d 380e 380f 4800 3662 030d
+ *               3500 3501 3502 3509 5e00
  */
-static int ov9281_log_timing(struct camera_common_data *s_data, const char *when)
+#define OV9281_TIMING_NREGS 16
+
+static const u16 ov9281_timing_addrs[OV9281_TIMING_NREGS] = {
+	0x3808, 0x3809, 0x380a, 0x380b, 0x380c, 0x380d, 0x380e, 0x380f,
+	0x4800, 0x3662, 0x030d,
+	0x3500, 0x3501, 0x3502, 0x3509, OV9281_REG_TEST_PATTERN,
+};
+
+static int ov9281_format_timing(char *buf, size_t len, const u8 *regs)
 {
-	u16 width = 0, height = 0, hts = 0, vts = 0;
-	u8 mipi = 0, ana = 0, pll = 0;
-	u8 b3808 = 0, b3809 = 0, b380a = 0, b380b = 0;
-	u8 b380c = 0, b380d = 0, b380e = 0, b380f = 0;
+	u16 width, height, hts, vts;
 	const char *clock;
 	const char *format;
-	int err;
 
-	err = ov9281_read_u8(s_data, 0x3808, &b3808);
-	if (!err)
-		err = ov9281_read_u8(s_data, 0x3809, &b3809);
-	if (!err)
-		err = ov9281_read_u8(s_data, 0x380a, &b380a);
-	if (!err)
-		err = ov9281_read_u8(s_data, 0x380b, &b380b);
-	if (!err)
-		err = ov9281_read_u8(s_data, 0x380c, &b380c);
-	if (!err)
-		err = ov9281_read_u8(s_data, 0x380d, &b380d);
-	if (!err)
-		err = ov9281_read_u8(s_data, 0x380e, &b380e);
-	if (!err)
-		err = ov9281_read_u8(s_data, 0x380f, &b380f);
-	if (!err)
-		err = ov9281_read_u8(s_data, OV9281_REG_MIPI_CTRL00, &mipi);
-	if (!err)
-		err = ov9281_read_u8(s_data, OV9281_REG_ANA_CORE_2, &ana);
-	if (!err)
-		err = ov9281_read_u8(s_data, OV9281_REG_PLL_CTRL_0D, &pll);
-	if (err) {
-		dev_err(s_data->dev, "ov9281 timing %s read failed (%d)\n", when, err);
-		return err;
-	}
-
-	width = ((u16)b3808 << 8) | b3809;
-	height = ((u16)b380a << 8) | b380b;
-	hts = ((u16)b380c << 8) | b380d;
-	vts = ((u16)b380e << 8) | b380f;
-	clock = (mipi & OV9281_MIPI_CLOCK_GATED) ? "gated" : "continuous";
-	if (pll == OV9281_PLL_RAW10 && ana == OV9281_ANA_RAW10)
+	width = ((u16)regs[0] << 8) | regs[1];
+	height = ((u16)regs[2] << 8) | regs[3];
+	hts = ((u16)regs[4] << 8) | regs[5];
+	vts = ((u16)regs[6] << 8) | regs[7];
+	clock = (regs[8] & OV9281_MIPI_CLOCK_GATED) ? "gated" : "continuous";
+	if (regs[10] == OV9281_PLL_RAW10 && regs[9] == OV9281_ANA_RAW10)
 		format = "RAW10";
-	else if (pll == OV9281_PLL_RAW8 && ana == OV9281_ANA_RAW8)
+	else if (regs[10] == OV9281_PLL_RAW8 && regs[9] == OV9281_ANA_RAW8)
 		format = "RAW8";
 	else
 		format = "unknown";
 
-	dev_info(s_data->dev,
-		 "ov9281 timing %s 3808=%02x 3809=%02x 380a=%02x 380b=%02x 380c=%02x 380d=%02x 380e=%02x 380f=%02x 4800=%02x 3662=%02x 030d=%02x width=%u height=%u hts_px=%u vts=%u clock=%s format=%s\n",
-		 when, b3808, b3809, b380a, b380b, b380c, b380d, b380e, b380f,
-		 mipi, ana, pll, width, height, (u32)hts * 2, vts, clock, format);
+	return scnprintf(buf, len,
+			 "3808=%02x 3809=%02x 380a=%02x 380b=%02x 380c=%02x 380d=%02x 380e=%02x 380f=%02x 4800=%02x 3662=%02x 030d=%02x 3500=%02x 3501=%02x 3502=%02x 3509=%02x 5e00=%02x width=%u height=%u hts_px=%u vts=%u clock=%s format=%s",
+			 regs[0], regs[1], regs[2], regs[3], regs[4], regs[5],
+			 regs[6], regs[7], regs[8], regs[9], regs[10],
+			 regs[11], regs[12], regs[13], regs[14], regs[15],
+			 width, height, (u32)hts * 2, vts, clock, format);
+}
 
+static int ov9281_read_timing_regs(struct camera_common_data *s_data, u8 *regs,
+				   u16 *failed_addr)
+{
+	int i;
+	int err = 0;
+
+	for (i = 0; i < OV9281_TIMING_NREGS; i++) {
+		err = ov9281_read_u8(s_data, ov9281_timing_addrs[i], &regs[i]);
+		if (err) {
+			if (failed_addr)
+				*failed_addr = ov9281_timing_addrs[i];
+			return err;
+		}
+	}
+	return 0;
+}
+
+static void ov9281_store_timing_cache(struct camera_common_data *s_data, const char *line)
+{
+	struct ov9281 *priv = s_data->priv;
+
+	if (!priv)
+		return;
+	scnprintf(priv->timing_cache, sizeof(priv->timing_cache), "%s", line);
+	priv->timing_cache_valid = true;
+}
+
+static int ov9281_log_timing(struct camera_common_data *s_data, const char *when)
+{
+	u8 regs[OV9281_TIMING_NREGS];
+	char line[512];
+	u16 width, height, hts;
+	u16 failed = 0;
+	int err;
+
+	err = ov9281_read_timing_regs(s_data, regs, &failed);
+	if (err) {
+		dev_err(s_data->dev, "ov9281 timing %s read 0x%04x failed (%d)\n",
+			when, failed, err);
+		return err;
+	}
+	ov9281_format_timing(line, sizeof(line), regs);
+	ov9281_store_timing_cache(s_data, line);
+	dev_info(s_data->dev, "ov9281 timing %s %s\n", when, line);
+
+	width = ((u16)regs[0] << 8) | regs[1];
+	height = ((u16)regs[2] << 8) | regs[3];
+	hts = ((u16)regs[4] << 8) | regs[5];
 	if (width != 1280 || (height != 800 && height != 720) ||
-	    strcmp(format, "RAW10") || (mipi & OV9281_MIPI_CLOCK_GATED) ||
+	    !(regs[10] == OV9281_PLL_RAW10 && regs[9] == OV9281_ANA_RAW10) ||
+	    (regs[8] & OV9281_MIPI_CLOCK_GATED) ||
 	    (u32)hts * 2 != OV9281_LINE_LENGTH) {
 		dev_err(s_data->dev,
 			"ov9281 timing mismatch: want 1280x800 or 1280x720 RAW10 continuous line %u\n",
@@ -836,37 +1051,25 @@ static ssize_t ov9281_timing_show(struct device *dev,
 				   struct device_attribute *attr, char *buf)
 {
 	struct camera_common_data *s_data = to_camera_common_data(dev);
-	u16 width = 0, height = 0, hts = 0, vts = 0;
-	u8 regs[11];
-	static const u16 addrs[] = {
-		0x3808, 0x3809, 0x380a, 0x380b, 0x380c, 0x380d, 0x380e, 0x380f,
-		0x4800, 0x3662, 0x030d,
-	};
-	int i;
-	int err = 0;
+	struct ov9281 *priv;
+	u8 regs[OV9281_TIMING_NREGS];
+	char line[512];
+	u16 failed = 0;
+	int err;
 
 	(void)attr;
 	if (!s_data)
 		return -ENODEV;
-	for (i = 0; i < (int)ARRAY_SIZE(addrs); i++) {
-		err = ov9281_read_u8(s_data, addrs[i], &regs[i]);
-		if (err)
-			return sysfs_emit(buf, "ov9281 timing read 0x%04x failed (%d)\n",
-					  addrs[i], err);
+	priv = s_data->priv;
+	err = ov9281_read_timing_regs(s_data, regs, &failed);
+	if (err) {
+		if (priv && priv->timing_cache_valid)
+			return sysfs_emit(buf, "%s source=cached\n", priv->timing_cache);
+		return sysfs_emit(buf, "read 0x%04x failed (%d)\n", failed, err);
 	}
-	width = ((u16)regs[0] << 8) | regs[1];
-	height = ((u16)regs[2] << 8) | regs[3];
-	hts = ((u16)regs[4] << 8) | regs[5];
-	vts = ((u16)regs[6] << 8) | regs[7];
-	return sysfs_emit(buf,
-			  "3808=%02x 3809=%02x 380a=%02x 380b=%02x 380c=%02x 380d=%02x 380e=%02x 380f=%02x 4800=%02x 3662=%02x 030d=%02x width=%u height=%u hts_px=%u vts=%u clock=%s format=%s\n",
-			  regs[0], regs[1], regs[2], regs[3], regs[4], regs[5],
-			  regs[6], regs[7], regs[8], regs[9], regs[10],
-			  width, height, (u32)hts * 2, vts,
-			  (regs[8] & OV9281_MIPI_CLOCK_GATED) ? "gated" : "continuous",
-			  (regs[10] == OV9281_PLL_RAW10 && regs[9] == OV9281_ANA_RAW10) ? "RAW10" :
-			  (regs[10] == OV9281_PLL_RAW8 && regs[9] == OV9281_ANA_RAW8) ? "RAW8" :
-			  "unknown");
+	ov9281_format_timing(line, sizeof(line), regs);
+	ov9281_store_timing_cache(s_data, line);
+	return sysfs_emit(buf, "%s source=live\n", line);
 }
 
 static DEVICE_ATTR_RO(ov9281_timing);
@@ -924,6 +1127,15 @@ static int ov9281_set_mode(struct tegracam_device *tc_dev)
 	if (err)
 		return err;
 
+	/*
+	 * Software reset cleared exposure and gain. Replay the V4L2 values
+	 * before the framework's range update, and again in start_streaming
+	 * after that update (it can clamp an out-of-range INTEGER64 to min).
+	 */
+	err = ov9281_apply_controls(tc_dev, "set_mode");
+	if (err)
+		return err;
+
 	dev_info(tc_dev->dev, "mode %d %ux%u RAW%u VTS %u line %u mbus 0x%x\n",
 		 s_data->mode, mode->width, mode->height, mode->bpp,
 		 priv->frame_length, mode->line_length, ov9281_mbus_code(mode));
@@ -934,7 +1146,11 @@ static int ov9281_set_mode(struct tegracam_device *tc_dev)
 static int ov9281_start_streaming(struct tegracam_device *tc_dev)
 {
 	struct camera_common_data *s_data = tc_dev->s_data;
+	int err;
 
+	err = ov9281_apply_controls(tc_dev, "stream");
+	if (err)
+		return err;
 	ov9281_log_timing(s_data, "stream");
 	return ov9281_write_reg(s_data, OV9281_REG_MODE_SELECT, OV9281_MODE_STREAMING);
 }
@@ -1048,6 +1264,109 @@ static int ov9281_board_setup(struct ov9281 *priv)
 	return err;
 }
 
+static void ov9281_program_one_default(struct camera_common_data *s_data,
+				      u32 id, s64 val, const char *name)
+{
+	struct v4l2_ctrl *ctrl;
+	int err;
+
+	if (!s_data || !s_data->ctrl_handler)
+		return;
+	ctrl = v4l2_ctrl_find(s_data->ctrl_handler, id);
+	if (!ctrl) {
+		dev_err(s_data->dev, "ov9281 missing %s control\n", name);
+		return;
+	}
+	err = v4l2_ctrl_s_ctrl_int64(ctrl, val);
+	if (err)
+		dev_err(s_data->dev, "ov9281 default %s=%lld failed (%d)\n", name, val, err);
+	else
+		dev_info(s_data->dev, "ov9281 default %s=%lld\n", name, val);
+}
+
+/*
+ * tegracam_init_ctrl_ranges() runs inside handler init, while the sensor
+ * is off. For INTEGER64, v4l2 clamps a current value of 0 up to the
+ * minimum and does not move it to the DT default. Push the defaults
+ * into the controls here. Power is still off, so this only updates the
+ * V4L2 cache; ov9281_apply_controls writes the sensor at stream start.
+ */
+static void ov9281_program_ctrl_defaults(struct camera_common_data *s_data)
+{
+	ov9281_program_one_default(s_data, TEGRA_CAMERA_CID_EXPOSURE,
+				   OV9281_DEFAULT_EXPOSURE_US, "exposure");
+	ov9281_program_one_default(s_data, TEGRA_CAMERA_CID_GAIN,
+				   OV9281_DEFAULT_GAIN, "gain");
+	ov9281_program_one_default(s_data, TEGRA_CAMERA_CID_FRAME_RATE,
+				   OV9281_DEFAULT_FRAME_RATE, "frame_rate");
+}
+
+static struct video_device *ov9281_video_downstream(struct media_entity *entity, int depth)
+{
+	struct media_link *link;
+
+	if (!entity || depth > 6)
+		return NULL;
+	if (entity->obj_type == MEDIA_ENTITY_TYPE_VIDEO_DEVICE)
+		return media_entity_to_video_device(entity);
+	list_for_each_entry(link, &entity->links, list) {
+		struct video_device *vdev;
+
+		if (link->source->entity != entity)
+			continue;
+		vdev = ov9281_video_downstream(link->sink->entity, depth + 1);
+		if (vdev)
+			return vdev;
+	}
+	return NULL;
+}
+
+static void ov9281_install_test_pattern(struct ov9281 *priv)
+{
+	struct v4l2_ctrl_handler *hdl;
+	struct v4l2_ctrl *ctrl;
+	struct video_device *vdev;
+	int err;
+
+	if (!priv || !priv->s_data || !priv->s_data->ctrl_handler)
+		return;
+	hdl = priv->s_data->ctrl_handler;
+	ctrl = v4l2_ctrl_new_std_menu_items(hdl, &ov9281_test_pattern_ops,
+					    V4L2_CID_TEST_PATTERN,
+					    ARRAY_SIZE(ov9281_test_pattern_menu) - 1,
+					    0, 0, ov9281_test_pattern_menu);
+	if (!ctrl) {
+		dev_err(priv->s_data->dev, "ov9281 test_pattern control failed (%d)\n",
+			hdl->error);
+		return;
+	}
+	ctrl->priv = priv;
+	priv->test_pattern = 0;
+
+	/*
+	 * VI copies the sensor handler when the channel binds, which is
+	 * inside tegracam_v4l2subdev_register, before this control exists.
+	 * Push the new control onto that video node. If the node is not
+	 * linked yet, the later copy takes the whole handler.
+	 */
+	if (!priv->subdev)
+		return;
+	vdev = ov9281_video_downstream(&priv->subdev->entity, 0);
+	if (!vdev || !vdev->ctrl_handler) {
+		dev_info(priv->s_data->dev,
+			 "ov9281 test_pattern is on the sensor; video node not linked yet\n");
+		return;
+	}
+	err = v4l2_ctrl_add_handler(vdev->ctrl_handler, hdl, NULL, false);
+	if (err)
+		dev_err(priv->s_data->dev,
+			"ov9281 test_pattern inherit on %s failed (%d)\n",
+			video_device_node_name(vdev), err);
+	else
+		dev_info(priv->s_data->dev, "ov9281 test_pattern on %s\n",
+			 video_device_node_name(vdev));
+}
+
 static int ov9281_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
@@ -1118,6 +1437,9 @@ static int ov9281_probe(struct i2c_client *client, const struct i2c_device_id *i
 		dev_err(dev, "v4l2 subdev register failed (%d)\n", err);
 		goto unregister;
 	}
+
+	ov9281_install_test_pattern(priv);
+	ov9281_program_ctrl_defaults(priv->s_data);
 
 	err = device_create_file(dev, &dev_attr_ov9281_timing);
 	if (err) {

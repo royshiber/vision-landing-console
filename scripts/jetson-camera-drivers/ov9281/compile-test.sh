@@ -27,6 +27,20 @@ python3 "${ROOT}/frame_stats.py" "${tmpdir}/raw.bin" \
 grep -q '^mean ' "${tmpdir}/stats.txt"
 grep -q '^stddev ' "${tmpdir}/stats.txt"
 grep -q 'classification varied' "${tmpdir}/stats.txt"
+grep -q 'alignment shift 0' "${tmpdir}/stats.txt"
+python3 - <<PY
+import numpy as np
+w, h = 1280, 800
+frame = np.zeros(w * h, dtype="<u2")
+frame[:] = (np.uint16(100) << 4) | np.uint16(3)
+frame[::17] = (np.uint16(900) << 4) | np.uint16(1)
+frame.tofile("${tmpdir}/shift4.raw")
+PY
+python3 "${ROOT}/frame_stats.py" "${tmpdir}/shift4.raw" \
+  --width 1280 --height 800 --pixelformat RG10 \
+  --png "${tmpdir}/shift4.png" | tee "${tmpdir}/shift4.txt"
+grep -q 'alignment shift 4' "${tmpdir}/shift4.txt"
+grep -q 'classification varied' "${tmpdir}/shift4.txt"
 python3 - <<PY
 import numpy as np
 np.zeros(1280 * 800, dtype=np.uint8).tofile("${tmpdir}/black.raw")

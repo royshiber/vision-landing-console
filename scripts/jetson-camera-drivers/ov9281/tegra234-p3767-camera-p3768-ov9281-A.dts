@@ -174,7 +174,7 @@
 								min_gain_val = "16";
 								max_gain_val = "255";
 								step_gain_val = "1";
-								default_gain = "16";
+								default_gain = "64";
 								min_hdr_ratio = "1";
 								max_hdr_ratio = "1";
 								min_framerate = "10000000";
@@ -184,7 +184,8 @@
 								min_exp_time = "10";
 								max_exp_time = "100000";
 								step_exp_time = "1";
-								default_exp_time = "5000";
+								/* 10000 us = 10 ms. Gain 64 is 0x3509 = 4x (code/16). */
+								default_exp_time = "10000";
 								embedded_metadata_height = "0";
 							};
 
@@ -214,7 +215,7 @@
 								min_gain_val = "16";
 								max_gain_val = "255";
 								step_gain_val = "1";
-								default_gain = "16";
+								default_gain = "64";
 								min_hdr_ratio = "1";
 								max_hdr_ratio = "1";
 								min_framerate = "10000000";
@@ -224,7 +225,7 @@
 								min_exp_time = "10";
 								max_exp_time = "100000";
 								step_exp_time = "1";
-								default_exp_time = "5000";
+								default_exp_time = "10000";
 								embedded_metadata_height = "0";
 							};
 

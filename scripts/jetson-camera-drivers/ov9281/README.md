@@ -19,7 +19,11 @@ There is no 8-bit mode. `sensor_common` has no `bayer_*8` string, so a second mo
 | 0 | 1280x800 | bayer RAW10 rggb | `RG10` |
 | 1 | 1280x720 | bayer RAW10 rggb | `RG10` |
 
-Default is mode 0 at 60 fps. Gain, exposure, and frame rate are the usual tegracam controls (`gain`, `exposure`, `frame_rate`, `sensor_mode`).
+Default is mode 0 at 60 fps. Gain, exposure, and frame rate are the usual tegracam controls (`gain`, `exposure`, `frame_rate`, `sensor_mode`). `test_pattern` is a menu on register `0x5e00`: `0` off, `1` color bars (`0x80`), `2`..`4` the other bar types (`0x81`..`0x83`).
+
+Exposure is microseconds. The driver default is `10000` (10 ms). Gain is the `0x3509` code, and the sensor gain is that code divided by 16: `16` is 1x, `64` is 4x, `255` is about 16x. The default is `64` (4x). Analog gain stops near 16x; 32x does not fit in `0x3509`.
+
+tegracam clamps an INTEGER64 control that starts at 0 up to the minimum, so a fresh node used to report `exposure=10` and `frame_rate=10000000` even when the devicetree default was higher. Probe writes 10000 / 64 / 60000000 into those controls. Stream start writes them again after the software reset, and again on each V4L2 change while the sensor is on. The `ov9281 timing` line includes `3500`..`3502`, `3509`, `380e`/`380f`, and `5e00`. An idle read of `ov9281_timing` returns that last line with `source=cached` when the sensor is powered down (`-121`).
 
 ## Wiring
 
@@ -119,6 +123,21 @@ python3 frame_stats.py /tmp/ov9281.raw --width 1280 --height 800 \
 
 720p is `sensor_mode=1` with `height=720`, still `RG10`. The samples are mono even though the fourcc says RGGB.
 
+`frame_stats.py` prints `alignment shift N`: the right shift that puts the 16-bit words into 10 bits. Shift 0 is the V4L2 low-10 layout. A higher shift means the samples sit higher in the Tegra 16-bit container. Mean and the PNG use that shift.
+
+Color bars, independent of the lens:
+
+```bash
+v4l2-ctl -d /dev/video0 --set-ctrl=sensor_mode=0,test_pattern=1
+v4l2-ctl -d /dev/video0 --set-fmt-video=width=1280,height=800,pixelformat=RG10 \
+  --stream-mmap --stream-count=10 --stream-to=/tmp/ov9281-bars.raw
+python3 frame_stats.py /tmp/ov9281-bars.raw --width 1280 --height 800 \
+  --pixelformat RG10 --png /tmp/ov9281-bars.png
+v4l2-ctl -d /dev/video0 --set-ctrl=test_pattern=0
+```
+
+`test_pattern=1` writes `0x5e00=0x80` at stream start. Bars in the PNG mean the CSI path is carrying sensor data. A flat field that does not change when `exposure` goes from 10000 to 100 means the readback registers (`3500`..`3502`, `3509`) did not change either; check the `ov9281 apply stream` and `ov9281 timing stream` lines.
+
 ## Troubleshooting
 
 **Wrong I2C address.** dmesg shows `chip id read failed` with an errno, or `i2cdetect -r` on the camera mux bus is empty at `0x60` after a probe that powered the sensor. An empty scan while the probe never released reset is expected: CAM0_PWDN stays low and the module is unpowered. Some boards answer at `0x70` (or `0x10` if the straps were copied from an IMX219). Change `reg = <0x60>` in the overlay, rebuild, reinstall, reboot. Find the mux bus with `i2cdetect -l` and scan it only after dmesg shows `power on for chip-id`.
@@ -131,7 +150,9 @@ python3 frame_stats.py /tmp/ov9281.raw --width 1280 --height 800 \
 
 **`/dev/video0` missing but the chip id is in dmesg.** The tegracam platform matches `devname` / `sysfs-device-tree`. The i2c bus number in `devname = "ov9281 9-0060"` can differ. Read the client name from dmesg (`ov9281 10-0060` or similar) and set `devname` to that exact string. The sysfs path must match the node that actually probed.
 
-**Every frame dropped, `err_data 131072`.** That is `0x20000`, bit 17 of the VI channel errors in `camrtc-capture.h`: `CAPTURE_CHANNEL_ERROR_FORCE_FE` (frame end forced). The link is up and frames arrive at 60 fps, but VI aborts each one. This pack keeps the clock continuous: `discontinuous_clk = "no"` and `0x4800 = 0x00`, with line length 1456. Do not set bit 5 of `0x4800` unless `line_length` is at least 1530. `dmesg` line `ov9281 timing` and `/sys/bus/i2c/devices/9-0060/ov9281_timing` show the width, height, HTS, VTS, clock bit, and RAW10 registers read back at stream start.
+**Every frame dropped, `err_data 131072`.** That is `0x20000`, bit 17 of the VI channel errors in `camrtc-capture.h`: `CAPTURE_CHANNEL_ERROR_FORCE_FE` (frame end forced). The link is up and frames arrive at 60 fps, but VI aborts each one. This pack keeps the clock continuous: `discontinuous_clk = "no"` and `0x4800 = 0x00`, with line length 1456. Do not set bit 5 of `0x4800` unless `line_length` is at least 1530. `dmesg` line `ov9281 timing` and `/sys/bus/i2c/devices/9-0060/ov9281_timing` show the width, height, HTS, VTS, clock bit, exposure (`3500`..`3502`), gain (`3509`), and RAW10 registers read back at stream start. After the stream stops, that sysfs file returns the same numbers with `source=cached`. A read while the sensor is off and nothing has streamed yet prints `read 0x.... failed` instead of `-121` with no values.
+
+**Flat noise, exposure and gain do not change the picture.** The V4L2 readback only proves the control cache changed. The sensor write is the `ov9281 exposure`, `ov9281 gain`, and `ov9281 timing stream` lines (`3500`..`3502` and `3509`). At 10 ms and gain 64 those bytes are not the reset values. `test_pattern=1` then a capture separates a dark lens from a bad data path. `frame_stats.py` prints `alignment shift` so a 10-bit sample that is not in the low 10 bits of the 16-bit word is still measured as 10-bit data.
 
 **`Unsupported pixel format` / `Failed to read mode0 image props`.** The overlay still has `pixel_phase = "y"`, or an 8-bit mode. This `tegra-camera.ko` only accepts bayer 10/12/14. Rebuild and reinstall this overlay (`pixel_phase = "rggb"`, depth 10) and reboot. Do not rebuild `tegra-camera.ko`.
 

@@ -62,6 +62,7 @@ v4l2-ctl -d "${DEV}" --list-formats-ext
 # not a mode this tegra-camera.ko will register. bypass_mode=0 keeps
 # the frame in V4L2.
 v4l2-ctl -d "${DEV}" --set-ctrl=sensor_mode=0
+v4l2-ctl -d "${DEV}" --set-ctrl=test_pattern=0
 if ! v4l2-ctl -d "${DEV}" --set-ctrl=bypass_mode=0 >/tmp/ov9281-bypass.err 2>&1; then
   if grep -qi 'unknown control' /tmp/ov9281-bypass.err; then
     echo "bypass_mode is not on this node; continuing"
@@ -121,3 +122,27 @@ python3 "${ROOT}/frame_stats.py" "${raw}" \
   --pixelformat "${pixelformat}" \
   --png "${OUT}/frame0.png"
 echo "verify finished. Inspect mean/stddev above and ${OUT}/frame0.png"
+
+bars="${OUT}/bars.raw"
+rm -f "${bars}"
+echo "test pattern: color bars (test_pattern=1, 0x5e00=0x80)"
+v4l2-ctl -d "${DEV}" --set-ctrl=test_pattern=1
+if timeout 20 v4l2-ctl -d "${DEV}" \
+    --set-fmt-video=width=${WIDTH},height=${HEIGHT},pixelformat=${pixelformat} \
+    --stream-mmap --stream-count=5 --stream-to="${bars}"; then
+  if [[ -s "${bars}" && $(stat -c%s "${bars}") -ge ${frame_bytes} ]]; then
+    python3 "${ROOT}/frame_stats.py" "${bars}" \
+      --width "${WIDTH}" --height "${HEIGHT}" \
+      --pixelformat "${pixelformat}" \
+      --png "${OUT}/bars.png"
+    echo "color bars: ${bars} and ${OUT}/bars.png"
+  else
+    echo "test pattern capture was short" >&2
+    exit 1
+  fi
+else
+  echo "test pattern capture failed" >&2
+  exit 1
+fi
+v4l2-ctl -d "${DEV}" --set-ctrl=test_pattern=0
+dump_diag

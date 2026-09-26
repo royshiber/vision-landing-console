@@ -18,6 +18,7 @@ struct regmap;
 struct regmap_config;
 struct i2c_client;
 struct device;
+struct v4l2_ctrl_handler;
 
 enum {
 	SWITCH_OFF = 0,
@@ -86,6 +87,7 @@ struct camera_common_data {
 	int mode_prop_idx;
 	int def_clk_freq;
 	void *priv;
+	struct v4l2_ctrl_handler *ctrl_handler;
 };
 
 struct camera_common_frmfmt {
