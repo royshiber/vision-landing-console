@@ -42,7 +42,8 @@ class SyntheticSource:
         self.real = False
         self.source = "synthetic"
 
-    def set_exposure_gain(self, exposure_us, gain):
+    def set_exposure_gain(self, exposure_us, gain, fps=None):
+        del fps
         self.exposure_us = int(exposure_us)
         self.gain = int(gain)
 

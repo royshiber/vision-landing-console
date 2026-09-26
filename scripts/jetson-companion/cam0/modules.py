@@ -80,6 +80,8 @@ class ModuleHost:
             except Exception as exc:
                 result = None
                 err = type(exc).__name__
+            if result is None and err is None:
+                continue
             dt = (time.perf_counter() - t0) * 1000.0
             cpu_s = time.thread_time() - c0
             with self._lock:

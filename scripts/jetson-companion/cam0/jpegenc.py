@@ -1,8 +1,41 @@
-"""Baseline grayscale JPEG. Uses numpy for the DCT. No OpenCV required."""
+"""Grayscale JPEG for the live stream.
+
+cv2.imencode is used when OpenCV imports. It releases the GIL, so capture
+keeps running during encode. The numpy Huffman encoder is only the fallback.
+The import result is cached for the process.
+"""
 
 from __future__ import annotations
 
+import threading
+import time
+
 import numpy as np
+
+_cv2_state = {"tried": False, "mod": None}
+_encoder_local = threading.local()
+
+
+def cv2_module():
+    """Return cv2, or None. Tries the import once."""
+    if not _cv2_state["tried"]:
+        _cv2_state["tried"] = True
+        try:
+            import cv2
+        except Exception:
+            cv2 = None
+        _cv2_state["mod"] = cv2
+    return _cv2_state["mod"]
+
+
+def jpeg_encoder_name():
+    """Encoder encode_gray_jpeg will use: 'cv2' or 'numpy'."""
+    return "cv2" if cv2_module() is not None else "numpy"
+
+
+def last_jpeg_encoder():
+    """Encoder the calling thread last used inside encode_gray_jpeg."""
+    return getattr(_encoder_local, "name", None) or jpeg_encoder_name()
 
 _STD_LUMA_Q = np.array([
     16, 11, 10, 16, 24, 40, 51, 61,
@@ -117,9 +150,90 @@ def _downscale(gray, max_width):
     return np.ascontiguousarray(gray[::step, ::step])
 
 
+class JpegWorker:
+    """Encodes the newest downscaled frame off the capture thread."""
+
+    def __init__(self, encode=None):
+        self._encode = encode or encode_gray_jpeg
+        self._lock = threading.Lock()
+        self._pending = None
+        self._jpeg = None
+        self._stop = threading.Event()
+        self._wake = threading.Event()
+        self.stage_ms = None
+        self.encoder = None
+        self._thread = threading.Thread(target=self._run, name="cam0-jpeg", daemon=True)
+
+    def start(self):
+        self._stop.clear()
+        if self._thread.is_alive():
+            return
+        self._thread = threading.Thread(target=self._run, name="cam0-jpeg", daemon=True)
+        self._thread.start()
+
+    def stop(self):
+        self._stop.set()
+        self._wake.set()
+
+    def submit(self, gray, quality=55, max_width=640):
+        small = _downscale(np.asarray(gray, dtype=np.uint8), max_width)
+        with self._lock:
+            self._pending = (np.ascontiguousarray(small), int(quality))
+        self._wake.set()
+
+    def latest(self):
+        with self._lock:
+            return self._jpeg
+
+    def _run(self):
+        while not self._stop.is_set():
+            self._wake.wait(0.25)
+            self._wake.clear()
+            with self._lock:
+                job = self._pending
+                self._pending = None
+            if job is None:
+                continue
+            t0 = time.perf_counter()
+            try:
+                jpeg = self._encode(job[0], quality=job[1], max_width=None)
+            except Exception:
+                continue
+            ms = (time.perf_counter() - t0) * 1000.0
+            name = getattr(_encoder_local, "name", None) if self._encode is encode_gray_jpeg else None
+            with self._lock:
+                self._jpeg = jpeg
+                self.stage_ms = round(ms, 3)
+                if name:
+                    self.encoder = name
+
+
 def encode_gray_jpeg(gray, quality=70, max_width=None):
-    """Encode a 2D uint8 image as a baseline grayscale JPEG."""
+    """Encode a 2D uint8 image as a baseline grayscale JPEG.
+
+    Uses cv2.imencode when OpenCV imports. Falls back to the numpy encoder.
+    """
     img = _downscale(np.asarray(gray, dtype=np.uint8), max_width)
+    if img.ndim != 2:
+        img = np.squeeze(img)
+    img = np.ascontiguousarray(img, dtype=np.uint8)
+    cv2 = cv2_module()
+    if cv2 is not None:
+        try:
+            q = int(max(1, min(95, int(quality))))
+            ok, buf = cv2.imencode(".jpg", img, [int(cv2.IMWRITE_JPEG_QUALITY), q])
+            if ok and buf is not None:
+                _encoder_local.name = "cv2"
+                return buf.tobytes()
+        except Exception:
+            pass
+    _encoder_local.name = "numpy"
+    return _encode_gray_jpeg_numpy(img, quality)
+
+
+def _encode_gray_jpeg_numpy(img, quality):
+    """Baseline grayscale JPEG. Numpy DCT, pure-Python Huffman. Holds the GIL."""
+    img = np.asarray(img, dtype=np.uint8)
     h, w = img.shape
     hp = (h + 7) & ~7
     wp = (w + 7) & ~7

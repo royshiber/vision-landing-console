@@ -9,7 +9,15 @@ This module only returns geometry. It does not import a MAVLink sender.
 
 from __future__ import annotations
 
+import time
+
 import numpy as np
+
+from .jpegenc import cv2_module
+
+# Full-frame detection is pure Python when OpenCV is absent. Cap it so the
+# GIL is not held on every capture.
+MARKER_HZ = 15.0
 
 # Stable codes, minimum Hamming distance 5, seed 9281.
 DICTIONARY = {
@@ -114,6 +122,37 @@ def _border_ok(mono, corners):
 
 
 def _components(mask):
+    cv2 = cv2_module()
+    if cv2 is not None and hasattr(cv2, "findContours"):
+        try:
+            return _components_cv2(mask, cv2)
+        except Exception:
+            pass
+    return _components_python(mask)
+
+
+def _components_cv2(mask, cv2):
+    """Connected boxes via OpenCV. findContours releases the GIL."""
+    img = np.zeros(mask.shape, dtype=np.uint8)
+    img[mask] = 255
+    found = cv2.findContours(img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    contours = found[0] if len(found) == 2 else found[1]
+    boxes = []
+    h, w = mask.shape
+    for cnt in contours:
+        x, y, bw, bh = cv2.boundingRect(cnt)
+        if bw < 6 or bh < 6:
+            continue
+        x1 = min(w, x + bw)
+        y1 = min(h, y + bh)
+        count = int(np.count_nonzero(mask[y:y1, x:x1]))
+        if count < 16:
+            continue
+        boxes.append((int(x), int(y), int(x1 - 1), int(y1 - 1), count))
+    return boxes
+
+
+def _components_python(mask):
     h, w = mask.shape
     visited = np.zeros_like(mask, dtype=np.uint8)
     boxes = []
@@ -262,17 +301,26 @@ def pose_from_corners(corners, marker_size_m, intrinsics):
     }
 
 
+_aruco_detector = None
+_aruco_failed = False
+
+
 def try_opencv_detect(mono8):
-    try:
-        import cv2
-        if not hasattr(cv2, "aruco"):
-            return None
-    except Exception:
+    global _aruco_detector, _aruco_failed
+    if _aruco_failed:
         return None
-    dictionary = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50)
-    params = cv2.aruco.DetectorParameters()
-    detector = cv2.aruco.ArucoDetector(dictionary, params)
-    corners, ids, _ = detector.detectMarkers(np.asarray(mono8))
+    cv2 = cv2_module()
+    if cv2 is None or not hasattr(cv2, "aruco"):
+        return None
+    if _aruco_detector is None:
+        try:
+            dictionary = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50)
+            params = cv2.aruco.DetectorParameters()
+            _aruco_detector = cv2.aruco.ArucoDetector(dictionary, params)
+        except Exception:
+            _aruco_failed = True
+            return None
+    corners, ids, _ = _aruco_detector.detectMarkers(np.asarray(mono8))
     if ids is None:
         return []
     out = []
@@ -306,16 +354,27 @@ def detect(mono8, intrinsics=None, marker_size_m=0.16):
 
 
 class MarkerModule:
-    """Frame-bus module. Output only."""
+    """Frame-bus module. Output only.
+
+    Detection runs at MARKER_HZ. Skipped frames return None so the host keeps
+    the previous result and this thread does not hold the GIL.
+    """
 
     name = "marker"
+    min_interval_s = 1.0 / MARKER_HZ
 
     def __init__(self, intrinsics=None, marker_size_m=0.16):
         self.intrinsics = intrinsics
         self.marker_size_m = float(marker_size_m)
+        self._next = 0.0
 
     def on_frame(self, view):
-        detections = detect(view.mono8, self.intrinsics, self.marker_size_m)
+        now = time.monotonic()
+        if now < self._next:
+            return None
+        self._next = now + self.min_interval_s
+        mono = None if view.mono8 is None else np.array(view.mono8, dtype=np.uint8, copy=True)
+        detections = detect(mono, self.intrinsics, self.marker_size_m)
         return {
             "module": self.name,
             "frame_index": view.index,

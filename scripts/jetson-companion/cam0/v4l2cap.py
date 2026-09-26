@@ -175,6 +175,50 @@ _IOCTL_NAMES = {
 }
 
 
+def device_busy_message(exc):
+    """EBUSY means another process already has the camera."""
+    err = getattr(exc, "errno", None)
+    text = str(exc).lower()
+    if err == errno.EBUSY or "errno 16" in text or "device or resource busy" in text or "busy" in text:
+        return (
+            "device busy: stop the companion service (airvix-companion) so Cam0 releases "
+            "/dev/video0, then retry"
+        )
+    return None
+
+
+def exposure_control_unit(minimum, maximum, step=1):
+    """queryctrl range to 'us' or 'lines'.
+
+    A microsecond control can hold at least ~20 ms (maximum >= 20000).
+    A line control tops out near one frame of lines, below that.
+    """
+    del minimum, step
+    if int(maximum) >= 20000:
+        return "us"
+    return "lines"
+
+
+def exposure_driver_value(exposure_us, unit, minimum, maximum, fps=60):
+    exposure_us = int(exposure_us)
+    if unit == "lines":
+        frame_us = 1_000_000.0 / max(1, int(fps or 60))
+        span = max(1, int(maximum))
+        value = int(round(float(exposure_us) / frame_us * span))
+    else:
+        value = exposure_us
+    return int(max(int(minimum), min(int(maximum), value)))
+
+
+def gain_driver_value(gain, minimum, maximum):
+    gain = int(gain)
+    if int(maximum) >= 64:
+        value = gain
+    else:
+        value = int(round(gain / 16.0))
+    return int(max(int(minimum), min(int(maximum), value)))
+
+
 def describe_capture_error(exc):
     """Errno and message. Callers must not store only the exception type name."""
     if isinstance(exc, OSError):
@@ -250,7 +294,7 @@ class V4l2Source:
         self.fps = int(fps)
         self.buffers = int(buffers)
         self.exposure_us = 2000
-        self.gain = 32
+        self.gain = 16
         self.index = 0
         self.dropped = 0
         self.fd = None
@@ -261,12 +305,43 @@ class V4l2Source:
         self.source = "v4l2"
         self.temperature_c = None
         self.pixelformat = None
+        self.exposure_unit = "us"
+        self.exposure_driver = None
+        self.gain_driver = None
+        self._applied_exposure = None
+        self._applied_gain = None
+        self._temp_every = 30
 
-    def set_exposure_gain(self, exposure_us, gain):
-        self.exposure_us = int(exposure_us)
-        self.gain = int(gain)
-        self._set_named("exposure", self.exposure_us)
-        self._set_named("gain", self.gain)
+    def set_exposure_gain(self, exposure_us, gain, fps=None):
+        exposure_us = int(exposure_us)
+        gain = int(gain)
+        info = self._ctrl(self._ctrls.get("exposure"))
+        ginfo = self._ctrl(self._ctrls.get("gain"))
+        rate = int(fps or self.fps or 60)
+        if info is None:
+            unit = "us"
+            driver_exp = exposure_us
+        else:
+            unit = info.get("unit") or exposure_control_unit(info["minimum"], info["maximum"], info.get("step", 1))
+            driver_exp = exposure_driver_value(exposure_us, unit, info["minimum"], info["maximum"], fps=rate)
+        if ginfo is None:
+            driver_gain = gain
+        else:
+            driver_gain = gain_driver_value(gain, ginfo["minimum"], ginfo["maximum"])
+        self.exposure_us = exposure_us
+        self.gain = gain
+        self.exposure_unit = unit
+        if self.fd is None:
+            return False
+        if driver_exp == self._applied_exposure and driver_gain == self._applied_gain:
+            return False
+        self._set_named("exposure", driver_exp)
+        self._set_named("gain", driver_gain)
+        self._applied_exposure = driver_exp
+        self.exposure_driver = driver_exp
+        self._applied_gain = driver_gain
+        self.gain_driver = driver_gain
+        return True
 
     def close(self):
         if self.fd is None:
@@ -294,12 +369,20 @@ class V4l2Source:
         except Exception:
             pass
         self.fd = None
+        self._applied_exposure = None
+        self._applied_gain = None
+
+    def _ctrl(self, info):
+        if isinstance(info, dict):
+            return info
+        return None
 
     def _set_named(self, name, value):
-        cid = self._ctrls.get(name)
+        info = self._ctrls.get(name)
+        cid = info.get("id") if isinstance(info, dict) else info
         if cid is None or self.fd is None or value is None:
             return False
-        ctrl = _v4l2_control(cid, int(value))
+        ctrl = _v4l2_control(int(cid), int(value))
         try:
             _ioctl(self.fd, VIDIOC_S_CTRL, ctrl)
             return True
@@ -317,7 +400,16 @@ class V4l2Source:
                 break
             name = bytes(q.name).split(b"\x00", 1)[0].decode("ascii", "replace")
             if name:
-                found[name] = int(q.id)
+                info = {
+                    "id": int(q.id),
+                    "minimum": int(q.minimum),
+                    "maximum": int(q.maximum),
+                    "step": int(q.step),
+                }
+                if name.lower() == "exposure":
+                    info["unit"] = exposure_control_unit(info["minimum"], info["maximum"], info["step"])
+                found[name] = info
+                found[name.lower()] = info
             cid = int(q.id) | V4L2_CTRL_FLAG_NEXT_CTRL
         self._ctrls = found
         return found
@@ -404,8 +496,8 @@ class V4l2Source:
             except Exception:
                 break
             mm = self._maps[buf.index]
-            raw = bytes(mm[:buf.bytesused])
-            good = buf.bytesused >= self.width * self.height * 2 and any(raw)
+            used = int(buf.bytesused)
+            good = used >= self.width * self.height * 2 and any(mm[:min(used, 64)])
             _ioctl(self.fd, VIDIOC_QBUF, buf)
             self.dropped += 0 if good else 1
             if good:
@@ -420,6 +512,7 @@ class V4l2Source:
         buf = _v4l2_buffer()
         buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE
         buf.memory = V4L2_MEMORY_MMAP
+        t_dq = time.perf_counter()
         try:
             _ioctl(self.fd, VIDIOC_DQBUF, buf)
         except OSError as exc:
@@ -435,8 +528,12 @@ class V4l2Source:
                 _ioctl(self.fd, VIDIOC_QBUF, buf)
             except Exception:
                 pass
+        t_copy = time.perf_counter()
+        mono = to_mono8(raw)
+        t_conv = time.perf_counter()
         self.index += 1
-        self.temperature_c = read_temperature_c()
+        if self.index % self._temp_every == 0:
+            self.temperature_c = read_temperature_c()
         return {
             "index": self.index,
             "t_monotonic_ns": time.monotonic_ns(),
@@ -444,8 +541,11 @@ class V4l2Source:
             "width": self.width,
             "height": self.height,
             "raw_u16": raw,
-            "code10": to_code10(raw),
-            "mono8": to_mono8(raw),
+            "mono8": mono,
+            "stages_ms": {
+                "dqbuf": round((t_copy - t_dq) * 1000.0, 3),
+                "convert": round((t_conv - t_copy) * 1000.0, 3),
+            },
             "exposure_us": self.exposure_us,
             "gain": self.gain,
             "dropped": self.dropped,

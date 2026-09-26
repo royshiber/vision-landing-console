@@ -27,7 +27,7 @@ import urllib.request
 from .ae import AutoExposure
 from .marker import detect, render_marker
 from .png16 import encode_png16
-from .rawfmt import mean_and_percentile, pack_code10
+from .rawfmt import frame_stats, pack_code10
 
 
 def _get(url, token):
@@ -68,10 +68,10 @@ def main(argv=None):
         print(json.dumps(report, indent=2))
         return 2
 
-    from .v4l2cap import V4l2Source
+    from .v4l2cap import V4l2Source, describe_capture_error, device_busy_message
     src = V4l2Source(args.device, width=1280, height=800, fps=60)
     ae = AutoExposure()
-    src.set_exposure_gain(ae.state.exposure_us, ae.state.gain)
+    src.set_exposure_gain(ae.state.exposure_us, ae.state.gain, fps=src.fps)
     t0 = time.monotonic()
     frames = 0
     last = None
@@ -80,13 +80,16 @@ def main(argv=None):
         while time.monotonic() - t0 < args.seconds:
             frame = src.read()
             frames += 1
-            mean, pct = mean_and_percentile(frame["code10"], 90)
-            ae.update(mean, pct)
-            src.set_exposure_gain(ae.state.exposure_us, ae.state.gain)
+            mean, pct = frame_stats(frame, 90)
+            ae.update(mean, pct, fps=src.fps)
+            src.set_exposure_gain(ae.state.exposure_us, ae.state.gain, fps=src.fps)
             last = frame
     except Exception as exc:
-        from .v4l2cap import describe_capture_error
-        report["steps"].append({"capture": "error", "error": describe_capture_error(exc)})
+        busy = device_busy_message(exc)
+        if busy:
+            report["steps"].append({"capture": "busy", "error": busy})
+        else:
+            report["steps"].append({"capture": "error", "error": describe_capture_error(exc)})
         print(json.dumps(report, indent=2))
         return 1
     finally:
