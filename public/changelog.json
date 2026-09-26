@@ -1,5 +1,36 @@
 [
   {
+    "version": "1.02.358",
+    "date": "2026-09-26",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "UI / app.js",
+        "detail": "app.js"
+      },
+      {
+        "type": "feat",
+        "title": "Frontend",
+        "detail": "cam1-panel.mjs"
+      },
+      {
+        "type": "ui",
+        "title": "HTML layout",
+        "detail": "index.html"
+      },
+      {
+        "type": "ui",
+        "title": "Styles",
+        "detail": "styles.css"
+      },
+      {
+        "type": "test",
+        "title": "Tests",
+        "detail": "archive-sessions.test.mjs, arm-disarm-qa.test.mjs, arm-disarm.test.mjs, optics-debrief-tab.test.mjs"
+      }
+    ]
+  },
+  {
     "version": "1.02.357",
     "date": "2026-09-26",
     "changes": [
@@ -10,7 +41,6 @@
       }
     ]
   },
-
   {
     "version": "1.02.356",
     "date": "2026-09-26",
@@ -22,7 +52,6 @@
       }
     ]
   },
-
   {
     "version": "1.02.355",
     "date": "2026-09-26",
@@ -34,7 +63,6 @@
       }
     ]
   },
-
   {
     "version": "1.02.354",
     "date": "2026-09-26",
@@ -46,7 +74,6 @@
       }
     ]
   },
-
   {
     "version": "1.02.353",
     "date": "2026-09-26",

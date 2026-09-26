@@ -2414,6 +2414,7 @@ let jetsonReadAt = null;
 let fcReadAt = null;
 let jetsonLinkState = 'unknown';
 let fcLinkState = 'unknown';
+let liveFcMavlink = null;
 let backupLoadState = 'unknown';
 let paramToolRetryAction = null;
 
@@ -2499,14 +2500,17 @@ function fcWritePairs(keys, nextByKey) {
   }));
 }
 
-function resolvedFcLink() {
-  if (fcLinkState !== 'unknown') return fcLinkState;
-  try {
-    if (window.__vlcConnectWidget && typeof window.__vlcConnectWidget.isConnected === 'function') {
-      return window.__vlcConnectWidget.isConnected() ? 'ok' : 'down';
-    }
-  } catch { /* widget not ready */ }
+function fcLinkFromTelemetry(mav, paramState) {
+  if (mav && mav.connected === true) {
+    const age = Number(mav.lastHeartbeatAgeMs);
+    if (!Number.isFinite(age) || age <= 5000) return 'ok';
+  }
+  if (paramState && paramState !== 'unknown') return paramState;
   return 'unknown';
+}
+
+function resolvedFcLink() {
+  return fcLinkFromTelemetry(liveFcMavlink, fcLinkState);
 }
 
 function refreshParamToolbarMeta() {
@@ -7620,8 +7624,8 @@ function translatePrearmText(raw) {
   if (!line) return '';
   const rules = [
     [/3d accel calibration needed/i, 'לא ניתן לחמש: נדרש כיול מד תאוצה'],
-    [/gps speed error/i, 'לא ניתן לחמש: שגיאת מהירות לוויין'],
-    [/need 3d fix|need gps/i, 'לא ניתן לחמש: נדרש מיקום לווייני'],
+    [/gps speed error/i, 'לא ניתן לחמש: שגיאת מהירות GPS'],
+    [/need 3d fix|need gps/i, 'לא ניתן לחמש: נדרש מיקום GPS'],
     [/compass not healthy/i, 'לא ניתן לחמש: המצפן לא תקין'],
     [/waiting for navigation/i, 'לא ניתן לחמש: ממתינים לבדיקות ניווט'],
     [/rc not (calibrated|found)/i, 'לא ניתן לחמש: נדרש כיול שלט'],
@@ -7634,7 +7638,7 @@ function translatePrearmText(raw) {
     [/battery/i, 'לא ניתן לחמש: הסוללה לא תקינה'],
     [/radio failsafe/i, 'לא ניתן לחמש: אבד קשר רדיו'],
     [/logging failed/i, 'לא ניתן לחמש: הרישום נכשל'],
-    [/ekf/i, 'לא ניתן לחמש: הערכת המצב לא תקינה'],
+    [/ekf/i, 'לא ניתן לחמש: EKF לא תקין'],
     [/baro/i, 'לא ניתן לחמש: מד הגובה לא תקין'],
     [/fence/i, 'לא ניתן לחמש: נדרש מיקום לגדר'],
   ];
@@ -7912,6 +7916,7 @@ function applyFlightHud(mav) {
     return;
   }
   latestHudMavlink = mav;
+  liveFcMavlink = mav;
 
   // Attitude is independent of GPS / VFR tapes. Missing alt/IAS must not block roll/pitch,
   // and a links-only snapshot without angles must not wipe a live attitude.
@@ -8795,7 +8800,10 @@ function missionTileBoundKey(el) {
 }
 
 function applyTopbarFlightData(mav) {
-  if (mav) latestHudMavlink = mav;
+  if (mav) {
+    latestHudMavlink = mav;
+    liveFcMavlink = mav;
+  }
   if (!mav) {
     if (hudAltitudeEl) {
       hudAltitudeEl.title = VLC_TOOLTIP_NO_LINK;

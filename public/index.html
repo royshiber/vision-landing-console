@@ -1154,7 +1154,7 @@
             </div>
             <select id="cam0SourceAdapter" class="cam0-source-adapter" data-camera-source-picker hidden aria-hidden="true"></select>
           </section>
-          <section id="cam1Panel" class="cam0-panel cam1-panel" dir="rtl" aria-label="CAM1">
+          <section id="cam1Panel" class="cam0-panel cam1-panel" dir="rtl" aria-label="CAM1" hidden>
             <header class="cam0-head">
               <h3 class="cam0-title cam1-title">CAM1</h3>
               <p id="cam1Honesty" class="cam0-honesty">אין אות</p>
@@ -1239,7 +1239,17 @@
             </div>
             <input id="timelineRange" type="range" min="0" max="100" value="0" />
           </div>
-
+          <aside class="debrief-recordings-side" aria-label="הקלטות">
+            <div class="archive-sessions-card" id="archiveSessionsCard">
+              <div class="flights-mgr-header">
+                <h3 class="flights-mgr-title">הקלטות ארכיון</h3>
+                <button type="button" id="refreshArchiveSessionsBtn" title="רענן">⟳ רענן</button>
+              </div>
+              <p id="archiveSessionsEmpty" class="archive-sessions-empty">אין הקלטות ארכיון עדיין</p>
+              <div id="archiveSessionsList" class="archive-sessions-list" hidden></div>
+              <p id="archiveSessionsStatus" class="archive-sessions-status" aria-live="polite"></p>
+            </div>
+          </aside>
         </div>
         <div id="debriefLogsPanel" class="tele-subpanel debrief-logs-panel flights-panel" data-debrief-panel="logs">
           <div class="debrief-logs-grid">
@@ -1291,15 +1301,6 @@
               <div id="flightListWrap" class="flight-list-wrap"></div>
             </div>
             <div class="debrief-logs-col debrief-logs-col--history">
-              <div class="archive-sessions-card" id="archiveSessionsCard">
-                <div class="flights-mgr-header">
-                  <h3 class="flights-mgr-title">הקלטות ארכיון</h3>
-                  <button type="button" id="refreshArchiveSessionsBtn" title="רענן">⟳ רענן</button>
-                </div>
-                <p id="archiveSessionsEmpty" class="archive-sessions-empty">אין הקלטות ארכיון עדיין</p>
-                <div id="archiveSessionsList" class="archive-sessions-list" hidden></div>
-                <p id="archiveSessionsStatus" class="archive-sessions-status" aria-live="polite"></p>
-              </div>
               <div class="flights-mgr-header debrief-all-logs-head">
                 <h3 class="flights-mgr-title">כל הלוגים</h3>
                 <button type="button" id="refreshAllLogsBtn" title="רענן">⟳ רענן</button>

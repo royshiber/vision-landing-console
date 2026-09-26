@@ -175,6 +175,8 @@ function init() {
     btn1.classList.toggle('is-active', on1);
     btn0.setAttribute('aria-selected', String(!on1));
     btn1.setAttribute('aria-selected', String(on1));
+    if (cam0) cam0.hidden = on1;
+    panel.hidden = !on1;
     document.dispatchEvent(new CustomEvent('vlc-debrief-open-cam', { detail: which }));
     nextAt = 0;
     void tick();

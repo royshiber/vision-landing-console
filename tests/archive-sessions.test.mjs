@@ -233,7 +233,7 @@ describe('GET /api/telemetry-archive/sessions', () => {
 });
 
 describe('תחקור archive sessions UI contract', () => {
-  it('hosts the archive list in לוגים with Hebrew empty state', () => {
+  it('hosts the archive list beside the debrief video', () => {
     const rec = html.match(
       /<section\b[^>]*\bid="recordings"[^>]*>([\s\S]*?)<\/section>\s*<section\b[^>]*\bid="telemetry"/,
     )?.[1] || '';
@@ -244,6 +244,8 @@ describe('תחקור archive sessions UI contract', () => {
     expect(rec).toContain('הקלטות ארכיון');
     expect(rec).toContain('אין הקלטות ארכיון עדיין');
     expect(rec).toMatch(/id="debriefLogsBtn"[^>]*data-debrief-tab="logs"[^>]*>לוגים</);
+    expect(rec.indexOf('id="debriefRecordingsPanel"')).toBeLessThan(rec.indexOf('archiveSessionsCard'));
+    expect(rec.indexOf('archiveSessionsCard')).toBeLessThan(rec.indexOf('id="debriefLogsPanel"'));
     expect(rec.indexOf('archiveSessionsCard')).toBeLessThan(rec.indexOf('allLogsArduTbody'));
   });
 

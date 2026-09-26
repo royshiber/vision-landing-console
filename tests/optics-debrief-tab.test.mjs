@@ -284,6 +284,8 @@ describe('Optics debrief tab — live layout', () => {
       return {
         hiddenCam0: document.getElementById('cam0Panel')?.hidden === true,
         cam0Shown: document.getElementById('cam0Panel')?.hidden !== true,
+        cam1Selected: document.getElementById('opticsCam1Btn')?.classList.contains('is-active') === true,
+        cam0Selected: document.getElementById('opticsCam0Btn')?.classList.contains('is-active') === true,
         status: document.getElementById('cam1StatusText')?.textContent || '',
         reason: document.getElementById('cam1Reason')?.textContent || '',
         fps: document.getElementById('cam1Fps')?.textContent || '',
@@ -337,8 +339,10 @@ describe('Optics debrief tab — live layout', () => {
         }
         const cam1 = await auditCam1(page);
         await page.screenshot({ path: path.join(shotDir, `optics-cam1-${name}.png`), fullPage: false });
-        expect(cam1.cam0Shown).toBe(true);
-        expect(cam1.hiddenCam0).toBe(false);
+        expect(cam1.cam0Shown).toBe(false);
+        expect(cam1.hiddenCam0).toBe(true);
+        expect(cam1.cam1Selected).toBe(true);
+        expect(cam1.cam0Selected).toBe(false);
         expect(cam1.status).toContain('לא מחובר');
         expect(cam1.reason).toContain('אין קישור');
         expect(cam1.fps).toBe('—');
@@ -371,29 +375,50 @@ describe('Optics debrief tab — live layout', () => {
       expect(reverted).not.toBe('5000');
 
       await page.locator('[data-tab="recordings"]').evaluate((el) => el.click());
-      await page.locator('#debriefLogsBtn').evaluate((el) => el.click());
-      await page.waitForSelector('#debriefLogsPanel.visible #refreshArchiveSessionsBtn');
-      await page.locator('#refreshArchiveSessionsBtn').evaluate((el) => el.scrollIntoView({ block: 'center' }));
-      const logs = await page.evaluate(() => {
+      await page.waitForSelector('#debriefRecordingsPanel.visible #refreshArchiveSessionsBtn');
+      const recordings = await page.evaluate(() => {
+        const panel = document.getElementById('debriefRecordingsPanel');
+        const video = panel.querySelector('.video-column');
+        const side = panel.querySelector('.debrief-recordings-side');
+        const stage = panel.querySelector('.debrief-player-stage');
+        const pr = panel.getBoundingClientRect();
+        const vr = video.getBoundingClientRect();
+        const sr = side.getBoundingClientRect();
+        const st = stage.getBoundingClientRect();
         const btn = document.getElementById('refreshArchiveSessionsBtn');
-        const card = document.querySelector('.log-upload-card');
-        const arch = document.getElementById('archiveSessionsCard');
-        const title = document.querySelector('.log-upload-title');
         const r = btn.getBoundingClientRect();
         const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
-        const cr = card.getBoundingClientRect();
-        const ar = arch.getBoundingClientRect();
-        const overlap = cr.left < ar.right - 2 && cr.right > ar.left + 2 && cr.top < ar.bottom - 2 && cr.bottom > ar.top - 2;
-        const cs = getComputedStyle(title);
         return {
           hit: top?.id || '',
-          overlap,
-          titleColor: cs.color,
-          titleBg: getComputedStyle(card).backgroundColor,
+          videoW: vr.width,
+          sideW: sr.width,
+          panelH: pr.height,
+          videoH: vr.height,
+          sideH: sr.height,
+          stageH: st.height,
+          gapBelow: pr.bottom - Math.max(vr.bottom, sr.bottom),
         };
       });
-      expect(logs.hit).toBe('refreshArchiveSessionsBtn');
-      expect(logs.overlap).toBe(false);
+      expect(recordings.hit).toBe('refreshArchiveSessionsBtn');
+      expect(recordings.videoW).toBeGreaterThan(recordings.sideW);
+      expect(recordings.sideW).toBeGreaterThan(180);
+      expect(recordings.sideW).toBeLessThan(320);
+      expect(Math.abs(recordings.videoH - recordings.panelH)).toBeLessThan(8);
+      expect(Math.abs(recordings.sideH - recordings.panelH)).toBeLessThan(8);
+      expect(recordings.stageH).toBeGreaterThan(recordings.panelH * 0.45);
+      expect(recordings.gapBelow).toBeLessThan(12);
+      await page.locator('#debriefLogsBtn').evaluate((el) => el.click());
+      await page.waitForSelector('#debriefLogsPanel.visible .log-upload-title');
+      const logs = await page.evaluate(() => {
+        const title = document.querySelector('.log-upload-title');
+        const card = document.querySelector('.log-upload-card');
+        return {
+          titleColor: getComputedStyle(title).color,
+          titleBg: getComputedStyle(card).backgroundColor,
+          archiveInLogs: document.querySelector('#debriefLogsPanel #archiveSessionsCard') != null,
+        };
+      });
+      expect(logs.archiveInLogs).toBe(false);
       const contrast = await page.evaluate(() => {
         const parse = (c) => c.match(/\d+/g).map(Number);
         const title = document.querySelector('.log-upload-title');
