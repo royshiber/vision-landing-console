@@ -6253,10 +6253,13 @@ button.status-row-main {
 .pulse-dock {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: flex-start;
+  align-content: flex-start;
   gap: 6px 10px;
   flex: 0 0 auto;
+  width: 100%;
   min-width: 0;
+  position: static;
 }
 .pulse-dock .pulse-talk-card,
 .pulse-dock .pulse-add-widget,
@@ -6267,7 +6270,19 @@ button.status-row-main {
   min-width: 0;
 }
 .pulse-dock .pulse-add-widget {
+  flex: 0 0 auto;
+  align-self: flex-start;
+  position: static;
   padding: 2px 8px;
+}
+.pulse-dock .pulse-add-widget[open] {
+  flex: 1 0 100%;
+  width: 100%;
+}
+.pulse-dock .pulse-version-line,
+.pulse-dock .pulse-home-pref {
+  position: static;
+  max-width: 100%;
 }
 .pulse-dock .pulse-add-widget-chips {
   flex: 0 0 auto;
@@ -20017,6 +20032,18 @@ body:has(#control.panel.visible) .ardu-top-cats-host {
   .app-update-banner { font-size: 0.78rem; padding: 8px; }
   .app-update-actions { flex: 1 1 100%; }
   .app-update-actions button { flex: 1 1 auto; min-height: 36px; }
+}
+
+@media (max-width: 720px) {
+  body:has(#pulse.panel.visible),
+  body:has(#pulse.panel.visible) .layout,
+  #pulse.panel.visible,
+  body:has(#pulse.panel.visible) .pulse-home.pulse-status-home {
+    flex: 0 0 auto;
+    height: auto;
+    min-height: min-content;
+    overflow: visible;
+  }
 }
 
 

@@ -20,6 +20,7 @@ describe('Status tab layout contract', () => {
   let serverProc = null;
   let browser = null;
   let page = null;
+  const policyFailures = [];
 
   beforeAll(async () => {
     fs.mkdirSync(shotDir, { recursive: true });
@@ -41,6 +42,14 @@ describe('Status tab layout contract', () => {
     const { chromium } = await import('playwright');
     browser = await chromium.launch({ headless: true });
     page = await browser.newPage();
+    page.on('response', (res) => {
+      if (res.url().includes('/api/jetson/v1/policy') && res.status() >= 400) {
+        policyFailures.push(`${res.status()} ${res.url()}`);
+      }
+    });
+    page.on('console', (msg) => {
+      if (msg.type() === 'error' && /policy|503/.test(msg.text())) policyFailures.push(msg.text());
+    });
   }, 30000);
 
   afterAll(async () => {
@@ -166,12 +175,79 @@ describe('Status tab layout contract', () => {
     expect(m.docOverflow).toBeLessThanOrEqual(1);
     expect(m.textFails, JSON.stringify(m.textFails, null, 2)).toEqual([]);
     expect(m.overlaps, JSON.stringify(m.overlaps, null, 2)).toEqual([]);
+    const pulseBox = await page.evaluate(() => {
+      const pulse = document.getElementById('pulse');
+      const title = document.querySelector('.pulse-title');
+      const home = document.querySelector('.pulse-home.pulse-status-home');
+      return {
+        pulseH: pulse.getBoundingClientRect().height,
+        title: title?.textContent || '',
+        titleH: title?.getBoundingClientRect().height || 0,
+        homeClient: home.clientHeight,
+      };
+    });
+    expect(pulseBox.title).toContain('סטטוס מחשבים');
+    expect(pulseBox.titleH).toBeGreaterThan(12);
+    expect(pulseBox.pulseH).toBeGreaterThan(200);
+    expect(pulseBox.homeClient).toBeGreaterThan(120);
+    const dock = await page.evaluate(() => {
+      const box = (el) => {
+        const r = el.getBoundingClientRect();
+        return { left: r.left, top: r.top, right: r.right, bottom: r.bottom };
+      };
+      const nodes = [
+        document.querySelector('.pulse-add-widget-title'),
+        document.querySelector('.pulse-version-line'),
+        document.querySelector('.pulse-home-pref'),
+      ].filter(Boolean);
+      const hit = [];
+      for (let i = 0; i < nodes.length; i += 1) {
+        for (let j = i + 1; j < nodes.length; j += 1) {
+          const a = box(nodes[i]);
+          const b = box(nodes[j]);
+          if (a.left < b.right - 1 && a.right > b.left + 1 && a.top < b.bottom - 1 && a.bottom > b.top + 1) {
+            hit.push(`${nodes[i].className}~${nodes[j].className}`);
+          }
+        }
+      }
+      return hit;
+    });
+    expect(dock, 'status dock overlaps').toEqual([]);
     for (const cat of m.cats) {
       expect(cat.left).toBeGreaterThanOrEqual(-1);
       expect(cat.right).toBeLessThanOrEqual(m.vw + 1);
       expect(cat.width).toBeGreaterThan(80);
     }
     await page.screenshot({ path: path.join(shotDir, `${width}x${height}.png`) });
+  }, 30000);
+
+  it('keeps the extra-widget editor off the version line', async () => {
+    await openStatus(1440, 900);
+    await page.click('.pulse-add-widget > summary');
+    const hit = await page.evaluate(() => {
+      const box = (el) => {
+        const r = el.getBoundingClientRect();
+        return { left: r.left, top: r.top, right: r.right, bottom: r.bottom, h: r.height };
+      };
+      const input = document.getElementById('pulseAddWidgetInput');
+      const version = document.querySelector('.pulse-version-line');
+      const pref = document.querySelector('.pulse-home-pref');
+      const a = box(input);
+      const b = box(version);
+      const c = box(pref);
+      const overlap = (x, y) => x.left < y.right - 1 && x.right > y.left + 1 && x.top < y.bottom - 1 && x.bottom > y.top + 1;
+      return { inputH: a.h, version: overlap(a, b), pref: overlap(a, c), line: overlap(b, c) };
+    });
+    expect(hit.inputH).toBeGreaterThan(20);
+    expect(hit.version).toBe(false);
+    expect(hit.pref).toBe(false);
+    expect(hit.line).toBe(false);
+  }, 30000);
+
+  it('does not request Jetson policy when the companion is off', async () => {
+    await openStatus(1366, 768);
+    await page.waitForFunction(() => document.getElementById('policyUiState')?.textContent === 'אין מידע');
+    expect(policyFailures).toEqual([]);
   }, 30000);
 
   it('keeps the opened parameter action inside the landing card', async () => {

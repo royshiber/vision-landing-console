@@ -2753,22 +2753,47 @@ function policyApplyFromServer(policy) {
   return true;
 }
 
+function policyShowNoInfo() {
+  policyApplyFromServer(null);
+  policySetState('UNAVAILABLE');
+  const badge = document.getElementById('policyUiState');
+  if (badge) badge.textContent = 'אין מידע';
+  policyShowError(null);
+}
+
+async function policyCompanionCanAnswer() {
+  try {
+    const res = await fetch('/api/jetson/v1', { cache: 'no-store' });
+    if (!res.ok) return false;
+    const info = await res.json();
+    return info?.mode === 'mock' || info?.mode === 'real';
+  } catch {
+    return false;
+  }
+}
+
 async function policyLoad() {
   policySetState('LOADING');
   policyShowError(null);
   policyShowSave(null);
   try {
+    if (!(await policyCompanionCanAnswer())) {
+      policyShowNoInfo();
+      return;
+    }
     const res = await fetch('/api/jetson/v1/policy');
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    if (!res.ok) {
+      policyShowNoInfo();
+      return;
+    }
     const data = await res.json();
     if (!policyApplyFromServer(data)) {
-      policySetState('UNAVAILABLE');
+      policyShowNoInfo();
       return;
     }
     policySetState('AVAILABLE');
-  } catch (e) {
-    policySetState('ERROR');
-    policyShowError(String(e.message || e));
+  } catch {
+    policyShowNoInfo();
   }
 }
 
