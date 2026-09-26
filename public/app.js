@@ -5824,16 +5824,28 @@ function resolveHudMavlink(sseMav, liveStatus) {
   return null;
 }
 
+function applySimVehicleBadge(mav) {
+  const el = document.getElementById('simVehicleBadge');
+  if (!el) return;
+  const live = !!(mav && (mav.connected === true || mav.listening === true));
+  const show = live && mav.simulator === true;
+  el.hidden = !show;
+  el.setAttribute('aria-hidden', show ? 'false' : 'true');
+}
+
 function rememberLiveRadioStatus(status) {
   if (!status || typeof status !== 'object') {
     latestLiveRadioStatus = null;
+    applySimVehicleBadge(null);
     return;
   }
   if (status.connected === true || status.listening === true) {
     latestLiveRadioStatus = status;
+    applySimVehicleBadge(status);
     return;
   }
   latestLiveRadioStatus = null;
+  applySimVehicleBadge(null);
 }
 
 function syncMissionFcEmptyNote(mav) {
@@ -7031,6 +7043,7 @@ function applySseMissionHud(payload) {
 
 function applySseTelemetryPayload(payload) {
   latestJetsonFromServer = payload.jetson;
+  try { applySimVehicleBadge(payload?.mavlink); } catch (err) { console.warn('SSE sim badge failed', err); }
   latestVisionFromServer = payload.vision;
   latestCompanionFromServer = payload.companion || null;
   const jetsonOnline = Boolean(payload.jetson?.online);
@@ -11233,12 +11246,53 @@ initLiveCameraPanel();
     if (statPollTimer) { clearInterval(statPollTimer); statPollTimer = null; }
   }
 
+  async function onSimPresetClick() {
+    const btn = document.getElementById('connectSimPresetBtn');
+    if (!btn || btn.dataset.pending === '1') return;
+    btn.dataset.pending = '1';
+    btn.disabled = true;
+    setRowMessage('radio', '');
+    setDot('connecting');
+    setPillLabel('מתחבר לסימולטור');
+    try {
+      if (!(await syncConnectionApiGate())) {
+        throw new Error('השרת שרץ כאן ישן. עצרו אותו והפעילו שוב מתיקיית הקונסולה.');
+      }
+      const r = await fetch('/api/links/connect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          role: 'radio',
+          type: 'tcp',
+          host: '127.0.0.1',
+          port: 5760,
+          preset: 'simulator',
+        }),
+      });
+      const j = await parseConnJsonResponse(r);
+      if (!j.ok) {
+        throw new Error(j.message || 'הסימולטור המקומי לא זמין. הפעילו אותו במחשב ואז נסו שוב.');
+      }
+      currentId = j.id;
+      if (j.links) applyDualLinkUi(j.links);
+    } catch (err) {
+      setDot('err');
+      setPillLabel('הסימולטור לא זמין');
+      setRowMessage('radio', err.message || String(err));
+    } finally {
+      btn.dataset.pending = '0';
+      btn.disabled = false;
+      await refreshConnectionStatus();
+    }
+  }
+
   typeSel.addEventListener('change', () => { applyTypeUI(); savePrefs(); });
   portList.addEventListener('change', savePrefs);
   portInput.addEventListener('change', savePrefs);
   baudSel.addEventListener('change', savePrefs);
   portList.addEventListener('focus', refreshSerialPorts);
   connBtn.addEventListener('click', onConnectClick);
+  document.getElementById('connectSimPresetBtn')?.addEventListener('click', () => { void onSimPresetClick(); });
   if (connectAutoBtn) connectAutoBtn.addEventListener('click', onAutoConnectClick);
   if (cellularConnectBtn) cellularConnectBtn.addEventListener('click', onCellularConnectClick);
   if (companionLinkBtn) companionLinkBtn.addEventListener('click', () => { void onCompanionLinkClick(); });

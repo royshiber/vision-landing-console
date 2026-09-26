@@ -1,5 +1,16 @@
 [
   {
+    "version": "1.02.333",
+    "date": "2026-09-26",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "One-click Windows ArduPlane SITL and a header SIM badge",
+        "detail": "APP_VERSION 1.02.333. After master 1.02.330. Skipped 1.02.331 and 1.02.332. A Windows launcher downloads the Mission Planner stable ArduPlane SITL build, checks that it stays up, and opens MAVLink on localhost for the console plus an optional second output. RealFlight is an option. The connect panel preset סימולטור points at that local simulator. The header SIM badge appears only when the live link is a simulator preset, a SITL autopilot version, or a reported SIM_ parameter. No flight commands and no parameter writes."
+      }
+    ]
+  },
+  {
     "version": "1.02.330",
     "date": "2026-09-26",
     "changes": [

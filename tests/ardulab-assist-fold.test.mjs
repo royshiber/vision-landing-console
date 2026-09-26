@@ -211,8 +211,8 @@ describe('ArduLab → Assist fold — chrome', () => {
     expect(html).not.toMatch(/id="companionApplyBtn"|id="companionRestartBtn"/);
   });
 
-  it('pins APP_VERSION at 1.02.330', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.330'");
-    expect(pkg.version).toBe('1.02.330');
+  it('pins APP_VERSION at 1.02.333', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.333'");
+    expect(pkg.version).toBe('1.02.333');
   });
 });
