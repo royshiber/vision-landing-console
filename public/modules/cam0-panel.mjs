@@ -2,6 +2,12 @@
  * Cam0 panel. Numbers come from the companion. No stream shows אין אות.
  */
 import { bindCameraSourcePickers, cameraFrameUrl } from './camera-sources.mjs';
+import {
+  distanceMFromCorners,
+  MARKER_SIZE_M,
+  readStoredFov,
+  writeStoredFov,
+} from './camera-fov.mjs';
 
 const NO_SIGNAL = 'אין אות';
 const DRILL = 'תרגיל. לא מצלמה אמיתית.';
@@ -127,9 +133,14 @@ function drawDetections(canvas, img, detections, enabled) {
     for (const p of pts.slice(1)) ctx.lineTo(p[0], p[1]);
     ctx.closePath();
     ctx.stroke();
-    const label = det.distance_m == null
-      ? String(det.id)
-      : `${det.id}  ${Number(det.distance_m).toFixed(2)} m`;
+    const fromFov = distanceMFromCorners(
+      det.corners,
+      Number(img?.dataset?.srcW) || img?.naturalWidth,
+      readStoredFov(localStorage, 'cam0'),
+      MARKER_SIZE_M,
+    );
+    const meters = fromFov ?? (Number.isFinite(Number(det.distance_m)) ? Number(det.distance_m) : null);
+    const label = meters == null ? String(det.id) : `${det.id}  ${meters.toFixed(2)} m`;
     ctx.fillText(label, pts[0][0] + 4, Math.max(12, pts[0][1] - 4));
   }
 }
@@ -149,6 +160,8 @@ function init() {
   const ae = document.getElementById('cam0Ae');
   const exposure = document.getElementById('cam0Exposure');
   const gain = document.getElementById('cam0Gain');
+  const fov = document.getElementById('cam0Fov');
+  if (fov) fov.value = String(readStoredFov(localStorage, 'cam0'));
   const res = document.getElementById('cam0Res');
   const fpsSet = document.getElementById('cam0FpsSet');
   const rec = document.getElementById('cam0Record');
@@ -297,6 +310,9 @@ function init() {
   });
 
   async function pushSettings(extra) {
+    const quiet = extra?.quiet === true;
+    const rest = { ...(extra || {}) };
+    delete rest.quiet;
     pushing = true;
     const [w, h] = String(res?.value || '1280x800').split('x').map((n) => Number(n));
     const body = {
@@ -308,7 +324,8 @@ function init() {
       fps: fpsSet?.value === '' ? undefined : Number(fpsSet.value),
       manual: ae?.checked !== true,
       stream: { fps: fpsSet?.value === '' ? undefined : Number(fpsSet.value) },
-      ...extra,
+      fov_deg: readStoredFov(localStorage, 'cam0'),
+      ...rest,
     };
     try {
       await api('/api/jetson/v1/cam0/settings', {
@@ -319,8 +336,10 @@ function init() {
       applied = readForm();
       showError('');
     } catch {
-      writeForm(applied);
-      showError(ERR_SETTING);
+      if (!quiet) {
+        writeForm(applied);
+        showError(ERR_SETTING);
+      }
     } finally {
       pushing = false;
     }
@@ -331,6 +350,18 @@ function init() {
   gain?.addEventListener('change', () => { void pushSettings(); });
   res?.addEventListener('change', () => { void pushSettings(); });
   fpsSet?.addEventListener('change', () => { void pushSettings(); });
+  fov?.addEventListener('change', () => {
+    const saved = writeStoredFov(localStorage, 'cam0', fov.value);
+    fov.value = String(saved.value);
+    if (!saved.ok) {
+      showError('הזווית חייבת להיות בין 20 ל-180 מעלות.');
+      return;
+    }
+    showError('');
+    drawDetections(overlay, img, detections, overlayToggle?.checked !== false);
+    drawDetections(slotOverlay, slotImg || img, detections, overlayToggle?.checked !== false);
+    void pushSettings({ quiet: true });
+  });
   rec?.addEventListener('click', async () => {
     const path = recording ? '/api/jetson/v1/cam0/record/stop' : '/api/jetson/v1/cam0/record/start';
     const stopping = recording;

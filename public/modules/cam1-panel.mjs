@@ -9,6 +9,7 @@ import {
   statusPhrase,
   targetFpsValue,
 } from './cam1-status.mjs';
+import { readStoredFov, writeStoredFov } from './camera-fov.mjs';
 
 const REASON_LINK = 'אין קישור למחשב המשימה. הפקדים כבויים.';
 const REASON_CAM = 'אין אות מהמצלמה. הפקדים כבויים.';
@@ -91,6 +92,8 @@ function init() {
   const ae = document.getElementById('cam1Ae');
   const exposure = document.getElementById('cam1Exposure');
   const gain = document.getElementById('cam1Gain');
+  const fov = document.getElementById('cam1Fov');
+  if (fov) fov.value = String(readStoredFov(localStorage, 'cam1'));
   const res = document.getElementById('cam1Res');
   const fpsSet = document.getElementById('cam1FpsSet');
   const reason = document.getElementById('cam1Reason');
@@ -252,7 +255,8 @@ function init() {
     scheduleStreamRetry();
   });
 
-  async function pushSettings() {
+  async function pushSettings(extra) {
+    const quiet = extra?.quiet === true;
     pushing = true;
     const [w, h] = String(res?.value || '1280x800').split('x').map((n) => Number(n));
     const body = settingsPayload({
@@ -263,6 +267,7 @@ function init() {
       height: h,
       fps: fpsSet?.value || '',
       fpsTouched,
+      fov: readStoredFov(localStorage, 'cam1'),
     });
     try {
       await api('/api/jetson/v1/cam1/settings', {
@@ -273,8 +278,10 @@ function init() {
       applied = readForm();
       showError('');
     } catch {
-      writeForm(applied);
-      showError(ERR_SETTING);
+      if (!quiet) {
+        writeForm(applied);
+        showError(ERR_SETTING);
+      }
     } finally {
       pushing = false;
     }
@@ -286,6 +293,16 @@ function init() {
   gain?.addEventListener('change', () => { void pushSettings(); });
   res?.addEventListener('change', () => { void pushSettings(); });
   fpsSet?.addEventListener('change', () => { void pushSettings(); });
+  fov?.addEventListener('change', () => {
+    const saved = writeStoredFov(localStorage, 'cam1', fov.value);
+    fov.value = String(saved.value);
+    if (!saved.ok) {
+      showError('הזווית חייבת להיות בין 20 ל-180 מעלות.');
+      return;
+    }
+    showError('');
+    void pushSettings({ quiet: true });
+  });
   document.getElementById('cam1Snap')?.addEventListener('click', async () => {
     try {
       const snap = await fetch(`/api/jetson/v1/cam1/snapshot.png?t=${Date.now()}`);

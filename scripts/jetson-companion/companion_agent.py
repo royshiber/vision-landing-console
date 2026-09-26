@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Vision Landing Console — Jetson companion: MAVLink relay + HTTP API + heartbeat.
 
-AGENT_VERSION 2.6.2 turns Wi-Fi back on if the console is silent for 60 seconds
+AGENT_VERSION 2.6.3 stores each camera field of view, serves GET /api/v1/version,
+and serves the relay heartbeat on GET /api/v1/status/mavlink.
+2.6.2 turns Wi-Fi back on if the console is silent for 60 seconds
 after that link was disabled, and 2.6.1 reports CAM1 from the OV9281 symlink while it is idle,
 and serves that camera on /api/v1/cameras/cam1/frame. 2.6.0 adds CAM1 on
 /api/v1/cam1.
@@ -66,7 +68,7 @@ RELAY_PORT = int(os.environ.get("VLC_RELAY_PORT", "5770"))
 HTTP_PORT = int(os.environ.get("VLC_HTTP_PORT", "8081"))
 HTTP_IDLE_S = float(os.environ.get("VLC_HTTP_IDLE_S", "30") or "30")
 HTTP_MAX_BODY = 16 * 1024 * 1024
-AGENT_VERSION = os.environ.get("VLC_AGENT_VERSION", "2.6.2")
+AGENT_VERSION = os.environ.get("VLC_AGENT_VERSION", "2.6.3")
 MODEM_STATUS_FILE = os.environ.get("AIRVIX_E3372_STATUS_FILE", "/run/airvix/e3372.status")
 
 try:
@@ -237,6 +239,30 @@ def auth_headers():
     return h
 
 
+def _finite_or_none(value):
+    try:
+        n = float(value)
+    except (TypeError, ValueError):
+        return None
+    if n != n or n in (float("inf"), float("-inf")):
+        return None
+    return n
+
+
+def _json_ready(obj):
+    """Drop non-finite floats so a heartbeat body stays real JSON.
+
+    Node's JSON.parse rejects NaN. The console proxy then answers 502.
+    """
+    if isinstance(obj, float):
+        return _finite_or_none(obj)
+    if isinstance(obj, dict):
+        return {k: _json_ready(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_json_ready(v) for v in obj]
+    return obj
+
+
 def post_json(path, payload):
     req = urllib.request.Request(
         f"{CONSOLE_URL}{path}",
@@ -261,13 +287,13 @@ def heartbeat_loop():
                     if arr:
                         temp = float(arr[0].current)
                         break
-            STATE["cpuLoadPct"] = cpu
-            STATE["memPct"] = mem
-            STATE["tempC"] = temp
+            STATE["cpuLoadPct"] = _finite_or_none(cpu)
+            STATE["memPct"] = _finite_or_none(mem)
+            STATE["tempC"] = _finite_or_none(temp)
             post_json("/api/jetson/heartbeat", {
-                "cpuLoadPct": cpu,
-                "memPct": mem,
-                "tempC": temp,
+                "cpuLoadPct": STATE["cpuLoadPct"],
+                "memPct": STATE["memPct"],
+                "tempC": STATE["tempC"],
                 "agentVersion": AGENT_VERSION,
                 "relayPort": RELAY_PORT,
                 "companionHttpPort": HTTP_PORT,
@@ -1063,7 +1089,45 @@ def status_payload():
         "flight_log": flightlog_status_payload(),
         "gimbal": gimbal_status_payload(start=False),
         "fc": fc_status_payload(),
-        "mavlink": {},
+        "mavlink": mavlink_status_payload(),
+    }
+
+
+def version_payload():
+    return {
+        "ok": True,
+        "agentVersion": AGENT_VERSION,
+        "agent_version": AGENT_VERSION,
+        "companion_version": AGENT_VERSION,
+        "api_version": "1",
+    }
+
+
+def mavlink_status_payload():
+    """Relay heartbeat. Always JSON, including when the FC is quiet."""
+    try:
+        fc = fc_status_payload()
+    except Exception:
+        fc = {}
+    if not isinstance(fc, dict):
+        fc = {}
+    hb = fc.get("heartbeat") if isinstance(fc.get("heartbeat"), dict) else {}
+    age = _finite_or_none(fc.get("last_heartbeat_age_ms"))
+    connected = fc.get("connected") is True
+    return {
+        "ok": True,
+        "api_version": "1",
+        "router_running": STATE.get("fc_linked") is True,
+        "connected": connected,
+        "heartbeat_ok": hb.get("validity") == "valid",
+        "messages_sent": int(STATE.get("uart_bytes_tx") or 0),
+        "messages_received": int(STATE.get("uart_bytes_rx") or 0),
+        "messages_dropped": None,
+        "rx_drop_rate": None,
+        "last_heartbeat": None if age is None else {"age_ms": age},
+        "relay_port": RELAY_PORT,
+        "fc_serial_name": FC_SERIAL_NAME,
+        "fc_baud": FC_BAUD,
     }
 
 
@@ -1199,7 +1263,11 @@ class Handler(BaseHTTPRequestHandler):
             self.close_connection = True
 
     def _json(self, code, obj):
-        self._send_bytes(code, json.dumps(obj).encode("utf-8"), "application/json")
+        self._send_bytes(
+            code,
+            json.dumps(_json_ready(obj), allow_nan=False).encode("utf-8"),
+            "application/json",
+        )
 
     def send_error(self, code, message=None, explain=None):
         """JSON error with Content-Length. Do not force Connection: close."""
@@ -1303,6 +1371,15 @@ class Handler(BaseHTTPRequestHandler):
                     self._send_bytes(200, p.read_bytes(), "application/octet-stream")
                     return
             return self._json(404, {"ok": False, "message": "not found"})
+        if path in ("/api/version", "/api/v1/version"):
+            return self._json(200, version_payload())
+        if path in (
+            "/api/status/mavlink",
+            "/api/v1/status/mavlink",
+            "/api/relay/heartbeat",
+            "/api/v1/relay/heartbeat",
+        ):
+            return self._json(200, mavlink_status_payload())
         if path in ("/api/health", "/api/v1/health"):
             # Console Status gauges read cpuLoadPct / memPct / tempC here when /api/v1/status is 404.
             # vision / landing / video / extras are honest absent overlays for Experiment #1.

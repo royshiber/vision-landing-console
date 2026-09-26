@@ -1057,12 +1057,12 @@ const takeoffGrid = document.getElementById('takeoffGrid');
 const visionNavGrid = document.getElementById('visionNavGrid');
 /** Why: match server `ARDU_TARGET_DEFAULTS` shape; what: cloned into `arduTargetState` for editable FC targets. */
 const COMPANION_PORT_OPTIONS = Array.from({ length: 8 }, (_x, i) => i + 1);
-const companionLinkState = { companion_serial_port: 2, companion_sr_bucket: 2 };
+const companionLinkState = { companion_serial_port: 4, companion_sr_bucket: 4 };
 
 function normalizeCompanionLink(raw) {
   const p = Number(raw?.companion_serial_port);
   const s = Number(raw?.companion_sr_bucket);
-  const companion_serial_port = COMPANION_PORT_OPTIONS.includes(p) ? p : 2;
+  const companion_serial_port = COMPANION_PORT_OPTIONS.includes(p) ? p : 4;
   const companion_sr_bucket = COMPANION_PORT_OPTIONS.includes(s) ? s : companion_serial_port;
   return { companion_serial_port, companion_sr_bucket };
 }
@@ -1496,7 +1496,7 @@ function buildDynamicCommFields(rawCompanion = companionLinkState) {
   const serialKey = serialLabelForPort(serialPort);
   const srKey = srLabelForBucket(srBucket);
   return [
-    { group: 'תקשורת Jetson', key: 'companion_serial_port', label: 'פורט Jetson (SERIALx)', kind: 'enum', virtual: true, options: COMPANION_PORT_OPTIONS, tier: 'core' },
+    { group: 'תקשורת Jetson', key: 'companion_serial_port', label: 'פורט בקר טיסה (SERIAL4)', kind: 'enum', virtual: true, options: COMPANION_PORT_OPTIONS, tier: 'core' },
     { group: 'תקשורת Jetson', key: 'companion_sr_bucket', label: 'ערוץ SRx לקצבים', kind: 'enum', virtual: true, options: COMPANION_PORT_OPTIONS, tier: 'core' },
     { group: 'תקשורת Jetson', key: `${serialKey}_PROTOCOL`, label: `${serialKey} — פרוטוקול (MAVLink)`, kind: 'enum', options: [0, 1, 2], tier: 'core' },
     { group: 'תקשורת Jetson', key: `${serialKey}_BAUD`, label: `${serialKey} — Baud (Ardu code)`, kind: 'enum', options: [9, 19, 38, 57, 115, 230, 460, 921], tier: 'core' },
@@ -1554,7 +1554,7 @@ function persistArduFavorites() {
 
 /** Why: `?` tooltips on ArduPilot form — short Hebrew, parameter name in English in title bar only via label. */
 const ARDU_PARAM_HELP = {
-  companion_serial_port: 'בחירת פורט פיזי שאליו מחובר מחשב המשימה. אם החיבור בפועל הוא SERIAL3 ואתה משאיר SERIAL2, בקר הטיסה ישדר בפורט הלא נכון ותראה ניתוקים/חוסר נתונים. שנה רק כשאתה בטוח בחיווט.',
+  companion_serial_port: 'פורט בקר הטיסה מחובר לרפידות TX3 ו-RX3. זה SERIAL4 בקצב 921600. השאירו את הבחירה על SERIAL4.',
   companion_sr_bucket: 'קובע מאיזה SRx יוצאים קצבי הטלמטריה למחשב המשימה. ברוב המקרים תואם לאותו מספר של SERIALx, אבל יש מערכות שבהן זה מופרד. אם אתה רואה heartbeat בלי נתונים עשירים, בדוק את הערך הזה.',
   EK3_ENABLE: 'מפעיל את EKF3 כחישוב הניווט הראשי. שינוי פרמטר זה משפיע על התנהגות בקר הטיסה ולכן מבוצע רק על הקרקע ובזהירות.',
   AHRS_EKF_TYPE: 'בוחר מנוע EKF בשכבת AHRS. ערך 3 הוא EKF3 ברוב גרסאות Plane. שינוי כאן יכול להשפיע על יציבות חישוב Attitude ו‑Position.',

@@ -50,6 +50,7 @@ def load_config(env=None):
         "ae_enabled": True,
         "exposure_us": 2000,
         "gain": 16,
+        "fov_deg": 79.0,
         "stream": {"fps": JPEG_HZ, "quality": 55, "max_width": 640},
         "flight_commands": False,
     }
@@ -214,6 +215,11 @@ class Cam1Service:
             stream = self.config.setdefault("stream", {})
             if isinstance(body.get("stream"), dict) and body["stream"].get("fps") is not None:
                 stream["fps"] = max(1, min(JPEG_HZ, int(body["stream"]["fps"])))
+            if "fov_deg" in body:
+                from .fov import parse_fov
+                parsed = parse_fov(body.get("fov_deg"))
+                if parsed is not None:
+                    self.config["fov_deg"] = parsed
             self.config["settings_dirty"] = True
             return self._settings_locked()
 
@@ -247,6 +253,7 @@ class Cam1Service:
             "ae": {"enabled": bool(self.config.get("ae_enabled"))},
             "exposure_us": self.config.get("exposure_us"),
             "gain": self.config.get("gain"),
+            "fov_deg": self.config.get("fov_deg", 79),
             "stream": stream,
             "flight_commands": False,
         }

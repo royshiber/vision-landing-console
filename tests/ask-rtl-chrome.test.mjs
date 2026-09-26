@@ -27,9 +27,9 @@ function cssBlock(src, selector) {
 }
 
 describe('AIRVIX Ask RTL / BiDi chrome', () => {
-  it('pins APP_VERSION at 1.02.346', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.346'");
-    expect(pkg.version).toBe('1.02.346');
+  it('pins APP_VERSION at 1.02.347', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.347'");
+    expect(pkg.version).toBe('1.02.347');
   });
 
   it('keeps the Mission grid LTR while isolating Ask as RTL', () => {
