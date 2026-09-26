@@ -12169,6 +12169,12 @@ initLiveCameraPanel();
         }
         if (prev && ports.some((p) => p.path === prev)) portList.value = prev;
       }
+      const rfList = document.getElementById('rfComPort');
+      if (rfList) {
+        const rfPrev = rfList.value;
+        rfList.innerHTML = portList.innerHTML;
+        if (rfPrev && [...rfList.options].some((opt) => opt.value === rfPrev)) rfList.value = rfPrev;
+      }
     } catch (err) {
       console.warn('refreshSerialPorts failed', err);
     }
@@ -12338,6 +12344,7 @@ initLiveCameraPanel();
   }
 
   async function onCompanionLinkClick() {
+    if (document.body?.dataset?.workPath === 'rf') return;
     if (!companionLinkBtn || companionLinkBtn.disabled || companionLinkBtn.dataset.uplinkLocked === '1') return;
     const turnOn = companionLinkBtn.dataset.action !== 'disconnect';
     try {
@@ -12402,18 +12409,19 @@ initLiveCameraPanel();
       const status = el.querySelector('.comm-link-status');
       if (status) status.textContent = row.statusHe || (row.quality?.known ? '' : 'אין נתונים');
       const uplinkRow = id === 'cellular' || id === 'home';
-      const uplinkLocked = uplinkRow && row.uplinkControl !== true;
+      const rfLocked = document.body?.dataset?.workPath === 'rf';
+      const uplinkLocked = uplinkRow && (row.uplinkControl !== true || rfLocked);
       const enable = el.querySelector('.comm-link-switch input');
       if (enable) {
         enable.disabled = uplinkLocked;
-        if (uplinkLocked) enable.title = UPLINK_UNSUPPORTED_HE;
+        if (uplinkLocked) enable.title = rfLocked ? 'במצב RF אין וידאו ואין גישה למחשב המשימה' : UPLINK_UNSUPPORTED_HE;
         else enable.removeAttribute('title');
         if (!enable.dataset.pending) enable.checked = row.enabled !== false;
       }
       const btn = el.querySelector('.comm-link-action');
       if (btn && !btn.classList.contains('is-pending')) {
         if (uplinkLocked) {
-          paintRowAction(btn, 'התחבר', UPLINK_UNSUPPORTED_HE);
+          paintRowAction(btn, 'התחבר', rfLocked ? 'במצב RF אין וידאו ואין גישה למחשב המשימה' : UPLINK_UNSUPPORTED_HE);
           btn.disabled = true;
           btn.dataset.uplinkLocked = '1';
         } else {
@@ -12670,6 +12678,7 @@ initLiveCameraPanel();
   }
 
   async function onCellularConnectClick() {
+    if (document.body?.dataset?.workPath === 'rf') return;
     if (!cellularConnectBtn || cellularConnectBtn.disabled || cellularConnectBtn.dataset.uplinkLocked === '1') return;
     const turnOn = cellularConnectBtn.dataset.action !== 'disconnect';
     try {
@@ -12968,6 +12977,86 @@ initLiveCameraPanel();
       if (activeLinkCellular.checked) void onActiveLinkPick('cellular');
     });
   }
+  const RF_REASON_HE = 'במצב RF אין וידאו ואין גישה למחשב המשימה';
+  function paintWorkPath(result) {
+    const path = result?.path || 'auto';
+    document.body.dataset.workPath = path === 'rf' ? 'rf' : '';
+    const label = document.getElementById('workLinkPath');
+    if (label) {
+      label.textContent = result?.pathLabelHe || (
+        path === 'home' ? 'נתיב פעיל: רשת בית'
+        : path === 'cellular' ? 'נתיב פעיל: סלולר'
+        : path === 'rf' ? 'נתיב פעיל: RF'
+        : path === 'none' ? 'נתיב פעיל: אין נתיב'
+        : 'נתיב פעיל: אוטומטי'
+      );
+    }
+    const reason = document.getElementById('rfReducedReason');
+    if (reason) reason.hidden = path !== 'rf';
+    const voice = document.getElementById('assistVoiceGoToggle');
+    if (voice) {
+      voice.disabled = path === 'rf';
+      if (path === 'rf') voice.title = RF_REASON_HE;
+      else if (voice.title === RF_REASON_HE) voice.removeAttribute('title');
+    }
+    const rfBoxes = '#cam0Panel button, #cam0Panel input, #cam0Panel select, #cam1Panel button, #cam1Panel input, #cam1Panel select, #gimbalPad button';
+    if (path === 'rf') {
+      for (const id of ['cam0Reason', 'cam1Reason']) {
+        const el = document.getElementById(id);
+        if (!el) continue;
+        el.hidden = false;
+        el.textContent = RF_REASON_HE;
+      }
+      const gimbalReason = document.querySelector('#gimbalPad .gimbal-pad-reason');
+      if (gimbalReason) gimbalReason.textContent = RF_REASON_HE;
+      document.querySelectorAll(rfBoxes).forEach((el) => {
+        el.dataset.rfLock = '1';
+        el.disabled = true;
+      });
+    } else {
+      for (const id of ['cam0Reason', 'cam1Reason']) {
+        const el = document.getElementById(id);
+        if (el && el.textContent === RF_REASON_HE) el.textContent = '';
+      }
+      const gimbalReason = document.querySelector('#gimbalPad .gimbal-pad-reason');
+      if (gimbalReason && gimbalReason.textContent === RF_REASON_HE) gimbalReason.textContent = '';
+      document.querySelectorAll('[data-rf-lock="1"]').forEach((el) => {
+        el.disabled = false;
+        delete el.dataset.rfLock;
+      });
+    }
+  }
+  async function postWorkLink() {
+    const picked = document.querySelector('input[name="workLink"]:checked');
+    const mode = picked?.value || 'auto';
+    const serialPort = document.getElementById('rfComPort')?.value || '';
+    const baudRate = Number(document.getElementById('rfBaud')?.value) || 57600;
+    if (mode === 'rf') paintWorkPath({ path: 'rf', pathLabelHe: 'נתיב פעיל: RF' });
+    try {
+      const r = await fetch('/api/links/work', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode, serialPort, baudRate }),
+      });
+      const j = await r.json();
+      if (j && (j.ok || j.path)) paintWorkPath(j);
+    } catch (err) {
+      console.warn('work link failed', err);
+    }
+  }
+  for (const id of ['workLinkAuto', 'workLinkHome', 'workLinkCellular', 'workLinkRf']) {
+    document.getElementById(id)?.addEventListener('change', () => { void postWorkLink(); });
+  }
+  document.getElementById('rfComPort')?.addEventListener('change', () => { void postWorkLink(); });
+  document.getElementById('rfBaud')?.addEventListener('change', () => { void postWorkLink(); });
+  void fetch('/api/links/work').then((r) => r.json()).then((j) => {
+    const map = { auto: 'workLinkAuto', home: 'workLinkHome', cellular: 'workLinkCellular', rf: 'workLinkRf' };
+    const box = document.getElementById(map[j?.mode] || 'workLinkAuto');
+    if (box) box.checked = true;
+    const baud = document.getElementById('rfBaud');
+    if (baud && j?.baudRate) baud.value = String(j.baudRate);
+    return postWorkLink();
+  }).catch(() => {});
   for (const role of ['cellular', 'home', 'radio']) {
     const box = document.getElementById(`${role}LinkEnable`);
     if (!box) continue;
@@ -19126,6 +19215,7 @@ function initAssistUi() {
   initMissionTalk();
   initAssistMic();
   document.getElementById('assistVoiceGoToggle')?.addEventListener('click', () => {
+    if (document.body?.dataset?.workPath === 'rf') return;
     void assistSetVoiceGo(!_askVoiceGoActive);
   });
   document.getElementById('assistVoiceGoInfo')?.addEventListener('click', () => {

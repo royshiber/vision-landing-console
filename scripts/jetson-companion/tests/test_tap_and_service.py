@@ -109,7 +109,7 @@ class CompanionHookTests(unittest.TestCase):
         agent = (REPO / "scripts" / "jetson-companion" / "companion_agent.py").read_text(encoding="utf-8")
         self.assertIn("uart_reader", agent)
         self.assertIn("fanout_uart", agent)
-        self.assertIn('"2.6.2"', agent)
+        self.assertIn('"2.6.4"', agent)
         unit = (ROOT / "airvix-flightlog.service").read_text(encoding="utf-8")
         self.assertIn("EnvironmentFile=-%h/vlc-companion/flightlog-storage.env", unit)
         self.assertIn("EnvironmentFile=-/home/royshiber/vlc-companion/flightlog-storage.env", unit)
