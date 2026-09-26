@@ -371,7 +371,7 @@
     const console = latest?.console;
     if (!console?.rollbackAvailable) return;
     if (phaseOf(latest) === 'progress') return;
-    openConfirm('console', console.version, console.previousVersion, null, console.previousInstalledAt || console.installedAt);
+    openConfirm('console', console.version, console.previousVersion, null, console.previousInstalledAt);
   });
   el('vrConfirmNo')?.addEventListener('click', () => closeConfirm());
   el('vrConfirmYes')?.addEventListener('click', () => { void sendRollback(); });

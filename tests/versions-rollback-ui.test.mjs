@@ -351,6 +351,40 @@ describe('versions and rollback view', () => {
     expect(await page.locator('#globalSettingsModal').isVisible()).toBe(true);
     await page.close();
   }, 60000);
+
+  it('does not show the current install time as the previous version date', async () => {
+    const page = await browser.newPage({ viewport: { width: 1280, height: 720 }, locale: 'he-IL' });
+    await page.route('**/api/**', (route) => {
+      const url = route.request().url();
+      if (url.includes('/api/versions')) {
+        const payload = viewPayload(true);
+        payload.console.installedAt = '2020-01-02T03:04:00Z';
+        payload.console.previousInstalledAt = null;
+        return route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify(payload),
+        });
+      }
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ ok: true, available: false }),
+      });
+    });
+    await page.goto(base, { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => document.getElementById('vrConsoleVersion')?.textContent?.includes('1.02.338'));
+    await page.click('#globalSettingsBtn');
+    await page.waitForSelector('#globalSettingsModal:not([hidden])');
+    const installed = await page.locator('#vrConsoleInstalled').textContent();
+    expect(installed).not.toBe('תאריך לא ידוע');
+    await page.click('#vrConsoleRollbackBtn');
+    await page.waitForSelector('#vrConfirm:not([hidden])');
+    const when = await page.locator('#vrConfirmWhen').textContent();
+    expect(when).toBe('תאריך לא ידוע');
+    expect(when).not.toContain(installed);
+    await page.close();
+  });
 });
 
 function composeSheet(items) {
