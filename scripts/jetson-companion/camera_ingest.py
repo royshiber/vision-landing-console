@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Observe-only camera ingest for companion_agent 2.3.9.
+"""Observe-only camera ingest for companion_agent 2.3.10.
 
 Slots: cam1 forward, cam2 down, cam3 gimbal (RTSP, off unless enabled).
 A per-slot supervisor discovers and reopens devices without touching the

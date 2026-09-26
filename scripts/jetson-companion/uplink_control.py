@@ -1,9 +1,11 @@
 """Operator on/off for Wi-Fi and Huawei cellular. Not a flight command.
 
 POST persists the choice in /var/lib/airvix/uplinks.json and asks NetworkManager
-through uplink-nm.sh (sudo -n). A link is turned down only when the other link
-is up, owns a default route, and answers a reachability probe. Cellular is
-never stored as disabled while the Wi-Fi interface is absent.
+through the root-owned /opt/airvix/jetson-companion/uplink-nm.sh (sudo -n).
+A link is turned down only when the operator disables it and the other link
+is up, owns a default route, and answers a reachability probe. Startup never
+takes an active link down. Cellular is never stored as disabled while the
+Wi-Fi interface is absent.
 """
 
 from __future__ import annotations
@@ -19,6 +21,7 @@ from uplink_status import _oper_up, _routes, _wifi_iface, cellular_iface_name
 LAST_UPLINK_MESSAGE = "אי אפשר לכבות את הקישור האחרון"
 NM_FAIL_MESSAGE = "שינוי הקישור נכשל"
 BAD_BODY_MESSAGE = "גוף הבקשה לא תקין"
+DEFAULT_UPLINK_NM = "/opt/airvix/jetson-companion/uplink-nm.sh"
 
 _RUNNER = None
 _REACH = None
@@ -168,9 +171,22 @@ def other_link_ready(kind):
     return reachability_ok(name)
 
 
+def uplink_nm_argv(action):
+    """sudo -n the root-owned script. VLC_UPLINK_NM replaces the whole command (tests)."""
+    override = os.environ.get("VLC_UPLINK_NM", "").strip()
+    if override:
+        return [override, action]
+    script = os.environ.get("VLC_UPLINK_NM_BIN", "").strip() or DEFAULT_UPLINK_NM
+    return ["sudo", "-n", script, action]
+
+
 def run_nm(action):
     if action not in {"wifi-up", "wifi-down", "cell-up", "cell-down"}:
         raise ValueError("bad action")
+    if action in {"wifi-up", "cell-up"}:
+        kind = "wifi" if action == "wifi-up" else "cellular"
+        if _is_up(kind):
+            return
     if _RUNNER is not None:
         result = _RUNNER(action)
         # True == 1 in Python, so an exit code of 1 must not count as success.
@@ -178,9 +194,7 @@ def run_nm(action):
         if not ok:
             raise RuntimeError("nm failed")
         return
-    override = os.environ.get("VLC_UPLINK_NM", "").strip()
-    script = override or str(Path(__file__).resolve().with_name("uplink-nm.sh"))
-    cmd = [script, action] if override else ["sudo", "-n", script, action]
+    cmd = uplink_nm_argv(action)
     proc = subprocess.run(cmd, timeout=8, text=True, capture_output=True, check=False)
     if proc.returncode != 0:
         raise RuntimeError("nm failed")
@@ -242,9 +256,11 @@ def set_uplink(kind, enabled):
 
 
 def apply_boot_policy():
-    """Both links auto-connect unless the operator disabled one.
+    """Bring enabled links up. Never take an active link down.
 
-    If the enabled link is not available, bring the other up and report it.
+    `*-up` is a no-op when that link is already up, so NetworkManager does not
+    drop and reconnect it. A stored disable is left for the operator POST.
+    If an enabled link is not available, bring the other up and report it.
     Never leave the file saying cellular is off when Wi-Fi is absent.
     """
     global BOOT_FALLBACK
@@ -276,16 +292,6 @@ def apply_boot_policy():
             return False
         return _is_up(kind)
 
-    def down(kind):
-        if kind == "wifi" and not wifi_ok:
-            return
-        if kind == "cellular" and not cell_ok:
-            return
-        try:
-            run_nm("wifi-down" if kind == "wifi" else "cell-down")
-        except Exception:
-            return
-
     if prefs["wifi"]["enabled"] and wifi_ok:
         up("wifi")
     if prefs["cellular"]["enabled"] and cell_ok:
@@ -306,13 +312,6 @@ def apply_boot_policy():
     if not cell_ok and wifi_ok and not _is_up("wifi"):
         up("wifi")
         fallback = "wifi"
-
-    wifi_live = _is_up("wifi")
-    cell_live = _is_up("cellular")
-    if wifi_ok and prefs["wifi"]["enabled"] is False and cell_live:
-        down("wifi")
-    if cell_ok and prefs["cellular"]["enabled"] is False and wifi_live and wifi_ok:
-        down("cellular")
 
     if not _is_up("wifi") and not _is_up("cellular"):
         if cell_ok and (up("cellular") or _is_up("cellular")):
