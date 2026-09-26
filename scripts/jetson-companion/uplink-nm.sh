@@ -1,6 +1,7 @@
 #!/bin/bash
 # NetworkManager verbs for the two AIRVIX uplinks. No free-form connection name.
 # Does not write an APN. "Wired connection 2" is expected to already use uinternet.
+# wifi-up and cell-up exit 0 without nmcli changes when that connection is already active.
 set -euo pipefail
 
 WIFI_IFACE="${VLC_WIFI_IFACE:-wlP1p1s0}"
@@ -42,8 +43,30 @@ wifi_connection() {
   return 1
 }
 
+# Already-active connection: do not call "connection up" (that drops and reconnects).
+link_active() {
+  local want_name="$1"
+  local want_dev="$2"
+  local line name dev
+  while IFS= read -r line; do
+    [[ -n "$line" ]] || continue
+    name="${line%%:*}"
+    dev="${line#*:}"
+    if [[ -n "$want_name" && "$name" == "$want_name" ]]; then
+      return 0
+    fi
+    if [[ -n "$want_dev" && "$dev" == "$want_dev" ]]; then
+      return 0
+    fi
+  done < <(nmcli -t -f NAME,DEVICE connection show --active 2>/dev/null || true)
+  return 1
+}
+
 case "$verb" in
   wifi-up)
+    if link_active "" "$WIFI_IFACE"; then
+      exit 0
+    fi
     nmcli device set "$WIFI_IFACE" autoconnect yes
     if name="$(wifi_connection)"; then
       nmcli connection up "$name"
@@ -59,9 +82,18 @@ case "$verb" in
     nmcli device set "$WIFI_IFACE" autoconnect no
     ;;
   cell-up)
+    cell_dev=""
+    if cell_dev="$(cell_iface)"; then
+      :
+    else
+      cell_dev=""
+    fi
+    if link_active "$CELL_CONN" "$cell_dev"; then
+      exit 0
+    fi
     nmcli connection up "$CELL_CONN"
-    if iface="$(cell_iface)"; then
-      nmcli device set "$iface" autoconnect yes || true
+    if [[ -n "$cell_dev" ]]; then
+      nmcli device set "$cell_dev" autoconnect yes || true
     fi
     ;;
   cell-down)

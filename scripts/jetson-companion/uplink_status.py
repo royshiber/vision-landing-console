@@ -230,16 +230,64 @@ def _wifi_iface():
     return name
 
 
+def _sys_root():
+    raw = os.environ.get("VLC_NET_SYS_ROOT", "/sys").strip() or "/sys"
+    return Path(raw)
+
+
+def _read_sys(iface, name):
+    path = _sys_root() / "class" / "net" / iface / name
+    try:
+        return path.read_text(encoding="utf-8").strip()
+    except OSError:
+        return None
+
+
+def _carrier_on(iface):
+    if _host is not None and hasattr(_host, "carrier"):
+        got = _host.carrier(iface)
+        return got == 1 or got is True
+    return _read_sys(iface, "carrier") == "1"
+
+
+def _nm_connected(iface):
+    """True when NetworkManager reports this device connected. Missing nmcli is not connected."""
+    if not iface:
+        return False
+    if _host is not None and hasattr(_host, "nm_connected"):
+        return _host.nm_connected(iface) is True
+    try:
+        out = subprocess.check_output(
+            ["nmcli", "-t", "-f", "DEVICE,STATE", "device", "status"],
+            timeout=0.4,
+            text=True,
+            stderr=subprocess.DEVNULL,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return False
+    for line in out.splitlines():
+        device, _, state = line.partition(":")
+        if device == iface and state.strip().lower().startswith("connected"):
+            return True
+    return False
+
+
 def _oper_up(iface):
+    """Link is up.
+
+    USB HiLink modems often report operstate "unknown" while carrier is 1 and
+    NetworkManager is connected. That is up. operstate "down" stays down.
+    """
     if not iface:
         return False
     if _host is not None and hasattr(_host, "oper_up"):
         return _host.oper_up(iface) is True
-    path = Path(f"/sys/class/net/{iface}/operstate")
-    try:
-        return path.read_text(encoding="utf-8").strip() == "up"
-    except OSError:
-        return False
+    state = _read_sys(iface, "operstate")
+    if state == "up":
+        return True
+    if state == "unknown" and (_carrier_on(iface) or _nm_connected(iface)):
+        return True
+    return False
 
 
 def _iface_ipv4(iface):

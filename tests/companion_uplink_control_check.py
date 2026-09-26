@@ -25,8 +25,14 @@ from uplink_control import (  # noqa: E402
     set_presence,
     set_reachability,
     set_uplink,
+    uplink_nm_argv,
 )
-from uplink_status import reset_uplink_caches, set_hilink_fetcher, set_host_reader  # noqa: E402
+from uplink_status import (  # noqa: E402
+    reset_uplink_caches,
+    set_hilink_fetcher,
+    set_host_reader,
+    uplinks_payload,
+)
 
 
 def check(cond, detail):
@@ -150,6 +156,11 @@ def main():
     check(code == 200 and calls == ["wifi-up"], (code, calls))
     check(body["wifi"]["enabled"] is True and body["wifi"]["up"] is True, body["wifi"])
 
+    calls.clear()
+    code, body = set_uplink("wifi", True)
+    check(code == 200 and calls == [], (code, calls))
+    check(body["wifi"]["up"] is True and body["wifi"]["enabled"] is True, body["wifi"])
+
     set_presence(lambda kind: kind == "cellular")
     calls.clear()
     code, body = set_uplink("cellular", False)
@@ -169,8 +180,16 @@ def main():
 
     report = boot({"wifi": True, "cellular": True})
     check(report["fallback"] is None, report)
-    check(calls[:2] == ["wifi-up", "cell-up"], calls)
-    check("wifi-down" not in calls and "cell-down" not in calls, calls)
+    check(calls == [], calls)
+    check(host.up["wlP1p1s0"] is True and host.up["enx0c5b8f279a64"] is True, host.up)
+
+    report = boot(
+        {"wifi": True, "cellular": True},
+        {"wifi": {"enabled": False}, "cellular": {"enabled": True}},
+    )
+    check(calls == [], calls)
+    check(load_prefs()["wifi"]["enabled"] is False, "startup leaves a stored disable")
+    check(host.up["wlP1p1s0"] is True, "startup does not take wifi down")
 
     host.up = {"wlP1p1s0": False, "enx0c5b8f279a64": False}
 
@@ -200,12 +219,104 @@ def main():
     check("cell-up" in calls and "cell-down" not in calls, calls)
     check(json.loads(state.read_text(encoding="utf-8"))["cellular"]["enabled"] is True, "rewritten")
 
+    host.up = {"wlP1p1s0": False, "enx0c5b8f279a64": False}
     report = boot(
         {"wifi": True, "cellular": True},
         {"wifi": {"enabled": False}, "cellular": {"enabled": False}},
     )
     check(load_prefs()["wifi"]["enabled"] is True and load_prefs()["cellular"]["enabled"] is True, load_prefs())
-    check("wifi-up" in calls and "cell-up" in calls, calls)
+    check(calls == ["wifi-up", "cell-up"], calls)
+    check("wifi-down" not in calls and "cell-down" not in calls, calls)
+
+    sysroot = tmp / "sys"
+    iface = "enx0c5b8f279a64"
+    node = sysroot / "class" / "net" / iface
+    node.mkdir(parents=True)
+    (node / "operstate").write_text("unknown\n", encoding="utf-8")
+    (node / "carrier").write_text("1\n", encoding="utf-8")
+    os.environ["VLC_NET_SYS_ROOT"] = str(sysroot)
+    os.environ["VLC_CELL_IFACE"] = iface
+
+    class SysHost:
+        def __init__(self, nm=False):
+            self.nm = nm
+
+        def ipv4(self, name):
+            return "192.168.8.100" if name == iface else None
+
+        def routes(self):
+            return [{"iface": iface, "metric": 700}]
+
+        def iw(self, _name):
+            return {"ssid": None, "signal_dbm": None}
+
+        def cell_iface(self):
+            return iface
+
+        def nm_connected(self, name):
+            return self.nm is True and name == iface
+
+    def snap(nm=False):
+        reset_uplink_control()
+        reset_uplink_caches()
+        set_host_reader(SysHost(nm))
+        set_hilink_fetcher(fail_fetch)
+        set_presence(lambda kind: True)
+        return uplinks_payload()
+
+    cell = snap()["cellular"]
+    check(cell["up"] is True, cell)
+    check(cell["ip"] == "192.168.8.100", cell)
+    check(cell["route_metric"] == 700, cell)
+    check(cell["default_route"] is True, cell)
+
+    (node / "carrier").write_text("0\n", encoding="utf-8")
+    cell = snap(False)["cellular"]
+    check(cell["up"] is False and cell["ip"] is None, cell)
+
+    cell = snap(True)["cellular"]
+    check(cell["up"] is True and cell["ip"] == "192.168.8.100", cell)
+
+    (node / "operstate").write_text("up\n", encoding="utf-8")
+    (node / "carrier").write_text("0\n", encoding="utf-8")
+    cell = snap(False)["cellular"]
+    check(cell["up"] is True and cell["ip"] == "192.168.8.100", cell)
+
+    (node / "operstate").write_text("down\n", encoding="utf-8")
+    (node / "carrier").write_text("1\n", encoding="utf-8")
+    cell = snap(True)["cellular"]
+    check(cell["up"] is False and cell["ip"] is None, cell)
+
+    os.environ.pop("VLC_NET_SYS_ROOT", None)
+    os.environ.pop("VLC_CELL_IFACE", None)
+
+    os.environ.pop("VLC_UPLINK_NM", None)
+    os.environ.pop("VLC_UPLINK_NM_BIN", None)
+    check(
+        uplink_nm_argv("cell-up") == ["sudo", "-n", "/opt/airvix/jetson-companion/uplink-nm.sh", "cell-up"],
+        uplink_nm_argv("cell-up"),
+    )
+    os.environ["VLC_UPLINK_NM_BIN"] = "/custom/uplink-nm.sh"
+    check(
+        uplink_nm_argv("wifi-up") == ["sudo", "-n", "/custom/uplink-nm.sh", "wifi-up"],
+        uplink_nm_argv("wifi-up"),
+    )
+    os.environ.pop("VLC_UPLINK_NM_BIN", None)
+    sudoers = (ROOT / "scripts" / "jetson-companion" / "airvix-uplink.sudoers").read_text(encoding="utf-8")
+    rules = [line.strip() for line in sudoers.splitlines() if line.strip() and not line.strip().startswith("#")]
+    check(rules == ["royshiber ALL=(root) NOPASSWD: /opt/airvix/jetson-companion/uplink-nm.sh"], rules)
+    check("airvix ALL" not in sudoers, sudoers)
+    install_text = (ROOT / "scripts" / "jetson-companion" / "install.sh").read_text(encoding="utf-8")
+    check("/opt/airvix/jetson-companion/uplink-nm.sh" in install_text, "install path")
+    check("-o root -g root -m 0755" in install_text, "root-owned script")
+    check("/home/royshiber/vlc-companion" in install_text, "agent home")
+    readme = (ROOT / "scripts" / "jetson-companion" / "README.md").read_text(encoding="utf-8")
+    for line in readme.splitlines():
+        code = line.strip()
+        if code.startswith("sudo "):
+            code = code[len("sudo "):]
+        check(code != "udevadm trigger", "runbook must not trigger every device")
+        check(not code.startswith("udevadm trigger"), "runbook must not trigger every device")
 
     script = ROOT / "scripts" / "jetson-companion" / "uplink-nm.sh"
     check(script.stat().st_mode & stat.S_IXUSR, "script executable")
@@ -214,7 +325,17 @@ def main():
     log = tmp / "nm.log"
     fake = bindir / "nmcli"
     fake.write_text(
-        "#!/bin/sh\nprintf '%s\\n' \"$*\" >> \"$NM_LOG\"\nexit 0\n",
+        "#!/bin/sh\n"
+        "printf '%s\\n' \"$*\" >> \"$NM_LOG\"\n"
+        "if [ \"${NM_ACTIVE:-}\" = 1 ]; then\n"
+        "  case \"$*\" in\n"
+        "    *--active*)\n"
+        "      printf '%s\\n' \"lab-wifi:${VLC_WIFI_IFACE:-wlP1p1s0}\"\n"
+        "      printf '%s\\n' \"Wired connection 2:${VLC_CELL_IFACE:-enx0c5b8f279a64}\"\n"
+        "      ;;\n"
+        "  esac\n"
+        "fi\n"
+        "exit 0\n",
         encoding="utf-8",
     )
     fake.chmod(0o755)
@@ -244,6 +365,26 @@ def main():
     check('connection up Wired connection 2' in cell_text or "connection up Wired connection 2" in cell_text, cell_text)
     check("connection modify" not in cell_text, cell_text)
     check("uinternet" not in cell_text, "script must not write the APN")
+
+    active_env = {**env, "NM_ACTIVE": "1", "VLC_CELL_IFACE": "enx0c5b8f279a64"}
+
+    def run_active(*args):
+        log.write_text("", encoding="utf-8")
+        return subprocess.run([str(script), *args], env=active_env, text=True, capture_output=True)
+
+    wifi_live = run_active("wifi-up")
+    check(wifi_live.returncode == 0, wifi_live.stderr)
+    wifi_live_text = log.read_text(encoding="utf-8")
+    check("--active" in wifi_live_text, wifi_live_text)
+    check("connection up" not in wifi_live_text and "device connect" not in wifi_live_text, wifi_live_text)
+    check("device set" not in wifi_live_text, wifi_live_text)
+
+    cell_live = run_active("cell-up")
+    check(cell_live.returncode == 0, cell_live.stderr)
+    cell_live_text = log.read_text(encoding="utf-8")
+    check("--active" in cell_live_text, cell_live_text)
+    check("connection up" not in cell_live_text and "device connect" not in cell_live_text, cell_live_text)
+    check("device set" not in cell_live_text, cell_live_text)
 
     print("ok")
 

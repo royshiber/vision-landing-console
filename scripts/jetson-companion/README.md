@@ -30,7 +30,7 @@ python3 camera_ingest.py --resolve
 
 4. Copy this folder to `~/vlc-companion` (or `install.sh --apply` on a Jetson).
 5. Optional gimbal: `docs/SIYI_A8_GIMBAL.md` and `./siyi-net.sh`.
-6. Start the 2.3.9 agent (UART fan-out unchanged):
+6. Start the 2.3.10 agent (UART fan-out unchanged):
 
 ```
 python3 companion_agent.py
@@ -74,6 +74,8 @@ CSI without a GStreamer OpenCV build reports `csi_requires_gstreamer_opencv`.
 | `VLC_CELL_NM_CONNECTION` | `Wired connection 2` (APN profile `uinternet`, not rewritten) |
 | `VLC_UPLINKS_STATE` | `/var/lib/airvix/uplinks.json` |
 | `VLC_UPLINK_REACH_HOST` | `1.1.1.1` (ping `-I` the link that would remain) |
+| `VLC_UPLINK_NM_BIN` | `/opt/airvix/jetson-companion/uplink-nm.sh` (sudo target) |
+| `VLC_UPLINK_NM` | unset (tests only: run this program instead of `sudo -n`) |
 
 USB open requests MJPG, then YUYV.
 
@@ -95,6 +97,39 @@ Console: `npm run camera:dry-run`.
 ```
 
 Never changes Wi-Fi or the cellular profile. Details: `docs/SIYI_A8_GIMBAL.md`.
+
+## Uplink control on the Jetson (2.3.10)
+
+The agent runs as `royshiber` from `/home/royshiber/vlc-companion`.
+NetworkManager changes use a root-owned script. The sudoers rule names that path only.
+
+1. Copy the agent files into `/home/royshiber/vlc-companion`: `companion_agent.py`, `camera_ingest.py`, `siyi_sdk.py`, `siyi-net.sh`, `annotated_encoder.py`, `fc_telemetry.py`, `uplink_status.py`, `uplink_control.py`, `README.md`. Leave `uplink-nm.sh` out of that tree.
+2. Install the privileged script as root:
+
+```
+sudo install -d -o root -g root -m 0755 /opt/airvix/jetson-companion
+sudo install -o root -g root -m 0755 uplink-nm.sh /opt/airvix/jetson-companion/uplink-nm.sh
+```
+
+3. Install sudoers for `royshiber`:
+
+```
+sudo install -m 440 airvix-uplink.sudoers /etc/sudoers.d/airvix-uplink
+sudo visudo -cf /etc/sudoers.d/airvix-uplink
+```
+
+4. If a unit file changed, reload systemd:
+
+```
+sudo systemctl daemon-reload
+```
+
+5. Skip udev. Do not run a global udev trigger. A modem-only nudge is optional and must name that one device; this runbook does not do it.
+6. Restart the agent as `royshiber`. `GET /api/health` reports `agentVersion` `2.3.10`.
+
+`wifi-up` and `cell-up` do nothing when that connection is already active. Startup does not take a live link down.
+
+Rollback: put the 2.3.9 agent files back and remove `/etc/sudoers.d/airvix-uplink` if this install added it. Do not write an APN. No flight commands. No Companion apply from a cloud VM.
 
 ## Hebrew operator notes
 
