@@ -602,15 +602,14 @@ describe('Mission layout contract — live boxes', () => {
     expect(clip.linkTitle).toContain('טלמטריה');
     expect(clip.altText).toBe('--');
     expect(clip.altTitle).toBe('אין קישור');
-    expect(clip.pillWrap).toBe('nowrap');
+    expect(clip.pillWrap).toBe('normal');
     expect(clip.pillOverflow).toBeLessThanOrEqual(1);
     for (const tile of clip.tiles) {
-      expect(tile.labelWrap).toBe('nowrap');
-      expect(tile.valueWrap).toBe('nowrap');
+      expect(tile.labelWrap).toBe('normal');
+      expect(tile.valueWrap).toBe('normal');
       expect(tile.labelOverflow).toBeLessThanOrEqual(1);
       expect(tile.valueOverflow).toBeLessThanOrEqual(1);
       expect(tile.tileH).toBeGreaterThanOrEqual(56);
-      expect(tile.tileH).toBeLessThanOrEqual(76);
     }
   }, 20000);
 

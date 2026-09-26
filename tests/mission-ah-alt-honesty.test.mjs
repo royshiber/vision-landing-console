@@ -104,19 +104,20 @@ describe('Mission AH size bias + swap persistence', () => {
     expect(pkg.version).toBe('1.02.335');
   });
 
-  it('keeps mission-data labels and values on one ellipsized line', () => {
+  it('fits mission-data text inside the tile instead of an ellipsis', () => {
     const tile = cssBlock(css, '.mission-data-tile');
     expect(tile).toMatch(/min-height:\s*56px/);
     expect(tile).toMatch(/max-height:\s*none/);
     expect(tile).not.toMatch(/max-height:\s*44px/);
-    const typeBlock = cssBlock(css, '.mission-data-item dt');
-    expect(typeBlock).toMatch(/white-space:\s*nowrap/);
-    expect(typeBlock).toMatch(/text-overflow:\s*ellipsis/);
-    expect(typeBlock).toContain('.mission-data-label');
-    expect(typeBlock).toContain('.mission-data-value');
-    expect(cssBlock(css, '.conn-pill-label')).toMatch(/white-space:\s*nowrap/);
-    expect(cssBlock(css, '.conn-pill-label')).toMatch(/text-overflow:\s*ellipsis/);
-    expect(cssBlock(css, '.conn-link-chip')).toMatch(/white-space:\s*nowrap/);
+    const contractAt = css.indexOf('TEXT FIT CONTRACT');
+    expect(contractAt).toBeGreaterThan(0);
+    const contract = css.slice(contractAt);
+    expect(contract).toMatch(/font-size:\s*clamp\(11px/);
+    expect(contract).toMatch(/overflow-wrap:\s*anywhere/);
+    expect(contract).not.toMatch(/text-overflow:\s*ellipsis/);
+    expect(contract).toMatch(/#missionLink/);
+    expect(contract).toMatch(/mission-horizon-filler-kicker/);
+    expect(contract).toMatch(/\.pfd-mode-val/);
     expect(cssBlock(css, '.mission-ops-chrome')).toMatch(/flex-wrap:\s*nowrap/);
     const fns = loadSizeFns();
     expect(fns.shortMissionLinkReadout('מחובר · טלמטריה רגילה')).toBe('מחובר');

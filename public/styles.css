@@ -338,7 +338,7 @@ h1 { margin: 0; font-size: 1.25rem; color: var(--text); }
   margin-inline-start: 4px;
   border: 1px solid var(--border);
   border-radius: 50%;
-  font-size: 0.64rem;
+  font-size: clamp(11px, 0.64rem, 8rem);
   color: var(--text-muted);
   cursor: help;
   vertical-align: middle;
@@ -421,7 +421,7 @@ body:has(#terrain.panel.visible) .layout {
 
 .tab-lab {
   font-weight: 600;
-  font-size: 0.64rem;
+  font-size: clamp(11px, 0.64rem, 8rem);
   letter-spacing: 0.04em;
   color: var(--text-subtle);
   background: transparent;
@@ -452,7 +452,7 @@ body:has(#terrain.panel.visible) .layout {
 
 .tab-lab-toggle {
   font-weight: 600;
-  font-size: 0.64rem;
+  font-size: clamp(11px, 0.64rem, 8rem);
   letter-spacing: 0.04em;
   color: var(--text-subtle);
   background: transparent;
@@ -704,7 +704,7 @@ body:has(#terrain.panel.visible) .layout {
   padding: 0 9px;
   background: var(--surface-container);
   border-left: 1px solid var(--border);
-  font-size: 0.61rem;
+  font-size: clamp(11px, 0.61rem, 8rem);
   font-weight: 800;
   font-family: "Space Grotesk", "Heebo", sans-serif;
   letter-spacing: 0.1em;
@@ -1044,7 +1044,7 @@ body:has(#terrain.panel.visible) .layout {
 
 /* Why / reason row — subtle */
 .ardu-smart-result-why {
-  font-size: 0.65rem;
+  font-size: clamp(11px, 0.65rem, 8rem);
   line-height: 1.2;
   color: var(--text-muted);
   font-style: italic;
@@ -1052,7 +1052,7 @@ body:has(#terrain.panel.visible) .layout {
 
 /* Confidence badge */
 .ardu-smart-result-confidence {
-  font-size: 0.62rem;
+  font-size: clamp(11px, 0.62rem, 8rem);
   color: var(--primary);
   opacity: 0.75;
 }
@@ -1105,7 +1105,7 @@ body:has(#terrain.panel.visible) .layout {
 
 /* "Outside" label badge */
 .ardu-smart-outside-badge {
-  font-size: 0.6rem;
+  font-size: clamp(11px, 0.6rem, 8rem);
   font-weight: 700;
   color: var(--text-muted);
   background: var(--surface-low);
@@ -1126,7 +1126,7 @@ body:has(#terrain.panel.visible) .layout {
   border-radius: 6px;
   background: rgba(0, 71, 141, 0.035);
   color: var(--text-muted);
-  font-size: 0.66rem;
+  font-size: clamp(11px, 0.66rem, 8rem);
   line-height: 1.25;
 }
 .ardu-smart-meta strong {
@@ -3642,7 +3642,7 @@ button:hover,
 
 .tele-dash-head .section-badge {
   margin-inline-start: 0;
-  font-size: 0.62rem;
+  font-size: clamp(11px, 0.62rem, 8rem);
   font-weight: 700;
   padding: 3px 9px;
   max-width: 100%;
@@ -3658,7 +3658,7 @@ button:hover,
 
 .tele-dash-sub {
   display: block;
-  font-size: 0.62rem;
+  font-size: clamp(11px, 0.62rem, 8rem);
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: none;
@@ -3710,7 +3710,7 @@ button:hover,
 .tele-vision-group:last-child { margin-bottom: 0; }
 
 .tele-group-label {
-  font-size: 0.6rem;
+  font-size: clamp(11px, 0.6rem, 8rem);
   font-weight: 800;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -3760,7 +3760,7 @@ button:hover,
 /* Stitch: label — tiny uppercase with letter-spacing */
 .tele-dash-col .tele-card span,
 .tele-group-cards .tele-card span {
-  font-size: 0.63rem;
+  font-size: clamp(11px, 0.63rem, 8rem);
   line-height: 1.3;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -3861,7 +3861,7 @@ button:hover,
 }
 
 .jst-label {
-  font-size: 0.6rem;
+  font-size: clamp(11px, 0.6rem, 8rem);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -4017,7 +4017,7 @@ button:hover,
 }
 
 .jetson-install-badge {
-  font-size: 0.65rem;
+  font-size: clamp(11px, 0.65rem, 8rem);
   font-weight: 700;
   padding: 2px 8px;
   border-radius: 999px;
@@ -4933,7 +4933,7 @@ body:has(#pulse.panel.visible) .layout {
   min-width: 0;
 }
 .pulse-fc-identity dt {
-  font-size: 0.62rem;
+  font-size: clamp(11px, 0.62rem, 8rem);
   font-weight: 700;
   color: #8b97ab;
 }
@@ -5125,7 +5125,7 @@ body:has(#pulse.panel.visible) .layout {
   min-width: 4.2rem;
   padding: 2px 8px;
   border-radius: 999px;
-  font-size: 0.64rem;
+  font-size: clamp(11px, 0.64rem, 8rem);
   font-weight: 800;
   text-align: center;
   background: rgba(148, 168, 198, 0.12);
@@ -5159,7 +5159,7 @@ body:has(#pulse.panel.visible) .layout {
 }
 .pfd-readiness-body .cic-step-help,
 .pfd-readiness-body .cic-lead {
-  font-size: 0.6rem;
+  font-size: clamp(11px, 0.6rem, 8rem);
 }
 .cic-cam-status {
   display: flex;
@@ -5235,13 +5235,13 @@ body:has(#pulse.panel.visible) .layout {
   gap: 4px;
 }
 .mission-live-camera-label {
-  font-size: 0.66rem;
+  font-size: clamp(11px, 0.66rem, 8rem);
   font-weight: 800;
   color: #d7deea;
 }
 .mission-live-camera-meta {
   margin: 0;
-  font-size: 0.62rem;
+  font-size: clamp(11px, 0.62rem, 8rem);
   color: #9aa8b8;
 }
 .mission-live-camera-frame {
@@ -5341,7 +5341,7 @@ body:has(#pulse.panel.visible) .layout {
   display: inline-flex;
   padding: 1px 6px;
   border-radius: 999px;
-  font-size: 0.62rem;
+  font-size: clamp(11px, 0.62rem, 8rem);
   font-weight: 700;
   letter-spacing: 0.02em;
   background: rgba(148, 168, 198, 0.1);
@@ -5372,7 +5372,7 @@ body:has(#pulse.panel.visible) .layout {
   grid-template-columns: minmax(0, 1fr) auto auto auto;
   gap: 6px;
   align-items: center;
-  font-size: 0.66rem;
+  font-size: clamp(11px, 0.66rem, 8rem);
   font-weight: 600;
   color: #a8b4c8;
 }
@@ -5381,7 +5381,7 @@ body:has(#pulse.panel.visible) .layout {
 }
 .vlr-key-token {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 0.6rem;
+  font-size: clamp(11px, 0.6rem, 8rem);
   font-weight: 700;
   color: #94a3b8;
   direction: ltr;
@@ -5418,7 +5418,7 @@ body:has(#pulse.panel.visible) .layout {
   border-radius: 999px;
   background: transparent;
   color: #cbd5e1;
-  font-size: 0.66rem;
+  font-size: clamp(11px, 0.66rem, 8rem);
   font-weight: 800;
   cursor: pointer;
 }
@@ -5489,7 +5489,7 @@ body:has(#pulse.panel.visible) .layout {
 }
 .plnd-honesty-key-token {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 0.62rem;
+  font-size: clamp(11px, 0.62rem, 8rem);
   font-weight: 700;
   color: #94a3b8;
   direction: ltr;
@@ -5662,7 +5662,7 @@ body:has(#pulse.panel.visible) .layout {
 }
 .pulse-version-k {
   margin: 0;
-  font-size: 0.62rem;
+  font-size: clamp(11px, 0.62rem, 8rem);
   font-weight: 700;
   letter-spacing: 0.04em;
   color: #7d8ba0;
@@ -6143,7 +6143,7 @@ body:has(#pulse.panel.visible) .layout {
 }
 
 .companion-tier {
-  font-size: 0.62rem;
+  font-size: clamp(11px, 0.62rem, 8rem);
   color: var(--text-muted);
 }
 
@@ -7585,7 +7585,7 @@ html[data-evolve-preview="1"] #development {
 }
 .policy-cat-label { flex: 1; }
 .policy-cat-dir {
-  font-size: 0.62rem;
+  font-size: clamp(11px, 0.62rem, 8rem);
   padding: 2px 6px;
   border: 1px solid var(--border);
   border-radius: 6px;
@@ -7949,7 +7949,7 @@ html[data-evolve-preview="1"] #development {
   background: #00478d;
   color: #fff;
   border-radius: 999px;
-  font-size: 0.62rem;
+  font-size: clamp(11px, 0.62rem, 8rem);
   padding: 1px 7px;
   font-weight: 700;
 }
@@ -8192,7 +8192,7 @@ html[data-evolve-preview="1"] #development {
 }
 
 .ac-risk-badge {
-  font-size: 0.61rem;
+  font-size: clamp(11px, 0.61rem, 8rem);
   font-weight: 700;
   letter-spacing: 0.06em;
   padding: 2px 7px;
@@ -8387,7 +8387,7 @@ html[data-evolve-preview="1"] #development {
 
 .ac-q-kicker {
   margin: 0;
-  font-size: 0.62rem;
+  font-size: clamp(11px, 0.62rem, 8rem);
   font-weight: 800;
   letter-spacing: 0.08em;
   color: #7dd3fc;
@@ -8463,7 +8463,7 @@ html[data-evolve-preview="1"] #development {
 
 .ac-wire-host-name {
   margin: 0 0 4px;
-  font-size: 0.66rem;
+  font-size: clamp(11px, 0.66rem, 8rem);
   font-weight: 800;
   color: #cbd5e1;
 }
@@ -8518,7 +8518,7 @@ html[data-evolve-preview="1"] #development {
 }
 
 .ac-walk-head {
-  font-size: 0.62rem;
+  font-size: clamp(11px, 0.62rem, 8rem);
   font-weight: 800;
   color: #94a3b8;
   letter-spacing: 0.04em;
@@ -8553,7 +8553,7 @@ html[data-evolve-preview="1"] #development {
 .ac-walk-seen {
   color: #64748b;
   font-weight: 700;
-  font-size: 0.66rem;
+  font-size: clamp(11px, 0.66rem, 8rem);
 }
 
 .ac-walk-none {
@@ -8817,7 +8817,7 @@ html[data-evolve-preview="1"] #development {
   display: inline-flex;
   align-items: center;
   font-family: "Space Grotesk", ui-monospace, monospace;
-  font-size: 0.66rem;
+  font-size: clamp(11px, 0.66rem, 8rem);
   font-weight: 700;
   padding: 1px 6px;
   border-radius: 5px;
@@ -8862,7 +8862,7 @@ html[data-evolve-preview="1"] #development {
 
 .ac-b-host-note {
   margin: 6px 8px 0;
-  font-size: 0.66rem;
+  font-size: clamp(11px, 0.66rem, 8rem);
   color: #94a3b8;
   flex-shrink: 0;
 }
@@ -8949,7 +8949,7 @@ html[data-evolve-preview="1"] #development {
   align-items: center;
   border-radius: 999px;
   padding: 2px 7px;
-  font-size: 0.62rem;
+  font-size: clamp(11px, 0.62rem, 8rem);
   font-weight: 800;
   white-space: nowrap;
 }
@@ -9123,7 +9123,7 @@ html[data-evolve-preview="1"] #development {
   padding: 5px 8px !important;
   text-align: center;
 }
-.tele-hud-mini span { display: block; font-size: 0.66rem; }
+.tele-hud-mini span { display: block; font-size: clamp(11px, 0.66rem, 8rem); }
 .tele-hud-mini strong { display: block; font-size: 0.92rem; letter-spacing: 0.01em; color: #93c5fd !important; }
 .tele-hud-mini--airspeed-proxy strong { color: #fdba74 !important; }
 .tele-hud-mini--time-skew strong {
@@ -9146,7 +9146,7 @@ html[data-evolve-preview="1"] #development {
 }
 
 .tele-preflight-title {
-  font-size: 0.66rem;
+  font-size: clamp(11px, 0.66rem, 8rem);
   font-weight: 700;
   letter-spacing: 0.07em;
   text-transform: uppercase;
@@ -9216,7 +9216,7 @@ html[data-evolve-preview="1"] #development {
   position: absolute;
   top: 4px;
   inset-inline-end: 6px;
-  font-size: 0.62rem;
+  font-size: clamp(11px, 0.62rem, 8rem);
   font-weight: 700;
   letter-spacing: 0.06em;
   padding: 1px 5px;
@@ -9371,7 +9371,7 @@ html[data-evolve-preview="1"] #development {
   font-size: 0.68rem;
   line-height: 1.2;
 }
-.adv-info-tight-row .adv-sys-k { margin-inline-end: 3px; font-size: 0.65rem; }
+.adv-info-tight-row .adv-sys-k { margin-inline-end: 3px; font-size: clamp(11px, 0.65rem, 8rem); }
 .adv-info-tight-row .adv-sys-v { font-weight: 600; font-size: 0.68rem; }
 .adv-compact-gemini {
   flex: 1 1 160px;
@@ -9415,14 +9415,14 @@ html[data-evolve-preview="1"] #development {
 .adv-info-explain[open] > .adv-info-explain-summary { margin-bottom: 2px; }
 .adv-sys-hint--compact {
   margin: 0 8px 4px 8px !important;
-  font-size: 0.65rem !important;
+  font-size: clamp(11px, 0.65rem, 8rem) !important;
   line-height: 1.3 !important;
   color: var(--text-muted, var(--text-muted)) !important;
 }
 .adv-chat-safety-hint--compact {
   margin: 0 8px 6px 8px !important;
   padding: 4px 0 !important;
-  font-size: 0.65rem !important;
+  font-size: clamp(11px, 0.65rem, 8rem) !important;
   line-height: 1.3 !important;
   background: transparent !important;
   border: none !important;
@@ -10032,7 +10032,7 @@ html[data-evolve-preview="1"] #development {
   background: rgba(15, 23, 42, 0.45);
   color: #94a3b8;
   font: inherit;
-  font-size: 0.58rem;
+  font-size: clamp(11px, 0.58rem, 8rem);
   font-weight: 700;
   cursor: pointer;
 }
@@ -10060,7 +10060,7 @@ html[data-evolve-preview="1"] #development {
   border: 1px solid rgba(148, 163, 184, 0.28);
   background: rgba(15, 23, 42, 0.45);
   color: #94a3b8;
-  font-size: 0.58rem;
+  font-size: clamp(11px, 0.58rem, 8rem);
   font-weight: 700;
   font-family: "Heebo", sans-serif;
   white-space: nowrap;
@@ -10179,7 +10179,7 @@ html[data-evolve-preview="1"] #development {
   background: rgba(148, 163, 184, 0.12);
   color: #cbd5e1;
   font: inherit;
-  font-size: 0.6rem;
+  font-size: clamp(11px, 0.6rem, 8rem);
   font-weight: 700;
   letter-spacing: 0.02em;
   cursor: pointer;
@@ -10226,7 +10226,7 @@ html[data-evolve-preview="1"] #development {
   background: rgba(16, 185, 129, 0.16);
   color: #bbf7d0;
   font: inherit;
-  font-size: 0.6rem;
+  font-size: clamp(11px, 0.6rem, 8rem);
   font-weight: 700;
   letter-spacing: 0.02em;
   cursor: pointer;
@@ -10247,7 +10247,7 @@ html[data-evolve-preview="1"] #development {
   background: rgba(15, 23, 42, 0.35);
   color: #cbd5e1;
   font: inherit;
-  font-size: 0.6rem;
+  font-size: clamp(11px, 0.6rem, 8rem);
   font-weight: 700;
   letter-spacing: 0.02em;
   cursor: pointer;
@@ -10349,7 +10349,7 @@ html[data-evolve-preview="1"] #development {
 
 .mission-layout-hint {
   margin: 0;
-  font-size: 0.62rem;
+  font-size: clamp(11px, 0.62rem, 8rem);
   font-weight: 500;
   color: #64748b;
   font-family: "Heebo", sans-serif;
@@ -10550,7 +10550,7 @@ html[data-evolve-preview="1"] #development {
   z-index: 1;
   margin: 0;
   padding: 2px 6px 0;
-  font-size: 0.58rem;
+  font-size: clamp(11px, 0.58rem, 8rem);
   font-weight: 600;
   letter-spacing: 0.01em;
   color: rgba(226, 232, 240, 0.72);
@@ -10579,7 +10579,7 @@ html[data-evolve-preview="1"] #development {
   background: rgba(16, 185, 129, 0.14);
   color: #bbf7d0;
   font: inherit;
-  font-size: 0.58rem;
+  font-size: clamp(11px, 0.58rem, 8rem);
   font-weight: 700;
   font-family: "Heebo", sans-serif;
   cursor: pointer;
@@ -10682,7 +10682,7 @@ html[data-evolve-preview="1"] #development {
 
 .mission-data-item dt,
 .mission-data-label {
-  font-size: 0.62rem;
+  font-size: clamp(11px, 0.62rem, 8rem);
   font-weight: 800;
   letter-spacing: 0.04em;
   color: #93c5fd;
@@ -10708,7 +10708,7 @@ html[data-evolve-preview="1"] #development {
 
 .mission-data-unit {
   flex: 0 0 auto;
-  font-size: 0.62rem;
+  font-size: clamp(11px, 0.62rem, 8rem);
   font-weight: 700;
   color: #94a3b8;
   font-family: "Space Grotesk", sans-serif;
@@ -10764,7 +10764,7 @@ html[data-evolve-preview="1"] #development {
 .mission-data-picker-current {
   margin: 0 0 6px;
   min-height: 1em;
-  font-size: 0.62rem;
+  font-size: clamp(11px, 0.62rem, 8rem);
   color: #64748b;
   font-family: "Heebo", sans-serif;
   direction: rtl;
@@ -10784,7 +10784,7 @@ html[data-evolve-preview="1"] #development {
 
 .mission-data-picker-hint {
   margin: 6px 0;
-  font-size: 0.66rem;
+  font-size: clamp(11px, 0.66rem, 8rem);
   color: #475569;
   line-height: 1.35;
 }
@@ -10809,7 +10809,7 @@ html[data-evolve-preview="1"] #development {
   color: #0f172a;
   border-radius: 8px;
   padding: 5px 8px;
-  font-size: 0.66rem;
+  font-size: clamp(11px, 0.66rem, 8rem);
   font-weight: 700;
   font-family: "Heebo", sans-serif;
   cursor: pointer;
@@ -10820,7 +10820,7 @@ html[data-evolve-preview="1"] #development {
 
 .mission-data-picker-chip-mav {
   font-family: "Space Grotesk", ui-monospace, monospace;
-  font-size: 0.58rem;
+  font-size: clamp(11px, 0.58rem, 8rem);
   font-weight: 600;
   color: #334155;
   direction: ltr;
@@ -10907,7 +10907,7 @@ html[data-evolve-preview="1"] #development {
   background: rgba(148, 163, 184, 0.28);
   color: #e2e8f0;
   font-family: "Heebo", sans-serif;
-  font-size: 10px;
+  font-size: clamp(11px, 10px, 8rem);
   font-weight: 700;
   line-height: 1;
 }
@@ -11197,7 +11197,7 @@ html[data-evolve-preview="1"] #development {
   background: rgba(139, 92, 246, 0.22);
   border: 1px solid rgba(167, 139, 250, 0.45);
   color: #ede9fe;
-  font-size: 0.6rem;
+  font-size: clamp(11px, 0.6rem, 8rem);
   font-weight: 700;
   border-radius: 6px;
   padding: 3px 8px;
@@ -11206,7 +11206,7 @@ html[data-evolve-preview="1"] #development {
 }
 .pfd-voice-flight-btn:hover { background: rgba(139, 92, 246, 0.36); }
 .pfd-badge {
-  font-size: 0.6rem;
+  font-size: clamp(11px, 0.6rem, 8rem);
   font-weight: 800;
   font-family: "Space Grotesk", monospace;
   letter-spacing: 0.08em;
@@ -11243,7 +11243,7 @@ html[data-evolve-preview="1"] #development {
 .pfd-hud-wait-hint {
   margin: 0;
   padding: 2px 8px;
-  font-size: 0.62rem;
+  font-size: clamp(11px, 0.62rem, 8rem);
   font-weight: 600;
   color: #fde68a;
   background: rgba(120, 80, 0, 0.32);
@@ -11558,7 +11558,7 @@ html[data-evolve-preview="1"] #development {
 .pfd-side-tape--left  { grid-area: ias; left: auto; }
 .pfd-side-tape--right { grid-area: alt; right: auto; }
 .pfd-tape-key {
-  font-size: 0.5rem;
+  font-size: clamp(11px, 0.5rem, 8rem);
   font-weight: 700;
   letter-spacing: 0.08em;
   color: #94a3b8;
@@ -11648,7 +11648,7 @@ html[data-evolve-preview="1"] #development {
   border: 1px solid rgba(255,255,255,0.25);
   border-radius: 6px;
   color: rgba(255,255,255,0.85);
-  font-size: 0.62rem;
+  font-size: clamp(11px, 0.62rem, 8rem);
   font-weight: 700;
   font-family: "Space Grotesk", "Heebo", sans-serif;
   padding: 3px 8px;
@@ -11678,7 +11678,7 @@ html[data-evolve-preview="1"] #development {
 }
 .pfd-video-panel.hidden { display: none; }
 .pfd-video-label {
-  font-size: 0.6rem;
+  font-size: clamp(11px, 0.6rem, 8rem);
   color: rgba(148,210,230,0.8);
   font-weight: 600;
   font-family: "Space Grotesk", "Heebo", sans-serif;
@@ -11691,7 +11691,7 @@ html[data-evolve-preview="1"] #development {
   border: 1px solid rgba(255,255,255,0.15);
   border-radius: 6px;
   color: #e2e8f0;
-  font-size: 0.65rem;
+  font-size: clamp(11px, 0.65rem, 8rem);
   padding: 4px 8px;
   font-family: "Fira Code", "Courier New", monospace;
   min-width: 0;
@@ -11705,7 +11705,7 @@ html[data-evolve-preview="1"] #development {
   border: none;
   border-radius: 6px;
   padding: 4px 10px;
-  font-size: 0.65rem;
+  font-size: clamp(11px, 0.65rem, 8rem);
   font-weight: 800;
   cursor: pointer;
   font-family: "Space Grotesk", "Heebo", sans-serif;
@@ -11732,13 +11732,13 @@ html[data-evolve-preview="1"] #development {
   align-items: center;
 }
 .pfc-msg-label {
-  font-size: 0.58rem;
+  font-size: clamp(11px, 0.58rem, 8rem);
   font-weight: 700;
   letter-spacing: 0.06em;
   color: rgba(125, 211, 252, 0.88);
 }
 .pfc-opt-mini {
-  font-size: 0.58rem;
+  font-size: clamp(11px, 0.58rem, 8rem);
   color: #94a3b8;
 }
 .pfc-msg-primary {
@@ -11752,7 +11752,7 @@ html[data-evolve-preview="1"] #development {
   -webkit-box-orient: vertical;
 }
 .pfc-msg-scroll {
-  font-size: 0.62rem;
+  font-size: clamp(11px, 0.62rem, 8rem);
   line-height: 1.35;
   color: rgba(203, 213, 225, 0.88);
   max-height: 2.8rem;
@@ -11806,13 +11806,13 @@ html[data-evolve-preview="1"] #development {
   gap: 1px;
 }
 .pfd-readiness-body .vlr-missing {
-  font-size: 0.6rem;
+  font-size: clamp(11px, 0.6rem, 8rem);
   line-height: 1.2;
   margin: 1px 0 0;
 }
 .pfd-readiness-body .vlr-open-params {
   margin-top: 2px;
-  font-size: 0.6rem;
+  font-size: clamp(11px, 0.6rem, 8rem);
 }
 .pfd-readiness-actions {
   display: flex;
@@ -11865,7 +11865,7 @@ html[data-evolve-preview="1"] #development {
 .pfd-opt-pill {
   flex: 1;
   padding: 3px 6px !important;
-  font-size: 0.62rem !important;
+  font-size: clamp(11px, 0.62rem, 8rem) !important;
 }
 .pfd-add-btn {
   background: rgba(0,140,255,0.12);
@@ -11897,11 +11897,11 @@ html[data-evolve-preview="1"] #development {
   min-height: 0;
 }
 .pfd-slots-strip .hud-slot-val { font-size: 0.9rem; }
-.pfd-slots-strip .hud-slot-label { font-size: 0.5rem; }
+.pfd-slots-strip .hud-slot-label { font-size: clamp(11px, 0.5rem, 8rem); }
 
 /* Legacy label kept for backward compat */
 .hud-metric-label {
-  font-size: 0.63rem;
+  font-size: clamp(11px, 0.63rem, 8rem);
   color: rgba(180,200,230,0.7);
   white-space: nowrap;
   overflow: hidden;
@@ -11915,7 +11915,7 @@ html[data-evolve-preview="1"] #development {
   white-space: nowrap;
 }
 .hud-metric-val em {
-  font-size: 0.62rem;
+  font-size: clamp(11px, 0.62rem, 8rem);
   font-weight: 400;
   color: rgba(160,185,220,0.65);
   font-style: normal;
@@ -11961,7 +11961,7 @@ html[data-evolve-preview="1"] #development {
   line-height: 1;
 }
 .hud-nav-label {
-  font-size: 0.62rem;
+  font-size: clamp(11px, 0.62rem, 8rem);
   font-weight: 700;
   color: rgba(255,255,255,0.55);
   text-transform: uppercase;
@@ -12021,7 +12021,7 @@ html[data-evolve-preview="1"] #development {
 }
 
 .hud-slot-label {
-  font-size: 0.58rem;
+  font-size: clamp(11px, 0.58rem, 8rem);
   font-weight: 600;
   color: rgba(200,220,255,0.52);
   text-transform: uppercase;
@@ -12040,7 +12040,7 @@ html[data-evolve-preview="1"] #development {
   filter: drop-shadow(0 0 4px color-mix(in srgb, var(--sc) 50%, transparent));
 }
 .hud-slot-unit {
-  font-size: 0.6rem;
+  font-size: clamp(11px, 0.6rem, 8rem);
   font-weight: 500;
   color: color-mix(in srgb, var(--sc) 55%, rgba(255,255,255,0.3));
   align-self: flex-end;
@@ -12577,7 +12577,7 @@ html[data-evolve-preview="1"] #development {
 }
 
 .compass-cardinal {
-  font-size: 9px;
+  font-size: clamp(11px, 9px, 8rem);
   font-weight: 800;
   font-family: "Space Grotesk", "Heebo", sans-serif;
   letter-spacing: 0.04em;
@@ -12588,7 +12588,7 @@ html[data-evolve-preview="1"] #development {
 
 .north-cardinal {
   fill: #e11d48;
-  font-size: 10.5px;
+  font-size: clamp(11px, 10.5px, 8rem);
 }
 
 .compass-rose-group {
@@ -12597,7 +12597,7 @@ html[data-evolve-preview="1"] #development {
 }
 
 .compass-deg-label {
-  font-size: 9px;
+  font-size: clamp(11px, 9px, 8rem);
   font-weight: 700;
   font-family: "Space Grotesk", "Heebo", ui-monospace, monospace;
   fill: rgba(0, 71, 141, 0.8);
@@ -12613,7 +12613,7 @@ html[data-evolve-preview="1"] #development {
   border-radius: 5px;
   background: linear-gradient(180deg, #0056a8 0%, var(--primary) 100%);
   color: #fff;
-  font-size: 0.62rem;
+  font-size: clamp(11px, 0.62rem, 8rem);
   font-weight: 800;
   font-family: "Space Grotesk", "Heebo", sans-serif;
   border: none;
@@ -13033,7 +13033,7 @@ details.flight-manage summary {
   background: #34d399;
 }
 .comm-link-pct {
-  font-size: 0.58rem;
+  font-size: clamp(11px, 0.58rem, 8rem);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   font-family: "Heebo", sans-serif;
@@ -13070,7 +13070,7 @@ details.flight-manage summary {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 0.66rem;
+  font-size: clamp(11px, 0.66rem, 8rem);
   font-weight: 700;
   line-height: 1.3;
   color: #cbd5e1;
@@ -13081,7 +13081,7 @@ details.flight-manage summary {
 .comm-link-meta[hidden] { display: none; }
 .comm-link-hint {
   margin: 0;
-  font-size: 0.66rem;
+  font-size: clamp(11px, 0.66rem, 8rem);
   line-height: 1.35;
   color: #94a3b8;
   font-family: "Heebo", sans-serif;
@@ -13091,7 +13091,7 @@ details.flight-manage summary {
 }
 .comm-link-status {
   margin: 0;
-  font-size: 0.66rem;
+  font-size: clamp(11px, 0.66rem, 8rem);
   font-weight: 700;
   line-height: 1.3;
   font-family: "Heebo", sans-serif;
@@ -13106,7 +13106,7 @@ details.flight-manage summary {
 .comm-link-row[data-tone="off"] .comm-link-status { color: #94a3b8; }
 .comm-link-error {
   margin: 0;
-  font-size: 0.64rem;
+  font-size: clamp(11px, 0.64rem, 8rem);
   line-height: 1.35;
   color: #fecaca;
   font-family: "Heebo", sans-serif;
@@ -13118,7 +13118,7 @@ details.flight-manage summary {
   align-items: center;
   gap: 4px;
   margin-top: 2px;
-  font-size: 0.62rem;
+  font-size: clamp(11px, 0.62rem, 8rem);
   color: #94a3b8;
   font-family: "Heebo", sans-serif;
 }
@@ -13407,7 +13407,7 @@ details.flight-manage summary {
 }
 .mission-annotated-path {
   margin: 2px 0 0;
-  font-size: 0.62rem;
+  font-size: clamp(11px, 0.62rem, 8rem);
   color: #94a3b8;
   font-family: "Heebo", sans-serif;
 }
@@ -13515,7 +13515,7 @@ details.flight-manage summary {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.65rem;
+  font-size: clamp(11px, 0.65rem, 8rem);
   font-weight: 700;
   z-index: 1;
   flex-shrink: 0;
@@ -14201,7 +14201,7 @@ details.flight-manage summary {
 .cp-features-grid { display: flex; flex-direction: column; gap: var(--space-4); }
 .cp-group { display: flex; flex-direction: column; gap: var(--space-2); }
 .cp-group-label {
-  font-size: 0.62rem;
+  font-size: clamp(11px, 0.62rem, 8rem);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -14239,7 +14239,7 @@ details.flight-manage summary {
   flex: 1;
 }
 .cp-card-badge {
-  font-size: 0.58rem;
+  font-size: clamp(11px, 0.58rem, 8rem);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -14248,7 +14248,7 @@ details.flight-manage summary {
 }
 .cp-badge--active { background: rgba(16,185,129,0.2);  color: #6ee7b7; border: 1px solid rgba(16,185,129,0.3); }
 .cp-badge--draft  { background: rgba(245,158,11,0.15); color: #fcd34d; border: 1px solid rgba(245,158,11,0.25); }
-.cp-card-count { font-size: 0.62rem; color: rgba(150,180,220,0.45); margin-right: auto; }
+.cp-card-count { font-size: clamp(11px, 0.62rem, 8rem); color: rgba(150,180,220,0.45); margin-right: auto; }
 .cp-card-desc { margin: 0; font-size: 0.72rem; color: rgba(180,200,230,0.55); line-height: 1.4; }
 
 /* Param rows */
@@ -14279,12 +14279,12 @@ details.flight-manage summary {
   flex-shrink: 0;
 }
 .cp-param-unit {
-  font-size: 0.62rem;
+  font-size: clamp(11px, 0.62rem, 8rem);
   color: rgba(150,180,220,0.5);
   flex-shrink: 0;
 }
 .cp-param-desc {
-  font-size: 0.65rem;
+  font-size: clamp(11px, 0.65rem, 8rem);
   color: rgba(180,200,230,0.55);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -14322,7 +14322,7 @@ details.flight-manage summary {
 }
 .cp-param-send:hover { background: rgba(0,140,255,0.22); }
 .cp-param-send:disabled { opacity: 0.5; pointer-events: none; }
-.cp-param-status { font-size: 0.65rem; min-width: 28px; }
+.cp-param-status { font-size: clamp(11px, 0.65rem, 8rem); min-width: 28px; }
 .cp-param-status.ok  { color: #6ee7b7; }
 .cp-param-status.err { color: #fca5a5; }
 
@@ -14435,7 +14435,7 @@ details.flight-manage summary {
   line-height: 1.2;
 }
 .fd-sidebar-brand-sub {
-  font-size: 0.65rem;
+  font-size: clamp(11px, 0.65rem, 8rem);
   font-weight: 500;
   color: rgba(255,255,255,0.65);
   letter-spacing: 0.06em;
@@ -14783,7 +14783,7 @@ details.flight-manage summary {
 }
 
 .fd-status-badge {
-  font-size: 0.63rem;
+  font-size: clamp(11px, 0.63rem, 8rem);
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -14875,7 +14875,7 @@ details.flight-manage summary {
 .fd-message.assistant { align-self: flex-start; }
 
 .fd-message-role {
-  font-size: 0.62rem;
+  font-size: clamp(11px, 0.62rem, 8rem);
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -14985,7 +14985,7 @@ details.flight-manage summary {
   display: inline-block;
   background: linear-gradient(135deg, #00478d, var(--primary-container));
   color: #fff;
-  font-size: 0.66rem;
+  font-size: clamp(11px, 0.66rem, 8rem);
   font-weight: 700;
   padding: 2px 8px;
   border-radius: 999px;
@@ -15156,7 +15156,7 @@ details.flight-manage summary {
 }
 
 .fd-param-type-badge {
-  font-size: 0.62rem;
+  font-size: clamp(11px, 0.62rem, 8rem);
   font-weight: 700;
   letter-spacing: 0.05em;
   padding: 2px 7px;
@@ -15240,7 +15240,7 @@ details.flight-manage summary {
 
 /* Custom feature tag in smart-search results */
 .fd-custom-feature-tag {
-  font-size: 0.63rem;
+  font-size: clamp(11px, 0.63rem, 8rem);
   font-weight: 700;
   letter-spacing: 0.05em;
   padding: 2px 8px;
@@ -15550,7 +15550,7 @@ details.flight-manage summary {
   min-width: 0;
 }
 .fe-mic-label {
-  font-size: 0.62rem;
+  font-size: clamp(11px, 0.62rem, 8rem);
   font-weight: 800;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -15580,7 +15580,7 @@ details.flight-manage summary {
   flex-shrink: 0;
 }
 .fe-vad-label {
-  font-size: 0.58rem;
+  font-size: clamp(11px, 0.58rem, 8rem);
   font-weight: 700;
   color: var(--text-subtle);
   letter-spacing: 0.03em;
@@ -15650,7 +15650,7 @@ details.flight-manage summary {
   box-shadow: var(--shadow-card);
 }
 .fe-msg-time {
-  font-size: 0.6rem;
+  font-size: clamp(11px, 0.6rem, 8rem);
   color: var(--text-subtle);
   padding: 0 5px;
 }
@@ -15739,7 +15739,7 @@ details.flight-manage summary {
   border-radius: 18px 18px 0 0;
 }
 .fe-welcome-kicker {
-  font-size: 0.62rem;
+  font-size: clamp(11px, 0.62rem, 8rem);
   font-weight: 800;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -15924,7 +15924,7 @@ details.flight-manage summary {
 }
 .fe-reject-btn:hover { background: #fef2f2; border-color: #fca5a5; color: #b91c1c; }
 .fe-approval-rc-hint {
-  font-size: 0.62rem;
+  font-size: clamp(11px, 0.62rem, 8rem);
   color: var(--text-subtle);
   padding-top: 2px;
 }
@@ -15963,7 +15963,7 @@ details.flight-manage summary {
   letter-spacing: -0.01em;
 }
 .fe-notes-caption {
-  font-size: 0.64rem;
+  font-size: clamp(11px, 0.64rem, 8rem);
   color: var(--text-subtle);
   line-height: 1.3;
 }
@@ -16000,7 +16000,7 @@ details.flight-manage summary {
 .fe-note-item[data-cat="action"]  { border-color: rgba(234,179,8,0.45); background: linear-gradient(180deg,#ffffff,#fffbeb); }
 .fe-note-item[data-cat="reminder"] { border-color: rgba(34,197,94,0.35); background: linear-gradient(180deg,#ffffff,#ecfdf5); }
 .fe-note-meta {
-  font-size: 0.58rem;
+  font-size: clamp(11px, 0.58rem, 8rem);
   color: var(--text-subtle);
   display: flex;
   gap: 8px;
@@ -16014,7 +16014,7 @@ details.flight-manage summary {
   border: none;
   border-radius: 4px;
   color: #b91c1c;
-  font-size: 0.65rem;
+  font-size: clamp(11px, 0.65rem, 8rem);
   cursor: pointer;
   padding: 2px 5px;
   opacity: 0;
@@ -16464,7 +16464,7 @@ details.flight-manage summary {
 }
 .sim-lab-tape-label {
   display: block;
-  font-size: 0.65rem;
+  font-size: clamp(11px, 0.65rem, 8rem);
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: rgba(226, 232, 255, 0.58);
@@ -16787,7 +16787,7 @@ details.flight-manage summary {
 
 .sim-lab-event-kind {
   font-family: ui-monospace, monospace;
-  font-size: 0.66rem;
+  font-size: clamp(11px, 0.66rem, 8rem);
   letter-spacing: 0.03em;
   text-transform: uppercase;
 }
@@ -17044,7 +17044,7 @@ details.flight-manage summary {
 }
 .flight-list-row:hover { background: rgba(255,255,255,0.06); }
 .flight-list-num {
-  font-size: 0.65rem;
+  font-size: clamp(11px, 0.65rem, 8rem);
   color: var(--text-muted, rgba(255,255,255,0.35));
   font-family: "Fira Code", monospace;
   flex-shrink: 0;
@@ -17061,7 +17061,7 @@ details.flight-manage summary {
   white-space: nowrap;
 }
 .flight-list-date {
-  font-size: 0.62rem;
+  font-size: clamp(11px, 0.62rem, 8rem);
   color: var(--text-muted, rgba(255,255,255,0.35));
   font-family: "Space Grotesk", sans-serif;
   flex-shrink: 0;
@@ -17135,7 +17135,7 @@ details.flight-manage summary {
 }
 
 .sl-section-title {
-  font-size: 0.64rem;
+  font-size: clamp(11px, 0.64rem, 8rem);
   font-weight: 800;
   letter-spacing: 0.09em;
   text-transform: uppercase;
@@ -17211,13 +17211,13 @@ details.flight-manage summary {
   background: transparent;
   border-color: transparent;
   color: var(--text-muted);
-  font-size: 0.66rem;
+  font-size: clamp(11px, 0.66rem, 8rem);
 }
 .sl-btn--ghost:hover { color: var(--primary); background: transparent; }
 
 /* Meta / status line */
 .sl-meta {
-  font-size: 0.64rem;
+  font-size: clamp(11px, 0.64rem, 8rem);
   color: var(--text-muted);
   line-height: 1.4;
   margin: 0;
@@ -17250,7 +17250,7 @@ details.flight-manage summary {
 
 /* key legend inside more */
 .sl-keys summary {
-  font-size: 0.65rem;
+  font-size: clamp(11px, 0.65rem, 8rem);
   cursor: pointer;
   color: var(--text-muted);
   padding: 2px 0;
@@ -17289,7 +17289,7 @@ details.flight-manage summary {
   background: rgba(0,0,0,0.45);
   border-radius: 5px;
   padding: 3px 8px;
-  font-size: 0.63rem;
+  font-size: clamp(11px, 0.63rem, 8rem);
   color: rgba(255,255,255,0.75);
   cursor: pointer;
   user-select: none;
@@ -17358,7 +17358,7 @@ details.flight-manage summary {
 /* ── Responsive ──────────────────────────────────────────────────── */
 @media (max-width: 640px) {
   .sl-sidebar { width: 150px; }
-  .sl-preset-btn { font-size: 0.65rem; padding: 5px 8px; }
+  .sl-preset-btn { font-size: clamp(11px, 0.65rem, 8rem); padding: 5px 8px; }
 }
 
 @media (max-width: 480px) {
@@ -17520,7 +17520,7 @@ details.flight-manage summary {
 }
 
 .sl-qs2-conn-sub {
-  font-size: 0.6rem;
+  font-size: clamp(11px, 0.6rem, 8rem);
   color: rgba(255,255,255,0.45);
   font-family: "Space Grotesk", "Heebo", sans-serif;
   white-space: nowrap;
@@ -17536,14 +17536,14 @@ details.flight-manage summary {
   border: 1px solid rgba(255,255,255,0.1);
   border-radius: 20px;
   padding: 2px 9px;
-  font-size: 0.65rem;
+  font-size: clamp(11px, 0.65rem, 8rem);
   color: rgba(255,255,255,0.55);
   font-family: "Space Grotesk", "Heebo", sans-serif;
 }
 
 .sl-qs2-or {
   text-align: center;
-  font-size: 0.65rem;
+  font-size: clamp(11px, 0.65rem, 8rem);
   color: rgba(255,255,255,0.28);
   font-family: "Space Grotesk", "Heebo", sans-serif;
 }
@@ -17595,7 +17595,7 @@ details.flight-manage summary {
 }
 
 .sl-preset-sub {
-  font-size: 0.6rem;
+  font-size: clamp(11px, 0.6rem, 8rem);
   font-weight: 500;
   opacity: 0.7;
   font-family: "Fira Code", "Courier New", monospace;
@@ -17638,7 +17638,7 @@ details.flight-manage summary {
   align-items: center;
 }
 .sl-pf-title {
-  font-size: 0.62rem;
+  font-size: clamp(11px, 0.62rem, 8rem);
   font-weight: 700;
   font-family: "Heebo", sans-serif;
   color: rgba(226, 232, 240, 0.62);
@@ -17707,7 +17707,7 @@ details.flight-manage summary {
 .sl-pf-log:empty { display: none; }
 
 .sl-pf-log-item {
-  font-size: 0.62rem;
+  font-size: clamp(11px, 0.62rem, 8rem);
   font-family: "Fira Code", "Courier New", monospace;
   color: rgba(255,255,255,0.5);
   line-height: 1.45;
@@ -17777,7 +17777,7 @@ details.flight-manage summary {
 }
 
 .sl-wiz-step-label {
-  font-size: 0.6rem;
+  font-size: clamp(11px, 0.6rem, 8rem);
   font-weight: 600;
   color: rgba(255,255,255,0.35);
   font-family: "Space Grotesk", "Heebo", sans-serif;
@@ -17928,7 +17928,7 @@ details.flight-manage summary {
   flex: 1;
 }
 .sl-wiz-conn-desc {
-  font-size: 0.65rem;
+  font-size: clamp(11px, 0.65rem, 8rem);
   color: rgba(255,255,255,0.45);
   font-family: "Space Grotesk", "Heebo", sans-serif;
 }
@@ -17959,7 +17959,7 @@ details.flight-manage summary {
 .sl-wiz-conn-status.err { color: #f87171; }
 
 .sl-wiz-divider {
-  font-size: 0.65rem;
+  font-size: clamp(11px, 0.65rem, 8rem);
   color: rgba(255,255,255,0.22);
   text-align: center;
   font-family: "Space Grotesk", "Heebo", sans-serif;
@@ -18024,7 +18024,7 @@ details.flight-manage summary {
   max-width: 100%;
   padding: 1px 7px;
   border-radius: 999px;
-  font-size: 0.66rem;
+  font-size: clamp(11px, 0.66rem, 8rem);
   font-weight: 700;
   color: #fff7ed;
   background: rgba(245, 158, 11, 0.28);
@@ -18442,7 +18442,7 @@ body.mission-assist-docked .assist-rail.assist-rail--mission,
   padding: 1px 8px;
   background: rgba(148, 163, 184, 0.22);
   color: #e2e8f0;
-  font-size: 0.66rem;
+  font-size: clamp(11px, 0.66rem, 8rem);
   font-weight: 800;
   unicode-bidi: isolate;
 }
@@ -18679,7 +18679,7 @@ body.mission-assist-docked .assist-rail.assist-rail--mission,
 .assist-msg-meta {
   display: block;
   margin-top: 4px;
-  font-size: 0.65rem;
+  font-size: clamp(11px, 0.65rem, 8rem);
   color: rgba(255, 255, 255, 0.4);
   font-family: "Space Grotesk", monospace;
 }
@@ -18954,7 +18954,7 @@ body.mission-assist-docked .assist-rail.assist-rail--mission,
   background: rgba(20, 83, 45, 0.28);
   color: rgba(187, 247, 208, 0.88);
   padding: 2px 8px;
-  font-size: 0.66rem;
+  font-size: clamp(11px, 0.66rem, 8rem);
   font-weight: 700;
   font-family: "Heebo", sans-serif;
   cursor: pointer;
@@ -19494,11 +19494,11 @@ body:has(#control.panel.visible) .ardu-top-cats-host {
   overflow: hidden;
   text-overflow: clip;
   line-height: 1.15;
-  font-size: 0.62rem;
+  font-size: clamp(11px, 0.62rem, 8rem);
   max-width: 100%;
 }
 .mission-region-horizon .mission-data-label {
-  font-size: 0.58rem;
+  font-size: clamp(11px, 0.58rem, 8rem);
 }
 .mission-region-data > .mission-horizon-filler {
   flex: 0 0 auto;
@@ -19563,7 +19563,7 @@ body:has(#control.panel.visible) .ardu-top-cats-host {
   margin: 0;
   overflow: visible;
   white-space: nowrap;
-  font-size: 0.62rem;
+  font-size: clamp(11px, 0.62rem, 8rem);
   line-height: 1;
 }
 .mission-region-data .mission-horizon-filler-note {
@@ -19613,7 +19613,7 @@ body:has(#control.panel.visible) .ardu-top-cats-host {
   flex: 1 1 auto;
   min-width: max-content;
   padding: 0 3px;
-  font-size: 0.62rem;
+  font-size: clamp(11px, 0.62rem, 8rem);
   line-height: 22px;
 }
 .debrief-cam-tile .lock-indicator {
@@ -19679,7 +19679,7 @@ body:has(#control.panel.visible) .ardu-top-cats-host {
   }
   .app-chrome .tab {
     padding: 4px 8px;
-    font-size: 0.62rem;
+    font-size: clamp(11px, 0.62rem, 8rem);
     letter-spacing: 0;
   }
   html, body {
@@ -19805,6 +19805,369 @@ body:has(#control.panel.visible) .ardu-top-cats-host {
   .mission-region-map .leaflet-control-attribution {
     display: none;
   }
+}
+
+/* TEXT FIT CONTRACT
+   Visible text stays inside its own box.
+   Floor is 11px. Wrap instead of clipping. Do not fake a fit with hidden overflow.
+   See docs/UI_LAYOUT_CONTRACT.md and tests/text-fit-audit.mjs. */
+html body :is(
+  span, p, a, button, label, dt, dd, strong, em, b, small, li,
+  h1, h2, h3, h4, figcaption, th, td, legend, summary, caption
+):not(
+  .mission-region-title,
+  .visually-hidden,
+  .config-text-hidden,
+  .mission-sr-only,
+  .mission-identity,
+  .mission-layout-hint,
+  .mission-data-hint,
+  .mission-talk-hint,
+  .mission-ask-chip,
+  .pfc-opt-mini,
+  .comm-link-sr,
+  .pulse-purpose
+) {
+  white-space: normal !important;
+  text-overflow: clip !important;
+  overflow-wrap: anywhere !important;
+  word-break: break-word !important;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.mission-region-horizon .pfd-top-bar {
+  flex-wrap: wrap;
+  align-items: center;
+  align-content: flex-start;
+  height: auto;
+  min-height: 26px;
+  max-height: none;
+  overflow: visible;
+  row-gap: 2px;
+}
+.mission-region-horizon .pfd-top-bar > * {
+  flex: 0 1 auto;
+  min-width: min(100%, max-content);
+  max-width: 100%;
+  height: auto;
+  overflow: visible;
+  text-overflow: clip;
+  font-size: clamp(11px, 0.72rem, 13px);
+  line-height: 1.3;
+}
+.mission-region-horizon .pfd-mode-val,
+.mission-region-horizon .pfd-badge,
+.mission-region-horizon .hud-nav-val,
+.mission-region-horizon .hud-nav-icon,
+.mission-region-horizon .pfd-voice-flight-btn {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  height: auto;
+  max-height: none;
+  font-size: clamp(11px, 0.72rem, 13px);
+  line-height: 1.3;
+}
+.mission-region-horizon .hud-nav-pill {
+  flex: 0 1 auto;
+  min-width: min(100%, max-content);
+  max-width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.mission-region-horizon .mission-data-tile,
+.mission-region-horizon .mission-data-item {
+  overflow: visible;
+  height: auto;
+  max-height: none;
+  min-width: 0;
+  min-height: 56px;
+}
+.mission-region-horizon .mission-data-label,
+.mission-region-horizon .mission-data-unit,
+.mission-region-horizon .mission-data-readout,
+.mission-region-horizon #missionLink {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  height: auto;
+  max-height: none;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  font-size: clamp(11px, 0.75rem, 13px);
+  line-height: 1.35;
+}
+.mission-region-horizon .mission-data-value {
+  display: inline;
+  max-width: 100%;
+  height: auto;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  font-size: clamp(11px, 0.92rem, 18px);
+  line-height: 1.3;
+}
+.mission-region-horizon .mission-data-readout {
+  display: flex;
+  flex-wrap: wrap;
+  min-width: 0;
+  max-width: 100%;
+  height: auto;
+}
+
+.mission-region-data > .mission-horizon-filler,
+.mission-region-data .mission-horizon-filler > * {
+  overflow: visible;
+  height: auto;
+  max-height: none;
+}
+.mission-region-data .mission-horizon-filler > .mission-horizon-filler-kicker,
+.mission-region-data .mission-horizon-filler-note {
+  flex: 0 0 auto;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  height: auto;
+  overflow: visible;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+  font-size: clamp(11px, 0.78rem, 14px);
+  line-height: 1.35;
+}
+
+.mission-region-horizon .pfd-horizon-chrome {
+  height: auto;
+  min-height: 26px;
+  max-height: none;
+  overflow: visible;
+  flex-wrap: wrap;
+}
+.mission-region-horizon .pfd-video-toggle {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  height: auto;
+  overflow: visible;
+  white-space: normal;
+  font-size: clamp(11px, 0.75rem, 13px);
+  line-height: 1.3;
+}
+
+.pfd-tape-big,
+.pfd-tape-key,
+.pfd-tape-unit,
+.pfd-hdg-arrow,
+.pfd-hdg-val,
+.hud-nav-icon,
+.assist-mic-icon,
+.assist-toggle-mic,
+.mission-messages-toggle-label,
+.param-title {
+  line-height: 1.35;
+  height: auto;
+  max-height: none;
+  overflow: visible;
+  text-overflow: clip;
+}
+.pfd-tape-key,
+.pfd-tape-unit {
+  font-size: clamp(11px, 0.7rem, 12px);
+}
+
+.tabs,
+.tele-subtabs,
+.subtabs {
+  flex-wrap: wrap;
+  max-width: 100%;
+}
+.tab,
+.subtab,
+.tele-subtab {
+  max-width: 100%;
+  min-width: 0;
+  height: auto;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  font-size: clamp(11px, 0.75rem, 14px);
+  line-height: 1.3;
+}
+
+.conn-pill {
+  flex-wrap: wrap;
+  max-width: 100%;
+  height: auto;
+}
+.conn-pill-label {
+  max-width: min(240px, 100%);
+  height: auto;
+  overflow: visible;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+  font-size: clamp(11px, 0.78rem, 14px);
+  line-height: 1.35;
+}
+
+.param-title,
+.pulse-health-note,
+.pulse-title,
+.gs-hint,
+.assist-empty-invite {
+  max-width: 100%;
+  height: auto;
+  max-height: none;
+  overflow: visible;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+  line-height: 1.35;
+}
+.pulse-health-note,
+.gs-hint,
+.assist-empty-invite {
+  font-size: clamp(11px, 0.8rem, 16px);
+}
+
+.mission-region-map .leaflet-bottom {
+  max-width: calc(100% - 8px);
+}
+.mission-region-map .leaflet-control-attribution {
+  max-width: 100%;
+  width: auto;
+  height: auto;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  overflow: visible;
+  text-overflow: clip;
+  font-size: clamp(11px, 0.7rem, 12px);
+  line-height: 1.3;
+}
+.mission-region-map .leaflet-control-attribution a {
+  display: inline;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  overflow: visible;
+  text-overflow: clip;
+  font-size: clamp(11px, 0.7rem, 12px);
+  line-height: 1.3;
+}
+.leaflet-bar a {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 26px !important;
+  height: 26px !important;
+  max-width: 26px !important;
+  max-height: 26px !important;
+  padding: 0 !important;
+  font-size: 16px !important;
+  line-height: 1 !important;
+  overflow: hidden !important;
+}
+.leaflet-bar a span {
+  display: block !important;
+  line-height: 1.35 !important;
+  height: auto !important;
+  max-height: none !important;
+  font-size: 14px !important;
+  overflow: visible !important;
+}
+
+.mission-nav-display-kicker,
+.mission-nav-display-status,
+.mission-record-cue,
+.assist-toggle-en {
+  font-size: clamp(11px, 0.75rem, 13px);
+  line-height: 1.3;
+  max-width: 100%;
+  height: auto;
+  overflow: visible;
+  white-space: normal;
+  text-overflow: clip;
+}
+.mission-nav-display,
+.mission-link-strip,
+.mission-ops-leading {
+  flex-wrap: wrap;
+  max-width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.assist-toggle-btn.assist-toggle-float .assist-toggle-he,
+.assist-toggle-btn.assist-toggle-float .assist-toggle-he bdi {
+  display: inline-block;
+  line-height: 1.35;
+  height: auto;
+  max-width: 100%;
+  overflow: visible;
+}
+
+#missionTalkHost .assist-empty-stage,
+.mission-talk-host .assist-empty-stage,
+#missionTalkHost .assist-messages-empty {
+  min-height: min-content;
+  height: auto;
+  overflow: visible;
+}
+#missionTalkHost .assist-empty-invite,
+#missionTalkHost .assist-empty-invite bdi {
+  line-height: 1.45;
+  max-width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.pulse-gauge dd,
+.pulse-computer-metrics dd {
+  align-self: center;
+  line-height: 1.5 !important;
+  height: auto !important;
+  max-height: none;
+  overflow: visible !important;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.ac-b-card {
+  height: auto;
+  min-height: min-content;
+  overflow: visible;
+}
+.ac-b-grid {
+  min-height: min-content;
+  overflow: visible;
+}
+.pulse-add-widget {
+  min-height: min-content;
+  height: auto;
+  overflow: visible;
+}
+.pulse-add-widget-title,
+.pulse-add-widget-hint {
+  max-width: 100%;
+  height: auto;
+  overflow: visible;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+}
+
+.global-settings-btn {
+  width: 34px;
+  height: 34px;
+  max-width: 34px;
+  max-height: 34px;
+  line-height: 32px;
+  overflow: visible;
 }
 
 
