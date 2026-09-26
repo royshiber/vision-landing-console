@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Vision Landing Console — Jetson companion: MAVLink relay + HTTP API + heartbeat.
 
-AGENT_VERSION 2.6.2 turns Wi-Fi back on if the console is silent for 60 seconds
+AGENT_VERSION 2.6.4 can forward MAVLink frames between SERIAL4 and a CP2102 radio.
+That pipe is off unless VLC_RF_ENABLED=1. It does not add flight commands.
+2.6.2 turns Wi-Fi back on if the console is silent for 60 seconds
 after that link was disabled, and 2.6.1 reports CAM1 from the OV9281 symlink while it is idle,
 and serves that camera on /api/v1/cameras/cam1/frame. 2.6.0 adds CAM1 on
 /api/v1/cam1.
@@ -66,7 +68,7 @@ RELAY_PORT = int(os.environ.get("VLC_RELAY_PORT", "5770"))
 HTTP_PORT = int(os.environ.get("VLC_HTTP_PORT", "8081"))
 HTTP_IDLE_S = float(os.environ.get("VLC_HTTP_IDLE_S", "30") or "30")
 HTTP_MAX_BODY = 16 * 1024 * 1024
-AGENT_VERSION = os.environ.get("VLC_AGENT_VERSION", "2.6.2")
+AGENT_VERSION = os.environ.get("VLC_AGENT_VERSION", "2.6.4")
 MODEM_STATUS_FILE = os.environ.get("AIRVIX_E3372_STATUS_FILE", "/run/airvix/e3372.status")
 
 try:
@@ -216,6 +218,44 @@ LOCAL_TAP_SOCKS = set()
 CLIENTS_LOCK = threading.Lock()
 UART_WRITE_LOCK = threading.Lock()
 STATE_LOCK = threading.Lock()
+FC_PORT_BOX = {"ser": None}
+
+try:
+    from rf_forwarder import RfForwarder, env_baud, env_enabled, list_by_id
+except ImportError:
+    RfForwarder = None
+    env_baud = lambda _env=None: 57600  # noqa: E731
+    env_enabled = lambda _env=None: False  # noqa: E731
+    list_by_id = lambda _directory=None: []  # noqa: E731
+
+
+def write_fc_from_rf(data: bytes) -> bool:
+    """Radio bytes onto the FC UART this process already owns. Not a new command."""
+    ser = FC_PORT_BOX.get("ser")
+    if ser is None or not data:
+        return False
+    try:
+        with UART_WRITE_LOCK:
+            ser.write(data)
+        with STATE_LOCK:
+            STATE["uart_bytes_tx"] = int(STATE.get("uart_bytes_tx") or 0) + len(data)
+        return True
+    except Exception:
+        return False
+
+
+def _open_rf_serial(path, baud):
+    import serial
+    return serial.Serial(path, int(baud), timeout=0.05)
+
+
+RF_FORWARDER = RfForwarder(
+    enabled=env_enabled(),
+    baud=env_baud(),
+    list_names=list_by_id,
+    open_serial=_open_rf_serial,
+    write_fc=write_fc_from_rf,
+) if RfForwarder is not None else None
 HEARTBEAT_CRC_EXTRA = 50
 
 
@@ -370,6 +410,11 @@ def fanout_uart(data: bytes):
             dead.append(sock)
     for sock in dead:
         drop_client(sock)
+    if RF_FORWARDER is not None:
+        try:
+            RF_FORWARDER.on_fc_bytes(data)
+        except Exception:
+            pass
 
 
 def drop_client(sock):
@@ -444,6 +489,7 @@ def mavlink_relay_server():
         stop = threading.Event()
         try:
             fc_serial = open_fc_serial()
+            FC_PORT_BOX["ser"] = fc_serial
             STATE["fc_linked"] = True
             STATE["fc_read_only"] = FC_READ_ONLY
             STATE["relay_tcp_to_uart"] = not FC_READ_ONLY
@@ -472,6 +518,7 @@ def mavlink_relay_server():
                 except socket.timeout:
                     continue
         except Exception as exc:
+            FC_PORT_BOX["ser"] = None
             STATE["fc_linked"] = False
             STATE["fc_heartbeat"] = False
             print(f"[relay] restart: {exc}")
@@ -496,6 +543,7 @@ def mavlink_relay_server():
                     fc_serial.close()
                 except Exception:
                     pass
+            FC_PORT_BOX["ser"] = None
             time.sleep(3)
 
 
@@ -1106,7 +1154,22 @@ def health_payload():
         "modem": modem_status_payload(),
         "flight_log": flightlog_status_payload(),
         "gimbal": gimbal_status_payload(start=False),
+        "rf": rf_status_payload(),
     }
+
+
+def rf_status_payload():
+    if RF_FORWARDER is None:
+        return {
+            "present": False,
+            "enabled": False,
+            "port": None,
+            "baud": 57600,
+            "rx_bytes": 0,
+            "tx_bytes": 0,
+            "last_packet_age": None,
+        }
+    return RF_FORWARDER.status()
 
 
 def _versions_dest():
@@ -1443,6 +1506,10 @@ def main():
     print(f"  Relay TCP: 0.0.0.0:{RELAY_PORT}")
     print(f"  HTTP: {HTTP_BIND}:{HTTP_PORT}")
     print(f"  FC_READ_ONLY: {FC_READ_ONLY}")
+    if RF_FORWARDER is not None:
+        RF_FORWARDER.start()
+        snap_rf = RF_FORWARDER.status()
+        print(f"  RF: enabled={snap_rf.get('enabled')} present={snap_rf.get('present')} baud={snap_rf.get('baud')}")
     snap = _ingest_or_absent()
     print(f"  Camera ingest: source={snap.get('source')} dry_run={snap.get('dry_run')}")
     try:

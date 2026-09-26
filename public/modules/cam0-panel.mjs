@@ -2,6 +2,7 @@
  * Cam0 panel. Numbers come from the companion. No stream shows אין אות.
  */
 import { bindCameraSourcePickers, cameraFrameUrl } from './camera-sources.mjs';
+import { RF_REDUCED_REASON_HE, rfUiLocked } from './rf-link-ui.mjs';
 
 const NO_SIGNAL = 'אין אות';
 const DRILL = 'תרגיל. לא מצלמה אמיתית.';
@@ -192,13 +193,14 @@ function init() {
   }
 
   function setControls(on, why) {
+    const locked = rfUiLocked();
     for (const id of CONTROL_IDS) {
       const el = document.getElementById(id);
-      if (el) el.disabled = !on;
+      if (el) el.disabled = locked || !on;
     }
     if (reason) {
-      reason.hidden = !!on;
-      reason.textContent = on ? '' : why;
+      reason.hidden = !(locked || !on);
+      reason.textContent = locked ? RF_REDUCED_REASON_HE : (on ? '' : why);
     }
   }
 

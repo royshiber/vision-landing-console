@@ -2,6 +2,7 @@
  * Gimbal pad on the optics cameras view. Speed and zoom are press-and-hold.
  * Lock is SIYI lock vs follow. Gimbal motion only.
  */
+import { RF_REDUCED_REASON_HE } from './rf-link-ui.mjs';
 
 export const GIMBAL_SPEED = 40;
 export const LINK_DOWN_HE = 'אין קישור למחשב המשימה';
@@ -57,15 +58,17 @@ export function gimbalPadView(companion) {
 
 export function applyGimbalPad(root, view) {
   if (!root) return;
-  const enabled = view?.enabled === true;
+  const rfLocked = typeof document !== 'undefined' && document.body?.dataset?.workPath === 'rf';
+  const enabled = view?.enabled === true && !rfLocked;
+  const why = rfLocked ? RF_REDUCED_REASON_HE : (view?.reasonHe || LINK_DOWN_HE);
   root.dataset.state = enabled ? 'live' : 'down';
   const reason = root.querySelector('.gimbal-pad-reason');
-  if (reason) reason.textContent = enabled ? '' : (view?.reasonHe || LINK_DOWN_HE);
+  if (reason) reason.textContent = enabled ? '' : why;
   const locked = view?.locked === true;
   for (const btn of root.querySelectorAll('[data-gimbal]')) {
     btn.disabled = !enabled;
     if (enabled) btn.removeAttribute('title');
-    else btn.title = view?.reasonHe || LINK_DOWN_HE;
+    else btn.title = why;
   }
   const lockBtn = root.querySelector('[data-gimbal="lock"]');
   if (lockBtn) {
