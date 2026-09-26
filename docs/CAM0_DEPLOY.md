@@ -89,5 +89,6 @@ systemctl --user stop airvix-companion
 python3 -m cam0.bench --seconds 5
 ```
 
-`cam0.bench` prints capture fps, per-stage milliseconds, CPU percent, and the
-exposure and gain applied. It does not invent a frame rate.
+`cam0.bench` prints capture fps, per-stage milliseconds, CPU percent, the JPEG
+encoder (`cv2` or `numpy`), and the exposure and gain applied. JPEG is timed
+on the same worker the service uses. It does not invent a frame rate.

@@ -16,7 +16,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from cam0.ae import AeConfig, AeLimits, AutoExposure  # noqa: E402
-from cam0.jpegenc import JpegWorker  # noqa: E402
+from cam0.jpegenc import JpegWorker, cv2_module, encode_gray_jpeg, jpeg_encoder_name, last_jpeg_encoder  # noqa: E402
 from cam0.rawfmt import mean_and_percentile, pack_code10, stats_raw, to_mono8  # noqa: E402
 from cam0.service import Cam0Service, load_config  # noqa: E402
 from cam0.synthetic import SyntheticSource  # noqa: E402
@@ -196,6 +196,107 @@ class EncodeOffCaptureTests(unittest.TestCase):
         self.assertIn("airvix-companion", msg)
         self.assertIn("/dev/video0", msg)
         self.assertIsNone(device_busy_message(OSError(errno.EINVAL, "Invalid argument")))
+
+
+class Cv2EncodeTests(unittest.TestCase):
+    def setUp(self):
+        import cam0.jpegenc as enc
+        self.enc = enc
+        self.saved = dict(enc._cv2_state)
+
+    def tearDown(self):
+        self.enc._cv2_state.clear()
+        self.enc._cv2_state.update(self.saved)
+
+    def test_numpy_fallback_when_cv2_is_absent(self):
+        self.enc._cv2_state["tried"] = True
+        self.enc._cv2_state["mod"] = None
+        gray = np.arange(64, dtype=np.uint8).reshape(8, 8)
+        blob = encode_gray_jpeg(gray, quality=70)
+        self.assertTrue(blob.startswith(b"\xff\xd8"))
+        self.assertTrue(blob.endswith(b"\xff\xd9"))
+        self.assertEqual(jpeg_encoder_name(), "numpy")
+        self.assertEqual(last_jpeg_encoder(), "numpy")
+        from cam0.png16 import encode_png16
+        raw = np.arange(16, dtype=np.uint16).reshape(4, 4)
+        png = encode_png16(raw)
+        self.assertTrue(png.startswith(b"\x89PNG\r\n\x1a\n"))
+
+    def test_cv2_path_encodes_jpeg_and_png16(self):
+        calls = []
+
+        class FakeCv:
+            IMWRITE_JPEG_QUALITY = 1
+            IMWRITE_PNG_COMPRESSION = 16
+
+            def imencode(self, ext, img, params):
+                calls.append((ext, str(img.dtype), tuple(img.shape), list(params)))
+                return True, np.array([0xFF, 0xD8, 0x00, 0xD9], dtype=np.uint8)
+
+        self.enc._cv2_state["tried"] = True
+        self.enc._cv2_state["mod"] = FakeCv()
+        gray = np.arange(64, dtype=np.uint8).reshape(8, 8)
+        blob = encode_gray_jpeg(gray, quality=55)
+        self.assertEqual(blob, b"\xff\xd8\x00\xd9")
+        self.assertEqual(jpeg_encoder_name(), "cv2")
+        self.assertEqual(last_jpeg_encoder(), "cv2")
+        self.assertEqual(calls[0][0], ".jpg")
+        self.assertEqual(calls[0][1], "uint8")
+        self.assertIn(55, calls[0][3])
+        from cam0.png16 import encode_png16
+        raw = np.arange(16, dtype=np.uint16).reshape(4, 4)
+        png = encode_png16(raw)
+        self.assertEqual(png, b"\xff\xd8\x00\xd9")
+        self.assertEqual(calls[1][0], ".png")
+        self.assertEqual(calls[1][1], "uint16")
+
+    def test_cv2_import_is_cached(self):
+        import builtins
+        self.enc._cv2_state["tried"] = False
+        self.enc._cv2_state["mod"] = None
+        calls = []
+        orig = builtins.__import__
+
+        def guarded(name, *args, **kwargs):
+            if name == "cv2":
+                calls.append(name)
+                raise ImportError("cv2 absent")
+            return orig(name, *args, **kwargs)
+
+        builtins.__import__ = guarded
+        try:
+            self.assertIsNone(cv2_module())
+            self.assertIsNone(cv2_module())
+            self.assertEqual(calls, ["cv2"])
+            self.assertEqual(jpeg_encoder_name(), "numpy")
+        finally:
+            builtins.__import__ = orig
+
+    def test_marker_detect_is_capped_at_15hz(self):
+        import cam0.marker as marker
+        seen = []
+        orig = marker.detect
+
+        def wrapped(mono, *args, **kwargs):
+            seen.append(tuple(np.asarray(mono).shape))
+            return []
+
+        marker.detect = wrapped
+        try:
+            mod = marker.MarkerModule()
+            view = type("View", (), {"mono8": np.zeros((32, 48), np.uint8), "index": 1})()
+            first = mod.on_frame(view)
+            second = mod.on_frame(view)
+            self.assertEqual(len(seen), 1)
+            self.assertEqual(first["detections"], [])
+            self.assertIsNone(second)
+            self.assertLessEqual(mod.min_interval_s, 1.0 / 15.0 + 1e-9)
+            mod._next = 0.0
+            third = mod.on_frame(view)
+            self.assertEqual(len(seen), 2)
+            self.assertEqual(third["frame_index"], 1)
+        finally:
+            marker.detect = orig
 
 
 if __name__ == "__main__":

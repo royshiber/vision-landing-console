@@ -2,7 +2,8 @@
 """Vision Landing Console — Jetson companion: MAVLink relay + HTTP API + heartbeat.
 
 AGENT_VERSION 2.5.4 keeps capture at the sensor rate: PNG only on a snapshot,
-JPEG on another thread, and auto exposure starts short and raises gain before
+JPEG on another thread via cv2.imencode when OpenCV imports (numpy Huffman is
+only the fallback), and auto exposure starts short and raises gain before
 the shutter. 2.5.3 aligns v4l2_format with the 64-bit kernel so VIDIOC_S_FMT
 is accepted. 2.5.2 signs Cloud Storage with GOOG4-HMAC-SHA256 and x-goog
 headers only, and starts the flight logger from vlc-companion. 2.5.1 adds
