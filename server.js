@@ -152,6 +152,7 @@ const routeCtx = {
   companionService,
   companionEnv,
   updateService,
+  appRoot: __dirname,
   advisorChatLimiter,
   arduTargetParams: { ...ARDU_TARGET_DEFAULTS },
   visionProfileStore: {},

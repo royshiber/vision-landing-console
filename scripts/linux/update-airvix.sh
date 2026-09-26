@@ -6,9 +6,11 @@
 set -eu
 
 DRY=0
+ROLLBACK_MODE=0
 for arg in "$@"; do
   case "$arg" in
     --dry-run) DRY=1 ;;
+    --rollback) ROLLBACK_MODE=1 ;;
   esac
 done
 
@@ -27,6 +29,14 @@ write_status() {
   # $1 state  $2 error
   printf '{"state":"%s","error":"%s","logPath":"%s"}\n' "$1" "$2" "$LOG" > "$STATUS" 2>/dev/null || true
 }
+
+if [ "$ROLLBACK_MODE" = 1 ] && [ "$DRY" = 1 ]; then
+  echo "rollback-dry-run"
+  echo "source=$ROLLBACK/console"
+  echo "preserve=.env,data,var"
+  echo "restart=./restart.sh"
+  exit 0
+fi
 
 if [ "$DRY" = 1 ]; then
   echo "dry-run"
@@ -83,6 +93,66 @@ read_port() {
 }
 
 mkdir -p "$(dirname "$LOG")" 2>/dev/null || true
+
+if [ "$ROLLBACK_MODE" = 1 ]; then
+  PREV="$ROLLBACK/console"
+  log "AIRVIX rollback start $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  write_status rolling_back ""
+  if [ ! -d "$PREV" ] || [ ! -f "$PREV/server.js" ]; then
+    fail "previous tree missing"
+  fi
+  PORT=$(read_port)
+  log "stop port $PORT"
+  stop_port "$PORT"
+  KEEP=$(mktemp -d "${TMPDIR:-/tmp}/airvix-keep.XXXXXX")
+  for name in .env data var; do
+    if [ -e "$APP_DIR/$name" ]; then
+      mv "$APP_DIR/$name" "$KEEP/$name"
+    fi
+  done
+  FAILED="$PARENT/airvix-failed"
+  rm -rf "$FAILED"
+  if ! mv "$APP_DIR" "$FAILED"; then
+    for name in .env data var; do
+      if [ -e "$KEEP/$name" ]; then
+        mkdir -p "$APP_DIR"
+        mv "$KEEP/$name" "$APP_DIR/$name"
+      fi
+    done
+    fail "could not move current tree aside"
+  fi
+  if ! mv "$PREV" "$APP_DIR"; then
+    mv "$FAILED" "$APP_DIR" || true
+    for name in .env data var; do
+      if [ -e "$KEEP/$name" ] && [ ! -e "$APP_DIR/$name" ]; then
+        mv "$KEEP/$name" "$APP_DIR/$name"
+      fi
+    done
+    fail "rollback swap failed"
+  fi
+  for name in .env data var; do
+    if [ -e "$KEEP/$name" ]; then
+      rm -rf "$APP_DIR/$name"
+      mv "$KEEP/$name" "$APP_DIR/$name"
+    fi
+  done
+  rm -rf "$KEEP"
+  mkdir -p "$ROLLBACK"
+  mv "$FAILED" "$ROLLBACK/console"
+  log "restart=./restart.sh"
+  if [ -f "$APP_DIR/restart.sh" ]; then
+    if ! (cd "$APP_DIR" && sh ./restart.sh) >> "$LOG" 2>&1; then
+      log "rollback restart failed"
+      fail "restart failed"
+    fi
+  else
+    fail "restart.sh missing"
+  fi
+  write_status ok ""
+  log "AIRVIX rollback done"
+  exit 0
+fi
+
 log "AIRVIX update start $(date -u +%Y-%m-%dT%H:%M:%SZ)"
 write_status applying ""
 

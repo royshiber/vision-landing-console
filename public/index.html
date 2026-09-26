@@ -357,6 +357,55 @@
           <button type="button" class="conn-modal-close" data-close="1" aria-label="סגור">✕</button>
         </header>
         <div class="conn-modal-body global-settings-body">
+          <section class="gs-section" id="gsVersions" dir="rtl" data-versions-view="settings" data-vr-state="normal" aria-label="גרסאות והחזרה">
+            <h3 class="gs-h" id="gsVersionsTitle">גרסאות והחזרה</h3>
+            <p class="vr-lead">הגרסאות המותקנות, וחזרה לגרסה שעבדה.</p>
+            <article class="vr-card" id="vrConsole" data-vr="console">
+              <h4 class="vr-h">קונסולה</h4>
+              <dl class="vr-dl">
+                <div><dt>גרסה</dt><dd id="vrConsoleVersion">אין מידע</dd></div>
+                <div><dt>זמן התקנה</dt><dd id="vrConsoleInstalled">אין מידע</dd></div>
+                <div><dt>גרסה קודמת</dt><dd id="vrConsolePrevious">אין מידע</dd></div>
+              </dl>
+              <p id="vrConsoleRollbackNote" class="vr-note">אין עותק של הגרסה הקודמת. החזרה לא זמינה.</p>
+              <button type="button" id="vrConsoleRollbackBtn" class="vr-btn" disabled>חזרה לגרסה הקודמת</button>
+            </article>
+            <article class="vr-card" id="vrCompanion" data-vr="companion">
+              <h4 class="vr-h">מחשב משימה</h4>
+              <p id="vrCompanionLink" class="vr-note">אין מידע</p>
+              <dl class="vr-dl">
+                <div><dt>גרסה</dt><dd id="vrCompanionVersion">אין מידע</dd></div>
+                <div><dt>זמן פריסה</dt><dd id="vrCompanionDeployed">אין מידע</dd></div>
+                <div><dt>מזהה קוד</dt><dd id="vrCompanionSha">אין מידע</dd></div>
+              </dl>
+              <h4 class="vr-h vr-sub">גיבויים</h4>
+              <ul id="vrBackups" class="vr-backups"></ul>
+            </article>
+            <article class="vr-card" id="vrFc">
+              <h4 class="vr-h">צילום פרמטרי בקר</h4>
+              <p id="vrFcSnapshot" class="vr-note">אין מידע</p>
+            </article>
+            <article class="vr-card" id="vrKnown">
+              <h4 class="vr-h">עבד טוב</h4>
+              <p id="vrKnownGoodStatus" class="vr-note">אין מידע</p>
+              <button type="button" id="vrKnownGoodBtn" class="vr-btn">סמן שעבד טוב</button>
+            </article>
+            <div id="gsAppUpdate" class="vr-update">
+              <p id="gsAppUpdateStatus" class="vr-note">בודקים אם יש עדכון.</p>
+              <button type="button" id="gsCheckUpdatesBtn" class="vr-btn">בדוק עדכונים</button>
+            </div>
+            <div id="vrConfirm" class="vr-confirm" hidden>
+              <p id="vrConfirmTitle" class="vr-h">אישור החזרה</p>
+              <p id="vrConfirmFrom" class="vr-fromto">אין מידע</p>
+              <p id="vrConfirmTo" class="vr-fromto">אין מידע</p>
+              <div class="vr-actions">
+                <button type="button" id="vrConfirmYes" class="vr-btn vr-btn-danger">אישור החזרה</button>
+                <button type="button" id="vrConfirmNo" class="vr-btn">ביטול</button>
+              </div>
+            </div>
+            <p id="vrProgress" class="vr-progress" hidden>מחזירים גרסה</p>
+            <p id="vrError" class="vr-error" role="alert" hidden></p>
+          </section>
           <section class="gs-section" id="gsAttentionPolicy">
             <h3 class="gs-h" id="gsAttentionTitle">התערבות</h3>
             <div class="gs-attention-levels" role="radiogroup" aria-labelledby="gsAttentionTitle">
@@ -429,11 +478,6 @@
               <option value="auto_client">אוטומטי לפי הדפדפן</option>
             </select>
             <p id="gsSttHint" class="gs-hint"></p>
-          </section>
-          <section class="gs-section" id="gsAppUpdate">
-            <h3 class="gs-h">גרסת הקונסולה</h3>
-            <p id="gsAppUpdateStatus" class="gs-hint">בודקים אם יש עדכון.</p>
-            <button type="button" id="gsCheckUpdatesBtn">בדוק עדכונים</button>
           </section>
         </div>
       </div>
@@ -2514,5 +2558,6 @@
     <script type="module" src="./modules/flightbook.mjs?v=__APP_VERSION__"></script>
     <script type="module" src="./modules/debrief-cameras.mjs?v=__APP_VERSION__"></script>
     <script src="./app.js?v=__APP_VERSION__"></script>
+    <script src="./versions-rollback.js?v=__APP_VERSION__"></script>
   </body>
 </html>

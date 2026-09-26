@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Vision Landing Console — Jetson companion: MAVLink relay + HTTP API + heartbeat.
 
-AGENT_VERSION 2.5.0 reads a separate flight-log status file into health.
+AGENT_VERSION 2.6.0 lists timestamped backups of the companion tree and can
+restore one. 2.5.0 reads a separate flight-log status file into health.
 2.3.11 added HiLink signal bars from SignalIcon /
 maxsignal, a CurrentNetworkTypeEx label, and the PLMN operator name.
 dBm fields stay null when the modem leaves them empty. 2.3.10 counted a
@@ -48,7 +49,7 @@ RELAY_PORT = int(os.environ.get("VLC_RELAY_PORT", "5770"))
 HTTP_PORT = int(os.environ.get("VLC_HTTP_PORT", "8081"))
 HTTP_IDLE_S = float(os.environ.get("VLC_HTTP_IDLE_S", "30") or "30")
 HTTP_MAX_BODY = 16 * 1024 * 1024
-AGENT_VERSION = os.environ.get("VLC_AGENT_VERSION", "2.5.0")
+AGENT_VERSION = os.environ.get("VLC_AGENT_VERSION", "2.6.0")
 MODEM_STATUS_FILE = os.environ.get("AIRVIX_E3372_STATUS_FILE", "/run/airvix/e3372.status")
 
 try:
@@ -115,6 +116,10 @@ except ImportError:
 
     def set_uplink(_kind, _enabled):
         return 503, {"ok": False, "reason": "uplink_control_absent", "message": "שליטת קישור לא זמינה"}
+try:
+    import version_rollback
+except ImportError:
+    version_rollback = None
 FC_READ_ONLY = os.environ.get("VLC_FC_READ_ONLY", "1").strip().lower() in {"1", "true", "yes", "on"}
 SKIP_RELAY = os.environ.get("VLC_SKIP_RELAY", "").strip().lower() in {"1", "true", "yes", "on"}
 HTTP_BIND = os.environ.get("VLC_HTTP_BIND", "0.0.0.0")
@@ -934,6 +939,23 @@ def health_payload():
     }
 
 
+def _versions_dest():
+    raw = os.environ.get("VLC_COMPANION_DEST")
+    return Path(raw) if raw else (Path.home() / "vlc-companion")
+
+
+def _versions_armed():
+    override = os.environ.get("VLC_VERSIONS_REFUSE")
+    if override == "1":
+        return True
+    if override == "0":
+        return False
+    try:
+        return fc_status_payload().get("armed") is True
+    except Exception:
+        return False
+
+
 def transport_test_payload(self_test=False):
     body = {
         "ok": True,
@@ -1133,6 +1155,11 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(200, gimbal_status_payload(start=True))
         if path in ("/api/transport-test", "/api/v1/transport-test"):
             return self._json(200, transport_test_payload(self_test=False))
+        if path in ("/api/v1/versions", "/api/v1/versions/backups"):
+            if version_rollback is None:
+                return self._json(503, {"ok": False, "message": "אין מידע"})
+            code, body = version_rollback.http_get(_versions_dest(), AGENT_VERSION)
+            return self._json(code, body)
         cam_frame = _camera_frame_id(path)
         if cam_frame:
             jpeg = ingest_frame_jpeg(cam_frame) if ingest_frame_jpeg else None
@@ -1179,6 +1206,13 @@ class Handler(BaseHTTPRequestHandler):
         if uplink_kind:
             enabled = data.get("enabled") if isinstance(data, dict) else None
             code, body = set_uplink(uplink_kind, enabled)
+            return self._json(code, body)
+        if path in ("/api/v1/versions/rollback", "/api/v1/versions/known-good"):
+            if version_rollback is None:
+                return self._json(503, {"ok": False, "message": "אין מידע"})
+            ctx = version_rollback.build_context(AGENT_VERSION, _versions_armed())
+            ctx["dest"] = _versions_dest()
+            code, body = version_rollback.http_post(path, data if isinstance(data, dict) else {}, ctx)
             return self._json(code, body)
         if path == "/api/install":
             script = data.get("script", "")
