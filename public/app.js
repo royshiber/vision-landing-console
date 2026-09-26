@@ -16798,7 +16798,7 @@ function assistSetOpen(open) {
     document.body.classList.remove('assist-open');
     assistRefreshContextChip();
     void assistRefreshAgentConnection();
-    document.getElementById('assistInput')?.focus();
+    document.getElementById('assistInput')?.focus({ preventScroll: true });
     return;
   }
   rail.hidden = !open;

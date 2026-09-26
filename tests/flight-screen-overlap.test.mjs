@@ -142,17 +142,53 @@ describe('Flight screen overlap', () => {
         }
       }
       const clips = [];
-      for (const el of document.querySelectorAll('#terrain button, .mission-link-chip, #pfdModeVal, .mission-data-label, .mission-data-value, .app-chrome .tab')) {
+      const outside = [];
+      const textEls = document.querySelectorAll([
+        '.mission-data-label',
+        '.mission-data-value',
+        '.mission-link-chip',
+        '.mission-nav-display-kicker',
+        '.mission-nav-display-status',
+        '.mission-nav-display-btn',
+        '.mission-horizon-filler-note',
+        '.hud-slot-label',
+        '.hud-slot-val',
+        '.pfd-video-toggle',
+        '.mission-messages-toggle-label',
+        '#pfdModeVal',
+        '#pfdBattVal',
+        '.app-chrome .tab',
+      ].join(','));
+      for (const el of textEls) {
         if (el.hidden || getComputedStyle(el).display === 'none') continue;
-        if (el.clientWidth < 12 || el.clientHeight < 12) continue;
+        const name = `${el.id || el.className.toString().slice(0, 28)}:${(el.textContent || '').trim().slice(0, 22)}`;
         const border = el.getBoundingClientRect();
+        if (border.width < 2 || border.height < 2) continue;
+        if (el.scrollWidth > el.clientWidth + 2 || el.scrollHeight > el.clientHeight + 2) clips.push(`overflow ${name}`);
         const vis = visibleBox(el);
-        if (vis.width < border.width - 2 || vis.height < border.height - 2) continue;
-        if (el.scrollWidth > el.clientWidth + 2 || el.scrollHeight > el.clientHeight + 2) {
-          clips.push(`${el.id || el.className.toString().slice(0, 32)}:${(el.textContent || '').trim().slice(0, 18)}`);
+        if (vis.width < border.width - 2 || vis.height < border.height - 2) clips.push(`clipped ${name}`);
+        if (border.left < -1 || border.right > window.innerWidth + 1) outside.push(`x ${name}`);
+        if (border.height < 80 && border.top < window.innerHeight && border.bottom > 0) {
+          if (border.top < -1 || border.bottom > window.innerHeight + 1) outside.push(`y ${name}`);
         }
       }
-      return { hits, clips };
+      const missing = [];
+      const zoomIn = document.querySelector('.leaflet-control-zoom-in');
+      const zoomOut = document.querySelector('.leaflet-control-zoom-out');
+      const shown = (el) => {
+        if (!el) return false;
+        const r = el.getBoundingClientRect();
+        const cs = getComputedStyle(el);
+        return cs.display !== 'none' && cs.visibility !== 'hidden' && r.width > 8 && r.height > 8;
+      };
+      if (!shown(zoomIn) || !shown(zoomOut)) missing.push('zoom');
+      const overlapBox = (a, b) => a && b && a.left < b.right - 1 && a.right > b.left + 1 && a.top < b.bottom - 1 && a.bottom > b.top + 1;
+      const zoomBox = zoomIn ? zoomIn.getBoundingClientRect() : null;
+      const toolbar = document.querySelector('.terrain-map-overlay-toolbar')?.getBoundingClientRect();
+      const compass = document.querySelector('.terrain-compass')?.getBoundingClientRect();
+      if (overlapBox(zoomBox, toolbar)) hits.push('zoom ∩ map-layer');
+      if (overlapBox(zoomBox, compass)) hits.push('zoom ∩ compass');
+      return { hits, clips, outside, missing };
     }, connectOpen);
   }
 
@@ -161,11 +197,19 @@ describe('Flight screen overlap', () => {
       const page = await browser.newPage({ viewport: { width, height } });
       await page.goto(BASE, { waitUntil: 'domcontentloaded' });
       await page.waitForSelector('[data-mission-region="map"]');
-      await page.waitForTimeout(400);
+      await page.waitForSelector('.leaflet-control-zoom-in', { timeout: 8000 });
+      await page.waitForTimeout(300);
       await page.screenshot({ path: path.join(shotDir, `flight-${name}.png`) });
+      if (name === '1366x768') {
+        await page.locator('[data-mission-region="horizon"]').screenshot({
+          path: path.join(shotDir, 'flight-column-1366x768.png'),
+        });
+      }
       const closed = await audit(page);
       expect(closed.hits, closed.hits.join('\n')).toEqual([]);
       expect(closed.clips, closed.clips.join('\n')).toEqual([]);
+      expect(closed.outside, closed.outside.join('\n')).toEqual([]);
+      expect(closed.missing, closed.missing.join('\n')).toEqual([]);
       await page.click('#connectToggleBtn');
       await page.waitForSelector('#connectPanel:not([hidden])');
       await page.waitForTimeout(200);

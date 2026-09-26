@@ -2020,18 +2020,18 @@
                 </dd>
               </div>
             </dl>
-          </section>
             <aside id="missionHorizonFiller" class="mission-horizon-filler" aria-label="מצב בקר">
               <p class="mission-horizon-filler-kicker">מצב בקר</p>
               <div id="hudDataGrid" class="hud-data-grid pfd-slots-strip" role="region" aria-label="נתונים מותאמים"></div>
               <p class="mission-horizon-filler-note">אין חיבור לבקר. אין הודעות נכנסות.</p>
             </aside>
+            <div class="pfd-bottom-bar">
+              <span class="pfd-batt" id="pfdBattVal">-- V</span>
+              <button id="hudAddSlotBtn" class="pfd-add-btn" title="הוסף נתון מותאם">＋</button>
+            </div>
+          </section>
             <section class="mission-region mission-region-messages" data-mission-region="messages" data-messages-expanded="0" dir="rtl" aria-label="הודעות מטוס">
               <h3 class="mission-region-title">הודעות מטוס</h3>
-              <div class="pfd-bottom-bar">
-                <span class="pfd-batt" id="pfdBattVal">-- V</span>
-                <button id="hudAddSlotBtn" class="pfd-add-btn" title="הוסף נתון מותאם">＋</button>
-              </div>
               <button type="button" id="missionMessagesToggle" class="mission-messages-toggle" aria-expanded="false" aria-controls="pfcMsgScroll" title="הודעות" aria-label="הודעות">
                 <svg class="mission-messages-toggle-icon" viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><rect x="1.2" y="2" width="9.6" height="6.6" rx="1" fill="none" stroke="currentColor" stroke-width="1.3"></rect><path d="M3 4.6h6M3 6.6h4" stroke="currentColor" stroke-width="1.1" fill="none"></path></svg>
                 <span class="mission-messages-toggle-label">הודעות</span>
