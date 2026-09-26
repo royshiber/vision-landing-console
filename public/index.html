@@ -875,10 +875,8 @@
         <div class="panel-header">
           <div class="param-toolbar" aria-label="סנכרון פרמטרים">
             <section class="param-tool-seg" aria-label="גיבוי בקונסולה">
-              <header class="param-tool-head">
-                <h3 class="param-tool-title">גיבוי בקונסולה</h3>
-                <p id="jetsonToolState" class="param-tool-state" data-state="unknown">לא ידוע</p>
-              </header>
+              <h3 class="param-tool-title">גיבוי</h3>
+              <p id="jetsonToolState" class="param-tool-state" data-state="unknown">לא ידוע</p>
               <p id="jetsonToolMeta" class="param-tool-meta">קריאה אחרונה: לא ידוע · לא מסונכרן: לא ידוע</p>
               <div class="param-tool-actions">
                 <button type="button" id="visionConfigReadBtn" class="param-tool-btn param-tool-btn--primary" title="טוען את הגיבוי השמור בקונסולה">קריאה</button>
@@ -886,10 +884,8 @@
               </div>
             </section>
             <section class="param-tool-seg" aria-label="FC">
-              <header class="param-tool-head">
-                <h3 class="param-tool-title">בקר הטיסה <bdi dir="ltr">(FC)</bdi></h3>
-                <p id="fcToolState" class="param-tool-state" data-state="unknown">לא ידוע</p>
-              </header>
+              <h3 class="param-tool-title">בקר</h3>
+              <p id="fcToolState" class="param-tool-state" data-state="unknown">לא ידוע</p>
               <p id="fcToolMeta" class="param-tool-meta">קריאה אחרונה: לא ידוע · לא מסונכרן: לא ידוע</p>
               <div class="param-tool-actions">
                 <button type="button" id="arduReadBtn" class="param-tool-btn param-tool-btn--primary" title="קורא פרמטרים מבקר הטיסה">קריאה</button>
@@ -925,6 +921,7 @@
           <div id="arduSearchStatus" class="vision-config-status param-center-search-status" aria-live="polite"></div>
           <div id="arduSmartSearchResults" class="ardu-smart-results hidden param-center-smart-results" aria-live="polite"></div>
         </div>
+        <div id="paramWriteResult" class="param-write-result" hidden></div>
         <div id="paramSyncBanner" class="param-sync-banner param-sync-banner--info" role="status" aria-live="polite"></div>
         <div id="autoLogsBanner" class="auto-logs-banner hidden" role="status" aria-live="polite"></div>
         <section id="plndProfileHonesty" class="plnd-honesty" aria-label="פרופיל נחיתה לפי ראייה">
@@ -956,14 +953,16 @@
               <div class="fc-group-split">
                 <ul id="fcGroupList" class="fc-group-list" aria-label="פרמטרי הקבוצה"></ul>
                 <aside id="fcChangePane" class="fc-change-pane" aria-label="שינויים שנכתבו">
-                  <h3 class="fc-change-title">שינויים שנכתבו</h3>
-                  <ul id="fcChangeList" class="fc-change-list"></ul>
-                  <section class="fc-file-history" aria-label="היסטוריית קבצי פרמטרים">
-                    <h3 class="fc-file-title">קובץ פרמטרים אחרון</h3>
-                    <p id="fcFileLatest" class="fc-file-latest">אין קובץ שמור</p>
-                    <ul id="fcFileList" class="fc-file-list"></ul>
-                    <p id="fcFileStatus" class="fc-file-status" aria-live="polite"></p>
-                  </section>
+                  <details id="fcChangeFold" class="fc-change-fold" open>
+                    <summary class="fc-change-title">שינויים שנכתבו</summary>
+                    <ul id="fcChangeList" class="fc-change-list"></ul>
+                    <details class="fc-file-history" open>
+                      <summary class="fc-file-title">קובץ אחרון</summary>
+                      <p id="fcFileLatest" class="fc-file-latest">אין קובץ שמור</p>
+                      <ul id="fcFileList" class="fc-file-list"></ul>
+                      <p id="fcFileStatus" class="fc-file-status" aria-live="polite"></p>
+                    </details>
+                  </details>
                 </aside>
               </div>
               <div class="fc-group-actions">

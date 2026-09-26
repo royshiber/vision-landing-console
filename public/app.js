@@ -593,7 +593,7 @@ function renderFcParamFiles() {
     latest.textContent = [formatFcWhen(top.savedAt), topSource, String(top.count ?? '')].filter(Boolean).join(' · ');
   }
   list.replaceChildren();
-  for (const file of fcParamFiles) {
+  for (const file of fcParamFiles.slice(0, 1)) {
     const li = document.createElement('li');
     li.className = 'fc-file-row';
     const when = document.createElement('span');
@@ -667,14 +667,16 @@ async function restoreFcParamFile(id) {
       rows.push(row);
     }
     if (!rows.length) {
-      if (status) status.textContent = 'אין הבדל';
+      paintFcWriteResult({ level: 'none', text: 'אין שינוי' });
+      if (status) status.textContent = '';
       return;
     }
     openGuardedFcWriteConfirm(rows, async () => {
       if (status) status.textContent = 'שולח…';
       try {
         const outcome = await commitGuardedFcWrite(writable);
-        if (status) status.textContent = outcome.text;
+        paintFcWriteResult(outcome, fcWritePairs(Object.keys(writable), writable), () => restoreFcParamFile(id));
+        if (status) status.textContent = '';
         if (outcome.history) {
           pushFcWriteLog(Object.keys(writable), outcome.data, writable);
           applyAckedSnapshot(outcome.acked);
@@ -683,11 +685,21 @@ async function restoreFcParamFile(id) {
         renderFcGroupList();
         renderFcChangePane();
       } catch (err) {
-        if (status) status.textContent = `הכתיבה לבקר נכשלה. הסיבה: ${hebrewRequestFault(err)}`;
+        paintFcWriteResult(
+          { level: 'fail', text: `הכתיבה לבקר נכשלה. הסיבה: ${hebrewRequestFault(err)}` },
+          [],
+          () => restoreFcParamFile(id),
+        );
+        if (status) status.textContent = '';
       }
     });
   } catch (err) {
-    if (status) status.textContent = `טעינת הקובץ נכשלה. הסיבה: ${hebrewRequestFault(err, err?.res)}`;
+    paintFcWriteResult(
+      { level: 'fail', text: `טעינת הקובץ נכשלה. הסיבה: ${hebrewRequestFault(err, err?.res)}` },
+      [],
+      () => restoreFcParamFile(id),
+    );
+    if (status) status.textContent = '';
   }
 }
 
@@ -731,10 +743,12 @@ function renderFcGroupList() {
     nowEl.className = 'fc-group-now';
     nowEl.dataset.state = presence.state;
     nowEl.textContent = presence.text;
+    const metaText = fcMetaText(key);
     const metaEl = document.createElement('span');
     metaEl.className = 'fc-group-meta';
-    metaEl.textContent = fcMetaText(key);
-    li.append(keyEl, heEl, nowEl, metaEl);
+    metaEl.textContent = metaText;
+    if (metaText) li.title = metaText;
+    li.append(keyEl, heEl, metaEl, nowEl);
     if (!readOnly) {
       const input = document.createElement('input');
       input.type = 'number';
@@ -796,8 +810,9 @@ function applyFcGroupDraft() {
     const status = document.getElementById('fcGroupStatus');
     if (status) status.textContent = 'שולח…';
     try {
-      const outcome = await commitGuardedFcWrite(params);
-      if (status) status.textContent = outcome.text;
+        const outcome = await commitGuardedFcWrite(params);
+      const pairs = fcWritePairs(outcome.level === 'ok' ? outcome.clear : keys, params);
+      paintFcWriteResult(outcome, pairs, () => applyFcGroupDraft());
       if (outcome.history) {
         pushFcWriteLog(keys, outcome.data, params);
         applyAckedSnapshot(outcome.acked);
@@ -810,7 +825,11 @@ function applyFcGroupDraft() {
       renderFcGroupList();
       updateParamSyncBanner();
     } catch (err) {
-      if (status) status.textContent = `הכתיבה לבקר נכשלה. הסיבה: ${hebrewRequestFault(err)}`;
+      paintFcWriteResult(
+        { level: 'fail', text: `הכתיבה לבקר נכשלה. הסיבה: ${hebrewRequestFault(err)}` },
+        [],
+        () => applyFcGroupDraft(),
+      );
     }
   });
 }
@@ -1220,6 +1239,7 @@ function updateParamSyncBanner() {
   }
 
   el.className = `param-sync-banner param-sync-banner--${level}`;
+  el.hidden = lines.length === 0;
   if (typeof refreshParamToolbarMeta === 'function') refreshParamToolbarMeta();
   el.innerHTML = lines.map((t) => `<span class="param-sync-line">${t}</span>`).join('');
 }
@@ -2421,6 +2441,58 @@ function clearParamToolFault() {
   const box = document.getElementById('paramToolFault');
   if (box) box.hidden = true;
   paramToolRetryAction = null;
+}
+
+function paintFcWriteResult(outcome, pairs = [], retry) {
+  const fault = document.getElementById('paramToolFault');
+  const box = document.getElementById('paramWriteResult');
+  const groupStatus = document.getElementById('fcGroupStatus');
+  if (fault) fault.hidden = true;
+  if (groupStatus) groupStatus.textContent = '';
+  if (typeof arduWriteStatus !== 'undefined' && arduWriteStatus) {
+    arduWriteStatus.textContent = '';
+    arduWriteStatus.className = 'ardu-write-status action-status param-tool-live';
+  }
+  if (!box) return;
+  const tone = outcome?.level === 'ok' ? 'ok' : outcome?.level === 'none' ? 'neutral' : 'bad';
+  box.hidden = false;
+  box.dataset.tone = tone;
+  box.className = `param-write-result param-write-result--${tone}`;
+  box.replaceChildren();
+  const title = document.createElement('p');
+  title.className = 'param-write-result-title';
+  title.textContent = outcome?.level === 'ok' ? 'נכתב לבקר ואומת' : String(outcome?.text || '');
+  box.appendChild(title);
+  if (outcome?.level === 'ok') {
+    for (const pair of pairs) {
+      const line = document.createElement('p');
+      line.className = 'param-write-result-line';
+      line.textContent = `${pair.key} ${pair.oldText} → ${pair.newText}`;
+      box.appendChild(line);
+    }
+  }
+  paramToolRetryAction = tone === 'bad' && typeof retry === 'function' ? retry : null;
+  if (paramToolRetryAction) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'param-tool-btn param-tool-btn--primary param-write-retry';
+    btn.textContent = 'נסו שוב';
+    btn.addEventListener('click', () => {
+      const run = paramToolRetryAction;
+      if (run) run();
+    });
+    box.appendChild(btn);
+  }
+}
+
+function fcWritePairs(keys, nextByKey) {
+  return (keys || []).map((key) => ({
+    key,
+    oldText: fcDraftMeta[key]?.oldText || fcPresence(key).text,
+    newText: nextByKey && Object.prototype.hasOwnProperty.call(nextByKey, key) && nextByKey[key] != null
+      ? String(nextByKey[key])
+      : '',
+  }));
 }
 
 function resolvedFcLink() {
@@ -10858,52 +10930,38 @@ if (arduWriteBtn) {
       const blocked = arduWriteGate.armed === true
         ? 'המטוס חמוש. הכתיבה חסומה עד לניטרול.'
         : 'אין חיבור לבקר הטיסה';
-      if (arduWriteStatus) {
-        arduWriteStatus.textContent = blocked;
-        arduWriteStatus.className = 'ardu-write-status fail';
-      }
-      showParamToolFault(blocked);
+      paintFcWriteResult({ level: 'fail', text: blocked }, [], null);
       refreshArduWriteBtnState(arduWriteGate);
       return;
     }
     arduWriteBtn.disabled = true;
-    if (arduWriteStatus) {
-      arduWriteStatus.textContent = 'שולח…';
-      arduWriteStatus.className = 'ardu-write-status';
-    }
+    paintFcWriteResult({ level: 'none', text: 'שולח…' }, [], null);
     try {
       const dirtyParams = collectDirtyArduParams();
+      const before = {};
+      for (const key of Object.keys(dirtyParams)) before[key] = fcPresence(key).text;
       const outcome = await commitGuardedFcWrite(dirtyParams);
-      if (outcome.level === 'ok') {
+      const pairs = Object.keys(outcome.acked || {}).map((key) => ({
+        key,
+        oldText: before[key] || fcPresence(key).text,
+        newText: String(outcome.acked[key]),
+      }));
+      paintFcWriteResult(outcome, pairs, () => arduWriteBtn.click());
+      if (outcome.level === 'ok' || outcome.history) {
         applyAckedSnapshot(outcome.acked);
-        for (const key of Object.keys(outcome.acked)) {
+        for (const key of Object.keys(outcome.acked || {})) {
           if (Object.prototype.hasOwnProperty.call(arduTargetState, key)) arduWriteBaseline[key] = arduTargetState[key];
         }
-        if (arduWriteStatus) {
-          arduWriteStatus.textContent = outcome.text;
-          arduWriteStatus.className = 'ardu-write-status success';
-        }
-        clearParamToolFault();
         if (fcCurrentSnapshot && arduDiffTable && arduDiffSection) {
           renderArduDiff(fcCurrentSnapshot, arduTargetState);
         }
-      } else {
-        if (outcome.history) applyAckedSnapshot(outcome.acked);
-        if (arduWriteStatus) {
-          arduWriteStatus.textContent = outcome.text;
-          arduWriteStatus.className = outcome.level === 'partial' ? 'ardu-write-status warn' : 'ardu-write-status fail';
-        }
-        if (outcome.level !== 'ok') showParamToolFault(outcome.text, () => arduWriteBtn.click());
+        renderFcGroupList();
       }
       updateParamSyncBanner();
       renderArduParamForm();
     } catch (err) {
       const fault = `הכתיבה לבקר נכשלה. הסיבה: ${hebrewRequestFault(err)}`;
-      showParamToolFault(fault, () => arduWriteBtn.click());
-      if (arduWriteStatus) {
-        arduWriteStatus.textContent = fault;
-        arduWriteStatus.className = 'ardu-write-status fail';
-      }
+      paintFcWriteResult({ level: 'fail', text: fault }, [], () => arduWriteBtn.click());
     } finally {
       refreshArduWriteBtnState(arduWriteGate);
     }
@@ -13305,7 +13363,12 @@ initLiveCameraPanel();
         const params = {};
         for (const item of where.params) params[item.key] = item.value;
         const outcome = await commitGuardedFcWrite(params);
-        if (applyStatus) applyStatus.textContent = outcome.text;
+        paintFcWriteResult(outcome, rows.map((row) => ({
+          key: row.key,
+          oldText: row.currentText,
+          newText: row.nextText,
+        })), () => applyBtn.click());
+        if (applyStatus) applyStatus.textContent = '';
         if (outcome.history) applyAckedSnapshot(outcome.acked);
         if (outcome.level === 'ok') {
           saveRun({
@@ -13329,12 +13392,9 @@ initLiveCameraPanel();
         renderParams();
         renderSaved();
         updateParamSyncBanner();
-        if (outcome.level !== 'ok') showParamToolFault(outcome.text, () => applyBtn.click());
-        else clearParamToolFault();
       } catch (err) {
         const fault = `הכתיבה לבקר נכשלה. הסיבה: ${hebrewRequestFault(err)}`;
-        if (applyStatus) applyStatus.textContent = fault;
-        showParamToolFault(fault, () => applyBtn.click());
+        paintFcWriteResult({ level: 'fail', text: fault }, [], () => applyBtn.click());
       } finally {
         applyBtn.disabled = !(selectedWhere()?.params?.length);
       }
