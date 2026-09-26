@@ -420,7 +420,7 @@
 | `smart-search-eval.mjs` | הערכת איכות חיפוש חכם |
 | `vlc-smoke.mjs` | בדיקת smoke בסיסית למערכת |
 | `restart-console.mjs` | ניקוי פורט והפעלה מחדש |
-| `scripts/windows/install-airvix.ps1` | התקנה ועדכון ב־Windows. שומר הגדרות ונתונים. לא מתקין Tailscale |
+| `scripts/windows/install-airvix.ps1` | התקנה ועדכון ב־Windows. שומר הגדרות ונתונים. לא מתקין Tailscale. אם הוא כבר מותקן, מפעיל מצב משתמש בלי מתאם רשת ובלי לגעת בקובץ המארחים |
 | `scripts/linux/update-airvix.sh` | עדכון Linux מהארכיון של master, ואז הפעלה מחדש |
 | `restart.sh` | הפעלה מחדש של הקונסולה על המחשב |
 | `install-git-hooks.mjs` | Git hooks ל־bump גרסה בשגרת קומיטים |

@@ -1,13 +1,16 @@
 <#
   AIRVIX ground console - Windows installer / updater
   ---------------------------------------------------
-  * Installs Node.js LTS when missing. Tailscale is NOT installed (optional if already present).
+  * Installs Node.js LTS when missing. Tailscale is NOT installed and its TUN service is NOT enabled.
+  * If Tailscale is already installed, a SYSTEM boot task runs tailscaled in userspace
+    (SOCKS localhost:1055). That avoids the Windows DNS Client hang from a TUN install.
+  * Does not edit the hosts file, DNS servers, or NRPT rules.
   * Downloads vision-landing-console (branch master) to %LOCALAPPDATA%\AIRVIX\console
     (keeps .env, data\ and var\ on update), runs "npm ci".
   * Asks ONCE (masked) for secrets and stores them only in the local .env.
   * Writes JETSON_COMPANION_BASE_URL as home LAN, then Tailscale (comma-separated).
+  * Writes JETSON_SOCKS_PROXY when the userspace task is in place.
   * Creates desktop shortcuts "AIRVIX" and "AIRVIX Update".
-  * If Tailscale is already installed, signs in when needed and tests both companion addresses.
 
   No secrets are embedded in this file. Keep this file ASCII-only
   (Windows PowerShell 5.1 reads BOM-less scripts as ANSI).
@@ -39,6 +42,8 @@ $HomeCompanionUrl  = 'http://192.168.1.122:8081'
 $TailscaleCompanionUrl = "http://${JetsonIp}:${CompanionPort}"
 $CompanionCandidates = @($HomeCompanionUrl, $TailscaleCompanionUrl)
 $CompanionBaseUrl  = ($CompanionCandidates -join ',')
+$JetsonSocksProxy  = 'socks5h://127.0.0.1:1055'
+$TailscaleTaskName = 'AIRVIX-Tailscale-Safe'
 $RelayPort         = 5770            # console derives relay host from JETSON_COMPANION_BASE_URL + default 5770
 $TailnetSuffix     = 'tail8fb31b.ts.net'
 $DefaultPort       = 4010            # server.js default (PORT)
@@ -189,20 +194,74 @@ function Get-TailscaleExe {
     }
     return $null
 }
-function Install-Tailscale {
-    Write-Step 'Installing Tailscale'
-    Install-WithWinget 'Tailscale.Tailscale'
-    Update-PathFromRegistry
-    if (Get-TailscaleExe) { Write-Ok 'Tailscale installed (winget)'; return }
-    $arch = 'amd64'; if ((Get-CpuArch) -eq 'arm64') { $arch = 'arm64' }
-    $msi = Join-Path $env:TEMP "tailscale-setup-latest-$arch.msi"
-    Write-Info 'Falling back to the official Tailscale MSI from pkgs.tailscale.com ...'
-    Get-File "https://pkgs.tailscale.com/stable/tailscale-setup-latest-$arch.msi" $msi
-    Install-Msi $msi
-    Remove-Item -LiteralPath $msi -Force -ErrorAction SilentlyContinue
-    Update-PathFromRegistry
-    if (-not (Get-TailscaleExe)) { throw 'Tailscale installation failed (tailscale.exe not found).' }
-    Write-Ok 'Tailscale installed (MSI)'
+function Get-TailscaledExe([string]$TsExe) {
+    if (-not $TsExe) { return $null }
+    $daemon = Join-Path (Split-Path -Parent $TsExe) 'tailscaled.exe'
+    if (Test-Path -LiteralPath $daemon) { return $daemon }
+    return $null
+}
+function Get-UserspaceAdminPrompt {
+    # Hebrew prompt. Code points keep this file ASCII for Windows PowerShell 5.1.
+    $codes = @(
+        1504,1491,1512,1513,1493,1514,32,1492,1512,1513,1488,1493,1514,32,1502,1504,1492,1500,46,32,
+        1502,1510,1489,32,1512,1490,1497,1500,32,1514,1493,1511,1506,32,1488,1514,32,1513,1497,1512,1493,1514,32,1492,1513,1502,1493,1514,46,32,
+        1504,1508,1506,1497,1500,32,1502,1510,1489,32,1502,1513,1514,1502,1513,32,1489,1500,1497,32,1502,1514,1488,1501,32,1512,1513,1514,46,32,
+        1488,1513,1512,1493,32,1488,1514,32,1492,1495,1500,1493,1503,46
+    )
+    return -join ($codes | ForEach-Object { [char]$_ })
+}
+function Test-CgnatIp([string]$HostName) {
+    $name = $HostName.Trim().ToLower()
+    if ($name.StartsWith('::ffff:')) { $name = $name.Substring(7) }
+    $parts = $name.Split('.')
+    if ($parts.Count -ne 4) { return $false }
+    $oct = @()
+    foreach ($p in $parts) {
+        $n = 0
+        if (-not [int]::TryParse($p, [ref]$n)) { return $false }
+        if ($n -lt 0 -or $n -gt 255) { return $false }
+        $oct += $n
+    }
+    return ($oct[0] -eq 100 -and $oct[1] -ge 64 -and $oct[1] -le 127)
+}
+function Test-AirvixTailscaleTask {
+    $out = Get-NativeOutput 'schtasks.exe' @('/Query', '/TN', $TailscaleTaskName)
+    return [bool]($out -and ($out -like "*$TailscaleTaskName*"))
+}
+function Test-TailscaleServiceDisabled {
+    $svc = Get-Service -Name 'Tailscale' -ErrorAction SilentlyContinue
+    if (-not $svc) { return $true }
+    return [string]$svc.StartType -eq 'Disabled'
+}
+function Test-UserspaceReady([string]$TsExe) {
+    return (Get-TailscaledExe $TsExe) -and (Test-AirvixTailscaleTask) -and (Test-TailscaleServiceDisabled)
+}
+function Disable-TailscaleTunService {
+    # Stop and disable the TUN service only. Never edit hosts, DNS, or NRPT.
+    $svc = Get-Service -Name 'Tailscale' -ErrorAction SilentlyContinue
+    if (-not $svc) { return }
+    try { Stop-Service -Name 'Tailscale' -Force -ErrorAction Stop } catch { Write-Wrn 'Could not stop the Tailscale service. It will be set to Disabled.' }
+    Set-Service -Name 'Tailscale' -StartupType Disabled
+    Write-Ok 'Tailscale service Disabled (userspace task will carry the link)'
+}
+function Enable-AirvixTailscaleUserspace([string]$TsExe) {
+    $daemon = Get-TailscaledExe $TsExe
+    if (-not $daemon) { throw 'tailscaled.exe was not found next to tailscale.exe' }
+    if (-not (Test-Admin)) { throw 'Administrator rights are required for userspace Tailscale' }
+    Disable-TailscaleTunService
+    $tr = '"' + $daemon + '" --tun=userspace-networking --socks5-server=localhost:1055 --outbound-http-proxy-listen=localhost:1056'
+    $code = Invoke-Native 'schtasks.exe' @('/Create', '/F', '/TN', $TailscaleTaskName, '/SC', 'ONSTART', '/RU', 'SYSTEM', '/RL', 'HIGHEST', '/TR', $tr)
+    if ($code -ne 0) { throw "Could not create scheduled task $TailscaleTaskName (exit $code)" }
+    $run = Invoke-Native 'schtasks.exe' @('/Run', '/TN', $TailscaleTaskName)
+    if ($run -ne 0) { throw "Could not start scheduled task $TailscaleTaskName (exit $run)" }
+    Write-Ok "Userspace Tailscale task $TailscaleTaskName is running (SOCKS localhost:1055)"
+    return $true
+}
+function Set-JetsonSocksProxyInEnv {
+    $lines = Read-EnvLines
+    Set-EnvValue $lines 'JETSON_SOCKS_PROXY' $JetsonSocksProxy
+    Save-EnvLines $lines
+    Write-Ok "JETSON_SOCKS_PROXY=$JetsonSocksProxy"
 }
 function Get-TailscaleStatus([string]$TsExe) {
     $raw = Get-NativeOutput $TsExe @('status', '--json')
@@ -222,22 +281,16 @@ function Open-Url([string]$Url) {
     else { Start-Process -FilePath $Url }
 }
 function Connect-Tailscale([string]$TsExe) {
+    # Talks to the userspace daemon. Does not start or enable the Tailscale TUN service.
     $st = Get-TailscaleStatus $TsExe
     if (-not $st) {
-        Write-Info 'Tailscale service not answering yet - trying to start it ...'
-        try { Start-Service -Name 'Tailscale' -ErrorAction Stop } catch { }
-        $ipn = Join-Path (Split-Path -Parent $TsExe) 'tailscale-ipn.exe'
-        if ((Test-Path -LiteralPath $ipn) -and -not (Get-Process -Name 'tailscale-ipn' -ErrorAction SilentlyContinue)) { Start-Process -FilePath $ipn }
-        for ($i = 0; $i -lt 15 -and -not $st; $i++) { Start-Sleep -Seconds 2; $st = Get-TailscaleStatus $TsExe }
+        Write-Info 'Userspace Tailscale is not answering yet.'
+        for ($i = 0; $i -lt 8 -and -not $st; $i++) { Start-Sleep -Seconds 2; $st = Get-TailscaleStatus $TsExe }
     }
     $state = ''; if ($st) { $state = [string]$st.BackendState }
     if ($state -eq 'Running') { return $st }
 
-    Write-Info "Tailscale state: '$state' - signing in / connecting ..."
-    $ipn = Join-Path (Split-Path -Parent $TsExe) 'tailscale-ipn.exe'
-    if ((Test-Path -LiteralPath $ipn) -and -not (Get-Process -Name 'tailscale-ipn' -ErrorAction SilentlyContinue)) {
-        try { Start-Process -FilePath $ipn } catch { }
-    }
+    Write-Info "Tailscale state: '$state' - signing in through the userspace daemon ..."
     Write-Host ''
     Write-Host '    A browser page will open. Sign in with the SAME account that owns the' -ForegroundColor Yellow
     Write-Host "    AIRVIX tailnet ($TailnetSuffix, Jetson = $JetsonIp). Waiting up to 5 minutes ..." -ForegroundColor Yellow
@@ -635,6 +688,23 @@ function Test-Tcp([string]$HostName, [int]$Port, [int]$TimeoutMs) {
         return $client.Connected
     } catch { return $false } finally { $client.Close() }
 }
+function Test-CompanionHttpViaSocks([string]$Url) {
+    $curl = Join-Path $env:SystemRoot 'System32\curl.exe'
+    if (-not (Test-Path -LiteralPath $curl)) {
+        $cmd = Get-Command curl.exe -ErrorAction SilentlyContinue
+        if ($cmd) { $curl = $cmd.Source } else { return 0 }
+    }
+    $out = Join-Path $env:TEMP ('airvix-socks-' + [guid]::NewGuid().ToString('N') + '.txt')
+    $codeText = & $curl --silent --show-error --socks5-hostname 'localhost:1055' --max-time 8 -o $out -w '%{http_code}' $Url
+    Remove-Item -LiteralPath $out -Force -ErrorAction SilentlyContinue
+    if ($codeText -match '^\d+$') { return [int]$codeText }
+    return 0
+}
+function Test-SocksHealthCounts([int]$Code) {
+    # 401 counts as reachable: the proxy reached the Jetson and it asked for a token.
+    if ($Code -eq 401 -or $Code -eq 403) { return $true }
+    return ($Code -ge 200 -and $Code -lt 300)
+}
 function Test-CompanionHttp([string]$Url, [string]$Token) {
     # returns HTTP status code, or 0 when there is no HTTP answer at all
     try {
@@ -661,10 +731,31 @@ function Test-CompanionHttp([string]$Url, [string]$Token) {
         return 0
     }
 }
-function Invoke-ReachabilityTests([string]$Token) {
+function Invoke-ReachabilityTests([string]$Token, [bool]$UseSocks) {
     Write-Step "Testing companion addresses ($CompanionBaseUrl)"
     $anyHttp = $false
     foreach ($base in $CompanionCandidates) {
+        $hostName = ''
+        try { $hostName = ([uri]$base).Host } catch { $hostName = '' }
+        $viaSocks = $UseSocks -and (Test-CgnatIp $hostName)
+        if ($viaSocks) {
+            $healthUrl = "$base/health"
+            $code = 0
+            for ($i = 1; $i -le 2; $i++) {
+                $code = Test-CompanionHttpViaSocks $healthUrl
+                if ($code -ne 0) { break }
+                if ($i -lt 2) { Start-Sleep -Seconds 2 }
+            }
+            if (Test-SocksHealthCounts $code) {
+                Write-Ok "Companion via SOCKS $base reachable (HTTP $code). 401 counts as reachable."
+                Add-Result "Companion SOCKS $base" 'PASS' "HTTP $code via localhost:1055"
+                $anyHttp = $true
+            } else {
+                Write-Wrn "No SOCKS answer from $base (HTTP $code)"
+                Add-Result "Companion SOCKS $base" 'WARN' 'no answer via proxy'
+            }
+            continue
+        }
         $healthUrl = "$base/api/v1/health"
         $code = 0
         for ($i = 1; $i -le 2; $i++) {
@@ -691,6 +782,11 @@ function Invoke-ReachabilityTests([string]$Token) {
     }
     if (-not $anyHttp) {
         Add-Result 'Jetson companion HTTP' 'FAIL' 'no answer on any address'
+    }
+    if (Test-CgnatIp $JetsonIp) {
+        Write-Info "MAVLink relay ${JetsonIp}:$RelayPort has no direct route in userspace mode. The console opens it through the SOCKS proxy."
+        Add-Result 'Jetson MAVLink relay TCP :5770' 'PASS' 'via SOCKS when JETSON_SOCKS_PROXY is set'
+        return
     }
     $tcpOk = $false
     for ($i = 1; $i -le 3; $i++) {
@@ -739,18 +835,22 @@ function Invoke-Main {
     else { Write-Host '  AIRVIX ground console - Windows installer' -ForegroundColor Cyan }
     Write-Host "  Install folder: $Root"
 
-    # ---- 1. prerequisites (elevate only if something must be installed)
-    Write-Step 'Checking prerequisites (Node.js, Tailscale)'
+    # ---- 1. prerequisites (elevate only if Node is missing, or userspace Tailscale must be configured)
+    Write-Step 'Checking prerequisites (Node.js, Tailscale userspace)'
     Update-PathFromRegistry
     $needNode = -not (Test-NodeOk)
-    # Tailscale is no longer installed automatically (it broke internet on some laptops).
+    # Tailscale is never installed and its TUN service is never enabled.
     $needTs = $false
+    $tsEarly = Get-TailscaleExe
+    $needUserspace = [bool]($tsEarly -and -not (Test-UserspaceReady $tsEarly))
     if ($needNode) { Write-Info "Node.js $NodeMinMajor..$NodeMaxMajor not found - will install Node.js LTS." } else { Write-Ok "Node.js $(Get-NodeVersion (Get-NodeExe))" }
-    if (-not $UpdateOnly) { if (-not (Get-TailscaleExe)) { Write-Info 'Tailscale not installed - skipped (optional, not installed automatically).' } else { Write-Ok 'Tailscale present' } }
+    if (-not $tsEarly) { Write-Info 'Tailscale not installed - skipped (not installed automatically).' }
+    elseif ($needUserspace) { Write-Ok 'Tailscale present - userspace task still needed' }
+    else { Write-Ok 'Tailscale userspace task already in place' }
 
-    if (($needNode -or $needTs) -and -not (Test-Admin)) {
-        Write-Info 'Administrator rights are needed to install the missing software.'
-        Write-Info 'Approve the Windows (UAC) prompt; the installer continues in a new window.'
+    if (($needNode -or $needUserspace) -and -not (Test-Admin)) {
+        if ($needUserspace) { Write-Host (Get-UserspaceAdminPrompt) -ForegroundColor Yellow }
+        Write-Info 'Administrator rights are needed. Approve the Windows prompt; the installer continues in a new window.'
         $self = (Get-Process -Id $PID).Path
         $argList = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', ('"' + $PSCommandPath + '"'), '-ElevatedChild',
             '-UserLocalAppData', ('"' + $UserLocalAppData + '"'), '-UserDesktop', ('"' + $UserDesktop + '"'))
@@ -760,7 +860,7 @@ function Invoke-Main {
             $script:exitCode = $p.ExitCode
             Write-Info "Elevated installer finished (exit code $($script:exitCode))."
         } catch {
-            Write-Bad 'Administrator rights were declined - cannot install Node.js / Tailscale.'
+            Write-Bad 'Administrator rights were declined.'
             $script:exitCode = 1
         }
         return
@@ -771,7 +871,6 @@ function Invoke-Main {
     if ($needNode) { Install-Node }
     $nodeExe = Get-NodeExe
     Add-Result 'Node.js' 'PASS' ("v" + (Get-NodeVersion $nodeExe))
-    if ($needTs) { Install-Tailscale }
 
     # ---- 2. .env first (asked once, up front, so the rest can run unattended; preserved by the update step)
     Write-Step 'Configuring local .env'
@@ -820,13 +919,19 @@ function Invoke-Main {
     Write-Ok "Desktop shortcuts: AIRVIX, AIRVIX Update  ($UserDesktop)"
     Add-Result 'Desktop shortcuts' 'PASS' 'AIRVIX, AIRVIX Update'
 
-    # ---- 6. Tailscale
-    Write-Step 'Tailscale'
+    # ---- 6. Tailscale userspace (no TUN service, no hosts/DNS/NRPT edits)
+    Write-Step 'Tailscale userspace'
     $ts = Get-TailscaleExe
+    $script:socksReady = $false
     if (-not $ts) {
         Write-Wrn 'Tailscale is not installed - skipped. The Jetson is reachable only on the same home network.'
         Add-Result 'Tailscale' 'WARN' 'not installed (skipped on purpose)'
     } else {
+        if (-not (Test-UserspaceReady $ts)) { Enable-AirvixTailscaleUserspace $ts }
+        else { Write-Ok "Userspace task $TailscaleTaskName already present and the Tailscale service is Disabled" }
+        Set-JetsonSocksProxyInEnv
+        $script:socksReady = $true
+        Add-Result 'Tailscale userspace' 'PASS' "$TailscaleTaskName SOCKS localhost:1055"
         $st = Connect-Tailscale $ts
         if ($st -and [string]$st.BackendState -eq 'Running') {
             $suffix = Get-TailnetSuffix $st
@@ -834,19 +939,20 @@ function Invoke-Main {
             try { $myIp = (@($st.Self.TailscaleIPs) | Where-Object { $_ -match '^\d+\.\d+\.\d+\.\d+$' } | Select-Object -First 1) } catch { }
             if ($suffix -and $suffix -ne $TailnetSuffix) {
                 Write-Wrn "Signed in to tailnet '$suffix' but the Jetson is in '$TailnetSuffix'. Switch account in the Tailscale tray menu."
-                Add-Result 'Tailscale' 'WARN' "connected to $suffix (expected $TailnetSuffix)"
+                Add-Result 'Tailscale sign-in' 'WARN' "connected to $suffix (expected $TailnetSuffix)"
             } else {
                 Write-Ok "Tailscale connected ($suffix, this laptop $myIp)"
-                Add-Result 'Tailscale' 'PASS' "connected ($suffix $myIp)"
+                Add-Result 'Tailscale sign-in' 'PASS' "connected ($suffix $myIp)"
             }
         } else {
             $state = ''; if ($st) { $state = [string]$st.BackendState }
-            Add-Result 'Tailscale' 'FAIL' "not connected (state: $state)"
+            Write-Wrn 'Userspace Tailscale is up, but this laptop is not signed in yet. Use the Tailscale tray icon, then re-run the installer.'
+            Add-Result 'Tailscale sign-in' 'WARN' "not signed in (state: $state)"
         }
     }
 
     # ---- 7. Jetson reachability
-    Invoke-ReachabilityTests $token
+    Invoke-ReachabilityTests $token $script:socksReady
     $token = $null
     Show-Summary
     Write-UpdateStatus 'ok' ''
