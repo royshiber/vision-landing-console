@@ -82,7 +82,7 @@ Local relay clients on `127.0.0.1` count as `local_tap_clients` when `VLC_LOCAL_
 
 ## Object storage (S3)
 
-The uploader speaks path-style S3 (AWS Signature Version 4, `AWS4-HMAC-SHA256`, service `s3`, region `auto`). It does not send flight commands or write parameters.
+The uploader speaks path-style S3. Host `storage.googleapis.com` is signed with `GOOG4-HMAC-SHA256`, scope `<date>/auto/storage/goog4_request`, and only `x-goog-*` headers. Other endpoints stay AWS Signature Version 4. It does not send flight commands or write parameters.
 
 The Jetson HMAC key is create-only. A new object PUT returns 200. GET, DELETE, LIST, and overwrite are denied. The uploader therefore uses a single PUT per object. It does not call HEAD, GET, or LIST to see if a key exists. Large files are split into separate part objects (`.partNNNN` plus `.parts.json`), each its own PUT, not an S3 multipart session. On Google Cloud Storage the PUT sends `x-goog-if-generation-match: 0`. A 412 means the object is already stored and the job is done. The uploader does not read it back.
 

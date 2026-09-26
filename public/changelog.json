@@ -1,5 +1,36 @@
 [
   {
+    "version": "1.02.337",
+    "date": "2026-09-26",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Server library",
+        "detail": "s3-client.mjs"
+      },
+      {
+        "type": "test",
+        "title": "Tests",
+        "detail": "cam0-pipeline.test.mjs, camera-ingest-honesty.test.mjs, companion-observe-status.test.mjs, flight-logs.test.mjs"
+      },
+      {
+        "type": "docs",
+        "title": "Documentation",
+        "detail": "CAM0_DEPLOY.md, FLIGHT_LOGS.md, FLIGHT_LOGS_JETSON.md"
+      },
+      {
+        "type": "docs",
+        "title": "Commercial capabilities overview",
+        "detail": "COMMERCIAL_CAPABILITIES.he.md"
+      },
+      {
+        "type": "chore",
+        "title": "Build scripts",
+        "detail": "airvix-flightlog.service, __init__.py, companion_agent.py, log_uploader.py, s3_sigv4.py, test_sigv4.py, test_tap_and_service.py, test_uploader.py"
+      }
+    ]
+  },
+  {
     "version": "1.02.336",
     "date": "2026-09-26",
     "changes": [

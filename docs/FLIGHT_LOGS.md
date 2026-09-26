@@ -28,7 +28,7 @@ No flights yet:
 
 The console key can GET and LIST objects in this bucket only. It cannot PUT, overwrite, or delete. The Jetson uploader key is a different HMAC key and is create-only.
 
-Google Cloud Storage (S3 interoperability). Same variable names as the Jetson file, with the read-only key in the console `.env`:
+Google Cloud Storage. The reader signs GET and LIST with `GOOG4-HMAC-SHA256` and only `x-goog-*` headers when the host is `storage.googleapis.com`. Other endpoints stay AWS Signature Version 4. Same variable names as the Jetson file, with the read-only key in the console `.env`:
 
 - `AIRVIX_S3_ENDPOINT` = `https://storage.googleapis.com`
 - `AIRVIX_S3_REGION` = `auto`
