@@ -53,6 +53,7 @@ required_files="
 README.md
 e3372-status.sh
 e3372-bringup.sh
+e3372-boot-trigger.sh
 tailscale-check.sh
 cellular-mavlink-endpoint.sh
 annotated-encoder-status.sh
@@ -115,7 +116,7 @@ if [ "${APPLY}" = "1" ]; then
   mkdir -p "${DEST_ROOT}" "$(dirname -- "${UDEV_DEST}")" "${SYSTEMD_DEST}" "$(dirname -- "${ENV_DEST}")"
   # Copy pack files only — no .env secrets.
   cp -a "${ROOT}/README.md" "${DEST_ROOT}/"
-  cp -a "${ROOT}/e3372-status.sh" "${ROOT}/e3372-bringup.sh" "${ROOT}/tailscale-check.sh" "${ROOT}/cellular-mavlink-endpoint.sh" "${ROOT}/annotated-encoder-status.sh" "${ROOT}/install.sh" "${ROOT}/pack.sh" "${DEST_ROOT}/"
+  cp -a "${ROOT}/e3372-status.sh" "${ROOT}/e3372-bringup.sh" "${ROOT}/e3372-boot-trigger.sh" "${ROOT}/tailscale-check.sh" "${ROOT}/cellular-mavlink-endpoint.sh" "${ROOT}/annotated-encoder-status.sh" "${ROOT}/install.sh" "${ROOT}/pack.sh" "${DEST_ROOT}/"
   cp -a "${ROOT}/lib" "${ROOT}/udev" "${ROOT}/systemd" "${ROOT}/usb-modeswitch" "${ROOT}/conf" "${DEST_ROOT}/"
   chmod 0755 "${DEST_ROOT}/e3372-status.sh" "${DEST_ROOT}/e3372-bringup.sh" "${DEST_ROOT}/tailscale-check.sh" "${DEST_ROOT}/cellular-mavlink-endpoint.sh" "${DEST_ROOT}/annotated-encoder-status.sh" "${DEST_ROOT}/install.sh" "${DEST_ROOT}/pack.sh"
   cp "${ROOT}/udev/99-huawei-e3372.rules" "${UDEV_DEST}"

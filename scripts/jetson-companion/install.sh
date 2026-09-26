@@ -20,7 +20,7 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-FILES=(companion_agent.py camera_ingest.py annotated_encoder.py README.md)
+FILES=(companion_agent.py camera_ingest.py siyi_sdk.py siyi-net.sh annotated_encoder.py fc_telemetry.py uplink_status.py uplink_control.py uplink-nm.sh airvix-uplink.sudoers README.md)
 
 echo "{\"ok\":true,\"mode\":\"$MODE\",\"dest\":\"$DEST\",\"files\":[\"${FILES[*]}\"]}"
 

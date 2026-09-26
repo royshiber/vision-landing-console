@@ -1,0 +1,11 @@
+# AIRVIX uplink control. One script, four verbs, no other nmcli rights.
+# The script lives at the install destination (default /opt/airvix/jetson-companion).
+# If companion_agent.py runs from another directory, change this path to match
+# the uplink-nm.sh that the process executes via sudo -n.
+#
+# Install on the Jetson (operator, not the cloud agent):
+#   sudo install -m 440 /opt/airvix/jetson-companion/airvix-uplink.sudoers /etc/sudoers.d/airvix-uplink
+#   sudo visudo -cf /etc/sudoers.d/airvix-uplink
+# Replace "airvix" with the account that runs companion_agent.py if it differs.
+
+airvix ALL=(root) NOPASSWD: /opt/airvix/jetson-companion/uplink-nm.sh

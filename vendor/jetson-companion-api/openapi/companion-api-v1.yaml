@@ -121,6 +121,55 @@ paths:
               schema:
                 $ref: "#/components/schemas/FcStatus"
 
+  /network/uplinks:
+    get:
+      tags: [status]
+      operationId: getNetworkUplinks
+      x-safety-tier: READ_ONLY
+      x-mutability: READ_ONLY
+      summary: Wi-Fi and Huawei cellular snapshot. enabled is the operator preference. up is the live interface.
+      responses:
+        "200":
+          description: UplinkStatus
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UplinkStatus"
+
+  /network/uplinks/{link}:
+    post:
+      tags: [status]
+      operationId: setNetworkUplink
+      x-safety-tier: RUNTIME_WRITE
+      x-mutability: RUNTIME_WRITE
+      summary: Enable or disable Wi-Fi or cellular. Refuses to drop the last working uplink. Not a flight command.
+      parameters:
+        - name: link
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [wifi, cellular]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UplinkCommand"
+      responses:
+        "200":
+          description: UplinkStatus after the change
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UplinkStatus"
+        "401":
+          description: Missing or wrong companion token
+        "409":
+          description: Other link is not up with a working default route
+        "503":
+          description: NetworkManager rejected the change
+
   /status/mavlink:
     get:
       tags: [status]
@@ -162,6 +211,183 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/VisionStatus"
+
+  /status/cameras:
+    get:
+      tags: [vision]
+      operationId: getCamerasStatus
+      x-safety-tier: READ_ONLY
+      x-mutability: READ_ONLY
+      summary: Honest per-slot camera status for cam1, cam2, and cam3
+      responses:
+        "200":
+          description: CamerasStatus
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CamerasStatus"
+
+  /status/gimbal:
+    get:
+      tags: [vision]
+      operationId: getGimbalStatus
+      x-safety-tier: READ_ONLY
+      x-mutability: READ_ONLY
+      summary: SIYI gimbal snapshot. present is true only after a fresh reply.
+      responses:
+        "200":
+          description: GimbalStatus
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GimbalStatus"
+
+  /cameras/{id}/frame:
+    get:
+      tags: [vision]
+      operationId: getCameraFrame
+      x-safety-tier: READ_ONLY
+      x-mutability: READ_ONLY
+      summary: Latest JPEG for one slot. Missing frame is 404, never a placeholder.
+      parameters:
+        - $ref: "#/components/parameters/CameraId"
+      responses:
+        "200":
+          description: JPEG bytes
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+        "404":
+          description: אין פריים
+
+  /cameras/{id}/frame.jpg:
+    get:
+      tags: [vision]
+      operationId: getCameraFrameJpg
+      x-safety-tier: READ_ONLY
+      x-mutability: READ_ONLY
+      parameters:
+        - $ref: "#/components/parameters/CameraId"
+      responses:
+        "200":
+          description: JPEG bytes
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+        "404":
+          description: אין פריים
+
+  /gimbal/rate:
+    post:
+      tags: [vision]
+      operationId: postGimbalRate
+      x-safety-tier: RUNTIME_WRITE
+      x-mutability: RUNTIME_WRITE
+      summary: Yaw/pitch rate. Not a flight command. Disabled unless explicitly enabled.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GimbalRateCommand"
+      responses:
+        "200":
+          description: Ack or sent
+        "403":
+          description: Control disabled
+
+  /gimbal/angle:
+    post:
+      tags: [vision]
+      operationId: postGimbalAngle
+      x-safety-tier: RUNTIME_WRITE
+      x-mutability: RUNTIME_WRITE
+      summary: Absolute yaw/pitch, clamped to A8 limits. Command id defaults to 0x0E.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GimbalAngleCommand"
+      responses:
+        "200":
+          description: Ack or sent
+        "403":
+          description: Control disabled
+
+  /gimbal/center:
+    post:
+      tags: [vision]
+      operationId: postGimbalCenter
+      x-safety-tier: RUNTIME_WRITE
+      x-mutability: RUNTIME_WRITE
+      responses:
+        "200":
+          description: Center sent
+        "403":
+          description: Control disabled
+
+  /gimbal/zoom:
+    post:
+      tags: [vision]
+      operationId: postGimbalZoom
+      x-safety-tier: RUNTIME_WRITE
+      x-mutability: RUNTIME_WRITE
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GimbalZoomCommand"
+      responses:
+        "200":
+          description: Zoom sent
+        "403":
+          description: Control disabled
+
+  /gimbal/mode:
+    post:
+      tags: [vision]
+      operationId: postGimbalMode
+      x-safety-tier: RUNTIME_WRITE
+      x-mutability: RUNTIME_WRITE
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GimbalModeCommand"
+      responses:
+        "200":
+          description: Mode sent
+        "403":
+          description: Control disabled
+
+  /gimbal/photo:
+    post:
+      tags: [vision]
+      operationId: postGimbalPhoto
+      x-safety-tier: RUNTIME_WRITE
+      x-mutability: RUNTIME_WRITE
+      responses:
+        "200":
+          description: Photo packet sent. The SDK does not ack this command.
+        "403":
+          description: Control disabled
+
+  /gimbal/record:
+    post:
+      tags: [vision]
+      operationId: postGimbalRecord
+      x-safety-tier: RUNTIME_WRITE
+      x-mutability: RUNTIME_WRITE
+      responses:
+        "200":
+          description: Record toggle sent. The SDK does not ack this command.
+        "403":
+          description: Control disabled
 
   /vision/result:
     get:
@@ -418,6 +644,14 @@ paths:
           description: Switching Protocols
 
 components:
+  parameters:
+    CameraId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        enum: [cam1, cam2, cam3]
   responses:
     Error:
       description: Error
@@ -427,6 +661,105 @@ components:
             $ref: "#/components/schemas/ErrorResponse"
 
   schemas:
+    CameraSlotState:
+      type: string
+      enum: [absent, opening, streaming, read_failed, opencv_unavailable, csi_requires_gstreamer_opencv, disabled]
+
+    CameraSlot:
+      type: object
+      required: [id, camera_ok, state]
+      properties:
+        id:
+          type: string
+          enum: [cam1, cam2, cam3]
+        role:
+          type: string
+          enum: [forward, down, gimbal]
+        enabled: { type: boolean }
+        state: { $ref: "#/components/schemas/CameraSlotState" }
+        present: { type: boolean }
+        camera_ok: { type: boolean }
+        fps: { type: number, nullable: true }
+        frame_count: { type: integer, nullable: true }
+        last_frame_age_ms: { type: integer, nullable: true }
+        error: { type: string, nullable: true }
+        source: { type: string, nullable: true }
+        real: { type: boolean }
+        dry_run: { type: boolean }
+        resolved_device: { type: string, nullable: true }
+        requested_device: { type: string, nullable: true }
+        has_frame: { type: boolean }
+
+    CamerasStatus:
+      type: object
+      required: [ok, camera_ok, cameras]
+      properties:
+        ok: { type: boolean }
+        observe_only: { type: boolean }
+        camera_ok: { type: boolean }
+        real: { type: boolean }
+        dry_run: { type: boolean }
+        source: { type: string }
+        fps: { type: number, nullable: true }
+        frame_count: { type: integer, nullable: true }
+        last_frame_age_ms: { type: integer, nullable: true }
+        cameras:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/CameraSlot"
+        slots:
+          type: array
+          items: { type: string }
+
+    GimbalStatus:
+      type: object
+      required: [ok, present]
+      properties:
+        ok: { type: boolean }
+        present: { type: boolean }
+        firmware: { type: object, nullable: true }
+        hardware_id: { type: string, nullable: true }
+        attitude: { type: object, nullable: true }
+        zoom: { type: number, nullable: true }
+        mode:
+          type: string
+          nullable: true
+          enum: [lock, follow, fpv, null]
+        recording: { type: boolean, nullable: true }
+        age_ms: { type: integer, nullable: true }
+        control_enabled: { type: boolean }
+        error: { type: string, nullable: true }
+
+    GimbalRateCommand:
+      type: object
+      required: [yaw, pitch]
+      properties:
+        yaw: { type: integer, minimum: -100, maximum: 100 }
+        pitch: { type: integer, minimum: -100, maximum: 100 }
+
+    GimbalAngleCommand:
+      type: object
+      required: [yaw, pitch]
+      properties:
+        yaw: { type: number, minimum: -135, maximum: 135 }
+        pitch: { type: number, minimum: -90, maximum: 25 }
+
+    GimbalZoomCommand:
+      type: object
+      properties:
+        zoom: { type: integer, minimum: -1, maximum: 1 }
+        direction:
+          type: string
+          enum: [in, out, stop]
+
+    GimbalModeCommand:
+      type: object
+      required: [mode]
+      properties:
+        mode:
+          type: string
+          enum: [lock, follow, fpv]
+
     HealthState:
       type: string
       enum: [unavailable, degraded, valid]
@@ -479,6 +812,47 @@ components:
       type: string
       enum: [camera_optical, body_frd, body_flu, ned_local, wgs84, target]
 
+    UplinkCommand:
+      type: object
+      additionalProperties: false
+      required: [enabled]
+      properties:
+        enabled: { type: boolean }
+
+    UplinkStatus:
+      type: object
+      additionalProperties: false
+      required: [ok, read_only, wifi, cellular]
+      properties:
+        ok: { type: boolean }
+        read_only: { type: boolean }
+        boot_fallback: { type: [string, "null"] }
+        default_iface: { type: [string, "null"] }
+        wifi:
+          type: object
+          additionalProperties: false
+          properties:
+            iface: { type: [string, "null"] }
+            up: { type: boolean }
+            enabled: { type: boolean }
+            ssid: { type: [string, "null"] }
+            signal_dbm: { type: [number, "null"] }
+            ip: { type: [string, "null"] }
+            default_route: { type: boolean }
+        cellular:
+          type: object
+          additionalProperties: false
+          properties:
+            iface: { type: [string, "null"] }
+            up: { type: boolean }
+            enabled: { type: boolean }
+            ip: { type: [string, "null"] }
+            route_metric: { type: [integer, "null"] }
+            default_route: { type: boolean }
+            signal:
+              type: [object, "null"]
+              additionalProperties: true
+
     HealthResponse:
       type: object
       required: [ok, api_version]
@@ -488,6 +862,11 @@ components:
         api_version:
           type: string
           example: "1"
+        capabilities:
+          type: object
+          properties:
+            uplinkStatus: { type: boolean }
+            uplinkControl: { type: boolean }
 
     VersionResponse:
       type: object
@@ -600,8 +979,24 @@ components:
         global_position_int: { $ref: "#/components/schemas/CachedMessage" }
         armed:
           type: [boolean, "null"]
-          description: Derived from HEARTBEAT base_mode if present; observe-only
+          description: Derived from HEARTBEAT base_mode if present; observe-only. Null when the autopilot heartbeat is not fresh.
         custom_mode: { type: [integer, "null"] }
+        status: { type: [string, "null"] }
+        connected: { type: [boolean, "null"] }
+        heartbeat_validity: { type: [string, "null"] }
+        mode: { type: [string, "null"] }
+        autopilot: { type: [integer, "null"] }
+        system_id: { type: [integer, "null"] }
+        component_id: { type: [integer, "null"] }
+        load_pct: { type: [number, "null"] }
+        loadPct: { type: [number, "null"] }
+        battery_v: { type: [number, "null"] }
+        battery_pct: { type: [integer, "null"] }
+        battery_source: { type: [string, "null"] }
+        meminfo_free_kb: { type: [number, "null"] }
+        mcu_temp_c: { type: [number, "null"] }
+        temperature_c: { type: [number, "null"] }
+        last_heartbeat_age_ms: { type: [integer, "null"] }
 
     ChannelStatus:
       type: object

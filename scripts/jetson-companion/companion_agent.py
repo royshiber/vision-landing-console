@@ -1,13 +1,17 @@
 #!/usr/bin/env python3
 """Vision Landing Console — Jetson companion: MAVLink relay + HTTP API + heartbeat.
 
-AGENT_VERSION 2.3.6 = 2.3.5 plus observe-only annotated encoder honesty over cellular.
+AGENT_VERSION 2.3.9 = 2.3.8 plus operator uplink on/off (Wi-Fi and Huawei
+cellular) that refuses to drop the last working link. 2.3.8 added an honest
+FC telemetry snapshot, HiLink modem/uplink reads, and the Matek TX3/RX3 port
+label (ArduPilot SERIAL4).
 No VIO estimator, no EKF inject, no FC writes, no runway detect.
-Never invent camera_ok, frames, runway detected/locked, or WGS84 position.
+Gimbal and camera control are not flight commands.
+Never invent camera_ok, frames, gimbal attitude, runway detected/locked, or WGS84 position.
 Dry-run never claims a real camera.
 
-Hardware default (Matek H743 SERIAL3 ↔ Jetson UART1):
-  FC /dev/ttyTHS1 @ 921600, FC_READ_ONLY=1
+Hardware default (Matek H743 pads TX3/RX3 = ArduPilot SERIAL4 ↔ Jetson UART1):
+  FC /dev/ttyTHS1 @ 921600, FC_READ_ONLY=1, VLC_FC_SERIAL_NAME=SERIAL4
 
 The relay MUST stay byte-level:
   uart_reader → fanout_uart
@@ -34,24 +38,81 @@ except ImportError:
 
 CONSOLE_URL = os.environ.get("VLC_CONSOLE_URL", "http://127.0.0.1:4010").rstrip("/")
 TOKEN = os.environ.get("VLC_COMPANION_TOKEN", "")
-# Matek SERIAL3 (UART3) is wired to Jetson UART1 → /dev/ttyTHS1 @ 921600.
+# Matek pads TX3/RX3 are ArduPilot SERIAL4 (SERIAL4_PROTOCOL=2) on Jetson UART1.
 FC_DEVICE = os.environ.get("VLC_FC_DEVICE", "/dev/ttyTHS1")
 FC_BAUD = int(os.environ.get("VLC_FC_BAUD", "921600"))
-FC_SERIAL_NAME = os.environ.get("VLC_FC_SERIAL_NAME", "SERIAL3")
+FC_SERIAL_NAME = os.environ.get("VLC_FC_SERIAL_NAME", "SERIAL4")
 RELAY_PORT = int(os.environ.get("VLC_RELAY_PORT", "5770"))
 HTTP_PORT = int(os.environ.get("VLC_HTTP_PORT", "8081"))
-AGENT_VERSION = os.environ.get("VLC_AGENT_VERSION", "2.3.6")
+HTTP_IDLE_S = float(os.environ.get("VLC_HTTP_IDLE_S", "30") or "30")
+HTTP_MAX_BODY = 16 * 1024 * 1024
+AGENT_VERSION = os.environ.get("VLC_AGENT_VERSION", "2.3.9")
 MODEM_STATUS_FILE = os.environ.get("AIRVIX_E3372_STATUS_FILE", "/run/airvix/e3372.status")
 
 try:
-    from camera_ingest import ingest_frame_jpeg, ingest_snapshot
+    from camera_ingest import CAM_IDS, ingest_frame_jpeg, ingest_snapshot
 except ImportError:
+    CAM_IDS = ("cam1", "cam2", "cam3")
     ingest_snapshot = None
     ingest_frame_jpeg = None
+try:
+    from siyi_sdk import gimbal_command, gimbal_status, get_link as get_gimbal_link
+except ImportError:
+    gimbal_command = None
+    gimbal_status = None
+    get_gimbal_link = None
 try:
     from annotated_encoder import annotated_encoder_status
 except ImportError:
     annotated_encoder_status = None
+try:
+    from fc_telemetry import fc_link_flags, fc_status_payload, observe_uart_bytes
+except ImportError:
+    def observe_uart_bytes(_data):
+        return None
+
+    def fc_link_flags():
+        return {"connected": False, "heartbeat_wall": None}
+
+    def fc_status_payload():
+        return {
+            "ok": True,
+            "status": "disconnected",
+            "connected": False,
+            "heartbeat_validity": "invalid",
+            "armed": None,
+            "mode": None,
+            "custom_mode": None,
+            "load_pct": None,
+            "battery_v": None,
+            "battery_pct": None,
+            "meminfo_free_kb": None,
+            "mcu_temp_c": None,
+            "last_heartbeat_age_ms": None,
+            "heartbeat": {"validity": "invalid", "system_id": None, "component_id": None, "fields": {}},
+        }
+try:
+    from uplink_status import enrich_modem, uplinks_payload
+except ImportError:
+    def enrich_modem(body):
+        return body
+
+    def uplinks_payload():
+        return {
+            "ok": True,
+            "read_only": True,
+            "wifi": {"iface": "wlP1p1s0", "up": False, "enabled": True, "ssid": None, "signal_dbm": None, "ip": None, "default_route": False},
+            "cellular": {"iface": None, "up": False, "enabled": True, "ip": None, "route_metric": None, "signal": None, "default_route": False},
+            "default_iface": None,
+            "boot_fallback": None,
+        }
+try:
+    from uplink_control import apply_boot_policy, set_uplink
+except ImportError:
+    apply_boot_policy = None
+
+    def set_uplink(_kind, _enabled):
+        return 503, {"ok": False, "reason": "uplink_control_absent", "message": "שליטת קישור לא זמינה"}
 FC_READ_ONLY = os.environ.get("VLC_FC_READ_ONLY", "1").strip().lower() in {"1", "true", "yes", "on"}
 SKIP_RELAY = os.environ.get("VLC_SKIP_RELAY", "").strip().lower() in {"1", "true", "yes", "on"}
 HTTP_BIND = os.environ.get("VLC_HTTP_BIND", "0.0.0.0")
@@ -84,6 +145,16 @@ CLIENTS_LOCK = threading.Lock()
 UART_WRITE_LOCK = threading.Lock()
 STATE_LOCK = threading.Lock()
 HEARTBEAT_CRC_EXTRA = 50
+
+
+def _uplink_kind(path):
+    for prefix in ("/api/v1/network/uplinks/", "/api/network/uplinks/"):
+        if path.startswith(prefix):
+            kind = path[len(prefix):]
+            if kind in {"wifi", "cellular"}:
+                return kind
+            return ""
+    return None
 
 
 def auth_headers():
@@ -278,11 +349,15 @@ def uart_reader(fc_serial, stop):
             continue
         if not data:
             continue
+        # Copy only. fanout_uart still forwards the original bytes.
+        # chunk_has_heartbeat() stays for transport-test; link state is the passive observer.
+        observe_uart_bytes(data)
+        flags = fc_link_flags()
         with STATE_LOCK:
             STATE["uart_bytes_rx"] = int(STATE.get("uart_bytes_rx") or 0) + len(data)
-        if chunk_has_heartbeat(data):
-            STATE["fc_heartbeat"] = True
-            STATE["last_heartbeat_at"] = time.time()
+            STATE["fc_heartbeat"] = flags["connected"] is True
+            if flags.get("heartbeat_wall") is not None:
+                STATE["last_heartbeat_at"] = flags["heartbeat_wall"]
         fanout_uart(data)
 
 
@@ -364,12 +439,63 @@ def iter_log_files():
             yield p
 
 
+_SLOT_FALLBACK = (
+    ("cam1", "forward", "vio_forward", True),
+    ("cam2", "down", "optical_flow_down", True),
+    ("cam3", "gimbal", "gimbal_observe", False),
+)
+_GIMBAL_ACTIONS = {
+    "/api/v1/gimbal/rate": "rate",
+    "/api/gimbal/rate": "rate",
+    "/api/v1/gimbal/angle": "angle",
+    "/api/gimbal/angle": "angle",
+    "/api/v1/gimbal/center": "center",
+    "/api/gimbal/center": "center",
+    "/api/v1/gimbal/zoom": "zoom",
+    "/api/gimbal/zoom": "zoom",
+    "/api/v1/gimbal/mode": "mode",
+    "/api/gimbal/mode": "mode",
+    "/api/v1/gimbal/photo": "photo",
+    "/api/gimbal/photo": "photo",
+    "/api/v1/gimbal/record": "record",
+    "/api/gimbal/record": "record",
+}
+
+
 def _camera_frame_id(path):
-    for cam_id in ("cam1", "cam2"):
+    ids = CAM_IDS if CAM_IDS else ("cam1", "cam2", "cam3")
+    for cam_id in ids:
         for prefix in ("/api/v1/cameras/", "/api/cameras/"):
             if path in (f"{prefix}{cam_id}/frame", f"{prefix}{cam_id}/frame.jpg"):
                 return cam_id
     return None
+
+
+def _fallback_cameras(error):
+    cameras = {}
+    for cam_id, role, nav_role, enabled in _SLOT_FALLBACK:
+        cameras[cam_id] = {
+            "id": cam_id,
+            "role": role,
+            "nav_role": nav_role,
+            "shared_with": "landing_vision",
+            "enabled": enabled,
+            "state": "disabled" if not enabled else "absent",
+            "present": False,
+            "camera_ok": False,
+            "fps": None,
+            "frame_count": None,
+            "last_frame_age_ms": None,
+            "error": "disabled" if not enabled else error,
+            "source": "absent",
+            "dry_run": False,
+            "real": False,
+            "device": None,
+            "requested_device": None,
+            "resolved_device": None,
+            "has_frame": False,
+        }
+    return cameras
 
 
 def _now_ts():
@@ -394,42 +520,8 @@ def _ingest_or_absent():
             "frame_count": None,
             "last_frame_age_ms": None,
             "latency_ms": None,
-            "cameras": {
-                "cam1": {
-                    "id": "cam1",
-                    "role": "forward",
-                    "nav_role": "vio_forward",
-                    "shared_with": "landing_vision",
-                    "present": False,
-                    "camera_ok": False,
-                    "fps": None,
-                    "frame_count": None,
-                    "last_frame_age_ms": None,
-                    "error": "ingest_module_absent",
-                    "source": "absent",
-                    "dry_run": False,
-                    "real": False,
-                    "device": None,
-                    "has_frame": False,
-                },
-                "cam2": {
-                    "id": "cam2",
-                    "role": "down",
-                    "nav_role": "optical_flow_down",
-                    "shared_with": "landing_vision",
-                    "present": False,
-                    "camera_ok": False,
-                    "fps": None,
-                    "frame_count": None,
-                    "last_frame_age_ms": None,
-                    "error": "ingest_module_absent",
-                    "source": "absent",
-                    "dry_run": False,
-                    "real": False,
-                    "device": None,
-                    "has_frame": False,
-                },
-            },
+            "cameras": _fallback_cameras("ingest_module_absent"),
+            "slots": ["cam1", "cam2", "cam3"],
             "note": "camera ingest module missing; camera_ok is false; not invented",
         }
     return ingest_snapshot()
@@ -461,9 +553,12 @@ def vision_status_payload():
     snap = _ingest_or_absent()
     any_ok = snap.get("camera_ok") is True
     source_id = "none"
-    for key in ("cam1", "cam2"):
-        cam = (snap.get("cameras") or {}).get(key) or {}
-        if cam.get("camera_ok") is True:
+    raw_cams = snap.get("cameras") or {}
+    order = [cam_id for cam_id in ("cam1", "cam2", "cam3") if cam_id in raw_cams]
+    order.extend(cam_id for cam_id in raw_cams if cam_id not in order)
+    for key in order:
+        cam = raw_cams.get(key) or {}
+        if cam.get("camera_ok") is True and cam.get("enabled") is not False:
             source_id = key
             break
     return {
@@ -588,13 +683,25 @@ def optical_nav_status_payload():
     snap = _ingest_or_absent()
     raw_cams = snap.get("cameras") or {}
     cameras = {}
-    for cam_id, nav_role in (("cam1", "vio_forward"), ("cam2", "optical_flow_down")):
+    order = [cam_id for cam_id in ("cam1", "cam2", "cam3") if cam_id in raw_cams]
+    order.extend(cam_id for cam_id in raw_cams if cam_id not in order)
+    if not order:
+        order = ["cam1", "cam2", "cam3"]
+    for cam_id in order:
         src = raw_cams.get(cam_id) or {}
+        mount = src.get("role") or {"cam1": "forward", "cam2": "down", "cam3": "gimbal"}.get(cam_id)
+        nav_role = src.get("nav_role") or {
+            "forward": "vio_forward",
+            "down": "optical_flow_down",
+            "gimbal": "gimbal_observe",
+        }.get(mount, "landing_vision")
         cameras[cam_id] = {
             "id": cam_id,
             "role": nav_role,
-            "mount_role": src.get("role"),
+            "mount_role": mount,
             "shared_with": "landing_vision",
+            "enabled": src.get("enabled") is not False if src else cam_id != "cam3",
+            "state": src.get("state"),
             "present": src.get("present") is True,
             "camera_ok": src.get("camera_ok") is True,
             "fps": src.get("fps"),
@@ -604,6 +711,7 @@ def optical_nav_status_payload():
             "source": src.get("source") or "absent",
             "dry_run": src.get("dry_run") is True,
             "real": src.get("real") is True,
+            "resolved_device": src.get("resolved_device"),
         }
     return {
         "ok": True,
@@ -665,23 +773,23 @@ def modem_status_payload():
         body["transport"] = "mock"
         body["iface"] = "mock0"
         body["reason"] = "mock_present"
-        return body
+        return enrich_modem(body)
     path = Path(MODEM_STATUS_FILE)
     if not path.is_file():
         body = _absent_modem("modem_absent")
         body["statusFileMissing"] = True
         body["reasonHe"] = "מודם לא מחובר. אין קובץ סטטוס במחשב משימה."
-        return body
+        return enrich_modem(body)
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
     except Exception as exc:
-        return _absent_modem("status_unreadable", error=str(exc)[:160])
+        return enrich_modem(_absent_modem("status_unreadable", error=str(exc)[:160]))
     if not isinstance(data, dict):
-        return _absent_modem("status_invalid", error="not_object")
+        return enrich_modem(_absent_modem("status_invalid", error="not_object"))
     present = data.get("present") is True
     ip = data.get("ip") if isinstance(data.get("ip"), str) and data.get("ip") else None
     err = data.get("error") if isinstance(data.get("error"), str) and data.get("error") else None
-    return {
+    return enrich_modem({
         "ok": True,
         "present": present,
         "model": data.get("model") or "Huawei E3372",
@@ -698,7 +806,15 @@ def modem_status_payload():
         "flightCommands": False,
         "neverRadioVideo": True,
         "source": "status_file",
-    }
+    })
+
+
+def _refresh_fc_link():
+    flags = fc_link_flags()
+    with STATE_LOCK:
+        STATE["fc_heartbeat"] = flags["connected"] is True
+        if flags.get("heartbeat_wall") is not None:
+            STATE["last_heartbeat_at"] = flags["heartbeat_wall"]
 
 
 def extras_status_payload():
@@ -718,6 +834,7 @@ def extras_status_payload():
 
 def status_payload():
     """Companion v1 status overlay. System gauges plus honest absent vision/landing."""
+    _refresh_fc_link()
     return {
         "ok": True,
         "timestamp": _now_ts(),
@@ -738,17 +855,42 @@ def status_payload():
         "video": video_status_payload(),
         "extras": extras_status_payload(),
         "modem": modem_status_payload(),
-        "fc": {},
+        "gimbal": gimbal_status_payload(start=False),
+        "fc": fc_status_payload(),
         "mavlink": {},
     }
 
 
+def gimbal_status_payload(start=False):
+    """Honest gimbal snapshot. present is true only after a fresh SDK reply."""
+    if gimbal_status is None:
+        return {
+            "ok": True,
+            "present": False,
+            "firmware": None,
+            "hardware_id": None,
+            "attitude": None,
+            "zoom": None,
+            "mode": None,
+            "recording": None,
+            "age_ms": None,
+            "control_enabled": False,
+            "polling": False,
+            "error": "sdk_module_absent",
+            "note": "no gimbal reply; not invented",
+        }
+    return gimbal_status(start=start)
+
+
 def health_payload():
+    _refresh_fc_link()
     return {
         "ok": True,
         "agentVersion": AGENT_VERSION,
         "api_version": "1",
         "observe_only": True,
+        "capabilities": {"uplinkStatus": True, "uplinkControl": apply_boot_policy is not None},
+        "fc": fc_status_payload(),
         **STATE,
         "vision": vision_status_payload(),
         "optical_nav": optical_nav_status_payload(),
@@ -756,6 +898,7 @@ def health_payload():
         "video": video_status_payload(),
         "extras": extras_status_payload(),
         "modem": modem_status_payload(),
+        "gimbal": gimbal_status_payload(start=False),
     }
 
 
@@ -793,22 +936,123 @@ def transport_test_payload(self_test=False):
     return body
 
 
+class CompanionHTTPServer(ThreadingHTTPServer):
+    """One thread per connection. Idle keep-alive sockets die with the process."""
+
+    daemon_threads = True
+
+
 class Handler(BaseHTTPRequestHandler):
+    # HTTP/1.0 closes after every response. HTTP/1.1 keeps the socket when
+    # every response carries Content-Length (or is a bodiless 204/304).
+    protocol_version = "HTTP/1.1"
+    timeout = 30
+
     def _auth_ok(self):
         if not TOKEN:
             return True
         return self.headers.get("X-Companion-Token") == TOKEN or self.headers.get("Authorization", "").replace("Bearer ", "") == TOKEN
 
-    def _json(self, code, obj):
-        body = json.dumps(obj).encode("utf-8")
-        self.send_response(code)
-        self.send_header("Content-Type", "application/json")
-        self.send_header("Content-Length", str(len(body)))
-        self.end_headers()
-        self.wfile.write(body)
-
     def _path(self):
         return self.path.split("?", 1)[0]
+
+    def _send_bytes(self, code, body, content_type, extra=None):
+        payload = body if isinstance(body, (bytes, bytearray)) else bytes(body)
+        self.send_response(code)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Length", str(len(payload)))
+        for key, value in extra or ():
+            self.send_header(key, value)
+        self.end_headers()
+        if self.command != "HEAD":
+            self.wfile.write(payload)
+        try:
+            self.wfile.flush()
+        except Exception:
+            self.close_connection = True
+
+    def _json(self, code, obj):
+        self._send_bytes(code, json.dumps(obj).encode("utf-8"), "application/json")
+
+    def send_error(self, code, message=None, explain=None):
+        """JSON error with Content-Length. Do not force Connection: close."""
+        self._json(int(code), {
+            "ok": False,
+            "message": message or "error",
+            "explain": explain,
+        })
+
+    def _read_request_body(self):
+        transfer = (self.headers.get("Transfer-Encoding") or "").lower()
+        if "chunked" in transfer:
+            return self._read_chunked()
+        raw_len = self.headers.get("Content-Length")
+        if raw_len is None:
+            return b""
+        try:
+            length = int(raw_len)
+        except ValueError:
+            self.close_connection = True
+            raise ValueError("bad_length")
+        if length < 0 or length > HTTP_MAX_BODY:
+            self.close_connection = True
+            raise ValueError("bad_length")
+        if length == 0:
+            return b""
+        data = self.rfile.read(length)
+        if len(data) != length:
+            self.close_connection = True
+            raise ValueError("short_body")
+        return data
+
+    def _read_chunked(self):
+        chunks = []
+        total = 0
+        while True:
+            line = self.rfile.readline(65537)
+            if not line or len(line) > 65536:
+                self.close_connection = True
+                raise ValueError("bad_chunk")
+            try:
+                size = int(line.split(b";", 1)[0].strip(), 16)
+            except ValueError:
+                self.close_connection = True
+                raise ValueError("bad_chunk")
+            if size == 0:
+                while True:
+                    trailer = self.rfile.readline(65537)
+                    if trailer in (b"\r\n", b"\n", b""):
+                        break
+                return b"".join(chunks)
+            if size < 0 or total + size > HTTP_MAX_BODY:
+                self.close_connection = True
+                raise ValueError("chunk_too_large")
+            data = self.rfile.read(size)
+            if len(data) != size:
+                self.close_connection = True
+                raise ValueError("short_chunk")
+            delim = self.rfile.read(2)
+            if delim not in (b"\r\n", b"\n"):
+                self.close_connection = True
+                raise ValueError("bad_chunk_end")
+            chunks.append(data)
+            total += size
+
+    def do_HEAD(self):
+        self.do_GET()
+
+    def do_OPTIONS(self):
+        self.send_response(204)
+        self.send_header("Allow", "GET, HEAD, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Methods", "GET, HEAD, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Companion-Token")
+        self.send_header("Access-Control-Max-Age", "600")
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+        try:
+            self.wfile.flush()
+        except Exception:
+            self.close_connection = True
 
     def do_GET(self):
         if not self._auth_ok():
@@ -821,12 +1065,7 @@ class Handler(BaseHTTPRequestHandler):
             name = path.split("/api/logs/", 1)[1]
             for p in iter_log_files():
                 if p.name == name:
-                    data = p.read_bytes()
-                    self.send_response(200)
-                    self.send_header("Content-Type", "application/octet-stream")
-                    self.send_header("Content-Length", str(len(data)))
-                    self.end_headers()
-                    self.wfile.write(data)
+                    self._send_bytes(200, p.read_bytes(), "application/octet-stream")
                     return
             return self._json(404, {"ok": False, "message": "not found"})
         if path in ("/api/health", "/api/v1/health"):
@@ -847,8 +1086,17 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(200, video_status_payload())
         if path in ("/api/status/annotated-video", "/api/v1/status/annotated-video"):
             return self._json(200, annotated_video_status_payload())
+        if path in ("/api/status/fc", "/api/v1/status/fc"):
+            return self._json(200, fc_status_payload())
         if path in ("/api/status/modem", "/api/v1/status/modem"):
             return self._json(200, modem_status_payload())
+        if path in ("/api/v1/network/uplinks", "/api/network/uplinks"):
+            return self._json(200, uplinks_payload())
+        uplink_kind = _uplink_kind(path)
+        if uplink_kind:
+            return self._json(405, {"ok": False, "reason": "method_not_allowed", "message": "נדרש POST"})
+        if path in ("/api/status/gimbal", "/api/v1/status/gimbal"):
+            return self._json(200, gimbal_status_payload(start=True))
         if path in ("/api/transport-test", "/api/v1/transport-test"):
             return self._json(200, transport_test_payload(self_test=False))
         cam_frame = _camera_frame_id(path)
@@ -861,20 +1109,20 @@ class Handler(BaseHTTPRequestHandler):
                     "reason": "no_frame",
                     "note": "אין פריים",
                 })
-            self.send_response(200)
-            self.send_header("Content-Type", "image/jpeg")
-            self.send_header("Cache-Control", "no-store")
-            self.send_header("Content-Length", str(len(jpeg)))
-            self.end_headers()
-            self.wfile.write(jpeg)
+            self._send_bytes(200, jpeg, "image/jpeg", extra=(("Cache-Control", "no-store"),))
             return
         return self._json(404, {"ok": False})
 
     def do_POST(self):
+        try:
+            raw = self._read_request_body()
+        except Exception:
+            self.close_connection = True
+            return self._json(400, {"ok": False, "message": "bad body"})
         if not self._auth_ok():
             return self._json(401, {"ok": False, "message": "Unauthorized"})
-        length = int(self.headers.get("Content-Length", 0))
-        raw = self.rfile.read(length) if length else b"{}"
+        if not raw:
+            raw = b"{}"
         try:
             data = json.loads(raw.decode("utf-8"))
         except json.JSONDecodeError:
@@ -882,6 +1130,22 @@ class Handler(BaseHTTPRequestHandler):
         path = self._path()
         if path in ("/api/transport-test", "/api/v1/transport-test"):
             return self._json(200, transport_test_payload(self_test=True))
+        action = _GIMBAL_ACTIONS.get(path)
+        if action:
+            if gimbal_command is None:
+                return self._json(503, {
+                    "ok": False,
+                    "reason": "sdk_module_absent",
+                    "message": "שליטת גימבל לא זמינה",
+                    "sent": False,
+                })
+            code, body = gimbal_command(action, data if isinstance(data, dict) else {})
+            return self._json(code, body)
+        uplink_kind = _uplink_kind(path)
+        if uplink_kind:
+            enabled = data.get("enabled") if isinstance(data, dict) else None
+            code, body = set_uplink(uplink_kind, enabled)
+            return self._json(code, body)
         if path == "/api/install":
             script = data.get("script", "")
             version = data.get("version", AGENT_VERSION)
@@ -906,12 +1170,31 @@ def main():
     print(f"  FC_READ_ONLY: {FC_READ_ONLY}")
     snap = _ingest_or_absent()
     print(f"  Camera ingest: source={snap.get('source')} dry_run={snap.get('dry_run')}")
+    poll_raw = os.environ.get("VLC_GIMBAL_POLL")
+    if poll_raw is None or str(poll_raw).strip() == "":
+        want_gimbal_poll = not SKIP_RELAY
+    else:
+        want_gimbal_poll = str(poll_raw).strip().lower() in {"1", "true", "yes", "on"}
     if not SKIP_RELAY:
         threading.Thread(target=heartbeat_loop, daemon=True).start()
         threading.Thread(target=mavlink_relay_server, daemon=True).start()
     else:
         print("  SKIP_RELAY: HTTP observe-status only")
-    httpd = ThreadingHTTPServer((HTTP_BIND, HTTP_PORT), Handler)
+    if want_gimbal_poll and get_gimbal_link is not None:
+        get_gimbal_link(start=True)
+        print("  Gimbal poll: on (control still requires VLC_GIMBAL_CONTROL_ENABLED=1)")
+    boot_flag = os.environ.get("VLC_UPLINK_BOOT", "1").strip().lower()
+    if apply_boot_policy is not None and boot_flag not in {"0", "false", "no", "off"}:
+        try:
+            report = apply_boot_policy() or {}
+            print(f"  Uplink boot: fallback={report.get('fallback')}")
+        except Exception:
+            print("  Uplink boot: skipped")
+    idle = HTTP_IDLE_S if HTTP_IDLE_S > 0 else 30
+    Handler.timeout = idle
+    httpd = CompanionHTTPServer((HTTP_BIND, HTTP_PORT), Handler)
+    httpd.daemon_threads = True
+    print(f"  HTTP keep-alive: HTTP/1.1 idle {idle:g}s")
     httpd.serve_forever()
 
 

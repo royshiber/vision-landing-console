@@ -124,7 +124,7 @@ describe('talk-back honesty when ElevenLabs key is missing', () => {
     delete process.env.ELEVENLABS_API_KEY;
     const app = express();
     app.use(express.json());
-    registerFlightEngineerApi(app, { db: null, APP_VERSION: '1.02.320' });
+    registerFlightEngineerApi(app, { db: null, APP_VERSION: '1.02.325' });
     const server = await listen(app);
     const port = server.address().port;
     try {

@@ -3,10 +3,9 @@ Description=AIRVIX Huawei E3372 bring-up when the USB stick appears
 Documentation=file:///opt/airvix/jetson-cellular/README.md
 After=local-fs.target
 # udev SYSTEMD_WANTS starts this on a matching Huawei net/tty.
-# Boot enable is skipped unless a modem-shaped node already exists.
-# Do not key off /dev/ttyUSB0 — that node is often the flight-controller UART.
-ConditionPathExists=|/dev/cdc-wdm0
-ConditionPathExists=|/sys/class/net/usb0
+# Boot enable is skipped unless cdc-wdm0 or a Huawei 12d1 enx* netdev exists.
+# The on-board USB gadget is not the modem. Do not key off /dev/ttyUSB0.
+ExecCondition=/opt/airvix/jetson-cellular/e3372-boot-trigger.sh
 
 [Service]
 Type=oneshot

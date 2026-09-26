@@ -85,18 +85,18 @@ function pythonJson(args, extraEnv = {}) {
 }
 
 describe('dual-camera ingest honesty', () => {
-  it('pins APP_VERSION at 1.02.324', () => {
+  it('pins APP_VERSION at 1.02.326', () => {
     const version = fs.readFileSync(path.join(repoRoot, 'version.js'), 'utf8');
     const pkg = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8'));
-    expect(version).toContain("export const APP_VERSION = '1.02.324'");
-    expect(pkg.version).toBe('1.02.324');
+    expect(version).toContain("export const APP_VERSION = '1.02.326'");
+    expect(pkg.version).toBe('1.02.326');
   });
 
   it('keeps 2.3.1 UART fan-out and never hardcodes a live camera', () => {
     expect(agentSrc).toContain('uart_reader');
     expect(agentSrc).toContain('fanout_uart');
     expect(agentSrc).not.toMatch(/\.recv_match\s*\(/);
-    expect(agentSrc).toMatch(/AGENT_VERSION.*"2\.3\.6"/);
+    expect(agentSrc).toMatch(/AGENT_VERSION.*"2\.3\.9"/);
     expect(agentSrc).toContain('/api/v1/status/cameras');
     expect(agentSrc).toContain('/api/v1/cameras/');
     expect(agentSrc).not.toMatch(/"camera_ok": True/);

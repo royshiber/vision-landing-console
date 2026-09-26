@@ -165,9 +165,9 @@ describe('AIRVIX Mission chrome — talk is flight-safe', () => {
     expect(chip).toContain("kind === 'advisor'");
   });
 
-  it('pins APP_VERSION at 1.02.324', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.324'");
-    expect(pkg.version).toBe('1.02.324');
+  it('pins APP_VERSION at 1.02.326', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.326'");
+    expect(pkg.version).toBe('1.02.326');
   });
 
   it('keeps a rectangular glass artificial horizon with video HUD mode', () => {
@@ -271,16 +271,32 @@ describe('AIRVIX Mission chrome — talk is flight-safe', () => {
     const region = { dataset: { messagesExpanded: '0' } };
     const scroll = { hidden: true };
     const toggle = { textContent: 'הרחב', setAttribute() {} };
+    const badge = { hidden: true, textContent: '', dataset: { severity: 'none' } };
+    const log = { hidden: false };
     const document = {
       querySelector() { return region; },
-      getElementById(id) { return id === 'pfcMsgScroll' ? scroll : toggle; },
+      getElementById(id) {
+        if (id === 'pfcMsgScroll') return scroll;
+        if (id === 'missionMessagesToggle') return toggle;
+        if (id === 'missionMessagesBadge') return badge;
+        if (id === 'pfdHorizonMsgLog') return log;
+        return null;
+      },
     };
     const src = [
       'const MISSION_MESSAGES_KEY = "visionLandingMissionMessagesV1";',
+      'const MISSION_MESSAGES_SEEN_KEY = "visionLandingMissionMessagesSeenV1";',
+      'let _missionMessagesRows = [];',
+      'let _missionMessagesSeenSig = null;',
+      sliceFunction(js, 'statusTextLineWarn'),
       sliceFunction(js, 'missionLayoutStoreGet'),
       sliceFunction(js, 'missionLayoutStoreSet'),
+      sliceFunction(js, 'missionMessagesSeveritySig'),
+      sliceFunction(js, 'readMissionMessagesSeenSig'),
+      sliceFunction(js, 'writeMissionMessagesSeenSig'),
       sliceFunction(js, 'readMissionMessagesExpanded'),
       sliceFunction(js, 'writeMissionMessagesExpanded'),
+      sliceFunction(js, 'syncMissionMessagesBadge'),
       sliceFunction(js, 'applyMissionMessagesExpanded'),
       sliceFunction(js, 'toggleMissionMessages'),
       'const before = readMissionMessagesExpanded();',

@@ -1,12 +1,23 @@
 [
   {
-    "version": "1.02.324",
+    "version": "1.02.326",
+    "date": "2026-09-26",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Flight book: cloud flights, timeline, plots, map, grounded debrief",
+        "detail": "APP_VERSION 1.02.326. After master 1.02.325. תחקור gains a טיסות sub-tab. Mock fixtures or a read-only B2/S3 key. Off or missing keys show a Hebrew not-configured state and never fake flights. Gemini debrief is Hebrew, cited, and server-checked; sentences that fail the check are marked לא אומת. No GEMINI_API_KEY shows תובנות אוטומטיות only."
+      }
+    ]
+  },
+  {
+    "version": "1.02.325",
     "date": "2026-09-25",
     "changes": [
       {
         "type": "feat",
-        "title": "Flight book: cloud flights list, timeline, plots, map, grounded debrief",
-        "detail": "APP_VERSION 1.02.324. תחקור gains a טיסות sub-tab. Mock fixtures or a read-only B2/S3 key. Off or missing keys show a Hebrew not-configured state and never fake flights. Gemini debrief is Hebrew, cited, and server-checked; sentences that fail the check are marked לא אומת. No GEMINI_API_KEY shows תובנות אוטומטיות only."
+        "title": "Companion cameras, SERIAL4 FC telemetry, and uplink status",
+        "detail": "APP_VERSION 1.02.325. Companion 2.3.9. Per-slot camera supervisor, cam3 RTSP, SIYI A8 SDK with control off by default, and HTTP/1.1 keep-alive. FC port label defaults to SERIAL4 (Matek TX3/RX3). FC status connects only on a fresh autopilot heartbeat and reports mode, armed, load, battery, MEMINFO, and MCU temperature from real MAVLink bytes. Modem status reads Huawei HiLink signal when the stick is present. GET /api/v1/network/uplinks reports operator enabled versus live up. POST /api/v1/network/uplinks/{wifi|cellular} turns a link on or off and refuses to drop the last working link. E3372 bring-up no longer treats Jetson usb0 as the modem. No ARM/LAND and no console UI."
       }
     ]
   },
