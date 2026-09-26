@@ -2187,16 +2187,8 @@ const timelineRange = document.getElementById('timelineRange');
 const flightVideo = document.getElementById('flightVideo');
 const videoInput = document.getElementById('videoInput');
 
-const eventSamples = [
-  { t: 5, type: 'Vision', msg: 'Vision lock acquired', key: 'vision_conf_min' },
-  { t: 9, type: 'Control', msg: 'Cross-track correction started', key: 'xtrack_gain' },
-  { t: 14, type: 'Laser', msg: 'Laser altitude valid', key: 'laser_detect_alt_m' },
-  { t: 18, type: 'Flare', msg: 'Flare phase entered', key: 'flare_alt_m' },
-  { t: 21, type: 'Flare', msg: 'Pitch-up command applied', key: 'flare_pitch_up_deg' },
-  { t: 24, type: 'Motor', msg: 'Motor hold window started', key: 'motor_hold_s' },
-  { t: 27, type: 'Safety', msg: 'Confidence dropped below abort threshold', key: 'abort_conf_min' },
-  { t: 31, type: 'Takeoff', msg: 'Runway spool phase started', key: 'to_motor_spool_s' },
-];
+// Real flight events only. Nothing is synthesized for an empty log.
+const flightEvents = [];
 
 function formatEventRow(ev) {
   const val = profileState[ev.key];
@@ -2216,11 +2208,18 @@ function formatEventRow(ev) {
 
 function refreshEventsFromParams() {
   if (!eventsList) return;
+  const countEl = document.getElementById('eventsCount');
+  if (countEl) countEl.textContent = String(flightEvents.length);
+  if (!flightEvents.length) {
+    eventsList.innerHTML = '<div class="event-item event-empty">אין אירועים</div>';
+    bindEventContextMenu();
+    return;
+  }
   const t = Number(timelineRange?.value || 0);
-  const near = eventSamples.filter((ev) => ev.t >= t - 14 && ev.t <= t + 14);
+  const near = flightEvents.filter((ev) => ev.t >= t - 14 && ev.t <= t + 14);
   eventsList.innerHTML = near.length
     ? near.map(formatEventRow).join('')
-    : '<div class="event-item">אין אירועים סביב הזמן הנוכחי.</div>';
+    : '<div class="event-item event-empty">אין אירועים סביב הזמן הנוכחי</div>';
   bindEventContextMenu();
 }
 
@@ -5485,7 +5484,7 @@ initHorizonVideo();
 const HORIZON_CAMERA_KEY = 'vlc.horizon.bgCamera.v1';
 const HORIZON_CAMERA_SLOTS = [
   { id: 'none', label: 'בלי מצלמה', apiId: null, mono: false },
-  { id: 'cam0', label: 'Cam0', apiId: 'cam1', mono: true },
+  { id: 'cam0', label: 'Cam0', apiId: 'cam0', mono: true },
   { id: 'cam1', label: 'Cam1', apiId: 'cam2', mono: false },
   { id: 'a8', label: 'A8', apiId: 'cam3', mono: false },
 ];
@@ -7599,7 +7598,7 @@ setInterval(() => {
   const takeoffReady = checks.every((c) => c.pass);
   if (linkState) linkState.textContent = sourceLabel;
   if (lastRefresh) lastRefresh.textContent = new Date().toLocaleTimeString();
-  if (eventsCount) eventsCount.textContent = String(eventSamples.length);
+  if (eventsCount) eventsCount.textContent = String(flightEvents.length);
   if (telemetryConfidence) telemetryConfidence.textContent = pct != null ? `${pct}%` : '—';
   if (abortState) abortState.textContent = isAbort ? `ABORT (${lowConfidenceSeconds.toFixed(0)}s)` : `ARMED (${lowConfidenceSeconds.toFixed(0)}s)`;
   if (takeoffState) takeoffState.textContent = takeoffReady ? 'READY' : 'HOLD';
@@ -8956,7 +8955,7 @@ if (versionModal) {
 
 function bindEventContextMenu() {
   if (!eventsList || !eventContextMenu) return;
-  eventsList.querySelectorAll('.event-item').forEach((node) => {
+  eventsList.querySelectorAll('.event-item[data-event-key]').forEach((node) => {
     node.addEventListener('contextmenu', (e) => {
       e.preventDefault();
       selectedContextEvent = {
@@ -9947,13 +9946,14 @@ function drawAnnotations(video, canvas) {
   const conf = latestVisionFromServer?.confidence ?? null;
   const lateral = latestVisionFromServer?.lateralOffsetM ?? null;
 
-  // No live data — show "no data" overlay instead of fake animations.
   if (conf === null || lateral === null) {
+    if (lockIndicator) lockIndicator.hidden = true;
+    if (video.hidden || !canvas.width || !canvas.height) return;
     ctx.save();
-    ctx.font = 'bold 13px monospace';
+    ctx.font = 'bold 13px Heebo, sans-serif';
     ctx.fillStyle = 'rgba(250,204,21,0.85)';
     ctx.textAlign = 'center';
-    ctx.fillText('NO LIVE VISION DATA', canvas.width / 2, canvas.height * 0.12);
+    ctx.fillText('אין נתוני ראייה', canvas.width / 2, 22);
     ctx.textAlign = 'left';
     ctx.restore();
     return;
@@ -9989,7 +9989,8 @@ function drawAnnotations(video, canvas) {
   ctx.setLineDash([]);
 
   if (lockIndicator) {
-    lockIndicator.textContent = isLocked ? 'ננעל ✓' : isSearching ? 'מחפש…' : 'אין נעילה';
+    lockIndicator.hidden = false;
+    lockIndicator.textContent = isLocked ? 'ננעל' : isSearching ? 'מחפש' : 'אין נעילה';
     lockIndicator.className = `lock-indicator ${isLocked ? 'locked' : isSearching ? 'searching' : 'no-lock'}`;
   }
   if (annotConfidence) annotConfidence.textContent = `ביטחון: ${Math.round(conf * 100)}%`;
@@ -10004,7 +10005,7 @@ if (flightVideo && annotationCanvas) {
   flightVideo.addEventListener('ended', () => {
     clearInterval(annotationTimer);
     annotationCanvas.getContext('2d').clearRect(0, 0, annotationCanvas.width, annotationCanvas.height);
-    if (lockIndicator) { lockIndicator.textContent = 'אין נעילה'; lockIndicator.className = 'lock-indicator no-lock'; }
+    if (lockIndicator) lockIndicator.hidden = true;
   });
   flightVideo.addEventListener('timeupdate', () => {
     if (flightVideo.paused) drawAnnotations(flightVideo, annotationCanvas);
@@ -15848,8 +15849,8 @@ const ASSIST_TAB_HE = Object.freeze({
   control: 'פרמטרים',
   telemetry: 'טלמטריה',
   maintenance: 'תחזוקה',
-  recordings: 'תחקור',
-  flights: 'תחקור',
+  recordings: 'אופטיקה ותחקור',
+  flights: 'אופטיקה ותחקור',
   advisor: 'יועץ',
   featureDesigner: 'פיצ׳ר',
   flightEngineer: 'מהנדס טיסה',
