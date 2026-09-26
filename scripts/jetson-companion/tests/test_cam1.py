@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import sys
 import tempfile
 import threading
 import time
@@ -10,6 +11,8 @@ import unittest
 from pathlib import Path
 
 import numpy as np
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from cam0.cam1 import CAPTURE_FPS_MAX, JPEG_HZ, Cam1Service, load_config, reset_service, try_handle
 from cam0.devices import resolve_device
@@ -265,6 +268,123 @@ class Cam1BudgetTests(unittest.TestCase):
             os.environ.pop("VLC_CAM1_SOURCE", None)
             os.environ.pop("VLC_CAM1_DEVICE", None)
             reset_service()
+
+
+class Cam1IdleHonestyTests(unittest.TestCase):
+    def tearDown(self):
+        reset_service()
+        os.environ.pop("VLC_CAM1_DEVICE", None)
+        os.environ.pop("VLC_CAM1_SOURCE", None)
+        os.environ.pop("VLC_V4L_SYSFS", None)
+
+    def test_present_device_idles_and_does_not_say_auto(self):
+        with tempfile.NamedTemporaryFile() as fh:
+            cfg = load_config(env={"VLC_CAM1_SOURCE": "v4l2", "VLC_CAM1_DEVICE": fh.name})
+            svc = Cam1Service(cfg)
+            health = svc.health()
+            self.assertEqual(health["state"], "idle")
+            self.assertIsNone(health["error"])
+            self.assertFalse(health["camera_ok"])
+            self.assertIsNone(health["fps"])
+            self.assertEqual(health["requested_device"], fh.name)
+            self.assertEqual(health["resolved_device"], fh.name)
+            self.assertNotEqual(health["requested_device"], "auto")
+            self.assertEqual(svc.clients, 0)
+            self.assertIsNone(svc._thread)
+
+    def test_missing_device_is_device_absent_with_the_request(self):
+        cfg = load_config(env={"VLC_CAM1_SOURCE": "v4l2", "VLC_CAM1_DEVICE": "/dev/vlc-cam1-absent"})
+        svc = Cam1Service(cfg)
+        health = svc.health()
+        self.assertEqual(health["state"], "absent")
+        self.assertEqual(health["error"], "device_absent")
+        self.assertIsNone(health["resolved_device"])
+        self.assertEqual(health["requested_device"], "/dev/vlc-cam1-absent")
+
+    def test_absent_frame_route_falls_through_to_ingest(self):
+        os.environ["VLC_CAM1_SOURCE"] = "v4l2"
+        os.environ["VLC_CAM1_DEVICE"] = "/dev/vlc-cam1-absent"
+        reset_service()
+
+        class Handler:
+            path = "/api/v1/cameras/cam1/frame"
+            command = "GET"
+
+            def _json(self, code, obj):
+                raise AssertionError("absent cam1 must not claim the ingest frame")
+
+        self.assertFalse(try_handle(Handler()))
+
+    def test_idle_present_frame_says_no_signal(self):
+        with tempfile.NamedTemporaryFile() as fh:
+            os.environ["VLC_CAM1_SOURCE"] = "v4l2"
+            os.environ["VLC_CAM1_DEVICE"] = fh.name
+            reset_service()
+
+            class Handler:
+                path = "/api/v1/cameras/cam1/frame.jpg"
+                command = "GET"
+
+                def _json(self, code, obj):
+                    self.code = code
+                    self.obj = obj
+
+            handler = Handler()
+            self.assertTrue(try_handle(handler))
+            self.assertEqual(handler.code, 404)
+            self.assertEqual(handler.obj["note"], "אין אות")
+            self.assertEqual(handler.obj["reason"], "no_frame")
+
+    def test_idle_reresolve_picks_up_the_stable_symlink(self):
+        import cam0.cam1 as cam1
+        svc = Cam1Service(load_config(env={"VLC_CAM1_SOURCE": "v4l2", "VLC_V4L_SYSFS": "/tmp/vlc-no-such-sysfs"}))
+        self.assertEqual(svc.health()["state"], "absent")
+        self.assertEqual(svc.health()["requested_device"], "/dev/airvix-cam1")
+        self.assertIsNone(svc.health()["resolved_device"])
+        with tempfile.NamedTemporaryFile() as fh:
+            original = cam1.resolve_device
+
+            def fake(**kwargs):
+                self.assertEqual(kwargs["stable_path"], "/dev/airvix-cam1")
+                self.assertEqual(kwargs["name_token"], "10-0060")
+                return fh.name
+
+            cam1.resolve_device = fake
+            try:
+                health = svc.health()
+            finally:
+                cam1.resolve_device = original
+            self.assertEqual(health["state"], "idle")
+            self.assertIsNone(health["error"])
+            self.assertEqual(health["resolved_device"], fh.name)
+            self.assertEqual(health["requested_device"], "/dev/airvix-cam1")
+            self.assertNotEqual(health["requested_device"], "auto")
+
+    def test_health_slot_replaces_an_auto_absent_ingest_row(self):
+        import companion_agent
+        with tempfile.NamedTemporaryFile() as fh:
+            os.environ["VLC_CAM1_SOURCE"] = "v4l2"
+            os.environ["VLC_CAM1_DEVICE"] = fh.name
+            reset_service()
+            slot = companion_agent._cam1_slot()
+            merged = companion_agent._apply_ov9281({
+                "cam1": {
+                    "state": "absent",
+                    "error": "device_absent",
+                    "requested_device": "auto",
+                    "resolved_device": None,
+                    "camera_ok": False,
+                },
+                "cam2": {"id": "cam2"},
+            })
+            self.assertEqual(slot["state"], "idle")
+            self.assertIsNone(slot["error"])
+            self.assertEqual(slot["resolved_device"], fh.name)
+            self.assertNotEqual(slot["requested_device"], "auto")
+            self.assertEqual(merged["cam1"]["state"], "idle")
+            self.assertEqual(merged["cam1"]["resolved_device"], fh.name)
+            self.assertNotEqual(merged["cam1"].get("requested_device"), "auto")
+            self.assertEqual(merged["cam2"]["id"], "cam2")
 
 
 class InstallUdevTests(unittest.TestCase):

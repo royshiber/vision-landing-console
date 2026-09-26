@@ -5,8 +5,9 @@
 import { mountMap } from './flightbook-map.mjs';
 import { mountPlots } from './flightbook-plots.mjs';
 import { pickFrame } from './cam0-replay.mjs';
+import { bindHeDate, heDateMarkup } from './he-date.mjs';
 
-const NOT_CONFIGURED = 'אחסון הטיסות בענן לא הוגדר. הוסיפו מפתח קריאה בקובץ \u2066.env\u2069 (ראו \u2066docs/FLIGHT_LOGS.md\u2069)';
+const NOT_CONFIGURED = 'אחסון הטיסות בענן לא הוגדר. הוסיפו מפתח קריאה.';
 const NO_FLIGHTS = 'עדיין אין טיסות. אחרי טיסה מחשב המשימה יעלה אותה אוטומטית.';
 
 const state = {
@@ -73,8 +74,8 @@ function shell() {
     <div class="fb-shell">
       <aside class="fb-list" aria-label="רשימת טיסות">
         <div class="fb-filters">
-          <input id="fbFrom" type="date" aria-label="מתאריך" />
-          <input id="fbTo" type="date" aria-label="עד תאריך" />
+          ${heDateMarkup({ id: 'fbFrom', label: 'מתאריך' })}
+          ${heDateMarkup({ id: 'fbTo', label: 'עד תאריך' })}
           <label><input id="fbWarn" type="checkbox" /> רק עם אזהרות</label>
           <select id="fbMode" aria-label="מצב טיסה"><option value="">כל המצבים</option></select>
           <input id="fbQ" type="search" placeholder="חיפוש באירועים" aria-label="חיפוש באירועים" />
@@ -89,16 +90,18 @@ function shell() {
       <div id="fbMain" class="fb-main"></div>
     </div>`;
   root.querySelector('#fbSync').addEventListener('click', () => { void refresh(true); });
-  for (const [id, key, ev] of [
-    ['fbFrom', 'from', 'change'],
-    ['fbTo', 'to', 'change'],
-    ['fbQ', 'q', 'change'],
-  ]) {
-    root.querySelector(`#${id}`).addEventListener(ev, (e) => {
-      state.filters[key] = e.target.value;
-      void loadList();
-    });
-  }
+  bindHeDate(root.querySelector('#fbFrom'), (iso) => {
+    state.filters.from = iso;
+    void loadList();
+  });
+  bindHeDate(root.querySelector('#fbTo'), (iso) => {
+    state.filters.to = iso;
+    void loadList();
+  });
+  root.querySelector('#fbQ').addEventListener('change', (e) => {
+    state.filters.q = e.target.value;
+    void loadList();
+  });
   root.querySelector('#fbWarn').addEventListener('change', (e) => {
     state.filters.warnings = e.target.checked;
     void loadList();

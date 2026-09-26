@@ -6734,7 +6734,7 @@ const HORIZON_CAMERA_KEY = 'vlc.horizon.bgCamera.v1';
 const HORIZON_CAMERA_SLOTS = [
   { id: 'none', label: 'בלי מצלמה', apiId: null, mono: false },
   { id: 'cam0', label: 'Cam0', apiId: 'cam0', mono: true },
-  { id: 'cam1', label: 'Cam1', apiId: 'cam2', mono: false },
+  { id: 'cam1', label: 'Cam1', apiId: 'cam1', mono: true, hold: '/api/jetson/v1/cam1/stream.mjpg' },
   { id: 'a8', label: 'A8', apiId: 'cam3', mono: false },
 ];
 
@@ -6784,9 +6784,36 @@ function applyHorizonCamera(companion) {
     _horizonCameraLive = false;
     img.hidden = true;
     img.removeAttribute('src');
+    img.dataset.hold = '';
     img.classList.remove('is-mono');
     if (note) note.hidden = true;
+  } else if (slot.hold) {
+    img.classList.toggle('is-mono', slot.mono);
+    img.onload = () => {
+      _horizonCameraLive = true;
+      img.hidden = false;
+      if (note) note.hidden = true;
+      pfdHorizonShell?.classList.toggle('pfd-horizon-shell--video-active', _horizonVideoMode || _horizonCameraLive);
+      drawHorizon(horizonCanvas, _lastRoll, _lastPitch, currentHorizonDrawOpts());
+    };
+    img.onerror = () => {
+      _horizonCameraLive = false;
+      img.hidden = true;
+      if (note) note.hidden = false;
+      pfdHorizonShell?.classList.toggle('pfd-horizon-shell--video-active', _horizonVideoMode);
+      drawHorizon(horizonCanvas, _lastRoll, _lastPitch, currentHorizonDrawOpts());
+    };
+    if (img.dataset.hold !== slot.hold) {
+      img.dataset.hold = slot.hold;
+      img.hidden = true;
+      if (note) note.hidden = false;
+      img.src = slot.hold;
+    } else if (img.complete && img.naturalWidth > 0 && !img.hidden) {
+      _horizonCameraLive = true;
+      if (note) note.hidden = true;
+    }
   } else {
+    img.dataset.hold = '';
     const detail = horizonCameraDetail(companion, slot.apiId);
     const live = horizonSlotStreaming(detail);
     img.classList.toggle('is-mono', slot.mono);

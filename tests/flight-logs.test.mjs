@@ -8,7 +8,7 @@ import zlib from 'zlib';
 import { fileURLToPath } from 'url';
 import { openDatabase } from '../lib/db.mjs';
 import { decimateMinMax } from '../lib/flight-logs/decimate.mjs';
-import { NOT_CONFIGURED_HE } from '../lib/flight-logs/messages.mjs';
+import { NOT_CONFIGURED_HE, cloudGapHe } from '../lib/flight-logs/messages.mjs';
 import { parseJsonMaybeGzip, reassembleChunks, sha256Hex } from '../lib/flight-logs/objects.mjs';
 import crypto from 'node:crypto';
 import { presignGetUrl, signAwsRequest } from '../lib/flight-logs/s3-client.mjs';
@@ -480,7 +480,44 @@ describe('flight log sync, API, and migration', () => {
     const off = listFlightLogs({ db: offDb }, {});
     expect(off.configured).toBe(false);
     expect(off.flights).toEqual([]);
-    expect(off.messageHe).toBe(NOT_CONFIGURED_HE);
+    expect(off.messageHe).toContain('הסוד של מפתח הקריאה');
+    expect(off.messageHe).not.toMatch(/\.env|FLIGHT_LOGS\.md|docs\//);
     offDb.close();
+  });
+
+  it('accepts a complete AIRVIX_S3 key set when the mode is unset', () => {
+    delete process.env.FLIGHT_LOGS_MODE;
+    process.env.AIRVIX_S3_ENDPOINT = 'https://storage.googleapis.com';
+    process.env.AIRVIX_S3_REGION = 'auto';
+    process.env.AIRVIX_S3_BUCKET = 'airvix-flight-logs-489409';
+    process.env.AIRVIX_S3_KEY_ID = 'GOOG1EXAMPLE';
+    process.env.AIRVIX_S3_SECRET = SECRET;
+    const cfg = flightLogsConfig();
+    expect(cfg.mode).toBe('cloud');
+    expect(cfg.configured).toBe(true);
+    expect(cfg.gapHe).toBeNull();
+  });
+
+  it('names a missing piece in plain Hebrew and stays off when told', () => {
+    delete process.env.FLIGHT_LOGS_MODE;
+    process.env.AIRVIX_S3_ENDPOINT = 'https://storage.googleapis.com';
+    delete process.env.AIRVIX_S3_REGION;
+    delete process.env.AIRVIX_S3_BUCKET;
+    delete process.env.AIRVIX_S3_KEY_ID;
+    delete process.env.AIRVIX_S3_SECRET;
+    const partial = flightLogsConfig();
+    expect(partial.configured).toBe(false);
+    expect(partial.gapHe).toContain('האזור');
+    expect(partial.gapHe).toContain('מפתח הקריאה');
+    expect(partial.gapHe).not.toMatch(/\.env|docs\/|[A-Z]{3,}_/);
+    process.env.FLIGHT_LOGS_MODE = 'off';
+    process.env.AIRVIX_S3_REGION = 'auto';
+    process.env.AIRVIX_S3_BUCKET = 'airvix-flight-logs-489409';
+    process.env.AIRVIX_S3_KEY_ID = 'GOOG1EXAMPLE';
+    process.env.AIRVIX_S3_SECRET = SECRET;
+    const off = flightLogsConfig();
+    expect(off.configured).toBe(false);
+    expect(off.gapHe).toBe(cloudGapHe({ explicitOff: true, cloudReady: true }));
+    expect(off.gapHe).not.toMatch(/\.env|docs\//);
   });
 });
