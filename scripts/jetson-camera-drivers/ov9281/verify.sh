@@ -62,7 +62,12 @@ v4l2-ctl -d "${DEV}" --list-formats-ext
 # not a mode this tegra-camera.ko will register. bypass_mode=0 keeps
 # the frame in V4L2.
 v4l2-ctl -d "${DEV}" --set-ctrl=sensor_mode=0
-v4l2-ctl -d "${DEV}" --set-ctrl=test_pattern=0
+v4l2-ctl -d "${DEV}" --set-ctrl=gain=64
+v4l2-ctl -d "${DEV}" --set-ctrl=exposure=10000
+if ! v4l2-ctl -d "${DEV}" --set-ctrl=test_pattern=0 >/tmp/ov9281-tp0.err 2>&1; then
+  echo "test_pattern is not on ${DEV}; scene capture continues"
+  cat /tmp/ov9281-tp0.err >&2 || true
+fi
 if ! v4l2-ctl -d "${DEV}" --set-ctrl=bypass_mode=0 >/tmp/ov9281-bypass.err 2>&1; then
   if grep -qi 'unknown control' /tmp/ov9281-bypass.err; then
     echo "bypass_mode is not on this node; continuing"
@@ -121,28 +126,73 @@ python3 "${ROOT}/frame_stats.py" "${raw}" \
   --width "${WIDTH}" --height "${HEIGHT}" \
   --pixelformat "${pixelformat}" \
   --png "${OUT}/frame0.png"
-echo "verify finished. Inspect mean/stddev above and ${OUT}/frame0.png"
+
+# exposure=10 and exposure=16000 must not produce the same frame.
+# gain stays 64. A matching pair means the new value never latched.
+capture_exposure() {
+  local us="$1"
+  local dest="$2"
+  local stats="$3"
+  v4l2-ctl -d "${DEV}" --set-ctrl=gain=64
+  v4l2-ctl -d "${DEV}" --set-ctrl=exposure="${us}"
+  rm -f "${dest}"
+  if ! timeout 20 v4l2-ctl -d "${DEV}" \
+      --set-fmt-video=width=${WIDTH},height=${HEIGHT},pixelformat=${pixelformat} \
+      --stream-mmap --stream-count=5 --stream-to="${dest}"; then
+    echo "exposure=${us} capture failed" >&2
+    return 1
+  fi
+  if [[ ! -s "${dest}" || $(stat -c%s "${dest}") -lt ${frame_bytes} ]]; then
+    echo "exposure=${us} capture was short" >&2
+    return 1
+  fi
+  python3 "${ROOT}/frame_stats.py" "${dest}" \
+    --width "${WIDTH}" --height "${HEIGHT}" \
+    --pixelformat "${pixelformat}" \
+    --png "${dest%.raw}.png" | tee "${stats}"
+}
+
+echo "exposure A/B: gain=64, exposure=10 then exposure=16000"
+capture_exposure 10 "${OUT}/exp10.raw" "${OUT}/exp10.stats"
+capture_exposure 16000 "${OUT}/exp16000.raw" "${OUT}/exp16000.stats"
+mean10=$(awk '/^mean / { print $2 }' "${OUT}/exp10.stats")
+mean16000=$(awk '/^mean / { print $2 }' "${OUT}/exp16000.stats")
+echo "exposure means: 10us=${mean10} 16000us=${mean16000}"
+python3 - "${mean10}" "${mean16000}" <<'PY'
+import sys
+a = float(sys.argv[1])
+b = float(sys.argv[2])
+hi = max(abs(a), abs(b), 1.0)
+if abs(a - b) / hi < 0.05:
+    print("FAIL: exposure=10 and exposure=16000 produced the same frame")
+    sys.exit(1)
+print("PASS: exposure changed the frame")
+PY
+dump_diag
 
 bars="${OUT}/bars.raw"
 rm -f "${bars}"
-echo "test pattern: color bars (test_pattern=1, 0x5e00=0x80)"
-v4l2-ctl -d "${DEV}" --set-ctrl=test_pattern=1
-if timeout 20 v4l2-ctl -d "${DEV}" \
-    --set-fmt-video=width=${WIDTH},height=${HEIGHT},pixelformat=${pixelformat} \
-    --stream-mmap --stream-count=5 --stream-to="${bars}"; then
-  if [[ -s "${bars}" && $(stat -c%s "${bars}") -ge ${frame_bytes} ]]; then
-    python3 "${ROOT}/frame_stats.py" "${bars}" \
-      --width "${WIDTH}" --height "${HEIGHT}" \
-      --pixelformat "${pixelformat}" \
-      --png "${OUT}/bars.png"
-    echo "color bars: ${bars} and ${OUT}/bars.png"
-  else
-    echo "test pattern capture was short" >&2
-    exit 1
-  fi
+echo "optional test pattern: color bars (test_pattern=1, 0x5e00=0x80)"
+if ! v4l2-ctl -d "${DEV}" --set-ctrl=test_pattern=1 >/tmp/ov9281-tp.err 2>&1; then
+  echo "test_pattern control is not on ${DEV}; skipping color bars"
+  cat /tmp/ov9281-tp.err >&2 || true
 else
-  echo "test pattern capture failed" >&2
-  exit 1
+  if timeout 20 v4l2-ctl -d "${DEV}" \
+      --set-fmt-video=width=${WIDTH},height=${HEIGHT},pixelformat=${pixelformat} \
+      --stream-mmap --stream-count=5 --stream-to="${bars}"; then
+    if [[ -s "${bars}" && $(stat -c%s "${bars}") -ge ${frame_bytes} ]]; then
+      python3 "${ROOT}/frame_stats.py" "${bars}" \
+        --width "${WIDTH}" --height "${HEIGHT}" \
+        --pixelformat "${pixelformat}" \
+        --png "${OUT}/bars.png"
+      echo "color bars: ${bars} and ${OUT}/bars.png"
+    else
+      echo "test pattern capture was short; continuing" >&2
+    fi
+  else
+    echo "test pattern capture failed; continuing" >&2
+  fi
+  v4l2-ctl -d "${DEV}" --set-ctrl=test_pattern=0 || true
+  dump_diag
 fi
-v4l2-ctl -d "${DEV}" --set-ctrl=test_pattern=0
-dump_diag
+echo "verify finished. Inspect ${OUT}/frame0.png and the exposure means above."

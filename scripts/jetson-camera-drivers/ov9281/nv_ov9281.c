@@ -44,6 +44,17 @@
 #define OV9281_REG_MODE_SELECT		0x0100
 #define OV9281_REG_SOFTWARE_RESET	0x0103
 #define OV9281_REG_HOLD			0x3308
+/*
+ * OV9281 latches exposure through 0x3208, not the 0x3308 hold mainline
+ * ov9282 also writes. 0x00 opens the group, 0x10 closes it, 0xa0 launches
+ * it into the active frame. Without the launch, 0x3500 can change in the
+ * shadow registers while the picture stays on the previous exposure.
+ */
+#define OV9281_REG_GROUP_UPDATE		0x3208
+#define OV9281_GROUP_HOLD		0x00
+#define OV9281_GROUP_END		0x10
+#define OV9281_GROUP_LAUNCH		0xa0
+#define OV9281_REG_AEC_CTRL		0x3503
 #define OV9281_REG_EXPOSURE		0x3500
 #define OV9281_REG_AGAIN		0x3509
 #define OV9281_REG_HTS			0x380c
@@ -125,6 +136,8 @@ struct ov9281 {
 	struct tegracam_device *tc_dev;
 	u32 frame_length;
 	u32 test_pattern;
+	u32 exposure_packed;
+	u8 gain_code;
 	char timing_cache[512];
 	bool timing_cache_valid;
 };
@@ -403,26 +416,39 @@ static int ov9281_write_hts_vts(struct camera_common_data *s_data,
 	return ov9281_write_reg(s_data, OV9281_REG_VTS + 1, frame_length & 0xff);
 }
 
+static int ov9281_group_launch(struct camera_common_data *s_data)
+{
+	int err;
+
+	err = ov9281_write_reg(s_data, OV9281_REG_GROUP_UPDATE, OV9281_GROUP_END);
+	if (err)
+		return err;
+	return ov9281_write_reg(s_data, OV9281_REG_GROUP_UPDATE, OV9281_GROUP_LAUNCH);
+}
+
 static int ov9281_set_group_hold(struct tegracam_device *tc_dev, bool val)
 {
 	struct camera_common_data *s_data = tc_dev->s_data;
 
-	return ov9281_write_reg(s_data, OV9281_REG_HOLD, val ? 1 : 0);
+	if (val)
+		return ov9281_write_reg(s_data, OV9281_REG_GROUP_UPDATE, OV9281_GROUP_HOLD);
+	return ov9281_group_launch(s_data);
 }
 
 static int ov9281_hold_begin(struct camera_common_data *s_data)
 {
-	return ov9281_write_reg(s_data, OV9281_REG_HOLD, 1);
+	return ov9281_write_reg(s_data, OV9281_REG_GROUP_UPDATE, OV9281_GROUP_HOLD);
 }
 
 static int ov9281_hold_end(struct camera_common_data *s_data)
 {
-	return ov9281_write_reg(s_data, OV9281_REG_HOLD, 0);
+	return ov9281_group_launch(s_data);
 }
 
 static int ov9281_set_gain(struct tegracam_device *tc_dev, s64 val)
 {
 	struct camera_common_data *s_data = tc_dev->s_data;
+	struct ov9281 *priv = tegracam_get_privdata(tc_dev);
 	u8 gain;
 	int err;
 	int held;
@@ -432,6 +458,8 @@ static int ov9281_set_gain(struct tegracam_device *tc_dev, s64 val)
 	if (val > OV9281_AGAIN_MAX)
 		val = OV9281_AGAIN_MAX;
 	gain = (u8)val;
+	if (priv)
+		priv->gain_code = gain;
 	err = ov9281_hold_begin(s_data);
 	if (err)
 		return err;
@@ -550,6 +578,7 @@ static int ov9281_set_exposure(struct tegracam_device *tc_dev, s64 val)
 
 	/* Mainline ov9282 writes the line count in the top 20 bits. */
 	packed = coarse << 4;
+	priv->exposure_packed = packed;
 	err = ov9281_hold_begin(s_data);
 	if (err)
 		return err;
@@ -921,9 +950,6 @@ static int ov9281_apply_controls(struct tegracam_device *tc_dev, const char *whe
 	frame_rate = ov9281_ctrl_int64(s_data, TEGRA_CAMERA_CID_FRAME_RATE,
 				       OV9281_DEFAULT_FRAME_RATE);
 
-	err = ov9281_write_reg(s_data, OV9281_REG_HOLD, 0);
-	if (err)
-		return err;
 	err = ov9281_set_frame_rate(tc_dev, frame_rate);
 	if (err)
 		return err;
@@ -952,14 +978,15 @@ static int ov9281_apply_controls(struct tegracam_device *tc_dev, const char *whe
  * 1456-pixel line, or a RAW8 datatype while VI expects RAW10, does that.
  *
  * regs[] order: 3808 3809 380a 380b 380c 380d 380e 380f 4800 3662 030d
- *               3500 3501 3502 3509 5e00
+ *               3500 3501 3502 3509 5e00 3503 3208
  */
-#define OV9281_TIMING_NREGS 16
+#define OV9281_TIMING_NREGS 18
 
 static const u16 ov9281_timing_addrs[OV9281_TIMING_NREGS] = {
 	0x3808, 0x3809, 0x380a, 0x380b, 0x380c, 0x380d, 0x380e, 0x380f,
 	0x4800, 0x3662, 0x030d,
 	0x3500, 0x3501, 0x3502, 0x3509, OV9281_REG_TEST_PATTERN,
+	OV9281_REG_AEC_CTRL, OV9281_REG_GROUP_UPDATE,
 };
 
 static int ov9281_format_timing(char *buf, size_t len, const u8 *regs)
@@ -981,10 +1008,11 @@ static int ov9281_format_timing(char *buf, size_t len, const u8 *regs)
 		format = "unknown";
 
 	return scnprintf(buf, len,
-			 "3808=%02x 3809=%02x 380a=%02x 380b=%02x 380c=%02x 380d=%02x 380e=%02x 380f=%02x 4800=%02x 3662=%02x 030d=%02x 3500=%02x 3501=%02x 3502=%02x 3509=%02x 5e00=%02x width=%u height=%u hts_px=%u vts=%u clock=%s format=%s",
+			 "3808=%02x 3809=%02x 380a=%02x 380b=%02x 380c=%02x 380d=%02x 380e=%02x 380f=%02x 4800=%02x 3662=%02x 030d=%02x 3500=%02x 3501=%02x 3502=%02x 3509=%02x 5e00=%02x 3503=%02x 3208=%02x width=%u height=%u hts_px=%u vts=%u clock=%s format=%s",
 			 regs[0], regs[1], regs[2], regs[3], regs[4], regs[5],
 			 regs[6], regs[7], regs[8], regs[9], regs[10],
 			 regs[11], regs[12], regs[13], regs[14], regs[15],
+			 regs[16], regs[17],
 			 width, height, (u32)hts * 2, vts, clock, format);
 }
 
@@ -1032,6 +1060,19 @@ static int ov9281_log_timing(struct camera_common_data *s_data, const char *when
 	ov9281_format_timing(line, sizeof(line), regs);
 	ov9281_store_timing_cache(s_data, line);
 	dev_info(s_data->dev, "ov9281 timing %s %s\n", when, line);
+	{
+		struct ov9281 *priv = s_data->priv;
+		u32 got = ((u32)regs[11] << 16) | ((u32)regs[12] << 8) | regs[13];
+
+		if (priv && priv->exposure_packed && got != priv->exposure_packed)
+			dev_err(s_data->dev,
+				"ov9281 exposure readback 0x%06x wanted 0x%06x\n",
+				got, priv->exposure_packed);
+		if (priv && priv->gain_code && regs[14] != priv->gain_code)
+			dev_err(s_data->dev,
+				"ov9281 gain readback 0x%02x wanted 0x%02x\n",
+				regs[14], priv->gain_code);
+	}
 
 	width = ((u16)regs[0] << 8) | regs[1];
 	height = ((u16)regs[2] << 8) | regs[3];
