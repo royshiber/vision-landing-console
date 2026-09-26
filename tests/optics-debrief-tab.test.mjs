@@ -161,6 +161,10 @@ describe('Optics debrief tab — live layout', () => {
         '.cam0-title',
         '#cam0Reason',
         '.cam0-hist-label',
+        '.optics-cam-btn',
+        '#cam1StatusText',
+        '#cam1Reason',
+        '.cam1-title',
       ];
       for (const sel of selectors) {
         for (const el of document.querySelectorAll(sel)) {
@@ -220,8 +224,53 @@ describe('Optics debrief tab — live layout', () => {
         cam0InOptics: panel?.closest('#recordings') != null,
         cam0InPulse: panel?.closest('#pulse') != null,
         statusInPulse: document.getElementById('cam0StatusLine')?.closest('#pulse') != null,
+        cam1InPulse: document.getElementById('cam1StatusLine')?.closest('#pulse') != null,
       };
     }, FAKE_EVENTS);
+  }
+
+  async function auditCam1(page) {
+    await page.locator('#opticsCam1Btn').click();
+    await page.waitForSelector('#cam1Panel:not([hidden])');
+    await page.waitForFunction(() => (document.getElementById('cam1Reason')?.textContent || '').includes('אין קישור'));
+    return page.evaluate(() => {
+      const visible = (el) => {
+        if (!el || el.closest('[hidden]')) return false;
+        const cs = getComputedStyle(el);
+        if (cs.display === 'none' || cs.visibility === 'hidden') return false;
+        const r = el.getBoundingClientRect();
+        return r.width > 1 && r.height > 1;
+      };
+      const textFit = [];
+      const fonts = [];
+      const selectors = ['#cam1Panel', '#cam1Reason', '.cam1-title', '#cam1Honesty', '.optics-cam-btn', '#cam1Fps', '#cam1StatusText', '.cam0-hist-label'];
+      for (const sel of selectors) {
+        for (const el of document.querySelectorAll(sel)) {
+          if (!visible(el)) continue;
+          const cs = getComputedStyle(el);
+          const label = (el.innerText || el.textContent || sel).trim().slice(0, 40);
+          if (cs.textOverflow === 'ellipsis') textFit.push(`${label}: ellipsis`);
+          if (el.scrollWidth > el.clientWidth + 2) textFit.push(`${label}: overflow-x`);
+          if (el.scrollHeight > el.clientHeight + 2 && /(hidden|clip)/.test(`${cs.overflow} ${cs.overflowY}`)) {
+            textFit.push(`${label}: overflow-y`);
+          }
+          if (parseFloat(cs.fontSize) < 11) fonts.push(`${label}: ${cs.fontSize}`);
+        }
+      }
+      const rateDigits = ['#cam1Fps', '#cam1Latency', '#cam1Drops'].some((sel) => /\d/.test(document.querySelector(sel)?.textContent || ''));
+      const statusRate = /קצב\s*\d/.test(document.querySelector('#cam1StatusText')?.textContent || '');
+      const digits = rateDigits || statusRate;
+      return {
+        hiddenCam0: document.getElementById('cam0Panel')?.hidden === true,
+        status: document.getElementById('cam1StatusText')?.textContent || '',
+        reason: document.getElementById('cam1Reason')?.textContent || '',
+        fps: document.getElementById('cam1Fps')?.textContent || '',
+        disabled: ['cam1Ae', 'cam1Exposure', 'cam1Gain', 'cam1Res', 'cam1FpsSet', 'cam1Snap'].every((id) => document.getElementById(id)?.disabled),
+        digits,
+        textFit,
+        fonts,
+      };
+    });
   }
 
   for (const [name, width, height] of VIEWPORTS) {
@@ -260,6 +309,17 @@ describe('Optics debrief tab — live layout', () => {
         expect(report.cam0InOptics).toBe(true);
         expect(report.cam0InPulse).toBe(false);
         expect(report.statusInPulse).toBe(true);
+        expect(report.cam1InPulse).toBe(true);
+        const cam1 = await auditCam1(page);
+        await page.screenshot({ path: path.join(shotDir, `optics-cam1-${name}.png`), fullPage: false });
+        expect(cam1.hiddenCam0).toBe(true);
+        expect(cam1.status).toContain('לא מחובר');
+        expect(cam1.reason).toContain('אין קישור');
+        expect(cam1.fps).toBe('—');
+        expect(cam1.disabled).toBe(true);
+        expect(cam1.digits).toBe(false);
+        expect(cam1.textFit, cam1.textFit.join('\n')).toEqual([]);
+        expect(cam1.fonts, cam1.fonts.join('\n')).toEqual([]);
       } finally {
         await page.close();
       }

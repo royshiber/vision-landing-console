@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 """Vision Landing Console — Jetson companion: MAVLink relay + HTTP API + heartbeat.
 
-AGENT_VERSION 2.6.0 lists timestamped backups of the companion tree and can
-restore one. 2.5.5 keeps the flight logger under one tenth of a core at
+AGENT_VERSION 2.6.0 adds the second OV9281 (CAM1) on /api/v1/cam1.
+Capture and JPEG run only while a client holds the stream, capped at 30 fps
+and 15 Hz, so the 60 fps CAM0 path stays the priority. It also lists
+timestamped backups of the companion tree and can restore one. 2.5.5 keeps the flight
+logger under one tenth of a core at
 100 messages per second: the tlog stores raw frames, only detector messages
 are parsed, and tlog plus status flush about once a second. 2.5.4 keeps
 capture at the sensor rate: PNG only on a snapshot, JPEG on another thread
@@ -620,7 +623,7 @@ def _cam0_slot():
         "source": st.get("source") or "absent",
         "dry_run": st.get("dry_run") is True,
         "real": st.get("real") is True,
-        "device": "/dev/video0" if st.get("source") == "v4l2" else None,
+        "device": st.get("device"),
         "has_frame": st.get("has_frame") is True,
         "flight_commands": False,
     }
@@ -1260,6 +1263,12 @@ class Handler(BaseHTTPRequestHandler):
             code, body = version_rollback.http_get(_versions_dest(), AGENT_VERSION)
             return self._json(code, body)
         try:
+            from cam0.cam1 import try_handle as cam1_try_handle
+            if cam1_try_handle(self):
+                return
+        except Exception:
+            pass
+        try:
             from cam0.api import try_handle as cam0_try_handle
             if cam0_try_handle(self):
                 return
@@ -1321,6 +1330,12 @@ class Handler(BaseHTTPRequestHandler):
             code, body = version_rollback.http_post(path, data if isinstance(data, dict) else {}, ctx)
             return self._json(code, body)
         try:
+            from cam0.cam1 import try_handle as cam1_try_handle
+            if cam1_try_handle(self, data if isinstance(data, dict) else {}):
+                return
+        except Exception:
+            pass
+        try:
             from cam0.api import try_handle as cam0_try_handle
             if cam0_try_handle(self, data if isinstance(data, dict) else {}):
                 return
@@ -1359,6 +1374,12 @@ def main():
             print(f"  Cam0: source={cam0.config.get('source')} state={cam0.state}")
     except Exception as exc:
         print(f"  Cam0: off ({type(exc).__name__})")
+    try:
+        from cam0.cam1 import get_service as cam1_service
+        cam1 = cam1_service()
+        print(f"  Cam1: idle device={cam1.config.get('device')} clients={cam1.clients}")
+    except Exception as exc:
+        print(f"  Cam1: off ({type(exc).__name__})")
     poll_raw = os.environ.get("VLC_GIMBAL_POLL")
     if poll_raw is None or str(poll_raw).strip() == "":
         want_gimbal_poll = not SKIP_RELAY
