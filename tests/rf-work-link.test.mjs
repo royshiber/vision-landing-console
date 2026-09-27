@@ -44,9 +44,12 @@ describe('RF work link', () => {
     const gps = rfMessageIntervals().find((row) => row.id === 24);
     const payload = buildRfIntervalPayload(1, 1, gps.id, gps.intervalUs);
     expect(payload.readUInt16LE(28)).toBe(511);
+    expect(payload.readFloatLE(0)).toBe(24);
     expect(payload.readFloatLE(4)).toBe(1000000);
     const shared = buildSetMessageIntervalPayload(1, 1, 24, 1000000);
-    expect(shared.readUInt16LE(2)).toBe(511);
-    expect(payload.readUInt16LE(2)).not.toBe(511);
+    expect(shared.readUInt16LE(28)).toBe(511);
+    expect(shared.readFloatLE(0)).toBe(24);
+    expect(shared.readFloatLE(4)).toBe(1000000);
+    expect(Buffer.compare(shared, payload)).toBe(0);
   });
 });

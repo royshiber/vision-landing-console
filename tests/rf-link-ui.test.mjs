@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PORT = '4052';
 const BASE = `http://127.0.0.1:${PORT}`;
+const SQLITE = `/tmp/airvix-rf-link-${PORT}-${process.pid}.sqlite`;
 const REASON = 'במצב RF אין וידאו';
 const PORT_REASON = 'בחרו פורט';
 
@@ -33,7 +34,7 @@ describe('RF link panel', () => {
         ...process.env,
         HOST: '127.0.0.1',
         PORT,
-        SQLITE_PATH: `/tmp/airvix-rf-link-${PORT}.sqlite`,
+        SQLITE_PATH: SQLITE,
         COMPANION_MODE: 'off',
         JETSON_COMPANION_BASE_URL: '',
         JETSON_COMPANION_BASE_URLS: '',
@@ -69,7 +70,11 @@ describe('RF link panel', () => {
         if (url.startsWith(BASE)) return route.continue();
         return route.abort();
       });
+      const initialPost = page.waitForResponse((res) => (
+        res.url().includes('/api/links/work') && res.request().method() === 'POST'
+      ));
       await openLinkPanel(page);
+      await initialPost;
       await page.waitForFunction(() => {
         const text = document.getElementById('workLinkPath')?.textContent || '';
         return text.includes('אין נתיב') || text.includes('אוטומטי') || text.includes('רשת בית') || text.includes('סלולר');
