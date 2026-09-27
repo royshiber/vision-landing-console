@@ -23386,7 +23386,6 @@ body:has(#terrain.panel.visible) .assist-toggle-btn.assist-toggle-float {
   #control.panel.visible .fc-group-next { grid-area: input; }
   #control.panel.visible .fc-group-meta { grid-area: meta; }
 }
-<<<<<<< HEAD
 
 /* Params: slim chrome so the list starts high and is the only scroller. */
 body:has(#control.panel.visible) .layout {
