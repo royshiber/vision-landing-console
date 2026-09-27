@@ -5,28 +5,8 @@
     "changes": [
       {
         "type": "feat",
-        "title": "Server library",
-        "detail": "assist-intent-resolver.mjs, assist-routes.mjs, dual-link-runtime.mjs, dual-link.mjs, core-api.mjs, dual-link-api.mjs, sim-vehicle.mjs, sse-mavlink-snapshot.mjs"
-      },
-      {
-        "type": "feat",
-        "title": "MAVLink connection",
-        "detail": "mavlink-connection.mjs"
-      },
-      {
-        "type": "feat",
-        "title": "UI / app.js",
-        "detail": "app.js"
-      },
-      {
-        "type": "ui",
-        "title": "HTML layout",
-        "detail": "index.html"
-      },
-      {
-        "type": "ui",
-        "title": "Styles",
-        "detail": "styles.css"
+        "title": "תג סימולטור",
+        "detail": "APP_VERSION 1.02.362. כשהמקור הוא סימולטור מופיע תג SIM בכותרת. בפאנל החיבור יש סימולטור ב-TCP 5760 וב-UDP 14550. ראייה מסומנת לא עוברת ב-RF. במסכי ההטסה, הפרמטרים וה-RF הניסוח תואם את מילון העברית."
       }
     ]
   },
