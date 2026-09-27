@@ -241,6 +241,13 @@ describe('Optics debrief tab — live layout', () => {
         reason: document.getElementById('gimbalPadReason')?.textContent || '',
         upDisabled: document.querySelector('[data-gimbal="up"]')?.disabled === true,
         scroll: optics ? optics.scrollHeight - optics.clientHeight : 999,
+        calibScroll: (() => {
+          const box = document.querySelector('#optics .optics-calib');
+          if (!box) return 999;
+          return box.scrollHeight - box.clientHeight;
+        })(),
+        calibOverflow: getComputedStyle(document.querySelector('#optics .optics-calib') || document.body).overflowY,
+        calibBottom: document.getElementById('cam0CalibSolve')?.getBoundingClientRect().bottom || 0,
         beside: Boolean(grid && pad) && pad.getBoundingClientRect().right <= grid.getBoundingClientRect().left + 12,
         fovBottom: document.getElementById('cam0Fov')?.getBoundingClientRect().bottom || 0,
         cam0InPulse: panel?.closest('#pulse') != null,
@@ -307,9 +314,9 @@ describe('Optics debrief tab — live layout', () => {
       try {
         await openOptics(page);
         const report = await audit(page);
-        await page.screenshot({ path: path.join(shotDir, `optics-debrief-${name}.png`), fullPage: false });
+        await page.screenshot({ path: path.join(shotDir, `optics-debrief-${name}.png`), fullPage: false, animations: 'disabled', timeout: 8000 });
         if (name === '1366x768' || name === '1440x900') {
-          await page.screenshot({ path: path.join(shotDir, `optics-${name}.png`), fullPage: false });
+          await page.screenshot({ path: path.join(shotDir, `optics-${name}.png`), fullPage: false, animations: 'disabled', timeout: 8000 });
         }
         expect(report.dir).toBe('rtl');
         expect(report.tab).toBe('אופטיקה');
@@ -335,10 +342,14 @@ describe('Optics debrief tab — live layout', () => {
         if (width >= 1024) expect(report.beside).toBe(true);
         if (width >= 1366 && height >= 768) {
           expect(report.scroll, `scroll ${report.scroll}`).toBeLessThan(48);
+          expect(report.calibScroll, `calib scroll ${report.calibScroll}`).toBeLessThan(2);
+          expect(report.calibOverflow).not.toBe('auto');
+          expect(report.calibOverflow).not.toBe('scroll');
           expect(report.fovBottom).toBeLessThanOrEqual(height);
+          expect(report.calibBottom).toBeLessThanOrEqual(height);
         }
         const cam1 = await auditCam1(page);
-        await page.screenshot({ path: path.join(shotDir, `optics-cam1-${name}.png`), fullPage: false });
+        await page.screenshot({ path: path.join(shotDir, `optics-cam1-${name}.png`), fullPage: false, animations: 'disabled', timeout: 8000 });
         expect(cam1.cam0Shown).toBe(false);
         expect(cam1.hiddenCam0).toBe(true);
         expect(cam1.cam1Selected).toBe(true);

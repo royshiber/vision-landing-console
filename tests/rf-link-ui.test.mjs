@@ -203,10 +203,16 @@ describe('RF link panel', () => {
         const pad = document.getElementById('gimbalPad');
         const up = pad.querySelector('[data-gimbal="up"]');
         const panel = document.getElementById('optics');
+        const layout = document.querySelector('.layout');
+        const status = document.getElementById('rfOpticsStatus');
+        const bg = getComputedStyle(document.body).backgroundColor;
         return {
           text: notice.textContent,
           noticeH: notice.getBoundingClientRect().height,
           panelH: panel.getBoundingClientRect().height,
+          gapBelow: Math.round(layout.getBoundingClientRect().bottom - panel.getBoundingClientRect().bottom),
+          bg,
+          status: getComputedStyle(status).display,
           grid: getComputedStyle(grid).display,
           pad: getComputedStyle(pad).display,
           padState: pad.dataset.state,
@@ -217,7 +223,10 @@ describe('RF link panel', () => {
       }, REASON);
       expect(view.text).toBe(REASON);
       expect(view.noticeH).toBeLessThan(80);
-      expect(view.panelH).toBeLessThan(view.noticeH + 48);
+      expect(view.gapBelow).toBeLessThan(12);
+      expect(view.panelH).toBeGreaterThan(400);
+      expect(view.bg).not.toBe('rgb(247, 249, 252)');
+      expect(view.status).toBe('grid');
       expect(view.grid).toBe('none');
       expect(view.pad).toBe('none');
       expect(view.padState).toBe('down');
@@ -225,8 +234,49 @@ describe('RF link panel', () => {
       expect(view.upTitle).toContain(REASON);
       expect(view.cams).toBe('none');
       await page.screenshot({ path: '/opt/cursor/artifacts/screenshots/rf-optics-1366.png' });
+      await page.click('[data-tab="recordings"]');
+      await page.waitForFunction((he) => document.getElementById('archiveSessionsEmpty')?.textContent === he, 'הארכיון לא זמין במצב RF');
+      const debrief = await page.evaluate(() => {
+        const panel = document.getElementById('debriefRecordingsPanel');
+        const video = panel.querySelector('.video-column');
+        const side = panel.querySelector('.debrief-recordings-side');
+        const player = document.getElementById('debriefPlayer');
+        return {
+          video: getComputedStyle(video).display,
+          player: getComputedStyle(player).display,
+          sideW: Math.round(side.getBoundingClientRect().width),
+          videoW: Math.round(video.getBoundingClientRect().width),
+          fileDisabled: document.getElementById('videoInput').disabled,
+          empty: document.getElementById('archiveSessionsEmpty').textContent,
+        };
+      });
+      expect(debrief.video).not.toBe('none');
+      expect(debrief.player).not.toBe('none');
+      expect(debrief.videoW).toBeGreaterThan(debrief.sideW);
+      expect(debrief.sideW).toBeGreaterThanOrEqual(180);
+      expect(debrief.sideW).toBeLessThanOrEqual(320);
+      expect(debrief.fileDisabled).toBe(false);
+      expect(debrief.empty).toBe('הארכיון לא זמין במצב RF');
+      await page.screenshot({ path: '/opt/cursor/artifacts/screenshots/rf-debrief-1366.png' });
       await page.setViewportSize({ width: 1440, height: 900 });
+      await page.click('[data-tab="optics"]');
       await page.screenshot({ path: '/opt/cursor/artifacts/screenshots/rf-optics-1440.png' });
+      await page.click('[data-tab="recordings"]');
+      const debriefWide = await page.evaluate(() => {
+        const panel = document.getElementById('debriefRecordingsPanel');
+        const side = panel.querySelector('.debrief-recordings-side');
+        const video = panel.querySelector('.video-column');
+        return {
+          sideW: Math.round(side.getBoundingClientRect().width),
+          videoW: Math.round(video.getBoundingClientRect().width),
+          player: getComputedStyle(document.getElementById('debriefPlayer')).display,
+        };
+      });
+      expect(debriefWide.player).not.toBe('none');
+      expect(debriefWide.videoW).toBeGreaterThan(debriefWide.sideW);
+      expect(debriefWide.sideW).toBeGreaterThanOrEqual(180);
+      expect(debriefWide.sideW).toBeLessThanOrEqual(320);
+      await page.screenshot({ path: '/opt/cursor/artifacts/screenshots/rf-debrief-1440.png' });
       await page.click('#connectToggleBtn');
       await page.waitForSelector('#connectPanel:not([hidden])');
       const wide = await page.evaluate(() => {

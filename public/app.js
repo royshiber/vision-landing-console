@@ -8948,7 +8948,13 @@ const archiveSessionsEmpty = document.getElementById('archiveSessionsEmpty');
 const archiveSessionsList = document.getElementById('archiveSessionsList');
 const archiveSessionsStatus = document.getElementById('archiveSessionsStatus');
 const ARCHIVE_SESSIONS_EMPTY_HE = 'אין הקלטות ארכיון עדיין';
+const ARCHIVE_RF_UNAVAILABLE_HE = 'הארכיון לא זמין במצב RF';
 const ARCHIVE_SESSIONS_LOAD_FAIL_HE = 'לא הצלחנו לטעון את רשימת ההקלטות.';
+
+function archiveEmptyLabel(serverHe) {
+  if (document.body?.dataset?.workPath === 'rf') return ARCHIVE_RF_UNAVAILABLE_HE;
+  return serverHe || ARCHIVE_SESSIONS_EMPTY_HE;
+}
 
 /** Why: escape text/HTML for safe table cells and href. What: minimal entity encode for innerHTML rows. */
 function escapeAllLogsCell(s) {
@@ -9034,7 +9040,9 @@ function renderArchiveSessionsList(sessions) {
   const list = Array.isArray(sessions) ? sessions : [];
   if (!list.length) {
     archiveSessionsEmpty.hidden = false;
-    archiveSessionsEmpty.textContent = ARCHIVE_SESSIONS_EMPTY_HE;
+    archiveSessionsEmpty.textContent = document.body?.dataset?.workPath === 'rf'
+      ? ARCHIVE_RF_UNAVAILABLE_HE
+      : ARCHIVE_SESSIONS_EMPTY_HE;
     archiveSessionsList.hidden = true;
     archiveSessionsList.innerHTML = '';
     return;
@@ -9079,14 +9087,15 @@ async function refreshArchiveSessions() {
     }
     const sessions = Array.isArray(data.sessions) ? data.sessions : [];
     renderArchiveSessionsList(sessions);
-    if (archiveSessionsEmpty && data.emptyHe && !sessions.length) {
-      archiveSessionsEmpty.textContent = data.emptyHe;
+    if (archiveSessionsEmpty && !sessions.length) {
+      archiveSessionsEmpty.textContent = archiveEmptyLabel(data.emptyHe);
     }
     if (archiveSessionsStatus) {
       archiveSessionsStatus.textContent = sessions.length ? `נטענו ${sessions.length} הקלטות ארכיון.` : '';
     }
   } catch {
     renderArchiveSessionsList([]);
+    if (archiveSessionsEmpty) archiveSessionsEmpty.textContent = archiveEmptyLabel();
     if (archiveSessionsStatus) archiveSessionsStatus.textContent = ARCHIVE_SESSIONS_LOAD_FAIL_HE;
   }
 }
@@ -13459,6 +13468,15 @@ initLiveCameraPanel();
     }
     setRfFlightLocks(liveRf);
     syncRadioWithWork();
+    const rfStatus = document.getElementById('rfOpticsStatus');
+    if (rfStatus) rfStatus.hidden = !liveRf;
+    const rfPath = document.getElementById('rfOpticsPath');
+    if (rfPath) rfPath.textContent = liveRf ? 'נתיב פעיל: RF' : '';
+    const rfRadio = document.getElementById('rfOpticsRadio');
+    if (rfRadio) rfRadio.textContent = liveRf ? (document.getElementById('radioLinkStatus')?.textContent || 'מחובר') : '';
+    if (archiveSessionsEmpty && (!archiveSessionsList || archiveSessionsList.hidden || !archiveSessionsList.children.length)) {
+      archiveSessionsEmpty.textContent = archiveEmptyLabel();
+    }
     document.dispatchEvent(new CustomEvent('vlc-companion-cameras', { detail: { reachable: false } }));
   }
   function paintRfCompanion(status) {
@@ -13470,16 +13488,19 @@ initLiveCameraPanel();
       return;
     }
     const parts = [];
-    if (status.wifi === 1) parts.push('רשת בית פעילה');
-    else if (status.wifi === 0) parts.push('רשת בית כבויה');
-    if (status.cell === 1) parts.push('סלולר פעיל');
-    else if (status.cell === 0) parts.push('סלולר כבוי');
+    const linkParts = [];
+    if (status.wifi === 1) { parts.push('רשת בית פעילה'); linkParts.push('רשת בית פעילה'); }
+    else if (status.wifi === 0) { parts.push('רשת בית כבויה'); linkParts.push('רשת בית כבויה'); }
+    if (status.cell === 1) { parts.push('סלולר פעיל'); linkParts.push('סלולר פעיל'); }
+    else if (status.cell === 0) { parts.push('סלולר כבוי'); linkParts.push('סלולר כבוי'); }
     if (status.cam0 === 1) parts.push('CAM0 חיה');
     else if (status.cam0 === 0) parts.push('CAM0 בלי אות');
     if (status.cam1 === 1) parts.push('CAM1 חיה');
     else if (status.cam1 === 0) parts.push('CAM1 בלי אות');
     line.hidden = parts.length === 0;
     line.textContent = parts.join(' · ');
+    const rfLinks = document.getElementById('rfOpticsLinks');
+    if (rfLinks) rfLinks.textContent = linkParts.length ? linkParts.join(' · ') : 'אין דיווח מהמחשב';
     if (status.mode === 1) document.body.dataset.rfGimbalMode = 'lock';
     else if (status.mode === 0) document.body.dataset.rfGimbalMode = 'follow';
   }
