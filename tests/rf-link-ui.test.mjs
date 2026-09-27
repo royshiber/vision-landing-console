@@ -23,6 +23,14 @@ async function openLinkPanel(page) {
   await page.waitForSelector('#workLinkPicker');
 }
 
+async function ensureLinkPanel(page) {
+  const open = await page.locator('#connectPanel').isVisible().catch(() => false);
+  if (!open) {
+    await page.click('#connectToggleBtn');
+    await page.waitForSelector('#connectPanel:not([hidden])');
+  }
+}
+
 describe('RF link panel', () => {
   let serverProc = null;
   let browser = null;
@@ -155,7 +163,7 @@ describe('RF link panel', () => {
     }
   }, 30000);
 
-  it('shows one compact RF notice and disables video controls when the port is up', async () => {
+  it('disables the optics tab in RF and does not invent a connected radio', async () => {
     const page = await browser.newPage({ viewport: { width: 1366, height: 768 } });
     try {
       await page.route('**/*', (route) => {
@@ -183,57 +191,98 @@ describe('RF link panel', () => {
         return route.continue();
       });
       await openLinkPanel(page);
+      await page.waitForFunction(() => {
+        const path = document.getElementById('workLinkPath')?.textContent || '';
+        return path.length > 0;
+      });
+      if (await page.evaluate(() => document.body.dataset.workPath === 'rf')) {
+        await page.click('#workLinkAuto');
+        await page.waitForFunction(() => document.body.dataset.workPath !== 'rf');
+      }
+      await page.click('[data-tab="optics"]');
+      await page.waitForSelector('#optics.panel.visible');
+      await ensureLinkPanel(page);
+      await page.click('#workLinkRf');
       await page.waitForFunction((reason) => {
         const path = document.getElementById('workLinkPath')?.textContent || '';
         const radio = document.getElementById('radioLinkStatus')?.textContent || '';
-        return path.includes('נתיב פעיל: RF') && document.body.dataset.workPath === 'rf' && radio === 'מחובר';
+        const tab = document.querySelector('button.tab[data-tab="optics"]');
+        const flight = document.querySelector('button.tab[data-tab="terrain"]');
+        const btn = document.getElementById('connectBtn');
+        return path.includes('נתיב פעיל: RF')
+          && document.body.dataset.workPath === 'rf'
+          && radio === 'מנותק'
+          && radio !== 'מחובר'
+          && tab?.disabled === true
+          && tab.title === reason
+          && flight?.classList.contains('active')
+          && !document.getElementById('optics')?.classList.contains('visible')
+          && !document.getElementById('rfOpticsStatus')
+          && btn?.textContent === 'חיבור ל-RF'
+          && btn?.title === 'חיבור ל-RF';
       }, REASON);
       for (const id of ['horizonVideoToggle', 'annotatedVisionToggle', 'liveCameraToggle', 'missionRecordBtn']) {
         expect(await page.locator(`#${id}`).isDisabled()).toBe(true);
       }
-      await page.click('[data-tab="optics"]');
-      await page.waitForSelector('#rfOpticsNotice:not([hidden])');
+      await page.click('[data-tab="optics"]', { force: true });
       await page.waitForFunction((reason) => {
         const up = document.querySelector('#gimbalPad [data-gimbal="up"]');
-        return up && up.disabled && (up.title || '').includes(reason) && document.getElementById('gimbalPad')?.dataset.state === 'down';
+        const flight = document.querySelector('button.tab[data-tab="terrain"]');
+        return up && up.disabled && (up.title || '').includes(reason)
+          && document.getElementById('gimbalPad')?.dataset.state === 'down'
+          && flight?.classList.contains('active');
       }, REASON);
       const view = await page.evaluate((reason) => {
-        const notice = document.getElementById('rfOpticsNotice');
-        const grid = document.getElementById('debriefCamGrid');
-        const pad = document.getElementById('gimbalPad');
-        const up = pad.querySelector('[data-gimbal="up"]');
-        const panel = document.getElementById('optics');
+        const tab = document.querySelector('button.tab[data-tab="optics"]');
+        const flight = document.getElementById('terrain');
+        const optics = document.getElementById('optics');
         const layout = document.querySelector('.layout');
-        const status = document.getElementById('rfOpticsStatus');
-        const bg = getComputedStyle(document.body).backgroundColor;
+        const flightBox = flight.getBoundingClientRect();
         return {
-          text: notice.textContent,
-          noticeH: notice.getBoundingClientRect().height,
-          panelH: panel.getBoundingClientRect().height,
-          gapBelow: Math.round(layout.getBoundingClientRect().bottom - panel.getBoundingClientRect().bottom),
-          bg,
-          status: getComputedStyle(status).display,
-          grid: getComputedStyle(grid).display,
-          pad: getComputedStyle(pad).display,
-          padState: pad.dataset.state,
-          upDisabled: up.disabled,
-          upTitle: up.title || '',
-          cams: getComputedStyle(document.getElementById('cam0Panel')).display,
+          title: tab.title,
+          disabled: tab.disabled,
+          opacity: Number(getComputedStyle(tab).opacity),
+          opticsVisible: optics.classList.contains('visible'),
+          flightVisible: flight.classList.contains('visible'),
+          gapBelow: Math.round(layout.getBoundingClientRect().bottom - flightBox.bottom),
+          flightH: Math.round(flightBox.height),
+          cards: document.getElementById('rfOpticsStatus'),
+          radio: document.getElementById('radioLinkStatus')?.textContent || '',
+          connect: document.getElementById('connectBtn')?.textContent || '',
+          connectTitle: document.getElementById('connectBtn')?.title || '',
         };
       }, REASON);
-      expect(view.text).toBe(REASON);
-      expect(view.noticeH).toBeLessThan(80);
-      expect(view.gapBelow).toBeLessThan(12);
-      expect(view.panelH).toBeGreaterThan(400);
-      expect(view.bg).not.toBe('rgb(247, 249, 252)');
-      expect(view.status).toBe('grid');
-      expect(view.grid).toBe('none');
-      expect(view.pad).toBe('none');
-      expect(view.padState).toBe('down');
-      expect(view.upDisabled).toBe(true);
-      expect(view.upTitle).toContain(REASON);
-      expect(view.cams).toBe('none');
-      await page.screenshot({ path: '/opt/cursor/artifacts/screenshots/rf-optics-1366.png' });
+      expect(view.title).toBe(REASON);
+      expect(view.disabled).toBe(true);
+      expect(view.opacity).toBeLessThan(0.7);
+      expect(view.opticsVisible).toBe(false);
+      expect(view.flightVisible).toBe(true);
+      expect(view.flightH).toBeGreaterThan(400);
+      expect(view.cards).toBeNull();
+      expect(view.radio).toBe('מנותק');
+      expect(view.connect).toBe('חיבור ל-RF');
+      expect(view.connectTitle).toBe('חיבור ל-RF');
+      await page.screenshot({ path: '/opt/cursor/artifacts/screenshots/rf-optics-1366.png', animations: 'disabled', timeout: 8000 });
+      await ensureLinkPanel(page);
+      await page.click('#workLinkAuto');
+      await page.waitForFunction(() => {
+        const tab = document.querySelector('button.tab[data-tab="optics"]');
+        return document.body.dataset.workPath !== 'rf'
+          && tab
+          && tab.disabled === false
+          && tab.title === 'אופטיקה'
+          && tab.classList.contains('active')
+          && document.getElementById('optics')?.classList.contains('visible');
+      });
+      await page.click('#workLinkRf');
+      await page.waitForFunction((reason) => {
+        const tab = document.querySelector('button.tab[data-tab="optics"]');
+        const flight = document.querySelector('button.tab[data-tab="terrain"]');
+        return document.body.dataset.workPath === 'rf'
+          && tab?.disabled === true
+          && tab.title === reason
+          && flight?.classList.contains('active');
+      }, REASON);
       await page.click('[data-tab="recordings"]');
       await page.waitForFunction((he) => document.getElementById('archiveSessionsEmpty')?.textContent === he, 'הארכיון לא זמין במצב RF');
       const debrief = await page.evaluate(() => {
@@ -257,10 +306,26 @@ describe('RF link panel', () => {
       expect(debrief.sideW).toBeLessThanOrEqual(320);
       expect(debrief.fileDisabled).toBe(false);
       expect(debrief.empty).toBe('הארכיון לא זמין במצב RF');
-      await page.screenshot({ path: '/opt/cursor/artifacts/screenshots/rf-debrief-1366.png' });
+      await page.screenshot({ path: '/opt/cursor/artifacts/screenshots/rf-debrief-1366.png', animations: 'disabled', timeout: 8000 });
       await page.setViewportSize({ width: 1440, height: 900 });
-      await page.click('[data-tab="optics"]');
-      await page.screenshot({ path: '/opt/cursor/artifacts/screenshots/rf-optics-1440.png' });
+      await page.click('[data-tab="terrain"]');
+      await page.waitForSelector('#terrain.panel.visible');
+      const wideFlight = await page.evaluate((reason) => {
+        const tab = document.querySelector('button.tab[data-tab="optics"]');
+        const flight = document.getElementById('terrain');
+        return {
+          disabled: tab.disabled,
+          title: tab.title,
+          flightH: Math.round(flight.getBoundingClientRect().height),
+          optics: document.getElementById('optics').classList.contains('visible'),
+          reason,
+        };
+      }, REASON);
+      expect(wideFlight.disabled).toBe(true);
+      expect(wideFlight.title).toBe(REASON);
+      expect(wideFlight.optics).toBe(false);
+      expect(wideFlight.flightH).toBeGreaterThan(400);
+      await page.screenshot({ path: '/opt/cursor/artifacts/screenshots/rf-optics-1440.png', animations: 'disabled', timeout: 8000 });
       await page.click('[data-tab="recordings"]');
       const debriefWide = await page.evaluate(() => {
         const panel = document.getElementById('debriefRecordingsPanel');
@@ -276,7 +341,7 @@ describe('RF link panel', () => {
       expect(debriefWide.videoW).toBeGreaterThan(debriefWide.sideW);
       expect(debriefWide.sideW).toBeGreaterThanOrEqual(180);
       expect(debriefWide.sideW).toBeLessThanOrEqual(320);
-      await page.screenshot({ path: '/opt/cursor/artifacts/screenshots/rf-debrief-1440.png' });
+      await page.screenshot({ path: '/opt/cursor/artifacts/screenshots/rf-debrief-1440.png', animations: 'disabled', timeout: 8000 });
       await page.click('#connectToggleBtn');
       await page.waitForSelector('#connectPanel:not([hidden])');
       const wide = await page.evaluate(() => {
@@ -286,18 +351,29 @@ describe('RF link panel', () => {
         const panelBox = panel.getBoundingClientRect();
         const rcBox = rc.getBoundingClientRect();
         const statusBox = status.getBoundingClientRect();
+        const btn = document.getElementById('connectBtn');
+        const btnBox = btn.getBoundingClientRect();
         return {
           height: panel.clientHeight,
           scroll: panel.scrollHeight,
           rcIn: rcBox.bottom <= panelBox.bottom + 1 && rcBox.bottom <= window.innerHeight,
           statusIn: statusBox.bottom <= window.innerHeight && statusBox.height > 0,
+          connect: btn.textContent,
+          radio: document.getElementById('radioLinkStatus')?.textContent || '',
+          connectFits: btn.scrollWidth <= btn.clientWidth + 1
+            && btn.scrollHeight <= btn.clientHeight + 1
+            && btnBox.left >= panelBox.left - 1
+            && btnBox.right <= panelBox.right + 1,
         };
       });
       expect(wide.height).toBeLessThanOrEqual(360);
       expect(wide.scroll).toBeLessThanOrEqual(wide.height + 1);
       expect(wide.rcIn).toBe(true);
       expect(wide.statusIn).toBe(true);
-      await page.screenshot({ path: '/opt/cursor/artifacts/screenshots/rf-popover-1440.png' });
+      expect(wide.connect).toBe('חיבור ל-RF');
+      expect(wide.radio).toBe('מנותק');
+      expect(wide.connectFits).toBe(true);
+      await page.screenshot({ path: '/opt/cursor/artifacts/screenshots/rf-popover-1440.png', animations: 'disabled', timeout: 8000 });
     } finally {
       await page.close();
     }

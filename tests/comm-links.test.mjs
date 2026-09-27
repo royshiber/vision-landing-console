@@ -64,7 +64,7 @@ describe('four-link communications model', () => {
     expect(snap.rows[1].quality.percent).toBeNull();
     expect(snap.rows[3].actionHe).toBe('סטטוס');
     expect(snap.rows[3].hintHe).toBe('אין ערוצי שלט');
-    expect(snap.pillLabelHe).toBe('מחובר · רדיו פעיל');
+    expect(snap.pillLabelHe).toBe('מחובר · RF פעיל');
   });
 
   it('keeps RC percent only from a fresh RC_CHANNELS rssi', () => {
@@ -87,6 +87,6 @@ describe('four-link communications model', () => {
       cellular: 'connected',
       active: 'radio',
       bothConnected: true,
-    })).toBe('שני קישורים · רדיו פעיל');
+    })).toBe('שני קישורים · RF פעיל');
   });
 });

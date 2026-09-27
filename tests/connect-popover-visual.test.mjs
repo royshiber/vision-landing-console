@@ -254,7 +254,7 @@ describe('connect popover layout and mocked states', () => {
           contentType: 'application/json',
           body: JSON.stringify({
             ok: true,
-            appVersion: '1.02.360',
+            appVersion: '1.02.361',
             features: { mavlinkQuickConnect: true, dualLink: true },
           }),
         });
@@ -371,12 +371,12 @@ describe('connect popover layout and mocked states', () => {
           expect(homeBg).not.toBe('rgb(22, 163, 74)');
         } else if (name === 'cellular-only') {
           expect(byId.cellular).toMatchObject({ tone: 'ok', status: 'מחובר', action: 'התנתק' });
-          expect(byId.radio).toMatchObject({ tone: 'off', status: 'מנותק', action: 'התחבר' });
+          expect(byId.radio).toMatchObject({ tone: 'off', status: 'מנותק', action: 'חיבור ל-RF' });
           expect(byId.home).toMatchObject({ tone: 'off', status: 'מושבת', action: 'התחבר' });
           expect(byId.rc.status).toBe('אין נתונים');
         } else {
           expect(byId.cellular).toMatchObject({ tone: 'off', status: 'אין מודם', action: 'התחבר' });
-          expect(byId.radio).toMatchObject({ tone: 'off', status: 'מנותק', action: 'התחבר' });
+          expect(byId.radio).toMatchObject({ tone: 'off', status: 'מנותק', action: 'חיבור ל-RF' });
           expect(byId.home).toMatchObject({ tone: 'off', status: 'מנותק', action: 'התחבר' });
           expect(byId.rc.status).toBe('אין נתונים');
           const locked = await page.locator('#companionLinkBtn').evaluate((el) => ({

@@ -1,5 +1,36 @@
 [
   {
+    "version": "1.02.361",
+    "date": "2026-09-27",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Server library",
+        "detail": "comm-links.mjs, companion-policy-state.mjs, dual-link-runtime.mjs, dual-link.mjs, dual-link-api.mjs, telemetry-archive.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "MAVLink connection",
+        "detail": "mavlink-connection.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "UI / app.js",
+        "detail": "app.js"
+      },
+      {
+        "type": "ui",
+        "title": "HTML layout",
+        "detail": "index.html"
+      },
+      {
+        "type": "ui",
+        "title": "Styles",
+        "detail": "styles.css"
+      }
+    ]
+  },
+  {
     "version": "1.02.360",
     "date": "2026-09-27",
     "changes": [

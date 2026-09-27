@@ -52,7 +52,7 @@ describe('four-row communications widget', () => {
 
   it('labels actions התחבר or התנתק by state, and RC stays סטטוס', () => {
     expect(html).toMatch(/id="cellularConnectBtn"[^>]*>התחבר</);
-    expect(html).toMatch(/id="connectBtn"[^>]*>התחבר</);
+    expect(html).toMatch(/id="connectBtn"[^>]*>חיבור ל-RF</);
     expect(html).toMatch(/id="companionLinkBtn"[^>]*>התחבר</);
     expect(html).toMatch(/id="rcStatusBtn"[^>]*>סטטוס</);
     expect(js).toContain('function paintRowAction(');
