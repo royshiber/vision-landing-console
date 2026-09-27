@@ -42,16 +42,16 @@ function cssBlock(src, selector) {
 }
 
 describe('Mission aircraft messages — side print-log', () => {
-  it('pins APP_VERSION at 1.02.346', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.346'");
-    expect(pkg.version).toBe('1.02.346');
+  it('pins APP_VERSION at 1.02.357', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.357'");
+    expect(pkg.version).toBe('1.02.357');
   });
 
   it('places the live feed inside the AH / video stage, not a centered box', () => {
     const stageIdx = html.indexOf('id="pfdHorizonStage"');
     const logIdx = html.indexOf('id="pfdHorizonMsgLog"');
     const canvasIdx = html.indexOf('id="horizonCanvas"');
-    const stageEnd = html.indexOf('</div>', canvasIdx);
+    const stageEnd = html.indexOf('id="pfdHdgBox"');
     expect(stageIdx).toBeGreaterThan(0);
     expect(logIdx).toBeGreaterThan(canvasIdx);
     expect(logIdx).toBeLessThan(stageEnd);
@@ -86,17 +86,17 @@ describe('Mission aircraft messages — side print-log', () => {
   });
 
   it('demotes the bottom messages region to slim history', () => {
-    expect(html).toMatch(/data-mission-region="messages"[^>]*data-messages-expanded="0"/);
-    expect(html).toMatch(/id="missionMessagesToggle"/);
-    expect(html).toMatch(/class="mission-messages-toggle-label">הודעות</);
-    expect(html).toMatch(/id="missionMessagesBadge"/);
-    expect(html).toMatch(/id="pfcMsgScroll" hidden/);
+    expect(html).toMatch(/data-mission-region="messages"[^>]*data-messages-expanded="1"/);
+    expect(html).toMatch(/id="pfcMsgFilterAll"/);
+    expect(html).toMatch(/id="pfcMsgFilterWarn"/);
+    expect(html).toMatch(/id="pfcMsgScroll"[^>]*dir="ltr"/);
+    expect(html).not.toMatch(/id="pfcMsgScroll" hidden/);
     expect(html).not.toMatch(/class="pfc-msg-head"/);
     expect(html).not.toMatch(/class="pfc-msg-label"/);
     const collapsed = cssBlock(css, '.mission-region-messages[data-messages-expanded="0"]');
-    expect(collapsed).toMatch(/max-height:\s*min\(40px,\s*var\(--mission-msg-collapsed-max,\s*72px\)\)/);
+    expect(collapsed).toMatch(/max-height:\s*none/);
     const expanded = cssBlock(css, '.mission-region-messages[data-messages-expanded="1"]');
-    expect(expanded).toMatch(/max-height:\s*min\(18%, 96px\)/);
+    expect(expanded).toMatch(/max-height:\s*none/);
     expect(expanded).not.toMatch(/280px/);
     expect(css).toMatch(/--mission-msg-h:\s*min\(18%, 96px\)/);
     expect(cssBlock(css, '.mission-region-horizon > .mission-region-messages')).toMatch(/background:\s*transparent/);
@@ -142,7 +142,14 @@ describe('Mission aircraft messages — side print-log', () => {
       'const pfcMsgPrimaryHe = primary;',
       'const pfdHorizonMsgLog = log;',
       'const pfcMsgScroll = scroll;',
+      'let _fcMsgFilter = "all";',
       sliceFunction(js, 'statusTextLineWarn'),
+      sliceFunction(js, 'translatePrearmText'),
+      sliceFunction(js, 'translateFcStatusText'),
+      sliceFunction(js, 'collapseConsecutiveFcStatus'),
+      sliceFunction(js, 'fcStatusTimeLabel'),
+      sliceFunction(js, 'fcStatusSeverityClass'),
+      sliceFunction(js, 'fcStatusShownText'),
       sliceFunction(js, 'paintFcStatustextOverlay'),
       sliceFunction(js, 'paintFcStatustextHistory'),
       `paintFcStatustextOverlay([
@@ -163,7 +170,7 @@ describe('Mission aircraft messages — side print-log', () => {
   });
 
   it('keeps commercial copy aligned with side-line messages', () => {
-    expect(commercial).toContain('הודעות הבקר מוסתרות כברירת מחדל מאחורי כפתור קטן');
+    expect(commercial).toContain('הודעות הבקר ממלאות את הגובה שנשאר בעמודת המכשירים');
     expect(commercial).toContain('בלי לכסות את המפה או את האופק');
     expect(commercial).not.toContain('אזור **הודעות** הוא פס נמוך כברירת מחדל');
     expect(commercial).not.toContain('מסייע');

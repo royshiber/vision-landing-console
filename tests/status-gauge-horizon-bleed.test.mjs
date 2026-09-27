@@ -114,19 +114,24 @@ describe('Mission AH fills the center stage', () => {
     expect(draw).not.toContain('hdgH');
     expect(draw).toContain('formatHudAngleLabel');
     expect(cssBlock(css, '.pfd-horizon-instrument')).toMatch(/padding:\s*0/);
-    expect(cssBlock(css, '.pfd-horizon-instrument')).toMatch(/"ias horizon alt"/);
+    expect(cssBlock(css, '.pfd-horizon-instrument')).toMatch(/"horizon"/);
+    expect(cssBlock(css, '.pfd-horizon-instrument')).not.toMatch(/"ias horizon alt"/);
     expect(cssBlock(css, '.pfd-horizon-stage')).toMatch(/align-self:\s*stretch/);
     expect(cssBlock(css, '.pfd-horizon-shell canvas')).toMatch(/inset:\s*0/);
     expect(cssBlock(css, '.pfd-horizon-shell canvas')).toMatch(/background:\s*transparent/);
-    expect(cssBlock(css, '.pfd-side-tape')).toMatch(/position:\s*static/);
+    expect(cssBlock(css, '.pfd-side-tape')).toMatch(/position:\s*absolute/);
+    expect(cssBlock(css, '.pfd-side-tape')).toMatch(/rgba\(8,\s*12,\s*18,\s*0\.4\)/);
+    expect(css).toMatch(/\.pfd-horizon-video\s*\{[^}]*object-fit:\s*cover/);
+    expect(css).toMatch(/\.pfd-horizon-camera\s*\{[^}]*object-fit:\s*cover/);
+    expect(css).toMatch(/\.pfd-horizon-shell--video-active canvas\s*\{[^}]*z-index:\s*4/);
     expect(cssBlock(css, '.pfd-heading-lane')).toMatch(/position:\s*static/);
     expect(html).toContain('id="pfdAirspeedVal"');
     expect(html).toContain('id="pfdAltVal"');
     expect(html).toContain('id="pfdHdgVal"');
   });
 
-  it('pins APP_VERSION at 1.02.346', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.346'");
-    expect(pkg.version).toBe('1.02.346');
+  it('pins APP_VERSION at 1.02.357', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.357'");
+    expect(pkg.version).toBe('1.02.357');
   });
 });

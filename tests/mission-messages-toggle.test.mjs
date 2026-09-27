@@ -51,43 +51,111 @@ function interiorsIntersect(a, b, slack = 1) {
 }
 
 describe('Mission messages toggle — source contract', () => {
-  it('pins APP_VERSION at 1.02.346', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.346'");
-    expect(pkg.version).toBe('1.02.346');
+  it('pins APP_VERSION at 1.02.357', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.357'");
+    expect(pkg.version).toBe('1.02.357');
   });
 
-  it('defaults the strip hidden behind a discreet Hebrew toggle and a severity badge', () => {
-    expect(html).toMatch(/data-mission-region="messages"[^>]*data-messages-expanded="0"/);
+  it('keeps the message list open, readable, and LTR inside the RTL column', () => {
+    expect(html).toMatch(/data-mission-region="messages"[^>]*data-messages-expanded="1"/);
     expect(html).toMatch(/data-mission-region="messages"[^>]*dir="rtl"/);
-    expect(html).toMatch(/id="missionMessagesToggle"[^>]*title="הודעות"/);
-    expect(html).toMatch(/class="mission-messages-toggle-icon"/);
-    expect(html).toMatch(/class="mission-messages-toggle-label">הודעות</);
-    expect(html).toMatch(/id="missionMessagesBadge"[^>]*hidden/);
+    expect(html).toMatch(/id="pfcMsgFilterAll"[^>]*>הכל</);
+    expect(html).toMatch(/id="pfcMsgFilterWarn"[^>]*>אזהרות</);
+    expect(html).toMatch(/id="pfcMsgScroll"[^>]*dir="ltr"/);
+    expect(html).toMatch(/data-mission-data-slot="batt"/);
+    expect(html).toMatch(/class="mission-data-label">מתח</);
+    expect(html).not.toMatch(/id="missionMessagesToggle"/);
+    expect(html).not.toMatch(/id="missionMessagesBadge"/);
+    expect(html).not.toMatch(/id="hudAddSlotBtn"/);
     expect(html).toMatch(/id="pfdHorizonMsgLog"[^>]*hidden/);
     expect(html).not.toContain('Vision Landing Console');
     const messages = html.slice(html.indexOf('data-mission-region="messages"'), html.indexOf('data-mission-region="map"'));
     expect(messages).not.toMatch(/EKF|PreArm|ArduPlane|STATUSTEXT אחרון/);
     expect(js).toContain("const MISSION_MESSAGES_KEY = 'visionLandingMissionMessagesV1'");
-    expect(js).toContain("const MISSION_MESSAGES_SEEN_KEY = 'visionLandingMissionMessagesSeenV1'");
-    const workspace = cssBlock(css, '.mission-workspace[data-mission-layout="ops-v1"]');
-    expect(workspace).toMatch(/display:\s*grid/);
-    expect(workspace).toMatch(/--mission-msg-collapsed-max:\s*72px/);
-    expect(workspace).toMatch(/--mission-map-floor:\s*55%/);
-    expect(workspace).toMatch(/--mission-map-min:\s*65%/);
-    const collapsed = cssBlock(css, '.mission-region-messages[data-messages-expanded="0"]');
-    expect(collapsed).toMatch(/max-height:\s*min\(40px,\s*var\(--mission-msg-collapsed-max,\s*72px\)\)/);
+    expect(js).toContain('function translateFcStatusText(');
+    expect(js).toContain('function collapseConsecutiveFcStatus(');
+    const open = cssBlock(css, '.mission-region-messages[data-messages-expanded="1"]');
+    expect(open).toMatch(/max-height:\s*none/);
+    expect(open).toMatch(/min-height:\s*210px/);
     const scroll = cssBlock(css, '.mission-region-messages .pfc-msg-scroll');
     expect(scroll).toMatch(/font-family:\s*"Heebo"/);
-    expect(scroll).toMatch(/font-size:\s*12px/);
-    expect(scroll).toMatch(/line-height:\s*1\.15/);
+    expect(scroll).toMatch(/font-size:\s*clamp\(13px/);
+    expect(scroll).toMatch(/line-height:\s*1\.45/);
     expect(scroll).toMatch(/overflow-y:\s*auto/);
-    expect(scroll).toMatch(/direction:\s*rtl/);
-    expect(cssBlock(css, '.mission-region-messages .pfc-msg-line,\n.mission-region-messages .pfc-msg-line--warn')).toMatch(/color:\s*inherit/);
-    expect(cssBlock(css, '.mission-messages-badge[data-severity="error"]')).toMatch(/background:\s*#dc2626/);
-    expect(cssBlock(css, '.mission-messages-badge[data-severity="warn"]')).toMatch(/background:\s*#f59e0b/);
+    expect(scroll).toMatch(/direction:\s*ltr/);
+    expect(cssBlock(css, '.mission-region-messages .pfc-msg-line--warn')).toMatch(/color:\s*#fcd34d/);
+    expect(cssBlock(css, '.mission-region-messages .pfc-msg-line--error')).toMatch(/color:\s*#fecaca/);
     expect(cssBlock(css, '.pfd-horizon-msg-log')).toMatch(/display:\s*none/);
-    expect(cssBlock(css, '.mission-messages-toggle')).toMatch(/position:\s*static/);
-    expect(cssBlock(css, '.mission-messages-toggle')).toMatch(/display:\s*inline-flex/);
+  });
+
+  it('collapses consecutive duplicates, translates common lines, and filters warnings', () => {
+    const history = [];
+    const scroll = {
+      innerHTML: '',
+      appendChild(node) { history.push(node); },
+      ownerDocument: {
+        createElement() {
+          const node = {
+            className: '',
+            dir: '',
+            title: '',
+            textContent: '',
+            dateTime: '',
+            children: [],
+            appendChild(child) { this.children.push(child); },
+          };
+          return node;
+        },
+      },
+    };
+    const src = [
+      'let _fcMsgFilter = "all";',
+      'let _missionMessagesRows = [];',
+      sliceFunction(js, 'statusTextLineWarn'),
+      sliceFunction(js, 'translatePrearmText'),
+      sliceFunction(js, 'fcStatusTimeLabel'),
+      sliceFunction(js, 'translateFcStatusText'),
+      sliceFunction(js, 'collapseConsecutiveFcStatus'),
+      sliceFunction(js, 'fcStatusSeverityClass'),
+      sliceFunction(js, 'fcStatusShownText'),
+      sliceFunction(js, 'paintFcStatustextHistory'),
+      sliceFunction(js, 'setFcMsgFilter'),
+      'const rows = [',
+      "  { text: 'EKF3 waiting for GPS config data', severity: 4, receivedAt: '2026-09-26T12:00:04Z' },",
+      "  { text: 'EKF3 waiting for GPS config data', severity: 4, receivedAt: '2026-09-26T12:00:03Z' },",
+      "  { text: 'EKF3 waiting for GPS config data', severity: 4, receivedAt: '2026-09-26T12:00:02Z' },",
+      "  { text: 'EKF3 waiting for GPS config data', severity: 4, receivedAt: '2026-09-26T12:00:01Z' },",
+      "  { text: 'ArduPlane V4.5.0', severity: 6, receivedAt: '2026-09-26T11:59:00Z' },",
+      '];',
+      '_missionMessagesRows = rows;',
+      'paintFcStatustextHistory(rows);',
+      'const all = history.splice(0).map((n) => ({',
+      '  title: n.title,',
+      '  className: n.className,',
+      '  text: n.children.map((c) => c.textContent).join(""),',
+      '  time: (n.children.find((c) => c.className === "pfc-msg-time") || {}).textContent || "",',
+      '}));',
+      'setFcMsgFilter("warn");',
+      'const warn = history.splice(0).map((n) => n.title);',
+      'return { all, warn };',
+    ].join('\n');
+    const result = new Function('pfcMsgScroll', 'document', 'history', src)(scroll, {
+      getElementById() { return { setAttribute() {} }; },
+    }, history);
+    expect(result.all).toHaveLength(2);
+    expect(result.all[0].title).toBe('EKF3 waiting for GPS config data');
+    expect(result.all[0].text).toContain('EKF3 ממתינים להגדרת GPS');
+    expect(result.all[0].text).not.toContain('לוויין');
+    expect(result.all[0].text).toContain('×4');
+    expect(result.all[0].className).toContain('pfc-msg-line--warn');
+    expect(result.all[0].time).toMatch(/^\d{2}:\d{2}:\d{2}$/);
+    expect(result.all[1].title).toBe('ArduPlane V4.5.0');
+    expect(result.warn).toEqual(['EKF3 waiting for GPS config data']);
+    const translate = new Function(`${sliceFunction(js, 'translateFcStatusText')}; return translateFcStatusText;`)();
+    expect(translate('Compass not healthy')).toBe('המצפן לא תקין');
+    expect(translate('PreArm: Compass not healthy')).toBe('לא ניתן לחמש: המצפן לא תקין');
+    expect(translate('EKF3 IMU0 is using GPS')).toBe('EKF משתמש ב-GPS');
+    expect(translate('EKF3 waiting for GPS config data')).toBe('EKF3 ממתינים להגדרת GPS');
   });
 
   it('persists the toggle and paints severity only on the unread badge', () => {
@@ -237,8 +305,10 @@ describe('Mission messages toggle — live layout', () => {
         scrollFont: scrollCs?.fontFamily || '',
         scrollSize: scrollCs?.fontSize || '',
         scrollLine: scrollCs?.lineHeight || '',
+        scrollDir: scrollCs?.direction || '',
         scrollOverflow: scrollCs?.overflowY || '',
         lineColor: lineCs?.color || '',
+        lineCount: scroll ? scroll.querySelectorAll('.pfc-msg-line').length : 0,
         badgeText: badge?.textContent || '',
         badgeHidden: badge ? badge.hidden : true,
         badgeSeverity: badge?.dataset.severity || '',
@@ -296,31 +366,34 @@ describe('Mission messages toggle — live layout', () => {
     }
   });
 
-  it('keeps the hidden and shown panel inside the grid on desktop and mobile', async () => {
+  it('fills the column with a readable LTR list on desktop and mobile', async () => {
     const shots = [];
-    async function check(label, { shown }) {
+    async function check(label) {
       const measured = await measure(page);
       expect(measured.wsDisplay, label).toBe('grid');
       expect(measured.msgDisplay, label).toMatch(/flex/);
       expect(measured.dir, label).toBe('rtl');
-      expect(measured.expanded, label).toBe(shown ? '1' : '0');
+      expect(measured.scrollDir, label).toBe('ltr');
+      expect(measured.expanded, label).toBe('1');
       expect(measured.logDisplay, label).toBe('none');
-      if (!shown) expect(Number.parseFloat(measured.msgMax), label).toBeLessThanOrEqual(72);
-      expect(measured.messages.height, label).toBeLessThanOrEqual(shown ? 96 : 72);
+      const scrollFloor = String(label).startsWith('mobile') ? 40 : 180;
+      expect(measured.messages.height, label).toBeGreaterThanOrEqual(scrollFloor === 180 ? 180 : 28);
+      expect(measured.scrollH, label).toBeGreaterThanOrEqual(scrollFloor);
       if (String(label).startsWith('mobile')) {
         expect(measured.map.height, label).toBeGreaterThanOrEqual(110);
         expect(measured.map.height / measured.ws.height, label).toBeGreaterThan(0.12);
-        expect(measured.stage.height, label).toBeGreaterThanOrEqual(200);
+        expect(measured.stage.height, label).toBeGreaterThanOrEqual(120);
         expect(measured.horizon.top, label).toBeGreaterThanOrEqual(measured.map.bottom - 2);
       } else {
         expect(measured.map.height / measured.ws.height, label).toBeGreaterThanOrEqual(0.55);
       }
       expect(measured.scrollFont, label).toMatch(/Heebo/);
-      expect(measured.scrollSize, label).toBe('12px');
+      expect(Number.parseFloat(measured.scrollSize), label).toBeGreaterThanOrEqual(13);
+      expect(Number.parseFloat(measured.scrollSize), label).toBeLessThanOrEqual(15);
       const lineRatio = Number.parseFloat(measured.scrollLine) / Number.parseFloat(measured.scrollSize);
-      expect(lineRatio, label).toBeGreaterThan(1);
-      expect(lineRatio, label).toBeLessThan(1.45);
-      if (shown) expect(measured.scrollOverflow, label).toMatch(/auto|scroll/);
+      expect(lineRatio, label).toBeGreaterThan(1.3);
+      expect(lineRatio, label).toBeLessThan(1.6);
+      expect(measured.scrollOverflow, label).toMatch(/auto|scroll/);
       const regions = {
         map: measured.map,
         horizon: measured.horizon,
@@ -337,11 +410,9 @@ describe('Mission messages toggle — live layout', () => {
       return measured;
     }
 
-    const hiddenDesk = await check('desktop hidden', { shown: false });
-    expect(hiddenDesk.stored).toBeNull();
-    expect(hiddenDesk.badgeHidden).toBe(true);
-    expect(hiddenDesk.badgeText).toBe('');
-    shots.push(await shot('mission-messages-hidden-1280x800.png'));
+    const desk = await check('desktop');
+    expect(desk.stored).toBe('1');
+    shots.push(await shot('mission-messages-open-1280x800.png'));
 
     await page.evaluate(() => {
       applyFcStatustextHud({
@@ -349,43 +420,42 @@ describe('Mission messages toggle — live layout', () => {
         listening: true,
         heartbeatCount: 4,
         recentStatusTexts: [
-          { severity: 6, text: 'EKF3 IMU0 is using GPS' },
-          { severity: 2, text: 'PreArm: Compass not healthy' },
-          { severity: 4, text: 'GPS 1: not healthy' },
-          ...Array.from({ length: 12 }, (_, i) => ({ severity: 6, text: `note ${i}` })),
+          { severity: 4, text: 'EKF3 waiting for GPS config data', receivedAt: '2026-09-26T12:00:04Z' },
+          { severity: 4, text: 'EKF3 waiting for GPS config data', receivedAt: '2026-09-26T12:00:03Z' },
+          { severity: 4, text: 'EKF3 waiting for GPS config data', receivedAt: '2026-09-26T12:00:02Z' },
+          { severity: 4, text: 'EKF3 waiting for GPS config data', receivedAt: '2026-09-26T12:00:01Z' },
+          { severity: 2, text: 'PreArm: Compass not healthy', receivedAt: '2026-09-26T11:59:50Z' },
+          { severity: 6, text: 'ArduPlane V4.5.0', receivedAt: '2026-09-26T11:59:00Z' },
         ],
       });
     });
-    const badged = await measure(page);
-    expect(badged.badgeHidden).toBe(false);
-    expect(badged.badgeText).toBe('2');
-    expect(badged.badgeSeverity).toBe('error');
-    expect(badged.badgeBg).toMatch(/220,\s*38,\s*38|dc2626/i);
-    expect(badged.lineColor).not.toMatch(/220,\s*38,\s*38/);
-
-    await page.click('#missionMessagesToggle');
-    const shownDesk = await check('desktop shown', { shown: true });
-    expect(shownDesk.stored).toBe('1');
-    expect(shownDesk.badgeHidden).toBe(true);
-    expect(shownDesk.scrollFull).toBeGreaterThan(shownDesk.scrollH);
+    const painted = await page.evaluate(() => {
+      const lines = [...document.querySelectorAll('#pfcMsgScroll .pfc-msg-line')];
+      return lines.map((line) => ({
+        title: line.title,
+        text: line.textContent,
+        className: line.className,
+        dir: getComputedStyle(line).direction,
+      }));
+    });
+    expect(painted[0].title).toBe('EKF3 waiting for GPS config data');
+    expect(painted[0].text).toContain('EKF3 ממתינים להגדרת GPS');
+    expect(painted[0].text).not.toContain('לוויין');
+    expect(painted[0].text).toContain('×4');
+    expect(painted[0].className).toContain('pfc-msg-line--warn');
+    expect(painted[0].dir).toBe('ltr');
+    expect(painted.some((line) => line.title === 'PreArm: Compass not healthy')).toBe(true);
+    await page.click('#pfcMsgFilterWarn');
+    const warned = await page.evaluate(() => (
+      [...document.querySelectorAll('#pfcMsgScroll .pfc-msg-line')].map((line) => line.title)
+    ));
+    expect(warned).not.toContain('ArduPlane V4.5.0');
+    expect(warned).toContain('EKF3 waiting for GPS config data');
+    await page.click('#pfcMsgFilterAll');
     shots.push(await shot('mission-messages-shown-1280x800.png'));
 
-    await page.reload({ waitUntil: 'domcontentloaded' });
-    await page.waitForSelector('[data-mission-region="messages"]');
-    const kept = await measure(page);
-    expect(kept.expanded).toBe('1');
-    expect(kept.stored).toBe('1');
-
     await page.setViewportSize({ width: 360, height: 800 });
-    await page.evaluate(() => localStorage.setItem('visionLandingMissionMessagesV1', '0'));
-    await page.reload({ waitUntil: 'domcontentloaded' });
-    await page.waitForSelector('[data-mission-region="map"]');
-    const hiddenMobile = await check('mobile hidden', { shown: false });
-    expect(hiddenMobile.messages.height).toBeLessThanOrEqual(72);
-    shots.push(await shot('mission-messages-hidden-360x800.png'));
-
-    await page.click('#missionMessagesToggle');
-    await check('mobile shown', { shown: true });
+    await check('mobile');
     shots.push(await shot('mission-messages-shown-360x800.png'));
     fs.writeFileSync(path.join(shotDir, 'mission-messages-shots.json'), JSON.stringify(shots, null, 2));
   }, 60000);

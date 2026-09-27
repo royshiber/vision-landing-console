@@ -161,7 +161,7 @@ describe('ARM DISARM flight screen', () => {
             expect(ui.armDisabled).toBe(true);
             expect(ui.disarmDisabled).toBe(true);
             expect(ui.reasonHidden).toBe(false);
-            expect(ui.reason).toBe('אין חיבור לבקר הטיסה');
+            expect(ui.reason).toBe('אין קשר');
             expect(ui.link).toBe('off');
           } else if (state.id === 'disarmed' || state.id === 'refused') {
             expect(ui.armDisabled).toBe(false);
@@ -176,7 +176,7 @@ describe('ARM DISARM flight screen', () => {
           }
           if (state.id === 'refused') {
             expect(ui.refusalHidden).toBe(false);
-            expect(ui.refusal).toBe(PREARM);
+            expect(ui.refusal).toBe('לא ניתן לחמש: שגיאת מהירות GPS');
           }
         }
       }
@@ -245,7 +245,7 @@ describe('ARM DISARM flight screen', () => {
       expect(await page.locator('#flightArmDialogText').textContent()).toBe('אשרו חימוש');
       await page.locator('#flightArmConfirm').click();
       expect(posts.filter((p) => p.action === 'arm')).toHaveLength(1);
-      await page.waitForFunction(() => (document.getElementById('flightArmRefusal')?.textContent || '').includes('PreArm'));
+      await page.waitForFunction(() => (document.getElementById('flightArmRefusal')?.textContent || '').includes('שגיאת מהירות GPS'));
       await page.mouse.move(x, y);
       await page.mouse.down();
       await page.waitForTimeout(1600);
@@ -313,7 +313,7 @@ describe('ARM DISARM flight screen', () => {
       }));
       expect(stale.arm).toBe(true);
       expect(stale.disarm).toBe(true);
-      expect(stale.reason).toBe('אין חיבור לבקר הטיסה');
+      expect(stale.reason).toBe('אין קשר');
     } finally {
       await page.close();
     }

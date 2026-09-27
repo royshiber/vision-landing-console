@@ -43,9 +43,9 @@ function cssBlock(src, selector) {
 }
 
 describe('AIRVIX 1.02.264 Ask rename + premium horizon', () => {
-  it('pins APP_VERSION at 1.02.346', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.346'");
-    expect(pkg.version).toBe('1.02.346');
+  it('pins APP_VERSION at 1.02.357', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.357'");
+    expect(pkg.version).toBe('1.02.357');
   });
 
   it('fails if מסייע appears in public UI sources', () => {
@@ -81,7 +81,8 @@ describe('AIRVIX 1.02.264 Ask rename + premium horizon', () => {
     expect(workspace).toMatch(/grid-template-areas:\s*"horizon map talk"/);
     expect(css).toMatch(/\.mission-region-horizon \.flight-hud \{[^}]*min-height:\s*52%/);
     expect(css).toMatch(/\.mission-region-horizon \.flight-hud \{[^}]*max-height:\s*calc\(100% - var\(--mission-data-h/);
-    expect(cssBlock(css, '.pfd-horizon-instrument')).toMatch(/"ias horizon alt"/);
+    expect(cssBlock(css, '.pfd-horizon-instrument')).toMatch(/"horizon"/);
+    expect(cssBlock(css, '.pfd-horizon-instrument')).not.toMatch(/"ias horizon alt"/);
   });
 
   it('polishes the PFD with gradients and instrument chrome without a new layout', () => {
@@ -96,8 +97,9 @@ describe('AIRVIX 1.02.264 Ask rename + premium horizon', () => {
     expect(cssBlock(css, '.pfd-horizon-stage')).toMatch(/box-shadow:/);
     expect(cssBlock(css, '.pfd-horizon-stage')).toMatch(/radial-gradient/);
     expect(css).toMatch(/\.pfd-horizon-stage::after/);
-    expect(cssBlock(css, '.pfd-side-tape')).toMatch(/linear-gradient/);
-    expect(cssBlock(css, '.pfd-side-tape')).toMatch(/position:\s*static/);
+    expect(cssBlock(css, '.pfd-side-tape')).toMatch(/rgba\(8,\s*12,\s*18,\s*0\.4\)/);
+    expect(cssBlock(css, '.pfd-side-tape')).toMatch(/position:\s*absolute/);
+    expect(cssBlock(css, '.pfd-tape-big')).toMatch(/text-shadow:/);
     expect(draw).not.toMatch(/\/apply|\/restart|FLIGHT_ACTION|PARAM_SET/);
   });
 

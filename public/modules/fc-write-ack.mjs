@@ -39,14 +39,23 @@ export function classifyFcWrite({ linked, requested, httpOk, data }) {
     return { ...keepAll, text: data.message || 'הכתיבה חסומה. יותר מדי פרמטרים בבת אחת.', posted: true };
   }
   if (!keys.length) {
-    return { ...keepAll, text: 'אין שינוי', posted: true };
+    return {
+      level: 'none',
+      text: 'אין שינוי',
+      posted: true,
+      history: false,
+      clear: [],
+      keep: [],
+      acked: {},
+      data: data || null,
+    };
   }
   const { missed, acked } = fcReadbackAck(requested, data);
   const ackedKeys = Object.keys(acked);
   if (missed.length === 0 && data?.ok === true && httpOk) {
     return {
       level: 'ok',
-      text: 'הכתיבה לבקר הושלמה. הבקר אישר כל פרמטר.',
+      text: 'נכתב לבקר ואומת',
       posted: true,
       history: true,
       clear: keys,

@@ -42,9 +42,9 @@ function cssBlock(src, selector) {
 }
 
 describe('AIRVIX 1.02.264 flyable Mission layout', () => {
-  it('pins APP_VERSION at 1.02.346', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.346'");
-    expect(pkg.version).toBe('1.02.346');
+  it('pins APP_VERSION at 1.02.357', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.357'");
+    expect(pkg.version).toBe('1.02.357');
   });
 
   it('keeps the map as the majority workspace and sizes the PFD in the readable band', () => {
@@ -55,7 +55,8 @@ describe('AIRVIX 1.02.264 flyable Mission layout', () => {
     expect(css).toMatch(/\.mission-region-horizon \.flight-hud \{[^}]*min-height:\s*52%/);
     expect(css).toMatch(/\.mission-region-horizon \.flight-hud \{[^}]*max-height:\s*calc\(100% - var\(--mission-data-h/);
     expect(css).not.toMatch(/\.mission-region-horizon \.flight-hud \{[^}]*260px/);
-    expect(cssBlock(css, '.pfd-horizon-instrument')).toMatch(/"ias horizon alt"/);
+    expect(cssBlock(css, '.pfd-horizon-instrument')).toMatch(/"horizon"/);
+    expect(cssBlock(css, '.pfd-horizon-instrument')).not.toMatch(/"ias horizon alt"/);
   });
 
   it('grows a horizontal Assist textarea without a vertical sliver', () => {
@@ -88,9 +89,9 @@ describe('AIRVIX 1.02.264 flyable Mission layout', () => {
     expect(html).toMatch(/data-mission-region="messages"[^>]*aria-label="הודעות מטוס"/);
     expect(html).toMatch(/class="mission-region-title">הודעות מטוס</);
     expect(html).toMatch(/id="pfdHorizonMsgLog"/);
-    expect(html).toMatch(/class="mission-messages-toggle-label">הודעות</);
-    expect(html).toMatch(/title="הודעות"/);
-    expect(css).toMatch(/\.mission-region-messages\[data-messages-expanded="0"\]\s*\{[^}]*max-height:\s*min\(40px,\s*var\(--mission-msg-collapsed-max,\s*72px\)\)/);
+    expect(html).toMatch(/class="pfc-msg-toolbar-label">הודעות</);
+    expect(html).toMatch(/id="pfcMsgFilterAll"/);
+    expect(css).toMatch(/\.mission-region-messages\[data-messages-expanded="0"\][\s\S]{0,180}max-height:\s*none/);
     const apply = sliceFunction(js, 'applyMissionMessagesExpanded');
     expect(apply).toContain('הודעות');
     expect(apply).not.toContain('הסתר');

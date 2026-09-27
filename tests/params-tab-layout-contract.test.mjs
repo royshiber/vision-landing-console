@@ -131,6 +131,19 @@ describe('Parameters tab layout contract — live boxes', () => {
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await openParams();
       const toolbar = await measureToolbar();
+      await page.waitForFunction(() => {
+        const label = document.getElementById('jetsonToolState')?.textContent || '';
+        return label === 'נטען' || label === 'יש שינוי' || label === 'נכשל';
+      });
+      const sync = await page.evaluate(() => ({
+        backup: document.getElementById('jetsonToolState')?.textContent || '',
+        live: document.getElementById('visionConfigStatus')?.textContent || '',
+        meta: `${document.getElementById('jetsonToolMeta')?.textContent || ''}${document.getElementById('fcToolMeta')?.textContent || ''}`,
+      }));
+      expect(sync.backup, vp.name).toBe('נטען');
+      expect(sync.live, vp.name).toBe('');
+      expect(sync.meta, vp.name).not.toContain('קריאה אחרונה');
+      expect(sync.meta, vp.name).not.toContain('לא מסונכרן');
       expect(toolbar.faultHidden, vp.name).toBe(true);
       expect(toolbar.wizardHidden, vp.name).toBe(true);
       expect(toolbar.docOverflow, vp.name).toBeLessThanOrEqual(1);

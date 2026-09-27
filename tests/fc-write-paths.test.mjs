@@ -49,7 +49,20 @@ describe('FC write acknowledgement', () => {
       data: { ok: true, simulated: false, via: 'mavlink', verified: { EK3_ENABLE: 0, EK3_SRC1_POSXY: 1 } },
     });
     expect(out.level).toBe('ok');
+    expect(out.text).toBe('נכתב לבקר ואומת');
     expect(out.clear).toEqual(['EK3_ENABLE', 'EK3_SRC1_POSXY']);
+  });
+
+  it('treats an empty write as neutral, not a failure', () => {
+    const out = classifyFcWrite({
+      linked: true,
+      requested: {},
+      httpOk: true,
+      data: { ok: true, verified: {}, message: 'אין שינוי' },
+    });
+    expect(out.level).toBe('none');
+    expect(out.text).toBe('אין שינוי');
+    expect(out.history).toBe(false);
   });
 
   it('treats an offline success payload as no link', () => {
@@ -238,13 +251,36 @@ describe('FC write paths in the parameters tab', () => {
     await page.fill('[data-param-key="EK3_SRC1_POSXY"] .fc-group-next', '1');
     await page.click('#fcGroupApply');
     await confirmWrite();
-    await page.waitForFunction(() => (document.getElementById('fcGroupStatus')?.textContent || '').includes('אין חיבור לבקר הטיסה'));
+    await page.waitForFunction(() => (document.getElementById('paramWriteResult')?.textContent || '').includes('אין חיבור לבקר הטיסה'));
     expect(posts).toBe(0);
     expect(await page.locator('[data-param-key="EK3_ENABLE"] .fc-group-next').inputValue()).toBe('0');
     expect(await page.locator('[data-param-key="EK3_SRC1_POSXY"] .fc-group-next').inputValue()).toBe('1');
     expect(await page.locator('#fcChangeList').innerText()).toContain('ממתין');
     expect(await page.locator('#fcChangeList').innerText()).not.toContain('הבקר אישר');
-    expect(await page.locator('#fcGroupStatus').getAttribute('class') || '').not.toContain('success');
+    expect(await page.locator('#paramWriteResult').getAttribute('data-tone')).toBe('bad');
+    expect(await page.locator('#paramToolFault').isHidden()).toBe(true);
+  }, 60000);
+
+  it('shows one green verified result and updates the row after a full acknowledgement', async () => {
+    linked = true;
+    partial = false;
+    posts = 0;
+    await openGroup();
+    await page.click('#arduReadBtn');
+    await page.waitForFunction(() => document.querySelector('[data-param-key="EK3_ENABLE"] .fc-group-now')?.textContent === '1');
+    await page.fill('[data-param-key="EK3_ENABLE"] .fc-group-next', '0');
+    await page.click('#fcGroupApply');
+    await confirmWrite();
+    await page.waitForFunction(() => (document.getElementById('paramWriteResult')?.textContent || '').includes('נכתב לבקר ואומת'));
+    const text = await page.locator('#paramWriteResult').innerText();
+    expect(text).toContain('EK3_ENABLE 1 → 0');
+    expect(text).not.toContain('אין שינוי');
+    expect(await page.locator('#paramWriteResult').getAttribute('data-tone')).toBe('ok');
+    expect(await page.locator('#paramToolFault').isHidden()).toBe(true);
+    expect(await page.locator('#paramWriteResult .param-write-retry').count()).toBe(0);
+    expect(await page.locator('[data-param-key="EK3_ENABLE"] .fc-group-now').innerText()).toBe('0');
+    expect(await page.locator('[data-param-key="EK3_ENABLE"]').getAttribute('class')).toContain('fc-group-row--written');
+    expect(posts).toBe(1);
   }, 60000);
 
   it('keeps the unacknowledged group draft after a partial failure', async () => {
@@ -258,9 +294,10 @@ describe('FC write paths in the parameters tab', () => {
     await page.fill('[data-param-key="EK3_SRC1_POSXY"] .fc-group-next', '1');
     await page.click('#fcGroupApply');
     await confirmWrite();
-    await page.waitForFunction(() => (document.getElementById('fcGroupStatus')?.textContent || '').includes('חלקית'));
+    await page.waitForFunction(() => (document.getElementById('paramWriteResult')?.textContent || '').includes('חלקית'));
     expect(posts).toBe(1);
-    expect(await page.locator('#fcGroupStatus').innerText()).not.toMatch(/WRITE/);
+    expect(await page.locator('#paramWriteResult').innerText()).not.toMatch(/WRITE/);
+    expect(await page.locator('#paramWriteResult').getAttribute('data-tone')).toBe('bad');
     const kept = [
       await page.locator('[data-param-key="EK3_ENABLE"] .fc-group-next').inputValue(),
       await page.locator('[data-param-key="EK3_SRC1_POSXY"] .fc-group-next').inputValue(),
@@ -288,7 +325,7 @@ describe('FC write paths in the parameters tab', () => {
     await openWizard();
     await page.click('#acApplyBtn');
     await confirmWrite();
-    await page.waitForFunction(() => (document.getElementById('acApplyStatus')?.textContent || '').includes('אין חיבור לבקר הטיסה'));
+    await page.waitForFunction(() => (document.getElementById('paramWriteResult')?.textContent || '').includes('אין חיבור לבקר הטיסה'));
     expect(posts).toBe(0);
     const runs = await page.evaluate(() => localStorage.getItem('vlc.fcWizard.runs.v1'));
     expect(runs == null || runs === '[]' || !JSON.parse(runs).some((run) => run.ok)).toBe(true);
@@ -308,7 +345,7 @@ describe('FC write paths in the parameters tab', () => {
     await page.waitForFunction(() => (document.getElementById('arduWriteStatus')?.textContent || '').includes('הושלמה'));
     await page.click('#acApplyBtn');
     await confirmWrite();
-    await page.waitForFunction(() => (document.getElementById('acApplyStatus')?.textContent || '').includes('חלקית'));
+    await page.waitForFunction(() => (document.getElementById('paramWriteResult')?.textContent || '').includes('חלקית'));
     expect(posts).toBe(1);
     const runs = await page.evaluate(() => JSON.parse(localStorage.getItem('vlc.fcWizard.runs.v1') || '[]'));
     expect(runs.some((run) => run.ok)).toBe(false);
@@ -323,7 +360,7 @@ describe('FC write paths in the parameters tab', () => {
     await page.waitForSelector('.fc-file-restore');
     await page.click('.fc-file-restore');
     await confirmWrite();
-    await page.waitForFunction(() => (document.getElementById('fcFileStatus')?.textContent || '').includes('אין חיבור לבקר הטיסה'));
+    await page.waitForFunction(() => (document.getElementById('paramWriteResult')?.textContent || '').includes('אין חיבור לבקר הטיסה'));
     expect(posts).toBe(0);
     expect(await page.locator('#fcChangeList').innerText()).not.toContain('הבקר אישר');
     expect(await page.locator('#fcFileLatest').innerText()).not.toContain('כתיבה לבקר');
@@ -338,9 +375,9 @@ describe('FC write paths in the parameters tab', () => {
     await page.waitForFunction(() => document.querySelector('[data-param-key="EK3_ENABLE"] .fc-group-now')?.textContent === '1');
     await page.click('.fc-file-restore');
     await confirmWrite();
-    await page.waitForFunction(() => (document.getElementById('fcFileStatus')?.textContent || '').includes('חלקית'));
+    await page.waitForFunction(() => (document.getElementById('paramWriteResult')?.textContent || '').includes('חלקית'));
     expect(posts).toBe(1);
-    expect(await page.locator('#fcFileStatus').innerText()).not.toMatch(/WRITE|SUCCESS/);
+    expect(await page.locator('#paramWriteResult').innerText()).not.toMatch(/WRITE|SUCCESS/);
     expect(await page.locator('#fcChangeList').innerText()).toContain('נכשל');
   }, 60000);
 
@@ -351,11 +388,10 @@ describe('FC write paths in the parameters tab', () => {
     await openGroup();
     await page.evaluate(() => { document.getElementById('arduWriteBtn').disabled = false; });
     await page.click('#arduWriteBtn');
-    await page.waitForFunction(() => (document.getElementById('paramToolFaultText')?.textContent || '') === 'אין חיבור לבקר הטיסה'
-      || (document.getElementById('arduWriteStatus')?.textContent || '').includes('אין חיבור לבקר הטיסה'));
+    await page.waitForFunction(() => (document.getElementById('paramWriteResult')?.textContent || '').includes('אין חיבור לבקר הטיסה'));
     expect(posts).toBe(0);
-    expect(await page.locator('#arduWriteStatus').getAttribute('class')).toContain('fail');
-    expect(await page.locator('#arduWriteStatus').getAttribute('class')).not.toContain('success');
+    expect(await page.locator('#paramWriteResult').getAttribute('data-tone')).toBe('bad');
+    expect(await page.locator('#paramToolFault').isHidden()).toBe(true);
   }, 60000);
 
   it('does not report toolbar success on a partial failure', async () => {
@@ -381,13 +417,17 @@ describe('FC write paths in the parameters tab', () => {
     await page.locator('#arduWriteBtn').scrollIntoViewIfNeeded();
     await page.click('#arduWriteBtn');
     await page.waitForFunction(() => {
-      const text = document.getElementById('arduWriteStatus')?.textContent || '';
+      const text = document.getElementById('paramWriteResult')?.textContent || '';
       return text.includes('חלקית') || text.includes('לא אושרו') || text.includes('אין שינוי');
     });
-    const text = await page.locator('#arduWriteStatus').innerText();
-    const cls = await page.locator('#arduWriteStatus').getAttribute('class');
+    const text = await page.locator('#paramWriteResult').innerText();
+    const tone = await page.locator('#paramWriteResult').getAttribute('data-tone');
     expect(text).not.toMatch(/WRITE|SUCCESS/);
-    expect(cls).not.toContain('success');
-    if (text.includes('חלקית') || text.includes('לא אושרו')) expect(posts).toBe(1);
+    expect(tone).not.toBe('ok');
+    if (text.includes('אין שינוי')) expect(tone).toBe('neutral');
+    if (text.includes('חלקית') || text.includes('לא אושרו')) {
+      expect(tone).toBe('bad');
+      expect(posts).toBe(1);
+    }
   }, 60000);
 });

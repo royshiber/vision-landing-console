@@ -14,9 +14,13 @@ const js = fs.readFileSync(path.join(repoRoot, 'public', 'app.js'), 'utf8');
 
 describe('Debrief camera grid and horizon menu — source', () => {
   it('offers Cam0, Cam1 and A8 without colorizing the mono sensor', () => {
-    expect(html).toContain('data-debrief-cam="cam0"');
-    expect(html).toContain('data-debrief-cam="cam1"');
+    expect(html).toContain('data-cam="cam0"');
+    expect(html).toContain('data-cam="cam1"');
+    expect(html).not.toContain('data-debrief-cam="cam0"');
+    expect(html).not.toContain('data-debrief-cam="cam1"');
     expect(html).toContain('data-debrief-cam="a8"');
+    expect(html).toContain('id="opticsCam0Btn"');
+    expect(html).toContain('id="opticsCam1Btn"');
     expect(html).toContain('id="flightVideo"');
     expect(html).toContain('אין אות');
     expect(css).toMatch(/\.debrief-cam-tile\[data-mono="1"\][\s\S]*filter:\s*grayscale\(1\)/);
@@ -59,66 +63,49 @@ describe('Debrief camera grid and horizon menu — live', () => {
 
   async function openDebrief() {
     await page.goto(BASE, { waitUntil: 'domcontentloaded' });
-    await page.click('[data-tab="recordings"]');
-    await page.click('#debriefRecBtn');
+    await page.click('[data-tab="optics"]');
     await page.waitForSelector('#debriefCamGrid');
   }
 
-  async function setOpen(ids) {
-    for (const id of ['cam0', 'cam1', 'a8']) {
-      const pressed = await page.getAttribute(`[data-debrief-cam="${id}"]`, 'aria-pressed');
-      const want = ids.includes(id);
-      if ((pressed === 'true') !== want) await page.click(`[data-debrief-cam="${id}"]`);
-    }
+  async function setGimbal(on) {
+    const pressed = await page.getAttribute('[data-debrief-cam="a8"]', 'aria-pressed');
+    if ((pressed === 'true') !== on) await page.click('[data-debrief-cam="a8"]');
   }
 
-  it('fills, splits, and stacks cameras and remembers the choice', async () => {
+  it('fills both cameras, stacks the gimbal, and remembers the choice', async () => {
     await openDebrief();
-    await setOpen(['cam0']);
+    await setGimbal(false);
     let box = await page.evaluate(() => {
       const grid = document.getElementById('debriefCamGrid');
+      const tiles = [...document.querySelectorAll('.debrief-cam-tile')].filter((el) => !el.hidden);
       const tile = document.querySelector('.debrief-cam-tile[data-cam="cam0"]');
       const note = tile.querySelector('.debrief-cam-nosignal');
       const img = tile.querySelector('.debrief-cam-live');
-      const gr = grid.getBoundingClientRect();
-      const tr = tile.getBoundingClientRect();
+      const rs = tiles.map((el) => el.getBoundingClientRect());
       return {
         count: grid.dataset.count,
+        n: tiles.length,
         note: note.textContent,
         noteHidden: note.hidden,
         imgHidden: img.hidden,
         mono: getComputedStyle(tile.querySelector('.debrief-cam-media') || tile).filter,
-        tileW: tr.width,
-        gridW: gr.width,
-        stored: localStorage.getItem('vlc.debrief.cameras.v1'),
-      };
-    });
-    expect(box.count).toBe('1');
-    expect(box.note).toBe('אין אות');
-    expect(box.noteHidden).toBe(false);
-    expect(box.imgHidden).toBe(true);
-    expect(box.tileW / box.gridW).toBeGreaterThan(0.9);
-    await page.screenshot({ path: path.join(shotDir, 'grid-1.png') });
-
-    await setOpen(['cam0', 'cam1']);
-    box = await page.evaluate(() => {
-      const tiles = [...document.querySelectorAll('.debrief-cam-tile')].filter((el) => !el.hidden);
-      const rs = tiles.map((el) => el.getBoundingClientRect());
-      return {
-        count: document.getElementById('debriefCamGrid').dataset.count,
-        n: tiles.length,
         sideBySide: Math.abs(rs[0].top - rs[1].top) < 8
           && (rs[0].right <= rs[1].left + 8 || rs[1].right <= rs[0].left + 8),
         similar: Math.abs(rs[0].width - rs[1].width) < 12,
+        stored: localStorage.getItem('vlc.debrief.cameras.v1'),
       };
     });
     expect(box.count).toBe('2');
     expect(box.n).toBe(2);
+    expect(box.note).toBe('אין אות');
+    expect(box.noteHidden).toBe(false);
+    expect(box.imgHidden).toBe(true);
     expect(box.sideBySide).toBe(true);
     expect(box.similar).toBe(true);
+    expect(box.stored).toBeNull();
     await page.screenshot({ path: path.join(shotDir, 'grid-2.png') });
 
-    await setOpen(['cam0', 'cam1', 'a8']);
+    await setGimbal(true);
     box = await page.evaluate(() => {
       const tiles = [...document.querySelectorAll('.debrief-cam-tile')].filter((el) => !el.hidden);
       const rs = tiles.map((el) => ({ cam: el.dataset.cam, ...el.getBoundingClientRect().toJSON() }));
@@ -138,8 +125,7 @@ describe('Debrief camera grid and horizon menu — live', () => {
     await page.screenshot({ path: path.join(shotDir, 'grid-3.png') });
 
     await page.reload({ waitUntil: 'domcontentloaded' });
-    await page.click('[data-tab="recordings"]');
-    await page.click('#debriefRecBtn');
+    await page.click('[data-tab="optics"]');
     await page.waitForSelector('#debriefCamGrid[data-count="3"]');
     expect(await page.locator('.debrief-cam-tile:not([hidden])').count()).toBe(3);
   }, 30000);
@@ -147,7 +133,7 @@ describe('Debrief camera grid and horizon menu — live', () => {
   it('stacks two cameras on a narrow viewport', async () => {
     await page.setViewportSize({ width: 360, height: 800 });
     await openDebrief();
-    await setOpen(['cam0', 'a8']);
+    await setGimbal(false);
     const box = await page.evaluate(() => {
       const tiles = [...document.querySelectorAll('.debrief-cam-tile')].filter((el) => !el.hidden);
       const rs = tiles.map((el) => el.getBoundingClientRect());

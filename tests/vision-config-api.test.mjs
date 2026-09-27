@@ -84,7 +84,7 @@ describe('GET/POST /api/vision/config SQLite persistence', () => {
       expect(r.status).toBe(200);
       expect(j.ok).toBe(true);
       expect(j.profile.flare_alt_m).toBeUndefined();
-      expect(j.profile.companion_serial_port).toBe(2);
+      expect(j.profile.companion_serial_port).toBe(4);
       expect(j.arduTarget.LAND_SPEED).toBe(buildArduTargetDefaults().LAND_SPEED);
     } finally {
       await stopCoreApi(handle);

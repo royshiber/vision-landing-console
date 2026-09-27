@@ -35,6 +35,11 @@ class ModuleHost:
                 "_times": deque(maxlen=30),
             }
 
+    def module(self, name):
+        with self._lock:
+            slot = self._mods.get(name)
+            return None if slot is None else slot["module"]
+
     def set_enabled(self, name, enabled):
         with self._lock:
             slot = self._mods.get(name)

@@ -207,12 +207,16 @@ describe('ARM DISARM ui contract', () => {
     const js = fs.readFileSync(path.join(repoRoot, 'public/app.js'), 'utf8');
     const css = fs.readFileSync(path.join(repoRoot, 'public/styles.css'), 'utf8');
     expect(html).toContain('id="flightArmBtn"');
-    expect(html).toContain('חימוש ARM');
-    expect(html).toContain('נטרול DISARM');
+    expect(html).toContain('aria-label="חימוש"');
+    expect(html).toContain('>ARM</button>');
+    expect(html).toContain('aria-label="נטרול"');
+    expect(html).toContain('>DISARM</button>');
     expect(html).toContain('אין חיבור לבקר הטיסה');
+    expect(html).toContain('אין קשר');
     expect(html).not.toContain('21196');
     expect(html).toContain('אשרו חימוש');
     expect(html).toContain('אשרו נטרול');
+    expect(js).toContain('function translatePrearmText(');
     expect(js).toContain('openFlightArmDialog');
     expect(js).toContain('FLIGHT_ARM_HOLD_MS = 1500');
     expect(js).toContain('initFlightArmControls();');
@@ -220,5 +224,57 @@ describe('ARM DISARM ui contract', () => {
     const armCss = css.slice(css.indexOf('#flightArmRow'), css.indexOf('#flightArmRow') + 1800);
     expect(armCss).toMatch(/font-size:\s*clamp\(11px/);
     expect(armCss).not.toMatch(/text-overflow:\s*ellipsis/);
+  });
+
+  it('translates known pre-arm lines to Hebrew and keeps unknown text', () => {
+    const js = fs.readFileSync(path.join(repoRoot, 'public/app.js'), 'utf8');
+    const start = js.indexOf('function translatePrearmText(');
+    const brace = js.indexOf('{', start);
+    let depth = 0;
+    let end = brace;
+    for (let i = brace; i < js.length; i += 1) {
+      if (js[i] === '{') depth += 1;
+      else if (js[i] === '}') {
+        depth -= 1;
+        if (depth === 0) {
+          end = i + 1;
+          break;
+        }
+      }
+    }
+    const translate = new Function(`${js.slice(start, end)}; return translatePrearmText;`)();
+    expect(translate('Arm: 3D Accel calibration needed')).toBe('לא ניתן לחמש: נדרש כיול מד תאוצה');
+    expect(translate('PreArm: GPS speed error 1.2m/s Need 3D Fix')).toBe('לא ניתן לחמש: שגיאת מהירות GPS');
+    expect(translate('PreArm: Need 3D Fix')).toBe('לא ניתן לחמש: נדרש מיקום GPS');
+    expect(translate('EKF variance')).toBe('לא ניתן לחמש: EKF לא תקין');
+    expect(translate('PreArm: Compass not healthy')).toBe('לא ניתן לחמש: המצפן לא תקין');
+    expect(translate('something the console does not know')).toBe('something the console does not know');
+    expect(translate('אין חיבור לבקר הטיסה')).toBe('אין חיבור לבקר הטיסה');
+  });
+
+  it('treats live FC telemetry as connected before a parameter read', () => {
+    const js = fs.readFileSync(path.join(repoRoot, 'public/app.js'), 'utf8');
+    const start = js.indexOf('function fcLinkFromTelemetry(');
+    const brace = js.indexOf('{', start);
+    let depth = 0;
+    let end = brace;
+    for (let i = brace; i < js.length; i += 1) {
+      if (js[i] === '{') depth += 1;
+      else if (js[i] === '}') {
+        depth -= 1;
+        if (depth === 0) {
+          end = i + 1;
+          break;
+        }
+      }
+    }
+    const link = new Function(`${js.slice(start, end)}; return fcLinkFromTelemetry;`)();
+    const live = { connected: true, lastHeartbeatAgeMs: 400 };
+    expect(link(live, 'unknown')).toBe('ok');
+    expect(link(live, 'down')).toBe('ok');
+    expect(link({ connected: false }, 'unknown')).toBe('unknown');
+    expect(link({ connected: true, lastHeartbeatAgeMs: 8000 }, 'down')).toBe('down');
+    expect(link(null, 'down')).toBe('down');
+    expect(js).not.toMatch(/function resolvedFcLink\(\)[\s\S]{0,240}__vlcConnectWidget/);
   });
 });

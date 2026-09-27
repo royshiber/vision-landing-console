@@ -46,6 +46,7 @@ def load_config(path=None, env=None):
         "auto_record_on_arm": False,
         "marker_size_m": 0.16,
         "marker_enabled": True,
+        "fov_deg": 120.0,
         "ae": {
             "enabled": True,
             "target_mean": 0.42,
@@ -253,14 +254,10 @@ class Cam0Service:
         calib = load_latest(self.config.get("calibration_dir"))
         intrinsics = (calib or {}).get("intrinsics")
         self.calibration_nominal = False
-        if intrinsics is None and str(self.config.get("source") or "").lower() in {"synthetic", "syn"}:
-            intrinsics = {
-                "fx": 800.0,
-                "fy": 800.0,
-                "cx": (float(width) - 1) / 2.0,
-                "cy": (float(height) - 1) / 2.0,
-            }
-            self.calibration_nominal = True
+        if not intrinsics:
+            from .fov import intrinsics_from_fov
+            intrinsics = intrinsics_from_fov(width, height, self.config.get("fov_deg", 120))
+            self.calibration_nominal = intrinsics is not None
         marker = MarkerModule(intrinsics=intrinsics, marker_size_m=float(self.config.get("marker_size_m", 0.16)))
         self.host = ModuleHost(self.bus)
         self.host.register(marker, enabled=bool(self.config.get("marker_enabled", True)))
@@ -387,7 +384,22 @@ class Cam0Service:
             self.config["fps"] = int(body["fps"])
         if "auto_record_on_arm" in body:
             self.config["auto_record_on_arm"] = bool(body["auto_record_on_arm"])
+        if "fov_deg" in body:
+            from .fov import parse_fov
+            parsed = parse_fov(body.get("fov_deg"))
+            if parsed is not None:
+                self.config["fov_deg"] = parsed
+                self._refresh_nominal_intrinsics()
         return self.settings()
+
+    def _refresh_nominal_intrinsics(self):
+        if not getattr(self, "calibration_nominal", False) or self.host is None or self.bus is None:
+            return
+        from .fov import intrinsics_from_fov
+        k = intrinsics_from_fov(self.bus.width, self.bus.height, self.config.get("fov_deg", 120))
+        marker = self.host.module("marker")
+        if marker is not None and k is not None:
+            marker.intrinsics = k
 
     def _ae_status(self):
         ae = self.ae.snapshot()
@@ -412,6 +424,7 @@ class Cam0Service:
             "stream": self.config.get("stream"),
             "auto_record_on_arm": bool(self.config.get("auto_record_on_arm")),
             "marker_size_m": self.config.get("marker_size_m"),
+            "fov_deg": self.config.get("fov_deg", 120),
             "flight_commands": False,
         }
 

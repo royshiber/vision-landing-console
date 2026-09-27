@@ -218,6 +218,9 @@ const CONTROL_SUBTAB_KEY = 'visionLandingControlSubtabV1';
 const PULSE_HOME_KEY = 'visionLandingHomeSurfaceV1';
 const MISSION_SWAP_KEY = 'visionLandingMissionSwapV1';
 const MISSION_SIZE_KEY = 'visionLandingMissionSizeV4';
+const MISSION_COL_OPEN_KEY = 'visionLandingMissionColOpenV1';
+const MISSION_COL_MIN_PX = 140;
+const MISSION_COL_COLLAPSE = 0.02;
 const MISSION_AREAS_KEY = 'visionLandingMissionAreasV2';
 const MISSION_MESSAGES_KEY = 'visionLandingMissionMessagesV1';
 const MISSION_MESSAGES_SEEN_KEY = 'visionLandingMissionMessagesSeenV1';
@@ -342,7 +345,7 @@ function isEvolvePreviewFrame() {
 function evolvePreviewAllowedTab(tabId) {
   const raw = String(tabId || '').trim();
   if (raw === 'platform' || raw === 'maintenance' || raw === 'development' || raw === 'pulse') return 'terrain';
-  if (['terrain', 'control', 'recordings', 'telemetry'].includes(raw)) return raw;
+  if (['terrain', 'control', 'recordings', 'optics', 'telemetry'].includes(raw)) return raw;
   return 'terrain';
 }
 
@@ -593,7 +596,7 @@ function renderFcParamFiles() {
     latest.textContent = [formatFcWhen(top.savedAt), topSource, String(top.count ?? '')].filter(Boolean).join(' · ');
   }
   list.replaceChildren();
-  for (const file of fcParamFiles) {
+  for (const file of fcParamFiles.slice(0, 1)) {
     const li = document.createElement('li');
     li.className = 'fc-file-row';
     const when = document.createElement('span');
@@ -667,14 +670,16 @@ async function restoreFcParamFile(id) {
       rows.push(row);
     }
     if (!rows.length) {
-      if (status) status.textContent = 'אין הבדל';
+      paintFcWriteResult({ level: 'none', text: 'אין שינוי' });
+      if (status) status.textContent = '';
       return;
     }
     openGuardedFcWriteConfirm(rows, async () => {
       if (status) status.textContent = 'שולח…';
       try {
         const outcome = await commitGuardedFcWrite(writable);
-        if (status) status.textContent = outcome.text;
+        paintFcWriteResult(outcome, fcWritePairs(Object.keys(writable), writable), () => restoreFcParamFile(id));
+        if (status) status.textContent = '';
         if (outcome.history) {
           pushFcWriteLog(Object.keys(writable), outcome.data, writable);
           applyAckedSnapshot(outcome.acked);
@@ -683,11 +688,21 @@ async function restoreFcParamFile(id) {
         renderFcGroupList();
         renderFcChangePane();
       } catch (err) {
-        if (status) status.textContent = `הכתיבה לבקר נכשלה. הסיבה: ${hebrewRequestFault(err)}`;
+        paintFcWriteResult(
+          { level: 'fail', text: `הכתיבה לבקר נכשלה. הסיבה: ${hebrewRequestFault(err)}` },
+          [],
+          () => restoreFcParamFile(id),
+        );
+        if (status) status.textContent = '';
       }
     });
   } catch (err) {
-    if (status) status.textContent = `טעינת הקובץ נכשלה. הסיבה: ${hebrewRequestFault(err, err?.res)}`;
+    paintFcWriteResult(
+      { level: 'fail', text: `טעינת הקובץ נכשלה. הסיבה: ${hebrewRequestFault(err, err?.res)}` },
+      [],
+      () => restoreFcParamFile(id),
+    );
+    if (status) status.textContent = '';
   }
 }
 
@@ -731,10 +746,12 @@ function renderFcGroupList() {
     nowEl.className = 'fc-group-now';
     nowEl.dataset.state = presence.state;
     nowEl.textContent = presence.text;
+    const metaText = fcMetaText(key);
     const metaEl = document.createElement('span');
     metaEl.className = 'fc-group-meta';
-    metaEl.textContent = fcMetaText(key);
-    li.append(keyEl, heEl, nowEl, metaEl);
+    metaEl.textContent = metaText;
+    if (metaText) li.title = metaText;
+    li.append(keyEl, heEl, metaEl, nowEl);
     if (!readOnly) {
       const input = document.createElement('input');
       input.type = 'number';
@@ -796,8 +813,9 @@ function applyFcGroupDraft() {
     const status = document.getElementById('fcGroupStatus');
     if (status) status.textContent = 'שולח…';
     try {
-      const outcome = await commitGuardedFcWrite(params);
-      if (status) status.textContent = outcome.text;
+        const outcome = await commitGuardedFcWrite(params);
+      const pairs = fcWritePairs(outcome.level === 'ok' ? outcome.clear : keys, params);
+      paintFcWriteResult(outcome, pairs, () => applyFcGroupDraft());
       if (outcome.history) {
         pushFcWriteLog(keys, outcome.data, params);
         applyAckedSnapshot(outcome.acked);
@@ -810,7 +828,11 @@ function applyFcGroupDraft() {
       renderFcGroupList();
       updateParamSyncBanner();
     } catch (err) {
-      if (status) status.textContent = `הכתיבה לבקר נכשלה. הסיבה: ${hebrewRequestFault(err)}`;
+      paintFcWriteResult(
+        { level: 'fail', text: `הכתיבה לבקר נכשלה. הסיבה: ${hebrewRequestFault(err)}` },
+        [],
+        () => applyFcGroupDraft(),
+      );
     }
   });
 }
@@ -1057,12 +1079,12 @@ const takeoffGrid = document.getElementById('takeoffGrid');
 const visionNavGrid = document.getElementById('visionNavGrid');
 /** Why: match server `ARDU_TARGET_DEFAULTS` shape; what: cloned into `arduTargetState` for editable FC targets. */
 const COMPANION_PORT_OPTIONS = Array.from({ length: 8 }, (_x, i) => i + 1);
-const companionLinkState = { companion_serial_port: 2, companion_sr_bucket: 2 };
+const companionLinkState = { companion_serial_port: 4, companion_sr_bucket: 4 };
 
 function normalizeCompanionLink(raw) {
   const p = Number(raw?.companion_serial_port);
   const s = Number(raw?.companion_sr_bucket);
-  const companion_serial_port = COMPANION_PORT_OPTIONS.includes(p) ? p : 2;
+  const companion_serial_port = COMPANION_PORT_OPTIONS.includes(p) ? p : 4;
   const companion_sr_bucket = COMPANION_PORT_OPTIONS.includes(s) ? s : companion_serial_port;
   return { companion_serial_port, companion_sr_bucket };
 }
@@ -1220,6 +1242,7 @@ function updateParamSyncBanner() {
   }
 
   el.className = `param-sync-banner param-sync-banner--${level}`;
+  el.hidden = lines.length === 0;
   if (typeof refreshParamToolbarMeta === 'function') refreshParamToolbarMeta();
   el.innerHTML = lines.map((t) => `<span class="param-sync-line">${t}</span>`).join('');
 }
@@ -1496,7 +1519,7 @@ function buildDynamicCommFields(rawCompanion = companionLinkState) {
   const serialKey = serialLabelForPort(serialPort);
   const srKey = srLabelForBucket(srBucket);
   return [
-    { group: 'תקשורת Jetson', key: 'companion_serial_port', label: 'פורט Jetson (SERIALx)', kind: 'enum', virtual: true, options: COMPANION_PORT_OPTIONS, tier: 'core' },
+    { group: 'תקשורת Jetson', key: 'companion_serial_port', label: 'פורט בקר טיסה (SERIAL4)', kind: 'enum', virtual: true, options: COMPANION_PORT_OPTIONS, tier: 'core' },
     { group: 'תקשורת Jetson', key: 'companion_sr_bucket', label: 'ערוץ SRx לקצבים', kind: 'enum', virtual: true, options: COMPANION_PORT_OPTIONS, tier: 'core' },
     { group: 'תקשורת Jetson', key: `${serialKey}_PROTOCOL`, label: `${serialKey} — פרוטוקול (MAVLink)`, kind: 'enum', options: [0, 1, 2], tier: 'core' },
     { group: 'תקשורת Jetson', key: `${serialKey}_BAUD`, label: `${serialKey} — Baud (Ardu code)`, kind: 'enum', options: [9, 19, 38, 57, 115, 230, 460, 921], tier: 'core' },
@@ -1554,7 +1577,7 @@ function persistArduFavorites() {
 
 /** Why: `?` tooltips on ArduPilot form — short Hebrew, parameter name in English in title bar only via label. */
 const ARDU_PARAM_HELP = {
-  companion_serial_port: 'בחירת פורט פיזי שאליו מחובר מחשב המשימה. אם החיבור בפועל הוא SERIAL3 ואתה משאיר SERIAL2, בקר הטיסה ישדר בפורט הלא נכון ותראה ניתוקים/חוסר נתונים. שנה רק כשאתה בטוח בחיווט.',
+  companion_serial_port: 'פורט בקר הטיסה מחובר לרפידות TX3 ו-RX3. זה SERIAL4 בקצב 921600. השאירו את הבחירה על SERIAL4.',
   companion_sr_bucket: 'קובע מאיזה SRx יוצאים קצבי הטלמטריה למחשב המשימה. ברוב המקרים תואם לאותו מספר של SERIALx, אבל יש מערכות שבהן זה מופרד. אם אתה רואה heartbeat בלי נתונים עשירים, בדוק את הערך הזה.',
   EK3_ENABLE: 'מפעיל את EKF3 כחישוב הניווט הראשי. שינוי פרמטר זה משפיע על התנהגות בקר הטיסה ולכן מבוצע רק על הקרקע ובזהירות.',
   AHRS_EKF_TYPE: 'בוחר מנוע EKF בשכבת AHRS. ערך 3 הוא EKF3 ברוב גרסאות Plane. שינוי כאן יכול להשפיע על יציבות חישוב Attitude ו‑Position.',
@@ -2391,6 +2414,8 @@ let jetsonReadAt = null;
 let fcReadAt = null;
 let jetsonLinkState = 'unknown';
 let fcLinkState = 'unknown';
+let liveFcMavlink = null;
+let backupLoadState = 'unknown';
 let paramToolRetryAction = null;
 
 function hebrewRequestFault(err, res) {
@@ -2423,14 +2448,69 @@ function clearParamToolFault() {
   paramToolRetryAction = null;
 }
 
-function resolvedFcLink() {
-  if (fcLinkState !== 'unknown') return fcLinkState;
-  try {
-    if (window.__vlcConnectWidget && typeof window.__vlcConnectWidget.isConnected === 'function') {
-      return window.__vlcConnectWidget.isConnected() ? 'ok' : 'down';
+function paintFcWriteResult(outcome, pairs = [], retry) {
+  const fault = document.getElementById('paramToolFault');
+  const box = document.getElementById('paramWriteResult');
+  const groupStatus = document.getElementById('fcGroupStatus');
+  if (fault) fault.hidden = true;
+  if (groupStatus) groupStatus.textContent = '';
+  if (typeof arduWriteStatus !== 'undefined' && arduWriteStatus) {
+    arduWriteStatus.textContent = '';
+    arduWriteStatus.className = 'ardu-write-status action-status param-tool-live';
+  }
+  if (!box) return;
+  const tone = outcome?.level === 'ok' ? 'ok' : outcome?.level === 'none' ? 'neutral' : 'bad';
+  box.hidden = false;
+  box.dataset.tone = tone;
+  box.className = `param-write-result param-write-result--${tone}`;
+  box.replaceChildren();
+  const title = document.createElement('p');
+  title.className = 'param-write-result-title';
+  title.textContent = outcome?.level === 'ok' ? 'נכתב לבקר ואומת' : String(outcome?.text || '');
+  box.appendChild(title);
+  if (outcome?.level === 'ok') {
+    for (const pair of pairs) {
+      const line = document.createElement('p');
+      line.className = 'param-write-result-line';
+      line.textContent = `${pair.key} ${pair.oldText} → ${pair.newText}`;
+      box.appendChild(line);
     }
-  } catch { /* widget not ready */ }
+  }
+  paramToolRetryAction = tone === 'bad' && typeof retry === 'function' ? retry : null;
+  if (paramToolRetryAction) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'param-tool-btn param-tool-btn--primary param-write-retry';
+    btn.textContent = 'נסו שוב';
+    btn.addEventListener('click', () => {
+      const run = paramToolRetryAction;
+      if (run) run();
+    });
+    box.appendChild(btn);
+  }
+}
+
+function fcWritePairs(keys, nextByKey) {
+  return (keys || []).map((key) => ({
+    key,
+    oldText: fcDraftMeta[key]?.oldText || fcPresence(key).text,
+    newText: nextByKey && Object.prototype.hasOwnProperty.call(nextByKey, key) && nextByKey[key] != null
+      ? String(nextByKey[key])
+      : '',
+  }));
+}
+
+function fcLinkFromTelemetry(mav, paramState) {
+  if (mav && mav.connected === true) {
+    const age = Number(mav.lastHeartbeatAgeMs);
+    if (!Number.isFinite(age) || age <= 5000) return 'ok';
+  }
+  if (paramState && paramState !== 'unknown') return paramState;
   return 'unknown';
+}
+
+function resolvedFcLink() {
+  return fcLinkFromTelemetry(liveFcMavlink, fcLinkState);
 }
 
 function refreshParamToolbarMeta() {
@@ -2441,19 +2521,24 @@ function refreshParamToolbarMeta() {
   const serverKnown = lastServerSyncedCanonical != null;
   const serverDirty = serverKnown && canonicalServerPayloadStr() !== lastServerSyncedCanonical;
   const sessionDirty = countArduDirtyVsSession();
-  const fcKnown = !!(fcCurrentSnapshot && typeof fcCurrentSnapshot === 'object');
   const fcLink = resolvedFcLink();
   if (jetsonState) {
-    const state = jetsonLinkState === 'ok' ? (serverDirty ? 'dirty' : 'ok') : jetsonLinkState;
+    let state = 'unknown';
+    let label = 'לא ידוע';
+    if (backupLoadState === 'fail') {
+      state = 'down';
+      label = 'נכשל';
+    } else if (serverKnown && serverDirty) {
+      state = 'dirty';
+      label = 'יש שינוי';
+    } else if (serverKnown || backupLoadState === 'ok') {
+      state = 'ok';
+      label = 'נטען';
+    }
     jetsonState.dataset.state = state;
-    jetsonState.textContent = jetsonLinkState === 'ok'
-      ? (serverDirty ? 'יש שינוי' : 'מחובר')
-      : jetsonLinkState === 'down' ? 'מנותק' : 'לא ידוע';
+    jetsonState.textContent = label;
   }
-  if (jetsonMeta) {
-    const dirty = !serverKnown ? 'לא ידוע' : serverDirty ? '1' : '0';
-    jetsonMeta.textContent = `קריאה אחרונה: ${formatToolClock(jetsonReadAt)} · לא מסונכרן: ${dirty}`;
-  }
+  if (jetsonMeta) jetsonMeta.textContent = '';
   if (fcStateEl) {
     const state = fcLink === 'ok' ? (sessionDirty > 0 ? 'dirty' : 'ok') : fcLink;
     fcStateEl.dataset.state = state;
@@ -2461,10 +2546,7 @@ function refreshParamToolbarMeta() {
       ? (sessionDirty > 0 ? 'יש שינוי' : 'מחובר')
       : fcLink === 'down' ? 'מנותק' : 'לא ידוע';
   }
-  if (fcMeta) {
-    const dirty = !fcKnown ? 'לא ידוע' : String(sessionDirty);
-    fcMeta.textContent = `קריאה אחרונה: ${formatToolClock(fcReadAt)} · לא מסונכרן: ${dirty}`;
-  }
+  if (fcMeta) fcMeta.textContent = '';
 }
 
 async function refreshJetsonLink() {
@@ -2488,10 +2570,12 @@ async function loadVisionConfigFromServer(statusEl) {
     const res = await fetch('/api/vision/config');
     if (!res.ok) {
       const fault = `קריאת הגיבוי בקונסולה נכשלה. הסיבה: ${hebrewRequestFault(null, res)}`;
+      backupLoadState = 'fail';
       showParamToolFault(fault, () => loadVisionConfigFromServer(statusEl));
+      refreshParamToolbarMeta();
       if (statusEl) {
-        statusEl.textContent = fault;
-        statusEl.className = 'vision-config-status fail';
+        statusEl.textContent = '';
+        statusEl.className = 'vision-config-status';
       }
       return;
     }
@@ -2520,19 +2604,23 @@ async function loadVisionConfigFromServer(statusEl) {
     captureServerBaseline();
     captureArduWriteBaseline();
     jetsonReadAt = Date.now();
+    backupLoadState = 'ok';
     clearParamToolFault();
     updateParamSyncBanner();
+    refreshParamToolbarMeta();
     void refreshJetsonLink();
     if (statusEl) {
-      statusEl.textContent = 'נטען מגיבוי בקונסולה';
-      statusEl.className = 'vision-config-status ok';
+      statusEl.textContent = '';
+      statusEl.className = 'vision-config-status';
     }
   } catch (err) {
     const fault = `קריאת הגיבוי בקונסולה נכשלה. הסיבה: ${hebrewRequestFault(err)}`;
+    backupLoadState = 'fail';
     showParamToolFault(fault, () => loadVisionConfigFromServer(statusEl));
+    refreshParamToolbarMeta();
     if (statusEl) {
-      statusEl.textContent = fault;
-      statusEl.className = 'vision-config-status fail';
+      statusEl.textContent = '';
+      statusEl.className = 'vision-config-status';
     }
   }
 }
@@ -2561,11 +2649,13 @@ async function saveVisionConfigToServer(statusEl) {
       return;
     }
     captureServerBaseline();
+    backupLoadState = 'ok';
     clearParamToolFault();
     updateParamSyncBanner();
+    refreshParamToolbarMeta();
     if (statusEl) {
-      statusEl.textContent = 'נשמר בגיבוי בקונסולה';
-      statusEl.className = 'vision-config-status ok';
+      statusEl.textContent = '';
+      statusEl.className = 'vision-config-status';
     }
   } catch (err) {
     const fault = `כתיבה לגיבוי בקונסולה נכשלה. הסיבה: ${hebrewRequestFault(err)}`;
@@ -6625,7 +6715,9 @@ function paintInstrumentVideo(companion) {
       img.dataset.stamp = String(Date.now());
       img.src = `/api/jetson/v1/cameras/${liveId}/frame?t=${Date.now()}`;
     }
-    setHorizonVideoActive(false, '');
+    _horizonVideoMode = true;
+    pfdHorizonShell?.classList.add('pfd-horizon-shell--video-active');
+    drawHorizon(horizonCanvas, _lastRoll, _lastPitch, currentHorizonDrawOpts());
     if (empty) {
       empty.hidden = true;
       empty.classList.add('hidden');
@@ -7527,6 +7619,84 @@ function flightArmLinkLive(mav) {
   return true;
 }
 
+function translatePrearmText(raw) {
+  const line = String(raw || '').trim();
+  if (!line) return '';
+  const rules = [
+    [/3d accel calibration needed/i, 'לא ניתן לחמש: נדרש כיול מד תאוצה'],
+    [/gps speed error/i, 'לא ניתן לחמש: שגיאת מהירות GPS'],
+    [/need 3d fix|need gps/i, 'לא ניתן לחמש: נדרש מיקום GPS'],
+    [/compass not healthy/i, 'לא ניתן לחמש: המצפן לא תקין'],
+    [/waiting for navigation/i, 'לא ניתן לחמש: ממתינים לבדיקות ניווט'],
+    [/rc not (calibrated|found)/i, 'לא ניתן לחמש: נדרש כיול שלט'],
+    [/throttle/i, 'לא ניתן לחמש: המצערת לא במצב נמוך'],
+    [/safety switch/i, 'לא ניתן לחמש: מתג הבטיחות פתוח'],
+    [/gyro/i, 'לא ניתן לחמש: נדרש כיול גירוסקופ'],
+    [/accel/i, 'לא ניתן לחמש: נדרש כיול מד תאוצה'],
+    [/compass|mag field/i, 'לא ניתן לחמש: נדרש כיול מצפן'],
+    [/ahrs not healthy/i, 'לא ניתן לחמש: מערכת הייחוס לא תקינה'],
+    [/battery/i, 'לא ניתן לחמש: הסוללה לא תקינה'],
+    [/radio failsafe/i, 'לא ניתן לחמש: אבד קשר רדיו'],
+    [/logging failed/i, 'לא ניתן לחמש: הרישום נכשל'],
+    [/ekf/i, 'לא ניתן לחמש: EKF לא תקין'],
+    [/baro/i, 'לא ניתן לחמש: מד הגובה לא תקין'],
+    [/fence/i, 'לא ניתן לחמש: נדרש מיקום לגדר'],
+  ];
+  for (const [re, he] of rules) {
+    if (re.test(line)) return he;
+  }
+  return line;
+}
+
+function paintPrearmBadge(el, raw) {
+  if (!el) return;
+  const line = String(raw || '').trim();
+  el.classList.remove('is-open');
+  el.setAttribute('aria-expanded', 'false');
+  delete el.dataset.short;
+  if (!line) {
+    el.hidden = true;
+    el.textContent = '';
+    delete el.dataset.raw;
+    return;
+  }
+  const shown = translatePrearmText(line);
+  el.hidden = false;
+  el.dataset.raw = line;
+  el.textContent = shown;
+}
+
+function paintNoLinkReason(el) {
+  if (!el) return;
+  el.classList.remove('is-open');
+  el.setAttribute('aria-expanded', 'false');
+  el.hidden = false;
+  el.dataset.raw = 'אין חיבור לבקר הטיסה';
+  el.dataset.short = 'אין קשר';
+  el.title = 'אין חיבור לבקר הטיסה';
+  el.textContent = 'אין קשר';
+}
+
+function togglePrearmBadge(el) {
+  if (!el || el.hidden) return;
+  const open = el.classList.toggle('is-open');
+  el.setAttribute('aria-expanded', open ? 'true' : 'false');
+  const raw = el.dataset.raw || '';
+  const short = el.dataset.short || '';
+  if (!open && short) {
+    el.textContent = short;
+    return;
+  }
+  const shown = translatePrearmText(raw);
+  el.textContent = shown;
+  if (open && raw && raw !== shown) {
+    const extra = document.createElement('span');
+    extra.className = 'flight-arm-warn-raw';
+    extra.textContent = raw;
+    el.appendChild(extra);
+  }
+}
+
 function syncFlightArmControls(mav) {
   const row = document.getElementById('flightArmRow');
   const armBtn = document.getElementById('flightArmBtn');
@@ -7539,12 +7709,11 @@ function syncFlightArmControls(mav) {
     disarmBtn.disabled = true;
     armBtn.title = 'אין חיבור לבקר הטיסה';
     disarmBtn.title = 'אין חיבור לבקר הטיסה';
-    reason.hidden = false;
-    reason.textContent = 'אין חיבור לבקר הטיסה';
+    paintNoLinkReason(reason);
     if (row) row.dataset.armLink = 'off';
     return;
   }
-  reason.hidden = true;
+  paintPrearmBadge(reason, '');
   const armed = mav.armed === true;
   armBtn.disabled = armed;
   disarmBtn.disabled = !armed;
@@ -7555,15 +7724,7 @@ function syncFlightArmControls(mav) {
 
 function showFlightArmRefusal(text) {
   const note = document.getElementById('flightArmRefusal');
-  if (!note) return;
-  const line = String(text || '').trim();
-  if (!line) {
-    note.hidden = true;
-    note.textContent = '';
-    return;
-  }
-  note.hidden = false;
-  note.textContent = line;
+  paintPrearmBadge(note, text);
 }
 
 function closeFlightDisarmDialog() {
@@ -7703,6 +7864,15 @@ function initFlightArmControls() {
   document.getElementById('flightArmConfirm')?.addEventListener('click', () => {
     sendFlightArm();
   });
+  for (const id of ['flightArmReason', 'flightArmRefusal']) {
+    const badge = document.getElementById(id);
+    badge?.addEventListener('click', () => togglePrearmBadge(badge));
+    badge?.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+      event.preventDefault();
+      togglePrearmBadge(badge);
+    });
+  }
   syncFlightArmControls(latestHudMavlink);
 }
 
@@ -7746,6 +7916,7 @@ function applyFlightHud(mav) {
     return;
   }
   latestHudMavlink = mav;
+  liveFcMavlink = mav;
 
   // Attitude is independent of GPS / VFR tapes. Missing alt/IAS must not block roll/pitch,
   // and a links-only snapshot without angles must not wipe a live attitude.
@@ -7820,11 +7991,11 @@ function applyFlightHud(mav) {
     pfdAltVal.title = altitudeTileHonestyTitle(mav);
   }
 
-  // Battery (bottom bar)
+  // Battery lives in the telemetry tiles.
   if (pfdBattVal) {
     const bv = mav.batteryV;
     const bvOk = typeof bv === 'number' && Number.isFinite(bv);
-    pfdBattVal.textContent = bvOk ? `${(bv < 1 ? bv.toFixed(2) : bv.toFixed(1))} V` : '—';
+    pfdBattVal.textContent = bvOk ? (bv < 1 ? bv.toFixed(2) : bv.toFixed(1)) : '—';
     pfdBattVal.style.color = !bvOk ? '' : bv < 10.5 ? '#f87171'
       : bv < 11.5 ? '#facc15' : '#4ade80';
   }
@@ -8002,20 +8173,137 @@ function paintFcStatustextOverlay(items) {
   }
 }
 
+let _fcMsgFilter = 'all';
+
+function fcStatusTimeLabel(row) {
+  const raw = row?.receivedAt || row?.time || row?.ts || '';
+  const d = raw ? new Date(raw) : null;
+  if (!d || Number.isNaN(d.getTime())) return '';
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+
+function translateFcStatusText(raw) {
+  const line = String(raw || '').trim();
+  if (!line) return '';
+  const prearm = /^prearm\s*:/i.test(line);
+  const rules = [
+    [/ekf3 waiting for gps config/i, 'EKF3 ממתינים להגדרת GPS'],
+    [/imu\d*.*using gps|is using gps/i, 'EKF משתמש ב-GPS'],
+    [/ekf variance/i, 'סטיית EKF גבוהה'],
+    [/gps\s*\d*\s*:\s*not healthy/i, 'GPS לא תקין'],
+    [/battery failsafe/i, 'כשל סוללה'],
+    [/waiting for gps/i, 'ממתינים ל-GPS'],
+    [/compass not healthy/i, 'המצפן לא תקין'],
+    [/3d accel calibration needed/i, 'נדרש כיול מד תאוצה'],
+    [/gps speed error/i, 'שגיאת מהירות GPS'],
+    [/need 3d fix|need gps/i, 'נדרש מיקום GPS'],
+    [/waiting for navigation/i, 'ממתינים לבדיקות ניווט'],
+    [/rc not (calibrated|found)/i, 'נדרש כיול שלט'],
+    [/throttle/i, 'המצערת לא במצב נמוך'],
+    [/safety switch/i, 'מתג הבטיחות פתוח'],
+    [/gyro/i, 'נדרש כיול גירוסקופ'],
+    [/accel/i, 'נדרש כיול מד תאוצה'],
+    [/compass|mag field/i, 'נדרש כיול מצפן'],
+    [/ahrs not healthy/i, 'מערכת הייחוס לא תקינה'],
+    [/battery/i, 'הסוללה לא תקינה'],
+    [/radio failsafe/i, 'אבד קשר רדיו'],
+    [/logging failed/i, 'הרישום נכשל'],
+    [/ekf/i, 'EKF לא תקין'],
+    [/baro/i, 'מד הגובה לא תקין'],
+    [/fence/i, 'נדרש מיקום לגדר'],
+  ];
+  let he = '';
+  for (const [re, text] of rules) {
+    if (re.test(line)) {
+      he = text;
+      break;
+    }
+  }
+  if (!he) return line;
+  return prearm ? `לא ניתן לחמש: ${he}` : he;
+}
+
+function collapseConsecutiveFcStatus(rows) {
+  const out = [];
+  const list = Array.isArray(rows) ? rows : [];
+  for (const row of list) {
+    const text = String(row?.text || '').trim();
+    if (!text) continue;
+    const sev = Number(row?.severity);
+    const prev = out[out.length - 1];
+    if (prev && prev.text === text) {
+      prev.count += 1;
+      if (Number.isFinite(sev) && sev < prev.severity) prev.severity = sev;
+    } else {
+      out.push({
+        text,
+        severity: Number.isFinite(sev) ? sev : 6,
+        receivedAt: row?.receivedAt || null,
+        count: 1,
+      });
+    }
+  }
+  return out;
+}
+
+function fcStatusSeverityClass(sev) {
+  if (sev <= 3) return 'pfc-msg-line pfc-msg-line--error pfc-msg-line--warn';
+  if (sev <= 4) return 'pfc-msg-line pfc-msg-line--warn';
+  if (sev === 5) return 'pfc-msg-line pfc-msg-line--notice';
+  return 'pfc-msg-line pfc-msg-line--info';
+}
+
+function fcStatusShownText(row) {
+  const raw = String(row?.text || '').trim();
+  const local = translateFcStatusText(raw);
+  if (local && local !== raw) return local;
+  const he = String(row?.textHe || '').trim();
+  if (he && he !== raw) return he;
+  return local || raw;
+}
+
 function paintFcStatustextHistory(items) {
   if (!pfcMsgScroll) return;
   pfcMsgScroll.innerHTML = '';
   if (typeof pfcMsgScroll.appendChild !== 'function') return;
   const hostDoc = pfcMsgScroll.ownerDocument || (typeof document !== 'undefined' ? document : null);
   if (!hostDoc || typeof hostDoc.createElement !== 'function') return;
-  const rows = Array.isArray(items) ? items : [];
-  for (let i = 0; i < Math.min(rows.length, 18); i += 1) {
-    const line = String(rows[i]?.text || '').trim();
-    if (!line) continue;
+  let rows = collapseConsecutiveFcStatus(items);
+  if (_fcMsgFilter === 'warn') rows = rows.filter((row) => statusTextLineWarn(row.severity));
+  for (const row of rows) {
+    const shown = fcStatusShownText(row);
+    const countBit = row.count > 1 ? ` ×${row.count}` : '';
+    const timeBit = fcStatusTimeLabel(row);
     const p = hostDoc.createElement('p');
-    p.className = 'pfc-msg-line' + (statusTextLineWarn(rows[i]?.severity) ? ' pfc-msg-line--warn' : '');
-    p.dir = 'auto';
-    p.textContent = line;
+    p.className = fcStatusSeverityClass(row.severity);
+    p.dir = 'ltr';
+    p.title = row.text;
+    if (typeof p.appendChild !== 'function') {
+      p.textContent = `${timeBit ? `${timeBit} ` : ''}${shown}${countBit}`;
+      pfcMsgScroll.appendChild(p);
+      continue;
+    }
+    if (timeBit) {
+      const time = hostDoc.createElement('time');
+      time.className = 'pfc-msg-time';
+      time.dir = 'ltr';
+      time.dateTime = row.receivedAt || '';
+      time.textContent = timeBit;
+      p.appendChild(time);
+    }
+    const body = hostDoc.createElement('span');
+    body.className = 'pfc-msg-body';
+    body.dir = 'auto';
+    body.textContent = shown;
+    p.appendChild(body);
+    if (row.count > 1) {
+      const count = hostDoc.createElement('span');
+      count.className = 'pfc-msg-count';
+      count.dir = 'ltr';
+      count.textContent = ` ×${row.count}`;
+      p.appendChild(count);
+    }
     pfcMsgScroll.appendChild(p);
   }
 }
@@ -8137,7 +8425,9 @@ async function translateAndRenderFcStatustext(rows) {
     const he = Array.isArray(d.he) ? d.he : texts;
     const translated = rows.map((row, i) => ({
       severity: row?.severity,
-      text: String(he[i] ?? texts[i] ?? row?.text ?? '').trim(),
+      text: String(row?.text ?? '').trim(),
+      textHe: String(he[i] ?? '').trim(),
+      receivedAt: row?.receivedAt || row?.time || row?.ts || null,
     })).filter((row) => row.text);
     if (pfcMsgPrimaryHe && translated[0]?.text) pfcMsgPrimaryHe.textContent = translated[0].text;
     _missionMessagesRows = translated.slice(0, 18);
@@ -8510,7 +8800,10 @@ function missionTileBoundKey(el) {
 }
 
 function applyTopbarFlightData(mav) {
-  if (mav) latestHudMavlink = mav;
+  if (mav) {
+    latestHudMavlink = mav;
+    liveFcMavlink = mav;
+  }
   if (!mav) {
     if (hudAltitudeEl) {
       hudAltitudeEl.title = VLC_TOOLTIP_NO_LINK;
@@ -10858,52 +11151,38 @@ if (arduWriteBtn) {
       const blocked = arduWriteGate.armed === true
         ? 'המטוס חמוש. הכתיבה חסומה עד לניטרול.'
         : 'אין חיבור לבקר הטיסה';
-      if (arduWriteStatus) {
-        arduWriteStatus.textContent = blocked;
-        arduWriteStatus.className = 'ardu-write-status fail';
-      }
-      showParamToolFault(blocked);
+      paintFcWriteResult({ level: 'fail', text: blocked }, [], null);
       refreshArduWriteBtnState(arduWriteGate);
       return;
     }
     arduWriteBtn.disabled = true;
-    if (arduWriteStatus) {
-      arduWriteStatus.textContent = 'שולח…';
-      arduWriteStatus.className = 'ardu-write-status';
-    }
+    paintFcWriteResult({ level: 'none', text: 'שולח…' }, [], null);
     try {
       const dirtyParams = collectDirtyArduParams();
+      const before = {};
+      for (const key of Object.keys(dirtyParams)) before[key] = fcPresence(key).text;
       const outcome = await commitGuardedFcWrite(dirtyParams);
-      if (outcome.level === 'ok') {
+      const pairs = Object.keys(outcome.acked || {}).map((key) => ({
+        key,
+        oldText: before[key] || fcPresence(key).text,
+        newText: String(outcome.acked[key]),
+      }));
+      paintFcWriteResult(outcome, pairs, () => arduWriteBtn.click());
+      if (outcome.level === 'ok' || outcome.history) {
         applyAckedSnapshot(outcome.acked);
-        for (const key of Object.keys(outcome.acked)) {
+        for (const key of Object.keys(outcome.acked || {})) {
           if (Object.prototype.hasOwnProperty.call(arduTargetState, key)) arduWriteBaseline[key] = arduTargetState[key];
         }
-        if (arduWriteStatus) {
-          arduWriteStatus.textContent = outcome.text;
-          arduWriteStatus.className = 'ardu-write-status success';
-        }
-        clearParamToolFault();
         if (fcCurrentSnapshot && arduDiffTable && arduDiffSection) {
           renderArduDiff(fcCurrentSnapshot, arduTargetState);
         }
-      } else {
-        if (outcome.history) applyAckedSnapshot(outcome.acked);
-        if (arduWriteStatus) {
-          arduWriteStatus.textContent = outcome.text;
-          arduWriteStatus.className = outcome.level === 'partial' ? 'ardu-write-status warn' : 'ardu-write-status fail';
-        }
-        if (outcome.level !== 'ok') showParamToolFault(outcome.text, () => arduWriteBtn.click());
+        renderFcGroupList();
       }
       updateParamSyncBanner();
       renderArduParamForm();
     } catch (err) {
       const fault = `הכתיבה לבקר נכשלה. הסיבה: ${hebrewRequestFault(err)}`;
-      showParamToolFault(fault, () => arduWriteBtn.click());
-      if (arduWriteStatus) {
-        arduWriteStatus.textContent = fault;
-        arduWriteStatus.className = 'ardu-write-status fail';
-      }
+      paintFcWriteResult({ level: 'fail', text: fault }, [], () => arduWriteBtn.click());
     } finally {
       refreshArduWriteBtnState(arduWriteGate);
     }
@@ -13305,7 +13584,12 @@ initLiveCameraPanel();
         const params = {};
         for (const item of where.params) params[item.key] = item.value;
         const outcome = await commitGuardedFcWrite(params);
-        if (applyStatus) applyStatus.textContent = outcome.text;
+        paintFcWriteResult(outcome, rows.map((row) => ({
+          key: row.key,
+          oldText: row.currentText,
+          newText: row.nextText,
+        })), () => applyBtn.click());
+        if (applyStatus) applyStatus.textContent = '';
         if (outcome.history) applyAckedSnapshot(outcome.acked);
         if (outcome.level === 'ok') {
           saveRun({
@@ -13329,12 +13613,9 @@ initLiveCameraPanel();
         renderParams();
         renderSaved();
         updateParamSyncBanner();
-        if (outcome.level !== 'ok') showParamToolFault(outcome.text, () => applyBtn.click());
-        else clearParamToolFault();
       } catch (err) {
         const fault = `הכתיבה לבקר נכשלה. הסיבה: ${hebrewRequestFault(err)}`;
-        if (applyStatus) applyStatus.textContent = fault;
-        showParamToolFault(fault, () => applyBtn.click());
+        paintFcWriteResult({ level: 'fail', text: fault }, [], () => applyBtn.click());
       } finally {
         applyBtn.disabled = !(selectedWhere()?.params?.length);
       }
@@ -17088,6 +17369,7 @@ const ASSIST_TAB_WORKSPACE = {
   telemetry: 'PLATFORM',
   maintenance: 'PLATFORM',
   recordings: 'PLATFORM',
+  optics: 'PLATFORM',
   flights: 'PLATFORM',
   advisor: 'LAB',
   featureDesigner: 'EVOLVE',
@@ -17102,6 +17384,7 @@ const ASSIST_TAB_CAPABILITY = {
   telemetry: 'diagnostics',
   maintenance: 'companion',
   recordings: 'debrief',
+  optics: 'video',
   flights: 'debrief',
   landingParams: 'landing',
   abortParams: 'landing',
@@ -17150,8 +17433,9 @@ const ASSIST_TAB_HE = Object.freeze({
   control: 'פרמטרים',
   telemetry: 'טלמטריה',
   maintenance: 'תחזוקה',
-  recordings: 'אופטיקה ותחקור',
-  flights: 'אופטיקה ותחקור',
+  recordings: 'תחקור',
+  optics: 'אופטיקה',
+  flights: 'תחקור',
   advisor: 'יועץ',
   featureDesigner: 'פיצ׳ר',
   flightEngineer: 'מהנדס טיסה',
@@ -18278,9 +18562,9 @@ function readMissionSize() {
       const fallback = defaultMissionSize();
       const rows = isLegacyDefaultMissionSize(raw) ? fallback : raw;
       return {
-        c1: clampMissionFr(raw.c1, 0.14, 0.20, fallback.c1),
-        c2: clampMissionFr(raw.c2, 0.70, 1.80, fallback.c2),
-        c3: clampMissionFr(raw.c3, 0.20, 0.26, fallback.c3),
+        c1: clampMissionFr(raw.c1, 0.02, 8000, fallback.c1),
+        c2: clampMissionFr(raw.c2, 0.02, 8000, fallback.c2),
+        c3: clampMissionFr(raw.c3, 0.02, 8000, fallback.c3),
         r1: clampMissionFr(rows.r1, 0.70, 0.92, fallback.r1),
         r2: clampMissionFr(rows.r2, 0.14, 0.22, fallback.r2),
         r3: 0,
@@ -18345,10 +18629,20 @@ function applyMissionSize(size) {
   const ws = document.querySelector('.mission-workspace');
   if (!ws || !size) return;
   _missionSize = size;
-  const ahCol = Math.min(20, Math.max(14, size.c1 * 100));
-  const talkCol = Math.min(26, Math.max(20, size.c3 * 100));
-  ws.style.setProperty('--mission-ah-col', `${ahCol}%`);
-  ws.style.setProperty('--mission-talk-col', `${talkCol}%`);
+  const c1 = Number(size.c1);
+  const c2 = Number(size.c2);
+  const c3 = Number(size.c3);
+  let mapW = c2;
+  let ahW = c1;
+  let talkW = c3;
+  if (!(c1 > 4 || c2 > 4 || c3 > 4)) {
+    ahW = c1;
+    talkW = c3;
+    mapW = Math.max(0.2, 1 - ahW - talkW);
+  }
+  ws.style.setProperty('--mission-map-col', `${mapW}fr`);
+  ws.style.setProperty('--mission-ah-col', `${ahW}fr`);
+  ws.style.setProperty('--mission-talk-col', `${talkW}fr`);
   ws.style.setProperty('--mission-ah-row', `${missionAhRowPct(size.r1)}%`);
   ws.style.setProperty('--mission-data-h', `${missionDataRowPx(size.r2)}px`);
   requestAnimationFrame(placeMissionSplits);
@@ -18363,6 +18657,7 @@ function toggleMissionHorizonMapSwap() {
 function resetMissionLayout() {
   const swap = defaultMissionSwap();
   writeMissionSwap(swap);
+  missionLayoutStoreSet('visionLandingMissionColOpenV1', '{}');
   writeMissionSize(defaultMissionSize());
   writeMissionAreas(defaultMissionAreas());
   applyMissionSize(defaultMissionSize());
@@ -18413,7 +18708,7 @@ function placeMissionSplits() {
       const gap = b.r.left - a.r.right;
       if (gap < -1 || gap > 28) continue;
       const mid = ((a.r.right + b.r.left) / 2) - wr.left;
-      const width = Math.max(4, Math.min(6, gap + 2));
+      const width = 14;
       gaps.push({
         x: mid - (width / 2),
         top: Math.max(a.r.top, b.r.top) - wr.top,
@@ -18497,6 +18792,60 @@ function bindMissionRegionDrag() {
   });
 }
 
+function missionSplitAtPointer(clientX, leftPx, rightPx, gapPx, minPx) {
+  const gap = Math.max(0, Number(gapPx) || 0);
+  const content = Math.max(0, rightPx - leftPx - gap);
+  const floor = Math.min(Math.max(0, Number(minPx) || 0), content / 2);
+  const edge = clientX - gap / 2;
+  const left = Math.min(content - floor, Math.max(floor, edge - leftPx));
+  return { left, right: content - left, x: leftPx + left + gap / 2 };
+}
+
+function missionTrackRects(ws) {
+  const skip = new Set(['messages', 'data']);
+  return [...ws.querySelectorAll('[data-mission-region]')]
+    .filter((el) => !skip.has(el.dataset.missionRegion))
+    .map((el) => el.getBoundingClientRect())
+    .filter((r) => r.width > 8 && r.height > 8)
+    .sort((a, b) => a.left - b.left);
+}
+
+function readMissionColOpen() {
+  try {
+    const raw = JSON.parse(missionLayoutStoreGet(MISSION_COL_OPEN_KEY) || 'null');
+    if (raw && typeof raw === 'object') return raw;
+  } catch {
+    /* ignore */
+  }
+  return {};
+}
+
+function writeMissionColOpen(open) {
+  missionLayoutStoreSet(MISSION_COL_OPEN_KEY, JSON.stringify(open || {}));
+}
+
+function missionColumnCollapsed(value) {
+  return Number(value) <= 0.05;
+}
+
+function toggleMissionColumnCollapse(size, leftKey, rightKey) {
+  const next = { ...size };
+  const open = readMissionColOpen();
+  if (missionColumnCollapsed(size[rightKey])) {
+    const restore = Number(open[rightKey]);
+    const back = Number.isFinite(restore) && restore > 0.05 ? restore : defaultMissionSize()[rightKey];
+    next[rightKey] = back;
+    next[leftKey] = Math.max(MISSION_COL_COLLAPSE, Number(size[leftKey]) - (back - Number(size[rightKey])));
+  } else {
+    open[rightKey] = size[rightKey];
+    writeMissionColOpen(open);
+    const freed = Number(size[rightKey]) - MISSION_COL_COLLAPSE;
+    next[rightKey] = MISSION_COL_COLLAPSE;
+    next[leftKey] = Number(size[leftKey]) + freed;
+  }
+  return next;
+}
+
 function bindMissionSplitters() {
   const col = document.getElementById('missionColSplit');
   const colB = document.getElementById('missionColSplitB');
@@ -18504,34 +18853,54 @@ function bindMissionSplitters() {
   let dragging = null;
   let start = 0;
   let base = null;
+  let span = null;
   const stopDrag = () => {
     if (!dragging) return;
     writeMissionSize(_missionSize);
     dragging = null;
     base = null;
+    span = null;
+    refreshMissionSwapSurfaces();
   };
   const onDown = (axis, ev) => {
+    if (ev.button != null && ev.button !== 0) return;
+    const ws = document.querySelector('.mission-workspace');
+    const tracks = ws ? missionTrackRects(ws) : [];
+    if ((axis === 'col' || axis === 'col2') && tracks.length < 3) return;
     dragging = axis;
-    start = axis === 'row' ? ev.clientY : ev.clientX;
+    start = ev.clientY;
     base = { ..._missionSize };
+    if (tracks.length >= 3) {
+      base.c2 = tracks[0].width;
+      base.c1 = tracks[1].width;
+      base.c3 = tracks[2].width;
+      span = {
+        leftEdge: tracks[0].left,
+        midLeft: tracks[1].left,
+        midRight: tracks[1].right,
+        rightEdge: tracks[2].right,
+        gapA: tracks[1].left - tracks[0].right,
+        gapB: tracks[2].left - tracks[1].right,
+      };
+    }
     ev.currentTarget.setPointerCapture?.(ev.pointerId);
     ev.preventDefault();
   };
   const onMove = (ev) => {
     if (!dragging || !base) return;
-    const ws = document.querySelector('.mission-workspace');
-    if (!ws) return;
-    const rect = ws.getBoundingClientRect();
     const next = { ...base };
-    if (dragging === 'col') {
-      const delta = (ev.clientX - start) / Math.max(1, rect.width);
-      next.c1 = clampMissionFr(base.c1 + delta, 0.14, 0.20, base.c1);
-      next.c2 = clampMissionFr(base.c2 - delta, 0.70, 1.80, base.c2);
-    } else if (dragging === 'col2') {
-      const delta = (ev.clientX - start) / Math.max(1, rect.width);
-      next.c2 = clampMissionFr(base.c2 + delta, 0.70, 1.80, base.c2);
-      next.c3 = clampMissionFr(base.c3 - delta, 0.20, 0.26, base.c3);
+    if (dragging === 'col' && span) {
+      const split = missionSplitAtPointer(ev.clientX, span.leftEdge, span.midRight, span.gapA, MISSION_COL_MIN_PX);
+      next.c2 = split.left;
+      next.c1 = split.right;
+    } else if (dragging === 'col2' && span) {
+      const split = missionSplitAtPointer(ev.clientX, span.midLeft, span.rightEdge, span.gapB, MISSION_COL_MIN_PX);
+      next.c1 = split.left;
+      next.c3 = split.right;
     } else if (dragging === 'row') {
+      const ws = document.querySelector('.mission-workspace');
+      if (!ws) return;
+      const rect = ws.getBoundingClientRect();
       const delta = (ev.clientY - start) / Math.max(1, rect.height);
       next.r1 = clampMissionFr(base.r1 + delta, 0.70, 0.92, base.r1);
       next.r2 = clampMissionFr(base.r2 - delta, 0.14, 0.22, base.r2);
@@ -18540,9 +18909,18 @@ function bindMissionSplitters() {
     }
     applyMissionSize(next);
   };
+  const onDbl = (axis, ev) => {
+    ev.preventDefault();
+    const pair = axis === 'col' ? ['c2', 'c1'] : ['c1', 'c3'];
+    const next = toggleMissionColumnCollapse(_missionSize, pair[0], pair[1]);
+    writeMissionSize(next);
+    applyMissionSize(next);
+  };
   col?.addEventListener('pointerdown', (ev) => onDown('col', ev));
   colB?.addEventListener('pointerdown', (ev) => onDown('col2', ev));
   row?.addEventListener('pointerdown', (ev) => onDown('row', ev));
+  col?.addEventListener('dblclick', (ev) => onDbl('col', ev));
+  colB?.addEventListener('dblclick', (ev) => onDbl('col2', ev));
   window.addEventListener('pointermove', onMove);
   window.addEventListener('pointerup', stopDrag);
   window.addEventListener('pointercancel', stopDrag);
@@ -18578,24 +18956,20 @@ function toggleMissionMessages() {
   applyMissionMessagesExpanded(next);
 }
 
+function setFcMsgFilter(next) {
+  _fcMsgFilter = next === 'warn' ? 'warn' : 'all';
+  const allBtn = document.getElementById('pfcMsgFilterAll');
+  const warnBtn = document.getElementById('pfcMsgFilterWarn');
+  if (allBtn) allBtn.setAttribute('aria-pressed', _fcMsgFilter === 'all' ? 'true' : 'false');
+  if (warnBtn) warnBtn.setAttribute('aria-pressed', _fcMsgFilter === 'warn' ? 'true' : 'false');
+  paintFcStatustextHistory(_missionMessagesRows);
+}
+
 function initMissionMessages() {
-  applyMissionMessagesExpanded(readMissionMessagesExpanded());
-  const region = document.querySelector('[data-mission-region="messages"]');
-  const title = region?.querySelector('.mission-region-title');
-  const toggle = document.getElementById('missionMessagesToggle');
-  let dragged = false;
-  title?.addEventListener('dragstart', () => { dragged = true; });
-  region?.addEventListener('click', (e) => {
-    if (dragged) { dragged = false; return; }
-    if (e.target.closest('#missionMessagesToggle')) return;
-    if (region.dataset.messagesExpanded === '1' && e.target.closest('#pfcMsgScroll')) return;
-    toggleMissionMessages();
-  });
-  toggle?.addEventListener('click', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    toggleMissionMessages();
-  });
+  writeMissionMessagesExpanded(true);
+  applyMissionMessagesExpanded(true);
+  document.getElementById('pfcMsgFilterAll')?.addEventListener('click', () => setFcMsgFilter('all'));
+  document.getElementById('pfcMsgFilterWarn')?.addEventListener('click', () => setFcMsgFilter('warn'));
 }
 
 function suggestMissionDataFields(text) {
