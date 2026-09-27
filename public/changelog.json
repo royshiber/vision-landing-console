@@ -1,5 +1,36 @@
 [
   {
+    "version": "1.02.362",
+    "date": "2026-09-27",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Server library",
+        "detail": "assist-intent-resolver.mjs, assist-routes.mjs, dual-link-runtime.mjs, dual-link.mjs, core-api.mjs, dual-link-api.mjs, sim-vehicle.mjs, sse-mavlink-snapshot.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "MAVLink connection",
+        "detail": "mavlink-connection.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "UI / app.js",
+        "detail": "app.js"
+      },
+      {
+        "type": "ui",
+        "title": "HTML layout",
+        "detail": "index.html"
+      },
+      {
+        "type": "ui",
+        "title": "Styles",
+        "detail": "styles.css"
+      }
+    ]
+  },
+  {
     "version": "1.02.361",
     "date": "2026-09-27",
     "changes": [

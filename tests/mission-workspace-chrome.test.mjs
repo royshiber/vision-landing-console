@@ -165,9 +165,9 @@ describe('AIRVIX Mission chrome — talk is flight-safe', () => {
     expect(chip).toContain("kind === 'advisor'");
   });
 
-  it('pins APP_VERSION at 1.02.361', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.361'");
-    expect(pkg.version).toBe('1.02.361');
+  it('pins APP_VERSION at 1.02.362', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.362'");
+    expect(pkg.version).toBe('1.02.362');
   });
 
   it('keeps a rectangular glass artificial horizon with video HUD mode', () => {
@@ -416,8 +416,8 @@ describe('AIRVIX Mission chrome — default open + layout policy', () => {
     expect(sliceFunction(js, 'toggleMissionHorizonMapSwap')).toContain('writeMissionSwap(next)');
     expect(sliceFunction(js, 'toggleMissionHorizonMapSwap')).toContain('applyMissionSwap(next)');
     expect(sliceFunction(js, 'initMissionLayout')).toContain('applyMissionSwap(readMissionSwap())');
-    expect(sliceFunction(js, 'syncMissionLayoutChrome')).toContain('גררו קצה לשינוי גודל. גררו כותרת להחלפה. גם בטיסה.');
-    expect(html).toMatch(/id="missionLayoutHint"[^>]*>גררו קצה לשינוי גודל\. גררו כותרת להחלפה\. גם בטיסה\.</);
+    expect(sliceFunction(js, 'syncMissionLayoutChrome')).toContain('גררו את הפינה לשינוי גודל. גררו כותרת להחלפה. גם בטיסה.');
+    expect(html).toMatch(/id="missionLayoutHint"[^>]*>גררו את הפינה לשינוי גודל\. גררו כותרת להחלפה\. גם בטיסה\.</);
     expect(js.slice(js.indexOf('function applyMainTab('), js.indexOf('const PARAM_SUBTAB_IDS'))).not.toMatch(/armed|airborne|inFlight/);
   });
 

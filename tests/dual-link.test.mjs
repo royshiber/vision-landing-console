@@ -46,7 +46,7 @@ describe('dual-link state machine', () => {
     expect(radioOnly.path).toBe('cellular');
     expect(radioOnly.neverRadio).toBe(true);
     expect(radioOnly.radioSatisfies).toBe(false);
-    expect(radioOnly.reasonHe).toMatch(/לא עוברת ברדיו/);
+    expect(radioOnly.reasonHe).toMatch(/לא עוברת ב-RF/);
     const cellUpNoStream = annotatedVideoAvailability({ cellular: 'connected', modemPresent: true });
     expect(cellUpNoStream.available).toBe(false);
     expect(cellUpNoStream.reason).toBe('stream_absent');

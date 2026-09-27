@@ -185,7 +185,8 @@ describe('Auto-Config → Assist + Configuration fold — chrome', () => {
     expect(html).toContain('data-ac-model="peripheral-steps"');
     expect(html).toContain('id="acWhatList"');
     expect(html).toContain('id="acApplyBtn"');
-    expect(html).toMatch(/class="subtab"[^>]*data-subtab="autoConfig"[^>]*>אשף קונפיגורציה</);
+    expect(html).toMatch(/class="subtab"[^>]*data-subtab="autoConfig"[^>]*>אשף הגדרות</);
+    expect(findAssistRoute('אשף הגדרות')?.subtab).toBe('autoConfig');
     expect(html).not.toContain('data-platform-go');
     expect(html).toMatch(/class="tab tab-ops"[^>]*data-tab="control"[^>]*>פרמטרים</);
     expect(js).toContain("applyControlSubtab('autoConfig')");
@@ -207,8 +208,8 @@ describe('Auto-Config → Assist + Configuration fold — chrome', () => {
     expect(html).not.toMatch(/id="companionApplyBtn"|id="companionRestartBtn"/);
   });
 
-  it('pins APP_VERSION at 1.02.361', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.361'");
-    expect(pkg.version).toBe('1.02.361');
+  it('pins APP_VERSION at 1.02.362', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.362'");
+    expect(pkg.version).toBe('1.02.362');
   });
 });

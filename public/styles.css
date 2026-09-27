@@ -172,6 +172,27 @@ h1, h2, .panel-header h2 {
   letter-spacing: 0.02em;
 }
 
+.sim-vehicle-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.4rem;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #b45309;
+  color: #fffbeb;
+  font-family: "Space Grotesk", "Heebo", sans-serif;
+  font-size: clamp(11px, 0.72rem, 13px);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  border: 1px solid #fbbf24;
+  line-height: 1.2;
+}
+
+.sim-vehicle-badge[hidden] {
+  display: none;
+}
+
 .app-chrome .global-settings-btn {
   border: 0;
   background: rgba(255, 255, 255, 0.04);
@@ -14436,6 +14457,42 @@ details.flight-manage summary {
   height: 26px;
 }
 .connect-widget .conn-input { min-width: 120px; }
+
+.conn-sim-preset {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.conn-sim-label {
+  flex: 0 0 auto;
+  font-size: clamp(11px, 0.75rem, 13px);
+  font-weight: 700;
+}
+
+.connect-widget .conn-btn-sim {
+  flex: 1 1 0;
+  margin: 0;
+  min-width: 0;
+  padding: 4px 6px;
+  background: #b45309;
+  color: #fffbeb;
+  border: 1px solid #fbbf24;
+  font-size: clamp(11px, 0.75rem, 13px);
+  white-space: nowrap;
+}
+
+.connect-widget .conn-btn-sim:hover {
+  background: #92400e;
+}
+
+.connect-widget .conn-sim-hint {
+  margin: 0;
+  font-size: clamp(11px, 0.72rem, 12px);
+  line-height: 1.25;
+  color: #fbbf24;
+}
 
 .connect-widget .conn-btn {
   font: inherit;
