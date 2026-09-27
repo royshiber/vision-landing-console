@@ -35,9 +35,9 @@ function panel(id) {
 }
 
 describe('AIRVIX 1.02.268 status densify + Develop concept A', () => {
-  it('pins APP_VERSION at 1.02.357', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.357'");
-    expect(pkg.version).toBe('1.02.357');
+  it('pins APP_VERSION at 1.02.361', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.361'");
+    expect(pkg.version).toBe('1.02.361');
   });
 
   it('keeps מסייע out of public UI', () => {

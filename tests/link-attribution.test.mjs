@@ -134,7 +134,7 @@ describe('link attribution', () => {
     });
     expect(serial.rows.find((r) => r.id === 'radio').connected).toBe(true);
     expect(serial.rows.find((r) => r.id === 'radio').statusHe).toBe('מחובר');
-    expect(serial.pillLabelHe).toBe('מחובר · רדיו פעיל');
+    expect(serial.pillLabelHe).toBe('מחובר · RF פעיל');
   });
 
   it('replaces a raw fetch error with Hebrew', () => {

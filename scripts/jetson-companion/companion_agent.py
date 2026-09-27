@@ -88,6 +88,10 @@ try:
 except ImportError:
     annotated_encoder_status = None
 try:
+    from mavlink_route import CompanionRouter
+except ImportError:
+    CompanionRouter = None
+try:
     from fc_telemetry import fc_link_flags, fc_status_payload, observe_uart_bytes as _fc_observe_uart
 except ImportError:
     def _fc_observe_uart(_data):
@@ -218,6 +222,7 @@ LOCAL_TAP_SOCKS = set()
 CLIENTS_LOCK = threading.Lock()
 UART_WRITE_LOCK = threading.Lock()
 STATE_LOCK = threading.Lock()
+FC_PORT_BOX = {"ser": None}
 HEARTBEAT_CRC_EXTRA = 50
 
 
@@ -437,6 +442,79 @@ def client_to_uart(client_sock, fc_serial):
         drop_client(client_sock)
 
 
+def _route_link_up(kind):
+    try:
+        from uplink_status import _oper_up, _wifi_iface, cellular_iface_name
+        if kind == "wifi":
+            return _oper_up(_wifi_iface()) is True
+        name = cellular_iface_name()
+        return bool(name) and _oper_up(name) is True
+    except Exception:
+        return False
+
+
+def route_status_snapshot():
+    """Compact status for the RF path. Missing cameras stay false. Angles stay absent."""
+    gimbal = {}
+    if gimbal_status is not None:
+        try:
+            gimbal = gimbal_status(start=False) or {}
+        except Exception:
+            gimbal = {}
+    att = gimbal.get("attitude") if isinstance(gimbal.get("attitude"), dict) else {}
+    mode = gimbal.get("mode")
+    mode_n = 1 if mode == "lock" else (0 if mode == "follow" else None)
+    cameras = {}
+    try:
+        cameras = (cameras_status_payload().get("cameras") or {})
+    except Exception:
+        cameras = {}
+
+    def cam_ok(name):
+        slot = cameras.get(name)
+        return isinstance(slot, dict) and slot.get("camera_ok") is True
+
+    yaw = att.get("yaw")
+    pitch = att.get("pitch")
+    return {
+        "wifi": _route_link_up("wifi"),
+        "cell": _route_link_up("cell"),
+        "yaw": float(yaw) if isinstance(yaw, (int, float)) else None,
+        "pitch": float(pitch) if isinstance(pitch, (int, float)) else None,
+        "mode": mode_n,
+        "cam0": cam_ok("cam0"),
+        "cam1": cam_ok("cam1"),
+    }
+
+
+def _route_gimbal(action, body):
+    if gimbal_command is None:
+        return 503, {"ok": False}
+    return gimbal_command(action, body)
+
+
+def _route_uplink(kind, enabled):
+    from uplink_control import set_uplink
+    return set_uplink(kind, True if enabled else False)
+
+
+COMPANION_ROUTER = CompanionRouter(
+    gimbal=_route_gimbal,
+    uplink=_route_uplink,
+    status=route_status_snapshot,
+) if CompanionRouter is not None else None
+
+
+def _write_fc(data):
+    ser = FC_PORT_BOX.get("ser")
+    if ser is None or not data:
+        return
+    with UART_WRITE_LOCK:
+        ser.write(data)
+    with STATE_LOCK:
+        STATE["uart_bytes_tx"] = int(STATE.get("uart_bytes_tx") or 0) + len(data)
+
+
 def uart_reader(fc_serial, stop):
     while not stop.is_set():
         try:
@@ -456,6 +534,13 @@ def uart_reader(fc_serial, stop):
             if flags.get("heartbeat_wall") is not None:
                 STATE["last_heartbeat_at"] = flags["heartbeat_wall"]
         fanout_uart(data)
+        if COMPANION_ROUTER is not None:
+            try:
+                reply = COMPANION_ROUTER.feed(data)
+                if reply:
+                    _write_fc(reply)
+            except Exception:
+                pass
 
 
 def mavlink_relay_server():
@@ -470,6 +555,7 @@ def mavlink_relay_server():
         stop = threading.Event()
         try:
             fc_serial = open_fc_serial()
+            FC_PORT_BOX["ser"] = fc_serial
             STATE["fc_linked"] = True
             STATE["fc_read_only"] = FC_READ_ONLY
             STATE["relay_tcp_to_uart"] = not FC_READ_ONLY
@@ -502,6 +588,7 @@ def mavlink_relay_server():
             STATE["fc_heartbeat"] = False
             print(f"[relay] restart: {exc}")
             stop.set()
+            FC_PORT_BOX["ser"] = None
             with CLIENTS_LOCK:
                 for sock in CLIENTS:
                     try:
@@ -1170,6 +1257,11 @@ def health_payload():
         "modem": modem_status_payload(),
         "flight_log": flightlog_status_payload(),
         "gimbal": gimbal_status_payload(start=False),
+        "mavlink_route": {
+            "component": 191,
+            "commands": COMPANION_ROUTER.commands if COMPANION_ROUTER is not None else 0,
+            "last_command": COMPANION_ROUTER.last_command if COMPANION_ROUTER is not None else None,
+        },
     }
 
 
@@ -1545,6 +1637,15 @@ def main():
     if not SKIP_RELAY:
         threading.Thread(target=heartbeat_loop, daemon=True).start()
         threading.Thread(target=mavlink_relay_server, daemon=True).start()
+        if COMPANION_ROUTER is not None:
+            def _route_tick():
+                while True:
+                    try:
+                        _write_fc(COMPANION_ROUTER.tick())
+                    except Exception:
+                        pass
+                    time.sleep(1.0)
+            threading.Thread(target=_route_tick, name="mavlink-route", daemon=True).start()
     else:
         print("  SKIP_RELAY: HTTP observe-status only")
     if want_gimbal_poll and get_gimbal_link is not None:

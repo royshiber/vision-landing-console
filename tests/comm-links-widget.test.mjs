@@ -36,7 +36,8 @@ describe('four-row communications widget', () => {
     const rows = [...main.matchAll(/class="comm-link-row"[^>]*data-link="([^"]+)"/g)].map((m) => m[1]);
     expect(rows).toEqual(['cellular', 'radio', 'home', 'rc']);
     expect(main).toContain('סלולר');
-    expect(main).toContain('רדיו טלמטריה');
+    expect(main).toContain('>RF<');
+    expect(main).not.toContain('רדיו טלמטריה');
     expect(main).toContain('רשת בית');
     expect(main).toMatch(/data-link="rc"/);
     expect(main).not.toMatch(/host:8081/);
@@ -51,7 +52,7 @@ describe('four-row communications widget', () => {
 
   it('labels actions התחבר or התנתק by state, and RC stays סטטוס', () => {
     expect(html).toMatch(/id="cellularConnectBtn"[^>]*>התחבר</);
-    expect(html).toMatch(/id="connectBtn"[^>]*>התחבר</);
+    expect(html).toMatch(/id="connectBtn"[^>]*>חיבור ל-RF</);
     expect(html).toMatch(/id="companionLinkBtn"[^>]*>התחבר</);
     expect(html).toMatch(/id="rcStatusBtn"[^>]*>סטטוס</);
     expect(js).toContain('function paintRowAction(');

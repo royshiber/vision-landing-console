@@ -9,6 +9,7 @@ export const NO_REPLY_HE = 'אין מענה מהגימבל';
 export const CONTROL_OFF_HE = 'שליטת הגימבל כבויה';
 export const LOCKED_HE = 'נעול';
 export const UNLOCKED_HE = 'משוחרר';
+export const RF_GIMBAL_REASON_HE = 'במצב RF אין וידאו';
 
 const RATE_URL = '/api/jetson/v1/gimbal/rate';
 const ZOOM_URL = '/api/jetson/v1/gimbal/zoom';
@@ -64,7 +65,14 @@ function attitudeOf(gimbal) {
   };
 }
 
+function rfWork() {
+  return typeof document !== 'undefined' && document.body?.dataset?.workPath === 'rf';
+}
+
 export function gimbalPadView(companion) {
+  if (rfWork()) {
+    return { enabled: false, reasonHe: RF_GIMBAL_REASON_HE, locked: false };
+  }
   const reachable = companion?.reachable === true && companion?.mode !== 'off';
   const gimbal = gimbalSnapshot(companion);
   const locked = gimbal?.mode === 'lock';
@@ -113,7 +121,34 @@ function unwrap(body) {
   return body;
 }
 
-async function postJson(url, body) {
+function postJson(url, body) {
+  if (rfWork()) {
+    let action = 'rate';
+    if (String(url).includes('zoom')) action = 'zoom';
+    else if (String(url).includes('mode')) action = 'mode';
+    return postRf({ kind: 'gimbal', action, ...body });
+  }
+  return postHttp(url, body);
+}
+
+async function postRf(body) {
+  const res = await fetch('/api/links/rf-action', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  let parsed = null;
+  try { parsed = await res.json(); } catch { parsed = null; }
+  if (!res.ok) {
+    const err = new Error('gimbal');
+    err.status = res.status;
+    err.body = unwrap(parsed) || parsed;
+    throw err;
+  }
+  return unwrap(parsed);
+}
+
+async function postHttp(url, body) {
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },

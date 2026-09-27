@@ -211,6 +211,18 @@ h1, h2, .panel-header h2 {
   box-shadow: none;
 }
 
+.app-chrome .tab:disabled {
+  opacity: 0.45;
+  cursor: default;
+  color: rgba(226, 232, 240, 0.55);
+}
+
+.app-chrome .tab:disabled:hover {
+  background: transparent;
+  color: rgba(226, 232, 240, 0.55);
+  box-shadow: none;
+}
+
 .app-chrome .tab[hidden] {
   display: none !important;
 }
@@ -13673,11 +13685,12 @@ details.flight-manage summary {
 }
 
 .connect-widget-float .conn-panel {
-  top: calc(100% + 10px);
-  width: min(400px, calc(100vw - 16px));
-  max-height: min(78vh, 720px);
-  overflow: auto;
-  padding: 12px;
+  top: calc(100% + 6px);
+  width: min(360px, calc(100vw - 16px));
+  max-height: none;
+  overflow: visible;
+  padding: 8px;
+  gap: 4px;
   background: rgba(10, 14, 22, 0.92);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 16px;
@@ -20067,6 +20080,7 @@ body:has(#recordings.panel.visible) .layout {
   min-width: 0;
   flex: 1 1 auto;
   min-height: 0;
+  overflow: hidden;
 }
 .optics-tiles { min-width: 0; min-height: 0; height: 100%; display: flex; flex-direction: column; gap: 4px; }
 #optics .debrief-cam-grid {
@@ -20092,23 +20106,37 @@ body:has(#recordings.panel.visible) .layout {
   grid-template-rows: minmax(0, 1fr);
 }
 .optics-calib {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 8px;
-  align-items: start;
-  flex: 0 1 auto;
-  max-height: 38%;
+  display: block;
+  position: relative;
+  z-index: 1;
+  flex: 0 0 auto;
+  max-height: none;
   min-height: 0;
-  overflow: auto;
+  overflow: visible;
 }
-#optics .optics-cam-switch { grid-column: 1 / -1; margin: 0; }
-#optics .cam0-panel {
+#optics .optics-cam-switch { margin: 0 0 6px; }
+#optics .cam0-panel:not([hidden]) {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px 10px;
+  align-items: start;
   margin: 0;
   padding: 8px;
 }
+#optics .cam0-head,
+#optics .cam0-reason,
+#optics .cam0-error,
+#optics .cam0-stats,
+#optics .cam0-calib {
+  grid-column: 1 / -1;
+}
+#optics .cam0-layout,
+#optics .cam0-side,
+#optics .optics-groups {
+  display: contents;
+}
 #optics .cam0-stage,
 #optics .cam0-hist-wrap { display: none; }
-#optics .cam0-layout { display: block; }
 #optics .cam0-title { font-size: clamp(11px, 0.95rem, 16px); }
 #optics .cam0-head { margin-bottom: 2px; }
 #optics .cam0-reason,
@@ -20123,12 +20151,6 @@ body:has(#recordings.panel.visible) .layout {
 #optics .cam0-stats div { padding: 2px 4px; }
 #optics .cam0-stats dt,
 #optics .cam0-stats dd { font-size: clamp(11px, 0.72rem, 13px); }
-#optics .optics-groups {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 6px;
-}
-#optics #cam1Panel .optics-groups { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 #optics .optics-field-group {
   display: flex;
   flex-direction: column;
@@ -20143,9 +20165,10 @@ body:has(#recordings.panel.visible) .layout {
 }
 #optics .optics-field-group label {
   display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 2px;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   min-width: 0;
   max-width: 100%;
   font-size: clamp(11px, 0.72rem, 13px);
@@ -20159,8 +20182,9 @@ body:has(#recordings.panel.visible) .layout {
 }
 #optics .cam0-controls input,
 #optics .cam0-controls select {
-  width: 100%;
-  max-width: none;
+  width: 7.5rem;
+  max-width: 48%;
+  flex: 0 0 auto;
   min-height: 28px;
   box-sizing: border-box;
 }
@@ -20175,8 +20199,8 @@ body:has(#recordings.panel.visible) .layout {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px 8px;
-  margin-top: 6px;
+  gap: 6px 10px;
+  margin: 0;
 }
 #optics .cam0-calib h4 {
   margin: 0;
@@ -20184,7 +20208,7 @@ body:has(#recordings.panel.visible) .layout {
   letter-spacing: normal;
   text-transform: none;
 }
-#optics .cam0-calib-lead { flex: 1 1 100%; }
+#optics .cam0-calib-lead { flex: 1 1 12rem; min-width: 0; }
 .gimbal-pad {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -20301,23 +20325,10 @@ body:has(#recordings.panel.visible) .layout {
     grid-template-columns: minmax(0, 1fr);
   }
 }
-@media (max-height: 820px) {
-  #optics .debrief-cam-grid { height: 132px; min-height: 100px; }
-  #optics .cam0-panel { padding: 6px; }
+@media (max-height: 980px) {
+  #optics .debrief-cam-grid { height: 100%; min-height: 0; max-height: 100%; }
+  #optics .cam0-panel:not([hidden]) { padding: 6px; }
   #optics .cam0-stats { display: none; }
-  #optics .optics-field-group label {
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-  }
-  #optics .cam0-controls input,
-  #optics .cam0-controls select {
-    width: 6.2rem;
-    max-width: 48%;
-    flex: 0 0 auto;
-  }
-  #optics .cam0-calib { margin-top: 4px; }
-  #optics .cam0-calib-lead { flex: 1 1 12rem; }
   .gimbal-pad { padding: 6px; gap: 4px; }
   .gimbal-pad-btn { min-height: 40px; min-width: 40px; }
   .gimbal-pad-center { min-width: 40px; font-size: 11px; }
@@ -23461,4 +23472,158 @@ body:has(#control.panel.visible) #controlSubtabsBar {
   body:has(#control.panel.visible) .app-chrome-tools {
     flex-shrink: 0;
   }
+}
+.work-link-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  margin: 0;
+  min-width: 0;
+}
+.connect-widget-float .work-link-picker {
+  gap: 2px 6px;
+}
+.connect-widget-float .work-link-picker > * {
+  width: 100%;
+}
+.connect-widget-float .work-link-picker .conn-link-title,
+.connect-widget-float .work-link-path {
+  margin: 0;
+  padding: 0;
+  line-height: 1.25;
+  font-size: clamp(11px, 0.78rem, 14px);
+}
+.connect-widget-float .work-link-choices {
+  flex-wrap: nowrap;
+  gap: 4px;
+}
+.connect-widget-float .work-link-choices .conn-active-choice {
+  padding: 1px 6px;
+  gap: 3px;
+}
+.connect-widget-float .work-link-serial {
+  flex-wrap: nowrap;
+  gap: 6px;
+}
+.connect-widget-float .work-link-serial .conn-panel-field {
+  flex-direction: row;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+.connect-widget-float .work-link-serial .conn-select {
+  min-height: 26px;
+  padding: 2px 6px;
+}
+.connect-widget-float .comm-link-rows {
+  gap: 4px;
+}
+.connect-widget-float .comm-link-row {
+  min-height: 0;
+  padding: 3px 6px;
+  gap: 6px;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  align-items: center;
+}
+.connect-widget-float .comm-link-copy {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas: "name status switch" "hint hint hint";
+  align-items: center;
+  column-gap: 6px;
+  row-gap: 0;
+}
+.connect-widget-float .comm-link-name { grid-area: name; }
+.connect-widget-float .comm-link-status { grid-area: status; }
+.connect-widget-float .comm-link-hint { grid-area: hint; }
+.connect-widget-float .comm-link-switch { grid-area: switch; margin-inline-start: 0; }
+.connect-widget-float .comm-link-status,
+.connect-widget-float .comm-link-hint {
+  min-width: 0;
+  white-space: normal;
+}
+.connect-widget-float .comm-link-error {
+  grid-column: 1 / -1;
+}
+.connect-widget-float .comm-link-name,
+.connect-widget-float .comm-link-hint,
+.connect-widget-float .comm-link-status,
+.connect-widget-float .comm-link-error {
+  font-size: clamp(11px, 0.72rem, 13px);
+  line-height: 1.2;
+  margin: 0;
+}
+.connect-widget-float .comm-link-switch {
+  margin-inline-start: auto;
+}
+.connect-widget-float .comm-link-action {
+  min-width: 64px;
+  min-height: 26px;
+  padding: 2px 8px;
+}
+.connect-widget-float .conn-advanced {
+  padding: 2px 6px;
+}
+.connect-widget-float .conn-advanced-summary {
+  padding: 2px 0;
+  font-size: clamp(11px, 0.72rem, 13px);
+}
+.connect-widget-float .comm-link-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  padding: 0;
+}
+.work-link-choices .conn-active-choice {
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: rgba(15, 23, 42, 0.45);
+  font-size: clamp(11px, 0.74rem, 14px);
+}
+.work-link-choices .conn-active-choice:has(input:checked) {
+  border-color: rgba(96, 165, 250, 0.75);
+  background: rgba(37, 99, 235, 0.28);
+}
+.rf-optics-notice {
+  margin: 8px 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  background: rgba(15, 23, 42, 0.55);
+  color: #e2e8f0;
+  font-size: clamp(11px, 1.4vw, 16px);
+  font-weight: 700;
+  text-align: center;
+  font-family: "Heebo", sans-serif;
+}
+.rf-optics-notice[hidden] { display: none; }
+body[data-work-path="rf"] #optics #debriefCamGrid,
+body[data-work-path="rf"] #optics .debrief-cam-toolbar,
+body[data-work-path="rf"] #optics #gimbalPad,
+body[data-work-path="rf"] #optics .optics-cam-switch,
+body[data-work-path="rf"] #optics #cam0Panel,
+body[data-work-path="rf"] #optics #cam1Panel,
+body[data-work-path="rf"] #optics .optics-live,
+body[data-work-path="rf"] #optics .optics-calib {
+  display: none;
+}
+.work-link-picker .conn-link-title,
+.work-link-path,
+.work-link-reason,
+.work-link-choices label {
+  font-size: clamp(11px, 1.6vw, 14px);
+  min-width: 0;
+}
+.work-link-choices,
+.work-link-serial {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+}
+.work-link-serial,
+.work-link-reason {
+  width: 100%;
+  margin: 0;
 }

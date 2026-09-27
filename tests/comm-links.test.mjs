@@ -58,13 +58,13 @@ describe('four-link communications model', () => {
     expect(snap.rows[0].quality.known).toBe(false);
     expect(snap.rows[0].quality.percent).toBeNull();
     expect(snap.rows[0].actionHe).toBe('התחבר');
-    expect(snap.rows[1].nameHe).toBe('רדיו טלמטריה');
+    expect(snap.rows[1].nameHe).toBe('RF');
     expect(snap.rows[1].connected).toBe(true);
     expect(snap.rows[1].actionHe).toBe('התנתק');
     expect(snap.rows[1].quality.percent).toBeNull();
     expect(snap.rows[3].actionHe).toBe('סטטוס');
     expect(snap.rows[3].hintHe).toBe('אין ערוצי שלט');
-    expect(snap.pillLabelHe).toBe('מחובר · רדיו פעיל');
+    expect(snap.pillLabelHe).toBe('מחובר · RF פעיל');
   });
 
   it('keeps RC percent only from a fresh RC_CHANNELS rssi', () => {
@@ -81,12 +81,12 @@ describe('four-link communications model', () => {
   });
 
   it('uses the locked short pill names', () => {
-    expect(hebrewLinkRole('radio')).toBe('רדיו טלמטריה');
+    expect(hebrewLinkRole('radio')).toBe('RF');
     expect(hebrewPillLabel({
       radio: 'connected',
       cellular: 'connected',
       active: 'radio',
       bothConnected: true,
-    })).toBe('שני קישורים · רדיו פעיל');
+    })).toBe('שני קישורים · RF פעיל');
   });
 });
