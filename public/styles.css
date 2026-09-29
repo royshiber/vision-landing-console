@@ -11286,7 +11286,7 @@ html[data-evolve-preview="1"] #development {
 }
 .mission-region-messages[data-messages-expanded="1"] {
   height: auto;
-  max-height: min(160px, 32%);
+  max-height: none;
   flex: 0 1 auto;
   min-height: 0;
 }
@@ -11915,7 +11915,7 @@ html[data-evolve-preview="1"] #development {
   cursor: default;
   overflow: hidden;
   min-height: 0;
-  max-height: min(160px, 32%);
+  max-height: none;
   flex: 0 1 auto;
 }
 .mission-region-messages[data-messages-expanded="0"] {
@@ -11950,7 +11950,7 @@ html[data-evolve-preview="1"] #development {
   flex: 1 1 auto;
   min-height: 72px;
   height: auto;
-  max-height: 96px;
+  max-height: none;
   overflow-y: auto;
 }
 .mission-region-messages .pfc-opt-mini {
@@ -24363,4 +24363,13 @@ body[data-work-path="rf"] #optics .optics-calib {
   flex: 1 1 auto;
   overflow-x: hidden;
   overflow-y: auto;
+}
+.mission-region-horizon[data-flight-stack="half"] > .flight-hud,
+.mission-region-horizon[data-flight-stack="half"] > .mission-region-messages,
+.mission-region-horizon[data-flight-stack="half"] > .mission-region-messages[data-messages-expanded="0"],
+.mission-region-horizon[data-flight-stack="half"] > .mission-region-messages[data-messages-expanded="1"] {
+  flex: 1 1 0;
+  height: auto;
+  min-height: 0;
+  max-height: none;
 }

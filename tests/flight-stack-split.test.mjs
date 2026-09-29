@@ -239,6 +239,7 @@ describe('flight stack splitters live', () => {
       expect(before.hud.height, size.name).toBeGreaterThanOrEqual(140);
       expect(before.hud.height, size.name).toBeGreaterThan(before.messages.height * 0.55);
       expect(before.messages.height, size.name).toBeGreaterThan(before.hud.height * 0.55);
+      expect(Math.abs(before.hud.height - before.messages.height), size.name).toBeLessThanOrEqual(16);
       expect(before.stage.height, size.name).toBeGreaterThanOrEqual(72);
       expect(before.data.height, size.name).toBeGreaterThanOrEqual(88);
       expect(before.order.hud, size.name).toBeLessThanOrEqual(before.order.dataSplit + 2);

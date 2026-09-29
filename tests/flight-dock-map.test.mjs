@@ -64,7 +64,14 @@ describe('flight dock and map source', () => {
     expect(html).toMatch(/id="flightDockDoAction"[^>]*disabled/);
     expect(html).toMatch(/id="flightDockSetWp"[^>]*disabled/);
     expect(html).toMatch(/id="flightDockSetMount"[^>]*disabled/);
+    expect(html).toContain('>בצעו</button>');
+    expect(html).toContain('>קבעו נקודה</button>');
+    expect(html).toContain('>קבעו מתלה</button>');
+    expect(html).toContain('>קבעו מצב</button>');
+    expect(html).not.toContain('>בצע</button>');
+    expect(html).not.toContain('>קבע נקודה</button>');
     expect(html).toContain('פעולה, נקודה ומתלה בלי שליחה');
+    expect(js).toContain('operatorConfirmed: true');
     expect(html).toContain('>בית</option>');
     expect(html).toMatch(/id="terrainFollowBtn"[^>]*>עקוב</);
     expect(html).toMatch(/id="terrainFlightRecordState"[^>]*>לא מקליט</);
@@ -292,5 +299,6 @@ describe('flight dock and map live', () => {
     expect(asked).toBe(before);
     expect(voice.length).toBe(1);
     expect(voice[0]).toContain('RTL');
+    expect(voice[0]).toContain('operatorConfirmed');
   }, 90000);
 });

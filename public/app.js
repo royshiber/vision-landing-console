@@ -19848,9 +19848,12 @@ let _flightStackOpen = false;
 function readFlightStack() {
   try {
     const raw = JSON.parse(missionLayoutStoreGet(FLIGHT_STACK_KEY) || 'null');
+    if (raw?.half === true) {
+      return { half: true, data: Number(raw.data) || FLIGHT_DATA_DEFAULT, msg: FLIGHT_MSG_DEFAULT };
+    }
     const data = Number(raw?.data);
     const msg = Number(raw?.msg);
-    if (Number.isFinite(data) && Number.isFinite(msg)) return { data, msg };
+    if (Number.isFinite(data) && Number.isFinite(msg)) return { half: false, data, msg };
   } catch {
     /* ignore */
   }
@@ -19858,10 +19861,10 @@ function readFlightStack() {
 }
 
 function writeFlightStack(stack) {
-  const next = {
-    data: Math.round(Number(stack?.data) || FLIGHT_DATA_DEFAULT),
-    msg: Math.round(Number(stack?.msg) || FLIGHT_MSG_DEFAULT),
-  };
+  const data = Math.round(Number(stack?.data) || FLIGHT_DATA_DEFAULT);
+  const next = stack?.half === true
+    ? { half: true, data, msg: FLIGHT_MSG_DEFAULT }
+    : { half: false, data, msg: Math.round(Number(stack?.msg) || FLIGHT_MSG_DEFAULT) };
   _flightStack = next;
   missionLayoutStoreSet(FLIGHT_STACK_KEY, JSON.stringify(next));
   return next;
@@ -19915,10 +19918,13 @@ function applyFlightStack(stack, opts = {}) {
     return null;
   }
   const budget = flightStackBudget(horizon);
+  const half = opts.half === true || stack?.half === true;
   const next = clampFlightStack(stack || _flightStack, budget);
-  _flightStack = next;
+  _flightStack = half ? { ...next, half: true } : { ...next, half: false };
+  horizon.dataset.flightStack = half ? 'half' : 'custom';
   horizon.style.setProperty('--flight-data-h', `${Math.round(next.data)}px`);
-  horizon.style.setProperty('--flight-msg-h', `${Math.round(next.msg)}px`);
+  if (half) horizon.style.removeProperty('--flight-msg-h');
+  else horizon.style.setProperty('--flight-msg-h', `${Math.round(next.msg)}px`);
   const dataSplit = document.getElementById('flightStackSplitData');
   const msgSplit = document.getElementById('flightStackSplitMsg');
   if (dataSplit) dataSplit.setAttribute('aria-valuenow', String(Math.round(next.data)));
@@ -19931,9 +19937,9 @@ function applyFlightStack(stack, opts = {}) {
 
 function resetFlightStack() {
   const horizon = document.querySelector('[data-mission-region="horizon"]');
-  const next = flightColumnHalfStack(horizon) || defaultFlightStack();
+  const next = { ...(flightColumnHalfStack(horizon) || defaultFlightStack()), half: true };
   writeFlightStack(next);
-  applyFlightStack(next);
+  applyFlightStack(next, { half: true });
 }
 
 function syncFlightStackToToggle() {
@@ -19996,21 +20002,23 @@ function initFlightStack() {
   const storedRaw = missionLayoutStoreGet(FLIGHT_STACK_KEY);
   const stored = storedRaw ? readFlightStack() : null;
   const expandedKey = missionLayoutStoreGet(MISSION_MESSAGES_KEY);
-  const legacy = !stored || (isLegacyCollapsedFlightStack(stored) && expandedKey !== '0' && expandedKey !== '1');
+  const legacy = !stored || stored.half === true || (isLegacyCollapsedFlightStack(stored) && expandedKey !== '0' && expandedKey !== '1');
   const horizon = document.querySelector('[data-mission-region="horizon"]');
-  const stack = legacy ? (flightColumnHalfStack(horizon) || defaultFlightStack()) : stored;
-  applyFlightStack(stack, { persist: legacy });
+  const stack = legacy
+    ? { ...(flightColumnHalfStack(horizon) || defaultFlightStack()), half: true }
+    : stored;
+  applyFlightStack(stack, { persist: legacy, half: legacy });
   if (legacy && _flightStackOpen) writeMissionMessagesExpanded(true);
   bindFlightStackSplitters();
   requestAnimationFrame(() => {
     if (legacy) {
       const half = flightColumnHalfStack(document.querySelector('[data-mission-region="horizon"]'));
-      if (half) applyFlightStack(half, { persist: true });
+      if (half) applyFlightStack({ ...half, half: true }, { persist: true, half: true });
       if (_flightStackOpen) writeMissionMessagesExpanded(true);
     } else {
       applyFlightStack(_flightStack);
     }
-    requestAnimationFrame(() => applyFlightStack(_flightStack));
+    requestAnimationFrame(() => applyFlightStack(_flightStack, { half: _flightStack.half === true }));
   });
 }
 
@@ -20057,7 +20065,7 @@ async function sendFlightDockMode(mode) {
     const res = await fetch('/api/assist/voice-flight', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: flightDockCommandText(name) }),
+      body: JSON.stringify({ text: flightDockCommandText(name), operatorConfirmed: true }),
     });
     const data = await res.json().catch(() => ({}));
     paintFlightDockCommand(data?.talkback?.text || 'לא נשלח דבר');
@@ -20080,11 +20088,12 @@ function applyFlightDock(which) {
 
 function fitFlightDockPane(which) {
   if (which !== 'actions') return;
-  const section = document.querySelector('[data-mission-region="messages"]');
   const horizon = document.querySelector('[data-mission-region="horizon"]');
+  if (!horizon || horizon.dataset.flightStack !== 'custom') return;
+  const section = document.querySelector('[data-mission-region="messages"]');
   const pane = document.getElementById('flightDockActionsPane');
   const bar = section?.querySelector('.flight-dock-bar');
-  if (!section || !horizon || !pane || !bar) return;
+  if (!section || !pane || !bar) return;
   const note = document.getElementById('flightDockCommandNote');
   const noteH = note && getComputedStyle(note).display !== 'none'
     ? Math.ceil(note.getBoundingClientRect().height)
@@ -20101,6 +20110,10 @@ function revealFlightDock(which) {
   applyFlightDock(which);
   writeMissionMessagesExpanded(true);
   applyMissionMessagesExpanded(true);
+  if (_flightStack.half === true) {
+    applyFlightStack(_flightStack, { half: true, skipMessages: true });
+    return;
+  }
   const stack = { ..._flightStack, msg: Math.max(Number(_flightStack.msg) || 0, FLIGHT_MSG_OPEN) };
   applyFlightStack(stack, { persist: true, skipMessages: true });
   requestAnimationFrame(() => fitFlightDockPane(which));
@@ -20611,6 +20624,12 @@ function initMissionLayout() {
   initMissionNavDisplay();
   window.addEventListener('resize', () => requestAnimationFrame(() => {
     placeMissionSplits();
+    if (_flightStack.half === true) {
+      const horizon = document.querySelector('[data-mission-region="horizon"]');
+      const half = flightColumnHalfStack(horizon) || _flightStack;
+      applyFlightStack({ ...half, half: true }, { half: true });
+      return;
+    }
     applyFlightStack(_flightStack);
   }));
 }

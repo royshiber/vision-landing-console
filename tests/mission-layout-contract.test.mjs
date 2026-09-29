@@ -86,7 +86,7 @@ describe('Mission layout contract — static source', () => {
     expect(cssBlock(css, '.mission-horizon-filler')).toMatch(/max-height:\s*18%/);
     expect(cssBlock(css, '.mission-horizon-filler')).toMatch(/background:\s*#1e293b/);
     expect(cssBlock(css, '.mission-region-messages[data-messages-expanded="0"]')).toMatch(/max-height:\s*none/);
-    expect(cssBlock(css, '.mission-region-messages[data-messages-expanded="1"]')).toMatch(/max-height:\s*min\(160px, 32%\)/);
+    expect(cssBlock(css, '.mission-region-messages[data-messages-expanded="1"]')).toMatch(/max-height:\s*none/);
     expect(cssBlock(css, '.pfd-horizon-msg-log')).toMatch(/inset-inline-start:\s*6px/);
     expect(cssBlock(css, '.pfd-horizon-msg-log')).toMatch(/background:\s*none/);
     expect(cssBlock(css, '.pfd-horizon-msg-log')).toMatch(/border:\s*0/);
@@ -291,7 +291,7 @@ describe('Mission layout contract — live boxes', () => {
     });
 
     expect(measured.platformTab).toBe(false);
-    expect(measured.version).toBe('1.02.376');
+    expect(measured.version).toBe('1.02.377');
     expect(measured.ws.width).toBeGreaterThan(800);
     expect(measured.talkMinWidth).toBe('0px');
     expect(Number.parseFloat(measured.dataGap)).toBeLessThanOrEqual(4);
