@@ -11,6 +11,8 @@
     <link rel="icon" href="./icon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="./styles.css?v=__APP_VERSION__" />
     <link rel="stylesheet" href="./modules/flightbook.css?v=__APP_VERSION__" />
+    <link rel="stylesheet" href="./modules/follow-target.css?v=__APP_VERSION__" />
+    <link rel="stylesheet" href="./modules/gcs-logs.css?v=__APP_VERSION__" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
     <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
     <script src="https://cdn.jsdelivr.net/npm/leaflet-rotate@0.2.8/dist/leaflet-rotate.js" crossorigin=""></script>
@@ -1263,6 +1265,18 @@
           </aside>
         </div>
         <div id="debriefLogsPanel" class="tele-subpanel debrief-logs-panel flights-panel" data-debrief-panel="logs">
+          <section id="gcsLogCard" class="gcs-log-card" hidden dir="rtl" aria-label="לוגים בענן">
+            <div class="gcs-log-head">
+              <span class="gcs-log-title">לוגים בענן</span>
+              <p id="gcsLogStatus" class="gcs-log-status" role="status">העלאת לוגים לענן כבויה.</p>
+              <div class="gcs-log-actions">
+                <button type="button" id="gcsLogUploadBtn" disabled>העלו לענן</button>
+                <button type="button" id="gcsLogResumeBtn" disabled>המשיכו</button>
+                <button type="button" id="gcsLogRefreshBtn">רעננו</button>
+              </div>
+            </div>
+            <div id="gcsLogList" class="gcs-log-summary"></div>
+          </section>
           <div class="debrief-logs-grid">
             <div class="debrief-logs-col debrief-logs-col--upload">
               <div class="log-upload-card">
@@ -2223,6 +2237,12 @@
               <span id="missionNavDisplayStatus" class="mission-nav-display-status" title="ניווט אופטי">—</span>
             </div>
           </div>
+          <section id="followTargetCard" class="follow-target-card" hidden dir="rtl" aria-label="מעקב מטרה" data-picking="0">
+            <button type="button" id="followTargetMapBtn" disabled title="אין קישור לסימולטור.">בחרו</button>
+            <button type="button" id="followTargetDetectBtn" disabled title="אין זיהוי במעקב.">עקבו</button>
+            <button type="button" id="followTargetStopBtn" disabled title="עצרו מעקב">עצרו</button>
+            <p id="followTargetStatus" class="follow-target-status" role="status"></p>
+          </section>
           <p id="missionIdentity" class="mission-identity">הטסה · מרחב טיסה</p>
           <div class="mission-record-wrap">
             <button type="button" id="missionRecordBtn" class="mission-record-btn" data-recording="0" aria-pressed="false" title="התחילו שמירת טיסה לארכיון">הקלטה</button>
@@ -2858,6 +2878,8 @@
     <script type="module" src="./modules/cam0-panel.mjs?v=__APP_VERSION__"></script>
     <script type="module" src="./modules/fc-write-ack.mjs?v=__APP_VERSION__"></script>
     <script type="module" src="./modules/cam1-panel.mjs?v=__APP_VERSION__"></script>
+    <script type="module" src="./modules/follow-target.mjs?v=__APP_VERSION__"></script>
+    <script type="module" src="./modules/gcs-logs.mjs?v=__APP_VERSION__"></script>
     <script src="./app.js?v=__APP_VERSION__"></script>
     <script src="./versions-rollback.js?v=__APP_VERSION__"></script>
   </body>
