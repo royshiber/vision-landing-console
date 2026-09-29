@@ -20283,8 +20283,8 @@ body:has(#recordings.panel.visible) .layout {
   gap: 8px;
   align-items: stretch;
   min-width: 0;
-  flex: 1 1 auto;
-  min-height: 0;
+  flex: 1 1 0;
+  min-height: 64px;
   overflow: hidden;
 }
 .optics-tiles { min-width: 0; min-height: 0; height: 100%; display: flex; flex-direction: column; gap: 4px; }
@@ -20337,7 +20337,8 @@ body:has(#recordings.panel.visible) .layout {
 }
 #optics .cam0-layout,
 #optics .cam0-side,
-#optics .optics-groups {
+#optics .optics-groups,
+#optics .camera-settings-host {
   display: contents;
 }
 #optics .cam0-stage,
@@ -20413,7 +20414,27 @@ body:has(#recordings.panel.visible) .layout {
   letter-spacing: normal;
   text-transform: none;
 }
-#optics .cam0-calib-lead { flex: 1 1 12rem; min-width: 0; }
+#optics .cam0-calib-lead { flex: 1 1 100%; min-width: 0; }
+#optics .optics-field-note,
+#optics .optics-readout {
+  margin: 0;
+  color: #f8fafc;
+  font-size: clamp(11px, 0.72rem, 13px);
+  line-height: 1.3;
+}
+#optics .optics-field-note { color: #fde68a; }
+#optics .optics-readout {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+#optics .cam0-btn:disabled,
+#optics .gimbal-settings input:disabled {
+  opacity: 1;
+  color: #f8fafc;
+  background: #1e293b;
+  border-color: #cbd5e1;
+}
 .gimbal-pad {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -20517,7 +20538,29 @@ body:has(#recordings.panel.visible) .layout {
   min-width: 8rem;
   font-weight: 800;
 }
-.gimbal-pad-btn:disabled { opacity: 0.45; }
+#optics .gimbal-pad-btn,
+#optics .gimbal-pad-btn:disabled {
+  opacity: 1;
+  background: #1e3a8a;
+  color: #f8fafc;
+  border: 1px solid #bfdbfe;
+}
+#optics .gimbal-pad-btn:disabled {
+  background: #1e293b;
+  color: #f8fafc;
+  border-color: #e2e8f0;
+}
+#optics .gimbal-pad-lock[aria-pressed="false"],
+#optics .gimbal-pad-lock[aria-pressed="false"]:disabled {
+  background: #1e293b;
+  color: #f8fafc;
+  border-color: #e2e8f0;
+}
+#optics .gimbal-pad-lock[aria-pressed="true"] {
+  background: #0f766e;
+  border-color: #5eead4;
+  color: #ecfeff;
+}
 .gimbal-pad-btn.is-held { outline: 2px solid #38bdf8; }
 .gimbal-pad-lock[aria-pressed="true"] {
   background: #0f766e;

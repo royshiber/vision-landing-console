@@ -11,13 +11,14 @@ import {
 } from './cam1-status.mjs';
 import { bindFovField, readStoredFov } from './camera-fov.mjs';
 import { RF_VIDEO_REASON_HE, rfVideoLocked } from './rf-link-ui.mjs';
+import { applyCameraSupport, mountCameraSettings } from './camera-settings.mjs';
 
 const REASON_LINK = 'אין קישור למחשב המשימה. הפקדים כבויים.';
 const REASON_CAM = 'אין אות מהמצלמה. הפקדים כבויים.';
 const ERR_SETTING = 'ההגדרה לא נשמרה. הערך חזר לקודם.';
 const ERR_SNAP = 'הצילום נכשל.';
 const STREAM = '/api/jetson/v1/cam1/stream.mjpg';
-const CONTROL_IDS = ['cam1Ae', 'cam1Exposure', 'cam1Gain', 'cam1Res', 'cam1FpsSet', 'cam1Snap'];
+const CONTROL_IDS = ['cam1Ae', 'cam1Exposure', 'cam1Gain', 'cam1Res', 'cam1FpsSet', 'cam1Record', 'cam1Snap', 'cam1CalibCap', 'cam1CalibSolve'];
 
 function unwrap(body) {
   if (body && body.lane === 'NEW' && body.data && typeof body.data === 'object') return body.data;
@@ -80,10 +81,13 @@ function drawHist(canvas, img) {
 }
 
 function init() {
+  mountCameraSettings(document);
   const panel = document.getElementById('cam1Panel');
   const cam0 = document.getElementById('cam0Panel');
+  const gimbalPanel = document.getElementById('gimbalSettings');
   const btn0 = document.getElementById('opticsCam0Btn');
   const btn1 = document.getElementById('opticsCam1Btn');
+  const btnG = document.getElementById('opticsGimbalBtn');
   if (!panel || !btn0 || !btn1) return;
   const img = document.getElementById('cam1Frame');
   const empty = document.getElementById('cam1Empty');
@@ -145,6 +149,7 @@ function init() {
       reason.hidden = !(locked || !on);
       reason.textContent = locked ? RF_VIDEO_REASON_HE : (on ? '' : why);
     }
+    applyCameraSupport('cam1');
   }
 
   function paintStatusLine(body) {
@@ -173,19 +178,24 @@ function init() {
 
   function selectCam(which) {
     const on1 = which === 'cam1';
-    btn0.classList.toggle('is-active', !on1);
+    const onG = which === 'gimbal';
+    btn0.classList.toggle('is-active', !on1 && !onG);
     btn1.classList.toggle('is-active', on1);
-    btn0.setAttribute('aria-selected', String(!on1));
+    btnG?.classList.toggle('is-active', onG);
+    btn0.setAttribute('aria-selected', String(!on1 && !onG));
     btn1.setAttribute('aria-selected', String(on1));
-    if (cam0) cam0.hidden = on1;
+    btnG?.setAttribute('aria-selected', String(onG));
+    if (cam0) cam0.hidden = on1 || onG;
     panel.hidden = !on1;
-    document.dispatchEvent(new CustomEvent('vlc-debrief-open-cam', { detail: which }));
+    if (gimbalPanel) gimbalPanel.hidden = !onG;
+    if (!onG) document.dispatchEvent(new CustomEvent('vlc-debrief-open-cam', { detail: which }));
     nextAt = 0;
     void tick();
   }
 
   btn0.addEventListener('click', () => selectCam('cam0'));
   btn1.addEventListener('click', () => selectCam('cam1'));
+  btnG?.addEventListener('click', () => selectCam('gimbal'));
 
   async function refresh() {
     let body = null;

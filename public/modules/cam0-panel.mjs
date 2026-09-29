@@ -9,6 +9,7 @@ import {
   readStoredFov,
 } from './camera-fov.mjs';
 import { RF_VIDEO_REASON_HE, rfVideoLocked } from './rf-link-ui.mjs';
+import { applyCameraSupport, mountCameraSettings } from './camera-settings.mjs';
 
 const NO_SIGNAL = 'אין אות';
 const DRILL = 'תרגיל. לא מצלמה אמיתית.';
@@ -147,6 +148,7 @@ function drawDetections(canvas, img, detections, enabled) {
 }
 
 function init() {
+  mountCameraSettings(document);
   const panel = document.getElementById('cam0Panel');
   if (!panel) return;
   bindCameraSourcePickers(document);
@@ -215,6 +217,7 @@ function init() {
       reason.hidden = !(locked || !on);
       reason.textContent = locked ? RF_VIDEO_REASON_HE : (on ? '' : why);
     }
+    applyCameraSupport('cam0');
   }
 
   function paintStatusLine(connected, fps) {
