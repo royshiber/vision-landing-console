@@ -32,12 +32,12 @@ function creds(extra = {}) {
   };
 }
 
-function mockS3() {
+function mockS3({ failSecondPart = true } = {}) {
   const objects = new Map();
   const uploads = new Map();
   const calls = [];
   let seq = 1;
-  let failPart2 = true;
+  let failPart2 = failSecondPart;
   const fetchImpl = async (url, init = {}) => {
     const u = new URL(url);
     const method = init.method || 'GET';
@@ -195,5 +195,106 @@ describe('GCS flight log upload', () => {
     const body = await posted.json();
     expect(posted.status).toBeGreaterThanOrEqual(400);
     expect(body.messageHe).toBeTruthy();
+  });
+
+  it('marks a leftover uploading job interrupted and refuses its download', async () => {
+    const tree = tmpTree();
+    const storePath = path.join(tree.root, 'store.json');
+    const mock = mockS3();
+    const writer = createS3Writer({
+      endpoint: 'https://s3.test.local',
+      region: 'us-east-1',
+      bucket: 'airvix-flight-logs',
+      accessKeyId: 'unit-key',
+      secretAccessKey: SECRET,
+      fetchImpl: mock.fetchImpl,
+      now: () => new Date('2026-09-29T00:00:00Z'),
+    });
+    const uploader = createGcsLogUploader({
+      env: creds(),
+      storePath,
+      archiveRoot: tree.archive,
+      writer,
+      partSize: 8,
+    });
+    const first = await uploader.uploadFile(tree.file);
+    expect(first.job.state).toBe('interrupted');
+    const raw = JSON.parse(fs.readFileSync(storePath, 'utf8'));
+    const stored = Object.values(raw.jobs)[0];
+    stored.state = 'uploading';
+    stored.messageHe = GCS_LOG_COPY.uploading;
+    fs.writeFileSync(storePath, JSON.stringify(raw));
+    const restarted = createGcsLogUploader({
+      env: creds(),
+      storePath,
+      archiveRoot: tree.archive,
+      writer,
+      partSize: 8,
+    });
+    const status = restarted.status();
+    expect(status.items[0].state).toBe('interrupted');
+    expect(status.items[0].messageHe).toBe(GCS_LOG_COPY.interrupted);
+    const denied = await restarted.download(status.items[0].key);
+    expect(denied.ok).toBe(false);
+    expect(denied.status).toBe(409);
+    const resumed = await restarted.resume(status.items[0].id);
+    expect(resumed.job.state).toBe('complete');
+  });
+
+  it('reports pending archive sessions and uploads each of them', async () => {
+    const tree = tmpTree();
+    const file2 = path.join(tree.archive, 'flight-2.tlog');
+    fs.writeFileSync(file2, Buffer.from('second-log-bytes-here'));
+    const mock = mockS3({ failSecondPart: false });
+    const writer = createS3Writer({
+      endpoint: 'https://s3.test.local',
+      region: 'us-east-1',
+      bucket: 'airvix-flight-logs',
+      accessKeyId: 'unit-key',
+      secretAccessKey: SECRET,
+      fetchImpl: mock.fetchImpl,
+      now: () => new Date('2026-09-29T00:00:00Z'),
+    });
+    const uploader = createGcsLogUploader({
+      env: creds(),
+      storePath: path.join(tree.root, 'store.json'),
+      archiveRoot: tree.archive,
+      writer,
+      partSize: 8,
+    });
+    const sessions = [
+      { id: 1, absPath: tree.file, downloadable: true, open: false, empty: false },
+      { id: 2, absPath: file2, downloadable: true, open: false, empty: false },
+    ];
+    const app = express();
+    app.use(express.json());
+    registerGcsLogsApi(app, {
+      gcsUploader: uploader,
+      archiveRoot: tree.archive,
+      listPendingSessions: () => sessions,
+    });
+    const server = await new Promise((resolve) => {
+      const s = app.listen(0, '127.0.0.1', () => resolve(s));
+    });
+    servers.push(server);
+    const port = server.address().port;
+    const before = await fetch(`http://127.0.0.1:${port}/api/gcs-logs`).then((r) => r.json());
+    expect(before.messageHe).toBe(GCS_LOG_COPY.pending);
+    expect(before.pendingSessionIds).toEqual([1, 2]);
+    const posted = await fetch(`http://127.0.0.1:${port}/api/gcs-logs/upload`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionIds: before.pendingSessionIds }),
+    });
+    const body = await posted.json();
+    expect(posted.status).toBe(200);
+    expect(body.items.map((item) => item.name).sort()).toEqual(['flight-1.tlog', 'flight-2.tlog']);
+    expect(body.pendingCount).toBe(0);
+    const again = await fetch(`http://127.0.0.1:${port}/api/gcs-logs/upload`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    });
+    expect(again.status).toBe(404);
   });
 });

@@ -8,6 +8,7 @@ import { afterAll, describe, expect, it } from 'vitest';
 import express from 'express';
 import { registerFollowTargetApi } from '../lib/routes/follow-target-api.mjs';
 import {
+  FOLLOW_COPY,
   FOLLOW_LIMITS,
   createFollowController,
   destinationPoint,
@@ -44,7 +45,15 @@ function harness({ enabled = true, t = 1_000_000 } = {}) {
   let on = enabled;
   let time = t;
   const link = {
-    flyTo(lat, lon, altM) { calls.fly.push({ lat, lon, altM }); },
+    flyTo(lat, lon, altM, options = {}) {
+      calls.fly.push({
+        lat,
+        lon,
+        altM,
+        radiusM: options.radiusM,
+        changeMode: options.changeMode === true,
+      });
+    },
     rtl() { calls.rtl.push(time); },
   };
   const controller = createFollowController({
@@ -159,13 +168,15 @@ describe('follow-target SITL guardrails', () => {
     );
     expect(result.ok).toBe(false);
     expect(result.reasons).toContain('fence_alt');
+    expect(result.messageHe).toBe(FOLLOW_COPY.above);
+    expect(result.messageHe).not.toContain('נמוך');
     expect(commands(h.calls).fly).toBe(0);
   });
 
-  it('orbits at 150 m, at least 60 m AGL, inside home and the fence', () => {
+  it('commands a 150 m circle centred on the target', () => {
     const h = harness();
-    const target = at(0, 1900);
-    const aircraft = at(0, 1700);
+    const target = at(0, 800);
+    const aircraft = at(0, 600);
     const result = h.controller.selectTarget(
       { lat: target.lat, lon: target.lon, altM: 70, source: 'map' },
       vehicle({
@@ -178,12 +189,24 @@ describe('follow-target SITL guardrails', () => {
     expect(h.calls.fly).toHaveLength(1);
     const sent = h.calls.fly[0];
     expect(sent.altM).toBeGreaterThanOrEqual(80);
-    expect(sent.altM).toBeGreaterThanOrEqual(60);
-    const radius = distanceM(target.lat, target.lon, sent.lat, sent.lon);
-    expect(radius).toBeGreaterThan(148);
-    expect(radius).toBeLessThan(152);
-    expect(distanceM(HOME.lat, HOME.lon, sent.lat, sent.lon)).toBeLessThanOrEqual(2000);
-    expect(distanceM(HOME.lat, HOME.lon, sent.lat, sent.lon)).toBeLessThanOrEqual(2000);
+    expect(sent.changeMode).toBe(true);
+    expect(sent.radiusM).toBe(150);
+    expect(distanceM(target.lat, target.lon, sent.lat, sent.lon)).toBeLessThan(1);
+    const rim = destinationPoint(target.lat, target.lon, 0, 150);
+    expect(distanceM(HOME.lat, HOME.lon, rim.lat, rim.lon)).toBeLessThanOrEqual(2000);
+    expect(distanceM(HOME.lat, HOME.lon, rim.lat, rim.lon)).toBeLessThanOrEqual(2000);
+  });
+
+  it('rejects a circle that would leave the home limit', () => {
+    const h = harness();
+    const target = at(0, 1900);
+    const result = h.controller.selectTarget(
+      { lat: target.lat, lon: target.lon, altM: 90, source: 'map' },
+      vehicle(),
+    );
+    expect(result.ok).toBe(false);
+    expect(result.reasons).toContain('beyond_home');
+    expect(commands(h.calls).fly).toBe(0);
   });
 
   it('commands RTL once after 60 s without a target and not before', () => {
@@ -201,6 +224,40 @@ describe('follow-target SITL guardrails', () => {
     h.controller.tick(vehicle());
     expect(h.calls.rtl).toHaveLength(1);
     expect(h.calls.fly.every((c) => c.altM >= 60)).toBe(true);
+  });
+
+  it('refreshes the loss timer from a matching detection and not from the tick', () => {
+    const h = harness({ t: 5_000 });
+    const target = at(90, 300);
+    h.controller.selectTarget(
+      { lat: target.lat, lon: target.lon, altM: 90, source: 'detection' },
+      vehicle(),
+    );
+    h.setTime(5_000 + 50_000);
+    h.controller.tick(vehicle());
+    expect(h.calls.rtl).toHaveLength(0);
+    h.controller.noteDetection({ lat: target.lat, lon: target.lon, altM: 90 });
+    h.setTime(5_000 + 50_000 + 59_000);
+    h.controller.tick(vehicle());
+    expect(h.calls.rtl).toHaveLength(0);
+    h.setTime(5_000 + 50_000 + 60_000);
+    h.controller.tick(vehicle());
+    expect(h.calls.rtl).toHaveLength(1);
+  });
+
+  it('does not keep a map target alive from an unrelated detection', () => {
+    const h = harness({ t: 5_000 });
+    const target = at(90, 300);
+    const other = at(120, 300);
+    h.controller.selectTarget(
+      { lat: target.lat, lon: target.lon, altM: 90, source: 'map' },
+      vehicle(),
+    );
+    h.setTime(5_000 + 50_000);
+    h.controller.noteDetection({ lat: other.lat, lon: other.lon, altM: 90 });
+    h.setTime(5_000 + 60_000);
+    h.controller.tick(vehicle());
+    expect(h.calls.rtl).toHaveLength(1);
   });
 
   it('resets the loss timer when the target is seen again', () => {
@@ -288,7 +345,8 @@ describe('follow-target SITL guardrails', () => {
     });
     expect(plan.ok).toBe(true);
     expect(plan.altM).toBeGreaterThanOrEqual(60);
-    expect(distanceM(target.lat, target.lon, plan.waypoint.lat, plan.waypoint.lon)).toBeCloseTo(150, 0);
+    expect(plan.radiusM).toBe(150);
+    expect(distanceM(target.lat, target.lon, plan.waypoint.lat, plan.waypoint.lon)).toBeLessThan(1);
   });
 });
 

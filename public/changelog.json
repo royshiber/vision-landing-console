@@ -1,5 +1,36 @@
 [
   {
+    "version": "1.02.366",
+    "date": "2026-09-29",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Server library",
+        "detail": "gcs-upload.mjs, follow-target.mjs, follow-target-api.mjs, gcs-logs-api.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "MAVLink connection",
+        "detail": "mavlink-connection.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "Frontend",
+        "detail": "follow-target.css, follow-target.mjs, gcs-logs.css, gcs-logs.mjs"
+      },
+      {
+        "type": "ui",
+        "title": "HTML layout",
+        "detail": "index.html"
+      },
+      {
+        "type": "ui",
+        "title": "Styles",
+        "detail": "styles.css"
+      }
+    ]
+  },
+  {
     "version": "1.02.365",
     "date": "2026-09-29",
     "changes": [

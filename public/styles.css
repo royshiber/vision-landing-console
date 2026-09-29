@@ -4278,7 +4278,9 @@ button:hover,
   flex-direction: column;
   align-items: stretch;
   justify-content: flex-start;
-  overflow: auto;
+  overflow: hidden;
+  min-height: 0;
+  flex: 1 1 0;
   padding: 8px 10px 10px;
 }
 
@@ -4289,9 +4291,10 @@ button:hover,
   align-content: start;
   align-items: start;
   grid-auto-rows: max-content;
-  height: max-content;
-  flex: none;
-  min-height: min-content;
+  height: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .debrief-logs-col {

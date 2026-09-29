@@ -1285,15 +1285,15 @@
           </aside>
         </div>
         <div id="debriefLogsPanel" class="tele-subpanel debrief-logs-panel flights-panel" data-debrief-panel="logs">
-          <section id="gcsLogCard" class="gcs-log-card" dir="rtl" aria-label="לוגים בענן">
-            <h3 class="gcs-log-title">לוגים מהקרקע</h3>
-            <p id="gcsLogStatus" class="gcs-log-status" role="status">העלאת לוגים מהקרקע כבויה.</p>
+          <section id="gcsLogCard" class="gcs-log-card" hidden dir="rtl" aria-label="לוגים בענן">
+            <span class="gcs-log-title">לוגים בענן</span>
+            <p id="gcsLogStatus" class="gcs-log-status" role="status">העלאת לוגים לענן כבויה.</p>
             <div class="gcs-log-actions">
-              <button type="button" id="gcsLogUploadBtn" disabled>העלו לוגים</button>
+              <button type="button" id="gcsLogUploadBtn" disabled>העלו לענן</button>
               <button type="button" id="gcsLogResumeBtn" disabled>המשיכו</button>
               <button type="button" id="gcsLogRefreshBtn">רעננו</button>
             </div>
-            <div id="gcsLogList" class="gcs-log-list"></div>
+            <p id="gcsLogList" class="gcs-log-summary"></p>
           </section>
           <div class="debrief-logs-grid">
             <div class="debrief-logs-col debrief-logs-col--upload">
@@ -2232,16 +2232,6 @@
 
 
       <section id="terrain" class="panel visible" data-workspace="mission">
-        <section id="followTargetCard" class="follow-target-card" dir="rtl" aria-label="מעקב מטרה" data-picking="0">
-          <h2 class="follow-target-title">מעקב</h2>
-          <p id="followTargetBanner" class="follow-target-banner">סימולטור</p>
-          <div class="follow-target-actions">
-            <button type="button" id="followTargetMapBtn" disabled title="בחרו במפה">מפה</button>
-            <button type="button" id="followTargetDetectBtn" disabled title="עקבו אחרי זיהוי">זיהוי</button>
-            <button type="button" id="followTargetStopBtn" disabled title="עצרו מעקב">עצירה</button>
-          </div>
-          <p id="followTargetStatus" class="follow-target-status" role="status" title="מעקב מטרה כבוי. זמין רק בסימולטור.">כבוי</p>
-        </section>
         <div class="mission-ops-chrome">
           <div class="mission-ops-leading">
             <nav id="missionLinkStrip" class="mission-link-strip" aria-label="סטטוס קישורים">
@@ -2257,6 +2247,12 @@
               <span id="missionNavDisplayStatus" class="mission-nav-display-status" title="ניווט אופטי">—</span>
             </div>
           </div>
+          <section id="followTargetCard" class="follow-target-card" hidden dir="rtl" aria-label="מעקב מטרה" data-picking="0">
+            <button type="button" id="followTargetMapBtn" disabled title="אין קישור לסימולטור.">בחרו</button>
+            <button type="button" id="followTargetDetectBtn" disabled title="אין זיהוי במעקב.">עקבו</button>
+            <button type="button" id="followTargetStopBtn" disabled title="עצרו מעקב">עצרו</button>
+            <p id="followTargetStatus" class="follow-target-status" role="status"></p>
+          </section>
           <p id="missionIdentity" class="mission-identity">הטסה · מרחב טיסה</p>
           <div class="mission-record-wrap">
             <button type="button" id="missionRecordBtn" class="mission-record-btn" data-recording="0" aria-pressed="false" title="התחילו שמירת טיסה לארכיון">הקלטה</button>

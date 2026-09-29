@@ -241,6 +241,8 @@ function noteInbound(bridge, frame) {
       lon: gpi.lon,
       hdg: gpi.hdgDeg,
       mode: bridge.mode,
+      targetLat: bridge.target?.lat ?? null,
+      targetLon: bridge.target?.lon ?? null,
     };
     bridge.aglSamples.push(sample);
     if (bridge.floorOn && sample.mode !== 11) {
@@ -278,6 +280,8 @@ function noteOutbound(bridge, frame) {
       lat: frame.payload.readInt32LE(16) / 1e7,
       lon: frame.payload.readInt32LE(20) / 1e7,
       alt: frame.payload.readFloatLE(24),
+      flags: frame.payload.readFloatLE(4),
+      radius: frame.payload.readFloatLE(8),
       target: bridge.target ? { lat: bridge.target.lat, lon: bridge.target.lon } : null,
     });
   }
@@ -366,12 +370,11 @@ function headingTravel(samples) {
 }
 
 function orbitSamples(bridge, since) {
-  const target = bridge.target;
-  if (!target) return [];
   return bridge.aglSamples.filter((sample) => {
     if (sample.t < since || sample.mode !== 15) return false;
-    const radius = distanceM(sample.lat, sample.lon, target.lat, target.lon);
-    return radius >= 100 && radius <= 210;
+    if (!Number.isFinite(sample.targetLat) || !Number.isFinite(sample.targetLon)) return false;
+    const radius = distanceM(sample.lat, sample.lon, sample.targetLat, sample.targetLon);
+    return radius >= 110 && radius <= 190;
   });
 }
 
@@ -465,53 +468,46 @@ describe.skipIf(!ENABLED)('live ArduPlane SITL follow-target', () => {
       expect(Math.min(...guidedAlt)).toBeGreaterThanOrEqual(MIN_AGL_M);
       mark('guided', trackStarted);
 
-      let lastHold = 0;
-      const orbit = await waitUntil(async () => {
-        if (Date.now() - lastHold >= 1000) {
-          lastHold = Date.now();
-          await api(base, 'POST', '/api/follow-target/target', {
-            lat: bridge.target.lat,
-            lon: bridge.target.lon,
-            altM: 90,
-            source: 'map',
-          });
+      const feedUntil = Date.now() + 65_000;
+      let moved = false;
+      let orbit = [];
+      while (Date.now() < feedUntil) {
+        if (!moved && Date.now() - trackStarted > 15_000) {
+          bridge.target = destinationPoint(bridge.target.lat, bridge.target.lon, 45, 120);
+          moved = true;
         }
-        const samples = orbitSamples(bridge, trackStarted);
-        return headingTravel(samples) >= 80 && samples.length >= 5 ? samples : null;
-      }, 50000, 'orbit');
-      const moved = destinationPoint(bridge.target.lat, bridge.target.lon, 45, 120);
-      bridge.target = moved;
-      const moveStarted = Date.now();
-      await api(base, 'POST', '/api/follow-target/target', {
-        lat: moved.lat,
-        lon: moved.lon,
-        altM: 90,
-        source: 'map',
-      });
-      let lastMovePost = 0;
-      await waitUntil(async () => {
-        if (Date.now() - lastMovePost >= 1000) {
-          lastMovePost = Date.now();
-          await api(base, 'POST', '/api/follow-target/target', {
-            lat: bridge.target.lat,
-            lon: bridge.target.lon,
-            altM: 90,
-            source: 'map',
-          });
+        const hold = await api(base, 'POST', '/api/follow-target/target', {
+          lat: bridge.target.lat,
+          lon: bridge.target.lon,
+          altM: 90,
+          source: 'map',
+        });
+        if (hold.status !== 200 || hold.json.state !== 'tracking') {
+          throw new Error(`hold ${hold.status} ${JSON.stringify(hold.json)}`);
         }
-        const samples = orbitSamples(bridge, moveStarted);
-        return samples.length >= 3 ? samples : null;
-      }, 30000, 'follow moving target');
+        if (bridge.mode === 11) throw new Error('RTL while the target was still tracked');
+        orbit = orbitSamples(bridge, trackStarted);
+        await delay(1000);
+      }
+      expect(bridge.setModes.some((row) => row.mode === 11)).toBe(false);
+      expect(bridge.mode).toBe(15);
       const lossStarted = Date.now();
       await waitUntil(() => (bridge.mode === 11 ? true : null), 80000, 'RTL mode');
       const lossMs = Date.now() - lossStarted;
       mark('rtl-after-loss', lossStarted);
       mark('orbit-case', started);
-      const commandRadius = bridge.guided
-        .filter((row) => row.target)
-        .map((row) => distanceM(row.lat, row.lon, row.target.lat, row.target.lon));
-      expect(commandRadius.some((radius) => Math.abs(radius - ORBIT_M) <= 15)).toBe(true);
+      const firstGuided = bridge.guided[0];
+      expect(firstGuided).toBeTruthy();
+      expect(bridge.setModes.some((row) => row.mode === 15 && row.t <= firstGuided.t)).toBe(true);
+      expect(bridge.guided.every((row) => Math.abs(row.radius - ORBIT_M) < 1)).toBe(true);
+      expect(bridge.guided.every((row) => Math.abs(row.flags - 1) < 0.001)).toBe(true);
+      expect(bridge.guided.every((row) => row.target && distanceM(row.lat, row.lon, row.target.lat, row.target.lon) < 5)).toBe(true);
       expect(headingTravel(orbit)).toBeGreaterThanOrEqual(80);
+      expect(orbit.length).toBeGreaterThanOrEqual(5);
+      expect(orbit.some((sample) => {
+        const radius = distanceM(sample.lat, sample.lon, sample.targetLat, sample.targetLon);
+        return radius >= 130 && radius <= 170;
+      })).toBe(true);
       expect(bridge.lowestAgl).toBeGreaterThanOrEqual(MIN_AGL_M);
       expect(lossMs).toBeGreaterThanOrEqual(55000);
       expect(lossMs).toBeLessThanOrEqual(75000);
@@ -530,7 +526,7 @@ describe.skipIf(!ENABLED)('live ArduPlane SITL follow-target', () => {
     } finally {
       await stopStack(stack || null);
     }
-  }, 240000);
+  }, 300000);
 
   it('cancels follow on an RC override mode change and sends no further GUIDED commands', async () => {
     const started = Date.now();

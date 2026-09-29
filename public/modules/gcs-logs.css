@@ -1,45 +1,52 @@
-.gcs-log-card {
+.gcs-log-card[hidden] {
+  display: none !important;
+}
+
+.gcs-log-card:not([hidden]) {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
-  gap: 6px 8px;
+  gap: 6px;
   width: 100%;
   box-sizing: border-box;
-  padding: 6px 8px;
-  margin: 0 0 8px;
-  background: #ffffff;
-  color: #191c1e;
-  border: 1px solid #c2c6d4;
-  border-radius: 8px;
+  min-height: 22px;
+  max-height: 22px;
+  margin: 0 0 4px;
+  padding: 0;
+  background: transparent;
+  color: #e8edf6;
+  border: 0;
 }
 
 .gcs-log-title,
 .gcs-log-status,
-.gcs-log-card button,
-.gcs-log-item {
+.gcs-log-summary,
+.gcs-log-card button {
   margin: 0;
-  font-size: clamp(11px, 0.8rem, 14px);
-  line-height: 1.35;
-  white-space: normal;
+  font-size: 11px;
+  line-height: 1.2;
+  white-space: nowrap;
   overflow: visible;
-  color: #191c1e;
+  color: #e8edf6;
 }
 
 .gcs-log-title {
   font-weight: 700;
+  flex: 0 0 auto;
 }
 
 .gcs-log-status {
-  flex: 1 1 200px;
+  flex: 1 1 auto;
   min-width: 0;
 }
 
 .gcs-log-actions,
-.gcs-log-list {
+.gcs-log-summary {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 6px;
   align-items: center;
+  flex: 0 0 auto;
 }
 
 .gcs-log-card button {
@@ -47,28 +54,20 @@
   color: #ffffff;
   border: 0;
   border-radius: 6px;
-  min-height: 28px;
-  padding: 2px 8px;
+  min-height: 20px;
+  height: 20px;
+  padding: 0 8px;
   cursor: pointer;
 }
 
 .gcs-log-card button[disabled] {
-  background: #e6e8eb;
-  color: #191c1e;
+  background: #1c2433;
+  color: #cbd5e1;
+  border: 1px solid rgba(148, 163, 184, 0.35);
   cursor: default;
 }
 
-.gcs-log-item {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  align-items: center;
-  background: #f2f4f7;
-  border-radius: 6px;
-  padding: 4px 8px;
-}
-
-.gcs-log-item a {
-  color: #00478d;
-  font-size: clamp(11px, 0.8rem, 14px);
+.gcs-log-summary a {
+  color: #93c5fd;
+  font-size: 11px;
 }

@@ -1,8 +1,11 @@
+const card = document.getElementById('gcsLogCard');
 const statusEl = document.getElementById('gcsLogStatus');
 const listEl = document.getElementById('gcsLogList');
 const uploadBtn = document.getElementById('gcsLogUploadBtn');
 const resumeBtn = document.getElementById('gcsLogResumeBtn');
 const refreshBtn = document.getElementById('gcsLogRefreshBtn');
+
+let pollTimer = null;
 
 function setStatus(text) {
   if (statusEl) statusEl.textContent = text || '';
@@ -16,6 +19,7 @@ async function readJson(url, options) {
 
 function paint(data) {
   if (!data) return;
+  if (card) card.hidden = data.enabled !== true;
   const active = (data.items || []).find((item) => item.state === 'uploading' || item.state === 'interrupted');
   setStatus(data.messageHe || '');
   if (statusEl && active && Number.isFinite(active.percent)) {
@@ -25,46 +29,36 @@ function paint(data) {
     statusEl.append(pct);
   }
   const on = data.enabled === true && data.configured === true;
-  if (uploadBtn) uploadBtn.disabled = !on;
+  const pending = Number(data.pendingCount) || 0;
+  if (uploadBtn) uploadBtn.disabled = !on || pending === 0;
   if (resumeBtn) resumeBtn.disabled = !on || !active || active.state !== 'interrupted';
   if (!listEl) return;
   listEl.replaceChildren();
-  for (const item of data.items || []) {
-    const row = document.createElement('div');
-    row.className = 'gcs-log-item';
-    const name = document.createElement('span');
-    name.textContent = item.name || 'לוג';
-    const state = document.createElement('span');
-    state.textContent = item.messageHe || '';
-    row.append(name, state);
-    if (item.key && data.enabled && data.configured) {
-      const link = document.createElement('a');
-      link.href = `/api/gcs-logs/download?key=${encodeURIComponent(item.key)}`;
-      link.textContent = 'הורדה';
-      row.append(link);
-    }
-    listEl.append(row);
-  }
+  const complete = (data.items || []).filter((item) => item.state === 'complete' && item.key);
+  if (!complete.length) return;
+  const link = document.createElement('a');
+  link.href = `/api/gcs-logs/download?key=${encodeURIComponent(complete[0].key)}`;
+  link.textContent = 'הורידו';
+  listEl.append(link);
 }
 
 async function refresh() {
   try {
-    paint(await readJson('/api/gcs-logs'));
+    const data = await readJson('/api/gcs-logs');
+    paint(data);
+    if (data.enabled !== true && pollTimer) {
+      clearInterval(pollTimer);
+      pollTimer = null;
+    }
   } catch {
     setStatus('אין תשובה מהשרת.');
   }
 }
 
-async function sessionId() {
-  const data = await readJson('/api/telemetry-archive/sessions');
-  const sessions = data.sessions || [];
-  const ready = sessions.find((s) => s.downloadable && !s.open && !s.empty);
-  return ready?.id || null;
-}
-
 uploadBtn?.addEventListener('click', async () => {
-  const id = await sessionId();
-  if (!id) {
+  const data = await readJson('/api/gcs-logs');
+  const ids = data.pendingSessionIds || [];
+  if (!ids.length) {
     setStatus('אין לוגים להעלאה.');
     return;
   }
@@ -72,7 +66,7 @@ uploadBtn?.addEventListener('click', async () => {
     paint(await readJson('/api/gcs-logs/upload', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sessionId: id }),
+      body: JSON.stringify({ sessionIds: ids }),
     }));
   } catch {
     setStatus('ההעלאה נכשלה.');
@@ -99,7 +93,8 @@ resumeBtn?.addEventListener('click', async () => {
 
 refreshBtn?.addEventListener('click', refresh);
 
-if (statusEl) {
+if (card) {
+  card.hidden = true;
   refresh();
-  setInterval(refresh, 4000);
+  pollTimer = setInterval(refresh, 4000);
 }
