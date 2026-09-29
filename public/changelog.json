@@ -5,28 +5,8 @@
     "changes": [
       {
         "type": "feat",
-        "title": "MAVLink connection",
-        "detail": "mavlink-connection.mjs"
-      },
-      {
-        "type": "feat",
-        "title": "Server library",
-        "detail": "preflight-readiness.mjs, assist-api.mjs, vision-landing-readiness-api.mjs, voice-flight-pipeline.mjs"
-      },
-      {
-        "type": "feat",
-        "title": "UI / app.js",
-        "detail": "app.js"
-      },
-      {
-        "type": "ui",
-        "title": "HTML layout",
-        "detail": "index.html"
-      },
-      {
-        "type": "ui",
-        "title": "Styles",
-        "detail": "styles.css"
+        "title": "קול בסימולטור ומוכנות לטיסה",
+        "detail": "APP_VERSION 1.02.364. תמליל בעברית עובר מיון ואז את רשימת הקול הקיימת, ונשלח רק לסימולטור מקומי. דיבור-חזרה מאשר או דוחה. חימוש נשאר חסום. רשימת מוכנות לטיסה ראשונה מסמנת טלמטריה חיה, והשאר סימון ידני בלי כתיבה ל-FC."
       }
     ]
   },
