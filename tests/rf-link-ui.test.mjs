@@ -221,9 +221,11 @@ describe('RF link panel', () => {
           && btn?.textContent === 'חיבור ל-RF'
           && btn?.title === 'חיבור ל-RF';
       }, REASON);
-      for (const id of ['horizonVideoToggle', 'annotatedVisionToggle', 'liveCameraToggle', 'missionRecordBtn']) {
+      for (const id of ['horizonVideoToggle', 'annotatedVisionToggle', 'liveCameraToggle']) {
         expect(await page.locator(`#${id}`).isDisabled()).toBe(true);
       }
+      expect(await page.locator('#missionRecordBtn').isDisabled()).toBe(false);
+      expect(await page.locator('#terrainFlightRecordBtn').isDisabled()).toBe(false);
       await page.click('[data-tab="optics"]', { force: true });
       await page.waitForFunction((reason) => {
         const up = document.querySelector('#gimbalPad [data-gimbal="up"]');

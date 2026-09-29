@@ -58,7 +58,9 @@ describe('Mission layout contract — static source', () => {
   it('uses a three-column stack: readable PFD, filled left column, map, talk', () => {
     expect(html).toMatch(/data-layout-contract="v2"/);
     expect(html).toContain('class="pfd-heading-lane"');
-    expect(html).toContain('id="missionHorizonFiller"');
+    expect(html).not.toContain('id="missionHorizonFiller"');
+    expect(html).toContain('id="flightDockActionsTab"');
+    expect(html).toContain('id="terrainFollowBtn"');
     expect(html).not.toMatch(/data-tab="platform"/);
     expect(html).not.toMatch(/data-tab="maintenance"/);
     expect(html).not.toContain('id="platform"');
@@ -280,7 +282,7 @@ describe('Mission layout contract — live boxes', () => {
         platformTab: !!document.querySelector('[data-tab="platform"]'),
         horizonPosition: horizonCs.position,
         hud: box(hud),
-        filler: box(filler),
+        filler: filler ? box(filler) : null,
         fillerBg: filler ? getComputedStyle(filler).backgroundColor : '',
         well: box(well),
         messagesHost: box(messagesHost),
@@ -289,7 +291,7 @@ describe('Mission layout contract — live boxes', () => {
     });
 
     expect(measured.platformTab).toBe(false);
-    expect(measured.version).toBe('1.02.372');
+    expect(measured.version).toBe('1.02.373');
     expect(measured.ws.width).toBeGreaterThan(800);
     expect(measured.talkMinWidth).toBe('0px');
     expect(Number.parseFloat(measured.dataGap)).toBeLessThanOrEqual(4);
@@ -311,8 +313,7 @@ describe('Mission layout contract — live boxes', () => {
     expect(measured.hud.height / regions.horizon.height).toBeLessThanOrEqual(0.98);
     expect(measured.horizonPosition).toBe('relative');
     expect(regions.horizon.height / ws.height).toBeGreaterThanOrEqual(0.90);
-    expect(measured.filler.height / regions.horizon.height).toBeLessThanOrEqual(0.20);
-    expect(measured.fillerBg).not.toMatch(/rgba?\(\s*0,\s*0,\s*0/);
+    expect(measured.filler).toBeNull();
     expect(regions.data.height).toBeGreaterThanOrEqual(64);
     expect(regions.data.height).toBeLessThanOrEqual(280);
     expect(regions.messages.top - regions.data.bottom).toBeLessThan(24);
@@ -387,7 +388,8 @@ describe('Mission layout contract — live boxes', () => {
 
     const ahShareH = measured.hud.height / regions.horizon.height;
     const wellShare = measured.well.height / regions.talk.height;
-    const underPfdGap = regions.horizon.bottom - measured.filler.bottom;
+    const underPfdGap = regions.horizon.bottom - regions.messages.bottom;
+    expect(underPfdGap).toBeLessThan(8);
     const measure = {
       ahShareH,
       ahContentH: measured.hud.height,
@@ -398,7 +400,7 @@ describe('Mission layout contract — live boxes', () => {
       mapShareH: regions.map.height / ws.height,
       mapShareW: regions.map.width / ws.width,
       underPfdGap,
-      fillerH: measured.filler.height,
+      fillerH: 0,
       wellShare,
       wellH: measured.well.height,
       emptyHeight: measured.emptyHeight,

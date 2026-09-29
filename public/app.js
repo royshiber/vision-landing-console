@@ -224,6 +224,8 @@ const MISSION_COL_COLLAPSE = 0.02;
 const MISSION_AREAS_KEY = 'visionLandingMissionAreasV2';
 const MISSION_MESSAGES_KEY = 'visionLandingMissionMessagesV1';
 const FLIGHT_STACK_KEY = 'visionLandingFlightStackV1';
+const FLIGHT_DOCK_KEY = 'visionLandingFlightDockV1';
+const FLIGHT_FOLLOW_KEY = 'visionLandingFlightFollowV1';
 const FLIGHT_DATA_DEFAULT = 88;
 const FLIGHT_MSG_DEFAULT = 40;
 const FLIGHT_MSG_OPEN = 112;
@@ -11516,6 +11518,8 @@ let terrainCircles = [];
 let terrainLastCells = [];
 let terrainMappedOnly = false;
 let terrainActiveBase = 'street';
+let flightFollowOn = false;
+let flightTrackPts = [];
 /** terrainMap / lastSseTerrainPayload / overlay layers: declared at top of app.js (no TDZ). */
 
 const liveGpsVisionDeltaEl = document.getElementById('liveGpsVisionDelta');
@@ -11578,6 +11582,43 @@ function paintLiveGpsVisionDelta(mapData, vision) {
   liveGpsVisionDeltaEl.textContent = formatGpsVisionDeltaMeters(meters);
 }
 
+function flightPathActive() {
+  const recording = document.getElementById('missionRecordBtn')?.dataset.recording === '1';
+  const mav = typeof latestHudMavlink !== 'undefined' ? latestHudMavlink : null;
+  return recording === true || mav?.flying === true;
+}
+
+function rememberFlightTrack(lat, lon) {
+  if (!flightPathActive()) return;
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+  if (Math.abs(lat) < 1e-5 && Math.abs(lon) < 1e-5) return;
+  const last = flightTrackPts[flightTrackPts.length - 1];
+  if (last) {
+    const dLat = lat - last[0];
+    const dLon = lon - last[1];
+    if ((dLat * dLat) + (dLon * dLon) < 4e-10) return;
+  }
+  flightTrackPts.push([lat, lon]);
+  if (flightTrackPts.length > 1500) flightTrackPts.shift();
+}
+
+function paintFlightFollow(on) {
+  flightFollowOn = on === true;
+  const btn = document.getElementById('terrainFollowBtn');
+  if (btn) {
+    btn.setAttribute('aria-pressed', flightFollowOn ? 'true' : 'false');
+    btn.classList.toggle('active', flightFollowOn);
+    btn.textContent = flightFollowOn ? 'עוקב' : 'עקוב';
+  }
+  try { localStorage.setItem(FLIGHT_FOLLOW_KEY, flightFollowOn ? '1' : '0'); } catch { /* ignore */ }
+}
+
+function centerFlightOnMap(map, lat, lon) {
+  if (!flightFollowOn || !map || map !== terrainMap) return;
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+  try { map.panTo([lat, lon], { animate: false }); } catch { /* map not ready */ }
+}
+
 function terrainPlaneDivIcon(color, hdgDeg) {
   const r = Number.isFinite(hdgDeg) ? hdgDeg - 45 : -45;
   return L.divIcon({
@@ -11637,6 +11678,27 @@ function applyFlightOverlayToMap(map, layers) {
   const gpsOk = mapData && Number.isFinite(mapData.gpsLat) && Number.isFinite(mapData.gpsLon);
   const opticalOk = vision && Number.isFinite(vision.navLat) && Number.isFinite(vision.navLon);
   const bothTracks = Boolean(gpsOk && opticalOk);
+
+  if (gpsOk) {
+    rememberFlightTrack(mapData.gpsLat, mapData.gpsLon);
+    centerFlightOnMap(map, mapData.gpsLat, mapData.gpsLon);
+  }
+
+  if (flightTrackPts.length >= 2) {
+    if (!layers.liveTrack) {
+      layers.liveTrack = L.polyline(flightTrackPts, {
+        color: '#e0f2fe',
+        weight: 3,
+        opacity: 0.95,
+      }).addTo(map);
+      try { layers.liveTrack.bindTooltip('מסלול הטיסה', { sticky: true }); } catch { /* ignore */ }
+    } else {
+      layers.liveTrack.setLatLngs(flightTrackPts);
+    }
+  } else if (layers.liveTrack) {
+    map.removeLayer(layers.liveTrack);
+    layers.liveTrack = null;
+  }
 
   if (gpsOk) {
     const src = mapData.gpsSource;
@@ -11909,6 +11971,19 @@ function initTerrainMap() {
   });
   terrainMap.addControl(new BearingCtrl());
   window.__airvixTerrainMap = terrainMap;
+  try { paintFlightFollow(localStorage.getItem(FLIGHT_FOLLOW_KEY) === '1'); } catch { paintFlightFollow(false); }
+  document.getElementById('terrainFollowBtn')?.addEventListener('click', () => {
+    paintFlightFollow(!flightFollowOn);
+    const marker = terrainFlightLayers?.gps?.getLatLng?.();
+    if (marker) centerFlightOnMap(terrainMap, marker.lat, marker.lng);
+    else if (flightTrackPts.length) {
+      const last = flightTrackPts[flightTrackPts.length - 1];
+      centerFlightOnMap(terrainMap, last[0], last[1]);
+    }
+  });
+  terrainMap.on('dragstart', () => {
+    if (flightFollowOn) paintFlightFollow(false);
+  });
 
   // ── Fly-to right-click context menu ───────────────────────────────────────
   terrainMap.on('contextmenu', (e) => {
@@ -13750,7 +13825,7 @@ initLiveCameraPanel();
   });
   const RF_VIDEO_REASON_HE = 'במצב RF אין וידאו';
   const RF_PORT_REASON_HE = 'בחרו פורט';
-  const RF_FLIGHT_LOCKS = ['horizonVideoToggle', 'annotatedVisionToggle', 'liveCameraToggle', 'missionRecordBtn'];
+  const RF_FLIGHT_LOCKS = ['horizonVideoToggle', 'annotatedVisionToggle', 'liveCameraToggle'];
   function setRfFlightLocks(on) {
     for (const id of RF_FLIGHT_LOCKS) {
       const el = document.getElementById(id);
@@ -19723,13 +19798,6 @@ function flightDataFloor(horizon) {
   if (!grid || typeof grid.getBoundingClientRect !== 'function') return FLIGHT_DATA_MIN;
   const gridBox = grid.getBoundingClientRect();
   let content = Math.ceil(gridBox.height);
-  const filler = horizon.querySelector('#missionHorizonFiller');
-  if (filler && typeof filler.getBoundingClientRect === 'function') {
-    const fillerBox = filler.getBoundingClientRect();
-    if (fillerBox.height > 8 && fillerBox.top >= gridBox.bottom - 4) {
-      content += Math.ceil(fillerBox.height);
-    }
-  }
   if (content < 40) return FLIGHT_DATA_MIN;
   return Math.max(FLIGHT_DATA_MIN, content + 2);
 }
@@ -19865,9 +19933,30 @@ function initFlightStack() {
   });
 }
 
+function applyFlightDock(which) {
+  const dock = which === 'actions' ? 'actions' : 'messages';
+  const section = document.querySelector('[data-mission-region="messages"]');
+  if (section) section.dataset.flightDock = dock;
+  const msgTab = document.getElementById('flightDockMessagesTab');
+  const actTab = document.getElementById('flightDockActionsTab');
+  if (msgTab) msgTab.setAttribute('aria-selected', dock === 'messages' ? 'true' : 'false');
+  if (actTab) actTab.setAttribute('aria-selected', dock === 'actions' ? 'true' : 'false');
+  try { localStorage.setItem(FLIGHT_DOCK_KEY, dock); } catch { /* ignore */ }
+  return dock;
+}
+
+function initFlightDock() {
+  let stored = 'messages';
+  try { stored = localStorage.getItem(FLIGHT_DOCK_KEY) === 'actions' ? 'actions' : 'messages'; } catch { /* ignore */ }
+  applyFlightDock(stored);
+  document.getElementById('flightDockMessagesTab')?.addEventListener('click', () => applyFlightDock('messages'));
+  document.getElementById('flightDockActionsTab')?.addEventListener('click', () => applyFlightDock('actions'));
+}
+
 function initMissionMessages() {
   const expanded = readMissionMessagesExpanded();
   applyMissionMessagesExpanded(expanded);
+  initFlightDock();
   document.getElementById('missionMessagesToggle')?.addEventListener('click', () => {
     toggleMissionMessages();
     syncFlightStackToToggle();
@@ -20548,12 +20637,28 @@ function initFlightArchiveRecord() {
     else cueEl.removeAttribute('data-stall');
   }
 
-  function paint(rec, extra = {}) {
-    armed = !!rec?.armed;
+  function paintRecordChrome(nextArmed) {
+    armed = nextArmed === true;
+    const short = armed ? 'מקליט' : 'הקלטה';
+    const long = armed ? 'עצור הקלטה' : 'התחל הקלטה';
+    const state = armed ? 'מקליט' : 'לא מקליט';
     btn.dataset.recording = armed ? '1' : '0';
     btn.setAttribute('aria-pressed', armed ? 'true' : 'false');
-    btn.textContent = armed ? 'מקליט' : 'הקלטה';
-    btn.title = armed ? 'הקלטה פעילה לחצו לעצירה' : 'התחילו שמירת טיסה לארכיון';
+    btn.textContent = short;
+    btn.title = armed ? 'ההקלטה רצה. לחצו לעצירה.' : 'התחילו שמירת טיסה. בלי לחיצה אין הקלטה.';
+    const mapBtn = document.getElementById('terrainFlightRecordBtn');
+    if (mapBtn) {
+      mapBtn.dataset.recording = armed ? '1' : '0';
+      mapBtn.setAttribute('aria-pressed', armed ? 'true' : 'false');
+      mapBtn.textContent = long;
+      mapBtn.title = btn.title;
+    }
+    const stateEl = document.getElementById('terrainFlightRecordState');
+    if (stateEl) stateEl.textContent = state;
+  }
+
+function paint(rec, extra = {}) {
+    paintRecordChrome(!!rec?.armed);
     paintCue(rec, extra);
   }
 
@@ -20572,6 +20677,8 @@ function initFlightArchiveRecord() {
     if (busy) return;
     busy = true;
     btn.disabled = true;
+    const mapBtn = document.getElementById('terrainFlightRecordBtn');
+    if (mapBtn) mapBtn.disabled = true;
     const starting = !armed;
     try {
       const path = armed ? '/api/telemetry-archive/stop' : '/api/telemetry-archive/start';
@@ -20581,6 +20688,11 @@ function initFlightArchiveRecord() {
         body: '{}',
       });
       const j = await r.json().catch(() => ({}));
+      if (r.status === 404) {
+        paintRecordChrome(starting);
+        showRecordStatus('ok', starting ? 'מקליט במסך' : 'לא מקליט');
+        return;
+      }
       const feedback = archiveOperatorFeedback(
         j,
         r.ok,
@@ -20598,10 +20710,13 @@ function initFlightArchiveRecord() {
     } finally {
       busy = false;
       btn.disabled = false;
+      if (mapBtn) mapBtn.disabled = false;
     }
   }
 
   btn.addEventListener('click', () => { void toggle(); });
+  document.getElementById('terrainFlightRecordBtn')?.addEventListener('click', () => { void toggle(); });
+  paintRecordChrome(false);
   void refresh();
   setInterval(() => { void refresh(); }, 4000);
   document.addEventListener('visibilitychange', () => {

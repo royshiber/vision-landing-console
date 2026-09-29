@@ -26,10 +26,10 @@ function sliceFunction(src, name) {
   throw new Error(`unclosed function ${name}`);
 }
 
-describe('AIRVIX 1.02.261 Roy feedback (still holds on 1.02.372)', () => {
-  it('pins APP_VERSION at 1.02.372', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.372'");
-    expect(pkg.version).toBe('1.02.372');
+describe('AIRVIX 1.02.261 Roy feedback (still holds on 1.02.373)', () => {
+  it('pins APP_VERSION at 1.02.373', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.373'");
+    expect(pkg.version).toBe('1.02.373');
   });
 
   it('removes Platform from primary chrome and redirects Assist', () => {
