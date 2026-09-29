@@ -224,6 +224,8 @@ const MISSION_COL_COLLAPSE = 0.02;
 const MISSION_AREAS_KEY = 'visionLandingMissionAreasV2';
 const MISSION_MESSAGES_KEY = 'visionLandingMissionMessagesV1';
 const FLIGHT_STACK_KEY = 'visionLandingFlightStackV1';
+const FLIGHT_DOCK_KEY = 'visionLandingFlightDockV1';
+const FLIGHT_FOLLOW_KEY = 'visionLandingFlightFollowV1';
 const FLIGHT_DATA_DEFAULT = 88;
 const FLIGHT_MSG_DEFAULT = 40;
 const FLIGHT_MSG_OPEN = 112;
@@ -8027,12 +8029,10 @@ function initMissionAskToggle() {
     setMissionAskOpen(ws.dataset.askOpen !== '1');
   });
   document.getElementById('missionAskCloseBtn')?.addEventListener('click', () => {
-    if (!window.matchMedia('(max-width: 1100px)').matches) return;
     setMissionAskOpen(false);
   });
   document.addEventListener('keydown', (event) => {
     if (event.key !== 'Escape' || ws.dataset.askOpen !== '1') return;
-    if (!window.matchMedia('(max-width: 1100px)').matches) return;
     setMissionAskOpen(false);
   });
 }
@@ -11516,6 +11516,8 @@ let terrainCircles = [];
 let terrainLastCells = [];
 let terrainMappedOnly = false;
 let terrainActiveBase = 'street';
+let flightFollowOn = false;
+let flightTrackPts = [];
 /** terrainMap / lastSseTerrainPayload / overlay layers: declared at top of app.js (no TDZ). */
 
 const liveGpsVisionDeltaEl = document.getElementById('liveGpsVisionDelta');
@@ -11578,6 +11580,43 @@ function paintLiveGpsVisionDelta(mapData, vision) {
   liveGpsVisionDeltaEl.textContent = formatGpsVisionDeltaMeters(meters);
 }
 
+function flightPathActive() {
+  const recording = document.getElementById('missionRecordBtn')?.dataset.recording === '1';
+  const mav = typeof latestHudMavlink !== 'undefined' ? latestHudMavlink : null;
+  return recording === true || mav?.flying === true;
+}
+
+function rememberFlightTrack(lat, lon) {
+  if (!flightPathActive()) return;
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+  if (Math.abs(lat) < 1e-5 && Math.abs(lon) < 1e-5) return;
+  const last = flightTrackPts[flightTrackPts.length - 1];
+  if (last) {
+    const dLat = lat - last[0];
+    const dLon = lon - last[1];
+    if ((dLat * dLat) + (dLon * dLon) < 4e-10) return;
+  }
+  flightTrackPts.push([lat, lon]);
+  if (flightTrackPts.length > 1500) flightTrackPts.shift();
+}
+
+function paintFlightFollow(on) {
+  flightFollowOn = on === true;
+  const btn = document.getElementById('terrainFollowBtn');
+  if (btn) {
+    btn.setAttribute('aria-pressed', flightFollowOn ? 'true' : 'false');
+    btn.classList.toggle('active', flightFollowOn);
+    btn.textContent = flightFollowOn ? 'עוקב' : 'עקוב';
+  }
+  try { localStorage.setItem(FLIGHT_FOLLOW_KEY, flightFollowOn ? '1' : '0'); } catch { /* ignore */ }
+}
+
+function centerFlightOnMap(map, lat, lon) {
+  if (!flightFollowOn || !map || map !== terrainMap) return;
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+  try { map.panTo([lat, lon], { animate: false }); } catch { /* map not ready */ }
+}
+
 function terrainPlaneDivIcon(color, hdgDeg) {
   const r = Number.isFinite(hdgDeg) ? hdgDeg - 45 : -45;
   return L.divIcon({
@@ -11637,6 +11676,27 @@ function applyFlightOverlayToMap(map, layers) {
   const gpsOk = mapData && Number.isFinite(mapData.gpsLat) && Number.isFinite(mapData.gpsLon);
   const opticalOk = vision && Number.isFinite(vision.navLat) && Number.isFinite(vision.navLon);
   const bothTracks = Boolean(gpsOk && opticalOk);
+
+  if (gpsOk) {
+    rememberFlightTrack(mapData.gpsLat, mapData.gpsLon);
+    centerFlightOnMap(map, mapData.gpsLat, mapData.gpsLon);
+  }
+
+  if (flightTrackPts.length >= 2) {
+    if (!layers.liveTrack) {
+      layers.liveTrack = L.polyline(flightTrackPts, {
+        color: '#e0f2fe',
+        weight: 3,
+        opacity: 0.95,
+      }).addTo(map);
+      try { layers.liveTrack.bindTooltip('מסלול הטיסה', { sticky: true }); } catch { /* ignore */ }
+    } else {
+      layers.liveTrack.setLatLngs(flightTrackPts);
+    }
+  } else if (layers.liveTrack) {
+    map.removeLayer(layers.liveTrack);
+    layers.liveTrack = null;
+  }
 
   if (gpsOk) {
     const src = mapData.gpsSource;
@@ -11909,6 +11969,19 @@ function initTerrainMap() {
   });
   terrainMap.addControl(new BearingCtrl());
   window.__airvixTerrainMap = terrainMap;
+  try { paintFlightFollow(localStorage.getItem(FLIGHT_FOLLOW_KEY) === '1'); } catch { paintFlightFollow(false); }
+  document.getElementById('terrainFollowBtn')?.addEventListener('click', () => {
+    paintFlightFollow(!flightFollowOn);
+    const marker = terrainFlightLayers?.gps?.getLatLng?.();
+    if (marker) centerFlightOnMap(terrainMap, marker.lat, marker.lng);
+    else if (flightTrackPts.length) {
+      const last = flightTrackPts[flightTrackPts.length - 1];
+      centerFlightOnMap(terrainMap, last[0], last[1]);
+    }
+  });
+  terrainMap.on('dragstart', () => {
+    if (flightFollowOn) paintFlightFollow(false);
+  });
 
   // ── Fly-to right-click context menu ───────────────────────────────────────
   terrainMap.on('contextmenu', (e) => {
@@ -13750,7 +13823,7 @@ initLiveCameraPanel();
   });
   const RF_VIDEO_REASON_HE = 'במצב RF אין וידאו';
   const RF_PORT_REASON_HE = 'בחרו פורט';
-  const RF_FLIGHT_LOCKS = ['horizonVideoToggle', 'annotatedVisionToggle', 'liveCameraToggle', 'missionRecordBtn'];
+  const RF_FLIGHT_LOCKS = ['horizonVideoToggle', 'annotatedVisionToggle', 'liveCameraToggle'];
   function setRfFlightLocks(on) {
     for (const id of RF_FLIGHT_LOCKS) {
       const el = document.getElementById(id);
@@ -19190,7 +19263,7 @@ function clampMissionFr(value, min, max, fallback) {
 }
 
 function defaultMissionSize() {
-  return { c1: 0.18, c2: 1.20, c3: 0.22, r1: 0.88, r2: 0.18, r3: 0.00 };
+  return { c1: 0.33, c2: 0.67, c3: 0, r1: 0.88, r2: 0.18, r3: 0.00 };
 }
 
 function defaultMissionSwap() {
@@ -19202,6 +19275,11 @@ function isLegacyDefaultMissionSize(raw) {
   const r1 = Number(raw.r1);
   const r2 = Number(raw.r2);
   return (r1 === 0.78 && r2 === 0.22) || (r1 === 0.84 && r2 === 0.16);
+}
+
+function isFactoryColumnSize(raw) {
+  if (!raw) return false;
+  return Number(raw.c1) === 0.18 && Number(raw.c2) === 1.2 && Number(raw.c3) === 0.22;
 }
 
 function missionAhRowPct(r1) {
@@ -19283,6 +19361,7 @@ function readMissionSize() {
     const raw = JSON.parse(missionLayoutStoreGet(MISSION_SIZE_KEY) || 'null');
     if (raw && typeof raw === 'object') {
       const fallback = defaultMissionSize();
+      if (isFactoryColumnSize(raw)) return fallback;
       const rows = isLegacyDefaultMissionSize(raw) ? fallback : raw;
       return {
         c1: clampMissionFr(raw.c1, 0.02, 8000, fallback.c1),
@@ -19525,13 +19604,30 @@ function missionSplitAtPointer(clientX, leftPx, rightPx, gapPx, minPx) {
   return { left, right: content - left, x: leftPx + left + gap / 2 };
 }
 
+function missionTrackVisible(el) {
+  const cs = getComputedStyle(el);
+  return cs.display !== 'none' && cs.position !== 'absolute';
+}
+
 function missionTrackRects(ws) {
   const skip = new Set(['messages', 'data']);
   return [...ws.querySelectorAll('[data-mission-region]')]
-    .filter((el) => !skip.has(el.dataset.missionRegion))
+    .filter((el) => !skip.has(el.dataset.missionRegion) && missionTrackVisible(el))
     .map((el) => el.getBoundingClientRect())
     .filter((r) => r.width > 8 && r.height > 8)
     .sort((a, b) => a.left - b.left);
+}
+
+function missionRegionBoxes(ws) {
+  const skip = new Set(['messages', 'data']);
+  const out = {};
+  ws.querySelectorAll('[data-mission-region]').forEach((el) => {
+    const id = el.dataset.missionRegion;
+    if (skip.has(id) || !missionTrackVisible(el)) return;
+    const r = el.getBoundingClientRect();
+    if (r.width > 8 && r.height > 8) out[id] = r;
+  });
+  return out;
 }
 
 function readMissionColOpen() {
@@ -19590,7 +19686,9 @@ function bindMissionSplitters() {
     if (ev.button != null && ev.button !== 0) return;
     const ws = document.querySelector('.mission-workspace');
     const tracks = ws ? missionTrackRects(ws) : [];
-    if ((axis === 'col' || axis === 'col2') && tracks.length < 3) return;
+    const boxes = ws ? missionRegionBoxes(ws) : {};
+    if (axis === 'col2' && tracks.length < 3) return;
+    if ((axis === 'col' || axis === 'col2') && tracks.length < 2) return;
     dragging = axis;
     start = ev.clientY;
     base = { ..._missionSize };
@@ -19605,7 +19703,28 @@ function bindMissionSplitters() {
         rightEdge: tracks[2].right,
         gapA: tracks[1].left - tracks[0].right,
         gapB: tracks[2].left - tracks[1].right,
+        mapOnLeft: true,
       };
+    } else if (boxes.map && boxes.horizon) {
+      const map = boxes.map;
+      const ah = boxes.horizon;
+      base.c2 = map.width;
+      base.c1 = ah.width;
+      const mapOnLeft = map.left <= ah.left;
+      const left = mapOnLeft ? map : ah;
+      const right = mapOnLeft ? ah : map;
+      span = {
+        leftEdge: left.left,
+        midLeft: left.left,
+        midRight: right.right,
+        rightEdge: right.right,
+        gapA: right.left - left.right,
+        gapB: 0,
+        mapOnLeft,
+      };
+    } else {
+      dragging = null;
+      return;
     }
     ev.currentTarget.setPointerCapture?.(ev.pointerId);
     ev.preventDefault();
@@ -19615,8 +19734,13 @@ function bindMissionSplitters() {
     const next = { ...base };
     if (dragging === 'col' && span) {
       const split = missionSplitAtPointer(ev.clientX, span.leftEdge, span.midRight, span.gapA, MISSION_COL_MIN_PX);
-      next.c2 = split.left;
-      next.c1 = split.right;
+      if (span.mapOnLeft === false) {
+        next.c1 = split.left;
+        next.c2 = split.right;
+      } else {
+        next.c2 = split.left;
+        next.c1 = split.right;
+      }
     } else if (dragging === 'col2' && span) {
       const split = missionSplitAtPointer(ev.clientX, span.midLeft, span.rightEdge, span.gapB, MISSION_COL_MIN_PX);
       next.c1 = split.left;
@@ -19635,8 +19759,14 @@ function bindMissionSplitters() {
   };
   const onDbl = (axis, ev) => {
     ev.preventDefault();
-    const pair = axis === 'col' ? ['c2', 'c1'] : ['c1', 'c3'];
-    const next = toggleMissionColumnCollapse(_missionSize, pair[0], pair[1]);
+    if (axis === 'col') {
+      const factory = defaultMissionSize();
+      const next = { ..._missionSize, c1: factory.c1, c2: factory.c2, c3: factory.c3 };
+      writeMissionSize(next);
+      applyMissionSize(next);
+      return;
+    }
+    const next = toggleMissionColumnCollapse(_missionSize, 'c1', 'c3');
     writeMissionSize(next);
     applyMissionSize(next);
   };
@@ -19693,15 +19823,37 @@ function defaultFlightStack() {
   return { data: FLIGHT_DATA_DEFAULT, msg: FLIGHT_MSG_DEFAULT };
 }
 
+function isLegacyCollapsedFlightStack(stack) {
+  const data = Number(stack?.data);
+  const msg = Number(stack?.msg);
+  return data === FLIGHT_DATA_DEFAULT && msg > 0 && msg <= FLIGHT_MSG_DEFAULT + 8;
+}
+
+function flightColumnHalfStack(horizon) {
+  if (!horizon || typeof horizon.getBoundingClientRect !== 'function') return null;
+  const budget = flightStackBudget(horizon);
+  if (budget.avail < 240) return null;
+  const data = Math.max(FLIGHT_DATA_MIN, Math.min(budget.dataMin, 96));
+  const rest = budget.avail - data;
+  if (rest < budget.hudMin + budget.msgMin) return null;
+  let msg = Math.round(rest / 2);
+  if (rest - msg < budget.hudMin) msg = Math.round(rest - budget.hudMin);
+  msg = Math.max(budget.msgMin, msg);
+  return { data, msg };
+}
+
 let _flightStack = defaultFlightStack();
 let _flightStackOpen = false;
 
 function readFlightStack() {
   try {
     const raw = JSON.parse(missionLayoutStoreGet(FLIGHT_STACK_KEY) || 'null');
+    if (raw?.half === true) {
+      return { half: true, data: Number(raw.data) || FLIGHT_DATA_DEFAULT, msg: FLIGHT_MSG_DEFAULT };
+    }
     const data = Number(raw?.data);
     const msg = Number(raw?.msg);
-    if (Number.isFinite(data) && Number.isFinite(msg)) return { data, msg };
+    if (Number.isFinite(data) && Number.isFinite(msg)) return { half: false, data, msg };
   } catch {
     /* ignore */
   }
@@ -19709,10 +19861,10 @@ function readFlightStack() {
 }
 
 function writeFlightStack(stack) {
-  const next = {
-    data: Math.round(Number(stack?.data) || FLIGHT_DATA_DEFAULT),
-    msg: Math.round(Number(stack?.msg) || FLIGHT_MSG_DEFAULT),
-  };
+  const data = Math.round(Number(stack?.data) || FLIGHT_DATA_DEFAULT);
+  const next = stack?.half === true
+    ? { half: true, data, msg: FLIGHT_MSG_DEFAULT }
+    : { half: false, data, msg: Math.round(Number(stack?.msg) || FLIGHT_MSG_DEFAULT) };
   _flightStack = next;
   missionLayoutStoreSet(FLIGHT_STACK_KEY, JSON.stringify(next));
   return next;
@@ -19723,13 +19875,6 @@ function flightDataFloor(horizon) {
   if (!grid || typeof grid.getBoundingClientRect !== 'function') return FLIGHT_DATA_MIN;
   const gridBox = grid.getBoundingClientRect();
   let content = Math.ceil(gridBox.height);
-  const filler = horizon.querySelector('#missionHorizonFiller');
-  if (filler && typeof filler.getBoundingClientRect === 'function') {
-    const fillerBox = filler.getBoundingClientRect();
-    if (fillerBox.height > 8 && fillerBox.top >= gridBox.bottom - 4) {
-      content += Math.ceil(fillerBox.height);
-    }
-  }
   if (content < 40) return FLIGHT_DATA_MIN;
   return Math.max(FLIGHT_DATA_MIN, content + 2);
 }
@@ -19738,8 +19883,8 @@ function flightStackBudget(horizon) {
   const total = horizon.getBoundingClientRect().height;
   const splits = [...horizon.querySelectorAll('.flight-stack-split')];
   const splitH = splits.reduce((sum, el) => sum + el.getBoundingClientRect().height, 0);
-  const toggle = document.getElementById('missionMessagesToggle');
-  const header = toggle ? Math.ceil(toggle.getBoundingClientRect().height + 8) : FLIGHT_MSG_DEFAULT;
+  const bar = horizon.querySelector('.flight-dock-bar');
+  const header = bar ? Math.ceil(bar.getBoundingClientRect().height + 8) : FLIGHT_MSG_DEFAULT;
   const msgMin = Math.max(FLIGHT_MSG_MIN, header);
   return {
     avail: Math.max(0, total - splitH),
@@ -19773,10 +19918,13 @@ function applyFlightStack(stack, opts = {}) {
     return null;
   }
   const budget = flightStackBudget(horizon);
+  const half = opts.half === true || stack?.half === true;
   const next = clampFlightStack(stack || _flightStack, budget);
-  _flightStack = next;
+  _flightStack = half ? { ...next, half: true } : { ...next, half: false };
+  horizon.dataset.flightStack = half ? 'half' : 'custom';
   horizon.style.setProperty('--flight-data-h', `${Math.round(next.data)}px`);
-  horizon.style.setProperty('--flight-msg-h', `${Math.round(next.msg)}px`);
+  if (half) horizon.style.removeProperty('--flight-msg-h');
+  else horizon.style.setProperty('--flight-msg-h', `${Math.round(next.msg)}px`);
   const dataSplit = document.getElementById('flightStackSplitData');
   const msgSplit = document.getElementById('flightStackSplitMsg');
   if (dataSplit) dataSplit.setAttribute('aria-valuenow', String(Math.round(next.data)));
@@ -19788,11 +19936,10 @@ function applyFlightStack(stack, opts = {}) {
 }
 
 function resetFlightStack() {
-  const next = defaultFlightStack();
+  const horizon = document.querySelector('[data-mission-region="horizon"]');
+  const next = { ...(flightColumnHalfStack(horizon) || defaultFlightStack()), half: true };
   writeFlightStack(next);
-  writeMissionMessagesExpanded(false);
-  applyMissionMessagesExpanded(false);
-  applyFlightStack(next, { skipMessages: true });
+  applyFlightStack(next, { half: true });
 }
 
 function syncFlightStackToToggle() {
@@ -19852,22 +19999,166 @@ function bindFlightStackSplitters() {
 }
 
 function initFlightStack() {
-  const stored = missionLayoutStoreGet(FLIGHT_STACK_KEY);
-  const stack = stored ? readFlightStack() : {
-    data: FLIGHT_DATA_DEFAULT,
-    msg: readMissionMessagesExpanded() ? FLIGHT_MSG_OPEN : FLIGHT_MSG_DEFAULT,
-  };
-  applyFlightStack(stack);
+  const storedRaw = missionLayoutStoreGet(FLIGHT_STACK_KEY);
+  const stored = storedRaw ? readFlightStack() : null;
+  const expandedKey = missionLayoutStoreGet(MISSION_MESSAGES_KEY);
+  const legacy = !stored || stored.half === true || (isLegacyCollapsedFlightStack(stored) && expandedKey !== '0' && expandedKey !== '1');
+  const horizon = document.querySelector('[data-mission-region="horizon"]');
+  const stack = legacy
+    ? { ...(flightColumnHalfStack(horizon) || defaultFlightStack()), half: true }
+    : stored;
+  applyFlightStack(stack, { persist: legacy, half: legacy });
+  if (legacy && _flightStackOpen) writeMissionMessagesExpanded(true);
   bindFlightStackSplitters();
   requestAnimationFrame(() => {
-    applyFlightStack(_flightStack);
-    requestAnimationFrame(() => applyFlightStack(_flightStack));
+    if (legacy) {
+      const half = flightColumnHalfStack(document.querySelector('[data-mission-region="horizon"]'));
+      if (half) applyFlightStack({ ...half, half: true }, { persist: true, half: true });
+      if (_flightStackOpen) writeMissionMessagesExpanded(true);
+    } else {
+      applyFlightStack(_flightStack);
+    }
+    requestAnimationFrame(() => applyFlightStack(_flightStack, { half: _flightStack.half === true }));
+  });
+}
+
+const FLIGHT_DOCKS = Object.freeze(['messages', 'actions']);
+const FLIGHT_DOCK_MODES = Object.freeze(['AUTO', 'LOITER', 'RTL', 'MANUAL', 'STABILIZE', 'FBWA', 'FBWB', 'CRUISE', 'CIRCLE', 'GUIDED']);
+
+function flightDockName(which) {
+  return FLIGHT_DOCKS.includes(which) ? which : 'messages';
+}
+
+function flightDockSkipConfirm(mav) {
+  const live = mav && typeof mav === 'object' ? mav : null;
+  if (!live || live.connected !== true) return false;
+  if (live.simulator === true) return true;
+  return typeof assistLinkPath === 'function' && assistLinkPath(live) === 'simulator';
+}
+
+function flightDockCommandText(mode) {
+  const name = String(mode || '').toUpperCase();
+  if (name === 'RTL') return 'עבור למצב RTL';
+  return `עבור למצב ${name.toLowerCase()}`;
+}
+
+function paintFlightDockCommand(text) {
+  const note = document.getElementById('flightDockCommandNote');
+  if (note) note.textContent = text || '';
+  const dock = document.querySelector('[data-mission-region="messages"]')?.dataset.flightDock;
+  if (dock === 'actions') requestAnimationFrame(() => fitFlightDockPane(dock));
+}
+
+async function sendFlightDockMode(mode) {
+  const name = String(mode || '').toUpperCase();
+  if (!FLIGHT_DOCK_MODES.includes(name)) return;
+  const mav = typeof latestHudMavlink !== 'undefined' ? latestHudMavlink : null;
+  if (!mav || mav.connected !== true) {
+    paintFlightDockCommand('אין חיבור לבקר הטיסה');
+    return;
+  }
+  if (!flightDockSkipConfirm(mav)) {
+    const ok = window.confirm('לשלוח את הפקודה לבקר הטיסה?');
+    if (!ok) return;
+  }
+  try {
+    const res = await fetch('/api/assist/voice-flight', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: flightDockCommandText(name), operatorConfirmed: true }),
+    });
+    const data = await res.json().catch(() => ({}));
+    paintFlightDockCommand(data?.talkback?.text || 'לא נשלח דבר');
+  } catch {
+    paintFlightDockCommand('השליחה נכשלה');
+  }
+}
+
+function applyFlightDock(which) {
+  const dock = flightDockName(which);
+  const section = document.querySelector('[data-mission-region="messages"]');
+  if (section) section.dataset.flightDock = dock;
+  for (const name of FLIGHT_DOCKS) {
+    const tab = document.getElementById(`flightDock${name.charAt(0).toUpperCase()}${name.slice(1)}Tab`);
+    if (tab) tab.setAttribute('aria-selected', dock === name ? 'true' : 'false');
+  }
+  try { localStorage.setItem(FLIGHT_DOCK_KEY, dock); } catch { /* ignore */ }
+  return dock;
+}
+
+function fitFlightDockPane(which) {
+  if (which !== 'actions') return;
+  const horizon = document.querySelector('[data-mission-region="horizon"]');
+  if (!horizon || horizon.dataset.flightStack !== 'custom') return;
+  const section = document.querySelector('[data-mission-region="messages"]');
+  const pane = document.getElementById('flightDockActionsPane');
+  const bar = section?.querySelector('.flight-dock-bar');
+  if (!section || !pane || !bar) return;
+  const note = document.getElementById('flightDockCommandNote');
+  const noteH = note && getComputedStyle(note).display !== 'none'
+    ? Math.ceil(note.getBoundingClientRect().height)
+    : 0;
+  const want = Math.ceil(bar.getBoundingClientRect().height + pane.scrollHeight + noteH + 12);
+  const budget = flightStackBudget(horizon);
+  const room = Math.max(FLIGHT_MSG_MIN, budget.avail - budget.hudMin - budget.dataMin);
+  const msg = Math.max(FLIGHT_MSG_OPEN, Math.min(want, room));
+  if (msg <= _flightStack.msg + 2) return;
+  applyFlightStack({ ..._flightStack, msg }, { persist: true, skipMessages: true });
+}
+
+function revealFlightDock(which) {
+  applyFlightDock(which);
+  writeMissionMessagesExpanded(true);
+  applyMissionMessagesExpanded(true);
+  if (_flightStack.half === true) {
+    applyFlightStack(_flightStack, { half: true, skipMessages: true });
+    return;
+  }
+  const stack = { ..._flightStack, msg: Math.max(Number(_flightStack.msg) || 0, FLIGHT_MSG_OPEN) };
+  applyFlightStack(stack, { persist: true, skipMessages: true });
+  requestAnimationFrame(() => fitFlightDockPane(which));
+}
+
+function initFlightDock() {
+  const section = document.querySelector('[data-mission-region="messages"]');
+  if (!section || section.dataset.dockBound === '1') return;
+  section.dataset.dockBound = '1';
+  let stored = 'messages';
+  try {
+    const raw = localStorage.getItem(FLIGHT_DOCK_KEY);
+    stored = flightDockName(raw);
+  } catch { /* ignore */ }
+  applyFlightDock(stored);
+  const tabs = {
+    messages: 'flightDockMessagesTab',
+    actions: 'flightDockActionsTab',
+  };
+  for (const [name, id] of Object.entries(tabs)) {
+    document.getElementById(id)?.addEventListener('click', () => {
+      const current = section.dataset.flightDock || 'messages';
+      if (name === 'messages' && current === 'messages') {
+        toggleMissionMessages();
+        syncFlightStackToToggle();
+        return;
+      }
+      revealFlightDock(name);
+    });
+  }
+  section.addEventListener('click', (ev) => {
+    const btn = ev.target.closest?.('[data-flight-mode]');
+    if (!btn || btn.disabled) return;
+    void sendFlightDockMode(btn.getAttribute('data-flight-mode'));
+  });
+  document.getElementById('flightDockSetMode')?.addEventListener('click', () => {
+    const mode = document.getElementById('flightDockModeSelect')?.value;
+    void sendFlightDockMode(mode);
   });
 }
 
 function initMissionMessages() {
   const expanded = readMissionMessagesExpanded();
   applyMissionMessagesExpanded(expanded);
+  initFlightDock();
   document.getElementById('missionMessagesToggle')?.addEventListener('click', () => {
     toggleMissionMessages();
     syncFlightStackToToggle();
@@ -20333,6 +20624,12 @@ function initMissionLayout() {
   initMissionNavDisplay();
   window.addEventListener('resize', () => requestAnimationFrame(() => {
     placeMissionSplits();
+    if (_flightStack.half === true) {
+      const horizon = document.querySelector('[data-mission-region="horizon"]');
+      const half = flightColumnHalfStack(horizon) || _flightStack;
+      applyFlightStack({ ...half, half: true }, { half: true });
+      return;
+    }
     applyFlightStack(_flightStack);
   }));
 }
@@ -20548,12 +20845,28 @@ function initFlightArchiveRecord() {
     else cueEl.removeAttribute('data-stall');
   }
 
-  function paint(rec, extra = {}) {
-    armed = !!rec?.armed;
+  function paintRecordChrome(nextArmed) {
+    armed = nextArmed === true;
+    const short = armed ? 'מקליט' : 'הקלטה';
+    const long = armed ? 'עצור הקלטה' : 'התחל הקלטה';
+    const state = armed ? 'מקליט' : 'לא מקליט';
     btn.dataset.recording = armed ? '1' : '0';
     btn.setAttribute('aria-pressed', armed ? 'true' : 'false');
-    btn.textContent = armed ? 'מקליט' : 'הקלטה';
-    btn.title = armed ? 'הקלטה פעילה לחצו לעצירה' : 'התחילו שמירת טיסה לארכיון';
+    btn.textContent = short;
+    btn.title = armed ? 'ההקלטה רצה. לחצו לעצירה.' : 'התחילו שמירת טיסה. בלי לחיצה אין הקלטה.';
+    const mapBtn = document.getElementById('terrainFlightRecordBtn');
+    if (mapBtn) {
+      mapBtn.dataset.recording = armed ? '1' : '0';
+      mapBtn.setAttribute('aria-pressed', armed ? 'true' : 'false');
+      mapBtn.textContent = long;
+      mapBtn.title = btn.title;
+    }
+    const stateEl = document.getElementById('terrainFlightRecordState');
+    if (stateEl) stateEl.textContent = state;
+  }
+
+function paint(rec, extra = {}) {
+    paintRecordChrome(!!rec?.armed);
     paintCue(rec, extra);
   }
 
@@ -20572,6 +20885,8 @@ function initFlightArchiveRecord() {
     if (busy) return;
     busy = true;
     btn.disabled = true;
+    const mapBtn = document.getElementById('terrainFlightRecordBtn');
+    if (mapBtn) mapBtn.disabled = true;
     const starting = !armed;
     try {
       const path = armed ? '/api/telemetry-archive/stop' : '/api/telemetry-archive/start';
@@ -20581,6 +20896,11 @@ function initFlightArchiveRecord() {
         body: '{}',
       });
       const j = await r.json().catch(() => ({}));
+      if (r.status === 404) {
+        paintRecordChrome(starting);
+        showRecordStatus('ok', starting ? 'מקליט במסך' : 'לא מקליט');
+        return;
+      }
       const feedback = archiveOperatorFeedback(
         j,
         r.ok,
@@ -20598,10 +20918,13 @@ function initFlightArchiveRecord() {
     } finally {
       busy = false;
       btn.disabled = false;
+      if (mapBtn) mapBtn.disabled = false;
     }
   }
 
   btn.addEventListener('click', () => { void toggle(); });
+  document.getElementById('terrainFlightRecordBtn')?.addEventListener('click', () => { void toggle(); });
+  paintRecordChrome(false);
   void refresh();
   setInterval(() => { void refresh(); }, 4000);
   document.addEventListener('visibilitychange', () => {

@@ -128,6 +128,29 @@ describe('voice flight transcript pipeline', () => {
     expect(result.talkback.text).toContain('אינו סימולטור מקומי');
   });
 
+  it('sends LOITER from a confirmed dock button while voice GO is off', async () => {
+    delete process.env.GEMINI_API_KEY;
+    delete process.env.ELEVENLABS_API_KEY;
+    const mav = simTcp();
+    const calls = [];
+    const result = await runVoiceFlightTranscript({
+      text: 'עבור למצב loiter',
+      goActive: false,
+      operatorConfirmed: true,
+      mavConn: mav,
+      applyFlightOp: async (args) => {
+        calls.push(args);
+        mav.lastCustomMode = 12;
+        return { ok: true, sent: true, customMode: 12, kind: 'MODE_CHANGE' };
+      },
+    });
+    expect(calls[0].kind).toBe('MODE_CHANGE');
+    expect(calls[0].mode).toBe('LOITER');
+    expect(result.sent).toBe(true);
+    expect(result.decision).toBe('sent');
+    expect(result.talkback.text).not.toContain('שיחת הקול סגורה');
+  });
+
   it('does not send before GO', async () => {
     let called = false;
     const result = await runVoiceFlightTranscript({

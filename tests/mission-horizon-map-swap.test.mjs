@@ -29,10 +29,9 @@ describe('Horizon/map size swap — source', () => {
       css.indexOf('.mission-workspace[data-mission-swap="map-horizon"],'),
       css.indexOf('.mission-workspace[data-mission-swap="map-horizon"] {'),
     );
-    expect(shared).toContain('minmax(var(--mission-col-floor, 32px), var(--mission-map-col, 0.60fr)) minmax(var(--mission-col-floor, 32px), var(--mission-ah-col, 0.18fr))');
-    expect(css).toMatch(/data-mission-swap="map-horizon"\] \{\s*grid-template-areas: "map horizon talk"/);
-    expect(css).toMatch(/data-mission-swap="horizon-map"\] \{\s*grid-template-areas: "horizon map talk"/);
-    expect(css).toMatch(/data-mission-swap="horizon-map"\][\s\S]*grid-template-areas:\s*"horizon map"\s*"talk talk"/);
+    expect(shared).toContain('minmax(0, var(--mission-map-col, 2fr)) minmax(220px, var(--mission-ah-col, 1fr))');
+    expect(css).toMatch(/data-mission-swap="map-horizon"\] \{\s*grid-template-areas: "map horizon"/);
+    expect(css).toMatch(/data-mission-swap="horizon-map"\] \{\s*grid-template-areas: "horizon map"/);
     const apply = sliceFunction(js, 'applyMissionSwap');
     expect(apply).toContain('refreshMissionSwapSurfaces');
     expect(sliceFunction(js, 'refreshMissionSwapSurfaces')).toContain('terrainMap.invalidateSize');
@@ -224,12 +223,7 @@ describe('Horizon/map size swap — layout', () => {
         expect(after.stage.height).toBeGreaterThan(before.stage.height);
         expect(after.horizon.top).toBeGreaterThanOrEqual(after.map.bottom - 8);
       }
-      if (viewport.layout === 'three') {
-        expect(after.talk.left).toBeGreaterThanOrEqual(Math.max(after.map.right, after.horizon.right) - 8);
-      }
-      if (viewport.layout === 'side') {
-        expect(after.talk.top).toBeGreaterThanOrEqual(Math.max(after.map.bottom, after.horizon.bottom) - 8);
-      }
+      expect(after.talk.width).toBeLessThan(8);
 
       await page.reload({ waitUntil: 'domcontentloaded' });
       await page.waitForFunction(() => document.querySelector('.mission-workspace')?.dataset.missionSwap === 'horizon-map');

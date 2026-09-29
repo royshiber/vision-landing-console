@@ -2257,7 +2257,7 @@
             <p id="missionLayoutHint" class="mission-layout-hint">גררו את הפינה לשינוי גודל. גררו כותרת להחלפה. גם בטיסה.</p>
           </div>
         </div>
-        <div class="terrain-flight-shell mission-workspace" data-mission-layout="ops-v1" data-mission-swap="map-horizon" data-mission-edit="on" data-layout-contract="v2">
+        <div class="terrain-flight-shell mission-workspace" data-mission-layout="ops-v1" data-mission-swap="map-horizon" data-ask-open="0" data-mission-edit="on" data-layout-contract="v2">
           <div id="missionColSplit" class="mission-split mission-split-col"></div>
           <div id="missionColSplitB" class="mission-split mission-split-col"></div>
           <div id="missionRowSplit" class="mission-split mission-split-row"></div>
@@ -2392,21 +2392,61 @@
                 <dd class="mission-data-readout" dir="ltr"><strong class="mission-data-value" id="pfdBattVal" title="מתח סוללה">—</strong><span class="mission-data-unit">V</span></dd>
               </div>
             </dl>
-            <aside id="missionHorizonFiller" class="mission-horizon-filler" aria-label="מצב בקר">
-              <p class="mission-horizon-filler-kicker">מצב בקר</p>
-              <div id="hudDataGrid" class="hud-data-grid pfd-slots-strip" role="region" aria-label="נתונים מותאמים"></div>
-              <p class="mission-horizon-filler-note">אין חיבור לבקר הטיסה</p>
-            </aside>
           </section>
             <div id="flightStackSplitMsg" class="flight-stack-split" role="separator" aria-orientation="horizontal" aria-label="גובה ההודעות" tabindex="0"></div>
-            <section class="mission-region mission-region-messages" data-mission-region="messages" data-messages-expanded="0" dir="rtl" aria-label="הודעות מטוס">
+            <section class="mission-region mission-region-messages" data-mission-region="messages" data-messages-expanded="0" data-flight-dock="messages" dir="rtl" aria-label="תחתית הטיסה">
               <h3 class="mission-region-title">הודעות מטוס</h3>
-              <button type="button" id="missionMessagesToggle" class="mission-messages-toggle" aria-expanded="false" aria-controls="pfcMsgScroll">
-                <span class="pfc-msg-toolbar-label">הודעות</span>
-                <span id="missionMessagesSummary" class="pfc-msg-summary">אין הודעות</span>
-                <span id="missionMessagesCount" class="pfc-msg-countline" dir="ltr" hidden></span>
-                <span id="missionMessagesBadge" class="mission-messages-badge" hidden></span>
-              </button>
+              <div class="flight-dock-bar">
+                <div class="flight-dock-tabs" role="tablist" aria-label="תחתית הטיסה">
+                  <button type="button" id="flightDockMessagesTab" class="flight-dock-tab" role="tab" aria-selected="true" aria-controls="flightDockMessagesPane">הודעות</button>
+                  <button type="button" id="flightDockActionsTab" class="flight-dock-tab" role="tab" aria-selected="false" aria-controls="flightDockActionsPane">פעולות</button>
+                </div>
+                <button type="button" id="missionMessagesToggle" class="mission-messages-toggle" aria-expanded="false" aria-controls="pfcMsgScroll">
+                  <span class="pfc-msg-toolbar-label">הודעות</span>
+                  <span id="missionMessagesSummary" class="pfc-msg-summary">אין הודעות</span>
+                  <span id="missionMessagesCount" class="pfc-msg-countline" dir="ltr" hidden></span>
+                  <span id="missionMessagesBadge" class="mission-messages-badge" hidden></span>
+                </button>
+                <p id="flightActionsNote" class="mission-horizon-filler-note flight-actions-note">אין חיבור לבקר הטיסה</p>
+              </div>
+              <div id="flightDockActionsPane" class="flight-dock-pane" role="tabpanel" aria-labelledby="flightDockActionsTab">
+                <div class="flight-dock-grid">
+                  <label class="flight-dock-field" for="flightDockActionSelect">פעולה
+                    <select id="flightDockActionSelect" disabled><option>אין</option></select>
+                  </label>
+                  <button type="button" id="flightDockDoAction" class="flight-dock-cmd" disabled title="בלי שליחה">בצעו</button>
+                  <label class="flight-dock-field" for="flightDockWpSelect">נקודה
+                    <select id="flightDockWpSelect" disabled><option>בית</option></select>
+                  </label>
+                  <button type="button" id="flightDockSetWp" class="flight-dock-cmd" disabled title="בלי שליחה">קבעו נקודה</button>
+                  <label class="flight-dock-field" for="flightDockModeSelect">מצב
+                    <select id="flightDockModeSelect">
+                      <option value="AUTO">AUTO</option>
+                      <option value="LOITER">LOITER</option>
+                      <option value="RTL">RTL</option>
+                      <option value="MANUAL">MANUAL</option>
+                      <option value="STABILIZE">STABILIZE</option>
+                      <option value="FBWA">FBWA</option>
+                      <option value="FBWB">FBWB</option>
+                      <option value="CRUISE">CRUISE</option>
+                      <option value="CIRCLE">CIRCLE</option>
+                      <option value="GUIDED">GUIDED</option>
+                    </select>
+                  </label>
+                  <button type="button" id="flightDockSetMode" class="flight-dock-cmd">קבעו מצב</button>
+                  <label class="flight-dock-field" for="flightDockMountSelect">מתלה
+                    <select id="flightDockMountSelect" disabled><option>מקופל</option></select>
+                  </label>
+                  <button type="button" id="flightDockSetMount" class="flight-dock-cmd" disabled title="בלי שליחה">קבעו מתלה</button>
+                </div>
+                <div class="flight-dock-cmds">
+                  <button type="button" id="flightDockModeAuto" class="flight-dock-cmd" data-flight-mode="AUTO"><bdi dir="ltr">AUTO</bdi></button>
+                  <button type="button" id="flightDockModeLoiter" class="flight-dock-cmd" data-flight-mode="LOITER"><bdi dir="ltr">LOITER</bdi></button>
+                  <button type="button" id="flightDockModeRtl" class="flight-dock-cmd" data-flight-mode="RTL"><bdi dir="ltr">RTL</bdi></button>
+                </div>
+                <p id="flightDockDisabledReason" class="flight-dock-reason">פעולה, נקודה ומתלה בלי שליחה</p>
+              </div>
+              <div id="flightDockMessagesPane" class="flight-dock-pane" role="tabpanel" aria-labelledby="flightDockMessagesTab">
               <div class="pfc-msg-toolbar" dir="rtl">
                 <button type="button" id="pfcMsgFilterAll" class="pfc-msg-filter" aria-pressed="true">הכל</button>
                 <button type="button" id="pfcMsgFilterWarn" class="pfc-msg-filter" aria-pressed="false">אזהרות</button>
@@ -2415,6 +2455,8 @@
                 <span class="pfc-opt-mini" id="pfdOptMini" title="ניווט אופטי">👁 —</span>
                 <div class="pfc-msg-scroll" id="pfcMsgScroll" dir="ltr"></div>
               </div>
+              </div>
+              <p id="flightDockCommandNote" class="flight-dock-note" role="status"></p>
             </section>
           </section>
 
@@ -2426,6 +2468,9 @@
                 <button type="button" id="terrainLayerStreetBtn" class="terrain-layer-btn active" title="OpenStreetMap">מפת רחוב</button>
                 <button type="button" id="terrainLayerSatBtn" class="terrain-layer-btn" title="תצלום לווין (Esri)">לווין</button>
                   <button type="button" id="terrainShowLoadedPathBtn" class="terrain-layer-btn" title="רענן משימה והצג נתיב טעון על המפה" aria-pressed="false">הצג נתיב טעון</button>
+                  <button type="button" id="terrainFollowBtn" class="terrain-layer-btn" title="מרכז את המטוס במפה" aria-pressed="false">עקוב</button>
+                  <button type="button" id="terrainFlightRecordBtn" class="terrain-layer-btn" data-recording="0" aria-pressed="false" title="התחילו שמירת טיסה. בלי לחיצה אין הקלטה.">התחל הקלטה</button>
+                  <span id="terrainFlightRecordState" class="terrain-record-state">לא מקליט</span>
                   <p id="terrainPathNote" class="terrain-path-note" hidden></p>
               </div>
               <div id="terrainMapRotatable" class="terrain-map-rotatable">

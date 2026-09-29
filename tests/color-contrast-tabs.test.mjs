@@ -120,9 +120,9 @@ describe('WCAG AA color contrast across tabs', () => {
           summaryOverflow: summary ? summary.scrollWidth - summary.clientWidth : 0,
         };
       });
-      expect(messages.expanded).toBe('0');
-      expect(messages.msgH).toBeLessThan(80);
-      expect(messages.hudH).toBeGreaterThan(messages.msgH);
+      expect(messages.expanded).toBe('1');
+      expect(messages.msgH).toBeGreaterThanOrEqual(120);
+      expect(messages.hudH).toBeGreaterThan(100);
       expect(messages.summary).toContain('אין הודעות');
       expect(messages.summaryOverflow).toBeLessThanOrEqual(1);
 

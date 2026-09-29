@@ -51,9 +51,9 @@ function interiorsIntersect(a, b, slack = 1) {
 }
 
 describe('Mission messages toggle — source contract', () => {
-  it('pins APP_VERSION at 1.02.372', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.372'");
-    expect(pkg.version).toBe('1.02.372');
+  it('pins APP_VERSION at 1.02.377', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.377'");
+    expect(pkg.version).toBe('1.02.377');
   });
 
   it('keeps the message list readable and LTR inside the RTL column', () => {
@@ -378,10 +378,10 @@ describe('Mission messages toggle — live layout', () => {
   it('collapses to one line by default and opens a compact LTR list', async () => {
     const shots = [];
     const collapsed = await measure(page);
-    expect(collapsed.expanded).toBe('0');
-    expect(collapsed.stored).toBeNull();
-    expect(collapsed.messages.height).toBeGreaterThanOrEqual(24);
-    expect(collapsed.messages.height).toBeLessThan(80);
+    expect(collapsed.expanded).toBe('1');
+    expect(collapsed.stored).toBe('1');
+    expect(collapsed.messages.height).toBeGreaterThanOrEqual(120);
+    expect(collapsed.messages.height).toBeLessThan(520);
     expect(collapsed.horizon.height).toBeGreaterThan(collapsed.messages.height);
     const summary0 = await page.locator('#missionMessagesSummary').innerText();
     expect(summary0).toContain('אין הודעות');
@@ -395,7 +395,7 @@ describe('Mission messages toggle — live layout', () => {
       expect(measured.expanded, label).toBe('1');
       expect(measured.logDisplay, label).toBe('none');
       expect(measured.messages.height, label).toBeGreaterThanOrEqual(28);
-      expect(measured.messages.height, label).toBeLessThanOrEqual(170);
+      expect(measured.messages.height, label).toBeLessThanOrEqual(520);
       expect(measured.scrollH, label).toBeGreaterThanOrEqual(24);
       if (String(label).startsWith('mobile')) {
         expect(measured.map.height, label).toBeGreaterThanOrEqual(110);
@@ -428,7 +428,6 @@ describe('Mission messages toggle — live layout', () => {
       return measured;
     }
 
-    await page.click('#missionMessagesToggle');
     const desk = await check('desktop');
     expect(desk.stored).toBe('1');
     shots.push(await shot('mission-messages-open-1280x800.png'));

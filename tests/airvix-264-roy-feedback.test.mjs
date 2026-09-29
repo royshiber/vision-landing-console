@@ -43,9 +43,9 @@ function cssBlock(src, selector) {
 }
 
 describe('AIRVIX 1.02.264 Ask rename + premium horizon', () => {
-  it('pins APP_VERSION at 1.02.372', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.372'");
-    expect(pkg.version).toBe('1.02.372');
+  it('pins APP_VERSION at 1.02.377', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.377'");
+    expect(pkg.version).toBe('1.02.377');
   });
 
   it('fails if מסייע appears in public UI sources', () => {
@@ -78,7 +78,7 @@ describe('AIRVIX 1.02.264 Ask rename + premium horizon', () => {
     const workspace = cssBlock(css, '.mission-workspace[data-mission-layout="ops-v1"]');
     expect(workspace).toMatch(/--mission-map-min:\s*65%/);
     expect(workspace).toMatch(/--mission-ah-row:\s*66%/);
-    expect(workspace).toMatch(/grid-template-areas:\s*"horizon map talk"/);
+    expect(workspace).toMatch(/grid-template-areas:\s*"map horizon"/);
     expect(css).toMatch(/\.mission-region-horizon \.flight-hud \{[^}]*min-height:\s*52%/);
     expect(css).toMatch(/\.mission-region-horizon \.flight-hud \{[^}]*max-height:\s*calc\(100% - var\(--mission-data-h/);
     expect(cssBlock(css, '.pfd-horizon-instrument')).toMatch(/"horizon"/);
