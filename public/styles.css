@@ -24000,3 +24000,92 @@ body[data-work-path="rf"] #optics .optics-calib {
   color: #f8fafc;
   border-color: rgba(226, 232, 240, 0.45);
 }
+
+/* Flight column: horizon, tiles, and messages share two horizontal splitters. */
+.flight-stack-split {
+  flex: 0 0 12px;
+  height: 12px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: #151b27;
+  cursor: row-resize;
+  touch-action: none;
+  user-select: none;
+  position: relative;
+  z-index: 3;
+}
+.flight-stack-split::after {
+  content: "";
+  position: absolute;
+  left: 22%;
+  right: 22%;
+  top: 4px;
+  height: 4px;
+  border-radius: 999px;
+  background: #e2e8f0;
+}
+.flight-stack-split:hover::after,
+.flight-stack-split:focus-visible::after {
+  background: #f8fafc;
+  height: 5px;
+  top: 3px;
+}
+.mission-region-horizon > .flight-hud {
+  height: auto;
+  min-height: 160px;
+  max-height: none;
+  flex: 1 1 auto;
+  overflow: hidden;
+}
+.mission-region-horizon .pfd-horizon-shell {
+  min-height: 96px;
+  height: auto;
+  max-height: none;
+  flex: 1 1 auto;
+  overflow: hidden;
+}
+.mission-region-horizon .pfd-horizon-instrument,
+.mission-region-horizon .pfd-horizon-stage {
+  min-height: 0;
+  height: auto;
+  max-height: none;
+}
+.mission-region-horizon > .mission-region-data {
+  flex: 0 0 auto;
+  height: auto;
+  min-height: var(--flight-data-h, 88px);
+  max-height: none;
+  overflow: hidden;
+}
+.mission-region-horizon > .mission-region-data > .mission-data-grid {
+  flex: 0 0 auto;
+  min-width: 0;
+  max-width: 100%;
+  height: auto;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+.mission-region-horizon > .mission-region-messages,
+.mission-region-horizon > .mission-region-messages[data-messages-expanded="0"],
+.mission-region-horizon > .mission-region-messages[data-messages-expanded="1"] {
+  flex: 0 0 var(--flight-msg-h, 40px);
+  height: var(--flight-msg-h, 40px);
+  min-height: 36px;
+  max-height: none;
+  overflow: hidden;
+}
+.mission-region-horizon > .mission-region-messages[data-messages-expanded="1"] .pfd-statustext-strip {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+  overflow: hidden;
+}
+.mission-region-horizon > .mission-region-messages[data-messages-expanded="1"] .pfc-msg-scroll {
+  max-height: none;
+  min-height: 0;
+  height: auto;
+  flex: 1 1 auto;
+  overflow-x: hidden;
+  overflow-y: auto;
+}

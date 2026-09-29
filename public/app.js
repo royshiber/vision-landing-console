@@ -223,6 +223,14 @@ const MISSION_COL_MIN_PX = 140;
 const MISSION_COL_COLLAPSE = 0.02;
 const MISSION_AREAS_KEY = 'visionLandingMissionAreasV2';
 const MISSION_MESSAGES_KEY = 'visionLandingMissionMessagesV1';
+const FLIGHT_STACK_KEY = 'visionLandingFlightStackV1';
+const FLIGHT_DATA_DEFAULT = 88;
+const FLIGHT_MSG_DEFAULT = 40;
+const FLIGHT_MSG_OPEN = 112;
+const FLIGHT_DATA_MIN = 88;
+const FLIGHT_MSG_MIN = 36;
+const FLIGHT_HUD_MIN = 160;
+const FLIGHT_MSG_OPEN_GAP = 28;
 const MISSION_MESSAGES_SEEN_KEY = 'visionLandingMissionMessagesSeenV1';
 const MISSION_DATA_SLOTS_KEY = 'visionLandingMissionDataSlotsV1';
 const PULSE_WIDGETS_KEY = 'visionLandingPulseWidgetsV1';
@@ -19292,6 +19300,7 @@ function resetMissionLayout() {
   applyMissionSize(defaultMissionSize());
   applyMissionAreas(defaultMissionAreas());
   applyMissionSwap(swap);
+  resetFlightStack();
   syncMissionLayoutChrome();
 }
 
@@ -19594,10 +19603,189 @@ function setFcMsgFilter(next) {
   paintFcStatustextHistory(_missionMessagesRows);
 }
 
+function defaultFlightStack() {
+  return { data: FLIGHT_DATA_DEFAULT, msg: FLIGHT_MSG_DEFAULT };
+}
+
+let _flightStack = defaultFlightStack();
+let _flightStackOpen = false;
+
+function readFlightStack() {
+  try {
+    const raw = JSON.parse(missionLayoutStoreGet(FLIGHT_STACK_KEY) || 'null');
+    const data = Number(raw?.data);
+    const msg = Number(raw?.msg);
+    if (Number.isFinite(data) && Number.isFinite(msg)) return { data, msg };
+  } catch {
+    /* ignore */
+  }
+  return defaultFlightStack();
+}
+
+function writeFlightStack(stack) {
+  const next = {
+    data: Math.round(Number(stack?.data) || FLIGHT_DATA_DEFAULT),
+    msg: Math.round(Number(stack?.msg) || FLIGHT_MSG_DEFAULT),
+  };
+  _flightStack = next;
+  missionLayoutStoreSet(FLIGHT_STACK_KEY, JSON.stringify(next));
+  return next;
+}
+
+function flightDataFloor(horizon) {
+  const grid = horizon.querySelector('#missionDataGrid');
+  if (!grid || typeof grid.getBoundingClientRect !== 'function') return FLIGHT_DATA_MIN;
+  const gridBox = grid.getBoundingClientRect();
+  let content = Math.ceil(gridBox.height);
+  const filler = horizon.querySelector('#missionHorizonFiller');
+  if (filler && typeof filler.getBoundingClientRect === 'function') {
+    const fillerBox = filler.getBoundingClientRect();
+    if (fillerBox.height > 8 && fillerBox.top >= gridBox.bottom - 4) {
+      content += Math.ceil(fillerBox.height);
+    }
+  }
+  if (content < 40) return FLIGHT_DATA_MIN;
+  return Math.max(FLIGHT_DATA_MIN, content + 2);
+}
+
+function flightStackBudget(horizon) {
+  const total = horizon.getBoundingClientRect().height;
+  const splits = [...horizon.querySelectorAll('.flight-stack-split')];
+  const splitH = splits.reduce((sum, el) => sum + el.getBoundingClientRect().height, 0);
+  const toggle = document.getElementById('missionMessagesToggle');
+  const header = toggle ? Math.ceil(toggle.getBoundingClientRect().height + 8) : FLIGHT_MSG_DEFAULT;
+  const msgMin = Math.max(FLIGHT_MSG_MIN, header);
+  return {
+    avail: Math.max(0, total - splitH),
+    dataMin: flightDataFloor(horizon),
+    msgMin,
+    hudMin: FLIGHT_HUD_MIN,
+  };
+}
+
+function clampFlightStack(stack, budget) {
+  let data = Math.max(budget.dataMin, Number(stack.data) || FLIGHT_DATA_DEFAULT);
+  let msg = Math.max(budget.msgMin, Number(stack.msg) || FLIGHT_MSG_DEFAULT);
+  const room = budget.avail - budget.hudMin;
+  if (room > budget.dataMin + budget.msgMin && data + msg > room) {
+    const overflow = data + msg - room;
+    const msgRoom = Math.max(0, msg - budget.msgMin);
+    const takeMsg = Math.min(msgRoom, overflow);
+    msg -= takeMsg;
+    data = Math.max(budget.dataMin, data - (overflow - takeMsg));
+  }
+  return { data, msg };
+}
+
+function flightMessagesWantOpen(msg, msgMin) {
+  return msg >= msgMin + FLIGHT_MSG_OPEN_GAP;
+}
+
+function applyFlightStack(stack, opts = {}) {
+  const horizon = document.querySelector('[data-mission-region="horizon"]');
+  if (!horizon || typeof horizon.style?.setProperty !== 'function' || typeof horizon.getBoundingClientRect !== 'function') {
+    return null;
+  }
+  const budget = flightStackBudget(horizon);
+  const next = clampFlightStack(stack || _flightStack, budget);
+  _flightStack = next;
+  horizon.style.setProperty('--flight-data-h', `${Math.round(next.data)}px`);
+  horizon.style.setProperty('--flight-msg-h', `${Math.round(next.msg)}px`);
+  const dataSplit = document.getElementById('flightStackSplitData');
+  const msgSplit = document.getElementById('flightStackSplitMsg');
+  if (dataSplit) dataSplit.setAttribute('aria-valuenow', String(Math.round(next.data)));
+  if (msgSplit) msgSplit.setAttribute('aria-valuenow', String(Math.round(next.msg)));
+  _flightStackOpen = flightMessagesWantOpen(next.msg, budget.msgMin);
+  if (!opts.skipMessages) applyMissionMessagesExpanded(_flightStackOpen);
+  if (opts.persist) writeFlightStack(next);
+  return next;
+}
+
+function resetFlightStack() {
+  const next = defaultFlightStack();
+  writeFlightStack(next);
+  writeMissionMessagesExpanded(false);
+  applyMissionMessagesExpanded(false);
+  applyFlightStack(next, { skipMessages: true });
+}
+
+function syncFlightStackToToggle() {
+  const stack = { ..._flightStack };
+  stack.msg = readMissionMessagesExpanded()
+    ? Math.max(stack.msg, FLIGHT_MSG_OPEN)
+    : FLIGHT_MSG_DEFAULT;
+  applyFlightStack(stack, { persist: true, skipMessages: true });
+}
+
+function bindFlightStackSplitters() {
+  const dataSplit = document.getElementById('flightStackSplitData');
+  const msgSplit = document.getElementById('flightStackSplitMsg');
+  if (!dataSplit || !msgSplit || dataSplit.dataset.bound === '1') return;
+  dataSplit.dataset.bound = '1';
+  msgSplit.dataset.bound = '1';
+  let drag = null;
+  const stop = () => {
+    if (!drag) return;
+    drag = null;
+    writeMissionMessagesExpanded(_flightStackOpen);
+    writeFlightStack(_flightStack);
+    refreshMissionSwapSurfaces();
+  };
+  const onDown = (which, ev) => {
+    if (ev.button != null && ev.button !== 0) return;
+    drag = { which, y: ev.clientY, base: { ..._flightStack } };
+    try { ev.currentTarget.setPointerCapture?.(ev.pointerId); } catch { /* synthetic pointer */ }
+    ev.preventDefault();
+  };
+  const onMove = (ev) => {
+    if (!drag) return;
+    const dy = ev.clientY - drag.y;
+    const next = { ...drag.base };
+    if (drag.which === 'data') next.data = drag.base.data + dy;
+    else next.msg = drag.base.msg - dy;
+    applyFlightStack(next);
+  };
+  const onDbl = (ev) => {
+    ev.preventDefault();
+    drag = null;
+    resetFlightStack();
+  };
+  dataSplit.addEventListener('pointerdown', (ev) => onDown('data', ev));
+  msgSplit.addEventListener('pointerdown', (ev) => onDown('msg', ev));
+  dataSplit.addEventListener('pointermove', onMove);
+  msgSplit.addEventListener('pointermove', onMove);
+  dataSplit.addEventListener('pointerup', stop);
+  msgSplit.addEventListener('pointerup', stop);
+  dataSplit.addEventListener('pointercancel', stop);
+  msgSplit.addEventListener('pointercancel', stop);
+  dataSplit.addEventListener('dblclick', onDbl);
+  msgSplit.addEventListener('dblclick', onDbl);
+  window.addEventListener('pointermove', onMove);
+  window.addEventListener('pointerup', stop);
+  window.addEventListener('pointercancel', stop);
+}
+
+function initFlightStack() {
+  const stored = missionLayoutStoreGet(FLIGHT_STACK_KEY);
+  const stack = stored ? readFlightStack() : {
+    data: FLIGHT_DATA_DEFAULT,
+    msg: readMissionMessagesExpanded() ? FLIGHT_MSG_OPEN : FLIGHT_MSG_DEFAULT,
+  };
+  applyFlightStack(stack);
+  bindFlightStackSplitters();
+  requestAnimationFrame(() => {
+    applyFlightStack(_flightStack);
+    requestAnimationFrame(() => applyFlightStack(_flightStack));
+  });
+}
+
 function initMissionMessages() {
   const expanded = readMissionMessagesExpanded();
   applyMissionMessagesExpanded(expanded);
-  document.getElementById('missionMessagesToggle')?.addEventListener('click', () => toggleMissionMessages());
+  document.getElementById('missionMessagesToggle')?.addEventListener('click', () => {
+    toggleMissionMessages();
+    syncFlightStackToToggle();
+  });
   document.getElementById('pfcMsgFilterAll')?.addEventListener('click', () => setFcMsgFilter('all'));
   document.getElementById('pfcMsgFilterWarn')?.addEventListener('click', () => setFcMsgFilter('warn'));
 }
@@ -20054,9 +20242,13 @@ function initMissionLayout() {
   bindMissionRegionDrag();
   bindMissionSplitters();
   initMissionMessages();
+  initFlightStack();
   initMissionDataPicker();
   initMissionNavDisplay();
-  window.addEventListener('resize', () => requestAnimationFrame(placeMissionSplits));
+  window.addEventListener('resize', () => requestAnimationFrame(() => {
+    placeMissionSplits();
+    applyFlightStack(_flightStack);
+  }));
 }
 
 function initMissionTalk() {
