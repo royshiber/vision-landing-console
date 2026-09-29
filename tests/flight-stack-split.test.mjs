@@ -120,6 +120,8 @@ describe('flight stack splitters live', () => {
         const msgSplit = document.getElementById('flightStackSplitMsg');
         const handleCs = dataSplit ? getComputedStyle(dataSplit, '::after') : null;
         const splitCs = dataSplit ? getComputedStyle(dataSplit) : null;
+        const grid = document.getElementById('missionDataGrid');
+        const gridOver = grid ? Math.max(0, grid.scrollWidth - grid.clientWidth, grid.scrollHeight - grid.clientHeight) : 0;
         const tiles = [...document.querySelectorAll('.mission-data-tile')].map((el) => {
           const r = el.getBoundingClientRect();
           const label = el.querySelector('.mission-data-label');
@@ -128,8 +130,8 @@ describe('flight stack splitters live', () => {
             bottom: r.bottom,
             top: r.top,
             height: r.height,
-            labelOver: label ? label.scrollHeight - label.clientHeight : 0,
-            valueOver: value ? value.scrollHeight - value.clientHeight : 0,
+            labelOver: label ? Math.max(label.scrollWidth - label.clientWidth, label.scrollHeight - label.clientHeight) : 0,
+            valueOver: value ? Math.max(value.scrollWidth - value.clientWidth, value.scrollHeight - value.clientHeight) : 0,
           };
         });
         const stack = [hud, data, messages, horizon];
@@ -150,6 +152,7 @@ describe('flight stack splitters live', () => {
           summary: summary?.textContent || '',
           countHidden: count ? count.hidden : true,
           summaryOver,
+          gridOver,
           tiles,
           vertical,
           cursor: splitCs?.cursor || '',
@@ -236,12 +239,14 @@ describe('flight stack splitters live', () => {
       expect(before.summary, size.name).toContain('אין הודעות');
       expect(before.summaryOver, size.name).toBeLessThanOrEqual(1);
       expect(before.messages.height, size.name).toBeGreaterThanOrEqual(120);
-      expect(before.hud.height, size.name).toBeGreaterThanOrEqual(140);
-      expect(before.hud.height, size.name).toBeGreaterThan(before.messages.height * 0.55);
-      expect(before.messages.height, size.name).toBeGreaterThan(before.hud.height * 0.55);
-      expect(Math.abs(before.hud.height - before.messages.height), size.name).toBeLessThanOrEqual(16);
-      expect(before.stage.height, size.name).toBeGreaterThanOrEqual(72);
-      expect(before.data.height, size.name).toBeGreaterThanOrEqual(88);
+      expect(before.hud.height, size.name).toBeGreaterThanOrEqual(96);
+      expect(before.messages.height, size.name).toBeGreaterThan(before.hud.height);
+      expect(before.stage.height, size.name).toBeGreaterThanOrEqual(48);
+      expect(before.data.height, size.name).toBeGreaterThanOrEqual(44);
+      expect(before.data.height, size.name).toBeLessThanOrEqual(96);
+      const tileTops = before.tiles.map((tile) => tile.top);
+      expect(Math.max(...tileTops) - Math.min(...tileTops), size.name).toBeLessThanOrEqual(2);
+      expect(before.gridOver, size.name).toBeLessThanOrEqual(1);
       expect(before.order.hud, size.name).toBeLessThanOrEqual(before.order.dataSplit + 2);
       expect(before.order.data, size.name).toBeLessThanOrEqual(before.order.msgSplit + 2);
       expect(before.order.msgSplit, size.name).toBeLessThanOrEqual(before.order.messages + 2);

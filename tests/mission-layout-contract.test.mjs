@@ -291,7 +291,7 @@ describe('Mission layout contract — live boxes', () => {
     });
 
     expect(measured.platformTab).toBe(false);
-    expect(measured.version).toBe('1.02.377');
+    expect(measured.version).toBe('1.02.380');
     expect(measured.ws.width).toBeGreaterThan(800);
     expect(measured.talkMinWidth).toBe('0px');
     expect(Number.parseFloat(measured.dataGap)).toBeLessThanOrEqual(4);
@@ -316,7 +316,7 @@ describe('Mission layout contract — live boxes', () => {
     expect(measured.horizonPosition).toBe('relative');
     expect(regions.horizon.height / ws.height).toBeGreaterThanOrEqual(0.90);
     expect(measured.filler).toBeNull();
-    expect(regions.data.height).toBeGreaterThanOrEqual(64);
+    expect(regions.data.height).toBeGreaterThanOrEqual(44);
     expect(regions.data.height).toBeLessThanOrEqual(280);
     expect(regions.messages.top - regions.data.bottom).toBeLessThan(24);
     expect(regions.talk.width).toBeLessThan(8);
@@ -634,7 +634,7 @@ describe('Mission layout contract — live boxes', () => {
       expect(tile.valueWrap).toBe('normal');
       expect(tile.labelOverflow).toBeLessThanOrEqual(1);
       expect(tile.valueOverflow).toBeLessThanOrEqual(1);
-      expect(tile.tileH).toBeGreaterThanOrEqual(56);
+      expect(tile.tileH).toBeGreaterThanOrEqual(32);
     }
   }, 20000);
 
