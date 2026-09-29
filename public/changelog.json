@@ -4,29 +4,9 @@
     "date": "2026-09-29",
     "changes": [
       {
-        "type": "feat",
-        "title": "Server library",
-        "detail": "gcs-upload.mjs, s3-client.mjs"
-      },
-      {
-        "type": "feat",
-        "title": "Frontend",
-        "detail": "gcs-log-rows.mjs, gcs-logs.css, gcs-logs.mjs"
-      },
-      {
-        "type": "ui",
-        "title": "HTML layout",
-        "detail": "index.html"
-      },
-      {
-        "type": "test",
-        "title": "Tests",
-        "detail": "gcs-log-list-ui.test.mjs, gcs-log-upload.test.mjs"
-      },
-      {
-        "type": "docs",
-        "title": "Documentation",
-        "detail": "FLIGHT_LOGS.md"
+        "type": "fix",
+        "title": "הורדה לכל לוג בענן",
+        "detail": "APP_VERSION 1.02.367. כל לוג שעלה מופיע עם שם, גודל, זמן, מצב, וקישור הורדה משלו. השורה הסגורה נשארת אחת, והשאר נפתחים בעוד. פאנל הלוגים לא גולל והעלאת הלוג נשארת על המסך."
       }
     ]
   },
