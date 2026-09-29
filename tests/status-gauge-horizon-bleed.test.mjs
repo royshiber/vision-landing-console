@@ -130,8 +130,8 @@ describe('Mission AH fills the center stage', () => {
     expect(html).toContain('id="pfdHdgVal"');
   });
 
-  it('pins APP_VERSION at 1.02.371', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.371'");
-    expect(pkg.version).toBe('1.02.371');
+  it('pins APP_VERSION at 1.02.372', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.372'");
+    expect(pkg.version).toBe('1.02.372');
   });
 });

@@ -80,6 +80,7 @@ export function cameraSettingsHtml(camId) {
       <span id="${camId}CalibProgress" class="optics-field-name">0/20</span>
       <button type="button" id="${camId}CalibSave" class="cam0-btn" disabled>שמירה</button>
       <button type="button" id="${camId}CalibRetry" class="cam0-btn" disabled>שוב</button>
+      <a id="${camId}CalibBoard" class="optics-calib-board" href="/docs/calibration-board.pdf">לוח להדפסה</a>
       <p id="${camId}CalibHint" class="optics-field-note" hidden></p>
       <p id="${camId}CalibState" class="cam0-calib-state">עדיין אין כיול.</p>
     </section>

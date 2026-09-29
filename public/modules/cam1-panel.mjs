@@ -208,10 +208,11 @@ function init() {
       body = null;
     }
     lastBody = body;
-    const connected = body?.camera_ok === true && !streamError && body?.state !== 'error';
+    const cameraLive = body?.camera_ok === true && body?.state !== 'error' && body?.state !== 'absent';
+    const connected = cameraLive && !streamError;
     const fps = connected && body.fps != null ? body.fps : null;
     paintStatusLine(body);
-    setControls(connected, body ? REASON_CAM : REASON_LINK);
+    setControls(cameraLive, body ? (cameraLive ? '' : REASON_CAM) : REASON_LINK);
     text('cam1Fps', fps);
     text('cam1Latency', connected && body.latency_ms != null ? body.latency_ms : null);
     text('cam1Drops', connected && body.dropped != null ? body.dropped : null);
@@ -228,7 +229,7 @@ function init() {
     if (!streamError && img && !String(img.src || '').includes('cam1/stream.mjpg')) img.src = STREAM;
     paintHonesty(body);
     if (ae && document.activeElement !== ae) ae.checked = body.ae?.enabled === true;
-    syncManualExposureLock('cam1', { aeOn: ae?.checked === true, live: connected && !rfVideoLocked() });
+    syncManualExposureLock('cam1', { aeOn: ae?.checked === true, live: cameraLive && !rfVideoLocked() });
     if (body?.controls) paintCameraApply('cam1', body.controls);
     if (exposure && document.activeElement !== exposure && body.exposure_us != null) exposure.value = String(body.exposure_us);
     if (gain && document.activeElement !== gain && body.gain != null) gain.value = String(body.gain);

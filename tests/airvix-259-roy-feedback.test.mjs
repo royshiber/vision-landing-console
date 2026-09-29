@@ -17,10 +17,10 @@ function capture(src, re, label) {
   return m;
 }
 
-describe('AIRVIX 1.02.259 Roy feedback (still holds on 1.02.371)', () => {
-  it('pins APP_VERSION at 1.02.371', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.371'");
-    expect(pkg.version).toBe('1.02.371');
+describe('AIRVIX 1.02.259 Roy feedback (still holds on 1.02.372)', () => {
+  it('pins APP_VERSION at 1.02.372', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.372'");
+    expect(pkg.version).toBe('1.02.372');
   });
 
   it('keeps Mission chrome and titles out of the instrument', () => {

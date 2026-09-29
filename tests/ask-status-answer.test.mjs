@@ -11,6 +11,7 @@ import {
   answerAskWithGemini,
   askStatusFacts,
   classifyAskStatusQuestion,
+  fcLinkPhrase,
 } from '../lib/assist/ask-status-answer.mjs';
 import { buildAssistContext } from '../lib/assist/assist-context.mjs';
 
@@ -85,6 +86,20 @@ describe('offline Ask status answers', () => {
     });
     expect(rf.answer).toBe('בקר הטיסה מחובר דרך RF.');
 
+    const sitl = await ask(service, 'אתה מחובר לבקר?', {
+      ...LIVE,
+      aircraft_state: {
+        ...LIVE.aircraft_state,
+        link_path: 'rf',
+        link_role: 'radio',
+        simulator: true,
+        link_type: 'tcp',
+        link_host: '127.0.0.1',
+        link_port: 5760,
+      },
+    });
+    expect(sitl.answer).toBe('בקר הטיסה מחובר דרך סימולטור.');
+
     const down = await ask(service, 'אתה מחובר לבקר?', {
       ...LIVE,
       aircraft_state: { ...LIVE.aircraft_state, connected: false, link_path: null },
@@ -96,6 +111,13 @@ describe('offline Ask status answers', () => {
       aircraft_state: { ...LIVE.aircraft_state, link_path: null },
     });
     expect(nopath.answer).toBe('בקר הטיסה מחובר. אין נתון על המסלול.');
+    expect(fcLinkPhrase({
+      connected: true,
+      link_path: 'rf',
+      link_type: 'tcp',
+      link_host: '127.0.0.1',
+      link_port: 5760,
+    })).toBe('סימולטור');
   });
 
   it('answers mode, armed, GPS, EKF, battery, and link quality from telemetry', async () => {
@@ -208,6 +230,10 @@ describe('offline Ask status answers', () => {
     expect(send).not.toMatch(/assist-msg-meta/);
     const snap = app.slice(app.indexOf('function assistBuildContextSnapshot'), app.indexOf('function assistBuildOpsSignals'));
     expect(snap).toMatch(/link_path: assistLinkPath/);
+    expect(snap).toMatch(/simulator: mav\.simulator === true/);
+    const linkFn = app.slice(app.indexOf('function assistLinkPath'), app.indexOf('function assistLinkQuality'));
+    expect(linkFn.indexOf('simulator === true')).toBeLessThan(linkFn.indexOf("return 'rf'"));
+    expect(linkFn).toContain('5760');
     expect(snap).toMatch(/status_texts: assistStatusTexts/);
     expect(snap).toMatch(/battery_v:/);
     expect(snap).toMatch(/gps_sats:/);

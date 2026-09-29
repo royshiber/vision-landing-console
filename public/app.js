@@ -7249,6 +7249,10 @@ function liveStatusToHudMavlink(s) {
     listening: s.listening === true,
     id: s.id ?? null,
     linkRole: s.linkRole || 'radio',
+    simulator: s.simulator === true,
+    type: s.type || null,
+    host: s.host || null,
+    port: Number.isFinite(Number(s.port)) ? Number(s.port) : null,
     heartbeatCount: Number(s.heartbeatCount) || 0,
     sysId: hudSysId(s.sysId),
     lastHeartbeatAgeMs: Number.isFinite(Number(s.lastHeartbeatAgeMs)) ? Number(s.lastHeartbeatAgeMs) : null,
@@ -18144,6 +18148,10 @@ function assistBuildContextSnapshot() {
       battery_v: typeof mav.batteryV === 'number' ? mav.batteryV : null,
       battery_pct: typeof mav.batteryPct === 'number' ? mav.batteryPct : null,
       link_path: assistLinkPath(mav),
+      simulator: mav.simulator === true,
+      link_port: Number.isFinite(Number(mav.port)) ? Number(mav.port) : null,
+      link_host: mav.host || null,
+      link_type: mav.type || null,
       link_quality: assistLinkQuality(mav),
       status_texts: assistStatusTexts(mav),
       vision_confidence: conf,
@@ -18173,11 +18181,17 @@ function assistStatusTexts(mav) {
 
 function assistLinkPath(mav) {
   if (mav?.connected !== true) return null;
+  if (mav.simulator === true) return 'simulator';
+  const port = Number(mav.port);
+  const host = String(mav.host || '').trim().toLowerCase();
+  const type = String(mav.type || '').toLowerCase();
+  const loopback = host === '127.0.0.1' || host === 'localhost' || host === '::1';
+  if (port === 5760 && loopback && (type === 'tcp' || type === 'udp' || type === '')) return 'simulator';
   const role = String(mav.linkRole || mav.link_path || '').toLowerCase();
   if (role === 'cellular' || role === 'cell' || role === 'lte') return 'cellular';
+  if (role === 'sitl' || role === 'sim' || role === 'simulator') return 'simulator';
   if (role === 'rf' || role === 'radio' || role === 'serial') return 'rf';
   if (role === 'usb') return 'usb';
-  if (role === 'sitl' || role === 'sim') return 'sitl';
   return null;
 }
 

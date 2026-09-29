@@ -20425,6 +20425,12 @@ body:has(#recordings.panel.visible) .layout {
 #optics .cam0-calib-state,
 #optics .cam0-calib > .optics-field-note { flex: 1 1 100%; min-width: 0; }
 #optics .cam0-calib label { flex: 0 0 auto; width: auto; }
+#optics .optics-calib-board {
+  color: #fde68a;
+  font-size: clamp(11px, 0.72rem, 13px);
+  line-height: 1.3;
+  text-decoration: underline;
+}
 #optics .optics-field-note,
 #optics .optics-readout {
   margin: 0;
@@ -21473,6 +21479,17 @@ html body :is(
   text-overflow: clip;
   font-size: clamp(11px, 0.7rem, 12px);
   line-height: 1.3;
+}
+/* Leaflet's stylesheet loads after this file. These beat its pale link on white. */
+.leaflet-container .leaflet-control-attribution,
+.mission-region-map .leaflet-control-attribution {
+  background: #0f172a !important;
+  color: #f8fafc !important;
+  font-size: 11px !important;
+}
+.leaflet-container .leaflet-control-attribution a,
+.mission-region-map .leaflet-control-attribution a {
+  color: #e0f2fe !important;
 }
 .leaflet-bar a {
   display: flex !important;

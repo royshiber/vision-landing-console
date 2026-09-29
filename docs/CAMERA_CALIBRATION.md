@@ -6,7 +6,7 @@ Both CAM0 and CAM1 use the same guided checkerboard flow on the optics tab.
 
 - Inner corners: 9 by 6 (10 by 7 squares).
 - Square size: 25 mm. The field on the form is in millimetres and can be changed before start.
-- Print `docs/calibration-board.pdf` at 100 percent scale. Do not use fit-to-page. The page is A4 landscape.
+- Print `docs/calibration-board.pdf` at 100 percent scale. Do not use fit-to-page. The page is A4 landscape. The optics form links to that file as לוח להדפסה.
 
 ## Flow
 

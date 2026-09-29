@@ -32,6 +32,8 @@ describe('calibration copy', () => {
       expect(html).toContain('value="6"');
       expect(html).toContain('value="25"');
       expect(html).toContain('צלע מ״מ');
+      expect(html).toContain('לוח להדפסה');
+      expect(html).toContain('href="/docs/calibration-board.pdf"');
       expect(html).not.toContain('החזיקו לוח שחמט');
     }
   });

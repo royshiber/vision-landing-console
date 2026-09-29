@@ -188,4 +188,43 @@ describe('WCAG AA color contrast across tabs', () => {
       await page.close();
     }
   }, 60000);
+
+  it('keeps the map attribution at AA on 1366', async () => {
+    const page = await browser.newPage({ viewport: { width: 1366, height: 768 } });
+    try {
+      await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+      await page.waitForSelector('.leaflet-control-attribution', { timeout: 8000 });
+      const contrast = await page.evaluate(() => {
+        function channel(c) {
+          const x = c / 255;
+          return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4;
+        }
+        function lum(color) {
+          const m = String(color).match(/rgba?\(([^)]+)\)/);
+          const parts = m[1].split(',').map((n) => Number(n.trim()));
+          return (0.2126 * channel(parts[0])) + (0.7152 * channel(parts[1])) + (0.0722 * channel(parts[2]));
+        }
+        function ratio(fg, bg) {
+          const a = lum(fg);
+          const b = lum(bg);
+          const hi = Math.max(a, b);
+          const lo = Math.min(a, b);
+          return (hi + 0.05) / (lo + 0.05);
+        }
+        const link = document.querySelector('.leaflet-control-attribution a')
+          || document.querySelector('.leaflet-control-attribution');
+        const box = document.querySelector('.leaflet-control-attribution');
+        const linkCs = getComputedStyle(link);
+        const boxCs = getComputedStyle(box);
+        return {
+          text: ratio(linkCs.color, boxCs.backgroundColor),
+          color: linkCs.color,
+          background: boxCs.backgroundColor,
+        };
+      });
+      expect(contrast.text, `${contrast.color} on ${contrast.background}`).toBeGreaterThanOrEqual(4.5);
+    } finally {
+      await page.close();
+    }
+  }, 30000);
 });
