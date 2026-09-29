@@ -7343,27 +7343,21 @@ function rememberLiveRadioStatus(status) {
 
 function syncMissionFcEmptyNote(mav) {
   const note = document.querySelector('.mission-horizon-filler-note');
-  if (!note) {
-    if (typeof paintFlightQuickArm === 'function') paintFlightQuickArm(mav);
-    return;
-  }
+  if (!note) return;
   const liveMav = resolveLiveHudMavlinkForNote(mav);
   if (liveMav) {
     const name = [liveMav.autopilotName, liveMav.vehicleType].filter(Boolean).join(' · ');
     note.textContent = name ? `${MISSION_FC_LINKED_HE} · ${name}` : MISSION_FC_LINKED_HE;
-    if (typeof paintFlightQuickArm === 'function') paintFlightQuickArm(liveMav);
     return;
   }
   if (hudReflectsLiveFc(mav)) {
     note.textContent = MISSION_FC_LINKED_HE;
-    if (typeof paintFlightQuickArm === 'function') paintFlightQuickArm(mav);
     return;
   }
   const companion = (typeof latestCompanionFromServer === 'object' && latestCompanionFromServer)
     ? latestCompanionFromServer
     : null;
   note.textContent = missionFcEmptyNoteHe(companion);
-  if (typeof paintFlightQuickArm === 'function') paintFlightQuickArm(mav);
 }
 
 function applyConnectPillFromLinks(links) {
@@ -20020,21 +20014,11 @@ function initFlightStack() {
   });
 }
 
-const FLIGHT_DOCKS = Object.freeze(['quick', 'actions', 'messages', 'preflight']);
+const FLIGHT_DOCKS = Object.freeze(['messages', 'actions']);
 const FLIGHT_DOCK_MODES = Object.freeze(['AUTO', 'LOITER', 'RTL', 'MANUAL', 'STABILIZE', 'FBWA', 'FBWB', 'CRUISE', 'CIRCLE', 'GUIDED']);
 
 function flightDockName(which) {
   return FLIGHT_DOCKS.includes(which) ? which : 'messages';
-}
-
-function paintFlightQuickArm(mav) {
-  const el = document.getElementById('flightQuickArm');
-  if (!el) return;
-  const live = mav && typeof mav === 'object' ? mav : null;
-  let word = 'לא ידוע';
-  if (live && live.connected === true && live.armed === true) word = 'מחומש';
-  else if (live && live.connected === true && live.armed === false) word = 'לא מחומש';
-  el.textContent = `חימוש ${word}`;
 }
 
 function flightDockSkipConfirm(mav) {
@@ -20054,7 +20038,7 @@ function paintFlightDockCommand(text) {
   const note = document.getElementById('flightDockCommandNote');
   if (note) note.textContent = text || '';
   const dock = document.querySelector('[data-mission-region="messages"]')?.dataset.flightDock;
-  if (dock === 'quick' || dock === 'actions') requestAnimationFrame(() => fitFlightDockPane(dock));
+  if (dock === 'actions') requestAnimationFrame(() => fitFlightDockPane(dock));
 }
 
 async function sendFlightDockMode(mode) {
@@ -20095,10 +20079,10 @@ function applyFlightDock(which) {
 }
 
 function fitFlightDockPane(which) {
-  if (which === 'messages' || which === 'preflight') return;
+  if (which !== 'actions') return;
   const section = document.querySelector('[data-mission-region="messages"]');
   const horizon = document.querySelector('[data-mission-region="horizon"]');
-  const pane = document.getElementById(which === 'quick' ? 'flightDockQuickPane' : 'flightDockActionsPane');
+  const pane = document.getElementById('flightDockActionsPane');
   const bar = section?.querySelector('.flight-dock-bar');
   if (!section || !horizon || !pane || !bar) return;
   const note = document.getElementById('flightDockCommandNote');
@@ -20133,10 +20117,8 @@ function initFlightDock() {
   } catch { /* ignore */ }
   applyFlightDock(stored);
   const tabs = {
-    quick: 'flightDockQuickTab',
-    actions: 'flightDockActionsTab',
     messages: 'flightDockMessagesTab',
-    preflight: 'flightDockPreflightTab',
+    actions: 'flightDockActionsTab',
   };
   for (const [name, id] of Object.entries(tabs)) {
     document.getElementById(id)?.addEventListener('click', () => {

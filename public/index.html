@@ -1394,6 +1394,14 @@
           <button type="button" class="first-open-btn first-open-btn-quiet" data-first-action="params">פרמטרים</button>
         </nav>
         </div>
+        <section id="preflightReadiness" class="preflight-ready" aria-label="מוכנות לטיסה ראשונה">
+          <div class="preflight-ready-head">
+            <h3 class="preflight-ready-title">מוכנות לטיסה ראשונה</h3>
+            <p id="preflightReadyOpen" class="preflight-ready-open">פתוח</p>
+          </div>
+          <p class="preflight-ready-note">מחשב משימה (Jetson), FC, RF, שלט RC, CAM0, CAM1. סימון ידני נשאר במחשב הזה.</p>
+          <ul id="preflightReadyList" class="preflight-ready-list"></ul>
+        </section>
         <div id="teleDashPanel" class="tele-subpanel visible" data-tele-panel="dash">
         <header class="operator-overview">
           <h3>טלמטריה</h3>
@@ -2390,10 +2398,8 @@
               <h3 class="mission-region-title">הודעות מטוס</h3>
               <div class="flight-dock-bar">
                 <div class="flight-dock-tabs" role="tablist" aria-label="תחתית הטיסה">
-                  <button type="button" id="flightDockQuickTab" class="flight-dock-tab" role="tab" aria-selected="false" aria-controls="flightDockQuickPane">מהיר</button>
-                  <button type="button" id="flightDockActionsTab" class="flight-dock-tab" role="tab" aria-selected="false" aria-controls="flightDockActionsPane">פעולות</button>
                   <button type="button" id="flightDockMessagesTab" class="flight-dock-tab" role="tab" aria-selected="true" aria-controls="flightDockMessagesPane">הודעות</button>
-                  <button type="button" id="flightDockPreflightTab" class="flight-dock-tab" role="tab" aria-selected="false" aria-controls="flightDockPreflightPane">טרום</button>
+                  <button type="button" id="flightDockActionsTab" class="flight-dock-tab" role="tab" aria-selected="false" aria-controls="flightDockActionsPane">פעולות</button>
                 </div>
                 <button type="button" id="missionMessagesToggle" class="mission-messages-toggle" aria-expanded="false" aria-controls="pfcMsgScroll">
                   <span class="pfc-msg-toolbar-label">הודעות</span>
@@ -2402,13 +2408,6 @@
                   <span id="missionMessagesBadge" class="mission-messages-badge" hidden></span>
                 </button>
                 <p id="flightActionsNote" class="mission-horizon-filler-note flight-actions-note">אין חיבור לבקר הטיסה</p>
-              </div>
-              <div id="flightDockQuickPane" class="flight-dock-pane" role="tabpanel" aria-labelledby="flightDockQuickTab">
-                <p id="flightQuickArm" class="flight-dock-arm">חימוש לא ידוע</p>
-                <div class="flight-dock-cmds">
-                  <button type="button" id="flightQuickRtl" class="flight-dock-cmd" data-flight-mode="RTL"><bdi dir="ltr">RTL</bdi></button>
-                  <button type="button" id="flightQuickLoiter" class="flight-dock-cmd" data-flight-mode="LOITER"><bdi dir="ltr">LOITER</bdi></button>
-                </div>
               </div>
               <div id="flightDockActionsPane" class="flight-dock-pane" role="tabpanel" aria-labelledby="flightDockActionsTab">
                 <div class="flight-dock-grid">
@@ -2456,16 +2455,6 @@
                 <span class="pfc-opt-mini" id="pfdOptMini" title="ניווט אופטי">👁 —</span>
                 <div class="pfc-msg-scroll" id="pfcMsgScroll" dir="ltr"></div>
               </div>
-              </div>
-              <div id="flightDockPreflightPane" class="flight-dock-pane" role="tabpanel" aria-labelledby="flightDockPreflightTab">
-                <section id="preflightReadiness" class="preflight-ready" aria-label="מוכנות לטיסה ראשונה">
-                  <div class="preflight-ready-head">
-                    <h3 class="preflight-ready-title">מוכנות לטיסה ראשונה</h3>
-                    <p id="preflightReadyOpen" class="preflight-ready-open">פתוח</p>
-                  </div>
-                  <p class="preflight-ready-note">מחשב משימה (Jetson), FC, RF, שלט RC, CAM0, CAM1. סימון ידני נשאר במחשב הזה.</p>
-                  <ul id="preflightReadyList" class="preflight-ready-list"></ul>
-                </section>
               </div>
               <p id="flightDockCommandNote" class="flight-dock-note" role="status"></p>
             </section>

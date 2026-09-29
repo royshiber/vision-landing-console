@@ -11685,14 +11685,11 @@ html[data-evolve-preview="1"] #development {
 .mission-region-messages[data-messages-expanded="0"] > .flight-dock-note {
   display: none;
 }
-.mission-region-messages[data-flight-dock="quick"] > .flight-dock-pane:not(#flightDockQuickPane),
 .mission-region-messages[data-flight-dock="actions"] > .flight-dock-pane:not(#flightDockActionsPane),
-.mission-region-messages[data-flight-dock="messages"] > .flight-dock-pane:not(#flightDockMessagesPane),
-.mission-region-messages[data-flight-dock="preflight"] > .flight-dock-pane:not(#flightDockPreflightPane) {
+.mission-region-messages[data-flight-dock="messages"] > .flight-dock-pane:not(#flightDockMessagesPane) {
   display: none;
 }
-.mission-region-messages[data-flight-dock="messages"] > .flight-dock-note,
-.mission-region-messages[data-flight-dock="preflight"] > .flight-dock-note {
+.mission-region-messages[data-flight-dock="messages"] > .flight-dock-note {
   display: none;
 }
 .flight-dock-grid,
@@ -11756,36 +11753,6 @@ html[data-evolve-preview="1"] #development {
 }
 .flight-dock-note:empty {
   display: none;
-}
-#flightDockPreflightPane {
-  overflow-x: hidden;
-  overflow-y: auto;
-}
-#flightDockPreflightPane .preflight-ready {
-  margin: 0;
-  background: #0f172a;
-  border-color: rgba(226, 232, 240, 0.35);
-  color: #f8fafc;
-}
-#flightDockPreflightPane .preflight-ready-title,
-#flightDockPreflightPane .preflight-ready-open,
-#flightDockPreflightPane .preflight-ready-label {
-  color: #f8fafc;
-}
-#flightDockPreflightPane .preflight-ready-note {
-  color: #e2e8f0;
-}
-#flightDockPreflightPane .preflight-ready-list {
-  grid-template-columns: 1fr;
-}
-#flightDockPreflightPane .preflight-ready-item {
-  min-width: 0;
-}
-#flightDockPreflightPane .preflight-ready-item[data-state="ok"] .preflight-ready-mark {
-  color: #4ade80;
-}
-#flightDockPreflightPane .preflight-ready-item[data-state="open"] .preflight-ready-mark {
-  color: #fbbf24;
 }
 .mission-region-messages {
   display: flex;

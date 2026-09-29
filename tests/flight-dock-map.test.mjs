@@ -51,13 +51,16 @@ describe('flight dock and map source', () => {
     expect(data).not.toContain('id="hudDataGrid"');
     expect(data).toMatch(/ביטחון נחיתה/);
     expect(data).toMatch(/id="liveConfidenceText"/);
-    expect(html).toMatch(/id="flightDockQuickTab"[^>]*>מהיר</);
-    expect(html).toMatch(/id="flightDockActionsTab"[^>]*>פעולות</);
-    expect(html).toMatch(/id="flightDockMessagesTab"[^>]*>הודעות</);
-    expect(html).toMatch(/id="flightDockPreflightTab"[^>]*>טרום</);
+    expect(html).not.toMatch(/id="flightDockQuickTab"/);
+    expect(html).not.toMatch(/id="flightDockPreflightTab"/);
     expect(html).not.toMatch(/id="flightDockGaugesTab"/);
+    expect(html).toMatch(/id="flightDockMessagesTab"[^>]*>הודעות</);
+    expect(html).toMatch(/id="flightDockActionsTab"[^>]*>פעולות</);
+    expect(html.match(/class="flight-dock-tab"/g)).toHaveLength(2);
     expect(html.match(/id="preflightReadiness"/g)).toHaveLength(1);
-    expect(html.indexOf('id="flightDockPreflightPane"')).toBeLessThan(html.indexOf('id="preflightReadiness"'));
+    expect(html.indexOf('id="preflightReadiness"')).toBeLessThan(html.indexOf('id="teleDashPanel"'));
+    expect(html.indexOf('id="preflightReadiness"')).toBeLessThan(html.indexOf('data-mission-region="messages"'));
+    expect(js).toContain("const FLIGHT_DOCKS = Object.freeze(['messages', 'actions'])");
     expect(html).toMatch(/id="flightDockDoAction"[^>]*disabled/);
     expect(html).toMatch(/id="flightDockSetWp"[^>]*disabled/);
     expect(html).toMatch(/id="flightDockSetMount"[^>]*disabled/);
@@ -145,7 +148,9 @@ describe('flight dock and map live', () => {
         dock: document.querySelector('[data-mission-region="messages"]')?.dataset.flightDock,
         note: getComputedStyle(document.getElementById('flightActionsNote')).display,
         list: getComputedStyle(document.getElementById('flightDockMessagesPane')).display,
-        quick: getComputedStyle(document.getElementById('flightDockQuickPane')).display,
+        actions: getComputedStyle(document.getElementById('flightDockActionsPane')).display,
+        tabs: document.querySelectorAll('.flight-dock-tab').length,
+        checklist: document.querySelector('[data-mission-region="messages"]').contains(document.getElementById('preflightReadiness')),
         state: document.getElementById('terrainFlightRecordState')?.textContent,
         gs: [...document.querySelectorAll('.hud-slot-label')].map((el) => el.textContent).join(' '),
       }));
@@ -153,10 +158,12 @@ describe('flight dock and map live', () => {
       expect(idle.dock).toBe('messages');
       expect(idle.note).not.toBe('none');
       expect(idle.list).toBe('flex');
-      expect(idle.quick).toBe('none');
+      expect(idle.actions).toBe('none');
+      expect(idle.tabs).toBe(2);
+      expect(idle.checklist).toBe(false);
       expect(idle.state).toBe('לא מקליט');
       expect(idle.gs).not.toMatch(/GS|Vision/);
-      const fit = await page.evaluate(() => ['terrainFollowBtn', 'terrainFlightRecordBtn', 'terrainFlightRecordState', 'flightDockQuickTab', 'flightDockActionsTab', 'flightDockMessagesTab', 'flightDockPreflightTab', 'flightActionsNote'].map((id) => {
+      const fit = await page.evaluate(() => ['terrainFollowBtn', 'terrainFlightRecordBtn', 'terrainFlightRecordState', 'flightDockActionsTab', 'flightDockMessagesTab', 'flightActionsNote'].map((id) => {
         const el = document.getElementById(id);
         return {
           id,
@@ -178,7 +185,6 @@ describe('flight dock and map live', () => {
           reason: reason.textContent,
           shown: cs.display !== 'none',
           list: getComputedStyle(document.getElementById('flightDockMessagesPane')).display,
-          preflight: getComputedStyle(document.getElementById('flightDockPreflightPane')).display,
           disabled: ids.every((id) => document.getElementById(id).disabled),
           setMode: document.getElementById('flightDockSetMode').disabled,
           tabColor: tabCs.color,
@@ -189,7 +195,6 @@ describe('flight dock and map live', () => {
       expect(actions.dock).toBe('actions');
       expect(actions.shown).toBe(true);
       expect(actions.list).toBe('none');
-      expect(actions.preflight).toBe('none');
       expect(actions.disabled).toBe(true);
       expect(actions.setMode).toBe(false);
       expect(actions.reason).toContain('בלי שליחה');
@@ -197,27 +202,16 @@ describe('flight dock and map live', () => {
       const tabRatio = contrastRatio(actions.tabColor, actions.tabBg);
       expect(tabRatio).toBeGreaterThanOrEqual(4.5);
 
-      await page.click('#flightDockQuickTab');
-      const quick = await page.evaluate(() => ({
-        arm: document.getElementById('flightQuickArm').textContent,
-        rtl: document.getElementById('flightQuickRtl').disabled,
+      const modes = await page.evaluate(() => ({
+        auto: document.getElementById('flightDockModeAuto').disabled,
+        loiter: document.getElementById('flightDockModeLoiter').disabled,
+        rtl: document.getElementById('flightDockModeRtl').disabled,
+        home: document.getElementById('flightDockWpSelect').options[0].textContent,
       }));
-      expect(quick.arm).toContain('לא ידוע');
-      expect(quick.rtl).toBe(false);
-
-      await page.click('#flightDockPreflightTab');
-      const preflight = await page.evaluate(() => {
-        const pane = document.getElementById('flightDockPreflightPane');
-        const list = document.getElementById('preflightReadyList');
-        return {
-          shown: getComputedStyle(pane).display !== 'none',
-          inside: pane.contains(list),
-          copies: document.querySelectorAll('#preflightReadiness').length,
-        };
-      });
-      expect(preflight.shown).toBe(true);
-      expect(preflight.inside).toBe(true);
-      expect(preflight.copies).toBe(1);
+      expect(modes.auto).toBe(false);
+      expect(modes.loiter).toBe(false);
+      expect(modes.rtl).toBe(false);
+      expect(modes.home).toBe('בית');
 
       await page.click('#flightDockMessagesTab');
       await page.waitForFunction(() => document.querySelector('[data-mission-region="messages"]').dataset.flightDock === 'messages');
@@ -271,8 +265,8 @@ describe('flight dock and map live', () => {
     await page.evaluate(() => {
       applyFlightHud({ connected: false, armed: false, simulator: false });
     });
-    await page.click('#flightDockQuickTab');
-    await page.click('#flightQuickRtl');
+    await page.click('#flightDockActionsTab');
+    await page.click('#flightDockModeRtl');
     expect(voice).toEqual([]);
     expect(asked).toBe(0);
     const refused = await page.evaluate(() => document.getElementById('flightDockCommandNote').textContent);
@@ -281,20 +275,18 @@ describe('flight dock and map live', () => {
     await page.evaluate(() => {
       applyFlightHud({ connected: true, simulator: false, armed: false, type: 'tcp', host: '10.1.1.1', port: 5760 });
     });
-    await page.click('#flightQuickLoiter');
+    await page.click('#flightDockModeLoiter');
     expect(asked).toBe(1);
     expect(voice).toEqual([]);
 
     await page.evaluate(() => {
       applyFlightHud({ connected: true, simulator: true, armed: true, type: 'tcp', host: '127.0.0.1', port: 5760 });
     });
-    const armed = await page.evaluate(() => document.getElementById('flightQuickArm').textContent);
-    expect(armed).toBe('חימוש מחומש');
     const before = asked;
     await page.evaluate(() => {
       applyFlightHud({ connected: true, simulator: true, armed: true, type: 'tcp', host: '127.0.0.1', port: 5760 });
       document.getElementById('flightDockCommandNote').textContent = '';
-      document.getElementById('flightQuickRtl').click();
+      document.getElementById('flightDockModeRtl').click();
     });
     await page.waitForFunction(() => /נדחה|אושר|נכשל/.test(document.getElementById('flightDockCommandNote').textContent || ''));
     expect(asked).toBe(before);
