@@ -7673,7 +7673,7 @@ function translatePrearmText(raw) {
     [/compass|mag field/i, 'לא ניתן לחמש: נדרש כיול מצפן'],
     [/ahrs not healthy/i, 'לא ניתן לחמש: מערכת הייחוס לא תקינה'],
     [/battery/i, 'לא ניתן לחמש: הסוללה לא תקינה'],
-    [/radio failsafe/i, 'לא ניתן לחמש: אבד קשר רדיו'],
+    [/radio failsafe/i, 'לא ניתן לחמש: אבד קשר RF'],
     [/logging failed/i, 'לא ניתן לחמש: הרישום נכשל'],
     [/ekf/i, 'לא ניתן לחמש: EKF לא תקין'],
     [/baro/i, 'לא ניתן לחמש: מד הגובה לא תקין'],
@@ -8244,7 +8244,7 @@ function translateFcStatusText(raw) {
     [/compass|mag field/i, 'נדרש כיול מצפן'],
     [/ahrs not healthy/i, 'מערכת הייחוס לא תקינה'],
     [/battery/i, 'הסוללה לא תקינה'],
-    [/radio failsafe/i, 'אבד קשר רדיו'],
+    [/radio failsafe/i, 'אבד קשר RF'],
     [/logging failed/i, 'הרישום נכשל'],
     [/ekf/i, 'EKF לא תקין'],
     [/baro/i, 'מד הגובה לא תקין'],
@@ -13401,7 +13401,7 @@ initLiveCameraPanel();
     } catch (err) {
       setDot('err');
       setPillLabel('הסימולטור לא זמין');
-      setRowMessage('radio', err.message || String(err));
+      setRowMessage('radio', 'הסימולטור המקומי לא זמין. הפעילו אותו במחשב ואז נסו שוב.');
     } finally {
       btn.dataset.pending = '0';
       btn.disabled = false;

@@ -237,7 +237,7 @@ describe('simulator chrome', () => {
     expect(html).toContain('>TCP 5760</button>');
     expect(html).toContain('>UDP 14550</button>');
     expect(html).toContain('>סימולטור</span>');
-    expect(html).toContain('לא כלי אמיתי');
+    expect(html).toContain('מטוס וירטואלי על המחשב, לא מטוס אמיתי.');
     expect(html).toContain('id="simVehicleBadge"');
     expect(html).toContain('>SIM</span>');
     expect(html).toContain('hidden');
