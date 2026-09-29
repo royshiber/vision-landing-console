@@ -1286,14 +1286,16 @@
         </div>
         <div id="debriefLogsPanel" class="tele-subpanel debrief-logs-panel flights-panel" data-debrief-panel="logs">
           <section id="gcsLogCard" class="gcs-log-card" hidden dir="rtl" aria-label="לוגים בענן">
-            <span class="gcs-log-title">לוגים בענן</span>
-            <p id="gcsLogStatus" class="gcs-log-status" role="status">העלאת לוגים לענן כבויה.</p>
-            <div class="gcs-log-actions">
-              <button type="button" id="gcsLogUploadBtn" disabled>העלו לענן</button>
-              <button type="button" id="gcsLogResumeBtn" disabled>המשיכו</button>
-              <button type="button" id="gcsLogRefreshBtn">רעננו</button>
+            <div class="gcs-log-head">
+              <span class="gcs-log-title">לוגים בענן</span>
+              <p id="gcsLogStatus" class="gcs-log-status" role="status">העלאת לוגים לענן כבויה.</p>
+              <div class="gcs-log-actions">
+                <button type="button" id="gcsLogUploadBtn" disabled>העלו לענן</button>
+                <button type="button" id="gcsLogResumeBtn" disabled>המשיכו</button>
+                <button type="button" id="gcsLogRefreshBtn">רעננו</button>
+              </div>
             </div>
-            <p id="gcsLogList" class="gcs-log-summary"></p>
+            <div id="gcsLogList" class="gcs-log-summary"></div>
           </section>
           <div class="debrief-logs-grid">
             <div class="debrief-logs-col debrief-logs-col--upload">

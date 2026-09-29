@@ -1,5 +1,36 @@
 [
   {
+    "version": "1.02.367",
+    "date": "2026-09-29",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Server library",
+        "detail": "gcs-upload.mjs, s3-client.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "Frontend",
+        "detail": "gcs-log-rows.mjs, gcs-logs.css, gcs-logs.mjs"
+      },
+      {
+        "type": "ui",
+        "title": "HTML layout",
+        "detail": "index.html"
+      },
+      {
+        "type": "test",
+        "title": "Tests",
+        "detail": "gcs-log-list-ui.test.mjs, gcs-log-upload.test.mjs"
+      },
+      {
+        "type": "docs",
+        "title": "Documentation",
+        "detail": "FLIGHT_LOGS.md"
+      }
+    ]
+  },
+  {
     "version": "1.02.366",
     "date": "2026-09-29",
     "changes": [

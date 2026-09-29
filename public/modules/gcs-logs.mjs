@@ -1,3 +1,5 @@
+import { renderGcsCompletedList } from './gcs-log-rows.mjs';
+
 const card = document.getElementById('gcsLogCard');
 const statusEl = document.getElementById('gcsLogStatus');
 const listEl = document.getElementById('gcsLogList');
@@ -33,13 +35,7 @@ function paint(data) {
   if (uploadBtn) uploadBtn.disabled = !on || pending === 0;
   if (resumeBtn) resumeBtn.disabled = !on || !active || active.state !== 'interrupted';
   if (!listEl) return;
-  listEl.replaceChildren();
-  const complete = (data.items || []).filter((item) => item.state === 'complete' && item.key);
-  if (!complete.length) return;
-  const link = document.createElement('a');
-  link.href = `/api/gcs-logs/download?key=${encodeURIComponent(complete[0].key)}`;
-  link.textContent = 'הורידו';
-  listEl.append(link);
+  renderGcsCompletedList(document, listEl, data.items || []);
 }
 
 async function refresh() {

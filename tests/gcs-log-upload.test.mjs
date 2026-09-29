@@ -75,7 +75,7 @@ function mockS3({ failSecondPart = true } = {}) {
       const prefix = u.searchParams.get('prefix') || '';
       const contents = [...objects.entries()]
         .filter(([k]) => k.startsWith(prefix))
-        .map(([k, buf]) => `<Contents><Key>${k}</Key><ETag>"abc"</ETag><Size>${buf.length}</Size></Contents>`)
+        .map(([k, buf]) => `<Contents><Key>${k}</Key><ETag>"abc"</ETag><Size>${buf.length}</Size><LastModified>2026-09-29T07:00:00.000Z</LastModified></Contents>`)
         .join('');
       return xml(200, `<ListBucketResult>${contents}</ListBucketResult>`);
     }
@@ -161,6 +161,8 @@ describe('GCS flight log upload', () => {
 
     const listed = await uploader.listRemote();
     expect(listed.map((item) => item.name)).toContain('flight-1.tlog');
+    expect(listed[0].updatedAt).toBe('2026-09-29T07:00:00.000Z');
+    expect(listed[0].size).toBe(tree.bytes.length);
     const got = await uploader.download(listed[0].key);
     expect(got.ok).toBe(true);
     expect(Buffer.compare(got.bytes, tree.bytes)).toBe(0);

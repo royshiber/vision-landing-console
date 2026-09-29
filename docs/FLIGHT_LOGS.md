@@ -98,7 +98,7 @@ Cloud flights also get a title in the existing לוגים flight select so a man
 
 The ground station can store its own archive `.tlog` files in the same bucket. This path is **off** unless `AIRVIX_GCS_LOG_UPLOAD=1`. A full `AIRVIX_S3_*` set does not turn it on. The flight-book reader stays read-only.
 
-Upload is multipart and resumable. The part list and upload id live in `data/gcs-log-uploads.json`. A failed part leaves the job `interrupted`. A job still marked `uploading` when the process starts is marked `interrupted`, so resume stays available after a kill. One upload action sends every pending closed archive log. A download link is offered only after the object is complete. Keys are `v1/gcs/<vehicle>/<file>.tlog`. The browser shows one summary line under תחקור → לוגים. The secret is not sent to the browser.
+Upload is multipart and resumable. The part list and upload id live in `data/gcs-log-uploads.json`. A failed part leaves the job `interrupted`. A job still marked `uploading` when the process starts is marked `interrupted`, so resume stays available after a kill. One upload action sends every pending closed archive log. A download link is offered only after the object is complete, and every completed object has its own link with its name, size, time, and status. Extra rows stay behind עוד until opened. Keys are `v1/gcs/<vehicle>/<file>.tlog`. The browser shows one summary line under תחקור → לוגים. The secret is not sent to the browser.
 
 Hebrew status: העלאת לוגים לענן כבויה, אחסון הלוגים בענן לא הוגדר, יש לוגים מוכנים להעלאה לענן, מעלים לוג, ההעלאה נעצרה. אפשר להמשיך, הלוג עלה, ההעלאה נכשלה.
 
