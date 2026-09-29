@@ -229,9 +229,9 @@ describe('connect popover layout and mocked states', () => {
     if (server) await new Promise((resolve) => server.close(resolve));
   });
 
-  async function openScenario(name) {
+  async function openScenario(name, viewport) {
     const page = await browser.newPage({
-      viewport: { width: 360, height: 780 },
+      viewport: viewport || { width: 360, height: 780 },
       locale: 'he-IL',
     });
     await page.route('**/*', (route) => {
@@ -415,6 +415,45 @@ describe('connect popover layout and mocked states', () => {
     expect(mapHit.overlaps.length, 'map controls must sit under the open popover').toBeGreaterThan(0);
     expect(mapHit.paintedOnTop).toEqual([]);
   }
+
+  it('pins the pill and the open panel to the physical left', async () => {
+    for (const width of [1024, 1366, 1440]) {
+      const page = await openScenario('all-down', { width, height: 900 });
+      try {
+        const box = await page.evaluate(() => {
+          const widget = document.getElementById('connectWidget');
+          const pill = document.getElementById('connectToggleBtn');
+          const panel = document.getElementById('connectPanel');
+          const pillRect = pill.getBoundingClientRect();
+          const panelRect = panel.getBoundingClientRect();
+          return {
+            vw: window.innerWidth,
+            vh: window.innerHeight,
+            widgetLeft: getComputedStyle(widget).left,
+            panelCssLeft: getComputedStyle(panel).left,
+            pillLeft: pillRect.left,
+            panelLeft: panelRect.left,
+            panelRight: panelRect.right,
+            panelTop: panelRect.top,
+            panelBottom: panelRect.bottom,
+            overflowY: getComputedStyle(panel).overflowY,
+          };
+        });
+        expect(box.widgetLeft, String(width)).toBe('12px');
+        expect(box.panelCssLeft, String(width)).toBe('0px');
+        expect(box.pillLeft, String(width)).toBeLessThan(24);
+        expect(box.panelLeft, String(width)).toBeLessThan(24);
+        expect(box.panelRight, String(width)).toBeLessThan(box.vw / 2);
+        expect(box.panelLeft).toBeGreaterThanOrEqual(-1);
+        expect(box.panelRight).toBeLessThanOrEqual(box.vw + 1);
+        expect(box.panelTop).toBeGreaterThanOrEqual(-1);
+        expect(box.panelBottom).toBeLessThanOrEqual(box.vh + 1);
+        expect(box.overflowY).toMatch(/auto|scroll/);
+      } finally {
+        await page.close();
+      }
+    }
+  }, 20000);
 
   it('renders all up, cellular only, and all down without clipping at 360px', async () => {
     for (const name of ['all-up', 'cellular-only', 'all-down']) {
