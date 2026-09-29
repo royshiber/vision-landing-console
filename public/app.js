@@ -18139,6 +18139,12 @@ function assistBuildContextSnapshot() {
       flight_mode: mav.connected === true ? (vlcFlightModeName(mav.flightMode, mav) || null) : null,
       armed: typeof mav.armed === 'boolean' ? mav.armed : null,
       gps_ok: typeof mav.gpsFixType === 'number' ? mav.gpsFixType >= 3 : null,
+      gps_sats: typeof mav.gpsSats === 'number' ? mav.gpsSats : null,
+      battery_v: typeof mav.batteryV === 'number' ? mav.batteryV : null,
+      battery_pct: typeof mav.batteryPct === 'number' ? mav.batteryPct : null,
+      link_path: assistLinkPath(mav),
+      link_quality: assistLinkQuality(mav),
+      status_texts: assistStatusTexts(mav),
       vision_confidence: conf,
       altitude_m: typeof mav.altitude === 'number' ? mav.altitude : null,
       airspeed_ms: typeof mav.airspeed === 'number' ? mav.airspeed : null,
@@ -18149,6 +18155,67 @@ function assistBuildContextSnapshot() {
     ops_signals: assistBuildOpsSignals(vision),
     attention_policy: (typeof attentionReadPolicy === 'function' ? attentionReadPolicy() : {}).proactiveLevel || 'off',
   };
+}
+
+function assistStatusTexts(mav) {
+  const raw = Array.isArray(mav?.recentStatusTexts) ? mav.recentStatusTexts : [];
+  const out = [];
+  for (const row of raw) {
+    const text = typeof row === 'string' ? row : row?.text;
+    const s = String(text || '').trim();
+    if (!s) continue;
+    out.push(s.slice(0, 160));
+    if (out.length >= 8) break;
+  }
+  return out;
+}
+
+function assistLinkPath(mav) {
+  if (mav?.connected !== true) return null;
+  const role = String(mav.linkRole || mav.link_path || '').toLowerCase();
+  if (role === 'cellular' || role === 'cell' || role === 'lte') return 'cellular';
+  if (role === 'rf' || role === 'radio' || role === 'serial') return 'rf';
+  if (role === 'usb') return 'usb';
+  if (role === 'sitl' || role === 'sim') return 'sitl';
+  return null;
+}
+
+function assistLinkQuality(mav) {
+  const direct = Number(mav?.linkQualityPct ?? mav?.link_quality);
+  if (Number.isFinite(direct)) return direct;
+  try {
+    const raw = String(document.getElementById('linkQuality')?.textContent || '').trim();
+    const match = raw.match(/^(\d+(?:\.\d+)?)%?$/);
+    if (match) return Number(match[1]);
+  } catch {
+    /* omit */
+  }
+  return null;
+}
+
+function assistOneCamera(companion, vision, id) {
+  const detail = horizonCameraDetail(companion, id)
+    || horizonCameraDetail(vision, id)
+    || null;
+  if (!detail || typeof detail !== 'object') return null;
+  if (detail.enabled === false) return false;
+  if (detail.state === 'streaming') return true;
+  if (detail.camera_ok === true) return horizonSlotStreaming(detail);
+  if (detail.camera_ok === false || detail.has_frame === false) return false;
+  return null;
+}
+
+function assistJetsonState() {
+  const companion = (typeof latestCompanionFromServer === 'object' && latestCompanionFromServer)
+    ? latestCompanionFromServer
+    : {};
+  const link = companion.link && typeof companion.link === 'object' ? companion.link : {};
+  const jetson = link.jetson || companion.jetson;
+  if (jetson === 'reachable' || jetson === 'unreachable' || jetson === 'off' || jetson === 'mock') return jetson;
+  if (companion.mode === 'mock') return 'mock';
+  if (companion.reachable === true) return 'reachable';
+  if (companion.reachable === false) return 'unreachable';
+  return null;
 }
 
 function assistBuildOpsSignals(vision) {
@@ -18169,6 +18236,14 @@ function assistBuildOpsSignals(vision) {
         ops.optical_missing = opticalNavStatusHeClient(nav).text === '—';
       }
     }
+    const jetson = assistJetsonState();
+    if (jetson) ops.jetson = jetson;
+    const cameras = {};
+    const cam0 = assistOneCamera(companion, vision, 'cam0');
+    const cam1 = assistOneCamera(companion, vision, 'cam1');
+    if (cam0 != null) cameras.cam0 = cam0;
+    if (cam1 != null) cameras.cam1 = cam1;
+    if (Object.keys(cameras).length) ops.cameras = cameras;
   } catch {
     /* honesty only — omit if unread */
   }
@@ -18756,13 +18831,9 @@ async function assistSendText(rawText, { channel = 'text' } = {}) {
   if (typeof resp.ask_voice_go_active === 'boolean') {
     assistSyncVoiceGoChrome(resp.ask_voice_go_active);
   }
-  const meta = [resp.intent, resp.kind, resp.confidence != null ? `conf ${Number(resp.confidence).toFixed(2)}` : null]
-    .filter(Boolean)
-    .join(' · ');
   assistAppendMessage({
     role: 'assist',
     text: resp.answer || '—',
-    meta,
     kind: resp.kind,
     blocked: resp.blocked === true,
   });

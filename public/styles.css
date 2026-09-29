@@ -24081,6 +24081,13 @@ body[data-work-path="rf"] #optics .optics-calib {
   max-height: none;
   overflow: hidden;
 }
+#missionTalkHost .assist-msg-body {
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+.assist-msg-meta {
+  display: none;
+}
 .mission-region-horizon > .mission-region-messages[data-messages-expanded="1"] .pfc-msg-scroll {
   max-height: none;
   min-height: 0;
