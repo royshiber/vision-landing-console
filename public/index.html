@@ -106,6 +106,12 @@
                 <button type="button" id="rcStatusBtn" class="conn-btn comm-link-action comm-link-action-status" title="שלט לבקר בלבד. אין חיבור נתונים.">סטטוס</button>
               </li>
             </ul>
+            <div class="conn-sim-preset" role="group" aria-label="סימולטור">
+              <span class="conn-sim-label">סימולטור</span>
+              <button type="button" id="connectSimTcpBtn" class="conn-btn conn-btn-sim" data-sim-transport="tcp" title="SITL TCP 127.0.0.1:5760">TCP 5760</button>
+              <button type="button" id="connectSimUdpBtn" class="conn-btn conn-btn-sim" data-sim-transport="udp" title="SITL UDP 14550">UDP 14550</button>
+            </div>
+            <p id="connectSimPresetHint" class="conn-sim-hint">מטוס וירטואלי על המחשב, לא מטוס אמיתי.</p>
             <p id="companionActiveLink" class="conn-companion-active" hidden></p>
             <section id="companionLinkBlock" class="conn-link-block conn-companion-block comm-link-sr" aria-label="מחשב משימה">
               <div class="conn-dual-chips" aria-label="מצב מחשב משימה">
@@ -244,6 +250,7 @@
         <button class="tab tab-ops" hidden data-tab="development" title="פיתוח">פיתוח</button>
       </nav>
       <div class="app-chrome-tools">
+        <span id="simVehicleBadge" class="sim-vehicle-badge" hidden dir="ltr" title="מחובר לסימולטור. זה לא מטוס אמיתי." aria-label="מחובר לסימולטור. זה לא מטוס אמיתי.">SIM</span>
         <span class="app-chrome-brand" aria-label="AIRVIX">AIRVIX</span>
         <button type="button" id="globalSettingsBtn" class="global-settings-btn" title="הגדרות כלליות" aria-haspopup="dialog" aria-controls="globalSettingsModal">⚙</button>
         <button id="versionBtn" class="badge clickable" title="לחץ כדי לראות מה עודכן בגרסה">v__APP_VERSION__<span id="updateIndicator" class="update-indicator" hidden></span></button>
@@ -564,7 +571,7 @@
             </optgroup>
             <option value="customParams">✨ Custom שלי</option>
           </select>
-          <button class="subtab" data-subtab="autoConfig">אשף קונפיגורציה</button>
+          <button class="subtab" data-subtab="autoConfig">אשף הגדרות</button>
         </div>
         <div id="arduTopCatsHost" class="ardu-top-cats-host hidden" role="tablist" aria-label="קטגוריות ArduPilot"></div>
       </div>
@@ -996,7 +1003,7 @@
             <div id="arduParamFormPanels" class="ardu-param-form-panels" role="region" aria-label="שדות פרמטרי ArduPilot"></div>
           </div>
           <div class="ardu-param-file-actions">
-            <button type="button" id="downloadParamBtn" class="btn-secondary-lg" title="הורדת קובץ .param לייבוא ל-Mission Planner">⬇ הורד .param</button>
+            <button type="button" id="downloadParamBtn" class="btn-secondary-lg" title="הורידו את הפרמטרים לייבוא ל-Mission Planner">הורידו פרמטרים</button>
             <button type="button" id="applyToMpBtn" class="btn-secondary-lg" title="שולח לשרת ניסיון יישום (אם הוגדר)">שליחה ל-Mission Planner</button>
           </div>
           <pre id="mpOut" class="mp-out-hidden"></pre>
@@ -1004,7 +1011,7 @@
         <div id="autoConfig" class="subpanel ac-panel" data-ac-model="peripheral-steps" dir="rtl">
           <header class="ac-step-head">
             <div class="ac-step-head-text">
-              <h3 class="ac-step-title">אשף קונפיגורציה</h3>
+              <h3 class="ac-step-title">אשף הגדרות</h3>
               <p class="ac-step-lead">בחרו רכיב, יעד, וראו את הפרמטרים לפני כתיבה.</p>
             </div>
             <ol class="ac-step-nav" id="acStepNav">
@@ -1647,7 +1654,7 @@
             <div class="policy-channel-card">
               <div class="policy-channel-head">
                 <strong>CHANNEL 2 — RFD900X</strong>
-                <span class="companion-tier">GCS ↔ RFD900X ↔ FC — Jetson אינו נקודת קצה רדיו</span>
+                <span class="companion-tier">GCS ↔ RFD900X ↔ FC — Jetson אינו endpoint RF</span>
               </div>
               <div id="policyCatRfd900x" class="policy-cat-grid"></div>
             </div>
@@ -2239,7 +2246,7 @@
             <button type="button" id="missionAskToggleBtn" class="mission-layout-btn" title="שאלה" aria-label="שאלה" aria-expanded="false" aria-controls="missionTalkHost">שאל</button>
             <button type="button" id="missionSwapHorizonMapBtn" class="mission-layout-btn" title="החלף אופק ומפה" aria-label="החלף אופק ומפה">⇄</button>
             <button type="button" id="missionResetLayoutBtn" class="mission-layout-btn" title="איפוס סידור" aria-label="איפוס סידור">↺</button>
-            <p id="missionLayoutHint" class="mission-layout-hint">גררו קצה לשינוי גודל. גררו כותרת להחלפה. גם בטיסה.</p>
+            <p id="missionLayoutHint" class="mission-layout-hint">גררו את הפינה לשינוי גודל. גררו כותרת להחלפה. גם בטיסה.</p>
           </div>
         </div>
         <div class="terrain-flight-shell mission-workspace" data-mission-layout="ops-v1" data-mission-swap="map-horizon" data-mission-edit="on" data-layout-contract="v2">
@@ -2496,7 +2503,7 @@
             </div>
             <details class="adv-info-explain" id="advInfoExplain">
               <summary class="adv-info-explain-summary">הסברים: גרסה מול פרמטרים · שקיפות Apply</summary>
-              <p class="adv-sys-hint adv-sys-hint--compact">גרסה = איזה תוכנה מותקנת. <strong>פרמטרים</strong> = ערכי הגדרה בתוך הקושחה (נשמרים ב־FC / בפרופיל בשרת). אינם משנים מספר גרסת הקונסול.</p>
+              <p class="adv-sys-hint adv-sys-hint--compact">גרסה = איזה תוכנה מותקנת. <strong>פרמטרים</strong> = ערכי הגדרה בתוך הפירמוור (נשמרים ב־FC / בפרופיל בשרת). אינם משנים מספר גרסת הקונסול.</p>
               <p class="adv-chat-safety-hint adv-chat-safety-hint--compact" role="note">
                 <strong>שקיפות Apply:</strong> הודעות הצ'אט לא כותבות לבקר את עצמן. רק אחרי לחיצה על <em>Apply</em> נשלחת בקשה לשרת; Jetson נשמר בבסיס הנתונים של הקונסול, FC דרך MAVLink <code>PARAM_SET</code> (עם אימות). ראה <button type="button" class="adv-inline-audit" id="advSysAuditBtn">Audit</button>.
               </p>

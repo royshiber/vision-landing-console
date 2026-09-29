@@ -35,11 +35,11 @@ function listen(app) {
 }
 
 describe('P3.2 annotated vision cellular-only honesty gate', () => {
-  it('pins APP_VERSION at 1.02.361', () => {
+  it('pins APP_VERSION at 1.02.363', () => {
     const version = fs.readFileSync(path.join(repoRoot, 'version.js'), 'utf8');
     const pkg = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8'));
-    expect(version).toContain("export const APP_VERSION = '1.02.361'");
-    expect(pkg.version).toBe('1.02.361');
+    expect(version).toContain("export const APP_VERSION = '1.02.363'");
+    expect(pkg.version).toBe('1.02.363');
   });
 
   it('modem_absent makes annotated video unavailable on the cellular path', () => {
@@ -78,7 +78,7 @@ describe('P3.2 annotated vision cellular-only honesty gate', () => {
     expect(radioOnly.neverRadio).toBe(true);
     expect(radioOnly.radioSatisfies).toBe(false);
     expect(radioOnly.reason).toBe('cellular_disconnected');
-    expect(radioOnly.reasonHe).toMatch(/לא עוברת ברדיו/);
+    expect(radioOnly.reasonHe).toMatch(/לא עוברת ב-RF/);
     const readiness = buildVisionLandingReadiness({
       video: { available: true, path: 'radio' },
       cellular: 'disconnected',

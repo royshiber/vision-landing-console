@@ -67,6 +67,25 @@ describe('four-link communications model', () => {
     expect(snap.pillLabelHe).toBe('מחובר · RF פעיל');
   });
 
+  it('names a simulator link without claiming RF', () => {
+    const snap = summarizeCommLinks({
+      radioLive: {
+        connected: true,
+        simulator: true,
+        type: 'tcp',
+        host: '127.0.0.1',
+        port: 5760,
+        heartbeatCount: 4,
+        lastHeartbeatAgeMs: 200,
+      },
+      cellular: 'disconnected',
+      modemPresent: false,
+      companion: { jetson: 'off' },
+    });
+    expect(snap.pillLabelHe).toBe('מחובר · סימולטור');
+    expect(snap.pillLabelHe).not.toMatch(/RF/);
+  });
+
   it('keeps RC percent only from a fresh RC_CHANNELS rssi', () => {
     const live = snapshotRcLink([{ hasRcChannels: true, rcRssi: 180, rcAgeMs: 200 }]);
     expect(live.state).toBe('live');

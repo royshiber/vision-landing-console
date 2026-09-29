@@ -7220,16 +7220,28 @@ function resolveHudMavlink(sseMav, liveStatus) {
   return null;
 }
 
+function applySimVehicleBadge(mav) {
+  const el = document.getElementById('simVehicleBadge');
+  if (!el) return;
+  const live = !!(mav && (mav.connected === true || mav.listening === true));
+  const show = live && mav.simulator === true;
+  el.hidden = !show;
+  el.setAttribute('aria-hidden', show ? 'false' : 'true');
+}
+
 function rememberLiveRadioStatus(status) {
   if (!status || typeof status !== 'object') {
     latestLiveRadioStatus = null;
+    applySimVehicleBadge(null);
     return;
   }
   if (status.connected === true || status.listening === true) {
     latestLiveRadioStatus = status;
+    applySimVehicleBadge(status);
     return;
   }
   latestLiveRadioStatus = null;
+  applySimVehicleBadge(null);
 }
 
 function syncMissionFcEmptyNote(mav) {
@@ -7661,7 +7673,7 @@ function translatePrearmText(raw) {
     [/compass|mag field/i, 'לא ניתן לחמש: נדרש כיול מצפן'],
     [/ahrs not healthy/i, 'לא ניתן לחמש: מערכת הייחוס לא תקינה'],
     [/battery/i, 'לא ניתן לחמש: הסוללה לא תקינה'],
-    [/radio failsafe/i, 'לא ניתן לחמש: אבד קשר רדיו'],
+    [/radio failsafe/i, 'לא ניתן לחמש: אבד קשר RF'],
     [/logging failed/i, 'לא ניתן לחמש: הרישום נכשל'],
     [/ekf/i, 'לא ניתן לחמש: EKF לא תקין'],
     [/baro/i, 'לא ניתן לחמש: מד הגובה לא תקין'],
@@ -8232,7 +8244,7 @@ function translateFcStatusText(raw) {
     [/compass|mag field/i, 'נדרש כיול מצפן'],
     [/ahrs not healthy/i, 'מערכת הייחוס לא תקינה'],
     [/battery/i, 'הסוללה לא תקינה'],
-    [/radio failsafe/i, 'אבד קשר רדיו'],
+    [/radio failsafe/i, 'אבד קשר RF'],
     [/logging failed/i, 'הרישום נכשל'],
     [/ekf/i, 'EKF לא תקין'],
     [/baro/i, 'מד הגובה לא תקין'],
@@ -8892,6 +8904,7 @@ function applySseMissionHud(payload) {
 
 function applySseTelemetryPayload(payload) {
   latestJetsonFromServer = payload.jetson;
+  try { applySimVehicleBadge(payload?.mavlink); } catch (err) { console.warn('SSE sim badge failed', err); }
   latestVisionFromServer = payload.vision;
   latestCompanionFromServer = payload.companion || null;
   const jetsonOnline = Boolean(payload.jetson?.online);
@@ -12023,8 +12036,8 @@ setInterval(refreshAdvisorHealth, 60_000);
 
 const ANNOTATED_VISION_REASON_HE = Object.freeze({
   modem_absent: 'אין שידור. מודם סלולר לא מחובר. ראייה מסומנת מגיעה רק ממחשב משימה.',
-  cellular_disconnected: 'אין שידור. סלולר מנותק. ראייה מסומנת לא עוברת ברדיו.',
-  stream_absent: 'אין שידור. אין זרם מסומן ממחשב משימה. ראייה מסומנת לא עוברת ברדיו.',
+  cellular_disconnected: 'אין שידור. סלולר מנותק. ראייה מסומנת לא עוברת ב-RF.',
+  stream_absent: 'אין שידור. אין זרם מסומן ממחשב משימה. ראייה מסומנת לא עוברת ב-RF.',
   cellular_connected: 'ראייה מסומנת זמינה דרך סלולר ממחשב משימה.',
 });
 
@@ -13355,12 +13368,55 @@ initLiveCameraPanel();
     if (statPollTimer) { clearInterval(statPollTimer); statPollTimer = null; }
   }
 
+  async function onSimPresetClick(transport) {
+    const udp = transport === 'udp';
+    const btn = document.getElementById(udp ? 'connectSimUdpBtn' : 'connectSimTcpBtn');
+    if (!btn || btn.dataset.pending === '1') return;
+    btn.dataset.pending = '1';
+    btn.disabled = true;
+    setRowMessage('radio', '');
+    setDot('connecting');
+    setPillLabel(udp ? 'מתחבר לסימולטור ב-UDP' : 'מתחבר לסימולטור ב-TCP');
+    try {
+      if (!(await syncConnectionApiGate())) {
+        throw new Error('השרת שרץ כאן ישן. עצרו אותו והפעילו שוב מתיקיית הקונסולה.');
+      }
+      const r = await fetch('/api/links/connect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          role: 'radio',
+          type: udp ? 'udp' : 'tcp',
+          host: udp ? '0.0.0.0' : '127.0.0.1',
+          port: udp ? 14550 : 5760,
+          preset: 'simulator',
+        }),
+      });
+      const j = await parseConnJsonResponse(r);
+      if (!j.ok) {
+        throw new Error(j.message || 'הסימולטור המקומי לא זמין. הפעילו אותו במחשב ואז נסו שוב.');
+      }
+      currentId = j.id;
+      if (j.links) applyDualLinkUi(j.links);
+    } catch (err) {
+      setDot('err');
+      setPillLabel('הסימולטור לא זמין');
+      setRowMessage('radio', 'הסימולטור המקומי לא זמין. הפעילו אותו במחשב ואז נסו שוב.');
+    } finally {
+      btn.dataset.pending = '0';
+      btn.disabled = false;
+      await refreshConnectionStatus();
+    }
+  }
+
   typeSel.addEventListener('change', () => { applyTypeUI(); savePrefs(); });
   portList.addEventListener('change', savePrefs);
   portInput.addEventListener('change', savePrefs);
   baudSel.addEventListener('change', savePrefs);
   portList.addEventListener('focus', refreshSerialPorts);
   connBtn.addEventListener('click', onConnectClick);
+  document.getElementById('connectSimTcpBtn')?.addEventListener('click', () => { void onSimPresetClick('tcp'); });
+  document.getElementById('connectSimUdpBtn')?.addEventListener('click', () => { void onSimPresetClick('udp'); });
   if (connectAutoBtn) connectAutoBtn.addEventListener('click', onAutoConnectClick);
   if (cellularConnectBtn) cellularConnectBtn.addEventListener('click', onCellularConnectClick);
   if (companionLinkBtn) companionLinkBtn.addEventListener('click', () => { void onCompanionLinkClick(); });
@@ -19071,7 +19127,7 @@ function syncMissionLayoutChrome() {
   const rowSplit = document.getElementById('missionRowSplit');
   if (rowSplit) rowSplit.hidden = true;
   const hint = document.getElementById('missionLayoutHint');
-  if (hint) hint.textContent = 'גררו קצה לשינוי גודל. גררו כותרת להחלפה. גם בטיסה.';
+  if (hint) hint.textContent = 'גררו את הפינה לשינוי גודל. גררו כותרת להחלפה. גם בטיסה.';
   requestAnimationFrame(placeMissionSplits);
 }
 
