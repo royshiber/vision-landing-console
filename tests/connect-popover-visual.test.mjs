@@ -304,15 +304,81 @@ describe('connect popover layout and mocked states', () => {
         id: el.dataset.link,
         overflow: el.scrollWidth - el.clientWidth,
       }));
+      function overlaps(a, b) {
+        const x = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+        const y = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+        return x > 2 && y > 2;
+      }
+      const rowEls = [...document.querySelectorAll('#commLinkRows .comm-link-row')];
+      const rowOverlap = [];
+      for (let i = 0; i < rowEls.length; i++) {
+        const a = rowEls[i].getBoundingClientRect();
+        for (let j = i + 1; j < rowEls.length; j++) {
+          const b = rowEls[j].getBoundingClientRect();
+          if (overlaps(a, b)) rowOverlap.push(`${rowEls[i].dataset.link}:${rowEls[j].dataset.link}`);
+        }
+      }
+      const textOverlap = [];
+      for (const row of rowEls) {
+        const parts = [...row.querySelectorAll('.comm-link-name, .comm-link-status, .comm-link-hint, .comm-link-switch, .comm-link-action')]
+          .filter((el) => !el.hidden && el.getClientRects().length)
+          .map((el) => ({ el, box: el.getBoundingClientRect() }))
+          .filter((part) => part.box.width > 2 && part.box.height > 2);
+        for (let i = 0; i < parts.length; i++) {
+          for (let j = i + 1; j < parts.length; j++) {
+            if (!overlaps(parts[i].box, parts[j].box)) continue;
+            textOverlap.push(`${row.dataset.link}:${parts[i].el.className}:${parts[j].el.className}`);
+          }
+        }
+      }
+      const btn = document.getElementById('connectBtn');
+      const showsRf = (btn?.textContent || '').includes('RF');
+      const bdi = showsRf ? btn?.querySelector('bdi[dir="ltr"]') : null;
+      let rfOrder = showsRf ? 'missing' : 'n/a';
+      if (bdi && btn.firstChild && btn.firstChild.nodeType === 3) {
+        const range = document.createRange();
+        range.setStart(btn.firstChild, 0);
+        range.setEnd(btn.firstChild, btn.firstChild.textContent.length);
+        const textRect = range.getBoundingClientRect();
+        const bdiRect = bdi.getBoundingClientRect();
+        const hebrewCenter = (textRect.left + textRect.right) / 2;
+        const rfCenter = (bdiRect.left + bdiRect.right) / 2;
+        const sameLine = Math.abs(((textRect.top + textRect.bottom) / 2) - ((bdiRect.top + bdiRect.bottom) / 2)) < 6;
+        rfOrder = sameLine ? (hebrewCenter > rfCenter + 1 ? 'hebrew-then-rf' : 'reordered') : (textRect.top <= bdiRect.top ? 'hebrew-then-rf' : 'reordered');
+      }
+      const baud = document.getElementById('rfBaud');
+      const port = document.getElementById('rfComPort');
       return {
         panelRight: panelRect.right,
         panelLeft: panelRect.left,
+        panelTop: panelRect.top,
+        panelBottom: panelRect.bottom,
         vw: window.innerWidth,
+        vh: window.innerHeight,
+        overflowY: getComputedStyle(panel).overflowY,
         rowOverflow,
+        rowOverlap,
+        textOverlap,
+        rfToken: showsRf ? (bdi?.textContent || '') : 'n/a',
+        rfOrder,
+        selectBg: baud ? getComputedStyle(baud).backgroundColor : '',
+        portBg: port ? getComputedStyle(port).backgroundColor : '',
       };
     });
     expect(clip.panelLeft).toBeGreaterThanOrEqual(-1);
     expect(clip.panelRight).toBeLessThanOrEqual(clip.vw + 1);
+    expect(clip.panelTop).toBeGreaterThanOrEqual(-1);
+    expect(clip.panelBottom).toBeLessThanOrEqual(clip.vh + 1);
+    expect(clip.overflowY).toMatch(/auto|scroll/);
+    expect(clip.rowOverlap).toEqual([]);
+    expect(clip.textOverlap).toEqual([]);
+    if (clip.rfToken !== 'n/a') {
+      expect(clip.rfToken).toBe('RF');
+      expect(clip.rfOrder).toBe('hebrew-then-rf');
+    }
+    expect(clip.selectBg).toBe('rgb(13, 19, 32)');
+    expect(clip.portBg).toBe('rgb(13, 19, 32)');
+    expect(clip.selectBg).not.toBe('rgb(255, 255, 255)');
     for (const row of clip.rowOverflow) {
       expect(row.overflow, row.id).toBeLessThanOrEqual(1);
     }
@@ -456,6 +522,39 @@ describe('connect popover layout and mocked states', () => {
       } finally {
         await page.close();
       }
+    }
+  }, 20000);
+
+  it('paints the camera status lines as compact dark pulse cards', async () => {
+    const page = await openScenario('all-down');
+    try {
+      await page.click('button.tab[data-tab="pulse"]');
+      await page.waitForSelector('#pulse.panel.visible');
+      const paint = await page.evaluate(() => {
+        function read(id) {
+          const el = document.getElementById(id);
+          const cs = getComputedStyle(el);
+          const rect = el.getBoundingClientRect();
+          return {
+            bg: cs.backgroundColor,
+            color: cs.color,
+            h: Math.round(rect.height),
+            text: (el.textContent || '').replace(/\s+/g, ' ').trim(),
+          };
+        }
+        return { cam0: read('cam0StatusLine'), cam1: read('cam1StatusLine') };
+      });
+      expect(paint.cam0.bg).toBe('rgb(18, 24, 38)');
+      expect(paint.cam1.bg).toBe('rgb(18, 24, 38)');
+      expect(paint.cam0.color).toBe('rgb(232, 237, 246)');
+      expect(paint.cam1.color).toBe('rgb(232, 237, 246)');
+      expect(paint.cam0.h).toBeGreaterThan(16);
+      expect(paint.cam0.h).toBeLessThan(40);
+      expect(paint.cam1.h).toBeLessThan(40);
+      expect(paint.cam0.text).toContain('לא מחובר');
+      expect(paint.cam1.text).toContain('לא מחובר');
+    } finally {
+      await page.close();
     }
   }, 20000);
 });

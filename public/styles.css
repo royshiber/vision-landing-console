@@ -14035,9 +14035,11 @@ details.flight-manage summary {
   top: calc(100% + 6px);
   inset-inline-end: auto;
   inset-inline-start: 0;
-  width: min(320px, calc(100vw - 16px));
-  max-height: min(360px, calc(100dvh - 48px));
-  overflow: visible;
+  width: min(320px, calc(100vw - 28px));
+  max-height: calc(100dvh - 72px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 8px;
   gap: 4px;
   background: rgba(10, 14, 22, 0.92);
@@ -14046,6 +14048,20 @@ details.flight-manage summary {
   box-shadow: 0 22px 56px rgba(0, 0, 0, 0.42);
   backdrop-filter: blur(22px) saturate(1.2);
   color: #e8edf6;
+  color-scheme: dark;
+}
+.connect-widget-float .conn-panel > * {
+  flex: 0 0 auto;
+}
+.connect-widget-float .conn-panel :is(.conn-select, .conn-input) {
+  background: #0d1320;
+  color: #f2f6fb;
+  border: 1px solid rgba(148, 168, 198, 0.35);
+  color-scheme: dark;
+}
+.connect-widget-float .conn-panel :is(.conn-select, .conn-input) option {
+  background: #0d1320;
+  color: #f2f6fb;
 }
 .comm-link-rows {
   list-style: none;
@@ -23250,21 +23266,32 @@ body:has(#pulse.panel.visible) .pulse-home.pulse-status-home {
 }
 
 .recordings-layout > .cam0-panel { grid-column: 1 / -1; }
-.cam0-status-line {
+#pulse .cam0-status-line {
   display: flex;
+  flex: 0 0 auto;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px 12px;
-  margin: 0 0 10px;
-  padding: 8px 10px;
-  border: 1px solid var(--border);
+  gap: 4px 8px;
+  margin: 0;
+  padding: 4px 8px;
+  min-height: 0;
+  border: 1px solid rgba(148, 168, 198, 0.14);
   border-radius: 8px;
-  background: var(--surface);
-  color: var(--text);
+  background: #121826;
+  color: #e8edf6;
   overflow: visible;
   white-space: normal;
-  font-size: 14px;
-  line-height: 1.4;
+  font-family: "Heebo", "Space Grotesk", sans-serif;
+  font-size: clamp(11px, 0.78rem, 14px);
+  font-weight: 700;
+  line-height: 1.35;
+}
+#pulse .cam0-status-line > span {
+  min-width: 0;
+  color: inherit;
+  overflow: visible;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 .cam0-panel {
   margin-top: 12px;
@@ -23988,7 +24015,7 @@ body:has(#control.panel.visible) #controlSubtabsBar {
   font-size: clamp(11px, 0.78rem, 14px);
 }
 .connect-widget-float .work-link-choices {
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   gap: 4px;
 }
 .connect-widget-float .work-link-choices .conn-active-choice {
@@ -23996,7 +24023,7 @@ body:has(#control.panel.visible) #controlSubtabsBar {
   gap: 3px;
 }
 .connect-widget-float .work-link-serial {
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   gap: 6px;
 }
 .connect-widget-float .work-link-serial .conn-panel-field {
@@ -24010,50 +24037,61 @@ body:has(#control.panel.visible) #controlSubtabsBar {
   padding: 2px 6px;
 }
 .connect-widget-float .comm-link-rows {
-  gap: 4px;
+  gap: 6px;
 }
 .connect-widget-float .comm-link-row {
-  min-height: 0;
-  padding: 3px 6px;
-  gap: 6px;
-  grid-template-columns: 28px minmax(0, 1fr) auto;
+  flex: 0 0 auto;
+  min-height: min-content;
+  padding: 6px 8px;
+  gap: 8px;
+  grid-template-columns: 28px minmax(0, 1fr) minmax(4.5rem, 7.5rem);
   align-items: center;
+  overflow: visible;
 }
 .connect-widget-float .comm-link-copy {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  grid-template-areas: "name status switch" "hint hint hint";
-  align-items: center;
-  column-gap: 6px;
-  row-gap: 0;
-}
-.connect-widget-float .comm-link-name { grid-area: name; }
-.connect-widget-float .comm-link-status { grid-area: status; }
-.connect-widget-float .comm-link-hint { grid-area: hint; }
-.connect-widget-float .comm-link-switch { grid-area: switch; margin-inline-start: 0; }
-.connect-widget-float .comm-link-status,
-.connect-widget-float .comm-link-hint {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  gap: 2px;
   min-width: 0;
-  white-space: normal;
 }
-.connect-widget-float .comm-link-error {
-  grid-column: 1 / -1;
+.connect-widget-float .comm-link-titleline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 6px;
+  min-width: 0;
 }
 .connect-widget-float .comm-link-name,
-.connect-widget-float .comm-link-hint,
 .connect-widget-float .comm-link-status,
+.connect-widget-float .comm-link-hint,
 .connect-widget-float .comm-link-error {
-  font-size: clamp(11px, 0.72rem, 13px);
-  line-height: 1.2;
+  min-width: 0;
   margin: 0;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
+  overflow-wrap: anywhere;
+  font-size: clamp(11px, 0.72rem, 13px);
+  line-height: 1.3;
 }
 .connect-widget-float .comm-link-switch {
-  margin-inline-start: auto;
+  margin: 0;
+  margin-inline-start: 0;
 }
 .connect-widget-float .comm-link-action {
-  min-width: 64px;
+  min-width: 0;
+  max-width: 100%;
   min-height: 26px;
-  padding: 2px 8px;
+  height: auto;
+  padding: 4px 8px;
+  letter-spacing: 0;
+  white-space: normal;
+  overflow: visible;
+  overflow-wrap: anywhere;
+  line-height: 1.25;
+  text-align: center;
 }
 .connect-widget-float .conn-advanced {
   padding: 2px 6px;

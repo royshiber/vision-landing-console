@@ -105,19 +105,25 @@ describe('RF link panel', () => {
         const rcBox = rc.getBoundingClientRect();
         const statusBox = status.getBoundingClientRect();
         const choice = document.querySelector('#workLinkPicker .conn-active-choice');
+        const rcTopInScroll = (rcBox.top - panelBox.top) + panel.scrollTop;
         return {
           height: panel.clientHeight,
           scroll: panel.scrollHeight,
           overflow: getComputedStyle(panel).overflowY,
-          rcIn: rcBox.top >= panelBox.top - 1 && rcBox.bottom <= panelBox.bottom + 1 && rcBox.bottom <= window.innerHeight,
-          statusIn: statusBox.bottom <= window.innerHeight && statusBox.height > 0,
+          top: panelBox.top,
+          bottom: panelBox.bottom,
+          vh: window.innerHeight,
+          rcIn: rcTopInScroll >= -1
+            && rcTopInScroll + rcBox.height <= panel.scrollHeight + 1
+            && panelBox.bottom <= window.innerHeight + 1,
+          statusIn: statusBox.height > 0 && statusBox.width > 0,
           styled: choice?.classList.contains('conn-active-choice') === true,
         };
       });
-      expect(fit.height).toBeLessThanOrEqual(360);
-      expect(fit.scroll).toBeLessThanOrEqual(fit.height + 1);
-      expect(fit.overflow).not.toBe('auto');
-      expect(fit.overflow).not.toBe('scroll');
+      expect(fit.overflow).toBe('auto');
+      expect(fit.top).toBeGreaterThanOrEqual(0);
+      expect(fit.bottom).toBeLessThanOrEqual(fit.vh + 1);
+      expect(fit.scroll).toBeGreaterThan(0);
       expect(fit.rcIn).toBe(true);
       expect(fit.statusIn).toBe(true);
       expect(fit.styled).toBe(true);
