@@ -1394,14 +1394,6 @@
           <button type="button" class="first-open-btn first-open-btn-quiet" data-first-action="params">פרמטרים</button>
         </nav>
         </div>
-        <section id="preflightReadiness" class="preflight-ready" aria-label="מוכנות לטיסה ראשונה">
-          <div class="preflight-ready-head">
-            <h3 class="preflight-ready-title">מוכנות לטיסה ראשונה</h3>
-            <p id="preflightReadyOpen" class="preflight-ready-open">פתוח</p>
-          </div>
-          <p class="preflight-ready-note">מחשב משימה (Jetson), FC, RF, שלט RC, CAM0, CAM1. סימון ידני נשאר במחשב הזה.</p>
-          <ul id="preflightReadyList" class="preflight-ready-list"></ul>
-        </section>
         <div id="teleDashPanel" class="tele-subpanel visible" data-tele-panel="dash">
         <header class="operator-overview">
           <h3>טלמטריה</h3>
@@ -2398,18 +2390,64 @@
               <h3 class="mission-region-title">הודעות מטוס</h3>
               <div class="flight-dock-bar">
                 <div class="flight-dock-tabs" role="tablist" aria-label="תחתית הטיסה">
+                  <button type="button" id="flightDockQuickTab" class="flight-dock-tab" role="tab" aria-selected="false" aria-controls="flightDockQuickPane">מהיר</button>
+                  <button type="button" id="flightDockActionsTab" class="flight-dock-tab" role="tab" aria-selected="false" aria-controls="flightDockActionsPane">פעולות</button>
                   <button type="button" id="flightDockMessagesTab" class="flight-dock-tab" role="tab" aria-selected="true" aria-controls="flightDockMessagesPane">הודעות</button>
-                  <button type="button" id="flightDockActionsTab" class="flight-dock-tab" role="tab" aria-selected="false" aria-controls="flightActionsNote">פעולות</button>
+                  <button type="button" id="flightDockPreflightTab" class="flight-dock-tab" role="tab" aria-selected="false" aria-controls="flightDockPreflightPane">טרום</button>
                 </div>
-              <button type="button" id="missionMessagesToggle" class="mission-messages-toggle" aria-expanded="false" aria-controls="pfcMsgScroll">
-                <span class="pfc-msg-toolbar-label">הודעות</span>
-                <span id="missionMessagesSummary" class="pfc-msg-summary">אין הודעות</span>
-                <span id="missionMessagesCount" class="pfc-msg-countline" dir="ltr" hidden></span>
-                <span id="missionMessagesBadge" class="mission-messages-badge" hidden></span>
-              </button>
-                <p id="flightActionsNote" class="mission-horizon-filler-note flight-actions-note" role="tabpanel">אין חיבור לבקר הטיסה</p>
+                <button type="button" id="missionMessagesToggle" class="mission-messages-toggle" aria-expanded="false" aria-controls="pfcMsgScroll">
+                  <span class="pfc-msg-toolbar-label">הודעות</span>
+                  <span id="missionMessagesSummary" class="pfc-msg-summary">אין הודעות</span>
+                  <span id="missionMessagesCount" class="pfc-msg-countline" dir="ltr" hidden></span>
+                  <span id="missionMessagesBadge" class="mission-messages-badge" hidden></span>
+                </button>
+                <p id="flightActionsNote" class="mission-horizon-filler-note flight-actions-note">אין חיבור לבקר הטיסה</p>
               </div>
-              <div id="flightDockMessagesPane" class="flight-dock-pane">
+              <div id="flightDockQuickPane" class="flight-dock-pane" role="tabpanel" aria-labelledby="flightDockQuickTab">
+                <p id="flightQuickArm" class="flight-dock-arm">חימוש לא ידוע</p>
+                <div class="flight-dock-cmds">
+                  <button type="button" id="flightQuickRtl" class="flight-dock-cmd" data-flight-mode="RTL"><bdi dir="ltr">RTL</bdi></button>
+                  <button type="button" id="flightQuickLoiter" class="flight-dock-cmd" data-flight-mode="LOITER"><bdi dir="ltr">LOITER</bdi></button>
+                </div>
+              </div>
+              <div id="flightDockActionsPane" class="flight-dock-pane" role="tabpanel" aria-labelledby="flightDockActionsTab">
+                <div class="flight-dock-grid">
+                  <label class="flight-dock-field" for="flightDockActionSelect">פעולה
+                    <select id="flightDockActionSelect" disabled><option>אין</option></select>
+                  </label>
+                  <button type="button" id="flightDockDoAction" class="flight-dock-cmd" disabled title="בלי שליחה">בצע</button>
+                  <label class="flight-dock-field" for="flightDockWpSelect">נקודה
+                    <select id="flightDockWpSelect" disabled><option>בית</option></select>
+                  </label>
+                  <button type="button" id="flightDockSetWp" class="flight-dock-cmd" disabled title="בלי שליחה">קבע נקודה</button>
+                  <label class="flight-dock-field" for="flightDockModeSelect">מצב
+                    <select id="flightDockModeSelect">
+                      <option value="AUTO">AUTO</option>
+                      <option value="LOITER">LOITER</option>
+                      <option value="RTL">RTL</option>
+                      <option value="MANUAL">MANUAL</option>
+                      <option value="STABILIZE">STABILIZE</option>
+                      <option value="FBWA">FBWA</option>
+                      <option value="FBWB">FBWB</option>
+                      <option value="CRUISE">CRUISE</option>
+                      <option value="CIRCLE">CIRCLE</option>
+                      <option value="GUIDED">GUIDED</option>
+                    </select>
+                  </label>
+                  <button type="button" id="flightDockSetMode" class="flight-dock-cmd">קבע מצב</button>
+                  <label class="flight-dock-field" for="flightDockMountSelect">מתלה
+                    <select id="flightDockMountSelect" disabled><option>מקופל</option></select>
+                  </label>
+                  <button type="button" id="flightDockSetMount" class="flight-dock-cmd" disabled title="בלי שליחה">קבע מתלה</button>
+                </div>
+                <div class="flight-dock-cmds">
+                  <button type="button" id="flightDockModeAuto" class="flight-dock-cmd" data-flight-mode="AUTO"><bdi dir="ltr">AUTO</bdi></button>
+                  <button type="button" id="flightDockModeLoiter" class="flight-dock-cmd" data-flight-mode="LOITER"><bdi dir="ltr">LOITER</bdi></button>
+                  <button type="button" id="flightDockModeRtl" class="flight-dock-cmd" data-flight-mode="RTL"><bdi dir="ltr">RTL</bdi></button>
+                </div>
+                <p id="flightDockDisabledReason" class="flight-dock-reason">פעולה, נקודה ומתלה בלי שליחה</p>
+              </div>
+              <div id="flightDockMessagesPane" class="flight-dock-pane" role="tabpanel" aria-labelledby="flightDockMessagesTab">
               <div class="pfc-msg-toolbar" dir="rtl">
                 <button type="button" id="pfcMsgFilterAll" class="pfc-msg-filter" aria-pressed="true">הכל</button>
                 <button type="button" id="pfcMsgFilterWarn" class="pfc-msg-filter" aria-pressed="false">אזהרות</button>
@@ -2419,6 +2457,17 @@
                 <div class="pfc-msg-scroll" id="pfcMsgScroll" dir="ltr"></div>
               </div>
               </div>
+              <div id="flightDockPreflightPane" class="flight-dock-pane" role="tabpanel" aria-labelledby="flightDockPreflightTab">
+                <section id="preflightReadiness" class="preflight-ready" aria-label="מוכנות לטיסה ראשונה">
+                  <div class="preflight-ready-head">
+                    <h3 class="preflight-ready-title">מוכנות לטיסה ראשונה</h3>
+                    <p id="preflightReadyOpen" class="preflight-ready-open">פתוח</p>
+                  </div>
+                  <p class="preflight-ready-note">מחשב משימה (Jetson), FC, RF, שלט RC, CAM0, CAM1. סימון ידני נשאר במחשב הזה.</p>
+                  <ul id="preflightReadyList" class="preflight-ready-list"></ul>
+                </section>
+              </div>
+              <p id="flightDockCommandNote" class="flight-dock-note" role="status"></p>
             </section>
           </section>
 

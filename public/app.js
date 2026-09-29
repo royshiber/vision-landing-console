@@ -7343,21 +7343,27 @@ function rememberLiveRadioStatus(status) {
 
 function syncMissionFcEmptyNote(mav) {
   const note = document.querySelector('.mission-horizon-filler-note');
-  if (!note) return;
+  if (!note) {
+    if (typeof paintFlightQuickArm === 'function') paintFlightQuickArm(mav);
+    return;
+  }
   const liveMav = resolveLiveHudMavlinkForNote(mav);
   if (liveMav) {
     const name = [liveMav.autopilotName, liveMav.vehicleType].filter(Boolean).join(' · ');
     note.textContent = name ? `${MISSION_FC_LINKED_HE} · ${name}` : MISSION_FC_LINKED_HE;
+    if (typeof paintFlightQuickArm === 'function') paintFlightQuickArm(liveMav);
     return;
   }
   if (hudReflectsLiveFc(mav)) {
     note.textContent = MISSION_FC_LINKED_HE;
+    if (typeof paintFlightQuickArm === 'function') paintFlightQuickArm(mav);
     return;
   }
   const companion = (typeof latestCompanionFromServer === 'object' && latestCompanionFromServer)
     ? latestCompanionFromServer
     : null;
   note.textContent = missionFcEmptyNoteHe(companion);
+  if (typeof paintFlightQuickArm === 'function') paintFlightQuickArm(mav);
 }
 
 function applyConnectPillFromLinks(links) {
@@ -19806,8 +19812,8 @@ function flightStackBudget(horizon) {
   const total = horizon.getBoundingClientRect().height;
   const splits = [...horizon.querySelectorAll('.flight-stack-split')];
   const splitH = splits.reduce((sum, el) => sum + el.getBoundingClientRect().height, 0);
-  const toggle = document.getElementById('missionMessagesToggle');
-  const header = toggle ? Math.ceil(toggle.getBoundingClientRect().height + 8) : FLIGHT_MSG_DEFAULT;
+  const bar = horizon.querySelector('.flight-dock-bar');
+  const header = bar ? Math.ceil(bar.getBoundingClientRect().height + 8) : FLIGHT_MSG_DEFAULT;
   const msgMin = Math.max(FLIGHT_MSG_MIN, header);
   return {
     avail: Math.max(0, total - splitH),
@@ -19933,24 +19939,144 @@ function initFlightStack() {
   });
 }
 
+const FLIGHT_DOCKS = Object.freeze(['quick', 'actions', 'messages', 'preflight']);
+const FLIGHT_DOCK_MODES = Object.freeze(['AUTO', 'LOITER', 'RTL', 'MANUAL', 'STABILIZE', 'FBWA', 'FBWB', 'CRUISE', 'CIRCLE', 'GUIDED']);
+
+function flightDockName(which) {
+  return FLIGHT_DOCKS.includes(which) ? which : 'messages';
+}
+
+function paintFlightQuickArm(mav) {
+  const el = document.getElementById('flightQuickArm');
+  if (!el) return;
+  const live = mav && typeof mav === 'object' ? mav : null;
+  let word = 'לא ידוע';
+  if (live && live.connected === true && live.armed === true) word = 'מחומש';
+  else if (live && live.connected === true && live.armed === false) word = 'לא מחומש';
+  el.textContent = `חימוש ${word}`;
+}
+
+function flightDockSkipConfirm(mav) {
+  const live = mav && typeof mav === 'object' ? mav : null;
+  if (!live || live.connected !== true) return false;
+  if (live.simulator === true) return true;
+  return typeof assistLinkPath === 'function' && assistLinkPath(live) === 'simulator';
+}
+
+function flightDockCommandText(mode) {
+  const name = String(mode || '').toUpperCase();
+  if (name === 'RTL') return 'עבור למצב RTL';
+  return `עבור למצב ${name.toLowerCase()}`;
+}
+
+function paintFlightDockCommand(text) {
+  const note = document.getElementById('flightDockCommandNote');
+  if (note) note.textContent = text || '';
+  const dock = document.querySelector('[data-mission-region="messages"]')?.dataset.flightDock;
+  if (dock === 'quick' || dock === 'actions') requestAnimationFrame(() => fitFlightDockPane(dock));
+}
+
+async function sendFlightDockMode(mode) {
+  const name = String(mode || '').toUpperCase();
+  if (!FLIGHT_DOCK_MODES.includes(name)) return;
+  const mav = typeof latestHudMavlink !== 'undefined' ? latestHudMavlink : null;
+  if (!mav || mav.connected !== true) {
+    paintFlightDockCommand('אין חיבור לבקר הטיסה');
+    return;
+  }
+  if (!flightDockSkipConfirm(mav)) {
+    const ok = window.confirm('לשלוח את הפקודה לבקר הטיסה?');
+    if (!ok) return;
+  }
+  try {
+    const res = await fetch('/api/assist/voice-flight', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: flightDockCommandText(name) }),
+    });
+    const data = await res.json().catch(() => ({}));
+    paintFlightDockCommand(data?.talkback?.text || 'לא נשלח דבר');
+  } catch {
+    paintFlightDockCommand('השליחה נכשלה');
+  }
+}
+
 function applyFlightDock(which) {
-  const dock = which === 'actions' ? 'actions' : 'messages';
+  const dock = flightDockName(which);
   const section = document.querySelector('[data-mission-region="messages"]');
   if (section) section.dataset.flightDock = dock;
-  const msgTab = document.getElementById('flightDockMessagesTab');
-  const actTab = document.getElementById('flightDockActionsTab');
-  if (msgTab) msgTab.setAttribute('aria-selected', dock === 'messages' ? 'true' : 'false');
-  if (actTab) actTab.setAttribute('aria-selected', dock === 'actions' ? 'true' : 'false');
+  for (const name of FLIGHT_DOCKS) {
+    const tab = document.getElementById(`flightDock${name.charAt(0).toUpperCase()}${name.slice(1)}Tab`);
+    if (tab) tab.setAttribute('aria-selected', dock === name ? 'true' : 'false');
+  }
   try { localStorage.setItem(FLIGHT_DOCK_KEY, dock); } catch { /* ignore */ }
   return dock;
 }
 
+function fitFlightDockPane(which) {
+  if (which === 'messages' || which === 'preflight') return;
+  const section = document.querySelector('[data-mission-region="messages"]');
+  const horizon = document.querySelector('[data-mission-region="horizon"]');
+  const pane = document.getElementById(which === 'quick' ? 'flightDockQuickPane' : 'flightDockActionsPane');
+  const bar = section?.querySelector('.flight-dock-bar');
+  if (!section || !horizon || !pane || !bar) return;
+  const note = document.getElementById('flightDockCommandNote');
+  const noteH = note && getComputedStyle(note).display !== 'none'
+    ? Math.ceil(note.getBoundingClientRect().height)
+    : 0;
+  const want = Math.ceil(bar.getBoundingClientRect().height + pane.scrollHeight + noteH + 12);
+  const budget = flightStackBudget(horizon);
+  const room = Math.max(FLIGHT_MSG_MIN, budget.avail - budget.hudMin - budget.dataMin);
+  const msg = Math.max(FLIGHT_MSG_OPEN, Math.min(want, room));
+  if (msg <= _flightStack.msg + 2) return;
+  applyFlightStack({ ..._flightStack, msg }, { persist: true, skipMessages: true });
+}
+
+function revealFlightDock(which) {
+  applyFlightDock(which);
+  writeMissionMessagesExpanded(true);
+  applyMissionMessagesExpanded(true);
+  const stack = { ..._flightStack, msg: Math.max(Number(_flightStack.msg) || 0, FLIGHT_MSG_OPEN) };
+  applyFlightStack(stack, { persist: true, skipMessages: true });
+  requestAnimationFrame(() => fitFlightDockPane(which));
+}
+
 function initFlightDock() {
+  const section = document.querySelector('[data-mission-region="messages"]');
+  if (!section || section.dataset.dockBound === '1') return;
+  section.dataset.dockBound = '1';
   let stored = 'messages';
-  try { stored = localStorage.getItem(FLIGHT_DOCK_KEY) === 'actions' ? 'actions' : 'messages'; } catch { /* ignore */ }
+  try {
+    const raw = localStorage.getItem(FLIGHT_DOCK_KEY);
+    stored = flightDockName(raw);
+  } catch { /* ignore */ }
   applyFlightDock(stored);
-  document.getElementById('flightDockMessagesTab')?.addEventListener('click', () => applyFlightDock('messages'));
-  document.getElementById('flightDockActionsTab')?.addEventListener('click', () => applyFlightDock('actions'));
+  const tabs = {
+    quick: 'flightDockQuickTab',
+    actions: 'flightDockActionsTab',
+    messages: 'flightDockMessagesTab',
+    preflight: 'flightDockPreflightTab',
+  };
+  for (const [name, id] of Object.entries(tabs)) {
+    document.getElementById(id)?.addEventListener('click', () => {
+      const current = section.dataset.flightDock || 'messages';
+      if (name === 'messages' && current === 'messages') {
+        toggleMissionMessages();
+        syncFlightStackToToggle();
+        return;
+      }
+      revealFlightDock(name);
+    });
+  }
+  section.addEventListener('click', (ev) => {
+    const btn = ev.target.closest?.('[data-flight-mode]');
+    if (!btn || btn.disabled) return;
+    void sendFlightDockMode(btn.getAttribute('data-flight-mode'));
+  });
+  document.getElementById('flightDockSetMode')?.addEventListener('click', () => {
+    const mode = document.getElementById('flightDockModeSelect')?.value;
+    void sendFlightDockMode(mode);
+  });
 }
 
 function initMissionMessages() {

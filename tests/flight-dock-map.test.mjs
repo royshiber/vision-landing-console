@@ -43,7 +43,7 @@ function contrastRatio(a, b) {
 }
 
 describe('flight dock and map source', () => {
-  it('drops the duplicate status row and keeps one bottom switcher', () => {
+  it('drops the duplicate status row and keeps the flight tab strip', () => {
     expect(html).not.toContain('id="missionHorizonFiller"');
     expect(html).not.toContain('id="hudDataGrid"');
     const data = html.slice(html.indexOf('data-mission-region="data"'), html.indexOf('flightStackSplitMsg'));
@@ -51,12 +51,24 @@ describe('flight dock and map source', () => {
     expect(data).not.toContain('id="hudDataGrid"');
     expect(data).toMatch(/ביטחון נחיתה/);
     expect(data).toMatch(/id="liveConfidenceText"/);
-    expect(html).toMatch(/id="flightDockMessagesTab"[^>]*>הודעות</);
+    expect(html).toMatch(/id="flightDockQuickTab"[^>]*>מהיר</);
     expect(html).toMatch(/id="flightDockActionsTab"[^>]*>פעולות</);
+    expect(html).toMatch(/id="flightDockMessagesTab"[^>]*>הודעות</);
+    expect(html).toMatch(/id="flightDockPreflightTab"[^>]*>טרום</);
+    expect(html).not.toMatch(/id="flightDockGaugesTab"/);
+    expect(html.match(/id="preflightReadiness"/g)).toHaveLength(1);
+    expect(html.indexOf('id="flightDockPreflightPane"')).toBeLessThan(html.indexOf('id="preflightReadiness"'));
+    expect(html).toMatch(/id="flightDockDoAction"[^>]*disabled/);
+    expect(html).toMatch(/id="flightDockSetWp"[^>]*disabled/);
+    expect(html).toMatch(/id="flightDockSetMount"[^>]*disabled/);
+    expect(html).toContain('פעולה, נקודה ומתלה בלי שליחה');
+    expect(html).toContain('>בית</option>');
     expect(html).toMatch(/id="terrainFollowBtn"[^>]*>עקוב</);
     expect(html).toMatch(/id="terrainFlightRecordState"[^>]*>לא מקליט</);
     expect(js).toContain('function applyFlightDock(');
+    expect(js).toContain("fetch('/api/assist/voice-flight'");
     expect(js).toContain('function flightPathActive(');
+    expect(js).not.toContain('/api/fc/set-mode');
     expect(js).not.toMatch(/telemetry-archive\/start[\s\S]{0,80}DOMContentLoaded/);
     const boot = js.slice(js.indexOf('function initFlightArchiveRecord'), js.indexOf('function initAppUpdateNotice'));
     expect(boot).toContain("'/api/telemetry-archive/start'");
@@ -104,8 +116,10 @@ describe('flight dock and map live', () => {
     browser = await chromium.launch({ headless: true });
     const starts = [];
     const page = await browser.newPage();
+    const voice = [];
     page.on('request', (req) => {
       if (req.method() === 'POST' && req.url().includes('/api/telemetry-archive/start')) starts.push(req.url());
+      if (req.method() === 'POST' && req.url().includes('/api/assist/voice-flight')) voice.push(req.postData() || '');
     });
 
     const sizes = [
@@ -119,6 +133,8 @@ describe('flight dock and map live', () => {
       await page.evaluate(() => {
         localStorage.removeItem('visionLandingFlightDockV1');
         localStorage.removeItem('visionLandingFlightFollowV1');
+        localStorage.removeItem('visionLandingFlightStackV1');
+        localStorage.removeItem('visionLandingMissionMessagesV1');
       });
       await page.reload({ waitUntil: 'domcontentloaded' });
       await page.waitForSelector('#flightDockMessagesTab');
@@ -129,16 +145,18 @@ describe('flight dock and map live', () => {
         dock: document.querySelector('[data-mission-region="messages"]')?.dataset.flightDock,
         note: getComputedStyle(document.getElementById('flightActionsNote')).display,
         list: getComputedStyle(document.getElementById('flightDockMessagesPane')).display,
+        quick: getComputedStyle(document.getElementById('flightDockQuickPane')).display,
         state: document.getElementById('terrainFlightRecordState')?.textContent,
         gs: [...document.querySelectorAll('.hud-slot-label')].map((el) => el.textContent).join(' '),
       }));
       expect(idle.filler).toBe(false);
       expect(idle.dock).toBe('messages');
-      expect(idle.note).toBe('none');
-      expect(idle.list).not.toBe('none');
+      expect(idle.note).not.toBe('none');
+      expect(idle.list).toBe('none');
+      expect(idle.quick).toBe('none');
       expect(idle.state).toBe('לא מקליט');
       expect(idle.gs).not.toMatch(/GS|Vision/);
-      const fit = await page.evaluate(() => ['terrainFollowBtn', 'terrainFlightRecordBtn', 'terrainFlightRecordState', 'flightDockMessagesTab', 'flightDockActionsTab'].map((id) => {
+      const fit = await page.evaluate(() => ['terrainFollowBtn', 'terrainFlightRecordBtn', 'terrainFlightRecordState', 'flightDockQuickTab', 'flightDockActionsTab', 'flightDockMessagesTab', 'flightDockPreflightTab', 'flightActionsNote'].map((id) => {
         const el = document.getElementById(id);
         return {
           id,
@@ -148,30 +166,58 @@ describe('flight dock and map live', () => {
       for (const row of fit) expect(row.over, `${size.width} ${row.id}`).toBeLessThanOrEqual(1);
 
       await page.click('#flightDockActionsTab');
+      await page.waitForFunction(() => document.querySelector('[data-mission-region="messages"]').dataset.flightDock === 'actions');
       const actions = await page.evaluate(() => {
-        const note = document.getElementById('flightActionsNote');
+        const reason = document.getElementById('flightDockDisabledReason');
         const tab = document.getElementById('flightDockActionsTab');
-        const cs = getComputedStyle(note);
+        const cs = getComputedStyle(reason);
         const tabCs = getComputedStyle(tab);
+        const ids = ['flightDockDoAction', 'flightDockSetWp', 'flightDockSetMount', 'flightDockActionSelect', 'flightDockWpSelect', 'flightDockMountSelect'];
         return {
           dock: document.querySelector('[data-mission-region="messages"]').dataset.flightDock,
-          note: note.textContent,
+          reason: reason.textContent,
           shown: cs.display !== 'none',
           list: getComputedStyle(document.getElementById('flightDockMessagesPane')).display,
-          noteColor: cs.color,
-          noteBg: cs.backgroundColor,
+          preflight: getComputedStyle(document.getElementById('flightDockPreflightPane')).display,
+          disabled: ids.every((id) => document.getElementById(id).disabled),
+          setMode: document.getElementById('flightDockSetMode').disabled,
           tabColor: tabCs.color,
           tabBg: tabCs.backgroundColor,
-          over: note.scrollHeight - note.clientHeight,
+          over: Math.max(reason.scrollWidth - reason.clientWidth, reason.scrollHeight - reason.clientHeight),
         };
       });
       expect(actions.dock).toBe('actions');
       expect(actions.shown).toBe(true);
       expect(actions.list).toBe('none');
-      expect(actions.note).toContain('אין חיבור לבקר הטיסה');
+      expect(actions.preflight).toBe('none');
+      expect(actions.disabled).toBe(true);
+      expect(actions.setMode).toBe(false);
+      expect(actions.reason).toContain('בלי שליחה');
       expect(actions.over).toBeLessThanOrEqual(1);
       const tabRatio = contrastRatio(actions.tabColor, actions.tabBg);
       expect(tabRatio).toBeGreaterThanOrEqual(4.5);
+
+      await page.click('#flightDockQuickTab');
+      const quick = await page.evaluate(() => ({
+        arm: document.getElementById('flightQuickArm').textContent,
+        rtl: document.getElementById('flightQuickRtl').disabled,
+      }));
+      expect(quick.arm).toContain('לא ידוע');
+      expect(quick.rtl).toBe(false);
+
+      await page.click('#flightDockPreflightTab');
+      const preflight = await page.evaluate(() => {
+        const pane = document.getElementById('flightDockPreflightPane');
+        const list = document.getElementById('preflightReadyList');
+        return {
+          shown: getComputedStyle(pane).display !== 'none',
+          inside: pane.contains(list),
+          copies: document.querySelectorAll('#preflightReadiness').length,
+        };
+      });
+      expect(preflight.shown).toBe(true);
+      expect(preflight.inside).toBe(true);
+      expect(preflight.copies).toBe(1);
 
       await page.click('#flightDockMessagesTab');
       await page.waitForFunction(() => document.querySelector('[data-mission-region="messages"]').dataset.flightDock === 'messages');
@@ -215,5 +261,44 @@ describe('flight dock and map live', () => {
     expect(recording).toBe('מקליט');
     await page.click('#terrainFlightRecordBtn');
     await page.waitForFunction(() => document.getElementById('terrainFlightRecordState').textContent === 'לא מקליט');
+
+    voice.length = 0;
+    let asked = 0;
+    page.on('dialog', async (dialog) => {
+      asked += 1;
+      await dialog.dismiss();
+    });
+    await page.evaluate(() => {
+      applyFlightHud({ connected: false, armed: false, simulator: false });
+    });
+    await page.click('#flightDockQuickTab');
+    await page.click('#flightQuickRtl');
+    expect(voice).toEqual([]);
+    expect(asked).toBe(0);
+    const refused = await page.evaluate(() => document.getElementById('flightDockCommandNote').textContent);
+    expect(refused).toContain('אין חיבור');
+
+    await page.evaluate(() => {
+      applyFlightHud({ connected: true, simulator: false, armed: false, type: 'tcp', host: '10.1.1.1', port: 5760 });
+    });
+    await page.click('#flightQuickLoiter');
+    expect(asked).toBe(1);
+    expect(voice).toEqual([]);
+
+    await page.evaluate(() => {
+      applyFlightHud({ connected: true, simulator: true, armed: true, type: 'tcp', host: '127.0.0.1', port: 5760 });
+    });
+    const armed = await page.evaluate(() => document.getElementById('flightQuickArm').textContent);
+    expect(armed).toBe('חימוש מחומש');
+    const before = asked;
+    await page.evaluate(() => {
+      applyFlightHud({ connected: true, simulator: true, armed: true, type: 'tcp', host: '127.0.0.1', port: 5760 });
+      document.getElementById('flightDockCommandNote').textContent = '';
+      document.getElementById('flightQuickRtl').click();
+    });
+    await page.waitForFunction(() => /נדחה|אושר|נכשל/.test(document.getElementById('flightDockCommandNote').textContent || ''));
+    expect(asked).toBe(before);
+    expect(voice.length).toBe(1);
+    expect(voice[0]).toContain('RTL');
   }, 90000);
 });

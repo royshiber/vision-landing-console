@@ -11605,14 +11605,18 @@ html[data-evolve-preview="1"] #development {
 .flight-dock-tabs {
   display: flex;
   flex-flow: row nowrap;
-  align-items: center;
+  align-items: stretch;
   gap: 4px;
-  flex: 0 0 auto;
+  flex: 1 1 100%;
+  min-width: 0;
 }
 .flight-dock-tab {
   margin: 0;
-  min-height: 24px;
-  padding: 1px 6px;
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 22px;
+  height: auto;
+  padding: 1px 2px;
   border: 1px solid rgba(226, 232, 240, 0.45);
   border-radius: 4px;
   background: #1e293b;
@@ -11620,7 +11624,9 @@ html[data-evolve-preview="1"] #development {
   font-family: "Heebo", sans-serif;
   font-size: clamp(11px, 0.72rem, 13px);
   font-weight: 700;
-  line-height: 1.3;
+  line-height: 1.25;
+  white-space: normal;
+  overflow: visible;
   cursor: pointer;
 }
 .flight-dock-tab[aria-selected="true"] {
@@ -11629,9 +11635,13 @@ html[data-evolve-preview="1"] #development {
   color: #f8fafc;
 }
 .flight-dock-bar .mission-messages-toggle {
-  flex: 1 1 6rem;
+  flex: 0 1 auto;
   width: auto;
   min-width: 0;
+  min-height: 22px;
+}
+.mission-region-messages:not([data-flight-dock="messages"]) > .flight-dock-bar .mission-messages-toggle {
+  display: none;
 }
 .flight-dock-bar .pfc-msg-toolbar-label {
   position: absolute;
@@ -11644,23 +11654,129 @@ html[data-evolve-preview="1"] #development {
   white-space: nowrap;
   border: 0;
 }
-.mission-region-messages[data-flight-dock="messages"] .flight-actions-note {
-  display: none;
-}
-.mission-region-messages[data-flight-dock="actions"] .mission-messages-toggle,
-.mission-region-messages[data-flight-dock="actions"] #flightDockMessagesPane {
-  display: none;
-}
-.flight-actions-note {
-  flex: 1 1 auto;
+.flight-dock-bar .flight-actions-note {
+  flex: 1 1 8rem;
   min-width: 0;
   margin: 0;
   color: #e2e8f0;
   font-size: clamp(11px, 0.72rem, 13px);
-  line-height: 1.3;
+  line-height: 1.25;
   white-space: normal;
   overflow: visible;
   overflow-wrap: anywhere;
+}
+.flight-dock-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  min-height: 0;
+}
+.mission-region-messages[data-messages-expanded="0"] > .flight-dock-pane,
+.mission-region-messages[data-messages-expanded="0"] > .flight-dock-note {
+  display: none;
+}
+.mission-region-messages[data-flight-dock="quick"] > .flight-dock-pane:not(#flightDockQuickPane),
+.mission-region-messages[data-flight-dock="actions"] > .flight-dock-pane:not(#flightDockActionsPane),
+.mission-region-messages[data-flight-dock="messages"] > .flight-dock-pane:not(#flightDockMessagesPane),
+.mission-region-messages[data-flight-dock="preflight"] > .flight-dock-pane:not(#flightDockPreflightPane) {
+  display: none;
+}
+.mission-region-messages[data-flight-dock="messages"] > .flight-dock-note,
+.mission-region-messages[data-flight-dock="preflight"] > .flight-dock-note {
+  display: none;
+}
+.flight-dock-grid,
+.flight-dock-cmds {
+  display: flex;
+  flex-flow: row wrap;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+.flight-dock-field {
+  display: flex;
+  flex-flow: row wrap;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  margin: 0;
+  color: #f8fafc;
+  font-family: "Heebo", sans-serif;
+  font-size: clamp(11px, 0.72rem, 13px);
+  font-weight: 700;
+  line-height: 1.25;
+}
+.flight-dock-field select,
+.flight-dock-cmd {
+  margin: 0;
+  min-height: 22px;
+  padding: 1px 6px;
+  border: 1px solid rgba(226, 232, 240, 0.45);
+  border-radius: 4px;
+  background: #1e293b;
+  color: #f8fafc;
+  font-family: "Heebo", sans-serif;
+  font-size: clamp(11px, 0.72rem, 13px);
+  font-weight: 700;
+  line-height: 1.25;
+}
+.flight-dock-cmd:not(:disabled) {
+  background: #1d4ed8;
+  border-color: #93c5fd;
+  color: #f8fafc;
+  cursor: pointer;
+}
+.flight-dock-cmd:disabled,
+.flight-dock-field select:disabled {
+  background: #334155;
+  color: #e2e8f0;
+  cursor: not-allowed;
+}
+.flight-dock-arm,
+.flight-dock-reason,
+.flight-dock-note {
+  margin: 0;
+  min-width: 0;
+  color: #e2e8f0;
+  font-size: clamp(11px, 0.72rem, 13px);
+  line-height: 1.25;
+  white-space: normal;
+  overflow: visible;
+  overflow-wrap: anywhere;
+}
+.flight-dock-note:empty {
+  display: none;
+}
+#flightDockPreflightPane {
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+#flightDockPreflightPane .preflight-ready {
+  margin: 0;
+  background: #0f172a;
+  border-color: rgba(226, 232, 240, 0.35);
+  color: #f8fafc;
+}
+#flightDockPreflightPane .preflight-ready-title,
+#flightDockPreflightPane .preflight-ready-open,
+#flightDockPreflightPane .preflight-ready-label {
+  color: #f8fafc;
+}
+#flightDockPreflightPane .preflight-ready-note {
+  color: #e2e8f0;
+}
+#flightDockPreflightPane .preflight-ready-list {
+  grid-template-columns: 1fr;
+}
+#flightDockPreflightPane .preflight-ready-item {
+  min-width: 0;
+}
+#flightDockPreflightPane .preflight-ready-item[data-state="ok"] .preflight-ready-mark {
+  color: #4ade80;
+}
+#flightDockPreflightPane .preflight-ready-item[data-state="open"] .preflight-ready-mark {
+  color: #fbbf24;
 }
 .mission-region-messages {
   display: flex;
@@ -24202,7 +24318,7 @@ body[data-work-path="rf"] #optics .optics-calib {
   max-height: none;
   overflow: hidden;
 }
-.mission-region-horizon > .mission-region-messages[data-messages-expanded="1"] #flightDockMessagesPane {
+.mission-region-horizon > .mission-region-messages[data-messages-expanded="1"] > .flight-dock-pane {
   flex: 1 1 auto;
   min-height: 0;
   display: flex;
