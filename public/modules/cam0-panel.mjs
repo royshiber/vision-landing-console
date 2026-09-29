@@ -10,6 +10,7 @@ import {
 } from './camera-fov.mjs';
 import { RF_VIDEO_REASON_HE, rfVideoLocked } from './rf-link-ui.mjs';
 import { applyCameraSupport, mountCameraSettings, paintCameraApply, syncManualExposureLock } from './camera-settings.mjs';
+import { bindCalibGuide, markCalibLive } from './calib-guide.mjs';
 
 const NO_SIGNAL = 'אין אות';
 const DRILL = 'תרגיל. לא מצלמה אמיתית.';
@@ -19,7 +20,7 @@ const ERR_SETTING = 'ההגדרה לא נשמרה. הערך חזר לקודם.';
 const ERR_SNAP = 'הצילום נכשל.';
 const ERR_REC_START = 'ההקלטה לא התחילה.';
 const ERR_REC_STOP = 'עצירת ההקלטה נכשלה.';
-const CONTROL_IDS = ['cam0Ae', 'cam0Exposure', 'cam0Gain', 'cam0Res', 'cam0FpsSet', 'cam0Record', 'cam0Snap', 'cam0CalibCap', 'cam0CalibSolve'];
+const CONTROL_IDS = ['cam0Ae', 'cam0Exposure', 'cam0Gain', 'cam0Res', 'cam0FpsSet', 'cam0Record', 'cam0Snap', 'cam0CalibStart'];
 
 function unwrap(body) {
   if (body && body.lane === 'NEW' && body.data && typeof body.data === 'object') return body.data;
@@ -219,6 +220,7 @@ function init() {
     }
     applyCameraSupport('cam0');
     syncManualExposureLock('cam0', { aeOn: ae?.checked === true, live: on && !locked });
+    markCalibLive('cam0', on && !locked);
   }
 
   function paintStatusLine(connected, fps) {
@@ -408,32 +410,7 @@ function init() {
       showError(ERR_SNAP);
     }
   });
-  document.getElementById('cam0CalibCap')?.addEventListener('click', async () => {
-    const state = document.getElementById('cam0CalibState');
-    try {
-      const body = await api('/api/jetson/v1/cam0/calibration/capture', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ inner_cols: 5, inner_rows: 4, square_m: 0.025 }),
-      });
-      if (state) state.textContent = body.ok ? `נשמרו ${body.captured}` : 'הלוח לא נמצא';
-    } catch {
-      if (state) state.textContent = NO_SIGNAL;
-    }
-  });
-  document.getElementById('cam0CalibSolve')?.addEventListener('click', async () => {
-    const state = document.getElementById('cam0CalibState');
-    try {
-      const body = await api('/api/jetson/v1/cam0/calibration/solve', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: '{}',
-      });
-      if (state) state.textContent = body.ok ? 'הכיול נשמר' : 'אין מספיק צילומים';
-    } catch {
-      if (state) state.textContent = NO_SIGNAL;
-    }
-  });
+  bindCalibGuide('cam0', api);
 
   function panelShown() {
     return panel.getClientRects().length > 0;

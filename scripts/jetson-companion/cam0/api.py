@@ -96,6 +96,12 @@ def try_handle(handler, body=None):
             return True
         _json_body(handler, 200, svc.capture_calibration(body or {}))
         return True
+    if path == "/api/v1/cam0/calibration/session" and method == "POST":
+        if svc is None:
+            _json_body(handler, 503, {"ok": False, "reason": "service_absent"})
+            return True
+        _json_body(handler, 200, svc.calibration_session(body or {}))
+        return True
     if path == "/api/v1/cam0/calibration/solve" and method == "POST":
         if svc is None:
             _json_body(handler, 503, {"ok": False, "reason": "service_absent"})

@@ -10,7 +10,9 @@ from __future__ import annotations
 import os
 import threading
 import time
+from pathlib import Path
 
+from .calib_guide import CalibSession, handle_session
 from .controls import commit_controls
 from .devices import resolve_device
 from .jpegenc import encode_gray_jpeg
@@ -52,6 +54,7 @@ def load_config(env=None):
         "exposure_us": 2000,
         "gain": 16,
         "fov_deg": 79.0,
+        "calibration_dir": str(Path.home() / "vlc-companion" / "cam1-calibration"),
         "stream": {"fps": JPEG_HZ, "quality": 55, "max_width": 640},
         "flight_commands": False,
     }
@@ -78,6 +81,7 @@ class Cam1Service:
         self._live_source = None
         self._controls = None
         self._reopen = False
+        self._guide = CalibSession(camera="cam1")
 
     def acquire(self):
         with self._lock:
@@ -208,6 +212,17 @@ class Cam1Service:
             spec["exposure_us"] = self.config.get("exposure_us")
             spec["gain"] = self.config.get("gain")
         return spec
+
+    def calibration_session(self, body):
+        def frame():
+            with self._lock:
+                raw = None if self._frame is None else self._frame.get("mono8")
+                mono = None if raw is None else raw.copy()
+                width = self.config.get("width") if self._frame is None else self._frame.get("width")
+                height = self.config.get("height") if self._frame is None else self._frame.get("height")
+            return mono, int(width or 0), int(height or 0)
+
+        return handle_session(self._guide, body, frame, self.config.get("calibration_dir"))
 
     def settings(self):
         with self._lock:
@@ -523,6 +538,9 @@ def try_handle(handler, body=None):
         return True
     if path == "/api/v1/cam1/settings" and method == "POST":
         handler._json(200, svc.apply_settings(body or {}))
+        return True
+    if path == "/api/v1/cam1/calibration/session" and method == "POST":
+        handler._json(200, svc.calibration_session(body or {}))
         return True
     if path == "/api/v1/cam1/stream.mjpg" and method == "GET":
         _write_mjpeg(handler, svc)

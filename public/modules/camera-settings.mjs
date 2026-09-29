@@ -15,16 +15,16 @@ export const FOV_META_HE = 'זווית הראייה היא נתון, לא בקר
 export const APPLIED_HE = 'הוחל';
 export const FAILED_HE = 'נכשל';
 
-/** cam1 has exposure, image, and snapshot. Record, detections, and calibration do not. */
+/** cam1 shares exposure, image, snapshot, and calibration. Record and detections do not. */
 export const CAMERA_SUPPORT = Object.freeze({
   cam0: Object.freeze({ record: true, detections: true, calibration: true, snapshot: true }),
-  cam1: Object.freeze({ record: false, detections: false, calibration: false, snapshot: true }),
+  cam1: Object.freeze({ record: false, detections: false, calibration: true, snapshot: true }),
 });
 
 const KINDS = Object.freeze({
   record: ['Record'],
   detections: ['OverlayToggle'],
-  calibration: ['CalibCap', 'CalibSolve'],
+  calibration: ['CalibStart'],
   snapshot: ['Snap'],
 });
 
@@ -71,15 +71,18 @@ export function cameraSettingsHtml(camId) {
       <label class="cam0-check"><input type="checkbox" id="${camId}OverlayToggle"${detectChecked}${detectDisabled} /> <span class="optics-field-name">זיהויים</span></label>
       ${note(camId, 'record')}
       ${note(camId, 'detections')}
-      <section class="cam0-calib" aria-label="כיול" data-settings-group="calibration">
-        <h4>כיול</h4>
-        <p class="cam0-calib-lead">החזיקו לוח שחמט מול המצלמה.</p>
-        <p id="${camId}CalibState" class="cam0-calib-state">עדיין אין כיול.</p>
-        <button type="button" id="${camId}CalibCap" class="cam0-btn" disabled>צילום לוח</button>
-        <button type="button" id="${camId}CalibSolve" class="cam0-btn" disabled>פתרון</button>
-        ${note(camId, 'calibration')}
-      </section>
     </div>
+    <section class="cam0-calib" id="${camId}Calib" aria-label="כיול" data-settings-group="calibration" data-phase="idle">
+      <h4>כיול</h4>
+      <label><span class="optics-field-name">פינות</span> <input id="${camId}CalibCols" type="number" min="3" max="15" step="1" dir="ltr" value="9" /> <span>×</span> <input id="${camId}CalibRows" type="number" min="3" max="15" step="1" dir="ltr" value="6" /></label>
+      <label><span class="optics-field-name">צלע מ״מ</span> <input id="${camId}CalibSquare" type="number" min="5" max="100" step="1" dir="ltr" value="25" /></label>
+      <button type="button" id="${camId}CalibStart" class="cam0-btn" disabled>התחל כיול</button>
+      <span id="${camId}CalibProgress" class="optics-field-name">0/20</span>
+      <button type="button" id="${camId}CalibSave" class="cam0-btn" disabled>שמירה</button>
+      <button type="button" id="${camId}CalibRetry" class="cam0-btn" disabled>שוב</button>
+      <p id="${camId}CalibHint" class="optics-field-note" hidden></p>
+      <p id="${camId}CalibState" class="cam0-calib-state">עדיין אין כיול.</p>
+    </section>
   </div>`;
 }
 

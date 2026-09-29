@@ -12,13 +12,14 @@ import {
 import { bindFovField, readStoredFov } from './camera-fov.mjs';
 import { RF_VIDEO_REASON_HE, rfVideoLocked } from './rf-link-ui.mjs';
 import { applyCameraSupport, mountCameraSettings, paintCameraApply, syncManualExposureLock } from './camera-settings.mjs';
+import { bindCalibGuide, markCalibLive } from './calib-guide.mjs';
 
 const REASON_LINK = 'אין קישור למחשב המשימה. הפקדים כבויים.';
 const REASON_CAM = 'אין אות מהמצלמה. הפקדים כבויים.';
 const ERR_SETTING = 'ההגדרה לא נשמרה. הערך חזר לקודם.';
 const ERR_SNAP = 'הצילום נכשל.';
 const STREAM = '/api/jetson/v1/cam1/stream.mjpg';
-const CONTROL_IDS = ['cam1Ae', 'cam1Exposure', 'cam1Gain', 'cam1Res', 'cam1FpsSet', 'cam1Record', 'cam1Snap', 'cam1CalibCap', 'cam1CalibSolve'];
+const CONTROL_IDS = ['cam1Ae', 'cam1Exposure', 'cam1Gain', 'cam1Res', 'cam1FpsSet', 'cam1Record', 'cam1Snap', 'cam1CalibStart'];
 
 function unwrap(body) {
   if (body && body.lane === 'NEW' && body.data && typeof body.data === 'object') return body.data;
@@ -151,6 +152,7 @@ function init() {
     }
     applyCameraSupport('cam1');
     syncManualExposureLock('cam1', { aeOn: ae?.checked === true, live: on && !locked });
+    markCalibLive('cam1', on && !locked);
   }
 
   function paintStatusLine(body) {
@@ -341,6 +343,8 @@ function init() {
       showError(ERR_SNAP);
     }
   });
+
+  bindCalibGuide('cam1', api);
 
   function lineShown() {
     const line = document.getElementById('cam1StatusLine');

@@ -19,15 +19,19 @@ from .marker import homography
 SCHEMA = "airvix.cam0.calibration/1"
 
 
-def render_checkerboard(width, height, inner_cols, inner_rows, square_px):
+def render_checkerboard(width, height, inner_cols, inner_rows, square_px, origin=None):
     """White-bounded checkerboard. Returns mono8 and the inner-corner pixels."""
     squares_x = int(inner_cols) + 1
     squares_y = int(inner_rows) + 1
     board_w = squares_x * int(square_px)
     board_h = squares_y * int(square_px)
     img = np.full((int(height), int(width)), 255, dtype=np.uint8)
-    x0 = max(0, (int(width) - board_w) // 2)
-    y0 = max(0, (int(height) - board_h) // 2)
+    if origin is None:
+        x0 = max(0, (int(width) - board_w) // 2)
+        y0 = max(0, (int(height) - board_h) // 2)
+    else:
+        x0 = int(origin[0])
+        y0 = int(origin[1])
     board = np.zeros((board_h, board_w), dtype=np.uint8)
     for r in range(squares_y):
         for c in range(squares_x):
@@ -234,12 +238,13 @@ def solve_intrinsics(views, width, height):
     }
 
 
-def calibration_document(solved, width, height, version, notes=""):
+def calibration_document(solved, width, height, version, notes="", camera="cam0", board=None):
     now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     return {
         "schema": SCHEMA,
         "version": int(version),
-        "camera": "cam0",
+        "camera": camera or "cam0",
+        "board": board,
         "created_utc": now,
         "image_width": int(width),
         "image_height": int(height),

@@ -51,7 +51,7 @@ describe('shared camera settings', () => {
     expect(cameraControlSupported('cam1', 'snapshot')).toBe(true);
     expect(cameraControlSupported('cam1', 'record')).toBe(false);
     expect(cameraControlSupported('cam1', 'detections')).toBe(false);
-    expect(cameraControlSupported('cam1', 'calibration')).toBe(false);
+    expect(cameraControlSupported('cam1', 'calibration')).toBe(true);
     expect(CAMERA_UNSUPPORTED_HE.record).toBe('המצלמה הזו לא מקליטה');
     setGimbalMoveSpeed(25);
     expect(gimbalMoveBody('up')).toEqual({ yaw: 0, pitch: 25 });
@@ -144,7 +144,7 @@ describe('optics cameras and gimbal panel', () => {
         .map((el) => el.getAttribute('data-settings-group'));
       const optics = document.getElementById('optics');
       const calib = document.querySelector('#optics .optics-calib');
-      const solve = document.getElementById('cam0CalibSolve');
+      const solve = document.getElementById('cam0CalibStart');
       const snap = document.getElementById('cam0Snap');
       return {
         groups: groups('cam0'),
@@ -179,14 +179,16 @@ describe('optics cameras and gimbal panel', () => {
     await page.waitForSelector('#cam1Panel:not([hidden])');
     const cam1 = await page.evaluate(() => {
       const panel = document.getElementById('cam1Panel');
-      const solve = document.getElementById('cam1CalibSolve');
+      const start = document.getElementById('cam1CalibStart');
       return {
         snapGroup: document.getElementById('cam1Snap')?.closest('[data-settings-group]')?.getAttribute('data-settings-group'),
         record: document.getElementById('cam1Record')?.disabled === true,
         detect: document.getElementById('cam1OverlayToggle')?.disabled === true,
-        calib: document.getElementById('cam1CalibCap')?.disabled === true,
+        start: start?.textContent || '',
+        corners: document.getElementById('cam1CalibCols')?.value,
+        square: document.getElementById('cam1CalibSquare')?.value,
         note: document.querySelector('[data-camera-settings="cam1"]')?.innerText || '',
-        bottom: Math.max(panel.getBoundingClientRect().bottom, solve.getBoundingClientRect().bottom),
+        bottom: Math.max(panel.getBoundingClientRect().bottom, start.getBoundingClientRect().bottom),
         vh: window.innerHeight,
         calibScroll: document.querySelector('#optics .optics-calib').scrollHeight
           - document.querySelector('#optics .optics-calib').clientHeight,
@@ -195,10 +197,12 @@ describe('optics cameras and gimbal panel', () => {
     expect(cam1.snapGroup).toBe('record');
     expect(cam1.record).toBe(true);
     expect(cam1.detect).toBe(true);
-    expect(cam1.calib).toBe(true);
+    expect(cam1.start).toBe('התחל כיול');
+    expect(cam1.corners).toBe('9');
+    expect(cam1.square).toBe('25');
     expect(cam1.note).toContain('המצלמה הזו לא מקליטה');
     expect(cam1.note).toContain('אין זיהויים במצלמה הזו');
-    expect(cam1.note).toContain('אין כיול במצלמה הזו');
+    expect(cam1.note).not.toContain('אין כיול במצלמה הזו');
     expect(cam1.bottom).toBeLessThanOrEqual(cam1.vh + 1);
     expect(cam1.calibScroll).toBeLessThan(2);
     await page.waitForFunction(() => document.getElementById('cam1Snap')?.disabled === false);
