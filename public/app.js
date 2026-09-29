@@ -11642,6 +11642,7 @@ function initTerrainMap() {
     },
   });
   terrainMap.addControl(new BearingCtrl());
+  window.__airvixTerrainMap = terrainMap;
 
   // ── Fly-to right-click context menu ───────────────────────────────────────
   terrainMap.on('contextmenu', (e) => {
