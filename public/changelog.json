@@ -1,5 +1,26 @@
 [
   {
+    "version": "1.02.365",
+    "date": "2026-09-29",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Server library",
+        "detail": "follow-target.mjs, follow-target-api.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "MAVLink connection",
+        "detail": "mavlink-connection.mjs"
+      },
+      {
+        "type": "test",
+        "title": "Tests",
+        "detail": "follow-target-live-sitl.test.mjs, follow-target-sitl.test.mjs"
+      }
+    ]
+  },
+  {
     "version": "1.02.364",
     "date": "2026-09-29",
     "changes": [

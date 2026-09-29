@@ -6,7 +6,6 @@
  */
 import { afterAll, describe, expect, it } from 'vitest';
 import express from 'express';
-import fs from 'node:fs';
 import { registerFollowTargetApi } from '../lib/routes/follow-target-api.mjs';
 import {
   FOLLOW_LIMITS,
@@ -18,8 +17,6 @@ import {
 } from '../lib/follow-target.mjs';
 
 const HOME = { lat: 32.0853, lon: 34.7818 };
-const LIVE_BINARY = process.env.ARDUPLANE_SITL || '/tmp/ardupilot/build/sitl/bin/arduplane';
-const LIVE = process.env.RUN_SITL_E2E === '1' && fs.existsSync(LIVE_BINARY);
 
 function at(bearing, distance) {
   return destinationPoint(HOME.lat, HOME.lon, bearing, distance);
@@ -262,6 +259,26 @@ describe('follow-target SITL guardrails', () => {
     expect(h.calls.fly).toHaveLength(fly);
   });
 
+  it('holds the waypoint until the link reports GUIDED', () => {
+    const calls = { fly: 0, prep: 0 };
+    const target = at(90, 300);
+    const controller = createFollowController({
+      enabled: () => true,
+      link: {
+        prepare() {
+          calls.prep += 1;
+          return calls.prep > 1;
+        },
+        flyTo() { calls.fly += 1; },
+      },
+    });
+    controller.selectTarget({ lat: target.lat, lon: target.lon, altM: 90, source: 'map' }, vehicle());
+    expect(calls.fly).toBe(0);
+    controller.tick(vehicle());
+    expect(calls.prep).toBe(2);
+    expect(calls.fly).toBe(1);
+  });
+
   it('plans a legal orbit only', () => {
     const target = at(0, 600);
     const aircraft = at(0, 400);
@@ -312,11 +329,5 @@ describe('follow-target API stays idle for a real link', () => {
     });
     expect(posted.status).toBe(409);
     expect(calls).toEqual({ fly: 0, rtl: 0 });
-  });
-});
-
-describe.skipIf(!LIVE)('live ArduPlane SITL follow guard', () => {
-  it('keeps the binary path available for an operator run', () => {
-    expect(fs.existsSync(LIVE_BINARY)).toBe(true);
   });
 });
