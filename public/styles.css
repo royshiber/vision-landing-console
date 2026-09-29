@@ -9832,6 +9832,91 @@ html[data-evolve-preview="1"] #development {
 }
 .tele-pf-refresh:hover { border-color: var(--primary); color: var(--primary); }
 
+#telemetry.panel.visible .first-open-stage-fill {
+  flex: 0 1 auto;
+  min-height: 0;
+  justify-content: flex-start;
+  padding: 8px 10px 4px;
+}
+#telemetry.panel.visible #teleDashPanel {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.preflight-ready {
+  flex: 0 0 auto;
+  margin: 0 10px;
+  padding: 8px 10px 10px;
+  border: 1px solid #dbe3ef;
+  border-radius: 8px;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow: visible;
+}
+.preflight-ready-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.preflight-ready-title {
+  margin: 0;
+  font-size: clamp(11px, 0.85rem, 16px);
+  font-weight: 700;
+  line-height: 1.3;
+}
+.preflight-ready-open,
+.preflight-ready-note,
+.preflight-ready-label,
+.preflight-ready-mark {
+  margin: 0;
+  font-size: clamp(11px, 0.75rem, 14px);
+  line-height: 1.3;
+  overflow: visible;
+  text-overflow: unset;
+  white-space: normal;
+}
+.preflight-ready-note { color: var(--text-muted); }
+.preflight-ready-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 4px 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow: visible;
+}
+.preflight-ready-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  min-width: 180px;
+}
+.preflight-ready-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.preflight-ready-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  min-width: 0;
+}
+.preflight-ready-mark {
+  flex: 0 0 auto;
+  font-weight: 700;
+}
+.preflight-ready-item[data-state="ok"] .preflight-ready-mark { color: #15803d; }
+.preflight-ready-item[data-state="open"] .preflight-ready-mark { color: #b45309; }
+.preflight-ready-item input {
+  flex: 0 0 auto;
+  margin-top: 2px;
+}
+
 .live-data {
   border-color: #22c55e !important;
   box-shadow: 0 0 8px rgba(34, 197, 94, 0.15);

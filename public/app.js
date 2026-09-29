@@ -8547,8 +8547,9 @@ function openDiagnosticsReadiness() {
   closePfdReadinessPopover();
   applyMainTab('telemetry');
   applyTeleSubtab('dash');
-  const strip = document.getElementById('readinessStrip') || document.getElementById('preflightCard');
+  const strip = document.getElementById('preflightReadiness') || document.getElementById('readinessStrip') || document.getElementById('preflightCard');
   strip?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  void refreshPreflightReadiness();
 }
 
 function setupFlightHudChromeHandlers() {
@@ -10994,6 +10995,98 @@ const arduWriteStatus = document.getElementById('arduWriteStatus');
     if (entries.some((e) => e.isIntersecting)) refresh();
   }, { threshold: 0.1 });
   observer.observe(card);
+})();
+
+const PREFLIGHT_MANUAL_KEY = 'vlc-preflight-manual-v1';
+
+function readPreflightManualTicks() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(PREFLIGHT_MANUAL_KEY) || '{}');
+    return raw && typeof raw === 'object' ? raw : {};
+  } catch {
+    return {};
+  }
+}
+
+function renderPreflightReadiness(payload) {
+  const list = document.getElementById('preflightReadyList');
+  const openEl = document.getElementById('preflightReadyOpen');
+  if (!list || !Array.isArray(payload?.items)) return;
+  const ticks = readPreflightManualTicks();
+  list.replaceChildren();
+  const recount = () => {
+    const n = list.querySelectorAll('[data-state="open"]').length;
+    if (openEl) openEl.textContent = n === 0 ? 'הכל ירוק' : `פתוח ${n}`;
+  };
+  for (const item of payload.items) {
+    const li = document.createElement('li');
+    li.className = 'preflight-ready-item';
+    li.dataset.id = String(item.id || '');
+    li.dataset.source = item.source === 'manual' ? 'manual' : 'auto';
+    const manualOn = item.source === 'manual' && ticks[item.id] === true;
+    const ok = item.source === 'manual' ? manualOn : item.state === 'ok';
+    li.dataset.state = ok ? 'ok' : 'open';
+    const copy = document.createElement('div');
+    copy.className = 'preflight-ready-copy';
+    if (item.source === 'manual') {
+      const label = document.createElement('label');
+      label.className = 'preflight-ready-label';
+      const input = document.createElement('input');
+      input.type = 'checkbox';
+      input.checked = manualOn;
+      input.setAttribute('aria-label', item.labelHe || '');
+      input.addEventListener('change', () => {
+        const next = readPreflightManualTicks();
+        next[item.id] = input.checked === true;
+        localStorage.setItem(PREFLIGHT_MANUAL_KEY, JSON.stringify(next));
+        li.dataset.state = input.checked ? 'ok' : 'open';
+        recount();
+      });
+      const text = document.createElement('span');
+      text.textContent = item.labelHe || '';
+      label.append(input, text);
+      copy.append(label);
+    } else {
+      const mark = document.createElement('span');
+      mark.className = 'preflight-ready-mark';
+      mark.textContent = ok ? 'ירוק' : 'פתוח';
+      const text = document.createElement('span');
+      text.className = 'preflight-ready-label';
+      text.textContent = item.labelHe || '';
+      li.append(mark);
+      copy.append(text);
+    }
+    if (item.detailHe && !ok) {
+      const detail = document.createElement('span');
+      detail.className = 'preflight-ready-label';
+      detail.textContent = item.detailHe;
+      copy.append(detail);
+    }
+    li.append(copy);
+    list.append(li);
+  }
+  recount();
+}
+
+async function refreshPreflightReadiness() {
+  const list = document.getElementById('preflightReadyList');
+  if (!list) return;
+  try {
+    const res = await fetch('/api/preflight-readiness');
+    if (!res.ok) return;
+    renderPreflightReadiness(await res.json());
+  } catch {
+    /* leave the last list */
+  }
+}
+
+(function initPreflightReadiness() {
+  const panel = document.getElementById('preflightReadiness');
+  if (!panel) return;
+  const observer = new IntersectionObserver((entries) => {
+    if (entries.some((e) => e.isIntersecting)) void refreshPreflightReadiness();
+  }, { threshold: 0.1 });
+  observer.observe(panel);
 })();
 const arduDiffSection = document.getElementById('arduDiffSection');
 const arduDiffTable = document.getElementById('arduDiffTable');
