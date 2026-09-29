@@ -415,19 +415,23 @@ describe('FC write paths in the parameters tab', () => {
       }
     });
     await page.locator('#arduWriteBtn').scrollIntoViewIfNeeded();
+    expect(await page.locator('#arduWriteBtn').isDisabled()).toBe(false);
+    const banner = await page.locator('#paramSyncBanner').innerText();
+    expect(banner).toContain('יש שינוי');
+    expect(banner).toContain('PLND_LAG');
+    expect(banner).not.toContain('אין שינוי');
     await page.click('#arduWriteBtn');
+    await confirmWrite();
     await page.waitForFunction(() => {
       const text = document.getElementById('paramWriteResult')?.textContent || '';
-      return text.includes('חלקית') || text.includes('לא אושרו') || text.includes('אין שינוי');
+      return text.includes('חלקית') || text.includes('לא אושרו');
     });
     const text = await page.locator('#paramWriteResult').innerText();
     const tone = await page.locator('#paramWriteResult').getAttribute('data-tone');
-    expect(text).not.toMatch(/WRITE|SUCCESS/);
-    expect(tone).not.toBe('ok');
-    if (text.includes('אין שינוי')) expect(tone).toBe('neutral');
-    if (text.includes('חלקית') || text.includes('לא אושרו')) {
-      expect(tone).toBe('bad');
-      expect(posts).toBe(1);
-    }
+    expect(text).not.toMatch(/WRITE|SUCCESS|אין שינוי/);
+    expect(text).toContain('PLND_LAG');
+    expect(text).toMatch(/אומת|נכשל/);
+    expect(tone).toBe('bad');
+    expect(posts).toBe(1);
   }, 60000);
 });

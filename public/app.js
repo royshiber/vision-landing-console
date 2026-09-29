@@ -796,6 +796,7 @@ function renderFcGroupList() {
         paintFcRow(key);
         renderFcChangePane();
         syncGroupApplyBtn();
+        updateParamSyncBanner();
       });
       li.appendChild(input);
     }
@@ -1161,6 +1162,8 @@ let arduTargetState = { ...ARDU_TARGET_DEFAULTS_CLIENT };
 let lastServerSyncedCanonical = null;
 /** Why: compare editable Ardu targets to last FC READ. What: null until a successful READ while connected; updated after WRITE success. */
 let fcCurrentSnapshot = null;
+/** Link and arm gate for כתיבה לבקר. Updated from READ and live telemetry. */
+let arduWriteGate = { mavlinkConnected: false, armed: null };
 /** Why: WRITE must send only session edits, not the whole target template vs live FC. */
 let arduWriteBaseline = { ...arduTargetState };
 
@@ -1174,6 +1177,28 @@ function arduValuesDiffer(a, b) {
 
 function captureArduWriteBaseline() {
   arduWriteBaseline = { ...arduTargetState };
+}
+
+/** Last profile values known to match the console backup. Slider edits diff against this. */
+let profileWriteBaseline = { ...profileState };
+
+function baselineCanonicalStr() {
+  const prof = {};
+  Object.keys(profileState).sort().forEach((k) => {
+    prof[k] = profileWriteBaseline[k];
+  });
+  prof.companion_serial_port = companionLinkState.companion_serial_port;
+  prof.companion_sr_bucket = companionLinkState.companion_sr_bucket;
+  const ardu = {};
+  Object.keys(arduTargetState).sort().forEach((k) => {
+    ardu[k] = arduWriteBaseline[k];
+  });
+  return JSON.stringify({ profile: prof, arduTarget: ardu });
+}
+
+function captureServerBaseline() {
+  profileWriteBaseline = { ...profileState };
+  lastServerSyncedCanonical = baselineCanonicalStr();
 }
 
 /** Why: dirty = target vs session baseline, skipping keys that already match last READ. */
@@ -1214,11 +1239,6 @@ function canonicalServerPayloadStr() {
   return JSON.stringify({ profile: prof, arduTarget: ardu });
 }
 
-/** Why: mark UI as matching persisted server snapshot. What: call after successful GET/POST /api/vision/config. */
-function captureServerBaseline() {
-  lastServerSyncedCanonical = canonicalServerPayloadStr();
-}
-
 /** Why: count Ardu keys that differ from last known FC state. What: null if never READ while connected. */
 function countArduMismatchVsFc() {
   if (!fcCurrentSnapshot || typeof fcCurrentSnapshot !== 'object') return null;
@@ -1233,35 +1253,81 @@ function countArduDirtyVsSession() {
   return Object.keys(collectDirtyArduParams()).length;
 }
 
-/** Why: pilot sees pending writes to the mission computer vs the FC. What: fills #paramSyncBanner from baselines and diff counts. */
+function pendingValueText(value) {
+  if (value == null || value === '') return 'לא ידוע';
+  return String(value);
+}
+
+/** Profile slider edits since the last backup sync. */
+function collectPendingProfileRows() {
+  const rows = [];
+  for (const param of PARAMS) {
+    const next = Number(profileState[param.key]);
+    const prev = Number(profileWriteBaseline[param.key]);
+    if (!Number.isFinite(next) || !arduValuesDiffer(prev, next)) continue;
+    rows.push({
+      key: param.key,
+      target: 'profile',
+      currentText: pendingValueText(profileWriteBaseline[param.key]),
+      nextText: String(next),
+      value: next,
+    });
+  }
+  return rows;
+}
+
+/** FC form sliders, fields, and group drafts since the session baseline. */
+function collectPendingFcRows() {
+  const rows = [];
+  const dirty = collectDirtyArduParams();
+  for (const [key, value] of Object.entries(dirty)) {
+    const old = fcCurrentSnapshot && Object.prototype.hasOwnProperty.call(fcCurrentSnapshot, key)
+      ? fcCurrentSnapshot[key]
+      : arduWriteBaseline[key];
+    rows.push({
+      key,
+      target: 'fc',
+      currentText: pendingValueText(old),
+      nextText: String(value),
+      value,
+    });
+  }
+  for (const [key, value] of Object.entries(fcGroupDraft)) {
+    if (rows.some((row) => row.key === key)) continue;
+    const n = Number(value);
+    if (!Number.isFinite(n)) continue;
+    rows.push({
+      key,
+      target: 'fc',
+      currentText: fcPresence(key).text,
+      nextText: String(n),
+      value: n,
+    });
+  }
+  return rows;
+}
+
+function collectPendingWriteRows() {
+  return [...collectPendingFcRows(), ...collectPendingProfileRows()];
+}
+
+/** Why: one status for every slider or field edit. What: fills #paramSyncBanner with the exact old to new list. */
 function updateParamSyncBanner() {
   const el = document.getElementById('paramSyncBanner');
   if (!el) return;
 
-  const serverDirty = lastServerSyncedCanonical != null && canonicalServerPayloadStr() !== lastServerSyncedCanonical;
+  const rows = collectPendingWriteRows();
   const fcMis = countArduMismatchVsFc();
-  const sessionDirty = countArduDirtyVsSession();
-
   const lines = [];
-    if (serverDirty) {
-    lines.push('יש שינויים שלא נשמרו בגיבוי בקונסולה.');
-  }
-  if (fcMis == null) {
-    lines.push('לא בוצעה קריאה מבקר הטיסה. לא ידוע אם המטוס תואם ליעדים.');
-  }
-  if (sessionDirty > 0) {
-    lines.push(`יש שינויים שלא נשלחו לבקר הטיסה (${sessionDirty}).`);
-  }
-
-  let level = 'ok';
-  if (serverDirty || sessionDirty > 0) {
+  let level = 'info';
+  if (rows.length) {
+    lines.push('יש שינוי');
+    for (const row of rows) lines.push(`${row.key} ${row.currentText} → ${row.nextText}`);
     level = 'warn';
-  } else if (fcMis == null && !serverDirty) {
+  } else if (fcMis == null) {
+    lines.push('לא בוצעה קריאה מבקר הטיסה. לא ידוע אם המטוס תואם ליעדים.');
     level = 'info';
-  }
-
-  if (!serverDirty && sessionDirty === 0 && fcMis === 0) {
-    lines.length = 0;
+  } else if (fcMis === 0) {
     lines.push('הכול מסונכרן: הגיבוי בקונסולה תואם למה שנקרא מבקר הטיסה.');
     level = 'ok';
   }
@@ -1269,7 +1335,14 @@ function updateParamSyncBanner() {
   el.className = `param-sync-banner param-sync-banner--${level}`;
   el.hidden = lines.length === 0;
   if (typeof refreshParamToolbarMeta === 'function') refreshParamToolbarMeta();
-  el.innerHTML = lines.map((t) => `<span class="param-sync-line">${t}</span>`).join('');
+  if (typeof refreshArduWriteBtnState === 'function') refreshArduWriteBtnState(arduWriteGate);
+  el.replaceChildren();
+  for (const text of lines) {
+    const span = document.createElement('span');
+    span.className = 'param-sync-line';
+    span.textContent = text;
+    el.appendChild(span);
+  }
 }
 
 const saveProfileBtn = document.getElementById('saveProfileBtn');
@@ -2491,13 +2564,18 @@ function paintFcWriteResult(outcome, pairs = [], retry) {
   box.replaceChildren();
   const title = document.createElement('p');
   title.className = 'param-write-result-title';
-  title.textContent = outcome?.level === 'ok' ? 'נכתב לבקר ואומת' : String(outcome?.text || '');
+  const verifiedTitle = outcome?.text === 'נשמר ואומת' ? 'נשמר ואומת' : 'נכתב לבקר ואומת';
+  title.textContent = outcome?.level === 'ok' ? verifiedTitle : String(outcome?.text || '');
   box.appendChild(title);
-  if (outcome?.level === 'ok') {
+  if (outcome?.level !== 'none') {
     for (const pair of pairs) {
       const line = document.createElement('p');
       line.className = 'param-write-result-line';
-      line.textContent = `${pair.key} ${pair.oldText} → ${pair.newText}`;
+      const acked = outcome?.acked && Object.prototype.hasOwnProperty.call(outcome.acked, pair.key);
+      const mark = pair.result === 'verified' || (pair.result !== 'failed' && (acked || outcome?.level === 'ok'))
+        ? 'אומת'
+        : 'נכשל';
+      line.textContent = `${pair.key} ${pair.oldText} → ${pair.newText} ${mark}`;
       box.appendChild(line);
     }
   }
@@ -2544,16 +2622,16 @@ function refreshParamToolbarMeta() {
   const fcStateEl = document.getElementById('fcToolState');
   const fcMeta = document.getElementById('fcToolMeta');
   const serverKnown = lastServerSyncedCanonical != null;
-  const serverDirty = serverKnown && canonicalServerPayloadStr() !== lastServerSyncedCanonical;
-  const sessionDirty = countArduDirtyVsSession();
+  const pending = collectPendingWriteRows();
   const fcLink = resolvedFcLink();
+  const pendingLabel = pending.length > 0;
   if (jetsonState) {
     let state = 'unknown';
     let label = 'לא ידוע';
     if (backupLoadState === 'fail') {
       state = 'down';
       label = 'נכשל';
-    } else if (serverKnown && serverDirty) {
+    } else if (serverKnown && pendingLabel) {
       state = 'dirty';
       label = 'יש שינוי';
     } else if (serverKnown || backupLoadState === 'ok') {
@@ -2565,11 +2643,11 @@ function refreshParamToolbarMeta() {
   }
   if (jetsonMeta) jetsonMeta.textContent = '';
   if (fcStateEl) {
-    const state = fcLink === 'ok' ? (sessionDirty > 0 ? 'dirty' : 'ok') : fcLink;
+    const state = pendingLabel ? 'dirty' : fcLink === 'ok' ? 'ok' : fcLink;
     fcStateEl.dataset.state = state;
-    fcStateEl.textContent = fcLink === 'ok'
-      ? (sessionDirty > 0 ? 'יש שינוי' : 'מחובר')
-      : fcLink === 'down' ? 'מנותק' : 'לא ידוע';
+    fcStateEl.textContent = pendingLabel
+      ? 'יש שינוי'
+      : fcLink === 'ok' ? 'מחובר' : fcLink === 'down' ? 'מנותק' : 'לא ידוע';
   }
   if (fcMeta) fcMeta.textContent = '';
 }
@@ -2607,8 +2685,10 @@ async function loadVisionConfigFromServer(statusEl) {
     const d = await res.json();
     if (d.profile && typeof d.profile === 'object') {
       Object.keys(profileState).forEach((key) => {
+        if (arduValuesDiffer(profileWriteBaseline[key], profileState[key])) return;
         if (d.profile[key] != null && Number.isFinite(Number(d.profile[key]))) {
           profileState[key] = Number(d.profile[key]);
+          profileWriteBaseline[key] = profileState[key];
         }
       });
       const normalized = normalizeCompanionLink(d.profile);
@@ -2617,17 +2697,20 @@ async function loadVisionConfigFromServer(statusEl) {
     }
     if (d.arduTarget && typeof d.arduTarget === 'object') {
       Object.keys(arduTargetState).forEach((k) => {
+        if (arduValuesDiffer(arduWriteBaseline[k], arduTargetState[k])) return;
         if (d.arduTarget[k] !== undefined && d.arduTarget[k] !== null) {
           const t = typeof arduTargetState[k] === 'number' ? Number(d.arduTarget[k]) : d.arduTarget[k];
-          if (typeof arduTargetState[k] === 'number' ? Number.isFinite(t) : true) arduTargetState[k] = t;
+          if (typeof arduTargetState[k] === 'number' ? Number.isFinite(t) : true) {
+            arduTargetState[k] = t;
+            arduWriteBaseline[k] = t;
+          }
         }
       });
     }
+    lastServerSyncedCanonical = baselineCanonicalStr();
     renderParams();
     renderArduParamForm();
     syncConfigTextFromArdu();
-    captureServerBaseline();
-    captureArduWriteBaseline();
     jetsonReadAt = Date.now();
     backupLoadState = 'ok';
     clearParamToolFault();
@@ -8924,6 +9007,7 @@ function applySseTelemetryPayload(payload) {
   latestCompanionFromServer = payload.companion || null;
   const jetsonOnline = Boolean(payload.jetson?.online);
   try { applySseMissionHud(payload); } catch (err) { console.warn('SSE mission HUD apply failed', err); }
+  try { syncWriteGateFromMav(payload?.mavlink); } catch (err) { console.warn('SSE write gate failed', err); }
   try { updateAdvisorSysStrip(payload.mavlink, payload.jetson, payload.appVersion); } catch (err) { console.warn('SSE advisor strip failed', err); }
   try { applyJetsonUi(jetsonOnline, payload.jetson || {}); } catch (err) { console.warn('SSE jetson UI failed', err); }
   try { applyVisionUi(payload.vision); } catch (err) { console.warn('SSE vision UI failed', err); }
@@ -11272,35 +11356,122 @@ if (arduReadBtn) {
 }
 
 /**
- * Update the WRITE button appearance based on MAVLink / ARMED state.
- * Called after READ and also periodically via the SSE telemetry handler.
+ * Enable כתיבה לבקר only when the link is up, the vehicle is disarmed, and a slider or field edit is pending.
  */
-let arduWriteGate = { mavlinkConnected: false, armed: null };
+function syncWriteGateFromMav(mav) {
+  if (!mav || mav.connected !== true) return;
+  const armed = mav.armedKnown === true ? mav.armed === true : arduWriteGate.armed;
+  refreshArduWriteBtnState({
+    mavlinkConnected: true,
+    armed: armed === true ? true : armed === false ? false : null,
+  });
+}
 
 function refreshArduWriteBtnState(arduStatus) {
-  if (!arduWriteBtn) return;
+  const btn = document.getElementById('arduWriteBtn');
+  if (!btn) return;
   const { mavlinkConnected, armed } = arduStatus || {};
   arduWriteGate = { mavlinkConnected: !!mavlinkConnected, armed: armed === true ? true : armed === false ? false : null };
+  const pending = collectPendingWriteRows().length;
   if (!mavlinkConnected) {
-    arduWriteBtn.disabled = true;
-    arduWriteBtn.classList.remove('ardu-write-armed');
-    arduWriteBtn.classList.add('ardu-write-disconnected');
-    arduWriteBtn.title = 'אין חיבור לבקר הטיסה';
+    btn.disabled = true;
+    btn.classList.remove('ardu-write-armed');
+    btn.classList.add('ardu-write-disconnected');
+    btn.title = 'אין חיבור לבקר הטיסה';
   } else if (armed === true) {
-    arduWriteBtn.disabled = true;
-    arduWriteBtn.classList.add('ardu-write-armed');
-    arduWriteBtn.classList.remove('ardu-write-disconnected');
-    arduWriteBtn.title = 'המטוס חמוש. הכתיבה חסומה עד לניטרול.';
+    btn.disabled = true;
+    btn.classList.add('ardu-write-armed');
+    btn.classList.remove('ardu-write-disconnected');
+    btn.title = 'המטוס חמוש. הכתיבה חסומה עד לניטרול.';
+  } else if (!pending) {
+    btn.disabled = true;
+    btn.classList.remove('ardu-write-armed', 'ardu-write-disconnected');
+    btn.title = 'כתיבה לבקר';
   } else {
-    arduWriteBtn.disabled = false;
-    arduWriteBtn.classList.remove('ardu-write-armed', 'ardu-write-disconnected');
-    arduWriteBtn.title = 'כתיבה לבקר';
+    btn.disabled = false;
+    btn.classList.remove('ardu-write-armed', 'ardu-write-disconnected');
+    btn.title = 'כתיבה לבקר';
   }
 }
 
-/** Why: toolbar write uses the same FC acknowledgement as group, wizard, and restore. */
+async function runConfirmedParamWrite(rows, retry) {
+  const btn = document.getElementById('arduWriteBtn');
+  if (btn) btn.disabled = true;
+  paintFcWriteResult({ level: 'none', text: 'שולח…' }, [], null);
+  const fcRows = rows.filter((row) => row.target === 'fc');
+  const profileRows = rows.filter((row) => row.target === 'profile');
+  const pairs = [];
+  try {
+    if (profileRows.length) {
+      await saveVisionConfigToServer(null);
+      let saved = null;
+      try {
+        const res = await fetch('/api/vision/config');
+        saved = await res.json();
+      } catch {
+        saved = null;
+      }
+      for (const row of profileRows) {
+        const got = saved?.profile?.[row.key];
+        const ok = got != null && !arduValuesDiffer(got, row.value);
+        pairs.push({
+          key: row.key,
+          oldText: row.currentText,
+          newText: row.nextText,
+          result: ok ? 'verified' : 'failed',
+        });
+      }
+    }
+    let outcome = {
+      level: pairs.length && pairs.every((pair) => pair.result === 'verified') ? 'ok' : 'fail',
+      text: pairs.length && pairs.every((pair) => pair.result === 'verified') ? 'נשמר ואומת' : 'השמירה נכשלה',
+      acked: {},
+    };
+    if (!profileRows.length) outcome = { level: 'none', text: '', acked: {} };
+    if (fcRows.length) {
+      const dirtyParams = {};
+      for (const row of fcRows) dirtyParams[row.key] = row.value;
+      const fcOutcome = await commitGuardedFcWrite(dirtyParams);
+      for (const row of fcRows) {
+        const acked = fcOutcome.acked && Object.prototype.hasOwnProperty.call(fcOutcome.acked, row.key);
+        pairs.push({
+          key: row.key,
+          oldText: row.currentText,
+          newText: acked ? String(fcOutcome.acked[row.key]) : row.nextText,
+          result: acked ? 'verified' : 'failed',
+        });
+      }
+      if (fcOutcome.level === 'ok' || fcOutcome.history) {
+        applyAckedSnapshot(fcOutcome.acked);
+        for (const key of Object.keys(fcOutcome.acked || {})) {
+          if (Object.prototype.hasOwnProperty.call(arduTargetState, key)) arduWriteBaseline[key] = arduTargetState[key];
+          delete fcGroupDraft[key];
+          delete fcDraftMeta[key];
+        }
+        if (fcCurrentSnapshot && arduDiffTable && arduDiffSection) {
+          renderArduDiff(fcCurrentSnapshot, arduTargetState);
+        }
+        renderFcGroupList();
+      }
+      const allVerified = pairs.length > 0 && pairs.every((pair) => pair.result === 'verified');
+      outcome = allVerified
+        ? { ...fcOutcome, level: 'ok', text: 'נכתב לבקר ואומת' }
+        : fcOutcome;
+    }
+    paintFcWriteResult(outcome, pairs, retry);
+    updateParamSyncBanner();
+    renderArduParamForm();
+  } catch (err) {
+    const fault = `הכתיבה לבקר נכשלה. הסיבה: ${hebrewRequestFault(err)}`;
+    paintFcWriteResult({ level: 'fail', text: fault }, pairs, retry);
+  } finally {
+    refreshArduWriteBtnState(arduWriteGate);
+  }
+}
+
+/** Why: toolbar write confirms the exact old to new list, then reads each param back. */
 if (arduWriteBtn) {
-  arduWriteBtn.addEventListener('click', async () => {
+  arduWriteBtn.addEventListener('click', () => {
     if (!arduWriteGate.mavlinkConnected || arduWriteGate.armed === true) {
       const blocked = arduWriteGate.armed === true
         ? 'המטוס חמוש. הכתיבה חסומה עד לניטרול.'
@@ -11309,37 +11480,13 @@ if (arduWriteBtn) {
       refreshArduWriteBtnState(arduWriteGate);
       return;
     }
-    arduWriteBtn.disabled = true;
-    paintFcWriteResult({ level: 'none', text: 'שולח…' }, [], null);
-    try {
-      const dirtyParams = collectDirtyArduParams();
-      const before = {};
-      for (const key of Object.keys(dirtyParams)) before[key] = fcPresence(key).text;
-      const outcome = await commitGuardedFcWrite(dirtyParams);
-      const pairs = Object.keys(outcome.acked || {}).map((key) => ({
-        key,
-        oldText: before[key] || fcPresence(key).text,
-        newText: String(outcome.acked[key]),
-      }));
-      paintFcWriteResult(outcome, pairs, () => arduWriteBtn.click());
-      if (outcome.level === 'ok' || outcome.history) {
-        applyAckedSnapshot(outcome.acked);
-        for (const key of Object.keys(outcome.acked || {})) {
-          if (Object.prototype.hasOwnProperty.call(arduTargetState, key)) arduWriteBaseline[key] = arduTargetState[key];
-        }
-        if (fcCurrentSnapshot && arduDiffTable && arduDiffSection) {
-          renderArduDiff(fcCurrentSnapshot, arduTargetState);
-        }
-        renderFcGroupList();
-      }
-      updateParamSyncBanner();
-      renderArduParamForm();
-    } catch (err) {
-      const fault = `הכתיבה לבקר נכשלה. הסיבה: ${hebrewRequestFault(err)}`;
-      paintFcWriteResult({ level: 'fail', text: fault }, [], () => arduWriteBtn.click());
-    } finally {
+    const rows = collectPendingWriteRows();
+    if (!rows.length) {
+      paintFcWriteResult({ level: 'none', text: 'אין שינוי' }, [], null);
       refreshArduWriteBtnState(arduWriteGate);
+      return;
     }
+    openGuardedFcWriteConfirm(rows, () => runConfirmedParamWrite(rows, () => arduWriteBtn.click()));
   });
 }
 
