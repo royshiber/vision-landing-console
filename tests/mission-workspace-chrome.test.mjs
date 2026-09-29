@@ -60,23 +60,23 @@ describe('AIRVIX Mission chrome — top strip gone', () => {
     expect(css).toMatch(/\.mission-ops-chrome\s*\{[^}]*position:\s*relative/);
     expect(css).toMatch(/\.mission-ops-chrome\s*\{[^}]*min-height:\s*26px/);
     expect(css).toMatch(/\.mission-workspace\[data-mission-layout="ops-v1"\]\s*\{[^}]*gap:\s*4px/);
-    expect(css).toMatch(/--mission-ah-col:\s*0\.18fr/);
+    expect(css).toMatch(/--mission-ah-col:\s*1fr/);
     expect(css).toMatch(/--mission-map-min:\s*65%/);
     expect(css).toMatch(/--mission-msg-h:\s*40px/);
-    expect(css).toMatch(/--mission-c3:\s*minmax\(var\(--mission-col-floor\), var\(--mission-talk-col\)\)/);
+    expect(css).toMatch(/--mission-c3:\s*minmax\(0, var\(--mission-talk-col\)\)/);
     expect(css).toMatch(/--mission-r1:\s*minmax\(0, 1fr\)/);
     expect(css).toMatch(/\.mission-region\s*\{[^}]*border-radius:\s*4px/);
   });
 
   it('keeps the artificial horizon smaller than map and Assist by default', () => {
-    expect(js).toContain('return { c1: 0.18, c2: 1.20, c3: 0.22, r1: 0.88, r2: 0.18, r3: 0.00 }');
+    expect(js).toContain('return { c1: 0.33, c2: 0.67, c3: 0, r1: 0.88, r2: 0.18, r3: 0.00 }');
     const size = new Function(`${sliceFunction(js, 'defaultMissionSize')}; return defaultMissionSize();`)();
-    expect(size.c2).toBeGreaterThan(size.c1);
-    expect(size.c1).toBeLessThanOrEqual(0.20);
+    expect(size.c2).toBeGreaterThan(size.c1 * 1.5);
+    expect(size.c1).toBeGreaterThanOrEqual(0.30);
+    expect(size.c1).toBeLessThanOrEqual(0.36);
     expect(size.r3).toBe(0);
-    expect(css).toMatch(/minmax\(var\(--mission-col-floor, 32px\), var\(--mission-ah-col, 0\.18fr\)\)/);
-    expect(css).toMatch(/minmax\(var\(--mission-col-floor, 32px\), var\(--mission-map-col, 0\.60fr\)\)/);
-    expect(css).toMatch(/minmax\(var\(--mission-col-floor, 32px\), var\(--mission-talk-col, 0\.22fr\)\)/);
+    expect(css).toMatch(/minmax\(220px, var\(--mission-ah-col, 1fr\)\)/);
+    expect(css).toMatch(/minmax\(0, var\(--mission-map-col, 2fr\)\)/);
     expect(css).toMatch(/\.mission-region-horizon \.pfd-horizon-shell\s*\{[^}]*aspect-ratio:\s*auto/);
     expect(css).toMatch(/\.pfd-horizon-instrument\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\)/);
     expect(css).toMatch(/\.pfd-side-tape\s*\{[^}]*position:\s*absolute/);
@@ -165,9 +165,9 @@ describe('AIRVIX Mission chrome — talk is flight-safe', () => {
     expect(chip).toContain("kind === 'advisor'");
   });
 
-  it('pins APP_VERSION at 1.02.374', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.374'");
-    expect(pkg.version).toBe('1.02.374');
+  it('pins APP_VERSION at 1.02.375', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.375'");
+    expect(pkg.version).toBe('1.02.375');
   });
 
   it('keeps a rectangular glass artificial horizon with video HUD mode', () => {
@@ -501,7 +501,7 @@ describe('AIRVIX Mission chrome — default open + layout policy', () => {
       'const MISSION_SIZE_KEY = "visionLandingMissionSizeV4";',
       'const MISSION_SWAP_KEY = "visionLandingMissionSwapV1";',
       'const MISSION_REGION_IDS = Object.freeze(["horizon", "map", "data", "messages", "talk"]);',
-      'let _missionSize = { c1: 0.18, c2: 1.20, c3: 0.22, r1: 0.88, r2: 0.18, r3: 0.00 };',
+      'let _missionSize = { c1: 0.33, c2: 0.67, c3: 0, r1: 0.88, r2: 0.18, r3: 0.00 };',
       'function requestAnimationFrame(fn) { fn(); }',
       sliceFunction(js, 'defaultMissionSize'),
       sliceFunction(js, 'defaultMissionSwap'),
@@ -552,7 +552,7 @@ describe('AIRVIX Mission chrome — default open + layout policy', () => {
       'const MISSION_SIZE_KEY = "visionLandingMissionSizeV4";',
       'const MISSION_SWAP_KEY = "visionLandingMissionSwapV1";',
       'const MISSION_REGION_IDS = Object.freeze(["horizon", "map", "data", "messages", "talk"]);',
-      'let _missionSize = { c1: 0.18, c2: 1.20, c3: 0.22, r1: 0.88, r2: 0.18, r3: 0.00 };',
+      'let _missionSize = { c1: 0.33, c2: 0.67, c3: 0, r1: 0.88, r2: 0.18, r3: 0.00 };',
       'function requestAnimationFrame(fn) { fn(); }',
       sliceFunction(js, 'clampMissionFr'),
       sliceFunction(js, 'defaultMissionSize'),
@@ -582,8 +582,8 @@ describe('AIRVIX Mission chrome — default open + layout policy', () => {
     ].join('\n');
     const result = new Function('localStorage', 'document', 'regions', src)(localStorage, document, regions);
     expect(result.saved).toEqual({ c1: 0.18, c2: 1.1, c3: 0.26, r1: 0.70, r2: 0.22, r3: 0.00 });
-    expect(result.restored).toEqual({ c1: 0.18, c2: 1.20, c3: 0.22, r1: 0.88, r2: 0.18, r3: 0.00 });
-    expect(result.read).toEqual({ c1: 0.18, c2: 1.20, c3: 0.22, r1: 0.88, r2: 0.18, r3: 0.00 });
+    expect(result.restored).toEqual({ c1: 0.33, c2: 0.67, c3: 0, r1: 0.88, r2: 0.18, r3: 0.00 });
+    expect(result.read).toEqual({ c1: 0.33, c2: 0.67, c3: 0, r1: 0.88, r2: 0.18, r3: 0.00 });
   });
 });
 

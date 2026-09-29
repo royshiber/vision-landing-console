@@ -152,7 +152,7 @@ describe('flight dock and map live', () => {
       expect(idle.filler).toBe(false);
       expect(idle.dock).toBe('messages');
       expect(idle.note).not.toBe('none');
-      expect(idle.list).toBe('none');
+      expect(idle.list).toBe('flex');
       expect(idle.quick).toBe('none');
       expect(idle.state).toBe('לא מקליט');
       expect(idle.gs).not.toMatch(/GS|Vision/);

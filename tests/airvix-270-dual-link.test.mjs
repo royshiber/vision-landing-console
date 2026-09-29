@@ -28,9 +28,9 @@ function cssBlock(src, selector) {
 }
 
 describe('AIRVIX dual-link connect + cellular infrastructure', () => {
-  it('pins APP_VERSION at 1.02.374', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.374'");
-    expect(pkg.version).toBe('1.02.374');
+  it('pins APP_VERSION at 1.02.375', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.375'");
+    expect(pkg.version).toBe('1.02.375');
   });
 
   it('extends the מנותק connect panel with both link roles and an active picker', () => {
@@ -61,7 +61,7 @@ describe('AIRVIX dual-link connect + cellular infrastructure', () => {
     expect(html).toMatch(/רק סלולר ממחשב משימה/);
     expect(html).toMatch(/data-mission-layout="ops-v1"/);
     const workspace = cssBlock(css, '.mission-workspace[data-mission-layout="ops-v1"]');
-    expect(workspace).toMatch(/grid-template-areas:\s*"horizon map talk"/);
+    expect(workspace).toMatch(/grid-template-areas:\s*"map horizon"/);
     expect(workspace).toMatch(/--mission-map-min:\s*65%/);
     expect(workspace).not.toMatch(/"video map talk"/);
     expect(html).toMatch(/data-mission-region="horizon"/);

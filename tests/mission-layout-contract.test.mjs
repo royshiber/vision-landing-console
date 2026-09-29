@@ -67,14 +67,13 @@ describe('Mission layout contract — static source', () => {
     const workspace = cssBlock(css, '.mission-workspace[data-mission-layout="ops-v1"]');
     expect(workspace).toMatch(/display:\s*grid/);
     expect(workspace).toMatch(/gap:\s*4px/);
-    expect(workspace).toMatch(/minmax\(var\(--mission-col-floor, 32px\), var\(--mission-ah-col, 0\.18fr\)\)/);
-    expect(workspace).toMatch(/minmax\(var\(--mission-col-floor, 32px\), var\(--mission-map-col, 0\.60fr\)\)/);
-    expect(workspace).toMatch(/minmax\(var\(--mission-col-floor, 32px\), var\(--mission-talk-col, 0\.22fr\)\)/);
+    expect(workspace).toMatch(/minmax\(220px, var\(--mission-ah-col, 1fr\)\)/);
+    expect(workspace).toMatch(/minmax\(0, var\(--mission-map-col, 2fr\)\)/);
     expect(workspace).toMatch(/--mission-msg-h:\s*40px/);
     expect(workspace).toMatch(/--mission-map-min:\s*65%/);
     expect(workspace).toMatch(/--mission-ah-row:\s*66%/);
     expect(workspace).toMatch(/grid-template-rows:\s*minmax\(0, 1fr\)/);
-    expect(workspace).toMatch(/grid-template-areas:\s*"horizon map talk"/);
+    expect(workspace).toMatch(/grid-template-areas:\s*"map horizon"/);
     expect(workspace).not.toMatch(/"data\s+map talk"/);
     expect(workspace).not.toMatch(/"messages map talk"/);
     expect(cssBlock(css, '.mission-region[data-mission-region="map"]')).toMatch(/min-height:\s*var\(--mission-map-min/);
@@ -158,8 +157,9 @@ describe('Mission layout contract — static source', () => {
     expect(apply).not.toMatch(/--mission-r1',\s*`\$\{size\.r1\}fr`/);
     expect(apply).not.toMatch(/--mission-c1',\s*`\$\{size\.c1\}fr`/);
     const size = new Function(`${sliceFunction(js, 'defaultMissionSize')}; return defaultMissionSize();`)();
-    expect(size.c1).toBeLessThanOrEqual(0.20);
-    expect(size.c3).toBeLessThan(size.c2);
+    expect(size.c1).toBeGreaterThanOrEqual(0.30);
+    expect(size.c1).toBeLessThanOrEqual(0.36);
+    expect(size.c2).toBeGreaterThan(size.c1);
     const read = sliceFunction(js, 'readMissionSize');
     expect(read).toMatch(/clampMissionFr\(raw\.c1, 0\.02, 8000/);
     expect(read).toMatch(/clampMissionFr\(rows\.r1, 0\.70, 0\.92/);
@@ -291,7 +291,7 @@ describe('Mission layout contract — live boxes', () => {
     });
 
     expect(measured.platformTab).toBe(false);
-    expect(measured.version).toBe('1.02.374');
+    expect(measured.version).toBe('1.02.375');
     expect(measured.ws.width).toBeGreaterThan(800);
     expect(measured.talkMinWidth).toBe('0px');
     expect(Number.parseFloat(measured.dataGap)).toBeLessThanOrEqual(4);
@@ -303,22 +303,24 @@ describe('Mission layout contract — live boxes', () => {
 
     const { ws, regions } = measured;
     expect(regions.map.height / ws.height).toBeGreaterThanOrEqual(0.65);
-    expect(regions.map.width / ws.width).toBeGreaterThan(0.50);
+    expect(regions.map.width / ws.width).toBeGreaterThan(0.58);
     expect(measured.leaflet.height / regions.map.height).toBeGreaterThanOrEqual(0.90);
     expect(measured.leaflet.width / regions.map.width).toBeGreaterThanOrEqual(0.90);
-    expect(regions.messages.height).toBeGreaterThanOrEqual(24);
-    expect(regions.messages.height).toBeLessThan(80);
-    expect(regions.horizon.width / ws.width).toBeLessThanOrEqual(0.22);
-    expect(measured.hud.height / regions.horizon.height).toBeGreaterThanOrEqual(0.45);
-    expect(measured.hud.height / regions.horizon.height).toBeLessThanOrEqual(0.98);
+    expect(regions.messages.height).toBeGreaterThanOrEqual(120);
+    expect(regions.messages.height / regions.horizon.height).toBeGreaterThanOrEqual(0.32);
+    expect(regions.messages.height / regions.horizon.height).toBeLessThanOrEqual(0.62);
+    expect(regions.horizon.width / ws.width).toBeGreaterThanOrEqual(0.28);
+    expect(regions.horizon.width / ws.width).toBeLessThanOrEqual(0.40);
+    expect(measured.hud.height / regions.horizon.height).toBeGreaterThanOrEqual(0.30);
+    expect(measured.hud.height / regions.horizon.height).toBeLessThanOrEqual(0.62);
     expect(measured.horizonPosition).toBe('relative');
     expect(regions.horizon.height / ws.height).toBeGreaterThanOrEqual(0.90);
     expect(measured.filler).toBeNull();
     expect(regions.data.height).toBeGreaterThanOrEqual(64);
     expect(regions.data.height).toBeLessThanOrEqual(280);
     expect(regions.messages.top - regions.data.bottom).toBeLessThan(24);
-    expect(regions.talk.width).toBeGreaterThanOrEqual(240);
-    expect(regions.talk.height / ws.height).toBeGreaterThanOrEqual(0.90);
+    expect(regions.talk.width).toBeLessThan(8);
+    expect(regions.horizon.right).toBeGreaterThan(ws.right - 8);
     expect(measured.well.height).toBeGreaterThanOrEqual(regions.talk.height * 0.40);
     expect(measured.emptyHeight).toBeGreaterThanOrEqual(measured.well.height * 0.50);
     expect(measured.inviteTop - measured.well.top).toBeLessThanOrEqual(32);
@@ -417,6 +419,13 @@ describe('Mission layout contract — live boxes', () => {
   }, 45000);
 
   it('grows the Assist composer without stealing map width or becoming a vertical strip', async () => {
+    await page.evaluate(() => {
+      if (typeof setMissionAskOpen === 'function') setMissionAskOpen(true);
+    });
+    await page.waitForFunction(() => {
+      const talk = document.querySelector('[data-mission-region="talk"]');
+      return talk && talk.getBoundingClientRect().width > 200;
+    });
     const before = await page.evaluate(() => {
       const box = (el) => {
         const r = el.getBoundingClientRect();
@@ -519,7 +528,10 @@ describe('Mission layout contract — live boxes', () => {
           ],
         });
       }
-      document.getElementById('missionMessagesToggle')?.click();
+      const region = document.querySelector('[data-mission-region="messages"]');
+      if (region?.dataset.messagesExpanded !== '1') {
+        document.getElementById('missionMessagesToggle')?.click();
+      }
     });
     const expanded = await page.evaluate(() => {
       const region = document.querySelector('[data-mission-region="messages"]');
@@ -562,8 +574,8 @@ describe('Mission layout contract — live boxes', () => {
       };
     });
     expect(expanded.expanded).toBe('1');
-    expect(expanded.msgH).toBeGreaterThanOrEqual(28);
-    expect(expanded.msgH).toBeLessThanOrEqual(170);
+    expect(expanded.msgH).toBeGreaterThanOrEqual(120);
+    expect(expanded.msgH).toBeLessThanOrEqual(520);
     expect(expanded.mapH / expanded.wsH).toBeGreaterThanOrEqual(0.65);
     expect(expanded.overlap).toBe(false);
     expect(expanded.insideHorizon).toBe(true);

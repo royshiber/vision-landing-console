@@ -26,10 +26,10 @@ function sliceFunction(src, name) {
   throw new Error(`unclosed function ${name}`);
 }
 
-describe('AIRVIX 1.02.261 Roy feedback (still holds on 1.02.374)', () => {
-  it('pins APP_VERSION at 1.02.374', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.374'");
-    expect(pkg.version).toBe('1.02.374');
+describe('AIRVIX 1.02.261 Roy feedback (still holds on 1.02.375)', () => {
+  it('pins APP_VERSION at 1.02.375', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.375'");
+    expect(pkg.version).toBe('1.02.375');
   });
 
   it('removes Platform from primary chrome and redirects Assist', () => {
@@ -170,7 +170,7 @@ describe('AIRVIX 1.02.261 Roy feedback (still holds on 1.02.374)', () => {
   });
 
   it('makes the Mission map the tall primary cell and keeps messages tiny', () => {
-    expect(css).toMatch(/grid-template-areas:\s*"horizon map talk"/);
+    expect(css).toMatch(/grid-template-areas:\s*"map horizon"/);
     expect(css).not.toMatch(/"data\s+map talk"/);
     expect(css).not.toMatch(/"messages map talk"/);
     expect(css).toMatch(/--mission-map-min:\s*65%/);
@@ -178,7 +178,7 @@ describe('AIRVIX 1.02.261 Roy feedback (still holds on 1.02.374)', () => {
     expect(html).toMatch(/data-mission-region="messages"[^>]*data-messages-expanded="0"/);
     expect(css).toMatch(/\.mission-region-messages\[data-messages-expanded="0"\]/);
     expect(css).toMatch(/\.pfd-horizon-msg-log\s*\{/);
-    expect(js).toContain('return { c1: 0.18, c2: 1.20, c3: 0.22, r1: 0.88, r2: 0.18, r3: 0.00 }');
+    expect(js).toContain('return { c1: 0.33, c2: 0.67, c3: 0, r1: 0.88, r2: 0.18, r3: 0.00 }');
   });
 
   it('keeps a clean rectangular PFD without overlay tapes', () => {

@@ -8035,12 +8035,10 @@ function initMissionAskToggle() {
     setMissionAskOpen(ws.dataset.askOpen !== '1');
   });
   document.getElementById('missionAskCloseBtn')?.addEventListener('click', () => {
-    if (!window.matchMedia('(max-width: 1100px)').matches) return;
     setMissionAskOpen(false);
   });
   document.addEventListener('keydown', (event) => {
     if (event.key !== 'Escape' || ws.dataset.askOpen !== '1') return;
-    if (!window.matchMedia('(max-width: 1100px)').matches) return;
     setMissionAskOpen(false);
   });
 }
@@ -19271,7 +19269,7 @@ function clampMissionFr(value, min, max, fallback) {
 }
 
 function defaultMissionSize() {
-  return { c1: 0.18, c2: 1.20, c3: 0.22, r1: 0.88, r2: 0.18, r3: 0.00 };
+  return { c1: 0.33, c2: 0.67, c3: 0, r1: 0.88, r2: 0.18, r3: 0.00 };
 }
 
 function defaultMissionSwap() {
@@ -19283,6 +19281,11 @@ function isLegacyDefaultMissionSize(raw) {
   const r1 = Number(raw.r1);
   const r2 = Number(raw.r2);
   return (r1 === 0.78 && r2 === 0.22) || (r1 === 0.84 && r2 === 0.16);
+}
+
+function isFactoryColumnSize(raw) {
+  if (!raw) return false;
+  return Number(raw.c1) === 0.18 && Number(raw.c2) === 1.2 && Number(raw.c3) === 0.22;
 }
 
 function missionAhRowPct(r1) {
@@ -19364,6 +19367,7 @@ function readMissionSize() {
     const raw = JSON.parse(missionLayoutStoreGet(MISSION_SIZE_KEY) || 'null');
     if (raw && typeof raw === 'object') {
       const fallback = defaultMissionSize();
+      if (isFactoryColumnSize(raw)) return fallback;
       const rows = isLegacyDefaultMissionSize(raw) ? fallback : raw;
       return {
         c1: clampMissionFr(raw.c1, 0.02, 8000, fallback.c1),
@@ -19606,13 +19610,30 @@ function missionSplitAtPointer(clientX, leftPx, rightPx, gapPx, minPx) {
   return { left, right: content - left, x: leftPx + left + gap / 2 };
 }
 
+function missionTrackVisible(el) {
+  const cs = getComputedStyle(el);
+  return cs.display !== 'none' && cs.position !== 'absolute';
+}
+
 function missionTrackRects(ws) {
   const skip = new Set(['messages', 'data']);
   return [...ws.querySelectorAll('[data-mission-region]')]
-    .filter((el) => !skip.has(el.dataset.missionRegion))
+    .filter((el) => !skip.has(el.dataset.missionRegion) && missionTrackVisible(el))
     .map((el) => el.getBoundingClientRect())
     .filter((r) => r.width > 8 && r.height > 8)
     .sort((a, b) => a.left - b.left);
+}
+
+function missionRegionBoxes(ws) {
+  const skip = new Set(['messages', 'data']);
+  const out = {};
+  ws.querySelectorAll('[data-mission-region]').forEach((el) => {
+    const id = el.dataset.missionRegion;
+    if (skip.has(id) || !missionTrackVisible(el)) return;
+    const r = el.getBoundingClientRect();
+    if (r.width > 8 && r.height > 8) out[id] = r;
+  });
+  return out;
 }
 
 function readMissionColOpen() {
@@ -19671,7 +19692,9 @@ function bindMissionSplitters() {
     if (ev.button != null && ev.button !== 0) return;
     const ws = document.querySelector('.mission-workspace');
     const tracks = ws ? missionTrackRects(ws) : [];
-    if ((axis === 'col' || axis === 'col2') && tracks.length < 3) return;
+    const boxes = ws ? missionRegionBoxes(ws) : {};
+    if (axis === 'col2' && tracks.length < 3) return;
+    if ((axis === 'col' || axis === 'col2') && tracks.length < 2) return;
     dragging = axis;
     start = ev.clientY;
     base = { ..._missionSize };
@@ -19686,7 +19709,28 @@ function bindMissionSplitters() {
         rightEdge: tracks[2].right,
         gapA: tracks[1].left - tracks[0].right,
         gapB: tracks[2].left - tracks[1].right,
+        mapOnLeft: true,
       };
+    } else if (boxes.map && boxes.horizon) {
+      const map = boxes.map;
+      const ah = boxes.horizon;
+      base.c2 = map.width;
+      base.c1 = ah.width;
+      const mapOnLeft = map.left <= ah.left;
+      const left = mapOnLeft ? map : ah;
+      const right = mapOnLeft ? ah : map;
+      span = {
+        leftEdge: left.left,
+        midLeft: left.left,
+        midRight: right.right,
+        rightEdge: right.right,
+        gapA: right.left - left.right,
+        gapB: 0,
+        mapOnLeft,
+      };
+    } else {
+      dragging = null;
+      return;
     }
     ev.currentTarget.setPointerCapture?.(ev.pointerId);
     ev.preventDefault();
@@ -19696,8 +19740,13 @@ function bindMissionSplitters() {
     const next = { ...base };
     if (dragging === 'col' && span) {
       const split = missionSplitAtPointer(ev.clientX, span.leftEdge, span.midRight, span.gapA, MISSION_COL_MIN_PX);
-      next.c2 = split.left;
-      next.c1 = split.right;
+      if (span.mapOnLeft === false) {
+        next.c1 = split.left;
+        next.c2 = split.right;
+      } else {
+        next.c2 = split.left;
+        next.c1 = split.right;
+      }
     } else if (dragging === 'col2' && span) {
       const split = missionSplitAtPointer(ev.clientX, span.midLeft, span.rightEdge, span.gapB, MISSION_COL_MIN_PX);
       next.c1 = split.left;
@@ -19716,8 +19765,14 @@ function bindMissionSplitters() {
   };
   const onDbl = (axis, ev) => {
     ev.preventDefault();
-    const pair = axis === 'col' ? ['c2', 'c1'] : ['c1', 'c3'];
-    const next = toggleMissionColumnCollapse(_missionSize, pair[0], pair[1]);
+    if (axis === 'col') {
+      const factory = defaultMissionSize();
+      const next = { ..._missionSize, c1: factory.c1, c2: factory.c2, c3: factory.c3 };
+      writeMissionSize(next);
+      applyMissionSize(next);
+      return;
+    }
+    const next = toggleMissionColumnCollapse(_missionSize, 'c1', 'c3');
     writeMissionSize(next);
     applyMissionSize(next);
   };
@@ -19772,6 +19827,25 @@ function setFcMsgFilter(next) {
 
 function defaultFlightStack() {
   return { data: FLIGHT_DATA_DEFAULT, msg: FLIGHT_MSG_DEFAULT };
+}
+
+function isLegacyCollapsedFlightStack(stack) {
+  const data = Number(stack?.data);
+  const msg = Number(stack?.msg);
+  return data === FLIGHT_DATA_DEFAULT && msg > 0 && msg <= FLIGHT_MSG_DEFAULT + 8;
+}
+
+function flightColumnHalfStack(horizon) {
+  if (!horizon || typeof horizon.getBoundingClientRect !== 'function') return null;
+  const budget = flightStackBudget(horizon);
+  if (budget.avail < 240) return null;
+  const data = Math.max(FLIGHT_DATA_MIN, Math.min(budget.dataMin, 96));
+  const rest = budget.avail - data;
+  if (rest < budget.hudMin + budget.msgMin) return null;
+  let msg = Math.round(rest / 2);
+  if (rest - msg < budget.hudMin) msg = Math.round(rest - budget.hudMin);
+  msg = Math.max(budget.msgMin, msg);
+  return { data, msg };
 }
 
 let _flightStack = defaultFlightStack();
@@ -19862,11 +19936,10 @@ function applyFlightStack(stack, opts = {}) {
 }
 
 function resetFlightStack() {
-  const next = defaultFlightStack();
+  const horizon = document.querySelector('[data-mission-region="horizon"]');
+  const next = flightColumnHalfStack(horizon) || defaultFlightStack();
   writeFlightStack(next);
-  writeMissionMessagesExpanded(false);
-  applyMissionMessagesExpanded(false);
-  applyFlightStack(next, { skipMessages: true });
+  applyFlightStack(next);
 }
 
 function syncFlightStackToToggle() {
@@ -19926,15 +19999,23 @@ function bindFlightStackSplitters() {
 }
 
 function initFlightStack() {
-  const stored = missionLayoutStoreGet(FLIGHT_STACK_KEY);
-  const stack = stored ? readFlightStack() : {
-    data: FLIGHT_DATA_DEFAULT,
-    msg: readMissionMessagesExpanded() ? FLIGHT_MSG_OPEN : FLIGHT_MSG_DEFAULT,
-  };
-  applyFlightStack(stack);
+  const storedRaw = missionLayoutStoreGet(FLIGHT_STACK_KEY);
+  const stored = storedRaw ? readFlightStack() : null;
+  const expandedKey = missionLayoutStoreGet(MISSION_MESSAGES_KEY);
+  const legacy = !stored || (isLegacyCollapsedFlightStack(stored) && expandedKey !== '0' && expandedKey !== '1');
+  const horizon = document.querySelector('[data-mission-region="horizon"]');
+  const stack = legacy ? (flightColumnHalfStack(horizon) || defaultFlightStack()) : stored;
+  applyFlightStack(stack, { persist: legacy });
+  if (legacy && _flightStackOpen) writeMissionMessagesExpanded(true);
   bindFlightStackSplitters();
   requestAnimationFrame(() => {
-    applyFlightStack(_flightStack);
+    if (legacy) {
+      const half = flightColumnHalfStack(document.querySelector('[data-mission-region="horizon"]'));
+      if (half) applyFlightStack(half, { persist: true });
+      if (_flightStackOpen) writeMissionMessagesExpanded(true);
+    } else {
+      applyFlightStack(_flightStack);
+    }
     requestAnimationFrame(() => applyFlightStack(_flightStack));
   });
 }

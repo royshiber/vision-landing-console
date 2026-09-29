@@ -127,11 +127,12 @@ describe('Mission column resize — RTL flight screen', () => {
     await page.waitForFunction(() => {
       const map = document.querySelector('[data-mission-region="map"]');
       const horizon = document.querySelector('[data-mission-region="horizon"]');
-      const talk = document.querySelector('[data-mission-region="talk"]');
-      return map && horizon && talk
-        && map.getBoundingClientRect().width > 200
-        && horizon.getBoundingClientRect().width > 80
-        && talk.getBoundingClientRect().width > 80;
+      const ws = document.querySelector('.mission-workspace');
+      if (!map || !horizon || !ws) return false;
+      const mw = map.getBoundingClientRect().width;
+      const hw = horizon.getBoundingClientRect().width;
+      const ww = ws.getBoundingClientRect().width;
+      return mw > 200 && hw > 180 && mw / ww > 0.55 && hw / ww > 0.25;
     });
     return page;
   }
@@ -193,21 +194,25 @@ describe('Mission column resize — RTL flight screen', () => {
     const before = await measure(page);
     expect(before.dir).toBe('rtl');
     expect(before.map.left).toBeLessThan(before.horizon.left);
-    expect(before.horizon.left).toBeLessThan(before.talk.left);
+    expect(before.horizon.right).toBeGreaterThan(before.ws.right - 8);
+    expect(before.map.width / before.ws.width).toBeGreaterThan(0.58);
+    expect(before.horizon.width / before.ws.width).toBeGreaterThan(0.28);
+    expect(before.horizon.width / before.ws.width).toBeLessThan(0.40);
     await drag(page, before.split, 100);
     const after = await measure(page);
     expect(after.map.width - before.map.width).toBeGreaterThan(70);
     expect(before.horizon.width - after.horizon.width).toBeGreaterThan(70);
     expect(Math.abs((after.map.width - before.map.width) - 100)).toBeLessThan(16);
     expect(Math.abs(after.split.cx - (before.split.cx + 100))).toBeLessThan(16);
-    expect(after.talk.width).toBeGreaterThan(before.talk.width - 8);
+    expect(after.horizon.right).toBeGreaterThan(after.ws.right - 12);
     await page.close();
   }, 30000);
 
   it('opens the instruments column past the old 20% cap at 1366×768', async () => {
     const page = await openFlight(1366, 768);
     const before = await measure(page);
-    expect(before.horizon.width / before.ws.width).toBeLessThan(0.22);
+    expect(before.horizon.width / before.ws.width).toBeGreaterThan(0.28);
+    expect(before.horizon.width / before.ws.width).toBeLessThan(0.40);
     await drag(page, before.split, -260);
     const after = await measure(page);
     expect(after.horizon.width).toBeGreaterThan(before.horizon.width + 180);
@@ -227,22 +232,21 @@ describe('Mission column resize — RTL flight screen', () => {
     await page.close();
   }, 30000);
 
-  it('follows a touch drag and collapses Ask on double-click', async () => {
+  it('opens Ask over the map and closes it without moving the flight column', async () => {
     const page = await openFlight(1440, 900);
     const before = await measure(page);
-    await touchDrag(page, before.splitB, -80);
-    const dragged = await measure(page);
-    expect(dragged.talk.width - before.talk.width).toBeGreaterThan(50);
-    expect(before.horizon.width - dragged.horizon.width).toBeGreaterThan(50);
-    await page.dblclick('#missionColSplitB');
+    expect(before.talk.width).toBeLessThan(8);
+    await page.evaluate(() => setMissionAskOpen(true));
+    await page.waitForFunction(() => document.querySelector('[data-mission-region="talk"]')?.getBoundingClientRect().width > 200);
+    const opened = await measure(page);
+    expect(opened.talk.width).toBeGreaterThan(240);
+    expect(Math.abs(opened.horizon.width - before.horizon.width)).toBeLessThan(8);
+    expect(Math.abs(opened.map.width - before.map.width)).toBeLessThan(8);
+    await page.click('#missionAskCloseBtn');
     await page.waitForTimeout(50);
-    const collapsed = await measure(page);
-    expect(collapsed.talk.width).toBeLessThan(48);
-    expect(collapsed.talk.width).toBeGreaterThan(20);
-    await page.dblclick('#missionColSplitB');
-    await page.waitForTimeout(50);
-    const restored = await measure(page);
-    expect(restored.talk.width).toBeGreaterThan(180);
+    const closed = await measure(page);
+    expect(closed.talk.width).toBeLessThan(8);
+    expect(Math.abs(closed.horizon.width - before.horizon.width)).toBeLessThan(8);
     await page.close();
   }, 30000);
 });
