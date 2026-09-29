@@ -13022,7 +13022,16 @@ initLiveCameraPanel();
 
   function paintRowAction(btn, label, title) {
     if (!btn || !label) return;
-    btn.textContent = label;
+    if (label === 'חיבור ל-RF') {
+      btn.replaceChildren();
+      btn.append('חיבור ל-');
+      const token = document.createElement('bdi');
+      token.dir = 'ltr';
+      token.textContent = 'RF';
+      btn.append(token);
+    } else {
+      btn.textContent = label;
+    }
     const disconnect = label === 'התנתק';
     btn.dataset.action = disconnect ? 'disconnect' : (label === 'סטטוס' ? 'status' : 'connect');
     btn.dataset.connected = disconnect ? '1' : '0';
