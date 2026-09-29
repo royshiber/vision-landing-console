@@ -5,28 +5,8 @@
     "changes": [
       {
         "type": "feat",
-        "title": "Server library",
-        "detail": "gcs-upload.mjs, s3-write.mjs, follow-target.mjs, follow-target-api.mjs, gcs-logs-api.mjs, http-register.mjs"
-      },
-      {
-        "type": "feat",
-        "title": "UI / app.js",
-        "detail": "app.js"
-      },
-      {
-        "type": "feat",
-        "title": "Frontend",
-        "detail": "follow-target.css, follow-target.mjs, gcs-logs.css, gcs-logs.mjs"
-      },
-      {
-        "type": "ui",
-        "title": "HTML layout",
-        "detail": "index.html"
-      },
-      {
-        "type": "test",
-        "title": "Tests",
-        "detail": "follow-target-sitl.test.mjs, gcs-log-upload.test.mjs"
+        "title": "מעקב מטרה ולוגים מהקרקע",
+        "detail": "APP_VERSION 1.02.364. מעקב מטרה כבוי עד שמפעילים אותו, ורק מול סימולטור. יש רצפת גובה, גבול מהבית, הגדר הקיימת, מעגל קבוע, חזרה הביתה אחרי אובדן מטרה, וביטול מיידי כשמצב שלט RC משתנה. העלאת לוג מהקרקע כבויה עד דגל נפרד, עם המשך אחרי ניתוק, רשימה והורדה בתחקור."
       }
     ]
   },
