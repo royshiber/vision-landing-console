@@ -2397,10 +2397,15 @@
               <p class="mission-horizon-filler-note">אין חיבור לבקר הטיסה</p>
             </aside>
           </section>
-            <section class="mission-region mission-region-messages" data-mission-region="messages" data-messages-expanded="1" dir="rtl" aria-label="הודעות מטוס">
+            <section class="mission-region mission-region-messages" data-mission-region="messages" data-messages-expanded="0" dir="rtl" aria-label="הודעות מטוס">
               <h3 class="mission-region-title">הודעות מטוס</h3>
-              <div class="pfc-msg-toolbar" dir="rtl">
+              <button type="button" id="missionMessagesToggle" class="mission-messages-toggle" aria-expanded="false" aria-controls="pfcMsgScroll">
                 <span class="pfc-msg-toolbar-label">הודעות</span>
+                <span id="missionMessagesSummary" class="pfc-msg-summary">אין הודעות</span>
+                <span id="missionMessagesCount" class="pfc-msg-countline" dir="ltr" hidden></span>
+                <span id="missionMessagesBadge" class="mission-messages-badge" hidden></span>
+              </button>
+              <div class="pfc-msg-toolbar" dir="rtl">
                 <button type="button" id="pfcMsgFilterAll" class="pfc-msg-filter" aria-pressed="true">הכל</button>
                 <button type="button" id="pfcMsgFilterWarn" class="pfc-msg-filter" aria-pressed="false">אזהרות</button>
               </div>

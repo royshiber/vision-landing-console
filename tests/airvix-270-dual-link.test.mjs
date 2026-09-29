@@ -28,9 +28,9 @@ function cssBlock(src, selector) {
 }
 
 describe('AIRVIX dual-link connect + cellular infrastructure', () => {
-  it('pins APP_VERSION at 1.02.364', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.364'");
-    expect(pkg.version).toBe('1.02.364');
+  it('pins APP_VERSION at 1.02.365', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.365'");
+    expect(pkg.version).toBe('1.02.365');
   });
 
   it('extends the מנותק connect panel with both link roles and an active picker', () => {

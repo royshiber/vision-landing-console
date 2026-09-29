@@ -8364,6 +8364,20 @@ function writeMissionMessagesSeenSig(sig) {
 
 /** Badge only. Message lines stay in the normal UI color. */
 function syncMissionMessagesBadge(rows) {
+  const summary = document.getElementById('missionMessagesSummary');
+  const countEl = document.getElementById('missionMessagesCount');
+  const shown = (Array.isArray(rows) ? rows : [])
+    .map((row) => ({
+      text: String(row?.text || '').trim(),
+      count: Number(row?.count) > 1 ? Number(row.count) : 1,
+    }))
+    .filter((row) => row.text);
+  if (summary) summary.textContent = shown.length ? shown[0].text : 'אין הודעות';
+  if (countEl) {
+    const total = shown.reduce((sum, row) => sum + row.count, 0);
+    countEl.textContent = shown.length ? String(total) : '';
+    countEl.hidden = !shown.length;
+  }
   const badge = document.getElementById('missionMessagesBadge');
   if (!badge) return;
   const list = (Array.isArray(rows) ? rows : [])
@@ -19434,8 +19448,9 @@ function setFcMsgFilter(next) {
 }
 
 function initMissionMessages() {
-  writeMissionMessagesExpanded(true);
-  applyMissionMessagesExpanded(true);
+  const expanded = readMissionMessagesExpanded();
+  applyMissionMessagesExpanded(expanded);
+  document.getElementById('missionMessagesToggle')?.addEventListener('click', () => toggleMissionMessages());
   document.getElementById('pfcMsgFilterAll')?.addEventListener('click', () => setFcMsgFilter('all'));
   document.getElementById('pfcMsgFilterWarn')?.addEventListener('click', () => setFcMsgFilter('warn'));
 }
