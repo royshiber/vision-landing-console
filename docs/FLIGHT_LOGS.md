@@ -94,6 +94,14 @@ Cloud flights also get a title in the existing לוגים flight select so a man
 - Map library missing: "המפה לא זמינה".
 - File not uploaded: the Hebrew reason from the manifest (`fc_off`, `no_journal_permission`, …).
 
+## GCS upload (Part B)
+
+The ground station can store its own archive `.tlog` files in the same bucket. This path is **off** unless `AIRVIX_GCS_LOG_UPLOAD=1`. A full `AIRVIX_S3_*` set does not turn it on. The flight-book reader stays read-only.
+
+Upload is multipart and resumable. The part list and upload id live in `data/gcs-log-uploads.json`. A failed part leaves the job `interrupted`. The next resume sends the remaining parts only. Keys are `v1/gcs/<vehicle>/<file>.tlog`. The browser lists them under תחקור → לוגים and downloads through the console. The secret is not sent to the browser.
+
+Hebrew status: העלאת לוגים מהקרקע כבויה, אחסון הלוגים בענן לא הוגדר, מוכנים להעלאה, מעלים לוג, ההעלאה נעצרה. אפשר להמשיך, הלוג עלה, ההעלאה נכשלה.
+
 ## TODO
 
 A live "in flight" chip from the companion `GET /api/v1/flight-log/status` is not wired. Companion client files are owned elsewhere. Do not call that route from this UI until that client is the place to add it.

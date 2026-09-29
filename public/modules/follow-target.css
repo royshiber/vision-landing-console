@@ -1,0 +1,68 @@
+.follow-target-card {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  box-sizing: border-box;
+  flex: 0 0 auto;
+  padding: 2px 6px;
+  background: #ffffff;
+  color: #191c1e;
+  border-bottom: 1px solid #c2c6d4;
+}
+
+.follow-target-title,
+.follow-target-banner,
+.follow-target-status,
+.follow-target-card button {
+  margin: 0;
+  font-size: clamp(11px, 0.8rem, 13px);
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: visible;
+  color: #191c1e;
+}
+
+.follow-target-title {
+  font-weight: 700;
+}
+
+.follow-target-banner {
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+  border-radius: 6px;
+  padding: 1px 6px;
+  font-weight: 700;
+}
+
+.follow-target-actions {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 4px;
+  margin-inline-start: auto;
+}
+
+.follow-target-status {
+  min-width: 0;
+}
+
+.follow-target-card button {
+  background: #00478d;
+  color: #ffffff;
+  border: 0;
+  border-radius: 6px;
+  min-height: 22px;
+  padding: 1px 6px;
+  cursor: pointer;
+}
+
+.follow-target-card button[disabled] {
+  background: #e6e8eb;
+  color: #191c1e;
+  cursor: default;
+}
+
+.follow-target-card[data-picking="1"] #followTargetMapBtn {
+  background: #065f46;
+}

@@ -1,0 +1,74 @@
+.gcs-log-card {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 6px 8px;
+  margin: 0 0 8px;
+  background: #ffffff;
+  color: #191c1e;
+  border: 1px solid #c2c6d4;
+  border-radius: 8px;
+}
+
+.gcs-log-title,
+.gcs-log-status,
+.gcs-log-card button,
+.gcs-log-item {
+  margin: 0;
+  font-size: clamp(11px, 0.8rem, 14px);
+  line-height: 1.35;
+  white-space: normal;
+  overflow: visible;
+  color: #191c1e;
+}
+
+.gcs-log-title {
+  font-weight: 700;
+}
+
+.gcs-log-status {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+
+.gcs-log-actions,
+.gcs-log-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.gcs-log-card button {
+  background: #00478d;
+  color: #ffffff;
+  border: 0;
+  border-radius: 6px;
+  min-height: 28px;
+  padding: 2px 8px;
+  cursor: pointer;
+}
+
+.gcs-log-card button[disabled] {
+  background: #e6e8eb;
+  color: #191c1e;
+  cursor: default;
+}
+
+.gcs-log-item {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  background: #f2f4f7;
+  border-radius: 6px;
+  padding: 4px 8px;
+}
+
+.gcs-log-item a {
+  color: #00478d;
+  font-size: clamp(11px, 0.8rem, 14px);
+}
