@@ -24202,6 +24202,12 @@ body[data-work-path="rf"] #optics .optics-calib {
   max-height: none;
   overflow: hidden;
 }
+.mission-region-horizon > .mission-region-messages[data-messages-expanded="1"] #flightDockMessagesPane {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
 .mission-region-horizon > .mission-region-messages[data-messages-expanded="1"] .pfd-statustext-strip {
   flex: 1 1 auto;
   min-height: 0;
