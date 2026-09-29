@@ -158,6 +158,7 @@ VIDIOC_QBUF = _ioc(_IOWR, 15, ctypes.sizeof(_v4l2_buffer))
 VIDIOC_DQBUF = _ioc(_IOWR, 17, ctypes.sizeof(_v4l2_buffer))
 VIDIOC_STREAMON = _ioc(_IOW, 18, ctypes.sizeof(ctypes.c_int))
 VIDIOC_STREAMOFF = _ioc(_IOW, 19, ctypes.sizeof(ctypes.c_int))
+VIDIOC_G_CTRL = _ioc(_IOWR, 27, ctypes.sizeof(_v4l2_control))
 VIDIOC_S_CTRL = _ioc(_IOWR, 28, ctypes.sizeof(_v4l2_control))
 VIDIOC_QUERYCTRL = _ioc(_IOWR, 44, ctypes.sizeof(_v4l2_queryctrl))
 
@@ -170,6 +171,7 @@ _IOCTL_NAMES = {
     VIDIOC_DQBUF: "VIDIOC_DQBUF",
     VIDIOC_STREAMON: "VIDIOC_STREAMON",
     VIDIOC_STREAMOFF: "VIDIOC_STREAMOFF",
+    VIDIOC_G_CTRL: "VIDIOC_G_CTRL",
     VIDIOC_S_CTRL: "VIDIOC_S_CTRL",
     VIDIOC_QUERYCTRL: "VIDIOC_QUERYCTRL",
 }
@@ -208,6 +210,23 @@ def exposure_driver_value(exposure_us, unit, minimum, maximum, fps=60):
     else:
         value = exposure_us
     return int(max(int(minimum), min(int(maximum), value)))
+
+
+def exposure_us_from_driver(driver, unit, minimum, maximum, fps=60):
+    del minimum
+    driver = int(driver)
+    if unit == "lines":
+        frame_us = 1_000_000.0 / max(1, int(fps or 60))
+        span = max(1, int(maximum))
+        return int(round(float(driver) / span * frame_us))
+    return driver
+
+
+def gain_from_driver(driver, maximum):
+    driver = int(driver)
+    if int(maximum) >= 64:
+        return driver
+    return driver * 16
 
 
 def gain_driver_value(gain, minimum, maximum):
@@ -342,6 +361,74 @@ class V4l2Source:
         self._applied_gain = driver_gain
         self.gain_driver = driver_gain
         return True
+
+    def set_auto_exposure(self, enabled):
+        """Manual is menu value 1. None means this device has no auto control."""
+        names = [name for name in ("exposure_auto", "auto_exposure") if name in self._ctrls]
+        if not names or self.fd is None:
+            return None
+        value = 0 if enabled else 1
+        for name in names:
+            if self._set_named(name, value):
+                return True
+        if enabled and self._set_named(names[0], 3):
+            return True
+        return False
+
+    def configure(self, width, height, fps):
+        width, height, fps = int(width), int(height), int(fps)
+        if self.width == width and self.height == height and int(self.fps or 0) == fps:
+            return True
+        if self.fd is not None and (self.width != width or self.height != height):
+            return False
+        self.width, self.height, self.fps = width, height, fps
+        if self.fd is None:
+            return True
+        if "frame_rate" in self._ctrls:
+            return bool(self._set_named("frame_rate", fps * 1000000))
+        return False
+
+    def read_controls(self):
+        if self.fd is None:
+            return {"width": self.width, "height": self.height, "fps": self.fps}
+        info = self._ctrl(self._ctrls.get("exposure"))
+        ginfo = self._ctrl(self._ctrls.get("gain"))
+        raw_exp = self._get_named("exposure")
+        raw_gain = self._get_named("gain")
+        if raw_exp is None or info is None:
+            exposure = None
+        else:
+            unit = info.get("unit") or exposure_control_unit(info["minimum"], info["maximum"], info.get("step", 1))
+            exposure = exposure_us_from_driver(raw_exp, unit, info["minimum"], info["maximum"], fps=self.fps)
+        if raw_gain is None or ginfo is None:
+            gain = None
+        else:
+            gain = gain_from_driver(raw_gain, ginfo["maximum"])
+        auto = self._get_named("exposure_auto")
+        if auto is None:
+            auto = self._get_named("auto_exposure")
+        out = {
+            "exposure_us": exposure,
+            "gain": gain,
+            "width": self.width,
+            "height": self.height,
+            "fps": self.fps,
+        }
+        if auto is not None:
+            out["ae_enabled"] = int(auto) != 1
+        return out
+
+    def _get_named(self, name):
+        info = self._ctrls.get(name)
+        cid = info.get("id") if isinstance(info, dict) else info
+        if cid is None or self.fd is None:
+            return None
+        ctrl = _v4l2_control(int(cid), 0)
+        try:
+            _ioctl(self.fd, VIDIOC_G_CTRL, ctrl)
+        except Exception:
+            return None
+        return int(ctrl.value)
 
     def close(self):
         if self.fd is None:

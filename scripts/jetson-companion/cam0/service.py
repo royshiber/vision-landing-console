@@ -10,6 +10,7 @@ from pathlib import Path
 from .ae import AeConfig, AeLimits, AutoExposure
 from .attitude import AttitudeTagger
 from .bus import FrameBus
+from .controls import commit_controls
 from .calibration import (
     calibration_document,
     find_checkerboard,
@@ -367,12 +368,6 @@ class Cam0Service:
         if "exposure_us" in body or "gain" in body:
             if body.get("ae_enabled") is not True and (body.get("manual") is True or not self.ae.state.enabled):
                 self.ae.set_manual(body.get("exposure_us"), body.get("gain"))
-                if self.source is not None:
-                    self.source.set_exposure_gain(
-                        self.ae.state.exposure_us,
-                        self.ae.state.gain,
-                        fps=self.config.get("fps"),
-                    )
         stream = self.config.setdefault("stream", {})
         if isinstance(body.get("stream"), dict):
             stream.update(body["stream"])
@@ -390,6 +385,20 @@ class Cam0Service:
             if parsed is not None:
                 self.config["fov_deg"] = parsed
                 self._refresh_nominal_intrinsics()
+        ae_on = bool(self.ae.state.enabled)
+        spec = {"ae_enabled": ae_on}
+        if "fov_deg" in body:
+            spec["fov_deg"] = self.config.get("fov_deg")
+        if "width" in body:
+            spec["width"] = self.config.get("width")
+        if "height" in body:
+            spec["height"] = self.config.get("height")
+        if "fps" in body:
+            spec["fps"] = self.config.get("fps")
+        if not ae_on and ("exposure_us" in body or "gain" in body or body.get("manual") is True):
+            spec["exposure_us"] = self.ae.state.exposure_us
+            spec["gain"] = self.ae.state.gain
+        self._controls = commit_controls(self.source, spec)
         return self.settings()
 
     def _refresh_nominal_intrinsics(self):
@@ -426,6 +435,7 @@ class Cam0Service:
             "marker_size_m": self.config.get("marker_size_m"),
             "fov_deg": self.config.get("fov_deg", 120),
             "flight_commands": False,
+            "controls": getattr(self, "_controls", None),
         }
 
     def status(self):

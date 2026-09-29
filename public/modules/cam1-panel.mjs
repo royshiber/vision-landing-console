@@ -11,7 +11,7 @@ import {
 } from './cam1-status.mjs';
 import { bindFovField, readStoredFov } from './camera-fov.mjs';
 import { RF_VIDEO_REASON_HE, rfVideoLocked } from './rf-link-ui.mjs';
-import { applyCameraSupport, mountCameraSettings } from './camera-settings.mjs';
+import { applyCameraSupport, mountCameraSettings, paintCameraApply, syncManualExposureLock } from './camera-settings.mjs';
 
 const REASON_LINK = 'אין קישור למחשב המשימה. הפקדים כבויים.';
 const REASON_CAM = 'אין אות מהמצלמה. הפקדים כבויים.';
@@ -150,6 +150,7 @@ function init() {
       reason.textContent = locked ? RF_VIDEO_REASON_HE : (on ? '' : why);
     }
     applyCameraSupport('cam1');
+    syncManualExposureLock('cam1', { aeOn: ae?.checked === true, live: on && !locked });
   }
 
   function paintStatusLine(body) {
@@ -225,6 +226,8 @@ function init() {
     if (!streamError && img && !String(img.src || '').includes('cam1/stream.mjpg')) img.src = STREAM;
     paintHonesty(body);
     if (ae && document.activeElement !== ae) ae.checked = body.ae?.enabled === true;
+    syncManualExposureLock('cam1', { aeOn: ae?.checked === true, live: connected && !rfVideoLocked() });
+    if (body?.controls) paintCameraApply('cam1', body.controls);
     if (exposure && document.activeElement !== exposure && body.exposure_us != null) exposure.value = String(body.exposure_us);
     if (gain && document.activeElement !== gain && body.gain != null) gain.value = String(body.gain);
     if (res && document.activeElement !== res && body.width && body.height) {
@@ -281,25 +284,35 @@ function init() {
       fov: readStoredFov(localStorage, 'cam1'),
     });
     try {
-      await api('/api/jetson/v1/cam1/settings', {
+      const saved = await api('/api/jetson/v1/cam1/settings', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify(body),
       });
+      paintCameraApply('cam1', saved?.controls);
+      const expRow = saved?.controls?.exposure_us;
+      const gainRow = saved?.controls?.gain;
+      if (expRow && expRow.skipped !== true && expRow.actual != null && exposure) exposure.value = String(expRow.actual);
+      if (gainRow && gainRow.skipped !== true && gainRow.actual != null && gain) gain.value = String(gainRow.actual);
       applied = readForm();
       showError('');
     } catch {
+      paintCameraApply('cam1', null);
       if (!quiet) {
         writeForm(applied);
         showError(ERR_SETTING);
       }
     } finally {
       pushing = false;
+      syncManualExposureLock('cam1', { aeOn: ae?.checked === true, live: lastBody?.camera_ok === true && !rfVideoLocked() });
     }
   }
 
   fpsSet?.addEventListener('input', () => { fpsTouched = true; });
-  ae?.addEventListener('change', () => { void pushSettings(); });
+  ae?.addEventListener('change', () => {
+    syncManualExposureLock('cam1', { aeOn: ae.checked === true, live: lastBody?.camera_ok === true && !rfVideoLocked() });
+    void pushSettings();
+  });
   exposure?.addEventListener('change', () => { void pushSettings(); });
   gain?.addEventListener('change', () => { void pushSettings(); });
   res?.addEventListener('change', () => { void pushSettings(); });

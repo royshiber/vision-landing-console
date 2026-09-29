@@ -32,15 +32,18 @@ export function targetFpsValue(body) {
 
 /** A gain edit must not send a capture fps taken from the stream. */
 export function settingsPayload(form) {
+  const auto = form.ae === true;
   const body = {
-    ae: { enabled: form.ae === true },
-    exposure_us: form.exposure === '' || form.exposure == null ? undefined : Number(form.exposure),
-    gain: form.gain === '' || form.gain == null ? undefined : Number(form.gain),
+    ae: { enabled: auto },
     width: form.width,
     height: form.height,
-    manual: form.ae !== true,
+    manual: !auto,
     stream: { fps: 15 },
   };
+  if (!auto) {
+    if (form.exposure !== '' && form.exposure != null) body.exposure_us = Number(form.exposure);
+    if (form.gain !== '' && form.gain != null) body.gain = Number(form.gain);
+  }
   if (form.fpsTouched && form.fps !== '' && form.fps != null) body.fps = Number(form.fps);
   if (form.fov != null && form.fov !== '') body.fov_deg = Number(form.fov);
   return body;

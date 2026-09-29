@@ -11,6 +11,7 @@ import os
 import threading
 import time
 
+from .controls import commit_controls
 from .devices import resolve_device
 from .jpegenc import encode_gray_jpeg
 from .png16 import encode_png16
@@ -73,6 +74,10 @@ class Cam1Service:
         self._stop = threading.Event()
         self._thread = None
         self._opened = False
+        self._backend = None
+        self._live_source = None
+        self._controls = None
+        self._reopen = False
 
     def acquire(self):
         with self._lock:
@@ -185,8 +190,24 @@ class Cam1Service:
             "ae": {"enabled": bool(self.config.get("ae_enabled"))},
             "stream": settings["stream"],
             "capture_fps": settings.get("fps"),
+            "controls": settings.get("controls"),
             "dry_run": self.config.get("source") == "synthetic",
         }
+
+    def _control_spec(self, body=None, fps=None):
+        ae_on = bool(self.config.get("ae_enabled"))
+        spec = {"ae_enabled": ae_on, "fov_deg": self.config.get("fov_deg")}
+        asked = body or {}
+        if "width" in asked:
+            spec["width"] = self.config.get("width")
+        if "height" in asked:
+            spec["height"] = self.config.get("height")
+        if "fps" in asked or fps is not None and "fps" in asked:
+            spec["fps"] = self.config.get("fps") if fps is None else fps
+        if not ae_on:
+            spec["exposure_us"] = self.config.get("exposure_us")
+            spec["gain"] = self.config.get("gain")
+        return spec
 
     def settings(self):
         with self._lock:
@@ -221,6 +242,16 @@ class Cam1Service:
                 if parsed is not None:
                     self.config["fov_deg"] = parsed
             self.config["settings_dirty"] = True
+            source = self._backend if self._backend is not None else self._live_source
+            spec = self._control_spec(body)
+            if source is not None and ("width" in body or "height" in body):
+                live_w = getattr(source, "width", None)
+                live_h = getattr(source, "height", None)
+                want_w = int(self.config.get("width") or 0)
+                want_h = int(self.config.get("height") or 0)
+                if live_w and live_h and (int(live_w) != want_w or int(live_h) != want_h):
+                    self._reopen = True
+            self._controls = commit_controls(source, spec)
             return self._settings_locked()
 
     def frame_jpeg(self):
@@ -256,6 +287,7 @@ class Cam1Service:
             "fov_deg": self.config.get("fov_deg", 79),
             "stream": stream,
             "flight_commands": False,
+            "controls": self._controls,
         }
 
     def _device_present(self):
@@ -352,8 +384,18 @@ class Cam1Service:
     def _capture(self, source):
         with self._lock:
             self._opened = True
+            self._live_source = source
             self.state = "streaming"
             self.error = None
+            spec = self._control_spec()
+        try:
+            report = commit_controls(source, spec)
+        except Exception:
+            report = None
+        if report is not None:
+            with self._lock:
+                self._controls = report
+                self.config["settings_dirty"] = False
         cap_fps = max(1, min(CAPTURE_FPS_MAX, int(self.config.get("fps") or CAPTURE_FPS_MAX)))
         next_frame = time.monotonic()
         next_jpeg = 0.0
@@ -393,13 +435,20 @@ class Cam1Service:
                 if fps is not None:
                     self.fps = fps
                 dirty = self.config.pop("settings_dirty", False)
-                exposure = int(self.config.get("exposure_us") or 2000)
-                gain = int(self.config.get("gain") or 16)
-            if dirty and hasattr(source, "set_exposure_gain"):
+                reopen = bool(self._reopen)
+                if reopen:
+                    self._reopen = False
+            if dirty or reopen:
+                spec = self._control_spec(fps=cap_fps)
                 try:
-                    source.set_exposure_gain(exposure, gain, fps=cap_fps)
+                    report = commit_controls(source, spec)
                 except Exception:
-                    pass
+                    report = None
+                with self._lock:
+                    if report is not None:
+                        self._controls = report
+            if reopen:
+                return
             if time.monotonic() >= next_jpeg:
                 stream = self.config.get("stream") or {}
                 jpeg_hz = max(1, min(JPEG_HZ, int(stream.get("fps") or JPEG_HZ)))

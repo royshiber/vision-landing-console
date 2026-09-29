@@ -34,6 +34,10 @@ describe('CAM1 display rules', () => {
     expect(targetFpsValue({ fps: 12, stream: { fps: 15 } })).toBeNull();
     const gainOnly = settingsPayload({ gain: 40, fps: '15', fpsTouched: false, ae: false, exposure: '', width: 1280, height: 800 });
     expect(gainOnly.gain).toBe(40);
+    const locked = settingsPayload({ gain: 40, fps: '15', fpsTouched: false, ae: true, exposure: '2000', width: 1280, height: 800 });
+    expect(locked.exposure_us).toBeUndefined();
+    expect(locked.gain).toBeUndefined();
+    expect(locked.ae).toEqual({ enabled: true });
     expect(gainOnly.fps).toBeUndefined();
     expect(gainOnly.stream).toEqual({ fps: 15 });
     const edited = settingsPayload({ gain: 40, fps: '20', fpsTouched: true, ae: false, exposure: '', width: 1280, height: 800 });

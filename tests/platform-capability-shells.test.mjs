@@ -115,8 +115,8 @@ describe('Platform tab removed — redirect to computer status', () => {
     expect(html).not.toContain('מעבדה');
   });
 
-  it('pins APP_VERSION at 1.02.369', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.369'");
-    expect(pkg.version).toBe('1.02.369');
+  it('pins APP_VERSION at 1.02.370', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.370'");
+    expect(pkg.version).toBe('1.02.370');
   });
 });

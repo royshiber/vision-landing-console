@@ -10,6 +10,11 @@ export const CAMERA_UNSUPPORTED_HE = Object.freeze({
   calibration: 'אין כיול במצלמה הזו',
 });
 
+export const AE_LOCK_HE = 'חשיפה אוטומטית דולקת';
+export const FOV_META_HE = 'זווית הראייה היא נתון, לא בקרת מצלמה';
+export const APPLIED_HE = 'הוחל';
+export const FAILED_HE = 'נכשל';
+
 /** cam1 has exposure, image, and snapshot. Record, detections, and calibration do not. */
 export const CAMERA_SUPPORT = Object.freeze({
   cam0: Object.freeze({ record: true, detections: true, calibration: true, snapshot: true }),
@@ -42,12 +47,14 @@ export function cameraSettingsHtml(camId) {
     <div class="optics-field-group" data-settings-group="exposure">
       <p class="optics-field-kicker">חשיפה</p>
       <label class="cam0-check"><input type="checkbox" id="${camId}Ae" disabled /> <span class="optics-field-name">חשיפה אוטומטית</span></label>
+      <p id="${camId}AeLock" class="optics-field-note" hidden>${AE_LOCK_HE}</p>
+      <span id="${camId}ApplyBadge" class="optics-apply-badge" hidden></span>
       <label><span class="optics-field-name">חשיפה</span> <input id="${camId}Exposure" type="number" min="10" max="100001" step="10" dir="ltr" disabled /></label>
       <label><span class="optics-field-name">הגבר</span> <input id="${camId}Gain" type="number" min="16" max="256" step="1" dir="ltr" disabled /></label>
     </div>
     <div class="optics-field-group" data-settings-group="image">
       <p class="optics-field-kicker">תמונה</p>
-      <label><span class="optics-field-name">זווית ראייה (מעלות)</span> <input id="${camId}Fov" type="number" min="20" max="180" step="1" dir="ltr" value="${fov}" /> <span id="${camId}FovHint" class="optics-fov-hint" hidden>טווח 20–180°</span></label>
+      <label><span class="optics-field-name">זווית ראייה (מעלות)</span> <input id="${camId}Fov" type="number" min="20" max="180" step="1" dir="ltr" value="${fov}" title="${FOV_META_HE}" /> <span id="${camId}FovHint" class="optics-fov-hint" hidden>טווח 20–180°</span></label>
       <label><span class="optics-field-name">רזולוציה</span>
         <select id="${camId}Res" dir="ltr" disabled>
           <option value="1280x800">1280×800</option>
@@ -99,6 +106,49 @@ export function applyCameraSupport(camId) {
       el.title = reason;
     }
   }
+}
+
+/** Manual exposure and gain stay off while auto exposure owns the picture. */
+export function syncManualExposureLock(camId, { aeOn, live } = {}) {
+  const lock = aeOn === true;
+  const note = document.getElementById(`${camId}AeLock`);
+  if (note) note.hidden = !lock;
+  for (const suffix of ['Exposure', 'Gain']) {
+    const el = document.getElementById(`${camId}${suffix}`);
+    if (!el) continue;
+    el.disabled = live !== true || lock;
+    el.title = lock ? AE_LOCK_HE : '';
+  }
+}
+
+/** Badge text comes from device read-back, never from the field the operator typed. */
+export function applyOutcome(controls) {
+  const rows = controls && typeof controls === 'object' ? controls : null;
+  if (!rows) return { state: 'failed', text: FAILED_HE, fov: false };
+  const judged = ['ae', 'exposure_us', 'gain', 'width', 'height', 'fps']
+    .map((key) => rows[key])
+    .filter((row) => row && row.skipped !== true && row.requested != null);
+  const fov = rows.fov_deg?.metadata_only === true && rows.fov_deg?.applied === true;
+  const hardwareFailed = judged.some((row) => row.applied !== true);
+  const nothing = judged.length === 0 && !fov;
+  const state = nothing || hardwareFailed ? 'failed' : 'applied';
+  return { state, text: state === 'applied' ? APPLIED_HE : FAILED_HE, fov };
+}
+
+export function paintCameraApply(camId, controls) {
+  const badge = document.getElementById(`${camId}ApplyBadge`);
+  const hint = document.getElementById(`${camId}FovHint`);
+  const outcome = applyOutcome(controls);
+  if (badge) {
+    badge.hidden = false;
+    badge.dataset.state = outcome.state;
+    badge.textContent = outcome.text;
+  }
+  if (hint && outcome.fov) {
+    hint.hidden = false;
+    hint.textContent = FOV_META_HE;
+  }
+  return outcome;
 }
 
 if (typeof document !== 'undefined') mountCameraSettings(document);
