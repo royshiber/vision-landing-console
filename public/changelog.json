@@ -4,19 +4,9 @@
     "date": "2026-09-29",
     "changes": [
       {
-        "type": "feat",
-        "title": "Server library",
-        "detail": "follow-target.mjs, follow-target-api.mjs"
-      },
-      {
-        "type": "feat",
-        "title": "MAVLink connection",
-        "detail": "mavlink-connection.mjs"
-      },
-      {
-        "type": "test",
-        "title": "Tests",
-        "detail": "follow-target-live-sitl.test.mjs, follow-target-sitl.test.mjs"
+        "type": "fix",
+        "title": "מעקב מטרה מול סימולטור חי",
+        "detail": "APP_VERSION 1.02.365. המטוס נכנס למעגל סביב המטרה, נשאר מעל רצפת הגובה, וחוזר הביתה כדקה אחרי שהמטרה נעלמת. שינוי מצב בשלט RC מבטל את המעקב ועוצר פקודות הנחיה."
       }
     ]
   },
