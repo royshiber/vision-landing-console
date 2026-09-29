@@ -43,8 +43,12 @@ describe('Optics debrief tab — source', () => {
     expect(html).toMatch(/data-tab="development"[^>]*hidden|hidden[^>]*data-tab="development"/);
     expect(html.indexOf('id="optics"')).toBeLessThan(html.indexOf('id="debriefCamGrid"'));
     expect(html.indexOf('id="debriefCamGrid"')).toBeLessThan(html.indexOf('id="recordings"'));
-    expect(html).toContain('id="cam0Fov"');
-    expect(html).toContain('id="cam1Fov"');
+    const settings = fs.readFileSync(path.join(repoRoot, 'public/modules/camera-settings.mjs'), 'utf8');
+    expect(html).toContain('data-camera-settings="cam0"');
+    expect(html).toContain('data-camera-settings="cam1"');
+    expect(settings).toContain('id="${camId}Fov"');
+    expect(settings).toContain('id="${camId}Record"');
+    expect(settings).toContain('id="${camId}CalibStart"');
     expect(js).toContain("if (tabId === 'flights')");
     expect(js).not.toContain('eventSamples');
     for (const line of FAKE_EVENTS) expect(js).not.toContain(line);
@@ -247,7 +251,7 @@ describe('Optics debrief tab — live layout', () => {
           return box.scrollHeight - box.clientHeight;
         })(),
         calibOverflow: getComputedStyle(document.querySelector('#optics .optics-calib') || document.body).overflowY,
-        calibBottom: document.getElementById('cam0CalibSolve')?.getBoundingClientRect().bottom || 0,
+        calibBottom: document.getElementById('cam0CalibStart')?.getBoundingClientRect().bottom || 0,
         beside: Boolean(grid && pad) && pad.getBoundingClientRect().right <= grid.getBoundingClientRect().left + 12,
         fovBottom: document.getElementById('cam0Fov')?.getBoundingClientRect().bottom || 0,
         cam0InPulse: panel?.closest('#pulse') != null,
@@ -296,7 +300,7 @@ describe('Optics debrief tab — live layout', () => {
         status: document.getElementById('cam1StatusText')?.textContent || '',
         reason: document.getElementById('cam1Reason')?.textContent || '',
         fps: document.getElementById('cam1Fps')?.textContent || '',
-        disabled: ['cam1Ae', 'cam1Exposure', 'cam1Gain', 'cam1Res', 'cam1FpsSet', 'cam1Snap'].every((id) => document.getElementById(id)?.disabled),
+        disabled: ['cam1Ae', 'cam1Exposure', 'cam1Gain', 'cam1Res', 'cam1FpsSet', 'cam1Record', 'cam1Snap', 'cam1CalibStart'].every((id) => document.getElementById(id)?.disabled),
         digits,
         textFit,
         fonts,

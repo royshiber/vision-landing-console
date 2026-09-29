@@ -10,6 +10,8 @@ from pathlib import Path
 from .ae import AeConfig, AeLimits, AutoExposure
 from .attitude import AttitudeTagger
 from .bus import FrameBus
+from .calib_guide import CalibSession, handle_session
+from .controls import commit_controls
 from .calibration import (
     calibration_document,
     find_checkerboard,
@@ -148,6 +150,7 @@ class Cam0Service:
         self._last_mono = None
         self._calib_views = []
         self._calib_version = 0
+        self._guide = CalibSession(camera="cam0")
         self._was_armed = False
         self._stream_next = 0.0
 
@@ -367,12 +370,6 @@ class Cam0Service:
         if "exposure_us" in body or "gain" in body:
             if body.get("ae_enabled") is not True and (body.get("manual") is True or not self.ae.state.enabled):
                 self.ae.set_manual(body.get("exposure_us"), body.get("gain"))
-                if self.source is not None:
-                    self.source.set_exposure_gain(
-                        self.ae.state.exposure_us,
-                        self.ae.state.gain,
-                        fps=self.config.get("fps"),
-                    )
         stream = self.config.setdefault("stream", {})
         if isinstance(body.get("stream"), dict):
             stream.update(body["stream"])
@@ -390,6 +387,20 @@ class Cam0Service:
             if parsed is not None:
                 self.config["fov_deg"] = parsed
                 self._refresh_nominal_intrinsics()
+        ae_on = bool(self.ae.state.enabled)
+        spec = {"ae_enabled": ae_on}
+        if "fov_deg" in body:
+            spec["fov_deg"] = self.config.get("fov_deg")
+        if "width" in body:
+            spec["width"] = self.config.get("width")
+        if "height" in body:
+            spec["height"] = self.config.get("height")
+        if "fps" in body:
+            spec["fps"] = self.config.get("fps")
+        if not ae_on and ("exposure_us" in body or "gain" in body or body.get("manual") is True):
+            spec["exposure_us"] = self.ae.state.exposure_us
+            spec["gain"] = self.ae.state.gain
+        self._controls = commit_controls(self.source, spec)
         return self.settings()
 
     def _refresh_nominal_intrinsics(self):
@@ -426,6 +437,7 @@ class Cam0Service:
             "marker_size_m": self.config.get("marker_size_m"),
             "fov_deg": self.config.get("fov_deg", 120),
             "flight_commands": False,
+            "controls": getattr(self, "_controls", None),
         }
 
     def status(self):
@@ -565,6 +577,37 @@ class Cam0Service:
             if marker is not None:
                 marker.intrinsics = doc["intrinsics"]
         return {"ok": True, "path": str(path), "calibration": doc}
+
+    def _calib_frame(self, body):
+        body = body or {}
+        cols = int(body.get("inner_cols") or self._guide.inner_cols)
+        rows = int(body.get("inner_rows") or self._guide.inner_rows)
+        with self._lock:
+            mono = None
+            if self.bus is not None:
+                view = self.bus.latest()
+                if view is not None:
+                    mono = view.mono8.copy()
+            width = (self.latest_meta or {}).get("width") or self.config.get("width")
+            height = (self.latest_meta or {}).get("height") or self.config.get("height")
+        if body.get("synthetic_board") and str(self.config.get("source")).lower() == "synthetic":
+            from .calibration import render_checkerboard
+            mono, _known = render_checkerboard(
+                int(width or 160),
+                int(height or 120),
+                cols,
+                rows,
+                int(body.get("square_px", 12)),
+            )
+        return mono, int(width or 0), int(height or 0)
+
+    def calibration_session(self, body):
+        return handle_session(
+            self._guide,
+            body,
+            lambda: self._calib_frame(body),
+            self.config.get("calibration_dir"),
+        )
 
     def calibration(self):
         doc = load_latest(self.config.get("calibration_dir"))

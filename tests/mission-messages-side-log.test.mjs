@@ -42,9 +42,9 @@ function cssBlock(src, selector) {
 }
 
 describe('Mission aircraft messages — side print-log', () => {
-  it('pins APP_VERSION at 1.02.363', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.363'");
-    expect(pkg.version).toBe('1.02.363');
+  it('pins APP_VERSION at 1.02.372', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.372'");
+    expect(pkg.version).toBe('1.02.372');
   });
 
   it('places the live feed inside the AH / video stage, not a centered box', () => {
@@ -86,7 +86,7 @@ describe('Mission aircraft messages — side print-log', () => {
   });
 
   it('demotes the bottom messages region to slim history', () => {
-    expect(html).toMatch(/data-mission-region="messages"[^>]*data-messages-expanded="1"/);
+    expect(html).toMatch(/data-mission-region="messages"[^>]*data-messages-expanded="0"/);
     expect(html).toMatch(/id="pfcMsgFilterAll"/);
     expect(html).toMatch(/id="pfcMsgFilterWarn"/);
     expect(html).toMatch(/id="pfcMsgScroll"[^>]*dir="ltr"/);
@@ -96,8 +96,9 @@ describe('Mission aircraft messages — side print-log', () => {
     const collapsed = cssBlock(css, '.mission-region-messages[data-messages-expanded="0"]');
     expect(collapsed).toMatch(/max-height:\s*none/);
     const expanded = cssBlock(css, '.mission-region-messages[data-messages-expanded="1"]');
-    expect(expanded).toMatch(/max-height:\s*none/);
+    expect(expanded).toMatch(/max-height:\s*min\(160px, 32%\)/);
     expect(expanded).not.toMatch(/280px/);
+    expect(expanded).not.toMatch(/210px/);
     expect(css).toMatch(/--mission-msg-h:\s*min\(18%, 96px\)/);
     expect(cssBlock(css, '.mission-region-horizon > .mission-region-messages')).toMatch(/background:\s*transparent/);
     expect(cssBlock(css, '.mission-region-horizon > .mission-region-messages')).toMatch(/border:\s*0/);

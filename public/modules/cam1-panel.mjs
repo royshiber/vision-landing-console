@@ -11,13 +11,15 @@ import {
 } from './cam1-status.mjs';
 import { bindFovField, readStoredFov } from './camera-fov.mjs';
 import { RF_VIDEO_REASON_HE, rfVideoLocked } from './rf-link-ui.mjs';
+import { applyCameraSupport, mountCameraSettings, paintCameraApply, syncManualExposureLock } from './camera-settings.mjs';
+import { bindCalibGuide, markCalibLive } from './calib-guide.mjs';
 
 const REASON_LINK = 'אין קישור למחשב המשימה. הפקדים כבויים.';
 const REASON_CAM = 'אין אות מהמצלמה. הפקדים כבויים.';
 const ERR_SETTING = 'ההגדרה לא נשמרה. הערך חזר לקודם.';
 const ERR_SNAP = 'הצילום נכשל.';
 const STREAM = '/api/jetson/v1/cam1/stream.mjpg';
-const CONTROL_IDS = ['cam1Ae', 'cam1Exposure', 'cam1Gain', 'cam1Res', 'cam1FpsSet', 'cam1Snap'];
+const CONTROL_IDS = ['cam1Ae', 'cam1Exposure', 'cam1Gain', 'cam1Res', 'cam1FpsSet', 'cam1Record', 'cam1Snap', 'cam1CalibStart'];
 
 function unwrap(body) {
   if (body && body.lane === 'NEW' && body.data && typeof body.data === 'object') return body.data;
@@ -80,10 +82,13 @@ function drawHist(canvas, img) {
 }
 
 function init() {
+  mountCameraSettings(document);
   const panel = document.getElementById('cam1Panel');
   const cam0 = document.getElementById('cam0Panel');
+  const gimbalPanel = document.getElementById('gimbalSettings');
   const btn0 = document.getElementById('opticsCam0Btn');
   const btn1 = document.getElementById('opticsCam1Btn');
+  const btnG = document.getElementById('opticsGimbalBtn');
   if (!panel || !btn0 || !btn1) return;
   const img = document.getElementById('cam1Frame');
   const empty = document.getElementById('cam1Empty');
@@ -145,6 +150,9 @@ function init() {
       reason.hidden = !(locked || !on);
       reason.textContent = locked ? RF_VIDEO_REASON_HE : (on ? '' : why);
     }
+    applyCameraSupport('cam1');
+    syncManualExposureLock('cam1', { aeOn: ae?.checked === true, live: on && !locked });
+    markCalibLive('cam1', on && !locked);
   }
 
   function paintStatusLine(body) {
@@ -173,19 +181,24 @@ function init() {
 
   function selectCam(which) {
     const on1 = which === 'cam1';
-    btn0.classList.toggle('is-active', !on1);
+    const onG = which === 'gimbal';
+    btn0.classList.toggle('is-active', !on1 && !onG);
     btn1.classList.toggle('is-active', on1);
-    btn0.setAttribute('aria-selected', String(!on1));
+    btnG?.classList.toggle('is-active', onG);
+    btn0.setAttribute('aria-selected', String(!on1 && !onG));
     btn1.setAttribute('aria-selected', String(on1));
-    if (cam0) cam0.hidden = on1;
+    btnG?.setAttribute('aria-selected', String(onG));
+    if (cam0) cam0.hidden = on1 || onG;
     panel.hidden = !on1;
-    document.dispatchEvent(new CustomEvent('vlc-debrief-open-cam', { detail: which }));
+    if (gimbalPanel) gimbalPanel.hidden = !onG;
+    if (!onG) document.dispatchEvent(new CustomEvent('vlc-debrief-open-cam', { detail: which }));
     nextAt = 0;
     void tick();
   }
 
   btn0.addEventListener('click', () => selectCam('cam0'));
   btn1.addEventListener('click', () => selectCam('cam1'));
+  btnG?.addEventListener('click', () => selectCam('gimbal'));
 
   async function refresh() {
     let body = null;
@@ -195,10 +208,11 @@ function init() {
       body = null;
     }
     lastBody = body;
-    const connected = body?.camera_ok === true && !streamError && body?.state !== 'error';
+    const cameraLive = body?.camera_ok === true && body?.state !== 'error' && body?.state !== 'absent';
+    const connected = cameraLive && !streamError;
     const fps = connected && body.fps != null ? body.fps : null;
     paintStatusLine(body);
-    setControls(connected, body ? REASON_CAM : REASON_LINK);
+    setControls(cameraLive, body ? (cameraLive ? '' : REASON_CAM) : REASON_LINK);
     text('cam1Fps', fps);
     text('cam1Latency', connected && body.latency_ms != null ? body.latency_ms : null);
     text('cam1Drops', connected && body.dropped != null ? body.dropped : null);
@@ -215,6 +229,8 @@ function init() {
     if (!streamError && img && !String(img.src || '').includes('cam1/stream.mjpg')) img.src = STREAM;
     paintHonesty(body);
     if (ae && document.activeElement !== ae) ae.checked = body.ae?.enabled === true;
+    syncManualExposureLock('cam1', { aeOn: ae?.checked === true, live: cameraLive && !rfVideoLocked() });
+    if (body?.controls) paintCameraApply('cam1', body.controls);
     if (exposure && document.activeElement !== exposure && body.exposure_us != null) exposure.value = String(body.exposure_us);
     if (gain && document.activeElement !== gain && body.gain != null) gain.value = String(body.gain);
     if (res && document.activeElement !== res && body.width && body.height) {
@@ -271,25 +287,35 @@ function init() {
       fov: readStoredFov(localStorage, 'cam1'),
     });
     try {
-      await api('/api/jetson/v1/cam1/settings', {
+      const saved = await api('/api/jetson/v1/cam1/settings', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify(body),
       });
+      paintCameraApply('cam1', saved?.controls);
+      const expRow = saved?.controls?.exposure_us;
+      const gainRow = saved?.controls?.gain;
+      if (expRow && expRow.skipped !== true && expRow.actual != null && exposure) exposure.value = String(expRow.actual);
+      if (gainRow && gainRow.skipped !== true && gainRow.actual != null && gain) gain.value = String(gainRow.actual);
       applied = readForm();
       showError('');
     } catch {
+      paintCameraApply('cam1', null);
       if (!quiet) {
         writeForm(applied);
         showError(ERR_SETTING);
       }
     } finally {
       pushing = false;
+      syncManualExposureLock('cam1', { aeOn: ae?.checked === true, live: lastBody?.camera_ok === true && !rfVideoLocked() });
     }
   }
 
   fpsSet?.addEventListener('input', () => { fpsTouched = true; });
-  ae?.addEventListener('change', () => { void pushSettings(); });
+  ae?.addEventListener('change', () => {
+    syncManualExposureLock('cam1', { aeOn: ae.checked === true, live: lastBody?.camera_ok === true && !rfVideoLocked() });
+    void pushSettings();
+  });
   exposure?.addEventListener('change', () => { void pushSettings(); });
   gain?.addEventListener('change', () => { void pushSettings(); });
   res?.addEventListener('change', () => { void pushSettings(); });
@@ -318,6 +344,8 @@ function init() {
       showError(ERR_SNAP);
     }
   });
+
+  bindCalibGuide('cam1', api);
 
   function lineShown() {
     const line = document.getElementById('cam1StatusLine');

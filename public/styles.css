@@ -9835,6 +9835,96 @@ html[data-evolve-preview="1"] #development {
 }
 .tele-pf-refresh:hover { border-color: var(--primary); color: var(--primary); }
 
+#telemetry.panel.visible .first-open-stage-fill {
+  flex: 0 1 auto;
+  min-height: 0;
+  justify-content: flex-start;
+  padding: 8px 10px 4px;
+}
+#telemetry.panel.visible #teleDashPanel {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.preflight-ready {
+  flex: 0 0 auto;
+  margin: 0 10px;
+  padding: 8px 10px 10px;
+  border: 1px solid #dbe3ef;
+  border-radius: 8px;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow: visible;
+}
+.preflight-ready-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.preflight-ready-title {
+  margin: 0;
+  font-size: clamp(11px, 0.85rem, 16px);
+  font-weight: 700;
+  line-height: 1.3;
+  color: #0f172a;
+}
+.preflight-ready-open,
+.preflight-ready-note,
+.preflight-ready-label,
+.preflight-ready-mark {
+  margin: 0;
+  font-size: clamp(11px, 0.75rem, 14px);
+  line-height: 1.3;
+  overflow: visible;
+  text-overflow: unset;
+  white-space: normal;
+}
+.preflight-ready-open,
+.preflight-ready-label {
+  color: #0f172a;
+}
+.preflight-ready-note { color: #334155; }
+.preflight-ready-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 4px 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow: visible;
+}
+.preflight-ready-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  min-width: 180px;
+}
+.preflight-ready-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.preflight-ready-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  min-width: 0;
+}
+.preflight-ready-mark {
+  flex: 0 0 auto;
+  font-weight: 700;
+}
+.preflight-ready-item[data-state="ok"] .preflight-ready-mark { color: #15803d; }
+.preflight-ready-item[data-state="open"] .preflight-ready-mark { color: #b45309; }
+.preflight-ready-item input {
+  flex: 0 0 auto;
+  margin-top: 2px;
+}
+
 .live-data {
   border-color: #22c55e !important;
   box-shadow: 0 0 8px rgba(34, 197, 94, 0.15);
@@ -11180,12 +11270,17 @@ html[data-evolve-preview="1"] #development {
   min-width: 0;
   height: 100%;
 }
-.mission-region-messages[data-messages-expanded="0"],
-.mission-region-messages[data-messages-expanded="1"] {
+.mission-region-messages[data-messages-expanded="0"] {
   height: auto;
   max-height: none;
-  flex: 1 1 0;
-  min-height: 210px;
+  flex: 0 0 auto;
+  min-height: 0;
+}
+.mission-region-messages[data-messages-expanded="1"] {
+  height: auto;
+  max-height: min(160px, 32%);
+  flex: 0 1 auto;
+  min-height: 0;
 }
 
 .mission-region-title {
@@ -11509,29 +11604,56 @@ html[data-evolve-preview="1"] #development {
   border: 0;
   box-shadow: none;
   cursor: default;
-  min-height: 120px;
+  min-height: 0;
   overflow: hidden;
 }
 .mission-messages-toggle {
   position: static;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  align-self: center;
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-self: stretch;
+  width: 100%;
   margin: 0;
-  border: 1px solid rgba(148, 163, 184, 0.28);
+  border: 1px solid rgba(148, 163, 184, 0.35);
   border-radius: 4px;
-  padding: 1px 6px;
-  min-height: 22px;
-  background: transparent;
-  color: #94a3b8;
-  font-size: 12px;
-  font-weight: 600;
+  padding: 3px 6px;
+  min-height: 28px;
+  height: auto;
+  background: #151b27;
+  color: #f8fafc;
+  font-size: clamp(11px, 0.75rem, 13px);
+  font-weight: 700;
   font-family: "Heebo", sans-serif;
-  line-height: 1.2;
+  line-height: 1.35;
   cursor: pointer;
   flex: 0 0 auto;
   direction: rtl;
+  text-align: start;
+  overflow: visible;
+  white-space: normal;
+}
+.pfc-msg-summary {
+  flex: 1 1 8rem;
+  min-width: 0;
+  font-size: clamp(11px, 0.75rem, 13px);
+  font-weight: 600;
+  line-height: 1.35;
+  color: #e2e8f0;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+}
+.pfc-msg-countline {
+  flex: 0 0 auto;
+  font-size: clamp(11px, 0.75rem, 13px);
+  font-weight: 800;
+  line-height: 1.35;
+  color: #f8fafc;
+  direction: ltr;
+  unicode-bidi: isolate;
 }
 .mission-messages-toggle-icon {
   width: 12px;
@@ -11632,7 +11754,28 @@ html[data-evolve-preview="1"] #development {
   box-shadow: none;
   cursor: default;
   overflow: hidden;
-  min-height: 210px;
+  min-height: 0;
+  max-height: min(160px, 32%);
+  flex: 0 1 auto;
+}
+.mission-region-messages[data-messages-expanded="0"] {
+  overflow: visible;
+  min-height: 0;
+  max-height: none;
+  flex: 0 0 auto;
+  height: auto;
+}
+.mission-region-messages[data-messages-expanded="0"] .pfc-msg-toolbar,
+.mission-region-messages[data-messages-expanded="0"] .pfd-statustext-strip {
+  display: none;
+}
+.mission-region-messages[data-messages-expanded="1"] .pfc-msg-summary,
+.mission-region-messages[data-messages-expanded="1"] .pfc-msg-countline {
+  display: none;
+}
+.mission-region-horizon:has(> .mission-region-messages[data-messages-expanded="0"]) > .flight-hud {
+  flex: 1 1 auto;
+  min-height: 0;
 }
 .mission-region-messages[data-messages-expanded="1"] .pfd-statustext-strip {
   flex: 1 1 auto;
@@ -11644,10 +11787,10 @@ html[data-evolve-preview="1"] #development {
 }
 .mission-region-messages[data-messages-expanded="1"] .pfc-msg-scroll {
   display: block;
-  flex: 1 1 0;
-  min-height: 0;
-  height: 0;
-  max-height: none;
+  flex: 1 1 auto;
+  min-height: 72px;
+  height: auto;
+  max-height: 96px;
   overflow-y: auto;
 }
 .mission-region-messages .pfc-opt-mini {
@@ -12786,7 +12929,7 @@ html[data-evolve-preview="1"] #development {
 .hud-slot-label {
   font-size: clamp(11px, 0.58rem, 8rem);
   font-weight: 600;
-  color: rgba(200,220,255,0.52);
+  color: #e2e8f0;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   white-space: nowrap;
@@ -13676,7 +13819,8 @@ details.flight-manage summary {
 .connect-widget.connect-widget-float {
   position: fixed;
   top: 4px;
-  inset-inline-end: 12px;
+  inset-inline-end: auto;
+  inset-inline-start: 12px;
   z-index: var(--z-connect-float);
   max-width: min(280px, calc(100vw - 20px));
 }
@@ -13710,8 +13854,10 @@ details.flight-manage summary {
 
 .connect-widget-float .conn-panel {
   top: calc(100% + 6px);
-  width: min(360px, calc(100vw - 16px));
-  max-height: none;
+  inset-inline-end: auto;
+  inset-inline-start: 0;
+  width: min(320px, calc(100vw - 16px));
+  max-height: min(360px, calc(100dvh - 48px));
   overflow: visible;
   padding: 8px;
   gap: 4px;
@@ -19002,9 +19148,9 @@ body.mission-assist-docked .assist-rail.assist-rail--mission,
   border-color: rgba(255, 255, 255, 0.12);
 }
 #missionTalkHost .assist-btn-send {
-  background: #16a34a;
-  color: #ffffff;
-  border-color: #15803d;
+  background: #14532d;
+  color: #f0fdf4;
+  border-color: #166534;
 }
 #missionTalkHost .assist-btn-confirm {
   background: #15803d;
@@ -19859,8 +20005,8 @@ body.mission-assist-docked .assist-rail.assist-rail--mission,
   font-family: "Space Grotesk", "Heebo", sans-serif;
 }
 .assist-btn-send {
-  background: rgba(34, 197, 94, 0.25);
-  color: #bbf7d0;
+  background: #166534;
+  color: #f0fdf4;
 }
 .assist-btn-confirm {
   background: rgba(34, 197, 94, 0.35);
@@ -20108,6 +20254,8 @@ body:has(#recordings.panel.visible) .layout {
   height: 100%;
   padding: 4px 8px 6px;
   border-radius: 0;
+  background: #0b0e14;
+  color: #f8fafc;
 }
 #optics button,
 #optics .debrief-cam-label,
@@ -20138,8 +20286,8 @@ body:has(#recordings.panel.visible) .layout {
   gap: 8px;
   align-items: stretch;
   min-width: 0;
-  flex: 1 1 auto;
-  min-height: 0;
+  flex: 1 1 0;
+  min-height: 64px;
   overflow: hidden;
 }
 .optics-tiles { min-width: 0; min-height: 0; height: 100%; display: flex; flex-direction: column; gap: 4px; }
@@ -20192,7 +20340,8 @@ body:has(#recordings.panel.visible) .layout {
 }
 #optics .cam0-layout,
 #optics .cam0-side,
-#optics .optics-groups {
+#optics .optics-groups,
+#optics .camera-settings-host {
   display: contents;
 }
 #optics .cam0-stage,
@@ -20221,7 +20370,7 @@ body:has(#recordings.panel.visible) .layout {
   margin: 0;
   font-size: clamp(11px, 0.72rem, 13px);
   line-height: 1.3;
-  color: #94a3b8;
+  color: #e2e8f0;
 }
 #optics .optics-field-group label {
   display: flex;
@@ -20262,13 +20411,53 @@ body:has(#recordings.panel.visible) .layout {
   gap: 6px 10px;
   margin: 0;
 }
+#optics .cam0-calib input[type="number"] {
+  width: 3.4rem;
+  max-width: 22%;
+}
 #optics .cam0-calib h4 {
   margin: 0;
   font-size: clamp(11px, 0.8rem, 14px);
   letter-spacing: normal;
   text-transform: none;
 }
-#optics .cam0-calib-lead { flex: 1 1 12rem; min-width: 0; }
+#optics .cam0-calib-lead,
+#optics .cam0-calib-state,
+#optics .cam0-calib > .optics-field-note { flex: 1 1 100%; min-width: 0; }
+#optics .cam0-calib label { flex: 0 0 auto; width: auto; }
+#optics .optics-calib-board {
+  color: #fde68a;
+  font-size: clamp(11px, 0.72rem, 13px);
+  line-height: 1.3;
+  text-decoration: underline;
+}
+#optics .optics-field-note,
+#optics .optics-readout {
+  margin: 0;
+  color: #f8fafc;
+  font-size: clamp(11px, 0.72rem, 13px);
+  line-height: 1.3;
+}
+#optics .optics-field-note { color: #fde68a; }
+#optics .optics-apply-badge {
+  font-size: clamp(11px, 0.72rem, 13px);
+  line-height: 1.3;
+  min-width: 2.5rem;
+}
+#optics .optics-apply-badge[data-state="applied"] { color: #bbf7d0; }
+#optics .optics-apply-badge[data-state="failed"] { color: #fecaca; }
+#optics .optics-readout {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+#optics .cam0-btn:disabled,
+#optics .gimbal-settings input:disabled {
+  opacity: 1;
+  color: #f8fafc;
+  background: #1e293b;
+  border-color: #cbd5e1;
+}
 .gimbal-pad {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -20296,6 +20485,12 @@ body:has(#recordings.panel.visible) .layout {
   margin: 0;
   font-size: clamp(11px, 1rem, 18px);
   line-height: 1.3;
+  color: #f8fafc;
+}
+.gimbal-pad-angles,
+.gimbal-pad-keys,
+.gimbal-zoom-level {
+  color: #e2e8f0;
 }
 .gimbal-pad-reason {
   margin: 0;
@@ -20366,7 +20561,29 @@ body:has(#recordings.panel.visible) .layout {
   min-width: 8rem;
   font-weight: 800;
 }
-.gimbal-pad-btn:disabled { opacity: 0.45; }
+#optics .gimbal-pad-btn,
+#optics .gimbal-pad-btn:disabled {
+  opacity: 1;
+  background: #1e3a8a;
+  color: #f8fafc;
+  border: 1px solid #bfdbfe;
+}
+#optics .gimbal-pad-btn:disabled {
+  background: #1e293b;
+  color: #f8fafc;
+  border-color: #e2e8f0;
+}
+#optics .gimbal-pad-lock[aria-pressed="false"],
+#optics .gimbal-pad-lock[aria-pressed="false"]:disabled {
+  background: #1e293b;
+  color: #f8fafc;
+  border-color: #e2e8f0;
+}
+#optics .gimbal-pad-lock[aria-pressed="true"] {
+  background: #0f766e;
+  border-color: #5eead4;
+  color: #ecfeff;
+}
 .gimbal-pad-btn.is-held { outline: 2px solid #38bdf8; }
 .gimbal-pad-lock[aria-pressed="true"] {
   background: #0f766e;
@@ -21263,6 +21480,17 @@ html body :is(
   font-size: clamp(11px, 0.7rem, 12px);
   line-height: 1.3;
 }
+/* Leaflet's stylesheet loads after this file. These beat its pale link on white. */
+.leaflet-container .leaflet-control-attribution,
+.mission-region-map .leaflet-control-attribution {
+  background: #0f172a !important;
+  color: #f8fafc !important;
+  font-size: 11px !important;
+}
+.leaflet-container .leaflet-control-attribution a,
+.mission-region-map .leaflet-control-attribution a {
+  color: #e0f2fe !important;
+}
 .leaflet-bar a {
   display: flex !important;
   align-items: center !important;
@@ -21617,6 +21845,14 @@ html[dir="rtl"] :is(p, button, span, h1, h2, h3, h4, label, li, strong) {
   position: static;
 }
 body:has(#telemetry.panel.visible) #telemetry,
+body:has(#telemetry.panel.visible) #telemetry .preflight-ready,
+body:has(#telemetry.panel.visible) #telemetry .preflight-ready h3,
+body:has(#telemetry.panel.visible) #telemetry .preflight-ready .preflight-ready-title,
+body:has(#telemetry.panel.visible) #telemetry .preflight-ready .preflight-ready-open,
+body:has(#telemetry.panel.visible) #telemetry .preflight-ready .preflight-ready-label,
+body:has(#telemetry.panel.visible) #telemetry .preflight-ready .preflight-ready-note {
+  color: #0f172a;
+}
 body:has(#telemetry.panel.visible) #telemetry h3,
 body:has(#telemetry.panel.visible) #telemetry .operator-state-status,
 body:has(#telemetry.panel.visible) #telemetry .operator-state-next,
@@ -22460,10 +22696,10 @@ body:has(#telemetry.panel.visible) #telemetry .tele-dash-sub {
   max-width: 100%;
 }
 #control.panel.visible > #plndProfileHonesty:not([hidden]) {
-  flex: 0 1 auto;
-  max-height: 140px;
+  flex: 0 0 auto;
+  max-height: none;
   min-height: 0;
-  overflow: auto;
+  overflow: visible;
 }
 .param-center-search-bar .ardu-search-row .btn-secondary-lg,
 .param-center-search-bar .ardu-search-row .btn-primary-lg {
@@ -22856,12 +23092,12 @@ body:has(#pulse.panel.visible) .pulse-home.pulse-status-home {
   padding: 12px 12px 96px;
   border: 1px solid rgba(148, 163, 184, 0.35);
   border-radius: 12px;
-  background: rgba(15, 23, 42, 0.72);
+  background: #0f172a;
   color: #e2e8f0;
 }
 .cam0-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
 .cam0-title { margin: 0; font-size: 18px; }
-.cam0-honesty { margin: 0; color: #fbbf24; }
+.cam0-honesty { margin: 0; color: #fde68a; }
 .cam0-layout { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(220px, 0.8fr); gap: 12px; align-items: start; }
 .cam0-stage {
   position: relative;
@@ -22902,7 +23138,7 @@ body:has(#pulse.panel.visible) .pulse-home.pulse-status-home {
 .cam0-btn { border: 1px solid rgba(148, 163, 184, 0.45); background: #0f172a; color: inherit; border-radius: 8px; padding: 6px 10px; }
 .cam0-rec { color: #f87171; font-weight: 700; }
 .cam0-reason, .cam0-error { margin: 6px 0; font-size: 13px; line-height: 1.4; overflow: visible; }
-.cam0-reason { color: #fbbf24; }
+.cam0-reason { color: #fde68a; }
 .cam0-error { color: #fecaca; }
 .cam0-hist-label { margin: 0 0 4px; font-size: 13px; color: #cbd5e1; }
 .cam0-hist-wrap { position: relative; }
@@ -23290,10 +23526,15 @@ body:has(#pulse.panel.visible) .pulse-home.pulse-status-home {
     max-height: none;
     overflow: hidden;
   }
-  .mission-region[data-mission-region="messages"] {
-    height: 28px;
+  .mission-region[data-mission-region="messages"][data-messages-expanded="0"] {
+    height: auto;
     min-height: 0;
-    max-height: 28px;
+    max-height: none;
+  }
+  .mission-region[data-mission-region="messages"][data-messages-expanded="1"] {
+    height: auto;
+    min-height: 0;
+    max-height: 96px;
   }
   .mission-region-horizon .pfd-horizon-shell {
     flex: 1 1 auto;
@@ -23686,4 +23927,206 @@ body[data-work-path="rf"] #optics .optics-calib {
 .work-link-reason {
   width: 100%;
   margin: 0;
+}
+
+/* Landing sliders fill the params viewport. The profile card is content height, not a nested scroller. */
+#control.panel.visible:has(#landingParams.subpanel.visible),
+#control.panel.visible:has(#abortParams.subpanel.visible),
+#control.panel.visible:has(#visionNavParams.subpanel.visible) {
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+}
+#control.panel.visible > #landingParams.subpanel.visible,
+#control.panel.visible > #abortParams.subpanel.visible,
+#control.panel.visible > #visionNavParams.subpanel.visible {
+  overflow: visible;
+  flex: 1 1 auto;
+  min-height: min-content;
+  display: flex;
+}
+#control.panel.visible #landingParams .params-grid,
+#control.panel.visible #abortParams .params-grid,
+#control.panel.visible #visionNavParams .params-grid {
+  overflow: visible;
+  flex: 1 1 auto;
+  min-height: 100%;
+  align-content: stretch;
+  grid-auto-rows: minmax(108px, 1fr);
+}
+#control.panel.visible #landingParams .param-card,
+#control.panel.visible #abortParams .param-card,
+#control.panel.visible #visionNavParams .param-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 108px;
+  height: 100%;
+}
+
+/* Dark operator surfaces: labels meet WCAG AA 4.5:1 on #121826 / #0b0e14. */
+#control.panel.visible .param-title,
+#control.panel.visible .ardu-form-region-title,
+#control.panel.visible .ardu-group-title,
+#control.panel.visible .fc-group-key,
+#control.panel.visible .fc-group-he,
+#control.panel.visible .ardu-cat-subtab,
+#development.panel.visible .param-title,
+#telemetry.panel.visible .param-title,
+#pulse.panel.visible .param-title {
+  color: #f8fafc;
+}
+#control.panel.visible .param-meta,
+#control.panel.visible .ardu-field-key,
+#control.panel.visible .ardu-form-region-hint,
+#control.panel.visible .ardu-cat-subtabs-label,
+#control.panel.visible .vision-config-status,
+#control.panel.visible .hint,
+#control.panel.visible .ardu-diff-summary,
+#control.panel.visible .plnd-honesty-note,
+#control.panel.visible .plnd-honesty-key-token {
+  color: #cbd5e1;
+}
+#control.panel.visible .param-value {
+  color: #93c5fd;
+}
+#control.panel.visible .lock-btn {
+  background: #1e293b;
+  color: #f8fafc;
+  border-color: rgba(226, 232, 240, 0.45);
+}
+#control.panel.visible .lock-btn.locked {
+  background: #7f1d1d;
+  border-color: #fca5a5;
+  color: #fee2e2;
+}
+#control.panel.visible .param-info {
+  color: #eff6ff;
+  background: #1d4ed8;
+  border-color: #93c5fd;
+}
+#control.panel.visible .ardu-cat-subtab {
+  background: #1e293b;
+  border-color: rgba(226, 232, 240, 0.28);
+}
+#control.panel.visible .ardu-cat-subtab.active {
+  background: #1d4ed8;
+  border-color: #93c5fd;
+  color: #f8fafc;
+}
+
+/* Connection popover stays a corner card beside the talk column, not over the map. */
+#recordings.panel.visible .flight-summary-inline,
+#recordings.panel.visible .archive-sessions-empty,
+#recordings.panel.visible .annot-confidence-inline,
+#recordings.panel.visible .annotation-legend {
+  color: #e2e8f0;
+}
+#recordings.panel.visible .legend-item.no-lock { color: #fecaca; }
+#recordings.panel.visible .legend-item.locked { color: #86efac; }
+#recordings.panel.visible .legend-item.searching { color: #fde68a; }
+#telemetry .companion-connect .assist-agent-status,
+#telemetry .companion-connect .assist-agent-hint,
+#telemetry .assist-agent-status,
+#telemetry .assist-agent-hint {
+  color: #f8fafc;
+}
+#telemetry .first-open-btn-quiet {
+  color: #f8fafc;
+  border-color: rgba(226, 232, 240, 0.45);
+}
+
+/* Flight column: horizon, tiles, and messages share two horizontal splitters. */
+.flight-stack-split {
+  flex: 0 0 12px;
+  height: 12px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: #151b27;
+  cursor: row-resize;
+  touch-action: none;
+  user-select: none;
+  position: relative;
+  z-index: 3;
+}
+.flight-stack-split::after {
+  content: "";
+  position: absolute;
+  left: 22%;
+  right: 22%;
+  top: 4px;
+  height: 4px;
+  border-radius: 999px;
+  background: #e2e8f0;
+}
+.flight-stack-split:hover::after,
+.flight-stack-split:focus-visible::after {
+  background: #f8fafc;
+  height: 5px;
+  top: 3px;
+}
+.mission-region-horizon > .flight-hud {
+  height: auto;
+  min-height: 160px;
+  max-height: none;
+  flex: 1 1 auto;
+  overflow: hidden;
+}
+.mission-region-horizon .pfd-horizon-shell {
+  min-height: 96px;
+  height: auto;
+  max-height: none;
+  flex: 1 1 auto;
+  overflow: hidden;
+}
+.mission-region-horizon .pfd-horizon-instrument,
+.mission-region-horizon .pfd-horizon-stage {
+  min-height: 0;
+  height: auto;
+  max-height: none;
+}
+.mission-region-horizon > .mission-region-data {
+  flex: 0 0 auto;
+  height: auto;
+  min-height: var(--flight-data-h, 88px);
+  max-height: none;
+  overflow: hidden;
+}
+.mission-region-horizon > .mission-region-data > .mission-data-grid {
+  flex: 0 0 auto;
+  min-width: 0;
+  max-width: 100%;
+  height: auto;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+.mission-region-horizon > .mission-region-messages,
+.mission-region-horizon > .mission-region-messages[data-messages-expanded="0"],
+.mission-region-horizon > .mission-region-messages[data-messages-expanded="1"] {
+  flex: 0 0 var(--flight-msg-h, 40px);
+  height: var(--flight-msg-h, 40px);
+  min-height: 36px;
+  max-height: none;
+  overflow: hidden;
+}
+.mission-region-horizon > .mission-region-messages[data-messages-expanded="1"] .pfd-statustext-strip {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+  overflow: hidden;
+}
+#missionTalkHost .assist-msg-body {
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+.assist-msg-meta {
+  display: none;
+}
+.mission-region-horizon > .mission-region-messages[data-messages-expanded="1"] .pfc-msg-scroll {
+  max-height: none;
+  min-height: 0;
+  height: auto;
+  flex: 1 1 auto;
+  overflow-x: hidden;
+  overflow-y: auto;
 }

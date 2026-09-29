@@ -51,21 +51,23 @@ function interiorsIntersect(a, b, slack = 1) {
 }
 
 describe('Mission messages toggle — source contract', () => {
-  it('pins APP_VERSION at 1.02.363', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.363'");
-    expect(pkg.version).toBe('1.02.363');
+  it('pins APP_VERSION at 1.02.372', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.372'");
+    expect(pkg.version).toBe('1.02.372');
   });
 
-  it('keeps the message list open, readable, and LTR inside the RTL column', () => {
-    expect(html).toMatch(/data-mission-region="messages"[^>]*data-messages-expanded="1"/);
+  it('keeps the message list readable and LTR inside the RTL column', () => {
+    expect(html).toMatch(/data-mission-region="messages"[^>]*data-messages-expanded="0"/);
     expect(html).toMatch(/data-mission-region="messages"[^>]*dir="rtl"/);
     expect(html).toMatch(/id="pfcMsgFilterAll"[^>]*>הכל</);
     expect(html).toMatch(/id="pfcMsgFilterWarn"[^>]*>אזהרות</);
     expect(html).toMatch(/id="pfcMsgScroll"[^>]*dir="ltr"/);
     expect(html).toMatch(/data-mission-data-slot="batt"/);
     expect(html).toMatch(/class="mission-data-label">מתח</);
-    expect(html).not.toMatch(/id="missionMessagesToggle"/);
-    expect(html).not.toMatch(/id="missionMessagesBadge"/);
+    expect(html).toMatch(/id="missionMessagesToggle"/);
+    expect(html).toMatch(/id="missionMessagesSummary"/);
+    expect(html).toMatch(/id="missionMessagesCount"/);
+    expect(html).toMatch(/id="missionMessagesBadge"/);
     expect(html).not.toMatch(/id="hudAddSlotBtn"/);
     expect(html).toMatch(/id="pfdHorizonMsgLog"[^>]*hidden/);
     expect(html).not.toContain('Vision Landing Console');
@@ -75,8 +77,15 @@ describe('Mission messages toggle — source contract', () => {
     expect(js).toContain('function translateFcStatusText(');
     expect(js).toContain('function collapseConsecutiveFcStatus(');
     const open = cssBlock(css, '.mission-region-messages[data-messages-expanded="1"]');
-    expect(open).toMatch(/max-height:\s*none/);
-    expect(open).toMatch(/min-height:\s*210px/);
+    expect(open).toMatch(/max-height:\s*min\(160px, 32%\)/);
+    expect(open).toMatch(/flex:\s*0 1 auto/);
+    expect(open).not.toMatch(/min-height:\s*210px/);
+    const closed = cssBlock(css, '.mission-region-messages[data-messages-expanded="0"]');
+    expect(closed).toMatch(/max-height:\s*none/);
+    expect(closed).toMatch(/flex:\s*0 0 auto/);
+    const init = sliceFunction(js, 'initMissionMessages');
+    expect(init).toContain('readMissionMessagesExpanded()');
+    expect(init).not.toContain('writeMissionMessagesExpanded(true)');
     const scroll = cssBlock(css, '.mission-region-messages .pfc-msg-scroll');
     expect(scroll).toMatch(/font-family:\s*"Heebo"/);
     expect(scroll).toMatch(/font-size:\s*clamp\(13px/);
@@ -366,8 +375,17 @@ describe('Mission messages toggle — live layout', () => {
     }
   });
 
-  it('fills the column with a readable LTR list on desktop and mobile', async () => {
+  it('collapses to one line by default and opens a compact LTR list', async () => {
     const shots = [];
+    const collapsed = await measure(page);
+    expect(collapsed.expanded).toBe('0');
+    expect(collapsed.stored).toBeNull();
+    expect(collapsed.messages.height).toBeGreaterThanOrEqual(24);
+    expect(collapsed.messages.height).toBeLessThan(80);
+    expect(collapsed.horizon.height).toBeGreaterThan(collapsed.messages.height);
+    const summary0 = await page.locator('#missionMessagesSummary').innerText();
+    expect(summary0).toContain('אין הודעות');
+
     async function check(label) {
       const measured = await measure(page);
       expect(measured.wsDisplay, label).toBe('grid');
@@ -376,9 +394,9 @@ describe('Mission messages toggle — live layout', () => {
       expect(measured.scrollDir, label).toBe('ltr');
       expect(measured.expanded, label).toBe('1');
       expect(measured.logDisplay, label).toBe('none');
-      const scrollFloor = String(label).startsWith('mobile') ? 40 : 180;
-      expect(measured.messages.height, label).toBeGreaterThanOrEqual(scrollFloor === 180 ? 180 : 28);
-      expect(measured.scrollH, label).toBeGreaterThanOrEqual(scrollFloor);
+      expect(measured.messages.height, label).toBeGreaterThanOrEqual(28);
+      expect(measured.messages.height, label).toBeLessThanOrEqual(170);
+      expect(measured.scrollH, label).toBeGreaterThanOrEqual(24);
       if (String(label).startsWith('mobile')) {
         expect(measured.map.height, label).toBeGreaterThanOrEqual(110);
         expect(measured.map.height / measured.ws.height, label).toBeGreaterThan(0.12);
@@ -410,6 +428,7 @@ describe('Mission messages toggle — live layout', () => {
       return measured;
     }
 
+    await page.click('#missionMessagesToggle');
     const desk = await check('desktop');
     expect(desk.stored).toBe('1');
     shots.push(await shot('mission-messages-open-1280x800.png'));
@@ -445,10 +464,10 @@ describe('Mission messages toggle — live layout', () => {
     expect(painted[0].className).toContain('pfc-msg-line--warn');
     expect(painted[0].dir).toBe('ltr');
     expect(painted.some((line) => line.title === 'PreArm: Compass not healthy')).toBe(true);
-    await page.click('#pfcMsgFilterWarn');
-    const warned = await page.evaluate(() => (
-      [...document.querySelectorAll('#pfcMsgScroll .pfc-msg-line')].map((line) => line.title)
-    ));
+    const warned = await page.evaluate(() => {
+      document.getElementById('pfcMsgFilterWarn').click();
+      return [...document.querySelectorAll('#pfcMsgScroll .pfc-msg-line')].map((line) => line.title);
+    });
     expect(warned).not.toContain('ArduPlane V4.5.0');
     expect(warned).toContain('EKF3 waiting for GPS config data');
     await page.click('#pfcMsgFilterAll');
@@ -457,6 +476,13 @@ describe('Mission messages toggle — live layout', () => {
     await page.setViewportSize({ width: 360, height: 800 });
     await check('mobile');
     shots.push(await shot('mission-messages-shown-360x800.png'));
+    await page.click('#missionMessagesToggle');
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await page.waitForSelector('#missionMessagesSummary');
+    const kept = await measure(page);
+    expect(kept.expanded).toBe('0');
+    expect(kept.stored).toBe('0');
+    expect(kept.messages.height).toBeLessThan(160);
     fs.writeFileSync(path.join(shotDir, 'mission-messages-shots.json'), JSON.stringify(shots, null, 2));
   }, 60000);
 });

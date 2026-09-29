@@ -48,11 +48,11 @@ async function waitHttp(url, timeoutMs = 8000) {
 }
 
 describe('companion_agent observe-only vision / landing status', () => {
-  it('pins APP_VERSION at 1.02.363', () => {
+  it('pins APP_VERSION at 1.02.372', () => {
     const version = fs.readFileSync(path.join(repoRoot, 'version.js'), 'utf8');
     const pkg = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8'));
-    expect(version).toContain("export const APP_VERSION = '1.02.363'");
-    expect(pkg.version).toBe('1.02.363');
+    expect(version).toContain("export const APP_VERSION = '1.02.372'");
+    expect(pkg.version).toBe('1.02.372');
   });
 
   it('keeps 2.3.1 fan-out UART and reports explicit absent, never invented detect', () => {
@@ -128,7 +128,7 @@ describe('companion_agent observe-only vision / landing status', () => {
       fetch(`${base}/api/v1/status/modem`).then((r) => r.json()),
       fetch(`${base}/api/v1/status/annotated-video`).then((r) => r.json()),
     ]);
-    expect(health.agentVersion).toBe('2.6.3');
+    expect(health.agentVersion).toBe('2.6.5');
     expect(health.capabilities.uplinkStatus).toBe(true);
     expect(health.capabilities.uplinkControl).toBe(true);
     expect(health.fc.connected).toBe(false);

@@ -165,9 +165,9 @@ describe('AIRVIX Mission chrome — talk is flight-safe', () => {
     expect(chip).toContain("kind === 'advisor'");
   });
 
-  it('pins APP_VERSION at 1.02.363', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.363'");
-    expect(pkg.version).toBe('1.02.363');
+  it('pins APP_VERSION at 1.02.372', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.372'");
+    expect(pkg.version).toBe('1.02.372');
   });
 
   it('keeps a rectangular glass artificial horizon with video HUD mode', () => {
@@ -256,7 +256,7 @@ describe('AIRVIX Mission chrome — talk is flight-safe', () => {
   });
 
   it('collapses Mission messages by default and persists expand in localStorage', () => {
-    expect(html).toMatch(/data-mission-region="messages"[^>]*data-messages-expanded="1"/);
+    expect(html).toMatch(/data-mission-region="messages"[^>]*data-messages-expanded="0"/);
     expect(html).toContain('id="pfcMsgFilterAll"');
     expect(html).toMatch(/id="pfcMsgScroll"[^>]*dir="ltr"/);
     expect(js).toContain('function readMissionMessagesExpanded(');

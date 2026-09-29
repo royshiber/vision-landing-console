@@ -223,6 +223,14 @@ const MISSION_COL_MIN_PX = 140;
 const MISSION_COL_COLLAPSE = 0.02;
 const MISSION_AREAS_KEY = 'visionLandingMissionAreasV2';
 const MISSION_MESSAGES_KEY = 'visionLandingMissionMessagesV1';
+const FLIGHT_STACK_KEY = 'visionLandingFlightStackV1';
+const FLIGHT_DATA_DEFAULT = 88;
+const FLIGHT_MSG_DEFAULT = 40;
+const FLIGHT_MSG_OPEN = 112;
+const FLIGHT_DATA_MIN = 88;
+const FLIGHT_MSG_MIN = 36;
+const FLIGHT_HUD_MIN = 160;
+const FLIGHT_MSG_OPEN_GAP = 28;
 const MISSION_MESSAGES_SEEN_KEY = 'visionLandingMissionMessagesSeenV1';
 const MISSION_DATA_SLOTS_KEY = 'visionLandingMissionDataSlotsV1';
 const PULSE_WIDGETS_KEY = 'visionLandingPulseWidgetsV1';
@@ -796,6 +804,7 @@ function renderFcGroupList() {
         paintFcRow(key);
         renderFcChangePane();
         syncGroupApplyBtn();
+        updateParamSyncBanner();
       });
       li.appendChild(input);
     }
@@ -1161,6 +1170,8 @@ let arduTargetState = { ...ARDU_TARGET_DEFAULTS_CLIENT };
 let lastServerSyncedCanonical = null;
 /** Why: compare editable Ardu targets to last FC READ. What: null until a successful READ while connected; updated after WRITE success. */
 let fcCurrentSnapshot = null;
+/** Link and arm gate for כתיבה לבקר. Updated from READ and live telemetry. */
+let arduWriteGate = { mavlinkConnected: false, armed: null };
 /** Why: WRITE must send only session edits, not the whole target template vs live FC. */
 let arduWriteBaseline = { ...arduTargetState };
 
@@ -1174,6 +1185,28 @@ function arduValuesDiffer(a, b) {
 
 function captureArduWriteBaseline() {
   arduWriteBaseline = { ...arduTargetState };
+}
+
+/** Last profile values known to match the console backup. Slider edits diff against this. */
+let profileWriteBaseline = { ...profileState };
+
+function baselineCanonicalStr() {
+  const prof = {};
+  Object.keys(profileState).sort().forEach((k) => {
+    prof[k] = profileWriteBaseline[k];
+  });
+  prof.companion_serial_port = companionLinkState.companion_serial_port;
+  prof.companion_sr_bucket = companionLinkState.companion_sr_bucket;
+  const ardu = {};
+  Object.keys(arduTargetState).sort().forEach((k) => {
+    ardu[k] = arduWriteBaseline[k];
+  });
+  return JSON.stringify({ profile: prof, arduTarget: ardu });
+}
+
+function captureServerBaseline() {
+  profileWriteBaseline = { ...profileState };
+  lastServerSyncedCanonical = baselineCanonicalStr();
 }
 
 /** Why: dirty = target vs session baseline, skipping keys that already match last READ. */
@@ -1214,11 +1247,6 @@ function canonicalServerPayloadStr() {
   return JSON.stringify({ profile: prof, arduTarget: ardu });
 }
 
-/** Why: mark UI as matching persisted server snapshot. What: call after successful GET/POST /api/vision/config. */
-function captureServerBaseline() {
-  lastServerSyncedCanonical = canonicalServerPayloadStr();
-}
-
 /** Why: count Ardu keys that differ from last known FC state. What: null if never READ while connected. */
 function countArduMismatchVsFc() {
   if (!fcCurrentSnapshot || typeof fcCurrentSnapshot !== 'object') return null;
@@ -1233,35 +1261,81 @@ function countArduDirtyVsSession() {
   return Object.keys(collectDirtyArduParams()).length;
 }
 
-/** Why: pilot sees pending writes to the mission computer vs the FC. What: fills #paramSyncBanner from baselines and diff counts. */
+function pendingValueText(value) {
+  if (value == null || value === '') return 'לא ידוע';
+  return String(value);
+}
+
+/** Profile slider edits since the last backup sync. */
+function collectPendingProfileRows() {
+  const rows = [];
+  for (const param of PARAMS) {
+    const next = Number(profileState[param.key]);
+    const prev = Number(profileWriteBaseline[param.key]);
+    if (!Number.isFinite(next) || !arduValuesDiffer(prev, next)) continue;
+    rows.push({
+      key: param.key,
+      target: 'profile',
+      currentText: pendingValueText(profileWriteBaseline[param.key]),
+      nextText: String(next),
+      value: next,
+    });
+  }
+  return rows;
+}
+
+/** FC form sliders, fields, and group drafts since the session baseline. */
+function collectPendingFcRows() {
+  const rows = [];
+  const dirty = collectDirtyArduParams();
+  for (const [key, value] of Object.entries(dirty)) {
+    const old = fcCurrentSnapshot && Object.prototype.hasOwnProperty.call(fcCurrentSnapshot, key)
+      ? fcCurrentSnapshot[key]
+      : arduWriteBaseline[key];
+    rows.push({
+      key,
+      target: 'fc',
+      currentText: pendingValueText(old),
+      nextText: String(value),
+      value,
+    });
+  }
+  for (const [key, value] of Object.entries(fcGroupDraft)) {
+    if (rows.some((row) => row.key === key)) continue;
+    const n = Number(value);
+    if (!Number.isFinite(n)) continue;
+    rows.push({
+      key,
+      target: 'fc',
+      currentText: fcPresence(key).text,
+      nextText: String(n),
+      value: n,
+    });
+  }
+  return rows;
+}
+
+function collectPendingWriteRows() {
+  return [...collectPendingFcRows(), ...collectPendingProfileRows()];
+}
+
+/** Why: one status for every slider or field edit. What: fills #paramSyncBanner with the exact old to new list. */
 function updateParamSyncBanner() {
   const el = document.getElementById('paramSyncBanner');
   if (!el) return;
 
-  const serverDirty = lastServerSyncedCanonical != null && canonicalServerPayloadStr() !== lastServerSyncedCanonical;
+  const rows = collectPendingWriteRows();
   const fcMis = countArduMismatchVsFc();
-  const sessionDirty = countArduDirtyVsSession();
-
   const lines = [];
-    if (serverDirty) {
-    lines.push('יש שינויים שלא נשמרו בגיבוי בקונסולה.');
-  }
-  if (fcMis == null) {
-    lines.push('לא בוצעה קריאה מבקר הטיסה. לא ידוע אם המטוס תואם ליעדים.');
-  }
-  if (sessionDirty > 0) {
-    lines.push(`יש שינויים שלא נשלחו לבקר הטיסה (${sessionDirty}).`);
-  }
-
-  let level = 'ok';
-  if (serverDirty || sessionDirty > 0) {
+  let level = 'info';
+  if (rows.length) {
+    lines.push('יש שינוי');
+    for (const row of rows) lines.push(`${row.key} ${row.currentText} → ${row.nextText}`);
     level = 'warn';
-  } else if (fcMis == null && !serverDirty) {
+  } else if (fcMis == null) {
+    lines.push('לא בוצעה קריאה מבקר הטיסה. לא ידוע אם המטוס תואם ליעדים.');
     level = 'info';
-  }
-
-  if (!serverDirty && sessionDirty === 0 && fcMis === 0) {
-    lines.length = 0;
+  } else if (fcMis === 0) {
     lines.push('הכול מסונכרן: הגיבוי בקונסולה תואם למה שנקרא מבקר הטיסה.');
     level = 'ok';
   }
@@ -1269,7 +1343,14 @@ function updateParamSyncBanner() {
   el.className = `param-sync-banner param-sync-banner--${level}`;
   el.hidden = lines.length === 0;
   if (typeof refreshParamToolbarMeta === 'function') refreshParamToolbarMeta();
-  el.innerHTML = lines.map((t) => `<span class="param-sync-line">${t}</span>`).join('');
+  if (typeof refreshArduWriteBtnState === 'function') refreshArduWriteBtnState(arduWriteGate);
+  el.replaceChildren();
+  for (const text of lines) {
+    const span = document.createElement('span');
+    span.className = 'param-sync-line';
+    span.textContent = text;
+    el.appendChild(span);
+  }
 }
 
 const saveProfileBtn = document.getElementById('saveProfileBtn');
@@ -2491,13 +2572,18 @@ function paintFcWriteResult(outcome, pairs = [], retry) {
   box.replaceChildren();
   const title = document.createElement('p');
   title.className = 'param-write-result-title';
-  title.textContent = outcome?.level === 'ok' ? 'נכתב לבקר ואומת' : String(outcome?.text || '');
+  const verifiedTitle = outcome?.text === 'נשמר ואומת' ? 'נשמר ואומת' : 'נכתב לבקר ואומת';
+  title.textContent = outcome?.level === 'ok' ? verifiedTitle : String(outcome?.text || '');
   box.appendChild(title);
-  if (outcome?.level === 'ok') {
+  if (outcome?.level !== 'none') {
     for (const pair of pairs) {
       const line = document.createElement('p');
       line.className = 'param-write-result-line';
-      line.textContent = `${pair.key} ${pair.oldText} → ${pair.newText}`;
+      const acked = outcome?.acked && Object.prototype.hasOwnProperty.call(outcome.acked, pair.key);
+      const mark = pair.result === 'verified' || (pair.result !== 'failed' && (acked || outcome?.level === 'ok'))
+        ? 'אומת'
+        : 'נכשל';
+      line.textContent = `${pair.key} ${pair.oldText} → ${pair.newText} ${mark}`;
       box.appendChild(line);
     }
   }
@@ -2544,16 +2630,16 @@ function refreshParamToolbarMeta() {
   const fcStateEl = document.getElementById('fcToolState');
   const fcMeta = document.getElementById('fcToolMeta');
   const serverKnown = lastServerSyncedCanonical != null;
-  const serverDirty = serverKnown && canonicalServerPayloadStr() !== lastServerSyncedCanonical;
-  const sessionDirty = countArduDirtyVsSession();
+  const pending = collectPendingWriteRows();
   const fcLink = resolvedFcLink();
+  const pendingLabel = pending.length > 0;
   if (jetsonState) {
     let state = 'unknown';
     let label = 'לא ידוע';
     if (backupLoadState === 'fail') {
       state = 'down';
       label = 'נכשל';
-    } else if (serverKnown && serverDirty) {
+    } else if (serverKnown && pendingLabel) {
       state = 'dirty';
       label = 'יש שינוי';
     } else if (serverKnown || backupLoadState === 'ok') {
@@ -2565,11 +2651,11 @@ function refreshParamToolbarMeta() {
   }
   if (jetsonMeta) jetsonMeta.textContent = '';
   if (fcStateEl) {
-    const state = fcLink === 'ok' ? (sessionDirty > 0 ? 'dirty' : 'ok') : fcLink;
+    const state = pendingLabel ? 'dirty' : fcLink === 'ok' ? 'ok' : fcLink;
     fcStateEl.dataset.state = state;
-    fcStateEl.textContent = fcLink === 'ok'
-      ? (sessionDirty > 0 ? 'יש שינוי' : 'מחובר')
-      : fcLink === 'down' ? 'מנותק' : 'לא ידוע';
+    fcStateEl.textContent = pendingLabel
+      ? 'יש שינוי'
+      : fcLink === 'ok' ? 'מחובר' : fcLink === 'down' ? 'מנותק' : 'לא ידוע';
   }
   if (fcMeta) fcMeta.textContent = '';
 }
@@ -2607,8 +2693,10 @@ async function loadVisionConfigFromServer(statusEl) {
     const d = await res.json();
     if (d.profile && typeof d.profile === 'object') {
       Object.keys(profileState).forEach((key) => {
+        if (arduValuesDiffer(profileWriteBaseline[key], profileState[key])) return;
         if (d.profile[key] != null && Number.isFinite(Number(d.profile[key]))) {
           profileState[key] = Number(d.profile[key]);
+          profileWriteBaseline[key] = profileState[key];
         }
       });
       const normalized = normalizeCompanionLink(d.profile);
@@ -2617,17 +2705,20 @@ async function loadVisionConfigFromServer(statusEl) {
     }
     if (d.arduTarget && typeof d.arduTarget === 'object') {
       Object.keys(arduTargetState).forEach((k) => {
+        if (arduValuesDiffer(arduWriteBaseline[k], arduTargetState[k])) return;
         if (d.arduTarget[k] !== undefined && d.arduTarget[k] !== null) {
           const t = typeof arduTargetState[k] === 'number' ? Number(d.arduTarget[k]) : d.arduTarget[k];
-          if (typeof arduTargetState[k] === 'number' ? Number.isFinite(t) : true) arduTargetState[k] = t;
+          if (typeof arduTargetState[k] === 'number' ? Number.isFinite(t) : true) {
+            arduTargetState[k] = t;
+            arduWriteBaseline[k] = t;
+          }
         }
       });
     }
+    lastServerSyncedCanonical = baselineCanonicalStr();
     renderParams();
     renderArduParamForm();
     syncConfigTextFromArdu();
-    captureServerBaseline();
-    captureArduWriteBaseline();
     jetsonReadAt = Date.now();
     backupLoadState = 'ok';
     clearParamToolFault();
@@ -7158,6 +7249,10 @@ function liveStatusToHudMavlink(s) {
     listening: s.listening === true,
     id: s.id ?? null,
     linkRole: s.linkRole || 'radio',
+    simulator: s.simulator === true,
+    type: s.type || null,
+    host: s.host || null,
+    port: Number.isFinite(Number(s.port)) ? Number(s.port) : null,
     heartbeatCount: Number(s.heartbeatCount) || 0,
     sysId: hudSysId(s.sysId),
     lastHeartbeatAgeMs: Number.isFinite(Number(s.lastHeartbeatAgeMs)) ? Number(s.lastHeartbeatAgeMs) : null,
@@ -8364,6 +8459,20 @@ function writeMissionMessagesSeenSig(sig) {
 
 /** Badge only. Message lines stay in the normal UI color. */
 function syncMissionMessagesBadge(rows) {
+  const summary = document.getElementById('missionMessagesSummary');
+  const countEl = document.getElementById('missionMessagesCount');
+  const shown = (Array.isArray(rows) ? rows : [])
+    .map((row) => ({
+      text: String(row?.text || '').trim(),
+      count: Number(row?.count) > 1 ? Number(row.count) : 1,
+    }))
+    .filter((row) => row.text);
+  if (summary) summary.textContent = shown.length ? shown[0].text : 'אין הודעות';
+  if (countEl) {
+    const total = shown.reduce((sum, row) => sum + row.count, 0);
+    countEl.textContent = shown.length ? String(total) : '';
+    countEl.hidden = !shown.length;
+  }
   const badge = document.getElementById('missionMessagesBadge');
   if (!badge) return;
   const list = (Array.isArray(rows) ? rows : [])
@@ -8547,8 +8656,9 @@ function openDiagnosticsReadiness() {
   closePfdReadinessPopover();
   applyMainTab('telemetry');
   applyTeleSubtab('dash');
-  const strip = document.getElementById('readinessStrip') || document.getElementById('preflightCard');
+  const strip = document.getElementById('preflightReadiness') || document.getElementById('readinessStrip') || document.getElementById('preflightCard');
   strip?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  void refreshPreflightReadiness();
 }
 
 function setupFlightHudChromeHandlers() {
@@ -8909,6 +9019,7 @@ function applySseTelemetryPayload(payload) {
   latestCompanionFromServer = payload.companion || null;
   const jetsonOnline = Boolean(payload.jetson?.online);
   try { applySseMissionHud(payload); } catch (err) { console.warn('SSE mission HUD apply failed', err); }
+  try { syncWriteGateFromMav(payload?.mavlink); } catch (err) { console.warn('SSE write gate failed', err); }
   try { updateAdvisorSysStrip(payload.mavlink, payload.jetson, payload.appVersion); } catch (err) { console.warn('SSE advisor strip failed', err); }
   try { applyJetsonUi(jetsonOnline, payload.jetson || {}); } catch (err) { console.warn('SSE jetson UI failed', err); }
   try { applyVisionUi(payload.vision); } catch (err) { console.warn('SSE vision UI failed', err); }
@@ -10995,6 +11106,98 @@ const arduWriteStatus = document.getElementById('arduWriteStatus');
   }, { threshold: 0.1 });
   observer.observe(card);
 })();
+
+const PREFLIGHT_MANUAL_KEY = 'vlc-preflight-manual-v1';
+
+function readPreflightManualTicks() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(PREFLIGHT_MANUAL_KEY) || '{}');
+    return raw && typeof raw === 'object' ? raw : {};
+  } catch {
+    return {};
+  }
+}
+
+function renderPreflightReadiness(payload) {
+  const list = document.getElementById('preflightReadyList');
+  const openEl = document.getElementById('preflightReadyOpen');
+  if (!list || !Array.isArray(payload?.items)) return;
+  const ticks = readPreflightManualTicks();
+  list.replaceChildren();
+  const recount = () => {
+    const n = list.querySelectorAll('[data-state="open"]').length;
+    if (openEl) openEl.textContent = n === 0 ? 'הכל ירוק' : `פתוח ${n}`;
+  };
+  for (const item of payload.items) {
+    const li = document.createElement('li');
+    li.className = 'preflight-ready-item';
+    li.dataset.id = String(item.id || '');
+    li.dataset.source = item.source === 'manual' ? 'manual' : 'auto';
+    const manualOn = item.source === 'manual' && ticks[item.id] === true;
+    const ok = item.source === 'manual' ? manualOn : item.state === 'ok';
+    li.dataset.state = ok ? 'ok' : 'open';
+    const copy = document.createElement('div');
+    copy.className = 'preflight-ready-copy';
+    if (item.source === 'manual') {
+      const label = document.createElement('label');
+      label.className = 'preflight-ready-label';
+      const input = document.createElement('input');
+      input.type = 'checkbox';
+      input.checked = manualOn;
+      input.setAttribute('aria-label', item.labelHe || '');
+      input.addEventListener('change', () => {
+        const next = readPreflightManualTicks();
+        next[item.id] = input.checked === true;
+        localStorage.setItem(PREFLIGHT_MANUAL_KEY, JSON.stringify(next));
+        li.dataset.state = input.checked ? 'ok' : 'open';
+        recount();
+      });
+      const text = document.createElement('span');
+      text.textContent = item.labelHe || '';
+      label.append(input, text);
+      copy.append(label);
+    } else {
+      const mark = document.createElement('span');
+      mark.className = 'preflight-ready-mark';
+      mark.textContent = ok ? 'ירוק' : 'פתוח';
+      const text = document.createElement('span');
+      text.className = 'preflight-ready-label';
+      text.textContent = item.labelHe || '';
+      li.append(mark);
+      copy.append(text);
+    }
+    if (item.detailHe && !ok) {
+      const detail = document.createElement('span');
+      detail.className = 'preflight-ready-label';
+      detail.textContent = item.detailHe;
+      copy.append(detail);
+    }
+    li.append(copy);
+    list.append(li);
+  }
+  recount();
+}
+
+async function refreshPreflightReadiness() {
+  const list = document.getElementById('preflightReadyList');
+  if (!list) return;
+  try {
+    const res = await fetch('/api/preflight-readiness');
+    if (!res.ok) return;
+    renderPreflightReadiness(await res.json());
+  } catch {
+    /* leave the last list */
+  }
+}
+
+(function initPreflightReadiness() {
+  const panel = document.getElementById('preflightReadiness');
+  if (!panel) return;
+  const observer = new IntersectionObserver((entries) => {
+    if (entries.some((e) => e.isIntersecting)) void refreshPreflightReadiness();
+  }, { threshold: 0.1 });
+  observer.observe(panel);
+})();
 const arduDiffSection = document.getElementById('arduDiffSection');
 const arduDiffTable = document.getElementById('arduDiffTable');
 const arduDiffSummary = document.getElementById('arduDiffSummary');
@@ -11165,35 +11368,122 @@ if (arduReadBtn) {
 }
 
 /**
- * Update the WRITE button appearance based on MAVLink / ARMED state.
- * Called after READ and also periodically via the SSE telemetry handler.
+ * Enable כתיבה לבקר only when the link is up, the vehicle is disarmed, and a slider or field edit is pending.
  */
-let arduWriteGate = { mavlinkConnected: false, armed: null };
+function syncWriteGateFromMav(mav) {
+  if (!mav || mav.connected !== true) return;
+  const armed = mav.armedKnown === true ? mav.armed === true : arduWriteGate.armed;
+  refreshArduWriteBtnState({
+    mavlinkConnected: true,
+    armed: armed === true ? true : armed === false ? false : null,
+  });
+}
 
 function refreshArduWriteBtnState(arduStatus) {
-  if (!arduWriteBtn) return;
+  const btn = document.getElementById('arduWriteBtn');
+  if (!btn) return;
   const { mavlinkConnected, armed } = arduStatus || {};
   arduWriteGate = { mavlinkConnected: !!mavlinkConnected, armed: armed === true ? true : armed === false ? false : null };
+  const pending = collectPendingWriteRows().length;
   if (!mavlinkConnected) {
-    arduWriteBtn.disabled = true;
-    arduWriteBtn.classList.remove('ardu-write-armed');
-    arduWriteBtn.classList.add('ardu-write-disconnected');
-    arduWriteBtn.title = 'אין חיבור לבקר הטיסה';
+    btn.disabled = true;
+    btn.classList.remove('ardu-write-armed');
+    btn.classList.add('ardu-write-disconnected');
+    btn.title = 'אין חיבור לבקר הטיסה';
   } else if (armed === true) {
-    arduWriteBtn.disabled = true;
-    arduWriteBtn.classList.add('ardu-write-armed');
-    arduWriteBtn.classList.remove('ardu-write-disconnected');
-    arduWriteBtn.title = 'המטוס חמוש. הכתיבה חסומה עד לניטרול.';
+    btn.disabled = true;
+    btn.classList.add('ardu-write-armed');
+    btn.classList.remove('ardu-write-disconnected');
+    btn.title = 'המטוס חמוש. הכתיבה חסומה עד לניטרול.';
+  } else if (!pending) {
+    btn.disabled = true;
+    btn.classList.remove('ardu-write-armed', 'ardu-write-disconnected');
+    btn.title = 'כתיבה לבקר';
   } else {
-    arduWriteBtn.disabled = false;
-    arduWriteBtn.classList.remove('ardu-write-armed', 'ardu-write-disconnected');
-    arduWriteBtn.title = 'כתיבה לבקר';
+    btn.disabled = false;
+    btn.classList.remove('ardu-write-armed', 'ardu-write-disconnected');
+    btn.title = 'כתיבה לבקר';
   }
 }
 
-/** Why: toolbar write uses the same FC acknowledgement as group, wizard, and restore. */
+async function runConfirmedParamWrite(rows, retry) {
+  const btn = document.getElementById('arduWriteBtn');
+  if (btn) btn.disabled = true;
+  paintFcWriteResult({ level: 'none', text: 'שולח…' }, [], null);
+  const fcRows = rows.filter((row) => row.target === 'fc');
+  const profileRows = rows.filter((row) => row.target === 'profile');
+  const pairs = [];
+  try {
+    if (profileRows.length) {
+      await saveVisionConfigToServer(null);
+      let saved = null;
+      try {
+        const res = await fetch('/api/vision/config');
+        saved = await res.json();
+      } catch {
+        saved = null;
+      }
+      for (const row of profileRows) {
+        const got = saved?.profile?.[row.key];
+        const ok = got != null && !arduValuesDiffer(got, row.value);
+        pairs.push({
+          key: row.key,
+          oldText: row.currentText,
+          newText: row.nextText,
+          result: ok ? 'verified' : 'failed',
+        });
+      }
+    }
+    let outcome = {
+      level: pairs.length && pairs.every((pair) => pair.result === 'verified') ? 'ok' : 'fail',
+      text: pairs.length && pairs.every((pair) => pair.result === 'verified') ? 'נשמר ואומת' : 'השמירה נכשלה',
+      acked: {},
+    };
+    if (!profileRows.length) outcome = { level: 'none', text: '', acked: {} };
+    if (fcRows.length) {
+      const dirtyParams = {};
+      for (const row of fcRows) dirtyParams[row.key] = row.value;
+      const fcOutcome = await commitGuardedFcWrite(dirtyParams);
+      for (const row of fcRows) {
+        const acked = fcOutcome.acked && Object.prototype.hasOwnProperty.call(fcOutcome.acked, row.key);
+        pairs.push({
+          key: row.key,
+          oldText: row.currentText,
+          newText: acked ? String(fcOutcome.acked[row.key]) : row.nextText,
+          result: acked ? 'verified' : 'failed',
+        });
+      }
+      if (fcOutcome.level === 'ok' || fcOutcome.history) {
+        applyAckedSnapshot(fcOutcome.acked);
+        for (const key of Object.keys(fcOutcome.acked || {})) {
+          if (Object.prototype.hasOwnProperty.call(arduTargetState, key)) arduWriteBaseline[key] = arduTargetState[key];
+          delete fcGroupDraft[key];
+          delete fcDraftMeta[key];
+        }
+        if (fcCurrentSnapshot && arduDiffTable && arduDiffSection) {
+          renderArduDiff(fcCurrentSnapshot, arduTargetState);
+        }
+        renderFcGroupList();
+      }
+      const allVerified = pairs.length > 0 && pairs.every((pair) => pair.result === 'verified');
+      outcome = allVerified
+        ? { ...fcOutcome, level: 'ok', text: 'נכתב לבקר ואומת' }
+        : fcOutcome;
+    }
+    paintFcWriteResult(outcome, pairs, retry);
+    updateParamSyncBanner();
+    renderArduParamForm();
+  } catch (err) {
+    const fault = `הכתיבה לבקר נכשלה. הסיבה: ${hebrewRequestFault(err)}`;
+    paintFcWriteResult({ level: 'fail', text: fault }, pairs, retry);
+  } finally {
+    refreshArduWriteBtnState(arduWriteGate);
+  }
+}
+
+/** Why: toolbar write confirms the exact old to new list, then reads each param back. */
 if (arduWriteBtn) {
-  arduWriteBtn.addEventListener('click', async () => {
+  arduWriteBtn.addEventListener('click', () => {
     if (!arduWriteGate.mavlinkConnected || arduWriteGate.armed === true) {
       const blocked = arduWriteGate.armed === true
         ? 'המטוס חמוש. הכתיבה חסומה עד לניטרול.'
@@ -11202,37 +11492,13 @@ if (arduWriteBtn) {
       refreshArduWriteBtnState(arduWriteGate);
       return;
     }
-    arduWriteBtn.disabled = true;
-    paintFcWriteResult({ level: 'none', text: 'שולח…' }, [], null);
-    try {
-      const dirtyParams = collectDirtyArduParams();
-      const before = {};
-      for (const key of Object.keys(dirtyParams)) before[key] = fcPresence(key).text;
-      const outcome = await commitGuardedFcWrite(dirtyParams);
-      const pairs = Object.keys(outcome.acked || {}).map((key) => ({
-        key,
-        oldText: before[key] || fcPresence(key).text,
-        newText: String(outcome.acked[key]),
-      }));
-      paintFcWriteResult(outcome, pairs, () => arduWriteBtn.click());
-      if (outcome.level === 'ok' || outcome.history) {
-        applyAckedSnapshot(outcome.acked);
-        for (const key of Object.keys(outcome.acked || {})) {
-          if (Object.prototype.hasOwnProperty.call(arduTargetState, key)) arduWriteBaseline[key] = arduTargetState[key];
-        }
-        if (fcCurrentSnapshot && arduDiffTable && arduDiffSection) {
-          renderArduDiff(fcCurrentSnapshot, arduTargetState);
-        }
-        renderFcGroupList();
-      }
-      updateParamSyncBanner();
-      renderArduParamForm();
-    } catch (err) {
-      const fault = `הכתיבה לבקר נכשלה. הסיבה: ${hebrewRequestFault(err)}`;
-      paintFcWriteResult({ level: 'fail', text: fault }, [], () => arduWriteBtn.click());
-    } finally {
+    const rows = collectPendingWriteRows();
+    if (!rows.length) {
+      paintFcWriteResult({ level: 'none', text: 'אין שינוי' }, [], null);
       refreshArduWriteBtnState(arduWriteGate);
+      return;
     }
+    openGuardedFcWriteConfirm(rows, () => runConfirmedParamWrite(rows, () => arduWriteBtn.click()));
   });
 }
 
@@ -17878,6 +18144,16 @@ function assistBuildContextSnapshot() {
       flight_mode: mav.connected === true ? (vlcFlightModeName(mav.flightMode, mav) || null) : null,
       armed: typeof mav.armed === 'boolean' ? mav.armed : null,
       gps_ok: typeof mav.gpsFixType === 'number' ? mav.gpsFixType >= 3 : null,
+      gps_sats: typeof mav.gpsSats === 'number' ? mav.gpsSats : null,
+      battery_v: typeof mav.batteryV === 'number' ? mav.batteryV : null,
+      battery_pct: typeof mav.batteryPct === 'number' ? mav.batteryPct : null,
+      link_path: assistLinkPath(mav),
+      simulator: mav.simulator === true,
+      link_port: Number.isFinite(Number(mav.port)) ? Number(mav.port) : null,
+      link_host: mav.host || null,
+      link_type: mav.type || null,
+      link_quality: assistLinkQuality(mav),
+      status_texts: assistStatusTexts(mav),
       vision_confidence: conf,
       altitude_m: typeof mav.altitude === 'number' ? mav.altitude : null,
       airspeed_ms: typeof mav.airspeed === 'number' ? mav.airspeed : null,
@@ -17888,6 +18164,73 @@ function assistBuildContextSnapshot() {
     ops_signals: assistBuildOpsSignals(vision),
     attention_policy: (typeof attentionReadPolicy === 'function' ? attentionReadPolicy() : {}).proactiveLevel || 'off',
   };
+}
+
+function assistStatusTexts(mav) {
+  const raw = Array.isArray(mav?.recentStatusTexts) ? mav.recentStatusTexts : [];
+  const out = [];
+  for (const row of raw) {
+    const text = typeof row === 'string' ? row : row?.text;
+    const s = String(text || '').trim();
+    if (!s) continue;
+    out.push(s.slice(0, 160));
+    if (out.length >= 8) break;
+  }
+  return out;
+}
+
+function assistLinkPath(mav) {
+  if (mav?.connected !== true) return null;
+  if (mav.simulator === true) return 'simulator';
+  const port = Number(mav.port);
+  const host = String(mav.host || '').trim().toLowerCase();
+  const type = String(mav.type || '').toLowerCase();
+  const loopback = host === '127.0.0.1' || host === 'localhost' || host === '::1';
+  if (port === 5760 && loopback && (type === 'tcp' || type === 'udp' || type === '')) return 'simulator';
+  const role = String(mav.linkRole || mav.link_path || '').toLowerCase();
+  if (role === 'cellular' || role === 'cell' || role === 'lte') return 'cellular';
+  if (role === 'sitl' || role === 'sim' || role === 'simulator') return 'simulator';
+  if (role === 'rf' || role === 'radio' || role === 'serial') return 'rf';
+  if (role === 'usb') return 'usb';
+  return null;
+}
+
+function assistLinkQuality(mav) {
+  const direct = Number(mav?.linkQualityPct ?? mav?.link_quality);
+  if (Number.isFinite(direct)) return direct;
+  try {
+    const raw = String(document.getElementById('linkQuality')?.textContent || '').trim();
+    const match = raw.match(/^(\d+(?:\.\d+)?)%?$/);
+    if (match) return Number(match[1]);
+  } catch {
+    /* omit */
+  }
+  return null;
+}
+
+function assistOneCamera(companion, vision, id) {
+  const detail = horizonCameraDetail(companion, id)
+    || horizonCameraDetail(vision, id)
+    || null;
+  if (!detail || typeof detail !== 'object') return null;
+  if (detail.enabled === false) return false;
+  if (detail.state === 'streaming') return true;
+  if (detail.camera_ok === true) return horizonSlotStreaming(detail);
+  if (detail.camera_ok === false || detail.has_frame === false) return false;
+  return null;
+}
+
+function assistJetsonState() {
+  const companion = (typeof latestCompanionFromServer === 'object' && latestCompanionFromServer)
+    ? latestCompanionFromServer
+    : {};
+  const link = companion.link && typeof companion.link === 'object' ? companion.link : {};
+  const jetson = link.jetson || companion.jetson;
+  if (jetson === 'reachable' || jetson === 'unreachable' || jetson === 'off' || jetson === 'mock') return jetson;
+  if (companion.mode === 'mock') return 'mock';
+  if (companion.reachable === true) return 'reachable';
+  if (companion.reachable === false) return 'unreachable';
+  return null;
 }
 
 function assistBuildOpsSignals(vision) {
@@ -17908,6 +18251,14 @@ function assistBuildOpsSignals(vision) {
         ops.optical_missing = opticalNavStatusHeClient(nav).text === '—';
       }
     }
+    const jetson = assistJetsonState();
+    if (jetson) ops.jetson = jetson;
+    const cameras = {};
+    const cam0 = assistOneCamera(companion, vision, 'cam0');
+    const cam1 = assistOneCamera(companion, vision, 'cam1');
+    if (cam0 != null) cameras.cam0 = cam0;
+    if (cam1 != null) cameras.cam1 = cam1;
+    if (Object.keys(cameras).length) ops.cameras = cameras;
   } catch {
     /* honesty only — omit if unread */
   }
@@ -18495,13 +18846,9 @@ async function assistSendText(rawText, { channel = 'text' } = {}) {
   if (typeof resp.ask_voice_go_active === 'boolean') {
     assistSyncVoiceGoChrome(resp.ask_voice_go_active);
   }
-  const meta = [resp.intent, resp.kind, resp.confidence != null ? `conf ${Number(resp.confidence).toFixed(2)}` : null]
-    .filter(Boolean)
-    .join(' · ');
   assistAppendMessage({
     role: 'assist',
     text: resp.answer || '—',
-    meta,
     kind: resp.kind,
     blocked: resp.blocked === true,
   });
@@ -19039,6 +19386,7 @@ function resetMissionLayout() {
   applyMissionSize(defaultMissionSize());
   applyMissionAreas(defaultMissionAreas());
   applyMissionSwap(swap);
+  resetFlightStack();
   syncMissionLayoutChrome();
 }
 
@@ -19341,9 +19689,189 @@ function setFcMsgFilter(next) {
   paintFcStatustextHistory(_missionMessagesRows);
 }
 
+function defaultFlightStack() {
+  return { data: FLIGHT_DATA_DEFAULT, msg: FLIGHT_MSG_DEFAULT };
+}
+
+let _flightStack = defaultFlightStack();
+let _flightStackOpen = false;
+
+function readFlightStack() {
+  try {
+    const raw = JSON.parse(missionLayoutStoreGet(FLIGHT_STACK_KEY) || 'null');
+    const data = Number(raw?.data);
+    const msg = Number(raw?.msg);
+    if (Number.isFinite(data) && Number.isFinite(msg)) return { data, msg };
+  } catch {
+    /* ignore */
+  }
+  return defaultFlightStack();
+}
+
+function writeFlightStack(stack) {
+  const next = {
+    data: Math.round(Number(stack?.data) || FLIGHT_DATA_DEFAULT),
+    msg: Math.round(Number(stack?.msg) || FLIGHT_MSG_DEFAULT),
+  };
+  _flightStack = next;
+  missionLayoutStoreSet(FLIGHT_STACK_KEY, JSON.stringify(next));
+  return next;
+}
+
+function flightDataFloor(horizon) {
+  const grid = horizon.querySelector('#missionDataGrid');
+  if (!grid || typeof grid.getBoundingClientRect !== 'function') return FLIGHT_DATA_MIN;
+  const gridBox = grid.getBoundingClientRect();
+  let content = Math.ceil(gridBox.height);
+  const filler = horizon.querySelector('#missionHorizonFiller');
+  if (filler && typeof filler.getBoundingClientRect === 'function') {
+    const fillerBox = filler.getBoundingClientRect();
+    if (fillerBox.height > 8 && fillerBox.top >= gridBox.bottom - 4) {
+      content += Math.ceil(fillerBox.height);
+    }
+  }
+  if (content < 40) return FLIGHT_DATA_MIN;
+  return Math.max(FLIGHT_DATA_MIN, content + 2);
+}
+
+function flightStackBudget(horizon) {
+  const total = horizon.getBoundingClientRect().height;
+  const splits = [...horizon.querySelectorAll('.flight-stack-split')];
+  const splitH = splits.reduce((sum, el) => sum + el.getBoundingClientRect().height, 0);
+  const toggle = document.getElementById('missionMessagesToggle');
+  const header = toggle ? Math.ceil(toggle.getBoundingClientRect().height + 8) : FLIGHT_MSG_DEFAULT;
+  const msgMin = Math.max(FLIGHT_MSG_MIN, header);
+  return {
+    avail: Math.max(0, total - splitH),
+    dataMin: flightDataFloor(horizon),
+    msgMin,
+    hudMin: FLIGHT_HUD_MIN,
+  };
+}
+
+function clampFlightStack(stack, budget) {
+  let data = Math.max(budget.dataMin, Number(stack.data) || FLIGHT_DATA_DEFAULT);
+  let msg = Math.max(budget.msgMin, Number(stack.msg) || FLIGHT_MSG_DEFAULT);
+  const room = budget.avail - budget.hudMin;
+  if (room > budget.dataMin + budget.msgMin && data + msg > room) {
+    const overflow = data + msg - room;
+    const msgRoom = Math.max(0, msg - budget.msgMin);
+    const takeMsg = Math.min(msgRoom, overflow);
+    msg -= takeMsg;
+    data = Math.max(budget.dataMin, data - (overflow - takeMsg));
+  }
+  return { data, msg };
+}
+
+function flightMessagesWantOpen(msg, msgMin) {
+  return msg >= msgMin + FLIGHT_MSG_OPEN_GAP;
+}
+
+function applyFlightStack(stack, opts = {}) {
+  const horizon = document.querySelector('[data-mission-region="horizon"]');
+  if (!horizon || typeof horizon.style?.setProperty !== 'function' || typeof horizon.getBoundingClientRect !== 'function') {
+    return null;
+  }
+  const budget = flightStackBudget(horizon);
+  const next = clampFlightStack(stack || _flightStack, budget);
+  _flightStack = next;
+  horizon.style.setProperty('--flight-data-h', `${Math.round(next.data)}px`);
+  horizon.style.setProperty('--flight-msg-h', `${Math.round(next.msg)}px`);
+  const dataSplit = document.getElementById('flightStackSplitData');
+  const msgSplit = document.getElementById('flightStackSplitMsg');
+  if (dataSplit) dataSplit.setAttribute('aria-valuenow', String(Math.round(next.data)));
+  if (msgSplit) msgSplit.setAttribute('aria-valuenow', String(Math.round(next.msg)));
+  _flightStackOpen = flightMessagesWantOpen(next.msg, budget.msgMin);
+  if (!opts.skipMessages) applyMissionMessagesExpanded(_flightStackOpen);
+  if (opts.persist) writeFlightStack(next);
+  return next;
+}
+
+function resetFlightStack() {
+  const next = defaultFlightStack();
+  writeFlightStack(next);
+  writeMissionMessagesExpanded(false);
+  applyMissionMessagesExpanded(false);
+  applyFlightStack(next, { skipMessages: true });
+}
+
+function syncFlightStackToToggle() {
+  const stack = { ..._flightStack };
+  stack.msg = readMissionMessagesExpanded()
+    ? Math.max(stack.msg, FLIGHT_MSG_OPEN)
+    : FLIGHT_MSG_DEFAULT;
+  applyFlightStack(stack, { persist: true, skipMessages: true });
+}
+
+function bindFlightStackSplitters() {
+  const dataSplit = document.getElementById('flightStackSplitData');
+  const msgSplit = document.getElementById('flightStackSplitMsg');
+  if (!dataSplit || !msgSplit || dataSplit.dataset.bound === '1') return;
+  dataSplit.dataset.bound = '1';
+  msgSplit.dataset.bound = '1';
+  let drag = null;
+  const stop = () => {
+    if (!drag) return;
+    drag = null;
+    writeMissionMessagesExpanded(_flightStackOpen);
+    writeFlightStack(_flightStack);
+    refreshMissionSwapSurfaces();
+  };
+  const onDown = (which, ev) => {
+    if (ev.button != null && ev.button !== 0) return;
+    drag = { which, y: ev.clientY, base: { ..._flightStack } };
+    try { ev.currentTarget.setPointerCapture?.(ev.pointerId); } catch { /* synthetic pointer */ }
+    ev.preventDefault();
+  };
+  const onMove = (ev) => {
+    if (!drag) return;
+    const dy = ev.clientY - drag.y;
+    const next = { ...drag.base };
+    if (drag.which === 'data') next.data = drag.base.data + dy;
+    else next.msg = drag.base.msg - dy;
+    applyFlightStack(next);
+  };
+  const onDbl = (ev) => {
+    ev.preventDefault();
+    drag = null;
+    resetFlightStack();
+  };
+  dataSplit.addEventListener('pointerdown', (ev) => onDown('data', ev));
+  msgSplit.addEventListener('pointerdown', (ev) => onDown('msg', ev));
+  dataSplit.addEventListener('pointermove', onMove);
+  msgSplit.addEventListener('pointermove', onMove);
+  dataSplit.addEventListener('pointerup', stop);
+  msgSplit.addEventListener('pointerup', stop);
+  dataSplit.addEventListener('pointercancel', stop);
+  msgSplit.addEventListener('pointercancel', stop);
+  dataSplit.addEventListener('dblclick', onDbl);
+  msgSplit.addEventListener('dblclick', onDbl);
+  window.addEventListener('pointermove', onMove);
+  window.addEventListener('pointerup', stop);
+  window.addEventListener('pointercancel', stop);
+}
+
+function initFlightStack() {
+  const stored = missionLayoutStoreGet(FLIGHT_STACK_KEY);
+  const stack = stored ? readFlightStack() : {
+    data: FLIGHT_DATA_DEFAULT,
+    msg: readMissionMessagesExpanded() ? FLIGHT_MSG_OPEN : FLIGHT_MSG_DEFAULT,
+  };
+  applyFlightStack(stack);
+  bindFlightStackSplitters();
+  requestAnimationFrame(() => {
+    applyFlightStack(_flightStack);
+    requestAnimationFrame(() => applyFlightStack(_flightStack));
+  });
+}
+
 function initMissionMessages() {
-  writeMissionMessagesExpanded(true);
-  applyMissionMessagesExpanded(true);
+  const expanded = readMissionMessagesExpanded();
+  applyMissionMessagesExpanded(expanded);
+  document.getElementById('missionMessagesToggle')?.addEventListener('click', () => {
+    toggleMissionMessages();
+    syncFlightStackToToggle();
+  });
   document.getElementById('pfcMsgFilterAll')?.addEventListener('click', () => setFcMsgFilter('all'));
   document.getElementById('pfcMsgFilterWarn')?.addEventListener('click', () => setFcMsgFilter('warn'));
 }
@@ -19800,9 +20328,13 @@ function initMissionLayout() {
   bindMissionRegionDrag();
   bindMissionSplitters();
   initMissionMessages();
+  initFlightStack();
   initMissionDataPicker();
   initMissionNavDisplay();
-  window.addEventListener('resize', () => requestAnimationFrame(placeMissionSplits));
+  window.addEventListener('resize', () => requestAnimationFrame(() => {
+    placeMissionSplits();
+    applyFlightStack(_flightStack);
+  }));
 }
 
 function initMissionTalk() {

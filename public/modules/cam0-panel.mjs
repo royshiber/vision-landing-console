@@ -9,6 +9,8 @@ import {
   readStoredFov,
 } from './camera-fov.mjs';
 import { RF_VIDEO_REASON_HE, rfVideoLocked } from './rf-link-ui.mjs';
+import { applyCameraSupport, mountCameraSettings, paintCameraApply, syncManualExposureLock } from './camera-settings.mjs';
+import { bindCalibGuide, markCalibLive } from './calib-guide.mjs';
 
 const NO_SIGNAL = 'אין אות';
 const DRILL = 'תרגיל. לא מצלמה אמיתית.';
@@ -18,7 +20,7 @@ const ERR_SETTING = 'ההגדרה לא נשמרה. הערך חזר לקודם.';
 const ERR_SNAP = 'הצילום נכשל.';
 const ERR_REC_START = 'ההקלטה לא התחילה.';
 const ERR_REC_STOP = 'עצירת ההקלטה נכשלה.';
-const CONTROL_IDS = ['cam0Ae', 'cam0Exposure', 'cam0Gain', 'cam0Res', 'cam0FpsSet', 'cam0Record', 'cam0Snap', 'cam0CalibCap', 'cam0CalibSolve'];
+const CONTROL_IDS = ['cam0Ae', 'cam0Exposure', 'cam0Gain', 'cam0Res', 'cam0FpsSet', 'cam0Record', 'cam0Snap', 'cam0CalibStart'];
 
 function unwrap(body) {
   if (body && body.lane === 'NEW' && body.data && typeof body.data === 'object') return body.data;
@@ -147,6 +149,7 @@ function drawDetections(canvas, img, detections, enabled) {
 }
 
 function init() {
+  mountCameraSettings(document);
   const panel = document.getElementById('cam0Panel');
   if (!panel) return;
   bindCameraSourcePickers(document);
@@ -215,6 +218,9 @@ function init() {
       reason.hidden = !(locked || !on);
       reason.textContent = locked ? RF_VIDEO_REASON_HE : (on ? '' : why);
     }
+    applyCameraSupport('cam0');
+    syncManualExposureLock('cam0', { aeOn: ae?.checked === true, live: on && !locked });
+    markCalibLive('cam0', on && !locked);
   }
 
   function paintStatusLine(connected, fps) {
@@ -268,6 +274,8 @@ function init() {
     text('cam0Latency', has && body.latency_ms != null ? body.latency_ms : null, true);
     text('cam0Drops', body.dropped != null ? body.dropped : null, true);
     if (ae && document.activeElement !== ae) ae.checked = body.ae?.enabled === true;
+    syncManualExposureLock('cam0', { aeOn: ae?.checked === true, live: cameraOk && !rfVideoLocked() });
+    if (body?.controls) paintCameraApply('cam0', body.controls);
     if (exposure && document.activeElement !== exposure && body.exposure_us != null) exposure.value = String(body.exposure_us);
     if (gain && document.activeElement !== gain && body.gain != null) gain.value = String(body.gain);
     if (res && document.activeElement !== res && body.width && body.height) {
@@ -317,37 +325,50 @@ function init() {
     delete rest.quiet;
     pushing = true;
     const [w, h] = String(res?.value || '1280x800').split('x').map((n) => Number(n));
+    const auto = ae?.checked === true;
     const body = {
-      ae: { enabled: ae?.checked === true },
-      exposure_us: exposure?.value === '' ? undefined : Number(exposure.value),
-      gain: gain?.value === '' ? undefined : Number(gain.value),
+      ae: { enabled: auto },
       width: w,
       height: h,
       fps: fpsSet?.value === '' ? undefined : Number(fpsSet.value),
-      manual: ae?.checked !== true,
+      manual: !auto,
       stream: { fps: fpsSet?.value === '' ? undefined : Number(fpsSet.value) },
       fov_deg: readStoredFov(localStorage, 'cam0'),
       ...rest,
     };
+    if (!auto) {
+      if (exposure?.value !== '') body.exposure_us = Number(exposure.value);
+      if (gain?.value !== '') body.gain = Number(gain.value);
+    }
     try {
-      await api('/api/jetson/v1/cam0/settings', {
+      const saved = await api('/api/jetson/v1/cam0/settings', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify(body),
       });
+      paintCameraApply('cam0', saved?.controls);
+      const expRow = saved?.controls?.exposure_us;
+      const gainRow = saved?.controls?.gain;
+      if (expRow && expRow.skipped !== true && expRow.actual != null && exposure) exposure.value = String(expRow.actual);
+      if (gainRow && gainRow.skipped !== true && gainRow.actual != null && gain) gain.value = String(gainRow.actual);
       applied = readForm();
       showError('');
     } catch {
+      paintCameraApply('cam0', null);
       if (!quiet) {
         writeForm(applied);
         showError(ERR_SETTING);
       }
     } finally {
       pushing = false;
+      syncManualExposureLock('cam0', { aeOn: ae?.checked === true, live: status?.camera_ok === true && !rfVideoLocked() });
     }
   }
 
-  ae?.addEventListener('change', () => { void pushSettings(); });
+  ae?.addEventListener('change', () => {
+    syncManualExposureLock('cam0', { aeOn: ae.checked === true, live: status?.camera_ok === true && !rfVideoLocked() });
+    void pushSettings();
+  });
   exposure?.addEventListener('change', () => { void pushSettings(); });
   gain?.addEventListener('change', () => { void pushSettings(); });
   res?.addEventListener('change', () => { void pushSettings(); });
@@ -389,32 +410,7 @@ function init() {
       showError(ERR_SNAP);
     }
   });
-  document.getElementById('cam0CalibCap')?.addEventListener('click', async () => {
-    const state = document.getElementById('cam0CalibState');
-    try {
-      const body = await api('/api/jetson/v1/cam0/calibration/capture', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ inner_cols: 5, inner_rows: 4, square_m: 0.025 }),
-      });
-      if (state) state.textContent = body.ok ? `נשמרו ${body.captured}` : 'הלוח לא נמצא';
-    } catch {
-      if (state) state.textContent = NO_SIGNAL;
-    }
-  });
-  document.getElementById('cam0CalibSolve')?.addEventListener('click', async () => {
-    const state = document.getElementById('cam0CalibState');
-    try {
-      const body = await api('/api/jetson/v1/cam0/calibration/solve', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: '{}',
-      });
-      if (state) state.textContent = body.ok ? 'הכיול נשמר' : 'אין מספיק צילומים';
-    } catch {
-      if (state) state.textContent = NO_SIGNAL;
-    }
-  });
+  bindCalibGuide('cam0', api);
 
   function panelShown() {
     return panel.getClientRects().length > 0;

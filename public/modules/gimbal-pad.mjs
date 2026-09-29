@@ -4,6 +4,14 @@
  */
 
 export const GIMBAL_SPEED = 40;
+let moveSpeed = GIMBAL_SPEED;
+
+export function setGimbalMoveSpeed(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return moveSpeed;
+  moveSpeed = Math.min(100, Math.max(1, Math.round(n)));
+  return moveSpeed;
+}
 export const LINK_DOWN_HE = 'אין קישור למחשב המשימה';
 export const NO_REPLY_HE = 'אין מענה מהגימבל';
 export const CONTROL_OFF_HE = 'שליטת הגימבל כבויה';
@@ -19,10 +27,11 @@ const STATUS_URL = '/api/jetson/v1/status/gimbal';
 const HOLD_MS = 200;
 
 export function gimbalMoveBody(dir) {
-  if (dir === 'up') return { yaw: 0, pitch: GIMBAL_SPEED };
-  if (dir === 'down') return { yaw: 0, pitch: -GIMBAL_SPEED };
-  if (dir === 'left') return { yaw: -GIMBAL_SPEED, pitch: 0 };
-  if (dir === 'right') return { yaw: GIMBAL_SPEED, pitch: 0 };
+  const speed = moveSpeed;
+  if (dir === 'up') return { yaw: 0, pitch: speed };
+  if (dir === 'down') return { yaw: 0, pitch: -speed };
+  if (dir === 'left') return { yaw: -speed, pitch: 0 };
+  if (dir === 'right') return { yaw: speed, pitch: 0 };
   return null;
 }
 
@@ -121,6 +130,24 @@ function unwrap(body) {
   return body;
 }
 
+const gimbalViewListeners = new Set();
+let lastGimbalView = null;
+
+export function onGimbalView(fn) {
+  gimbalViewListeners.add(fn);
+  if (lastGimbalView) fn(lastGimbalView);
+  return () => gimbalViewListeners.delete(fn);
+}
+
+function emitGimbalView(view) {
+  lastGimbalView = view;
+  for (const fn of gimbalViewListeners) fn(view);
+}
+
+export function postGimbal(url, body) {
+  return postJson(url, body);
+}
+
 function postJson(url, body) {
   if (rfWork()) {
     let action = 'rate';
@@ -186,6 +213,7 @@ export function bindGimbalPad(doc, { post = postJson } = {}) {
     stamp += 1;
     if (!view.enabled && timer != null) release();
     applyGimbalPad(root, view);
+    emitGimbalView(view);
   }
 
   function release() {
@@ -219,12 +247,12 @@ export function bindGimbalPad(doc, { post = postJson } = {}) {
   for (const btn of root.querySelectorAll('[data-gimbal]')) {
     const kind = btn.dataset.gimbal;
     if (kind === 'lock' || kind === 'center') continue;
-    const move = gimbalMoveBody(kind);
     const zoomDir = kind === 'zoom-in' ? 'in' : kind === 'zoom-out' ? 'out' : '';
     const start = (event) => {
       if (event.button != null && event.button !== 0) return;
       event.preventDefault();
       try { btn.setPointerCapture(event.pointerId); } catch { /* keyboard */ }
+      const move = gimbalMoveBody(kind);
       if (move) hold(btn, kind, RATE_URL, move);
       else if (zoomDir) hold(btn, `zoom-${zoomDir}`, ZOOM_URL, gimbalZoomBody(zoomDir));
     };
@@ -274,7 +302,10 @@ export function bindGimbalPad(doc, { post = postJson } = {}) {
   doc.defaultView?.addEventListener('blur', release);
 
   doc.addEventListener('vlc-companion-cameras', (event) => {
-    paint(gimbalPadView(event.detail));
+    const detail = event.detail;
+    const gimbal = detail?.health?.gimbal || detail?.gimbal;
+    if (!gimbal && detail?.reachable !== true) return;
+    paint(gimbalPadView(detail));
   });
 
   async function poll() {
@@ -282,7 +313,7 @@ export function bindGimbalPad(doc, { post = postJson } = {}) {
     if (!panel || !panel.classList.contains('visible')) return;
     const seen = stamp;
     try {
-      const res = await fetch(STATUS_URL);
+      const res = await fetch(STATUS_URL, { cache: 'no-store' });
       if (!res.ok) throw new Error('down');
       const body = unwrap(await res.json());
       if (stamp !== seen) return;

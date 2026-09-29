@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Vision Landing Console — Jetson companion: MAVLink relay + HTTP API + heartbeat.
 
-AGENT_VERSION 2.6.3 stores each camera field of view, serves GET /api/v1/version,
+AGENT_VERSION 2.6.5 guides checkerboard calibration for both cameras and stores each result.
 and serves the relay heartbeat on GET /api/v1/status/mavlink.
 2.6.2 turns Wi-Fi back on if the console is silent for 60 seconds
 after that link was disabled, and 2.6.1 reports CAM1 from the OV9281 symlink while it is idle,
@@ -68,7 +68,7 @@ RELAY_PORT = int(os.environ.get("VLC_RELAY_PORT", "5770"))
 HTTP_PORT = int(os.environ.get("VLC_HTTP_PORT", "8081"))
 HTTP_IDLE_S = float(os.environ.get("VLC_HTTP_IDLE_S", "30") or "30")
 HTTP_MAX_BODY = 16 * 1024 * 1024
-AGENT_VERSION = os.environ.get("VLC_AGENT_VERSION", "2.6.3")
+AGENT_VERSION = os.environ.get("VLC_AGENT_VERSION", "2.6.5")
 MODEM_STATUS_FILE = os.environ.get("AIRVIX_E3372_STATUS_FILE", "/run/airvix/e3372.status")
 
 try:

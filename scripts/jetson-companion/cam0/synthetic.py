@@ -46,6 +46,27 @@ class SyntheticSource:
         del fps
         self.exposure_us = int(exposure_us)
         self.gain = int(gain)
+        return True
+
+    def set_auto_exposure(self, enabled):
+        self.ae_enabled = bool(enabled)
+        return True
+
+    def configure(self, width, height, fps):
+        self.width = int(width)
+        self.height = int(height)
+        self.fps = int(fps)
+        return True
+
+    def read_controls(self):
+        return {
+            "exposure_us": int(self.exposure_us),
+            "gain": int(self.gain),
+            "width": int(self.width),
+            "height": int(self.height),
+            "fps": int(getattr(self, "fps", 0) or 0),
+            "ae_enabled": bool(getattr(self, "ae_enabled", True)),
+        }
 
     def _compose(self):
         scale = (float(self.exposure_us) / 2000.0) * (float(self.gain) / 32.0)
