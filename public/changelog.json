@@ -4,24 +4,9 @@
     "date": "2026-09-30",
     "changes": [
       {
-        "type": "feat",
-        "title": "UI / app.js",
-        "detail": "app.js"
-      },
-      {
-        "type": "ui",
-        "title": "HTML layout",
-        "detail": "index.html"
-      },
-      {
-        "type": "ui",
-        "title": "Styles",
-        "detail": "styles.css"
-      },
-      {
-        "type": "test",
-        "title": "Tests",
-        "detail": "arm-disarm-qa.test.mjs, flight-dock-map.test.mjs, flight-stack-split.test.mjs, home-shell-qa.test.mjs"
+        "type": "fix",
+        "title": "שורה אחת של נתונים ופקודה בעמודת הטיסה",
+        "detail": "APP_VERSION 1.02.382. שבעת אריחי הנתונים יושבים בשורה אחת ושווה. בקשת חימוש או נטרול פותחת את חלון האישור גם בלי קישור, ובלי קישור האישור לא נשלח. שדה הפקודה נמצא בלשונית פעולות, וכפתור הפקודות ממקד אותו."
       }
     ]
   },
