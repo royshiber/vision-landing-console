@@ -24569,8 +24569,7 @@ body[data-work-path="rf"] #optics .optics-calib {
   flex: 1 1 auto;
   min-height: 0;
   gap: 4px;
-  overflow-x: hidden;
-  overflow-y: auto;
+  overflow: visible;
 }
 .mission-region-horizon .flight-dock-cmds {
   display: grid;
@@ -24702,9 +24701,9 @@ body[data-work-path="rf"] #optics .optics-calib {
   }
 }
 .mission-region-horizon > .mission-region-data {
-  flex: 0 0 var(--flight-data-h, 128px);
-  height: var(--flight-data-h, 128px);
-  min-height: 120px;
+  flex: 0 0 var(--flight-data-h, 116px);
+  height: var(--flight-data-h, 116px);
+  min-height: 88px;
   max-height: none;
   overflow: hidden;
 }

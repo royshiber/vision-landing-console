@@ -258,7 +258,7 @@ describe('flight stack splitters live', () => {
       expect(before.hud.height, size.name).toBeGreaterThanOrEqual(96);
       expect(before.messages.height, size.name).toBeGreaterThan(before.hud.height);
       expect(before.stage.height, size.name).toBeGreaterThanOrEqual(48);
-      expect(before.data.height, size.name).toBeGreaterThanOrEqual(120);
+      expect(before.data.height, size.name).toBeGreaterThanOrEqual(88);
       expect(before.data.height, size.name).toBeLessThanOrEqual(160);
       const tileTops = before.tiles.map((tile) => tile.top);
       expect(Math.max(...tileTops) - Math.min(...tileTops), size.name).toBeLessThanOrEqual(4);

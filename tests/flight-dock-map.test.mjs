@@ -297,7 +297,8 @@ describe('flight dock and map live', () => {
       expect(hud.horizon.bottom, `${size.width} panel`).toBeLessThanOrEqual(hud.innerH + 1);
       expect(hud.horizon.right, `${size.width} panel`).toBeLessThanOrEqual(hud.innerW + 1);
       expect(contrastRatio(hud.autoColor, hud.autoBg), `${size.width} AUTO`).toBeGreaterThanOrEqual(4.5);
-      expect(hud.scrollers.filter((id) => id !== 'flightDockActionsPane' && id !== 'pfcMsgScroll'), `${size.width} nested`).toEqual([]);
+      expect(hud.scrollers.filter((id) => id !== 'pfcMsgScroll'), `${size.width} nested`).toEqual([]);
+      expect(hud.paneOver, `${size.width} actions scroll`).toBeLessThanOrEqual(1);
 
       const modes = await page.evaluate(() => ({
         auto: document.getElementById('flightDockModeAuto').disabled,
