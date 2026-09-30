@@ -1,5 +1,31 @@
 [
   {
+    "version": "1.02.382",
+    "date": "2026-09-30",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "UI / app.js",
+        "detail": "app.js"
+      },
+      {
+        "type": "ui",
+        "title": "HTML layout",
+        "detail": "index.html"
+      },
+      {
+        "type": "ui",
+        "title": "Styles",
+        "detail": "styles.css"
+      },
+      {
+        "type": "test",
+        "title": "Tests",
+        "detail": "arm-disarm-qa.test.mjs, flight-dock-map.test.mjs, flight-stack-split.test.mjs, home-shell-qa.test.mjs"
+      }
+    ]
+  },
+  {
     "version": "1.02.381",
     "date": "2026-09-30",
     "changes": [

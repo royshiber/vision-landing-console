@@ -2351,11 +2351,11 @@
               </div>
               <div class="mission-data-item mission-data-tile tele-hud-mini" data-mission-data-slot="1">
                 <dt class="mission-data-label">גובה</dt>
-                <dd class="mission-data-readout" dir="ltr"><strong class="mission-data-value" id="hudAltitude" title="אין נתונים">—</strong><span class="mission-data-unit">m</span></dd>
+                <dd class="mission-data-readout" dir="ltr"><span class="mission-data-pair"><strong class="mission-data-value" id="hudAltitude" title="אין נתונים">—</strong><span class="mission-data-unit">m</span></span></dd>
               </div>
               <div class="mission-data-item mission-data-tile tele-hud-mini" data-mission-data-slot="2">
                 <dt class="mission-data-label">מהירות</dt>
-                <dd class="mission-data-readout" dir="ltr"><strong class="mission-data-value" id="hudAirspeed" title="אין נתונים">—</strong><span class="mission-data-unit">m/s</span></dd>
+                <dd class="mission-data-readout" dir="ltr"><span class="mission-data-pair"><strong class="mission-data-value" id="hudAirspeed" title="אין נתונים">—</strong><span class="mission-data-unit">m/s</span></span></dd>
               </div>
               <div class="mission-data-item mission-data-tile" data-mission-data-slot="3">
                 <dt class="mission-data-label">קישור</dt>
@@ -2363,19 +2363,18 @@
               </div>
               <div class="mission-data-item mission-data-tile" data-mission-data-slot="4">
                 <dt class="mission-data-label">הפרש ראייה</dt>
-                <dd class="mission-data-readout" dir="ltr"><strong class="mission-data-value" id="liveGpsVisionDelta">—</strong><span class="mission-data-unit">m</span></dd>
+                <dd class="mission-data-readout" dir="ltr"><span class="mission-data-pair"><strong class="mission-data-value" id="liveGpsVisionDelta">—</strong><span class="mission-data-unit">m</span></span></dd>
               </div>
               <div class="mission-data-item mission-data-tile mission-data-confidence" data-mission-data-slot="5">
                 <dt class="mission-data-label">ביטחון נחיתה</dt>
                 <dd class="mission-data-readout">
+                  <span class="mission-data-pair"><strong class="mission-data-value" id="liveConfidenceText">—</strong><span class="mission-data-unit">%</span></span>
                   <div class="confidence-track"><div id="liveConfidenceBar" class="confidence-fill"></div></div>
-                  <strong class="mission-data-value" id="liveConfidenceText">—</strong>
-                  <span class="mission-data-unit">%</span>
                 </dd>
               </div>
               <div class="mission-data-item mission-data-tile" data-mission-data-slot="batt">
                 <dt class="mission-data-label">מתח</dt>
-                <dd class="mission-data-readout" dir="ltr"><strong class="mission-data-value" id="pfdBattVal" title="מתח סוללה">—</strong><span class="mission-data-unit">V</span></dd>
+                <dd class="mission-data-readout" dir="ltr"><span class="mission-data-pair"><strong class="mission-data-value" id="pfdBattVal" title="מתח סוללה">—</strong><span class="mission-data-unit">V</span></span></dd>
               </div>
             </dl>
           </section>
@@ -2396,6 +2395,12 @@
                 <p id="flightActionsNote" class="mission-horizon-filler-note flight-actions-note">אין חיבור לבקר הטיסה</p>
               </div>
               <div id="flightDockActionsPane" class="flight-dock-pane" role="tabpanel" aria-labelledby="flightDockActionsTab">
+                <form id="flightPhraseForm" class="flight-phrase-row">
+                  <label class="flight-dock-field" for="flightPhraseInput"><span class="flight-dock-key">פקודה</span>
+                    <input id="flightPhraseInput" type="text" autocomplete="off" enterkeyhint="send" placeholder="הזינו פקודה" />
+                  </label>
+                  <button type="submit" id="flightPhraseSend" class="flight-dock-cmd">שלחו</button>
+                </form>
                 <div class="flight-dock-cmds">
                   <button type="button" id="flightDockModeAuto" class="flight-dock-cmd" data-flight-mode="AUTO"><bdi dir="ltr">AUTO</bdi></button>
                   <button type="button" id="flightDockModeLoiter" class="flight-dock-cmd" data-flight-mode="LOITER"><bdi dir="ltr">LOITER</bdi></button>

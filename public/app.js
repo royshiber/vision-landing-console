@@ -8025,8 +8025,8 @@ function syncFlightArmControls(mav) {
   if (!armBtn || !disarmBtn || !reason) return;
   const live = flightArmLinkLive(mav);
   if (!live) {
-    armBtn.disabled = true;
-    disarmBtn.disabled = true;
+    armBtn.disabled = false;
+    disarmBtn.disabled = false;
     armBtn.title = 'אין חיבור לבקר הטיסה';
     disarmBtn.title = 'אין חיבור לבקר הטיסה';
     paintNoLinkReason(reason);
@@ -8068,8 +8068,16 @@ function closeFlightArmDialog() {
   if (dialog) dialog.hidden = true;
 }
 
+function refuseFlightArmNoLink() {
+  closeFlightArmDialog();
+  closeFlightDisarmDialog();
+  showFlightArmRefusal('אין חיבור לבקר הטיסה');
+  paintFlightDockCommand('אין חיבור לבקר הטיסה');
+}
+
 function openFlightArmDialog() {
-  if (flightArmBusy || !flightArmLinkLive(latestHudMavlink) || latestHudMavlink?.armed === true) return;
+  if (flightArmBusy) return;
+  if (flightArmLinkLive(latestHudMavlink) && latestHudMavlink?.armed === true) return;
   closeFlightDisarmDialog();
   const text = document.getElementById('flightArmDialogText');
   if (text) text.textContent = FLIGHT_ARM_CONFIRM_HE;
@@ -8078,7 +8086,12 @@ function openFlightArmDialog() {
 }
 
 async function sendFlightArm() {
-  if (flightArmBusy || !flightArmLinkLive(latestHudMavlink) || latestHudMavlink?.armed === true) return;
+  if (flightArmBusy) return;
+  if (!flightArmLinkLive(latestHudMavlink)) {
+    refuseFlightArmNoLink();
+    return;
+  }
+  if (latestHudMavlink?.armed === true) return;
   flightArmBusy = true;
   try {
     const { data } = await postFlightArmDisarm('arm', false);
@@ -8121,6 +8134,10 @@ function showFlightDisarmSecond(kind) {
 
 async function confirmFlightDisarm() {
   if (flightArmBusy) return;
+  if (!flightArmLinkLive(latestHudMavlink)) {
+    refuseFlightArmNoLink();
+    return;
+  }
   const gate = flightDisarmGate(latestHudMavlink);
   if (gate !== 'ground' && !flightDisarmSecond) {
     showFlightDisarmSecond(gate);
@@ -8858,12 +8875,8 @@ function openDiagnosticsReadiness() {
 function setupFlightHudChromeHandlers() {
   pfdVoiceFlightBtn?.addEventListener('click', () => {
     applyMainTab('terrain');
-    const input = document.getElementById('assistInput');
-    if (input) {
-      input.focus();
-      return;
-    }
-    document.getElementById('assistToggleBtn')?.click();
+    revealFlightDock('actions');
+    document.getElementById('flightPhraseInput')?.focus();
   });
   function toggleReadinessPopover(e, anchor) {
     e.preventDefault();
@@ -19125,24 +19138,6 @@ async function assistSendText(rawText, { channel = 'text' } = {}) {
     await assistConfirm(false);
     return;
   }
-  if (flightVoiceCommandText(text)) {
-    assistAppendMessage({ role: 'user', text });
-    try {
-      const res = await fetch('/api/assist/voice-flight', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, operatorConfirmed: true }),
-      });
-      const data = await res.json().catch(() => ({}));
-      const reply = String(data?.talkback?.text || data?.note || '').trim() || 'לא נשלח דבר';
-      assistAppendMessage({ role: 'assistant', text: reply });
-      paintFlightDockCommand(reply);
-    } catch {
-      assistAppendMessage({ role: 'assistant', text: 'השליחה נכשלה' });
-      paintFlightDockCommand('השליחה נכשלה');
-    }
-    return;
-  }
   assistAppendMessage({ role: 'user', text });
   const snap = assistBuildContextSnapshot();
   snap.channel = channel === 'voice' ? 'voice' : 'text';
@@ -20367,6 +20362,61 @@ function flightVoiceCommandText(text) {
   return false;
 }
 
+function flightPhraseBlocked(text) {
+  const q = String(text || '').trim().replace(/\s+/g, ' ');
+  if (/^(חמש|חימוש|נטרול|נטרל)(?:\s|$)/.test(q)) return true;
+  return /^(arm|disarm)\b/i.test(q);
+}
+
+function flightPhraseMode(text) {
+  const q = String(text || '').trim().replace(/\s+/g, ' ');
+  if (/^(תמריא|תמריאו|המריאו|המראה)$/.test(q)) return 'TAKEOFF';
+  const led = q.match(/^עבורו? למצב\s+(.+)$/);
+  if (!led) return '';
+  const tail = led[1].trim().toLowerCase();
+  const words = {
+    יציב: 'STABILIZE',
+    יציבה: 'STABILIZE',
+    stabilize: 'STABILIZE',
+    ידני: 'MANUAL',
+    manual: 'MANUAL',
+    fbwa: 'FBWA',
+    fbwb: 'FBWB',
+    שיוט: 'CRUISE',
+    cruise: 'CRUISE',
+    אוטו: 'AUTO',
+    אוטומטי: 'AUTO',
+    auto: 'AUTO',
+    loiter: 'LOITER',
+    מעגל: 'CIRCLE',
+    circle: 'CIRCLE',
+    מונחה: 'GUIDED',
+    guided: 'GUIDED',
+    המראה: 'TAKEOFF',
+    takeoff: 'TAKEOFF',
+    חזרה: 'RTL',
+    rtl: 'RTL',
+    אקרו: 'ACRO',
+    acro: 'ACRO',
+  };
+  return words[tail] || '';
+}
+
+async function submitFlightPhrase(raw) {
+  const text = String(raw || '').trim().replace(/\s+/g, ' ');
+  if (!text) return;
+  if (flightPhraseBlocked(text)) {
+    paintFlightDockCommand('נדחה. חימוש ונטרול חסומים. לא נשלח דבר.');
+    return;
+  }
+  const mode = flightPhraseMode(text);
+  if (!mode) {
+    paintFlightDockCommand('נדחה. הפקודה אינה ברשימה המותרת. לא נשלח דבר.');
+    return;
+  }
+  await sendFlightDockMode(mode);
+}
+
 function applyFlightDock(which) {
   const dock = flightDockName(which);
   const section = document.querySelector('[data-mission-region="messages"]');
@@ -20445,6 +20495,10 @@ function initFlightDock() {
   document.getElementById('flightDockSetMode')?.addEventListener('click', () => {
     const mode = document.getElementById('flightDockModeSelect')?.value;
     void sendFlightDockMode(mode);
+  });
+  document.getElementById('flightPhraseForm')?.addEventListener('submit', (event) => {
+    event.preventDefault();
+    void submitFlightPhrase(document.getElementById('flightPhraseInput')?.value || '');
   });
 }
 

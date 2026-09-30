@@ -72,8 +72,12 @@ describe('flight dock and map source', () => {
     expect(html).not.toContain('value="ACRO"');
     expect(js).toContain('mode: name');
     expect(js).toContain('function flightVoiceCommandText(');
+    expect(js).toContain('function submitFlightPhrase(');
+    expect(html).toContain('id="flightPhraseInput"');
+    expect(html).toContain('>שלחו</button>');
     const askSend = js.slice(js.indexOf('async function assistSendText'), js.indexOf('async function assistConfirm'));
-    expect(askSend.indexOf('flightVoiceCommandText')).toBeLessThan(askSend.indexOf('/api/assist/message'));
+    expect(askSend).not.toContain('flightVoiceCommandText');
+    expect(askSend).not.toContain('/api/assist/voice-flight');
     expect(html).not.toContain('>בצע</button>');
     expect(html).not.toContain('>קבע נקודה</button>');
     expect(html).toContain('פעולה, נקודה ומתלה בלי שליחה');
@@ -288,7 +292,7 @@ describe('flight dock and map live', () => {
       if (size.width >= 1366) {
         expect(hud.messages.height, `${size.width} dock taller`).toBeGreaterThan(hud.hud.height + 40);
       }
-      expect(Math.max(...hud.tileTops) - Math.min(...hud.tileTops), `${size.width} strip`).toBeGreaterThan(16);
+      expect(Math.max(...hud.tileTops) - Math.min(...hud.tileTops), `${size.width} strip`).toBeLessThanOrEqual(4);
       expect(hud.dataOver, `${size.width} strip scroll`).toBeLessThanOrEqual(1);
       expect(hud.horizon.bottom, `${size.width} panel`).toBeLessThanOrEqual(hud.innerH + 1);
       expect(hud.horizon.right, `${size.width} panel`).toBeLessThanOrEqual(hud.innerW + 1);
@@ -397,7 +401,7 @@ describe('flight dock and map live', () => {
       expect(row.spread).toBeLessThanOrEqual(4);
       expect(row.over).toBeLessThanOrEqual(1);
     }
-    expect(narrow.tileSpread).toBeGreaterThan(16);
+    expect(narrow.tileSpread).toBeLessThanOrEqual(4);
     fs.mkdirSync('/opt/cursor/artifacts', { recursive: true });
     await page.locator('[data-mission-region="horizon"]').screenshot({
       path: '/opt/cursor/artifacts/flight-column-actions.png',
@@ -499,6 +503,60 @@ describe('flight dock and map live', () => {
     await page.click('#flightDockSetMode');
     await page.waitForFunction(() => (document.getElementById('flightDockCommandNote').textContent || '').length > 0);
     expect(voice.at(-1)).toContain('"mode":"TAKEOFF"');
+
+    const phrasePosts = [];
+    page.on('request', (req) => {
+      if (req.method() !== 'POST') return;
+      if (req.url().includes('/api/assist/message') || req.url().includes('/api/mavlink/arm-disarm')) {
+        phrasePosts.push(req.url());
+      }
+    });
+    const voiceBeforePhrase = voice.length;
+    await page.click('#pfdVoiceFlightBtn');
+    await page.waitForFunction(() => document.activeElement?.id === 'flightPhraseInput');
+    const phraseFocus = await page.evaluate(() => ({
+      dock: document.querySelector('[data-mission-region="messages"]')?.dataset.flightDock,
+      ask: document.getElementById('assistInput') === document.activeElement,
+    }));
+    expect(phraseFocus.dock).toBe('actions');
+    expect(phraseFocus.ask).toBe(false);
+    await page.evaluate(() => {
+      applyFlightHud({ connected: false, armed: false, simulator: false });
+      document.getElementById('flightDockCommandNote').textContent = '';
+    });
+    await page.fill('#flightPhraseInput', 'עבור למצב יציב');
+    await page.click('#flightPhraseSend');
+    expect(voice.length).toBe(voiceBeforePhrase);
+    expect(phrasePosts).toEqual([]);
+    const noLinkPhrase = await page.evaluate(() => document.getElementById('flightDockCommandNote').textContent);
+    expect(noLinkPhrase).toContain('אין חיבור');
+    await page.fill('#flightPhraseInput', 'שלום');
+    await page.click('#flightPhraseSend');
+    expect(voice.length).toBe(voiceBeforePhrase);
+    const unknownPhrase = await page.evaluate(() => document.getElementById('flightDockCommandNote').textContent);
+    expect(unknownPhrase).toContain('אינה ברשימה');
+    await page.fill('#flightPhraseInput', 'חמש');
+    await page.click('#flightPhraseSend');
+    expect(voice.length).toBe(voiceBeforePhrase);
+    expect(phrasePosts).toEqual([]);
+    const blockedPhrase = await page.evaluate(() => document.getElementById('flightDockCommandNote').textContent);
+    expect(blockedPhrase).toContain('חימוש');
+    await page.evaluate(() => {
+      applyFlightHud({ connected: true, simulator: true, armed: false, type: 'tcp', host: '127.0.0.1', port: 5760 });
+      document.getElementById('flightDockCommandNote').textContent = '';
+    });
+    await page.fill('#flightPhraseInput', 'תמריא');
+    await page.click('#flightPhraseSend');
+    await page.waitForFunction(() => (document.getElementById('flightDockCommandNote').textContent || '').length > 0);
+    expect(voice.length).toBe(voiceBeforePhrase + 1);
+    expect(voice.at(-1)).toContain('"mode":"TAKEOFF"');
+    expect(phrasePosts).toEqual([]);
+    const askTranscript = await page.evaluate(() => {
+      const host = document.getElementById('assistMessages') || document.querySelector('.assist-messages');
+      return host ? host.textContent : '';
+    });
+    expect(askTranscript).not.toContain('תמריא');
+    expect(askTranscript).not.toContain('עבור למצב יציב');
 
     const confirm = await page.evaluate(() => {
       const dialog = document.getElementById('flightArmDialog');

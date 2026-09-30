@@ -126,12 +126,28 @@ describe('flight stack splitters live', () => {
           const r = el.getBoundingClientRect();
           const label = el.querySelector('.mission-data-label');
           const value = el.querySelector('.mission-data-value');
+          const unit = el.querySelector('.mission-data-unit');
+          const track = el.querySelector('.confidence-track');
+          const pair = el.querySelector('.mission-data-pair') || value;
+          const vr = value ? value.getBoundingClientRect() : null;
+          const ur = unit ? unit.getBoundingClientRect() : null;
+          const tr = track ? track.getBoundingClientRect() : null;
+          const lr = label ? label.getBoundingClientRect() : null;
+          const pr = pair ? pair.getBoundingClientRect() : null;
           return {
             bottom: r.bottom,
             top: r.top,
             height: r.height,
+            width: r.width,
             labelOver: label ? Math.max(label.scrollWidth - label.clientWidth, label.scrollHeight - label.clientHeight) : 0,
             valueOver: value ? Math.max(value.scrollWidth - value.clientWidth, value.scrollHeight - value.clientHeight) : 0,
+            valueCenter: vr ? (vr.top + vr.bottom) / 2 : null,
+            unitCenter: ur ? (ur.top + ur.bottom) / 2 : null,
+            labelCenterX: lr ? (lr.left + lr.right) / 2 : null,
+            pairCenterX: pr ? (pr.left + pr.right) / 2 : null,
+            valueBottom: vr ? vr.bottom : null,
+            trackTop: tr ? tr.top : null,
+            trackWidth: tr ? tr.width : null,
           };
         });
         const stack = [hud, data, messages, horizon];
@@ -245,7 +261,23 @@ describe('flight stack splitters live', () => {
       expect(before.data.height, size.name).toBeGreaterThanOrEqual(120);
       expect(before.data.height, size.name).toBeLessThanOrEqual(160);
       const tileTops = before.tiles.map((tile) => tile.top);
-      expect(Math.max(...tileTops) - Math.min(...tileTops), size.name).toBeGreaterThan(16);
+      expect(Math.max(...tileTops) - Math.min(...tileTops), size.name).toBeLessThanOrEqual(4);
+      const tileWidths = before.tiles.map((tile) => tile.width);
+      expect(Math.max(...tileWidths) - Math.min(...tileWidths), size.name).toBeLessThanOrEqual(8);
+      expect(before.hud.height, size.name).toBeGreaterThanOrEqual(156);
+      expect(before.hud.height, size.name).toBeLessThanOrEqual(164);
+      for (const tile of before.tiles) {
+        if (tile.unitCenter != null) {
+          expect(Math.abs(tile.valueCenter - tile.unitCenter), size.name).toBeLessThan(4);
+        }
+        if (tile.labelCenterX != null && tile.pairCenterX != null) {
+          expect(Math.abs(tile.labelCenterX - tile.pairCenterX), size.name).toBeLessThan(4);
+        }
+        if (tile.trackWidth != null) {
+          expect(tile.trackTop, size.name).toBeGreaterThanOrEqual(tile.valueBottom - 1);
+          expect(tile.trackWidth, size.name).toBeGreaterThan(tile.width * 0.7);
+        }
+      }
       expect(before.gridOver, size.name).toBeLessThanOrEqual(1);
       expect(before.order.hud, size.name).toBeLessThanOrEqual(before.order.dataSplit + 2);
       expect(before.order.data, size.name).toBeLessThanOrEqual(before.order.msgSplit + 2);
