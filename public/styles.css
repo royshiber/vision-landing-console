@@ -21083,7 +21083,7 @@ body:has(#recordings.panel.visible) .layout {
   overflow-wrap: break-word;
 }
 .mission-region-horizon .mission-data-confidence {
-  grid-column: span 2;
+  grid-column: span 1;
 }
 .mission-region-horizon #missionLink {
   display: block;
@@ -24569,8 +24569,7 @@ body[data-work-path="rf"] #optics .optics-calib {
   flex: 1 1 auto;
   min-height: 0;
   gap: 4px;
-  overflow-x: hidden;
-  overflow-y: auto;
+  overflow: visible;
 }
 .mission-region-horizon .flight-dock-cmds {
   display: grid;
@@ -24682,4 +24681,483 @@ body[data-work-path="rf"] #optics .optics-calib {
   .mission-region-horizon .pfd-horizon-instrument {
     grid-template-rows: minmax(120px, auto) 22px;
   }
+}
+
+/* Resting attitude window stays 160px. A drag switches to custom and follows the handle. */
+@media (min-width: 721px) {
+  .mission-region-horizon[data-flight-stack="half"] > .flight-hud,
+  .mission-region-horizon:not([data-flight-stack="custom"]) > .flight-hud {
+    min-height: 160px;
+    height: 160px;
+    max-height: 160px;
+    flex: 0 0 160px;
+  }
+  .mission-region-horizon[data-flight-stack="custom"] > .flight-hud,
+  .mission-region-horizon[data-flight-stack="custom"]:has(> .mission-region-messages) > .flight-hud {
+    flex: 0 0 var(--flight-hud-h, 160px);
+    height: var(--flight-hud-h, 160px);
+    min-height: 112px;
+    max-height: none;
+  }
+}
+.mission-region-horizon > .mission-region-data {
+  flex: 0 0 var(--flight-data-h, 116px);
+  height: var(--flight-data-h, 116px);
+  min-height: 88px;
+  max-height: none;
+  overflow: hidden;
+}
+.mission-region-horizon > .mission-region-data > .mission-data-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  grid-auto-rows: minmax(0, 1fr);
+  align-items: stretch;
+  align-content: stretch;
+  direction: rtl;
+  gap: 2px;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+.mission-region-horizon .mission-data-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  min-width: 0;
+  min-height: 0;
+  height: auto;
+  padding: 2px 0;
+  gap: 1px;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+.mission-region-horizon .mission-data-label,
+.mission-region-horizon .mission-data-value,
+.mission-region-horizon .mission-data-unit,
+.mission-region-horizon .mission-data-readout {
+  overflow: visible;
+  text-overflow: clip;
+  text-align: center;
+  white-space: normal;
+}
+.mission-region-horizon .mission-data-label {
+  flex: 0 0 auto;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 16px;
+  letter-spacing: 0;
+  color: #e2e8f0;
+  overflow-wrap: anywhere;
+}
+.mission-region-horizon .mission-data-readout {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  margin: 0;
+  gap: 2px;
+}
+.mission-region-horizon .mission-data-tile .mission-data-pair {
+  display: inline-flex;
+  flex-flow: row nowrap;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  max-width: 100%;
+  line-height: 16px;
+  direction: ltr;
+}
+.mission-region-horizon .mission-data-tile .mission-data-pair > .mission-data-value,
+.mission-region-horizon .mission-data-tile .mission-data-pair > .mission-data-unit {
+  display: inline-block;
+  flex: 0 0 auto;
+  width: auto;
+  max-width: none;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: visible;
+  text-overflow: clip;
+}
+.mission-region-horizon .mission-data-value {
+  display: inline-block;
+  height: auto;
+  max-height: none;
+  flex: 0 0 auto;
+  font-size: 11px;
+  line-height: 16px;
+  color: #fff7e8;
+}
+.mission-region-horizon .mission-data-unit {
+  display: inline-block;
+  height: auto;
+  max-height: none;
+  flex: 0 0 auto;
+  font-size: 11px;
+  line-height: 16px;
+  color: #cbd5e1;
+}
+.mission-region-horizon > .mission-region-data > .mission-data-grid > .mission-data-confidence {
+  grid-column: span 1;
+}
+.mission-region-horizon .mission-data-confidence .mission-data-readout {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+.mission-region-horizon .mission-data-confidence .mission-data-value,
+.mission-region-horizon .mission-data-confidence .mission-data-unit {
+  order: 1;
+}
+.mission-region-horizon .mission-data-confidence .confidence-track {
+  order: 2;
+  flex: 0 0 100%;
+  width: 100%;
+  max-width: 100%;
+  height: 4px;
+  min-width: 0;
+  margin: 0;
+}
+.mission-region-horizon #missionLink {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: center;
+  flex: 1 1 auto;
+}
+.flight-phrase-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  min-width: 0;
+}
+.flight-phrase-row .flight-dock-field {
+  min-width: 0;
+}
+.flight-phrase-row input {
+  width: 100%;
+  min-width: 0;
+  min-height: 26px;
+  box-sizing: border-box;
+  border-radius: 8px;
+  border: 1px solid rgba(226, 232, 240, 0.5);
+  background: #0f172a;
+  color: #f8fafc;
+  font-size: 13px;
+  line-height: 1.2;
+  padding: 2px 6px;
+}
+.flight-phrase-row .flight-dock-cmd {
+  min-height: 26px;
+  white-space: nowrap;
+}
+
+/* Parameter cards: one fact per line, same card in every group. */
+#control.panel.visible .fc-group-list,
+#control.panel.visible .plnd-honesty-keys,
+#control.panel.visible #landingParams .params-grid,
+#control.panel.visible #abortParams .params-grid,
+#control.panel.visible #visionNavParams .params-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr));
+  gap: 8px;
+  align-content: start;
+}
+#control.panel.visible .fc-group-row,
+#control.panel.visible .plnd-honesty-key,
+#control.panel.visible .param-card {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 4px;
+  min-width: 0;
+  padding: 8px;
+  text-align: center;
+  grid-template-columns: none;
+  grid-template-areas: none;
+  background: linear-gradient(180deg, #1b283c 0%, #101722 100%);
+  border: 1px solid rgba(125, 211, 252, 0.35);
+  border-radius: 12px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+#control.panel.visible .fc-group-he,
+#control.panel.visible .param-title,
+#control.panel.visible .plnd-honesty-key-name {
+  width: 100%;
+  margin: 0;
+  text-align: center;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+  line-height: 1.25;
+  font-weight: 800;
+  color: #f8fafc;
+}
+#control.panel.visible .fc-group-key,
+#control.panel.visible .plnd-honesty-key-token {
+  width: 100%;
+  margin: 0;
+  text-align: center;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  font-size: 11px;
+  line-height: 1.25;
+  color: #93c5fd;
+}
+#control.panel.visible .fc-card-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  width: 100%;
+  min-width: 0;
+  text-align: center;
+}
+#control.panel.visible .fc-card-kicker {
+  font-size: 11px;
+  line-height: 13px;
+  font-weight: 700;
+  color: #cbd5e1;
+}
+#control.panel.visible .fc-card-value,
+#control.panel.visible .fc-group-now,
+#control.panel.visible .fc-group-unit,
+#control.panel.visible .fc-group-meta,
+#control.panel.visible .param-value {
+  display: block;
+  width: 100%;
+  text-align: center;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+  line-height: 1.25;
+  font-weight: 800;
+  color: #f8fafc;
+  background: transparent;
+}
+#control.panel.visible .fc-group-now[data-state="unknown"],
+#control.panel.visible .fc-group-now[data-state="missing"],
+#control.panel.visible .plnd-honesty-key-chip {
+  color: #e2e8f0;
+  background: transparent;
+}
+#control.panel.visible .fc-card-control .fc-group-next,
+#control.panel.visible .fc-card-control input,
+#control.panel.visible .fc-card-control select,
+#control.panel.visible .param-card input[type="range"] {
+  width: 100%;
+  max-width: 100%;
+  min-height: 28px;
+  box-sizing: border-box;
+  text-align: center;
+}
+#control.panel.visible .fc-group-next {
+  text-align: center;
+}
+#control.panel.visible .fc-enum-label {
+  display: block;
+  width: 100%;
+  text-align: center;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  font-size: 11px;
+  line-height: 13px;
+  color: #cbd5e1;
+}
+#control.panel.visible .fc-enum-label:empty {
+  display: none;
+}
+
+/* Optics HUD: steppers sit outside the number. Values stay centered. */
+#optics .debrief-cam-tile {
+  border: 1px solid rgba(56, 189, 248, 0.55);
+  border-radius: 12px;
+  box-shadow: inset 0 0 0 1px rgba(8, 16, 28, 0.85), 0 0 16px rgba(14, 165, 233, 0.18);
+  overflow: hidden;
+}
+#optics .debrief-cam-label {
+  background: #102033;
+  color: #e0f2fe;
+  font-weight: 800;
+}
+#optics .gimbal-pad {
+  background: radial-gradient(120% 90% at 50% 0%, #1a3358 0%, #0c1728 72%);
+  border: 1px solid rgba(125, 211, 252, 0.55);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+#optics .gimbal-pad-btn,
+#optics .optics-cam-btn,
+#optics .cam0-btn {
+  min-width: 40px;
+  min-height: 36px;
+  border-radius: 10px;
+  border: 1px solid #7dd3fc;
+  background: #12304f;
+  color: #f8fafc;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  font-weight: 800;
+}
+#optics .gimbal-pad-btn:disabled,
+#optics .cam0-btn:disabled {
+  opacity: 1;
+  background: #12304f;
+  color: #f8fafc;
+  border-color: #7dd3fc;
+}
+#optics .optics-field-group,
+#optics .cam0-calib {
+  background: linear-gradient(180deg, #15263d 0%, #0e1828 100%);
+  border: 1px solid rgba(125, 211, 252, 0.32);
+  border-radius: 12px;
+  padding: 2px 6px;
+}
+#optics .optics-field-kicker {
+  color: #7dd3fc;
+  font-weight: 800;
+  text-align: center;
+}
+#optics .optics-stepper {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  flex: 0 0 auto;
+  max-width: 100%;
+}
+#optics .optics-step {
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0;
+  border-radius: 8px;
+  border: 1px solid #7dd3fc;
+  background: #12304f;
+  color: #f8fafc;
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 1;
+}
+#optics .optics-step:disabled {
+  opacity: 1;
+  background: #1e293b;
+  color: #cbd5e1;
+  border-color: #94a3b8;
+}
+#optics .optics-stepper input[type="number"] {
+  width: 3.6rem;
+  min-width: 3.6rem;
+  max-width: 3.6rem;
+  text-align: center;
+  padding: 2px 0;
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+#optics input[type="number"]::-webkit-outer-spin-button,
+#optics input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+  width: 0;
+  height: 0;
+}
+
+/* Arm and disarm confirm only inside a centered popup. The corner chip is gone. */
+.flight-arm-popup {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(2, 6, 14, 0.72);
+}
+.flight-arm-popup[hidden] {
+  display: none !important;
+}
+.flight-arm-popup-card {
+  width: min(420px, 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+  padding: 18px;
+  box-sizing: border-box;
+  text-align: center;
+  border-radius: 16px;
+  border: 1px solid #7dd3fc;
+  background: #102033;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.45);
+}
+.flight-arm-popup .flight-arm-dialog-text {
+  width: 100%;
+  margin: 0;
+  text-align: center;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  font-size: 18px;
+  line-height: 26px;
+  font-weight: 800;
+  color: #e0f2fe;
+}
+.flight-arm-popup .flight-arm-dialog-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  width: 100%;
+}
+.flight-arm-popup .flight-arm-confirm {
+  width: 100%;
+  min-height: 52px;
+  padding: 10px 16px;
+  box-sizing: border-box;
+  text-align: center;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  font-size: clamp(18px, 1.3rem, 24px);
+  line-height: 1.3;
+  font-weight: 800;
+  border-radius: 12px;
+  border: 1px solid #86efac;
+  background: #14532d;
+  color: #f0fdf4;
+}
+.flight-arm-popup .flight-arm-confirm.flight-arm-btn--danger {
+  background: #7f1d1d;
+  border-color: #fca5a5;
+  color: #fff1f2;
+}
+.flight-arm-popup .flight-arm-btn:not(.flight-arm-confirm) {
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 12px;
+  text-align: center;
+  white-space: normal;
+  font-size: 16px;
+  line-height: 22px;
+  font-weight: 800;
+  border-radius: 12px;
 }

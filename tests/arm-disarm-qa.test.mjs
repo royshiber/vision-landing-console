@@ -158,8 +158,8 @@ describe('ARM DISARM flight screen', () => {
           expect(ui.clipped, key).toEqual([]);
           expect(report.fails, `${key} ${JSON.stringify(report.fails.slice(0, 6))}`).toEqual([]);
           if (state.id === 'nolink') {
-            expect(ui.armDisabled).toBe(true);
-            expect(ui.disarmDisabled).toBe(true);
+            expect(ui.armDisabled).toBe(false);
+            expect(ui.disarmDisabled).toBe(false);
             expect(ui.reasonHidden).toBe(false);
             expect(ui.reason).toBe('אין קשר');
             expect(ui.link).toBe('off');
@@ -311,9 +311,22 @@ describe('ARM DISARM flight screen', () => {
         disarm: document.getElementById('flightDisarmBtn').disabled,
         reason: document.getElementById('flightArmReason').textContent,
       }));
-      expect(stale.arm).toBe(true);
-      expect(stale.disarm).toBe(true);
+      expect(stale.arm).toBe(false);
+      expect(stale.disarm).toBe(false);
       expect(stale.reason).toBe('אין קשר');
+      const beforeRefuse = posts.length;
+      await page.mouse.move(x, y);
+      await page.mouse.down();
+      await page.waitForTimeout(1600);
+      await page.mouse.up();
+      expect(await page.locator('#flightArmDialogText').textContent()).toBe('אשרו חימוש');
+      await page.locator('#flightArmConfirm').click();
+      expect(posts.length).toBe(beforeRefuse);
+      await page.waitForFunction(() => document.getElementById('flightArmRefusal')?.textContent === 'אין חיבור לבקר הטיסה');
+      await page.locator('#flightDisarmBtn').click();
+      expect(await page.locator('#flightDisarmDialogText').textContent()).toBe('אשרו נטרול');
+      await page.locator('#flightDisarmConfirm').click();
+      expect(posts.length).toBe(beforeRefuse);
     } finally {
       await page.close();
     }

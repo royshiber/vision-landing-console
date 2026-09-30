@@ -178,7 +178,7 @@ describe('home shell QA', () => {
     await page.click('#pfdVoiceFlightBtn');
     await page.waitForTimeout(150);
     const focused = await page.evaluate(() => document.activeElement?.id || '');
-    expect(focused).toBe('assistInput');
+    expect(focused).toBe('flightPhraseInput');
     await page.click('#connectToggleBtn');
     await page.click('#rcStatusBtn');
     const rc = await box(page, '#rcLinkHint');

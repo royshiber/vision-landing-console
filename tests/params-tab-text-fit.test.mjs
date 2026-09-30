@@ -338,8 +338,9 @@ print(len(thumbs))
         expect(rows, `${vp.name} visible rows`).toBeGreaterThanOrEqual(3);
       }
       await audit(`${vp.name} no-read`);
-      expect(await page.locator('[data-param-key="EK3_ENABLE"] .fc-group-now').innerText()).toBe('לא ידוע');
-      expect(await page.locator('[data-param-key="EK3_ENABLE"] .fc-group-next').getAttribute('placeholder')).toBe('—');
+      expect(await page.locator('[data-param-key="EK3_ENABLE"] .fc-group-now').innerText()).toBe('אין חיבור');
+      expect(await page.locator('[data-param-key="EK3_ENABLE"] .fc-group-next').evaluate((el) => el.tagName)).toBe('SELECT');
+      expect(await page.locator('[data-param-key="EK3_ENABLE"] .fc-group-next').inputValue()).toBe('');
       const banner = await page.locator('#paramSyncBanner').innerText();
       expect(banner, vp.name).toContain('לא בוצעה קריאה');
       await shot(`${vp.name}-no-read`);
@@ -376,7 +377,8 @@ print(len(thumbs))
       await page.selectOption('#paramSubtabSelect', 'ardu-land');
       await page.waitForSelector('[data-param-key="LAND_FLARE_ALT"] .fc-group-meta');
       expect(await page.locator('[data-param-key="LAND_FLARE_ALT"] .fc-group-he').innerText()).toBe('גובה תחילת היישור לפני נגיעה');
-      expect(await page.locator('[data-param-key="LAND_FLARE_ALT"] .fc-group-meta').innerText()).toContain('m');
+      expect(await page.locator('[data-param-key="LAND_FLARE_ALT"] .fc-group-unit').innerText()).toContain('m');
+      expect(await page.locator('[data-param-key="LAND_FLARE_ALT"] .fc-group-meta').innerText()).toContain('0');
       await page.selectOption('#paramSubtabSelect', 'ardu-all');
       await page.waitForSelector('[data-param-key="STAT_RUNTIME"]');
       expect(await page.locator('[data-param-key="STAT_RUNTIME"] .fc-group-he').innerText()).toBe('');
@@ -386,7 +388,7 @@ print(len(thumbs))
 
       await page.selectOption('#paramSubtabSelect', 'ardu-ekf');
       await page.waitForSelector('#fcGroupList [data-param-key="EK3_ENABLE"] .fc-group-next');
-      await page.fill('[data-param-key="EK3_ENABLE"] .fc-group-next', '0');
+      await page.selectOption('[data-param-key="EK3_ENABLE"] .fc-group-next', '0');
       await page.waitForFunction(() => document.querySelector('#fcChangeList')?.innerText.includes('ממתין'));
       expect(await page.locator('[data-param-key="EK3_ENABLE"]').getAttribute('class')).toContain('fc-group-row--pending');
       await page.locator('#fcChangePane').scrollIntoViewIfNeeded();

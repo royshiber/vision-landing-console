@@ -174,6 +174,37 @@ describe('optics cameras and gimbal panel', () => {
     });
     expect(Number(pad.opacity)).toBe(1);
     expect(contrastRatio(pad.color, pad.background)).toBeGreaterThanOrEqual(4.5);
+    const fov = await page.evaluate(() => {
+      const input = document.getElementById('cam0Fov');
+      const wrap = input.closest('.optics-stepper');
+      const steps = [...wrap.querySelectorAll('.optics-step')];
+      const speed = document.getElementById('gimbalSpeed');
+      const speedSteps = [...speed.closest('.optics-stepper').querySelectorAll('.optics-step')];
+      const box = input.getBoundingClientRect();
+      const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+      return {
+        value: input.value,
+        over: input.scrollWidth - input.clientWidth,
+        labels: steps.map((btn) => btn.getAttribute('aria-label')),
+        centered: getComputedStyle(input).textAlign,
+        appearance: getComputedStyle(input).appearance,
+        hit: hit === input || input.contains(hit),
+        speedDisabled: speed.disabled,
+        speedStepsDisabled: speedSteps.every((btn) => btn.disabled),
+        gimbalDisabled: [...document.querySelectorAll('.gimbal-pad-btn')].every((btn) => btn.disabled),
+      };
+    });
+    expect(fov.value).toBe('120');
+    expect(fov.over).toBeLessThanOrEqual(1);
+    expect(fov.labels).toEqual(['הפחיתו', 'הגדילו']);
+    expect(fov.centered).toBe('center');
+    expect(fov.appearance).toBe('textfield');
+    expect(fov.hit).toBe(true);
+    expect(fov.speedDisabled).toBe(true);
+    expect(fov.speedStepsDisabled).toBe(true);
+    expect(fov.gimbalDisabled).toBe(true);
+    await page.locator('#cam0Fov').locator('xpath=../button[@data-optics-step="1"]').click();
+    expect(await page.locator('#cam0Fov').inputValue()).toBe('121');
 
     await page.click('#opticsCam1Btn');
     await page.waitForSelector('#cam1Panel:not([hidden])');
