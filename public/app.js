@@ -1759,6 +1759,56 @@ function coerceArduFieldValue(field, raw) {
   return Number.isFinite(n) ? n : 0;
 }
 
+function fcValuesDiffer(a, b) {
+  if (a == null || b == null) return true;
+  const na = Number(a);
+  const nb = Number(b);
+  if (!Number.isFinite(na) || !Number.isFinite(nb)) return true;
+  return Math.abs(na - nb) > 1e-3;
+}
+
+/** Live FC number versus the saved console target. Missing names stay empty. */
+function fcFormReadout(snapshot, key, target) {
+  if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) {
+    return { state: 'unread', live: null, saved: null };
+  }
+  if (!Object.prototype.hasOwnProperty.call(snapshot, key)) {
+    return { state: 'missing', live: null, saved: target ?? null };
+  }
+  const live = snapshot[key];
+  const saved = target != null && fcValuesDiffer(live, target) ? target : null;
+  return { state: 'live', live, saved };
+}
+
+function arduFieldReadout(f) {
+  if (f.virtual) return { state: 'virtual', live: companionLinkState[f.key], saved: null };
+  const dirty = fcValuesDiffer(arduWriteBaseline[f.key], arduTargetState[f.key]);
+  const target = dirty ? arduWriteBaseline[f.key] : arduTargetState[f.key];
+  return fcFormReadout(fcCurrentSnapshot, f.key, target);
+}
+
+function arduControlValue(f) {
+  if (f.virtual) return companionLinkState[f.key];
+  if (fcValuesDiffer(arduWriteBaseline[f.key], arduTargetState[f.key])) return arduTargetState[f.key];
+  const readout = arduFieldReadout(f);
+  if (readout.state === 'live') return readout.live;
+  if (readout.state === 'missing') return null;
+  return arduTargetState[f.key];
+}
+
+function escapeHtmlText(s) {
+  return String(s ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+function arduSavedTargetHtml(f) {
+  const readout = arduFieldReadout(f);
+  if (readout.saved == null || readout.state === 'unread' || readout.state === 'virtual') return '';
+  return `<span class="ardu-saved-target">יעד שמור ${escapeHtmlText(readout.saved)}</span>`;
+}
+
 /** Why: after READ, show whether each schema param key appears in the FC parameter list (MAVLink). What: pill next to title + optional card outline. */
 function renderArduFcPresenceBadge(f) {
   if (f.virtual) {
@@ -1768,9 +1818,9 @@ function renderArduFcPresenceBadge(f) {
     return '<span class="ardu-fc-presence ardu-fc-presence--unknown" title="בצעו קריאה מבקר הטיסה כדי לבדוק אם השם קיים בפירמוור">לא נקרא</span>';
   }
   if (Object.prototype.hasOwnProperty.call(fcCurrentSnapshot, f.key)) {
-    return '<span class="ardu-fc-presence ardu-fc-presence--ok" title="מפתח זה הופיע ברשימת הפרמטרים מבקר הטיסה">בבקר</span>';
+    return '<span class="ardu-fc-presence ardu-fc-presence--ok" title="השם הופיע ברשימה שנקראה מבקר הטיסה">בבקר</span>';
   }
-    return '<span class="ardu-fc-presence ardu-fc-presence--missing" title="לא הופיע אחרי קריאה. ייתכן שאין פרמטר בשם זה בגרסת הפירמוור. הכתיבה לבקר הטיסה עלולה להיכשל">לא בבקר</span>';
+  return '<span class="ardu-fc-presence ardu-fc-presence--missing" title="השם לא קיים בפירמוור הזה">חסר</span>';
 }
 
 function arduFcCardMissingClass(f) {
@@ -1779,12 +1829,37 @@ function arduFcCardMissingClass(f) {
   return Object.prototype.hasOwnProperty.call(fcCurrentSnapshot, f.key) ? '' : ' ardu-fc-param--missing-fc';
 }
 
-/** Why: one field card — same param-card pattern as Jetson tabs (כותרת, ?, מנעול, סליידר או מספר). */
-function renderArduFieldCard(f) {
+function renderArduMissingCard(f) {
   const presenceBadge = renderArduFcPresenceBadge(f);
   const missCls = arduFcCardMissingClass(f);
+  const fav = arduFavoriteKeys.has(f.key);
+  const help = ARDU_PARAM_HELP[f.key] || f.label;
+  const helpT = escapeArduTitle(help);
+  const favBtn = `<button type="button" class="ardu-fav-btn ${fav ? 'on' : ''}" data-ardu-fav="${f.key}" title="${fav ? 'הסר ממועדפים' : 'הוסף למועדפים'}">${fav ? '★ מועדף' : '☆ מועדף'}</button>`;
+  const iconHtml = renderParamIcon(f.key);
+  return `<article class="param-card ardu-fc-param${missCls}" data-ardu-key="${f.key}" data-fc-state="missing">
+    <div class="param-top">
+      <h3 class="param-title">${iconHtml}${f.label}</h3>
+      ${presenceBadge}
+      <span class="param-info" title="${helpT}">?</span>
+      ${favBtn}
+    </div>
+    <div class="param-meta">
+      <span class="ardu-fc-live">חסר</span>
+      ${arduSavedTargetHtml(f)}
+    </div>
+    <span class="ardu-field-key ardu-fc-key-foot">${f.key}</span>
+  </article>`;
+}
+
+/** Why: one field card — same param-card pattern as Jetson tabs (כותרת, ?, מנעול, סליידר או מספר). */
+function renderArduFieldCard(f) {
   const isVirtual = f.virtual === true;
-  const v = isVirtual ? companionLinkState[f.key] : arduTargetState[f.key];
+  if (!isVirtual && arduFieldReadout(f).state === 'missing') return renderArduMissingCard(f);
+  const presenceBadge = renderArduFcPresenceBadge(f);
+  const missCls = arduFcCardMissingClass(f);
+  const v = arduControlValue(f);
+  const savedHtml = arduSavedTargetHtml(f);
   const locked = !!arduLockState[f.key];
   const fav = arduFavoriteKeys.has(f.key);
   const help = ARDU_PARAM_HELP[f.key] || f.label;
@@ -1798,7 +1873,7 @@ function renderArduFieldCard(f) {
       const selected = Number(v) === val ? ' selected' : '';
       return `<option value="${val}"${selected}>${val}</option>`;
     }).join('');
-    return `<article class="param-card ardu-fc-param${missCls}" data-ardu-key="${f.key}">
+    return `<article class="param-card ardu-fc-param${missCls}" data-ardu-key="${f.key}" data-fc-state="${isVirtual ? 'virtual' : arduFieldReadout(f).state}">
       <div class="param-top">
         <h3 class="param-title">${iconHtml}${f.label}</h3>
         ${presenceBadge}
@@ -1809,6 +1884,7 @@ function renderArduFieldCard(f) {
       <div class="param-meta">
         <span>בחירה בדידה</span>
         <span class="param-value" id="ardu_val_${f.key}">${v != null ? v : '—'}</span>
+        ${savedHtml}
       </div>
       <select id="ardu_sel_${f.key}" data-ardu-key="${f.key}" data-ardu-kind="enum"${dis}>${options}</select>
       <span class="ardu-field-key ardu-fc-key-foot">${f.key}</span>
@@ -1816,7 +1892,7 @@ function renderArduFieldCard(f) {
   }
   if (f.kind === 'bitmask') {
     const valStr = v != null ? String(v) : '';
-    return `<article class="param-card ardu-fc-param${missCls}" data-ardu-key="${f.key}">
+    return `<article class="param-card ardu-fc-param${missCls}" data-ardu-key="${f.key}" data-fc-state="${arduFieldReadout(f).state}">
       <div class="param-top">
         <h3 class="param-title">${iconHtml}${f.label}</h3>
         ${presenceBadge}
@@ -1827,6 +1903,7 @@ function renderArduFieldCard(f) {
       <div class="param-meta">
         <span>${f.min} – ${f.max}</span>
         <span class="param-value" id="ardu_val_${f.key}">${valStr}</span>
+        ${savedHtml}
       </div>
       <input type="number" id="ardu_num_${f.key}" data-ardu-key="${f.key}" data-ardu-kind="bitmask"
         min="${f.min}" max="${f.max}" step="${f.step || 1}" value="${valStr}"${dis} />
@@ -1835,7 +1912,7 @@ function renderArduFieldCard(f) {
   }
   if (f.kind === 'bool') {
     const on = Number(v) === 1;
-    return `<article class="param-card ardu-fc-param${missCls}" data-ardu-key="${f.key}">
+    return `<article class="param-card ardu-fc-param${missCls}" data-ardu-key="${f.key}" data-fc-state="${isVirtual ? 'virtual' : arduFieldReadout(f).state}">
       <div class="param-top">
         <h3 class="param-title">${iconHtml}${f.label}</h3>
         ${presenceBadge}
@@ -1845,14 +1922,20 @@ function renderArduFieldCard(f) {
       </div>
       <div class="param-meta ardu-fc-bool-row">
         <label class="ardu-fc-cb-label"><input type="checkbox" id="ardu_cb_${f.key}" data-ardu-key="${f.key}" ${on ? 'checked' : ''}${dis} /> פעיל</label>
+        ${savedHtml}
         <span class="ardu-field-key">${f.key}</span>
       </div>
     </article>`;
   }
   const useRange = arduFieldUseRange(f);
   const valStr = v != null ? String(v) : '';
+  const rangeAttr = (() => {
+    const n = Number(v);
+    if (!Number.isFinite(n)) return '';
+    return String(Math.min(Number(f.max), Math.max(Number(f.min), n)));
+  })();
   if (useRange) {
-    return `<article class="param-card ardu-fc-param${missCls}" data-ardu-key="${f.key}">
+    return `<article class="param-card ardu-fc-param${missCls}" data-ardu-key="${f.key}" data-fc-state="${isVirtual ? 'virtual' : arduFieldReadout(f).state}">
       <div class="param-top">
         <h3 class="param-title">${iconHtml}${f.label}</h3>
         ${presenceBadge}
@@ -1862,14 +1945,15 @@ function renderArduFieldCard(f) {
       </div>
       <div class="param-meta">
         <span>${f.min} – ${f.max}</span>
-        <span class="param-value" id="ardu_val_${f.key}">${valStr}</span>
+        <span class="param-value" id="ardu_val_${f.key}">${escapeHtmlText(valStr)}</span>
+        ${savedHtml}
       </div>
       <input type="range" class="ardu-fc-range" id="ardu_rng_${f.key}" data-ardu-key="${f.key}"
-        min="${f.min}" max="${f.max}" step="${f.step}" value="${valStr}"${dis} />
+        min="${f.min}" max="${f.max}" step="${f.step}" value="${rangeAttr}"${dis} />
       <span class="ardu-field-key ardu-fc-key-foot">${f.key}</span>
     </article>`;
   }
-  return `<article class="param-card ardu-fc-param${missCls}" data-ardu-key="${f.key}">
+  return `<article class="param-card ardu-fc-param${missCls}" data-ardu-key="${f.key}" data-fc-state="${isVirtual ? 'virtual' : arduFieldReadout(f).state}">
     <div class="param-top">
       <h3 class="param-title">${iconHtml}${f.label}</h3>
       ${presenceBadge}
@@ -1879,7 +1963,8 @@ function renderArduFieldCard(f) {
     </div>
     <div class="param-meta">
       <span>${f.min} – ${f.max}</span>
-      <span class="param-value" id="ardu_val_${f.key}">${valStr}</span>
+      <span class="param-value" id="ardu_val_${f.key}">${escapeHtmlText(valStr)}</span>
+      ${savedHtml}
     </div>
     <input type="number" id="ardu_num_${f.key}" data-ardu-key="${f.key}" data-ardu-kind="number"
       min="${f.min}" max="${f.max}" step="${f.step}" value="${valStr}"${dis} />
@@ -11305,9 +11390,17 @@ async function readFcParams() {
   if (!arduReadBtn) return;
   arduReadBtn.disabled = true;
   try {
-    const res = await fetch('/api/ardu/params?record=1');
+    const res = await fetch('/api/ardu/params?record=1&fresh=1');
+    let d = {};
+    try {
+      d = await res.json();
+    } catch {
+      d = {};
+    }
     if (!res.ok) {
-      const fault = `הקריאה מבקר הטיסה נכשלה. הסיבה: ${hebrewRequestFault(null, res)}`;
+      const fault = d.message
+        ? String(d.message)
+        : `הקריאה מבקר הטיסה נכשלה. הסיבה: ${hebrewRequestFault(null, res)}`;
       showParamToolFault(fault, () => readFcParams());
       if (arduWriteStatus) {
         arduWriteStatus.textContent = fault;
@@ -11315,7 +11408,23 @@ async function readFcParams() {
       }
       return;
     }
-    const d = await res.json();
+    if (d.fresh === false || d.complete === false || !d.current) {
+      fcCurrentSnapshot = null;
+      clearArduDiff();
+      const hint = d.message || (d.mavlinkConnected
+        ? 'הקריאה לא החזירה רשימה טרייה מבקר הטיסה'
+        : 'הקריאה נכשלה. אין חיבור לבקר הטיסה');
+      if (arduWriteStatus) {
+        arduWriteStatus.textContent = hint;
+        arduWriteStatus.className = 'ardu-write-status fail';
+      }
+      if (!d.mavlinkConnected) showParamToolFault(hint, () => readFcParams());
+      updateParamSyncBanner();
+      renderArduParamForm();
+      renderFcParamFiles();
+      document.dispatchEvent(new CustomEvent('vlc:fc-params'));
+      return;
+    }
     fcArmed = d.armed === true ? true : d.armed === false ? false : null;
     refreshArduWriteBtnState(d);
     fcLinkState = d.mavlinkConnected ? 'ok' : 'down';
