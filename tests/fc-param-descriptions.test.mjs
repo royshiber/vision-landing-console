@@ -41,7 +41,12 @@ describe('FC parameter Hebrew descriptions', () => {
     const approach = fcParamPresentation('TECS_LAND_ARSPD');
     expect(approach.units).toBe('');
     expect(approach.range).toBe('-1–127');
+    expect(flare.default).toBe('');
+    expect(flare.values).toEqual([]);
+    const ekf = fcParamPresentation('EK3_ENABLE');
+    expect(ekf.values.map((row) => row.id)).toEqual(['0', '1']);
+    expect(ekf.default).toBe('');
     const unknown = fcParamPresentation('NOT_A_PARAM');
-    expect(unknown).toEqual({ he: '', units: '', range: '' });
+    expect(unknown).toEqual({ he: '', units: '', range: '', default: '', values: [] });
   });
 });

@@ -216,6 +216,11 @@ describe('ARM DISARM ui contract', () => {
     expect(html).not.toContain('21196');
     expect(html).toContain('אשרו חימוש');
     expect(html).toContain('אשרו נטרול');
+    expect(html).toContain('id="flightArmConfirm"');
+    expect(html).toContain('id="flightDisarmConfirm"');
+    expect(css).toMatch(/\.flight-arm-confirm\s*\{[^}]*min-height:\s*52px/);
+    expect(css).toMatch(/\.flight-arm-confirm\s*\{[^}]*text-align:\s*center/);
+    expect(js).toContain("document.getElementById('flightArmConfirm')");
     expect(js).toContain('function translatePrearmText(');
     expect(js).toContain('openFlightArmDialog');
     expect(js).toContain('FLIGHT_ARM_HOLD_MS = 1500');

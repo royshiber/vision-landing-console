@@ -1197,7 +1197,7 @@
               </div>
               <div class="optics-field-group">
                 <p class="optics-field-kicker">תנועה</p>
-                <label><span class="optics-field-name">מהירות</span> <input id="gimbalSpeed" type="number" min="1" max="100" step="1" value="40" dir="ltr" disabled /></label>
+                <label><span class="optics-field-name">מהירות</span> <span class="optics-stepper"><button type="button" class="optics-step" data-optics-step="-1" aria-label="הפחיתו" disabled>−</button><input id="gimbalSpeed" type="number" min="1" max="100" step="1" value="40" dir="ltr" disabled /><button type="button" class="optics-step" data-optics-step="1" aria-label="הגדילו" disabled>+</button></span></label>
                 <button type="button" id="gimbalSettingsCenter" class="cam0-btn" disabled>מרכז</button>
                 <p class="optics-readout"><span class="optics-field-name">זום</span> <span id="gimbalSettingsZoom" dir="ltr">—</span></p>
                 <button type="button" id="gimbalSettingsZoomIn" class="cam0-btn" disabled>הגדלה</button>
@@ -2276,20 +2276,6 @@
                 <p id="flightArmReason" class="flight-arm-reason" role="button" tabindex="0" aria-expanded="false" title="אין חיבור לבקר הטיסה">אין קשר</p>
                 <p id="flightArmRefusal" class="flight-arm-refusal" role="button" tabindex="0" aria-expanded="false" hidden></p>
               </div>
-              <div id="flightArmDialog" class="flight-arm-dialog" hidden>
-                  <p id="flightArmDialogText" class="flight-arm-dialog-text">אשרו חימוש</p>
-                  <div class="flight-arm-dialog-actions">
-                    <button type="button" id="flightArmCancel" class="flight-arm-btn">ביטול</button>
-                    <button type="button" id="flightArmConfirm" class="flight-arm-btn">אשרו חימוש</button>
-                  </div>
-                </div>
-                <div id="flightDisarmDialog" class="flight-arm-dialog" hidden>
-                  <p id="flightDisarmDialogText" class="flight-arm-dialog-text">אשרו נטרול</p>
-                  <div class="flight-arm-dialog-actions">
-                    <button type="button" id="flightDisarmCancel" class="flight-arm-btn">ביטול</button>
-                    <button type="button" id="flightDisarmConfirm" class="flight-arm-btn flight-arm-btn--danger">נטרול DISARM</button>
-                  </div>
-                </div>
               <p id="pfdHudWaitHint" class="pfd-hud-wait-hint" hidden></p>
 
               <div class="pfd-horizon-shell" id="pfdHorizonShell">
@@ -2441,6 +2427,7 @@
                         <option value="CRUISE">CRUISE</option>
                         <option value="CIRCLE">CIRCLE</option>
                         <option value="GUIDED">GUIDED</option>
+                        <option value="TAKEOFF">TAKEOFF</option>
                       </select>
                     </label>
                     <button type="button" id="flightDockSetMode" class="flight-dock-cmd">קבעו מצב</button>
@@ -2658,6 +2645,25 @@
           </div>
           <div id="auditModalContent" class="audit-table-wrap">
             <div class="audit-loading">טוען…</div>
+          </div>
+        </div>
+      </div>
+
+      <div id="flightArmDialog" class="flight-arm-dialog flight-arm-popup" hidden role="dialog" aria-modal="true" aria-labelledby="flightArmDialogText">
+        <div class="flight-arm-popup-card">
+          <p id="flightArmDialogText" class="flight-arm-dialog-text">אשרו חימוש</p>
+          <div class="flight-arm-dialog-actions">
+            <button type="button" id="flightArmConfirm" class="flight-arm-btn flight-arm-confirm">אשרו חימוש</button>
+            <button type="button" id="flightArmCancel" class="flight-arm-btn">ביטול</button>
+          </div>
+        </div>
+      </div>
+      <div id="flightDisarmDialog" class="flight-arm-dialog flight-arm-popup" hidden role="dialog" aria-modal="true" aria-labelledby="flightDisarmDialogText">
+        <div class="flight-arm-popup-card">
+          <p id="flightDisarmDialogText" class="flight-arm-dialog-text">אשרו נטרול</p>
+          <div class="flight-arm-dialog-actions">
+            <button type="button" id="flightDisarmConfirm" class="flight-arm-btn flight-arm-btn--danger flight-arm-confirm">אשרו נטרול</button>
+            <button type="button" id="flightDisarmCancel" class="flight-arm-btn">ביטול</button>
           </div>
         </div>
       </div>

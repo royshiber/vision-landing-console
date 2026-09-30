@@ -226,10 +226,10 @@ const MISSION_MESSAGES_KEY = 'visionLandingMissionMessagesV1';
 const FLIGHT_STACK_KEY = 'visionLandingFlightStackV1';
 const FLIGHT_DOCK_KEY = 'visionLandingFlightDockV1';
 const FLIGHT_FOLLOW_KEY = 'visionLandingFlightFollowV1';
-const FLIGHT_DATA_DEFAULT = 52;
+const FLIGHT_DATA_DEFAULT = 128;
 const FLIGHT_MSG_DEFAULT = 40;
 const FLIGHT_MSG_OPEN = 112;
-const FLIGHT_DATA_MIN = 48;
+const FLIGHT_DATA_MIN = 120;
 const FLIGHT_MSG_MIN = 36;
 const FLIGHT_HUD_MIN = 112;
 const FLIGHT_HUD_CAP = 160;
@@ -741,6 +741,58 @@ async function restoreFcParamFile(id) {
   }
 }
 
+function fcLiveText(presence) {
+  if (!presence || presence.state === 'unknown') return 'אין חיבור';
+  if (presence.state === 'missing') return 'חסר';
+  return presence.text;
+}
+
+function fcSeedText(key, presence, meta) {
+  if (Object.prototype.hasOwnProperty.call(fcGroupDraft, key)) return String(fcGroupDraft[key]);
+  if (presence?.state === 'present' && presence.text != null && presence.text !== '') return String(presence.text);
+  if (meta?.default != null && String(meta.default).trim() !== '') return String(meta.default);
+  return '';
+}
+
+function fcRangeEnds(range) {
+  const match = String(range || '').match(/^(-?\d+(?:\.\d+)?)[–-](-?\d+(?:\.\d+)?)$/);
+  if (!match) return null;
+  return { min: match[1], max: match[2] };
+}
+
+function fcCardCell(kicker, valueText, valueClass, valueDir) {
+  const cell = document.createElement('div');
+  cell.className = 'fc-card-cell';
+  const kick = document.createElement('span');
+  kick.className = 'fc-card-kicker';
+  kick.textContent = kicker;
+  const value = document.createElement('span');
+  value.className = valueClass || 'fc-card-value';
+  if (valueDir) value.dir = valueDir;
+  value.textContent = valueText == null || valueText === '' ? '—' : String(valueText);
+  cell.append(kick, value);
+  return cell;
+}
+
+function bindFcNext(control, key, presence) {
+  const commit = () => {
+    const raw = String(control.value ?? '').trim();
+    if (raw === '' || !Number.isFinite(Number(raw))) {
+      delete fcGroupDraft[key];
+      delete fcDraftMeta[key];
+    } else {
+      if (!fcDraftMeta[key]) fcDraftMeta[key] = { at: Date.now(), oldText: presence.text };
+      fcGroupDraft[key] = Number(raw);
+    }
+    paintFcRow(key);
+    renderFcChangePane();
+    syncGroupApplyBtn();
+    updateParamSyncBanner();
+  };
+  control.addEventListener('input', commit);
+  control.addEventListener('change', commit);
+}
+
 function renderFcGroupList() {
   const list = document.getElementById('fcGroupList');
   const lead = document.getElementById('fcGroupLead');
@@ -756,61 +808,90 @@ function renderFcGroupList() {
     keys = keys.filter((key) => key.toLowerCase().includes(query) || String(fcParamMeta[key]?.he || '').toLowerCase().includes(query));
   }
   if (lead) {
-    lead.textContent = group.id === 'all' && unread ? 'לא ידוע' : group.labelHe;
+    lead.textContent = group.id === 'all' && unread ? 'אין חיבור' : group.labelHe;
   }
   list.replaceChildren();
   if (!keys.length) {
     const empty = document.createElement('li');
     empty.className = 'fc-group-empty';
-    empty.textContent = group.id === 'all' && unread ? 'לא ידוע' : (query ? 'אין התאמה בקבוצה' : 'אין פרמטרים בקבוצה');
+    empty.textContent = group.id === 'all' && unread ? 'אין חיבור' : (query ? 'אין התאמה בקבוצה' : 'אין פרמטרים בקבוצה');
     list.appendChild(empty);
   }
   const readOnly = group.id === 'all';
   for (const key of keys) {
     const presence = fcPresence(key);
+    const meta = fcParamMeta[key] || {};
     const li = document.createElement('li');
-    li.className = 'fc-group-row';
+    li.className = 'fc-group-row fc-param-card';
     li.dataset.paramKey = key;
-    const keyEl = document.createElement('span');
-    keyEl.className = 'fc-group-key';
-    keyEl.textContent = key;
-    const heEl = document.createElement('span');
+    const heEl = document.createElement('p');
     heEl.className = 'fc-group-he';
-    heEl.textContent = fcParamMeta[key]?.he || '';
-    const nowEl = document.createElement('span');
-    nowEl.className = 'fc-group-now';
-    nowEl.dataset.state = presence.state;
-    nowEl.textContent = presence.text;
-    const metaText = fcMetaText(key);
-    const metaEl = document.createElement('span');
-    metaEl.className = 'fc-group-meta';
-    metaEl.textContent = metaText;
-    if (metaText) li.title = metaText;
-    li.append(keyEl, heEl, metaEl, nowEl);
-    if (!readOnly) {
-      const input = document.createElement('input');
-      input.type = 'number';
-      input.className = 'fc-group-next';
-      input.step = 'any';
-      input.setAttribute('aria-label', key);
-      input.placeholder = '—';
-      if (Object.prototype.hasOwnProperty.call(fcGroupDraft, key)) input.value = String(fcGroupDraft[key]);
-      input.addEventListener('input', () => {
-        const raw = input.value.trim();
-        if (raw === '' || !Number.isFinite(Number(raw))) {
-          delete fcGroupDraft[key];
-          delete fcDraftMeta[key];
-        } else {
-          if (!fcDraftMeta[key]) fcDraftMeta[key] = { at: Date.now(), oldText: presence.text };
-          fcGroupDraft[key] = Number(raw);
-        }
-        paintFcRow(key);
-        renderFcChangePane();
-        syncGroupApplyBtn();
-        updateParamSyncBanner();
-      });
-      li.appendChild(input);
+    heEl.textContent = meta.he || '';
+    const keyEl = document.createElement('p');
+    keyEl.className = 'fc-group-key';
+    keyEl.dir = 'ltr';
+    keyEl.textContent = key;
+    const liveCell = fcCardCell('בבקר', fcLiveText(presence), 'fc-group-now', presence.state === 'present' ? 'ltr' : '');
+    const nowEl = liveCell.querySelector('.fc-group-now');
+    if (nowEl) nowEl.dataset.state = presence.state;
+    li.append(
+      heEl,
+      keyEl,
+      fcCardCell('דיפולט', meta.default, 'fc-card-value', 'ltr'),
+      liveCell,
+      fcCardCell('יחידה', meta.units, 'fc-group-unit', 'ltr'),
+      fcCardCell('טווח', meta.range, 'fc-group-meta', 'ltr'),
+    );
+    const values = Array.isArray(meta.values) ? meta.values : [];
+    const seed = fcSeedText(key, presence, meta);
+    const controlWrap = document.createElement('label');
+    controlWrap.className = 'fc-card-cell fc-card-control';
+    const controlKick = document.createElement('span');
+    controlKick.className = 'fc-card-kicker';
+    controlKick.textContent = 'ערך חדש';
+    controlWrap.appendChild(controlKick);
+    let control;
+    if (values.length) {
+      control = document.createElement('select');
+      control.className = 'fc-group-next';
+      const blank = document.createElement('option');
+      blank.value = '';
+      blank.textContent = 'בחרו';
+      control.appendChild(blank);
+      const label = document.createElement('span');
+      label.className = 'fc-enum-label';
+      const paintLabel = () => {
+        const chosen = values.find((opt) => String(opt.id) === control.value);
+        label.textContent = chosen ? String(chosen.label || '') : '';
+      };
+      for (const opt of values) {
+        const option = document.createElement('option');
+        option.value = String(opt.id);
+        option.textContent = String(opt.id);
+        control.appendChild(option);
+      }
+      const match = [...control.options].some((opt) => opt.value === seed);
+      control.value = match ? seed : '';
+      paintLabel();
+      control.addEventListener('change', paintLabel);
+      controlWrap.appendChild(label);
+    } else {
+      control = document.createElement('input');
+      control.type = 'number';
+      control.className = 'fc-group-next';
+      control.step = 'any';
+      const ends = fcRangeEnds(meta.range);
+      if (ends) {
+        control.min = ends.min;
+        control.max = ends.max;
+      }
+      if (seed !== '') control.value = seed;
     }
+    control.setAttribute('aria-label', `ערך חדש ${key}`);
+    if (readOnly) control.disabled = true;
+    else bindFcNext(control, key, presence);
+    controlWrap.appendChild(control);
+    li.appendChild(controlWrap);
     if (Object.prototype.hasOwnProperty.call(fcGroupDraft, key)) li.classList.add('fc-group-row--pending');
     else if (fcChangeLog.some((entry) => entry.key === key)) li.classList.add('fc-group-row--written');
     list.appendChild(li);
@@ -1513,26 +1594,48 @@ function renderParamIcon(key) {
   </span>`;
 }
 
+function splitParamLabel(label) {
+  const match = String(label || '').match(/^(.*)\(([^)]+)\)\s*$/);
+  if (!match) return { name: String(label || ''), unit: '' };
+  return { name: match[1].trim(), unit: match[2].trim() };
+}
+
+function profileLiveText(key) {
+  if (!fcCurrentSnapshot || typeof fcCurrentSnapshot !== 'object') return 'אין חיבור';
+  if (!Object.prototype.hasOwnProperty.call(fcCurrentSnapshot, key)) return 'אין חיבור';
+  const value = fcCurrentSnapshot[key];
+  if (value == null || value === '') return 'אין חיבור';
+  return String(value);
+}
+
 function renderParamsIn(container, items) {
   if (!container) return;
   container.innerHTML = '';
   items.forEach((param) => {
     const locked = !!lockState[param.key];
+    const facts = splitParamLabel(param.label);
     const card = document.createElement('article');
     card.className = 'param-card';
+    card.dataset.paramKey = param.key;
+    const live = profileLiveText(param.key);
     card.innerHTML = `
       <div class="param-top">
-        <h3 class="param-title">${renderParamIcon(param.key)}${param.label}</h3>
+        <h3 class="param-title">${renderParamIcon(param.key)}${facts.name}</h3>
         <span class="param-info" title="${buildParamTooltip(param).replace(/"/g, '&quot;')}">?</span>
         <button class="lock-btn ${locked ? 'locked' : ''}" id="lock_${param.key}" title="נועל או משחרר את הפרמטר לעריכה">
           ${locked ? '🔒' : '🔓'}
         </button>
       </div>
-      <div class="param-meta">
-        <span>${param.min} - ${param.max}</span>
+      <p class="fc-group-key" dir="ltr">${param.key}</p>
+      <div class="fc-card-cell"><span class="fc-card-kicker">דיפולט</span><span class="fc-card-value" dir="ltr">${param.value}</span></div>
+      <div class="fc-card-cell"><span class="fc-card-kicker">בבקר</span><span class="fc-group-now" data-state="${live === 'אין חיבור' ? 'unknown' : 'present'}">${live}</span></div>
+      <div class="fc-card-cell"><span class="fc-card-kicker">יחידה</span><span class="fc-group-unit" dir="ltr">${facts.unit || '—'}</span></div>
+      <div class="fc-card-cell"><span class="fc-card-kicker">טווח</span><span class="fc-group-meta" dir="ltr">${param.min}–${param.max}</span></div>
+      <div class="fc-card-cell fc-card-control">
+        <span class="fc-card-kicker">ערך חדש</span>
         <span class="param-value" id="val_${param.key}">${profileState[param.key]}</span>
       </div>
-      <input type="range" id="rng_${param.key}" min="${param.min}" max="${param.max}" step="${param.step}" value="${profileState[param.key]}" ${locked ? 'disabled' : ''} />
+      <input type="range" id="rng_${param.key}" min="${param.min}" max="${param.max}" step="${param.step}" value="${profileState[param.key]}" ${locked ? 'disabled' : ''} aria-label="ערך חדש ${param.key}" />
     `;
     container.appendChild(card);
   });
@@ -1554,6 +1657,8 @@ function bindParamHandlers(items) {
       if (lockState[param.key]) return;
       profileState[param.key] = Number(slider.value);
       valueNode.textContent = slider.value;
+      const mirror = document.querySelector(`#plndProfileHonestyKeys input[data-honesty-key="${param.key}"]`);
+      if (mirror && mirror !== slider) mirror.value = slider.value;
       refreshEventsFromParams();
       updateParamSyncBanner();
     });
@@ -4534,32 +4639,111 @@ function pulseRefreshVersionOffers() {
 
 let latestVisionLandingReadiness = null;
 
+function honestyLiveText(key) {
+  if (key?.state === 'present' && key.value != null && key.value !== '') return String(key.value);
+  if (key?.state === 'missing') return 'חסר';
+  return 'אין חיבור';
+}
+
 function appendPlndProfileKeys(host, keys, itemClass) {
   if (!host) return;
   host.innerHTML = '';
   if (!Array.isArray(keys) || !keys.length) return;
   for (const key of keys) {
+    const id = key.key || '';
+    const meta = fcParamMeta[id] || {};
+    const local = PARAMS.find((param) => param.key === id);
+    const facts = local ? splitParamLabel(local.label) : null;
     const li = document.createElement('li');
-    li.className = itemClass;
+    li.className = `${itemClass} fc-param-card`;
     li.dataset.state = String(key.state || 'unknown');
-    const name = document.createElement('span');
-    name.className = `${itemClass}-name`;
-    name.textContent = key.nameHe || '';
-    const token = document.createElement('span');
-    token.className = `${itemClass}-token`;
+    li.dataset.paramKey = id;
+    const name = document.createElement('p');
+    name.className = `${itemClass}-name fc-group-he`;
+    name.textContent = key.nameHe || facts?.name || meta.he || '';
+    const token = document.createElement('p');
+    token.className = `${itemClass}-token fc-group-key`;
     token.dir = 'ltr';
-    token.textContent = key.key || '';
-    const chip = document.createElement('span');
-    chip.className = `${itemClass}-chip`;
-    chip.textContent = key.stateHe || '';
-    li.append(name, token, chip);
-    if (key.state === 'present' && key.value != null && key.value !== '') {
-      const value = document.createElement('span');
-      value.className = `${itemClass}-value`;
-      value.dir = 'ltr';
-      value.textContent = String(key.value);
-      li.appendChild(value);
+    token.textContent = id;
+    const live = honestyLiveText(key);
+    const unit = facts?.unit || meta.units || '';
+    const range = local ? `${local.min}–${local.max}` : (meta.range || '');
+    const fallback = local ? String(local.value) : (meta.default || '');
+    li.append(
+      name,
+      token,
+      fcCardCell('דיפולט', local ? String(local.value) : meta.default, 'fc-card-value', 'ltr'),
+      fcCardCell('בבקר', live, `${itemClass}-chip fc-group-now`, live === 'אין חיבור' || live === 'חסר' ? '' : 'ltr'),
+    );
+    const now = li.querySelector('.fc-group-now');
+    if (now) now.dataset.state = key.state === 'present' ? 'present' : (key.state || 'unknown');
+    li.append(
+      fcCardCell('יחידה', unit, `${itemClass}-token fc-group-unit`, 'ltr'),
+      fcCardCell('טווח', range, 'fc-group-meta', 'ltr'),
+    );
+    const controlWrap = document.createElement('label');
+    controlWrap.className = 'fc-card-cell fc-card-control';
+    const kick = document.createElement('span');
+    kick.className = 'fc-card-kicker';
+    kick.textContent = 'ערך חדש';
+    controlWrap.appendChild(kick);
+    if (local) {
+      const slider = document.createElement('input');
+      slider.type = 'range';
+      slider.min = String(local.min);
+      slider.max = String(local.max);
+      slider.step = String(local.step);
+      slider.value = String(profileState[id] ?? local.value);
+      slider.dataset.honestyKey = id;
+      slider.disabled = !!lockState[id];
+      slider.setAttribute('aria-label', `ערך חדש ${id}`);
+      slider.addEventListener('input', () => {
+        if (lockState[id]) return;
+        profileState[id] = Number(slider.value);
+        const node = document.getElementById(`val_${id}`);
+        if (node) node.textContent = slider.value;
+        const main = document.getElementById(`rng_${id}`);
+        if (main && main !== slider) main.value = slider.value;
+        refreshEventsFromParams();
+        updateParamSyncBanner();
+      });
+      controlWrap.appendChild(slider);
+    } else {
+      const values = Array.isArray(meta.values) ? meta.values : [];
+      const shown = key.state === 'present' && key.value != null && key.value !== '' ? String(key.value) : fallback;
+      if (values.length) {
+        const select = document.createElement('select');
+        select.className = 'fc-group-next';
+        select.disabled = true;
+        select.setAttribute('aria-label', `ערך חדש ${id}`);
+        const blank = document.createElement('option');
+        blank.value = '';
+        blank.textContent = 'בחרו';
+        select.appendChild(blank);
+        const label = document.createElement('span');
+        label.className = 'fc-enum-label';
+        for (const opt of values) {
+          const option = document.createElement('option');
+          option.value = String(opt.id);
+          option.textContent = String(opt.id);
+          select.appendChild(option);
+        }
+        const match = [...select.options].some((opt) => opt.value === shown);
+        select.value = match ? shown : '';
+        const chosen = values.find((opt) => String(opt.id) === select.value);
+        label.textContent = chosen ? String(chosen.label || '') : '';
+        controlWrap.append(label, select);
+      } else {
+        const input = document.createElement('input');
+        input.type = 'number';
+        input.disabled = true;
+        input.step = 'any';
+        if (shown !== '') input.value = shown;
+        input.setAttribute('aria-label', `ערך חדש ${id}`);
+        controlWrap.appendChild(input);
+      }
     }
+    li.appendChild(controlWrap);
     host.appendChild(li);
   }
 }
@@ -4579,8 +4763,9 @@ function paintPlndProfileHonesty(snapshot) {
     ? snapshot.rows.find((item) => item.id === 'plnd_profile')
     : null;
   if (stateEl) {
-    stateEl.dataset.state = String(row?.state || 'unknown');
-    stateEl.textContent = row?.stateHe || 'לא ידוע';
+    const state = String(row?.state || 'unknown');
+    stateEl.dataset.state = state;
+    stateEl.textContent = state === 'unknown' ? 'אין חיבור' : (row?.stateHe || 'אין חיבור');
   }
   appendPlndProfileKeys(keysEl, row?.keys || [], 'plnd-honesty-key');
 }
@@ -7885,6 +8070,7 @@ function closeFlightArmDialog() {
 
 function openFlightArmDialog() {
   if (flightArmBusy || !flightArmLinkLive(latestHudMavlink) || latestHudMavlink?.armed === true) return;
+  closeFlightDisarmDialog();
   const text = document.getElementById('flightArmDialogText');
   if (text) text.textContent = FLIGHT_ARM_CONFIRM_HE;
   const dialog = document.getElementById('flightArmDialog');
@@ -7985,11 +8171,18 @@ function initFlightArmControls() {
   armBtn.addEventListener('pointercancel', cancelFlightArmHold);
   disarmBtn?.addEventListener('click', () => {
     if (disarmBtn.disabled) return;
+    closeFlightArmDialog();
     flightDisarmSecond = false;
     const text = document.getElementById('flightDisarmDialogText');
     if (text) text.textContent = FLIGHT_DISARM_CONFIRM_HE;
     const dialog = document.getElementById('flightDisarmDialog');
     if (dialog) dialog.hidden = false;
+  });
+  document.getElementById('flightArmDialog')?.addEventListener('click', (event) => {
+    if (event.target?.id === 'flightArmDialog') closeFlightArmDialog();
+  });
+  document.getElementById('flightDisarmDialog')?.addEventListener('click', (event) => {
+    if (event.target?.id === 'flightDisarmDialog') closeFlightDisarmDialog();
   });
   document.getElementById('flightDisarmCancel')?.addEventListener('click', closeFlightDisarmDialog);
   document.getElementById('flightDisarmConfirm')?.addEventListener('click', () => {
@@ -18932,6 +19125,24 @@ async function assistSendText(rawText, { channel = 'text' } = {}) {
     await assistConfirm(false);
     return;
   }
+  if (flightVoiceCommandText(text)) {
+    assistAppendMessage({ role: 'user', text });
+    try {
+      const res = await fetch('/api/assist/voice-flight', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text, operatorConfirmed: true }),
+      });
+      const data = await res.json().catch(() => ({}));
+      const reply = String(data?.talkback?.text || data?.note || '').trim() || 'לא נשלח דבר';
+      assistAppendMessage({ role: 'assistant', text: reply });
+      paintFlightDockCommand(reply);
+    } catch {
+      assistAppendMessage({ role: 'assistant', text: 'השליחה נכשלה' });
+      paintFlightDockCommand('השליחה נכשלה');
+    }
+    return;
+  }
   assistAppendMessage({ role: 'user', text });
   const snap = assistBuildContextSnapshot();
   snap.channel = channel === 'voice' ? 'voice' : 'text';
@@ -19870,7 +20081,8 @@ function flightColumnHalfStack(horizon) {
   if (!horizon || typeof horizon.getBoundingClientRect !== 'function') return null;
   const budget = flightStackBudget(horizon);
   if (budget.avail < 240) return null;
-  const data = Math.max(FLIGHT_DATA_MIN, Math.min(budget.dataMin, 96));
+  const dataRoom = budget.avail - budget.hudMin - budget.msgMin;
+  const data = Math.max(FLIGHT_DATA_MIN, Math.min(148, dataRoom));
   const rest = budget.avail - data;
   if (rest < budget.hudMin + budget.msgMin) return null;
   const hud = Math.min(FLIGHT_HUD_CAP, Math.max(budget.hudMin, rest - budget.msgMin));
@@ -19908,10 +20120,15 @@ function writeFlightStack(stack) {
 
 function flightDataFloor(horizon) {
   const grid = horizon.querySelector('#missionDataGrid');
+  const data = horizon.querySelector('[data-mission-region="data"]');
   if (!grid || typeof grid.getBoundingClientRect !== 'function') return FLIGHT_DATA_MIN;
   const gridBox = grid.getBoundingClientRect();
-  let content = Math.ceil(gridBox.height);
+  const dataBox = data?.getBoundingClientRect?.();
+  const content = Math.ceil(gridBox.height);
   if (content < 40) return FLIGHT_DATA_MIN;
+  // The grid stretches to the data region. That height is not a content floor,
+  // or the splitter could never give space back to the attitude window.
+  if (dataBox && dataBox.height > 0 && content >= dataBox.height - 4) return FLIGHT_DATA_MIN;
   return Math.max(FLIGHT_DATA_MIN, content + 2);
 }
 
@@ -20027,8 +20244,14 @@ function bindFlightStackSplitters() {
     if (!drag) return;
     const dy = ev.clientY - drag.y;
     const next = { ...drag.base, half: false };
-    if (drag.which === 'data') next.data = drag.base.data + dy;
-    else next.msg = drag.base.msg - dy;
+    if (drag.which === 'data') {
+      // Handle under the attitude window: drag down grows that window.
+      next.data = drag.base.data - dy;
+    } else {
+      // Handle under the data strip: drag down grows the strip and shrinks the messages.
+      next.data = drag.base.data + dy;
+      next.msg = drag.base.msg - dy;
+    }
     applyFlightStack(next, { half: false });
   };
   const onDbl = (ev) => {
@@ -20076,7 +20299,7 @@ function initFlightStack() {
 }
 
 const FLIGHT_DOCKS = Object.freeze(['messages', 'actions']);
-const FLIGHT_DOCK_MODES = Object.freeze(['AUTO', 'LOITER', 'RTL', 'MANUAL', 'STABILIZE', 'FBWA', 'FBWB', 'CRUISE', 'CIRCLE', 'GUIDED']);
+const FLIGHT_DOCK_MODES = Object.freeze(['AUTO', 'LOITER', 'RTL', 'MANUAL', 'STABILIZE', 'FBWA', 'FBWB', 'CRUISE', 'CIRCLE', 'GUIDED', 'TAKEOFF']);
 
 function flightDockName(which) {
   return FLIGHT_DOCKS.includes(which) ? which : 'messages';
@@ -20104,7 +20327,10 @@ function paintFlightDockCommand(text) {
 
 async function sendFlightDockMode(mode) {
   const name = String(mode || '').toUpperCase();
-  if (!FLIGHT_DOCK_MODES.includes(name)) return;
+  if (!FLIGHT_DOCK_MODES.includes(name) || name === 'ACRO') {
+    paintFlightDockCommand('המצב הזה אינו ברשימה. לא נשלח דבר.');
+    return;
+  }
   const mav = typeof latestHudMavlink !== 'undefined' ? latestHudMavlink : null;
   if (!mav || mav.connected !== true) {
     paintFlightDockCommand('אין חיבור לבקר הטיסה');
@@ -20112,19 +20338,33 @@ async function sendFlightDockMode(mode) {
   }
   if (!flightDockSkipConfirm(mav)) {
     const ok = window.confirm('לשלוח את הפקודה לבקר הטיסה?');
-    if (!ok) return;
+    if (!ok) {
+      paintFlightDockCommand('לא נשלח דבר');
+      return;
+    }
   }
   try {
     const res = await fetch('/api/assist/voice-flight', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: flightDockCommandText(name), operatorConfirmed: true }),
+      body: JSON.stringify({ text: flightDockCommandText(name), operatorConfirmed: true, mode: name }),
     });
     const data = await res.json().catch(() => ({}));
-    paintFlightDockCommand(data?.talkback?.text || 'לא נשלח דבר');
+    const line = String(data?.talkback?.text || data?.note || '').trim();
+    paintFlightDockCommand(line || 'לא נשלח דבר');
   } catch {
     paintFlightDockCommand('השליחה נכשלה');
   }
+}
+
+function flightVoiceCommandText(text) {
+  const q = String(text || '').trim().replace(/\s+/g, ' ');
+  if (!q) return false;
+  if (/^(תמריא|תמריאו|המריאו|המראה)$/.test(q)) return true;
+  if (/^עבורו? למצב\s+\S+/.test(q)) return true;
+  if (/^(חמש|חימוש|נטרול|נטרל)(?:\s|$)/.test(q)) return true;
+  if (/^(arm|disarm)\b/i.test(q)) return true;
+  return false;
 }
 
 function applyFlightDock(which) {

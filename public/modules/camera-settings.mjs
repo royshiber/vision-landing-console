@@ -39,6 +39,46 @@ function note(camId, kind) {
   return `<p class="optics-field-note" data-unsupported="${kind}">${CAMERA_UNSUPPORTED_HE[kind]}</p>`;
 }
 
+function opticsNumber(inputHtml) {
+  return `<span class="optics-stepper"><button type="button" class="optics-step" data-optics-step="-1" aria-label="הפחיתו">−</button>${inputHtml}<button type="button" class="optics-step" data-optics-step="1" aria-label="הגדילו">+</button></span>`;
+}
+
+export function bindOpticsSteppers(root = document) {
+  if (!root?.querySelectorAll) return;
+  root.querySelectorAll('.optics-stepper').forEach((wrap) => {
+    if (wrap.dataset.bound === '1') return;
+    const input = wrap.querySelector('input[type="number"]');
+    if (!input) return;
+    wrap.dataset.bound = '1';
+    const sync = () => {
+      wrap.querySelectorAll('.optics-step').forEach((btn) => { btn.disabled = input.disabled; });
+    };
+    sync();
+    if (typeof MutationObserver === 'function') {
+      new MutationObserver(sync).observe(input, { attributes: true, attributeFilter: ['disabled'] });
+    }
+    wrap.addEventListener('click', (event) => {
+      const btn = event.target.closest('.optics-step');
+      if (!btn || input.disabled || btn.disabled) return;
+      const dir = Number(btn.dataset.opticsStep);
+      if (!Number.isFinite(dir) || dir === 0) return;
+      const step = Number(input.step);
+      const delta = Number.isFinite(step) && step > 0 ? step : 1;
+      const current = input.value === '' ? Number(input.min) : Number(input.value);
+      if (!Number.isFinite(current)) return;
+      let next = current + dir * delta;
+      const min = Number(input.min);
+      const max = Number(input.max);
+      if (input.min !== '' && Number.isFinite(min)) next = Math.max(min, next);
+      if (input.max !== '' && Number.isFinite(max)) next = Math.min(max, next);
+      const digits = (String(input.step).split('.')[1] || '').length;
+      input.value = digits ? String(Number(next.toFixed(digits))) : String(next);
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+  });
+}
+
 export function cameraSettingsHtml(camId) {
   const fov = FOV_DEFAULTS[camId] ?? FOV_DEFAULTS.cam0;
   const detectDisabled = cameraControlSupported(camId, 'detections') ? '' : ' disabled';
@@ -49,19 +89,19 @@ export function cameraSettingsHtml(camId) {
       <label class="cam0-check"><input type="checkbox" id="${camId}Ae" disabled /> <span class="optics-field-name">חשיפה אוטומטית</span></label>
       <p id="${camId}AeLock" class="optics-field-note" hidden>${AE_LOCK_HE}</p>
       <span id="${camId}ApplyBadge" class="optics-apply-badge" hidden></span>
-      <label><span class="optics-field-name">חשיפה</span> <input id="${camId}Exposure" type="number" min="10" max="100001" step="10" dir="ltr" disabled /></label>
-      <label><span class="optics-field-name">הגבר</span> <input id="${camId}Gain" type="number" min="16" max="256" step="1" dir="ltr" disabled /></label>
+      <label><span class="optics-field-name">חשיפה</span> ${opticsNumber(`<input id="${camId}Exposure" type="number" min="10" max="100001" step="10" dir="ltr" disabled />`)}</label>
+      <label><span class="optics-field-name">הגבר</span> ${opticsNumber(`<input id="${camId}Gain" type="number" min="16" max="256" step="1" dir="ltr" disabled />`)}</label>
     </div>
     <div class="optics-field-group" data-settings-group="image">
       <p class="optics-field-kicker">תמונה</p>
-      <label><span class="optics-field-name">זווית ראייה (מעלות)</span> <input id="${camId}Fov" type="number" min="20" max="180" step="1" dir="ltr" value="${fov}" title="${FOV_META_HE}" /> <span id="${camId}FovHint" class="optics-fov-hint" hidden>טווח 20–180°</span></label>
+      <label><span class="optics-field-name">זווית ראייה (מעלות)</span> ${opticsNumber(`<input id="${camId}Fov" type="number" min="20" max="180" step="1" dir="ltr" value="${fov}" title="${FOV_META_HE}" />`)} <span id="${camId}FovHint" class="optics-fov-hint" hidden>טווח 20–180°</span></label>
       <label><span class="optics-field-name">רזולוציה</span>
         <select id="${camId}Res" dir="ltr" disabled>
           <option value="1280x800">1280×800</option>
           <option value="1280x720">1280×720</option>
         </select>
       </label>
-      <label><span class="optics-field-name">קצב יעד</span> <input id="${camId}FpsSet" type="number" min="1" max="60" step="1" dir="ltr" disabled /></label>
+      <label><span class="optics-field-name">קצב יעד</span> ${opticsNumber(`<input id="${camId}FpsSet" type="number" min="1" max="60" step="1" dir="ltr" disabled />`)}</label>
     </div>
     <div class="optics-field-group" data-settings-group="record">
       <p class="optics-field-kicker">הקלטה</p>
@@ -74,8 +114,8 @@ export function cameraSettingsHtml(camId) {
     </div>
     <section class="cam0-calib" id="${camId}Calib" aria-label="כיול" data-settings-group="calibration" data-phase="idle">
       <h4>כיול</h4>
-      <label><span class="optics-field-name">פינות</span> <input id="${camId}CalibCols" type="number" min="3" max="15" step="1" dir="ltr" value="9" /> <span>×</span> <input id="${camId}CalibRows" type="number" min="3" max="15" step="1" dir="ltr" value="6" /></label>
-      <label><span class="optics-field-name">צלע מ״מ</span> <input id="${camId}CalibSquare" type="number" min="5" max="100" step="1" dir="ltr" value="25" /></label>
+      <label><span class="optics-field-name">פינות</span> ${opticsNumber(`<input id="${camId}CalibCols" type="number" min="3" max="15" step="1" dir="ltr" value="9" />`)} <span>×</span> ${opticsNumber(`<input id="${camId}CalibRows" type="number" min="3" max="15" step="1" dir="ltr" value="6" />`)}</label>
+      <label><span class="optics-field-name">צלע מ״מ</span> ${opticsNumber(`<input id="${camId}CalibSquare" type="number" min="5" max="100" step="1" dir="ltr" value="25" />`)}</label>
       <button type="button" id="${camId}CalibStart" class="cam0-btn" disabled>התחל כיול</button>
       <span id="${camId}CalibProgress" class="optics-field-name">0/20</span>
       <button type="button" id="${camId}CalibSave" class="cam0-btn" disabled>שמירה</button>
@@ -95,6 +135,7 @@ export function mountCameraSettings(root = document) {
     if (camId !== 'cam0' && camId !== 'cam1') continue;
     host.innerHTML = cameraSettingsHtml(camId);
     host.dataset.mounted = '1';
+    bindOpticsSteppers(host);
   }
 }
 
@@ -155,4 +196,7 @@ export function paintCameraApply(camId, controls) {
   return outcome;
 }
 
-if (typeof document !== 'undefined') mountCameraSettings(document);
+if (typeof document !== 'undefined') {
+  mountCameraSettings(document);
+  bindOpticsSteppers(document);
+}

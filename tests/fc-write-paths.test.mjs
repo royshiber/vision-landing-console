@@ -234,10 +234,10 @@ describe('FC write paths in the parameters tab', () => {
     partial = false;
     posts = 0;
     await openGroup();
-    expect(await page.locator('[data-param-key="EK3_ENABLE"] .fc-group-now').innerText()).toBe('לא ידוע');
+    expect(await page.locator('[data-param-key="EK3_ENABLE"] .fc-group-now').innerText()).toBe('אין חיבור');
     await page.click('#arduReadBtn');
     await page.waitForFunction(() => (document.getElementById('arduWriteStatus')?.textContent || '').includes('אין חיבור לבקר הטיסה'));
-    expect(await page.locator('[data-param-key="EK3_ENABLE"] .fc-group-now').innerText()).toBe('לא ידוע');
+    expect(await page.locator('[data-param-key="EK3_ENABLE"] .fc-group-now').innerText()).toBe('אין חיבור');
     expect(await page.locator('#arduWriteStatus').getAttribute('class')).toContain('fail');
     expect(posts).toBe(0);
   }, 60000);
@@ -247,14 +247,14 @@ describe('FC write paths in the parameters tab', () => {
     partial = false;
     posts = 0;
     await openGroup();
-    await page.fill('[data-param-key="EK3_ENABLE"] .fc-group-next', '0');
-    await page.fill('[data-param-key="EK3_SRC1_POSXY"] .fc-group-next', '1');
+    await page.selectOption('[data-param-key="EK3_ENABLE"] .fc-group-next', '0');
+    await page.selectOption('[data-param-key="EK3_SRC1_POSXY"] .fc-group-next', '3');
     await page.click('#fcGroupApply');
     await confirmWrite();
     await page.waitForFunction(() => (document.getElementById('paramWriteResult')?.textContent || '').includes('אין חיבור לבקר הטיסה'));
     expect(posts).toBe(0);
     expect(await page.locator('[data-param-key="EK3_ENABLE"] .fc-group-next').inputValue()).toBe('0');
-    expect(await page.locator('[data-param-key="EK3_SRC1_POSXY"] .fc-group-next').inputValue()).toBe('1');
+    expect(await page.locator('[data-param-key="EK3_SRC1_POSXY"] .fc-group-next').inputValue()).toBe('3');
     expect(await page.locator('#fcChangeList').innerText()).toContain('ממתין');
     expect(await page.locator('#fcChangeList').innerText()).not.toContain('הבקר אישר');
     expect(await page.locator('#paramWriteResult').getAttribute('data-tone')).toBe('bad');
@@ -268,7 +268,7 @@ describe('FC write paths in the parameters tab', () => {
     await openGroup();
     await page.click('#arduReadBtn');
     await page.waitForFunction(() => document.querySelector('[data-param-key="EK3_ENABLE"] .fc-group-now')?.textContent === '1');
-    await page.fill('[data-param-key="EK3_ENABLE"] .fc-group-next', '0');
+    await page.selectOption('[data-param-key="EK3_ENABLE"] .fc-group-next', '0');
     await page.click('#fcGroupApply');
     await confirmWrite();
     await page.waitForFunction(() => (document.getElementById('paramWriteResult')?.textContent || '').includes('נכתב לבקר ואומת'));
@@ -290,19 +290,17 @@ describe('FC write paths in the parameters tab', () => {
     await openGroup();
     await page.click('#arduReadBtn');
     await page.waitForFunction(() => document.querySelector('[data-param-key="EK3_ENABLE"] .fc-group-now')?.textContent === '1');
-    await page.fill('[data-param-key="EK3_ENABLE"] .fc-group-next', '0');
-    await page.fill('[data-param-key="EK3_SRC1_POSXY"] .fc-group-next', '1');
+    await page.selectOption('[data-param-key="EK3_ENABLE"] .fc-group-next', '0');
+    await page.selectOption('[data-param-key="EK3_SRC1_POSXY"] .fc-group-next', '3');
     await page.click('#fcGroupApply');
     await confirmWrite();
     await page.waitForFunction(() => (document.getElementById('paramWriteResult')?.textContent || '').includes('חלקית'));
     expect(posts).toBe(1);
     expect(await page.locator('#paramWriteResult').innerText()).not.toMatch(/WRITE/);
     expect(await page.locator('#paramWriteResult').getAttribute('data-tone')).toBe('bad');
-    const kept = [
-      await page.locator('[data-param-key="EK3_ENABLE"] .fc-group-next').inputValue(),
-      await page.locator('[data-param-key="EK3_SRC1_POSXY"] .fc-group-next').inputValue(),
-    ].filter((value) => value !== '');
-    expect(kept).toHaveLength(1);
+    expect(await page.locator('[data-param-key="EK3_ENABLE"] .fc-group-next').inputValue()).toBe('0');
+    expect(await page.locator('[data-param-key="EK3_SRC1_POSXY"] .fc-group-next').inputValue()).toBe('3');
+    expect(await page.locator('[data-param-key="EK3_SRC1_POSXY"]').getAttribute('class')).toContain('fc-group-row--pending');
     expect(await page.locator('#fcChangeList').innerText()).toContain('נכשל');
   }, 60000);
 

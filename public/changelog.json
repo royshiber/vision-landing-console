@@ -1,5 +1,36 @@
 [
   {
+    "version": "1.02.381",
+    "date": "2026-09-30",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Server library",
+        "detail": "fc-param-descriptions.mjs, assist-api.mjs, voice-flight-pipeline.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "UI / app.js",
+        "detail": "app.js"
+      },
+      {
+        "type": "feat",
+        "title": "Frontend",
+        "detail": "camera-settings.mjs"
+      },
+      {
+        "type": "ui",
+        "title": "HTML layout",
+        "detail": "index.html"
+      },
+      {
+        "type": "ui",
+        "title": "Styles",
+        "detail": "styles.css"
+      }
+    ]
+  },
+  {
     "version": "1.02.380",
     "date": "2026-09-29",
     "changes": [

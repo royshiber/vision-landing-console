@@ -12,6 +12,7 @@ describe('camera FOV controls', () => {
   let browser = null;
 
   beforeAll(async () => {
+    const logs = [];
     serverProc = spawn(process.execPath, ['server.js'], {
       cwd: repoRoot,
       env: {
@@ -23,14 +24,21 @@ describe('camera FOV controls', () => {
       },
       stdio: ['ignore', 'pipe', 'pipe'],
     });
+    serverProc.stdout?.on('data', (buf) => logs.push(String(buf)));
+    serverProc.stderr?.on('data', (buf) => logs.push(String(buf)));
     const t0 = Date.now();
+    let up = false;
     while (Date.now() - t0 < 20000) {
       try {
         const r = await fetch(`${BASE}/api/health`);
-        if (r.ok) break;
+        if (r.ok) { up = true; break; }
       } catch { /* retry */ }
       await new Promise((r) => setTimeout(r, 200));
     }
+    if (!up) throw new Error(`camera fov server did not start\n${logs.join('').slice(-2000)}`);
+    const pageRes = await fetch(`${BASE}/`, { signal: AbortSignal.timeout(8000) });
+    const html = await pageRes.text();
+    if (!pageRes.ok || !html.includes('cam0')) throw new Error(`page ${pageRes.status} ${html.slice(0, 120)}`);
     const { chromium } = await import('playwright');
     browser = await chromium.launch({ headless: true });
   }, 30000);
@@ -42,6 +50,11 @@ describe('camera FOV controls', () => {
 
   it('persists each camera, rejects 19, and keeps the label inside its box', async () => {
     const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+    const hintOf = (id) => page.evaluate((hintId) => {
+      const el = document.getElementById(hintId);
+      return el ? { text: el.textContent, hidden: el.hidden } : null;
+    }, id);
+    const valueOf = (id) => page.evaluate((fieldId) => document.getElementById(fieldId).value, id);
     await page.goto(BASE, { waitUntil: 'domcontentloaded' });
     await page.click('[data-tab="optics"]');
     await page.waitForSelector('#cam0Fov');
@@ -62,21 +75,26 @@ describe('camera FOV controls', () => {
     await page.dispatchEvent('#cam0Fov', 'change');
     await page.fill('#cam0Fov', '10');
     await page.dispatchEvent('#cam0Fov', 'input');
-    expect(await page.locator('#cam0FovHint').textContent()).toBe('טווח 20–180°');
-    expect(await page.locator('#cam0FovHint').isHidden()).toBe(false);
+    const low = await hintOf('cam0FovHint');
+    expect(low.text).toBe('טווח 20–180°');
+    expect(low.hidden).toBe(false);
     await page.fill('#cam0Fov', '19');
     await page.dispatchEvent('#cam0Fov', 'change');
-    expect(await page.inputValue('#cam0Fov')).toBe('100');
-    expect(await page.locator('#cam0FovHint').textContent()).toBe('טווח 20–180°');
-    await page.fill('#cam1Fov', '500');
-    await page.dispatchEvent('#cam1Fov', 'input');
-    expect(await page.locator('#cam1FovHint').textContent()).toBe('טווח 20–180°');
-    expect(await page.locator('#cam1FovHint').isHidden()).toBe(false);
+    expect(await valueOf('cam0Fov')).toBe('100');
+    expect((await hintOf('cam0FovHint')).text).toBe('טווח 20–180°');
+    await page.evaluate(() => {
+      const input = document.getElementById('cam1Fov');
+      input.value = '500';
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    const cam1 = await hintOf('cam1FovHint');
+    expect(cam1.text).toBe('טווח 20–180°');
+    expect(cam1.hidden).toBe(false);
     await page.reload({ waitUntil: 'domcontentloaded' });
     await page.click('[data-tab="optics"]');
     await page.waitForSelector('#cam0Fov');
-    expect(await page.inputValue('#cam0Fov')).toBe('100');
-    expect(await page.inputValue('#cam1Fov')).toBe('79');
+    expect(await valueOf('cam0Fov')).toBe('100');
+    expect(await valueOf('cam1Fov')).toBe('79');
     await page.close();
   }, 30000);
 });

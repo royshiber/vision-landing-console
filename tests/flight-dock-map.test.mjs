@@ -68,6 +68,12 @@ describe('flight dock and map source', () => {
     expect(html).toContain('>קבעו נקודה</button>');
     expect(html).toContain('>קבעו מתלה</button>');
     expect(html).toContain('>קבעו מצב</button>');
+    expect(html).toContain('<option value="TAKEOFF">TAKEOFF</option>');
+    expect(html).not.toContain('value="ACRO"');
+    expect(js).toContain('mode: name');
+    expect(js).toContain('function flightVoiceCommandText(');
+    const askSend = js.slice(js.indexOf('async function assistSendText'), js.indexOf('async function assistConfirm'));
+    expect(askSend.indexOf('flightVoiceCommandText')).toBeLessThan(askSend.indexOf('/api/assist/message'));
     expect(html).not.toContain('>בצע</button>');
     expect(html).not.toContain('>קבע נקודה</button>');
     expect(html).toContain('פעולה, נקודה ומתלה בלי שליחה');
@@ -282,7 +288,7 @@ describe('flight dock and map live', () => {
       if (size.width >= 1366) {
         expect(hud.messages.height, `${size.width} dock taller`).toBeGreaterThan(hud.hud.height + 40);
       }
-      expect(Math.max(...hud.tileTops) - Math.min(...hud.tileTops), `${size.width} strip`).toBeLessThanOrEqual(2);
+      expect(Math.max(...hud.tileTops) - Math.min(...hud.tileTops), `${size.width} strip`).toBeGreaterThan(16);
       expect(hud.dataOver, `${size.width} strip scroll`).toBeLessThanOrEqual(1);
       expect(hud.horizon.bottom, `${size.width} panel`).toBeLessThanOrEqual(hud.innerH + 1);
       expect(hud.horizon.right, `${size.width} panel`).toBeLessThanOrEqual(hud.innerW + 1);
@@ -391,7 +397,7 @@ describe('flight dock and map live', () => {
       expect(row.spread).toBeLessThanOrEqual(4);
       expect(row.over).toBeLessThanOrEqual(1);
     }
-    expect(narrow.tileSpread).toBeLessThanOrEqual(2);
+    expect(narrow.tileSpread).toBeGreaterThan(16);
     fs.mkdirSync('/opt/cursor/artifacts', { recursive: true });
     await page.locator('[data-mission-region="horizon"]').screenshot({
       path: '/opt/cursor/artifacts/flight-column-actions.png',
@@ -479,5 +485,57 @@ describe('flight dock and map live', () => {
     expect(voice.length).toBe(1);
     expect(voice[0]).toContain('RTL');
     expect(voice[0]).toContain('operatorConfirmed');
+    expect(voice[0]).toContain('"mode":"RTL"');
+
+    await page.selectOption('#flightDockModeSelect', 'FBWA');
+    await page.evaluate(() => { document.getElementById('flightDockCommandNote').textContent = ''; });
+    await page.click('#flightDockSetMode');
+    await page.waitForFunction(() => /נדחה|אושר|נכשל|אינו ברשימה|לא נשלח|סירב/.test(document.getElementById('flightDockCommandNote').textContent || ''));
+    expect(voice.length).toBe(2);
+    expect(voice[1]).toContain('FBWA');
+    expect(voice[1]).toContain('"mode":"FBWA"');
+    await page.selectOption('#flightDockModeSelect', 'TAKEOFF');
+    await page.evaluate(() => { document.getElementById('flightDockCommandNote').textContent = ''; });
+    await page.click('#flightDockSetMode');
+    await page.waitForFunction(() => (document.getElementById('flightDockCommandNote').textContent || '').length > 0);
+    expect(voice.at(-1)).toContain('"mode":"TAKEOFF"');
+
+    const confirm = await page.evaluate(() => {
+      const dialog = document.getElementById('flightArmDialog');
+      const disarm = document.getElementById('flightDisarmDialog');
+      const column = document.querySelector('[data-mission-region="horizon"]');
+      dialog.hidden = false;
+      disarm.hidden = true;
+      const btn = document.getElementById('flightArmConfirm');
+      const cancel = document.getElementById('flightArmCancel');
+      const card = dialog.querySelector('.flight-arm-popup-card');
+      const br = btn.getBoundingClientRect();
+      const box = card.getBoundingClientRect();
+      const over = (el) => Math.max(el.scrollWidth - el.clientWidth, el.scrollHeight - el.clientHeight);
+      const result = {
+        text: btn.textContent.trim(),
+        cancel: cancel.textContent.trim(),
+        align: getComputedStyle(btn).textAlign,
+        height: br.height,
+        position: getComputedStyle(dialog).position,
+        inColumn: column.contains(dialog),
+        centerX: Math.abs((box.left + box.right) / 2 - window.innerWidth / 2),
+        centerY: Math.abs((box.top + box.bottom) / 2 - window.innerHeight / 2),
+        labelOver: over(btn),
+        cancelOver: over(cancel),
+      };
+      dialog.hidden = true;
+      return result;
+    });
+    expect(confirm.text).toBe('אשרו חימוש');
+    expect(confirm.cancel).toBe('ביטול');
+    expect(confirm.align).toBe('center');
+    expect(confirm.height).toBeGreaterThanOrEqual(52);
+    expect(confirm.position).toBe('fixed');
+    expect(confirm.inColumn).toBe(false);
+    expect(confirm.centerX).toBeLessThanOrEqual(8);
+    expect(confirm.centerY).toBeLessThanOrEqual(8);
+    expect(confirm.labelOver).toBeLessThanOrEqual(1);
+    expect(confirm.cancelOver).toBeLessThanOrEqual(1);
   }, 90000);
 });

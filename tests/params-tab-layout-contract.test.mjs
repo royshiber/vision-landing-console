@@ -238,7 +238,7 @@ describe('Parameters tab layout contract — live boxes', () => {
       expect(ekf.honestyDisplay, vp.name).toBe('none');
       expect(ekf.keys, vp.name).toContain('EK3_ENABLE');
       expect(ekf.keys, vp.name).not.toContain('GPS_TYPE');
-      expect(ekf.now, vp.name).toBe('לא ידוע');
+      expect(ekf.now, vp.name).toBe('אין חיבור');
       expect(ekf.formDisplay, vp.name).toBe('none');
       expect(ekf.docOverflow, vp.name).toBeLessThanOrEqual(1);
       expect(ekf.rowWidth, vp.name).toBeGreaterThan(40);
@@ -263,14 +263,14 @@ describe('Parameters tab layout contract — live boxes', () => {
       const gpsKeys = await page.locator('#fcGroupList .fc-group-key').allTextContents();
       expect(gpsKeys, vp.name).toContain('GPS_TYPE');
       expect(gpsKeys, vp.name).not.toContain('EK3_ENABLE');
-      expect(await page.locator('[data-param-key="GPS_TYPE"] .fc-group-now').innerText()).toBe('לא ידוע');
+      expect(await page.locator('[data-param-key="GPS_TYPE"] .fc-group-now').innerText()).toBe('אין חיבור');
 
       await page.fill('#arduParamSearchInput', 'EK3');
       await page.waitForFunction(() => document.querySelector('#fcGroupList .fc-group-empty')?.textContent === 'אין התאמה בקבוצה');
       await page.click('#arduParamSearchClearBtn');
       await page.waitForSelector('#fcGroupList [data-param-key="GPS_TYPE"]');
 
-      await page.fill('.fc-group-row[data-param-key="GPS_TYPE"] input', '1');
+      await page.selectOption('.fc-group-row[data-param-key="GPS_TYPE"] .fc-group-next', '1');
       await page.click('#fcGroupApply');
       await page.waitForSelector('#applyConfirmModal:not(.hidden)');
       await page.click('#applyConfirmCancelBtn');

@@ -151,6 +151,101 @@ describe('voice flight transcript pipeline', () => {
     expect(result.talkback.text).not.toContain('שיחת הקול סגורה');
   });
 
+  it('sends a dock mode by name and keeps ACRO off the list', async () => {
+    delete process.env.GEMINI_API_KEY;
+    const calls = [];
+    const fbwa = await runVoiceFlightTranscript({
+      text: 'עבור למצב FBWA',
+      requestedMode: 'FBWA',
+      operatorConfirmed: true,
+      mavConn: simTcp(),
+      applyFlightOp: async (args) => {
+        calls.push(args);
+        return { ok: true, sent: true, customMode: 5, kind: 'MODE_CHANGE' };
+      },
+    });
+    expect(calls).toEqual([{ kind: 'MODE_CHANGE', mode: 'FBWA', reason: 'עבור למצב FBWA' }]);
+    expect(fbwa.sent).toBe(true);
+    expect(fbwa.resolver).toBe('mode');
+    const takeoff = await runVoiceFlightTranscript({
+      text: 'עבור למצב TAKEOFF',
+      requestedMode: 'TAKEOFF',
+      operatorConfirmed: true,
+      mavConn: simTcp(),
+      applyFlightOp: async (args) => {
+        calls.push(args);
+        return { ok: true, sent: true, customMode: 13 };
+      },
+    });
+    expect(takeoff.sent).toBe(true);
+    expect(calls.at(-1).mode).toBe('TAKEOFF');
+    let armed = false;
+    const acro = await runVoiceFlightTranscript({
+      text: 'עבור למצב ACRO',
+      requestedMode: 'ACRO',
+      operatorConfirmed: true,
+      mavConn: simTcp(),
+      applyFlightOp: async () => {
+        armed = true;
+        return { ok: true, sent: true };
+      },
+    });
+    expect(armed).toBe(false);
+    expect(acro.sent).toBe(false);
+    expect(acro.talkback.text).toContain('אינו ברשימה');
+    const refused = await runVoiceFlightTranscript({
+      text: 'עבור למצב FBWB',
+      requestedMode: 'FBWB',
+      operatorConfirmed: true,
+      mavConn: simTcp(),
+      applyFlightOp: async () => ({ ok: false, sent: false, note: 'הבקר סירב למצב. לא נשלח דבר.' }),
+    });
+    expect(refused.sent).toBe(false);
+    expect(refused.talkback.text).toContain('הבקר סירב');
+  });
+
+  it('maps stable and takeoff phrases and does not arm', async () => {
+    delete process.env.GEMINI_API_KEY;
+    process.env.GEMINI_API_KEY = 'present-but-unused';
+    const calls = [];
+    const stable = await runVoiceFlightTranscript({
+      text: 'עבור למצב יציב',
+      operatorConfirmed: true,
+      mavConn: simTcp(),
+      applyFlightOp: async (args) => {
+        calls.push(args);
+        return { ok: true, sent: true, customMode: 2 };
+      },
+    });
+    expect(stable.resolver).toBe('mock-gemini');
+    expect(calls[0]).toMatchObject({ kind: 'MODE_CHANGE', mode: 'STABILIZE' });
+    const takeoff = await runVoiceFlightTranscript({
+      text: 'תמריא',
+      operatorConfirmed: true,
+      mavConn: simTcp(),
+      applyFlightOp: async (args) => {
+        calls.push(args);
+        return { ok: true, sent: true, customMode: 13 };
+      },
+    });
+    expect(takeoff.sent).toBe(true);
+    expect(calls.at(-1).mode).toBe('TAKEOFF');
+    let called = false;
+    const arm = await runVoiceFlightTranscript({
+      text: 'חמש',
+      operatorConfirmed: true,
+      mavConn: simTcp(),
+      applyFlightOp: async () => {
+        called = true;
+        return { ok: true, sent: true };
+      },
+    });
+    expect(called).toBe(false);
+    expect(arm.blocked).toBe(true);
+    expect(arm.talkback.text).toContain('לא נשלח דבר');
+    delete process.env.GEMINI_API_KEY;
+  });
+
   it('does not send before GO', async () => {
     let called = false;
     const result = await runVoiceFlightTranscript({
