@@ -2410,39 +2410,47 @@
                 <p id="flightActionsNote" class="mission-horizon-filler-note flight-actions-note">אין חיבור לבקר הטיסה</p>
               </div>
               <div id="flightDockActionsPane" class="flight-dock-pane" role="tabpanel" aria-labelledby="flightDockActionsTab">
-                <div class="flight-dock-grid">
-                  <label class="flight-dock-field" for="flightDockActionSelect">פעולה
-                    <select id="flightDockActionSelect" disabled><option>אין</option></select>
-                  </label>
-                  <button type="button" id="flightDockDoAction" class="flight-dock-cmd" disabled title="בלי שליחה">בצעו</button>
-                  <label class="flight-dock-field" for="flightDockWpSelect">נקודה
-                    <select id="flightDockWpSelect" disabled><option>בית</option></select>
-                  </label>
-                  <button type="button" id="flightDockSetWp" class="flight-dock-cmd" disabled title="בלי שליחה">קבעו נקודה</button>
-                  <label class="flight-dock-field" for="flightDockModeSelect">מצב
-                    <select id="flightDockModeSelect">
-                      <option value="AUTO">AUTO</option>
-                      <option value="LOITER">LOITER</option>
-                      <option value="RTL">RTL</option>
-                      <option value="MANUAL">MANUAL</option>
-                      <option value="STABILIZE">STABILIZE</option>
-                      <option value="FBWA">FBWA</option>
-                      <option value="FBWB">FBWB</option>
-                      <option value="CRUISE">CRUISE</option>
-                      <option value="CIRCLE">CIRCLE</option>
-                      <option value="GUIDED">GUIDED</option>
-                    </select>
-                  </label>
-                  <button type="button" id="flightDockSetMode" class="flight-dock-cmd">קבעו מצב</button>
-                  <label class="flight-dock-field" for="flightDockMountSelect">מתלה
-                    <select id="flightDockMountSelect" disabled><option>מקופל</option></select>
-                  </label>
-                  <button type="button" id="flightDockSetMount" class="flight-dock-cmd" disabled title="בלי שליחה">קבעו מתלה</button>
-                </div>
                 <div class="flight-dock-cmds">
                   <button type="button" id="flightDockModeAuto" class="flight-dock-cmd" data-flight-mode="AUTO"><bdi dir="ltr">AUTO</bdi></button>
                   <button type="button" id="flightDockModeLoiter" class="flight-dock-cmd" data-flight-mode="LOITER"><bdi dir="ltr">LOITER</bdi></button>
                   <button type="button" id="flightDockModeRtl" class="flight-dock-cmd" data-flight-mode="RTL"><bdi dir="ltr">RTL</bdi></button>
+                </div>
+                <div class="flight-dock-grid">
+                  <div class="flight-dock-row">
+                    <label class="flight-dock-field" for="flightDockActionSelect"><span class="flight-dock-key">פעולה</span>
+                      <select id="flightDockActionSelect" disabled><option>אין</option></select>
+                    </label>
+                    <button type="button" id="flightDockDoAction" class="flight-dock-cmd" disabled title="בלי שליחה">בצעו</button>
+                  </div>
+                  <div class="flight-dock-row">
+                    <label class="flight-dock-field" for="flightDockWpSelect"><span class="flight-dock-key">נקודה</span>
+                      <select id="flightDockWpSelect" disabled><option>בית</option></select>
+                    </label>
+                    <button type="button" id="flightDockSetWp" class="flight-dock-cmd" disabled title="בלי שליחה">קבעו נקודה</button>
+                  </div>
+                  <div class="flight-dock-row">
+                    <label class="flight-dock-field" for="flightDockModeSelect"><span class="flight-dock-key">מצב</span>
+                      <select id="flightDockModeSelect">
+                        <option value="AUTO">AUTO</option>
+                        <option value="LOITER">LOITER</option>
+                        <option value="RTL">RTL</option>
+                        <option value="MANUAL">MANUAL</option>
+                        <option value="STABILIZE">STABILIZE</option>
+                        <option value="FBWA">FBWA</option>
+                        <option value="FBWB">FBWB</option>
+                        <option value="CRUISE">CRUISE</option>
+                        <option value="CIRCLE">CIRCLE</option>
+                        <option value="GUIDED">GUIDED</option>
+                      </select>
+                    </label>
+                    <button type="button" id="flightDockSetMode" class="flight-dock-cmd">קבעו מצב</button>
+                  </div>
+                  <div class="flight-dock-row">
+                    <label class="flight-dock-field" for="flightDockMountSelect"><span class="flight-dock-key">מתלה</span>
+                      <select id="flightDockMountSelect" disabled><option>מקופל</option></select>
+                    </label>
+                    <button type="button" id="flightDockSetMount" class="flight-dock-cmd" disabled title="בלי שליחה">קבעו מתלה</button>
+                  </div>
                 </div>
                 <p id="flightDockDisabledReason" class="flight-dock-reason">פעולה, נקודה ומתלה בלי שליחה</p>
               </div>

@@ -24268,8 +24268,8 @@ body[data-work-path="rf"] #optics .optics-calib {
 
 /* Flight column: horizon, tiles, and messages share two horizontal splitters. */
 .flight-stack-split {
-  flex: 0 0 12px;
-  height: 12px;
+  flex: 0 0 6px;
+  height: 6px;
   margin: 0;
   padding: 0;
   border: 0;
@@ -24285,16 +24285,16 @@ body[data-work-path="rf"] #optics .optics-calib {
   position: absolute;
   left: 22%;
   right: 22%;
-  top: 4px;
-  height: 4px;
+  top: 2px;
+  height: 2px;
   border-radius: 999px;
   background: #e2e8f0;
 }
 .flight-stack-split:hover::after,
 .flight-stack-split:focus-visible::after {
   background: #f8fafc;
-  height: 5px;
-  top: 3px;
+  height: 3px;
+  top: 1px;
 }
 @media (max-width: 720px) {
   .mission-workspace[data-mission-layout="ops-v1"],
@@ -24323,10 +24323,19 @@ body[data-work-path="rf"] #optics .optics-calib {
 }
 .mission-region-horizon > .flight-hud {
   height: auto;
-  min-height: 160px;
+  min-height: 112px;
   max-height: none;
   flex: 1 1 auto;
   overflow: hidden;
+}
+@media (min-width: 721px) {
+  .mission-region-horizon > .flight-hud,
+  .mission-region-horizon[data-flight-stack="half"] > .flight-hud {
+    height: 160px;
+    min-height: 112px;
+    max-height: 160px;
+    flex: 0 0 160px;
+  }
 }
 .mission-region-horizon .pfd-horizon-shell {
   min-height: 0;
@@ -24349,31 +24358,38 @@ body[data-work-path="rf"] #optics .optics-calib {
   max-height: none;
 }
 .mission-region-horizon > .mission-region-data {
-  flex: 0 0 var(--flight-data-h, 88px);
-  height: var(--flight-data-h, 88px);
-  min-height: 64px;
+  flex: 0 0 var(--flight-data-h, auto);
+  height: var(--flight-data-h, auto);
+  min-height: 0;
   max-height: none;
   overflow: hidden;
+  padding: 0 3px;
 }
 .mission-region-horizon > .mission-region-data > .mission-data-grid {
-  display: flex;
-  flex-flow: row nowrap;
+  display: grid;
+  grid-template-columns: 1.35fr 0.9fr 0.95fr 0.9fr 1.15fr 1.25fr 0.72fr;
   align-items: stretch;
   flex: 0 0 auto;
   min-width: 0;
+  width: 100%;
   max-width: 100%;
   height: auto;
-  overflow-x: auto;
-  overflow-y: hidden;
+  gap: 3px;
+  padding: 0;
+  min-height: 0;
+  overflow: visible;
 }
 .mission-region-horizon > .mission-region-messages,
 .mission-region-horizon > .mission-region-messages[data-messages-expanded="0"],
 .mission-region-horizon > .mission-region-messages[data-messages-expanded="1"] {
-  flex: 0 0 var(--flight-msg-h, 42%);
-  height: var(--flight-msg-h, 42%);
+  flex: 1 1 auto;
+  height: auto;
   min-height: 36px;
   max-height: none;
   overflow: hidden;
+}
+.mission-region-horizon > .mission-region-messages[data-messages-expanded="1"] {
+  min-height: 120px;
 }
 .mission-region-horizon > .mission-region-messages[data-messages-expanded="1"] > .flight-dock-pane {
   flex: 1 1 auto;
@@ -24402,12 +24418,268 @@ body[data-work-path="rf"] #optics .optics-calib {
   overflow-x: hidden;
   overflow-y: auto;
 }
-.mission-region-horizon[data-flight-stack="half"] > .flight-hud,
+.mission-region-horizon[data-flight-stack="custom"] > .flight-hud {
+  flex: 0 0 var(--flight-hud-h, 160px);
+  height: var(--flight-hud-h, 160px);
+  min-height: 112px;
+  max-height: none;
+}
 .mission-region-horizon[data-flight-stack="half"] > .mission-region-messages,
 .mission-region-horizon[data-flight-stack="half"] > .mission-region-messages[data-messages-expanded="0"],
-.mission-region-horizon[data-flight-stack="half"] > .mission-region-messages[data-messages-expanded="1"] {
-  flex: 1 1 0;
+.mission-region-horizon[data-flight-stack="half"] > .mission-region-messages[data-messages-expanded="1"],
+.mission-region-horizon[data-flight-stack="custom"] > .mission-region-messages,
+.mission-region-horizon[data-flight-stack="custom"] > .mission-region-messages[data-messages-expanded="0"],
+.mission-region-horizon[data-flight-stack="custom"] > .mission-region-messages[data-messages-expanded="1"] {
+  flex: 1 1 auto;
   height: auto;
   min-height: 0;
   max-height: none;
+}
+.mission-region-horizon[data-flight-stack="half"] > .mission-region-messages[data-messages-expanded="1"],
+.mission-region-horizon[data-flight-stack="custom"] > .mission-region-messages[data-messages-expanded="1"] {
+  min-height: 120px;
+}
+.mission-region-horizon:has(> .mission-region-messages[data-messages-expanded="0"]) > .flight-hud {
+  flex: 1 1 auto;
+  height: auto;
+  min-height: 112px;
+  max-height: none;
+}
+
+/* Flight column HUD: shorter attitude, one instrument strip, actions as keys. */
+.mission-region-horizon .pfd-horizon-shell {
+  padding: 3px 4px 1px;
+  min-height: 0;
+}
+.mission-region-horizon .pfd-horizon-instrument {
+  grid-template-rows: minmax(0, 1fr) 22px;
+  min-height: 0;
+}
+.mission-region-horizon .pfd-horizon-stage {
+  min-height: 0;
+  border-radius: 10px;
+  box-shadow:
+    inset 0 0 0 2px rgba(8, 12, 18, 0.72),
+    inset 0 1px 0 rgba(255, 248, 220, 0.28),
+    0 0 0 1px rgba(203, 213, 225, 0.42);
+}
+.mission-region-horizon .pfd-heading-lane {
+  min-height: 22px;
+}
+.mission-region-horizon .pfd-hdg-box {
+  background: linear-gradient(180deg, #2a3548 0%, #121826 100%);
+  border: 1px solid rgba(226, 232, 240, 0.45);
+  border-radius: 999px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16);
+}
+.mission-region-horizon .mission-data-tile {
+  min-width: 0;
+  min-height: 0;
+  height: auto;
+  padding: 2px 3px 3px;
+  gap: 0;
+  border-radius: 7px;
+  overflow: visible;
+  background: linear-gradient(180deg, #2a3548 0%, #121826 100%);
+  border: 1px solid rgba(203, 213, 225, 0.42);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    0 1px 0 rgba(0, 0, 0, 0.55);
+}
+.mission-region-horizon .mission-data-label,
+.mission-region-horizon .mission-data-value,
+.mission-region-horizon .mission-data-unit,
+.mission-region-horizon .mission-data-readout {
+  overflow: visible;
+  text-overflow: clip;
+}
+.mission-region-horizon .mission-data-label {
+  flex: 0 0 auto;
+  height: auto;
+  max-height: none;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 14px;
+  color: #e2e8f0;
+  white-space: normal;
+}
+.mission-region-horizon .mission-data-value {
+  font-size: clamp(13px, 0.95rem, 18px);
+  line-height: 1.05;
+  color: #fff7e8;
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+.mission-region-horizon .mission-data-readout {
+  gap: 2px;
+}
+.mission-region-horizon .mission-data-unit {
+  font-size: 11px;
+  color: #cbd5e1;
+}
+.mission-region-horizon .mission-data-confidence .mission-data-readout {
+  flex-direction: row;
+  align-items: center;
+  gap: 3px;
+}
+.mission-region-horizon .mission-data-confidence .confidence-track {
+  flex: 1 1 12px;
+  height: 4px;
+  min-width: 10px;
+}
+.mission-region-horizon .mission-data-confidence {
+  grid-column: auto;
+}
+.mission-region-horizon #missionLink {
+  display: inline;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  max-width: none;
+}
+.mission-region-horizon > .mission-region-messages {
+  gap: 3px;
+  padding: 2px 4px 3px;
+}
+.mission-region-horizon .flight-dock-bar {
+  flex-flow: row nowrap;
+  align-items: center;
+  gap: 4px;
+}
+.mission-region-horizon .flight-dock-tabs {
+  flex: 0 0 auto;
+  width: auto;
+}
+.mission-region-horizon .flight-dock-tab {
+  flex: 0 0 auto;
+  min-width: 4.6rem;
+  min-height: 24px;
+  padding: 2px 8px;
+  border-radius: 8px;
+  white-space: nowrap;
+}
+.mission-region-horizon .flight-dock-bar .flight-actions-note {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  white-space: normal;
+}
+.mission-region-horizon > .mission-region-messages[data-messages-expanded="1"] > #flightDockActionsPane {
+  flex: 1 1 auto;
+  min-height: 0;
+  gap: 4px;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+.mission-region-horizon .flight-dock-cmds {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  flex: 1 1 52px;
+  min-height: 48px;
+  max-height: 96px;
+  align-items: stretch;
+}
+.mission-region-horizon .flight-dock-cmds > .flight-dock-cmd {
+  min-height: 42px;
+  height: 100%;
+  padding: 6px 4px;
+  border-radius: 10px;
+  font-size: clamp(13px, 0.95rem, 16px);
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  background-color: #1e3a8a;
+  background-image: linear-gradient(180deg, #2563eb 0%, #1e3a8a 100%);
+  border: 1px solid #bfdbfe;
+  color: #f8fafc;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.34),
+    inset 0 -2px 0 rgba(8, 12, 18, 0.45);
+}
+.mission-region-horizon .flight-dock-grid {
+  display: flex;
+  flex-flow: column nowrap;
+  align-items: stretch;
+  gap: 4px;
+  flex: 1.4 1 auto;
+  min-height: 0;
+  min-width: 0;
+}
+.mission-region-horizon .flight-dock-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: stretch;
+  gap: 6px;
+  flex: 1 1 28px;
+  min-height: 28px;
+  min-width: 0;
+}
+.mission-region-horizon .flight-dock-field {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
+  flex-wrap: nowrap;
+  min-width: 0;
+  height: 100%;
+  white-space: nowrap;
+}
+.mission-region-horizon .flight-dock-key {
+  color: #e2e8f0;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.15;
+}
+.mission-region-horizon .flight-dock-field select {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 26px;
+  border-radius: 8px;
+  background: #0f172a;
+  color: #f8fafc;
+  border: 1px solid rgba(226, 232, 240, 0.5);
+}
+.mission-region-horizon .flight-dock-field select:disabled {
+  background: #334155;
+  color: #e2e8f0;
+}
+.mission-region-horizon .flight-dock-row > .flight-dock-cmd {
+  white-space: nowrap;
+  height: 100%;
+  min-height: 26px;
+  align-self: stretch;
+  border-radius: 8px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+.mission-region-horizon .flight-dock-reason {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 0;
+  line-height: 1.2;
+}
+.mission-region-horizon .flight-dock-note:empty {
+  display: none;
+  margin: 0;
+  padding: 0;
+}
+@media (max-width: 720px) {
+  .mission-region-horizon > .flight-hud {
+    flex: 0 0 auto;
+    height: auto;
+    max-height: none;
+    min-height: 0;
+  }
+  .mission-region-horizon .pfd-horizon-shell,
+  .mission-region-horizon .pfd-horizon-instrument,
+  .mission-region-horizon .pfd-horizon-stage {
+    min-height: 120px;
+    height: auto;
+    max-height: none;
+    flex: 0 0 auto;
+  }
+  .mission-region-horizon .pfd-horizon-instrument {
+    grid-template-rows: minmax(120px, auto) 22px;
+  }
 }
