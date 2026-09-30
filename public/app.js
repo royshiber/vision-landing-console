@@ -13010,7 +13010,7 @@ initLiveCameraPanel();
     return 'הפעולה נכשלה';
   }
 
-  function setRowMessage(id, text) {
+  function setRowMessage(id, text, opts) {
     const row = document.querySelector(`#commLinkRows .comm-link-row[data-link="${id}"]`);
     const el = row?.querySelector('.comm-link-error');
     if (!el) return;
@@ -13018,6 +13018,25 @@ initLiveCameraPanel();
     const safe = /failed to fetch|networkerror|^typeerror\b/i.test(msg) ? 'אין קשר לשרת הקונסולה' : msg;
     el.hidden = !safe;
     el.textContent = safe;
+    if (opts?.clientRefusal === true && safe) el.dataset.clientRefusal = '1';
+    else delete el.dataset.clientRefusal;
+  }
+
+  function resolveCommLinkErrorPaint(input) {
+    const currentText = input && input.currentText != null ? String(input.currentText) : '';
+    const errorHe = input ? input.errorHe : undefined;
+    const clientRefusal = !!(input && input.clientRefusal === true);
+    if (typeof errorHe === 'string') {
+      const safe = /failed to fetch|networkerror|^typeerror\b/i.test(errorHe)
+        ? 'אין הגעה לכתובת'
+        : errorHe;
+      return { text: safe, hidden: !safe, clientRefusal: false, serverError: true };
+    }
+    const rawEnglish = /failed to fetch|networkerror|^typeerror\b/i.test(currentText);
+    if (rawEnglish || clientRefusal) {
+      return { text: '', hidden: true, clientRefusal: false, serverError: false };
+    }
+    return { keep: true, serverError: false };
   }
 
   function paintRowAction(btn, label, title) {
@@ -13093,18 +13112,19 @@ initLiveCameraPanel();
       if (hint && row.hintHe) hint.textContent = row.hintHe;
       const errEl = el.querySelector('.comm-link-error');
       if (errEl) {
-        const current = String(errEl.textContent || '');
-        const rawEnglish = /failed to fetch|networkerror|^typeerror\b/i.test(current);
-        if (typeof row.errorHe === 'string') {
-          const safe = /failed to fetch|networkerror|^typeerror\b/i.test(row.errorHe)
-            ? 'אין הגעה לכתובת'
-            : row.errorHe;
-          errEl.hidden = !safe;
-          errEl.textContent = safe;
-        } else if (rawEnglish) {
-          errEl.hidden = true;
-          errEl.textContent = '';
+        const decision = resolveCommLinkErrorPaint({
+          currentText: errEl.textContent,
+          errorHe: row.errorHe,
+          clientRefusal: errEl.dataset.clientRefusal === '1',
+        });
+        if (!decision.keep) {
+          errEl.hidden = decision.hidden;
+          errEl.textContent = decision.text;
         }
+        if (decision.clientRefusal) errEl.dataset.clientRefusal = '1';
+        else delete errEl.dataset.clientRefusal;
+        if (decision.serverError) errEl.dataset.serverError = '1';
+        else delete errEl.dataset.serverError;
       }
       const status = el.querySelector('.comm-link-status');
       if (status) status.textContent = row.statusHe || (row.quality?.known ? '' : 'אין נתונים');
@@ -13411,7 +13431,7 @@ initLiveCameraPanel();
         if (!r.ok || j.ok === false) throw new Error(j.message || 'הפעולה נדחתה');
         return j;
       } catch (err) {
-        setRowMessage(rowId, hebrewRowError(err));
+        setRowMessage(rowId, hebrewRowError(err), { clientRefusal: true });
         throw err;
       } finally {
         setRowPending(rowId, false);
@@ -13421,6 +13441,7 @@ initLiveCameraPanel();
     setRowPending(rowId, true);
     const box = document.getElementById(`${rowId}LinkEnable`);
     if (box) box.dataset.pending = '1';
+    let refusal = null;
     try {
       const r = await fetch('/api/links/uplink', {
         method: 'POST',
@@ -13432,12 +13453,18 @@ initLiveCameraPanel();
       if (!r.ok || j.ok === false) throw new Error(j.messageHe || j.message || 'הפעולה נדחתה');
       return j;
     } catch (err) {
-      setRowMessage(rowId, hebrewRowError(err));
+      refusal = err;
       throw err;
     } finally {
       if (box) delete box.dataset.pending;
       setRowPending(rowId, false);
       await refreshConnectionStatus();
+      if (refusal) {
+        const painted = document.querySelector(`#commLinkRows .comm-link-row[data-link="${rowId}"] .comm-link-error`);
+        if (painted?.dataset.serverError !== '1') {
+          setRowMessage(rowId, hebrewRowError(refusal), { clientRefusal: true });
+        }
+      }
     }
   }
 

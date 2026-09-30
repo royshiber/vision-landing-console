@@ -44,6 +44,17 @@ describe('status camera lines and connection popover layout', () => {
     expect(panel).toMatch(/width:\s*min\(320px,\s*calc\(100vw - 28px\)\)/);
   });
 
+  it('pins the connection pill and panel to the physical left', () => {
+    const float = cssBlock(css, '.connect-widget.connect-widget-float');
+    expect(float).toMatch(/left:\s*12px/);
+    expect(float).toMatch(/right:\s*auto/);
+    expect(float).not.toMatch(/inset-inline-/);
+    const panel = cssBlock(css, '.connect-widget-float .conn-panel');
+    expect(panel).toMatch(/left:\s*0/);
+    expect(panel).toMatch(/right:\s*auto/);
+    expect(panel).not.toMatch(/inset-inline-/);
+  });
+
   it('stacks each link row and darkens the port and baud selects', () => {
     const copy = cssBlock(css, '.connect-widget-float .comm-link-copy');
     expect(copy).toMatch(/flex-direction:\s*column/);
