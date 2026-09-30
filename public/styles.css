@@ -1945,6 +1945,19 @@ body:has(#terrain.panel.visible) .layout {
   color: var(--text-muted);
   font-size: 0.7rem;
   margin-bottom: 4px;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  min-width: 0;
+}
+.ardu-saved-target,
+.ardu-fc-live {
+  font-size: clamp(11px, 0.72rem, 13px);
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.ardu-saved-target {
+  color: #9a3412;
 }
 
 .param-value { font-weight: 700; color: var(--primary); }
@@ -24219,6 +24232,12 @@ body[data-work-path="rf"] #optics .optics-calib {
 }
 #control.panel.visible .param-value {
   color: #93c5fd;
+}
+#control.panel.visible .ardu-saved-target {
+  color: #fdba74;
+}
+#control.panel.visible .ardu-fc-live {
+  color: #fecaca;
 }
 #control.panel.visible .lock-btn {
   background: #1e293b;
