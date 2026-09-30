@@ -24328,6 +24328,15 @@ body[data-work-path="rf"] #optics .optics-calib {
   flex: 1 1 auto;
   overflow: hidden;
 }
+@media (min-width: 721px) {
+  .mission-region-horizon > .flight-hud,
+  .mission-region-horizon[data-flight-stack="half"] > .flight-hud {
+    height: 160px;
+    min-height: 112px;
+    max-height: 160px;
+    flex: 0 0 160px;
+  }
+}
 .mission-region-horizon .pfd-horizon-shell {
   min-height: 0;
   height: auto;
@@ -24373,11 +24382,14 @@ body[data-work-path="rf"] #optics .optics-calib {
 .mission-region-horizon > .mission-region-messages,
 .mission-region-horizon > .mission-region-messages[data-messages-expanded="0"],
 .mission-region-horizon > .mission-region-messages[data-messages-expanded="1"] {
-  flex: 0 0 var(--flight-msg-h, 42%);
-  height: var(--flight-msg-h, 42%);
+  flex: 1 1 auto;
+  height: auto;
   min-height: 36px;
   max-height: none;
   overflow: hidden;
+}
+.mission-region-horizon > .mission-region-messages[data-messages-expanded="1"] {
+  min-height: 120px;
 }
 .mission-region-horizon > .mission-region-messages[data-messages-expanded="1"] > .flight-dock-pane {
   flex: 1 1 auto;
@@ -24406,18 +24418,31 @@ body[data-work-path="rf"] #optics .optics-calib {
   overflow-x: hidden;
   overflow-y: auto;
 }
-.mission-region-horizon[data-flight-stack="half"] > .flight-hud {
-  flex: 0.82 1 0;
-  height: auto;
-  min-height: 0;
+.mission-region-horizon[data-flight-stack="custom"] > .flight-hud {
+  flex: 0 0 var(--flight-hud-h, 160px);
+  height: var(--flight-hud-h, 160px);
+  min-height: 112px;
   max-height: none;
 }
 .mission-region-horizon[data-flight-stack="half"] > .mission-region-messages,
 .mission-region-horizon[data-flight-stack="half"] > .mission-region-messages[data-messages-expanded="0"],
-.mission-region-horizon[data-flight-stack="half"] > .mission-region-messages[data-messages-expanded="1"] {
-  flex: 1.28 1 0;
+.mission-region-horizon[data-flight-stack="half"] > .mission-region-messages[data-messages-expanded="1"],
+.mission-region-horizon[data-flight-stack="custom"] > .mission-region-messages,
+.mission-region-horizon[data-flight-stack="custom"] > .mission-region-messages[data-messages-expanded="0"],
+.mission-region-horizon[data-flight-stack="custom"] > .mission-region-messages[data-messages-expanded="1"] {
+  flex: 1 1 auto;
   height: auto;
   min-height: 0;
+  max-height: none;
+}
+.mission-region-horizon[data-flight-stack="half"] > .mission-region-messages[data-messages-expanded="1"],
+.mission-region-horizon[data-flight-stack="custom"] > .mission-region-messages[data-messages-expanded="1"] {
+  min-height: 120px;
+}
+.mission-region-horizon:has(> .mission-region-messages[data-messages-expanded="0"]) > .flight-hud {
+  flex: 1 1 auto;
+  height: auto;
+  min-height: 112px;
   max-height: none;
 }
 
@@ -24638,4 +24663,23 @@ body[data-work-path="rf"] #optics .optics-calib {
   display: none;
   margin: 0;
   padding: 0;
+}
+@media (max-width: 720px) {
+  .mission-region-horizon > .flight-hud {
+    flex: 0 0 auto;
+    height: auto;
+    max-height: none;
+    min-height: 0;
+  }
+  .mission-region-horizon .pfd-horizon-shell,
+  .mission-region-horizon .pfd-horizon-instrument,
+  .mission-region-horizon .pfd-horizon-stage {
+    min-height: 120px;
+    height: auto;
+    max-height: none;
+    flex: 0 0 auto;
+  }
+  .mission-region-horizon .pfd-horizon-instrument {
+    grid-template-rows: minmax(120px, auto) 22px;
+  }
 }
