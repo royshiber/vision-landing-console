@@ -4,29 +4,9 @@
     "date": "2026-09-30",
     "changes": [
       {
-        "type": "feat",
-        "title": "Server library",
-        "detail": "fc-param-descriptions.mjs, assist-api.mjs, voice-flight-pipeline.mjs"
-      },
-      {
-        "type": "feat",
-        "title": "UI / app.js",
-        "detail": "app.js"
-      },
-      {
-        "type": "feat",
-        "title": "Frontend",
-        "detail": "camera-settings.mjs"
-      },
-      {
         "type": "ui",
-        "title": "HTML layout",
-        "detail": "index.html"
-      },
-      {
-        "type": "ui",
-        "title": "Styles",
-        "detail": "styles.css"
+        "title": "אישור חימוש ומצבי טיסה",
+        "detail": "APP_VERSION 1.02.381. אחרי בקשת חימוש או נטרול נפתח חלון אישור במרכז, עם אשרו חימוש או אשרו נטרול וביטול. אריחי הנתונים בשתי שורות, והגרירה למטה מגדילה את חלון האופק. בפרמטרים כל כרטיס מראה דיפולט, ערך חי או אין חיבור, טווח, ובקרת שינוי. באופטיקה החיצים יושבים מחוץ למספר. תפריט המצב שולח את המצבים שמופיעים בו, ומשפט כמו עבור למצב יציב או תמריא לא נופל ליועץ."
       }
     ]
   },
