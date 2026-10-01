@@ -1,5 +1,26 @@
 [
   {
+    "version": "1.02.389",
+    "date": "2026-10-01",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "UI / app.js",
+        "detail": "app.js"
+      },
+      {
+        "type": "test",
+        "title": "Tests",
+        "detail": "flight-dock-map.test.mjs"
+      },
+      {
+        "type": "docs",
+        "title": "Commercial capabilities overview",
+        "detail": "COMMERCIAL_CAPABILITIES.he.md"
+      }
+    ]
+  },
+  {
     "version": "1.02.388",
     "date": "2026-10-01",
     "changes": [

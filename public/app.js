@@ -20371,14 +20371,18 @@ function flightVoiceMatch(text) {
 
 function flightModeReadbackLine(askedMode, text) {
   const mav = typeof latestHudMavlink !== 'undefined' ? latestHudMavlink : null;
-  const name = mav && mav.connected === true ? vlcFlightModeName(mav.flightMode, mav) : '';
-  const word = name && typeof window.__vlcPilotModeWord === 'function' ? window.__vlcPilotModeWord(name) : '';
-  if (!mav || mav.connected !== true || !word) return 'אין חיבור';
+  if (!mav || mav.connected !== true) return 'אין חיבור';
+  const name = vlcFlightModeName(mav.flightMode, mav);
+  if (!name) return 'אין חיבור';
+  const spoken = typeof window.__vlcPilotModeWord === 'function' ? window.__vlcPilotModeWord(name) : '';
+  const fcSaid = { AUTOTUNE: 'אוטוטיון' };
+  const word = spoken || fcSaid[name] || name;
   const fromRoute = String(askedMode || '').trim().toUpperCase();
   const fromSentence = text ? flightVoiceMatch(text)?.askedMode : '';
   const asked = fromRoute || String(fromSentence || '').trim().toUpperCase();
-  const askedWord = asked && typeof window.__vlcPilotModeWord === 'function' ? window.__vlcPilotModeWord(asked) : '';
-  if (askedWord) {
+  const askedSpoken = asked && typeof window.__vlcPilotModeWord === 'function' ? window.__vlcPilotModeWord(asked) : '';
+  const askedWord = askedSpoken || (asked ? (fcSaid[asked] || asked) : '');
+  if (asked && askedWord) {
     if (asked === name) return `כן. ${askedWord}.`;
     return `לא. עכשיו ${word}.`;
   }
