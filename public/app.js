@@ -19153,13 +19153,19 @@ async function assistSendText(rawText, { channel = 'text' } = {}) {
       showFlightTalkback(line);
       return;
     }
-    await postFlightVoice({
-      text,
-      mode: flightRoute.mode,
-      operatorConfirmed: false,
-      requireLink: false,
-      ask: true,
-    });
+    if (flightRoute.action === 'send') {
+      await postFlightVoice({
+        text,
+        mode: flightRoute.mode,
+        operatorConfirmed: true,
+        requireLink: true,
+        ask: true,
+      });
+      return;
+    }
+    const refused = 'נדחה. הפקודה אינה ברשימה המותרת. לא נשלח דבר.';
+    assistAppendMessage({ role: 'assist', text: refused, kind: 'INFORMATION' });
+    showFlightTalkback(refused);
     return;
   }
   assistAppendMessage({ role: 'user', text });
@@ -20371,7 +20377,8 @@ function askFlightRoute(text) {
   if (match.sendable === true && (match.kind === 'RTL' || match.kind === 'MODE_CHANGE')) {
     return { action: 'send', mode: match.mode };
   }
-  if (match.kind === 'MODE_CHANGE') return { action: 'refuse-mode' };
+  if (match.kind === 'MODE_CHANGE' && match.mode) return { action: 'refuse-mode' };
+  if (match.negated || match.flightShaped) return { action: 'refuse' };
   return null;
 }
 
@@ -20437,7 +20444,7 @@ async function submitFlightPhrase(raw) {
   const text = String(raw || '').trim().replace(/\s+/g, ' ');
   if (!text) return;
   const route = askFlightRoute(text);
-  if (!route) {
+  if (!route || route.action === 'refuse') {
     showFlightTalkback('נדחה. הפקודה אינה ברשימה המותרת. לא נשלח דבר.');
     return;
   }

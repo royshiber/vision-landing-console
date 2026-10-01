@@ -78,6 +78,8 @@ describe('flight dock and map source', () => {
     const askSend = js.slice(js.indexOf('async function assistSendText'), js.indexOf('async function assistConfirm'));
     expect(askSend).toContain('askFlightRoute');
     expect(askSend).toContain('postFlightVoice');
+    expect(askSend).toContain('operatorConfirmed: true');
+    expect(askSend).toContain('נדחה. הפקודה אינה ברשימה המותרת. לא נשלח דבר.');
     expect(askSend.indexOf('postFlightVoice')).toBeLessThan(askSend.indexOf("fetch('/api/assist/message'"));
     expect(js).toContain('function showFlightTalkback(');
     expect(js).toContain('paintFlightDockCommand(line)');
@@ -553,10 +555,11 @@ describe('flight dock and map live', () => {
     expect(blockedPhrase).toContain('חימוש');
     await page.evaluate(() => {
       applyFlightHud({ connected: true, simulator: true, armed: false, type: 'tcp', host: '127.0.0.1', port: 5760 });
+      const input = document.getElementById('flightPhraseInput');
+      input.value = 'תמריא';
       document.getElementById('flightDockCommandNote').textContent = '';
+      document.getElementById('flightPhraseForm').requestSubmit();
     });
-    await page.fill('#flightPhraseInput', 'תמריא');
-    await page.click('#flightPhraseSend');
     await page.waitForFunction(() => (document.getElementById('flightDockCommandNote').textContent || '').length > 0);
     expect(voice.length).toBe(voiceBeforePhrase + 1);
     expect(voice.at(-1)).toContain('"mode":"TAKEOFF"');
@@ -601,11 +604,17 @@ describe('flight dock and map live', () => {
       expect(heard.text.length, phrase).toBeGreaterThan(0);
     }
     const beforeAsk = voice.length;
-    await page.evaluate(() => assistSendText('עבור למצב יציב'));
+    await page.evaluate(() => {
+      applyFlightHud({ connected: true, simulator: true, armed: false, type: 'tcp', host: '127.0.0.1', port: 5760 });
+      document.getElementById('flightDockCommandNote').textContent = '';
+      return assistSendText('עבור למצב יציב');
+    });
     expect(voice.length).toBe(beforeAsk + 1);
     expect(voice.at(-1)).toContain('"mode":"STABILIZE"');
-    expect(voice.at(-1)).not.toContain('operatorConfirmed');
+    expect(voice.at(-1)).toContain('operatorConfirmed');
     expect(askPosts).toEqual([]);
+    const askNote = await page.evaluate(() => document.getElementById('flightDockCommandNote').textContent);
+    expect(askNote).not.toContain('שיחת הקול סגורה');
     const askHeard = await page.evaluate(() => window.__talkLog.at(-1));
     expect(askHeard.note).toBe(askHeard.text);
     const beforeArmAsk = voice.length;
@@ -626,6 +635,29 @@ describe('flight dock and map live', () => {
     expect(askTranscript).not.toContain('תמריא');
     expect(askTranscript).toContain('עבור למצב יציב');
     expect(askTranscript).toContain('חימוש ונטרול חסומים');
+
+    for (const phrase of ['set the cruise altitude', 'חמש דקות', 'אל תחזור הביתה']) {
+      const beforeVoice = voice.length;
+      const beforePosts = askPosts.length;
+      await page.evaluate((value) => assistSendText(value), phrase);
+      expect(voice.length, phrase).toBe(beforeVoice);
+      expect(askPosts.length, phrase).toBe(beforePosts);
+      const note = await page.evaluate(() => document.getElementById('flightDockCommandNote').textContent);
+      expect(note, phrase).toContain('אינה ברשימה');
+      expect(note, phrase).not.toContain('חימוש ונטרול חסומים');
+      expect(note, phrase).not.toContain('אושר');
+    }
+    const beforePhraseRefuse = voice.length;
+    await page.evaluate(() => {
+      const input = document.getElementById('flightPhraseInput');
+      input.value = 'חמש דקות';
+      document.getElementById('flightDockCommandNote').textContent = '';
+      document.getElementById('flightPhraseForm').requestSubmit();
+    });
+    expect(voice.length).toBe(beforePhraseRefuse);
+    const five = await page.evaluate(() => document.getElementById('flightDockCommandNote').textContent);
+    expect(five).toContain('אינה ברשימה');
+    expect(five).not.toContain('חימוש ונטרול חסומים');
 
     const confirm = await page.evaluate(() => {
       const dialog = document.getElementById('flightArmDialog');
