@@ -8072,7 +8072,7 @@ function refuseFlightArmNoLink() {
   closeFlightArmDialog();
   closeFlightDisarmDialog();
   showFlightArmRefusal('אין חיבור לבקר הטיסה');
-  paintFlightDockCommand('אין חיבור לבקר הטיסה');
+  showFlightTalkback('אין חיבור לבקר הטיסה');
 }
 
 function openFlightArmDialog() {
@@ -19138,6 +19138,42 @@ async function assistSendText(rawText, { channel = 'text' } = {}) {
     await assistConfirm(false);
     return;
   }
+  const flightRoute = askFlightRoute(text);
+  if (flightRoute) {
+    assistAppendMessage({ role: 'user', text });
+    if (flightRoute.action === 'block') {
+      const line = 'נדחה. חימוש ונטרול חסומים. לא נשלח דבר.';
+      assistAppendMessage({ role: 'assist', text: line, kind: 'INFORMATION', blocked: true });
+      showFlightTalkback(line);
+      return;
+    }
+    if (flightRoute.action === 'refuse-mode') {
+      const line = 'המצב הזה אינו ברשימה. לא נשלח דבר.';
+      assistAppendMessage({ role: 'assist', text: line, kind: 'INFORMATION' });
+      showFlightTalkback(line);
+      return;
+    }
+    if (flightRoute.action === 'readback') {
+      const line = flightModeReadbackLine(flightRoute.askedMode, text);
+      assistAppendMessage({ role: 'assist', text: line, kind: 'INFORMATION' });
+      showFlightTalkback(line);
+      return;
+    }
+    if (flightRoute.action === 'send') {
+      await postFlightVoice({
+        text,
+        mode: flightRoute.mode,
+        operatorConfirmed: true,
+        requireLink: true,
+        ask: true,
+      });
+      return;
+    }
+    const refused = 'נדחה. הפקודה אינה ברשימה המותרת. לא נשלח דבר.';
+    assistAppendMessage({ role: 'assist', text: refused, kind: 'INFORMATION' });
+    showFlightTalkback(refused);
+    return;
+  }
   assistAppendMessage({ role: 'user', text });
   const snap = assistBuildContextSnapshot();
   snap.channel = channel === 'voice' ? 'voice' : 'text';
@@ -20320,101 +20356,151 @@ function paintFlightDockCommand(text) {
   if (dock === 'actions') requestAnimationFrame(() => fitFlightDockPane(dock));
 }
 
-async function sendFlightDockMode(mode) {
-  const name = String(mode || '').toUpperCase();
-  if (!FLIGHT_DOCK_MODES.includes(name) || name === 'ACRO') {
-    paintFlightDockCommand('המצב הזה אינו ברשימה. לא נשלח דבר.');
-    return;
-  }
+function showFlightTalkback(text) {
+  const line = String(text || '').trim();
+  const section = document.querySelector('[data-mission-region="messages"]');
+  if (line && section && section.dataset.flightDock !== 'actions') revealFlightDock('actions');
+  paintFlightDockCommand(line);
+  if (line) void window.__vlcSpeakAnswer?.(line);
+}
+
+function flightVoiceMatch(text) {
+  const fn = window.__vlcMatchVoiceFlightPhrase;
+  return typeof fn === 'function' ? fn(text) : null;
+}
+
+function flightModeReadbackLine(askedMode, text) {
   const mav = typeof latestHudMavlink !== 'undefined' ? latestHudMavlink : null;
-  if (!mav || mav.connected !== true) {
-    paintFlightDockCommand('אין חיבור לבקר הטיסה');
-    return;
+  if (!mav || mav.connected !== true) return 'אין חיבור';
+  const name = vlcFlightModeName(mav.flightMode, mav);
+  if (!name) return 'אין חיבור';
+  const spoken = typeof window.__vlcPilotModeWord === 'function' ? window.__vlcPilotModeWord(name) : '';
+  const fcSaid = { AUTOTUNE: 'אוטוטיון' };
+  const word = spoken || fcSaid[name] || name;
+  const fromRoute = String(askedMode || '').trim().toUpperCase();
+  const fromSentence = text ? flightVoiceMatch(text)?.askedMode : '';
+  const asked = fromRoute || String(fromSentence || '').trim().toUpperCase();
+  const askedSpoken = asked && typeof window.__vlcPilotModeWord === 'function' ? window.__vlcPilotModeWord(asked) : '';
+  const askedWord = askedSpoken || (asked ? (fcSaid[asked] || asked) : '');
+  if (asked && askedWord) {
+    if (asked === name) return `כן. ${askedWord}.`;
+    return `לא. עכשיו ${word}.`;
   }
-  if (!flightDockSkipConfirm(mav)) {
-    const ok = window.confirm('לשלוח את הפקודה לבקר הטיסה?');
-    if (!ok) {
-      paintFlightDockCommand('לא נשלח דבר');
-      return;
-    }
-  }
-  try {
-    const res = await fetch('/api/assist/voice-flight', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: flightDockCommandText(name), operatorConfirmed: true, mode: name }),
-    });
-    const data = await res.json().catch(() => ({}));
-    const line = String(data?.talkback?.text || data?.note || '').trim();
-    paintFlightDockCommand(line || 'לא נשלח דבר');
-  } catch {
-    paintFlightDockCommand('השליחה נכשלה');
-  }
+  return `${word}.`;
 }
 
 function flightVoiceCommandText(text) {
-  const q = String(text || '').trim().replace(/\s+/g, ' ');
-  if (!q) return false;
-  if (/^(תמריא|תמריאו|המריאו|המראה)$/.test(q)) return true;
-  if (/^עבורו? למצב\s+\S+/.test(q)) return true;
-  if (/^(חמש|חימוש|נטרול|נטרל)(?:\s|$)/.test(q)) return true;
-  if (/^(arm|disarm)\b/i.test(q)) return true;
-  return false;
+  const match = flightVoiceMatch(text);
+  if (!match) return false;
+  if (match.blocked) return true;
+  return match.kind === 'RTL' || match.kind === 'MODE_CHANGE';
 }
 
-function flightPhraseBlocked(text) {
-  const q = String(text || '').trim().replace(/\s+/g, ' ');
-  if (/^(חמש|חימוש|נטרול|נטרל)(?:\s|$)/.test(q)) return true;
-  return /^(arm|disarm)\b/i.test(q);
+function askFlightRoute(text) {
+  const match = flightVoiceMatch(text);
+  if (!match || match.passToAsk || match.kind === 'LAND') return null;
+  if (match.question === true || match.readback === 'mode') {
+    return { action: 'readback', askedMode: match.askedMode || '' };
+  }
+  if (match.blocked || match.kind === 'ARM' || match.kind === 'DISARM') return { action: 'block' };
+  if (match.sendable === true && (match.kind === 'RTL' || match.kind === 'MODE_CHANGE')) {
+    return { action: 'send', mode: match.mode };
+  }
+  if (match.kind === 'MODE_CHANGE' && match.mode) return { action: 'refuse-mode' };
+  if (match.negated || match.flightShaped) return { action: 'refuse' };
+  return null;
 }
 
-function flightPhraseMode(text) {
-  const q = String(text || '').trim().replace(/\s+/g, ' ');
-  if (/^(תמריא|תמריאו|המריאו|המראה)$/.test(q)) return 'TAKEOFF';
-  const led = q.match(/^עבורו? למצב\s+(.+)$/);
-  if (!led) return '';
-  const tail = led[1].trim().toLowerCase();
-  const words = {
-    יציב: 'STABILIZE',
-    יציבה: 'STABILIZE',
-    stabilize: 'STABILIZE',
-    ידני: 'MANUAL',
-    manual: 'MANUAL',
-    fbwa: 'FBWA',
-    fbwb: 'FBWB',
-    שיוט: 'CRUISE',
-    cruise: 'CRUISE',
-    אוטו: 'AUTO',
-    אוטומטי: 'AUTO',
-    auto: 'AUTO',
-    loiter: 'LOITER',
-    מעגל: 'CIRCLE',
-    circle: 'CIRCLE',
-    מונחה: 'GUIDED',
-    guided: 'GUIDED',
-    המראה: 'TAKEOFF',
-    takeoff: 'TAKEOFF',
-    חזרה: 'RTL',
-    rtl: 'RTL',
-    אקרו: 'ACRO',
-    acro: 'ACRO',
-  };
-  return words[tail] || '';
+async function postFlightVoice({ text, mode, operatorConfirmed, requireLink, ask }) {
+  const name = String(mode || '').toUpperCase();
+  if (requireLink) {
+    const mav = typeof latestHudMavlink !== 'undefined' ? latestHudMavlink : null;
+    if (!mav || mav.connected !== true) {
+      showFlightTalkback('אין חיבור לבקר הטיסה');
+      return;
+    }
+    if (!flightDockSkipConfirm(mav)) {
+      const ok = window.confirm('לשלוח את הפקודה לבקר הטיסה?');
+      if (!ok) {
+        showFlightTalkback('לא נשלח דבר');
+        return;
+      }
+    }
+  }
+  try {
+    const body = { text: String(text || '').trim() };
+    if (operatorConfirmed === true) body.operatorConfirmed = true;
+    if (name) body.mode = name;
+    const res = await fetch('/api/assist/voice-flight', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json().catch(() => ({}));
+    const line = String(data?.talkback?.text || data?.note || '').trim() || 'לא נשלח דבר';
+    if (ask) {
+      assistAppendMessage({
+        role: 'assist',
+        text: line,
+        kind: 'INFORMATION',
+        blocked: data?.blocked === true,
+      });
+    }
+    showFlightTalkback(line);
+  } catch {
+    const line = 'השליחה נכשלה';
+    if (ask) assistAppendMessage({ role: 'assist', text: line, kind: 'INFORMATION' });
+    showFlightTalkback(line);
+  }
+}
+
+async function sendFlightDockMode(mode) {
+  const name = String(mode || '').toUpperCase();
+  if (!FLIGHT_DOCK_MODES.includes(name) || name === 'ACRO') {
+    showFlightTalkback('המצב הזה אינו ברשימה. לא נשלח דבר.');
+    return;
+  }
+  await postFlightVoice({
+    text: flightDockCommandText(name),
+    operatorConfirmed: true,
+    mode: name,
+    requireLink: true,
+    ask: false,
+  });
 }
 
 async function submitFlightPhrase(raw) {
   const text = String(raw || '').trim().replace(/\s+/g, ' ');
   if (!text) return;
-  if (flightPhraseBlocked(text)) {
-    paintFlightDockCommand('נדחה. חימוש ונטרול חסומים. לא נשלח דבר.');
+  const match = flightVoiceMatch(text);
+  if (match?.question === true || match?.readback === 'mode') {
+    showFlightTalkback(flightModeReadbackLine(match.askedMode, text));
     return;
   }
-  const mode = flightPhraseMode(text);
-  if (!mode) {
-    paintFlightDockCommand('נדחה. הפקודה אינה ברשימה המותרת. לא נשלח דבר.');
+  if (match?.passToAsk) {
+    void assistSendText(text);
     return;
   }
-  await sendFlightDockMode(mode);
+  const route = askFlightRoute(text);
+  if (!route || route.action === 'refuse') {
+    showFlightTalkback('נדחה. הפקודה אינה ברשימה המותרת. לא נשלח דבר.');
+    return;
+  }
+  if (route.action === 'block') {
+    showFlightTalkback('נדחה. חימוש ונטרול חסומים. לא נשלח דבר.');
+    return;
+  }
+  if (route.action === 'refuse-mode') {
+    showFlightTalkback('המצב הזה אינו ברשימה. לא נשלח דבר.');
+    return;
+  }
+  await postFlightVoice({
+    text,
+    mode: route.mode,
+    operatorConfirmed: true,
+    requireLink: true,
+    ask: false,
+  });
 }
 
 function applyFlightDock(which) {

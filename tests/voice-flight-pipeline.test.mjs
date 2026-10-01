@@ -1,11 +1,32 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+
+vi.mock('../lib/assist/ask-llm-intent.mjs', async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    classifyAskIntentWithGemini: vi.fn(async () => {
+      throw new Error('gemini should not classify a local flight phrase');
+    }),
+  };
+});
+
 import {
+  VOICE_SEND_MODES,
+  matchVoiceFlightPhrase,
   mockGeminiRawIntent,
   resolveVoiceFlightIntent,
   runVoiceFlightTranscript,
   voiceFlightLinkAllowsSend,
 } from '../lib/voice-flight-pipeline.mjs';
 import { sanitizeLlmIntent } from '../lib/assist/ask-llm-intent.mjs';
+
+const pipelineSrc = fs.readFileSync(
+  path.join(path.dirname(fileURLToPath(import.meta.url)), '../lib/voice-flight-pipeline.mjs'),
+  'utf8',
+);
 
 const saved = {
   gemini: process.env.GEMINI_API_KEY,
@@ -62,10 +83,10 @@ describe('voice flight transcript pipeline', () => {
     expect(calls).toEqual([{ kind: 'RTL', mode: null, reason: 'עבור למצב RTL' }]);
     expect(result.sent).toBe(true);
     expect(result.customMode).toBe(11);
-    expect(result.talkback.provider).toBe('mock');
+    expect(result.talkback.provider).toBe('client');
     expect(result.talkback.spoken).toBe(false);
-    expect(result.talkback.text).toContain('אושר');
-    expect(result.talkback.text).toContain('RTL');
+    expect(result.talkback.text).toBe('חזרה.');
+    expect(result.talkback.text).not.toContain('נשלח לסימולטור');
   });
 
   it('refuses ARM and does not call the flight op', async () => {
@@ -166,7 +187,7 @@ describe('voice flight transcript pipeline', () => {
     });
     expect(calls).toEqual([{ kind: 'MODE_CHANGE', mode: 'FBWA', reason: 'עבור למצב FBWA' }]);
     expect(fbwa.sent).toBe(true);
-    expect(fbwa.resolver).toBe('mode');
+    expect(fbwa.resolver).toBe('sentence');
     const takeoff = await runVoiceFlightTranscript({
       text: 'עבור למצב TAKEOFF',
       requestedMode: 'TAKEOFF',
@@ -217,7 +238,7 @@ describe('voice flight transcript pipeline', () => {
         return { ok: true, sent: true, customMode: 2 };
       },
     });
-    expect(stable.resolver).toBe('mock-gemini');
+    expect(stable.resolver).toBe('sentence');
     expect(calls[0]).toMatchObject({ kind: 'MODE_CHANGE', mode: 'STABILIZE' });
     const takeoff = await runVoiceFlightTranscript({
       text: 'תמריא',
@@ -259,5 +280,198 @@ describe('voice flight transcript pipeline', () => {
     });
     expect(called).toBe(false);
     expect(result.decision).toBe('no_go');
+  });
+
+  it('returns talkback text and does not drain ElevenLabs', async () => {
+    process.env.ELEVENLABS_API_KEY = 'present-but-unused';
+    process.env.GEMINI_API_KEY = 'present-but-unused';
+    expect(pipelineSrc).not.toContain('streamTts');
+    expect(pipelineSrc).not.toContain('for await');
+    expect(pipelineSrc).not.toContain('classifyAskIntentWithGemini');
+    const result = await runVoiceFlightTranscript({
+      text: 'שיוט',
+      operatorConfirmed: true,
+      mavConn: simTcp(),
+      applyFlightOp: async () => ({ ok: true, sent: true, customMode: 7 }),
+    });
+    expect(result.sent).toBe(true);
+    expect(result.resolver).toBe('sentence');
+    expect(result.talkback.provider).toBe('client');
+    expect(result.talkback.spoken).toBe(false);
+    expect(result.talkback.text).toBe('שיוט.');
+    expect(result.talkback.text).not.toContain('נשלח לסימולטור');
+  });
+
+  it('resolves natural allowlist phrases locally and keeps arm blocked', async () => {
+    process.env.GEMINI_API_KEY = 'present-but-unused';
+    const phrases = [
+      ['עבור למצב יציב', 'STABILIZE'],
+      ['מצב ידני', 'MANUAL'],
+      ['שיוט', 'CRUISE'],
+      ['חזרה הביתה', 'RTL'],
+      ['תמריא', 'TAKEOFF'],
+      ['stabilize', 'STABILIZE'],
+      ['manual', 'MANUAL'],
+      ['rtl', 'RTL'],
+    ];
+    for (const [text, mode] of phrases) {
+      const match = matchVoiceFlightPhrase(text);
+      expect(match?.sendable, text).toBe(true);
+      expect(match?.mode, text).toBe(mode);
+      const resolved = await resolveVoiceFlightIntent(text);
+      expect(resolved.resolver, text).toBe('mock-gemini');
+      const calls = [];
+      const result = await runVoiceFlightTranscript({
+        text,
+        operatorConfirmed: true,
+        mavConn: simTcp(),
+        applyFlightOp: async (args) => {
+          calls.push(args);
+          return { ok: true, sent: true, customMode: 1 };
+        },
+      });
+      expect(result.sent, text).toBe(true);
+      expect(result.talkback.spoken, text).toBe(false);
+      expect(calls[0].mode, text).toBe(mode === 'RTL' ? null : mode);
+      expect(calls[0].kind, text).toBe(mode === 'RTL' ? 'RTL' : 'MODE_CHANGE');
+    }
+    for (const text of ['חמש', 'חימוש', 'נטרול', 'arm', 'disarm']) {
+      let called = false;
+      const blocked = await runVoiceFlightTranscript({
+        text,
+        operatorConfirmed: true,
+        mavConn: simTcp(),
+        applyFlightOp: async () => {
+          called = true;
+          return { ok: true, sent: true };
+        },
+      });
+      expect(called, text).toBe(false);
+      expect(blocked.blocked, text).toBe(true);
+      expect(blocked.talkback.text, text).toContain('חימוש ונטרול חסומים');
+      expect(blocked.talkback.text, text).toContain('לא נשלח דבר');
+    }
+    const acro = await runVoiceFlightTranscript({
+      text: 'acro',
+      operatorConfirmed: true,
+      mavConn: simTcp(),
+      applyFlightOp: async () => ({ ok: true, sent: true }),
+    });
+    expect(acro.sent).toBe(false);
+    expect(acro.talkback.text).toContain('אינו ברשימה');
+    delete process.env.GEMINI_API_KEY;
+    const unknown = await runVoiceFlightTranscript({
+      text: 'תעיף את המטוס לחלל',
+      operatorConfirmed: true,
+      mavConn: simTcp(),
+      applyFlightOp: async () => ({ ok: true, sent: true }),
+    });
+    expect(unknown.decision).toBe('not_allowlisted');
+    expect(unknown.talkback.text).toContain('אינה ברשימה המותרת');
+    for (const mode of ['AUTOTUNE', 'QSTABILIZE', 'QHOVER', 'QLOITER', 'QRTL', 'ACRO']) {
+      expect(VOICE_SEND_MODES.has(mode), mode).toBe(false);
+    }
+    delete process.env.GEMINI_API_KEY;
+  });
+
+  it('refuses negation and a stale mode, and ignores mode words inside a sentence', async () => {
+    delete process.env.GEMINI_API_KEY;
+    const noSend = async (text, requestedMode) => {
+      let called = false;
+      const result = await runVoiceFlightTranscript({
+        text,
+        requestedMode,
+        operatorConfirmed: true,
+        mavConn: simTcp(),
+        applyFlightOp: async () => {
+          called = true;
+          return { ok: true, sent: true, customMode: 11 };
+        },
+      });
+      expect(called, text).toBe(false);
+      expect(result.sent, text).toBe(false);
+      expect(result.talkback.text, text).toContain('לא נשלח דבר');
+      expect(result.talkback.text, text).not.toContain('אושר');
+      return result;
+    };
+
+    const negated = await noSend('אל תחזור הביתה', 'RTL');
+    expect(negated.decision).toBe('not_allowlisted');
+    expect(matchVoiceFlightPhrase('אל תחזור הביתה')?.negated).toBe(true);
+    await noSend('שיוט', 'RTL');
+    await noSend('עבור למצב ACRO', 'STABILIZE');
+    await noSend('autotune', 'AUTOTUNE');
+    await noSend('qhover', 'QHOVER');
+    await noSend('set the cruise altitude', 'CRUISE');
+    await noSend('ready for takeoff', 'TAKEOFF');
+    await noSend('then rtl later', 'RTL');
+    const asked = await noSend('האם אנחנו בשיוט', 'CRUISE');
+    expect(asked.sent).toBe(false);
+    expect(matchVoiceFlightPhrase('האם אנחנו בשיוט')?.question).toBe(true);
+    expect(matchVoiceFlightPhrase('האם אנחנו בשיוט')?.askedMode).toBe('CRUISE');
+    expect(matchVoiceFlightPhrase('האם אנחנו בשיוט')?.sendable).toBe(false);
+    expect(matchVoiceFlightPhrase('מה המצב של הסוללה')).toBeNull();
+    await noSend('מה המצב של הסוללה', 'CRUISE');
+    expect(matchVoiceFlightPhrase('מה המצב')?.question).toBe(true);
+    expect(matchVoiceFlightPhrase('מה המצב')?.askedMode || null).toBeNull();
+    for (const text of ['לא יציב', 'לא ידני', 'לא שיוט']) {
+      expect(matchVoiceFlightPhrase(text)?.passToAsk, text).toBe(true);
+      expect(matchVoiceFlightPhrase(text)?.sendable, text).toBe(false);
+      expect(matchVoiceFlightPhrase(text)?.negated, text).toBe(false);
+      await noSend(text, 'CRUISE');
+    }
+
+    const minutes = await noSend('חמש דקות', 'ARM');
+    expect(minutes.blocked).toBe(false);
+    expect(minutes.talkback.text).not.toContain('חימוש ונטרול חסומים');
+    expect(minutes.talkback.text).toContain('אינה ברשימה המותרת');
+
+    let armed = false;
+    const arm = await runVoiceFlightTranscript({
+      text: 'חמש',
+      requestedMode: 'CRUISE',
+      operatorConfirmed: true,
+      mavConn: simTcp(),
+      applyFlightOp: async () => {
+        armed = true;
+        return { ok: true, sent: true };
+      },
+    });
+    expect(armed).toBe(false);
+    expect(arm.blocked).toBe(true);
+    expect(arm.talkback.text).toContain('חימוש ונטרול חסומים');
+
+    const calls = [];
+    const agreed = await runVoiceFlightTranscript({
+      text: 'שיוט',
+      requestedMode: 'CRUISE',
+      operatorConfirmed: true,
+      mavConn: simTcp(),
+      applyFlightOp: async (args) => {
+        calls.push(args);
+        return { ok: true, sent: true, customMode: 7 };
+      },
+    });
+    expect(agreed.sent).toBe(true);
+    expect(agreed.talkback.text).toBe('שיוט.');
+    expect(calls[0]).toMatchObject({ kind: 'MODE_CHANGE', mode: 'CRUISE' });
+    for (const text of ['בבקשה שיוט', 'עבור למצב שיוט עכשיו']) {
+      const polite = [];
+      const sent = await runVoiceFlightTranscript({
+        text,
+        operatorConfirmed: true,
+        mavConn: simTcp(),
+        applyFlightOp: async (args) => {
+          polite.push(args);
+          return { ok: true, sent: true, customMode: 7 };
+        },
+      });
+      expect(sent.sent, text).toBe(true);
+      expect(sent.talkback.text, text).toBe('שיוט.');
+      expect(polite[0], text).toMatchObject({ kind: 'MODE_CHANGE', mode: 'CRUISE' });
+    }
+    expect(matchVoiceFlightPhrase('פתח יועץ')).toBeNull();
+    expect(matchVoiceFlightPhrase('מה הגובה')).toBeNull();
+    expect(matchVoiceFlightPhrase('שלום')).toBeNull();
   });
 });

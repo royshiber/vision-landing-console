@@ -2,6 +2,8 @@
  * Flight column dock, map follow, and explicit recording. Loopback only.
  */
 import { afterAll, describe, expect, it } from 'vitest';
+import { matchVoiceFlightPhrase, pilotModeWord } from '../public/modules/voice-flight-phrases.mjs';
+import { arduPlaneModeName } from '../lib/arduplane-flight-modes.mjs';
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import net from 'node:net';
@@ -76,8 +78,25 @@ describe('flight dock and map source', () => {
     expect(html).toContain('id="flightPhraseInput"');
     expect(html).toContain('>שלחו</button>');
     const askSend = js.slice(js.indexOf('async function assistSendText'), js.indexOf('async function assistConfirm'));
-    expect(askSend).not.toContain('flightVoiceCommandText');
-    expect(askSend).not.toContain('/api/assist/voice-flight');
+    expect(askSend).toContain('askFlightRoute');
+    expect(askSend).toContain('postFlightVoice');
+    expect(askSend).toContain('operatorConfirmed: true');
+    expect(askSend).toContain("action === 'readback'");
+    expect(askSend).toContain('flightModeReadbackLine(flightRoute.askedMode, text)');
+    const readbackFn = js.slice(js.indexOf('function flightModeReadbackLine'), js.indexOf('function flightVoiceCommandText'));
+    expect(readbackFn).toContain('כן.');
+    expect(readbackFn).toContain('אין חיבור');
+    expect(readbackFn).not.toContain('מצב הטיסה');
+    expect(readbackFn).not.toContain('אין מצב טיסה');
+    const phraseFn = js.slice(js.indexOf('async function submitFlightPhrase'), js.indexOf('function applyFlightDock'));
+    expect(phraseFn).toContain('flightModeReadbackLine(match.askedMode, text)');
+    expect(askSend).toContain('נדחה. הפקודה אינה ברשימה המותרת. לא נשלח דבר.');
+    expect(askSend.indexOf('postFlightVoice')).toBeLessThan(askSend.indexOf("fetch('/api/assist/message'"));
+    expect(js).toContain('function showFlightTalkback(');
+    expect(js).toContain('paintFlightDockCommand(line)');
+    expect(js.indexOf('paintFlightDockCommand(line)')).toBeLessThan(js.indexOf('void window.__vlcSpeakAnswer'));
+    expect(js).toContain('__vlcMatchVoiceFlightPhrase');
+    expect(html).toContain('voice-flight-phrases.mjs');
     expect(html).not.toContain('>בצע</button>');
     expect(html).not.toContain('>קבע נקודה</button>');
     expect(html).toContain('פעולה, נקודה ומתלה בלי שליחה');
@@ -94,6 +113,55 @@ describe('flight dock and map source', () => {
     expect(boot).toContain("'/api/telemetry-archive/start'");
     expect(boot).toContain('paintRecordChrome(false)');
     expect(boot.indexOf('paintRecordChrome(false)')).toBeLessThan(boot.indexOf('void refresh()'));
+  });
+});
+
+describe('flight mode yes/no uses the real readback', () => {
+  function loadReadback(hud) {
+    const voiceMatch = js.slice(js.indexOf('function flightVoiceMatch'), js.indexOf('function flightModeReadbackLine'));
+    const readback = js.slice(js.indexOf('function flightModeReadbackLine'), js.indexOf('function flightVoiceCommandText'));
+    const route = js.slice(js.indexOf('function askFlightRoute'), js.indexOf('async function postFlightVoice'));
+    const src = `${voiceMatch}\n${readback}\n${route}\nreturn { flightModeReadbackLine, askFlightRoute };`;
+    const windowStub = {
+      __vlcMatchVoiceFlightPhrase: matchVoiceFlightPhrase,
+      __vlcPilotModeWord: pilotModeWord,
+    };
+    const vlcFlightModeName = (raw) => {
+      const n = Number(raw);
+      return Number.isInteger(n) ? arduPlaneModeName(n) : null;
+    };
+    return new Function('latestHudMavlink', 'window', 'vlcFlightModeName', src)(hud, windowStub, vlcFlightModeName);
+  }
+
+  it('calls flightModeReadbackLine and askFlightRoute from app.js', () => {
+    const cruise = loadReadback({ connected: true, flightMode: 7 });
+    const route = cruise.askFlightRoute('האם אנחנו בשיוט');
+    expect(route).toEqual({ action: 'readback', askedMode: 'CRUISE' });
+    const yes = cruise.flightModeReadbackLine(route.askedMode, 'האם אנחנו בשיוט');
+    expect(yes).toBe('כן. שיוט.');
+    expect(yes).not.toBe('מצב הטיסה שיוט.');
+    const stable = loadReadback({ connected: true, flightMode: 2 });
+    const no = stable.flightModeReadbackLine(route.askedMode, 'האם אנחנו בשיוט');
+    expect(no).toBe('לא. עכשיו יציב.');
+    const down = loadReadback({ connected: false, flightMode: null });
+    const missing = down.flightModeReadbackLine(route.askedMode, 'האם אנחנו בשיוט');
+    expect(missing).toBe('אין חיבור');
+    expect(missing).not.toBe('אין מצב טיסה.');
+    const tune = loadReadback({ connected: true, flightMode: 8 });
+    const autotune = tune.flightModeReadbackLine(route.askedMode, 'האם אנחנו בשיוט');
+    expect(autotune).toBe('לא. עכשיו אוטוטיון.');
+    expect(autotune).not.toBe('אין חיבור');
+    const named = tune.flightModeReadbackLine(null, 'מה המצב');
+    expect(named).toBe('אוטוטיון.');
+    expect(named).not.toBe('אין חיבור');
+    const quad = loadReadback({ connected: true, flightMode: 18 });
+    const qhover = quad.flightModeReadbackLine(null, 'מה המצב');
+    expect(qhover).toBe('QHOVER.');
+    expect(qhover).not.toBe('אין חיבור');
+    expect(cruise.askFlightRoute('מה המצב של הסוללה')).toBeNull();
+    expect(cruise.askFlightRoute('לא שיוט')).toBeNull();
+    expect(cruise.flightModeReadbackLine.toString()).not.toContain('מצב הטיסה');
+    expect(cruise.flightModeReadbackLine.toString()).not.toContain('אין מצב טיסה');
   });
 });
 
@@ -492,16 +560,22 @@ describe('flight dock and map live', () => {
     expect(voice[0]).toContain('operatorConfirmed');
     expect(voice[0]).toContain('"mode":"RTL"');
 
-    await page.selectOption('#flightDockModeSelect', 'FBWA');
-    await page.evaluate(() => { document.getElementById('flightDockCommandNote').textContent = ''; });
-    await page.click('#flightDockSetMode');
+    await page.evaluate(() => {
+      applyFlightHud({ connected: true, simulator: true, armed: true, type: 'tcp', host: '127.0.0.1', port: 5760 });
+      document.getElementById('flightDockModeSelect').value = 'FBWA';
+      document.getElementById('flightDockCommandNote').textContent = '';
+      document.getElementById('flightDockSetMode').click();
+    });
     await page.waitForFunction(() => /נדחה|אושר|נכשל|אינו ברשימה|לא נשלח|סירב/.test(document.getElementById('flightDockCommandNote').textContent || ''));
     expect(voice.length).toBe(2);
     expect(voice[1]).toContain('FBWA');
     expect(voice[1]).toContain('"mode":"FBWA"');
-    await page.selectOption('#flightDockModeSelect', 'TAKEOFF');
-    await page.evaluate(() => { document.getElementById('flightDockCommandNote').textContent = ''; });
-    await page.click('#flightDockSetMode');
+    await page.evaluate(() => {
+      applyFlightHud({ connected: true, simulator: true, armed: true, type: 'tcp', host: '127.0.0.1', port: 5760 });
+      document.getElementById('flightDockModeSelect').value = 'TAKEOFF';
+      document.getElementById('flightDockCommandNote').textContent = '';
+      document.getElementById('flightDockSetMode').click();
+    });
     await page.waitForFunction(() => (document.getElementById('flightDockCommandNote').textContent || '').length > 0);
     expect(voice.at(-1)).toContain('"mode":"TAKEOFF"');
 
@@ -544,20 +618,184 @@ describe('flight dock and map live', () => {
     expect(blockedPhrase).toContain('חימוש');
     await page.evaluate(() => {
       applyFlightHud({ connected: true, simulator: true, armed: false, type: 'tcp', host: '127.0.0.1', port: 5760 });
+      const input = document.getElementById('flightPhraseInput');
+      input.value = 'תמריא';
       document.getElementById('flightDockCommandNote').textContent = '';
+      document.getElementById('flightPhraseForm').requestSubmit();
     });
-    await page.fill('#flightPhraseInput', 'תמריא');
-    await page.click('#flightPhraseSend');
     await page.waitForFunction(() => (document.getElementById('flightDockCommandNote').textContent || '').length > 0);
     expect(voice.length).toBe(voiceBeforePhrase + 1);
     expect(voice.at(-1)).toContain('"mode":"TAKEOFF"');
     expect(phrasePosts).toEqual([]);
+    await page.evaluate(() => {
+      window.__talkLog = [];
+      window.__vlcSpeakAnswer = async (spoken) => {
+        window.__talkLog.push({
+          text: String(spoken || ''),
+          note: document.getElementById('flightDockCommandNote')?.textContent || '',
+        });
+      };
+    });
+    const askPosts = [];
+    page.on('request', (req) => {
+      if (req.method() !== 'POST') return;
+      if (req.url().includes('/api/assist/message')) askPosts.push('message');
+    });
+    const natural = [
+      ['שיוט', 'CRUISE'],
+      ['מצב ידני', 'MANUAL'],
+      ['חזרה הביתה', 'RTL'],
+      ['stabilize', 'STABILIZE'],
+      ['manual', 'MANUAL'],
+      ['rtl', 'RTL'],
+    ];
+    for (const [phrase, mode] of natural) {
+      const before = voice.length;
+      await page.evaluate((value) => {
+        applyFlightHud({ connected: true, simulator: true, armed: false, type: 'tcp', host: '127.0.0.1', port: 5760 });
+        const input = document.getElementById('flightPhraseInput');
+        input.value = value;
+        document.getElementById('flightDockCommandNote').textContent = '';
+        document.getElementById('flightPhraseForm').requestSubmit();
+      }, phrase);
+      await page.waitForFunction(() => (document.getElementById('flightDockCommandNote').textContent || '').length > 0);
+      expect(voice.length, phrase).toBe(before + 1);
+      expect(voice.at(-1), phrase).toContain(`"mode":"${mode}"`);
+      expect(phrasePosts, phrase).toEqual([]);
+      const heard = await page.evaluate(() => window.__talkLog.at(-1));
+      expect(heard.note, phrase).toBe(heard.text);
+      expect(heard.text.length, phrase).toBeGreaterThan(0);
+    }
+    const beforeAsk = voice.length;
+    await page.evaluate(() => {
+      applyFlightHud({ connected: true, simulator: true, armed: false, type: 'tcp', host: '127.0.0.1', port: 5760 });
+      document.getElementById('flightDockCommandNote').textContent = '';
+      return assistSendText('עבור למצב יציב');
+    });
+    expect(voice.length).toBe(beforeAsk + 1);
+    expect(voice.at(-1)).toContain('"mode":"STABILIZE"');
+    expect(voice.at(-1)).toContain('operatorConfirmed');
+    expect(askPosts).toEqual([]);
+    const askNote = await page.evaluate(() => document.getElementById('flightDockCommandNote').textContent);
+    expect(askNote).not.toContain('שיחת הקול סגורה');
+    const askHeard = await page.evaluate(() => window.__talkLog.at(-1));
+    expect(askHeard.note).toBe(askHeard.text);
+    const beforeArmAsk = voice.length;
+    await page.evaluate(() => assistSendText('חימוש'));
+    expect(voice.length).toBe(beforeArmAsk);
+    expect(askPosts).toEqual([]);
+    const armAsk = await page.evaluate(() => ({
+      note: document.getElementById('flightDockCommandNote').textContent,
+      heard: window.__talkLog.at(-1),
+    }));
+    expect(armAsk.note).toContain('חימוש ונטרול חסומים');
+    expect(armAsk.heard.note).toBe(armAsk.heard.text);
+    expect(armAsk.heard.text).toContain('לא נשלח דבר');
     const askTranscript = await page.evaluate(() => {
       const host = document.getElementById('assistMessages') || document.querySelector('.assist-messages');
       return host ? host.textContent : '';
     });
     expect(askTranscript).not.toContain('תמריא');
-    expect(askTranscript).not.toContain('עבור למצב יציב');
+    expect(askTranscript).toContain('עבור למצב יציב');
+    expect(askTranscript).toContain('חימוש ונטרול חסומים');
+
+    for (const phrase of ['set the cruise altitude', 'חמש דקות', 'אל תחזור הביתה']) {
+      const beforeVoice = voice.length;
+      const beforePosts = askPosts.length;
+      await page.evaluate((value) => assistSendText(value), phrase);
+      expect(voice.length, phrase).toBe(beforeVoice);
+      expect(askPosts.length, phrase).toBe(beforePosts);
+      const note = await page.evaluate(() => document.getElementById('flightDockCommandNote').textContent);
+      expect(note, phrase).toContain('אינה ברשימה');
+      expect(note, phrase).not.toContain('חימוש ונטרול חסומים');
+      expect(note, phrase).not.toContain('אושר');
+    }
+    const beforePhraseRefuse = voice.length;
+    await page.evaluate(() => {
+      const input = document.getElementById('flightPhraseInput');
+      input.value = 'חמש דקות';
+      document.getElementById('flightDockCommandNote').textContent = '';
+      document.getElementById('flightPhraseForm').requestSubmit();
+    });
+    expect(voice.length).toBe(beforePhraseRefuse);
+    const five = await page.evaluate(() => document.getElementById('flightDockCommandNote').textContent);
+    expect(five).toContain('אינה ברשימה');
+    expect(five).not.toContain('חימוש ונטרול חסומים');
+
+    const direct = await page.evaluate(() => {
+      applyFlightHud({ connected: true, simulator: true, armed: false, flightMode: 7, type: 'tcp', host: '127.0.0.1', port: 5760 });
+      const route = askFlightRoute('האם אנחנו בשיוט');
+      const yes = flightModeReadbackLine(route && route.askedMode, 'האם אנחנו בשיוט');
+      applyFlightHud({ connected: true, simulator: true, armed: false, flightMode: 2, type: 'tcp', host: '127.0.0.1', port: 5760 });
+      const no = flightModeReadbackLine(route && route.askedMode, 'האם אנחנו בשיוט');
+      applyFlightHud({ connected: false, armed: false, simulator: false, flightMode: null });
+      const missing = flightModeReadbackLine(route && route.askedMode, 'האם אנחנו בשיוט');
+      applyFlightHud({ connected: true, simulator: true, armed: false, flightMode: 8, type: 'tcp', host: '127.0.0.1', port: 5760 });
+      const autotune = flightModeReadbackLine(route && route.askedMode, 'האם אנחנו בשיוט');
+      applyFlightHud({ connected: true, simulator: true, armed: false, flightMode: 18, type: 'tcp', host: '127.0.0.1', port: 5760 });
+      const qhover = flightModeReadbackLine(null, 'מה המצב');
+      return { route, yes, no, missing, autotune, qhover, body: flightModeReadbackLine.toString() };
+    });
+    expect(direct.route).toEqual({ action: 'readback', askedMode: 'CRUISE' });
+    expect(direct.yes).toBe('כן. שיוט.');
+    expect(direct.yes).not.toBe('מצב הטיסה שיוט.');
+    expect(direct.no).toBe('לא. עכשיו יציב.');
+    expect(direct.missing).toBe('אין חיבור');
+    expect(direct.missing).not.toBe('אין מצב טיסה.');
+    expect(direct.autotune).toBe('לא. עכשיו אוטוטיון.');
+    expect(direct.autotune).not.toBe('אין חיבור');
+    expect(direct.qhover).toBe('QHOVER.');
+    expect(direct.qhover).not.toBe('אין חיבור');
+    expect(direct.body).not.toContain('מצב הטיסה');
+    expect(direct.body).not.toContain('אין מצב טיסה');
+    const beforeQuestion = voice.length;
+    const postsBeforeQuestion = askPosts.length;
+    await page.evaluate(() => {
+      applyFlightHud({ connected: true, simulator: true, armed: false, flightMode: 7, type: 'tcp', host: '127.0.0.1', port: 5760 });
+      document.getElementById('flightDockCommandNote').textContent = '';
+      return assistSendText('האם אנחנו בשיוט');
+    });
+    expect(voice.length).toBe(beforeQuestion);
+    expect(askPosts.length).toBe(postsBeforeQuestion);
+    const questionNote = await page.evaluate(() => document.getElementById('flightDockCommandNote').textContent);
+    expect(questionNote).toBe('כן. שיוט.');
+    await page.evaluate(() => {
+      applyFlightHud({ connected: true, simulator: true, armed: false, flightMode: 2, type: 'tcp', host: '127.0.0.1', port: 5760 });
+      document.getElementById('flightDockCommandNote').textContent = '';
+      return assistSendText('האם אנחנו בשיוט');
+    });
+    expect(voice.length).toBe(beforeQuestion);
+    expect(askPosts.length).toBe(postsBeforeQuestion);
+    const noNote = await page.evaluate(() => document.getElementById('flightDockCommandNote').textContent);
+    expect(noNote).toBe('לא. עכשיו יציב.');
+    await page.evaluate(() => {
+      applyFlightHud({ connected: false, armed: false, simulator: false, flightMode: null });
+      document.getElementById('flightDockCommandNote').textContent = '';
+      return assistSendText('האם אנחנו בשיוט');
+    });
+    expect(voice.length).toBe(beforeQuestion);
+    const missing = await page.evaluate(() => document.getElementById('flightDockCommandNote').textContent);
+    expect(missing).toBe('אין חיבור');
+    const beforeBattery = voice.length;
+    const postsBeforeBattery = askPosts.length;
+    await page.evaluate(() => {
+      document.getElementById('flightDockCommandNote').textContent = '';
+      return assistSendText('מה המצב של הסוללה');
+    });
+    expect(voice.length).toBe(beforeBattery);
+    expect(askPosts.length).toBe(postsBeforeBattery + 1);
+    const batteryNote = await page.evaluate(() => document.getElementById('flightDockCommandNote').textContent);
+    expect(batteryNote).not.toContain('שיוט');
+    const beforeStatus = voice.length;
+    const postsBeforeStatus = askPosts.length;
+    await page.evaluate(() => assistSendText('לא יציב'));
+    expect(voice.length).toBe(beforeStatus);
+    expect(askPosts.length).toBe(postsBeforeStatus + 1);
+    await page.evaluate(() => assistSendText('לא שיוט'));
+    expect(voice.length).toBe(beforeStatus);
+    expect(askPosts.length).toBe(postsBeforeStatus + 2);
+    const statusNote = await page.evaluate(() => document.getElementById('flightDockCommandNote').textContent);
+    expect(statusNote).not.toContain('אינה ברשימה');
 
     const confirm = await page.evaluate(() => {
       const dialog = document.getElementById('flightArmDialog');
