@@ -79,6 +79,8 @@ describe('flight dock and map source', () => {
     expect(askSend).toContain('askFlightRoute');
     expect(askSend).toContain('postFlightVoice');
     expect(askSend).toContain('operatorConfirmed: true');
+    expect(askSend).toContain("action === 'readback'");
+    expect(askSend).toContain('flightModeReadbackLine');
     expect(askSend).toContain('נדחה. הפקודה אינה ברשימה המותרת. לא נשלח דבר.');
     expect(askSend.indexOf('postFlightVoice')).toBeLessThan(askSend.indexOf("fetch('/api/assist/message'"));
     expect(js).toContain('function showFlightTalkback(');
@@ -500,9 +502,12 @@ describe('flight dock and map live', () => {
     expect(voice[0]).toContain('operatorConfirmed');
     expect(voice[0]).toContain('"mode":"RTL"');
 
-    await page.selectOption('#flightDockModeSelect', 'FBWA');
-    await page.evaluate(() => { document.getElementById('flightDockCommandNote').textContent = ''; });
-    await page.click('#flightDockSetMode');
+    await page.evaluate(() => {
+      applyFlightHud({ connected: true, simulator: true, armed: true, type: 'tcp', host: '127.0.0.1', port: 5760 });
+      document.getElementById('flightDockModeSelect').value = 'FBWA';
+      document.getElementById('flightDockCommandNote').textContent = '';
+      document.getElementById('flightDockSetMode').click();
+    });
     await page.waitForFunction(() => /נדחה|אושר|נכשל|אינו ברשימה|לא נשלח|סירב/.test(document.getElementById('flightDockCommandNote').textContent || ''));
     expect(voice.length).toBe(2);
     expect(voice[1]).toContain('FBWA');
@@ -658,6 +663,25 @@ describe('flight dock and map live', () => {
     const five = await page.evaluate(() => document.getElementById('flightDockCommandNote').textContent);
     expect(five).toContain('אינה ברשימה');
     expect(five).not.toContain('חימוש ונטרול חסומים');
+
+    const beforeQuestion = voice.length;
+    const postsBeforeQuestion = askPosts.length;
+    await page.evaluate(() => {
+      applyFlightHud({ connected: true, simulator: true, armed: false, flightMode: 7, type: 'tcp', host: '127.0.0.1', port: 5760 });
+      document.getElementById('flightDockCommandNote').textContent = '';
+      return assistSendText('האם אנחנו בשיוט');
+    });
+    expect(voice.length).toBe(beforeQuestion);
+    expect(askPosts.length).toBe(postsBeforeQuestion);
+    const questionNote = await page.evaluate(() => document.getElementById('flightDockCommandNote').textContent);
+    expect(questionNote).toBe('מצב הטיסה שיוט.');
+    const beforeStatus = voice.length;
+    const postsBeforeStatus = askPosts.length;
+    await page.evaluate(() => assistSendText('לא יציב'));
+    expect(voice.length).toBe(beforeStatus);
+    expect(askPosts.length).toBe(postsBeforeStatus + 1);
+    const statusNote = await page.evaluate(() => document.getElementById('flightDockCommandNote').textContent);
+    expect(statusNote).not.toContain('אינה ברשימה');
 
     const confirm = await page.evaluate(() => {
       const dialog = document.getElementById('flightArmDialog');

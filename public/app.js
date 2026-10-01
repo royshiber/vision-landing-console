@@ -19153,6 +19153,12 @@ async function assistSendText(rawText, { channel = 'text' } = {}) {
       showFlightTalkback(line);
       return;
     }
+    if (flightRoute.action === 'readback') {
+      const line = flightModeReadbackLine();
+      assistAppendMessage({ role: 'assist', text: line, kind: 'INFORMATION' });
+      showFlightTalkback(line);
+      return;
+    }
     if (flightRoute.action === 'send') {
       await postFlightVoice({
         text,
@@ -20363,6 +20369,15 @@ function flightVoiceMatch(text) {
   return typeof fn === 'function' ? fn(text) : null;
 }
 
+function flightModeReadbackLine() {
+  const mav = typeof latestHudMavlink !== 'undefined' ? latestHudMavlink : null;
+  if (!mav || mav.connected !== true) return 'אין מצב טיסה.';
+  const name = vlcFlightModeName(mav.flightMode, mav);
+  const word = typeof window.__vlcPilotModeWord === 'function' ? window.__vlcPilotModeWord(name) : '';
+  if (!word) return 'אין מצב טיסה.';
+  return `מצב הטיסה ${word}.`;
+}
+
 function flightVoiceCommandText(text) {
   const match = flightVoiceMatch(text);
   if (!match) return false;
@@ -20372,7 +20387,8 @@ function flightVoiceCommandText(text) {
 
 function askFlightRoute(text) {
   const match = flightVoiceMatch(text);
-  if (!match || match.kind === 'LAND') return null;
+  if (!match || match.passToAsk || match.kind === 'LAND') return null;
+  if (match.question === true || match.readback === 'mode') return { action: 'readback' };
   if (match.blocked || match.kind === 'ARM' || match.kind === 'DISARM') return { action: 'block' };
   if (match.sendable === true && (match.kind === 'RTL' || match.kind === 'MODE_CHANGE')) {
     return { action: 'send', mode: match.mode };
@@ -20443,6 +20459,15 @@ async function sendFlightDockMode(mode) {
 async function submitFlightPhrase(raw) {
   const text = String(raw || '').trim().replace(/\s+/g, ' ');
   if (!text) return;
+  const match = flightVoiceMatch(text);
+  if (match?.question === true || match?.readback === 'mode') {
+    showFlightTalkback(flightModeReadbackLine());
+    return;
+  }
+  if (match?.passToAsk) {
+    void assistSendText(text);
+    return;
+  }
   const route = askFlightRoute(text);
   if (!route || route.action === 'refuse') {
     showFlightTalkback('נדחה. הפקודה אינה ברשימה המותרת. לא נשלח דבר.');

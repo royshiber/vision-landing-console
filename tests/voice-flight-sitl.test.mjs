@@ -167,7 +167,8 @@ describe.skipIf(!ENABLED)('voice flight against ArduPlane SITL', () => {
       expect(rtl.json.resolver).toBe('sentence');
       expect(rtl.json.talkback.provider).toBe('client');
       expect(rtl.json.talkback.spoken).toBe(false);
-      expect(rtl.json.talkback.text).toContain('אושר');
+      expect(rtl.json.talkback.text).toBe('חזרה.');
+      expect(rtl.json.talkback.text).not.toContain('נשלח לסימולטור');
       const mode = await waitUntil(async () => {
         const { json } = await api(base, 'GET', `/api/connections/${id}/status`);
         const flightMode = json?.connection?.liveStatus?.flightMode;

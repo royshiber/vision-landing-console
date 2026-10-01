@@ -1,7 +1,9 @@
 /**
  * Anchored allowlist for spoken flight phrases.
- * A mode is sent only when the whole phrase is that command.
- * Negation wins. A mode word inside a longer sentence is not a command.
+ * A mode is sent only when the phrase is that command, plus a polite word or "עכשיו".
+ * Negation wins. A mode word inside an unrelated sentence is not a command.
+ * A question about the current mode is a readback, never a send.
+ * Status such as "לא יציב" is not a command. Ask answers it.
  * ARM / DISARM never send. ACRO is recognized and refused.
  * AUTOTUNE and the Q modes are not spoken commands.
  * Playback is not done here. The client speaks talkback.text.
@@ -85,6 +87,25 @@ const HEBREW_TOKENS = [
   'המראה', 'תמריא', 'תמריאו', 'המריאו', 'חזרה', 'חמש', 'חימוש', 'נטרול', 'נטרל', 'אקרו',
 ];
 
+/** Words a pilot says for the spoken modes. */
+const PILOT_MODE_WORD = Object.freeze({
+  MANUAL: 'ידני',
+  STABILIZE: 'יציב',
+  FBWA: 'FBWA',
+  FBWB: 'FBWB',
+  CRUISE: 'שיוט',
+  AUTO: 'אוטו',
+  RTL: 'חזרה',
+  LOITER: 'לויטר',
+  CIRCLE: 'מעגל',
+  GUIDED: 'מונחה',
+  TAKEOFF: 'המראה',
+});
+
+export function pilotModeWord(mode) {
+  return PILOT_MODE_WORD[String(mode || '').trim().toUpperCase()] || '';
+}
+
 export function normalizeVoiceTranscript(text) {
   return String(text || '').trim().replace(/\s+/g, ' ').toLowerCase();
 }
@@ -93,7 +114,7 @@ function isLetter(ch) {
   return Boolean(ch) && /\p{L}/u.test(ch);
 }
 
-function hasToken(text, token) {
+function hasToken(text, token, allowPrefix = false) {
   const t = String(text || '');
   const tok = String(token || '');
   if (!tok) return false;
@@ -101,9 +122,14 @@ function hasToken(text, token) {
   while (from <= t.length - tok.length) {
     const idx = t.indexOf(tok, from);
     if (idx < 0) return false;
-    const before = idx === 0 || !isLetter(t.charAt(idx - 1));
+    const prev = idx > 0 ? t.charAt(idx - 1) : '';
+    const before = idx === 0 || !isLetter(prev);
+    const clitic = allowPrefix
+      && idx > 0
+      && /[בלמהושכ]/.test(prev)
+      && (idx === 1 || !isLetter(t.charAt(idx - 2)));
     const after = idx + tok.length >= t.length || !isLetter(t.charAt(idx + tok.length));
-    if (before && after) return true;
+    if ((before || clitic) && after) return true;
     from = idx + 1;
   }
   return false;
@@ -114,7 +140,7 @@ function mentionsFlight(q) {
   if (/\b(manual|stabilize|fbwa|fbwb|cruise|autotune|qstabilize|qhover|qloiter|qrtl|auto|loiter|circle|guided|takeoff|acro|rtl|arm|disarm)\b/.test(q)) {
     return true;
   }
-  return HEBREW_TOKENS.some((word) => hasToken(q, word));
+  return HEBREW_TOKENS.some((word) => hasToken(q, word, true));
 }
 
 function modeFromTail(tail) {
@@ -127,12 +153,17 @@ function modeFromTail(tail) {
 function resultForMode(mode) {
   if (!mode) return null;
   if (mode === 'RTL') {
-    return { blocked: false, negated: false, flightShaped: true, kind: 'RTL', mode: 'RTL', sendable: true };
+    return {
+      blocked: false, negated: false, flightShaped: true, question: false, passToAsk: false,
+      kind: 'RTL', mode: 'RTL', sendable: true,
+    };
   }
   return {
     blocked: false,
     negated: false,
     flightShaped: true,
+    question: false,
+    passToAsk: false,
     kind: 'MODE_CHANGE',
     mode,
     sendable: VOICE_SEND_MODES.has(mode),
@@ -140,15 +171,31 @@ function resultForMode(mode) {
 }
 
 function blocked(kind) {
-  return { blocked: true, negated: false, flightShaped: true, kind, mode: null, sendable: false };
+  return {
+    blocked: true, negated: false, flightShaped: true, question: false, passToAsk: false,
+    kind, mode: null, sendable: false,
+  };
 }
 
 function negated() {
-  return { blocked: false, negated: true, flightShaped: true, kind: null, mode: null, sendable: false };
+  return {
+    blocked: false, negated: true, flightShaped: true, question: false, passToAsk: false,
+    kind: null, mode: null, sendable: false,
+  };
 }
 
 function shapedOnly() {
-  return { blocked: false, negated: false, flightShaped: true, kind: null, mode: null, sendable: false };
+  return {
+    blocked: false, negated: false, flightShaped: true, question: false, passToAsk: false,
+    kind: null, mode: null, sendable: false,
+  };
+}
+
+function modeQuestion() {
+  return {
+    blocked: false, negated: false, flightShaped: false, question: true, readback: 'mode', passToAsk: false,
+    kind: null, mode: null, sendable: false,
+  };
 }
 
 function positiveCommand(q) {
@@ -166,11 +213,43 @@ function positiveCommand(q) {
   return null;
 }
 
+function peelFillers(q) {
+  let s = String(q || '').trim();
+  for (let i = 0; i < 3; i += 1) {
+    const next = s
+      .replace(/^(?:בבקשה|נא|please|kindly)\s+/, '')
+      .replace(/\s+(?:עכשיו|now|בבקשה|please|נא)$/, '')
+      .trim();
+    if (!next || next === s) break;
+    s = next;
+  }
+  return s;
+}
+
+function isModeQuestion(q) {
+  if (/^(?:באיזה מצב|איזה מצב|מה המצב|מה מצב)(?:\s|$)/.test(q)) return true;
+  if (/^האם(?:\s|$)/.test(q) && mentionsMode(q)) return true;
+  if (/\b(?:are we in|what(?:'s| is) (?:the |our )?(?:flight )?mode|which mode|current mode)\b/.test(q)) return true;
+  if (/[?？]$/.test(q) && mentionsMode(q)) return true;
+  return false;
+}
+
+function isStatusAside(q) {
+  return /^לא\s+(?:יציב|יציבה|ידני|ידנית)$/.test(q);
+}
+
+function mentionsMode(q) {
+  if (/\b(manual|stabilize|fbwa|fbwb|cruise|autotune|qstabilize|qhover|qloiter|qrtl|auto|loiter|circle|guided|takeoff|acro|rtl)\b/.test(q)) {
+    return true;
+  }
+  return ['ידני', 'יציב', 'יציבה', 'שיוט', 'אוטומטי', 'אוטו', 'מעגל', 'מונחה', 'המראה', 'תמריא', 'תמריאו', 'המריאו', 'חזרה', 'אקרו']
+    .some((word) => hasToken(q, word, true));
+}
+
 function stripNegation(q) {
   const patterns = [
     /^אל\s+/,
     /^לא\s+ל/,
-    /^לא\s+/,
     /^(?:please\s+)?(?:do not|don't|dont|never)\s+/,
     /^not\s+/,
   ];
@@ -183,15 +262,24 @@ function stripNegation(q) {
 }
 
 /**
- * @returns {{ blocked: boolean, negated: boolean, flightShaped: boolean, kind: string|null, mode: string|null, sendable: boolean }|null}
+ * @returns {{ blocked: boolean, negated: boolean, flightShaped: boolean, question?: boolean, passToAsk?: boolean, readback?: string, kind: string|null, mode: string|null, sendable: boolean }|null}
  * null means the sentence is not a flight phrase. Ask may handle it as a normal question.
+ * passToAsk is status, not a command. Ask answers it. A question is a mode readback.
  */
 export function matchVoiceFlightPhrase(text) {
   const q = normalizeVoiceTranscript(text);
   if (!q) return null;
-  const withoutNegation = stripNegation(q);
+  if (isModeQuestion(q)) return modeQuestion();
+  if (isStatusAside(q)) {
+    return {
+      blocked: false, negated: false, flightShaped: false, question: false, passToAsk: true,
+      kind: null, mode: null, sendable: false,
+    };
+  }
+  const peeled = peelFillers(q);
+  const withoutNegation = stripNegation(peeled);
   if (withoutNegation && positiveCommand(withoutNegation)) return negated();
-  const command = positiveCommand(q);
+  const command = positiveCommand(peeled);
   if (command) return command;
   if (mentionsFlight(q)) return shapedOnly();
   return null;
@@ -199,4 +287,5 @@ export function matchVoiceFlightPhrase(text) {
 
 if (typeof window !== 'undefined') {
   window.__vlcMatchVoiceFlightPhrase = matchVoiceFlightPhrase;
+  window.__vlcPilotModeWord = pilotModeWord;
 }
