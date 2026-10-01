@@ -165,7 +165,8 @@ describe.skipIf(!ENABLED)('voice flight against ArduPlane SITL', () => {
       expect(rtl.json.kind).toBe('RTL');
       expect(rtl.json.customMode).toBe(11);
       expect(rtl.json.resolver).toBe('mock-gemini');
-      expect(rtl.json.talkback.provider).toBe('mock');
+      expect(rtl.json.talkback.provider).toBe('client');
+      expect(rtl.json.talkback.spoken).toBe(false);
       expect(rtl.json.talkback.text).toContain('אושר');
       const mode = await waitUntil(async () => {
         const { json } = await api(base, 'GET', `/api/connections/${id}/status`);

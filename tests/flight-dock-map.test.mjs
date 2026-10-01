@@ -76,8 +76,14 @@ describe('flight dock and map source', () => {
     expect(html).toContain('id="flightPhraseInput"');
     expect(html).toContain('>שלחו</button>');
     const askSend = js.slice(js.indexOf('async function assistSendText'), js.indexOf('async function assistConfirm'));
-    expect(askSend).not.toContain('flightVoiceCommandText');
-    expect(askSend).not.toContain('/api/assist/voice-flight');
+    expect(askSend).toContain('askFlightRoute');
+    expect(askSend).toContain('postFlightVoice');
+    expect(askSend.indexOf('postFlightVoice')).toBeLessThan(askSend.indexOf("fetch('/api/assist/message'"));
+    expect(js).toContain('function showFlightTalkback(');
+    expect(js).toContain('paintFlightDockCommand(line)');
+    expect(js.indexOf('paintFlightDockCommand(line)')).toBeLessThan(js.indexOf('void window.__vlcSpeakAnswer'));
+    expect(js).toContain('__vlcMatchVoiceFlightPhrase');
+    expect(html).toContain('voice-flight-phrases.mjs');
     expect(html).not.toContain('>בצע</button>');
     expect(html).not.toContain('>קבע נקודה</button>');
     expect(html).toContain('פעולה, נקודה ומתלה בלי שליחה');
@@ -499,9 +505,12 @@ describe('flight dock and map live', () => {
     expect(voice.length).toBe(2);
     expect(voice[1]).toContain('FBWA');
     expect(voice[1]).toContain('"mode":"FBWA"');
-    await page.selectOption('#flightDockModeSelect', 'TAKEOFF');
-    await page.evaluate(() => { document.getElementById('flightDockCommandNote').textContent = ''; });
-    await page.click('#flightDockSetMode');
+    await page.evaluate(() => {
+      applyFlightHud({ connected: true, simulator: true, armed: true, type: 'tcp', host: '127.0.0.1', port: 5760 });
+      document.getElementById('flightDockModeSelect').value = 'TAKEOFF';
+      document.getElementById('flightDockCommandNote').textContent = '';
+      document.getElementById('flightDockSetMode').click();
+    });
     await page.waitForFunction(() => (document.getElementById('flightDockCommandNote').textContent || '').length > 0);
     expect(voice.at(-1)).toContain('"mode":"TAKEOFF"');
 
@@ -552,12 +561,71 @@ describe('flight dock and map live', () => {
     expect(voice.length).toBe(voiceBeforePhrase + 1);
     expect(voice.at(-1)).toContain('"mode":"TAKEOFF"');
     expect(phrasePosts).toEqual([]);
+    await page.evaluate(() => {
+      window.__talkLog = [];
+      window.__vlcSpeakAnswer = async (spoken) => {
+        window.__talkLog.push({
+          text: String(spoken || ''),
+          note: document.getElementById('flightDockCommandNote')?.textContent || '',
+        });
+      };
+    });
+    const askPosts = [];
+    page.on('request', (req) => {
+      if (req.method() !== 'POST') return;
+      if (req.url().includes('/api/assist/message')) askPosts.push('message');
+    });
+    const natural = [
+      ['שיוט', 'CRUISE'],
+      ['מצב ידני', 'MANUAL'],
+      ['חזרה הביתה', 'RTL'],
+      ['stabilize', 'STABILIZE'],
+      ['manual', 'MANUAL'],
+      ['rtl', 'RTL'],
+    ];
+    for (const [phrase, mode] of natural) {
+      const before = voice.length;
+      await page.evaluate((value) => {
+        applyFlightHud({ connected: true, simulator: true, armed: false, type: 'tcp', host: '127.0.0.1', port: 5760 });
+        const input = document.getElementById('flightPhraseInput');
+        input.value = value;
+        document.getElementById('flightDockCommandNote').textContent = '';
+        document.getElementById('flightPhraseForm').requestSubmit();
+      }, phrase);
+      await page.waitForFunction(() => (document.getElementById('flightDockCommandNote').textContent || '').length > 0);
+      expect(voice.length, phrase).toBe(before + 1);
+      expect(voice.at(-1), phrase).toContain(`"mode":"${mode}"`);
+      expect(phrasePosts, phrase).toEqual([]);
+      const heard = await page.evaluate(() => window.__talkLog.at(-1));
+      expect(heard.note, phrase).toBe(heard.text);
+      expect(heard.text.length, phrase).toBeGreaterThan(0);
+    }
+    const beforeAsk = voice.length;
+    await page.evaluate(() => assistSendText('עבור למצב יציב'));
+    expect(voice.length).toBe(beforeAsk + 1);
+    expect(voice.at(-1)).toContain('"mode":"STABILIZE"');
+    expect(voice.at(-1)).not.toContain('operatorConfirmed');
+    expect(askPosts).toEqual([]);
+    const askHeard = await page.evaluate(() => window.__talkLog.at(-1));
+    expect(askHeard.note).toBe(askHeard.text);
+    const beforeArmAsk = voice.length;
+    await page.evaluate(() => assistSendText('חימוש'));
+    expect(voice.length).toBe(beforeArmAsk);
+    expect(askPosts).toEqual([]);
+    const armAsk = await page.evaluate(() => ({
+      note: document.getElementById('flightDockCommandNote').textContent,
+      heard: window.__talkLog.at(-1),
+    }));
+    expect(armAsk.note).toContain('חימוש ונטרול חסומים');
+    expect(armAsk.heard.note).toBe(armAsk.heard.text);
+    expect(armAsk.heard.text).toContain('לא נשלח דבר');
     const askTranscript = await page.evaluate(() => {
       const host = document.getElementById('assistMessages') || document.querySelector('.assist-messages');
       return host ? host.textContent : '';
     });
     expect(askTranscript).not.toContain('תמריא');
-    expect(askTranscript).not.toContain('עבור למצב יציב');
+    expect(askTranscript).toContain('עבור למצב יציב');
+    expect(askTranscript).toContain('חימוש ונטרול חסומים');
 
     const confirm = await page.evaluate(() => {
       const dialog = document.getElementById('flightArmDialog');

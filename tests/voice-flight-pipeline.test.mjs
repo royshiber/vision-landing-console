@@ -1,11 +1,31 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+
+vi.mock('../lib/assist/ask-llm-intent.mjs', async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    classifyAskIntentWithGemini: vi.fn(async () => {
+      throw new Error('gemini should not classify a local flight phrase');
+    }),
+  };
+});
+
 import {
+  matchVoiceFlightPhrase,
   mockGeminiRawIntent,
   resolveVoiceFlightIntent,
   runVoiceFlightTranscript,
   voiceFlightLinkAllowsSend,
 } from '../lib/voice-flight-pipeline.mjs';
 import { sanitizeLlmIntent } from '../lib/assist/ask-llm-intent.mjs';
+
+const pipelineSrc = fs.readFileSync(
+  path.join(path.dirname(fileURLToPath(import.meta.url)), '../lib/voice-flight-pipeline.mjs'),
+  'utf8',
+);
 
 const saved = {
   gemini: process.env.GEMINI_API_KEY,
@@ -62,7 +82,7 @@ describe('voice flight transcript pipeline', () => {
     expect(calls).toEqual([{ kind: 'RTL', mode: null, reason: 'עבור למצב RTL' }]);
     expect(result.sent).toBe(true);
     expect(result.customMode).toBe(11);
-    expect(result.talkback.provider).toBe('mock');
+    expect(result.talkback.provider).toBe('client');
     expect(result.talkback.spoken).toBe(false);
     expect(result.talkback.text).toContain('אושר');
     expect(result.talkback.text).toContain('RTL');
@@ -259,5 +279,95 @@ describe('voice flight transcript pipeline', () => {
     });
     expect(called).toBe(false);
     expect(result.decision).toBe('no_go');
+  });
+
+  it('returns talkback text and does not drain ElevenLabs', async () => {
+    process.env.ELEVENLABS_API_KEY = 'present-but-unused';
+    process.env.GEMINI_API_KEY = 'present-but-unused';
+    expect(pipelineSrc).not.toContain('streamTts');
+    expect(pipelineSrc).not.toContain('for await');
+    const result = await runVoiceFlightTranscript({
+      text: 'שיוט',
+      operatorConfirmed: true,
+      mavConn: simTcp(),
+      applyFlightOp: async () => ({ ok: true, sent: true, customMode: 7 }),
+    });
+    expect(result.sent).toBe(true);
+    expect(result.resolver).toBe('mock-gemini');
+    expect(result.talkback.provider).toBe('client');
+    expect(result.talkback.spoken).toBe(false);
+    expect(result.talkback.text).toContain('CRUISE');
+    expect(result.talkback.text).toContain('אושר');
+  });
+
+  it('resolves natural allowlist phrases locally and keeps arm blocked', async () => {
+    process.env.GEMINI_API_KEY = 'present-but-unused';
+    const phrases = [
+      ['עבור למצב יציב', 'STABILIZE'],
+      ['מצב ידני', 'MANUAL'],
+      ['שיוט', 'CRUISE'],
+      ['חזרה הביתה', 'RTL'],
+      ['תמריא', 'TAKEOFF'],
+      ['stabilize', 'STABILIZE'],
+      ['manual', 'MANUAL'],
+      ['rtl', 'RTL'],
+      ['autotune', 'AUTOTUNE'],
+      ['qhover', 'QHOVER'],
+    ];
+    for (const [text, mode] of phrases) {
+      const match = matchVoiceFlightPhrase(text);
+      expect(match?.sendable, text).toBe(true);
+      expect(match?.mode, text).toBe(mode);
+      const resolved = await resolveVoiceFlightIntent(text);
+      expect(resolved.resolver, text).toBe('mock-gemini');
+      const calls = [];
+      const result = await runVoiceFlightTranscript({
+        text,
+        operatorConfirmed: true,
+        mavConn: simTcp(),
+        applyFlightOp: async (args) => {
+          calls.push(args);
+          return { ok: true, sent: true, customMode: 1 };
+        },
+      });
+      expect(result.sent, text).toBe(true);
+      expect(result.talkback.spoken, text).toBe(false);
+      expect(calls[0].mode, text).toBe(mode === 'RTL' ? null : mode);
+      expect(calls[0].kind, text).toBe(mode === 'RTL' ? 'RTL' : 'MODE_CHANGE');
+    }
+    for (const text of ['חמש', 'חימוש', 'נטרול', 'arm', 'disarm']) {
+      let called = false;
+      const blocked = await runVoiceFlightTranscript({
+        text,
+        operatorConfirmed: true,
+        mavConn: simTcp(),
+        applyFlightOp: async () => {
+          called = true;
+          return { ok: true, sent: true };
+        },
+      });
+      expect(called, text).toBe(false);
+      expect(blocked.blocked, text).toBe(true);
+      expect(blocked.talkback.text, text).toContain('חימוש ונטרול חסומים');
+      expect(blocked.talkback.text, text).toContain('לא נשלח דבר');
+    }
+    const acro = await runVoiceFlightTranscript({
+      text: 'acro',
+      operatorConfirmed: true,
+      mavConn: simTcp(),
+      applyFlightOp: async () => ({ ok: true, sent: true }),
+    });
+    expect(acro.sent).toBe(false);
+    expect(acro.talkback.text).toContain('אינו ברשימה');
+    delete process.env.GEMINI_API_KEY;
+    const unknown = await runVoiceFlightTranscript({
+      text: 'תעיף את המטוס לחלל',
+      operatorConfirmed: true,
+      mavConn: simTcp(),
+      applyFlightOp: async () => ({ ok: true, sent: true }),
+    });
+    expect(unknown.decision).toBe('not_allowlisted');
+    expect(unknown.talkback.text).toContain('אינה ברשימה המותרת');
+    delete process.env.GEMINI_API_KEY;
   });
 });

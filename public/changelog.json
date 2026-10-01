@@ -1,5 +1,36 @@
 [
   {
+    "version": "1.02.384",
+    "date": "2026-10-01",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Server library",
+        "detail": "voice-flight-pipeline.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "UI / app.js",
+        "detail": "app.js"
+      },
+      {
+        "type": "feat",
+        "title": "Frontend",
+        "detail": "voice-flight-phrases.mjs"
+      },
+      {
+        "type": "ui",
+        "title": "HTML layout",
+        "detail": "index.html"
+      },
+      {
+        "type": "test",
+        "title": "Tests",
+        "detail": "flight-dock-map.test.mjs, voice-flight-pipeline.test.mjs, voice-flight-sitl.test.mjs"
+      }
+    ]
+  },
+  {
     "version": "1.02.383",
     "date": "2026-09-30",
     "changes": [
