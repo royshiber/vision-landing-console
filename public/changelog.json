@@ -4,19 +4,9 @@
     "date": "2026-10-01",
     "changes": [
       {
-        "type": "feat",
-        "title": "UI / app.js",
-        "detail": "app.js"
-      },
-      {
-        "type": "test",
-        "title": "Tests",
-        "detail": "flight-dock-map.test.mjs"
-      },
-      {
-        "type": "docs",
-        "title": "Commercial capabilities overview",
-        "detail": "COMMERCIAL_CAPABILITIES.he.md"
+        "type": "fix",
+        "title": "מצב חי בלי מילה מדוברת נאמר בשמו",
+        "detail": "APP_VERSION 1.02.389. אוטוטיון וכל מצב חי אחר בלי מילה מדוברת נאמרים בשמם. אין חיבור נאמר רק כשאין מצב חי. לא נשלחת פקודה."
       }
     ]
   },
