@@ -4,29 +4,9 @@
     "date": "2026-10-01",
     "changes": [
       {
-        "type": "feat",
-        "title": "Server library",
-        "detail": "voice-flight-pipeline.mjs"
-      },
-      {
-        "type": "feat",
-        "title": "UI / app.js",
-        "detail": "app.js"
-      },
-      {
-        "type": "feat",
-        "title": "Frontend",
-        "detail": "voice-flight-phrases.mjs"
-      },
-      {
-        "type": "test",
-        "title": "Tests",
-        "detail": "flight-dock-map.test.mjs, voice-flight-pipeline.test.mjs, voice-flight-sitl.test.mjs"
-      },
-      {
-        "type": "docs",
-        "title": "Commercial capabilities overview",
-        "detail": "COMMERCIAL_CAPABILITIES.he.md"
+        "type": "fix",
+        "title": "שאלה על המצב היא הקראה",
+        "detail": "APP_VERSION 1.02.386. שאלה על המצב הנוכחי נענית בהקראה ולא נשלחת כפקודה. מצב כמו לא יציב מגיע לשיחה. בקשה מנומסת כמו בבקשה שיוט עדיין שולחת שיוט. דיבור-חזרה הוא שורה קצרה: שיוט, יציב, ידני או חזרה."
       }
     ]
   },
