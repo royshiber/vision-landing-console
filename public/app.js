@@ -19154,7 +19154,7 @@ async function assistSendText(rawText, { channel = 'text' } = {}) {
       return;
     }
     if (flightRoute.action === 'readback') {
-      const line = flightModeReadbackLine(flightRoute.askedMode);
+      const line = flightModeReadbackLine(flightRoute.askedMode, text);
       assistAppendMessage({ role: 'assist', text: line, kind: 'INFORMATION' });
       showFlightTalkback(line);
       return;
@@ -20369,12 +20369,14 @@ function flightVoiceMatch(text) {
   return typeof fn === 'function' ? fn(text) : null;
 }
 
-function flightModeReadbackLine(askedMode) {
+function flightModeReadbackLine(askedMode, text) {
   const mav = typeof latestHudMavlink !== 'undefined' ? latestHudMavlink : null;
   const name = mav && mav.connected === true ? vlcFlightModeName(mav.flightMode, mav) : '';
   const word = name && typeof window.__vlcPilotModeWord === 'function' ? window.__vlcPilotModeWord(name) : '';
   if (!mav || mav.connected !== true || !word) return 'אין חיבור';
-  const asked = String(askedMode || '').trim().toUpperCase();
+  const fromRoute = String(askedMode || '').trim().toUpperCase();
+  const fromSentence = text ? flightVoiceMatch(text)?.askedMode : '';
+  const asked = fromRoute || String(fromSentence || '').trim().toUpperCase();
   const askedWord = asked && typeof window.__vlcPilotModeWord === 'function' ? window.__vlcPilotModeWord(asked) : '';
   if (askedWord) {
     if (asked === name) return `כן. ${askedWord}.`;
@@ -20468,7 +20470,7 @@ async function submitFlightPhrase(raw) {
   if (!text) return;
   const match = flightVoiceMatch(text);
   if (match?.question === true || match?.readback === 'mode') {
-    showFlightTalkback(flightModeReadbackLine(match.askedMode));
+    showFlightTalkback(flightModeReadbackLine(match.askedMode, text));
     return;
   }
   if (match?.passToAsk) {

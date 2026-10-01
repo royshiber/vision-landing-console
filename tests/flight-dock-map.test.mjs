@@ -2,6 +2,8 @@
  * Flight column dock, map follow, and explicit recording. Loopback only.
  */
 import { afterAll, describe, expect, it } from 'vitest';
+import { matchVoiceFlightPhrase, pilotModeWord } from '../public/modules/voice-flight-phrases.mjs';
+import { arduPlaneModeName } from '../lib/arduplane-flight-modes.mjs';
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import net from 'node:net';
@@ -80,7 +82,14 @@ describe('flight dock and map source', () => {
     expect(askSend).toContain('postFlightVoice');
     expect(askSend).toContain('operatorConfirmed: true');
     expect(askSend).toContain("action === 'readback'");
-    expect(askSend).toContain('flightModeReadbackLine');
+    expect(askSend).toContain('flightModeReadbackLine(flightRoute.askedMode, text)');
+    const readbackFn = js.slice(js.indexOf('function flightModeReadbackLine'), js.indexOf('function flightVoiceCommandText'));
+    expect(readbackFn).toContain('כן.');
+    expect(readbackFn).toContain('אין חיבור');
+    expect(readbackFn).not.toContain('מצב הטיסה');
+    expect(readbackFn).not.toContain('אין מצב טיסה');
+    const phraseFn = js.slice(js.indexOf('async function submitFlightPhrase'), js.indexOf('function applyFlightDock'));
+    expect(phraseFn).toContain('flightModeReadbackLine(match.askedMode, text)');
     expect(askSend).toContain('נדחה. הפקודה אינה ברשימה המותרת. לא נשלח דבר.');
     expect(askSend.indexOf('postFlightVoice')).toBeLessThan(askSend.indexOf("fetch('/api/assist/message'"));
     expect(js).toContain('function showFlightTalkback(');
@@ -104,6 +113,44 @@ describe('flight dock and map source', () => {
     expect(boot).toContain("'/api/telemetry-archive/start'");
     expect(boot).toContain('paintRecordChrome(false)');
     expect(boot.indexOf('paintRecordChrome(false)')).toBeLessThan(boot.indexOf('void refresh()'));
+  });
+});
+
+describe('flight mode yes/no uses the real readback', () => {
+  function loadReadback(hud) {
+    const voiceMatch = js.slice(js.indexOf('function flightVoiceMatch'), js.indexOf('function flightModeReadbackLine'));
+    const readback = js.slice(js.indexOf('function flightModeReadbackLine'), js.indexOf('function flightVoiceCommandText'));
+    const route = js.slice(js.indexOf('function askFlightRoute'), js.indexOf('async function postFlightVoice'));
+    const src = `${voiceMatch}\n${readback}\n${route}\nreturn { flightModeReadbackLine, askFlightRoute };`;
+    const windowStub = {
+      __vlcMatchVoiceFlightPhrase: matchVoiceFlightPhrase,
+      __vlcPilotModeWord: pilotModeWord,
+    };
+    const vlcFlightModeName = (raw) => {
+      const n = Number(raw);
+      return Number.isInteger(n) ? arduPlaneModeName(n) : null;
+    };
+    return new Function('latestHudMavlink', 'window', 'vlcFlightModeName', src)(hud, windowStub, vlcFlightModeName);
+  }
+
+  it('calls flightModeReadbackLine and askFlightRoute from app.js', () => {
+    const cruise = loadReadback({ connected: true, flightMode: 7 });
+    const route = cruise.askFlightRoute('האם אנחנו בשיוט');
+    expect(route).toEqual({ action: 'readback', askedMode: 'CRUISE' });
+    const yes = cruise.flightModeReadbackLine(route.askedMode, 'האם אנחנו בשיוט');
+    expect(yes).toBe('כן. שיוט.');
+    expect(yes).not.toBe('מצב הטיסה שיוט.');
+    const stable = loadReadback({ connected: true, flightMode: 2 });
+    const no = stable.flightModeReadbackLine(route.askedMode, 'האם אנחנו בשיוט');
+    expect(no).toBe('לא. עכשיו יציב.');
+    const down = loadReadback({ connected: false, flightMode: null });
+    const missing = down.flightModeReadbackLine(route.askedMode, 'האם אנחנו בשיוט');
+    expect(missing).toBe('אין חיבור');
+    expect(missing).not.toBe('אין מצב טיסה.');
+    expect(cruise.askFlightRoute('מה המצב של הסוללה')).toBeNull();
+    expect(cruise.askFlightRoute('לא שיוט')).toBeNull();
+    expect(cruise.flightModeReadbackLine.toString()).not.toContain('מצב הטיסה');
+    expect(cruise.flightModeReadbackLine.toString()).not.toContain('אין מצב טיסה');
   });
 });
 
@@ -664,6 +711,24 @@ describe('flight dock and map live', () => {
     expect(five).toContain('אינה ברשימה');
     expect(five).not.toContain('חימוש ונטרול חסומים');
 
+    const direct = await page.evaluate(() => {
+      applyFlightHud({ connected: true, simulator: true, armed: false, flightMode: 7, type: 'tcp', host: '127.0.0.1', port: 5760 });
+      const route = askFlightRoute('האם אנחנו בשיוט');
+      const yes = flightModeReadbackLine(route && route.askedMode, 'האם אנחנו בשיוט');
+      applyFlightHud({ connected: true, simulator: true, armed: false, flightMode: 2, type: 'tcp', host: '127.0.0.1', port: 5760 });
+      const no = flightModeReadbackLine(route && route.askedMode, 'האם אנחנו בשיוט');
+      applyFlightHud({ connected: false, armed: false, simulator: false, flightMode: null });
+      const missing = flightModeReadbackLine(route && route.askedMode, 'האם אנחנו בשיוט');
+      return { route, yes, no, missing, body: flightModeReadbackLine.toString() };
+    });
+    expect(direct.route).toEqual({ action: 'readback', askedMode: 'CRUISE' });
+    expect(direct.yes).toBe('כן. שיוט.');
+    expect(direct.yes).not.toBe('מצב הטיסה שיוט.');
+    expect(direct.no).toBe('לא. עכשיו יציב.');
+    expect(direct.missing).toBe('אין חיבור');
+    expect(direct.missing).not.toBe('אין מצב טיסה.');
+    expect(direct.body).not.toContain('מצב הטיסה');
+    expect(direct.body).not.toContain('אין מצב טיסה');
     const beforeQuestion = voice.length;
     const postsBeforeQuestion = askPosts.length;
     await page.evaluate(() => {
