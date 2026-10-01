@@ -674,12 +674,42 @@ describe('flight dock and map live', () => {
     expect(voice.length).toBe(beforeQuestion);
     expect(askPosts.length).toBe(postsBeforeQuestion);
     const questionNote = await page.evaluate(() => document.getElementById('flightDockCommandNote').textContent);
-    expect(questionNote).toBe('מצב הטיסה שיוט.');
+    expect(questionNote).toBe('כן. שיוט.');
+    await page.evaluate(() => {
+      applyFlightHud({ connected: true, simulator: true, armed: false, flightMode: 2, type: 'tcp', host: '127.0.0.1', port: 5760 });
+      document.getElementById('flightDockCommandNote').textContent = '';
+      return assistSendText('האם אנחנו בשיוט');
+    });
+    expect(voice.length).toBe(beforeQuestion);
+    expect(askPosts.length).toBe(postsBeforeQuestion);
+    const noNote = await page.evaluate(() => document.getElementById('flightDockCommandNote').textContent);
+    expect(noNote).toBe('לא. עכשיו יציב.');
+    await page.evaluate(() => {
+      applyFlightHud({ connected: false, armed: false, simulator: false, flightMode: null });
+      document.getElementById('flightDockCommandNote').textContent = '';
+      return assistSendText('האם אנחנו בשיוט');
+    });
+    expect(voice.length).toBe(beforeQuestion);
+    const missing = await page.evaluate(() => document.getElementById('flightDockCommandNote').textContent);
+    expect(missing).toBe('אין חיבור');
+    const beforeBattery = voice.length;
+    const postsBeforeBattery = askPosts.length;
+    await page.evaluate(() => {
+      document.getElementById('flightDockCommandNote').textContent = '';
+      return assistSendText('מה המצב של הסוללה');
+    });
+    expect(voice.length).toBe(beforeBattery);
+    expect(askPosts.length).toBe(postsBeforeBattery + 1);
+    const batteryNote = await page.evaluate(() => document.getElementById('flightDockCommandNote').textContent);
+    expect(batteryNote).not.toContain('שיוט');
     const beforeStatus = voice.length;
     const postsBeforeStatus = askPosts.length;
     await page.evaluate(() => assistSendText('לא יציב'));
     expect(voice.length).toBe(beforeStatus);
     expect(askPosts.length).toBe(postsBeforeStatus + 1);
+    await page.evaluate(() => assistSendText('לא שיוט'));
+    expect(voice.length).toBe(beforeStatus);
+    expect(askPosts.length).toBe(postsBeforeStatus + 2);
     const statusNote = await page.evaluate(() => document.getElementById('flightDockCommandNote').textContent);
     expect(statusNote).not.toContain('אינה ברשימה');
 

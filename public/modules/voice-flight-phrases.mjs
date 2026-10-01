@@ -191,9 +191,17 @@ function shapedOnly() {
   };
 }
 
-function modeQuestion() {
+function modeQuestion(askedMode) {
   return {
     blocked: false, negated: false, flightShaped: false, question: true, readback: 'mode', passToAsk: false,
+    askedMode: askedMode || null,
+    kind: null, mode: null, sendable: false,
+  };
+}
+
+function passToAsk() {
+  return {
+    blocked: false, negated: false, flightShaped: false, question: false, passToAsk: true,
     kind: null, mode: null, sendable: false,
   };
 }
@@ -226,16 +234,44 @@ function peelFillers(q) {
   return s;
 }
 
-function isModeQuestion(q) {
-  if (/^(?:באיזה מצב|איזה מצב|מה המצב|מה מצב)(?:\s|$)/.test(q)) return true;
-  if (/^האם(?:\s|$)/.test(q) && mentionsMode(q)) return true;
-  if (/\b(?:are we in|what(?:'s| is) (?:the |our )?(?:flight )?mode|which mode|current mode)\b/.test(q)) return true;
-  if (/[?？]$/.test(q) && mentionsMode(q)) return true;
+function spokenModeName(token) {
+  const key = String(token || '').trim().toLowerCase();
+  if (key === 'ידנית') return 'MANUAL';
+  const mode = MODE_WORDS[key];
+  if (mode && VOICE_SEND_MODES.has(mode)) return mode;
+  return '';
+}
+
+function spokenModeInText(q) {
+  const keys = Object.keys(MODE_WORDS).sort((a, b) => b.length - a.length);
+  for (const key of keys) {
+    if (!VOICE_SEND_MODES.has(MODE_WORDS[key])) continue;
+    if (hasToken(q, key, true)) return MODE_WORDS[key];
+  }
+  if (hasToken(q, 'ידנית', true)) return 'MANUAL';
+  return '';
+}
+
+function bareFlightModeQuestion(q) {
+  const bare = String(q || '').replace(/[?？]+$/, '').trim();
+  if (/^(?:באיזה מצב|איזה מצב)(?:\s+אנחנו|\s+עכשיו)?$/.test(bare)) return true;
+  if (/^מה המצב(?:\s+עכשיו|\s+הטיסה|\s+של הטיסה|\s+שלנו)?$/.test(bare)) return true;
+  if (/^מה מצב(?:\s+הטיסה)?$/.test(bare)) return true;
   return false;
 }
 
-function isStatusAside(q) {
-  return /^לא\s+(?:יציב|יציבה|ידני|ידנית)$/.test(q);
+function isModeQuestion(q) {
+  if (bareFlightModeQuestion(q)) return true;
+  if (/^האם(?:\s|$)/.test(q) && spokenModeInText(q)) return true;
+  if (/\bare we in\b/.test(q) && spokenModeInText(q)) return true;
+  if (/\b(?:what(?:'s| is) (?:the |our )?(?:flight )?mode|which mode|current mode)\b/.test(q)) return true;
+  return false;
+}
+
+function isSpokenModeNegation(q) {
+  const rest = q.replace(/^(?:לא|not|don't|dont|do not|never)\s+/, '').trim();
+  if (!rest || rest === q || /\s/.test(rest)) return false;
+  return Boolean(spokenModeName(rest));
 }
 
 function mentionsMode(q) {
@@ -269,13 +305,11 @@ function stripNegation(q) {
 export function matchVoiceFlightPhrase(text) {
   const q = normalizeVoiceTranscript(text);
   if (!q) return null;
-  if (isModeQuestion(q)) return modeQuestion();
-  if (isStatusAside(q)) {
-    return {
-      blocked: false, negated: false, flightShaped: false, question: false, passToAsk: true,
-      kind: null, mode: null, sendable: false,
-    };
+  if (isModeQuestion(q)) {
+    const asked = bareFlightModeQuestion(q) ? '' : spokenModeInText(q);
+    return modeQuestion(asked);
   }
+  if (isSpokenModeNegation(q)) return passToAsk();
   const peeled = peelFillers(q);
   const withoutNegation = stripNegation(peeled);
   if (withoutNegation && positiveCommand(withoutNegation)) return negated();

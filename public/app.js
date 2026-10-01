@@ -19154,7 +19154,7 @@ async function assistSendText(rawText, { channel = 'text' } = {}) {
       return;
     }
     if (flightRoute.action === 'readback') {
-      const line = flightModeReadbackLine();
+      const line = flightModeReadbackLine(flightRoute.askedMode);
       assistAppendMessage({ role: 'assist', text: line, kind: 'INFORMATION' });
       showFlightTalkback(line);
       return;
@@ -20369,13 +20369,18 @@ function flightVoiceMatch(text) {
   return typeof fn === 'function' ? fn(text) : null;
 }
 
-function flightModeReadbackLine() {
+function flightModeReadbackLine(askedMode) {
   const mav = typeof latestHudMavlink !== 'undefined' ? latestHudMavlink : null;
-  if (!mav || mav.connected !== true) return 'אין מצב טיסה.';
-  const name = vlcFlightModeName(mav.flightMode, mav);
-  const word = typeof window.__vlcPilotModeWord === 'function' ? window.__vlcPilotModeWord(name) : '';
-  if (!word) return 'אין מצב טיסה.';
-  return `מצב הטיסה ${word}.`;
+  const name = mav && mav.connected === true ? vlcFlightModeName(mav.flightMode, mav) : '';
+  const word = name && typeof window.__vlcPilotModeWord === 'function' ? window.__vlcPilotModeWord(name) : '';
+  if (!mav || mav.connected !== true || !word) return 'אין חיבור';
+  const asked = String(askedMode || '').trim().toUpperCase();
+  const askedWord = asked && typeof window.__vlcPilotModeWord === 'function' ? window.__vlcPilotModeWord(asked) : '';
+  if (askedWord) {
+    if (asked === name) return `כן. ${askedWord}.`;
+    return `לא. עכשיו ${word}.`;
+  }
+  return `${word}.`;
 }
 
 function flightVoiceCommandText(text) {
@@ -20388,7 +20393,9 @@ function flightVoiceCommandText(text) {
 function askFlightRoute(text) {
   const match = flightVoiceMatch(text);
   if (!match || match.passToAsk || match.kind === 'LAND') return null;
-  if (match.question === true || match.readback === 'mode') return { action: 'readback' };
+  if (match.question === true || match.readback === 'mode') {
+    return { action: 'readback', askedMode: match.askedMode || '' };
+  }
   if (match.blocked || match.kind === 'ARM' || match.kind === 'DISARM') return { action: 'block' };
   if (match.sendable === true && (match.kind === 'RTL' || match.kind === 'MODE_CHANGE')) {
     return { action: 'send', mode: match.mode };
@@ -20461,7 +20468,7 @@ async function submitFlightPhrase(raw) {
   if (!text) return;
   const match = flightVoiceMatch(text);
   if (match?.question === true || match?.readback === 'mode') {
-    showFlightTalkback(flightModeReadbackLine());
+    showFlightTalkback(flightModeReadbackLine(match.askedMode));
     return;
   }
   if (match?.passToAsk) {

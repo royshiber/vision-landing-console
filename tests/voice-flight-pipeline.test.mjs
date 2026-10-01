@@ -408,10 +408,18 @@ describe('voice flight transcript pipeline', () => {
     const asked = await noSend('האם אנחנו בשיוט', 'CRUISE');
     expect(asked.sent).toBe(false);
     expect(matchVoiceFlightPhrase('האם אנחנו בשיוט')?.question).toBe(true);
+    expect(matchVoiceFlightPhrase('האם אנחנו בשיוט')?.askedMode).toBe('CRUISE');
     expect(matchVoiceFlightPhrase('האם אנחנו בשיוט')?.sendable).toBe(false);
-    expect(matchVoiceFlightPhrase('לא יציב')?.passToAsk).toBe(true);
-    expect(matchVoiceFlightPhrase('לא יציב')?.sendable).toBe(false);
-    await noSend('לא יציב', 'STABILIZE');
+    expect(matchVoiceFlightPhrase('מה המצב של הסוללה')).toBeNull();
+    await noSend('מה המצב של הסוללה', 'CRUISE');
+    expect(matchVoiceFlightPhrase('מה המצב')?.question).toBe(true);
+    expect(matchVoiceFlightPhrase('מה המצב')?.askedMode || null).toBeNull();
+    for (const text of ['לא יציב', 'לא ידני', 'לא שיוט']) {
+      expect(matchVoiceFlightPhrase(text)?.passToAsk, text).toBe(true);
+      expect(matchVoiceFlightPhrase(text)?.sendable, text).toBe(false);
+      expect(matchVoiceFlightPhrase(text)?.negated, text).toBe(false);
+      await noSend(text, 'CRUISE');
+    }
 
     const minutes = await noSend('חמש דקות', 'ARM');
     expect(minutes.blocked).toBe(false);
