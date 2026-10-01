@@ -4,24 +4,9 @@
     "date": "2026-10-01",
     "changes": [
       {
-        "type": "feat",
-        "title": "UI / app.js",
-        "detail": "app.js"
-      },
-      {
-        "type": "feat",
-        "title": "Frontend",
-        "detail": "voice-flight-phrases.mjs"
-      },
-      {
-        "type": "test",
-        "title": "Tests",
-        "detail": "flight-dock-map.test.mjs, voice-flight-pipeline.test.mjs"
-      },
-      {
-        "type": "docs",
-        "title": "Commercial capabilities overview",
-        "detail": "COMMERCIAL_CAPABILITIES.he.md"
+        "type": "fix",
+        "title": "כן או לא לפי המצב החי",
+        "detail": "APP_VERSION 1.02.387. שאלה אם אנחנו בשיוט נענית כן או לא לפי המצב החי, ובלי חיבור נאמר שאין חיבור. שאלה על הסוללה נשארת אצל Ask. לא שיוט אינו נשלח כפקודה."
       }
     ]
   },
