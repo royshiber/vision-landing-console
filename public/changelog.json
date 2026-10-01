@@ -4,14 +4,9 @@
     "date": "2026-10-01",
     "changes": [
       {
-        "type": "feat",
-        "title": "UI / app.js",
-        "detail": "app.js"
-      },
-      {
-        "type": "test",
-        "title": "Tests",
-        "detail": "flight-dock-map.test.mjs"
+        "type": "fix",
+        "title": "כן או לא עובר בפונקציית ההקראה",
+        "detail": "APP_VERSION 1.02.388. השאלה האם אנחנו בשיוט נענית כן או לא מפונקציית ההקראה שהשיחה ושדה הפקודה קוראים לה. בלי חיבור נאמר שאין חיבור. אין המצאת מצב."
       }
     ]
   },
