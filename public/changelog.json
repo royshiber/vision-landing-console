@@ -4,29 +4,9 @@
     "date": "2026-10-01",
     "changes": [
       {
-        "type": "feat",
-        "title": "Server library",
-        "detail": "voice-flight-pipeline.mjs"
-      },
-      {
-        "type": "feat",
-        "title": "UI / app.js",
-        "detail": "app.js"
-      },
-      {
-        "type": "feat",
-        "title": "Frontend",
-        "detail": "voice-flight-phrases.mjs"
-      },
-      {
-        "type": "test",
-        "title": "Tests",
-        "detail": "flight-dock-map.test.mjs, voice-flight-pipeline.test.mjs, voice-flight-sitl.test.mjs"
-      },
-      {
-        "type": "docs",
-        "title": "Commercial capabilities overview",
-        "detail": "COMMERCIAL_CAPABILITIES.he.md"
+        "type": "fix",
+        "title": "פקודה מדוברת רק כשהמשפט כולו הוא הפקודה",
+        "detail": "APP_VERSION 1.02.385. שלילה ומלת מצב בתוך משפט אינן נשלחות. שדה מצב ישן לא גובר על המשפט. משפט לא מוכר נדחה בלי שיחה, ופקודה שנשלחה עוברת באותו אישור של הסימולטור. חימוש ונטרול נשארים חסומים רק כשהמשפט הוא הפקודה עצמה."
       }
     ]
   },
