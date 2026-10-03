@@ -21896,10 +21896,10 @@ function paint(rec, extra = {}) {
     if (applyBtn && !polling) {
       applyBtn.disabled = status.blockedReason === 'armed' || status.blockedReason === 'in_flight';
       if (status.needsConfirmation) {
-        applyBtn.textContent = 'אשר עדכון';
+        applyBtn.textContent = 'אשרו עדכון';
         confirmUnknown = true;
       } else {
-        applyBtn.textContent = 'עדכן עכשיו';
+        applyBtn.textContent = 'עדכנו עכשיו';
         confirmUnknown = false;
       }
       if (status.blockedReason === 'armed' || status.blockedReason === 'in_flight') {
@@ -21918,7 +21918,7 @@ function paint(rec, extra = {}) {
   async function pollUntil(expected, logPath) {
     polling = true;
     banner.hidden = false;
-    textEl.textContent = 'מעדכן...';
+    textEl.textContent = 'מעדכנים…';
     if (applyBtn) applyBtn.disabled = true;
     if (snoozeBtn) snoozeBtn.disabled = true;
     const started = Date.now();
@@ -21941,7 +21941,7 @@ function paint(rec, extra = {}) {
           return;
         }
       } catch {
-        textEl.textContent = 'מעדכן...';
+        textEl.textContent = 'מעדכנים…';
       }
     }
     polling = false;
@@ -21959,8 +21959,8 @@ function paint(rec, extra = {}) {
     const data = await res.json().catch(() => ({}));
     if (res.status === 409 && data.needsConfirmation) {
       confirmUnknown = true;
-      if (applyBtn) applyBtn.textContent = 'אשר עדכון';
-      setError(data.message || 'אשר שוב כדי לעדכן.', null);
+      if (applyBtn) applyBtn.textContent = 'אשרו עדכון';
+      setError(data.message || 'אשרו שוב כדי לעדכן.', null);
       return;
     }
     if (!res.ok || data.ok === false) {
