@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import fs from 'fs';
 import { spawn } from 'child_process';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -9,6 +10,20 @@ const PORT = '4068';
 const BASE = `http://127.0.0.1:${PORT}`;
 
 describe('gimbal window size', () => {
+  it('uses plural imperatives on the window controls', () => {
+    const html = fs.readFileSync(path.join(repoRoot, 'public/index.html'), 'utf8');
+    const start = html.indexOf('id="gimbalScreen"');
+    const end = html.indexOf('mission-region-talk', start);
+    const win = html.slice(start, end);
+    expect(win).toContain('>סגרו</button>');
+    expect(win).not.toContain('>סגור</button>');
+    expect(win).toContain('>דברו</button>');
+    expect(win).toContain('>שלחו</button>');
+    expect(win).toContain('שנו גודל');
+    expect(win).toContain('הזינו פקודה');
+    expect(win).toContain('גררו לפינה');
+  });
+
   it('keeps the default corner small against the map', () => {
     const map = { left: 0, top: 0, width: 900, height: 700 };
     expect(gimbalCornerFromPoint(40, 680, map)).toBe('bl');
