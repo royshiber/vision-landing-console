@@ -4,24 +4,9 @@
     "date": "2026-10-03",
     "changes": [
       {
-        "type": "feat",
-        "title": "UI / app.js",
-        "detail": "app.js"
-      },
-      {
-        "type": "feat",
-        "title": "Frontend",
-        "detail": "camera-frame-hold.mjs, debrief-cameras.mjs"
-      },
-      {
-        "type": "test",
-        "title": "Tests",
-        "detail": "camera-frame-hold.test.mjs, debrief-camera-grid.test.mjs"
-      },
-      {
-        "type": "docs",
-        "title": "Commercial capabilities overview",
-        "detail": "COMMERCIAL_CAPABILITIES.he.md"
+        "type": "fix",
+        "title": "פספוס שני מציג אין אות",
+        "detail": "APP_VERSION 1.02.397. פספוס שני של פריים הגימבל, כשהאות עדיין חי, מציג אין אות או משאיר את הפריים האחרון. האריח לא נשאר ריק בלי האזהרה. פספוס אחד עדיין שומר את הפריים ולא מהבהב אין אות."
       }
     ]
   },
