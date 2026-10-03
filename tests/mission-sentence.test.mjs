@@ -175,4 +175,84 @@ describe('mission sentences through Ask and voice', () => {
     }
     expect(calls).toEqual([]);
   });
+
+  it('answers camera status questions instead of rejecting them', async () => {
+    const calls = [];
+    const live = {
+      ops_signals: { cameras: { cam0: true, cam1: false } },
+    };
+    const questions = ['מה מצב המצלמות', 'האם יש וידאו', 'מה קורה עם המצלמות עכשיו'];
+    for (const text of questions) {
+      const result = await runVoiceFlightTranscript({
+        text,
+        goActive: true,
+        operatorConfirmed: true,
+        statusContext: live,
+        applyFlightOp: async (args) => {
+          calls.push(args);
+          return { ok: true, sent: true };
+        },
+      });
+      expect(result.sent).toBe(false);
+      expect(result.decision).toBe('camera_status');
+      expect(result.talkback.text).toBe('קדמית משדרת. מטה אינה משדרת.');
+      expect(result.talkback.text).not.toContain('אינה ברשימה המותרת');
+      expect(result.talkback.text).not.toContain('אתם במרחב');
+    }
+    const empty = await runVoiceFlightTranscript({ text: 'מה מצב המצלמות' });
+    expect(empty.sent).toBe(false);
+    expect(empty.talkback.text).toBe('אין נתון על זרם המצלמות.');
+    expect(calls).toEqual([]);
+
+    const remote = {
+      connected: true,
+      type: 'tcp',
+      host: '10.1.1.1',
+      simulator: true,
+      simulatorDetection() {
+        return { simulator: true, reason: 'preset' };
+      },
+    };
+    const rtl = await runVoiceFlightTranscript({
+      text: 'תחזור הביתה',
+      goActive: true,
+      operatorConfirmed: true,
+      mavConn: remote,
+      applyFlightOp: async (args) => {
+        calls.push(args);
+        return { ok: true, sent: true };
+      },
+    });
+    expect(rtl.sent).toBe(false);
+    expect(rtl.decision).toBe('not_simulator');
+    expect(rtl.kind).toBe('RTL');
+
+    const negated = await runVoiceFlightTranscript({
+      text: 'אל תחזור הביתה',
+      goActive: true,
+      operatorConfirmed: true,
+      mavConn: remote,
+      requestedMode: 'RTL',
+      applyFlightOp: async (args) => {
+        calls.push(args);
+        return { ok: true, sent: true };
+      },
+    });
+    expect(negated.sent).toBe(false);
+    expect(negated.kind).not.toBe('RTL');
+    expect(negated.decision).not.toBe('sent');
+
+    const arm = await runVoiceFlightTranscript({
+      text: 'חמש',
+      goActive: true,
+      operatorConfirmed: true,
+      applyFlightOp: async (args) => {
+        calls.push(args);
+        return { ok: true, sent: true };
+      },
+    });
+    expect(arm.sent).toBe(false);
+    expect(arm.decision).toBe('blocked');
+    expect(calls).toEqual([]);
+  });
 });

@@ -252,6 +252,18 @@ function spokenModeInText(q) {
   return '';
 }
 
+/** Status questions about the cameras. Not a flight phrase and not a workspace question. */
+export function isSpokenCameraStatusQuestion(text) {
+  const q = normalizeVoiceTranscript(text).replace(/[?؟]+$/g, '').trim();
+  if (!q) return false;
+  if (/מה אני רואה|מה (?:ה)?מצלמות רואות|מה רואות המצלמות|מה עם המצלמות/.test(q)) return false;
+  if (/האם יש וידאו|זרם הווידאו|\bstreaming\b/.test(q)) return true;
+  if (/מצב (?:ה)?מצלמ/.test(q)) return true;
+  if (/מה קורה עם (?:ה)?מצלמ/.test(q)) return true;
+  if (/(?:האם )?(?:ה)?מצלמ\S* משדר/.test(q)) return true;
+  return false;
+}
+
 function bareFlightModeQuestion(q) {
   const bare = String(q || '').replace(/[?？]+$/, '').trim();
   if (/^(?:באיזה מצב|איזה מצב)(?:\s+אנחנו|\s+עכשיו)?$/.test(bare)) return true;
@@ -322,4 +334,5 @@ export function matchVoiceFlightPhrase(text) {
 if (typeof window !== 'undefined') {
   window.__vlcMatchVoiceFlightPhrase = matchVoiceFlightPhrase;
   window.__vlcPilotModeWord = pilotModeWord;
+  window.__vlcCameraStatusQuestion = isSpokenCameraStatusQuestion;
 }

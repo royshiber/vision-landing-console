@@ -1,5 +1,36 @@
 [
   {
+    "version": "1.02.396",
+    "date": "2026-10-03",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Server library",
+        "detail": "voice-flight-pipeline.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "UI / app.js",
+        "detail": "app.js"
+      },
+      {
+        "type": "feat",
+        "title": "Frontend",
+        "detail": "voice-flight-phrases.mjs"
+      },
+      {
+        "type": "test",
+        "title": "Tests",
+        "detail": "mission-sentence.test.mjs"
+      },
+      {
+        "type": "docs",
+        "title": "Commercial capabilities overview",
+        "detail": "COMMERCIAL_CAPABILITIES.he.md"
+      }
+    ]
+  },
+  {
     "version": "1.02.395",
     "date": "2026-10-03",
     "changes": [

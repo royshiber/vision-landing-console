@@ -20696,6 +20696,10 @@ async function submitFlightPhrase(raw) {
     void assistSendText(text);
     return;
   }
+  if (typeof window.__vlcCameraStatusQuestion === 'function' && window.__vlcCameraStatusQuestion(text)) {
+    void assistSendText(text, { channel: 'voice' });
+    return;
+  }
   const route = askFlightRoute(text);
   if (!route || route.action === 'refuse') {
     showFlightTalkback('נדחה. הפקודה אינה ברשימה המותרת. לא נשלח דבר.');
