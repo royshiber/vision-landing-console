@@ -24028,13 +24028,6 @@ body:has(#terrain.panel.visible) .assist-toggle-btn.assist-toggle-float {
     min-height: 100%;
     flex: 0 0 auto;
   }
-  #control.panel.visible .fc-group-row {
-    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr) auto minmax(3.2rem, 4.2rem);
-    grid-template-areas: "key he now input" "meta meta meta meta";
-    align-items: center;
-    gap: 2px 6px;
-    padding: 3px 6px;
-  }
   #control.panel.visible .param-tool-seg {
     flex: 1 1 100%;
   }
@@ -24053,11 +24046,6 @@ body:has(#terrain.panel.visible) .assist-toggle-btn.assist-toggle-float {
   #control.panel.visible .plnd-honesty-key {
     grid-template-columns: minmax(0, 1fr);
   }
-  #control.panel.visible .fc-group-key { grid-area: key; }
-  #control.panel.visible .fc-group-he { grid-area: he; }
-  #control.panel.visible .fc-group-now { grid-area: now; }
-  #control.panel.visible .fc-group-next { grid-area: input; }
-  #control.panel.visible .fc-group-meta { grid-area: meta; }
 }
 
 /* Params: slim chrome so the list starts high and is the only scroller. */
@@ -25030,6 +25018,8 @@ body[data-work-path="rf"] #optics .optics-calib {
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr));
   gap: 8px;
   align-content: start;
+  align-items: start;
+  grid-auto-rows: max-content;
 }
 #control.panel.visible .fc-group-row,
 #control.panel.visible .plnd-honesty-key,
@@ -25347,6 +25337,77 @@ body[data-work-path="rf"] #optics .optics-calib {
     max-width: 240px;
     align-self: stretch;
   }
+}
+
+/* Catalog groups use the same dense card as the profile tiles.
+   A stretched row or a stacked fact leaves an empty interior. */
+#control.panel.visible .fc-group-row {
+  align-self: start;
+  justify-self: stretch;
+  justify-content: flex-start;
+  gap: 2px;
+  min-width: 0;
+  min-height: max-content;
+  height: auto;
+  padding: 4px 6px;
+  box-sizing: border-box;
+}
+#control.panel.visible .fc-group-row .fc-group-he,
+#control.panel.visible .fc-group-row .fc-group-key {
+  width: 100%;
+  flex: 0 0 auto;
+  margin: 0;
+  text-align: start;
+}
+#control.panel.visible .fc-group-row .fc-card-cell {
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 2px 8px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  flex: 0 0 auto;
+}
+#control.panel.visible .fc-group-row .fc-card-kicker {
+  flex: 0 0 auto;
+  width: auto;
+  line-height: 16px;
+  text-align: start;
+}
+#control.panel.visible .fc-group-row .fc-card-value,
+#control.panel.visible .fc-group-row .fc-group-now,
+#control.panel.visible .fc-group-row .fc-group-unit,
+#control.panel.visible .fc-group-row .fc-group-meta {
+  display: block;
+  width: auto;
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  text-align: end;
+}
+#control.panel.visible .fc-group-row .fc-card-control .fc-group-next,
+#control.panel.visible .fc-group-row .fc-card-control input,
+#control.panel.visible .fc-group-row .fc-card-control select {
+  flex: 1 1 100%;
+  width: 100%;
+  max-width: 100%;
+  min-height: 28px;
+  height: auto;
+  margin: 0;
+  box-sizing: border-box;
+}
+#control.panel.visible .fc-group-row .fc-enum-label {
+  flex: 1 1 100%;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  margin: 0;
+  text-align: start;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 16px;
 }
 
 /* Optics HUD: steppers sit outside the number. Values stay centered. */
