@@ -71,13 +71,19 @@ describe('Optics CAM0 and CAM1 tiles', () => {
       document.dispatchEvent(new CustomEvent('vlc-companion-cameras', { detail }));
     }, LIVE);
     await page.waitForFunction(() => {
-      const src = (cam) => document.querySelector(`[data-cam="${cam}"] .debrief-cam-live`)?.getAttribute('src') || '';
+      const src = (cam) => {
+        const img = document.querySelector(`[data-cam="${cam}"] .debrief-cam-live`);
+        return img?.dataset.liveFrame || img?.getAttribute('src') || '';
+      };
       return src('cam0').includes('/api/jetson/v1/cameras/cam0/frame')
         && src('cam1').includes('/api/jetson/v1/cameras/cam1/frame');
     });
     const sawBoth = await page.evaluate((detail) => {
       document.dispatchEvent(new CustomEvent('vlc-companion-cameras', { detail }));
-      const src = (cam) => document.querySelector(`[data-cam="${cam}"] .debrief-cam-live`)?.getAttribute('src') || '';
+      const src = (cam) => {
+        const img = document.querySelector(`[data-cam="${cam}"] .debrief-cam-live`);
+        return img?.dataset.liveFrame || img?.getAttribute('src') || '';
+      };
       return src('cam0').includes('/api/jetson/v1/cameras/cam0/frame')
         && src('cam1').includes('/api/jetson/v1/cameras/cam1/frame');
     }, LIVE);
@@ -204,7 +210,7 @@ describe('Optics CAM0 and CAM1 tiles', () => {
       await page.locator('[data-debrief-cam="a8"]').click();
       await page.waitForFunction(() => {
         const img = document.querySelector('[data-cam="a8"] .debrief-cam-live');
-        const src = img?.getAttribute('src') || '';
+        const src = img?.dataset.liveFrame || img?.getAttribute('src') || '';
         const cam0 = document.querySelector('.debrief-cam-tile[data-cam="cam0"]');
         const cam1 = document.querySelector('.debrief-cam-tile[data-cam="cam1"]');
         return img && img.hidden === false && img.naturalWidth > 0
@@ -263,7 +269,7 @@ describe('Optics CAM0 and CAM1 tiles', () => {
       await page.locator('[data-debrief-cam="a8"]').click();
       await page.waitForFunction(() => {
         const img = document.querySelector('[data-cam="a8"] .debrief-cam-live');
-        const src = img?.getAttribute('src') || '';
+        const src = img?.dataset.liveFrame || img?.getAttribute('src') || '';
         return img && img.hidden === false && img.naturalWidth > 0
           && src.includes('/api/jetson/v1/cameras/cam3/frame')
           && document.querySelector('.debrief-cam-tile[data-cam="cam0"]')?.hidden === true
@@ -299,7 +305,7 @@ describe('Optics CAM0 and CAM1 tiles', () => {
       await page.locator('[data-debrief-cam="cam0"]').click();
       await page.waitForFunction(() => {
         const img = document.querySelector('[data-cam="cam0"] .debrief-cam-live');
-        const src = img?.getAttribute('src') || '';
+        const src = img?.dataset.liveFrame || img?.getAttribute('src') || '';
         return img && img.hidden === false && img.naturalWidth > 0
           && src.includes('/api/jetson/v1/cameras/cam0/frame')
           && !src.includes('/cameras/cam3/')
@@ -311,7 +317,7 @@ describe('Optics CAM0 and CAM1 tiles', () => {
       await page.locator('[data-debrief-cam="cam1"]').click();
       await page.waitForFunction(() => {
         const img = document.querySelector('[data-cam="cam1"] .debrief-cam-live');
-        const src = img?.getAttribute('src') || '';
+        const src = img?.dataset.liveFrame || img?.getAttribute('src') || '';
         return img && img.hidden === false && img.naturalWidth > 0
           && src.includes('/api/jetson/v1/cameras/cam1/frame')
           && document.querySelector('.debrief-cam-tile[data-cam="cam0"]')?.hidden === true
@@ -353,7 +359,7 @@ describe('Optics CAM0 and CAM1 tiles', () => {
         const tile = document.querySelector('.debrief-cam-tile[data-cam="a8"]');
         const img = tile?.querySelector('.debrief-cam-live');
         const note = tile?.querySelector('.debrief-cam-nosignal');
-        const src = img?.getAttribute('src') || '';
+        const src = img?.dataset.liveFrame || img?.getAttribute('src') || '';
         return tile && tile.hidden === false
           && img && img.hidden === true
           && src === ''

@@ -107,22 +107,19 @@ function init() {
   }
 
   const pump = createLatestJpegPump({
-    urlFor(gen) {
-      return `${FRAME}?t=${gen}`;
+    image: () => img,
+    follow: () => open === true,
+    urlFor(gen, seenSeq, info) {
+      const newest = info?.replace ? '&newest=1' : '';
+      return `${FRAME}?since=${seenSeq || 0}&t=${gen}${newest}`;
     },
-    onFrame(src) {
+    onFrame() {
       if (!open) return;
-      img.dataset.frameToken = src;
-      img.onload = () => {
-        if (!open || img.dataset.frameToken !== src) return;
-        redraw();
-        requestAnimationFrame(() => pump.kick());
-      };
-      img.src = src;
       img.hidden = false;
       img.dataset.seen = String(Date.now());
       img.dataset.misses = '0';
       paintNote(false);
+      redraw();
     },
     onMiss() {
       if (!open) return;
@@ -142,6 +139,11 @@ function init() {
       }
       if (showNone) {
         img.hidden = true;
+        if (img.dataset.objectUrl) {
+          try { URL.revokeObjectURL(img.dataset.objectUrl); } catch { /* already revoked */ }
+          img.dataset.objectUrl = '';
+        }
+        img.dataset.liveFrame = '';
         img.removeAttribute('src');
         img.dataset.seen = '';
         paintNote(true);
