@@ -246,6 +246,83 @@ describe('Parameter tiles are dense and not behind a filter wall', () => {
     expect(restored.faultHidden).toBe(true);
   }, 40000);
 
+  it('starts the profile grid inside a 390x740 first paint', async () => {
+    await openParams(390, 740);
+    await page.waitForFunction(() => document.querySelectorAll('#plndProfileHonestyKeys .plnd-honesty-key').length >= 5);
+    const layout = await page.evaluate(() => {
+      const strip = document.getElementById('plndProfileHonestyKeys');
+      const stripBox = strip.getBoundingClientRect();
+      const tiles = [...strip.querySelectorAll('.plnd-honesty-key')].map((el) => {
+        const box = el.getBoundingClientRect();
+        return {
+          key: el.dataset.paramKey,
+          w: box.width,
+          h: box.height,
+          top: box.top,
+          text: el.innerText,
+        };
+      });
+      const grid = document.getElementById('paramsGrid').getBoundingClientRect();
+      const firstCard = document.querySelector('#paramsGrid .param-card')?.getBoundingClientRect();
+      return {
+        tiles,
+        stripOverflow: strip.scrollWidth - strip.clientWidth,
+        stripOverflowX: getComputedStyle(strip).overflowX,
+        gridTop: grid.top,
+        cardTop: firstCard ? firstCard.top : 9999,
+        innerH: window.innerHeight,
+        writeDisabled: document.getElementById('arduWriteBtn')?.disabled === true,
+        faultHidden: document.getElementById('paramToolFault')?.hidden === true,
+        faultText: document.getElementById('paramToolFaultText')?.textContent || '',
+        stripTop: stripBox.top,
+      };
+    });
+    expect(layout.tiles.length).toBeGreaterThanOrEqual(5);
+    expect(Math.max(...layout.tiles.map((tile) => tile.w)) - Math.min(...layout.tiles.map((tile) => tile.w))).toBeLessThanOrEqual(2);
+    expect(Math.max(...layout.tiles.map((tile) => tile.h)) - Math.min(...layout.tiles.map((tile) => tile.h))).toBeLessThanOrEqual(4);
+    expect(Math.max(...layout.tiles.map((tile) => tile.top)) - Math.min(...layout.tiles.map((tile) => tile.top))).toBeLessThanOrEqual(2);
+    expect(layout.stripOverflow).toBeGreaterThan(8);
+    expect(layout.stripOverflowX).toBe('auto');
+    for (const tile of layout.tiles) {
+      expect(tile.text, tile.key).toContain('דיפולט');
+      expect(tile.text, tile.key).toContain('אין חיבור');
+    }
+    expect(layout.gridTop).toBeGreaterThan(layout.stripTop);
+    expect(layout.gridTop).toBeLessThan(layout.innerH);
+    expect(layout.cardTop).toBeLessThan(740);
+    expect(layout.writeDisabled).toBe(true);
+    expect(layout.faultHidden).toBe(true);
+    expect(layout.faultText).not.toMatch(/צמצמו|יותר מדי|עדיין אין פרמטרים/);
+    await page.screenshot({ path: path.join(shotDir, 'params-390-first.png'), fullPage: false });
+
+    const last = layout.tiles[layout.tiles.length - 1].key;
+    await page.locator(`#plndProfileHonestyKeys [data-param-key="${last}"]`).scrollIntoViewIfNeeded();
+    const revealed = await page.evaluate((key) => {
+      const strip = document.getElementById('plndProfileHonestyKeys');
+      const tile = strip.querySelector(`[data-param-key="${key}"]`);
+      const stripBox = strip.getBoundingClientRect();
+      const box = tile.getBoundingClientRect();
+      const visible = box.right > stripBox.left + 8 && box.left < stripBox.right - 8;
+      return { visible, text: tile.innerText };
+    }, last);
+    expect(revealed.visible).toBe(true);
+    expect(revealed.text).toContain('אין חיבור');
+
+    await page.locator('#paramsGrid .param-card .param-info').first().click();
+    const open = await page.locator('#paramInfoPopup').evaluate((el) => ({
+      hidden: el.classList.contains('hidden'),
+      w: el.getBoundingClientRect().width,
+      h: el.getBoundingClientRect().height,
+      text: el.textContent || '',
+    }));
+    expect(open.hidden).toBe(false);
+    expect(open.w).toBeGreaterThan(80);
+    expect(open.h).toBeGreaterThan(24);
+    expect(open.text).toMatch(/מתי לשנות/);
+    await page.keyboard.press('Escape');
+    await page.waitForFunction(() => document.getElementById('paramInfoPopup')?.classList.contains('hidden') === true);
+  }, 40000);
+
   it('keeps honesty tiles equal at 1024x600 and paints help above the params tab', async () => {
     await openParams(1024, 600);
     await page.waitForFunction(() => document.querySelectorAll('#plndProfileHonestyKeys .plnd-honesty-key').length >= 5);

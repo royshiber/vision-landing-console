@@ -25247,6 +25247,30 @@ body[data-work-path="rf"] #optics .optics-calib {
   flex: 1 1 100%;
 }
 
+/* Phone: one equal-height strip. Values stay in the tiles; the row scrolls sideways. */
+@media (max-width: 640px) {
+  #control.panel.visible .plnd-honesty-keys {
+    display: flex;
+    flex-flow: row nowrap;
+    align-items: stretch;
+    justify-content: flex-start;
+    gap: 8px;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+  }
+  #control.panel.visible .plnd-honesty-key {
+    flex: 0 0 240px;
+    width: 240px;
+    min-width: 240px;
+    max-width: 240px;
+    align-self: stretch;
+  }
+}
+
 /* Optics HUD: steppers sit outside the number. Values stay centered. */
 #optics .debrief-cam-tile {
   border: 1px solid rgba(56, 189, 248, 0.55);
