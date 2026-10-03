@@ -394,9 +394,9 @@ function Update-ConsoleFiles {
         Write-Info "Downloading $RepoZipUrl ..."
         Get-File $RepoZipUrl $zip
         Write-Info 'Extracting ...'
-        # Expand-Archive aborts on entries whose names are illegal on Windows
-        # (e.g. Linux usb-modeswitch files named '12d1:14fe'). Extract entry by
-        # entry and skip those; they are only used on the Jetson.
+        # A full-archive expand aborts on long paths and on names Windows
+        # cannot store (Linux usb-modeswitch files named '12d1:14fe').
+        # Extract entry by entry and skip those; they are only used on the Jetson.
         Add-Type -AssemblyName System.IO.Compression.FileSystem
         $bad = [char[]]':*?"<>|'
         $skipped = 0
@@ -853,8 +853,31 @@ function Invoke-Main {
         Write-Host '  Restored the previous console code. Settings and data were kept.' -ForegroundColor Green
         return
     }
-    if ($UpdateOnly) { Write-Host '  AIRVIX ground console - UPDATE' -ForegroundColor Cyan }
-    else { Write-Host '  AIRVIX ground console - Windows installer' -ForegroundColor Cyan }
+    if ($UpdateOnly) {
+        # Hand off to the light updater and leave this process. Do not fall
+        # through into .env, Tailscale, or a second server start.
+        try {
+            Write-Host '  AIRVIX ground console - UPDATE' -ForegroundColor Cyan
+            Update-PathFromRegistry
+            $nodeExe = Get-NodeExe
+            if (-not $nodeExe) { throw 'Node.js was not found' }
+            $updater = Join-Path $AppDir 'scripts\windows\apply-console-update.mjs'
+            if (-not (Test-Path -LiteralPath $updater)) { throw 'Console updater was not found' }
+            $work = Join-Path $Root 'update-work'
+            New-Item -ItemType Directory -Path $work -Force | Out-Null
+            $staged = Join-Path $work 'apply-console-update.mjs'
+            Copy-Item -LiteralPath $updater -Destination $staged -Force
+            $env:AIRVIX_APP_DIR = $AppDir
+            $env:AIRVIX_UPDATE_LOG = (Join-Path $Root 'update.log')
+            $env:AIRVIX_UPDATE_STATUS = (Join-Path $Root 'update-status.json')
+            & $nodeExe $staged
+            exit $LASTEXITCODE
+        } catch {
+            Write-Bad ("Update stopped: " + $_.Exception.Message)
+            exit 1
+        }
+    }
+    Write-Host '  AIRVIX ground console - Windows installer' -ForegroundColor Cyan
     Write-Host "  Install folder: $Root"
 
     # ---- 1. prerequisites (elevate only if Node is missing, or userspace Tailscale must be configured)

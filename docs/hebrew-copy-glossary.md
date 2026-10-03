@@ -18,6 +18,8 @@ Address the user in the plural imperative.
 | בדקו | בדוק |
 | פתחו | פתח |
 | נסו | נסה |
+| עדכנו | עדכן |
+| אשרו | אשר |
 
 Already in this voice: `הזינו אותו במתקדם`, `בדקו כתובת`, `נסו שוב`.
 

@@ -167,17 +167,41 @@ describe('update status and apply', () => {
     expect(isLoopbackRequest({ socket: { remoteAddress: '192.168.1.20' } })).toBe(false);
   });
 
-  it('launches the in-repo updater hidden on Windows', () => {
+  it('spawns the light Windows updater detached and leaves rollback on the installer', async () => {
+    const { svc, spawnImpl } = service({ platform: 'win32' });
+    const result = await svc.apply({ mavConn: null });
+    expect(result.ok).toBe(true);
+    expect(result.status).toBe(202);
+    const [cmd, args, opts] = spawnImpl.mock.calls[0];
+    expect(cmd).toBe(process.execPath);
+    expect(args[0]).toContain('apply-console-update.mjs');
+    expect(args.join(' ')).not.toContain('Expand-Archive');
+    expect(opts.detached).toBe(true);
+    expect(opts.windowsHide).toBe(true);
+    expect(opts.cwd).toBe(path.dirname(path.resolve('.')));
+    expect(opts.env.AIRVIX_APP_DIR).toBe(path.resolve('.'));
+  });
+
+  it('launches the light Windows updater outside the live tree', () => {
     const launch = buildUpdaterLaunch({
       platform: 'win32',
       appRoot: '/app',
       logPath: path.join(tmp, 'win.log'),
       statusPath: path.join(tmp, 'win.json'),
     });
-    expect(launch.script).toBe(path.join('/app', 'scripts', 'windows', 'install-airvix.ps1'));
-    expect(launch.args).toContain('-UpdateOnly');
-    expect(launch.args).toContain('-WindowStyle');
-    expect(launch.args).toContain('Hidden');
+    expect(launch.script).toBe(path.join('/app', 'scripts', 'windows', 'apply-console-update.mjs'));
+    expect(launch.command).toBe(process.execPath);
+    expect(launch.cwd).toBe(path.dirname('/app'));
+    expect(launch.env.AIRVIX_APP_DIR).toBe('/app');
+    expect(launch.args.join(' ')).not.toContain('Expand-Archive');
+    const rollback = buildUpdaterLaunch({
+      platform: 'win32',
+      appRoot: '/app',
+      rollback: true,
+      logPath: path.join(tmp, 'win.log'),
+      statusPath: path.join(tmp, 'win.json'),
+    });
+    expect(rollback.args).toContain('-Rollback');
   });
 });
 
