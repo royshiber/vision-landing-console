@@ -1501,6 +1501,7 @@ document.addEventListener('contextmenu', (e) => {
 (function initParamInfoPopup() {
   const popup = document.getElementById('paramInfoPopup');
   if (!popup) return;
+  if (popup.parentElement !== document.body) document.body.appendChild(popup);
 
   let currentBtn = null;
 
@@ -1520,16 +1521,17 @@ document.addEventListener('contextmenu', (e) => {
     popup.textContent = text;
     popup.classList.remove('hidden');
 
-    // Position near the button
     const rect = btn.getBoundingClientRect();
-    const pw = 260;
-    let left = rect.left + window.scrollX;
-    let top  = rect.bottom + window.scrollY + 6;
-    if (left + pw > window.innerWidth - 10) left = window.innerWidth - pw - 10;
-    if (left < 6) left = 6;
-    if (top + 120 > window.innerHeight + window.scrollY) top = rect.top + window.scrollY - 8;
+    const margin = 8;
+    const pw = popup.offsetWidth || 260;
+    const ph = popup.offsetHeight || 72;
+    let left = rect.right - pw;
+    let top = rect.bottom + 6;
+    if (left + pw > window.innerWidth - margin) left = window.innerWidth - pw - margin;
+    if (left < margin) left = margin;
+    if (top + ph > window.innerHeight - margin) top = Math.max(margin, rect.top - ph - 6);
     popup.style.left = `${left}px`;
-    popup.style.top  = `${top}px`;
+    popup.style.top = `${top}px`;
   }
 
   document.addEventListener('click', (e) => {

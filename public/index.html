@@ -18,6 +18,7 @@
     <script src="https://cdn.jsdelivr.net/npm/leaflet-rotate@0.2.8/dist/leaflet-rotate.js" crossorigin=""></script>
   </head>
   <body>
+    <div id="paramInfoPopup" class="param-info-popup hidden" role="tooltip" aria-live="polite" dir="rtl"></div>
     <div id="connectWidget" class="connect-widget connect-widget-compact connect-widget-float" title="קישורי תקשורת">
           <button type="button" id="connectToggleBtn" class="conn-pill" aria-expanded="false" aria-controls="connectPanel" title="פתח או סגור את קישורי התקשורת">
             <span id="connectStatusDot" class="conn-dot" data-state="off" aria-label="מצב חיבור"></span>
@@ -2499,8 +2500,6 @@
               </div>
             </div>
           </div>
-
-          <div id="paramInfoPopup" class="param-info-popup hidden" role="tooltip" aria-live="polite"></div>
 
           <div id="hudCtxMenu" class="hud-ctx-menu hidden" role="menu" aria-label="אפשרויות נתון">
             <button id="hudCtxEdit"   class="hud-ctx-item" role="menuitem">✎ ערוך / הוסף נתון</button>

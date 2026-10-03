@@ -245,4 +245,102 @@ describe('Parameter tiles are dense and not behind a filter wall', () => {
     expect(restored.rows.length).toBeGreaterThanOrEqual(22);
     expect(restored.faultHidden).toBe(true);
   }, 40000);
+
+  it('keeps honesty tiles equal at 1024x600 and paints help above the params tab', async () => {
+    await openParams(1024, 600);
+    await page.waitForFunction(() => document.querySelectorAll('#plndProfileHonestyKeys .plnd-honesty-key').length >= 5);
+    const layout = await page.evaluate(() => {
+      const tiles = [...document.querySelectorAll('#plndProfileHonestyKeys .plnd-honesty-key')].map((el) => {
+        const box = el.getBoundingClientRect();
+        const textFails = [];
+        for (const node of el.querySelectorAll('p, span, button, label')) {
+          if (getComputedStyle(node).display === 'none') continue;
+          if (node.scrollWidth > node.clientWidth + 1 || node.scrollHeight > node.clientHeight + 1) {
+            textFails.push((node.className || node.tagName).toString().slice(0, 40));
+          }
+        }
+        return { key: el.dataset.paramKey, w: box.width, h: box.height, top: box.top, bottom: box.bottom, left: box.left, right: box.right, textFails };
+      });
+      const grid = document.getElementById('paramsGrid').getBoundingClientRect();
+      const firstCard = document.querySelector('#paramsGrid .param-card')?.getBoundingClientRect();
+      return {
+        tiles,
+        gridTop: grid.top,
+        cardTop: firstCard ? firstCard.top : 9999,
+        innerH: window.innerHeight,
+        writeDisabled: document.getElementById('arduWriteBtn')?.disabled === true,
+        faultHidden: document.getElementById('paramToolFault')?.hidden === true,
+      };
+    });
+    expect(layout.tiles.length).toBeGreaterThanOrEqual(5);
+    const widths = layout.tiles.map((tile) => tile.w);
+    const heights = layout.tiles.map((tile) => tile.h);
+    expect(Math.max(...widths) - Math.min(...widths)).toBeLessThanOrEqual(2);
+    expect(Math.max(...heights) - Math.min(...heights)).toBeLessThanOrEqual(4);
+    expect(Math.max(...widths)).toBeLessThan(320);
+    for (const tile of layout.tiles) expect(tile.textFails, tile.key).toEqual([]);
+    expect(layout.gridTop).toBeGreaterThan(0);
+    expect(layout.gridTop).toBeLessThan(layout.innerH);
+    expect(layout.cardTop).toBeLessThan(layout.innerH);
+    expect(layout.writeDisabled).toBe(true);
+    expect(layout.faultHidden).toBe(true);
+    for (let i = 0; i < layout.tiles.length; i += 1) {
+      for (let j = i + 1; j < layout.tiles.length; j += 1) {
+        const a = layout.tiles[i];
+        const b = layout.tiles[j];
+        const overlap = a.left < b.right - 1 && a.right > b.left + 1 && a.top < b.bottom - 1 && a.bottom > b.top + 1;
+        expect(overlap, `${a.key} ${b.key}`).toBe(false);
+      }
+    }
+
+    await page.locator('#paramsGrid .param-card .param-info').first().click();
+    const popup = page.locator('#paramInfoPopup');
+    const help = await popup.evaluate((el) => {
+      const box = el.getBoundingClientRect();
+      const style = getComputedStyle(el);
+      let hiddenAncestor = false;
+      let node = el.parentElement;
+      while (node) {
+        if (getComputedStyle(node).display === 'none') hiddenAncestor = true;
+        node = node.parentElement;
+      }
+      const color = style.color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+      const bg = style.backgroundColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+      return {
+        w: box.width,
+        h: box.height,
+        top: box.top,
+        left: box.left,
+        text: el.textContent || '',
+        hiddenAncestor,
+        parent: el.parentElement?.tagName || '',
+        inTerrain: !!el.closest('#terrain'),
+        hiddenClass: el.classList.contains('hidden'),
+        color: color ? [Number(color[1]), Number(color[2]), Number(color[3])] : null,
+        bg: bg ? [Number(bg[1]), Number(bg[2]), Number(bg[3])] : null,
+      };
+    });
+    expect(help.hiddenClass, 'help paints').toBe(false);
+    expect(help.hiddenAncestor).toBe(false);
+    expect(help.inTerrain).toBe(false);
+    expect(help.parent).toBe('BODY');
+    expect(help.w).toBeGreaterThan(80);
+    expect(help.h).toBeGreaterThan(24);
+    expect(help.top).toBeGreaterThanOrEqual(0);
+    expect(help.top + help.h).toBeLessThanOrEqual(600);
+    expect(help.left).toBeGreaterThanOrEqual(0);
+    expect(help.text).toMatch(/מתי לשנות/);
+    expect(contrast(help.color, help.bg)).toBeGreaterThanOrEqual(4.5);
+    await page.screenshot({ path: path.join(shotDir, 'params-1024-help.png'), fullPage: false });
+
+    await page.keyboard.press('Escape');
+    await page.waitForFunction(() => document.getElementById('paramInfoPopup')?.classList.contains('hidden') === true);
+    const closed = await popup.evaluate((el) => ({
+      hidden: el.classList.contains('hidden'),
+      text: el.textContent || '',
+    }));
+    expect(closed.hidden).toBe(true);
+    expect(closed.text).toBe('');
+    await page.screenshot({ path: path.join(shotDir, 'params-1024x600.png'), fullPage: false });
+  }, 40000);
 });
