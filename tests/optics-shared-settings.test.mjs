@@ -257,11 +257,11 @@ describe('optics cameras and gimbal panel', () => {
       zoom: 1,
     };
     await page.waitForFunction(() => (document.getElementById('gimbalPadReason')?.textContent || '').includes('שליטת הגימבל כבויה'));
-    expect(await page.locator('[data-gimbal="up"]').isDisabled()).toBe(true);
-    expect(await page.locator('[data-gimbal="down"]').isDisabled()).toBe(true);
-    expect(await page.locator('[data-gimbal="center"]').isDisabled()).toBe(true);
-    expect(await page.locator('[data-gimbal="zoom-in"]').isDisabled()).toBe(true);
-    expect(await page.locator('[data-gimbal="zoom-out"]').isDisabled()).toBe(true);
+    expect(await page.locator('#gimbalPad [data-gimbal="up"]').isDisabled()).toBe(true);
+    expect(await page.locator('#gimbalPad [data-gimbal="down"]').isDisabled()).toBe(true);
+    expect(await page.locator('#gimbalPad [data-gimbal="center"]').isDisabled()).toBe(true);
+    expect(await page.locator('#gimbalPad [data-gimbal="zoom-in"]').isDisabled()).toBe(true);
+    expect(await page.locator('#gimbalPad [data-gimbal="zoom-out"]').isDisabled()).toBe(true);
     expect(posts).toEqual([]);
 
     gimbal = {
@@ -283,7 +283,7 @@ describe('optics cameras and gimbal panel', () => {
     await page.click('#gimbalSettingsSnap');
     await page.click('#gimbalSettingsRecord');
     await page.click('#gimbalSettingsMode');
-    await page.locator('[data-gimbal="up"]').dispatchEvent('pointerdown');
+    await page.locator('#gimbalPad [data-gimbal="up"]').dispatchEvent('pointerdown');
     const waitPosts = Date.now();
     while (!posts.some((row) => row.url.endsWith('/gimbal/angle') && String(row.body || '').includes('"pitch":-25')) && Date.now() - waitPosts < 4000) {
       await new Promise((r) => setTimeout(r, 50));
@@ -297,23 +297,23 @@ describe('optics cameras and gimbal panel', () => {
     const angle = posts.find((row) => row.url.endsWith('/gimbal/angle') && String(row.body || '').includes('"pitch":-25'));
     expect(angle?.body || '').toContain('"yaw":0');
     expect(posts.some((row) => String(row.body || '').includes('"pitch":0'))).toBe(false);
-    await page.locator('[data-gimbal="up"]').dispatchEvent('pointerup');
+    await page.locator('#gimbalPad [data-gimbal="up"]').dispatchEvent('pointerup');
     const afterRelease = posts.length;
     await new Promise((r) => setTimeout(r, 350));
     expect(posts.slice(afterRelease).some((row) => String(row.body || '').includes('"pitch":0'))).toBe(false);
-    await page.locator('[data-gimbal="zoom-in"]').dispatchEvent('pointerdown');
+    await page.locator('#gimbalPad [data-gimbal="zoom-in"]').dispatchEvent('pointerdown');
     const waitZoom = Date.now();
     while (!posts.some((row) => row.url.endsWith('/gimbal/zoom') && String(row.body || '').includes('"zoom":1')) && Date.now() - waitZoom < 4000) {
       await new Promise((r) => setTimeout(r, 50));
     }
     expect(posts.some((row) => row.url.endsWith('/gimbal/zoom') && String(row.body || '').includes('"zoom":1'))).toBe(true);
-    await page.locator('[data-gimbal="zoom-out"]').dispatchEvent('pointerdown');
+    await page.locator('#gimbalPad [data-gimbal="zoom-out"]').dispatchEvent('pointerdown');
     const waitZoomOut = Date.now();
     while (!posts.some((row) => row.url.endsWith('/gimbal/zoom') && String(row.body || '').includes('"zoom":-1')) && Date.now() - waitZoomOut < 4000) {
       await new Promise((r) => setTimeout(r, 50));
     }
     expect(posts.some((row) => row.url.endsWith('/gimbal/zoom') && String(row.body || '').includes('"zoom":-1'))).toBe(true);
-    await page.locator('[data-gimbal="zoom-out"]').dispatchEvent('pointerup');
+    await page.locator('#gimbalPad [data-gimbal="zoom-out"]').dispatchEvent('pointerup');
     expect(posts.some((row) => String(row.body || '').includes('track'))).toBe(false);
     await page.screenshot({ path: path.join(shotDir, 'optics-gimbal-live-1024x600.png'), animations: 'disabled' });
     await page.click('#opticsCam0Btn');

@@ -490,16 +490,15 @@ describe('connect popover layout and mocked states', () => {
             action: el.dataset.action,
             bg: getComputedStyle(el).backgroundColor,
           }));
-          expect(locked.disabled).toBe(true);
-          expect(locked.title).toBe('גרסת ה-Jetson לא תומכת בשליטה בערוץ');
+          expect(locked.disabled).toBe(false);
           expect(locked.action).toBe('connect');
           expect(locked.bg).not.toBe('rgb(22, 163, 74)');
           const cellLocked = await page.locator('#cellularConnectBtn').evaluate((el) => ({
             disabled: el.disabled,
-            title: el.title,
+            action: el.dataset.action,
           }));
-          expect(cellLocked.disabled).toBe(true);
-          expect(cellLocked.title).toBe('גרסת ה-Jetson לא תומכת בשליטה בערוץ');
+          expect(cellLocked.disabled).toBe(false);
+          expect(cellLocked.action).toBe('connect');
         }
         const file = path.join(shotDir, `${name}.png`);
         await page.screenshot({ path: file, fullPage: false });

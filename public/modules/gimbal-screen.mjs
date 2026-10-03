@@ -5,6 +5,8 @@
  */
 import { frameMissShowsNoSignal } from './camera-frame-hold.mjs';
 import { createLatestJpegPump } from './camera-latest-frame.mjs';
+import { bindGimbalPadRoot } from './gimbal-pad.mjs';
+import { matchVoiceFlightPhrase } from './voice-flight-phrases.mjs';
 
 const FRAME = '/api/jetson/v1/cameras/cam3/frame';
 
@@ -86,6 +88,190 @@ export function drawLockBoxes(canvas, img, list) {
   }
 }
 
+const DEFAULT_CORNER = 'bl';
+const DEFAULT_W = 280;
+const DEFAULT_H = 324;
+const MIN_W = 240;
+const MIN_H = 280;
+const MAX_FRACTION = 0.62;
+const CORNERS = new Set(['tl', 'tr', 'bl', 'br']);
+
+export function clampGimbalWindowSize(width, height, mapWidth, mapHeight) {
+  const maxW = Math.max(MIN_W, Number(mapWidth) * MAX_FRACTION);
+  const maxH = Math.max(MIN_H, Number(mapHeight) * MAX_FRACTION);
+  return {
+    width: Math.round(Math.min(maxW, Math.max(MIN_W, Number(width) || DEFAULT_W))),
+    height: Math.round(Math.min(maxH, Math.max(MIN_H, Number(height) || DEFAULT_H))),
+  };
+}
+
+export function gimbalCornerFromPoint(clientX, clientY, map) {
+  const left = clientX < map.left + map.width / 2;
+  const top = clientY < map.top + map.height / 2;
+  if (top && left) return 'tl';
+  if (top) return 'tr';
+  if (left) return 'bl';
+  return 'br';
+}
+
+function ensureFlightMap() {
+  const terrain = document.getElementById('terrain');
+  if (terrain?.classList.contains('visible')) return;
+  document.querySelector('.tab[data-tab="terrain"]')?.click();
+}
+
+function bindVoice(doc) {
+  const form = doc.getElementById('gimbalScreenVoiceForm');
+  const input = doc.getElementById('gimbalScreenVoiceInput');
+  const reply = doc.getElementById('gimbalScreenVoiceReply');
+  const mic = doc.getElementById('gimbalScreenMic');
+  if (!form || form.dataset.bound === '1') return;
+  form.dataset.bound = '1';
+
+  function showReply(said) {
+    const line = String(said || '').trim() || 'לא נשלח דבר';
+    if (reply) reply.textContent = line;
+    void doc.defaultView?.__vlcSpeakAnswer?.(line);
+  }
+
+  function flightRefusal(text) {
+    const match = matchVoiceFlightPhrase(text);
+    if (!match) return '';
+    if (match.blocked || match.kind === 'ARM' || match.kind === 'DISARM') {
+      return 'נדחה. חימוש ונטרול חסומים. לא נשלח דבר.';
+    }
+    if (match.sendable || match.kind === 'RTL' || match.kind === 'MODE_CHANGE') {
+      return 'נדחה. שיחת הקול סגורה. לא נשלח דבר.';
+    }
+    return '';
+  }
+
+  async function submit(text) {
+    const line = String(text || '').trim().replace(/\s+/g, ' ');
+    if (!line) return;
+    if (input) input.value = '';
+    const refused = flightRefusal(line);
+    if (refused) {
+      showReply(refused);
+      return;
+    }
+    try {
+      const res = await fetch('/api/assist/voice-flight', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: line }),
+      });
+      const data = await res.json().catch(() => ({}));
+      showReply(data?.talkback?.text);
+    } catch {
+      showReply('השליחה נכשלה');
+    }
+  }
+
+  form.addEventListener('submit', (event) => {
+    event.preventDefault();
+    void submit(input?.value || '');
+  });
+
+  const SR = doc.defaultView?.SpeechRecognition || doc.defaultView?.webkitSpeechRecognition;
+  if (!mic) return;
+  if (!SR) {
+    mic.disabled = true;
+    mic.title = 'דיבור אינו זמין בדפדפן זה';
+    return;
+  }
+  const rec = new SR();
+  rec.lang = 'he-IL';
+  rec.interimResults = false;
+  rec.onresult = (event) => {
+    const said = String(event.results?.[0]?.[0]?.transcript || '').trim();
+    mic.classList.remove('is-live');
+    mic.setAttribute('aria-pressed', 'false');
+    if (said) void submit(said);
+  };
+  rec.onend = () => {
+    mic.classList.remove('is-live');
+    mic.setAttribute('aria-pressed', 'false');
+  };
+  rec.onerror = () => {
+    mic.classList.remove('is-live');
+    mic.setAttribute('aria-pressed', 'false');
+    if (reply) reply.textContent = 'הדיבור נכשל';
+  };
+  mic.addEventListener('click', () => {
+    try {
+      rec.start();
+      mic.classList.add('is-live');
+      mic.setAttribute('aria-pressed', 'true');
+    } catch {
+      if (reply) reply.textContent = 'הדיבור נכשל';
+    }
+  });
+}
+
+function bindChrome(screen) {
+  const bar = document.getElementById('gimbalScreenDrag');
+  const handle = document.getElementById('gimbalScreenResize');
+  if (!screen || screen.dataset.chrome === '1') return;
+  screen.dataset.chrome = '1';
+  if (!CORNERS.has(screen.dataset.corner)) screen.dataset.corner = DEFAULT_CORNER;
+  screen.style.width = `${DEFAULT_W}px`;
+  screen.style.height = `${DEFAULT_H}px`;
+
+  function mapRect() {
+    return screen.parentElement?.getBoundingClientRect() || { left: 0, top: 0, width: 800, height: 600 };
+  }
+
+  function applySize(width, height) {
+    const map = mapRect();
+    const next = clampGimbalWindowSize(width, height, map.width, map.height);
+    screen.style.width = `${next.width}px`;
+    screen.style.height = `${next.height}px`;
+  }
+
+  bar?.addEventListener('pointerdown', (event) => {
+    if (event.button !== 0) return;
+    if (event.target.closest('button, input, textarea, a')) return;
+    const startX = event.clientX;
+    const startY = event.clientY;
+    let moved = false;
+    const move = (ev) => {
+      if (Math.hypot(ev.clientX - startX, ev.clientY - startY) > 12) moved = true;
+    };
+    const up = (ev) => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      if (!moved) return;
+      const corner = gimbalCornerFromPoint(ev.clientX, ev.clientY, mapRect());
+      screen.dataset.corner = corner;
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  });
+
+  handle?.addEventListener('pointerdown', (event) => {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const startX = event.clientX;
+    const startY = event.clientY;
+    const startW = screen.offsetWidth;
+    const startH = screen.offsetHeight;
+    const corner = CORNERS.has(screen.dataset.corner) ? screen.dataset.corner : DEFAULT_CORNER;
+    const growX = corner === 'bl' || corner === 'tl' ? 1 : -1;
+    const growY = corner === 'tl' || corner === 'tr' ? 1 : -1;
+    const move = (ev) => {
+      applySize(startW + (ev.clientX - startX) * growX, startH + (ev.clientY - startY) * growY);
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  });
+}
+
 function init() {
   if (typeof document === 'undefined') return;
   const screen = document.getElementById('gimbalScreen');
@@ -93,6 +279,9 @@ function init() {
   const note = document.getElementById('gimbalScreenNote');
   const canvas = document.getElementById('gimbalScreenNotes');
   if (!screen || !img) return;
+  bindGimbalPadRoot(screen);
+  bindVoice(document);
+  bindChrome(screen);
   let list = null;
   let open = false;
 
@@ -152,6 +341,7 @@ function init() {
 
   function setOpen(next) {
     open = next === true;
+    if (open) ensureFlightMap();
     screen.hidden = !open;
     if (!open) {
       pump.stop();
