@@ -586,12 +586,14 @@
             <p class="pulse-purpose">סטטוס מחשבים</p>
             <p class="pulse-health-note">בריאות מחשב המשימה והכלי. לא שינוי מוצר.</p>
           </header>
-          <p id="cam0StatusLine" class="cam0-status-line">
-            <span id="cam0StatusText">CAM0 · לא מחובר · קצב —</span>
-          </p>
-          <p id="cam1StatusLine" class="cam0-status-line">
-            <span id="cam1StatusText">CAM1 · לא מחובר · קצב —</span>
-          </p>
+          <section id="pulseCameraCards" class="pulse-cam-row" aria-label="מצלמות" data-link="down">
+            <article class="pulse-cam-card" data-link="down" data-tone="off">
+              <div class="pulse-cam-head">
+                <span class="pulse-cam-name">מצלמות</span>
+                <span class="pulse-cam-pill">מנותק</span>
+              </div>
+            </article>
+          </section>
           <nav id="pulseSummary" class="pulse-summary" aria-label="סיכום קטגוריות"></nav>
           <div id="pulseCatGrid" class="pulse-cat-grid">
             <article class="pulse-cat" id="pulseCatLinks" data-pulse-cat="links">
@@ -2946,6 +2948,7 @@
     <script type="module" src="./modules/follow-target.mjs?v=__APP_VERSION__"></script>
     <script type="module" src="./modules/gcs-logs.mjs?v=__APP_VERSION__"></script>
     <script type="module" src="./modules/voice-flight-phrases.mjs?v=__APP_VERSION__"></script>
+    <script type="module" src="./modules/pulse-cameras.mjs?v=__APP_VERSION__"></script>
     <script src="./app.js?v=__APP_VERSION__"></script>
     <script src="./versions-rollback.js?v=__APP_VERSION__"></script>
   </body>

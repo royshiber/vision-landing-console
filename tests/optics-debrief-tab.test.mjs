@@ -39,7 +39,8 @@ describe('Optics debrief tab — source', () => {
     expect(html).not.toContain('class="events-column"');
     expect(html).not.toContain('id="eventsList"');
     expect(html).not.toContain('id="cam0StatusLink"');
-    expect(html).toContain('id="cam0StatusText"');
+    expect(html).toContain('id="pulseCameraCards"');
+    expect(html).not.toContain('id="cam0StatusText"');
     expect(html).toMatch(/data-tab="development"[^>]*hidden|hidden[^>]*data-tab="development"/);
     expect(html.indexOf('id="optics"')).toBeLessThan(html.indexOf('id="debriefCamGrid"'));
     expect(html.indexOf('id="debriefCamGrid"')).toBeLessThan(html.indexOf('id="recordings"'));
@@ -176,12 +177,13 @@ describe('Optics debrief tab — live layout', () => {
         '.debrief-cam-label',
         '.debrief-player-kicker',
         '.debrief-player-empty',
-        '#cam0StatusText',
+        '#pulseCameraCards .pulse-cam-name',
+        '#pulseCameraCards .pulse-cam-pill',
         '.cam0-title',
         '#cam0Reason',
         '.cam0-hist-label',
         '.optics-cam-btn',
-        '#cam1StatusText',
+        '#pulseCameraCards .pulse-cam-fact',
         '#cam1Reason',
         '.cam1-title',
       ];
@@ -255,8 +257,8 @@ describe('Optics debrief tab — live layout', () => {
         beside: Boolean(grid && pad) && pad.getBoundingClientRect().right <= grid.getBoundingClientRect().left + 12,
         fovBottom: document.getElementById('cam0Fov')?.getBoundingClientRect().bottom || 0,
         cam0InPulse: panel?.closest('#pulse') != null,
-        statusInPulse: document.getElementById('cam0StatusLine')?.closest('#pulse') != null,
-        cam1InPulse: document.getElementById('cam1StatusLine')?.closest('#pulse') != null,
+        statusInPulse: document.getElementById('pulseCameraCards')?.closest('#pulse') != null,
+        cam1InPulse: document.getElementById('pulseCameraCards')?.closest('#pulse') != null,
       };
     }, FAKE_EVENTS);
   }
@@ -275,7 +277,7 @@ describe('Optics debrief tab — live layout', () => {
       };
       const textFit = [];
       const fonts = [];
-      const selectors = ['#cam1Panel', '#cam1Reason', '.cam1-title', '#cam1Honesty', '.optics-cam-btn', '#cam1Fps', '#cam1StatusText', '.cam0-hist-label'];
+      const selectors = ['#cam1Panel', '#cam1Reason', '.cam1-title', '#cam1Honesty', '.optics-cam-btn', '#cam1Fps', '.cam0-hist-label'];
       for (const sel of selectors) {
         for (const el of document.querySelectorAll(sel)) {
           if (!visible(el)) continue;
@@ -290,14 +292,14 @@ describe('Optics debrief tab — live layout', () => {
         }
       }
       const rateDigits = ['#cam1Fps', '#cam1Latency', '#cam1Drops'].some((sel) => /\d/.test(document.querySelector(sel)?.textContent || ''));
-      const statusRate = /קצב\s*\d/.test(document.querySelector('#cam1StatusText')?.textContent || '');
+      const statusRate = /קצב\s*\d/.test(document.querySelector('#pulseCameraCards')?.textContent || '');
       const digits = rateDigits || statusRate;
       return {
         hiddenCam0: document.getElementById('cam0Panel')?.hidden === true,
         cam0Shown: document.getElementById('cam0Panel')?.hidden !== true,
         cam1Selected: document.getElementById('opticsCam1Btn')?.classList.contains('is-active') === true,
         cam0Selected: document.getElementById('opticsCam0Btn')?.classList.contains('is-active') === true,
-        status: document.getElementById('cam1StatusText')?.textContent || '',
+        status: document.querySelector('#pulseCameraCards .pulse-cam-pill')?.textContent || '',
         reason: document.getElementById('cam1Reason')?.textContent || '',
         fps: document.getElementById('cam1Fps')?.textContent || '',
         disabled: ['cam1Ae', 'cam1Exposure', 'cam1Gain', 'cam1Res', 'cam1FpsSet', 'cam1Record', 'cam1Snap', 'cam1CalibStart'].every((id) => document.getElementById(id)?.disabled),
@@ -358,7 +360,7 @@ describe('Optics debrief tab — live layout', () => {
         expect(cam1.hiddenCam0).toBe(true);
         expect(cam1.cam1Selected).toBe(true);
         expect(cam1.cam0Selected).toBe(false);
-        expect(cam1.status).toContain('לא מחובר');
+        expect(cam1.status).toContain('מנותק');
         expect(cam1.reason).toContain('אין קישור');
         expect(cam1.fps).toBe('—');
         expect(cam1.disabled).toBe(true);
@@ -378,11 +380,11 @@ describe('Optics debrief tab — live layout', () => {
       const offline = await page.evaluate(() => ({
         disabled: ['cam0Ae', 'cam0Exposure', 'cam0Gain', 'cam0Res', 'cam0FpsSet', 'cam0Record', 'cam0Snap'].every((id) => document.getElementById(id)?.disabled),
         reason: document.getElementById('cam0Reason')?.textContent || '',
-        status: document.getElementById('cam0StatusText')?.textContent || '',
+        status: document.querySelector('#pulseCameraCards .pulse-cam-pill')?.textContent || '',
       }));
       expect(offline.disabled).toBe(true);
       expect(offline.reason).toContain('אין קישור');
-      expect(offline.status).toContain('לא מחובר');
+      expect(offline.status).toContain('מנותק');
       await page.locator('#cam0Exposure').evaluate((el) => { el.disabled = false; el.value = '5000'; });
       await page.locator('#cam0Exposure').evaluate((el) => el.dispatchEvent(new Event('change', { bubbles: true })));
       await page.waitForFunction(() => (document.getElementById('cam0Error')?.textContent || '').includes('לא נשמרה'));

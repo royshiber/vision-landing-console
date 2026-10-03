@@ -23344,32 +23344,96 @@ body:has(#pulse.panel.visible) .pulse-home.pulse-status-home {
 }
 
 .recordings-layout > .cam0-panel { grid-column: 1 / -1; }
-#pulse .cam0-status-line {
+#pulse .pulse-cam-row {
   display: flex;
   flex: 0 0 auto;
   flex-wrap: wrap;
-  align-items: center;
-  gap: 4px 8px;
+  align-items: flex-start;
+  gap: 4px;
+  margin: 0;
+  min-width: 0;
+}
+#pulse .pulse-cam-card {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 0 1 auto;
+  width: max-content;
+  max-width: 100%;
+  min-width: 0;
   margin: 0;
   padding: 4px 8px;
-  min-height: 0;
-  border: 1px solid rgba(148, 168, 198, 0.14);
+  border: 1px solid rgba(148, 168, 198, 0.22);
   border-radius: 8px;
   background: #121826;
   color: #e8edf6;
   overflow: visible;
-  white-space: normal;
-  font-family: "Heebo", "Space Grotesk", sans-serif;
-  font-size: clamp(11px, 0.78rem, 14px);
-  font-weight: 700;
-  line-height: 1.35;
 }
-#pulse .cam0-status-line > span {
+#pulse .pulse-cam-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
   min-width: 0;
-  color: inherit;
+}
+#pulse .pulse-cam-name,
+#pulse .pulse-cam-pill,
+#pulse .pulse-cam-fact,
+#pulse .pulse-cam-error {
+  min-width: 0;
   overflow: visible;
   white-space: normal;
   overflow-wrap: anywhere;
+  font-family: "Heebo", "Space Grotesk", sans-serif;
+}
+#pulse .pulse-cam-name {
+  font-size: clamp(11px, 0.78rem, 14px);
+  font-weight: 800;
+  line-height: 1.35;
+  color: #f2f6fb;
+  white-space: normal;
+}
+#pulse .pulse-cam-pill {
+  font-size: clamp(11px, 0.72rem, 13px);
+  font-weight: 800;
+  line-height: 16px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: rgba(148, 168, 198, 0.16);
+  color: #e8edf6;
+}
+#pulse .pulse-cam-card[data-tone="ok"] .pulse-cam-pill {
+  background: rgba(61, 214, 140, 0.18);
+  color: #86efac;
+}
+#pulse .pulse-cam-card[data-tone="warn"] .pulse-cam-pill {
+  background: rgba(253, 230, 138, 0.16);
+  color: #fde68a;
+}
+#pulse .pulse-cam-card[data-tone="bad"] .pulse-cam-pill {
+  background: rgba(240, 113, 103, 0.18);
+  color: #fca5a5;
+}
+#pulse .pulse-cam-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 8px;
+  margin: 0;
+  min-width: 0;
+}
+#pulse .pulse-cam-fact {
+  font-size: clamp(11px, 0.72rem, 13px);
+  font-weight: 600;
+  line-height: 1.35;
+  color: #d7e0ee;
+}
+#pulse .pulse-cam-error {
+  margin: 0;
+  max-width: 28ch;
+  font-size: clamp(11px, 0.72rem, 13px);
+  font-weight: 600;
+  line-height: 1.35;
+  color: #fca5a5;
 }
 .cam0-panel {
   margin-top: 12px;
