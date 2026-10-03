@@ -58,6 +58,10 @@
                 </div>
                 <div class="comm-link-copy">
                   <div class="comm-link-titleline">
+                    <label class="comm-path-pick" title="בחרו סלולר">
+                      <input type="radio" name="commPath" id="commPathCellular" value="cellular" />
+                      <span>בחרו</span>
+                    </label>
                     <strong class="comm-link-name">סלולר</strong>
                     <span id="cellularLinkMeta" class="comm-link-meta" hidden></span>
                   </div>
@@ -88,7 +92,13 @@
                   <span id="homeQualityPct" class="comm-link-pct" hidden></span>
                 </div>
                 <div class="comm-link-copy">
-                  <strong class="comm-link-name">רשת בית</strong>
+                  <div class="comm-link-titleline">
+                    <label class="comm-path-pick" title="בחרו רשת בית">
+                      <input type="radio" name="commPath" id="commPathHome" value="home" />
+                      <span>בחרו</span>
+                    </label>
+                    <strong class="comm-link-name">רשת בית</strong>
+                  </div>
                   <p id="companionLinkHint" class="comm-link-hint">רשת לבית · בדיקות מול מחשב משימה</p>
                   <p id="homeLinkStatus" class="comm-link-status">אין נתונים</p>
                   <p id="homeLinkError" class="comm-link-error" hidden></p>
