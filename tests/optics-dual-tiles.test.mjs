@@ -110,7 +110,7 @@ describe('Optics CAM0 and CAM1 tiles', () => {
         expect(box.count).toBe('2');
         expect(box.hidden).toEqual([false, false]);
         expect(box.pressed).toBe('false');
-        expect(box.camToggles).toBe(0);
+        expect(box.camToggles).toBe(2);
         expect(box.sideBySide).toBe(true);
         expect(box.legacy).toBeNull();
         expect(box.gimbal).toBe(true);
@@ -135,6 +135,97 @@ describe('Optics CAM0 and CAM1 tiles', () => {
       expect(await page.locator('.debrief-cam-tile[data-cam="a8"]').isHidden()).toBe(false);
       expect(await page.locator('.debrief-cam-tile[data-cam="cam0"]').isHidden()).toBe(false);
       expect(await page.locator('.debrief-cam-tile[data-cam="cam1"]').isHidden()).toBe(false);
+    } finally {
+      await page.close();
+    }
+  }, 30000);
+
+  it('lights only the gimbal when it is the only stored camera', async () => {
+    const page = await browser.newPage({ viewport: { width: 1024, height: 600 } });
+    try {
+      await page.addInitScript(() => {
+        localStorage.setItem('vlc.debrief.cameras.v2', '[]');
+      });
+      await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+      await page.click('[data-tab="optics"]');
+      await page.waitForSelector('#debriefCamGrid[data-count="0"]');
+      expect(await page.locator('#debriefCamEmpty').innerText()).toBe('בחרו מצלמה');
+      await page.locator('[data-debrief-cam="a8"]').click();
+      const only = await page.evaluate(() => ({
+        stored: JSON.parse(localStorage.getItem('vlc.debrief.cameras.v2') || 'null'),
+        pressed: {
+          cam0: document.querySelector('[data-debrief-cam="cam0"]')?.getAttribute('aria-pressed'),
+          cam1: document.querySelector('[data-debrief-cam="cam1"]')?.getAttribute('aria-pressed'),
+          gimbal: document.querySelector('[data-debrief-cam="a8"]')?.getAttribute('aria-pressed'),
+        },
+        hidden: {
+          cam0: document.querySelector('.debrief-cam-tile[data-cam="cam0"]')?.hidden,
+          cam1: document.querySelector('.debrief-cam-tile[data-cam="cam1"]')?.hidden,
+          gimbal: document.querySelector('.debrief-cam-tile[data-cam="a8"]')?.hidden,
+        },
+      }));
+      expect(only.stored).toEqual(['a8']);
+      expect(only.pressed).toEqual({ cam0: 'false', cam1: 'false', gimbal: 'true' });
+      expect(only.hidden).toEqual({ cam0: true, cam1: true, gimbal: false });
+
+      await page.locator('[data-debrief-cam="cam0"]').click();
+      await page.locator('[data-debrief-cam="cam1"]').click();
+      await page.locator('[data-debrief-cam="cam0"]').click();
+      await page.locator('[data-debrief-cam="cam1"]').click();
+      const left = await page.evaluate(() => ({
+        stored: JSON.parse(localStorage.getItem('vlc.debrief.cameras.v2') || 'null'),
+        pressed: {
+          cam0: document.querySelector('[data-debrief-cam="cam0"]')?.getAttribute('aria-pressed'),
+          cam1: document.querySelector('[data-debrief-cam="cam1"]')?.getAttribute('aria-pressed'),
+          gimbal: document.querySelector('[data-debrief-cam="a8"]')?.getAttribute('aria-pressed'),
+        },
+      }));
+      expect(left.stored).toEqual(['a8']);
+      expect(left.pressed).toEqual({ cam0: 'false', cam1: 'false', gimbal: 'true' });
+    } finally {
+      await page.close();
+    }
+  }, 30000);
+
+  it('keeps the first camera when a second is chosen and paints the gimbal frame', async () => {
+    const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+    try {
+      await page.route(/\/api\/jetson\/v1\/cameras\/cam3\/frame/, (route) => {
+        route.fulfill({ status: 200, contentType: 'image/jpeg', body: JPEG });
+      });
+      await openOptics(page);
+      await page.locator('[data-debrief-cam="cam1"]').click();
+      expect(await page.locator('.debrief-cam-tile[data-cam="cam0"]').isHidden()).toBe(false);
+      expect(await page.locator('.debrief-cam-tile[data-cam="cam1"]').isHidden()).toBe(true);
+      await page.locator('[data-debrief-cam="cam1"]').click();
+      expect(await page.locator('.debrief-cam-tile[data-cam="cam0"]').isHidden()).toBe(false);
+      expect(await page.locator('.debrief-cam-tile[data-cam="cam1"]').isHidden()).toBe(false);
+      await page.locator('[data-debrief-cam="a8"]').click();
+      await page.waitForFunction(() => {
+        const img = document.querySelector('[data-cam="a8"] .debrief-cam-live');
+        const src = img?.getAttribute('src') || '';
+        const cam0 = document.querySelector('.debrief-cam-tile[data-cam="cam0"]');
+        const cam1 = document.querySelector('.debrief-cam-tile[data-cam="cam1"]');
+        return img && img.hidden === false && img.naturalWidth > 0
+          && src.includes('/api/jetson/v1/cameras/cam3/frame')
+          && cam0 && !cam0.hidden
+          && cam1 && !cam1.hidden;
+      });
+      await page.locator('[data-debrief-cam="cam0"]').click();
+      const left = await page.evaluate(() => ({
+        cam0: document.querySelector('.debrief-cam-tile[data-cam="cam0"]')?.hidden,
+        cam1: document.querySelector('.debrief-cam-tile[data-cam="cam1"]')?.hidden,
+        gimbal: document.querySelector('.debrief-cam-tile[data-cam="a8"]')?.hidden,
+        pressed: {
+          cam1: document.querySelector('[data-debrief-cam="cam1"]')?.getAttribute('aria-pressed'),
+          gimbal: document.querySelector('[data-debrief-cam="a8"]')?.getAttribute('aria-pressed'),
+        },
+      }));
+      expect(left.cam0).toBe(true);
+      expect(left.cam1).toBe(false);
+      expect(left.gimbal).toBe(false);
+      expect(left.pressed.cam1).toBe('true');
+      expect(left.pressed.gimbal).toBe('true');
     } finally {
       await page.close();
     }

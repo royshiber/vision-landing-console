@@ -10,7 +10,7 @@ const CAM1_STREAM = '/api/jetson/v1/cam1/stream.mjpg';
 const SLOTS = [
   { id: 'cam0', apiId: 'cam0', mono: true, hold: '' },
   { id: 'cam1', apiId: 'cam1', mono: true, hold: CAM1_STREAM },
-  { id: 'a8', apiId: 'cam3', mono: false, hold: '' },
+  { id: 'a8', apiId: 'cam3', mono: false, hold: '', frameWhenOpen: true },
 ];
 const streamHolds = new Map();
 
@@ -19,13 +19,16 @@ const master = document.getElementById('flightVideo');
 
 function readOpen() {
   try { localStorage.removeItem(LEGACY_KEY); } catch { /* ignore */ }
-  let extra = [];
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    const parsed = raw ? JSON.parse(raw) : [];
-    if (Array.isArray(parsed)) extra = parsed.filter((id) => id === 'a8');
-  } catch { /* keep both cameras */ }
-  return [...DEFAULT_OPEN, ...extra];
+    if (!raw) return [...DEFAULT_OPEN];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [...DEFAULT_OPEN];
+    const ids = SLOTS.map((slot) => slot.id);
+    return ids.filter((id) => parsed.includes(id));
+  } catch {
+    return [...DEFAULT_OPEN];
+  }
 }
 
 function writeOpen(ids) {
@@ -126,7 +129,7 @@ function paintTile(tile, slot, streaming) {
     return;
   }
   if (slot.hold) ensureHold(slot.hold);
-  const wantFrames = streaming || Boolean(slot.hold);
+  const wantFrames = streaming || Boolean(slot.hold) || slot.frameWhenOpen === true;
   if (wantFrames && img && !tile.hidden) {
     tile.dataset.signal = 'live';
     img.hidden = false;

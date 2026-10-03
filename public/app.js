@@ -7124,20 +7124,34 @@ function initHorizonVideo() {
 initHorizonVideo();
 
 const HORIZON_CAMERA_KEY = 'vlc.horizon.bgCamera.v1';
+const GIMBAL_FRAME = '/api/jetson/v1/cameras/cam3/frame';
+const HORIZON_CAMERA_IDS = ['cam0', 'cam1', 'a8'];
 const HORIZON_CAMERA_SLOTS = [
   { id: 'none', label: 'בלי מצלמה', apiId: null, mono: false },
   { id: 'cam0', label: 'Cam0', apiId: 'cam0', mono: true },
   { id: 'cam1', label: 'Cam1', apiId: 'cam1', mono: true, hold: '/api/jetson/v1/cam1/stream.mjpg' },
-  { id: 'a8', label: 'A8', apiId: 'cam3', mono: false },
+  { id: 'a8', label: 'גימבל', apiId: 'cam3', mono: false, frame: GIMBAL_FRAME },
 ];
 
-function readHorizonCamera() {
+function readHorizonCameras() {
   try {
     const raw = localStorage.getItem(HORIZON_CAMERA_KEY) || 'none';
-    return HORIZON_CAMERA_SLOTS.some((slot) => slot.id === raw) ? raw : 'none';
+    if (!raw || raw === 'none') return [];
+    if (raw.startsWith('[')) {
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return [];
+      return HORIZON_CAMERA_IDS.filter((id) => parsed.includes(id));
+    }
+    return HORIZON_CAMERA_IDS.includes(raw) ? [raw] : [];
   } catch {
-    return 'none';
+    return [];
   }
+}
+
+function writeHorizonCameras(ids) {
+  const ordered = HORIZON_CAMERA_IDS.filter((id) => ids.includes(id));
+  const value = ordered.length === 0 ? 'none' : (ordered.length === 1 ? ordered[0] : JSON.stringify(ordered));
+  try { localStorage.setItem(HORIZON_CAMERA_KEY, value); } catch { /* ignore */ }
 }
 
 function horizonSlotStreaming(detail) {
@@ -7163,82 +7177,191 @@ function horizonCameraDetail(companion, apiId) {
     || null;
 }
 
-function applyHorizonCamera(companion) {
-  const choice = readHorizonCamera();
-  const slot = HORIZON_CAMERA_SLOTS.find((item) => item.id === choice) || HORIZON_CAMERA_SLOTS[0];
-  const img = document.getElementById('horizonCameraBg');
-  const note = document.getElementById('horizonCameraNote');
+function syncHorizonMenu(ids) {
   const menu = document.getElementById('horizonCameraMenu');
   menu?.querySelectorAll('[data-horizon-cam]').forEach((btn) => {
-    btn.setAttribute('aria-checked', btn.dataset.horizonCam === choice ? 'true' : 'false');
+    const id = btn.dataset.horizonCam;
+    const on = id === 'none' ? ids.length === 0 : ids.includes(id);
+    btn.setAttribute('aria-checked', on ? 'true' : 'false');
   });
-  if (!img) return;
-  if (!slot.apiId) {
-    _horizonCameraLive = false;
-    img.hidden = true;
-    img.removeAttribute('src');
-    img.dataset.hold = '';
-    img.classList.remove('is-mono');
-    if (note) note.hidden = true;
-  } else if (slot.hold) {
-    img.classList.toggle('is-mono', slot.mono);
-    img.onload = () => {
-      _horizonCameraLive = true;
-      img.hidden = false;
-      if (note) note.hidden = true;
-      pfdHorizonShell?.classList.toggle('pfd-horizon-shell--video-active', _horizonVideoMode || _horizonCameraLive);
-      drawHorizon(horizonCanvas, _lastRoll, _lastPitch, currentHorizonDrawOpts());
-    };
-    img.onerror = () => {
-      _horizonCameraLive = false;
-      img.hidden = true;
-      if (note) note.hidden = false;
-      pfdHorizonShell?.classList.toggle('pfd-horizon-shell--video-active', _horizonVideoMode);
-      drawHorizon(horizonCanvas, _lastRoll, _lastPitch, currentHorizonDrawOpts());
-    };
-    if (img.dataset.hold !== slot.hold) {
-      img.dataset.hold = slot.hold;
-      img.hidden = true;
-      if (note) note.hidden = false;
-      img.src = slot.hold;
-    } else if (img.complete && img.naturalWidth > 0 && !img.hidden) {
-      _horizonCameraLive = true;
-      if (note) note.hidden = true;
-    }
-  } else {
-    img.dataset.hold = '';
-    const detail = horizonCameraDetail(companion, slot.apiId);
-    const live = horizonSlotStreaming(detail);
-    img.classList.toggle('is-mono', slot.mono);
-    if (live) {
-      _horizonCameraLive = true;
-      img.hidden = false;
-      if (note) note.hidden = true;
-      const stamp = Number(img.dataset.stamp || 0);
-      if (Date.now() - stamp > 700) {
-        img.dataset.stamp = String(Date.now());
-        img.src = `/api/jetson/v1/cameras/${slot.apiId}/frame?t=${Date.now()}`;
-      }
-      img.onerror = () => {
-        _horizonCameraLive = false;
-        img.hidden = true;
-        img.removeAttribute('src');
-        if (note) note.hidden = false;
-        pfdHorizonShell?.classList.toggle('pfd-horizon-shell--video-active', _horizonVideoMode);
-        drawHorizon(horizonCanvas, _lastRoll, _lastPitch, currentHorizonDrawOpts());
-      };
-    } else {
-      _horizonCameraLive = false;
-      img.hidden = true;
-      img.removeAttribute('src');
-      if (note) note.hidden = false;
-    }
-  }
+}
+
+function markHorizonLive() {
+  const imgs = [];
+  const bg = document.getElementById('horizonCameraBg');
+  if (bg) imgs.push(bg);
+  document.querySelectorAll('#horizonCameraStack .pfd-horizon-camera').forEach((node) => imgs.push(node));
+  _horizonCameraLive = imgs.some((node) => !node.hidden && node.naturalWidth > 0);
   const urlVideo = document.getElementById('horizonVideoEl');
   if (urlVideo && _horizonCameraLive) urlVideo.classList.add('hidden');
   else if (urlVideo && _horizonVideoMode) urlVideo.classList.remove('hidden');
   pfdHorizonShell?.classList.toggle('pfd-horizon-shell--video-active', _horizonVideoMode || _horizonCameraLive);
   drawHorizon(horizonCanvas, _lastRoll, _lastPitch, currentHorizonDrawOpts());
+}
+
+function clearHorizonImage(img) {
+  if (!img) return;
+  img.hidden = true;
+  img.removeAttribute('src');
+  img.dataset.hold = '';
+  img.dataset.stamp = '';
+  img.onload = null;
+  img.onerror = null;
+  img.classList.remove('is-mono');
+}
+
+function horizonStack() {
+  let stack = document.getElementById('horizonCameraStack');
+  if (stack) return stack;
+  const bg = document.getElementById('horizonCameraBg');
+  if (!bg?.parentElement) return null;
+  stack = document.createElement('div');
+  stack.id = 'horizonCameraStack';
+  stack.className = 'horizon-cam-stack';
+  stack.hidden = true;
+  bg.insertAdjacentElement('afterend', stack);
+  return stack;
+}
+
+function horizonTile(stack, slot) {
+  let tile = stack.querySelector(`[data-horizon-slot="${slot.id}"]`);
+  if (tile) return tile;
+  tile = document.createElement('div');
+  tile.className = 'horizon-cam-tile';
+  tile.dataset.horizonSlot = slot.id;
+  tile.hidden = true;
+  const img = document.createElement('img');
+  img.className = 'pfd-horizon-camera';
+  img.alt = '';
+  img.hidden = true;
+  const note = document.createElement('p');
+  note.className = 'horizon-cam-tile-note';
+  note.textContent = 'אין אות';
+  const label = document.createElement('p');
+  label.className = 'horizon-cam-tile-label';
+  label.textContent = slot.label;
+  tile.append(img, note, label);
+  stack.appendChild(tile);
+  return tile;
+}
+
+function paintHorizonImage(img, note, slot, companion) {
+  if (!img) return;
+  const showNote = () => {
+    if (!note) return;
+    note.hidden = false;
+    note.textContent = 'אין אות';
+  };
+  if (!slot?.apiId) {
+    clearHorizonImage(img);
+    if (note) note.hidden = true;
+    return;
+  }
+  img.classList.toggle('is-mono', slot.mono === true);
+  if (slot.hold) {
+    img.onload = () => {
+      img.hidden = false;
+      if (note) note.hidden = true;
+      markHorizonLive();
+    };
+    img.onerror = () => {
+      img.hidden = true;
+      showNote();
+      markHorizonLive();
+    };
+    if (img.dataset.hold !== slot.hold) {
+      img.dataset.hold = slot.hold;
+      img.hidden = true;
+      showNote();
+      img.src = slot.hold;
+    } else if (img.complete && img.naturalWidth > 0 && !img.hidden) {
+      if (note) note.hidden = true;
+    }
+    return;
+  }
+  img.dataset.hold = '';
+  const forced = typeof slot.frame === 'string' && slot.frame.length > 0;
+  const detail = horizonCameraDetail(companion, slot.apiId);
+  const live = forced || horizonSlotStreaming(detail);
+  if (!live) {
+    clearHorizonImage(img);
+    showNote();
+    return;
+  }
+  const base = forced ? slot.frame : `/api/jetson/v1/cameras/${slot.apiId}/frame`;
+  img.onload = () => {
+    img.hidden = false;
+    if (note) note.hidden = true;
+    markHorizonLive();
+  };
+  img.onerror = () => {
+    img.hidden = true;
+    img.removeAttribute('src');
+    showNote();
+    markHorizonLive();
+  };
+  const stamp = Number(img.dataset.stamp || 0);
+  const current = String(img.currentSrc || img.src || '');
+  if (!current.includes(base) || Date.now() - stamp > 700) {
+    img.dataset.stamp = String(Date.now());
+    if (!forced) {
+      img.hidden = false;
+      if (note) note.hidden = true;
+    } else if (!(img.complete && img.naturalWidth > 0 && !img.hidden)) {
+      showNote();
+    }
+    img.src = `${base}?t=${Date.now()}`;
+  } else if (img.complete && img.naturalWidth > 0) {
+    img.hidden = false;
+    if (note) note.hidden = true;
+  }
+}
+
+function hideHorizonStack() {
+  const stack = document.getElementById('horizonCameraStack');
+  if (!stack) return;
+  stack.hidden = true;
+  stack.querySelectorAll('.pfd-horizon-camera').forEach((img) => clearHorizonImage(img));
+}
+
+function applyHorizonCamera(companion) {
+  const ids = readHorizonCameras();
+  syncHorizonMenu(ids);
+  const img = document.getElementById('horizonCameraBg');
+  const note = document.getElementById('horizonCameraNote');
+  if (!img) return;
+  if (ids.length <= 1) {
+    hideHorizonStack();
+    const slot = HORIZON_CAMERA_SLOTS.find((item) => item.id === ids[0]) || HORIZON_CAMERA_SLOTS[0];
+    paintHorizonImage(img, note, slot, companion);
+    markHorizonLive();
+    return;
+  }
+  clearHorizonImage(img);
+  if (note) note.hidden = true;
+  const stack = horizonStack();
+  if (!stack) return;
+  stack.hidden = false;
+  stack.dataset.count = String(ids.length);
+  let shown = 0;
+  for (const slot of HORIZON_CAMERA_SLOTS) {
+    if (!slot.apiId) continue;
+    const tile = horizonTile(stack, slot);
+    const on = ids.includes(slot.id);
+    tile.hidden = !on;
+    const tileImg = tile.querySelector('.pfd-horizon-camera');
+    const tileNote = tile.querySelector('.horizon-cam-tile-note');
+    if (!on) {
+      clearHorizonImage(tileImg);
+      if (tileNote) tileNote.hidden = true;
+      tile.style.gridColumn = '';
+      continue;
+    }
+    tile.style.gridColumn = ids.length === 3 && shown === 0 ? '1 / -1' : '';
+    shown += 1;
+    paintHorizonImage(tileImg, tileNote, slot, companion);
+  }
+  markHorizonLive();
 }
 
 function initHorizonCameraMenu() {
@@ -7249,20 +7372,26 @@ function initHorizonCameraMenu() {
   menu.className = 'horizon-cam-menu';
   menu.hidden = true;
   menu.setAttribute('role', 'menu');
-  menu.setAttribute('aria-label', 'מצלמת רקע לאופק');
+  menu.setAttribute('aria-label', 'מצלמות רקע לאופק');
   menu.dir = 'rtl';
   for (const slot of HORIZON_CAMERA_SLOTS) {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'horizon-cam-menu-item';
-    btn.setAttribute('role', 'menuitemradio');
+    btn.setAttribute('role', slot.id === 'none' ? 'menuitem' : 'menuitemcheckbox');
     btn.dataset.horizonCam = slot.id;
     btn.textContent = slot.label;
     btn.addEventListener('click', (event) => {
       event.preventDefault();
       event.stopPropagation();
-      try { localStorage.setItem(HORIZON_CAMERA_KEY, slot.id); } catch { /* ignore */ }
-      menu.hidden = true;
+      if (slot.id === 'none') {
+        writeHorizonCameras([]);
+        menu.hidden = true;
+      } else {
+        const cur = readHorizonCameras();
+        const next = cur.includes(slot.id) ? cur.filter((id) => id !== slot.id) : [...cur, slot.id];
+        writeHorizonCameras(next);
+      }
       applyHorizonCamera(typeof latestCompanionFromServer === 'object' ? latestCompanionFromServer : null);
     });
     menu.appendChild(btn);
