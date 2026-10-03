@@ -230,4 +230,139 @@ describe('Optics CAM0 and CAM1 tiles', () => {
       await page.close();
     }
   }, 30000);
+
+  it('on a phone, choosing a camera shows that picture and marks only that button', async () => {
+    const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    try {
+      const hits = { cam0: 0, cam1: 0, cam3: 0 };
+      await page.route(/\/api\/jetson\/v1\/cameras\/cam[013]\/frame/, (route) => {
+        const url = route.request().url();
+        if (url.includes('/cameras/cam0/frame')) hits.cam0 += 1;
+        else if (url.includes('/cameras/cam1/frame')) hits.cam1 += 1;
+        else if (url.includes('/cameras/cam3/frame')) hits.cam3 += 1;
+        else return route.fulfill({ status: 404, contentType: 'application/json', body: '{}' });
+        return route.fulfill({ status: 200, contentType: 'image/jpeg', body: JPEG });
+      });
+      await page.route(/\/api\/jetson\/v1\/cam1\/stream\.mjpg/, (route) => {
+        route.fulfill({ status: 200, contentType: 'image/jpeg', body: JPEG });
+      });
+      await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+      await page.click('[data-tab="optics"]');
+      await page.waitForSelector('#debriefCamGrid');
+      await page.evaluate((detail) => {
+        document.dispatchEvent(new CustomEvent('vlc-companion-cameras', { detail }));
+      }, {
+        cameras: {
+          cam0: { camera_ok: true, state: 'streaming', fps: 30, has_frame: true, frame_count: 4 },
+          cam1: { camera_ok: true, state: 'streaming', fps: 30, has_frame: true, frame_count: 4 },
+          cam3: { camera_ok: true, state: 'streaming', fps: 15, has_frame: true, frame_count: 2 },
+        },
+      });
+
+      await page.locator('[data-debrief-cam="a8"]').click();
+      await page.waitForFunction(() => {
+        const img = document.querySelector('[data-cam="a8"] .debrief-cam-live');
+        const src = img?.getAttribute('src') || '';
+        return img && img.hidden === false && img.naturalWidth > 0
+          && src.includes('/api/jetson/v1/cameras/cam3/frame')
+          && document.querySelector('.debrief-cam-tile[data-cam="cam0"]')?.hidden === true
+          && document.querySelector('.debrief-cam-tile[data-cam="cam1"]')?.hidden === true;
+      });
+      const marked = await page.evaluate(() => {
+        const btn = (id) => document.querySelector(`[data-debrief-cam="${id}"]`);
+        const bg = (id) => getComputedStyle(btn(id)).backgroundColor;
+        const gimbalTab = document.getElementById('opticsGimbalBtn');
+        const cam0Tab = document.getElementById('opticsCam0Btn');
+        return {
+          labels: [...document.querySelectorAll('#optics .debrief-cam-toggle')].map((el) => el.textContent.trim()),
+          pressed: {
+            cam0: btn('cam0').getAttribute('aria-pressed'),
+            cam1: btn('cam1').getAttribute('aria-pressed'),
+            gimbal: btn('a8').getAttribute('aria-pressed'),
+          },
+          bg: { cam0: bg('cam0'), cam1: bg('cam1'), gimbal: bg('a8') },
+          settings: gimbalTab?.getAttribute('aria-selected'),
+          settingsBg: getComputedStyle(gimbalTab).backgroundColor,
+          idleBg: getComputedStyle(cam0Tab).backgroundColor,
+        };
+      });
+      expect(marked.labels).toEqual(['קדמית', 'מטה', 'גימבל']);
+      expect(marked.pressed).toEqual({ cam0: 'false', cam1: 'false', gimbal: 'true' });
+      expect(marked.bg.gimbal).toBe('rgb(15, 118, 110)');
+      expect(marked.bg.gimbal).not.toBe(marked.bg.cam0);
+      expect(marked.bg.gimbal).not.toBe(marked.bg.cam1);
+      expect(marked.settings).toBe('true');
+      expect(marked.settingsBg).toBe('rgb(15, 118, 110)');
+      expect(marked.settingsBg).not.toBe(marked.idleBg);
+
+      await page.locator('[data-debrief-cam="cam0"]').click();
+      await page.waitForFunction(() => {
+        const img = document.querySelector('[data-cam="cam0"] .debrief-cam-live');
+        const src = img?.getAttribute('src') || '';
+        return img && img.hidden === false && img.naturalWidth > 0
+          && src.includes('/api/jetson/v1/cameras/cam0/frame')
+          && !src.includes('/cameras/cam3/')
+          && document.querySelector('.debrief-cam-tile[data-cam="a8"]')?.hidden === true
+          && document.querySelector('[data-debrief-cam="cam0"]')?.getAttribute('aria-pressed') === 'true'
+          && document.querySelector('[data-debrief-cam="a8"]')?.getAttribute('aria-pressed') === 'false';
+      });
+
+      await page.locator('[data-debrief-cam="cam1"]').click();
+      await page.waitForFunction(() => {
+        const img = document.querySelector('[data-cam="cam1"] .debrief-cam-live');
+        const src = img?.getAttribute('src') || '';
+        return img && img.hidden === false && img.naturalWidth > 0
+          && src.includes('/api/jetson/v1/cameras/cam1/frame')
+          && document.querySelector('.debrief-cam-tile[data-cam="cam0"]')?.hidden === true
+          && document.querySelector('[data-debrief-cam="cam1"]')?.getAttribute('aria-pressed') === 'true'
+          && document.querySelector('[data-debrief-cam="cam0"]')?.getAttribute('aria-pressed') === 'false';
+      });
+      expect(hits.cam0).toBeGreaterThan(0);
+      expect(hits.cam1).toBeGreaterThan(0);
+      expect(hits.cam3).toBeGreaterThan(0);
+    } finally {
+      await page.close();
+    }
+  }, 30000);
+
+  it('on a phone, a missing gimbal frame stays אין אות', async () => {
+    const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    try {
+      await page.route(/\/api\/jetson\/v1\/cameras\/cam3\/frame/, (route) => {
+        route.fulfill({ status: 404, contentType: 'application/json', body: '{"reason":"no_frame"}' });
+      });
+      await page.route(/\/api\/jetson\/v1\/cameras\/cam0\/frame/, (route) => {
+        route.fulfill({ status: 200, contentType: 'image/jpeg', body: JPEG });
+      });
+      await page.addInitScript(() => {
+        localStorage.setItem('vlc.debrief.cameras.v2', JSON.stringify(['cam0']));
+      });
+      await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+      await page.click('[data-tab="optics"]');
+      await page.waitForSelector('#debriefCamGrid');
+      await page.evaluate((detail) => {
+        document.dispatchEvent(new CustomEvent('vlc-companion-cameras', { detail }));
+      }, {
+        cameras: {
+          cam0: { camera_ok: true, state: 'streaming', fps: 30, has_frame: true, frame_count: 4 },
+        },
+      });
+      await page.locator('[data-debrief-cam="a8"]').click();
+      await page.waitForFunction(() => {
+        const tile = document.querySelector('.debrief-cam-tile[data-cam="a8"]');
+        const img = tile?.querySelector('.debrief-cam-live');
+        const note = tile?.querySelector('.debrief-cam-nosignal');
+        const src = img?.getAttribute('src') || '';
+        return tile && tile.hidden === false
+          && img && img.hidden === true
+          && src === ''
+          && note && note.hidden === false
+          && note.textContent === 'אין אות'
+          && document.querySelector('.debrief-cam-tile[data-cam="cam0"]')?.hidden === true
+          && document.querySelector('[data-debrief-cam="a8"]')?.getAttribute('aria-pressed') === 'true';
+      });
+    } finally {
+      await page.close();
+    }
+  }, 30000);
 });

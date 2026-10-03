@@ -9,6 +9,8 @@ const STORAGE_KEY = 'vlc.debrief.cameras.v2';
 const LEGACY_KEY = 'vlc.debrief.cameras.v1';
 const DEFAULT_OPEN = ['cam0', 'cam1'];
 const CAM1_STREAM = '/api/jetson/v1/cam1/stream.mjpg';
+const PHONE_STRIP_QUERY = '(max-width: 720px)';
+// Names stay put: cam0 is קדמית, cam1 is מטה, cam3 is גימבל.
 const SLOTS = [
   { id: 'cam0', apiId: 'cam0', mono: true, hold: '' },
   { id: 'cam1', apiId: 'cam1', mono: true, hold: CAM1_STREAM },
@@ -73,6 +75,16 @@ function paintPlayer() {
   if (empty) empty.hidden = has;
 }
 
+function phoneCameraStrip() {
+  return window.matchMedia(PHONE_STRIP_QUERY).matches;
+}
+
+function settingsButtonId(id) {
+  if (id === 'a8') return 'opticsGimbalBtn';
+  if (id === 'cam1') return 'opticsCam1Btn';
+  return 'opticsCam0Btn';
+}
+
 function applyLayout(open) {
   if (!grid) return;
   const tiles = [...grid.querySelectorAll('.debrief-cam-tile')];
@@ -89,6 +101,7 @@ function applyLayout(open) {
   for (const btn of document.querySelectorAll('[data-debrief-cam]')) {
     const on = open.includes(btn.dataset.debriefCam);
     btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    btn.classList.toggle('is-selected', on);
   }
 }
 
@@ -217,8 +230,13 @@ function render(companion) {
   }
 }
 
-function openSlot(id) {
+function chooseCamera(id) {
   if (!SLOTS.some((slot) => slot.id === id)) return;
+  if (phoneCameraStrip()) {
+    writeOpen([id]);
+    render(latestCompanion);
+    return;
+  }
   const cur = readOpen();
   if (cur.includes(id)) {
     render(latestCompanion);
@@ -229,6 +247,10 @@ function openSlot(id) {
   render(latestCompanion);
 }
 
+function openSlot(id) {
+  chooseCamera(id);
+}
+
 function bind() {
   if (!grid) return;
   const open = readOpen();
@@ -237,6 +259,13 @@ function bind() {
   for (const btn of document.querySelectorAll('[data-debrief-cam]')) {
     btn.addEventListener('click', () => {
       const id = btn.dataset.debriefCam;
+      if (phoneCameraStrip()) {
+        writeOpen([id]);
+        render(latestCompanion);
+        const tab = document.getElementById(settingsButtonId(id));
+        if (tab && tab.getAttribute('aria-selected') !== 'true') tab.click();
+        return;
+      }
       const cur = readOpen();
       const next = cur.includes(id) ? cur.filter((item) => item !== id) : [...cur, id];
       const ordered = SLOTS.map((slot) => slot.id).filter((slotId) => next.includes(slotId));

@@ -134,8 +134,11 @@ describe('Debrief camera grid and horizon menu — live', () => {
 
   it('stacks two cameras on a narrow viewport', async () => {
     await page.setViewportSize({ width: 360, height: 800 });
-    await openDebrief();
-    await setGimbal(false);
+    await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+    await page.evaluate(() => localStorage.setItem('vlc.debrief.cameras.v2', JSON.stringify(['cam0', 'cam1'])));
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await page.click('[data-tab="optics"]');
+    await page.waitForSelector('#debriefCamGrid');
     const box = await page.evaluate(() => {
       const tiles = [...document.querySelectorAll('.debrief-cam-tile')].filter((el) => !el.hidden);
       const rs = tiles.map((el) => el.getBoundingClientRect());
