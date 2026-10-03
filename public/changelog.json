@@ -1,36 +1,5 @@
 [
   {
-    "version": "1.02.390",
-    "date": "2026-10-03",
-    "changes": [
-      {
-        "type": "feat",
-        "title": "UI / app.js",
-        "detail": "app.js"
-      },
-      {
-        "type": "feat",
-        "title": "Frontend",
-        "detail": "cam1-panel.mjs, debrief-cameras.mjs"
-      },
-      {
-        "type": "ui",
-        "title": "HTML layout",
-        "detail": "index.html"
-      },
-      {
-        "type": "ui",
-        "title": "Styles",
-        "detail": "styles.css"
-      },
-      {
-        "type": "test",
-        "title": "Tests",
-        "detail": "debrief-camera-grid.test.mjs, optics-dual-tiles.test.mjs"
-      }
-    ]
-  },
-  {
     "version": "1.02.389",
     "date": "2026-10-01",
     "changes": [
