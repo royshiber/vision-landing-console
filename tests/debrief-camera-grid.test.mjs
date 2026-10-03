@@ -168,7 +168,8 @@ describe('Debrief camera grid and horizon menu — live', () => {
       };
     });
     expect(menu.text).toContain('בלי מצלמה');
-    expect(menu.text).toContain('Cam0');
+    expect(menu.text).toContain('קדמית');
+    expect(menu.text).toContain('מטה');
     expect(menu.text).toContain('גימבל');
     expect(menu.text).not.toContain('A8');
     expect(menu.left).toBeGreaterThanOrEqual(0);
@@ -230,7 +231,7 @@ describe('Debrief camera grid and horizon menu — live', () => {
     expect(both.cam0).toBe('true');
     expect(both.gimbal).toBe('true');
     expect(both.stored).toEqual(['cam0', 'a8']);
-    expect(both.labels).toEqual(['בלי מצלמה', 'Cam0', 'Cam1', 'גימבל']);
+    expect(both.labels).toEqual(['בלי מצלמה', 'קדמית', 'מטה', 'גימבל']);
     await page.waitForFunction(() => {
       const img = document.querySelector('#horizonCameraStack [data-horizon-slot="a8"] .pfd-horizon-camera');
       const src = img?.getAttribute('src') || '';
@@ -275,4 +276,87 @@ describe('Debrief camera grid and horizon menu — live', () => {
     });
     await page.screenshot({ path: path.join(shotDir, 'horizon-gimbal-frame.png') });
   }, 40000);
+
+  it('keeps אין אות or the last gimbal picture after a second miss', async () => {
+    await page.unroute(/\/api\/jetson\/v1\/cameras\/cam3\/frame/).catch(() => {});
+    const jpeg = Buffer.from(
+      '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////2wBDAf//////////////////////////////////////////////////////////////////////////////////////wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAb/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCwABmX/9k=',
+      'base64',
+    );
+    let serveJpeg = true;
+    await page.route(/\/api\/jetson\/v1\/cameras\/cam3\/frame/, (route) => {
+      if (serveJpeg) {
+        route.fulfill({ status: 200, contentType: 'image/jpeg', body: jpeg });
+        return;
+      }
+      route.fulfill({ status: 404, contentType: 'application/json', body: '{"error":"no_frame"}' });
+    });
+    await page.addInitScript(() => {
+      localStorage.setItem('vlc.debrief.cameras.v2', JSON.stringify(['a8']));
+      localStorage.setItem('vlc.horizon.bgCamera.v1', 'none');
+    });
+    await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+    await page.click('[data-tab="optics"]');
+    await page.waitForSelector('.debrief-cam-tile[data-cam="a8"]:not([hidden])');
+    const live = {
+      mode: 'real',
+      reachable: true,
+      vision: {
+        cameras: {
+          cam3: { camera_ok: true, state: 'streaming', fps: 20, last_frame_age_ms: 30, frame_count: 4, has_frame: true },
+        },
+      },
+    };
+    const paint = () => page.evaluate((detail) => {
+      document.dispatchEvent(new CustomEvent('vlc-companion-cameras', { detail }));
+    }, live);
+    await page.waitForFunction(() => {
+      const img = document.querySelector('.debrief-cam-tile[data-cam="a8"] .debrief-cam-live');
+      return Number(img?.dataset.seen || 0) > 0 && img.hidden === false;
+    });
+    serveJpeg = false;
+    await page.waitForTimeout(750);
+    await paint();
+    await page.waitForFunction(() => {
+      const img = document.querySelector('.debrief-cam-tile[data-cam="a8"] .debrief-cam-live');
+      return Number(img?.dataset.misses || 0) === 1;
+    });
+    const one = await page.evaluate(() => {
+      const tile = document.querySelector('.debrief-cam-tile[data-cam="a8"]');
+      const img = tile.querySelector('.debrief-cam-live');
+      const note = tile.querySelector('.debrief-cam-nosignal');
+      return { misses: Number(img.dataset.misses || 0), imgHidden: img.hidden, noteHidden: note.hidden, src: Boolean(img.getAttribute('src')) };
+    });
+    expect(one.misses).toBe(1);
+    expect(one.imgHidden).toBe(false);
+    expect(one.noteHidden).toBe(true);
+    expect(one.src).toBe(true);
+    await page.waitForTimeout(750);
+    await paint();
+    await page.waitForFunction(() => {
+      const img = document.querySelector('.debrief-cam-tile[data-cam="a8"] .debrief-cam-live');
+      return Number(img?.dataset.misses || 0) >= 2;
+    });
+    await paint();
+    await page.locator('.debrief-cam-tile[data-cam="a8"]').screenshot({
+      path: path.join(shotDir, 'gimbal-second-miss.png'),
+    });
+    const two = await page.evaluate(() => {
+      const tile = document.querySelector('.debrief-cam-tile[data-cam="a8"]');
+      const img = tile.querySelector('.debrief-cam-live');
+      const note = tile.querySelector('.debrief-cam-nosignal');
+      const shown = img.hidden === false && Number(img.dataset.seen || 0) > 0 && Boolean(img.getAttribute('src'));
+      const warned = note.hidden === false && note.textContent === 'אין אות';
+      return {
+        misses: Number(img.dataset.misses || 0),
+        shown,
+        warned,
+        empty: img.hidden === true && note.hidden === true,
+      };
+    });
+    expect(two.misses).toBeGreaterThanOrEqual(2);
+    expect(two.empty).toBe(false);
+    expect(two.shown || two.warned).toBe(true);
+    await page.unroute(/\/api\/jetson\/v1\/cameras\/cam3\/frame/);
+  }, 20000);
 });

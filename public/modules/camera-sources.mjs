@@ -4,9 +4,9 @@
  */
 
 export const CAMERA_SOURCES = Object.freeze([
-  { id: 'cam0', labelHe: 'אפס', emptyHe: 'אין אות' },
-  { id: 'cam1', labelHe: 'קדמית', emptyHe: 'אין פריים' },
-  { id: 'cam2', labelHe: 'מטה', emptyHe: 'אין פריים' },
+  { id: 'cam0', labelHe: 'קדמית', emptyHe: 'אין אות' },
+  { id: 'cam1', labelHe: 'מטה', emptyHe: 'אין פריים' },
+  { id: 'cam2', labelHe: 'מצלמה 2', emptyHe: 'אין פריים' },
   { id: 'cam3', labelHe: 'גימבל', emptyHe: 'אין פריים' },
 ]);
 

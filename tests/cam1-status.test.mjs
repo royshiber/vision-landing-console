@@ -21,7 +21,7 @@ describe('CAM1 display rules', () => {
   it('shows an error and retries with backoff instead of a live rate', () => {
     expect(honestyText({ ...liveDrill, real: true }, true)).toBe(STREAM_ERR);
     expect(honestyText({ ...liveDrill, state: 'error' }, false)).toBe('השידור נכשל. ננסה שוב.');
-    expect(statusPhrase({ ...liveDrill, real: true }, true)).toBe('CAM1 · שגיאה · קצב —');
+    expect(statusPhrase({ ...liveDrill, real: true }, true)).toBe('מטה · שגיאה · קצב —');
     expect(statusPhrase({ ...liveDrill, state: 'error' }, false)).not.toContain('30');
     expect(nextStreamDelayMs(0)).toBe(400);
     expect(nextStreamDelayMs(1)).toBe(800);
@@ -45,7 +45,7 @@ describe('CAM1 display rules', () => {
   });
 
   it('shows a present idle camera as waiting', () => {
-    expect(statusPhrase({ state: 'idle', camera_ok: false }, false)).toBe('CAM1 · מחוברת, ממתינה · קצב —');
-    expect(statusPhrase(null, false)).toBe('CAM1 · לא מחובר · קצב —');
+    expect(statusPhrase({ state: 'idle', camera_ok: false }, false)).toBe('מטה · מחוברת, ממתינה · קצב —');
+    expect(statusPhrase(null, false)).toBe('מטה · לא מחובר · קצב —');
   });
 });

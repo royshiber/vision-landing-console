@@ -7137,8 +7137,8 @@ const GIMBAL_FRAME = '/api/jetson/v1/cameras/cam3/frame';
 const HORIZON_CAMERA_IDS = ['cam0', 'cam1', 'a8'];
 const HORIZON_CAMERA_SLOTS = [
   { id: 'none', label: 'בלי מצלמה', apiId: null, mono: false },
-  { id: 'cam0', label: 'Cam0', apiId: 'cam0', mono: true },
-  { id: 'cam1', label: 'Cam1', apiId: 'cam1', mono: true, hold: '/api/jetson/v1/cam1/stream.mjpg' },
+  { id: 'cam0', label: 'קדמית', apiId: 'cam0', mono: true },
+  { id: 'cam1', label: 'מטה', apiId: 'cam1', mono: true, hold: '/api/jetson/v1/cam1/stream.mjpg' },
   { id: 'a8', label: 'גימבל', apiId: 'cam3', mono: false, frame: GIMBAL_FRAME },
 ];
 
@@ -7254,6 +7254,17 @@ function horizonTile(stack, slot) {
   return tile;
 }
 
+function horizonFrameMissShowsNoSignal(opts) {
+  const fn = typeof window !== 'undefined' ? window.__vlcFrameMissShowsNoSignal : null;
+  if (typeof fn === 'function') return fn(opts);
+  const misses = Number(opts?.consecutiveMisses);
+  const seen = Number(opts?.seenAt);
+  const stamp = Number(opts?.now);
+  const recent = Number.isFinite(seen) && seen > 0 && Number.isFinite(stamp) && stamp - seen <= 4000;
+  if (misses <= 1 && (recent || opts?.streaming === true)) return false;
+  return true;
+}
+
 function paintHorizonImage(img, note, slot, companion) {
   if (!img) return;
   const showNote = () => {
@@ -7298,28 +7309,60 @@ function paintHorizonImage(img, note, slot, companion) {
     return;
   }
   const base = forced ? slot.frame : `/api/jetson/v1/cameras/${slot.apiId}/frame`;
-  img.onload = () => {
-    img.hidden = false;
-    if (note) note.hidden = true;
-    markHorizonLive();
-  };
-  img.onerror = () => {
-    img.hidden = true;
-    img.removeAttribute('src');
-    showNote();
-    markHorizonLive();
-  };
+  const paintedMisses = Number(img.dataset.misses || 0);
+  const paintedSeen = Number(img.dataset.seen || 0);
+  const paintedPicture = paintedSeen > 0 && Boolean(img.getAttribute('src')) && img.naturalWidth > 0;
+  const blankWarning = paintedMisses > 1 && horizonFrameMissShowsNoSignal({
+    seenAt: paintedSeen,
+    now: Date.now(),
+    streaming: true,
+    consecutiveMisses: paintedMisses,
+  }) && !paintedPicture;
+    img.onload = () => {
+      img.hidden = false;
+      img.dataset.seen = String(Date.now());
+      img.dataset.misses = '0';
+      if (note) note.hidden = true;
+      markHorizonLive();
+    };
+    img.onerror = () => {
+      const misses = Number(img.dataset.misses || 0) + 1;
+      img.dataset.misses = String(misses);
+      const showNone = horizonFrameMissShowsNoSignal({
+        seenAt: Number(img.dataset.seen || 0),
+        now: Date.now(),
+        streaming: true,
+        consecutiveMisses: misses,
+      });
+      if (!showNone) {
+        if (Number(img.dataset.seen || 0) > 0) img.hidden = false;
+        if (note) note.hidden = true;
+        markHorizonLive();
+        return;
+      }
+      img.hidden = true;
+      img.removeAttribute('src');
+      img.dataset.seen = '';
+      showNote();
+      markHorizonLive();
+    };
   const stamp = Number(img.dataset.stamp || 0);
   const current = String(img.currentSrc || img.src || '');
   if (!current.includes(base) || Date.now() - stamp > 700) {
     img.dataset.stamp = String(Date.now());
-    if (!forced) {
+    if (blankWarning) {
+      img.hidden = true;
+      showNote();
+    } else if (!forced) {
       img.hidden = false;
       if (note) note.hidden = true;
     } else if (!(img.complete && img.naturalWidth > 0 && !img.hidden)) {
       showNote();
     }
     img.src = `${base}?t=${Date.now()}`;
+  } else if (blankWarning) {
+    img.hidden = true;
+    showNote();
   } else if (img.complete && img.naturalWidth > 0) {
     img.hidden = false;
     if (note) note.hidden = true;
@@ -12791,6 +12834,17 @@ function liveCameraDetail(companion, camId) {
   return vision.cameras?.[camId] || nav.cameras?.[camId] || companion?.extras?.cameras?.[camId] || {};
 }
 
+const LIVE_FRAME_CAMERAS = [
+  { id: 'cam0', name: 'קדמית' },
+  { id: 'cam1', name: 'מטה' },
+  { id: 'cam3', name: 'גימבל' },
+];
+
+function liveCameraNode(camId, kind) {
+  const tail = camId.charAt(0).toUpperCase() + camId.slice(1);
+  return document.getElementById(`liveCamera${tail}${kind}`);
+}
+
 function applyLiveCameraPreview(companion) {
   const panel = document.getElementById('liveCameraPanel');
   const empty = document.getElementById('liveCameraEmpty');
@@ -12798,10 +12852,11 @@ function applyLiveCameraPreview(companion) {
   const src = companion && typeof companion === 'object' ? companion : {};
   let anyFrame = false;
   let anyDry = false;
-  for (const camId of ['cam1', 'cam2']) {
+  for (const cam of LIVE_FRAME_CAMERAS) {
+    const camId = cam.id;
     const detail = liveCameraDetail(src, camId);
-    const meta = document.getElementById(camId === 'cam1' ? 'liveCameraCam1Meta' : 'liveCameraCam2Meta');
-    const img = document.getElementById(camId === 'cam1' ? 'liveCameraCam1Frame' : 'liveCameraCam2Frame');
+    const meta = liveCameraNode(camId, 'Meta');
+    const img = liveCameraNode(camId, 'Frame');
     const ok = detail.camera_ok === true
       && (Number(detail.fps) > 0 || Number(detail.last_frame_age_ms) >= 0 || Number(detail.frame_count) > 0);
     if (detail.dry_run === true || detail.source === 'synthetic') anyDry = true;
@@ -12820,10 +12875,28 @@ function applyLiveCameraPreview(companion) {
     if (img) {
       if (ok) {
         img.hidden = false;
-        img.alt = camId === 'cam1' ? 'קדמית' : 'מטה';
+        img.alt = cam.name;
+        img.onload = () => {
+          img.dataset.seen = String(Date.now());
+          img.dataset.misses = '0';
+          img.hidden = false;
+        };
         img.src = `/api/jetson/v1/cameras/${camId}/frame?t=${Date.now()}`;
         img.onerror = () => {
+          const misses = Number(img.dataset.misses || 0) + 1;
+          img.dataset.misses = String(misses);
+          const showNone = horizonFrameMissShowsNoSignal({
+            seenAt: Number(img.dataset.seen || 0),
+            now: Date.now(),
+            streaming: true,
+            consecutiveMisses: misses,
+          });
+          if (!showNone) {
+            if (Number(img.dataset.seen || 0) > 0) img.hidden = false;
+            return;
+          }
           img.hidden = true;
+          img.dataset.seen = '';
           if (meta) {
             meta.removeAttribute('dir');
             meta.textContent = 'אין פריים';
@@ -14297,10 +14370,10 @@ initLiveCameraPanel();
     else if (status.wifi === 0) parts.push('רשת בית כבויה');
     if (status.cell === 1) parts.push('סלולר פעיל');
     else if (status.cell === 0) parts.push('סלולר כבוי');
-    if (status.cam0 === 1) parts.push('CAM0 חיה');
-    else if (status.cam0 === 0) parts.push('CAM0 בלי אות');
-    if (status.cam1 === 1) parts.push('CAM1 חיה');
-    else if (status.cam1 === 0) parts.push('CAM1 בלי אות');
+    if (status.cam0 === 1) parts.push('קדמית חיה');
+    else if (status.cam0 === 0) parts.push('קדמית בלי אות');
+    if (status.cam1 === 1) parts.push('מטה חיה');
+    else if (status.cam1 === 0) parts.push('מטה בלי אות');
     line.hidden = parts.length === 0;
     line.textContent = parts.join(' · ');
     if (status.mode === 1) document.body.dataset.rfGimbalMode = 'lock';
@@ -20636,6 +20709,10 @@ async function submitFlightPhrase(raw) {
   }
   if (match?.passToAsk) {
     void assistSendText(text);
+    return;
+  }
+  if (typeof window.__vlcCameraStatusQuestion === 'function' && window.__vlcCameraStatusQuestion(text)) {
+    void assistSendText(text, { channel: 'voice' });
     return;
   }
   const route = askFlightRoute(text);

@@ -157,7 +157,7 @@ describe('offline Ask status answers', () => {
   });
 
   it('answers cameras and Jetson from ops signals', async () => {
-    expect((await ask(service, 'האם המצלמות משדרות?')).answer).toBe('CAM0 משדר. CAM1 אינו משדר.');
+    expect((await ask(service, 'האם המצלמות משדרות?')).answer).toBe('קדמית משדרת. מטה אינה משדרת.');
     expect((await ask(service, 'מה מצב ה-Jetson?')).answer).toBe('מחשב משימה (Jetson) מחובר.');
     expect(answerAskStatus('jetson', buildAssistContext({ ops_signals: { jetson: 'mock' } }))).toBe('מחשב משימה (Jetson) במצב הדמיה.');
     expect(answerAskStatus('jetson', buildAssistContext({ ops_signals: { jetson: 'unreachable' } }))).toBe('מחשב משימה (Jetson) אינו מגיב.');

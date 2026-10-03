@@ -43,7 +43,7 @@ describe('pulse camera cards', () => {
     }));
     expect(model.cards.map((card) => card.id)).toEqual(['cam1', 'cam3']);
     expect(model.cards[0]).toMatchObject({
-      name: 'קדמית',
+      name: 'מטה',
       streaming: true,
       fps: 28,
       ageMs: 40,
@@ -69,7 +69,7 @@ describe('pulse camera cards', () => {
       { cam3: { id: 'cam3', role: 'gimbal_observe', state: 'read_failed', error: 'read_failed', last_frame_age_ms: 900 } },
     ));
     expect(model.cards.map((card) => [card.id, card.name, card.streaming, card.error, card.ageMs])).toEqual([
-      ['cam0', 'אפס', true, null, 0],
+      ['cam0', 'קדמית', true, null, 0],
       ['cam3', 'גימבל', false, 'קריאה נכשלה', 900],
     ]);
   });
@@ -78,7 +78,7 @@ describe('pulse camera cards', () => {
     const model = pulseCameraCards(liveStatus({
       cam2: { id: 'cam2', role: 'down', camera_ok: true, fps: null, last_frame_age_ms: null },
     }));
-    expect(model.cards[0]).toMatchObject({ name: 'מטה', streaming: true, fps: null, ageMs: null, error: null });
+    expect(model.cards[0]).toMatchObject({ name: 'cam2', streaming: true, fps: null, ageMs: null, error: null });
   });
 
   it('shows the gimbal from the companion status the console already maps', () => {

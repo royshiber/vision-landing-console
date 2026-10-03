@@ -79,8 +79,8 @@ describe('preflight readiness checklist', () => {
     expect(html).toContain('id="preflightReadiness"');
     expect(html).toContain('מחשב משימה (Jetson)');
     expect(html).toContain('שלט RC');
-    expect(html).toContain('CAM0');
-    expect(html).toContain('CAM1');
+    expect(html).toContain('קדמית');
+    expect(html).toContain('מטה');
     expect(js).toContain("localStorage.setItem(PREFLIGHT_MANUAL_KEY");
     expect(js).not.toMatch(/preflightReadyList[\s\S]{0,400}fetch\('\/api\/param/);
     const block = css.slice(css.indexOf('.preflight-ready {'), css.indexOf('.preflight-ready-item input'));
@@ -88,7 +88,7 @@ describe('preflight readiness checklist', () => {
     expect(block).not.toMatch(/overflow:\s*auto/);
     expect(block).not.toMatch(/overflow:\s*hidden/);
     expect(block).not.toMatch(/text-overflow:\s*ellipsis/);
-    for (const term of ['מחשב משימה (Jetson)', 'FC', 'RF', 'שלט RC', 'CAM0', 'CAM1']) {
+    for (const term of ['מחשב משימה (Jetson)', 'FC', 'RF', 'שלט RC', 'קדמית', 'מטה']) {
       expect(doc).toContain(term);
     }
     expect(doc).toContain('גדר גאוגרפית');

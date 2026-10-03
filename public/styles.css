@@ -5480,7 +5480,7 @@ body:has(#pulse.panel.visible) .layout {
 }
 .mission-live-camera-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
 }
 .mission-live-camera-slot {

@@ -227,7 +227,7 @@ function init() {
     const line = document.getElementById('cam0StatusText');
     if (!line) return;
     const rate = fps == null || fps === '' ? '—' : String(fps);
-    line.textContent = `CAM0 · ${connected ? 'מחובר' : 'לא מחובר'} · קצב ${rate}`;
+    line.textContent = `קדמית · ${connected ? 'מחובר' : 'לא מחובר'} · קצב ${rate}`;
   }
 
   function paintSignal(has, drill) {
