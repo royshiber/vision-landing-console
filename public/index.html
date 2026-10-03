@@ -2502,6 +2502,41 @@
                 <div id="terrainMap"></div>
               </div>
             </div>
+            <div id="gimbalScreen" class="gimbal-screen" hidden data-corner="bl" data-gimbal-root="1">
+              <div class="gimbal-screen-bar" id="gimbalScreenDrag" title="גררו לפינה">
+                <p class="gimbal-screen-title">גימבל</p>
+                <p class="gimbal-pad-angles"><span>יאו</span> <span class="gimbal-yaw-value" dir="ltr">—</span> <span>פיץ׳</span> <span class="gimbal-pitch-value" dir="ltr">—</span></p>
+                <button type="button" class="gimbal-pad-btn gimbal-pad-lock" data-gimbal="lock" disabled aria-pressed="false">משוחרר</button>
+                <button type="button" id="gimbalScreenClose">סגור</button>
+              </div>
+              <div class="gimbal-screen-stage">
+                <img id="gimbalScreenImg" alt="" hidden />
+                <canvas id="gimbalScreenNotes"></canvas>
+                <p id="gimbalScreenNote" hidden>אין אות</p>
+              </div>
+              <p id="gimbalScreenPadReason" class="gimbal-pad-reason">אין קישור למחשב המשימה</p>
+              <div class="gimbal-screen-controls">
+                <div class="gimbal-pad-stick" dir="ltr">
+                  <button type="button" class="gimbal-pad-btn" data-gimbal="up" disabled aria-label="מעלה">▲</button>
+                  <button type="button" class="gimbal-pad-btn" data-gimbal="left" disabled aria-label="שמאלה">◀</button>
+                  <button type="button" class="gimbal-pad-btn gimbal-pad-center" data-gimbal="center" disabled aria-label="מרכז">מרכז</button>
+                  <button type="button" class="gimbal-pad-btn" data-gimbal="right" disabled aria-label="ימינה">▶</button>
+                  <button type="button" class="gimbal-pad-btn" data-gimbal="down" disabled aria-label="מטה">▼</button>
+                </div>
+                <div class="gimbal-pad-zoom" dir="ltr">
+                  <button type="button" class="gimbal-pad-btn" data-gimbal="zoom-in" disabled aria-label="זום פנימה">+</button>
+                  <p class="gimbal-zoom-level"><span>זום</span> <span class="gimbal-zoom-value" dir="ltr">—</span></p>
+                  <button type="button" class="gimbal-pad-btn" data-gimbal="zoom-out" disabled aria-label="זום החוצה">−</button>
+                </div>
+              </div>
+              <form id="gimbalScreenVoiceForm" class="gimbal-screen-voice">
+                <button type="button" id="gimbalScreenMic" aria-label="דברו" aria-pressed="false">דברו</button>
+                <input id="gimbalScreenVoiceInput" type="text" autocomplete="off" enterkeyhint="send" placeholder="הזינו פקודה" />
+                <button type="submit" id="gimbalScreenVoiceSend">שלחו</button>
+              </form>
+              <p id="gimbalScreenVoiceReply" class="gimbal-screen-reply" role="status"></p>
+              <button type="button" id="gimbalScreenResize" class="gimbal-screen-resize" aria-label="שנו גודל"></button>
+            </div>
           </section>
 
           <section class="mission-region mission-region-talk" data-mission-region="talk" dir="rtl" aria-label="AIRVIX Ask">
@@ -2948,18 +2983,6 @@
         <input type="number" id="mapFlyToAlt" class="map-fly-to-alt-input" value="60" min="20" max="500" step="10">
       </div>
       <div class="map-fly-to-status" id="mapFlyToStatus"></div>
-    </div>
-
-    <div id="gimbalScreen" class="gimbal-screen" hidden>
-      <div class="gimbal-screen-bar">
-        <p class="gimbal-screen-title">מסך גימבל</p>
-        <button type="button" id="gimbalScreenClose">סגור</button>
-      </div>
-      <div class="gimbal-screen-stage">
-        <img id="gimbalScreenImg" alt="" hidden />
-        <canvas id="gimbalScreenNotes"></canvas>
-        <p id="gimbalScreenNote" hidden>אין אות</p>
-      </div>
     </div>
 
     <script src="/vendor/es-module-shims/es-module-shims.js?v=__APP_VERSION__"></script>
