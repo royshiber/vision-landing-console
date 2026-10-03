@@ -4,29 +4,9 @@
     "date": "2026-10-03",
     "changes": [
       {
-        "type": "feat",
-        "title": "Server library",
-        "detail": "voice-flight-pipeline.mjs"
-      },
-      {
-        "type": "feat",
-        "title": "UI / app.js",
-        "detail": "app.js"
-      },
-      {
-        "type": "feat",
-        "title": "Frontend",
-        "detail": "voice-flight-phrases.mjs"
-      },
-      {
-        "type": "test",
-        "title": "Tests",
-        "detail": "mission-sentence.test.mjs"
-      },
-      {
-        "type": "docs",
-        "title": "Commercial capabilities overview",
-        "detail": "COMMERCIAL_CAPABILITIES.he.md"
+        "type": "fix",
+        "title": "שאלת מצב המצלמות אינה דחיית פקודה",
+        "detail": "APP_VERSION 1.02.396. שאלה על מצב המצלמות, על וידאו, או על מה שקורה עם המצלמות עכשיו נענית כמצב המצלמות. היא לא נדחית כפקודה, ולא עונה על המרחב. אין פקודת טיסה."
       }
     ]
   },
