@@ -1,21 +1,5 @@
 [
   {
-    "version": "1.02.390",
-    "date": "2026-10-03",
-    "changes": [
-      {
-        "type": "feat",
-        "title": "Frontend",
-        "detail": "debrief-cameras.mjs"
-      },
-      {
-        "type": "test",
-        "title": "Tests",
-        "detail": "optics-dual-tiles.test.mjs"
-      }
-    ]
-  },
-  {
     "version": "1.02.389",
     "date": "2026-10-01",
     "changes": [
