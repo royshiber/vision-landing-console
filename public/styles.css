@@ -1581,7 +1581,7 @@ body:has(#terrain.panel.visible) .layout {
   .subtab { padding: 5px 10px; font-size: 0.72rem; }
   .panel { padding: 6px 10px 8px; }
   #control .subpanel.visible { padding-top: 6px; }
-  .params-grid { gap: 6px; grid-template-columns: repeat(auto-fill, minmax(184px, 1fr)); }
+  .params-grid { gap: 8px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 184px), 1fr)); }
   #arduParams #arduParamFormPanels .param-card { padding: 5px 7px; }
   #arduParams #arduParamFormPanels .param-title { font-size: 0.72rem; }
   #paramCenterSearchBar .ardu-search-row { gap: 3px; }
@@ -24233,7 +24233,7 @@ body[data-work-path="rf"] #optics .optics-calib {
   margin: 0;
 }
 
-/* Landing sliders fill the params viewport. The profile card is content height, not a nested scroller. */
+/* Landing / abort / vision cards pack to their facts. They do not grow into an empty shell. */
 #control.panel.visible:has(#landingParams.subpanel.visible),
 #control.panel.visible:has(#abortParams.subpanel.visible),
 #control.panel.visible:has(#visionNavParams.subpanel.visible) {
@@ -24244,27 +24244,21 @@ body[data-work-path="rf"] #optics .optics-calib {
 #control.panel.visible > #abortParams.subpanel.visible,
 #control.panel.visible > #visionNavParams.subpanel.visible {
   overflow: visible;
-  flex: 1 1 auto;
-  min-height: min-content;
+  flex: 0 1 auto;
+  min-height: 0;
   display: flex;
 }
 #control.panel.visible #landingParams .params-grid,
 #control.panel.visible #abortParams .params-grid,
 #control.panel.visible #visionNavParams .params-grid {
   overflow: visible;
-  flex: 1 1 auto;
-  min-height: 100%;
-  align-content: stretch;
-  grid-auto-rows: minmax(108px, 1fr);
-}
-#control.panel.visible #landingParams .param-card,
-#control.panel.visible #abortParams .param-card,
-#control.panel.visible #visionNavParams .param-card {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  min-height: 108px;
-  height: 100%;
+  flex: 0 1 auto;
+  min-height: 0;
+  height: auto;
+  width: 100%;
+  align-content: start;
+  align-items: start;
+  grid-auto-rows: auto;
 }
 
 /* Dark operator surfaces: labels meet WCAG AA 4.5:1 on #121826 / #0b0e14. */
@@ -25060,6 +25054,191 @@ body[data-work-path="rf"] #optics .optics-calib {
 }
 #control.panel.visible .fc-enum-label:empty {
   display: none;
+}
+
+/* Profile param tiles: short cards in a wrapping row. Flex, not grid tracks:
+   a grid row was collapsing under the card and the next row painted on top. */
+#control.panel.visible #landingParams .params-grid,
+#control.panel.visible #abortParams .params-grid,
+#control.panel.visible #visionNavParams .params-grid {
+  display: flex;
+  flex-flow: row wrap;
+  align-items: flex-start;
+  align-content: flex-start;
+  justify-content: flex-start;
+  gap: 8px;
+  width: 100%;
+  min-height: min-content;
+  height: auto;
+  position: static;
+  overflow: visible;
+  flex: 0 0 auto;
+}
+#control.panel.visible #landingParams .param-card,
+#control.panel.visible #abortParams .param-card,
+#control.panel.visible #visionNavParams .param-card {
+  position: static;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: stretch;
+  align-content: start;
+  align-self: flex-start;
+  gap: 2px;
+  flex: 1 1 200px;
+  min-width: min(100%, 200px);
+  max-width: 100%;
+  width: auto;
+  min-height: max-content;
+  height: auto;
+  padding: 4px 6px;
+  box-sizing: border-box;
+}
+#control.panel.visible #landingParams .param-card .param-top,
+#control.panel.visible #abortParams .param-card .param-top,
+#control.panel.visible #visionNavParams .param-card .param-top {
+  min-height: 0;
+  gap: 4px;
+  align-items: center;
+}
+#control.panel.visible #landingParams .param-card .param-title,
+#control.panel.visible #abortParams .param-card .param-title,
+#control.panel.visible #visionNavParams .param-card .param-title {
+  width: auto;
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  text-align: start;
+}
+#control.panel.visible #landingParams .param-card .fc-group-key,
+#control.panel.visible #abortParams .param-card .fc-group-key,
+#control.panel.visible #visionNavParams .param-card .fc-group-key {
+  width: 100%;
+  margin: 0;
+  text-align: start;
+}
+#control.panel.visible #landingParams .param-card .fc-card-cell,
+#control.panel.visible #abortParams .param-card .fc-card-cell,
+#control.panel.visible #visionNavParams .param-card .fc-card-cell {
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 2px 8px;
+  width: 100%;
+}
+#control.panel.visible #landingParams .param-card .fc-card-kicker,
+#control.panel.visible #abortParams .param-card .fc-card-kicker,
+#control.panel.visible #visionNavParams .param-card .fc-card-kicker,
+#control.panel.visible .plnd-honesty-key .fc-card-kicker {
+  flex: 0 0 auto;
+  width: auto;
+  line-height: 16px;
+  text-align: start;
+}
+#control.panel.visible #landingParams .param-card .fc-card-value,
+#control.panel.visible #landingParams .param-card .fc-group-now,
+#control.panel.visible #landingParams .param-card .fc-group-unit,
+#control.panel.visible #landingParams .param-card .fc-group-meta,
+#control.panel.visible #landingParams .param-card .param-value,
+#control.panel.visible #abortParams .param-card .fc-card-value,
+#control.panel.visible #abortParams .param-card .fc-group-now,
+#control.panel.visible #abortParams .param-card .fc-group-unit,
+#control.panel.visible #abortParams .param-card .fc-group-meta,
+#control.panel.visible #abortParams .param-card .param-value,
+#control.panel.visible #visionNavParams .param-card .fc-card-value,
+#control.panel.visible #visionNavParams .param-card .fc-group-now,
+#control.panel.visible #visionNavParams .param-card .fc-group-unit,
+#control.panel.visible #visionNavParams .param-card .fc-group-meta,
+#control.panel.visible #visionNavParams .param-card .param-value {
+  display: block;
+  width: auto;
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  text-align: end;
+}
+#control.panel.visible #landingParams .param-card input[type="range"],
+#control.panel.visible #abortParams .param-card input[type="range"],
+#control.panel.visible #visionNavParams .param-card input[type="range"],
+#control.panel.visible .plnd-honesty-key input[type="range"] {
+  width: 100%;
+  max-width: 100%;
+  min-height: 20px;
+  height: 16px;
+  margin: 0;
+  box-sizing: border-box;
+}
+#control.panel.visible .plnd-honesty-key select,
+#control.panel.visible .plnd-honesty-key .fc-group-next {
+  width: 100%;
+  max-width: 100%;
+  min-height: 28px;
+  margin: 0;
+  box-sizing: border-box;
+}
+
+/* Same parameter tile, above the editor: pack facts, do not grow an empty shell. */
+#control.panel.visible .plnd-honesty-keys {
+  display: flex;
+  flex-flow: row wrap;
+  align-items: flex-start;
+  align-content: flex-start;
+  gap: 8px;
+  width: 100%;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+#control.panel.visible .plnd-honesty-key {
+  position: static;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: stretch;
+  align-self: flex-start;
+  gap: 2px;
+  flex: 1 1 200px;
+  min-width: min(100%, 200px);
+  max-width: 100%;
+  width: auto;
+  min-height: max-content;
+  height: auto;
+  padding: 4px 6px;
+  box-sizing: border-box;
+}
+#control.panel.visible .plnd-honesty-key .fc-group-he,
+#control.panel.visible .plnd-honesty-key .plnd-honesty-key-name,
+#control.panel.visible .plnd-honesty-key .fc-group-key {
+  width: auto;
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  text-align: start;
+}
+#control.panel.visible .plnd-honesty-key .fc-card-cell {
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 2px 8px;
+  width: 100%;
+}
+#control.panel.visible .plnd-honesty-key .fc-card-value,
+#control.panel.visible .plnd-honesty-key .fc-group-now,
+#control.panel.visible .plnd-honesty-key .fc-group-unit,
+#control.panel.visible .plnd-honesty-key .fc-group-meta,
+#control.panel.visible .plnd-honesty-key .param-value {
+  display: block;
+  width: auto;
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  text-align: end;
+}
+#control.panel.visible .plnd-honesty-key .fc-card-control input,
+#control.panel.visible .plnd-honesty-key .fc-card-control select {
+  flex: 1 1 100%;
 }
 
 /* Optics HUD: steppers sit outside the number. Values stay centered. */

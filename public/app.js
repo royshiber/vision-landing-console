@@ -1674,10 +1674,15 @@ function paramMatchesSearchQuery(param, query) {
 
 function renderParams() {
   const query = String(arduSearchQuery || '').trim();
-  const landing = PARAMS.filter((p) => LANDING_PARAM_KEYS.has(p.key) && paramMatchesSearchQuery(p, query));
-  const visionNav = PARAMS.filter((p) => VISION_NAV_PARAM_KEYS.has(p.key) && paramMatchesSearchQuery(p, query));
-  const abort = PARAMS.filter((p) => ABORT_PARAM_KEYS.has(p.key) && paramMatchesSearchQuery(p, query));
-  const takeoff = PARAMS.filter((p) => TAKEOFF_PARAM_KEYS.has(p.key) && paramMatchesSearchQuery(p, query));
+  const match = (p) => paramMatchesSearchQuery(p, query);
+  const active = typeof activeParamSelectValue === 'function' ? activeParamSelectValue() : '';
+  const showEveryProfile = !active || active === 'landingParams';
+  const landing = showEveryProfile
+    ? PARAMS.filter(match)
+    : PARAMS.filter((p) => LANDING_PARAM_KEYS.has(p.key) && match(p));
+  const visionNav = showEveryProfile ? [] : PARAMS.filter((p) => VISION_NAV_PARAM_KEYS.has(p.key) && match(p));
+  const abort = showEveryProfile ? [] : PARAMS.filter((p) => ABORT_PARAM_KEYS.has(p.key) && match(p));
+  const takeoff = showEveryProfile ? [] : PARAMS.filter((p) => TAKEOFF_PARAM_KEYS.has(p.key) && match(p));
   renderParamsIn(paramsGrid, landing);
   renderParamsIn(visionNavGrid, visionNav);
   renderParamsIn(abortGrid, abort);
@@ -2129,6 +2134,7 @@ wireArduCategorySubtabsOnce();
       }
     } else {
       applyControlSubtab(val);
+      renderParams();
       renderFcGroupList();
     }
   });
@@ -11666,10 +11672,10 @@ async function readFcParams() {
     } else if (!d.connected || !d.current) {
       fcCurrentSnapshot = null;
       clearArduDiff();
-      const hint = `יש חיבור לבקר הטיסה, ועדיין אין פרמטרים (${d.paramCount ?? 0}).`;
+      clearParamToolFault();
       if (arduWriteStatus) {
-        arduWriteStatus.textContent = hint;
-        arduWriteStatus.className = 'ardu-write-status fail';
+        arduWriteStatus.textContent = '';
+        arduWriteStatus.className = 'ardu-write-status action-status param-tool-live';
       }
     } else {
       fcCurrentSnapshot = { ...d.current };
