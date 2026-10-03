@@ -25614,16 +25614,17 @@ body[data-work-path="rf"] #optics .optics-calib {
   border-radius: 12px;
 }
 
-/* Three cameras: gimbal is the main square. The other two stay smaller and fully visible. */
+/* Three cameras: gimbal is the main square. The other two fill the remaining width and stay fully visible. */
 @media (min-width: 721px) {
   #optics .debrief-cam-grid[data-count="3"] {
     display: grid;
-    grid-template-columns: auto minmax(140px, 32%);
+    grid-template-columns: auto minmax(0, 1fr);
     grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
     height: 100%;
     min-height: 280px;
     align-items: stretch;
-    justify-content: start;
+    justify-content: stretch;
+    gap: 4px;
   }
   #optics .debrief-cam-grid[data-count="3"] .debrief-cam-tile[data-cam="a8"] {
     grid-column: 1;
@@ -25657,6 +25658,25 @@ body[data-work-path="rf"] #optics .optics-calib {
 
 .mission-data-tile[hidden] {
   display: none !important;
+}
+
+.flight-screen-tools .mission-data-hint {
+  position: static;
+  width: auto;
+  height: auto;
+  margin: 0;
+  padding: 1px 2px;
+  overflow: visible;
+  clip: auto;
+  white-space: normal;
+  border: 0;
+  display: block;
+  flex: 1 0 100%;
+  color: #e2e8f0;
+  background: transparent;
+  font-size: clamp(11px, 0.78rem, 13px);
+  font-weight: 700;
+  line-height: 1.3;
 }
 
 .flight-screen-tools {

@@ -85,6 +85,7 @@ describe('Mission data-slot field picker', () => {
     expect(html).toContain('data-mission-data-slot="0"');
     expect(html).toContain('קליק ימני מוחק אריח. לחיצה ארוכה או קליק בוחרים שדה.');
     expect(html).toContain('id="missionDataAddBtn"');
+    expect(html).toContain('>הוסיפו נתון<');
     expect(css).toMatch(/\.mission-data-picker\s*\{[^}]*position:\s*fixed/);
     expect(css).toMatch(/\.mission-data-picker\s*\{[^}]*z-index:\s*9600/);
     expect(css).toMatch(/\.mission-data-picker\s*\{[^}]*direction:\s*rtl/);

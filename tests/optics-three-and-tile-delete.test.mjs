@@ -84,16 +84,20 @@ describe('three-camera proportions and tile delete', () => {
       const inside = (tile) => tile.left >= grid.left - 1 && tile.right <= grid.right + 1
         && tile.top >= grid.top - 1 && tile.bottom <= grid.bottom + 1;
       const ratio = gimbal.width / gimbal.height;
+      const span = Math.max(gimbal.right, forward.right, down.right) - Math.min(gimbal.left, forward.left, down.left);
       return {
         gimbal, forward, down, ratio,
+        gridWidth: grid.width,
+        span,
         inside: inside(gimbal) && inside(forward) && inside(down),
         pressed: [...document.querySelectorAll('[data-debrief-cam]')].filter((btn) => btn.getAttribute('aria-pressed') === 'true').map((btn) => btn.dataset.debriefCam),
       };
     });
     expect(box.gimbal.height).toBeGreaterThan(box.forward.height + 20);
     expect(box.gimbal.height).toBeGreaterThan(box.down.height + 20);
-    expect(box.gimbal.width).toBeGreaterThan(box.forward.width);
-    expect(box.gimbal.width).toBeGreaterThan(box.down.width);
+    expect(box.gimbal.width * box.gimbal.height).toBeGreaterThan(box.forward.width * box.forward.height);
+    expect(box.gimbal.width * box.gimbal.height).toBeGreaterThan(box.down.width * box.down.height);
+    expect(box.span).toBeGreaterThan(box.gridWidth * 0.92);
     expect(box.ratio).toBeGreaterThan(0.75);
     expect(box.ratio).toBeLessThan(1.25);
     expect(box.forward.fit).toBe('contain');
@@ -134,6 +138,22 @@ describe('three-camera proportions and tile delete', () => {
     expect(after.pickerHidden).toBe(true);
     expect(after.stored).toContain('1');
     expect(after.urls.some((url) => /arm|disarm|flight-mode|param-set|\/apply|\/restart|\/command/i.test(url))).toBe(false);
+    const hint = await page.evaluate(() => {
+      const el = document.querySelector('.flight-screen-tools .mission-data-hint');
+      const cs = getComputedStyle(el);
+      const r = el.getBoundingClientRect();
+      return {
+        text: el.textContent,
+        w: r.width,
+        h: r.height,
+        size: parseFloat(cs.fontSize),
+      };
+    });
+    expect(hint.text).toContain('קליק ימני מוחק אריח');
+    expect(hint.w).toBeGreaterThan(80);
+    expect(hint.h).toBeGreaterThan(11);
+    expect(hint.size).toBeGreaterThanOrEqual(11);
+    expect(await page.locator('#missionDataAddBtn').innerText()).toBe('הוסיפו נתון');
     await page.click('#missionDataAddBtn');
     const restored = await page.evaluate(() => document.querySelector('[data-mission-data-slot="1"]').hidden);
     expect(restored).toBe(false);

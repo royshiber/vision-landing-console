@@ -113,17 +113,22 @@ describe('Debrief camera grid and horizon menu — live', () => {
       const rs = tiles.map((el) => ({ cam: el.dataset.cam, ...el.getBoundingClientRect().toJSON() }));
       const gimbal = rs.find((r) => r.cam === 'a8');
       const small = rs.filter((r) => r.cam !== 'a8');
+      const grid = document.getElementById('debriefCamGrid').getBoundingClientRect();
+      const span = Math.max(...rs.map((r) => r.right)) - Math.min(...rs.map((r) => r.left));
       return {
         count: document.getElementById('debriefCamGrid').dataset.count,
         bigTaller: gimbal.height > small[0].height + 20 && gimbal.height > small[1].height + 20,
-        bigWider: gimbal.width > small[0].width && gimbal.width > small[1].width,
+        filled: span > grid.width * 0.92,
+        main: gimbal.width * gimbal.height > small[0].width * small[0].height
+          && gimbal.width * gimbal.height > small[1].width * small[1].height,
         stacked: small[1].top >= small[0].bottom - 8,
         contain: getComputedStyle(tiles[0].querySelector('.debrief-cam-media')).objectFit,
       };
     });
     expect(box.count).toBe('3');
     expect(box.bigTaller).toBe(true);
-    expect(box.bigWider).toBe(true);
+    expect(box.filled).toBe(true);
+    expect(box.main).toBe(true);
     expect(box.stacked).toBe(true);
     expect(box.contain).toBe('contain');
     await page.screenshot({ path: path.join(shotDir, 'grid-3.png') });
