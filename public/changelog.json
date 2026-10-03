@@ -1,5 +1,26 @@
 [
   {
+    "version": "1.02.393",
+    "date": "2026-10-03",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Frontend",
+        "detail": "gimbal-pad.mjs"
+      },
+      {
+        "type": "test",
+        "title": "Tests",
+        "detail": "gimbal-pad.test.mjs, optics-shared-settings.test.mjs"
+      },
+      {
+        "type": "docs",
+        "title": "Commercial capabilities overview",
+        "detail": "COMMERCIAL_CAPABILITIES.he.md"
+      }
+    ]
+  },
+  {
     "version": "1.02.392",
     "date": "2026-10-03",
     "changes": [

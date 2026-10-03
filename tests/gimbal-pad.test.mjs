@@ -8,11 +8,15 @@ import {
   LOCKED_HE,
   NO_REPLY_HE,
   UNLOCKED_HE,
+  GIMBAL_PITCH_MAX,
+  GIMBAL_PITCH_MIN,
+  GIMBAL_YAW_MAX,
+  GIMBAL_YAW_MIN,
   gimbalKeyAction,
   gimbalMoveBody,
   gimbalPadView,
-  gimbalStopBody,
   gimbalZoomBody,
+  setGimbalMoveSpeed,
 } from '../public/modules/gimbal-pad.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -63,12 +67,20 @@ describe('gimbal pad state', () => {
     })).toMatchObject({ enabled: false, reasonHe: CONTROL_OFF_HE });
   });
 
-  it('maps hold to speed and zoom, and release to stop', () => {
-    expect(gimbalMoveBody('up')).toEqual({ yaw: 0, pitch: 40 });
-    expect(gimbalMoveBody('down')).toEqual({ yaw: 0, pitch: -40 });
+  it('steps absolute angle, raises the picture on up, and keeps zoom on its route', () => {
+    setGimbalMoveSpeed(40);
+    expect(gimbalMoveBody('up')).toEqual({ yaw: 0, pitch: -40 });
+    expect(gimbalMoveBody('down')).toEqual({ yaw: 0, pitch: GIMBAL_PITCH_MAX });
     expect(gimbalMoveBody('left')).toEqual({ yaw: -40, pitch: 0 });
     expect(gimbalMoveBody('right')).toEqual({ yaw: 40, pitch: 0 });
-    expect(gimbalStopBody()).toEqual({ yaw: 0, pitch: 0 });
+    expect(gimbalMoveBody('up', { yaw: 40, pitch: -12 })).toEqual({ yaw: 40, pitch: -52 });
+    expect(gimbalMoveBody('right', { yaw: 120, pitch: -12 })).toEqual({ yaw: GIMBAL_YAW_MAX, pitch: -12 });
+    expect(gimbalMoveBody('left', { yaw: -120, pitch: 10 })).toEqual({ yaw: GIMBAL_YAW_MIN, pitch: 10 });
+    expect(gimbalMoveBody('up', { yaw: 0, pitch: -80 })).toEqual({ yaw: 0, pitch: GIMBAL_PITCH_MIN });
+    expect(gimbalMoveBody('down', { yaw: 0, pitch: 20 })).toEqual({ yaw: 0, pitch: GIMBAL_PITCH_MAX });
+    setGimbalMoveSpeed(12);
+    expect(gimbalMoveBody('up')).toEqual({ yaw: 0, pitch: -12 });
+    setGimbalMoveSpeed(40);
     expect(gimbalZoomBody('in')).toEqual({ zoom: 1 });
     expect(gimbalZoomBody('out')).toEqual({ zoom: -1 });
     expect(gimbalZoomBody('stop')).toEqual({ zoom: 0 });
@@ -85,10 +97,14 @@ describe('gimbal pad state', () => {
     expect(panel).toContain('id="gimbalZoomValue"');
     expect(mod).toContain("addEventListener('pointerup', release)");
     expect(mod).toContain("addEventListener('blur', release)");
-    expect(mod).toContain('/api/jetson/v1/gimbal/rate');
+    expect(mod).toContain('/api/jetson/v1/gimbal/angle');
+    expect(mod).not.toContain('/api/jetson/v1/gimbal/rate');
     expect(mod).toContain('/api/jetson/v1/gimbal/zoom');
     expect(mod).toContain('/api/jetson/v1/gimbal/center');
     expect(mod).toContain("/api/jetson/v1/gimbal/mode");
+    expect(mod).toContain('gimbalMoveBody(dir, aim)');
+    expect(mod).toContain("held.startsWith('zoom')");
+    expect(mod).not.toContain('gimbalStopBody');
     expect(mod).toContain('ArrowUp');
     expect(mod).toContain("getElementById('optics')");
     expect(mod).toContain("mode: next");
@@ -100,8 +116,8 @@ describe('gimbal pad state', () => {
   });
 
   it('maps arrow keys to motion and plus or minus to zoom', () => {
-    expect(gimbalKeyAction('ArrowUp')).toEqual({ hold: 'up', kind: 'rate' });
-    expect(gimbalKeyAction('ArrowLeft')).toEqual({ hold: 'left', kind: 'rate' });
+    expect(gimbalKeyAction('ArrowUp')).toEqual({ hold: 'up', kind: 'angle' });
+    expect(gimbalKeyAction('ArrowLeft')).toEqual({ hold: 'left', kind: 'angle' });
     expect(gimbalKeyAction('+')).toEqual({ hold: 'zoom-in', kind: 'zoom' });
     expect(gimbalKeyAction('-')).toEqual({ hold: 'zoom-out', kind: 'zoom' });
     expect(gimbalKeyAction('a')).toBeNull();

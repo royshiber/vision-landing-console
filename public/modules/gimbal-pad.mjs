@@ -1,9 +1,19 @@
 /**
- * Gimbal pad on the optics cameras view. Speed and zoom are press-and-hold.
- * Center recenters. Lock is SIYI lock vs follow. Gimbal motion only.
+ * Gimbal pad on the optics cameras view.
+ * Direction is an absolute angle on the companion angle route.
+ * Up sends a negative pitch so the picture rises on this upside-down A8.
+ * Release stops repeating. It does not recenter.
+ * Center uses the center route and returns the aim to zero.
+ * Zoom is press-and-hold on the existing zoom route.
+ * Lock is SIYI lock vs follow.
  */
 
 export const GIMBAL_SPEED = 40;
+export const GIMBAL_YAW_MIN = -135;
+export const GIMBAL_YAW_MAX = 135;
+export const GIMBAL_PITCH_MIN = -90;
+export const GIMBAL_PITCH_MAX = 25;
+
 let moveSpeed = GIMBAL_SPEED;
 
 export function setGimbalMoveSpeed(value) {
@@ -19,24 +29,33 @@ export const LOCKED_HE = 'נעול';
 export const UNLOCKED_HE = 'משוחרר';
 export const RF_GIMBAL_REASON_HE = 'במצב RF אין וידאו';
 
-const RATE_URL = '/api/jetson/v1/gimbal/rate';
+const ANGLE_URL = '/api/jetson/v1/gimbal/angle';
 const ZOOM_URL = '/api/jetson/v1/gimbal/zoom';
 const MODE_URL = '/api/jetson/v1/gimbal/mode';
 const CENTER_URL = '/api/jetson/v1/gimbal/center';
 const STATUS_URL = '/api/jetson/v1/status/gimbal';
 const HOLD_MS = 200;
+const ZERO_AIM = Object.freeze({ yaw: 0, pitch: 0 });
 
-export function gimbalMoveBody(dir) {
-  const speed = moveSpeed;
-  if (dir === 'up') return { yaw: 0, pitch: speed };
-  if (dir === 'down') return { yaw: 0, pitch: -speed };
-  if (dir === 'left') return { yaw: -speed, pitch: 0 };
-  if (dir === 'right') return { yaw: speed, pitch: 0 };
-  return null;
+function clamp(n, lo, hi) {
+  return Math.min(hi, Math.max(lo, n));
 }
 
-export function gimbalStopBody() {
-  return { yaw: 0, pitch: 0 };
+export function gimbalMoveBody(dir, from = ZERO_AIM) {
+  const baseYaw = Number(from?.yaw);
+  const basePitch = Number(from?.pitch);
+  let yaw = Number.isFinite(baseYaw) ? baseYaw : 0;
+  let pitch = Number.isFinite(basePitch) ? basePitch : 0;
+  const delta = moveSpeed;
+  if (dir === 'up') pitch -= delta;
+  else if (dir === 'down') pitch += delta;
+  else if (dir === 'left') yaw -= delta;
+  else if (dir === 'right') yaw += delta;
+  else return null;
+  return {
+    yaw: clamp(yaw, GIMBAL_YAW_MIN, GIMBAL_YAW_MAX),
+    pitch: clamp(pitch, GIMBAL_PITCH_MIN, GIMBAL_PITCH_MAX),
+  };
 }
 
 export function gimbalZoomBody(dir) {
@@ -46,10 +65,10 @@ export function gimbalZoomBody(dir) {
 }
 
 export function gimbalKeyAction(key) {
-  if (key === 'ArrowUp') return { hold: 'up', kind: 'rate' };
-  if (key === 'ArrowDown') return { hold: 'down', kind: 'rate' };
-  if (key === 'ArrowLeft') return { hold: 'left', kind: 'rate' };
-  if (key === 'ArrowRight') return { hold: 'right', kind: 'rate' };
+  if (key === 'ArrowUp') return { hold: 'up', kind: 'angle' };
+  if (key === 'ArrowDown') return { hold: 'down', kind: 'angle' };
+  if (key === 'ArrowLeft') return { hold: 'left', kind: 'angle' };
+  if (key === 'ArrowRight') return { hold: 'right', kind: 'angle' };
   if (key === '+' || key === '=') return { hold: 'zoom-in', kind: 'zoom' };
   if (key === '-' || key === '_') return { hold: 'zoom-out', kind: 'zoom' };
   return null;
@@ -148,12 +167,18 @@ export function postGimbal(url, body) {
   return postJson(url, body);
 }
 
+function rfAction(url) {
+  const u = String(url);
+  if (u.includes('zoom')) return 'zoom';
+  if (u.includes('mode')) return 'mode';
+  if (u.includes('center')) return 'center';
+  if (u.includes('angle')) return 'angle';
+  return 'rate';
+}
+
 function postJson(url, body) {
   if (rfWork()) {
-    let action = 'rate';
-    if (String(url).includes('zoom')) action = 'zoom';
-    else if (String(url).includes('mode')) action = 'mode';
-    return postRf({ kind: 'gimbal', action, ...body });
+    return postRf({ kind: 'gimbal', action: rfAction(url), ...body });
   }
   return postHttp(url, body);
 }
@@ -206,6 +231,7 @@ export function bindGimbalPad(doc, { post = postJson } = {}) {
   let generation = 0;
   let timer = null;
   let stamp = 0;
+  let aim = { yaw: 0, pitch: 0 };
   let view = gimbalPadView(null);
 
   function paint(next) {
@@ -217,20 +243,17 @@ export function bindGimbalPad(doc, { post = postJson } = {}) {
   }
 
   function release() {
-    if (timer == null && generation === 0) return;
+    if (timer == null && !root.dataset.hold) return;
     generation += 1;
     if (timer != null) clearInterval(timer);
     timer = null;
     root.querySelectorAll('.is-held').forEach((el) => el.classList.remove('is-held'));
     const held = root.dataset.hold || '';
     root.dataset.hold = '';
-    if (!held) return;
-    const stop = held.startsWith('zoom') ? gimbalZoomBody('stop') : gimbalStopBody();
-    const url = held.startsWith('zoom') ? ZOOM_URL : RATE_URL;
-    post(url, stop).catch(() => {});
+    if (held.startsWith('zoom')) post(ZOOM_URL, gimbalZoomBody('stop')).catch(() => {});
   }
 
-  function hold(btn, key, url, body) {
+  function holdRepeat(btn, key, tick) {
     if (!view.enabled || !btn || btn.disabled) return;
     release();
     const token = generation;
@@ -238,10 +261,28 @@ export function bindGimbalPad(doc, { post = postJson } = {}) {
     btn.classList.add('is-held');
     const send = () => {
       if (token !== generation || !view.enabled) return;
-      post(url, body).catch(() => {});
+      tick();
     };
     send();
     timer = setInterval(send, HOLD_MS);
+  }
+
+  function startAngle(btn, dir) {
+    holdRepeat(btn, dir, () => {
+      const prev = aim;
+      const next = gimbalMoveBody(dir, aim);
+      if (!next) return;
+      aim = next;
+      post(ANGLE_URL, next).catch(() => {
+        if (aim === next) aim = prev;
+      });
+    });
+  }
+
+  function startZoom(btn, key, dir) {
+    holdRepeat(btn, key, () => {
+      post(ZOOM_URL, gimbalZoomBody(dir)).catch(() => {});
+    });
   }
 
   for (const btn of root.querySelectorAll('[data-gimbal]')) {
@@ -252,9 +293,8 @@ export function bindGimbalPad(doc, { post = postJson } = {}) {
       if (event.button != null && event.button !== 0) return;
       event.preventDefault();
       try { btn.setPointerCapture(event.pointerId); } catch { /* keyboard */ }
-      const move = gimbalMoveBody(kind);
-      if (move) hold(btn, kind, RATE_URL, move);
-      else if (zoomDir) hold(btn, `zoom-${zoomDir}`, ZOOM_URL, gimbalZoomBody(zoomDir));
+      if (zoomDir) startZoom(btn, `zoom-${zoomDir}`, zoomDir);
+      else if (kind === 'up' || kind === 'down' || kind === 'left' || kind === 'right') startAngle(btn, kind);
     };
     btn.addEventListener('pointerdown', start);
     btn.addEventListener('pointerup', release);
@@ -274,7 +314,9 @@ export function bindGimbalPad(doc, { post = postJson } = {}) {
   const centerBtn = root.querySelector('[data-gimbal="center"]');
   centerBtn?.addEventListener('click', () => {
     if (!view.enabled || centerBtn.disabled) return;
-    post(CENTER_URL, {}).catch(() => {});
+    const prev = aim;
+    aim = { yaw: 0, pitch: 0 };
+    post(CENTER_URL, {}).catch(() => { aim = prev; });
   });
 
   function opticsOpen() {
@@ -288,12 +330,10 @@ export function bindGimbalPad(doc, { post = postJson } = {}) {
     if (!action) return;
     event.preventDefault();
     const btn = root.querySelector(`[data-gimbal="${action.hold}"]`);
-    if (action.kind === 'rate') {
-      const body = gimbalMoveBody(action.hold);
-      if (body) hold(btn, action.hold, RATE_URL, body);
-    } else {
+    if (action.kind === 'angle') startAngle(btn, action.hold);
+    else {
       const dir = action.hold === 'zoom-in' ? 'in' : 'out';
-      hold(btn, action.hold, ZOOM_URL, gimbalZoomBody(dir));
+      startZoom(btn, action.hold, dir);
     }
   });
   doc.addEventListener('keyup', (event) => {
