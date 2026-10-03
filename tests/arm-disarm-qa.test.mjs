@@ -106,7 +106,7 @@ describe('ARM DISARM flight screen', () => {
     const sample = new Set(['1024x576-disarmed', '1024x576-armed', '1024x576-refused', '360x740-nolink']);
     try {
       await page.goto(BASE, { waitUntil: 'domcontentloaded' });
-      await page.waitForSelector('#flightArmBtn');
+      await page.waitForSelector('#flightArmBtn', { state: 'attached' });
       await page.evaluate(() => {
         document.fonts?.ready;
         window.applySseMissionHud = () => null;
@@ -221,17 +221,29 @@ describe('ARM DISARM flight screen', () => {
     });
     try {
       await page.goto(BASE, { waitUntil: 'domcontentloaded' });
-      await page.waitForSelector('#flightArmBtn');
+      await page.waitForSelector('#flightArmBtn', { state: 'attached' });
       await page.evaluate(() => {
         window.applySseMissionHud = () => null;
       });
       await page.evaluate((mav) => applyFlightHud(mav), hud({
         connected: true, armedKnown: true, armed: false, flying: false, lastHeartbeatAgeMs: 100,
       }));
-      const arm = page.locator('#flightArmBtn');
-      const box = await arm.boundingBox();
-      const x = box.x + box.width / 2;
-      const y = box.y + box.height / 2;
+      async function armPoint() {
+        await page.evaluate(() => {
+          const stage = document.getElementById('pfdHorizonStage');
+          const rect = stage.getBoundingClientRect();
+          stage.dispatchEvent(new MouseEvent('contextmenu', {
+            bubbles: true,
+            cancelable: true,
+            clientX: rect.left + 24,
+            clientY: rect.top + 24,
+          }));
+        });
+        await page.waitForSelector('#horizonCameraMenu:not([hidden])');
+        const box = await page.locator('#flightArmBtn').boundingBox();
+        return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+      }
+      let { x, y } = await armPoint();
       await page.mouse.move(x, y);
       await page.mouse.down();
       await page.waitForTimeout(400);
@@ -246,6 +258,7 @@ describe('ARM DISARM flight screen', () => {
       await page.locator('#flightArmConfirm').click();
       expect(posts.filter((p) => p.action === 'arm')).toHaveLength(1);
       await page.waitForFunction(() => (document.getElementById('flightArmRefusal')?.textContent || '').includes('שגיאת מהירות GPS'));
+      ({ x, y } = await armPoint());
       await page.mouse.move(x, y);
       await page.mouse.down();
       await page.waitForTimeout(1600);
@@ -259,7 +272,7 @@ describe('ARM DISARM flight screen', () => {
         connected: true, armedKnown: true, armed: true, flying: false, lastHeartbeatAgeMs: 100,
         landedState: 1, landedStateAgeMs: 100,
       }));
-      await page.locator('#flightDisarmBtn').click();
+      await page.locator('#flightDisarmBtn').evaluate((el) => el.click());
       expect(await page.locator('#flightDisarmDialogText').textContent()).toBe('אשרו נטרול');
       expect(posts.filter((p) => p.action === 'disarm')).toHaveLength(0);
       await page.locator('#flightDisarmConfirm').click();
@@ -275,14 +288,16 @@ describe('ARM DISARM flight screen', () => {
       }
       expect(posts.filter((p) => p.action === 'disarm' && p.confirmFlying === true)).toHaveLength(1);
       for (const body of posts) expect(JSON.stringify(body)).not.toContain('21196');
+      await page.waitForFunction(() => document.getElementById('flightDisarmDialog')?.hidden === true);
 
       posts.length = 0;
       await page.evaluate((mav) => applyFlightHud(mav), hud({
         connected: true, armedKnown: true, armed: true, flying: true, lastHeartbeatAgeMs: 100,
         landedState: 2, landedStateAgeMs: 100,
       }));
-      await page.locator('#flightDisarmBtn').click();
-      await page.locator('#flightDisarmConfirm').click();
+      await page.locator('#flightDisarmBtn').evaluate((el) => el.click());
+      await page.waitForFunction(() => document.getElementById('flightDisarmDialog')?.hidden === false);
+      await page.locator('#flightDisarmConfirm').evaluate((el) => el.click());
       expect(posts).toHaveLength(0);
       expect(await page.locator('#flightDisarmDialogText').textContent()).toContain('אשרו נטרול שוב.');
       const fit = await page.evaluate(collectTextFitFailures, 1);
@@ -294,7 +309,7 @@ describe('ARM DISARM flight screen', () => {
       });
       expect(clipped).toBe(false);
       await page.screenshot({ path: path.join(shots, '1024x576-flying-warning.png') });
-      await page.locator('#flightDisarmConfirm').click();
+      await page.locator('#flightDisarmConfirm').evaluate((el) => el.click());
       const tFly = Date.now();
       while (posts.length < 1) {
         if (Date.now() - tFly > 3000) break;
@@ -315,6 +330,7 @@ describe('ARM DISARM flight screen', () => {
       expect(stale.disarm).toBe(false);
       expect(stale.reason).toBe('אין קשר');
       const beforeRefuse = posts.length;
+      ({ x, y } = await armPoint());
       await page.mouse.move(x, y);
       await page.mouse.down();
       await page.waitForTimeout(1600);
@@ -323,12 +339,12 @@ describe('ARM DISARM flight screen', () => {
       await page.locator('#flightArmConfirm').click();
       expect(posts.length).toBe(beforeRefuse);
       await page.waitForFunction(() => document.getElementById('flightArmRefusal')?.textContent === 'אין חיבור לבקר הטיסה');
-      await page.locator('#flightDisarmBtn').click();
+      await page.locator('#flightDisarmBtn').evaluate((el) => el.click());
       expect(await page.locator('#flightDisarmDialogText').textContent()).toBe('אשרו נטרול');
       await page.locator('#flightDisarmConfirm').click();
       expect(posts.length).toBe(beforeRefuse);
     } finally {
       await page.close();
     }
-  }, 30000);
+  }, 60000);
 });

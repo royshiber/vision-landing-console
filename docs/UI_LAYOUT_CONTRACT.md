@@ -24,6 +24,10 @@ The parent tile is `parentElement`. Fixed boxes are their own tile. Absolutely p
 
 Also reject sibling text boxes that overlap inside the horizon top bar, a data tile, the controller-status block, or the flight arm row.
 
+## Flight horizon
+
+The approved flight screen puts a near-square horizon in the right column. The horizon instrument keeps `aspect-ratio: 1 / 1` and uses the column width. It is not capped near 28 percent of the workspace. Speed, altitude, and heading stay on the instrument. Other horizon actions stay in the right-click menu.
+
 Run it on every tab (הטסה, סטטוס מחשבים, פרמטרים, תחקור) and the settings dialog, at every viewport in `tests/text-fit-matrix.test.mjs`, with live-like long values.
 
 ## Do not

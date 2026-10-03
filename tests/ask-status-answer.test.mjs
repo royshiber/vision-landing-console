@@ -156,6 +156,50 @@ describe('offline Ask status answers', () => {
     expect((await ask(service, "why can't I arm?")).answer).toContain('לא ניתן לחמש: נדרש שלט RC');
   });
 
+  it('answers camera status questions when there is no stream', async () => {
+    const seeing = makeService({
+      classifyAskIntent: async () => ({
+        intent: 'QUESTION',
+        confidence: 0.95,
+        slots: { topic: 'seeing' },
+        resolver: 'llm',
+      }),
+    });
+    const navigation = makeService({
+      classifyAskIntent: async () => ({
+        intent: 'UI_ACTION',
+        confidence: 0.95,
+        slots: { action: 'UI_NAVIGATION', route_id: 'optics' },
+        resolver: 'llm',
+      }),
+    });
+    const empty = { current_workspace: 'UNKNOWN', aircraft_state: { connected: false } };
+    try {
+      for (const text of ['מה מצב המצלמות', 'מה קורה עם המצלמות עכשיו', 'האם יש וידאו']) {
+        for (const wired of [seeing, navigation]) {
+          const resp = await wired.service.processInput({ text, channel: 'voice', context_snapshot: empty });
+          expect(resp.answer, text).toBe('אין נתון על זרם המצלמות.');
+          expect(resp.kind, text).toBe('INFORMATION');
+          expect(resp.action_proposal, text).toBeNull();
+          expect(resp.requires_confirmation, text).toBe(false);
+          expect(resp.sent, text).toBe(false);
+          expect(resp.answer, text).not.toContain('אתם במרחב');
+        }
+      }
+      const live = await seeing.service.processInput({
+        text: 'מה מצב המצלמות',
+        channel: 'voice',
+        context_snapshot: LIVE,
+      });
+      expect(live.answer).toBe('קדמית משדרת. מטה אינה משדרת.');
+      expect(live.kind).toBe('INFORMATION');
+      expect(live.sent).toBe(false);
+    } finally {
+      fs.rmSync(seeing.root, { recursive: true, force: true });
+      fs.rmSync(navigation.root, { recursive: true, force: true });
+    }
+  });
+
   it('answers cameras and Jetson from ops signals', async () => {
     expect((await ask(service, 'האם המצלמות משדרות?')).answer).toBe('קדמית משדרת. מטה אינה משדרת.');
     expect((await ask(service, 'מה מצב ה-Jetson?')).answer).toBe('מחשב משימה (Jetson) מחובר.');

@@ -7459,8 +7459,17 @@ function initHorizonCameraMenu() {
   menu.className = 'horizon-cam-menu';
   menu.hidden = true;
   menu.setAttribute('role', 'menu');
-  menu.setAttribute('aria-label', 'מצלמות רקע לאופק');
+  menu.setAttribute('aria-label', 'פעולות אופק');
   menu.dir = 'rtl';
+  for (const id of ['horizonVideoToggle', 'annotatedVisionToggle', 'liveCameraToggle', 'horizonPointsToggle', 'pfdVoiceFlightBtn', 'flightArmBtn', 'flightDisarmBtn']) {
+    const btn = document.getElementById(id);
+    if (!btn) continue;
+    btn.classList.add('horizon-cam-menu-item');
+    menu.appendChild(btn);
+  }
+  document.getElementById('horizonPointsToggle')?.addEventListener('click', () => {
+    document.getElementById('terrainShowLoadedPathBtn')?.click();
+  });
   for (const slot of HORIZON_CAMERA_SLOTS) {
     const btn = document.createElement('button');
     btn.type = 'button';
@@ -7972,11 +7981,6 @@ function drawHorizon(canvas, rollDeg, pitchDeg, opts = {}) {
   const showPitch = pitchBounded != null;
   const rollDraw = showRoll ? rollBounded : 0;
   const pitchDraw = showPitch ? pitchBounded : 0;
-  if (!showRoll && !showPitch && !videoMode) {
-    ctx.fillStyle = '#12161f';
-    ctx.fillRect(0, 0, W, H);
-    return;
-  }
   const rollRad = (rollDraw * Math.PI) / 180;
   const hud = videoMode ? '#3DFF6A' : '#f8f1d4';
   const skyZenith = videoMode ? 'rgba(18, 78, 148, 0.12)' : '#163e86';
@@ -8046,7 +8050,7 @@ function drawHorizon(canvas, rollDeg, pitchDeg, opts = {}) {
     ctx.moveTo(-hw, y);
     ctx.lineTo(hw, y);
     ctx.stroke();
-    if (big) {
+    if (big && (showRoll || showPitch)) {
       ctx.globalAlpha = 0.95;
       ctx.fillStyle = hud;
       ctx.textAlign = 'center';
@@ -8497,8 +8501,10 @@ function applyFlightHud(mav) {
     altitude: finiteHorizonTape(mav.altitude),
     heading: finiteHorizonTape(mav.heading),
   };
+  if (!hudLinkLive(mav)) {
+    _horizonTape = { airspeed: null, altitude: null, heading: null };
+  }
   drawHorizon(horizonCanvas, _lastRoll, _lastPitch, currentHorizonDrawOpts());
-  syncHorizonNoData();
 
   // Armed / mode (top bar)
   const armed = !!mav.armed;
@@ -8523,10 +8529,12 @@ function applyFlightHud(mav) {
     pfdModeVal.textContent = vlcFlightModeText(mav.flightMode, mav, mav.connected === true);
   }
 
-  // Heading (top bar)
+  const liveTape = hudLinkLive(mav);
+
+  // Heading (top bar). A dead link keeps the dash even if the snapshot still carries a number.
   if (pfdHdgVal && pfdHdgArrow) {
     const hdg = mav.heading;
-    if (typeof hdg === 'number' && Number.isFinite(hdg)) {
+    if (liveTape && typeof hdg === 'number' && Number.isFinite(hdg)) {
       const hdgNorm = ((hdg % 360) + 360) % 360;
       pfdHdgVal.textContent = `${Math.round(hdgNorm)}°`;
       pfdHdgArrow.style.transform = `rotate(${hdgNorm}deg)`;
@@ -8548,14 +8556,15 @@ function applyFlightHud(mav) {
   }
   if (pfdAirspeedVal) {
     const as = mav.airspeed;
-    pfdAirspeedVal.textContent = typeof as === 'number' && Number.isFinite(as) ? as.toFixed(1) : '—';
+    pfdAirspeedVal.textContent = liveTape && typeof as === 'number' && Number.isFinite(as) ? as.toFixed(1) : '—';
     pfdAirspeedVal.title = airspeedTileHonestyTitle(mav);
   }
   if (pfdAltVal) {
     const al = mav.altitude;
-    pfdAltVal.textContent = altitudeIsFinite(al) ? al.toFixed(1) : '—';
+    pfdAltVal.textContent = liveTape && altitudeIsFinite(al) ? al.toFixed(1) : '—';
     pfdAltVal.title = altitudeTileHonestyTitle(mav);
   }
+  syncHorizonNoData();
 
   // Battery lives in the telemetry tiles.
   if (pfdBattVal) {
@@ -9287,10 +9296,19 @@ document.getElementById('hudParamShowAll')?.addEventListener('click', async () =
 });
 
 // Initial horizon draw — defer so ResizeObserver fires first
+function horizonTapeIsDash(id) {
+  const text = (document.getElementById(id)?.textContent || '').replace(/\s+/g, '').trim();
+  return text === '' || text === '—' || text === '-' || text === '–';
+}
+
 function syncHorizonNoData() {
   const note = document.getElementById('horizonNoData');
   if (!note) return;
-  note.hidden = _lastRoll != null || _lastPitch != null;
+  const noAttitude = _lastRoll == null && _lastPitch == null;
+  const tapesEmpty = horizonTapeIsDash('pfdAirspeedVal')
+    && horizonTapeIsDash('pfdAltVal')
+    && horizonTapeIsDash('pfdHdgVal');
+  note.hidden = !(noAttitude && tapesEmpty);
 }
 
 requestAnimationFrame(() => {
@@ -12041,7 +12059,7 @@ function paintFlightFollow(on) {
   if (btn) {
     btn.setAttribute('aria-pressed', flightFollowOn ? 'true' : 'false');
     btn.classList.toggle('active', flightFollowOn);
-    btn.textContent = flightFollowOn ? 'עוקב' : 'עקוב';
+    btn.textContent = flightFollowOn ? 'עוקב' : 'עקבו';
   }
   try { localStorage.setItem(FLIGHT_FOLLOW_KEY, flightFollowOn ? '1' : '0'); } catch { /* ignore */ }
 }
@@ -13650,6 +13668,7 @@ initLiveCameraPanel();
     });
     if (typeof paintPulseCommStatus === 'function') paintPulseCommStatus(links);
     syncRadioWithWork();
+    if (typeof refreshOpenFlightCommMenus === 'function') refreshOpenFlightCommMenus();
   }
 
   let lastWorkPaint = null;
@@ -13733,6 +13752,7 @@ initLiveCameraPanel();
   function applyDualLinkUi(links) {
     if (!links) return false;
     latestLinksSnapshot = links;
+    globalThis.flightLinksSnapshot = links;
     if (radioChip) {
       radioChip.dataset.state = chipStateFromLink(links.radio);
       radioChip.textContent = `${links.radioLabelHe || 'RF'} · ${links.radioStatusHe || 'מנותק'}`;
@@ -22106,3 +22126,247 @@ function paint(rec, extra = {}) {
     return data;
   }).catch(() => {});
 })();
+
+function flightLinkRow(id) {
+  const rows = globalThis.flightLinksSnapshot?.comm?.rows;
+  return Array.isArray(rows) ? rows.find((row) => row.id === id) || null : null;
+}
+
+function flightLinkFacts(row) {
+  const quality = row && row.quality && typeof row.quality === 'object' ? row.quality : null;
+  const percent = quality && quality.known === true ? Number(quality.percent) : NaN;
+  const delay = row && row.delayMs != null ? Number(row.delayMs) : NaN;
+  return {
+    state: row && row.statusHe ? String(row.statusHe) : '—',
+    strength: Number.isFinite(percent) ? `${Math.round(percent)}%` : '—',
+    quality: quality && quality.known === true && quality.sourceHe ? String(quality.sourceHe) : '—',
+    delay: Number.isFinite(delay) ? `${Math.round(delay)} ms` : '—',
+  };
+}
+
+function pluralLinkAction(label) {
+  if (label === 'התנתק') return 'התנתקו';
+  if (label === 'התחבר' || label === 'חיבור ל-RF') return 'התחברו';
+  return 'התחברו';
+}
+
+function rcMenuLive(row) {
+  return !!(row && (row.state === 'live' || row.tone === 'ok' || row.statusHe === 'חי'));
+}
+
+function flightMenuActionHe(row, id) {
+  if (id === 'rc') return rcMenuLive(row) ? 'התנתקו' : 'התחברו';
+  return pluralLinkAction(row?.actionHe);
+}
+
+function flightLinkErrorText(id) {
+  const row = flightLinkRow(id);
+  const fromRow = row && typeof row.errorHe === 'string' ? row.errorHe.trim() : '';
+  const el = document.querySelector(`#commLinkRows .comm-link-row[data-link="${id}"] .comm-link-error`);
+  const fromEl = el && !el.hidden ? String(el.textContent || '').trim() : '';
+  return fromRow || fromEl;
+}
+
+function paintFlightLinkPanel(prefix, id) {
+  const row = flightLinkRow(id);
+  const facts = flightLinkFacts(row);
+  const state = document.getElementById(`${prefix}State`);
+  const strength = document.getElementById(`${prefix}Strength`);
+  const quality = document.getElementById(`${prefix}Quality`);
+  const delay = document.getElementById(`${prefix}Delay`);
+  if (state) state.textContent = facts.state;
+  if (strength) strength.textContent = facts.strength;
+  if (quality) quality.textContent = facts.quality;
+  if (delay) delay.textContent = facts.delay;
+  const err = document.getElementById(prefix === 'flightComm' ? 'flightCommError' : 'flightLinkError');
+  const message = flightLinkErrorText(id);
+  if (err) {
+    err.hidden = !message;
+    err.textContent = message;
+  }
+  const action = document.getElementById(prefix === 'flightComm' ? 'flightCommAction' : 'flightLinkAction');
+  if (action) {
+    action.textContent = flightMenuActionHe(row, id);
+    action.dataset.link = id || '';
+    action.classList.toggle('is-disconnect', action.textContent === 'התנתקו');
+  }
+  return id;
+}
+
+let flightCommLinkId = 'cellular';
+
+function placeFlightMenu(menu, x, y) {
+  if (!menu) return;
+  menu.hidden = false;
+  menu.style.left = '0px';
+  menu.style.top = '0px';
+  const rect = menu.getBoundingClientRect();
+  const left = Math.max(8, Math.min(x, window.innerWidth - rect.width - 8));
+  const top = Math.max(8, Math.min(y, window.innerHeight - rect.height - 8));
+  menu.style.left = `${Math.round(left)}px`;
+  menu.style.top = `${Math.round(top)}px`;
+}
+
+function openFlightCommMenu(id, anchorEl) {
+  const menu = document.getElementById('flightCommMenu');
+  const linkMenu = document.getElementById('flightLinkMenu');
+  if (linkMenu) linkMenu.hidden = true;
+  flightCommLinkId = id || flightCommLinkId || 'cellular';
+  paintFlightLinkPanel('flightComm', flightCommLinkId);
+  menu?.querySelectorAll('[data-comm-link]').forEach((btn) => {
+    btn.classList.toggle('is-selected', btn.dataset.commLink === flightCommLinkId);
+  });
+  const anchor = (anchorEl instanceof Element ? anchorEl : document.getElementById('missionCommOpen'))?.getBoundingClientRect();
+  placeFlightMenu(menu, anchor ? anchor.left : 24, anchor ? anchor.bottom + 6 : 48);
+  syncFlightCommChoice();
+}
+
+function openFlightLinkMenu(id, x, y) {
+  const menu = document.getElementById('flightLinkMenu');
+  const comm = document.getElementById('flightCommMenu');
+  if (comm) comm.hidden = true;
+  paintFlightLinkPanel('flightLink', id);
+  placeFlightMenu(menu, x, y);
+  syncFlightCommChoice();
+}
+
+function syncFlightCommChoice() {
+  const menu = document.getElementById('flightCommMenu');
+  const open = !!(menu && !menu.hidden);
+  const choice = document.getElementById('flightCommTab');
+  if (!choice) return;
+  choice.classList.toggle('is-selected', open);
+  choice.setAttribute('aria-pressed', open ? 'true' : 'false');
+}
+
+function refreshOpenFlightCommMenus() {
+  const comm = document.getElementById('flightCommMenu');
+  const link = document.getElementById('flightLinkMenu');
+  if (comm && !comm.hidden) paintFlightLinkPanel('flightComm', flightCommLinkId);
+  if (link && !link.hidden) paintFlightLinkPanel('flightLink', document.getElementById('flightLinkAction')?.dataset.link || '');
+}
+
+function runExistingLinkAction(id) {
+  if (id === 'rc') {
+    void attemptRcLinkAction();
+    return;
+  }
+  const ids = {
+    cellular: 'cellularConnectBtn',
+    radio: 'connectBtn',
+    home: 'companionLinkBtn',
+  };
+  document.getElementById(ids[id] || '')?.click();
+}
+
+async function attemptRcLinkAction() {
+  try {
+    const res = await fetch('/api/links', { cache: 'no-store' });
+    if (res.ok) {
+      const body = await res.json();
+      if (body?.ok && body.links) {
+        document.dispatchEvent(new CustomEvent('vlc:links-snapshot', { detail: body.links }));
+      }
+    }
+  } catch { /* the menu keeps the last honest facts */ }
+  refreshOpenFlightCommMenus();
+  if (rcMenuLive(flightLinkRow('rc'))) return;
+  const linkOpen = document.getElementById('flightLinkMenu')?.hidden === false;
+  const err = document.getElementById(linkOpen ? 'flightLinkError' : 'flightCommError');
+  if (!err) return;
+  err.hidden = false;
+  err.textContent = 'אין סטטוס חיבור לשלט.';
+}
+
+function initFlightCommMenus() {
+  const comm = document.getElementById('flightCommMenu');
+  const linkMenu = document.getElementById('flightLinkMenu');
+  function toggleFlightCommMenu(anchor) {
+    if (comm && !comm.hidden) {
+      comm.hidden = true;
+      syncFlightCommChoice();
+      return;
+    }
+    openFlightCommMenu(flightCommLinkId, anchor);
+  }
+  document.getElementById('flightCommTab')?.addEventListener('click', (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (typeof applyMainTab === 'function') applyMainTab('terrain');
+    toggleFlightCommMenu(document.getElementById('flightCommTab'));
+  });
+  document.querySelectorAll('.tab[data-tab]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      if (btn.dataset.tab === 'terrain') return;
+      if (comm) comm.hidden = true;
+      if (linkMenu) linkMenu.hidden = true;
+      syncFlightCommChoice();
+    });
+  });
+  document.getElementById('missionCommOpen')?.addEventListener('click', (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    toggleFlightCommMenu(document.getElementById('missionCommOpen'));
+  });
+  document.querySelectorAll('#missionLinkStrip .mission-link-chip').forEach((chip) => {
+    chip.addEventListener('click', (event) => {
+      event.preventDefault();
+      openFlightCommMenu(chip.dataset.link, chip);
+    });
+    chip.addEventListener('contextmenu', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      openFlightLinkMenu(chip.dataset.link, event.clientX, event.clientY);
+    });
+  });
+  comm?.querySelectorAll('[data-comm-link]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      flightCommLinkId = btn.dataset.commLink;
+      paintFlightLinkPanel('flightComm', flightCommLinkId);
+      comm.querySelectorAll('[data-comm-link]').forEach((item) => {
+        item.classList.toggle('is-selected', item.dataset.commLink === flightCommLinkId);
+      });
+    });
+  });
+  document.getElementById('flightCommAction')?.addEventListener('click', () => {
+    runExistingLinkAction(flightCommLinkId);
+  });
+  document.getElementById('flightLinkAction')?.addEventListener('click', () => {
+    runExistingLinkAction(document.getElementById('flightLinkAction')?.dataset.link || '');
+  });
+  document.addEventListener('pointerdown', (event) => {
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    if (target.closest('#flightCommMenu, #flightLinkMenu, #flightCommTab, #missionCommOpen, #missionLinkStrip')) return;
+    if (comm) comm.hidden = true;
+    if (linkMenu) linkMenu.hidden = true;
+    syncFlightCommChoice();
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape') return;
+    if (comm) comm.hidden = true;
+    if (linkMenu) linkMenu.hidden = true;
+    syncFlightCommChoice();
+  });
+}
+initFlightCommMenus();
+
+function initAskToolsMenu() {
+  const talk = document.querySelector('[data-mission-region="talk"]');
+  const host = document.getElementById('missionTalkHost');
+  if (!talk || !host) return;
+  talk.addEventListener('contextmenu', (event) => {
+    if (event.target instanceof Element && event.target.closest('#assistMicBtn')) return;
+    event.preventDefault();
+    host.classList.toggle('ask-tools-open');
+  });
+  document.addEventListener('pointerdown', (event) => {
+    if (!host.classList.contains('ask-tools-open')) return;
+    if (event.target instanceof Element && host.contains(event.target)) return;
+    host.classList.remove('ask-tools-open');
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') host.classList.remove('ask-tools-open');
+  });
+}
+initAskToolsMenu();
