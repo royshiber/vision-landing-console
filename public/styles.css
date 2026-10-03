@@ -24859,6 +24859,18 @@ body[data-work-path="rf"] #optics .optics-calib {
   height: 100%;
   overflow: hidden;
 }
+.mission-region-horizon > .mission-region-data:has([data-mission-data-slot="6"]),
+.mission-region-horizon[data-flight-stack="custom"] > .mission-region-data:has([data-mission-data-slot="6"]) {
+  height: auto;
+  min-height: var(--flight-data-h, auto);
+  overflow: visible;
+}
+.mission-region-horizon > .mission-region-data:has([data-mission-data-slot="6"]) > .mission-data-grid,
+.mission-region-horizon[data-flight-stack="custom"] > .mission-region-data:has([data-mission-data-slot="6"]) > .mission-data-grid {
+  height: auto;
+  overflow: visible;
+  grid-auto-rows: auto;
+}
 .mission-region-horizon .mission-data-tile {
   display: flex;
   flex-direction: column;

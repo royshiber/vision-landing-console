@@ -20888,12 +20888,17 @@ function readMissionDataSlots() {
   const fallback = defaultMissionDataSlots();
   try {
     const raw = JSON.parse(missionLayoutStoreGet(MISSION_DATA_SLOTS_KEY) || 'null');
-    if (!Array.isArray(raw) || raw.length !== fallback.length) return fallback;
-    return raw.map((slot, i) => {
-      const found = MISSION_DATA_CATALOG.find((e) => e.key === slot?.key);
-      if (!found) return fallback[i];
-      return { key: found.key, label: found.label, unit: found.unit, mav: found.mav || '' };
-    });
+    if (!Array.isArray(raw) || raw.length < fallback.length) return fallback;
+    const mapped = [];
+    for (let i = 0; i < raw.length; i += 1) {
+      const found = MISSION_DATA_CATALOG.find((e) => e.key === raw[i]?.key);
+      if (found) {
+        mapped.push({ key: found.key, label: found.label, unit: found.unit, mav: found.mav || '' });
+      } else if (i < fallback.length) {
+        mapped.push({ ...fallback[i] });
+      }
+    }
+    return mapped.length >= fallback.length ? mapped : fallback;
   } catch {
     return fallback;
   }
@@ -21149,17 +21154,68 @@ function openMissionDataPicker(slotIdx, x, y) {
   setTimeout(() => input?.focus(), 30);
 }
 
+function missionDataLivePayload() {
+  return {
+    mavlink: typeof latestHudMavlink !== 'undefined' ? latestHudMavlink : null,
+    vision: typeof lastSseTerrainPayload !== 'undefined' ? lastSseTerrainPayload?.vision : null,
+    jetson: typeof latestJetsonFromServer !== 'undefined' ? latestJetsonFromServer : null,
+    slam: typeof lastSseTerrainPayload !== 'undefined' ? lastSseTerrainPayload?.slam : null,
+  };
+}
+
+function nextUnusedMissionDatum(slots) {
+  const used = new Set((slots || []).map((slot) => slot?.key).filter(Boolean));
+  return MISSION_DATA_CATALOG.find((entry) => entry?.key && !used.has(entry.key)) || null;
+}
+
+function createMissionDataTile(id) {
+  const tile = document.createElement('div');
+  tile.className = 'mission-data-item mission-data-tile';
+  tile.dataset.missionDataSlot = String(id);
+  const label = document.createElement('dt');
+  label.className = 'mission-data-label';
+  const readout = document.createElement('dd');
+  readout.className = 'mission-data-readout';
+  readout.dir = 'ltr';
+  const pair = document.createElement('span');
+  pair.className = 'mission-data-pair';
+  const value = document.createElement('strong');
+  value.className = 'mission-data-value';
+  value.textContent = '—';
+  const unit = document.createElement('span');
+  unit.className = 'mission-data-unit';
+  pair.append(value, unit);
+  readout.append(pair);
+  tile.append(label, readout);
+  return tile;
+}
+
+function mountMissionDataTile(id) {
+  const grid = document.getElementById('missionDataGrid');
+  if (!grid) return null;
+  const existing = grid.querySelector(`[data-mission-data-slot="${id}"]`);
+  if (existing) return existing;
+  const tile = createMissionDataTile(id);
+  grid.appendChild(tile);
+  return tile;
+}
+
+function mountExtraMissionDataTiles() {
+  const slots = readMissionDataSlots();
+  for (let i = DEFAULT_MISSION_DATA_SLOTS.length; i < slots.length; i += 1) {
+    mountMissionDataTile(String(i));
+  }
+}
+
 function applyMissionDataSlotChoice(entry) {
   if (_missionDataPickerSlot < 0 || !entry?.key) return;
   const slots = readMissionDataSlots();
-  slots[_missionDataPickerSlot] = { key: entry.key, label: entry.label, unit: entry.unit || '', mav: entry.mav || '' };
+  const idx = _missionDataPickerSlot;
+  slots[idx] = { key: entry.key, label: entry.label, unit: entry.unit || '', mav: entry.mav || '' };
   writeMissionDataSlots(slots);
-  applyMissionDataGrid({
-    mavlink: latestHudMavlink,
-    vision: lastSseTerrainPayload?.vision,
-    jetson: typeof latestJetsonFromServer !== 'undefined' ? latestJetsonFromServer : null,
-    slam: lastSseTerrainPayload?.slam,
-  });
+  const tile = mountMissionDataTile(String(idx));
+  if (tile) bindMissionDataSlotPress(tile);
+  applyMissionDataGrid(missionDataLivePayload());
   closeMissionDataPicker();
 }
 
@@ -21204,18 +21260,34 @@ function deleteMissionDataTile(item) {
 
 function restoreLastMissionDataTile() {
   const hidden = readHiddenMissionTiles();
-  if (!hidden.length) return;
+  if (!hidden.length) return false;
   const id = hidden.pop();
   writeHiddenMissionTiles(hidden);
   applyHiddenMissionTiles();
-  const idx = Number(id);
-  const item = document.querySelector(`[data-mission-data-slot="${id}"]`);
-  if (!item || !Number.isFinite(idx)) return;
-  const box = item.getBoundingClientRect();
-  openMissionDataPicker(idx, box.left + 8, box.bottom);
+  return true;
+}
+
+function addMissionDataTile() {
+  if (restoreLastMissionDataTile()) return;
+  const slots = readMissionDataSlots();
+  const entry = nextUnusedMissionDatum(slots);
+  const btn = document.getElementById('missionDataAddBtn');
+  const box = btn?.getBoundingClientRect();
+  if (!entry) {
+    openMissionDataPicker(slots.length, (box?.left || 16) + 8, box?.bottom || 80);
+    return;
+  }
+  const id = String(slots.length);
+  slots.push({ key: entry.key, label: entry.label, unit: entry.unit || '', mav: entry.mav || '' });
+  writeMissionDataSlots(slots);
+  const tile = mountMissionDataTile(id);
+  if (tile) bindMissionDataSlotPress(tile);
+  applyMissionDataGrid(missionDataLivePayload());
 }
 
 function bindMissionDataSlotPress(item) {
+  if (!item || item.dataset.pressBound === '1') return;
+  item.dataset.pressBound = '1';
   item.addEventListener('contextmenu', (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -21247,13 +21319,15 @@ function bindMissionDataSlotPress(item) {
 }
 
 function initMissionDataPicker() {
+  mountExtraMissionDataTiles();
   applyMissionDataSlotsChrome(readMissionDataSlots());
   applyHiddenMissionTiles();
   document.querySelectorAll('[data-mission-data-slot]').forEach((item) => {
     bindMissionDataSlotPress(item);
   });
-  document.getElementById('missionDataAddBtn')?.addEventListener('click', () => {
-    restoreLastMissionDataTile();
+  document.getElementById('missionDataAddBtn')?.addEventListener('click', (event) => {
+    event.stopPropagation();
+    addMissionDataTile();
   });
   document.getElementById('missionDataPickerApply')?.addEventListener('click', () => {
     confirmMissionDataPickerChoice();

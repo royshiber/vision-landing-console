@@ -158,4 +158,89 @@ describe('three-camera proportions and tile delete', () => {
     const restored = await page.evaluate(() => document.querySelector('[data-mission-data-slot="1"]').hidden);
     expect(restored).toBe(false);
   }, 30000);
+
+  it('adds a readable flight tile on each click and right-click deletes it without a command', async () => {
+    await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+    await page.evaluate(() => {
+      localStorage.removeItem('visionLandingMissionDataHiddenV1');
+      localStorage.removeItem('visionLandingMissionDataSlotsV1');
+      localStorage.removeItem('visionLandingFlightStackV1');
+    });
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await page.click('[data-tab="terrain"]');
+    await page.waitForSelector('#missionDataAddBtn');
+    await page.evaluate(() => {
+      window.__vlcFetchUrls = [];
+      const orig = window.fetch.bind(window);
+      window.fetch = (...args) => {
+        const url = typeof args[0] === 'string' ? args[0] : (args[0]?.url || '');
+        window.__vlcFetchUrls.push(String(url));
+        return orig(...args);
+      };
+    });
+    const before = await page.evaluate(() => (
+      [...document.querySelectorAll('#missionDataGrid .mission-data-tile')].filter((el) => !el.hidden).length
+    ));
+    await page.click('#missionDataAddBtn');
+    const first = await page.evaluate(() => {
+      const tile = document.querySelector('[data-mission-data-slot="6"]');
+      const label = tile?.querySelector('.mission-data-label');
+      const value = tile?.querySelector('.mission-data-value');
+      const grid = document.getElementById('missionDataGrid').getBoundingClientRect();
+      const box = tile?.getBoundingClientRect();
+      const visible = [...document.querySelectorAll('#missionDataGrid .mission-data-tile')].filter((el) => !el.hidden).length;
+      const fits = (el) => !!el && el.scrollWidth <= el.clientWidth + 1 && el.scrollHeight <= el.clientHeight + 1;
+      return {
+        visible,
+        label: label?.textContent || '',
+        value: value?.textContent || '',
+        w: box?.width || 0,
+        h: box?.height || 0,
+        inside: !!box && box.top >= grid.top - 1 && box.bottom <= grid.bottom + 1 && box.left >= grid.left - 1 && box.right <= grid.right + 1,
+        labelFits: fits(label),
+        valueFits: fits(value),
+      };
+    });
+    expect(first.visible).toBe(before + 1);
+    expect(first.label).toBe('מהירות קרקעית');
+    expect(first.value.length).toBeGreaterThan(0);
+    expect(first.w).toBeGreaterThan(40);
+    expect(first.h).toBeGreaterThan(24);
+    expect(first.inside).toBe(true);
+    expect(first.labelFits).toBe(true);
+    expect(first.valueFits).toBe(true);
+
+    await page.click('#missionDataAddBtn');
+    const second = await page.evaluate(() => {
+      const tile = document.querySelector('[data-mission-data-slot="7"]');
+      const label = tile?.querySelector('.mission-data-label');
+      const value = tile?.querySelector('.mission-data-value');
+      const picker = document.getElementById('missionDataPicker');
+      const grid = document.getElementById('missionDataGrid').getBoundingClientRect();
+      const box = tile?.getBoundingClientRect();
+      const visible = [...document.querySelectorAll('#missionDataGrid .mission-data-tile')].filter((el) => !el.hidden).length;
+      return {
+        visible,
+        label: label?.textContent || '',
+        value: value?.textContent || '',
+        h: box?.height || 0,
+        inside: !!box && box.bottom <= grid.bottom + 1 && box.top >= grid.top - 1,
+        pickerOpen: picker ? !picker.classList.contains('hidden') : false,
+      };
+    });
+    expect(second.visible).toBe(before + 2);
+    expect(second.label).toBe('מהירות אנכית');
+    expect(second.value.length).toBeGreaterThan(0);
+    expect(second.h).toBeGreaterThan(24);
+    expect(second.inside).toBe(true);
+    expect(second.pickerOpen).toBe(false);
+
+    await page.locator('[data-mission-data-slot="7"]').click({ button: 'right' });
+    const deleted = await page.evaluate(() => ({
+      hidden: document.querySelector('[data-mission-data-slot="7"]').hidden,
+      urls: window.__vlcFetchUrls,
+    }));
+    expect(deleted.hidden).toBe(true);
+    expect(deleted.urls.some((url) => /arm|disarm|flight-mode|param-set|\/apply|\/restart|\/command/i.test(url))).toBe(false);
+  }, 30000);
 });
