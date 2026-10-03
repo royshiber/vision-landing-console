@@ -8050,7 +8050,7 @@ function drawHorizon(canvas, rollDeg, pitchDeg, opts = {}) {
     ctx.moveTo(-hw, y);
     ctx.lineTo(hw, y);
     ctx.stroke();
-    if (big) {
+    if (big && (showRoll || showPitch)) {
       ctx.globalAlpha = 0.95;
       ctx.fillStyle = hud;
       ctx.textAlign = 'center';
@@ -8501,8 +8501,10 @@ function applyFlightHud(mav) {
     altitude: finiteHorizonTape(mav.altitude),
     heading: finiteHorizonTape(mav.heading),
   };
+  if (!hudLinkLive(mav)) {
+    _horizonTape = { airspeed: null, altitude: null, heading: null };
+  }
   drawHorizon(horizonCanvas, _lastRoll, _lastPitch, currentHorizonDrawOpts());
-  syncHorizonNoData();
 
   // Armed / mode (top bar)
   const armed = !!mav.armed;
@@ -8527,10 +8529,12 @@ function applyFlightHud(mav) {
     pfdModeVal.textContent = vlcFlightModeText(mav.flightMode, mav, mav.connected === true);
   }
 
-  // Heading (top bar)
+  const liveTape = hudLinkLive(mav);
+
+  // Heading (top bar). A dead link keeps the dash even if the snapshot still carries a number.
   if (pfdHdgVal && pfdHdgArrow) {
     const hdg = mav.heading;
-    if (typeof hdg === 'number' && Number.isFinite(hdg)) {
+    if (liveTape && typeof hdg === 'number' && Number.isFinite(hdg)) {
       const hdgNorm = ((hdg % 360) + 360) % 360;
       pfdHdgVal.textContent = `${Math.round(hdgNorm)}°`;
       pfdHdgArrow.style.transform = `rotate(${hdgNorm}deg)`;
@@ -8552,14 +8556,15 @@ function applyFlightHud(mav) {
   }
   if (pfdAirspeedVal) {
     const as = mav.airspeed;
-    pfdAirspeedVal.textContent = typeof as === 'number' && Number.isFinite(as) ? as.toFixed(1) : '—';
+    pfdAirspeedVal.textContent = liveTape && typeof as === 'number' && Number.isFinite(as) ? as.toFixed(1) : '—';
     pfdAirspeedVal.title = airspeedTileHonestyTitle(mav);
   }
   if (pfdAltVal) {
     const al = mav.altitude;
-    pfdAltVal.textContent = altitudeIsFinite(al) ? al.toFixed(1) : '—';
+    pfdAltVal.textContent = liveTape && altitudeIsFinite(al) ? al.toFixed(1) : '—';
     pfdAltVal.title = altitudeTileHonestyTitle(mav);
   }
+  syncHorizonNoData();
 
   // Battery lives in the telemetry tiles.
   if (pfdBattVal) {
@@ -9291,10 +9296,19 @@ document.getElementById('hudParamShowAll')?.addEventListener('click', async () =
 });
 
 // Initial horizon draw — defer so ResizeObserver fires first
+function horizonTapeIsDash(id) {
+  const text = (document.getElementById(id)?.textContent || '').replace(/\s+/g, '').trim();
+  return text === '' || text === '—' || text === '-' || text === '–';
+}
+
 function syncHorizonNoData() {
   const note = document.getElementById('horizonNoData');
   if (!note) return;
-  note.hidden = _lastRoll != null || _lastPitch != null;
+  const noAttitude = _lastRoll == null && _lastPitch == null;
+  const tapesEmpty = horizonTapeIsDash('pfdAirspeedVal')
+    && horizonTapeIsDash('pfdAltVal')
+    && horizonTapeIsDash('pfdHdgVal');
+  note.hidden = !(noAttitude && tapesEmpty);
 }
 
 requestAnimationFrame(() => {
@@ -22133,8 +22147,16 @@ function flightLinkFacts(row) {
 function pluralLinkAction(label) {
   if (label === 'התנתק') return 'התנתקו';
   if (label === 'התחבר' || label === 'חיבור ל-RF') return 'התחברו';
-  if (label === 'סטטוס') return 'הציגו';
   return 'התחברו';
+}
+
+function rcMenuLive(row) {
+  return !!(row && (row.state === 'live' || row.tone === 'ok' || row.statusHe === 'חי'));
+}
+
+function flightMenuActionHe(row, id) {
+  if (id === 'rc') return rcMenuLive(row) ? 'התנתקו' : 'התחברו';
+  return pluralLinkAction(row?.actionHe);
 }
 
 function flightLinkErrorText(id) {
@@ -22164,9 +22186,9 @@ function paintFlightLinkPanel(prefix, id) {
   }
   const action = document.getElementById(prefix === 'flightComm' ? 'flightCommAction' : 'flightLinkAction');
   if (action) {
-    action.textContent = pluralLinkAction(row?.actionHe);
+    action.textContent = flightMenuActionHe(row, id);
     action.dataset.link = id || '';
-    action.classList.toggle('is-disconnect', row?.actionHe === 'התנתק');
+    action.classList.toggle('is-disconnect', action.textContent === 'התנתקו');
   }
   return id;
 }
@@ -22196,6 +22218,7 @@ function openFlightCommMenu(id, anchorEl) {
   });
   const anchor = (anchorEl instanceof Element ? anchorEl : document.getElementById('missionCommOpen'))?.getBoundingClientRect();
   placeFlightMenu(menu, anchor ? anchor.left : 24, anchor ? anchor.bottom + 6 : 48);
+  syncFlightCommChoice();
 }
 
 function openFlightLinkMenu(id, x, y) {
@@ -22204,6 +22227,16 @@ function openFlightLinkMenu(id, x, y) {
   if (comm) comm.hidden = true;
   paintFlightLinkPanel('flightLink', id);
   placeFlightMenu(menu, x, y);
+  syncFlightCommChoice();
+}
+
+function syncFlightCommChoice() {
+  const menu = document.getElementById('flightCommMenu');
+  const open = !!(menu && !menu.hidden);
+  const choice = document.getElementById('flightCommTab');
+  if (!choice) return;
+  choice.classList.toggle('is-selected', open);
+  choice.setAttribute('aria-pressed', open ? 'true' : 'false');
 }
 
 function refreshOpenFlightCommMenus() {
@@ -22214,26 +22247,66 @@ function refreshOpenFlightCommMenus() {
 }
 
 function runExistingLinkAction(id) {
+  if (id === 'rc') {
+    void attemptRcLinkAction();
+    return;
+  }
   const ids = {
     cellular: 'cellularConnectBtn',
     radio: 'connectBtn',
     home: 'companionLinkBtn',
-    rc: 'rcStatusBtn',
   };
   document.getElementById(ids[id] || '')?.click();
+}
+
+async function attemptRcLinkAction() {
+  try {
+    const res = await fetch('/api/links', { cache: 'no-store' });
+    if (res.ok) {
+      const body = await res.json();
+      if (body?.ok && body.links) {
+        document.dispatchEvent(new CustomEvent('vlc:links-snapshot', { detail: body.links }));
+      }
+    }
+  } catch { /* the menu keeps the last honest facts */ }
+  refreshOpenFlightCommMenus();
+  if (rcMenuLive(flightLinkRow('rc'))) return;
+  const linkOpen = document.getElementById('flightLinkMenu')?.hidden === false;
+  const err = document.getElementById(linkOpen ? 'flightLinkError' : 'flightCommError');
+  if (!err) return;
+  err.hidden = false;
+  err.textContent = 'אין סטטוס חיבור לשלט.';
 }
 
 function initFlightCommMenus() {
   const comm = document.getElementById('flightCommMenu');
   const linkMenu = document.getElementById('flightLinkMenu');
+  function toggleFlightCommMenu(anchor) {
+    if (comm && !comm.hidden) {
+      comm.hidden = true;
+      syncFlightCommChoice();
+      return;
+    }
+    openFlightCommMenu(flightCommLinkId, anchor);
+  }
+  document.getElementById('flightCommTab')?.addEventListener('click', (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (typeof applyMainTab === 'function') applyMainTab('terrain');
+    toggleFlightCommMenu(document.getElementById('flightCommTab'));
+  });
+  document.querySelectorAll('.tab[data-tab]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      if (btn.dataset.tab === 'terrain') return;
+      if (comm) comm.hidden = true;
+      if (linkMenu) linkMenu.hidden = true;
+      syncFlightCommChoice();
+    });
+  });
   document.getElementById('missionCommOpen')?.addEventListener('click', (event) => {
     event.preventDefault();
     event.stopPropagation();
-    if (comm && !comm.hidden) {
-      comm.hidden = true;
-      return;
-    }
-    openFlightCommMenu(flightCommLinkId, document.getElementById('missionCommOpen'));
+    toggleFlightCommMenu(document.getElementById('missionCommOpen'));
   });
   document.querySelectorAll('#missionLinkStrip .mission-link-chip').forEach((chip) => {
     chip.addEventListener('click', (event) => {
@@ -22264,14 +22337,16 @@ function initFlightCommMenus() {
   document.addEventListener('pointerdown', (event) => {
     const target = event.target;
     if (!(target instanceof Element)) return;
-    if (target.closest('#flightCommMenu, #flightLinkMenu, #missionCommOpen, #missionLinkStrip')) return;
+    if (target.closest('#flightCommMenu, #flightLinkMenu, #flightCommTab, #missionCommOpen, #missionLinkStrip')) return;
     if (comm) comm.hidden = true;
     if (linkMenu) linkMenu.hidden = true;
+    syncFlightCommChoice();
   });
   document.addEventListener('keydown', (event) => {
     if (event.key !== 'Escape') return;
     if (comm) comm.hidden = true;
     if (linkMenu) linkMenu.hidden = true;
+    syncFlightCommChoice();
   });
 }
 initFlightCommMenus();

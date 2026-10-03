@@ -77,6 +77,11 @@ describe('approved flight screen', () => {
         arm: visible(document.getElementById('flightArmBtn')),
         disarm: visible(document.getElementById('flightDisarmBtn')),
         askData: visible(document.getElementById('missionAskDataBtn')),
+        iasText: (document.getElementById('pfdAirspeedVal')?.textContent || '').trim(),
+        altText: (document.getElementById('pfdAltVal')?.textContent || '').trim(),
+        hdgText: (document.getElementById('pfdHdgVal')?.textContent || '').trim(),
+        noteHidden: document.getElementById('horizonNoData')?.hidden === true,
+        noteText: (document.getElementById('horizonNoData')?.textContent || '').trim(),
         mic: (document.getElementById('assistMicBtn')?.innerText || '').replace(/\s+/g, ' ').trim(),
         input: getComputedStyle(document.getElementById('assistInput')).display,
         rtl: visible(document.getElementById('flightDockModeRtl')),
@@ -92,6 +97,11 @@ describe('approved flight screen', () => {
     expect(face.ias).toBe(true);
     expect(face.alt).toBe(true);
     expect(face.hdg).toBe(true);
+    expect(face.iasText).toBe('—');
+    expect(face.altText).toBe('—');
+    expect(face.hdgText).toBe('—');
+    expect(face.noteHidden).toBe(false);
+    expect(face.noteText).toBe('אין נתונים');
     expect(face.video).toBe(false);
     expect(face.vision).toBe(false);
     expect(face.frame).toBe(false);
@@ -110,9 +120,12 @@ describe('approved flight screen', () => {
     await page.locator('#flightHud').screenshot({ path: path.join(shots, 'flight-horizon.png') });
   }, 20000);
 
-  it('opens communications and a single-link menu with dashes when there is no reading', async () => {
-    await page.click('#missionCommOpen');
+  it('opens communications from תקשור and a single-link menu with dashes when there is no reading', async () => {
+    const tabs = await page.locator('nav.tabs > .tab:not([hidden])').allInnerTexts();
+    expect(tabs.map((text) => text.trim())).toEqual(['הטסה', 'סטטוס מחשבים', 'פרמטרים', 'אופטיקה', 'תחקור', 'תקשור']);
+    await page.click('#flightCommTab');
     await page.waitForSelector('#flightCommMenu:not([hidden])');
+    expect(await page.locator('#flightCommTab').getAttribute('aria-pressed')).toBe('true');
     const comm = await page.evaluate(() => ({
       state: document.getElementById('flightCommState').textContent,
       strength: document.getElementById('flightCommStrength').textContent,
@@ -124,7 +137,8 @@ describe('approved flight screen', () => {
     expect(comm.quality).toBe('—');
     expect(comm.delay).toBe('—');
     expect(comm.state.length).toBeGreaterThan(0);
-    expect(comm.action).toMatch(/התחברו|התנתקו|הציגו/);
+    expect(comm.action).toMatch(/התחברו|התנתקו/);
+    expect(comm.action).not.toContain('הציגו');
     await page.screenshot({ path: path.join(shots, 'flight-comm-menu.png') });
     await page.keyboard.press('Escape');
     await page.waitForFunction(() => document.getElementById('flightCommMenu').hidden === true);
@@ -141,9 +155,91 @@ describe('approved flight screen', () => {
     expect(link.strength).toBe('—');
     expect(link.quality).toBe('—');
     expect(link.delay).toBe('—');
-    expect(link.action).toMatch(/התחברו|התנתקו|הציגו/);
+    expect(link.action).toMatch(/התחברו|התנתקו/);
+    expect(link.action).not.toContain('הציגו');
     expect(link.hiddenComm).toBe(true);
     await page.screenshot({ path: path.join(shots, 'flight-link-menu.png') });
+    await page.keyboard.press('Escape');
+    await page.waitForFunction(() => document.getElementById('flightLinkMenu').hidden === true);
+
+    await page.locator('#missionLinkStrip .mission-link-chip[data-link="rc"]').click({ button: 'right' });
+    await page.waitForSelector('#flightLinkMenu:not([hidden])');
+    const rc = await page.evaluate(() => document.getElementById('flightLinkAction').textContent.trim());
+    expect(rc).toBe('התחברו');
+    expect(rc).not.toContain('הציגו');
+    await page.locator('#flightLinkMenu').screenshot({ path: path.join(shots, 'flight-rc-menu.png') });
+    await page.locator('#flightLinkAction').evaluate((el) => el.click());
+    await page.waitForFunction(() => document.getElementById('flightLinkAction').textContent.trim() === 'התחברו'
+      || document.getElementById('flightLinkAction').textContent.trim() === 'התנתקו');
+    const after = await page.evaluate(() => document.getElementById('flightLinkAction').textContent.trim());
+    expect(after).toMatch(/התחברו|התנתקו/);
+    expect(after).not.toContain('הציגו');
+  }, 20000);
+
+  it('keeps horizon tapes as dashes when a dead snapshot still carries numbers', async () => {
+    const dead = await page.evaluate(() => {
+      applyFlightHud({
+        connected: false,
+        listening: false,
+        heartbeatCount: 0,
+        airspeed: 18.4,
+        altitude: 120.5,
+        heading: 42,
+        rollDeg: null,
+        pitchDeg: null,
+      });
+      return {
+        ias: document.getElementById('pfdAirspeedVal').textContent.trim(),
+        alt: document.getElementById('pfdAltVal').textContent.trim(),
+        hdg: document.getElementById('pfdHdgVal').textContent.trim(),
+        noteHidden: document.getElementById('horizonNoData').hidden,
+        noteText: document.getElementById('horizonNoData').textContent.trim(),
+      };
+    });
+    expect(dead.ias).toBe('—');
+    expect(dead.alt).toBe('—');
+    expect(dead.hdg).toBe('—');
+    expect(dead.noteHidden).toBe(false);
+    expect(dead.noteText).toBe('אין נתונים');
+
+    const live = await page.evaluate(() => {
+      applyFlightHud({
+        connected: true,
+        heartbeatCount: 2,
+        airspeed: 18.4,
+        altitude: 120.5,
+        heading: 42,
+        rollDeg: null,
+        pitchDeg: null,
+      });
+      const withNumbers = {
+        ias: document.getElementById('pfdAirspeedVal').textContent.trim(),
+        alt: document.getElementById('pfdAltVal').textContent.trim(),
+        hdg: document.getElementById('pfdHdgVal').textContent.trim(),
+        noteHidden: document.getElementById('horizonNoData').hidden,
+      };
+      applyFlightHud({
+        connected: false,
+        listening: false,
+        heartbeatCount: 0,
+        airspeed: 18.4,
+        altitude: 120.5,
+        heading: 42,
+        rollDeg: null,
+        pitchDeg: null,
+      });
+      return withNumbers;
+    });
+    expect(live.ias).toBe('18.4');
+    expect(live.alt).toBe('120.5');
+    expect(live.hdg).toBe('42°');
+    expect(live.noteHidden).toBe(true);
+    const restored = await page.evaluate(() => ({
+      ias: document.getElementById('pfdAirspeedVal').textContent.trim(),
+      noteHidden: document.getElementById('horizonNoData').hidden,
+    }));
+    expect(restored.ias).toBe('—');
+    expect(restored.noteHidden).toBe(false);
   }, 20000);
 
   it('keeps flight modes in the actions tab and horizon actions in the horizon menu', async () => {

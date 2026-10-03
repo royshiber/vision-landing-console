@@ -225,7 +225,8 @@ h1, h2, .panel-header h2 {
   box-shadow: none;
 }
 
-.app-chrome .tab.active {
+.app-chrome .tab.active,
+.app-chrome .tab.is-selected {
   background: rgba(255, 255, 255, 0.1);
   border-color: transparent;
   color: #f8fafc;
