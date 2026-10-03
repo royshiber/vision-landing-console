@@ -244,7 +244,7 @@ describe('Debrief camera grid and horizon menu — live', () => {
     expect(both.labels).toEqual(['בלי מצלמה', 'קדמית', 'מטה', 'גימבל']);
     await page.waitForFunction(() => {
       const img = document.querySelector('#horizonCameraStack [data-horizon-slot="a8"] .pfd-horizon-camera');
-      const src = img?.getAttribute('src') || '';
+      const src = img?.dataset.liveFrame || img?.getAttribute('src') || '';
       return Boolean(img) && img.hidden === false && img.naturalWidth > 0 && src.includes('/api/jetson/v1/cameras/cam3/frame');
     });
     const ink = await page.evaluate(() => {
@@ -276,7 +276,7 @@ describe('Debrief camera grid and horizon menu — live', () => {
       const img = document.getElementById('horizonCameraBg');
       const shell = document.getElementById('pfdHorizonShell');
       const stage = document.getElementById('pfdHorizonStage');
-      const src = img?.getAttribute('src') || '';
+      const src = img?.dataset.liveFrame || img?.getAttribute('src') || '';
       const ir = img?.getBoundingClientRect();
       const sr = stage?.getBoundingClientRect();
       return img && img.hidden === false && img.naturalWidth > 0
