@@ -7199,6 +7199,34 @@ function syncHorizonMenu(ids) {
   });
 }
 
+function fitHorizonPicture(img) {
+  if (!img || img.hidden || !(img.naturalWidth > 0) || !(img.naturalHeight > 0)) return;
+  const host = img.closest('.horizon-cam-tile') || document.getElementById('pfdHorizonStage');
+  const bounds = host?.getBoundingClientRect?.();
+  const areaW = bounds?.width || 0;
+  const areaH = bounds?.height || 0;
+  if (!(areaW > 8) || !(areaH > 8)) return;
+  const aspect = img.naturalWidth / img.naturalHeight;
+  let width = areaW;
+  let height = width / aspect;
+  if (height > areaH) {
+    height = areaH;
+    width = height * aspect;
+  }
+  img.style.position = 'absolute';
+  img.style.width = `${Math.max(1, Math.floor(width))}px`;
+  img.style.height = `${Math.max(1, Math.floor(height))}px`;
+  img.style.maxWidth = '100%';
+  img.style.maxHeight = '100%';
+  img.style.inset = 'auto';
+  img.style.left = '50%';
+  img.style.top = '50%';
+  img.style.right = 'auto';
+  img.style.bottom = 'auto';
+  img.style.transform = 'translate(-50%, -50%)';
+  img.style.objectFit = 'contain';
+}
+
 function markHorizonLive() {
   const imgs = [];
   const bg = document.getElementById('horizonCameraBg');
@@ -7286,6 +7314,7 @@ function paintHorizonImage(img, note, slot, companion) {
     img.onload = () => {
       img.hidden = false;
       if (note) note.hidden = true;
+      fitHorizonPicture(img);
       markHorizonLive();
     };
     img.onerror = () => {
@@ -7327,6 +7356,7 @@ function paintHorizonImage(img, note, slot, companion) {
       img.dataset.seen = String(Date.now());
       img.dataset.misses = '0';
       if (note) note.hidden = true;
+      fitHorizonPicture(img);
       markHorizonLive();
     };
     img.onerror = () => {
@@ -7370,6 +7400,7 @@ function paintHorizonImage(img, note, slot, companion) {
   } else if (img.complete && img.naturalWidth > 0) {
     img.hidden = false;
     if (note) note.hidden = true;
+    fitHorizonPicture(img);
   }
 }
 
@@ -7509,6 +7540,13 @@ function initHorizonCameraMenu() {
     closeMenu();
   });
   applyHorizonCamera(null);
+  const horizonStage = document.getElementById('pfdHorizonStage');
+  if (horizonStage && typeof ResizeObserver === 'function') {
+    const watch = new ResizeObserver(() => {
+      document.querySelectorAll('.pfd-horizon-camera').forEach((node) => fitHorizonPicture(node));
+    });
+    watch.observe(horizonStage);
+  }
 }
 initHorizonCameraMenu();
 /** @type {object | null} snapshot from last SSE — readiness popover */
@@ -9280,7 +9318,7 @@ function showMapFlyToMenu(lat, lng, clientX, clientY) {
   const W = window.innerWidth;
   const H = window.innerHeight;
   const mW = 200;
-  const mH = 140;
+  const mH = 188;
   const x = Math.min(clientX, W - mW - 8);
   const y = Math.min(clientY, H - mH - 8);
   mapFlyToMenu.style.left = `${x}px`;
@@ -9292,6 +9330,11 @@ function closeMapFlyToMenu() {
   mapFlyToMenu?.classList.add('hidden');
   _flyToTarget = null;
 }
+
+document.getElementById('mapGimbalScreenBtn')?.addEventListener('click', (event) => {
+  event.stopPropagation();
+  closeMapFlyToMenu();
+});
 
 mapFlyToBtn?.addEventListener('click', async () => {
   if (!_flyToTarget) return;
@@ -13487,10 +13530,10 @@ initLiveCameraPanel();
   }
 
   async function onCompanionLinkClick() {
-    if (!companionLinkBtn || companionLinkBtn.disabled || companionLinkBtn.dataset.uplinkLocked === '1') return;
+    if (!companionLinkBtn || companionLinkBtn.disabled) return;
     const turnOn = companionLinkBtn.dataset.action !== 'disconnect';
     try {
-      await postUplink('home', turnOn);
+      await postLinkSession('home', turnOn);
     } catch {
       /* message already inline */
     }
@@ -13570,19 +13613,10 @@ initLiveCameraPanel();
       }
       const btn = el.querySelector('.comm-link-action');
       if (btn && !btn.classList.contains('is-pending')) {
-        if (uplinkLocked) {
-          paintRowAction(btn, 'התחבר', UPLINK_UNSUPPORTED_HE);
-          btn.disabled = true;
-          btn.dataset.uplinkLocked = '1';
-        } else if (id === 'radio') {
-          paintRfConnectAction(btn, row.actionHe, row.statusHe);
-          if (btn.dataset.uplinkLocked === '1') delete btn.dataset.uplinkLocked;
-          btn.disabled = false;
-        } else {
-          paintRowAction(btn, row.actionHe, row.statusHe);
-          if (btn.dataset.uplinkLocked === '1') delete btn.dataset.uplinkLocked;
-          btn.disabled = false;
-        }
+        if (id === 'radio') paintRfConnectAction(btn, row.actionHe, row.statusHe);
+        else paintRowAction(btn, row.actionHe, row.statusHe);
+        if (btn.dataset.uplinkLocked === '1') delete btn.dataset.uplinkLocked;
+        btn.disabled = false;
       }
       paintQuality(
         el.querySelector('.comm-link-bars'),
@@ -13849,6 +13883,36 @@ initLiveCameraPanel();
     }
   }
 
+  async function postLinkSession(role, connected) {
+    const rowId = role === 'wifi' || role === 'home' ? 'home' : 'cellular';
+    setRowMessage(rowId, '');
+    setRowPending(rowId, true);
+    let refusal = null;
+    try {
+      const r = await fetch('/api/links/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: rowId, connected: connected === true }),
+      });
+      const j = await parseConnJsonResponse(r);
+      if (j.links) applyDualLinkUi(j.links);
+      if (!r.ok || j.ok === false) throw new Error(j.messageHe || j.message || 'הפעולה נדחתה');
+      return j;
+    } catch (err) {
+      refusal = err;
+      throw err;
+    } finally {
+      setRowPending(rowId, false);
+      await refreshConnectionStatus();
+      if (refusal) {
+        const painted = document.querySelector(`#commLinkRows .comm-link-row[data-link="${rowId}"] .comm-link-error`);
+        if (painted?.dataset.serverError !== '1') {
+          setRowMessage(rowId, hebrewRowError(refusal), { clientRefusal: true });
+        }
+      }
+    }
+  }
+
   async function postUplink(role, enabled) {
     const rowId = role === 'wifi' || role === 'home' ? 'home' : 'cellular';
     if (document.body?.dataset?.workPath === 'rf') {
@@ -13901,10 +13965,10 @@ initLiveCameraPanel();
   }
 
   async function onCellularConnectClick() {
-    if (!cellularConnectBtn || cellularConnectBtn.disabled || cellularConnectBtn.dataset.uplinkLocked === '1') return;
+    if (!cellularConnectBtn || cellularConnectBtn.disabled) return;
     const turnOn = cellularConnectBtn.dataset.action !== 'disconnect';
     try {
-      await postUplink('cellular', turnOn);
+      await postLinkSession('cellular', turnOn);
     } catch {
       /* message already inline */
     }
@@ -20427,27 +20491,27 @@ function flightDataContentHeight(horizon) {
   const grid = horizon?.querySelector?.('#missionDataGrid');
   const data = horizon?.querySelector?.('[data-mission-region="data"]');
   if (!grid || typeof grid.querySelectorAll !== 'function' || typeof getComputedStyle !== 'function') return 0;
-  let tileH = 0;
-  for (const tile of grid.querySelectorAll('.mission-data-tile')) {
-    const cs = getComputedStyle(tile);
-    const pad = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0);
-    const border = (parseFloat(cs.borderTopWidth) || 0) + (parseFloat(cs.borderBottomWidth) || 0);
-    const gap = parseFloat(cs.rowGap || cs.gap) || 0;
-    const label = tile.querySelector('.mission-data-label');
-    const readout = tile.querySelector('.mission-data-readout');
-    const labelH = label?.getBoundingClientRect?.().height || 0;
-    const readH = readout?.getBoundingClientRect?.().height || 0;
-    const gaps = labelH > 0 && readH > 0 ? gap : 0;
-    tileH = Math.max(tileH, pad + border + labelH + readH + gaps);
+  const tiles = [...grid.querySelectorAll('.mission-data-tile')].filter((tile) => !tile.hidden);
+  if (!tiles.length) return 0;
+  const rows = new Map();
+  for (const tile of tiles) {
+    const rect = tile.getBoundingClientRect();
+    if (!(rect.height > 0)) continue;
+    const key = Math.round(rect.top);
+    rows.set(key, Math.max(rows.get(key) || 0, rect.height));
   }
-  if (tileH < 1) return 0;
+  const heights = [...rows.values()];
+  if (!heights.length) return 0;
+  const gridCs = getComputedStyle(grid);
+  const gap = parseFloat(gridCs.rowGap || gridCs.gap) || 0;
+  const stack = heights.reduce((sum, height) => sum + height, 0) + gap * Math.max(0, heights.length - 1);
   let extra = 0;
   if (data) {
     const cs = getComputedStyle(data);
     extra = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0)
       + (parseFloat(cs.borderTopWidth) || 0) + (parseFloat(cs.borderBottomWidth) || 0);
   }
-  return Math.ceil(tileH + extra);
+  return Math.ceil(stack + extra);
 }
 
 function flightDataFloor(horizon) {
@@ -21327,12 +21391,20 @@ function restoreLastMissionDataTile() {
   return true;
 }
 
-function addMissionDataTile() {
-  if (restoreLastMissionDataTile()) return;
+function fitMissionDataTiles() {
+  requestAnimationFrame(() => {
+    applyFlightStack(_flightStack, { half: _flightStack?.half === true });
+  });
+}
+
+function addMissionDataTile(anchor) {
+  if (restoreLastMissionDataTile()) {
+    fitMissionDataTiles();
+    return;
+  }
   const slots = readMissionDataSlots();
   const entry = nextUnusedMissionDatum(slots);
-  const btn = document.getElementById('missionDataAddBtn');
-  const box = btn?.getBoundingClientRect();
+  const box = anchor?.getBoundingClientRect?.();
   if (!entry) {
     openMissionDataPicker(slots.length, (box?.left || 16) + 8, box?.bottom || 80);
     return;
@@ -21343,6 +21415,24 @@ function addMissionDataTile() {
   const tile = mountMissionDataTile(id);
   if (tile) bindMissionDataSlotPress(tile);
   applyMissionDataGrid(missionDataLivePayload());
+  fitMissionDataTiles();
+}
+
+function openMissionDataTileMenu(item, x, y) {
+  const menu = document.getElementById('missionDataTileMenu');
+  if (!menu || !item) return;
+  menu.dataset.slot = String(item.dataset.missionDataSlot || '');
+  menu.classList.remove('hidden');
+  const width = 160;
+  const height = 88;
+  const left = Math.min(Math.max(8, x), Math.max(8, window.innerWidth - width - 8));
+  const top = Math.min(Math.max(8, y), Math.max(8, window.innerHeight - height - 8));
+  menu.style.left = `${Math.round(left)}px`;
+  menu.style.top = `${Math.round(top)}px`;
+}
+
+function closeMissionDataTileMenu() {
+  document.getElementById('missionDataTileMenu')?.classList.add('hidden');
 }
 
 function bindMissionDataSlotPress(item) {
@@ -21351,7 +21441,7 @@ function bindMissionDataSlotPress(item) {
   item.addEventListener('contextmenu', (e) => {
     e.preventDefault();
     e.stopPropagation();
-    deleteMissionDataTile(item);
+    openMissionDataTileMenu(item, e.clientX, e.clientY);
   });
   item.addEventListener('click', (e) => {
     if (e.button !== 0) return;
@@ -21385,9 +21475,28 @@ function initMissionDataPicker() {
   document.querySelectorAll('[data-mission-data-slot]').forEach((item) => {
     bindMissionDataSlotPress(item);
   });
-  document.getElementById('missionDataAddBtn')?.addEventListener('click', (event) => {
+  document.getElementById('missionDataTileAdd')?.addEventListener('click', (event) => {
     event.stopPropagation();
-    addMissionDataTile();
+    const menu = document.getElementById('missionDataTileMenu');
+    const slot = menu?.dataset.slot;
+    const anchor = slot ? document.querySelector(`[data-mission-data-slot="${slot}"]`) : null;
+    closeMissionDataTileMenu();
+    addMissionDataTile(anchor);
+  });
+  document.getElementById('missionDataTileDelete')?.addEventListener('click', (event) => {
+    event.stopPropagation();
+    const menu = document.getElementById('missionDataTileMenu');
+    const slot = menu?.dataset.slot;
+    const item = slot ? document.querySelector(`[data-mission-data-slot="${slot}"]`) : null;
+    closeMissionDataTileMenu();
+    if (item) deleteMissionDataTile(item);
+    fitMissionDataTiles();
+  });
+  document.addEventListener('click', (event) => {
+    const menu = document.getElementById('missionDataTileMenu');
+    if (!menu || menu.classList.contains('hidden')) return;
+    if (menu.contains(event.target)) return;
+    closeMissionDataTileMenu();
   });
   document.getElementById('missionDataPickerApply')?.addEventListener('click', () => {
     confirmMissionDataPickerChoice();

@@ -122,7 +122,7 @@ describe('Mission AH fills the center stage', () => {
     expect(cssBlock(css, '.pfd-side-tape')).toMatch(/position:\s*absolute/);
     expect(cssBlock(css, '.pfd-side-tape')).toMatch(/rgba\(8,\s*12,\s*18,\s*0\.4\)/);
     expect(css).toMatch(/\.pfd-horizon-video\s*\{[^}]*object-fit:\s*cover/);
-    expect(css).toMatch(/\.pfd-horizon-camera\s*\{[^}]*object-fit:\s*cover/);
+    expect(css).toMatch(/\.pfd-horizon-camera\s*\{[^}]*object-fit:\s*contain/);
     expect(css).toMatch(/\.pfd-horizon-shell--video-active canvas\s*\{[^}]*z-index:\s*4/);
     expect(cssBlock(css, '.pfd-heading-lane')).toMatch(/position:\s*static/);
     expect(html).toContain('id="pfdAirspeedVal"');

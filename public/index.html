@@ -1088,7 +1088,6 @@
               <button type="button" class="debrief-cam-toggle" data-debrief-cam="cam0" aria-pressed="true">קדמית</button>
               <button type="button" class="debrief-cam-toggle" data-debrief-cam="cam1" aria-pressed="true">מטה</button>
               <button type="button" class="debrief-cam-toggle" data-debrief-cam="a8" aria-pressed="false">גימבל</button>
-              <button type="button" id="opticsGimbalScreenBtn" class="debrief-cam-toggle" data-gimbal-screen="open">מסך גימבל</button>
             </div>
             <div id="debriefCamGrid" class="debrief-cam-grid video-wrapper" data-count="2" data-layout="cameras">
               <p id="debriefCamEmpty" class="debrief-cam-empty" hidden>בחרו מצלמה</p>
@@ -2402,9 +2401,7 @@
             <section class="mission-region mission-region-messages" data-mission-region="messages" data-messages-expanded="0" data-flight-dock="messages" dir="rtl" aria-label="תחתית הטיסה">
               <h3 class="mission-region-title">הודעות מטוס</h3>
               <div class="flight-screen-tools">
-                <button type="button" id="flightGimbalScreenBtn" class="flight-screen-btn" data-gimbal-screen="open">מסך גימבל</button>
-                <button type="button" id="missionDataAddBtn" class="flight-screen-btn">הוסיפו נתון</button>
-                <p class="mission-data-hint">קליק ימני מוחק אריח. לחיצה ארוכה או קליק בוחרים שדה.</p>
+                <p class="mission-data-hint">קליק ימני על אריח מוסיף או מוחק. לחיצה ארוכה או קליק בוחרים שדה.</p>
               </div>
               <div class="flight-dock-bar">
                 <div class="flight-dock-tabs" role="tablist" aria-label="תחתית הטיסה">
@@ -2502,6 +2499,41 @@
                 <div id="terrainMap"></div>
               </div>
             </div>
+            <div id="gimbalScreen" class="gimbal-screen" hidden data-corner="bl" data-gimbal-root="1">
+              <div class="gimbal-screen-bar" id="gimbalScreenDrag" title="גררו לפינה">
+                <p class="gimbal-screen-title">גימבל</p>
+                <p class="gimbal-pad-angles"><span>יאו</span> <span class="gimbal-yaw-value" dir="ltr">—</span> <span>פיץ׳</span> <span class="gimbal-pitch-value" dir="ltr">—</span></p>
+                <button type="button" class="gimbal-pad-btn gimbal-pad-lock" data-gimbal="lock" disabled aria-pressed="false">משוחרר</button>
+                <button type="button" id="gimbalScreenClose">סגור</button>
+              </div>
+              <div class="gimbal-screen-stage">
+                <img id="gimbalScreenImg" alt="" hidden />
+                <canvas id="gimbalScreenNotes"></canvas>
+                <p id="gimbalScreenNote" hidden>אין אות</p>
+              </div>
+              <p id="gimbalScreenPadReason" class="gimbal-pad-reason">אין קישור למחשב המשימה</p>
+              <div class="gimbal-screen-controls">
+                <div class="gimbal-pad-stick" dir="ltr">
+                  <button type="button" class="gimbal-pad-btn" data-gimbal="up" disabled aria-label="מעלה">▲</button>
+                  <button type="button" class="gimbal-pad-btn" data-gimbal="left" disabled aria-label="שמאלה">◀</button>
+                  <button type="button" class="gimbal-pad-btn gimbal-pad-center" data-gimbal="center" disabled aria-label="מרכז">מרכז</button>
+                  <button type="button" class="gimbal-pad-btn" data-gimbal="right" disabled aria-label="ימינה">▶</button>
+                  <button type="button" class="gimbal-pad-btn" data-gimbal="down" disabled aria-label="מטה">▼</button>
+                </div>
+                <div class="gimbal-pad-zoom" dir="ltr">
+                  <button type="button" class="gimbal-pad-btn" data-gimbal="zoom-in" disabled aria-label="זום פנימה">+</button>
+                  <p class="gimbal-zoom-level"><span>זום</span> <span class="gimbal-zoom-value" dir="ltr">—</span></p>
+                  <button type="button" class="gimbal-pad-btn" data-gimbal="zoom-out" disabled aria-label="זום החוצה">−</button>
+                </div>
+              </div>
+              <form id="gimbalScreenVoiceForm" class="gimbal-screen-voice">
+                <button type="button" id="gimbalScreenMic" aria-label="דברו" aria-pressed="false">דברו</button>
+                <input id="gimbalScreenVoiceInput" type="text" autocomplete="off" enterkeyhint="send" placeholder="הזינו פקודה" />
+                <button type="submit" id="gimbalScreenVoiceSend">שלחו</button>
+              </form>
+              <p id="gimbalScreenVoiceReply" class="gimbal-screen-reply" role="status"></p>
+              <button type="button" id="gimbalScreenResize" class="gimbal-screen-resize" aria-label="שנו גודל"></button>
+            </div>
           </section>
 
           <section class="mission-region mission-region-talk" data-mission-region="talk" dir="rtl" aria-label="AIRVIX Ask">
@@ -2523,6 +2555,10 @@
             </div>
           </div>
 
+          <div id="missionDataTileMenu" class="mission-data-tile-menu hidden" role="menu" aria-label="אריח נתון">
+            <button type="button" id="missionDataTileAdd" class="mission-data-tile-menu-item" role="menuitem">הוסיפו נתון</button>
+            <button type="button" id="missionDataTileDelete" class="mission-data-tile-menu-item" role="menuitem">מחקו</button>
+          </div>
           <div id="hudCtxMenu" class="hud-ctx-menu hidden" role="menu" aria-label="אפשרויות נתון">
             <button id="hudCtxEdit"   class="hud-ctx-item" role="menuitem">✎ ערוך / הוסף נתון</button>
             <div class="hud-ctx-sep"></div>
@@ -2943,23 +2979,12 @@
       <button class="map-fly-to-btn" id="mapFlyToBtn" role="menuitem">
         <span class="map-fly-to-icon">✈</span> טוס לכאן
       </button>
+      <button type="button" class="map-fly-to-btn" id="mapGimbalScreenBtn" data-gimbal-screen="open" role="menuitem">מסך גימבל</button>
       <div class="map-fly-to-alt-row">
         <label class="map-fly-to-alt-label" for="mapFlyToAlt">גובה (m AGL)</label>
         <input type="number" id="mapFlyToAlt" class="map-fly-to-alt-input" value="60" min="20" max="500" step="10">
       </div>
       <div class="map-fly-to-status" id="mapFlyToStatus"></div>
-    </div>
-
-    <div id="gimbalScreen" class="gimbal-screen" hidden>
-      <div class="gimbal-screen-bar">
-        <p class="gimbal-screen-title">מסך גימבל</p>
-        <button type="button" id="gimbalScreenClose">סגור</button>
-      </div>
-      <div class="gimbal-screen-stage">
-        <img id="gimbalScreenImg" alt="" hidden />
-        <canvas id="gimbalScreenNotes"></canvas>
-        <p id="gimbalScreenNote" hidden>אין אות</p>
-      </div>
     </div>
 
     <script src="/vendor/es-module-shims/es-module-shims.js?v=__APP_VERSION__"></script>

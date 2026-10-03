@@ -5,6 +5,7 @@
  */
 import { frameMissShowsNoSignal, frameTilePresentation } from './camera-frame-hold.mjs';
 import { createLatestJpegPump } from './camera-latest-frame.mjs';
+import { fitCameraPanes } from './camera-pane-fit.mjs';
 
 const STORAGE_KEY = 'vlc.debrief.cameras.v2';
 const LEGACY_KEY = 'vlc.debrief.cameras.v1';
@@ -85,6 +86,53 @@ function settingsButtonId(id) {
   return 'opticsCam0Btn';
 }
 
+function visibleTiles() {
+  if (!grid) return [];
+  return [...grid.querySelectorAll('.debrief-cam-tile')].filter((tile) => !tile.hidden);
+}
+
+function opticsRoom() {
+  const panel = document.getElementById('optics');
+  const calib = panel?.querySelector('.optics-calib');
+  const toolbar = grid?.previousElementSibling;
+  const panelH = panel?.clientHeight || 0;
+  const used = (calib?.offsetHeight || 0) + (toolbar?.offsetHeight || 0) + 16;
+  return Math.max(0, panelH - used);
+}
+
+export function layoutCameraPanes() {
+  if (!grid) return;
+  const tiles = visibleTiles();
+  const areaWidth = grid.clientWidth;
+  if (!(areaWidth > 8) || !tiles.length) return;
+  const boxes = fitCameraPanes({
+    frames: tiles.map((tile) => {
+      const img = tile.querySelector('.debrief-cam-live');
+      return {
+        width: img?.naturalWidth || 0,
+        height: img?.naturalHeight || 0,
+      };
+    }),
+    areaWidth,
+    areaHeight: opticsRoom(),
+    gap: 4,
+  });
+  tiles.forEach((tile, index) => {
+    const box = boxes[index];
+    if (!box) return;
+    tile.style.width = `${Math.max(1, Math.floor(box.width))}px`;
+    tile.style.height = `${Math.max(1, Math.floor(box.height))}px`;
+    tile.style.flex = '0 0 auto';
+    tile.style.setProperty('--frame-aspect', String(box.aspect));
+  });
+}
+
+function followLoadedFrame(tile, img) {
+  if (!tile || !img) return;
+  if (!(img.naturalWidth > 0) || !(img.naturalHeight > 0)) return;
+  layoutCameraPanes();
+}
+
 function applyLayout(open) {
   if (!grid) return;
   const tiles = [...grid.querySelectorAll('.debrief-cam-tile')];
@@ -103,6 +151,7 @@ function applyLayout(open) {
     btn.setAttribute('aria-pressed', on ? 'true' : 'false');
     btn.classList.toggle('is-selected', on);
   }
+  layoutCameraPanes();
 }
 
 function releaseTile(tile) {
@@ -131,6 +180,7 @@ function pumpFor(tile) {
       img.dataset.frameToken = src;
       img.onload = () => {
         if (img.dataset.frameToken !== src) return;
+        followLoadedFrame(tile, img);
         requestAnimationFrame(() => pump.kick());
       };
       img.src = src;
@@ -282,6 +332,15 @@ function bind() {
   });
   document.addEventListener('vlc-debrief-open-cam', (event) => {
     openSlot(event.detail);
+  });
+  if (typeof ResizeObserver === 'function') {
+    const watch = new ResizeObserver(() => layoutCameraPanes());
+    watch.observe(grid);
+    const panel = document.getElementById('optics');
+    if (panel) watch.observe(panel);
+  }
+  document.querySelector('[data-tab="optics"]')?.addEventListener('click', () => {
+    requestAnimationFrame(() => layoutCameraPanes());
   });
 }
 

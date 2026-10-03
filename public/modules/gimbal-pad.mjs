@@ -139,9 +139,9 @@ export function applyGimbalPad(root, view) {
     lockBtn.setAttribute('aria-pressed', locked ? 'true' : 'false');
     lockBtn.textContent = locked ? LOCKED_HE : UNLOCKED_HE;
   }
-  paintNum(root.querySelector('#gimbalYaw'), finite(view?.yaw));
-  paintNum(root.querySelector('#gimbalPitch'), finite(view?.pitch));
-  paintNum(root.querySelector('#gimbalZoomValue'), finite(view?.zoom));
+  paintNum(root.querySelector('#gimbalYaw') || root.querySelector('.gimbal-yaw-value'), finite(view?.yaw));
+  paintNum(root.querySelector('#gimbalPitch') || root.querySelector('.gimbal-pitch-value'), finite(view?.pitch));
+  paintNum(root.querySelector('#gimbalZoomValue') || root.querySelector('.gimbal-zoom-value'), finite(view?.zoom));
 }
 
 function unwrap(body) {
@@ -224,10 +224,10 @@ function typingTarget(el) {
   return el.isContentEditable === true;
 }
 
-export function bindGimbalPad(doc, { post = postJson } = {}) {
-  const root = doc.getElementById('gimbalPad');
-  if (!root || root.dataset.bound === '1') return;
-  root.dataset.bound = '1';
+let padSession = null;
+
+function createPadSession(doc, post) {
+  const roots = new Set();
   let generation = 0;
   let timer = null;
   let stamp = 0;
@@ -238,23 +238,33 @@ export function bindGimbalPad(doc, { post = postJson } = {}) {
     view = next;
     stamp += 1;
     if (!view.enabled && timer != null) release();
-    applyGimbalPad(root, view);
+    for (const root of roots) applyGimbalPad(root, view);
     emitGimbalView(view);
   }
 
   function release() {
-    if (timer == null && !root.dataset.hold) return;
+    let held = '';
+    for (const root of roots) {
+      if (root.dataset.hold) held = root.dataset.hold;
+    }
+    if (timer == null && !held) return;
     generation += 1;
     if (timer != null) clearInterval(timer);
     timer = null;
-    root.querySelectorAll('.is-held').forEach((el) => el.classList.remove('is-held'));
-    const held = root.dataset.hold || '';
-    root.dataset.hold = '';
+    for (const root of roots) {
+      root.querySelectorAll('.is-held').forEach((el) => el.classList.remove('is-held'));
+      root.dataset.hold = '';
+    }
     if (held.startsWith('zoom')) post(ZOOM_URL, gimbalZoomBody('stop')).catch(() => {});
   }
 
+  function rootOf(btn) {
+    return btn?.closest('[data-gimbal-root]') || null;
+  }
+
   function holdRepeat(btn, key, tick) {
-    if (!view.enabled || !btn || btn.disabled) return;
+    const root = rootOf(btn);
+    if (!view.enabled || !root || !btn || btn.disabled) return;
     release();
     const token = generation;
     root.dataset.hold = key;
@@ -285,47 +295,60 @@ export function bindGimbalPad(doc, { post = postJson } = {}) {
     });
   }
 
-  for (const btn of root.querySelectorAll('[data-gimbal]')) {
-    const kind = btn.dataset.gimbal;
-    if (kind === 'lock' || kind === 'center') continue;
-    const zoomDir = kind === 'zoom-in' ? 'in' : kind === 'zoom-out' ? 'out' : '';
-    const start = (event) => {
-      if (event.button != null && event.button !== 0) return;
-      event.preventDefault();
-      try { btn.setPointerCapture(event.pointerId); } catch { /* keyboard */ }
-      if (zoomDir) startZoom(btn, `zoom-${zoomDir}`, zoomDir);
-      else if (kind === 'up' || kind === 'down' || kind === 'left' || kind === 'right') startAngle(btn, kind);
-    };
-    btn.addEventListener('pointerdown', start);
-    btn.addEventListener('pointerup', release);
-    btn.addEventListener('pointercancel', release);
-    btn.addEventListener('blur', release);
+  function attach(root) {
+    if (!root || root.dataset.bound === '1') return;
+    root.dataset.bound = '1';
+    root.dataset.gimbalRoot = '1';
+    roots.add(root);
+    for (const btn of root.querySelectorAll('[data-gimbal]')) {
+      const kind = btn.dataset.gimbal;
+      if (kind === 'lock' || kind === 'center') continue;
+      const zoomDir = kind === 'zoom-in' ? 'in' : kind === 'zoom-out' ? 'out' : '';
+      const start = (event) => {
+        if (event.button != null && event.button !== 0) return;
+        event.preventDefault();
+        try { btn.setPointerCapture(event.pointerId); } catch { /* keyboard */ }
+        if (zoomDir) startZoom(btn, `zoom-${zoomDir}`, zoomDir);
+        else if (kind === 'up' || kind === 'down' || kind === 'left' || kind === 'right') startAngle(btn, kind);
+      };
+      btn.addEventListener('pointerdown', start);
+      btn.addEventListener('pointerup', release);
+      btn.addEventListener('pointercancel', release);
+      btn.addEventListener('blur', release);
+    }
+    const lockBtn = root.querySelector('[data-gimbal="lock"]');
+    lockBtn?.addEventListener('click', () => {
+      if (!view.enabled || lockBtn.disabled) return;
+      const next = lockBtn.getAttribute('aria-pressed') === 'true' ? 'follow' : 'lock';
+      post(MODE_URL, { mode: next }).then(() => {
+        paint({ ...view, locked: next === 'lock' });
+      }).catch(() => {});
+    });
+    const centerBtn = root.querySelector('[data-gimbal="center"]');
+    centerBtn?.addEventListener('click', () => {
+      if (!view.enabled || centerBtn.disabled) return;
+      const prev = aim;
+      aim = { yaw: 0, pitch: 0 };
+      post(CENTER_URL, {}).catch(() => { aim = prev; });
+    });
+    applyGimbalPad(root, view);
   }
-
-  const lockBtn = root.querySelector('[data-gimbal="lock"]');
-  lockBtn?.addEventListener('click', () => {
-    if (!view.enabled || lockBtn.disabled) return;
-    const next = lockBtn.getAttribute('aria-pressed') === 'true' ? 'follow' : 'lock';
-    post(MODE_URL, { mode: next }).then(() => {
-      paint({ ...view, locked: next === 'lock' });
-    }).catch(() => {});
-  });
-
-  const centerBtn = root.querySelector('[data-gimbal="center"]');
-  centerBtn?.addEventListener('click', () => {
-    if (!view.enabled || centerBtn.disabled) return;
-    const prev = aim;
-    aim = { yaw: 0, pitch: 0 };
-    post(CENTER_URL, {}).catch(() => { aim = prev; });
-  });
 
   function opticsOpen() {
     const panel = doc.getElementById('optics');
     return Boolean(panel && panel.classList.contains('visible'));
   }
 
+  function keyRoot() {
+    if (opticsOpen()) return doc.getElementById('gimbalPad');
+    const screen = doc.getElementById('gimbalScreen');
+    if (screen && !screen.hidden) return screen;
+    return null;
+  }
+
   doc.addEventListener('keydown', (event) => {
-    if (event.repeat || !opticsOpen() || typingTarget(doc.activeElement)) return;
+    const root = keyRoot();
+    if (event.repeat || !root || typingTarget(doc.activeElement)) return;
     const action = gimbalKeyAction(event.key);
     if (!action) return;
     event.preventDefault();
@@ -364,7 +387,25 @@ export function bindGimbalPad(doc, { post = postJson } = {}) {
     }
   }
   setInterval(poll, 1000);
-  paint(view);
+
+  return { attach, paint };
+}
+
+function ensurePadSession(doc, post) {
+  if (!padSession) padSession = createPadSession(doc, post);
+  return padSession;
+}
+
+export function bindGimbalPad(doc, { post = postJson } = {}) {
+  const root = doc.getElementById('gimbalPad');
+  if (!root) return;
+  ensurePadSession(doc, post).attach(root);
+}
+
+/** Same hold, center, zoom, and lock actions as the optics pad. */
+export function bindGimbalPadRoot(root, doc = root?.ownerDocument, { post = postJson } = {}) {
+  if (!root || !doc) return;
+  ensurePadSession(doc, post).attach(root);
 }
 
 if (typeof document !== 'undefined' && document.getElementById('gimbalPad')) {

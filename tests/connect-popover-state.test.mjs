@@ -464,7 +464,7 @@ describe('cellular and home uplink buttons', () => {
     });
     const lockedHome = locked.rows.find((r) => r.id === 'home');
     expect(lockedHome.statusHe).toBe('מחובר');
-    expect(lockedHome.actionHe).toBe('התחבר');
+    expect(lockedHome.actionHe).toBe('התנתק');
     expect(lockedHome.uplinkControl).toBe(false);
   });
 
