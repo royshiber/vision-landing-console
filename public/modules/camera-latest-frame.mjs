@@ -115,8 +115,17 @@ export function createLatestJpegPump({
         return;
       }
       assignImage(loaded);
+      const shown = typeof image === 'function' ? image() : null;
+      const ownsShown = Boolean(shown && loaded?.objectUrl && shown.dataset.objectUrl === loaded.objectUrl);
+      if (ownsShown && typeof shown.decode === 'function') {
+        try { await shown.decode(); } catch { /* the element still shows the bytes it has */ }
+      }
+      if (stopped) return;
+      const stillShown = !loaded?.objectUrl
+        || (typeof image === 'function' && image()?.dataset.objectUrl === loaded.objectUrl);
+      if (!stillShown) return;
       if (typeof onFrame === 'function') onFrame(loaded?.src || src, loaded || { seq });
-      schedule(seq);
+      if (mine === gen) schedule(seq);
     } catch (err) {
       if (err?.name === 'AbortError' || stopped || mine !== gen) return;
       if (controller === ac) controller = null;
