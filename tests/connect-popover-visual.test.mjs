@@ -528,6 +528,18 @@ describe('connect popover layout and mocked states', () => {
       expect(fit.overflowY).toBeLessThanOrEqual(1);
       expect(fit.parentOverflow).toBeLessThanOrEqual(1);
       expect(await page.locator('#homeLinkError').isHidden()).toBe(true);
+      const picks = await page.evaluate(() => ({
+        home: {
+          disabled: document.getElementById('commPathHome')?.disabled === true,
+          type: document.getElementById('commPathHome')?.type || '',
+        },
+        cellular: {
+          disabled: document.getElementById('commPathCellular')?.disabled === true,
+          type: document.getElementById('commPathCellular')?.type || '',
+        },
+      }));
+      expect(picks.home).toEqual({ disabled: false, type: 'radio' });
+      expect(picks.cellular).toEqual({ disabled: false, type: 'radio' });
       const file = path.join(shotDir, 'home-off-lan.png');
       await page.screenshot({ path: file, fullPage: false });
       expect(fs.statSync(file).size).toBeGreaterThan(1000);

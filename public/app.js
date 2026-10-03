@@ -13237,6 +13237,7 @@ initLiveCameraPanel();
 
   let savedRfPort = '';
   let rfSyncing = false;
+  let workPosting = false;
   let workPostGen = 0;
 
   function restoreRfPort(port) {
@@ -13530,6 +13531,14 @@ initLiveCameraPanel();
       el.dataset.state = row.state || 'off';
       el.dataset.tone = row.tone || 'off';
       el.dataset.active = row.active ? '1' : '0';
+      el.dataset.chosen = row.chosen ? '1' : '0';
+      const pathPick = el.querySelector('.comm-path-pick input');
+      if (pathPick) {
+        pathPick.disabled = false;
+        if (!workPosting) pathPick.checked = row.chosen === true;
+        const reason = String(row.statusHe || row.errorHe || '').trim();
+        if (reason) pathPick.title = reason;
+      }
       const hint = el.querySelector('.comm-link-hint');
       if (hint && row.hintHe) hint.textContent = row.hintHe;
       const errEl = el.querySelector('.comm-link-error');
@@ -13746,6 +13755,7 @@ initLiveCameraPanel();
       paintRfConnectAction(connBtn, radioRow?.actionHe || (radioOpen ? 'התנתק' : 'חיבור ל-RF'), radioRow?.statusHe || 'RF');
     }
     try { paintCommRows(links); } catch (err) { console.warn('paintCommRows failed', err); }
+    if (links.work?.mode) syncWorkRadios(links.work.mode);
     applyAnnotatedVision(links.video);
     try { paintCellularOpsChecklist(links); } catch (err) { console.warn('paintCellularOpsChecklist failed', err); }
     try { hydrateMissionHudFromLiveLink(); } catch (err) { console.warn('hydrateMissionHudFromLiveLink failed', err); }
@@ -14246,8 +14256,12 @@ initLiveCameraPanel();
   }
   document.querySelectorAll('#commLinkRows .comm-link-row').forEach((rowEl) => {
     rowEl.addEventListener('click', (ev) => {
-      if (ev.target.closest('button, input, label, a')) return;
+      if (ev.target.closest('button, input, label, a, select')) return;
       const pick = rowEl.dataset.link;
+      if (pick === 'home' || pick === 'cellular') {
+        selectWorkMode(pick);
+        return;
+      }
       if ((pick === 'radio' || pick === 'cellular') && latestLinksSnapshot?.canSelectActive) {
         void onActiveLinkPick(pick);
       }
@@ -14300,13 +14314,45 @@ initLiveCameraPanel();
       }
     }
   }
+  function syncWorkRadios(mode) {
+    if (!mode || workPosting) return;
+    rfSyncing = true;
+    const map = { auto: 'workLinkAuto', home: 'workLinkHome', cellular: 'workLinkCellular', rf: 'workLinkRf' };
+    const box = document.getElementById(map[mode] || 'workLinkAuto');
+    if (box) box.checked = true;
+    const homePick = document.getElementById('commPathHome');
+    const cellPick = document.getElementById('commPathCellular');
+    if (homePick) {
+      homePick.disabled = false;
+      homePick.checked = mode === 'home';
+    }
+    if (cellPick) {
+      cellPick.disabled = false;
+      cellPick.checked = mode === 'cellular';
+    }
+    rfSyncing = false;
+  }
+  function selectWorkMode(mode) {
+    if (rfSyncing) return;
+    const map = { auto: 'workLinkAuto', home: 'workLinkHome', cellular: 'workLinkCellular', rf: 'workLinkRf' };
+    const box = document.getElementById(map[mode]);
+    if (box) box.checked = true;
+    const homePick = document.getElementById('commPathHome');
+    const cellPick = document.getElementById('commPathCellular');
+    if (homePick) homePick.checked = mode === 'home';
+    if (cellPick) cellPick.checked = mode === 'cellular';
+    void postWorkLink();
+  }
   function paintWorkPath(result) {
     lastWorkPaint = result || null;
     const path = result?.path || 'auto';
     const liveRf = path === 'rf' && result?.ok !== false;
-    const errorHe = !liveRf && result?.mode === 'rf'
-      ? String(result?.reasonHe || result?.serial?.message || result?.message || result?.pathLabelHe || RF_PORT_REASON_HE).trim()
-      : '';
+    const downChoice = (path === 'home' || path === 'cellular') && result?.linkUp === false;
+    const errorHe = downChoice
+      ? String(result?.reasonHe || result?.pathLabelHe || '').trim()
+      : (!liveRf && result?.mode === 'rf'
+        ? String(result?.reasonHe || result?.serial?.message || result?.message || result?.pathLabelHe || RF_PORT_REASON_HE).trim()
+        : '');
     document.body.dataset.workPath = liveRf ? 'rf' : '';
     const label = document.getElementById('workLinkPath');
     if (label) {
@@ -14386,6 +14432,7 @@ initLiveCameraPanel();
   async function postWorkLink() {
     if (rfSyncing) return;
     const gen = ++workPostGen;
+    workPosting = true;
     const picked = document.querySelector('input[name="workLink"]:checked');
     const mode = picked?.value || 'auto';
     const serialPort = document.getElementById('rfComPort')?.value || savedRfPort || '';
@@ -14398,6 +14445,7 @@ initLiveCameraPanel();
         reasonHe: RF_PORT_REASON_HE,
         pathLabelHe: RF_PORT_REASON_HE,
       });
+      workPosting = false;
       return;
     }
     const body = { mode, baudRate };
@@ -14410,6 +14458,8 @@ initLiveCameraPanel();
       });
       const j = await r.json();
       if (gen !== workPostGen) return;
+      workPosting = false;
+      if (j?.links) applyDualLinkUi(j.links);
       if (j) paintWorkPath(j);
     } catch (err) {
       console.warn('work link failed', err);
@@ -14423,6 +14473,8 @@ initLiveCameraPanel();
           pathLabelHe: 'פתיחת הפורט נכשלה',
         });
       }
+    } finally {
+      if (gen === workPostGen) workPosting = false;
     }
   }
   for (const id of ['workLinkAuto', 'workLinkHome', 'workLinkCellular', 'workLinkRf']) {
@@ -14439,6 +14491,14 @@ initLiveCameraPanel();
   document.getElementById('rfBaud')?.addEventListener('change', () => {
     if (rfSyncing) return;
     void postWorkLink();
+  });
+  document.getElementById('commPathHome')?.addEventListener('change', () => {
+    if (rfSyncing || !document.getElementById('commPathHome')?.checked) return;
+    selectWorkMode('home');
+  });
+  document.getElementById('commPathCellular')?.addEventListener('change', () => {
+    if (rfSyncing || !document.getElementById('commPathCellular')?.checked) return;
+    selectWorkMode('cellular');
   });
   const companionLine = document.getElementById('rfCompanionLine');
   if (companionLine) {
