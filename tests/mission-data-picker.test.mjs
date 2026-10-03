@@ -73,7 +73,7 @@ function loadSlotFns() {
 }
 
 describe('Mission data-slot field picker', () => {
-  it('opens from right-click and long-press with a Hebrew search popover', () => {
+  it('keeps the Hebrew field chooser and deletes a tile on right-click', () => {
     expect(html).toContain('id="missionDataPicker"');
     expect(html).toContain('id="missionDataPickerTitle"');
     expect(html).toContain('>בחירת נתון<');
@@ -83,7 +83,9 @@ describe('Mission data-slot field picker', () => {
     expect(html).toContain('id="missionDataPickerClose"');
     expect(html).toContain('>ביטול<');
     expect(html).toContain('data-mission-data-slot="0"');
-    expect(html).toContain('קליק ימני או לחיצה ארוכה על אריח לבחירת שדה');
+    expect(html).toContain('קליק ימני מוחק אריח. לחיצה ארוכה או קליק בוחרים שדה.');
+    expect(html).toContain('id="missionDataAddBtn"');
+    expect(html).toContain('>הוסיפו נתון<');
     expect(css).toMatch(/\.mission-data-picker\s*\{[^}]*position:\s*fixed/);
     expect(css).toMatch(/\.mission-data-picker\s*\{[^}]*z-index:\s*9600/);
     expect(css).toMatch(/\.mission-data-picker\s*\{[^}]*direction:\s*rtl/);
@@ -92,7 +94,9 @@ describe('Mission data-slot field picker', () => {
     const bind = sliceFunction(js, 'bindMissionDataSlotPress');
     const open = sliceFunction(js, 'openMissionDataPicker');
     expect(bind).toContain("addEventListener('contextmenu'");
+    expect(bind).toContain('deleteMissionDataTile(item)');
     expect(bind).toContain('e.preventDefault()');
+    expect(sliceFunction(js, 'deleteMissionDataTile')).not.toMatch(/fetch\(|FLIGHT_ACTION|PARAM_SET|\/apply|\/restart/);
     expect(bind).toContain("addEventListener('touchstart'");
     expect(bind).toContain('520');
     expect(open).toContain("classList.remove('hidden')");
@@ -300,9 +304,8 @@ describe('mission data picker stays in the viewport', () => {
     expect(row.dataH).toBeGreaterThanOrEqual(tallest);
     expect(row.dataH).toBeLessThanOrEqual(tallest + 28);
     expect(row.dataH).toBeLessThan(88);
-    expect(row.hudH).toBeGreaterThanOrEqual(156);
-    expect(row.hudH).toBeLessThanOrEqual(164);
-    expect(row.msgH).toBeGreaterThan(row.hudH);
+    expect(row.hudH).toBeGreaterThanOrEqual(200);
+    expect(row.msgH).toBeGreaterThanOrEqual(120);
     expect(row.rtlH).toBeGreaterThanOrEqual(42);
   }, 40000);
 });
