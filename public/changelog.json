@@ -1,36 +1,5 @@
 [
   {
-    "version": "1.02.409",
-    "date": "2026-10-03",
-    "changes": [
-      {
-        "type": "feat",
-        "title": "Server library",
-        "detail": "comm-links.mjs, companion-api-client.mjs, dual-link-runtime.mjs, link-attribution.mjs, dual-link-api.mjs"
-      },
-      {
-        "type": "feat",
-        "title": "UI / app.js",
-        "detail": "app.js"
-      },
-      {
-        "type": "feat",
-        "title": "Frontend",
-        "detail": "changelog.json, camera-pane-fit.mjs, debrief-cameras.mjs, gimbal-pad.mjs, gimbal-screen.mjs"
-      },
-      {
-        "type": "ui",
-        "title": "HTML layout",
-        "detail": "index.html"
-      },
-      {
-        "type": "ui",
-        "title": "Styles",
-        "detail": "styles.css"
-      }
-    ]
-  },
-  {
     "version": "1.02.408",
     "date": "2026-10-03",
     "changes": [
