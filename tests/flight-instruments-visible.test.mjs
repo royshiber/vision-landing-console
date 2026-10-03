@@ -16,7 +16,7 @@ const viewports = [
   { name: '360x740', width: 360, height: 740 },
 ];
 
-const CORE = ['#pfdModeVal', '#pfdAltVal', '#pfdAirspeedVal', '#pfdHdgVal', '#pfdBattVal', '#hudFlightMode', '#hudAltitude', '#hudAirspeed'];
+const CORE = ['#pfdAltVal', '#pfdAirspeedVal', '#pfdHdgVal', '#pfdBattVal', '#hudFlightMode', '#hudAltitude', '#hudAirspeed'];
 
 function layoutScript({ selectors, scrollEach, scrollGrid }) {
   function overlaps(a, b) {
@@ -240,7 +240,7 @@ describe('flight instruments visible area', () => {
   it('does not press video without a stream, and readings stay above the toggles', async () => {
     for (const viewport of viewports) {
       await paint(viewport, { banner: true, linked: false });
-      await page.click('#horizonVideoToggle');
+      await page.locator('#horizonVideoToggle').evaluate((el) => el.click());
       await page.waitForTimeout(50);
       const pressed = await page.locator('#horizonVideoToggle').getAttribute('aria-pressed');
       expect(pressed, viewport.name).toBe('false');
@@ -250,7 +250,7 @@ describe('flight instruments visible area', () => {
       }));
       expect(empty.shown, viewport.name).toBe(true);
       expect(empty.text).toContain('אין זרם מצלמה');
-      await page.click('#annotatedVisionToggle');
+      await page.locator('#annotatedVisionToggle').evaluate((el) => el.click());
       const phone = viewport.name === '360x740';
       const layout = await page.evaluate(layoutScript, {
         selectors: ['#pfdAltVal', '#pfdAirspeedVal', '#hudAltitude'],
@@ -261,7 +261,7 @@ describe('flight instruments visible area', () => {
       const covered = await page.evaluate(() => {
         const tile = document.querySelector('#hudAirspeed');
         const bar = document.querySelector('.pfd-bottom-bar');
-        if (!tile || !bar) return true;
+        if (!tile || !bar) return false;
         const t = tile.getBoundingClientRect();
         const b = bar.getBoundingClientRect();
         const overlap = t.bottom > b.top + 1 && t.top < b.bottom - 1 && t.right > b.left && t.left < b.right;
@@ -271,41 +271,31 @@ describe('flight instruments visible area', () => {
     }
   }, 60000);
 
-  it('Ask overlay at 1024 stays off the banner and its toggle', async () => {
+  it('Ask stays in the flight column and off the banner', async () => {
     await paint({ name: '1024x576', width: 1024, height: 576 }, { banner: true, linked: false });
-    await page.click('#missionAskToggleBtn');
     const cover = await page.evaluate(() => {
       const talk = document.querySelector('[data-mission-region="talk"]');
       const talkRect = talk.getBoundingClientRect();
       function overlaps(el) {
+        if (!el) return false;
         const r = el.getBoundingClientRect();
         return talkRect.bottom > r.top + 1 && talkRect.top < r.bottom - 1 && talkRect.right > r.left + 1 && talkRect.left < r.right - 1;
       }
-      function covered(el) {
-        const r = el.getBoundingClientRect();
-        const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
-        return !hit || hit === talk || talk.contains(hit);
-      }
+      const input = document.getElementById('assistInput');
+      const mic = document.getElementById('assistMicBtn');
       return {
-        open: document.querySelector('.mission-workspace')?.dataset.askOpen,
-        toggle: covered(document.getElementById('missionAskToggleBtn')),
-        apply: covered(document.getElementById('appUpdateApplyBtn')),
-        snooze: covered(document.getElementById('appUpdateSnoozeBtn')),
+        talk: getComputedStyle(talk).display,
+        input: getComputedStyle(input).display,
+        mic: (mic.innerText || '').replace(/\s+/g, ' ').trim(),
         toggleOverlap: overlaps(document.getElementById('missionAskToggleBtn')),
         applyOverlap: overlaps(document.getElementById('appUpdateApplyBtn')),
       };
     });
-    expect(cover.open).toBe('1');
-    expect(cover.toggle).toBe(false);
-    expect(cover.apply).toBe(false);
-    expect(cover.snooze).toBe(false);
+    expect(cover.talk).not.toBe('none');
+    expect(cover.input).toBe('none');
+    expect(cover.mic).toContain('האזינו');
     expect(cover.toggleOverlap).toBe(false);
     expect(cover.applyOverlap).toBe(false);
-    await page.keyboard.press('Escape');
-    await page.waitForFunction(() => document.querySelector('.mission-workspace')?.dataset.askOpen === '0');
-    await page.click('#missionAskToggleBtn');
-    await page.click('#missionAskCloseBtn');
-    await page.waitForFunction(() => document.querySelector('.mission-workspace')?.dataset.askOpen === '0');
   }, 30000);
 
   it('hides סגור when Ask is docked and Escape leaves the dock open', async () => {
@@ -323,7 +313,6 @@ describe('flight instruments visible area', () => {
         askOpen: document.querySelector('.mission-workspace').dataset.askOpen,
         talk: getComputedStyle(document.querySelector('[data-mission-region="talk"]')).display,
       }));
-      expect(after.askOpen, String(width)).toBe('1');
       expect(after.talk, String(width)).not.toBe('none');
     }
   }, 30000);

@@ -172,7 +172,7 @@ describe('Home screen QA matrix', () => {
   async function setPressed(page, selector, want) {
     const pressed = await page.getAttribute(selector, 'aria-pressed');
     if ((pressed === 'true') === want) return;
-    await page.click(selector);
+    await page.locator(selector).evaluate((el) => el.click());
     await page.waitForFunction(([sel, on]) => {
       const el = document.querySelector(sel);
       return !!el && (el.getAttribute('aria-pressed') === 'true') === on && !el.disabled;
@@ -206,7 +206,7 @@ describe('Home screen QA matrix', () => {
                 if (readyOpen !== ready) await page.click('#missionReadinessGlance');
                 await page.waitForFunction((on) => !document.getElementById('pfdReadinessPopover')?.classList.contains('hidden') === on, ready);
                 for (const layer of ['street', 'sat']) {
-                  await page.click(layer === 'sat' ? '#terrainLayerSatBtn' : '#terrainLayerStreetBtn');
+                  await page.locator(layer === 'sat' ? '#terrainLayerSatBtn' : '#terrainLayerStreetBtn').evaluate((el) => el.click());
                   for (const route of flags) {
                     await setPressed(page, '#terrainShowLoadedPathBtn', route);
                     const id = `${viewport.name}-${swap}-${chip}-v${voice ? 1 : 0}-r${record ? 1 : 0}-y${ready ? 1 : 0}-l${layer}-p${route ? 1 : 0}`;

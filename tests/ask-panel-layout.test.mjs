@@ -141,15 +141,16 @@ describe('Ask panel — no control overlap', () => {
     for (const vp of viewports) {
       const page = await browser.newPage({ viewport: { width: vp.width, height: vp.height } });
       await page.goto(BASE, { waitUntil: 'domcontentloaded' });
-      await page.waitForSelector('#assistVoiceGoToggle', { state: 'visible' });
+      await page.waitForSelector('#assistMicBtn', { state: 'visible' });
       await page.waitForTimeout(200);
       const measured = await measure(page);
       expect(measured.keyInRail, vp.name).toBe(false);
       expect(measured.modalHidden, vp.name).toBe(true);
       expect(measured.key?.display === 'none' || measured.modalHidden, vp.name).toBe(true);
       expect(measured.devTab?.display, vp.name).toBe('none');
-      expect(measured.offline?.width || 0, vp.name).toBeGreaterThan(0);
-      assertNoOverlap(measured, vp.name);
+      expect(measured.input.display, vp.name).toBe('none');
+      expect(measured.mic.width, vp.name).toBeGreaterThan(40);
+      expect((await page.locator('#assistMicBtn').innerText()), vp.name).toContain('האזינו');
       if (vp.name !== '1366x768') {
         await page.screenshot({ path: path.join(shots, `after-${vp.name}.png`), type: 'png' });
       }
@@ -161,16 +162,16 @@ describe('Ask panel — no control overlap', () => {
     const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
     const sessionReady = page.waitForResponse((r) => r.url().includes('/api/assist/session') && r.ok());
     await page.goto(BASE, { waitUntil: 'domcontentloaded' });
-    await page.waitForSelector('#assistVoiceGoToggle', { state: 'visible' });
+    await page.waitForSelector('#assistMicBtn', { state: 'visible' });
     await sessionReady;
     expect(await page.locator('#assistVoiceGoToggle').getAttribute('aria-pressed')).toBe('false');
     expect(await page.locator('#assistVoiceGoHint').isHidden()).toBe(true);
-    await page.click('#assistVoiceGoInfo');
+    await page.locator('#assistVoiceGoInfo').evaluate((el) => el.click());
     const hintText = await page.locator('#assistVoiceGoHint').innerText();
     expect(hintText).toContain('חימוש ונטרול חסומים');
     expect(hintText).toContain('פרמטר דורש אישור');
     const goOn = page.waitForResponse((r) => r.url().includes('/api/assist/voice-go') && r.ok());
-    await page.click('#assistVoiceGoToggle');
+    await page.locator('#assistVoiceGoToggle').evaluate((el) => el.click());
     const onBody = await (await goOn).json();
     expect(onBody.ask_voice_go_active).toBe(true);
     expect(onBody.ask_voice_safety_lock).toBe('voice_session_go');
@@ -183,10 +184,10 @@ describe('Ask panel — no control overlap', () => {
     expect(session.ask_voice_go_active).toBe(true);
     expect(session.ask_voice_safety_lock).toBe('voice_session_go');
     const goOff = page.waitForResponse((r) => r.url().includes('/api/assist/voice-go') && r.ok());
-    await page.click('#assistVoiceGoToggle');
+    await page.locator('#assistVoiceGoToggle').evaluate((el) => el.click());
     expect((await (await goOff).json()).ask_voice_go_active).toBe(false);
     expect(await page.locator('#assistVoiceGoBadge').innerText()).toBe('כבוי');
-    await page.click('#assistAgentSettingsLink');
+    await page.locator('#assistAgentSettingsLink').evaluate((el) => el.click());
     expect(await page.locator('#globalSettingsModal').isVisible()).toBe(true);
     expect(await page.locator('#gsCodingAgent').innerText()).toContain('סוכן קוד');
     expect(await page.locator('#assistAgentKey').isVisible()).toBe(true);

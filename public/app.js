@@ -7459,8 +7459,17 @@ function initHorizonCameraMenu() {
   menu.className = 'horizon-cam-menu';
   menu.hidden = true;
   menu.setAttribute('role', 'menu');
-  menu.setAttribute('aria-label', 'מצלמות רקע לאופק');
+  menu.setAttribute('aria-label', 'פעולות אופק');
   menu.dir = 'rtl';
+  for (const id of ['horizonVideoToggle', 'annotatedVisionToggle', 'liveCameraToggle', 'horizonPointsToggle', 'pfdVoiceFlightBtn', 'flightArmBtn', 'flightDisarmBtn']) {
+    const btn = document.getElementById(id);
+    if (!btn) continue;
+    btn.classList.add('horizon-cam-menu-item');
+    menu.appendChild(btn);
+  }
+  document.getElementById('horizonPointsToggle')?.addEventListener('click', () => {
+    document.getElementById('terrainShowLoadedPathBtn')?.click();
+  });
   for (const slot of HORIZON_CAMERA_SLOTS) {
     const btn = document.createElement('button');
     btn.type = 'button';
@@ -7972,11 +7981,6 @@ function drawHorizon(canvas, rollDeg, pitchDeg, opts = {}) {
   const showPitch = pitchBounded != null;
   const rollDraw = showRoll ? rollBounded : 0;
   const pitchDraw = showPitch ? pitchBounded : 0;
-  if (!showRoll && !showPitch && !videoMode) {
-    ctx.fillStyle = '#12161f';
-    ctx.fillRect(0, 0, W, H);
-    return;
-  }
   const rollRad = (rollDraw * Math.PI) / 180;
   const hud = videoMode ? '#3DFF6A' : '#f8f1d4';
   const skyZenith = videoMode ? 'rgba(18, 78, 148, 0.12)' : '#163e86';
@@ -12041,7 +12045,7 @@ function paintFlightFollow(on) {
   if (btn) {
     btn.setAttribute('aria-pressed', flightFollowOn ? 'true' : 'false');
     btn.classList.toggle('active', flightFollowOn);
-    btn.textContent = flightFollowOn ? 'עוקב' : 'עקוב';
+    btn.textContent = flightFollowOn ? 'עוקב' : 'עקבו';
   }
   try { localStorage.setItem(FLIGHT_FOLLOW_KEY, flightFollowOn ? '1' : '0'); } catch { /* ignore */ }
 }
@@ -13650,6 +13654,7 @@ initLiveCameraPanel();
     });
     if (typeof paintPulseCommStatus === 'function') paintPulseCommStatus(links);
     syncRadioWithWork();
+    if (typeof refreshOpenFlightCommMenus === 'function') refreshOpenFlightCommMenus();
   }
 
   let lastWorkPaint = null;
@@ -13733,6 +13738,7 @@ initLiveCameraPanel();
   function applyDualLinkUi(links) {
     if (!links) return false;
     latestLinksSnapshot = links;
+    globalThis.flightLinksSnapshot = links;
     if (radioChip) {
       radioChip.dataset.state = chipStateFromLink(links.radio);
       radioChip.textContent = `${links.radioLabelHe || 'RF'} · ${links.radioStatusHe || 'מנותק'}`;
@@ -22106,3 +22112,186 @@ function paint(rec, extra = {}) {
     return data;
   }).catch(() => {});
 })();
+
+function flightLinkRow(id) {
+  const rows = globalThis.flightLinksSnapshot?.comm?.rows;
+  return Array.isArray(rows) ? rows.find((row) => row.id === id) || null : null;
+}
+
+function flightLinkFacts(row) {
+  const quality = row && row.quality && typeof row.quality === 'object' ? row.quality : null;
+  const percent = quality && quality.known === true ? Number(quality.percent) : NaN;
+  const delay = row && row.delayMs != null ? Number(row.delayMs) : NaN;
+  return {
+    state: row && row.statusHe ? String(row.statusHe) : '—',
+    strength: Number.isFinite(percent) ? `${Math.round(percent)}%` : '—',
+    quality: quality && quality.known === true && quality.sourceHe ? String(quality.sourceHe) : '—',
+    delay: Number.isFinite(delay) ? `${Math.round(delay)} ms` : '—',
+  };
+}
+
+function pluralLinkAction(label) {
+  if (label === 'התנתק') return 'התנתקו';
+  if (label === 'התחבר' || label === 'חיבור ל-RF') return 'התחברו';
+  if (label === 'סטטוס') return 'הציגו';
+  return 'התחברו';
+}
+
+function flightLinkErrorText(id) {
+  const row = flightLinkRow(id);
+  const fromRow = row && typeof row.errorHe === 'string' ? row.errorHe.trim() : '';
+  const el = document.querySelector(`#commLinkRows .comm-link-row[data-link="${id}"] .comm-link-error`);
+  const fromEl = el && !el.hidden ? String(el.textContent || '').trim() : '';
+  return fromRow || fromEl;
+}
+
+function paintFlightLinkPanel(prefix, id) {
+  const row = flightLinkRow(id);
+  const facts = flightLinkFacts(row);
+  const state = document.getElementById(`${prefix}State`);
+  const strength = document.getElementById(`${prefix}Strength`);
+  const quality = document.getElementById(`${prefix}Quality`);
+  const delay = document.getElementById(`${prefix}Delay`);
+  if (state) state.textContent = facts.state;
+  if (strength) strength.textContent = facts.strength;
+  if (quality) quality.textContent = facts.quality;
+  if (delay) delay.textContent = facts.delay;
+  const err = document.getElementById(prefix === 'flightComm' ? 'flightCommError' : 'flightLinkError');
+  const message = flightLinkErrorText(id);
+  if (err) {
+    err.hidden = !message;
+    err.textContent = message;
+  }
+  const action = document.getElementById(prefix === 'flightComm' ? 'flightCommAction' : 'flightLinkAction');
+  if (action) {
+    action.textContent = pluralLinkAction(row?.actionHe);
+    action.dataset.link = id || '';
+    action.classList.toggle('is-disconnect', row?.actionHe === 'התנתק');
+  }
+  return id;
+}
+
+let flightCommLinkId = 'cellular';
+
+function placeFlightMenu(menu, x, y) {
+  if (!menu) return;
+  menu.hidden = false;
+  menu.style.left = '0px';
+  menu.style.top = '0px';
+  const rect = menu.getBoundingClientRect();
+  const left = Math.max(8, Math.min(x, window.innerWidth - rect.width - 8));
+  const top = Math.max(8, Math.min(y, window.innerHeight - rect.height - 8));
+  menu.style.left = `${Math.round(left)}px`;
+  menu.style.top = `${Math.round(top)}px`;
+}
+
+function openFlightCommMenu(id, anchorEl) {
+  const menu = document.getElementById('flightCommMenu');
+  const linkMenu = document.getElementById('flightLinkMenu');
+  if (linkMenu) linkMenu.hidden = true;
+  flightCommLinkId = id || flightCommLinkId || 'cellular';
+  paintFlightLinkPanel('flightComm', flightCommLinkId);
+  menu?.querySelectorAll('[data-comm-link]').forEach((btn) => {
+    btn.classList.toggle('is-selected', btn.dataset.commLink === flightCommLinkId);
+  });
+  const anchor = (anchorEl instanceof Element ? anchorEl : document.getElementById('missionCommOpen'))?.getBoundingClientRect();
+  placeFlightMenu(menu, anchor ? anchor.left : 24, anchor ? anchor.bottom + 6 : 48);
+}
+
+function openFlightLinkMenu(id, x, y) {
+  const menu = document.getElementById('flightLinkMenu');
+  const comm = document.getElementById('flightCommMenu');
+  if (comm) comm.hidden = true;
+  paintFlightLinkPanel('flightLink', id);
+  placeFlightMenu(menu, x, y);
+}
+
+function refreshOpenFlightCommMenus() {
+  const comm = document.getElementById('flightCommMenu');
+  const link = document.getElementById('flightLinkMenu');
+  if (comm && !comm.hidden) paintFlightLinkPanel('flightComm', flightCommLinkId);
+  if (link && !link.hidden) paintFlightLinkPanel('flightLink', document.getElementById('flightLinkAction')?.dataset.link || '');
+}
+
+function runExistingLinkAction(id) {
+  const ids = {
+    cellular: 'cellularConnectBtn',
+    radio: 'connectBtn',
+    home: 'companionLinkBtn',
+    rc: 'rcStatusBtn',
+  };
+  document.getElementById(ids[id] || '')?.click();
+}
+
+function initFlightCommMenus() {
+  const comm = document.getElementById('flightCommMenu');
+  const linkMenu = document.getElementById('flightLinkMenu');
+  document.getElementById('missionCommOpen')?.addEventListener('click', (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (comm && !comm.hidden) {
+      comm.hidden = true;
+      return;
+    }
+    openFlightCommMenu(flightCommLinkId, document.getElementById('missionCommOpen'));
+  });
+  document.querySelectorAll('#missionLinkStrip .mission-link-chip').forEach((chip) => {
+    chip.addEventListener('click', (event) => {
+      event.preventDefault();
+      openFlightCommMenu(chip.dataset.link, chip);
+    });
+    chip.addEventListener('contextmenu', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      openFlightLinkMenu(chip.dataset.link, event.clientX, event.clientY);
+    });
+  });
+  comm?.querySelectorAll('[data-comm-link]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      flightCommLinkId = btn.dataset.commLink;
+      paintFlightLinkPanel('flightComm', flightCommLinkId);
+      comm.querySelectorAll('[data-comm-link]').forEach((item) => {
+        item.classList.toggle('is-selected', item.dataset.commLink === flightCommLinkId);
+      });
+    });
+  });
+  document.getElementById('flightCommAction')?.addEventListener('click', () => {
+    runExistingLinkAction(flightCommLinkId);
+  });
+  document.getElementById('flightLinkAction')?.addEventListener('click', () => {
+    runExistingLinkAction(document.getElementById('flightLinkAction')?.dataset.link || '');
+  });
+  document.addEventListener('pointerdown', (event) => {
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    if (target.closest('#flightCommMenu, #flightLinkMenu, #missionCommOpen, #missionLinkStrip')) return;
+    if (comm) comm.hidden = true;
+    if (linkMenu) linkMenu.hidden = true;
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape') return;
+    if (comm) comm.hidden = true;
+    if (linkMenu) linkMenu.hidden = true;
+  });
+}
+initFlightCommMenus();
+
+function initAskToolsMenu() {
+  const talk = document.querySelector('[data-mission-region="talk"]');
+  const host = document.getElementById('missionTalkHost');
+  if (!talk || !host) return;
+  talk.addEventListener('contextmenu', (event) => {
+    if (event.target instanceof Element && event.target.closest('#assistMicBtn')) return;
+    event.preventDefault();
+    host.classList.toggle('ask-tools-open');
+  });
+  document.addEventListener('pointerdown', (event) => {
+    if (!host.classList.contains('ask-tools-open')) return;
+    if (event.target instanceof Element && host.contains(event.target)) return;
+    host.classList.remove('ask-tools-open');
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') host.classList.remove('ask-tools-open');
+  });
+}
+initAskToolsMenu();

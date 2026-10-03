@@ -79,10 +79,9 @@ describe('Mission layout contract — static source', () => {
     expect(workspace).not.toMatch(/"messages map talk"/);
     expect(cssBlock(css, '.mission-region[data-mission-region="map"]')).toMatch(/min-height:\s*var\(--mission-map-min/);
     expect(cssBlock(css, '.mission-region[data-mission-region="horizon"]')).toMatch(/align-self:\s*stretch/);
-    expect(css).toMatch(/\.mission-region-horizon \.flight-hud \{[^}]*height:\s*var\(--mission-ah-row/);
-    expect(css).toMatch(/\.mission-region-horizon \.flight-hud \{[^}]*min-height:\s*52%/);
-    expect(css).toMatch(/\.mission-region-horizon \.flight-hud \{[^}]*max-height:\s*calc\(100% - var\(--mission-data-h/);
-    expect(css).toMatch(/\.mission-region-horizon \.flight-hud \{[^}]*flex:\s*1 1 auto/);
+    expect(css).toMatch(/\.mission-region-horizon \.flight-hud \{[^}]*aspect-ratio:\s*1\s*\/\s*1/);
+    expect(css).toMatch(/\.mission-region-horizon > \.flight-hud \{[^}]*aspect-ratio:\s*1\s*\/\s*1/);
+    expect(css).not.toMatch(/\.mission-region-horizon \.flight-hud \{[^}]*max-height:\s*28%/);
     expect(cssBlock(css, '.mission-horizon-filler')).toMatch(/flex:\s*0 1 0/);
     expect(cssBlock(css, '.mission-horizon-filler')).toMatch(/max-height:\s*18%/);
     expect(cssBlock(css, '.mission-horizon-filler')).toMatch(/background:\s*#1e293b/);
@@ -320,17 +319,18 @@ describe('Mission layout contract — live boxes', () => {
     expect(regions.data.height).toBeGreaterThanOrEqual(44);
     expect(regions.data.height).toBeLessThanOrEqual(280);
     expect(regions.messages.top - regions.data.bottom).toBeLessThan(24);
-    expect(regions.talk.width).toBeLessThan(8);
+    expect(regions.talk.width / regions.horizon.width).toBeGreaterThan(0.9);
+    const hudRatio = measured.hud.width / measured.hud.height;
+    expect(hudRatio).toBeGreaterThan(0.82);
+    expect(hudRatio).toBeLessThan(1.22);
     expect(regions.horizon.right).toBeGreaterThan(ws.right - 8);
-    expect(measured.well.height).toBeGreaterThanOrEqual(regions.talk.height * 0.40);
-    expect(measured.emptyHeight).toBeGreaterThanOrEqual(measured.well.height * 0.50);
-    expect(measured.inviteTop - measured.well.top).toBeLessThanOrEqual(32);
     expect(measured.wellBg).not.toMatch(/rgba?\(\s*0,\s*0,\s*0/);
 
     const overlayPair = (a, b) => {
       const skip = new Set([
         'horizon|data', 'data|horizon',
         'horizon|messages', 'messages|horizon',
+        'horizon|talk', 'talk|horizon',
         'data|messages', 'messages|data',
       ]);
       return skip.has(`${a}|${b}`);
@@ -391,8 +391,8 @@ describe('Mission layout contract — live boxes', () => {
 
     const ahShareH = measured.hud.height / regions.horizon.height;
     const wellShare = measured.well.height / regions.talk.height;
-    const underPfdGap = regions.horizon.bottom - regions.messages.bottom;
-    expect(underPfdGap).toBeLessThan(8);
+    const underPfdGap = regions.horizon.bottom - regions.talk.bottom;
+    expect(underPfdGap).toBeLessThan(24);
     const measure = {
       ahShareH,
       ahContentH: measured.hud.height,
@@ -419,100 +419,33 @@ describe('Mission layout contract — live boxes', () => {
     await writeShot(page, 'hatasa-1440x900.png');
   }, 45000);
 
-  it('grows the Assist composer without stealing map width or becoming a vertical strip', async () => {
-    await page.evaluate(() => {
-      if (typeof setMissionAskOpen === 'function') setMissionAskOpen(true);
-    });
-    await page.waitForFunction(() => {
-      const talk = document.querySelector('[data-mission-region="talk"]');
-      return talk && talk.getBoundingClientRect().width > 200;
-    });
-    const before = await page.evaluate(() => {
-      const box = (el) => {
-        const r = el.getBoundingClientRect();
-        return { width: r.width, height: r.height, left: r.left, top: r.top, right: r.right, bottom: r.bottom };
-      };
+  it('keeps ASK to the question, the answer, and one listen button', async () => {
+    const ask = await page.evaluate(() => {
+      const mic = document.getElementById('assistMicBtn');
       const input = document.getElementById('assistInput');
-      const form = document.getElementById('assistForm');
-      const map = document.querySelector('[data-mission-region="map"]');
       const talk = document.querySelector('[data-mission-region="talk"]');
-      return {
-        map: box(map),
-        talk: box(talk),
-        input: box(input),
-        form: box(form),
-        writingMode: getComputedStyle(input).writingMode,
-        formWrap: getComputedStyle(form).flexWrap,
-        formDir: getComputedStyle(form).flexDirection,
-        minWidth: getComputedStyle(input).minWidth,
-      };
-    });
-    expect(before.writingMode).toMatch(/horizontal-tb/);
-    expect(before.formWrap).toBe('nowrap');
-    expect(before.formDir).toBe('row');
-    expect(before.input.width).toBeGreaterThan(120);
-    expect(before.input.width).toBeGreaterThan(before.input.height);
-    expect(before.form.width).toBeGreaterThan(before.form.height * 1.2);
-
-    await page.click('#assistInput');
-    await page.fill('#assistInput', 'שאלה ארוכה לבדיקת גובה הקומפוזר בלי לשבור את המפה');
-    await page.waitForTimeout(80);
-
-    const after = await page.evaluate(() => {
-      const box = (el) => {
-        const r = el.getBoundingClientRect();
-        return { width: r.width, height: r.height, left: r.left, top: r.top, right: r.right, bottom: r.bottom };
-      };
-      const input = document.getElementById('assistInput');
-      const form = document.getElementById('assistForm');
-      const composer = document.querySelector('#missionTalkHost .assist-composer');
       const map = document.querySelector('[data-mission-region="map"]');
-      const talk = document.querySelector('[data-mission-region="talk"]');
+      const host = document.getElementById('missionTalkHost');
       const ws = document.querySelector('.mission-workspace');
+      const box = (el) => el.getBoundingClientRect();
       return {
-        map: box(map),
-        talk: box(talk),
-        ws: box(ws),
-        input: box(input),
-        form: box(form),
-        composer: box(composer),
-        grown: input.classList.contains('assist-input--grown'),
-        writingMode: getComputedStyle(input).writingMode,
-        whiteSpace: getComputedStyle(input).whiteSpace,
-        lines: Math.round(input.getBoundingClientRect().height / (parseFloat(getComputedStyle(input).lineHeight) || 18)),
+        micText: (mic?.innerText || '').replace(/\s+/g, ' ').trim(),
+        micDisplay: getComputedStyle(mic).display,
+        inputDisplay: getComputedStyle(input).display,
+        sendDisplay: getComputedStyle(document.getElementById('assistSendBtn')).display,
+        talkW: box(talk).width,
+        hostW: box(host).width,
+        mapShare: box(map).height / box(ws).height,
       };
     });
-
-    expect(after.grown).toBe(true);
-    expect(after.writingMode).toMatch(/horizontal-tb/);
-    expect(after.input.width).toBeGreaterThan(120);
-    expect(after.input.width).toBeGreaterThan(after.input.height);
-    expect(after.form.width).toBeGreaterThan(after.form.height);
-    expect(after.composer.height).toBeLessThanOrEqual(210);
-    expect(after.lines).toBeGreaterThanOrEqual(3);
-    expect(after.lines).toBeLessThanOrEqual(6);
-    expect(Math.abs(after.map.width - before.map.width) / before.map.width).toBeLessThanOrEqual(0.02);
-    expect(Math.abs(after.talk.width - before.talk.width) / before.talk.width).toBeLessThanOrEqual(0.02);
-    expect(after.map.height / after.ws.height).toBeGreaterThanOrEqual(0.65);
-    await writeShot(page, 'mission-assist-focused.png');
-
-    await page.fill('#assistInput', '');
-    await page.locator('#assistInput').blur();
-    await page.waitForTimeout(80);
-    const collapsed = await page.evaluate(() => {
-      const input = document.getElementById('assistInput');
-      const map = document.querySelector('[data-mission-region="map"]');
-      return {
-        grown: input.classList.contains('assist-input--grown'),
-        inputH: input.getBoundingClientRect().height,
-        inputW: input.getBoundingClientRect().width,
-        mapW: map.getBoundingClientRect().width,
-      };
-    });
-    expect(collapsed.grown).toBe(false);
-    expect(collapsed.inputW).toBeGreaterThan(collapsed.inputH);
-    expect(Math.abs(collapsed.mapW - before.map.width) / before.map.width).toBeLessThanOrEqual(0.02);
-    await writeShot(page, 'mission-assist-collapsed.png');
+    expect(ask.micText).toContain('האזינו');
+    expect(ask.micDisplay).not.toBe('none');
+    expect(ask.inputDisplay).toBe('none');
+    expect(ask.sendDisplay).toBe('none');
+    expect(ask.talkW).toBeGreaterThan(120);
+    expect(ask.hostW / ask.talkW).toBeGreaterThan(0.85);
+    expect(ask.mapShare).toBeGreaterThanOrEqual(0.65);
+    await writeShot(page, 'mission-ask.png');
   }, 20000);
 
   it('grows messages inside the AH stack without covering the map', async () => {

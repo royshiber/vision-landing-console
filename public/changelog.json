@@ -1,5 +1,36 @@
 [
   {
+    "version": "1.02.409",
+    "date": "2026-10-03",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Server library",
+        "detail": "comm-links.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "UI / app.js",
+        "detail": "app.js"
+      },
+      {
+        "type": "ui",
+        "title": "HTML layout",
+        "detail": "index.html"
+      },
+      {
+        "type": "ui",
+        "title": "Styles",
+        "detail": "styles.css"
+      },
+      {
+        "type": "test",
+        "title": "Tests",
+        "detail": "arm-disarm-qa.test.mjs, ask-panel-layout.test.mjs, flight-dock-map.test.mjs, flight-instruments-visible.test.mjs, flight-screen-approved.test.mjs, home-qa-matrix.test.mjs, home-shell-qa.test.mjs, mission-layout-contract.test.mjs"
+      }
+    ]
+  },
+  {
     "version": "1.02.408",
     "date": "2026-10-03",
     "changes": [

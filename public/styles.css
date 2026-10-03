@@ -12318,10 +12318,12 @@ html[data-evolve-preview="1"] #development {
   border: 0;
 }
 .mission-region-horizon .flight-hud {
-  height: var(--mission-ah-row, 66%);
-  min-height: 52%;
-  max-height: calc(100% - var(--mission-data-h, 72px) - var(--mission-msg-h, 40px));
-  flex: 1 1 auto;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1 / 1;
+  min-height: 0;
+  max-height: calc(100% - 210px);
+  flex: 0 0 auto;
 }
 .mission-region-horizon .pfd-command-line {
   display: flex;
@@ -21115,9 +21117,12 @@ body:has(#recordings.panel.visible) .layout {
 
 /* ── Flight column: horizon, heading, sources, wrapping tiles, messages ── */
 .mission-region-horizon > .flight-hud {
-  max-height: none;
-  flex: 3 1 0;
-  min-height: 120px;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1 / 1;
+  max-height: calc(100% - 210px);
+  flex: 0 0 auto;
+  min-height: 0;
   overflow: hidden;
 }
 .mission-region-horizon .mission-region-data {
@@ -21135,8 +21140,8 @@ body:has(#recordings.panel.visible) .layout {
   box-sizing: border-box;
 }
 .mission-region-horizon .mission-data-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  display: flex;
+  flex-flow: row wrap;
   gap: 2px;
   padding: 0 2px;
   min-width: 0;
@@ -22062,17 +22067,23 @@ html[dir="rtl"] :is(p, button, span, h1, h2, h3, h4, label, li, strong) {
 }
 .horizon-no-data {
   position: absolute;
-  inset: 0;
+  inset: auto;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
   z-index: 4;
   display: flex;
   align-items: center;
   justify-content: center;
   margin: 0;
-  background: rgba(8, 10, 16, 0.78);
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: rgba(8, 10, 16, 0.72);
   color: #e8edf6;
-  font-size: clamp(11px, 0.95rem, 18px);
+  font-size: clamp(11px, 0.8rem, 14px);
   font-weight: 700;
   pointer-events: none;
+  white-space: nowrap;
 }
 .horizon-no-data[hidden] { display: none; }
 .terrain-path-note {
@@ -26008,4 +26019,289 @@ body[data-work-path="rf"] #optics .optics-calib {
 }
 #gimbalScreenNote[hidden] {
   display: none;
+}
+
+/* Approved flight screen: square horizon, menus, ASK under the column. */
+.mission-region-horizon > .flight-hud > .pfd-command-line,
+.mission-region-horizon .pfd-hud-wait-hint,
+.mission-region-horizon .pfd-horizon-chrome {
+  display: none !important;
+}
+.mission-workspace .mission-region-horizon > .mission-region[data-mission-region="talk"] {
+  display: flex;
+  position: static;
+  inset: auto;
+  left: auto;
+  right: auto;
+  top: auto;
+  bottom: auto;
+  z-index: 1;
+  width: 100%;
+  height: auto;
+  min-height: 128px;
+  max-height: 36%;
+  flex: 0 0 auto;
+  grid-area: auto;
+  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: #10141c;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+.mission-region-horizon > .mission-region-messages {
+  flex: 1 1 auto;
+  height: auto;
+  min-height: 108px;
+  max-height: none;
+}
+.mission-region-horizon .mission-region-messages[data-flight-dock="messages"] > #flightDockMessagesPane {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 64px;
+}
+.mission-region-horizon .mission-region-messages[data-flight-dock="actions"] > #flightDockActionsPane {
+  display: flex;
+}
+button.mission-link-chip,
+.mission-comm-open {
+  margin: 0;
+  font: inherit;
+  cursor: pointer;
+}
+.mission-comm-open {
+  min-height: 20px;
+  padding: 0 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: rgba(15, 23, 42, 0.55);
+  color: #e8edf6;
+  font-size: clamp(11px, 0.62rem, 13px);
+  font-weight: 800;
+}
+.flight-comm-menu,
+.flight-link-menu {
+  position: fixed;
+  z-index: 80;
+  display: flex;
+  gap: 8px;
+  padding: 8px;
+  background: #161b22;
+  color: #f8fafc;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+}
+.flight-comm-menu[hidden],
+.flight-link-menu[hidden] {
+  display: none !important;
+}
+.flight-comm-menu {
+  flex-direction: row;
+  align-items: stretch;
+  min-width: 280px;
+}
+.flight-link-menu {
+  flex-direction: column;
+  min-width: 180px;
+}
+.flight-comm-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 92px;
+}
+.flight-comm-link,
+.flight-comm-action {
+  margin: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #f8fafc;
+  font: inherit;
+  font-size: clamp(12px, 0.78rem, 14px);
+  font-weight: 700;
+  text-align: start;
+  padding: 6px 8px;
+  cursor: pointer;
+}
+.flight-comm-link.is-selected {
+  background: #2f6fed;
+  color: #fff;
+}
+.flight-comm-detail,
+.flight-link-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 160px;
+}
+.flight-comm-detail p,
+.flight-link-menu p {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0;
+  font-size: clamp(11px, 0.72rem, 13px);
+  line-height: 1.3;
+}
+.flight-comm-detail b,
+.flight-link-menu b {
+  font-weight: 700;
+  text-align: end;
+}
+.flight-comm-error {
+  color: #fecaca;
+}
+.flight-comm-action {
+  background: #e37b12;
+  color: #1a1206;
+  text-align: center;
+  font-weight: 800;
+}
+.flight-comm-action.is-disconnect {
+  background: #e37b12;
+}
+#missionTalkHost .assist-rail-head,
+#missionTalkHost .assist-rail-hint,
+#missionTalkHost .assist-voice-go,
+#missionTalkHost .assist-agent-offline,
+#missionTalkHost .assist-run-panel,
+#missionTalkHost .assist-suggestion-bar,
+#missionTalkHost .assist-proposal-bar,
+#missionTalkHost .assist-quick-chips,
+#missionTalkHost .assist-input,
+#missionTalkHost .assist-btn-send,
+#missionTalkHost .assist-empty-stage,
+#missionTalkHost .assist-agent-connect,
+#missionTalkHost .assist-close-btn,
+.mission-region-talk > .mission-talk-hint {
+  display: none !important;
+}
+#missionTalkHost .assist-transcript-well {
+  flex: 1 1 auto;
+  min-height: 48px;
+  background: #10141c;
+  border: 0;
+}
+#missionTalkHost .assist-messages:empty {
+  min-height: 36px;
+}
+#missionTalkHost .assist-composer {
+  max-height: none;
+}
+#missionTalkHost .assist-mic-btn,
+.mission-region-talk .assist-mic-btn {
+  width: 100%;
+  max-width: none;
+  height: 34px;
+  min-height: 34px;
+  flex: 0 0 auto;
+  border-radius: 6px;
+  background: #e8edf4;
+  color: #111827;
+  border-color: #e8edf4;
+}
+#missionTalkHost .assist-mic-icon {
+  display: none;
+}
+#missionTalkHost .assist-mic-label,
+.mission-region-talk .assist-mic-label {
+  display: inline !important;
+  color: #111827;
+  font-weight: 800;
+  font-size: clamp(12px, 0.8rem, 14px);
+}
+.mission-region-talk > .mission-region-title {
+  padding: 4px 8px 0;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+.horizon-cam-menu .flight-arm-btn,
+.horizon-cam-menu .pfd-video-toggle,
+.horizon-cam-menu .pfd-voice-flight-btn {
+  position: static;
+  width: 100%;
+  height: auto;
+  min-height: 32px;
+  max-height: none;
+  margin: 0;
+  padding: 6px 8px;
+  background: transparent;
+  color: #f8fafc;
+  border: 0;
+  box-shadow: none;
+}
+
+/* Approved mockup: the square horizon wins every later height cap. */
+.mission-workspace[data-mission-layout="ops-v1"] .mission-region-horizon > .flight-hud {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1 / 1;
+  min-height: 0;
+  max-height: calc(100% - 210px);
+  flex: 0 0 auto;
+}
+.mission-workspace[data-mission-layout="ops-v1"] .mission-region-horizon .pfd-horizon-shell,
+.mission-workspace[data-mission-layout="ops-v1"] .mission-region-horizon .pfd-horizon-instrument,
+.mission-workspace[data-mission-layout="ops-v1"] .mission-region-horizon .pfd-horizon-stage {
+  width: 100%;
+  min-height: 0;
+  max-height: none;
+  height: auto;
+  flex: 1 1 auto;
+  aspect-ratio: auto;
+}
+.mission-workspace[data-mission-layout="ops-v1"] .mission-region-horizon .pfd-horizon-shell,
+.mission-workspace[data-mission-layout="ops-v1"] .mission-region-horizon .pfd-horizon-instrument {
+  height: 100%;
+}
+#missionAskDataBtn,
+#missionAskCloseBtn {
+  display: none !important;
+}
+.mission-workspace[data-mission-layout="ops-v1"] .mission-region-horizon .mission-data-tile {
+  min-width: 0;
+  max-width: 100%;
+  width: auto;
+  box-sizing: border-box;
+  overflow: visible;
+}
+.mission-workspace[data-mission-layout="ops-v1"] .mission-region-horizon .mission-data-label,
+.mission-workspace[data-mission-layout="ops-v1"] .mission-region-horizon .mission-data-value,
+.mission-workspace[data-mission-layout="ops-v1"] .mission-region-horizon .mission-data-unit,
+.mission-workspace[data-mission-layout="ops-v1"] .mission-region-horizon .mission-data-readout,
+.mission-workspace[data-mission-layout="ops-v1"] .mission-region-horizon .mission-data-pair {
+  max-width: 100%;
+  min-width: 0;
+  overflow: visible;
+}
+.mission-workspace[data-mission-layout="ops-v1"] .mission-region-horizon .mission-data-label {
+  width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.mission-workspace[data-mission-layout="ops-v1"] .mission-region-horizon .mission-data-tile .mission-data-pair {
+  flex-flow: row wrap;
+  width: 100%;
+  justify-content: center;
+}
+.app-chrome-tools {
+  min-width: max-content;
+}
+#versionBtn {
+  width: auto;
+  max-width: none;
+  overflow: visible;
+  flex: 0 0 auto;
+}
+#missionTalkHost.ask-tools-open .assist-composer,
+#missionTalkHost.ask-tools-open .assist-voice-go,
+#missionTalkHost.ask-tools-open .assist-btn-send {
+  display: flex !important;
+}
+#missionTalkHost.ask-tools-open .assist-input {
+  display: block !important;
+  min-height: 36px;
+  width: 100%;
 }

@@ -361,9 +361,9 @@
           <button type="button" class="assist-quick-chip" data-assist-chip="flightEngineer" hidden>מהנדס</button>
         </div>
         <form id="assistForm" class="assist-form" autocomplete="off">
-          <button type="button" id="assistMicBtn" class="assist-mic-btn assist-mic-btn--invite" title="שיחה עם AIRVIX Ask. שינוי דורש אישור." aria-label="שיחה עם AIRVIX Ask. שינוי דורש אישור." aria-pressed="false">
+              <button type="button" id="assistMicBtn" class="assist-mic-btn assist-mic-btn--invite" title="האזינו" aria-label="האזינו" aria-pressed="false">
             <span class="assist-mic-icon" aria-hidden="true">🎙</span>
-            <span class="assist-mic-label">שיחה עם <bdi dir="ltr">AIRVIX Ask</bdi></span>
+            <span class="assist-mic-label">האזינו</span>
           </button>
           <textarea id="assistInput" class="assist-input" rows="1" maxlength="2000" dir="rtl" placeholder="שאלה, יועץ, פתק, או בקשת פיתוח…"></textarea>
           <button type="submit" id="assistSendBtn" class="assist-btn assist-btn-send">שלח</button>
@@ -2240,10 +2240,11 @@
         <div class="mission-ops-chrome">
           <div class="mission-ops-leading">
             <nav id="missionLinkStrip" class="mission-link-strip" aria-label="סטטוס קישורים">
-              <span class="mission-link-chip" data-link="radio" data-state="off" data-quality="unknown"><i class="mission-link-dots" aria-hidden="true"></i>RF</span>
-              <span class="mission-link-chip" data-link="cellular" data-state="absent" data-quality="unknown"><i class="mission-link-dots" aria-hidden="true"></i>סלולר</span>
-              <span class="mission-link-chip" data-link="home" data-state="off" data-quality="unknown"><i class="mission-link-dots" aria-hidden="true"></i>בית</span>
-              <span class="mission-link-chip" data-link="rc" data-state="off" data-quality="unknown"><i class="mission-link-dots" aria-hidden="true"></i>RC</span>
+              <button type="button" id="missionCommOpen" class="mission-comm-open">תקשורת</button>
+              <button type="button" class="mission-link-chip" data-link="cellular" data-state="absent" data-quality="unknown"><i class="mission-link-dots" aria-hidden="true"></i>סלולר</button>
+              <button type="button" class="mission-link-chip" data-link="radio" data-state="off" data-quality="unknown"><i class="mission-link-dots" aria-hidden="true"></i>RF</button>
+              <button type="button" class="mission-link-chip" data-link="home" data-state="off" data-quality="unknown"><i class="mission-link-dots" aria-hidden="true"></i>בית</button>
+              <button type="button" class="mission-link-chip" data-link="rc" data-state="off" data-quality="unknown"><i class="mission-link-dots" aria-hidden="true"></i>RC</button>
             </nav>
             <div id="missionNavDisplay" class="mission-nav-display" role="radiogroup" aria-label="תצוגת מיקום" data-toggle-mode="display_only" data-toggle-lock="nav_toggle_display_only">
               <span class="mission-nav-display-kicker" title="תצוגה בלבד. לא מחליף את מקור הניווט בבקר.">תצוגה</span>
@@ -2351,11 +2352,12 @@
                     </div>
                   </div>
                 </div>
-                <div class="pfd-horizon-chrome" role="radiogroup" aria-label="תצוגת מכשירים">
-                  <button type="button" id="pfdVoiceFlightBtn" class="pfd-voice-flight-btn" title="פתיחת מהנדס קולי לפקודות טיסה">🎙 פקודות</button>
+                <div class="pfd-horizon-chrome" hidden aria-hidden="true">
+                  <button type="button" id="pfdVoiceFlightBtn" class="pfd-voice-flight-btn" title="פתיחת מהנדס קולי לפקודות טיסה">פקודות</button>
                   <button type="button" id="horizonVideoToggle" class="pfd-video-toggle" title="וידאו מהמצלמות" aria-pressed="false">וידאו</button>
                   <button type="button" id="annotatedVisionToggle" class="pfd-video-toggle" title="ראייה מסומנת" aria-pressed="false">ראייה</button>
                   <button type="button" id="liveCameraToggle" class="pfd-video-toggle" title="פריים חי" aria-pressed="false">פריים</button>
+                  <button type="button" id="horizonPointsToggle" class="pfd-video-toggle" title="נקודות המשימה הטעונה" aria-pressed="false">נקודות</button>
                 </div>
               </div>
             </aside>
@@ -2480,21 +2482,18 @@
               </div>
               <p id="flightDockCommandNote" class="flight-dock-note" role="status"></p>
             </section>
+            <section class="mission-region mission-region-talk" data-mission-region="talk" dir="rtl" aria-label="ASK">
+              <h3 class="mission-region-title">ASK</h3>
+              <button type="button" id="missionAskCloseBtn" class="mission-ask-close" hidden aria-label="סגור">סגור</button>
+              <p id="missionTalkHint" class="mission-talk-hint" hidden>דברו להטסה. אחרי ההפעלה, נחיתה ושינוי מצב מתבצעים בלי אישור נוסף. חימוש נשאר חסום, ושינוי פרמטר עדיין דורש אישור.</p>
+              <div id="missionTalkHost" class="mission-talk-host" dir="rtl"></div>
+            </section>
           </section>
 
           <section class="mission-region mission-region-map" data-mission-region="map" aria-label="מפה">
             <h3 class="mission-region-title" draggable="true">מפה</h3>
             <div class="terrain-map-shell">
-              <div class="terrain-map-overlay-toolbar" role="toolbar" aria-label="תצוגת מפה">
-                <span class="terrain-toolbar-label">שכבה:</span>
-                <button type="button" id="terrainLayerStreetBtn" class="terrain-layer-btn active" title="OpenStreetMap">מפת רחוב</button>
-                <button type="button" id="terrainLayerSatBtn" class="terrain-layer-btn" title="תצלום לווין (Esri)">לווין</button>
-                  <button type="button" id="terrainShowLoadedPathBtn" class="terrain-layer-btn" title="רענן משימה והצג נתיב טעון על המפה" aria-pressed="false">הצג נתיב טעון</button>
-                  <button type="button" id="terrainFollowBtn" class="terrain-layer-btn" title="מרכז את המטוס במפה" aria-pressed="false">עקוב</button>
-                  <button type="button" id="terrainFlightRecordBtn" class="terrain-layer-btn" data-recording="0" aria-pressed="false" title="התחילו שמירת טיסה. בלי לחיצה אין הקלטה.">התחל הקלטה</button>
-                  <span id="terrainFlightRecordState" class="terrain-record-state">לא מקליט</span>
-                  <p id="terrainPathNote" class="terrain-path-note" hidden></p>
-              </div>
+              <p id="terrainPathNote" class="terrain-path-note" hidden></p>
               <div id="terrainMapRotatable" class="terrain-map-rotatable">
                 <div id="terrainMap"></div>
               </div>
@@ -2536,12 +2535,30 @@
             </div>
           </section>
 
-          <section class="mission-region mission-region-talk" data-mission-region="talk" dir="rtl" aria-label="AIRVIX Ask">
-            <h3 class="mission-region-title" draggable="true"><bdi dir="ltr">AIRVIX Ask</bdi></h3>
-            <button type="button" id="missionAskCloseBtn" class="mission-ask-close" aria-label="סגור">סגור</button>
-            <p id="missionTalkHint" class="mission-talk-hint">דברו להטסה. אחרי ההפעלה, נחיתה ושינוי מצב מתבצעים בלי אישור נוסף. חימוש נשאר חסום, ושינוי פרמטר עדיין דורש אישור.</p>
-            <div id="missionTalkHost" class="mission-talk-host" dir="rtl"></div>
-          </section>
+          <div id="flightCommMenu" class="flight-comm-menu" hidden role="dialog" aria-label="תקשורת">
+            <div class="flight-comm-list" role="menu">
+              <button type="button" class="flight-comm-link" data-comm-link="cellular" role="menuitem">סלולר</button>
+              <button type="button" class="flight-comm-link" data-comm-link="radio" role="menuitem">RF</button>
+              <button type="button" class="flight-comm-link" data-comm-link="home" role="menuitem">בית</button>
+              <button type="button" class="flight-comm-link" data-comm-link="rc" role="menuitem">RC</button>
+            </div>
+            <div class="flight-comm-detail">
+              <p><span>המצב</span><b id="flightCommState">—</b></p>
+              <p><span>עוצמה</span><b id="flightCommStrength">—</b></p>
+              <p><span>איכות אות</span><b id="flightCommQuality">—</b></p>
+              <p><span>השהיה</span><b id="flightCommDelay">—</b></p>
+              <p id="flightCommError" class="flight-comm-error" hidden></p>
+              <button type="button" id="flightCommAction" class="flight-comm-action">התחברו</button>
+            </div>
+          </div>
+          <div id="flightLinkMenu" class="flight-link-menu" hidden role="menu" aria-label="קישור">
+            <p><span>המצב</span><b id="flightLinkState">—</b></p>
+            <p><span>עוצמה</span><b id="flightLinkStrength">—</b></p>
+            <p><span>איכות אות</span><b id="flightLinkQuality">—</b></p>
+            <p><span>השהיה</span><b id="flightLinkDelay">—</b></p>
+            <p id="flightLinkError" class="flight-comm-error" hidden></p>
+            <button type="button" id="flightLinkAction" class="flight-comm-action">התחברו</button>
+          </div>
 
           <div id="pfdReadinessPopover" class="pfd-readiness-popover hidden" role="dialog" aria-modal="false" aria-labelledby="pfdReadinessTitle">
             <div class="pfd-readiness-inner">
@@ -2980,6 +2997,12 @@
         <span class="map-fly-to-icon">✈</span> טוס לכאן
       </button>
       <button type="button" class="map-fly-to-btn" id="mapGimbalScreenBtn" data-gimbal-screen="open" role="menuitem">מסך גימבל</button>
+      <button type="button" class="map-fly-to-btn" id="terrainLayerStreetBtn" role="menuitem">מפת רחוב</button>
+      <button type="button" class="map-fly-to-btn" id="terrainLayerSatBtn" role="menuitem">לווין</button>
+      <button type="button" class="map-fly-to-btn" id="terrainShowLoadedPathBtn" role="menuitem" aria-pressed="false">הציגו נתיב</button>
+      <button type="button" class="map-fly-to-btn" id="terrainFollowBtn" role="menuitem" aria-pressed="false">עקבו</button>
+      <button type="button" class="map-fly-to-btn" id="terrainFlightRecordBtn" role="menuitem" data-recording="0" aria-pressed="false">התחילו הקלטה</button>
+      <span id="terrainFlightRecordState" class="terrain-record-state">לא מקליט</span>
       <div class="map-fly-to-alt-row">
         <label class="map-fly-to-alt-label" for="mapFlyToAlt">גובה (m AGL)</label>
         <input type="number" id="mapFlyToAlt" class="map-fly-to-alt-input" value="60" min="20" max="500" step="10">

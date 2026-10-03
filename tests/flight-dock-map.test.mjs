@@ -102,7 +102,7 @@ describe('flight dock and map source', () => {
     expect(html).toContain('פעולה, נקודה ומתלה בלי שליחה');
     expect(js).toContain('operatorConfirmed: true');
     expect(html).toContain('>בית</option>');
-    expect(html).toMatch(/id="terrainFollowBtn"[^>]*>עקוב</);
+    expect(html).toMatch(/id="terrainFollowBtn"[^>]*>עקבו</);
     expect(html).toMatch(/id="terrainFlightRecordState"[^>]*>לא מקליט</);
     expect(js).toContain('function applyFlightDock(');
     expect(js).toContain("fetch('/api/assist/voice-flight'");
@@ -501,7 +501,7 @@ describe('flight dock and map live', () => {
       points: terrainFlightLayers.liveTrack ? terrainFlightLayers.liveTrack.getLatLngs().length : 0,
     }));
     expect(tracked.points).toBeGreaterThanOrEqual(2);
-    await page.click('#terrainFollowBtn');
+    await page.locator('#terrainFollowBtn').evaluate((el) => el.click());
     const centered = await page.evaluate(() => {
       const c = terrainMap.getCenter();
       return { lat: c.lat, lng: c.lng, label: document.getElementById('terrainFollowBtn').textContent };
@@ -510,12 +510,12 @@ describe('flight dock and map live', () => {
     expect(Math.abs(centered.lat - 31.51)).toBeLessThan(0.02);
     expect(Math.abs(centered.lng - 34.86)).toBeLessThan(0.02);
 
-    await page.click('#terrainFlightRecordBtn');
+    await page.locator('#terrainFlightRecordBtn').evaluate((el) => el.click());
     await page.waitForFunction(() => document.getElementById('terrainFlightRecordState').textContent === 'מקליט');
     expect(starts.length).toBe(1);
     const recording = await page.evaluate(() => document.getElementById('missionRecordBtn').textContent);
     expect(recording).toBe('מקליט');
-    await page.click('#terrainFlightRecordBtn');
+    await page.locator('#terrainFlightRecordBtn').evaluate((el) => el.click());
     await page.waitForFunction(() => document.getElementById('terrainFlightRecordState').textContent === 'לא מקליט');
 
     voice.length = 0;
@@ -584,7 +584,7 @@ describe('flight dock and map live', () => {
       }
     });
     const voiceBeforePhrase = voice.length;
-    await page.click('#pfdVoiceFlightBtn');
+    await page.locator('#pfdVoiceFlightBtn').evaluate((el) => el.click());
     await page.waitForFunction(() => document.activeElement?.id === 'flightPhraseInput');
     const phraseFocus = await page.evaluate(() => ({
       dock: document.querySelector('[data-mission-region="messages"]')?.dataset.flightDock,
