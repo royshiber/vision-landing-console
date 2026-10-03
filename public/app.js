@@ -7309,6 +7309,15 @@ function paintHorizonImage(img, note, slot, companion) {
     return;
   }
   const base = forced ? slot.frame : `/api/jetson/v1/cameras/${slot.apiId}/frame`;
+  const paintedMisses = Number(img.dataset.misses || 0);
+  const paintedSeen = Number(img.dataset.seen || 0);
+  const paintedPicture = paintedSeen > 0 && Boolean(img.getAttribute('src')) && img.naturalWidth > 0;
+  const blankWarning = paintedMisses > 1 && horizonFrameMissShowsNoSignal({
+    seenAt: paintedSeen,
+    now: Date.now(),
+    streaming: true,
+    consecutiveMisses: paintedMisses,
+  }) && !paintedPicture;
     img.onload = () => {
       img.hidden = false;
       img.dataset.seen = String(Date.now());
@@ -7341,13 +7350,19 @@ function paintHorizonImage(img, note, slot, companion) {
   const current = String(img.currentSrc || img.src || '');
   if (!current.includes(base) || Date.now() - stamp > 700) {
     img.dataset.stamp = String(Date.now());
-    if (!forced) {
+    if (blankWarning) {
+      img.hidden = true;
+      showNote();
+    } else if (!forced) {
       img.hidden = false;
       if (note) note.hidden = true;
     } else if (!(img.complete && img.naturalWidth > 0 && !img.hidden)) {
       showNote();
     }
     img.src = `${base}?t=${Date.now()}`;
+  } else if (blankWarning) {
+    img.hidden = true;
+    showNote();
   } else if (img.complete && img.naturalWidth > 0) {
     img.hidden = false;
     if (note) note.hidden = true;
