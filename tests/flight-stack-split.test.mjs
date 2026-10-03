@@ -134,11 +134,14 @@ describe('flight stack splitters live', () => {
           const tr = track ? track.getBoundingClientRect() : null;
           const lr = label ? label.getBoundingClientRect() : null;
           const pr = pair ? pair.getBoundingClientRect() : null;
+          const readout = el.querySelector('.mission-data-readout');
+          const rr = readout ? readout.getBoundingClientRect() : null;
           return {
             bottom: r.bottom,
             top: r.top,
             height: r.height,
             width: r.width,
+            textH: (lr?.height || 0) + (rr?.height || 0),
             labelOver: label ? Math.max(label.scrollWidth - label.clientWidth, label.scrollHeight - label.clientHeight) : 0,
             valueOver: value ? Math.max(value.scrollWidth - value.clientWidth, value.scrollHeight - value.clientHeight) : 0,
             valueCenter: vr ? (vr.top + vr.bottom) / 2 : null,
@@ -258,8 +261,15 @@ describe('flight stack splitters live', () => {
       expect(before.hud.height, size.name).toBeGreaterThanOrEqual(96);
       expect(before.messages.height, size.name).toBeGreaterThan(before.hud.height);
       expect(before.stage.height, size.name).toBeGreaterThanOrEqual(48);
-      expect(before.data.height, size.name).toBeGreaterThanOrEqual(88);
-      expect(before.data.height, size.name).toBeLessThanOrEqual(160);
+      const tallestText = Math.max(...before.tiles.map((tile) => tile.textH));
+      expect(tallestText, size.name).toBeGreaterThanOrEqual(20);
+      expect(before.data.height, size.name).toBeGreaterThanOrEqual(tallestText);
+      expect(before.data.height, size.name).toBeLessThanOrEqual(tallestText + 28);
+      expect(before.data.height, size.name).toBeLessThan(88);
+      for (const tile of before.tiles) {
+        expect(tile.height, size.name).toBeLessThanOrEqual(before.data.height);
+        expect(tile.height, size.name).toBeGreaterThanOrEqual(tile.textH);
+      }
       const tileTops = before.tiles.map((tile) => tile.top);
       expect(Math.max(...tileTops) - Math.min(...tileTops), size.name).toBeLessThanOrEqual(4);
       const tileWidths = before.tiles.map((tile) => tile.width);

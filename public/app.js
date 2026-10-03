@@ -229,7 +229,7 @@ const FLIGHT_FOLLOW_KEY = 'visionLandingFlightFollowV1';
 const FLIGHT_DATA_DEFAULT = 116;
 const FLIGHT_MSG_DEFAULT = 40;
 const FLIGHT_MSG_OPEN = 112;
-const FLIGHT_DATA_MIN = 88;
+const FLIGHT_DATA_MIN = 40;
 const FLIGHT_MSG_MIN = 36;
 const FLIGHT_HUD_MIN = 112;
 const FLIGHT_HUD_CAP = 160;
@@ -20250,7 +20250,7 @@ function flightColumnHalfStack(horizon) {
   const budget = flightStackBudget(horizon);
   if (budget.avail < 240) return null;
   const dataRoom = budget.avail - budget.hudMin - budget.msgMin;
-  const data = Math.max(FLIGHT_DATA_MIN, Math.min(116, dataRoom));
+  const data = Math.min(dataRoom, budget.dataMin);
   const rest = budget.avail - data;
   if (rest < budget.hudMin + budget.msgMin) return null;
   const hud = Math.min(FLIGHT_HUD_CAP, Math.max(budget.hudMin, rest - budget.msgMin));
@@ -20286,18 +20286,37 @@ function writeFlightStack(stack) {
   return next;
 }
 
+function flightDataContentHeight(horizon) {
+  const grid = horizon?.querySelector?.('#missionDataGrid');
+  const data = horizon?.querySelector?.('[data-mission-region="data"]');
+  if (!grid || typeof grid.querySelectorAll !== 'function' || typeof getComputedStyle !== 'function') return 0;
+  let tileH = 0;
+  for (const tile of grid.querySelectorAll('.mission-data-tile')) {
+    const cs = getComputedStyle(tile);
+    const pad = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0);
+    const border = (parseFloat(cs.borderTopWidth) || 0) + (parseFloat(cs.borderBottomWidth) || 0);
+    const gap = parseFloat(cs.rowGap || cs.gap) || 0;
+    const label = tile.querySelector('.mission-data-label');
+    const readout = tile.querySelector('.mission-data-readout');
+    const labelH = label?.getBoundingClientRect?.().height || 0;
+    const readH = readout?.getBoundingClientRect?.().height || 0;
+    const gaps = labelH > 0 && readH > 0 ? gap : 0;
+    tileH = Math.max(tileH, pad + border + labelH + readH + gaps);
+  }
+  if (tileH < 1) return 0;
+  let extra = 0;
+  if (data) {
+    const cs = getComputedStyle(data);
+    extra = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0)
+      + (parseFloat(cs.borderTopWidth) || 0) + (parseFloat(cs.borderBottomWidth) || 0);
+  }
+  return Math.ceil(tileH + extra);
+}
+
 function flightDataFloor(horizon) {
-  const grid = horizon.querySelector('#missionDataGrid');
-  const data = horizon.querySelector('[data-mission-region="data"]');
-  if (!grid || typeof grid.getBoundingClientRect !== 'function') return FLIGHT_DATA_MIN;
-  const gridBox = grid.getBoundingClientRect();
-  const dataBox = data?.getBoundingClientRect?.();
-  const content = Math.ceil(gridBox.height);
-  if (content < 40) return FLIGHT_DATA_MIN;
-  // The grid stretches to the data region. That height is not a content floor,
-  // or the splitter could never give space back to the attitude window.
-  if (dataBox && dataBox.height > 0 && content >= dataBox.height - 4) return FLIGHT_DATA_MIN;
-  return Math.max(FLIGHT_DATA_MIN, content + 2);
+  const content = flightDataContentHeight(horizon);
+  if (content >= 32) return content;
+  return FLIGHT_DATA_MIN;
 }
 
 function flightStackBudget(horizon) {
@@ -20992,6 +21011,37 @@ function closeMissionDataPicker() {
   _missionDataPickerSlot = -1;
 }
 
+function placeMissionDataPicker(picker, x, y) {
+  const margin = 8;
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const width = Math.min(300, Math.max(160, vw - margin * 2));
+  const maxBox = Math.max(120, vh - margin * 2);
+  picker.style.width = `${width}px`;
+  picker.style.right = 'auto';
+  picker.style.bottom = 'auto';
+  picker.style.maxHeight = 'none';
+  picker.style.left = `${margin}px`;
+  picker.style.top = `${margin}px`;
+  const needed = Math.ceil(picker.getBoundingClientRect().height);
+  const height = Math.min(Math.max(needed, 1), maxBox);
+  const belowTop = y + 8;
+  const spaceBelow = vh - margin - belowTop;
+  const spaceAbove = y - 8 - margin;
+  let top;
+  if (height <= spaceBelow) top = belowTop;
+  else if (height <= spaceAbove) top = y - 8 - height;
+  else top = Math.max(margin, vh - margin - height);
+  if (top < margin) top = margin;
+  if (top + height > vh - margin) top = Math.max(margin, vh - margin - height);
+  let left = x + 12;
+  if (left + width > vw - margin) left = x - width - 12;
+  left = Math.min(Math.max(margin, left), Math.max(margin, vw - width - margin));
+  picker.style.left = `${Math.round(left)}px`;
+  picker.style.top = `${Math.round(top)}px`;
+  picker.style.maxHeight = `${Math.round(height)}px`;
+}
+
 function openMissionDataPicker(slotIdx, x, y) {
   const picker = document.getElementById('missionDataPicker');
   if (!picker) return;
@@ -21009,14 +21059,10 @@ function openMissionDataPicker(slotIdx, x, y) {
     const mav = current?.mav || MISSION_DATA_CATALOG.find((e) => e.key === current?.key)?.mav || current?.key || '';
     currentHint.textContent = current?.label ? `${current.label}${mav ? ` · ${mav}` : ''}` : '';
   }
-  const width = Math.min(300, window.innerWidth - 16);
-  let left = x + 12;
-  if (left + width > window.innerWidth - 16) left = x - width - 12;
-  left = Math.min(Math.max(8, left), Math.max(8, window.innerWidth - width - 8));
-  const top = Math.min(Math.max(8, y + 8), Math.max(8, window.innerHeight - 260));
-  picker.style.left = `${left}px`;
-  picker.style.top = `${top}px`;
-  picker.style.width = `${width}px`;
+  placeMissionDataPicker(picker, x, y);
+  requestAnimationFrame(() => {
+    if (!picker.classList.contains('hidden')) placeMissionDataPicker(picker, x, y);
+  });
   setTimeout(() => input?.focus(), 30);
 }
 
