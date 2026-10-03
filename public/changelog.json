@@ -4,29 +4,9 @@
     "date": "2026-10-03",
     "changes": [
       {
-        "type": "feat",
-        "title": "Server library",
-        "detail": "ask-status-answer.mjs, assist-service.mjs, mission-sentence.mjs, preflight-readiness.mjs, voice-flight-pipeline.mjs"
-      },
-      {
-        "type": "feat",
-        "title": "UI / app.js",
-        "detail": "app.js"
-      },
-      {
-        "type": "feat",
-        "title": "Frontend",
-        "detail": "cam0-panel.mjs, cam1-status.mjs, camera-frame-hold.mjs, camera-names.mjs, camera-sources.mjs, debrief-cameras.mjs, flightbook.mjs, pulse-cameras.mjs"
-      },
-      {
-        "type": "ui",
-        "title": "HTML layout",
-        "detail": "index.html"
-      },
-      {
-        "type": "ui",
-        "title": "Styles",
-        "detail": "styles.css"
+        "type": "fix",
+        "title": "שם אחד לכל מצלמה, ומשפט משימה חופשי",
+        "detail": "APP_VERSION 1.02.395. השמות קדמית, מטה וגימבל זהים באופטיקה, בפריים החי ובכרטיסי השדה. פספוס פריים אחד לא מציג אין אות כל עוד יש פריים אחרון. משפט חופשי על מבט, שמירה בפריים, סריקה והתראה מחזיר תוכנית ומשפט עברי, בלי פקודת טיסה."
       }
     ]
   },
