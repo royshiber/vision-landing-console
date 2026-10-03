@@ -4,29 +4,9 @@
     "date": "2026-10-03",
     "changes": [
       {
-        "type": "feat",
-        "title": "Server library",
-        "detail": "comm-links.mjs"
-      },
-      {
-        "type": "feat",
-        "title": "UI / app.js",
-        "detail": "app.js"
-      },
-      {
         "type": "ui",
-        "title": "HTML layout",
-        "detail": "index.html"
-      },
-      {
-        "type": "ui",
-        "title": "Styles",
-        "detail": "styles.css"
-      },
-      {
-        "type": "test",
-        "title": "Tests",
-        "detail": "arm-disarm-qa.test.mjs, ask-panel-layout.test.mjs, flight-dock-map.test.mjs, flight-instruments-visible.test.mjs, flight-screen-approved.test.mjs, home-qa-matrix.test.mjs, home-shell-qa.test.mjs, mission-layout-contract.test.mjs"
+        "title": "מסך הטסה לפי התמונה שאושרה",
+        "detail": "APP_VERSION 1.02.409. המפה היא השטח הגדול. התקשורת נפתחת רק בבחירה. קליק ימני על קישור מציג עוצמה, איכות אות והשהיה, ומחבר או מנתק את אותו קישור. בלי קריאה מוצג מקף. האופק בטור הימני קרוב לריבוע ומציג רק מהירות, גובה וכיוון. שאר הפעולות בקליק ימני. אריחי הנתונים מתחת לאופק. הוספה ומחיקה רק בקליק ימני על אריח, בלי פקודת טיסה. מסך הגימבל נפתח מקליק ימני על המפה והסגירה אומרת סגרו. פעולות הטיסה נשארות בלשונית הפעולות. השאלה מציגה את מה שנשאל, את התשובה, וכפתור האזנה אחד. אין שינוי בכתובות, בניתוב, או בשירות הרשת המאובטחת, ואין שינוי בכללי החימוש."
       }
     ]
   },
