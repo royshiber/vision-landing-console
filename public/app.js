@@ -5825,6 +5825,7 @@ function pulseRefresh() {
   if (typeof refreshPulseExtraWidgets === 'function') refreshPulseExtraWidgets();
   if (typeof platformRefresh === 'function') platformRefresh();
   try { pulseRefreshStatusBoard(); } catch { /* let bindings may still be initializing */ }
+  try { globalThis.paintPulseCameraCardsFromCompanion?.(companion); } catch { /* camera module may still be loading */ }
 }
 
 function platformMaintLabel() {

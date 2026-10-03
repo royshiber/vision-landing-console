@@ -570,28 +570,27 @@ describe('connect popover layout and mocked states', () => {
       await page.click('button.tab[data-tab="pulse"]');
       await page.waitForSelector('#pulse.panel.visible');
       const paint = await page.evaluate(() => {
-        function read(id) {
-          const el = document.getElementById(id);
-          const cs = getComputedStyle(el);
-          const rect = el.getBoundingClientRect();
-          return {
-            bg: cs.backgroundColor,
-            color: cs.color,
-            h: Math.round(rect.height),
-            text: (el.textContent || '').replace(/\s+/g, ' ').trim(),
-          };
-        }
-        return { cam0: read('cam0StatusLine'), cam1: read('cam1StatusLine') };
+        const card = document.querySelector('#pulseCameraCards .pulse-cam-card');
+        const name = card?.querySelector('.pulse-cam-name');
+        const cs = getComputedStyle(card);
+        const nameCs = getComputedStyle(name);
+        const rect = card.getBoundingClientRect();
+        return {
+          bg: cs.backgroundColor,
+          color: nameCs.color,
+          h: Math.round(rect.height),
+          text: (card.textContent || '').replace(/\s+/g, ' ').trim(),
+          count: document.querySelectorAll('#pulseCameraCards .pulse-cam-card').length,
+        };
       });
-      expect(paint.cam0.bg).toBe('rgb(18, 24, 38)');
-      expect(paint.cam1.bg).toBe('rgb(18, 24, 38)');
-      expect(paint.cam0.color).toBe('rgb(232, 237, 246)');
-      expect(paint.cam1.color).toBe('rgb(232, 237, 246)');
-      expect(paint.cam0.h).toBeGreaterThan(16);
-      expect(paint.cam0.h).toBeLessThan(40);
-      expect(paint.cam1.h).toBeLessThan(40);
-      expect(paint.cam0.text).toContain('לא מחובר');
-      expect(paint.cam1.text).toContain('לא מחובר');
+      expect(paint.count).toBe(1);
+      expect(paint.bg).toBe('rgb(18, 24, 38)');
+      expect(paint.color).toBe('rgb(242, 246, 251)');
+      expect(paint.h).toBeGreaterThan(16);
+      expect(paint.h).toBeLessThan(40);
+      expect(paint.text).toContain('מצלמות');
+      expect(paint.text).toContain('מנותק');
+      expect(paint.text).not.toMatch(/\d/);
     } finally {
       await page.close();
     }

@@ -24,15 +24,22 @@ function cssBlock(src, selector) {
 }
 
 describe('status camera lines and connection popover layout', () => {
-  it('paints the pulse camera lines on the dark card surface', () => {
-    const line = cssBlock(css, '#pulse .cam0-status-line');
-    expect(line).toMatch(/background:\s*#121826/);
-    expect(line).toMatch(/color:\s*#e8edf6/);
-    expect(line).not.toMatch(/var\(--surface\)/);
-    expect(line).toMatch(/font-size:\s*clamp\(11px/);
-    expect(line).toMatch(/white-space:\s*normal/);
-    expect(html).toMatch(/id="cam0StatusLine"[^>]*class="cam0-status-line"/);
-    expect(html).toMatch(/id="cam1StatusLine"[^>]*class="cam0-status-line"/);
+  it('paints the pulse camera cards on the dark card surface', () => {
+    const card = cssBlock(css, '#pulse .pulse-cam-card');
+    expect(card).toMatch(/background:\s*#121826/);
+    expect(card).toMatch(/color:\s*#e8edf6/);
+    expect(card).not.toMatch(/var\(--surface\)/);
+    expect(card).not.toMatch(/overflow:\s*hidden/);
+    const name = cssBlock(css, '#pulse .pulse-cam-name {');
+    expect(name).toMatch(/font-size:\s*clamp\(11px/);
+    expect(name).toMatch(/color:\s*#f2f6fb/);
+    expect(name).toMatch(/white-space:\s*normal/);
+    const fact = cssBlock(css, '#pulse .pulse-cam-fact {');
+    expect(fact).toMatch(/color:\s*#d7e0ee/);
+    expect(html).toMatch(/id="pulseCameraCards"[^>]*class="pulse-cam-row"/);
+    expect(html).toContain('מצלמות');
+    expect(html).not.toContain('id="cam0StatusLine"');
+    expect(html).not.toContain('id="cam1StatusLine"');
   });
 
   it('scrolls the connection popover inside the viewport', () => {
