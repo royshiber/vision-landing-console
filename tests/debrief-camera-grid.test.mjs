@@ -111,17 +111,19 @@ describe('Debrief camera grid and horizon menu — live', () => {
     box = await page.evaluate(() => {
       const tiles = [...document.querySelectorAll('.debrief-cam-tile')].filter((el) => !el.hidden);
       const rs = tiles.map((el) => ({ cam: el.dataset.cam, ...el.getBoundingClientRect().toJSON() }));
-      const big = rs.find((r) => r.cam === 'cam0');
-      const small = rs.filter((r) => r.cam !== 'cam0');
+      const gimbal = rs.find((r) => r.cam === 'a8');
+      const small = rs.filter((r) => r.cam !== 'a8');
       return {
         count: document.getElementById('debriefCamGrid').dataset.count,
-        bigTaller: big.height > small[0].height + 20,
+        bigTaller: gimbal.height > small[0].height + 20 && gimbal.height > small[1].height + 20,
+        bigWider: gimbal.width > small[0].width && gimbal.width > small[1].width,
         stacked: small[1].top >= small[0].bottom - 8,
         contain: getComputedStyle(tiles[0].querySelector('.debrief-cam-media')).objectFit,
       };
     });
     expect(box.count).toBe('3');
     expect(box.bigTaller).toBe(true);
+    expect(box.bigWider).toBe(true);
     expect(box.stacked).toBe(true);
     expect(box.contain).toBe('contain');
     await page.screenshot({ path: path.join(shotDir, 'grid-3.png') });
@@ -318,8 +320,6 @@ describe('Debrief camera grid and horizon menu — live', () => {
       return Number(img?.dataset.seen || 0) > 0 && img.hidden === false;
     });
     serveJpeg = false;
-    await page.waitForTimeout(750);
-    await paint();
     await page.waitForFunction(() => {
       const img = document.querySelector('.debrief-cam-tile[data-cam="a8"] .debrief-cam-live');
       return Number(img?.dataset.misses || 0) === 1;

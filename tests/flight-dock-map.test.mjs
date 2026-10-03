@@ -354,11 +354,10 @@ describe('flight dock and map live', () => {
       expect(hud.reasonTop - hud.gridBottom, `${size.width} reason gap`).toBeLessThanOrEqual(12);
       expect(hud.reasonTop, `${size.width} reason`).toBeGreaterThanOrEqual(hud.gridBottom - 1);
       expect(hud.paneBottom - hud.reasonBottom, `${size.width} reason tail`).toBeLessThanOrEqual(14);
-      expect(hud.hud.height, `${size.width} horizon cap`).toBeLessThanOrEqual(164);
-      expect(hud.hud.height, `${size.width} horizon floor`).toBeGreaterThanOrEqual(112);
-      expect(hud.messages.height, `${size.width} dock`).toBeGreaterThan(hud.hud.height);
-      if (size.width >= 1366) {
-        expect(hud.messages.height, `${size.width} dock taller`).toBeGreaterThan(hud.hud.height + 40);
+      expect(hud.hud.height, `${size.width} horizon floor`).toBeGreaterThanOrEqual(160);
+      expect(hud.messages.top, `${size.width} dock below horizon`).toBeGreaterThanOrEqual(hud.hud.bottom - 4);
+      if (size.height >= 800) {
+        expect(hud.hud.height, `${size.width} horizon fill`).toBeGreaterThan(hud.messages.height);
       }
       expect(Math.max(...hud.tileTops) - Math.min(...hud.tileTops), `${size.width} strip`).toBeLessThanOrEqual(4);
       expect(hud.dataOver, `${size.width} strip scroll`).toBeLessThanOrEqual(1);
@@ -396,31 +395,29 @@ describe('flight dock and map live', () => {
       const hudEl = document.querySelector('.mission-region-horizon > .flight-hud');
       const dock = document.querySelector('[data-mission-region="messages"]');
       return dock?.dataset.flightDock === 'actions'
-        && hudEl.getBoundingClientRect().height <= 164
-        && dock.getBoundingClientRect().height > hudEl.getBoundingClientRect().height;
+        && hudEl.getBoundingClientRect().height >= 112
+        && dock.getBoundingClientRect().top >= hudEl.getBoundingClientRect().bottom - 4;
     });
     const beforeResize = await page.evaluate(() => ({
       hud: document.querySelector('.mission-region-horizon > .flight-hud').getBoundingClientRect().height,
       dock: document.querySelector('[data-mission-region="messages"]').getBoundingClientRect().height,
     }));
     await page.setViewportSize({ width: 1440, height: 900 });
-    await page.waitForFunction((startDock) => {
+    await page.waitForFunction((startHud) => {
       const hudEl = document.querySelector('.mission-region-horizon > .flight-hud');
       const dock = document.querySelector('[data-mission-region="messages"]');
       const hudH = hudEl.getBoundingClientRect().height;
       const dockH = dock.getBoundingClientRect().height;
-      return hudH <= 164 && dockH > hudH && dockH > startDock + 40;
-    }, beforeResize.dock);
+      return hudH > dockH && hudH > startHud + 40;
+    }, beforeResize.hud);
     const afterResize = await page.evaluate(() => ({
       hud: document.querySelector('.mission-region-horizon > .flight-hud').getBoundingClientRect().height,
       dock: document.querySelector('[data-mission-region="messages"]').getBoundingClientRect().height,
       bottom: document.querySelector('[data-mission-region="horizon"]').getBoundingClientRect().bottom,
       innerH: window.innerHeight,
     }));
-    expect(afterResize.hud).toBeLessThanOrEqual(164);
-    expect(Math.abs(afterResize.hud - beforeResize.hud)).toBeLessThanOrEqual(4);
-    expect(afterResize.dock).toBeGreaterThan(afterResize.hud);
-    expect(afterResize.dock).toBeGreaterThan(beforeResize.dock + 40);
+    expect(afterResize.hud).toBeGreaterThan(beforeResize.hud + 40);
+    expect(afterResize.hud).toBeGreaterThan(afterResize.dock);
     expect(afterResize.bottom).toBeLessThanOrEqual(afterResize.innerH + 1);
 
     await page.setViewportSize({ width: 1280, height: 800 });
@@ -439,7 +436,7 @@ describe('flight dock and map live', () => {
       const hudEl = document.querySelector('.mission-region-horizon > .flight-hud');
       return dock?.dataset.flightDock === 'actions'
         && Math.abs(horizon.getBoundingClientRect().width - 390) <= 8
-        && dock.getBoundingClientRect().height > hudEl.getBoundingClientRect().height;
+        && hudEl.getBoundingClientRect().height > dock.getBoundingClientRect().height;
     });
     const narrow = await page.evaluate(() => {
       const box = (el) => el.getBoundingClientRect();

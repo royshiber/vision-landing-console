@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { APP_VERSION } from '../version.js';
 import { spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';
@@ -291,7 +292,7 @@ describe('Mission layout contract — live boxes', () => {
     });
 
     expect(measured.platformTab).toBe(false);
-    expect(measured.version).toBe('1.02.380');
+    expect(measured.version).toBe(APP_VERSION);
     expect(measured.ws.width).toBeGreaterThan(800);
     expect(measured.talkMinWidth).toBe('0px');
     expect(Number.parseFloat(measured.dataGap)).toBeLessThanOrEqual(4);
@@ -307,14 +308,12 @@ describe('Mission layout contract — live boxes', () => {
     expect(measured.leaflet.height / regions.map.height).toBeGreaterThanOrEqual(0.90);
     expect(measured.leaflet.width / regions.map.width).toBeGreaterThanOrEqual(0.90);
     expect(regions.messages.height).toBeGreaterThanOrEqual(120);
-    expect(regions.messages.height).toBeGreaterThan(measured.hud.height);
-    expect(measured.hud.height).toBeGreaterThanOrEqual(112);
-    expect(measured.hud.height).toBeLessThanOrEqual(164);
-    expect(regions.messages.height / regions.horizon.height).toBeGreaterThan(0.45);
-    expect(regions.messages.height / regions.horizon.height).toBeLessThanOrEqual(0.92);
+    expect(measured.hud.height).toBeGreaterThan(regions.messages.height);
+    expect(measured.hud.height).toBeGreaterThanOrEqual(160);
+    expect(measured.hud.height / regions.horizon.height).toBeGreaterThan(0.35);
+    expect(regions.messages.height / regions.horizon.height).toBeLessThan(0.55);
     expect(regions.horizon.width / ws.width).toBeGreaterThanOrEqual(0.28);
     expect(regions.horizon.width / ws.width).toBeLessThanOrEqual(0.40);
-    expect(measured.hud.height / regions.horizon.height).toBeLessThan(0.35);
     expect(measured.horizonPosition).toBe('relative');
     expect(regions.horizon.height / ws.height).toBeGreaterThanOrEqual(0.90);
     expect(measured.filler).toBeNull();

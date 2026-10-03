@@ -258,8 +258,8 @@ describe('flight stack splitters live', () => {
       expect(before.summary, size.name).toContain('אין הודעות');
       expect(before.summaryOver, size.name).toBeLessThanOrEqual(1);
       expect(before.messages.height, size.name).toBeGreaterThanOrEqual(120);
-      expect(before.hud.height, size.name).toBeGreaterThanOrEqual(96);
-      expect(before.messages.height, size.name).toBeGreaterThan(before.hud.height);
+      expect(before.hud.height, size.name).toBeGreaterThan(before.messages.height);
+      expect(before.stage.width, size.name).toBeGreaterThan(before.hud.width * 0.9);
       expect(before.stage.height, size.name).toBeGreaterThanOrEqual(48);
       const tallestText = Math.max(...before.tiles.map((tile) => tile.textH));
       expect(tallestText, size.name).toBeGreaterThanOrEqual(20);
@@ -274,8 +274,7 @@ describe('flight stack splitters live', () => {
       expect(Math.max(...tileTops) - Math.min(...tileTops), size.name).toBeLessThanOrEqual(4);
       const tileWidths = before.tiles.map((tile) => tile.width);
       expect(Math.max(...tileWidths) - Math.min(...tileWidths), size.name).toBeLessThanOrEqual(8);
-      expect(before.hud.height, size.name).toBeGreaterThanOrEqual(156);
-      expect(before.hud.height, size.name).toBeLessThanOrEqual(164);
+      expect(before.hud.height, size.name).toBeGreaterThanOrEqual(200);
       for (const tile of before.tiles) {
         if (tile.unitCenter != null) {
           expect(Math.abs(tile.valueCenter - tile.unitCenter), size.name).toBeLessThan(4);

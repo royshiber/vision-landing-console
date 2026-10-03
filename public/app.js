@@ -232,10 +232,10 @@ const FLIGHT_MSG_OPEN = 112;
 const FLIGHT_DATA_MIN = 40;
 const FLIGHT_MSG_MIN = 36;
 const FLIGHT_HUD_MIN = 112;
-const FLIGHT_HUD_CAP = 160;
 const FLIGHT_MSG_OPEN_GAP = 28;
 const MISSION_MESSAGES_SEEN_KEY = 'visionLandingMissionMessagesSeenV1';
 const MISSION_DATA_SLOTS_KEY = 'visionLandingMissionDataSlotsV1';
+const MISSION_DATA_HIDDEN_KEY = 'visionLandingMissionDataHiddenV1';
 const PULSE_WIDGETS_KEY = 'visionLandingPulseWidgetsV1';
 const MISSION_REGION_IDS = Object.freeze(['horizon', 'map', 'data', 'messages', 'talk']);
 const MISSION_DATA_CATALOG = Object.freeze([
@@ -6578,6 +6578,10 @@ function applyCompanionUi(companion) {
   setCompanionText('companionVisionTargetId', companionText(vision.target_id));
 
   const landing = companion.landing || {};
+  const lockList = Array.isArray(vision.detections)
+    ? vision.detections
+    : (Array.isArray(landing.detections) ? landing.detections : null);
+  document.dispatchEvent(new CustomEvent('vlc-lock-detections', { detail: lockList }));
   setCompanionText('companionLandingDetected', landing.detected === true ? 'זוהתה' : landing.detected === false ? 'לא זוהתה' : '—');
   setCompanionText('companionLandRange', companionText(landing.range_m, 'm'));
 
@@ -20327,8 +20331,7 @@ function flightColumnHalfStack(horizon) {
   const data = Math.min(dataRoom, budget.dataMin);
   const rest = budget.avail - data;
   if (rest < budget.hudMin + budget.msgMin) return null;
-  const hud = Math.min(FLIGHT_HUD_CAP, Math.max(budget.hudMin, rest - budget.msgMin));
-  const msg = Math.max(budget.msgMin, Math.round(rest - hud));
+  const msg = Math.max(budget.msgMin + FLIGHT_MSG_OPEN_GAP, FLIGHT_MSG_OPEN);
   return { data, msg };
 }
 
@@ -20439,9 +20442,10 @@ function applyFlightStack(stack, opts = {}) {
   _flightStack = half ? { ...next, half: true } : { ...next, half: false };
   horizon.dataset.flightStack = half ? 'half' : 'custom';
   horizon.style.setProperty('--flight-data-h', `${Math.round(next.data)}px`);
-  const hudPx = half
-    ? Math.min(FLIGHT_HUD_CAP, Math.max(budget.hudMin, budget.avail - next.data - budget.msgMin))
-    : Math.max(budget.hudMin, budget.avail - next.data - next.msg);
+  const hudPx = Math.max(
+    budget.hudMin,
+    budget.avail - next.data - (half ? budget.msgMin : next.msg),
+  );
   horizon.style.setProperty('--flight-hud-h', `${Math.round(hudPx)}px`);
   if (half) horizon.style.removeProperty('--flight-msg-h');
   else horizon.style.setProperty('--flight-msg-h', `${Math.round(next.msg)}px`);
@@ -21011,6 +21015,7 @@ function applyMissionDataSlotsChrome(slots) {
 function applyMissionDataGrid(payload) {
   const slots = readMissionDataSlots();
   applyMissionDataSlotsChrome(slots);
+  applyHiddenMissionTiles();
   document.querySelectorAll('[data-mission-data-slot]').forEach((item) => {
     const idx = Number(item.dataset.missionDataSlot);
     const slot = slots[idx];
@@ -21166,11 +21171,61 @@ function confirmMissionDataPickerChoice() {
   if (pick) applyMissionDataSlotChoice(pick);
 }
 
+function readHiddenMissionTiles() {
+  try {
+    const raw = JSON.parse(missionLayoutStoreGet(MISSION_DATA_HIDDEN_KEY) || '[]');
+    return Array.isArray(raw) ? raw.map((id) => String(id)) : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeHiddenMissionTiles(ids) {
+  missionLayoutStoreSet(MISSION_DATA_HIDDEN_KEY, JSON.stringify(ids));
+}
+
+function applyHiddenMissionTiles() {
+  const hidden = new Set(readHiddenMissionTiles());
+  document.querySelectorAll('[data-mission-data-slot]').forEach((item) => {
+    const gone = hidden.has(String(item.dataset.missionDataSlot));
+    item.hidden = gone;
+  });
+}
+
+function deleteMissionDataTile(item) {
+  const id = String(item?.dataset?.missionDataSlot || '');
+  if (!id) return;
+  const hidden = readHiddenMissionTiles();
+  if (!hidden.includes(id)) hidden.push(id);
+  writeHiddenMissionTiles(hidden);
+  applyHiddenMissionTiles();
+  closeMissionDataPicker();
+}
+
+function restoreLastMissionDataTile() {
+  const hidden = readHiddenMissionTiles();
+  if (!hidden.length) return;
+  const id = hidden.pop();
+  writeHiddenMissionTiles(hidden);
+  applyHiddenMissionTiles();
+  const idx = Number(id);
+  const item = document.querySelector(`[data-mission-data-slot="${id}"]`);
+  if (!item || !Number.isFinite(idx)) return;
+  const box = item.getBoundingClientRect();
+  openMissionDataPicker(idx, box.left + 8, box.bottom);
+}
+
 function bindMissionDataSlotPress(item) {
   item.addEventListener('contextmenu', (e) => {
     e.preventDefault();
     e.stopPropagation();
-    openMissionDataPicker(Number(item.dataset.missionDataSlot), e.clientX, e.clientY);
+    deleteMissionDataTile(item);
+  });
+  item.addEventListener('click', (e) => {
+    if (e.button !== 0) return;
+    const idx = Number(item.dataset.missionDataSlot);
+    if (!Number.isFinite(idx)) return;
+    openMissionDataPicker(idx, e.clientX, e.clientY);
   });
   let pressTimer = 0;
   const clearPress = () => {
@@ -21193,8 +21248,12 @@ function bindMissionDataSlotPress(item) {
 
 function initMissionDataPicker() {
   applyMissionDataSlotsChrome(readMissionDataSlots());
+  applyHiddenMissionTiles();
   document.querySelectorAll('[data-mission-data-slot]').forEach((item) => {
     bindMissionDataSlotPress(item);
+  });
+  document.getElementById('missionDataAddBtn')?.addEventListener('click', () => {
+    restoreLastMissionDataTile();
   });
   document.getElementById('missionDataPickerApply')?.addEventListener('click', () => {
     confirmMissionDataPickerChoice();

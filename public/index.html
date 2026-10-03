@@ -1078,6 +1078,7 @@
               <button type="button" class="debrief-cam-toggle" data-debrief-cam="cam0" aria-pressed="true">קדמית</button>
               <button type="button" class="debrief-cam-toggle" data-debrief-cam="cam1" aria-pressed="true">מטה</button>
               <button type="button" class="debrief-cam-toggle" data-debrief-cam="a8" aria-pressed="false">גימבל</button>
+              <button type="button" id="opticsGimbalScreenBtn" class="debrief-cam-toggle" data-gimbal-screen="open">מסך גימבל</button>
             </div>
             <div id="debriefCamGrid" class="debrief-cam-grid video-wrapper" data-count="2" data-layout="cameras">
               <p id="debriefCamEmpty" class="debrief-cam-empty" hidden>בחרו מצלמה</p>
@@ -2353,7 +2354,7 @@
             <section class="mission-region mission-region-data" data-mission-region="data" aria-label="נתונים">
             <h3 class="mission-region-title" draggable="true">נתונים</h3>
             <button type="button" id="missionAskDataBtn" class="mission-ask-chip">שאלו על הנתונים</button>
-            <p class="mission-data-hint">קליק ימני או לחיצה ארוכה על אריח לבחירת שדה.</p>
+            <p class="mission-data-hint">קליק ימני מוחק אריח. לחיצה ארוכה או קליק בוחרים שדה.</p>
             <dl id="missionDataGrid" class="mission-data-grid" aria-label="מדדי טיסה">
               <div class="mission-data-item mission-data-tile" data-mission-data-slot="0">
                 <dt class="mission-data-label">מוד</dt>
@@ -2391,6 +2392,10 @@
             <div id="flightStackSplitMsg" class="flight-stack-split" role="separator" aria-orientation="horizontal" aria-label="גובה ההודעות" tabindex="0"></div>
             <section class="mission-region mission-region-messages" data-mission-region="messages" data-messages-expanded="0" data-flight-dock="messages" dir="rtl" aria-label="תחתית הטיסה">
               <h3 class="mission-region-title">הודעות מטוס</h3>
+              <div class="flight-screen-tools">
+                <button type="button" id="flightGimbalScreenBtn" class="flight-screen-btn" data-gimbal-screen="open">מסך גימבל</button>
+                <button type="button" id="missionDataAddBtn" class="flight-screen-btn">הוסף נתון</button>
+              </div>
               <div class="flight-dock-bar">
                 <div class="flight-dock-tabs" role="tablist" aria-label="תחתית הטיסה">
                   <button type="button" id="flightDockMessagesTab" class="flight-dock-tab" role="tab" aria-selected="true" aria-controls="flightDockMessagesPane">הודעות</button>
@@ -2935,6 +2940,18 @@
       <div class="map-fly-to-status" id="mapFlyToStatus"></div>
     </div>
 
+    <div id="gimbalScreen" class="gimbal-screen" hidden>
+      <div class="gimbal-screen-bar">
+        <p class="gimbal-screen-title">מסך גימבל</p>
+        <button type="button" id="gimbalScreenClose">סגור</button>
+      </div>
+      <div class="gimbal-screen-stage">
+        <img id="gimbalScreenImg" alt="" hidden />
+        <canvas id="gimbalScreenNotes"></canvas>
+        <p id="gimbalScreenNote" hidden>אין אות</p>
+      </div>
+    </div>
+
     <script src="/vendor/es-module-shims/es-module-shims.js?v=__APP_VERSION__"></script>
     <script type="importmap">
     {
@@ -2946,6 +2963,7 @@
     </script>
     <script type="module" src="./modules/flightbook.mjs?v=__APP_VERSION__"></script>
     <script type="module" src="./modules/debrief-cameras.mjs?v=__APP_VERSION__"></script>
+    <script type="module" src="./modules/gimbal-screen.mjs?v=__APP_VERSION__"></script>
     <script type="module" src="./modules/gimbal-settings.mjs?v=__APP_VERSION__"></script>
     <script type="module" src="./modules/cam0-panel.mjs?v=__APP_VERSION__"></script>
     <script type="module" src="./modules/fc-write-ack.mjs?v=__APP_VERSION__"></script>

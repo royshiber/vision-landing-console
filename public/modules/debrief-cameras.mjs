@@ -4,6 +4,7 @@
  * One missed JPEG keeps the last frame instead of flashing אין אות.
  */
 import { frameMissShowsNoSignal, frameTilePresentation } from './camera-frame-hold.mjs';
+import { createLatestJpegPump } from './camera-latest-frame.mjs';
 
 const STORAGE_KEY = 'vlc.debrief.cameras.v2';
 const LEGACY_KEY = 'vlc.debrief.cameras.v1';
@@ -16,9 +17,8 @@ const SLOTS = [
   { id: 'cam1', apiId: 'cam1', mono: true, hold: CAM1_STREAM },
   { id: 'a8', apiId: 'cam3', mono: false, hold: '', frameWhenOpen: true },
 ];
-const streamHolds = new Map();
-
 const grid = document.getElementById('debriefCamGrid');
+const tilePumps = new WeakMap();
 const master = document.getElementById('flightVideo');
 
 function readOpen() {
@@ -107,6 +107,7 @@ function applyLayout(open) {
 
 function releaseTile(tile) {
   const img = tile.querySelector('.debrief-cam-live');
+  tilePumps.get(tile)?.stop();
   if (!img) return;
   img.hidden = true;
   img.removeAttribute('src');
@@ -115,21 +116,52 @@ function releaseTile(tile) {
   img.classList.remove('is-mono');
 }
 
-function ensureHold(url) {
-  if (!url) return;
-  let img = streamHolds.get(url);
-  if (!img) {
-    img = new Image();
-    streamHolds.set(url, img);
-  }
-  if (!String(img.src || '').includes(url)) img.src = url;
-}
-
-function dropHold(url) {
-  const img = streamHolds.get(url);
-  if (!img) return;
-  img.removeAttribute('src');
-  streamHolds.delete(url);
+function pumpFor(tile) {
+  let pump = tilePumps.get(tile);
+  if (pump) return pump;
+  pump = createLatestJpegPump({
+    urlFor(gen) {
+      return `/api/jetson/v1/cameras/${tile.dataset.api}/frame?t=${gen}`;
+    },
+    onFrame(src) {
+      const img = tile.querySelector('.debrief-cam-live');
+      const note = tile.querySelector('.debrief-cam-nosignal');
+      if (!img || tile.hidden) return;
+      if (tile.dataset.mono === '1') img.classList.add('is-mono');
+      img.dataset.frameToken = src;
+      img.onload = () => {
+        if (img.dataset.frameToken !== src) return;
+        requestAnimationFrame(() => pump.kick());
+      };
+      img.src = src;
+      img.dataset.seen = String(Date.now());
+      img.dataset.misses = '0';
+      applyFramePresentation(tile, img, note, { showImage: true, showNote: false });
+    },
+    onMiss() {
+      const img = tile.querySelector('.debrief-cam-live');
+      const note = tile.querySelector('.debrief-cam-nosignal');
+      if (!img) return;
+      const nextMisses = Number(img.dataset.misses || 0) + 1;
+      img.dataset.misses = String(nextMisses);
+      const showNone = frameMissShowsNoSignal({
+        seenAt: Number(img.dataset.seen || 0),
+        now: Date.now(),
+        streaming: pump.state.streaming === true,
+        consecutiveMisses: nextMisses,
+      });
+      if (!showNone) {
+        const still = Number(img.dataset.seen || 0) > 0 && Boolean(img.getAttribute('src'));
+        applyFramePresentation(tile, img, note, { showImage: still, showNote: false });
+        return;
+      }
+      img.removeAttribute('src');
+      img.dataset.seen = '';
+      applyFramePresentation(tile, img, note, { showImage: false, showNote: true });
+    },
+  });
+  tilePumps.set(tile, pump);
+  return pump;
 }
 
 function applyFramePresentation(tile, img, note, presentation) {
@@ -143,15 +175,12 @@ function applyFramePresentation(tile, img, note, presentation) {
 function paintTile(tile, slot, streaming) {
   const img = tile.querySelector('.debrief-cam-live');
   const note = tile.querySelector('.debrief-cam-nosignal');
-  const apiId = tile.dataset.api;
   if (tile.hidden) {
     tile.dataset.signal = 'none';
     releaseTile(tile);
-    if (slot.hold) dropHold(slot.hold);
     if (note) note.hidden = true;
     return;
   }
-  if (slot.hold) ensureHold(slot.hold);
   const wantFrames = streaming || Boolean(slot.hold) || slot.frameWhenOpen === true;
   if (wantFrames && img && !tile.hidden) {
     if (tile.dataset.mono === '1') img.classList.add('is-mono');
@@ -166,39 +195,9 @@ function paintTile(tile, slot, streaming) {
       hasPicture,
     });
     applyFramePresentation(tile, img, note, presentation);
-    const next = `/api/jetson/v1/cameras/${apiId}/frame?t=${Date.now()}`;
-    if (!img.dataset.primed || Date.now() - Number(img.dataset.primed) > 700) {
-      img.dataset.primed = String(Date.now());
-      const probe = new Image();
-      probe.onload = () => {
-        img.src = probe.src;
-        img.dataset.seen = String(Date.now());
-        img.dataset.misses = '0';
-        applyFramePresentation(tile, img, note, { showImage: true, showNote: false });
-      };
-      probe.onerror = () => {
-        const nextMisses = Number(img.dataset.misses || 0) + 1;
-        img.dataset.misses = String(nextMisses);
-        const showNone = frameMissShowsNoSignal({
-          seenAt: Number(img.dataset.seen || 0),
-          now: Date.now(),
-          streaming,
-          consecutiveMisses: nextMisses,
-        });
-        if (!showNone) {
-          const still = Number(img.dataset.seen || 0) > 0 && Boolean(img.getAttribute('src'));
-          applyFramePresentation(tile, img, note, {
-            showImage: still,
-            showNote: false,
-          });
-          return;
-        }
-        img.removeAttribute('src');
-        img.dataset.seen = '';
-        applyFramePresentation(tile, img, note, { showImage: false, showNote: true });
-      };
-      probe.src = next;
-    }
+    const pump = pumpFor(tile);
+    pump.state.streaming = streaming === true;
+    pump.start();
     return;
   }
   tile.dataset.signal = 'none';

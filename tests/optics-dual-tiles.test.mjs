@@ -275,7 +275,7 @@ describe('Optics CAM0 and CAM1 tiles', () => {
         const gimbalTab = document.getElementById('opticsGimbalBtn');
         const cam0Tab = document.getElementById('opticsCam0Btn');
         return {
-          labels: [...document.querySelectorAll('#optics .debrief-cam-toggle')].map((el) => el.textContent.trim()),
+          labels: [...document.querySelectorAll('#optics [data-debrief-cam]')].map((el) => el.textContent.trim()),
           pressed: {
             cam0: btn('cam0').getAttribute('aria-pressed'),
             cam1: btn('cam1').getAttribute('aria-pressed'),
