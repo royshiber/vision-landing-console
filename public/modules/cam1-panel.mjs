@@ -191,7 +191,7 @@ function init() {
     if (cam0) cam0.hidden = on1 || onG;
     panel.hidden = !on1;
     if (gimbalPanel) gimbalPanel.hidden = !onG;
-    if (!onG) document.dispatchEvent(new CustomEvent('vlc-debrief-open-cam', { detail: which }));
+    document.dispatchEvent(new CustomEvent('vlc-debrief-open-cam', { detail: onG ? 'a8' : which }));
     nextAt = 0;
     void tick();
   }

@@ -16,8 +16,8 @@ describe('Debrief camera grid and horizon menu — source', () => {
   it('offers Cam0, Cam1 and A8 without colorizing the mono sensor', () => {
     expect(html).toContain('data-cam="cam0"');
     expect(html).toContain('data-cam="cam1"');
-    expect(html).not.toContain('data-debrief-cam="cam0"');
-    expect(html).not.toContain('data-debrief-cam="cam1"');
+    expect(html).toContain('data-debrief-cam="cam0"');
+    expect(html).toContain('data-debrief-cam="cam1"');
     expect(html).toContain('data-debrief-cam="a8"');
     expect(html).toContain('id="opticsCam0Btn"');
     expect(html).toContain('id="opticsCam1Btn"');
@@ -27,6 +27,8 @@ describe('Debrief camera grid and horizon menu — source', () => {
     expect(css).toMatch(/object-fit:\s*contain/);
     expect(js).toContain('vlc.horizon.bgCamera.v1');
     expect(js).toContain('בלי מצלמה');
+    expect(js).toContain('/api/jetson/v1/cameras/cam3/frame');
+    expect(js).toContain('menuitemcheckbox');
     expect(js).toContain("addEventListener('contextmenu'");
   });
 });
@@ -167,7 +169,8 @@ describe('Debrief camera grid and horizon menu — live', () => {
     });
     expect(menu.text).toContain('בלי מצלמה');
     expect(menu.text).toContain('Cam0');
-    expect(menu.text).toContain('A8');
+    expect(menu.text).toContain('גימבל');
+    expect(menu.text).not.toContain('A8');
     expect(menu.left).toBeGreaterThanOrEqual(0);
     expect(menu.top).toBeGreaterThanOrEqual(0);
     expect(menu.right).toBeLessThanOrEqual(menu.vw + 1);
@@ -195,5 +198,81 @@ describe('Debrief camera grid and horizon menu — live', () => {
     await page.reload({ waitUntil: 'domcontentloaded' });
     expect(await page.evaluate(() => localStorage.getItem('vlc.horizon.bgCamera.v1'))).toBe('cam0');
     expect(await page.locator('#horizonCameraNote').isVisible()).toBe(true);
+  }, 40000);
+
+  it('keeps the first horizon camera when the gimbal is chosen and paints its frame', async () => {
+    const jpeg = Buffer.from(
+      '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////2wBDAf//////////////////////////////////////////////////////////////////////////////////////wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAb/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCwABmX/9k=',
+      'base64',
+    );
+    await page.route(/\/api\/jetson\/v1\/cameras\/cam3\/frame/, (route) => {
+      route.fulfill({ status: 200, contentType: 'image/jpeg', body: jpeg });
+    });
+    await page.evaluate(() => localStorage.setItem('vlc.horizon.bgCamera.v1', 'none'));
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await page.click('[data-tab="terrain"]');
+    await page.waitForSelector('#pfdHorizonStage', { state: 'visible' });
+    const stage = await page.locator('#pfdHorizonStage').boundingBox();
+    await page.mouse.click(stage.x + stage.width - 8, stage.y + 8, { button: 'right' });
+    await page.waitForSelector('#horizonCameraMenu:not([hidden])');
+    await page.locator('[data-horizon-cam="cam0"]').click();
+    if (await page.locator('#horizonCameraMenu').isHidden()) {
+      await page.mouse.click(stage.x + stage.width - 8, stage.y + 8, { button: 'right' });
+      await page.waitForSelector('#horizonCameraMenu:not([hidden])');
+    }
+    await page.locator('[data-horizon-cam="a8"]').click();
+    const both = await page.evaluate(() => ({
+      cam0: document.querySelector('[data-horizon-cam="cam0"]')?.getAttribute('aria-checked'),
+      gimbal: document.querySelector('[data-horizon-cam="a8"]')?.getAttribute('aria-checked'),
+      stored: JSON.parse(localStorage.getItem('vlc.horizon.bgCamera.v1') || 'null'),
+      labels: [...document.querySelectorAll('[data-horizon-cam]')].map((el) => el.textContent),
+    }));
+    expect(both.cam0).toBe('true');
+    expect(both.gimbal).toBe('true');
+    expect(both.stored).toEqual(['cam0', 'a8']);
+    expect(both.labels).toEqual(['בלי מצלמה', 'Cam0', 'Cam1', 'גימבל']);
+    await page.waitForFunction(() => {
+      const img = document.querySelector('#horizonCameraStack [data-horizon-slot="a8"] .pfd-horizon-camera');
+      const src = img?.getAttribute('src') || '';
+      return Boolean(img) && img.hidden === false && img.naturalWidth > 0 && src.includes('/api/jetson/v1/cameras/cam3/frame');
+    });
+    const ink = await page.evaluate(() => {
+      const item = document.querySelector('[data-horizon-cam="a8"]');
+      const menu = document.getElementById('horizonCameraMenu');
+      const label = document.querySelector('#horizonCameraStack [data-horizon-slot="a8"] .horizon-cam-tile-label');
+      const cs = (el) => {
+        const s = getComputedStyle(el);
+        return { color: s.color, bg: s.backgroundColor, size: parseFloat(s.fontSize) };
+      };
+      return { item: cs(item), menu: cs(menu), label: label ? cs(label) : null };
+    });
+    expect(ink.item.color).toBe('rgb(248, 250, 252)');
+    expect(ink.item.size).toBeGreaterThanOrEqual(11);
+    expect(ink.label.color).toBe('rgb(248, 250, 252)');
+    expect(ink.label.size).toBeGreaterThanOrEqual(11);
+    await page.screenshot({ path: path.join(shotDir, 'horizon-gimbal-with-cam0.png') });
+
+    await page.locator('[data-horizon-cam="cam0"]').click();
+    const left = await page.evaluate(() => ({
+      cam0: document.querySelector('[data-horizon-cam="cam0"]')?.getAttribute('aria-checked'),
+      gimbal: document.querySelector('[data-horizon-cam="a8"]')?.getAttribute('aria-checked'),
+      stored: localStorage.getItem('vlc.horizon.bgCamera.v1'),
+    }));
+    expect(left.cam0).toBe('false');
+    expect(left.gimbal).toBe('true');
+    expect(left.stored).toBe('a8');
+    await page.waitForFunction(() => {
+      const img = document.getElementById('horizonCameraBg');
+      const shell = document.getElementById('pfdHorizonShell');
+      const stage = document.getElementById('pfdHorizonStage');
+      const src = img?.getAttribute('src') || '';
+      const ir = img?.getBoundingClientRect();
+      const sr = stage?.getBoundingClientRect();
+      return img && img.hidden === false && img.naturalWidth > 0
+        && src.includes('/api/jetson/v1/cameras/cam3/frame')
+        && shell?.classList.contains('pfd-horizon-shell--video-active')
+        && ir && sr && ir.width > sr.width * 0.9 && ir.height > sr.height * 0.9;
+    });
+    await page.screenshot({ path: path.join(shotDir, 'horizon-gimbal-frame.png') });
   }, 40000);
 });

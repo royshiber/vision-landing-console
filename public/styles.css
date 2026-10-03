@@ -20806,10 +20806,29 @@ body:has(#recordings.panel.visible) .layout {
   .gimbal-pad-center { min-width: 40px; font-size: 11px; }
   .gimbal-pad-stick { grid-template-columns: repeat(3, 40px); }
 }
+@media (max-width: 900px) {
+  /* Stacked optics: the pad must sit under the pictures. A 0-height tile row lets the pad cover the camera toggles. */
+  #optics .optics-live {
+    grid-template-rows: minmax(min-content, auto) auto;
+    align-items: start;
+    height: auto;
+    overflow: visible;
+    flex: 0 0 auto;
+  }
+  #optics .optics-tiles {
+    height: auto;
+    min-height: min-content;
+    align-self: start;
+  }
+  #optics .debrief-cam-grid {
+    max-height: none;
+    flex: 0 0 auto;
+  }
+}
 @media (max-width: 720px) {
   #optics .debrief-cam-grid {
     height: auto;
-    min-height: 0;
+    min-height: 120px;
   }
   #optics .debrief-cam-grid[data-count="2"] {
     grid-template-rows: minmax(120px, auto) minmax(120px, auto);
@@ -20963,6 +20982,60 @@ body:has(#recordings.panel.visible) .layout {
   z-index: 1;
 }
 .pfd-horizon-camera[hidden] { display: none; }
+.horizon-cam-stack {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: grid;
+  gap: 2px;
+  pointer-events: none;
+}
+.horizon-cam-stack[hidden] { display: none; }
+.horizon-cam-stack[data-count="2"] {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+.horizon-cam-stack[data-count="3"] {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+}
+.horizon-cam-tile {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  background: #0b0e14;
+}
+.horizon-cam-tile[hidden] { display: none; }
+.horizon-cam-tile .pfd-horizon-camera {
+  position: absolute;
+  inset: 0;
+}
+.horizon-cam-tile-label,
+.horizon-cam-tile-note {
+  position: absolute;
+  z-index: 2;
+  margin: 0;
+  color: #f8fafc;
+  font-size: clamp(11px, 0.75rem, 14px);
+  font-weight: 700;
+  line-height: 1.2;
+  pointer-events: none;
+}
+.horizon-cam-tile-label {
+  top: 4px;
+  inset-inline-start: 4px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(8, 12, 20, 0.78);
+}
+.horizon-cam-tile-note {
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #0b0e14;
+  color: #e2e8f0;
+}
+.horizon-cam-tile-note[hidden] { display: none; }
 .pfd-horizon-nosignal {
   position: absolute;
   z-index: 5;
