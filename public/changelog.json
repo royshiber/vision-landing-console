@@ -4,19 +4,9 @@
     "date": "2026-10-03",
     "changes": [
       {
-        "type": "feat",
-        "title": "Frontend",
-        "detail": "gimbal-pad.mjs"
-      },
-      {
-        "type": "test",
-        "title": "Tests",
-        "detail": "gimbal-pad.test.mjs, optics-shared-settings.test.mjs"
-      },
-      {
-        "type": "docs",
-        "title": "Commercial capabilities overview",
-        "detail": "COMMERCIAL_CAPABILITIES.he.md"
+        "type": "fix",
+        "title": "משטח הגימבל מכוון בזווית",
+        "detail": "APP_VERSION 1.02.393. החזקה שולחת זווית מוחלטת. מעלה שולח פיץ׳ שלילי כדי להרים את התמונה, ומטה את ההפך. שחרור לא ממרכז. מרכז מחזיר את הראש. הזום הקיים נשאר באותו משטח. השליטה נשארת כבויה עד שהמפעיל מזיז. אין פקודת טיסה."
       }
     ]
   },
