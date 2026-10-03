@@ -140,6 +140,53 @@ describe('Optics CAM0 and CAM1 tiles', () => {
     }
   }, 30000);
 
+  it('lights only the gimbal when it is the only stored camera', async () => {
+    const page = await browser.newPage({ viewport: { width: 1024, height: 600 } });
+    try {
+      await page.addInitScript(() => {
+        localStorage.setItem('vlc.debrief.cameras.v2', '[]');
+      });
+      await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+      await page.click('[data-tab="optics"]');
+      await page.waitForSelector('#debriefCamGrid[data-count="0"]');
+      expect(await page.locator('#debriefCamEmpty').innerText()).toBe('בחרו מצלמה');
+      await page.locator('[data-debrief-cam="a8"]').click();
+      const only = await page.evaluate(() => ({
+        stored: JSON.parse(localStorage.getItem('vlc.debrief.cameras.v2') || 'null'),
+        pressed: {
+          cam0: document.querySelector('[data-debrief-cam="cam0"]')?.getAttribute('aria-pressed'),
+          cam1: document.querySelector('[data-debrief-cam="cam1"]')?.getAttribute('aria-pressed'),
+          gimbal: document.querySelector('[data-debrief-cam="a8"]')?.getAttribute('aria-pressed'),
+        },
+        hidden: {
+          cam0: document.querySelector('.debrief-cam-tile[data-cam="cam0"]')?.hidden,
+          cam1: document.querySelector('.debrief-cam-tile[data-cam="cam1"]')?.hidden,
+          gimbal: document.querySelector('.debrief-cam-tile[data-cam="a8"]')?.hidden,
+        },
+      }));
+      expect(only.stored).toEqual(['a8']);
+      expect(only.pressed).toEqual({ cam0: 'false', cam1: 'false', gimbal: 'true' });
+      expect(only.hidden).toEqual({ cam0: true, cam1: true, gimbal: false });
+
+      await page.locator('[data-debrief-cam="cam0"]').click();
+      await page.locator('[data-debrief-cam="cam1"]').click();
+      await page.locator('[data-debrief-cam="cam0"]').click();
+      await page.locator('[data-debrief-cam="cam1"]').click();
+      const left = await page.evaluate(() => ({
+        stored: JSON.parse(localStorage.getItem('vlc.debrief.cameras.v2') || 'null'),
+        pressed: {
+          cam0: document.querySelector('[data-debrief-cam="cam0"]')?.getAttribute('aria-pressed'),
+          cam1: document.querySelector('[data-debrief-cam="cam1"]')?.getAttribute('aria-pressed'),
+          gimbal: document.querySelector('[data-debrief-cam="a8"]')?.getAttribute('aria-pressed'),
+        },
+      }));
+      expect(left.stored).toEqual(['a8']);
+      expect(left.pressed).toEqual({ cam0: 'false', cam1: 'false', gimbal: 'true' });
+    } finally {
+      await page.close();
+    }
+  }, 30000);
+
   it('keeps the first camera when a second is chosen and paints the gimbal frame', async () => {
     const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
     try {

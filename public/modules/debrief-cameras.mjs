@@ -25,7 +25,6 @@ function readOpen() {
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [...DEFAULT_OPEN];
     const ids = SLOTS.map((slot) => slot.id);
-    if (parsed.length > 0 && parsed.every((id) => id === 'a8')) return [...DEFAULT_OPEN, 'a8'];
     return ids.filter((id) => parsed.includes(id));
   } catch {
     return [...DEFAULT_OPEN];
