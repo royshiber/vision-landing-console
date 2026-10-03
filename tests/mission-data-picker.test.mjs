@@ -1,5 +1,8 @@
-import { describe, it, expect } from 'vitest';
+import { afterAll, describe, expect, it } from 'vitest';
+import { spawn } from 'node:child_process';
 import fs from 'fs';
+import net from 'node:net';
+import os from 'node:os';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { FLIGHT_HUD_CATALOG, suggestMissionDataFields } from '../lib/flight-hud-resolve.mjs';
@@ -95,6 +98,12 @@ describe('Mission data-slot field picker', () => {
     expect(open).toContain("classList.remove('hidden')");
     expect(open).toContain('data-open-slot');
     expect(open).toContain('document.body.appendChild(picker)');
+    expect(open).toContain('placeMissionDataPicker(picker, x, y)');
+    expect(open).not.toContain('innerHeight - 260');
+    const place = sliceFunction(js, 'placeMissionDataPicker');
+    expect(place).toContain('spaceAbove');
+    expect(place).toContain('spaceBelow');
+    expect(place).toContain("maxHeight = 'none'");
     expect(html).not.toMatch(/id="missionDataGrid"[\s\S]{0,800}id="missionDataPicker"/);
     expect(init).toContain('missionDataPickerApply');
     expect(init + bind + open).not.toMatch(/FLIGHT_ACTION|PARAM_SET|\/apply|\/restart/);
@@ -141,4 +150,159 @@ describe('Mission data-slot field picker', () => {
     expect(pitch.exact?.key).toBe('mavlink.pitchDeg');
     expect(sliceFunction(js, 'renderMissionDataPickerChips')).toContain('mission-data-picker-chip-mav');
   });
+});
+
+function freePort() {
+  return new Promise((resolve, reject) => {
+    const server = net.createServer();
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', () => {
+      const { port } = server.address();
+      server.close(() => resolve(port));
+    });
+  });
+}
+
+describe('mission data picker stays in the viewport', () => {
+  let proc = null;
+  let browser = null;
+
+  afterAll(async () => {
+    try { await browser?.close(); } catch { /* ignore */ }
+    if (proc && !proc.killed) proc.kill('SIGTERM');
+  });
+
+  it('opens above a low click and keeps the whole list on screen', async () => {
+    const port = await freePort();
+    const dbPath = path.join(os.tmpdir(), `airvix-data-picker-${process.pid}.sqlite`);
+    proc = spawn(process.execPath, ['server.js'], {
+      cwd: repoRoot,
+      env: {
+        ...process.env,
+        HOST: '127.0.0.1',
+        PORT: String(port),
+        SQLITE_PATH: dbPath,
+        COMPANION_MODE: 'off',
+        JETSON_COMPANION_BASE_URL: '',
+      },
+      stdio: 'ignore',
+    });
+    const base = `http://127.0.0.1:${port}`;
+    const t0 = Date.now();
+    let up = false;
+    while (Date.now() - t0 < 20000) {
+      try {
+        const res = await fetch(`${base}/api/health`);
+        if (res.ok) { up = true; break; }
+      } catch { /* retry */ }
+      await new Promise((r) => setTimeout(r, 200));
+    }
+    expect(up).toBe(true);
+    const { chromium } = await import('playwright');
+    browser = await chromium.launch({ headless: true });
+    const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+    await page.goto(base, { waitUntil: 'domcontentloaded' });
+    await page.waitForSelector('#missionDataGrid .mission-data-tile');
+    await page.evaluate(() => {
+      localStorage.removeItem('visionLandingFlightStackV1');
+    });
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await page.waitForSelector('#missionDataGrid .mission-data-tile');
+
+    const openedLow = await page.evaluate(() => {
+      openMissionDataPicker(1, 240, window.innerHeight - 36);
+      const picker = document.getElementById('missionDataPicker');
+      const chips = document.getElementById('missionDataPickerChips');
+      const box = picker.getBoundingClientRect();
+      const chipBoxes = [...chips.querySelectorAll('.mission-data-picker-chip')].map((el) => {
+        const r = el.getBoundingClientRect();
+        return { top: r.top, bottom: r.bottom, height: r.height };
+      });
+      const actions = document.querySelector('.mission-data-picker-actions')?.getBoundingClientRect();
+      return {
+        top: box.top,
+        bottom: box.bottom,
+        left: box.left,
+        right: box.right,
+        height: box.height,
+        vh: window.innerHeight,
+        vw: window.innerWidth,
+        chipCount: chipBoxes.length,
+        chipBoxes,
+        chipsOver: chips.scrollHeight - chips.clientHeight,
+        actionsBottom: actions ? actions.bottom : 0,
+        actionsTop: actions ? actions.top : 0,
+        title: document.getElementById('missionDataPickerTitle')?.textContent || '',
+      };
+    });
+    expect(openedLow.title).toBe('בחירת נתון');
+    expect(openedLow.chipCount).toBeGreaterThanOrEqual(8);
+    expect(openedLow.top).toBeGreaterThanOrEqual(0);
+    expect(openedLow.left).toBeGreaterThanOrEqual(0);
+    expect(openedLow.bottom).toBeLessThanOrEqual(openedLow.vh + 1);
+    expect(openedLow.right).toBeLessThanOrEqual(openedLow.vw + 1);
+    expect(openedLow.top).toBeLessThan(openedLow.vh - 36);
+    expect(openedLow.chipsOver).toBeLessThanOrEqual(1);
+    expect(openedLow.actionsBottom).toBeLessThanOrEqual(openedLow.vh + 1);
+    expect(openedLow.actionsTop).toBeGreaterThanOrEqual(openedLow.top);
+    for (const chip of openedLow.chipBoxes) {
+      expect(chip.top).toBeGreaterThanOrEqual(openedLow.top - 1);
+      expect(chip.bottom).toBeLessThanOrEqual(openedLow.bottom + 1);
+      expect(chip.bottom).toBeLessThanOrEqual(openedLow.vh + 1);
+      expect(chip.height).toBeGreaterThan(16);
+    }
+
+    const openedHigh = await page.evaluate(() => {
+      openMissionDataPicker(0, 80, 48);
+      const picker = document.getElementById('missionDataPicker');
+      const box = picker.getBoundingClientRect();
+      const chips = document.getElementById('missionDataPickerChips');
+      return {
+        top: box.top,
+        bottom: box.bottom,
+        left: box.left,
+        right: box.right,
+        vh: window.innerHeight,
+        vw: window.innerWidth,
+        chipsOver: chips.scrollHeight - chips.clientHeight,
+      };
+    });
+    expect(openedHigh.top).toBeGreaterThanOrEqual(48);
+    expect(openedHigh.bottom).toBeLessThanOrEqual(openedHigh.vh + 1);
+    expect(openedHigh.left).toBeGreaterThanOrEqual(0);
+    expect(openedHigh.right).toBeLessThanOrEqual(openedHigh.vw + 1);
+    expect(openedHigh.chipsOver).toBeLessThanOrEqual(1);
+
+    await page.click('#flightDockActionsTab');
+    const row = await page.evaluate(() => {
+      closeMissionDataPicker();
+      const data = document.querySelector('[data-mission-region="data"]');
+      const hud = document.querySelector('.mission-region-horizon > .flight-hud');
+      const messages = document.querySelector('[data-mission-region="messages"]');
+      const rtl = document.getElementById('flightDockModeRtl');
+      const tiles = [...document.querySelectorAll('.mission-data-tile')].map((el) => {
+        const label = el.querySelector('.mission-data-label');
+        const readout = el.querySelector('.mission-data-readout');
+        return {
+          h: el.getBoundingClientRect().height,
+          text: (label?.getBoundingClientRect().height || 0) + (readout?.getBoundingClientRect().height || 0),
+        };
+      });
+      return {
+        dataH: data.getBoundingClientRect().height,
+        hudH: hud.getBoundingClientRect().height,
+        msgH: messages.getBoundingClientRect().height,
+        rtlH: rtl.getBoundingClientRect().height,
+        tiles,
+      };
+    });
+    const tallest = Math.max(...row.tiles.map((tile) => tile.text));
+    expect(row.dataH).toBeGreaterThanOrEqual(tallest);
+    expect(row.dataH).toBeLessThanOrEqual(tallest + 28);
+    expect(row.dataH).toBeLessThan(88);
+    expect(row.hudH).toBeGreaterThanOrEqual(156);
+    expect(row.hudH).toBeLessThanOrEqual(164);
+    expect(row.msgH).toBeGreaterThan(row.hudH);
+    expect(row.rtlH).toBeGreaterThanOrEqual(42);
+  }, 40000);
 });

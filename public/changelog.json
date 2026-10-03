@@ -1,5 +1,26 @@
 [
   {
+    "version": "1.02.393",
+    "date": "2026-10-03",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "UI / app.js",
+        "detail": "app.js"
+      },
+      {
+        "type": "ui",
+        "title": "Styles",
+        "detail": "styles.css"
+      },
+      {
+        "type": "test",
+        "title": "Tests",
+        "detail": "flight-stack-split.test.mjs, mission-data-picker.test.mjs"
+      }
+    ]
+  },
+  {
     "version": "1.02.392",
     "date": "2026-10-03",
     "changes": [
