@@ -72,7 +72,8 @@ describe('Optics CAM0 and CAM1 tiles', () => {
     }, LIVE);
     await page.waitForFunction(() => {
       const src = (cam) => document.querySelector(`[data-cam="${cam}"] .debrief-cam-live`)?.getAttribute('src') || '';
-      return src('cam1').includes('/api/jetson/v1/cameras/cam1/frame');
+      return src('cam0').includes('/api/jetson/v1/cameras/cam0/frame')
+        && src('cam1').includes('/api/jetson/v1/cameras/cam1/frame');
     });
     const sawBoth = await page.evaluate((detail) => {
       document.dispatchEvent(new CustomEvent('vlc-companion-cameras', { detail }));
