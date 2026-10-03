@@ -1,5 +1,26 @@
 [
   {
+    "version": "1.02.402",
+    "date": "2026-10-03",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "UI / app.js",
+        "detail": "app.js"
+      },
+      {
+        "type": "ui",
+        "title": "Styles",
+        "detail": "styles.css"
+      },
+      {
+        "type": "test",
+        "title": "Tests",
+        "detail": "optics-three-and-tile-delete.test.mjs"
+      }
+    ]
+  },
+  {
     "version": "1.02.401",
     "date": "2026-10-03",
     "changes": [
