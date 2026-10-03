@@ -1501,6 +1501,7 @@ document.addEventListener('contextmenu', (e) => {
 (function initParamInfoPopup() {
   const popup = document.getElementById('paramInfoPopup');
   if (!popup) return;
+  if (popup.parentElement !== document.body) document.body.appendChild(popup);
 
   let currentBtn = null;
 
@@ -1520,16 +1521,17 @@ document.addEventListener('contextmenu', (e) => {
     popup.textContent = text;
     popup.classList.remove('hidden');
 
-    // Position near the button
     const rect = btn.getBoundingClientRect();
-    const pw = 260;
-    let left = rect.left + window.scrollX;
-    let top  = rect.bottom + window.scrollY + 6;
-    if (left + pw > window.innerWidth - 10) left = window.innerWidth - pw - 10;
-    if (left < 6) left = 6;
-    if (top + 120 > window.innerHeight + window.scrollY) top = rect.top + window.scrollY - 8;
+    const margin = 8;
+    const pw = popup.offsetWidth || 260;
+    const ph = popup.offsetHeight || 72;
+    let left = rect.right - pw;
+    let top = rect.bottom + 6;
+    if (left + pw > window.innerWidth - margin) left = window.innerWidth - pw - margin;
+    if (left < margin) left = margin;
+    if (top + ph > window.innerHeight - margin) top = Math.max(margin, rect.top - ph - 6);
     popup.style.left = `${left}px`;
-    popup.style.top  = `${top}px`;
+    popup.style.top = `${top}px`;
   }
 
   document.addEventListener('click', (e) => {
@@ -1674,10 +1676,15 @@ function paramMatchesSearchQuery(param, query) {
 
 function renderParams() {
   const query = String(arduSearchQuery || '').trim();
-  const landing = PARAMS.filter((p) => LANDING_PARAM_KEYS.has(p.key) && paramMatchesSearchQuery(p, query));
-  const visionNav = PARAMS.filter((p) => VISION_NAV_PARAM_KEYS.has(p.key) && paramMatchesSearchQuery(p, query));
-  const abort = PARAMS.filter((p) => ABORT_PARAM_KEYS.has(p.key) && paramMatchesSearchQuery(p, query));
-  const takeoff = PARAMS.filter((p) => TAKEOFF_PARAM_KEYS.has(p.key) && paramMatchesSearchQuery(p, query));
+  const match = (p) => paramMatchesSearchQuery(p, query);
+  const active = typeof activeParamSelectValue === 'function' ? activeParamSelectValue() : '';
+  const showEveryProfile = !active || active === 'landingParams';
+  const landing = showEveryProfile
+    ? PARAMS.filter(match)
+    : PARAMS.filter((p) => LANDING_PARAM_KEYS.has(p.key) && match(p));
+  const visionNav = showEveryProfile ? [] : PARAMS.filter((p) => VISION_NAV_PARAM_KEYS.has(p.key) && match(p));
+  const abort = showEveryProfile ? [] : PARAMS.filter((p) => ABORT_PARAM_KEYS.has(p.key) && match(p));
+  const takeoff = showEveryProfile ? [] : PARAMS.filter((p) => TAKEOFF_PARAM_KEYS.has(p.key) && match(p));
   renderParamsIn(paramsGrid, landing);
   renderParamsIn(visionNavGrid, visionNav);
   renderParamsIn(abortGrid, abort);
@@ -2129,6 +2136,7 @@ wireArduCategorySubtabsOnce();
       }
     } else {
       applyControlSubtab(val);
+      renderParams();
       renderFcGroupList();
     }
   });
@@ -11666,10 +11674,10 @@ async function readFcParams() {
     } else if (!d.connected || !d.current) {
       fcCurrentSnapshot = null;
       clearArduDiff();
-      const hint = `יש חיבור לבקר הטיסה, ועדיין אין פרמטרים (${d.paramCount ?? 0}).`;
+      clearParamToolFault();
       if (arduWriteStatus) {
-        arduWriteStatus.textContent = hint;
-        arduWriteStatus.className = 'ardu-write-status fail';
+        arduWriteStatus.textContent = '';
+        arduWriteStatus.className = 'ardu-write-status action-status param-tool-live';
       }
     } else {
       fcCurrentSnapshot = { ...d.current };
