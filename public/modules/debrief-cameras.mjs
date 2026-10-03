@@ -1,7 +1,9 @@
 /**
  * Debrief camera grid. Live tiles show a companion frame or אין אות.
  * A loaded debrief file plays only in #flightVideo, never inside a live tile.
+ * One missed JPEG keeps the last frame instead of flashing אין אות.
  */
+import { frameMissShowsNoSignal } from './camera-frame-hold.mjs';
 
 const STORAGE_KEY = 'vlc.debrief.cameras.v2';
 const LEGACY_KEY = 'vlc.debrief.cameras.v1';
@@ -132,19 +134,46 @@ function paintTile(tile, slot, streaming) {
   const wantFrames = streaming || Boolean(slot.hold) || slot.frameWhenOpen === true;
   if (wantFrames && img && !tile.hidden) {
     tile.dataset.signal = 'live';
-    img.hidden = false;
     if (tile.dataset.mono === '1') img.classList.add('is-mono');
+    const seen = Number(img.dataset.seen || 0);
+    if (!(seen > 0)) img.hidden = false;
     const next = `/api/jetson/v1/cameras/${apiId}/frame?t=${Date.now()}`;
     if (!img.dataset.primed || Date.now() - Number(img.dataset.primed) > 700) {
       img.dataset.primed = String(Date.now());
-      img.src = next;
+      const probe = new Image();
+      probe.onload = () => {
+        img.src = probe.src;
+        img.dataset.seen = String(Date.now());
+        img.dataset.misses = '0';
+        img.hidden = false;
+        tile.dataset.signal = 'live';
+        if (note) note.hidden = true;
+      };
+      probe.onerror = () => {
+        const misses = Number(img.dataset.misses || 0) + 1;
+        img.dataset.misses = String(misses);
+        const showNone = frameMissShowsNoSignal({
+          seenAt: Number(img.dataset.seen || 0),
+          now: Date.now(),
+          streaming,
+          consecutiveMisses: misses,
+        });
+        if (!showNone) {
+          if (Number(img.dataset.seen || 0) > 0) {
+            img.hidden = false;
+            tile.dataset.signal = 'live';
+          }
+          if (note) note.hidden = true;
+          return;
+        }
+        tile.dataset.signal = 'none';
+        img.hidden = true;
+        img.removeAttribute('src');
+        img.dataset.seen = '';
+        if (note) note.hidden = tile.hidden;
+      };
+      probe.src = next;
     }
-    img.onerror = () => {
-      tile.dataset.signal = 'none';
-      img.hidden = true;
-      img.removeAttribute('src');
-      if (note) note.hidden = tile.hidden;
-    };
     if (note) note.hidden = true;
     return;
   }
@@ -218,5 +247,7 @@ function bind() {
 }
 
 bind();
+
+if (typeof window !== 'undefined') window.__vlcFrameMissShowsNoSignal = frameMissShowsNoSignal;
 
 export { SLOTS, slotStreaming, readOpen };

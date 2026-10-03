@@ -4,9 +4,29 @@
     "date": "2026-10-03",
     "changes": [
       {
-        "type": "fix",
-        "title": "כרטיס פרמטר צפוף לכל סוג",
-        "detail": "APP_VERSION 1.02.395. כל קבוצת פרמטרים משתמשת בכרטיס הצפוף שכבר היה בפרופיל: מספר, בחירה, מסכת ביטים, וטווח. בלי חיבור מוצג אין חיבור. אחרי קריאה מוצג הערך מהבקר. אין אזור ריק בתוך הכרטיס. אין כתיבה לבקר."
+        "type": "feat",
+        "title": "Server library",
+        "detail": "ask-status-answer.mjs, assist-service.mjs, mission-sentence.mjs, preflight-readiness.mjs, voice-flight-pipeline.mjs"
+      },
+      {
+        "type": "feat",
+        "title": "UI / app.js",
+        "detail": "app.js"
+      },
+      {
+        "type": "feat",
+        "title": "Frontend",
+        "detail": "cam0-panel.mjs, cam1-status.mjs, camera-frame-hold.mjs, camera-names.mjs, camera-sources.mjs, debrief-cameras.mjs, flightbook.mjs, pulse-cameras.mjs"
+      },
+      {
+        "type": "ui",
+        "title": "HTML layout",
+        "detail": "index.html"
+      },
+      {
+        "type": "ui",
+        "title": "Styles",
+        "detail": "styles.css"
       }
     ]
   },

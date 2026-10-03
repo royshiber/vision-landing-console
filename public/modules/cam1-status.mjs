@@ -14,14 +14,14 @@ export function honestyText(body, streamError) {
 }
 
 export function statusPhrase(body, streamError) {
-  if (streamError || body?.state === 'error') return 'CAM1 · שגיאה · קצב —';
-  if (!body) return 'CAM1 · לא מחובר · קצב —';
+  if (streamError || body?.state === 'error') return 'מטה · שגיאה · קצב —';
+  if (!body) return 'מטה · לא מחובר · קצב —';
   if (body.camera_ok === true) {
     const rate = body.fps == null || body.fps === '' ? '—' : String(body.fps);
-    return `CAM1 · מחובר · קצב ${rate}`;
+    return `מטה · מחובר · קצב ${rate}`;
   }
-  if (body.state === 'idle') return `CAM1 · ${IDLE} · קצב —`;
-  return 'CAM1 · לא מחובר · קצב —';
+  if (body.state === 'idle') return `מטה · ${IDLE} · קצב —`;
+  return 'מטה · לא מחובר · קצב —';
 }
 
 /** Capture fps from settings. Never the JPEG stream rate or the measured fps. */

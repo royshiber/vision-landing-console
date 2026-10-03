@@ -1,7 +1,9 @@
 /**
  * Compact camera cards for סטטוס מחשבים.
  * Reads cameras the companion status already carries. Missing fields stay omitted.
+ * Names follow the optics tiles, not the companion role word.
  */
+import { cameraDisplayName } from './camera-names.mjs';
 
 const CAMERA_ORDER = ['cam0', 'cam1', 'cam2', 'cam3'];
 
@@ -47,13 +49,8 @@ export function pulseCameraErrorText(error) {
   return ERROR_HE[raw] || raw;
 }
 
-function cameraName(id, cam) {
-  const role = String(cam.role || cam.nav_role || '').trim().toLowerCase();
-  if (role === 'gimbal' || role === 'gimbal_observe' || id === 'cam3') return 'גימבל';
-  if (role === 'forward' || role === 'vio_forward' || id === 'cam1') return 'קדמית';
-  if (id === 'cam0' || role === 'landing_marker') return 'אפס';
-  if (role === 'down' || role === 'optical_flow_down' || id === 'cam2') return 'מטה';
-  return id;
+function cameraName(id) {
+  return cameraDisplayName(id) || id;
 }
 
 function readStreaming(cam) {

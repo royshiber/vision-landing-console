@@ -168,7 +168,8 @@ describe('Debrief camera grid and horizon menu — live', () => {
       };
     });
     expect(menu.text).toContain('בלי מצלמה');
-    expect(menu.text).toContain('Cam0');
+    expect(menu.text).toContain('קדמית');
+    expect(menu.text).toContain('מטה');
     expect(menu.text).toContain('גימבל');
     expect(menu.text).not.toContain('A8');
     expect(menu.left).toBeGreaterThanOrEqual(0);
@@ -230,7 +231,7 @@ describe('Debrief camera grid and horizon menu — live', () => {
     expect(both.cam0).toBe('true');
     expect(both.gimbal).toBe('true');
     expect(both.stored).toEqual(['cam0', 'a8']);
-    expect(both.labels).toEqual(['בלי מצלמה', 'Cam0', 'Cam1', 'גימבל']);
+    expect(both.labels).toEqual(['בלי מצלמה', 'קדמית', 'מטה', 'גימבל']);
     await page.waitForFunction(() => {
       const img = document.querySelector('#horizonCameraStack [data-horizon-slot="a8"] .pfd-horizon-camera');
       const src = img?.getAttribute('src') || '';

@@ -1075,8 +1075,8 @@
         <div class="optics-live">
           <div class="optics-tiles">
             <div class="debrief-cam-toolbar" role="group" aria-label="מצלמות">
-              <button type="button" class="debrief-cam-toggle" data-debrief-cam="cam0" aria-pressed="true">CAM0</button>
-              <button type="button" class="debrief-cam-toggle" data-debrief-cam="cam1" aria-pressed="true">CAM1</button>
+              <button type="button" class="debrief-cam-toggle" data-debrief-cam="cam0" aria-pressed="true">קדמית</button>
+              <button type="button" class="debrief-cam-toggle" data-debrief-cam="cam1" aria-pressed="true">מטה</button>
               <button type="button" class="debrief-cam-toggle" data-debrief-cam="a8" aria-pressed="false">גימבל</button>
             </div>
             <div id="debriefCamGrid" class="debrief-cam-grid video-wrapper" data-count="2" data-layout="cameras">
@@ -1086,14 +1086,14 @@
                   <img class="debrief-cam-live debrief-cam-media" alt="" hidden />
                   <p class="debrief-cam-nosignal">אין אות</p>
                 </div>
-                <figcaption class="debrief-cam-label">CAM0</figcaption>
+                <figcaption class="debrief-cam-label">קדמית</figcaption>
               </figure>
               <figure class="debrief-cam-tile" data-cam="cam1" data-api="cam1" data-mono="1" data-slot="1" data-signal="none">
                 <div class="debrief-cam-stage">
                   <img class="debrief-cam-live debrief-cam-media" alt="" hidden />
                   <p class="debrief-cam-nosignal">אין אות</p>
                 </div>
-                <figcaption class="debrief-cam-label">CAM1</figcaption>
+                <figcaption class="debrief-cam-label">מטה</figcaption>
               </figure>
               <figure class="debrief-cam-tile" data-cam="a8" data-api="cam3" data-slot="2" data-signal="none" hidden>
                 <div class="debrief-cam-stage">
@@ -1128,13 +1128,13 @@
         </div>
         <div class="optics-calib">
           <div class="optics-cam-switch" role="tablist" aria-label="בחירת מצלמה">
-            <button type="button" role="tab" id="opticsCam0Btn" class="optics-cam-btn is-active" aria-selected="true" aria-controls="cam0Panel">CAM0</button>
-            <button type="button" role="tab" id="opticsCam1Btn" class="optics-cam-btn" aria-selected="false" aria-controls="cam1Panel">CAM1</button>
+            <button type="button" role="tab" id="opticsCam0Btn" class="optics-cam-btn is-active" aria-selected="true" aria-controls="cam0Panel">קדמית</button>
+            <button type="button" role="tab" id="opticsCam1Btn" class="optics-cam-btn" aria-selected="false" aria-controls="cam1Panel">מטה</button>
             <button type="button" role="tab" id="opticsGimbalBtn" class="optics-cam-btn" aria-selected="false" aria-controls="gimbalSettings">גימבל</button>
           </div>
-          <section id="cam0Panel" class="cam0-panel" dir="rtl" aria-label="CAM0" data-camera-source="cam0">
+          <section id="cam0Panel" class="cam0-panel" dir="rtl" aria-label="קדמית" data-camera-source="cam0">
             <header class="cam0-head">
-              <h3 class="cam0-title">CAM0</h3>
+              <h3 class="cam0-title">קדמית</h3>
               <p id="cam0Honesty" class="cam0-honesty">אין אות</p>
             </header>
             <p id="cam0Reason" class="cam0-reason">אין קישור למחשב המשימה. הפקדים כבויים.</p>
@@ -1161,9 +1161,9 @@
             </div>
             <select id="cam0SourceAdapter" class="cam0-source-adapter" data-camera-source-picker hidden aria-hidden="true"></select>
           </section>
-          <section id="cam1Panel" class="cam0-panel cam1-panel" dir="rtl" aria-label="CAM1" hidden>
+          <section id="cam1Panel" class="cam0-panel cam1-panel" dir="rtl" aria-label="מטה" hidden>
             <header class="cam0-head">
-              <h3 class="cam0-title cam1-title">CAM1</h3>
+              <h3 class="cam0-title cam1-title">מטה</h3>
               <p id="cam1Honesty" class="cam0-honesty">אין אות</p>
             </header>
             <p id="cam1Reason" class="cam0-reason">אין קישור למחשב המשימה. הפקדים כבויים.</p>
@@ -1404,7 +1404,7 @@
             <h3 class="preflight-ready-title">מוכנות לטיסה ראשונה</h3>
             <p id="preflightReadyOpen" class="preflight-ready-open">פתוח</p>
           </div>
-          <p class="preflight-ready-note">מחשב משימה (Jetson), FC, RF, שלט RC, CAM0, CAM1. סימון ידני נשאר במחשב הזה.</p>
+          <p class="preflight-ready-note">מחשב משימה (Jetson), FC, RF, שלט RC, קדמית, מטה. סימון ידני נשאר במחשב הזה.</p>
           <ul id="preflightReadyList" class="preflight-ready-list"></ul>
         </section>
         <div id="teleDashPanel" class="tele-subpanel visible" data-tele-panel="dash">
@@ -1481,9 +1481,9 @@
             <div class="tele-vision-group">
               <div class="tele-group-label">מצלמות</div>
               <div class="tele-group-cards">
-                <article class="tele-card"><span>CAM1 — קדמית <span class="tele-q" title="מצב חיבור מצלמה קדמית">?</span></span><strong id="terrainCam1Status">—</strong></article>
-                <article class="tele-card"><span>CAM1 FPS <span class="tele-q" title="קצב פריימים של מצלמה קדמית">?</span></span><strong id="terrainCam1Fps">—</strong></article>
-                <article class="tele-card"><span>CAM2 — מטה <span class="tele-q" title="מצב חיבור מצלמה תחתית">?</span></span><strong id="terrainCam2Status">—</strong></article>
+                <article class="tele-card"><span>מטה <span class="tele-q" title="מצב חיבור המצלמה למטה">?</span></span><strong id="terrainCam1Status">—</strong></article>
+                <article class="tele-card"><span>קצב מטה <span class="tele-q" title="קצב פריימים של המצלמה למטה">?</span></span><strong id="terrainCam1Fps">—</strong></article>
+                <article class="tele-card"><span>מצלמה 2 <span class="tele-q" title="מצב חיבור מצלמה 2">?</span></span><strong id="terrainCam2Status">—</strong></article>
               </div>
             </div>
             <div class="tele-vision-group">
@@ -2308,15 +2308,20 @@
                       <p class="mission-live-camera-kicker">פריים חי</p>
                       <p id="liveCameraEmpty" class="mission-live-camera-empty">אין פריים</p>
                       <div class="mission-live-camera-grid">
+                        <figure class="mission-live-camera-slot" data-cam="cam0">
+                          <figcaption id="liveCameraCam0Label" class="mission-live-camera-label">קדמית</figcaption>
+                          <p id="liveCameraCam0Meta" class="mission-live-camera-meta">אין פריים</p>
+                          <img id="liveCameraCam0Frame" class="mission-live-camera-frame" alt="" hidden />
+                        </figure>
                         <figure class="mission-live-camera-slot" data-cam="cam1">
-                          <figcaption id="liveCameraCam1Label" class="mission-live-camera-label">קדמית</figcaption>
+                          <figcaption id="liveCameraCam1Label" class="mission-live-camera-label">מטה</figcaption>
                           <p id="liveCameraCam1Meta" class="mission-live-camera-meta">אין פריים</p>
                           <img id="liveCameraCam1Frame" class="mission-live-camera-frame" alt="" hidden />
                         </figure>
-                        <figure class="mission-live-camera-slot" data-cam="cam2">
-                          <figcaption id="liveCameraCam2Label" class="mission-live-camera-label">מטה</figcaption>
-                          <p id="liveCameraCam2Meta" class="mission-live-camera-meta">אין פריים</p>
-                          <img id="liveCameraCam2Frame" class="mission-live-camera-frame" alt="" hidden />
+                        <figure class="mission-live-camera-slot" data-cam="cam3">
+                          <figcaption id="liveCameraCam3Label" class="mission-live-camera-label">גימבל</figcaption>
+                          <p id="liveCameraCam3Meta" class="mission-live-camera-meta">אין פריים</p>
+                          <img id="liveCameraCam3Frame" class="mission-live-camera-frame" alt="" hidden />
                         </figure>
                       </div>
                     </div>
