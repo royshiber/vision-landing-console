@@ -7240,8 +7240,17 @@ function markHorizonLive() {
   drawHorizon(horizonCanvas, _lastRoll, _lastPitch, currentHorizonDrawOpts());
 }
 
+const horizonGimbalPumps = new WeakMap();
+
 function clearHorizonImage(img) {
   if (!img) return;
+  horizonGimbalPumps.get(img)?.stop();
+  img.dataset.gimbalPump = '';
+  if (img.dataset.objectUrl) {
+    try { URL.revokeObjectURL(img.dataset.objectUrl); } catch { /* already revoked */ }
+    img.dataset.objectUrl = '';
+  }
+  img.dataset.liveFrame = '';
   img.hidden = true;
   img.removeAttribute('src');
   img.dataset.hold = '';
@@ -7249,6 +7258,55 @@ function clearHorizonImage(img) {
   img.onload = null;
   img.onerror = null;
   img.classList.remove('is-mono');
+}
+
+function ensureHorizonGimbalPump(img, note, base) {
+  const existing = horizonGimbalPumps.get(img);
+  if (existing) return existing;
+  const factory = window.__vlcCreateLatestJpegPump;
+  if (typeof factory !== 'function') return null;
+  const pump = factory({
+    image: () => img,
+    follow: () => img.dataset.gimbalPump === '1',
+    urlFor(gen, seenSeq, info) {
+      const newest = info?.replace ? '&newest=1' : '';
+      return `${base}?since=${seenSeq || 0}&t=${gen}${newest}`;
+    },
+    onFrame() {
+      img.hidden = false;
+      img.dataset.seen = String(Date.now());
+      img.dataset.misses = '0';
+      if (note) note.hidden = true;
+      fitHorizonPicture(img);
+      markHorizonLive();
+    },
+    onMiss() {
+      const misses = Number(img.dataset.misses || 0) + 1;
+      img.dataset.misses = String(misses);
+      const showNone = horizonFrameMissShowsNoSignal({
+        seenAt: Number(img.dataset.seen || 0),
+        now: Date.now(),
+        streaming: true,
+        consecutiveMisses: misses,
+      });
+      if (!showNone) {
+        if (Number(img.dataset.seen || 0) > 0) img.hidden = false;
+        if (note) note.hidden = true;
+        fitHorizonPicture(img);
+        markHorizonLive();
+        return;
+      }
+      img.hidden = true;
+      img.dataset.seen = '';
+      if (note) {
+        note.hidden = false;
+        note.textContent = 'אין אות';
+      }
+      markHorizonLive();
+    },
+  });
+  horizonGimbalPumps.set(img, pump);
+  return pump;
 }
 
 function horizonStack() {
@@ -7342,6 +7400,19 @@ function paintHorizonImage(img, note, slot, companion) {
     return;
   }
   const base = forced ? slot.frame : `/api/jetson/v1/cameras/${slot.apiId}/frame`;
+  if (forced) {
+    const pump = ensureHorizonGimbalPump(img, note, base);
+    if (pump) {
+      img.dataset.gimbalPump = '1';
+      img.classList.toggle('is-mono', slot.mono === true);
+      if (!img.hidden && img.naturalWidth > 0) fitHorizonPicture(img);
+      pump.start();
+      return;
+    }
+  } else {
+    horizonGimbalPumps.get(img)?.stop();
+    img.dataset.gimbalPump = '';
+  }
   const paintedMisses = Number(img.dataset.misses || 0);
   const paintedSeen = Number(img.dataset.seen || 0);
   const paintedPicture = paintedSeen > 0 && Boolean(img.getAttribute('src')) && img.naturalWidth > 0;

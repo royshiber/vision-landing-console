@@ -158,6 +158,11 @@ function releaseTile(tile) {
   const img = tile.querySelector('.debrief-cam-live');
   tilePumps.get(tile)?.stop();
   if (!img) return;
+  if (img.dataset.objectUrl) {
+    try { URL.revokeObjectURL(img.dataset.objectUrl); } catch { /* already revoked */ }
+    img.dataset.objectUrl = '';
+  }
+  img.dataset.liveFrame = '';
   img.hidden = true;
   img.removeAttribute('src');
   img.dataset.hold = '';
@@ -169,24 +174,21 @@ function pumpFor(tile) {
   let pump = tilePumps.get(tile);
   if (pump) return pump;
   pump = createLatestJpegPump({
-    urlFor(gen) {
-      return `/api/jetson/v1/cameras/${tile.dataset.api}/frame?t=${gen}`;
+    image: () => tile.querySelector('.debrief-cam-live'),
+    follow: () => tile.hidden !== true,
+    urlFor(gen, seenSeq, info) {
+      const newest = info?.replace ? '&newest=1' : '';
+      return `/api/jetson/v1/cameras/${tile.dataset.api}/frame?since=${seenSeq || 0}&t=${gen}${newest}`;
     },
-    onFrame(src) {
+    onFrame() {
       const img = tile.querySelector('.debrief-cam-live');
       const note = tile.querySelector('.debrief-cam-nosignal');
       if (!img || tile.hidden) return;
       if (tile.dataset.mono === '1') img.classList.add('is-mono');
-      img.dataset.frameToken = src;
-      img.onload = () => {
-        if (img.dataset.frameToken !== src) return;
-        followLoadedFrame(tile, img);
-        requestAnimationFrame(() => pump.kick());
-      };
-      img.src = src;
       img.dataset.seen = String(Date.now());
       img.dataset.misses = '0';
       applyFramePresentation(tile, img, note, { showImage: true, showNote: false });
+      followLoadedFrame(tile, img);
     },
     onMiss() {
       const img = tile.querySelector('.debrief-cam-live');
