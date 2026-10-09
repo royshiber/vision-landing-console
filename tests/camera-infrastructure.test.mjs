@@ -289,9 +289,12 @@ print(json.dumps({
     expect(report.csiIndex).toBe(1);
     expect(report.pipe).toContain('nvarguscamerasrc sensor-id=1');
     expect(report.pipe).toContain('appsink drop=true max-buffers=1 sync=false');
-    expect(report.rtspPipe).toContain('protocols=tcp latency=0');
+    expect(report.rtspPipe).toContain('protocols=udp');
+    expect(report.rtspPipe).toContain('latency=0');
+    expect(report.rtspPipe).toContain('drop-on-latency=true');
     expect(report.rtspPipe).toContain('rtph265depay ! h265parse');
-    expect(report.rtspPipe).toContain('nvv4l2decoder');
+    expect(report.rtspPipe).toContain('nvv4l2decoder enable-max-performance=1 disable-dpb=true');
+    expect(report.rtspPipe).toContain('width=640,height=360');
     expect(report.mjpg).toBe('MJPG');
     expect(report.yuyv).toBe('YUYV');
     expect(report.states[0]).toBe('absent');

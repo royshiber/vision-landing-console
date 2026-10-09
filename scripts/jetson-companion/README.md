@@ -57,6 +57,8 @@ CSI without a GStreamer OpenCV build reports `csi_requires_gstreamer_opencv`.
 | `VLC_CAM3_DEVICE` | `rtsp://192.168.144.25:8554/main.264` |
 | `VLC_CAM3_ENABLED` | `0` |
 | `VLC_CAM3_CODEC` | `auto` (`h264`, `h265`, or `auto`) |
+| `VLC_CAM3_RTSP_TRANSPORT` | `udp` (`tcp` or `auto`; TCP is the fallback) |
+| `VLC_CAM3_JPEG_WIDTH` / `HEIGHT` / `QUALITY` | `640` / `360` / `55` |
 | `VLC_CAMERA_WIDTH` / `HEIGHT` / `FPS` | `640` / `480` / `10` |
 | `VLC_CAM1_WIDTH` (and cam2/cam3, plus HEIGHT/FPS) | fall back to the globals |
 | `VLC_CAMERA_DISCOVER_S` | `2` |

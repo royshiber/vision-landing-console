@@ -11,6 +11,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from siyi_sdk import (  # noqa: E402
+    CMD_CODEC,
     CMD_PHOTO,
     CMD_RATE,
     CMD_ZOOM,
@@ -18,6 +19,8 @@ from siyi_sdk import (  # noqa: E402
     DEFAULT_PORT,
     SiyiLink,
     decode_packet,
+    encode_packet,
+    parse_codec_specs,
 )
 
 
@@ -119,6 +122,37 @@ class SiyiGimbalCommandTests(unittest.TestCase):
         self.assertEqual(code, 403)
         self.assertEqual(blocked.sent, [])
         self.assertIn("גימבל", body["message"])
+
+    def test_codec_poll_reads_and_never_sets(self):
+        main = struct.pack("<BBHHHB", 0, 1, 1920, 1080, 4000, 30)
+        sub = struct.pack("<BBHHHB", 1, 1, 640, 360, 512, 25)
+        parsed = parse_codec_specs(main + sub)
+        self.assertEqual(parsed[0]["stream"], "main")
+        self.assertEqual(parsed[0]["codec"], "h264")
+        self.assertEqual(parsed[0]["width"], 1920)
+        self.assertEqual(parsed[1]["stream"], "sub")
+        self.assertEqual(parsed[1]["bitrate_kbps"], 512)
+
+        class CodecSock(FakeSiyiSock):
+            def recvfrom(self, _n):
+                raw, _addr = self.sent[-1]
+                decoded = decode_packet(raw)
+                payload = main + sub if decoded["cmd"] == CMD_CODEC else bytes([1])
+                return encode_packet(decoded["cmd"], payload, seq=decoded["seq"]), (DEFAULT_HOST, DEFAULT_PORT)
+
+        sock = CodecSock()
+        link = SiyiLink(env={"VLC_GIMBAL_CONTROL_ENABLED": "0"}, sock=sock, now_fn=lambda: 50.0)
+        link.poll_once()
+        cmds = [decode_packet(pkt)["cmd"] for pkt, _addr in sock.sent]
+        self.assertIn(CMD_CODEC, cmds)
+        self.assertNotIn(0x21, cmds)
+        self.assertEqual(link.codec[0]["height"], 1080)
+        status = link.public_status()
+        self.assertFalse(status["codec_writable"])
+        self.assertEqual(status["codec"][1]["stream"], "sub")
+        code, body = link.command("rate", {"yaw": 1, "pitch": 0})
+        self.assertEqual(code, 403)
+        self.assertFalse(body["sent"])
 
 
 if __name__ == "__main__":

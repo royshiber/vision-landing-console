@@ -74,7 +74,14 @@ The OmniVision OV9281 (1MP global-shutter mono) is not an Argus sensor. `nvargus
 
 `VLC_CAM1_DEVICE=csi:0` opens `nvarguscamerasrc` only when `cv2.getBuildInformation()` reports GStreamer. Otherwise the state is `csi_requires_gstreamer_opencv`, not `absent`.
 
-`rtsp://...` prefers the Jetson hardware decode pipeline (TCP, low latency, newest frame only). `VLC_CAM3_CODEC=h264|h265|auto` (default `auto`). If GStreamer OpenCV cannot open it, the slot falls back to the FFmpeg backend with TCP and a one-frame buffer.
+`rtsp://...` (cam3, the SIYI A8 mini) uses the same newest-frame shape as the fixed cameras. The pipeline is UDP first (`VLC_CAM3_RTSP_TRANSPORT=udp|tcp|auto`, default `udp`, then TCP if UDP fails), `latency=0`, `drop-on-latency=true`, `do-retransmission=false`, hardware `nvv4l2decoder` with `enable-max-performance=1` and `disable-dpb=true`, and `appsink drop=true max-buffers=1 sync=false`. The JPEG is scaled to the tile (`VLC_CAM3_JPEG_WIDTH` / `HEIGHT`, default 640×360, quality 55) before encode. On a Jetson with GStreamer introspection the first attempt is `nvjpegenc`; otherwise OpenCV encodes the scaled frame. `VLC_CAM3_CODEC=h264|h265|auto` (default `auto`). Open gives up in about 2.5 seconds when no stream is present. A transport that opens and then produces no frame is skipped for a short retry so a stuck `opening` does not keep serving an old JPEG. If GStreamer cannot open the stream, the slot falls back to FFmpeg with a one-frame buffer and the same scale.
+
+Measure on the Jetson (the gimbal has to be plugged in; this repo does not measure it):
+
+```
+python3 scripts/jetson-companion/measure_camera_latency.py --camera cam0 --seconds 5
+python3 scripts/jetson-companion/measure_camera_latency.py --camera cam3 --seconds 5
+```
 
 A tracker in the same process can call `get_frame_bus().subscribe(...)` or `latest(cam_id)`. Only the newest packet per slot is kept.
 

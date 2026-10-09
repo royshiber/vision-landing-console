@@ -17,6 +17,9 @@ Env:
   VLC_CAMERA_DRY_RUN               0|1|absent|synthetic
   VLC_CAMERA_WIDTH / HEIGHT / FPS  defaults, overridable per slot
   VLC_CAM3_CODEC                   h264|h265|auto  (default auto)
+  VLC_CAM3_RTSP_TRANSPORT          udp|tcp|auto  (default udp, TCP fallback)
+  VLC_CAM3_JPEG_WIDTH / HEIGHT     tile JPEG, default 640x360
+  VLC_CAM3_JPEG_QUALITY            default 55 (same as cam0)
   VLC_CAMERA_DISCOVER_S            default 2
 """
 
@@ -354,16 +357,279 @@ def csi_gstreamer_pipeline(sensor_id, width, height, fps):
     )
 
 
-def rtsp_gstreamer_pipeline(url, codec):
+# rtspsrc timeout is microseconds. Two seconds matches the fail-fast open budget.
+RTSP_TIMEOUT_US = 2_000_000
+RTSP_FAIL_FAST_S = 2.5
+_RTSP_BAD_UNTIL = {}
+
+
+def rtsp_transport(env=None):
+    raw = _env_str("VLC_CAM3_RTSP_TRANSPORT", "udp", env).lower()
+    if raw in {"tcp", "udp", "auto"}:
+        return raw
+    return "udp"
+
+
+def rtsp_jpeg_size(env=None):
+    """Tile-sized JPEG, same idea as cam0's 640-wide stream. Default 640×360."""
+    width = _env_int("VLC_CAM3_JPEG_WIDTH", 0, env)
+    height = _env_int("VLC_CAM3_JPEG_HEIGHT", 0, env)
+    if width <= 0:
+        explicit = _env_str("VLC_CAM3_WIDTH", "", env)
+        width = int(explicit) if explicit.isdigit() else 640
+    if height <= 0:
+        explicit = _env_str("VLC_CAM3_HEIGHT", "", env)
+        height = int(explicit) if explicit.isdigit() else 360
+    quality = _env_int("VLC_CAM3_JPEG_QUALITY", 55, env)
+    quality = max(30, min(85, int(quality)))
+    width = max(160, int(width) - (int(width) % 2))
+    height = max(120, int(height) - (int(height) % 2))
+    return width, height, quality
+
+
+def rtsp_transport_blocked(transport, now=None):
+    until = _RTSP_BAD_UNTIL.get(str(transport or "")) or 0
+    return (time.monotonic() if now is None else now) < until
+
+
+def note_rtsp_transport_failure(transport, hold_s=20):
+    """A transport that opened and then produced no frame is skipped for a bit."""
+    if transport:
+        _RTSP_BAD_UNTIL[str(transport)] = time.monotonic() + float(hold_s)
+
+
+def rtsp_gstreamer_pipeline(url, codec, transport="udp", width=640, height=360, mode="bgr", decoder="hardware", quality=55):
+    """Low-latency SIYI pipeline.
+
+    UDP on the gimbal Ethernet, drop late RTP, one appsink buffer, hardware
+    H.264/H.265 decode, and a tile-sized frame before any CPU JPEG.
+    `decoder="hardware-dpb"` keeps the decoder's picture buffer for pipelines
+    that reject `disable-dpb`. `mode="jpeg"` encodes with nvjpegenc.
+    """
+    proto = "tcp" if str(transport).lower() == "tcp" else "udp"
     if str(codec).lower() == "h265":
         depay = "rtph265depay ! h265parse"
+        soft = "avdec_h265"
     else:
         depay = "rtph264depay ! h264parse"
-    return (
-        f"rtspsrc location={url} protocols=tcp latency=0 ! "
-        f"{depay} ! nvv4l2decoder ! nvvidconv ! video/x-raw,format=BGRx ! "
-        "videoconvert ! video/x-raw,format=BGR ! appsink drop=true max-buffers=1 sync=false"
+        soft = "avdec_h264"
+    src = (
+        f"rtspsrc location={url} protocols={proto} latency=0 "
+        f"drop-on-latency=true do-retransmission=false "
+        f"timeout={RTSP_TIMEOUT_US} tcp-timeout={RTSP_TIMEOUT_US} ! "
+        f"{depay} ! "
     )
+    w = int(width)
+    h = int(height)
+    q = max(30, min(85, int(quality)))
+    if str(decoder) == "software":
+        body = (
+            f"{soft} ! videoscale ! videoconvert ! "
+            f"video/x-raw,format=BGR,width={w},height={h} ! "
+        )
+    elif str(mode) == "jpeg":
+        body = (
+            "nvv4l2decoder enable-max-performance=1 disable-dpb=true ! "
+            f"nvvidconv ! video/x-raw(memory:NVMM),format=I420,width={w},height={h} ! "
+            f"nvjpegenc quality={q} ! "
+        )
+    else:
+        dpb = "" if str(decoder) == "hardware-dpb" else " disable-dpb=true"
+        body = (
+            f"nvv4l2decoder enable-max-performance=1{dpb} ! "
+            f"nvvidconv ! video/x-raw,format=BGRx,width={w},height={h} ! "
+            "videoconvert ! video/x-raw,format=BGR ! "
+        )
+    sink = (
+        "appsink name=jpeg drop=true max-buffers=1 sync=false"
+        if str(mode) == "jpeg"
+        else "appsink drop=true max-buffers=1 sync=false"
+    )
+    return src + body + sink
+
+
+def rtsp_open_plan(url, codec, transport, width, height, quality=55):
+    """UDP then TCP for each decoder, so a hung UDP attempt still reaches TCP.
+
+    OpenCV hardware decode is first. nvjpegenc is next when GStreamer is
+    importable. The picture-buffer decoder is last, for a Jetson that rejects
+    disable-dpb.
+    """
+    if str(transport).lower() == "tcp":
+        protos = ["tcp"]
+    else:
+        protos = ["udp", "tcp"]
+    protos = [proto for proto in protos if not rtsp_transport_blocked(proto)]
+    stages = (
+        ("opencv", "nvv4l2decoder", "bgr", "hardware"),
+        ("gst-jpeg", "nvv4l2decoder", "jpeg", "hardware"),
+        ("opencv", "nvv4l2decoder-dpb", "bgr", "hardware-dpb"),
+    )
+    plan = []
+    for backend, decoder_name, mode, decoder in stages:
+        for proto in protos:
+            plan.append({
+                "backend": backend,
+                "decoder": decoder_name,
+                "transport": proto,
+                "width": width,
+                "height": height,
+                "pipeline": rtsp_gstreamer_pipeline(
+                    url, codec, transport=proto, width=width, height=height,
+                    mode=mode, decoder=decoder, quality=quality,
+                ),
+            })
+    return plan
+
+
+def jpeg_timing_headers(packet):
+    """Same JPEG timing headers the console shelf already reads for every camera."""
+    extra = [("Cache-Control", "no-store")]
+    if not isinstance(packet, dict):
+        return extra
+    utc = packet.get("captured_utc_ns")
+    if utc:
+        extra.append(("X-Airvix-Capture-At", str(int(int(utc) // 1_000_000))))
+    enc = packet.get("encode_ms")
+    if enc is not None:
+        extra.append(("X-Encode-Ms", str(round(float(enc), 3))))
+    dec = packet.get("decode_ms")
+    if dec is not None:
+        extra.append(("X-Airvix-Decode-Ms", str(round(float(dec), 3))))
+    return extra
+
+
+class NewestFrameShelf:
+    """One decoded frame and one JPEG. A newer decode replaces a queued older one."""
+
+    def __init__(self):
+        self._lock = threading.Lock()
+        self._decoded_seq = 0
+        self._decoded = None
+        self._jpeg = None
+        self._jpeg_seq = 0
+        self._encode_ms = None
+        self._decode_ms = None
+        self._cap_utc = None
+        self._cap_mono = None
+        self._width = None
+        self._height = None
+
+    def note_decoded(self, payload, captured_utc_ns, captured_mono_ns, decode_ms):
+        with self._lock:
+            self._decoded_seq += 1
+            self._decoded = (
+                self._decoded_seq,
+                payload,
+                captured_utc_ns,
+                captured_mono_ns,
+                decode_ms,
+            )
+            return self._decoded_seq
+
+    def take_decoded(self):
+        """The newest decoded frame. Older ones waiting behind it are dropped."""
+        with self._lock:
+            item = self._decoded
+            self._decoded = None
+            return item
+
+    def note_jpeg(self, seq, jpeg, encode_ms, captured_utc_ns, captured_mono_ns, decode_ms, width, height):
+        with self._lock:
+            if int(seq) < self._jpeg_seq:
+                return False
+            self._jpeg_seq = int(seq)
+            self._jpeg = jpeg
+            self._encode_ms = encode_ms
+            self._decode_ms = decode_ms
+            self._cap_utc = captured_utc_ns
+            self._cap_mono = captured_mono_ns
+            self._width = width
+            self._height = height
+            return True
+
+    def latest(self):
+        with self._lock:
+            if self._jpeg is None:
+                return None
+            return {
+                "jpeg": self._jpeg,
+                "seq": self._jpeg_seq,
+                "encode_ms": self._encode_ms,
+                "decode_ms": self._decode_ms,
+                "captured_utc_ns": self._cap_utc,
+                "captured_mono_ns": self._cap_mono,
+                "width": self._width,
+                "height": self._height,
+            }
+
+    def clear(self):
+        with self._lock:
+            self._decoded = None
+            self._jpeg = None
+            self._jpeg_seq = 0
+            self._encode_ms = None
+            self._decode_ms = None
+            self._cap_utc = None
+            self._cap_mono = None
+
+
+def _encode_bgr(cv2, frame, width, height, quality):
+    t0 = time.perf_counter()
+    try:
+        h, w = frame.shape[:2]
+    except Exception:
+        return None, 0.0
+    if int(w) != int(width) or int(h) != int(height):
+        frame = cv2.resize(frame, (int(width), int(height)))
+    ok, buf = cv2.imencode(".jpg", frame, [int(cv2.IMWRITE_JPEG_QUALITY), int(quality)])
+    ms = (time.perf_counter() - t0) * 1000.0
+    if not ok:
+        return None, ms
+    return buf.tobytes(), ms
+
+
+def _call_with_deadline(fn, timeout_s):
+    """Run fn on a daemon thread. A hang becomes read_failed. A late open is released."""
+    box = {}
+
+    def run():
+        try:
+            box["value"] = fn()
+        except Exception as exc:
+            box["error"] = exc
+
+    thread = threading.Thread(target=run, name="rtsp-open", daemon=True)
+    thread.start()
+    thread.join(timeout_s)
+    if thread.is_alive():
+        def reap():
+            thread.join()
+            value = box.get("value")
+            if value is not None and hasattr(value, "release"):
+                try:
+                    value.release()
+                except Exception:
+                    pass
+
+        threading.Thread(target=reap, name="rtsp-open-reap", daemon=True).start()
+        raise CaptureError("read_failed")
+    if "error" in box:
+        raise box["error"]
+    return box.get("value")
+
+
+def _try_gst():
+    try:
+        import gi
+
+        gi.require_version("Gst", "1.0")
+        from gi.repository import Gst
+
+        Gst.init(None)
+        return Gst
+    except Exception:
+        return None
 
 
 def apply_usb_pixel_format(cap, width, height, fps):
@@ -440,6 +706,207 @@ class CvCapture:
             pass
 
 
+class RtspCapture:
+    """Pull the newest RTSP frame and JPEG it off the pull thread.
+
+    `read_frame` returns `{"pending": True}` while the sink is healthy and
+    no newer JPEG is ready. A stall longer than `fail_after_s` returns None
+    so the supervisor fails fast and reopens.
+    """
+
+    keeps_open_on_empty = True
+
+    def __init__(self, cap, cv2, *, transport, decoder, pipeline, width, height, quality, codec, backend):
+        self.cap = cap
+        self.cv2 = cv2
+        self.transport = transport
+        self.decoder = decoder
+        self.pipeline = pipeline
+        self.width = int(width)
+        self.height = int(height)
+        self.quality = int(quality)
+        self.codec = codec
+        self.backend = backend
+        self.pixel_format = "BGR"
+        self.shelf = NewestFrameShelf()
+        self.failed = False
+        self.fail_after_s = 2.0
+        self._stop = threading.Event()
+        self._wake = threading.Event()
+        self._handed = 0
+        self._released = False
+        self._opened_mono = time.monotonic()
+        self._last_frame_mono = self._opened_mono
+        self._pull_thread = threading.Thread(target=self._pull, name="rtsp-pull", daemon=True)
+        self._encode_thread = threading.Thread(target=self._encode, name="rtsp-jpeg", daemon=True)
+        self._pull_thread.start()
+        self._encode_thread.start()
+
+    def _mark_idle(self):
+        if time.monotonic() - self._last_frame_mono > self.fail_after_s:
+            self.failed = True
+            return True
+        return False
+
+    def _pull(self):
+        while not self._stop.is_set() and not self.failed:
+            cap = self.cap
+            if cap is None:
+                return
+            t_grab = time.perf_counter()
+            try:
+                grabbed = bool(cap.grab())
+            except Exception:
+                grabbed = False
+            t_got = time.perf_counter()
+            if not grabbed:
+                if self._mark_idle():
+                    return
+                if self._stop.wait(0.02):
+                    return
+                continue
+            try:
+                ok, frame = cap.retrieve()
+            except Exception:
+                ok, frame = False, None
+            t_ret = time.perf_counter()
+            if not ok or frame is None:
+                if self._mark_idle():
+                    return
+                continue
+            self._last_frame_mono = time.monotonic()
+            decode_ms = max(0.0, (t_ret - t_got) * 1000.0)
+            # grab() waits for the next sample. That wait is not decode time.
+            _ = t_grab
+            self.shelf.note_decoded(frame, time.time_ns(), time.monotonic_ns(), decode_ms)
+            self._wake.set()
+
+    def _encode(self):
+        while not self._stop.is_set():
+            item = self.shelf.take_decoded()
+            if item is None:
+                self._wake.wait(0.05)
+                self._wake.clear()
+                continue
+            seq, payload, utc, mono, decode_ms = item
+            try:
+                if isinstance(payload, (bytes, bytearray)):
+                    jpeg, enc_ms = bytes(payload), 0.0
+                else:
+                    jpeg, enc_ms = _encode_bgr(self.cv2, payload, self.width, self.height, self.quality)
+            except Exception:
+                continue
+            if not jpeg:
+                continue
+            self.shelf.note_jpeg(seq, jpeg, enc_ms, utc, mono, decode_ms, self.width, self.height)
+
+    def read_frame(self):
+        if self.failed:
+            return None
+        packet = self.shelf.latest()
+        if packet is None or packet.get("seq") == self._handed:
+            if packet is None and self._mark_idle():
+                return None
+            return {"pending": True}
+        self._handed = packet["seq"]
+        out = dict(packet)
+        out["transport"] = self.transport
+        out["decoder"] = self.decoder
+        out["backend"] = self.backend
+        out["codec"] = self.codec
+        return out
+
+    def release(self):
+        if self._released:
+            return
+        self._released = True
+        self.failed = True
+        self._stop.set()
+        self._wake.set()
+        cap = self.cap
+        self.cap = None
+        if cap is not None:
+            try:
+                cap.release()
+            except Exception:
+                pass
+
+
+class GstJpegCapture(RtspCapture):
+    """nvjpegenc appsink. The sample is already a JPEG, so encode time is ~0."""
+
+    def __init__(self, pipeline, Gst, *, transport, decoder, width, height, quality, codec):
+        self.Gst = Gst
+        self.pipeline = pipeline
+        self.transport = transport
+        self.decoder = decoder
+        self.width = int(width)
+        self.height = int(height)
+        self.quality = int(quality)
+        self.codec = codec
+        self.backend = "nvjpegenc"
+        self.pixel_format = "JPEG"
+        self.cv2 = None
+        self.cap = None
+        self.shelf = NewestFrameShelf()
+        self.failed = False
+        self.fail_after_s = 2.0
+        self._stop = threading.Event()
+        self._wake = threading.Event()
+        self._handed = 0
+        self._released = False
+        self._opened_mono = time.monotonic()
+        self._last_frame_mono = self._opened_mono
+        self._pipe = Gst.parse_launch(pipeline)
+        self._sink = self._pipe.get_by_name("jpeg")
+        if self._sink is None:
+            self._pipe.set_state(Gst.State.NULL)
+            raise CaptureError("read_failed")
+        self._pipe.set_state(Gst.State.PLAYING)
+        _change, state, _pending = self._pipe.get_state(int(1.5 * Gst.SECOND))
+        if state != Gst.State.PLAYING:
+            self._pipe.set_state(Gst.State.NULL)
+            raise CaptureError("read_failed")
+        self._pull_thread = threading.Thread(target=self._pull, name="rtsp-gst", daemon=True)
+        self._encode_thread = threading.Thread(target=self._encode, name="rtsp-jpeg", daemon=True)
+        self._pull_thread.start()
+        self._encode_thread.start()
+
+    def _pull(self):
+        Gst = self.Gst
+        while not self._stop.is_set() and not self.failed:
+            sample = self._sink.emit("try-pull-sample", int(0.4 * Gst.SECOND))
+            if sample is None:
+                if self._mark_idle():
+                    return
+                continue
+            buf = sample.get_buffer()
+            ok, info = buf.map(Gst.MapFlags.READ)
+            if not ok:
+                continue
+            try:
+                jpeg = bytes(info.data)
+            finally:
+                buf.unmap(info)
+            if not jpeg:
+                continue
+            self._last_frame_mono = time.monotonic()
+            self.shelf.note_decoded(jpeg, time.time_ns(), time.monotonic_ns(), 0.0)
+            self._wake.set()
+
+    def release(self):
+        if self._released:
+            return
+        super().release()
+        pipe = getattr(self, "_pipe", None)
+        self._pipe = None
+        if pipe is not None:
+            try:
+                pipe.set_state(self.Gst.State.NULL)
+            except Exception:
+                pass
+
+
 def _open_capture(cv2, target, api):
     cap = cv2.VideoCapture()
     if hasattr(cv2, "CAP_PROP_OPEN_TIMEOUT_MSEC"):
@@ -479,7 +946,7 @@ def open_hardware(spec, plan):
             raise CaptureError("read_failed")
         return CvCapture(cap, cv2, codec="csi")
     if kind == "rtsp":
-        return _open_rtsp(cv2, spec.get("url"), plan.get("codec") or "auto")
+        return _open_rtsp(cv2, spec.get("url"), plan.get("codec") or "auto", plan.get("geometry"))
     api = getattr(cv2, "CAP_V4L2", None)
     target = spec.get("path") if kind == "path" else int(spec.get("index") if spec.get("index") is not None else 0)
     cap = _open_capture(cv2, target, api)
@@ -490,32 +957,113 @@ def open_hardware(spec, plan):
     return wrapped
 
 
-def _open_rtsp(cv2, url, codec):
-    if not url:
-        raise CaptureError("read_failed")
-    if cv2_has_gstreamer(cv2):
-        order = ["h264", "h265"] if codec == "auto" else [codec]
-        for name in order:
-            pipeline = rtsp_gstreamer_pipeline(url, name)
-            cap = _open_capture(cv2, pipeline, getattr(cv2, "CAP_GSTREAMER", None))
-            if cap is not None:
-                return CvCapture(cap, cv2, codec=name)
-    prev = os.environ.get("OPENCV_FFMPEG_CAPTURE_OPTIONS")
-    os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp|fflags;nobuffer|flags;low_delay|max_delay;500000"
-    try:
-        cap = _open_capture(cv2, url, getattr(cv2, "CAP_FFMPEG", None))
-    finally:
-        if prev is None:
-            os.environ.pop("OPENCV_FFMPEG_CAPTURE_OPTIONS", None)
-        else:
-            os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = prev
+def _open_rtsp_candidate(cv2, gst, cand, quality, codec):
+    if cand["backend"] == "gst-jpeg":
+        if gst is None:
+            return None
+        return GstJpegCapture(
+            cand["pipeline"],
+            gst,
+            transport=cand["transport"],
+            decoder=cand["decoder"],
+            width=cand["width"],
+            height=cand["height"],
+            quality=quality,
+            codec=codec,
+        )
+    if not cv2_has_gstreamer(cv2):
+        return None
+    cap = _open_capture(cv2, cand["pipeline"], getattr(cv2, "CAP_GSTREAMER", None))
     if cap is None:
-        raise CaptureError("read_failed")
+        return None
     try:
         cap.set(CAP_BUFFERS, 1)
     except Exception:
         pass
-    return CvCapture(cap, cv2, codec="ffmpeg")
+    return RtspCapture(
+        cap,
+        cv2,
+        transport=cand["transport"],
+        decoder=cand["decoder"],
+        pipeline=cand["pipeline"],
+        width=cand["width"],
+        height=cand["height"],
+        quality=quality,
+        codec=codec,
+        backend="opencv",
+    )
+
+
+def _ffmpeg_rtsp_options(transport):
+    proto = "tcp" if str(transport).lower() == "tcp" else "udp"
+    return f"rtsp_transport;{proto}|fflags;nobuffer|flags;low_delay|max_delay;0|reorder_queue_size;0"
+
+
+def _open_rtsp(cv2, url, codec, geometry=None, env=None):
+    if not url:
+        raise CaptureError("read_failed")
+    src_env = env if env is not None else os.environ
+    width, height, quality = rtsp_jpeg_size(src_env)
+    _ = geometry
+    transport = rtsp_transport(src_env)
+    names = ["h264", "h265"] if str(codec).lower() == "auto" else [str(codec).lower()]
+    budget = time.monotonic() + RTSP_FAIL_FAST_S
+    gst = _try_gst()
+    for name in names:
+        for cand in rtsp_open_plan(url, name, transport, width, height, quality):
+            remaining = budget - time.monotonic()
+            if remaining <= 0.05:
+                break
+            try:
+                opened = _call_with_deadline(
+                    lambda c=cand, codec_name=name: _open_rtsp_candidate(cv2, gst, c, quality, codec_name),
+                    min(0.9, remaining),
+                )
+            except CaptureError:
+                continue
+            except Exception:
+                continue
+            if opened is not None:
+                return opened
+        if time.monotonic() >= budget:
+            break
+    remaining = budget - time.monotonic()
+    if remaining > 0.05:
+        proto = "tcp" if transport == "tcp" or rtsp_transport_blocked("udp") else transport
+        if proto == "auto":
+            proto = "udp"
+        prev = os.environ.get("OPENCV_FFMPEG_CAPTURE_OPTIONS")
+        os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = _ffmpeg_rtsp_options(proto)
+        try:
+            cap = _call_with_deadline(
+                lambda: _open_capture(cv2, url, getattr(cv2, "CAP_FFMPEG", None)),
+                min(1.2, remaining),
+            )
+        except CaptureError:
+            cap = None
+        finally:
+            if prev is None:
+                os.environ.pop("OPENCV_FFMPEG_CAPTURE_OPTIONS", None)
+            else:
+                os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = prev
+        if cap is not None:
+            try:
+                cap.set(CAP_BUFFERS, 1)
+            except Exception:
+                pass
+            return RtspCapture(
+                cap,
+                cv2,
+                transport=proto if proto in {"tcp", "udp"} else "udp",
+                decoder="ffmpeg",
+                pipeline=url,
+                width=width,
+                height=height,
+                quality=quality,
+                codec="ffmpeg",
+                backend="ffmpeg",
+            )
+    raise CaptureError("read_failed")
 
 
 class FrameBus:
@@ -571,6 +1119,7 @@ class SlotSupervisor:
         backoff_max_s=8.0,
         bus=None,
         dry_run=False,
+        open_timeout_s=3.0,
     ):
         self.cam_id = cam_id
         self.role = role
@@ -585,6 +1134,7 @@ class SlotSupervisor:
         self.backoff_s = 0.5
         self.bus = bus
         self.dry_run = bool(dry_run)
+        self.open_timeout_s = float(open_timeout_s)
         self.lock = threading.Lock()
         self.state = "disabled" if not self.enabled else "absent"
         self.error = "disabled" if not self.enabled else "device_absent"
@@ -601,6 +1151,15 @@ class SlotSupervisor:
         self.capture = None
         self.pixel_format = None
         self.codec = None
+        self.capture_utc_ns = None
+        self.capture_mono_ns = None
+        self.decode_ms = None
+        self.encode_ms = None
+        self.rtsp_transport = None
+        self.rtsp_decoder = None
+        self.rtsp_backend = None
+        self.jpeg_width = None
+        self.jpeg_height = None
         self._next_attempt = 0.0
         self._stop = threading.Event()
         self.thread = None
@@ -616,7 +1175,12 @@ class SlotSupervisor:
                 mean = sum(self.intervals) / len(self.intervals)
                 if mean > 0:
                     fps = round(1.0 / mean, 2)
-            count = self.frame_count if self.frame_count > 0 else None
+            count = self.frame_count if self.camera_ok and self.frame_count > 0 else None
+            stages = {}
+            if self.decode_ms is not None:
+                stages["decode"] = round(float(self.decode_ms), 3)
+            if self.encode_ms is not None:
+                stages["jpeg"] = round(float(self.encode_ms), 3)
             return {
                 "id": self.cam_id,
                 "role": self.role,
@@ -639,13 +1203,38 @@ class SlotSupervisor:
                 "pixel_format": self.pixel_format,
                 "codec": self.codec,
                 "has_frame": self.frame_jpeg is not None and self.camera_ok,
+                "stages_ms": stages or None,
+                "t_utc_ns": self.capture_utc_ns,
+                "t_monotonic_ns": self.capture_mono_ns,
+                "transport": self.rtsp_transport,
+                "decoder": self.rtsp_decoder,
+                "encoder": self.rtsp_backend,
+                "jpeg_width": self.jpeg_width,
+                "jpeg_height": self.jpeg_height,
             }
 
     def latest_jpeg(self):
+        packet = self.latest_packet()
+        if not packet:
+            return None
+        return packet.get("jpeg")
+
+    def latest_packet(self):
         with self.lock:
-            if not self.camera_ok:
+            if not self.camera_ok or self.frame_jpeg is None:
                 return None
-            return self.frame_jpeg
+            return {
+                "jpeg": self.frame_jpeg,
+                "captured_utc_ns": self.capture_utc_ns,
+                "captured_mono_ns": self.capture_mono_ns,
+                "encode_ms": self.encode_ms,
+                "decode_ms": self.decode_ms,
+                "width": self.jpeg_width,
+                "height": self.jpeg_height,
+                "transport": self.rtsp_transport,
+                "decoder": self.rtsp_decoder,
+                "encoder": self.rtsp_backend,
+            }
 
     def step(self):
         if not self.enabled:
@@ -669,8 +1258,12 @@ class SlotSupervisor:
             return self.state
         if self.capture is None:
             self._mark(state="opening", error=None, present=True, camera_ok=False, source="absent")
+            self._drop_live_frame()
             try:
-                cap = self.open_fn(spec, plan)
+                if kind == "rtsp":
+                    cap = _call_with_deadline(lambda: self.open_fn(spec, plan), self.open_timeout_s)
+                else:
+                    cap = self.open_fn(spec, plan)
             except CaptureError as exc:
                 self._fail_open(exc.code, now)
                 return self.state
@@ -683,19 +1276,36 @@ class SlotSupervisor:
             self.capture = cap
             self.pixel_format = getattr(cap, "pixel_format", None)
             self.codec = getattr(cap, "codec", None)
+            self.rtsp_transport = getattr(cap, "transport", None)
+            self.rtsp_decoder = getattr(cap, "decoder", None)
+            self.rtsp_backend = getattr(cap, "backend", None)
         frame = None
         try:
             frame = self.capture.read_frame()
         except Exception:
             frame = None
+        if isinstance(frame, dict) and frame.get("pending") and not frame.get("jpeg"):
+            if getattr(self.capture, "failed", False):
+                transport = getattr(self.capture, "transport", None) if self.kind == "rtsp" else None
+                if transport:
+                    note_rtsp_transport_failure(transport)
+                self._release()
+                self._drop_live_frame()
+                self._mark(state="read_failed", error="read_failed", present=True, camera_ok=False, source="absent")
+                self._schedule_backoff(now)
+                return self.state
+            return self.state
         jpeg = frame.get("jpeg") if isinstance(frame, dict) else None
         if not jpeg:
+            transport = getattr(self.capture, "transport", None) if self.kind == "rtsp" else None
+            if transport and getattr(self.capture, "failed", False):
+                note_rtsp_transport_failure(transport)
             self._release()
             self._drop_live_frame()
             self._mark(state="read_failed", error="read_failed", present=True, camera_ok=False, source="absent")
             self._schedule_backoff(now)
             return self.state
-        self._note_frame(jpeg, frame.get("bgr") if isinstance(frame, dict) else None)
+        self._note_frame(jpeg, frame.get("bgr") if isinstance(frame, dict) else None, frame)
         self.backoff_s = 0.5
         self._next_attempt = now
         return self.state
@@ -708,7 +1318,10 @@ class SlotSupervisor:
             while not self._stop.is_set():
                 self.step()
                 if self.state == "streaming":
-                    wait = 1.0 / float(self.fps)
+                    if getattr(self.capture, "keeps_open_on_empty", False):
+                        wait = 0.02
+                    else:
+                        wait = 1.0 / float(self.fps)
                 else:
                     wait = max(0.05, self._next_attempt - self.now_fn())
                 if self._stop.wait(min(wait, self.discover_s)):
@@ -762,8 +1375,9 @@ class SlotSupervisor:
         if prev != state:
             print(f"[camera] {self.cam_id} state {state} device {resolved or '-'}", flush=True)
 
-    def _note_frame(self, jpeg, bgr):
+    def _note_frame(self, jpeg, bgr, timing=None):
         now = self.now_fn()
+        timing = timing if isinstance(timing, dict) else {}
         with self.lock:
             if self.last_frame_mono is not None:
                 self.intervals.append(now - self.last_frame_mono)
@@ -776,6 +1390,24 @@ class SlotSupervisor:
             self.error = None
             self.source = "real"
             self.state = "streaming"
+            if timing.get("captured_utc_ns"):
+                self.capture_utc_ns = timing.get("captured_utc_ns")
+            if timing.get("captured_mono_ns"):
+                self.capture_mono_ns = timing.get("captured_mono_ns")
+            if timing.get("encode_ms") is not None:
+                self.encode_ms = timing.get("encode_ms")
+            if timing.get("decode_ms") is not None:
+                self.decode_ms = timing.get("decode_ms")
+            if timing.get("transport"):
+                self.rtsp_transport = timing.get("transport")
+            if timing.get("decoder"):
+                self.rtsp_decoder = timing.get("decoder")
+            if timing.get("backend"):
+                self.rtsp_backend = timing.get("backend")
+            if timing.get("width"):
+                self.jpeg_width = timing.get("width")
+            if timing.get("height"):
+                self.jpeg_height = timing.get("height")
             count = self.frame_count
             resolved = self.resolved
         if self.bus is not None:
@@ -795,6 +1427,10 @@ class SlotSupervisor:
             self.camera_ok = False
             self.last_frame_mono = None
             self.intervals = []
+            self.capture_utc_ns = None
+            self.capture_mono_ns = None
+            self.decode_ms = None
+            self.encode_ms = None
 
     def _release(self):
         cap = self.capture
@@ -867,6 +1503,12 @@ class _DrySlot:
             if not self.camera_ok:
                 return None
             return self.frame_jpeg
+
+    def latest_packet(self):
+        jpeg = self.latest_jpeg()
+        if not jpeg:
+            return None
+        return {"jpeg": jpeg}
 
     def start_synthetic(self, fps, bus):
         if not self.enabled:
@@ -986,11 +1628,22 @@ class CameraIngest:
         return {cam_id: self.slots[cam_id].snapshot(now) for cam_id in CAM_IDS}
 
     def frame_jpeg(self, cam_id):
+        packet = self.frame_packet(cam_id)
+        if not packet:
+            return None
+        return packet.get("jpeg")
+
+    def frame_packet(self, cam_id):
         key = str(cam_id or "").strip().lower()
         slot = self.slots.get(key)
         if not slot:
             return None
-        return slot.latest_jpeg()
+        if hasattr(slot, "latest_packet"):
+            return slot.latest_packet()
+        jpeg = slot.latest_jpeg()
+        if not jpeg:
+            return None
+        return {"jpeg": jpeg}
 
     def snapshot(self):
         cameras = self.cameras()
@@ -1055,6 +1708,10 @@ def ingest_snapshot():
 
 def ingest_frame_jpeg(cam_id):
     return get_ingest().frame_jpeg(cam_id)
+
+
+def ingest_frame_packet(cam_id):
+    return get_ingest().frame_packet(cam_id)
 
 
 def main(argv=None):

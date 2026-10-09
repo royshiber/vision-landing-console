@@ -72,11 +72,21 @@ AGENT_VERSION = os.environ.get("VLC_AGENT_VERSION", "2.6.5")
 MODEM_STATUS_FILE = os.environ.get("AIRVIX_E3372_STATUS_FILE", "/run/airvix/e3372.status")
 
 try:
-    from camera_ingest import CAM_IDS, ingest_frame_jpeg, ingest_snapshot
+    from camera_ingest import (
+        CAM_IDS,
+        ingest_frame_jpeg,
+        ingest_frame_packet,
+        ingest_snapshot,
+        jpeg_timing_headers,
+    )
 except ImportError:
     CAM_IDS = ("cam1", "cam2", "cam3")
     ingest_snapshot = None
     ingest_frame_jpeg = None
+    ingest_frame_packet = None
+
+    def jpeg_timing_headers(_packet):
+        return (("Cache-Control", "no-store"),)
 try:
     from siyi_sdk import gimbal_command, gimbal_status, get_link as get_gimbal_link
 except ImportError:
@@ -1524,7 +1534,11 @@ class Handler(BaseHTTPRequestHandler):
             pass
         cam_frame = _camera_frame_id(path)
         if cam_frame:
-            jpeg = ingest_frame_jpeg(cam_frame) if ingest_frame_jpeg else None
+            packet = ingest_frame_packet(cam_frame) if ingest_frame_packet else None
+            jpeg = packet.get("jpeg") if isinstance(packet, dict) else None
+            if not jpeg and ingest_frame_jpeg:
+                jpeg = ingest_frame_jpeg(cam_frame)
+                packet = {"jpeg": jpeg} if jpeg else None
             if not jpeg:
                 return self._json(404, {
                     "ok": False,
@@ -1532,7 +1546,7 @@ class Handler(BaseHTTPRequestHandler):
                     "reason": "no_frame",
                     "note": "אין פריים",
                 })
-            self._send_bytes(200, jpeg, "image/jpeg", extra=(("Cache-Control", "no-store"),))
+            self._send_bytes(200, jpeg, "image/jpeg", extra=tuple(jpeg_timing_headers(packet)))
             return
         return self._json(404, {"ok": False})
 

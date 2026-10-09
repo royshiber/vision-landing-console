@@ -38,7 +38,10 @@
 export VLC_CAM3_ENABLED=1
 export VLC_CAM3_DEVICE=rtsp://192.168.144.25:8554/main.264
 export VLC_CAM3_CODEC=auto
+export VLC_CAM3_RTSP_TRANSPORT=udp
 ```
+
+`udp` is the low-delay default on the gimbal Ethernet. If the picture does not open, set `tcp`. The JPEG is 640×360 at quality 55 unless `VLC_CAM3_JPEG_WIDTH`, `VLC_CAM3_JPEG_HEIGHT`, or `VLC_CAM3_JPEG_QUALITY` say otherwise. Codec settings on the camera are read with the status poll and are not written.
 
 בדיקה:
 
@@ -83,7 +86,18 @@ export VLC_SIYI_ANGLE_CMD=0x0D
 |---|---|
 | `present: false` ו־`no_reply` | הזנה, כבל רשת, ושהפרופיל על האתרנט ולא על ה־Wi-Fi |
 | `state: disabled` ב־cam3 | חסר `VLC_CAM3_ENABLED=1` |
-| `read_failed` על RTSP | הכתובת, והאם OpenCV נבנה עם GStreamer. בלי זה יש נפילה ל־FFmpeg |
+| `read_failed` על RTSP | הכתובת, והאם OpenCV נבנה עם GStreamer. בלי זה יש נפילה ל־FFmpeg. ניסיון הפתיחה נגמר תוך כשתי שניות וחצי |
+
+## השהיה
+
+השוו את המצלמה הקבועה לגימבל על ה־Jetson, אחרי שהגימבל מחובר. בלי זרם הכלי מדווח שהמדידה לא בוצעה.
+
+```
+python3 measure_camera_latency.py --camera cam0 --seconds 5 --base http://127.0.0.1:8081
+python3 measure_camera_latency.py --camera cam3 --seconds 5 --base http://127.0.0.1:8081
+```
+
+הדוח כולל קצב, השהיה מקצה לקצה לפי חותמת הצילום על התמונה, וזמן פענוח וקידוד. זרם המשנה, אם רוצים אותו, נקבע ידנית בכתובת המכשיר. הקוד לא מחליף רזולוציה ולא מזיז את הגימבל.
 | `opencv_unavailable` | אין חבילת cv2 ב־venv |
 | `403` על שליטה | `VLC_GIMBAL_CONTROL_ENABLED` עדיין 0 |
 

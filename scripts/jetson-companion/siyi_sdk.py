@@ -8,6 +8,9 @@ The A8 mini manual labels set-angle as 0x0D (same id as attitude). Newer
 SIYI docs use 0x0E. VLC_SIYI_ANGLE_CMD selects it (default 0x0E).
 
 Control endpoints stay off unless VLC_GIMBAL_CONTROL_ENABLED=1.
+Codec specs (command 0x20) are read with the status poll. The set command
+(0x21) is never sent. Nothing in this module moves the gimbal unless a
+control POST is enabled and asked for.
 """
 
 from __future__ import annotations
@@ -31,6 +34,7 @@ CMD_CENTER = 0x08
 CMD_CONFIG = 0x0A
 CMD_ATTITUDE = 0x0D
 CMD_PHOTO = 0x0C
+CMD_CODEC = 0x20
 DEFAULT_HOST = "192.168.144.25"
 DEFAULT_PORT = 37260
 YAW_MIN = -135.0
@@ -153,6 +157,28 @@ def parse_zoom(data):
     return raw / 10.0
 
 
+def parse_codec_specs(data):
+    """Read-only SIYI codec block. 0x20, nine bytes per stream. Never a set."""
+    raw = bytes(data or b"")
+    rows = []
+    off = 0
+    while off + 9 <= len(raw):
+        stream_type, enc, width, height, bitrate, fps = struct.unpack_from("<BBHHHB", raw, off)
+        if width <= 0 or height <= 0 or width > 8192 or height > 8192:
+            break
+        rows.append({
+            "stream": "main" if stream_type == 0 else "sub" if stream_type == 1 else str(int(stream_type)),
+            "stream_type": int(stream_type),
+            "codec": {1: "h264", 2: "h265"}.get(int(enc), str(int(enc))),
+            "width": int(width),
+            "height": int(height),
+            "bitrate_kbps": int(bitrate),
+            "fps": int(fps),
+        })
+        off += 9
+    return rows or None
+
+
 def parse_config(data):
     if len(data) < 5:
         return None
@@ -242,6 +268,7 @@ class SiyiLink:
         self.zoom = None
         self.mode = None
         self.recording = None
+        self.codec = None
         self.last_reply_mono = None
         self.present = False
         self.last_error = None
@@ -282,6 +309,8 @@ class SiyiLink:
                 "zoom": self.zoom if present else None,
                 "mode": self.mode if present else None,
                 "recording": self.recording if present else None,
+                "codec": list(self.codec) if present and self.codec else None,
+                "codec_writable": False,
                 "age_ms": age,
                 "control_enabled": gimbal_control_enabled(self.env),
                 "polling": self._thread is not None,
@@ -414,6 +443,12 @@ class SiyiLink:
                             self.mode = parsed["mode"]
                         if parsed.get("recording") is not None:
                             self.recording = parsed["recording"]
+            codec = self.exchange(CMD_CODEC, b"", require_match=True)
+            if isinstance(codec, dict):
+                parsed = parse_codec_specs(codec["data"])
+                if parsed:
+                    with self._lock:
+                        self.codec = parsed
 
     def _loop(self):
         while not self._stop.wait(self.poll_s):

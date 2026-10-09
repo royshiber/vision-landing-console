@@ -25,11 +25,17 @@ def try_handle(handler, body=None):
     method = handler.command
     svc = get_service()
     if path in ("/api/v1/cameras/cam0/frame", "/api/v1/cameras/cam0/frame.jpg", "/api/cameras/cam0/frame", "/api/cameras/cam0/frame.jpg"):
-        jpeg = svc.frame_jpeg() if svc else None
+        packet = svc.frame_packet() if svc and hasattr(svc, "frame_packet") else None
+        jpeg = packet.get("jpeg") if isinstance(packet, dict) else (svc.frame_jpeg() if svc else None)
         if not jpeg:
             _json_body(handler, 404, {"ok": False, "camera_ok": False, "reason": "no_frame", "note": "אין אות"})
             return True
-        handler._send_bytes(200, jpeg, "image/jpeg", extra=(("Cache-Control", "no-store"),))
+        try:
+            from camera_ingest import jpeg_timing_headers
+            extra = tuple(jpeg_timing_headers(packet or {"jpeg": jpeg}))
+        except Exception:
+            extra = (("Cache-Control", "no-store"),)
+        handler._send_bytes(200, jpeg, "image/jpeg", extra=extra)
         return True
     if path in ("/api/v1/cam0/status", "/api/v1/cam0/health") and method == "GET":
         if path.endswith("/health"):
