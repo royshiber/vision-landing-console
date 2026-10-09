@@ -2369,6 +2369,10 @@
             <section class="mission-region mission-region-data" data-mission-region="data" aria-label="נתונים">
             <h3 class="mission-region-title" draggable="true">נתונים</h3>
             <button type="button" id="missionAskDataBtn" class="mission-ask-chip">שאלו על הנתונים</button>
+            <div class="mission-data-hint-anchor">
+              <button type="button" id="missionDataHintBtn" class="mission-data-hint-btn" aria-describedby="missionDataHintTip" title="קליק ימני על אריח מוסיף או מוחק. לחיצה ארוכה או קליק בוחרים שדה.">עזרה</button>
+              <p id="missionDataHintTip" class="mission-data-hint-tip" role="tooltip">קליק ימני על אריח מוסיף או מוחק. לחיצה ארוכה או קליק בוחרים שדה.</p>
+            </div>
             <dl id="missionDataGrid" class="mission-data-grid" aria-label="מדדי טיסה">
               <div class="mission-data-item mission-data-tile" data-mission-data-slot="0">
                 <dt class="mission-data-label">מוד</dt>
@@ -2406,9 +2410,7 @@
             <div id="flightStackSplitMsg" class="flight-stack-split" role="separator" aria-orientation="horizontal" aria-label="גובה ההודעות" tabindex="0"></div>
             <section class="mission-region mission-region-messages" data-mission-region="messages" data-messages-expanded="0" data-flight-dock="messages" dir="rtl" aria-label="תחתית הטיסה">
               <h3 class="mission-region-title">הודעות מטוס</h3>
-              <div class="flight-screen-tools">
-                <p class="mission-data-hint">קליק ימני על אריח מוסיף או מוחק. לחיצה ארוכה או קליק בוחרים שדה.</p>
-              </div>
+              <div class="flight-screen-tools" hidden></div>
               <div class="flight-dock-bar">
                 <div class="flight-dock-tabs" role="tablist" aria-label="תחתית הטיסה">
                   <button type="button" id="flightDockMessagesTab" class="flight-dock-tab" role="tab" aria-selected="true" aria-controls="flightDockMessagesPane">הודעות</button>
@@ -2576,6 +2578,9 @@
             </div>
           </div>
 
+          <div id="flightColumnMenu" class="flight-column-menu" hidden role="menu" aria-label="פריסת העמודה">
+            <button type="button" id="flightStackResetBtn" class="flight-column-menu-item" role="menuitem">אפסו פריסה</button>
+          </div>
           <div id="missionDataTileMenu" class="mission-data-tile-menu hidden" role="menu" aria-label="אריח נתון">
             <button type="button" id="missionDataTileAdd" class="mission-data-tile-menu-item" role="menuitem">הוסיפו נתון</button>
             <button type="button" id="missionDataTileDelete" class="mission-data-tile-menu-item" role="menuitem">מחקו</button>

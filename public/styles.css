@@ -26235,14 +26235,132 @@ button.mission-link-chip,
   box-shadow: none;
 }
 
-/* Approved mockup: the square horizon wins every later height cap. */
-.mission-workspace[data-mission-layout="ops-v1"] .mission-region-horizon > .flight-hud {
+/* Resting horizon stays square to the column width. A custom drag sets --flight-hud-h
+   and drops the square lock so the handle can grow the horizon. Tiles and messages
+   keep the leftover, and neither region may leave the column. */
+.mission-workspace[data-mission-layout="ops-v1"] .mission-region-horizon:not([data-flight-stack="custom"]) > .flight-hud {
   width: 100%;
   height: auto;
   aspect-ratio: 1 / 1;
-  min-height: 0;
-  max-height: calc(100% - 210px);
+  min-height: 112px;
+  max-height: min(calc(100% - 210px), var(--flight-hud-h, calc(100% - 210px)));
   flex: 0 0 auto;
+}
+.mission-workspace[data-mission-layout="ops-v1"] .mission-region-horizon[data-flight-stack="custom"] > .flight-hud {
+  width: 100%;
+  aspect-ratio: auto;
+  height: var(--flight-hud-h, 112px);
+  min-height: 112px;
+  max-height: var(--flight-hud-h, 112px);
+  flex: 0 0 var(--flight-hud-h, 112px);
+}
+.mission-workspace[data-mission-layout="ops-v1"] .mission-region-horizon[data-flight-stack="custom"] > .mission-region-data {
+  flex: 0 0 var(--flight-data-h, auto);
+  height: var(--flight-data-h, auto);
+  min-height: 0;
+  max-height: var(--flight-data-h, none);
+  overflow: hidden;
+}
+.mission-workspace[data-mission-layout="ops-v1"] .mission-region-horizon[data-flight-stack="custom"] > .mission-region-messages,
+.mission-workspace[data-mission-layout="ops-v1"] .mission-region-horizon[data-flight-stack="custom"] > .mission-region-messages[data-messages-expanded="0"],
+.mission-workspace[data-mission-layout="ops-v1"] .mission-region-horizon[data-flight-stack="custom"] > .mission-region-messages[data-messages-expanded="1"] {
+  flex: 0 0 var(--flight-msg-h, auto);
+  height: var(--flight-msg-h, auto);
+  min-height: 0;
+  max-height: var(--flight-msg-h, none);
+  overflow: hidden;
+}
+.mission-workspace[data-mission-layout="ops-v1"] .mission-region-horizon > .mission-region-messages[data-messages-expanded="1"] > #flightDockActionsPane {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+.mission-workspace[data-mission-layout="ops-v1"] .mission-region-horizon .flight-dock-cmds {
+  flex: 0 0 auto;
+  height: auto;
+  min-height: 0;
+  max-height: none;
+}
+.mission-workspace[data-mission-layout="ops-v1"] .mission-region-horizon .flight-dock-cmds > .flight-dock-cmd {
+  min-height: 28px;
+  height: 28px;
+  max-height: 28px;
+  padding: 2px 4px;
+}
+.mission-data-hint-anchor {
+  position: absolute;
+  z-index: 5;
+  top: 1px;
+  inset-inline-end: 2px;
+  width: 36px;
+  height: 18px;
+}
+.mission-data-hint-btn {
+  width: 36px;
+  height: 18px;
+  margin: 0;
+  padding: 0 2px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: #0b1220;
+  color: #f8fafc;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 16px;
+  white-space: nowrap;
+}
+.mission-data-hint-tip {
+  display: none;
+  position: absolute;
+  top: 20px;
+  inset-inline-end: 0;
+  z-index: 6;
+  width: max-content;
+  max-width: 220px;
+  margin: 0;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: #0b1220;
+  color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  font-size: clamp(11px, 0.78rem, 13px);
+  font-weight: 700;
+  line-height: 1.35;
+  white-space: normal;
+}
+.mission-data-hint-anchor:hover .mission-data-hint-tip,
+.mission-data-hint-anchor:focus-within .mission-data-hint-tip {
+  display: block;
+}
+.flight-column-menu {
+  position: fixed;
+  z-index: 80;
+  min-width: 148px;
+  max-width: min(280px, calc(100vw - 16px));
+  padding: 6px;
+  border-radius: 10px;
+  background: #0b1220;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+.flight-column-menu[hidden] {
+  display: none;
+}
+.flight-column-menu-item {
+  display: block;
+  width: 100%;
+  min-height: 32px;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #f8fafc;
+  font-size: clamp(11px, 0.9rem, 16px);
+  font-weight: 800;
+  line-height: 1.3;
+  text-align: right;
+  white-space: normal;
 }
 .mission-workspace[data-mission-layout="ops-v1"] .mission-region-horizon .pfd-horizon-shell,
 .mission-workspace[data-mission-layout="ops-v1"] .mission-region-horizon .pfd-horizon-instrument,

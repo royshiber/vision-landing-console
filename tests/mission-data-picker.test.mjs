@@ -83,7 +83,9 @@ describe('Mission data-slot field picker', () => {
     expect(html).toContain('id="missionDataPickerClose"');
     expect(html).toContain('>ביטול<');
     expect(html).toContain('data-mission-data-slot="0"');
-    expect(html).toContain('קליק ימני מוחק אריח. לחיצה ארוכה או קליק בוחרים שדה.');
+    expect(html).toContain('id="missionDataHintTip"');
+    expect(html).toContain('קליק ימני על אריח מוסיף או מוחק. לחיצה ארוכה או קליק בוחרים שדה.');
+    expect(html).not.toContain('flight-screen-tools">\n                <p class="mission-data-hint">');
     expect(html).toContain('id="missionDataAddBtn"');
     expect(html).toContain('>הוסיפו נתון<');
     expect(css).toMatch(/\.mission-data-picker\s*\{[^}]*position:\s*fixed/);

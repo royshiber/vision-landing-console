@@ -139,18 +139,25 @@ describe('three-camera proportions and tile delete', () => {
     expect(after.stored).toContain('1');
     expect(after.urls.some((url) => /arm|disarm|flight-mode|param-set|\/apply|\/restart|\/command/i.test(url))).toBe(false);
     const hint = await page.evaluate(() => {
-      const el = document.querySelector('.flight-screen-tools .mission-data-hint');
+      const el = document.getElementById('missionDataHintBtn');
+      const tip = document.getElementById('missionDataHintTip');
+      const messages = document.querySelector('[data-mission-region="messages"]');
       const cs = getComputedStyle(el);
       const r = el.getBoundingClientRect();
+      const tiles = document.querySelector('[data-mission-region="data"]').getBoundingClientRect();
       return {
-        text: el.textContent,
+        text: `${el.getAttribute('title') || ''} ${tip?.textContent || ''}`,
+        inMessages: (messages?.textContent || '').includes('קליק ימני על אריח'),
         w: r.width,
         h: r.height,
         size: parseFloat(cs.fontSize),
+        byTiles: r.top >= tiles.top - 4 && r.bottom <= tiles.bottom + 4,
       };
     });
-    expect(hint.text).toContain('קליק ימני מוחק אריח');
-    expect(hint.w).toBeGreaterThan(80);
+    expect(hint.text).toContain('קליק ימני על אריח');
+    expect(hint.inMessages).toBe(false);
+    expect(hint.byTiles).toBe(true);
+    expect(hint.w).toBeGreaterThan(20);
     expect(hint.h).toBeGreaterThan(11);
     expect(hint.size).toBeGreaterThanOrEqual(11);
     expect(await page.locator('#missionDataAddBtn').innerText()).toBe('הוסיפו נתון');

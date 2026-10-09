@@ -7007,13 +7007,11 @@ function paintInstrumentVideo(companion) {
   const img = document.getElementById('instrumentVideoFrame');
   const empty = document.getElementById('horizonVideoEmpty');
   const override = (document.getElementById('horizonVideoUrl')?.value || localStorage.getItem(HORIZON_VIDEO_URL_KEY) || '').trim();
-  let liveId = null;
-  for (const apiId of ['cam1', 'cam2', 'cam3']) {
-    if (horizonSlotStreaming(horizonCameraDetail(companion, apiId))) {
-      liveId = apiId;
-      break;
-    }
-  }
+  const selected = readHorizonCameras().map((id) => {
+    const slot = HORIZON_CAMERA_SLOTS.find((item) => item.id === id);
+    return slot?.apiId || null;
+  }).filter(Boolean);
+  const liveId = horizonStreamApiId(companion, selected);
   if (readInstrumentView() !== 'video') {
     if (img) {
       img.hidden = true;
@@ -7134,7 +7132,6 @@ function initHorizonVideo() {
   const savedView = localStorage.getItem(HORIZON_VIDEO_ON_KEY) === '1' ? 'video' : readInstrumentView();
   setInstrumentView(savedView);
 }
-initHorizonVideo();
 
 const HORIZON_CAMERA_KEY = 'vlc.horizon.bgCamera.v1';
 const GIMBAL_FRAME = '/api/jetson/v1/cameras/cam3/frame';
@@ -7184,26 +7181,56 @@ function writeHorizonCameras(ids) {
 }
 
 function horizonSlotStreaming(detail) {
-  if (!detail || detail.camera_ok !== true) return false;
+  if (!detail || typeof detail !== 'object') return false;
+  // A parent vision block is not a camera. Its source / camera_ok must not hide a slot.
+  if (detail.cameras && typeof detail.cameras === 'object' && detail.id == null && !detail.state) return false;
   if (detail.enabled === false) return false;
-  if (detail.state && detail.state !== 'streaming') return false;
-  if (detail.has_frame === false) return false;
+  const state = typeof detail.state === 'string' ? detail.state : '';
+  if (state === 'disabled' || state === 'error') return false;
   const fps = Number(detail.fps);
   const age = Number(detail.last_frame_age_ms);
   const count = Number(detail.frame_count);
-  return (Number.isFinite(fps) && fps > 0)
-    || (Number.isFinite(age) && age >= 0)
-    || (Number.isFinite(count) && count > 0);
+  const ownSource = typeof detail.source === 'string' ? detail.source : '';
+  const streaming = state === 'streaming'
+    || (Number.isFinite(fps) && fps > 0)
+    || detail.has_frame === true
+    || (Number.isFinite(count) && count > 0 && state !== 'absent');
+  if (state === 'absent' && !(Number.isFinite(fps) && fps > 0)) return false;
+  if (ownSource === 'absent' && !streaming) return false;
+  if (streaming) return true;
+  if (detail.camera_ok !== true) return false;
+  if (state && state !== 'streaming') return false;
+  if (detail.has_frame === false) return false;
+  return Number.isFinite(age) && age >= 0;
 }
+
+function horizonStreamApiId(companion, selectedApiIds) {
+  const picked = Array.isArray(selectedApiIds) ? selectedApiIds.filter(Boolean) : [];
+  const order = picked.length ? picked : ['cam1', 'cam2', 'cam3', 'cam0'];
+  for (const apiId of order) {
+    if (horizonSlotStreaming(horizonCameraDetail(companion, apiId))) return apiId;
+  }
+  return null;
+}
+initHorizonVideo();
 
 function horizonCameraDetail(companion, apiId) {
   const src = companion && typeof companion === 'object' ? companion : {};
-  return src.vision?.cameras?.[apiId]
-    || src.opticalNav?.cameras?.[apiId]
-    || src.optical_nav?.cameras?.[apiId]
-    || src.extras?.cameras?.[apiId]
-    || src.cameras?.[apiId]
-    || null;
+  const maps = [
+    src.vision?.cameras,
+    src.opticalNav?.cameras,
+    src.optical_nav?.cameras,
+    src.extras?.cameras,
+    src.cameras,
+  ];
+  let fallback = null;
+  for (const map of maps) {
+    const row = map && typeof map === 'object' ? map[apiId] : null;
+    if (!row || typeof row !== 'object') continue;
+    if (horizonSlotStreaming(row)) return row;
+    if (!fallback) fallback = row;
+  }
+  return fallback;
 }
 
 function syncHorizonMenu(ids) {
@@ -7748,6 +7775,12 @@ function preferHudFcMetrics(sseMav, live) {
   return out;
 }
 
+function hudFiniteMode(value) {
+  if (value == null || value === '') return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
 function liveStatusToHudMavlink(s) {
   if (!s || typeof s !== 'object') return null;
   const texts = Array.isArray(s.recentStatusTexts) ? s.recentStatusTexts : [];
@@ -7770,7 +7803,7 @@ function liveStatusToHudMavlink(s) {
     autopilotName: s.autopilotName || null,
     vehicleType: s.vehicleType || null,
     mavType: Number.isFinite(Number(s.mavType)) ? Number(s.mavType) : null,
-    flightMode: null,
+    flightMode: hudFiniteMode(s.flightMode ?? s.customMode ?? s.custom_mode),
     airspeed: null,
     groundspeed: null,
     altitude: null,
@@ -7809,7 +7842,7 @@ function resolveHudMavlink(sseMav, liveStatus) {
       armed: sseMav?.armed ?? null,
       armedKnown: sseMav?.armedKnown === true,
       flying: sseMav?.flying === true || fromLive.flying === true,
-      flightMode: sseMav?.flightMode ?? null,
+      flightMode: hudFiniteMode(sseMav?.flightMode) ?? hudFiniteMode(fromLive.flightMode),
       sysId: hudSysId(sseMav?.sysId) ?? fromLive.sysId,
       lastHeartbeatAgeMs: sseMav?.lastHeartbeatAgeMs ?? fromLive.lastHeartbeatAgeMs,
       heartbeatRateHz: sseMav?.heartbeatRateHz ?? fromLive.heartbeatRateHz,
@@ -8225,14 +8258,28 @@ function drawHorizon(canvas, rollDeg, pitchDeg, opts = {}) {
     ctx.strokeRect(cx - 4.5, cy - 4.5, 9, 9);
   }
 
+  // Corner chips are solid #f8fafc on #0b1220 so R/P stay at least 4.5:1 on sky and ground.
+  ctx.save();
   ctx.font = '700 11px "Space Grotesk", sans-serif';
-  ctx.textBaseline = 'alphabetic';
-  ctx.fillStyle = showRoll ? hud : (videoMode ? 'rgba(61,255,106,0.4)' : 'rgba(248,250,252,0.4)');
-  ctx.textAlign = 'left';
-  ctx.fillText(showRoll ? `R ${rollDraw >= 0 ? '+' : ''}${formatHudAngleLabel(rollDraw)}°` : 'R —', 8, H - 8);
-  ctx.fillStyle = showPitch ? hud : (videoMode ? 'rgba(61,255,106,0.4)' : 'rgba(248,250,252,0.4)');
-  ctx.textAlign = 'right';
-  ctx.fillText(showPitch ? `P ${pitchDraw >= 0 ? '+' : ''}${formatHudAngleLabel(pitchDraw)}°` : 'P —', W - 8, H - 8);
+  ctx.textBaseline = 'middle';
+  const rollText = showRoll ? `R ${rollDraw >= 0 ? '+' : ''}${formatHudAngleLabel(rollDraw)}°` : 'R —';
+  const pitchText = showPitch ? `P ${pitchDraw >= 0 ? '+' : ''}${formatHudAngleLabel(pitchDraw)}°` : 'P —';
+  const paintCornerLabel = (text, anchor, align) => {
+    const padX = 4;
+    const width = Math.ceil(ctx.measureText(text).width) + padX * 2;
+    const height = 16;
+    const left = align === 'right' ? anchor - width : anchor;
+    const top = Math.max(0, H - 6 - height);
+    ctx.fillStyle = '#0b1220';
+    ctx.fillRect(left, top, width, height);
+    ctx.fillStyle = '#f8fafc';
+    ctx.textAlign = align === 'right' ? 'right' : 'left';
+    const textX = align === 'right' ? anchor - padX : anchor + padX;
+    ctx.fillText(text, textX, top + height / 2);
+  };
+  paintCornerLabel(rollText, 4, 'left');
+  paintCornerLabel(pitchText, W - 4, 'right');
+  ctx.restore();
 }
 const GPS_FIX_LABELS = ['אין GPS', 'אין Fix', '2D Fix', '3D Fix', 'DGPS', 'RTK Float', 'RTK Fixed'];
 
@@ -13006,11 +13053,10 @@ function applyLiveCameraPreview(companion) {
   let anyDry = false;
   for (const cam of LIVE_FRAME_CAMERAS) {
     const camId = cam.id;
-    const detail = liveCameraDetail(src, camId);
+    const detail = horizonCameraDetail(src, camId) || liveCameraDetail(src, camId);
     const meta = liveCameraNode(camId, 'Meta');
     const img = liveCameraNode(camId, 'Frame');
-    const ok = detail.camera_ok === true
-      && (Number(detail.fps) > 0 || Number(detail.last_frame_age_ms) >= 0 || Number(detail.frame_count) > 0);
+    const ok = horizonSlotStreaming(detail);
     if (detail.dry_run === true || detail.source === 'synthetic') anyDry = true;
     if (meta) {
       if (ok) {
@@ -20672,33 +20718,78 @@ function flightDataFloor(horizon) {
   return FLIGHT_DATA_MIN;
 }
 
+function flightInFlowHeight(el) {
+  if (!el || typeof getComputedStyle !== 'function') return 0;
+  const cs = getComputedStyle(el);
+  if (cs.display === 'none' || cs.position === 'absolute' || cs.position === 'fixed') return 0;
+  return el.offsetHeight || 0;
+}
+
+function flightRegionChrome(el) {
+  if (!el || typeof getComputedStyle !== 'function') return 0;
+  const cs = getComputedStyle(el);
+  return (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0)
+    + (parseFloat(cs.borderTopWidth) || 0) + (parseFloat(cs.borderBottomWidth) || 0);
+}
+
+// Resting horizon stays square to the column width (aspect-ratio 1/1), capped so
+// tiles and messages keep their minima. Dragging #flightStackSplitData releases
+// that lock and sets an explicit height: drag down grows the horizon (floor 112).
+// Dragging #flightStackSplitMsg only trades tiles against messages.
 function flightStackBudget(horizon) {
-  const total = horizon.getBoundingClientRect().height;
-  const splits = [...horizon.querySelectorAll('.flight-stack-split')];
-  const splitH = splits.reduce((sum, el) => sum + el.getBoundingClientRect().height, 0);
-  const bar = horizon.querySelector('.flight-dock-bar');
-  const header = bar ? Math.ceil(bar.getBoundingClientRect().height + 8) : FLIGHT_MSG_DEFAULT;
-  const msgMin = Math.max(FLIGHT_MSG_MIN, header);
+  const total = horizon.clientHeight || horizon.getBoundingClientRect().height;
+  const hudEl = horizon.querySelector(':scope > .flight-hud');
+  const dataEl = horizon.querySelector(':scope > [data-mission-region="data"]');
+  const msgEl = horizon.querySelector(':scope > [data-mission-region="messages"]');
+  let chrome = 0;
+  for (const child of horizon.children) {
+    if (child === hudEl || child === dataEl || child === msgEl) continue;
+    chrome += flightInFlowHeight(child);
+  }
+  const bar = msgEl?.querySelector('.flight-dock-bar');
+  const barH = bar ? bar.offsetHeight : 0;
+  const msgMin = Math.max(FLIGHT_MSG_MIN, Math.ceil(barH + flightRegionChrome(msgEl)));
   return {
-    avail: Math.max(0, total - splitH),
+    avail: Math.max(0, total - chrome),
     dataMin: flightDataFloor(horizon),
     msgMin,
     hudMin: FLIGHT_HUD_MIN,
+    hudNow: hudEl ? hudEl.offsetHeight : 0,
+    width: horizon.clientWidth || horizon.getBoundingClientRect().width,
   };
 }
 
+function flightStackFits(stack, budget) {
+  if (!budget || budget.avail < 240) return true;
+  if (!stack || stack.half === true) return true;
+  const data = Number(stack.data);
+  const msg = Number(stack.msg);
+  if (!Number.isFinite(data) || !Number.isFinite(msg)) return false;
+  if (data + 1 < budget.dataMin) return false;
+  if (msg + 1 < budget.msgMin) return false;
+  return data + msg + budget.hudMin <= budget.avail + 2;
+}
+
 function clampFlightStack(stack, budget) {
-  let data = Math.max(budget.dataMin, Number(stack.data) || FLIGHT_DATA_DEFAULT);
-  let msg = Math.max(budget.msgMin, Number(stack.msg) || FLIGHT_MSG_DEFAULT);
-  const room = budget.avail - budget.hudMin;
-  if (room > budget.dataMin + budget.msgMin && data + msg > room) {
+  const hudMin = budget.hudMin;
+  let data = Math.max(budget.dataMin, Number(stack?.data) || FLIGHT_DATA_DEFAULT);
+  let msg = Math.max(budget.msgMin, Number(stack?.msg) || FLIGHT_MSG_DEFAULT);
+  const requestedHud = Number(stack?.hud);
+  const lockHud = Number.isFinite(requestedHud);
+  const maxHud = Math.max(hudMin, budget.avail - budget.dataMin - budget.msgMin);
+  const locked = lockHud ? Math.max(hudMin, Math.min(requestedHud, maxHud)) : null;
+  const reserved = locked == null ? hudMin : locked;
+  const room = Math.max(0, budget.avail - reserved);
+  if (data + msg > room) {
     const overflow = data + msg - room;
     const msgRoom = Math.max(0, msg - budget.msgMin);
     const takeMsg = Math.min(msgRoom, overflow);
     msg -= takeMsg;
     data = Math.max(budget.dataMin, data - (overflow - takeMsg));
   }
-  return { data, msg };
+  if (lockHud && data + msg < room) msg += room - data - msg;
+  const hud = Math.max(hudMin, budget.avail - data - msg);
+  return { data, msg, hud };
 }
 
 function flightMessagesWantOpen(msg, msgMin) {
@@ -20712,16 +20803,16 @@ function applyFlightStack(stack, opts = {}) {
   }
   const budget = flightStackBudget(horizon);
   const half = opts.half === true || (opts.half !== false && stack?.half === true);
-  const next = half
+  const sized = half
     ? (flightColumnHalfStack(horizon) || clampFlightStack(stack || _flightStack, budget))
     : clampFlightStack(stack || _flightStack, budget);
-  _flightStack = half ? { ...next, half: true } : { ...next, half: false };
+  const next = half ? { ...sized, half: true } : { ...sized, half: false };
+  _flightStack = next;
   horizon.dataset.flightStack = half ? 'half' : 'custom';
   horizon.style.setProperty('--flight-data-h', `${Math.round(next.data)}px`);
-  const hudPx = Math.max(
-    budget.hudMin,
-    budget.avail - next.data - (half ? budget.msgMin : next.msg),
-  );
+  const hudPx = Number.isFinite(next.hud)
+    ? next.hud
+    : Math.max(budget.hudMin, budget.avail - next.data - (half ? budget.msgMin : next.msg));
   horizon.style.setProperty('--flight-hud-h', `${Math.round(hudPx)}px`);
   if (half) horizon.style.removeProperty('--flight-msg-h');
   else horizon.style.setProperty('--flight-msg-h', `${Math.round(next.msg)}px`);
@@ -20767,13 +20858,15 @@ function bindFlightStackSplitters() {
   const onDown = (which, ev) => {
     if (ev.button != null && ev.button !== 0) return;
     const horizon = document.querySelector('[data-mission-region="horizon"]');
-    const dataEl = horizon?.querySelector('[data-mission-region="data"]');
-    const msgEl = horizon?.querySelector('[data-mission-region="messages"]');
+    const hudEl = horizon?.querySelector(':scope > .flight-hud');
+    const dataEl = horizon?.querySelector(':scope > [data-mission-region="data"]');
+    const msgEl = horizon?.querySelector(':scope > [data-mission-region="messages"]');
     drag = {
       which,
       y: ev.clientY,
       base: {
         half: false,
+        hud: hudEl?.getBoundingClientRect().height || _flightStack.hud || FLIGHT_HUD_MIN,
         data: dataEl?.getBoundingClientRect().height || _flightStack.data,
         msg: msgEl?.getBoundingClientRect().height || _flightStack.msg,
       },
@@ -20784,14 +20877,28 @@ function bindFlightStackSplitters() {
   const onMove = (ev) => {
     if (!drag) return;
     const dy = ev.clientY - drag.y;
-    const next = { ...drag.base, half: false };
+    const horizon = document.querySelector('[data-mission-region="horizon"]');
+    const budget = horizon ? flightStackBudget(horizon) : null;
+    if (!budget) return;
+    const next = { half: false };
     if (drag.which === 'data') {
-      // Handle under the attitude window: drag down grows that window.
-      next.data = drag.base.data - dy;
+      // Handle under the horizon. Drag down grows the horizon; the handle tracks the pointer.
+      const maxHud = Math.max(budget.hudMin, budget.avail - budget.dataMin - budget.msgMin);
+      next.hud = Math.max(budget.hudMin, Math.min(drag.base.hud + dy, maxHud));
+      const room = Math.max(0, budget.avail - next.hud);
+      let data = drag.base.data - (next.hud - drag.base.hud);
+      data = Math.max(budget.dataMin, Math.min(data, room - budget.msgMin));
+      next.data = data;
+      next.msg = room - data;
     } else {
-      // Handle under the data strip: drag down grows the strip and shrinks the messages.
-      next.data = drag.base.data + dy;
-      next.msg = drag.base.msg - dy;
+      // Handle under the tiles. Horizon stays. Drag down grows tiles and shrinks messages.
+      const maxHud = Math.max(budget.hudMin, budget.avail - budget.dataMin - budget.msgMin);
+      next.hud = Math.max(budget.hudMin, Math.min(drag.base.hud, maxHud));
+      const room = Math.max(0, budget.avail - next.hud);
+      let data = drag.base.data + dy;
+      data = Math.max(budget.dataMin, Math.min(data, room - budget.msgMin));
+      next.data = data;
+      next.msg = room - data;
     }
     applyFlightStack(next, { half: false });
   };
@@ -20815,27 +20922,78 @@ function bindFlightStackSplitters() {
   window.addEventListener('pointercancel', stop);
 }
 
+function bindFlightColumnMenu() {
+  const horizon = document.querySelector('[data-mission-region="horizon"]');
+  const menu = document.getElementById('flightColumnMenu');
+  const resetBtn = document.getElementById('flightStackResetBtn');
+  if (!horizon || !menu || !resetBtn || horizon.dataset.columnMenu === '1') return;
+  horizon.dataset.columnMenu = '1';
+  const close = () => { menu.hidden = true; };
+  const open = (x, y) => {
+    menu.hidden = false;
+    menu.style.left = '0px';
+    menu.style.top = '0px';
+    const rect = menu.getBoundingClientRect();
+    const left = Math.max(8, Math.min(x, window.innerWidth - rect.width - 8));
+    const top = Math.max(8, Math.min(y, window.innerHeight - rect.height - 8));
+    menu.style.left = `${left}px`;
+    menu.style.top = `${top}px`;
+  };
+  horizon.addEventListener('contextmenu', (ev) => {
+    if (ev.target.closest('#pfdHorizonStage, .mission-data-tile, #flightColumnMenu, .flight-stack-split')) return;
+    ev.preventDefault();
+    open(ev.clientX, ev.clientY);
+  });
+  resetBtn.addEventListener('click', (ev) => {
+    ev.preventDefault();
+    close();
+    resetFlightStack();
+  });
+  document.addEventListener('pointerdown', (ev) => {
+    if (menu.hidden || menu.contains(ev.target)) return;
+    close();
+  });
+  document.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Escape') close();
+  });
+}
+
 function initFlightStack() {
   const storedRaw = missionLayoutStoreGet(FLIGHT_STACK_KEY);
   const stored = storedRaw ? readFlightStack() : null;
   const expandedKey = missionLayoutStoreGet(MISSION_MESSAGES_KEY);
-  const legacy = !stored || stored.half === true || (isLegacyCollapsedFlightStack(stored) && expandedKey !== '0' && expandedKey !== '1');
+  const legacyShape = !stored || stored.half === true
+    || (isLegacyCollapsedFlightStack(stored) && expandedKey !== '0' && expandedKey !== '1');
   const horizon = document.querySelector('[data-mission-region="horizon"]');
+  const budget = horizon ? flightStackBudget(horizon) : null;
+  const unfit = !!(stored && stored.half !== true && budget && budget.avail >= 240 && !flightStackFits(stored, budget));
+  const legacy = legacyShape || unfit;
   const stack = legacy
     ? { ...(flightColumnHalfStack(horizon) || defaultFlightStack()), half: true }
     : stored;
   applyFlightStack(stack, { persist: legacy, half: legacy });
   if (legacy && _flightStackOpen) writeMissionMessagesExpanded(true);
   bindFlightStackSplitters();
-  requestAnimationFrame(() => {
-    if (legacy) {
-      const half = flightColumnHalfStack(document.querySelector('[data-mission-region="horizon"]'));
-      if (half) applyFlightStack({ ...half, half: true }, { persist: true, half: true });
-      if (_flightStackOpen) writeMissionMessagesExpanded(true);
-    } else {
-      applyFlightStack(_flightStack);
+  bindFlightColumnMenu();
+  const settle = () => {
+    const horizonNow = document.querySelector('[data-mission-region="horizon"]');
+    if (!horizonNow) return;
+    const budgetNow = flightStackBudget(horizonNow);
+    if (_flightStack?.half !== true && budgetNow.avail >= 240 && !flightStackFits(_flightStack, budgetNow)) {
+      resetFlightStack();
+      return;
     }
-    requestAnimationFrame(() => applyFlightStack(_flightStack, { half: _flightStack.half === true }));
+    if (_flightStack?.half === true) {
+      const half = flightColumnHalfStack(horizonNow);
+      if (half) applyFlightStack({ ...half, half: true }, { persist: legacy, half: true });
+      if (_flightStackOpen) writeMissionMessagesExpanded(true);
+      return;
+    }
+    applyFlightStack(_flightStack, { half: false });
+  };
+  requestAnimationFrame(() => {
+    settle();
+    requestAnimationFrame(settle);
   });
 }
 
