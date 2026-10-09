@@ -1094,21 +1094,21 @@
             <div id="debriefCamGrid" class="debrief-cam-grid video-wrapper" data-count="2" data-layout="cameras">
               <p id="debriefCamEmpty" class="debrief-cam-empty" hidden>בחרו מצלמה</p>
               <figure class="debrief-cam-tile" data-cam="cam0" data-api="cam0" data-mono="1" data-slot="0" data-signal="none">
-                <div class="debrief-cam-stage">
+                <div class="debrief-cam-stage" data-camera-stage="cam0">
                   <img class="debrief-cam-live debrief-cam-media" alt="" hidden />
                   <p class="debrief-cam-nosignal">אין אות</p>
                 </div>
                 <figcaption class="debrief-cam-label">קדמית</figcaption>
               </figure>
               <figure class="debrief-cam-tile" data-cam="cam1" data-api="cam1" data-mono="1" data-slot="1" data-signal="none">
-                <div class="debrief-cam-stage">
+                <div class="debrief-cam-stage" data-camera-stage="cam1">
                   <img class="debrief-cam-live debrief-cam-media" alt="" hidden />
                   <p class="debrief-cam-nosignal">אין אות</p>
                 </div>
                 <figcaption class="debrief-cam-label">מטה</figcaption>
               </figure>
               <figure class="debrief-cam-tile" data-cam="a8" data-api="cam3" data-slot="2" data-signal="none" hidden>
-                <div class="debrief-cam-stage">
+                <div class="debrief-cam-stage" data-camera-stage="cam3">
                   <img class="debrief-cam-live debrief-cam-media" alt="" hidden />
                   <p class="debrief-cam-nosignal">אין אות</p>
                 </div>
@@ -1152,7 +1152,7 @@
             <p id="cam0Reason" class="cam0-reason">אין קישור למחשב המשימה. הפקדים כבויים.</p>
             <p id="cam0Error" class="cam0-error" role="alert" hidden></p>
             <div class="cam0-layout">
-              <div class="cam0-stage" id="cam0Stage">
+              <div class="cam0-stage" id="cam0Stage" data-camera-stage="cam0">
                 <p id="cam0Empty" class="cam0-empty">אין אות</p>
                 <img id="cam0Frame" class="cam0-frame" alt="" hidden />
                 <canvas id="cam0Overlay" class="cam0-overlay" hidden></canvas>
@@ -1181,7 +1181,7 @@
             <p id="cam1Reason" class="cam0-reason">אין קישור למחשב המשימה. הפקדים כבויים.</p>
             <p id="cam1Error" class="cam0-error" role="alert" hidden></p>
             <div class="cam0-layout">
-              <div class="cam0-stage" id="cam1Stage">
+              <div class="cam0-stage" id="cam1Stage" data-camera-stage="cam1">
                 <p id="cam1Empty" class="cam0-empty">אין אות</p>
                 <img id="cam1Frame" class="cam0-frame" alt="" hidden />
               </div>
@@ -2303,7 +2303,7 @@
                     <strong class="pfd-tape-big" id="pfdAirspeedVal" title="אין נתונים">—</strong>
                     <span class="pfd-tape-unit">m/s</span>
                   </div>
-                  <div class="pfd-horizon-stage" id="pfdHorizonStage">
+                  <div class="pfd-horizon-stage" id="pfdHorizonStage" data-camera-stage="horizon">
                     <video id="horizonVideoEl" class="pfd-horizon-video hidden" muted playsinline autoplay loop
                            aria-hidden="true" title="שידור וידאו מהטיסן"></video>
                     <img id="horizonCameraBg" class="pfd-horizon-camera" alt="" hidden />
@@ -2321,17 +2321,17 @@
                       <p class="mission-live-camera-kicker">פריים חי</p>
                       <p id="liveCameraEmpty" class="mission-live-camera-empty">אין פריים</p>
                       <div class="mission-live-camera-grid">
-                        <figure class="mission-live-camera-slot" data-cam="cam0">
+                        <figure class="mission-live-camera-slot" data-cam="cam0" data-camera-stage="cam0">
                           <figcaption id="liveCameraCam0Label" class="mission-live-camera-label">קדמית</figcaption>
                           <p id="liveCameraCam0Meta" class="mission-live-camera-meta">אין פריים</p>
                           <img id="liveCameraCam0Frame" class="mission-live-camera-frame" alt="" hidden />
                         </figure>
-                        <figure class="mission-live-camera-slot" data-cam="cam1">
+                        <figure class="mission-live-camera-slot" data-cam="cam1" data-camera-stage="cam1">
                           <figcaption id="liveCameraCam1Label" class="mission-live-camera-label">מטה</figcaption>
                           <p id="liveCameraCam1Meta" class="mission-live-camera-meta">אין פריים</p>
                           <img id="liveCameraCam1Frame" class="mission-live-camera-frame" alt="" hidden />
                         </figure>
-                        <figure class="mission-live-camera-slot" data-cam="cam3">
+                        <figure class="mission-live-camera-slot" data-cam="cam3" data-camera-stage="cam3">
                           <figcaption id="liveCameraCam3Label" class="mission-live-camera-label">גימבל</figcaption>
                           <p id="liveCameraCam3Meta" class="mission-live-camera-meta">אין פריים</p>
                           <img id="liveCameraCam3Frame" class="mission-live-camera-frame" alt="" hidden />
@@ -2507,7 +2507,7 @@
                 <button type="button" class="gimbal-pad-btn gimbal-pad-lock" data-gimbal="lock" disabled aria-pressed="false">משוחרר</button>
                 <button type="button" id="gimbalScreenClose">סגרו</button>
               </div>
-              <div class="gimbal-screen-stage">
+              <div class="gimbal-screen-stage" data-camera-stage="cam3">
                 <img id="gimbalScreenImg" alt="" hidden />
                 <canvas id="gimbalScreenNotes"></canvas>
                 <p id="gimbalScreenNote" hidden>אין אות</p>

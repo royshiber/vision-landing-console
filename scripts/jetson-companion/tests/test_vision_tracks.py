@@ -204,6 +204,55 @@ class VisionTrackTests(unittest.TestCase):
         classes = {det["class"] for det in dets}
         self.assertEqual(classes, {"person", "car"})
 
+    def test_sample_film_keeps_ids_through_motion_and_a_short_gap(self):
+        detector = vision_tracks.CpuBlobDetector()
+        tracker = ByteTracker()
+        seen = {"person": set(), "car": set(), "truck": set()}
+        for index in range(16):
+            width, height, rgb, _truth = sample_frame(index)
+            rows = tracker.update(detector.detect(width, height, rgb))
+            by_class = {}
+            for row in rows:
+                by_class.setdefault(row["class"], []).append(row["id"])
+            self.assertEqual(len(by_class["person"]), 1)
+            self.assertEqual(len(by_class["car"]), 1)
+            seen["person"].add(by_class["person"][0])
+            seen["car"].add(by_class["car"][0])
+            if index >= 1:
+                self.assertEqual(len(by_class["truck"]), 1)
+                seen["truck"].add(by_class["truck"][0])
+        self.assertEqual(len(seen["person"]), 1)
+        self.assertEqual(len(seen["car"]), 1)
+        self.assertEqual(len(seen["truck"]), 1)
+        self.assertLessEqual(tracker._next, 4)
+
+        self.svc.configure({"enabled": True, "camera": "cam3", "gimbal_steer": False})
+        body = None
+        for index in range(8):
+            width, height, rgb, _truth = sample_frame(index)
+            self.svc.push_frame("cam3", width, height, rgb)
+            body = self.svc.step()
+        person = next(row for row in body["tracks"] if row["class"] == "person")
+        locked = self.svc.lock({"camera": "cam3", "id": person["id"]})[1]
+        lock_id = locked["lock"]["id"]
+        for _gap in range(3):
+            width, height, rgb, _truth = sample_frame(8)
+            raw = bytearray(rgb)
+            for offset in range(0, len(raw), 3):
+                red, green, blue = raw[offset], raw[offset + 1], raw[offset + 2]
+                if red > 160 and red > green + 40 and red > blue + 40:
+                    raw[offset:offset + 3] = bytes((16, 16, 16))
+            self.svc.push_frame("cam3", width, height, bytes(raw))
+            gap = self.svc.step()
+            self.assertEqual(gap["lock"]["id"], lock_id)
+            self.assertTrue(any(row["id"] == lock_id and row["class"] == "person" for row in gap["tracks"]))
+        width, height, rgb, _truth = sample_frame(9)
+        self.svc.push_frame("cam3", width, height, rgb)
+        back = self.svc.step()
+        self.assertEqual(back["lock"]["id"], lock_id)
+        self.assertTrue(any(row["id"] == lock_id and row["class"] == "person" for row in back["tracks"]))
+        self.assertEqual(self.sent, [])
+
     def test_tracker_does_not_start_from_a_low_score(self):
         tracker = ByteTracker()
         tracks = tracker.update([{"class": "person", "confidence": 0.2, "bbox": [0, 0, 10, 10]}])

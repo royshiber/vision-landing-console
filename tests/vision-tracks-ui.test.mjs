@@ -3,7 +3,7 @@
  */
 import { afterAll, describe, expect, it } from 'vitest';
 import { spawn, execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { mkdirSync, readFileSync } from 'node:fs';
 import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
@@ -11,7 +11,8 @@ import { fileURLToPath } from 'node:url';
 import { collectTextFitFailures } from './text-fit-audit.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const shotDir = '/opt/cursor/artifacts';
+const shotDir = path.join(os.tmpdir(), `airvix-vision-shots-${process.pid}`);
+mkdirSync(shotDir, { recursive: true });
 const sampleJpeg = path.join(os.tmpdir(), `airvix-vision-sample-${process.pid}.jpg`);
 
 function sampleFrame() {
@@ -166,7 +167,9 @@ describe('vision track overlay', () => {
     });
     await page.goto(started.base, { waitUntil: 'domcontentloaded' });
     await page.click('[data-tab="optics"]');
-    await page.waitForSelector('[data-api="cam0"] .debrief-cam-stage');
+    const stageCount = await page.locator('[data-camera-stage="cam0"]').count();
+    expect(stageCount, 'no camera stage found').toBeGreaterThan(0);
+    await page.waitForSelector('[data-camera-stage="cam0"]');
     await page.evaluate(() => {
       const detail = {
         cameras: {
@@ -179,16 +182,16 @@ describe('vision track overlay', () => {
     });
     await page.waitForFunction(() => {
       const img = document.querySelector('[data-api="cam0"] .debrief-cam-live');
-      const stage = document.querySelector('[data-api="cam0"] .debrief-cam-stage');
+      const stage = document.querySelector('[data-camera-stage="cam0"]');
       const canvas = stage?.querySelector('.vision-box-layer');
       return img && !img.hidden && img.naturalWidth === 320
         && stage?.dataset.visionTracks === '1,2'
         && canvas && canvas.hidden !== true && canvas.dataset.hit === '1';
     }, null, { timeout: 15000 });
-    const host = page.locator('[data-api="cam0"] .debrief-cam-stage');
+    const host = page.locator('[data-camera-stage="cam0"]').first();
     await page.screenshot({ path: `${shotDir}/vision-overlay.png` });
     const point = await page.evaluate(() => {
-      const stage = document.querySelector('[data-api="cam0"] .debrief-cam-stage');
+      const stage = document.querySelector('[data-camera-stage="cam0"]');
       const img = stage.querySelector('img');
       const rect = img.getBoundingClientRect();
       const scale = Math.min(rect.width / 320, rect.height / 180);
@@ -197,7 +200,7 @@ describe('vision track overlay', () => {
       return { x: ox + (20 + 40) * scale, y: oy + (30 + 35) * scale };
     });
     await page.mouse.click(point.x, point.y);
-    await page.waitForFunction(() => document.querySelector('[data-api="cam0"] .debrief-cam-stage')?.dataset.visionLock === '1');
+    await page.waitForFunction(() => document.querySelector('[data-camera-stage="cam0"]')?.dataset.visionLock === '1');
     await page.screenshot({ path: `${shotDir}/vision-lock.png` });
     await host.click({ button: 'right', position: { x: 24, y: 24 } });
     await page.waitForSelector('#visionTrackMenu:not([hidden])');
@@ -206,17 +209,17 @@ describe('vision track overlay', () => {
     const visionFails = (report.fails || []).filter((row) => /vision/.test(row.who));
     expect(visionFails).toEqual([]);
     await page.locator('#visionTrackMenu [data-vision-id="2"]').click();
-    await page.waitForFunction(() => document.querySelector('[data-api="cam0"] .debrief-cam-stage')?.dataset.visionLock === '2');
+    await page.waitForFunction(() => document.querySelector('[data-camera-stage="cam0"]')?.dataset.visionLock === '2');
     await host.click({ button: 'right', position: { x: 24, y: 24 } });
     await page.locator('#visionTrackMenu [data-vision-action="next"]').click();
     await page.waitForFunction(() => {
-      const id = document.querySelector('[data-api="cam0"] .debrief-cam-stage')?.dataset.visionLock;
+      const id = document.querySelector('[data-camera-stage="cam0"]')?.dataset.visionLock;
       return id === '1';
     });
     await host.click({ button: 'right', position: { x: 24, y: 24 } });
     await page.locator('#visionTrackMenu [data-vision-action="unlock"]').click();
-    await page.waitForFunction(() => document.querySelector('[data-api="cam0"] .debrief-cam-stage')?.dataset.visionLock === '');
-    expect(await page.locator('[data-api="cam0"] .debrief-cam-stage').getAttribute('data-vision-tracks')).toBe('1,2');
+    await page.waitForFunction(() => document.querySelector('[data-camera-stage="cam0"]')?.dataset.visionLock === '');
+    expect(await page.locator('[data-camera-stage="cam0"]').first().getAttribute('data-vision-tracks')).toBe('1,2');
   }, 60000);
 
   it('shows the empty line and no boxes when there is no stream', async () => {
@@ -224,8 +227,9 @@ describe('vision track overlay', () => {
     const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
     await page.goto(base, { waitUntil: 'domcontentloaded' });
     await page.click('[data-tab="optics"]');
-    const stage = page.locator('[data-api="cam0"] .debrief-cam-stage');
-    await page.waitForFunction(() => document.querySelector('[data-api="cam0"] .debrief-cam-stage')?.dataset.visionReason === 'אין נתון על זרם המצלמות');
+    const stage = page.locator('[data-camera-stage="cam0"]').first();
+    expect(await page.locator('[data-camera-stage="cam0"]').count(), 'no camera stage found').toBeGreaterThan(0);
+    await page.waitForFunction(() => document.querySelector('[data-camera-stage="cam0"]')?.dataset.visionReason === 'אין נתון על זרם המצלמות');
     expect(await stage.getAttribute('data-vision-tracks')).toBe('');
     expect(await stage.locator('.vision-box-layer').getAttribute('hidden')).not.toBeNull();
     await page.screenshot({ path: `${shotDir}/vision-no-stream.png` });
@@ -238,11 +242,82 @@ describe('vision track overlay', () => {
         body: JSON.stringify({ ok: true, lane: 'NEW', data: payload(state, camera) }),
       });
     });
-    await page.waitForFunction(() => document.querySelector('[data-api="cam0"] .debrief-cam-stage')?.dataset.visionReason === 'אין נתון על זרם המצלמות');
+    await page.waitForFunction(() => document.querySelector('[data-camera-stage="cam0"]')?.dataset.visionReason === 'אין נתון על זרם המצלמות');
     state.mode = 'off';
     state.enabled = false;
-    await page.waitForFunction(() => document.querySelector('[data-api="cam0"] .debrief-cam-stage')?.dataset.visionReason === 'הזיהוי כבוי');
+    await page.waitForFunction(() => document.querySelector('[data-camera-stage="cam0"]')?.dataset.visionReason === 'הזיהוי כבוי');
     expect(await stage.locator('.vision-box-note').innerText()).toBe('הזיהוי כבוי');
+    await page.close();
+  }, 30000);
+
+  it('keeps the menu on screen at 1280x720 near the bottom of the down camera', async () => {
+    expect(base).toMatch(/^http:\/\/127\.0\.0\.1:/);
+    const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+    const rows = Array.from({ length: 14 }, (_, index) => ({
+      id: index + 1,
+      class: index % 2 ? 'car' : 'person',
+      label_he: index % 2 ? 'רכב' : 'אדם',
+      confidence: 0.9 - index * 0.01,
+      bbox: [10, 10, 20, 20],
+      age: 3,
+    }));
+    await page.route('**/api/jetson/v1/vision/**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          ok: true,
+          lane: 'NEW',
+          data: {
+            ok: true,
+            enabled: true,
+            camera: 'cam1',
+            selected_camera: 'cam1',
+            stream: true,
+            tracks: rows,
+            lock: null,
+            reason_he: '',
+            frame_width: 320,
+            frame_height: 180,
+            gimbal_steer: { enabled: false, sent: false, blocked: true, reason_he: 'היגוי הגימבל כבוי', flight_commands: false },
+            flight_commands: false,
+          },
+        }),
+      });
+    });
+    await page.goto(base, { waitUntil: 'domcontentloaded' });
+    await page.click('[data-tab="optics"]');
+    const stage = page.locator('[data-camera-stage="cam1"]').first();
+    expect(await stage.count(), 'no camera stage found').toBeGreaterThan(0);
+    await stage.evaluate((node) => node.scrollIntoView({ block: 'end', inline: 'nearest' }));
+    const rect = await stage.boundingBox();
+    expect(rect && rect.height).toBeGreaterThan(8);
+    const clickY = Math.min((rect?.y || 0) + (rect?.height || 0) - 6, 712);
+    await page.mouse.click((rect?.x || 0) + Math.min(20, (rect?.width || 40) / 2), clickY, { button: 'right' });
+    await page.waitForSelector('#visionTrackMenu:not([hidden])');
+    const fit = await page.evaluate(() => {
+      const menu = document.getElementById('visionTrackMenu');
+      const steer = menu.querySelector('[data-vision-action="steer"]');
+      const kicker = [...menu.querySelectorAll('.vision-menu-kicker')].find((node) => node.textContent === 'היגוי');
+      const viewW = window.innerWidth;
+      const viewH = window.innerHeight;
+      const box = menu.getBoundingClientRect();
+      steer.scrollIntoView({ block: 'nearest' });
+      const btn = steer.getBoundingClientRect();
+      return {
+        contained: box.top >= -1 && box.left >= -1 && box.bottom <= viewH + 1 && box.right <= viewW + 1,
+        reachable: btn.height > 0 && btn.top >= -1 && btn.bottom <= viewH + 1 && btn.top >= box.top - 1 && btn.bottom <= box.bottom + 1,
+        overflow: getComputedStyle(menu).overflowY,
+        hasSteerGroup: Boolean(kicker),
+        bottom: box.bottom,
+        viewH,
+      };
+    });
+    expect(fit.hasSteerGroup).toBe(true);
+    expect(fit.contained).toBe(true);
+    expect(fit.reachable).toBe(true);
+    expect(fit.bottom).toBeLessThanOrEqual(720);
+    expect(['auto', 'scroll']).toContain(fit.overflow);
     await page.close();
   }, 30000);
 });

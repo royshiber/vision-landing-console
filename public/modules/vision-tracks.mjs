@@ -78,21 +78,50 @@ function emptyPayload(reason) {
 
 function hostList(doc) {
   const list = [];
-  doc.querySelectorAll('#debriefCamGrid .debrief-cam-tile[data-api]').forEach((tile) => {
-    list.push({ host: tile.querySelector('.debrief-cam-stage') || tile, camera: tile.dataset.api, kind: 'tile' });
+  doc.querySelectorAll('[data-camera-stage]').forEach((host) => {
+    const stage = host.dataset.cameraStage || '';
+    if (!stage) return;
+    if (stage === 'horizon') {
+      list.push({ host, camera: '', kind: 'horizon' });
+      return;
+    }
+    list.push({ host, camera: stage, kind: 'tile' });
   });
-  doc.querySelectorAll('#liveCameraPanel .mission-live-camera-slot[data-cam]').forEach((slot) => {
-    list.push({ host: slot, camera: slot.dataset.cam, kind: 'tile' });
-  });
-  const cam0 = doc.getElementById('cam0Stage');
-  if (cam0) list.push({ host: cam0, camera: 'cam0', kind: 'tile' });
-  const cam1 = doc.getElementById('cam1Stage');
-  if (cam1) list.push({ host: cam1, camera: 'cam1', kind: 'tile' });
-  const gimbal = doc.querySelector('#gimbalScreen .gimbal-screen-stage');
-  if (gimbal) list.push({ host: gimbal, camera: 'cam3', kind: 'tile' });
-  const horizon = doc.getElementById('pfdHorizonStage');
-  if (horizon) list.push({ host: horizon, camera: '', kind: 'horizon' });
-  return list.filter((item) => item.host);
+  return list;
+}
+
+export function placeMenuBox({ x = 0, y = 0, menuW = 0, menuH = 0, viewW = 0, viewH = 0, margin = 8 } = {}) {
+  const viewWidth = Math.max(0, Number(viewW) || 0);
+  const viewHeight = Math.max(0, Number(viewH) || 0);
+  const pad = Math.min(Math.max(0, Number(margin) || 0), Math.floor(Math.min(viewWidth, viewHeight) / 4) || 0);
+  const maxW = Math.max(0, viewWidth - pad * 2);
+  const maxH = Math.max(0, viewHeight - pad * 2);
+  const width = Math.min(Math.max(0, Number(menuW) || 0), maxW || Math.max(0, Number(menuW) || 0));
+  const naturalH = Math.max(0, Number(menuH) || 0);
+  const height = maxH > 0 ? Math.min(naturalH, maxH) : naturalH;
+  const scrolls = naturalH > height + 0.5;
+  let top = Number(y) || 0;
+  const bottomLimit = viewHeight - pad;
+  if (top + height > bottomLimit) {
+    const above = top - height;
+    top = above >= pad ? above : Math.max(pad, bottomLimit - height);
+  }
+  if (top < pad) top = pad;
+  let left = Number(x) || 0;
+  const rightLimit = viewWidth - pad;
+  if (left + width > rightLimit) {
+    const flipped = left - width;
+    left = flipped >= pad ? flipped : Math.max(pad, rightLimit - width);
+  }
+  if (left < pad) left = pad;
+  return {
+    left: Math.round(left),
+    top: Math.round(top),
+    width: Math.round(width),
+    height: Math.round(height),
+    maxHeight: Math.round(height),
+    scrolls,
+  };
 }
 
 function selectedCamera() {
@@ -483,12 +512,19 @@ function openMenu(doc, camera, x, y) {
   renderMenu(doc);
   const node = doc.getElementById('visionTrackMenu');
   if (!node) return;
+  const view = doc.defaultView || {};
+  const viewW = view.innerWidth || 800;
+  const viewH = view.innerHeight || 600;
   node.hidden = false;
-  const width = 240;
-  const left = Math.max(8, Math.min(x, (doc.defaultView?.innerWidth || 800) - width - 8));
-  const top = Math.max(8, Math.min(y, (doc.defaultView?.innerHeight || 600) - 80));
-  node.style.left = `${left}px`;
-  node.style.top = `${top}px`;
+  node.style.overflowY = 'auto';
+  node.style.maxHeight = 'none';
+  node.style.width = '240px';
+  const menuW = node.offsetWidth || 240;
+  const menuH = node.scrollHeight || node.offsetHeight || 0;
+  const box = placeMenuBox({ x, y, menuW, menuH, viewW, viewH, margin: 8 });
+  node.style.left = `${box.left}px`;
+  node.style.top = `${box.top}px`;
+  node.style.maxHeight = `${box.maxHeight}px`;
 }
 
 export function mountVisionTracks(doc = document) {

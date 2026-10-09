@@ -6,6 +6,8 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { mapMissionSentence } from '../lib/assist/mission-sentence.mjs';
 import { createAssistService } from '../lib/assist/assist-service.mjs';
 import { createAssistPersistence } from '../lib/assist/assist-store.mjs';
+import { resolveAssistIntent } from '../lib/assist/assist-intent-resolver.mjs';
+import { deterministicIsFastPath } from '../lib/assist/ask-llm-intent.mjs';
 import { runVoiceFlightTranscript } from '../lib/voice-flight-pipeline.mjs';
 
 const mapperSrc = fs.readFileSync(
@@ -88,6 +90,72 @@ describe('mission sentence mapper', () => {
     expect(grab.plan.unsupported).toEqual(['grab']);
     expect(grab.plan.modes).toEqual([]);
     expect(grab.sends).toBe(false);
+  });
+
+  it('plans a plural lock and never sends it', () => {
+    for (const [text, name] of [['נעלו על האדם', 'האדם'], ['נעלו על הרכב', 'הרכב']]) {
+      const result = mapMissionSentence(text);
+      expect(modes(result)).toEqual(['LOCK']);
+      expect(result.replyHe).toBe(`הנעילה על ${name} בתוכנית. לא נשלח דבר.`);
+      expect(result.sends).toBe(false);
+      expect(result.speech).toBe(true);
+    }
+    expect(mapMissionSentence('אל תנעלו על האדם')).toBe(null);
+    expect(mapMissionSentence('לא לנעול')).toBe(null);
+  });
+
+  it('plans the next object and does not send it', () => {
+    for (const text of ['עברו לאובייקט הבא', 'עברו לעצם הבא', 'תעברו לאובייקט הבא']) {
+      const result = mapMissionSentence(text);
+      expect(modes(result)).toEqual(['NEXT']);
+      expect(result.replyHe).toBe('המעבר לעצם הבא בתוכנית. לא נשלח דבר.');
+      expect(result.sends).toBe(false);
+    }
+  });
+
+  it('treats release as harmless and says when nothing is locked', () => {
+    for (const text of ['שחררו נעילה', 'בטלו נעילה']) {
+      const result = mapMissionSentence(text);
+      expect(result.replyHe).toBe('אין נעילה פעילה.');
+      expect(result.sends).toBe(false);
+      expect(modes(result)).toEqual(['UNLOCK']);
+      const intent = resolveAssistIntent(text);
+      expect(intent.prohibited).not.toBe(true);
+      expect(intent.blocked).not.toBe(true);
+      expect(deterministicIsFastPath(intent)).toBe(true);
+    }
+    const held = mapMissionSentence('שחררו נעילה', { lock: { id: 2 } });
+    expect(held.replyHe).toBe('שחרור הנעילה בתוכנית. לא נשלח דבר.');
+    expect(held.sends).toBe(false);
+  });
+
+  it('states detection from the given state and does not invent a count', () => {
+    expect(mapMissionSentence('מה אתה מזהה').replyHe).toBe('אין נתון על זרם המצלמות.');
+    expect(mapMissionSentence('כמה אנשים אתה רואה', { enabled: false }).replyHe).toBe('הזיהוי כבוי.');
+    expect(mapMissionSentence('מה אתה מזהה', { enabled: true, model: false }).replyHe).toBe('אין מודל זיהוי.');
+    expect(mapMissionSentence('כמה אנשים אתה רואה', { enabled: true, stream: false }).replyHe).toBe('אין נתון על זרם המצלמות.');
+    const live = {
+      enabled: true,
+      stream: true,
+      model: true,
+      tracks: [
+        { id: 1, class: 'person', label_he: 'אדם' },
+        { id: 2, class: 'car', label_he: 'רכב' },
+      ],
+    };
+    expect(mapMissionSentence('מה אתה מזהה', live).replyHe).toBe('מזהים 2 עצמים: אדם, רכב.');
+    expect(mapMissionSentence('כמה אנשים אתה רואה', live).replyHe).toBe('רואים אדם אחד.');
+    expect(mapMissionSentence('כמה אנשים אתה רואה', { ...live, tracks: [] }).replyHe).toBe('אין אנשים בזיהוי.');
+  });
+
+  it('keeps the lock plan and refuses the return-home clause', () => {
+    const result = mapMissionSentence('נעל על האדם ותחזור הבית');
+    expect(modes(result)).toEqual(['LOCK']);
+    expect(result.plan.steps[0].target).toEqual({ object: 'אדם' });
+    expect(result.plan.refused).toEqual(['RTL']);
+    expect(result.replyHe).toBe('הנעילה על האדם בתוכנית. חזרה הביתה נדחתה. לא נשלח דבר.');
+    expect(result.sends).toBe(false);
+    expect(result.replyHe).not.toMatch(/\d/);
   });
 });
 
@@ -253,6 +321,83 @@ describe('mission sentences through Ask and voice', () => {
     });
     expect(arm.sent).toBe(false);
     expect(arm.decision).toBe('blocked');
+    expect(calls).toEqual([]);
+  });
+
+  it('keeps a lock plan beside a refused return home and does not send', async () => {
+    const calls = [];
+    const mav = {
+      connected: true,
+      type: 'tcp',
+      host: '127.0.0.1',
+      port: 5760,
+      simulatorPreset: true,
+      lastCustomMode: 0,
+      simulatorDetection() {
+        return { simulator: true, reason: 'preset' };
+      },
+    };
+    const assist = service(async (args) => {
+      calls.push(args);
+      return { ok: true, sent: true };
+    });
+    await assist.processInput({ text: 'יאללה', context_snapshot: { current_workspace: 'MISSION' } });
+    const asked = await assist.processInput({
+      text: 'נעל על האדם ותחזור הבית',
+      context_snapshot: { current_workspace: 'MISSION' },
+    });
+    expect(asked.sent).toBe(false);
+    expect(asked.plan.modes).toEqual(['LOCK']);
+    expect(asked.plan.refused).toEqual(['RTL']);
+    expect(asked.answer).toContain('הנעילה על האדם בתוכנית');
+    expect(asked.answer).toContain('חזרה הביתה נדחתה');
+    expect(asked.answer).toContain('לא נשלח דבר');
+
+    const voiced = await runVoiceFlightTranscript({
+      text: 'נעל על האדם ותחזור הבית',
+      goActive: true,
+      operatorConfirmed: true,
+      mavConn: mav,
+      applyFlightOp: async (args) => {
+        calls.push(args);
+        return { ok: true, sent: true };
+      },
+    });
+    expect(voiced.sent).toBe(false);
+    expect(voiced.decision).toBe('mission_plan');
+    expect(voiced.plan.modes).toEqual(['LOCK']);
+    expect(voiced.plan.refused).toEqual(['RTL']);
+    expect(voiced.talkback.text).toContain('לא נשלח דבר');
+
+    const released = await assist.processInput({
+      text: 'בטלו נעילה',
+      context_snapshot: { current_workspace: 'MISSION' },
+    });
+    expect(released.sent).toBe(false);
+    expect(released.blocked).not.toBe(true);
+    expect(released.answer).toBe('אין נעילה פעילה.');
+
+    const off = await assist.processInput({
+      text: 'מה אתה מזהה',
+      context_snapshot: { current_workspace: 'MISSION', vision: { enabled: false } },
+    });
+    expect(off.answer).toBe('הזיהוי כבוי.');
+    expect(off.sent).toBe(false);
+
+    const people = await assist.processInput({
+      text: 'כמה אנשים אתה רואה',
+      context_snapshot: {
+        current_workspace: 'MISSION',
+        vision: {
+          enabled: true,
+          stream: true,
+          model: true,
+          tracks: [{ id: 4, class: 'person', label_he: 'אדם' }],
+        },
+      },
+    });
+    expect(people.answer).toBe('רואים אדם אחד.');
+    expect(people.sent).toBe(false);
     expect(calls).toEqual([]);
   });
 });

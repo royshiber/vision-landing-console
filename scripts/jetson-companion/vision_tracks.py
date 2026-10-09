@@ -18,6 +18,7 @@ Jetson frames per second were not measured here.
 
 from __future__ import annotations
 
+import math
 import os
 import threading
 from pathlib import Path
@@ -112,12 +113,39 @@ def iou(a, b):
     return inter / union
 
 
-def _match(tracks, dets, iou_min):
+def _same_class(track, det):
+    det_cls = str(det.get("class") or "")
+    return not track.cls or not det_cls or track.cls == det_cls
+
+
+def _pair_score(track, det):
+    if not _same_class(track, det):
+        return -1.0
+    return max(iou(track.bbox, det["bbox"]), iou(track.last_bbox, det["bbox"]))
+
+
+def _centers_close(track, det):
+    """Re-associate a jumped box of the same class before minting a new id."""
+    if not _same_class(track, det):
+        return False
+    box = det["bbox"]
+    bx = box[0] + box[2] / 2.0
+    by = box[1] + box[3] / 2.0
+    for src in (track.bbox, track.last_bbox):
+        ax = src[0] + src[2] / 2.0
+        ay = src[1] + src[3] / 2.0
+        reach = max(src[2], src[3], box[2], box[3], 1.0) * 2.0
+        if math.hypot(ax - bx, ay - by) <= reach:
+            return True
+    return False
+
+
+def _match(tracks, dets, score_min, score_fn):
     pairs = []
     for ti, track in enumerate(tracks):
         for di, det in enumerate(dets):
-            score = iou(track.bbox, det["bbox"])
-            if score >= iou_min:
+            score = score_fn(track, det)
+            if score >= score_min:
                 pairs.append((score, ti, di))
     pairs.sort(key=lambda item: item[0], reverse=True)
     used_t = set()
@@ -138,6 +166,7 @@ class Track:
         self.cls = det["class"]
         self.confidence = float(det["confidence"])
         self.bbox = list(det["bbox"])
+        self.last_bbox = list(det["bbox"])
         self.age = 1
         self.hits = 1
         self.misses = 0
@@ -151,10 +180,12 @@ class Track:
         self.misses += 1
 
     def update(self, det):
-        prev = self.bbox
         new = list(det["bbox"])
-        self.velocity = (new[0] - prev[0], new[1] - prev[1])
+        dx = new[0] - self.last_bbox[0]
+        dy = new[1] - self.last_bbox[1]
+        self.velocity = (self.velocity[0] * 0.6 + dx * 0.4, self.velocity[1] * 0.6 + dy * 0.4)
         self.bbox = new
+        self.last_bbox = list(new)
         self.confidence = float(det["confidence"])
         if det.get("class"):
             self.cls = det["class"]
@@ -176,11 +207,12 @@ class Track:
 class ByteTracker:
     """Two-threshold association. High scores may start a track. Low scores only extend one."""
 
-    def __init__(self, high=0.5, low=0.1, match_iou=0.3, max_age=15):
+    def __init__(self, high=0.5, low=0.1, match_iou=0.2, max_age=30, keep_misses=8):
         self.high = float(high)
         self.low = float(low)
         self.match_iou = float(match_iou)
         self.max_age = int(max_age)
+        self.keep_misses = int(keep_misses)
         self.tracks = []
         self._next = 1
 
@@ -202,20 +234,27 @@ class ByteTracker:
             track.predict()
         high = [det for det in dets if det["confidence"] >= self.high]
         low = [det for det in dets if det["confidence"] < self.high]
-        matches, used_t, used_d = _match(self.tracks, high, self.match_iou)
+        matches, used_t, used_d = _match(self.tracks, high, self.match_iou, _pair_score)
         for ti, di in matches:
             self.tracks[ti].update(high[di])
-        left_tracks = [track for i, track in enumerate(self.tracks) if i not in used_t]
-        low_matches, _used_low_t, used_low_d = _match(left_tracks, low, self.match_iou)
-        for ti, di in low_matches:
-            left_tracks[ti].update(low[di])
+        left_index = [i for i in range(len(self.tracks)) if i not in used_t]
+        left_tracks = [self.tracks[i] for i in left_index]
+        low_matches, _used_low_t, used_low_d = _match(left_tracks, low, self.match_iou, _pair_score)
+        for local_i, di in low_matches:
+            self.tracks[left_index[local_i]].update(low[di])
+            used_t.add(left_index[local_i])
         for di, det in enumerate(high):
             if di in used_d:
                 continue
-            self.tracks.append(Track(self._next, det))
-            self._next += 1
+            host = next((i for i, track in enumerate(self.tracks) if i not in used_t and _centers_close(track, det)), None)
+            if host is None:
+                self.tracks.append(Track(self._next, det))
+                self._next += 1
+                continue
+            self.tracks[host].update(det)
+            used_t.add(host)
         self.tracks = [track for track in self.tracks if track.misses <= self.max_age]
-        return [track.public() for track in self.tracks if track.misses == 0]
+        return [track.public() for track in self.tracks if track.misses <= self.keep_misses]
 
 
 def _rows_from_output(output):
