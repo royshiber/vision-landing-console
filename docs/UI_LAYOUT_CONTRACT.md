@@ -30,7 +30,7 @@ The approved flight screen puts a near-square horizon in the right column. At re
 
 Run it on every tab (הטסה, סטטוס מחשבים, פרמטרים, אופטיקה, תחקור) and the settings dialog, at every viewport in `tests/text-fit-matrix.test.mjs`, with live-like long values.
 
-Camera picture containers keep a stable `data-camera-stage` of `cam0`, `cam1`, `cam3`, or `horizon`. The optics grid is three equal tiles; choosing a camera only highlights one. Camera and gimbal controls open from a right-click on that tile. Link path, RF port, baud, home, and RC live in the flight-screen chip menus. The header chip is status only.
+Camera picture containers keep a stable `data-camera-stage` of `cam0`, `cam1`, `cam3`, or `horizon`. The optics grid is three equal tiles; choosing a camera only highlights one. Camera and gimbal controls open from a right-click on that tile. Link path, RF port, baud, home, and RC live in the flight-screen chip menus. The header chip is status only. The map follows the aircraft until a pan or the right-click follow toggle. The GPS chip tooltip shows only fields the flight controller sent.
 
 ## Do not
 

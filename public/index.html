@@ -2286,10 +2286,11 @@
               <div id="flightArmRow" class="flight-arm-row pfd-command-line pfd-top-bar" data-arm-link="off">
                 <span id="pfdModeVal" class="pfd-mode-val">—</span>
                 <span id="pfdArmedBadge" class="pfd-badge pfd-badge--disarmed" role="button" tabindex="0" title="מצב ARM — לחץ להסבר מוכנות">DISARMED</span>
-                <div class="hud-nav-pill pfd-gps-pill" id="hudNavGps" data-status="unknown" title="אין קישור">
+                <div class="hud-nav-pill pfd-gps-pill" id="hudNavGps" data-status="unknown" title="אין קישור" tabindex="0" aria-describedby="hudNavGpsTip">
                   <span class="hud-nav-icon">📡</span>
                   <span class="hud-nav-val" id="hudNavGpsVal">—</span>
                 </div>
+                <div id="hudNavGpsTip" class="hud-gps-tip" role="tooltip" hidden></div>
                 <button type="button" id="flightArmBtn" class="flight-arm-btn" disabled aria-label="חימוש" title="חימוש">ARM</button>
                 <button type="button" id="flightDisarmBtn" class="flight-arm-btn" disabled aria-label="נטרול" title="נטרול">DISARM</button>
                 <p id="flightArmReason" class="flight-arm-reason" role="button" tabindex="0" aria-expanded="false" title="אין חיבור לבקר הטיסה">אין קשר</p>
@@ -3011,7 +3012,7 @@
       <button type="button" class="map-fly-to-btn" id="terrainLayerStreetBtn" role="menuitem">מפת רחוב</button>
       <button type="button" class="map-fly-to-btn" id="terrainLayerSatBtn" role="menuitem">לווין</button>
       <button type="button" class="map-fly-to-btn" id="terrainShowLoadedPathBtn" role="menuitem" aria-pressed="false">הציגו נתיב</button>
-      <button type="button" class="map-fly-to-btn" id="terrainFollowBtn" role="menuitem" aria-pressed="false">עקבו</button>
+      <button type="button" class="map-fly-to-btn" id="terrainFollowBtn" role="menuitem" aria-pressed="true">מעקב פעיל</button>
       <button type="button" class="map-fly-to-btn" id="terrainFlightRecordBtn" role="menuitem" data-recording="0" aria-pressed="false">התחילו הקלטה</button>
       <span id="terrainFlightRecordState" class="terrain-record-state">לא מקליט</span>
       <div class="map-fly-to-alt-row">
@@ -3042,7 +3043,11 @@
     <script type="module" src="./modules/gcs-logs.mjs?v=__APP_VERSION__"></script>
     <script type="module" src="./modules/voice-flight-phrases.mjs?v=__APP_VERSION__"></script>
     <script type="module" src="./modules/pulse-cameras.mjs?v=__APP_VERSION__"></script>
+<<<<<<< HEAD
     <script type="module" src="./modules/vision-tracks.mjs?v=__APP_VERSION__"></script>
+=======
+    <script type="module" src="./modules/gps-quality.mjs?v=__APP_VERSION__"></script>
+>>>>>>> a392591 (Show GPS quality, follow the aircraft, and draw a heading plane)
     <script src="./app.js?v=__APP_VERSION__"></script>
     <script src="./versions-rollback.js?v=__APP_VERSION__"></script>
   </body>

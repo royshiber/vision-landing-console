@@ -102,7 +102,7 @@ describe('flight dock and map source', () => {
     expect(html).toContain('פעולה, נקודה ומתלה בלי שליחה');
     expect(js).toContain('operatorConfirmed: true');
     expect(html).toContain('>בית</option>');
-    expect(html).toMatch(/id="terrainFollowBtn"[^>]*>עקבו</);
+    expect(html).toMatch(/id="terrainFollowBtn"[^>]*>מעקב פעיל</);
     expect(html).toMatch(/id="terrainFlightRecordState"[^>]*>לא מקליט</);
     expect(js).toContain('function applyFlightDock(');
     expect(js).toContain("fetch('/api/assist/voice-flight'");
@@ -510,14 +510,99 @@ describe('flight dock and map live', () => {
       points: terrainFlightLayers.liveTrack ? terrainFlightLayers.liveTrack.getLatLngs().length : 0,
     }));
     expect(tracked.points).toBeGreaterThanOrEqual(2);
-    await page.locator('#terrainFollowBtn').evaluate((el) => el.click());
     const centered = await page.evaluate(() => {
       const c = terrainMap.getCenter();
       return { lat: c.lat, lng: c.lng, label: document.getElementById('terrainFollowBtn').textContent };
     });
-    expect(centered.label).toBe('עוקב');
+    expect(centered.label).toBe('מעקב פעיל');
     expect(Math.abs(centered.lat - 31.51)).toBeLessThan(0.02);
     expect(Math.abs(centered.lng - 34.86)).toBeLessThan(0.02);
+    await page.evaluate(() => terrainMap.fire('dragstart'));
+    const paused = await page.evaluate(() => document.getElementById('terrainFollowBtn').textContent);
+    expect(paused).toBe('מעקב כבוי');
+    await page.locator('#terrainFollowBtn').evaluate((el) => el.click());
+    const resumed = await page.evaluate(() => {
+      const c = terrainMap.getCenter();
+      return { lat: c.lat, lng: c.lng, label: document.getElementById('terrainFollowBtn').textContent };
+    });
+    expect(resumed.label).toBe('מעקב פעיל');
+    expect(Math.abs(resumed.lat - 31.51)).toBeLessThan(0.02);
+
+    await page.evaluate(() => {
+      updateFlightOverlaysOnAllMaps({
+        mavlink: {
+          connected: true,
+          flying: true,
+          gpsFixType: 3,
+          gpsSats: 14,
+          gpsHdop: 0.82,
+          gpsAgeMs: 400,
+          map: { gpsLat: 31.52, gpsLon: 34.87, globalHdgDeg: 35, gpsSource: 'GLOBAL_POS' },
+        },
+      });
+    });
+    const plane = await page.evaluate(() => {
+      const el = terrainFlightLayers.gps.getElement();
+      const ll = terrainFlightLayers.gps.getLatLng();
+      return { html: el ? el.innerHTML : '', lat: ll.lat, lng: ll.lng };
+    });
+    expect(plane.html).toContain('terrain-plane-rot');
+    expect(plane.html).toContain('3D');
+    expect(Math.abs(plane.lat - 31.52)).toBeLessThan(1e-6);
+    await page.evaluate(() => {
+      updateFlightOverlaysOnAllMaps({
+        mavlink: {
+          connected: true,
+          flying: true,
+          gpsFixType: 1,
+          gpsSats: 4,
+          gpsHdop: 4.5,
+          gpsAgeMs: 200,
+          map: { gpsLat: 32.2, gpsLon: 35.5, globalHdgDeg: 10, gpsSource: 'GLOBAL_POS' },
+        },
+      });
+    });
+    const frozen = await page.evaluate(() => {
+      const ll = terrainFlightLayers.gps.getLatLng();
+      const html = terrainFlightLayers.gps.getElement()?.innerHTML || '';
+      return { lat: ll.lat, lng: ll.lng, html };
+    });
+    expect(Math.abs(frozen.lat - 31.52)).toBeLessThan(1e-6);
+    expect(Math.abs(frozen.lng - 34.87)).toBeLessThan(1e-6);
+    expect(frozen.html).toContain('data-held="1"');
+    await page.evaluate(() => {
+      applyFlightHud({
+        connected: true,
+        gpsFixType: 3,
+        gpsSats: 14,
+        gpsHdop: 0.82,
+        gpsAgeMs: 1200,
+        gps2FixType: 3,
+        gps2Sats: 8,
+        gps2Hdop: 1.1,
+        gps2AgeMs: 1500,
+      });
+    });
+    const tip = await page.evaluate(() => {
+      const pill = document.getElementById('hudNavGps');
+      pill.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+      const node = document.getElementById('hudNavGpsTip');
+      return { hidden: node.hidden, text: node.textContent || '' };
+    });
+    expect(tip.hidden).toBe(false);
+    expect(tip.text).toContain('לוויינים 14');
+    expect(tip.text).toContain('3D Fix');
+    expect(tip.text).toContain('HDOP 0.82');
+    expect(tip.text).toContain('GPS2');
+    expect(tip.text).toContain('לוויינים 8');
+    expect(tip.text).not.toContain('HDOP 9');
+    await page.evaluate(() => {
+      const map = document.getElementById('terrainMap');
+      const box = map.getBoundingClientRect();
+      showMapFlyToMenu(31.52, 34.87, box.right - 220, box.top + 24);
+    });
+    fs.mkdirSync('/opt/cursor/artifacts/screenshots', { recursive: true });
+    await page.screenshot({ path: '/opt/cursor/artifacts/screenshots/gps-hover-and-plane.png' });
 
     await page.locator('#terrainFlightRecordBtn').evaluate((el) => el.click());
     await page.waitForFunction(() => document.getElementById('terrainFlightRecordState').textContent === 'מקליט');

@@ -225,7 +225,7 @@ const MISSION_AREAS_KEY = 'visionLandingMissionAreasV2';
 const MISSION_MESSAGES_KEY = 'visionLandingMissionMessagesV1';
 const FLIGHT_STACK_KEY = 'visionLandingFlightStackV1';
 const FLIGHT_DOCK_KEY = 'visionLandingFlightDockV1';
-const FLIGHT_FOLLOW_KEY = 'visionLandingFlightFollowV1';
+const FLIGHT_FOLLOW_KEY = 'visionLandingFlightFollowV2';
 const FLIGHT_DATA_DEFAULT = 116;
 const FLIGHT_MSG_DEFAULT = 40;
 const FLIGHT_MSG_OPEN = 112;
@@ -6968,6 +6968,85 @@ function formatGpsHudReadout(mav) {
   };
 }
 
+let gpsHoverOpen = false;
+let gpsHoverTimer = null;
+let gpsAgeAnchor = null;
+let gps2AgeAnchor = null;
+
+function noteGpsHoverAges(mav) {
+  if (Number.isFinite(mav?.gpsAgeMs)) gpsAgeAnchor = { base: mav.gpsAgeMs, wall: Date.now() };
+  else gpsAgeAnchor = null;
+  if (Number.isFinite(mav?.gps2AgeMs)) gps2AgeAnchor = { base: mav.gps2AgeMs, wall: Date.now() };
+  else gps2AgeAnchor = null;
+}
+
+function anchoredGpsAge(anchor) {
+  if (!anchor || !Number.isFinite(anchor.base)) return null;
+  return anchor.base + Math.max(0, Date.now() - anchor.wall);
+}
+
+function paintGpsHoverTip(mav) {
+  if (!hudNavGpsTip) return;
+  const api = window.__vlcGpsQuality;
+  const ageMs = anchoredGpsAge(gpsAgeAnchor);
+  const gps2Age = anchoredGpsAge(gps2AgeAnchor);
+  const has2 = mav && (
+    Number.isFinite(mav.gps2FixType)
+    || Number.isFinite(mav.gps2Sats)
+    || Number.isFinite(mav.gps2Hdop)
+  );
+  const text = api?.formatGpsHoverTooltip
+    ? api.formatGpsHoverTooltip({
+      fixType: mav?.gpsFixType,
+      sats: mav?.gpsSats,
+      hdop: mav?.gpsHdop,
+      ageMs,
+      gps2: has2 ? {
+        fixType: mav.gps2FixType,
+        sats: mav.gps2Sats,
+        hdop: mav.gps2Hdop,
+        ageMs: gps2Age,
+      } : null,
+    })
+    : '';
+  const ekf = pickHudEkfGpsHint(mav?.recentStatusTexts);
+  const full = [text, ekf?.hint].filter(Boolean).join('\n');
+  hudNavGpsTip.textContent = full;
+  if (!gpsHoverOpen || !full) {
+    hudNavGpsTip.hidden = true;
+    return;
+  }
+  hudNavGpsTip.hidden = false;
+  placeGpsHoverTip();
+}
+
+function placeGpsHoverTip() {
+  if (!hudNavGpsTip || !hudNavGpsPill || hudNavGpsTip.hidden) return;
+  const r = hudNavGpsPill.getBoundingClientRect();
+  const w = hudNavGpsTip.offsetWidth || 180;
+  const h = hudNavGpsTip.offsetHeight || 72;
+  let left = r.left;
+  let top = r.bottom + 6;
+  if (left + w > window.innerWidth - 8) left = window.innerWidth - w - 8;
+  if (top + h > window.innerHeight - 8) top = Math.max(8, r.top - h - 6);
+  hudNavGpsTip.style.left = `${Math.max(8, left)}px`;
+  hudNavGpsTip.style.top = `${Math.max(8, top)}px`;
+}
+
+function setGpsHoverOpen(open) {
+  gpsHoverOpen = open === true;
+  if (gpsHoverTimer) {
+    clearInterval(gpsHoverTimer);
+    gpsHoverTimer = null;
+  }
+  paintGpsHoverTip(typeof latestHudMavlink !== 'undefined' ? latestHudMavlink : null);
+  if (gpsHoverOpen) {
+    gpsHoverTimer = setInterval(() => {
+      paintGpsHoverTip(typeof latestHudMavlink !== 'undefined' ? latestHudMavlink : null);
+    }, 1000);
+  }
+}
+
 // ── Flight HUD PFD elements ────────────────────────────────────────────────────
 const horizonCanvas    = document.getElementById('horizonCanvas');
 const pfdHorizonShell  = document.getElementById('pfdHorizonShell');
@@ -6980,6 +7059,11 @@ const pfdAltVal        = document.getElementById('pfdAltVal');
 const pfdBattVal       = document.getElementById('pfdBattVal');
 const hudNavGpsPill    = document.getElementById('hudNavGps');
 const hudNavGpsVal     = document.getElementById('hudNavGpsVal');
+const hudNavGpsTip     = document.getElementById('hudNavGpsTip');
+hudNavGpsPill?.addEventListener('mouseenter', () => setGpsHoverOpen(true));
+hudNavGpsPill?.addEventListener('mouseleave', () => setGpsHoverOpen(false));
+hudNavGpsPill?.addEventListener('focus', () => setGpsHoverOpen(true));
+hudNavGpsPill?.addEventListener('blur', () => setGpsHoverOpen(false));
 const pfdHudWaitHint   = document.getElementById('pfdHudWaitHint');
 const pfcMsgPrimaryHe  = document.getElementById('pfcMsgPrimaryHe');
 const pfcMsgScroll     = document.getElementById('pfcMsgScroll');
@@ -8932,6 +9016,8 @@ function applyFlightHud(mav) {
     const ekfHint = pickHudEkfGpsHint(mav.recentStatusTexts);
     hudNavGpsPill.title = ekfHint?.hint || gpsRead.title || 'מצב GPS';
   }
+  noteGpsHoverAges(mav);
+  paintGpsHoverTip(mav);
   if (pfdHudWaitHint) {
     const missingTape = !altitudeIsFinite(mav.altitude) || !altitudeIsFinite(mav.airspeed)
       || !altitudeIsFinite(mav.gpsFixType);
@@ -12382,8 +12468,9 @@ let terrainCircles = [];
 let terrainLastCells = [];
 let terrainMappedOnly = false;
 let terrainActiveBase = 'street';
-let flightFollowOn = false;
+let flightFollowOn = true;
 let flightTrackPts = [];
+let mapGpsHold = null;
 /** terrainMap / lastSseTerrainPayload / overlay layers: declared at top of app.js (no TDZ). */
 
 const liveGpsVisionDeltaEl = document.getElementById('liveGpsVisionDelta');
@@ -12472,7 +12559,7 @@ function paintFlightFollow(on) {
   if (btn) {
     btn.setAttribute('aria-pressed', flightFollowOn ? 'true' : 'false');
     btn.classList.toggle('active', flightFollowOn);
-    btn.textContent = flightFollowOn ? 'עוקב' : 'עקבו';
+    btn.textContent = flightFollowOn ? 'מעקב פעיל' : 'מעקב כבוי';
   }
   try { localStorage.setItem(FLIGHT_FOLLOW_KEY, flightFollowOn ? '1' : '0'); } catch { /* ignore */ }
 }
@@ -12483,11 +12570,25 @@ function centerFlightOnMap(map, lat, lon) {
   try { map.panTo([lat, lon], { animate: false }); } catch { /* map not ready */ }
 }
 
-function terrainPlaneDivIcon(color, hdgDeg) {
-  const r = Number.isFinite(hdgDeg) ? hdgDeg - 45 : -45;
+const MP_PLANE_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="40" height="40" aria-hidden="true"><path fill="#e11d2e" stroke="#ffffff" stroke-width="1.7" stroke-linejoin="round" d="M24 2.5c.9 0 1.7.8 1.9 2.4l2.2 11.2 14.6 6.6v4.2l-14.4-2.2-1.3 12.2 6.4 3.8v3.2L24 40.2 14.6 43.9v-3.2l6.4-3.8-1.3-12.2L5.3 27v-4.2l14.6-6.6 2.2-11.2C22.3 3.3 23.1 2.5 24 2.5z"/></svg>';
+
+function terrainPlaneDivIcon(hdgDeg, fixType, held) {
+  const rot = Number.isFinite(Number(hdgDeg)) ? Number(hdgDeg) : 0;
+  const chip = window.__vlcGpsQuality?.gpsFixChip?.(fixType) || '';
+  const chipHtml = chip ? `<span class="terrain-plane-fix">${chip}</span>` : '';
+  const heldAttr = held ? ' data-held="1"' : '';
   return L.divIcon({
     className: 'terrain-plane-icon-wrap',
-    html: `<div class="terrain-plane-icon" style="color:${color};transform:rotate(${r}deg)">✈</div>`,
+    html: `<div class="terrain-plane-stack"${heldAttr}><div class="terrain-plane-rot" style="transform:rotate(${rot}deg)">${MP_PLANE_SVG}</div>${chipHtml}</div>`,
+    iconSize: [48, chip ? 58 : 44],
+    iconAnchor: [24, 22],
+  });
+}
+
+function terrainOpticalDivIcon(color) {
+  return L.divIcon({
+    className: 'terrain-plane-icon-wrap',
+    html: `<div class="terrain-plane-icon" style="color:${color}">✈</div>`,
     iconSize: [26, 26],
     iconAnchor: [13, 13],
   });
@@ -12539,14 +12640,27 @@ function applyFlightOverlayToMap(map, layers) {
   }
 
   const displayPref = readNavDisplayPreference();
-  const gpsOk = mapData && Number.isFinite(mapData.gpsLat) && Number.isFinite(mapData.gpsLon);
+  const mavFix = lastSseTerrainPayload?.mavlink || null;
+  if (mavFix?.connected === false && mapData?.gpsSource !== 'SIMLAB_REPLAY') mapGpsHold = null;
+  const drawGps = (window.__vlcGpsQuality?.nextMapAircraftFix || ((row) => {
+    const latN = Number(row?.lat);
+    const lonN = Number(row?.lon);
+    const ok = Number.isFinite(latN) && Number.isFinite(lonN);
+    return { lat: ok ? latN : null, lon: ok ? lonN : null, draw: ok, track: ok, held: false, acceptHold: ok };
+  }))({
+    lat: mapData?.gpsLat,
+    lon: mapData?.gpsLon,
+    fixType: mavFix?.gpsFixType,
+    held: mapGpsHold,
+    source: mapData?.gpsSource,
+  });
+  if (drawGps.acceptHold) mapGpsHold = { lat: drawGps.lat, lon: drawGps.lon };
+  const gpsOk = drawGps.draw === true;
   const opticalOk = vision && Number.isFinite(vision.navLat) && Number.isFinite(vision.navLon);
   const bothTracks = Boolean(gpsOk && opticalOk);
 
-  if (gpsOk) {
-    rememberFlightTrack(mapData.gpsLat, mapData.gpsLon);
-    centerFlightOnMap(map, mapData.gpsLat, mapData.gpsLon);
-  }
+  if (gpsOk && drawGps.track) rememberFlightTrack(drawGps.lat, drawGps.lon);
+  if (gpsOk) centerFlightOnMap(map, drawGps.lat, drawGps.lon);
 
   if (flightTrackPts.length >= 2) {
     if (!layers.liveTrack) {
@@ -12572,19 +12686,27 @@ function applyFlightOverlayToMap(map, layers) {
         : src === 'GLOBAL_POS'
           ? 'GPS / מיקום מסונן (EKF)'
           : 'GPS / DR';
+    const fixLabel = window.__vlcGpsQuality?.gpsFixLabel?.(mavFix?.gpsFixType) || '';
+    const qualityTitle = fixLabel
+      ? (drawGps.held ? `${fixLabel} · המיקום מוחזק` : `${planeTitle} · ${fixLabel}`)
+      : (bothTracks ? `${planeTitle} · מסלול GPS` : planeTitle);
     const gpsPrimary = displayPref !== 'optical' || !opticalOk;
-    const gpsColor = gpsPrimary ? '#0b6bcb' : '#64748b';
+    const icon = terrainPlaneDivIcon(hdg, mavFix?.gpsFixType, drawGps.held);
     if (!layers.gps) {
-      layers.gps = L.marker([mapData.gpsLat, mapData.gpsLon], {
-        icon: terrainPlaneDivIcon(gpsColor, hdg),
-        title: bothTracks ? `${planeTitle} · מסלול GPS` : planeTitle,
+      layers.gps = L.marker([drawGps.lat, drawGps.lon], {
+        icon,
+        title: qualityTitle,
         zIndexOffset: gpsPrimary ? 400 : 200,
       }).addTo(map);
     } else {
-      layers.gps.setLatLng([mapData.gpsLat, mapData.gpsLon]);
-      layers.gps.setIcon(terrainPlaneDivIcon(gpsColor, hdg));
+      layers.gps.setLatLng([drawGps.lat, drawGps.lon]);
+      layers.gps.setIcon(icon);
       layers.gps.setZIndexOffset(gpsPrimary ? 400 : 200);
     }
+    try {
+      layers.gps.unbindTooltip();
+      layers.gps.bindTooltip(qualityTitle, { direction: 'top', offset: [0, -18] });
+    } catch { /* ignore */ }
   } else if (layers.gps) {
     map.removeLayer(layers.gps);
     layers.gps = null;
@@ -12595,13 +12717,13 @@ function applyFlightOverlayToMap(map, layers) {
     const opticalColor = opticalPrimary ? '#ea580c' : '#9a3412';
     if (!layers.vision) {
       layers.vision = L.marker([vision.navLat, vision.navLon], {
-        icon: terrainPlaneDivIcon(opticalColor, null),
+        icon: terrainOpticalDivIcon(opticalColor),
         title: 'ניווט אופטי',
         zIndexOffset: opticalPrimary ? 400 : 220,
       }).addTo(map);
     } else {
       layers.vision.setLatLng([vision.navLat, vision.navLon]);
-      layers.vision.setIcon(terrainPlaneDivIcon(opticalColor, null));
+      layers.vision.setIcon(terrainOpticalDivIcon(opticalColor));
       layers.vision.setZIndexOffset(opticalPrimary ? 400 : 220);
     }
   } else if (layers.vision) {
@@ -12835,7 +12957,13 @@ function initTerrainMap() {
   });
   terrainMap.addControl(new BearingCtrl());
   window.__airvixTerrainMap = terrainMap;
-  try { paintFlightFollow(localStorage.getItem(FLIGHT_FOLLOW_KEY) === '1'); } catch { paintFlightFollow(false); }
+  try {
+    const stored = localStorage.getItem(FLIGHT_FOLLOW_KEY);
+    const enabled = window.__vlcGpsQuality?.flightFollowEnabled
+      ? window.__vlcGpsQuality.flightFollowEnabled(stored)
+      : stored !== '0';
+    paintFlightFollow(enabled);
+  } catch { paintFlightFollow(true); }
   document.getElementById('terrainFollowBtn')?.addEventListener('click', () => {
     paintFlightFollow(!flightFollowOn);
     const marker = terrainFlightLayers?.gps?.getLatLng?.();
