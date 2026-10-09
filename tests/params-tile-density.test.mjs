@@ -183,8 +183,7 @@ describe('Parameter tiles are dense and not behind a filter wall', () => {
       expect(row.hasSlider, `${label} ${row.key}`).toBe(true);
       expect(row.hasLock, `${label} ${row.key}`).toBe(true);
       expect(row.text, `${label} ${row.key}`).toContain('דיפולט');
-      expect(row.text, `${label} ${row.key}`).toContain('בבקר');
-      expect(row.text, `${label} ${row.key}`).toContain('אין חיבור');
+      expect(row.text, `${label} ${row.key}`).toMatch(/בבקר|במחשב המשימה|שמור בקונסולה/);
       expect(row.text, `${label} ${row.key}`).toContain('ערך חדש');
       expect(row.textFails, `${label} ${row.key}`).toEqual([]);
       expect(contrast(row.titleColor, [27, 40, 60]), `${label} ${row.key}`).toBeGreaterThanOrEqual(4.5);

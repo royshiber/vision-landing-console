@@ -122,10 +122,11 @@ describe('approved flight screen', () => {
 
   it('opens communications from תקשור and a single-link menu with dashes when there is no reading', async () => {
     const tabs = await page.locator('nav.tabs > .tab:not([hidden])').allInnerTexts();
-    expect(tabs.map((text) => text.trim())).toEqual(['הטסה', 'סטטוס מחשבים', 'פרמטרים', 'אופטיקה', 'תחקור', 'תקשור']);
-    await page.click('#flightCommTab');
+    expect(tabs.map((text) => text.trim())).toEqual(['הטסה', 'סטטוס מחשבים', 'פרמטרים', 'אופטיקה', 'תחקור']);
+    expect(await page.locator('#flightCommTab').count()).toBe(0);
+    await page.click('#missionCommOpen');
     await page.waitForSelector('#flightCommMenu:not([hidden])');
-    expect(await page.locator('#flightCommTab').getAttribute('aria-pressed')).toBe('true');
+    expect(await page.locator('#workLinkPicker').count()).toBe(1);
     const comm = await page.evaluate(() => ({
       state: document.getElementById('flightCommState').textContent,
       strength: document.getElementById('flightCommStrength').textContent,

@@ -126,10 +126,10 @@ describe('WCAG AA color contrast across tabs', () => {
       expect(messages.summary).toContain('אין הודעות');
       expect(messages.summaryOverflow).toBeLessThanOrEqual(1);
 
-      await page.click('#connectToggleBtn');
-      await page.waitForSelector('#connectPanel:not([hidden])');
+      await page.click('#missionCommOpen');
+      await page.waitForSelector('#flightCommMenu:not([hidden])');
       const pop = await page.evaluate(() => {
-        const panel = document.getElementById('connectPanel');
+        const panel = document.getElementById('flightCommMenu');
         const map = document.getElementById('terrainMap');
         const pr = panel.getBoundingClientRect();
         const mr = map.getBoundingClientRect();

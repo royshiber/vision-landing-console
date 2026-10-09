@@ -26425,3 +26425,128 @@ button.mission-link-chip,
   min-height: 36px;
   width: 100%;
 }
+
+/* Fixed optics grid. Selection highlights a tile. Controls sit in the right-click menu. */
+#optics .debrief-cam-toolbar { display: none !important; }
+#optics > .optics-calib { display: none; }
+#optics .optics-live > #gimbalPad { display: none !important; }
+#optics .optics-live,
+#optics .optics-tiles {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  align-items: stretch;
+}
+#optics #debriefCamGrid.debrief-cam-grid {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  flex: 1 1 auto;
+}
+#optics #debriefCamGrid .debrief-cam-tile,
+#optics #debriefCamGrid .debrief-cam-tile[hidden] {
+  display: flex !important;
+  flex-direction: column;
+  width: auto !important;
+  height: 100% !important;
+  min-width: 0;
+  min-height: 120px;
+  aspect-ratio: auto !important;
+  position: relative;
+  justify-self: stretch;
+  align-self: stretch;
+}
+#optics #debriefCamGrid .debrief-cam-tile.is-selected {
+  outline: 2px solid #7dd3fc;
+  outline-offset: -2px;
+}
+.debrief-cam-chip {
+  position: absolute;
+  top: 6px;
+  inset-inline-start: 6px;
+  z-index: 2;
+  margin: 0;
+  padding: 2px 6px;
+  font-size: 11px;
+  line-height: 1.3;
+  color: #0b1220;
+  background: #fde68a;
+  border-radius: 6px;
+}
+.debrief-cam-chip[hidden] { display: none; }
+.optics-context {
+  position: fixed;
+  z-index: 80;
+  display: block;
+  max-height: calc(100vh - 16px);
+  overflow: auto;
+  min-width: 280px;
+  max-width: min(420px, calc(100vw - 16px));
+  padding: 8px;
+  background: #0b1220;
+  color: #f8fafc;
+  border: 1px solid #94a3b8;
+  border-radius: 10px;
+}
+.optics-context[hidden] { display: none; }
+.optics-context .cam0-stage,
+.optics-context .cam0-layout > .cam0-stage { display: none; }
+.optics-context .cam0-panel,
+.optics-context #gimbalPad { display: block; }
+.horizon-cam-menu {
+  max-height: calc(100vh - 16px);
+  overflow: auto;
+}
+.horizon-menu-heading {
+  margin: 6px 6px 2px;
+  font-size: 11px;
+  font-weight: 800;
+  color: #e2e8f0;
+}
+.horizon-menu-label { display: block; font-size: 13px; font-weight: 700; }
+.horizon-menu-desc {
+  display: block;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.35;
+  color: #e2e8f0;
+}
+.horizon-menu-state { display: block; font-size: 11px; }
+.horizon-menu-group--arm {
+  border-top: 1px solid #f59e0b;
+  margin-top: 4px;
+  padding-top: 4px;
+}
+.horizon-menu-group--arm .horizon-cam-menu-item { color: #fecaca; }
+[data-hold="aged"] { opacity: 0.72; }
+#recordings.panel.visible .archive-session-row {
+  background: #0b1220;
+  color: #f8fafc;
+  border-color: #94a3b8;
+}
+#recordings.panel.visible .archive-session-title,
+#recordings.panel.visible .archive-session-name,
+#recordings.panel.visible .archive-session-meta,
+#recordings.panel.visible .archive-sessions-empty,
+#recordings.panel.visible .archive-sessions-status {
+  color: #f8fafc;
+}
+#recordings.panel.visible .archive-session-name { font-size: 11px; }
+#recordings.panel.visible .archive-session-row.is-selected {
+  outline: 2px solid #7dd3fc;
+}
+#recordings.panel.visible .archive-session-open,
+#recordings.panel.visible .archive-session-dl,
+#recordings.panel.visible .archive-session-copy {
+  color: #0b1220;
+  background: #e2e8f0;
+  font-size: 12px;
+  min-height: 28px;
+}
+#debriefRecordingsPanel .archive-sessions-status { margin-bottom: 40px; }
+.flight-menu-heading { margin: 0; font-size: 12px; font-weight: 800; color: #f8fafc; }
+.flight-menu-desc { margin: 0 0 6px; font-size: 11px; color: #e2e8f0; }
+.pulse-cam-card[data-held="1"] { opacity: 0.72; }

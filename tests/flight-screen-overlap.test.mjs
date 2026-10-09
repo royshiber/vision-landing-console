@@ -254,8 +254,8 @@ describe('Flight screen overlap', () => {
       expect(closed.missing, closed.missing.join('\n')).toEqual([]);
       expect(closed.stacked, closed.stacked.join('\n')).toEqual([]);
       if (name === '360x800') expect(closed.mapH).toBeGreaterThanOrEqual(220);
-      await page.click('#connectToggleBtn');
-      await page.waitForSelector('#connectPanel:not([hidden])');
+      await page.click('#missionCommOpen');
+      await page.waitForSelector('#flightCommMenu:not([hidden])');
       await page.waitForTimeout(200);
       await page.screenshot({ path: path.join(shotDir, `flight-${name}-connect.png`) });
       const opened = await audit(page, { connectOpen: true });

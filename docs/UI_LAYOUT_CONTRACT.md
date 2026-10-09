@@ -28,7 +28,9 @@ Also reject sibling text boxes that overlap inside the horizon top bar, a data t
 
 The approved flight screen puts a near-square horizon in the right column. At rest the horizon instrument keeps `aspect-ratio: 1 / 1` and uses the column width, capped so the data tiles and the messages keep their minimum heights. Dragging the handle under the horizon sets an explicit height: dragging down grows the horizon (never under 112px) and releases the square lock, trading space with the tiles and then the messages. Dragging the handle under the tiles only trades tiles against messages and does not move the horizon. Neither region may extend past the column. It is not capped near 28 percent of the workspace. Speed, altitude, and heading stay on the instrument. Other horizon actions stay in the right-click menu. אפסו פריסה in the column menu restores the square.
 
-Run it on every tab (הטסה, סטטוס מחשבים, פרמטרים, תחקור) and the settings dialog, at every viewport in `tests/text-fit-matrix.test.mjs`, with live-like long values.
+Run it on every tab (הטסה, סטטוס מחשבים, פרמטרים, אופטיקה, תחקור) and the settings dialog, at every viewport in `tests/text-fit-matrix.test.mjs`, with live-like long values.
+
+Camera picture containers keep a stable `data-camera-stage` of `cam0`, `cam1`, `cam3`, or `horizon`. The optics grid is three equal tiles; choosing a camera only highlights one. Camera and gimbal controls open from a right-click on that tile. Link path, RF port, baud, home, and RC live in the flight-screen chip menus. The header chip is status only.
 
 ## Do not
 

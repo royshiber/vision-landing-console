@@ -6,13 +6,11 @@
 import { canonicalCameraId } from './camera-names.mjs';
 import { frameMissShowsNoSignal, frameTilePresentation } from './camera-frame-hold.mjs';
 import { createLatestJpegPump } from './camera-latest-frame.mjs';
-import { fitCameraPanes } from './camera-pane-fit.mjs';
 
 const STORAGE_KEY = 'vlc.debrief.cameras.v2';
 const LEGACY_KEY = 'vlc.debrief.cameras.v1';
 const DEFAULT_OPEN = ['cam0', 'cam1'];
 const CAM1_STREAM = '/api/jetson/v1/cam1/stream.mjpg';
-const PHONE_STRIP_QUERY = '(max-width: 720px)';
 // Names stay put: cam0 is קדמית, cam1 is מטה, cam3 is גימבל.
 const SLOTS = [
   { id: 'cam0', apiId: 'cam0', mono: true, hold: '' },
@@ -80,61 +78,13 @@ function paintPlayer() {
   if (empty) empty.hidden = has;
 }
 
-function phoneCameraStrip() {
-  return window.matchMedia(PHONE_STRIP_QUERY).matches;
-}
-
-function settingsButtonId(id) {
-  if (id === 'cam3') return 'opticsGimbalBtn';
-  if (id === 'cam1') return 'opticsCam1Btn';
-  return 'opticsCam0Btn';
-}
-
-function visibleTiles() {
-  if (!grid) return [];
-  return [...grid.querySelectorAll('.debrief-cam-tile')].filter((tile) => !tile.hidden);
-}
-
-function opticsRoom() {
-  const panel = document.getElementById('optics');
-  const calib = panel?.querySelector('.optics-calib');
-  const toolbar = grid?.previousElementSibling;
-  const panelH = panel?.clientHeight || 0;
-  const used = (calib?.offsetHeight || 0) + (toolbar?.offsetHeight || 0) + 16;
-  return Math.max(0, panelH - used);
-}
-
 export function layoutCameraPanes() {
   if (!grid) return;
-  const tiles = visibleTiles();
-  const areaWidth = grid.clientWidth;
-  if (!(areaWidth > 8) || !tiles.length) return;
-  const boxes = fitCameraPanes({
-    frames: tiles.map((tile) => {
-      const img = tile.querySelector('.debrief-cam-live');
-      return {
-        width: img?.naturalWidth || 0,
-        height: img?.naturalHeight || 0,
-      };
-    }),
-    areaWidth,
-    areaHeight: opticsRoom(),
-    gap: 4,
-  });
-  tiles.forEach((tile, index) => {
-    const box = boxes[index];
-    if (!box) return;
-    const w = Math.floor(box.width);
-    const h = Math.floor(box.height);
-    if ((w < 32 || h < 32) && areaWidth >= 160) {
-      tile.style.width = '';
-      tile.style.height = '';
-      return;
-    }
-    tile.style.width = `${Math.max(1, w)}px`;
-    tile.style.height = `${Math.max(1, h)}px`;
-    tile.style.flex = '0 0 auto';
-    tile.style.setProperty('--frame-aspect', String(box.aspect));
+  grid.querySelectorAll('.debrief-cam-tile').forEach((tile) => {
+    tile.hidden = false;
+    tile.style.width = '';
+    tile.style.height = '';
+    tile.style.flex = '';
   });
 }
 
@@ -147,18 +97,17 @@ function followLoadedFrame(tile, img) {
 function applyLayout(open) {
   if (!grid) return;
   const tiles = [...grid.querySelectorAll('.debrief-cam-tile')];
-  let slot = 0;
-  for (const tile of tiles) {
-    const on = open.includes(tile.dataset.cam);
-    tile.hidden = !on;
-    tile.dataset.slot = on ? String(slot) : '';
-    if (on) slot += 1;
-  }
-  grid.dataset.count = String(slot);
+  const selected = SLOTS.map((slot) => slot.id).find((id) => open.includes(id)) || 'cam0';
+  tiles.forEach((tile, index) => {
+    tile.hidden = false;
+    tile.dataset.slot = String(index);
+    tile.classList.toggle('is-selected', tile.dataset.cam === selected);
+  });
+  grid.dataset.count = String(tiles.length);
   const empty = document.getElementById('debriefCamEmpty');
-  if (empty) empty.hidden = slot !== 0;
+  if (empty) empty.hidden = true;
   for (const btn of document.querySelectorAll('[data-debrief-cam]')) {
-    const on = open.includes(btn.dataset.debriefCam);
+    const on = btn.dataset.debriefCam === selected;
     btn.setAttribute('aria-pressed', on ? 'true' : 'false');
     btn.classList.toggle('is-selected', on);
   }
@@ -310,18 +259,7 @@ function render(companion) {
 
 function chooseCamera(id) {
   if (!SLOTS.some((slot) => slot.id === id)) return;
-  if (phoneCameraStrip()) {
-    writeOpen([id]);
-    render(latestCompanion);
-    return;
-  }
-  const cur = readOpen();
-  if (cur.includes(id)) {
-    render(latestCompanion);
-    return;
-  }
-  const ordered = SLOTS.map((slot) => slot.id).filter((slotId) => cur.includes(slotId) || slotId === id);
-  writeOpen(ordered);
+  writeOpen([id]);
   render(latestCompanion);
 }
 
@@ -336,19 +274,7 @@ function bind() {
   render(null);
   for (const btn of document.querySelectorAll('[data-debrief-cam]')) {
     btn.addEventListener('click', () => {
-      const id = btn.dataset.debriefCam;
-      if (phoneCameraStrip()) {
-        writeOpen([id]);
-        render(latestCompanion);
-        const tab = document.getElementById(settingsButtonId(id));
-        if (tab && tab.getAttribute('aria-selected') !== 'true') tab.click();
-        return;
-      }
-      const cur = readOpen();
-      const next = cur.includes(id) ? cur.filter((item) => item !== id) : [...cur, id];
-      const ordered = SLOTS.map((slot) => slot.id).filter((slotId) => next.includes(slotId));
-      writeOpen(ordered);
-      render(latestCompanion);
+      chooseCamera(btn.dataset.debriefCam);
     });
   }
   master?.addEventListener('loadedmetadata', () => paintPlayer());

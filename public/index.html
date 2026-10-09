@@ -23,10 +23,9 @@
   <body>
     <div id="paramInfoPopup" class="param-info-popup hidden" role="tooltip" aria-live="polite" dir="rtl"></div>
     <div id="connectWidget" class="connect-widget connect-widget-compact connect-widget-float" title="קישורי תקשורת">
-          <button type="button" id="connectToggleBtn" class="conn-pill" aria-expanded="false" aria-controls="connectPanel" title="פתח או סגור את קישורי התקשורת">
+          <button type="button" id="connectToggleBtn" class="conn-pill" title="מצב תקשורת">
             <span id="connectStatusDot" class="conn-dot" data-state="off" aria-label="מצב חיבור"></span>
             <span id="connectPillLabel" class="conn-pill-label">מנותק</span>
-            <span class="conn-pill-caret" aria-hidden="true">▾</span>
           </button>
           <div id="connectPanel" class="conn-panel" hidden>
             <section id="workLinkPicker" class="work-link-picker" aria-label="ערוץ תקשורת">
@@ -261,7 +260,6 @@
         <button class="tab tab-ops" data-tab="control" title="פרמטרים">פרמטרים</button>
         <button class="tab tab-ops" data-tab="optics" title="אופטיקה">אופטיקה</button>
         <button class="tab tab-ops" data-tab="recordings" title="תחקור">תחקור</button>
-        <button type="button" id="flightCommTab" class="tab tab-ops" title="תקשור" aria-pressed="false" aria-controls="flightCommMenu">תקשור</button>
         <button class="tab tab-quiet" hidden data-tab="telemetry" title="אבחונים">אבחונים</button>
         <button class="tab tab-ops" data-tab="flightEngineer" title="מהנדס" hidden>מהנדס</button>
         <button class="tab tab-ops" hidden data-tab="development" title="פיתוח">פיתוח</button>
@@ -1109,10 +1107,11 @@
                 </div>
                 <figcaption class="debrief-cam-label">מטה</figcaption>
               </figure>
-              <figure class="debrief-cam-tile" data-cam="cam3" data-api="cam3" data-slot="2" data-signal="none" hidden>
+              <figure class="debrief-cam-tile" data-cam="cam3" data-api="cam3" data-slot="2" data-signal="none">
                 <div class="debrief-cam-stage" data-camera-stage="cam3">
                   <img class="debrief-cam-live debrief-cam-media" alt="" hidden />
                   <p class="debrief-cam-nosignal">אין אות</p>
+                  <p class="debrief-cam-chip" hidden>אין מענה</p>
                 </div>
                 <figcaption class="debrief-cam-label">גימבל</figcaption>
               </figure>
@@ -1260,7 +1259,7 @@
                 <video id="flightVideo" controls playsinline hidden></video>
                 <canvas id="annotationCanvas"></canvas>
                 <div id="lockIndicator" class="lock-indicator" hidden></div>
-                <p id="debriefPlayerEmpty" class="debrief-player-empty">לא נטען וידאו</p>
+                <p id="debriefPlayerEmpty" class="debrief-player-empty">בחרו הקלטה מהרשימה</p>
               </div>
             </div>
             <div class="annotation-legend">
@@ -2542,6 +2541,8 @@
           </section>
 
           <div id="flightCommMenu" class="flight-comm-menu" hidden role="dialog" aria-label="תקשורת">
+            <p class="flight-menu-heading">נתיב</p>
+            <p class="flight-menu-desc">אוטומטי, בית, סלולר או RF. פורט וקצב של RF נמצאים כאן.</p>
             <div class="flight-comm-list" role="menu">
               <button type="button" class="flight-comm-link" data-comm-link="cellular" role="menuitem">סלולר</button>
               <button type="button" class="flight-comm-link" data-comm-link="radio" role="menuitem">RF</button>
@@ -2582,9 +2583,10 @@
             <button type="button" id="flightStackResetBtn" class="flight-column-menu-item" role="menuitem">אפסו פריסה</button>
           </div>
           <div id="missionDataTileMenu" class="mission-data-tile-menu hidden" role="menu" aria-label="אריח נתון">
-            <button type="button" id="missionDataTileAdd" class="mission-data-tile-menu-item" role="menuitem">הוסיפו נתון</button>
-            <button type="button" id="missionDataTileDelete" class="mission-data-tile-menu-item" role="menuitem">מחקו</button>
+            <button type="button" id="missionDataTileAdd" class="mission-data-tile-menu-item" role="menuitem">הוסיפו נתון<span class="horizon-menu-desc">מחליף את הנתון באריח הזה</span></button>
+            <button type="button" id="missionDataTileDelete" class="mission-data-tile-menu-item" role="menuitem">מחקו<span class="horizon-menu-desc">מסיר את האריח מהעמודה</span></button>
           </div>
+          <div id="opticsContext" class="optics-context" hidden role="dialog" aria-label="פקדי מצלמה"></div>
           <div id="hudCtxMenu" class="hud-ctx-menu hidden" role="menu" aria-label="אפשרויות נתון">
             <button id="hudCtxEdit"   class="hud-ctx-item" role="menuitem">✎ ערוך / הוסף נתון</button>
             <div class="hud-ctx-sep"></div>
@@ -3030,6 +3032,7 @@
     </script>
     <script type="module" src="./modules/flightbook.mjs?v=__APP_VERSION__"></script>
     <script type="module" src="./modules/debrief-cameras.mjs?v=__APP_VERSION__"></script>
+    <script type="module" src="./modules/optics-context.mjs?v=__APP_VERSION__"></script>
     <script type="module" src="./modules/gimbal-screen.mjs?v=__APP_VERSION__"></script>
     <script type="module" src="./modules/gimbal-settings.mjs?v=__APP_VERSION__"></script>
     <script type="module" src="./modules/cam0-panel.mjs?v=__APP_VERSION__"></script>

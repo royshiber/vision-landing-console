@@ -266,9 +266,9 @@ describe('connect popover layout and mocked states', () => {
       });
     });
     await page.goto(base, { waitUntil: 'domcontentloaded' });
-    await page.waitForSelector('#connectToggleBtn');
-    await page.click('#connectToggleBtn');
-    await page.waitForSelector('#connectPanel:not([hidden])');
+    await page.waitForSelector('#missionCommOpen');
+    await page.click('#missionCommOpen');
+    await page.waitForSelector('#flightCommMenu:not([hidden])');
     await page.waitForTimeout(200);
     return page;
   }
@@ -298,7 +298,7 @@ describe('connect popover layout and mocked states', () => {
     const advancedVisible = await page.locator('#connectAdvanced').isVisible();
     expect(advancedVisible).toBe(true);
     const clip = await page.evaluate(() => {
-      const panel = document.getElementById('connectPanel');
+      const panel = document.getElementById('flightCommMenu');
       const panelRect = panel.getBoundingClientRect();
       const rowOverflow = [...document.querySelectorAll('#commLinkRows .comm-link-row')].map((el) => ({
         id: el.dataset.link,
@@ -383,7 +383,7 @@ describe('connect popover layout and mocked states', () => {
       expect(row.overflow, row.id).toBeLessThanOrEqual(1);
     }
     const mapHit = await page.evaluate(() => {
-      const panel = document.getElementById('connectPanel');
+      const panel = document.getElementById('flightCommMenu');
       const panelRect = panel.getBoundingClientRect();
       const controls = [...document.querySelectorAll(
         '#terrainLayerStreetBtn, #terrainLayerSatBtn, #terrainShowLoadedPathBtn, .leaflet-control',
@@ -423,7 +423,7 @@ describe('connect popover layout and mocked states', () => {
         const box = await page.evaluate(() => {
           const widget = document.getElementById('connectWidget');
           const pill = document.getElementById('connectToggleBtn');
-          const panel = document.getElementById('connectPanel');
+          const panel = document.getElementById('flightCommMenu');
           const pillRect = pill.getBoundingClientRect();
           const panelRect = panel.getBoundingClientRect();
           return {

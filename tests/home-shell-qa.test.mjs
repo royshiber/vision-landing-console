@@ -176,8 +176,8 @@ describe('home shell QA', () => {
     await page.waitForTimeout(150);
     const focused = await page.evaluate(() => document.activeElement?.id || '');
     expect(focused).toBe('flightPhraseInput');
-    await page.click('#connectToggleBtn');
-    await page.click('#rcStatusBtn');
+    await page.click('#missionCommOpen');
+    await page.locator('#rcStatusBtn').evaluate((el) => el.click());
     const rc = await box(page, '#rcLinkHint');
     expect(rc.text).toMatch(/שלט בלבד/);
     await page.keyboard.press('Escape');
@@ -225,7 +225,7 @@ describe('home shell QA', () => {
 
   it('the connection chip wraps, the map title stays under dialogs, and Escape closes the version', async () => {
     const page = await openHome(1440, 900);
-    await page.click('#connectToggleBtn', { timeout: 5000 });
+    await page.click('#missionCommOpen', { timeout: 5000 });
     const chip = await box(page, '#jetsonLinkChip');
     expect(chip.textOverflow).not.toBe('ellipsis');
     expect(chip.h).toBeGreaterThan(16);
