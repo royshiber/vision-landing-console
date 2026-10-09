@@ -14679,6 +14679,7 @@ initLiveCameraPanel();
       });
       return;
     }
+    if (vlcExternalQuiet()) return;
     return postWorkLink();
   }).catch(() => {});
   if (toggleBtn) toggleBtn.addEventListener('click', (ev) => { ev.stopPropagation(); togglePanel(); });
@@ -15748,8 +15749,9 @@ initLiveCameraPanel();
     try {
       const r = await fetch('/api/flight-engineer/status');
       const d = await r.json();
-      paintTalkbackStatus(d.elevenlabs === true);
-      return d.elevenlabs === true;
+      const connected = d.elevenlabs === true && !vlcExternalQuiet();
+      paintTalkbackStatus(connected);
+      return connected;
     } catch {
       paintTalkbackStatus(false);
       return false;
@@ -15786,7 +15788,7 @@ initLiveCameraPanel();
   window.__vlcSpeakAnswer = async function vlcSpeakAnswer(text) {
     const spoken = String(text || '').trim();
     if (!spoken) return;
-    if (_vlcTalkbackEleven) {
+    if (_vlcTalkbackEleven && !vlcExternalQuiet()) {
       try {
         const vid = String(window.__vlcSettings?.elevenVoiceId || '').trim();
         const payload = { text: spoken };
@@ -16073,7 +16075,7 @@ initLiveCameraPanel();
     try {
       const r = await fetch('/api/flight-engineer/status');
       const d = await r.json();
-      if (d.elevenlabs) {
+      if (d.elevenlabs && !vlcExternalQuiet()) {
         let elLabel = 'ElevenLabs ✓';
         const t = d.elevenlabsTts;
         if (t?.model) {
@@ -16194,7 +16196,7 @@ initLiveCameraPanel();
     feBargeVadHits = 0;
     feBargeQuietUntilMs = Date.now() + FE_BARGE_WARMUP_MS;
 
-    if (ttsMode === 'elevenlabs') {
+    if (ttsMode === 'elevenlabs' && !vlcExternalQuiet()) {
       try {
         const vid = String(window.__vlcSettings?.elevenVoiceId || '').trim();
         const payload = { text };
@@ -18930,6 +18932,20 @@ function assistStatusTexts(mav) {
   return out;
 }
 
+function vlcExternalQuiet() {
+  try {
+    if (window.__vlcAllowExternal === true) return false;
+    if (window.__vlcQuietExternal === true) return true;
+    if (typeof navigator !== 'undefined' && navigator.webdriver === true) return true;
+    const mav = typeof latestHudMavlink !== 'undefined' ? latestHudMavlink : null;
+    if (mav && mav.simulator === true) return true;
+    if (mav && typeof assistLinkPath === 'function' && assistLinkPath(mav) === 'simulator') return true;
+  } catch {
+    /* live path stays available */
+  }
+  return false;
+}
+
 function assistLinkPath(mav) {
   if (mav?.connected !== true) return null;
   if (mav.simulator === true) return 'simulator';
@@ -19007,8 +19023,10 @@ function assistBuildOpsSignals(vision) {
     const cameras = {};
     const cam0 = assistOneCamera(companion, vision, 'cam0');
     const cam1 = assistOneCamera(companion, vision, 'cam1');
+    const cam3 = assistOneCamera(companion, vision, 'cam3');
     if (cam0 != null) cameras.cam0 = cam0;
     if (cam1 != null) cameras.cam1 = cam1;
+    if (cam3 != null) cameras.cam3 = cam3;
     if (Object.keys(cameras).length) ops.cameras = cameras;
   } catch {
     /* honesty only — omit if unread */

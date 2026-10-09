@@ -194,9 +194,43 @@ describe('offline Ask status answers', () => {
       expect(live.answer).toBe('קדמית משדרת. מטה אינה משדרת.');
       expect(live.kind).toBe('INFORMATION');
       expect(live.sent).toBe(false);
+      const gimbalOn = {
+        ...LIVE,
+        ops_signals: { ...LIVE.ops_signals, cameras: { cam0: true, cam1: false, cam3: true } },
+      };
+      const gimbalOff = {
+        ...LIVE,
+        ops_signals: { ...LIVE.ops_signals, cameras: { cam0: true, cam1: false, cam3: false } },
+      };
+      expect((await ask(service, 'מה מצב המצלמות', gimbalOn)).answer).toBe('קדמית משדרת. מטה אינה משדרת. גימבל משדר.');
+      expect((await ask(service, 'מה מצב המצלמות', gimbalOff)).answer).toBe('קדמית משדרת. מטה אינה משדרת. גימבל אינו משדר.');
+      expect(askStatusFacts(buildAssistContext(gimbalOn)).cameras).toEqual({ cam0: true, cam1: false, cam3: true });
+      expect(buildAssistContext(gimbalOn).ops_signals.cameras.cam3).toBe(true);
     } finally {
       fs.rmSync(seeing.root, { recursive: true, force: true });
       fs.rmSync(navigation.root, { recursive: true, force: true });
+    }
+  });
+
+  it('answers the camera question without the model chain', async () => {
+    let calls = 0;
+    const wired = makeService({
+      classifyAskIntent: async () => {
+        calls += 1;
+        throw new Error('classifier should not run');
+      },
+    });
+    try {
+      const resp = await wired.service.processInput({
+        text: 'מה מצב המצלמות',
+        channel: 'voice',
+        context_snapshot: LIVE,
+      });
+      expect(calls).toBe(0);
+      expect(resp.answer).toBe('קדמית משדרת. מטה אינה משדרת.');
+      expect(resp.sent).toBe(false);
+    } finally {
+      fs.rmSync(wired.root, { recursive: true, force: true });
     }
   });
 
@@ -282,6 +316,9 @@ describe('offline Ask status answers', () => {
     expect(snap).toMatch(/battery_v:/);
     expect(snap).toMatch(/gps_sats:/);
     expect(app).toMatch(/function assistJetsonState/);
+    const opsFn = app.slice(app.indexOf('function assistBuildOpsSignals'), app.indexOf('const ASK_VOICE_SAFETY_LOCK'));
+    expect(opsFn).toContain("assistOneCamera(companion, vision, 'cam3')");
+    expect(opsFn).toContain('cameras.cam3');
     const css = fs.readFileSync(path.join(process.cwd(), 'public/styles.css'), 'utf8');
     expect(css).toMatch(/#missionTalkHost \.assist-msg-body[\s\S]{0,120}white-space:\s*normal/);
     expect(css).toMatch(/\.assist-msg-meta\s*\{[^}]*display:\s*none/);

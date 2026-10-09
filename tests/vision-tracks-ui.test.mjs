@@ -326,9 +326,11 @@ describe('vision track overlay', () => {
     const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
     const posts = [];
     const flightPosts = [];
+    const quietPosts = [];
     page.on('request', (req) => {
       const url = req.url();
       if (req.method() !== 'POST') return;
+      if (url.includes('/api/links/work') || url.includes('/api/flight-engineer/tts')) quietPosts.push(url);
       if (url.includes('/api/assist/message')) posts.push(req.postDataJSON());
       if (url.includes('/api/assist/voice-flight') || url.includes('/api/mavlink/') || url.includes('/vision/lock') || url.includes('/vision/config')) {
         flightPosts.push(url);
@@ -371,6 +373,7 @@ describe('vision track overlay', () => {
         && state.tracks?.length === 2
         && state.lock?.id === 7;
     }, null, { timeout: 15000 });
+    expect(quietPosts).toEqual([]);
     await page.click('[data-tab="control"]');
     const railHidden = await page.locator('#assistRail').getAttribute('hidden');
     if (railHidden !== null) await page.click('#assistToggleBtn');
@@ -380,7 +383,7 @@ describe('vision track overlay', () => {
       await page.locator('#assistSendBtn').click();
     };
     await ask('מה אתה מזהה');
-    await page.waitForFunction(() => (document.querySelector('#assistMessages')?.textContent || '').includes('מזהים 2 עצמים'));
+    await page.waitForFunction(() => (document.querySelector('#assistMessages')?.textContent || '').includes('מזהים אדם 1, רכב 1'));
     await ask('כמה אנשים אתה רואה');
     await page.waitForFunction(() => (document.querySelector('#assistMessages')?.textContent || '').includes('רואים אדם אחד'));
     const detect = posts.find((row) => row?.text === 'מה אתה מזהה');

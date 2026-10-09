@@ -203,6 +203,7 @@ class VisionTrackTests(unittest.TestCase):
         dets = decode_yolo_v8(output, 640, 480, ratio=1, pad_x=0, pad_y=0)
         classes = {det["class"] for det in dets}
         self.assertEqual(classes, {"person", "car"})
+        self.assertTrue(all("color_he" not in det for det in dets))
 
     def test_sample_film_keeps_ids_through_motion_and_a_short_gap(self):
         detector = vision_tracks.CpuBlobDetector()
@@ -216,6 +217,13 @@ class VisionTrackTests(unittest.TestCase):
                 by_class.setdefault(row["class"], []).append(row["id"])
             self.assertEqual(len(by_class["person"]), 1)
             self.assertEqual(len(by_class["car"]), 1)
+            person = next(row for row in rows if row["class"] == "person")
+            car = next(row for row in rows if row["class"] == "car")
+            self.assertEqual(person["color_he"], "אדום")
+            self.assertEqual(car["color_he"], "ירוק")
+            if index >= 1:
+                truck = next(row for row in rows if row["class"] == "truck")
+                self.assertEqual(truck["color_he"], "כחול")
             seen["person"].add(by_class["person"][0])
             seen["car"].add(by_class["car"][0])
             if index >= 1:
@@ -233,6 +241,9 @@ class VisionTrackTests(unittest.TestCase):
             self.svc.push_frame("cam3", width, height, rgb)
             body = self.svc.step()
         person = next(row for row in body["tracks"] if row["class"] == "person")
+        self.assertEqual(person["color_he"], "אדום")
+        car = next(row for row in body["tracks"] if row["class"] == "car")
+        self.assertEqual(car["color_he"], "ירוק")
         locked = self.svc.lock({"camera": "cam3", "id": person["id"]})[1]
         lock_id = locked["lock"]["id"]
         for _gap in range(3):

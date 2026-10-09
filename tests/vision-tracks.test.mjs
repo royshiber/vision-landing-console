@@ -71,6 +71,13 @@ describe('vision track hit testing', () => {
       { id: 7, class: 'person', label_he: 'אדם' },
       { id: 8, class: 'car', label_he: 'רכב' },
     ]);
+    const colored = visionAskSnapshot({
+      enabled: true,
+      stream: true,
+      backend: 'cpu',
+      tracks: [{ id: 7, class: 'person', label_he: 'אדם', color_he: 'אדום' }],
+    });
+    expect(colored.tracks).toEqual([{ id: 7, class: 'person', label_he: 'אדם', color_he: 'אדום' }]);
     expect(snap.lock).toEqual({ id: 7 });
     expect(snap.gimbal_steer).toBeUndefined();
   });

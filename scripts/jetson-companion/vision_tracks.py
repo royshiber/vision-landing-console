@@ -171,6 +171,7 @@ class Track:
         self.hits = 1
         self.misses = 0
         self.velocity = (0.0, 0.0)
+        self.color_he = str(det.get("color_he") or "").strip()
 
     def predict(self):
         vx, vy = self.velocity
@@ -189,12 +190,16 @@ class Track:
         self.confidence = float(det["confidence"])
         if det.get("class"):
             self.cls = det["class"]
+        if det.get("color_he"):
+            self.color_he = str(det.get("color_he") or "").strip()
+        else:
+            self.color_he = ""
         self.hits += 1
         self.misses = 0
 
     def public(self):
         x, y, w, h = self.bbox
-        return {
+        row = {
             "id": self.id,
             "class": self.cls,
             "label_he": class_label(self.cls),
@@ -202,6 +207,9 @@ class Track:
             "bbox": [round(x, 2), round(y, 2), round(w, 2), round(h, 2)],
             "age": int(self.age),
         }
+        if self.color_he:
+            row["color_he"] = self.color_he
+        return row
 
 
 class ByteTracker:
@@ -225,11 +233,15 @@ class ByteTracker:
             conf = float(det.get("confidence") or 0)
             if conf < self.low:
                 continue
-            dets.append({
+            item = {
                 "class": str(det.get("class") or "object"),
                 "confidence": conf,
                 "bbox": [float(bbox[0]), float(bbox[1]), float(bbox[2]), float(bbox[3])],
-            })
+            }
+            color = str(det.get("color_he") or "").strip()
+            if color:
+                item["color_he"] = color
+            dets.append(item)
         for track in self.tracks:
             track.predict()
         high = [det for det in dets if det["confidence"] >= self.high]
@@ -360,6 +372,13 @@ def read_ppm(path):
     return int(width), int(height), pixels
 
 
+BLOB_COLOR_HE = {
+    "person": "אדום",
+    "car": "ירוק",
+    "truck": "כחול",
+}
+
+
 class CpuBlobDetector:
     """Saturated blobs for the sample film and the explicit CPU backend."""
 
@@ -411,6 +430,7 @@ class CpuBlobDetector:
                     "class": kind,
                     "confidence": 0.9,
                     "bbox": [float(minx), float(miny), float(maxx - minx + 1), float(maxy - miny + 1)],
+                    "color_he": BLOB_COLOR_HE[kind],
                 })
         return dets
 

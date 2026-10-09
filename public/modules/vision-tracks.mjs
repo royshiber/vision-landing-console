@@ -142,6 +142,8 @@ export function visionAskSnapshot(payload) {
       if (row.id != null && String(row.id) !== '') item.id = row.id;
       if (row.class) item.class = String(row.class);
       if (row.label_he) item.label_he = String(row.label_he);
+      const color = String(row.color_he || '').trim();
+      if (color) item.color_he = color.slice(0, 24);
       return Object.keys(item).length ? item : null;
     }).filter(Boolean);
   }

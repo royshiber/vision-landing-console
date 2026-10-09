@@ -143,9 +143,39 @@ describe('mission sentence mapper', () => {
         { id: 2, class: 'car', label_he: 'רכב' },
       ],
     };
-    expect(mapMissionSentence('מה אתה מזהה', live).replyHe).toBe('מזהים 2 עצמים: אדם, רכב.');
+    expect(mapMissionSentence('מה אתה מזהה', live).replyHe).toBe('מזהים אדם 1, רכב 1.');
+    expect(mapMissionSentence('מה אתה מזהה', live).replyHe).not.toMatch(/אדום|ירוק|כחול/);
     expect(mapMissionSentence('כמה אנשים אתה רואה', live).replyHe).toBe('רואים אדם אחד.');
     expect(mapMissionSentence('כמה אנשים אתה רואה', { ...live, tracks: [] }).replyHe).toBe('אין אנשים בזיהוי.');
+    const colored = {
+      ...live,
+      tracks: [
+        { id: 1, class: 'person', label_he: 'אדם', color_he: 'אדום' },
+        { id: 4, class: 'person', label_he: 'אדם', color_he: 'אדום' },
+        { id: 2, class: 'car', label_he: 'רכב', color_he: 'ירוק' },
+      ],
+    };
+    expect(mapMissionSentence('מה אתה מזהה', {
+      ...live,
+      tracks: [
+        { id: 1, class: 'person', label_he: 'אדם' },
+        { id: 5, class: 'person', label_he: 'אדם' },
+        { id: 2, class: 'car', label_he: 'רכב' },
+      ],
+    }).replyHe).toBe('מזהים 2 אנשים, רכב 1.');
+    expect(mapMissionSentence('מה אתה מזהה', colored).replyHe).toBe('מזהים 2 אנשים אדומים, רכב ירוק 1.');
+    const split = {
+      ...live,
+      tracks: [
+        { id: 1, class: 'person', label_he: 'אדם', color_he: 'אדום' },
+        { id: 4, class: 'person', label_he: 'אדם', color_he: 'ירוק' },
+      ],
+    };
+    expect(mapMissionSentence('מה אתה מזהה', split).replyHe).toBe('מזהים אדם אדום 1, אדם ירוק 1.');
+    expect(mapMissionSentence('מה אתה מזהה', {
+      ...live,
+      tracks: [{ id: 9, class: 'truck', label_he: 'משאית', color_he: 'כחול' }],
+    }).replyHe).toBe('מזהים משאית כחולה 1.');
   });
 
   it('keeps the lock plan and refuses the return-home clause', () => {
