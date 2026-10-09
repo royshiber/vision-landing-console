@@ -555,17 +555,17 @@ describe('vision track overlay', () => {
     await ask('נעל על האדם ותחזור הביתה');
     await page.waitForFunction(() => {
       const text = document.querySelector('#assistMessages')?.textContent || '';
-      return text.includes('נעילה על האדם נוספה לתוכנית, עדיין לא נעול') && text.includes('חזרה הביתה נחסמה') && text.includes('לא נשלח דבר');
+      return text.includes('נעילה על האדם נוספה לתוכנית. כדי לנעול עכשיו, לחצו על התיבה') && text.includes('חזרה הביתה נחסמה') && text.includes('לא נשלח דבר');
     });
     expect(posts.some((row) => row?.text === 'נעל על האדם ותחזור הביתה')).toBe(true);
     expect(flightPosts.length).toBe(beforeFlight);
     const beforeArm = posts.length;
     await ask('חימוש');
-    await page.waitForFunction(() => (document.querySelector('#assistMessages')?.textContent || '').includes('חימוש ונטרול חסומים'));
+    await page.waitForFunction(() => (document.querySelector('#assistMessages')?.textContent || '').includes('נחסם. חימוש וניטרול חסומים'));
     await ask('נטרול');
     await page.waitForFunction(() => {
       const text = document.querySelector('#assistMessages')?.textContent || '';
-      return text.split('חימוש ונטרול חסומים').length >= 3;
+      return text.split('נחסם. חימוש וניטרול חסומים').length >= 3;
     });
     expect(posts.length).toBe(beforeArm);
     expect(flightPosts).toEqual([]);

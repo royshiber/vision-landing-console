@@ -180,7 +180,7 @@ describe('talk-back honesty when ElevenLabs key is missing', () => {
     expect(js).toContain('meta[name="vlc-test"]');
     const quiet = js.slice(js.indexOf('function vlcTestQuiet'), js.indexOf('function assistLinkPath'));
     expect(quiet).not.toContain('simulator');
-    expect(quiet).not.toContain('vlc-qa');
+    expect(quiet).toContain('meta[name="vlc-qa"]');
   });
 });
 

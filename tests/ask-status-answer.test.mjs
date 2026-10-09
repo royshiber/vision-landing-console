@@ -193,7 +193,7 @@ describe('offline Ask status answers', () => {
         channel: 'voice',
         context_snapshot: LIVE,
       });
-      expect(live.answer).toBe('קדמית משדרת. מטה אינה משדרת. אין נתון על הגימבל.');
+      expect(live.answer).toBe('מצלמה קדמית משדרת. מצלמת מטה אינה משדרת. אין נתון על הגימבל.');
       expect(live.kind).toBe('INFORMATION');
       expect(live.sent).toBe(false);
       const gimbalOn = {
@@ -204,8 +204,8 @@ describe('offline Ask status answers', () => {
         ...LIVE,
         ops_signals: { ...LIVE.ops_signals, cameras: { cam0: true, cam1: false, cam3: false } },
       };
-      expect((await ask(service, 'מה מצב המצלמות', gimbalOn)).answer).toBe('קדמית משדרת. מטה אינה משדרת. גימבל משדר.');
-      expect((await ask(service, 'מה מצב המצלמות', gimbalOff)).answer).toBe('קדמית משדרת. מטה אינה משדרת. גימבל אינו משדר.');
+      expect((await ask(service, 'מה מצב המצלמות', gimbalOn)).answer).toBe('מצלמה קדמית משדרת. מצלמת מטה אינה משדרת. מצלמת הגימבל משדרת.');
+      expect((await ask(service, 'מה מצב המצלמות', gimbalOff)).answer).toBe('מצלמה קדמית משדרת. מצלמת מטה אינה משדרת. מצלמת הגימבל אינה משדרת.');
       expect(askStatusFacts(buildAssistContext(gimbalOn)).cameras).toEqual({ cam0: true, cam1: false, cam3: true });
       expect(buildAssistContext(gimbalOn).ops_signals.cameras.cam3).toBe(true);
     } finally {
@@ -229,7 +229,7 @@ describe('offline Ask status answers', () => {
         context_snapshot: LIVE,
       });
       expect(calls).toBe(0);
-      expect(resp.answer).toBe('קדמית משדרת. מטה אינה משדרת. אין נתון על הגימבל.');
+      expect(resp.answer).toBe('מצלמה קדמית משדרת. מצלמת מטה אינה משדרת. אין נתון על הגימבל.');
       expect(resp.sent).toBe(false);
     } finally {
       fs.rmSync(wired.root, { recursive: true, force: true });
@@ -237,11 +237,11 @@ describe('offline Ask status answers', () => {
   });
 
   it('answers cameras and Jetson from ops signals', async () => {
-    expect((await ask(service, 'האם המצלמות משדרות?')).answer).toBe('קדמית משדרת. מטה אינה משדרת. אין נתון על הגימבל.');
+    expect((await ask(service, 'האם המצלמות משדרות?')).answer).toBe('מצלמה קדמית משדרת. מצלמת מטה אינה משדרת. אין נתון על הגימבל.');
     expect((await ask(service, 'מה מצב מצלמת הגימבל', {
       ops_signals: { cameras: { cam0: false, cam1: false, cam3: true } },
-    })).answer).toBe('גימבל משדר.');
-    expect((await ask(service, 'מה מצב מצלמת הגימבל', { ops_signals: { cameras: { cam0: true, cam1: true, cam3: false } } })).answer).toBe('גימבל אינו משדר.');
+    })).answer).toBe('מצלמת הגימבל משדרת.');
+    expect((await ask(service, 'מה מצב מצלמת הגימבל', { ops_signals: { cameras: { cam0: true, cam1: true, cam3: false } } })).answer).toBe('מצלמת הגימבל אינה משדרת.');
     expect((await ask(service, 'מה מצב מצלמת הגימבל')).answer).toBe('אין נתון על הגימבל.');
     expect((await ask(service, 'מה מצב ה-Jetson?')).answer).toBe('מחשב משימה (Jetson) מחובר.');
     expect(answerAskStatus('jetson', buildAssistContext({ ops_signals: { jetson: 'mock' } }))).toBe('מחשב משימה (Jetson) במצב הדמיה.');
@@ -345,7 +345,7 @@ describe('offline Ask status answers', () => {
     expect(resp.sent).not.toBe(true);
   });
 
-  it('uses one streaming bit for the camera sentence and the vision state', () => {
+  it('uses one streaming bit for the camera sentence and the vision state', async () => {
     const ctx = applyCameraStreamTruth(buildAssistContext({
       ops_signals: { cameras: { cam0: false, cam1: true, cam3: false } },
       vision: { camera: 'cam0', enabled: true, stream: true, tracks: [] },
@@ -361,6 +361,95 @@ describe('offline Ask status answers', () => {
     expect(fromMap.vision.stream).toBe(true);
     expect(fromMap.ops_signals.cameras.cam3).toBe(true);
     expect(fromMap.ops_signals.cameras.cam0).toBe(true);
+    const unknown = applyCameraStreamTruth(buildAssistContext({
+      ops_signals: { cameras: { cam0: false } },
+      vision: {
+        camera: 'cam0',
+        enabled: true,
+        stream: false,
+        reason_he: 'אין נתון על זרם המצלמות',
+        tracks: [],
+      },
+    }));
+    expect(unknown.vision.stream).toBeUndefined();
+    expect(unknown.ops_signals?.cameras?.cam0).toBeUndefined();
+    const status = await ask(service, 'מה מצב המצלמות', {
+      ops_signals: { cameras: { cam0: false } },
+      vision: {
+        camera: 'cam0',
+        enabled: true,
+        stream: false,
+        reason_he: 'אין נתון על זרם המצלמות',
+        tracks: [],
+      },
+    });
+    const seen = await ask(service, 'מה אתה מזהה', {
+      ops_signals: { cameras: { cam0: false } },
+      vision: {
+        camera: 'cam0',
+        enabled: true,
+        stream: false,
+        reason_he: 'אין נתון על זרם המצלמות',
+        tracks: [],
+      },
+    });
+    expect(status.answer).toBe('אין נתון על זרם המצלמות.');
+    expect(seen.answer).toBe('אין נתון על זרם המצלמות.');
+    expect(status.answer).not.toContain('אינה משדרת');
+    const failedFetch = {
+      ops_signals: { cameras: { cam0: false } },
+      vision: {
+        camera: 'cam0',
+        enabled: false,
+        stream: false,
+        reason_he: 'אין נתון על זרם המצלמות',
+        tracks: [],
+      },
+    };
+    const failedStatus = await ask(service, 'מה מצב המצלמות', failedFetch);
+    const failedSeen = await ask(service, 'מה אתה מזהה', failedFetch);
+    expect(failedStatus.answer).toBe('אין נתון על זרם המצלמות.');
+    expect(failedSeen.answer).toBe(failedStatus.answer);
+    expect(failedStatus.answer).not.toContain('אינה משדרת');
+    expect(failedSeen.answer).not.toContain('הזיהוי כבוי');
+  });
+
+  it('answers known sentences before a slow model', async () => {
+    let calls = 0;
+    const wired = makeService({
+      classifyAskIntent: async () => {
+        calls += 1;
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+        return null;
+      },
+    });
+    const live = {
+      vision: {
+        enabled: true,
+        stream: true,
+        model: true,
+        tracks: [{ id: 1, class: 'car', label_he: 'רכב', color_he: 'לבן' }],
+      },
+    };
+    try {
+      const cases = [
+        ['תסרוק', 'אנשים, חיות או מכוניות', {}],
+        ['כמה חתולים יש', 'לא רואים חתולים', live],
+        ['נעל על הרכב הלבן', 'כדי לנעול עכשיו, לחצו על התיבה', live],
+        ['מה מצב המצלמות', 'אין נתון על זרם המצלמות', {}],
+        ['מה מצב הטיסה', 'מצב הטיסה לא ידוע', {}],
+      ];
+      for (const [text, needle, snapshot] of cases) {
+        const started = Date.now();
+        const resp = await wired.service.processInput({ text, context_snapshot: snapshot });
+        expect(Date.now() - started, text).toBeLessThan(1000);
+        expect(resp.answer, text).toContain(needle);
+        expect(resp.answer, text).not.toMatch(/\([^)]+\)/);
+      }
+      expect(calls).toBe(0);
+    } finally {
+      fs.rmSync(wired.root, { recursive: true, force: true });
+    }
   });
 
   it('answers a mock-mode question in under a second', async () => {

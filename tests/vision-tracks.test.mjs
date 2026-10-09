@@ -103,6 +103,16 @@ describe('vision track hit testing', () => {
     expect(colored.tracks).toEqual([{ id: 7, class: 'person', label_he: 'אדם', color_he: 'אדום' }]);
     expect(snap.lock).toEqual({ id: 7 });
     expect(snap.gimbal_steer).toBeUndefined();
+    const missing = visionAskSnapshot({
+      ok: false,
+      enabled: false,
+      stream: false,
+      tracks: [],
+      reason_he: 'אין נתון על זרם המצלמות',
+    });
+    expect(missing.enabled).toBeUndefined();
+    expect(missing.stream).toBeUndefined();
+    expect(missing.reason_he).toBe('אין נתון על זרם המצלמות');
   });
 
   it('fails when no camera stage marker is present', () => {

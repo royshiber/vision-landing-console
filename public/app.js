@@ -18942,6 +18942,8 @@ function vlcTestQuiet() {
     if (window.__vlcTestQuiet === true) return true;
     const flag = document.querySelector('meta[name="vlc-test"]')?.getAttribute('content');
     if (flag === '1') return true;
+    const qa = document.querySelector('meta[name="vlc-qa"]')?.getAttribute('content');
+    if (qa === '1') return true;
   } catch {
     /* live path stays available */
   }
@@ -18982,10 +18984,8 @@ function assistOneCamera(companion, vision, id) {
     || horizonCameraDetail(vision, id)
     || null;
   if (!detail || typeof detail !== 'object') return null;
-  if (detail.enabled === false) return false;
   if (detail.state === 'streaming') return true;
-  if (detail.camera_ok === true) return horizonSlotStreaming(detail);
-  if (detail.camera_ok === false || detail.has_frame === false) return false;
+  if (detail.camera_ok === true && horizonSlotStreaming(detail)) return true;
   return null;
 }
 
@@ -19599,7 +19599,7 @@ async function assistSendText(rawText, { channel = 'text' } = {}) {
   if (flightRoute) {
     assistAppendMessage({ role: 'user', text });
     if (flightRoute.action === 'block') {
-      const line = 'נדחה. חימוש ונטרול חסומים. לא נשלח דבר.';
+      const line = 'נחסם. חימוש וניטרול חסומים';
       assistAppendMessage({ role: 'assist', text: line, kind: 'INFORMATION', blocked: true });
       showFlightTalkback(line);
       return;
@@ -19626,7 +19626,7 @@ async function assistSendText(rawText, { channel = 'text' } = {}) {
       });
       return;
     }
-    const refused = 'נדחה. הפקודה אינה ברשימה המותרת. לא נשלח דבר.';
+    const refused = 'נחסם. הפקודה אינה ברשימה';
     assistAppendMessage({ role: 'assist', text: refused, kind: 'INFORMATION' });
     showFlightTalkback(refused);
     return;
@@ -20847,7 +20847,7 @@ function flightVoiceMatch(text) {
 
 function flightModeReadbackLine(askedMode, text) {
   const mav = typeof latestHudMavlink !== 'undefined' ? latestHudMavlink : null;
-  if (!mav || mav.connected !== true) return 'אין חיבור';
+  if (!mav || mav.connected !== true) return 'אין חיבור לבקר הטיסה. מצב הטיסה לא ידוע.';
   const name = vlcFlightModeName(mav.flightMode, mav);
   if (!name) return 'אין חיבור';
   const spoken = typeof window.__vlcPilotModeWord === 'function' ? window.__vlcPilotModeWord(name) : '';
@@ -20970,11 +20970,11 @@ async function submitFlightPhrase(raw) {
   }
   const route = askFlightRoute(text);
   if (!route || route.action === 'refuse') {
-    showFlightTalkback('נדחה. הפקודה אינה ברשימה המותרת. לא נשלח דבר.');
+    showFlightTalkback('נחסם. הפקודה אינה ברשימה');
     return;
   }
   if (route.action === 'block') {
-    showFlightTalkback('נדחה. חימוש ונטרול חסומים. לא נשלח דבר.');
+    showFlightTalkback('נחסם. חימוש וניטרול חסומים');
     return;
   }
   if (route.action === 'refuse-mode') {

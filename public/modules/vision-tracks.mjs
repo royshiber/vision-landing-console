@@ -101,12 +101,12 @@ export function selectFrameTracks(latest, book, shownSeq) {
 }
 
 function emptyPayload(reason) {
+  const unknown = reason === REASON_NO_STREAM;
   return {
     ok: false,
-    enabled: false,
+    ...(unknown ? {} : { enabled: false, stream: false }),
     tracks: [],
     lock: null,
-    stream: false,
     reason_he: reason,
     gimbal_steer: { enabled: false, sent: false, blocked: true, reason_he: '', flight_commands: false },
     flight_commands: false,
@@ -167,6 +167,7 @@ export function visionStreamMap() {
   const out = {};
   for (const [camera, payload] of cache) {
     if (!STREAM_IDS.includes(camera) || typeof payload?.stream !== 'boolean') continue;
+    if (payload.stream === false && String(payload.reason_he || '').trim() === REASON_NO_STREAM) continue;
     out[camera] = payload.stream;
   }
   return out;
@@ -177,9 +178,10 @@ export function visionAskSnapshot(payload) {
   const out = {};
   const camera = String(payload.camera || payload.selected_camera || '');
   if (STREAM_IDS.includes(camera)) out.camera = camera;
-  if (typeof payload.enabled === 'boolean') out.enabled = payload.enabled;
-  if (typeof payload.stream === 'boolean') out.stream = payload.stream;
   const reason = String(payload.reason_he || '').trim();
+  const unknownStream = reason === REASON_NO_STREAM;
+  if (typeof payload.enabled === 'boolean' && !(unknownStream && payload.enabled === false)) out.enabled = payload.enabled;
+  if (typeof payload.stream === 'boolean' && !(unknownStream && payload.stream === false)) out.stream = payload.stream;
   if (reason) out.reason_he = reason;
   if (payload.backend === 'unavailable' || reason === 'אין מודל זיהוי') out.model = false;
   else if (payload.enabled === true && payload.stream === true && payload.backend && payload.backend !== 'off') {
