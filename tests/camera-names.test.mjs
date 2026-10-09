@@ -29,7 +29,7 @@ describe('camera display names', () => {
     const byId = Object.fromEntries(model.cards.map((card) => [card.id, card.name]));
     expect(byId.cam0).toBe('קדמית');
     expect(byId.cam1).toBe('מטה');
-    expect(byId.cam2).toBe('cam2');
+    expect(byId.cam2).toBeUndefined();
     expect(byId.cam3).toBe('גימבל');
     expect(byId.cam3).not.toBe('תקרה');
   });

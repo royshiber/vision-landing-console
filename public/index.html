@@ -22,6 +22,7 @@
   </head>
   <body>
     <div id="paramInfoPopup" class="param-info-popup hidden" role="tooltip" aria-live="polite" dir="rtl"></div>
+    <div id="opticsContext" class="optics-context" hidden role="dialog" aria-label="פקדי מצלמה"></div>
     <div id="connectWidget" class="connect-widget connect-widget-compact connect-widget-float" title="קישורי תקשורת">
           <button type="button" id="connectToggleBtn" class="conn-pill" title="מצב תקשורת">
             <span id="connectStatusDot" class="conn-dot" data-state="off" aria-label="מצב חיבור"></span>
@@ -1243,7 +1244,7 @@
           </div>
           <div class="actions">
             <label class="file-btn">
-              טען וידאו
+              טענו וידאו
               <input id="videoInput" type="file" accept="video/*" title="טוען הקלטת טיסה להצגה" />
             </label>
             <span id="selectedRecordingLabel" class="flight-summary-inline">לוג נבחר: —</span>
@@ -1274,7 +1275,7 @@
             <div class="archive-sessions-card" id="archiveSessionsCard">
               <div class="flights-mgr-header">
                 <h3 class="flights-mgr-title">הקלטות ארכיון</h3>
-                <button type="button" id="refreshArchiveSessionsBtn" title="רענן">⟳ רענן</button>
+                <button type="button" id="refreshArchiveSessionsBtn" title="רעננו">⟳ רעננו</button>
               </div>
               <p id="archiveSessionsEmpty" class="archive-sessions-empty">אין הקלטות ארכיון עדיין</p>
               <div id="archiveSessionsList" class="archive-sessions-list" hidden></div>
@@ -2587,7 +2588,6 @@
             <button type="button" id="missionDataTileAdd" class="mission-data-tile-menu-item" role="menuitem">הוסיפו נתון<span class="horizon-menu-desc">מחליף את הנתון באריח הזה</span></button>
             <button type="button" id="missionDataTileDelete" class="mission-data-tile-menu-item" role="menuitem">מחקו<span class="horizon-menu-desc">מסיר את האריח מהעמודה</span></button>
           </div>
-          <div id="opticsContext" class="optics-context" hidden role="dialog" aria-label="פקדי מצלמה"></div>
           <div id="hudCtxMenu" class="hud-ctx-menu hidden" role="menu" aria-label="אפשרויות נתון">
             <button id="hudCtxEdit"   class="hud-ctx-item" role="menuitem">✎ ערוך / הוסף נתון</button>
             <div class="hud-ctx-sep"></div>

@@ -5,7 +5,7 @@
  */
 import { cameraDisplayName } from './camera-names.mjs';
 
-const CAMERA_ORDER = ['cam0', 'cam1', 'cam2', 'cam3'];
+const CAMERA_ORDER = ['cam0', 'cam1', 'cam3'];
 
 const ERROR_HE = Object.freeze({
   disabled: 'כבוי',
@@ -114,7 +114,7 @@ export function pulseCameraCards(companion) {
     src.extras?.cameras,
     src.vision?.cameras,
   );
-  const cards = orderedIds(map).map((id) => {
+  const cards = orderedIds(map).filter((id) => CAMERA_ORDER.includes(id)).map((id) => {
     const cam = map[id];
     const streaming = readStreaming(cam);
     const fps = readFinite(cam, 'fps');
@@ -191,8 +191,14 @@ export function createPulseCameraHold({
   failMs = 10000,
 } = {}) {
   const last = new Map();
+  const pending = new Map();
   let failStreak = 0;
   let failSince = 0;
+  function pillFor(streaming) {
+    if (streaming === true) return 'משדר';
+    if (streaming === false) return 'לא משדר';
+    return 'אין נתון';
+  }
   return {
     step(companion, at = now()) {
       const link = pulseCameraLink(companion);
@@ -209,33 +215,54 @@ export function createPulseCameraHold({
       const byId = new Map((fresh?.cards || []).map((card) => [card.id, card]));
       const cards = CAMERA_ORDER.map((id) => {
         const next = byId.get(id);
-        if (next) {
-          last.set(id, { ...next, at });
-          return { ...next, held: false, ageLabel: null, pill: next.streaming === true ? 'משדר' : next.streaming === false ? 'לא משדר' : 'אין נתון' };
-        }
         const prev = last.get(id);
-        if (prev && !sustained) {
-          const age = Math.max(1, Math.round((at - prev.at) / 1000));
+        if (!next) {
+          pending.delete(id);
+          if (prev && !sustained) {
+            const age = Math.max(1, Math.round((at - prev.at) / 1000));
+            return {
+              ...prev,
+              held: true,
+              tone: 'off',
+              ageLabel: `לפני ${age} שנ׳`,
+              pill: pillFor(prev.streaming),
+            };
+          }
+          const quiet = sustained ? (link.pill || 'לא מגיב') : 'אין נתון';
           return {
-            ...prev,
-            held: true,
-            tone: 'off',
-            ageLabel: `לפני ${age} שנ׳`,
-            pill: prev.streaming === true ? 'משדר' : prev.streaming === false ? 'לא משדר' : 'אין נתון',
+            id,
+            name: cameraName(id),
+            streaming: null,
+            fps: null,
+            ageMs: null,
+            error: sustained ? quiet : null,
+            tone: sustained ? downTone(link.pill) : 'off',
+            held: false,
+            ageLabel: null,
+            pill: quiet,
           };
         }
-        return {
-          id,
-          name: cameraName(id),
-          streaming: null,
-          fps: null,
-          ageMs: null,
-          error: sustained ? (link.pill || 'לא מגיב') : null,
-          tone: sustained ? downTone(link.pill) : 'off',
-          held: false,
-          ageLabel: null,
-          pill: sustained ? (link.pill || 'לא מגיב') : 'אין נתון',
-        };
+        const flipped = prev && prev.streaming != null && next.streaming != null && prev.streaming !== next.streaming;
+        if (flipped) {
+          const pend = pending.get(id);
+          const same = pend && pend.streaming === next.streaming;
+          const streak = same ? pend.streak + 1 : 1;
+          const since = same ? pend.since : at;
+          pending.set(id, { streaming: next.streaming, streak, since });
+          const committed = streak >= fails || (at - since) >= failMs;
+          if (!committed) {
+            const age = Math.max(1, Math.round((at - prev.at) / 1000));
+            return {
+              ...prev,
+              held: true,
+              ageLabel: `לפני ${age} שנ׳`,
+              pill: pillFor(prev.streaming),
+            };
+          }
+        }
+        pending.delete(id);
+        last.set(id, { ...next, at });
+        return { ...next, held: false, ageLabel: null, pill: pillFor(next.streaming) };
       });
       return { cards, live: !sustained, collapsed: false };
     },

@@ -1604,24 +1604,39 @@ function splitParamLabel(label) {
 
 let serverProfileValues = null;
 
-function profileLivePresentation(key, fcSnapshot, serverProfile) {
-  if (fcSnapshot && typeof fcSnapshot === 'object' && Object.prototype.hasOwnProperty.call(fcSnapshot, key)) {
-    const value = fcSnapshot[key];
-    if (value != null && value !== '') return { text: String(value), kicker: 'בבקר' };
+function profileReadinessKeys() {
+  let ready = null;
+  try {
+    ready = latestVisionLandingReadiness;
+  } catch {
+    ready = null;
   }
-  if (serverProfile && typeof serverProfile === 'object' && Object.prototype.hasOwnProperty.call(serverProfile, key)) {
-    const value = serverProfile[key];
-    if (value != null && value !== '') return { text: String(value), kicker: 'במחשב המשימה' };
+  const row = Array.isArray(ready?.rows)
+    ? ready.rows.find((item) => item && item.id === 'plnd_profile')
+    : null;
+  return Array.isArray(row?.keys) ? row.keys : [];
+}
+
+function profileLivePresentation(key, readinessKeys) {
+  const keys = Array.isArray(readinessKeys) ? readinessKeys : profileReadinessKeys();
+  const row = keys.find((item) => item && item.key === key) || null;
+  const kicker = row?.source === 'companion'
+    ? 'במחשב המשימה'
+    : row?.source === 'persisted'
+      ? 'שמור בקונסולה'
+      : 'בבקר';
+  if (row?.state === 'present' && row.value != null && row.value !== '') {
+    return { text: String(row.value), kicker };
   }
-  return { text: 'אין חיבור', kicker: 'בבקר' };
+  return { text: 'חסר', kicker };
 }
 
 function profileLiveText(key) {
-  return profileLivePresentation(key, fcCurrentSnapshot, serverProfileValues).text;
+  return profileLivePresentation(key, profileReadinessKeys()).text;
 }
 
 function profileLiveKicker(key) {
-  return profileLivePresentation(key, fcCurrentSnapshot, serverProfileValues).kicker;
+  return profileLivePresentation(key, profileReadinessKeys()).kicker;
 }
 
 function renderParamsIn(container, items) {
@@ -1645,7 +1660,7 @@ function renderParamsIn(container, items) {
       </div>
       <p class="fc-group-key" dir="ltr">${param.key}</p>
       <div class="fc-card-cell"><span class="fc-card-kicker">דיפולט</span><span class="fc-card-value" dir="ltr">${param.value}</span></div>
-      <div class="fc-card-cell"><span class="fc-card-kicker">${kicker}</span><span class="fc-group-now" data-state="${live === 'אין חיבור' ? 'unknown' : 'present'}">${live}</span></div>
+      <div class="fc-card-cell"><span class="fc-card-kicker">${kicker}</span><span class="fc-group-now" data-state="${live === 'חסר' ? 'missing' : 'present'}">${live}</span></div>
       <div class="fc-card-cell"><span class="fc-card-kicker">יחידה</span><span class="fc-group-unit" dir="ltr">${facts.unit || '—'}</span></div>
       <div class="fc-card-cell"><span class="fc-card-kicker">טווח</span><span class="fc-group-meta" dir="ltr">${param.min}–${param.max}</span></div>
       <div class="fc-card-cell fc-card-control">
@@ -4800,6 +4815,7 @@ function paintPlndProfileHonesty(snapshot) {
     stateEl.textContent = state === 'unknown' ? 'אין חיבור' : (row?.stateHe || 'אין חיבור');
   }
   appendPlndProfileKeys(keysEl, row?.keys || [], 'plnd-honesty-key');
+  if (typeof renderParams === 'function') renderParams();
 }
 
 function cameraInstallBusy() {
@@ -5220,6 +5236,7 @@ function createMedianWindow(size = 5) {
 }
 function createStatusDebounce({ now = () => Date.now(), fails = 3, failMs = 10000 } = {}) {
   const faultRe = /שגיאה|לא מגיב|מנותק|אין חיבור/;
+  const pendingRe = /ממתין/;
   let good = '';
   let at = 0;
   let haveGood = false;
@@ -5227,8 +5244,9 @@ function createStatusDebounce({ now = () => Date.now(), fails = 3, failMs = 1000
   return {
     push(text, stamp = now()) {
       const raw = String(text || '').trim();
+      const pending = pendingRe.test(raw);
       const fault = !raw || faultRe.test(raw) || telemetryValueBlank(raw);
-      if (!fault) {
+      if (!fault && !pending) {
         good = raw;
         at = stamp;
         haveGood = true;
@@ -5236,8 +5254,10 @@ function createStatusDebounce({ now = () => Date.now(), fails = 3, failMs = 1000
         return { phase: 'live', text: raw };
       }
       streak += 1;
-      const age = haveGood ? stamp - at : failMs;
-      if (haveGood && streak < fails && age < failMs) return { phase: 'aged', text: good };
+      const age = haveGood ? stamp - at : (at ? stamp - at : 0);
+      if ((haveGood || pending) && streak < fails && age < failMs) {
+        return { phase: 'aged', text: good };
+      }
       return { phase: 'dash', text: raw || '—' };
     },
   };
@@ -5251,6 +5271,12 @@ const MODE_HOLD_MS = 12000;
 const SLOW_HOLD_MS = 10000;
 function paintHeldValue(el, key, value, opts) {
   if (!el || !key) return null;
+  if (typeof flightTelemetryHold === 'undefined' || typeof heldTelemetryNodes === 'undefined') {
+    const blank = value == null || value === '' || value === '—' || value === 'אין נתון';
+    const text = blank ? '—' : String(value);
+    if (el.textContent !== text) el.textContent = text;
+    return { phase: blank ? 'dash' : 'live', text, value: blank ? null : text, dim: false, ageMs: null };
+  }
   heldTelemetryNodes.set(key, { el, opts });
   const view = flightTelemetryHold.offer(key, value, opts);
   if (el.textContent !== view.text) el.textContent = view.text;
@@ -7153,7 +7179,8 @@ function horizonVideoHasPlayableSource(url) {
 function syncHorizonVideoEmpty(hasVideo) {
   const emptyEl = document.getElementById('horizonVideoEmpty');
   if (!emptyEl) return;
-  const showEmpty = !hasVideo && (_horizonVideoMode || readInstrumentView() === 'video');
+  const instrumentView = typeof readInstrumentView === 'function' ? readInstrumentView() : '';
+  const showEmpty = !hasVideo && (_horizonVideoMode || instrumentView === 'video');
   emptyEl.hidden = !showEmpty;
   emptyEl.classList.toggle('hidden', !showEmpty);
   if (showEmpty) emptyEl.textContent = 'אין זרם מצלמה';
@@ -7349,7 +7376,7 @@ const HORIZON_CAMERA_IDS = ['cam0', 'cam1', 'cam3'];
 const HORIZON_CAMERA_SLOTS = [
   { id: 'none', label: 'בלי מצלמה', apiId: null, mono: false },
   { id: 'cam0', label: 'קדמית', apiId: 'cam0', mono: true },
-  { id: 'cam1', label: 'מטה', apiId: 'cam1', mono: true, hold: '/api/jetson/v1/cam1/stream.mjpg' },
+  { id: 'cam1', label: 'מטה', apiId: 'cam1', mono: true, frame: '/api/jetson/v1/cameras/cam1/frame' },
   { id: 'cam3', label: 'גימבל', apiId: 'cam3', mono: false, frame: GIMBAL_FRAME },
 ];
 
@@ -7515,7 +7542,11 @@ function clearHorizonImage(img) {
 
 function ensureHorizonGimbalPump(img, note, base) {
   const existing = horizonGimbalPumps.get(img);
-  if (existing) return existing;
+  if (existing && existing.base === base) return existing;
+  if (existing) {
+    try { existing.stop(); } catch { /* pump already stopped */ }
+    horizonGimbalPumps.delete(img);
+  }
   const factory = window.__vlcCreateLatestJpegPump;
   if (typeof factory !== 'function') return null;
   const pump = factory({
@@ -7558,6 +7589,7 @@ function ensureHorizonGimbalPump(img, note, base) {
       markHorizonLive();
     },
   });
+  pump.base = base;
   horizonGimbalPumps.set(img, pump);
   return pump;
 }
@@ -7618,44 +7650,24 @@ function paintHorizonImage(img, note, slot, companion) {
     note.hidden = false;
     note.textContent = 'אין אות';
   };
+  const slotId = slot?.id || '';
+  if (img.dataset.horizonSlot !== slotId) {
+    clearHorizonImage(img);
+    img.dataset.horizonSlot = slotId;
+    showNote();
+  }
   if (!slot?.apiId) {
     clearHorizonImage(img);
+    img.dataset.horizonSlot = '';
     if (note) note.hidden = true;
     return;
   }
   img.classList.toggle('is-mono', slot.mono === true);
-  if (slot.hold) {
-    img.onload = () => {
-      img.hidden = false;
-      if (note) note.hidden = true;
-      fitHorizonPicture(img);
-      markHorizonLive();
-    };
-    img.onerror = () => {
-      img.hidden = true;
-      showNote();
-      markHorizonLive();
-    };
-    if (img.dataset.hold !== slot.hold) {
-      img.dataset.hold = slot.hold;
-      img.hidden = true;
-      showNote();
-      img.src = slot.hold;
-    } else if (img.complete && img.naturalWidth > 0 && !img.hidden) {
-      if (note) note.hidden = true;
-    }
-    return;
-  }
   img.dataset.hold = '';
-  const forced = typeof slot.frame === 'string' && slot.frame.length > 0;
-  const detail = horizonCameraDetail(companion, slot.apiId);
-  const live = forced || horizonSlotStreaming(detail);
-  if (!live) {
-    clearHorizonImage(img);
-    showNote();
-    return;
-  }
-  const base = forced ? slot.frame : `/api/jetson/v1/cameras/${slot.apiId}/frame`;
+  const frameBase = `/api/jetson/v1/cameras/${slot.apiId}/frame`;
+  const base = frameBase;
+  img.dataset.frameBase = base;
+  const forced = true;
   if (forced) {
     const pump = ensureHorizonGimbalPump(img, note, base);
     if (pump) {
@@ -7903,6 +7915,8 @@ function initHorizonCameraMenu() {
     openedAt = Date.now();
     syncHorizonMenuState();
     menu.hidden = false;
+    menu.style.width = '300px';
+    menu.style.maxWidth = '300px';
     menu.style.maxHeight = `${Math.max(120, window.innerHeight - 16)}px`;
     menu.style.left = '0px';
     menu.style.top = '0px';
@@ -8156,18 +8170,19 @@ function applySimVehicleBadge(mav) {
 }
 
 function rememberLiveRadioStatus(status) {
+  const paintBadge = typeof applySimVehicleBadge === 'function' ? applySimVehicleBadge : () => {};
   if (!status || typeof status !== 'object') {
     latestLiveRadioStatus = null;
-    applySimVehicleBadge(null);
+    paintBadge(null);
     return;
   }
   if (status.connected === true || status.listening === true) {
     latestLiveRadioStatus = status;
-    applySimVehicleBadge(status);
+    paintBadge(status);
     return;
   }
   latestLiveRadioStatus = null;
-  applySimVehicleBadge(null);
+  paintBadge(null);
 }
 
 function syncMissionFcEmptyNote(mav) {
@@ -8191,7 +8206,12 @@ function syncMissionFcEmptyNote(mav) {
 
 function applyConnectPillFromLinks(links) {
   const pill = document.getElementById('connectPillLabel');
-  if (pill && links?.pillLabelHe) pill.textContent = links.pillLabelHe;
+  if (pill && links?.pillLabelHe) {
+    const raw = String(links.pillLabelHe);
+    const view = typeof headerStatusDebounce !== 'undefined' ? headerStatusDebounce.push(raw) : { text: raw };
+    if (view.text && pill.textContent !== view.text) pill.textContent = view.text;
+    if (view.phase) pill.dataset.hold = view.phase;
+  }
   if (links?.radioConnection) rememberLiveRadioStatus(links.radioConnection);
   else if (links?.cellularConnection) rememberLiveRadioStatus(links.cellularConnection);
   else rememberLiveRadioStatus(null);
@@ -8923,9 +8943,22 @@ function applyFlightHud(mav) {
   if (p != null) _lastPitch = p;
   else if (!mav.connected) _lastPitch = null;
   const liveTapeNow = hudLinkLive(mav);
-  const heldAir = flightTelemetryHold.offer('horizon-tape-air', liveTapeNow ? finiteHorizonTape(mav.airspeed) : null, { ttlMs: FAST_HOLD_MS });
-  const heldAlt = flightTelemetryHold.offer('horizon-tape-alt', liveTapeNow ? finiteHorizonTape(mav.altitude) : null, { ttlMs: FAST_HOLD_MS });
-  const heldHdg = flightTelemetryHold.offer('horizon-tape-hdg', liveTapeNow ? finiteHorizonTape(mav.heading) : null, { ttlMs: FAST_HOLD_MS });
+  const fastHoldMs = typeof FAST_HOLD_MS === 'number' ? FAST_HOLD_MS : 3000;
+  const modeHoldMs = typeof MODE_HOLD_MS === 'number' ? MODE_HOLD_MS : 12000;
+  const paintHold = typeof paintHeldValue === 'function'
+    ? paintHeldValue
+    : (el, _key, value) => {
+        if (!el) return null;
+        const blank = value == null || value === '' || value === '—';
+        el.textContent = blank ? '—' : String(value);
+        return { phase: blank ? 'dash' : 'live', text: el.textContent };
+      };
+  const tapeHold = typeof flightTelemetryHold !== 'undefined'
+    ? flightTelemetryHold
+    : { offer(_key, value) { return { phase: value == null || value === '' ? 'dash' : 'live', value: value == null ? null : String(value), text: value == null ? '—' : String(value) }; } };
+  const heldAir = tapeHold.offer('horizon-tape-air', liveTapeNow ? finiteHorizonTape(mav.airspeed) : null, { ttlMs: fastHoldMs });
+  const heldAlt = tapeHold.offer('horizon-tape-alt', liveTapeNow ? finiteHorizonTape(mav.altitude) : null, { ttlMs: fastHoldMs });
+  const heldHdg = tapeHold.offer('horizon-tape-hdg', liveTapeNow ? finiteHorizonTape(mav.heading) : null, { ttlMs: fastHoldMs });
   const tapeNum = (view) => {
     if (!view || view.phase === 'dash' || view.value == null) return null;
     const n = Number(view.value);
@@ -8959,7 +8992,7 @@ function applyFlightHud(mav) {
   syncFlightArmControls(mav);
   if (pfdModeVal) {
     const mode = vlcFlightModeText(mav.flightMode, mav, mav.connected === true);
-    paintHeldValue(pfdModeVal, 'horizon-mode', mode === '—' ? null : mode, { ttlMs: MODE_HOLD_MS });
+    paintHold(pfdModeVal, 'horizon-mode', mode === '—' ? null : mode, { ttlMs: modeHoldMs });
   }
 
   const liveTape = hudLinkLive(mav);
@@ -8970,7 +9003,7 @@ function applyFlightHud(mav) {
     const hdgShown = liveTape && typeof hdg === 'number' && Number.isFinite(hdg)
       ? `${Math.round(((hdg % 360) + 360) % 360)}°`
       : null;
-    const hdgView = paintHeldValue(pfdHdgVal, 'horizon-hdg', hdgShown, { ttlMs: FAST_HOLD_MS });
+    const hdgView = paintHold(pfdHdgVal, 'horizon-hdg', hdgShown, { ttlMs: fastHoldMs });
     if (hdgView?.phase === 'dash') pfdHdgArrow.style.transform = 'rotate(0deg)';
     else if (hdgShown) pfdHdgArrow.style.transform = `rotate(${Number.parseFloat(hdgShown)}deg)`;
   }
@@ -8988,13 +9021,13 @@ function applyFlightHud(mav) {
   if (pfdAirspeedVal) {
     const as = mav.airspeed;
     const asText = liveTape && typeof as === 'number' && Number.isFinite(as) ? as.toFixed(1) : null;
-    paintHeldValue(pfdAirspeedVal, 'horizon-ias', asText, { ttlMs: FAST_HOLD_MS });
+    paintHold(pfdAirspeedVal, 'horizon-ias', asText, { ttlMs: fastHoldMs });
     pfdAirspeedVal.title = airspeedTileHonestyTitle(mav);
   }
   if (pfdAltVal) {
     const al = mav.altitude;
     const alText = liveTape && altitudeIsFinite(al) ? al.toFixed(1) : null;
-    paintHeldValue(pfdAltVal, 'horizon-alt', alText, { ttlMs: FAST_HOLD_MS });
+    paintHold(pfdAltVal, 'horizon-alt', alText, { ttlMs: fastHoldMs });
     pfdAltVal.title = altitudeTileHonestyTitle(mav);
   }
   syncHorizonNoData();
@@ -9016,8 +9049,8 @@ function applyFlightHud(mav) {
     const ekfHint = pickHudEkfGpsHint(mav.recentStatusTexts);
     hudNavGpsPill.title = ekfHint?.hint || gpsRead.title || 'מצב GPS';
   }
-  noteGpsHoverAges(mav);
-  paintGpsHoverTip(mav);
+  if (typeof noteGpsHoverAges === 'function') noteGpsHoverAges(mav);
+  if (typeof paintGpsHoverTip === 'function') paintGpsHoverTip(mav);
   if (pfdHudWaitHint) {
     const missingTape = !altitudeIsFinite(mav.altitude) || !altitudeIsFinite(mav.airspeed)
       || !altitudeIsFinite(mav.gpsFixType);
@@ -12561,13 +12594,27 @@ function paintFlightFollow(on) {
     btn.classList.toggle('active', flightFollowOn);
     btn.textContent = flightFollowOn ? 'מעקב פעיל' : 'מעקב כבוי';
   }
+  if (!flightFollowOn && terrainMap && !terrainMap._vlcUserDrag && terrainMap._vlcMaxBounds) {
+    terrainMap.setMaxBounds(terrainMap._vlcMaxBounds);
+  }
   try { localStorage.setItem(FLIGHT_FOLLOW_KEY, flightFollowOn ? '1' : '0'); } catch { /* ignore */ }
 }
 
 function centerFlightOnMap(map, lat, lon) {
   if (!flightFollowOn || !map || map !== terrainMap) return;
   if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
-  try { map.panTo([lat, lon], { animate: false }); } catch { /* map not ready */ }
+  if (map.options.maxBounds) {
+    map._vlcMaxBounds = map.options.maxBounds;
+    map.setMaxBounds(null);
+  }
+  map._vlcFollowLl = [lat, lon];
+  const pan = () => {
+    if (!flightFollowOn || !map._vlcFollowLl) return;
+    try { map.invalidateSize({ pan: false }); } catch { /* map not ready */ }
+    try { map.panTo(map._vlcFollowLl, { animate: false }); } catch { /* map not ready */ }
+  };
+  pan();
+  requestAnimationFrame(pan);
 }
 
 const MP_PLANE_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="40" height="40" aria-hidden="true"><path fill="#e11d2e" stroke="#ffffff" stroke-width="1.7" stroke-linejoin="round" d="M24 2.5c.9 0 1.7.8 1.9 2.4l2.2 11.2 14.6 6.6v4.2l-14.4-2.2-1.3 12.2 6.4 3.8v3.2L24 40.2 14.6 43.9v-3.2l6.4-3.8-1.3-12.2L5.3 27v-4.2l14.6-6.6 2.2-11.2C22.3 3.3 23.1 2.5 24 2.5z"/></svg>';
@@ -12974,7 +13021,12 @@ function initTerrainMap() {
     }
   });
   terrainMap.on('dragstart', () => {
+    terrainMap._vlcUserDrag = true;
     if (flightFollowOn) paintFlightFollow(false);
+  });
+  terrainMap.on('dragend', () => {
+    terrainMap._vlcUserDrag = false;
+    if (!flightFollowOn && terrainMap._vlcMaxBounds) terrainMap.setMaxBounds(terrainMap._vlcMaxBounds);
   });
 
   // ── Fly-to right-click context menu ───────────────────────────────────────
@@ -13011,8 +13063,15 @@ function applyTerrainBasemapVisibility() {
 
 function terrainInvalidateLayout() {
   if (!terrainMap) return;
-  terrainMap.invalidateSize();
-  requestAnimationFrame(() => terrainMap.invalidateSize());
+  terrainMap.invalidateSize({ pan: false });
+  requestAnimationFrame(() => {
+    if (!terrainMap) return;
+    terrainMap.invalidateSize({ pan: false });
+    const ll = terrainMap._vlcFollowLl;
+    if (flightFollowOn && Array.isArray(ll)) {
+      try { terrainMap.panTo(ll, { animate: false }); } catch { /* map not ready */ }
+    }
+  });
 }
 
 /** Why: align circle colors with the legend (כחול נמוך → אדום גבוה); what: maps normalized altitude 0..1 to HSL hue 240..0. */
@@ -13576,6 +13635,7 @@ initLiveCameraPanel();
   function setPillLabel(text) {
     if (!pillLabel) return;
     const view = headerStatusDebounce.push(text);
+    if (!view.text) return;
     if (pillLabel.textContent !== view.text) pillLabel.textContent = view.text;
     pillLabel.dataset.hold = view.phase;
   }
@@ -20685,7 +20745,7 @@ function resetMissionLayout() {
   applyMissionSize(defaultMissionSize());
   applyMissionAreas(defaultMissionAreas());
   applyMissionSwap(swap);
-  resetFlightStack();
+  if (typeof resetFlightStack === 'function') resetFlightStack();
   syncMissionLayoutChrome();
 }
 
@@ -21072,7 +21132,10 @@ function readFlightStack() {
     }
     const data = Number(raw?.data);
     const msg = Number(raw?.msg);
-    if (Number.isFinite(data) && Number.isFinite(msg)) return { half: false, data, msg };
+    const hud = Number(raw?.hud);
+    if (Number.isFinite(data) && Number.isFinite(msg)) {
+      return { half: false, data, msg, ...(Number.isFinite(hud) ? { hud } : {}) };
+    }
   } catch {
     /* ignore */
   }
@@ -21081,9 +21144,15 @@ function readFlightStack() {
 
 function writeFlightStack(stack) {
   const data = Math.round(Number(stack?.data) || FLIGHT_DATA_DEFAULT);
+  const hud = Number(stack?.hud);
   const next = stack?.half === true
     ? { half: true, data, msg: FLIGHT_MSG_DEFAULT }
-    : { half: false, data, msg: Math.round(Number(stack?.msg) || FLIGHT_MSG_DEFAULT) };
+    : {
+        half: false,
+        data,
+        msg: Math.round(Number(stack?.msg) || FLIGHT_MSG_DEFAULT),
+        ...(Number.isFinite(hud) ? { hud: Math.round(hud) } : {}),
+      };
   _flightStack = next;
   missionLayoutStoreSet(FLIGHT_STACK_KEY, JSON.stringify(next));
   return next;
@@ -21169,29 +21238,34 @@ function flightStackFits(stack, budget) {
   const data = Number(stack.data);
   const msg = Number(stack.msg);
   if (!Number.isFinite(data) || !Number.isFinite(msg)) return false;
-  if (data + 1 < budget.dataMin) return false;
-  if (msg + 1 < budget.msgMin) return false;
+  const floor = Number.isFinite(Number(stack.hud)) ? FLIGHT_DATA_MIN : budget.dataMin;
+  if (data + 1 < floor) return false;
+  if (msg + 1 < FLIGHT_MSG_MIN) return false;
   return data + msg + budget.hudMin <= budget.avail + 2;
 }
 
 function clampFlightStack(stack, budget) {
   const hudMin = budget.hudMin;
-  let data = Math.max(budget.dataMin, Number(stack?.data) || FLIGHT_DATA_DEFAULT);
-  let msg = Math.max(budget.msgMin, Number(stack?.msg) || FLIGHT_MSG_DEFAULT);
-  const requestedHud = Number(stack?.hud);
-  const lockHud = Number.isFinite(requestedHud);
-  const maxHud = Math.max(hudMin, budget.avail - budget.dataMin - budget.msgMin);
-  const locked = lockHud ? Math.max(hudMin, Math.min(requestedHud, maxHud)) : null;
-  const reserved = locked == null ? hudMin : locked;
-  const room = Math.max(0, budget.avail - reserved);
+  const lockHud = Number.isFinite(Number(stack?.hud));
+  if (lockHud && stack?.half !== true) {
+    return {
+      hud: Math.max(hudMin, Number(stack.hud)),
+      data: Math.max(FLIGHT_DATA_MIN, Number(stack.data) || FLIGHT_DATA_DEFAULT),
+      msg: Math.max(FLIGHT_MSG_MIN, Number(stack.msg) || FLIGHT_MSG_DEFAULT),
+    };
+  }
+  const dataFloor = budget.dataMin;
+  const msgFloor = budget.msgMin;
+  let data = Math.max(dataFloor, Number(stack?.data) || FLIGHT_DATA_DEFAULT);
+  let msg = Math.max(msgFloor, Number(stack?.msg) || FLIGHT_MSG_DEFAULT);
+  const room = Math.max(0, budget.avail - hudMin);
   if (data + msg > room) {
     const overflow = data + msg - room;
-    const msgRoom = Math.max(0, msg - budget.msgMin);
+    const msgRoom = Math.max(0, msg - msgFloor);
     const takeMsg = Math.min(msgRoom, overflow);
     msg -= takeMsg;
-    data = Math.max(budget.dataMin, data - (overflow - takeMsg));
+    data = Math.max(dataFloor, data - (overflow - takeMsg));
   }
-  if (lockHud && data + msg < room) msg += room - data - msg;
   const hud = Math.max(hudMin, budget.avail - data - msg);
   return { data, msg, hud };
 }
@@ -21252,12 +21326,16 @@ function bindFlightStackSplitters() {
   dataSplit.dataset.bound = '1';
   msgSplit.dataset.bound = '1';
   let drag = null;
-  const stop = () => {
+  const stop = (ev) => {
     if (!drag) return;
+    const capture = drag.capture;
+    const pointerId = drag.pointerId;
     drag = null;
+    try { capture?.releasePointerCapture?.(pointerId); } catch { /* already released */ }
     writeMissionMessagesExpanded(_flightStackOpen);
     writeFlightStack(_flightStack);
     refreshMissionSwapSurfaces();
+    if (ev && ev.type === 'pointercancel') return;
   };
   const onDown = (which, ev) => {
     if (ev.button != null && ev.button !== 0) return;
@@ -21268,6 +21346,8 @@ function bindFlightStackSplitters() {
     drag = {
       which,
       y: ev.clientY,
+      pointerId: ev.pointerId,
+      capture: ev.currentTarget,
       base: {
         half: false,
         hud: hudEl?.getBoundingClientRect().height || _flightStack.hud || FLIGHT_HUD_MIN,
@@ -21286,23 +21366,26 @@ function bindFlightStackSplitters() {
     if (!budget) return;
     const next = { half: false };
     if (drag.which === 'data') {
-      // Handle under the horizon. Drag down grows the horizon; the handle tracks the pointer.
-      const maxHud = Math.max(budget.hudMin, budget.avail - budget.dataMin - budget.msgMin);
-      next.hud = Math.max(budget.hudMin, Math.min(drag.base.hud + dy, maxHud));
-      const room = Math.max(0, budget.avail - next.hud);
-      let data = drag.base.data - (next.hud - drag.base.hud);
-      data = Math.max(budget.dataMin, Math.min(data, room - budget.msgMin));
-      next.data = data;
-      next.msg = room - data;
+      // Handle under the horizon. Drag down grows the horizon by taking height from the tiles.
+      const hudCap = drag.base.hud + Math.max(0, drag.base.data - FLIGHT_DATA_MIN);
+      let hud = drag.base.hud + dy;
+      hud = Math.max(budget.hudMin, Math.min(hud, hudCap));
+      if (dy > 0) hud = Math.max(drag.base.hud, hud);
+      if (dy < 0) hud = Math.min(drag.base.hud, hud);
+      next.hud = hud;
+      next.data = Math.max(FLIGHT_DATA_MIN, drag.base.data - (hud - drag.base.hud));
+      next.msg = drag.base.msg;
     } else {
       // Handle under the tiles. Horizon stays. Drag down grows tiles and shrinks messages.
-      const maxHud = Math.max(budget.hudMin, budget.avail - budget.dataMin - budget.msgMin);
-      next.hud = Math.max(budget.hudMin, Math.min(drag.base.hud, maxHud));
-      const room = Math.max(0, budget.avail - next.hud);
+      const pair = drag.base.data + drag.base.msg;
+      const cap = Math.max(FLIGHT_DATA_MIN, pair - FLIGHT_MSG_MIN);
       let data = drag.base.data + dy;
-      data = Math.max(budget.dataMin, Math.min(data, room - budget.msgMin));
+      data = Math.max(FLIGHT_DATA_MIN, Math.min(data, cap));
+      if (dy > 0) data = Math.max(Math.min(drag.base.data, cap), data);
+      if (dy < 0) data = Math.min(drag.base.data, data);
+      next.hud = drag.base.hud;
       next.data = data;
-      next.msg = room - data;
+      next.msg = Math.max(FLIGHT_MSG_MIN, pair - data);
     }
     applyFlightStack(next, { half: false });
   };
@@ -21362,6 +21445,27 @@ function bindFlightColumnMenu() {
   });
 }
 
+function placeMissionDataHint() {
+  const btn = document.getElementById('missionDataHintBtn');
+  const tip = document.getElementById('missionDataHintTip');
+  if (!btn || !tip || tip.dataset.placed === '1') return;
+  tip.dataset.placed = '1';
+  const place = () => {
+    const rect = btn.getBoundingClientRect();
+    const width = 220;
+    const left = Math.max(8, Math.min(rect.left, window.innerWidth - width - 8));
+    tip.style.position = 'fixed';
+    tip.style.width = `${width}px`;
+    tip.style.maxWidth = `${width}px`;
+    tip.style.left = `${Math.round(left)}px`;
+    tip.style.top = `${Math.round(rect.bottom + 4)}px`;
+    tip.style.right = 'auto';
+  };
+  btn.addEventListener('mouseenter', place);
+  btn.addEventListener('focus', place);
+  place();
+}
+
 function initFlightStack() {
   const storedRaw = missionLayoutStoreGet(FLIGHT_STACK_KEY);
   const stored = storedRaw ? readFlightStack() : null;
@@ -21379,6 +21483,7 @@ function initFlightStack() {
   if (legacy && _flightStackOpen) writeMissionMessagesExpanded(true);
   bindFlightStackSplitters();
   bindFlightColumnMenu();
+  placeMissionDataHint();
   const settle = () => {
     const horizonNow = document.querySelector('[data-mission-region="horizon"]');
     if (!horizonNow) return;
@@ -21605,21 +21710,23 @@ function applyFlightDock(which) {
 function fitFlightDockPane(which) {
   if (which !== 'actions') return;
   const horizon = document.querySelector('[data-mission-region="horizon"]');
-  if (!horizon || horizon.dataset.flightStack !== 'custom') return;
+  if (!horizon) return;
   const section = document.querySelector('[data-mission-region="messages"]');
   const pane = document.getElementById('flightDockActionsPane');
   const bar = section?.querySelector('.flight-dock-bar');
   if (!section || !pane || !bar) return;
-  const note = document.getElementById('flightDockCommandNote');
-  const noteH = note && getComputedStyle(note).display !== 'none'
-    ? Math.ceil(note.getBoundingClientRect().height)
-    : 0;
-  const want = Math.ceil(bar.getBoundingClientRect().height + pane.scrollHeight + noteH + 12);
   const budget = flightStackBudget(horizon);
-  const room = Math.max(FLIGHT_MSG_MIN, budget.avail - budget.hudMin - budget.dataMin);
-  const msg = Math.max(FLIGHT_MSG_OPEN, Math.min(want, room));
-  if (msg <= _flightStack.msg + 2) return;
-  applyFlightStack({ ..._flightStack, msg }, { persist: true, skipMessages: true });
+  const hudH = horizon.querySelector(':scope > .flight-hud')?.getBoundingClientRect().height || budget.hudMin;
+  const dataH = horizon.querySelector(':scope > [data-mission-region="data"]')?.getBoundingClientRect().height || FLIGHT_DATA_MIN;
+  const room = Math.max(FLIGHT_MSG_OPEN, Math.floor(budget.avail - hudH - dataH));
+  const msg = Math.min(room, Math.max(FLIGHT_MSG_OPEN, Number(_flightStack.msg) || 0));
+  applyFlightStack({
+    ..._flightStack,
+    half: false,
+    hud: Math.round(hudH),
+    data: Math.round(dataH),
+    msg,
+  }, { persist: false, half: false, skipMessages: true });
 }
 
 function revealFlightDock(which) {

@@ -224,7 +224,8 @@ describe('Parameter tiles are dense and not behind a filter wall', () => {
     expect(after.faultHidden).toBe(true);
     expect(after.faultText).not.toMatch(/צמצמו|יותר מדי|עדיין אין פרמטרים/);
     expect(after.rows.length).toBe(data.rows.length);
-    expect(after.rows.find((row) => row.key === 'flare_alt_m').text).toContain('אין חיבור');
+    expect(after.rows.find((row) => row.key === 'flare_alt_m').text).toContain('חסר');
+    expect(after.rows.find((row) => row.key === 'flare_alt_m').text).not.toContain('אין חיבור');
   }, 40000);
 
   it('keeps the same tiles readable at 390px and lets search narrow without being required', async () => {

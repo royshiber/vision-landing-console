@@ -24,19 +24,28 @@ describe('parameter read labels the real source', () => {
   it('shows a profile value from the server and an FC value from the FC read', () => {
     const fn = sliceFunction(js, 'profileLivePresentation');
     const { profileLivePresentation } = new Function(`${fn}\nreturn { profileLivePresentation };`)();
-    const profile = { vision_enable_alt_m: 12 };
-    expect(profileLivePresentation('vision_enable_alt_m', null, profile)).toEqual({
+    const keys = [
+      { key: 'vision_enable_alt_m', state: 'present', value: 12, source: 'companion' },
+      { key: 'WPNAV_SPEED', state: 'present', value: 500, source: 'fc' },
+      { key: 'flare_alt_m', state: 'missing', source: 'fc' },
+    ];
+    expect(profileLivePresentation('vision_enable_alt_m', keys)).toEqual({
       text: '12',
       kicker: 'במחשב המשימה',
     });
-    expect(profileLivePresentation('WPNAV_SPEED', { WPNAV_SPEED: 500 }, profile)).toEqual({
+    expect(profileLivePresentation('WPNAV_SPEED', keys)).toEqual({
       text: '500',
       kicker: 'בבקר',
     });
-    expect(profileLivePresentation('missing_key', {}, {})).toEqual({
-      text: 'אין חיבור',
+    expect(profileLivePresentation('flare_alt_m', keys)).toEqual({
+      text: 'חסר',
       kicker: 'בבקר',
     });
+    expect(profileLivePresentation('missing_key', keys)).toEqual({
+      text: 'חסר',
+      kicker: 'בבקר',
+    });
+    expect(profileLivePresentation('missing_key', keys).text).not.toBe('אין חיבור');
     expect(js).toContain('renderParams();');
   });
 });
