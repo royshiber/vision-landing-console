@@ -335,7 +335,8 @@ function hasVisionClause(q) {
   if (/(?:שחררו|שחרר|שחררי|בטלו|בטל|בטלי)\s+(?:את\s+)?(?:ה)?נעילה/.test(q)) return true;
   if (/(?:תעברו|עברו|עבורו)\s+ל(?:אובייקט|עצם)\s+הבא/.test(q)) return true;
   if (/(?:לאובייקט|לעצם|האובייקט|העצם)\s+הבא/.test(q) || /\bnext object\b/.test(q)) return true;
-  if (/כמה אנשים/.test(q)) return true;
+  if (/כמה\s+(?:אנשים|אדם|מכוניות|רכבים|מכונית|רכב|כלבים|כלב|משאיות|משאית|אוטובוסים|אוטובוס)/.test(q)) return true;
+  if (/מעקב|עקבו|תעקבו|לעקוב|תעקוב/.test(q)) return true;
   if (/מה אתה מזהה|מה אתם מזהים|מה את מזהה/.test(q)) return true;
   if (/\block\b/.test(q) || /נעל את|נעל על/.test(q)) return true;
   if (/(?:^|\s)(?:תנעל|תנעלו|נעלו|לנעול|נעל)(?:\s|$)/.test(q)) return true;

@@ -174,7 +174,9 @@ describe('talk-back honesty when ElevenLabs key is missing', () => {
     expect(load.indexOf('vlcExternalQuiet()')).toBeLessThan(load.lastIndexOf('return postWorkLink();'));
     expect(js).toContain("if (_vlcTalkbackEleven && !vlcExternalQuiet())");
     expect(js).toContain("if (ttsMode === 'elevenlabs' && !vlcExternalQuiet())");
-    expect(js).toContain('navigator.webdriver');
+    expect(js).not.toContain('navigator.webdriver');
+    expect(js).toContain('window.__vlcQa === true');
+    expect(js).toContain('meta[name="vlc-qa"]');
     expect(js).toContain('mav.simulator === true');
   });
 });

@@ -403,7 +403,7 @@ describe('vision track overlay', () => {
       await page.locator('#assistSendBtn').click();
     };
     await ask('מה אתה מזהה');
-    await page.waitForFunction(() => (document.querySelector('#assistMessages')?.textContent || '').includes('מזהים אדם 1, רכב 1'));
+    await page.waitForFunction(() => (document.querySelector('#assistMessages')?.textContent || '').includes('מזהים אדם אחד ורכב אחד'));
     await ask('כמה אנשים אתה רואה');
     await page.waitForFunction(() => (document.querySelector('#assistMessages')?.textContent || '').includes('רואים אדם אחד'));
     const detect = posts.find((row) => row?.text === 'מה אתה מזהה');
@@ -415,7 +415,7 @@ describe('vision track overlay', () => {
     await ask('נעל על האדם ותחזור הביתה');
     await page.waitForFunction(() => {
       const text = document.querySelector('#assistMessages')?.textContent || '';
-      return text.includes('הנעילה על האדם בתוכנית') && text.includes('חזרה הביתה נדחתה') && text.includes('לא נשלח דבר');
+      return text.includes('נעילה על האדם נוספה לתוכנית') && text.includes('חזרה הביתה נחסמה') && text.includes('לא נשלח דבר');
     });
     expect(posts.some((row) => row?.text === 'נעל על האדם ותחזור הביתה')).toBe(true);
     expect(flightPosts.length).toBe(beforeFlight);

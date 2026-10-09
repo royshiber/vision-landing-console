@@ -125,9 +125,22 @@ export function placeMenuBox({ x = 0, y = 0, menuW = 0, menuH = 0, viewW = 0, vi
   };
 }
 
+const STREAM_IDS = ['cam0', 'cam1', 'cam3'];
+
+export function visionStreamMap() {
+  const out = {};
+  for (const [camera, payload] of cache) {
+    if (!STREAM_IDS.includes(camera) || typeof payload?.stream !== 'boolean') continue;
+    out[camera] = payload.stream;
+  }
+  return out;
+}
+
 export function visionAskSnapshot(payload) {
   if (!payload || typeof payload !== 'object') return null;
   const out = {};
+  const camera = String(payload.camera || payload.selected_camera || '');
+  if (STREAM_IDS.includes(camera)) out.camera = camera;
   if (typeof payload.enabled === 'boolean') out.enabled = payload.enabled;
   if (typeof payload.stream === 'boolean') out.stream = payload.stream;
   const reason = String(payload.reason_he || '').trim();
@@ -602,6 +615,7 @@ export function mountVisionTracks(doc = document) {
   if (doc.defaultView) {
     doc.defaultView.__vlcFillVisionMenu = (slot, camera) => fillVisionMenu(slot, camera);
     doc.defaultView.__vlcVisionAskState = () => visionAskState();
+    doc.defaultView.__vlcVisionStreamMap = () => visionStreamMap();
   }
 }
 

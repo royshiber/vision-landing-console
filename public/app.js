@@ -18875,8 +18875,12 @@ function assistBuildContextSnapshot() {
   let tracks = null;
   try { mav = _assistLastMav || {}; } catch { mav = {}; }
   try { vision = latestVisionFromServer || {}; } catch { vision = {}; }
-  try {
+    try {
     tracks = typeof window.__vlcVisionAskState === 'function' ? window.__vlcVisionAskState() : null;
+    const streams = typeof window.__vlcVisionStreamMap === 'function' ? window.__vlcVisionStreamMap() : null;
+    if (streams && Object.keys(streams).length) {
+      tracks = tracks && typeof tracks === 'object' ? { ...tracks, streams } : { streams };
+    }
   } catch { tracks = null; }
   const conf = typeof vision.confidence === 'number'
     ? vision.confidence
@@ -18935,8 +18939,9 @@ function assistStatusTexts(mav) {
 function vlcExternalQuiet() {
   try {
     if (window.__vlcAllowExternal === true) return false;
-    if (window.__vlcQuietExternal === true) return true;
-    if (typeof navigator !== 'undefined' && navigator.webdriver === true) return true;
+    if (window.__vlcQuietExternal === true || window.__vlcQa === true) return true;
+    const qa = document.querySelector('meta[name="vlc-qa"]')?.getAttribute('content');
+    if (qa === '1') return true;
     const mav = typeof latestHudMavlink !== 'undefined' ? latestHudMavlink : null;
     if (mav && mav.simulator === true) return true;
     if (mav && typeof assistLinkPath === 'function' && assistLinkPath(mav) === 'simulator') return true;
@@ -19021,12 +19026,14 @@ function assistBuildOpsSignals(vision) {
     const jetson = assistJetsonState();
     if (jetson) ops.jetson = jetson;
     const cameras = {};
-    const cam0 = assistOneCamera(companion, vision, 'cam0');
-    const cam1 = assistOneCamera(companion, vision, 'cam1');
-    const cam3 = assistOneCamera(companion, vision, 'cam3');
-    if (cam0 != null) cameras.cam0 = cam0;
-    if (cam1 != null) cameras.cam1 = cam1;
-    if (cam3 != null) cameras.cam3 = cam3;
+    const fromTracks = (typeof window.__vlcVisionStreamMap === 'function') ? window.__vlcVisionStreamMap() : {};
+    for (const id of ['cam0', 'cam1', 'cam3']) {
+      if (typeof fromTracks[id] === 'boolean') cameras[id] = fromTracks[id];
+      else {
+        const bit = assistOneCamera(companion, vision, id);
+        if (bit != null) cameras[id] = bit;
+      }
+    }
     if (Object.keys(cameras).length) ops.cameras = cameras;
   } catch {
     /* honesty only — omit if unread */

@@ -55,7 +55,8 @@ describe('mission sentence mapper', () => {
     expect(result.plan.steps[1].stopsScan).toBe(false);
     expect(result.plan.steps[1].subjects).toEqual(['אנשים', 'חיות', 'מכוניות']);
     expect(result.replyHe).toContain('עשר דקות');
-    expect(result.replyHe).toContain('ההתראה לא עוצרת את הסריקה');
+    expect(result.replyHe).toContain('מתריעים אם');
+    expect(result.replyHe).not.toContain('ההתראה לא עוצרת');
     expect(result.replyHe).not.toMatch(/כמה זמן/);
     expect(result.sends).toBe(false);
     noTrack(result);
@@ -66,7 +67,7 @@ describe('mission sentence mapper', () => {
     expect(modes(result)).toEqual(['SCAN']);
     expect(result.plan.steps[0].duration_s).toBe(null);
     expect(result.plan.steps[0].until).toBe('replaced');
-    expect(result.replyHe).toBe('סורקים עד פקודה שעוצרת או מחליפה.');
+    expect(result.replyHe).toBe('סורקים.');
     expect(result.replyHe).not.toMatch(/כמה זמן/);
     expect(result.sends).toBe(false);
   });
@@ -96,7 +97,8 @@ describe('mission sentence mapper', () => {
     for (const [text, name] of [['נעלו על האדם', 'האדם'], ['נעלו על הרכב', 'הרכב']]) {
       const result = mapMissionSentence(text);
       expect(modes(result)).toEqual(['LOCK']);
-      expect(result.replyHe).toBe(`הנעילה על ${name} בתוכנית. לא נשלח דבר.`);
+      expect(result.replyHe).toBe(`נעילה על ${name} נוספה לתוכנית.`);
+      expect(result.replyHe).not.toContain('לא נשלח דבר');
       expect(result.sends).toBe(false);
       expect(result.speech).toBe(true);
     }
@@ -108,7 +110,8 @@ describe('mission sentence mapper', () => {
     for (const text of ['עברו לאובייקט הבא', 'עברו לעצם הבא', 'תעברו לאובייקט הבא']) {
       const result = mapMissionSentence(text);
       expect(modes(result)).toEqual(['NEXT']);
-      expect(result.replyHe).toBe('המעבר לעצם הבא בתוכנית. לא נשלח דבר.');
+      expect(result.replyHe).toBe('מעבר לאובייקט הבא נוסף לתוכנית.');
+      expect(result.replyHe).not.toContain('לא נשלח דבר');
       expect(result.sends).toBe(false);
     }
   });
@@ -125,7 +128,8 @@ describe('mission sentence mapper', () => {
       expect(deterministicIsFastPath(intent)).toBe(true);
     }
     const held = mapMissionSentence('שחררו נעילה', { lock: { id: 2 } });
-    expect(held.replyHe).toBe('שחרור הנעילה בתוכנית. לא נשלח דבר.');
+    expect(held.replyHe).toBe('שחרור הנעילה בתוכנית.');
+    expect(held.replyHe).not.toContain('לא נשלח דבר');
     expect(held.sends).toBe(false);
   });
 
@@ -143,7 +147,7 @@ describe('mission sentence mapper', () => {
         { id: 2, class: 'car', label_he: 'רכב' },
       ],
     };
-    expect(mapMissionSentence('מה אתה מזהה', live).replyHe).toBe('מזהים אדם 1, רכב 1.');
+    expect(mapMissionSentence('מה אתה מזהה', live).replyHe).toBe('מזהים אדם אחד ורכב אחד.');
     expect(mapMissionSentence('מה אתה מזהה', live).replyHe).not.toMatch(/אדום|ירוק|כחול/);
     expect(mapMissionSentence('כמה אנשים אתה רואה', live).replyHe).toBe('רואים אדם אחד.');
     expect(mapMissionSentence('כמה אנשים אתה רואה', { ...live, tracks: [] }).replyHe).toBe('אין אנשים בזיהוי.');
@@ -162,8 +166,8 @@ describe('mission sentence mapper', () => {
         { id: 5, class: 'person', label_he: 'אדם' },
         { id: 2, class: 'car', label_he: 'רכב' },
       ],
-    }).replyHe).toBe('מזהים 2 אנשים, רכב 1.');
-    expect(mapMissionSentence('מה אתה מזהה', colored).replyHe).toBe('מזהים 2 אנשים אדומים, רכב ירוק 1.');
+    }).replyHe).toBe('מזהים שני אנשים ורכב אחד.');
+    expect(mapMissionSentence('מה אתה מזהה', colored).replyHe).toBe('מזהים שני אנשים אדומים ורכב ירוק אחד.');
     const split = {
       ...live,
       tracks: [
@@ -171,24 +175,57 @@ describe('mission sentence mapper', () => {
         { id: 4, class: 'person', label_he: 'אדם', color_he: 'ירוק' },
       ],
     };
-    expect(mapMissionSentence('מה אתה מזהה', split).replyHe).toBe('מזהים אדם אדום 1, אדם ירוק 1.');
+    expect(mapMissionSentence('מה אתה מזהה', split).replyHe).toBe('מזהים אדם אדום אחד ואדם ירוק אחד.');
     expect(mapMissionSentence('מה אתה מזהה', {
       ...live,
       tracks: [{ id: 9, class: 'truck', label_he: 'משאית', color_he: 'כחול' }],
-    }).replyHe).toBe('מזהים משאית כחולה 1.');
+    }).replyHe).toBe('מזהים משאית כחולה אחת.');
   });
 
   it('refuses cruise beside a release and still sends a bare cruise phrase', () => {
     const bare = mapMissionSentence('שחררו נעילה ותעבור לשיוט');
     expect(modes(bare)).toEqual(['UNLOCK']);
     expect(bare.plan.refused).toEqual(['CRUISE']);
-    expect(bare.replyHe).toBe('אין נעילה פעילה. שיוט נדחה. לא נשלח דבר.');
+    expect(bare.replyHe).toBe('אין נעילה פעילה. מעבר לשיוט נחסם. לא נשלח דבר.');
     expect(bare.sends).toBe(false);
     const held = mapMissionSentence('שחררו נעילה ותעבור לשיוט', { lock: { id: 2 } });
-    expect(held.replyHe).toBe('שחרור הנעילה בתוכנית. שיוט נדחה. לא נשלח דבר.');
+    expect(held.replyHe).toBe('שחרור הנעילה בתוכנית. מעבר לשיוט נחסם. לא נשלח דבר.');
     expect(held.plan.refused).toEqual(['CRUISE']);
     expect(held.sends).toBe(false);
     expect(mapMissionSentence('שיוט')).toBeNull();
+  });
+
+  it('counts any detected kind and spells the detection sentence', () => {
+    const live = {
+      enabled: true,
+      stream: true,
+      model: true,
+      tracks: [
+        { id: 1, class: 'person', label_he: 'אדם' },
+        { id: 2, class: 'person', label_he: 'אדם' },
+        { id: 3, class: 'car', label_he: 'רכב', color_he: 'לבן' },
+        { id: 4, class: 'dog', label_he: 'כלב' },
+      ],
+    };
+    expect(mapMissionSentence('מה אתה מזהה', live).replyHe).toBe('מזהים שני אנשים, רכב לבן אחד וכלב אחד.');
+    expect(mapMissionSentence('כמה מכוניות יש', live).replyHe).toBe('רואים רכב אחד.');
+    expect(mapMissionSentence('כמה רכבים יש', live).replyHe).toBe('רואים רכב אחד.');
+    expect(mapMissionSentence('כמה כלבים יש', live).replyHe).toBe('רואים כלב אחד.');
+    expect(mapMissionSentence('כמה כלבים יש', { ...live, tracks: live.tracks.filter((row) => row.class !== 'dog') }).replyHe).toBe('אין כלבים בזיהוי.');
+    expect(mapMissionSentence('כמה מכוניות יש', { enabled: true, stream: true, model: true, tracks: [
+      { id: 8, class: 'car', label_he: 'רכב' },
+      { id: 9, class: 'car', label_he: 'רכב' },
+    ] }).replyHe).toBe('רואים שני רכבים.');
+    expect(mapMissionSentence('כמה כלבים יש', { enabled: false }).replyHe).toBe('הזיהוי כבוי.');
+  });
+
+  it('keeps the color and the follow on a lock plan', () => {
+    const result = mapMissionSentence('נעלו על הרכב הלבן ועקבו אחריו');
+    expect(modes(result)).toEqual(['LOCK', 'FOLLOW']);
+    expect(result.plan.steps[0].target).toEqual({ color: 'לבן', object: 'מכונית' });
+    expect(result.replyHe).toBe('נעילה ומעקב אחרי הרכב הלבן נוספו לתוכנית.');
+    expect(result.replyHe).not.toContain('לא נשלח דבר');
+    expect(result.sends).toBe(false);
   });
 
   it('keeps the lock plan and refuses the return-home clause', () => {
@@ -196,7 +233,7 @@ describe('mission sentence mapper', () => {
     expect(modes(result)).toEqual(['LOCK']);
     expect(result.plan.steps[0].target).toEqual({ object: 'אדם' });
     expect(result.plan.refused).toEqual(['RTL']);
-    expect(result.replyHe).toBe('הנעילה על האדם בתוכנית. חזרה הביתה נדחתה. לא נשלח דבר.');
+    expect(result.replyHe).toBe('נעילה על האדם נוספה לתוכנית. חזרה הביתה נחסמה. לא נשלח דבר.');
     expect(result.sends).toBe(false);
     expect(result.replyHe).not.toMatch(/\d/);
   });
@@ -223,7 +260,7 @@ describe('mission sentences through Ask and voice', () => {
     ['תסתכל על השלט הירוק ותשאיר אותו בפריים', 'השלט הירוק'],
     ['circle it and lock it', 'אינה נתמכת'],
     ['scan for ten minutes and alert if people, animals, or cars move', 'עשר דקות'],
-    ['תסרוק', 'עד פקודה'],
+    ['תסרוק', 'סורקים'],
     ['מה אני רואה במצלמות', 'קדמית'],
   ];
 
@@ -306,7 +343,7 @@ describe('mission sentences through Ask and voice', () => {
       });
       expect(result.sent).toBe(false);
       expect(result.decision).toBe('camera_status');
-      expect(result.talkback.text).toBe('קדמית משדרת. מטה אינה משדרת.');
+      expect(result.talkback.text).toBe('קדמית משדרת. מטה אינה משדרת. אין נתון על הגימבל.');
       expect(result.talkback.text).not.toContain('אינה ברשימה המותרת');
       expect(result.talkback.text).not.toContain('אתם במרחב');
     }
@@ -392,8 +429,8 @@ describe('mission sentences through Ask and voice', () => {
     expect(asked.sent).toBe(false);
     expect(asked.plan.modes).toEqual(['LOCK']);
     expect(asked.plan.refused).toEqual(['RTL']);
-    expect(asked.answer).toContain('הנעילה על האדם בתוכנית');
-    expect(asked.answer).toContain('חזרה הביתה נדחתה');
+    expect(asked.answer).toContain('נעילה על האדם נוספה לתוכנית');
+    expect(asked.answer).toContain('חזרה הביתה נחסמה');
     expect(asked.answer).toContain('לא נשלח דבר');
 
     const voiced = await runVoiceFlightTranscript({

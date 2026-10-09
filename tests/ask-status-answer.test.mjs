@@ -14,6 +14,8 @@ import {
   fcLinkPhrase,
 } from '../lib/assist/ask-status-answer.mjs';
 import { buildAssistContext } from '../lib/assist/assist-context.mjs';
+import { applyCameraStreamTruth } from '../lib/camera-stream.mjs';
+import { askRemotePaused } from '../lib/qa-mode.mjs';
 
 const LIVE = {
   current_tab: 'terrain',
@@ -191,7 +193,7 @@ describe('offline Ask status answers', () => {
         channel: 'voice',
         context_snapshot: LIVE,
       });
-      expect(live.answer).toBe('קדמית משדרת. מטה אינה משדרת.');
+      expect(live.answer).toBe('קדמית משדרת. מטה אינה משדרת. אין נתון על הגימבל.');
       expect(live.kind).toBe('INFORMATION');
       expect(live.sent).toBe(false);
       const gimbalOn = {
@@ -227,7 +229,7 @@ describe('offline Ask status answers', () => {
         context_snapshot: LIVE,
       });
       expect(calls).toBe(0);
-      expect(resp.answer).toBe('קדמית משדרת. מטה אינה משדרת.');
+      expect(resp.answer).toBe('קדמית משדרת. מטה אינה משדרת. אין נתון על הגימבל.');
       expect(resp.sent).toBe(false);
     } finally {
       fs.rmSync(wired.root, { recursive: true, force: true });
@@ -235,7 +237,12 @@ describe('offline Ask status answers', () => {
   });
 
   it('answers cameras and Jetson from ops signals', async () => {
-    expect((await ask(service, 'האם המצלמות משדרות?')).answer).toBe('קדמית משדרת. מטה אינה משדרת.');
+    expect((await ask(service, 'האם המצלמות משדרות?')).answer).toBe('קדמית משדרת. מטה אינה משדרת. אין נתון על הגימבל.');
+    expect((await ask(service, 'מה מצב מצלמת הגימבל', {
+      ops_signals: { cameras: { cam0: false, cam1: false, cam3: true } },
+    })).answer).toBe('גימבל משדר.');
+    expect((await ask(service, 'מה מצב מצלמת הגימבל', { ops_signals: { cameras: { cam0: true, cam1: true, cam3: false } } })).answer).toBe('גימבל אינו משדר.');
+    expect((await ask(service, 'מה מצב מצלמת הגימבל')).answer).toBe('אין נתון על הגימבל.');
     expect((await ask(service, 'מה מצב ה-Jetson?')).answer).toBe('מחשב משימה (Jetson) מחובר.');
     expect(answerAskStatus('jetson', buildAssistContext({ ops_signals: { jetson: 'mock' } }))).toBe('מחשב משימה (Jetson) במצב הדמיה.');
     expect(answerAskStatus('jetson', buildAssistContext({ ops_signals: { jetson: 'unreachable' } }))).toBe('מחשב משימה (Jetson) אינו מגיב.');
@@ -317,14 +324,82 @@ describe('offline Ask status answers', () => {
     expect(snap).toMatch(/gps_sats:/);
     expect(app).toMatch(/function assistJetsonState/);
     const opsFn = app.slice(app.indexOf('function assistBuildOpsSignals'), app.indexOf('const ASK_VOICE_SAFETY_LOCK'));
-    expect(opsFn).toContain("assistOneCamera(companion, vision, 'cam3')");
-    expect(opsFn).toContain('cameras.cam3');
+    expect(opsFn).toContain('assistOneCamera(companion, vision, id)');
+    expect(opsFn).toContain("'cam3'");
+    expect(opsFn).toContain('__vlcVisionStreamMap');
     const css = fs.readFileSync(path.join(process.cwd(), 'public/styles.css'), 'utf8');
     expect(css).toMatch(/#missionTalkHost \.assist-msg-body[\s\S]{0,120}white-space:\s*normal/);
     expect(css).toMatch(/\.assist-msg-meta\s*\{[^}]*display:\s*none/);
     const gemini = fs.readFileSync(path.join(process.cwd(), 'lib/assist/ask-status-answer.mjs'), 'utf8');
     expect(gemini).toMatch(/Telemetry JSON/);
     expect(gemini).toMatch(/בקר הטיסה/);
-    expect(gemini).toMatch(/if \(process\.env\.VITEST\) return null/);
+    expect(gemini).toMatch(/askRemotePaused\(\)/);
+  });
+
+  it('says the flight mode is unknown when there is no link', async () => {
+    const resp = await ask(service, 'מה מצב הטיסה', {
+      aircraft_state: { connected: false, flight_mode: 'MANUAL' },
+    });
+    expect(resp.answer).toBe('אין חיבור לבקר הטיסה. מצב הטיסה לא ידוע.');
+    expect(resp.answer).not.toContain('MANUAL');
+    expect(resp.sent).not.toBe(true);
+  });
+
+  it('uses one streaming bit for the camera sentence and the vision state', () => {
+    const ctx = applyCameraStreamTruth(buildAssistContext({
+      ops_signals: { cameras: { cam0: false, cam1: true, cam3: false } },
+      vision: { camera: 'cam0', enabled: true, stream: true, tracks: [] },
+    }));
+    expect(ctx.vision.stream).toBe(true);
+    expect(ctx.ops_signals.cameras.cam0).toBe(ctx.vision.stream);
+    expect(ctx.ops_signals.cameras.cam1).toBe(true);
+    expect(ctx.ops_signals.cameras.cam3).toBe(false);
+    const fromMap = applyCameraStreamTruth(buildAssistContext({
+      ops_signals: { cameras: { cam3: false } },
+      vision: { camera: 'cam3', stream: false, streams: { cam0: true, cam3: true } },
+    }));
+    expect(fromMap.vision.stream).toBe(true);
+    expect(fromMap.ops_signals.cameras.cam3).toBe(true);
+    expect(fromMap.ops_signals.cameras.cam0).toBe(true);
+  });
+
+  it('answers a mock-mode question in under a second', async () => {
+    const prevVitest = process.env.VITEST;
+    const prevMode = process.env.COMPANION_MODE;
+    const prevQa = process.env.VLC_QA;
+    delete process.env.VITEST;
+    delete process.env.VLC_QA;
+    process.env.COMPANION_MODE = 'mock';
+    process.env.GEMINI_API_KEY = 'present-but-unused';
+    const wired = makeService();
+    try {
+      expect(askRemotePaused()).toBe(true);
+      const started = Date.now();
+      const resp = await wired.service.processInput({
+        text: 'למה השמיים כחולים?',
+        context_snapshot: LIVE,
+      });
+      expect(Date.now() - started).toBeLessThan(1000);
+      expect(resp.answer).toBe(ASK_NO_GEMINI_HE);
+      delete process.env.COMPANION_MODE;
+      process.env.VLC_QA = '1';
+      expect(askRemotePaused()).toBe(true);
+      const again = Date.now();
+      const qa = await wired.service.processInput({
+        text: 'למה השמיים כחולים?',
+        context_snapshot: LIVE,
+      });
+      expect(Date.now() - again).toBeLessThan(1000);
+      expect(qa.answer).toBe(ASK_NO_GEMINI_HE);
+    } finally {
+      if (prevVitest == null) delete process.env.VITEST;
+      else process.env.VITEST = prevVitest;
+      if (prevMode == null) delete process.env.COMPANION_MODE;
+      else process.env.COMPANION_MODE = prevMode;
+      if (prevQa == null) delete process.env.VLC_QA;
+      else process.env.VLC_QA = prevQa;
+      delete process.env.GEMINI_API_KEY;
+      fs.rmSync(wired.root, { recursive: true, force: true });
+    }
   });
 });

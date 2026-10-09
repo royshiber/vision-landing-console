@@ -38,12 +38,18 @@ function listen(app) {
 describe('test-only mock vision tracks', () => {
   const prevTracks = process.env.VLC_VISION_MOCK_TRACKS;
   const prevVitest = process.env.VITEST;
+  const prevQa = process.env.VLC_QA;
+  const prevCam3 = process.env.VLC_MOCK_CAM3_STREAM;
 
   afterEach(() => {
     if (prevTracks == null) delete process.env.VLC_VISION_MOCK_TRACKS;
     else process.env.VLC_VISION_MOCK_TRACKS = prevTracks;
     if (prevVitest == null) delete process.env.VITEST;
     else process.env.VITEST = prevVitest;
+    if (prevQa == null) delete process.env.VLC_QA;
+    else process.env.VLC_QA = prevQa;
+    if (prevCam3 == null) delete process.env.VLC_MOCK_CAM3_STREAM;
+    else process.env.VLC_MOCK_CAM3_STREAM = prevCam3;
   });
 
   it('serves fixture tracks through the proxy without a vision config post', async () => {
@@ -88,6 +94,43 @@ describe('test-only mock vision tracks', () => {
       const hiddenJson = await hidden.json();
       expect(hiddenJson.data.tracks).toEqual([]);
       expect(hiddenJson.data.backend).toBe('off');
+    } finally {
+      await new Promise((resolve) => server.close(resolve));
+    }
+  });
+
+  it('serves fixture tracks in explicit QA mode and can stream cam3', async () => {
+    delete process.env.VITEST;
+    process.env.VLC_QA = '1';
+    process.env.VLC_VISION_MOCK_TRACKS = JSON.stringify({ ...FIXTURE, camera: 'cam3' });
+    const app = express();
+    app.use(express.json());
+    const service = createCompanionService({ COMPANION_MODE: 'mock' });
+    registerCompanionProxyApi(app, { companionService: service });
+    const server = await listen(app);
+    const port = server.address().port;
+    const base = `http://127.0.0.1:${port}${COMPANION_PROXY_PREFIX}`;
+    try {
+      delete process.env.VLC_VISION_MOCK_TRACKS;
+      const hidden = await fetch(`${base}/cameras/cam3/frame`);
+      expect(hidden.status).toBe(404);
+      const quiet = await fetch(`${base}/vision/tracks?camera=cam3`);
+      const quietJson = await quiet.json();
+      expect(quietJson.data.stream).toBe(false);
+      expect(quietJson.data.tracks).toEqual([]);
+
+      process.env.VLC_VISION_MOCK_TRACKS = JSON.stringify({ ...FIXTURE, camera: 'cam3' });
+      const live = await fetch(`${base}/vision/tracks?camera=cam3`);
+      const liveJson = await live.json();
+      expect(liveJson.data.stream).toBe(true);
+      expect(liveJson.data.tracks).toHaveLength(2);
+      const status = await fetch(`${base}/status/cameras`);
+      const statusJson = await status.json();
+      expect(statusJson.data.cameras.cam3.camera_ok).toBe(true);
+      expect(statusJson.data.cameras.cam3.state).toBe('streaming');
+      expect(liveJson.data.stream).toBe(statusJson.data.cameras.cam3.camera_ok);
+      const frame = await fetch(`${base}/cameras/cam3/frame`);
+      expect(frame.status).toBe(200);
     } finally {
       await new Promise((resolve) => server.close(resolve));
     }
