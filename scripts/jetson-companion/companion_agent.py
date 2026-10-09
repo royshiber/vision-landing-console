@@ -98,6 +98,10 @@ try:
 except ImportError:
     annotated_encoder_status = None
 try:
+    from vision_tracks import try_handle as vision_try_handle
+except ImportError:
+    vision_try_handle = None
+try:
     from mavlink_route import CompanionRouter
 except ImportError:
     CompanionRouter = None
@@ -1532,6 +1536,8 @@ class Handler(BaseHTTPRequestHandler):
                 return
         except Exception:
             pass
+        if vision_try_handle and vision_try_handle(self):
+            return
         cam_frame = _camera_frame_id(path)
         if cam_frame:
             packet = ingest_frame_packet(cam_frame) if ingest_frame_packet else None
@@ -1592,6 +1598,8 @@ class Handler(BaseHTTPRequestHandler):
             ctx["blocked"] = _versions_blocked
             code, body = version_rollback.http_post(path, data if isinstance(data, dict) else {}, ctx)
             return self._json(code, body)
+        if vision_try_handle and vision_try_handle(self, data if isinstance(data, dict) else {}):
+            return
         try:
             from cam0.cam1 import try_handle as cam1_try_handle
             if cam1_try_handle(self, data if isinstance(data, dict) else {}):
@@ -1628,6 +1636,12 @@ def main():
     print(f"  FC_READ_ONLY: {FC_READ_ONLY}")
     snap = _ingest_or_absent()
     print(f"  Camera ingest: source={snap.get('source')} dry_run={snap.get('dry_run')}")
+    try:
+        from vision_tracks import attach_runtime
+        tracks = attach_runtime()
+        print(f"  Vision tracks: enabled={tracks.enabled} camera={tracks.camera or '-'} backend={tracks.backend}")
+    except Exception as exc:
+        print(f"  Vision tracks: off ({type(exc).__name__})")
     try:
         from cam0.service import start_service
         cam0 = start_service()

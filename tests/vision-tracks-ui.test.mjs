@@ -1,0 +1,248 @@
+/**
+ * Overlay on the optics tile: boxes, click lock, the right-click list, next, unlock, and no stream.
+ */
+import { afterAll, describe, expect, it } from 'vitest';
+import { spawn, execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
+import net from 'node:net';
+import os from 'node:os';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { collectTextFitFailures } from './text-fit-audit.mjs';
+
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const shotDir = '/opt/cursor/artifacts';
+const sampleJpeg = path.join(os.tmpdir(), `airvix-vision-sample-${process.pid}.jpg`);
+
+function sampleFrame() {
+  execFileSync('ffmpeg', [
+    '-y', '-f', 'lavfi', '-i', 'color=c=0x111827:s=320x180',
+    '-vf', 'drawbox=x=20:y=30:w=80:h=70:color=red@1:t=fill,drawbox=x=180:y=50:w=90:h=50:color=0x16a34a@1:t=fill',
+    '-frames:v', '1', sampleJpeg,
+  ], { stdio: 'ignore' });
+  return readFileSync(sampleJpeg);
+}
+
+function freePort() {
+  return new Promise((resolve, reject) => {
+    const server = net.createServer();
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', () => {
+      const { port } = server.address();
+      server.close(() => resolve(port));
+    });
+  });
+}
+
+const TRACKS = [
+  { id: 1, class: 'person', label_he: 'אדם', confidence: 0.92, bbox: [20, 30, 80, 70], age: 4 },
+  { id: 2, class: 'car', label_he: 'רכב', confidence: 0.61, bbox: [180, 50, 90, 50], age: 2 },
+];
+
+function payload(state, camera) {
+  const active = state.enabled === true && state.camera === camera;
+  const live = state.mode === 'tracks' && active;
+  let reason = 'הזיהוי כבוי';
+  if (state.mode === 'nostream' && active) reason = 'אין נתון על זרם המצלמות';
+  else if (live) reason = '';
+  return {
+    ok: true,
+    enabled: state.enabled === true,
+    camera,
+    selected_camera: state.camera,
+    backend: 'cpu',
+    stream: live,
+    frame_width: 320,
+    frame_height: 180,
+    tracks: live ? TRACKS : [],
+    lock: state.lock && state.lock.camera === camera ? state.lock : null,
+    gimbal_steer: {
+      enabled: state.steer === true,
+      sent: false,
+      blocked: true,
+      reason_he: state.steer ? 'הגימבל לא עונה. היגוי לא נשלח.' : 'היגוי הגימבל כבוי',
+      flight_commands: false,
+    },
+    reason_he: reason,
+    flight_commands: false,
+    performance: { measured: false },
+  };
+}
+
+async function boot() {
+  const port = await freePort();
+  const dbPath = path.join(os.tmpdir(), `airvix-vision-${process.pid}.sqlite`);
+  const proc = spawn(process.execPath, ['server.js'], {
+    cwd: repoRoot,
+    env: {
+      ...process.env,
+      HOST: '127.0.0.1',
+      PORT: String(port),
+      SQLITE_PATH: dbPath,
+      COMPANION_MODE: 'off',
+      JETSON_COMPANION_BASE_URL: '',
+    },
+    stdio: 'ignore',
+  });
+  const base = `http://127.0.0.1:${port}`;
+  const t0 = Date.now();
+  let up = false;
+  while (Date.now() - t0 < 20000) {
+    try {
+      const health = await fetch(`${base}/api/health`);
+      if (health.ok) { up = true; break; }
+    } catch { /* retry */ }
+    await new Promise((r) => setTimeout(r, 200));
+  }
+  if (!up) {
+    proc.kill('SIGTERM');
+    throw new Error('server did not start');
+  }
+  return { proc, base };
+}
+
+describe('vision track overlay', () => {
+  let proc = null;
+  let browser = null;
+  let base = '';
+
+  afterAll(async () => {
+    try { await browser?.close(); } catch { /* ignore */ }
+    if (proc && !proc.killed) proc.kill('SIGTERM');
+  });
+
+  it('draws boxes, locks from a click and from the list, then steps and unlocks', async () => {
+    const started = await boot();
+    proc = started.proc;
+    base = started.base;
+    const state = { enabled: true, camera: 'cam0', lock: null, steer: false, mode: 'tracks' };
+    const jpeg = sampleFrame();
+    let frameSeq = 1;
+    const { chromium } = await import('playwright');
+    browser = await chromium.launch({ headless: true });
+    const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+    await page.route('**/api/jetson/v1/cameras/cam0/frame**', async (route) => {
+      frameSeq += 1;
+      await route.fulfill({
+        status: 200,
+        contentType: 'image/jpeg',
+        headers: { 'x-airvix-frame-seq': String(frameSeq) },
+        body: jpeg,
+      });
+    });
+    await page.route('**/api/jetson/v1/vision/**', async (route) => {
+      const url = new URL(route.request().url());
+      const request = route.request();
+      if (request.method() === 'POST' && url.pathname.endsWith('/vision/config')) {
+        const body = request.postDataJSON() || {};
+        if ('enabled' in body) state.enabled = body.enabled === true;
+        if (body.camera) state.camera = body.camera;
+        if ('gimbal_steer' in body) state.steer = body.gimbal_steer === true;
+      }
+      if (request.method() === 'POST' && url.pathname.endsWith('/vision/lock')) {
+        const body = request.postDataJSON() || {};
+        const camera = body.camera || state.camera;
+        const rows = [...TRACKS].sort((a, b) => (body.sort === 'confidence'
+          ? b.confidence - a.confidence
+          : a.label_he.localeCompare(b.label_he, 'he') || a.id - b.id));
+        if (body.action === 'unlock') state.lock = null;
+        else if (body.action === 'next') {
+          const ids = rows.map((row) => row.id);
+          const current = state.lock?.id;
+          const pick = current != null && ids.includes(current) ? ids[(ids.indexOf(current) + 1) % ids.length] : ids[0];
+          const chosen = rows.find((row) => row.id === pick);
+          state.lock = { ...chosen, camera };
+        } else if (body.id != null) {
+          const chosen = rows.find((row) => row.id === Number(body.id));
+          state.lock = chosen ? { ...chosen, camera } : state.lock;
+        }
+      }
+      const camera = url.searchParams.get('camera') || state.camera;
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ ok: true, lane: 'NEW', data: payload(state, camera) }),
+      });
+    });
+    await page.goto(started.base, { waitUntil: 'domcontentloaded' });
+    await page.click('[data-tab="optics"]');
+    await page.waitForSelector('[data-api="cam0"] .debrief-cam-stage');
+    await page.evaluate(() => {
+      const detail = {
+        cameras: {
+          cam0: { camera_ok: true, enabled: true, state: 'streaming', fps: 10, has_frame: true, frame_count: 4, last_frame_age_ms: 40 },
+        },
+      };
+      const push = () => document.dispatchEvent(new CustomEvent('vlc-companion-cameras', { detail }));
+      push();
+      setInterval(push, 200);
+    });
+    await page.waitForFunction(() => {
+      const img = document.querySelector('[data-api="cam0"] .debrief-cam-live');
+      const stage = document.querySelector('[data-api="cam0"] .debrief-cam-stage');
+      const canvas = stage?.querySelector('.vision-box-layer');
+      return img && !img.hidden && img.naturalWidth === 320
+        && stage?.dataset.visionTracks === '1,2'
+        && canvas && canvas.hidden !== true && canvas.dataset.hit === '1';
+    }, null, { timeout: 15000 });
+    const host = page.locator('[data-api="cam0"] .debrief-cam-stage');
+    await page.screenshot({ path: `${shotDir}/vision-overlay.png` });
+    const point = await page.evaluate(() => {
+      const stage = document.querySelector('[data-api="cam0"] .debrief-cam-stage');
+      const img = stage.querySelector('img');
+      const rect = img.getBoundingClientRect();
+      const scale = Math.min(rect.width / 320, rect.height / 180);
+      const ox = rect.x + (rect.width - 320 * scale) / 2;
+      const oy = rect.y + (rect.height - 180 * scale) / 2;
+      return { x: ox + (20 + 40) * scale, y: oy + (30 + 35) * scale };
+    });
+    await page.mouse.click(point.x, point.y);
+    await page.waitForFunction(() => document.querySelector('[data-api="cam0"] .debrief-cam-stage')?.dataset.visionLock === '1');
+    await page.screenshot({ path: `${shotDir}/vision-lock.png` });
+    await host.click({ button: 'right', position: { x: 24, y: 24 } });
+    await page.waitForSelector('#visionTrackMenu:not([hidden])');
+    await page.screenshot({ path: `${shotDir}/vision-object-list.png` });
+    const report = await page.evaluate(collectTextFitFailures, 1);
+    const visionFails = (report.fails || []).filter((row) => /vision/.test(row.who));
+    expect(visionFails).toEqual([]);
+    await page.locator('#visionTrackMenu [data-vision-id="2"]').click();
+    await page.waitForFunction(() => document.querySelector('[data-api="cam0"] .debrief-cam-stage')?.dataset.visionLock === '2');
+    await host.click({ button: 'right', position: { x: 24, y: 24 } });
+    await page.locator('#visionTrackMenu [data-vision-action="next"]').click();
+    await page.waitForFunction(() => {
+      const id = document.querySelector('[data-api="cam0"] .debrief-cam-stage')?.dataset.visionLock;
+      return id === '1';
+    });
+    await host.click({ button: 'right', position: { x: 24, y: 24 } });
+    await page.locator('#visionTrackMenu [data-vision-action="unlock"]').click();
+    await page.waitForFunction(() => document.querySelector('[data-api="cam0"] .debrief-cam-stage')?.dataset.visionLock === '');
+    expect(await page.locator('[data-api="cam0"] .debrief-cam-stage').getAttribute('data-vision-tracks')).toBe('1,2');
+  }, 60000);
+
+  it('shows the empty line and no boxes when there is no stream', async () => {
+    expect(base).toMatch(/^http:\/\/127\.0\.0\.1:/);
+    const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+    await page.goto(base, { waitUntil: 'domcontentloaded' });
+    await page.click('[data-tab="optics"]');
+    const stage = page.locator('[data-api="cam0"] .debrief-cam-stage');
+    await page.waitForFunction(() => document.querySelector('[data-api="cam0"] .debrief-cam-stage')?.dataset.visionReason === 'אין נתון על זרם המצלמות');
+    expect(await stage.getAttribute('data-vision-tracks')).toBe('');
+    expect(await stage.locator('.vision-box-layer').getAttribute('hidden')).not.toBeNull();
+    await page.screenshot({ path: `${shotDir}/vision-no-stream.png` });
+    const state = { enabled: true, camera: 'cam0', lock: null, steer: false, mode: 'nostream' };
+    await page.route('**/api/jetson/v1/vision/**', async (route) => {
+      const camera = new URL(route.request().url()).searchParams.get('camera') || 'cam0';
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ ok: true, lane: 'NEW', data: payload(state, camera) }),
+      });
+    });
+    await page.waitForFunction(() => document.querySelector('[data-api="cam0"] .debrief-cam-stage')?.dataset.visionReason === 'אין נתון על זרם המצלמות');
+    state.mode = 'off';
+    state.enabled = false;
+    await page.waitForFunction(() => document.querySelector('[data-api="cam0"] .debrief-cam-stage')?.dataset.visionReason === 'הזיהוי כבוי');
+    expect(await stage.locator('.vision-box-note').innerText()).toBe('הזיהוי כבוי');
+    await page.close();
+  }, 30000);
+});
