@@ -124,6 +124,38 @@ export function placeMenuBox({ x = 0, y = 0, menuW = 0, menuH = 0, viewW = 0, vi
   };
 }
 
+export function visionAskSnapshot(payload) {
+  if (!payload || typeof payload !== 'object') return null;
+  const out = {};
+  if (typeof payload.enabled === 'boolean') out.enabled = payload.enabled;
+  if (typeof payload.stream === 'boolean') out.stream = payload.stream;
+  const reason = String(payload.reason_he || '').trim();
+  if (reason) out.reason_he = reason;
+  if (payload.backend === 'unavailable' || reason === 'אין מודל זיהוי') out.model = false;
+  else if (payload.enabled === true && payload.stream === true && payload.backend && payload.backend !== 'off') {
+    out.model = true;
+  }
+  if (Array.isArray(payload.tracks)) {
+    out.tracks = payload.tracks.slice(0, 40).map((row) => {
+      if (!row || typeof row !== 'object') return null;
+      const item = {};
+      if (row.id != null && String(row.id) !== '') item.id = row.id;
+      if (row.class) item.class = String(row.class);
+      if (row.label_he) item.label_he = String(row.label_he);
+      return Object.keys(item).length ? item : null;
+    }).filter(Boolean);
+  }
+  if (payload.lock == null) out.lock = null;
+  else if (payload.lock && payload.lock.id != null && String(payload.lock.id) !== '') out.lock = { id: payload.lock.id };
+  return Object.keys(out).length ? out : null;
+}
+
+export function visionAskState() {
+  const camera = selectedCamera();
+  if (!camera) return null;
+  return visionAskSnapshot(cache.get(camera));
+}
+
 function selectedCamera() {
   for (const payload of cache.values()) {
     if (payload?.selected_camera) return payload.selected_camera;
@@ -542,7 +574,10 @@ export function mountVisionTracks(doc = document) {
   const tick = () => { void refresh(doc); };
   tick();
   timer = doc.defaultView?.setInterval(tick, 700) || 0;
-  if (doc.defaultView) doc.defaultView.__vlcFillVisionMenu = (slot, camera) => fillVisionMenu(slot, camera);
+  if (doc.defaultView) {
+    doc.defaultView.__vlcFillVisionMenu = (slot, camera) => fillVisionMenu(slot, camera);
+    doc.defaultView.__vlcVisionAskState = () => visionAskState();
+  }
 }
 
 if (typeof document !== 'undefined') mountVisionTracks(document);

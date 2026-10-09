@@ -2,7 +2,7 @@
  * Flight column dock, map follow, and explicit recording. Loopback only.
  */
 import { afterAll, describe, expect, it } from 'vitest';
-import { matchVoiceFlightPhrase, pilotModeWord } from '../public/modules/voice-flight-phrases.mjs';
+import { isVisionFlightCompound, matchVoiceFlightPhrase, pilotModeWord } from '../public/modules/voice-flight-phrases.mjs';
 import { arduPlaneModeName } from '../lib/arduplane-flight-modes.mjs';
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
@@ -125,6 +125,7 @@ describe('flight mode yes/no uses the real readback', () => {
     const windowStub = {
       __vlcMatchVoiceFlightPhrase: matchVoiceFlightPhrase,
       __vlcPilotModeWord: pilotModeWord,
+      __vlcVisionFlightCompound: isVisionFlightCompound,
     };
     const vlcFlightModeName = (raw) => {
       const n = Number(raw);
@@ -160,6 +161,14 @@ describe('flight mode yes/no uses the real readback', () => {
     expect(qhover).not.toBe('אין חיבור');
     expect(cruise.askFlightRoute('מה המצב של הסוללה')).toBeNull();
     expect(cruise.askFlightRoute('לא שיוט')).toBeNull();
+    expect(isVisionFlightCompound('נעל על האדם ותחזור הביתה')).toBe(true);
+    expect(cruise.askFlightRoute('נעל על האדם ותחזור הביתה')).toBeNull();
+    expect(cruise.askFlightRoute('תחזור הביתה')).toEqual({ action: 'send', mode: 'RTL' });
+    expect(cruise.askFlightRoute('חימוש')).toEqual({ action: 'block' });
+    expect(cruise.askFlightRoute('נטרול')).toEqual({ action: 'block' });
+    expect(cruise.askFlightRoute('אל תחזור הביתה')).toEqual({ action: 'refuse' });
+    expect(isVisionFlightCompound('תחזור הביתה')).toBe(false);
+    expect(isVisionFlightCompound('חימוש')).toBe(false);
     expect(cruise.flightModeReadbackLine.toString()).not.toContain('מצב הטיסה');
     expect(cruise.flightModeReadbackLine.toString()).not.toContain('אין מצב טיסה');
   });

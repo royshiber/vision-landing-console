@@ -18870,8 +18870,12 @@ function assistBuildContextSnapshot() {
   const subtab = assistActiveSubtab();
   let mav = {};
   let vision = {};
+  let tracks = null;
   try { mav = _assistLastMav || {}; } catch { mav = {}; }
   try { vision = latestVisionFromServer || {}; } catch { vision = {}; }
+  try {
+    tracks = typeof window.__vlcVisionAskState === 'function' ? window.__vlcVisionAskState() : null;
+  } catch { tracks = null; }
   const conf = typeof vision.confidence === 'number'
     ? vision.confidence
     : (typeof vision.landing_confidence === 'number' ? vision.landing_confidence : null);
@@ -18908,6 +18912,7 @@ function assistBuildContextSnapshot() {
       distance_m: typeof mav.distanceToHome === 'number' ? mav.distanceToHome : null,
     },
     ops_signals: assistBuildOpsSignals(vision),
+    vision: tracks && typeof tracks === 'object' ? tracks : null,
     attention_policy: (typeof attentionReadPolicy === 'function' ? attentionReadPolicy() : {}).proactiveLevel || 'off',
   };
 }
@@ -20846,6 +20851,9 @@ function flightVoiceCommandText(text) {
 }
 
 function askFlightRoute(text) {
+  if (typeof window.__vlcVisionFlightCompound === 'function' && window.__vlcVisionFlightCompound(text) === true) {
+    return null;
+  }
   const match = flightVoiceMatch(text);
   if (!match || match.passToAsk || match.kind === 'LAND') return null;
   if (match.question === true || match.readback === 'mode') {
@@ -20927,6 +20935,10 @@ async function submitFlightPhrase(raw) {
     return;
   }
   if (match?.passToAsk) {
+    void assistSendText(text);
+    return;
+  }
+  if (typeof window.__vlcVisionFlightCompound === 'function' && window.__vlcVisionFlightCompound(text) === true) {
     void assistSendText(text);
     return;
   }

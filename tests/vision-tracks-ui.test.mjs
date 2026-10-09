@@ -320,4 +320,92 @@ describe('vision track overlay', () => {
     expect(['auto', 'scroll']).toContain(fit.overflow);
     await page.close();
   }, 30000);
+
+  it('asks with a live detection stream and keeps the lock beside a refused return home', async () => {
+    expect(base).toMatch(/^http:\/\/127\.0\.0\.1:/);
+    const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+    const posts = [];
+    const flightPosts = [];
+    page.on('request', (req) => {
+      const url = req.url();
+      if (req.method() !== 'POST') return;
+      if (url.includes('/api/assist/message')) posts.push(req.postDataJSON());
+      if (url.includes('/api/assist/voice-flight') || url.includes('/api/mavlink/') || url.includes('/vision/lock') || url.includes('/vision/config')) {
+        flightPosts.push(url);
+      }
+    });
+    await page.route('**/api/jetson/v1/vision/**', async (route) => {
+      const camera = new URL(route.request().url()).searchParams.get('camera') || 'cam0';
+      const live = camera === 'cam0';
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          ok: true,
+          lane: 'NEW',
+          data: {
+            ok: true,
+            enabled: live,
+            camera,
+            selected_camera: live ? 'cam0' : null,
+            backend: live ? 'cpu' : 'off',
+            stream: live,
+            tracks: live ? [
+              { id: 7, class: 'person', label_he: 'אדם', confidence: 0.91, bbox: [8, 10, 18, 30], age: 6 },
+              { id: 8, class: 'car', label_he: 'רכב', confidence: 0.64, bbox: [50, 28, 30, 16], age: 6 },
+            ] : [],
+            lock: live ? { id: 7, class: 'person', label_he: 'אדם', camera: 'cam0' } : null,
+            reason_he: live ? '' : 'הזיהוי כבוי',
+            gimbal_steer: { enabled: false, sent: false, blocked: true, reason_he: 'היגוי הגימבל כבוי', flight_commands: false },
+            flight_commands: false,
+          },
+        }),
+      });
+    });
+    await page.goto(base, { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => {
+      const state = window.__vlcVisionAskState?.();
+      return state?.stream === true
+        && state.enabled === true
+        && state.model === true
+        && state.tracks?.length === 2
+        && state.lock?.id === 7;
+    }, null, { timeout: 15000 });
+    await page.click('[data-tab="control"]');
+    const railHidden = await page.locator('#assistRail').getAttribute('hidden');
+    if (railHidden !== null) await page.click('#assistToggleBtn');
+    await page.waitForSelector('#assistRail:not([hidden]) #assistInput', { state: 'visible' });
+    const ask = async (text) => {
+      await page.locator('#assistInput').fill(text);
+      await page.locator('#assistSendBtn').click();
+    };
+    await ask('מה אתה מזהה');
+    await page.waitForFunction(() => (document.querySelector('#assistMessages')?.textContent || '').includes('מזהים 2 עצמים'));
+    await ask('כמה אנשים אתה רואה');
+    await page.waitForFunction(() => (document.querySelector('#assistMessages')?.textContent || '').includes('רואים אדם אחד'));
+    const detect = posts.find((row) => row?.text === 'מה אתה מזהה');
+    expect(detect?.context?.vision?.stream).toBe(true);
+    expect(detect?.context?.vision?.enabled).toBe(true);
+    expect(detect?.context?.vision?.tracks?.map((row) => row.label_he)).toEqual(['אדם', 'רכב']);
+    expect(detect?.context?.vision?.lock).toEqual({ id: 7 });
+    const beforeFlight = flightPosts.length;
+    await ask('נעל על האדם ותחזור הביתה');
+    await page.waitForFunction(() => {
+      const text = document.querySelector('#assistMessages')?.textContent || '';
+      return text.includes('הנעילה על האדם בתוכנית') && text.includes('חזרה הביתה נדחתה') && text.includes('לא נשלח דבר');
+    });
+    expect(posts.some((row) => row?.text === 'נעל על האדם ותחזור הביתה')).toBe(true);
+    expect(flightPosts.length).toBe(beforeFlight);
+    const beforeArm = posts.length;
+    await ask('חימוש');
+    await page.waitForFunction(() => (document.querySelector('#assistMessages')?.textContent || '').includes('חימוש ונטרול חסומים'));
+    await ask('נטרול');
+    await page.waitForFunction(() => {
+      const text = document.querySelector('#assistMessages')?.textContent || '';
+      return text.split('חימוש ונטרול חסומים').length >= 3;
+    });
+    expect(posts.length).toBe(beforeArm);
+    expect(flightPosts).toEqual([]);
+    await page.close();
+  }, 60000);
 });
