@@ -508,6 +508,21 @@ class Cam0Service:
             return None
         return self.jpeg
 
+    def frame_packet(self):
+        jpeg = self.frame_jpeg()
+        if not jpeg:
+            return None
+        with self._lock:
+            meta = dict(self.latest_meta)
+            stages = dict(self._stages_ms)
+        return {
+            "jpeg": jpeg,
+            "captured_utc_ns": meta.get("t_utc_ns"),
+            "captured_mono_ns": meta.get("t_monotonic_ns"),
+            "encode_ms": stages.get("jpeg"),
+            "decode_ms": stages.get("dqbuf"),
+        }
+
     def snapshot_bytes(self):
         if not self.status()["camera_ok"]:
             return None

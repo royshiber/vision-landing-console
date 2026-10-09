@@ -71,6 +71,10 @@ class Cam1Service:
         self.jpeg = None
         self.error = None
         self.jpeg_count = 0
+        self._encode_ms = None
+        self._decode_ms = None
+        self._jpeg_utc_ns = None
+        self._jpeg_mono_ns = None
         self._frame = None
         self._raw = None
         self._lock = threading.Lock()
@@ -274,6 +278,19 @@ class Cam1Service:
             return None
         return self.jpeg
 
+    def frame_packet(self):
+        jpeg = self.frame_jpeg()
+        if not jpeg:
+            return None
+        with self._lock:
+            return {
+                "jpeg": jpeg,
+                "captured_utc_ns": self._jpeg_utc_ns,
+                "captured_mono_ns": self._jpeg_mono_ns,
+                "encode_ms": self._encode_ms,
+                "decode_ms": self._decode_ms,
+            }
+
     def snapshot_bytes(self):
         self.acquire()
         try:
@@ -470,14 +487,21 @@ class Cam1Service:
                 next_jpeg = time.monotonic() + (1.0 / jpeg_hz)
                 mono = frame.get("mono8")
                 if mono is not None:
+                    t_enc = time.perf_counter()
                     jpeg = encode_gray_jpeg(
                         mono,
                         quality=int(stream.get("quality") or 55),
                         max_width=int(stream.get("max_width") or 640),
                     )
+                    enc_ms = round((time.perf_counter() - t_enc) * 1000.0, 3)
+                    stages = frame.get("stages_ms") or {}
                     with self._lock:
                         self.jpeg = jpeg
                         self.jpeg_count += 1
+                        self._encode_ms = enc_ms
+                        self._jpeg_utc_ns = frame.get("t_utc_ns")
+                        self._jpeg_mono_ns = frame.get("t_monotonic_ns")
+                        self._decode_ms = stages.get("dqbuf")
 
 
 def get_service(env=None):
@@ -515,9 +539,15 @@ def try_handle(handler, body=None):
     path = handler.path.split("?", 1)[0]
     if path in _FRAME_PATHS and handler.command == "GET":
         svc = get_service()
-        jpeg = svc.frame_jpeg()
+        packet = svc.frame_packet() if hasattr(svc, "frame_packet") else None
+        jpeg = packet.get("jpeg") if isinstance(packet, dict) else svc.frame_jpeg()
         if jpeg:
-            handler._send_bytes(200, jpeg, "image/jpeg", extra=(("Cache-Control", "no-store"),))
+            try:
+                from camera_ingest import jpeg_timing_headers
+                extra = tuple(jpeg_timing_headers(packet or {"jpeg": jpeg}))
+            except Exception:
+                extra = (("Cache-Control", "no-store"),)
+            handler._send_bytes(200, jpeg, "image/jpeg", extra=extra)
             return True
         health = svc.health()
         owns = health.get("state") not in {None, "absent", "disabled"} or bool(health.get("resolved_device"))
