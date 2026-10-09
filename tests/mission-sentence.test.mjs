@@ -178,6 +178,19 @@ describe('mission sentence mapper', () => {
     }).replyHe).toBe('מזהים משאית כחולה 1.');
   });
 
+  it('refuses cruise beside a release and still sends a bare cruise phrase', () => {
+    const bare = mapMissionSentence('שחררו נעילה ותעבור לשיוט');
+    expect(modes(bare)).toEqual(['UNLOCK']);
+    expect(bare.plan.refused).toEqual(['CRUISE']);
+    expect(bare.replyHe).toBe('אין נעילה פעילה. שיוט נדחה. לא נשלח דבר.');
+    expect(bare.sends).toBe(false);
+    const held = mapMissionSentence('שחררו נעילה ותעבור לשיוט', { lock: { id: 2 } });
+    expect(held.replyHe).toBe('שחרור הנעילה בתוכנית. שיוט נדחה. לא נשלח דבר.');
+    expect(held.plan.refused).toEqual(['CRUISE']);
+    expect(held.sends).toBe(false);
+    expect(mapMissionSentence('שיוט')).toBeNull();
+  });
+
   it('keeps the lock plan and refuses the return-home clause', () => {
     const result = mapMissionSentence('נעל על האדם ותחזור הבית');
     expect(modes(result)).toEqual(['LOCK']);

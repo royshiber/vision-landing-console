@@ -190,17 +190,37 @@ describe('vision track overlay', () => {
     }, null, { timeout: 15000 });
     const host = page.locator('[data-camera-stage="cam0"]').first();
     await page.screenshot({ path: `${shotDir}/vision-overlay.png` });
-    const point = await page.evaluate(() => {
+    const centers = await page.evaluate(() => {
       const stage = document.querySelector('[data-camera-stage="cam0"]');
       const img = stage.querySelector('img');
       const rect = img.getBoundingClientRect();
       const scale = Math.min(rect.width / 320, rect.height / 180);
       const ox = rect.x + (rect.width - 320 * scale) / 2;
       const oy = rect.y + (rect.height - 180 * scale) / 2;
-      return { x: ox + (20 + 40) * scale, y: oy + (30 + 35) * scale };
+      const center = (box) => ({ x: ox + (box[0] + box[2] / 2) * scale, y: oy + (box[1] + box[3] / 2) * scale });
+      return { person: center([20, 30, 80, 70]), car: center([180, 50, 90, 50]) };
     });
-    await page.mouse.click(point.x, point.y);
-    await page.waitForFunction(() => document.querySelector('[data-camera-stage="cam0"]')?.dataset.visionLock === '1');
+    await page.evaluate(() => {
+      const img = document.querySelector('[data-api="cam0"] .debrief-cam-live');
+      setInterval(() => {
+        if (!img) return;
+        img.hidden = true;
+        img.hidden = false;
+      }, 30);
+    });
+    let lockPosts = 0;
+    page.on('request', (req) => {
+      if (req.method() !== 'POST' || !req.url().includes('/vision/lock')) return;
+      const body = req.postDataJSON() || {};
+      if (body.id != null) lockPosts += 1;
+    });
+    for (let n = 0; n < 20; n += 1) {
+      const target = n % 2 === 0 ? { point: centers.person, id: '1' } : { point: centers.car, id: '2' };
+      const before = lockPosts;
+      await page.mouse.click(target.point.x, target.point.y);
+      await expect.poll(() => lockPosts, { timeout: 3000 }).toBe(before + 1);
+      await page.waitForFunction((id) => document.querySelector('[data-camera-stage="cam0"]')?.dataset.visionLock === id, target.id);
+    }
     await page.screenshot({ path: `${shotDir}/vision-lock.png` });
     await host.click({ button: 'right', position: { x: 24, y: 24 } });
     await page.waitForSelector('#visionTrackMenu:not([hidden])');
@@ -220,7 +240,7 @@ describe('vision track overlay', () => {
     await page.locator('#visionTrackMenu [data-vision-action="unlock"]').click();
     await page.waitForFunction(() => document.querySelector('[data-camera-stage="cam0"]')?.dataset.visionLock === '');
     expect(await page.locator('[data-camera-stage="cam0"]').first().getAttribute('data-vision-tracks')).toBe('1,2');
-  }, 60000);
+  }, 90000);
 
   it('shows the empty line and no boxes when there is no stream', async () => {
     expect(base).toMatch(/^http:\/\/127\.0\.0\.1:/);

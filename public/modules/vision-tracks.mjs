@@ -14,6 +14,7 @@ const CONFIG_URL = '/api/jetson/v1/vision/config';
 const LOCK_URL = '/api/jetson/v1/vision/lock';
 
 const cache = new Map();
+const fitMemory = new WeakMap();
 let sortMode = 'class';
 let menuCamera = '';
 let timer = 0;
@@ -191,6 +192,31 @@ function horizonMediaOn(host) {
   });
 }
 
+function geometryFor(host, layer, payload) {
+  const media = mediaOf(host);
+  const width = layer?.clientWidth || host.clientWidth || 0;
+  const height = layer?.clientHeight || host.clientHeight || 0;
+  const fit = media ? mediaFit(media, width, height) : null;
+  if (fit) {
+    const geom = { fit, frameW: payload?.frame_width, frameH: payload?.frame_height };
+    fitMemory.set(host, geom);
+    return geom;
+  }
+  return fitMemory.get(host) || null;
+}
+
+function lockAtPoint(host, layer, clientX, clientY) {
+  const camera = host.dataset.visionCamera || '';
+  const payload = payloadFor(camera);
+  const geom = geometryFor(host, layer, payload);
+  if (!geom) return null;
+  const rect = layer.getBoundingClientRect();
+  const point = framePoint(clientX - rect.left, clientY - rect.top, geom.fit, geom.frameW, geom.frameH);
+  const track = point ? hitTrack(payload.tracks, point.x, point.y) : null;
+  if (!track) return null;
+  return { camera, id: track.id };
+}
+
 function ensureChrome(host, camera) {
   if (camera && !host.dataset.visionCamera) host.dataset.visionCamera = camera;
   if (host.dataset.visionBound === '1') return;
@@ -199,10 +225,14 @@ function ensureChrome(host, camera) {
   const canvas = host.ownerDocument.createElement('canvas');
   canvas.className = 'vision-box-layer';
   canvas.hidden = true;
+  const layer = host.ownerDocument.createElement('div');
+  layer.className = 'vision-hit-layer';
+  layer.dataset.hit = '0';
   const note = host.ownerDocument.createElement('p');
   note.className = 'vision-box-note';
   note.hidden = true;
   host.appendChild(canvas);
+  host.appendChild(layer);
   host.appendChild(note);
   const repaint = () => {
     const camera = host.dataset.visionCamera || '';
@@ -224,23 +254,13 @@ function ensureChrome(host, camera) {
     });
     watch.observe(host, { attributes: true, subtree: true, attributeFilter: ['hidden', 'src'] });
   }
-  canvas.addEventListener('click', (event) => {
+  layer.addEventListener('pointerdown', (event) => {
+    if (event.button != null && event.button !== 0) return;
+    const hit = lockAtPoint(host, layer, event.clientX, event.clientY);
+    if (!hit) return;
     event.preventDefault();
     event.stopPropagation();
-    const camera = host.dataset.visionCamera || '';
-    const payload = payloadFor(camera);
-    const fit = mediaFit(mediaOf(host), canvas.clientWidth, canvas.clientHeight);
-    const rect = canvas.getBoundingClientRect();
-    const point = framePoint(
-      event.clientX - rect.left,
-      event.clientY - rect.top,
-      fit,
-      payload.frame_width,
-      payload.frame_height,
-    );
-    const track = point ? hitTrack(payload.tracks, point.x, point.y) : null;
-    if (!track) return;
-    void postLock({ camera, id: track.id });
+    void postLock(hit);
   });
   host.addEventListener('contextmenu', (event) => {
     if (!(event.target instanceof Element) || !host.contains(event.target)) return;
@@ -260,6 +280,7 @@ export function paintHost(host, payload, { kind = 'tile' } = {}) {
   ensureChrome(host);
   const doc = host.ownerDocument;
   const canvas = host.querySelector(':scope > .vision-box-layer');
+  const layer = host.querySelector(':scope > .vision-hit-layer');
   const note = host.querySelector(':scope > .vision-box-note');
   const camera = kind === 'horizon'
     ? (payload?.selected_camera || selectedCamera() || host.dataset.visionCamera || 'cam3')
@@ -272,6 +293,7 @@ export function paintHost(host, payload, { kind = 'tile' } = {}) {
   host.dataset.visionReason = showHorizon ? reason : '';
   host.dataset.visionTracks = tracks.map((row) => row.id).join(',');
   host.dataset.visionLock = lockId == null || !showHorizon ? '' : String(lockId);
+  if (layer) layer.dataset.hit = showHorizon && !reason && tracks.length > 0 ? '1' : '0';
   if (note) {
     const text = showHorizon ? reason : '';
     note.hidden = !text;
@@ -282,6 +304,7 @@ export function paintHost(host, payload, { kind = 'tile' } = {}) {
   const width = Math.max(1, Math.round(host.clientWidth || canvas.clientWidth || 1));
   const height = Math.max(1, Math.round(host.clientHeight || canvas.clientHeight || 1));
   const fit = media ? mediaFit(media, width, height) : null;
+  if (fit) fitMemory.set(host, { fit, frameW: payload?.frame_width, frameH: payload?.frame_height });
   const drawable = showHorizon && fit && tracks.length > 0 && media && !media.hidden;
   canvas.hidden = !drawable;
   canvas.dataset.hit = drawable ? '1' : '0';

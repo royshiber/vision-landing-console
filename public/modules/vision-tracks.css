@@ -6,7 +6,14 @@
   height: 100%;
   pointer-events: none;
 }
-.vision-box-layer[data-hit="1"] {
+.vision-hit-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  pointer-events: none;
+  background: transparent;
+}
+.vision-hit-layer[data-hit="1"] {
   pointer-events: auto;
   cursor: pointer;
 }
