@@ -8,7 +8,7 @@ import { onGimbalView } from './gimbal-pad.mjs';
 const HOST = {
   cam0: ['cam0Panel'],
   cam1: ['cam1Panel'],
-  a8: ['gimbalSettings', 'gimbalPad'],
+  cam3: ['gimbalSettings', 'gimbalPad'],
 };
 
 const menu = document.getElementById('opticsContext');
@@ -82,7 +82,7 @@ function bind() {
     close();
   });
   onGimbalView((view) => {
-    const chip = document.querySelector('.debrief-cam-tile[data-cam="a8"] .debrief-cam-chip');
+    const chip = document.querySelector('.debrief-cam-tile[data-cam="cam3"] .debrief-cam-chip');
     if (!chip) return;
     const reason = view?.reasonHe || '';
     const show = view?.enabled !== true && reason.length > 0;

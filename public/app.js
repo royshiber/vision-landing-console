@@ -7376,7 +7376,7 @@ function readHorizonCameras() {
       if (next !== raw) dirty = true;
       ids = [next];
     }
-    const kept = HORIZON_CAMERA_IDS.filter((id) => ids.includes(id));
+    const kept = HORIZON_CAMERA_IDS.filter((id) => ids.includes(id)).slice(0, 1);
     if (dirty) writeHorizonCameras(kept);
     return kept;
   } catch {
@@ -7801,7 +7801,7 @@ function initHorizonCameraMenu() {
     none: 'האופק בלי תמונת מצלמה',
     cam0: 'תמונת קדמית מאחורי האופק',
     cam1: 'תמונת מטה מאחורי האופק',
-    a8: 'תמונת גימבל מאחורי האופק',
+    cam3: 'תמונת גימבל מאחורי האופק',
   };
   function menuHeading(text) {
     const head = document.createElement('p');

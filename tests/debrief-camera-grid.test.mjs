@@ -22,6 +22,7 @@ describe('Debrief camera grid and horizon menu — source', () => {
     expect(html).toContain('data-cam="cam3"');
     expect(html).not.toContain('data-debrief-cam="a8"');
     expect(html).not.toContain('data-cam="a8"');
+    expect(js).toContain("id: 'cam3'");
     expect(js).toContain("return id === 'a8' ? 'cam3' : id");
     expect(html).toContain('id="opticsCam0Btn"');
     expect(html).toContain('id="opticsCam1Btn"');
@@ -318,12 +319,18 @@ describe('Debrief camera grid and horizon menu — live', () => {
     });
     await page.addInitScript(() => {
       localStorage.setItem('vlc.debrief.cameras.v2', JSON.stringify(['a8']));
-      localStorage.setItem('vlc.horizon.bgCamera.v1', 'none');
+      localStorage.setItem('vlc.horizon.bgCamera.v1', 'a8');
     });
     await page.goto(BASE, { waitUntil: 'domcontentloaded' });
     expect(await page.evaluate(() => localStorage.getItem('vlc.debrief.cameras.v2'))).toBe(JSON.stringify(['cam3']));
     await page.click('[data-tab="optics"]');
     await page.waitForSelector('.debrief-cam-tile[data-cam="cam3"]:not([hidden])');
+    const migrated = await page.evaluate(() => ({
+      debrief: localStorage.getItem('vlc.debrief.cameras.v2'),
+      horizon: localStorage.getItem('vlc.horizon.bgCamera.v1'),
+    }));
+    expect(JSON.parse(migrated.debrief)).toEqual(['cam3']);
+    expect(migrated.horizon).toBe('cam3');
     const live = {
       mode: 'real',
       reachable: true,

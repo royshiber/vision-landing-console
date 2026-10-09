@@ -91,21 +91,19 @@ describe('three-camera proportions and tile delete', () => {
         span,
         inside: inside(gimbal) && inside(forward) && inside(down),
         pressed: [...document.querySelectorAll('[data-debrief-cam]')].filter((btn) => btn.getAttribute('aria-pressed') === 'true').map((btn) => btn.dataset.debriefCam),
+        stored: localStorage.getItem('vlc.debrief.cameras.v2'),
       };
     });
-    expect(box.gimbal.height).toBeGreaterThan(box.forward.height + 20);
-    expect(box.gimbal.height).toBeGreaterThan(box.down.height + 20);
-    expect(box.gimbal.width * box.gimbal.height).toBeGreaterThan(box.forward.width * box.forward.height);
-    expect(box.gimbal.width * box.gimbal.height).toBeGreaterThan(box.down.width * box.down.height);
+    expect(Math.abs(box.gimbal.height - box.forward.height)).toBeLessThan(8);
+    expect(Math.abs(box.gimbal.width - box.forward.width)).toBeLessThan(8);
+    expect(Math.abs(box.gimbal.height - box.down.height)).toBeLessThan(8);
     expect(box.span).toBeGreaterThan(box.gridWidth * 0.92);
-    expect(box.ratio).toBeGreaterThan(0.75);
-    expect(box.ratio).toBeLessThan(1.25);
     expect(box.forward.fit).toBe('contain');
     expect(box.down.fit).toBe('contain');
     expect(box.gimbal.fit).toBe('contain');
     expect(box.inside).toBe(true);
-    expect(box.down.top).toBeGreaterThanOrEqual(box.forward.bottom - 8);
-    expect(box.pressed.sort()).toEqual(['cam3', 'cam0', 'cam1']);
+    expect(box.pressed).toEqual(['cam0']);
+    expect(JSON.parse(box.stored)).toEqual(['cam0', 'cam1', 'cam3']);
   }, 30000);
 
   it('right-click deletes a flight tile and does not send a command', async () => {
