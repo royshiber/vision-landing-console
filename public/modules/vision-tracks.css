@@ -63,11 +63,27 @@
 }
 .vision-menu-sort {
   display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0;
+  margin: 0;
+  white-space: nowrap;
+  text-wrap: nowrap;
+  color: #f8fafc;
+  font-size: clamp(11px, 0.85rem, 16px);
+  font-weight: 800;
+  line-height: 1.3;
 }
 .vision-menu-sort .vision-track-menu-item {
-  flex: 1 1 108px;
+  flex: 0 0 auto;
+  width: auto;
+  min-height: 28px;
+  white-space: nowrap;
+}
+.vision-track-menu-item[data-vision-action="steer"],
+.vision-track-menu-item[data-vision-id] {
+  flex-wrap: nowrap;
+  white-space: nowrap;
 }
 .vision-track-menu-item {
   display: flex;

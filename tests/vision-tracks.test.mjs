@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { framePoint, hitTrack, mediaFit, placeMenuBox, unwrapTracks, visionAskSnapshot } from '../public/modules/vision-tracks.mjs';
+import { framePoint, hitDrawnBox, hitTrack, mediaFit, placeMenuBox, selectFrameTracks, TRACK_POLL_MS, trackCaption, unwrapTracks, visionAskSnapshot } from '../public/modules/vision-tracks.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -10,6 +10,29 @@ describe('vision track hit testing', () => {
   it('unwraps the proxy envelope and keeps a bare payload', () => {
     expect(unwrapTracks({ ok: true, lane: 'NEW', data: { tracks: [] } })).toEqual({ tracks: [] });
     expect(unwrapTracks({ tracks: [1] })).toEqual({ tracks: [1] });
+  });
+
+  it('hits the last drawn box in layer pixels', () => {
+    const boxes = [
+      { id: 1, x: 10, y: 12, w: 40, h: 30 },
+      { id: 2, x: 80, y: 20, w: 50, h: 24 },
+    ];
+    expect(hitDrawnBox(boxes, 90, 30).id).toBe(2);
+    expect(hitDrawnBox(boxes, 12, 14).id).toBe(1);
+    expect(hitDrawnBox(boxes, 0, 0)).toBeNull();
+    expect(trackCaption({ id: 2, label_he: 'אדם', confidence: 0.9 })).toBe('אדם · #2 · 90%');
+    expect(TRACK_POLL_MS).toBeGreaterThanOrEqual(150);
+    expect(TRACK_POLL_MS).toBeLessThanOrEqual(200);
+  });
+
+  it('keeps tracks for the frame on screen when a newer poll arrives', () => {
+    const frame1 = { frame_seq: 1, tracks: [{ id: 1 }, { id: 3 }] };
+    const frame2 = { frame_seq: 2, tracks: [{ id: 1 }] };
+    const book = new Map([[1, frame1], [2, frame2]]);
+    expect(selectFrameTracks(frame2, book, 1)).toEqual(frame1);
+    expect(selectFrameTracks(frame2, book, 2)).toEqual(frame2);
+    expect(selectFrameTracks({ tracks: [{ id: 9 }] }, book, 2).tracks).toEqual([{ id: 9 }]);
+    expect(selectFrameTracks(frame2, book, 0)).toEqual(frame2);
   });
 
   it('hits the topmost box and misses the gaps', () => {

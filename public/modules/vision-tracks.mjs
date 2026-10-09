@@ -14,6 +14,8 @@ const CONFIG_URL = '/api/jetson/v1/vision/config';
 const LOCK_URL = '/api/jetson/v1/vision/lock';
 
 const cache = new Map();
+const frameBooks = new Map();
+const drawnBoxes = new WeakMap();
 const fitMemory = new WeakMap();
 let sortMode = 'class';
 let menuCamera = '';
@@ -52,6 +54,8 @@ export function framePoint(localX, localY, fit, frameW, frameH) {
   return { x: srcX * sx, y: srcY * sy };
 }
 
+export const TRACK_POLL_MS = 180;
+
 export function hitTrack(tracks, x, y) {
   const rows = Array.isArray(tracks) ? tracks : [];
   for (let i = rows.length - 1; i >= 0; i -= 1) {
@@ -62,6 +66,38 @@ export function hitTrack(tracks, x, y) {
     if (x >= bx && y >= by && x <= bx + bw && y <= by + bh) return rows[i];
   }
   return null;
+}
+
+export function hitDrawnBox(boxes, x, y) {
+  const rows = Array.isArray(boxes) ? boxes : [];
+  for (let i = rows.length - 1; i >= 0; i -= 1) {
+    const box = rows[i];
+    if (!box) continue;
+    const bx = Number(box.x);
+    const by = Number(box.y);
+    const bw = Number(box.w);
+    const bh = Number(box.h);
+    if (![bx, by, bw, bh].every(Number.isFinite)) continue;
+    if (x >= bx && y >= by && x <= bx + bw && y <= by + bh) return box;
+  }
+  return null;
+}
+
+export function trackCaption(track) {
+  const name = String(track?.label_he || '').trim();
+  const id = track?.id != null && String(track.id) !== '' ? `#${track.id}` : '';
+  const score = Number(track?.confidence);
+  const pct = Number.isFinite(score) ? `${Math.round(score * 100)}%` : '';
+  return [name, id, pct].filter(Boolean).join(' · ');
+}
+
+/** Tracks for the frame on screen. A newer poll must not paint on an older frame. */
+export function selectFrameTracks(latest, book, shownSeq) {
+  const shown = Number(shownSeq);
+  const tagged = Number(latest?.frame_seq);
+  if (!(shown > 0) || !(tagged > 0)) return latest || null;
+  if (shown === tagged) return latest;
+  return book?.get?.(shown) || null;
 }
 
 function emptyPayload(reason) {
@@ -218,16 +254,18 @@ function geometryFor(host, layer, payload) {
   return fitMemory.get(host) || null;
 }
 
+function shownSeq(host) {
+  const media = mediaOf(host);
+  const seq = Number(media?.dataset?.frameSeq || 0);
+  return Number.isFinite(seq) ? seq : 0;
+}
+
 function lockAtPoint(host, layer, clientX, clientY) {
   const camera = host.dataset.visionCamera || '';
-  const payload = payloadFor(camera);
-  const geom = geometryFor(host, layer, payload);
-  if (!geom) return null;
   const rect = layer.getBoundingClientRect();
-  const point = framePoint(clientX - rect.left, clientY - rect.top, geom.fit, geom.frameW, geom.frameH);
-  const track = point ? hitTrack(payload.tracks, point.x, point.y) : null;
-  if (!track) return null;
-  return { camera, id: track.id };
+  const hit = hitDrawnBox(drawnBoxes.get(host), clientX - rect.left, clientY - rect.top);
+  if (!hit || hit.id == null || hit.id === '') return null;
+  return { camera, id: hit.id };
 }
 
 function ensureChrome(host, camera) {
@@ -250,7 +288,10 @@ function ensureChrome(host, camera) {
   const repaint = () => {
     const camera = host.dataset.visionCamera || '';
     const kind = host.id === 'pfdHorizonStage' ? 'horizon' : 'tile';
-    paintHost(host, payloadFor(camera), { kind });
+    const latest = payloadFor(camera);
+    const chosen = selectFrameTracks(latest, frameBooks.get(camera), shownSeq(host));
+    if (!chosen) return;
+    paintHost(host, chosen, { kind });
   };
   host.addEventListener('load', (event) => {
     if (event.target instanceof Element && host.contains(event.target)) repaint();
@@ -275,8 +316,11 @@ function ensureChrome(host, camera) {
     event.stopPropagation();
     void postLock(hit);
   });
-  host.addEventListener('contextmenu', (event) => {
-    if (!(event.target instanceof Element) || !host.contains(event.target)) return;
+  const opener = host.closest?.('.debrief-cam-tile') || host;
+  if (opener.dataset.visionMenuBound === '1') return;
+  opener.dataset.visionMenuBound = '1';
+  opener.addEventListener('contextmenu', (event) => {
+    if (!(event.target instanceof Element) || !opener.contains(event.target)) return;
     const camera = host.dataset.visionCamera || host.dataset.visionFollow || selectedCamera() || 'cam3';
     if (event.defaultPrevented) {
       const slot = host.ownerDocument.querySelector('[data-vision-menu-slot]');
@@ -304,9 +348,9 @@ export function paintHost(host, payload, { kind = 'tile' } = {}) {
   const tracks = showHorizon && !reason ? (payload?.tracks || []) : [];
   const lockId = payload?.lock?.id;
   host.dataset.visionReason = showHorizon ? reason : '';
+  host.dataset.visionFrame = payload?.frame_seq ? String(payload.frame_seq) : '';
   host.dataset.visionTracks = tracks.map((row) => row.id).join(',');
   host.dataset.visionLock = lockId == null || !showHorizon ? '' : String(lockId);
-  if (layer) layer.dataset.hit = showHorizon && !reason && tracks.length > 0 ? '1' : '0';
   if (note) {
     const text = showHorizon ? reason : '';
     note.hidden = !text;
@@ -316,16 +360,30 @@ export function paintHost(host, payload, { kind = 'tile' } = {}) {
   const media = mediaOf(host);
   const width = Math.max(1, Math.round(host.clientWidth || canvas.clientWidth || 1));
   const height = Math.max(1, Math.round(host.clientHeight || canvas.clientHeight || 1));
-  const fit = media ? mediaFit(media, width, height) : null;
-  if (fit) fitMemory.set(host, { fit, frameW: payload?.frame_width, frameH: payload?.frame_height });
-  const drawable = showHorizon && fit && tracks.length > 0 && media && !media.hidden;
-  canvas.hidden = !drawable;
-  canvas.dataset.hit = drawable ? '1' : '0';
-  if (!drawable) {
-    const ctx = canvas.getContext('2d');
-    if (ctx) ctx.clearRect(0, 0, canvas.width || 0, canvas.height || 0);
+  const fitNow = media ? mediaFit(media, width, height) : null;
+  if (fitNow) fitMemory.set(host, { fit: fitNow, frameW: payload?.frame_width, frameH: payload?.frame_height });
+  const remembered = fitMemory.get(host);
+  const fit = fitNow || remembered?.fit || null;
+  const keepLast = showHorizon && !reason && tracks.length > 0 && drawnBoxes.get(host)?.length;
+  if (!fit || !showHorizon || !tracks.length) {
+    if (keepLast && !fit) {
+      if (layer) layer.dataset.hit = '1';
+      canvas.hidden = false;
+      canvas.dataset.hit = '1';
+      return;
+    }
+    drawnBoxes.delete(host);
+    if (layer) layer.dataset.hit = '0';
+    canvas.hidden = true;
+    canvas.dataset.hit = '0';
+    const cleared = canvas.getContext('2d');
+    if (cleared) cleared.clearRect(0, 0, canvas.width || 0, canvas.height || 0);
     return;
   }
+  const drawable = true;
+  canvas.hidden = !drawable;
+  canvas.dataset.hit = '1';
+  if (layer) layer.dataset.hit = '1';
   const ratio = doc.defaultView?.devicePixelRatio || 1;
   canvas.width = Math.round(width * ratio);
   canvas.height = Math.round(height * ratio);
@@ -335,9 +393,10 @@ export function paintHost(host, payload, { kind = 'tile' } = {}) {
   if (!ctx) return;
   ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
   ctx.clearRect(0, 0, width, height);
-  const fw = payload.frame_width || fit.nw;
-  const fh = payload.frame_height || fit.nh;
+  const fw = payload.frame_width || remembered?.frameW || fit.nw;
+  const fh = payload.frame_height || remembered?.frameH || fit.nh;
   const ordered = [...tracks].sort((a, b) => (a.id === lockId ? 1 : 0) - (b.id === lockId ? 1 : 0));
+  const boxes = [];
   for (const track of ordered) {
     const box = track.bbox || [];
     if (box.length < 4) continue;
@@ -345,36 +404,50 @@ export function paintHost(host, payload, { kind = 'tile' } = {}) {
     const y = fit.y + (box[1] * fit.nh / fh) * fit.scaleY;
     const w = (box[2] * fit.nw / fw) * fit.scaleX;
     const h = (box[3] * fit.nh / fh) * fit.scaleY;
+    boxes.push({ id: track.id, x, y, w, h });
     const locked = lockId != null && track.id === lockId;
     ctx.lineWidth = locked ? 4 : 2;
     ctx.strokeStyle = locked ? '#67e8f9' : '#facc15';
     ctx.strokeRect(x, y, w, h);
-    const label = track.label_he || '';
-    const idText = String(track.id ?? '');
+    const caption = trackCaption(track);
     ctx.font = '700 13px Heebo, sans-serif';
-    const labelW = label ? ctx.measureText(label).width : 0;
-    const idW = ctx.measureText(idText).width;
+    const textW = caption ? ctx.measureText(caption).width : 0;
     const pad = 4;
-    const textW = labelW + (label && idText ? 8 : 0) + idW;
     const top = Math.max(0, y - 18);
     ctx.fillStyle = '#0b1220';
     ctx.fillRect(x, top, textW + pad * 2, 16);
     ctx.fillStyle = '#f8fafc';
-    let cursor = x + pad;
-    if (label) {
-      ctx.fillText(label, cursor, top + 12);
-      cursor += labelW + 8;
-    }
-    ctx.fillText(idText, cursor, top + 12);
+    if (caption) ctx.fillText(caption, x + pad, top + 12);
   }
+  if (boxes.length) drawnBoxes.set(host, boxes);
+  else drawnBoxes.delete(host);
+  if (layer) layer.dataset.hit = boxes.length ? '1' : '0';
+}
+
+function rememberFrame(camera, payload) {
+  const seq = Number(payload?.frame_seq);
+  if (!camera || !(seq > 0)) return;
+  let book = frameBooks.get(camera);
+  if (!book) {
+    book = new Map();
+    frameBooks.set(camera, book);
+  }
+  book.set(seq, payload);
+  while (book.size > 12) book.delete(book.keys().next().value);
 }
 
 function paintAll(doc) {
   for (const item of hostList(doc)) {
     const camera = item.kind === 'horizon' ? (selectedCamera() || '') : item.camera;
-    const payload = camera ? payloadFor(camera) : emptyPayload(REASON_OFF);
-    if (item.kind === 'horizon' && camera) payload.camera = camera;
-    paintHost(item.host, item.kind === 'horizon' && !camera ? emptyPayload(REASON_OFF) : payload, item);
+    const latest = camera ? payloadFor(camera) : emptyPayload(REASON_OFF);
+    if (item.kind === 'horizon' && !camera) {
+      paintHost(item.host, emptyPayload(REASON_OFF), item);
+      continue;
+    }
+    const chosen = selectFrameTracks(latest, frameBooks.get(camera), shownSeq(item.host));
+    if (!chosen) continue;
+    if (item.kind === 'horizon' && camera) chosen.camera = camera;
+    paintHost(item.host, chosen, item);
   }
 }
 
@@ -402,7 +475,9 @@ async function refresh(doc) {
   try {
     const cameras = new Set(hostList(doc).filter((item) => item.kind !== 'horizon' && item.camera).map((item) => item.camera));
     await Promise.all([...cameras].map(async (camera) => {
-      cache.set(camera, await fetchTracks(camera));
+      const payload = await fetchTracks(camera);
+      cache.set(camera, payload);
+      rememberFrame(camera, payload);
     }));
     paintAll(doc);
     if (!doc.getElementById('visionTrackMenu')?.hidden) renderMenu(doc);
@@ -438,17 +513,13 @@ const MENU_HTML = `
     <p class="vision-menu-kicker">זיהוי</p>
     <button type="button" class="vision-track-menu-item" data-vision-action="toggle"></button>
     <p class="vision-menu-kicker">עצמים</p>
-    <div class="vision-menu-sort">
-      <button type="button" class="vision-track-menu-item" data-vision-sort="class">מיינו לפי סוג</button>
-      <button type="button" class="vision-track-menu-item" data-vision-sort="confidence">מיינו לפי ביטחון</button>
-    </div>
+    <p class="vision-menu-sort">מיון: <button type="button" class="vision-track-menu-item" data-vision-sort="class">סוג</button><span aria-hidden="true"> | </span><button type="button" class="vision-track-menu-item" data-vision-sort="confidence">ביטחון</button></p>
     <div data-vision-list></div>
     <p class="vision-menu-kicker">נעילה</p>
     <button type="button" class="vision-track-menu-item" data-vision-action="next">עברו לעצם הבא</button>
     <button type="button" class="vision-track-menu-item" data-vision-action="unlock">שחררו נעילה</button>
-    <p class="vision-menu-kicker">היגוי</p>
     <button type="button" class="vision-track-menu-item" data-vision-action="steer"></button>
-    <p class="vision-menu-note" data-vision-steer-note></p>
+    <p class="vision-menu-note" data-vision-steer-note hidden></p>
   `;
 
 function onMenuClick(event) {
@@ -541,24 +612,22 @@ function renderMenu(doc) {
         button.className = 'vision-track-menu-item';
         button.dataset.visionId = String(row.id);
         if (payload.lock?.id === row.id) button.classList.add('is-locked');
-        const name = doc.createElement('span');
-        name.textContent = row.label_he || '';
-        const id = doc.createElement('span');
-        id.dir = 'ltr';
-        id.textContent = String(row.id);
-        const conf = doc.createElement('span');
-        conf.dir = 'ltr';
-        const score = Number(row.confidence);
-        conf.textContent = Number.isFinite(score) ? score.toFixed(2) : '';
-        button.append(name, id, conf);
+        button.textContent = trackCaption(row);
         list.appendChild(button);
       }
     }
   }
   const steer = menu.querySelector('[data-vision-action="steer"]');
-  if (steer) steer.textContent = payload.gimbal_steer?.enabled ? 'כבו היגוי גימבל' : 'הפעילו היגוי גימבל';
+  const steerOn = payload.gimbal_steer?.enabled === true;
+  if (steer) steer.textContent = `היגוי גימבל: ${steerOn ? 'פעיל' : 'כבוי'}`;
   const steerNote = menu.querySelector('[data-vision-steer-note]');
-  if (steerNote) steerNote.textContent = payload.gimbal_steer?.reason_he || '';
+  if (steerNote) {
+    const reason = String(payload.gimbal_steer?.reason_he || '').trim();
+    const offReason = !reason || reason === 'היגוי הגימבל כבוי' || payload.gimbal_steer?.reason === 'steer_off';
+    const show = payload.gimbal_steer?.blocked === true && !offReason;
+    steerNote.hidden = !show;
+    steerNote.textContent = show ? reason : '';
+  }
 }
 
 export function fillVisionMenu(slot, camera) {
@@ -611,7 +680,7 @@ export function mountVisionTracks(doc = document) {
   }
   const tick = () => { void refresh(doc); };
   tick();
-  timer = doc.defaultView?.setInterval(tick, 700) || 0;
+  timer = doc.defaultView?.setInterval(tick, TRACK_POLL_MS) || 0;
   if (doc.defaultView) {
     doc.defaultView.__vlcFillVisionMenu = (slot, camera) => fillVisionMenu(slot, camera);
     doc.defaultView.__vlcVisionAskState = () => visionAskState();

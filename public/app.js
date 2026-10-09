@@ -14679,7 +14679,7 @@ initLiveCameraPanel();
       });
       return;
     }
-    if (vlcExternalQuiet()) return;
+    if (vlcTestQuiet()) return;
     return postWorkLink();
   }).catch(() => {});
   if (toggleBtn) toggleBtn.addEventListener('click', (ev) => { ev.stopPropagation(); togglePanel(); });
@@ -15749,7 +15749,7 @@ initLiveCameraPanel();
     try {
       const r = await fetch('/api/flight-engineer/status');
       const d = await r.json();
-      const connected = d.elevenlabs === true && !vlcExternalQuiet();
+      const connected = d.elevenlabs === true && !vlcTestQuiet();
       paintTalkbackStatus(connected);
       return connected;
     } catch {
@@ -15788,7 +15788,7 @@ initLiveCameraPanel();
   window.__vlcSpeakAnswer = async function vlcSpeakAnswer(text) {
     const spoken = String(text || '').trim();
     if (!spoken) return;
-    if (_vlcTalkbackEleven && !vlcExternalQuiet()) {
+    if (_vlcTalkbackEleven && !vlcTestQuiet()) {
       try {
         const vid = String(window.__vlcSettings?.elevenVoiceId || '').trim();
         const payload = { text: spoken };
@@ -16075,7 +16075,7 @@ initLiveCameraPanel();
     try {
       const r = await fetch('/api/flight-engineer/status');
       const d = await r.json();
-      if (d.elevenlabs && !vlcExternalQuiet()) {
+      if (d.elevenlabs && !vlcTestQuiet()) {
         let elLabel = 'ElevenLabs ✓';
         const t = d.elevenlabsTts;
         if (t?.model) {
@@ -16196,7 +16196,7 @@ initLiveCameraPanel();
     feBargeVadHits = 0;
     feBargeQuietUntilMs = Date.now() + FE_BARGE_WARMUP_MS;
 
-    if (ttsMode === 'elevenlabs' && !vlcExternalQuiet()) {
+    if (ttsMode === 'elevenlabs' && !vlcTestQuiet()) {
       try {
         const vid = String(window.__vlcSettings?.elevenVoiceId || '').trim();
         const payload = { text };
@@ -18936,15 +18936,12 @@ function assistStatusTexts(mav) {
   return out;
 }
 
-function vlcExternalQuiet() {
+function vlcTestQuiet() {
   try {
     if (window.__vlcAllowExternal === true) return false;
-    if (window.__vlcQuietExternal === true || window.__vlcQa === true) return true;
-    const qa = document.querySelector('meta[name="vlc-qa"]')?.getAttribute('content');
-    if (qa === '1') return true;
-    const mav = typeof latestHudMavlink !== 'undefined' ? latestHudMavlink : null;
-    if (mav && mav.simulator === true) return true;
-    if (mav && typeof assistLinkPath === 'function' && assistLinkPath(mav) === 'simulator') return true;
+    if (window.__vlcTestQuiet === true) return true;
+    const flag = document.querySelector('meta[name="vlc-test"]')?.getAttribute('content');
+    if (flag === '1') return true;
   } catch {
     /* live path stays available */
   }
@@ -21685,6 +21682,19 @@ function syncAssistComposerSize() {
 function initAssistMic() {
   const btn = document.getElementById('assistMicBtn');
   if (!btn) return;
+  const labelEl = btn.querySelector('.assist-mic-label');
+  const idle = 'האזינו';
+  const listeningText = 'מאזינים… לחצו לעצירה';
+  let listening = false;
+  const showMic = (state) => {
+    listening = state === 'listening';
+    btn.classList.toggle('recording', listening);
+    btn.setAttribute('aria-pressed', listening ? 'true' : 'false');
+    const text = listening ? listeningText : idle;
+    btn.title = text;
+    btn.setAttribute('aria-label', text);
+    if (labelEl) labelEl.textContent = text;
+  };
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR) {
     btn.disabled = true;
@@ -21700,28 +21710,25 @@ function initAssistMic() {
     const input = document.getElementById('assistInput');
     if (input) input.value = '';
     syncAssistComposerSize();
-    btn.classList.remove('recording');
-    btn.setAttribute('aria-pressed', 'false');
-    btn.title = assistMicTalkLabel();
+    showMic('idle');
     if (t) void assistSendText(t, { channel: 'voice' });
   };
-  rec.onend = () => {
-    btn.classList.remove('recording');
-    btn.setAttribute('aria-pressed', 'false');
-    btn.title = assistMicTalkLabel();
-  };
+  rec.onend = () => showMic('idle');
   rec.onerror = () => {
-    btn.classList.remove('recording');
-    btn.setAttribute('aria-pressed', 'false');
+    showMic('idle');
     btn.title = assistMicTalkLabel('error');
   };
   btn.addEventListener('click', () => {
+    if (listening) {
+      try { rec.stop(); } catch { /* already stopped */ }
+      showMic('idle');
+      return;
+    }
     try {
       rec.start();
-      btn.classList.add('recording');
-      btn.setAttribute('aria-pressed', 'true');
-      btn.title = assistMicTalkLabel('listening');
+      showMic('listening');
     } catch {
+      showMic('idle');
       btn.title = assistMicTalkLabel('blocked');
     }
   });

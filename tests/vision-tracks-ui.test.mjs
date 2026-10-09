@@ -214,13 +214,12 @@ describe('vision track overlay', () => {
       const body = req.postDataJSON() || {};
       if (body.id != null) lockPosts += 1;
     });
-    for (let n = 0; n < 20; n += 1) {
-      const target = n % 2 === 0 ? { point: centers.person, id: '1' } : { point: centers.car, id: '2' };
-      const before = lockPosts;
-      await page.mouse.click(target.point.x, target.point.y);
-      await expect.poll(() => lockPosts, { timeout: 3000 }).toBe(before + 1);
-      await page.waitForFunction((id) => document.querySelector('[data-camera-stage="cam0"]')?.dataset.visionLock === id, target.id);
+    const before = lockPosts;
+    for (let n = 0; n < 500; n += 1) {
+      const point = n % 2 === 0 ? centers.person : centers.car;
+      await page.mouse.click(point.x, point.y);
     }
+    await expect.poll(() => lockPosts, { timeout: 20000 }).toBe(before + 500);
     await page.screenshot({ path: `${shotDir}/vision-lock.png` });
     await host.click({ button: 'right', position: { x: 24, y: 24 } });
     await page.waitForSelector('#visionTrackMenu:not([hidden])');
@@ -240,7 +239,36 @@ describe('vision track overlay', () => {
     await page.locator('#visionTrackMenu [data-vision-action="unlock"]').click();
     await page.waitForFunction(() => document.querySelector('[data-camera-stage="cam0"]')?.dataset.visionLock === '');
     expect(await page.locator('[data-camera-stage="cam0"]').first().getAttribute('data-vision-tracks')).toBe('1,2');
-  }, 90000);
+    await page.locator('[data-cam="cam0"] .debrief-cam-label').click({ button: 'right' });
+    await page.waitForSelector('#visionTrackMenu:not([hidden])');
+    const menuFace = await page.evaluate(() => {
+      const menu = document.getElementById('visionTrackMenu');
+      const sort = menu.querySelector('.vision-menu-sort');
+      const steer = menu.querySelector('[data-vision-action="steer"]');
+      const note = menu.querySelector('[data-vision-steer-note]');
+      const row = menu.querySelector('[data-vision-id="1"]');
+      return {
+        sort: (sort?.textContent || '').replace(/\s+/g, ' ').trim(),
+        sortWrap: getComputedStyle(sort).flexWrap,
+        sortDisplay: getComputedStyle(sort).display,
+        oneLine: sort.scrollHeight <= 40 && sort.getClientRects().length === 1,
+        caption: row?.textContent || '',
+        steer: steer?.textContent || '',
+        reason: note?.hidden ? '' : (note?.textContent || ''),
+      };
+    });
+    expect(menuFace.sort).toBe('מיון: סוג | ביטחון');
+    expect(menuFace.sortDisplay).toBe('flex');
+    expect(menuFace.sortWrap).toBe('nowrap');
+    expect(menuFace.oneLine).toBe(true);
+    expect(menuFace.caption).toBe('אדם · #1 · 92%');
+    expect(menuFace.steer).toBe('היגוי גימבל: כבוי');
+    expect(menuFace.reason).toBe('');
+    await page.keyboard.press('Escape');
+    const tileBox = await page.locator('.debrief-cam-tile[data-cam="cam0"]').boundingBox();
+    await page.mouse.click((tileBox?.x || 0) + 3, (tileBox?.y || 0) + 3, { button: 'right' });
+    await page.waitForSelector('#visionTrackMenu:not([hidden])');
+  }, 180000);
 
   it('shows the empty line and no boxes when there is no stream', async () => {
     expect(base).toMatch(/^http:\/\/127\.0\.0\.1:/);
@@ -269,6 +297,106 @@ describe('vision track overlay', () => {
     expect(await stage.locator('.vision-box-note').innerText()).toBe('הזיהוי כבוי');
     await page.close();
   }, 30000);
+
+  it('draws the truck and the person for the frame on screen at 1366', async () => {
+    expect(base).toMatch(/^http:\/\/127\.0\.0\.1:/);
+    const page = await browser.newPage({ viewport: { width: 1366, height: 768 } });
+    const jpeg = sampleFrame();
+    let shown = 1;
+    const sets = {
+      1: [
+        { id: 1, class: 'person', label_he: 'אדם', confidence: 0.9, bbox: [20, 30, 80, 70], age: 2 },
+        { id: 3, class: 'truck', label_he: 'משאית', confidence: 0.8, bbox: [180, 50, 90, 50], age: 2 },
+      ],
+      2: [
+        { id: 1, class: 'person', label_he: 'אדם', confidence: 0.9, bbox: [120, 20, 40, 60], age: 1 },
+      ],
+    };
+    let published = 1;
+    await page.route('**/api/jetson/v1/cameras/cam0/frame**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'image/jpeg',
+        headers: { 'x-airvix-frame-seq': String(shown) },
+        body: jpeg,
+      });
+    });
+    await page.route('**/api/jetson/v1/vision/**', async (route) => {
+      const camera = new URL(route.request().url()).searchParams.get('camera') || 'cam0';
+      const live = camera === 'cam0';
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          ok: true,
+          lane: 'NEW',
+          data: {
+            ok: true,
+            enabled: live,
+            camera,
+            selected_camera: 'cam0',
+            stream: live,
+            frame_seq: published,
+            frame_width: 320,
+            frame_height: 180,
+            tracks: live ? sets[published] : [],
+            lock: null,
+            reason_he: live ? '' : 'הזיהוי כבוי',
+            gimbal_steer: { enabled: false, sent: false, blocked: true, reason_he: 'היגוי הגימבל כבוי', flight_commands: false },
+            flight_commands: false,
+          },
+        }),
+      });
+    });
+    const trackHits = [];
+    page.on('request', (req) => {
+      if (req.url().includes('/vision/tracks') && req.url().includes('camera=cam0')) trackHits.push(Date.now());
+    });
+    await page.goto(base, { waitUntil: 'domcontentloaded' });
+    await page.click('[data-tab="optics"]');
+    await page.evaluate(() => {
+      document.dispatchEvent(new CustomEvent('vlc-companion-cameras', {
+        detail: { cameras: { cam0: { camera_ok: true, enabled: true, state: 'streaming', fps: 15, has_frame: true, frame_count: 4, last_frame_age_ms: 20 } } },
+      }));
+    });
+    await page.waitForFunction(() => {
+      const stage = document.querySelector('[data-camera-stage="cam0"]');
+      const img = document.querySelector('[data-api="cam0"] .debrief-cam-live');
+      return stage?.dataset.visionTracks === '1,3'
+        && stage?.dataset.visionFrame === '1'
+        && img?.dataset.frameSeq === '1'
+        && stage.querySelector('.vision-box-layer')?.hidden !== true;
+    }, null, { timeout: 15000 });
+    published = 2;
+    await page.waitForTimeout(700);
+    const held = await page.evaluate(() => {
+      const stage = document.querySelector('[data-camera-stage="cam0"]');
+      const img = document.querySelector('[data-api="cam0"] .debrief-cam-live');
+      return {
+        tracks: stage?.dataset.visionTracks,
+        frame: stage?.dataset.visionFrame,
+        shown: img?.dataset.frameSeq,
+        canvas: stage?.querySelector('.vision-box-layer')?.hidden !== true,
+      };
+    });
+    expect(held).toEqual({ tracks: '1,3', frame: '1', shown: '1', canvas: true });
+    shown = 2;
+    await page.waitForFunction(() => {
+      const stage = document.querySelector('[data-camera-stage="cam0"]');
+      const img = document.querySelector('[data-api="cam0"] .debrief-cam-live');
+      return img?.dataset.frameSeq === '2' && stage?.dataset.visionFrame === '2' && stage?.dataset.visionTracks === '1';
+    }, null, { timeout: 8000 });
+    const span = trackHits.at(-1) - trackHits[0];
+    const gaps = trackHits.slice(1).map((stamp, index) => stamp - trackHits[index]).filter((gap) => gap > 40);
+    expect(span).toBeGreaterThan(400);
+    expect(Math.min(...gaps)).toBeLessThanOrEqual(250);
+    await page.screenshot({ path: `${shotDir}/vision-frame-1366.png` });
+    await page.setViewportSize({ width: 1024, height: 576 });
+    await page.screenshot({ path: `${shotDir}/vision-frame-1024.png` });
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.screenshot({ path: `${shotDir}/vision-frame-1440.png` });
+    await page.close();
+  }, 40000);
 
   it('keeps the menu on screen at 1280x720 near the bottom of the down camera', async () => {
     expect(base).toMatch(/^http:\/\/127\.0\.0\.1:/);
@@ -318,7 +446,7 @@ describe('vision track overlay', () => {
     const fit = await page.evaluate(() => {
       const menu = document.getElementById('visionTrackMenu');
       const steer = menu.querySelector('[data-vision-action="steer"]');
-      const kicker = [...menu.querySelectorAll('.vision-menu-kicker')].find((node) => node.textContent === 'היגוי');
+      const kicker = steer;
       const viewW = window.innerWidth;
       const viewH = window.innerHeight;
       const box = menu.getBoundingClientRect();
@@ -344,6 +472,12 @@ describe('vision track overlay', () => {
   it('asks with a live detection stream and keeps the lock beside a refused return home', async () => {
     expect(base).toMatch(/^http:\/\/127\.0\.0\.1:/);
     const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+    await page.addInitScript(() => {
+      window.SpeechRecognition = class {
+        start() { this.live = true; }
+        stop() { this.onend?.(); }
+      };
+    });
     const posts = [];
     const flightPosts = [];
     const quietPosts = [];
@@ -398,6 +532,12 @@ describe('vision track overlay', () => {
     const railHidden = await page.locator('#assistRail').getAttribute('hidden');
     if (railHidden !== null) await page.click('#assistToggleBtn');
     await page.waitForSelector('#assistRail:not([hidden]) #assistInput', { state: 'visible' });
+    await page.click('#assistMicBtn');
+    await expect.poll(() => page.locator('#assistMicBtn .assist-mic-label').innerText()).toBe('מאזינים… לחצו לעצירה');
+    expect(await page.locator('#assistMicBtn').getAttribute('aria-pressed')).toBe('true');
+    await page.click('#assistMicBtn');
+    await expect.poll(() => page.locator('#assistMicBtn .assist-mic-label').innerText()).toBe('האזינו');
+    expect(await page.locator('#assistMicBtn').getAttribute('aria-pressed')).toBe('false');
     const ask = async (text) => {
       await page.locator('#assistInput').fill(text);
       await page.locator('#assistSendBtn').click();
@@ -415,7 +555,7 @@ describe('vision track overlay', () => {
     await ask('נעל על האדם ותחזור הביתה');
     await page.waitForFunction(() => {
       const text = document.querySelector('#assistMessages')?.textContent || '';
-      return text.includes('נעילה על האדם נוספה לתוכנית') && text.includes('חזרה הביתה נחסמה') && text.includes('לא נשלח דבר');
+      return text.includes('נעילה על האדם נוספה לתוכנית, עדיין לא נעול') && text.includes('חזרה הביתה נחסמה') && text.includes('לא נשלח דבר');
     });
     expect(posts.some((row) => row?.text === 'נעל על האדם ותחזור הביתה')).toBe(true);
     expect(flightPosts.length).toBe(beforeFlight);

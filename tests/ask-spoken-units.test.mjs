@@ -169,15 +169,18 @@ describe('talk-back honesty when ElevenLabs key is missing', () => {
       else process.env.ELEVENLABS_API_KEY = prev;
     }
     const load = js.slice(js.indexOf("void fetch('/api/links/work')"), js.indexOf('if (toggleBtn)'));
-    expect(load).toContain('if (vlcExternalQuiet()) return;');
+    expect(load).toContain('if (vlcTestQuiet()) return;');
     expect(load).toContain('return postWorkLink();');
-    expect(load.indexOf('vlcExternalQuiet()')).toBeLessThan(load.lastIndexOf('return postWorkLink();'));
-    expect(js).toContain("if (_vlcTalkbackEleven && !vlcExternalQuiet())");
-    expect(js).toContain("if (ttsMode === 'elevenlabs' && !vlcExternalQuiet())");
+    expect(load.indexOf('vlcTestQuiet()')).toBeLessThan(load.lastIndexOf('return postWorkLink();'));
+    expect(js).toContain("if (_vlcTalkbackEleven && !vlcTestQuiet())");
+    expect(js).toContain("if (ttsMode === 'elevenlabs' && !vlcTestQuiet())");
     expect(js).not.toContain('navigator.webdriver');
-    expect(js).toContain('window.__vlcQa === true');
-    expect(js).toContain('meta[name="vlc-qa"]');
-    expect(js).toContain('mav.simulator === true');
+    expect(js).not.toContain('vlcExternalQuiet');
+    expect(js).toContain('window.__vlcTestQuiet === true');
+    expect(js).toContain('meta[name="vlc-test"]');
+    const quiet = js.slice(js.indexOf('function vlcTestQuiet'), js.indexOf('function assistLinkPath'));
+    expect(quiet).not.toContain('simulator');
+    expect(quiet).not.toContain('vlc-qa');
   });
 });
 

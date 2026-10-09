@@ -22,15 +22,19 @@ describe('Optics CAM0 and CAM1 tiles', () => {
   let browser = null;
 
   beforeAll(async () => {
+    const env = {
+      ...process.env,
+      HOST: '127.0.0.1',
+      PORT,
+      SQLITE_PATH: `/tmp/airvix-dual-tiles-${PORT}-${process.pid}.sqlite`,
+      COMPANION_MODE: 'off',
+    };
+    delete env.VLC_QA;
+    delete env.VLC_VISION_MOCK_TRACKS;
+    delete env.VLC_MOCK_CAM3_STREAM;
     serverProc = spawn(process.execPath, ['server.js'], {
       cwd: repoRoot,
-      env: {
-        ...process.env,
-        HOST: '127.0.0.1',
-        PORT,
-        SQLITE_PATH: `/tmp/airvix-dual-tiles-${PORT}.sqlite`,
-        COMPANION_MODE: 'off',
-      },
+      env,
       stdio: ['ignore', 'pipe', 'pipe'],
     });
     const t0 = Date.now();
@@ -241,6 +245,13 @@ describe('Optics CAM0 and CAM1 tiles', () => {
   it('on a phone, choosing a camera shows that picture and marks only that button', async () => {
     const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
     try {
+      await page.addInitScript(() => {
+        window.EventSource = function EventSource() {
+          this.addEventListener = () => {};
+          this.removeEventListener = () => {};
+          this.close = () => {};
+        };
+      });
       const hits = { cam0: 0, cam1: 0, cam3: 0 };
       await page.route(/\/api\/jetson\/v1\/cameras\/cam[013]\/frame/, (route) => {
         const url = route.request().url();

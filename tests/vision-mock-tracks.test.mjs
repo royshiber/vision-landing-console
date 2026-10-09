@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import express from 'express';
 import { createCompanionService } from '../lib/companion-service.mjs';
 import { registerCompanionProxyApi } from '../lib/routes/companion-proxy-api.mjs';
@@ -35,31 +35,18 @@ function listen(app) {
   });
 }
 
+function appFor(env) {
+  const app = express();
+  app.use(express.json());
+  const service = createCompanionService(env);
+  registerCompanionProxyApi(app, { companionService: service });
+  return app;
+}
+
 describe('test-only mock vision tracks', () => {
-  const prevTracks = process.env.VLC_VISION_MOCK_TRACKS;
-  const prevVitest = process.env.VITEST;
-  const prevQa = process.env.VLC_QA;
-  const prevCam3 = process.env.VLC_MOCK_CAM3_STREAM;
-
-  afterEach(() => {
-    if (prevTracks == null) delete process.env.VLC_VISION_MOCK_TRACKS;
-    else process.env.VLC_VISION_MOCK_TRACKS = prevTracks;
-    if (prevVitest == null) delete process.env.VITEST;
-    else process.env.VITEST = prevVitest;
-    if (prevQa == null) delete process.env.VLC_QA;
-    else process.env.VLC_QA = prevQa;
-    if (prevCam3 == null) delete process.env.VLC_MOCK_CAM3_STREAM;
-    else process.env.VLC_MOCK_CAM3_STREAM = prevCam3;
-  });
-
   it('serves fixture tracks through the proxy without a vision config post', async () => {
-    process.env.VITEST = 'true';
-    delete process.env.VLC_VISION_MOCK_TRACKS;
-    const app = express();
-    app.use(express.json());
-    const service = createCompanionService({ COMPANION_MODE: 'mock' });
-    registerCompanionProxyApi(app, { companionService: service });
-    const server = await listen(app);
+    const env = { COMPANION_MODE: 'mock', VITEST: 'true' };
+    const server = await listen(appFor(env));
     const port = server.address().port;
     const base = `http://127.0.0.1:${port}${COMPANION_PROXY_PREFIX}`;
     try {
@@ -70,7 +57,7 @@ describe('test-only mock vision tracks', () => {
       expect(bareJson.data.tracks).toEqual([]);
       expect(bareJson.data.flight_commands).toBe(false);
 
-      process.env.VLC_VISION_MOCK_TRACKS = JSON.stringify(FIXTURE);
+      env.VLC_VISION_MOCK_TRACKS = JSON.stringify(FIXTURE);
       const other = await fetch(`${base}/vision/tracks?camera=cam3`);
       const otherJson = await other.json();
       expect(otherJson.data.tracks).toEqual([]);
@@ -89,7 +76,7 @@ describe('test-only mock vision tracks', () => {
       expect(liveJson.data.gimbal_steer.flight_commands).toBe(false);
       expect(liveJson.data.flight_commands).toBe(false);
 
-      process.env.VITEST = '';
+      delete env.VITEST;
       const hidden = await fetch(`${base}/vision/tracks?camera=cam0`);
       const hiddenJson = await hidden.json();
       expect(hiddenJson.data.tracks).toEqual([]);
@@ -100,18 +87,11 @@ describe('test-only mock vision tracks', () => {
   });
 
   it('serves fixture tracks in explicit QA mode and can stream cam3', async () => {
-    delete process.env.VITEST;
-    process.env.VLC_QA = '1';
-    process.env.VLC_VISION_MOCK_TRACKS = JSON.stringify({ ...FIXTURE, camera: 'cam3' });
-    const app = express();
-    app.use(express.json());
-    const service = createCompanionService({ COMPANION_MODE: 'mock' });
-    registerCompanionProxyApi(app, { companionService: service });
-    const server = await listen(app);
+    const env = { COMPANION_MODE: 'mock', VLC_QA: '1' };
+    const server = await listen(appFor(env));
     const port = server.address().port;
     const base = `http://127.0.0.1:${port}${COMPANION_PROXY_PREFIX}`;
     try {
-      delete process.env.VLC_VISION_MOCK_TRACKS;
       const hidden = await fetch(`${base}/cameras/cam3/frame`);
       expect(hidden.status).toBe(404);
       const quiet = await fetch(`${base}/vision/tracks?camera=cam3`);
@@ -119,7 +99,7 @@ describe('test-only mock vision tracks', () => {
       expect(quietJson.data.stream).toBe(false);
       expect(quietJson.data.tracks).toEqual([]);
 
-      process.env.VLC_VISION_MOCK_TRACKS = JSON.stringify({ ...FIXTURE, camera: 'cam3' });
+      env.VLC_VISION_MOCK_TRACKS = JSON.stringify({ ...FIXTURE, camera: 'cam3' });
       const live = await fetch(`${base}/vision/tracks?camera=cam3`);
       const liveJson = await live.json();
       expect(liveJson.data.stream).toBe(true);
@@ -131,6 +111,49 @@ describe('test-only mock vision tracks', () => {
       expect(liveJson.data.stream).toBe(statusJson.data.cameras.cam3.camera_ok);
       const frame = await fetch(`${base}/cameras/cam3/frame`);
       expect(frame.status).toBe(200);
+    } finally {
+      await new Promise((resolve) => server.close(resolve));
+    }
+  });
+
+  it('honors lock and next on the mock without a flight command', async () => {
+    const env = {
+      COMPANION_MODE: 'mock',
+      VITEST: 'true',
+      VLC_VISION_MOCK_TRACKS: JSON.stringify(FIXTURE),
+    };
+    const server = await listen(appFor(env));
+    const port = server.address().port;
+    const base = `http://127.0.0.1:${port}${COMPANION_PROXY_PREFIX}`;
+    try {
+      const lock = await fetch(`${base}/vision/lock`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ camera: 'cam0', id: 4 }),
+      });
+      const locked = await lock.json();
+      expect(locked.data.lock.id).toBe(4);
+      expect(locked.data.lock.label_he).toBe('רכב');
+      expect(locked.data.flight_commands).toBe(false);
+      expect(locked.data.gimbal_steer.sent).toBe(false);
+
+      const next = await fetch(`${base}/vision/lock`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ action: 'next', camera: 'cam0', sort: 'class' }),
+      });
+      const stepped = await next.json();
+      expect(stepped.data.lock.id).toBe(3);
+      expect(stepped.data.flight_commands).toBe(false);
+
+      const released = await fetch(`${base}/vision/lock`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ action: 'unlock', camera: 'cam0' }),
+      });
+      const open = await released.json();
+      expect(open.data.lock).toBeNull();
+      expect(open.data.flight_commands).toBe(false);
     } finally {
       await new Promise((resolve) => server.close(resolve));
     }

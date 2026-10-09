@@ -80,6 +80,9 @@ export function createLatestJpegPump({
     const prev = img.dataset.objectUrl;
     img.dataset.liveFrame = loaded.src || '';
     img.dataset.objectUrl = loaded.objectUrl;
+    const seq = Number(loaded.seq);
+    if (seq > 0) img.dataset.frameSeq = String(seq);
+    else delete img.dataset.frameSeq;
     if (prev && prev !== loaded.objectUrl) {
       try { URL.revokeObjectURL(prev); } catch { /* already revoked */ }
     }
