@@ -21,8 +21,10 @@ the same group is ahead of that baseline by 1..64. Datagrams already
 queued are drained before each send so they are not this reply. Angle,
 center, and rate confirm only on that counter-advanced attitude. Center
 and rate wait for their ack, then re-read attitude for about 1.5 s,
-with a short pause between reads so the link is not flooded. A newer
-rate or stop cancels the confirm already in progress. This mount's
+with a short pause between reads so the link is not flooded. That
+pause is one timestamp shared by every confirm loop, so a new command
+does not read again until the pause has elapsed. A newer rate or stop
+cancels the confirm already in progress. This mount's
 level pitch is ±180, so center is the shortest wrap-around distance to
 yaw 0 and pitch 180, not to pitch 0. A rate confirms only when that
 later reading shows the commanded change; a stop confirms only after
@@ -467,6 +469,7 @@ class SiyiLink:
         # One confirm window at a time. A new rate or stop bumps the
         # generation and wakes the sleeper so the old loop stops reading.
         self._confirm_gen = 0
+        self._confirm_read_mono = None
         self._confirm_cv = threading.Condition()
         self._stop = threading.Event()
         self._thread = None
@@ -830,16 +833,37 @@ class SiyiLink:
             self._confirm_cv.notify_all()
         return token
 
-    def _wait_confirm_gap(self, token, deadline):
-        """Pause before the next confirm read. False when a newer command owns the window."""
-        limit = min(time.monotonic() + CONFIRM_READ_GAP_S, deadline)
-        with self._confirm_cv:
-            while token == self._confirm_gen:
-                remain = limit - time.monotonic()
+    def _reserve_confirm_read(self, token, deadline):
+        """Wait out the shared gap, then own the next attitude read.
+
+        The gap is one timestamp for every confirm loop. A new rate or
+        stop skips its first read when the previous loop read less than
+        CONFIRM_READ_GAP_S ago. False when a newer command takes over or
+        the confirm window has ended.
+        """
+        while True:
+            if token != self._confirm_gen:
+                return False
+            now = time.monotonic()
+            if now >= deadline:
+                return False
+            with self._confirm_cv:
+                if token != self._confirm_gen:
+                    return False
+                now = time.monotonic()
+                last = self._confirm_read_mono
+                remain = 0.0 if last is None else CONFIRM_READ_GAP_S - (now - last)
                 if remain <= 0:
-                    return token == self._confirm_gen
-                self._confirm_cv.wait(timeout=remain)
-            return False
+                    self._confirm_read_mono = now
+                    return True
+                wake = min(now + remain, deadline)
+                while token == self._confirm_gen and time.monotonic() < wake:
+                    left = wake - time.monotonic()
+                    if left <= 0:
+                        break
+                    self._confirm_cv.wait(timeout=left)
+                if token != self._confirm_gen:
+                    return False
 
     def _confirm_motion(self, action, body, before_att, before_zoom, token=None):
         """Fresh post-send read. None when nothing new arrived."""
@@ -889,15 +913,18 @@ class SiyiLink:
     def _poll_attitude_until(self, ready, token):
         """Re-read attitude until `ready`, about 1.5 s, or a newer command.
 
-        Each sample has to be a counter-advanced 0x0D. Reads are spaced by
-        CONFIRM_READ_GAP_S. A silent socket ends the wait immediately. The
-        caller already holds the command ack, so these reads are after that ack.
+        Each sample has to be a counter-advanced 0x0D. Reads share one
+        CONFIRM_READ_GAP_S timestamp, including a loop that just took over.
+        A silent socket ends the wait immediately. The caller already holds
+        the command ack, so these reads are after that ack.
         """
         deadline = time.monotonic() + CONFIRM_MOTION_S
         latest = None
         while time.monotonic() < deadline:
-            if token != self._confirm_gen:
-                return latest, False, "superseded"
+            if not self._reserve_confirm_read(token, deadline):
+                if token != self._confirm_gen:
+                    return latest, False, "superseded"
+                break
             pkt = self._exchange_fresh_attitude()
             att = parse_attitude(pkt["data"]) if isinstance(pkt, dict) else None
             if att is None:
@@ -911,8 +938,6 @@ class SiyiLink:
                 done = False
             if done:
                 return att, True, "matched"
-            if not self._wait_confirm_gap(token, deadline):
-                return latest, False, "superseded"
         return latest, False, "timeout"
 
     def poll_once(self):

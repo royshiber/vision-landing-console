@@ -48,7 +48,7 @@ class FastGimbalSock:
     def sendto(self, packet, addr):
         raw = bytes(packet)
         with self._lock:
-            self.sent.append((threading.get_ident(), raw))
+            self.sent.append((threading.get_ident(), raw, time.monotonic()))
             self._queue.append(raw)
 
     def recvfrom(self, _n):
@@ -90,10 +90,14 @@ class FastGimbalSock:
     def close(self):
         return None
 
-    def attitude_reads(self, ident=None):
+    def attitude_reads(self, ident=None, start=None, end=None):
         total = 0
-        for tid, raw in self.sent:
+        for tid, raw, when in self.sent:
             if ident is not None and tid != ident:
+                continue
+            if start is not None and when < start:
+                continue
+            if end is not None and when >= end:
                 continue
             decoded = decode_packet(raw)
             if decoded and decoded["cmd"] == CMD_ATTITUDE:
@@ -171,6 +175,45 @@ class ConfirmFloodTests(unittest.TestCase):
         self.assertFalse(second.is_alive())
         self.assertLessEqual(sock.attitude_reads(done["second"]["ident"]), READ_BAR)
         self.assertLess(done["second"]["secs"], 2.2)
+
+    def test_a_20_hz_stick_stays_at_or_under_15_reads_per_second(self):
+        # Each update used to read once before the previous loop could cancel,
+        # so 20 Hz became about 20 attitude reads per second. The shared gap
+        # has to hold the link at 15/s or fewer.
+        sock = FastGimbalSock(yaw_rate=0.2, pitch=174.9, rtt=0.002)
+        link = _live_link(sock)
+        window = 1.0
+        interval = 0.05
+        started = time.monotonic()
+        threads = []
+        next_at = started
+        while True:
+            now = time.monotonic()
+            if now - started >= window:
+                break
+            if now < next_at:
+                time.sleep(next_at - now)
+            yaw = 10 + (len(threads) % 5)
+            thread = threading.Thread(
+                target=link.command,
+                args=("rate", {"yaw": yaw, "pitch": 0}),
+                daemon=True,
+            )
+            thread.start()
+            threads.append(thread)
+            next_at += interval
+        end = started + window
+        reads = sock.attitude_reads(start=started, end=end)
+        self.assertGreaterEqual(len(threads), 18)
+        self.assertGreaterEqual(reads, 8, f"only {reads} attitude reads; the stick never sampled")
+        self.assertLessEqual(
+            reads / window,
+            15.0,
+            f"{reads} attitude reads in {window:.2f}s ({reads / window:.1f}/s)",
+        )
+        for thread in threads:
+            thread.join(timeout=3.0)
+        self.assertFalse(any(thread.is_alive() for thread in threads))
 
 
 if __name__ == "__main__":
