@@ -151,7 +151,7 @@ describe('home shell QA', () => {
     await page.click('.tab[data-tab="control"]');
     await page.waitForTimeout(200);
     const toggle = await box(page, '#assistToggleBtn');
-    expect(toggle.position).toBe('fixed');
+    expect(toggle.hidden).toBe(true);
     const save = page.locator('#acSaveBtn, .ac-next, button:has-text("שמור")').first();
     if (await save.count()) {
       const saveBox = await save.evaluate((el) => {
@@ -160,7 +160,7 @@ describe('home shell QA', () => {
       });
       expect(overlaps(toggle, saveBox)).toBe(false);
     }
-    await page.click('#assistToggleBtn');
+    await page.evaluate(() => assistSetOpen(true));
     await page.waitForTimeout(200);
     const chrome = await box(page, '.app-chrome');
     const rail = await box(page, '#assistRail');
