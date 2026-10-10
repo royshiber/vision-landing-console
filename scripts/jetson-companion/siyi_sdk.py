@@ -14,11 +14,14 @@ counter; config (0x0A) has another. Once a counter is known, a reply in
 that group is kept only when its sequence moves forward by 1..64.
 Anything else is dropped, and a backwards step is recorded. A long
 silence, or a wait that produced no acceptable reply, lets the next
-reply teach the counter again. Datagrams already queued are drained
-before each send so they are not this reply. Angle, center, and rate
-confirm only on a fresh attitude, read after the send, whose counter
-advanced and that matches the command. A command ack alone does not
-confirm a move. Zoom is confirmed only by a current-zoom read (command
+reply teach the counter again. An attitude (0x0D) that teaches the
+counter is not the reading: it is kept only when a later attitude in
+the same group is ahead of that baseline by 1..64. Datagrams already
+queued are drained before each send so they are not this reply. Angle,
+center, and rate confirm only on that counter-advanced attitude, read
+after the send, when it also matches the command. A command ack alone
+does not confirm a move, and neither does the attitude that only
+taught the counter. Zoom is confirmed only by a current-zoom read (command
 0x18): the first byte is the whole multiple and the second is tenths.
 The zoom-command ack (0x05) is a separate uint16 in tenths. A
 confirmation never sends zoom stop. Codec specs (command 0x20) are
@@ -625,8 +628,11 @@ class SiyiLink:
         if group in self._resync_groups:
             return True
         last = self.last_reply_mono
+        # A counter stored earlier in this wait is already known. The silence
+        # clock starts when the exchange notes the reply, so a missing clock
+        # must not turn the next datagram into another baseline.
         if last is None:
-            return True
+            return False
         try:
             silent = (self.now_fn() - last) >= SEQ_SILENCE_S
         except TypeError:
@@ -637,18 +643,23 @@ class SiyiLink:
         """Accept a grouped reply only when its counter advanced by 1..64.
 
         The first reply, a reply after a timeout, and a reply after a long
-        silence teach the counter. A backwards or repeated sequence is
-        rejected and recorded on ``_device_seq_regressed``. Commands with
-        no tracked group (rate, center, zoom write, codec) are not gated.
+        silence teach the counter. An attitude that teaches is not
+        returned (``"teach"``). Zoom-read and firmware still return the
+        sample that taught their counter. A backwards or repeated
+        sequence is rejected and recorded on ``_device_seq_regressed``.
+        Commands with no tracked group (rate, center, zoom write, codec)
+        are not gated.
         """
         group = self._seq_group(cmd)
         if group is None:
             return True
         try:
             seq = int(seq) & 0xFFFF
+            cmd_id = int(cmd) & 0xFF
         except (TypeError, ValueError):
             return False
-        if not self._group_needs_resync(group):
+        teaching = self._group_needs_resync(group)
+        if not teaching:
             prev = self._device_seq[group]
             advance = seq_advance(seq, prev)
             if not (1 <= advance <= SEQ_AHEAD_MAX):
@@ -660,6 +671,8 @@ class SiyiLink:
         self._device_seq[group] = seq
         self._device_seq_regressed.pop(group, None)
         self._resync_groups.discard(group)
+        if teaching and cmd_id == CMD_ATTITUDE:
+            return "teach"
         return True
 
     def _note_exchange_failed(self, marks_absent):
@@ -688,6 +701,8 @@ class SiyiLink:
         if not require_match:
             return True
         deadline = time.monotonic() + self.timeout
+        taught = False
+        rejected_before = self.rejected_count
         while True:
             remain = deadline - time.monotonic()
             if remain <= 0:
@@ -700,15 +715,42 @@ class SiyiLink:
             decoded = decode_packet(raw)
             if not reply_matches(decoded, cmd):
                 continue
-            if not self._seq_ok(cmd, decoded.get("seq", 0)):
+            verdict = self._seq_ok(cmd, decoded.get("seq", 0))
+            if verdict == "teach":
+                # Baseline only. A later 0x0D in this wait may still advance.
+                taught = True
+                continue
+            if not verdict:
                 continue
             self._note_reply()
             return decoded
+        if taught:
+            # The teacher proved the gimbal is there. Do not arm a resync,
+            # or the next single attitude would teach again and never land.
+            self._note_reply()
+            if self.rejected_count > rejected_before:
+                self.last_error = "seq_rejected"
+            return None
         group = self._seq_group(cmd)
         if group is not None:
             self._resync_groups.add(group)
         self._note_exchange_failed(marks_absent)
         return None
+
+    def _exchange_fresh_attitude(self):
+        """Return an attitude only when its counter advanced by 1..64.
+
+        The sample that teaches a cold or resynced counter is not a
+        reading. One more exchange can pick up the next step (the A8
+        and an echoing test double both move by a small forward gap).
+        A rejection against a counter that was already known is not retried.
+        """
+        before = self._device_seq.get("shared")
+        pkt = self.exchange(CMD_ATTITUDE, b"", require_match=True)
+        after = self._device_seq.get("shared")
+        if pkt is None and after is not None and after != before:
+            pkt = self.exchange(CMD_ATTITUDE, b"", require_match=True)
+        return pkt
 
     def _confirm_motion(self, action, body, before_att, before_zoom):
         """Fresh post-send read. None when nothing new arrived."""
@@ -724,7 +766,7 @@ class SiyiLink:
             if zoom_moved(before_zoom, zoom, direction):
                 return {"confirmed": True, "confirmed_by": "zoom", "ack": {"zoom": zoom}}
             return {"confirmed": False, "ack": {"zoom": zoom}}
-        pkt = self.exchange(CMD_ATTITUDE, b"", require_match=True)
+        pkt = self._exchange_fresh_attitude()
         att = parse_attitude(pkt["data"]) if isinstance(pkt, dict) else None
         if att is None:
             return None
@@ -745,7 +787,7 @@ class SiyiLink:
 
     def poll_once(self):
         self._ticks += 1
-        decoded = self.exchange(CMD_ATTITUDE, b"", require_match=True)
+        decoded = self._exchange_fresh_attitude()
         if isinstance(decoded, dict):
             att = parse_attitude(decoded["data"])
             if att:
