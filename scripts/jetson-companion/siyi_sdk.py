@@ -12,18 +12,23 @@ Replies are paired by command id. Pending datagrams are drained before
 each send. An exact SEQ echo is enough on its own. It is not a search
 that prefers a later echo over an earlier in-window datagram. The A8
 mini usually sends its own counter. That counter is learned only from
-an exact echo, or from two consistent replies. It is dropped after two
-consecutive timeouts, or after about 3 seconds without a reply. A
-non-echo is then accepted only for seq 0, or within ±8 of the learned
-counter. Without an echo, a stale reply that is still inside that
-window can still be taken as the live telemetry reply. Gimbal move and
-zoom confirm only on an exact echo, or by reading attitude again. A
-windowed ack is never trusted for those commands. Codec specs (command
-0x20) are read with the status poll. The request carries one
-stream-type byte (1 = main stream). A miss on that read does not mark
-the gimbal absent. The set command (0x21) is never sent. Nothing in
-this module moves the gimbal unless a control POST is enabled and
-asked for.
+an exact echo, or from replies to two separate sends whose counter
+advances by exactly the number of sends between them. The reply that
+teaches the counter is not returned as the answer. The learned counter
+is dropped after two consecutive timeouts, or after about 3 seconds
+without a reply. A non-echo is then accepted only for seq 0, or within
+±8 of the learned counter. Without an echo, a stale reply that is
+still inside that window can still be taken as the live telemetry
+reply. Angle and center confirm only on a fresh attitude, received
+after the send, that moved toward the target. Rate confirms only when
+that attitude's rate fields match the command. Zoom confirms only on a
+fresh zoom read that moved the right way; otherwise the result is
+sent, not confirmed. A windowed ack is never trusted for those
+commands. Codec specs (command 0x20) are read with the status poll.
+The request carries one stream-type byte (1 = main stream). A miss on
+that read does not mark the gimbal absent. The set command (0x21) is
+never sent. Nothing in this module moves the gimbal unless a control
+POST is enabled and asked for.
 """
 
 from __future__ import annotations
@@ -143,7 +148,9 @@ def seq_acceptable(reply_seq, request_seq, last_camera_seq=None, window=SEQ_WIND
     A non-echo is accepted only when it is seq 0, or within ±window of the
     camera sequence already learned. Without an echo, a stale reply that
     is still inside that window can still win. The window is not the whole
-    uint16 range. One stray reply does not teach the counter.
+    uint16 range. This check does not teach the counter: teaching takes an
+    exact echo, or two separate sends whose sequences step with the sends,
+    and the teaching reply is not itself the answer.
     """
     try:
         reply = int(reply_seq) & 0xFFFF
@@ -291,6 +298,73 @@ def clamp_rate(value):
     return max(RATE_MIN, min(RATE_MAX, int(value)))
 
 
+def attitude_moved_toward(before, after, target_yaw, target_pitch, tolerance=1.0):
+    """True when `after` reached the target or got closer than `before`."""
+    if not isinstance(after, dict):
+        return False
+    try:
+        yaw = float(after.get("yaw"))
+        pitch = float(after.get("pitch"))
+        goal_yaw = float(target_yaw)
+        goal_pitch = float(target_pitch)
+    except (TypeError, ValueError):
+        return False
+    if abs(yaw - goal_yaw) <= tolerance and abs(pitch - goal_pitch) <= tolerance:
+        return True
+    if not isinstance(before, dict):
+        return False
+    try:
+        old_yaw = float(before.get("yaw"))
+        old_pitch = float(before.get("pitch"))
+    except (TypeError, ValueError):
+        return False
+    def gap(y, p):
+        return abs(y - goal_yaw) + abs(p - goal_pitch)
+    return gap(yaw, pitch) + 0.05 < gap(old_yaw, old_pitch)
+
+
+def rate_fields_match(attitude, yaw_cmd, pitch_cmd):
+    """True when the attitude rate signs follow the commanded rate."""
+    if not isinstance(attitude, dict):
+        return False
+    try:
+        yaw_rate = float(attitude.get("yaw_rate"))
+        pitch_rate = float(attitude.get("pitch_rate"))
+        yaw_cmd = int(yaw_cmd)
+        pitch_cmd = int(pitch_cmd)
+    except (TypeError, ValueError):
+        return False
+
+    def axis(cmd, observed):
+        if cmd > 0:
+            return observed > 0
+        if cmd < 0:
+            return observed < 0
+        return abs(observed) <= 1.0
+
+    return axis(yaw_cmd, yaw_rate) and axis(pitch_cmd, pitch_rate)
+
+
+def zoom_moved(before, after, direction):
+    """True when a fresh zoom read moved in the commanded direction."""
+    try:
+        after = float(after)
+        direction = int(direction)
+    except (TypeError, ValueError):
+        return False
+    if direction == 0:
+        return True
+    if before is None:
+        return False
+    try:
+        before = float(before)
+    except (TypeError, ValueError):
+        return False
+    if direction > 0:
+        return after > before
+    return after < before
+
+
 def clamp_angle(yaw, pitch):
     yaw_c = max(YAW_MIN, min(YAW_MAX, float(yaw)))
     pitch_c = max(PITCH_MIN, min(PITCH_MAX, float(pitch)))
@@ -352,9 +426,12 @@ class SiyiLink:
         self._sock = sock
         self._external_sock = sock is not None
         self._seq = 0
+        self._send_index = 0
         self._camera_seq = None
         self._camera_candidate = None
+        self._candidate_send = None
         self._consec_timeouts = 0
+        self.rejected_count = 0
         self._lock = threading.Lock()
         self._io = threading.Lock()
         self._stop = threading.Event()
@@ -396,7 +473,12 @@ class SiyiLink:
             if self.last_reply_mono is not None and not fresh:
                 self.present = False
             present = bool(self.present and fresh)
-            error = None if present else (self.last_error or "no_reply")
+            if self.last_error:
+                error = self.last_error
+            elif present:
+                error = None
+            else:
+                error = "no_reply"
             return {
                 "ok": True,
                 "present": present,
@@ -415,6 +497,7 @@ class SiyiLink:
                 "port": self.port,
                 "angle_cmd": self.angle_cmd,
                 "error": error,
+                "rejected": self.rejected_count,
                 "note": "gimbal reply live" if present else "no gimbal reply; not invented",
             }
 
@@ -437,46 +520,58 @@ class SiyiLink:
             self._log(entry)
             return 400, {"ok": False, "reason": str(exc), "message": "בקשה לא תקינה", "sent": False}
         want_echo = needs_ack and action in ACK_EXACT_ACTIONS
+        before_att = dict(self.attitude) if isinstance(self.attitude, dict) else None
+        before_zoom = self.zoom
         decoded = self.exchange(cmd, data, require_match=needs_ack, require_echo=want_echo)
         if decoded is False:
             entry = {"action": action, "cmd": cmd, "ok": False, "reason": "send_failed"}
             self._log(entry)
             return 504, {"ok": False, "reason": "send_failed", "sent": False, "confirmed": False}
-        if needs_ack and not isinstance(decoded, dict):
-            if decoded is None and want_echo:
-                att = self.exchange(CMD_ATTITUDE, b"", require_match=True)
-                parsed = parse_attitude(att["data"]) if isinstance(att, dict) else None
-                if parsed:
-                    with self._lock:
-                        self.attitude = parsed
-                    result = {
-                        "ok": True,
-                        "sent": True,
-                        "confirmed": True,
-                        "confirmed_by": "attitude",
-                        "ack": parsed,
-                        "cmd": cmd,
-                    }
-                    entry = {
-                        "action": action,
-                        "cmd": cmd,
-                        "ok": True,
-                        "confirmed": True,
-                        "confirmed_by": "attitude",
-                    }
-                    self._log(entry)
-                    return 200, result
+        if want_echo:
+            checked = self._confirm_motion(action, body, before_att, before_zoom)
+            if checked and checked.get("confirmed"):
+                result = {
+                    "ok": True,
+                    "sent": True,
+                    "confirmed": True,
+                    "confirmed_by": checked["confirmed_by"],
+                    "ack": checked["ack"],
+                    "cmd": cmd,
+                }
+                entry = {
+                    "action": action,
+                    "cmd": cmd,
+                    "ok": True,
+                    "confirmed": True,
+                    "confirmed_by": checked["confirmed_by"],
+                }
+                self._log(entry)
+                return 200, result
+            if checked:
+                result = {
+                    "ok": True,
+                    "sent": True,
+                    "confirmed": False,
+                    "reason": "sent_not_confirmed",
+                    "message": "sent, not confirmed",
+                    "ack": checked.get("ack"),
+                    "cmd": cmd,
+                }
+                entry = {"action": action, "cmd": cmd, "ok": True, "confirmed": False}
+                self._log(entry)
+                return 200, result
             reason = self.last_error or "no_reply"
             entry = {"action": action, "cmd": cmd, "ok": False, "reason": reason}
             self._log(entry)
             return 504, {
                 "ok": False,
                 "reason": reason,
+                "message": "sent, not confirmed",
                 "sent": True,
                 "confirmed": False,
                 "present": False,
             }
-        result = {"ok": True, "sent": True, "confirmed": bool(needs_ack and isinstance(decoded, dict)), "cmd": cmd}
+        result = {"ok": True, "sent": True, "confirmed": False, "cmd": cmd}
         if isinstance(decoded, dict):
             result["ack"] = self._apply_ack(cmd, decoded["data"])
         if action == "mode":
@@ -535,6 +630,7 @@ class SiyiLink:
         if quiet >= SEQ_SILENCE_S:
             self._camera_seq = None
             self._camera_candidate = None
+            self._candidate_send = None
             self._consec_timeouts = 0
 
     def _note_exchange_failed(self, saw_seq_reject, marks_absent):
@@ -548,7 +644,14 @@ class SiyiLink:
         if self._consec_timeouts >= SEQ_RESET_TIMEOUTS:
             self._camera_seq = None
             self._camera_candidate = None
+            self._candidate_send = None
             self._consec_timeouts = 0
+
+    def _count_reject(self, marks_absent):
+        self.rejected_count += 1
+        if marks_absent:
+            with self._lock:
+                self.last_error = "seq_rejected"
 
     def _exchange_locked(self, cmd, data=b"", require_match=True, marks_absent=True, require_echo=False):
         self._reset_camera_seq_after_silence()
@@ -565,10 +668,12 @@ class SiyiLink:
                     self.last_error = "send_failed"
             print(f"[gimbal] send_failed cmd={cmd:#04x} {exc}", flush=True)
             return False
+        self._send_index += 1
+        this_send = self._send_index
         if not require_match:
             return True
         deadline = time.monotonic() + self.timeout
-        saw_seq_reject = False
+        saw_same = False
         while True:
             remain = deadline - time.monotonic()
             if remain <= 0:
@@ -585,34 +690,79 @@ class SiyiLink:
                 reply = int(decoded.get("seq", 0)) & 0xFFFF
             except (TypeError, ValueError):
                 continue
+            saw_same = True
             request = packet_seq & 0xFFFF
             if reply == request:
                 self._camera_seq = reply
                 self._camera_candidate = None
+                self._candidate_send = None
                 self._consec_timeouts = 0
                 self._note_reply()
                 return decoded
-            if seq_acceptable(reply, request, self._camera_seq):
+            if reply == 0:
+                self._consec_timeouts = 0
+                if require_echo:
+                    continue
+                self._note_reply()
+                return decoded
+            if self._camera_seq is not None and seq_distance(reply, self._camera_seq) <= SEQ_WINDOW:
                 self._remember_camera_seq(reply)
                 self._camera_candidate = None
+                self._candidate_send = None
                 self._consec_timeouts = 0
                 if require_echo:
                     continue
                 self._note_reply()
                 return decoded
-            candidate = self._camera_candidate
-            if candidate is not None and seq_distance(reply, candidate) <= SEQ_WINDOW:
-                self._camera_seq = reply
-                self._camera_candidate = None
-                self._consec_timeouts = 0
-                if require_echo:
+            if self._candidate_send is not None and self._candidate_send != this_send:
+                delta = this_send - self._candidate_send
+                expected = (self._camera_candidate + delta) & 0xFFFF
+                if delta > 0 and reply == expected:
+                    # Teach the counter. This datagram is not the answer.
+                    self._camera_seq = reply
+                    self._camera_candidate = None
+                    self._candidate_send = None
+                    self._consec_timeouts = 0
                     continue
-                self._note_reply()
-                return decoded
+            self._count_reject(marks_absent)
             self._camera_candidate = reply
-            saw_seq_reject = True
-        self._note_exchange_failed(saw_seq_reject, marks_absent)
+            self._candidate_send = this_send
+        if saw_same:
+            return None
+        self._note_exchange_failed(False, marks_absent)
         return None
+
+    def _confirm_motion(self, action, body, before_att, before_zoom):
+        """Fresh post-send read. None when nothing new arrived."""
+        if action == "zoom":
+            pkt = self.exchange(CMD_ZOOM, struct.pack("<b", 0), require_match=True)
+            zoom = parse_zoom(pkt["data"]) if isinstance(pkt, dict) else None
+            if zoom is None:
+                return None
+            with self._lock:
+                self.zoom = zoom
+            direction = _zoom_byte(body)
+            if zoom_moved(before_zoom, zoom, direction):
+                return {"confirmed": True, "confirmed_by": "zoom", "ack": {"zoom": zoom}}
+            return {"confirmed": False, "ack": {"zoom": zoom}}
+        pkt = self.exchange(CMD_ATTITUDE, b"", require_match=True)
+        att = parse_attitude(pkt["data"]) if isinstance(pkt, dict) else None
+        if att is None:
+            return None
+        with self._lock:
+            self.attitude = att
+        if action == "rate":
+            ok = rate_fields_match(att, clamp_rate(body.get("yaw")), clamp_rate(body.get("pitch")))
+            if ok:
+                return {"confirmed": True, "confirmed_by": "rate", "ack": att}
+            return {"confirmed": False, "ack": att}
+        if action == "center":
+            goal = (0.0, 0.0)
+        else:
+            goal = clamp_angle(body.get("yaw"), body.get("pitch"))
+        if attitude_moved_toward(before_att, att, goal[0], goal[1]):
+            return {"confirmed": True, "confirmed_by": "attitude", "ack": att}
+        return {"confirmed": False, "ack": att}
 
     def poll_once(self):
         self._ticks += 1

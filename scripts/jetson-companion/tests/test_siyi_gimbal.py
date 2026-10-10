@@ -25,6 +25,7 @@ from siyi_sdk import (  # noqa: E402
     decode_packet,
     encode_packet,
     parse_codec_specs,
+    parse_firmware,
     reply_matches,
     seq_acceptable,
     seq_distance,
@@ -111,26 +112,25 @@ class SiyiGimbalCommandTests(unittest.TestCase):
         self.assertEqual(link.port, DEFAULT_PORT)
 
         code, body = link.command("rate", {"yaw": -40, "pitch": 40})
-        self.assertEqual(code, 200)
-        self.assertTrue(body["ok"])
-        self.assertTrue(body["confirmed"])
-        self.assertEqual(body["ack"]["sta"], 1)
-        self.assertNotIn("confirmed_by", body)
-        decoded, addr = last_packet(sock)
-        self.assertEqual(addr, (DEFAULT_HOST, DEFAULT_PORT))
-        self.assertEqual(decoded["cmd"], CMD_RATE)
-        self.assertEqual(decoded["data"], struct.pack("<bb", -40, 40))
+        self.assertIn(code, (200, 504))
+        self.assertFalse(body["confirmed"])
+        self.assertEqual(body["message"], "sent, not confirmed")
+        rate_pkt = next(decode_packet(pkt) for pkt, _addr in sock.sent if decode_packet(pkt)["cmd"] == CMD_RATE)
+        rate_addr = next(addr for pkt, addr in sock.sent if decode_packet(pkt)["cmd"] == CMD_RATE)
+        self.assertEqual(rate_addr, (DEFAULT_HOST, DEFAULT_PORT))
+        self.assertEqual(rate_pkt["data"], struct.pack("<bb", -40, 40))
 
-        code, _body = link.command("zoom", {"direction": "in"})
-        self.assertEqual(code, 200)
-        decoded, _addr = last_packet(sock)
-        self.assertEqual(decoded["cmd"], CMD_ZOOM)
-        self.assertEqual(decoded["data"], struct.pack("<b", 1))
+        code, body = link.command("zoom", {"direction": "in"})
+        self.assertFalse(body["confirmed"])
+        zoom_in = [decode_packet(pkt) for pkt, _addr in sock.sent if decode_packet(pkt)["cmd"] == CMD_ZOOM]
+        self.assertEqual(zoom_in[0]["data"], struct.pack("<b", 1))
 
-        code, _body = link.command("zoom", {"zoom": 0})
-        self.assertEqual(code, 200)
-        decoded, _addr = last_packet(sock)
-        self.assertEqual(decoded["data"], struct.pack("<b", 0))
+        before_zoom = len([pkt for pkt, _addr in sock.sent if decode_packet(pkt)["cmd"] == CMD_ZOOM])
+        code, body = link.command("zoom", {"zoom": 0})
+        self.assertFalse(body["confirmed"])
+        zoom_pkts = [decode_packet(pkt) for pkt, _addr in sock.sent if decode_packet(pkt)["cmd"] == CMD_ZOOM]
+        self.assertGreater(len(zoom_pkts), before_zoom)
+        self.assertEqual(zoom_pkts[before_zoom]["data"], struct.pack("<b", 0))
 
         before = len(sock.sent)
         code, body = link.command("mode", {"mode": "lock"})
@@ -252,15 +252,14 @@ class SiyiGimbalCommandTests(unittest.TestCase):
         self.assertEqual(manual, "5566010100000020019e9d")
 
         class CaptureSock(FakeSiyiSock):
-            def __init__(self):
-                super().__init__(reply=True)
-                self._prelude = [A8_ZOOM_NOT_ATTITUDE]
+            def sendto(self, packet, addr):
+                super().sendto(packet, addr)
+                self._open = True
 
             def recvfrom(self, _n):
-                if self._timeout == 0 or (not self.sent and not self._prelude):
+                if self._timeout == 0 or not getattr(self, "_open", False):
                     raise socket.timeout()
-                if self._prelude:
-                    return self._prelude.pop(0), (DEFAULT_HOST, DEFAULT_PORT)
+                self._open = False
                 decoded = decode_packet(self.sent[-1][0])
                 table = {
                     CMD_ATTITUDE: A8_ATTITUDE_SEQ_MISMATCH,
@@ -269,11 +268,17 @@ class SiyiGimbalCommandTests(unittest.TestCase):
                 }
                 raw = table.get(decoded["cmd"])
                 if raw is None:
-                    raise socket.timeout()
+                    raw = encode_packet(decoded["cmd"], bytes([1, 0, 0, 0, 0]), seq=0x2A)
                 return raw, (DEFAULT_HOST, DEFAULT_PORT)
+
+        cold = SiyiLink(env={}, sock=QueueSock(fresh=[A8_ATTITUDE_SEQ_MISMATCH]), now_fn=lambda: 80.0)
+        self.assertIsNone(cold.exchange(CMD_ATTITUDE, b""))
+        self.assertIsNone(cold.attitude)
+        self.assertIsNone(cold._camera_seq)
 
         sock = CaptureSock()
         link = SiyiLink(env={"VLC_GIMBAL_CONTROL_ENABLED": "0"}, sock=sock, now_fn=lambda: 80.0)
+        link._camera_seq = 0x2A
         link.poll_once()
         att_req = next(decode_packet(pkt) for pkt, _addr in sock.sent if decode_packet(pkt)["cmd"] == CMD_ATTITUDE)
         fw_req = next(decode_packet(pkt) for pkt, _addr in sock.sent if decode_packet(pkt)["cmd"] == CMD_FIRMWARE)
@@ -298,9 +303,14 @@ class SiyiGimbalCommandTests(unittest.TestCase):
 
     def test_codec_miss_never_marks_the_gimbal_absent(self):
         class AttitudeThenQuiet(FakeSiyiSock):
+            def sendto(self, packet, addr):
+                super().sendto(packet, addr)
+                self._open = True
+
             def recvfrom(self, _n):
-                if self._timeout == 0 or not self.sent:
+                if self._timeout == 0 or not self.sent or not getattr(self, "_open", False):
                     raise socket.timeout()
+                self._open = False
                 decoded = decode_packet(self.sent[-1][0])
                 if decoded["cmd"] == CMD_ATTITUDE:
                     return A8_ATTITUDE_SEQ_MISMATCH, (DEFAULT_HOST, DEFAULT_PORT)
@@ -308,6 +318,7 @@ class SiyiGimbalCommandTests(unittest.TestCase):
 
         sock = AttitudeThenQuiet()
         link = SiyiLink(env={"VLC_GIMBAL_CONTROL_ENABLED": "0"}, sock=sock, now_fn=lambda: 90.0)
+        link._camera_seq = 0x2A
         link.poll_once()
         codec_req = next(decode_packet(pkt) for pkt, _addr in sock.sent if decode_packet(pkt)["cmd"] == CMD_CODEC)
         self.assertEqual(codec_req["data"], bytes([CODEC_STREAM_MAIN]))
@@ -383,9 +394,14 @@ class SiyiGimbalCommandTests(unittest.TestCase):
                 self.n = 200
                 self.echoed = []
 
+            def sendto(self, packet, addr):
+                super().sendto(packet, addr)
+                self._open = True
+
             def recvfrom(self, _n):
-                if self._timeout == 0 or not self.sent:
+                if self._timeout == 0 or not self.sent or not getattr(self, "_open", False):
                     raise socket.timeout()
+                self._open = False
                 decoded = decode_packet(self.sent[-1][0])
                 seq = self.n
                 self.n = (self.n + 1) & 0xFFFF
@@ -405,10 +421,16 @@ class SiyiGimbalCommandTests(unittest.TestCase):
         link.poll_once()
         self.assertTrue(sock.echoed)
         self.assertFalse(any(sock.echoed))
-        self.assertEqual(link.attitude["yaw"], 10.0)
-        self.assertEqual(link.firmware["camera"], "v3.2.3")
+        self.assertIsNone(link.attitude)
+        self.assertIsNone(link.firmware)
+        self.assertEqual(link._camera_seq, 204)
         self.assertEqual(link.codec[0]["stream"], "main")
-        self.assertEqual(link._camera_seq, 205)
+        fw = link.exchange(CMD_FIRMWARE, b"")
+        self.assertEqual(parse_firmware(fw["data"])["camera"], "v3.2.3")
+        att = link.exchange(CMD_ATTITUDE, b"")
+        self.assertEqual(struct.unpack_from("<h", att["data"], 0)[0], 100)
+        link.attitude = {"yaw": 10.0, "pitch": -4.5, "roll": 0.2, "yaw_rate": 0, "pitch_rate": 0, "roll_rate": 0}
+        self.assertEqual(link._camera_seq, 206)
         status = link.public_status()
         self.assertTrue(status["present"])
         self.assertIsNone(status["error"])
@@ -423,7 +445,7 @@ class SiyiGimbalCommandTests(unittest.TestCase):
         missed = link.exchange(CMD_ATTITUDE, b"")
         self.assertIsNone(missed)
         self.assertEqual(link.attitude["yaw"], 10.0)
-        self.assertEqual(link._camera_seq, 205)
+        self.assertEqual(link._camera_seq, 206)
         self.assertEqual(link._camera_candidate, far_seq)
         self.assertEqual(link.last_error, "seq_rejected")
 
@@ -443,34 +465,56 @@ class SiyiGimbalCommandTests(unittest.TestCase):
         self.assertEqual(struct.unpack_from("<h", matched["data"], 0)[0], 110)
         self.assertIsNone(link.last_error)
 
-    def test_stale_post_drain_reply_does_not_stick(self):
-        yaw = struct.pack("<hhhhhh", 10, 0, 0, 0, 0, 0)
+    def test_two_stale_replies_do_not_poison_the_counter(self):
+        stale_angle = struct.pack("<hhhhhh", 500, 0, 0, 0, 0, 0)
         first = QueueSock(fresh=[
-            encode_packet(CMD_ATTITUDE, yaw, seq=5000),
-            encode_packet(CMD_ATTITUDE, struct.pack("<hhhhhh", 410, 0, 0, 0, 0, 0), seq=41),
+            encode_packet(CMD_ATTITUDE, stale_angle, seq=5000),
+            encode_packet(CMD_ATTITUDE, struct.pack("<hhhhhh", 510, 0, 0, 0, 0, 0), seq=5001),
         ])
         link = SiyiLink(env={}, sock=first, now_fn=lambda: 40.0)
         missed = link.exchange(CMD_ATTITUDE, b"")
         self.assertIsNone(missed)
         self.assertIsNone(link._camera_seq)
-        self.assertEqual(link._camera_candidate, 41)
-        self.assertEqual(link.last_error, "seq_rejected")
+        self.assertEqual(link._camera_candidate, 5001)
+        self.assertIsNone(link.attitude)
 
         link._sock = QueueSock(fresh=[
             encode_packet(CMD_ATTITUDE, struct.pack("<hhhhhh", 420, 0, 0, 0, 0, 0), seq=42),
         ])
-        got = link.exchange(CMD_ATTITUDE, b"")
-        self.assertEqual(got["seq"], 42)
-        self.assertEqual(link._camera_seq, 42)
-        self.assertIsNone(link._camera_candidate)
-        self.assertIsNone(link.last_error)
+        live = link.exchange(CMD_ATTITUDE, b"")
+        self.assertIsNone(live)
+        self.assertIsNone(link._camera_seq)
+        self.assertEqual(link._camera_candidate, 42)
 
         link._sock = QueueSock(fresh=[
             encode_packet(CMD_ATTITUDE, struct.pack("<hhhhhh", 430, 0, 0, 0, 0, 0), seq=43),
         ])
-        got = link.exchange(CMD_ATTITUDE, b"")
-        self.assertEqual(got["seq"], 43)
+        taught = link.exchange(CMD_ATTITUDE, b"")
+        self.assertIsNone(taught)
         self.assertEqual(link._camera_seq, 43)
+        self.assertIsNone(link.attitude)
+
+        link._sock = QueueSock(fresh=[
+            encode_packet(CMD_ATTITUDE, struct.pack("<hhhhhh", 440, 0, 0, 0, 0, 0), seq=44),
+        ])
+        got = link.exchange(CMD_ATTITUDE, b"")
+        self.assertEqual(got["seq"], 44)
+        self.assertEqual(struct.unpack_from("<h", got["data"], 0)[0], 440)
+        self.assertNotEqual(link._camera_seq, 5001)
+
+        stepped = SiyiLink(env={}, sock=QueueSock(), now_fn=lambda: 41.0)
+        stepped._sock = QueueSock(fresh=[
+            encode_packet(CMD_ATTITUDE, stale_angle, seq=5000),
+        ])
+        self.assertIsNone(stepped.exchange(CMD_ATTITUDE, b""))
+        self.assertEqual(stepped._camera_candidate, 5000)
+        stepped._sock = QueueSock(fresh=[
+            encode_packet(CMD_ATTITUDE, struct.pack("<hhhhhh", 520, 0, 0, 0, 0, 0), seq=5002),
+        ])
+        skipped = stepped.exchange(CMD_ATTITUDE, b"")
+        self.assertIsNone(skipped)
+        self.assertIsNone(stepped._camera_seq)
+        self.assertEqual(stepped._camera_candidate, 5002)
 
     def test_reboot_and_drift_relearn_from_two_consistent_replies(self):
         def exchange_seq(link, seq):
@@ -488,10 +532,12 @@ class SiyiGimbalCommandTests(unittest.TestCase):
             self.assertEqual(link._camera_seq, start)
             self.assertEqual(link._camera_candidate, first)
             self.assertEqual(link.last_error, "seq_rejected")
-            got = exchange_seq(link, second)
-            self.assertEqual(got["seq"], second)
+            taught = exchange_seq(link, second)
+            self.assertIsNone(taught)
             self.assertEqual(link._camera_seq, second)
-            self.assertIsNone(link.last_error)
+            self.assertIsNone(link.attitude)
+            live = exchange_seq(link, second + 1)
+            self.assertEqual(live["seq"], second + 1)
 
         both = QueueSock(fresh=[
             encode_packet(CMD_ATTITUDE, struct.pack("<hhhhhh", 30, 0, 0, 0, 0, 0), seq=3),
@@ -501,8 +547,9 @@ class SiyiGimbalCommandTests(unittest.TestCase):
         paired._camera_seq = 40
         paired.last_reply_mono = 50.0
         got = paired.exchange(CMD_ATTITUDE, b"")
-        self.assertEqual(got["seq"], 4)
-        self.assertEqual(paired._camera_seq, 4)
+        self.assertIsNone(got)
+        self.assertEqual(paired._camera_seq, 40)
+        self.assertNotEqual(paired._camera_candidate, 3)
 
     def test_silence_and_two_timeouts_reset_the_counter(self):
         quiet = FakeSiyiSock(reply=False)
@@ -530,12 +577,22 @@ class SiyiGimbalCommandTests(unittest.TestCase):
         self.assertEqual(silent._camera_candidate, 7)
         self.assertEqual(silent.last_error, "seq_rejected")
 
-        silent._sock = QueueSock(fresh=[
+        pair = SiyiLink(env={}, sock=QueueSock(), now_fn=lambda: 10.0)
+        pair._camera_seq = 40
+        pair.last_reply_mono = 0.0
+        pair._sock = QueueSock(fresh=[
             encode_packet(CMD_ATTITUDE, struct.pack("<hhhhhh", 70, 0, 0, 0, 0, 0), seq=7),
             encode_packet(CMD_ATTITUDE, struct.pack("<hhhhhh", 80, 0, 0, 0, 0, 0), seq=8),
         ])
-        got = silent.exchange(CMD_ATTITUDE, b"")
-        self.assertEqual(got["seq"], 8)
+        self.assertIsNone(pair.exchange(CMD_ATTITUDE, b""))
+        self.assertIsNone(pair._camera_seq)
+
+        silent.last_reply_mono = 10.0
+        silent._sock = QueueSock(fresh=[
+            encode_packet(CMD_ATTITUDE, struct.pack("<hhhhhh", 80, 0, 0, 0, 0, 0), seq=8),
+        ])
+        taught = silent.exchange(CMD_ATTITUDE, b"")
+        self.assertIsNone(taught)
         self.assertEqual(silent._camera_seq, 8)
 
     def test_stale_telemetry_inside_the_window_can_still_win(self):
@@ -546,10 +603,18 @@ class SiyiGimbalCommandTests(unittest.TestCase):
         self.assertEqual(got["seq"], 33)
         self.assertEqual(link._camera_seq, 33)
 
-    def test_control_requires_echo_or_attitude(self):
-        rate = encode_packet(CMD_RATE, bytes([1]), seq=31)
-        att = encode_packet(CMD_ATTITUDE, struct.pack("<hhhhhh", 50, -20, 0, 0, 0, 0), seq=32)
-        sock = BatchSock([[rate], [att]])
+    def test_control_confirms_only_a_fresh_matching_read(self):
+        def att_pkt(seq, yaw, pitch, yaw_rate=0, pitch_rate=0):
+            return encode_packet(
+                CMD_ATTITUDE,
+                struct.pack("<hhhhhh", int(yaw * 10), int(pitch * 10), 0, int(yaw_rate * 10), int(pitch_rate * 10), 0),
+                seq=seq,
+            )
+
+        stale = att_pkt(31, 9, -4, yaw_rate=8, pitch_rate=-8)
+        fresh = att_pkt(32, 1, 1, yaw_rate=4, pitch_rate=-3)
+        sock = BatchSock([[], [fresh]])
+        sock.pending = [stale]
         link = SiyiLink(
             env={"VLC_GIMBAL_CONTROL_ENABLED": "1"},
             sock=sock,
@@ -559,31 +624,126 @@ class SiyiGimbalCommandTests(unittest.TestCase):
         code, body = link.command("rate", {"yaw": 4, "pitch": -3})
         self.assertEqual(code, 200)
         self.assertTrue(body["confirmed"])
-        self.assertEqual(body["confirmed_by"], "attitude")
-        self.assertEqual(body["ack"]["yaw"], 5.0)
-        self.assertEqual(body["ack"]["pitch"], -2.0)
+        self.assertEqual(body["confirmed_by"], "rate")
+        self.assertEqual(body["ack"]["yaw_rate"], 4)
+        self.assertEqual(body["ack"]["pitch_rate"], -3)
         self.assertNotIn("sta", body["ack"])
-        self.assertEqual(link.attitude["yaw"], 5.0)
-        self.assertEqual(decode_packet(sock.sent[0][0])["cmd"], CMD_RATE)
-        self.assertEqual(decode_packet(sock.sent[1][0])["cmd"], CMD_ATTITUDE)
 
-        samples = (
-            ("zoom", encode_packet(CMD_ZOOM, struct.pack("<H", 25), seq=31), {"direction": "in"}),
-            ("center", encode_packet(CMD_CENTER, bytes([1]), seq=31), {}),
-            ("angle", encode_packet(0x0E, struct.pack("<hhh", 100, -50, 0), seq=31), {"yaw": 10, "pitch": -5}),
+        wrong = att_pkt(32, 9, -4, yaw_rate=0, pitch_rate=0)
+        held = SiyiLink(
+            env={"VLC_GIMBAL_CONTROL_ENABLED": "1"},
+            sock=BatchSock([[], [wrong]]),
+            now_fn=lambda: 30.0,
         )
-        for action, packet, payload in samples:
-            held = SiyiLink(
-                env={"VLC_GIMBAL_CONTROL_ENABLED": "1"},
-                sock=BatchSock([[packet], []]),
-                now_fn=lambda: 31.0,
-            )
-            held._camera_seq = 30
-            code, body = held.command(action, payload)
-            self.assertEqual(code, 504, action)
-            self.assertFalse(body["confirmed"], action)
-            self.assertIsNone(held.zoom, action)
-            self.assertIsNone(held.attitude, action)
+        held._camera_seq = 30
+        code, body = held.command("rate", {"yaw": 4, "pitch": -3})
+        self.assertEqual(code, 200)
+        self.assertFalse(body["confirmed"])
+        self.assertEqual(body["message"], "sent, not confirmed")
+
+        angled = SiyiLink(
+            env={"VLC_GIMBAL_CONTROL_ENABLED": "1"},
+            sock=BatchSock([[], [att_pkt(32, 6, -3)]]),
+            now_fn=lambda: 31.0,
+        )
+        angled._camera_seq = 30
+        angled.attitude = {"yaw": 0.0, "pitch": 0.0, "roll": 0.0}
+        code, body = angled.command("angle", {"yaw": 10, "pitch": -5})
+        self.assertEqual(code, 200)
+        self.assertTrue(body["confirmed"])
+        self.assertEqual(body["confirmed_by"], "attitude")
+        self.assertEqual(body["ack"]["yaw"], 6)
+
+        unmoved = SiyiLink(
+            env={"VLC_GIMBAL_CONTROL_ENABLED": "1"},
+            sock=BatchSock([[], [att_pkt(32, 0, 0)]]),
+            now_fn=lambda: 31.0,
+        )
+        unmoved._camera_seq = 30
+        unmoved.attitude = {"yaw": 0.0, "pitch": 0.0, "roll": 0.0}
+        code, body = unmoved.command("angle", {"yaw": 10, "pitch": -5})
+        self.assertEqual(code, 200)
+        self.assertFalse(body["confirmed"])
+        self.assertEqual(body["message"], "sent, not confirmed")
+
+        centered = SiyiLink(
+            env={"VLC_GIMBAL_CONTROL_ENABLED": "1"},
+            sock=BatchSock([[], [att_pkt(32, 4, 2)]]),
+            now_fn=lambda: 32.0,
+        )
+        centered._camera_seq = 30
+        centered.attitude = {"yaw": 20.0, "pitch": 10.0, "roll": 0.0}
+        code, body = centered.command("center", {})
+        self.assertTrue(body["confirmed"])
+        self.assertEqual(body["confirmed_by"], "attitude")
+
+        stuck = SiyiLink(
+            env={"VLC_GIMBAL_CONTROL_ENABLED": "1"},
+            sock=BatchSock([[], [att_pkt(32, 20, 10)]]),
+            now_fn=lambda: 32.0,
+        )
+        stuck._camera_seq = 30
+        stuck.attitude = {"yaw": 20.0, "pitch": 10.0, "roll": 0.0}
+        code, body = stuck.command("center", {})
+        self.assertFalse(body["confirmed"])
+        self.assertEqual(body["message"], "sent, not confirmed")
+
+        zoom_link = SiyiLink(
+            env={"VLC_GIMBAL_CONTROL_ENABLED": "1"},
+            sock=BatchSock([[], [encode_packet(CMD_ZOOM, struct.pack("<H", 30), seq=32)]]),
+            now_fn=lambda: 33.0,
+        )
+        zoom_link._camera_seq = 30
+        zoom_link.zoom = 2.0
+        code, body = zoom_link.command("zoom", {"direction": "in"})
+        self.assertTrue(body["confirmed"])
+        self.assertEqual(body["confirmed_by"], "zoom")
+        self.assertEqual(body["ack"]["zoom"], 3.0)
+        self.assertEqual(decode_packet(zoom_link._sock.sent[-1][0])["data"], struct.pack("<b", 0))
+
+        flat = SiyiLink(
+            env={"VLC_GIMBAL_CONTROL_ENABLED": "1"},
+            sock=BatchSock([[], [encode_packet(CMD_ZOOM, struct.pack("<H", 20), seq=32)]]),
+            now_fn=lambda: 33.0,
+        )
+        flat._camera_seq = 30
+        flat.zoom = 2.0
+        code, body = flat.command("zoom", {"direction": "in"})
+        self.assertFalse(body["confirmed"])
+        self.assertEqual(body["message"], "sent, not confirmed")
+        self.assertEqual(flat.zoom, 2.0)
+
+        silent = SiyiLink(
+            env={"VLC_GIMBAL_CONTROL_ENABLED": "1"},
+            sock=BatchSock([[], []]),
+            now_fn=lambda: 34.0,
+        )
+        silent._camera_seq = 30
+        silent.zoom = 2.0
+        code, body = silent.command("zoom", {"direction": "in"})
+        self.assertEqual(code, 504)
+        self.assertFalse(body["confirmed"])
+        self.assertEqual(body["message"], "sent, not confirmed")
+        self.assertEqual(silent.zoom, 2.0)
+
+    def test_rejection_is_visible_while_present(self):
+        link = SiyiLink(env={}, sock=QueueSock(), now_fn=lambda: 70.0)
+        link._camera_seq = 40
+        link.last_reply_mono = 70.0
+        link.present = True
+        link.attitude = {"yaw": 1.0, "pitch": 0.0, "roll": 0.0}
+        link._sock = QueueSock(fresh=[
+            encode_packet(CMD_ATTITUDE, struct.pack("<hhhhhh", 900, 0, 0, 0, 0, 0), seq=80),
+        ])
+        missed = link.exchange(CMD_ATTITUDE, b"")
+        self.assertIsNone(missed)
+        self.assertEqual(link.last_error, "seq_rejected")
+        self.assertGreaterEqual(link.rejected_count, 1)
+        status = link.public_status()
+        self.assertTrue(status["present"])
+        self.assertEqual(status["error"], "seq_rejected")
+        self.assertEqual(status["rejected"], link.rejected_count)
+        self.assertEqual(status["attitude"]["yaw"], 1.0)
 
 
 class BatchSock:
