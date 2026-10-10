@@ -3,7 +3,7 @@
  * Missing fields stay absent. A known fix below 3D does not move the drawn aircraft.
  */
 
-const GPS_FIX_LABELS = ['אין GPS', 'אין Fix', '2D Fix', '3D Fix', 'DGPS', 'RTK Float', 'RTK Fixed'];
+const GPS_FIX_LABELS = ['אין GPS', 'אין Fix', '2D Fix', '3D Fix', 'DGPS', 'RTK Float', 'RTK קבוע'];
 
 function knownFix(fixType) {
   if (fixType == null || fixType === '') return null;

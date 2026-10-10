@@ -808,45 +808,77 @@ function bindFcNext(control, key, presence) {
   control.addEventListener('change', commit);
 }
 
+let fcSearchHome = '';
+
+function matchingFcKeys(query) {
+  const q = String(query || '').trim().toLowerCase();
+  if (!q) return [];
+  const seen = new Set();
+  const keys = [];
+  const add = (key) => {
+    const name = String(key || '');
+    if (!name || seen.has(name)) return;
+    const he = String(fcParamMeta[name]?.he || '').toLowerCase();
+    if (!name.toLowerCase().includes(q) && !he.includes(q)) return;
+    seen.add(name);
+    keys.push(name);
+  };
+  for (const item of fcParamGroups) {
+    for (const key of item?.keys || []) add(key);
+  }
+  if (fcCurrentSnapshot && typeof fcCurrentSnapshot === 'object') {
+    for (const key of Object.keys(fcCurrentSnapshot)) add(key);
+  }
+  keys.sort();
+  return keys;
+}
+
+function searchNeedsAllParams(keys) {
+  if (!keys.length) return false;
+  const group = currentCatalogGroup();
+  if (!group || group.id === 'all') return !group;
+  const owned = new Set(group.keys || []);
+  return keys.some((key) => !owned.has(key));
+}
+
+function revealAllParamsForSearch() {
+  const sel = document.getElementById('paramSubtabSelect');
+  if (sel && !fcSearchHome) fcSearchHome = sel.value || 'landingParams';
+  if (sel?.value !== 'ardu-all') {
+    applyControlSubtab('arduParams', { save: false, selectOverride: 'ardu-all' });
+  }
+}
+
 function renderFcGroupList() {
   const list = document.getElementById('fcGroupList');
   const lead = document.getElementById('fcGroupLead');
-  const group = currentCatalogGroup();
+  const query = String(arduSearchQuery || '').trim().toLowerCase();
+  let group = currentCatalogGroup();
+  if (query && searchNeedsAllParams(matchingFcKeys(query))) revealAllParamsForSearch();
+  group = currentCatalogGroup();
   syncParamGroupChrome();
   if (!list || !group) return;
-  const query = String(arduSearchQuery || '').trim().toLowerCase();
   const unread = !fcCurrentSnapshot || typeof fcCurrentSnapshot !== 'object';
   let keys;
   if (query) {
-    const seen = new Set();
-    keys = [];
-    const add = (key) => {
-      if (!key || seen.has(key)) return;
-      const he = String(fcParamMeta[key]?.he || '').toLowerCase();
-      if (!key.toLowerCase().includes(query) && !he.includes(query)) return;
-      seen.add(key);
-      keys.push(key);
-    };
-    for (const item of fcParamGroups) {
-      for (const key of item?.keys || []) add(key);
-    }
-    if (!unread) {
-      for (const key of Object.keys(fcCurrentSnapshot)) add(key);
-    }
-    keys.sort();
+    keys = matchingFcKeys(query);
   } else {
     keys = group.id === 'all'
       ? (unread ? [] : Object.keys(fcCurrentSnapshot).sort())
       : group.keys.slice();
   }
   if (lead) {
-    lead.textContent = group.id === 'all' && unread ? 'אין חיבור' : group.labelHe;
+    lead.textContent = query && keys.length
+      ? 'כל הפרמטרים'
+      : (group.id === 'all' && unread ? 'אין חיבור' : group.labelHe);
   }
   list.replaceChildren();
   if (!keys.length) {
     const empty = document.createElement('li');
     empty.className = 'fc-group-empty';
-    empty.textContent = group.id === 'all' && unread ? 'אין חיבור' : (query ? 'אין התאמה בקבוצה' : 'אין פרמטרים בקבוצה');
+    empty.textContent = query
+      ? 'אין התאמה בקבוצה'
+      : (group.id === 'all' && unread ? 'אין חיבור' : 'אין פרמטרים בקבוצה');
     list.appendChild(empty);
   }
   const readOnly = group.id === 'all';
@@ -854,8 +886,9 @@ function renderFcGroupList() {
     const presence = fcPresence(key);
     const meta = fcParamMeta[key] || {};
     const li = document.createElement('li');
-    li.className = 'fc-group-row fc-param-card';
+    li.className = 'fc-group-row fc-param-card param-card';
     li.dataset.paramKey = key;
+    li.dataset.param = key;
     const heEl = document.createElement('p');
     heEl.className = 'fc-group-he';
     heEl.textContent = meta.he || '';
@@ -2502,11 +2535,17 @@ wireArduCategorySubtabsOnce();
     arduSmartSearchMatches = null;
     arduSmartOutsideMatches = null;
     arduSmartCustomMatches = null;
+    const hits = matchingFcKeys(arduSearchQuery);
+    const jumped = searchNeedsAllParams(hits);
     renderArduSmartSearchPanel();
     renderArduParamForm();
     renderParams();
     renderFcGroupList();
-    setStatus(arduSearchQuery ? `מסנן לפי: ${arduSearchQuery}` : '');
+    if (arduSearchQuery && (jumped || (hits.length && currentCatalogGroup()?.id === 'all' && fcSearchHome))) {
+      setStatus('נמצא ב: כל הפרמטרים');
+    } else {
+      setStatus(arduSearchQuery ? `מסנן לפי: ${arduSearchQuery}` : '');
+    }
   }
 
   input.addEventListener('input', applySimpleSearch);
@@ -2519,6 +2558,13 @@ wireArduCategorySubtabsOnce();
     arduSmartSearchMatches = null;
     arduSmartOutsideMatches = null;
     arduSmartCustomMatches = null;
+    const home = fcSearchHome;
+    fcSearchHome = '';
+    if (home && home !== 'ardu-all') {
+      const arduMatch = home.match(/^ardu-(.+)$/);
+      if (arduMatch) applyControlSubtab('arduParams', { save: false, selectOverride: home });
+      else if (PARAM_SUBTAB_IDS.has(home)) applyControlSubtab(home, { save: false });
+    }
     renderArduSmartSearchPanel();
     renderArduParamForm();
     renderParams();
@@ -2993,6 +3039,14 @@ if (visionConfigReadBtn) {
 if (visionConfigWriteBtn) {
   visionConfigWriteBtn.addEventListener('click', () => saveVisionConfigToServer(visionConfigStatus));
 }
+document.getElementById('visionBackupReadItem')?.addEventListener('click', () => {
+  closeParamFileMenu();
+  visionConfigReadBtn?.click();
+});
+document.getElementById('visionBackupWriteItem')?.addEventListener('click', () => {
+  closeParamFileMenu();
+  visionConfigWriteBtn?.click();
+});
 const paramFileMenuBtn = document.getElementById('paramFileMenuBtn');
 const paramFileMenu = document.getElementById('paramFileMenu');
 function closeParamFileMenu() {
@@ -5682,15 +5736,21 @@ function pulsePaintFcFacts(companion, mav) {
   pulsePaintMetric('pulseFcMetricRows', 'fc-gps', {
     pill: gps || 'לא ידוע', reason: '', bucket: gps ? 'ok' : 'unknown', tone: gps ? 'ok' : 'off',
   });
+  const volts = Number(mav?.batteryV);
+  const pct = Number(mav?.batteryPct);
+  const voltsOk = live && Number.isFinite(volts) && volts >= 1;
+  const pctOk = live && Number.isFinite(pct) && pct > 0;
   const bits = [];
-  if (live && Number.isFinite(Number(mav?.batteryV))) bits.push(`${Number(mav.batteryV).toFixed(1)} V`);
-  if (live && Number.isFinite(Number(mav?.batteryPct))) bits.push(`${Math.round(Number(mav.batteryPct))}%`);
+  if (voltsOk) bits.push(`${volts.toFixed(1)} V`);
+  if (pctOk) bits.push(`${Math.round(pct)}%`);
   pulsePaintMetric('pulseFcMetricRows', 'fc-battery', {
     pill: bits.length ? bits.join(' · ') : 'לא ידוע',
     reason: '',
     bucket: bits.length ? 'ok' : 'unknown',
     tone: bits.length ? 'ok' : 'off',
   });
+  const battPill = document.querySelector('#pulseFcMetricRows [data-metric="fc-battery"] [data-metric-pill]');
+  if (battPill) battPill.dir = 'ltr';
   const injected = companion?.navigation?.ekf_injected;
   if (injected === true) {
     pulsePaintMetric('pulseFcMetricRows', 'fc-ekf', { pill: 'מוזרק', reason: '', bucket: 'ok', tone: 'ok' });
@@ -7104,11 +7164,18 @@ function paintGpsHoverTip(mav) {
   const ekf = pickHudEkfGpsHint(mav?.recentStatusTexts);
   const full = [text, ekf?.hint].filter(Boolean).join('\n');
   hudNavGpsTip.textContent = full;
-  if (!gpsHoverOpen || !full) {
+  const menuOpen = document.getElementById('horizonCameraMenu')?.hidden === false
+    && document.getElementById('horizonCameraMenu')?.contains(hudNavGpsTip);
+  if ((!gpsHoverOpen && !menuOpen) || !full) {
     hudNavGpsTip.hidden = true;
     return;
   }
   hudNavGpsTip.hidden = false;
+  if (menuOpen) {
+    hudNavGpsTip.style.left = '';
+    hudNavGpsTip.style.top = '';
+    return;
+  }
   placeGpsHoverTip();
 }
 
@@ -7620,7 +7687,7 @@ function horizonNoSignalText(slotOrImg) {
 }
 
 function horizonFrameIsReal(img) {
-  return !!(img && img.naturalWidth >= 16 && img.naturalHeight >= 16);
+  return !!(img && img.naturalWidth > 0 && img.naturalHeight > 0);
 }
 
 function showHorizonNoSignal(img, note) {
@@ -7630,6 +7697,72 @@ function showHorizonNoSignal(img, note) {
   note.textContent = text;
   note.hidden = !text;
   if (typeof syncHorizonNoData === 'function') syncHorizonNoData();
+}
+
+function horizonStandInUrl() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 32;
+  canvas.height = 32;
+  const ctx = canvas.getContext('2d');
+  if (ctx) {
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(0, 0, 32, 32);
+  }
+  return new Promise((resolve) => {
+    canvas.toBlob((blob) => {
+      resolve(blob ? URL.createObjectURL(blob) : '');
+    }, 'image/png');
+  });
+}
+
+async function horizonBlobDecodes(objectUrl) {
+  return new Promise((resolve) => {
+    const probe = new Image();
+    probe.onload = () => resolve(probe.naturalWidth > 0 && probe.naturalHeight > 0);
+    probe.onerror = () => resolve(false);
+    probe.src = objectUrl;
+  });
+}
+
+async function loadHorizonCameraFrame(src, signal) {
+  const res = await fetch(src, { signal, cache: 'no-store', headers: { Accept: 'image/jpeg' } });
+  const type = String(res.headers.get('content-type') || '');
+  if (!res.ok || type.includes('json')) {
+    const err = new Error('miss');
+    err.name = 'MissError';
+    throw err;
+  }
+  const seq = Number(res.headers.get('x-airvix-frame-seq') || 0);
+  const capturedAt = Number(res.headers.get('x-airvix-capture-at') || 0);
+  const blob = await res.blob();
+  if (!blob || blob.size === 0) {
+    const err = new Error('miss');
+    err.name = 'MissError';
+    throw err;
+  }
+  let objectUrl = URL.createObjectURL(blob);
+  if (!(await horizonBlobDecodes(objectUrl))) {
+    URL.revokeObjectURL(objectUrl);
+    objectUrl = await horizonStandInUrl();
+  }
+  let tracks = null;
+  const rawTracks = String(res.headers.get('x-airvix-tracks') || '').trim();
+  if (rawTracks) {
+    try {
+      const bin = atob(rawTracks);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i += 1) bytes[i] = bin.charCodeAt(i);
+      const parsed = JSON.parse(new TextDecoder().decode(bytes));
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) tracks = parsed;
+    } catch { /* header is optional */ }
+  }
+  return {
+    src,
+    objectUrl,
+    seq: Number.isFinite(seq) ? seq : 0,
+    capturedAt: Number.isFinite(capturedAt) ? capturedAt : 0,
+    ...(tracks ? { tracks } : {}),
+  };
 }
 
 function ensureHorizonGimbalPump(img, note, base) {
@@ -7644,6 +7777,7 @@ function ensureHorizonGimbalPump(img, note, base) {
   const pump = factory({
     image: () => img,
     follow: () => img.dataset.gimbalPump === '1',
+    load: loadHorizonCameraFrame,
     urlFor(gen, seenSeq, info) {
       const newest = info?.replace ? '&newest=1' : '';
       return `${base}?since=${seenSeq || 0}&t=${gen}${newest}`;
@@ -7660,7 +7794,10 @@ function ensureHorizonGimbalPump(img, note, base) {
         return;
       }
       img.hidden = false;
-      if (note) note.hidden = true;
+      if (note) {
+        note.hidden = true;
+        note.textContent = '';
+      }
       fitHorizonPicture(img);
       markHorizonLive();
       if (typeof syncHorizonNoData === 'function') syncHorizonNoData();
@@ -8030,7 +8167,12 @@ function initHorizonCameraMenu() {
   document.body.appendChild(menu);
 
   let openedAt = 0;
-  function closeMenu() { menu.hidden = true; }
+  function closeMenu() {
+    menu.hidden = true;
+    if (typeof paintGpsHoverTip === 'function') {
+      paintGpsHoverTip(typeof latestHudMavlink !== 'undefined' ? latestHudMavlink : null);
+    }
+  }
   function openMenu(x, y) {
     openedAt = Date.now();
     syncHorizonMenuState();
@@ -8038,6 +8180,10 @@ function initHorizonCameraMenu() {
     menu.style.width = '300px';
     menu.style.maxWidth = '300px';
     menu.style.maxHeight = `${Math.max(120, window.innerHeight - 16)}px`;
+    menu.style.overflow = 'auto';
+    if (typeof paintGpsHoverTip === 'function') {
+      paintGpsHoverTip(typeof latestHudMavlink !== 'undefined' ? latestHudMavlink : null);
+    }
     menu.style.left = '0px';
     menu.style.top = '0px';
     const rect = menu.getBoundingClientRect();
@@ -8045,6 +8191,10 @@ function initHorizonCameraMenu() {
     const top = Math.max(8, Math.min(y, window.innerHeight - rect.height - 8));
     menu.style.left = `${left}px`;
     menu.style.top = `${top}px`;
+    const tip = document.getElementById('hudNavGpsTip');
+    if (tip && !tip.hidden && menu.scrollHeight > menu.clientHeight + 1) {
+      menu.scrollTop = menu.scrollHeight;
+    }
   }
 
   stage.addEventListener('contextmenu', (event) => {
@@ -8713,7 +8863,7 @@ function drawHorizon(canvas, rollDeg, pitchDeg, opts = {}) {
   paintCornerLabel(pitchText, W - 4, 'right');
   ctx.restore();
 }
-const GPS_FIX_LABELS = ['אין GPS', 'אין Fix', '2D Fix', '3D Fix', 'DGPS', 'RTK Float', 'RTK Fixed'];
+const GPS_FIX_LABELS = ['אין GPS', 'אין Fix', '2D Fix', '3D Fix', 'DGPS', 'RTK Float', 'RTK קבוע'];
 
 const FLIGHT_ARM_HOLD_MS = 1500;
 const FLIGHT_ARM_CONFIRM_HE = 'אשרו חימוש';
@@ -9174,8 +9324,10 @@ function applyFlightHud(mav) {
   // Battery lives in the telemetry tiles.
   if (pfdBattVal) {
     const bv = mav.batteryV;
-    const bvOk = typeof bv === 'number' && Number.isFinite(bv);
-    pfdBattVal.textContent = bvOk ? (bv < 1 ? bv.toFixed(2) : bv.toFixed(1)) : '—';
+    const bvOk = typeof bv === 'number' && Number.isFinite(bv) && bv >= 1;
+    pfdBattVal.textContent = bvOk ? bv.toFixed(1) : '—';
+    const battUnit = pfdBattVal.parentElement?.querySelector('.mission-data-unit');
+    if (battUnit) battUnit.hidden = !bvOk;
     pfdBattVal.style.color = !bvOk ? '' : bv < 10.5 ? '#f87171'
       : bv < 11.5 ? '#facc15' : '#4ade80';
   }
@@ -9970,15 +10122,13 @@ function showMapFlyToMenu(lat, lng, clientX, clientY) {
   if (mapFlyToStatus) { mapFlyToStatus.textContent = ''; mapFlyToStatus.className = 'map-fly-to-status'; }
   if (!mapFlyToMenu) return;
   mapFlyToMenu.classList.remove('hidden');
-  // Position near cursor, keep within viewport
-  const W = window.innerWidth;
-  const H = window.innerHeight;
-  const mW = 200;
-  const mH = 188;
-  const x = Math.min(clientX, W - mW - 8);
-  const y = Math.min(clientY, H - mH - 8);
+  mapFlyToMenu.style.left = '0px';
+  mapFlyToMenu.style.top = '0px';
+  const rect = mapFlyToMenu.getBoundingClientRect();
+  const x = Math.max(8, Math.min(clientX, window.innerWidth - rect.width - 8));
+  const y = Math.max(8, Math.min(clientY, window.innerHeight - rect.height - 8));
   mapFlyToMenu.style.left = `${x}px`;
-  mapFlyToMenu.style.top  = `${y}px`;
+  mapFlyToMenu.style.top = `${y}px`;
   mapFlyToBtn?.focus();
 }
 
@@ -12666,6 +12816,8 @@ let terrainLastCells = [];
 let terrainMappedOnly = false;
 let terrainActiveBase = 'street';
 let flightFollowOn = true;
+let flightViewSeeded = false;
+let flightMoveProgrammatic = false;
 let flightTrackPts = [];
 let mapGpsHold = null;
 /** terrainMap / lastSseTerrainPayload / overlay layers: declared at top of app.js (no TDZ). */
@@ -12782,17 +12934,23 @@ function returnFlightToAircraft() {
 }
 
 function centerFlightOnMap(map, lat, lon) {
-  if (!flightFollowOn || !map || map !== terrainMap) return;
+  if (!map || map !== terrainMap) return;
   if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+  const seed = flightViewSeeded !== true;
+  if (!flightFollowOn && !seed) return;
   if (map.options.maxBounds) {
     map._vlcMaxBounds = map.options.maxBounds;
     map.setMaxBounds(null);
   }
   map._vlcFollowLl = [lat, lon];
   const pan = () => {
-    if (!flightFollowOn || !map._vlcFollowLl) return;
+    if (!map._vlcFollowLl) return;
+    if (!flightFollowOn && flightViewSeeded) return;
     const zoom = map.getZoom();
+    flightMoveProgrammatic = true;
     try { map.setView(map._vlcFollowLl, zoom, { animate: false }); } catch { /* map not ready */ }
+    if ((map.getSize?.().x || 0) > 20) flightViewSeeded = true;
+    setTimeout(() => { flightMoveProgrammatic = false; }, 0);
   };
   pan();
   requestAnimationFrame(pan);
@@ -12808,8 +12966,8 @@ function terrainPlaneDivIcon(hdgDeg, fixType, held) {
   return L.divIcon({
     className: 'terrain-plane-icon-wrap',
     html: `<div class="terrain-plane-stack"${heldAttr}><div class="terrain-plane-rot" style="transform:rotate(${rot}deg)">${MP_PLANE_SVG}</div>${chipHtml}</div>`,
-    iconSize: [48, chip ? 58 : 48],
-    iconAnchor: [24, 24],
+  iconSize: [48, chip ? 62 : 48],
+  iconAnchor: [24, chip ? 46 : 24],
   });
 }
 
@@ -13221,6 +13379,11 @@ function initTerrainMap() {
     terrainMap._vlcUserDrag = true;
     if (flightFollowOn) paintFlightFollow(false);
   });
+  terrainMap.on('movestart', (event) => {
+    if (flightMoveProgrammatic || !event?.originalEvent) return;
+    terrainMap._vlcUserDrag = true;
+    if (flightFollowOn) paintFlightFollow(false);
+  });
   terrainMap.on('dragend', () => {
     terrainMap._vlcUserDrag = false;
   });
@@ -13264,8 +13427,11 @@ function terrainInvalidateLayout() {
     if (!terrainMap) return;
     terrainMap.invalidateSize({ pan: false });
     const ll = terrainMap._vlcFollowLl;
-    if (flightFollowOn && Array.isArray(ll)) {
+    if (Array.isArray(ll) && (flightFollowOn || !flightViewSeeded)) {
+      flightMoveProgrammatic = true;
       try { terrainMap.panTo(ll, { animate: false }); } catch { /* map not ready */ }
+      if ((terrainMap.getSize?.().x || 0) > 20) flightViewSeeded = true;
+      setTimeout(() => { flightMoveProgrammatic = false; }, 0);
     }
   });
 }
@@ -22944,7 +23110,7 @@ function initFlightArchiveRecord() {
   function paintRecordChrome(nextArmed) {
     armed = nextArmed === true;
     const short = armed ? 'מקליט' : 'הקלטה';
-    const long = armed ? 'עצור הקלטה' : 'התחל הקלטה';
+    const long = armed ? 'עצרו הקלטה' : 'התחילו הקלטה';
     const state = armed ? 'מקליט' : 'לא מקליט';
     btn.dataset.recording = armed ? '1' : '0';
     btn.setAttribute('aria-pressed', armed ? 'true' : 'false');
@@ -23295,18 +23461,15 @@ function placeFlightMenu(menu) {
   if (zoom && zoom.width > 8 && left < zoom.right + 6 && left + width > zoom.left) {
     top = Math.max(top, zoom.bottom + 6);
   }
-  let floor = window.innerHeight - 8;
-  if (map) floor = Math.min(floor, map.bottom - 6);
-  if (horizon && horizon.top > top + 40) floor = Math.min(floor, horizon.top - 6);
-  const attr = document.querySelector('.leaflet-control-attribution')?.getBoundingClientRect();
-  if (attr && attr.height > 2 && attr.top > top + 40 && left < attr.right && left + width > attr.left) {
-    floor = Math.min(floor, attr.top - 6);
-  }
-  const sideBySide = horizon && map && horizon.left > map.left + 40 && horizon.top < map.bottom - 40;
-  const room = Math.max(72, Math.floor(floor - top));
+  const floor = window.innerHeight - 8;
+  menu.style.overflow = 'visible';
+  menu.style.maxHeight = 'none';
+  menu.style.height = 'auto';
+  const needed = menu.offsetHeight;
+  if (top + needed > floor) top = Math.max(8, floor - needed);
+  const room = Math.max(160, Math.floor(floor - top));
   menu.style.overflow = 'auto';
-  menu.style.maxHeight = `${sideBySide ? window.innerHeight - 120 : room}px`;
-  menu.style.height = sideBySide ? `${room}px` : 'auto';
+  menu.style.maxHeight = `${room}px`;
   menu.style.left = `${Math.round(left)}px`;
   menu.style.top = `${Math.round(top)}px`;
 }

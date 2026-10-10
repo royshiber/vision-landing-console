@@ -1,13 +1,14 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { spawn } from 'child_process';
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PORT = '4077';
 const BASE = `http://127.0.0.1:${PORT}`;
-const shots = '/opt/cursor/artifacts/ask-latest';
+const shots = process.env.VLC_ASK_SHOTS || path.join(os.tmpdir(), 'vlc-ask-latest');
 
 function intersects(a, b) {
   if (!a || !b || a.width < 2 || b.width < 2 || a.height < 2 || b.height < 2) return false;

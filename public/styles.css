@@ -27456,3 +27456,106 @@ button.mission-link-chip,
     height: 400px;
   }
 }
+
+/* QA fold: one read/write pair, contrast, data strip, GPS detail, map chip, Ask. */
+.param-tool-seg[aria-label="גיבוי בקונסולה"] .param-tool-actions {
+  display: none;
+}
+.param-tool-seg[aria-label="גיבוי בקונסולה"] {
+  min-height: 64px;
+}
+#visionConfigWriteBtn,
+#arduWriteBtn,
+#control.panel.visible #visionConfigWriteBtn,
+#control.panel.visible #arduWriteBtn {
+  background: #052e16;
+  color: #f0fdf4;
+  border-color: #86efac;
+  opacity: 1;
+}
+.param-tool-btn:disabled,
+#arduWriteBtn:disabled,
+#visionConfigWriteBtn:disabled {
+  opacity: 1;
+  cursor: not-allowed;
+}
+#arduWriteBtn:disabled,
+#visionConfigWriteBtn:disabled {
+  background: #064e3b;
+  color: #ecfdf5;
+  border-color: #6ee7b7;
+}
+.app-chrome .global-settings-btn {
+  color: #f8fafc;
+  background: #1e293b;
+  border: 1px solid #cbd5e1;
+  font-variant-emoji: text;
+}
+body:has(#pulse.panel.visible) #assistToggleBtn,
+body:has(#control.panel.visible) #assistToggleBtn {
+  display: none !important;
+}
+.mission-region-horizon > .mission-region-data,
+.mission-region-horizon[data-flight-stack="custom"] > .mission-region-data,
+.mission-region-horizon > .mission-region-data:has([data-mission-data-slot="6"]),
+.mission-region-horizon[data-flight-stack="custom"] > .mission-region-data:has([data-mission-data-slot="6"]) {
+  overflow: visible;
+}
+.mission-region-horizon .mission-region-data > .mission-region-title {
+  z-index: 3;
+  top: 2px;
+  inset-inline-start: 8px;
+  width: auto;
+  height: auto;
+  max-width: calc(100% - 16px);
+  margin: 0;
+  padding: 0 2px;
+  overflow: visible;
+  clip: auto;
+  white-space: nowrap;
+  background: #151b27;
+}
+.mission-region-horizon .mission-data-label,
+.mission-workspace[data-mission-layout="ops-v1"] .mission-region-horizon .mission-data-label {
+  overflow-wrap: normal;
+  word-break: keep-all;
+  white-space: nowrap;
+}
+.horizon-cam-menu #hudNavGpsTip {
+  position: static;
+  left: auto;
+  top: auto;
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  flex: 1 1 100%;
+  margin-top: 4px;
+  z-index: auto;
+  box-sizing: border-box;
+}
+.horizon-cam-menu #hudNavGpsTip[hidden] {
+  display: none;
+}
+.terrain-plane-stack {
+  flex-direction: column-reverse;
+}
+.terrain-plane-fix {
+  margin-top: 0;
+  margin-bottom: 1px;
+}
+.flight-comm-menu {
+  max-height: calc(100vh - 16px);
+}
+.flight-comm-menu .comm-link-row {
+  min-height: 28px;
+  padding: 2px 6px;
+  gap: 6px;
+}
+.flight-comm-menu .comm-link-hint,
+.flight-comm-menu .comm-link-status,
+.flight-comm-menu .comm-link-meta {
+  display: none;
+}
+.flight-comm-menu .work-link-picker {
+  gap: 2px 6px;
+}
