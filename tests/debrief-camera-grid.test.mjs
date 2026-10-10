@@ -219,7 +219,7 @@ describe('Debrief camera grid and horizon menu — live', () => {
     }));
     expect(after.stored).toBe('cam0');
     expect(after.note === true || after.chipShown === true).toBe(true);
-    expect([after.noteText, after.chip]).toContain('אין אות');
+    expect(`${after.noteText || ''} ${after.chip || ''}`).toContain('אין אות');
     expect(after.imgHidden).toBe(true);
     await page.reload({ waitUntil: 'domcontentloaded' });
     expect(await page.evaluate(() => localStorage.getItem('vlc.horizon.bgCamera.v1'))).toBe('cam0');

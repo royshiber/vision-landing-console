@@ -193,7 +193,9 @@ function paintTile(tile, slot, streaming) {
     if (note) note.hidden = true;
     return;
   }
-  const wantFrames = window.__vlcCompanionFrames === true && (streaming || Boolean(slot.hold) || slot.frameWhenOpen === true);
+  const opticsVisible = document.getElementById('optics')?.classList.contains('visible') === true;
+  const wantFrames = (window.__vlcCompanionFrames === true || opticsVisible)
+    && (streaming || Boolean(slot.hold) || slot.frameWhenOpen === true);
   if (wantFrames && img && !tile.hidden) {
     if (tile.dataset.mono === '1') img.classList.add('is-mono');
     const seen = Number(img.dataset.seen || 0);
@@ -243,10 +245,17 @@ function paintTile(tile, slot, streaming) {
 
 let latestCompanion = null;
 
+function payloadHasLiveCamera(detail) {
+  const bags = [detail?.cameras, detail?.vision?.cameras, detail?.extras?.cameras];
+  return bags.some((cams) => cams && typeof cams === 'object'
+    && Object.values(cams).some((cam) => cam && cam.camera_ok === true));
+}
+
 function render(companion) {
   latestCompanion = companion && typeof companion === 'object' ? companion : latestCompanion;
   const mode = latestCompanion?.mode || latestCompanion?.link?.mode;
-  if (mode === 'mock' || mode === 'real' || latestCompanion?.reachable === true) {
+  const opticsVisible = document.getElementById('optics')?.classList.contains('visible') === true;
+  if (opticsVisible || mode === 'mock' || mode === 'real' || latestCompanion?.reachable === true || payloadHasLiveCamera(latestCompanion)) {
     window.__vlcCompanionFrames = true;
   }
   const open = readOpen();
@@ -301,8 +310,8 @@ function bind() {
   }
   document.querySelector('[data-tab="optics"]')?.addEventListener('click', () => {
     requestAnimationFrame(() => {
+      render(latestCompanion);
       layoutCameraPanes();
-      requestAnimationFrame(() => layoutCameraPanes());
     });
   });
 }
