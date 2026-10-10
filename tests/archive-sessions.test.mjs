@@ -268,7 +268,7 @@ describe('תחקור archive sessions UI contract', () => {
   });
 
   it('pins APP_VERSION at 1.02.377', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.415'");
-    expect(pkg.version).toBe('1.02.415');
+    expect(version).toContain("export const APP_VERSION = '1.02.418'");
+    expect(pkg.version).toBe('1.02.418');
   });
 });
