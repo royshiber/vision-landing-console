@@ -3,6 +3,7 @@ import http from 'node:http';
 import {
   SLOW_SOCKET_GRACE_MS,
   closeCompanionHttpPools,
+  dequeueRequest,
   directKeepAliveAgent,
   directStreamAgent,
   jetsonFetch,
@@ -188,4 +189,68 @@ describe('companion short-request pool', () => {
       closeServer(server);
     }
   }, 15_000);
+
+  it('releases a socket when the body stalls after the headers', async () => {
+    let headers = 0;
+    const server = http.createServer((req, res) => {
+      if (String(req.url).includes('stall')) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.write('{"partial":');
+        headers += 1;
+        return;
+      }
+      res.writeHead(200, { 'Content-Length': 2 });
+      res.end('{}');
+    });
+    const port = await listen(server);
+    const base = `http://127.0.0.1:${port}`;
+    const controllers = [];
+    try {
+      for (let i = 0; i < 4; i += 1) {
+        const ac = new AbortController();
+        controllers.push(ac);
+        jetsonFetch(`${base}/stall?${i}`, { signal: ac.signal }, { env: {} })
+          .then((res) => res.text().catch(() => {}))
+          .catch(() => {});
+      }
+      const ready = Date.now();
+      while (headers < 4 && Date.now() - ready < 2000) {
+        await new Promise((r) => setTimeout(r, 10));
+      }
+      expect(headers).toBe(4);
+      for (const ac of controllers) ac.abort();
+      await new Promise((r) => setTimeout(r, SLOW_SOCKET_GRACE_MS + 400));
+      const started = Date.now();
+      const res = await jetsonFetch(`${base}/api/v1/status-lite`, { signal: AbortSignal.timeout(2000) }, { env: {} });
+      expect(await res.text()).toBe('{}');
+      expect(Date.now() - started).toBeLessThan(1000);
+    } finally {
+      for (const ac of controllers) ac.abort();
+      closeCompanionHttpPools();
+      closeServer(server);
+    }
+  }, 15_000);
+
+  it('splices one request out of an unknown queue and leaves the rest', () => {
+    const target = { id: 'target' };
+    const other = { id: 'other' };
+    const bucket = { keep: other, drop: target, note: 'layout' };
+    const opaque = { nested: { req: target } };
+    const agent = {
+      requests: {
+        shaped: bucket,
+        opaque,
+        listed: [other, target],
+        only: [target],
+      },
+    };
+    expect(dequeueRequest(agent, target)).toBe(true);
+    expect(bucket.keep).toBe(other);
+    expect(bucket.drop).toBeUndefined();
+    expect(bucket.note).toBe('layout');
+    expect(agent.requests.opaque).toBe(opaque);
+    expect(opaque.nested.req).toBe(target);
+    expect(agent.requests.listed).toEqual([other]);
+    expect(agent.requests.only).toBeUndefined();
+  });
 });
