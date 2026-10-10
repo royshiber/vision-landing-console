@@ -7600,7 +7600,12 @@ function clearHorizonImage(img) {
 }
 
 function horizonNoSignalText(slotOrImg) {
-  const id = slotOrImg?.id || slotOrImg?.dataset?.horizonSlot || slotOrImg?.apiId || '';
+  const fromDataset = slotOrImg?.dataset?.horizonSlot || '';
+  const rawId = slotOrImg?.id || '';
+  const id = fromDataset
+    || (HORIZON_CAMERA_IDS.includes(rawId) ? rawId : '')
+    || slotOrImg?.apiId
+    || '';
   const slot = HORIZON_CAMERA_SLOTS.find((item) => item.id === id)
     || HORIZON_CAMERA_SLOTS.find((item) => item.apiId && item.apiId === id);
   if (!slot || slot.id === 'none' || !slot.label) return '';
@@ -7617,6 +7622,7 @@ function showHorizonNoSignal(img, note) {
   const text = horizonNoSignalText(img);
   note.textContent = text;
   note.hidden = !text;
+  if (typeof syncHorizonNoData === 'function') syncHorizonNoData();
 }
 
 function ensureHorizonGimbalPump(img, note, base) {
@@ -7647,6 +7653,7 @@ function ensureHorizonGimbalPump(img, note, base) {
       if (note) note.hidden = true;
       fitHorizonPicture(img);
       markHorizonLive();
+      if (typeof syncHorizonNoData === 'function') syncHorizonNoData();
     },
     onMiss() {
       const misses = Number(img.dataset.misses || 0) + 1;
@@ -7816,6 +7823,7 @@ function paintHorizonImage(img, note, slot, companion) {
       if (note) note.hidden = true;
       fitHorizonPicture(img);
       markHorizonLive();
+      if (typeof syncHorizonNoData === 'function') syncHorizonNoData();
     };
     img.onerror = () => {
       const misses = Number(img.dataset.misses || 0) + 1;

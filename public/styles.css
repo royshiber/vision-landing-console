@@ -13660,6 +13660,7 @@ html[data-evolve-preview="1"] #development {
 .terrain-plane-rot {
   width: 40px;
   height: 40px;
+  margin-top: 4px;
   transform-origin: 50% 50%;
   filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.7));
 }
@@ -26109,8 +26110,8 @@ body[data-work-path="rf"] #optics .optics-calib {
   z-index: 1;
   width: 100%;
   height: auto;
-  min-height: 128px;
-  max-height: 36%;
+  min-height: 40px;
+  max-height: 56px;
   flex: 0 0 auto;
   grid-area: auto;
   overflow: hidden;
@@ -26250,13 +26251,15 @@ button.mission-link-chip,
   display: none !important;
 }
 #missionTalkHost .assist-transcript-well {
-  flex: 1 1 auto;
-  min-height: 48px;
+  flex: 0 0 0;
+  height: 0;
+  min-height: 0;
+  overflow: hidden;
   background: #10141c;
   border: 0;
 }
 #missionTalkHost .assist-messages:empty {
-  min-height: 36px;
+  min-height: 0;
 }
 #missionTalkHost .assist-composer {
   max-height: none;
@@ -26312,7 +26315,7 @@ button.mission-link-chip,
   height: auto;
   aspect-ratio: 1 / 1;
   min-height: 112px;
-  max-height: min(calc(100% - 210px), var(--flight-hud-h, calc(100% - 210px)));
+  max-height: min(calc(100% - 250px), var(--flight-hud-h, calc(100% - 250px)));
   flex: 0 0 auto;
 }
 .mission-workspace[data-mission-layout="ops-v1"] .mission-region-horizon[data-flight-stack="custom"] > .flight-hud {
@@ -26968,6 +26971,40 @@ button.mission-link-chip,
 }
 .mission-workspace .mission-region[data-mission-region="talk"] {
   display: flex !important;
+}
+.mission-region-horizon > .mission-region-talk > .mission-region-title {
+  display: none;
+}
+.mission-workspace .mission-region-horizon > .mission-region[data-mission-region="talk"] {
+  flex: 0 0 auto;
+  min-height: 40px;
+  height: auto;
+  max-height: 44px;
+  padding: 4px 6px;
+  box-sizing: border-box;
+  overflow: hidden;
+  justify-content: center;
+}
+.mission-region-horizon #missionTalkHost .assist-rail,
+.mission-region-horizon #missionTalkHost .assist-form {
+  margin: 0;
+  padding: 0;
+  min-height: 0;
+  height: 32px;
+  align-items: center;
+}
+.mission-region-horizon #missionTalkHost .assist-transcript-well,
+.mission-region-horizon #missionTalkHost .assist-empty-stage,
+.mission-region-horizon #missionTalkHost .assist-messages {
+  display: none !important;
+}
+.mission-region-horizon #missionTalkHost .assist-mic-btn,
+.mission-workspace[data-ask-open="1"] #missionTalkHost .assist-mic-btn,
+.mission-workspace[data-ask-open="1"] #missionTalkHost .assist-input,
+.mission-workspace[data-ask-open="1"] #missionTalkHost .assist-btn-send {
+  height: 32px;
+  min-height: 32px;
+  max-height: 32px;
 }
 .terrain-compass-wrap { display: none !important; }
 .leaflet-control-zoom .terrain-compass {
