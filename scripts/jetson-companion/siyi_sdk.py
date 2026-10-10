@@ -9,22 +9,23 @@ SIYI docs use 0x0E. VLC_SIYI_ANGLE_CMD selects it (default 0x0E).
 
 Control endpoints stay off unless VLC_GIMBAL_CONTROL_ENABLED=1.
 Replies are paired by command id. Pending datagrams are drained before
-each send. An exact SEQ echo is enough on its own. It is not a search
-that prefers a later echo over an earlier counter fit. The A8 mini
-usually sends its own counter and does not echo the request
-sequence. An exact echo is still enough on its own. Otherwise a reply
-is accepted only when its sequence is ahead of the last accepted
-counter by 1..64, modulo 0x10000. A stale reply is behind or equal, so
-it does not match. The counter is learned from two separate sends when
-the second is ahead of the first by at least the number of sends and
-at most about 64. That teaching reply is not returned as the answer.
-Three rejections in a row drop the learned counter so a later pair can
-teach it again. Angle, center, and rate confirm only on a fresh
-attitude that fits this rule and matches the command. If the move was
-echoed but attitude was not read, the result is sent, not confirmed.
-Zoom is confirmed by a current-zoom read (command 0x18), never by
-sending zoom stop. Codec specs (command 0x20) are read with the status
-poll.
+each send. An exact SEQ echo is preferred when it arrives in the same
+wait, ahead of an earlier counter fit. The A8 mini usually sends its
+own counter and does not echo the request sequence. After a counter is
+learned, a non-echo is accepted only when it is ahead of that counter
+by 1..(sends since the counter + 16), modulo 0x10000. Equal and behind
+are stale. The counter is learned from two separate sends when the
+second is ahead by at least the send count and at most about 64. That
+teaching reply is not returned as the answer. At most one rejection is
+counted per send. Three sends that accept nothing drop the learned
+counter. While no counter is learned, seq 0 after the drain is accepted
+and is not stored as the counter. Angle, center, and rate confirm only
+on a fresh attitude that fits this rule and matches the command. If the
+move was echoed but attitude was not read, the result is sent, not
+confirmed. Zoom is confirmed by a current-zoom read (command 0x18):
+the first byte is the whole multiple and the second is tenths. A
+confirmation never sends zoom stop. Codec specs (command 0x20) are
+read with the status poll.
 The request carries one stream-type byte (1 = main stream). A miss on
 that read does not mark the gimbal absent. The set command (0x21) is
 never sent. Nothing in this module moves the gimbal unless a control
@@ -58,13 +59,14 @@ CMD_CODEC = 0x20
 # 0x20 send data is one uint8: 0 recording, 1 main, 2 sub.
 # Manual example for main: 55 66 01 01 00 00 00 20 01 9E 9D
 CODEC_STREAM_MAIN = 1
-# Non-echo replies must be this far ahead of the last accepted counter.
+# Learn window. After a counter is learned, acceptance is tighter.
 SEQ_AHEAD_MAX = 64
 SEQ_WINDOW = SEQ_AHEAD_MAX
-# Drop a learned counter after this many seq rejections, or this much silence.
+# Forward room past the sends since the last accepted counter.
+SEQ_FORWARD_SLACK = 16
+# Drop a learned counter after this many sends accept nothing, or this much silence.
 SEQ_RESET_REJECTS = 3
 SEQ_SILENCE_S = 3.0
-SEQ_RESET_TIMEOUTS = 2
 # Moves are confirmed from a later attitude. Zoom is confirmed from 0x18.
 MOTION_ACTIONS = frozenset({"rate", "angle", "center"})
 ACK_EXACT_ACTIONS = MOTION_ACTIONS | frozenset({"zoom"})
@@ -150,8 +152,24 @@ def seq_advance(reply_seq, last_seq):
     return (int(reply_seq) - int(last_seq)) & 0xFFFF
 
 
-def seq_is_ahead(reply_seq, last_seq, limit=SEQ_AHEAD_MAX):
+def forward_limit(sends=1, slack=SEQ_FORWARD_SLACK):
+    """How far ahead a learned counter may move: sends since it, plus slack."""
+    try:
+        sends = int(sends)
+        slack = int(slack)
+    except (TypeError, ValueError):
+        return 1 + SEQ_FORWARD_SLACK
+    if sends < 1:
+        sends = 1
+    if slack < 0:
+        slack = 0
+    return sends + slack
+
+
+def seq_is_ahead(reply_seq, last_seq, limit=None):
     """True when reply_seq is strictly ahead of last_seq by 1..limit."""
+    if limit is None:
+        limit = forward_limit(1)
     try:
         delta = seq_advance(reply_seq, last_seq)
         limit = int(limit)
@@ -160,15 +178,15 @@ def seq_is_ahead(reply_seq, last_seq, limit=SEQ_AHEAD_MAX):
     return limit >= 1 and 1 <= delta <= limit
 
 
-def seq_acceptable(reply_seq, request_seq, last_camera_seq=None, window=SEQ_AHEAD_MAX):
+def seq_acceptable(reply_seq, request_seq, last_camera_seq=None, window=None, sends=1):
     """Whether this SEQ can belong to the in-flight request.
 
-    An exact echo of the request sequence is enough by itself. This is not
-    a scan that prefers a later exact echo over an earlier counter fit.
-    A non-echo is accepted only when it is ahead of the last accepted
-    camera counter by 1..window, modulo 0x10000. Equal and behind are
-    stale and do not match, including a leftover seq 0. A stale reply
-    that is still ahead by 1..window can still win. Seq 0 is not special.
+    An exact echo of the request sequence matches. The wait itself prefers
+    that echo over an earlier counter fit. While no counter is learned,
+    seq 0 matches as a safe default. A learned counter accepts a non-echo
+    only when it is ahead by 1..(sends + 16), modulo 0x10000. Equal and
+    behind are stale. A stale reply that is still inside that forward
+    span can still win when no echo arrives before the wait ends.
     """
     try:
         reply = int(reply_seq) & 0xFFFF
@@ -178,7 +196,9 @@ def seq_acceptable(reply_seq, request_seq, last_camera_seq=None, window=SEQ_AHEA
     if reply == request:
         return True
     if last_camera_seq is None:
-        return False
+        return reply == 0
+    if window is None:
+        window = forward_limit(sends)
     return seq_is_ahead(reply, last_camera_seq, window)
 
 
@@ -194,10 +214,10 @@ def _cmd_is(decoded, cmd):
 def reply_matches(decoded, cmd, request_seq, last_camera_seq=None):
     """Pair a datagram to the in-flight request by command id and SEQ.
 
-    An exact echo matches. Otherwise only a sequence ahead of a learned
-    counter by 1..64 matches. Seq 0 does not match unless it is that
-    echo or that forward step. A single non-echo does not match while
-    the counter is unknown.
+    An exact echo matches. While no counter is learned, seq 0 matches.
+    Otherwise only a sequence ahead of a learned counter by about
+    sends+16 matches. A non-zero single reply does not match while the
+    counter is unknown.
     """
     if not isinstance(decoded, dict):
         return False
@@ -256,10 +276,11 @@ def parse_attitude(data):
 
 
 def parse_zoom(data):
-    if len(data) < 2:
+    """Current zoom from 0x18: whole multiple, then tenths. 3.5x is 03 05."""
+    raw = bytes(data or b"")
+    if len(raw) < 2:
         return None
-    raw = struct.unpack_from("<H", data, 0)[0]
-    return raw / 10.0
+    return int(raw[0]) + (int(raw[1]) / 10.0)
 
 
 # SIYI 0x20 stream_type: 0 recording, 1 main, 2 sub.
@@ -437,6 +458,7 @@ class SiyiLink:
         self._seq = 0
         self._send_index = 0
         self._camera_seq = None
+        self._camera_send = None
         self._camera_candidate = None
         self._candidate_send = None
         self._consec_timeouts = 0
@@ -664,11 +686,8 @@ class SiyiLink:
         except TypeError:
             return
         if quiet >= SEQ_SILENCE_S:
-            self._camera_seq = None
-            self._camera_candidate = None
-            self._candidate_send = None
+            self._clear_camera_seq()
             self._consec_timeouts = 0
-            self._reject_streak = 0
 
     def _note_exchange_failed(self, saw_seq_reject, marks_absent):
         if marks_absent:
@@ -678,18 +697,34 @@ class SiyiLink:
                 elif self.last_reply_mono is None and not self.last_error:
                     self.last_error = "no_reply"
         self._consec_timeouts += 1
-        if self._consec_timeouts >= SEQ_RESET_TIMEOUTS:
-            self._camera_seq = None
-            self._camera_candidate = None
-            self._candidate_send = None
+        self._reject_streak += 1
+        if self._reject_streak >= SEQ_RESET_REJECTS:
+            self._clear_camera_seq()
             self._consec_timeouts = 0
-            self._reject_streak = 0
 
     def _clear_camera_seq(self):
         self._camera_seq = None
+        self._camera_send = None
         self._camera_candidate = None
         self._candidate_send = None
         self._reject_streak = 0
+
+    def _commit_camera(self, seq, this_send):
+        self._camera_seq = int(seq) & 0xFFFF
+        self._camera_send = this_send
+        self._camera_candidate = None
+        self._candidate_send = None
+        self._consec_timeouts = 0
+        self._reject_streak = 0
+
+    def _forward_limit(self, this_send):
+        if self._camera_send is None:
+            delta = 1
+        else:
+            delta = this_send - self._camera_send
+            if delta < 1:
+                delta = 1
+        return forward_limit(delta)
 
     def _count_reject(self, marks_absent):
         self.rejected_count += 1
@@ -718,6 +753,13 @@ class SiyiLink:
             return True
         deadline = time.monotonic() + self.timeout
         saw_same = False
+        rejected_this_send = False
+        learned = False
+        held = None
+        held_seq = None
+        held_learns = False
+        request = packet_seq & 0xFFFF
+        ahead_limit = self._forward_limit(this_send)
         while True:
             remain = deadline - time.monotonic()
             if remain <= 0:
@@ -735,45 +777,59 @@ class SiyiLink:
             except (TypeError, ValueError):
                 continue
             saw_same = True
-            request = packet_seq & 0xFFFF
             if reply == request:
-                self._camera_seq = reply
-                self._camera_candidate = None
-                self._candidate_send = None
-                self._consec_timeouts = 0
-                self._reject_streak = 0
+                self._commit_camera(reply, this_send)
                 self._note_reply()
                 return decoded
-            if self._camera_seq is not None and seq_is_ahead(reply, self._camera_seq):
-                self._camera_seq = reply
-                self._camera_candidate = None
-                self._candidate_send = None
-                self._consec_timeouts = 0
-                self._reject_streak = 0
-                if require_echo:
-                    continue
-                self._note_reply()
-                return decoded
+            if self._camera_seq is None and reply == 0:
+                # Safe default until a real counter is known. Not a learned counter.
+                if held is None:
+                    held = decoded
+                    held_seq = 0
+                    held_learns = False
+                continue
+            if self._camera_seq is not None and seq_is_ahead(reply, self._camera_seq, ahead_limit):
+                # Keep the first fit. An exact echo later in this wait wins instead.
+                if held is None:
+                    held = decoded
+                    held_seq = reply
+                    held_learns = True
+                continue
             if self._camera_seq is not None:
-                self._count_reject(marks_absent)
-                self._reject_streak += 1
-                if self._reject_streak >= SEQ_RESET_REJECTS:
-                    self._clear_camera_seq()
+                rejected_this_send = True
                 continue
             if self._candidate_send is not None and self._candidate_send != this_send:
                 delta_sends = this_send - self._candidate_send
                 advance = seq_advance(reply, self._camera_candidate)
                 if delta_sends >= 1 and delta_sends <= advance <= SEQ_AHEAD_MAX:
                     # Teach the counter. This datagram is not the answer.
-                    self._camera_seq = reply
-                    self._camera_candidate = None
-                    self._candidate_send = None
-                    self._consec_timeouts = 0
-                    self._reject_streak = 0
+                    self._commit_camera(reply, this_send)
+                    learned = True
+                    rejected_this_send = False
                     continue
-            self._count_reject(marks_absent)
+            rejected_this_send = True
             self._camera_candidate = reply
             self._candidate_send = this_send
+        if held is not None and not learned:
+            if held_learns:
+                self._commit_camera(held_seq, this_send)
+            else:
+                self._camera_candidate = None
+                self._candidate_send = None
+                self._consec_timeouts = 0
+                self._reject_streak = 0
+            if require_echo and held_learns:
+                return None
+            self._note_reply()
+            return held
+        if learned:
+            return None
+        if rejected_this_send:
+            self._count_reject(marks_absent)
+            self._reject_streak += 1
+            if self._reject_streak >= SEQ_RESET_REJECTS:
+                self._clear_camera_seq()
+            return None
         if saw_same:
             return None
         self._note_exchange_failed(False, marks_absent)
