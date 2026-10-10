@@ -54,7 +54,7 @@ export function bindOpticsSteppers(root = document) {
       wrap.querySelectorAll('.optics-step').forEach((btn) => { btn.disabled = input.disabled; });
       const empty = input.disabled && String(input.value || '') === '';
       input.placeholder = empty ? '—' : '';
-      if (empty && !input.title) input.title = 'אין נתון מהמצלמה';
+      if (empty && input.title !== AE_LOCK_HE) input.title = 'אין נתון מהמצלמה';
     };
     sync();
     if (typeof MutationObserver === 'function') {
@@ -165,7 +165,12 @@ export function syncManualExposureLock(camId, { aeOn, live } = {}) {
     const el = document.getElementById(`${camId}${suffix}`);
     if (!el) continue;
     el.disabled = live !== true || lock;
-    el.title = lock ? AE_LOCK_HE : '';
+    const empty = el.disabled && String(el.value || '') === '';
+    if (lock) el.title = AE_LOCK_HE;
+    else if (empty) {
+      el.placeholder = '—';
+      el.title = 'אין נתון מהמצלמה';
+    } else el.title = '';
   }
 }
 

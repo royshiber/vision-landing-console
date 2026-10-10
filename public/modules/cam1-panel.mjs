@@ -203,6 +203,12 @@ function init() {
 
   async function refresh() {
     let body = null;
+    if (window.__vlcCompanionFrames !== true) {
+      setControls(false, REASON_LINK);
+      paintHonesty(null);
+      stopStream();
+      return false;
+    }
     try {
       body = await api('/api/jetson/v1/cam1/status');
     } catch {

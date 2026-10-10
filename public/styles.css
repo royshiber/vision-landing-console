@@ -21864,14 +21864,16 @@ html body :is(
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  width: 26px !important;
-  height: 26px !important;
-  max-width: 26px !important;
-  max-height: 26px !important;
+  width: 40px !important;
+  height: 40px !important;
+  max-width: 40px !important;
+  max-height: 40px !important;
   padding: 0 !important;
-  font-size: 16px !important;
+  font-size: 22px !important;
   line-height: 1 !important;
-  overflow: hidden !important;
+  overflow: visible !important;
+  background: #0b1220 !important;
+  color: #f8fafc !important;
 }
 .leaflet-bar a span {
   display: block !important;
@@ -26673,9 +26675,16 @@ button.mission-link-chip,
   overflow-y: auto;
 }
 .mission-workspace .mission-region-horizon .flight-dock-cmds > .flight-dock-cmd {
-  min-height: 42px;
-  height: 42px;
-  max-height: 42px;
+  min-height: 28px;
+  height: 28px;
+  max-height: 28px;
+}
+#flightDockModeAuto,
+#flightDockModeLoiter,
+#flightDockModeRtl {
+  min-height: 28px !important;
+  height: 28px !important;
+  max-height: 28px !important;
 }
 .mission-region-horizon > .flight-hud > #flightArmRow {
   display: flex !important;
@@ -26811,7 +26820,7 @@ button.mission-link-chip,
   width: 320px;
   min-width: 320px;
   max-width: 320px;
-  max-height: min(360px, calc(100vh - 80px));
+  max-height: calc(100vh - 120px);
   overflow: auto;
   flex-direction: column;
   gap: 4px;
@@ -26831,8 +26840,10 @@ button.mission-link-chip,
 .terrain-return-btn {
   position: absolute;
   z-index: 500;
-  top: 8px;
-  inset-inline-start: 8px;
+  top: auto;
+  bottom: 12px;
+  inset-inline-start: auto;
+  inset-inline-end: 12px;
   min-height: 32px;
   padding: 4px 10px;
   border: 1px solid #e2e8f0;
@@ -26884,21 +26895,19 @@ button.mission-link-chip,
   font-size: 11px;
   line-height: 18px;
 }
-.mission-data-add {
-  position: absolute;
-  z-index: 5;
-  top: 0;
-  inset-inline-end: 42px;
-  height: 18px;
-  margin: 0;
-  padding: 0 6px;
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
+.profile-source-badge {
+  margin: 0 0 8px;
+  padding: 4px 8px;
+  border-radius: 8px;
   background: #0b1220;
   color: #f8fafc;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 800;
   line-height: 16px;
+}
+.param-tool-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 #control.panel.visible #plndProfileHonestyKeys {
   display: none;
@@ -26915,59 +26924,23 @@ button.mission-link-chip,
   border-color: #86efac;
   color: #dcfce7;
 }
-#terrain[data-ask-open="0"] > .mission-region[data-mission-region="talk"],
-.mission-workspace[data-ask-open="0"] .mission-region[data-mission-region="talk"] {
-  display: none;
-  height: 0;
-  min-height: 0;
-  flex: 0 0 0;
-  overflow: hidden;
-  padding: 0;
-  margin: 0;
-  border: 0;
-}
-#terrain[data-ask-open="1"] > .mission-region[data-mission-region="talk"] {
-  display: flex;
-  flex-direction: column;
-  position: absolute;
-  z-index: 40;
-  top: 52px;
-  inset-inline-end: 8px;
-  width: min(360px, calc(100% - 16px));
-  margin: 0;
-  height: 240px;
-  min-height: 240px;
-  max-height: 240px;
-  overflow: auto;
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
-}
-#terrain[data-ask-open="1"] > .mission-region[data-mission-region="talk"] > .mission-region-title {
-  display: none;
-}
-#terrain[data-ask-open="1"] #missionTalkHost,
-#terrain[data-ask-open="1"] #missionTalkHost .assist-rail {
-  flex: 1 1 auto;
-  min-height: 180px;
-  height: auto;
-}
-#terrain[data-ask-open="1"] #missionTalkHost .assist-rail-head,
-#terrain[data-ask-open="1"] #missionTalkHost .assist-composer,
-#terrain[data-ask-open="1"] #missionTalkHost .assist-btn-send {
+.mission-workspace[data-ask-open="1"] #missionTalkHost .assist-form {
   display: flex !important;
-}
-#terrain[data-ask-open="1"] #missionTalkHost .assist-form {
-  flex-flow: row wrap;
+  flex-flow: row nowrap;
   align-items: center;
+  gap: 6px;
 }
-#terrain[data-ask-open="1"] #missionTalkHost .assist-mic-btn {
-  flex: 1 0 100%;
+.mission-workspace[data-ask-open="1"] #missionTalkHost .assist-mic-btn {
+  flex: 0 0 auto;
   width: auto;
-  max-width: none;
-  min-width: 0;
-  height: 32px;
-  min-height: 32px;
+  min-width: 36px;
+  height: 36px;
+  min-height: 36px;
 }
-#terrain[data-ask-open="1"] #missionTalkHost .assist-input {
+.mission-workspace[data-ask-open="1"] #missionTalkHost .assist-mic-icon {
+  display: inline;
+}
+.mission-workspace[data-ask-open="1"] #missionTalkHost .assist-input {
   display: block !important;
   flex: 1 1 auto;
   min-height: 36px;
@@ -26975,10 +26948,14 @@ button.mission-link-chip,
   width: auto;
   max-width: none;
 }
-#terrain[data-ask-open="1"] #missionAskCloseBtn {
-  display: inline-flex;
-  align-self: flex-start;
-  margin: 4px 8px 0;
+.mission-workspace[data-ask-open="1"] #missionTalkHost .assist-btn-send {
+  display: inline-flex !important;
+  flex: 0 0 auto;
+}
+#missionAskCloseBtn,
+.mission-workspace[data-ask-open="1"] .mission-ask-close,
+.mission-workspace[data-ask-open="1"] #missionAskCloseBtn {
+  display: none !important;
 }
 .mission-workspace[data-ask-open="1"] .mission-region[data-mission-region="talk"] {
   position: relative;
@@ -26988,4 +26965,38 @@ button.mission-link-chip,
   width: 100%;
   height: auto;
   max-height: 240px;
+}
+.mission-workspace .mission-region[data-mission-region="talk"] {
+  display: flex !important;
+}
+.terrain-compass-wrap { display: none !important; }
+.leaflet-control-zoom .terrain-compass {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-top: 1px solid rgba(248, 250, 252, 0.35);
+  background: #0b1220;
+  color: #f8fafc;
+  cursor: pointer;
+}
+#gimbalSettings .cam0-title,
+#gimbalPad > .gimbal-pad-title { display: none; }
+#pulse .pulse-dock > .pulse-talk-card {
+  flex: 0 0 auto;
+  width: auto;
+  max-width: max-content;
+  flex-direction: row;
+  align-items: center;
+}
+#pulse .pulse-talk-copy { display: none; }
+.rf-advanced > summary {
+  color: #f8fafc;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
 }

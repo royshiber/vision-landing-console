@@ -19,8 +19,19 @@ describe('telemetry hold', () => {
     expect(aged.text).toContain('לפני');
     expect(aged.dim).toBe(true);
     now = 10000;
-    expect(hold.read('alt').phase).toBe('dash');
-    expect(hold.read('alt').text).toBe('—');
+    const held = hold.read('alt');
+    expect(held.phase).toBe('aged');
+    expect(held.dim).toBe(true);
+    expect(held.text).toContain('-0.60');
+    expect(held.text).toContain('לפני');
+    expect(held.text).not.toBe('—');
+    now = 27000;
+    const frozen = hold.read('alt');
+    expect(frozen.dim).toBe(true);
+    expect(frozen.text).toContain('-0.60');
+    expect(frozen.text).toContain('לא מגיב');
+    expect(frozen.text).toContain('לפני');
+    expect(frozen.text).not.toBe('—');
   });
 
   it('smooths delay with a median and debounces a fault status', () => {

@@ -158,8 +158,9 @@ describe('three-camera proportions and tile delete', () => {
     expect(hint.w).toBeGreaterThan(20);
     expect(hint.h).toBeGreaterThan(11);
     expect(hint.size).toBeGreaterThanOrEqual(11);
-    expect(await page.locator('#missionDataAddBtn').innerText()).toBe('הוסיפו נתון');
-    await page.click('#missionDataAddBtn');
+    expect(await page.locator('#missionDataAddBtn').count()).toBe(0);
+    await page.locator('[data-mission-data-slot="0"]').click({ button: 'right' });
+    await page.click('#missionDataTileAdd');
     const restored = await page.evaluate(() => document.querySelector('[data-mission-data-slot="1"]').hidden);
     expect(restored).toBe(false);
   }, 30000);
@@ -173,7 +174,7 @@ describe('three-camera proportions and tile delete', () => {
     });
     await page.reload({ waitUntil: 'domcontentloaded' });
     await page.click('[data-tab="terrain"]');
-    await page.waitForSelector('#missionDataAddBtn');
+    await page.waitForSelector('[data-mission-data-slot="0"]');
     await page.evaluate(() => {
       window.__vlcFetchUrls = [];
       const orig = window.fetch.bind(window);
@@ -186,7 +187,8 @@ describe('three-camera proportions and tile delete', () => {
     const before = await page.evaluate(() => (
       [...document.querySelectorAll('#missionDataGrid .mission-data-tile')].filter((el) => !el.hidden).length
     ));
-    await page.click('#missionDataAddBtn');
+    await page.locator('[data-mission-data-slot="0"]').click({ button: 'right' });
+    await page.click('#missionDataTileAdd');
     const first = await page.evaluate(() => {
       const tile = document.querySelector('[data-mission-data-slot="6"]');
       const label = tile?.querySelector('.mission-data-label');
@@ -215,7 +217,8 @@ describe('three-camera proportions and tile delete', () => {
     expect(first.labelFits).toBe(true);
     expect(first.valueFits).toBe(true);
 
-    await page.click('#missionDataAddBtn');
+    await page.locator('[data-mission-data-slot="0"]').click({ button: 'right' });
+    await page.click('#missionDataTileAdd');
     const second = await page.evaluate(() => {
       const tile = document.querySelector('[data-mission-data-slot="7"]');
       const label = tile?.querySelector('.mission-data-label');

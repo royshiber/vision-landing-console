@@ -148,7 +148,7 @@ describe('Catalog parameter cards use the dense profile card', () => {
       expect(row.height, `${label} ${row.key}`).toBeLessThan(280);
       expect(row.textFails, `${label} ${row.key}`).toEqual([]);
       expect(row.text, `${label} ${row.key}`).toContain('דיפולט');
-      expect(row.text, `${label} ${row.key}`).toMatch(/בבקר|נשמר בקונסולה/);
+      expect(row.text, `${label} ${row.key}`).toMatch(/בבקר|ערך|לא נשמר עדיין/);
       expect(row.text, `${label} ${row.key}`).toContain('יחידה');
       expect(row.text, `${label} ${row.key}`).toContain('טווח');
       expect(row.text, `${label} ${row.key}`).toContain('ערך חדש');

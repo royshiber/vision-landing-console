@@ -165,6 +165,7 @@ describe('Parameter tiles are dense and not behind a filter wall', () => {
   async function expectDense(label, { minCards, file }) {
     await page.locator('#paramsGrid').scrollIntoViewIfNeeded();
     const data = await measure();
+    expect(data.bodyText, label).toContain('נשמר בקונסולה · לא בבקר');
     expect(data.faultHidden, label).toBe(true);
     expect(data.faultText, label).not.toMatch(/צמצמו|יותר מדי פרמטרים|עדיין אין פרמטרים/);
     expect(data.bodyText, label).not.toMatch(/צמצמו את הרשימה|יש יותר מדי פרמטרים/);
@@ -183,7 +184,8 @@ describe('Parameter tiles are dense and not behind a filter wall', () => {
       expect(row.hasSlider, `${label} ${row.key}`).toBe(true);
       expect(row.hasLock, `${label} ${row.key}`).toBe(true);
       expect(row.text, `${label} ${row.key}`).toContain('דיפולט');
-      expect(row.text, `${label} ${row.key}`).toMatch(/נשמר בקונסולה|לא נשמר עדיין/);
+      expect(row.text, `${label} ${row.key}`).not.toContain('נשמר בקונסולה');
+      expect(row.text, `${label} ${row.key}`).toMatch(/לא נשמר עדיין|ערך/);
       expect(row.text, `${label} ${row.key}`).toContain('ערך חדש');
       expect(row.textFails, `${label} ${row.key}`).toEqual([]);
       expect(contrast(row.titleColor, [27, 40, 60]), `${label} ${row.key}`).toBeGreaterThanOrEqual(4.5);

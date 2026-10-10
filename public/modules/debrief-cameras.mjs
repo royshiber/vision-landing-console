@@ -193,7 +193,7 @@ function paintTile(tile, slot, streaming) {
     if (note) note.hidden = true;
     return;
   }
-  const wantFrames = streaming || Boolean(slot.hold) || slot.frameWhenOpen === true;
+  const wantFrames = window.__vlcCompanionFrames === true && (streaming || Boolean(slot.hold) || slot.frameWhenOpen === true);
   if (wantFrames && img && !tile.hidden) {
     if (tile.dataset.mono === '1') img.classList.add('is-mono');
     const seen = Number(img.dataset.seen || 0);
@@ -245,6 +245,10 @@ let latestCompanion = null;
 
 function render(companion) {
   latestCompanion = companion && typeof companion === 'object' ? companion : latestCompanion;
+  const mode = latestCompanion?.mode || latestCompanion?.link?.mode;
+  if (mode === 'mock' || mode === 'real' || latestCompanion?.reachable === true) {
+    window.__vlcCompanionFrames = true;
+  }
   const open = readOpen();
   applyLayout(open);
   paintPlayer();
@@ -285,6 +289,7 @@ function bind() {
   document.addEventListener('vlc-companion-cameras', (event) => {
     render(event.detail);
   });
+  document.addEventListener('vlc-companion-frames', () => render(latestCompanion));
   document.addEventListener('vlc-debrief-open-cam', (event) => {
     openSlot(event.detail);
   });
