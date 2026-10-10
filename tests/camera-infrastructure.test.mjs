@@ -83,6 +83,8 @@ function startSiyiEcho() {
       att.writeInt16LE(605, 0);
       att.writeInt16LE(-200, 2);
       att.writeInt16LE(5, 4);
+      att.writeInt16LE(100, 6);
+      att.writeInt16LE(-100, 8);
       reply = encodeSiyi(cmd, att, seq);
     } else if (cmd === 0x01) {
       reply = encodeSiyi(cmd, Buffer.alloc(12), seq);

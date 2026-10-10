@@ -8,17 +8,21 @@ The A8 mini manual labels set-angle as 0x0D (same id as attitude). Newer
 SIYI docs use 0x0E. VLC_SIYI_ANGLE_CMD selects it (default 0x0E).
 
 Control endpoints stay off unless VLC_GIMBAL_CONTROL_ENABLED=1.
-Replies are paired by command id only. The A8 mini does not echo the
+Replies are paired by command id. The A8 mini does not echo the
 request sequence. Attitude, current-zoom, and firmware share one device
-counter; config (0x0A) has another. Those counters are recorded and are
-not a reason to drop a reply. Datagrams already queued are drained
+counter; config (0x0A) has another. Once a counter is known, a reply in
+that group is kept only when its sequence moves forward by 1..64.
+Anything else is dropped, and a backwards step is recorded. A long
+silence, or a wait that produced no acceptable reply, lets the next
+reply teach the counter again. Datagrams already queued are drained
 before each send so they are not this reply. Angle, center, and rate
-confirm on a fresh attitude, read after the send, that matches the
-command, and also on a matched ack of the command itself. Zoom is
-confirmed only by a current-zoom read (command 0x18): the first byte
-is the whole multiple and the second is tenths. A confirmation never
-sends zoom stop. Codec specs (command 0x20) are read with the status
-poll.
+confirm only on a fresh attitude, read after the send, whose counter
+advanced and that matches the command. A command ack alone does not
+confirm a move. Zoom is confirmed only by a current-zoom read (command
+0x18): the first byte is the whole multiple and the second is tenths.
+The zoom-command ack (0x05) is a separate uint16 in tenths. A
+confirmation never sends zoom stop. Codec specs (command 0x20) are
+read with the status poll.
 The request carries one stream-type byte (1 = main stream). A miss on
 that read does not mark the gimbal absent. The set command (0x21) is
 never sent. Nothing in this module moves the gimbal unless a control
@@ -54,8 +58,10 @@ CMD_CODEC = 0x20
 CODEC_STREAM_MAIN = 1
 # Live A8: 0x0D, 0x18, and 0x01 share one counter. 0x0A has its own.
 SHARED_SEQ_CMDS = frozenset({CMD_ATTITUDE, CMD_ZOOM_READ, CMD_FIRMWARE})
-# A fresh matching read confirms a move. A matched command ack does too.
-# Zoom is confirmed only from a 0x18 read.
+# A move confirms only from a fresh attitude whose counter advanced.
+# Zoom confirms only from a 0x18 read. A command ack does not confirm.
+SEQ_AHEAD_MAX = 64
+SEQ_SILENCE_S = 3.0
 MOTION_ACTIONS = frozenset({"rate", "angle", "center"})
 ACK_EXACT_ACTIONS = MOTION_ACTIONS | frozenset({"zoom"})
 DEFAULT_HOST = "192.168.144.25"
@@ -150,14 +156,19 @@ def _cmd_is(decoded, cmd):
 
 
 def reply_matches(decoded, cmd, request_seq=None, last_camera_seq=None):
-    """Pair a datagram to the in-flight request by command id only.
+    """True when the datagram is for this command.
 
-    The A8 does not echo the request sequence. A matching command is the
-    reply whether or not its sequence equals the request or sits near a
-    counter we have seen. ``request_seq`` and ``last_camera_seq`` are
-    ignored; they remain so older callers still import.
+    Sequence is not checked here. The link drops a grouped reply whose
+    own counter did not move forward by 1..64. ``request_seq`` and
+    ``last_camera_seq`` are ignored so older callers still import.
     """
     return _cmd_is(decoded, cmd)
+
+
+def seq_in_window(reply_seq, last_seq, limit=SEQ_AHEAD_MAX):
+    """True when reply_seq is ahead of last_seq by 1..limit, mod 0x10000."""
+    advance = seq_advance(reply_seq, last_seq)
+    return 1 <= advance <= int(limit)
 
 
 def format_firmware(value):
@@ -211,6 +222,17 @@ def parse_zoom(data):
     if len(raw) < 2:
         return None
     return int(raw[0]) + (int(raw[1]) / 10.0)
+
+
+def parse_zoom_ack(data):
+    """Manual-zoom ack from 0x05: uint16 little-endian, multiple times 10.
+
+    3.5x is 35 (23 00). This is not the 0x18 whole-plus-tenths layout.
+    """
+    raw = bytes(data or b"")
+    if len(raw) < 2:
+        return None
+    return struct.unpack_from("<H", raw, 0)[0] / 10.0
 
 
 # SIYI 0x20 stream_type: 0 recording, 1 main, 2 sub.
@@ -387,9 +409,11 @@ class SiyiLink:
         self._external_sock = sock is not None
         self._seq = 0
         self._send_index = 0
-        # Observed device counters. Not used to accept or reject a reply.
+        # Per-group device counters. A known counter rejects a reply that
+        # did not advance by 1..64. _device_seq_regressed records a backwards step.
         self._device_seq = {}
         self._device_seq_regressed = {}
+        self._resync_groups = set()
         self.rejected_count = 0
         self._lock = threading.Lock()
         self._io = threading.Lock()
@@ -506,21 +530,7 @@ class SiyiLink:
                 }
                 self._log(entry)
                 return 200, result
-            # A matched command ack confirms, as it did before fresh reads.
-            # The rate echo used by the console test is one byte of status,
-            # and the follow-up attitude may not repeat the commanded rate.
-            if isinstance(decoded, dict) and action in MOTION_ACTIONS:
-                ack = self._apply_ack(cmd, decoded["data"])
-                result = {
-                    "ok": True,
-                    "sent": True,
-                    "confirmed": True,
-                    "ack": ack,
-                    "cmd": cmd,
-                }
-                entry = {"action": action, "cmd": cmd, "ok": True, "confirmed": True}
-                self._log(entry)
-                return 200, result
+            # A command ack is not confirmation. The fresh read is.
             if checked:
                 result = {
                     "ok": True,
@@ -608,22 +618,49 @@ class SiyiLink:
             return "shared"
         return None
 
-    def _track_device_seq(self, cmd, seq):
-        """Remember the A8's own counter. Never a reason to drop the reply."""
+    def _group_needs_resync(self, group):
+        """True when this reply may teach the counter instead of matching it."""
+        if group is None or group not in self._device_seq:
+            return True
+        if group in self._resync_groups:
+            return True
+        last = self.last_reply_mono
+        if last is None:
+            return True
+        try:
+            silent = (self.now_fn() - last) >= SEQ_SILENCE_S
+        except TypeError:
+            return False
+        return bool(silent)
+
+    def _seq_ok(self, cmd, seq):
+        """Accept a grouped reply only when its counter advanced by 1..64.
+
+        The first reply, a reply after a timeout, and a reply after a long
+        silence teach the counter. A backwards or repeated sequence is
+        rejected and recorded on ``_device_seq_regressed``. Commands with
+        no tracked group (rate, center, zoom write, codec) are not gated.
+        """
         group = self._seq_group(cmd)
         if group is None:
-            return
+            return True
         try:
             seq = int(seq) & 0xFFFF
         except (TypeError, ValueError):
-            return
-        prev = self._device_seq.get(group)
+            return False
+        if not self._group_needs_resync(group):
+            prev = self._device_seq[group]
+            advance = seq_advance(seq, prev)
+            if not (1 <= advance <= SEQ_AHEAD_MAX):
+                if advance == 0 or advance > 0x8000:
+                    self._device_seq_regressed[group] = True
+                self.rejected_count += 1
+                self.last_error = "seq_rejected"
+                return False
         self._device_seq[group] = seq
-        if prev is None:
-            return
-        advance = seq_advance(seq, prev)
-        if advance == 0 or advance > 0x8000:
-            self._device_seq_regressed[group] = True
+        self._device_seq_regressed.pop(group, None)
+        self._resync_groups.discard(group)
+        return True
 
     def _note_exchange_failed(self, marks_absent):
         if marks_absent:
@@ -663,9 +700,13 @@ class SiyiLink:
             decoded = decode_packet(raw)
             if not reply_matches(decoded, cmd):
                 continue
-            self._track_device_seq(cmd, decoded.get("seq", 0))
+            if not self._seq_ok(cmd, decoded.get("seq", 0)):
+                continue
             self._note_reply()
             return decoded
+        group = self._seq_group(cmd)
+        if group is not None:
+            self._resync_groups.add(group)
         self._note_exchange_failed(marks_absent)
         return None
 
@@ -791,7 +832,7 @@ class SiyiLink:
 
     def _apply_ack(self, cmd, data):
         if cmd == CMD_ZOOM:
-            zoom = parse_zoom(data)
+            zoom = parse_zoom_ack(data)
             if zoom is not None:
                 with self._lock:
                     self.zoom = zoom
