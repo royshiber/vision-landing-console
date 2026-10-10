@@ -160,6 +160,35 @@ describe('gimbal frame path', () => {
     pump.stop();
   });
 
+  it('waits a second before the next companion frame after a miss', async () => {
+    let calls = 0;
+    const pump = createLatestJpegPump({
+      follow: () => true,
+      urlFor(gen) {
+        return `frame-${gen}`;
+      },
+      load() {
+        calls += 1;
+        const err = new Error('down');
+        err.name = 'MissError';
+        return Promise.reject(err);
+      },
+    });
+    pump.start();
+    await delay(40);
+    expect(calls).toBe(1);
+    pump.start();
+    await delay(400);
+    expect(calls).toBe(1);
+    await delay(700);
+    expect(calls).toBe(2);
+    pump.stop();
+    await delay(50);
+    const held = calls;
+    await delay(200);
+    expect(calls).toBe(held);
+  });
+
   it('measures capture, encode, fetch, decode, and paint before and after the cut', async () => {
     const sample = encodeSampleJpeg();
     const bytes = sample?.bytes || TINY_JPEG;

@@ -1,3 +1,5 @@
+import { nextFailPollMs } from './poll-backoff.mjs';
+
 /**
  * Boxes on the live camera tiles. The list and the switches live in the
  * right-click menu. No standing panel. Empty when detection is off or the
@@ -18,6 +20,7 @@ const frameBooks = new Map();
 const drawnBoxes = new WeakMap();
 const fitMemory = new WeakMap();
 let sortMode = 'class';
+let visionFailDelay = 0;
 let menuCamera = '';
 let timer = 0;
 let painting = false;
@@ -746,16 +749,16 @@ export async function waitFrameTracks({ seq, capturedAt, src, camera } = {}) {
   if (ready(cached)) return cached;
   const deadline = Date.now() + FRAME_SYNC_TOLERANCE_MS;
   const first = await fetchTracks(id);
-  cache.set(id, first);
-  rememberFrame(id, first);
-  if (ready(first)) return first;
+  cache.set(id, first.payload);
+  rememberFrame(id, first.payload);
+  if (ready(first.payload)) return first.payload;
   const left = deadline - Date.now();
   if (left <= 8) return null;
   await new Promise((resolve) => setTimeout(resolve, Math.min(left, 40)));
   const again = await fetchTracks(id);
-  cache.set(id, again);
-  rememberFrame(id, again);
-  return ready(again) ? again : null;
+  cache.set(id, again.payload);
+  rememberFrame(id, again.payload);
+  return ready(again.payload) ? again.payload : null;
 }
 
 function rememberFrame(camera, payload) {
@@ -794,17 +797,18 @@ async function readJson(res) {
 async function fetchTracks(camera) {
   const ac = new AbortController();
   const timer = setTimeout(() => ac.abort(), 2500);
+  const failed = () => ({ ok: false, payload: emptyPayload(REASON_NO_STREAM) });
   try {
     const res = await fetch(`${TRACKS_URL}?camera=${encodeURIComponent(camera)}&sort=${encodeURIComponent(sortMode)}`, {
       cache: 'no-store',
       signal: ac.signal,
     });
     const body = await readJson(res);
-    if (!res.ok || !body) return emptyPayload(REASON_NO_STREAM);
+    if (!res.ok || !body) return failed();
     body.camera = body.camera || camera;
-    return body;
+    return { ok: true, payload: body };
   } catch {
-    return emptyPayload(REASON_NO_STREAM);
+    return failed();
   } finally {
     clearTimeout(timer);
   }
@@ -832,26 +836,30 @@ function scheduleSizedRepaint(doc) {
 }
 
 async function refresh(doc) {
-  if (!doc || doc.visibilityState === 'hidden') return;
+  if (!doc || doc.visibilityState === 'hidden') return true;
   if (inflightRefresh) {
     paintAgain = true;
     return inflightRefresh;
   }
+  let refreshOk = true;
   inflightRefresh = (async () => {
     painting = true;
     try {
       do {
         paintAgain = false;
         const cameras = new Set(hostList(doc).filter((item) => item.kind !== 'horizon' && item.camera).map((item) => item.camera));
-        await Promise.all([...cameras].map(async (camera) => {
-          const payload = await fetchTracks(camera);
-          cache.set(camera, payload);
-          rememberFrame(camera, payload);
+        const rows = await Promise.all([...cameras].map(async (camera) => {
+          const result = await fetchTracks(camera);
+          cache.set(camera, result.payload);
+          rememberFrame(camera, result.payload);
+          return result.ok;
         }));
+        if (rows.some((ok) => ok === false)) refreshOk = false;
         paintAll(doc);
         if (!doc.getElementById('visionTrackMenu')?.hidden) renderMenu(doc);
       } while (paintAgain);
       sawRefresh = true;
+      return refreshOk;
     } finally {
       painting = false;
       scheduleSizedRepaint(doc);
@@ -888,7 +896,7 @@ async function postLock(body) {
 const MENU_HTML = `
     <p class="vision-menu-kicker">זיהוי</p>
     <button type="button" class="vision-track-menu-item" data-vision-action="toggle"></button>
-    <p class="vision-menu-kicker">עצמים</p>
+    <p class="vision-menu-kicker">אובייקטים</p>
     <p class="vision-menu-sort">מיון: <button type="button" class="vision-track-menu-item" data-vision-sort="class">סוג</button><span aria-hidden="true"> | </span><button type="button" class="vision-track-menu-item" data-vision-sort="confidence">ביטחון</button></p>
     <div data-vision-list></div>
     <p class="vision-menu-kicker">נעילה</p>
@@ -984,7 +992,7 @@ function renderMenu(doc) {
     if (!rows.length) {
       const empty = doc.createElement('p');
       empty.className = 'vision-menu-note';
-      empty.textContent = payload.reason_he || 'אין עצמים';
+      empty.textContent = payload.reason_he || 'אין אובייקטים';
       list.appendChild(empty);
     } else {
       for (const row of rows) {
@@ -1073,9 +1081,29 @@ export function mountVisionTracks(doc = document) {
     const observer = new MutationObserver(() => bind());
     observer.observe(doc.body, { childList: true, subtree: true });
   }
-  const tick = () => { void refresh(doc); };
-  tick();
-  timer = doc.defaultView?.setInterval(tick, TRACK_POLL_MS) || 0;
+  const arm = (ms) => {
+    const view = doc.defaultView;
+    if (!view) return;
+    if (timer) view.clearTimeout(timer);
+    timer = view.setTimeout(() => { void run(); }, ms);
+  };
+  const run = async () => {
+    const started = Date.now();
+    let ok = false;
+    try {
+      ok = await refresh(doc) !== false;
+    } catch {
+      ok = false;
+    }
+    if (ok) {
+      visionFailDelay = 0;
+      arm(Math.max(16, TRACK_POLL_MS - (Date.now() - started)));
+      return;
+    }
+    visionFailDelay = nextFailPollMs(visionFailDelay);
+    arm(visionFailDelay);
+  };
+  void run();
   if (doc.defaultView) {
     doc.defaultView.__vlcFillVisionMenu = (slot, camera) => fillVisionMenu(slot, camera);
     doc.defaultView.__vlcVisionAskState = () => visionAskState();

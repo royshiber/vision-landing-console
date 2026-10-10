@@ -13,6 +13,7 @@ import { bindFovField, readStoredFov } from './camera-fov.mjs';
 import { RF_VIDEO_REASON_HE, rfVideoLocked } from './rf-link-ui.mjs';
 import { applyCameraSupport, mountCameraSettings, paintCameraApply, syncManualExposureLock } from './camera-settings.mjs';
 import { bindCalibGuide, markCalibLive } from './calib-guide.mjs';
+import { nextFailPollMs } from './poll-backoff.mjs';
 
 const REASON_LINK = 'אין קישור למחשב המשימה. הפקדים כבויים.';
 const REASON_CAM = 'אין אות מהמצלמה. הפקדים כבויים.';
@@ -365,7 +366,7 @@ function init() {
     polling = true;
     const ok = await refresh();
     polling = false;
-    pollMs = ok ? 700 : Math.min(15000, Math.max(1400, pollMs * 2));
+    pollMs = ok ? 700 : nextFailPollMs(pollMs);
     nextAt = Date.now() + pollMs;
   }
 

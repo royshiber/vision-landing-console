@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { buildAssistContext } from '../lib/assist/assist-context.mjs';
 import { FRAME_SYNC_TOLERANCE_MS, assembleVisionAsk, cacheCoversAsk, decodeTracksHeader, encodeTracksHeader, fillVisionAsk, framePoint, hitDrawnBox, hitTrack, mediaFit, placeMenuBox, placeTrackCaption, selectFrameTracks, TRACK_POLL_MS, trackCaption, tracksMatchFrame, unwrapTracks, visionAskSnapshot, VISION_ASK_WAIT_MS, waitForVisionAsk } from '../public/modules/vision-tracks.mjs';
+import { nextFailPollMs } from '../public/modules/poll-backoff.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -33,6 +34,11 @@ describe('vision track hit testing', () => {
     expect(wide.right - wide.x).toBe(240);
     expect(TRACK_POLL_MS).toBeGreaterThanOrEqual(150);
     expect(TRACK_POLL_MS).toBeLessThanOrEqual(200);
+    expect(nextFailPollMs(0)).toBe(1000);
+    expect(nextFailPollMs(TRACK_POLL_MS)).toBe(1000);
+    expect(nextFailPollMs(1000)).toBe(2000);
+    expect(nextFailPollMs(16000)).toBe(30000);
+    expect(nextFailPollMs(30000)).toBe(30000);
   });
 
   it('keeps tracks for the frame on screen when a newer poll arrives', () => {

@@ -987,7 +987,7 @@ class VisionTracks:
                     return 400, {"ok": False, "reason": "bad_id", "flight_commands": False}
                 chosen = next((row for row in rows if row["id"] == track_id), None)
                 if chosen is None:
-                    return 404, {"ok": False, "reason": "no_track", "reason_he": "אין עצם", "flight_commands": False}
+                    return 404, {"ok": False, "reason": "no_track", "reason_he": "אין אובייקט", "flight_commands": False}
                 self.lock_target = {**chosen, "camera": camera}
             self._apply_steer_locked()
             payload = self._snapshot_locked(camera, sort)

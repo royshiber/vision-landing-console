@@ -56,6 +56,7 @@ describe('mission sentence mapper', () => {
     expect(result.plan.steps[1].subjects).toEqual(['אנשים', 'חיות', 'מכוניות']);
     expect(result.replyHe).toContain('עשר דקות');
     expect(result.replyHe).toContain('מתריעים אם');
+    expect(result.replyHe).toContain('אנשים, חיות או מכוניות');
     expect(result.replyHe).not.toContain('ההתראה לא עוצרת');
     expect(result.replyHe).not.toMatch(/כמה זמן/);
     expect(result.sends).toBe(false);
@@ -176,6 +177,13 @@ describe('mission sentence mapper', () => {
       ],
     };
     expect(mapMissionSentence('מה אתה מזהה', live).replyHe).toBe('מזהים אדם אחד ורכב אחד.');
+    const unknown = { enabled: true, stream: true, model: true, tracks: [{ id: 9, class: 'bicycle', bbox: [0, 0, 4, 4] }] };
+    expect(mapMissionSentence('מה אתה מזהה', unknown).replyHe).toBe('מזהים אובייקט אחד.');
+    expect(mapMissionSentence('מה אתה מזהה', {
+      ...unknown,
+      tracks: [{ id: 9, class: 'bicycle' }, { id: 10, class: 'boat' }],
+    }).replyHe).toBe('מזהים שני אובייקטים.');
+    expect(mapMissionSentence('מה אתה מזהה', { ...unknown, tracks: [] }).replyHe).toBe('אין אובייקטים בזיהוי.');
     expect(mapMissionSentence('מה אתה מזהה', live).replyHe).not.toMatch(/אדום|ירוק|כחול/);
     expect(mapMissionSentence('כמה אנשים אתה רואה', live).replyHe).toBe('רואים אדם אחד.');
     expect(mapMissionSentence('כמה אנשים אתה רואה', { ...live, tracks: [] }).replyHe).toBe('לא רואים אנשים.');

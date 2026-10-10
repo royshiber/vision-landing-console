@@ -2,7 +2,9 @@
  * One JPEG request. A newer kick aborts the one in flight.
  * The aborted response is not painted and does not stay open.
  * The next request starts when this one finishes, without a second fetch of the same bytes.
+ * A miss waits 1s, then doubles, and stops at 30s.
  */
+import { nextFailPollMs } from './poll-backoff.mjs';
 
 export function frameArrivalIsCurrent(arrivedGen, currentGen) {
   const arrived = Number(arrivedGen);
@@ -108,6 +110,8 @@ export function createLatestJpegPump({
   let startedAt = 0;
   let lastGoodMs = 0;
   let followTimer = null;
+  let failDelay = 0;
+  let nextTryAt = 0;
   const state = { streaming: false };
 
   function clearFollow() {
@@ -115,13 +119,21 @@ export function createLatestJpegPump({
     followTimer = null;
   }
 
-  function schedule(seq) {
+  function schedule(seq, failed = false) {
     if (stopped) return;
     if (typeof follow === 'function' && follow() !== true) return;
     clearFollow();
-    const advanced = Number(seq) > lastSeq;
-    if (advanced) lastSeq = Number(seq);
-    const delay = advanced ? 0 : 50;
+    let delay = 0;
+    if (failed) {
+      failDelay = nextFailPollMs(failDelay);
+      delay = failDelay;
+    } else {
+      failDelay = 0;
+      const advanced = Number(seq) > lastSeq;
+      if (advanced) lastSeq = Number(seq);
+      delay = advanced ? 0 : 50;
+    }
+    nextTryAt = Date.now() + delay;
     followTimer = setTimeout(() => {
       followTimer = null;
       if (!stopped) kick();
@@ -207,6 +219,7 @@ export function createLatestJpegPump({
     const age = startedAt ? Date.now() - startedAt : 0;
     const late = Boolean(controller) && framePullIsLate(age, lastGoodMs);
     const force = opts.force === true || late;
+    if (!force && failDelay > 0 && Date.now() < nextTryAt) return;
     if (controller && !force) return;
     clearFollow();
     controller?.abort();
@@ -252,6 +265,7 @@ export function createLatestJpegPump({
       if (err?.name === 'AbortError' || stopped || mine !== gen) return;
       if (controller === ac) controller = null;
       if (typeof onMiss === 'function') onMiss();
+      schedule(0, true);
     }
   }
 
@@ -272,6 +286,8 @@ export function createLatestJpegPump({
       controller?.abort();
       controller = null;
       gen += 1;
+      failDelay = 0;
+      nextTryAt = 0;
     },
   };
 }

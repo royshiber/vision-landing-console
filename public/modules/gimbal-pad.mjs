@@ -1,3 +1,5 @@
+import { nextFailPollMs } from './poll-backoff.mjs';
+
 /**
  * Gimbal pad on the optics cameras view.
  * Direction is an absolute angle on the companion angle route.
@@ -371,18 +373,29 @@ function createPadSession(doc, post) {
     paint(gimbalPadView(detail));
   });
 
+  let failDelay = 0;
+  let nextAt = 0;
   async function poll() {
     const panel = doc.getElementById('optics');
-    if (!panel || !panel.classList.contains('visible')) return;
+    if (!panel || !panel.classList.contains('visible')) {
+      failDelay = 0;
+      nextAt = 0;
+      return;
+    }
+    if (Date.now() < nextAt) return;
     const seen = stamp;
     try {
       const res = await fetch(STATUS_URL, { cache: 'no-store' });
       if (!res.ok) throw new Error('down');
       const body = unwrap(await res.json());
       if (stamp !== seen) return;
+      failDelay = 0;
+      nextAt = Date.now() + 1000;
       paint(gimbalPadView({ reachable: true, mode: 'real', health: { gimbal: body } }));
     } catch {
       if (stamp !== seen) return;
+      failDelay = nextFailPollMs(failDelay);
+      nextAt = Date.now() + failDelay;
       paint(gimbalPadView({ reachable: false }));
     }
   }
