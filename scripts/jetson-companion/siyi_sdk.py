@@ -8,9 +8,13 @@ The A8 mini manual labels set-angle as 0x0D (same id as attitude). Newer
 SIYI docs use 0x0E. VLC_SIYI_ANGLE_CMD selects it (default 0x0E).
 
 Control endpoints stay off unless VLC_GIMBAL_CONTROL_ENABLED=1.
-Codec specs (command 0x20) are read with the status poll. The set command
-(0x21) is never sent. Nothing in this module moves the gimbal unless a
-control POST is enabled and asked for.
+Replies are paired by command id. The A8 mini does not echo SEQ, so the
+sequence check tolerates the camera's own counter.
+Codec specs (command 0x20) are read with the status poll. The request
+carries one stream-type byte (1 = main stream). A miss on that read does
+not mark the gimbal absent. The set command (0x21) is never sent.
+Nothing in this module moves the gimbal unless a control POST is enabled
+and asked for.
 """
 
 from __future__ import annotations
@@ -35,6 +39,12 @@ CMD_CONFIG = 0x0A
 CMD_ATTITUDE = 0x0D
 CMD_PHOTO = 0x0C
 CMD_CODEC = 0x20
+# 0x20 send data is one uint8: 0 recording, 1 main, 2 sub.
+# Manual example for main: 55 66 01 01 00 00 00 20 01 9E 9D
+CODEC_STREAM_MAIN = 1
+# A8 mini SEQ is the camera counter, not an echo. The full uint16
+# window accepts that counter; an exact echo still matches first.
+SEQ_TOLERANCE = 0xFFFF
 DEFAULT_HOST = "192.168.144.25"
 DEFAULT_PORT = 37260
 YAW_MIN = -135.0
@@ -103,6 +113,41 @@ def decode_packet(raw):
         return None
     data = buf[8:8 + length]
     return {"ctrl": ctrl, "len": length, "seq": seq, "cmd": cmd, "data": data}
+
+
+def seq_acceptable(reply_seq, request_seq, tolerance=SEQ_TOLERANCE):
+    """True when an ACK sequence can belong to this request.
+
+    The spec echoes SEQ. The A8 mini does not: live replies carry the
+    camera's own counter (often 0, and often not the request sequence).
+    An exact echo is accepted. Any other uint16 inside the tolerance
+    window is accepted too. The default window is the whole counter.
+    """
+    try:
+        reply = int(reply_seq) & 0xFFFF
+        request = int(request_seq) & 0xFFFF
+        window = int(tolerance) & 0xFFFF
+    except (TypeError, ValueError):
+        return False
+    if reply == request:
+        return True
+    distance = (reply - request) & 0xFFFF
+    if distance > 0x8000:
+        distance = 0x10000 - distance
+    return distance <= window
+
+
+def reply_matches(decoded, cmd, request_seq):
+    """Pair a datagram to the in-flight request by command id and SEQ."""
+    if not isinstance(decoded, dict):
+        return False
+    try:
+        got = int(decoded.get("cmd")) & 0xFF
+    except (TypeError, ValueError):
+        return False
+    if got != (int(cmd) & 0xFF):
+        return False
+    return seq_acceptable(decoded.get("seq", 0), request_seq)
 
 
 def format_firmware(value):
@@ -361,11 +406,16 @@ class SiyiLink:
         self._log(entry)
         return 200, result
 
-    def exchange(self, cmd, data=b"", require_match=True):
+    def exchange(self, cmd, data=b"", require_match=True, marks_absent=True):
         with self._io:
-            return self._exchange_locked(cmd, data, require_match)
+            return self._exchange_locked(cmd, data, require_match, marks_absent=marks_absent)
 
-    def _exchange_locked(self, cmd, data=b"", require_match=True):
+    def _mark_no_reply(self):
+        with self._lock:
+            if self.last_reply_mono is None:
+                self.last_error = "no_reply"
+
+    def _exchange_locked(self, cmd, data=b"", require_match=True, marks_absent=True):
         packet_seq = self._seq & 0xFFFF
         self._seq = (self._seq + 1) & 0xFFFF
         packet = encode_packet(cmd, data, seq=packet_seq)
@@ -373,8 +423,9 @@ class SiyiLink:
             sock = self._ensure_sock()
             sock.sendto(packet, (self.host, self.port))
         except OSError as exc:
-            with self._lock:
-                self.last_error = "send_failed"
+            if marks_absent:
+                with self._lock:
+                    self.last_error = "send_failed"
             print(f"[gimbal] send_failed cmd={cmd:#04x} {exc}", flush=True)
             return False
         if not require_match:
@@ -383,24 +434,20 @@ class SiyiLink:
         while True:
             remain = deadline - time.monotonic()
             if remain <= 0:
-                with self._lock:
-                    if self.last_reply_mono is None:
-                        self.last_error = "no_reply"
+                if marks_absent:
+                    self._mark_no_reply()
                 return None
             try:
                 sock.settimeout(remain)
                 raw, _addr = sock.recvfrom(2048)
             except socket.timeout:
-                with self._lock:
-                    if self.last_reply_mono is None:
-                        self.last_error = "no_reply"
+                if marks_absent:
+                    self._mark_no_reply()
                 return None
             except OSError:
                 return None
             decoded = decode_packet(raw)
-            if not decoded:
-                continue
-            if decoded["cmd"] != (cmd & 0xFF) or decoded["seq"] != packet_seq:
+            if not reply_matches(decoded, cmd, packet_seq):
                 continue
             self._note_reply()
             return decoded
@@ -443,7 +490,14 @@ class SiyiLink:
                             self.mode = parsed["mode"]
                         if parsed.get("recording") is not None:
                             self.recording = parsed["recording"]
-            codec = self.exchange(CMD_CODEC, b"", require_match=True)
+            # 0x20 needs the stream-type byte. A miss must not clear presence:
+            # attitude already proved the gimbal is there.
+            codec = self.exchange(
+                CMD_CODEC,
+                bytes([CODEC_STREAM_MAIN]),
+                require_match=True,
+                marks_absent=False,
+            )
             if isinstance(codec, dict):
                 parsed = parse_codec_specs(codec["data"])
                 if parsed:

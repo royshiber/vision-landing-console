@@ -367,6 +367,7 @@ vectors = {
     "follow": (0x0C, bytes([4]), "556601010000000c04b08e"),
     "fpv": (0x0C, bytes([5]), "556601010000000c05919e"),
     "att": (0x0D, b"", "556601000000000de805"),
+    "codec": (0x20, bytes([1]), "5566010100000020019e9d"),
 }
 bad = []
 for name, (cmd, data, exp) in vectors.items():

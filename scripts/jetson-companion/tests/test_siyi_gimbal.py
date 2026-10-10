@@ -11,17 +11,33 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from siyi_sdk import (  # noqa: E402
+    CMD_ATTITUDE,
     CMD_CODEC,
+    CMD_FIRMWARE,
     CMD_PHOTO,
     CMD_RATE,
     CMD_ZOOM,
+    CODEC_STREAM_MAIN,
     DEFAULT_HOST,
     DEFAULT_PORT,
     SiyiLink,
     decode_packet,
     encode_packet,
     parse_codec_specs,
+    reply_matches,
+    seq_acceptable,
 )
+
+# Captured A8-mini reply frames (CRC included). SEQ is the camera's counter,
+# not an echo of the request that was on the wire.
+# Attitude: seq 0x002A, yaw 12.3, pitch -4.5, roll 0.2, pitch rate 1.0.
+A8_ATTITUDE_SEQ_MISMATCH = bytes.fromhex("5566010c002a000d7b00d3ff020000000a000000faba")
+# Firmware: seq 0, camera v3.2.3, gimbal v1.4.2. Request seq on the poll is 1.
+A8_FIRMWARE_SEQ0 = bytes.fromhex("5566010c000000010302036e02040100000000003495")
+# Codec ACK: seq 0x0100, main-stream byte 1, H264 1920x1080, 2500 kbps, 30 fps.
+A8_CODEC_SEQ_MISMATCH = bytes.fromhex("5566010900000120010180073804c4091e7058")
+# Manual zoom-in request, used as a datagram that must not satisfy attitude.
+A8_ZOOM_NOT_ATTITUDE = bytes.fromhex("5566010100000005018d64")
 
 
 class FakeSiyiSock:
@@ -146,6 +162,8 @@ class SiyiGimbalCommandTests(unittest.TestCase):
         cmds = [decode_packet(pkt)["cmd"] for pkt, _addr in sock.sent]
         self.assertIn(CMD_CODEC, cmds)
         self.assertNotIn(0x21, cmds)
+        codec_req = next(decode_packet(pkt) for pkt, _addr in sock.sent if decode_packet(pkt)["cmd"] == CMD_CODEC)
+        self.assertEqual(codec_req["data"], bytes([CODEC_STREAM_MAIN]))
         self.assertEqual(link.codec[0]["height"], 1080)
         status = link.public_status()
         self.assertFalse(status["codec_writable"])
@@ -153,6 +171,96 @@ class SiyiGimbalCommandTests(unittest.TestCase):
         code, body = link.command("rate", {"yaw": 1, "pitch": 0})
         self.assertEqual(code, 403)
         self.assertFalse(body["sent"])
+
+    def test_captured_a8_frames_accept_a_seq_that_does_not_match(self):
+        attitude = decode_packet(A8_ATTITUDE_SEQ_MISMATCH)
+        firmware = decode_packet(A8_FIRMWARE_SEQ0)
+        codec = decode_packet(A8_CODEC_SEQ_MISMATCH)
+        self.assertEqual(attitude["cmd"], CMD_ATTITUDE)
+        self.assertEqual(attitude["seq"], 0x2A)
+        self.assertEqual(firmware["seq"], 0)
+        self.assertEqual(codec["seq"], 0x0100)
+        self.assertTrue(seq_acceptable(attitude["seq"], 0))
+        self.assertTrue(seq_acceptable(0, 1))
+        self.assertTrue(seq_acceptable(0xBEEF, 4))
+        self.assertFalse(seq_acceptable(attitude["seq"], 0, tolerance=0))
+        self.assertFalse(seq_acceptable("nope", 0))
+        self.assertFalse(reply_matches(decode_packet(A8_ZOOM_NOT_ATTITUDE), CMD_ATTITUDE, 0))
+        self.assertTrue(reply_matches(attitude, CMD_ATTITUDE, 0))
+
+        manual = encode_packet(CMD_CODEC, bytes([CODEC_STREAM_MAIN]), seq=0).hex()
+        self.assertEqual(manual, "5566010100000020019e9d")
+
+        class CaptureSock(FakeSiyiSock):
+            def __init__(self):
+                super().__init__(reply=True)
+                self._prelude = [A8_ZOOM_NOT_ATTITUDE]
+
+            def recvfrom(self, _n):
+                if self._prelude:
+                    return self._prelude.pop(0), (DEFAULT_HOST, DEFAULT_PORT)
+                decoded = decode_packet(self.sent[-1][0])
+                table = {
+                    CMD_ATTITUDE: A8_ATTITUDE_SEQ_MISMATCH,
+                    CMD_FIRMWARE: A8_FIRMWARE_SEQ0,
+                    CMD_CODEC: A8_CODEC_SEQ_MISMATCH,
+                }
+                raw = table.get(decoded["cmd"])
+                if raw is None:
+                    raise socket.timeout()
+                return raw, (DEFAULT_HOST, DEFAULT_PORT)
+
+        sock = CaptureSock()
+        link = SiyiLink(env={"VLC_GIMBAL_CONTROL_ENABLED": "0"}, sock=sock, now_fn=lambda: 80.0)
+        link.poll_once()
+        att_req = next(decode_packet(pkt) for pkt, _addr in sock.sent if decode_packet(pkt)["cmd"] == CMD_ATTITUDE)
+        fw_req = next(decode_packet(pkt) for pkt, _addr in sock.sent if decode_packet(pkt)["cmd"] == CMD_FIRMWARE)
+        self.assertNotEqual(attitude["seq"], att_req["seq"])
+        self.assertNotEqual(firmware["seq"], fw_req["seq"])
+        self.assertEqual(link.attitude["yaw"], 12.3)
+        self.assertEqual(link.attitude["pitch"], -4.5)
+        self.assertEqual(link.firmware["camera"], "v3.2.3")
+        self.assertEqual(link.firmware["gimbal"], "v1.4.2")
+        codec_req = next(decode_packet(pkt) for pkt, _addr in sock.sent if decode_packet(pkt)["cmd"] == CMD_CODEC)
+        self.assertEqual(codec_req["data"], bytes([CODEC_STREAM_MAIN]))
+        self.assertNotEqual(codec["seq"], codec_req["seq"])
+        self.assertEqual(link.codec[0]["width"], 1920)
+        self.assertEqual(link.codec[0]["height"], 1080)
+        self.assertEqual(link.codec[0]["bitrate_kbps"], 2500)
+        status = link.public_status()
+        self.assertTrue(status["present"])
+        self.assertIsNone(status["error"])
+        self.assertEqual(status["attitude"]["roll"], 0.2)
+
+    def test_codec_miss_never_marks_the_gimbal_absent(self):
+        class AttitudeThenQuiet(FakeSiyiSock):
+            def recvfrom(self, _n):
+                decoded = decode_packet(self.sent[-1][0])
+                if decoded["cmd"] == CMD_ATTITUDE:
+                    return A8_ATTITUDE_SEQ_MISMATCH, (DEFAULT_HOST, DEFAULT_PORT)
+                raise socket.timeout()
+
+        sock = AttitudeThenQuiet()
+        link = SiyiLink(env={"VLC_GIMBAL_CONTROL_ENABLED": "0"}, sock=sock, now_fn=lambda: 90.0)
+        link.poll_once()
+        codec_req = next(decode_packet(pkt) for pkt, _addr in sock.sent if decode_packet(pkt)["cmd"] == CMD_CODEC)
+        self.assertEqual(codec_req["data"], bytes([CODEC_STREAM_MAIN]))
+        self.assertIsNone(link.codec)
+        self.assertTrue(link.present)
+        self.assertIsNone(link.last_error)
+        self.assertEqual(link.attitude["yaw"], 12.3)
+        status = link.public_status()
+        self.assertTrue(status["present"])
+        self.assertIsNone(status["error"])
+        self.assertEqual(status["attitude"]["pitch"], -4.5)
+
+        quiet = FakeSiyiSock(reply=False)
+        cold = SiyiLink(env={}, sock=quiet, now_fn=lambda: 1.0)
+        missed = cold.exchange(CMD_CODEC, bytes([CODEC_STREAM_MAIN]), require_match=True, marks_absent=False)
+        self.assertIsNone(missed)
+        self.assertIsNone(cold.last_error)
+        self.assertFalse(cold.present)
+        self.assertEqual(decode_packet(quiet.sent[-1][0])["data"], bytes([CODEC_STREAM_MAIN]))
 
 
 if __name__ == "__main__":
