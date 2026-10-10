@@ -32,9 +32,15 @@ function browserLoad(src, signal) {
     const type = String(res.headers.get('content-type') || '');
     if (!res.ok || type.includes('json')) throw missError();
     const seq = Number(res.headers.get('x-airvix-frame-seq') || 0);
+    const capturedAt = Number(res.headers.get('x-airvix-capture-at') || 0);
     const blob = await res.blob();
     if (!blob || blob.size === 0) throw missError();
-    return { src, objectUrl: URL.createObjectURL(blob), seq: Number.isFinite(seq) ? seq : 0 };
+    return {
+      src,
+      objectUrl: URL.createObjectURL(blob),
+      seq: Number.isFinite(seq) ? seq : 0,
+      capturedAt: Number.isFinite(capturedAt) ? capturedAt : 0,
+    };
   });
 }
 
@@ -83,6 +89,9 @@ export function createLatestJpegPump({
     const seq = Number(loaded.seq);
     if (seq > 0) img.dataset.frameSeq = String(seq);
     else delete img.dataset.frameSeq;
+    const capturedAt = Number(loaded.capturedAt);
+    if (capturedAt > 0) img.dataset.capturedAt = String(capturedAt);
+    else delete img.dataset.capturedAt;
     if (prev && prev !== loaded.objectUrl) {
       try { URL.revokeObjectURL(prev); } catch { /* already revoked */ }
     }

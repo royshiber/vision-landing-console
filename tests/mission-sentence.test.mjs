@@ -110,7 +110,7 @@ describe('mission sentence mapper', () => {
     for (const text of ['עברו לאובייקט הבא', 'עברו לעצם הבא', 'תעברו לאובייקט הבא']) {
       const result = mapMissionSentence(text);
       expect(modes(result)).toEqual(['NEXT']);
-      expect(result.replyHe).toBe('מעבר לאובייקט הבא נוסף לתוכנית.');
+      expect(result.replyHe).toBe('מעבר לעצם הבא נוסף לתוכנית.');
       expect(result.replyHe).not.toContain('לא נשלח דבר');
       expect(result.sends).toBe(false);
     }

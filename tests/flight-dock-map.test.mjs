@@ -697,6 +697,16 @@ describe('flight dock and map live', () => {
     expect(armAsk.note).toBe('נחסם. חימוש וניטרול חסומים');
     expect(armAsk.heard.note).toBe(armAsk.heard.text);
     expect(armAsk.heard.text).toBe('נחסם. חימוש וניטרול חסומים');
+    await page.evaluate(() => {
+      applyFlightHud({ connected: false, armed: false });
+      return assistSendText('המריאו');
+    });
+    const takeoff = await page.evaluate(() => ({
+      note: document.getElementById('flightDockCommandNote').textContent,
+      transcript: (document.getElementById('assistMessages') || document.querySelector('.assist-messages'))?.textContent || '',
+    }));
+    expect(takeoff.note).toBe('המראה לא נשלחה: אין חיבור לבקר הטיסה');
+    expect(takeoff.transcript).toContain('המראה לא נשלחה: אין חיבור לבקר הטיסה');
     const askTranscript = await page.evaluate(() => {
       const host = document.getElementById('assistMessages') || document.querySelector('.assist-messages');
       return host ? host.textContent : '';

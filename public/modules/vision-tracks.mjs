@@ -91,13 +91,40 @@ export function trackCaption(track) {
   return [name, id, pct].filter(Boolean).join(' · ');
 }
 
-/** Tracks for the frame on screen. A newer poll must not paint on an older frame. */
-export function selectFrameTracks(latest, book, shownSeq) {
+/** How close a detection may be to the frame on screen, in milliseconds. */
+export const FRAME_SYNC_TOLERANCE_MS = 80;
+
+/**
+ * Tracks for the frame on screen.
+ * An untagged payload still paints. A tagged payload paints on that frame,
+ * or on the nearest stored frame inside the tolerance. It does not paint
+ * on a later frame the detector never saw.
+ */
+export function selectFrameTracks(latest, book, shownSeq, shownAt = 0) {
   const shown = Number(shownSeq);
   const tagged = Number(latest?.frame_seq);
-  if (!(shown > 0) || !(tagged > 0)) return latest || null;
-  if (shown === tagged) return latest;
-  return book?.get?.(shown) || null;
+  if (!(tagged > 0)) return latest || null;
+  if (!(shown > 0) || shown === tagged) return latest || null;
+  const exact = book?.get?.(shown) || null;
+  if (exact) return exact;
+  const at = Number(shownAt);
+  if (!(at > 0)) return null;
+  let best = null;
+  let bestDelta = Infinity;
+  const rows = [];
+  if (typeof book?.forEach === 'function') book.forEach((payload) => rows.push(payload));
+  if (latest) rows.push(latest);
+  for (const payload of rows) {
+    const stamp = Number(payload?.captured_at);
+    if (!(stamp > 0)) continue;
+    const delta = Math.abs(stamp - at);
+    if (delta < bestDelta) {
+      bestDelta = delta;
+      best = payload;
+    }
+  }
+  if (best && bestDelta <= FRAME_SYNC_TOLERANCE_MS) return best;
+  return null;
 }
 
 function emptyPayload(reason) {
@@ -262,9 +289,17 @@ function shownSeq(host) {
   return Number.isFinite(seq) ? seq : 0;
 }
 
-function lockAtPoint(host, layer, clientX, clientY) {
+function shownCapturedAt(host) {
+  const media = mediaOf(host);
+  const at = Number(media?.dataset?.capturedAt || 0);
+  return Number.isFinite(at) ? at : 0;
+}
+
+function lockAtPoint(host, clientX, clientY) {
   const camera = host.dataset.visionCamera || '';
-  const rect = layer.getBoundingClientRect();
+  const layer = host.querySelector(':scope > .vision-hit-layer');
+  const rect = (layer || host).getBoundingClientRect();
+  if (!(rect.width >= 32) || !(rect.height >= 32)) return null;
   const hit = hitDrawnBox(drawnBoxes.get(host), clientX - rect.left, clientY - rect.top);
   if (!hit || hit.id == null || hit.id === '') return null;
   return { camera, id: hit.id };
@@ -291,7 +326,7 @@ function ensureChrome(host, camera) {
     const camera = host.dataset.visionCamera || '';
     const kind = host.id === 'pfdHorizonStage' ? 'horizon' : 'tile';
     const latest = payloadFor(camera);
-    const chosen = selectFrameTracks(latest, frameBooks.get(camera), shownSeq(host));
+    const chosen = selectFrameTracks(latest, frameBooks.get(camera), shownSeq(host), shownCapturedAt(host));
     if (!chosen) return;
     paintHost(host, chosen, { kind });
   };
@@ -310,14 +345,10 @@ function ensureChrome(host, camera) {
     });
     watch.observe(host, { attributes: true, subtree: true, attributeFilter: ['hidden', 'src'] });
   }
-  layer.addEventListener('pointerdown', (event) => {
-    if (event.button != null && event.button !== 0) return;
-    const hit = lockAtPoint(host, layer, event.clientX, event.clientY);
-    if (!hit) return;
-    event.preventDefault();
-    event.stopPropagation();
-    void postLock(hit);
-  });
+  if (typeof ResizeObserver === 'function') {
+    const resize = new ResizeObserver(() => repaint());
+    resize.observe(host);
+  }
   const opener = host.closest?.('.debrief-cam-tile') || host;
   if (opener.dataset.visionMenuBound === '1') return;
   opener.dataset.visionMenuBound = '1';
@@ -382,10 +413,8 @@ export function paintHost(host, payload, { kind = 'tile' } = {}) {
     if (cleared) cleared.clearRect(0, 0, canvas.width || 0, canvas.height || 0);
     return;
   }
-  const drawable = true;
-  canvas.hidden = !drawable;
-  canvas.dataset.hit = '1';
-  if (layer) layer.dataset.hit = '1';
+  const sized = width >= 32 && height >= 32;
+  canvas.hidden = false;
   const ratio = doc.defaultView?.devicePixelRatio || 1;
   canvas.width = Math.round(width * ratio);
   canvas.height = Math.round(height * ratio);
@@ -415,15 +444,26 @@ export function paintHost(host, payload, { kind = 'tile' } = {}) {
     ctx.font = '700 13px Heebo, sans-serif';
     const textW = caption ? ctx.measureText(caption).width : 0;
     const pad = 4;
-    const top = Math.max(0, y - 18);
+    const capH = 16;
+    const capW = textW + pad * 2;
+    let capX = x;
+    let capY = y - 18;
+    if (capY < 0) capY = Math.min(Math.max(0, height - capH), Math.max(0, y + 2));
+    if (capX + capW > width) capX = width - capW;
+    if (capW <= width && capX < 0) capX = 0;
+    if (capY + capH > height) capY = Math.max(0, height - capH);
+    const rectX = Math.max(0, capX);
+    const rectR = Math.min(width, capX + capW);
     ctx.fillStyle = '#0b1220';
-    ctx.fillRect(x, top, textW + pad * 2, 16);
+    ctx.fillRect(rectX, capY, Math.max(0, rectR - rectX), capH);
     ctx.fillStyle = '#f8fafc';
-    if (caption) ctx.fillText(caption, x + pad, top + 12);
+    if (caption) ctx.fillText(caption, capX + pad, capY + 12);
   }
+  const clickable = sized && boxes.some((box) => box.w >= 4 && box.h >= 4);
   if (boxes.length) drawnBoxes.set(host, boxes);
   else drawnBoxes.delete(host);
-  if (layer) layer.dataset.hit = boxes.length ? '1' : '0';
+  canvas.dataset.hit = clickable ? '1' : '0';
+  if (layer) layer.dataset.hit = clickable ? '1' : '0';
 }
 
 function rememberFrame(camera, payload) {
@@ -446,7 +486,7 @@ function paintAll(doc) {
       paintHost(item.host, emptyPayload(REASON_OFF), item);
       continue;
     }
-    const chosen = selectFrameTracks(latest, frameBooks.get(camera), shownSeq(item.host));
+    const chosen = selectFrameTracks(latest, frameBooks.get(camera), shownSeq(item.host), shownCapturedAt(item.host));
     if (!chosen) continue;
     if (item.kind === 'horizon' && camera) chosen.camera = camera;
     paintHost(item.host, chosen, item);
@@ -460,32 +500,68 @@ async function readJson(res) {
 }
 
 async function fetchTracks(camera) {
+  const ac = new AbortController();
+  const timer = setTimeout(() => ac.abort(), 2500);
   try {
-    const res = await fetch(`${TRACKS_URL}?camera=${encodeURIComponent(camera)}&sort=${encodeURIComponent(sortMode)}`, { cache: 'no-store' });
+    const res = await fetch(`${TRACKS_URL}?camera=${encodeURIComponent(camera)}&sort=${encodeURIComponent(sortMode)}`, {
+      cache: 'no-store',
+      signal: ac.signal,
+    });
     const body = await readJson(res);
     if (!res.ok || !body) return emptyPayload(REASON_NO_STREAM);
     body.camera = body.camera || camera;
     return body;
   } catch {
     return emptyPayload(REASON_NO_STREAM);
+  } finally {
+    clearTimeout(timer);
   }
 }
 
+let paintAgain = false;
+
+function scheduleSizedRepaint(doc) {
+  const view = doc.defaultView;
+  if (!view?.requestAnimationFrame) return;
+  let left = 12;
+  const step = () => {
+    paintAll(doc);
+    left -= 1;
+    const waiting = hostList(doc).some((item) => {
+      if (item.kind === 'horizon') return false;
+      const host = item.host;
+      if (!host?.dataset?.visionTracks) return false;
+      const layer = host.querySelector(':scope > .vision-hit-layer');
+      return layer?.dataset?.hit !== '1';
+    });
+    if (waiting && left > 0) view.requestAnimationFrame(step);
+  };
+  view.requestAnimationFrame(step);
+}
+
 async function refresh(doc) {
-  if (painting || doc.visibilityState === 'hidden') return;
+  if (doc.visibilityState === 'hidden') return;
+  if (painting) {
+    paintAgain = true;
+    return;
+  }
   painting = true;
   try {
-    const cameras = new Set(hostList(doc).filter((item) => item.kind !== 'horizon' && item.camera).map((item) => item.camera));
-    await Promise.all([...cameras].map(async (camera) => {
-      const payload = await fetchTracks(camera);
-      cache.set(camera, payload);
-      rememberFrame(camera, payload);
-    }));
-    paintAll(doc);
-    if (!doc.getElementById('visionTrackMenu')?.hidden) renderMenu(doc);
+    do {
+      paintAgain = false;
+      const cameras = new Set(hostList(doc).filter((item) => item.kind !== 'horizon' && item.camera).map((item) => item.camera));
+      await Promise.all([...cameras].map(async (camera) => {
+        const payload = await fetchTracks(camera);
+        cache.set(camera, payload);
+        rememberFrame(camera, payload);
+      }));
+      paintAll(doc);
+      if (!doc.getElementById('visionTrackMenu')?.hidden) renderMenu(doc);
+    } while (paintAgain);
   } finally {
     painting = false;
   }
+  scheduleSizedRepaint(doc);
 }
 
 async function postJson(url, body) {
@@ -600,8 +676,13 @@ function renderMenu(doc) {
   });
   const list = menu.querySelector('[data-vision-list]');
   if (list) {
-    list.replaceChildren();
     const rows = Array.isArray(payload.tracks) ? payload.tracks : [];
+    const listKey = `${payload.reason_he || ''}|${payload.lock?.id ?? ''}|${rows.map((row) => `${row.id}:${trackCaption(row)}`).join(',')}`;
+    if (list.dataset.visionKey === listKey) {
+      /* the open list stays put while the same tracks are on screen */
+    } else {
+    list.dataset.visionKey = listKey;
+    list.replaceChildren();
     if (!rows.length) {
       const empty = doc.createElement('p');
       empty.className = 'vision-menu-note';
@@ -617,6 +698,7 @@ function renderMenu(doc) {
         button.textContent = trackCaption(row);
         list.appendChild(button);
       }
+    }
     }
   }
   const steer = menu.querySelector('[data-vision-action="steer"]');
@@ -676,6 +758,19 @@ export function mountVisionTracks(doc = document) {
     for (const item of hostList(doc)) ensureChrome(item.host, item.camera);
   };
   bind();
+  doc.addEventListener('pointerdown', (event) => {
+    if (event.button != null && event.button !== 0) return;
+    const target = event.target instanceof Element ? event.target : null;
+    if (!target || target.closest('#visionTrackMenu, [data-vision-menu-slot]')) return;
+    const host = target.closest('[data-camera-stage]')
+      || target.closest('.debrief-cam-tile')?.querySelector('[data-camera-stage]');
+    if (!(host instanceof Element)) return;
+    const hit = lockAtPoint(host, event.clientX, event.clientY);
+    if (!hit) return;
+    event.preventDefault();
+    event.stopPropagation();
+    void postLock(hit);
+  }, true);
   if (typeof MutationObserver === 'function' && doc.body) {
     const observer = new MutationObserver(() => bind());
     observer.observe(doc.body, { childList: true, subtree: true });

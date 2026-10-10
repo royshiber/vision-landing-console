@@ -100,6 +100,7 @@ class RtspPipelineTests(unittest.TestCase):
         self.assertEqual(headers["X-Encode-Ms"], "1.25")
         self.assertEqual(headers["X-Airvix-Decode-Ms"], "0.4")
         self.assertEqual(headers["Cache-Control"], "no-store")
+        self.assertEqual(headers["X-Airvix-Frame-Seq"], str(latest["seq"]))
 
     def test_stuck_opening_fails_fast_and_drops_the_old_jpeg(self):
         def open_fn(_spec, _plan):

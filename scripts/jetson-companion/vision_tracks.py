@@ -670,6 +670,32 @@ def sort_tracks(tracks, mode):
     return rows
 
 
+def frame_identity(packet):
+    """Sequence and capture time, in milliseconds, of the frame detection used."""
+    if not isinstance(packet, dict):
+        return None, None
+    raw = packet.get("seq", packet.get("frame_seq", packet.get("frame_count")))
+    try:
+        seq = int(raw) if raw is not None and str(raw) != "" else None
+    except (TypeError, ValueError):
+        seq = None
+    if seq is not None and seq <= 0:
+        seq = None
+    captured = packet.get("captured_at")
+    if captured is None and packet.get("captured_utc_ns"):
+        try:
+            captured = int(int(packet.get("captured_utc_ns")) // 1_000_000)
+        except (TypeError, ValueError):
+            captured = None
+    try:
+        captured = int(captured) if captured is not None and str(captured) != "" else None
+    except (TypeError, ValueError):
+        captured = None
+    if captured is not None and captured <= 0:
+        captured = None
+    return seq, captured
+
+
 def rgb_from_packet(packet):
     if not isinstance(packet, dict):
         return None
@@ -725,9 +751,11 @@ def live_frame(camera):
         try:
             from cam0.service import get_service
             svc = get_service()
-            jpeg = svc.frame_jpeg() if svc is not None else None
-            if jpeg:
-                return {"jpeg": jpeg}
+            cam_packet = svc.frame_packet() if svc is not None and hasattr(svc, "frame_packet") else None
+            if isinstance(cam_packet, dict) and cam_packet.get("jpeg"):
+                merged = dict(packet or {})
+                merged.update({key: value for key, value in cam_packet.items() if value is not None})
+                return merged
         except Exception:
             pass
     return packet
@@ -751,6 +779,8 @@ class VisionTracks:
         self.tracks = []
         self.lock_target = None
         self.stream = False
+        self.frame_seq = None
+        self.captured_at = None
         self.frame_width = None
         self.frame_height = None
         self.backend = "off"
@@ -810,14 +840,21 @@ class VisionTracks:
             if not self.enabled:
                 self.tracks = []
                 self.stream = False
+                self.frame_seq = None
+                self.captured_at = None
                 self.tracker = ByteTracker()
             self._resolve_backend()
         self._sync_thread()
         return 200, self.snapshot(self.camera)
 
-    def push_frame(self, camera, width, height, rgb):
+    def push_frame(self, camera, width, height, rgb, seq=None, captured_at=None):
         with self._lock:
-            self._frames[str(camera)] = {"width": int(width), "height": int(height), "rgb": rgb}
+            row = {"width": int(width), "height": int(height), "rgb": rgb}
+            if seq is not None:
+                row["seq"] = int(seq)
+            if captured_at is not None:
+                row["captured_at"] = int(captured_at)
+            self._frames[str(camera)] = row
 
     def _packet(self, camera):
         if self.frame_source is not None:
@@ -839,6 +876,8 @@ class VisionTracks:
             with self._lock:
                 self.tracks = []
                 self.stream = False
+                self.frame_seq = None
+                self.captured_at = None
                 self.frame_width = None
                 self.frame_height = None
             return self.snapshot(camera)
@@ -846,12 +885,18 @@ class VisionTracks:
             with self._lock:
                 self.tracks = []
                 self.stream = self._packet(camera) is not None
+                self.frame_seq = None
+                self.captured_at = None
             return self.snapshot(camera)
-        decoded = rgb_from_packet(self._packet(camera))
+        packet = self._packet(camera)
+        seq, captured = frame_identity(packet)
+        decoded = rgb_from_packet(packet)
         if not decoded:
             with self._lock:
                 self.tracks = []
                 self.stream = False
+                self.frame_seq = None
+                self.captured_at = None
                 self.frame_width = None
                 self.frame_height = None
                 self._apply_steer_locked()
@@ -863,6 +908,8 @@ class VisionTracks:
             dets = []
         with self._lock:
             self.stream = True
+            self.frame_seq = seq
+            self.captured_at = captured
             self.frame_width = width
             self.frame_height = height
             fresh = self.tracker.update(dets)
@@ -986,6 +1033,8 @@ class VisionTracks:
             "model": self.model_path or None,
             "engine": self.engine_path or None,
             "stream": self.stream is True and active,
+            "frame_seq": self.frame_seq if active else None,
+            "captured_at": self.captured_at if active else None,
             "frame_width": self.frame_width if active else None,
             "frame_height": self.frame_height if active else None,
             "tracks": rows,

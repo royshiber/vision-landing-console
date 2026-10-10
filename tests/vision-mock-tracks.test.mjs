@@ -158,4 +158,33 @@ describe('test-only mock vision tracks', () => {
       await new Promise((resolve) => server.close(resolve));
     }
   });
+
+  it('stamps QA fixture tracks with the jpeg frame they belong to', async () => {
+    const env = {
+      COMPANION_MODE: 'mock',
+      VLC_QA: '1',
+      VLC_VISION_MOCK_TRACKS: JSON.stringify(FIXTURE),
+    };
+    const client = createCompanionService(env).client;
+    const before = await client.getVisionTracks('cam0');
+    expect(before.tracks.length).toBeGreaterThan(0);
+    expect(before.frame_seq).toBeUndefined();
+    const frame = await client.getCameraFrame('cam0');
+    const after = await client.getVisionTracks('cam0');
+    expect(after.frame_seq).toBe(frame.frameSeq);
+    expect(after.captured_at).toBe(frame.capturedAt);
+    expect(after.frame_seq).toBeGreaterThan(0);
+    expect(after.captured_at).toBeGreaterThan(0);
+    expect(after.tracks[0].label_he).toBe('אדם');
+    const server = await listen(appFor(env));
+    const port = server.address().port;
+    const base = `http://127.0.0.1:${port}${COMPANION_PROXY_PREFIX}`;
+    try {
+      const live = await (await fetch(`${base}/vision/tracks?camera=cam0`)).json();
+      expect(live.data.tracks[0].label_he).toBe('אדם');
+      expect(live.data.backend).toBe('fixture');
+    } finally {
+      await new Promise((resolve) => server.close(resolve));
+    }
+  });
 });

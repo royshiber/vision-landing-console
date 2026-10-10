@@ -184,22 +184,24 @@ describe('vision track overlay', () => {
       const img = document.querySelector('[data-api="cam0"] .debrief-cam-live');
       const stage = document.querySelector('[data-camera-stage="cam0"]');
       const canvas = stage?.querySelector('.vision-box-layer');
-      return img && !img.hidden && img.naturalWidth === 320
-        && stage?.dataset.visionTracks === '1,2'
-        && canvas && canvas.hidden !== true && canvas.dataset.hit === '1';
+      const layer = stage?.querySelector('.vision-hit-layer');
+      if (!img || img.hidden || img.naturalWidth !== 320) return false;
+      if (!stage || stage.clientWidth < 40 || stage.clientHeight < 40) return false;
+      if (stage.dataset.visionTracks !== '1,2') return false;
+      if (!canvas || canvas.hidden === true || canvas.dataset.hit !== '1') return false;
+      if (!layer || layer.dataset.hit !== '1') return false;
+      const rect = img.getBoundingClientRect();
+      if (rect.width < 40 || rect.height < 40) return false;
+      const scale = Math.min(rect.width / 320, rect.height / 180);
+      const x = rect.x + (rect.width - 320 * scale) / 2 + (20 + 40) * scale;
+      const y = rect.y + (rect.height - 180 * scale) / 2 + (30 + 35) * scale;
+      const top = document.elementFromPoint(x, y);
+      const tile = stage.closest('.debrief-cam-tile');
+      return !!top && (stage.contains(top) || (tile && tile.contains(top)));
     }, null, { timeout: 15000 });
     const host = page.locator('[data-camera-stage="cam0"]').first();
+    await host.scrollIntoViewIfNeeded();
     await page.screenshot({ path: `${shotDir}/vision-overlay.png` });
-    const centers = await page.evaluate(() => {
-      const stage = document.querySelector('[data-camera-stage="cam0"]');
-      const img = stage.querySelector('img');
-      const rect = img.getBoundingClientRect();
-      const scale = Math.min(rect.width / 320, rect.height / 180);
-      const ox = rect.x + (rect.width - 320 * scale) / 2;
-      const oy = rect.y + (rect.height - 180 * scale) / 2;
-      const center = (box) => ({ x: ox + (box[0] + box[2] / 2) * scale, y: oy + (box[1] + box[3] / 2) * scale });
-      return { person: center([20, 30, 80, 70]), car: center([180, 50, 90, 50]) };
-    });
     await page.evaluate(() => {
       const img = document.querySelector('[data-api="cam0"] .debrief-cam-live');
       setInterval(() => {
@@ -216,7 +218,21 @@ describe('vision track overlay', () => {
     });
     const before = lockPosts;
     for (let n = 0; n < 500; n += 1) {
-      const point = n % 2 === 0 ? centers.person : centers.car;
+      let point = null;
+      for (let attempt = 0; attempt < 25 && !point; attempt += 1) {
+        point = await page.evaluate((which) => {
+          const stage = document.querySelector('[data-camera-stage="cam0"]');
+          const rect = stage?.getBoundingClientRect();
+          if (!rect || rect.width < 40 || rect.height < 40) return null;
+          const scale = Math.min(rect.width / 320, rect.height / 180);
+          const ox = rect.x + (rect.width - 320 * scale) / 2;
+          const oy = rect.y + (rect.height - 180 * scale) / 2;
+          const box = which === 0 ? [20, 30, 80, 70] : [180, 50, 90, 50];
+          return { x: ox + (box[0] + box[2] / 2) * scale, y: oy + (box[1] + box[3] / 2) * scale };
+        }, n % 2);
+        if (!point) await page.waitForTimeout(20);
+      }
+      if (!point) throw new Error('box center was not on screen');
       await page.mouse.click(point.x, point.y);
     }
     await expect.poll(() => lockPosts, { timeout: 20000 }).toBe(before + 500);
@@ -268,6 +284,7 @@ describe('vision track overlay', () => {
     const tileBox = await page.locator('.debrief-cam-tile[data-cam="cam0"]').boundingBox();
     await page.mouse.click((tileBox?.x || 0) + 3, (tileBox?.y || 0) + 3, { button: 'right' });
     await page.waitForSelector('#visionTrackMenu:not([hidden])');
+    await page.close();
   }, 180000);
 
   it('shows the empty line and no boxes when there is no stream', async () => {
@@ -355,18 +372,39 @@ describe('vision track overlay', () => {
     await page.goto(base, { waitUntil: 'domcontentloaded' });
     await page.click('[data-tab="optics"]');
     await page.evaluate(() => {
-      document.dispatchEvent(new CustomEvent('vlc-companion-cameras', {
-        detail: { cameras: { cam0: { camera_ok: true, enabled: true, state: 'streaming', fps: 15, has_frame: true, frame_count: 4, last_frame_age_ms: 20 } } },
-      }));
+      const detail = { cameras: { cam0: { camera_ok: true, enabled: true, state: 'streaming', fps: 15, has_frame: true, frame_count: 4, last_frame_age_ms: 20 } } };
+      const push = () => document.dispatchEvent(new CustomEvent('vlc-companion-cameras', { detail }));
+      push();
+      setInterval(push, 200);
     });
-    await page.waitForFunction(() => {
-      const stage = document.querySelector('[data-camera-stage="cam0"]');
-      const img = document.querySelector('[data-api="cam0"] .debrief-cam-live');
-      return stage?.dataset.visionTracks === '1,3'
-        && stage?.dataset.visionFrame === '1'
-        && img?.dataset.frameSeq === '1'
-        && stage.querySelector('.vision-box-layer')?.hidden !== true;
-    }, null, { timeout: 15000 });
+    try {
+      await page.waitForFunction(() => {
+        const stage = document.querySelector('[data-camera-stage="cam0"]');
+        const img = document.querySelector('[data-api="cam0"] .debrief-cam-live');
+        return stage?.dataset.visionTracks === '1,3'
+          && stage?.dataset.visionFrame === '1'
+          && img?.dataset.frameSeq === '1'
+          && stage.querySelector('.vision-box-layer')?.hidden !== true;
+      }, null, { timeout: 15000 });
+    } catch (err) {
+      const face = await page.evaluate(() => {
+        const stage = document.querySelector('[data-camera-stage="cam0"]');
+        const img = document.querySelector('[data-api="cam0"] .debrief-cam-live');
+        return {
+          tracks: stage?.dataset.visionTracks,
+          frame: stage?.dataset.visionFrame,
+          reason: stage?.dataset.visionReason,
+          shown: img?.dataset.frameSeq,
+          captured: img?.dataset.capturedAt,
+          hidden: img?.hidden,
+          nw: img?.naturalWidth,
+          stageW: stage?.clientWidth,
+          hit: stage?.querySelector('.vision-hit-layer')?.dataset.hit,
+          canvasHidden: stage?.querySelector('.vision-box-layer')?.hidden,
+        };
+      });
+      throw new Error(`${err.message} ${JSON.stringify(face)}`);
+    }
     published = 2;
     await page.waitForTimeout(700);
     const held = await page.evaluate(() => {

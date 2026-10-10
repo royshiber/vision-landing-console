@@ -120,8 +120,15 @@ export function layoutCameraPanes() {
   tiles.forEach((tile, index) => {
     const box = boxes[index];
     if (!box) return;
-    tile.style.width = `${Math.max(1, Math.floor(box.width))}px`;
-    tile.style.height = `${Math.max(1, Math.floor(box.height))}px`;
+    const w = Math.floor(box.width);
+    const h = Math.floor(box.height);
+    if ((w < 32 || h < 32) && areaWidth >= 160) {
+      tile.style.width = '';
+      tile.style.height = '';
+      return;
+    }
+    tile.style.width = `${Math.max(1, w)}px`;
+    tile.style.height = `${Math.max(1, h)}px`;
     tile.style.flex = '0 0 auto';
     tile.style.setProperty('--frame-aspect', String(box.aspect));
   });
@@ -342,7 +349,10 @@ function bind() {
     if (panel) watch.observe(panel);
   }
   document.querySelector('[data-tab="optics"]')?.addEventListener('click', () => {
-    requestAnimationFrame(() => layoutCameraPanes());
+    requestAnimationFrame(() => {
+      layoutCameraPanes();
+      requestAnimationFrame(() => layoutCameraPanes());
+    });
   });
 }
 

@@ -95,6 +95,21 @@ class VisionTrackTests(unittest.TestCase):
         self.assertEqual(body["tracks"], [])
         self.assertEqual(body["reason_he"], REASON_NO_STREAM)
         self.assertIs(body["stream"], False)
+        self.assertIsNone(body["frame_seq"])
+        self.assertIsNone(body["captured_at"])
+
+    def test_detection_reports_the_frame_it_saw(self):
+        width, height, rgb, _truth = sample_frame(1)
+        self.svc.configure({"enabled": True, "camera": "cam3"})
+        self.svc.push_frame("cam3", width, height, rgb, seq=41, captured_at=1_700_000_000_200)
+        body = self.svc.step()
+        self.assertEqual(body["frame_seq"], 41)
+        self.assertEqual(body["captured_at"], 1700000000200)
+        self.assertIn("truck", {row["class"] for row in body["tracks"]})
+        self.svc.push_frame("cam3", width, height, rgb, seq=42, captured_at=1_700_000_000_280)
+        body = self.svc.step()
+        self.assertEqual(body["frame_seq"], 42)
+        self.assertEqual(body["captured_at"], 1700000000280)
 
     def test_fixture_keeps_stable_ids_and_lock_cycle(self):
         manifest = _ensure_fixture()

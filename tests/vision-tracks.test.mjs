@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { framePoint, hitDrawnBox, hitTrack, mediaFit, placeMenuBox, selectFrameTracks, TRACK_POLL_MS, trackCaption, unwrapTracks, visionAskSnapshot } from '../public/modules/vision-tracks.mjs';
+import { FRAME_SYNC_TOLERANCE_MS, framePoint, hitDrawnBox, hitTrack, mediaFit, placeMenuBox, selectFrameTracks, TRACK_POLL_MS, trackCaption, unwrapTracks, visionAskSnapshot } from '../public/modules/vision-tracks.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -33,6 +33,11 @@ describe('vision track hit testing', () => {
     expect(selectFrameTracks(frame2, book, 2)).toEqual(frame2);
     expect(selectFrameTracks({ tracks: [{ id: 9 }] }, book, 2).tracks).toEqual([{ id: 9 }]);
     expect(selectFrameTracks(frame2, book, 0)).toEqual(frame2);
+    const late = { frame_seq: 9, captured_at: 5000, tracks: [{ id: 4, label_he: 'משאית' }] };
+    const emptyBook = new Map();
+    expect(selectFrameTracks(late, emptyBook, 11, 5000 + FRAME_SYNC_TOLERANCE_MS)).toEqual(late);
+    expect(selectFrameTracks(late, emptyBook, 11, 5000 + FRAME_SYNC_TOLERANCE_MS + 1)).toBeNull();
+    expect(selectFrameTracks(late, emptyBook, 11, 0)).toBeNull();
   });
 
   it('hits the topmost box and misses the gaps', () => {
