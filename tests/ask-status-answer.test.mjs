@@ -252,11 +252,11 @@ describe('offline Ask status answers', () => {
       ops_signals: { cameras: { cam0: true, cam1: false, cam3: true } },
     });
     expect(withGimbal.ops_signals.cameras).toEqual({ cam0: true, cam1: false, cam3: true });
-    expect(answerAskStatus('cameras', withGimbal)).toBe('קדמית משדרת. מטה אינה משדרת. גימבל משדר.');
+    expect(answerAskStatus('cameras', withGimbal)).toBe('מצלמה קדמית משדרת. מצלמת מטה אינה משדרת. מצלמת הגימבל משדרת.');
     expect(askStatusFacts(withGimbal).cameras.cam3).toBe(true);
     const legacy = buildAssistContext({ ops_signals: { cameras: { a8: true } } });
     expect(legacy.ops_signals.cameras).toEqual({ cam3: true });
-    expect(answerAskStatus('cameras', legacy)).toBe('גימבל משדר.');
+    expect(answerAskStatus('cameras', legacy)).toBe('אין נתון על הקדמית. אין נתון על המטה. מצלמת הגימבל משדרת.');
   });
 
   it('answers the FC question on the vision tab instead of a generic template', async () => {
