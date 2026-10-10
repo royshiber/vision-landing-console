@@ -1,5 +1,21 @@
 [
   {
+    "version": "1.02.418",
+    "date": "2026-10-10",
+    "changes": [
+      {
+        "type": "feat",
+        "title": "Server library",
+        "detail": "jetson-socks.mjs"
+      },
+      {
+        "type": "test",
+        "title": "Tests",
+        "detail": "halfclose-race.test.mjs, pool_starvation.test.mjs"
+      }
+    ]
+  },
+  {
     "version": "1.02.417",
     "date": "2026-10-10",
     "changes": [
