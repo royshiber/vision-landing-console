@@ -1187,6 +1187,140 @@ def extras_status_payload():
     }
 
 
+def _lite_cameras(raw):
+    out = {}
+    if not isinstance(raw, dict):
+        return out
+    for cam_id, row in raw.items():
+        if not isinstance(row, dict):
+            continue
+        out[str(cam_id)] = {
+            "id": str(cam_id),
+            "camera_ok": row.get("camera_ok") is True,
+            "present": row.get("present") is True,
+            "state": row.get("state"),
+            "fps": row.get("fps"),
+            "source": row.get("source") or "absent",
+            "enabled": row.get("enabled") is not False,
+            "last_frame_age_ms": row.get("last_frame_age_ms"),
+            "error": row.get("error") if isinstance(row.get("error"), str) else None,
+            "role": row.get("role"),
+            "dry_run": row.get("dry_run") is True,
+            "real": row.get("real") is True,
+        }
+    return out
+
+
+def status_lite_payload():
+    """Frequent poll. Same facts as /api/health, without the duplicated camera trees."""
+    _refresh_fc_link()
+    fc = fc_status_payload()
+    if not isinstance(fc, dict):
+        fc = {}
+    hb = fc.get("heartbeat") if isinstance(fc.get("heartbeat"), dict) else {}
+    validity = hb.get("validity") or fc.get("heartbeat_validity")
+    vision = vision_status_payload()
+    cameras = _lite_cameras(vision.get("cameras"))
+    landing = landing_status_payload()
+    video = video_status_payload()
+    modem = modem_status_payload()
+    connected = fc.get("connected") is True
+    return {
+        "ok": True,
+        "lite": True,
+        "timestamp": _now_ts(),
+        "companion_version": AGENT_VERSION,
+        "agentVersion": AGENT_VERSION,
+        "api_version": "1",
+        "observe_only": True,
+        "fc_linked": STATE.get("fc_linked") is True,
+        "fc_heartbeat": STATE.get("fc_heartbeat") is True,
+        "cpuLoadPct": STATE.get("cpuLoadPct"),
+        "memPct": STATE.get("memPct"),
+        "tempC": STATE.get("tempC"),
+        "system": {
+            "cpuLoadPct": STATE.get("cpuLoadPct"),
+            "cpu_percent": STATE.get("cpuLoadPct"),
+            "memPct": STATE.get("memPct"),
+            "tempC": STATE.get("tempC"),
+            "temperature_c": STATE.get("tempC"),
+        },
+        "fc": {
+            "connected": connected,
+            "status": fc.get("status"),
+            "armed": fc.get("armed"),
+            "mode": fc.get("mode"),
+            "heartbeat": {"validity": validity},
+            "last_heartbeat_age_ms": fc.get("last_heartbeat_age_ms"),
+        },
+        "mavlink": {
+            "connected": connected,
+            "heartbeat_ok": validity == "valid",
+            "router_running": STATE.get("fc_linked") is True,
+            "last_heartbeat": None if fc.get("last_heartbeat_age_ms") is None else {
+                "age_ms": fc.get("last_heartbeat_age_ms"),
+            },
+        },
+        "vision": {
+            "ok": True,
+            "camera_ok": vision.get("camera_ok") is True,
+            "running": vision.get("running") is True,
+            "health": vision.get("health"),
+            "fps": vision.get("fps"),
+            "source": vision.get("source") or "absent",
+            "source_id": vision.get("source_id"),
+            "dry_run": vision.get("dry_run") is True,
+            "real": vision.get("real") is True,
+            "last_frame_age_ms": vision.get("last_frame_age_ms"),
+            "frame_count": vision.get("frame_count"),
+            "cameras": cameras,
+        },
+        "optical_nav": {
+            "ok": True,
+            "present": False,
+            "running": False,
+            "camera_ok": vision.get("camera_ok") is True,
+            "position": None,
+            "velocity": None,
+            "display_only": True,
+            "ekf_injected": False,
+        },
+        "landing": {
+            "ok": True,
+            "source": landing.get("source"),
+            "validity": landing.get("validity"),
+            "runway_detector": landing.get("runway_detector") is True,
+            "runway_detected": landing.get("runway_detected"),
+            "present": landing.get("present") is True,
+            "target": landing.get("target"),
+        },
+        "video": {
+            "raw_pipeline": video.get("raw_pipeline"),
+            "annotated_pipeline": video.get("annotated_pipeline"),
+            "raw_fps": video.get("raw_fps"),
+            "available": video.get("available") is True,
+            "streamPresent": video.get("streamPresent") is True,
+            "reason": video.get("reason"),
+        },
+        "extras": {
+            "camera_ok": vision.get("camera_ok") is True,
+            "runway_detector": False,
+            "observe_only": True,
+        },
+        "modem": {
+            "present": modem.get("present") is True,
+            "state": modem.get("state"),
+            "reason": modem.get("reason"),
+            "reasonHe": modem.get("reasonHe"),
+            "statusFileMissing": modem.get("statusFileMissing") is True,
+            "iface": modem.get("iface"),
+            "source": modem.get("source"),
+        },
+        "gimbal": gimbal_status_payload(start=False),
+        "flight_log": flightlog_status_payload(),
+    }
+
+
 def status_payload():
     """Companion v1 status overlay. System gauges plus honest absent vision/landing."""
     _refresh_fc_link()
@@ -1381,6 +1515,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(code)
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(payload)))
+        self.send_header("Connection", "close" if self.close_connection else "keep-alive")
         for key, value in extra or ():
             self.send_header(key, value)
         self.end_headers()
@@ -1479,6 +1614,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Companion-Token")
         self.send_header("Access-Control-Max-Age", "600")
         self.send_header("Content-Length", "0")
+        self.send_header("Connection", "close" if self.close_connection else "keep-alive")
         self.end_headers()
         try:
             self.wfile.flush()
@@ -1509,6 +1645,8 @@ class Handler(BaseHTTPRequestHandler):
             "/api/v1/relay/heartbeat",
         ):
             return self._json(200, mavlink_status_payload())
+        if path in ("/api/status-lite", "/api/v1/status-lite"):
+            return self._json(200, status_lite_payload())
         if path in ("/api/health", "/api/v1/health"):
             # Console Status gauges read cpuLoadPct / memPct / tempC here when /api/v1/status is 404.
             # vision / landing / video / extras are honest absent overlays for Experiment #1.
