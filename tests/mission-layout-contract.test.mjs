@@ -463,8 +463,8 @@ describe('Mission layout contract — live boxes', () => {
     });
     expect(ask.micText).toContain('האזינו');
     expect(ask.micDisplay).not.toBe('none');
-    expect(ask.inputDisplay).toBe('none');
-    expect(ask.sendDisplay).toBe('none');
+    expect(ask.inputDisplay).not.toBe('none');
+    expect(ask.sendDisplay).not.toBe('none');
     expect(ask.talkW).toBeGreaterThan(120);
     expect(ask.hostW / ask.talkW).toBeGreaterThan(0.85);
     expect(ask.mapShare).toBeGreaterThanOrEqual(0.65);

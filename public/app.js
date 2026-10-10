@@ -9035,7 +9035,8 @@ function dockMissionAsk() {
   // ASK is a row under the header. It is not a child of the horizon,
   // so the horizon face stays altitude and speed only.
   const terrain = document.getElementById('terrain');
-  if (terrain && !terrain.dataset.askOpen) terrain.dataset.askOpen = '0';
+  const ws = document.querySelector('.mission-workspace');
+  if (terrain && !terrain.dataset.askOpen) terrain.dataset.askOpen = ws?.dataset.askOpen || '1';
 }
 
 function setMissionAskOpen(open) {
@@ -9059,6 +9060,7 @@ function initMissionAskToggle() {
   btn.addEventListener('click', () => {
     setMissionAskOpen(ws.dataset.askOpen !== '1');
   });
+  setMissionAskOpen(ws.dataset.askOpen !== '0');
   document.getElementById('missionAskCloseBtn')?.addEventListener('click', () => {
     setMissionAskOpen(false);
   });
@@ -19923,6 +19925,28 @@ function assistSyncProposalWarn() {
   warn.hidden = !_assistPendingProposalId || _assistAgentConnected;
 }
 
+function assistPaintLatest() {
+  const box = document.getElementById('askLatest');
+  const question = document.getElementById('askLatestQuestion');
+  const answer = document.getElementById('askLatestAnswer');
+  if (!box || !question || !answer) return;
+  let asked = '';
+  let replied = '';
+  for (let i = _assistHistory.length - 1; i >= 0; i -= 1) {
+    const row = _assistHistory[i];
+    const said = String(row?.text || '').trim();
+    if (!said) continue;
+    if (!replied && row.role !== 'user') replied = said;
+    if (!asked && row.role === 'user') asked = said;
+    if (asked && replied) break;
+  }
+  question.textContent = asked;
+  answer.textContent = replied;
+  question.hidden = !asked;
+  answer.hidden = !replied;
+  box.hidden = !asked && !replied;
+}
+
 function assistAppendMessage({ role, text, meta, kind, blocked }) {
   const box = document.getElementById('assistMessages');
   if (!box) return;
@@ -19937,6 +19961,7 @@ function assistAppendMessage({ role, text, meta, kind, blocked }) {
   _assistHistory.push({ role, text, meta, kind, ts: Date.now() });
   if (_assistHistory.length > 40) _assistHistory = _assistHistory.slice(-40);
   assistSyncMessagesEmpty();
+  assistPaintLatest();
 }
 
 function assistRenderCapabilityBrief(brief) {
@@ -20718,7 +20743,8 @@ function placeAssistSurface(tabId) {
     rail.hidden = false;
     document.body.classList.remove('assist-open');
     if (closeBtn) closeBtn.hidden = true;
-    toggle?.setAttribute('aria-expanded', 'true');
+    const askOn = (document.getElementById('terrain')?.dataset.askOpen || '1') !== '0';
+    toggle?.setAttribute('aria-expanded', askOn ? 'true' : 'false');
     void assistRefreshAgentConnection();
     return;
   }

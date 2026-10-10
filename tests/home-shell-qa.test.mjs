@@ -139,7 +139,7 @@ describe('home shell QA', () => {
     expect((await box(page, '#pfdModeVal')).text).toBe('—');
     expect((await box(page, '#hudFlightMode')).text).not.toMatch(/MANUAL/);
     const inputDisplay = await page.locator('#assistInput').evaluate((el) => getComputedStyle(el).display);
-    expect(inputDisplay).toBe('none');
+    expect(inputDisplay).not.toBe('none');
     const answer = await page.locator('#assistMessages, #assistTranscript, .assist-transcript').innerText().catch(() => '');
     expect(answer).not.toMatch(/MANUAL/);
     await page.screenshot({ path: path.join(shots, '1440-mode.png') });

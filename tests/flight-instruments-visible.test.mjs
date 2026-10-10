@@ -292,7 +292,7 @@ describe('flight instruments visible area', () => {
       };
     });
     expect(cover.talk).not.toBe('none');
-    expect(cover.input).toBe('none');
+    expect(cover.input).not.toBe('none');
     expect(cover.mic).toContain('האזינו');
     expect(cover.toggleOverlap).toBe(false);
     expect(cover.applyOverlap).toBe(false);

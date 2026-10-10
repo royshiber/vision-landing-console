@@ -112,7 +112,7 @@ describe('approved flight screen', () => {
     expect(face.disarm).toBe(false);
     expect(face.askData).toBe(false);
     expect(face.mic).toContain('האזינו');
-    expect(face.input).toBe('none');
+    expect(face.input).not.toBe('none');
     expect(face.rtl).toBe(false);
     expect(face.loiter).toBe(false);
     expect(face.auto).toBe(false);

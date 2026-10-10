@@ -374,6 +374,10 @@
           <textarea id="assistInput" class="assist-input" rows="1" maxlength="2000" dir="rtl" placeholder="שאלה, יועץ, פתק, או בקשת פיתוח…"></textarea>
           <button type="submit" id="assistSendBtn" class="assist-btn assist-btn-send">שלח</button>
         </form>
+        <div id="askLatest" class="ask-latest" hidden>
+          <p id="askLatestQuestion" class="ask-latest-question" hidden></p>
+          <p id="askLatestAnswer" class="ask-latest-answer" hidden></p>
+        </div>
       </div>
     </aside>
     </div>
@@ -2273,7 +2277,7 @@
           </div>
           <button type="button" id="missionReadinessGlance" class="mission-readiness-glance" title="מוכנות">מוכנות</button>
           <div class="mission-layout-bar">
-            <button type="button" id="missionAskToggleBtn" class="mission-layout-btn" title="שאלה" aria-label="שאלו" aria-expanded="false" aria-controls="missionTalkHost">שאלו</button>
+            <button type="button" id="missionAskToggleBtn" class="mission-layout-btn" title="שאלה" aria-label="שאלו" aria-expanded="true" aria-controls="missionTalkHost">שאלו</button>
             <button type="button" id="missionSwapHorizonMapBtn" class="mission-layout-btn" title="החלף אופק ומפה" aria-label="החלף אופק ומפה">⇄</button>
             <button type="button" id="missionResetLayoutBtn" class="mission-layout-btn" title="איפוס סידור" aria-label="איפוס סידור">↺</button>
             <p id="missionLayoutHint" class="mission-layout-hint">גררו את הפינה לשינוי גודל. גררו כותרת להחלפה. גם בטיסה.</p>
@@ -2285,7 +2289,7 @@
           <p id="missionTalkHint" class="mission-talk-hint" hidden>דברו להטסה. אחרי ההפעלה, נחיתה ושינוי מצב מתבצעים בלי אישור נוסף. חימוש נשאר חסום, ושינוי פרמטר עדיין דורש אישור.</p>
           <div id="missionTalkHost" class="mission-talk-host" dir="rtl"></div>
         </section>
-        <div class="terrain-flight-shell mission-workspace" data-mission-layout="ops-v1" data-mission-swap="map-horizon" data-ask-open="0" data-mission-edit="on" data-layout-contract="v2">
+        <div class="terrain-flight-shell mission-workspace" data-mission-layout="ops-v1" data-mission-swap="map-horizon" data-ask-open="1" data-mission-edit="on" data-layout-contract="v2">
           <div id="missionColSplit" class="mission-split mission-split-col"></div>
           <div id="missionColSplitB" class="mission-split mission-split-col"></div>
           <div id="missionRowSplit" class="mission-split mission-split-row"></div>
