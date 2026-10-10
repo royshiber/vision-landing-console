@@ -477,9 +477,10 @@ describe('flight dock and map live', () => {
       expect(row.over).toBeLessThanOrEqual(1);
     }
     expect(narrow.tileSpread).toBeLessThanOrEqual(4);
-    fs.mkdirSync('/opt/cursor/artifacts', { recursive: true });
+    const shotDir = process.env.VLC_FLIGHT_DOCK_SHOTS || path.join(os.tmpdir(), 'vlc-flight-dock-shots');
+    fs.mkdirSync(shotDir, { recursive: true });
     await page.locator('[data-mission-region="horizon"]').screenshot({
-      path: '/opt/cursor/artifacts/flight-column-actions.png',
+      path: path.join(shotDir, 'flight-column-actions.png'),
     });
     await page.evaluate(() => {
       const ws = document.querySelector('.mission-workspace');
@@ -601,8 +602,9 @@ describe('flight dock and map live', () => {
       const box = map.getBoundingClientRect();
       showMapFlyToMenu(31.52, 34.87, box.right - 220, box.top + 24);
     });
-    fs.mkdirSync('/opt/cursor/artifacts/screenshots', { recursive: true });
-    await page.screenshot({ path: '/opt/cursor/artifacts/screenshots/gps-hover-and-plane.png' });
+    const hoverDir = process.env.VLC_FLIGHT_DOCK_SHOTS || path.join(os.tmpdir(), 'vlc-flight-dock-shots');
+    fs.mkdirSync(hoverDir, { recursive: true });
+    await page.screenshot({ path: path.join(hoverDir, 'gps-hover-and-plane.png') });
 
     await page.locator('#terrainFlightRecordBtn').evaluate((el) => el.click());
     await page.waitForFunction(() => document.getElementById('terrainFlightRecordState').textContent === 'מקליט');

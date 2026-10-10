@@ -322,28 +322,38 @@ describe('QA gate 14702a0', () => {
           const tile = label?.closest('.mission-data-tile');
           const tr = title.getBoundingClientRect();
           const parent = title.parentElement.getBoundingClientRect();
-          const tileR = tile.getBoundingClientRect();
+          const tiles = [...document.querySelectorAll('.mission-region-data .mission-data-tile')];
+          const value = document.getElementById('hudFlightMode');
+          const overlaps = tiles.some((node) => {
+            const b = node.getBoundingClientRect();
+            return tr.left < b.right - 1 && tr.right > b.left + 1 && tr.top < b.bottom - 1 && tr.bottom > b.top + 1;
+          });
           return {
             title: title.textContent.trim(),
-            titleInside: tr.left >= parent.left - 1 && tr.right <= parent.right + 1 && tr.top >= parent.top - 1,
+            titleInside: tr.left >= parent.left - 1 && tr.right <= parent.right + 1 && tr.top >= parent.top - 1 && tr.width > 20,
             readable: Number(getComputedStyle(title).zIndex) >= 3 && getComputedStyle(title).overflow !== 'hidden',
+            overlaps,
             oneLine: label.getClientRects().length <= 1,
             fits: label.scrollWidth <= label.clientWidth + 1,
+            valueLines: value ? value.getClientRects().length : 0,
           };
         });
         expect(fit.title).toBe('נתונים');
         expect(fit.titleInside).toBe(true);
         expect(fit.readable).toBe(true);
+        expect(fit.overlaps).toBe(false);
         expect(fit.oneLine).toBe(true);
         expect(fit.fits).toBe(true);
       }
-      await page.setViewportSize({ width: 1280, height: 720 });
-      const scroll = await page.evaluate(() => {
-        openFlightCommMenu('cellular');
-        const menu = document.getElementById('flightCommMenu');
-        return menu.scrollHeight - menu.clientHeight;
-      });
-      expect(scroll).toBeLessThan(8);
+      for (const [width, height] of [[1280, 720], [1024, 640]]) {
+        await page.setViewportSize({ width, height });
+        const scroll = await page.evaluate(() => {
+          openFlightCommMenu('cellular');
+          const menu = document.getElementById('flightCommMenu');
+          return menu.scrollHeight - menu.clientHeight;
+        });
+        expect(scroll, `${width}x${height}`).toBeLessThan(8);
+      }
     }, 30000);
 
     it('accepts the mock companion down-camera frame', async () => {

@@ -520,12 +520,31 @@ const fcGroupDraft = {};
 const fcDraftMeta = {};
 let fcChangeLog = [];
 
+function fcParamDecimals(meta) {
+  const ends = fcRangeEnds(meta?.range);
+  if (!ends) return null;
+  const places = (text) => {
+    const match = String(text).match(/\.(\d+)/);
+    return match ? match[1].length : 0;
+  };
+  return Math.max(places(ends.min), places(ends.max));
+}
+
+function formatFcParamNumber(value, meta) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return value == null ? '' : String(value);
+  const places = fcParamDecimals(meta);
+  if (places == null) return String(Number(n.toPrecision(7)));
+  return n.toFixed(places);
+}
+
 function fcPresence(key) {
   if (!fcCurrentSnapshot || typeof fcCurrentSnapshot !== 'object') return { state: 'unknown', text: 'לא ידוע' };
   if (!Object.prototype.hasOwnProperty.call(fcCurrentSnapshot, key)) return { state: 'missing', text: 'חסר' };
   const value = fcCurrentSnapshot[key];
   if (value == null || value === '') return { state: 'unknown', text: 'לא ידוע' };
-  return { state: 'present', text: String(value) };
+  const text = typeof value === 'number' ? formatFcParamNumber(value, fcParamMeta[key]) : String(value);
+  return { state: 'present', text };
 }
 
 function currentCatalogGroup() {
@@ -876,8 +895,10 @@ function renderFcGroupList() {
   if (!keys.length) {
     const empty = document.createElement('li');
     empty.className = 'fc-group-empty';
+    const rawQuery = String(arduSearchQuery || '').trim();
+    const keyLike = /^[A-Za-z][A-Za-z0-9_]*$/.test(rawQuery);
     empty.textContent = query
-      ? 'אין התאמה בקבוצה'
+      ? (keyLike ? `לא נמצא בבקר: ${rawQuery}` : 'אין התאמה בקבוצה')
       : (group.id === 'all' && unread ? 'אין חיבור' : 'אין פרמטרים בקבוצה');
     list.appendChild(empty);
   }
@@ -8863,7 +8884,7 @@ function drawHorizon(canvas, rollDeg, pitchDeg, opts = {}) {
   paintCornerLabel(pitchText, W - 4, 'right');
   ctx.restore();
 }
-const GPS_FIX_LABELS = ['אין GPS', 'אין Fix', '2D Fix', '3D Fix', 'DGPS', 'RTK Float', 'RTK קבוע'];
+const GPS_FIX_LABELS = ['אין GPS', 'אין קיבוע', 'קיבוע 2D', '3D Fix', 'DGPS', 'RTK צף', 'RTK קבוע'];
 
 const FLIGHT_ARM_HOLD_MS = 1500;
 const FLIGHT_ARM_CONFIRM_HE = 'אשרו חימוש';
@@ -12966,8 +12987,8 @@ function terrainPlaneDivIcon(hdgDeg, fixType, held) {
   return L.divIcon({
     className: 'terrain-plane-icon-wrap',
     html: `<div class="terrain-plane-stack"${heldAttr}><div class="terrain-plane-rot" style="transform:rotate(${rot}deg)">${MP_PLANE_SVG}</div>${chipHtml}</div>`,
-  iconSize: [48, chip ? 62 : 48],
-  iconAnchor: [24, chip ? 46 : 24],
+    iconSize: [48, 48],
+    iconAnchor: [24, 24],
   });
 }
 

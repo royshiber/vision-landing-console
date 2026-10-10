@@ -553,6 +553,19 @@ function payloadFor(camera) {
   return cache.get(camera) || emptyPayload(REASON_NO_STREAM);
 }
 
+function horizonShownCamera(doc) {
+  const checked = doc.querySelector('[data-horizon-cam][aria-checked="true"]');
+  const picked = checked?.dataset?.horizonCam || '';
+  if (picked && picked !== 'none') return picked === 'a8' ? 'cam3' : picked;
+  const imgs = doc.querySelectorAll('#horizonCameraBg, .pfd-horizon-camera');
+  for (const img of imgs) {
+    if (img.hidden || !(Number(img.naturalWidth) > 0)) continue;
+    const slot = img.dataset.horizonSlot || img.closest('[data-horizon-slot]')?.dataset.horizonSlot || '';
+    if (slot && slot !== 'none') return slot === 'a8' ? 'cam3' : slot;
+  }
+  return '';
+}
+
 function mediaOf(host) {
   const nodes = host.querySelectorAll('img, video');
   for (const node of nodes) {
@@ -684,12 +697,14 @@ export function paintHost(host, payload, { kind = 'tile' } = {}) {
   const layer = host.querySelector(':scope > .vision-hit-layer');
   const note = host.querySelector(':scope > .vision-box-note');
   const camera = kind === 'horizon'
-    ? (payload?.selected_camera || selectedCamera() || host.dataset.visionCamera || 'cam3')
+    ? (horizonShownCamera(doc) || payload?.camera || payload?.selected_camera || selectedCamera() || host.dataset.visionCamera || 'cam3')
     : (host.dataset.visionCamera || payload?.camera || '');
   host.dataset.visionCamera = camera;
   const showHorizon = kind !== 'horizon' || horizonMediaOn(host);
-  const reason = payload?.reason_he || '';
-  const tracks = showHorizon && !reason ? (payload?.tracks || []) : [];
+  const shown = kind === 'horizon' ? cache.get(camera) : null;
+  const off = shown && (shown.enabled === false || shown.reason_he === REASON_OFF);
+  const reason = off ? (shown.reason_he || REASON_OFF) : (payload?.reason_he || '');
+  const tracks = showHorizon && !reason && !off ? (payload?.tracks || []) : [];
   const lockId = payload?.lock?.id;
   host.dataset.visionReason = showHorizon ? reason : '';
   host.dataset.visionFrame = payload?.frame_seq ? String(payload.frame_seq) : '';
@@ -840,10 +855,19 @@ function applyBundledTracks(host, detail) {
   const payload = detail?.tracks;
   if (!host || !payload || typeof payload !== 'object') return;
   const stage = host.dataset.cameraStage || '';
+  const shownHorizon = stage === 'horizon' ? horizonShownCamera(host.ownerDocument) : '';
   const camera = stage && stage !== 'horizon'
     ? stage
-    : (payload.camera || host.dataset.visionCamera || selectedCamera() || '');
+    : (shownHorizon || payload.camera || host.dataset.visionCamera || '');
   if (!camera) return;
+  if (stage === 'horizon' && payload.camera && payload.camera !== camera) return;
+  if (stage === 'horizon') {
+    const status = cache.get(camera);
+    if (status && (status.enabled === false || status.reason_he === REASON_OFF)) {
+      paintHost(host, { ...status, tracks: [], camera }, { kind: 'horizon' });
+      return;
+    }
+  }
   const seq = Number(detail.seq) || Number(payload.frame_seq) || 0;
   const capturedAt = Number(detail.capturedAt) || Number(payload.captured_at) || 0;
   if (seq > 0 && !tracksMatchFrame(payload, seq, capturedAt)) return;
@@ -892,11 +916,18 @@ function rememberFrame(camera, payload) {
 
 function paintAll(doc) {
   for (const item of hostList(doc)) {
-    const camera = item.kind === 'horizon' ? (selectedCamera() || '') : item.camera;
+    const camera = item.kind === 'horizon' ? horizonShownCamera(doc) : item.camera;
     const latest = camera ? payloadFor(camera) : emptyPayload(REASON_OFF);
     if (item.kind === 'horizon' && !camera) {
-      paintHost(item.host, emptyPayload(REASON_OFF), item);
+      paintHost(item.host, emptyPayload(''), item);
       continue;
+    }
+    if (item.kind === 'horizon' && camera) {
+      const status = cache.get(camera);
+      if (status && (status.enabled === false || status.reason_he === REASON_OFF)) {
+        paintHost(item.host, { ...status, tracks: [], camera }, item);
+        continue;
+      }
     }
     const chosen = tracksForShownFrame(
       latest,

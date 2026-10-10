@@ -285,7 +285,7 @@ describe('Parameters tab layout contract — live boxes', () => {
         return keys.includes('EK3_ENABLE') && !keys.includes('GPS_TYPE');
       });
       await page.fill('#arduParamSearchInput', 'ZZZNOMATCH');
-      await page.waitForFunction(() => document.querySelector('#fcGroupList .fc-group-empty')?.textContent === 'אין התאמה בקבוצה');
+      await page.waitForFunction(() => document.querySelector('#fcGroupList .fc-group-empty')?.textContent === 'לא נמצא בבקר: ZZZNOMATCH');
       await page.click('#arduParamSearchClearBtn');
       await page.waitForSelector('#fcGroupList [data-param-key="GPS_TYPE"]');
 

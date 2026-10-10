@@ -122,6 +122,7 @@ describe('three-camera proportions and tile delete', () => {
       };
     });
     await page.locator('[data-mission-data-slot="1"]').click({ button: 'right' });
+    await page.locator('#missionDataTileDelete').click();
     const after = await page.evaluate(() => {
       const tile = document.querySelector('[data-mission-data-slot="1"]');
       const picker = document.getElementById('missionDataPicker');
@@ -244,6 +245,7 @@ describe('three-camera proportions and tile delete', () => {
     expect(second.pickerOpen).toBe(false);
 
     await page.locator('[data-mission-data-slot="7"]').click({ button: 'right' });
+    await page.locator('#missionDataTileDelete').click();
     const deleted = await page.evaluate(() => ({
       hidden: document.querySelector('[data-mission-data-slot="7"]').hidden,
       urls: window.__vlcFetchUrls,

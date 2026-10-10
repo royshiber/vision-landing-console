@@ -55,7 +55,7 @@ function loadSlotFns() {
     sliceFunction(js, 'readMissionDataSlots'),
     sliceFunction(js, 'writeMissionDataSlots'),
     sliceFunction(js, 'suggestMissionDataFields'),
-    'const GPS_FIX_LABELS = ["אין GPS", "אין Fix", "2D Fix", "3D Fix", "DGPS", "RTK Float", "RTK קבוע"];',
+    'const GPS_FIX_LABELS = ["אין GPS", "אין קיבוע", "קיבוע 2D", "3D Fix", "DGPS", "RTK צף", "RTK קבוע"];',
     'const ARDUPILOT_PLANE_MODES = { 0: "MANUAL" };',
     sliceFunction(js, 'shortMissionLinkReadout'),
     sliceFunction(js, 'getPayloadValue'),

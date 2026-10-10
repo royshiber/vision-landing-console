@@ -144,6 +144,12 @@ function pumpFor(tile) {
       const img = tile.querySelector('.debrief-cam-live');
       const note = tile.querySelector('.debrief-cam-nosignal');
       if (!img || tile.hidden) return;
+      const real = Number(img.naturalWidth) >= 16 && Number(img.naturalHeight) >= 16;
+      if (!real) {
+        img.dataset.seen = '';
+        applyFramePresentation(tile, img, note, { showImage: false, showNote: true });
+        return;
+      }
       if (tile.dataset.mono === '1') img.classList.add('is-mono');
       img.dataset.seen = String(Date.now());
       img.dataset.misses = '0';

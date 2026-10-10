@@ -30,7 +30,7 @@ describe('GPS hover tooltip', () => {
 
   it('omits missing fields and the whole GPS2 block', () => {
     const text = formatGpsHoverTooltip({ fixType: 2, sats: null, hdop: null, ageMs: null });
-    expect(text).toBe('GPS\n2D Fix');
+    expect(text).toBe('GPS\nקיבוע 2D');
     expect(text).not.toContain('GPS2');
     expect(text).not.toContain('HDOP');
     expect(text).not.toContain('לוויינים');
