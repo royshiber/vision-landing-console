@@ -202,6 +202,10 @@ def parse_zoom(data):
     return raw / 10.0
 
 
+# SIYI 0x20 stream_type: 0 recording, 1 main, 2 sub.
+CODEC_STREAM_NAME = {0: "record", 1: "main", 2: "sub"}
+
+
 def parse_codec_specs(data):
     """Read-only SIYI codec block. 0x20, nine bytes per stream. Never a set."""
     raw = bytes(data or b"")
@@ -211,9 +215,10 @@ def parse_codec_specs(data):
         stream_type, enc, width, height, bitrate, fps = struct.unpack_from("<BBHHHB", raw, off)
         if width <= 0 or height <= 0 or width > 8192 or height > 8192:
             break
+        kind = int(stream_type)
         rows.append({
-            "stream": "main" if stream_type == 0 else "sub" if stream_type == 1 else str(int(stream_type)),
-            "stream_type": int(stream_type),
+            "stream": CODEC_STREAM_NAME.get(kind, str(kind)),
+            "stream_type": kind,
             "codec": {1: "h264", 2: "h265"}.get(int(enc), str(int(enc))),
             "width": int(width),
             "height": int(height),

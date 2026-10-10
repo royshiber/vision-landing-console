@@ -140,8 +140,8 @@ class SiyiGimbalCommandTests(unittest.TestCase):
         self.assertIn("גימבל", body["message"])
 
     def test_codec_poll_reads_and_never_sets(self):
-        main = struct.pack("<BBHHHB", 0, 1, 1920, 1080, 4000, 30)
-        sub = struct.pack("<BBHHHB", 1, 1, 640, 360, 512, 25)
+        main = struct.pack("<BBHHHB", 1, 1, 1920, 1080, 4000, 30)
+        sub = struct.pack("<BBHHHB", 2, 1, 640, 360, 512, 25)
         parsed = parse_codec_specs(main + sub)
         self.assertEqual(parsed[0]["stream"], "main")
         self.assertEqual(parsed[0]["codec"], "h264")
@@ -167,10 +167,23 @@ class SiyiGimbalCommandTests(unittest.TestCase):
         self.assertEqual(link.codec[0]["height"], 1080)
         status = link.public_status()
         self.assertFalse(status["codec_writable"])
+        self.assertEqual(status["codec"][0]["stream"], "main")
+        self.assertEqual(status["codec"][0]["stream_type"], 1)
         self.assertEqual(status["codec"][1]["stream"], "sub")
+        self.assertEqual(status["codec"][1]["stream_type"], 2)
         code, body = link.command("rate", {"yaw": 1, "pitch": 0})
         self.assertEqual(code, 403)
         self.assertFalse(body["sent"])
+
+    def test_codec_stream_numbers_are_record_main_sub(self):
+        record = struct.pack("<BBHHHB", 0, 1, 1920, 1080, 6000, 30)
+        main = struct.pack("<BBHHHB", 1, 2, 1280, 720, 2500, 25)
+        sub = struct.pack("<BBHHHB", 2, 1, 640, 360, 512, 15)
+        parsed = parse_codec_specs(record + main + sub)
+        self.assertEqual([row["stream_type"] for row in parsed], [0, 1, 2])
+        self.assertEqual([row["stream"] for row in parsed], ["record", "main", "sub"])
+        self.assertEqual(parsed[1]["codec"], "h265")
+        self.assertEqual(parsed[2]["fps"], 15)
 
     def test_captured_a8_frames_accept_a_seq_that_does_not_match(self):
         attitude = decode_packet(A8_ATTITUDE_SEQ_MISMATCH)
@@ -224,6 +237,8 @@ class SiyiGimbalCommandTests(unittest.TestCase):
         codec_req = next(decode_packet(pkt) for pkt, _addr in sock.sent if decode_packet(pkt)["cmd"] == CMD_CODEC)
         self.assertEqual(codec_req["data"], bytes([CODEC_STREAM_MAIN]))
         self.assertNotEqual(codec["seq"], codec_req["seq"])
+        self.assertEqual(link.codec[0]["stream"], "main")
+        self.assertEqual(link.codec[0]["stream_type"], 1)
         self.assertEqual(link.codec[0]["width"], 1920)
         self.assertEqual(link.codec[0]["height"], 1080)
         self.assertEqual(link.codec[0]["bitrate_kbps"], 2500)
