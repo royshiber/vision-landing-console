@@ -26955,10 +26955,25 @@ button.mission-link-chip,
 #terrain[data-ask-open="1"] #missionTalkHost .assist-btn-send {
   display: flex !important;
 }
+#terrain[data-ask-open="1"] #missionTalkHost .assist-form {
+  flex-flow: row wrap;
+  align-items: center;
+}
+#terrain[data-ask-open="1"] #missionTalkHost .assist-mic-btn {
+  flex: 1 0 100%;
+  width: auto;
+  max-width: none;
+  min-width: 0;
+  height: 32px;
+  min-height: 32px;
+}
 #terrain[data-ask-open="1"] #missionTalkHost .assist-input {
   display: block !important;
+  flex: 1 1 auto;
   min-height: 36px;
-  width: 100%;
+  min-width: 0;
+  width: auto;
+  max-width: none;
 }
 #terrain[data-ask-open="1"] #missionAskCloseBtn {
   display: inline-flex;
