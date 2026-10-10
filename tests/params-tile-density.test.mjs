@@ -183,7 +183,7 @@ describe('Parameter tiles are dense and not behind a filter wall', () => {
       expect(row.hasSlider, `${label} ${row.key}`).toBe(true);
       expect(row.hasLock, `${label} ${row.key}`).toBe(true);
       expect(row.text, `${label} ${row.key}`).toContain('דיפולט');
-      expect(row.text, `${label} ${row.key}`).toMatch(/בבקר|במחשב המשימה|שמור בקונסולה/);
+      expect(row.text, `${label} ${row.key}`).toMatch(/נשמר בקונסולה|לא נשמר עדיין/);
       expect(row.text, `${label} ${row.key}`).toContain('ערך חדש');
       expect(row.textFails, `${label} ${row.key}`).toEqual([]);
       expect(contrast(row.titleColor, [27, 40, 60]), `${label} ${row.key}`).toBeGreaterThanOrEqual(4.5);
@@ -224,7 +224,7 @@ describe('Parameter tiles are dense and not behind a filter wall', () => {
     expect(after.faultHidden).toBe(true);
     expect(after.faultText).not.toMatch(/צמצמו|יותר מדי|עדיין אין פרמטרים/);
     expect(after.rows.length).toBe(data.rows.length);
-    expect(after.rows.find((row) => row.key === 'flare_alt_m').text).toContain('חסר');
+    expect(after.rows.find((row) => row.key === 'flare_alt_m').text).toContain('לא נשמר עדיין');
     expect(after.rows.find((row) => row.key === 'flare_alt_m').text).not.toContain('אין חיבור');
   }, 40000);
 
@@ -248,65 +248,36 @@ describe('Parameter tiles are dense and not behind a filter wall', () => {
 
   it('starts the profile grid inside a 390x740 first paint', async () => {
     await openParams(390, 740);
-    await page.waitForFunction(() => document.querySelectorAll('#plndProfileHonestyKeys .plnd-honesty-key').length >= 5);
+    await page.waitForFunction(() => document.querySelectorAll('#paramsGrid .param-card').length >= 5);
     const layout = await page.evaluate(() => {
       const strip = document.getElementById('plndProfileHonestyKeys');
-      const stripBox = strip.getBoundingClientRect();
-      const tiles = [...strip.querySelectorAll('.plnd-honesty-key')].map((el) => {
-        const box = el.getBoundingClientRect();
-        return {
-          key: el.dataset.paramKey,
-          w: box.width,
-          h: box.height,
-          top: box.top,
-          text: el.innerText,
-        };
-      });
+      const cards = [...document.querySelectorAll('#paramsGrid .param-card')].slice(0, 5).map((el) => el.innerText);
       const grid = document.getElementById('paramsGrid').getBoundingClientRect();
       const firstCard = document.querySelector('#paramsGrid .param-card')?.getBoundingClientRect();
       return {
-        tiles,
-        stripOverflow: strip.scrollWidth - strip.clientWidth,
-        stripOverflowX: getComputedStyle(strip).overflowX,
+        stripDisplay: getComputedStyle(strip).display,
+        cards,
         gridTop: grid.top,
         cardTop: firstCard ? firstCard.top : 9999,
         innerH: window.innerHeight,
         writeDisabled: document.getElementById('arduWriteBtn')?.disabled === true,
         faultHidden: document.getElementById('paramToolFault')?.hidden === true,
         faultText: document.getElementById('paramToolFaultText')?.textContent || '',
-        stripTop: stripBox.top,
       };
     });
-    expect(layout.tiles.length).toBeGreaterThanOrEqual(5);
-    expect(Math.max(...layout.tiles.map((tile) => tile.w)) - Math.min(...layout.tiles.map((tile) => tile.w))).toBeLessThanOrEqual(2);
-    expect(Math.max(...layout.tiles.map((tile) => tile.h)) - Math.min(...layout.tiles.map((tile) => tile.h))).toBeLessThanOrEqual(4);
-    expect(Math.max(...layout.tiles.map((tile) => tile.top)) - Math.min(...layout.tiles.map((tile) => tile.top))).toBeLessThanOrEqual(2);
-    expect(layout.stripOverflow).toBeGreaterThan(8);
-    expect(layout.stripOverflowX).toBe('auto');
-    for (const tile of layout.tiles) {
-      expect(tile.text, tile.key).toContain('דיפולט');
-      expect(tile.text, tile.key).toContain('אין חיבור');
+    expect(layout.stripDisplay).toBe('none');
+    expect(layout.cards.length).toBeGreaterThanOrEqual(5);
+    for (const text of layout.cards) {
+      expect(text).toContain('דיפולט');
+      expect(text).toContain('לא נשמר עדיין');
     }
-    expect(layout.gridTop).toBeGreaterThan(layout.stripTop);
+    expect(layout.gridTop).toBeGreaterThan(0);
     expect(layout.gridTop).toBeLessThan(layout.innerH);
     expect(layout.cardTop).toBeLessThan(740);
     expect(layout.writeDisabled).toBe(true);
     expect(layout.faultHidden).toBe(true);
     expect(layout.faultText).not.toMatch(/צמצמו|יותר מדי|עדיין אין פרמטרים/);
     await page.screenshot({ path: path.join(shotDir, 'params-390-first.png'), fullPage: false });
-
-    const last = layout.tiles[layout.tiles.length - 1].key;
-    await page.locator(`#plndProfileHonestyKeys [data-param-key="${last}"]`).scrollIntoViewIfNeeded();
-    const revealed = await page.evaluate((key) => {
-      const strip = document.getElementById('plndProfileHonestyKeys');
-      const tile = strip.querySelector(`[data-param-key="${key}"]`);
-      const stripBox = strip.getBoundingClientRect();
-      const box = tile.getBoundingClientRect();
-      const visible = box.right > stripBox.left + 8 && box.left < stripBox.right - 8;
-      return { visible, text: tile.innerText };
-    }, last);
-    expect(revealed.visible).toBe(true);
-    expect(revealed.text).toContain('אין חיבור');
 
     await page.locator('#paramsGrid .param-card .param-info').first().click();
     const open = await page.locator('#paramInfoPopup').evaluate((el) => ({
@@ -325,12 +296,13 @@ describe('Parameter tiles are dense and not behind a filter wall', () => {
 
   it('keeps honesty tiles equal at 1024x600 and paints help above the params tab', async () => {
     await openParams(1024, 600);
-    await page.waitForFunction(() => document.querySelectorAll('#plndProfileHonestyKeys .plnd-honesty-key').length >= 5);
+    await page.waitForFunction(() => document.querySelectorAll('#paramsGrid .param-card').length >= 5);
     const layout = await page.evaluate(() => {
-      const tiles = [...document.querySelectorAll('#plndProfileHonestyKeys .plnd-honesty-key')].map((el) => {
+      const strip = document.getElementById('plndProfileHonestyKeys');
+      const cards = [...document.querySelectorAll('#paramsGrid .param-card')].slice(0, 6).map((el) => {
         const box = el.getBoundingClientRect();
         const textFails = [];
-        for (const node of el.querySelectorAll('p, span, button, label')) {
+        for (const node of el.querySelectorAll('p, span, button, label, h3')) {
           if (getComputedStyle(node).display === 'none') continue;
           if (node.scrollWidth > node.clientWidth + 1 || node.scrollHeight > node.clientHeight + 1) {
             textFails.push((node.className || node.tagName).toString().slice(0, 40));
@@ -341,7 +313,8 @@ describe('Parameter tiles are dense and not behind a filter wall', () => {
       const grid = document.getElementById('paramsGrid').getBoundingClientRect();
       const firstCard = document.querySelector('#paramsGrid .param-card')?.getBoundingClientRect();
       return {
-        tiles,
+        stripDisplay: getComputedStyle(strip).display,
+        cards,
         gridTop: grid.top,
         cardTop: firstCard ? firstCard.top : 9999,
         innerH: window.innerHeight,
@@ -349,22 +322,18 @@ describe('Parameter tiles are dense and not behind a filter wall', () => {
         faultHidden: document.getElementById('paramToolFault')?.hidden === true,
       };
     });
-    expect(layout.tiles.length).toBeGreaterThanOrEqual(5);
-    const widths = layout.tiles.map((tile) => tile.w);
-    const heights = layout.tiles.map((tile) => tile.h);
-    expect(Math.max(...widths) - Math.min(...widths)).toBeLessThanOrEqual(2);
-    expect(Math.max(...heights) - Math.min(...heights)).toBeLessThanOrEqual(4);
-    expect(Math.max(...widths)).toBeLessThan(320);
-    for (const tile of layout.tiles) expect(tile.textFails, tile.key).toEqual([]);
+    expect(layout.stripDisplay).toBe('none');
+    expect(layout.cards.length).toBeGreaterThanOrEqual(5);
+    for (const card of layout.cards) expect(card.textFails, card.key).toEqual([]);
     expect(layout.gridTop).toBeGreaterThan(0);
     expect(layout.gridTop).toBeLessThan(layout.innerH);
     expect(layout.cardTop).toBeLessThan(layout.innerH);
     expect(layout.writeDisabled).toBe(true);
     expect(layout.faultHidden).toBe(true);
-    for (let i = 0; i < layout.tiles.length; i += 1) {
-      for (let j = i + 1; j < layout.tiles.length; j += 1) {
-        const a = layout.tiles[i];
-        const b = layout.tiles[j];
+    for (let i = 0; i < layout.cards.length; i += 1) {
+      for (let j = i + 1; j < layout.cards.length; j += 1) {
+        const a = layout.cards[i];
+        const b = layout.cards[j];
         const overlap = a.left < b.right - 1 && a.right > b.left + 1 && a.top < b.bottom - 1 && a.bottom > b.top + 1;
         expect(overlap, `${a.key} ${b.key}`).toBe(false);
       }

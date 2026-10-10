@@ -59,4 +59,26 @@ describe('pulse camera slots stay fixed', () => {
     const down = board.step({ mode: 'real', reachable: false }, now);
     expect(down.cards[0].pill).toBe('לא מגיב');
   });
+
+  it('dims a frame older than 3s and never calls a 25s frame משדר', () => {
+    const board = createPulseCameraHold({ now: () => 0, fails: 3, failMs: 10000 });
+    const aged = {
+      mode: 'real',
+      reachable: true,
+      vision: {
+        cameras: {
+          cam0: { id: 'cam0', state: 'streaming', fps: 24, last_frame_age_ms: 4000 },
+          cam1: { id: 'cam1', state: 'streaming', fps: 24, last_frame_age_ms: 25000 },
+        },
+      },
+    };
+    const out = board.step(aged, 0);
+    const cam0 = out.cards.find((card) => card.id === 'cam0');
+    const cam1 = out.cards.find((card) => card.id === 'cam1');
+    expect(cam0.pill).toBe('משדר');
+    expect(cam0.dim).toBe(true);
+    expect(cam1.pill).toBe('לא מגיב');
+    expect(cam1.dim).toBe(true);
+    expect(cam1.ageLabel).toContain('לפני');
+  });
 });

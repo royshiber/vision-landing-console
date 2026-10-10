@@ -13714,8 +13714,8 @@ html[data-evolve-preview="1"] #development {
 }
 
 .terrain-compass-svg {
-  width: 108px;
-  height: 108px;
+  width: 72px;
+  height: 72px;
   cursor: grab;
   display: block;
   border-radius: 50%;
@@ -13750,6 +13750,7 @@ html[data-evolve-preview="1"] #development {
 }
 
 .compass-deg-label {
+  display: none;
   font-size: clamp(11px, 9px, 8rem);
   font-weight: 700;
   font-family: "Space Grotesk", "Heebo", ui-monospace, monospace;
@@ -26349,9 +26350,9 @@ button.mission-link-chip,
   max-height: none;
 }
 .mission-workspace[data-mission-layout="ops-v1"] .mission-region-horizon .flight-dock-cmds > .flight-dock-cmd {
-  min-height: 28px;
-  height: 28px;
-  max-height: 28px;
+  min-height: 42px;
+  height: 42px;
+  max-height: 42px;
   padding: 2px 4px;
 }
 .mission-data-hint-anchor {
@@ -26672,9 +26673,9 @@ button.mission-link-chip,
   overflow-y: auto;
 }
 .mission-workspace .mission-region-horizon .flight-dock-cmds > .flight-dock-cmd {
-  min-height: 28px;
-  height: 28px;
-  max-height: 28px;
+  min-height: 42px;
+  height: 42px;
+  max-height: 42px;
 }
 .mission-region-horizon > .flight-hud > #flightArmRow {
   display: flex !important;
@@ -26757,10 +26758,219 @@ button.mission-link-chip,
   flex: 0 1 auto;
   height: auto;
   min-height: 112px;
-  max-height: calc(100% - 280px);
+  max-height: calc(100% - 340px);
 }
 .mission-region-horizon[data-flight-stack="half"] > .mission-region-messages[data-flight-dock="actions"],
 .mission-region-horizon:not([data-flight-stack="custom"]) > .mission-region-messages[data-flight-dock="actions"] {
-  flex: 1 1 180px;
-  min-height: 168px;
+  flex: 1 1 220px;
+  min-height: 220px;
+}
+
+.mission-region-horizon .flight-hud {
+  min-height: 52%;
+  max-height: calc(100% - var(--mission-data-h, 72px));
+  flex: 1 1 auto;
+}
+.optics-context .optics-calib-board,
+.optics-context a.optics-calib-board,
+#opticsContext .optics-calib-board {
+  color: #f8fafc;
+  background: #0b1220;
+  font-weight: 800;
+  text-decoration: underline;
+}
+.optics-stepper {
+  display: inline-flex;
+  flex-flow: row nowrap;
+  align-items: center;
+  gap: 4px;
+  vertical-align: middle;
+}
+.optics-context details > summary,
+.optics-field-group > summary {
+  cursor: pointer;
+  font-weight: 800;
+  color: #f8fafc;
+}
+.optics-context .optics-field-group:not([open]) > :not(summary),
+.optics-context .cam0-calib:not([open]) > :not(summary) {
+  display: none;
+}
+.debrief-cam-tile[data-cam="cam3"] .debrief-cam-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.debrief-cam-tile[data-cam="cam3"] .debrief-cam-chip {
+  position: static;
+  top: auto;
+  inset-inline-start: auto;
+  margin: 0;
+}
+.flight-comm-menu {
+  width: 320px;
+  min-width: 320px;
+  max-width: 320px;
+  max-height: min(360px, calc(100vh - 80px));
+  overflow: auto;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px;
+}
+.flight-comm-menu .flight-comm-link,
+.flight-comm-menu .flight-comm-action {
+  padding: 3px 8px;
+}
+.flight-comm-menu .flight-comm-detail {
+  gap: 2px;
+}
+.flight-comm-menu .flight-menu-desc {
+  margin: 0;
+}
+.terrain-map-shell { position: relative; }
+.terrain-return-btn {
+  position: absolute;
+  z-index: 500;
+  top: 8px;
+  inset-inline-start: 8px;
+  min-height: 32px;
+  padding: 4px 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #0b1220;
+  color: #f8fafc;
+  font-size: 13px;
+  font-weight: 800;
+}
+.terrain-return-btn[hidden] { display: none; }
+.pfd-horizon-nosignal,
+.horizon-cam-tile-note {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  right: auto;
+  bottom: auto;
+  transform: translate(-50%, -50%);
+  z-index: 12;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: max-content;
+  max-width: calc(100% - 16px);
+  margin: 0;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: rgba(11, 18, 32, 0.92);
+  color: #f8fafc;
+  font-size: 13px;
+  font-weight: 800;
+  text-align: center;
+}
+.pulse-cam-card[data-dim="1"] { opacity: 0.62; }
+.mission-ops-chrome > * { min-width: 0; }
+.mission-layout-hint { white-space: normal; overflow-wrap: anywhere; }
+#terrain.panel.visible { max-width: 100%; overflow-x: clip; }
+.mission-region-horizon .mission-region-data > .mission-region-title {
+  position: absolute;
+  top: 0;
+  inset-inline-start: 4px;
+  width: auto;
+  height: 18px;
+  margin: 0;
+  padding: 0;
+  overflow: visible;
+  clip: auto;
+  color: #e2e8f0;
+  font-size: 11px;
+  line-height: 18px;
+}
+.mission-data-add {
+  position: absolute;
+  z-index: 5;
+  top: 0;
+  inset-inline-end: 42px;
+  height: 18px;
+  margin: 0;
+  padding: 0 6px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: #0b1220;
+  color: #f8fafc;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 16px;
+}
+#control.panel.visible #plndProfileHonestyKeys {
+  display: none;
+}
+#visionConfigReadBtn,
+#arduReadBtn {
+  background: #0c4a6e;
+  border-color: #7dd3fc;
+  color: #f0f9ff;
+}
+#visionConfigWriteBtn,
+#arduWriteBtn {
+  background: #14532d;
+  border-color: #86efac;
+  color: #dcfce7;
+}
+#terrain[data-ask-open="0"] > .mission-region[data-mission-region="talk"],
+.mission-workspace[data-ask-open="0"] .mission-region[data-mission-region="talk"] {
+  display: none;
+  height: 0;
+  min-height: 0;
+  flex: 0 0 0;
+  overflow: hidden;
+  padding: 0;
+  margin: 0;
+  border: 0;
+}
+#terrain[data-ask-open="1"] > .mission-region[data-mission-region="talk"] {
+  display: flex;
+  flex-direction: column;
+  position: absolute;
+  z-index: 40;
+  top: 52px;
+  inset-inline-end: 8px;
+  width: min(360px, calc(100% - 16px));
+  margin: 0;
+  height: 240px;
+  min-height: 240px;
+  max-height: 240px;
+  overflow: auto;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
+}
+#terrain[data-ask-open="1"] > .mission-region[data-mission-region="talk"] > .mission-region-title {
+  display: none;
+}
+#terrain[data-ask-open="1"] #missionTalkHost,
+#terrain[data-ask-open="1"] #missionTalkHost .assist-rail {
+  flex: 1 1 auto;
+  min-height: 180px;
+  height: auto;
+}
+#terrain[data-ask-open="1"] #missionTalkHost .assist-rail-head,
+#terrain[data-ask-open="1"] #missionTalkHost .assist-composer,
+#terrain[data-ask-open="1"] #missionTalkHost .assist-btn-send {
+  display: flex !important;
+}
+#terrain[data-ask-open="1"] #missionTalkHost .assist-input {
+  display: block !important;
+  min-height: 36px;
+  width: 100%;
+}
+#terrain[data-ask-open="1"] #missionAskCloseBtn {
+  display: inline-flex;
+  align-self: flex-start;
+  margin: 4px 8px 0;
+}
+.mission-workspace[data-ask-open="1"] .mission-region[data-mission-region="talk"] {
+  position: relative;
+  top: auto;
+  bottom: auto;
+  left: auto;
+  width: 100%;
+  height: auto;
+  max-height: 240px;
 }

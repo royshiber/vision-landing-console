@@ -597,7 +597,7 @@
           <header class="pulse-hero">
             <h3 class="pulse-title">סטטוס מחשבים</h3>
             <p class="pulse-purpose">סטטוס מחשבים</p>
-            <p class="pulse-health-note">בריאות מחשב המשימה והכלי. לא שינוי מוצר.</p>
+            <p class="pulse-health-note">בריאות מחשב המשימה והכלי. תצוגת בריאות בלבד.</p>
           </header>
           <section id="pulseCameraCards" class="pulse-cam-row" aria-label="מצלמות" data-link="down">
             <article class="pulse-cam-card" data-link="down" data-tone="off">
@@ -962,8 +962,8 @@
         <div id="paramCenterSearchBar" class="param-center-search-bar" role="search" aria-label="חיפוש פרמטרים">
           <div class="ardu-search-row">
             <input id="arduParamSearchInput" type="search" placeholder="חיפוש פרמטר" dir="rtl" title="חיפוש לפי שם או תיאור" />
-            <button type="button" id="arduParamSearchBtn" class="btn-secondary-lg" title="חיפוש לפי שם/תיאור">חפש</button>
-            <button type="button" id="arduParamSearchClearBtn" class="btn-secondary-lg" title="נקה חיפוש">נקה</button>
+            <button type="button" id="arduParamSearchBtn" class="btn-secondary-lg" title="חיפוש לפי שם/תיאור">חפשו</button>
+            <button type="button" id="arduParamSearchClearBtn" class="btn-secondary-lg" title="נקו חיפוש">נקו</button>
             <button type="button" id="arduParamSmartSearchBtn" class="btn-primary-lg" title="חיפוש חכם לפי טקסט חופשי עם Gemini">חיפוש חכם</button>
           </div>
           <div id="arduSearchStatus" class="vision-config-status param-center-search-status" aria-live="polite"></div>
@@ -1112,9 +1112,8 @@
                 <div class="debrief-cam-stage" data-camera-stage="cam3">
                   <img class="debrief-cam-live debrief-cam-media" alt="" hidden />
                   <p class="debrief-cam-nosignal">אין אות</p>
-                  <p class="debrief-cam-chip" hidden>אין מענה</p>
                 </div>
-                <figcaption class="debrief-cam-label">גימבל</figcaption>
+                <figcaption class="debrief-cam-label"><span>גימבל</span><p class="debrief-cam-chip" hidden>אין מענה</p></figcaption>
               </figure>
             </div>
           </div>
@@ -2271,7 +2270,7 @@
           </div>
           <button type="button" id="missionReadinessGlance" class="mission-readiness-glance" title="מוכנות">מוכנות</button>
           <div class="mission-layout-bar">
-            <button type="button" id="missionAskToggleBtn" class="mission-layout-btn" title="שאלה" aria-label="שאלה" aria-expanded="false" aria-controls="missionTalkHost">שאל</button>
+            <button type="button" id="missionAskToggleBtn" class="mission-layout-btn" title="שאלה" aria-label="שאלו" aria-expanded="false" aria-controls="missionTalkHost">שאלו</button>
             <button type="button" id="missionSwapHorizonMapBtn" class="mission-layout-btn" title="החלף אופק ומפה" aria-label="החלף אופק ומפה">⇄</button>
             <button type="button" id="missionResetLayoutBtn" class="mission-layout-btn" title="איפוס סידור" aria-label="איפוס סידור">↺</button>
             <p id="missionLayoutHint" class="mission-layout-hint">גררו את הפינה לשינוי גודל. גררו כותרת להחלפה. גם בטיסה.</p>
@@ -2369,9 +2368,10 @@
             <div id="flightStackSplitData" class="flight-stack-split" role="separator" aria-orientation="horizontal" aria-label="גובה הנתונים" tabindex="0"></div>
             <section class="mission-region mission-region-data" data-mission-region="data" aria-label="נתונים">
             <h3 class="mission-region-title" draggable="true">נתונים</h3>
+            <button type="button" id="missionDataAddBtn" class="mission-data-add">הוסיפו נתון</button>
             <button type="button" id="missionAskDataBtn" class="mission-ask-chip">שאלו על הנתונים</button>
             <div class="mission-data-hint-anchor">
-              <button type="button" id="missionDataHintBtn" class="mission-data-hint-btn" aria-describedby="missionDataHintTip" title="קליק ימני על אריח מוסיף או מוחק. לחיצה ארוכה או קליק בוחרים שדה.">עזרה</button>
+              <button type="button" id="missionDataHintBtn" class="mission-data-hint-btn" aria-describedby="missionDataHintTip" aria-label="עזרה" title="קליק ימני על אריח מוסיף או מוחק. לחיצה ארוכה או קליק בוחרים שדה.">?</button>
               <p id="missionDataHintTip" class="mission-data-hint-tip" role="tooltip">קליק ימני על אריח מוסיף או מוחק. לחיצה ארוכה או קליק בוחרים שדה.</p>
             </div>
             <dl id="missionDataGrid" class="mission-data-grid" aria-label="מדדי טיסה">
@@ -2504,6 +2504,7 @@
               <div id="terrainMapRotatable" class="terrain-map-rotatable">
                 <div id="terrainMap"></div>
               </div>
+              <button type="button" id="terrainReturnBtn" class="terrain-return-btn" hidden>חזרו למטוס</button>
             </div>
             <div id="gimbalScreen" class="gimbal-screen" hidden data-corner="bl" data-gimbal-root="1">
               <div class="gimbal-screen-bar" id="gimbalScreenDrag" title="גררו לפינה">
@@ -2582,7 +2583,7 @@
           </div>
 
           <div id="flightColumnMenu" class="flight-column-menu" hidden role="menu" aria-label="פריסת העמודה">
-            <button type="button" id="flightStackResetBtn" class="flight-column-menu-item" role="menuitem">אפסו פריסה</button>
+            <button type="button" id="flightStackResetBtn" class="flight-column-menu-item" role="menuitem">אפסו סידור</button>
           </div>
           <div id="missionDataTileMenu" class="mission-data-tile-menu hidden" role="menu" aria-label="אריח נתון">
             <button type="button" id="missionDataTileAdd" class="mission-data-tile-menu-item" role="menuitem">הוסיפו נתון<span class="horizon-menu-desc">מחליף את הנתון באריח הזה</span></button>
@@ -2930,7 +2931,7 @@
                 <span class="fe-notes-title">פנקס הטיסה</span>
                 <span class="fe-notes-caption">פתקים לסשן הנוכחי</span>
               </div>
-              <button type="button" id="feClearNotesBtn" class="fe-icon-btn fe-icon-btn--ghost" title="נקה פנקס">נקה</button>
+              <button type="button" id="feClearNotesBtn" class="fe-icon-btn fe-icon-btn--ghost" title="נקו פנקס">נקו</button>
             </div>
             <div id="feNotesList" class="fe-notes-list" role="list"></div>
             <div class="fe-notes-add">

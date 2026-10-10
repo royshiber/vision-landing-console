@@ -259,8 +259,8 @@ describe('תחקור archive sessions UI contract', () => {
     expect(render).toContain('ARCHIVE_SESSIONS_EMPTY_HE');
     expect(js).toContain('נקטע');
     expect(js).toContain('ריק');
-    expect(render).toContain('העתק נתיב');
-    expect(render).toContain('הורדה');
+    expect(render).toContain('העתיקו נתיב');
+    expect(render).toContain('הורידו');
     expect(render).toContain('אין קובץ');
     expect(js).toContain("function copyArchiveSessionPath(");
     const applyDebrief = sliceFunction(js, 'applyDebriefSubtab');
@@ -268,7 +268,7 @@ describe('תחקור archive sessions UI contract', () => {
   });
 
   it('pins APP_VERSION at 1.02.377', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.377'");
-    expect(pkg.version).toBe('1.02.377');
+    expect(version).toContain("export const APP_VERSION = '1.02.415'");
+    expect(pkg.version).toBe('1.02.415');
   });
 });

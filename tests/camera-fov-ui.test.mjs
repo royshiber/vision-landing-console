@@ -57,7 +57,15 @@ describe('camera FOV controls', () => {
     const valueOf = (id) => page.evaluate((fieldId) => document.getElementById(fieldId).value, id);
     await page.goto(BASE, { waitUntil: 'domcontentloaded' });
     await page.click('[data-tab="optics"]');
-    await page.waitForSelector('#cam0Fov');
+    await page.waitForSelector('.debrief-cam-tile[data-cam="cam0"]');
+    await page.click('.debrief-cam-tile[data-cam="cam0"]', { button: 'right' });
+    await page.waitForFunction(() => document.getElementById('cam0Fov'));
+    await page.evaluate(() => {
+      const field = document.getElementById('cam0Fov');
+      const group = field?.closest('details');
+      if (group) group.open = true;
+    });
+    await page.waitForSelector('#opticsContext #cam0Fov', { state: 'visible' });
     const defaults = await page.evaluate(() => ({
       cam0: document.querySelector('#cam0Fov').value,
       cam1: document.querySelector('#cam1Fov').value,
@@ -92,7 +100,7 @@ describe('camera FOV controls', () => {
     expect(cam1.hidden).toBe(false);
     await page.reload({ waitUntil: 'domcontentloaded' });
     await page.click('[data-tab="optics"]');
-    await page.waitForSelector('#cam0Fov');
+    await page.waitForFunction(() => document.getElementById('cam0Fov') && document.getElementById('cam1Fov'));
     expect(await valueOf('cam0Fov')).toBe('100');
     expect(await valueOf('cam1Fov')).toBe('79');
     await page.close();

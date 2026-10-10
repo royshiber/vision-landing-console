@@ -31,21 +31,22 @@ describe('parameter read labels the real source', () => {
     ];
     expect(profileLivePresentation('vision_enable_alt_m', keys)).toEqual({
       text: '12',
-      kicker: 'במחשב המשימה',
+      kicker: 'נשמר בקונסולה',
     });
     expect(profileLivePresentation('WPNAV_SPEED', keys)).toEqual({
       text: '500',
-      kicker: 'בבקר',
+      kicker: 'נשמר בקונסולה',
     });
     expect(profileLivePresentation('flare_alt_m', keys)).toEqual({
-      text: 'חסר',
-      kicker: 'בבקר',
+      text: 'לא נשמר עדיין',
+      kicker: 'נשמר בקונסולה',
     });
     expect(profileLivePresentation('missing_key', keys)).toEqual({
-      text: 'חסר',
-      kicker: 'בבקר',
+      text: 'לא נשמר עדיין',
+      kicker: 'נשמר בקונסולה',
     });
     expect(profileLivePresentation('missing_key', keys).text).not.toBe('אין חיבור');
+    expect(profileLivePresentation('missing_key', keys).kicker).not.toBe('בבקר');
     expect(js).toContain('renderParams();');
   });
 });

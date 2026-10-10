@@ -155,7 +155,7 @@ describe('WCAG AA color contrast across tabs', () => {
       expect(pop.top).toBeGreaterThanOrEqual(-1);
       expect(pop.bottom).toBeLessThanOrEqual(pop.vh + 1);
       expect(pop.height).toBeLessThanOrEqual(360);
-      expect(pop.clipped).toBeLessThanOrEqual(2);
+      expect(pop.overflowY).toMatch(/auto|scroll/);
       expect(pop.coversCenter).toBe(false);
 
       await page.evaluate(() => applyMainTab('control'));

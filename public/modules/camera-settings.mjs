@@ -52,6 +52,9 @@ export function bindOpticsSteppers(root = document) {
     wrap.dataset.bound = '1';
     const sync = () => {
       wrap.querySelectorAll('.optics-step').forEach((btn) => { btn.disabled = input.disabled; });
+      const empty = input.disabled && String(input.value || '') === '';
+      input.placeholder = empty ? '—' : '';
+      if (empty && !input.title) input.title = 'אין נתון מהמצלמה';
     };
     sync();
     if (typeof MutationObserver === 'function') {
@@ -84,16 +87,16 @@ export function cameraSettingsHtml(camId) {
   const detectDisabled = cameraControlSupported(camId, 'detections') ? '' : ' disabled';
   const detectChecked = cameraControlSupported(camId, 'detections') ? ' checked' : '';
   return `<div class="cam0-controls optics-groups">
-    <div class="optics-field-group" data-settings-group="exposure">
-      <p class="optics-field-kicker">חשיפה</p>
+    <details class="optics-field-group" data-settings-group="exposure" open>
+      <summary class="optics-field-kicker">חשיפה</summary>
       <label class="cam0-check"><input type="checkbox" id="${camId}Ae" disabled /> <span class="optics-field-name">חשיפה אוטומטית</span></label>
       <p id="${camId}AeLock" class="optics-field-note" hidden>${AE_LOCK_HE}</p>
       <span id="${camId}ApplyBadge" class="optics-apply-badge" hidden></span>
       <label><span class="optics-field-name">חשיפה</span> ${opticsNumber(`<input id="${camId}Exposure" type="number" min="10" max="100001" step="10" dir="ltr" disabled />`)}</label>
       <label><span class="optics-field-name">הגבר</span> ${opticsNumber(`<input id="${camId}Gain" type="number" min="16" max="256" step="1" dir="ltr" disabled />`)}</label>
-    </div>
-    <div class="optics-field-group" data-settings-group="image">
-      <p class="optics-field-kicker">תמונה</p>
+    </details>
+    <details class="optics-field-group" data-settings-group="image">
+      <summary class="optics-field-kicker">תמונה</summary>
       <label><span class="optics-field-name">זווית ראייה (מעלות)</span> ${opticsNumber(`<input id="${camId}Fov" type="number" min="20" max="180" step="1" dir="ltr" value="${fov}" title="${FOV_META_HE}" />`)} <span id="${camId}FovHint" class="optics-fov-hint" hidden>טווח 20–180°</span></label>
       <label><span class="optics-field-name">רזולוציה</span>
         <select id="${camId}Res" dir="ltr" disabled>
@@ -102,18 +105,18 @@ export function cameraSettingsHtml(camId) {
         </select>
       </label>
       <label><span class="optics-field-name">קצב יעד</span> ${opticsNumber(`<input id="${camId}FpsSet" type="number" min="1" max="60" step="1" dir="ltr" disabled />`)}</label>
-    </div>
-    <div class="optics-field-group" data-settings-group="record">
-      <p class="optics-field-kicker">הקלטה</p>
+    </details>
+    <details class="optics-field-group" data-settings-group="record">
+      <summary class="optics-field-kicker">הקלטה</summary>
       <button type="button" id="${camId}Record" class="cam0-btn" disabled>הקלטה</button>
       <span id="${camId}RecDot" class="cam0-rec" hidden>מקליט</span>
       <button type="button" id="${camId}Snap" class="cam0-btn" disabled>צילום</button>
       <label class="cam0-check"><input type="checkbox" id="${camId}OverlayToggle"${detectChecked}${detectDisabled} /> <span class="optics-field-name">זיהויים</span></label>
       ${note(camId, 'record')}
       ${note(camId, 'detections')}
-    </div>
-    <section class="cam0-calib" id="${camId}Calib" aria-label="כיול" data-settings-group="calibration" data-phase="idle">
-      <h4>כיול</h4>
+    </details>
+    <details class="cam0-calib" id="${camId}Calib" aria-label="כיול" data-settings-group="calibration" data-phase="idle">
+      <summary class="optics-field-kicker">כיול</summary>
       <label><span class="optics-field-name">פינות</span> ${opticsNumber(`<input id="${camId}CalibCols" type="number" min="3" max="15" step="1" dir="ltr" value="9" />`)} <span>×</span> ${opticsNumber(`<input id="${camId}CalibRows" type="number" min="3" max="15" step="1" dir="ltr" value="6" />`)}</label>
       <label><span class="optics-field-name">צלע מ״מ</span> ${opticsNumber(`<input id="${camId}CalibSquare" type="number" min="5" max="100" step="1" dir="ltr" value="25" />`)}</label>
       <button type="button" id="${camId}CalibStart" class="cam0-btn" disabled>התחל כיול</button>
@@ -123,7 +126,7 @@ export function cameraSettingsHtml(camId) {
       <a id="${camId}CalibBoard" class="optics-calib-board" href="/docs/calibration-board.pdf">לוח להדפסה</a>
       <p id="${camId}CalibHint" class="optics-field-note" hidden></p>
       <p id="${camId}CalibState" class="cam0-calib-state">עדיין אין כיול.</p>
-    </section>
+    </details>
   </div>`;
 }
 

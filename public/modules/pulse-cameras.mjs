@@ -97,6 +97,22 @@ export function formatPulseCameraAge(ms) {
   return `${(ms / 1000).toFixed(1)} s`;
 }
 
+function applyStale(card, ageMs) {
+  if (!Number.isFinite(ageMs)) return card;
+  if (ageMs >= 10000) {
+    const sec = Math.max(1, Math.round(ageMs / 1000));
+    return {
+      ...card,
+      pill: 'לא מגיב',
+      tone: 'bad',
+      dim: true,
+      ageLabel: card.ageLabel || `לפני ${sec} שנ׳`,
+    };
+  }
+  if (ageMs >= 3000) return { ...card, dim: true };
+  return card;
+}
+
 function cardTone(streaming, error) {
   if (streaming === true && error) return 'warn';
   if (streaming === true) return 'ok';
@@ -219,14 +235,15 @@ export function createPulseCameraHold({
         if (!next) {
           pending.delete(id);
           if (prev && !sustained) {
-            const age = Math.max(1, Math.round((at - prev.at) / 1000));
-            return {
+            const ageMs = Math.max(0, at - prev.at);
+            const age = Math.max(1, Math.round(ageMs / 1000));
+            return applyStale({
               ...prev,
               held: true,
               tone: 'off',
               ageLabel: `לפני ${age} שנ׳`,
               pill: pillFor(prev.streaming),
-            };
+            }, ageMs);
           }
           const quiet = sustained ? (link.pill || 'לא מגיב') : 'אין נתון';
           return {
@@ -251,18 +268,19 @@ export function createPulseCameraHold({
           pending.set(id, { streaming: next.streaming, streak, since });
           const committed = streak >= fails || (at - since) >= failMs;
           if (!committed) {
-            const age = Math.max(1, Math.round((at - prev.at) / 1000));
-            return {
+            const ageMs = Math.max(0, at - prev.at);
+            const age = Math.max(1, Math.round(ageMs / 1000));
+            return applyStale({
               ...prev,
               held: true,
               ageLabel: `לפני ${age} שנ׳`,
               pill: pillFor(prev.streaming),
-            };
+            }, ageMs);
           }
         }
         pending.delete(id);
         last.set(id, { ...next, at });
-        return { ...next, held: false, ageLabel: null, pill: pillFor(next.streaming) };
+        return applyStale({ ...next, held: false, ageLabel: null, pill: pillFor(next.streaming) }, next.ageMs);
       });
       return { cards, live: !sustained, collapsed: false };
     },
@@ -287,6 +305,7 @@ function ensurePulseCard(host, id) {
 function paintFixedCard(art, card) {
   art.dataset.tone = card.tone || 'off';
   art.dataset.held = card.held ? '1' : '0';
+  art.dataset.dim = card.dim ? '1' : '0';
   if (card.streaming === true) art.dataset.streaming = 'true';
   else if (card.streaming === false) art.dataset.streaming = 'false';
   else delete art.dataset.streaming;

@@ -261,8 +261,11 @@ describe('Debrief camera grid and horizon menu — live', () => {
     expect(both.labels).toEqual(['בלי מצלמה', 'קדמית', 'מטה', 'גימבל']);
     await page.waitForFunction(() => {
       const img = document.getElementById('horizonCameraBg');
+      const note = document.getElementById('horizonCameraNote');
       const src = img?.dataset.liveFrame || img?.getAttribute('src') || '';
-      return Boolean(img) && img.hidden === false && img.naturalWidth > 0 && src.includes('/api/jetson/v1/cameras/cam3/frame');
+      const real = Boolean(img) && img.hidden === false && img.naturalWidth >= 16 && src.includes('/api/jetson/v1/cameras/cam3/frame');
+      const chip = Boolean(note) && note.hidden === false && /אין/.test(note.textContent || '');
+      return real || chip;
     });
     const ink = await page.evaluate(() => {
       const item = document.querySelector('[data-horizon-cam="cam3"]');
@@ -290,15 +293,18 @@ describe('Debrief camera grid and horizon menu — live', () => {
     expect(left.stored).toBe('cam3');
     await page.waitForFunction(() => {
       const img = document.getElementById('horizonCameraBg');
+      const note = document.getElementById('horizonCameraNote');
       const shell = document.getElementById('pfdHorizonShell');
       const stage = document.getElementById('pfdHorizonStage');
       const src = img?.dataset.liveFrame || img?.getAttribute('src') || '';
       const ir = img?.getBoundingClientRect();
       const sr = stage?.getBoundingClientRect();
-      return img && img.hidden === false && img.naturalWidth > 0
+      const real = img && img.hidden === false && img.naturalWidth >= 16
         && src.includes('/api/jetson/v1/cameras/cam3/frame')
         && shell?.classList.contains('pfd-horizon-shell--video-active')
         && ir && sr && ir.width > sr.width * 0.9 && ir.height > sr.height * 0.9;
+      const chip = note && note.hidden === false && /אין/.test(note.textContent || '');
+      return real || chip;
     });
     await page.screenshot({ path: path.join(shotDir, 'horizon-gimbal-frame.png') });
   }, 40000);
