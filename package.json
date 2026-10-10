@@ -1,6 +1,6 @@
 {
   "name": "vision-landing-console",
-  "version": "1.02.417",
+  "version": "1.02.418",
   "private": true,
   "type": "module",
   "description": "Vision Landing Console — camera-based landing workflow with MAVLink, Jetson agent and Gemini advisor",
@@ -47,6 +47,9 @@
     "socks": "^2.8.10",
     "socks-proxy-agent": "^10.1.0",
     "ws": "^8.21.3"
+  },
+  "engines": {
+    "node": "20.x"
   },
   "devDependencies": {
     "@apidevtools/swagger-parser": "^12.1.0",

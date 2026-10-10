@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import http from 'node:http';
 import {
+  SLOW_SOCKET_GRACE_MS,
   closeCompanionHttpPools,
   directKeepAliveAgent,
   directStreamAgent,
@@ -162,4 +163,29 @@ describe('companion short-request pool', () => {
       closeServer(server);
     }
   });
+
+  it('drops a socket that never answers after the grace period', async () => {
+    const server = http.createServer((req, res) => {
+      if (String(req.url).includes('hang')) return;
+      res.writeHead(200, { 'Content-Length': 2 });
+      res.end('{}');
+    });
+    const port = await listen(server);
+    const base = `http://127.0.0.1:${port}`;
+    try {
+      const errs = await Promise.all([1, 2, 3, 4].map((i) => (
+        jetsonFetch(`${base}/api/v1/hang?${i}`, { signal: AbortSignal.timeout(400) }, { env: {} })
+          .then(() => 'ok', (err) => err.name)
+      )));
+      expect(errs).toEqual(['AbortError', 'AbortError', 'AbortError', 'AbortError']);
+      await new Promise((r) => setTimeout(r, SLOW_SOCKET_GRACE_MS + 400));
+      const started = Date.now();
+      const res = await jetsonFetch(`${base}/api/v1/status-lite`, { signal: AbortSignal.timeout(2000) }, { env: {} });
+      expect(await res.text()).toBe('{}');
+      expect(Date.now() - started).toBeLessThan(1000);
+    } finally {
+      closeCompanionHttpPools();
+      closeServer(server);
+    }
+  }, 15_000);
 });

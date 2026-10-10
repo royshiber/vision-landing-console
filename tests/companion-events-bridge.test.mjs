@@ -367,6 +367,34 @@ describe('companion event bridge', () => {
     vi.useRealTimers();
   });
 
+  it('caps the status backoff so a recovery is reachable within 2s', async () => {
+    vi.useFakeTimers();
+    let down = true;
+    const getFullSnapshot = vi.fn(async () => {
+      if (down) throw new CompanionApiError({ kind: 'connection', message: 'ECONNREFUSED' });
+      return structuredClone(healthyCompanionStatus());
+    });
+    const client = {
+      kind: 'real',
+      eventsUrl: () => 'http://jetson:8472/api/v1/events',
+      getFullSnapshot,
+    };
+    const bridge = createCompanionEventBridge({ client, mode: 'real', pollMs: 1000 });
+    await bridge.start();
+    expect(bridge.getOverlay().companion.reachable).toBe(false);
+    await vi.advanceTimersByTimeAsync(1000);
+    await vi.advanceTimersByTimeAsync(2000);
+    const beforeRecovery = getFullSnapshot.mock.calls.length;
+    await vi.advanceTimersByTimeAsync(1999);
+    expect(getFullSnapshot.mock.calls.length).toBe(beforeRecovery);
+    down = false;
+    await vi.advanceTimersByTimeAsync(1);
+    expect(getFullSnapshot.mock.calls.length).toBe(beforeRecovery + 1);
+    expect(bridge.getOverlay().companion.reachable).toBe(true);
+    bridge.stop();
+    vi.useRealTimers();
+  });
+
   it('falls back to poll when the events stream is not implemented on the client', async () => {
     vi.useFakeTimers();
     const getFullSnapshot = vi.fn(async () => structuredClone(healthyCompanionStatus()));
