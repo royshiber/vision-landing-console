@@ -3,11 +3,14 @@ import fs from 'fs';
 import path from 'path';
 import { EventEmitter } from 'events';
 import {
+  closeCompanionHttpPools,
+  directKeepAliveAgent,
   isTailscaleCgnatHost,
   jetsonFetch,
   openJetsonWebSocket,
   openMavlinkTcpSocket,
   proxyRouteForTarget,
+  socksProxyAgentFor,
 } from '../lib/jetson-socks.mjs';
 
 const proxyEnv = { JETSON_SOCKS_PROXY: 'socks5h://127.0.0.1:1055' };
@@ -86,6 +89,30 @@ describe('Tailscale SOCKS routing', () => {
       destination: { host: '100.82.59.45', port: 5770 },
       proxy: expect.objectContaining({ host: '127.0.0.1', port: 1055, type: 5 }),
     }));
+  });
+
+  it('keeps one direct pool per origin and one SOCKS pool per base URL', () => {
+    const a = directKeepAliveAgent('http://127.0.0.1:8081/api/v1/health');
+    const b = directKeepAliveAgent('http://127.0.0.1:8081/api/status-lite');
+    const c = directKeepAliveAgent('http://127.0.0.1:8082/api/v1/health');
+    expect(a).toBe(b);
+    expect(a).not.toBe(c);
+    expect(a.keepAlive).toBe(true);
+    class RecordingAgent {
+      constructor(href, opts) {
+        this.href = href;
+        this.opts = opts;
+      }
+    }
+    const proxy = { href: 'socks5://127.0.0.1:1055' };
+    const left = socksProxyAgentFor(proxy, RecordingAgent, 'http://100.64.0.8:8081');
+    const leftAgain = socksProxyAgentFor(proxy, RecordingAgent, 'http://100.64.0.8:8081');
+    const right = socksProxyAgentFor(proxy, RecordingAgent, 'http://100.64.0.9:8081');
+    expect(left).toBe(leftAgain);
+    expect(left).not.toBe(right);
+    expect(left.opts.keepAlive).toBe(true);
+    expect(left.opts.keepAliveMsecs).toBe(30_000);
+    closeCompanionHttpPools();
   });
 
   it('attaches a SOCKS agent only to Tailscale websockets', () => {

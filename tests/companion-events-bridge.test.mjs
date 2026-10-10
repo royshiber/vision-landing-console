@@ -113,6 +113,49 @@ describe('companion event bridge', () => {
     expect(mapped.landing.lock_state).toBeNull();
   });
 
+  it('uses status-lite for the frequent poll and does not fetch the fat health body', async () => {
+    const lite = {
+      ok: true,
+      lite: true,
+      timestamp: { t_monotonic_ns: 1, t_utc_ns: 1 },
+      agentVersion: '2.6.5',
+      system: { cpuLoadPct: 9, memPct: 8, tempC: 7 },
+      fc_linked: true,
+      fc_heartbeat: false,
+    };
+    const getStatusLite = vi.fn(async () => lite);
+    const getHealth = vi.fn(async () => {
+      throw new Error('health should not be polled');
+    });
+    const bundle = await collectStatusBundle({ getStatusLite, getHealth, getStatus: getHealth });
+    expect(getStatusLite).toHaveBeenCalledOnce();
+    expect(getHealth).not.toHaveBeenCalled();
+    expect(bundle.lite).toBe(true);
+    expect(bundle.health.fc_linked).toBe(true);
+    expect(bundle.system.cpuLoadPct).toBe(9);
+    const again = await collectStatusBundle({ getStatusLite, getHealth, getStatus: getHealth });
+    expect(again.system.cpuLoadPct).toBe(9);
+    expect(getStatusLite).toHaveBeenCalledTimes(2);
+  });
+
+  it('falls back to health when status-lite is missing and remembers that', async () => {
+    const getStatusLite = vi.fn(async () => {
+      throw new CompanionApiError({ kind: 'http', status: 404, message: 'not found' });
+    });
+    const getHealth = vi.fn(async () => ({ ok: true, cpuLoadPct: 4, memPct: 5, tempC: 6, agentVersion: 'old' }));
+    const getStatus = vi.fn(async () => {
+      throw new CompanionApiError({ kind: 'http', status: 404, message: 'not found' });
+    });
+    const client = { getStatusLite, getHealth, getStatus };
+    const bundle = await collectStatusBundle(client);
+    expect(bundle.legacyHealth).toBe(true);
+    expect(bundle.system.cpuLoadPct).toBe(4);
+    expect(getStatusLite).toHaveBeenCalledOnce();
+    await collectStatusBundle(client);
+    expect(getStatusLite).toHaveBeenCalledOnce();
+    expect(getHealth).toHaveBeenCalledTimes(2);
+  });
+
   it('collectStatusBundle returns the legacy bundle when getStatus is HTTP 404', async () => {
     const health = { ok: true, cpuLoadPct: 33.5, memPct: 61, tempC: 47.2, agentVersion: '2.1.0' };
     const client = {

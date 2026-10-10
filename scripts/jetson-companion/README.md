@@ -68,7 +68,7 @@ CSI without a GStreamer OpenCV build reports `csi_requires_gstreamer_opencv`.
 | `VLC_SIYI_ANGLE_CMD` | `0x0E` |
 | `VLC_SIYI_TIMEOUT_S` / `VLC_SIYI_POLL_S` / `VLC_SIYI_STALE_S` | `0.4` / `0.5` / `2` |
 | `VLC_GIMBAL_POLL` | on with the relay; off when `VLC_SKIP_RELAY=1` unless set to `1` |
-| `VLC_HTTP_IDLE_S` | `30` (keep-alive idle timeout; HTTP/1.1, Content-Length on every response) |
+| `VLC_HTTP_IDLE_S` | `30` (keep-alive idle timeout; HTTP/1.1, Content-Length on every response). Frequent polls use `/api/v1/status-lite` (also `/api/status-lite`). `/api/health` stays the full body. MJPEG sends `Connection: close`. |
 | `VLC_FC_SERIAL_NAME` | `SERIAL4` (Matek pads TX3/RX3, `SERIAL4_PROTOCOL=2`) |
 | `VLC_E3372_HILINK_URL` | unset (probe `http://192.168.8.1` only when a Huawei `enx*` iface exists) |
 | `VLC_WIFI_IFACE` | `wlP1p1s0` |
