@@ -91,6 +91,14 @@ describe('Horizon/map size swap — layout', () => {
       && a.bottom > b.top + slack;
   }
 
+  function boxInside(inner, outer, slack = 2) {
+    if (!inner || !outer || inner.width < 2 || inner.height < 2) return false;
+    return inner.left >= outer.left - slack
+      && inner.right <= outer.right + slack
+      && inner.top >= outer.top - slack
+      && inner.bottom <= outer.bottom + slack;
+  }
+
   async function measure(page) {
     return page.evaluate(() => {
       const box = (el) => {
@@ -145,7 +153,7 @@ describe('Horizon/map size swap — layout', () => {
       expect(before.canvas.width).toBeGreaterThan(20);
 
       expect(interiorsIntersect(before.map, before.horizon)).toBe(false);
-      expect(interiorsIntersect(before.horizon, before.talk)).toBe(false);
+      expect(boxInside(before.talk, before.horizon)).toBe(true);
       expect(interiorsIntersect(before.map, before.talk)).toBe(false);
       expect(interiorsIntersect(before.ias, before.stage)).toBe(true);
       expect(interiorsIntersect(before.alt, before.stage)).toBe(true);
@@ -199,7 +207,7 @@ describe('Horizon/map size swap — layout', () => {
       expect(after.swap).toBe('horizon-map');
       expect(after.stored).toBe('horizon-map');
       expect(interiorsIntersect(after.map, after.horizon)).toBe(false);
-      expect(interiorsIntersect(after.horizon, after.talk)).toBe(false);
+      expect(boxInside(after.talk, after.horizon)).toBe(true);
       expect(interiorsIntersect(after.map, after.talk)).toBe(false);
       expect(interiorsIntersect(after.ias, after.stage)).toBe(true);
       expect(interiorsIntersect(after.alt, after.stage)).toBe(true);
@@ -207,7 +215,9 @@ describe('Horizon/map size swap — layout', () => {
       expect(after.stage.right).toBeGreaterThanOrEqual(after.alt.right - 2);
       expect(interiorsIntersect(after.ias, after.alt)).toBe(false);
       if (after.zoom && after.compass) {
-        expect(interiorsIntersect(after.zoom, after.compass)).toBe(false);
+        expect(boxInside(after.compass, after.zoom)).toBe(true);
+        expect(after.compass.width).toBeGreaterThanOrEqual(36);
+        expect(after.compass.height).toBeGreaterThanOrEqual(36);
       }
       expect(Math.abs(after.canvas.width - after.stage.width)).toBeLessThan(3);
       expect(Math.abs(after.canvas.height - after.stage.height)).toBeLessThan(3);
@@ -223,7 +233,9 @@ describe('Horizon/map size swap — layout', () => {
         expect(after.stage.height).toBeGreaterThan(before.stage.height);
         expect(after.horizon.top).toBeGreaterThanOrEqual(after.map.bottom - 8);
       }
-      expect(after.talk.width).toBeLessThan(8);
+      expect(after.talk.height).toBeGreaterThanOrEqual(32);
+      expect(after.talk.height).toBeLessThanOrEqual(56);
+      expect(after.talk.width).toBeGreaterThan(80);
 
       await page.reload({ waitUntil: 'domcontentloaded' });
       await page.waitForFunction(() => document.querySelector('.mission-workspace')?.dataset.missionSwap === 'horizon-map');

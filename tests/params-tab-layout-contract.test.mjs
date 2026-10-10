@@ -266,6 +266,11 @@ describe('Parameters tab layout contract — live boxes', () => {
       expect(await page.locator('[data-param-key="GPS_TYPE"] .fc-group-now').innerText()).toBe('אין חיבור');
 
       await page.fill('#arduParamSearchInput', 'EK3');
+      await page.waitForFunction(() => {
+        const keys = [...document.querySelectorAll('#fcGroupList .fc-group-key')].map((el) => el.textContent);
+        return keys.includes('EK3_ENABLE') && !keys.includes('GPS_TYPE');
+      });
+      await page.fill('#arduParamSearchInput', 'ZZZNOMATCH');
       await page.waitForFunction(() => document.querySelector('#fcGroupList .fc-group-empty')?.textContent === 'אין התאמה בקבוצה');
       await page.click('#arduParamSearchClearBtn');
       await page.waitForSelector('#fcGroupList [data-param-key="GPS_TYPE"]');
