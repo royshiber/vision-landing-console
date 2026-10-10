@@ -10,21 +10,21 @@ SIYI docs use 0x0E. VLC_SIYI_ANGLE_CMD selects it (default 0x0E).
 Control endpoints stay off unless VLC_GIMBAL_CONTROL_ENABLED=1.
 Replies are paired by command id. Pending datagrams are drained before
 each send. An exact SEQ echo is enough on its own. It is not a search
-that prefers a later echo over an earlier in-window datagram. The A8
-mini usually sends its own counter. That counter is learned only from
-an exact echo, or from replies to two separate sends whose counter
-advances by exactly the number of sends between them. The reply that
-teaches the counter is not returned as the answer. The learned counter
-is dropped after two consecutive timeouts, or after about 3 seconds
-without a reply. A non-echo is then accepted only for seq 0, or within
-±8 of the learned counter. Without an echo, a stale reply that is
-still inside that window can still be taken as the live telemetry
-reply. Angle and center confirm only on a fresh attitude, received
-after the send, that moved toward the target. Rate confirms only when
-that attitude's rate fields match the command. Zoom confirms only on a
-fresh zoom read that moved the right way; otherwise the result is
-sent, not confirmed. A windowed ack is never trusted for those
-commands. Codec specs (command 0x20) are read with the status poll.
+that prefers a later echo over an earlier counter fit. The A8 mini
+usually sends its own counter and does not echo the request
+sequence. An exact echo is still enough on its own. Otherwise a reply
+is accepted only when its sequence is ahead of the last accepted
+counter by 1..64, modulo 0x10000. A stale reply is behind or equal, so
+it does not match. The counter is learned from two separate sends when
+the second is ahead of the first by at least the number of sends and
+at most about 64. That teaching reply is not returned as the answer.
+Three rejections in a row drop the learned counter so a later pair can
+teach it again. Angle, center, and rate confirm only on a fresh
+attitude that fits this rule and matches the command. If the move was
+echoed but attitude was not read, the result is sent, not confirmed.
+Zoom is confirmed by a current-zoom read (command 0x18), never by
+sending zoom stop. Codec specs (command 0x20) are read with the status
+poll.
 The request carries one stream-type byte (1 = main stream). A miss on
 that read does not mark the gimbal absent. The set command (0x21) is
 never sent. Nothing in this module moves the gimbal unless a control
@@ -47,6 +47,8 @@ CMD_HARDWARE = 0x02
 CMD_AUTOFOCUS = 0x04
 CMD_ZOOM = 0x05
 CMD_FOCUS = 0x06
+# 0x18 is a read of the current zoom. 0x05 with 0 is zoom stop, a write.
+CMD_ZOOM_READ = 0x18
 CMD_RATE = 0x07
 CMD_CENTER = 0x08
 CMD_CONFIG = 0x0A
@@ -56,13 +58,16 @@ CMD_CODEC = 0x20
 # 0x20 send data is one uint8: 0 recording, 1 main, 2 sub.
 # Manual example for main: 55 66 01 01 00 00 00 20 01 9E 9D
 CODEC_STREAM_MAIN = 1
-# Non-echo replies: seq 0, or this far from the last camera sequence.
-SEQ_WINDOW = 8
-# Drop a learned counter after this much silence, or this many missed replies.
+# Non-echo replies must be this far ahead of the last accepted counter.
+SEQ_AHEAD_MAX = 64
+SEQ_WINDOW = SEQ_AHEAD_MAX
+# Drop a learned counter after this many seq rejections, or this much silence.
+SEQ_RESET_REJECTS = 3
 SEQ_SILENCE_S = 3.0
 SEQ_RESET_TIMEOUTS = 2
-# These acks must echo the request seq, or be confirmed by an attitude read.
-ACK_EXACT_ACTIONS = frozenset({"rate", "angle", "center", "zoom"})
+# Moves are confirmed from a later attitude. Zoom is confirmed from 0x18.
+MOTION_ACTIONS = frozenset({"rate", "angle", "center"})
+ACK_EXACT_ACTIONS = MOTION_ACTIONS | frozenset({"zoom"})
 DEFAULT_HOST = "192.168.144.25"
 DEFAULT_PORT = 37260
 YAW_MIN = -135.0
@@ -140,37 +145,41 @@ def seq_distance(left, right):
     return delta
 
 
-def seq_acceptable(reply_seq, request_seq, last_camera_seq=None, window=SEQ_WINDOW):
+def seq_advance(reply_seq, last_seq):
+    """Forward distance from last_seq to reply_seq, modulo 0x10000."""
+    return (int(reply_seq) - int(last_seq)) & 0xFFFF
+
+
+def seq_is_ahead(reply_seq, last_seq, limit=SEQ_AHEAD_MAX):
+    """True when reply_seq is strictly ahead of last_seq by 1..limit."""
+    try:
+        delta = seq_advance(reply_seq, last_seq)
+        limit = int(limit)
+    except (TypeError, ValueError):
+        return False
+    return limit >= 1 and 1 <= delta <= limit
+
+
+def seq_acceptable(reply_seq, request_seq, last_camera_seq=None, window=SEQ_AHEAD_MAX):
     """Whether this SEQ can belong to the in-flight request.
 
     An exact echo of the request sequence is enough by itself. This is not
-    a scan that prefers a later exact echo over an earlier window match.
-    A non-echo is accepted only when it is seq 0, or within ±window of the
-    camera sequence already learned. Without an echo, a stale reply that
-    is still inside that window can still win. The window is not the whole
-    uint16 range. This check does not teach the counter: teaching takes an
-    exact echo, or two separate sends whose sequences step with the sends,
-    and the teaching reply is not itself the answer.
+    a scan that prefers a later exact echo over an earlier counter fit.
+    A non-echo is accepted only when it is ahead of the last accepted
+    camera counter by 1..window, modulo 0x10000. Equal and behind are
+    stale and do not match, including a leftover seq 0. A stale reply
+    that is still ahead by 1..window can still win. Seq 0 is not special.
     """
     try:
         reply = int(reply_seq) & 0xFFFF
         request = int(request_seq) & 0xFFFF
-        limit = int(window)
     except (TypeError, ValueError):
-        return False
-    if limit < 0:
         return False
     if reply == request:
         return True
-    if reply == 0:
-        return True
     if last_camera_seq is None:
         return False
-    try:
-        last = int(last_camera_seq) & 0xFFFF
-    except (TypeError, ValueError):
-        return False
-    return seq_distance(reply, last) <= limit
+    return seq_is_ahead(reply, last_camera_seq, window)
 
 
 def _cmd_is(decoded, cmd):
@@ -185,10 +194,10 @@ def _cmd_is(decoded, cmd):
 def reply_matches(decoded, cmd, request_seq, last_camera_seq=None):
     """Pair a datagram to the in-flight request by command id and SEQ.
 
-    An exact echo matches. Otherwise only seq 0, or a sequence within ±8
-    of a counter already learned, matches. A single non-echo does not
-    match while that counter is unknown. Without an echo, a stale reply
-    inside the window can still match; packet order is not consulted.
+    An exact echo matches. Otherwise only a sequence ahead of a learned
+    counter by 1..64 matches. Seq 0 does not match unless it is that
+    echo or that forward step. A single non-echo does not match while
+    the counter is unknown.
     """
     if not isinstance(decoded, dict):
         return False
@@ -431,6 +440,7 @@ class SiyiLink:
         self._camera_candidate = None
         self._candidate_send = None
         self._consec_timeouts = 0
+        self._reject_streak = 0
         self.rejected_count = 0
         self._lock = threading.Lock()
         self._io = threading.Lock()
@@ -560,6 +570,28 @@ class SiyiLink:
                 entry = {"action": action, "cmd": cmd, "ok": True, "confirmed": False}
                 self._log(entry)
                 return 200, result
+            if isinstance(decoded, dict) and action in MOTION_ACTIONS:
+                entry = {"action": action, "cmd": cmd, "ok": True, "confirmed": False}
+                self._log(entry)
+                return 200, {
+                    "ok": True,
+                    "sent": True,
+                    "confirmed": False,
+                    "reason": "attitude_not_read",
+                    "message": "sent, not confirmed: attitude not read",
+                    "cmd": cmd,
+                }
+            if isinstance(decoded, dict):
+                entry = {"action": action, "cmd": cmd, "ok": True, "confirmed": False}
+                self._log(entry)
+                return 200, {
+                    "ok": True,
+                    "sent": True,
+                    "confirmed": False,
+                    "reason": "sent_not_confirmed",
+                    "message": "sent, not confirmed",
+                    "cmd": cmd,
+                }
             reason = self.last_error or "no_reply"
             entry = {"action": action, "cmd": cmd, "ok": False, "reason": reason}
             self._log(entry)
@@ -569,9 +601,13 @@ class SiyiLink:
                 "message": "sent, not confirmed",
                 "sent": True,
                 "confirmed": False,
-                "present": False,
             }
-        result = {"ok": True, "sent": True, "confirmed": False, "cmd": cmd}
+        result = {
+            "ok": True,
+            "sent": True,
+            "confirmed": bool(needs_ack and isinstance(decoded, dict)),
+            "cmd": cmd,
+        }
         if isinstance(decoded, dict):
             result["ack"] = self._apply_ack(cmd, decoded["data"])
         if action == "mode":
@@ -632,6 +668,7 @@ class SiyiLink:
             self._camera_candidate = None
             self._candidate_send = None
             self._consec_timeouts = 0
+            self._reject_streak = 0
 
     def _note_exchange_failed(self, saw_seq_reject, marks_absent):
         if marks_absent:
@@ -646,6 +683,13 @@ class SiyiLink:
             self._camera_candidate = None
             self._candidate_send = None
             self._consec_timeouts = 0
+            self._reject_streak = 0
+
+    def _clear_camera_seq(self):
+        self._camera_seq = None
+        self._camera_candidate = None
+        self._candidate_send = None
+        self._reject_streak = 0
 
     def _count_reject(self, marks_absent):
         self.rejected_count += 1
@@ -697,32 +741,35 @@ class SiyiLink:
                 self._camera_candidate = None
                 self._candidate_send = None
                 self._consec_timeouts = 0
+                self._reject_streak = 0
                 self._note_reply()
                 return decoded
-            if reply == 0:
-                self._consec_timeouts = 0
-                if require_echo:
-                    continue
-                self._note_reply()
-                return decoded
-            if self._camera_seq is not None and seq_distance(reply, self._camera_seq) <= SEQ_WINDOW:
-                self._remember_camera_seq(reply)
+            if self._camera_seq is not None and seq_is_ahead(reply, self._camera_seq):
+                self._camera_seq = reply
                 self._camera_candidate = None
                 self._candidate_send = None
                 self._consec_timeouts = 0
+                self._reject_streak = 0
                 if require_echo:
                     continue
                 self._note_reply()
                 return decoded
+            if self._camera_seq is not None:
+                self._count_reject(marks_absent)
+                self._reject_streak += 1
+                if self._reject_streak >= SEQ_RESET_REJECTS:
+                    self._clear_camera_seq()
+                continue
             if self._candidate_send is not None and self._candidate_send != this_send:
-                delta = this_send - self._candidate_send
-                expected = (self._camera_candidate + delta) & 0xFFFF
-                if delta > 0 and reply == expected:
+                delta_sends = this_send - self._candidate_send
+                advance = seq_advance(reply, self._camera_candidate)
+                if delta_sends >= 1 and delta_sends <= advance <= SEQ_AHEAD_MAX:
                     # Teach the counter. This datagram is not the answer.
                     self._camera_seq = reply
                     self._camera_candidate = None
                     self._candidate_send = None
                     self._consec_timeouts = 0
+                    self._reject_streak = 0
                     continue
             self._count_reject(marks_absent)
             self._camera_candidate = reply
@@ -735,7 +782,8 @@ class SiyiLink:
     def _confirm_motion(self, action, body, before_att, before_zoom):
         """Fresh post-send read. None when nothing new arrived."""
         if action == "zoom":
-            pkt = self.exchange(CMD_ZOOM, struct.pack("<b", 0), require_match=True)
+            # 0x18 reads the current zoom. 0x05 byte 0 would stop the zoom.
+            pkt = self.exchange(CMD_ZOOM_READ, b"", require_match=True)
             zoom = parse_zoom(pkt["data"]) if isinstance(pkt, dict) else None
             if zoom is None:
                 return None
