@@ -603,7 +603,7 @@
             <p class="pulse-health-note">בריאות מחשב המשימה והכלי. תצוגת בריאות בלבד.</p>
           </header>
           <section id="pulseCameraCards" class="pulse-cam-row" aria-label="מצלמות" data-link="down">
-            <article class="pulse-cam-card" data-link="down" data-tone="off">
+            <article class="pulse-cam-card pulse-cam-summary" data-link="down" data-tone="off">
               <div class="pulse-cam-head">
                 <span class="pulse-cam-name">מצלמות</span>
                 <span class="pulse-cam-pill">מנותק</span>
@@ -2279,6 +2279,12 @@
             <p id="missionLayoutHint" class="mission-layout-hint">גררו את הפינה לשינוי גודל. גררו כותרת להחלפה. גם בטיסה.</p>
           </div>
         </div>
+        <section class="mission-region mission-region-talk mission-ask-dock" data-mission-region="talk" dir="rtl" aria-label="ASK">
+          <h3 class="mission-region-title">ASK</h3>
+          <button type="button" id="missionAskCloseBtn" class="mission-ask-close" hidden aria-label="סגור">סגור</button>
+          <p id="missionTalkHint" class="mission-talk-hint" hidden>דברו להטסה. אחרי ההפעלה, נחיתה ושינוי מצב מתבצעים בלי אישור נוסף. חימוש נשאר חסום, ושינוי פרמטר עדיין דורש אישור.</p>
+          <div id="missionTalkHost" class="mission-talk-host" dir="rtl"></div>
+        </section>
         <div class="terrain-flight-shell mission-workspace" data-mission-layout="ops-v1" data-mission-swap="map-horizon" data-ask-open="0" data-mission-edit="on" data-layout-contract="v2">
           <div id="missionColSplit" class="mission-split mission-split-col"></div>
           <div id="missionColSplitB" class="mission-split mission-split-col"></div>
@@ -2490,12 +2496,6 @@
               </div>
               </div>
               <p id="flightDockCommandNote" class="flight-dock-note" role="status"></p>
-            </section>
-            <section class="mission-region mission-region-talk" data-mission-region="talk" dir="rtl" aria-label="ASK">
-              <h3 class="mission-region-title">ASK</h3>
-              <button type="button" id="missionAskCloseBtn" class="mission-ask-close" hidden aria-label="סגור">סגור</button>
-              <p id="missionTalkHint" class="mission-talk-hint" hidden>דברו להטסה. אחרי ההפעלה, נחיתה ושינוי מצב מתבצעים בלי אישור נוסף. חימוש נשאר חסום, ושינוי פרמטר עדיין דורש אישור.</p>
-              <div id="missionTalkHost" class="mission-talk-host" dir="rtl"></div>
             </section>
           </section>
 

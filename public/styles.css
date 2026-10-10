@@ -26573,6 +26573,16 @@ button.mission-link-chip,
   border-radius: 10px;
 }
 .optics-context[hidden] { display: none; }
+.optics-context .optics-cam-switch {
+  display: flex;
+  flex-flow: row wrap;
+  gap: 4px;
+  margin: 0 0 8px;
+}
+.optics-context .optics-cam-btn {
+  min-height: 28px;
+  padding: 4px 8px;
+}
 .optics-context .cam0-stage,
 .optics-context .cam0-layout > .cam0-stage { display: none; }
 .optics-context .cam0-panel,
@@ -26822,8 +26832,8 @@ button.mission-link-chip,
   font-weight: 800;
   color: #f8fafc;
 }
-.optics-context .optics-field-group:not([open]) > :not(summary),
-.optics-context .cam0-calib:not([open]) > :not(summary) {
+.optics-context details.optics-field-group:not([open]) > :not(summary),
+.optics-context details.cam0-calib:not([open]) > :not(summary) {
   display: none;
 }
 .debrief-cam-tile[data-cam="cam3"] .debrief-cam-label {
@@ -27054,4 +27064,224 @@ button.mission-link-chip,
   font-size: 13px;
   font-weight: 800;
   cursor: pointer;
+}
+.rf-advanced:not([open]) > :not(summary) {
+  display: none !important;
+}
+
+/* Horizon face is altitude and speed. Heading, GPS, and arm live in the right-click menu. */
+.mission-region-horizon .pfd-horizon-instrument:not(:has(> .pfd-heading-lane)) {
+  grid-template-rows: minmax(0, 1fr);
+  grid-template-areas: "horizon";
+}
+.horizon-cam-menu #flightArmRow {
+  display: flex !important;
+  position: static !important;
+  flex-wrap: wrap;
+  width: 100%;
+  height: auto;
+  margin: 0;
+  inset: auto;
+  top: auto;
+  pointer-events: auto;
+  background: transparent;
+}
+.horizon-cam-menu #flightArmRow > * {
+  display: inline-flex !important;
+}
+.horizon-cam-menu .pfd-heading-lane {
+  display: flex !important;
+  position: static !important;
+  width: 100%;
+  min-height: 28px;
+}
+
+/* Ask is its own row under the header. It never sits in the horizon column. */
+#terrain > .mission-ask-dock {
+  display: flex !important;
+  position: relative;
+  z-index: 4;
+  flex: 0 0 40px;
+  flex-direction: row;
+  align-items: center;
+  width: 100%;
+  height: 40px;
+  min-height: 36px;
+  max-height: 44px;
+  margin: 0;
+  padding: 4px 8px;
+  box-sizing: border-box;
+  overflow: hidden;
+  grid-area: auto;
+  inset: auto;
+}
+#terrain > .mission-ask-dock > .mission-region-title,
+#terrain > .mission-ask-dock > #missionAskCloseBtn {
+  display: none !important;
+}
+#terrain > .mission-ask-dock #missionTalkHost {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 32px;
+  min-height: 32px;
+  max-height: 32px;
+  overflow: hidden;
+}
+#terrain[data-ask-open="1"] #missionTalkHost .assist-form {
+  display: flex !important;
+  flex-flow: row nowrap;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  height: 32px;
+  margin: 0;
+}
+#terrain[data-ask-open="1"] #missionTalkHost .assist-input {
+  display: block !important;
+  flex: 1 1 auto;
+  min-width: 0;
+  width: auto;
+  height: 32px;
+  min-height: 32px;
+  max-height: 32px;
+}
+#terrain[data-ask-open="1"] #missionTalkHost .assist-btn-send,
+#terrain[data-ask-open="1"] #missionTalkHost .assist-mic-btn {
+  display: inline-flex !important;
+  flex: 0 0 auto;
+  width: auto;
+  height: 32px;
+  min-height: 32px;
+  max-height: 32px;
+}
+
+/* Actions dock sizes to its controls. Only the message list may scroll. */
+.mission-workspace .mission-region-horizon:not([data-flight-stack="custom"]):has(> .mission-region-messages[data-flight-dock="actions"]) > .flight-hud {
+  flex: 1 1 auto;
+  min-height: 160px;
+  height: auto;
+  max-height: none;
+}
+.mission-region-horizon:not([data-flight-stack="custom"]) > .mission-region-messages[data-flight-dock="actions"],
+.mission-region-horizon[data-flight-stack="half"] > .mission-region-messages[data-flight-dock="actions"] {
+  flex: 0 0 auto;
+  height: auto;
+  min-height: 0;
+  max-height: none;
+  overflow: visible;
+}
+.mission-workspace .mission-region-horizon > .mission-region-messages[data-flight-dock="actions"] > #flightDockActionsPane,
+.mission-workspace[data-mission-layout="ops-v1"] .mission-region-horizon > .mission-region-messages[data-messages-expanded="1"] > #flightDockActionsPane {
+  flex: 0 0 auto !important;
+  height: auto !important;
+  max-height: none !important;
+  overflow: visible !important;
+  overflow-y: visible !important;
+}
+
+/* Short flight column: actions pane fits. The contract allows only the message scroller. */
+@media (max-height: 700px) {
+  .mission-workspace[data-mission-layout="ops-v1"] .mission-region-horizon:not([data-flight-stack="custom"]):has(> .mission-region-messages[data-flight-dock="actions"]) > .flight-hud {
+    aspect-ratio: auto !important;
+    flex: 0 0 160px !important;
+    width: 100%;
+    height: 160px !important;
+    min-height: 160px !important;
+    max-height: 160px !important;
+  }
+  .mission-region-horizon:not([data-flight-stack="custom"]) > .mission-region-messages[data-flight-dock="actions"],
+  .mission-region-horizon[data-flight-stack="half"] > .mission-region-messages[data-flight-dock="actions"] {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    height: auto !important;
+    max-height: none !important;
+  }
+  .mission-workspace .mission-region-horizon > .mission-region-messages[data-flight-dock="actions"] > #flightDockActionsPane,
+  .mission-workspace[data-mission-layout="ops-v1"] .mission-region-horizon > .mission-region-messages[data-messages-expanded="1"] > #flightDockActionsPane {
+    flex: 0 0 auto !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    overflow-y: visible !important;
+    gap: 2px;
+  }
+  #flightDockActionsPane .flight-phrase-row,
+  #flightDockActionsPane .flight-dock-row,
+  #flightDockActionsPane .flight-dock-reason {
+    margin: 0;
+    min-height: 0;
+  }
+  #flightDockActionsPane .flight-dock-field,
+  #flightDockActionsPane .flight-dock-field select,
+  #flightDockActionsPane .flight-dock-cmd:not(#flightDockModeAuto):not(#flightDockModeLoiter):not(#flightDockModeRtl) {
+    min-height: 22px;
+    height: 22px;
+    max-height: 22px;
+    padding-block: 0;
+  }
+}
+
+/* Camera menu stays inside the viewport. Tiles fill the panel; the pad is not a side column. */
+#opticsContext #cam0Panel,
+#opticsContext #cam1Panel {
+  margin-top: 0;
+  padding: 8px;
+  overflow: auto;
+  box-sizing: border-box;
+}
+
+/* One summary camera card stays under the 40px status cap. */
+#pulseCameraCards:has(> .pulse-cam-summary:only-child) {
+  display: flex;
+  align-items: center;
+}
+#pulseCameraCards > .pulse-cam-summary:only-child,
+#pulse .pulse-cam-summary {
+  box-sizing: border-box;
+  flex-direction: row !important;
+  align-items: center;
+  align-self: center;
+  gap: 8px;
+  width: auto;
+  height: 32px !important;
+  min-height: 0 !important;
+  max-height: 36px !important;
+  padding: 2px 8px !important;
+}
+#pulse .pulse-cam-summary .pulse-cam-head {
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 8px;
+}
+#pulse .pulse-cam-summary .pulse-cam-name,
+#pulse .pulse-cam-summary .pulse-cam-pill {
+  display: inline-block;
+  box-sizing: content-box;
+  height: auto;
+  min-height: 18px;
+  margin: 0;
+  padding: 0;
+  font-size: 12px;
+  line-height: 18px;
+  white-space: nowrap;
+  overflow: visible;
+}
+@media (max-width: 720px) {
+  #optics #debriefCamGrid.debrief-cam-grid {
+    height: auto;
+    min-height: 220px;
+    grid-template-rows: minmax(180px, 46vh);
+  }
+  .mission-workspace[data-mission-swap="horizon-map"] .mission-region[data-mission-region="map"] {
+    height: 140px;
+    min-height: 120px;
+    max-height: 140px;
+  }
+  .mission-workspace[data-mission-swap="horizon-map"] .mission-region-horizon .pfd-horizon-stage,
+  .mission-workspace[data-mission-swap="horizon-map"] .mission-region-horizon .pfd-horizon-instrument {
+    min-height: 400px;
+    height: 400px;
+  }
 }

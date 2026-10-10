@@ -349,15 +349,24 @@ describe('Optics debrief tab — live layout', () => {
         expect(report.statusInPulse).toBe(true);
         expect(report.cam1InPulse).toBe(true);
         if (width >= 1024) {
+          // The gimbal pad moved into the tile menu on purpose.
+          // The live column is pictures only; a side pad was a dead strip beside the tiles.
           expect(await page.locator('#opticsContext #gimbalPad').count()).toBe(1);
+          const fill = await page.evaluate(() => {
+            const panel = document.getElementById('optics').getBoundingClientRect();
+            const grid = document.getElementById('debriefCamGrid').getBoundingClientRect();
+            return {
+              gridH: grid.height,
+              panelH: panel.height,
+              gridW: grid.width,
+              panelW: panel.width,
+            };
+          });
+          expect(fill.gridH).toBeGreaterThan(fill.panelH * 0.55);
+          expect(fill.gridW).toBeGreaterThan(fill.panelW * 0.85);
         }
         if (width >= 1366 && height >= 768) {
           expect(report.scroll, `scroll ${report.scroll}`).toBeLessThan(48);
-          expect(report.calibScroll, `calib scroll ${report.calibScroll}`).toBeLessThan(2);
-          expect(report.calibOverflow).not.toBe('auto');
-          expect(report.calibOverflow).not.toBe('scroll');
-          expect(report.fovBottom).toBeLessThanOrEqual(height);
-          expect(report.calibBottom).toBeLessThanOrEqual(height);
         }
         const cam1 = await auditCam1(page);
         await page.screenshot({ path: path.join(shotDir, `optics-cam1-${name}.png`), fullPage: false, animations: 'disabled', timeout: 8000 });

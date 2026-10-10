@@ -219,6 +219,9 @@ export function createPulseCameraHold({
     step(companion, at = now()) {
       const link = pulseCameraLink(companion);
       const down = !link.live;
+      if (down && last.size === 0) {
+        return { cards: [], live: false, collapsed: true, pill: link.pill || 'מנותק' };
+      }
       if (down) {
         failStreak += 1;
         if (!failSince) failSince = at;
@@ -341,7 +344,7 @@ export function paintPulseCameraCards(host, model) {
     host.replaceChildren();
     if (!model.live || !model.cards.length) {
       host.dataset.link = model.live ? 'empty' : 'down';
-      const art = el('article', 'pulse-cam-card');
+      const art = el('article', 'pulse-cam-card pulse-cam-summary');
       art.dataset.link = host.dataset.link;
       art.dataset.tone = downTone(model.pill);
       const head = el('div', 'pulse-cam-head');

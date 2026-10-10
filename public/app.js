@@ -8033,6 +8033,14 @@ function initHorizonCameraMenu() {
     armGroup.appendChild(btn);
   }
   menu.appendChild(armGroup);
+  const stateGroup = document.createElement('div');
+  stateGroup.className = 'horizon-menu-group horizon-menu-face';
+  stateGroup.appendChild(menuHeading('מצב טיסה'));
+  const headingLane = document.querySelector('.pfd-heading-lane');
+  const armRow = document.getElementById('flightArmRow');
+  if (headingLane) stateGroup.appendChild(headingLane);
+  if (armRow) stateGroup.appendChild(armRow);
+  menu.appendChild(stateGroup);
   syncHorizonMenuState();
   document.body.appendChild(menu);
 
@@ -9024,8 +9032,8 @@ function initFlightArmControls() {
 initFlightArmControls();
 
 function dockMissionAsk() {
-  // Keep ASK inside the horizon column. Moving it into the header
-  // drops the flight-column rule and the dock computes as display:none.
+  // ASK is a row under the header. It is not a child of the horizon,
+  // so the horizon face stays altitude and speed only.
   const terrain = document.getElementById('terrain');
   if (terrain && !terrain.dataset.askOpen) terrain.dataset.askOpen = '0';
 }
@@ -23243,14 +23251,41 @@ function paintFlightLinkPanel(prefix, id) {
 
 let flightCommLinkId = 'cellular';
 
-function placeFlightMenu(menu, x, y) {
+function placeFlightMenu(menu) {
   if (!menu) return;
+  const mapEl = document.querySelector('[data-mission-region="map"]');
+  if (mapEl && menu.parentElement !== mapEl) mapEl.appendChild(menu);
   menu.hidden = false;
   menu.style.left = '0px';
   menu.style.top = '0px';
-  const rect = menu.getBoundingClientRect();
-  const left = Math.max(8, Math.min(x, window.innerWidth - rect.width - 8));
-  const top = Math.max(8, Math.min(y, window.innerHeight - rect.height - 8));
+  menu.style.maxHeight = 'none';
+  const width = Math.max(menu.offsetWidth || 0, 280);
+  const horizon = document.querySelector('[data-mission-region="horizon"]')?.getBoundingClientRect();
+  const map = mapEl?.getBoundingClientRect();
+  const talk = document.querySelector('[data-mission-region="talk"]')?.getBoundingClientRect();
+  const zoom = document.querySelector('.leaflet-control-zoom')?.getBoundingClientRect();
+  let top = Math.max(8, (talk?.bottom || 0) + 6);
+  if (map) top = Math.max(top, map.top + 6);
+  let left = map ? map.left + 6 : 8;
+  if (map && horizon && horizon.top < map.bottom - 40 && horizon.left > map.left + width + 24) {
+    left = horizon.left - width - 8;
+  }
+  left = Math.max(8, Math.min(left, window.innerWidth - width - 8));
+  if (zoom && zoom.width > 8 && left < zoom.right + 6 && left + width > zoom.left) {
+    top = Math.max(top, zoom.bottom + 6);
+  }
+  let floor = window.innerHeight - 8;
+  if (map) floor = Math.min(floor, map.bottom - 6);
+  if (horizon && horizon.top > top + 40) floor = Math.min(floor, horizon.top - 6);
+  const attr = document.querySelector('.leaflet-control-attribution')?.getBoundingClientRect();
+  if (attr && attr.height > 2 && attr.top > top + 40 && left < attr.right && left + width > attr.left) {
+    floor = Math.min(floor, attr.top - 6);
+  }
+  const sideBySide = horizon && map && horizon.left > map.left + 40 && horizon.top < map.bottom - 40;
+  const room = Math.max(72, Math.floor(floor - top));
+  menu.style.overflow = 'auto';
+  menu.style.maxHeight = `${sideBySide ? window.innerHeight - 120 : room}px`;
+  menu.style.height = sideBySide ? `${room}px` : 'auto';
   menu.style.left = `${Math.round(left)}px`;
   menu.style.top = `${Math.round(top)}px`;
 }
@@ -23273,8 +23308,7 @@ function openFlightCommMenu(id, anchorEl) {
   menu?.querySelectorAll('[data-comm-link]').forEach((btn) => {
     btn.classList.toggle('is-selected', btn.dataset.commLink === flightCommLinkId);
   });
-  const anchor = (anchorEl instanceof Element ? anchorEl : document.getElementById('missionCommOpen'))?.getBoundingClientRect();
-  placeFlightMenu(menu, anchor ? anchor.left : 24, anchor ? anchor.bottom + 6 : 48);
+  placeFlightMenu(menu);
   syncFlightCommChoice();
 }
 

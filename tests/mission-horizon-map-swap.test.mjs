@@ -153,7 +153,7 @@ describe('Horizon/map size swap — layout', () => {
       expect(before.canvas.width).toBeGreaterThan(20);
 
       expect(interiorsIntersect(before.map, before.horizon)).toBe(false);
-      expect(boxInside(before.talk, before.horizon)).toBe(true);
+      expect(interiorsIntersect(before.talk, before.horizon)).toBe(false);
       expect(interiorsIntersect(before.map, before.talk)).toBe(false);
       expect(interiorsIntersect(before.ias, before.stage)).toBe(true);
       expect(interiorsIntersect(before.alt, before.stage)).toBe(true);
@@ -207,7 +207,7 @@ describe('Horizon/map size swap — layout', () => {
       expect(after.swap).toBe('horizon-map');
       expect(after.stored).toBe('horizon-map');
       expect(interiorsIntersect(after.map, after.horizon)).toBe(false);
-      expect(boxInside(after.talk, after.horizon)).toBe(true);
+      expect(interiorsIntersect(after.talk, after.horizon)).toBe(false);
       expect(interiorsIntersect(after.map, after.talk)).toBe(false);
       expect(interiorsIntersect(after.ias, after.stage)).toBe(true);
       expect(interiorsIntersect(after.alt, after.stage)).toBe(true);

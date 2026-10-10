@@ -70,6 +70,7 @@ describe('approved flight screen', () => {
         ias: visible(document.querySelector('.pfd-side-tape--left')),
         alt: visible(document.querySelector('.pfd-side-tape--right')),
         hdg: visible(document.querySelector('.pfd-heading-lane')),
+        gps: visible(document.getElementById('hudNavGps')),
         video: visible(document.getElementById('horizonVideoToggle')),
         vision: visible(document.getElementById('annotatedVisionToggle')),
         frame: visible(document.getElementById('liveCameraToggle')),
@@ -96,7 +97,8 @@ describe('approved flight screen', () => {
     expect(face.ratio).toBeLessThan(1.22);
     expect(face.ias).toBe(true);
     expect(face.alt).toBe(true);
-    expect(face.hdg).toBe(true);
+    expect(face.hdg).toBe(false);
+    expect(face.gps).toBe(false);
     expect(face.iasText).toBe('—');
     expect(face.altText).toBe('—');
     expect(face.hdgText).toBe('—');

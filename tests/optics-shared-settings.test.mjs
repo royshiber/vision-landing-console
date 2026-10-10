@@ -243,8 +243,9 @@ describe('optics cameras and gimbal panel', () => {
     expect(await page.locator('#cam1Record').isDisabled()).toBe(true);
     expect(await page.locator('#cam1Snap').isDisabled()).toBe(false);
 
-    await page.click('#opticsGimbalBtn');
-    await page.waitForSelector('#gimbalSettings:not([hidden])');
+    // Gimbal controls open from the tile menu. The old switch sits in the hidden column.
+    await page.locator('.debrief-cam-tile[data-cam="cam3"]').click({ button: 'right' });
+    await page.waitForSelector('#opticsContext:not([hidden]) #gimbalSettings:not([hidden])');
     await page.waitForFunction(() => (document.getElementById('gimbalSettingsReason')?.textContent || '').includes('אין מענה מהגימבל'));
     expect(await page.locator('#gimbalSettingsCenter').isDisabled()).toBe(true);
     expect(await page.locator('#gimbalTrack').isDisabled()).toBe(true);
