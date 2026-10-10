@@ -231,6 +231,65 @@ describe('companion short-request pool', () => {
     }
   }, 15_000);
 
+  it('after: headers follow the timeout, then the body stalls, and the pool recovers in about 3.5s', async () => {
+    const headerDelayMs = 700;
+    const clientTimeoutMs = 500;
+    let headers = 0;
+    let liteHits = 0;
+    const pendingTimers = [];
+    const server = http.createServer((req, res) => {
+      if (String(req.url).includes('stall')) {
+        const timer = setTimeout(() => {
+          try {
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.write('{"partial":');
+            headers += 1;
+          } catch { /* caller already dropped the socket */ }
+        }, headerDelayMs);
+        pendingTimers.push(timer);
+        res.on('close', () => clearTimeout(timer));
+        return;
+      }
+      liteHits += 1;
+      res.writeHead(200, { 'Content-Length': 2 });
+      res.end('{}');
+    });
+    const port = await listen(server);
+    const base = `http://127.0.0.1:${port}`;
+    try {
+      const errs = await Promise.all([1, 2, 3, 4].map((i) => (
+        jetsonFetch(`${base}/stall?${i}`, { signal: AbortSignal.timeout(clientTimeoutMs) }, { env: {} })
+          .then((res) => res.text().then(() => 'ok', () => 'ok'), (err) => err.name)
+      )));
+      expect(errs).toEqual(['AbortError', 'AbortError', 'AbortError', 'AbortError']);
+      const headerWait = Date.now();
+      while (headers < 4 && Date.now() - headerWait < 2000) {
+        await new Promise((r) => setTimeout(r, 10));
+      }
+      expect(headers).toBe(4);
+      const headersAt = Date.now();
+
+      await expect(
+        jetsonFetch(`${base}/api/v1/status-lite`, { signal: AbortSignal.timeout(300) }, { env: {} }).then((res) => res.text()),
+      ).rejects.toMatchObject({ name: 'AbortError' });
+      expect(liteHits).toBe(0);
+
+      const remain = SLOW_SOCKET_GRACE_MS + 500 - (Date.now() - headersAt);
+      if (remain > 0) await new Promise((r) => setTimeout(r, remain));
+      const probeAt = Date.now();
+      const res = await jetsonFetch(`${base}/api/v1/status-lite`, { signal: AbortSignal.timeout(2000) }, { env: {} });
+      expect(await res.text()).toBe('{}');
+      expect(Date.now() - probeAt).toBeLessThan(1000);
+      const recoveredMs = Date.now() - headersAt;
+      expect(recoveredMs).toBeGreaterThanOrEqual(SLOW_SOCKET_GRACE_MS);
+      expect(recoveredMs).toBeLessThan(4500);
+    } finally {
+      for (const timer of pendingTimers) clearTimeout(timer);
+      closeCompanionHttpPools();
+      closeServer(server);
+    }
+  }, 15_000);
+
   it('splices one request out of an unknown queue and leaves the rest', () => {
     const target = { id: 'target' };
     const other = { id: 'other' };
@@ -252,5 +311,15 @@ describe('companion short-request pool', () => {
     expect(opaque.nested.req).toBe(target);
     expect(agent.requests.listed).toEqual([other]);
     expect(agent.requests.only).toBeUndefined();
+  });
+
+  it('removes only the timed-out request from an unknown queue of six', () => {
+    const waiting = Array.from({ length: 6 }, (_, i) => ({ id: `q${i}` }));
+    const timedOut = waiting[3];
+    const bucket = Object.fromEntries(waiting.map((req) => [req.id, req]));
+    const agent = { requests: { '127.0.0.1:4010:': bucket } };
+    expect(dequeueRequest(agent, timedOut)).toBe(true);
+    expect(agent.requests['127.0.0.1:4010:']).toBe(bucket);
+    expect(Object.values(bucket)).toEqual(waiting.filter((req) => req !== timedOut));
   });
 });
