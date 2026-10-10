@@ -30,6 +30,8 @@ from siyi_sdk import (  # noqa: E402
     encode_packet,
     parse_codec_specs,
     attitude_moved_toward,
+    attitude_near_target,
+    mount_target,
     parse_firmware,
     parse_zoom,
     parse_zoom_ack,
@@ -692,7 +694,7 @@ class SiyiGimbalCommandTests(unittest.TestCase):
 
         angled = SiyiLink(
             env={"VLC_GIMBAL_CONTROL_ENABLED": "1"},
-            sock=BatchSock([[], [att_pkt(31, 0, 0), att_pkt(32, 6, -3)]]),
+            sock=BatchSock([[], [att_pkt(31, 0, 0), att_pkt(32, 9.0, 174.9)]]),
             now_fn=lambda: 31.0,
         )
         angled._camera_seq = 30
@@ -701,7 +703,8 @@ class SiyiGimbalCommandTests(unittest.TestCase):
         self.assertEqual(code, 200)
         self.assertTrue(body["confirmed"])
         self.assertEqual(body["confirmed_by"], "attitude")
-        self.assertEqual(body["ack"]["yaw"], 6)
+        self.assertEqual(body["ack"]["yaw"], 9.0)
+        self.assertEqual(body["ack"]["pitch"], 174.9)
 
         unmoved = SiyiLink(
             env={"VLC_GIMBAL_CONTROL_ENABLED": "1"},
@@ -878,7 +881,7 @@ class SiyiGimbalCommandTests(unittest.TestCase):
 
         moved = encode_packet(
             CMD_ATTITUDE,
-            struct.pack("<hhhhhh", 100, -50, 0, 0, 0, 0),
+            struct.pack("<hhhhhh", 100, 1749, 0, 0, 0, 0),
             seq=1,
         )
         advanced = SiyiLink(
@@ -892,7 +895,7 @@ class SiyiGimbalCommandTests(unittest.TestCase):
         self.assertTrue(body["confirmed"])
         self.assertEqual(body["confirmed_by"], "attitude")
         self.assertEqual(advanced.attitude["yaw"], 10.0)
-        self.assertEqual(advanced.attitude["pitch"], -5.0)
+        self.assertEqual(advanced.attitude["pitch"], 174.9)
         self.assertEqual(advanced._device_seq.get("shared"), 1)
 
     def test_non_motion_ack_stays_confirmed(self):
@@ -1242,6 +1245,101 @@ class SiyiGimbalCommandTests(unittest.TestCase):
         self.assertEqual(code, 200)
         self.assertFalse(body["confirmed"])
         self.assertEqual(body["ack"]["pitch"], 174.9)
+
+    def test_angle_uses_level_pitch_and_center_ignores_the_ack_pose(self):
+        # Live A8: yaw +5 / pitch -5 landed at yaw 4.0-4.2 and pitch 174.9.
+        # Pitch -5 is 175 in the level frame (±180). Yaw 4.1 is not center.
+        self.assertEqual(mount_target(5, -5), (5.0, 175.0))
+        for yaw in (4.0, 4.2):
+            self.assertTrue(attitude_near_target(
+                {"yaw": yaw, "pitch": 174.9}, 5.0, 175.0,
+            ))
+        self.assertFalse(attitude_near_target(
+            {"yaw": 4.1, "pitch": 174.9}, 0.0, 180.0,
+        ))
+        self.assertFalse(attitude_near_target(
+            {"yaw": 3.6, "pitch": 174.9}, 0.0, 180.0,
+        ))
+        # Operator-frame pitch -5 is not how this mount reports the pose.
+        self.assertFalse(attitude_near_target(
+            {"yaw": 5.0, "pitch": -5.0}, 5.0, 175.0,
+        ))
+
+        def pose(seq, yaw, pitch):
+            return encode_packet(
+                CMD_ATTITUDE,
+                struct.pack("<hhhhhh", int(round(yaw * 10)), int(round(pitch * 10)), 0, 0, 0, 0),
+                seq=seq,
+            )
+
+        arrived = SiyiLink(
+            env={"VLC_GIMBAL_CONTROL_ENABLED": "1"},
+            sock=BatchSock([[
+                encode_packet(CMD_ANGLE, struct.pack("<hh", 50, -50), seq=23801),
+            ], [pose(23802, 4.1, 174.9)]]),
+            now_fn=lambda: 80.0,
+        )
+        arrived._device_seq["shared"] = 23800
+        arrived.last_reply_mono = 80.0
+        arrived.attitude = {"yaw": 0.0, "pitch": 180.0, "roll": 0.0}
+        code, body = arrived.command("angle", {"yaw": 5, "pitch": -5})
+        self.assertEqual(code, 200)
+        self.assertTrue(body["confirmed"])
+        self.assertEqual(body["confirmed_by"], "attitude")
+        self.assertEqual(body["ack"]["yaw"], 4.1)
+        self.assertEqual(body["ack"]["pitch"], 174.9)
+
+        short = SiyiLink(
+            env={"VLC_GIMBAL_CONTROL_ENABLED": "1"},
+            sock=BatchSock([[
+                encode_packet(CMD_ANGLE, struct.pack("<hh", 50, -50), seq=23802),
+            ], [pose(23803, 0.0, 180.0)], [pose(23804, 4.2, 174.9)]]),
+            now_fn=lambda: 81.0,
+        )
+        short._device_seq["shared"] = 23801
+        short.last_reply_mono = 81.0
+        code, body = short.command("angle", {"yaw": 5, "pitch": -5})
+        self.assertTrue(body["confirmed"])
+        self.assertEqual(body["ack"]["yaw"], 4.2)
+        self.assertEqual(body["ack"]["pitch"], 174.9)
+
+        # Ack-time yaw 4.1 / 3.6 is closer to center than the stored pose,
+        # and still off level. Center must not confirm until a later read is.
+        for yaw in (4.1, 3.6):
+            early = SiyiLink(
+                env={"VLC_GIMBAL_CONTROL_ENABLED": "1"},
+                sock=BatchSock([[
+                    encode_packet(CMD_CENTER, bytes([1]), seq=6308),
+                ], [pose(23811, yaw, 174.9)]]),
+                now_fn=lambda: 82.0,
+            )
+            early._device_seq["shared"] = 23810
+            early._device_seq["config"] = 6307
+            early.last_reply_mono = 82.0
+            early.attitude = {"yaw": 30.0, "pitch": 140.0, "roll": 0.0}
+            code, body = early.command("center", {})
+            self.assertEqual(code, 200)
+            self.assertFalse(body["confirmed"])
+            self.assertNotIn("confirmed_by", body)
+            self.assertEqual(body["ack"]["yaw"], yaw)
+            self.assertEqual(body["ack"]["pitch"], 174.9)
+
+        leveled = SiyiLink(
+            env={"VLC_GIMBAL_CONTROL_ENABLED": "1"},
+            sock=BatchSock([[
+                encode_packet(CMD_CENTER, bytes([1]), seq=6309),
+            ], [pose(23812, 4.1, 174.9)], [pose(23813, 0.4, -179.9)]]),
+            now_fn=lambda: 83.0,
+        )
+        leveled._device_seq["shared"] = 23811
+        leveled._device_seq["config"] = 6308
+        leveled.last_reply_mono = 83.0
+        leveled.attitude = {"yaw": 4.1, "pitch": 174.9, "roll": 0.0}
+        code, body = leveled.command("center", {})
+        self.assertTrue(body["confirmed"])
+        self.assertEqual(body["confirmed_by"], "attitude")
+        self.assertEqual(body["ack"]["yaw"], 0.4)
+        self.assertEqual(body["ack"]["pitch"], -179.9)
 
     def test_rate_ignores_a_preroll_sample_and_waits_for_decay(self):
         def att(seq, yaw_rate, pitch_rate=0):

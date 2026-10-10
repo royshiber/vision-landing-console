@@ -26,7 +26,11 @@ pause is one timestamp shared by every confirm loop, so a new command
 does not read again until the pause has elapsed. A newer rate or stop
 cancels the confirm already in progress. This mount's
 level pitch is ±180, so center is the shortest wrap-around distance to
-yaw 0 and pitch 180, not to pitch 0. A rate confirms only when that
+yaw 0 and pitch 180, not to pitch 0. An angle command uses that
+same frame, so pitch -5 is reported near 175, and it confirms only
+within about 1.5 degrees. Center confirms only when a post-ack
+attitude is that close to level. An earlier pose that merely moved
+closer does not count. A rate confirms only when that
 later reading shows the commanded change; a stop confirms only after
 the rate has decayed. If it never decays, the result says so and
 includes the last rate. A command ack alone does not confirm a move,
@@ -87,6 +91,8 @@ CONFIRM_READ_GAP_S = 0.09
 # This mount reads pitch ±180 when the camera is level.
 CENTER_YAW = 0.0
 CENTER_PITCH = 180.0
+# Live moves stop about a degree short of the command. 1.5 deg covers that.
+ANGLE_TOLERANCE_DEG = 1.5
 # Rates inside this band are noise, not a commanded move.
 RATE_NOISE_DPS = 1.0
 MOTION_ACTIONS = frozenset({"rate", "angle", "center"})
@@ -322,6 +328,37 @@ def angle_separation(left, right):
     """Shortest distance between two headings, in degrees, on a 360 circle."""
     delta = (float(left) - float(right) + 180.0) % 360.0 - 180.0
     return abs(delta)
+
+
+def mount_target(yaw, pitch):
+    """Commanded yaw and pitch in the frame this mount reports.
+
+    Level pitch reads ±180. Pitch -5 is reported near 175, which is the
+    same place as -185 on the circle.
+    """
+    yaw_c, pitch_c = clamp_angle(yaw, pitch)
+    return yaw_c, CENTER_PITCH + pitch_c
+
+
+def attitude_near_target(sample, target_yaw, target_pitch, tolerance=ANGLE_TOLERANCE_DEG):
+    """True when both axes are within tolerance of the goal, wrapping at ±180.
+
+    Getting closer is not enough. Center and angle confirm only when the
+    reading has settled near the goal.
+    """
+    if not isinstance(sample, dict):
+        return False
+    try:
+        yaw = float(sample.get("yaw"))
+        pitch = float(sample.get("pitch"))
+        goal_yaw = float(target_yaw)
+        goal_pitch = float(target_pitch)
+    except (TypeError, ValueError):
+        return False
+    return (
+        angle_separation(yaw, goal_yaw) <= tolerance
+        and angle_separation(pitch, goal_pitch) <= tolerance
+    )
 
 
 def attitude_moved_toward(before, after, target_yaw, target_pitch, tolerance=1.0):
@@ -897,11 +934,13 @@ class SiyiLink:
                 return {"confirmed": False, "reason": "rate_not_decayed", "ack": att}
             return {"confirmed": False, "ack": att}
         if action == "center":
+            # Level only. An ack-time pose that merely moved toward center
+            # is not confirmation; rate works the same way.
             goal = (CENTER_YAW, CENTER_PITCH)
         else:
-            goal = clamp_angle(body.get("yaw"), body.get("pitch"))
+            goal = mount_target(body.get("yaw"), body.get("pitch"))
         att, ok, _how = self._poll_attitude_until(
-            lambda sample: attitude_moved_toward(before_att, sample, goal[0], goal[1]),
+            lambda sample: attitude_near_target(sample, goal[0], goal[1]),
             token,
         )
         if att is None:
