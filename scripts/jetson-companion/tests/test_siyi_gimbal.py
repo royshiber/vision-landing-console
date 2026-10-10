@@ -1327,6 +1327,9 @@ class SiyiGimbalCommandTests(unittest.TestCase):
         code, body = still.command("rate", {"yaw": 0, "pitch": 0})
         self.assertEqual(code, 200)
         self.assertFalse(body["confirmed"])
+        self.assertEqual(body["reason"], "rate_not_decayed")
+        self.assertEqual(body["yaw_rate"], 22.0)
+        self.assertEqual(body["pitch_rate"], 0.0)
         self.assertEqual(body["ack"]["yaw_rate"], 22.0)
 
     def test_motion_acks_follow_the_live_counters(self):
@@ -1435,6 +1438,11 @@ class BatchSock:
     def close(self):
         return None
 
+
+_TEST_DIR = Path(__file__).resolve().parent
+if str(_TEST_DIR) not in sys.path:
+    sys.path.insert(0, str(_TEST_DIR))
+from confirm_flood_test import ConfirmFloodTests  # noqa: E402,F401
 
 if __name__ == "__main__":
     unittest.main()

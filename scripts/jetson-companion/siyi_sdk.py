@@ -20,12 +20,15 @@ counter is not the reading: it is kept only when a later attitude in
 the same group is ahead of that baseline by 1..64. Datagrams already
 queued are drained before each send so they are not this reply. Angle,
 center, and rate confirm only on that counter-advanced attitude. Center
-and rate wait for their ack, then re-read attitude for about 1.5 s.
-This mount's level pitch is ±180, so center is the shortest wrap-around
-distance to yaw 0 and pitch 180, not to pitch 0. A rate confirms only
-when that later reading shows the commanded change; a stop confirms
-only after the rate has decayed. A command ack alone does not confirm
-a move, and neither does the attitude that only taught the counter.
+and rate wait for their ack, then re-read attitude for about 1.5 s,
+with a short pause between reads so the link is not flooded. A newer
+rate or stop cancels the confirm already in progress. This mount's
+level pitch is ±180, so center is the shortest wrap-around distance to
+yaw 0 and pitch 180, not to pitch 0. A rate confirms only when that
+later reading shows the commanded change; a stop confirms only after
+the rate has decayed. If it never decays, the result says so and
+includes the last rate. A command ack alone does not confirm a move,
+and neither does the attitude that only taught the counter.
 Zoom is confirmed only by a current-zoom read (command
 0x18): the first byte is the whole multiple and the second is tenths.
 The status poll reads 0x18 as well. Firmware replies of 8 bytes (camera
@@ -77,6 +80,8 @@ SEQ_AHEAD_MAX = 64
 SEQ_SILENCE_S = 3.0
 # Center and rate take about this long to show up in attitude.
 CONFIRM_MOTION_S = 1.5
+# Pause between confirm reads. 75–100 ms keeps the loop at 10–15 Hz.
+CONFIRM_READ_GAP_S = 0.09
 # This mount reads pitch ±180 when the camera is level.
 CENTER_YAW = 0.0
 CENTER_PITCH = 180.0
@@ -459,6 +464,10 @@ class SiyiLink:
         self.rejected_count = 0
         self._lock = threading.Lock()
         self._io = threading.Lock()
+        # One confirm window at a time. A new rate or stop bumps the
+        # generation and wakes the sleeper so the old loop stops reading.
+        self._confirm_gen = 0
+        self._confirm_cv = threading.Condition()
         self._stop = threading.Event()
         self._thread = None
         self.firmware = None
@@ -544,6 +553,11 @@ class SiyiLink:
             entry = {"action": action, "ok": False, "reason": str(exc)}
             self._log(entry)
             return 400, {"ok": False, "reason": str(exc), "message": "בקשה לא תקינה", "sent": False}
+        # A held stick sends rate again before the last confirm finishes.
+        # That new command owns the window; the previous loop must stop.
+        confirm_token = None
+        if action in {"rate", "center", "angle"}:
+            confirm_token = self._open_confirm()
         want_fresh = needs_ack and action in ACK_EXACT_ACTIONS
         before_att = dict(self.attitude) if isinstance(self.attitude, dict) else None
         before_zoom = self.zoom
@@ -558,7 +572,9 @@ class SiyiLink:
             if action in {"rate", "center"} and not isinstance(decoded, dict):
                 checked = None
             else:
-                checked = self._confirm_motion(action, body, before_att, before_zoom)
+                checked = self._confirm_motion(
+                    action, body, before_att, before_zoom, token=confirm_token,
+                )
             if checked and checked.get("confirmed"):
                 result = {
                     "ok": True,
@@ -579,16 +595,26 @@ class SiyiLink:
                 return 200, result
             # A command ack is not confirmation. The fresh read is.
             if checked:
+                reason = checked.get("reason") or "sent_not_confirmed"
                 result = {
                     "ok": True,
                     "sent": True,
                     "confirmed": False,
-                    "reason": "sent_not_confirmed",
-                    "message": "sent, not confirmed",
+                    "reason": reason,
+                    "message": "rate not decayed" if reason == "rate_not_decayed" else "sent, not confirmed",
                     "ack": checked.get("ack"),
                     "cmd": cmd,
                 }
-                entry = {"action": action, "cmd": cmd, "ok": True, "confirmed": False}
+                if reason == "rate_not_decayed" and isinstance(checked.get("ack"), dict):
+                    result["yaw_rate"] = checked["ack"].get("yaw_rate")
+                    result["pitch_rate"] = checked["ack"].get("pitch_rate")
+                entry = {
+                    "action": action,
+                    "cmd": cmd,
+                    "ok": True,
+                    "confirmed": False,
+                    "reason": reason,
+                }
                 self._log(entry)
                 return 200, result
             if isinstance(decoded, dict):
@@ -796,7 +822,26 @@ class SiyiLink:
             pkt = self.exchange(CMD_ATTITUDE, b"", require_match=True)
         return pkt
 
-    def _confirm_motion(self, action, body, before_att, before_zoom):
+    def _open_confirm(self):
+        """Hand the confirm window to this command and stop the previous one."""
+        with self._confirm_cv:
+            self._confirm_gen += 1
+            token = self._confirm_gen
+            self._confirm_cv.notify_all()
+        return token
+
+    def _wait_confirm_gap(self, token, deadline):
+        """Pause before the next confirm read. False when a newer command owns the window."""
+        limit = min(time.monotonic() + CONFIRM_READ_GAP_S, deadline)
+        with self._confirm_cv:
+            while token == self._confirm_gen:
+                remain = limit - time.monotonic()
+                if remain <= 0:
+                    return token == self._confirm_gen
+                self._confirm_cv.wait(timeout=remain)
+            return False
+
+    def _confirm_motion(self, action, body, before_att, before_zoom, token=None):
         """Fresh post-send read. None when nothing new arrived."""
         if action == "zoom":
             # 0x18 reads the current zoom. 0x05 byte 0 would stop the zoom.
@@ -810,23 +855,30 @@ class SiyiLink:
             if zoom_moved(before_zoom, zoom, direction):
                 return {"confirmed": True, "confirmed_by": "zoom", "ack": {"zoom": zoom}}
             return {"confirmed": False, "ack": {"zoom": zoom}}
+        if token is None:
+            token = self._open_confirm()
         if action == "rate":
             yaw_cmd = clamp_rate(body.get("yaw"))
             pitch_cmd = clamp_rate(body.get("pitch"))
-            att, ok = self._poll_attitude_until(
-                lambda sample: rate_fields_match(sample, yaw_cmd, pitch_cmd)
+            att, ok, how = self._poll_attitude_until(
+                lambda sample: rate_fields_match(sample, yaw_cmd, pitch_cmd),
+                token,
             )
             if att is None:
                 return None
             if ok:
                 return {"confirmed": True, "confirmed_by": "rate", "ack": att}
+            # A stop that is still moving is not a generic miss.
+            if yaw_cmd == 0 and pitch_cmd == 0 and how != "superseded":
+                return {"confirmed": False, "reason": "rate_not_decayed", "ack": att}
             return {"confirmed": False, "ack": att}
         if action == "center":
             goal = (CENTER_YAW, CENTER_PITCH)
         else:
             goal = clamp_angle(body.get("yaw"), body.get("pitch"))
-        att, ok = self._poll_attitude_until(
-            lambda sample: attitude_moved_toward(before_att, sample, goal[0], goal[1])
+        att, ok, _how = self._poll_attitude_until(
+            lambda sample: attitude_moved_toward(before_att, sample, goal[0], goal[1]),
+            token,
         )
         if att is None:
             return None
@@ -834,20 +886,22 @@ class SiyiLink:
             return {"confirmed": True, "confirmed_by": "attitude", "ack": att}
         return {"confirmed": False, "ack": att}
 
-    def _poll_attitude_until(self, ready):
-        """Re-read attitude until `ready` or about 1.5 s.
+    def _poll_attitude_until(self, ready, token):
+        """Re-read attitude until `ready`, about 1.5 s, or a newer command.
 
-        Each sample has to be a counter-advanced 0x0D. A timeout ends the
-        wait. The caller already holds the command ack, so these reads are
-        after that ack.
+        Each sample has to be a counter-advanced 0x0D. Reads are spaced by
+        CONFIRM_READ_GAP_S. A silent socket ends the wait immediately. The
+        caller already holds the command ack, so these reads are after that ack.
         """
         deadline = time.monotonic() + CONFIRM_MOTION_S
         latest = None
         while time.monotonic() < deadline:
+            if token != self._confirm_gen:
+                return latest, False, "superseded"
             pkt = self._exchange_fresh_attitude()
             att = parse_attitude(pkt["data"]) if isinstance(pkt, dict) else None
             if att is None:
-                return latest, False
+                return latest, False, "silent"
             with self._lock:
                 self.attitude = att
             latest = att
@@ -856,8 +910,10 @@ class SiyiLink:
             except (TypeError, ValueError):
                 done = False
             if done:
-                return att, True
-        return latest, False
+                return att, True, "matched"
+            if not self._wait_confirm_gap(token, deadline):
+                return latest, False, "superseded"
+        return latest, False, "timeout"
 
     def poll_once(self):
         self._ticks += 1
