@@ -83,6 +83,8 @@ function startSiyiEcho() {
       att.writeInt16LE(605, 0);
       att.writeInt16LE(-200, 2);
       att.writeInt16LE(5, 4);
+      att.writeInt16LE(100, 6);
+      att.writeInt16LE(-100, 8);
       reply = encodeSiyi(cmd, att, seq);
     } else if (cmd === 0x01) {
       reply = encodeSiyi(cmd, Buffer.alloc(12), seq);
@@ -367,6 +369,7 @@ vectors = {
     "follow": (0x0C, bytes([4]), "556601010000000c04b08e"),
     "fpv": (0x0C, bytes([5]), "556601010000000c05919e"),
     "att": (0x0D, b"", "556601000000000de805"),
+    "codec": (0x20, bytes([1]), "5566010100000020019e9d"),
 }
 bad = []
 for name, (cmd, data, exp) in vectors.items():
