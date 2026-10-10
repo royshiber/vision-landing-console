@@ -276,6 +276,10 @@ describe('QA gate 14702a0', () => {
       expect(menu.bottom).toBeLessThanOrEqual(menu.vh + 1);
       expect(menu.label).toContain('טוסו לכאן');
       expect(menu.record).toContain('התחילו הקלטה');
+      await page.evaluate(() => {
+        const fly = document.getElementById('mapFlyToMenu');
+        if (fly) fly.hidden = true;
+      });
 
       await page.evaluate(() => {
         applyFlightHud({

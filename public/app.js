@@ -810,16 +810,16 @@ function bindFcNext(control, key, presence) {
 
 let fcSearchHome = '';
 
-function matchingFcKeys(query) {
-  const q = String(query || '').trim().toLowerCase();
-  if (!q) return [];
+function matchingFcKeys(rawQuery) {
+  const query = String(rawQuery || '').trim().toLowerCase();
+  if (!query) return [];
   const seen = new Set();
   const keys = [];
   const add = (key) => {
     const name = String(key || '');
     if (!name || seen.has(name)) return;
-    const he = String(fcParamMeta[name]?.he || '').toLowerCase();
-    if (!name.toLowerCase().includes(q) && !he.includes(q)) return;
+    const he = String(fcParamMeta[key]?.he || '').toLowerCase();
+    if (!key.toLowerCase().includes(query) && !he.includes(query)) return;
     seen.add(name);
     keys.push(name);
   };
@@ -23441,7 +23441,13 @@ let flightCommLinkId = 'cellular';
 function placeFlightMenu(menu) {
   if (!menu) return;
   const mapEl = document.querySelector('[data-mission-region="map"]');
-  if (mapEl && menu.parentElement !== mapEl) mapEl.appendChild(menu);
+  const mapBox = mapEl?.getBoundingClientRect();
+  const mapVisible = !!(mapBox && mapBox.width > 20 && mapBox.height > 20);
+  if (mapVisible) {
+    if (menu.parentElement !== mapEl) mapEl.appendChild(menu);
+  } else if (menu.parentElement !== document.body) {
+    document.body.appendChild(menu);
+  }
   menu.hidden = false;
   menu.style.left = '0px';
   menu.style.top = '0px';
@@ -23461,25 +23467,35 @@ function placeFlightMenu(menu) {
   if (zoom && zoom.width > 8 && left < zoom.right + 6 && left + width > zoom.left) {
     top = Math.max(top, zoom.bottom + 6);
   }
-  const floor = window.innerHeight - 8;
-  menu.style.overflow = 'visible';
-  menu.style.maxHeight = 'none';
-  menu.style.height = 'auto';
-  const needed = menu.offsetHeight;
-  if (top + needed > floor) top = Math.max(8, floor - needed);
-  const room = Math.max(160, Math.floor(floor - top));
+  let floor = window.innerHeight - 8;
+  if (map) floor = Math.min(floor, map.bottom - 6);
+  if (horizon && horizon.top > top + 40) floor = Math.min(floor, horizon.top - 6);
+  const attr = document.querySelector('.leaflet-control-attribution')?.getBoundingClientRect();
+  if (attr && attr.height > 2 && attr.top > top + 40 && left < attr.right && left + width > attr.left) {
+    floor = Math.min(floor, attr.top - 6);
+  }
   menu.style.overflow = 'auto';
-  menu.style.maxHeight = `${room}px`;
+  menu.style.maxHeight = `${window.innerHeight - 120}px`;
+  menu.style.height = 'auto';
+  if (!mapVisible) {
+    menu.style.left = '8px';
+    menu.style.top = '48px';
+    return;
+  }
   menu.style.left = `${Math.round(left)}px`;
   menu.style.top = `${Math.round(top)}px`;
+  const used = menu.offsetHeight;
+  if (top + used > floor) menu.style.height = `${Math.max(72, Math.floor(floor - top))}px`;
 }
 
 function attachWorkLinkPicker(menu) {
   const picker = document.getElementById('workLinkPicker');
   const rows = document.getElementById('commLinkRows');
+  const advanced = document.getElementById('connectAdvanced');
   if (!menu) return;
   if (picker && picker.parentElement !== menu) menu.insertBefore(picker, menu.firstChild);
   if (rows && rows.parentElement !== menu) menu.appendChild(rows);
+  if (advanced && advanced.parentElement !== menu) menu.appendChild(advanced);
 }
 
 function openFlightCommMenu(id, anchorEl) {

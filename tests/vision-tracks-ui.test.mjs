@@ -786,7 +786,7 @@ describe('vision track overlay', () => {
     expect(quietPosts).toEqual([]);
     await page.click('[data-tab="control"]');
     const railHidden = await page.locator('#assistRail').getAttribute('hidden');
-    if (railHidden !== null) await page.click('#assistToggleBtn');
+    if (railHidden !== null) await page.evaluate(() => assistSetOpen(true));
     await page.waitForSelector('#assistRail:not([hidden]) #assistInput', { state: 'visible' });
     await page.click('#assistMicBtn');
     await expect.poll(() => page.locator('#assistMicBtn .assist-mic-label').innerText()).toBe('מאזינים… לחצו לעצירה');

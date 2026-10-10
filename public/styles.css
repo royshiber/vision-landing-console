@@ -27543,18 +27543,50 @@ body:has(#control.panel.visible) #assistToggleBtn {
   margin-top: 0;
   margin-bottom: 1px;
 }
+.flight-comm-menu,
+.flight-link-menu {
+  z-index: 12000;
+}
 .flight-comm-menu {
   max-height: calc(100vh - 16px);
+  padding: 2px;
+  gap: 2px;
 }
 .flight-comm-menu .comm-link-row {
-  min-height: 28px;
-  padding: 2px 6px;
-  gap: 6px;
+  min-height: 22px;
+  padding: 0 4px;
+  gap: 4px;
 }
+.flight-comm-menu .flight-comm-link,
+.flight-comm-menu .flight-comm-action {
+  padding: 1px 8px;
+  min-height: 22px;
+}
+.flight-comm-menu :is(.conn-select, .conn-input) {
+  background: #0d1320;
+  color: #f2f6fb;
+  border: 1px solid rgba(148, 168, 198, 0.35);
+}
+.flight-comm-menu > .flight-menu-desc,
 .flight-comm-menu .comm-link-hint,
-.flight-comm-menu .comm-link-status,
 .flight-comm-menu .comm-link-meta {
   display: none;
+}
+.flight-comm-menu .flight-comm-detail p {
+  margin: 0;
+  line-height: 1.25;
+}
+.flight-comm-menu .comm-link-status {
+  margin: 0;
+  line-height: 1.2;
+}
+.flight-comm-menu .conn-advanced {
+  padding: 0 6px;
+  margin: 0;
+}
+.flight-comm-menu .conn-advanced-summary {
+  padding: 2px 0;
+  line-height: 1.2;
 }
 .flight-comm-menu .work-link-picker {
   gap: 2px 6px;
