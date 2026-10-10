@@ -26,6 +26,7 @@ from siyi_sdk import (  # noqa: E402
     parse_codec_specs,
     reply_matches,
     seq_acceptable,
+    seq_distance,
 )
 
 # Captured A8-mini reply frames (CRC included). SEQ is the camera's counter,
@@ -44,12 +45,14 @@ class FakeSiyiSock:
     def __init__(self, reply=True):
         self.sent = []
         self.reply = reply
+        self._timeout = None
 
     def sendto(self, packet, addr):
         self.sent.append((bytes(packet), addr))
 
     def recvfrom(self, _n):
-        if not self.reply or not self.sent:
+        # timeout 0 is the pre-send drain. Nothing is queued on this fake.
+        if self._timeout == 0 or not self.reply or not self.sent:
             raise socket.timeout()
         raw, _addr = self.sent[-1]
         decoded = decode_packet(raw)
@@ -57,8 +60,34 @@ class FakeSiyiSock:
         from siyi_sdk import encode_packet
         return encode_packet(decoded["cmd"], ack, seq=decoded["seq"]), (DEFAULT_HOST, DEFAULT_PORT)
 
-    def settimeout(self, _timeout):
+    def settimeout(self, timeout):
+        self._timeout = timeout
+
+    def close(self):
         return None
+
+
+class QueueSock:
+    """Datagrams already in `pending` are stale. `fresh` is appended on send."""
+
+    def __init__(self, stale=(), fresh=()):
+        self.pending = [bytes(item) for item in stale]
+        self.fresh = [bytes(item) for item in fresh]
+        self.sent = []
+        self._timeout = None
+
+    def sendto(self, packet, addr):
+        self.sent.append((bytes(packet), addr))
+        self.pending.extend(self.fresh)
+        self.fresh = []
+
+    def recvfrom(self, _n):
+        if not self.pending:
+            raise socket.timeout()
+        return self.pending.pop(0), (DEFAULT_HOST, DEFAULT_PORT)
+
+    def settimeout(self, timeout):
+        self._timeout = timeout
 
     def close(self):
         return None
@@ -151,6 +180,8 @@ class SiyiGimbalCommandTests(unittest.TestCase):
 
         class CodecSock(FakeSiyiSock):
             def recvfrom(self, _n):
+                if self._timeout == 0 or not self.sent:
+                    raise socket.timeout()
                 raw, _addr = self.sent[-1]
                 decoded = decode_packet(raw)
                 payload = main + sub if decoded["cmd"] == CMD_CODEC else bytes([1])
@@ -188,18 +219,30 @@ class SiyiGimbalCommandTests(unittest.TestCase):
     def test_captured_a8_frames_accept_a_seq_that_does_not_match(self):
         attitude = decode_packet(A8_ATTITUDE_SEQ_MISMATCH)
         firmware = decode_packet(A8_FIRMWARE_SEQ0)
-        codec = decode_packet(A8_CODEC_SEQ_MISMATCH)
+        # Same codec payload as the captured frame, seq 0x2C: within ±8 of
+        # the attitude counter 0x2A, and not the request sequence.
+        codec_near = encode_packet(
+            CMD_CODEC,
+            struct.pack("<BBHHHB", 1, 1, 1920, 1080, 2500, 30),
+            seq=0x2C,
+        )
+        codec = decode_packet(codec_near)
+        self.assertFalse(seq_acceptable(0x0100, 4, last_camera_seq=0x2A))
         self.assertEqual(attitude["cmd"], CMD_ATTITUDE)
         self.assertEqual(attitude["seq"], 0x2A)
         self.assertEqual(firmware["seq"], 0)
-        self.assertEqual(codec["seq"], 0x0100)
-        self.assertTrue(seq_acceptable(attitude["seq"], 0))
-        self.assertTrue(seq_acceptable(0, 1))
-        self.assertTrue(seq_acceptable(0xBEEF, 4))
-        self.assertFalse(seq_acceptable(attitude["seq"], 0, tolerance=0))
+        self.assertEqual(codec["seq"], 0x2C)
+        self.assertFalse(seq_acceptable(attitude["seq"], 0))
+        self.assertTrue(seq_acceptable(attitude["seq"], 0, last_camera_seq=0x2A))
+        self.assertTrue(seq_acceptable(0x32, 4, last_camera_seq=0x2A))
+        self.assertFalse(seq_acceptable(0xBEEF, 4, last_camera_seq=0x2A))
+        self.assertTrue(seq_acceptable(0, 1, last_camera_seq=0x2A))
+        self.assertTrue(seq_acceptable(7, 99, last_camera_seq=65535))
+        self.assertFalse(seq_acceptable(8, 99, last_camera_seq=65535))
         self.assertFalse(seq_acceptable("nope", 0))
         self.assertFalse(reply_matches(decode_packet(A8_ZOOM_NOT_ATTITUDE), CMD_ATTITUDE, 0))
-        self.assertTrue(reply_matches(attitude, CMD_ATTITUDE, 0))
+        self.assertFalse(reply_matches(attitude, CMD_ATTITUDE, 0))
+        self.assertTrue(reply_matches(attitude, CMD_ATTITUDE, 0, learn_counter=True))
 
         manual = encode_packet(CMD_CODEC, bytes([CODEC_STREAM_MAIN]), seq=0).hex()
         self.assertEqual(manual, "5566010100000020019e9d")
@@ -210,13 +253,15 @@ class SiyiGimbalCommandTests(unittest.TestCase):
                 self._prelude = [A8_ZOOM_NOT_ATTITUDE]
 
             def recvfrom(self, _n):
+                if self._timeout == 0 or (not self.sent and not self._prelude):
+                    raise socket.timeout()
                 if self._prelude:
                     return self._prelude.pop(0), (DEFAULT_HOST, DEFAULT_PORT)
                 decoded = decode_packet(self.sent[-1][0])
                 table = {
                     CMD_ATTITUDE: A8_ATTITUDE_SEQ_MISMATCH,
                     CMD_FIRMWARE: A8_FIRMWARE_SEQ0,
-                    CMD_CODEC: A8_CODEC_SEQ_MISMATCH,
+                    CMD_CODEC: codec_near,
                 }
                 raw = table.get(decoded["cmd"])
                 if raw is None:
@@ -250,6 +295,8 @@ class SiyiGimbalCommandTests(unittest.TestCase):
     def test_codec_miss_never_marks_the_gimbal_absent(self):
         class AttitudeThenQuiet(FakeSiyiSock):
             def recvfrom(self, _n):
+                if self._timeout == 0 or not self.sent:
+                    raise socket.timeout()
                 decoded = decode_packet(self.sent[-1][0])
                 if decoded["cmd"] == CMD_ATTITUDE:
                     return A8_ATTITUDE_SEQ_MISMATCH, (DEFAULT_HOST, DEFAULT_PORT)
@@ -276,6 +323,116 @@ class SiyiGimbalCommandTests(unittest.TestCase):
         self.assertIsNone(cold.last_error)
         self.assertFalse(cold.present)
         self.assertEqual(decode_packet(quiet.sent[-1][0])["data"], bytes([CODEC_STREAM_MAIN]))
+
+    def test_stale_same_command_reply_does_not_confirm(self):
+        stale = encode_packet(CMD_RATE, bytes([1]), seq=1234)
+        fresh = encode_packet(CMD_RATE, bytes([1]), seq=31)
+        queued = QueueSock(stale=[stale], fresh=[])
+        link = SiyiLink(
+            env={"VLC_GIMBAL_CONTROL_ENABLED": "1"},
+            sock=queued,
+            now_fn=lambda: 10.0,
+        )
+        self.assertIsNone(link._camera_seq)
+        code, body = link.command("rate", {"yaw": 4, "pitch": -3})
+        self.assertEqual(code, 504)
+        self.assertEqual(body["reason"], "no_reply")
+        self.assertFalse(body["confirmed"])
+        self.assertEqual(queued.pending, [])
+        self.assertEqual(len(queued.sent), 1)
+
+        both = QueueSock(stale=[stale], fresh=[fresh])
+        followed = SiyiLink(
+            env={"VLC_GIMBAL_CONTROL_ENABLED": "1"},
+            sock=both,
+            now_fn=lambda: 11.0,
+        )
+        followed._camera_seq = 30
+        code, body = followed.command("rate", {"yaw": 4, "pitch": -3})
+        self.assertEqual(code, 200)
+        self.assertTrue(body["confirmed"])
+        self.assertEqual(body["ack"]["sta"], 1)
+        self.assertEqual(followed._camera_seq, 31)
+
+    def test_out_of_order_replies_keep_the_matching_ack(self):
+        wrong = encode_packet(CMD_ZOOM, bytes([1]), seq=31)
+        stale = encode_packet(CMD_RATE, bytes([0]), seq=1234)
+        fresh = encode_packet(CMD_RATE, bytes([1]), seq=31)
+        sock = QueueSock(fresh=[wrong, stale, fresh])
+        link = SiyiLink(
+            env={"VLC_GIMBAL_CONTROL_ENABLED": "1"},
+            sock=sock,
+            now_fn=lambda: 12.0,
+        )
+        link._camera_seq = 30
+        code, body = link.command("rate", {"yaw": 8, "pitch": 1})
+        self.assertEqual(code, 200)
+        self.assertTrue(body["confirmed"])
+        self.assertEqual(body["ack"]["sta"], 1)
+        self.assertEqual(link._camera_seq, 31)
+        self.assertNotEqual(decode_packet(sock.sent[-1][0])["seq"], 31)
+
+    def test_live_a8_counter_pattern_is_accepted(self):
+        class CameraCounterSock(FakeSiyiSock):
+            def __init__(self):
+                super().__init__(reply=True)
+                self.n = 200
+                self.echoed = []
+
+            def recvfrom(self, _n):
+                if self._timeout == 0 or not self.sent:
+                    raise socket.timeout()
+                decoded = decode_packet(self.sent[-1][0])
+                seq = self.n
+                self.n = (self.n + 1) & 0xFFFF
+                self.echoed.append(seq == decoded["seq"])
+                if decoded["cmd"] == CMD_ATTITUDE:
+                    payload = struct.pack("<hhhhhh", 100, -45, 2, 0, 0, 0)
+                elif decoded["cmd"] == CMD_CODEC:
+                    payload = struct.pack("<BBHHHB", 1, 1, 1920, 1080, 2500, 30)
+                elif decoded["cmd"] == CMD_FIRMWARE:
+                    payload = struct.pack("<III", 0x6E030203, 0x00010402, 0)
+                else:
+                    payload = bytes([1])
+                return encode_packet(decoded["cmd"], payload, seq=seq), (DEFAULT_HOST, DEFAULT_PORT)
+
+        sock = CameraCounterSock()
+        link = SiyiLink(env={"VLC_GIMBAL_CONTROL_ENABLED": "0"}, sock=sock, now_fn=lambda: 20.0)
+        link.poll_once()
+        self.assertTrue(sock.echoed)
+        self.assertFalse(any(sock.echoed))
+        self.assertEqual(link.attitude["yaw"], 10.0)
+        self.assertEqual(link.firmware["camera"], "v3.2.3")
+        self.assertEqual(link.codec[0]["stream"], "main")
+        self.assertEqual(link._camera_seq, 204)
+        status = link.public_status()
+        self.assertTrue(status["present"])
+        self.assertIsNone(status["error"])
+
+        far = encode_packet(
+            CMD_ATTITUDE,
+            struct.pack("<hhhhhh", 900, 0, 0, 0, 0, 0),
+            seq=(link._camera_seq + 20) & 0xFFFF,
+        )
+        link._sock = QueueSock(fresh=[far])
+        missed = link.exchange(CMD_ATTITUDE, b"")
+        self.assertIsNone(missed)
+        self.assertEqual(link.attitude["yaw"], 10.0)
+
+        echo_seq = link._seq
+        before = link._camera_seq
+        echo = encode_packet(
+            CMD_ATTITUDE,
+            struct.pack("<hhhhhh", 110, -10, 0, 0, 0, 0),
+            seq=echo_seq,
+        )
+        link._sock = QueueSock(fresh=[echo])
+        matched = link.exchange(CMD_ATTITUDE, b"")
+        self.assertIsInstance(matched, dict)
+        self.assertEqual(matched["seq"], echo_seq)
+        self.assertNotEqual(echo_seq, before)
+        self.assertGreater(seq_distance(echo_seq, before), 8)
+        self.assertEqual(struct.unpack_from("<h", matched["data"], 0)[0], 110)
 
 
 if __name__ == "__main__":

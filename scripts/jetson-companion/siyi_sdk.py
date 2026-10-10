@@ -8,8 +8,9 @@ The A8 mini manual labels set-angle as 0x0D (same id as attitude). Newer
 SIYI docs use 0x0E. VLC_SIYI_ANGLE_CMD selects it (default 0x0E).
 
 Control endpoints stay off unless VLC_GIMBAL_CONTROL_ENABLED=1.
-Replies are paired by command id. The A8 mini does not echo SEQ, so the
-sequence check tolerates the camera's own counter.
+Replies are paired by command id. Pending datagrams are drained before
+each send. An exact SEQ echo is accepted on its own. The A8 mini usually
+sends its own counter: seq 0, or within ±8 of the last camera sequence.
 Codec specs (command 0x20) are read with the status poll. The request
 carries one stream-type byte (1 = main stream). A miss on that read does
 not mark the gimbal absent. The set command (0x21) is never sent.
@@ -42,9 +43,8 @@ CMD_CODEC = 0x20
 # 0x20 send data is one uint8: 0 recording, 1 main, 2 sub.
 # Manual example for main: 55 66 01 01 00 00 00 20 01 9E 9D
 CODEC_STREAM_MAIN = 1
-# A8 mini SEQ is the camera counter, not an echo. The full uint16
-# window accepts that counter; an exact echo still matches first.
-SEQ_TOLERANCE = 0xFFFF
+# Non-echo replies: seq 0, or this far from the last camera sequence.
+SEQ_WINDOW = 8
 DEFAULT_HOST = "192.168.144.25"
 DEFAULT_PORT = 37260
 YAW_MIN = -135.0
@@ -115,30 +115,48 @@ def decode_packet(raw):
     return {"ctrl": ctrl, "len": length, "seq": seq, "cmd": cmd, "data": data}
 
 
-def seq_acceptable(reply_seq, request_seq, tolerance=SEQ_TOLERANCE):
-    """True when an ACK sequence can belong to this request.
+def seq_distance(left, right):
+    delta = (int(left) - int(right)) & 0xFFFF
+    if delta & 0x8000:
+        delta = (0x10000 - delta) & 0xFFFF
+    return delta
 
-    The spec echoes SEQ. The A8 mini does not: live replies carry the
-    camera's own counter (often 0, and often not the request sequence).
-    An exact echo is accepted. Any other uint16 inside the tolerance
-    window is accepted too. The default window is the whole counter.
+
+def seq_acceptable(reply_seq, request_seq, last_camera_seq=None, window=SEQ_WINDOW):
+    """Whether this SEQ can belong to the in-flight request.
+
+    An exact echo of the request sequence is enough by itself. A non-echo
+    is accepted only when it is seq 0, or within ±window of the camera
+    sequence already seen. The window is not the whole uint16 range.
     """
     try:
         reply = int(reply_seq) & 0xFFFF
         request = int(request_seq) & 0xFFFF
-        window = int(tolerance) & 0xFFFF
+        limit = int(window)
     except (TypeError, ValueError):
+        return False
+    if limit < 0:
         return False
     if reply == request:
         return True
-    distance = (reply - request) & 0xFFFF
-    if distance > 0x8000:
-        distance = 0x10000 - distance
-    return distance <= window
+    if reply == 0:
+        return True
+    if last_camera_seq is None:
+        return False
+    try:
+        last = int(last_camera_seq) & 0xFFFF
+    except (TypeError, ValueError):
+        return False
+    return seq_distance(reply, last) <= limit
 
 
-def reply_matches(decoded, cmd, request_seq):
-    """Pair a datagram to the in-flight request by command id and SEQ."""
+def reply_matches(decoded, cmd, request_seq, last_camera_seq=None, learn_counter=False):
+    """Pair a datagram to the in-flight request by command id and SEQ.
+
+    learn_counter is only for a datagram read after this send, when the
+    camera counter is still unknown. A queued datagram must already have
+    been drained, so it cannot teach that counter.
+    """
     if not isinstance(decoded, dict):
         return False
     try:
@@ -147,7 +165,9 @@ def reply_matches(decoded, cmd, request_seq):
         return False
     if got != (int(cmd) & 0xFF):
         return False
-    return seq_acceptable(decoded.get("seq", 0), request_seq)
+    if seq_acceptable(decoded.get("seq", 0), request_seq, last_camera_seq):
+        return True
+    return bool(learn_counter and last_camera_seq is None)
 
 
 def format_firmware(value):
@@ -308,6 +328,7 @@ class SiyiLink:
         self._sock = sock
         self._external_sock = sock is not None
         self._seq = 0
+        self._camera_seq = None
         self._lock = threading.Lock()
         self._io = threading.Lock()
         self._stop = threading.Event()
@@ -420,12 +441,37 @@ class SiyiLink:
             if self.last_reply_mono is None:
                 self.last_error = "no_reply"
 
+    def _drain_pending(self, sock):
+        """Drop datagrams queued before this send. They are not this reply."""
+        try:
+            sock.settimeout(0)
+        except OSError:
+            return
+        while True:
+            try:
+                sock.recvfrom(2048)
+            except (socket.timeout, BlockingIOError, InterruptedError):
+                return
+            except OSError:
+                return
+
+    def _remember_camera_seq(self, seq):
+        try:
+            seq = int(seq) & 0xFFFF
+        except (TypeError, ValueError):
+            return
+        # Seq 0 is an allowed non-echo, not a new camera counter.
+        if seq == 0 and self._camera_seq not in (None, 0):
+            return
+        self._camera_seq = seq
+
     def _exchange_locked(self, cmd, data=b"", require_match=True, marks_absent=True):
         packet_seq = self._seq & 0xFFFF
         self._seq = (self._seq + 1) & 0xFFFF
         packet = encode_packet(cmd, data, seq=packet_seq)
         try:
             sock = self._ensure_sock()
+            self._drain_pending(sock)
             sock.sendto(packet, (self.host, self.port))
         except OSError as exc:
             if marks_absent:
@@ -452,8 +498,10 @@ class SiyiLink:
             except OSError:
                 return None
             decoded = decode_packet(raw)
-            if not reply_matches(decoded, cmd, packet_seq):
+            learn = self._camera_seq is None
+            if not reply_matches(decoded, cmd, packet_seq, self._camera_seq, learn_counter=learn):
                 continue
+            self._remember_camera_seq(decoded["seq"])
             self._note_reply()
             return decoded
 
