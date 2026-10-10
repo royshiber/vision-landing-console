@@ -263,6 +263,22 @@ function paintTile(tile, slot, streaming) {
     pump.start();
     return;
   }
+  if (img && !tile.hidden) {
+    const seen = Number(img.dataset.seen || 0);
+    const misses = Number(img.dataset.misses || 0);
+    const hasPicture = seen > 0 && Boolean(img.getAttribute('src'));
+    const presentation = frameTilePresentation({
+      seenAt: seen,
+      now: Date.now(),
+      streaming,
+      consecutiveMisses: misses,
+      hasPicture,
+    });
+    if (presentation.showImage) {
+      applyFramePresentation(tile, img, note, presentation);
+      return;
+    }
+  }
   tile.dataset.signal = 'none';
   if (img) {
     img.hidden = true;

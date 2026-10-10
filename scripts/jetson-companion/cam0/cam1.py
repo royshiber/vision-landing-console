@@ -541,17 +541,23 @@ def try_handle(handler, body=None):
         svc = get_service()
         packet = svc.frame_packet() if hasattr(svc, "frame_packet") else None
         jpeg = packet.get("jpeg") if isinstance(packet, dict) else svc.frame_jpeg()
+        if not isinstance(packet, dict) and jpeg:
+            packet = {"jpeg": jpeg}
+        tracks_b64 = ""
+        try:
+            from vision_tracks import client_frame
+            served, tracks_b64 = client_frame("cam1", packet if isinstance(packet, dict) else None)
+            if isinstance(served, dict) and served.get("jpeg"):
+                packet = served
+                jpeg = served.get("jpeg")
+        except Exception:
+            tracks_b64 = ""
         if jpeg:
             try:
                 from camera_ingest import jpeg_timing_headers
                 headers = list(jpeg_timing_headers(packet or {"jpeg": jpeg}))
             except Exception:
                 headers = [("Cache-Control", "no-store")]
-            try:
-                from vision_tracks import tracks_header_for_frame
-                tracks_b64 = tracks_header_for_frame("cam1", packet if isinstance(packet, dict) else {})
-            except Exception:
-                tracks_b64 = ""
             if tracks_b64:
                 headers.append(("X-Airvix-Tracks", tracks_b64))
             handler._send_bytes(200, jpeg, "image/jpeg", extra=tuple(headers))

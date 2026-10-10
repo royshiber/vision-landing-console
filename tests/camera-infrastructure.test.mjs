@@ -107,14 +107,24 @@ function startSiyiEcho() {
 }
 
 function spawnAgent(env) {
+  const clean = { ...process.env };
+  for (const key of Object.keys(clean)) {
+    if (key.startsWith('VLC_CAM') || key.startsWith('VLC_VISION') || key.startsWith('VLC_CAMERA')) {
+      delete clean[key];
+    }
+  }
   return spawn('python3', [agentPath], {
     env: {
-      ...process.env,
+      ...clean,
       VLC_HTTP_BIND: '127.0.0.1',
       VLC_SKIP_RELAY: '1',
       VLC_CONSOLE_URL: 'http://127.0.0.1:1',
       VLC_FC_DEVICE: '/dev/null',
       VLC_CAMERA_DRY_RUN: '1',
+      VLC_CAMERA_DRY_RUN_MODE: '',
+      VLC_CAM3_ENABLED: '0',
+      VLC_VISION_DETECT: '0',
+      VLC_VISION_CAMERA: '',
       VLC_GIMBAL_POLL: '0',
       VLC_GIMBAL_CONTROL_ENABLED: '0',
       ...env,

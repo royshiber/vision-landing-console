@@ -90,7 +90,9 @@ function decodeObjectUrl(objectUrl) {
     probe.onerror = () => finish(false);
     probe.src = objectUrl;
     if (typeof probe.decode === 'function') {
-      probe.decode().then(() => finish(true)).catch(() => finish(false));
+      // A decode() rejection is not a bad file. Hidden and not-yet-loaded
+      // images reject it, then onload still accepts the same bytes.
+      probe.decode().then(() => finish(true)).catch(() => {});
     }
   });
 }
@@ -187,12 +189,16 @@ export function createLatestJpegPump({
     const capturedAt = Number(loaded.capturedAt);
     if (capturedAt > 0) current.dataset.capturedAt = String(capturedAt);
     else delete current.dataset.capturedAt;
-    if (wasShown) current.hidden = false;
+    if (wasShown || decoded) current.hidden = false;
     current.src = loaded.objectUrl;
     if (typeof current.decode === 'function') {
-      try { await current.decode(); } catch { /* the probe already decoded these bytes */ }
+      try { await current.decode(); } catch { /* the probe already accepted these bytes */ }
     }
-    if (Number(current.naturalWidth) > 0) current.hidden = false;
+    if (!(Number(current.naturalWidth) > 0)) {
+      if (!wasShown) current.hidden = true;
+      return false;
+    }
+    current.hidden = false;
     current.dataset.decoded = seq > 0 ? String(seq) : '1';
     if (prev && prev !== loaded.objectUrl) {
       try { URL.revokeObjectURL(prev); } catch { /* already revoked */ }
@@ -252,7 +258,7 @@ export function createLatestJpegPump({
       const painted = await presentDecoded(loaded);
       if (stopped || mine !== gen) return;
       if (!painted) {
-        schedule(seq);
+        schedule(lastSeq);
         return;
       }
       const stillShown = !loaded?.objectUrl

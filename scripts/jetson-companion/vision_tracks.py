@@ -784,6 +784,7 @@ class VisionTracks:
         self.stream = False
         self.frame_seq = None
         self.captured_at = None
+        self._detected_packet = None
         self.frame_width = None
         self.frame_height = None
         self.backend = "off"
@@ -831,6 +832,15 @@ class VisionTracks:
                 camera = str(body.get("camera") or "").strip()
                 if camera not in CAMERAS:
                     return 400, {"ok": False, "reason": "bad_camera", "flight_commands": False}
+                if camera != self.camera:
+                    self.tracks = []
+                    self.stream = False
+                    self.frame_seq = None
+                    self.captured_at = None
+                    self.frame_width = None
+                    self.frame_height = None
+                    self._detected_packet = None
+                    self.tracker = ByteTracker()
                 self.camera = camera
             if "gimbal_steer" in body:
                 flag = _flag(body.get("gimbal_steer"))
@@ -845,6 +855,9 @@ class VisionTracks:
                 self.stream = False
                 self.frame_seq = None
                 self.captured_at = None
+                self.frame_width = None
+                self.frame_height = None
+                self._detected_packet = None
                 self.tracker = ByteTracker()
             self._resolve_backend()
         self._sync_thread()
@@ -883,6 +896,7 @@ class VisionTracks:
                 self.captured_at = None
                 self.frame_width = None
                 self.frame_height = None
+                self._detected_packet = None
             return self.snapshot(camera)
         if backend == "unavailable" or detector is None:
             with self._lock:
@@ -890,18 +904,20 @@ class VisionTracks:
                 self.stream = self._packet(camera) is not None
                 self.frame_seq = None
                 self.captured_at = None
+                self._detected_packet = None
             return self.snapshot(camera)
         packet = self._packet(camera)
         seq, captured = frame_identity(packet)
         decoded = rgb_from_packet(packet)
         if not decoded:
             with self._lock:
-                self.tracks = []
-                self.stream = False
-                self.frame_seq = None
-                self.captured_at = None
-                self.frame_width = None
-                self.frame_height = None
+                if not self._detected_packet:
+                    self.tracks = []
+                    self.stream = False
+                    self.frame_seq = None
+                    self.captured_at = None
+                    self.frame_width = None
+                    self.frame_height = None
                 self._apply_steer_locked()
             return self.snapshot(camera)
         width, height, rgb = decoded
@@ -915,6 +931,7 @@ class VisionTracks:
             self.captured_at = captured
             self.frame_width = width
             self.frame_height = height
+            self._remember_detected_locked(packet, seq, captured)
             fresh = self.tracker.update(dets)
             self.tracks = fresh
             if self.lock_target and self.lock_target.get("camera") == camera:
@@ -923,6 +940,50 @@ class VisionTracks:
                     self.lock_target = {**self.lock_target, **match, "camera": camera}
             self._apply_steer_locked()
         return self.snapshot(camera)
+
+    def _remember_detected_locked(self, packet, seq, captured):
+        """Keep the JPEG this step processed, under the same lock as frame_seq."""
+        jpeg = packet.get("jpeg") if isinstance(packet, dict) else None
+        if not jpeg:
+            self._detected_packet = None
+            return
+        held = {"jpeg": bytes(jpeg)}
+        if seq is not None:
+            held["seq"] = int(seq)
+        if captured is not None:
+            held["captured_at"] = int(captured)
+        utc = packet.get("captured_utc_ns") if isinstance(packet, dict) else None
+        if utc:
+            held["captured_utc_ns"] = int(utc)
+        elif captured is not None:
+            held["captured_utc_ns"] = int(captured) * 1_000_000
+        for key in ("encode_ms", "decode_ms", "frame_count"):
+            if isinstance(packet, dict) and packet.get(key) is not None:
+                held[key] = packet.get(key)
+        self._detected_packet = held
+
+    def client_frame(self, camera, live_packet):
+        """While detection is on, the JPEG is the one this detector last processed.
+
+        The tracks header is built from the same locked snapshot, so a newer
+        step cannot pair fresh tracks with an older picture. Does not start
+        the vision service; callers must already hold one.
+        """
+        camera = str(camera or "")
+        with self._lock:
+            active = self.enabled and self.camera == camera and camera in CAMERAS
+            held = self._detected_packet
+            if active and isinstance(held, dict) and held.get("jpeg"):
+                packet = dict(held)
+            elif isinstance(live_packet, dict):
+                packet = live_packet
+            else:
+                packet = None
+            body = self._snapshot_locked(camera, "class")
+        header = ""
+        if isinstance(packet, dict) and tracks_match_frame(body, *frame_identity(packet)):
+            header = _tracks_header_b64(body)
+        return packet, header
 
     def _apply_steer_locked(self):
         status = {}
@@ -1159,15 +1220,8 @@ def tracks_match_frame(payload, seq, captured_at, tolerance_ms=80):
     return abs(stamp - at) <= int(tolerance_ms)
 
 
-def tracks_header_for_frame(camera, packet):
-    """Base64 JSON of the tracks for this JPEG, or '' when they are a different frame."""
-    with _SERVICE_LOCK:
-        svc = _SERVICE
-    if svc is None or not isinstance(packet, dict):
-        return ""
-    seq, captured = frame_identity(packet)
-    body = svc.snapshot(str(camera or ""))
-    if not tracks_match_frame(body, seq, captured):
+def _tracks_header_b64(body):
+    if not isinstance(body, dict):
         return ""
     compact = {
         "ok": body.get("ok") is True,
@@ -1189,6 +1243,34 @@ def tracks_header_for_frame(camera, packet):
     if len(raw) > 6000:
         return ""
     return base64.b64encode(raw).decode("ascii")
+
+
+def tracks_header_for_frame(camera, packet):
+    """Base64 JSON of the tracks for this JPEG, or '' when they are a different frame."""
+    with _SERVICE_LOCK:
+        svc = _SERVICE
+    if svc is None or not isinstance(packet, dict):
+        return ""
+    seq, captured = frame_identity(packet)
+    body = svc.snapshot(str(camera or ""))
+    if not tracks_match_frame(body, seq, captured):
+        return ""
+    return _tracks_header_b64(body)
+
+
+def client_frame(camera, live_packet):
+    """JPEG to send, plus the tracks header for that exact JPEG.
+
+    While detection is on for this camera and a frame has been processed,
+    the JPEG is the one the detector last saw. A missing service is left
+    missing: this does not start detection, and a disabled camera stays empty.
+    """
+    with _SERVICE_LOCK:
+        svc = _SERVICE
+    if svc is None:
+        packet = live_packet if isinstance(live_packet, dict) else None
+        return packet, ""
+    return svc.client_frame(camera, live_packet)
 
 
 def try_handle(handler, body=None):

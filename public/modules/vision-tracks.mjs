@@ -74,6 +74,39 @@ export function hitTrack(tracks, x, y) {
   return null;
 }
 
+export function layoutTrackBoxes(payload, fit, frameW, frameH) {
+  const tracks = Array.isArray(payload?.tracks) ? payload.tracks : [];
+  if (!fit) return [];
+  const fw = Number(frameW) || Number(payload?.frame_width) || fit.nw;
+  const fh = Number(frameH) || Number(payload?.frame_height) || fit.nh;
+  if (!(fw > 0) || !(fh > 0)) return [];
+  const boxes = [];
+  for (const track of tracks) {
+    const box = track?.bbox || [];
+    if (box.length < 4) continue;
+    boxes.push({
+      id: track.id,
+      x: fit.x + (box[0] * fit.nw / fw) * fit.scaleX,
+      y: fit.y + (box[1] * fit.nh / fh) * fit.scaleY,
+      w: (box[2] * fit.nw / fw) * fit.scaleX,
+      h: (box[3] * fit.nh / fh) * fit.scaleY,
+    });
+  }
+  return boxes;
+}
+
+/** Id of the box on the frame actually shown. A newer poll must not steal the click. */
+export function hitShownFrame(latest, book, shownSeq, shownAt, fit, x, y) {
+  const chosen = selectFrameTracks(latest, book, shownSeq, shownAt);
+  if (!chosen || !fit) return null;
+  const tagged = Number(chosen.frame_seq);
+  const shown = Number(shownSeq);
+  if (shown > 0 && tagged > 0 && !tracksMatchFrame(chosen, shown, shownAt)) return null;
+  const hit = hitDrawnBox(layoutTrackBoxes(chosen, fit, chosen.frame_width, chosen.frame_height), x, y);
+  if (!hit || hit.id == null || hit.id === '') return null;
+  return hit.id;
+}
+
 export function hitDrawnBox(boxes, x, y) {
   const rows = Array.isArray(boxes) ? boxes : [];
   for (let i = rows.length - 1; i >= 0; i -= 1) {
@@ -527,9 +560,13 @@ function lockAtPoint(host, clientX, clientY) {
   const layer = host.querySelector(':scope > .vision-hit-layer');
   const rect = (layer || host).getBoundingClientRect();
   if (!(rect.width >= 32) || !(rect.height >= 32)) return null;
-  const hit = hitDrawnBox(drawnBoxes.get(host), clientX - rect.left, clientY - rect.top);
-  if (!hit || hit.id == null || hit.id === '') return null;
-  return { camera, id: hit.id };
+  const shown = shownSeq(host);
+  const at = shownCapturedAt(host);
+  const latest = payloadFor(camera);
+  const geom = geometryFor(host, layer, selectFrameTracks(latest, frameBooks.get(camera), shown, at) || latest);
+  const id = hitShownFrame(latest, frameBooks.get(camera), shown, at, geom?.fit, clientX - rect.left, clientY - rect.top);
+  if (id == null || id === '') return null;
+  return { camera, id };
 }
 
 function ensureChrome(host, camera) {
@@ -664,7 +701,7 @@ export function paintHost(host, payload, { kind = 'tile' } = {}) {
   const fw = payload.frame_width || remembered?.frameW || fit.nw;
   const fh = payload.frame_height || remembered?.frameH || fit.nh;
   const ordered = [...tracks].sort((a, b) => (a.id === lockId ? 1 : 0) - (b.id === lockId ? 1 : 0));
-  const boxes = [];
+  const boxes = layoutTrackBoxes({ ...payload, tracks: ordered }, fit, fw, fh);
   const drawCaption = (caption, boxX, boxY) => {
     if (!caption) return;
     ctx.save();
@@ -687,13 +724,9 @@ export function paintHost(host, payload, { kind = 'tile' } = {}) {
     ctx.restore();
   };
   for (const track of ordered) {
-    const box = track.bbox || [];
-    if (box.length < 4) continue;
-    const x = fit.x + (box[0] * fit.nw / fw) * fit.scaleX;
-    const y = fit.y + (box[1] * fit.nh / fh) * fit.scaleY;
-    const w = (box[2] * fit.nw / fw) * fit.scaleX;
-    const h = (box[3] * fit.nh / fh) * fit.scaleY;
-    boxes.push({ id: track.id, x, y, w, h });
+    const box = boxes.find((row) => row.id === track.id);
+    if (!box) continue;
+    const { x, y, w, h } = box;
     const locked = lockId != null && track.id === lockId;
     ctx.lineWidth = locked ? 4 : 2;
     ctx.strokeStyle = locked ? '#67e8f9' : '#facc15';

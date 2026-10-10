@@ -317,6 +317,15 @@ describe('vision track overlay', () => {
   }, 30000);
 
   it('draws the truck and the person for the frame on screen at 1366', async () => {
+    if (!base) {
+      const started = await boot();
+      proc = started.proc;
+      base = started.base;
+    }
+    if (!browser) {
+      const { chromium } = await import('playwright');
+      browser = await chromium.launch({ headless: true });
+    }
     expect(base).toMatch(/^http:\/\/127\.0\.0\.1:/);
     const page = await browser.newPage({ viewport: { width: 1366, height: 768 } });
     const jpeg = sampleFrame();

@@ -3,7 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { buildAssistContext } from '../lib/assist/assist-context.mjs';
-import { FRAME_SYNC_TOLERANCE_MS, assembleVisionAsk, cacheCoversAsk, decodeTracksHeader, encodeTracksHeader, fillVisionAsk, framePoint, hitDrawnBox, hitTrack, mediaFit, placeMenuBox, placeTrackCaption, selectFrameTracks, TRACK_POLL_MS, trackCaption, tracksMatchFrame, unwrapTracks, visionAskSnapshot, VISION_ASK_WAIT_MS, waitForVisionAsk } from '../public/modules/vision-tracks.mjs';
+import { FRAME_SYNC_TOLERANCE_MS, assembleVisionAsk, cacheCoversAsk, decodeTracksHeader, encodeTracksHeader, fillVisionAsk, framePoint, hitDrawnBox, hitShownFrame, hitTrack, layoutTrackBoxes, mediaFit, placeMenuBox, placeTrackCaption, selectFrameTracks, TRACK_POLL_MS, trackCaption, tracksMatchFrame, unwrapTracks, visionAskSnapshot, VISION_ASK_WAIT_MS, waitForVisionAsk } from '../public/modules/vision-tracks.mjs';
 import { nextFailPollMs } from '../public/modules/poll-backoff.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -22,6 +22,13 @@ describe('vision track hit testing', () => {
     expect(hitDrawnBox(boxes, 90, 30).id).toBe(2);
     expect(hitDrawnBox(boxes, 12, 14).id).toBe(1);
     expect(hitDrawnBox(boxes, 0, 0)).toBeNull();
+    const fit = { x: 0, y: 0, scaleX: 1, scaleY: 1, nw: 320, nh: 180 };
+    const frame1 = { frame_seq: 1, captured_at: 100, frame_width: 320, frame_height: 180, tracks: [{ id: 7, bbox: [10, 10, 40, 40] }] };
+    const frame2 = { frame_seq: 2, captured_at: 200, frame_width: 320, frame_height: 180, tracks: [{ id: 9, bbox: [200, 10, 40, 40] }] };
+    const book = new Map([[1, frame1], [2, frame2]]);
+    expect(hitShownFrame(frame2, book, 1, 100, fit, 20, 20)).toBe(7);
+    expect(hitShownFrame(frame2, book, 1, 100, fit, 210, 20)).toBeNull();
+    expect(layoutTrackBoxes(frame1, fit).some((box) => box.id === 9)).toBe(false);
     expect(trackCaption({ id: 2, label_he: 'אדם', confidence: 0.9 })).toBe('אדם · #2 · 90%');
     const left = placeTrackCaption(0, 90, 200);
     expect(left.x).toBe(0);

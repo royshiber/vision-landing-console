@@ -1,5 +1,6 @@
 """Tracks API: stable ids, lock, and a gimbal steer gate that does not fly."""
 
+import base64
 import json
 import sys
 import unittest
@@ -302,6 +303,96 @@ class VisionTrackTests(unittest.TestCase):
         self.assertEqual(len(tracks), 1)
         kept = tracker.update([{"class": "person", "confidence": 0.2, "bbox": [2, 0, 10, 10]}])
         self.assertEqual(kept[0]["id"], tracks[0]["id"])
+
+    def test_a_faster_camera_serves_the_frame_detection_processed(self):
+        width, height, rgb, _truth = sample_frame(1)
+        live = []
+
+        def source(_camera):
+            return live[-1] if live else None
+
+        self.svc.frame_source = source
+        self.svc.configure({"enabled": True, "camera": "cam3"})
+        matched = 0
+        boxed = 0
+        with_objects = 0
+        served = 0
+        for index in range(1, 41):
+            live.append({
+                "jpeg": bytes([0xFF, 0xD8, index & 0xFF, 0x00, 0xD9]),
+                "rgb": rgb,
+                "width": width,
+                "height": height,
+                "seq": index,
+                "captured_at": 1_700_000_000_000 + index * 30,
+            })
+            if index % 2 == 0:
+                self.svc.step()
+            packet, header = vision_tracks.client_frame("cam3", live[-1])
+            served += 1
+            self.assertIsInstance(packet, dict)
+            if index >= 2:
+                processed = index if index % 2 == 0 else index - 1
+                self.assertEqual(packet.get("jpeg"), live[processed - 1]["jpeg"])
+                self.assertEqual(packet.get("seq"), processed)
+            seq, captured = vision_tracks.frame_identity(packet)
+            body = self.svc.snapshot("cam3")
+            if header and vision_tracks.tracks_match_frame(body, seq, captured):
+                matched += 1
+                decoded = json.loads(base64.b64decode(header))
+                self.assertEqual(decoded.get("frame_seq"), seq)
+                if decoded.get("tracks"):
+                    with_objects += 1
+                    boxed += 1
+        self.assertGreaterEqual(matched / served, 0.95)
+        self.assertGreaterEqual(boxed / with_objects, 0.98)
+        self.svc.configure({"enabled": False})
+        fresh = {"jpeg": b"\xff\xd8live\xff\xd9", "seq": 99, "captured_at": 9_000}
+        packet, header = vision_tracks.client_frame("cam3", fresh)
+        self.assertEqual(packet.get("jpeg"), fresh["jpeg"])
+        self.assertEqual(header, "")
+
+    def test_lost_lock_rides_the_frame_the_detector_served(self):
+        width, height, rgb, _truth = sample_frame(0)
+        seen = {
+            "jpeg": b"\xff\xd8frame-a\xff\xd9",
+            "rgb": rgb,
+            "width": width,
+            "height": height,
+            "seq": 7,
+            "captured_at": 5000,
+        }
+        self.svc.frame_source = lambda _camera: seen
+        self.svc.configure({"enabled": True, "camera": "cam3"})
+        body = self.svc.step()
+        person = next(row for row in body["tracks"] if row["class"] == "person")
+        self.svc.lock({"camera": "cam3", "id": person["id"]})
+        seen = {
+            "jpeg": b"\xff\xd8frame-b\xff\xd9",
+            "rgb": bytes([16, 16, 16]) * (width * height),
+            "width": width,
+            "height": height,
+            "seq": 8,
+            "captured_at": 5060,
+        }
+        self.svc.step()
+        packet, header = vision_tracks.client_frame("cam3", {
+            "jpeg": b"\xff\xd8frame-c\xff\xd9",
+            "seq": 9,
+            "captured_at": 5200,
+        })
+        self.assertEqual(packet.get("jpeg"), b"\xff\xd8frame-b\xff\xd9")
+        decoded = json.loads(base64.b64decode(header))
+        self.assertEqual(decoded.get("frame_seq"), 8)
+        self.assertIs(decoded.get("lock", {}).get("lost"), True)
+        self.assertFalse(any(row.get("id") == person["id"] for row in decoded.get("tracks") or []))
+
+    def test_client_frame_does_not_start_the_service(self):
+        reset_service()
+        packet, header = vision_tracks.client_frame("cam3", {"jpeg": b"abc", "seq": 1, "captured_at": 10})
+        self.assertEqual(packet.get("jpeg"), b"abc")
+        self.assertEqual(header, "")
+        self.assertIsNone(vision_tracks._SERVICE)
 
     def test_source_has_no_flight_command(self):
         text = (ROOT / "vision_tracks.py").read_text(encoding="utf-8")
