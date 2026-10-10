@@ -136,6 +136,9 @@ describe('optics cameras and gimbal panel', () => {
     }));
     await page.goto(base, { waitUntil: 'domcontentloaded' });
     await page.click('[data-tab="optics"]');
+    await page.locator('.debrief-cam-tile[data-cam="cam0"]').click({ button: 'right' });
+    await page.waitForSelector('#opticsContext:not([hidden]) #cam0Panel');
+    await page.locator('#opticsContext [data-settings-group="image"] > summary').click();
     await page.waitForSelector('#cam0Fov');
     await page.waitForSelector('#cam1Record', { state: 'attached' });
 
@@ -206,8 +209,8 @@ describe('optics cameras and gimbal panel', () => {
     await page.locator('#cam0Fov').locator('xpath=../button[@data-optics-step="1"]').click();
     expect(await page.locator('#cam0Fov').inputValue()).toBe('121');
 
-    await page.click('#opticsCam1Btn');
-    await page.waitForSelector('#cam1Panel:not([hidden])');
+    await page.locator('.debrief-cam-tile[data-cam="cam1"]').click({ button: 'right' });
+    await page.waitForSelector('#opticsContext:not([hidden]) #cam1Panel');
     const cam1 = await page.evaluate(() => {
       const panel = document.getElementById('cam1Panel');
       const start = document.getElementById('cam1CalibStart');
@@ -218,7 +221,7 @@ describe('optics cameras and gimbal panel', () => {
         start: start?.textContent || '',
         corners: document.getElementById('cam1CalibCols')?.value,
         square: document.getElementById('cam1CalibSquare')?.value,
-        note: document.querySelector('[data-camera-settings="cam1"]')?.innerText || '',
+        note: document.querySelector('[data-camera-settings="cam1"]')?.textContent || '',
         bottom: Math.max(panel.getBoundingClientRect().bottom, start.getBoundingClientRect().bottom),
         vh: window.innerHeight,
         calibScroll: document.querySelector('#optics .optics-calib').scrollHeight

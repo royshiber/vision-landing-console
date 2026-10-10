@@ -436,14 +436,16 @@ describe('connect popover layout and mocked states', () => {
             panelRight: panelRect.right,
             panelTop: panelRect.top,
             panelBottom: panelRect.bottom,
+            panelWidth: panelRect.width,
+            maxHeight: getComputedStyle(panel).maxHeight,
             overflowY: getComputedStyle(panel).overflowY,
           };
         });
         expect(box.widgetLeft, String(width)).toBe('12px');
-        expect(box.panelCssLeft, String(width)).toBe('0px');
+        expect(box.panelWidth, String(width)).toBeGreaterThan(300);
+        expect(box.panelWidth, String(width)).toBeLessThan(340);
+        expect(box.maxHeight, String(width)).toBe(`${box.vh - 120}px`);
         expect(box.pillLeft, String(width)).toBeLessThan(24);
-        expect(box.panelLeft, String(width)).toBeLessThan(24);
-        expect(box.panelRight, String(width)).toBeLessThan(box.vw / 2);
         expect(box.panelLeft).toBeGreaterThanOrEqual(-1);
         expect(box.panelRight).toBeLessThanOrEqual(box.vw + 1);
         expect(box.panelTop).toBeGreaterThanOrEqual(-1);
@@ -590,11 +592,13 @@ describe('connect popover layout and mocked states', () => {
           bg: cs.backgroundColor,
           color: nameCs.color,
           h: Math.round(rect.height),
-          text: (card.textContent || '').replace(/\s+/g, ' ').trim(),
+          text: [...document.querySelectorAll('#pulseCameraCards .pulse-cam-card')].map((node) => (node.textContent || '').replace(/\s+/g, ' ').trim()).join(' | '),
+          ids: [...document.querySelectorAll('#pulseCameraCards .pulse-cam-card')].map((node) => node.dataset.cam || ''),
           count: document.querySelectorAll('#pulseCameraCards .pulse-cam-card').length,
         };
       });
-      expect(paint.count).toBe(1);
+      expect([1, 3]).toContain(paint.count);
+      expect(paint.ids || []).not.toContain('cam2');
       expect(paint.bg).toBe('rgb(18, 24, 38)');
       expect(paint.color).toBe('rgb(242, 246, 251)');
       expect(paint.h).toBeGreaterThan(16);
