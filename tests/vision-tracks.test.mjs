@@ -3,7 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { buildAssistContext } from '../lib/assist/assist-context.mjs';
-import { FRAME_SYNC_TOLERANCE_MS, assembleVisionAsk, cacheCoversAsk, decodeTracksHeader, encodeTracksHeader, fillVisionAsk, framePoint, hitDrawnBox, hitShownFrame, hitTrack, layoutTrackBoxes, mediaFit, placeMenuBox, placeTrackCaption, selectFrameTracks, TRACK_POLL_MS, trackCaption, tracksMatchFrame, unwrapTracks, visionAskSnapshot, VISION_ASK_WAIT_MS, waitForVisionAsk, waitFrameTracks } from '../public/modules/vision-tracks.mjs';
+import { FRAME_SYNC_TOLERANCE_MS, assembleVisionAsk, cacheCoversAsk, decodeTracksHeader, encodeTracksHeader, fillVisionAsk, framePoint, hitDrawnBox, hitShownFrame, hitTrack, layoutTrackBoxes, mediaFit, placeMenuBox, placeTrackCaption, selectFrameTracks, TRACK_POLL_MS, trackCaption, tracksForShownFrame, tracksMatchFrame, unwrapTracks, visionAskSnapshot, VISION_ASK_WAIT_MS, waitForVisionAsk, waitFrameTracks } from '../public/modules/vision-tracks.mjs';
 import { nextFailPollMs } from '../public/modules/poll-backoff.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -61,6 +61,12 @@ describe('vision track hit testing', () => {
     expect(selectFrameTracks(late, emptyBook, 11, 5000 + FRAME_SYNC_TOLERANCE_MS)).toEqual(late);
     expect(selectFrameTracks(late, emptyBook, 11, 5000 + FRAME_SYNC_TOLERANCE_MS + 1)).toBeNull();
     expect(selectFrameTracks(late, emptyBook, 11, 0)).toBeNull();
+    const absent = { frame_seq: 11, captured_at: 5000, tracks: [], lock: { id: 4, lost: true, bbox: [1, 2, 3, 4] } };
+    const header = new Map([[11, absent]]);
+    const poll = { frame_seq: 11, captured_at: 5000, tracks: [{ id: 4, label_he: 'אדם' }] };
+    expect(tracksForShownFrame(poll, header, emptyBook, 11, 5000)).toBe(absent);
+    expect(tracksForShownFrame(poll, header, emptyBook, 11, 5000).tracks).toEqual([]);
+    expect(tracksForShownFrame(late, new Map(), emptyBook, 11, 5000 + FRAME_SYNC_TOLERANCE_MS)).toEqual(late);
   });
 
   it('round-trips the tracks that ride with a frame', () => {

@@ -17,6 +17,7 @@ const LOCK_URL = '/api/jetson/v1/vision/lock';
 
 const cache = new Map();
 const frameBooks = new Map();
+const headerBooks = new Map();
 const drawnBoxes = new WeakMap();
 const fitMemory = new WeakMap();
 let sortMode = 'class';
@@ -96,6 +97,19 @@ export function layoutTrackBoxes(payload, fit, frameW, frameH) {
     });
   }
   return boxes;
+}
+
+/**
+ * Tracks to draw on the frame that is actually showing.
+ * A JPEG that brought its own header wins. A poll must not cover it,
+ * even when the poll shares the sequence or sits inside the time window.
+ * A frame with no header still uses the poll.
+ */
+export function tracksForShownFrame(latest, headerBook, book, shownSeq, shownAt = 0) {
+  const shown = Number(shownSeq);
+  const owned = shown > 0 ? headerBook?.get?.(shown) : null;
+  if (owned) return owned;
+  return selectFrameTracks(latest, book, shownSeq, shownAt);
 }
 
 /** Id of the box on the frame actually shown. A newer poll must not steal the click. */
@@ -533,19 +547,6 @@ function horizonMediaOn(host) {
   });
 }
 
-function geometryFor(host, layer, payload) {
-  const media = mediaOf(host);
-  const width = layer?.clientWidth || host.clientWidth || 0;
-  const height = layer?.clientHeight || host.clientHeight || 0;
-  const fit = media ? mediaFit(media, width, height) : null;
-  if (fit) {
-    const geom = { fit, frameW: payload?.frame_width, frameH: payload?.frame_height };
-    fitMemory.set(host, geom);
-    return geom;
-  }
-  return fitMemory.get(host) || null;
-}
-
 function shownSeq(host) {
   const media = mediaOf(host);
   const seq = Number(media?.dataset?.frameSeq || 0);
@@ -558,18 +559,25 @@ function shownCapturedAt(host) {
   return Number.isFinite(at) ? at : 0;
 }
 
-function lockAtPoint(host, clientX, clientY) {
+function copyDrawnBoxes(host) {
+  const rows = drawnBoxes.get(host) || [];
+  return rows.map((box) => ({
+    id: box.id,
+    x: Number(box.x),
+    y: Number(box.y),
+    w: Number(box.w),
+    h: Number(box.h),
+  }));
+}
+
+function lockAtPoint(host, clientX, clientY, boxes) {
   const camera = host.dataset.visionCamera || '';
   const layer = host.querySelector(':scope > .vision-hit-layer');
   const rect = (layer || host).getBoundingClientRect();
   if (!(rect.width >= 32) || !(rect.height >= 32)) return null;
-  const shown = shownSeq(host);
-  const at = shownCapturedAt(host);
-  const latest = payloadFor(camera);
-  const geom = geometryFor(host, layer, selectFrameTracks(latest, frameBooks.get(camera), shown, at) || latest);
-  const id = hitShownFrame(latest, frameBooks.get(camera), shown, at, geom?.fit, clientX - rect.left, clientY - rect.top);
-  if (id == null || id === '') return null;
-  return { camera, id };
+  const hit = hitDrawnBox(boxes, clientX - rect.left, clientY - rect.top);
+  if (!hit || hit.id == null || hit.id === '') return null;
+  return { camera, id: hit.id };
 }
 
 function ensureChrome(host, camera) {
@@ -593,7 +601,13 @@ function ensureChrome(host, camera) {
     const camera = host.dataset.visionCamera || '';
     const kind = host.id === 'pfdHorizonStage' ? 'horizon' : 'tile';
     const latest = payloadFor(camera);
-    const chosen = selectFrameTracks(latest, frameBooks.get(camera), shownSeq(host), shownCapturedAt(host));
+    const chosen = tracksForShownFrame(
+      latest,
+      headerBooks.get(camera),
+      frameBooks.get(camera),
+      shownSeq(host),
+      shownCapturedAt(host),
+    );
     if (!chosen) return;
     paintHost(host, chosen, { kind });
   };
@@ -667,8 +681,7 @@ export function paintHost(host, payload, { kind = 'tile' } = {}) {
   if (fitNow) fitMemory.set(host, { fit: fitNow, frameW: payload?.frame_width, frameH: payload?.frame_height });
   const remembered = fitMemory.get(host);
   const fit = fitNow || remembered?.fit || null;
-  const lostLock = showHorizon && !reason && payload?.lock?.lost === true
-    && lockId != null
+  const lostLock = showHorizon && !reason && lockId != null
     && !tracks.some((row) => row.id === lockId)
     && Array.isArray(payload.lock?.bbox)
     ? payload.lock
@@ -693,8 +706,12 @@ export function paintHost(host, payload, { kind = 'tile' } = {}) {
   const sized = width >= 32 && height >= 32;
   canvas.hidden = false;
   const ratio = doc.defaultView?.devicePixelRatio || 1;
-  canvas.width = Math.round(width * ratio);
-  canvas.height = Math.round(height * ratio);
+  const nextW = Math.round(width * ratio);
+  const nextH = Math.round(height * ratio);
+  if (canvas.width !== nextW || canvas.height !== nextH) {
+    canvas.width = nextW;
+    canvas.height = nextH;
+  }
   canvas.style.width = `${width}px`;
   canvas.style.height = `${height}px`;
   const ctx = canvas.getContext('2d');
@@ -757,6 +774,33 @@ export function paintHost(host, payload, { kind = 'tile' } = {}) {
   if (layer) layer.dataset.hit = clickable ? '1' : '0';
 }
 
+function copyTracksPayload(payload) {
+  const tracks = Array.isArray(payload?.tracks)
+    ? payload.tracks.map((row) => ({
+      ...row,
+      bbox: Array.isArray(row?.bbox) ? row.bbox.slice() : row?.bbox,
+    }))
+    : [];
+  const lock = payload?.lock && typeof payload.lock === 'object'
+    ? { ...payload.lock, bbox: Array.isArray(payload.lock.bbox) ? payload.lock.bbox.slice() : payload.lock.bbox }
+    : payload?.lock ?? null;
+  return { ...payload, tracks, lock };
+}
+
+function rememberHeader(camera, payload) {
+  const seq = Number(payload?.frame_seq);
+  if (!camera || !(seq > 0)) return null;
+  const copy = copyTracksPayload(payload);
+  let book = headerBooks.get(camera);
+  if (!book) {
+    book = new Map();
+    headerBooks.set(camera, book);
+  }
+  book.set(seq, copy);
+  while (book.size > 12) book.delete(book.keys().next().value);
+  return copy;
+}
+
 function applyBundledTracks(host, detail) {
   const payload = detail?.tracks;
   if (!host || !payload || typeof payload !== 'object') return;
@@ -768,10 +812,12 @@ function applyBundledTracks(host, detail) {
   const seq = Number(detail.seq) || Number(payload.frame_seq) || 0;
   const capturedAt = Number(detail.capturedAt) || Number(payload.captured_at) || 0;
   if (seq > 0 && !tracksMatchFrame(payload, seq, capturedAt)) return;
-  cache.set(camera, payload);
-  rememberFrame(camera, payload);
+  const owned = rememberHeader(camera, payload) || copyTracksPayload(payload);
+  cache.set(camera, owned);
+  rememberFrame(camera, owned);
+  if (shownSeq(host) !== seq) return;
   const kind = host.id === 'pfdHorizonStage' ? 'horizon' : 'tile';
-  paintHost(host, payload, { kind });
+  paintHost(host, owned, { kind });
 }
 
 export async function waitFrameTracks({ seq, capturedAt, src, camera } = {}) {
@@ -817,7 +863,13 @@ function paintAll(doc) {
       paintHost(item.host, emptyPayload(REASON_OFF), item);
       continue;
     }
-    const chosen = selectFrameTracks(latest, frameBooks.get(camera), shownSeq(item.host), shownCapturedAt(item.host));
+    const chosen = tracksForShownFrame(
+      latest,
+      headerBooks.get(camera),
+      frameBooks.get(camera),
+      shownSeq(item.host),
+      shownCapturedAt(item.host),
+    );
     if (!chosen) continue;
     if (item.kind === 'horizon' && camera) chosen.camera = camera;
     paintHost(item.host, chosen, item);
@@ -1126,7 +1178,8 @@ export function mountVisionTracks(doc = document) {
     const host = target.closest('[data-camera-stage]')
       || target.closest('.debrief-cam-tile')?.querySelector('[data-camera-stage]');
     if (!(host instanceof Element)) return;
-    const hit = lockAtPoint(host, event.clientX, event.clientY);
+    const boxes = copyDrawnBoxes(host);
+    const hit = lockAtPoint(host, event.clientX, event.clientY, boxes);
     if (!hit) return;
     event.preventDefault();
     event.stopPropagation();

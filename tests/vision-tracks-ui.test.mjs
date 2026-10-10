@@ -476,6 +476,167 @@ describe('vision track overlay', () => {
     await page.close();
   }, 40000);
 
+  it('locks the car on screen while frames and polls race', async () => {
+    if (!base) {
+      const started = await boot();
+      proc = started.proc;
+      base = started.base;
+    }
+    if (!browser) {
+      const { chromium } = await import('playwright');
+      browser = await chromium.launch({ headless: true });
+    }
+    const page = await browser.newPage({ viewport: { width: 1366, height: 768 } });
+    const jpeg = sampleFrame();
+    let seq = 0;
+    const layout = (n) => {
+      const swapped = n % 2 === 0;
+      return [
+        { id: 1, class: 'person', label_he: 'אדם', confidence: 0.92, bbox: swapped ? [180, 50, 90, 50] : [20, 30, 80, 70], age: 2 },
+        { id: 2, class: 'car', label_he: 'רכב', confidence: 0.61, bbox: swapped ? [20, 30, 80, 70] : [180, 50, 90, 50], age: 2 },
+      ];
+    };
+    await page.route('**/api/jetson/v1/cameras/cam0/frame**', async (route) => {
+      seq += 1;
+      const mine = seq;
+      const at = 1_700_000_000_000 + mine;
+      await route.fulfill({
+        status: 200,
+        contentType: 'image/jpeg',
+        headers: {
+          'x-airvix-frame-seq': String(mine),
+          'x-airvix-capture-at': String(at),
+          'x-airvix-tracks': encodeTracksHeader({
+            ok: true,
+            enabled: true,
+            camera: 'cam0',
+            selected_camera: 'cam0',
+            stream: true,
+            frame_seq: mine,
+            captured_at: at,
+            frame_width: 320,
+            frame_height: 180,
+            tracks: layout(mine),
+            lock: { id: 1, bbox: layout(mine)[0].bbox, lost: false },
+            reason_he: '',
+            gimbal_steer: { enabled: false, sent: false, blocked: true, reason_he: 'היגוי הגימבל כבוי', flight_commands: false },
+            flight_commands: false,
+          }),
+        },
+        body: jpeg,
+      });
+    });
+    await page.route('**/api/jetson/v1/vision/**', async (route) => {
+      const url = new URL(route.request().url());
+      if (route.request().method() === 'POST' && url.pathname.endsWith('/vision/lock')) {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ ok: true, lane: 'NEW', data: { ok: true, camera: 'cam0', tracks: [], lock: null, flight_commands: false } }),
+        });
+        return;
+      }
+      const camera = url.searchParams.get('camera') || 'cam0';
+      const mine = Math.max(1, seq);
+      const swapped = layout(mine + 1);
+      const at = 1_700_000_000_000 + mine;
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          ok: true,
+          lane: 'NEW',
+          data: {
+            ok: true,
+            enabled: camera === 'cam0',
+            camera,
+            selected_camera: 'cam0',
+            stream: camera === 'cam0',
+            frame_seq: mine,
+            captured_at: at,
+            frame_width: 320,
+            frame_height: 180,
+            tracks: camera === 'cam0' ? swapped : [],
+            lock: { id: 1, bbox: swapped[0].bbox, lost: false, camera: 'cam0' },
+            reason_he: camera === 'cam0' ? '' : 'הזיהוי כבוי',
+            gimbal_steer: { enabled: false, sent: false, blocked: true, reason_he: 'היגוי הגימבל כבוי', flight_commands: false },
+            flight_commands: false,
+          },
+        }),
+      });
+    });
+    const posts = [];
+    page.on('request', (req) => {
+      if (req.method() !== 'POST' || !req.url().includes('/vision/lock')) return;
+      const body = req.postDataJSON() || {};
+      if (body.id != null) posts.push(Number(body.id));
+    });
+    await page.goto(base, { waitUntil: 'domcontentloaded' });
+    await page.click('[data-tab="optics"]');
+    await page.evaluate(() => {
+      const detail = { cameras: { cam0: { camera_ok: true, enabled: true, state: 'streaming', fps: 15, has_frame: true, frame_count: 4, last_frame_age_ms: 20 } } };
+      const push = () => document.dispatchEvent(new CustomEvent('vlc-companion-cameras', { detail }));
+      push();
+      setInterval(push, 200);
+    });
+    await page.waitForFunction(() => {
+      const stage = document.querySelector('[data-camera-stage="cam0"]');
+      const img = document.querySelector('[data-api="cam0"] .debrief-cam-live');
+      return img?.dataset.frameSeq
+        && stage?.dataset.visionFrame === img.dataset.frameSeq
+        && stage?.dataset.visionTracks
+        && stage.querySelector('.vision-hit-layer')?.dataset.hit === '1';
+    }, null, { timeout: 15000 });
+    let wrong = 0;
+    let drops = 0;
+    let armed = 0;
+    const clickCar = () => {
+      const stage = document.querySelector('[data-camera-stage="cam0"]');
+      const img = document.querySelector('[data-api="cam0"] .debrief-cam-live');
+      const shown = Number(img?.dataset.frameSeq || 0);
+      if (!stage || shown <= 0 || stage.dataset.visionFrame !== String(shown)) return 0;
+      if (stage.querySelector('.vision-hit-layer')?.dataset.hit !== '1') return 0;
+      const rect = stage.getBoundingClientRect();
+      if (rect.width < 40 || rect.height < 40) return 0;
+      const scale = Math.min(rect.width / 320, rect.height / 180);
+      const ox = rect.x + (rect.width - 320 * scale) / 2;
+      const oy = rect.y + (rect.height - 180 * scale) / 2;
+      const box = shown % 2 === 0 ? [20, 30, 80, 70] : [180, 50, 90, 50];
+      const x = ox + (box[0] + box[2] / 2) * scale;
+      const y = oy + (box[1] + box[3] / 2) * scale;
+      stage.dispatchEvent(new PointerEvent('pointerdown', {
+        bubbles: true,
+        cancelable: true,
+        clientX: x,
+        clientY: y,
+        button: 0,
+        pointerId: 1,
+        pointerType: 'mouse',
+      }));
+      return 2;
+    };
+    const deadline = Date.now() + 90000;
+    while (armed < 500 && Date.now() < deadline) {
+      const before = posts.length;
+      const expected = await page.evaluate(clickCar);
+      if (!expected) {
+        await page.waitForTimeout(15);
+        continue;
+      }
+      armed += 1;
+      const until = Date.now() + 1000;
+      while (posts.length < before + 1 && Date.now() < until) {
+        await page.waitForTimeout(10);
+      }
+      if (posts.length < before + 1) drops += 1;
+      else if (posts[before] !== expected) wrong += 1;
+    }
+    expect(armed).toBe(500);
+    expect(drops).toBe(0);
+    expect(wrong).toBe(0);
+    await page.close();
+  }, 120000);
+
   it('keeps the menu on screen at 1280x720 near the bottom of the down camera', async () => {
     expect(base).toMatch(/^http:\/\/127\.0\.0\.1:/);
     const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });

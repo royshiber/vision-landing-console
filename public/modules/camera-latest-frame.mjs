@@ -255,6 +255,7 @@ export function createLatestJpegPump({
         return;
       }
       if (tracks) loaded.tracks = tracks;
+      publishTracks(loaded);
       const painted = await presentDecoded(loaded);
       if (stopped || mine !== gen) return;
       if (!painted) {
