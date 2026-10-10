@@ -9,13 +9,21 @@ SIYI docs use 0x0E. VLC_SIYI_ANGLE_CMD selects it (default 0x0E).
 
 Control endpoints stay off unless VLC_GIMBAL_CONTROL_ENABLED=1.
 Replies are paired by command id. Pending datagrams are drained before
-each send. An exact SEQ echo is accepted on its own. The A8 mini usually
-sends its own counter: seq 0, or within ±8 of the last camera sequence.
-Codec specs (command 0x20) are read with the status poll. The request
-carries one stream-type byte (1 = main stream). A miss on that read does
-not mark the gimbal absent. The set command (0x21) is never sent.
-Nothing in this module moves the gimbal unless a control POST is enabled
-and asked for.
+each send. An exact SEQ echo is enough on its own. It is not a search
+that prefers a later echo over an earlier in-window datagram. The A8
+mini usually sends its own counter. That counter is learned only from
+an exact echo, or from two consistent replies. It is dropped after two
+consecutive timeouts, or after about 3 seconds without a reply. A
+non-echo is then accepted only for seq 0, or within ±8 of the learned
+counter. Without an echo, a stale reply that is still inside that
+window can still be taken as the live telemetry reply. Gimbal move and
+zoom confirm only on an exact echo, or by reading attitude again. A
+windowed ack is never trusted for those commands. Codec specs (command
+0x20) are read with the status poll. The request carries one
+stream-type byte (1 = main stream). A miss on that read does not mark
+the gimbal absent. The set command (0x21) is never sent. Nothing in
+this module moves the gimbal unless a control POST is enabled and
+asked for.
 """
 
 from __future__ import annotations
@@ -45,6 +53,11 @@ CMD_CODEC = 0x20
 CODEC_STREAM_MAIN = 1
 # Non-echo replies: seq 0, or this far from the last camera sequence.
 SEQ_WINDOW = 8
+# Drop a learned counter after this much silence, or this many missed replies.
+SEQ_SILENCE_S = 3.0
+SEQ_RESET_TIMEOUTS = 2
+# These acks must echo the request seq, or be confirmed by an attitude read.
+ACK_EXACT_ACTIONS = frozenset({"rate", "angle", "center", "zoom"})
 DEFAULT_HOST = "192.168.144.25"
 DEFAULT_PORT = 37260
 YAW_MIN = -135.0
@@ -125,9 +138,12 @@ def seq_distance(left, right):
 def seq_acceptable(reply_seq, request_seq, last_camera_seq=None, window=SEQ_WINDOW):
     """Whether this SEQ can belong to the in-flight request.
 
-    An exact echo of the request sequence is enough by itself. A non-echo
-    is accepted only when it is seq 0, or within ±window of the camera
-    sequence already seen. The window is not the whole uint16 range.
+    An exact echo of the request sequence is enough by itself. This is not
+    a scan that prefers a later exact echo over an earlier window match.
+    A non-echo is accepted only when it is seq 0, or within ±window of the
+    camera sequence already learned. Without an echo, a stale reply that
+    is still inside that window can still win. The window is not the whole
+    uint16 range. One stray reply does not teach the counter.
     """
     try:
         reply = int(reply_seq) & 0xFFFF
@@ -150,12 +166,22 @@ def seq_acceptable(reply_seq, request_seq, last_camera_seq=None, window=SEQ_WIND
     return seq_distance(reply, last) <= limit
 
 
-def reply_matches(decoded, cmd, request_seq, last_camera_seq=None, learn_counter=False):
+def _cmd_is(decoded, cmd):
+    if not isinstance(decoded, dict):
+        return False
+    try:
+        return (int(decoded.get("cmd")) & 0xFF) == (int(cmd) & 0xFF)
+    except (TypeError, ValueError):
+        return False
+
+
+def reply_matches(decoded, cmd, request_seq, last_camera_seq=None):
     """Pair a datagram to the in-flight request by command id and SEQ.
 
-    learn_counter is only for a datagram read after this send, when the
-    camera counter is still unknown. A queued datagram must already have
-    been drained, so it cannot teach that counter.
+    An exact echo matches. Otherwise only seq 0, or a sequence within ±8
+    of a counter already learned, matches. A single non-echo does not
+    match while that counter is unknown. Without an echo, a stale reply
+    inside the window can still match; packet order is not consulted.
     """
     if not isinstance(decoded, dict):
         return False
@@ -165,9 +191,7 @@ def reply_matches(decoded, cmd, request_seq, last_camera_seq=None, learn_counter
         return False
     if got != (int(cmd) & 0xFF):
         return False
-    if seq_acceptable(decoded.get("seq", 0), request_seq, last_camera_seq):
-        return True
-    return bool(learn_counter and last_camera_seq is None)
+    return seq_acceptable(decoded.get("seq", 0), request_seq, last_camera_seq)
 
 
 def format_firmware(value):
@@ -329,6 +353,8 @@ class SiyiLink:
         self._external_sock = sock is not None
         self._seq = 0
         self._camera_seq = None
+        self._camera_candidate = None
+        self._consec_timeouts = 0
         self._lock = threading.Lock()
         self._io = threading.Lock()
         self._stop = threading.Event()
@@ -410,15 +436,46 @@ class SiyiLink:
             entry = {"action": action, "ok": False, "reason": str(exc)}
             self._log(entry)
             return 400, {"ok": False, "reason": str(exc), "message": "בקשה לא תקינה", "sent": False}
-        decoded = self.exchange(cmd, data, require_match=needs_ack)
+        want_echo = needs_ack and action in ACK_EXACT_ACTIONS
+        decoded = self.exchange(cmd, data, require_match=needs_ack, require_echo=want_echo)
         if decoded is False:
             entry = {"action": action, "cmd": cmd, "ok": False, "reason": "send_failed"}
             self._log(entry)
             return 504, {"ok": False, "reason": "send_failed", "sent": False, "confirmed": False}
         if needs_ack and not isinstance(decoded, dict):
-            entry = {"action": action, "cmd": cmd, "ok": False, "reason": "no_reply"}
+            if decoded is None and want_echo:
+                att = self.exchange(CMD_ATTITUDE, b"", require_match=True)
+                parsed = parse_attitude(att["data"]) if isinstance(att, dict) else None
+                if parsed:
+                    with self._lock:
+                        self.attitude = parsed
+                    result = {
+                        "ok": True,
+                        "sent": True,
+                        "confirmed": True,
+                        "confirmed_by": "attitude",
+                        "ack": parsed,
+                        "cmd": cmd,
+                    }
+                    entry = {
+                        "action": action,
+                        "cmd": cmd,
+                        "ok": True,
+                        "confirmed": True,
+                        "confirmed_by": "attitude",
+                    }
+                    self._log(entry)
+                    return 200, result
+            reason = self.last_error or "no_reply"
+            entry = {"action": action, "cmd": cmd, "ok": False, "reason": reason}
             self._log(entry)
-            return 504, {"ok": False, "reason": "no_reply", "sent": True, "confirmed": False, "present": False}
+            return 504, {
+                "ok": False,
+                "reason": reason,
+                "sent": True,
+                "confirmed": False,
+                "present": False,
+            }
         result = {"ok": True, "sent": True, "confirmed": bool(needs_ack and isinstance(decoded, dict)), "cmd": cmd}
         if isinstance(decoded, dict):
             result["ack"] = self._apply_ack(cmd, decoded["data"])
@@ -432,14 +489,15 @@ class SiyiLink:
         self._log(entry)
         return 200, result
 
-    def exchange(self, cmd, data=b"", require_match=True, marks_absent=True):
+    def exchange(self, cmd, data=b"", require_match=True, marks_absent=True, require_echo=False):
         with self._io:
-            return self._exchange_locked(cmd, data, require_match, marks_absent=marks_absent)
-
-    def _mark_no_reply(self):
-        with self._lock:
-            if self.last_reply_mono is None:
-                self.last_error = "no_reply"
+            return self._exchange_locked(
+                cmd,
+                data,
+                require_match,
+                marks_absent=marks_absent,
+                require_echo=require_echo,
+            )
 
     def _drain_pending(self, sock):
         """Drop datagrams queued before this send. They are not this reply."""
@@ -465,7 +523,35 @@ class SiyiLink:
             return
         self._camera_seq = seq
 
-    def _exchange_locked(self, cmd, data=b"", require_match=True, marks_absent=True):
+    def _reset_camera_seq_after_silence(self):
+        with self._lock:
+            last = self.last_reply_mono
+        if last is None:
+            return
+        try:
+            quiet = self.now_fn() - last
+        except TypeError:
+            return
+        if quiet >= SEQ_SILENCE_S:
+            self._camera_seq = None
+            self._camera_candidate = None
+            self._consec_timeouts = 0
+
+    def _note_exchange_failed(self, saw_seq_reject, marks_absent):
+        if marks_absent:
+            with self._lock:
+                if saw_seq_reject:
+                    self.last_error = "seq_rejected"
+                elif self.last_reply_mono is None and not self.last_error:
+                    self.last_error = "no_reply"
+        self._consec_timeouts += 1
+        if self._consec_timeouts >= SEQ_RESET_TIMEOUTS:
+            self._camera_seq = None
+            self._camera_candidate = None
+            self._consec_timeouts = 0
+
+    def _exchange_locked(self, cmd, data=b"", require_match=True, marks_absent=True, require_echo=False):
+        self._reset_camera_seq_after_silence()
         packet_seq = self._seq & 0xFFFF
         self._seq = (self._seq + 1) & 0xFFFF
         packet = encode_packet(cmd, data, seq=packet_seq)
@@ -482,28 +568,51 @@ class SiyiLink:
         if not require_match:
             return True
         deadline = time.monotonic() + self.timeout
+        saw_seq_reject = False
         while True:
             remain = deadline - time.monotonic()
             if remain <= 0:
-                if marks_absent:
-                    self._mark_no_reply()
-                return None
+                break
             try:
                 sock.settimeout(remain)
                 raw, _addr = sock.recvfrom(2048)
-            except socket.timeout:
-                if marks_absent:
-                    self._mark_no_reply()
-                return None
-            except OSError:
-                return None
+            except (socket.timeout, OSError):
+                break
             decoded = decode_packet(raw)
-            learn = self._camera_seq is None
-            if not reply_matches(decoded, cmd, packet_seq, self._camera_seq, learn_counter=learn):
+            if not _cmd_is(decoded, cmd):
                 continue
-            self._remember_camera_seq(decoded["seq"])
-            self._note_reply()
-            return decoded
+            try:
+                reply = int(decoded.get("seq", 0)) & 0xFFFF
+            except (TypeError, ValueError):
+                continue
+            request = packet_seq & 0xFFFF
+            if reply == request:
+                self._camera_seq = reply
+                self._camera_candidate = None
+                self._consec_timeouts = 0
+                self._note_reply()
+                return decoded
+            if seq_acceptable(reply, request, self._camera_seq):
+                self._remember_camera_seq(reply)
+                self._camera_candidate = None
+                self._consec_timeouts = 0
+                if require_echo:
+                    continue
+                self._note_reply()
+                return decoded
+            candidate = self._camera_candidate
+            if candidate is not None and seq_distance(reply, candidate) <= SEQ_WINDOW:
+                self._camera_seq = reply
+                self._camera_candidate = None
+                self._consec_timeouts = 0
+                if require_echo:
+                    continue
+                self._note_reply()
+                return decoded
+            self._camera_candidate = reply
+            saw_seq_reject = True
+        self._note_exchange_failed(saw_seq_reject, marks_absent)
+        return None
 
     def poll_once(self):
         self._ticks += 1
