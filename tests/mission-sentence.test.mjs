@@ -218,6 +218,33 @@ describe('mission sentence mapper', () => {
       ...live,
       tracks: [{ id: 9, class: 'truck', label_he: 'משאית', color_he: 'כחול' }],
     }).replyHe).toBe('מזהים משאית כחולה אחת.');
+    const kite = {
+      enabled: true,
+      stream: true,
+      model: true,
+      tracks: [
+        { id: 1, class: 'person', label_he: 'אדם' },
+        { id: 2, class: 'person', label_he: 'אדם' },
+        { id: 3, class: 'kite' },
+      ],
+    };
+    expect(mapMissionSentence('מה אתה מזהה', kite).replyHe).toBe('מזהים שני אנשים ועוד אובייקט אחד.');
+    expect(mapMissionSentence('מה אתה מזהה', kite).plan.summaryHe).toBeUndefined();
+    expect(mapMissionSentence('מה אתה מזהה', {
+      ...kite,
+      tracks: [...kite.tracks, { id: 4, class: 'kite' }],
+    }).replyHe).toBe('מזהים שני אנשים ועוד שני אובייקטים.');
+    const redKite = {
+      ...kite,
+      tracks: [
+        { id: 1, class: 'person', label_he: 'אדם', color_he: 'אדום' },
+        { id: 2, class: 'person', label_he: 'אדם', color_he: 'אדום' },
+        { id: 3, class: 'kite' },
+      ],
+    };
+    expect(mapMissionSentence('מה אתה מזהה', redKite).replyHe).toBe('מזהים שני אנשים אדומים ועוד אובייקט אחד.');
+    expect(mapMissionSentence('מה אתה מזהה', redKite).plan.summaryHe).toBe('מזהים שני אנשים (אדומים) ועוד אובייקט אחד.');
+    expect(mapMissionSentence('כמה אנשים אתה רואה', kite).replyHe).toBe('רואים שני אנשים.');
   });
 
   it('refuses cruise beside a release and still sends a bare cruise phrase', () => {

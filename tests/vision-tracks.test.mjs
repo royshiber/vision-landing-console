@@ -3,7 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { buildAssistContext } from '../lib/assist/assist-context.mjs';
-import { FRAME_SYNC_TOLERANCE_MS, assembleVisionAsk, cacheCoversAsk, decodeTracksHeader, encodeTracksHeader, fillVisionAsk, framePoint, hitDrawnBox, hitShownFrame, hitTrack, layoutTrackBoxes, mediaFit, placeMenuBox, placeTrackCaption, selectFrameTracks, TRACK_POLL_MS, trackCaption, tracksMatchFrame, unwrapTracks, visionAskSnapshot, VISION_ASK_WAIT_MS, waitForVisionAsk } from '../public/modules/vision-tracks.mjs';
+import { FRAME_SYNC_TOLERANCE_MS, assembleVisionAsk, cacheCoversAsk, decodeTracksHeader, encodeTracksHeader, fillVisionAsk, framePoint, hitDrawnBox, hitShownFrame, hitTrack, layoutTrackBoxes, mediaFit, placeMenuBox, placeTrackCaption, selectFrameTracks, TRACK_POLL_MS, trackCaption, tracksMatchFrame, unwrapTracks, visionAskSnapshot, VISION_ASK_WAIT_MS, waitForVisionAsk, waitFrameTracks } from '../public/modules/vision-tracks.mjs';
 import { nextFailPollMs } from '../public/modules/poll-backoff.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -241,6 +241,54 @@ describe('vision track hit testing', () => {
     expect(Object.keys(keptOnServer.vision.cameras).sort()).toEqual(['cam0', 'cam1', 'cam3']);
     expect(keptOnServer.vision.cameras.cam3.tracks[0].label_he).toBe('רכב');
     expect(keptOnServer.vision.streams.cam3).toBe(true);
+  });
+
+  it('keeps one tracks request in flight per camera', async () => {
+    const calls = [];
+    let release;
+    const gate = new Promise((resolve) => { release = resolve; });
+    const original = globalThis.fetch;
+    globalThis.fetch = (url) => {
+      const href = String(url);
+      if (!href.includes('/vision/tracks')) return original(url);
+      calls.push(href);
+      const camera = new URL(href, 'http://127.0.0.1').searchParams.get('camera');
+      return gate.then(() => ({
+        ok: true,
+        headers: { get: () => 'application/json' },
+        json: async () => ({
+          ok: true,
+          camera,
+          frame_seq: 4,
+          captured_at: 4000,
+          tracks: [],
+        }),
+      }));
+    };
+    try {
+      const pending = Promise.all([
+        waitFrameTracks({ camera: 'cam2', seq: 4, capturedAt: 4000 }),
+        waitFrameTracks({ camera: 'cam2', seq: 4, capturedAt: 4000 }),
+      ]);
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      expect(calls.filter((href) => href.includes('camera=cam2')).length).toBe(1);
+      const both = Promise.all([
+        waitFrameTracks({ camera: 'cam1', seq: 4, capturedAt: 4000 }),
+        waitFrameTracks({ camera: 'cam3', seq: 4, capturedAt: 4000 }),
+      ]);
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      expect(calls.filter((href) => href.includes('camera=cam1')).length).toBe(1);
+      expect(calls.filter((href) => href.includes('camera=cam3')).length).toBe(1);
+      release();
+      await pending;
+      await both;
+      const before = calls.filter((href) => href.includes('camera=cam2')).length;
+      const again = await waitFrameTracks({ camera: 'cam2', seq: 9, capturedAt: 9000 });
+      expect(again).toBeNull();
+      expect(calls.filter((href) => href.includes('camera=cam2')).length).toBe(before);
+    } finally {
+      globalThis.fetch = original;
+    }
   });
 
   it('fails when no camera stage marker is present', () => {

@@ -25,6 +25,9 @@ let menuCamera = '';
 let timer = 0;
 let painting = false;
 let inflightRefresh = null;
+let refreshFollowUp = null;
+const inflightByCamera = new Map();
+const recentTracks = new Map();
 let sawRefresh = false;
 let lastGoodAsk = null;
 
@@ -827,9 +830,9 @@ async function readJson(res) {
   return unwrapTracks(await res.json());
 }
 
-async function fetchTracks(camera) {
+async function requestTracks(camera) {
   const ac = new AbortController();
-  const timer = setTimeout(() => ac.abort(), 2500);
+  const kill = setTimeout(() => ac.abort(), 2500);
   const failed = () => ({ ok: false, payload: emptyPayload(REASON_NO_STREAM) });
   try {
     const res = await fetch(`${TRACKS_URL}?camera=${encodeURIComponent(camera)}&sort=${encodeURIComponent(sortMode)}`, {
@@ -843,11 +846,28 @@ async function fetchTracks(camera) {
   } catch {
     return failed();
   } finally {
-    clearTimeout(timer);
+    clearTimeout(kill);
   }
 }
 
-let paintAgain = false;
+/** One tracks GET in flight per camera. A frame pump reuses the poll instead of starting another. */
+async function fetchTracks(camera, { scheduled = false } = {}) {
+  const key = String(camera || '');
+  const pending = inflightByCamera.get(key);
+  if (pending) return pending;
+  if (!scheduled) {
+    const recent = recentTracks.get(key);
+    if (recent && Date.now() - recent.at < TRACK_POLL_MS) return recent.result;
+  }
+  const job = requestTracks(key).then((result) => {
+    recentTracks.set(key, { at: Date.now(), result });
+    return result;
+  }).finally(() => {
+    if (inflightByCamera.get(key) === job) inflightByCamera.delete(key);
+  });
+  inflightByCamera.set(key, job);
+  return job;
+}
 
 function scheduleSizedRepaint(doc) {
   const view = doc.defaultView;
@@ -871,26 +891,28 @@ function scheduleSizedRepaint(doc) {
 async function refresh(doc) {
   if (!doc || doc.visibilityState === 'hidden') return true;
   if (inflightRefresh) {
-    paintAgain = true;
-    return inflightRefresh;
+    if (!refreshFollowUp) {
+      refreshFollowUp = inflightRefresh.then(() => {
+        refreshFollowUp = null;
+        return refresh(doc);
+      });
+    }
+    return refreshFollowUp;
   }
   let refreshOk = true;
   inflightRefresh = (async () => {
     painting = true;
     try {
-      do {
-        paintAgain = false;
-        const cameras = new Set(hostList(doc).filter((item) => item.kind !== 'horizon' && item.camera).map((item) => item.camera));
-        const rows = await Promise.all([...cameras].map(async (camera) => {
-          const result = await fetchTracks(camera);
-          cache.set(camera, result.payload);
-          rememberFrame(camera, result.payload);
-          return result.ok;
-        }));
-        if (rows.some((ok) => ok === false)) refreshOk = false;
-        paintAll(doc);
-        if (!doc.getElementById('visionTrackMenu')?.hidden) renderMenu(doc);
-      } while (paintAgain);
+      const cameras = new Set(hostList(doc).filter((item) => item.kind !== 'horizon' && item.camera).map((item) => item.camera));
+      const rows = await Promise.all([...cameras].map(async (camera) => {
+        const result = await fetchTracks(camera, { scheduled: true });
+        cache.set(camera, result.payload);
+        rememberFrame(camera, result.payload);
+        return result.ok;
+      }));
+      if (rows.some((ok) => ok === false)) refreshOk = false;
+      paintAll(doc);
+      if (!doc.getElementById('visionTrackMenu')?.hidden) renderMenu(doc);
       sawRefresh = true;
       return refreshOk;
     } finally {
