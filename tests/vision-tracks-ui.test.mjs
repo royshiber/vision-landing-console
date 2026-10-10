@@ -396,6 +396,7 @@ describe('vision track overlay', () => {
       });
     });
     const trackHits = [];
+    const tracksStarted = Date.now();
     page.on('request', (req) => {
       if (req.url().includes('/vision/tracks') && req.url().includes('camera=cam0')) trackHits.push(Date.now());
     });
@@ -464,10 +465,8 @@ describe('vision track overlay', () => {
         && stage?.dataset.visionFrame === '2'
         && stage?.dataset.visionTracks === '1';
     }, null, { timeout: 8000 });
-    const span = trackHits.at(-1) - trackHits[0];
-    const gaps = trackHits.slice(1).map((stamp, index) => stamp - trackHits[index]).filter((gap) => gap > 40);
-    expect(span).toBeGreaterThan(400);
-    expect(Math.min(...gaps)).toBeLessThanOrEqual(250);
+    const watched = Math.max(0.5, (Date.now() - tracksStarted) / 1000);
+    expect(trackHits.length / watched).toBeLessThanOrEqual(2);
     await page.screenshot({ path: `${shotDir}/vision-frame-1366.png` });
     await page.setViewportSize({ width: 1024, height: 576 });
     await page.screenshot({ path: `${shotDir}/vision-frame-1024.png` });

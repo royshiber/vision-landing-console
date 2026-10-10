@@ -29,6 +29,7 @@ let inflightRefresh = null;
 let refreshFollowUp = null;
 const inflightByCamera = new Map();
 const recentTracks = new Map();
+const headerAt = new Map();
 let sawRefresh = false;
 let lastGoodAsk = null;
 
@@ -64,7 +65,22 @@ export function framePoint(localX, localY, fit, frameW, frameH) {
   return { x: srcX * sx, y: srcY * sy };
 }
 
-export const TRACK_POLL_MS = 180;
+/** List and Ask refresh. Boxes come from the JPEG header, so this stays slow. */
+export const TRACK_LIST_POLL_MS = 1000;
+
+/**
+ * Whether a tracks GET is still due.
+ * A poll younger than the interval, or a JPEG header younger than the interval, is enough.
+ */
+export function tracksPollAllowed(now, lastPollAt = 0, lastHeaderAt = 0, interval = TRACK_LIST_POLL_MS) {
+  const t = Number(now) || 0;
+  const poll = Number(lastPollAt) || 0;
+  const header = Number(lastHeaderAt) || 0;
+  const gap = Number(interval) > 0 ? Number(interval) : TRACK_LIST_POLL_MS;
+  if (header > 0 && t - header < gap) return false;
+  if (poll > 0 && t - poll < gap) return false;
+  return true;
+}
 
 export function hitTrack(tracks, x, y) {
   const rows = Array.isArray(tracks) ? tracks : [];
@@ -798,7 +814,14 @@ function rememberHeader(camera, payload) {
   }
   book.set(seq, copy);
   while (book.size > 12) book.delete(book.keys().next().value);
+  headerAt.set(camera, Date.now());
+  recentTracks.set(camera, { at: Date.now(), result: { ok: true, payload: copy } });
   return copy;
+}
+
+/** Picture tracks satisfy the object list, so the next tracks GET can wait. */
+export function noteJpegTracks(camera, payload) {
+  return rememberHeader(camera, payload);
 }
 
 function applyBundledTracks(host, detail) {
@@ -812,7 +835,7 @@ function applyBundledTracks(host, detail) {
   const seq = Number(detail.seq) || Number(payload.frame_seq) || 0;
   const capturedAt = Number(detail.capturedAt) || Number(payload.captured_at) || 0;
   if (seq > 0 && !tracksMatchFrame(payload, seq, capturedAt)) return;
-  const owned = rememberHeader(camera, payload) || copyTracksPayload(payload);
+  const owned = noteJpegTracks(camera, payload) || copyTracksPayload(payload);
   cache.set(camera, owned);
   rememberFrame(camera, owned);
   if (shownSeq(host) !== seq) return;
@@ -902,14 +925,30 @@ async function requestTracks(camera) {
   }
 }
 
-/** One tracks GET in flight per camera. A frame pump reuses the poll instead of starting another. */
-async function fetchTracks(camera, { scheduled = false } = {}) {
+function rememberedTracks(camera) {
+  const recent = recentTracks.get(camera);
+  if (recent?.result) return recent.result;
+  const payload = cache.get(camera);
+  if (payload) return { ok: true, payload };
+  return null;
+}
+
+/**
+ * One tracks GET in flight per camera, and at most one new GET per second.
+ * Callers: the list/Ask timer (every camera stage on the page), waitFrameTracks
+ * when a JPEG has no matching header, and a single follow-up after a lock or
+ * config post. The timer used to be the whole 14/s: cam0, cam1, and cam3
+ * together, each cycle after the previous finished, so the in-flight guard
+ * never slowed it down.
+ */
+async function fetchTracks(camera) {
   const key = String(camera || '');
   const pending = inflightByCamera.get(key);
   if (pending) return pending;
-  if (!scheduled) {
-    const recent = recentTracks.get(key);
-    if (recent && Date.now() - recent.at < TRACK_POLL_MS) return recent.result;
+  const allowed = tracksPollAllowed(Date.now(), recentTracks.get(key)?.at || 0, headerAt.get(key) || 0);
+  if (!allowed) {
+    const remembered = rememberedTracks(key);
+    if (remembered) return remembered;
   }
   const job = requestTracks(key).then((result) => {
     recentTracks.set(key, { at: Date.now(), result });
@@ -957,7 +996,11 @@ async function refresh(doc) {
     try {
       const cameras = new Set(hostList(doc).filter((item) => item.kind !== 'horizon' && item.camera).map((item) => item.camera));
       const rows = await Promise.all([...cameras].map(async (camera) => {
-        const result = await fetchTracks(camera, { scheduled: true });
+        if (!tracksPollAllowed(Date.now(), recentTracks.get(camera)?.at || 0, headerAt.get(camera) || 0)) {
+          const remembered = rememberedTracks(camera);
+          return remembered ? remembered.ok !== false : true;
+        }
+        const result = await fetchTracks(camera);
         cache.set(camera, result.payload);
         rememberFrame(camera, result.payload);
         return result.ok;
@@ -1196,7 +1239,6 @@ export function mountVisionTracks(doc = document) {
     timer = view.setTimeout(() => { void run(); }, ms);
   };
   const run = async () => {
-    const started = Date.now();
     let ok = false;
     try {
       ok = await refresh(doc) !== false;
@@ -1205,7 +1247,7 @@ export function mountVisionTracks(doc = document) {
     }
     if (ok) {
       visionFailDelay = 0;
-      arm(Math.max(16, TRACK_POLL_MS - (Date.now() - started)));
+      arm(TRACK_LIST_POLL_MS);
       return;
     }
     visionFailDelay = nextFailPollMs(visionFailDelay);

@@ -3,7 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { buildAssistContext } from '../lib/assist/assist-context.mjs';
-import { FRAME_SYNC_TOLERANCE_MS, assembleVisionAsk, cacheCoversAsk, decodeTracksHeader, encodeTracksHeader, fillVisionAsk, framePoint, hitDrawnBox, hitShownFrame, hitTrack, layoutTrackBoxes, mediaFit, placeMenuBox, placeTrackCaption, selectFrameTracks, TRACK_POLL_MS, trackCaption, tracksForShownFrame, tracksMatchFrame, unwrapTracks, visionAskSnapshot, VISION_ASK_WAIT_MS, waitForVisionAsk, waitFrameTracks } from '../public/modules/vision-tracks.mjs';
+import { FRAME_SYNC_TOLERANCE_MS, assembleVisionAsk, cacheCoversAsk, decodeTracksHeader, encodeTracksHeader, fillVisionAsk, framePoint, hitDrawnBox, hitShownFrame, hitTrack, layoutTrackBoxes, mediaFit, noteJpegTracks, placeMenuBox, placeTrackCaption, selectFrameTracks, TRACK_LIST_POLL_MS, trackCaption, tracksForShownFrame, tracksMatchFrame, tracksPollAllowed, unwrapTracks, visionAskSnapshot, VISION_ASK_WAIT_MS, waitForVisionAsk, waitFrameTracks } from '../public/modules/vision-tracks.mjs';
 import { nextFailPollMs } from '../public/modules/poll-backoff.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -39,10 +39,12 @@ describe('vision track hit testing', () => {
     const wide = placeTrackCaption(0, 240, 200);
     expect(wide.right).toBe(200);
     expect(wide.right - wide.x).toBe(240);
-    expect(TRACK_POLL_MS).toBeGreaterThanOrEqual(150);
-    expect(TRACK_POLL_MS).toBeLessThanOrEqual(200);
+    expect(TRACK_LIST_POLL_MS).toBe(1000);
+    expect(tracksPollAllowed(10_000, 9_500, 0)).toBe(false);
+    expect(tracksPollAllowed(10_000, 0, 9_500)).toBe(false);
+    expect(tracksPollAllowed(10_000, 8_000, 8_000)).toBe(true);
     expect(nextFailPollMs(0)).toBe(1000);
-    expect(nextFailPollMs(TRACK_POLL_MS)).toBe(1000);
+    expect(nextFailPollMs(TRACK_LIST_POLL_MS)).toBe(2000);
     expect(nextFailPollMs(1000)).toBe(2000);
     expect(nextFailPollMs(16000)).toBe(30000);
     expect(nextFailPollMs(30000)).toBe(30000);
@@ -293,6 +295,57 @@ describe('vision track hit testing', () => {
       expect(again).toBeNull();
       expect(calls.filter((href) => href.includes('camera=cam2')).length).toBe(before);
     } finally {
+      globalThis.fetch = original;
+    }
+  });
+
+  it('polls the object list at most once a second and skips a fresh picture', async () => {
+    let now = 5_000_000;
+    const realNow = Date.now;
+    Date.now = () => now;
+    const calls = [];
+    const original = globalThis.fetch;
+    globalThis.fetch = (url) => {
+      const href = String(url);
+      calls.push(href);
+      const camera = new URL(href, 'http://127.0.0.1').searchParams.get('camera');
+      return Promise.resolve({
+        ok: true,
+        headers: { get: () => 'application/json' },
+        json: async () => ({
+          ok: true,
+          camera,
+          frame_seq: 1,
+          captured_at: 1000,
+          tracks: [{ id: 1 }],
+        }),
+      });
+    };
+    const count = (camera) => calls.filter((href) => href.includes(`camera=${camera}`)).length;
+    try {
+      noteJpegTracks('cam7', {
+        camera: 'cam7',
+        frame_seq: 3,
+        captured_at: now,
+        tracks: [{ id: 8, bbox: [1, 2, 3, 4] }],
+      });
+      for (let i = 0; i < 14; i += 1) {
+        await waitFrameTracks({ camera: 'cam7', seq: 40 + i, capturedAt: now + i });
+      }
+      expect(count('cam7')).toBe(0);
+
+      await waitFrameTracks({ camera: 'cam8', seq: 1, capturedAt: 1000 });
+      expect(count('cam8')).toBe(1);
+      for (let i = 0; i < 14; i += 1) {
+        await waitFrameTracks({ camera: 'cam8', seq: 50 + i, capturedAt: 5000 + i });
+      }
+      expect(count('cam8')).toBe(1);
+      now += TRACK_LIST_POLL_MS;
+      await waitFrameTracks({ camera: 'cam8', seq: 70, capturedAt: 7000 });
+      expect(count('cam8')).toBe(2);
+      expect(count('cam8') / 2).toBeLessThanOrEqual(2);
+    } finally {
+      Date.now = realNow;
       globalThis.fetch = original;
     }
   });
