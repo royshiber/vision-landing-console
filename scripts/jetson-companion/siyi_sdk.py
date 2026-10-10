@@ -9,8 +9,9 @@ SIYI docs use 0x0E. VLC_SIYI_ANGLE_CMD selects it (default 0x0E).
 
 Control endpoints stay off unless VLC_GIMBAL_CONTROL_ENABLED=1.
 Replies are paired by command id. The A8 mini does not echo the
-request sequence. Attitude, current-zoom, and firmware share one device
-counter; config (0x0A) has another. Once a counter is known, a reply in
+request sequence. Attitude, current-zoom, firmware, and the angle
+ack (0x0E) share one device counter. Config (0x0A), center (0x08), and
+rate (0x07) share the other. Once a counter is known, a reply in
 that group is kept only when its sequence moves forward by 1..64.
 Anything else is dropped, and a backwards step is recorded. A long
 silence, or a wait that produced no acceptable reply, lets the next
@@ -18,11 +19,17 @@ reply teach the counter again. An attitude (0x0D) that teaches the
 counter is not the reading: it is kept only when a later attitude in
 the same group is ahead of that baseline by 1..64. Datagrams already
 queued are drained before each send so they are not this reply. Angle,
-center, and rate confirm only on that counter-advanced attitude, read
-after the send, when it also matches the command. A command ack alone
-does not confirm a move, and neither does the attitude that only
-taught the counter. Zoom is confirmed only by a current-zoom read (command
+center, and rate confirm only on that counter-advanced attitude. Center
+and rate wait for their ack, then re-read attitude for about 1.5 s.
+This mount's level pitch is ±180, so center is the shortest wrap-around
+distance to yaw 0 and pitch 180, not to pitch 0. A rate confirms only
+when that later reading shows the commanded change; a stop confirms
+only after the rate has decayed. A command ack alone does not confirm
+a move, and neither does the attitude that only taught the counter.
+Zoom is confirmed only by a current-zoom read (command
 0x18): the first byte is the whole multiple and the second is tenths.
+The status poll reads 0x18 as well. Firmware replies of 8 bytes (camera
+and gimbal versions) are accepted.
 The zoom-command ack (0x05) is a separate uint16 in tenths. A
 confirmation never sends zoom stop. Codec specs (command 0x20) are
 read with the status poll.
@@ -54,17 +61,27 @@ CMD_RATE = 0x07
 CMD_CENTER = 0x08
 CMD_CONFIG = 0x0A
 CMD_ATTITUDE = 0x0D
+CMD_ANGLE = 0x0E
 CMD_PHOTO = 0x0C
 CMD_CODEC = 0x20
 # 0x20 send data is one uint8: 0 recording, 1 main, 2 sub.
 # Manual example for main: 55 66 01 01 00 00 00 20 01 9E 9D
 CODEC_STREAM_MAIN = 1
-# Live A8: 0x0D, 0x18, and 0x01 share one counter. 0x0A has its own.
-SHARED_SEQ_CMDS = frozenset({CMD_ATTITUDE, CMD_ZOOM_READ, CMD_FIRMWARE})
+# Live A8: 0x0D, 0x18, 0x01, and the 0x0E angle ack share one counter.
+# 0x0A, the 0x08 center ack, and the 0x07 rate ack share the other.
+SHARED_SEQ_CMDS = frozenset({CMD_ATTITUDE, CMD_ZOOM_READ, CMD_FIRMWARE, CMD_ANGLE})
+CONFIG_SEQ_CMDS = frozenset({CMD_CONFIG, CMD_RATE, CMD_CENTER})
 # A move confirms only from a fresh attitude whose counter advanced.
 # Zoom confirms only from a 0x18 read. A command ack does not confirm.
 SEQ_AHEAD_MAX = 64
 SEQ_SILENCE_S = 3.0
+# Center and rate take about this long to show up in attitude.
+CONFIRM_MOTION_S = 1.5
+# This mount reads pitch ±180 when the camera is level.
+CENTER_YAW = 0.0
+CENTER_PITCH = 180.0
+# Rates inside this band are noise, not a commanded move.
+RATE_NOISE_DPS = 1.0
 MOTION_ACTIONS = frozenset({"rate", "angle", "center"})
 ACK_EXACT_ACTIONS = MOTION_ACTIONS | frozenset({"zoom"})
 DEFAULT_HOST = "192.168.144.25"
@@ -185,16 +202,27 @@ def format_firmware(value):
 
 
 def parse_firmware(data):
-    if len(data) < 12:
+    """Camera and gimbal versions, then zoom when the gimbal sends it.
+
+    The A8 mini replies to 0x01 with 8 bytes (two uint32 versions). A
+    12-byte reply also carries the zoom version.
+    """
+    raw = bytes(data or b"")
+    if len(raw) < 8:
         return None
-    camera, gimbal, zoom = struct.unpack_from("<III", data, 0)
+    camera, gimbal = struct.unpack_from("<II", raw, 0)
+    zoom_raw = None
+    zoom = None
+    if len(raw) >= 12:
+        zoom_raw = struct.unpack_from("<I", raw, 8)[0]
+        zoom = format_firmware(zoom_raw)
     return {
         "camera": format_firmware(camera),
         "gimbal": format_firmware(gimbal),
-        "zoom": format_firmware(zoom),
+        "zoom": zoom,
         "camera_raw": camera,
         "gimbal_raw": gimbal,
-        "zoom_raw": zoom,
+        "zoom_raw": zoom_raw,
     }
 
 
@@ -283,8 +311,18 @@ def clamp_rate(value):
     return max(RATE_MIN, min(RATE_MAX, int(value)))
 
 
+def angle_separation(left, right):
+    """Shortest distance between two headings, in degrees, on a 360 circle."""
+    delta = (float(left) - float(right) + 180.0) % 360.0 - 180.0
+    return abs(delta)
+
+
 def attitude_moved_toward(before, after, target_yaw, target_pitch, tolerance=1.0):
-    """True when `after` reached the target or got closer than `before`."""
+    """True when `after` reached the target or got closer than `before`.
+
+    Distance wraps at ±180, so pitch 179.9 and pitch -179.9 are the same
+    place. On this mount that place is level, which is center.
+    """
     if not isinstance(after, dict):
         return False
     try:
@@ -294,7 +332,7 @@ def attitude_moved_toward(before, after, target_yaw, target_pitch, tolerance=1.0
         goal_pitch = float(target_pitch)
     except (TypeError, ValueError):
         return False
-    if abs(yaw - goal_yaw) <= tolerance and abs(pitch - goal_pitch) <= tolerance:
+    if angle_separation(yaw, goal_yaw) <= tolerance and angle_separation(pitch, goal_pitch) <= tolerance:
         return True
     if not isinstance(before, dict):
         return False
@@ -304,7 +342,7 @@ def attitude_moved_toward(before, after, target_yaw, target_pitch, tolerance=1.0
     except (TypeError, ValueError):
         return False
     def gap(y, p):
-        return abs(y - goal_yaw) + abs(p - goal_pitch)
+        return angle_separation(y, goal_yaw) + angle_separation(p, goal_pitch)
     return gap(yaw, pitch) + 0.05 < gap(old_yaw, old_pitch)
 
 
@@ -321,11 +359,12 @@ def rate_fields_match(attitude, yaw_cmd, pitch_cmd):
         return False
 
     def axis(cmd, observed):
+        # 0.2 deg/s is resting noise. A start has to leave that band.
         if cmd > 0:
-            return observed > 0
+            return observed > RATE_NOISE_DPS
         if cmd < 0:
-            return observed < 0
-        return abs(observed) <= 1.0
+            return observed < -RATE_NOISE_DPS
+        return abs(observed) <= RATE_NOISE_DPS
 
     return axis(yaw_cmd, yaw_rate) and axis(pitch_cmd, pitch_rate)
 
@@ -514,7 +553,12 @@ class SiyiLink:
             self._log(entry)
             return 504, {"ok": False, "reason": "send_failed", "sent": False, "confirmed": False}
         if want_fresh:
-            checked = self._confirm_motion(action, body, before_att, before_zoom)
+            # Center and rate are confirmed only from an attitude read after
+            # the ack. Without that ack there is nothing to wait on.
+            if action in {"rate", "center"} and not isinstance(decoded, dict):
+                checked = None
+            else:
+                checked = self._confirm_motion(action, body, before_att, before_zoom)
             if checked and checked.get("confirmed"):
                 result = {
                     "ok": True,
@@ -615,7 +659,7 @@ class SiyiLink:
             cmd = int(cmd) & 0xFF
         except (TypeError, ValueError):
             return None
-        if cmd == CMD_CONFIG:
+        if cmd in CONFIG_SEQ_CMDS:
             return "config"
         if cmd in SHARED_SEQ_CMDS:
             return "shared"
@@ -647,8 +691,7 @@ class SiyiLink:
         returned (``"teach"``). Zoom-read and firmware still return the
         sample that taught their counter. A backwards or repeated
         sequence is rejected and recorded on ``_device_seq_regressed``.
-        Commands with no tracked group (rate, center, zoom write, codec)
-        are not gated.
+        Zoom write and codec are not gated.
         """
         group = self._seq_group(cmd)
         if group is None:
@@ -732,7 +775,8 @@ class SiyiLink:
                 self.last_error = "seq_rejected"
             return None
         group = self._seq_group(cmd)
-        if group is not None:
+        # An optional read (zoom poll, codec) must not forget a live counter.
+        if group is not None and marks_absent:
             self._resync_groups.add(group)
         self._note_exchange_failed(marks_absent)
         return None
@@ -766,24 +810,54 @@ class SiyiLink:
             if zoom_moved(before_zoom, zoom, direction):
                 return {"confirmed": True, "confirmed_by": "zoom", "ack": {"zoom": zoom}}
             return {"confirmed": False, "ack": {"zoom": zoom}}
-        pkt = self._exchange_fresh_attitude()
-        att = parse_attitude(pkt["data"]) if isinstance(pkt, dict) else None
-        if att is None:
-            return None
-        with self._lock:
-            self.attitude = att
         if action == "rate":
-            ok = rate_fields_match(att, clamp_rate(body.get("yaw")), clamp_rate(body.get("pitch")))
+            yaw_cmd = clamp_rate(body.get("yaw"))
+            pitch_cmd = clamp_rate(body.get("pitch"))
+            att, ok = self._poll_attitude_until(
+                lambda sample: rate_fields_match(sample, yaw_cmd, pitch_cmd)
+            )
+            if att is None:
+                return None
             if ok:
                 return {"confirmed": True, "confirmed_by": "rate", "ack": att}
             return {"confirmed": False, "ack": att}
         if action == "center":
-            goal = (0.0, 0.0)
+            goal = (CENTER_YAW, CENTER_PITCH)
         else:
             goal = clamp_angle(body.get("yaw"), body.get("pitch"))
-        if attitude_moved_toward(before_att, att, goal[0], goal[1]):
+        att, ok = self._poll_attitude_until(
+            lambda sample: attitude_moved_toward(before_att, sample, goal[0], goal[1])
+        )
+        if att is None:
+            return None
+        if ok:
             return {"confirmed": True, "confirmed_by": "attitude", "ack": att}
         return {"confirmed": False, "ack": att}
+
+    def _poll_attitude_until(self, ready):
+        """Re-read attitude until `ready` or about 1.5 s.
+
+        Each sample has to be a counter-advanced 0x0D. A timeout ends the
+        wait. The caller already holds the command ack, so these reads are
+        after that ack.
+        """
+        deadline = time.monotonic() + CONFIRM_MOTION_S
+        latest = None
+        while time.monotonic() < deadline:
+            pkt = self._exchange_fresh_attitude()
+            att = parse_attitude(pkt["data"]) if isinstance(pkt, dict) else None
+            if att is None:
+                return latest, False
+            with self._lock:
+                self.attitude = att
+            latest = att
+            try:
+                done = bool(ready(att))
+            except (TypeError, ValueError):
+                done = False
+            if done:
+                return att, True
+        return latest, False
 
     def poll_once(self):
         self._ticks += 1
@@ -836,6 +910,19 @@ class SiyiLink:
                 if parsed:
                     with self._lock:
                         self.codec = parsed
+            # 0x18 so status zoom is filled. A miss must not clear presence
+            # or forget the shared counter. 01 00 is 1.0x.
+            zoom_pkt = self.exchange(
+                CMD_ZOOM_READ,
+                b"",
+                require_match=True,
+                marks_absent=False,
+            )
+            if isinstance(zoom_pkt, dict):
+                zoom = parse_zoom(zoom_pkt["data"])
+                if zoom is not None:
+                    with self._lock:
+                        self.zoom = zoom
 
     def _loop(self):
         while not self._stop.wait(self.poll_s):
