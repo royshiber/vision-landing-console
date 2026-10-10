@@ -1129,6 +1129,8 @@
             <button type="button" id="gimbalLockBtn" class="gimbal-pad-btn gimbal-pad-lock" data-gimbal="lock" aria-pressed="false" disabled aria-describedby="gimbalPadReason">משוחרר</button>
             <p id="gimbalPadReason" class="gimbal-pad-reason">אין קישור למחשב המשימה</p>
             <p id="gimbalAngles" class="gimbal-pad-angles"><span>יאו</span> <span id="gimbalYaw" dir="ltr">—</span> <span>פיץ׳</span> <span id="gimbalPitch" dir="ltr">—</span></p>
+            <details class="optics-field-group" data-settings-group="stick" open>
+              <summary>הזזה</summary>
             <div class="gimbal-pad-play">
               <div class="gimbal-pad-stick" dir="ltr">
                 <button type="button" class="gimbal-pad-btn" data-gimbal="up" disabled aria-label="מעלה" aria-describedby="gimbalPadReason">▲</button>
@@ -1144,6 +1146,7 @@
               </div>
             </div>
             <p class="gimbal-pad-keys">הזיזו בחצים. שנו את הזום בפלוס ובמינוס.</p>
+            </details>
           </section>
         </div>
         <div class="optics-calib">
@@ -1215,27 +1218,27 @@
             </header>
             <p id="gimbalSettingsReason" class="cam0-reason">אין מענה מהגימבל</p>
             <div class="optics-groups">
-              <div class="optics-field-group">
-                <p class="optics-field-kicker">זווית</p>
+              <details class="optics-field-group" data-settings-group="angle">
+                <summary>זווית</summary>
                 <p class="optics-readout"><span class="optics-field-name">יאו</span> <span id="gimbalSettingsYaw" dir="ltr">—</span></p>
                 <p class="optics-readout"><span class="optics-field-name">פיץ׳</span> <span id="gimbalSettingsPitch" dir="ltr">—</span></p>
-              </div>
-              <div class="optics-field-group">
-                <p class="optics-field-kicker">תנועה</p>
+              </details>
+              <details class="optics-field-group" data-settings-group="motion">
+                <summary>תנועה</summary>
                 <label><span class="optics-field-name">מהירות</span> <span class="optics-stepper"><button type="button" class="optics-step" data-optics-step="-1" aria-label="הפחיתו" disabled>−</button><input id="gimbalSpeed" type="number" min="1" max="100" step="1" value="40" dir="ltr" disabled /><button type="button" class="optics-step" data-optics-step="1" aria-label="הגדילו" disabled>+</button></span></label>
                 <button type="button" id="gimbalSettingsCenter" class="cam0-btn" disabled>מרכז</button>
                 <p class="optics-readout"><span class="optics-field-name">זום</span> <span id="gimbalSettingsZoom" dir="ltr">—</span></p>
                 <button type="button" id="gimbalSettingsZoomIn" class="cam0-btn" disabled>הגדלה</button>
                 <button type="button" id="gimbalSettingsZoomOut" class="cam0-btn" disabled>הקטנה</button>
-              </div>
-              <div class="optics-field-group">
-                <p class="optics-field-kicker">מצב</p>
+              </details>
+              <details class="optics-field-group" data-settings-group="mode">
+                <summary>מצב</summary>
                 <button type="button" id="gimbalSettingsMode" class="cam0-btn" disabled>משוחרר</button>
                 <button type="button" id="gimbalSettingsRecord" class="cam0-btn" disabled>הקלטה</button>
                 <button type="button" id="gimbalSettingsSnap" class="cam0-btn" disabled>צילום</button>
                 <label class="cam0-check"><input type="checkbox" id="gimbalTrack" disabled /> <span class="optics-field-name">מעקב</span></label>
                 <p id="gimbalTrackNote" class="optics-field-note">מעקב עדיין לא זמין</p>
-              </div>
+              </details>
             </div>
           </section>
         </div>

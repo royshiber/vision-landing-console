@@ -1,12 +1,24 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { spawn } from 'child_process';
+import net from 'net';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const PORT = '4038';
-const BASE = `http://127.0.0.1:${PORT}`;
+let PORT = 0;
+let BASE = '';
 const axePath = path.join(repoRoot, 'node_modules/axe-core/axe.min.js');
+
+function freePort() {
+  return new Promise((resolve, reject) => {
+    const server = net.createServer();
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', () => {
+      const { port } = server.address();
+      server.close(() => resolve(port));
+    });
+  });
+}
 
 const viewports = [
   { name: '1024x600', width: 1024, height: 600 },
@@ -28,9 +40,11 @@ describe('WCAG AA color contrast across tabs', () => {
   let browser = null;
 
   beforeAll(async () => {
+    PORT = await freePort();
+    BASE = `http://127.0.0.1:${PORT}`;
     serverProc = spawn(process.execPath, ['server.js'], {
       cwd: repoRoot,
-      env: { ...process.env, HOST: '127.0.0.1', PORT, COMPANION_MODE: 'off', JETSON_COMPANION_BASE_URL: '' },
+      env: { ...process.env, HOST: '127.0.0.1', PORT: String(PORT), COMPANION_MODE: 'off', JETSON_COMPANION_BASE_URL: '' },
       stdio: ['ignore', 'pipe', 'pipe'],
     });
     const t0 = Date.now();

@@ -11549,8 +11549,8 @@ html[data-evolve-preview="1"] #development {
   gap: 4px;
   margin: 0 0 8px;
   min-height: 0;
-  flex: 1 1 auto;
-  overflow: auto;
+  flex: 0 0 auto;
+  overflow: visible;
 }
 
 .mission-data-picker-chip {
@@ -26362,9 +26362,16 @@ button.mission-link-chip,
 }
 .mission-region-horizon > .mission-region-data {
   position: relative;
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: nowrap;
+}
+.mission-region-horizon > .mission-region-data > .mission-data-grid {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 .mission-data-hint-anchor {
-  position: relative;
+  position: static;
   z-index: 5;
   top: auto;
   inset-inline-end: auto;
@@ -26508,7 +26515,14 @@ button.mission-link-chip,
 
 /* Fixed optics grid. Selection highlights a tile. Controls sit in the right-click menu. */
 #optics .debrief-cam-toolbar { display: none !important; }
-#optics > .optics-calib { display: none !important; }
+#optics > .optics-calib {
+  display: block !important;
+  height: auto;
+  overflow: visible;
+}
+#optics > .optics-calib > :not(.optics-cam-switch) {
+  display: none !important;
+}
 #optics .optics-live > #gimbalPad { display: none !important; }
 #optics .optics-live,
 #optics .optics-tiles {
@@ -26832,8 +26846,59 @@ button.mission-link-chip,
   font-weight: 800;
   color: #f8fafc;
 }
-.optics-context details.optics-field-group:not([open]) > :not(summary),
-.optics-context details.cam0-calib:not([open]) > :not(summary) {
+.optics-context #cam0Panel,
+.optics-context #cam1Panel {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px 8px;
+  align-items: start;
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+@media (max-width: 720px) {
+  .optics-context #cam0Panel,
+  .optics-context #cam1Panel {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.optics-context #cam0Panel .cam0-head,
+.optics-context #cam1Panel .cam0-head,
+.optics-context #cam0Panel .cam0-reason,
+.optics-context #cam1Panel .cam0-reason,
+.optics-context #cam0Panel .cam0-error,
+.optics-context #cam1Panel .cam0-error,
+.optics-context #cam0Panel .cam0-stats,
+.optics-context #cam1Panel .cam0-stats,
+.optics-context #cam0Panel .cam0-layout,
+.optics-context #cam1Panel .cam0-layout,
+.optics-context #cam0Panel .cam0-side,
+.optics-context #cam1Panel .cam0-side,
+.optics-context #cam0Panel .camera-settings-host,
+.optics-context #cam1Panel .camera-settings-host,
+.optics-context #cam0Panel .optics-groups,
+.optics-context #cam1Panel .optics-groups {
+  display: contents;
+}
+.optics-context .cam0-reason,
+.optics-context .optics-field-group,
+.optics-context .cam0-calib,
+.optics-context .cam0-btn,
+.optics-context input,
+.optics-context select {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.optics-context #gimbalSettings details.optics-field-group:not([open]) > :not(summary),
+.optics-context #gimbalPad details.optics-field-group:not([open]) > :not(summary),
+.optics-context #cam0Panel details.optics-field-group:not([open]) > :not(summary),
+.optics-context #cam1Panel details.optics-field-group:not([open]) > :not(summary),
+.optics-context #cam0Panel details.cam0-calib:not([open]) > :not(summary),
+.optics-context #cam1Panel details.cam0-calib:not([open]) > :not(summary) {
   display: none;
 }
 .debrief-cam-tile[data-cam="cam3"] .debrief-cam-label {
@@ -26846,6 +26911,26 @@ button.mission-link-chip,
   top: auto;
   inset-inline-start: auto;
   margin: 0;
+  max-width: 100%;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+}
+.optics-vision-fold {
+  margin-top: 8px;
+  color: #f8fafc;
+}
+.optics-vision-fold > summary {
+  cursor: pointer;
+  font-weight: 800;
+  color: #f8fafc;
+}
+.optics-vision-fold:not([open]) > :not(summary) {
+  display: none;
+}
+#pfdHorizonStage > .vision-box-note {
+  left: 84px;
+  right: 84px;
 }
 .flight-comm-menu {
   width: 320px;
@@ -27089,6 +27174,29 @@ button.mission-link-chip,
 .horizon-cam-menu #flightArmRow > * {
   display: inline-flex !important;
 }
+.horizon-cam-menu #hudNavGps,
+.horizon-cam-menu .pfd-gps-pill {
+  display: flex !important;
+  flex: 1 1 auto;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  height: auto;
+  min-height: 28px;
+  overflow: visible;
+  white-space: normal;
+  box-sizing: border-box;
+}
+.horizon-cam-menu #hudNavGps .hud-nav-val,
+.horizon-cam-menu .pfd-gps-pill .hud-nav-val {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  max-width: 100%;
+  height: auto;
+  flex: 1 1 auto;
+}
 .horizon-cam-menu .pfd-heading-lane {
   display: flex !important;
   position: static !important;
@@ -27151,9 +27259,13 @@ button.mission-link-chip,
   display: inline-flex !important;
   flex: 0 0 auto;
   width: auto;
+  min-width: 44px;
   height: 32px;
   min-height: 32px;
   max-height: 32px;
+  padding-inline: 8px;
+  overflow: visible;
+  white-space: nowrap;
 }
 #terrain > .mission-ask-dock .assist-transcript-well {
   display: none !important;

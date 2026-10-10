@@ -167,18 +167,30 @@ export function trackCaption(track) {
  * Caption origin so the trailing score stays inside the tile.
  * A caption wider than the tile keeps its right edge on the tile edge.
  */
-export function placeTrackCaption(boxX, textWidth, tileWidth) {
+export function placeTrackCaption(boxX, textWidth, tileWidth, inset = 0) {
   const tile = Math.max(0, Number(tileWidth) || 0);
   const text = Math.max(0, Number(textWidth) || 0);
+  const gutter = Math.max(0, Number(inset) || 0);
   let x = Number(boxX);
   if (!Number.isFinite(x)) x = 0;
   if (!(tile > 0)) return { x: 0, right: text };
-  if (text <= tile) {
-    if (x + text > tile) x = tile - text;
-    if (x < 0) x = 0;
+  if (gutter <= 0) {
+    if (text <= tile) {
+      if (x + text > tile) x = tile - text;
+      if (x < 0) x = 0;
+      return { x, right: x + text };
+    }
+    return { x: tile - text, right: tile };
+  }
+  const left = Math.min(gutter, tile);
+  const rightEdge = Math.max(left, tile - gutter);
+  const span = rightEdge - left;
+  if (text <= span) {
+    if (x < left) x = left;
+    if (x + text > rightEdge) x = rightEdge - text;
     return { x, right: x + text };
   }
-  return { x: tile - text, right: tile };
+  return { x: left, right: left + text };
 }
 
 export function tracksMatchFrame(payload, seq, capturedAt, toleranceMs = FRAME_SYNC_TOLERANCE_MS) {
@@ -649,18 +661,17 @@ function ensureChrome(host, camera) {
     const resize = new ResizeObserver(() => repaint());
     resize.observe(host);
   }
-  const opener = host.closest?.('.debrief-cam-tile') || host;
-  if (opener.dataset.visionMenuBound === '1') return;
+  const opener = host.closest?.('.debrief-cam-tile');
+  if (!opener || opener.dataset.visionMenuBound === '1') return;
   opener.dataset.visionMenuBound = '1';
   opener.addEventListener('contextmenu', (event) => {
     if (!(event.target instanceof Element) || !opener.contains(event.target)) return;
-    const camera = host.dataset.visionCamera || host.dataset.visionFollow || selectedCamera() || 'cam3';
-    if (event.defaultPrevented) {
-      const slot = host.ownerDocument.querySelector('[data-vision-menu-slot]');
-      if (slot) fillVisionMenu(slot, camera);
-      return;
-    }
+    const camera = host.dataset.visionCamera || host.dataset.visionFollow || selectedCamera() || opener.dataset.cam || 'cam3';
+    const onBox = Boolean(lockAtPoint(host, event.clientX, event.clientY, copyDrawnBoxes(host)));
+    if (!onBox) return;
     event.preventDefault();
+    event.stopPropagation();
+    host.ownerDocument.dispatchEvent(new CustomEvent('vlc-close-optics'));
     openMenu(host.ownerDocument, camera, event.clientX, event.clientY);
   });
 }
@@ -747,7 +758,8 @@ export function paintHost(host, payload, { kind = 'tile' } = {}) {
     const textW = ctx.measureText(caption).width;
     const pad = 4;
     const capH = 16;
-    const placed = placeTrackCaption(boxX, textW + pad * 2, width);
+    const inset = kind === 'horizon' ? 80 : 0;
+    const placed = placeTrackCaption(boxX, textW + pad * 2, width, inset);
     let capY = boxY - 18;
     if (capY < 0) capY = Math.min(Math.max(0, height - capH), Math.max(0, boxY + 2));
     if (capY + capH > height) capY = Math.max(0, height - capH);
@@ -1088,6 +1100,16 @@ function onMenuClick(event) {
       void postLock({ action: 'unlock', camera: menuCamera });
       return;
     }
+    if (action === 'optics') {
+      const node = doc.getElementById('visionTrackMenu');
+      const left = Number.parseFloat(node?.style.left || '24') || 24;
+      const top = Number.parseFloat(node?.style.top || '80') || 80;
+      if (node) node.hidden = true;
+      doc.dispatchEvent(new CustomEvent('vlc-open-optics', {
+        detail: { cam: menuCamera || 'cam3', x: left, y: top },
+      }));
+      return;
+    }
     if (id) void postLock({ camera: menuCamera, id: Number(id) });
 }
 
@@ -1178,7 +1200,10 @@ export function fillVisionMenu(slot, camera) {
   const menu = doc.getElementById('visionTrackMenu');
   slot.replaceChildren();
   if (!menu) return;
-  for (const child of menu.children) slot.appendChild(child.cloneNode(true));
+  for (const child of menu.children) {
+    if (child instanceof Element && child.dataset.visionAction === 'optics') continue;
+    slot.appendChild(child.cloneNode(true));
+  }
   if (slot.dataset.visionClick !== '1') {
     slot.dataset.visionClick = '1';
     slot.addEventListener('click', onMenuClick);
@@ -1204,6 +1229,15 @@ function openMenu(doc, camera, x, y) {
   node.style.left = `${box.left}px`;
   node.style.top = `${box.top}px`;
   node.style.maxHeight = `${box.maxHeight}px`;
+  let settings = node.querySelector('[data-vision-action="optics"]');
+  if (!settings) {
+    settings = doc.createElement('button');
+    settings.type = 'button';
+    settings.className = 'vision-track-menu-item';
+    settings.dataset.visionAction = 'optics';
+    settings.textContent = 'הגדרות מצלמה…';
+  }
+  node.appendChild(settings);
 }
 
 export function mountVisionTracks(doc = document) {

@@ -1,6 +1,7 @@
 import { beforeAll, afterAll, describe, expect, it } from 'vitest';
 import { spawn } from 'child_process';
 import fs from 'fs';
+import net from 'net';
 import os from 'os';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -79,6 +80,17 @@ describe('FC write acknowledgement', () => {
   });
 });
 
+function freePort() {
+  return new Promise((resolve, reject) => {
+    const server = net.createServer();
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', () => {
+      const { port } = server.address();
+      server.close(() => resolve(port));
+    });
+  });
+}
+
 function startServer(port) {
   const sqlite = path.join(os.tmpdir(), `airvix-fc-write-${port}.sqlite`);
   fs.rmSync(sqlite, { force: true });
@@ -109,8 +121,8 @@ async function waitHealth(base) {
 }
 
 describe('FC write paths in the parameters tab', () => {
-  const PORT = '4038';
-  const BASE = `http://127.0.0.1:${PORT}`;
+  let PORT = 0;
+  let BASE = '';
   let serverProc = null;
   let browser = null;
   let page = null;
@@ -124,6 +136,8 @@ describe('FC write paths in the parameters tab', () => {
   }
 
   beforeAll(async () => {
+    PORT = await freePort();
+    BASE = `http://127.0.0.1:${PORT}`;
     serverProc = startServer(PORT);
     await waitHealth(BASE);
     const { chromium } = await import('playwright');

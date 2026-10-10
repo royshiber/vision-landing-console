@@ -143,6 +143,7 @@ describe('guided calibration on CAM1', () => {
     await page.click('#opticsCam1Btn');
     await page.waitForSelector('#cam1Panel:not([hidden])');
     await page.waitForFunction(() => document.getElementById('cam1CalibStart')?.disabled === false);
+    await page.locator('#cam1Calib > summary').click();
     await page.click('#cam1CalibStart');
     await page.waitForFunction(() => document.getElementById('cam1CalibProgress')?.textContent === '12/20');
     await page.waitForFunction(() => document.getElementById('cam1CalibHint')?.textContent === 'קרב את הלוח');

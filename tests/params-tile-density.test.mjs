@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { spawn } from 'child_process';
 import fs from 'fs';
+import net from 'net';
 import os from 'os';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -51,6 +52,17 @@ function contrast(a, b) {
   return (hi + 0.05) / (lo + 0.05);
 }
 
+function freePort() {
+  return new Promise((resolve, reject) => {
+    const server = net.createServer();
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', () => {
+      const { port } = server.address();
+      server.close(() => resolve(port));
+    });
+  });
+}
+
 describe('Parameter tiles are dense and not behind a filter wall', () => {
   it('does not tell the operator to narrow the list before the tiles render', () => {
     expect(js).not.toContain('צמצמו את הרשימה');
@@ -60,8 +72,8 @@ describe('Parameter tiles are dense and not behind a filter wall', () => {
     expect(css).not.toContain('min-height: 108px');
   });
 
-  const PORT = '4038';
-  const BASE = `http://127.0.0.1:${PORT}`;
+  let PORT = 0;
+  let BASE = '';
   let serverProc = null;
   let browser = null;
   let page = null;
@@ -132,6 +144,8 @@ describe('Parameter tiles are dense and not behind a filter wall', () => {
   }
 
   beforeAll(async () => {
+    PORT = await freePort();
+    BASE = `http://127.0.0.1:${PORT}`;
     fs.mkdirSync(shotDir, { recursive: true });
     serverProc = startServer(PORT);
     await waitHealth(BASE);

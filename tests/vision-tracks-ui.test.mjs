@@ -238,28 +238,43 @@ describe('vision track overlay', () => {
     }
     await expect.poll(() => lockPosts, { timeout: 20000 }).toBe(before + 500);
     await page.screenshot({ path: `${shotDir}/vision-lock.png` });
-    await host.click({ button: 'right', position: { x: 24, y: 24 } });
+    const boxPoint = await page.evaluate(() => {
+      const stage = document.querySelector('[data-camera-stage="cam0"]');
+      const rect = stage?.getBoundingClientRect();
+      if (!rect) return null;
+      const scale = Math.min(rect.width / 320, rect.height / 180);
+      const ox = rect.x + (rect.width - 320 * scale) / 2;
+      const oy = rect.y + (rect.height - 180 * scale) / 2;
+      const box = [20, 30, 80, 70];
+      return { x: ox + (box[0] + box[2] / 2) * scale, y: oy + (box[1] + box[3] / 2) * scale };
+    });
+    await page.mouse.click(boxPoint.x, boxPoint.y, { button: 'right' });
     await page.waitForSelector('#visionTrackMenu:not([hidden])');
+    expect(await page.locator('#opticsContext').getAttribute('hidden')).not.toBeNull();
+    expect(await page.locator('#visionTrackMenu [data-vision-action="optics"]').innerText()).toBe('הגדרות מצלמה…');
     await page.screenshot({ path: `${shotDir}/vision-object-list.png` });
     const report = await page.evaluate(collectTextFitFailures, 1);
     const visionFails = (report.fails || []).filter((row) => /vision/.test(row.who));
     expect(visionFails).toEqual([]);
     await page.locator('#visionTrackMenu [data-vision-id="2"]').click();
     await page.waitForFunction(() => document.querySelector('[data-camera-stage="cam0"]')?.dataset.visionLock === '2');
-    await host.click({ button: 'right', position: { x: 24, y: 24 } });
+    await page.mouse.click(boxPoint.x, boxPoint.y, { button: 'right' });
     await page.locator('#visionTrackMenu [data-vision-action="next"]').click();
     await page.waitForFunction(() => {
       const id = document.querySelector('[data-camera-stage="cam0"]')?.dataset.visionLock;
       return id === '1';
     });
-    await host.click({ button: 'right', position: { x: 24, y: 24 } });
+    await page.mouse.click(boxPoint.x, boxPoint.y, { button: 'right' });
     await page.locator('#visionTrackMenu [data-vision-action="unlock"]').click();
     await page.waitForFunction(() => document.querySelector('[data-camera-stage="cam0"]')?.dataset.visionLock === '');
     expect(await page.locator('[data-camera-stage="cam0"]').first().getAttribute('data-vision-tracks')).toBe('1,2');
     await page.locator('[data-cam="cam0"] .debrief-cam-label').click({ button: 'right' });
-    await page.waitForSelector('#visionTrackMenu:not([hidden])');
+    await page.waitForSelector('#opticsContext:not([hidden]) .optics-vision-fold:not([open])');
+    expect(await page.locator('#visionTrackMenu').getAttribute('hidden')).not.toBeNull();
+    expect(await page.locator('#opticsContext .optics-vision-fold > summary').innerText()).toBe('זיהוי');
+    await page.locator('#opticsContext .optics-vision-fold > summary').click();
     const menuFace = await page.evaluate(() => {
-      const menu = document.getElementById('visionTrackMenu');
+      const menu = document.querySelector('#opticsContext [data-vision-menu-slot]');
       const sort = menu.querySelector('.vision-menu-sort');
       const steer = menu.querySelector('[data-vision-action="steer"]');
       const note = menu.querySelector('[data-vision-steer-note]');
@@ -284,7 +299,8 @@ describe('vision track overlay', () => {
     await page.keyboard.press('Escape');
     const tileBox = await page.locator('.debrief-cam-tile[data-cam="cam0"]').boundingBox();
     await page.mouse.click((tileBox?.x || 0) + 3, (tileBox?.y || 0) + 3, { button: 'right' });
-    await page.waitForSelector('#visionTrackMenu:not([hidden])');
+    await page.waitForSelector('#opticsContext:not([hidden])');
+    expect(await page.locator('#visionTrackMenu').getAttribute('hidden')).not.toBeNull();
     await page.close();
   }, 180000);
 
@@ -680,9 +696,11 @@ describe('vision track overlay', () => {
     expect(rect && rect.height).toBeGreaterThan(8);
     const clickY = Math.min((rect?.y || 0) + (rect?.height || 0) - 6, 712);
     await page.mouse.click((rect?.x || 0) + Math.min(20, (rect?.width || 40) / 2), clickY, { button: 'right' });
-    await page.waitForSelector('#visionTrackMenu:not([hidden])');
+    await page.waitForSelector('#opticsContext:not([hidden]) .optics-vision-fold:not([open])');
+    expect(await page.locator('#visionTrackMenu').getAttribute('hidden')).not.toBeNull();
+    await page.locator('#opticsContext .optics-vision-fold > summary').click();
     const fit = await page.evaluate(() => {
-      const menu = document.getElementById('visionTrackMenu');
+      const menu = document.getElementById('opticsContext');
       const steer = menu.querySelector('[data-vision-action="steer"]');
       const kicker = steer;
       const viewW = window.innerWidth;

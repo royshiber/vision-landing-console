@@ -2847,7 +2847,14 @@ function refreshParamToolbarMeta() {
       ? 'יש שינוי'
       : fcLink === 'ok' ? 'מחובר' : fcLink === 'down' ? 'מנותק' : 'לא ידוע';
   }
-  if (fcMeta) fcMeta.textContent = '';
+  if (fcMeta) fcMeta.textContent = fcReadStatusLine();
+}
+
+function fcReadStatusLine() {
+  if (!fcCurrentSnapshot || typeof fcCurrentSnapshot !== 'object' || !fcReadAt) return '';
+  const count = Object.keys(fcCurrentSnapshot).length;
+  const mins = Math.max(0, Math.round((Date.now() - fcReadAt) / 60000));
+  return `נקראו ${count} · לפני ${mins} דק׳`;
 }
 
 async function refreshJetsonLink() {
@@ -5714,11 +5721,11 @@ function pulsePaintFcFacts(companion, mav) {
     } else if (fcMis == null) {
       syncReason = 'עדיין לא נקרא מהכלי';
     }
-    if (fcCurrentSnapshot && typeof fcCurrentSnapshot === 'object' && fcReadAt) {
-      const count = Object.keys(fcCurrentSnapshot).length;
-      const mins = Math.max(0, Math.round((Date.now() - fcReadAt) / 60000));
-      const readLine = `נקראו ${count} · לפני ${mins} דק׳`;
-      if (!syncReason || syncReason === 'עדיין לא נקרא מהכלי') syncReason = readLine;
+    const readLine = fcReadStatusLine();
+    if (readLine) {
+      syncReason = syncReason && syncReason !== 'עדיין לא נקרא מהכלי'
+        ? `${readLine} · ${syncReason}`
+        : readLine;
     }
   } catch {
     syncPill = 'לא ידוע';
@@ -7642,6 +7649,9 @@ function ensureHorizonGimbalPump(img, note, base) {
       return `${base}?since=${seenSeq || 0}&t=${gen}${newest}`;
     },
     onFrame() {
+      const stage = img.closest('#pfdHorizonStage') || img.closest('[data-camera-stage="horizon"]');
+      const slotId = img.dataset.horizonSlot || '';
+      if (stage && slotId && slotId !== 'none') stage.dataset.visionCamera = slotId;
       img.dataset.seen = String(Date.now());
       img.dataset.misses = '0';
       if (!horizonFrameIsReal(img)) {
@@ -7755,31 +7765,6 @@ function paintHorizonImage(img, note, slot, companion) {
     img.dataset.gimbalPump = '';
     img.removeAttribute('src');
     showHorizonNoSignal(img, note);
-    return;
-  }
-  if (slot.apiId === 'cam1') {
-    horizonGimbalPumps.get(img)?.stop();
-    img.dataset.gimbalPump = '';
-    const stream = '/api/jetson/v1/cam1/stream.mjpg';
-    img.classList.toggle('is-mono', slot.mono === true);
-    img.onload = () => {
-      if (!horizonFrameIsReal(img)) {
-        showHorizonNoSignal(img, note);
-        markHorizonLive();
-        return;
-      }
-      img.hidden = false;
-      if (note) note.hidden = true;
-      fitHorizonPicture(img);
-      markHorizonLive();
-      syncHorizonNoData();
-    };
-    img.onerror = () => {
-      showHorizonNoSignal(img, note);
-      markHorizonLive();
-      syncHorizonNoData();
-    };
-    if (!String(img.currentSrc || img.src || '').includes('cam1/stream.mjpg')) img.src = stream;
     return;
   }
   img.classList.toggle('is-mono', slot.mono === true);
@@ -12502,7 +12487,10 @@ async function readFcParams() {
       renderArduDiff(d.current, arduTargetState);
       const paramStr = d.paramCount != null ? ` (${d.paramCount})` : '';
       if (arduWriteStatus) {
-        arduWriteStatus.textContent = `הקריאה הושלמה${paramStr}`;
+        const readLine = fcReadStatusLine();
+        arduWriteStatus.textContent = readLine
+          ? `הקריאה הושלמה${paramStr} · ${readLine}`
+          : `הקריאה הושלמה${paramStr}`;
         arduWriteStatus.className = 'ardu-write-status success';
       }
     }
@@ -22318,26 +22306,33 @@ function placeMissionDataPicker(picker, x, y) {
   picker.style.width = `${width}px`;
   picker.style.right = 'auto';
   picker.style.bottom = 'auto';
+  picker.style.height = 'auto';
   picker.style.maxHeight = 'none';
+  picker.style.overflow = 'visible';
   picker.style.left = `${margin}px`;
   picker.style.top = `${margin}px`;
-  const needed = Math.ceil(picker.getBoundingClientRect().height);
+  const needed = Math.ceil(picker.scrollHeight || picker.getBoundingClientRect().height);
   const height = Math.min(Math.max(needed, 1), maxBox);
-  const belowTop = y + 8;
+  const clickY = Number(y) || 0;
+  const belowTop = clickY + 8;
+  const aboveBottom = clickY - 8;
   const spaceBelow = vh - margin - belowTop;
-  const spaceAbove = y - 8 - margin;
+  const spaceAbove = aboveBottom - margin;
   let top;
-  if (height <= spaceBelow) top = belowTop;
-  else if (height <= spaceAbove) top = y - 8 - height;
+  if (spaceAbove >= height && (spaceAbove >= spaceBelow || clickY > vh - 80)) top = aboveBottom - height;
+  else if (height <= spaceBelow) top = belowTop;
+  else if (height <= spaceAbove) top = aboveBottom - height;
   else top = Math.max(margin, vh - margin - height);
   if (top < margin) top = margin;
   if (top + height > vh - margin) top = Math.max(margin, vh - margin - height);
-  let left = x + 12;
-  if (left + width > vw - margin) left = x - width - 12;
+  let left = clickY === clickY ? Number(x) + 12 : margin;
+  if (left + width > vw - margin) left = Number(x) - width - 12;
   left = Math.min(Math.max(margin, left), Math.max(margin, vw - width - margin));
   picker.style.left = `${Math.round(left)}px`;
   picker.style.top = `${Math.round(top)}px`;
+  picker.style.height = `${Math.round(height)}px`;
   picker.style.maxHeight = `${Math.round(height)}px`;
+  picker.style.overflow = height < needed - 1 ? 'auto' : 'visible';
 }
 
 function openMissionDataPicker(slotIdx, x, y) {

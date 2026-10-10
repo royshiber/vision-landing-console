@@ -247,8 +247,12 @@ describe('optics cameras and gimbal panel', () => {
     await page.locator('.debrief-cam-tile[data-cam="cam3"]').click({ button: 'right' });
     await page.waitForSelector('#opticsContext:not([hidden]) #gimbalSettings:not([hidden])');
     await page.waitForFunction(() => (document.getElementById('gimbalSettingsReason')?.textContent || '').includes('אין מענה מהגימבל'));
+    expect(await page.locator('#gimbalSettings [data-settings-group="motion"]').getAttribute('open')).toBeNull();
+    expect(await page.locator('#gimbalSettings [data-settings-group="mode"]').getAttribute('open')).toBeNull();
+    expect(await page.locator('#gimbalPad [data-settings-group="stick"]').getAttribute('open')).not.toBeNull();
     expect(await page.locator('#gimbalSettingsCenter').isDisabled()).toBe(true);
     expect(await page.locator('#gimbalTrack').isDisabled()).toBe(true);
+    await page.locator('#gimbalSettings [data-settings-group="mode"] > summary').click();
     expect(await page.locator('#gimbalTrackNote').innerText()).toContain('מעקב עדיין לא זמין');
     expect(posts).toEqual([]);
     await page.screenshot({ path: path.join(shotDir, 'optics-gimbal-down-1024x600.png'), animations: 'disabled' });
@@ -276,9 +280,11 @@ describe('optics cameras and gimbal panel', () => {
       zoom: 1,
     };
     await page.waitForFunction(() => document.getElementById('gimbalSettingsCenter')?.disabled === false);
+    await page.locator('#gimbalSettings [data-settings-group="angle"] > summary').click();
     expect(await page.locator('#gimbalSettingsYaw').innerText()).toContain('12.5');
     expect(await page.locator('#gimbalSettingsPitch').innerText()).toContain('-3.2');
     expect(await page.locator('#gimbalTrack').isDisabled()).toBe(true);
+    await page.locator('#gimbalSettings [data-settings-group="motion"] > summary').click();
     await page.fill('#gimbalSpeed', '25');
     await page.dispatchEvent('#gimbalSpeed', 'input');
     await page.dispatchEvent('#gimbalSpeed', 'change');
