@@ -18,6 +18,7 @@ function trackWorkPosts(page, posts) {
 }
 
 async function openLinkPanel(page) {
+  await page.addInitScript(() => { window.__vlcAllowExternal = true; });
   await page.goto(BASE, { waitUntil: 'domcontentloaded' });
   await page.click('#connectToggleBtn');
   await page.waitForSelector('#workLinkPicker');

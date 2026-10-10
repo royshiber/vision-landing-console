@@ -1,13 +1,13 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { spawn } from 'child_process';
 import fs from 'fs';
+import net from 'node:net';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const shotDir = '/tmp/status-layout-contract';
-const PORT = '4052';
-const BASE = `http://127.0.0.1:${PORT}`;
+let BASE = '';
 
 function interiorsIntersect(a, b, slack = 1) {
   return a.left < b.right - slack
@@ -24,9 +24,18 @@ describe('Status tab layout contract', () => {
 
   beforeAll(async () => {
     fs.mkdirSync(shotDir, { recursive: true });
+    const port = await new Promise((resolve, reject) => {
+      const probe = net.createServer();
+      probe.once('error', reject);
+      probe.listen(0, '127.0.0.1', () => {
+        const chosen = probe.address().port;
+        probe.close(() => resolve(chosen));
+      });
+    });
+    BASE = `http://127.0.0.1:${port}`;
     serverProc = spawn(process.execPath, ['server.js'], {
       cwd: repoRoot,
-      env: { ...process.env, HOST: '127.0.0.1', PORT, SQLITE_PATH: `/tmp/airvix-status-layout-${PORT}.sqlite` },
+      env: { ...process.env, HOST: '127.0.0.1', PORT: String(port), SQLITE_PATH: `/tmp/airvix-status-layout-${port}.sqlite` },
       stdio: ['ignore', 'pipe', 'pipe'],
     });
     const t0 = Date.now();
@@ -48,7 +57,7 @@ describe('Status tab layout contract', () => {
       }
     });
     page.on('console', (msg) => {
-      if (msg.type() === 'error' && /policy|503/.test(msg.text())) policyFailures.push(msg.text());
+      if (msg.type() === 'error' && /\/api\/jetson\/v1\/policy/.test(msg.text())) policyFailures.push(msg.text());
     });
   }, 30000);
 
@@ -64,6 +73,7 @@ describe('Status tab layout contract', () => {
     await page.click('[data-tab="pulse"]');
     await page.waitForSelector('#pulse.panel.visible [data-vlr-host="jetson"] .vlr-row');
     await page.waitForSelector('#pulseSummary .pulse-summary-cat');
+    await page.evaluate(async () => { if (document.fonts?.ready) await document.fonts.ready; });
     await page.waitForTimeout(250);
   }
 

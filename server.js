@@ -15,6 +15,7 @@ import { mergeCompanionEnv, readStoredCompanionConnection, snapshotCompanionEnv 
 import { ensureCompanionMavlinkRelay, retargetCompanionRelay } from './lib/routes/companion-connection-api.mjs';
 import { scheduleFlightLogsBootSync } from './lib/flight-logs/sync.mjs';
 import { createAppUpdateService } from './lib/app-update.mjs';
+import { vlcQaEnabled } from './lib/qa-mode.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -181,12 +182,14 @@ function renderIndexHtml() {
   const runtimeVersion = getAppVersion();
   try {
     const mtimeMs = statSync(_indexHtmlPath).mtimeMs;
-    if (_indexHtmlCache && _indexHtmlCache.v === runtimeVersion && _indexHtmlCache.mtimeMs === mtimeMs) {
+    const qa = vlcQaEnabled() ? '1' : '0';
+    const testFlag = (process.env.VITEST || ['1', 'true', 'yes'].includes(String(process.env.VLC_TEST || '').trim().toLowerCase())) ? '1' : '0';
+    if (_indexHtmlCache && _indexHtmlCache.v === runtimeVersion && _indexHtmlCache.mtimeMs === mtimeMs && _indexHtmlCache.qa === qa && _indexHtmlCache.testFlag === testFlag) {
       return _indexHtmlCache.html;
     }
     const raw = readFileSync(_indexHtmlPath, 'utf8');
-    const html = raw.replace(/__APP_VERSION__/g, runtimeVersion);
-    _indexHtmlCache = { v: runtimeVersion, mtimeMs, html };
+    const html = raw.replace(/__APP_VERSION__/g, runtimeVersion).replace(/__VLC_QA__/g, qa).replace(/__VLC_TEST__/g, testFlag);
+    _indexHtmlCache = { v: runtimeVersion, mtimeMs, qa, testFlag, html };
     return html;
   } catch (err) {
     logger.error({ err }, 'Failed to render index.html');

@@ -6,6 +6,8 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { mapMissionSentence } from '../lib/assist/mission-sentence.mjs';
 import { createAssistService } from '../lib/assist/assist-service.mjs';
 import { createAssistPersistence } from '../lib/assist/assist-store.mjs';
+import { resolveAssistIntent } from '../lib/assist/assist-intent-resolver.mjs';
+import { deterministicIsFastPath } from '../lib/assist/ask-llm-intent.mjs';
 import { runVoiceFlightTranscript } from '../lib/voice-flight-pipeline.mjs';
 
 const mapperSrc = fs.readFileSync(
@@ -53,7 +55,9 @@ describe('mission sentence mapper', () => {
     expect(result.plan.steps[1].stopsScan).toBe(false);
     expect(result.plan.steps[1].subjects).toEqual(['אנשים', 'חיות', 'מכוניות']);
     expect(result.replyHe).toContain('עשר דקות');
-    expect(result.replyHe).toContain('ההתראה לא עוצרת את הסריקה');
+    expect(result.replyHe).toContain('מתריעים אם');
+    expect(result.replyHe).toContain('אנשים, חיות או מכוניות');
+    expect(result.replyHe).not.toContain('ההתראה לא עוצרת');
     expect(result.replyHe).not.toMatch(/כמה זמן/);
     expect(result.sends).toBe(false);
     noTrack(result);
@@ -64,7 +68,7 @@ describe('mission sentence mapper', () => {
     expect(modes(result)).toEqual(['SCAN']);
     expect(result.plan.steps[0].duration_s).toBe(null);
     expect(result.plan.steps[0].until).toBe('replaced');
-    expect(result.replyHe).toBe('סורקים עד פקודה שעוצרת או מחליפה.');
+    expect(result.replyHe).toBe('אנשים, חיות או מכוניות.');
     expect(result.replyHe).not.toMatch(/כמה זמן/);
     expect(result.sends).toBe(false);
   });
@@ -72,7 +76,7 @@ describe('mission sentence mapper', () => {
   it('answers a camera question with the optics names', () => {
     const result = mapMissionSentence('מה אני רואה במצלמות');
     expect(result.plan.cameras.map((row) => row.nameHe)).toEqual(['קדמית', 'מטה', 'גימבל']);
-    expect(result.replyHe).toBe('המצלמות הן קדמית, מטה וגימבל.');
+    expect(result.replyHe).toBe('המצלמות הן מצלמה קדמית, מצלמת מטה ומצלמת הגימבל.');
     expect(result.replyHe).not.toContain('אתם במרחב');
     expect(result.replyHe).not.toContain('אין נתון על זרם המצלמות');
     expect(result.sends).toBe(false);
@@ -88,6 +92,246 @@ describe('mission sentence mapper', () => {
     expect(grab.plan.unsupported).toEqual(['grab']);
     expect(grab.plan.modes).toEqual([]);
     expect(grab.sends).toBe(false);
+  });
+
+  it('plans a plural lock and never sends it', () => {
+    for (const [text, name] of [['נעלו על האדם', 'האדם'], ['נעלו על הרכב', 'הרכב']]) {
+      const result = mapMissionSentence(text);
+      expect(modes(result)).toEqual(['LOCK']);
+      expect(result.replyHe).toBe(`נעילה על ${name} נוספה לתוכנית.`);
+      expect(result.replyHe).not.toContain('לא נשלח דבר');
+      expect(result.sends).toBe(false);
+      expect(result.speech).toBe(true);
+    }
+    expect(mapMissionSentence('אל תנעלו על האדם')).toBe(null);
+    expect(mapMissionSentence('לא לנעול')).toBe(null);
+  });
+
+  it('answers from a streaming camera when the selected snapshot is empty', () => {
+    const result = mapMissionSentence('כמה אנשים', {
+      camera: 'cam0',
+      enabled: false,
+      stream: false,
+      reason_he: 'אין נתון על זרם המצלמות',
+      tracks: [],
+      cameras: {
+        cam0: { camera: 'cam0', stream: false, reason_he: 'אין נתון על זרם המצלמות', tracks: [] },
+        cam1: { camera: 'cam1', enabled: true, stream: true, model: true, tracks: [] },
+        cam3: {
+          camera: 'cam3',
+          enabled: true,
+          stream: true,
+          model: true,
+          tracks: [{ id: 3, class: 'person', label_he: 'אדם' }],
+        },
+      },
+    });
+    expect(result.replyHe).toBe('רואים אדם אחד.');
+  });
+
+  it('plans the next object and does not send it', () => {
+    for (const text of ['עברו לאובייקט הבא', 'עברו לעצם הבא', 'תעברו לאובייקט הבא']) {
+      const result = mapMissionSentence(text);
+      expect(modes(result)).toEqual(['NEXT']);
+      expect(result.replyHe).toBe('מעבר לאובייקט הבא נוסף לתוכנית.');
+      expect(result.replyHe).not.toContain('לא נשלח דבר');
+      expect(result.sends).toBe(false);
+    }
+  });
+
+  it('treats release as harmless and says when nothing is locked', () => {
+    for (const text of ['שחררו נעילה', 'בטלו נעילה']) {
+      const result = mapMissionSentence(text);
+      expect(result.replyHe).toBe('אין נעילה פעילה.');
+      expect(result.sends).toBe(false);
+      expect(modes(result)).toEqual(['UNLOCK']);
+      const intent = resolveAssistIntent(text);
+      expect(intent.prohibited).not.toBe(true);
+      expect(intent.blocked).not.toBe(true);
+      expect(deterministicIsFastPath(intent)).toBe(true);
+    }
+    const held = mapMissionSentence('שחררו נעילה', { lock: { id: 2 } });
+    expect(held.replyHe).toBe('שחרור הנעילה בתוכנית.');
+    expect(held.replyHe).not.toContain('לא נשלח דבר');
+    expect(held.sends).toBe(false);
+  });
+
+  it('states detection from the given state and does not invent a count', () => {
+    expect(mapMissionSentence('מה אתה מזהה').replyHe).toBe('אין נתון על זרם המצלמות.');
+    expect(mapMissionSentence('כמה אנשים אתה רואה', { enabled: false }).replyHe).toBe('הזיהוי כבוי.');
+    expect(mapMissionSentence('מה אתה מזהה', { enabled: true, model: false }).replyHe).toBe('אין מודל זיהוי.');
+    expect(mapMissionSentence('כמה אנשים אתה רואה', { enabled: true, stream: false }).replyHe).toBe('אין נתון על זרם המצלמות.');
+    expect(mapMissionSentence('מה אתה מזהה', {
+      enabled: false,
+      stream: false,
+      reason_he: 'אין נתון על זרם המצלמות',
+      tracks: [],
+    }).replyHe).toBe('אין נתון על זרם המצלמות.');
+    const live = {
+      enabled: true,
+      stream: true,
+      model: true,
+      tracks: [
+        { id: 1, class: 'person', label_he: 'אדם' },
+        { id: 2, class: 'car', label_he: 'רכב' },
+      ],
+    };
+    expect(mapMissionSentence('מה אתה מזהה', live).replyHe).toBe('מזהים אדם אחד ורכב אחד.');
+    const unknown = { enabled: true, stream: true, model: true, tracks: [{ id: 9, class: 'bicycle', bbox: [0, 0, 4, 4] }] };
+    expect(mapMissionSentence('מה אתה מזהה', unknown).replyHe).toBe('מזהים אובייקט אחד.');
+    expect(mapMissionSentence('מה אתה מזהה', {
+      ...unknown,
+      tracks: [{ id: 9, class: 'bicycle' }, { id: 10, class: 'boat' }],
+    }).replyHe).toBe('מזהים שני אובייקטים.');
+    expect(mapMissionSentence('מה אתה מזהה', { ...unknown, tracks: [] }).replyHe).toBe('אין אובייקטים בזיהוי.');
+    expect(mapMissionSentence('מה אתה מזהה', live).replyHe).not.toMatch(/אדום|ירוק|כחול/);
+    expect(mapMissionSentence('כמה אנשים אתה רואה', live).replyHe).toBe('רואים אדם אחד.');
+    expect(mapMissionSentence('כמה אנשים אתה רואה', { ...live, tracks: [] }).replyHe).toBe('לא רואים אנשים.');
+    const colored = {
+      ...live,
+      tracks: [
+        { id: 1, class: 'person', label_he: 'אדם', color_he: 'אדום' },
+        { id: 4, class: 'person', label_he: 'אדם', color_he: 'אדום' },
+        { id: 2, class: 'car', label_he: 'רכב', color_he: 'ירוק' },
+      ],
+    };
+    expect(mapMissionSentence('מה אתה מזהה', {
+      ...live,
+      tracks: [
+        { id: 1, class: 'person', label_he: 'אדם' },
+        { id: 5, class: 'person', label_he: 'אדם' },
+        { id: 2, class: 'car', label_he: 'רכב' },
+      ],
+    }).replyHe).toBe('מזהים שני אנשים ורכב אחד.');
+    expect(mapMissionSentence('מה אתה מזהה', colored).replyHe).toBe('מזהים שני אנשים אדומים ורכב ירוק אחד.');
+    expect(mapMissionSentence('מה אתה מזהה', colored).plan.summaryHe).toBe('מזהים שני אנשים (אדומים) ורכב אחד (ירוק).');
+    const split = {
+      ...live,
+      tracks: [
+        { id: 1, class: 'person', label_he: 'אדם', color_he: 'אדום' },
+        { id: 4, class: 'person', label_he: 'אדם', color_he: 'ירוק' },
+      ],
+    };
+    expect(mapMissionSentence('מה אתה מזהה', split).replyHe).toBe('מזהים אדם אדום אחד ואדם ירוק אחד.');
+    expect(mapMissionSentence('מה אתה מזהה', split).plan.summaryHe).toBe('מזהים אדם אחד (אדום) ואדם אחד (ירוק).');
+    expect(mapMissionSentence('מה אתה מזהה', {
+      ...live,
+      tracks: [{ id: 9, class: 'truck', label_he: 'משאית', color_he: 'כחול' }],
+    }).replyHe).toBe('מזהים משאית כחולה אחת.');
+    const kite = {
+      enabled: true,
+      stream: true,
+      model: true,
+      tracks: [
+        { id: 1, class: 'person', label_he: 'אדם' },
+        { id: 2, class: 'person', label_he: 'אדם' },
+        { id: 3, class: 'kite' },
+      ],
+    };
+    expect(mapMissionSentence('מה אתה מזהה', kite).replyHe).toBe('מזהים שני אנשים ועוד אובייקט אחד.');
+    expect(mapMissionSentence('מה אתה מזהה', kite).plan.summaryHe).toBeUndefined();
+    expect(mapMissionSentence('מה אתה מזהה', {
+      ...kite,
+      tracks: [...kite.tracks, { id: 4, class: 'kite' }],
+    }).replyHe).toBe('מזהים שני אנשים ועוד שני אובייקטים.');
+    const redKite = {
+      ...kite,
+      tracks: [
+        { id: 1, class: 'person', label_he: 'אדם', color_he: 'אדום' },
+        { id: 2, class: 'person', label_he: 'אדם', color_he: 'אדום' },
+        { id: 3, class: 'kite' },
+      ],
+    };
+    expect(mapMissionSentence('מה אתה מזהה', redKite).replyHe).toBe('מזהים שני אנשים אדומים ועוד אובייקט אחד.');
+    expect(mapMissionSentence('מה אתה מזהה', redKite).plan.summaryHe).toBe('מזהים שני אנשים (אדומים) ועוד אובייקט אחד.');
+    expect(mapMissionSentence('כמה אנשים אתה רואה', kite).replyHe).toBe('רואים שני אנשים.');
+  });
+
+  it('refuses cruise beside a release and still sends a bare cruise phrase', () => {
+    const bare = mapMissionSentence('שחררו נעילה ותעבור לשיוט');
+    expect(modes(bare)).toEqual(['UNLOCK']);
+    expect(bare.plan.refused).toEqual(['CRUISE']);
+    expect(bare.replyHe).toBe('אין נעילה פעילה. מעבר לשיוט נחסם. לא נשלח דבר.');
+    expect(bare.sends).toBe(false);
+    const held = mapMissionSentence('שחררו נעילה ותעבור לשיוט', { lock: { id: 2 } });
+    expect(held.replyHe).toBe('שחרור הנעילה בתוכנית. מעבר לשיוט נחסם. לא נשלח דבר.');
+    expect(held.plan.refused).toEqual(['CRUISE']);
+    expect(held.sends).toBe(false);
+    expect(mapMissionSentence('שיוט')).toBeNull();
+  });
+
+  it('counts any detected kind and spells the detection sentence', () => {
+    const live = {
+      enabled: true,
+      stream: true,
+      model: true,
+      tracks: [
+        { id: 1, class: 'person', label_he: 'אדם' },
+        { id: 2, class: 'person', label_he: 'אדם' },
+        { id: 3, class: 'car', label_he: 'רכב', color_he: 'לבן' },
+        { id: 4, class: 'dog', label_he: 'כלב' },
+      ],
+    };
+    expect(mapMissionSentence('מה אתה מזהה', live).replyHe).toBe('מזהים שני אנשים, רכב לבן אחד וכלב אחד.');
+    expect(mapMissionSentence('כמה רכבים יש ובאיזה צבע?', {
+      enabled: true,
+      stream: true,
+      model: true,
+      tracks: [{ id: 2, class: 'car', label_he: 'רכב', color_he: 'ירוק' }],
+    }).replyHe).toBe('רואים רכב ירוק אחד.');
+    expect(mapMissionSentence('מה אתה מזהה', {
+      enabled: true,
+      stream: true,
+      model: true,
+      tracks: [
+        { id: 2, class: 'person', label_he: 'אדם', color_he: 'אדום' },
+        { id: 1, class: 'truck', label_he: 'משאית', color_he: 'כחול' },
+        { id: 3, class: 'car', label_he: 'רכב', color_he: 'ירוק' },
+      ],
+    }).replyHe).toBe('מזהים אדם אדום אחד, משאית כחולה אחת ורכב ירוק אחד.');
+    expect(mapMissionSentence('מה אתה מזהה', {
+      enabled: true,
+      stream: true,
+      model: true,
+      tracks: [
+        { id: 2, class: 'person', label_he: 'אדם', color_he: 'אדום' },
+        { id: 1, class: 'truck', label_he: 'משאית', color_he: 'כחול' },
+        { id: 3, class: 'car', label_he: 'רכב', color_he: 'ירוק' },
+      ],
+    }).plan.summaryHe).toBe('מזהים אדם אחד (אדום), משאית אחת (כחולה) ורכב אחד (ירוק).');
+    expect(mapMissionSentence('כמה מכוניות יש', live).replyHe).toBe('רואים רכב אחד.');
+    expect(mapMissionSentence('כמה רכבים יש', live).replyHe).toBe('רואים רכב אחד.');
+    expect(mapMissionSentence('כמה כלבים יש', live).replyHe).toBe('רואים כלב אחד.');
+    expect(mapMissionSentence('כמה כלבים יש', { ...live, tracks: live.tracks.filter((row) => row.class !== 'dog') }).replyHe).toBe('לא רואים כלבים.');
+    expect(mapMissionSentence('כמה חתולים יש', live).replyHe).toBe('לא רואים חתולים.');
+    expect(mapMissionSentence('כמה חתולים יש', live).replyHe).not.toMatch(/\(/);
+    expect(mapMissionSentence('כמה מכוניות יש', { enabled: true, stream: true, model: true, tracks: [
+      { id: 8, class: 'car', label_he: 'רכב' },
+      { id: 9, class: 'car', label_he: 'רכב' },
+    ] }).replyHe).toBe('רואים שני רכבים.');
+    expect(mapMissionSentence('כמה כלבים יש', { enabled: false }).replyHe).toBe('הזיהוי כבוי.');
+  });
+
+  it('keeps the color and the follow on a lock plan', () => {
+    const result = mapMissionSentence('נעלו על הרכב הלבן ועקבו אחריו');
+    expect(modes(result)).toEqual(['LOCK', 'FOLLOW']);
+    expect(result.plan.steps[0].target).toEqual({ color: 'לבן', object: 'מכונית' });
+    expect(result.replyHe).toBe('נעילה ומעקב אחרי הרכב הלבן נוספו לתוכנית.');
+    expect(result.replyHe).not.toContain('לא נשלח דבר');
+    expect(result.sends).toBe(false);
+  });
+
+  it('keeps the lock plan and refuses the return-home clause', () => {
+    const result = mapMissionSentence('נעל על האדם ותחזור הבית');
+    expect(modes(result)).toEqual(['LOCK']);
+    expect(result.plan.steps[0].target).toEqual({ object: 'אדם' });
+    expect(result.plan.refused).toEqual(['RTL']);
+    expect(result.replyHe).toBe('נעילה על האדם נוספה לתוכנית. חזרה הביתה נחסמה. לא נשלח דבר.');
+    const streaming = { enabled: true, stream: true, model: true, tracks: [] };
+    expect(mapMissionSentence('נעל על הרכב הלבן', streaming).replyHe).toBe('נעילה על הרכב הלבן נוספה לתוכנית. כדי לנעול עכשיו, לחצו על התיבה.');
+    expect(mapMissionSentence('נעל על הרכב הלבן', { reason_he: 'אין נתון על זרם המצלמות', stream: false }).replyHe).toBe('נעילה על הרכב הלבן נוספה לתוכנית.');
+    expect(result.sends).toBe(false);
+    expect(result.replyHe).not.toMatch(/\d/);
   });
 });
 
@@ -112,7 +356,7 @@ describe('mission sentences through Ask and voice', () => {
     ['תסתכל על השלט הירוק ותשאיר אותו בפריים', 'השלט הירוק'],
     ['circle it and lock it', 'אינה נתמכת'],
     ['scan for ten minutes and alert if people, animals, or cars move', 'עשר דקות'],
-    ['תסרוק', 'עד פקודה'],
+    ['תסרוק', 'אנשים, חיות או מכוניות'],
     ['מה אני רואה במצלמות', 'קדמית'],
   ];
 
@@ -195,7 +439,7 @@ describe('mission sentences through Ask and voice', () => {
       });
       expect(result.sent).toBe(false);
       expect(result.decision).toBe('camera_status');
-      expect(result.talkback.text).toBe('קדמית משדרת. מטה אינה משדרת.');
+      expect(result.talkback.text).toBe('מצלמה קדמית משדרת. מצלמת מטה אינה משדרת. אין נתון על זרם מצלמת הגימבל.');
       expect(result.talkback.text).not.toContain('אינה ברשימה המותרת');
       expect(result.talkback.text).not.toContain('אתם במרחב');
     }
@@ -253,6 +497,84 @@ describe('mission sentences through Ask and voice', () => {
     });
     expect(arm.sent).toBe(false);
     expect(arm.decision).toBe('blocked');
+    expect(calls).toEqual([]);
+  });
+
+  it('keeps a lock plan beside a refused return home and does not send', async () => {
+    const calls = [];
+    const mav = {
+      connected: true,
+      type: 'tcp',
+      host: '127.0.0.1',
+      port: 5760,
+      simulatorPreset: true,
+      lastCustomMode: 0,
+      simulatorDetection() {
+        return { simulator: true, reason: 'preset' };
+      },
+    };
+    const assist = service(async (args) => {
+      calls.push(args);
+      return { ok: true, sent: true };
+    });
+    await assist.processInput({ text: 'יאללה', context_snapshot: { current_workspace: 'MISSION' } });
+    const asked = await assist.processInput({
+      text: 'נעל על האדם ותחזור הבית',
+      context_snapshot: { current_workspace: 'MISSION' },
+    });
+    expect(asked.sent).toBe(false);
+    expect(asked.plan.modes).toEqual(['LOCK']);
+    expect(asked.plan.refused).toEqual(['RTL']);
+    expect(asked.answer).toContain('נעילה על האדם נוספה לתוכנית');
+    expect(asked.answer).not.toContain('לחצו על התיבה');
+    expect(asked.answer).toContain('חזרה הביתה נחסמה');
+    expect(asked.answer).toContain('לא נשלח דבר');
+
+    const voiced = await runVoiceFlightTranscript({
+      text: 'נעל על האדם ותחזור הבית',
+      goActive: true,
+      operatorConfirmed: true,
+      mavConn: mav,
+      applyFlightOp: async (args) => {
+        calls.push(args);
+        return { ok: true, sent: true };
+      },
+    });
+    expect(voiced.sent).toBe(false);
+    expect(voiced.decision).toBe('mission_plan');
+    expect(voiced.plan.modes).toEqual(['LOCK']);
+    expect(voiced.plan.refused).toEqual(['RTL']);
+    expect(voiced.talkback.text).toContain('לא נשלח דבר');
+
+    const released = await assist.processInput({
+      text: 'בטלו נעילה',
+      context_snapshot: { current_workspace: 'MISSION' },
+    });
+    expect(released.sent).toBe(false);
+    expect(released.blocked).not.toBe(true);
+    expect(released.answer).toBe('אין נעילה פעילה.');
+
+    const off = await assist.processInput({
+      text: 'מה אתה מזהה',
+      context_snapshot: { current_workspace: 'MISSION', vision: { enabled: false } },
+    });
+    expect(off.answer).toBe('הזיהוי כבוי.');
+    expect(off.sent).toBe(false);
+
+    const people = await assist.processInput({
+      text: 'כמה אנשים אתה רואה',
+      context_snapshot: {
+        current_workspace: 'MISSION',
+        vision: {
+          enabled: true,
+          stream: true,
+          model: true,
+          tracks: [{ id: 4, class: 'person', label_he: 'אדם' }],
+        },
+      },
+    });
+    expect(people.answer).toBe('רואים אדם אחד.');
+    expect(people.sent).toBe(false);
     expect(calls).toEqual([]);
   });
 });

@@ -490,6 +490,13 @@ def jpeg_timing_headers(packet):
     utc = packet.get("captured_utc_ns")
     if utc:
         extra.append(("X-Airvix-Capture-At", str(int(int(utc) // 1_000_000))))
+    raw_seq = packet.get("seq", packet.get("frame_count"))
+    try:
+        seq = int(raw_seq) if raw_seq is not None and str(raw_seq) != "" else 0
+    except (TypeError, ValueError):
+        seq = 0
+    if seq > 0:
+        extra.append(("X-Airvix-Frame-Seq", str(seq)))
     enc = packet.get("encode_ms")
     if enc is not None:
         extra.append(("X-Encode-Ms", str(round(float(enc), 3))))
@@ -1225,6 +1232,7 @@ class SlotSupervisor:
                 return None
             return {
                 "jpeg": self.frame_jpeg,
+                "seq": self.frame_count,
                 "captured_utc_ns": self.capture_utc_ns,
                 "captured_mono_ns": self.capture_mono_ns,
                 "encode_ms": self.encode_ms,
@@ -1415,7 +1423,10 @@ class SlotSupervisor:
                 "cam_id": self.cam_id,
                 "jpeg": jpeg,
                 "bgr": bgr,
+                "seq": count,
                 "frame_count": count,
+                "captured_utc_ns": timing.get("captured_utc_ns"),
+                "captured_mono_ns": timing.get("captured_mono_ns"),
                 "monotonic": now,
                 "device": resolved,
                 "role": self.role,
@@ -1508,7 +1519,12 @@ class _DrySlot:
         jpeg = self.latest_jpeg()
         if not jpeg:
             return None
-        return {"jpeg": jpeg}
+        with self.lock:
+            return {
+                "jpeg": jpeg,
+                "seq": self.frame_count,
+                "captured_utc_ns": getattr(self, "capture_utc_ns", None),
+            }
 
     def start_synthetic(self, fps, bus):
         if not self.enabled:
@@ -1542,12 +1558,16 @@ class _DrySlot:
             self.source = "synthetic"
             self.state = "streaming"
             count = self.frame_count
+            self.capture_utc_ns = time.time_ns()
+            captured = self.capture_utc_ns
         if bus is not None:
             bus.publish(self.cam_id, {
                 "cam_id": self.cam_id,
                 "jpeg": SYNTHETIC_JPEG,
                 "bgr": None,
+                "seq": count,
                 "frame_count": count,
+                "captured_utc_ns": captured,
                 "monotonic": now,
                 "device": None,
                 "role": self.role,

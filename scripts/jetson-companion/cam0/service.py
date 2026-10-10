@@ -515,13 +515,21 @@ class Cam0Service:
         with self._lock:
             meta = dict(self.latest_meta)
             stages = dict(self._stages_ms)
-        return {
+        packet = {
             "jpeg": jpeg,
             "captured_utc_ns": meta.get("t_utc_ns"),
             "captured_mono_ns": meta.get("t_monotonic_ns"),
             "encode_ms": stages.get("jpeg"),
             "decode_ms": stages.get("dqbuf"),
         }
+        raw_seq = meta.get("sequence", meta.get("seq"))
+        try:
+            seq = int(raw_seq) if raw_seq is not None and str(raw_seq) != "" else 0
+        except (TypeError, ValueError):
+            seq = 0
+        if seq > 0:
+            packet["seq"] = seq
+        return packet
 
     def snapshot_bytes(self):
         if not self.status()["camera_ok"]:

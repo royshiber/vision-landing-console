@@ -1,0 +1,93 @@
+{
+  "width": 96,
+  "height": 64,
+  "frames": [
+    {
+      "file": "frame_000.ppm",
+      "objects": [
+        {
+          "class": "person",
+          "bbox": [
+            8,
+            10,
+            18,
+            30
+          ]
+        },
+        {
+          "class": "car",
+          "bbox": [
+            50,
+            28,
+            30,
+            16
+          ]
+        }
+      ]
+    },
+    {
+      "file": "frame_001.ppm",
+      "objects": [
+        {
+          "class": "person",
+          "bbox": [
+            12,
+            10,
+            18,
+            30
+          ]
+        },
+        {
+          "class": "car",
+          "bbox": [
+            50,
+            28,
+            30,
+            16
+          ]
+        },
+        {
+          "class": "truck",
+          "bbox": [
+            60,
+            4,
+            22,
+            18
+          ]
+        }
+      ]
+    },
+    {
+      "file": "frame_002.ppm",
+      "objects": [
+        {
+          "class": "person",
+          "bbox": [
+            16,
+            10,
+            18,
+            30
+          ]
+        },
+        {
+          "class": "car",
+          "bbox": [
+            50,
+            28,
+            30,
+            16
+          ]
+        },
+        {
+          "class": "truck",
+          "bbox": [
+            60,
+            4,
+            22,
+            18
+          ]
+        }
+      ]
+    }
+  ]
+}

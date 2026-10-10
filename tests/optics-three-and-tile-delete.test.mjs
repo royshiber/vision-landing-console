@@ -78,7 +78,7 @@ describe('three-camera proportions and tile delete', () => {
           fit: media.objectFit,
         };
       };
-      const gimbal = rect('a8');
+      const gimbal = rect('cam3');
       const forward = rect('cam0');
       const down = rect('cam1');
       const inside = (tile) => tile.left >= grid.left - 1 && tile.right <= grid.right + 1
@@ -105,7 +105,7 @@ describe('three-camera proportions and tile delete', () => {
     expect(box.gimbal.fit).toBe('contain');
     expect(box.inside).toBe(true);
     expect(box.down.top).toBeGreaterThanOrEqual(box.forward.bottom - 8);
-    expect(box.pressed.sort()).toEqual(['a8', 'cam0', 'cam1']);
+    expect(box.pressed.sort()).toEqual(['cam3', 'cam0', 'cam1']);
   }, 30000);
 
   it('right-click deletes a flight tile and does not send a command', async () => {

@@ -7138,24 +7138,40 @@ initHorizonVideo();
 
 const HORIZON_CAMERA_KEY = 'vlc.horizon.bgCamera.v1';
 const GIMBAL_FRAME = '/api/jetson/v1/cameras/cam3/frame';
-const HORIZON_CAMERA_IDS = ['cam0', 'cam1', 'a8'];
+const HORIZON_CAMERA_IDS = ['cam0', 'cam1', 'cam3'];
 const HORIZON_CAMERA_SLOTS = [
   { id: 'none', label: 'בלי מצלמה', apiId: null, mono: false },
   { id: 'cam0', label: 'קדמית', apiId: 'cam0', mono: true },
   { id: 'cam1', label: 'מטה', apiId: 'cam1', mono: true, hold: '/api/jetson/v1/cam1/stream.mjpg' },
-  { id: 'a8', label: 'גימבל', apiId: 'cam3', mono: false, frame: GIMBAL_FRAME },
+  { id: 'cam3', label: 'גימבל', apiId: 'cam3', mono: false, frame: GIMBAL_FRAME },
 ];
+
+function canonicalHorizonCameraId(id) {
+  return id === 'a8' ? 'cam3' : id;
+}
 
 function readHorizonCameras() {
   try {
     const raw = localStorage.getItem(HORIZON_CAMERA_KEY) || 'none';
     if (!raw || raw === 'none') return [];
+    let ids = [];
+    let dirty = false;
     if (raw.startsWith('[')) {
       const parsed = JSON.parse(raw);
       if (!Array.isArray(parsed)) return [];
-      return HORIZON_CAMERA_IDS.filter((id) => parsed.includes(id));
+      ids = parsed.map((id) => {
+        const next = canonicalHorizonCameraId(id);
+        if (next !== id) dirty = true;
+        return next;
+      });
+    } else {
+      const next = canonicalHorizonCameraId(raw);
+      if (next !== raw) dirty = true;
+      ids = [next];
     }
-    return HORIZON_CAMERA_IDS.includes(raw) ? [raw] : [];
+    const kept = HORIZON_CAMERA_IDS.filter((id) => ids.includes(id));
+    if (dirty) writeHorizonCameras(kept);
+    return kept;
   } catch {
     return [];
   }
@@ -14679,6 +14695,7 @@ initLiveCameraPanel();
       });
       return;
     }
+    if (vlcTestQuiet()) return;
     return postWorkLink();
   }).catch(() => {});
   if (toggleBtn) toggleBtn.addEventListener('click', (ev) => { ev.stopPropagation(); togglePanel(); });
@@ -15748,8 +15765,9 @@ initLiveCameraPanel();
     try {
       const r = await fetch('/api/flight-engineer/status');
       const d = await r.json();
-      paintTalkbackStatus(d.elevenlabs === true);
-      return d.elevenlabs === true;
+      const connected = d.elevenlabs === true && !vlcTestQuiet();
+      paintTalkbackStatus(connected);
+      return connected;
     } catch {
       paintTalkbackStatus(false);
       return false;
@@ -15786,7 +15804,7 @@ initLiveCameraPanel();
   window.__vlcSpeakAnswer = async function vlcSpeakAnswer(text) {
     const spoken = String(text || '').trim();
     if (!spoken) return;
-    if (_vlcTalkbackEleven) {
+    if (_vlcTalkbackEleven && !vlcTestQuiet()) {
       try {
         const vid = String(window.__vlcSettings?.elevenVoiceId || '').trim();
         const payload = { text: spoken };
@@ -16073,7 +16091,7 @@ initLiveCameraPanel();
     try {
       const r = await fetch('/api/flight-engineer/status');
       const d = await r.json();
-      if (d.elevenlabs) {
+      if (d.elevenlabs && !vlcTestQuiet()) {
         let elLabel = 'ElevenLabs ✓';
         const t = d.elevenlabsTts;
         if (t?.model) {
@@ -16194,7 +16212,7 @@ initLiveCameraPanel();
     feBargeVadHits = 0;
     feBargeQuietUntilMs = Date.now() + FE_BARGE_WARMUP_MS;
 
-    if (ttsMode === 'elevenlabs') {
+    if (ttsMode === 'elevenlabs' && !vlcTestQuiet()) {
       try {
         const vid = String(window.__vlcSettings?.elevenVoiceId || '').trim();
         const payload = { text };
@@ -18865,13 +18883,31 @@ function assistActiveSubtab() {
   return active?.dataset?.subtab || null;
 }
 
-function assistBuildContextSnapshot() {
+function assistMergeVision(tracks) {
+  let next = tracks;
+  try {
+    const streams = typeof window.__vlcVisionStreamMap === 'function' ? window.__vlcVisionStreamMap() : null;
+    if (streams && Object.keys(streams).length) {
+      const prior = next && typeof next === 'object' && next.streams && typeof next.streams === 'object' ? next.streams : {};
+      next = next && typeof next === 'object' ? { ...next, streams: { ...streams, ...prior } } : { streams };
+    }
+  } catch { /* keep the snapshot */ }
+  return next;
+}
+
+function assistBuildContextSnapshot(tracksOverride) {
   const tab = assistActiveTab();
   const subtab = assistActiveSubtab();
   let mav = {};
   let vision = {};
+  let tracks = null;
   try { mav = _assistLastMav || {}; } catch { mav = {}; }
   try { vision = latestVisionFromServer || {}; } catch { vision = {}; }
+  try {
+    if (tracksOverride !== undefined) tracks = tracksOverride;
+    else tracks = typeof window.__vlcVisionAskState === 'function' ? window.__vlcVisionAskState() : null;
+    tracks = assistMergeVision(tracks);
+  } catch { tracks = null; }
   const conf = typeof vision.confidence === 'number'
     ? vision.confidence
     : (typeof vision.landing_confidence === 'number' ? vision.landing_confidence : null);
@@ -18908,6 +18944,7 @@ function assistBuildContextSnapshot() {
       distance_m: typeof mav.distanceToHome === 'number' ? mav.distanceToHome : null,
     },
     ops_signals: assistBuildOpsSignals(vision),
+    vision: tracks && typeof tracks === 'object' ? tracks : null,
     attention_policy: (typeof attentionReadPolicy === 'function' ? attentionReadPolicy() : {}).proactiveLevel || 'off',
   };
 }
@@ -18923,6 +18960,20 @@ function assistStatusTexts(mav) {
     if (out.length >= 8) break;
   }
   return out;
+}
+
+function vlcTestQuiet() {
+  try {
+    if (window.__vlcAllowExternal === true) return false;
+    if (window.__vlcTestQuiet === true) return true;
+    const flag = document.querySelector('meta[name="vlc-test"]')?.getAttribute('content');
+    if (flag === '1') return true;
+    const qa = document.querySelector('meta[name="vlc-qa"]')?.getAttribute('content');
+    if (qa === '1') return true;
+  } catch {
+    /* live path stays available */
+  }
+  return false;
 }
 
 function assistLinkPath(mav) {
@@ -18959,10 +19010,8 @@ function assistOneCamera(companion, vision, id) {
     || horizonCameraDetail(vision, id)
     || null;
   if (!detail || typeof detail !== 'object') return null;
-  if (detail.enabled === false) return false;
   if (detail.state === 'streaming') return true;
-  if (detail.camera_ok === true) return horizonSlotStreaming(detail);
-  if (detail.camera_ok === false || detail.has_frame === false) return false;
+  if (detail.camera_ok === true && horizonSlotStreaming(detail)) return true;
   return null;
 }
 
@@ -19000,10 +19049,14 @@ function assistBuildOpsSignals(vision) {
     const jetson = assistJetsonState();
     if (jetson) ops.jetson = jetson;
     const cameras = {};
-    const cam0 = assistOneCamera(companion, vision, 'cam0');
-    const cam1 = assistOneCamera(companion, vision, 'cam1');
-    if (cam0 != null) cameras.cam0 = cam0;
-    if (cam1 != null) cameras.cam1 = cam1;
+    const fromTracks = (typeof window.__vlcVisionStreamMap === 'function') ? window.__vlcVisionStreamMap() : {};
+    for (const id of ['cam0', 'cam1', 'cam3']) {
+      if (typeof fromTracks[id] === 'boolean') cameras[id] = fromTracks[id];
+      else {
+        const bit = assistOneCamera(companion, vision, id);
+        if (bit != null) cameras[id] = bit;
+      }
+    }
     if (Object.keys(cameras).length) ops.cameras = cameras;
   } catch {
     /* honesty only — omit if unread */
@@ -19555,6 +19608,14 @@ async function assistSpeakAnswer(text) {
   } catch { /* talk-back optional */ }
 }
 
+async function assistVisionForAsk() {
+  try {
+    if (typeof window.__vlcVisionAskReady === 'function') return await window.__vlcVisionAskReady(300);
+    if (typeof window.__vlcVisionAskState === 'function') return window.__vlcVisionAskState();
+  } catch { /* last good payload stays inside the module */ }
+  return null;
+}
+
 async function assistSendText(rawText, { channel = 'text' } = {}) {
   const text = String(rawText || '').trim();
   if (!text) return;
@@ -19572,7 +19633,7 @@ async function assistSendText(rawText, { channel = 'text' } = {}) {
   if (flightRoute) {
     assistAppendMessage({ role: 'user', text });
     if (flightRoute.action === 'block') {
-      const line = 'נדחה. חימוש ונטרול חסומים. לא נשלח דבר.';
+      const line = 'חימוש וניטרול חסומים.';
       assistAppendMessage({ role: 'assist', text: line, kind: 'INFORMATION', blocked: true });
       showFlightTalkback(line);
       return;
@@ -19599,13 +19660,13 @@ async function assistSendText(rawText, { channel = 'text' } = {}) {
       });
       return;
     }
-    const refused = 'נדחה. הפקודה אינה ברשימה המותרת. לא נשלח דבר.';
+    const refused = 'הפקודה נחסמה: היא לא ברשימה המותרת.';
     assistAppendMessage({ role: 'assist', text: refused, kind: 'INFORMATION' });
     showFlightTalkback(refused);
     return;
   }
   assistAppendMessage({ role: 'user', text });
-  const snap = assistBuildContextSnapshot();
+  const snap = assistBuildContextSnapshot(await assistVisionForAsk());
   snap.channel = channel === 'voice' ? 'voice' : 'text';
   const r = await fetch('/api/assist/message', {
     method: 'POST',
@@ -20820,7 +20881,7 @@ function flightVoiceMatch(text) {
 
 function flightModeReadbackLine(askedMode, text) {
   const mav = typeof latestHudMavlink !== 'undefined' ? latestHudMavlink : null;
-  if (!mav || mav.connected !== true) return 'אין חיבור';
+  if (!mav || mav.connected !== true) return 'אין חיבור לבקר הטיסה. מצב הטיסה לא ידוע.';
   const name = vlcFlightModeName(mav.flightMode, mav);
   if (!name) return 'אין חיבור';
   const spoken = typeof window.__vlcPilotModeWord === 'function' ? window.__vlcPilotModeWord(name) : '';
@@ -20846,6 +20907,9 @@ function flightVoiceCommandText(text) {
 }
 
 function askFlightRoute(text) {
+  if (typeof window.__vlcVisionFlightCompound === 'function' && window.__vlcVisionFlightCompound(text) === true) {
+    return null;
+  }
   const match = flightVoiceMatch(text);
   if (!match || match.passToAsk || match.kind === 'LAND') return null;
   if (match.question === true || match.readback === 'mode') {
@@ -20865,7 +20929,11 @@ async function postFlightVoice({ text, mode, operatorConfirmed, requireLink, ask
   if (requireLink) {
     const mav = typeof latestHudMavlink !== 'undefined' ? latestHudMavlink : null;
     if (!mav || mav.connected !== true) {
-      showFlightTalkback('אין חיבור לבקר הטיסה');
+      const line = name === 'TAKEOFF'
+        ? 'המראה לא נשלחה: אין חיבור לבקר הטיסה. לא נשלח דבר.'
+        : 'אין חיבור לבקר הטיסה';
+      if (ask) assistAppendMessage({ role: 'assist', text: line, kind: 'INFORMATION' });
+      showFlightTalkback(line);
       return;
     }
     if (!flightDockSkipConfirm(mav)) {
@@ -20930,17 +20998,21 @@ async function submitFlightPhrase(raw) {
     void assistSendText(text);
     return;
   }
+  if (typeof window.__vlcVisionFlightCompound === 'function' && window.__vlcVisionFlightCompound(text) === true) {
+    void assistSendText(text);
+    return;
+  }
   if (typeof window.__vlcCameraStatusQuestion === 'function' && window.__vlcCameraStatusQuestion(text)) {
     void assistSendText(text, { channel: 'voice' });
     return;
   }
   const route = askFlightRoute(text);
   if (!route || route.action === 'refuse') {
-    showFlightTalkback('נדחה. הפקודה אינה ברשימה המותרת. לא נשלח דבר.');
+    showFlightTalkback('הפקודה נחסמה: היא לא ברשימה המותרת.');
     return;
   }
   if (route.action === 'block') {
-    showFlightTalkback('נדחה. חימוש ונטרול חסומים. לא נשלח דבר.');
+    showFlightTalkback('חימוש וניטרול חסומים.');
     return;
   }
   if (route.action === 'refuse-mode') {
@@ -21648,6 +21720,19 @@ function syncAssistComposerSize() {
 function initAssistMic() {
   const btn = document.getElementById('assistMicBtn');
   if (!btn) return;
+  const labelEl = btn.querySelector('.assist-mic-label');
+  const idle = 'האזינו';
+  const listeningText = 'מאזינים… לחצו לעצירה';
+  let listening = false;
+  const showMic = (state) => {
+    listening = state === 'listening';
+    btn.classList.toggle('recording', listening);
+    btn.setAttribute('aria-pressed', listening ? 'true' : 'false');
+    const text = listening ? listeningText : idle;
+    btn.title = text;
+    btn.setAttribute('aria-label', text);
+    if (labelEl) labelEl.textContent = text;
+  };
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR) {
     btn.disabled = true;
@@ -21663,28 +21748,25 @@ function initAssistMic() {
     const input = document.getElementById('assistInput');
     if (input) input.value = '';
     syncAssistComposerSize();
-    btn.classList.remove('recording');
-    btn.setAttribute('aria-pressed', 'false');
-    btn.title = assistMicTalkLabel();
+    showMic('idle');
     if (t) void assistSendText(t, { channel: 'voice' });
   };
-  rec.onend = () => {
-    btn.classList.remove('recording');
-    btn.setAttribute('aria-pressed', 'false');
-    btn.title = assistMicTalkLabel();
-  };
+  rec.onend = () => showMic('idle');
   rec.onerror = () => {
-    btn.classList.remove('recording');
-    btn.setAttribute('aria-pressed', 'false');
+    showMic('idle');
     btn.title = assistMicTalkLabel('error');
   };
   btn.addEventListener('click', () => {
+    if (listening) {
+      try { rec.stop(); } catch { /* already stopped */ }
+      showMic('idle');
+      return;
+    }
     try {
       rec.start();
-      btn.classList.add('recording');
-      btn.setAttribute('aria-pressed', 'true');
-      btn.title = assistMicTalkLabel('listening');
+      showMic('listening');
     } catch {
+      showMic('idle');
       btn.title = assistMicTalkLabel('blocked');
     }
   });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CAMERA_NAME_HE, cameraDisplayName } from '../public/modules/camera-names.mjs';
+import { CAMERA_NAME_HE, cameraDisplayName, canonicalCameraId } from '../public/modules/camera-names.mjs';
 import { pulseCameraCards } from '../public/modules/pulse-cameras.mjs';
 
 describe('camera display names', () => {
@@ -8,6 +8,9 @@ describe('camera display names', () => {
     expect(cameraDisplayName('cam1')).toBe('מטה');
     expect(cameraDisplayName('cam3')).toBe('גימבל');
     expect(cameraDisplayName('a8')).toBe('גימבל');
+    expect(canonicalCameraId('a8')).toBe('cam3');
+    expect(canonicalCameraId('gimbal')).toBe('cam3');
+    expect(canonicalCameraId('cam1')).toBe('cam1');
     expect(cameraDisplayName('cam2')).toBe('');
     expect(CAMERA_NAME_HE.cam0).toBe('קדמית');
 

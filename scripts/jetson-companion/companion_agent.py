@@ -98,6 +98,10 @@ try:
 except ImportError:
     annotated_encoder_status = None
 try:
+    from vision_tracks import try_handle as vision_try_handle
+except ImportError:
+    vision_try_handle = None
+try:
     from mavlink_route import CompanionRouter
 except ImportError:
     CompanionRouter = None
@@ -661,6 +665,20 @@ _GIMBAL_ACTIONS = {
 }
 
 
+def _camera_slot_disabled(cam_id):
+    """A slot that is off must not grow a JPEG, even from a stray buffer."""
+    if ingest_snapshot is None:
+        return False
+    try:
+        cameras = ingest_snapshot().get("cameras") or {}
+    except Exception:
+        return False
+    row = cameras.get(cam_id) if isinstance(cameras, dict) else None
+    if not isinstance(row, dict):
+        return False
+    return row.get("enabled") is False or row.get("state") == "disabled"
+
+
 def _camera_frame_id(path):
     ids = CAM_IDS if CAM_IDS else ("cam1", "cam2", "cam3")
     for cam_id in ids:
@@ -809,6 +827,15 @@ def _apply_ov9281(cameras):
 def cameras_status_payload():
     snap = _ingest_or_absent()
     cameras = _apply_ov9281(snap.get("cameras") or {})
+    for cam_id, row in list(cameras.items()):
+        if not isinstance(row, dict):
+            continue
+        if row.get("enabled") is False and row.get("state") != "disabled":
+            row = dict(row)
+            row["state"] = "disabled"
+            row["camera_ok"] = False
+            row["present"] = False
+            cameras[cam_id] = row
     slot = cameras.get("cam0") if isinstance(cameras.get("cam0"), dict) else _cam0_slot()
     return {
         "ok": True,
@@ -1532,13 +1559,31 @@ class Handler(BaseHTTPRequestHandler):
                 return
         except Exception:
             pass
+        if vision_try_handle and vision_try_handle(self):
+            return
         cam_frame = _camera_frame_id(path)
         if cam_frame:
+            if _camera_slot_disabled(cam_frame):
+                return self._json(404, {
+                    "ok": False,
+                    "camera_ok": False,
+                    "reason": "no_frame",
+                    "note": "אין פריים",
+                })
             packet = ingest_frame_packet(cam_frame) if ingest_frame_packet else None
             jpeg = packet.get("jpeg") if isinstance(packet, dict) else None
             if not jpeg and ingest_frame_jpeg:
                 jpeg = ingest_frame_jpeg(cam_frame)
                 packet = {"jpeg": jpeg} if jpeg else None
+            tracks_b64 = ""
+            try:
+                from vision_tracks import client_frame
+                served, tracks_b64 = client_frame(cam_frame, packet if isinstance(packet, dict) else None)
+                if isinstance(served, dict) and served.get("jpeg"):
+                    packet = served
+                    jpeg = served.get("jpeg")
+            except Exception:
+                tracks_b64 = ""
             if not jpeg:
                 return self._json(404, {
                     "ok": False,
@@ -1546,7 +1591,10 @@ class Handler(BaseHTTPRequestHandler):
                     "reason": "no_frame",
                     "note": "אין פריים",
                 })
-            self._send_bytes(200, jpeg, "image/jpeg", extra=tuple(jpeg_timing_headers(packet)))
+            headers = list(jpeg_timing_headers(packet if isinstance(packet, dict) else {"jpeg": jpeg}))
+            if tracks_b64:
+                headers.append(("X-Airvix-Tracks", tracks_b64))
+            self._send_bytes(200, jpeg, "image/jpeg", extra=tuple(headers))
             return
         return self._json(404, {"ok": False})
 
@@ -1592,6 +1640,8 @@ class Handler(BaseHTTPRequestHandler):
             ctx["blocked"] = _versions_blocked
             code, body = version_rollback.http_post(path, data if isinstance(data, dict) else {}, ctx)
             return self._json(code, body)
+        if vision_try_handle and vision_try_handle(self, data if isinstance(data, dict) else {}):
+            return
         try:
             from cam0.cam1 import try_handle as cam1_try_handle
             if cam1_try_handle(self, data if isinstance(data, dict) else {}):
@@ -1628,6 +1678,12 @@ def main():
     print(f"  FC_READ_ONLY: {FC_READ_ONLY}")
     snap = _ingest_or_absent()
     print(f"  Camera ingest: source={snap.get('source')} dry_run={snap.get('dry_run')}")
+    try:
+        from vision_tracks import attach_runtime
+        tracks = attach_runtime()
+        print(f"  Vision tracks: enabled={tracks.enabled} camera={tracks.camera or '-'} backend={tracks.backend}")
+    except Exception as exc:
+        print(f"  Vision tracks: off ({type(exc).__name__})")
     try:
         from cam0.service import start_service
         cam0 = start_service()

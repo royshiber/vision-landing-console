@@ -25470,6 +25470,7 @@ body[data-work-path="rf"] #optics .optics-calib {
   overflow: hidden;
 }
 #optics .debrief-cam-label {
+  z-index: 12;
   background: #102033;
   color: #e0f2fe;
   font-weight: 800;

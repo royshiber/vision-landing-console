@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { APP_VERSION } from '../version.js';
 import { spawn } from 'child_process';
 import fs from 'fs';
+import net from 'node:net';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -172,9 +173,19 @@ describe('Mission layout contract — static source', () => {
   });
 });
 
+function freePort() {
+  return new Promise((resolve, reject) => {
+    const server = net.createServer();
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', () => {
+      const { port } = server.address();
+      server.close(() => resolve(port));
+    });
+  });
+}
+
 describe('Mission layout contract — live boxes', () => {
-  const PORT = process.env.VLC_CONTRACT_PORT || '4017';
-  const BASE = `http://127.0.0.1:${PORT}`;
+  let BASE = '';
   let serverProc = null;
   let browser = null;
   let page = null;
@@ -194,9 +205,16 @@ describe('Mission layout contract — live boxes', () => {
   }
 
   beforeAll(async () => {
+    const port = await freePort();
+    BASE = `http://127.0.0.1:${port}`;
     serverProc = spawn(process.execPath, ['server.js'], {
       cwd: repoRoot,
-      env: { ...process.env, HOST: '127.0.0.1', PORT },
+      env: {
+        ...process.env,
+        HOST: '127.0.0.1',
+        PORT: String(port),
+        SQLITE_PATH: `/tmp/airvix-mission-layout-${port}.sqlite`,
+      },
       stdio: ['ignore', 'pipe', 'pipe'],
     });
     await waitHealth();
@@ -212,6 +230,7 @@ describe('Mission layout contract — live boxes', () => {
       ]));
     });
     await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+    await page.evaluate(async () => { if (document.fonts?.ready) await document.fonts.ready; });
     await page.waitForSelector('[data-mission-region="map"]');
     await page.waitForFunction(
       () => document.querySelectorAll('.leaflet-tile-loaded').length >= 4,
@@ -450,6 +469,8 @@ describe('Mission layout contract — live boxes', () => {
 
   it('grows messages inside the AH stack without covering the map', async () => {
     await page.evaluate(() => {
+      const ws = document.querySelector('.mission-workspace');
+      if (ws) ws.dataset.askOpen = '0';
       if (typeof applyFcStatustextHud === 'function') {
         applyFcStatustextHud({
           connected: true,
@@ -462,11 +483,20 @@ describe('Mission layout contract — live boxes', () => {
           ],
         });
       }
-      const region = document.querySelector('[data-mission-region="messages"]');
-      if (region?.dataset.messagesExpanded !== '1') {
-        document.getElementById('missionMessagesToggle')?.click();
-      }
+      if (typeof writeMissionMessagesExpanded === 'function') writeMissionMessagesExpanded(true);
+      if (typeof applyMissionMessagesExpanded === 'function') applyMissionMessagesExpanded(true);
+      if (typeof syncFlightStackToToggle === 'function') syncFlightStackToToggle();
     });
+    await page.waitForFunction(() => {
+      const region = document.querySelector('[data-mission-region="messages"]');
+      const map = document.querySelector('[data-mission-region="map"]');
+      const ws = document.querySelector('.mission-workspace');
+      if (!region || !map || !ws) return false;
+      const msgH = region.getBoundingClientRect().height;
+      const mapH = map.getBoundingClientRect().height;
+      const wsH = ws.getBoundingClientRect().height;
+      return region.dataset.messagesExpanded === '1' && msgH >= 120 && wsH > 0 && mapH / wsH >= 0.65;
+    }, null, { timeout: 4000 });
     const expanded = await page.evaluate(() => {
       const region = document.querySelector('[data-mission-region="messages"]');
       const map = document.querySelector('[data-mission-region="map"]');

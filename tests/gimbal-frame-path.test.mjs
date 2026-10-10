@@ -53,6 +53,29 @@ function closeServer(server) {
 }
 
 describe('gimbal frame path', () => {
+  it('lets the event loop run while an instant mock frame stays hot', async () => {
+    let pulls = 0;
+    const shelf = createLatestFrameShelf({
+      async pull() {
+        pulls += 1;
+        return { bytes: Buffer.from('jpeg-bytes'), contentType: 'image/jpeg', frameSeq: pulls, capturedAt: Date.now() };
+      },
+    });
+    const first = Date.now();
+    await shelf.take({ since: 0 });
+    expect(Date.now() - first).toBeLessThan(200);
+    const marks = [];
+    const timer = setInterval(() => marks.push(Date.now()), 20);
+    const gapStarted = Date.now();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const yielded = Date.now() - gapStarted;
+    await new Promise((resolve) => setTimeout(resolve, 80));
+    clearInterval(timer);
+    expect(yielded).toBeLessThan(200);
+    expect(marks.length).toBeGreaterThanOrEqual(2);
+    expect(pulls).toBeLessThan(40);
+  });
+
   it('drops a late pull and paints the newer frame without waiting it out', async () => {
     const oldBytes = Buffer.from('old-frame-bytes');
     const newBytes = Buffer.from('new-frame-bytes');
@@ -135,6 +158,35 @@ describe('gimbal frame path', () => {
     expect(painted.map((row) => row.seq)).toEqual([2]);
     expect(misses).toEqual([]);
     pump.stop();
+  });
+
+  it('waits a second before the next companion frame after a miss', async () => {
+    let calls = 0;
+    const pump = createLatestJpegPump({
+      follow: () => true,
+      urlFor(gen) {
+        return `frame-${gen}`;
+      },
+      load() {
+        calls += 1;
+        const err = new Error('down');
+        err.name = 'MissError';
+        return Promise.reject(err);
+      },
+    });
+    pump.start();
+    await delay(40);
+    expect(calls).toBe(1);
+    pump.start();
+    await delay(400);
+    expect(calls).toBe(1);
+    await delay(700);
+    expect(calls).toBe(2);
+    pump.stop();
+    await delay(50);
+    const held = calls;
+    await delay(200);
+    expect(calls).toBe(held);
   });
 
   it('measures capture, encode, fetch, decode, and paint before and after the cut', async () => {

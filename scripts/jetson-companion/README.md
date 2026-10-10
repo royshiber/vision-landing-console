@@ -145,6 +145,16 @@ Rollback: put the 2.3.9 agent files back and remove `/etc/sudoers.d/airvix-uplin
 - שליטת גימבל כבויה עד שמפעילים אותה.
 - ראייה מסומנת נשארת רק בסלולר.
 
+## Object tracks
+
+Detection is off until a config call or `VLC_VISION_DETECT=1` together with `VLC_VISION_CAMERA` (`cam0` front, `cam1` down, `cam3` gimbal). `GET /api/v1/vision/tracks?camera=cam3` returns `id`, `class`, `label_he`, `confidence`, `bbox`, and `age`. There is no vision event stream on this agent, so the console polls.
+
+`VLC_VISION_BACKEND=auto` uses TensorRT when `VLC_VISION_ENGINE` points at an engine and `tensorrt` imports. Otherwise it uses ONNX when `VLC_VISION_MODEL` points at a model and `onnxruntime` imports. Without a model the tracks stay empty and the reason is אין מודל זיהוי. `VLC_VISION_BACKEND=cpu` is the color-blob detector for the sample fixture and the sim. It does not run unless asked.
+
+`POST /api/v1/vision/lock` with `{"camera":"cam3","id":1}` stores the target. `{"action":"next"}` and `{"action":"unlock"}` switch or clear it. `VLC_VISION_GIMBAL_STEER` defaults off. Steering sends a gimbal rate only when that switch is on, a box is locked, the gimbal answers, and gimbal control is enabled. It never sends a flight-controller command. With the gimbal unplugged the rate is not sent.
+
+Frames per second on the Orin were not measured.
+
 ## Frame bus
 
 `get_frame_bus()` keeps the newest packet per slot (`jpeg`, optional `bgr`, `frame_count`). A later tracker subscribes in-process. Packets are not queued.

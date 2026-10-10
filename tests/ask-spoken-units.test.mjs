@@ -144,6 +144,44 @@ describe('talk-back honesty when ElevenLabs key is missing', () => {
       else process.env.ELEVENLABS_API_KEY = prev;
     }
   });
+
+  it('does not call ElevenLabs from tests even when a key is set', async () => {
+    const prev = process.env.ELEVENLABS_API_KEY;
+    process.env.ELEVENLABS_API_KEY = 'present-but-unused';
+    const app = express();
+    app.use(express.json());
+    registerFlightEngineerApi(app, { db: null, APP_VERSION: '1.02.414' });
+    const server = await listen(app);
+    const port = server.address().port;
+    try {
+      const status = await fetch(`http://127.0.0.1:${port}/api/flight-engineer/status`);
+      const body = await status.json();
+      expect(body.elevenlabs).toBe(false);
+      const tts = await fetch(`http://127.0.0.1:${port}/api/flight-engineer/tts`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: 'גובה 100 מטר' }),
+      });
+      expect(tts.status).toBe(204);
+    } finally {
+      server.close();
+      if (prev == null) delete process.env.ELEVENLABS_API_KEY;
+      else process.env.ELEVENLABS_API_KEY = prev;
+    }
+    const load = js.slice(js.indexOf("void fetch('/api/links/work')"), js.indexOf('if (toggleBtn)'));
+    expect(load).toContain('if (vlcTestQuiet()) return;');
+    expect(load).toContain('return postWorkLink();');
+    expect(load.indexOf('vlcTestQuiet()')).toBeLessThan(load.lastIndexOf('return postWorkLink();'));
+    expect(js).toContain("if (_vlcTalkbackEleven && !vlcTestQuiet())");
+    expect(js).toContain("if (ttsMode === 'elevenlabs' && !vlcTestQuiet())");
+    expect(js).not.toContain('navigator.webdriver');
+    expect(js).not.toContain('vlcExternalQuiet');
+    expect(js).toContain('window.__vlcTestQuiet === true');
+    expect(js).toContain('meta[name="vlc-test"]');
+    const quiet = js.slice(js.indexOf('function vlcTestQuiet'), js.indexOf('function assistLinkPath'));
+    expect(quiet).not.toContain('simulator');
+    expect(quiet).toContain('meta[name="vlc-qa"]');
+  });
 });
 
 describe('free-form Ask paraphrases via LLM then gated pipelines', () => {

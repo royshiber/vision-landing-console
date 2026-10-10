@@ -2,7 +2,7 @@
  * Flight column dock, map follow, and explicit recording. Loopback only.
  */
 import { afterAll, describe, expect, it } from 'vitest';
-import { matchVoiceFlightPhrase, pilotModeWord } from '../public/modules/voice-flight-phrases.mjs';
+import { isVisionFlightCompound, matchVoiceFlightPhrase, pilotModeWord } from '../public/modules/voice-flight-phrases.mjs';
 import { arduPlaneModeName } from '../lib/arduplane-flight-modes.mjs';
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
@@ -85,12 +85,12 @@ describe('flight dock and map source', () => {
     expect(askSend).toContain('flightModeReadbackLine(flightRoute.askedMode, text)');
     const readbackFn = js.slice(js.indexOf('function flightModeReadbackLine'), js.indexOf('function flightVoiceCommandText'));
     expect(readbackFn).toContain('כן.');
-    expect(readbackFn).toContain('אין חיבור');
-    expect(readbackFn).not.toContain('מצב הטיסה');
+    expect(readbackFn).toContain('אין חיבור לבקר הטיסה. מצב הטיסה לא ידוע.');
     expect(readbackFn).not.toContain('אין מצב טיסה');
     const phraseFn = js.slice(js.indexOf('async function submitFlightPhrase'), js.indexOf('function applyFlightDock'));
     expect(phraseFn).toContain('flightModeReadbackLine(match.askedMode, text)');
-    expect(askSend).toContain('נדחה. הפקודה אינה ברשימה המותרת. לא נשלח דבר.');
+    expect(askSend).toContain('הפקודה נחסמה: היא לא ברשימה המותרת.');
+    expect(askSend).toContain('חימוש וניטרול חסומים.');
     expect(askSend.indexOf('postFlightVoice')).toBeLessThan(askSend.indexOf("fetch('/api/assist/message'"));
     expect(js).toContain('function showFlightTalkback(');
     expect(js).toContain('paintFlightDockCommand(line)');
@@ -125,6 +125,7 @@ describe('flight mode yes/no uses the real readback', () => {
     const windowStub = {
       __vlcMatchVoiceFlightPhrase: matchVoiceFlightPhrase,
       __vlcPilotModeWord: pilotModeWord,
+      __vlcVisionFlightCompound: isVisionFlightCompound,
     };
     const vlcFlightModeName = (raw) => {
       const n = Number(raw);
@@ -145,7 +146,7 @@ describe('flight mode yes/no uses the real readback', () => {
     expect(no).toBe('לא. עכשיו יציב.');
     const down = loadReadback({ connected: false, flightMode: null });
     const missing = down.flightModeReadbackLine(route.askedMode, 'האם אנחנו בשיוט');
-    expect(missing).toBe('אין חיבור');
+    expect(missing).toBe('אין חיבור לבקר הטיסה. מצב הטיסה לא ידוע.');
     expect(missing).not.toBe('אין מצב טיסה.');
     const tune = loadReadback({ connected: true, flightMode: 8 });
     const autotune = tune.flightModeReadbackLine(route.askedMode, 'האם אנחנו בשיוט');
@@ -160,7 +161,15 @@ describe('flight mode yes/no uses the real readback', () => {
     expect(qhover).not.toBe('אין חיבור');
     expect(cruise.askFlightRoute('מה המצב של הסוללה')).toBeNull();
     expect(cruise.askFlightRoute('לא שיוט')).toBeNull();
-    expect(cruise.flightModeReadbackLine.toString()).not.toContain('מצב הטיסה');
+    expect(isVisionFlightCompound('נעל על האדם ותחזור הביתה')).toBe(true);
+    expect(cruise.askFlightRoute('נעל על האדם ותחזור הביתה')).toBeNull();
+    expect(cruise.askFlightRoute('תחזור הביתה')).toEqual({ action: 'send', mode: 'RTL' });
+    expect(cruise.askFlightRoute('חימוש')).toEqual({ action: 'block' });
+    expect(cruise.askFlightRoute('נטרול')).toEqual({ action: 'block' });
+    expect(cruise.askFlightRoute('אל תחזור הביתה')).toEqual({ action: 'refuse' });
+    expect(isVisionFlightCompound('תחזור הביתה')).toBe(false);
+    expect(isVisionFlightCompound('חימוש')).toBe(false);
+    expect(cruise.flightModeReadbackLine.toString()).toContain('אין חיבור לבקר הטיסה. מצב הטיסה לא ידוע.');
     expect(cruise.flightModeReadbackLine.toString()).not.toContain('אין מצב טיסה');
   });
 });
@@ -606,7 +615,7 @@ describe('flight dock and map live', () => {
     await page.click('#flightPhraseSend');
     expect(voice.length).toBe(voiceBeforePhrase);
     const unknownPhrase = await page.evaluate(() => document.getElementById('flightDockCommandNote').textContent);
-    expect(unknownPhrase).toContain('אינה ברשימה');
+    expect(unknownPhrase).toBe('הפקודה נחסמה: היא לא ברשימה המותרת.');
     await page.fill('#flightPhraseInput', 'חמש');
     await page.click('#flightPhraseSend');
     expect(voice.length).toBe(voiceBeforePhrase);
@@ -685,16 +694,26 @@ describe('flight dock and map live', () => {
       note: document.getElementById('flightDockCommandNote').textContent,
       heard: window.__talkLog.at(-1),
     }));
-    expect(armAsk.note).toContain('חימוש ונטרול חסומים');
+    expect(armAsk.note).toBe('חימוש וניטרול חסומים.');
     expect(armAsk.heard.note).toBe(armAsk.heard.text);
-    expect(armAsk.heard.text).toContain('לא נשלח דבר');
+    expect(armAsk.heard.text).toBe('חימוש וניטרול חסומים.');
+    await page.evaluate(() => {
+      applyFlightHud({ connected: false, armed: false });
+      return assistSendText('המריאו');
+    });
+    const takeoff = await page.evaluate(() => ({
+      note: document.getElementById('flightDockCommandNote').textContent,
+      transcript: (document.getElementById('assistMessages') || document.querySelector('.assist-messages'))?.textContent || '',
+    }));
+    expect(takeoff.note).toBe('המראה לא נשלחה: אין חיבור לבקר הטיסה. לא נשלח דבר.');
+    expect(takeoff.transcript.replace(/[\u200E\u200F\u2066-\u2069]/g, '')).toContain('המראה לא נשלחה: אין חיבור לבקר הטיסה. לא נשלח דבר.');
     const askTranscript = await page.evaluate(() => {
       const host = document.getElementById('assistMessages') || document.querySelector('.assist-messages');
       return host ? host.textContent : '';
     });
     expect(askTranscript).not.toContain('תמריא');
     expect(askTranscript).toContain('עבור למצב יציב');
-    expect(askTranscript).toContain('חימוש ונטרול חסומים');
+    expect(askTranscript.replace(/[\u200E\u200F\u2066-\u2069]/g, '')).toContain('חימוש וניטרול חסומים.');
 
     for (const phrase of ['set the cruise altitude', 'חמש דקות', 'אל תחזור הביתה']) {
       const beforeVoice = voice.length;
@@ -703,7 +722,7 @@ describe('flight dock and map live', () => {
       expect(voice.length, phrase).toBe(beforeVoice);
       expect(askPosts.length, phrase).toBe(beforePosts);
       const note = await page.evaluate(() => document.getElementById('flightDockCommandNote').textContent);
-      expect(note, phrase).toContain('אינה ברשימה');
+      expect(note, phrase).toBe('הפקודה נחסמה: היא לא ברשימה המותרת.');
       expect(note, phrase).not.toContain('חימוש ונטרול חסומים');
       expect(note, phrase).not.toContain('אושר');
     }
@@ -716,7 +735,7 @@ describe('flight dock and map live', () => {
     });
     expect(voice.length).toBe(beforePhraseRefuse);
     const five = await page.evaluate(() => document.getElementById('flightDockCommandNote').textContent);
-    expect(five).toContain('אינה ברשימה');
+    expect(five).toBe('הפקודה נחסמה: היא לא ברשימה המותרת.');
     expect(five).not.toContain('חימוש ונטרול חסומים');
 
     const direct = await page.evaluate(() => {
@@ -737,13 +756,13 @@ describe('flight dock and map live', () => {
     expect(direct.yes).toBe('כן. שיוט.');
     expect(direct.yes).not.toBe('מצב הטיסה שיוט.');
     expect(direct.no).toBe('לא. עכשיו יציב.');
-    expect(direct.missing).toBe('אין חיבור');
+    expect(direct.missing).toBe('אין חיבור לבקר הטיסה. מצב הטיסה לא ידוע.');
     expect(direct.missing).not.toBe('אין מצב טיסה.');
     expect(direct.autotune).toBe('לא. עכשיו אוטוטיון.');
     expect(direct.autotune).not.toBe('אין חיבור');
     expect(direct.qhover).toBe('QHOVER.');
     expect(direct.qhover).not.toBe('אין חיבור');
-    expect(direct.body).not.toContain('מצב הטיסה');
+    expect(direct.body).toContain('אין חיבור לבקר הטיסה. מצב הטיסה לא ידוע.');
     expect(direct.body).not.toContain('אין מצב טיסה');
     const beforeQuestion = voice.length;
     const postsBeforeQuestion = askPosts.length;
@@ -772,7 +791,7 @@ describe('flight dock and map live', () => {
     });
     expect(voice.length).toBe(beforeQuestion);
     const missing = await page.evaluate(() => document.getElementById('flightDockCommandNote').textContent);
-    expect(missing).toBe('אין חיבור');
+    expect(missing).toBe('אין חיבור לבקר הטיסה. מצב הטיסה לא ידוע.');
     const beforeBattery = voice.length;
     const postsBeforeBattery = askPosts.length;
     await page.evaluate(() => {
