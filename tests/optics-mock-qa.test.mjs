@@ -71,6 +71,7 @@ describe('optics mock companion', () => {
     await page.waitForFunction(() => document.getElementById('cam1ApplyBadge')?.textContent === 'הוחל');
     expect(await page.locator('#cam1CalibBoard').getAttribute('href')).toBe('/docs/calibration-board.pdf');
     await page.waitForFunction(() => document.getElementById('cam1CalibStart')?.disabled === false);
+    await page.locator('#cam1Calib > summary').click();
     await page.click('#cam1CalibStart');
     await page.waitForFunction(() => {
       const text = document.getElementById('cam1CalibProgress')?.textContent || '';
@@ -80,5 +81,5 @@ describe('optics mock companion', () => {
     expect(pdf.ok).toBe(true);
     const bytes = Buffer.from(await pdf.arrayBuffer());
     expect(bytes.subarray(0, 8).toString()).toBe('%PDF-1.4');
-  });
+  }, 40000);
 });

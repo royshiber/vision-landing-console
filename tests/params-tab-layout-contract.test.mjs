@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { spawn } from 'child_process';
 import fs from 'fs';
+import net from 'net';
 import os from 'os';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -66,9 +67,20 @@ describe('Parameters tab layout contract — static source', () => {
   });
 });
 
+function freePort() {
+  return new Promise((resolve, reject) => {
+    const server = net.createServer();
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', () => {
+      const { port } = server.address();
+      server.close(() => resolve(port));
+    });
+  });
+}
+
 describe('Parameters tab layout contract — live boxes', () => {
-  const PORT = '4036';
-  const BASE = `http://127.0.0.1:${PORT}`;
+  let PORT = 0;
+  let BASE = '';
   let serverProc = null;
   let browser = null;
   let page = null;
@@ -100,6 +112,8 @@ describe('Parameters tab layout contract — live boxes', () => {
   }
 
   beforeAll(async () => {
+    PORT = await freePort();
+    BASE = `http://127.0.0.1:${PORT}`;
     serverProc = startServer(PORT);
     await waitHealth(BASE);
     const { chromium } = await import('playwright');
@@ -266,7 +280,12 @@ describe('Parameters tab layout contract — live boxes', () => {
       expect(await page.locator('[data-param-key="GPS_TYPE"] .fc-group-now').innerText()).toBe('אין חיבור');
 
       await page.fill('#arduParamSearchInput', 'EK3');
-      await page.waitForFunction(() => document.querySelector('#fcGroupList .fc-group-empty')?.textContent === 'אין התאמה בקבוצה');
+      await page.waitForFunction(() => {
+        const keys = [...document.querySelectorAll('#fcGroupList .fc-group-key')].map((el) => el.textContent);
+        return keys.includes('EK3_ENABLE') && !keys.includes('GPS_TYPE');
+      });
+      await page.fill('#arduParamSearchInput', 'ZZZNOMATCH');
+      await page.waitForFunction(() => document.querySelector('#fcGroupList .fc-group-empty')?.textContent === 'לא נמצא בבקר: ZZZNOMATCH');
       await page.click('#arduParamSearchClearBtn');
       await page.waitForSelector('#fcGroupList [data-param-key="GPS_TYPE"]');
 

@@ -248,6 +248,15 @@ describe('offline Ask status answers', () => {
     expect(answerAskStatus('jetson', buildAssistContext({ ops_signals: { jetson: 'unreachable' } }))).toBe('מחשב משימה (Jetson) אינו מגיב.');
     expect(answerAskStatus('jetson', buildAssistContext({ ops_signals: { jetson: 'off' } }))).toBe('מחשב משימה (Jetson) כבוי.');
     expect(answerAskStatus('cameras', buildAssistContext({}))).toBe('אין נתון על זרם המצלמות.');
+    const withGimbal = buildAssistContext({
+      ops_signals: { cameras: { cam0: true, cam1: false, cam3: true } },
+    });
+    expect(withGimbal.ops_signals.cameras).toEqual({ cam0: true, cam1: false, cam3: true });
+    expect(answerAskStatus('cameras', withGimbal)).toBe('מצלמה קדמית משדרת. מצלמת מטה אינה משדרת. מצלמת הגימבל משדרת.');
+    expect(askStatusFacts(withGimbal).cameras.cam3).toBe(true);
+    const legacy = buildAssistContext({ ops_signals: { cameras: { a8: true } } });
+    expect(legacy.ops_signals.cameras).toEqual({ cam3: true });
+    expect(answerAskStatus('cameras', legacy)).toBe('אין נתון על הקדמית. אין נתון על המטה. מצלמת הגימבל משדרת.');
   });
 
   it('answers the FC question on the vision tab instead of a generic template', async () => {
@@ -293,7 +302,7 @@ describe('offline Ask status answers', () => {
       expect(seen[0].facts.gps_sats).toBe(12);
       expect(seen[0].facts.battery_v).toBe(16.4);
       expect(seen[0].facts.prearm.length).toBe(3);
-      expect(seen[0].facts.cameras).toEqual({ cam0: true, cam1: false });
+      expect(seen[0].facts.cameras).toEqual({ cam0: true, cam1: false, cam3: null });
       expect(seen[0].facts.jetson).toBe('reachable');
       expect(askStatusFacts(buildAssistContext(LIVE))).toEqual(seen[0].facts);
 

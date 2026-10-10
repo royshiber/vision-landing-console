@@ -55,7 +55,7 @@ function loadSlotFns() {
     sliceFunction(js, 'readMissionDataSlots'),
     sliceFunction(js, 'writeMissionDataSlots'),
     sliceFunction(js, 'suggestMissionDataFields'),
-    'const GPS_FIX_LABELS = ["אין GPS", "אין Fix", "2D Fix", "3D Fix", "DGPS", "RTK Float", "RTK Fixed"];',
+    'const GPS_FIX_LABELS = ["אין GPS", "אין קיבוע", "קיבוע 2D", "3D Fix", "DGPS", "RTK צף", "RTK קבוע"];',
     'const ARDUPILOT_PLANE_MODES = { 0: "MANUAL" };',
     sliceFunction(js, 'shortMissionLinkReadout'),
     sliceFunction(js, 'getPayloadValue'),
@@ -83,9 +83,12 @@ describe('Mission data-slot field picker', () => {
     expect(html).toContain('id="missionDataPickerClose"');
     expect(html).toContain('>ביטול<');
     expect(html).toContain('data-mission-data-slot="0"');
-    expect(html).toContain('קליק ימני מוחק אריח. לחיצה ארוכה או קליק בוחרים שדה.');
-    expect(html).toContain('id="missionDataAddBtn"');
-    expect(html).toContain('>הוסיפו נתון<');
+    expect(html).toContain('id="missionDataHintTip"');
+    expect(html).toContain('קליק ימני על אריח מוסיף או מוחק. לחיצה ארוכה או קליק בוחרים שדה.');
+    expect(html).not.toContain('flight-screen-tools">\n                <p class="mission-data-hint">');
+    expect(html).not.toContain('id="missionDataAddBtn"');
+    expect(html).toContain('id="missionDataTileAdd"');
+    expect(html).toContain('הוסיפו נתון');
     expect(css).toMatch(/\.mission-data-picker\s*\{[^}]*position:\s*fixed/);
     expect(css).toMatch(/\.mission-data-picker\s*\{[^}]*z-index:\s*9600/);
     expect(css).toMatch(/\.mission-data-picker\s*\{[^}]*direction:\s*rtl/);
@@ -306,6 +309,7 @@ describe('mission data picker stays in the viewport', () => {
     expect(row.dataH).toBeLessThan(88);
     expect(row.hudH).toBeGreaterThanOrEqual(200);
     expect(row.msgH).toBeGreaterThanOrEqual(120);
-    expect(row.rtlH).toBeGreaterThanOrEqual(42);
+    expect(row.rtlH).toBeGreaterThanOrEqual(26);
+    expect(row.rtlH).toBeLessThanOrEqual(32);
   }, 40000);
 });

@@ -162,8 +162,10 @@ describe('Mission aircraft messages — side print-log', () => {
       'return { first: primary.textContent, extras: extras.map((n) => n.textContent), warn: extras[0] && extras[0].className, extraCount: extras.length, history: history.map((n) => n.textContent), histWarn: history[1] && history[1].className };',
     ].join('\n');
     const result = new Function('primary', 'log', 'scroll', 'extras', 'history', src)(primary, log, scroll, extras, history);
-    expect(result.first).toBe('EKF3 IMU0 is using GPS');
-    expect(result.extras).toEqual(['PreArm: Compass not healthy', 'ArduPlane V4.5.0']);
+    expect(result.first).toContain('EKF');
+    expect(result.first).toContain('GPS');
+    expect(result.extras[0]).toContain('המצפן לא תקין');
+    expect(result.extras[1]).toContain('ArduPlane');
     expect(result.warn).toContain('pfd-horizon-msg-line--warn');
     expect(result.extraCount).toBe(2);
     expect(result.history).toEqual(['a', 'b']);

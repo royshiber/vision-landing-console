@@ -182,9 +182,24 @@ async function syncServerAppVersion() {
 }
 
 void syncServerAppVersion();
+window.__vlcCompanionFrames = false;
+void fetch('/api/health', { cache: 'no-store' }).then((r) => r.json()).then((j) => {
+  const mode = j?.companion?.mode;
+  window.__vlcCompanionFrames = mode === 'mock' || mode === 'real';
+  document.dispatchEvent(new CustomEvent('vlc-companion-frames', { detail: window.__vlcCompanionFrames }));
+  if (window.__vlcCompanionFrames && typeof applyHorizonCamera === 'function') applyHorizonCamera(null);
+}).catch(() => {});
 setInterval(() => {
   void syncServerAppVersion();
 }, 10_000);
+document.addEventListener('vlc-companion-cameras', (event) => {
+  const detail = event.detail;
+  const mode = detail?.mode || detail?.link?.mode;
+  if (mode === 'mock' || mode === 'real' || detail?.reachable === true) {
+    window.__vlcCompanionFrames = true;
+    if (typeof applyHorizonCamera === 'function') applyHorizonCamera(detail);
+  }
+});
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') void syncServerAppVersion();
 });
@@ -225,7 +240,7 @@ const MISSION_AREAS_KEY = 'visionLandingMissionAreasV2';
 const MISSION_MESSAGES_KEY = 'visionLandingMissionMessagesV1';
 const FLIGHT_STACK_KEY = 'visionLandingFlightStackV1';
 const FLIGHT_DOCK_KEY = 'visionLandingFlightDockV1';
-const FLIGHT_FOLLOW_KEY = 'visionLandingFlightFollowV1';
+const FLIGHT_FOLLOW_KEY = 'visionLandingFlightFollowV2';
 const FLIGHT_DATA_DEFAULT = 116;
 const FLIGHT_MSG_DEFAULT = 40;
 const FLIGHT_MSG_OPEN = 112;
@@ -505,12 +520,31 @@ const fcGroupDraft = {};
 const fcDraftMeta = {};
 let fcChangeLog = [];
 
+function fcParamDecimals(meta) {
+  const ends = fcRangeEnds(meta?.range);
+  if (!ends) return null;
+  const places = (text) => {
+    const match = String(text).match(/\.(\d+)/);
+    return match ? match[1].length : 0;
+  };
+  return Math.max(places(ends.min), places(ends.max));
+}
+
+function formatFcParamNumber(value, meta) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return value == null ? '' : String(value);
+  const places = fcParamDecimals(meta);
+  if (places == null) return String(Number(n.toPrecision(7)));
+  return n.toFixed(places);
+}
+
 function fcPresence(key) {
   if (!fcCurrentSnapshot || typeof fcCurrentSnapshot !== 'object') return { state: 'unknown', text: 'לא ידוע' };
   if (!Object.prototype.hasOwnProperty.call(fcCurrentSnapshot, key)) return { state: 'missing', text: 'חסר' };
   const value = fcCurrentSnapshot[key];
   if (value == null || value === '') return { state: 'unknown', text: 'לא ידוע' };
-  return { state: 'present', text: String(value) };
+  const text = typeof value === 'number' ? formatFcParamNumber(value, fcParamMeta[key]) : String(value);
+  return { state: 'present', text };
 }
 
 function currentCatalogGroup() {
@@ -793,28 +827,79 @@ function bindFcNext(control, key, presence) {
   control.addEventListener('change', commit);
 }
 
+let fcSearchHome = '';
+
+function matchingFcKeys(rawQuery) {
+  const query = String(rawQuery || '').trim().toLowerCase();
+  if (!query) return [];
+  const seen = new Set();
+  const keys = [];
+  const add = (key) => {
+    const name = String(key || '');
+    if (!name || seen.has(name)) return;
+    const he = String(fcParamMeta[key]?.he || '').toLowerCase();
+    if (!key.toLowerCase().includes(query) && !he.includes(query)) return;
+    seen.add(name);
+    keys.push(name);
+  };
+  for (const item of fcParamGroups) {
+    for (const key of item?.keys || []) add(key);
+  }
+  if (fcCurrentSnapshot && typeof fcCurrentSnapshot === 'object') {
+    for (const key of Object.keys(fcCurrentSnapshot)) add(key);
+  }
+  keys.sort();
+  return keys;
+}
+
+function searchNeedsAllParams(keys) {
+  if (!keys.length) return false;
+  const group = currentCatalogGroup();
+  if (!group || group.id === 'all') return !group;
+  const owned = new Set(group.keys || []);
+  return keys.some((key) => !owned.has(key));
+}
+
+function revealAllParamsForSearch() {
+  const sel = document.getElementById('paramSubtabSelect');
+  if (sel && !fcSearchHome) fcSearchHome = sel.value || 'landingParams';
+  if (sel?.value !== 'ardu-all') {
+    applyControlSubtab('arduParams', { save: false, selectOverride: 'ardu-all' });
+  }
+}
+
 function renderFcGroupList() {
   const list = document.getElementById('fcGroupList');
   const lead = document.getElementById('fcGroupLead');
-  const group = currentCatalogGroup();
+  const query = String(arduSearchQuery || '').trim().toLowerCase();
+  let group = currentCatalogGroup();
+  if (query && searchNeedsAllParams(matchingFcKeys(query))) revealAllParamsForSearch();
+  group = currentCatalogGroup();
   syncParamGroupChrome();
   if (!list || !group) return;
-  const query = String(arduSearchQuery || '').trim().toLowerCase();
   const unread = !fcCurrentSnapshot || typeof fcCurrentSnapshot !== 'object';
-  let keys = group.id === 'all'
-    ? (unread ? [] : Object.keys(fcCurrentSnapshot).sort())
-    : group.keys.slice();
+  let keys;
   if (query) {
-    keys = keys.filter((key) => key.toLowerCase().includes(query) || String(fcParamMeta[key]?.he || '').toLowerCase().includes(query));
+    keys = matchingFcKeys(query);
+  } else {
+    keys = group.id === 'all'
+      ? (unread ? [] : Object.keys(fcCurrentSnapshot).sort())
+      : group.keys.slice();
   }
   if (lead) {
-    lead.textContent = group.id === 'all' && unread ? 'אין חיבור' : group.labelHe;
+    lead.textContent = query && keys.length
+      ? 'כל הפרמטרים'
+      : (group.id === 'all' && unread ? 'אין חיבור' : group.labelHe);
   }
   list.replaceChildren();
   if (!keys.length) {
     const empty = document.createElement('li');
     empty.className = 'fc-group-empty';
-    empty.textContent = group.id === 'all' && unread ? 'אין חיבור' : (query ? 'אין התאמה בקבוצה' : 'אין פרמטרים בקבוצה');
+    const rawQuery = String(arduSearchQuery || '').trim();
+    const keyLike = /^[A-Za-z][A-Za-z0-9_]*$/.test(rawQuery);
+    empty.textContent = query
+      ? (keyLike ? `לא נמצא בבקר: ${rawQuery}` : 'אין התאמה בקבוצה')
+      : (group.id === 'all' && unread ? 'אין חיבור' : 'אין פרמטרים בקבוצה');
     list.appendChild(empty);
   }
   const readOnly = group.id === 'all';
@@ -822,8 +907,9 @@ function renderFcGroupList() {
     const presence = fcPresence(key);
     const meta = fcParamMeta[key] || {};
     const li = document.createElement('li');
-    li.className = 'fc-group-row fc-param-card';
+    li.className = 'fc-group-row fc-param-card param-card';
     li.dataset.paramKey = key;
+    li.dataset.param = key;
     const heEl = document.createElement('p');
     heEl.className = 'fc-group-he';
     heEl.textContent = meta.he || '';
@@ -1428,6 +1514,11 @@ function updateParamSyncBanner() {
   el.hidden = lines.length === 0;
   if (typeof refreshParamToolbarMeta === 'function') refreshParamToolbarMeta();
   if (typeof refreshArduWriteBtnState === 'function') refreshArduWriteBtnState(arduWriteGate);
+  const writeBtn = document.getElementById('visionConfigWriteBtn');
+  if (writeBtn) {
+    writeBtn.disabled = rows.length === 0;
+    writeBtn.title = rows.length ? 'שומר גיבוי בקונסולה' : 'אין שינוי לכתיבה';
+  }
   el.replaceChildren();
   for (const text of lines) {
     const span = document.createElement('span');
@@ -1602,16 +1693,53 @@ function splitParamLabel(label) {
   return { name: match[1].trim(), unit: match[2].trim() };
 }
 
+let serverProfileValues = null;
+
+function profileReadinessKeys() {
+  let ready = null;
+  try {
+    ready = latestVisionLandingReadiness;
+  } catch {
+    ready = null;
+  }
+  const row = Array.isArray(ready?.rows)
+    ? ready.rows.find((item) => item && item.id === 'plnd_profile')
+    : null;
+  return Array.isArray(row?.keys) ? row.keys : [];
+}
+
+function profileLivePresentation(key, readinessKeys) {
+  const keys = Array.isArray(readinessKeys) ? readinessKeys : profileReadinessKeys();
+  const row = keys.find((item) => item && item.key === key) || null;
+  if (row?.state === 'present' && row.value != null && row.value !== '') {
+    return { text: String(row.value), kicker: 'נשמר בקונסולה' };
+  }
+  return { text: 'לא נשמר עדיין', kicker: 'נשמר בקונסולה' };
+}
+
 function profileLiveText(key) {
-  if (!fcCurrentSnapshot || typeof fcCurrentSnapshot !== 'object') return 'אין חיבור';
-  if (!Object.prototype.hasOwnProperty.call(fcCurrentSnapshot, key)) return 'אין חיבור';
-  const value = fcCurrentSnapshot[key];
-  if (value == null || value === '') return 'אין חיבור';
-  return String(value);
+  return profileLivePresentation(key, profileReadinessKeys()).text;
+}
+
+function profileLiveKicker(key) {
+  return profileLivePresentation(key, profileReadinessKeys()).kicker;
+}
+
+function ensureProfileGroupBadge(container) {
+  const parent = container?.parentElement;
+  if (!parent) return;
+  let badge = parent.querySelector(':scope > .profile-source-badge');
+  if (!badge) {
+    badge = document.createElement('p');
+    badge.className = 'profile-source-badge';
+    parent.insertBefore(badge, container);
+  }
+  badge.textContent = 'נשמר בקונסולה · לא בבקר';
 }
 
 function renderParamsIn(container, items) {
   if (!container) return;
+  ensureProfileGroupBadge(container);
   container.innerHTML = '';
   items.forEach((param) => {
     const locked = !!lockState[param.key];
@@ -1630,7 +1758,7 @@ function renderParamsIn(container, items) {
       </div>
       <p class="fc-group-key" dir="ltr">${param.key}</p>
       <div class="fc-card-cell"><span class="fc-card-kicker">דיפולט</span><span class="fc-card-value" dir="ltr">${param.value}</span></div>
-      <div class="fc-card-cell"><span class="fc-card-kicker">בבקר</span><span class="fc-group-now" data-state="${live === 'אין חיבור' ? 'unknown' : 'present'}">${live}</span></div>
+      <div class="fc-card-cell"><span class="fc-card-kicker">ערך</span><span class="fc-group-now" data-state="${live === 'לא נשמר עדיין' ? 'missing' : 'present'}">${live}</span></div>
       <div class="fc-card-cell"><span class="fc-card-kicker">יחידה</span><span class="fc-group-unit" dir="ltr">${facts.unit || '—'}</span></div>
       <div class="fc-card-cell"><span class="fc-card-kicker">טווח</span><span class="fc-group-meta" dir="ltr">${param.min}–${param.max}</span></div>
       <div class="fc-card-cell fc-card-control">
@@ -2428,11 +2556,17 @@ wireArduCategorySubtabsOnce();
     arduSmartSearchMatches = null;
     arduSmartOutsideMatches = null;
     arduSmartCustomMatches = null;
+    const hits = matchingFcKeys(arduSearchQuery);
+    const jumped = searchNeedsAllParams(hits);
     renderArduSmartSearchPanel();
     renderArduParamForm();
     renderParams();
     renderFcGroupList();
-    setStatus(arduSearchQuery ? `מסנן לפי: ${arduSearchQuery}` : '');
+    if (arduSearchQuery && (jumped || (hits.length && currentCatalogGroup()?.id === 'all' && fcSearchHome))) {
+      setStatus('נמצא ב: כל הפרמטרים');
+    } else {
+      setStatus(arduSearchQuery ? `מסנן לפי: ${arduSearchQuery}` : '');
+    }
   }
 
   input.addEventListener('input', applySimpleSearch);
@@ -2445,6 +2579,13 @@ wireArduCategorySubtabsOnce();
     arduSmartSearchMatches = null;
     arduSmartOutsideMatches = null;
     arduSmartCustomMatches = null;
+    const home = fcSearchHome;
+    fcSearchHome = '';
+    if (home && home !== 'ardu-all') {
+      const arduMatch = home.match(/^ardu-(.+)$/);
+      if (arduMatch) applyControlSubtab('arduParams', { save: false, selectOverride: home });
+      else if (PARAM_SUBTAB_IDS.has(home)) applyControlSubtab(home, { save: false });
+    }
     renderArduSmartSearchPanel();
     renderArduParamForm();
     renderParams();
@@ -2773,7 +2914,14 @@ function refreshParamToolbarMeta() {
       ? 'יש שינוי'
       : fcLink === 'ok' ? 'מחובר' : fcLink === 'down' ? 'מנותק' : 'לא ידוע';
   }
-  if (fcMeta) fcMeta.textContent = '';
+  if (fcMeta) fcMeta.textContent = fcReadStatusLine();
+}
+
+function fcReadStatusLine() {
+  if (!fcCurrentSnapshot || typeof fcCurrentSnapshot !== 'object' || !fcReadAt) return '';
+  const count = Object.keys(fcCurrentSnapshot).length;
+  const mins = Math.max(0, Math.round((Date.now() - fcReadAt) / 60000));
+  return `נקראו ${count} · לפני ${mins} דק׳`;
 }
 
 async function refreshJetsonLink() {
@@ -2808,6 +2956,10 @@ async function loadVisionConfigFromServer(statusEl) {
     }
     const d = await res.json();
     if (d.profile && typeof d.profile === 'object') {
+      serverProfileValues = {};
+      Object.keys(d.profile).forEach((key) => {
+        if (d.profile[key] != null && d.profile[key] !== '') serverProfileValues[key] = d.profile[key];
+      });
       Object.keys(profileState).forEach((key) => {
         if (arduValuesDiffer(profileWriteBaseline[key], profileState[key])) return;
         if (d.profile[key] != null && Number.isFinite(Number(d.profile[key]))) {
@@ -2908,6 +3060,14 @@ if (visionConfigReadBtn) {
 if (visionConfigWriteBtn) {
   visionConfigWriteBtn.addEventListener('click', () => saveVisionConfigToServer(visionConfigStatus));
 }
+document.getElementById('visionBackupReadItem')?.addEventListener('click', () => {
+  closeParamFileMenu();
+  visionConfigReadBtn?.click();
+});
+document.getElementById('visionBackupWriteItem')?.addEventListener('click', () => {
+  closeParamFileMenu();
+  visionConfigWriteBtn?.click();
+});
 const paramFileMenuBtn = document.getElementById('paramFileMenuBtn');
 const paramFileMenu = document.getElementById('paramFileMenu');
 function closeParamFileMenu() {
@@ -4649,8 +4809,7 @@ let latestVisionLandingReadiness = null;
 
 function honestyLiveText(key) {
   if (key?.state === 'present' && key.value != null && key.value !== '') return String(key.value);
-  if (key?.state === 'missing') return 'חסר';
-  return 'אין חיבור';
+  return 'לא נשמר עדיין';
 }
 
 function appendPlndProfileKeys(host, keys, itemClass) {
@@ -4674,6 +4833,7 @@ function appendPlndProfileKeys(host, keys, itemClass) {
     token.dir = 'ltr';
     token.textContent = id;
     const live = honestyLiveText(key);
+    const sourceKicker = 'נשמר בקונסולה';
     const unit = facts?.unit || meta.units || '';
     const range = local ? `${local.min}–${local.max}` : (meta.range || '');
     const fallback = local ? String(local.value) : (meta.default || '');
@@ -4681,7 +4841,7 @@ function appendPlndProfileKeys(host, keys, itemClass) {
       name,
       token,
       fcCardCell('דיפולט', local ? String(local.value) : meta.default, 'fc-card-value', 'ltr'),
-      fcCardCell('בבקר', live, `${itemClass}-chip fc-group-now`, live === 'אין חיבור' || live === 'חסר' ? '' : 'ltr'),
+      fcCardCell(sourceKicker, live, `${itemClass}-chip fc-group-now`, live === 'לא נשמר עדיין' ? '' : 'ltr'),
     );
     const now = li.querySelector('.fc-group-now');
     if (now) now.dataset.state = key.state === 'present' ? 'present' : (key.state || 'unknown');
@@ -4773,9 +4933,11 @@ function paintPlndProfileHonesty(snapshot) {
   if (stateEl) {
     const state = String(row?.state || 'unknown');
     stateEl.dataset.state = state;
-    stateEl.textContent = state === 'unknown' ? 'אין חיבור' : (row?.stateHe || 'אין חיבור');
+    const saved = Array.isArray(row?.keys) && row.keys.some((key) => key?.state === 'present' && key.value != null && key.value !== '');
+    stateEl.textContent = saved ? 'נשמר בקונסולה' : 'לא נשמר עדיין';
   }
   appendPlndProfileKeys(keysEl, row?.keys || [], 'plnd-honesty-key');
+  if (typeof renderParams === 'function') renderParams();
 }
 
 function cameraInstallBusy() {
@@ -5131,7 +5293,10 @@ function pulseSetStatusRow(row, { pill, reason, bucket, tone }) {
   if (!row) return;
   const pillEl = row.querySelector('[data-metric-pill], [data-link-pill], .status-row-pill');
   const reasonEl = row.querySelector('[data-metric-reason], [data-link-reason], .status-row-reason');
-  if (pillEl) pillEl.textContent = pill || 'לא ידוע';
+  if (pillEl) {
+    const known = pulseKnownText(pill);
+    paintHeldValue(pillEl, `pulse:${pulseRowStorageKey(row) || pillEl.id || 'row'}:pill`, known || null, { ttlMs: SLOW_HOLD_MS });
+  }
   if (reasonEl) reasonEl.textContent = reason || '';
   row.dataset.statusBucket = bucket || 'unknown';
   row.dataset.tone = tone || 'off';
@@ -5142,6 +5307,124 @@ function pulseKnownText(text) {
   if (!s || s === '--' || s === '—' || s === '-' || s === 'אין נתון' || s === 'לא ידוע') return '';
   return s;
 }
+
+const TELEMETRY_BLANK = new Set(['', '—', '-', '–', '--', 'אין נתון', 'לא ידוע', 'אין נתונים']);
+function telemetryValueBlank(value) {
+  if (value == null) return true;
+  const text = String(value).trim();
+  return TELEMETRY_BLANK.has(text);
+}
+function createTelemetryHold({ now = () => Date.now(), ttlMs = 3000, dimExtraMs = 5000 } = {}) {
+  const slots = new Map();
+  function read(key, slotOpts) {
+    const row = slots.get(key);
+    if (!row) return { phase: 'dash', text: '—', value: null, dim: false, ageMs: null };
+    const age = Math.max(0, now() - row.at);
+    const ttl = slotOpts?.ttlMs ?? row.ttl ?? ttlMs;
+    const extra = slotOpts?.dimExtraMs ?? dimExtraMs;
+    if (age <= ttl) return { phase: 'live', text: row.value, value: row.value, dim: false, ageMs: age };
+    const sec = Math.max(1, Math.round(age / 1000));
+    if (age <= Math.max(ttl + extra, 10000)) {
+      return { phase: 'aged', text: `${row.value} · לפני ${sec} שנ׳`, value: row.value, dim: true, ageMs: age };
+    }
+    return {
+      phase: 'stale',
+      text: `${row.value} · לא מגיב · לפני ${sec} שנ׳`,
+      value: row.value,
+      dim: true,
+      ageMs: age,
+    };
+  }
+  return {
+    offer(key, value, slotOpts) {
+      if (!telemetryValueBlank(value)) {
+        slots.set(key, { value: String(value), at: now(), ttl: slotOpts?.ttlMs ?? ttlMs });
+      }
+      return read(key, slotOpts);
+    },
+    read,
+    clear(key) {
+      slots.delete(key);
+    },
+  };
+}
+function createMedianWindow(size = 5) {
+  const bins = new Map();
+  const cap = Math.max(1, size);
+  return {
+    push(key, value) {
+      const n = Number(value);
+      if (!Number.isFinite(n)) return null;
+      const arr = bins.get(key) || [];
+      arr.push(n);
+      while (arr.length > cap) arr.shift();
+      bins.set(key, arr);
+      const sorted = [...arr].sort((a, b) => a - b);
+      const mid = Math.floor(sorted.length / 2);
+      return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+    },
+  };
+}
+function createStatusDebounce({ now = () => Date.now(), fails = 3, failMs = 10000 } = {}) {
+  const faultRe = /שגיאה|לא מגיב|מנותק|אין חיבור/;
+  const pendingRe = /ממתין/;
+  let good = '';
+  let at = 0;
+  let haveGood = false;
+  let streak = 0;
+  return {
+    push(text, stamp = now()) {
+      const raw = String(text || '').trim();
+      const pending = pendingRe.test(raw);
+      const fault = !raw || faultRe.test(raw) || telemetryValueBlank(raw);
+      if (!fault && !pending) {
+        good = raw;
+        at = stamp;
+        haveGood = true;
+        streak = 0;
+        return { phase: 'live', text: raw };
+      }
+      streak += 1;
+      const age = haveGood ? stamp - at : (at ? stamp - at : 0);
+      if ((haveGood || pending) && streak < fails && age < failMs) {
+        return { phase: 'aged', text: good };
+      }
+      return { phase: 'dash', text: raw || '—' };
+    },
+  };
+}
+const flightTelemetryHold = createTelemetryHold();
+const flightDelayMedian = createMedianWindow(5);
+const headerStatusDebounce = createStatusDebounce();
+const heldTelemetryNodes = new Map();
+const FAST_HOLD_MS = 3000;
+const MODE_HOLD_MS = 12000;
+const SLOW_HOLD_MS = 10000;
+function paintHeldValue(el, key, value, opts) {
+  if (!el || !key) return null;
+  if (typeof flightTelemetryHold === 'undefined' || typeof heldTelemetryNodes === 'undefined') {
+    const blank = value == null || value === '' || value === '—' || value === 'אין נתון';
+    const text = blank ? '—' : String(value);
+    if (el.textContent !== text) el.textContent = text;
+    return { phase: blank ? 'dash' : 'live', text, value: blank ? null : text, dim: false, ageMs: null };
+  }
+  heldTelemetryNodes.set(key, { el, opts });
+  const view = flightTelemetryHold.offer(key, value, opts);
+  if (el.textContent !== view.text) el.textContent = view.text;
+  if (el.dataset.hold !== view.phase) el.dataset.hold = view.phase;
+  return view;
+}
+setInterval(() => {
+  for (const [key, row] of heldTelemetryNodes) {
+    if (!row?.el?.isConnected) {
+      heldTelemetryNodes.delete(key);
+      continue;
+    }
+    const view = flightTelemetryHold.read(key, row.opts);
+    if (row.el.textContent !== view.text) row.el.textContent = view.text;
+    if (row.el.dataset.hold !== view.phase) row.el.dataset.hold = view.phase;
+  }
+}, 1000);
 
 const pulseOpenByKey = new Map();
 
@@ -5270,11 +5553,15 @@ function pulseRefreshSummary() {
 function pulseJumpToCategory(id) {
   const target = document.querySelector(`[data-pulse-cat="${id}"]`);
   if (!target) return;
-  const clear = target.classList.contains('is-highlight');
   document.querySelectorAll('.pulse-cat').forEach((el) => {
-    el.classList.toggle('is-highlight', !clear && el === target);
+    el.classList.toggle('is-highlight', el === target);
   });
-  if (!clear) target.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  const scroller = target.closest('.pulse-home') || target.closest('#pulse');
+  if (scroller) {
+    const top = target.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop - 8;
+    scroller.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+  }
+  target.scrollIntoView({ block: 'start', inline: 'nearest' });
   pulseRefreshSummary();
 }
 
@@ -5470,15 +5757,21 @@ function pulsePaintFcFacts(companion, mav) {
   pulsePaintMetric('pulseFcMetricRows', 'fc-gps', {
     pill: gps || 'לא ידוע', reason: '', bucket: gps ? 'ok' : 'unknown', tone: gps ? 'ok' : 'off',
   });
+  const volts = Number(mav?.batteryV);
+  const pct = Number(mav?.batteryPct);
+  const voltsOk = live && Number.isFinite(volts) && volts >= 1;
+  const pctOk = live && Number.isFinite(pct) && pct > 0;
   const bits = [];
-  if (live && Number.isFinite(Number(mav?.batteryV))) bits.push(`${Number(mav.batteryV).toFixed(1)} V`);
-  if (live && Number.isFinite(Number(mav?.batteryPct))) bits.push(`${Math.round(Number(mav.batteryPct))}%`);
+  if (voltsOk) bits.push(`${volts.toFixed(1)} V`);
+  if (pctOk) bits.push(`${Math.round(pct)}%`);
   pulsePaintMetric('pulseFcMetricRows', 'fc-battery', {
     pill: bits.length ? bits.join(' · ') : 'לא ידוע',
     reason: '',
     bucket: bits.length ? 'ok' : 'unknown',
     tone: bits.length ? 'ok' : 'off',
   });
+  const battPill = document.querySelector('#pulseFcMetricRows [data-metric="fc-battery"] [data-metric-pill]');
+  if (battPill) battPill.dir = 'ltr';
   const injected = companion?.navigation?.ekf_injected;
   if (injected === true) {
     pulsePaintMetric('pulseFcMetricRows', 'fc-ekf', { pill: 'מוזרק', reason: '', bucket: 'ok', tone: 'ok' });
@@ -5507,7 +5800,13 @@ function pulsePaintFcFacts(companion, mav) {
       else if (sessionDirty > 0) syncReason = `${sessionDirty} לא נשלחו`;
       else syncReason = 'לא נשמר לשרת';
     } else if (fcMis == null) {
-      syncReason = 'לא בוצע READ מהרחפן';
+      syncReason = 'עדיין לא נקרא מהכלי';
+    }
+    const readLine = fcReadStatusLine();
+    if (readLine) {
+      syncReason = syncReason && syncReason !== 'עדיין לא נקרא מהכלי'
+        ? `${readLine} · ${syncReason}`
+        : readLine;
     }
   } catch {
     syncPill = 'לא ידוע';
@@ -6834,12 +7133,98 @@ function formatGpsHudReadout(mav) {
     };
   }
   const label = GPS_FIX_LABELS[fix] ?? `Fix ${fix}`;
-  const satsStr = satsOk ? ` ${sats}🛰` : '';
+  const satsStr = satsOk ? ` · ${Math.round(sats)} לוויינים` : '';
   return {
     text: label + satsStr,
     title: fix >= 2 ? '' : hudFieldHonestyTitle('gps', mav, null),
     status: !hudLinkLive(mav) ? 'unknown' : fix >= 3 ? 'ok' : fix === 2 ? 'warn' : 'fail',
   };
+}
+
+let gpsHoverOpen = false;
+let gpsHoverTimer = null;
+let gpsAgeAnchor = null;
+let gps2AgeAnchor = null;
+
+function noteGpsHoverAges(mav) {
+  if (Number.isFinite(mav?.gpsAgeMs)) gpsAgeAnchor = { base: mav.gpsAgeMs, wall: Date.now() };
+  else gpsAgeAnchor = null;
+  if (Number.isFinite(mav?.gps2AgeMs)) gps2AgeAnchor = { base: mav.gps2AgeMs, wall: Date.now() };
+  else gps2AgeAnchor = null;
+}
+
+function anchoredGpsAge(anchor) {
+  if (!anchor || !Number.isFinite(anchor.base)) return null;
+  return anchor.base + Math.max(0, Date.now() - anchor.wall);
+}
+
+function paintGpsHoverTip(mav) {
+  if (!hudNavGpsTip) return;
+  const api = window.__vlcGpsQuality;
+  const ageMs = anchoredGpsAge(gpsAgeAnchor);
+  const gps2Age = anchoredGpsAge(gps2AgeAnchor);
+  const has2 = mav && (
+    Number.isFinite(mav.gps2FixType)
+    || Number.isFinite(mav.gps2Sats)
+    || Number.isFinite(mav.gps2Hdop)
+  );
+  const text = api?.formatGpsHoverTooltip
+    ? api.formatGpsHoverTooltip({
+      fixType: mav?.gpsFixType,
+      sats: mav?.gpsSats,
+      hdop: mav?.gpsHdop,
+      ageMs,
+      gps2: has2 ? {
+        fixType: mav.gps2FixType,
+        sats: mav.gps2Sats,
+        hdop: mav.gps2Hdop,
+        ageMs: gps2Age,
+      } : null,
+    })
+    : '';
+  const ekf = pickHudEkfGpsHint(mav?.recentStatusTexts);
+  const full = [text, ekf?.hint].filter(Boolean).join('\n');
+  hudNavGpsTip.textContent = full;
+  const menuOpen = document.getElementById('horizonCameraMenu')?.hidden === false
+    && document.getElementById('horizonCameraMenu')?.contains(hudNavGpsTip);
+  if ((!gpsHoverOpen && !menuOpen) || !full) {
+    hudNavGpsTip.hidden = true;
+    return;
+  }
+  hudNavGpsTip.hidden = false;
+  if (menuOpen) {
+    hudNavGpsTip.style.left = '';
+    hudNavGpsTip.style.top = '';
+    return;
+  }
+  placeGpsHoverTip();
+}
+
+function placeGpsHoverTip() {
+  if (!hudNavGpsTip || !hudNavGpsPill || hudNavGpsTip.hidden) return;
+  const r = hudNavGpsPill.getBoundingClientRect();
+  const w = hudNavGpsTip.offsetWidth || 180;
+  const h = hudNavGpsTip.offsetHeight || 72;
+  let left = r.left;
+  let top = r.bottom + 6;
+  if (left + w > window.innerWidth - 8) left = window.innerWidth - w - 8;
+  if (top + h > window.innerHeight - 8) top = Math.max(8, r.top - h - 6);
+  hudNavGpsTip.style.left = `${Math.max(8, left)}px`;
+  hudNavGpsTip.style.top = `${Math.max(8, top)}px`;
+}
+
+function setGpsHoverOpen(open) {
+  gpsHoverOpen = open === true;
+  if (gpsHoverTimer) {
+    clearInterval(gpsHoverTimer);
+    gpsHoverTimer = null;
+  }
+  paintGpsHoverTip(typeof latestHudMavlink !== 'undefined' ? latestHudMavlink : null);
+  if (gpsHoverOpen) {
+    gpsHoverTimer = setInterval(() => {
+      paintGpsHoverTip(typeof latestHudMavlink !== 'undefined' ? latestHudMavlink : null);
+    }, 1000);
+  }
 }
 
 // ── Flight HUD PFD elements ────────────────────────────────────────────────────
@@ -6854,6 +7239,11 @@ const pfdAltVal        = document.getElementById('pfdAltVal');
 const pfdBattVal       = document.getElementById('pfdBattVal');
 const hudNavGpsPill    = document.getElementById('hudNavGps');
 const hudNavGpsVal     = document.getElementById('hudNavGpsVal');
+const hudNavGpsTip     = document.getElementById('hudNavGpsTip');
+hudNavGpsPill?.addEventListener('mouseenter', () => setGpsHoverOpen(true));
+hudNavGpsPill?.addEventListener('mouseleave', () => setGpsHoverOpen(false));
+hudNavGpsPill?.addEventListener('focus', () => setGpsHoverOpen(true));
+hudNavGpsPill?.addEventListener('blur', () => setGpsHoverOpen(false));
 const pfdHudWaitHint   = document.getElementById('pfdHudWaitHint');
 const pfcMsgPrimaryHe  = document.getElementById('pfcMsgPrimaryHe');
 const pfcMsgScroll     = document.getElementById('pfcMsgScroll');
@@ -6943,7 +7333,8 @@ function horizonVideoHasPlayableSource(url) {
 function syncHorizonVideoEmpty(hasVideo) {
   const emptyEl = document.getElementById('horizonVideoEmpty');
   if (!emptyEl) return;
-  const showEmpty = !hasVideo && (_horizonVideoMode || readInstrumentView() === 'video');
+  const instrumentView = typeof readInstrumentView === 'function' ? readInstrumentView() : '';
+  const showEmpty = !hasVideo && (_horizonVideoMode || instrumentView === 'video');
   emptyEl.hidden = !showEmpty;
   emptyEl.classList.toggle('hidden', !showEmpty);
   if (showEmpty) emptyEl.textContent = 'אין זרם מצלמה';
@@ -7007,13 +7398,11 @@ function paintInstrumentVideo(companion) {
   const img = document.getElementById('instrumentVideoFrame');
   const empty = document.getElementById('horizonVideoEmpty');
   const override = (document.getElementById('horizonVideoUrl')?.value || localStorage.getItem(HORIZON_VIDEO_URL_KEY) || '').trim();
-  let liveId = null;
-  for (const apiId of ['cam1', 'cam2', 'cam3']) {
-    if (horizonSlotStreaming(horizonCameraDetail(companion, apiId))) {
-      liveId = apiId;
-      break;
-    }
-  }
+  const selected = readHorizonCameras().map((id) => {
+    const slot = HORIZON_CAMERA_SLOTS.find((item) => item.id === id);
+    return slot?.apiId || null;
+  }).filter(Boolean);
+  const liveId = horizonStreamApiId(companion, selected);
   if (readInstrumentView() !== 'video') {
     if (img) {
       img.hidden = true;
@@ -7134,7 +7523,6 @@ function initHorizonVideo() {
   const savedView = localStorage.getItem(HORIZON_VIDEO_ON_KEY) === '1' ? 'video' : readInstrumentView();
   setInstrumentView(savedView);
 }
-initHorizonVideo();
 
 const HORIZON_CAMERA_KEY = 'vlc.horizon.bgCamera.v1';
 const GIMBAL_FRAME = '/api/jetson/v1/cameras/cam3/frame';
@@ -7142,7 +7530,7 @@ const HORIZON_CAMERA_IDS = ['cam0', 'cam1', 'cam3'];
 const HORIZON_CAMERA_SLOTS = [
   { id: 'none', label: 'בלי מצלמה', apiId: null, mono: false },
   { id: 'cam0', label: 'קדמית', apiId: 'cam0', mono: true },
-  { id: 'cam1', label: 'מטה', apiId: 'cam1', mono: true, hold: '/api/jetson/v1/cam1/stream.mjpg' },
+  { id: 'cam1', label: 'מטה', apiId: 'cam1', mono: true, frame: '/api/jetson/v1/cameras/cam1/frame' },
   { id: 'cam3', label: 'גימבל', apiId: 'cam3', mono: false, frame: GIMBAL_FRAME },
 ];
 
@@ -7169,7 +7557,7 @@ function readHorizonCameras() {
       if (next !== raw) dirty = true;
       ids = [next];
     }
-    const kept = HORIZON_CAMERA_IDS.filter((id) => ids.includes(id));
+    const kept = HORIZON_CAMERA_IDS.filter((id) => ids.includes(id)).slice(0, 1);
     if (dirty) writeHorizonCameras(kept);
     return kept;
   } catch {
@@ -7184,26 +7572,56 @@ function writeHorizonCameras(ids) {
 }
 
 function horizonSlotStreaming(detail) {
-  if (!detail || detail.camera_ok !== true) return false;
+  if (!detail || typeof detail !== 'object') return false;
+  // A parent vision block is not a camera. Its source / camera_ok must not hide a slot.
+  if (detail.cameras && typeof detail.cameras === 'object' && detail.id == null && !detail.state) return false;
   if (detail.enabled === false) return false;
-  if (detail.state && detail.state !== 'streaming') return false;
-  if (detail.has_frame === false) return false;
+  const state = typeof detail.state === 'string' ? detail.state : '';
+  if (state === 'disabled' || state === 'error') return false;
   const fps = Number(detail.fps);
   const age = Number(detail.last_frame_age_ms);
   const count = Number(detail.frame_count);
-  return (Number.isFinite(fps) && fps > 0)
-    || (Number.isFinite(age) && age >= 0)
-    || (Number.isFinite(count) && count > 0);
+  const ownSource = typeof detail.source === 'string' ? detail.source : '';
+  const streaming = state === 'streaming'
+    || (Number.isFinite(fps) && fps > 0)
+    || detail.has_frame === true
+    || (Number.isFinite(count) && count > 0 && state !== 'absent');
+  if (state === 'absent' && !(Number.isFinite(fps) && fps > 0)) return false;
+  if (ownSource === 'absent' && !streaming) return false;
+  if (streaming) return true;
+  if (detail.camera_ok !== true) return false;
+  if (state && state !== 'streaming') return false;
+  if (detail.has_frame === false) return false;
+  return Number.isFinite(age) && age >= 0;
 }
+
+function horizonStreamApiId(companion, selectedApiIds) {
+  const picked = Array.isArray(selectedApiIds) ? selectedApiIds.filter(Boolean) : [];
+  const order = picked.length ? picked : ['cam1', 'cam2', 'cam3', 'cam0'];
+  for (const apiId of order) {
+    if (horizonSlotStreaming(horizonCameraDetail(companion, apiId))) return apiId;
+  }
+  return null;
+}
+initHorizonVideo();
 
 function horizonCameraDetail(companion, apiId) {
   const src = companion && typeof companion === 'object' ? companion : {};
-  return src.vision?.cameras?.[apiId]
-    || src.opticalNav?.cameras?.[apiId]
-    || src.optical_nav?.cameras?.[apiId]
-    || src.extras?.cameras?.[apiId]
-    || src.cameras?.[apiId]
-    || null;
+  const maps = [
+    src.vision?.cameras,
+    src.opticalNav?.cameras,
+    src.optical_nav?.cameras,
+    src.extras?.cameras,
+    src.cameras,
+  ];
+  let fallback = null;
+  for (const map of maps) {
+    const row = map && typeof map === 'object' ? map[apiId] : null;
+    if (!row || typeof row !== 'object') continue;
+    if (horizonSlotStreaming(row)) return row;
+    if (!fallback) fallback = row;
+  }
+  return fallback;
 }
 
 function syncHorizonMenu(ids) {
@@ -7276,25 +7694,134 @@ function clearHorizonImage(img) {
   img.classList.remove('is-mono');
 }
 
+function horizonNoSignalText(slotOrImg) {
+  const fromDataset = slotOrImg?.dataset?.horizonSlot || '';
+  const rawId = slotOrImg?.id || '';
+  const id = fromDataset
+    || (HORIZON_CAMERA_IDS.includes(rawId) ? rawId : '')
+    || slotOrImg?.apiId
+    || '';
+  const slot = HORIZON_CAMERA_SLOTS.find((item) => item.id === id)
+    || HORIZON_CAMERA_SLOTS.find((item) => item.apiId && item.apiId === id);
+  if (!slot || slot.id === 'none' || !slot.label) return '';
+  return `${slot.label} · אין אות`;
+}
+
+function horizonFrameIsReal(img) {
+  return !!(img && img.naturalWidth > 0 && img.naturalHeight > 0);
+}
+
+function showHorizonNoSignal(img, note) {
+  if (img) img.hidden = true;
+  if (!note) return;
+  const text = horizonNoSignalText(img);
+  note.textContent = text;
+  note.hidden = !text;
+  if (typeof syncHorizonNoData === 'function') syncHorizonNoData();
+}
+
+function horizonStandInUrl() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 32;
+  canvas.height = 32;
+  const ctx = canvas.getContext('2d');
+  if (ctx) {
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(0, 0, 32, 32);
+  }
+  return new Promise((resolve) => {
+    canvas.toBlob((blob) => {
+      resolve(blob ? URL.createObjectURL(blob) : '');
+    }, 'image/png');
+  });
+}
+
+async function horizonBlobDecodes(objectUrl) {
+  return new Promise((resolve) => {
+    const probe = new Image();
+    probe.onload = () => resolve(probe.naturalWidth > 0 && probe.naturalHeight > 0);
+    probe.onerror = () => resolve(false);
+    probe.src = objectUrl;
+  });
+}
+
+async function loadHorizonCameraFrame(src, signal) {
+  const res = await fetch(src, { signal, cache: 'no-store', headers: { Accept: 'image/jpeg' } });
+  const type = String(res.headers.get('content-type') || '');
+  if (!res.ok || type.includes('json')) {
+    const err = new Error('miss');
+    err.name = 'MissError';
+    throw err;
+  }
+  const seq = Number(res.headers.get('x-airvix-frame-seq') || 0);
+  const capturedAt = Number(res.headers.get('x-airvix-capture-at') || 0);
+  const blob = await res.blob();
+  if (!blob || blob.size === 0) {
+    const err = new Error('miss');
+    err.name = 'MissError';
+    throw err;
+  }
+  let objectUrl = URL.createObjectURL(blob);
+  if (!(await horizonBlobDecodes(objectUrl))) {
+    URL.revokeObjectURL(objectUrl);
+    objectUrl = await horizonStandInUrl();
+  }
+  let tracks = null;
+  const rawTracks = String(res.headers.get('x-airvix-tracks') || '').trim();
+  if (rawTracks) {
+    try {
+      const bin = atob(rawTracks);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i += 1) bytes[i] = bin.charCodeAt(i);
+      const parsed = JSON.parse(new TextDecoder().decode(bytes));
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) tracks = parsed;
+    } catch { /* header is optional */ }
+  }
+  return {
+    src,
+    objectUrl,
+    seq: Number.isFinite(seq) ? seq : 0,
+    capturedAt: Number.isFinite(capturedAt) ? capturedAt : 0,
+    ...(tracks ? { tracks } : {}),
+  };
+}
+
 function ensureHorizonGimbalPump(img, note, base) {
   const existing = horizonGimbalPumps.get(img);
-  if (existing) return existing;
+  if (existing && existing.base === base) return existing;
+  if (existing) {
+    try { existing.stop(); } catch { /* pump already stopped */ }
+    horizonGimbalPumps.delete(img);
+  }
   const factory = window.__vlcCreateLatestJpegPump;
   if (typeof factory !== 'function') return null;
   const pump = factory({
     image: () => img,
     follow: () => img.dataset.gimbalPump === '1',
+    load: loadHorizonCameraFrame,
     urlFor(gen, seenSeq, info) {
       const newest = info?.replace ? '&newest=1' : '';
       return `${base}?since=${seenSeq || 0}&t=${gen}${newest}`;
     },
     onFrame() {
-      img.hidden = false;
+      const stage = img.closest('#pfdHorizonStage') || img.closest('[data-camera-stage="horizon"]');
+      const slotId = img.dataset.horizonSlot || '';
+      if (stage && slotId && slotId !== 'none') stage.dataset.visionCamera = slotId;
       img.dataset.seen = String(Date.now());
       img.dataset.misses = '0';
-      if (note) note.hidden = true;
+      if (!horizonFrameIsReal(img)) {
+        showHorizonNoSignal(img, note);
+        markHorizonLive();
+        return;
+      }
+      img.hidden = false;
+      if (note) {
+        note.hidden = true;
+        note.textContent = '';
+      }
       fitHorizonPicture(img);
       markHorizonLive();
+      if (typeof syncHorizonNoData === 'function') syncHorizonNoData();
     },
     onMiss() {
       const misses = Number(img.dataset.misses || 0) + 1;
@@ -7305,22 +7832,19 @@ function ensureHorizonGimbalPump(img, note, base) {
         streaming: true,
         consecutiveMisses: misses,
       });
-      if (!showNone) {
-        if (Number(img.dataset.seen || 0) > 0) img.hidden = false;
+      if (!showNone && horizonFrameIsReal(img)) {
+        img.hidden = false;
         if (note) note.hidden = true;
         fitHorizonPicture(img);
         markHorizonLive();
         return;
       }
-      img.hidden = true;
       img.dataset.seen = '';
-      if (note) {
-        note.hidden = false;
-        note.textContent = 'אין אות';
-      }
+      showHorizonNoSignal(img, note);
       markHorizonLive();
     },
   });
+  pump.base = base;
   horizonGimbalPumps.set(img, pump);
   return pump;
 }
@@ -7344,6 +7868,9 @@ function horizonTile(stack, slot) {
   tile = document.createElement('div');
   tile.className = 'horizon-cam-tile';
   tile.dataset.horizonSlot = slot.id;
+  if (slot.apiId === 'cam0' || slot.apiId === 'cam1' || slot.apiId === 'cam3') {
+    tile.dataset.cameraStage = slot.apiId;
+  }
   tile.hidden = true;
   const img = document.createElement('img');
   img.className = 'pfd-horizon-camera';
@@ -7374,54 +7901,43 @@ function horizonFrameMissShowsNoSignal(opts) {
 function paintHorizonImage(img, note, slot, companion) {
   if (!img) return;
   const showNote = () => {
-    if (!note) return;
-    note.hidden = false;
-    note.textContent = 'אין אות';
+    showHorizonNoSignal(img, note);
   };
+  const slotId = slot?.id || '';
+  if (img.dataset.horizonSlot !== slotId) {
+    clearHorizonImage(img);
+    img.dataset.horizonSlot = slotId;
+    showNote();
+  }
   if (!slot?.apiId) {
     clearHorizonImage(img);
-    if (note) note.hidden = true;
-    return;
-  }
-  img.classList.toggle('is-mono', slot.mono === true);
-  if (slot.hold) {
-    img.onload = () => {
-      img.hidden = false;
-      if (note) note.hidden = true;
-      fitHorizonPicture(img);
-      markHorizonLive();
-    };
-    img.onerror = () => {
-      img.hidden = true;
-      showNote();
-      markHorizonLive();
-    };
-    if (img.dataset.hold !== slot.hold) {
-      img.dataset.hold = slot.hold;
-      img.hidden = true;
-      showNote();
-      img.src = slot.hold;
-    } else if (img.complete && img.naturalWidth > 0 && !img.hidden) {
-      if (note) note.hidden = true;
+    img.dataset.horizonSlot = '';
+    if (note) {
+      note.hidden = true;
+      note.textContent = '';
     }
     return;
   }
-  img.dataset.hold = '';
-  const forced = typeof slot.frame === 'string' && slot.frame.length > 0;
-  const detail = horizonCameraDetail(companion, slot.apiId);
-  const live = forced || horizonSlotStreaming(detail);
-  if (!live) {
-    clearHorizonImage(img);
-    showNote();
+  if (window.__vlcCompanionFrames !== true) {
+    horizonGimbalPumps.get(img)?.stop();
+    img.dataset.gimbalPump = '';
+    img.removeAttribute('src');
+    showHorizonNoSignal(img, note);
     return;
   }
-  const base = forced ? slot.frame : `/api/jetson/v1/cameras/${slot.apiId}/frame`;
+  img.classList.toggle('is-mono', slot.mono === true);
+  img.dataset.hold = '';
+  const frameBase = `/api/jetson/v1/cameras/${slot.apiId}/frame`;
+  const base = frameBase;
+  img.dataset.frameBase = base;
+  const forced = true;
   if (forced) {
     const pump = ensureHorizonGimbalPump(img, note, base);
     if (pump) {
       img.dataset.gimbalPump = '1';
       img.classList.toggle('is-mono', slot.mono === true);
-      if (!img.hidden && img.naturalWidth > 0) fitHorizonPicture(img);
+      if (!horizonFrameIsReal(img)) showHorizonNoSignal(img, note);
+      else fitHorizonPicture(img);
       pump.start();
       return;
     }
@@ -7439,12 +7955,18 @@ function paintHorizonImage(img, note, slot, companion) {
     consecutiveMisses: paintedMisses,
   }) && !paintedPicture;
     img.onload = () => {
-      img.hidden = false;
       img.dataset.seen = String(Date.now());
       img.dataset.misses = '0';
+      if (!horizonFrameIsReal(img)) {
+        showHorizonNoSignal(img, note);
+        markHorizonLive();
+        return;
+      }
+      img.hidden = false;
       if (note) note.hidden = true;
       fitHorizonPicture(img);
       markHorizonLive();
+      if (typeof syncHorizonNoData === 'function') syncHorizonNoData();
     };
     img.onerror = () => {
       const misses = Number(img.dataset.misses || 0) + 1;
@@ -7548,44 +8070,141 @@ function initHorizonCameraMenu() {
   menu.setAttribute('role', 'menu');
   menu.setAttribute('aria-label', 'פעולות אופק');
   menu.dir = 'rtl';
-  for (const id of ['horizonVideoToggle', 'annotatedVisionToggle', 'liveCameraToggle', 'horizonPointsToggle', 'pfdVoiceFlightBtn', 'flightArmBtn', 'flightDisarmBtn']) {
-    const btn = document.getElementById(id);
-    if (!btn) continue;
-    btn.classList.add('horizon-cam-menu-item');
-    menu.appendChild(btn);
+  const HORIZON_MENU_COPY = {
+    horizonVideoToggle: ['תמונת שידור באופק', 'שידור חי מהמצלמה הראשונה שמשדרת, או כתובת שמורה'],
+    annotatedVisionToggle: ['ראייה מסומנת', 'זרם מסומן ממחשב המשימה, בסלולר בלבד'],
+    liveCameraToggle: ['פריימים חיים', 'שלושה פריימים: קדמית, מטה וגימבל'],
+    horizonPointsToggle: ['נקודות המשימה', 'מציג את נקודות המשימה הטעונה על המפה'],
+    pfdVoiceFlightBtn: ['שורת פקודה', 'פותח את שורת הפקודה במסך ההטסה'],
+    flightArmBtn: ['חימוש', 'פותח אישור לפני שליחת חימוש'],
+    flightDisarmBtn: ['ניטרול', 'פותח אישור לפני שליחת ניטרול'],
+  };
+  const HORIZON_CAM_COPY = {
+    none: 'האופק בלי תמונת מצלמה',
+    cam0: 'תמונת קדמית מאחורי האופק',
+    cam1: 'תמונת מטה מאחורי האופק',
+    cam3: 'תמונת גימבל מאחורי האופק',
+  };
+  function menuHeading(text) {
+    const head = document.createElement('p');
+    head.className = 'horizon-menu-heading';
+    head.textContent = text;
+    return head;
   }
-  document.getElementById('horizonPointsToggle')?.addEventListener('click', () => {
-    document.getElementById('terrainShowLoadedPathBtn')?.click();
-  });
+  function fillMenuButton(btn, label, desc) {
+    btn.classList.add('horizon-cam-menu-item');
+    btn.replaceChildren();
+    const name = document.createElement('span');
+    name.className = 'horizon-menu-label';
+    name.textContent = label;
+    const line = document.createElement('span');
+    line.className = 'horizon-menu-desc';
+    line.textContent = desc;
+    btn.append(name, line);
+    return btn;
+  }
+  function syncHorizonMenuState() {
+    const cur = readHorizonCameras();
+    const selected = cur[0] || 'none';
+    menu.querySelectorAll('[data-horizon-cam]').forEach((btn) => {
+      const on = btn.dataset.horizonCam === selected;
+      btn.setAttribute('aria-checked', on ? 'true' : 'false');
+      btn.classList.toggle('is-selected', on);
+    });
+    const view = typeof readInstrumentView === 'function' ? readInstrumentView() : '';
+    const viewOf = {
+      horizonVideoToggle: view === 'video',
+      annotatedVisionToggle: view === 'vision',
+      liveCameraToggle: view === 'frame',
+    };
+    for (const [id, on] of Object.entries(viewOf)) {
+      const btn = document.getElementById(id);
+      if (!btn) continue;
+      btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+      let state = btn.querySelector('.horizon-menu-state');
+      if (!state) {
+        state = document.createElement('span');
+        state.className = 'horizon-menu-state';
+        btn.append(state);
+      }
+      state.textContent = on ? 'פועל' : 'כבוי';
+    }
+  }
+  const cameraGroup = document.createElement('div');
+  cameraGroup.className = 'horizon-menu-group';
+  cameraGroup.appendChild(menuHeading('בחירת מצלמה'));
   for (const slot of HORIZON_CAMERA_SLOTS) {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'horizon-cam-menu-item';
-    btn.setAttribute('role', slot.id === 'none' ? 'menuitem' : 'menuitemcheckbox');
+    btn.setAttribute('role', 'menuitemradio');
     btn.dataset.horizonCam = slot.id;
-    btn.textContent = slot.label;
+    fillMenuButton(btn, slot.label, HORIZON_CAM_COPY[slot.id] || slot.label);
     btn.addEventListener('click', (event) => {
       event.preventDefault();
       event.stopPropagation();
-      if (slot.id === 'none') {
-        writeHorizonCameras([]);
-        menu.hidden = true;
-      } else {
-        const cur = readHorizonCameras();
-        const next = cur.includes(slot.id) ? cur.filter((id) => id !== slot.id) : [...cur, slot.id];
-        writeHorizonCameras(next);
-      }
+      writeHorizonCameras(slot.id === 'none' ? [] : [slot.id]);
       applyHorizonCamera(typeof latestCompanionFromServer === 'object' ? latestCompanionFromServer : null);
+      syncHorizonMenuState();
+      menu.hidden = true;
     });
-    menu.appendChild(btn);
+    cameraGroup.appendChild(btn);
   }
+  menu.appendChild(cameraGroup);
+  const overlayGroup = document.createElement('div');
+  overlayGroup.className = 'horizon-menu-group';
+  overlayGroup.appendChild(menuHeading('שכבות'));
+  for (const id of ['horizonVideoToggle', 'annotatedVisionToggle', 'liveCameraToggle', 'horizonPointsToggle', 'pfdVoiceFlightBtn']) {
+    const btn = document.getElementById(id);
+    const copy = HORIZON_MENU_COPY[id];
+    if (!btn || !copy) continue;
+    fillMenuButton(btn, copy[0], copy[1]);
+    overlayGroup.appendChild(btn);
+  }
+  menu.appendChild(overlayGroup);
+  document.getElementById('horizonPointsToggle')?.addEventListener('click', () => {
+    document.getElementById('terrainShowLoadedPathBtn')?.click();
+  });
+  const armGroup = document.createElement('div');
+  armGroup.className = 'horizon-menu-group horizon-menu-group--arm';
+  armGroup.appendChild(menuHeading('פעולות'));
+  for (const id of ['flightArmBtn', 'flightDisarmBtn']) {
+    const btn = document.getElementById(id);
+    const copy = HORIZON_MENU_COPY[id];
+    if (!btn || !copy) continue;
+    fillMenuButton(btn, copy[0], copy[1]);
+    armGroup.appendChild(btn);
+  }
+  menu.appendChild(armGroup);
+  const stateGroup = document.createElement('div');
+  stateGroup.className = 'horizon-menu-group horizon-menu-face';
+  stateGroup.appendChild(menuHeading('מצב טיסה'));
+  const headingLane = document.querySelector('.pfd-heading-lane');
+  const armRow = document.getElementById('flightArmRow');
+  if (headingLane) stateGroup.appendChild(headingLane);
+  if (armRow) stateGroup.appendChild(armRow);
+  menu.appendChild(stateGroup);
+  syncHorizonMenuState();
   document.body.appendChild(menu);
 
   let openedAt = 0;
-  function closeMenu() { menu.hidden = true; }
+  function closeMenu() {
+    menu.hidden = true;
+    if (typeof paintGpsHoverTip === 'function') {
+      paintGpsHoverTip(typeof latestHudMavlink !== 'undefined' ? latestHudMavlink : null);
+    }
+  }
   function openMenu(x, y) {
     openedAt = Date.now();
+    syncHorizonMenuState();
     menu.hidden = false;
+    menu.style.width = '300px';
+    menu.style.maxWidth = '300px';
+    menu.style.maxHeight = `${Math.max(120, window.innerHeight - 16)}px`;
+    menu.style.overflow = 'auto';
+    if (typeof paintGpsHoverTip === 'function') {
+      paintGpsHoverTip(typeof latestHudMavlink !== 'undefined' ? latestHudMavlink : null);
+    }
     menu.style.left = '0px';
     menu.style.top = '0px';
     const rect = menu.getBoundingClientRect();
@@ -7593,6 +8212,10 @@ function initHorizonCameraMenu() {
     const top = Math.max(8, Math.min(y, window.innerHeight - rect.height - 8));
     menu.style.left = `${left}px`;
     menu.style.top = `${top}px`;
+    const tip = document.getElementById('hudNavGpsTip');
+    if (tip && !tip.hidden && menu.scrollHeight > menu.clientHeight + 1) {
+      menu.scrollTop = menu.scrollHeight;
+    }
   }
 
   stage.addEventListener('contextmenu', (event) => {
@@ -7748,6 +8371,12 @@ function preferHudFcMetrics(sseMav, live) {
   return out;
 }
 
+function hudFiniteMode(value) {
+  if (value == null || value === '') return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
 function liveStatusToHudMavlink(s) {
   if (!s || typeof s !== 'object') return null;
   const texts = Array.isArray(s.recentStatusTexts) ? s.recentStatusTexts : [];
@@ -7770,7 +8399,7 @@ function liveStatusToHudMavlink(s) {
     autopilotName: s.autopilotName || null,
     vehicleType: s.vehicleType || null,
     mavType: Number.isFinite(Number(s.mavType)) ? Number(s.mavType) : null,
-    flightMode: null,
+    flightMode: hudFiniteMode(s.flightMode ?? s.customMode ?? s.custom_mode),
     airspeed: null,
     groundspeed: null,
     altitude: null,
@@ -7809,7 +8438,7 @@ function resolveHudMavlink(sseMav, liveStatus) {
       armed: sseMav?.armed ?? null,
       armedKnown: sseMav?.armedKnown === true,
       flying: sseMav?.flying === true || fromLive.flying === true,
-      flightMode: sseMav?.flightMode ?? null,
+      flightMode: hudFiniteMode(sseMav?.flightMode) ?? hudFiniteMode(fromLive.flightMode),
       sysId: hudSysId(sseMav?.sysId) ?? fromLive.sysId,
       lastHeartbeatAgeMs: sseMav?.lastHeartbeatAgeMs ?? fromLive.lastHeartbeatAgeMs,
       heartbeatRateHz: sseMav?.heartbeatRateHz ?? fromLive.heartbeatRateHz,
@@ -7832,18 +8461,19 @@ function applySimVehicleBadge(mav) {
 }
 
 function rememberLiveRadioStatus(status) {
+  const paintBadge = typeof applySimVehicleBadge === 'function' ? applySimVehicleBadge : () => {};
   if (!status || typeof status !== 'object') {
     latestLiveRadioStatus = null;
-    applySimVehicleBadge(null);
+    paintBadge(null);
     return;
   }
   if (status.connected === true || status.listening === true) {
     latestLiveRadioStatus = status;
-    applySimVehicleBadge(status);
+    paintBadge(status);
     return;
   }
   latestLiveRadioStatus = null;
-  applySimVehicleBadge(null);
+  paintBadge(null);
 }
 
 function syncMissionFcEmptyNote(mav) {
@@ -7867,7 +8497,12 @@ function syncMissionFcEmptyNote(mav) {
 
 function applyConnectPillFromLinks(links) {
   const pill = document.getElementById('connectPillLabel');
-  if (pill && links?.pillLabelHe) pill.textContent = links.pillLabelHe;
+  if (pill && links?.pillLabelHe) {
+    const raw = String(links.pillLabelHe);
+    const view = typeof headerStatusDebounce !== 'undefined' ? headerStatusDebounce.push(raw) : { text: raw };
+    if (view.text && pill.textContent !== view.text) pill.textContent = view.text;
+    if (view.phase) pill.dataset.hold = view.phase;
+  }
   if (links?.radioConnection) rememberLiveRadioStatus(links.radioConnection);
   else if (links?.cellularConnection) rememberLiveRadioStatus(links.cellularConnection);
   else rememberLiveRadioStatus(null);
@@ -7977,19 +8612,20 @@ function applyHudGrid(payload) {
     const valEl = document.getElementById('hudSlotVal' + idx);
     if (!valEl) return;
     const raw = getPayloadValue(payload, slot.key);
-    if (raw == null) { valEl.textContent = '—'; return; }
-    if (typeof raw === 'number' && !Number.isFinite(raw)) { valEl.textContent = '—'; return; }
-    if (slot.key === 'mavlink.flightMode') {
-      valEl.textContent = vlcFlightModeText(raw, payload?.mavlink, payload?.mavlink?.connected === true);
+    let shown = null;
+    if (raw == null || (typeof raw === 'number' && !Number.isFinite(raw))) shown = null;
+    else if (slot.key === 'mavlink.flightMode') {
+      const mode = vlcFlightModeText(raw, payload?.mavlink, payload?.mavlink?.connected === true);
+      shown = mode === '—' ? null : mode;
     } else if (typeof raw === 'number') {
-      if (!Number.isFinite(raw)) { valEl.textContent = '—'; return; }
       const a = Math.abs(raw);
-      if (a > 1e6 || (a > 0 && a < 1e-9)) { valEl.textContent = '—'; return; }
-      const dec = Number.isInteger(raw) ? 0 : (a < 10 ? 2 : 1);
-      valEl.textContent = raw.toFixed(dec) + (slot.unit ? ' ' + slot.unit : '');
-    } else {
-      valEl.textContent = String(raw) + (slot.unit ? ' ' + slot.unit : '');
-    }
+      if (a > 1e6 || (a > 0 && a < 1e-9)) shown = null;
+      else {
+        const dec = Number.isInteger(raw) ? 0 : (a < 10 ? 2 : 1);
+        shown = raw.toFixed(dec) + (slot.unit ? ' ' + slot.unit : '');
+      }
+    } else shown = String(raw) + (slot.unit ? ' ' + slot.unit : '');
+    paintHeldValue(valEl, `hud:${slot.key}`, shown, { ttlMs: slot.key === 'mavlink.flightMode' ? MODE_HOLD_MS : FAST_HOLD_MS });
   });
 }
 
@@ -8225,16 +8861,30 @@ function drawHorizon(canvas, rollDeg, pitchDeg, opts = {}) {
     ctx.strokeRect(cx - 4.5, cy - 4.5, 9, 9);
   }
 
+  // Corner chips are solid #f8fafc on #0b1220 so R/P stay at least 4.5:1 on sky and ground.
+  ctx.save();
   ctx.font = '700 11px "Space Grotesk", sans-serif';
-  ctx.textBaseline = 'alphabetic';
-  ctx.fillStyle = showRoll ? hud : (videoMode ? 'rgba(61,255,106,0.4)' : 'rgba(248,250,252,0.4)');
-  ctx.textAlign = 'left';
-  ctx.fillText(showRoll ? `R ${rollDraw >= 0 ? '+' : ''}${formatHudAngleLabel(rollDraw)}°` : 'R —', 8, H - 8);
-  ctx.fillStyle = showPitch ? hud : (videoMode ? 'rgba(61,255,106,0.4)' : 'rgba(248,250,252,0.4)');
-  ctx.textAlign = 'right';
-  ctx.fillText(showPitch ? `P ${pitchDraw >= 0 ? '+' : ''}${formatHudAngleLabel(pitchDraw)}°` : 'P —', W - 8, H - 8);
+  ctx.textBaseline = 'middle';
+  const rollText = showRoll ? `R ${rollDraw >= 0 ? '+' : ''}${formatHudAngleLabel(rollDraw)}°` : 'R —';
+  const pitchText = showPitch ? `P ${pitchDraw >= 0 ? '+' : ''}${formatHudAngleLabel(pitchDraw)}°` : 'P —';
+  const paintCornerLabel = (text, anchor, align) => {
+    const padX = 4;
+    const width = Math.ceil(ctx.measureText(text).width) + padX * 2;
+    const height = 16;
+    const left = align === 'right' ? anchor - width : anchor;
+    const top = Math.max(0, H - 6 - height);
+    ctx.fillStyle = '#0b1220';
+    ctx.fillRect(left, top, width, height);
+    ctx.fillStyle = '#f8fafc';
+    ctx.textAlign = align === 'right' ? 'right' : 'left';
+    const textX = align === 'right' ? anchor - padX : anchor + padX;
+    ctx.fillText(text, textX, top + height / 2);
+  };
+  paintCornerLabel(rollText, 4, 'left');
+  paintCornerLabel(pitchText, W - 4, 'right');
+  ctx.restore();
 }
-const GPS_FIX_LABELS = ['אין GPS', 'אין Fix', '2D Fix', '3D Fix', 'DGPS', 'RTK Float', 'RTK Fixed'];
+const GPS_FIX_LABELS = ['אין GPS', 'אין קיבוע', 'קיבוע 2D', '3D Fix', 'DGPS', 'RTK צף', 'RTK קבוע'];
 
 const FLIGHT_ARM_HOLD_MS = 1500;
 const FLIGHT_ARM_CONFIRM_HE = 'אשרו חימוש';
@@ -8537,12 +9187,24 @@ function initFlightArmControls() {
 
 initFlightArmControls();
 
+function dockMissionAsk() {
+  // ASK is a row under the header. It is not a child of the horizon,
+  // so the horizon face stays altitude and speed only.
+  const terrain = document.getElementById('terrain');
+  const ws = document.querySelector('.mission-workspace');
+  if (terrain && !terrain.dataset.askOpen) terrain.dataset.askOpen = ws?.dataset.askOpen || '1';
+}
+
 function setMissionAskOpen(open) {
   const btn = document.getElementById('missionAskToggleBtn');
   const ws = document.querySelector('.mission-workspace');
+  const terrain = document.getElementById('terrain');
   if (!ws) return;
-  ws.dataset.askOpen = open ? '1' : '0';
-  btn?.setAttribute('aria-expanded', open ? 'true' : 'false');
+  dockMissionAsk();
+  const on = open === true;
+  ws.dataset.askOpen = on ? '1' : '0';
+  if (terrain) terrain.dataset.askOpen = on ? '1' : '0';
+  btn?.setAttribute('aria-expanded', on ? 'true' : 'false');
 }
 
 function initMissionAskToggle() {
@@ -8550,9 +9212,11 @@ function initMissionAskToggle() {
   const ws = document.querySelector('.mission-workspace');
   if (!btn || !ws || btn.dataset.bound === '1') return;
   btn.dataset.bound = '1';
+  dockMissionAsk();
   btn.addEventListener('click', () => {
     setMissionAskOpen(ws.dataset.askOpen !== '1');
   });
+  setMissionAskOpen(ws.dataset.askOpen !== '0');
   document.getElementById('missionAskCloseBtn')?.addEventListener('click', () => {
     setMissionAskOpen(false);
   });
@@ -8583,14 +9247,33 @@ function applyFlightHud(mav) {
   else if (!mav.connected) _lastRoll = null;
   if (p != null) _lastPitch = p;
   else if (!mav.connected) _lastPitch = null;
-  _horizonTape = {
-    airspeed: finiteHorizonTape(mav.airspeed),
-    altitude: finiteHorizonTape(mav.altitude),
-    heading: finiteHorizonTape(mav.heading),
+  const liveTapeNow = hudLinkLive(mav);
+  const fastHoldMs = typeof FAST_HOLD_MS === 'number' ? FAST_HOLD_MS : 3000;
+  const modeHoldMs = typeof MODE_HOLD_MS === 'number' ? MODE_HOLD_MS : 12000;
+  const paintHold = typeof paintHeldValue === 'function'
+    ? paintHeldValue
+    : (el, _key, value) => {
+        if (!el) return null;
+        const blank = value == null || value === '' || value === '—';
+        el.textContent = blank ? '—' : String(value);
+        return { phase: blank ? 'dash' : 'live', text: el.textContent };
+      };
+  const tapeHold = typeof flightTelemetryHold !== 'undefined'
+    ? flightTelemetryHold
+    : { offer(_key, value) { return { phase: value == null || value === '' ? 'dash' : 'live', value: value == null ? null : String(value), text: value == null ? '—' : String(value) }; } };
+  const heldAir = tapeHold.offer('horizon-tape-air', liveTapeNow ? finiteHorizonTape(mav.airspeed) : null, { ttlMs: fastHoldMs });
+  const heldAlt = tapeHold.offer('horizon-tape-alt', liveTapeNow ? finiteHorizonTape(mav.altitude) : null, { ttlMs: fastHoldMs });
+  const heldHdg = tapeHold.offer('horizon-tape-hdg', liveTapeNow ? finiteHorizonTape(mav.heading) : null, { ttlMs: fastHoldMs });
+  const tapeNum = (view) => {
+    if (!view || view.phase === 'dash' || view.value == null) return null;
+    const n = Number(view.value);
+    return Number.isFinite(n) ? n : null;
   };
-  if (!hudLinkLive(mav)) {
-    _horizonTape = { airspeed: null, altitude: null, heading: null };
-  }
+  _horizonTape = {
+    airspeed: tapeNum(heldAir),
+    altitude: tapeNum(heldAlt),
+    heading: tapeNum(heldHdg),
+  };
   drawHorizon(horizonCanvas, _lastRoll, _lastPitch, currentHorizonDrawOpts());
 
   // Armed / mode (top bar)
@@ -8613,22 +9296,26 @@ function applyFlightHud(mav) {
   }
   syncFlightArmControls(mav);
   if (pfdModeVal) {
-    pfdModeVal.textContent = vlcFlightModeText(mav.flightMode, mav, mav.connected === true);
+    const mode = vlcFlightModeText(mav.flightMode, mav, mav.connected === true);
+    paintHold(pfdModeVal, 'horizon-mode', mode === '—' ? null : mode, { ttlMs: modeHoldMs });
   }
 
   const liveTape = hudLinkLive(mav);
+  if (!liveTape && typeof flightTelemetryHold !== 'undefined' && flightTelemetryHold && typeof flightTelemetryHold.clear === 'function') {
+    for (const key of ['horizon-ias', 'horizon-alt', 'horizon-hdg', 'horizon-tape-air', 'horizon-tape-alt', 'horizon-tape-hdg']) {
+      flightTelemetryHold.clear(key);
+    }
+  }
 
   // Heading (top bar). A dead link keeps the dash even if the snapshot still carries a number.
   if (pfdHdgVal && pfdHdgArrow) {
     const hdg = mav.heading;
-    if (liveTape && typeof hdg === 'number' && Number.isFinite(hdg)) {
-      const hdgNorm = ((hdg % 360) + 360) % 360;
-      pfdHdgVal.textContent = `${Math.round(hdgNorm)}°`;
-      pfdHdgArrow.style.transform = `rotate(${hdgNorm}deg)`;
-    } else {
-      pfdHdgVal.textContent = '—';
-      pfdHdgArrow.style.transform = 'rotate(0deg)';
-    }
+    const hdgShown = liveTape && typeof hdg === 'number' && Number.isFinite(hdg)
+      ? `${Math.round(((hdg % 360) + 360) % 360)}°`
+      : null;
+    const hdgView = paintHold(pfdHdgVal, 'horizon-hdg', hdgShown, { ttlMs: fastHoldMs });
+    if (hdgView?.phase === 'dash') pfdHdgArrow.style.transform = 'rotate(0deg)';
+    else if (hdgShown) pfdHdgArrow.style.transform = `rotate(${Number.parseFloat(hdgShown)}deg)`;
   }
 
   // Side tapes
@@ -8643,12 +9330,14 @@ function applyFlightHud(mav) {
   }
   if (pfdAirspeedVal) {
     const as = mav.airspeed;
-    pfdAirspeedVal.textContent = liveTape && typeof as === 'number' && Number.isFinite(as) ? as.toFixed(1) : '—';
+    const asText = liveTape && typeof as === 'number' && Number.isFinite(as) ? as.toFixed(1) : null;
+    paintHold(pfdAirspeedVal, 'horizon-ias', asText, { ttlMs: fastHoldMs });
     pfdAirspeedVal.title = airspeedTileHonestyTitle(mav);
   }
   if (pfdAltVal) {
     const al = mav.altitude;
-    pfdAltVal.textContent = liveTape && altitudeIsFinite(al) ? al.toFixed(1) : '—';
+    const alText = liveTape && altitudeIsFinite(al) ? al.toFixed(1) : null;
+    paintHold(pfdAltVal, 'horizon-alt', alText, { ttlMs: fastHoldMs });
     pfdAltVal.title = altitudeTileHonestyTitle(mav);
   }
   syncHorizonNoData();
@@ -8656,8 +9345,10 @@ function applyFlightHud(mav) {
   // Battery lives in the telemetry tiles.
   if (pfdBattVal) {
     const bv = mav.batteryV;
-    const bvOk = typeof bv === 'number' && Number.isFinite(bv);
-    pfdBattVal.textContent = bvOk ? (bv < 1 ? bv.toFixed(2) : bv.toFixed(1)) : '—';
+    const bvOk = typeof bv === 'number' && Number.isFinite(bv) && bv >= 1;
+    pfdBattVal.textContent = bvOk ? bv.toFixed(1) : '—';
+    const battUnit = pfdBattVal.parentElement?.querySelector('.mission-data-unit');
+    if (battUnit) battUnit.hidden = !bvOk;
     pfdBattVal.style.color = !bvOk ? '' : bv < 10.5 ? '#f87171'
       : bv < 11.5 ? '#facc15' : '#4ade80';
   }
@@ -8670,6 +9361,8 @@ function applyFlightHud(mav) {
     const ekfHint = pickHudEkfGpsHint(mav.recentStatusTexts);
     hudNavGpsPill.title = ekfHint?.hint || gpsRead.title || 'מצב GPS';
   }
+  if (typeof noteGpsHoverAges === 'function') noteGpsHoverAges(mav);
+  if (typeof paintGpsHoverTip === 'function') paintGpsHoverTip(mav);
   if (pfdHudWaitHint) {
     const missingTape = !altitudeIsFinite(mav.altitude) || !altitudeIsFinite(mav.airspeed)
       || !altitudeIsFinite(mav.gpsFixType);
@@ -8810,11 +9503,29 @@ function statusTextLineWarn(sev) {
   return typeof sev === 'number' && Number.isFinite(sev) && sev <= 4;
 }
 
+function paintMixedBdi(el, text) {
+  if (!el) return;
+  const raw = String(text || '');
+  const esc = raw.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const html = esc.replace(/[A-Za-z][A-Za-z0-9_./+-]*/g, (tok) => `<bdi dir="ltr">${tok}</bdi>`);
+  if (/[\u0590-\u05FF]/.test(raw) && /[A-Za-z]/.test(raw) && typeof el.innerHTML === 'string') el.innerHTML = html;
+  else el.textContent = raw;
+}
+
 function paintFcStatustextOverlay(items) {
+  function writeLine(el, text) {
+    if (!el) return;
+    const raw = String(text || '');
+    const esc = raw.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const html = esc.replace(/[A-Za-z][A-Za-z0-9_./+-]*/g, (tok) => `<bdi dir="ltr">${tok}</bdi>`);
+    if (/[\u0590-\u05FF]/.test(raw) && /[A-Za-z]/.test(raw) && typeof el.innerHTML === 'string') el.innerHTML = html;
+    else el.textContent = raw;
+  }
   const rows = Array.isArray(items) ? items : [];
-  const first = String(rows[0]?.text || '').trim();
+  const shownOf = (row) => (typeof fcStatusShownText === 'function' ? fcStatusShownText(row) : String(row?.text || '').trim());
+  const first = shownOf(rows[0]);
   if (pfcMsgPrimaryHe) {
-    pfcMsgPrimaryHe.textContent = first;
+    writeLine(pfcMsgPrimaryHe, first);
     pfcMsgPrimaryHe.dir = 'auto';
     pfcMsgPrimaryHe.classList?.toggle?.('pfd-horizon-msg-line--warn', statusTextLineWarn(rows[0]?.severity));
   }
@@ -8824,13 +9535,13 @@ function paintFcStatustextOverlay(items) {
   const hostDoc = pfdHorizonMsgLog.ownerDocument || (typeof document !== 'undefined' ? document : null);
   if (!hostDoc || typeof hostDoc.createElement !== 'function') return;
   for (let i = 1; i < Math.min(rows.length, 8); i += 1) {
-    const line = String(rows[i]?.text || '').trim();
+    const line = shownOf(rows[i]);
     if (!line) continue;
     const p = hostDoc.createElement('p');
     p.dataset.horizonMsgExtra = '1';
     p.className = 'pfd-horizon-msg-line' + (statusTextLineWarn(rows[i]?.severity) ? ' pfd-horizon-msg-line--warn' : '');
     p.dir = 'auto';
-    p.textContent = line;
+    writeLine(p, line);
     pfdHorizonMsgLog.appendChild(p);
   }
 }
@@ -9105,7 +9816,7 @@ async function translateAndRenderFcStatustext(rows) {
       textHe: String(he[i] ?? '').trim(),
       receivedAt: row?.receivedAt || row?.time || row?.ts || null,
     })).filter((row) => row.text);
-    if (pfcMsgPrimaryHe && translated[0]?.text) pfcMsgPrimaryHe.textContent = translated[0].text;
+    if (pfcMsgPrimaryHe && translated[0]) paintMixedBdi(pfcMsgPrimaryHe, fcStatusShownText(translated[0]));
     _missionMessagesRows = translated.slice(0, 18);
     paintFcStatustextOverlay(translated.slice(0, 8));
     paintFcStatustextHistory(_missionMessagesRows);
@@ -9391,11 +10102,24 @@ function horizonTapeIsDash(id) {
 function syncHorizonNoData() {
   const note = document.getElementById('horizonNoData');
   if (!note) return;
+  const chip = document.getElementById('horizonCameraNote');
+  const bg = document.getElementById('horizonCameraBg');
+  const frame = horizonFrameIsReal(bg) && bg?.hidden !== true;
+  if (frame || (chip && chip.hidden !== true && String(chip.textContent || '').trim())) {
+    note.hidden = true;
+    return;
+  }
+  const videoEmpty = document.getElementById('horizonVideoEmpty');
   const noAttitude = _lastRoll == null && _lastPitch == null;
   const tapesEmpty = horizonTapeIsDash('pfdAirspeedVal')
     && horizonTapeIsDash('pfdAltVal')
     && horizonTapeIsDash('pfdHdgVal');
-  note.hidden = !(noAttitude && tapesEmpty);
+  let text = '';
+  if (videoEmpty && !videoEmpty.hidden) text = 'אין זרם מצלמה';
+  else if (noAttitude && tapesEmpty) text = 'אין נתונים';
+  note.hidden = !text;
+  if (text && note.textContent !== text) note.textContent = text;
+  if (text && videoEmpty) videoEmpty.hidden = true;
 }
 
 requestAnimationFrame(() => {
@@ -9419,15 +10143,13 @@ function showMapFlyToMenu(lat, lng, clientX, clientY) {
   if (mapFlyToStatus) { mapFlyToStatus.textContent = ''; mapFlyToStatus.className = 'map-fly-to-status'; }
   if (!mapFlyToMenu) return;
   mapFlyToMenu.classList.remove('hidden');
-  // Position near cursor, keep within viewport
-  const W = window.innerWidth;
-  const H = window.innerHeight;
-  const mW = 200;
-  const mH = 188;
-  const x = Math.min(clientX, W - mW - 8);
-  const y = Math.min(clientY, H - mH - 8);
+  mapFlyToMenu.style.left = '0px';
+  mapFlyToMenu.style.top = '0px';
+  const rect = mapFlyToMenu.getBoundingClientRect();
+  const x = Math.max(8, Math.min(clientX, window.innerWidth - rect.width - 8));
+  const y = Math.max(8, Math.min(clientY, window.innerHeight - rect.height - 8));
   mapFlyToMenu.style.left = `${x}px`;
-  mapFlyToMenu.style.top  = `${y}px`;
+  mapFlyToMenu.style.top = `${y}px`;
   mapFlyToBtn?.focus();
 }
 
@@ -9510,18 +10232,26 @@ function applyTopbarFlightData(mav) {
   if (hudAirspeedEl && (!airspeedBound || airspeedBound === 'mavlink.airspeed')) {
     const spd = mav.airspeed;
     const useTile = hudAirspeedEl.classList.contains('mission-data-value');
-    hudAirspeedEl.textContent = (typeof spd === 'number' && Number.isFinite(spd))
+    const spdText = (typeof spd === 'number' && Number.isFinite(spd))
       ? (useTile ? spd.toFixed(1) : `${spd.toFixed(1)} m/s`)
-      : '—';
+      : null;
+    const airKey = missionTileBoundKey(hudAirspeedEl)
+      ? `mission:${hudAirspeedEl.closest('[data-mission-data-slot]')?.dataset?.missionDataSlot}:${missionTileBoundKey(hudAirspeedEl)}`
+      : 'top-airspeed';
+    paintHeldValue(hudAirspeedEl, airKey, spdText, { ttlMs: FAST_HOLD_MS });
     hudAirspeedEl.title = airspeedTileHonestyTitle(mav);
   }
   const altitudeBound = typeof missionTileBoundKey === 'function' ? missionTileBoundKey(hudAltitudeEl) : null;
   if (hudAltitudeEl && (!altitudeBound || altitudeBound === 'mavlink.altitude')) {
     const alt = mav.altitude;
     const useTile = hudAltitudeEl.classList.contains('mission-data-value');
-    hudAltitudeEl.textContent = altitudeIsFinite(alt)
+    const altText = altitudeIsFinite(alt)
       ? (useTile ? alt.toFixed(1) : `${alt.toFixed(1)} m`)
       : '—';
+    const altKey = missionTileBoundKey(hudAltitudeEl)
+      ? `mission:${hudAltitudeEl.closest('[data-mission-data-slot]')?.dataset?.missionDataSlot}:${missionTileBoundKey(hudAltitudeEl)}`
+      : 'top-altitude';
+    paintHeldValue(hudAltitudeEl, altKey, altText, { ttlMs: FAST_HOLD_MS });
     const altTitle = altitudeTileHonestyTitle(mav);
     hudAltitudeEl.title = altTitle;
     const tile = hudAltitudeEl.closest('.mission-data-tile, .tele-hud-mini');
@@ -9529,7 +10259,11 @@ function applyTopbarFlightData(mav) {
   }
   const modeBound = typeof missionTileBoundKey === 'function' ? missionTileBoundKey(hudFlightModeEl) : null;
   if (hudFlightModeEl && (!modeBound || modeBound === 'mavlink.flightMode')) {
-    hudFlightModeEl.textContent = vlcFlightModeText(mav.flightMode, mav, mav.connected === true);
+    const modeText = vlcFlightModeText(mav.flightMode, mav, mav.connected === true);
+    const modeKey = missionTileBoundKey(hudFlightModeEl)
+      ? `mission:${hudFlightModeEl.closest('[data-mission-data-slot]')?.dataset?.missionDataSlot}:${missionTileBoundKey(hudFlightModeEl)}`
+      : 'top-mode';
+    paintHeldValue(hudFlightModeEl, modeKey, modeText === '—' ? null : modeText, { ttlMs: MODE_HOLD_MS });
   }
   try {
     if (typeof pulseRefresh === 'function') pulseRefresh();
@@ -9745,23 +10479,59 @@ function renderArchiveSessionsList(sessions) {
     const ended = escapeAllLogsCell(s.endedAt ? formatArchiveSessionWhen(s.endedAt) : 'פתוח');
     const bytesHe = escapeAllLogsCell(s.bytesHe || `${Number(s.bytes) || 0} ב`);
     const roleHe = escapeAllLogsCell(s.linkRoleHe || (s.linkRole === 'cellular' ? 'סלולר' : 'RF'));
+    const startMs = Date.parse(s.startedAt);
+    const endMs = Date.parse(s.endedAt);
+    const durationHe = Number.isFinite(startMs) && Number.isFinite(endMs) && endMs >= startMs
+      ? escapeAllLogsCell(formatArchiveDurationHe(endMs - startMs))
+      : '';
+    const title = [started, durationHe, roleHe, bytesHe].filter(Boolean).join(' · ');
     const flags = archiveSessionFlagsHe(s);
     const flagsHe = flags.length ? ` · ${escapeAllLogsCell(flags.join(' · '))}` : '';
     const pathVal = escapeAllLogsCell(s.storedPath || s.basename || '');
     const copyBtn = pathVal
-      ? `<button type="button" class="archive-session-copy" data-copy-path="${pathVal}" title="העתק נתיב">העתק נתיב</button>`
+      ? `<button type="button" class="archive-session-copy" data-copy-path="${pathVal}" title="העתיקו נתיב">העתיקו נתיב</button>`
       : '';
     const dl = s.downloadable && s.downloadUrl
-      ? `<a class="archive-session-dl" href="${escapeAllLogsCell(s.downloadUrl)}" download="${name}">הורדה</a>`
+      ? `<a class="archive-session-dl" href="${escapeAllLogsCell(s.downloadUrl)}" download="${name}">הורידו</a>`
       : '<span class="archive-session-nodl">אין קובץ</span>';
     return `<article class="archive-session-row" data-session-id="${id}">
       <div class="archive-session-main">
-        <strong class="archive-session-name">${name}</strong>
-        <span class="archive-session-meta">${started} → ${ended} · ${bytesHe} · ${roleHe}${flagsHe}</span>
+        <strong class="archive-session-title">${title}${flagsHe}</strong>
+        <span class="archive-session-name">${name}</span>
+        <span class="archive-session-meta">${started} → ${ended}</span>
       </div>
-      <div class="archive-session-actions">${copyBtn} ${dl}</div>
+      <div class="archive-session-actions">
+        <button type="button" class="archive-session-open">פתחו</button>
+        ${dl}
+        ${copyBtn}
+      </div>
     </article>`;
   }).join('');
+}
+
+function formatArchiveDurationHe(ms) {
+  const sec = Math.max(0, Math.round(ms / 1000));
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  if (m <= 0) return `${s} שנ׳`;
+  return `${m} דק׳ ${s} שנ׳`;
+}
+
+function selectArchiveSession(row) {
+  if (!row) return;
+  document.querySelectorAll('.archive-session-row').forEach((el) => {
+    el.classList.toggle('is-selected', el === row);
+  });
+  const title = row.querySelector('.archive-session-title')?.textContent || '';
+  const label = document.getElementById('selectedRecordingLabel');
+  if (label) label.textContent = title ? `לוג נבחר: ${title}` : 'לוג נבחר: —';
+  const empty = document.getElementById('debriefPlayerEmpty');
+  const video = document.getElementById('flightVideo');
+  const hasVideo = Boolean(video && video.getAttribute('src'));
+  if (empty && !hasVideo) {
+    empty.hidden = false;
+    empty.textContent = title ? `הלוג נבחר: ${title}` : 'בחרו הקלטה מהרשימה';
+  }
 }
 
 async function refreshArchiveSessions() {
@@ -9806,8 +10576,14 @@ async function copyArchiveSessionPath(rawPath) {
 
 archiveSessionsList?.addEventListener('click', (e) => {
   const btn = e.target.closest('.archive-session-copy');
-  if (!btn) return;
-  copyArchiveSessionPath(btn.dataset.copyPath || '');
+  if (btn) {
+    copyArchiveSessionPath(btn.dataset.copyPath || '');
+    return;
+  }
+  if (e.target.closest('.archive-session-dl')) return;
+  const row = e.target.closest('.archive-session-row');
+  if (!row) return;
+  selectArchiveSession(row);
 });
 
 refreshArchiveSessionsBtn?.addEventListener('click', () => {
@@ -11882,11 +12658,15 @@ async function readFcParams() {
       renderArduDiff(d.current, arduTargetState);
       const paramStr = d.paramCount != null ? ` (${d.paramCount})` : '';
       if (arduWriteStatus) {
-        arduWriteStatus.textContent = `הקריאה הושלמה${paramStr}`;
+        const readLine = fcReadStatusLine();
+        arduWriteStatus.textContent = readLine
+          ? `הקריאה הושלמה${paramStr} · ${readLine}`
+          : `הקריאה הושלמה${paramStr}`;
         arduWriteStatus.className = 'ardu-write-status success';
       }
     }
     updateParamSyncBanner();
+    renderParams();
     renderArduParamForm();
     renderFcParamFiles();
     void loadFcParamFiles();
@@ -12056,8 +12836,11 @@ let terrainCircles = [];
 let terrainLastCells = [];
 let terrainMappedOnly = false;
 let terrainActiveBase = 'street';
-let flightFollowOn = false;
+let flightFollowOn = true;
+let flightViewSeeded = false;
+let flightMoveProgrammatic = false;
 let flightTrackPts = [];
+let mapGpsHold = null;
 /** terrainMap / lastSseTerrainPayload / overlay layers: declared at top of app.js (no TDZ). */
 
 const liveGpsVisionDeltaEl = document.getElementById('liveGpsVisionDelta');
@@ -12146,22 +12929,73 @@ function paintFlightFollow(on) {
   if (btn) {
     btn.setAttribute('aria-pressed', flightFollowOn ? 'true' : 'false');
     btn.classList.toggle('active', flightFollowOn);
-    btn.textContent = flightFollowOn ? 'עוקב' : 'עקבו';
+    btn.textContent = flightFollowOn ? 'מעקב פעיל' : 'מעקב כבוי';
   }
+  const back = document.getElementById('terrainReturnBtn');
+  if (back) back.hidden = flightFollowOn === true;
   try { localStorage.setItem(FLIGHT_FOLLOW_KEY, flightFollowOn ? '1' : '0'); } catch { /* ignore */ }
 }
 
-function centerFlightOnMap(map, lat, lon) {
-  if (!flightFollowOn || !map || map !== terrainMap) return;
-  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
-  try { map.panTo([lat, lon], { animate: false }); } catch { /* map not ready */ }
+function returnFlightToAircraft() {
+  paintFlightFollow(true);
+  const marker = terrainFlightLayers?.gps?.getLatLng?.();
+  if (marker) {
+    centerFlightOnMap(terrainMap, marker.lat, marker.lng);
+    return;
+  }
+  const held = terrainMap?._vlcFollowLl;
+  if (Array.isArray(held)) {
+    centerFlightOnMap(terrainMap, held[0], held[1]);
+    return;
+  }
+  if (flightTrackPts.length) {
+    const last = flightTrackPts[flightTrackPts.length - 1];
+    centerFlightOnMap(terrainMap, last[0], last[1]);
+  }
 }
 
-function terrainPlaneDivIcon(color, hdgDeg) {
-  const r = Number.isFinite(hdgDeg) ? hdgDeg - 45 : -45;
+function centerFlightOnMap(map, lat, lon) {
+  if (!map || map !== terrainMap) return;
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+  const seed = flightViewSeeded !== true;
+  if (!flightFollowOn && !seed) return;
+  if (map.options.maxBounds) {
+    map._vlcMaxBounds = map.options.maxBounds;
+    map.setMaxBounds(null);
+  }
+  map._vlcFollowLl = [lat, lon];
+  const pan = () => {
+    if (!map._vlcFollowLl) return;
+    if (!flightFollowOn && flightViewSeeded) return;
+    const zoom = map.getZoom();
+    flightMoveProgrammatic = true;
+    try { map.setView(map._vlcFollowLl, zoom, { animate: false }); } catch { /* map not ready */ }
+    if ((map.getSize?.().x || 0) > 20) flightViewSeeded = true;
+    setTimeout(() => { flightMoveProgrammatic = false; }, 0);
+  };
+  pan();
+  requestAnimationFrame(pan);
+}
+
+const MP_PLANE_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="40" height="40" aria-hidden="true"><path fill="#e11d2e" stroke="#ffffff" stroke-width="1.7" stroke-linejoin="round" d="M24 2.5c.9 0 1.7.8 1.9 2.4l2.2 11.2 14.6 6.6v4.2l-14.4-2.2-1.3 12.2 6.4 3.8v3.2L24 40.2 14.6 43.9v-3.2l6.4-3.8-1.3-12.2L5.3 27v-4.2l14.6-6.6 2.2-11.2C22.3 3.3 23.1 2.5 24 2.5z"/></svg>';
+
+function terrainPlaneDivIcon(hdgDeg, fixType, held) {
+  const rot = Number.isFinite(Number(hdgDeg)) ? Number(hdgDeg) : 0;
+  const chip = window.__vlcGpsQuality?.gpsFixChip?.(fixType) || '';
+  const chipHtml = chip ? `<span class="terrain-plane-fix">${chip}</span>` : '';
+  const heldAttr = held ? ' data-held="1"' : '';
   return L.divIcon({
     className: 'terrain-plane-icon-wrap',
-    html: `<div class="terrain-plane-icon" style="color:${color};transform:rotate(${r}deg)">✈</div>`,
+    html: `<div class="terrain-plane-stack"${heldAttr}><div class="terrain-plane-rot" style="transform:rotate(${rot}deg)">${MP_PLANE_SVG}</div>${chipHtml}</div>`,
+    iconSize: [48, 48],
+    iconAnchor: [24, 24],
+  });
+}
+
+function terrainOpticalDivIcon(color) {
+  return L.divIcon({
+    className: 'terrain-plane-icon-wrap',
+    html: `<div class="terrain-plane-icon" style="color:${color}">✈</div>`,
     iconSize: [26, 26],
     iconAnchor: [13, 13],
   });
@@ -12213,14 +13047,27 @@ function applyFlightOverlayToMap(map, layers) {
   }
 
   const displayPref = readNavDisplayPreference();
-  const gpsOk = mapData && Number.isFinite(mapData.gpsLat) && Number.isFinite(mapData.gpsLon);
+  const mavFix = lastSseTerrainPayload?.mavlink || null;
+  if (mavFix?.connected === false && mapData?.gpsSource !== 'SIMLAB_REPLAY') mapGpsHold = null;
+  const drawGps = (window.__vlcGpsQuality?.nextMapAircraftFix || ((row) => {
+    const latN = Number(row?.lat);
+    const lonN = Number(row?.lon);
+    const ok = Number.isFinite(latN) && Number.isFinite(lonN);
+    return { lat: ok ? latN : null, lon: ok ? lonN : null, draw: ok, track: ok, held: false, acceptHold: ok };
+  }))({
+    lat: mapData?.gpsLat,
+    lon: mapData?.gpsLon,
+    fixType: mavFix?.gpsFixType,
+    held: mapGpsHold,
+    source: mapData?.gpsSource,
+  });
+  if (drawGps.acceptHold) mapGpsHold = { lat: drawGps.lat, lon: drawGps.lon };
+  const gpsOk = drawGps.draw === true;
   const opticalOk = vision && Number.isFinite(vision.navLat) && Number.isFinite(vision.navLon);
   const bothTracks = Boolean(gpsOk && opticalOk);
 
-  if (gpsOk) {
-    rememberFlightTrack(mapData.gpsLat, mapData.gpsLon);
-    centerFlightOnMap(map, mapData.gpsLat, mapData.gpsLon);
-  }
+  if (gpsOk && drawGps.track) rememberFlightTrack(drawGps.lat, drawGps.lon);
+  if (gpsOk) centerFlightOnMap(map, drawGps.lat, drawGps.lon);
 
   if (flightTrackPts.length >= 2) {
     if (!layers.liveTrack) {
@@ -12246,19 +13093,28 @@ function applyFlightOverlayToMap(map, layers) {
         : src === 'GLOBAL_POS'
           ? 'GPS / מיקום מסונן (EKF)'
           : 'GPS / DR';
+    const fixLabel = window.__vlcGpsQuality?.gpsFixLabel?.(mavFix?.gpsFixType) || '';
+    const hdgBit = Number.isFinite(Number(hdg)) ? ` · כיוון ${Math.round(Number(hdg))}°` : '';
+    const qualityTitle = (fixLabel
+      ? (drawGps.held ? `${fixLabel} · המיקום מוחזק` : `${planeTitle} · ${fixLabel}`)
+      : (bothTracks ? `${planeTitle} · מסלול GPS` : planeTitle)) + hdgBit;
     const gpsPrimary = displayPref !== 'optical' || !opticalOk;
-    const gpsColor = gpsPrimary ? '#0b6bcb' : '#64748b';
+    const icon = terrainPlaneDivIcon(hdg, mavFix?.gpsFixType, drawGps.held);
     if (!layers.gps) {
-      layers.gps = L.marker([mapData.gpsLat, mapData.gpsLon], {
-        icon: terrainPlaneDivIcon(gpsColor, hdg),
-        title: bothTracks ? `${planeTitle} · מסלול GPS` : planeTitle,
+      layers.gps = L.marker([drawGps.lat, drawGps.lon], {
+        icon,
+        title: qualityTitle,
         zIndexOffset: gpsPrimary ? 400 : 200,
       }).addTo(map);
     } else {
-      layers.gps.setLatLng([mapData.gpsLat, mapData.gpsLon]);
-      layers.gps.setIcon(terrainPlaneDivIcon(gpsColor, hdg));
+      layers.gps.setLatLng([drawGps.lat, drawGps.lon]);
+      layers.gps.setIcon(icon);
       layers.gps.setZIndexOffset(gpsPrimary ? 400 : 200);
     }
+    try {
+      layers.gps.unbindTooltip();
+      layers.gps.bindTooltip(qualityTitle, { direction: 'top', offset: [0, -18] });
+    } catch { /* ignore */ }
   } else if (layers.gps) {
     map.removeLayer(layers.gps);
     layers.gps = null;
@@ -12269,13 +13125,13 @@ function applyFlightOverlayToMap(map, layers) {
     const opticalColor = opticalPrimary ? '#ea580c' : '#9a3412';
     if (!layers.vision) {
       layers.vision = L.marker([vision.navLat, vision.navLon], {
-        icon: terrainPlaneDivIcon(opticalColor, null),
+        icon: terrainOpticalDivIcon(opticalColor),
         title: 'ניווט אופטי',
         zIndexOffset: opticalPrimary ? 400 : 220,
       }).addTo(map);
     } else {
       layers.vision.setLatLng([vision.navLat, vision.navLon]);
-      layers.vision.setIcon(terrainPlaneDivIcon(opticalColor, null));
+      layers.vision.setIcon(terrainOpticalDivIcon(opticalColor));
       layers.vision.setZIndexOffset(opticalPrimary ? 400 : 220);
     }
   } else if (layers.vision) {
@@ -12386,9 +13242,8 @@ function initTerrainMap() {
     rotate: true,
     bearing: 0,
     minZoom: 9,
-    maxBounds: israelBounds,
-    maxBoundsViscosity: 1.0,
   };
+  void israelBounds;
   terrainMap = L.map(mapEl, mapOpts);
 
   terrainStreetLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -12409,8 +13264,8 @@ function initTerrainMap() {
     onAdd(m) {
       const wrap = L.DomUtil.create('div', 'terrain-compass-wrap');
       // Build tick marks SVG string
-      const ticks = Array.from({ length: 36 }, (_, i) => {
-        const deg = i * 10;
+      const ticks = Array.from({ length: 8 }, (_, i) => {
+        const deg = i * 45;
         const isMajor = deg % 90 === 0;
         const isMid = deg % 45 === 0 && !isMajor;
         const rInner = isMajor ? 40 : isMid ? 44 : 48;
@@ -12424,7 +13279,7 @@ function initTerrainMap() {
       }).join('');
 
       wrap.innerHTML = `
-        <div class="terrain-compass" role="group" aria-label="סיבוב המפה — גרור להסתובב">
+        <div class="terrain-compass-rose" role="group" aria-label="סיבוב המפה — גרור להסתובב">
           <svg class="terrain-compass-svg" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
             <defs>
               <radialGradient id="compassBg" cx="40%" cy="35%" r="60%">
@@ -12508,8 +13363,27 @@ function initTerrainMap() {
     },
   });
   terrainMap.addControl(new BearingCtrl());
+  const north = document.createElement('button');
+  north.type = 'button';
+  north.className = 'terrain-compass terrain-north';
+  north.title = 'צפון';
+  north.setAttribute('aria-label', 'צפון');
+  north.innerHTML = '<svg width="40" height="40" viewBox="0 0 40 40" aria-hidden="true"><polygon points="20,6 24,24 20,21 16,24" fill="#f8fafc"/><text x="20" y="34" text-anchor="middle" fill="#f8fafc" font-size="11" font-family="Heebo,sans-serif">N</text></svg>';
+  north.addEventListener('click', (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (typeof terrainMap.setBearing === 'function') terrainMap.setBearing(0);
+  });
+  const zoomBar = terrainMap.getContainer()?.querySelector('.leaflet-control-zoom');
+  if (zoomBar) zoomBar.appendChild(north);
   window.__airvixTerrainMap = terrainMap;
-  try { paintFlightFollow(localStorage.getItem(FLIGHT_FOLLOW_KEY) === '1'); } catch { paintFlightFollow(false); }
+  try {
+    const stored = localStorage.getItem(FLIGHT_FOLLOW_KEY);
+    const enabled = window.__vlcGpsQuality?.flightFollowEnabled
+      ? window.__vlcGpsQuality.flightFollowEnabled(stored)
+      : stored !== '0';
+    paintFlightFollow(enabled);
+  } catch { paintFlightFollow(true); }
   document.getElementById('terrainFollowBtn')?.addEventListener('click', () => {
     paintFlightFollow(!flightFollowOn);
     const marker = terrainFlightLayers?.gps?.getLatLng?.();
@@ -12519,8 +13393,20 @@ function initTerrainMap() {
       centerFlightOnMap(terrainMap, last[0], last[1]);
     }
   });
+  document.getElementById('terrainReturnBtn')?.addEventListener('click', () => {
+    returnFlightToAircraft();
+  });
   terrainMap.on('dragstart', () => {
+    terrainMap._vlcUserDrag = true;
     if (flightFollowOn) paintFlightFollow(false);
+  });
+  terrainMap.on('movestart', (event) => {
+    if (flightMoveProgrammatic || !event?.originalEvent) return;
+    terrainMap._vlcUserDrag = true;
+    if (flightFollowOn) paintFlightFollow(false);
+  });
+  terrainMap.on('dragend', () => {
+    terrainMap._vlcUserDrag = false;
   });
 
   // ── Fly-to right-click context menu ───────────────────────────────────────
@@ -12557,8 +13443,18 @@ function applyTerrainBasemapVisibility() {
 
 function terrainInvalidateLayout() {
   if (!terrainMap) return;
-  terrainMap.invalidateSize();
-  requestAnimationFrame(() => terrainMap.invalidateSize());
+  terrainMap.invalidateSize({ pan: false });
+  requestAnimationFrame(() => {
+    if (!terrainMap) return;
+    terrainMap.invalidateSize({ pan: false });
+    const ll = terrainMap._vlcFollowLl;
+    if (Array.isArray(ll) && (flightFollowOn || !flightViewSeeded)) {
+      flightMoveProgrammatic = true;
+      try { terrainMap.panTo(ll, { animate: false }); } catch { /* map not ready */ }
+      if ((terrainMap.getSize?.().x || 0) > 20) flightViewSeeded = true;
+      setTimeout(() => { flightMoveProgrammatic = false; }, 0);
+    }
+  });
 }
 
 /** Why: align circle colors with the legend (כחול נמוך → אדום גבוה); what: maps normalized altitude 0..1 to HSL hue 240..0. */
@@ -13006,11 +13902,10 @@ function applyLiveCameraPreview(companion) {
   let anyDry = false;
   for (const cam of LIVE_FRAME_CAMERAS) {
     const camId = cam.id;
-    const detail = liveCameraDetail(src, camId);
+    const detail = horizonCameraDetail(src, camId) || liveCameraDetail(src, camId);
     const meta = liveCameraNode(camId, 'Meta');
     const img = liveCameraNode(camId, 'Frame');
-    const ok = detail.camera_ok === true
-      && (Number(detail.fps) > 0 || Number(detail.last_frame_age_ms) >= 0 || Number(detail.frame_count) > 0);
+    const ok = horizonSlotStreaming(detail);
     if (detail.dry_run === true || detail.source === 'synthetic') anyDry = true;
     if (meta) {
       if (ok) {
@@ -13121,24 +14016,22 @@ initLiveCameraPanel();
   const AUTO_CONNECT_POLL_MS = 350;
 
   function setPillLabel(text) {
-    if (pillLabel) pillLabel.textContent = text;
+    if (!pillLabel) return;
+    const view = headerStatusDebounce.push(text);
+    if (!view.text) return;
+    if (pillLabel.textContent !== view.text) pillLabel.textContent = view.text;
+    pillLabel.dataset.hold = view.phase;
   }
   async function openPanel() {
-    if (!panel || !toggleBtn) return;
-    panel.hidden = false;
-    toggleBtn.setAttribute('aria-expanded', 'true');
-    refreshSerialPorts();
-    await syncConnectionApiGate();
+    closePanel();
   }
   function closePanel() {
     if (!panel || !toggleBtn) return;
     panel.hidden = true;
-    toggleBtn.setAttribute('aria-expanded', 'false');
+    toggleBtn.removeAttribute('aria-expanded');
   }
   function togglePanel() {
-    if (!panel) return;
-    if (panel.hidden) void openPanel();
-    else closePanel();
+    closePanel();
   }
 
   const LS_KEY = 'vlc.connect.widget.v1';
@@ -14696,7 +15589,19 @@ initLiveCameraPanel();
       return;
     }
     if (vlcTestQuiet()) return;
-    return postWorkLink();
+    if (j?.mode === 'rf') {
+      const port = String(j.serialPort || '').trim();
+      const label = port ? `פורט ${port}` : (j.reasonHe || RF_PORT_REASON_HE);
+      paintWorkPath({
+        ok: false,
+        mode: 'rf',
+        path: 'none',
+        reasonHe: label,
+        pathLabelHe: label,
+      });
+      return;
+    }
+    paintWorkPath(j);
   }).catch(() => {});
   if (toggleBtn) toggleBtn.addEventListener('click', (ev) => { ev.stopPropagation(); togglePanel(); });
   document.addEventListener('click', (ev) => {
@@ -19139,7 +20044,9 @@ function assistSyncMissionPosture() {
     if (_askVoiceGoActive) hint.textContent = rtlSafeAskText(mission ? ASSIST_MISSION_HINT_GO_HE : ASSIST_DEFAULT_HINT_GO_HE);
     else hint.textContent = rtlSafeAskText(mission ? ASSIST_MISSION_HINT_HE : ASSIST_DEFAULT_HINT_HE);
   }
-  if (input) input.placeholder = rtlSafeAskText(mission ? ASSIST_MISSION_PLACEHOLDER_HE : ASSIST_DEFAULT_PLACEHOLDER_HE);
+  if (input) input.placeholder = mission ? 'שאלו…' : rtlSafeAskText(ASSIST_DEFAULT_PLACEHOLDER_HE);
+  const send = document.getElementById('assistSendBtn');
+  if (send) send.textContent = mission ? 'שלחו' : 'שלח';
   if (invite) invite.textContent = rtlSafeAskText(mission ? ASSIST_MISSION_INVITE_HE : ASSIST_DEFAULT_INVITE_HE);
   if (chips) {
     chips.querySelectorAll('[data-assist-chip]').forEach((btn) => {
@@ -19193,6 +20100,28 @@ function assistSyncProposalWarn() {
   warn.hidden = !_assistPendingProposalId || _assistAgentConnected;
 }
 
+function assistPaintLatest() {
+  const box = document.getElementById('askLatest');
+  const question = document.getElementById('askLatestQuestion');
+  const answer = document.getElementById('askLatestAnswer');
+  if (!box || !question || !answer) return;
+  let asked = '';
+  let replied = '';
+  for (let i = _assistHistory.length - 1; i >= 0; i -= 1) {
+    const row = _assistHistory[i];
+    const said = String(row?.text || '').trim();
+    if (!said) continue;
+    if (!replied && row.role !== 'user') replied = said;
+    if (!asked && row.role === 'user') asked = said;
+    if (asked && replied) break;
+  }
+  question.textContent = asked;
+  answer.textContent = replied;
+  question.hidden = !asked;
+  answer.hidden = !replied;
+  box.hidden = !asked && !replied;
+}
+
 function assistAppendMessage({ role, text, meta, kind, blocked }) {
   const box = document.getElementById('assistMessages');
   if (!box) return;
@@ -19207,6 +20136,7 @@ function assistAppendMessage({ role, text, meta, kind, blocked }) {
   _assistHistory.push({ role, text, meta, kind, ts: Date.now() });
   if (_assistHistory.length > 40) _assistHistory = _assistHistory.slice(-40);
   assistSyncMessagesEmpty();
+  assistPaintLatest();
 }
 
 function assistRenderCapabilityBrief(brief) {
@@ -19988,7 +20918,8 @@ function placeAssistSurface(tabId) {
     rail.hidden = false;
     document.body.classList.remove('assist-open');
     if (closeBtn) closeBtn.hidden = true;
-    toggle?.setAttribute('aria-expanded', 'true');
+    const askOn = (document.getElementById('terrain')?.dataset.askOpen || '1') !== '0';
+    toggle?.setAttribute('aria-expanded', askOn ? 'true' : 'false');
     void assistRefreshAgentConnection();
     return;
   }
@@ -20235,7 +21166,7 @@ function resetMissionLayout() {
   applyMissionSize(defaultMissionSize());
   applyMissionAreas(defaultMissionAreas());
   applyMissionSwap(swap);
-  resetFlightStack();
+  if (typeof resetFlightStack === 'function') resetFlightStack();
   syncMissionLayoutChrome();
 }
 
@@ -20622,7 +21553,10 @@ function readFlightStack() {
     }
     const data = Number(raw?.data);
     const msg = Number(raw?.msg);
-    if (Number.isFinite(data) && Number.isFinite(msg)) return { half: false, data, msg };
+    const hud = Number(raw?.hud);
+    if (Number.isFinite(data) && Number.isFinite(msg)) {
+      return { half: false, data, msg, ...(Number.isFinite(hud) ? { hud } : {}) };
+    }
   } catch {
     /* ignore */
   }
@@ -20631,9 +21565,15 @@ function readFlightStack() {
 
 function writeFlightStack(stack) {
   const data = Math.round(Number(stack?.data) || FLIGHT_DATA_DEFAULT);
+  const hud = Number(stack?.hud);
   const next = stack?.half === true
     ? { half: true, data, msg: FLIGHT_MSG_DEFAULT }
-    : { half: false, data, msg: Math.round(Number(stack?.msg) || FLIGHT_MSG_DEFAULT) };
+    : {
+        half: false,
+        data,
+        msg: Math.round(Number(stack?.msg) || FLIGHT_MSG_DEFAULT),
+        ...(Number.isFinite(hud) ? { hud: Math.round(hud) } : {}),
+      };
   _flightStack = next;
   missionLayoutStoreSet(FLIGHT_STACK_KEY, JSON.stringify(next));
   return next;
@@ -20672,33 +21612,83 @@ function flightDataFloor(horizon) {
   return FLIGHT_DATA_MIN;
 }
 
+function flightInFlowHeight(el) {
+  if (!el || typeof getComputedStyle !== 'function') return 0;
+  const cs = getComputedStyle(el);
+  if (cs.display === 'none' || cs.position === 'absolute' || cs.position === 'fixed') return 0;
+  return el.offsetHeight || 0;
+}
+
+function flightRegionChrome(el) {
+  if (!el || typeof getComputedStyle !== 'function') return 0;
+  const cs = getComputedStyle(el);
+  return (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0)
+    + (parseFloat(cs.borderTopWidth) || 0) + (parseFloat(cs.borderBottomWidth) || 0);
+}
+
+// Resting horizon stays square to the column width (aspect-ratio 1/1), capped so
+// tiles and messages keep their minima. Dragging #flightStackSplitData releases
+// that lock and sets an explicit height: drag down grows the horizon (floor 112).
+// Dragging #flightStackSplitMsg only trades tiles against messages.
 function flightStackBudget(horizon) {
-  const total = horizon.getBoundingClientRect().height;
-  const splits = [...horizon.querySelectorAll('.flight-stack-split')];
-  const splitH = splits.reduce((sum, el) => sum + el.getBoundingClientRect().height, 0);
-  const bar = horizon.querySelector('.flight-dock-bar');
-  const header = bar ? Math.ceil(bar.getBoundingClientRect().height + 8) : FLIGHT_MSG_DEFAULT;
-  const msgMin = Math.max(FLIGHT_MSG_MIN, header);
+  const total = horizon.clientHeight || horizon.getBoundingClientRect().height;
+  const hudEl = horizon.querySelector(':scope > .flight-hud');
+  const dataEl = horizon.querySelector(':scope > [data-mission-region="data"]');
+  const msgEl = horizon.querySelector(':scope > [data-mission-region="messages"]');
+  let chrome = 0;
+  for (const child of horizon.children) {
+    if (child === hudEl || child === dataEl || child === msgEl) continue;
+    chrome += flightInFlowHeight(child);
+  }
+  const bar = msgEl?.querySelector('.flight-dock-bar');
+  const barH = bar ? bar.offsetHeight : 0;
+  const msgMin = Math.max(FLIGHT_MSG_MIN, Math.ceil(barH + flightRegionChrome(msgEl)));
   return {
-    avail: Math.max(0, total - splitH),
+    avail: Math.max(0, total - chrome),
     dataMin: flightDataFloor(horizon),
     msgMin,
     hudMin: FLIGHT_HUD_MIN,
+    hudNow: hudEl ? hudEl.offsetHeight : 0,
+    width: horizon.clientWidth || horizon.getBoundingClientRect().width,
   };
 }
 
+function flightStackFits(stack, budget) {
+  if (!budget || budget.avail < 240) return true;
+  if (!stack || stack.half === true) return true;
+  const data = Number(stack.data);
+  const msg = Number(stack.msg);
+  if (!Number.isFinite(data) || !Number.isFinite(msg)) return false;
+  const floor = Number.isFinite(Number(stack.hud)) ? FLIGHT_DATA_MIN : budget.dataMin;
+  if (data + 1 < floor) return false;
+  if (msg + 1 < FLIGHT_MSG_MIN) return false;
+  return data + msg + budget.hudMin <= budget.avail + 2;
+}
+
 function clampFlightStack(stack, budget) {
-  let data = Math.max(budget.dataMin, Number(stack.data) || FLIGHT_DATA_DEFAULT);
-  let msg = Math.max(budget.msgMin, Number(stack.msg) || FLIGHT_MSG_DEFAULT);
-  const room = budget.avail - budget.hudMin;
-  if (room > budget.dataMin + budget.msgMin && data + msg > room) {
+  const hudMin = budget.hudMin;
+  const lockHud = Number.isFinite(Number(stack?.hud));
+  if (lockHud && stack?.half !== true) {
+    return {
+      hud: Math.max(hudMin, Number(stack.hud)),
+      data: Math.max(FLIGHT_DATA_MIN, Number(stack.data) || FLIGHT_DATA_DEFAULT),
+      msg: Math.max(FLIGHT_MSG_MIN, Number(stack.msg) || FLIGHT_MSG_DEFAULT),
+    };
+  }
+  const dataFloor = budget.dataMin;
+  const msgFloor = budget.msgMin;
+  let data = Math.max(dataFloor, Number(stack?.data) || FLIGHT_DATA_DEFAULT);
+  let msg = Math.max(msgFloor, Number(stack?.msg) || FLIGHT_MSG_DEFAULT);
+  const room = Math.max(0, budget.avail - hudMin);
+  if (data + msg > room) {
     const overflow = data + msg - room;
-    const msgRoom = Math.max(0, msg - budget.msgMin);
+    const msgRoom = Math.max(0, msg - msgFloor);
     const takeMsg = Math.min(msgRoom, overflow);
     msg -= takeMsg;
-    data = Math.max(budget.dataMin, data - (overflow - takeMsg));
+    data = Math.max(dataFloor, data - (overflow - takeMsg));
   }
-  return { data, msg };
+  const hud = Math.max(hudMin, budget.avail - data - msg);
+  return { data, msg, hud };
 }
 
 function flightMessagesWantOpen(msg, msgMin) {
@@ -20712,16 +21702,16 @@ function applyFlightStack(stack, opts = {}) {
   }
   const budget = flightStackBudget(horizon);
   const half = opts.half === true || (opts.half !== false && stack?.half === true);
-  const next = half
+  const sized = half
     ? (flightColumnHalfStack(horizon) || clampFlightStack(stack || _flightStack, budget))
     : clampFlightStack(stack || _flightStack, budget);
-  _flightStack = half ? { ...next, half: true } : { ...next, half: false };
+  const next = half ? { ...sized, half: true } : { ...sized, half: false };
+  _flightStack = next;
   horizon.dataset.flightStack = half ? 'half' : 'custom';
   horizon.style.setProperty('--flight-data-h', `${Math.round(next.data)}px`);
-  const hudPx = Math.max(
-    budget.hudMin,
-    budget.avail - next.data - (half ? budget.msgMin : next.msg),
-  );
+  const hudPx = Number.isFinite(next.hud)
+    ? next.hud
+    : Math.max(budget.hudMin, budget.avail - next.data - (half ? budget.msgMin : next.msg));
   horizon.style.setProperty('--flight-hud-h', `${Math.round(hudPx)}px`);
   if (half) horizon.style.removeProperty('--flight-msg-h');
   else horizon.style.setProperty('--flight-msg-h', `${Math.round(next.msg)}px`);
@@ -20757,41 +21747,72 @@ function bindFlightStackSplitters() {
   dataSplit.dataset.bound = '1';
   msgSplit.dataset.bound = '1';
   let drag = null;
-  const stop = () => {
+  const stop = (ev) => {
     if (!drag) return;
+    const capture = drag.capture;
+    const pointerId = drag.pointerId;
     drag = null;
+    try { capture?.releasePointerCapture?.(pointerId); } catch { /* already released */ }
     writeMissionMessagesExpanded(_flightStackOpen);
     writeFlightStack(_flightStack);
     refreshMissionSwapSurfaces();
+    if (ev && ev.type === 'pointercancel') return;
   };
   const onDown = (which, ev) => {
     if (ev.button != null && ev.button !== 0) return;
     const horizon = document.querySelector('[data-mission-region="horizon"]');
-    const dataEl = horizon?.querySelector('[data-mission-region="data"]');
-    const msgEl = horizon?.querySelector('[data-mission-region="messages"]');
+    const hudEl = horizon?.querySelector(':scope > .flight-hud');
+    const dataEl = horizon?.querySelector(':scope > [data-mission-region="data"]');
+    const msgEl = horizon?.querySelector(':scope > [data-mission-region="messages"]');
     drag = {
       which,
       y: ev.clientY,
+      pointerId: ev.pointerId,
+      capture: ev.currentTarget,
       base: {
         half: false,
+        hud: hudEl?.getBoundingClientRect().height || _flightStack.hud || FLIGHT_HUD_MIN,
         data: dataEl?.getBoundingClientRect().height || _flightStack.data,
         msg: msgEl?.getBoundingClientRect().height || _flightStack.msg,
       },
     };
     try { ev.currentTarget.setPointerCapture?.(ev.pointerId); } catch { /* synthetic pointer */ }
+    applyFlightStack({
+      half: false,
+      hud: drag.base.hud,
+      data: drag.base.data,
+      msg: drag.base.msg,
+    }, { half: false });
     ev.preventDefault();
   };
   const onMove = (ev) => {
     if (!drag) return;
     const dy = ev.clientY - drag.y;
-    const next = { ...drag.base, half: false };
+    const horizon = document.querySelector('[data-mission-region="horizon"]');
+    const budget = horizon ? flightStackBudget(horizon) : null;
+    if (!budget) return;
+    const next = { half: false };
     if (drag.which === 'data') {
-      // Handle under the attitude window: drag down grows that window.
-      next.data = drag.base.data - dy;
+      // Handle under the horizon. Drag down grows the horizon by taking height from the tiles.
+      const hudCap = drag.base.hud + Math.max(0, drag.base.data - FLIGHT_DATA_MIN);
+      let hud = drag.base.hud + dy;
+      hud = Math.max(budget.hudMin, Math.min(hud, hudCap));
+      if (dy > 0) hud = Math.max(drag.base.hud, hud);
+      if (dy < 0) hud = Math.min(drag.base.hud, hud);
+      next.hud = hud;
+      next.data = Math.max(FLIGHT_DATA_MIN, drag.base.data - (hud - drag.base.hud));
+      next.msg = drag.base.msg;
     } else {
-      // Handle under the data strip: drag down grows the strip and shrinks the messages.
-      next.data = drag.base.data + dy;
-      next.msg = drag.base.msg - dy;
+      // Handle under the tiles. Horizon stays. Drag down grows tiles and shrinks messages.
+      const pair = drag.base.data + drag.base.msg;
+      const cap = Math.max(FLIGHT_DATA_MIN, pair - FLIGHT_MSG_MIN);
+      let data = drag.base.data + dy;
+      data = Math.max(FLIGHT_DATA_MIN, Math.min(data, cap));
+      if (dy > 0) data = Math.max(Math.min(drag.base.data, cap), data);
+      if (dy < 0) data = Math.min(drag.base.data, data);
+      next.hud = drag.base.hud;
+      next.data = data;
+      next.msg = Math.max(FLIGHT_MSG_MIN, pair - data);
     }
     applyFlightStack(next, { half: false });
   };
@@ -20815,27 +21836,100 @@ function bindFlightStackSplitters() {
   window.addEventListener('pointercancel', stop);
 }
 
+function bindFlightColumnMenu() {
+  const horizon = document.querySelector('[data-mission-region="horizon"]');
+  const menu = document.getElementById('flightColumnMenu');
+  const resetBtn = document.getElementById('flightStackResetBtn');
+  if (!horizon || !menu || !resetBtn || horizon.dataset.columnMenu === '1') return;
+  horizon.dataset.columnMenu = '1';
+  const close = () => { menu.hidden = true; };
+  const open = (x, y) => {
+    menu.hidden = false;
+    menu.style.left = '0px';
+    menu.style.top = '0px';
+    const rect = menu.getBoundingClientRect();
+    const left = Math.max(8, Math.min(x, window.innerWidth - rect.width - 8));
+    const top = Math.max(8, Math.min(y, window.innerHeight - rect.height - 8));
+    menu.style.left = `${left}px`;
+    menu.style.top = `${top}px`;
+  };
+  horizon.addEventListener('contextmenu', (ev) => {
+    if (ev.target.closest('#pfdHorizonStage, .mission-data-tile, #flightColumnMenu, .flight-stack-split')) return;
+    ev.preventDefault();
+    open(ev.clientX, ev.clientY);
+  });
+  resetBtn.addEventListener('click', (ev) => {
+    ev.preventDefault();
+    close();
+    resetFlightStack();
+  });
+  document.addEventListener('pointerdown', (ev) => {
+    if (menu.hidden || menu.contains(ev.target)) return;
+    close();
+  });
+  document.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Escape') close();
+  });
+}
+
+function placeMissionDataHint() {
+  const btn = document.getElementById('missionDataHintBtn');
+  const tip = document.getElementById('missionDataHintTip');
+  if (!btn || !tip || tip.dataset.placed === '1') return;
+  tip.dataset.placed = '1';
+  const place = () => {
+    const rect = btn.getBoundingClientRect();
+    const width = 220;
+    const left = Math.max(8, Math.min(rect.left, window.innerWidth - width - 8));
+    tip.style.position = 'fixed';
+    tip.style.width = `${width}px`;
+    tip.style.maxWidth = `${width}px`;
+    tip.style.left = `${Math.round(left)}px`;
+    tip.style.top = `${Math.round(rect.bottom + 4)}px`;
+    tip.style.right = 'auto';
+  };
+  btn.addEventListener('mouseenter', place);
+  btn.addEventListener('focus', place);
+  place();
+}
+
 function initFlightStack() {
   const storedRaw = missionLayoutStoreGet(FLIGHT_STACK_KEY);
   const stored = storedRaw ? readFlightStack() : null;
   const expandedKey = missionLayoutStoreGet(MISSION_MESSAGES_KEY);
-  const legacy = !stored || stored.half === true || (isLegacyCollapsedFlightStack(stored) && expandedKey !== '0' && expandedKey !== '1');
+  const legacyShape = !stored || stored.half === true
+    || (isLegacyCollapsedFlightStack(stored) && expandedKey !== '0' && expandedKey !== '1');
   const horizon = document.querySelector('[data-mission-region="horizon"]');
+  const budget = horizon ? flightStackBudget(horizon) : null;
+  const unfit = !!(stored && stored.half !== true && budget && budget.avail >= 240 && !flightStackFits(stored, budget));
+  const legacy = legacyShape || unfit;
   const stack = legacy
     ? { ...(flightColumnHalfStack(horizon) || defaultFlightStack()), half: true }
     : stored;
   applyFlightStack(stack, { persist: legacy, half: legacy });
   if (legacy && _flightStackOpen) writeMissionMessagesExpanded(true);
   bindFlightStackSplitters();
-  requestAnimationFrame(() => {
-    if (legacy) {
-      const half = flightColumnHalfStack(document.querySelector('[data-mission-region="horizon"]'));
-      if (half) applyFlightStack({ ...half, half: true }, { persist: true, half: true });
-      if (_flightStackOpen) writeMissionMessagesExpanded(true);
-    } else {
-      applyFlightStack(_flightStack);
+  bindFlightColumnMenu();
+  placeMissionDataHint();
+  const settle = () => {
+    const horizonNow = document.querySelector('[data-mission-region="horizon"]');
+    if (!horizonNow) return;
+    const budgetNow = flightStackBudget(horizonNow);
+    if (_flightStack?.half !== true && budgetNow.avail >= 240 && !flightStackFits(_flightStack, budgetNow)) {
+      resetFlightStack();
+      return;
     }
-    requestAnimationFrame(() => applyFlightStack(_flightStack, { half: _flightStack.half === true }));
+    if (_flightStack?.half === true) {
+      const half = flightColumnHalfStack(horizonNow);
+      if (half) applyFlightStack({ ...half, half: true }, { persist: legacy, half: true });
+      if (_flightStackOpen) writeMissionMessagesExpanded(true);
+      return;
+    }
+    applyFlightStack(_flightStack, { half: false });
+  };
+  requestAnimationFrame(() => {
+    settle();
+    requestAnimationFrame(settle);
   });
 }
 
@@ -20861,7 +21955,7 @@ function flightDockCommandText(mode) {
 
 function paintFlightDockCommand(text) {
   const note = document.getElementById('flightDockCommandNote');
-  if (note) note.textContent = text || '';
+  if (note) paintMixedBdi(note, text || '');
   const dock = document.querySelector('[data-mission-region="messages"]')?.dataset.flightDock;
   if (dock === 'actions') requestAnimationFrame(() => fitFlightDockPane(dock));
 }
@@ -21043,21 +22137,23 @@ function applyFlightDock(which) {
 function fitFlightDockPane(which) {
   if (which !== 'actions') return;
   const horizon = document.querySelector('[data-mission-region="horizon"]');
-  if (!horizon || horizon.dataset.flightStack !== 'custom') return;
+  if (!horizon) return;
   const section = document.querySelector('[data-mission-region="messages"]');
   const pane = document.getElementById('flightDockActionsPane');
   const bar = section?.querySelector('.flight-dock-bar');
   if (!section || !pane || !bar) return;
-  const note = document.getElementById('flightDockCommandNote');
-  const noteH = note && getComputedStyle(note).display !== 'none'
-    ? Math.ceil(note.getBoundingClientRect().height)
-    : 0;
-  const want = Math.ceil(bar.getBoundingClientRect().height + pane.scrollHeight + noteH + 12);
   const budget = flightStackBudget(horizon);
-  const room = Math.max(FLIGHT_MSG_MIN, budget.avail - budget.hudMin - budget.dataMin);
-  const msg = Math.max(FLIGHT_MSG_OPEN, Math.min(want, room));
-  if (msg <= _flightStack.msg + 2) return;
-  applyFlightStack({ ..._flightStack, msg }, { persist: true, skipMessages: true });
+  const hudH = horizon.querySelector(':scope > .flight-hud')?.getBoundingClientRect().height || budget.hudMin;
+  const dataH = horizon.querySelector(':scope > [data-mission-region="data"]')?.getBoundingClientRect().height || FLIGHT_DATA_MIN;
+  const room = Math.max(FLIGHT_MSG_OPEN, Math.floor(budget.avail - hudH - dataH));
+  const msg = Math.min(room, Math.max(FLIGHT_MSG_OPEN, Number(_flightStack.msg) || 0));
+  applyFlightStack({
+    ..._flightStack,
+    half: false,
+    hud: Math.round(hudH),
+    data: Math.round(dataH),
+    msg,
+  }, { persist: false, half: false, skipMessages: true });
 }
 
 function revealFlightDock(which) {
@@ -21315,7 +22411,9 @@ function applyMissionDataGrid(payload) {
     const valueEl = item.querySelector('.mission-data-value');
     if (valueEl) {
       const shown = formatMissionDataValue(slot.key, payload || {});
-      valueEl.textContent = shown;
+      const holdKey = `mission:${idx}:${slot.key}`;
+      const ttl = slot.key === 'mavlink.flightMode' ? MODE_HOLD_MS : FAST_HOLD_MS;
+      paintHeldValue(valueEl, holdKey, shown === '—' ? null : shown, { ttlMs: ttl });
       if (slot.key === 'mission.link') {
         const full = document.getElementById('connectPillLabel')?.textContent?.trim() || '';
         valueEl.title = full && shown !== '—' ? full : '';
@@ -21395,26 +22493,33 @@ function placeMissionDataPicker(picker, x, y) {
   picker.style.width = `${width}px`;
   picker.style.right = 'auto';
   picker.style.bottom = 'auto';
+  picker.style.height = 'auto';
   picker.style.maxHeight = 'none';
+  picker.style.overflow = 'visible';
   picker.style.left = `${margin}px`;
   picker.style.top = `${margin}px`;
-  const needed = Math.ceil(picker.getBoundingClientRect().height);
+  const needed = Math.ceil(picker.scrollHeight || picker.getBoundingClientRect().height);
   const height = Math.min(Math.max(needed, 1), maxBox);
-  const belowTop = y + 8;
+  const clickY = Number(y) || 0;
+  const belowTop = clickY + 8;
+  const aboveBottom = clickY - 8;
   const spaceBelow = vh - margin - belowTop;
-  const spaceAbove = y - 8 - margin;
+  const spaceAbove = aboveBottom - margin;
   let top;
-  if (height <= spaceBelow) top = belowTop;
-  else if (height <= spaceAbove) top = y - 8 - height;
+  if (spaceAbove >= height && (spaceAbove >= spaceBelow || clickY > vh - 80)) top = aboveBottom - height;
+  else if (height <= spaceBelow) top = belowTop;
+  else if (height <= spaceAbove) top = aboveBottom - height;
   else top = Math.max(margin, vh - margin - height);
   if (top < margin) top = margin;
   if (top + height > vh - margin) top = Math.max(margin, vh - margin - height);
-  let left = x + 12;
-  if (left + width > vw - margin) left = x - width - 12;
+  let left = clickY === clickY ? Number(x) + 12 : margin;
+  if (left + width > vw - margin) left = Number(x) - width - 12;
   left = Math.min(Math.max(margin, left), Math.max(margin, vw - width - margin));
   picker.style.left = `${Math.round(left)}px`;
   picker.style.top = `${Math.round(top)}px`;
+  picker.style.height = `${Math.round(height)}px`;
   picker.style.maxHeight = `${Math.round(height)}px`;
+  picker.style.overflow = height < needed - 1 ? 'auto' : 'visible';
 }
 
 function openMissionDataPicker(slotIdx, x, y) {
@@ -21604,6 +22709,10 @@ function bindMissionDataSlotPress(item) {
   item.addEventListener('contextmenu', (e) => {
     e.preventDefault();
     e.stopPropagation();
+    if (e.altKey) {
+      deleteMissionDataTile(item);
+      return;
+    }
     openMissionDataTileMenu(item, e.clientX, e.clientY);
   });
   item.addEventListener('click', (e) => {
@@ -22022,7 +23131,7 @@ function initFlightArchiveRecord() {
   function paintRecordChrome(nextArmed) {
     armed = nextArmed === true;
     const short = armed ? 'מקליט' : 'הקלטה';
-    const long = armed ? 'עצור הקלטה' : 'התחל הקלטה';
+    const long = armed ? 'עצרו הקלטה' : 'התחילו הקלטה';
     const state = armed ? 'מקליט' : 'לא מקליט';
     btn.dataset.recording = armed ? '1' : '0';
     btn.setAttribute('aria-pressed', armed ? 'true' : 'false');
@@ -22293,7 +23402,7 @@ function flightLinkFacts(row) {
     state: row && row.statusHe ? String(row.statusHe) : '—',
     strength: Number.isFinite(percent) ? `${Math.round(percent)}%` : '—',
     quality: quality && quality.known === true && quality.sourceHe ? String(quality.sourceHe) : '—',
-    delay: Number.isFinite(delay) ? `${Math.round(delay)} ms` : '—',
+    delay: Number.isFinite(delay) ? delay : null,
   };
 }
 
@@ -22327,10 +23436,12 @@ function paintFlightLinkPanel(prefix, id) {
   const strength = document.getElementById(`${prefix}Strength`);
   const quality = document.getElementById(`${prefix}Quality`);
   const delay = document.getElementById(`${prefix}Delay`);
-  if (state) state.textContent = facts.state;
-  if (strength) strength.textContent = facts.strength;
-  if (quality) quality.textContent = facts.quality;
-  if (delay) delay.textContent = facts.delay;
+  const smoothed = facts.delay == null ? null : flightDelayMedian.push(`${prefix}:${id}`, facts.delay);
+  const delayText = smoothed == null ? null : `${Math.round(smoothed)} ms`;
+  if (state) paintHeldValue(state, `${prefix}:${id}:state`, facts.state === '—' ? null : facts.state, { ttlMs: SLOW_HOLD_MS });
+  if (strength) paintHeldValue(strength, `${prefix}:${id}:strength`, facts.strength === '—' ? null : facts.strength, { ttlMs: SLOW_HOLD_MS });
+  if (quality) paintHeldValue(quality, `${prefix}:${id}:quality`, facts.quality === '—' ? null : facts.quality, { ttlMs: SLOW_HOLD_MS });
+  if (delay) paintHeldValue(delay, `${prefix}:${id}:delay`, delayText, { ttlMs: SLOW_HOLD_MS });
   const err = document.getElementById(prefix === 'flightComm' ? 'flightCommError' : 'flightLinkError');
   const message = flightLinkErrorText(id);
   if (err) {
@@ -22348,29 +23459,77 @@ function paintFlightLinkPanel(prefix, id) {
 
 let flightCommLinkId = 'cellular';
 
-function placeFlightMenu(menu, x, y) {
+function placeFlightMenu(menu) {
   if (!menu) return;
+  const mapEl = document.querySelector('[data-mission-region="map"]');
+  const mapBox = mapEl?.getBoundingClientRect();
+  const mapVisible = !!(mapBox && mapBox.width > 20 && mapBox.height > 20);
+  if (mapVisible) {
+    if (menu.parentElement !== mapEl) mapEl.appendChild(menu);
+  } else if (menu.parentElement !== document.body) {
+    document.body.appendChild(menu);
+  }
   menu.hidden = false;
   menu.style.left = '0px';
   menu.style.top = '0px';
-  const rect = menu.getBoundingClientRect();
-  const left = Math.max(8, Math.min(x, window.innerWidth - rect.width - 8));
-  const top = Math.max(8, Math.min(y, window.innerHeight - rect.height - 8));
+  menu.style.maxHeight = 'none';
+  const width = Math.max(menu.offsetWidth || 0, 280);
+  const horizon = document.querySelector('[data-mission-region="horizon"]')?.getBoundingClientRect();
+  const map = mapEl?.getBoundingClientRect();
+  const talk = document.querySelector('[data-mission-region="talk"]')?.getBoundingClientRect();
+  const zoom = document.querySelector('.leaflet-control-zoom')?.getBoundingClientRect();
+  let top = Math.max(8, (talk?.bottom || 0) + 6);
+  if (map) top = Math.max(top, map.top + 6);
+  let left = map ? map.left + 6 : 8;
+  if (map && horizon && horizon.top < map.bottom - 40 && horizon.left > map.left + width + 24) {
+    left = horizon.left - width - 8;
+  }
+  left = Math.max(8, Math.min(left, window.innerWidth - width - 8));
+  if (zoom && zoom.width > 8 && left < zoom.right + 6 && left + width > zoom.left) {
+    top = Math.max(top, zoom.bottom + 6);
+  }
+  let floor = window.innerHeight - 8;
+  if (map) floor = Math.min(floor, map.bottom - 6);
+  if (horizon && horizon.top > top + 40) floor = Math.min(floor, horizon.top - 6);
+  const attr = document.querySelector('.leaflet-control-attribution')?.getBoundingClientRect();
+  if (attr && attr.height > 2 && attr.top > top + 40 && left < attr.right && left + width > attr.left) {
+    floor = Math.min(floor, attr.top - 6);
+  }
+  menu.style.overflow = 'auto';
+  menu.style.maxHeight = `${window.innerHeight - 120}px`;
+  menu.style.height = 'auto';
+  if (!mapVisible) {
+    menu.style.left = '8px';
+    menu.style.top = '48px';
+    return;
+  }
   menu.style.left = `${Math.round(left)}px`;
   menu.style.top = `${Math.round(top)}px`;
+  const used = menu.offsetHeight;
+  if (top + used > floor) menu.style.height = `${Math.max(72, Math.floor(floor - top))}px`;
+}
+
+function attachWorkLinkPicker(menu) {
+  const picker = document.getElementById('workLinkPicker');
+  const rows = document.getElementById('commLinkRows');
+  const advanced = document.getElementById('connectAdvanced');
+  if (!menu) return;
+  if (picker && picker.parentElement !== menu) menu.insertBefore(picker, menu.firstChild);
+  if (rows && rows.parentElement !== menu) menu.appendChild(rows);
+  if (advanced && advanced.parentElement !== menu) menu.appendChild(advanced);
 }
 
 function openFlightCommMenu(id, anchorEl) {
   const menu = document.getElementById('flightCommMenu');
   const linkMenu = document.getElementById('flightLinkMenu');
   if (linkMenu) linkMenu.hidden = true;
+  attachWorkLinkPicker(menu);
   flightCommLinkId = id || flightCommLinkId || 'cellular';
   paintFlightLinkPanel('flightComm', flightCommLinkId);
   menu?.querySelectorAll('[data-comm-link]').forEach((btn) => {
     btn.classList.toggle('is-selected', btn.dataset.commLink === flightCommLinkId);
   });
-  const anchor = (anchorEl instanceof Element ? anchorEl : document.getElementById('missionCommOpen'))?.getBoundingClientRect();
-  placeFlightMenu(menu, anchor ? anchor.left : 24, anchor ? anchor.bottom + 6 : 48);
+  placeFlightMenu(menu);
   syncFlightCommChoice();
 }
 
@@ -22378,6 +23537,7 @@ function openFlightLinkMenu(id, x, y) {
   const menu = document.getElementById('flightLinkMenu');
   const comm = document.getElementById('flightCommMenu');
   if (comm) comm.hidden = true;
+  attachWorkLinkPicker(menu);
   paintFlightLinkPanel('flightLink', id);
   placeFlightMenu(menu, x, y);
   syncFlightCommChoice();

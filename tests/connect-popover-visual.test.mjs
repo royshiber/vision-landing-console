@@ -266,9 +266,9 @@ describe('connect popover layout and mocked states', () => {
       });
     });
     await page.goto(base, { waitUntil: 'domcontentloaded' });
-    await page.waitForSelector('#connectToggleBtn');
-    await page.click('#connectToggleBtn');
-    await page.waitForSelector('#connectPanel:not([hidden])');
+    await page.waitForSelector('#missionCommOpen');
+    await page.click('#missionCommOpen');
+    await page.waitForSelector('#flightCommMenu:not([hidden])');
     await page.waitForTimeout(200);
     return page;
   }
@@ -298,7 +298,7 @@ describe('connect popover layout and mocked states', () => {
     const advancedVisible = await page.locator('#connectAdvanced').isVisible();
     expect(advancedVisible).toBe(true);
     const clip = await page.evaluate(() => {
-      const panel = document.getElementById('connectPanel');
+      const panel = document.getElementById('flightCommMenu');
       const panelRect = panel.getBoundingClientRect();
       const rowOverflow = [...document.querySelectorAll('#commLinkRows .comm-link-row')].map((el) => ({
         id: el.dataset.link,
@@ -383,7 +383,7 @@ describe('connect popover layout and mocked states', () => {
       expect(row.overflow, row.id).toBeLessThanOrEqual(1);
     }
     const mapHit = await page.evaluate(() => {
-      const panel = document.getElementById('connectPanel');
+      const panel = document.getElementById('flightCommMenu');
       const panelRect = panel.getBoundingClientRect();
       const controls = [...document.querySelectorAll(
         '#terrainLayerStreetBtn, #terrainLayerSatBtn, #terrainShowLoadedPathBtn, .leaflet-control',
@@ -423,7 +423,7 @@ describe('connect popover layout and mocked states', () => {
         const box = await page.evaluate(() => {
           const widget = document.getElementById('connectWidget');
           const pill = document.getElementById('connectToggleBtn');
-          const panel = document.getElementById('connectPanel');
+          const panel = document.getElementById('flightCommMenu');
           const pillRect = pill.getBoundingClientRect();
           const panelRect = panel.getBoundingClientRect();
           return {
@@ -436,14 +436,16 @@ describe('connect popover layout and mocked states', () => {
             panelRight: panelRect.right,
             panelTop: panelRect.top,
             panelBottom: panelRect.bottom,
+            panelWidth: panelRect.width,
+            maxHeight: getComputedStyle(panel).maxHeight,
             overflowY: getComputedStyle(panel).overflowY,
           };
         });
         expect(box.widgetLeft, String(width)).toBe('12px');
-        expect(box.panelCssLeft, String(width)).toBe('0px');
+        expect(box.panelWidth, String(width)).toBeGreaterThan(300);
+        expect(box.panelWidth, String(width)).toBeLessThan(340);
+        expect(box.maxHeight, String(width)).toBe(`${box.vh - 120}px`);
         expect(box.pillLeft, String(width)).toBeLessThan(24);
-        expect(box.panelLeft, String(width)).toBeLessThan(24);
-        expect(box.panelRight, String(width)).toBeLessThan(box.vw / 2);
         expect(box.panelLeft).toBeGreaterThanOrEqual(-1);
         expect(box.panelRight).toBeLessThanOrEqual(box.vw + 1);
         expect(box.panelTop).toBeGreaterThanOrEqual(-1);
@@ -590,11 +592,13 @@ describe('connect popover layout and mocked states', () => {
           bg: cs.backgroundColor,
           color: nameCs.color,
           h: Math.round(rect.height),
-          text: (card.textContent || '').replace(/\s+/g, ' ').trim(),
+          text: [...document.querySelectorAll('#pulseCameraCards .pulse-cam-card')].map((node) => (node.textContent || '').replace(/\s+/g, ' ').trim()).join(' | '),
+          ids: [...document.querySelectorAll('#pulseCameraCards .pulse-cam-card')].map((node) => node.dataset.cam || ''),
           count: document.querySelectorAll('#pulseCameraCards .pulse-cam-card').length,
         };
       });
-      expect(paint.count).toBe(1);
+      expect([1, 3]).toContain(paint.count);
+      expect(paint.ids || []).not.toContain('cam2');
       expect(paint.bg).toBe('rgb(18, 24, 38)');
       expect(paint.color).toBe('rgb(242, 246, 251)');
       expect(paint.h).toBeGreaterThan(16);

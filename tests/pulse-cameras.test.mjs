@@ -76,9 +76,9 @@ describe('pulse camera cards', () => {
 
   it('does not treat a null age as zero', () => {
     const model = pulseCameraCards(liveStatus({
-      cam2: { id: 'cam2', role: 'down', camera_ok: true, fps: null, last_frame_age_ms: null },
+      cam1: { id: 'cam1', role: 'down', camera_ok: true, fps: null, last_frame_age_ms: null },
     }));
-    expect(model.cards[0]).toMatchObject({ name: 'cam2', streaming: true, fps: null, ageMs: null, error: null });
+    expect(model.cards[0]).toMatchObject({ name: 'מטה', streaming: true, fps: null, ageMs: null, error: null });
   });
 
   it('shows the gimbal from the companion status the console already maps', () => {

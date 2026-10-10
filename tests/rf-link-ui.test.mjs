@@ -20,15 +20,16 @@ function trackWorkPosts(page, posts) {
 async function openLinkPanel(page) {
   await page.addInitScript(() => { window.__vlcAllowExternal = true; });
   await page.goto(BASE, { waitUntil: 'domcontentloaded' });
-  await page.click('#connectToggleBtn');
+  await page.click('#missionCommOpen');
+  await page.waitForSelector('#flightCommMenu:not([hidden])');
   await page.waitForSelector('#workLinkPicker');
 }
 
 async function ensureLinkPanel(page) {
-  const open = await page.locator('#connectPanel').isVisible().catch(() => false);
+  const open = await page.locator('#flightCommMenu').isVisible().catch(() => false);
   if (!open) {
-    await page.click('#connectToggleBtn');
-    await page.waitForSelector('#connectPanel:not([hidden])');
+    await page.click('#missionCommOpen');
+    await page.waitForSelector('#flightCommMenu:not([hidden])');
   }
 }
 
@@ -79,11 +80,9 @@ describe('RF link panel', () => {
         if (url.startsWith(BASE)) return route.continue();
         return route.abort();
       });
-      const initialPost = page.waitForResponse((res) => (
-        res.url().includes('/api/links/work') && res.request().method() === 'POST'
-      ));
       await openLinkPanel(page);
-      await initialPost;
+      await page.waitForTimeout(400);
+      expect(posts.length).toBe(0);
       await page.waitForFunction(() => {
         const text = document.getElementById('workLinkPath')?.textContent || '';
         return text.includes('אין נתיב') || text.includes('אוטומטי') || text.includes('רשת בית') || text.includes('סלולר');
@@ -99,7 +98,7 @@ describe('RF link panel', () => {
       expect(await page.locator('#gimbalPad').getAttribute('data-state')).not.toBe('live');
       expect(await page.locator('#rfOpticsNotice').isHidden()).toBe(true);
       const fit = await page.evaluate(() => {
-        const panel = document.getElementById('connectPanel');
+        const panel = document.getElementById('flightCommMenu');
         const rc = document.querySelector('#commLinkRows .comm-link-row[data-link="rc"]');
         const status = rc?.querySelector('.comm-link-status');
         const panelBox = panel.getBoundingClientRect();
@@ -159,9 +158,9 @@ describe('RF link panel', () => {
       const stored = await fetch(`${BASE}/api/links/work`).then((r) => r.json());
       expect(stored.serialPort).toBe('COM5');
       expect(posts.some((body) => body && Object.prototype.hasOwnProperty.call(body, 'serialPort') && body.serialPort === '')).toBe(false);
-      expect(posts.some((body) => body && body.serialPort === 'COM5')).toBe(true);
-      const label = await page.locator('#workLinkPath').innerText();
-      expect(label).toBe('פתיחת הפורט נכשלה');
+      expect(posts.some((body) => body && body.serialPort === 'COM5')).toBe(false);
+      const label = await page.locator('#workLinkPath').evaluate((el) => el.textContent || '');
+      expect(label).toContain('COM5');
       expect(await page.locator('#radioLinkStatus').innerText()).toBe(label);
       expect(await page.locator('#rfComPort').inputValue()).toBe('COM5');
       expect(await page.evaluate(() => document.body.dataset.workPath || '')).toBe('');
@@ -351,10 +350,10 @@ describe('RF link panel', () => {
       expect(debriefWide.sideW).toBeGreaterThanOrEqual(180);
       expect(debriefWide.sideW).toBeLessThanOrEqual(320);
       await page.screenshot({ path: '/opt/cursor/artifacts/screenshots/rf-debrief-1440.png', animations: 'disabled', timeout: 8000 });
-      await page.click('#connectToggleBtn');
-      await page.waitForSelector('#connectPanel:not([hidden])');
+      await page.click('#missionCommOpen');
+      await page.waitForSelector('#flightCommMenu:not([hidden])');
       const wide = await page.evaluate(() => {
-        const panel = document.getElementById('connectPanel');
+        const panel = document.getElementById('flightCommMenu');
         const rc = document.querySelector('#commLinkRows .comm-link-row[data-link="rc"]');
         const status = rc.querySelector('.comm-link-status');
         const panelBox = panel.getBoundingClientRect();

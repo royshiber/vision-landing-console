@@ -22,16 +22,15 @@
   </head>
   <body>
     <div id="paramInfoPopup" class="param-info-popup hidden" role="tooltip" aria-live="polite" dir="rtl"></div>
+    <div id="opticsContext" class="optics-context" hidden role="dialog" aria-label="פקדי מצלמה"></div>
     <div id="connectWidget" class="connect-widget connect-widget-compact connect-widget-float" title="קישורי תקשורת">
-          <button type="button" id="connectToggleBtn" class="conn-pill" aria-expanded="false" aria-controls="connectPanel" title="פתח או סגור את קישורי התקשורת">
+          <button type="button" id="connectToggleBtn" class="conn-pill" title="מצב תקשורת">
             <span id="connectStatusDot" class="conn-dot" data-state="off" aria-label="מצב חיבור"></span>
             <span id="connectPillLabel" class="conn-pill-label">מנותק</span>
-            <span class="conn-pill-caret" aria-hidden="true">▾</span>
           </button>
           <div id="connectPanel" class="conn-panel" hidden>
             <section id="workLinkPicker" class="work-link-picker" aria-label="ערוץ תקשורת">
               <h3 class="conn-link-title">ערוץ תקשורת</h3>
-              <p id="workLinkPath" class="work-link-path">נתיב פעיל: אוטומטי</p>
               <div class="work-link-choices conn-active-choices">
                 <label class="conn-active-choice"><input type="radio" name="workLink" id="workLinkAuto" value="auto" checked /> <span>אוטומטי</span></label>
                 <label class="conn-active-choice"><input type="radio" name="workLink" id="workLinkHome" value="home" /> <span>רשת בית</span></label>
@@ -40,6 +39,9 @@
               </div>
               <p id="rfReducedReason" class="work-link-reason" hidden>במצב RF אין וידאו</p>
               <p id="rfCompanionLine" class="work-link-reason" hidden></p>
+              <details class="rf-advanced">
+                <summary>RF מתקדם</summary>
+                <p id="workLinkPath" class="work-link-path">נתיב פעיל: אוטומטי</p>
               <div class="work-link-serial">
                 <label class="conn-panel-field">פורט
                   <select id="rfComPort" class="conn-select" dir="ltr" title="פורט RF"></select>
@@ -51,6 +53,7 @@
                   </select>
                 </label>
               </div>
+              </details>
             </section>
             <p id="connectApiUpgradeHint" class="conn-upgrade-hint hidden" role="alert"></p>
             <ul id="commLinkRows" class="comm-link-rows" aria-label="קישורי תקשורת">
@@ -261,7 +264,6 @@
         <button class="tab tab-ops" data-tab="control" title="פרמטרים">פרמטרים</button>
         <button class="tab tab-ops" data-tab="optics" title="אופטיקה">אופטיקה</button>
         <button class="tab tab-ops" data-tab="recordings" title="תחקור">תחקור</button>
-        <button type="button" id="flightCommTab" class="tab tab-ops" title="תקשור" aria-pressed="false" aria-controls="flightCommMenu">תקשור</button>
         <button class="tab tab-quiet" hidden data-tab="telemetry" title="אבחונים">אבחונים</button>
         <button class="tab tab-ops" data-tab="flightEngineer" title="מהנדס" hidden>מהנדס</button>
         <button class="tab tab-ops" hidden data-tab="development" title="פיתוח">פיתוח</button>
@@ -372,6 +374,10 @@
           <textarea id="assistInput" class="assist-input" rows="1" maxlength="2000" dir="rtl" placeholder="שאלה, יועץ, פתק, או בקשת פיתוח…"></textarea>
           <button type="submit" id="assistSendBtn" class="assist-btn assist-btn-send">שלח</button>
         </form>
+        <div id="askLatest" class="ask-latest" hidden>
+          <p id="askLatestQuestion" class="ask-latest-question" hidden></p>
+          <p id="askLatestAnswer" class="ask-latest-answer" hidden></p>
+        </div>
       </div>
     </aside>
     </div>
@@ -598,10 +604,10 @@
           <header class="pulse-hero">
             <h3 class="pulse-title">סטטוס מחשבים</h3>
             <p class="pulse-purpose">סטטוס מחשבים</p>
-            <p class="pulse-health-note">בריאות מחשב המשימה והכלי. לא שינוי מוצר.</p>
+            <p class="pulse-health-note">בריאות מחשב המשימה והכלי. תצוגת בריאות בלבד.</p>
           </header>
           <section id="pulseCameraCards" class="pulse-cam-row" aria-label="מצלמות" data-link="down">
-            <article class="pulse-cam-card" data-link="down" data-tone="off">
+            <article class="pulse-cam-card pulse-cam-summary" data-link="down" data-tone="off">
               <div class="pulse-cam-head">
                 <span class="pulse-cam-name">מצלמות</span>
                 <span class="pulse-cam-pill">מנותק</span>
@@ -944,6 +950,8 @@
             <div class="param-tool-files">
               <button type="button" id="paramFileMenuBtn" class="param-tool-btn param-tool-btn--quiet" aria-expanded="false" aria-controls="paramFileMenu">קובץ</button>
               <div id="paramFileMenu" class="param-file-menu" hidden>
+                <button type="button" id="visionBackupReadItem" class="param-file-item" title="טוען את הגיבוי השמור בקונסולה">טעינת גיבוי</button>
+                <button type="button" id="visionBackupWriteItem" class="param-file-item" title="שומר גיבוי בקונסולה">שמירת גיבוי</button>
                 <button type="button" id="saveProfileBtn" class="param-file-item" title="שמירת פרופיל">שמירה</button>
                 <button type="button" id="exportProfileBtn" class="param-file-item" title="ייצוא פרופיל לקובץ JSON">ייצוא JSON</button>
                 <label class="param-file-item param-file-item--file" title="טעינת פרופיל מקובץ JSON">
@@ -963,8 +971,8 @@
         <div id="paramCenterSearchBar" class="param-center-search-bar" role="search" aria-label="חיפוש פרמטרים">
           <div class="ardu-search-row">
             <input id="arduParamSearchInput" type="search" placeholder="חיפוש פרמטר" dir="rtl" title="חיפוש לפי שם או תיאור" />
-            <button type="button" id="arduParamSearchBtn" class="btn-secondary-lg" title="חיפוש לפי שם/תיאור">חפש</button>
-            <button type="button" id="arduParamSearchClearBtn" class="btn-secondary-lg" title="נקה חיפוש">נקה</button>
+            <button type="button" id="arduParamSearchBtn" class="btn-secondary-lg" title="חיפוש לפי שם/תיאור">חפשו</button>
+            <button type="button" id="arduParamSearchClearBtn" class="btn-secondary-lg" title="נקו חיפוש">נקו</button>
             <button type="button" id="arduParamSmartSearchBtn" class="btn-primary-lg" title="חיפוש חכם לפי טקסט חופשי עם Gemini">חיפוש חכם</button>
           </div>
           <div id="arduSearchStatus" class="vision-config-status param-center-search-status" aria-live="polite"></div>
@@ -1109,12 +1117,12 @@
                 </div>
                 <figcaption class="debrief-cam-label">מטה</figcaption>
               </figure>
-              <figure class="debrief-cam-tile" data-cam="cam3" data-api="cam3" data-slot="2" data-signal="none" hidden>
+              <figure class="debrief-cam-tile" data-cam="cam3" data-api="cam3" data-slot="2" data-signal="none">
                 <div class="debrief-cam-stage" data-camera-stage="cam3">
                   <img class="debrief-cam-live debrief-cam-media" alt="" hidden />
                   <p class="debrief-cam-nosignal">אין אות</p>
                 </div>
-                <figcaption class="debrief-cam-label">גימבל</figcaption>
+                <figcaption class="debrief-cam-label"><span>גימבל</span><p class="debrief-cam-chip" hidden>אין מענה</p></figcaption>
               </figure>
             </div>
           </div>
@@ -1123,6 +1131,8 @@
             <button type="button" id="gimbalLockBtn" class="gimbal-pad-btn gimbal-pad-lock" data-gimbal="lock" aria-pressed="false" disabled aria-describedby="gimbalPadReason">משוחרר</button>
             <p id="gimbalPadReason" class="gimbal-pad-reason">אין קישור למחשב המשימה</p>
             <p id="gimbalAngles" class="gimbal-pad-angles"><span>יאו</span> <span id="gimbalYaw" dir="ltr">—</span> <span>פיץ׳</span> <span id="gimbalPitch" dir="ltr">—</span></p>
+            <details class="optics-field-group" data-settings-group="stick" open>
+              <summary>הזזה</summary>
             <div class="gimbal-pad-play">
               <div class="gimbal-pad-stick" dir="ltr">
                 <button type="button" class="gimbal-pad-btn" data-gimbal="up" disabled aria-label="מעלה" aria-describedby="gimbalPadReason">▲</button>
@@ -1138,6 +1148,7 @@
               </div>
             </div>
             <p class="gimbal-pad-keys">הזיזו בחצים. שנו את הזום בפלוס ובמינוס.</p>
+            </details>
           </section>
         </div>
         <div class="optics-calib">
@@ -1209,27 +1220,27 @@
             </header>
             <p id="gimbalSettingsReason" class="cam0-reason">אין מענה מהגימבל</p>
             <div class="optics-groups">
-              <div class="optics-field-group">
-                <p class="optics-field-kicker">זווית</p>
+              <details class="optics-field-group" data-settings-group="angle">
+                <summary>זווית</summary>
                 <p class="optics-readout"><span class="optics-field-name">יאו</span> <span id="gimbalSettingsYaw" dir="ltr">—</span></p>
                 <p class="optics-readout"><span class="optics-field-name">פיץ׳</span> <span id="gimbalSettingsPitch" dir="ltr">—</span></p>
-              </div>
-              <div class="optics-field-group">
-                <p class="optics-field-kicker">תנועה</p>
+              </details>
+              <details class="optics-field-group" data-settings-group="motion">
+                <summary>תנועה</summary>
                 <label><span class="optics-field-name">מהירות</span> <span class="optics-stepper"><button type="button" class="optics-step" data-optics-step="-1" aria-label="הפחיתו" disabled>−</button><input id="gimbalSpeed" type="number" min="1" max="100" step="1" value="40" dir="ltr" disabled /><button type="button" class="optics-step" data-optics-step="1" aria-label="הגדילו" disabled>+</button></span></label>
                 <button type="button" id="gimbalSettingsCenter" class="cam0-btn" disabled>מרכז</button>
                 <p class="optics-readout"><span class="optics-field-name">זום</span> <span id="gimbalSettingsZoom" dir="ltr">—</span></p>
                 <button type="button" id="gimbalSettingsZoomIn" class="cam0-btn" disabled>הגדלה</button>
                 <button type="button" id="gimbalSettingsZoomOut" class="cam0-btn" disabled>הקטנה</button>
-              </div>
-              <div class="optics-field-group">
-                <p class="optics-field-kicker">מצב</p>
+              </details>
+              <details class="optics-field-group" data-settings-group="mode">
+                <summary>מצב</summary>
                 <button type="button" id="gimbalSettingsMode" class="cam0-btn" disabled>משוחרר</button>
                 <button type="button" id="gimbalSettingsRecord" class="cam0-btn" disabled>הקלטה</button>
                 <button type="button" id="gimbalSettingsSnap" class="cam0-btn" disabled>צילום</button>
                 <label class="cam0-check"><input type="checkbox" id="gimbalTrack" disabled /> <span class="optics-field-name">מעקב</span></label>
                 <p id="gimbalTrackNote" class="optics-field-note">מעקב עדיין לא זמין</p>
-              </div>
+              </details>
             </div>
           </section>
         </div>
@@ -1244,7 +1255,7 @@
           </div>
           <div class="actions">
             <label class="file-btn">
-              טען וידאו
+              טענו וידאו
               <input id="videoInput" type="file" accept="video/*" title="טוען הקלטת טיסה להצגה" />
             </label>
             <span id="selectedRecordingLabel" class="flight-summary-inline">לוג נבחר: —</span>
@@ -1260,7 +1271,7 @@
                 <video id="flightVideo" controls playsinline hidden></video>
                 <canvas id="annotationCanvas"></canvas>
                 <div id="lockIndicator" class="lock-indicator" hidden></div>
-                <p id="debriefPlayerEmpty" class="debrief-player-empty">לא נטען וידאו</p>
+                <p id="debriefPlayerEmpty" class="debrief-player-empty">בחרו הקלטה מהרשימה</p>
               </div>
             </div>
             <div class="annotation-legend">
@@ -1275,7 +1286,7 @@
             <div class="archive-sessions-card" id="archiveSessionsCard">
               <div class="flights-mgr-header">
                 <h3 class="flights-mgr-title">הקלטות ארכיון</h3>
-                <button type="button" id="refreshArchiveSessionsBtn" title="רענן">⟳ רענן</button>
+                <button type="button" id="refreshArchiveSessionsBtn" title="רעננו">⟳ רעננו</button>
               </div>
               <p id="archiveSessionsEmpty" class="archive-sessions-empty">אין הקלטות ארכיון עדיין</p>
               <div id="archiveSessionsList" class="archive-sessions-list" hidden></div>
@@ -2271,13 +2282,19 @@
           </div>
           <button type="button" id="missionReadinessGlance" class="mission-readiness-glance" title="מוכנות">מוכנות</button>
           <div class="mission-layout-bar">
-            <button type="button" id="missionAskToggleBtn" class="mission-layout-btn" title="שאלה" aria-label="שאלה" aria-expanded="false" aria-controls="missionTalkHost">שאל</button>
+            <button type="button" id="missionAskToggleBtn" class="mission-layout-btn" title="שאלה" aria-label="שאלו" aria-expanded="true" aria-controls="missionTalkHost">שאלו</button>
             <button type="button" id="missionSwapHorizonMapBtn" class="mission-layout-btn" title="החלף אופק ומפה" aria-label="החלף אופק ומפה">⇄</button>
             <button type="button" id="missionResetLayoutBtn" class="mission-layout-btn" title="איפוס סידור" aria-label="איפוס סידור">↺</button>
             <p id="missionLayoutHint" class="mission-layout-hint">גררו את הפינה לשינוי גודל. גררו כותרת להחלפה. גם בטיסה.</p>
           </div>
         </div>
-        <div class="terrain-flight-shell mission-workspace" data-mission-layout="ops-v1" data-mission-swap="map-horizon" data-ask-open="0" data-mission-edit="on" data-layout-contract="v2">
+        <section class="mission-region mission-region-talk mission-ask-dock" data-mission-region="talk" dir="rtl" aria-label="ASK">
+          <h3 class="mission-region-title">ASK</h3>
+          <button type="button" id="missionAskCloseBtn" class="mission-ask-close" hidden aria-label="סגור">סגור</button>
+          <p id="missionTalkHint" class="mission-talk-hint" hidden>דברו להטסה. אחרי ההפעלה, נחיתה ושינוי מצב מתבצעים בלי אישור נוסף. חימוש נשאר חסום, ושינוי פרמטר עדיין דורש אישור.</p>
+          <div id="missionTalkHost" class="mission-talk-host" dir="rtl"></div>
+        </section>
+        <div class="terrain-flight-shell mission-workspace" data-mission-layout="ops-v1" data-mission-swap="map-horizon" data-ask-open="1" data-mission-edit="on" data-layout-contract="v2">
           <div id="missionColSplit" class="mission-split mission-split-col"></div>
           <div id="missionColSplitB" class="mission-split mission-split-col"></div>
           <div id="missionRowSplit" class="mission-split mission-split-row"></div>
@@ -2287,10 +2304,11 @@
               <div id="flightArmRow" class="flight-arm-row pfd-command-line pfd-top-bar" data-arm-link="off">
                 <span id="pfdModeVal" class="pfd-mode-val">—</span>
                 <span id="pfdArmedBadge" class="pfd-badge pfd-badge--disarmed" role="button" tabindex="0" title="מצב ARM — לחץ להסבר מוכנות">DISARMED</span>
-                <div class="hud-nav-pill pfd-gps-pill" id="hudNavGps" data-status="unknown" title="אין קישור">
+                <div class="hud-nav-pill pfd-gps-pill" id="hudNavGps" data-status="unknown" title="אין קישור" tabindex="0" aria-describedby="hudNavGpsTip">
                   <span class="hud-nav-icon">📡</span>
                   <span class="hud-nav-val" id="hudNavGpsVal">—</span>
                 </div>
+                <div id="hudNavGpsTip" class="hud-gps-tip" role="tooltip" hidden></div>
                 <button type="button" id="flightArmBtn" class="flight-arm-btn" disabled aria-label="חימוש" title="חימוש">ARM</button>
                 <button type="button" id="flightDisarmBtn" class="flight-arm-btn" disabled aria-label="נטרול" title="נטרול">DISARM</button>
                 <p id="flightArmReason" class="flight-arm-reason" role="button" tabindex="0" aria-expanded="false" title="אין חיבור לבקר הטיסה">אין קשר</p>
@@ -2369,6 +2387,10 @@
             <section class="mission-region mission-region-data" data-mission-region="data" aria-label="נתונים">
             <h3 class="mission-region-title" draggable="true">נתונים</h3>
             <button type="button" id="missionAskDataBtn" class="mission-ask-chip">שאלו על הנתונים</button>
+            <div class="mission-data-hint-anchor">
+              <button type="button" id="missionDataHintBtn" class="mission-data-hint-btn" aria-describedby="missionDataHintTip" aria-label="עזרה" title="קליק ימני על אריח מוסיף או מוחק. לחיצה ארוכה או קליק בוחרים שדה.">?</button>
+              <p id="missionDataHintTip" class="mission-data-hint-tip" role="tooltip">קליק ימני על אריח מוסיף או מוחק. לחיצה ארוכה או קליק בוחרים שדה.</p>
+            </div>
             <dl id="missionDataGrid" class="mission-data-grid" aria-label="מדדי טיסה">
               <div class="mission-data-item mission-data-tile" data-mission-data-slot="0">
                 <dt class="mission-data-label">מוד</dt>
@@ -2406,9 +2428,7 @@
             <div id="flightStackSplitMsg" class="flight-stack-split" role="separator" aria-orientation="horizontal" aria-label="גובה ההודעות" tabindex="0"></div>
             <section class="mission-region mission-region-messages" data-mission-region="messages" data-messages-expanded="0" data-flight-dock="messages" dir="rtl" aria-label="תחתית הטיסה">
               <h3 class="mission-region-title">הודעות מטוס</h3>
-              <div class="flight-screen-tools">
-                <p class="mission-data-hint">קליק ימני על אריח מוסיף או מוחק. לחיצה ארוכה או קליק בוחרים שדה.</p>
-              </div>
+              <div class="flight-screen-tools" hidden></div>
               <div class="flight-dock-bar">
                 <div class="flight-dock-tabs" role="tablist" aria-label="תחתית הטיסה">
                   <button type="button" id="flightDockMessagesTab" class="flight-dock-tab" role="tab" aria-selected="true" aria-controls="flightDockMessagesPane">הודעות</button>
@@ -2486,12 +2506,6 @@
               </div>
               <p id="flightDockCommandNote" class="flight-dock-note" role="status"></p>
             </section>
-            <section class="mission-region mission-region-talk" data-mission-region="talk" dir="rtl" aria-label="ASK">
-              <h3 class="mission-region-title">ASK</h3>
-              <button type="button" id="missionAskCloseBtn" class="mission-ask-close" hidden aria-label="סגור">סגור</button>
-              <p id="missionTalkHint" class="mission-talk-hint" hidden>דברו להטסה. אחרי ההפעלה, נחיתה ושינוי מצב מתבצעים בלי אישור נוסף. חימוש נשאר חסום, ושינוי פרמטר עדיין דורש אישור.</p>
-              <div id="missionTalkHost" class="mission-talk-host" dir="rtl"></div>
-            </section>
           </section>
 
           <section class="mission-region mission-region-map" data-mission-region="map" aria-label="מפה">
@@ -2501,6 +2515,7 @@
               <div id="terrainMapRotatable" class="terrain-map-rotatable">
                 <div id="terrainMap"></div>
               </div>
+              <button type="button" id="terrainReturnBtn" class="terrain-return-btn" hidden>חזרו למטוס</button>
             </div>
             <div id="gimbalScreen" class="gimbal-screen" hidden data-corner="bl" data-gimbal-root="1">
               <div class="gimbal-screen-bar" id="gimbalScreenDrag" title="גררו לפינה">
@@ -2540,6 +2555,8 @@
           </section>
 
           <div id="flightCommMenu" class="flight-comm-menu" hidden role="dialog" aria-label="תקשורת">
+            <p class="flight-menu-heading">נתיב</p>
+            <p class="flight-menu-desc">אוטומטי, בית, סלולר או RF. פורט וקצב של RF נמצאים כאן.</p>
             <div class="flight-comm-list" role="menu">
               <button type="button" class="flight-comm-link" data-comm-link="cellular" role="menuitem">סלולר</button>
               <button type="button" class="flight-comm-link" data-comm-link="radio" role="menuitem">RF</button>
@@ -2576,9 +2593,12 @@
             </div>
           </div>
 
+          <div id="flightColumnMenu" class="flight-column-menu" hidden role="menu" aria-label="פריסת העמודה">
+            <button type="button" id="flightStackResetBtn" class="flight-column-menu-item" role="menuitem">אפסו סידור</button>
+          </div>
           <div id="missionDataTileMenu" class="mission-data-tile-menu hidden" role="menu" aria-label="אריח נתון">
-            <button type="button" id="missionDataTileAdd" class="mission-data-tile-menu-item" role="menuitem">הוסיפו נתון</button>
-            <button type="button" id="missionDataTileDelete" class="mission-data-tile-menu-item" role="menuitem">מחקו</button>
+            <button type="button" id="missionDataTileAdd" class="mission-data-tile-menu-item" role="menuitem">הוסיפו נתון<span class="horizon-menu-desc">מחליף את הנתון באריח הזה</span></button>
+            <button type="button" id="missionDataTileDelete" class="mission-data-tile-menu-item" role="menuitem">מחקו<span class="horizon-menu-desc">מסיר את האריח מהעמודה</span></button>
           </div>
           <div id="hudCtxMenu" class="hud-ctx-menu hidden" role="menu" aria-label="אפשרויות נתון">
             <button id="hudCtxEdit"   class="hud-ctx-item" role="menuitem">✎ ערוך / הוסף נתון</button>
@@ -2922,7 +2942,7 @@
                 <span class="fe-notes-title">פנקס הטיסה</span>
                 <span class="fe-notes-caption">פתקים לסשן הנוכחי</span>
               </div>
-              <button type="button" id="feClearNotesBtn" class="fe-icon-btn fe-icon-btn--ghost" title="נקה פנקס">נקה</button>
+              <button type="button" id="feClearNotesBtn" class="fe-icon-btn fe-icon-btn--ghost" title="נקו פנקס">נקו</button>
             </div>
             <div id="feNotesList" class="fe-notes-list" role="list"></div>
             <div class="fe-notes-add">
@@ -2998,13 +3018,13 @@
     <div id="mapFlyToMenu" class="map-fly-to-menu hidden" role="menu">
       <div class="map-fly-to-coords" id="mapFlyToCoords"></div>
       <button class="map-fly-to-btn" id="mapFlyToBtn" role="menuitem">
-        <span class="map-fly-to-icon">✈</span> טוס לכאן
+        <span class="map-fly-to-icon">✈</span> טוסו לכאן
       </button>
       <button type="button" class="map-fly-to-btn" id="mapGimbalScreenBtn" data-gimbal-screen="open" role="menuitem">מסך גימבל</button>
       <button type="button" class="map-fly-to-btn" id="terrainLayerStreetBtn" role="menuitem">מפת רחוב</button>
       <button type="button" class="map-fly-to-btn" id="terrainLayerSatBtn" role="menuitem">לווין</button>
       <button type="button" class="map-fly-to-btn" id="terrainShowLoadedPathBtn" role="menuitem" aria-pressed="false">הציגו נתיב</button>
-      <button type="button" class="map-fly-to-btn" id="terrainFollowBtn" role="menuitem" aria-pressed="false">עקבו</button>
+      <button type="button" class="map-fly-to-btn" id="terrainFollowBtn" role="menuitem" aria-pressed="true">מעקב פעיל</button>
       <button type="button" class="map-fly-to-btn" id="terrainFlightRecordBtn" role="menuitem" data-recording="0" aria-pressed="false">התחילו הקלטה</button>
       <span id="terrainFlightRecordState" class="terrain-record-state">לא מקליט</span>
       <div class="map-fly-to-alt-row">
@@ -3025,6 +3045,7 @@
     </script>
     <script type="module" src="./modules/flightbook.mjs?v=__APP_VERSION__"></script>
     <script type="module" src="./modules/debrief-cameras.mjs?v=__APP_VERSION__"></script>
+    <script type="module" src="./modules/optics-context.mjs?v=__APP_VERSION__"></script>
     <script type="module" src="./modules/gimbal-screen.mjs?v=__APP_VERSION__"></script>
     <script type="module" src="./modules/gimbal-settings.mjs?v=__APP_VERSION__"></script>
     <script type="module" src="./modules/cam0-panel.mjs?v=__APP_VERSION__"></script>
@@ -3035,6 +3056,7 @@
     <script type="module" src="./modules/voice-flight-phrases.mjs?v=__APP_VERSION__"></script>
     <script type="module" src="./modules/pulse-cameras.mjs?v=__APP_VERSION__"></script>
     <script type="module" src="./modules/vision-tracks.mjs?v=__APP_VERSION__"></script>
+    <script type="module" src="./modules/gps-quality.mjs?v=__APP_VERSION__"></script>
     <script src="./app.js?v=__APP_VERSION__"></script>
     <script src="./versions-rollback.js?v=__APP_VERSION__"></script>
   </body>

@@ -148,7 +148,11 @@ describe('Ask panel — no control overlap', () => {
       expect(measured.modalHidden, vp.name).toBe(true);
       expect(measured.key?.display === 'none' || measured.modalHidden, vp.name).toBe(true);
       expect(measured.devTab?.display, vp.name).toBe('none');
-      expect(measured.input.display, vp.name).toBe('none');
+      expect(measured.input.display, vp.name).not.toBe('none');
+      expect(measured.input.width, vp.name).toBeGreaterThan(80);
+      expect(interiorsIntersect(measured.input, measured.send), `${vp.name} send overlaps input`).toBe(false);
+      expect(interiorsIntersect(measured.input, measured.mic), `${vp.name} mic overlaps input`).toBe(false);
+      expect(interiorsIntersect(measured.send, measured.mic), `${vp.name} send overlaps mic`).toBe(false);
       expect(measured.mic.width, vp.name).toBeGreaterThan(40);
       expect((await page.locator('#assistMicBtn').innerText()), vp.name).toContain('האזינו');
       if (vp.name !== '1366x768') {

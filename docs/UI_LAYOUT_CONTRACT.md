@@ -26,9 +26,11 @@ Also reject sibling text boxes that overlap inside the horizon top bar, a data t
 
 ## Flight horizon
 
-The approved flight screen puts a near-square horizon in the right column. The horizon instrument keeps `aspect-ratio: 1 / 1` and uses the column width. It is not capped near 28 percent of the workspace. Speed, altitude, and heading stay on the instrument. Other horizon actions stay in the right-click menu.
+The approved flight screen puts a near-square horizon in the right column. At rest the horizon instrument keeps `aspect-ratio: 1 / 1` and uses the column width, capped so the data tiles and the messages keep their minimum heights. Dragging the handle under the horizon sets an explicit height: dragging down grows the horizon (never under 112px) and releases the square lock, trading space with the tiles and then the messages. Dragging the handle under the tiles only trades tiles against messages and does not move the horizon. Neither region may extend past the column. It is not capped near 28 percent of the workspace. Speed, altitude, and heading stay on the instrument. Other horizon actions stay in the right-click menu. אפסו פריסה in the column menu restores the square.
 
-Run it on every tab (הטסה, סטטוס מחשבים, פרמטרים, תחקור) and the settings dialog, at every viewport in `tests/text-fit-matrix.test.mjs`, with live-like long values.
+Run it on every tab (הטסה, סטטוס מחשבים, פרמטרים, אופטיקה, תחקור) and the settings dialog, at every viewport in `tests/text-fit-matrix.test.mjs`, with live-like long values.
+
+Camera picture containers keep a stable `data-camera-stage` of `cam0`, `cam1`, `cam3`, or `horizon`. The gimbal UI id is `cam3`; a saved `a8` is rewritten to `cam3` on read. Ask camera status includes that gimbal stream. The optics grid is three equal tiles that fill the panel; choosing a camera only highlights one. Camera and gimbal controls open from a page-level right-click menu on that tile. The flight column stores the horizon height with the tile and message heights. The actions pane scrolls inside the column. Link path, RF port, baud, home, and RC live in the flight-screen chip menus. The header chip is status only. The map follows the aircraft until a pan or the right-click follow toggle. The GPS chip tooltip shows only fields the flight controller sent.
 
 ## Do not
 

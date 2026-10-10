@@ -91,21 +91,19 @@ describe('three-camera proportions and tile delete', () => {
         span,
         inside: inside(gimbal) && inside(forward) && inside(down),
         pressed: [...document.querySelectorAll('[data-debrief-cam]')].filter((btn) => btn.getAttribute('aria-pressed') === 'true').map((btn) => btn.dataset.debriefCam),
+        stored: localStorage.getItem('vlc.debrief.cameras.v2'),
       };
     });
-    expect(box.gimbal.height).toBeGreaterThan(box.forward.height + 20);
-    expect(box.gimbal.height).toBeGreaterThan(box.down.height + 20);
-    expect(box.gimbal.width * box.gimbal.height).toBeGreaterThan(box.forward.width * box.forward.height);
-    expect(box.gimbal.width * box.gimbal.height).toBeGreaterThan(box.down.width * box.down.height);
+    expect(Math.abs(box.gimbal.height - box.forward.height)).toBeLessThan(8);
+    expect(Math.abs(box.gimbal.width - box.forward.width)).toBeLessThan(8);
+    expect(Math.abs(box.gimbal.height - box.down.height)).toBeLessThan(8);
     expect(box.span).toBeGreaterThan(box.gridWidth * 0.92);
-    expect(box.ratio).toBeGreaterThan(0.75);
-    expect(box.ratio).toBeLessThan(1.25);
     expect(box.forward.fit).toBe('contain');
     expect(box.down.fit).toBe('contain');
     expect(box.gimbal.fit).toBe('contain');
     expect(box.inside).toBe(true);
-    expect(box.down.top).toBeGreaterThanOrEqual(box.forward.bottom - 8);
-    expect(box.pressed.sort()).toEqual(['cam3', 'cam0', 'cam1']);
+    expect(box.pressed).toEqual(['cam0']);
+    expect(JSON.parse(box.stored)).toEqual(['cam0', 'cam1', 'cam3']);
   }, 30000);
 
   it('right-click deletes a flight tile and does not send a command', async () => {
@@ -124,6 +122,7 @@ describe('three-camera proportions and tile delete', () => {
       };
     });
     await page.locator('[data-mission-data-slot="1"]').click({ button: 'right' });
+    await page.locator('#missionDataTileDelete').click();
     const after = await page.evaluate(() => {
       const tile = document.querySelector('[data-mission-data-slot="1"]');
       const picker = document.getElementById('missionDataPicker');
@@ -139,22 +138,30 @@ describe('three-camera proportions and tile delete', () => {
     expect(after.stored).toContain('1');
     expect(after.urls.some((url) => /arm|disarm|flight-mode|param-set|\/apply|\/restart|\/command/i.test(url))).toBe(false);
     const hint = await page.evaluate(() => {
-      const el = document.querySelector('.flight-screen-tools .mission-data-hint');
+      const el = document.getElementById('missionDataHintBtn');
+      const tip = document.getElementById('missionDataHintTip');
+      const messages = document.querySelector('[data-mission-region="messages"]');
       const cs = getComputedStyle(el);
       const r = el.getBoundingClientRect();
+      const tiles = document.querySelector('[data-mission-region="data"]').getBoundingClientRect();
       return {
-        text: el.textContent,
+        text: `${el.getAttribute('title') || ''} ${tip?.textContent || ''}`,
+        inMessages: (messages?.textContent || '').includes('קליק ימני על אריח'),
         w: r.width,
         h: r.height,
         size: parseFloat(cs.fontSize),
+        byTiles: r.top >= tiles.top - 4 && r.bottom <= tiles.bottom + 4,
       };
     });
-    expect(hint.text).toContain('קליק ימני מוחק אריח');
-    expect(hint.w).toBeGreaterThan(80);
+    expect(hint.text).toContain('קליק ימני על אריח');
+    expect(hint.inMessages).toBe(false);
+    expect(hint.byTiles).toBe(true);
+    expect(hint.w).toBeGreaterThan(20);
     expect(hint.h).toBeGreaterThan(11);
     expect(hint.size).toBeGreaterThanOrEqual(11);
-    expect(await page.locator('#missionDataAddBtn').innerText()).toBe('הוסיפו נתון');
-    await page.click('#missionDataAddBtn');
+    expect(await page.locator('#missionDataAddBtn').count()).toBe(0);
+    await page.locator('[data-mission-data-slot="0"]').click({ button: 'right' });
+    await page.click('#missionDataTileAdd');
     const restored = await page.evaluate(() => document.querySelector('[data-mission-data-slot="1"]').hidden);
     expect(restored).toBe(false);
   }, 30000);
@@ -168,7 +175,7 @@ describe('three-camera proportions and tile delete', () => {
     });
     await page.reload({ waitUntil: 'domcontentloaded' });
     await page.click('[data-tab="terrain"]');
-    await page.waitForSelector('#missionDataAddBtn');
+    await page.waitForSelector('[data-mission-data-slot="0"]');
     await page.evaluate(() => {
       window.__vlcFetchUrls = [];
       const orig = window.fetch.bind(window);
@@ -181,7 +188,8 @@ describe('three-camera proportions and tile delete', () => {
     const before = await page.evaluate(() => (
       [...document.querySelectorAll('#missionDataGrid .mission-data-tile')].filter((el) => !el.hidden).length
     ));
-    await page.click('#missionDataAddBtn');
+    await page.locator('[data-mission-data-slot="0"]').click({ button: 'right' });
+    await page.click('#missionDataTileAdd');
     const first = await page.evaluate(() => {
       const tile = document.querySelector('[data-mission-data-slot="6"]');
       const label = tile?.querySelector('.mission-data-label');
@@ -210,7 +218,8 @@ describe('three-camera proportions and tile delete', () => {
     expect(first.labelFits).toBe(true);
     expect(first.valueFits).toBe(true);
 
-    await page.click('#missionDataAddBtn');
+    await page.locator('[data-mission-data-slot="0"]').click({ button: 'right' });
+    await page.click('#missionDataTileAdd');
     const second = await page.evaluate(() => {
       const tile = document.querySelector('[data-mission-data-slot="7"]');
       const label = tile?.querySelector('.mission-data-label');
@@ -236,6 +245,7 @@ describe('three-camera proportions and tile delete', () => {
     expect(second.pickerOpen).toBe(false);
 
     await page.locator('[data-mission-data-slot="7"]').click({ button: 'right' });
+    await page.locator('#missionDataTileDelete').click();
     const deleted = await page.evaluate(() => ({
       hidden: document.querySelector('[data-mission-data-slot="7"]').hidden,
       urls: window.__vlcFetchUrls,

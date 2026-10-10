@@ -39,6 +39,9 @@ describe('vision track hit testing', () => {
     const wide = placeTrackCaption(0, 240, 200);
     expect(wide.right).toBe(200);
     expect(wide.right - wide.x).toBe(240);
+    const inset = placeTrackCaption(0, 40, 200, 80);
+    expect(inset.x).toBeGreaterThanOrEqual(80);
+    expect(inset.right).toBeLessThanOrEqual(120);
     expect(TRACK_LIST_POLL_MS).toBe(1000);
     expect(tracksPollAllowed(10_000, 9_500, 0)).toBe(false);
     expect(tracksPollAllowed(10_000, 0, 9_500)).toBe(false);

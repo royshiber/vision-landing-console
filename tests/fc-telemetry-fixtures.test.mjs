@@ -257,6 +257,7 @@ describe('status card and HUD keep real FC metrics', () => {
       sliceFunction(js, 'isHudMavlinkLive'),
       sliceFunction(js, 'hudSysId'),
       sliceFunction(js, 'hudFiniteOrNull'),
+      sliceFunction(js, 'hudFiniteMode'),
       sliceFunction(js, 'hudFcMetricFields'),
       sliceFunction(js, 'preferHudFcMetrics'),
       sliceFunction(js, 'liveStatusToHudMavlink'),

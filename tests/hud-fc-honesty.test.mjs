@@ -155,7 +155,7 @@ describe('GPS_RAW honesty without invented coordinates', () => {
       gpsFixType: 1,
       gpsSats: 5,
     });
-    expect(readout.text).toContain('אין Fix');
+    expect(readout.text).toContain('אין קיבוע');
     expect(readout.text).toContain('5');
     expect(readout.dash).toBe(false);
     expect(readout.title).toBe(HUD_REASON_GPS_WAITING);

@@ -167,18 +167,30 @@ export function trackCaption(track) {
  * Caption origin so the trailing score stays inside the tile.
  * A caption wider than the tile keeps its right edge on the tile edge.
  */
-export function placeTrackCaption(boxX, textWidth, tileWidth) {
+export function placeTrackCaption(boxX, textWidth, tileWidth, inset = 0) {
   const tile = Math.max(0, Number(tileWidth) || 0);
   const text = Math.max(0, Number(textWidth) || 0);
+  const gutter = Math.max(0, Number(inset) || 0);
   let x = Number(boxX);
   if (!Number.isFinite(x)) x = 0;
   if (!(tile > 0)) return { x: 0, right: text };
-  if (text <= tile) {
-    if (x + text > tile) x = tile - text;
-    if (x < 0) x = 0;
+  if (gutter <= 0) {
+    if (text <= tile) {
+      if (x + text > tile) x = tile - text;
+      if (x < 0) x = 0;
+      return { x, right: x + text };
+    }
+    return { x: tile - text, right: tile };
+  }
+  const left = Math.min(gutter, tile);
+  const rightEdge = Math.max(left, tile - gutter);
+  const span = rightEdge - left;
+  if (text <= span) {
+    if (x < left) x = left;
+    if (x + text > rightEdge) x = rightEdge - text;
     return { x, right: x + text };
   }
-  return { x: tile - text, right: tile };
+  return { x: left, right: left + text };
 }
 
 export function tracksMatchFrame(payload, seq, capturedAt, toleranceMs = FRAME_SYNC_TOLERANCE_MS) {
@@ -541,6 +553,19 @@ function payloadFor(camera) {
   return cache.get(camera) || emptyPayload(REASON_NO_STREAM);
 }
 
+function horizonShownCamera(doc) {
+  const checked = doc.querySelector('[data-horizon-cam][aria-checked="true"]');
+  const picked = checked?.dataset?.horizonCam || '';
+  if (picked && picked !== 'none') return picked === 'a8' ? 'cam3' : picked;
+  const imgs = doc.querySelectorAll('#horizonCameraBg, .pfd-horizon-camera');
+  for (const img of imgs) {
+    if (img.hidden || !(Number(img.naturalWidth) > 0)) continue;
+    const slot = img.dataset.horizonSlot || img.closest('[data-horizon-slot]')?.dataset.horizonSlot || '';
+    if (slot && slot !== 'none') return slot === 'a8' ? 'cam3' : slot;
+  }
+  return '';
+}
+
 function mediaOf(host) {
   const nodes = host.querySelectorAll('img, video');
   for (const node of nodes) {
@@ -649,18 +674,17 @@ function ensureChrome(host, camera) {
     const resize = new ResizeObserver(() => repaint());
     resize.observe(host);
   }
-  const opener = host.closest?.('.debrief-cam-tile') || host;
-  if (opener.dataset.visionMenuBound === '1') return;
+  const opener = host.closest?.('.debrief-cam-tile');
+  if (!opener || opener.dataset.visionMenuBound === '1') return;
   opener.dataset.visionMenuBound = '1';
   opener.addEventListener('contextmenu', (event) => {
     if (!(event.target instanceof Element) || !opener.contains(event.target)) return;
-    const camera = host.dataset.visionCamera || host.dataset.visionFollow || selectedCamera() || 'cam3';
-    if (event.defaultPrevented) {
-      const slot = host.ownerDocument.querySelector('[data-vision-menu-slot]');
-      if (slot) fillVisionMenu(slot, camera);
-      return;
-    }
+    const camera = host.dataset.visionCamera || host.dataset.visionFollow || selectedCamera() || opener.dataset.cam || 'cam3';
+    const onBox = Boolean(lockAtPoint(host, event.clientX, event.clientY, copyDrawnBoxes(host)));
+    if (!onBox) return;
     event.preventDefault();
+    event.stopPropagation();
+    host.ownerDocument.dispatchEvent(new CustomEvent('vlc-close-optics'));
     openMenu(host.ownerDocument, camera, event.clientX, event.clientY);
   });
 }
@@ -673,12 +697,14 @@ export function paintHost(host, payload, { kind = 'tile' } = {}) {
   const layer = host.querySelector(':scope > .vision-hit-layer');
   const note = host.querySelector(':scope > .vision-box-note');
   const camera = kind === 'horizon'
-    ? (payload?.selected_camera || selectedCamera() || host.dataset.visionCamera || 'cam3')
+    ? (horizonShownCamera(doc) || payload?.camera || payload?.selected_camera || selectedCamera() || host.dataset.visionCamera || 'cam3')
     : (host.dataset.visionCamera || payload?.camera || '');
   host.dataset.visionCamera = camera;
   const showHorizon = kind !== 'horizon' || horizonMediaOn(host);
-  const reason = payload?.reason_he || '';
-  const tracks = showHorizon && !reason ? (payload?.tracks || []) : [];
+  const shown = kind === 'horizon' ? cache.get(camera) : null;
+  const off = shown && (shown.enabled === false || shown.reason_he === REASON_OFF);
+  const reason = off ? (shown.reason_he || REASON_OFF) : (payload?.reason_he || '');
+  const tracks = showHorizon && !reason && !off ? (payload?.tracks || []) : [];
   const lockId = payload?.lock?.id;
   host.dataset.visionReason = showHorizon ? reason : '';
   host.dataset.visionFrame = payload?.frame_seq ? String(payload.frame_seq) : '';
@@ -747,7 +773,8 @@ export function paintHost(host, payload, { kind = 'tile' } = {}) {
     const textW = ctx.measureText(caption).width;
     const pad = 4;
     const capH = 16;
-    const placed = placeTrackCaption(boxX, textW + pad * 2, width);
+    const inset = kind === 'horizon' ? 80 : 0;
+    const placed = placeTrackCaption(boxX, textW + pad * 2, width, inset);
     let capY = boxY - 18;
     if (capY < 0) capY = Math.min(Math.max(0, height - capH), Math.max(0, boxY + 2));
     if (capY + capH > height) capY = Math.max(0, height - capH);
@@ -828,10 +855,19 @@ function applyBundledTracks(host, detail) {
   const payload = detail?.tracks;
   if (!host || !payload || typeof payload !== 'object') return;
   const stage = host.dataset.cameraStage || '';
+  const shownHorizon = stage === 'horizon' ? horizonShownCamera(host.ownerDocument) : '';
   const camera = stage && stage !== 'horizon'
     ? stage
-    : (payload.camera || host.dataset.visionCamera || selectedCamera() || '');
+    : (shownHorizon || payload.camera || host.dataset.visionCamera || '');
   if (!camera) return;
+  if (stage === 'horizon' && payload.camera && payload.camera !== camera) return;
+  if (stage === 'horizon') {
+    const status = cache.get(camera);
+    if (status && (status.enabled === false || status.reason_he === REASON_OFF)) {
+      paintHost(host, { ...status, tracks: [], camera }, { kind: 'horizon' });
+      return;
+    }
+  }
   const seq = Number(detail.seq) || Number(payload.frame_seq) || 0;
   const capturedAt = Number(detail.capturedAt) || Number(payload.captured_at) || 0;
   if (seq > 0 && !tracksMatchFrame(payload, seq, capturedAt)) return;
@@ -880,11 +916,18 @@ function rememberFrame(camera, payload) {
 
 function paintAll(doc) {
   for (const item of hostList(doc)) {
-    const camera = item.kind === 'horizon' ? (selectedCamera() || '') : item.camera;
+    const camera = item.kind === 'horizon' ? horizonShownCamera(doc) : item.camera;
     const latest = camera ? payloadFor(camera) : emptyPayload(REASON_OFF);
     if (item.kind === 'horizon' && !camera) {
-      paintHost(item.host, emptyPayload(REASON_OFF), item);
+      paintHost(item.host, emptyPayload(''), item);
       continue;
+    }
+    if (item.kind === 'horizon' && camera) {
+      const status = cache.get(camera);
+      if (status && (status.enabled === false || status.reason_he === REASON_OFF)) {
+        paintHost(item.host, { ...status, tracks: [], camera }, item);
+        continue;
+      }
     }
     const chosen = tracksForShownFrame(
       latest,
@@ -1088,6 +1131,16 @@ function onMenuClick(event) {
       void postLock({ action: 'unlock', camera: menuCamera });
       return;
     }
+    if (action === 'optics') {
+      const node = doc.getElementById('visionTrackMenu');
+      const left = Number.parseFloat(node?.style.left || '24') || 24;
+      const top = Number.parseFloat(node?.style.top || '80') || 80;
+      if (node) node.hidden = true;
+      doc.dispatchEvent(new CustomEvent('vlc-open-optics', {
+        detail: { cam: menuCamera || 'cam3', x: left, y: top },
+      }));
+      return;
+    }
     if (id) void postLock({ camera: menuCamera, id: Number(id) });
 }
 
@@ -1178,7 +1231,10 @@ export function fillVisionMenu(slot, camera) {
   const menu = doc.getElementById('visionTrackMenu');
   slot.replaceChildren();
   if (!menu) return;
-  for (const child of menu.children) slot.appendChild(child.cloneNode(true));
+  for (const child of menu.children) {
+    if (child instanceof Element && child.dataset.visionAction === 'optics') continue;
+    slot.appendChild(child.cloneNode(true));
+  }
   if (slot.dataset.visionClick !== '1') {
     slot.dataset.visionClick = '1';
     slot.addEventListener('click', onMenuClick);
@@ -1204,6 +1260,15 @@ function openMenu(doc, camera, x, y) {
   node.style.left = `${box.left}px`;
   node.style.top = `${box.top}px`;
   node.style.maxHeight = `${box.maxHeight}px`;
+  let settings = node.querySelector('[data-vision-action="optics"]');
+  if (!settings) {
+    settings = doc.createElement('button');
+    settings.type = 'button';
+    settings.className = 'vision-track-menu-item';
+    settings.dataset.visionAction = 'optics';
+    settings.textContent = 'הגדרות מצלמה…';
+  }
+  node.appendChild(settings);
 }
 
 export function mountVisionTracks(doc = document) {

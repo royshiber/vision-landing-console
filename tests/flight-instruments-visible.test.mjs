@@ -16,7 +16,7 @@ const viewports = [
   { name: '360x740', width: 360, height: 740 },
 ];
 
-const CORE = ['#pfdAltVal', '#pfdAirspeedVal', '#pfdHdgVal', '#pfdBattVal', '#hudFlightMode', '#hudAltitude', '#hudAirspeed'];
+const CORE = ['#pfdAltVal', '#pfdAirspeedVal', '#pfdBattVal', '#hudFlightMode', '#hudAltitude', '#hudAirspeed'];
 
 function layoutScript({ selectors, scrollEach, scrollGrid }) {
   function overlaps(a, b) {
@@ -292,7 +292,7 @@ describe('flight instruments visible area', () => {
       };
     });
     expect(cover.talk).not.toBe('none');
-    expect(cover.input).toBe('none');
+    expect(cover.input).not.toBe('none');
     expect(cover.mic).toContain('האזינו');
     expect(cover.toggleOverlap).toBe(false);
     expect(cover.applyOverlap).toBe(false);

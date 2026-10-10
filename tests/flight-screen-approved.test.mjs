@@ -70,6 +70,7 @@ describe('approved flight screen', () => {
         ias: visible(document.querySelector('.pfd-side-tape--left')),
         alt: visible(document.querySelector('.pfd-side-tape--right')),
         hdg: visible(document.querySelector('.pfd-heading-lane')),
+        gps: visible(document.getElementById('hudNavGps')),
         video: visible(document.getElementById('horizonVideoToggle')),
         vision: visible(document.getElementById('annotatedVisionToggle')),
         frame: visible(document.getElementById('liveCameraToggle')),
@@ -96,7 +97,8 @@ describe('approved flight screen', () => {
     expect(face.ratio).toBeLessThan(1.22);
     expect(face.ias).toBe(true);
     expect(face.alt).toBe(true);
-    expect(face.hdg).toBe(true);
+    expect(face.hdg).toBe(false);
+    expect(face.gps).toBe(false);
     expect(face.iasText).toBe('—');
     expect(face.altText).toBe('—');
     expect(face.hdgText).toBe('—');
@@ -110,7 +112,7 @@ describe('approved flight screen', () => {
     expect(face.disarm).toBe(false);
     expect(face.askData).toBe(false);
     expect(face.mic).toContain('האזינו');
-    expect(face.input).toBe('none');
+    expect(face.input).not.toBe('none');
     expect(face.rtl).toBe(false);
     expect(face.loiter).toBe(false);
     expect(face.auto).toBe(false);
@@ -122,10 +124,11 @@ describe('approved flight screen', () => {
 
   it('opens communications from תקשור and a single-link menu with dashes when there is no reading', async () => {
     const tabs = await page.locator('nav.tabs > .tab:not([hidden])').allInnerTexts();
-    expect(tabs.map((text) => text.trim())).toEqual(['הטסה', 'סטטוס מחשבים', 'פרמטרים', 'אופטיקה', 'תחקור', 'תקשור']);
-    await page.click('#flightCommTab');
+    expect(tabs.map((text) => text.trim())).toEqual(['הטסה', 'סטטוס מחשבים', 'פרמטרים', 'אופטיקה', 'תחקור']);
+    expect(await page.locator('#flightCommTab').count()).toBe(0);
+    await page.click('#missionCommOpen');
     await page.waitForSelector('#flightCommMenu:not([hidden])');
-    expect(await page.locator('#flightCommTab').getAttribute('aria-pressed')).toBe('true');
+    expect(await page.locator('#workLinkPicker').count()).toBe(1);
     const comm = await page.evaluate(() => ({
       state: document.getElementById('flightCommState').textContent,
       strength: document.getElementById('flightCommStrength').textContent,

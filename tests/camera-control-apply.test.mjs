@@ -138,8 +138,8 @@ describe('camera control badges', () => {
     });
     await page.goto(base, { waitUntil: 'domcontentloaded' });
     await page.click('[data-tab="optics"]');
-    await page.click('#opticsCam1Btn');
-    await page.waitForSelector('#cam1Panel:not([hidden])');
+    await page.locator('.debrief-cam-tile[data-cam="cam1"]').click({ button: 'right' });
+    await page.waitForSelector('#opticsContext:not([hidden]) #cam1Panel');
     await page.waitForFunction((reason) => {
       const exp = document.getElementById('cam1Exposure');
       const gain = document.getElementById('cam1Gain');
@@ -157,7 +157,7 @@ describe('camera control badges', () => {
     await page.dispatchEvent('#cam1Gain', 'change');
     await page.waitForFunction((word) => document.getElementById('cam1ApplyBadge')?.textContent === word, APPLIED_HE);
     expect(await page.locator('#cam1ApplyBadge').getAttribute('data-state')).toBe('applied');
-    expect(await page.locator('#cam1FovHint').innerText()).toContain(FOV_META_HE);
+    expect(await page.locator('#cam1FovHint').textContent()).toContain(FOV_META_HE);
 
     await page.fill('#cam1Gain', '40');
     await page.dispatchEvent('#cam1Gain', 'change');
