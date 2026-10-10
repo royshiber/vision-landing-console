@@ -35,12 +35,61 @@ function browserLoad(src, signal) {
     const capturedAt = Number(res.headers.get('x-airvix-capture-at') || 0);
     const blob = await res.blob();
     if (!blob || blob.size === 0) throw missError();
+    const tracks = decodeFrameTracks(res.headers.get('x-airvix-tracks'));
     return {
       src,
       objectUrl: URL.createObjectURL(blob),
       seq: Number.isFinite(seq) ? seq : 0,
       capturedAt: Number.isFinite(capturedAt) ? capturedAt : 0,
+      ...(tracks ? { tracks } : {}),
     };
+  });
+}
+
+function decodeFrameTracks(value) {
+  const raw = String(value || '').trim();
+  if (!raw || typeof atob !== 'function' || typeof TextDecoder !== 'function') return null;
+  try {
+    const bin = atob(raw);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i += 1) bytes[i] = bin.charCodeAt(i);
+    const parsed = JSON.parse(new TextDecoder().decode(bytes));
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function tracksBelongToFrame(payload, seq, capturedAt) {
+  const tagged = Number(payload?.frame_seq);
+  const shown = Number(seq);
+  if (tagged > 0 && shown > 0 && tagged === shown) return true;
+  const stamp = Number(payload?.captured_at);
+  const at = Number(capturedAt);
+  if (!(stamp > 0) || !(at > 0)) return false;
+  return Math.abs(stamp - at) <= 80;
+}
+
+function decodeObjectUrl(objectUrl) {
+  return new Promise((resolve) => {
+    if (typeof Image !== 'function') {
+      resolve(true);
+      return;
+    }
+    const probe = new Image();
+    let settled = false;
+    const finish = (ok) => {
+      if (settled) return;
+      settled = true;
+      resolve(ok === true);
+    };
+    probe.onload = () => finish(true);
+    probe.onerror = () => finish(false);
+    probe.src = objectUrl;
+    if (typeof probe.decode === 'function') {
+      probe.decode().then(() => finish(true)).catch(() => finish(false));
+    }
   });
 }
 
@@ -79,23 +128,78 @@ export function createLatestJpegPump({
     }, delay);
   }
 
-  function assignImage(loaded) {
-    if (typeof image !== 'function' || !loaded?.objectUrl) return;
-    const img = image();
-    if (!img) return;
-    const prev = img.dataset.objectUrl;
-    img.dataset.liveFrame = loaded.src || '';
-    img.dataset.objectUrl = loaded.objectUrl;
+  async function tracksForFrame(loaded, src, signal) {
+    const seq = Number(loaded?.seq) || 0;
+    const capturedAt = Number(loaded?.capturedAt) || 0;
+    if (tracksBelongToFrame(loaded?.tracks, seq, capturedAt)) return loaded.tracks;
+    const root = typeof globalThis !== 'undefined' ? globalThis : null;
+    const waitFn = root?.__vlcWaitFrameTracks || root?.window?.__vlcWaitFrameTracks;
+    if (!(seq > 0) || typeof waitFn !== 'function' || signal?.aborted) return null;
+    let timer = null;
+    try {
+      return await Promise.race([
+        Promise.resolve(waitFn({ seq, capturedAt, src })).catch(() => null),
+        new Promise((resolve) => {
+          timer = setTimeout(() => resolve(null), 80);
+        }),
+      ]);
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+  }
+
+  async function presentDecoded(loaded) {
+    if (!loaded?.objectUrl) return true;
+    const img = typeof image === 'function' ? image() : null;
+    if (!img) {
+      try { URL.revokeObjectURL(loaded.objectUrl); } catch { /* already revoked */ }
+      return false;
+    }
+    const decoded = await decodeObjectUrl(loaded.objectUrl);
+    if (!decoded || stopped) {
+      try { URL.revokeObjectURL(loaded.objectUrl); } catch { /* already revoked */ }
+      return false;
+    }
+    const current = typeof image === 'function' ? image() : null;
+    if (!current) {
+      try { URL.revokeObjectURL(loaded.objectUrl); } catch { /* already revoked */ }
+      return false;
+    }
+    const prev = current.dataset.objectUrl || '';
+    const wasShown = current.hidden !== true && Number(current.naturalWidth) > 0;
+    current.dataset.liveFrame = loaded.src || '';
+    current.dataset.objectUrl = loaded.objectUrl;
     const seq = Number(loaded.seq);
-    if (seq > 0) img.dataset.frameSeq = String(seq);
-    else delete img.dataset.frameSeq;
+    if (seq > 0) current.dataset.frameSeq = String(seq);
+    else delete current.dataset.frameSeq;
     const capturedAt = Number(loaded.capturedAt);
-    if (capturedAt > 0) img.dataset.capturedAt = String(capturedAt);
-    else delete img.dataset.capturedAt;
+    if (capturedAt > 0) current.dataset.capturedAt = String(capturedAt);
+    else delete current.dataset.capturedAt;
+    if (wasShown) current.hidden = false;
+    current.src = loaded.objectUrl;
+    if (typeof current.decode === 'function') {
+      try { await current.decode(); } catch { /* the probe already decoded these bytes */ }
+    }
+    if (Number(current.naturalWidth) > 0) current.hidden = false;
+    current.dataset.decoded = seq > 0 ? String(seq) : '1';
     if (prev && prev !== loaded.objectUrl) {
       try { URL.revokeObjectURL(prev); } catch { /* already revoked */ }
     }
-    img.src = loaded.objectUrl;
+    return true;
+  }
+
+  function publishTracks(loaded) {
+    const img = typeof image === 'function' ? image() : null;
+    if (!img || typeof img.dispatchEvent !== 'function' || !loaded?.tracks) return;
+    img.dispatchEvent(new CustomEvent('vlc-frame-tracks', {
+      bubbles: true,
+      detail: {
+        seq: Number(loaded.seq) || 0,
+        capturedAt: Number(loaded.capturedAt) || 0,
+        src: loaded.src || '',
+        tracks: loaded.tracks,
+      },
+    }));
   }
 
   async function kick(opts = {}) {
@@ -126,16 +230,22 @@ export function createLatestJpegPump({
         schedule(seq);
         return;
       }
-      assignImage(loaded);
-      const shown = typeof image === 'function' ? image() : null;
-      const ownsShown = Boolean(shown && loaded?.objectUrl && shown.dataset.objectUrl === loaded.objectUrl);
-      if (ownsShown && typeof shown.decode === 'function') {
-        try { await shown.decode(); } catch { /* the element still shows the bytes it has */ }
+      const tracks = await tracksForFrame(loaded, src, ac.signal);
+      if (stopped || mine !== gen) {
+        if (loaded?.objectUrl) URL.revokeObjectURL(loaded.objectUrl);
+        return;
       }
-      if (stopped) return;
+      if (tracks) loaded.tracks = tracks;
+      const painted = await presentDecoded(loaded);
+      if (stopped || mine !== gen) return;
+      if (!painted) {
+        schedule(seq);
+        return;
+      }
       const stillShown = !loaded?.objectUrl
         || (typeof image === 'function' && image()?.dataset.objectUrl === loaded.objectUrl);
       if (!stillShown) return;
+      publishTracks(loaded);
       if (typeof onFrame === 'function') onFrame(loaded?.src || src, loaded || { seq });
       if (mine === gen) schedule(seq);
     } catch (err) {

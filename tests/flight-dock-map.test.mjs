@@ -615,7 +615,7 @@ describe('flight dock and map live', () => {
     await page.click('#flightPhraseSend');
     expect(voice.length).toBe(voiceBeforePhrase);
     const unknownPhrase = await page.evaluate(() => document.getElementById('flightDockCommandNote').textContent);
-    expect(unknownPhrase).toContain('אינה ברשימה');
+    expect(unknownPhrase).toBe('הפקודה נחסמה: היא לא ברשימה המותרת.');
     await page.fill('#flightPhraseInput', 'חמש');
     await page.click('#flightPhraseSend');
     expect(voice.length).toBe(voiceBeforePhrase);
@@ -705,15 +705,15 @@ describe('flight dock and map live', () => {
       note: document.getElementById('flightDockCommandNote').textContent,
       transcript: (document.getElementById('assistMessages') || document.querySelector('.assist-messages'))?.textContent || '',
     }));
-    expect(takeoff.note).toBe('המראה לא נשלחה: אין חיבור לבקר הטיסה');
-    expect(takeoff.transcript).toContain('המראה לא נשלחה: אין חיבור לבקר הטיסה');
+    expect(takeoff.note).toBe('המראה לא נשלחה: אין חיבור לבקר הטיסה. לא נשלח דבר.');
+    expect(takeoff.transcript.replace(/[\u200E\u200F\u2066-\u2069]/g, '')).toContain('המראה לא נשלחה: אין חיבור לבקר הטיסה. לא נשלח דבר.');
     const askTranscript = await page.evaluate(() => {
       const host = document.getElementById('assistMessages') || document.querySelector('.assist-messages');
       return host ? host.textContent : '';
     });
     expect(askTranscript).not.toContain('תמריא');
     expect(askTranscript).toContain('עבור למצב יציב');
-    expect(askTranscript).toContain('חימוש וניטרול חסומים.');
+    expect(askTranscript.replace(/[\u200E\u200F\u2066-\u2069]/g, '')).toContain('חימוש וניטרול חסומים.');
 
     for (const phrase of ['set the cruise altitude', 'חמש דקות', 'אל תחזור הביתה']) {
       const beforeVoice = voice.length;
@@ -722,7 +722,7 @@ describe('flight dock and map live', () => {
       expect(voice.length, phrase).toBe(beforeVoice);
       expect(askPosts.length, phrase).toBe(beforePosts);
       const note = await page.evaluate(() => document.getElementById('flightDockCommandNote').textContent);
-      expect(note, phrase).toContain('אינה ברשימה');
+      expect(note, phrase).toBe('הפקודה נחסמה: היא לא ברשימה המותרת.');
       expect(note, phrase).not.toContain('חימוש ונטרול חסומים');
       expect(note, phrase).not.toContain('אושר');
     }
@@ -735,7 +735,7 @@ describe('flight dock and map live', () => {
     });
     expect(voice.length).toBe(beforePhraseRefuse);
     const five = await page.evaluate(() => document.getElementById('flightDockCommandNote').textContent);
-    expect(five).toContain('אינה ברשימה');
+    expect(five).toBe('הפקודה נחסמה: היא לא ברשימה המותרת.');
     expect(five).not.toContain('חימוש ונטרול חסומים');
 
     const direct = await page.evaluate(() => {

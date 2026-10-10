@@ -544,10 +544,17 @@ def try_handle(handler, body=None):
         if jpeg:
             try:
                 from camera_ingest import jpeg_timing_headers
-                extra = tuple(jpeg_timing_headers(packet or {"jpeg": jpeg}))
+                headers = list(jpeg_timing_headers(packet or {"jpeg": jpeg}))
             except Exception:
-                extra = (("Cache-Control", "no-store"),)
-            handler._send_bytes(200, jpeg, "image/jpeg", extra=extra)
+                headers = [("Cache-Control", "no-store")]
+            try:
+                from vision_tracks import tracks_header_for_frame
+                tracks_b64 = tracks_header_for_frame("cam1", packet if isinstance(packet, dict) else {})
+            except Exception:
+                tracks_b64 = ""
+            if tracks_b64:
+                headers.append(("X-Airvix-Tracks", tracks_b64))
+            handler._send_bytes(200, jpeg, "image/jpeg", extra=tuple(headers))
             return True
         health = svc.health()
         owns = health.get("state") not in {None, "absent", "disabled"} or bool(health.get("resolved_device"))

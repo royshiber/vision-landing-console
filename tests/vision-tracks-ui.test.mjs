@@ -9,6 +9,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { collectTextFitFailures } from './text-fit-audit.mjs';
+import { encodeTracksHeader } from '../public/modules/vision-tracks.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const shotDir = path.join(os.tmpdir(), `airvix-vision-shots-${process.pid}`);
@@ -331,10 +332,30 @@ describe('vision track overlay', () => {
     };
     let published = 1;
     await page.route('**/api/jetson/v1/cameras/cam0/frame**', async (route) => {
+      const seq = shown;
       await route.fulfill({
         status: 200,
         contentType: 'image/jpeg',
-        headers: { 'x-airvix-frame-seq': String(shown) },
+        headers: {
+          'x-airvix-frame-seq': String(seq),
+          'x-airvix-capture-at': String(1_700_000_000_000 + seq),
+          'x-airvix-tracks': encodeTracksHeader({
+            ok: true,
+            enabled: true,
+            camera: 'cam0',
+            selected_camera: 'cam0',
+            stream: true,
+            frame_seq: seq,
+            captured_at: 1_700_000_000_000 + seq,
+            frame_width: 320,
+            frame_height: 180,
+            tracks: sets[seq] || [],
+            lock: null,
+            reason_he: '',
+            gimbal_steer: { enabled: false, sent: false, blocked: true, reason_he: 'היגוי הגימבל כבוי', flight_commands: false },
+            flight_commands: false,
+          }),
+        },
         body: jpeg,
       });
     });
@@ -384,6 +405,10 @@ describe('vision track overlay', () => {
         return stage?.dataset.visionTracks === '1,3'
           && stage?.dataset.visionFrame === '1'
           && img?.dataset.frameSeq === '1'
+          && img?.dataset.decoded === '1'
+          && img.hidden !== true
+          && img.complete === true
+          && img.naturalWidth > 0
           && stage.querySelector('.vision-box-layer')?.hidden !== true;
       }, null, { timeout: 15000 });
     } catch (err) {
@@ -414,15 +439,21 @@ describe('vision track overlay', () => {
         tracks: stage?.dataset.visionTracks,
         frame: stage?.dataset.visionFrame,
         shown: img?.dataset.frameSeq,
+        decoded: img?.dataset.decoded,
         canvas: stage?.querySelector('.vision-box-layer')?.hidden !== true,
       };
     });
-    expect(held).toEqual({ tracks: '1,3', frame: '1', shown: '1', canvas: true });
+    expect(held).toEqual({ tracks: '1,3', frame: '1', shown: '1', decoded: '1', canvas: true });
     shown = 2;
     await page.waitForFunction(() => {
       const stage = document.querySelector('[data-camera-stage="cam0"]');
       const img = document.querySelector('[data-api="cam0"] .debrief-cam-live');
-      return img?.dataset.frameSeq === '2' && stage?.dataset.visionFrame === '2' && stage?.dataset.visionTracks === '1';
+      return img?.dataset.frameSeq === '2'
+        && img?.dataset.decoded === '2'
+        && img.hidden !== true
+        && img.naturalWidth > 0
+        && stage?.dataset.visionFrame === '2'
+        && stage?.dataset.visionTracks === '1';
     }, null, { timeout: 8000 });
     const span = trackHits.at(-1) - trackHits[0];
     const gaps = trackHits.slice(1).map((stamp, index) => stamp - trackHits[index]).filter((gap) => gap > 40);

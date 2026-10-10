@@ -1552,7 +1552,15 @@ class Handler(BaseHTTPRequestHandler):
                     "reason": "no_frame",
                     "note": "אין פריים",
                 })
-            self._send_bytes(200, jpeg, "image/jpeg", extra=tuple(jpeg_timing_headers(packet)))
+            headers = list(jpeg_timing_headers(packet))
+            try:
+                from vision_tracks import tracks_header_for_frame
+                tracks_b64 = tracks_header_for_frame(cam_frame, packet if isinstance(packet, dict) else {})
+            except Exception:
+                tracks_b64 = ""
+            if tracks_b64:
+                headers.append(("X-Airvix-Tracks", tracks_b64))
+            self._send_bytes(200, jpeg, "image/jpeg", extra=tuple(headers))
             return
         return self._json(404, {"ok": False})
 

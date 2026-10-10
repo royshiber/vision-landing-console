@@ -3,6 +3,7 @@ import express from 'express';
 import { createCompanionService } from '../lib/companion-service.mjs';
 import { registerCompanionProxyApi } from '../lib/routes/companion-proxy-api.mjs';
 import { COMPANION_PROXY_PREFIX } from '../lib/companion-v1-paths.mjs';
+import { decodeTracksHeader } from '../lib/frame-tracks-header.mjs';
 
 const FIXTURE = {
   camera: 'cam0',
@@ -176,6 +177,8 @@ describe('test-only mock vision tracks', () => {
     expect(after.frame_seq).toBeGreaterThan(0);
     expect(after.captured_at).toBeGreaterThan(0);
     expect(after.tracks[0].label_he).toBe('אדם');
+    expect(frame.tracks.frame_seq).toBe(frame.frameSeq);
+    expect(frame.tracks.tracks[0].label_he).toBe('אדם');
     const server = await listen(appFor(env));
     const port = server.address().port;
     const base = `http://127.0.0.1:${port}${COMPANION_PROXY_PREFIX}`;
@@ -183,6 +186,19 @@ describe('test-only mock vision tracks', () => {
       const live = await (await fetch(`${base}/vision/tracks?camera=cam0`)).json();
       expect(live.data.tracks[0].label_he).toBe('אדם');
       expect(live.data.backend).toBe('fixture');
+      let since = 0;
+      let matched = 0;
+      const total = 40;
+      for (let i = 0; i < total; i += 1) {
+        const res = await fetch(`${base}/cameras/cam0/frame?since=${since}`);
+        expect(res.status).toBe(200);
+        const seq = Number(res.headers.get('x-airvix-frame-seq'));
+        const body = decodeTracksHeader(res.headers.get('x-airvix-tracks'));
+        if (body && Number(body.frame_seq) === seq && Array.isArray(body.tracks) && body.tracks.length > 0) matched += 1;
+        since = seq;
+        await res.arrayBuffer();
+      }
+      expect(matched / total).toBeGreaterThanOrEqual(0.95);
     } finally {
       await new Promise((resolve) => server.close(resolve));
     }

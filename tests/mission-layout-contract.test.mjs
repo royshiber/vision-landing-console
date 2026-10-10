@@ -469,6 +469,8 @@ describe('Mission layout contract — live boxes', () => {
 
   it('grows messages inside the AH stack without covering the map', async () => {
     await page.evaluate(() => {
+      const ws = document.querySelector('.mission-workspace');
+      if (ws) ws.dataset.askOpen = '0';
       if (typeof applyFcStatustextHud === 'function') {
         applyFcStatustextHud({
           connected: true,
@@ -481,11 +483,20 @@ describe('Mission layout contract — live boxes', () => {
           ],
         });
       }
-      const region = document.querySelector('[data-mission-region="messages"]');
-      if (region?.dataset.messagesExpanded !== '1') {
-        document.getElementById('missionMessagesToggle')?.click();
-      }
+      if (typeof writeMissionMessagesExpanded === 'function') writeMissionMessagesExpanded(true);
+      if (typeof applyMissionMessagesExpanded === 'function') applyMissionMessagesExpanded(true);
+      if (typeof syncFlightStackToToggle === 'function') syncFlightStackToToggle();
     });
+    await page.waitForFunction(() => {
+      const region = document.querySelector('[data-mission-region="messages"]');
+      const map = document.querySelector('[data-mission-region="map"]');
+      const ws = document.querySelector('.mission-workspace');
+      if (!region || !map || !ws) return false;
+      const msgH = region.getBoundingClientRect().height;
+      const mapH = map.getBoundingClientRect().height;
+      const wsH = ws.getBoundingClientRect().height;
+      return region.dataset.messagesExpanded === '1' && msgH >= 120 && wsH > 0 && mapH / wsH >= 0.65;
+    }, null, { timeout: 4000 });
     const expanded = await page.evaluate(() => {
       const region = document.querySelector('[data-mission-region="messages"]');
       const map = document.querySelector('[data-mission-region="map"]');

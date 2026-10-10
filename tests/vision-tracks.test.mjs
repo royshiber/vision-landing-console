@@ -3,7 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { buildAssistContext } from '../lib/assist/assist-context.mjs';
-import { FRAME_SYNC_TOLERANCE_MS, assembleVisionAsk, cacheCoversAsk, fillVisionAsk, framePoint, hitDrawnBox, hitTrack, mediaFit, placeMenuBox, selectFrameTracks, TRACK_POLL_MS, trackCaption, unwrapTracks, visionAskSnapshot, VISION_ASK_WAIT_MS, waitForVisionAsk } from '../public/modules/vision-tracks.mjs';
+import { FRAME_SYNC_TOLERANCE_MS, assembleVisionAsk, cacheCoversAsk, decodeTracksHeader, encodeTracksHeader, fillVisionAsk, framePoint, hitDrawnBox, hitTrack, mediaFit, placeMenuBox, placeTrackCaption, selectFrameTracks, TRACK_POLL_MS, trackCaption, tracksMatchFrame, unwrapTracks, visionAskSnapshot, VISION_ASK_WAIT_MS, waitForVisionAsk } from '../public/modules/vision-tracks.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -22,6 +22,15 @@ describe('vision track hit testing', () => {
     expect(hitDrawnBox(boxes, 12, 14).id).toBe(1);
     expect(hitDrawnBox(boxes, 0, 0)).toBeNull();
     expect(trackCaption({ id: 2, label_he: 'אדם', confidence: 0.9 })).toBe('אדם · #2 · 90%');
+    const left = placeTrackCaption(0, 90, 200);
+    expect(left.x).toBe(0);
+    expect(left.right).toBeLessThanOrEqual(200);
+    const edge = placeTrackCaption(180, 90, 200);
+    expect(edge.x).toBeGreaterThanOrEqual(0);
+    expect(edge.right).toBeLessThanOrEqual(200);
+    const wide = placeTrackCaption(0, 240, 200);
+    expect(wide.right).toBe(200);
+    expect(wide.right - wide.x).toBe(240);
     expect(TRACK_POLL_MS).toBeGreaterThanOrEqual(150);
     expect(TRACK_POLL_MS).toBeLessThanOrEqual(200);
   });
@@ -39,6 +48,36 @@ describe('vision track hit testing', () => {
     expect(selectFrameTracks(late, emptyBook, 11, 5000 + FRAME_SYNC_TOLERANCE_MS)).toEqual(late);
     expect(selectFrameTracks(late, emptyBook, 11, 5000 + FRAME_SYNC_TOLERANCE_MS + 1)).toBeNull();
     expect(selectFrameTracks(late, emptyBook, 11, 0)).toBeNull();
+  });
+
+  it('round-trips the tracks that ride with a frame', () => {
+    const payload = {
+      ok: true,
+      enabled: true,
+      camera: 'cam0',
+      stream: true,
+      frame_seq: 7,
+      captured_at: 1700000000200,
+      frame_width: 320,
+      frame_height: 180,
+      tracks: [{ id: 2, label_he: 'אדם', confidence: 0.9, bbox: [1, 2, 3, 4] }],
+      lock: null,
+      reason_he: '',
+      flight_commands: false,
+    };
+    const header = encodeTracksHeader(payload);
+    expect(header).toMatch(/^[A-Za-z0-9+/=]+$/);
+    const back = decodeTracksHeader(header);
+    expect(back.frame_seq).toBe(7);
+    expect(back.tracks[0].label_he).toBe('אדם');
+    expect(tracksMatchFrame(back, 7, back.captured_at)).toBe(true);
+    expect(tracksMatchFrame(back, 8, back.captured_at + FRAME_SYNC_TOLERANCE_MS + 5)).toBe(false);
+    let matched = 0;
+    for (let seq = 1; seq <= 40; seq += 1) {
+      const row = decodeTracksHeader(encodeTracksHeader({ ...payload, frame_seq: seq, captured_at: 1000 + seq }));
+      if (tracksMatchFrame(row, seq, row.captured_at)) matched += 1;
+    }
+    expect(matched / 40).toBeGreaterThanOrEqual(0.95);
   });
 
   it('hits the topmost box and misses the gaps', () => {

@@ -94,6 +94,88 @@ export function trackCaption(track) {
   return [name, id, pct].filter(Boolean).join(' · ');
 }
 
+/**
+ * Caption origin so the trailing score stays inside the tile.
+ * A caption wider than the tile keeps its right edge on the tile edge.
+ */
+export function placeTrackCaption(boxX, textWidth, tileWidth) {
+  const tile = Math.max(0, Number(tileWidth) || 0);
+  const text = Math.max(0, Number(textWidth) || 0);
+  let x = Number(boxX);
+  if (!Number.isFinite(x)) x = 0;
+  if (!(tile > 0)) return { x: 0, right: text };
+  if (text <= tile) {
+    if (x + text > tile) x = tile - text;
+    if (x < 0) x = 0;
+    return { x, right: x + text };
+  }
+  return { x: tile - text, right: tile };
+}
+
+export function tracksMatchFrame(payload, seq, capturedAt, toleranceMs = FRAME_SYNC_TOLERANCE_MS) {
+  const tagged = Number(payload?.frame_seq);
+  const shown = Number(seq);
+  if (tagged > 0 && shown > 0 && tagged === shown) return true;
+  const stamp = Number(payload?.captured_at);
+  const at = Number(capturedAt);
+  if (!(stamp > 0) || !(at > 0)) return false;
+  return Math.abs(stamp - at) <= toleranceMs;
+}
+
+function bytesToBase64(bytes) {
+  let bin = '';
+  for (let i = 0; i < bytes.length; i += 1) bin += String.fromCharCode(bytes[i]);
+  return btoa(bin);
+}
+
+function base64ToBytes(value) {
+  const bin = atob(value);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i += 1) bytes[i] = bin.charCodeAt(i);
+  return bytes;
+}
+
+export function encodeTracksHeader(payload) {
+  if (!payload || typeof payload !== 'object') return '';
+  const compact = {
+    ok: payload.ok === true,
+    enabled: payload.enabled === true,
+    camera: payload.camera || '',
+    selected_camera: payload.selected_camera ?? null,
+    stream: payload.stream === true,
+    frame_seq: payload.frame_seq ?? null,
+    captured_at: payload.captured_at ?? null,
+    frame_width: payload.frame_width ?? null,
+    frame_height: payload.frame_height ?? null,
+    tracks: Array.isArray(payload.tracks) ? payload.tracks : [],
+    lock: payload.lock && typeof payload.lock === 'object' ? payload.lock : null,
+    reason_he: payload.reason_he || '',
+    gimbal_steer: payload.gimbal_steer && typeof payload.gimbal_steer === 'object' ? payload.gimbal_steer : {},
+    flight_commands: false,
+  };
+  const json = JSON.stringify(compact);
+  if (json.length > 6000) return '';
+  return bytesToBase64(new TextEncoder().encode(json));
+}
+
+export function decodeTracksHeader(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return null;
+  try {
+    const json = new TextDecoder().decode(base64ToBytes(raw));
+    const parsed = JSON.parse(json);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+export function cameraFromFrameUrl(src) {
+  const match = String(src || '').match(/\/cameras\/(cam[0-3])\/frame/i);
+  return match ? match[1].toLowerCase() : '';
+}
+
 /** How close a detection may be to the frame on screen, in milliseconds. */
 export const FRAME_SYNC_TOLERANCE_MS = 80;
 
@@ -475,6 +557,9 @@ function ensureChrome(host, camera) {
   host.addEventListener('load', (event) => {
     if (event.target instanceof Element && host.contains(event.target)) repaint();
   }, true);
+  host.addEventListener('vlc-frame-tracks', (event) => {
+    applyBundledTracks(host, event.detail);
+  });
   if (typeof MutationObserver === 'function') {
     const watch = new MutationObserver((records) => {
       const relevant = records.some((record) => {
@@ -539,8 +624,15 @@ export function paintHost(host, payload, { kind = 'tile' } = {}) {
   if (fitNow) fitMemory.set(host, { fit: fitNow, frameW: payload?.frame_width, frameH: payload?.frame_height });
   const remembered = fitMemory.get(host);
   const fit = fitNow || remembered?.fit || null;
+  const lostLock = showHorizon && !reason && payload?.lock?.lost === true
+    && lockId != null
+    && !tracks.some((row) => row.id === lockId)
+    && Array.isArray(payload.lock?.bbox)
+    ? payload.lock
+    : null;
+  host.dataset.visionLost = lostLock ? String(lockId) : '';
   const keepLast = showHorizon && !reason && tracks.length > 0 && drawnBoxes.get(host)?.length;
-  if (!fit || !showHorizon || !tracks.length) {
+  if (!fit || !showHorizon || (!tracks.length && !lostLock)) {
     if (keepLast && !fit) {
       if (layer) layer.dataset.hit = '1';
       canvas.hidden = false;
@@ -570,6 +662,27 @@ export function paintHost(host, payload, { kind = 'tile' } = {}) {
   const fh = payload.frame_height || remembered?.frameH || fit.nh;
   const ordered = [...tracks].sort((a, b) => (a.id === lockId ? 1 : 0) - (b.id === lockId ? 1 : 0));
   const boxes = [];
+  const drawCaption = (caption, boxX, boxY) => {
+    if (!caption) return;
+    ctx.save();
+    ctx.direction = 'ltr';
+    ctx.textAlign = 'left';
+    ctx.font = '700 13px Heebo, sans-serif';
+    const textW = ctx.measureText(caption).width;
+    const pad = 4;
+    const capH = 16;
+    const placed = placeTrackCaption(boxX, textW + pad * 2, width);
+    let capY = boxY - 18;
+    if (capY < 0) capY = Math.min(Math.max(0, height - capH), Math.max(0, boxY + 2));
+    if (capY + capH > height) capY = Math.max(0, height - capH);
+    const rectX = Math.max(0, placed.x);
+    const rectR = Math.min(width, placed.right);
+    ctx.fillStyle = '#0b1220';
+    ctx.fillRect(rectX, capY, Math.max(0, rectR - rectX), capH);
+    ctx.fillStyle = '#f8fafc';
+    ctx.fillText(caption, placed.x + pad, capY + 12);
+    ctx.restore();
+  };
   for (const track of ordered) {
     const box = track.bbox || [];
     if (box.length < 4) continue;
@@ -581,31 +694,68 @@ export function paintHost(host, payload, { kind = 'tile' } = {}) {
     const locked = lockId != null && track.id === lockId;
     ctx.lineWidth = locked ? 4 : 2;
     ctx.strokeStyle = locked ? '#67e8f9' : '#facc15';
+    ctx.setLineDash([]);
     ctx.strokeRect(x, y, w, h);
-    const caption = trackCaption(track);
-    ctx.font = '700 13px Heebo, sans-serif';
-    const textW = caption ? ctx.measureText(caption).width : 0;
-    const pad = 4;
-    const capH = 16;
-    const capW = textW + pad * 2;
-    let capX = x;
-    let capY = y - 18;
-    if (capY < 0) capY = Math.min(Math.max(0, height - capH), Math.max(0, y + 2));
-    if (capX + capW > width) capX = width - capW;
-    if (capW <= width && capX < 0) capX = 0;
-    if (capY + capH > height) capY = Math.max(0, height - capH);
-    const rectX = Math.max(0, capX);
-    const rectR = Math.min(width, capX + capW);
-    ctx.fillStyle = '#0b1220';
-    ctx.fillRect(rectX, capY, Math.max(0, rectR - rectX), capH);
-    ctx.fillStyle = '#f8fafc';
-    if (caption) ctx.fillText(caption, capX + pad, capY + 12);
+    drawCaption(trackCaption(track), x, y);
+  }
+  if (lostLock) {
+    const box = lostLock.bbox;
+    const x = fit.x + (box[0] * fit.nw / fw) * fit.scaleX;
+    const y = fit.y + (box[1] * fit.nh / fh) * fit.scaleY;
+    const w = (box[2] * fit.nw / fw) * fit.scaleX;
+    const h = (box[3] * fit.nh / fh) * fit.scaleY;
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = '#94a3b8';
+    ctx.setLineDash([6, 4]);
+    ctx.strokeRect(x, y, w, h);
+    ctx.setLineDash([]);
+    drawCaption('אבד', x, y);
   }
   const clickable = sized && boxes.some((box) => box.w >= 4 && box.h >= 4);
   if (boxes.length) drawnBoxes.set(host, boxes);
   else drawnBoxes.delete(host);
   canvas.dataset.hit = clickable ? '1' : '0';
   if (layer) layer.dataset.hit = clickable ? '1' : '0';
+}
+
+function applyBundledTracks(host, detail) {
+  const payload = detail?.tracks;
+  if (!host || !payload || typeof payload !== 'object') return;
+  const stage = host.dataset.cameraStage || '';
+  const camera = stage && stage !== 'horizon'
+    ? stage
+    : (payload.camera || host.dataset.visionCamera || selectedCamera() || '');
+  if (!camera) return;
+  const seq = Number(detail.seq) || Number(payload.frame_seq) || 0;
+  const capturedAt = Number(detail.capturedAt) || Number(payload.captured_at) || 0;
+  if (seq > 0 && !tracksMatchFrame(payload, seq, capturedAt)) return;
+  cache.set(camera, payload);
+  rememberFrame(camera, payload);
+  const kind = host.id === 'pfdHorizonStage' ? 'horizon' : 'tile';
+  paintHost(host, payload, { kind });
+}
+
+export async function waitFrameTracks({ seq, capturedAt, src, camera } = {}) {
+  const id = camera || cameraFromFrameUrl(src);
+  if (!id) return null;
+  const shown = Number(seq) || 0;
+  const at = Number(capturedAt) || 0;
+  if (!(shown > 0)) return null;
+  const ready = (payload) => tracksMatchFrame(payload, shown, at);
+  const cached = cache.get(id);
+  if (ready(cached)) return cached;
+  const deadline = Date.now() + FRAME_SYNC_TOLERANCE_MS;
+  const first = await fetchTracks(id);
+  cache.set(id, first);
+  rememberFrame(id, first);
+  if (ready(first)) return first;
+  const left = deadline - Date.now();
+  if (left <= 8) return null;
+  await new Promise((resolve) => setTimeout(resolve, Math.min(left, 40)));
+  const again = await fetchTracks(id);
+  cache.set(id, again);
+  rememberFrame(id, again);
+  return ready(again) ? again : null;
 }
 
 function rememberFrame(camera, payload) {
@@ -931,6 +1081,7 @@ export function mountVisionTracks(doc = document) {
     doc.defaultView.__vlcVisionAskState = () => visionAskState();
     doc.defaultView.__vlcVisionAskReady = (waitMs) => visionAskReady(doc, waitMs);
     doc.defaultView.__vlcVisionStreamMap = () => visionStreamMap();
+    doc.defaultView.__vlcWaitFrameTracks = (opts) => waitFrameTracks(opts);
   }
 }
 

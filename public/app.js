@@ -20930,7 +20930,7 @@ async function postFlightVoice({ text, mode, operatorConfirmed, requireLink, ask
     const mav = typeof latestHudMavlink !== 'undefined' ? latestHudMavlink : null;
     if (!mav || mav.connected !== true) {
       const line = name === 'TAKEOFF'
-        ? 'המראה לא נשלחה: אין חיבור לבקר הטיסה'
+        ? 'המראה לא נשלחה: אין חיבור לבקר הטיסה. לא נשלח דבר.'
         : 'אין חיבור לבקר הטיסה';
       if (ask) assistAppendMessage({ role: 'assist', text: line, kind: 'INFORMATION' });
       showFlightTalkback(line);

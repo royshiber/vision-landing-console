@@ -271,13 +271,28 @@ class VisionTrackTests(unittest.TestCase):
             self.svc.push_frame("cam3", width, height, bytes(raw))
             gap = self.svc.step()
             self.assertEqual(gap["lock"]["id"], lock_id)
-            self.assertTrue(any(row["id"] == lock_id and row["class"] == "person" for row in gap["tracks"]))
+            self.assertIs(gap["lock"].get("lost"), True)
+            self.assertFalse(any(row["id"] == lock_id for row in gap["tracks"]))
         width, height, rgb, _truth = sample_frame(9)
         self.svc.push_frame("cam3", width, height, rgb)
         back = self.svc.step()
         self.assertEqual(back["lock"]["id"], lock_id)
         self.assertTrue(any(row["id"] == lock_id and row["class"] == "person" for row in back["tracks"]))
         self.assertEqual(self.sent, [])
+
+    def test_a_missed_track_is_kept_for_reassociation_and_not_published(self):
+        tracker = ByteTracker()
+        first = tracker.update([{"class": "truck", "confidence": 0.9, "bbox": [10, 10, 40, 20]}])
+        self.assertEqual(len(first), 1)
+        track_id = first[0]["id"]
+        for _miss in range(8):
+            gone = tracker.update([])
+            self.assertEqual(gone, [])
+            self.assertTrue(any(track.id == track_id for track in tracker.tracks))
+        back = tracker.update([{"class": "truck", "confidence": 0.9, "bbox": [18, 12, 40, 20]}])
+        self.assertEqual(len(back), 1)
+        self.assertEqual(back[0]["id"], track_id)
+        self.assertLessEqual(tracker._next, 2)
 
     def test_tracker_does_not_start_from_a_low_score(self):
         tracker = ByteTracker()

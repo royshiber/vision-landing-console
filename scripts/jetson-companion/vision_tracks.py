@@ -18,6 +18,8 @@ Jetson frames per second were not measured here.
 
 from __future__ import annotations
 
+import base64
+import json
 import math
 import os
 import threading
@@ -266,7 +268,8 @@ class ByteTracker:
             self.tracks[host].update(det)
             used_t.add(host)
         self.tracks = [track for track in self.tracks if track.misses <= self.max_age]
-        return [track.public() for track in self.tracks if track.misses <= self.keep_misses]
+        # Lost ids stay in self.tracks for re-association. Only a match this frame is published.
+        return [track.public() for track in self.tracks if track.misses == 0]
 
 
 def _rows_from_output(output):
@@ -1020,6 +1023,11 @@ class VisionTracks:
                 "bbox": self.lock_target.get("bbox"),
                 "confidence": self.lock_target.get("confidence"),
             }
+            published = {row.get("id") for row in rows}
+            if lock["id"] not in published:
+                internal = next((track for track in self.tracker.tracks if track.id == lock["id"]), None)
+                if internal is not None and 0 < internal.misses <= self.tracker.keep_misses:
+                    lock["lost"] = True
         steer = dict(self.last_steer)
         steer.pop("allow_send", None)
         steer["flight_commands"] = False
@@ -1125,6 +1133,62 @@ def _query_camera(handler):
         elif key == "sort" and value == "confidence":
             sort = "confidence"
     return camera, sort
+
+
+def tracks_match_frame(payload, seq, captured_at, tolerance_ms=80):
+    """True when this detection belongs to the JPEG being sent."""
+    if not isinstance(payload, dict):
+        return False
+    try:
+        tagged = int(payload.get("frame_seq") or 0)
+    except (TypeError, ValueError):
+        tagged = 0
+    try:
+        shown = int(seq or 0)
+    except (TypeError, ValueError):
+        shown = 0
+    if tagged > 0 and shown > 0 and tagged == shown:
+        return True
+    try:
+        stamp = int(payload.get("captured_at") or 0)
+        at = int(captured_at or 0)
+    except (TypeError, ValueError):
+        return False
+    if stamp <= 0 or at <= 0:
+        return False
+    return abs(stamp - at) <= int(tolerance_ms)
+
+
+def tracks_header_for_frame(camera, packet):
+    """Base64 JSON of the tracks for this JPEG, or '' when they are a different frame."""
+    with _SERVICE_LOCK:
+        svc = _SERVICE
+    if svc is None or not isinstance(packet, dict):
+        return ""
+    seq, captured = frame_identity(packet)
+    body = svc.snapshot(str(camera or ""))
+    if not tracks_match_frame(body, seq, captured):
+        return ""
+    compact = {
+        "ok": body.get("ok") is True,
+        "enabled": body.get("enabled") is True,
+        "camera": body.get("camera") or "",
+        "selected_camera": body.get("selected_camera"),
+        "stream": body.get("stream") is True,
+        "frame_seq": body.get("frame_seq"),
+        "captured_at": body.get("captured_at"),
+        "frame_width": body.get("frame_width"),
+        "frame_height": body.get("frame_height"),
+        "tracks": body.get("tracks") or [],
+        "lock": body.get("lock"),
+        "reason_he": body.get("reason_he") or "",
+        "gimbal_steer": body.get("gimbal_steer") or {},
+        "flight_commands": False,
+    }
+    raw = json.dumps(compact, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+    if len(raw) > 6000:
+        return ""
+    return base64.b64encode(raw).decode("ascii")
 
 
 def try_handle(handler, body=None):
