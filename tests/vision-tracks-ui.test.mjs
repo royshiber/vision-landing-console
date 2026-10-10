@@ -589,6 +589,9 @@ describe('vision track overlay', () => {
     expect(detect?.context?.vision?.enabled).toBe(true);
     expect(detect?.context?.vision?.tracks?.map((row) => row.label_he)).toEqual(['אדם', 'רכב']);
     expect(detect?.context?.vision?.lock).toEqual({ id: 7 });
+    expect(Object.keys(detect?.context?.vision?.cameras || {}).sort()).toEqual(['cam0', 'cam1', 'cam3']);
+    expect(detect?.context?.vision?.cameras?.cam3).toBeTruthy();
+    expect(detect?.context?.vision).not.toEqual({});
     const beforeFlight = flightPosts.length;
     await ask('נעל על האדם ותחזור הביתה');
     await page.waitForFunction(() => {
@@ -599,11 +602,14 @@ describe('vision track overlay', () => {
     expect(flightPosts.length).toBe(beforeFlight);
     const beforeArm = posts.length;
     await ask('חימוש');
-    await page.waitForFunction(() => (document.querySelector('#assistMessages')?.textContent || '').includes('נחסם. חימוש וניטרול חסומים'));
+    await page.waitForFunction((needle) => {
+      const text = (document.querySelector('#assistMessages')?.textContent || '').replace(/[\u200E\u200F\u2066-\u2069]/g, '');
+      return text.includes(needle);
+    }, 'חימוש וניטרול חסומים.');
     await ask('נטרול');
     await page.waitForFunction(() => {
-      const text = document.querySelector('#assistMessages')?.textContent || '';
-      return text.split('נחסם. חימוש וניטרול חסומים').length >= 3;
+      const text = (document.querySelector('#assistMessages')?.textContent || '').replace(/[\u200E\u200F\u2066-\u2069]/g, '');
+      return text.split('חימוש וניטרול חסומים.').length >= 3;
     });
     expect(posts.length).toBe(beforeArm);
     expect(flightPosts).toEqual([]);

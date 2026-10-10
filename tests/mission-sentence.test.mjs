@@ -67,7 +67,7 @@ describe('mission sentence mapper', () => {
     expect(modes(result)).toEqual(['SCAN']);
     expect(result.plan.steps[0].duration_s).toBe(null);
     expect(result.plan.steps[0].until).toBe('replaced');
-    expect(result.replyHe).toBe('סורקים אנשים, חיות או מכוניות.');
+    expect(result.replyHe).toBe('אנשים, חיות או מכוניות.');
     expect(result.replyHe).not.toMatch(/כמה זמן/);
     expect(result.sends).toBe(false);
   });
@@ -106,11 +106,33 @@ describe('mission sentence mapper', () => {
     expect(mapMissionSentence('לא לנעול')).toBe(null);
   });
 
+  it('answers from a streaming camera when the selected snapshot is empty', () => {
+    const result = mapMissionSentence('כמה אנשים', {
+      camera: 'cam0',
+      enabled: false,
+      stream: false,
+      reason_he: 'אין נתון על זרם המצלמות',
+      tracks: [],
+      cameras: {
+        cam0: { camera: 'cam0', stream: false, reason_he: 'אין נתון על זרם המצלמות', tracks: [] },
+        cam1: { camera: 'cam1', enabled: true, stream: true, model: true, tracks: [] },
+        cam3: {
+          camera: 'cam3',
+          enabled: true,
+          stream: true,
+          model: true,
+          tracks: [{ id: 3, class: 'person', label_he: 'אדם' }],
+        },
+      },
+    });
+    expect(result.replyHe).toBe('רואים אדם אחד.');
+  });
+
   it('plans the next object and does not send it', () => {
     for (const text of ['עברו לאובייקט הבא', 'עברו לעצם הבא', 'תעברו לאובייקט הבא']) {
       const result = mapMissionSentence(text);
       expect(modes(result)).toEqual(['NEXT']);
-      expect(result.replyHe).toBe('מעבר לעצם הבא נוסף לתוכנית.');
+      expect(result.replyHe).toBe('מעבר לאובייקט הבא נוסף לתוכנית.');
       expect(result.replyHe).not.toContain('לא נשלח דבר');
       expect(result.sends).toBe(false);
     }
@@ -299,7 +321,7 @@ describe('mission sentences through Ask and voice', () => {
     ['תסתכל על השלט הירוק ותשאיר אותו בפריים', 'השלט הירוק'],
     ['circle it and lock it', 'אינה נתמכת'],
     ['scan for ten minutes and alert if people, animals, or cars move', 'עשר דקות'],
-    ['תסרוק', 'סורקים'],
+    ['תסרוק', 'אנשים, חיות או מכוניות'],
     ['מה אני רואה במצלמות', 'קדמית'],
   ];
 
@@ -382,7 +404,7 @@ describe('mission sentences through Ask and voice', () => {
       });
       expect(result.sent).toBe(false);
       expect(result.decision).toBe('camera_status');
-      expect(result.talkback.text).toBe('מצלמה קדמית משדרת. מצלמת מטה אינה משדרת. אין נתון על הגימבל.');
+      expect(result.talkback.text).toBe('מצלמה קדמית משדרת. מצלמת מטה אינה משדרת. אין נתון על זרם מצלמת הגימבל.');
       expect(result.talkback.text).not.toContain('אינה ברשימה המותרת');
       expect(result.talkback.text).not.toContain('אתם במרחב');
     }

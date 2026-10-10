@@ -3,6 +3,7 @@
  * A loaded debrief file plays only in #flightVideo, never inside a live tile.
  * One missed JPEG keeps the last frame instead of flashing אין אות.
  */
+import { canonicalCameraId } from './camera-names.mjs';
 import { frameMissShowsNoSignal, frameTilePresentation } from './camera-frame-hold.mjs';
 import { createLatestJpegPump } from './camera-latest-frame.mjs';
 import { fitCameraPanes } from './camera-pane-fit.mjs';
@@ -16,7 +17,7 @@ const PHONE_STRIP_QUERY = '(max-width: 720px)';
 const SLOTS = [
   { id: 'cam0', apiId: 'cam0', mono: true, hold: '' },
   { id: 'cam1', apiId: 'cam1', mono: true, hold: CAM1_STREAM },
-  { id: 'a8', apiId: 'cam3', mono: false, hold: '', frameWhenOpen: true },
+  { id: 'cam3', apiId: 'cam3', mono: false, hold: '', frameWhenOpen: true },
 ];
 const grid = document.getElementById('debriefCamGrid');
 const tilePumps = new WeakMap();
@@ -29,8 +30,11 @@ function readOpen() {
     if (!raw) return [...DEFAULT_OPEN];
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [...DEFAULT_OPEN];
+    const migrated = parsed.map((id) => canonicalCameraId(id));
     const ids = SLOTS.map((slot) => slot.id);
-    return ids.filter((id) => parsed.includes(id));
+    const open = ids.filter((id) => migrated.includes(id));
+    if (migrated.some((id, index) => id !== parsed[index])) writeOpen(open);
+    return open;
   } catch {
     return [...DEFAULT_OPEN];
   }
@@ -81,7 +85,7 @@ function phoneCameraStrip() {
 }
 
 function settingsButtonId(id) {
-  if (id === 'a8') return 'opticsGimbalBtn';
+  if (id === 'cam3') return 'opticsGimbalBtn';
   if (id === 'cam1') return 'opticsCam1Btn';
   return 'opticsCam0Btn';
 }

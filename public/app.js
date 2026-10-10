@@ -7138,24 +7138,40 @@ initHorizonVideo();
 
 const HORIZON_CAMERA_KEY = 'vlc.horizon.bgCamera.v1';
 const GIMBAL_FRAME = '/api/jetson/v1/cameras/cam3/frame';
-const HORIZON_CAMERA_IDS = ['cam0', 'cam1', 'a8'];
+const HORIZON_CAMERA_IDS = ['cam0', 'cam1', 'cam3'];
 const HORIZON_CAMERA_SLOTS = [
   { id: 'none', label: 'בלי מצלמה', apiId: null, mono: false },
   { id: 'cam0', label: 'קדמית', apiId: 'cam0', mono: true },
   { id: 'cam1', label: 'מטה', apiId: 'cam1', mono: true, hold: '/api/jetson/v1/cam1/stream.mjpg' },
-  { id: 'a8', label: 'גימבל', apiId: 'cam3', mono: false, frame: GIMBAL_FRAME },
+  { id: 'cam3', label: 'גימבל', apiId: 'cam3', mono: false, frame: GIMBAL_FRAME },
 ];
+
+function canonicalHorizonCameraId(id) {
+  return id === 'a8' ? 'cam3' : id;
+}
 
 function readHorizonCameras() {
   try {
     const raw = localStorage.getItem(HORIZON_CAMERA_KEY) || 'none';
     if (!raw || raw === 'none') return [];
+    let ids = [];
+    let dirty = false;
     if (raw.startsWith('[')) {
       const parsed = JSON.parse(raw);
       if (!Array.isArray(parsed)) return [];
-      return HORIZON_CAMERA_IDS.filter((id) => parsed.includes(id));
+      ids = parsed.map((id) => {
+        const next = canonicalHorizonCameraId(id);
+        if (next !== id) dirty = true;
+        return next;
+      });
+    } else {
+      const next = canonicalHorizonCameraId(raw);
+      if (next !== raw) dirty = true;
+      ids = [next];
     }
-    return HORIZON_CAMERA_IDS.includes(raw) ? [raw] : [];
+    const kept = HORIZON_CAMERA_IDS.filter((id) => ids.includes(id));
+    if (dirty) writeHorizonCameras(kept);
+    return kept;
   } catch {
     return [];
   }
@@ -18867,7 +18883,19 @@ function assistActiveSubtab() {
   return active?.dataset?.subtab || null;
 }
 
-function assistBuildContextSnapshot() {
+function assistMergeVision(tracks) {
+  let next = tracks;
+  try {
+    const streams = typeof window.__vlcVisionStreamMap === 'function' ? window.__vlcVisionStreamMap() : null;
+    if (streams && Object.keys(streams).length) {
+      const prior = next && typeof next === 'object' && next.streams && typeof next.streams === 'object' ? next.streams : {};
+      next = next && typeof next === 'object' ? { ...next, streams: { ...streams, ...prior } } : { streams };
+    }
+  } catch { /* keep the snapshot */ }
+  return next;
+}
+
+function assistBuildContextSnapshot(tracksOverride) {
   const tab = assistActiveTab();
   const subtab = assistActiveSubtab();
   let mav = {};
@@ -18875,12 +18903,10 @@ function assistBuildContextSnapshot() {
   let tracks = null;
   try { mav = _assistLastMav || {}; } catch { mav = {}; }
   try { vision = latestVisionFromServer || {}; } catch { vision = {}; }
-    try {
-    tracks = typeof window.__vlcVisionAskState === 'function' ? window.__vlcVisionAskState() : null;
-    const streams = typeof window.__vlcVisionStreamMap === 'function' ? window.__vlcVisionStreamMap() : null;
-    if (streams && Object.keys(streams).length) {
-      tracks = tracks && typeof tracks === 'object' ? { ...tracks, streams } : { streams };
-    }
+  try {
+    if (tracksOverride !== undefined) tracks = tracksOverride;
+    else tracks = typeof window.__vlcVisionAskState === 'function' ? window.__vlcVisionAskState() : null;
+    tracks = assistMergeVision(tracks);
   } catch { tracks = null; }
   const conf = typeof vision.confidence === 'number'
     ? vision.confidence
@@ -19582,6 +19608,14 @@ async function assistSpeakAnswer(text) {
   } catch { /* talk-back optional */ }
 }
 
+async function assistVisionForAsk() {
+  try {
+    if (typeof window.__vlcVisionAskReady === 'function') return await window.__vlcVisionAskReady(300);
+    if (typeof window.__vlcVisionAskState === 'function') return window.__vlcVisionAskState();
+  } catch { /* last good payload stays inside the module */ }
+  return null;
+}
+
 async function assistSendText(rawText, { channel = 'text' } = {}) {
   const text = String(rawText || '').trim();
   if (!text) return;
@@ -19599,7 +19633,7 @@ async function assistSendText(rawText, { channel = 'text' } = {}) {
   if (flightRoute) {
     assistAppendMessage({ role: 'user', text });
     if (flightRoute.action === 'block') {
-      const line = 'נחסם. חימוש וניטרול חסומים';
+      const line = 'חימוש וניטרול חסומים.';
       assistAppendMessage({ role: 'assist', text: line, kind: 'INFORMATION', blocked: true });
       showFlightTalkback(line);
       return;
@@ -19626,13 +19660,13 @@ async function assistSendText(rawText, { channel = 'text' } = {}) {
       });
       return;
     }
-    const refused = 'נחסם. הפקודה אינה ברשימה';
+    const refused = 'הפקודה נחסמה: היא לא ברשימה המותרת.';
     assistAppendMessage({ role: 'assist', text: refused, kind: 'INFORMATION' });
     showFlightTalkback(refused);
     return;
   }
   assistAppendMessage({ role: 'user', text });
-  const snap = assistBuildContextSnapshot();
+  const snap = assistBuildContextSnapshot(await assistVisionForAsk());
   snap.channel = channel === 'voice' ? 'voice' : 'text';
   const r = await fetch('/api/assist/message', {
     method: 'POST',
@@ -20974,11 +21008,11 @@ async function submitFlightPhrase(raw) {
   }
   const route = askFlightRoute(text);
   if (!route || route.action === 'refuse') {
-    showFlightTalkback('נחסם. הפקודה אינה ברשימה');
+    showFlightTalkback('הפקודה נחסמה: היא לא ברשימה המותרת.');
     return;
   }
   if (route.action === 'block') {
-    showFlightTalkback('נחסם. חימוש וניטרול חסומים');
+    showFlightTalkback('חימוש וניטרול חסומים.');
     return;
   }
   if (route.action === 'refuse-mode') {

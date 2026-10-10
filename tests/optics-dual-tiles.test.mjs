@@ -108,7 +108,7 @@ describe('Optics CAM0 and CAM1 tiles', () => {
           return {
             count: document.getElementById('debriefCamGrid').dataset.count,
             hidden: tiles.map((el) => el.hidden),
-            pressed: document.querySelector('[data-debrief-cam="a8"]')?.getAttribute('aria-pressed'),
+            pressed: document.querySelector('[data-debrief-cam="cam3"]')?.getAttribute('aria-pressed'),
             camToggles: document.querySelectorAll('[data-debrief-cam="cam0"], [data-debrief-cam="cam1"]').length,
             sideBySide: Math.abs(rs[0].top - rs[1].top) < 8
               && rs[0].width > 40
@@ -141,9 +141,9 @@ describe('Optics CAM0 and CAM1 tiles', () => {
       expect(await page.getAttribute('#opticsCam1Btn', 'aria-selected')).toBe('true');
       expect(await page.locator('.debrief-cam-tile[data-cam="cam1"]').isHidden()).toBe(false);
       expect(await page.locator('.debrief-cam-tile[data-cam="cam0"]').isHidden()).toBe(false);
-      await page.click('[data-debrief-cam="a8"]');
+      await page.click('[data-debrief-cam="cam3"]');
       await page.waitForFunction(() => document.getElementById('debriefCamGrid').dataset.count === '3');
-      expect(await page.locator('.debrief-cam-tile[data-cam="a8"]').isHidden()).toBe(false);
+      expect(await page.locator('.debrief-cam-tile[data-cam="cam3"]').isHidden()).toBe(false);
       expect(await page.locator('.debrief-cam-tile[data-cam="cam0"]').isHidden()).toBe(false);
       expect(await page.locator('.debrief-cam-tile[data-cam="cam1"]').isHidden()).toBe(false);
     } finally {
@@ -161,21 +161,21 @@ describe('Optics CAM0 and CAM1 tiles', () => {
       await page.click('[data-tab="optics"]');
       await page.waitForSelector('#debriefCamGrid[data-count="0"]');
       expect(await page.locator('#debriefCamEmpty').innerText()).toBe('בחרו מצלמה');
-      await page.locator('[data-debrief-cam="a8"]').click();
+      await page.locator('[data-debrief-cam="cam3"]').click();
       const only = await page.evaluate(() => ({
         stored: JSON.parse(localStorage.getItem('vlc.debrief.cameras.v2') || 'null'),
         pressed: {
           cam0: document.querySelector('[data-debrief-cam="cam0"]')?.getAttribute('aria-pressed'),
           cam1: document.querySelector('[data-debrief-cam="cam1"]')?.getAttribute('aria-pressed'),
-          gimbal: document.querySelector('[data-debrief-cam="a8"]')?.getAttribute('aria-pressed'),
+          gimbal: document.querySelector('[data-debrief-cam="cam3"]')?.getAttribute('aria-pressed'),
         },
         hidden: {
           cam0: document.querySelector('.debrief-cam-tile[data-cam="cam0"]')?.hidden,
           cam1: document.querySelector('.debrief-cam-tile[data-cam="cam1"]')?.hidden,
-          gimbal: document.querySelector('.debrief-cam-tile[data-cam="a8"]')?.hidden,
+          gimbal: document.querySelector('.debrief-cam-tile[data-cam="cam3"]')?.hidden,
         },
       }));
-      expect(only.stored).toEqual(['a8']);
+      expect(only.stored).toEqual(['cam3']);
       expect(only.pressed).toEqual({ cam0: 'false', cam1: 'false', gimbal: 'true' });
       expect(only.hidden).toEqual({ cam0: true, cam1: true, gimbal: false });
 
@@ -188,10 +188,10 @@ describe('Optics CAM0 and CAM1 tiles', () => {
         pressed: {
           cam0: document.querySelector('[data-debrief-cam="cam0"]')?.getAttribute('aria-pressed'),
           cam1: document.querySelector('[data-debrief-cam="cam1"]')?.getAttribute('aria-pressed'),
-          gimbal: document.querySelector('[data-debrief-cam="a8"]')?.getAttribute('aria-pressed'),
+          gimbal: document.querySelector('[data-debrief-cam="cam3"]')?.getAttribute('aria-pressed'),
         },
       }));
-      expect(left.stored).toEqual(['a8']);
+      expect(left.stored).toEqual(['cam3']);
       expect(left.pressed).toEqual({ cam0: 'false', cam1: 'false', gimbal: 'true' });
     } finally {
       await page.close();
@@ -211,9 +211,9 @@ describe('Optics CAM0 and CAM1 tiles', () => {
       await page.locator('[data-debrief-cam="cam1"]').click();
       expect(await page.locator('.debrief-cam-tile[data-cam="cam0"]').isHidden()).toBe(false);
       expect(await page.locator('.debrief-cam-tile[data-cam="cam1"]').isHidden()).toBe(false);
-      await page.locator('[data-debrief-cam="a8"]').click();
+      await page.locator('[data-debrief-cam="cam3"]').click();
       await page.waitForFunction(() => {
-        const img = document.querySelector('[data-cam="a8"] .debrief-cam-live');
+        const img = document.querySelector('[data-cam="cam3"] .debrief-cam-live');
         const src = img?.dataset.liveFrame || img?.getAttribute('src') || '';
         const cam0 = document.querySelector('.debrief-cam-tile[data-cam="cam0"]');
         const cam1 = document.querySelector('.debrief-cam-tile[data-cam="cam1"]');
@@ -226,10 +226,10 @@ describe('Optics CAM0 and CAM1 tiles', () => {
       const left = await page.evaluate(() => ({
         cam0: document.querySelector('.debrief-cam-tile[data-cam="cam0"]')?.hidden,
         cam1: document.querySelector('.debrief-cam-tile[data-cam="cam1"]')?.hidden,
-        gimbal: document.querySelector('.debrief-cam-tile[data-cam="a8"]')?.hidden,
+        gimbal: document.querySelector('.debrief-cam-tile[data-cam="cam3"]')?.hidden,
         pressed: {
           cam1: document.querySelector('[data-debrief-cam="cam1"]')?.getAttribute('aria-pressed'),
-          gimbal: document.querySelector('[data-debrief-cam="a8"]')?.getAttribute('aria-pressed'),
+          gimbal: document.querySelector('[data-debrief-cam="cam3"]')?.getAttribute('aria-pressed'),
         },
       }));
       expect(left.cam0).toBe(true);
@@ -277,9 +277,9 @@ describe('Optics CAM0 and CAM1 tiles', () => {
         },
       });
 
-      await page.locator('[data-debrief-cam="a8"]').click();
+      await page.locator('[data-debrief-cam="cam3"]').click();
       await page.waitForFunction(() => {
-        const img = document.querySelector('[data-cam="a8"] .debrief-cam-live');
+        const img = document.querySelector('[data-cam="cam3"] .debrief-cam-live');
         const src = img?.dataset.liveFrame || img?.getAttribute('src') || '';
         return img && img.hidden === false && img.naturalWidth > 0
           && src.includes('/api/jetson/v1/cameras/cam3/frame')
@@ -296,9 +296,9 @@ describe('Optics CAM0 and CAM1 tiles', () => {
           pressed: {
             cam0: btn('cam0').getAttribute('aria-pressed'),
             cam1: btn('cam1').getAttribute('aria-pressed'),
-            gimbal: btn('a8').getAttribute('aria-pressed'),
+            gimbal: btn('cam3').getAttribute('aria-pressed'),
           },
-          bg: { cam0: bg('cam0'), cam1: bg('cam1'), gimbal: bg('a8') },
+          bg: { cam0: bg('cam0'), cam1: bg('cam1'), gimbal: bg('cam3') },
           settings: gimbalTab?.getAttribute('aria-selected'),
           settingsBg: getComputedStyle(gimbalTab).backgroundColor,
           idleBg: getComputedStyle(cam0Tab).backgroundColor,
@@ -320,9 +320,9 @@ describe('Optics CAM0 and CAM1 tiles', () => {
         return img && img.hidden === false && img.naturalWidth > 0
           && src.includes('/api/jetson/v1/cameras/cam0/frame')
           && !src.includes('/cameras/cam3/')
-          && document.querySelector('.debrief-cam-tile[data-cam="a8"]')?.hidden === true
+          && document.querySelector('.debrief-cam-tile[data-cam="cam3"]')?.hidden === true
           && document.querySelector('[data-debrief-cam="cam0"]')?.getAttribute('aria-pressed') === 'true'
-          && document.querySelector('[data-debrief-cam="a8"]')?.getAttribute('aria-pressed') === 'false';
+          && document.querySelector('[data-debrief-cam="cam3"]')?.getAttribute('aria-pressed') === 'false';
       });
 
       await page.locator('[data-debrief-cam="cam1"]').click();
@@ -365,9 +365,9 @@ describe('Optics CAM0 and CAM1 tiles', () => {
           cam0: { camera_ok: true, state: 'streaming', fps: 30, has_frame: true, frame_count: 4 },
         },
       });
-      await page.locator('[data-debrief-cam="a8"]').click();
+      await page.locator('[data-debrief-cam="cam3"]').click();
       await page.waitForFunction(() => {
-        const tile = document.querySelector('.debrief-cam-tile[data-cam="a8"]');
+        const tile = document.querySelector('.debrief-cam-tile[data-cam="cam3"]');
         const img = tile?.querySelector('.debrief-cam-live');
         const note = tile?.querySelector('.debrief-cam-nosignal');
         const src = img?.dataset.liveFrame || img?.getAttribute('src') || '';
@@ -377,7 +377,7 @@ describe('Optics CAM0 and CAM1 tiles', () => {
           && note && note.hidden === false
           && note.textContent === 'אין אות'
           && document.querySelector('.debrief-cam-tile[data-cam="cam0"]')?.hidden === true
-          && document.querySelector('[data-debrief-cam="a8"]')?.getAttribute('aria-pressed') === 'true';
+          && document.querySelector('[data-debrief-cam="cam3"]')?.getAttribute('aria-pressed') === 'true';
       });
     } finally {
       await page.close();

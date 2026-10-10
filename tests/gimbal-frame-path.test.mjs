@@ -53,6 +53,29 @@ function closeServer(server) {
 }
 
 describe('gimbal frame path', () => {
+  it('lets the event loop run while an instant mock frame stays hot', async () => {
+    let pulls = 0;
+    const shelf = createLatestFrameShelf({
+      async pull() {
+        pulls += 1;
+        return { bytes: Buffer.from('jpeg-bytes'), contentType: 'image/jpeg', frameSeq: pulls, capturedAt: Date.now() };
+      },
+    });
+    const first = Date.now();
+    await shelf.take({ since: 0 });
+    expect(Date.now() - first).toBeLessThan(200);
+    const marks = [];
+    const timer = setInterval(() => marks.push(Date.now()), 20);
+    const gapStarted = Date.now();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const yielded = Date.now() - gapStarted;
+    await new Promise((resolve) => setTimeout(resolve, 80));
+    clearInterval(timer);
+    expect(yielded).toBeLessThan(200);
+    expect(marks.length).toBeGreaterThanOrEqual(2);
+    expect(pulls).toBeLessThan(40);
+  });
+
   it('drops a late pull and paints the newer frame without waiting it out', async () => {
     const oldBytes = Buffer.from('old-frame-bytes');
     const newBytes = Buffer.from('new-frame-bytes');

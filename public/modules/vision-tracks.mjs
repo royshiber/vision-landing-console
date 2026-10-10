@@ -21,6 +21,9 @@ let sortMode = 'class';
 let menuCamera = '';
 let timer = 0;
 let painting = false;
+let inflightRefresh = null;
+let sawRefresh = false;
+let lastGoodAsk = null;
 
 export function unwrapTracks(body) {
   if (body && body.lane === 'NEW' && body.data && typeof body.data === 'object') return body.data;
@@ -231,10 +234,149 @@ export function visionAskSnapshot(payload) {
   return Object.keys(out).length ? out : null;
 }
 
+export const VISION_ASK_WAIT_MS = 300;
+
+function entryOf(entries, id) {
+  if (!entries) return undefined;
+  if (typeof entries.get === 'function') return entries.get(id);
+  return entries[id];
+}
+
+function entryHas(entries, id) {
+  if (!entries) return false;
+  if (typeof entries.has === 'function') return entries.has(id);
+  return entries[id] != null;
+}
+
+function entryValues(entries) {
+  if (!entries) return [];
+  if (typeof entries.values === 'function') return [...entries.values()];
+  return Object.values(entries);
+}
+
+function selectedFrom(entries) {
+  for (const payload of entryValues(entries)) {
+    const id = payload?.selected_camera;
+    if (STREAM_IDS.includes(id)) return id;
+  }
+  return '';
+}
+
+function liveCamera(row) {
+  return Boolean(row) && (row.stream === true || (Array.isArray(row.tracks) && row.tracks.length > 0));
+}
+
+function chooseFocus(cameras, selected) {
+  if (selected && liveCamera(cameras[selected])) return selected;
+  for (const id of STREAM_IDS) {
+    if (liveCamera(cameras[id])) return id;
+  }
+  if (selected && cameras[selected]) return selected;
+  return STREAM_IDS.find((id) => cameras[id]) || '';
+}
+
+function packAsk(cameras, selected) {
+  const ids = STREAM_IDS.filter((id) => cameras[id]);
+  if (!ids.length) return null;
+  const focusId = chooseFocus(cameras, selected);
+  const focus = cameras[focusId];
+  if (!focus) return null;
+  const streams = {};
+  for (const id of ids) {
+    if (typeof cameras[id].stream === 'boolean') streams[id] = cameras[id].stream;
+  }
+  return {
+    ...focus,
+    camera: focus.camera || focusId,
+    cameras,
+    ...(Object.keys(streams).length ? { streams } : {}),
+  };
+}
+
+/** Every camera that has a cached payload, with the live one at the top level. */
+export function assembleVisionAsk(entries) {
+  const cameras = {};
+  for (const id of STREAM_IDS) {
+    const snap = visionAskSnapshot(entryOf(entries, id));
+    if (!snap) continue;
+    if (!snap.camera) snap.camera = id;
+    cameras[id] = snap;
+  }
+  return packAsk(cameras, selectedFrom(entries));
+}
+
+/** Fill cameras the latest read missed from the previous good ask. */
+export function fillVisionAsk(state, lastGood) {
+  const prior = lastGood?.cameras && typeof lastGood.cameras === 'object' ? lastGood.cameras : null;
+  const next = state?.cameras && typeof state.cameras === 'object' ? state.cameras : null;
+  if (!prior && !next) return state || lastGood || null;
+  const cameras = { ...(prior || {}), ...(next || {}) };
+  const selected = state?.camera || lastGood?.camera || '';
+  return packAsk(cameras, selected);
+}
+
+export function cacheCoversAsk(entries) {
+  return STREAM_IDS.every((id) => entryHas(entries, id));
+}
+
+function cacheEmpty(entries) {
+  if (!entries) return true;
+  if (typeof entries.size === 'number' && typeof entries.values === 'function') return entries.size === 0;
+  return entryValues(entries).length === 0;
+}
+
+/**
+ * Snapshot every camera. An empty or unfinished cache waits for one refresh,
+ * and never longer than waitMs, then uses the last good payload.
+ */
+export async function waitForVisionAsk({
+  read,
+  refresh,
+  lastGood = null,
+  waitMs = VISION_ASK_WAIT_MS,
+  settled = false,
+} = {}) {
+  const readNow = () => (typeof read === 'function' ? read() : new Map());
+  const initial = readNow();
+  if (cacheCoversAsk(initial) || (!cacheEmpty(initial) && settled)) {
+    return fillVisionAsk(assembleVisionAsk(initial), settled ? null : lastGood);
+  }
+  let finished = false;
+  const job = Promise.resolve().then(() => (typeof refresh === 'function' ? refresh() : null)).finally(() => {
+    finished = true;
+  });
+  const started = Date.now();
+  while (!finished && Date.now() - started < waitMs) {
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    const mid = readNow();
+    if (cacheCoversAsk(mid)) break;
+  }
+  if (!finished) {
+    await Promise.race([
+      job,
+      new Promise((resolve) => setTimeout(resolve, Math.max(0, waitMs - (Date.now() - started)))),
+    ]);
+  }
+  return fillVisionAsk(assembleVisionAsk(readNow()), lastGood);
+}
+
 export function visionAskState() {
-  const camera = selectedCamera();
-  if (!camera) return null;
-  return visionAskSnapshot(cache.get(camera));
+  const fresh = assembleVisionAsk(cache);
+  const state = cacheCoversAsk(cache) ? fresh : fillVisionAsk(fresh, lastGoodAsk);
+  if (state && (cacheCoversAsk(cache) || (sawRefresh && fresh))) lastGoodAsk = state;
+  return state;
+}
+
+export async function visionAskReady(doc = typeof document !== 'undefined' ? document : null, waitMs = VISION_ASK_WAIT_MS) {
+  const state = await waitForVisionAsk({
+    read: () => cache,
+    refresh: () => (doc ? refresh(doc) : null),
+    lastGood: lastGoodAsk,
+    waitMs,
+    settled: sawRefresh,
+  });
+  if (state) lastGoodAsk = state;
+  return state;
 }
 
 function selectedCamera() {
@@ -540,28 +682,34 @@ function scheduleSizedRepaint(doc) {
 }
 
 async function refresh(doc) {
-  if (doc.visibilityState === 'hidden') return;
-  if (painting) {
+  if (!doc || doc.visibilityState === 'hidden') return;
+  if (inflightRefresh) {
     paintAgain = true;
-    return;
+    return inflightRefresh;
   }
-  painting = true;
-  try {
-    do {
-      paintAgain = false;
-      const cameras = new Set(hostList(doc).filter((item) => item.kind !== 'horizon' && item.camera).map((item) => item.camera));
-      await Promise.all([...cameras].map(async (camera) => {
-        const payload = await fetchTracks(camera);
-        cache.set(camera, payload);
-        rememberFrame(camera, payload);
-      }));
-      paintAll(doc);
-      if (!doc.getElementById('visionTrackMenu')?.hidden) renderMenu(doc);
-    } while (paintAgain);
-  } finally {
-    painting = false;
-  }
-  scheduleSizedRepaint(doc);
+  inflightRefresh = (async () => {
+    painting = true;
+    try {
+      do {
+        paintAgain = false;
+        const cameras = new Set(hostList(doc).filter((item) => item.kind !== 'horizon' && item.camera).map((item) => item.camera));
+        await Promise.all([...cameras].map(async (camera) => {
+          const payload = await fetchTracks(camera);
+          cache.set(camera, payload);
+          rememberFrame(camera, payload);
+        }));
+        paintAll(doc);
+        if (!doc.getElementById('visionTrackMenu')?.hidden) renderMenu(doc);
+      } while (paintAgain);
+      sawRefresh = true;
+    } finally {
+      painting = false;
+      scheduleSizedRepaint(doc);
+    }
+  })().finally(() => {
+    inflightRefresh = null;
+  });
+  return inflightRefresh;
 }
 
 async function postJson(url, body) {
@@ -594,7 +742,7 @@ const MENU_HTML = `
     <p class="vision-menu-sort">מיון: <button type="button" class="vision-track-menu-item" data-vision-sort="class">סוג</button><span aria-hidden="true"> | </span><button type="button" class="vision-track-menu-item" data-vision-sort="confidence">ביטחון</button></p>
     <div data-vision-list></div>
     <p class="vision-menu-kicker">נעילה</p>
-    <button type="button" class="vision-track-menu-item" data-vision-action="next">עברו לעצם הבא</button>
+    <button type="button" class="vision-track-menu-item" data-vision-action="next">אובייקט הבא</button>
     <button type="button" class="vision-track-menu-item" data-vision-action="unlock">שחררו נעילה</button>
     <button type="button" class="vision-track-menu-item" data-vision-action="steer"></button>
     <p class="vision-menu-note" data-vision-steer-note hidden></p>
@@ -781,6 +929,7 @@ export function mountVisionTracks(doc = document) {
   if (doc.defaultView) {
     doc.defaultView.__vlcFillVisionMenu = (slot, camera) => fillVisionMenu(slot, camera);
     doc.defaultView.__vlcVisionAskState = () => visionAskState();
+    doc.defaultView.__vlcVisionAskReady = (waitMs) => visionAskReady(doc, waitMs);
     doc.defaultView.__vlcVisionStreamMap = () => visionStreamMap();
   }
 }

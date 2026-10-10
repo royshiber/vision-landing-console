@@ -2,7 +2,8 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { FRAME_SYNC_TOLERANCE_MS, framePoint, hitDrawnBox, hitTrack, mediaFit, placeMenuBox, selectFrameTracks, TRACK_POLL_MS, trackCaption, unwrapTracks, visionAskSnapshot } from '../public/modules/vision-tracks.mjs';
+import { buildAssistContext } from '../lib/assist/assist-context.mjs';
+import { FRAME_SYNC_TOLERANCE_MS, assembleVisionAsk, cacheCoversAsk, fillVisionAsk, framePoint, hitDrawnBox, hitTrack, mediaFit, placeMenuBox, selectFrameTracks, TRACK_POLL_MS, trackCaption, unwrapTracks, visionAskSnapshot, VISION_ASK_WAIT_MS, waitForVisionAsk } from '../public/modules/vision-tracks.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -118,6 +119,76 @@ describe('vision track hit testing', () => {
     expect(missing.enabled).toBeUndefined();
     expect(missing.stream).toBeUndefined();
     expect(missing.reason_he).toBe('אין נתון על זרם המצלמות');
+  });
+
+  it('snapshots every camera and waits once when the cache is empty', async () => {
+    const cam = (id, tracks) => ({
+      camera: id,
+      enabled: true,
+      stream: true,
+      backend: 'cpu',
+      tracks,
+      lock: null,
+    });
+    const cache = new Map([
+      ['cam0', cam('cam0', [{ id: 1, class: 'person', label_he: 'אדם' }])],
+      ['cam1', cam('cam1', [])],
+      ['cam3', cam('cam3', [{ id: 4, class: 'car', label_he: 'רכב' }])],
+    ]);
+    cache.get('cam3').selected_camera = 'cam3';
+    const snap = assembleVisionAsk(cache);
+    expect(cacheCoversAsk(cache)).toBe(true);
+    expect(Object.keys(snap.cameras).sort()).toEqual(['cam0', 'cam1', 'cam3']);
+    expect(snap.camera).toBe('cam3');
+    expect(snap.tracks.map((row) => row.label_he)).toEqual(['רכב']);
+    expect(snap.streams).toEqual({ cam0: true, cam1: true, cam3: true });
+    expect(snap).not.toEqual({});
+
+    const partial = new Map([['cam0', cam('cam0', [{ id: 1, class: 'person', label_he: 'אדם' }])]]);
+    const kept = fillVisionAsk(assembleVisionAsk(partial), snap);
+    expect(kept.cameras.cam3.tracks.map((row) => row.label_he)).toEqual(['רכב']);
+    expect(kept.cameras.cam0.tracks.map((row) => row.label_he)).toEqual(['אדם']);
+
+    const empty = new Map();
+    let pulls = 0;
+    const started = Date.now();
+    const ready = await waitForVisionAsk({
+      read: () => empty,
+      refresh() {
+        pulls += 1;
+        return new Promise((resolve) => setTimeout(() => {
+          empty.set('cam0', cam('cam0', []));
+          empty.set('cam1', cam('cam1', []));
+          empty.set('cam3', cam('cam3', [{ id: 9, class: 'person', label_he: 'אדם' }]));
+          resolve();
+        }, 40));
+      },
+      lastGood: null,
+      waitMs: VISION_ASK_WAIT_MS,
+      settled: false,
+    });
+    expect(pulls).toBe(1);
+    expect(Date.now() - started).toBeLessThan(VISION_ASK_WAIT_MS);
+    expect(ready.cameras.cam3.tracks[0].label_he).toBe('אדם');
+
+    const late = new Map();
+    const fallback = await waitForVisionAsk({
+      read: () => late,
+      refresh() {
+        return new Promise((resolve) => setTimeout(resolve, 200));
+      },
+      lastGood: snap,
+      waitMs: 40,
+      settled: false,
+    });
+    expect(fallback.cameras.cam0).toBeTruthy();
+    expect(fallback.cameras.cam3).toBeTruthy();
+    expect(fallback.streams.cam3).toBe(true);
+
+    const keptOnServer = buildAssistContext({ vision: snap });
+    expect(Object.keys(keptOnServer.vision.cameras).sort()).toEqual(['cam0', 'cam1', 'cam3']);
+    expect(keptOnServer.vision.cameras.cam3.tracks[0].label_he).toBe('רכב');
+    expect(keptOnServer.vision.streams.cam3).toBe(true);
   });
 
   it('fails when no camera stage marker is present', () => {

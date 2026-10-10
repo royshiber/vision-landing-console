@@ -193,7 +193,7 @@ describe('offline Ask status answers', () => {
         channel: 'voice',
         context_snapshot: LIVE,
       });
-      expect(live.answer).toBe('מצלמה קדמית משדרת. מצלמת מטה אינה משדרת. אין נתון על הגימבל.');
+      expect(live.answer).toBe('מצלמה קדמית משדרת. מצלמת מטה אינה משדרת. אין נתון על זרם מצלמת הגימבל.');
       expect(live.kind).toBe('INFORMATION');
       expect(live.sent).toBe(false);
       const gimbalOn = {
@@ -229,7 +229,7 @@ describe('offline Ask status answers', () => {
         context_snapshot: LIVE,
       });
       expect(calls).toBe(0);
-      expect(resp.answer).toBe('מצלמה קדמית משדרת. מצלמת מטה אינה משדרת. אין נתון על הגימבל.');
+      expect(resp.answer).toBe('מצלמה קדמית משדרת. מצלמת מטה אינה משדרת. אין נתון על זרם מצלמת הגימבל.');
       expect(resp.sent).toBe(false);
     } finally {
       fs.rmSync(wired.root, { recursive: true, force: true });
@@ -237,12 +237,12 @@ describe('offline Ask status answers', () => {
   });
 
   it('answers cameras and Jetson from ops signals', async () => {
-    expect((await ask(service, 'האם המצלמות משדרות?')).answer).toBe('מצלמה קדמית משדרת. מצלמת מטה אינה משדרת. אין נתון על הגימבל.');
+    expect((await ask(service, 'האם המצלמות משדרות?')).answer).toBe('מצלמה קדמית משדרת. מצלמת מטה אינה משדרת. אין נתון על זרם מצלמת הגימבל.');
     expect((await ask(service, 'מה מצב מצלמת הגימבל', {
       ops_signals: { cameras: { cam0: false, cam1: false, cam3: true } },
     })).answer).toBe('מצלמת הגימבל משדרת.');
     expect((await ask(service, 'מה מצב מצלמת הגימבל', { ops_signals: { cameras: { cam0: true, cam1: true, cam3: false } } })).answer).toBe('מצלמת הגימבל אינה משדרת.');
-    expect((await ask(service, 'מה מצב מצלמת הגימבל')).answer).toBe('אין נתון על הגימבל.');
+    expect((await ask(service, 'מה מצב מצלמת הגימבל')).answer).toBe('אין נתון על זרם מצלמת הגימבל.');
     expect((await ask(service, 'מה מצב ה-Jetson?')).answer).toBe('מחשב משימה (Jetson) מחובר.');
     expect(answerAskStatus('jetson', buildAssistContext({ ops_signals: { jetson: 'mock' } }))).toBe('מחשב משימה (Jetson) במצב הדמיה.');
     expect(answerAskStatus('jetson', buildAssistContext({ ops_signals: { jetson: 'unreachable' } }))).toBe('מחשב משימה (Jetson) אינו מגיב.');

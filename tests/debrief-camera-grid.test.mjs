@@ -18,7 +18,11 @@ describe('Debrief camera grid and horizon menu — source', () => {
     expect(html).toContain('data-cam="cam1"');
     expect(html).toContain('data-debrief-cam="cam0"');
     expect(html).toContain('data-debrief-cam="cam1"');
-    expect(html).toContain('data-debrief-cam="a8"');
+    expect(html).toContain('data-debrief-cam="cam3"');
+    expect(html).toContain('data-cam="cam3"');
+    expect(html).not.toContain('data-debrief-cam="a8"');
+    expect(html).not.toContain('data-cam="a8"');
+    expect(js).toContain("return id === 'a8' ? 'cam3' : id");
     expect(html).toContain('id="opticsCam0Btn"');
     expect(html).toContain('id="opticsCam1Btn"');
     expect(html).toContain('id="flightVideo"');
@@ -70,8 +74,8 @@ describe('Debrief camera grid and horizon menu — live', () => {
   }
 
   async function setGimbal(on) {
-    const pressed = await page.getAttribute('[data-debrief-cam="a8"]', 'aria-pressed');
-    if ((pressed === 'true') !== on) await page.click('[data-debrief-cam="a8"]');
+    const pressed = await page.getAttribute('[data-debrief-cam="cam3"]', 'aria-pressed');
+    if ((pressed === 'true') !== on) await page.click('[data-debrief-cam="cam3"]');
   }
 
   it('fills both cameras, stacks the gimbal, and remembers the choice', async () => {
@@ -111,8 +115,8 @@ describe('Debrief camera grid and horizon menu — live', () => {
     box = await page.evaluate(() => {
       const tiles = [...document.querySelectorAll('.debrief-cam-tile')].filter((el) => !el.hidden);
       const rs = tiles.map((el) => ({ cam: el.dataset.cam, ...el.getBoundingClientRect().toJSON() }));
-      const gimbal = rs.find((r) => r.cam === 'a8');
-      const small = rs.filter((r) => r.cam !== 'a8');
+      const gimbal = rs.find((r) => r.cam === 'cam3');
+      const small = rs.filter((r) => r.cam !== 'cam3');
       const grid = document.getElementById('debriefCamGrid').getBoundingClientRect();
       const span = Math.max(...rs.map((r) => r.right)) - Math.min(...rs.map((r) => r.left));
       return {
@@ -231,26 +235,26 @@ describe('Debrief camera grid and horizon menu — live', () => {
       await page.mouse.click(stage.x + stage.width - 8, stage.y + 8, { button: 'right' });
       await page.waitForSelector('#horizonCameraMenu:not([hidden])');
     }
-    await page.locator('[data-horizon-cam="a8"]').click();
+    await page.locator('[data-horizon-cam="cam3"]').click();
     const both = await page.evaluate(() => ({
       cam0: document.querySelector('[data-horizon-cam="cam0"]')?.getAttribute('aria-checked'),
-      gimbal: document.querySelector('[data-horizon-cam="a8"]')?.getAttribute('aria-checked'),
+      gimbal: document.querySelector('[data-horizon-cam="cam3"]')?.getAttribute('aria-checked'),
       stored: JSON.parse(localStorage.getItem('vlc.horizon.bgCamera.v1') || 'null'),
       labels: [...document.querySelectorAll('[data-horizon-cam]')].map((el) => el.textContent),
     }));
     expect(both.cam0).toBe('true');
     expect(both.gimbal).toBe('true');
-    expect(both.stored).toEqual(['cam0', 'a8']);
+    expect(both.stored).toEqual(['cam0', 'cam3']);
     expect(both.labels).toEqual(['בלי מצלמה', 'קדמית', 'מטה', 'גימבל']);
     await page.waitForFunction(() => {
-      const img = document.querySelector('#horizonCameraStack [data-horizon-slot="a8"] .pfd-horizon-camera');
+      const img = document.querySelector('#horizonCameraStack [data-horizon-slot="cam3"] .pfd-horizon-camera');
       const src = img?.dataset.liveFrame || img?.getAttribute('src') || '';
       return Boolean(img) && img.hidden === false && img.naturalWidth > 0 && src.includes('/api/jetson/v1/cameras/cam3/frame');
     });
     const ink = await page.evaluate(() => {
-      const item = document.querySelector('[data-horizon-cam="a8"]');
+      const item = document.querySelector('[data-horizon-cam="cam3"]');
       const menu = document.getElementById('horizonCameraMenu');
-      const label = document.querySelector('#horizonCameraStack [data-horizon-slot="a8"] .horizon-cam-tile-label');
+      const label = document.querySelector('#horizonCameraStack [data-horizon-slot="cam3"] .horizon-cam-tile-label');
       const cs = (el) => {
         const s = getComputedStyle(el);
         return { color: s.color, bg: s.backgroundColor, size: parseFloat(s.fontSize) };
@@ -266,12 +270,12 @@ describe('Debrief camera grid and horizon menu — live', () => {
     await page.locator('[data-horizon-cam="cam0"]').click();
     const left = await page.evaluate(() => ({
       cam0: document.querySelector('[data-horizon-cam="cam0"]')?.getAttribute('aria-checked'),
-      gimbal: document.querySelector('[data-horizon-cam="a8"]')?.getAttribute('aria-checked'),
+      gimbal: document.querySelector('[data-horizon-cam="cam3"]')?.getAttribute('aria-checked'),
       stored: localStorage.getItem('vlc.horizon.bgCamera.v1'),
     }));
     expect(left.cam0).toBe('false');
     expect(left.gimbal).toBe('true');
-    expect(left.stored).toBe('a8');
+    expect(left.stored).toBe('cam3');
     await page.waitForFunction(() => {
       const img = document.getElementById('horizonCameraBg');
       const shell = document.getElementById('pfdHorizonShell');
@@ -306,8 +310,9 @@ describe('Debrief camera grid and horizon menu — live', () => {
       localStorage.setItem('vlc.horizon.bgCamera.v1', 'none');
     });
     await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+    expect(await page.evaluate(() => localStorage.getItem('vlc.debrief.cameras.v2'))).toBe(JSON.stringify(['cam3']));
     await page.click('[data-tab="optics"]');
-    await page.waitForSelector('.debrief-cam-tile[data-cam="a8"]:not([hidden])');
+    await page.waitForSelector('.debrief-cam-tile[data-cam="cam3"]:not([hidden])');
     const live = {
       mode: 'real',
       reachable: true,
@@ -321,16 +326,16 @@ describe('Debrief camera grid and horizon menu — live', () => {
       document.dispatchEvent(new CustomEvent('vlc-companion-cameras', { detail }));
     }, live);
     await page.waitForFunction(() => {
-      const img = document.querySelector('.debrief-cam-tile[data-cam="a8"] .debrief-cam-live');
+      const img = document.querySelector('.debrief-cam-tile[data-cam="cam3"] .debrief-cam-live');
       return Number(img?.dataset.seen || 0) > 0 && img.hidden === false;
     });
     serveJpeg = false;
     await page.waitForFunction(() => {
-      const img = document.querySelector('.debrief-cam-tile[data-cam="a8"] .debrief-cam-live');
+      const img = document.querySelector('.debrief-cam-tile[data-cam="cam3"] .debrief-cam-live');
       return Number(img?.dataset.misses || 0) === 1;
     });
     const one = await page.evaluate(() => {
-      const tile = document.querySelector('.debrief-cam-tile[data-cam="a8"]');
+      const tile = document.querySelector('.debrief-cam-tile[data-cam="cam3"]');
       const img = tile.querySelector('.debrief-cam-live');
       const note = tile.querySelector('.debrief-cam-nosignal');
       return { misses: Number(img.dataset.misses || 0), imgHidden: img.hidden, noteHidden: note.hidden, src: Boolean(img.getAttribute('src')) };
@@ -342,15 +347,15 @@ describe('Debrief camera grid and horizon menu — live', () => {
     await page.waitForTimeout(750);
     await paint();
     await page.waitForFunction(() => {
-      const img = document.querySelector('.debrief-cam-tile[data-cam="a8"] .debrief-cam-live');
+      const img = document.querySelector('.debrief-cam-tile[data-cam="cam3"] .debrief-cam-live');
       return Number(img?.dataset.misses || 0) >= 2;
     });
     await paint();
-    await page.locator('.debrief-cam-tile[data-cam="a8"]').screenshot({
+    await page.locator('.debrief-cam-tile[data-cam="cam3"]').screenshot({
       path: path.join(shotDir, 'gimbal-second-miss.png'),
     });
     const two = await page.evaluate(() => {
-      const tile = document.querySelector('.debrief-cam-tile[data-cam="a8"]');
+      const tile = document.querySelector('.debrief-cam-tile[data-cam="cam3"]');
       const img = tile.querySelector('.debrief-cam-live');
       const note = tile.querySelector('.debrief-cam-nosignal');
       const shown = img.hidden === false && Number(img.dataset.seen || 0) > 0 && Boolean(img.getAttribute('src'));

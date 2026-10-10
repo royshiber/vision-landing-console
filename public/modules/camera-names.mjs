@@ -15,8 +15,13 @@ const ID_ALIAS = Object.freeze({
   gimbal: 'cam3',
 });
 
+/** Saved settings may still say a8. The UI id is cam3. */
+export function canonicalCameraId(id) {
+  const raw = String(id || '').trim();
+  if (!raw) return '';
+  return ID_ALIAS[raw.toLowerCase()] || raw;
+}
+
 export function cameraDisplayName(id) {
-  const raw = String(id || '').trim().toLowerCase();
-  const key = ID_ALIAS[raw] || raw;
-  return CAMERA_NAME_HE[key] || '';
+  return CAMERA_NAME_HE[canonicalCameraId(id)] || '';
 }

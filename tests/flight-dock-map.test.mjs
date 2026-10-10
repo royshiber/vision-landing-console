@@ -89,8 +89,8 @@ describe('flight dock and map source', () => {
     expect(readbackFn).not.toContain('אין מצב טיסה');
     const phraseFn = js.slice(js.indexOf('async function submitFlightPhrase'), js.indexOf('function applyFlightDock'));
     expect(phraseFn).toContain('flightModeReadbackLine(match.askedMode, text)');
-    expect(askSend).toContain('נחסם. הפקודה אינה ברשימה');
-    expect(askSend).toContain('נחסם. חימוש וניטרול חסומים');
+    expect(askSend).toContain('הפקודה נחסמה: היא לא ברשימה המותרת.');
+    expect(askSend).toContain('חימוש וניטרול חסומים.');
     expect(askSend.indexOf('postFlightVoice')).toBeLessThan(askSend.indexOf("fetch('/api/assist/message'"));
     expect(js).toContain('function showFlightTalkback(');
     expect(js).toContain('paintFlightDockCommand(line)');
@@ -694,9 +694,9 @@ describe('flight dock and map live', () => {
       note: document.getElementById('flightDockCommandNote').textContent,
       heard: window.__talkLog.at(-1),
     }));
-    expect(armAsk.note).toBe('נחסם. חימוש וניטרול חסומים');
+    expect(armAsk.note).toBe('חימוש וניטרול חסומים.');
     expect(armAsk.heard.note).toBe(armAsk.heard.text);
-    expect(armAsk.heard.text).toBe('נחסם. חימוש וניטרול חסומים');
+    expect(armAsk.heard.text).toBe('חימוש וניטרול חסומים.');
     await page.evaluate(() => {
       applyFlightHud({ connected: false, armed: false });
       return assistSendText('המריאו');
@@ -713,7 +713,7 @@ describe('flight dock and map live', () => {
     });
     expect(askTranscript).not.toContain('תמריא');
     expect(askTranscript).toContain('עבור למצב יציב');
-    expect(askTranscript).toContain('נחסם. חימוש וניטרול חסומים');
+    expect(askTranscript).toContain('חימוש וניטרול חסומים.');
 
     for (const phrase of ['set the cruise altitude', 'חמש דקות', 'אל תחזור הביתה']) {
       const beforeVoice = voice.length;
