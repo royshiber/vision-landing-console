@@ -11114,8 +11114,8 @@ html[data-evolve-preview="1"] #development {
 .terrain-flight-shell.mission-workspace,
 .mission-workspace[data-mission-layout="ops-v1"] {
   --mission-col-floor: 32px;
-  --mission-map-col: 67fr;
-  --mission-ah-col: 33fr;
+  --mission-map-col: 2fr;
+  --mission-ah-col: 1fr;
   --mission-talk-col: 0fr;
   --mission-ah-row: 66%;
   --mission-data-h: 72px;
@@ -24961,7 +24961,7 @@ body[data-work-path="rf"] #optics .optics-calib {
 }
 .mission-region-horizon > .mission-region-data > .mission-data-grid {
   display: grid;
-  grid-template-columns: 62px minmax(0, 1.35fr) minmax(0, 1.7fr) minmax(0, 0.7fr) minmax(0, 1fr) minmax(0, 1.35fr) minmax(0, 1.05fr);
+  grid-template-columns: 62px minmax(0, 1.35fr) minmax(0, 1.7fr) minmax(32px, 1.1fr) minmax(0, 1fr) minmax(0, 1.35fr) minmax(0, 1.05fr);
   grid-auto-rows: auto;
   align-items: stretch;
   align-content: start;
@@ -27584,7 +27584,7 @@ body:has(#control.panel.visible) #assistToggleBtn {
   max-width: 100%;
   overflow: visible;
   gap: 0;
-  grid-template-columns: 62px minmax(0, 1.35fr) minmax(0, 1.7fr) minmax(0, 0.7fr) minmax(0, 1fr) minmax(0, 1.35fr) minmax(0, 1.05fr);
+  grid-template-columns: 62px minmax(0, 1.35fr) minmax(0, 1.7fr) minmax(32px, 1.1fr) minmax(0, 1fr) minmax(0, 1.35fr) minmax(0, 1.05fr);
 }
 .mission-workspace[data-mission-layout="ops-v1"] .mission-region-horizon .mission-data-tile,
 .mission-region-horizon .mission-data-tile {
@@ -27606,7 +27606,7 @@ body:has(#control.panel.visible) #assistToggleBtn {
   white-space: normal !important;
   font-size: 11px;
   font-weight: 700;
-  letter-spacing: -0.04em;
+  letter-spacing: -0.07em;
 }
 .mission-region-horizon .mission-data-tile:has(#hudFlightMode) {
   width: auto;
@@ -27641,7 +27641,7 @@ body:has(#control.panel.visible) #assistToggleBtn {
 }
 .mission-region-horizon .mission-data-tile .mission-data-pair > .mission-data-unit {
   font-weight: 600;
-  letter-spacing: -0.04em;
+  letter-spacing: -0.07em;
 }
 .horizon-cam-menu #hudNavGpsTip {
   position: static;
