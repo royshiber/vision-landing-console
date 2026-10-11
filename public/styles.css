@@ -28082,31 +28082,49 @@ body:has(#control.panel.visible) #assistToggleBtn {
   padding: 0;
 }
 .horizon-quick {
-  position: absolute;
+  position: relative;
+  grid-area: quick;
   z-index: 7;
-  bottom: 4px;
-  inset-inline-start: 76px;
+  top: auto;
+  bottom: auto;
+  left: auto;
+  right: auto;
+  inset-inline-start: auto;
   display: flex;
-  flex-flow: row wrap;
+  flex-flow: row nowrap;
   align-items: center;
-  gap: 3px;
-  max-width: calc(100% - 152px);
+  justify-content: flex-start;
+  gap: 4px;
+  width: auto;
+  max-width: 100%;
+  height: 36px;
+  margin: 0;
+  padding: 2px 4px;
+  box-sizing: border-box;
   pointer-events: auto;
+}
+.horizon-quick .horizon-quick-icon {
+  width: 18px;
+  height: 18px;
+  display: block;
 }
 .horizon-quick .flight-arm-btn,
 .horizon-quick .pfd-badge,
 .horizon-quick .pfd-voice-flight-btn {
   position: static;
-  font-size: 11px;
-  line-height: 1.2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 44px;
+  font-size: clamp(11px, 16px, 18px);
+  line-height: 1;
+  width: 44px;
+  min-width: 44px !important;
+  max-width: 44px;
   min-height: 32px !important;
   height: 32px;
-  padding: 2px 8px;
+  padding: 0;
   margin: 0;
-}
-.horizon-quick .flight-arm-btn,
-.horizon-quick .pfd-voice-flight-btn {
-  min-width: 44px !important;
   touch-action: none;
 }
 .horizon-quick .pfd-badge {
@@ -28120,8 +28138,8 @@ body:has(#control.panel.visible) #assistToggleBtn {
   display: none !important;
 }
 .mission-region-horizon .pfd-horizon-instrument {
-  grid-template-rows: minmax(0, 1fr) !important;
-  grid-template-areas: "horizon" !important;
+  grid-template-rows: 36px minmax(0, 1fr) !important;
+  grid-template-areas: "quick" "horizon" !important;
 }
 .mission-workspace .mission-region-horizon > .flight-stack-split {
   display: none !important;

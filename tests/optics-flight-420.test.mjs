@@ -1,8 +1,12 @@
 import { afterAll, describe, expect, it } from 'vitest';
+import path from 'node:path';
 import { cameraDetailStreaming } from '../public/modules/vision-tracks.mjs';
 import { clampZoomPan, zoomAroundPoint, zoomFactorFromWheel, zoomFromPinch } from '../public/modules/camera-digital-zoom.mjs';
 import { placeOpticsPopover, rectsOverlap } from '../public/modules/optics-context.mjs';
+import { qaShotDir } from './shot-dir.mjs';
 import { startTestServer } from './test-server.mjs';
+
+const shots = qaShotDir('optics-flight-420');
 
 const VIEWPORTS = [
   [360, 640],
@@ -209,7 +213,7 @@ describe('optics menu stays off the picture', () => {
         if (hit) hits.push(`${width}x${height} tile ${i}: ${hit}`);
       }
       if (width === 360 || width === 1280) {
-        await page.screenshot({ path: `/opt/cursor/artifacts/screenshots/optics-menu-${width}.png` });
+        await page.screenshot({ path: path.join(shots, `optics-menu-${width}.png`) });
       }
       await page.keyboard.press('Escape');
     }
@@ -247,7 +251,9 @@ describe('optics menu stays off the picture', () => {
         const box = el.getBoundingClientRect();
         const cs = getComputedStyle(el);
         return {
-          text: el.textContent,
+          label: el.getAttribute('aria-label'),
+          tip: el.title,
+          top: Math.round(box.top),
           width: box.width,
           height: box.height,
           hidden: el.hidden || cs.display === 'none',
@@ -256,34 +262,46 @@ describe('optics menu stays off the picture', () => {
         };
       };
       const arm = document.getElementById('flightArmBtn').getBoundingClientRect();
+      const canvas = document.getElementById('horizonCanvas').getBoundingClientRect();
+      const quick = document.getElementById('horizonQuick').getBoundingClientRect();
       const tapes = [...document.querySelectorAll('.pfd-side-tape')].map((el) => el.getBoundingClientRect());
-      const hitsTape = tapes.some((tape) => {
-        const overlapW = Math.min(arm.right, tape.right) - Math.max(arm.left, tape.left);
-        const overlapH = Math.min(arm.bottom, tape.bottom) - Math.max(arm.top, tape.top);
+      const hits = (a, b) => {
+        const overlapW = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+        const overlapH = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
         return overlapW > 1 && overlapH > 1;
-      });
+      };
       return {
         arm: boxOf('flightArmBtn'),
         disarm: boxOf('flightDisarmBtn'),
         badge: boxOf('pfdArmedBadge'),
         voice: boxOf('pfdVoiceFlightBtn'),
-        hitsTape,
+        hitsTape: tapes.some((tape) => hits(arm, tape)),
+        hitsPicture: hits(quick, canvas),
       };
     });
-    expect(face.arm.text).toBe('חימוש');
-    expect(face.disarm.text).toBe('ניטרול');
-    expect(face.badge.text).toBe('מנוטרל');
+    expect(face.arm.label).toBe('חימוש');
+    expect(face.disarm.label).toBe('ניטרול');
+    expect(face.disarm.tip).toBe('ניטרול');
+    expect(face.badge.label).toBe('מנוטרל');
+    expect(face.badge.tip).toBe('מנוטרל');
     expect(face.arm.width).toBeGreaterThanOrEqual(44);
     expect(face.arm.height).toBeGreaterThanOrEqual(32);
+    expect(face.disarm.width).toBeGreaterThanOrEqual(44);
+    expect(face.disarm.height).toBeGreaterThanOrEqual(32);
+    expect(face.badge.width).toBeGreaterThanOrEqual(44);
+    expect(face.voice.width).toBeGreaterThanOrEqual(44);
+    expect(new Set([face.arm.top, face.disarm.top, face.badge.top, face.voice.top]).size).toBe(1);
     expect(face.hitsTape).toBe(false);
+    expect(face.hitsPicture).toBe(false);
     expect(face.voice.inQuick).toBe(true);
     expect(face.voice.inMenu).toBe(false);
     expect(face.voice.hidden).toBe(false);
-    expect(face.voice.text).toBe('פקודות');
+    expect(face.voice.label).toBe('פקודות');
+    await page.screenshot({ path: path.join(shots, 'horizon-360.png') });
     await page.evaluate(() => {
       const btn = document.getElementById('flightArmBtn');
       const box = btn.getBoundingClientRect();
-      const fire = (type) => btn.dispatchEvent(new PointerEvent(type, {
+      btn.dispatchEvent(new PointerEvent('pointerdown', {
         bubbles: true,
         cancelable: true,
         pointerId: 9,
@@ -292,11 +310,27 @@ describe('optics menu stays off the picture', () => {
         clientY: box.top + box.height / 2,
         button: 0,
       }));
-      fire('pointerdown');
-      fire('pointercancel');
-      fire('pointerleave');
     });
     await page.waitForFunction(() => document.getElementById('flightArmDialog')?.hidden === false);
+    await page.evaluate(() => {
+      const btn = document.getElementById('flightArmBtn');
+      const dialog = document.getElementById('flightArmDialog');
+      const box = btn.getBoundingClientRect();
+      const point = {
+        bubbles: true,
+        cancelable: true,
+        pointerId: 9,
+        pointerType: 'touch',
+        clientX: box.left + box.width / 2,
+        clientY: box.top + box.height / 2,
+        button: 0,
+      };
+      btn.dispatchEvent(new PointerEvent('pointerup', point));
+      btn.dispatchEvent(new TouchEvent('touchend', { bubbles: true, cancelable: true }));
+      dialog.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    });
+    await page.waitForTimeout(250);
+    expect(await page.locator('#flightArmDialog').isHidden()).toBe(false);
     expect(await page.locator('#flightArmDialogText').textContent()).toBe('אשרו חימוש');
     expect(await page.locator('#flightArmCancel').textContent()).toBe('ביטול');
   }, 20000);

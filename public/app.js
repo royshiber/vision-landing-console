@@ -8206,10 +8206,34 @@ function initHorizonCameraMenu() {
   });
   const quick = document.getElementById('horizonQuick');
   if (quick) {
+    const quickLabel = {
+      pfdArmedBadge: 'מנוטרל',
+      flightArmBtn: 'חימוש',
+      flightDisarmBtn: 'ניטרול',
+      pfdVoiceFlightBtn: 'פקודות',
+    };
+    const quickIcon = {
+      flightArmBtn: '<circle cx="12" cy="12" r="7" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="2.4" fill="currentColor"/>',
+      flightDisarmBtn: '<circle cx="12" cy="12" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 12h8" stroke="currentColor" stroke-width="2"/>',
+      pfdVoiceFlightBtn: '<path d="M8 10.5v3h2.8L15 16.5v-9L10.8 10.5H8z" fill="currentColor"/>',
+    };
     for (const id of ['pfdArmedBadge', 'flightArmBtn', 'flightDisarmBtn', 'pfdVoiceFlightBtn']) {
       const btn = document.getElementById(id);
-      if (btn) quick.appendChild(btn);
+      if (!btn) continue;
+      quick.appendChild(btn);
+      const label = quickLabel[id];
+      btn.setAttribute('aria-label', label);
+      if (id === 'flightDisarmBtn') btn.title = label;
+      if (!quickIcon[id]) continue;
+      btn.replaceChildren();
+      const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      icon.setAttribute('viewBox', '0 0 24 24');
+      icon.setAttribute('aria-hidden', 'true');
+      icon.classList.add('horizon-quick-icon');
+      icon.innerHTML = quickIcon[id];
+      btn.appendChild(icon);
     }
+    stage.parentElement?.insertBefore(quick, stage);
   }
   syncHorizonMenuState();
   document.body.appendChild(menu);
@@ -9039,7 +9063,9 @@ function syncFlightArmControls(mav) {
   armBtn.disabled = armed;
   disarmBtn.disabled = !armed;
   armBtn.title = armed ? 'הכלי כבר חמוש' : 'החזיקו לחימוש';
-  disarmBtn.title = armed ? 'נטרול דורש אישור' : 'הכלי כבר מנוטרל';
+  armBtn.setAttribute('aria-label', 'חימוש');
+  disarmBtn.title = 'ניטרול';
+  disarmBtn.setAttribute('aria-label', 'ניטרול');
   if (row) row.dataset.armLink = armed ? 'armed' : 'disarmed';
 }
 
@@ -9064,6 +9090,12 @@ async function postFlightArmDisarm(action, confirmFlying) {
   return { status: res.status, data };
 }
 
+let flightArmOpenedAt = 0;
+
+function flightArmClickIgnored() {
+  return flightArmOpenedAt > 0 && Date.now() - flightArmOpenedAt < 400;
+}
+
 function closeFlightArmDialog() {
   const dialog = document.getElementById('flightArmDialog');
   if (dialog) dialog.hidden = true;
@@ -9083,7 +9115,10 @@ function openFlightArmDialog() {
   const text = document.getElementById('flightArmDialogText');
   if (text) text.textContent = FLIGHT_ARM_CONFIRM_HE;
   const dialog = document.getElementById('flightArmDialog');
-  if (dialog) dialog.hidden = false;
+  if (dialog) {
+    dialog.hidden = false;
+    flightArmOpenedAt = Date.now();
+  }
 }
 
 async function sendFlightArm() {
@@ -9190,11 +9225,17 @@ function initFlightArmControls() {
   });
   const endArmHold = (event) => {
     if (event?.pointerType === 'touch' && (event.type === 'pointerleave' || event.type === 'pointercancel')) return;
+    const dialog = document.getElementById('flightArmDialog');
+    if (event?.pointerType === 'touch' && dialog && dialog.hidden === false && event.cancelable) event.preventDefault();
     cancelFlightArmHold();
   };
   armBtn.addEventListener('pointerup', endArmHold);
   armBtn.addEventListener('pointerleave', endArmHold);
   armBtn.addEventListener('pointercancel', endArmHold);
+  armBtn.addEventListener('touchend', (event) => {
+    const dialog = document.getElementById('flightArmDialog');
+    if (dialog && dialog.hidden === false) event.preventDefault();
+  }, { passive: false });
   armBtn.addEventListener('contextmenu', (event) => event.preventDefault());
   disarmBtn?.addEventListener('click', () => {
     if (disarmBtn.disabled) return;
@@ -9206,8 +9247,17 @@ function initFlightArmControls() {
     if (dialog) dialog.hidden = false;
   });
   document.getElementById('flightArmDialog')?.addEventListener('click', (event) => {
-    if (event.target?.id === 'flightArmDialog') closeFlightArmDialog();
+    if (event.target?.id !== 'flightArmDialog') return;
+    if (flightArmClickIgnored()) return;
+    closeFlightArmDialog();
   });
+  document.addEventListener('click', (event) => {
+    const dialog = document.getElementById('flightArmDialog');
+    if (!dialog || dialog.hidden || !flightArmClickIgnored()) return;
+    if (dialog.querySelector('.flight-arm-popup-card')?.contains(event.target)) return;
+    event.preventDefault();
+    event.stopPropagation();
+  }, true);
   document.getElementById('flightDisarmDialog')?.addEventListener('click', (event) => {
     if (event.target?.id === 'flightDisarmDialog') closeFlightDisarmDialog();
   });
@@ -9330,14 +9380,17 @@ function applyFlightHud(mav) {
       pfdArmedBadge.textContent = '';
     } else if (!mav.armedKnown) {
       pfdArmedBadge.hidden = false;
-      pfdArmedBadge.textContent = 'חימוש ?';
+      pfdArmedBadge.textContent = '?';
       pfdArmedBadge.className   = 'pfd-badge pfd-badge--unknown';
-      pfdArmedBadge.title       = 'לא התקבל מידע חימוש מלא — לחץ לפרטים';
+      pfdArmedBadge.title       = 'חימוש ?';
+      if (typeof pfdArmedBadge.setAttribute === 'function') pfdArmedBadge.setAttribute('aria-label', 'חימוש ?');
     } else {
+      const armedWord = armed ? 'חמוש' : 'מנוטרל';
       pfdArmedBadge.hidden = false;
-      pfdArmedBadge.textContent = armed ? 'חמוש' : 'מנוטרל';
+      pfdArmedBadge.textContent = armed ? '●' : '○';
       pfdArmedBadge.className   = 'pfd-badge ' + (armed ? 'pfd-badge--armed' : 'pfd-badge--disarmed');
-      pfdArmedBadge.title       = armed ? 'חמוש — לחץ להסבר מוכנות' : 'מנוטרל — לחץ לבדיקת מוכנות / הודעות';
+      pfdArmedBadge.title       = armedWord;
+      if (typeof pfdArmedBadge.setAttribute === 'function') pfdArmedBadge.setAttribute('aria-label', armedWord);
     }
   }
   syncFlightArmControls(mav);
