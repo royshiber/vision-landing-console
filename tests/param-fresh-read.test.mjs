@@ -262,6 +262,33 @@ describe('readParamsFresh', () => {
       clearInterval(pump);
     }
   });
+
+  it('keeps the arrived values when the overall timeout fires with holes still open', async () => {
+    const count = 1000;
+    const arrived = 200;
+    const { conn } = fakeLink();
+    const started = Date.now();
+    const pending = conn.readParamsFresh({ timeoutMs: 250, quietMs: 5000 });
+    for (let index = 0; index < arrived; index += 1) {
+      conn.emit('param', {
+        name: `P${String(index).padStart(4, '0')}`,
+        value: index + 1,
+        count,
+        index,
+      });
+    }
+    const result = await pending;
+    expect(Date.now() - started).toBeLessThan(1000);
+    expect(result.fresh).toBe(true);
+    expect(result.partial).toBe(true);
+    expect(result.timedOut).toBe(false);
+    expect(result.count).toBe(arrived);
+    expect(result.paramCount).toBe(count);
+    expect(result.missing).toHaveLength(count - arrived);
+    expect(Object.keys(result.current)).toHaveLength(arrived);
+    expect(result.current.P0000).toBe(1);
+    expect(result.current.P0199).toBe(200);
+  });
 });
 
 describe('POST /api/ardu/params/read', () => {

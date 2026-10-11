@@ -143,8 +143,13 @@ function startTap(listenPort, upstreamPort, options = {}) {
         let drop = false;
         if (frame.msgId === 22 && dropRatio > 0) {
           counts.values += 1;
-          const every = Math.max(2, Math.round(1 / dropRatio));
-          drop = counts.values % every === 0;
+          if (dropRatio >= 0.5) {
+            const percent = Math.round(dropRatio * 100);
+            drop = ((counts.values - 1) % 100) < percent;
+          } else {
+            const every = Math.max(2, Math.round(1 / dropRatio));
+            drop = counts.values % every === 0;
+          }
           if (drop) counts.dropped += 1;
         }
         if (!drop) parts.push(upBuf.subarray(start, frame.end));
@@ -548,6 +553,38 @@ describe.skipIf(!ENABLED)('params tab fresh READ against ArduPlane SITL', () => 
         if (body.partial === true) expect(missing, detail).toBeGreaterThan(0);
         else expect(body.count, detail).toBe(fcTotal);
       }
+
+      tap.setDrop(0.6);
+      const heavy = await api(base, 'POST', '/api/ardu/params/read', {
+        record: true,
+        timeoutMs: 30000,
+      });
+      const heavyBody = heavy.json || {};
+      const heavyMissing = Array.isArray(heavyBody.missing) ? heavyBody.missing.length : -1;
+      const heavyCurrent = heavyBody.current && typeof heavyBody.current === 'object'
+        ? Object.keys(heavyBody.current).length
+        : 0;
+      const heavyDetail = JSON.stringify({
+        status: heavy.status,
+        count: heavyBody.count,
+        paramCount: heavyBody.paramCount,
+        missing: heavyMissing,
+        current: heavyCurrent,
+        partial: heavyBody.partial,
+        fresh: heavyBody.fresh,
+        timedOut: heavyBody.timedOut,
+        dropped: tap.counts.dropped,
+        values: tap.counts.values,
+      });
+      expect(heavy.status, heavyDetail).toBe(200);
+      expect(heavyBody.fresh, heavyDetail).toBe(true);
+      expect(heavyBody.partial, heavyDetail).toBe(true);
+      expect(heavyBody.paramCount, heavyDetail).toBe(fcTotal);
+      expect(Number(heavyBody.count), heavyDetail).toBeGreaterThan(0);
+      expect(Number(heavyBody.count), heavyDetail).toBeLessThan(fcTotal);
+      expect(Number(heavyBody.count) + heavyMissing, heavyDetail).toBe(fcTotal);
+      expect(heavyCurrent, heavyDetail).toBe(Number(heavyBody.count));
+      expect(heavyMissing, heavyDetail).toBeGreaterThan(0);
     } catch (err) {
       throw new Error(`${err.message}\n${tail(sitlLogs.out)}`);
     } finally {
