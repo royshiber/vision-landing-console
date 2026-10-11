@@ -4,11 +4,12 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { APP_VERSION } from '../version.js';
+import { qaShotDir } from './shot-dir.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PORT = process.env.VLC_FLIGHT_SCREEN_PORT || '4071';
 const BASE = `http://127.0.0.1:${PORT}`;
-const shots = '/opt/cursor/artifacts';
+const shots = qaShotDir('flight-screen');
 
 function shown(page, selector) {
   return page.locator(selector).evaluate((el) => {

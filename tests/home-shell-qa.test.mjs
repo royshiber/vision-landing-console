@@ -3,11 +3,12 @@ import { spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { qaShotDir } from './shot-dir.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PORT = process.env.VLC_HOME_QA_PORT || '4041';
 const BASE = `http://127.0.0.1:${PORT}`;
-const shots = '/opt/cursor/artifacts/home-qa/after';
+const shots = qaShotDir('home-qa-after');
 
 function box(page, selector) {
   return page.locator(selector).first().evaluate((el) => {

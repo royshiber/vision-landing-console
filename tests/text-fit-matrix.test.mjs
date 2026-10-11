@@ -4,11 +4,12 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { collectTextFitFailures } from './text-fit-audit.mjs';
+import { qaShotDir } from './shot-dir.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PORT = process.env.VLC_TEXT_FIT_PORT || '4035';
 const BASE = `http://127.0.0.1:${PORT}`;
-const shots = '/opt/cursor/artifacts/text-fit';
+const shots = qaShotDir('text-fit');
 
 const viewports = [
   { name: '1024x576', width: 1024, height: 576 },

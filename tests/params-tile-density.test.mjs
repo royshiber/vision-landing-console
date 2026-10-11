@@ -5,9 +5,10 @@ import net from 'net';
 import os from 'os';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { qaShotDir } from './shot-dir.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const shotDir = '/opt/cursor/artifacts/params-density';
+const shotDir = qaShotDir('params-density');
 const js = fs.readFileSync(path.join(repoRoot, 'public', 'app.js'), 'utf8');
 const css = fs.readFileSync(path.join(repoRoot, 'public', 'styles.css'), 'utf8');
 

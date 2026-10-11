@@ -4,9 +4,10 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { qaShotDir } from './shot-dir.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const qaDir = '/opt/cursor/artifacts/params-tab/qa';
+const qaDir = qaShotDir('params-tab-qa');
 const VIEWPORTS = [
   { width: 1024, height: 576, name: '1024x576' },
   { width: 1280, height: 720, name: '1280x720' },

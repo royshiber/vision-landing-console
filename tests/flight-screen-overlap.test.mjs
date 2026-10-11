@@ -3,9 +3,10 @@ import { spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { qaShotDir } from './shot-dir.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const shotDir = '/opt/cursor/artifacts/flight-layout/after';
+const shotDir = qaShotDir('flight-layout-after');
 const PORT = '4048';
 const BASE = `http://127.0.0.1:${PORT}`;
 

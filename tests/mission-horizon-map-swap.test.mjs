@@ -3,6 +3,7 @@ import { spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { qaShotDir } from './shot-dir.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const css = fs.readFileSync(path.join(repoRoot, 'public', 'styles.css'), 'utf8');
@@ -44,7 +45,7 @@ describe('Horizon/map size swap — source', () => {
 describe('Horizon/map size swap — layout', () => {
   const PORT = process.env.VLC_SWAP_PORT || '4028';
   const BASE = `http://127.0.0.1:${PORT}`;
-  const shots = '/opt/cursor/artifacts/horizon-map-swap';
+  const shots = qaShotDir('horizon-map-swap');
   let serverProc = null;
   let browser = null;
 

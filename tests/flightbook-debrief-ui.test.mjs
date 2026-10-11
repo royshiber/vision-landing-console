@@ -4,10 +4,11 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { qaShotDir } from './shot-dir.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const shotDir = '/tmp/flightbook-shots';
-const artifactDir = '/opt/cursor/artifacts/flightbook-shots';
+const artifactDir = qaShotDir('flightbook-shots');
 const UID_B = '20260921T080000Z-airvix01-c3d4';
 const NO_KEY = 'אין מפתח Gemini. מוצגות תובנות אוטומטיות בלבד.';
 

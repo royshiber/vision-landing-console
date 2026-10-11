@@ -3,9 +3,10 @@ import { spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { qaShotDir } from './shot-dir.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const shotDir = '/opt/cursor/artifacts/flight-layout/cameras';
+const shotDir = qaShotDir('flight-layout-cameras');
 const PORT = '4032';
 const BASE = `http://127.0.0.1:${PORT}`;
 const html = fs.readFileSync(path.join(repoRoot, 'public', 'index.html'), 'utf8');

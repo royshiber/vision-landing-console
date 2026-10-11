@@ -4,11 +4,12 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { collectTextFitFailures } from './text-fit-audit.mjs';
+import { qaShotDir } from './shot-dir.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PORT = process.env.VLC_ARM_QA_PORT || '4037';
 const BASE = `http://127.0.0.1:${PORT}`;
-const shots = '/opt/cursor/artifacts/arm-disarm';
+const shots = qaShotDir('arm-disarm');
 const PREARM = 'PreArm: GPS speed error 1.2m/s Need 3D Fix לפני חימוש';
 
 const viewports = [

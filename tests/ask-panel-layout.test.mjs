@@ -3,6 +3,7 @@ import { spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { qaShotDir } from './shot-dir.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const html = fs.readFileSync(path.join(repoRoot, 'public', 'index.html'), 'utf8');
@@ -32,7 +33,7 @@ describe('Ask panel layout', () => {
 describe('Ask panel — no control overlap', () => {
   const PORT = process.env.VLC_ASK_PANEL_PORT || '4023';
   const BASE = `http://127.0.0.1:${PORT}`;
-  const shots = '/opt/cursor/artifacts/ask-panel';
+  const shots = qaShotDir('ask-panel');
   let serverProc = null;
   let browser = null;
 
