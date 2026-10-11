@@ -27608,7 +27608,7 @@ body:has(#control.panel.visible) #assistToggleBtn {
   display: inline-block;
   width: max-content;
   max-width: none;
-  white-space: nowrap !important;
+  white-space: normal !important;
   overflow-wrap: normal !important;
   word-break: keep-all !important;
 }

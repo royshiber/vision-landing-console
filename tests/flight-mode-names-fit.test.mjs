@@ -49,8 +49,8 @@ describe('ArduPlane mode names fit on one line', () => {
           };
         }, name);
         expect(fit.text, vp.name).toBe(name);
-        expect(fit.white, `${vp.name} ${name}`).toBe('nowrap');
-        expect(fit.wrap, `${vp.name} ${name}`).not.toBe('anywhere');
+        expect(fit.white, `${vp.name} ${name}`).toBe('normal');
+        expect(fit.wrap, `${vp.name} ${name}`).toBe('normal');
         expect(fit.font, `${vp.name} ${name}`).toBeGreaterThanOrEqual(11);
         expect(fit.sw, `${vp.name} ${name}`).toBeLessThanOrEqual(fit.cw + 1);
         expect(fit.sh, `${vp.name} ${name}`).toBeLessThanOrEqual(fit.line + 1);
