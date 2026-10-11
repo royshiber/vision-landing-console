@@ -592,7 +592,7 @@ describe('flight dock and map live', () => {
     });
     expect(tip.hidden).toBe(false);
     expect(tip.text).toContain('לוויינים 14');
-    expect(tip.text).toContain('3D Fix');
+    expect(tip.text).toContain('קיבוע 3D');
     expect(tip.text).toContain('HDOP 0.82');
     expect(tip.text).toContain('GPS2');
     expect(tip.text).toContain('לוויינים 8');

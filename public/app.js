@@ -8481,8 +8481,16 @@ function syncMissionFcEmptyNote(mav) {
   if (!note) return;
   const liveMav = resolveLiveHudMavlinkForNote(mav);
   if (liveMav) {
-    const name = [liveMav.autopilotName, liveMav.vehicleType].filter(Boolean).join(' · ');
-    note.textContent = name ? `${MISSION_FC_LINKED_HE} · ${name}` : MISSION_FC_LINKED_HE;
+    const named = [liveMav.autopilotName, liveMav.vehicleType].filter(Boolean);
+    if (!named.length) {
+      note.textContent = MISSION_FC_LINKED_HE;
+      return;
+    }
+    const mavType = Number(liveMav.mavType);
+    const vehicle = String(liveMav.vehicleType || '');
+    const copter = [2, 3, 4, 13, 14, 15].includes(mavType)
+      || /Quadrotor|Hexarotor|Octorotor|Tricopter|Helicopter|Coaxial/.test(vehicle);
+    note.textContent = copter ? 'מחובר · ArduCopter' : 'מחובר · ArduPlane';
     return;
   }
   if (hudReflectsLiveFc(mav)) {
@@ -8884,7 +8892,7 @@ function drawHorizon(canvas, rollDeg, pitchDeg, opts = {}) {
   paintCornerLabel(pitchText, W - 4, 'right');
   ctx.restore();
 }
-const GPS_FIX_LABELS = ['אין GPS', 'אין קיבוע', 'קיבוע 2D', '3D Fix', 'DGPS', 'RTK צף', 'RTK קבוע'];
+const GPS_FIX_LABELS = ['אין GPS', 'אין קיבוע', 'קיבוע 2D', 'קיבוע 3D', 'DGPS', 'RTK צף', 'RTK קבוע'];
 
 const FLIGHT_ARM_HOLD_MS = 1500;
 const FLIGHT_ARM_CONFIRM_HE = 'אשרו חימוש';
@@ -23488,6 +23496,42 @@ function placeFlightMenu(menu) {
   if (zoom && zoom.width > 8 && left < zoom.right + 6 && left + width > zoom.left) {
     top = Math.max(top, zoom.bottom + 6);
   }
+  const narrow = window.innerWidth <= 480;
+  if (narrow) {
+    const edge = 8;
+    const viewportFloor = window.innerHeight - edge;
+    let sideLeft = edge;
+    let sideTop = edge;
+    let sideWidth = window.innerWidth - edge * 2;
+    if (zoom && zoom.width > 8 && zoom.bottom > edge && zoom.top < viewportFloor) {
+      const roomRight = window.innerWidth - zoom.right - edge - 6;
+      const roomLeft = zoom.left - edge - 6;
+      if (roomRight >= 200 || roomLeft >= 200) {
+        if (roomRight >= roomLeft) {
+          sideLeft = zoom.right + 6;
+          sideWidth = window.innerWidth - sideLeft - edge;
+        } else {
+          sideLeft = edge;
+          sideWidth = Math.max(160, zoom.left - edge - 6);
+        }
+      } else {
+        sideTop = Math.max(edge, zoom.bottom + 6);
+      }
+    }
+    menu.style.left = `${Math.round(sideLeft)}px`;
+    menu.style.top = `${Math.round(sideTop)}px`;
+    menu.style.width = `${Math.floor(sideWidth)}px`;
+    menu.style.minWidth = '0px';
+    menu.style.maxWidth = `${Math.floor(sideWidth)}px`;
+    menu.style.overflow = 'auto';
+    const avail = Math.max(160, Math.floor(viewportFloor - sideTop));
+    menu.style.maxHeight = `${avail}px`;
+    menu.style.height = `${Math.min(menu.scrollHeight, avail)}px`;
+    return;
+  }
+  menu.style.width = '';
+  menu.style.minWidth = '';
+  menu.style.maxWidth = '';
   let floor = window.innerHeight - 8;
   if (map) floor = Math.min(floor, map.bottom - 6);
   if (horizon && horizon.top > top + 40) floor = Math.min(floor, horizon.top - 6);
@@ -23496,6 +23540,7 @@ function placeFlightMenu(menu) {
     floor = Math.min(floor, attr.top - 6);
   }
   menu.style.overflow = 'auto';
+  const room = Math.max(72, Math.floor(floor - top));
   menu.style.maxHeight = `${window.innerHeight - 120}px`;
   menu.style.height = 'auto';
   if (!mapVisible) {
@@ -23505,8 +23550,8 @@ function placeFlightMenu(menu) {
   }
   menu.style.left = `${Math.round(left)}px`;
   menu.style.top = `${Math.round(top)}px`;
-  const used = menu.offsetHeight;
-  if (top + used > floor) menu.style.height = `${Math.max(72, Math.floor(floor - top))}px`;
+  const used = menu.scrollHeight;
+  if (top + used > floor) menu.style.height = `${Math.min(used, room)}px`;
 }
 
 function attachWorkLinkPicker(menu) {

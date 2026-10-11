@@ -19,7 +19,7 @@ describe('GPS hover tooltip', () => {
     });
     expect(text).toContain('GPS');
     expect(text).toContain('לוויינים 14');
-    expect(text).toContain('3D Fix');
+    expect(text).toContain('קיבוע 3D');
     expect(text).toContain('HDOP 0.82');
     expect(text).toContain('לפני 1 שנ׳');
     expect(text).toContain('GPS2');

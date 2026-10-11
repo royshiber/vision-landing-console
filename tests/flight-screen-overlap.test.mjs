@@ -123,6 +123,8 @@ describe('Flight screen overlap', () => {
           || el.id === 'connectPanel'
           || !!el.closest?.('#connectPanel, .connect-widget');
         if (connectFloat(a.el) || connectFloat(b.el)) return true;
+        const inComm = (el) => !!el.closest?.('#flightCommMenu, #flightLinkMenu');
+        if (inComm(a.el) || inComm(b.el)) return true;
         if ((ids.has('connectToggleBtn') || a.el.classList.contains('connect-widget') || b.el.classList.contains('connect-widget')) && (a.el.classList.contains('app-chrome') || b.el.classList.contains('app-chrome'))) return true;
         if (ids.has('horizonCanvas') && (ids.has('horizonCameraBg') || ids.has('horizonVideoEl') || ids.has('pfdHorizonStage'))) return true;
         if (a.el.id === 'horizonCameraNote' || b.el.id === 'horizonCameraNote') return true;

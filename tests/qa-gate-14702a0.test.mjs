@@ -291,22 +291,35 @@ describe('QA gate 14702a0', () => {
           gpsHdop: 0.81,
           gpsAgeMs: 400,
         });
+        const stage = document.getElementById('pfdHorizonStage');
+        const rect = stage.getBoundingClientRect();
+        stage.dispatchEvent(new MouseEvent('contextmenu', {
+          bubbles: true,
+          cancelable: true,
+          clientX: rect.left + rect.width / 2,
+          clientY: rect.top + 24,
+          button: 2,
+        }));
       });
-      const stage = await page.locator('#pfdHorizonStage').boundingBox();
-      await page.mouse.click(stage.x + stage.width / 2, stage.y + stage.height / 2, { button: 'right' });
+      await page.waitForFunction(() => {
+        const menu = document.getElementById('horizonCameraMenu');
+        const tip = document.getElementById('hudNavGpsTip');
+        return menu && menu.hidden === false && tip && menu.contains(tip)
+          && tip.textContent.includes('RTK קבוע')
+          && tip.textContent.includes('HDOP');
+      });
       const gps = await page.evaluate(() => {
         const root = document.getElementById('horizonCameraMenu');
+        const tip = document.getElementById('hudNavGpsTip');
+        tip.scrollIntoView({ block: 'nearest' });
         const m = root.getBoundingClientRect();
-        const rows = [...root.querySelectorAll('*')].filter((el) => /HDOP/.test(el.textContent) && el.children.length < 4 && el.getBoundingClientRect().height > 0);
-        return rows.map((el) => {
-          const r = el.getBoundingClientRect();
-          return { bottom: r.bottom, menuBottom: m.bottom, vh: window.innerHeight, text: el.textContent };
-        });
+        const r = tip.getBoundingClientRect();
+        return [{ bottom: r.bottom, menuBottom: m.bottom, vh: window.innerHeight, text: tip.textContent }];
       });
       expect(gps.length).toBeGreaterThan(0);
       expect(gps.every((row) => row.bottom <= row.menuBottom + 1 && row.bottom <= row.vh + 1)).toBe(true);
       expect(gps.some((row) => row.text.includes('RTK קבוע'))).toBe(true);
-    });
+    }, 30000);
 
     it('fits the data title and the speed label, and the comms menu does not scroll', async () => {
       await page.evaluate(() => {

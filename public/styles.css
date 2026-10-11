@@ -14955,39 +14955,39 @@ details.flight-manage summary {
   border-color: #b91c1c;
 }
 .connect-widget .conn-btn-primary[data-connected="1"]:hover { background: #b91c1c; }
-.connect-widget .comm-link-rows .conn-btn-primary {
+:is(.connect-widget, #flightCommMenu) .comm-link-rows .conn-btn-primary {
   background: rgba(148, 163, 184, 0.16);
   color: #e8edf6;
   border-color: rgba(148, 163, 184, 0.35);
 }
-.connect-widget .comm-link-rows .conn-btn-primary:hover {
+:is(.connect-widget, #flightCommMenu) .comm-link-rows .conn-btn-primary:hover {
   background: rgba(148, 163, 184, 0.28);
 }
-.connect-widget .comm-link-rows .conn-btn[data-action="disconnect"] {
+:is(.connect-widget, #flightCommMenu) .comm-link-rows .conn-btn[data-action="disconnect"] {
   background: #dc2626;
   color: #fff;
   border-color: #b91c1c;
 }
-.connect-widget .comm-link-rows .conn-btn[data-action="disconnect"]:hover {
+:is(.connect-widget, #flightCommMenu) .comm-link-rows .conn-btn[data-action="disconnect"]:hover {
   background: #b91c1c;
 }
 /* Home and cellular must not inherit the green connect primary. Disconnect stays red. */
-.connect-widget #companionLinkBtn.conn-btn-primary,
-.connect-widget #cellularConnectBtn.conn-btn-primary {
+:is(.connect-widget, #flightCommMenu) #companionLinkBtn.conn-btn-primary,
+:is(.connect-widget, #flightCommMenu) #cellularConnectBtn.conn-btn-primary {
   background: rgba(148, 163, 184, 0.16);
   color: #e8edf6;
   border-color: rgba(148, 163, 184, 0.35);
 }
-.connect-widget #companionLinkBtn.conn-btn-primary[data-connected="1"],
-.connect-widget #cellularConnectBtn.conn-btn-primary[data-connected="1"],
-.connect-widget #companionLinkBtn.conn-btn-primary[data-action="disconnect"],
-.connect-widget #cellularConnectBtn.conn-btn-primary[data-action="disconnect"] {
+:is(.connect-widget, #flightCommMenu) #companionLinkBtn.conn-btn-primary[data-connected="1"],
+:is(.connect-widget, #flightCommMenu) #cellularConnectBtn.conn-btn-primary[data-connected="1"],
+:is(.connect-widget, #flightCommMenu) #companionLinkBtn.conn-btn-primary[data-action="disconnect"],
+:is(.connect-widget, #flightCommMenu) #cellularConnectBtn.conn-btn-primary[data-action="disconnect"] {
   background: #dc2626;
   color: #fff;
   border-color: #b91c1c;
 }
-.connect-widget #companionLinkBtn.conn-btn-primary[data-action="disconnect"]:hover,
-.connect-widget #cellularConnectBtn.conn-btn-primary[data-action="disconnect"]:hover {
+:is(.connect-widget, #flightCommMenu) #companionLinkBtn.conn-btn-primary[data-action="disconnect"]:hover,
+:is(.connect-widget, #flightCommMenu) #cellularConnectBtn.conn-btn-primary[data-action="disconnect"]:hover {
   background: #b91c1c;
 }
 .connect-widget .comm-link-rows .conn-btn.is-pending {
@@ -27462,7 +27462,7 @@ button.mission-link-chip,
   display: none;
 }
 .param-tool-seg[aria-label="גיבוי בקונסולה"] {
-  min-height: 64px;
+  min-height: 28px;
 }
 #visionConfigWriteBtn,
 #arduWriteBtn,
@@ -27716,11 +27716,108 @@ body:has(#control.panel.visible) #assistToggleBtn {
 }
 .mission-region-horizon .flight-dock-bar .flight-actions-note,
 .flight-dock-bar .flight-actions-note {
-  flex: 1 0 auto;
-  min-width: max-content;
-  white-space: nowrap !important;
-  overflow-wrap: normal !important;
-  word-break: keep-all !important;
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: visible;
+  overflow-wrap: normal;
+  word-break: keep-all;
   font-size: 11px;
   line-height: 16px;
+}
+
+@media (min-width: 900px) {
+  #control.panel.visible .param-toolbar {
+    flex-wrap: nowrap;
+    align-items: center;
+    min-height: 28px;
+    max-height: 40px;
+  }
+  #control.panel.visible .param-tool-seg,
+  #control.panel.visible .param-tool-seg[aria-label="גיבוי בקונסולה"] {
+    flex-wrap: nowrap;
+    min-height: 28px;
+    max-height: 40px;
+    align-items: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .connect-widget.connect-widget-float {
+    position: relative;
+    top: auto;
+    left: auto;
+    right: auto;
+    z-index: 2;
+    display: flex;
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    padding: 4px 8px 0;
+    background: #0b0e14;
+    box-sizing: border-box;
+  }
+  .connect-widget-float .conn-pill {
+    width: 100%;
+    justify-content: center;
+    min-height: 32px;
+    padding: 4px 10px;
+  }
+  .connect-widget-float .conn-panel {
+    left: 8px;
+    right: 8px;
+    width: auto;
+  }
+  .app-chrome,
+  body:has(#control.panel.visible) .app-chrome {
+    padding: 2px 6px 4px !important;
+    gap: 2px;
+    row-gap: 2px;
+    min-height: 0;
+  }
+  .app-chrome .tab {
+    padding: 3px 6px;
+    font-size: 12px;
+    line-height: 16px;
+  }
+  .app-chrome-brand { display: none; }
+  .app-chrome-tools { gap: 4px; }
+  .mission-layout-hint,
+  .mission-identity { display: none; }
+  .mission-ops-chrome {
+    max-height: none;
+    height: auto;
+    flex: 0 0 auto;
+    flex-wrap: wrap;
+    row-gap: 2px;
+    padding: 2px 4px;
+  }
+  #optics #debriefCamGrid.debrief-cam-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-rows: none;
+    grid-auto-rows: minmax(140px, auto);
+    height: auto !important;
+    min-height: 0;
+    overflow: visible;
+  }
+  #optics #debriefCamGrid .debrief-cam-tile,
+  #optics #debriefCamGrid .debrief-cam-tile[hidden] {
+    height: auto !important;
+    min-height: 140px;
+    overflow: visible;
+  }
+  #optics.panel.visible,
+  #optics .optics-tiles,
+  #optics .optics-live {
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+  }
+  body:has(#optics.panel.visible),
+  body:has(#optics.panel.visible) .layout {
+    height: auto;
+    min-height: 100%;
+    overflow: auto;
+  }
 }

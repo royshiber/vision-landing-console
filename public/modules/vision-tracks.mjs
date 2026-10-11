@@ -9,6 +9,21 @@ import { nextFailPollMs } from './poll-backoff.mjs';
  * vlc-tile-menu with { slot, camera } to drop the same group into its menu.
  */
 export const REASON_OFF = 'הזיהוי כבוי';
+
+function trackRows(payload) {
+  return Array.isArray(payload?.tracks) ? payload.tracks.filter((row) => row && Array.isArray(row.bbox)) : [];
+}
+
+/** The off line follows the frame that is actually on screen. Tracks mean detection is on. */
+export function detectionCaption(payload) {
+  if (!payload || typeof payload !== 'object') return '';
+  if (trackRows(payload).length > 0) return '';
+  const reason = String(payload.reason_he || '').trim();
+  if (payload.enabled === true) return reason === REASON_OFF ? '' : reason;
+  if (payload.enabled === false) return reason || REASON_OFF;
+  if (reason === REASON_OFF) return REASON_OFF;
+  return reason;
+}
 export const REASON_NO_STREAM = 'אין נתון על זרם המצלמות';
 
 const TRACKS_URL = '/api/jetson/v1/vision/tracks';
@@ -701,10 +716,14 @@ export function paintHost(host, payload, { kind = 'tile' } = {}) {
     : (host.dataset.visionCamera || payload?.camera || '');
   host.dataset.visionCamera = camera;
   const showHorizon = kind !== 'horizon' || horizonMediaOn(host);
-  const shown = kind === 'horizon' ? cache.get(camera) : null;
-  const off = shown && (shown.enabled === false || shown.reason_he === REASON_OFF);
-  const reason = off ? (shown.reason_he || REASON_OFF) : (payload?.reason_he || '');
-  const tracks = showHorizon && !reason && !off ? (payload?.tracks || []) : [];
+  const rows = trackRows(payload);
+  let reason = detectionCaption(payload);
+  if (!reason && rows.length === 0 && kind === 'horizon' && payload?.enabled !== true) {
+    const shown = cache.get(camera);
+    const cached = detectionCaption(shown ? { ...shown, tracks: [] } : null);
+    if (cached === REASON_OFF) reason = cached;
+  }
+  const tracks = showHorizon && !reason ? rows : [];
   const lockId = payload?.lock?.id;
   host.dataset.visionReason = showHorizon ? reason : '';
   host.dataset.visionFrame = payload?.frame_seq ? String(payload.frame_seq) : '';
@@ -861,9 +880,9 @@ function applyBundledTracks(host, detail) {
     : (shownHorizon || payload.camera || host.dataset.visionCamera || '');
   if (!camera) return;
   if (stage === 'horizon' && payload.camera && payload.camera !== camera) return;
-  if (stage === 'horizon') {
+  if (stage === 'horizon' && trackRows(payload).length === 0) {
     const status = cache.get(camera);
-    if (status && (status.enabled === false || status.reason_he === REASON_OFF)) {
+    if (detectionCaption(status ? { ...status, tracks: [] } : null) === REASON_OFF) {
       paintHost(host, { ...status, tracks: [], camera }, { kind: 'horizon' });
       return;
     }
@@ -921,13 +940,6 @@ function paintAll(doc) {
     if (item.kind === 'horizon' && !camera) {
       paintHost(item.host, emptyPayload(''), item);
       continue;
-    }
-    if (item.kind === 'horizon' && camera) {
-      const status = cache.get(camera);
-      if (status && (status.enabled === false || status.reason_he === REASON_OFF)) {
-        paintHost(item.host, { ...status, tracks: [], camera }, item);
-        continue;
-      }
     }
     const chosen = tracksForShownFrame(
       latest,

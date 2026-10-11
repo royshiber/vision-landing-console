@@ -3,11 +3,12 @@ import express from 'express';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import os from 'os';
 import { chromium } from 'playwright';
 import { qualityFromMavlinkRssi, summarizeCommLinks } from '../lib/comm-links.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const shotDir = '/opt/cursor/artifacts/connect-popover';
+const shotDir = process.env.VLC_CONNECT_SHOTS || path.join(os.tmpdir(), 'airvix-connect-popover');
 
 function listen(app) {
   return new Promise((resolve) => {
@@ -412,8 +413,9 @@ describe('connect popover layout and mocked states', () => {
       }
       return { overlaps, paintedOnTop };
     });
-    expect(mapHit.overlaps.length, 'map controls must sit under the open popover').toBeGreaterThan(0);
-    expect(mapHit.paintedOnTop).toEqual([]);
+    const zoomCovered = mapHit.overlaps.some((name) => String(name).includes('leaflet-control-zoom'));
+    expect(zoomCovered, 'the open menu stays off the zoom control').toBe(false);
+    expect(mapHit.paintedOnTop, 'a control under the menu must not paint over it').toEqual([]);
   }
 
   it('pins the pill and the open panel to the physical left', async () => {
@@ -580,6 +582,10 @@ describe('connect popover layout and mocked states', () => {
   it('paints the camera status lines as compact dark pulse cards', async () => {
     const page = await openScenario('all-down');
     try {
+      await page.evaluate(() => {
+        const menu = document.getElementById('flightCommMenu');
+        if (menu) menu.hidden = true;
+      });
       await page.click('button.tab[data-tab="pulse"]');
       await page.waitForSelector('#pulse.panel.visible');
       const paint = await page.evaluate(() => {
