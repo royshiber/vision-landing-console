@@ -21417,6 +21417,8 @@ body:has(#recordings.panel.visible) .layout {
     align-items: flex-start;
     height: auto;
     min-height: 0;
+    max-height: none;
+    overflow: visible;
     padding: 46px 8px 6px;
   }
   .app-chrome .tabs {
@@ -23117,6 +23119,19 @@ body:has(#telemetry.panel.visible) #telemetry .tele-dash-sub {
     min-width: max-content;
   }
 }
+@media (max-width: 1100px) and (min-width: 721px) and (max-height: 640px) {
+  .app-chrome {
+    flex-wrap: nowrap;
+    min-height: 36px;
+    max-height: 40px;
+    overflow: hidden;
+    padding-inline-end: 168px;
+  }
+  .app-chrome .tab {
+    padding: 4px 6px;
+    font-size: 11px;
+  }
+}
 @media (max-width: 720px) {
   .app-chrome { padding-top: 46px; }
   .param-toolbar { flex-wrap: wrap; }
@@ -23961,17 +23976,6 @@ body:has(#pulse.panel.visible) .pulse-home.pulse-status-home {
     max-height: 100%;
     min-height: 0;
     overflow: hidden;
-  }
-  .app-chrome {
-    flex-wrap: nowrap;
-    min-height: 36px;
-    max-height: 40px;
-    overflow: hidden;
-    padding-inline-end: 168px;
-  }
-  .app-chrome .tab {
-    padding: 4px 6px;
-    font-size: 11px;
   }
   .mission-ops-chrome {
     max-height: 26px;
@@ -27771,10 +27775,21 @@ body:has(#control.panel.visible) #assistToggleBtn {
   }
   .app-chrome,
   body:has(#control.panel.visible) .app-chrome {
+    flex-wrap: wrap;
+    align-items: flex-start;
+    height: auto;
+    max-height: none;
+    overflow: visible;
     padding: 2px 6px 4px !important;
     gap: 2px;
     row-gap: 2px;
     min-height: 0;
+  }
+  .app-chrome .tabs {
+    flex: 1 1 100%;
+    flex-wrap: wrap;
+    width: 100%;
+    overflow: visible;
   }
   .app-chrome .tab {
     padding: 3px 6px;

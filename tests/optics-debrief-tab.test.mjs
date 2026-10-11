@@ -1,11 +1,12 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { spawn } from 'child_process';
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const shotDir = '/opt/cursor/artifacts/screenshots';
+const shotDir = process.env.VLC_OPTICS_SHOTS || path.join(os.tmpdir(), 'airvix-optics-debrief');
 const PORT = '4052';
 const BASE = `http://127.0.0.1:${PORT}`;
 const html = fs.readFileSync(path.join(repoRoot, 'public', 'index.html'), 'utf8');

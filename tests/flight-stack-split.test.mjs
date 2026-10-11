@@ -11,7 +11,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const shotDir = '/opt/cursor/artifacts/screenshots';
+const shotDir = process.env.VLC_FLIGHT_STACK_SHOTS || path.join(os.tmpdir(), 'airvix-flight-stack');
 const html = fs.readFileSync(path.join(repoRoot, 'public', 'index.html'), 'utf8');
 const css = fs.readFileSync(path.join(repoRoot, 'public', 'styles.css'), 'utf8');
 const js = fs.readFileSync(path.join(repoRoot, 'public', 'app.js'), 'utf8');

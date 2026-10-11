@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { spawn } from 'child_process';
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -10,7 +11,7 @@ const css = fs.readFileSync(path.join(repoRoot, 'public', 'styles.css'), 'utf8')
 const js = fs.readFileSync(path.join(repoRoot, 'public', 'app.js'), 'utf8');
 const version = fs.readFileSync(path.join(repoRoot, 'version.js'), 'utf8');
 const pkg = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8'));
-const shotDir = '/opt/cursor/artifacts/screenshots';
+const shotDir = process.env.VLC_MISSION_MSG_SHOTS || path.join(os.tmpdir(), 'airvix-mission-messages');
 
 function sliceFunction(src, name) {
   const start = src.indexOf(`function ${name}(`);

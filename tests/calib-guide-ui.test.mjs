@@ -3,6 +3,7 @@
  */
 import { afterAll, describe, expect, it } from 'vitest';
 import { spawn } from 'node:child_process';
+import fs from 'node:fs';
 import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
@@ -147,8 +148,9 @@ describe('guided calibration on CAM1', () => {
     await page.click('#cam1CalibStart');
     await page.waitForFunction(() => document.getElementById('cam1CalibProgress')?.textContent === '12/20');
     await page.waitForFunction(() => document.getElementById('cam1CalibHint')?.textContent === 'קרב את הלוח');
-    const shotDir = '/opt/cursor/artifacts/screenshots';
-    await page.screenshot({ path: `${shotDir}/calib-guide-cam1.png`, animations: 'disabled' });
+    const shotDir = process.env.VLC_CALIB_SHOTS || path.join(os.tmpdir(), 'airvix-calib-guide');
+    fs.mkdirSync(shotDir, { recursive: true });
+    await page.screenshot({ path: path.join(shotDir, 'calib-guide-cam1.png'), animations: 'disabled' });
     showReview = true;
     await page.waitForFunction(() => (document.getElementById('cam1CalibState')?.textContent || '').includes('מצוין'));
     expect(await page.locator('#cam1CalibState').innerText()).toBe('שגיאת הטלה 0.42 · מצוין');

@@ -4,6 +4,7 @@
  */
 import { afterAll, describe, expect, it } from 'vitest';
 import { spawn } from 'node:child_process';
+import fs from 'node:fs';
 import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
@@ -12,7 +13,8 @@ import { CAMERA_UNSUPPORTED_HE, cameraControlSupported } from '../public/modules
 import { gimbalMoveBody, setGimbalMoveSpeed } from '../public/modules/gimbal-pad.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const shotDir = '/opt/cursor/artifacts/screenshots';
+const shotDir = process.env.VLC_OPTICS_SETTINGS_SHOTS || path.join(os.tmpdir(), 'airvix-optics-settings');
+fs.mkdirSync(shotDir, { recursive: true });
 
 function freePort() {
   return new Promise((resolve, reject) => {

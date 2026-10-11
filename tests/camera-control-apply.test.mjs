@@ -3,6 +3,7 @@
  */
 import { afterAll, describe, expect, it } from 'vitest';
 import { spawn } from 'node:child_process';
+import fs from 'node:fs';
 import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
@@ -10,6 +11,7 @@ import { fileURLToPath } from 'node:url';
 import { AE_LOCK_HE, APPLIED_HE, FAILED_HE, FOV_META_HE, applyOutcome } from '../public/modules/camera-settings.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const shotDir = process.env.VLC_CAM1_SHOTS || path.join(os.tmpdir(), 'airvix-cam1-control');
 
 function freePort() {
   return new Promise((resolve, reject) => {
@@ -164,6 +166,7 @@ describe('camera control badges', () => {
     await page.waitForFunction((word) => document.getElementById('cam1ApplyBadge')?.textContent === word, FAILED_HE);
     expect(await page.locator('#cam1ApplyBadge').getAttribute('data-state')).toBe('failed');
     expect(await page.locator('#cam1Gain').inputValue()).toBe('16');
-    await page.screenshot({ path: '/opt/cursor/artifacts/screenshots/cam1-control-readback.png', animations: 'disabled' });
+    fs.mkdirSync(shotDir, { recursive: true });
+    await page.screenshot({ path: path.join(shotDir, 'cam1-control-readback.png'), animations: 'disabled' });
   }, 40000);
 });

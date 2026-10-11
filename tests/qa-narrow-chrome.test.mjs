@@ -303,6 +303,38 @@ describe('narrow chrome QA', () => {
     await page.close();
   }, 30000);
 
+  for (const [width, height] of [[360, 640], [360, 740], [599, 640]]) {
+    it(`${width}x${height}: every tab button is the thing under the pointer`, async () => {
+      const page = await openAt(width, height);
+      const tabs = ['terrain', 'pulse', 'control', 'optics', 'recordings'];
+      for (const current of tabs) {
+        await page.click(`.tab[data-tab="${current}"]`);
+        await page.waitForSelector(`#${current}.panel.visible`);
+        for (const tab of tabs) {
+          const hit = await page.locator(`.tab[data-tab="${tab}"]`).evaluate((el) => {
+            const r = el.getBoundingClientRect();
+            const chrome = document.querySelector('.app-chrome').getBoundingClientRect();
+            const top = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+            return {
+              hit: top?.closest?.('.tab')?.dataset?.tab || '',
+              inside: r.top >= chrome.top - 1 && r.bottom <= chrome.bottom + 1,
+            };
+          });
+          expect(hit.inside, `${current} keeps ${tab} inside the header`).toBe(true);
+          expect(hit.hit, `${current} click target for ${tab}`).toBe(tab);
+        }
+      }
+      if (width < 480) {
+        const widget = await box(page, '#connectWidget');
+        const first = await box(page, '.tab[data-tab="terrain"]');
+        expect(widget.position).not.toBe('fixed');
+        expect(widget.bottom).toBeLessThanOrEqual(first.y + 1);
+      }
+      await page.screenshot({ path: path.join(shots, `tabs-hit-${width}x${height}.png`) });
+      await page.close();
+    }, 30000);
+  }
+
   for (const width of [800, 900, 1024]) {
     it(`parameters ${width}: the connection pill leaves AIRVIX and settings clickable`, async () => {
       const page = await openAt(width, 800);
