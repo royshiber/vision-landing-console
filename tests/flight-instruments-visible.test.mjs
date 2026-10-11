@@ -230,7 +230,7 @@ describe('flight instruments visible area', () => {
             expect(badgeHidden).toBe(true);
           } else {
             const note = await page.locator('.mission-horizon-filler-note').innerText();
-            expect(note).toContain('בקר מחובר');
+            expect(note).toBe('מחובר · ArduPlane');
           }
         }
       }

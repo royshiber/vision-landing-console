@@ -14978,6 +14978,8 @@ details.flight-manage summary {
   color: #e8edf6;
   border-color: rgba(148, 163, 184, 0.35);
 }
+.connect-widget #companionLinkBtn.conn-btn-primary[data-action="disconnect"],
+.connect-widget #cellularConnectBtn.conn-btn-primary[data-action="disconnect"],
 :is(.connect-widget, #flightCommMenu) #companionLinkBtn.conn-btn-primary[data-connected="1"],
 :is(.connect-widget, #flightCommMenu) #cellularConnectBtn.conn-btn-primary[data-connected="1"],
 :is(.connect-widget, #flightCommMenu) #companionLinkBtn.conn-btn-primary[data-action="disconnect"],
@@ -27654,7 +27656,9 @@ body:has(#control.panel.visible) #assistToggleBtn {
 }
 .flight-comm-menu .comm-link-status {
   margin: 0;
-  line-height: 1.2;
+  line-height: 16px;
+  min-height: 16px;
+  overflow: visible;
 }
 .flight-comm-menu .conn-advanced {
   padding: 0 6px;

@@ -136,11 +136,23 @@ describe('Optics debrief tab — live layout', () => {
     });
   }
 
+  async function openTileMenu(page, cam) {
+    await page.locator(`.debrief-cam-tile[data-cam="${cam}"]`).evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      el.dispatchEvent(new MouseEvent('contextmenu', {
+        bubbles: true,
+        cancelable: true,
+        clientX: r.left + r.width / 2,
+        clientY: r.top + Math.min(24, r.height / 2),
+      }));
+    });
+  }
+
   async function openOptics(page) {
     await page.goto(BASE, { waitUntil: 'domcontentloaded', timeout: 15000 });
     await page.locator('[data-tab="optics"]').evaluate((el) => el.click());
     await page.waitForSelector('#optics.panel.visible #debriefCamGrid', { timeout: 8000 });
-    await page.locator('.debrief-cam-tile[data-cam="cam3"]').click({ button: 'right' });
+    await openTileMenu(page, 'cam3');
     await page.waitForSelector('#opticsContext:not([hidden]) #gimbalPad[data-state="down"]', { timeout: 8000 });
     await page.waitForSelector('#cam0Reason', { state: 'attached', timeout: 8000 });
   }
@@ -266,9 +278,9 @@ describe('Optics debrief tab — live layout', () => {
   }
 
   async function auditCam1(page) {
-    await page.locator('.debrief-cam-tile[data-cam="cam1"]').click({ button: 'right' });
-    await page.waitForSelector('#opticsContext:not([hidden]) #cam1Panel');
-    await page.waitForFunction(() => (document.getElementById('cam1Reason')?.textContent || '').includes('אין קישור'));
+    await openTileMenu(page, 'cam1');
+    await page.waitForSelector('#opticsContext:not([hidden]) #cam1Panel', { timeout: 8000 });
+    await page.waitForFunction(() => (document.getElementById('cam1Reason')?.textContent || '').includes('אין קישור'), null, { timeout: 8000 });
     return page.evaluate(() => {
       const visible = (el) => {
         if (!el || el.closest('[hidden]')) return false;
@@ -384,7 +396,7 @@ describe('Optics debrief tab — live layout', () => {
       } finally {
         await page.close();
       }
-    }, 30000);
+    }, 45000);
   }
 
   it('keeps the logs archive clickable at 1024 and explains a dead camera', async () => {

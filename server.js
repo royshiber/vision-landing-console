@@ -15,7 +15,7 @@ import { mergeCompanionEnv, readStoredCompanionConnection, snapshotCompanionEnv 
 import { ensureCompanionMavlinkRelay, retargetCompanionRelay } from './lib/routes/companion-connection-api.mjs';
 import { scheduleFlightLogsBootSync } from './lib/flight-logs/sync.mjs';
 import { createAppUpdateService } from './lib/app-update.mjs';
-import { vlcQaEnabled } from './lib/qa-mode.mjs';
+import { remoteUpdateCheckPaused, vlcQaEnabled } from './lib/qa-mode.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -222,7 +222,7 @@ if (_isMain) {
         logger.warn({ err }, 'Companion bridge start failed'),
       );
     scheduleFlightLogsBootSync(routeCtx);
-    updateService.start();
+    if (!remoteUpdateCheckPaused()) updateService.start();
     logger.info({ port: PORT, host: HOST, version: APP_VERSION }, `Vision Landing Console started`);
     try {
       const pidDir = path.join(__dirname, 'data');
