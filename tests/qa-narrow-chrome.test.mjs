@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { summarizeCommLinks } from '../lib/comm-links.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PORT = process.env.VLC_NARROW_QA_PORT || '4066';
@@ -206,7 +207,99 @@ describe('narrow chrome QA', () => {
       return minBottom > maxTop;
     });
     expect(overlapRow).toBe(true);
+    const chrome = await page.evaluate(() => {
+      const bar = document.querySelector('.app-chrome');
+      const tabs = bar.querySelector('.tabs').getBoundingClientRect();
+      const tools = bar.querySelector('.app-chrome-tools').getBoundingClientRect();
+      const box = bar.getBoundingClientRect();
+      return {
+        h: box.height,
+        wrap: getComputedStyle(bar).flexWrap,
+        sameRow: tabs.top < tools.bottom - 4 && tools.top < tabs.bottom - 4,
+      };
+    });
+    expect(chrome.wrap).toBe('nowrap');
+    expect(chrome.h).toBeLessThanOrEqual(40);
+    expect(chrome.sameRow).toBe(true);
     await page.screenshot({ path: path.join(shots, 'n4-1024x640-params.png') });
+    await page.close();
+  }, 30000);
+
+  it('below 600px ASK sits above the gimbal camera button', async () => {
+    const page = await openAt(360, 740);
+    await page.click('.tab[data-tab="optics"]');
+    await page.waitForSelector('#optics.panel.visible #opticsGimbalBtn');
+    const ask = await box(page, '#assistToggleBtn');
+    const gimbal = await box(page, '#opticsGimbalBtn');
+    expect(overlaps(ask, gimbal), 'ASK covers גימבל').toBe(false);
+    expect(ask.bottom).toBeLessThanOrEqual(gimbal.y + 1);
+    await page.close();
+  }, 30000);
+
+  it('comms menu says התנתקו and offers התחברו when the link did not come up', async () => {
+    const comm = summarizeCommLinks({
+      modemPresent: true,
+      uplinkControl: true,
+      uplinks: {
+        wifi: { enabled: true, up: true, signal_dbm: -55 },
+        cellular: { enabled: true, up: false },
+      },
+      companion: { jetson: 'reachable', hint_he: 'מחשב משימה מחובר' },
+    });
+    const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+    await page.route('**/api/**', (route) => {
+      const url = route.request().url();
+      if (url.includes('/api/links')) {
+        return route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            ok: true,
+            links: {
+              radio: 'disconnected',
+              cellular: 'disconnected',
+              radioLabelHe: 'RF',
+              radioStatusHe: 'מנותק',
+              cellularStatusHe: 'לא עלה',
+              modemPresent: true,
+              modem: { present: true, reasonHe: 'מודם זוהה' },
+              canSelectActive: false,
+              active: null,
+              companion: { jetson: 'reachable', hint_he: 'מחשב משימה מחובר' },
+              comm,
+              video: { available: false, reasonHe: 'אין שידור' },
+              pillLabelHe: comm.pillLabelHe,
+              pillDot: comm.pillDot,
+              endpoint: { host: '0.0.0.0', port: 14560 },
+            },
+          }),
+        });
+      }
+      return route.continue();
+    });
+    await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+    await page.click('#missionCommOpen');
+    await page.waitForSelector('#flightCommMenu:not([hidden]) #cellularConnectBtn');
+    const actions = await page.evaluate(() => {
+      const read = (id) => {
+        const el = document.getElementById(id);
+        const bg = getComputedStyle(el).backgroundColor;
+        return { text: el.textContent.trim(), action: el.dataset.action, bg };
+      };
+      const labels = [...document.querySelectorAll('#flightCommMenu button')].map((el) => el.textContent.trim());
+      return {
+        cell: read('cellularConnectBtn'),
+        home: read('companionLinkBtn'),
+        menu: document.getElementById('flightCommAction').textContent.trim(),
+        labels,
+      };
+    });
+    expect(actions.cell).toMatchObject({ text: 'התחברו', action: 'connect' });
+    expect(actions.cell.bg).not.toBe('rgb(220, 38, 38)');
+    expect(actions.home).toMatchObject({ text: 'התנתקו', action: 'disconnect', bg: 'rgb(220, 38, 38)' });
+    expect(actions.menu).toBe('התחברו');
+    expect(actions.labels).not.toContain('התנתק');
+    expect(actions.labels).toContain('התנתקו');
     await page.close();
   }, 30000);
 });

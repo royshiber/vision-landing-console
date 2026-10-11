@@ -467,9 +467,9 @@ describe('connect popover layout and mocked states', () => {
         const rows = await rowSnapshot(page);
         const byId = Object.fromEntries(rows.map((row) => [row.id, row]));
         if (name === 'all-up') {
-          expect(byId.cellular).toMatchObject({ tone: 'ok', status: 'מחובר', action: 'התנתק' });
-          expect(byId.radio).toMatchObject({ tone: 'ok', status: 'מחובר', action: 'התנתק' });
-          expect(byId.home).toMatchObject({ tone: 'ok', status: 'מחובר', action: 'התנתק' });
+          expect(byId.cellular).toMatchObject({ tone: 'ok', status: 'מחובר', action: 'התנתקו' });
+          expect(byId.radio).toMatchObject({ tone: 'ok', status: 'מחובר', action: 'התנתקו' });
+          expect(byId.home).toMatchObject({ tone: 'ok', status: 'מחובר', action: 'התנתקו' });
           expect(Number(byId.cellular.bars)).toBeGreaterThan(0);
           expect(Number(byId.radio.bars)).toBeGreaterThan(0);
           expect(Number(byId.home.bars)).toBeGreaterThan(0);
@@ -479,14 +479,14 @@ describe('connect popover layout and mocked states', () => {
           expect(cellBg).toBe('rgb(220, 38, 38)');
           expect(homeBg).not.toBe('rgb(22, 163, 74)');
         } else if (name === 'cellular-only') {
-          expect(byId.cellular).toMatchObject({ tone: 'ok', status: 'מחובר', action: 'התנתק' });
+          expect(byId.cellular).toMatchObject({ tone: 'ok', status: 'מחובר', action: 'התנתקו' });
           expect(byId.radio).toMatchObject({ tone: 'off', status: 'מנותק', action: 'חיבור ל-RF' });
-          expect(byId.home).toMatchObject({ tone: 'off', status: 'מושבת', action: 'התחבר' });
+          expect(byId.home).toMatchObject({ tone: 'off', status: 'מושבת', action: 'התחברו' });
           expect(byId.rc.status).toBe('אין נתונים');
         } else {
-          expect(byId.cellular).toMatchObject({ tone: 'off', status: 'אין מודם', action: 'התחבר' });
+          expect(byId.cellular).toMatchObject({ tone: 'off', status: 'אין מודם', action: 'התחברו' });
           expect(byId.radio).toMatchObject({ tone: 'off', status: 'מנותק', action: 'חיבור ל-RF' });
-          expect(byId.home).toMatchObject({ tone: 'off', status: 'מנותק', action: 'התחבר' });
+          expect(byId.home).toMatchObject({ tone: 'off', status: 'מנותק', action: 'התחברו' });
           expect(byId.rc.status).toBe('אין נתונים');
           const locked = await page.locator('#companionLinkBtn').evaluate((el) => ({
             disabled: el.disabled,

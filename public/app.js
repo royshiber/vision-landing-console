@@ -14513,6 +14513,9 @@ initLiveCameraPanel();
 
   function paintRowAction(btn, label, title) {
     if (!btn || !label) return;
+    if (typeof title === 'string' && title.includes('לא עלה') && label !== 'סטטוס') label = 'התחברו';
+    else if (label === 'התנתק') label = 'התנתקו';
+    else if (label === 'התחבר') label = 'התחברו';
     if (label === 'חיבור ל-RF') {
       btn.replaceChildren();
       btn.append('חיבור ל-');
@@ -14523,7 +14526,7 @@ initLiveCameraPanel();
     } else {
       btn.textContent = label;
     }
-    const disconnect = label === 'התנתק';
+    const disconnect = label === 'התנתק' || label === 'התנתקו';
     btn.dataset.action = disconnect ? 'disconnect' : (label === 'סטטוס' ? 'status' : 'connect');
     btn.dataset.connected = disconnect ? '1' : '0';
     if (title) btn.title = title;
@@ -23426,6 +23429,7 @@ function rcMenuLive(row) {
 
 function flightMenuActionHe(row, id) {
   if (id === 'rc') return rcMenuLive(row) ? 'התנתקו' : 'התחברו';
+  if (row && String(row.statusHe || '').includes('לא עלה')) return 'התחברו';
   return pluralLinkAction(row?.actionHe);
 }
 

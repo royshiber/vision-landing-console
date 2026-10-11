@@ -24222,14 +24222,29 @@ body:has(#control.panel.visible) #controlSubtabsBar {
   gap: 6px;
 }
 @media (max-width: 1100px) and (max-height: 640px) {
+  /* Same one-row chrome as the flight tab. A wrap here is the second parameters header row. */
   body:has(#control.panel.visible) .app-chrome {
-    flex-wrap: wrap;
-    max-height: none;
-    overflow: visible;
+    flex-wrap: nowrap;
+    align-items: center;
+    min-height: 36px;
+    max-height: 40px;
+    overflow: hidden;
     padding-inline-end: 8px;
   }
+  body:has(#control.panel.visible) .app-chrome .tabs {
+    flex: 1 1 auto;
+    flex-wrap: nowrap;
+    width: auto;
+    min-width: 0;
+  }
   body:has(#control.panel.visible) .app-chrome-tools {
+    flex: 0 0 auto;
     flex-shrink: 0;
+  }
+  body:has(#control.panel.visible) .app-chrome .tab {
+    white-space: nowrap;
+    padding: 4px 6px;
+    font-size: 11px;
   }
 }
 .work-link-picker {
@@ -27656,9 +27671,14 @@ body:has(#control.panel.visible) #assistToggleBtn {
 }
 .flight-comm-menu .comm-link-status {
   margin: 0;
-  line-height: 16px;
-  min-height: 16px;
+  font-size: 11px;
+  line-height: 1.45;
+  min-height: 18px;
   overflow: visible;
+}
+.flight-comm-menu .comm-link-row {
+  min-height: 18px;
+  align-items: center;
 }
 .flight-comm-menu .conn-advanced {
   padding: 0 6px;
@@ -27823,5 +27843,36 @@ body:has(#control.panel.visible) #assistToggleBtn {
     height: auto;
     min-height: 100%;
     overflow: auto;
+  }
+}
+
+/* Below 600px the floating ASK sits above the camera row, clear of גימבל. */
+@media (max-width: 599px) {
+  body:has(#optics.panel.visible) #optics > .optics-calib {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 40;
+    box-sizing: border-box;
+    margin: 0;
+    padding: 4px 8px;
+    background: #0b0e14;
+  }
+  body:has(#optics.panel.visible) .optics-cam-switch {
+    margin: 0;
+  }
+  body:has(#optics.panel.visible) #assistToggleBtn.assist-toggle-float {
+    position: fixed;
+    z-index: 41;
+    inset-inline-start: auto;
+    inset-inline-end: 8px;
+    top: auto;
+    bottom: 52px;
+    min-height: 32px;
+    padding: 4px 10px;
+  }
+  body:has(#optics.panel.visible) #optics.panel.visible {
+    padding-bottom: 96px;
   }
 }
