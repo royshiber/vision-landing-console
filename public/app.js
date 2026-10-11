@@ -7002,6 +7002,23 @@ const ARDUPILOT_PLANE_MODES = {
   17:'QSTABILIZE', 18:'QHOVER', 19:'QLOITER', 20:'QLAND', 21:'QRTL',
   22:'QAUTOTUNE', 23:'QACRO', 24:'THERMAL', 25:'LOITER_ALT_QLAND', 26:'AUTOLAND',
 };
+/**
+ * HUD abbreviations for the three widest ArduPlane names at 11px.
+ * The full name stays on the tile title. Other names stay spelled out.
+ */
+const PLANE_MODE_HUD_SHORT = {
+  LOITER_ALT_QLAND: 'LTQLND',
+  AVOID_ADSB: 'ADSB',
+  INITIALISING: 'אתחול',
+};
+
+function vlcFlightModeHudLabel(full) {
+  const name = String(full || '');
+  if (!name || name === '—') return { text: '—', title: '' };
+  const short = PLANE_MODE_HUD_SHORT[name];
+  if (short) return { text: short, title: name };
+  return { text: name, title: '' };
+}
 /** ArduCopter custom_mode names. Keep in sync with `lib/arducopter-flight-modes.mjs`. */
 const ARDUPILOT_COPTER_MODES = {
   0:'STABILIZE', 1:'ACRO', 2:'ALT_HOLD', 3:'AUTO', 4:'GUIDED', 5:'LOITER',
@@ -10268,10 +10285,14 @@ function applyTopbarFlightData(mav) {
   const modeBound = typeof missionTileBoundKey === 'function' ? missionTileBoundKey(hudFlightModeEl) : null;
   if (hudFlightModeEl && (!modeBound || modeBound === 'mavlink.flightMode')) {
     const modeText = vlcFlightModeText(mav.flightMode, mav, mav.connected === true);
+    const modeLabel = vlcFlightModeHudLabel(modeText);
     const modeKey = missionTileBoundKey(hudFlightModeEl)
       ? `mission:${hudFlightModeEl.closest('[data-mission-data-slot]')?.dataset?.missionDataSlot}:${missionTileBoundKey(hudFlightModeEl)}`
       : 'top-mode';
-    paintHeldValue(hudFlightModeEl, modeKey, modeText === '—' ? null : modeText, { ttlMs: MODE_HOLD_MS });
+    paintHeldValue(hudFlightModeEl, modeKey, modeLabel.text === '—' ? null : modeLabel.text, { ttlMs: MODE_HOLD_MS });
+    hudFlightModeEl.title = modeLabel.title;
+    const modeTile = hudFlightModeEl.closest('.mission-data-tile');
+    if (modeTile) modeTile.title = modeLabel.title;
   }
   try {
     if (typeof pulseRefresh === 'function') pulseRefresh();
@@ -22377,7 +22398,8 @@ function formatMissionDataValue(key, payload) {
   }
   if (key === 'mavlink.flightMode') {
     const raw = payload?.mavlink?.flightMode;
-    return vlcFlightModeText(raw, payload?.mavlink, payload?.mavlink?.connected === true);
+    const full = vlcFlightModeText(raw, payload?.mavlink, payload?.mavlink?.connected === true);
+    return vlcFlightModeHudLabel(full).text;
   }
   if (key === 'mavlink.armed') {
     if (!payload?.mavlink?.connected) return '—';
@@ -22440,6 +22462,15 @@ function applyMissionDataGrid(payload) {
         const gpsTitle = hudFieldHonestyTitle('gps', payload?.mavlink || latestHudMavlink, payload?.mavlink?.gpsFixType);
         valueEl.title = gpsTitle;
         item.title = gpsTitle;
+      } else if (slot.key === 'mavlink.flightMode') {
+        const full = vlcFlightModeText(
+          payload?.mavlink?.flightMode,
+          payload?.mavlink,
+          payload?.mavlink?.connected === true,
+        );
+        const modeLabel = vlcFlightModeHudLabel(full);
+        valueEl.title = modeLabel.title;
+        item.title = modeLabel.title;
       } else if (slot.key === 'mission.gpsVisionDelta' || valueEl.id === 'liveGpsVisionDelta') {
         const deltaTitle = shown === '—'
           ? hudFieldHonestyTitle('gpsVisionDelta', payload?.mavlink || latestHudMavlink, null)

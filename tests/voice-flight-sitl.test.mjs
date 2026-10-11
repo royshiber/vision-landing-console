@@ -11,7 +11,8 @@ import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { freePort, startTestServer } from './test-server.mjs';
+import { startTestServer } from './test-server.mjs';
+import { claimSitlInstance, sitlMavlinkPort } from './sitl-instance.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const BINARY = process.env.ARDUPLANE_SITL || '/tmp/ardupilot/build/sitl/bin/arduplane';
@@ -85,7 +86,8 @@ describe.skipIf(!ENABLED)('voice flight against ArduPlane SITL', () => {
     const push = (chunk) => {
       logs.out = Buffer.concat([logs.out, chunk]).subarray(-16000);
     };
-    const sitlPort = await freePort();
+    const sitlSlot = claimSitlInstance();
+    const sitlPort = await sitlMavlinkPort(sitlSlot.instance);
     const started = await startTestServer({
       env: () => ({
         SQLITE_PATH: dbPath,
@@ -101,6 +103,7 @@ describe.skipIf(!ENABLED)('voice flight against ArduPlane SITL', () => {
     consoleProc.stderr.on('data', push);
     const sitlLogs = { out: Buffer.alloc(0) };
     const sitl = track(spawn(BINARY, [
+      '-I', String(sitlSlot.instance),
       '--model', 'plane',
       '--speedup', '1',
       '--home', HOME,
@@ -180,6 +183,7 @@ describe.skipIf(!ENABLED)('voice flight against ArduPlane SITL', () => {
       await api(base, 'POST', '/api/links/disconnect', { role: 'radio' }).catch(() => {});
       stopChild(sitl);
       stopChild(consoleProc);
+      sitlSlot.release();
     }
   }, 180000);
 });
