@@ -26,6 +26,48 @@ export function detectionCaption(payload) {
 }
 export const REASON_NO_STREAM = 'אין נתון על זרם המצלמות';
 
+/**
+ * A per-camera companion row is live when that slot says streaming or reports fps.
+ * A parent vision block (cameras map, no own state) is not a camera.
+ */
+export function cameraDetailStreaming(detail) {
+  if (!detail || typeof detail !== 'object') return false;
+  if (detail.cameras && typeof detail.cameras === 'object' && detail.id == null && !detail.state) return false;
+  if (detail.enabled === false) return false;
+  const state = typeof detail.state === 'string' ? detail.state : '';
+  if (state === 'disabled' || state === 'error') return false;
+  const fps = Number(detail.fps ?? detail.capture_fps);
+  const streaming = state === 'streaming'
+    || (Number.isFinite(fps) && fps > 0)
+    || detail.has_frame === true;
+  if (state === 'absent' && !(Number.isFinite(fps) && fps > 0)) return false;
+  const ownSource = typeof detail.source === 'string' ? detail.source : '';
+  if (ownSource === 'absent' && !streaming) return false;
+  return streaming;
+}
+
+function companionCameraRow(camera) {
+  const src = typeof globalThis !== 'undefined' && globalThis.latestCompanionFromServer
+    ? globalThis.latestCompanionFromServer
+    : null;
+  if (!src || typeof src !== 'object' || !camera) return null;
+  const maps = [
+    src.vision?.cameras,
+    src.opticalNav?.cameras,
+    src.optical_nav?.cameras,
+    src.extras?.cameras,
+    src.cameras,
+  ];
+  let fallback = null;
+  for (const map of maps) {
+    const row = map && typeof map === 'object' ? map[camera] : null;
+    if (!row || typeof row !== 'object') continue;
+    if (cameraDetailStreaming(row)) return row;
+    if (!fallback) fallback = row;
+  }
+  return fallback;
+}
+
 const TRACKS_URL = '/api/jetson/v1/vision/tracks';
 const CONFIG_URL = '/api/jetson/v1/vision/config';
 const LOCK_URL = '/api/jetson/v1/vision/lock';
@@ -628,10 +670,14 @@ function copyDrawnBoxes(host) {
 
 function lockAtPoint(host, clientX, clientY, boxes) {
   const camera = host.dataset.visionCamera || '';
-  const layer = host.querySelector(':scope > .vision-hit-layer');
+  const layer = host.querySelector('.vision-hit-layer');
   const rect = (layer || host).getBoundingClientRect();
-  if (!(rect.width >= 32) || !(rect.height >= 32)) return null;
-  const hit = hitDrawnBox(boxes, clientX - rect.left, clientY - rect.top);
+  if (!(rect.width >= 8) || !(rect.height >= 8)) return null;
+  const layoutW = (layer && layer.offsetWidth) || host.clientWidth || rect.width;
+  const layoutH = (layer && layer.offsetHeight) || host.clientHeight || rect.height;
+  const x = ((clientX - rect.left) / rect.width) * layoutW;
+  const y = ((clientY - rect.top) / rect.height) * layoutH;
+  const hit = hitDrawnBox(boxes, x, y);
   if (!hit || hit.id == null || hit.id === '') return null;
   return { camera, id: hit.id };
 }
@@ -708,9 +754,9 @@ export function paintHost(host, payload, { kind = 'tile' } = {}) {
   if (!host) return;
   ensureChrome(host);
   const doc = host.ownerDocument;
-  const canvas = host.querySelector(':scope > .vision-box-layer');
-  const layer = host.querySelector(':scope > .vision-hit-layer');
-  const note = host.querySelector(':scope > .vision-box-note');
+  const canvas = host.querySelector('.vision-box-layer');
+  const layer = host.querySelector('.vision-hit-layer');
+  const note = host.querySelector('.vision-box-note');
   const camera = kind === 'horizon'
     ? (horizonShownCamera(doc) || payload?.camera || payload?.selected_camera || selectedCamera() || host.dataset.visionCamera || 'cam3')
     : (host.dataset.visionCamera || payload?.camera || '');
@@ -723,6 +769,9 @@ export function paintHost(host, payload, { kind = 'tile' } = {}) {
     const cached = detectionCaption(shown ? { ...shown, tracks: [] } : null);
     if (cached === REASON_OFF) reason = cached;
   }
+  const picture = mediaOf(host);
+  const pictureLive = !!(picture && picture.hidden !== true && ((picture.naturalWidth || picture.videoWidth || 0) >= 16));
+  if (reason === REASON_NO_STREAM && (cameraDetailStreaming(companionCameraRow(camera)) || pictureLive)) reason = '';
   const tracks = showHorizon && !reason ? rows : [];
   const lockId = payload?.lock?.id;
   host.dataset.visionReason = showHorizon ? reason : '';
@@ -1026,7 +1075,7 @@ function scheduleSizedRepaint(doc) {
       if (item.kind === 'horizon') return false;
       const host = item.host;
       if (!host?.dataset?.visionTracks) return false;
-      const layer = host.querySelector(':scope > .vision-hit-layer');
+      const layer = host.querySelector('.vision-hit-layer');
       return layer?.dataset?.hit !== '1';
     });
     if (waiting && left > 0) view.requestAnimationFrame(step);
@@ -1331,6 +1380,7 @@ export function mountVisionTracks(doc = document) {
     arm(visionFailDelay);
   };
   void run();
+  doc.addEventListener('vlc-companion-cameras', () => paintAll(doc));
   if (doc.defaultView) {
     doc.defaultView.__vlcFillVisionMenu = (slot, camera) => fillVisionMenu(slot, camera);
     doc.defaultView.__vlcVisionAskState = () => visionAskState();

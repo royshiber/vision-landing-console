@@ -139,6 +139,10 @@ describe('camera control badges', () => {
     await page.click('[data-tab="optics"]');
     await page.locator('.debrief-cam-tile[data-cam="cam1"]').click({ button: 'right' });
     await page.waitForSelector('#opticsContext:not([hidden]) #cam1Panel');
+    await page.evaluate(() => {
+      const group = document.querySelector('#cam1Panel [data-settings-group="exposure"]');
+      if (group) group.open = true;
+    });
     await page.waitForFunction((reason) => {
       const exp = document.getElementById('cam1Exposure');
       const gain = document.getElementById('cam1Gain');

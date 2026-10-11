@@ -194,7 +194,7 @@ describe('Mission FC empty-note honesty', () => {
     expect(ui.note.textContent).toBe(EMPTY_NOTE);
     ui.applyFlightHud(liveFcSnapshot());
     expect(ui.note.textContent).toBe('מחובר · ArduPlane');
-    expect(ui.armed.textContent).toBe('DISARMED');
+    expect(ui.armed.title).toBe('מנוטרל');
     expect(ui.mode.textContent).toBe('MANUAL');
     expect(ui.lastRoll).toBeCloseTo(0.4);
     expect(ui.lastPitch).toBeCloseTo(-22.7);
@@ -228,7 +228,7 @@ describe('Mission FC empty-note honesty', () => {
     expect(ui.isHudMavlinkLive(ui.latestHudMavlink)).toBe(true);
     expect(ui.lastRoll).toBe(roll);
     expect(ui.lastPitch).toBe(pitch);
-    expect(ui.armed.textContent).toBe('DISARMED');
+    expect(ui.armed.title).toBe('מנוטרל');
     expect(ui.mode.textContent).toBe('MANUAL');
   });
 
@@ -256,7 +256,7 @@ describe('Mission FC empty-note honesty', () => {
     expectNoteNotEmptyDefault(ui);
     expect(ui.note.textContent).toBe('מחובר · ArduPlane');
     expect(ui.lastRoll).toBeCloseTo(0.4);
-    expect(ui.armed.textContent).toBe('DISARMED');
+    expect(ui.armed.title).toBe('מנוטרל');
   });
 
   it('hydrate after rememberLiveRadioStatus(null) does not reset a live note', () => {

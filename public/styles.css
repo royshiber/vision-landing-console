@@ -27994,3 +27994,288 @@ body:has(#control.panel.visible) #assistToggleBtn {
   box-sizing: border-box;
   align-self: stretch;
 }
+
+/* 1.02.420: digital zoom, corner camera menu, fixed flight column, horizon quick arm. */
+#optics > .optics-calib {
+  display: none !important;
+}
+.debrief-cam-stage,
+#debriefCamGrid [data-camera-stage] {
+  overflow: hidden;
+  touch-action: none;
+}
+.cam-zoom-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  transform-origin: 0 0;
+}
+.cam-zoom-layer > img,
+.cam-zoom-layer > video,
+.cam-zoom-layer > canvas.vision-box-layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.optics-context {
+  width: 228px;
+  min-width: 0;
+  max-width: 228px;
+  max-height: 210px;
+  padding: 4px;
+}
+.optics-context input,
+.optics-context select,
+.optics-context .optics-stepper {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+.optics-context .optics-stepper input[type="number"] {
+  width: 4.5em;
+  flex: 0 0 auto;
+  padding-inline: 2px;
+}
+.optics-context .cam0-hist-wrap { display: block; }
+.optics-context .cam0-hist { height: 40px; }
+.optics-context details > summary,
+.optics-context .optics-field,
+.optics-context label,
+.optics-context .cam0-title,
+.optics-context .cam0-hist-label {
+  font-size: clamp(11px, 0.75rem, 13px);
+}
+.optics-context label {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: 4px;
+  row-gap: 2px;
+  min-width: 0;
+  max-width: 100%;
+  white-space: normal;
+}
+.optics-context .optics-field-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.optics-context #cam0Panel,
+.optics-context #cam1Panel,
+.optics-context #gimbalSettings {
+  display: flex !important;
+  flex-direction: column;
+  min-width: 0;
+  max-width: 100%;
+}
+.optics-context .optics-stepper {
+  flex: 1 1 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+.optics-context .optics-step {
+  width: 22px;
+  min-width: 22px;
+  height: 22px;
+  min-height: 22px;
+  padding: 0;
+}
+.horizon-quick {
+  position: absolute;
+  z-index: 8;
+  top: 0;
+  bottom: auto;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-flow: row nowrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 3px;
+  width: 100%;
+  max-width: 100%;
+  height: 36px;
+  margin: 0;
+  padding: 2px;
+  box-sizing: border-box;
+  pointer-events: none;
+}
+.horizon-quick .horizon-quick-icon {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  display: block;
+}
+.horizon-quick .flight-arm-btn,
+.horizon-quick .pfd-badge,
+.horizon-quick .pfd-voice-flight-btn {
+  position: static;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  gap: 3px;
+  font-size: clamp(11px, 0.68rem, 12px);
+  line-height: 1.1;
+  width: auto;
+  min-width: 44px !important;
+  max-width: none;
+  min-height: 32px !important;
+  height: 32px;
+  padding: 0 4px;
+  margin: 0;
+  pointer-events: auto;
+  touch-action: none;
+}
+.horizon-quick .horizon-quick-label {
+  font-family: "Heebo", "Segoe UI", sans-serif;
+  font-size: clamp(11px, 0.68rem, 12px);
+  line-height: 1.1;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+.horizon-quick .pfd-badge {
+  font-family: "Heebo", "Segoe UI", sans-serif;
+  letter-spacing: 0;
+}
+#pfdHorizonStage > canvas,
+#pfdHorizonStage > .pfd-horizon-video,
+#pfdHorizonStage > .pfd-horizon-camera,
+#pfdHorizonStage > .instrument-stage-view,
+#pfdHorizonStage > .horizon-no-data,
+#pfdHorizonStage > .pfd-horizon-msg-log {
+  top: 38px;
+  height: calc(100% - 38px);
+}
+.mission-region-horizon .pfd-horizon-instrument > .pfd-side-tape--right {
+  top: auto;
+  bottom: 8px;
+  transform: none;
+}
+.mission-region-horizon > .flight-hud > #flightArmRow {
+  display: none !important;
+}
+.mission-region-horizon .pfd-horizon-instrument > .pfd-heading-lane {
+  display: none !important;
+}
+.mission-workspace .mission-region-horizon > .flight-stack-split {
+  display: none !important;
+}
+.mission-workspace .mission-region-horizon > .flight-hud,
+.mission-workspace .mission-region-horizon[data-flight-stack] > .flight-hud,
+.mission-workspace[data-mission-layout="ops-v1"] .mission-region-horizon > .flight-hud {
+  width: 100% !important;
+  height: auto !important;
+  aspect-ratio: auto !important;
+  flex: 1 1 auto !important;
+  min-height: 132px !important;
+  max-height: none !important;
+}
+.mission-workspace .mission-region-horizon > .mission-region-data,
+.mission-workspace .mission-region-horizon[data-flight-stack] > .mission-region-data {
+  flex: 0 0 auto !important;
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  overflow: visible !important;
+  padding-block: 0 !important;
+  gap: 0 !important;
+}
+.mission-workspace .mission-region-horizon > .mission-region-messages[data-messages-expanded="1"],
+.mission-workspace .mission-region-horizon[data-flight-stack] > .mission-region-messages[data-messages-expanded="1"] {
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 0 0 128px !important;
+  height: 128px !important;
+  min-height: 120px !important;
+  max-height: none !important;
+  overflow: hidden !important;
+}
+.mission-workspace .mission-region-horizon > .mission-region-messages[data-messages-expanded="0"] {
+  flex: 0 0 auto !important;
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+}
+.mission-workspace .mission-region-horizon > .mission-region-messages .flight-dock-pane,
+.mission-workspace .mission-region-horizon > .mission-region-messages .pfc-msg-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+.mission-region-messages .pfc-msg-line {
+  display: flex;
+  flex-flow: row wrap;
+  align-items: baseline;
+  gap: 4px 6px;
+}
+.mission-region-messages .pfc-msg-time,
+.mission-region-messages .pfc-msg-sev,
+.mission-region-messages .pfc-msg-body,
+.mission-region-messages .pfc-msg-count {
+  font-size: clamp(11px, 0.78rem, 13px);
+  line-height: 1.35;
+}
+@media (min-height: 700px) {
+  .mission-workspace .mission-region-horizon > .mission-region-messages[data-messages-expanded="1"],
+  .mission-workspace .mission-region-horizon[data-flight-stack] > .mission-region-messages[data-messages-expanded="1"] {
+    flex: 0 0 200px !important;
+    height: 200px !important;
+    min-height: 168px !important;
+    max-height: none !important;
+  }
+}
+@media (max-width: 599px) {
+  body:has(#optics.panel.visible) #optics.panel.visible {
+    padding-bottom: 56px !important;
+    box-sizing: border-box;
+  }
+  body:has(#optics.panel.visible) #optics .optics-live,
+  body:has(#optics.panel.visible) #optics .optics-tiles,
+  body:has(#optics.panel.visible) #optics #debriefCamGrid {
+    height: auto !important;
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+  body:has(#optics.panel.visible) #assistToggleBtn.assist-toggle-float {
+    bottom: 8px !important;
+  }
+}
+@media (min-height: 900px) {
+  .mission-workspace .mission-region-horizon > .mission-region-messages[data-messages-expanded="1"],
+  .mission-workspace .mission-region-horizon[data-flight-stack] > .mission-region-messages[data-messages-expanded="1"] {
+    flex: 0 0 240px !important;
+    height: 240px !important;
+    min-height: 200px !important;
+    max-height: none !important;
+  }
+}
+html {
+  --optics-menu-pad: 244px;
+}
+html[data-optics-sheet="1"] #optics #debriefCamGrid.debrief-cam-grid {
+  height: var(--optics-grid-h, 220px) !important;
+  max-height: var(--optics-grid-h, 220px) !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+  grid-template-rows: none !important;
+  grid-auto-rows: minmax(0, 1fr) !important;
+}
+html[data-optics-sheet="1"] #optics #debriefCamGrid .debrief-cam-tile,
+html[data-optics-sheet="1"] #optics #debriefCamGrid .debrief-cam-tile[hidden] {
+  min-height: 0 !important;
+  height: auto !important;
+  max-height: 100% !important;
+  overflow: hidden !important;
+}
+html[data-optics-pad="right"] #optics #debriefCamGrid.debrief-cam-grid {
+  width: calc(100% - var(--optics-menu-pad)) !important;
+  margin-right: var(--optics-menu-pad) !important;
+  margin-left: 0 !important;
+}
+html[data-optics-pad="left"] #optics #debriefCamGrid.debrief-cam-grid {
+  width: calc(100% - var(--optics-menu-pad)) !important;
+  margin-left: var(--optics-menu-pad) !important;
+  margin-right: 0 !important;
+}

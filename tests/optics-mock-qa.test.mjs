@@ -59,8 +59,12 @@ describe('optics mock companion', () => {
     const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
     await page.goto(base, { waitUntil: 'domcontentloaded' });
     await page.click('[data-tab="optics"]');
-    await page.click('#opticsCam1Btn');
-    await page.waitForSelector('#cam1Panel:not([hidden])');
+    await page.locator('.debrief-cam-tile[data-cam="cam1"]').click({ button: 'right' });
+    await page.waitForSelector('#opticsContext:not([hidden]) #cam1Panel');
+    await page.evaluate(() => {
+      const group = document.querySelector('#cam1Panel [data-settings-group="exposure"]');
+      if (group) group.open = true;
+    });
     await page.waitForFunction(() => document.getElementById('cam1Gain')?.disabled === false);
     expect(await page.locator('#cam1Ae').isChecked()).toBe(false);
     await page.locator('#cam1Gain').fill('27');

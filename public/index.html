@@ -2303,14 +2303,14 @@
             <aside id="flightHud" class="flight-hud" aria-label="HUD טיסה חופשית">
               <div id="flightArmRow" class="flight-arm-row pfd-command-line pfd-top-bar" data-arm-link="off">
                 <span id="pfdModeVal" class="pfd-mode-val">—</span>
-                <span id="pfdArmedBadge" class="pfd-badge pfd-badge--disarmed" role="button" tabindex="0" title="מצב ARM — לחץ להסבר מוכנות">DISARMED</span>
+                <span id="pfdArmedBadge" class="pfd-badge pfd-badge--disarmed" role="button" tabindex="0" title="מנוטרל — לחץ להסבר מוכנות">מנוטרל</span>
                 <div class="hud-nav-pill pfd-gps-pill" id="hudNavGps" data-status="unknown" title="אין קישור" tabindex="0" aria-describedby="hudNavGpsTip">
                   <span class="hud-nav-icon">📡</span>
                   <span class="hud-nav-val" id="hudNavGpsVal">—</span>
                 </div>
                 <div id="hudNavGpsTip" class="hud-gps-tip" role="tooltip" hidden></div>
-                <button type="button" id="flightArmBtn" class="flight-arm-btn" disabled aria-label="חימוש" title="חימוש">ARM</button>
-                <button type="button" id="flightDisarmBtn" class="flight-arm-btn" disabled aria-label="נטרול" title="נטרול">DISARM</button>
+                <button type="button" id="flightArmBtn" class="flight-arm-btn" disabled aria-label="חימוש" title="חימוש">חימוש</button>
+                <button type="button" id="flightDisarmBtn" class="flight-arm-btn" disabled aria-label="ניטרול" title="ניטרול">ניטרול</button>
                 <p id="flightArmReason" class="flight-arm-reason" role="button" tabindex="0" aria-expanded="false" title="אין חיבור לבקר הטיסה">אין קשר</p>
                 <p id="flightArmRefusal" class="flight-arm-refusal" role="button" tabindex="0" aria-expanded="false" hidden></p>
               </div>
@@ -2358,6 +2358,7 @@
                         </figure>
                       </div>
                     </div>
+                    <div id="horizonQuick" class="horizon-quick" dir="rtl" aria-label="חימוש"></div>
                     <div id="pfdHorizonMsgLog" class="pfd-horizon-msg-log" dir="rtl" aria-live="polite" aria-label="הודעות מטוס" hidden>
                       <p class="pfd-horizon-msg-line pfc-msg-primary" id="pfcMsgPrimaryHe" dir="auto">אין חיבור לבקר הטיסה</p>
                     </div>
@@ -3057,6 +3058,7 @@
     <script type="module" src="./modules/voice-flight-phrases.mjs?v=__APP_VERSION__"></script>
     <script type="module" src="./modules/pulse-cameras.mjs?v=__APP_VERSION__"></script>
     <script type="module" src="./modules/vision-tracks.mjs?v=__APP_VERSION__"></script>
+    <script type="module" src="./modules/camera-digital-zoom.mjs?v=__APP_VERSION__"></script>
     <script type="module" src="./modules/gps-quality.mjs?v=__APP_VERSION__"></script>
     <script src="./app.js?v=__APP_VERSION__"></script>
     <script src="./versions-rollback.js?v=__APP_VERSION__"></script>

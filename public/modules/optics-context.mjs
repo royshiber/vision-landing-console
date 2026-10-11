@@ -5,13 +5,67 @@
  */
 import { onGimbalView } from './gimbal-pad.mjs';
 
+const MENU_W = 228;
+const MENU_H = 210;
+const GAP = 8;
+
+export function rectsOverlap(a, b, slack = 1) {
+  if (!a || !b || a.width < 2 || b.width < 2 || a.height < 2 || b.height < 2) return false;
+  return a.left < b.right - slack
+    && a.right > b.left + slack
+    && a.top < b.bottom - slack
+    && a.bottom > b.top + slack;
+}
+
+function packBox(left, top, width, height, mode) {
+  return {
+    mode,
+    left,
+    top,
+    width,
+    height,
+    right: left + width,
+    bottom: top + height,
+  };
+}
+
+/** Popover box that stays inside the viewport and off every video rect. */
+export function placeOpticsPopover({ tile, tiles = [], viewport, width = MENU_W, height = MENU_H, gap = GAP } = {}) {
+  const vw = Math.max(0, Number(viewport?.width) || 0);
+  const vh = Math.max(0, Number(viewport?.height) || 0);
+  const videos = (tiles || []).filter((item) => item && item.width > 1 && item.height > 1);
+  const inside = (box) => box.left >= gap - 0.5
+    && box.top >= gap - 0.5
+    && box.right <= vw - gap + 0.5
+    && box.bottom <= vh - gap + 0.5;
+  const clear = (box) => inside(box) && !videos.some((video) => rectsOverlap(box, video, 0.5));
+  if (vw > 0 && vw < 600) {
+    const sheetH = Math.min(height, Math.max(140, Math.round(vh * 0.32)));
+    return packBox(gap, Math.max(gap, vh - sheetH - gap), Math.max(120, vw - gap * 2), sheetH, 'sheet');
+  }
+  const spots = [];
+  if (tile && tile.width > 0) {
+    spots.push([tile.right + gap, tile.top]);
+    spots.push([tile.left - width - gap, tile.top]);
+    spots.push([tile.left, tile.bottom + gap]);
+    spots.push([tile.left, tile.top - height - gap]);
+  }
+  spots.push([vw - width - gap, gap], [gap, gap], [vw - width - gap, vh - height - gap], [gap, vh - height - gap]);
+  for (const [left, top] of spots) {
+    const box = packBox(left, top, width, height, 'side');
+    if (clear(box)) return box;
+  }
+  const sheetH = Math.min(height, Math.max(140, Math.round(vh * 0.28)));
+  return packBox(gap, Math.max(gap, vh - sheetH - gap), Math.max(120, vw - gap * 2), sheetH, 'sheet');
+}
+
 const HOST = {
   cam0: ['cam0Panel'],
   cam1: ['cam1Panel'],
   cam3: ['gimbalSettings', 'gimbalPad'],
 };
 
-const menu = document.getElementById('opticsContext');
+const menu = typeof document === 'undefined' ? null : document.getElementById('opticsContext');
 const homes = new Map();
 
 function remember(id) {
@@ -28,42 +82,128 @@ function restoreAll() {
   }
 }
 
-function place(x, y) {
-  if (!menu) return;
-  menu.hidden = false;
-  menu.style.left = '0px';
-  menu.style.top = '0px';
-  const limit = Math.max(140, window.innerHeight - 16);
+function videoRects() {
+  return [...document.querySelectorAll('#debriefCamGrid .debrief-cam-tile, #debriefCamGrid [data-camera-stage]')]
+    .filter((el) => {
+      const cs = getComputedStyle(el);
+      if (cs.display === 'none' || cs.visibility === 'hidden') return false;
+      const box = el.getBoundingClientRect();
+      return box.width > 2 && box.height > 2;
+    })
+    .map((el) => {
+      const box = el.getBoundingClientRect();
+      return { left: box.left, top: box.top, right: box.right, bottom: box.bottom, width: box.width, height: box.height };
+    });
+}
+
+function clearLayout() {
+  const root = document.documentElement;
+  root.removeAttribute('data-optics-sheet');
+  root.removeAttribute('data-optics-pad');
+  root.style.removeProperty('--optics-grid-h');
+  root.style.removeProperty('--optics-sheet-h');
+  const grid = document.getElementById('debriefCamGrid');
+  if (!grid) return;
+  grid.style.removeProperty('--optics-grid-h');
+  grid.style.removeProperty('height');
+  grid.style.removeProperty('max-height');
+  grid.style.removeProperty('min-height');
+  grid.style.removeProperty('overflow');
+}
+
+function limitGrid(px) {
+  const grid = document.getElementById('debriefCamGrid');
+  if (!grid) return;
+  const height = `${Math.round(px)}px`;
+  grid.style.setProperty('height', height, 'important');
+  grid.style.setProperty('max-height', height, 'important');
+  grid.style.setProperty('min-height', '0', 'important');
+  grid.style.setProperty('overflow', 'hidden', 'important');
+}
+
+function reserveSpace(anchor) {
+  clearLayout();
+  const root = document.documentElement;
+  const grid = document.getElementById('debriefCamGrid');
+  const narrow = window.innerWidth < 600;
+  if (narrow) {
+    const sheetH = Math.min(MENU_H, Math.max(160, Math.round(window.innerHeight * 0.32)));
+    root.dataset.opticsSheet = '1';
+    root.style.setProperty('--optics-sheet-h', `${sheetH}px`);
+    if (grid) {
+      const top = grid.getBoundingClientRect().top;
+      const limit = Math.max(96, Math.round(window.innerHeight - top - sheetH - 12));
+      root.style.setProperty('--optics-grid-h', `${limit}px`);
+      limitGrid(limit);
+    }
+    return;
+  }
+  if (!grid) return;
+  const gridBox = grid.getBoundingClientRect();
+  const spaceRight = window.innerWidth - gridBox.right;
+  const spaceLeft = gridBox.left;
+  if (Math.max(spaceRight, spaceLeft) < MENU_W + 16) {
+    root.dataset.opticsPad = spaceRight >= spaceLeft ? 'right' : 'left';
+  }
+  void anchor;
+}
+
+function applyBox(box) {
   menu.style.boxSizing = 'border-box';
   menu.style.overflowY = 'auto';
-  menu.style.maxHeight = `${limit}px`;
-  const narrow = window.innerWidth <= 720;
-  if (narrow) {
-    const centers = [...document.querySelectorAll('#debriefCamGrid .debrief-cam-tile')].map((el) => {
-      const r = el.getBoundingClientRect();
-      return r.top + r.height / 2;
-    }).filter((n) => n > 0);
-    const below = centers.length ? Math.max(...centers) + 8 : y;
-    menu.style.maxHeight = `${Math.floor(Math.max(140, window.innerHeight - below - 8))}px`;
-    const rect = menu.getBoundingClientRect();
-    const left = Math.max(8, Math.min(x, window.innerWidth - rect.width - 8));
-    const top = Math.max(8, Math.min(below, window.innerHeight - rect.height - 8));
-    menu.style.left = `${Math.round(left)}px`;
-    menu.style.top = `${Math.round(top)}px`;
-  } else {
-    const rect = menu.getBoundingClientRect();
-    const height = Math.min(rect.height, limit);
-    const ceiling = Math.max(8, window.innerHeight - limit - 8);
-    const left = Math.max(8, Math.min(x, window.innerWidth - rect.width - 8));
-    const top = Math.min(Math.max(8, y), Math.max(8, window.innerHeight - height - 8), ceiling);
-    menu.style.left = `${Math.round(left)}px`;
-    menu.style.top = `${Math.round(top)}px`;
+  menu.style.minWidth = '0px';
+  menu.style.width = `${Math.round(box.width)}px`;
+  menu.style.maxWidth = `${Math.round(box.width)}px`;
+  menu.style.height = `${Math.round(box.height)}px`;
+  menu.style.maxHeight = `${Math.round(box.height)}px`;
+  menu.style.right = 'auto';
+  menu.style.bottom = 'auto';
+  menu.style.left = `${Math.round(box.left)}px`;
+  menu.style.top = `${Math.round(box.top)}px`;
+}
+
+function place(anchor) {
+  if (!menu) return;
+  menu.hidden = false;
+  reserveSpace(anchor);
+  void menu.offsetHeight;
+  const grid = document.getElementById('debriefCamGrid');
+  const tile = anchor?.getBoundingClientRect?.() || null;
+  let box = placeOpticsPopover({
+    tile: tile && tile.width > 0
+      ? { left: tile.left, top: tile.top, right: tile.right, bottom: tile.bottom, width: tile.width, height: tile.height }
+      : null,
+    tiles: videoRects(),
+    viewport: { width: window.innerWidth, height: window.innerHeight },
+  });
+  const pad = document.documentElement.dataset.opticsPad;
+  if (pad && grid) {
+    const gridBox = grid.getBoundingClientRect();
+    const height = Math.min(MENU_H, Math.max(140, window.innerHeight - Math.max(GAP, gridBox.top) - GAP));
+    const top = Math.max(GAP, Math.min(gridBox.top, window.innerHeight - height - GAP));
+    if (pad === 'right') {
+      box = packBox(gridBox.right + GAP, top, MENU_W, height, 'side');
+    } else {
+      box = packBox(Math.max(GAP, gridBox.left - MENU_W - GAP), top, MENU_W, height, 'side');
+    }
   }
-  for (const id of ['cam0Panel', 'cam1Panel']) {
+  if (document.documentElement.dataset.opticsSheet === '1') {
+    const sheetH = box.height;
+    box = packBox(GAP, window.innerHeight - sheetH - GAP, Math.max(120, window.innerWidth - GAP * 2), sheetH, 'sheet');
+    const overlap = videoRects().reduce((hit, video) => Math.max(hit, video.bottom - box.top), 0);
+    if (overlap > 1 && grid) {
+      const current = grid.getBoundingClientRect().height;
+      const next = Math.max(96, Math.round(current - overlap - 8));
+      document.documentElement.style.setProperty('--optics-grid-h', `${next}px`);
+      limitGrid(next);
+      void grid.offsetHeight;
+    }
+  }
+  applyBox(box);
+  for (const id of ['cam0Panel', 'cam1Panel', 'gimbalSettings']) {
     const node = menu.querySelector(`#${id}`);
     if (!node) continue;
-    const panelTop = node.getBoundingClientRect().top;
-    node.style.maxHeight = `${Math.max(80, Math.floor(window.innerHeight - panelTop - 8))}px`;
+    node.style.maxHeight = '';
   }
 }
 
@@ -91,7 +231,7 @@ function ensureVisionFold(cam) {
   return fold;
 }
 
-function openFor(cam, x, y) {
+function openFor(cam, anchor) {
   if (!menu || placing) return;
   const ids = HOST[cam];
   if (!ids) return;
@@ -110,7 +250,7 @@ function openFor(cam, x, y) {
     const switchId = cam === 'cam0' ? 'opticsCam0Btn' : cam === 'cam1' ? 'opticsCam1Btn' : 'opticsGimbalBtn';
     document.getElementById(switchId)?.click();
     ensureVisionFold(cam);
-    place(x, y);
+    place(anchor);
   } finally {
     placing = false;
   }
@@ -119,6 +259,7 @@ function openFor(cam, x, y) {
 function close() {
   if (!menu || menu.hidden) return;
   menu.hidden = true;
+  clearLayout();
   restoreAll();
 }
 
@@ -133,19 +274,19 @@ function bind() {
     event.preventDefault();
     const cam = tile.dataset.cam;
     tile.classList.add('is-selected');
-    openFor(cam, event.clientX, event.clientY);
+    openFor(cam, tile);
   });
   document.querySelector('.optics-cam-switch')?.addEventListener('click', (event) => {
     if (placing) return;
     const btn = event.target.closest?.('.optics-cam-btn');
     if (!btn) return;
     const cam = btn.id === 'opticsCam1Btn' ? 'cam1' : btn.id === 'opticsGimbalBtn' ? 'cam3' : 'cam0';
-    const rect = btn.getBoundingClientRect();
-    openFor(cam, rect.left, rect.bottom + 8);
+    openFor(cam, btn);
   });
   document.addEventListener('vlc-open-optics', (event) => {
     const cam = event.detail?.cam || 'cam3';
-    openFor(cam, Number(event.detail?.x) || 24, Number(event.detail?.y) || 80);
+    const anchor = document.querySelector(`.debrief-cam-tile[data-cam="${cam}"]`) || menu;
+    openFor(cam, anchor);
   });
   document.addEventListener('vlc-close-optics', () => close());
   document.addEventListener('keydown', (event) => {
@@ -172,4 +313,4 @@ function bind() {
   });
 }
 
-bind();
+if (typeof document !== 'undefined') bind();

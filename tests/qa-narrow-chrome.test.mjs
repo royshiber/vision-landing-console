@@ -213,14 +213,15 @@ describe('narrow chrome QA', () => {
     await page.close();
   }, 30000);
 
-  it('below 600px ASK sits above the gimbal camera button', async () => {
+  it('below 600px ASK sits above the camera tiles', async () => {
     const page = await openAt(360, 740);
     await page.click('.tab[data-tab="optics"]');
-    await page.waitForSelector('#optics.panel.visible #opticsGimbalBtn');
+    await page.waitForSelector('#optics.panel.visible #debriefCamGrid');
     const ask = await box(page, '#assistToggleBtn');
-    const gimbal = await box(page, '#opticsGimbalBtn');
-    expect(overlaps(ask, gimbal), 'ASK covers גימבל').toBe(false);
-    expect(ask.bottom).toBeLessThanOrEqual(gimbal.y + 1);
+    const grid = await box(page, '#debriefCamGrid');
+    const standing = await page.evaluate(() => getComputedStyle(document.querySelector('#optics > .optics-calib')).display);
+    expect(standing).toBe('none');
+    expect(overlaps(ask, grid), 'ASK covers the cameras').toBe(false);
     await page.close();
   }, 30000);
 

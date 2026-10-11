@@ -53,9 +53,9 @@ function interiorsIntersect(a, b, slack = 1) {
 }
 
 describe('Mission messages toggle — source contract', () => {
-  it('pins APP_VERSION at 1.02.377', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.377'");
-    expect(pkg.version).toBe('1.02.377');
+  it('pins APP_VERSION at 1.02.420', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.420'");
+    expect(pkg.version).toBe('1.02.420');
   });
 
   it('keeps the message list readable and LTR inside the RTL column', () => {
@@ -79,7 +79,7 @@ describe('Mission messages toggle — source contract', () => {
     expect(js).toContain('function translateFcStatusText(');
     expect(js).toContain('function collapseConsecutiveFcStatus(');
     const open = cssBlock(css, '.mission-region-messages[data-messages-expanded="1"]');
-    expect(open).toMatch(/max-height:\s*min\(160px, 32%\)/);
+    expect(open).toMatch(/max-height:\s*none/);
     expect(open).toMatch(/flex:\s*0 1 auto/);
     expect(open).not.toMatch(/min-height:\s*210px/);
     const closed = cssBlock(css, '.mission-region-messages[data-messages-expanded="0"]');
@@ -128,6 +128,9 @@ describe('Mission messages toggle — source contract', () => {
       sliceFunction(js, 'translateFcStatusText'),
       sliceFunction(js, 'collapseConsecutiveFcStatus'),
       sliceFunction(js, 'fcStatusSeverityClass'),
+      sliceFunction(js, 'fcStatusSeverityLabel'),
+      sliceFunction(js, 'orderFcStatusForLog'),
+      sliceFunction(js, 'bindFcMsgStick'),
       sliceFunction(js, 'fcStatusShownText'),
       sliceFunction(js, 'paintFcStatustextHistory'),
       sliceFunction(js, 'setFcMsgFilter'),
@@ -154,13 +157,17 @@ describe('Mission messages toggle — source contract', () => {
       getElementById() { return { setAttribute() {} }; },
     }, history);
     expect(result.all).toHaveLength(2);
-    expect(result.all[0].title).toBe('EKF3 waiting for GPS config data');
-    expect(result.all[0].text).toContain('EKF3 ממתינים להגדרת GPS');
-    expect(result.all[0].text).not.toContain('לוויין');
-    expect(result.all[0].text).toContain('×4');
-    expect(result.all[0].className).toContain('pfc-msg-line--warn');
+    expect(result.all[0].title).toBe('ArduPlane V4.5.0');
+    expect(result.all[0].text).toContain('ArduPlane V4.5.0');
+    expect(result.all[0].text).toContain('INFO');
     expect(result.all[0].time).toMatch(/^\d{2}:\d{2}:\d{2}$/);
-    expect(result.all[1].title).toBe('ArduPlane V4.5.0');
+    expect(result.all[1].title).toBe('EKF3 waiting for GPS config data');
+    expect(result.all[1].text).toContain('EKF3 waiting for GPS config data');
+    expect(result.all[1].text).not.toContain('ממתינים');
+    expect(result.all[1].text).toContain('×4');
+    expect(result.all[1].text).toContain('WARNING');
+    expect(result.all[1].className).toContain('pfc-msg-line--warn');
+    expect(result.all[1].time).toMatch(/^\d{2}:\d{2}:\d{2}$/);
     expect(result.warn).toEqual(['EKF3 waiting for GPS config data']);
     const translate = new Function(`${sliceFunction(js, 'translateFcStatusText')}; return translateFcStatusText;`)();
     expect(translate('Compass not healthy')).toBe('המצפן לא תקין');
@@ -458,12 +465,15 @@ describe('Mission messages toggle — live layout', () => {
         dir: getComputedStyle(line).direction,
       }));
     });
-    expect(painted[0].title).toBe('EKF3 waiting for GPS config data');
-    expect(painted[0].text).toContain('EKF3 ממתינים להגדרת GPS');
-    expect(painted[0].text).not.toContain('לוויין');
-    expect(painted[0].text).toContain('×4');
-    expect(painted[0].className).toContain('pfc-msg-line--warn');
-    expect(painted[0].dir).toBe('ltr');
+    expect(painted[0].title).toBe('ArduPlane V4.5.0');
+    expect(painted[0].text).toContain('ArduPlane V4.5.0');
+    expect(painted[0].text).not.toMatch(/[\u0590-\u05FF]/);
+    expect(painted.at(-1).title).toBe('EKF3 waiting for GPS config data');
+    expect(painted.at(-1).text).toContain('EKF3 waiting for GPS config data');
+    expect(painted.at(-1).text).toContain('×4');
+    expect(painted.at(-1).text).toContain('WARNING');
+    expect(painted.at(-1).className).toContain('pfc-msg-line--warn');
+    expect(painted.at(-1).dir).toBe('ltr');
     expect(painted.some((line) => line.title === 'PreArm: Compass not healthy')).toBe(true);
     const warned = await page.evaluate(() => {
       document.getElementById('pfcMsgFilterWarn').click();
