@@ -16,11 +16,12 @@ import {
   updateConsoleRelease,
   windowsLauncherCommand,
   windowsLauncherPath,
+  DEFAULT_PORT,
 } from '../scripts/windows/apply-console-update.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const liveEnv = [
-  'PORT=4010',
+  `PORT=${DEFAULT_PORT}`,
   'ELEVENLABS_API_KEY=sk-live-secret',
   'ELEVENLABS_VOICE_ID=pNInz6obpgDQGcFmaJgB',
   '',
@@ -73,7 +74,7 @@ function layout() {
   const app = path.join(parent, 'console');
   const stage = path.join(parent, 'stage');
   writeConsole(app, '1.02.10', 'old-server\n', liveEnv);
-  writeConsole(stage, '1.02.11', 'new-server\n', 'PORT=4010\nELEVENLABS_API_KEY=replaced\n');
+  writeConsole(stage, '1.02.11', 'new-server\n', `PORT=${DEFAULT_PORT}\nELEVENLABS_API_KEY=replaced\n`);
   fs.writeFileSync(path.join(stage, 'data', 'evil.txt'), 'do-not-keep');
   return { parent, app, stage };
 }

@@ -12,6 +12,7 @@ const fixedUrl = /http:\/\/127\.0\.0\.1:40\d{2}\b/;
 const fixedListen = /\.listen\(\s*(?!0\b)\d{2,5}\b/;
 const fixedTcp = /tcp:\d{2,5}\b/;
 const fixedCall = /\b(?:openFlight|startServer|startConsole)\(\s*['"]\d{4,5}['"]/;
+const spawnArgPort = /\bspawn(?:Sync)?\([^;\n]*['"]\d{4,5}['"]/;
 const consoleSpawn = /server\.js/;
 
 function testFiles(dir) {
@@ -33,9 +34,9 @@ function lineHits(text) {
     ['listen port', fixedListen],
     ['tcp bind', fixedTcp],
     ['port argument', fixedCall],
+    ['spawn arg port', spawnArgPort],
   ];
   text.split('\n').forEach((line, index) => {
-    if (line.includes('PORT=')) return;
     if (consoleSpawn.test(line) && /spawn\(|execPath/.test(line)) {
       hits.push(`${index + 1}: console spawn: ${line.trim()}`);
     }

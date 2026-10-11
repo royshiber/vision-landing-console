@@ -77,7 +77,7 @@ async function api(base, method, urlPath, body) {
   return { status: res.status, json };
 }
 
-async function startConsole(dbPath) {
+async function startConsole(dbPath, sitlPort) {
   const logs = { out: Buffer.alloc(0) };
   const started = await startTestServer({
     env: {
@@ -85,6 +85,7 @@ async function startConsole(dbPath) {
       COMPANION_MODE: 'off',
       JETSON_COMPANION_BASE_URL: '',
       GEMINI_API_KEY: '',
+      ...(sitlPort ? { SIMULATOR_TCP_PORT: String(sitlPort) } : {}),
     },
     onChild(child) {
       const push = (chunk) => {
@@ -203,7 +204,7 @@ describe.skipIf(!SITL_ENABLED)('slider write against ArduPlane SITL', () => {
     const dbPath = path.join(os.tmpdir(), `airvix-slider-sitl-${process.pid}.sqlite`);
     const sitlDir = fs.mkdtempSync(path.join(os.tmpdir(), 'airvix-slider-sitl-'));
     const sitlPort = await freePort();
-    const consoleProc = await startConsole(dbPath);
+    const consoleProc = await startConsole(dbPath, sitlPort);
     const sitlLogs = { out: Buffer.alloc(0) };
     const sitl = track(spawn(BINARY, [
       '--model', 'plane',
@@ -238,6 +239,7 @@ describe.skipIf(!SITL_ENABLED)('slider write against ArduPlane SITL', () => {
         type: 'tcp',
         host: '127.0.0.1',
         port: sitlPort,
+        simulatorPort: sitlPort,
         preset: 'simulator',
       });
       expect(connected.status, JSON.stringify(connected.json)).toBe(200);

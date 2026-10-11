@@ -9,6 +9,7 @@ import { connectLink, disconnectLink } from '../lib/dual-link-runtime.mjs';
 import { deactivateConnection, MavlinkConnection } from '../lib/mavlink-connection.mjs';
 import { buildSseMavlinkSnapshot } from '../lib/sse-mavlink-snapshot.mjs';
 import {
+  applySimulatorPreset,
   detectSimulatorVehicle,
   parseAutopilotVersion,
   SIMULATOR_PRESET_NAME,
@@ -156,6 +157,36 @@ describe('Windows SITL launch plan', () => {
     expect(launcher).not.toMatch(/RunAs|requireAdministrator|#Requires -RunAsAdministrator/i);
     expect(readme).toContain('סימולטור על ווינדוס');
     expect(readme).toContain('flightaxis');
+  });
+});
+
+describe('simulator TCP port override', () => {
+  it('keeps 5760 unless simulatorPort or SIMULATOR_TCP_PORT is set', () => {
+    expect(applySimulatorPreset({
+      preset: 'simulator',
+      type: 'tcp',
+      host: '10.0.0.8',
+      port: 9999,
+    })).toMatchObject({ host: '127.0.0.1', port: SIMULATOR_TCP_PORT });
+    expect(applySimulatorPreset({
+      preset: 'simulator',
+      type: 'tcp',
+      port: 9999,
+      simulatorPort: 4401,
+    }).port).toBe(4401);
+    const prev = process.env.SIMULATOR_TCP_PORT;
+    process.env.SIMULATOR_TCP_PORT = '4402';
+    try {
+      expect(applySimulatorPreset({ preset: 'simulator', type: 'tcp', port: 9999 }).port).toBe(4402);
+      expect(applySimulatorPreset({
+        preset: 'simulator',
+        type: 'tcp',
+        simulatorPort: 4403,
+      }).port).toBe(4403);
+    } finally {
+      if (prev == null) delete process.env.SIMULATOR_TCP_PORT;
+      else process.env.SIMULATOR_TCP_PORT = prev;
+    }
   });
 });
 

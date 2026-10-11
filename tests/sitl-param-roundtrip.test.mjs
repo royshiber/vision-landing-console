@@ -88,13 +88,14 @@ function startSitl(args, cwd) {
   return child;
 }
 
-async function startConsole(dbPath) {
+async function startConsole(dbPath, sitlPort) {
   const logs = { out: Buffer.alloc(0) };
   const started = await startTestServer({
     env: {
       SQLITE_PATH: dbPath,
       COMPANION_MODE: 'off',
       JETSON_COMPANION_BASE_URL: '',
+      ...(sitlPort ? { SIMULATOR_TCP_PORT: String(sitlPort) } : {}),
     },
     onChild(child) {
       const push = (chunk) => {
@@ -210,7 +211,8 @@ describe.skipIf(!ENABLED)('ArduPlane SITL param round-trip', () => {
   it('connects over SITL TCP on a free port, writes a SIM_ param, reads it back, and restores it three times', async () => {
     const dbPath = path.join(os.tmpdir(), `airvix-sitl-tcp-${process.pid}.sqlite`);
     const sitlDir = fs.mkdtempSync(path.join(os.tmpdir(), 'airvix-sitl-tcp-'));
-    consoleProc = await startConsole(dbPath);
+    const sitlPort = await freePort();
+    consoleProc = await startConsole(dbPath, sitlPort);
     base = consoleProc.base;
     await waitUntil(async () => {
       try {
@@ -221,7 +223,6 @@ describe.skipIf(!ENABLED)('ArduPlane SITL param round-trip', () => {
       }
     }, 20000, 'console health');
 
-    const sitlPort = await freePort();
     const sitl = startSitl([
       '--model', 'plane',
       '--speedup', '1',
@@ -239,6 +240,7 @@ describe.skipIf(!ENABLED)('ArduPlane SITL param round-trip', () => {
       type: 'tcp',
       host: '127.0.0.1',
       port: sitlPort,
+      simulatorPort: sitlPort,
       preset: 'simulator',
     });
     try {

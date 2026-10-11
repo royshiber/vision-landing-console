@@ -4653,7 +4653,7 @@ button:hover,
   min-height: 0;
   overflow: auto;
 }
-@media (max-width: 980px) {
+@media (max-width: 979.98px) {
   #debriefRecordingsPanel.recordings-layout.tele-subpanel.visible {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -24961,7 +24961,7 @@ body[data-work-path="rf"] #optics .optics-calib {
 }
 .mission-region-horizon > .mission-region-data > .mission-data-grid {
   display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
+  grid-template-columns: max-content repeat(6, minmax(0, 1fr));
   grid-auto-rows: auto;
   align-items: stretch;
   align-content: start;
@@ -27573,7 +27573,7 @@ body:has(#control.panel.visible) #assistToggleBtn {
   max-width: 100%;
   overflow: visible;
   gap: 1px;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
+  grid-template-columns: max-content repeat(6, minmax(0, 1fr));
 }
 .mission-workspace[data-mission-layout="ops-v1"] .mission-region-horizon .mission-data-tile,
 .mission-region-horizon .mission-data-tile {
@@ -27597,11 +27597,20 @@ body:has(#control.panel.visible) #assistToggleBtn {
   font-weight: 700;
   letter-spacing: 0;
 }
+.mission-region-horizon .mission-data-tile:has(#hudFlightMode) {
+  flex: 0 0 auto;
+  width: max-content;
+  min-width: max-content;
+  max-width: none;
+  overflow: visible;
+}
 #hudFlightMode.mission-data-value {
-  display: block;
-  max-width: 100%;
-  overflow-wrap: anywhere !important;
-  word-break: break-word !important;
+  display: inline-block;
+  width: max-content;
+  max-width: none;
+  white-space: nowrap !important;
+  overflow-wrap: normal !important;
+  word-break: keep-all !important;
 }
 .mission-region-horizon .mission-data-readout,
 .mission-region-horizon .mission-data-tile .mission-data-pair {

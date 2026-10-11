@@ -1,9 +1,12 @@
 import { spawn } from 'node:child_process';
+import fs from 'node:fs';
 import net from 'node:net';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+let sqliteSeq = 0;
 
 /** A free TCP port from listen(0). The console then binds that port. */
 export function freePort() {
@@ -30,6 +33,11 @@ export async function startTestServer(opts = {}) {
   for (const key of opts.unset || []) delete env[key];
   env.HOST = host;
   env.PORT = String(port);
+  if (!String(env.SQLITE_PATH || '').trim() && !String(env.DATABASE_PATH || '').trim()) {
+    sqliteSeq += 1;
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'airvix-test-db-'));
+    env.SQLITE_PATH = path.join(dir, `console-${port}-${sqliteSeq}.sqlite`);
+  }
   const stdio = opts.stdio ?? ['ignore', 'pipe', 'pipe'];
   const child = spawn(process.execPath, [...(opts.execArgv || []), 'server.js'], {
     cwd: opts.cwd || repoRoot,

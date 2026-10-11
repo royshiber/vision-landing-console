@@ -85,19 +85,20 @@ describe.skipIf(!ENABLED)('voice flight against ArduPlane SITL', () => {
     const push = (chunk) => {
       logs.out = Buffer.concat([logs.out, chunk]).subarray(-16000);
     };
+    const sitlPort = await freePort();
     const started = await startTestServer({
-      env: (port) => ({
+      env: () => ({
         SQLITE_PATH: dbPath,
         COMPANION_MODE: 'off',
         JETSON_COMPANION_BASE_URL: '',
         GEMINI_API_KEY: '',
         ELEVENLABS_API_KEY: '',
+        SIMULATOR_TCP_PORT: String(sitlPort),
       }),
     });
     const consoleProc = track(started.child);
     consoleProc.stdout.on('data', push);
     consoleProc.stderr.on('data', push);
-    const sitlPort = await freePort();
     const sitlLogs = { out: Buffer.alloc(0) };
     const sitl = track(spawn(BINARY, [
       '--model', 'plane',
@@ -131,6 +132,7 @@ describe.skipIf(!ENABLED)('voice flight against ArduPlane SITL', () => {
         type: 'tcp',
         host: '127.0.0.1',
         port: sitlPort,
+        simulatorPort: sitlPort,
         preset: 'simulator',
       });
       expect(connected.status, JSON.stringify(connected.json)).toBe(200);
