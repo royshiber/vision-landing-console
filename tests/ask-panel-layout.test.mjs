@@ -26,7 +26,8 @@ describe('Ask panel layout', () => {
     expect(rail).toContain('פקודות קול ללא אישור');
     expect(rail).toContain('id="assistAgentSettingsLink"');
     expect(html).toMatch(/id="gsCodingAgent"[\s\S]*סוכן קוד/);
-    expect(html).toMatch(/data-tab="development"[^>]*\bhidden\b/);
+    const devTab = html.match(/<button\b[^>]*\bdata-tab="development"[^>]*>/);
+    expect(devTab?.[0] || '').toMatch(/\bhidden\b/);
     expect(html).not.toContain('id="assistVoiceGoBtn"');
   });
 });
@@ -174,8 +175,8 @@ describe('Ask panel — no control overlap', () => {
     expect(await page.locator('#assistVoiceGoHint').isHidden()).toBe(true);
     await page.locator('#assistVoiceGoInfo').evaluate((el) => el.click());
     const hintText = await page.locator('#assistVoiceGoHint').innerText();
-    expect(hintText).toContain('חימוש ונטרול חסומים');
-    expect(hintText).toContain('פרמטר דורש אישור');
+    expect(hintText).toContain('חימוש ונטרול נשארים חסומים');
+    expect(hintText).toContain('פרמטר עדיין דורש אישור');
     const goOn = page.waitForResponse((r) => r.url().includes('/api/assist/voice-go') && r.ok());
     await page.locator('#assistVoiceGoToggle').evaluate((el) => el.click());
     const onBody = await (await goOn).json();

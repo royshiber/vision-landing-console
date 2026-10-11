@@ -1,5 +1,5 @@
 /**
- * Hebrew transcript through the voice pipeline against ArduPlane SITL TCP 5760.
+ * Hebrew transcript through the voice pipeline against ArduPlane SITL on a free loopback port.
  * Skips unless RUN_SITL_E2E=1 and an arduplane binary exists.
  * Gemini and ElevenLabs are blanked so CI uses the mocks.
  * Sends stay on loopback. ARM is refused. No new flight commands.
@@ -11,7 +11,7 @@ import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { startTestServer } from './test-server.mjs';
+import { freePort, startTestServer } from './test-server.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const BINARY = process.env.ARDUPLANE_SITL || '/tmp/ardupilot/build/sitl/bin/arduplane';
@@ -32,17 +32,6 @@ function stopChild(child) {
 afterAll(() => {
   for (const child of children) stopChild(child);
 });
-
-function freePort() {
-  return new Promise((resolve, reject) => {
-    const server = net.createServer();
-    server.once('error', reject);
-    server.listen(0, '127.0.0.1', () => {
-      const { port } = server.address();
-      server.close(() => resolve(port));
-    });
-  });
-}
 
 function waitForPort(port, host, timeoutMs) {
   const start = Date.now();
@@ -108,12 +97,13 @@ describe.skipIf(!ENABLED)('voice flight against ArduPlane SITL', () => {
     const consoleProc = track(started.child);
     consoleProc.stdout.on('data', push);
     consoleProc.stderr.on('data', push);
+    const sitlPort = await freePort();
     const sitlLogs = { out: Buffer.alloc(0) };
     const sitl = track(spawn(BINARY, [
       '--model', 'plane',
       '--speedup', '1',
       '--home', HOME,
-      '--serial0', 'tcp:5760',
+      '--serial0', `tcp:${sitlPort}`,
       '-w',
     ], {
       cwd: sitlDir,
@@ -135,12 +125,12 @@ describe.skipIf(!ENABLED)('voice flight against ArduPlane SITL', () => {
           return null;
         }
       }, 20000, 'console health');
-      await waitForPort(5760, '127.0.0.1', 30000);
+      await waitForPort(sitlPort, '127.0.0.1', 30000);
       const connected = await api(base, 'POST', '/api/links/connect', {
         role: 'radio',
         type: 'tcp',
         host: '127.0.0.1',
-        port: 5760,
+        port: sitlPort,
         preset: 'simulator',
       });
       expect(connected.status, JSON.stringify(connected.json)).toBe(200);
@@ -149,7 +139,7 @@ describe.skipIf(!ENABLED)('voice flight against ArduPlane SITL', () => {
         const { json } = await api(base, 'GET', `/api/connections/${id}/status`);
         const row = json?.connection?.liveStatus;
         if (!row?.simulator || row.armed !== false || !(Number(row.heartbeatCount) > 0)) return null;
-        if (row.host !== '127.0.0.1' || row.port !== 5760) return null;
+        if (row.host !== '127.0.0.1' || row.port !== sitlPort) return null;
         return row;
       }, 45000, 'simulator heartbeat');
       expect(live.simulator).toBe(true);

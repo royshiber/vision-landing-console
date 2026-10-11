@@ -119,14 +119,14 @@ describe('Windows SITL launch plan', () => {
     expect(plan.files.map((file) => file.name)).toContain('ArduPlane.elf');
     expect(plan.files.every((file) => file.url.startsWith(SITL_STABLE_BASE_URL))).toBe(true);
     expect(plan.homeArg).toBe('32.0853,34.7818,15,90');
+    expect(plan.tcp).toEqual({ host: '127.0.0.1', port: 5760 });
     expect(plan.argv).toEqual([
       '--model', 'plane',
       '--speedup', '1',
       '--home', '32.0853,34.7818,15,90',
-      '--serial0', 'tcp:5760',
+      '--serial0', `tcp:${plan.tcp.port}`,
       '--serial1', 'udpclient:127.0.0.1:14550',
     ]);
-    expect(plan.tcp).toEqual({ host: '127.0.0.1', port: 5760 });
   });
 
   it('supports RealFlight and a home override, and can omit the second output', () => {

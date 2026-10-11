@@ -9,7 +9,8 @@ const allowed = new Set(['test-server.mjs', 'test-server-lint.test.mjs']);
 const portAssign = /(?:^|[^\w.])PORT\s*=\s*(?:process\.env\.[A-Za-z0-9_]+\s*\|\|\s*)?['"]?\d{2,5}\b/;
 const portKey = /(?:^|[^\w.])PORT\s*:\s*['"]?\d{2,5}\b/;
 const fixedUrl = /http:\/\/127\.0\.0\.1:40\d{2}\b/;
-const fixedListen = /\.listen\(\s*(?!0\b)\d{4,5}\b/;
+const fixedListen = /\.listen\(\s*(?!0\b)\d{2,5}\b/;
+const fixedTcp = /tcp:\d{2,5}\b/;
 const fixedCall = /\b(?:openFlight|startServer|startConsole)\(\s*['"]\d{4,5}['"]/;
 const consoleSpawn = /server\.js/;
 
@@ -30,6 +31,7 @@ function lineHits(text) {
     ['PORT key', portKey],
     ['fixed url', fixedUrl],
     ['listen port', fixedListen],
+    ['tcp bind', fixedTcp],
     ['port argument', fixedCall],
   ];
   text.split('\n').forEach((line, index) => {
