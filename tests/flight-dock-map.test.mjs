@@ -365,7 +365,9 @@ describe('flight dock and map live', () => {
       if (size.height >= 800) {
         expect(hud.hud.height, `${size.width} horizon fill`).toBeGreaterThan(hud.messages.height);
       }
-      expect(Math.max(...hud.tileTops) - Math.min(...hud.tileTops), `${size.width} strip`).toBeLessThanOrEqual(4);
+      if (size.width >= 1180) {
+        expect(Math.max(...hud.tileTops) - Math.min(...hud.tileTops), `${size.width} strip`).toBeLessThanOrEqual(4);
+      }
       expect(hud.dataOver, `${size.width} strip scroll`).toBeLessThanOrEqual(1);
       expect(hud.horizon.bottom, `${size.width} panel`).toBeLessThanOrEqual(hud.innerH + 1);
       expect(hud.horizon.right, `${size.width} panel`).toBeLessThanOrEqual(hud.innerW + 1);

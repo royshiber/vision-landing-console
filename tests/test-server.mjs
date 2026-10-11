@@ -3,8 +3,8 @@ import fs from 'node:fs';
 import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { registerSimulatorTestPort } from '../lib/sim-vehicle.mjs';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import { issuedSimulatorTestPorts, registerSimulatorTestPort } from '../lib/sim-vehicle.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 let sqliteSeq = 0;
@@ -40,13 +40,15 @@ export async function startTestServer(opts = {}) {
   for (const key of opts.unset || []) delete env[key];
   env.HOST = host;
   env.PORT = String(port);
+  env.VLC_SIM_FREE_PORTS = issuedSimulatorTestPorts().join(',');
+  const preload = pathToFileURL(path.join(repoRoot, 'tests/sim-port-preload.mjs')).href;
   if (!String(env.SQLITE_PATH || '').trim() && !String(env.DATABASE_PATH || '').trim()) {
     sqliteSeq += 1;
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'airvix-test-db-'));
     env.SQLITE_PATH = path.join(dir, `console-${port}-${sqliteSeq}.sqlite`);
   }
   const stdio = opts.stdio ?? ['ignore', 'pipe', 'pipe'];
-  const child = spawn(process.execPath, [...(opts.execArgv || []), 'server.js'], {
+  const child = spawn(process.execPath, ['--import', preload, ...(opts.execArgv || []), 'server.js'], {
     cwd: opts.cwd || repoRoot,
     env,
     stdio,

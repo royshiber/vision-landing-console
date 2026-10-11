@@ -26,8 +26,9 @@ const viewports = [
   { name: '1440x900', width: 1440, height: 900 },
   { name: '1920x1080', width: 1920, height: 1080 },
 ];
-function expectedTracks(width) {
-  if (width >= 1024) return 7;
+function expectedTracks(width, count = 7) {
+  if (count >= 8) return 4;
+  if (width >= 1180) return 7;
   if (width >= 721 && width < 800) return 3;
   return 4;
 }
@@ -203,7 +204,7 @@ describe('ArduPlane mode names fit on one line', () => {
         expect(fit.gridScroll, where).toBeLessThanOrEqual(1);
         const tracks = fit.cols.split(' ').filter(Boolean);
         expect(tracks, where).toHaveLength(expectedTracks(vp.width));
-        if (vp.width >= 1024) {
+        if (vp.width >= 1180) {
           expect(tracks[0], where).toBe('62px');
         } else {
           const widths = tracks.map((track) => Number.parseFloat(track));
@@ -300,5 +301,139 @@ describe('ArduPlane mode names fit on one line', () => {
         });
       }
     }
+  }, 180000);
+
+  it('fits worst-case values for 6, 7, and 8 tiles and keeps messages in the column', async () => {
+    const shots = qaShotDir('mode-column');
+    const qstab = modes.find((mode) => mode.name === 'QSTABILIZE');
+    const valueSets = [
+      { alt: '-9999.9', delta: '-1234.5', speed: '188.8', extra: '9999.9' },
+      { alt: '9999.9', delta: '-1234.5', speed: '188.8', extra: '9999.9' },
+    ];
+    for (const vp of viewports) {
+      await page.setViewportSize({ width: vp.width, height: vp.height });
+      await page.evaluate(async () => {
+        await document.fonts.ready;
+      });
+      for (const count of [6, 7, 8]) {
+        for (const values of valueSets) {
+          const fit = await page.evaluate(async ({ count: tileCount, values: painted, modeId }) => {
+            await document.fonts.ready;
+            const grid = document.getElementById('missionDataGrid');
+            grid.querySelector('[data-mission-data-slot="6"]')?.remove();
+            grid.querySelectorAll('.mission-data-tile').forEach((tile) => { tile.hidden = false; });
+            applyMissionDataGrid({
+              mavlink: {
+                connected: true,
+                flightMode: modeId,
+                mavType: 1,
+                vehicleType: 'Fixed Wing',
+                heartbeatCount: 1,
+                altitude: 1,
+                airspeed: 1,
+              },
+              vision: { confidence: 0.86 },
+            });
+            if (tileCount === 6) {
+              const batt = grid.querySelector('[data-mission-data-slot="batt"]');
+              if (batt) batt.hidden = true;
+            }
+            if (tileCount === 8) {
+              const tile = document.createElement('div');
+              tile.className = 'mission-data-item mission-data-tile';
+              tile.dataset.missionDataSlot = '6';
+              tile.innerHTML = '<dt class="mission-data-label">מהירות קרקעית</dt><dd class="mission-data-readout" dir="ltr"><span class="mission-data-pair"><strong class="mission-data-value" id="probeExtraValue">9999.9</strong><span class="mission-data-unit">m</span></span></dd>';
+              grid.appendChild(tile);
+            }
+            const set = (id, text) => {
+              const node = document.getElementById(id);
+              if (node) node.textContent = text;
+            };
+            set('hudAltitude', painted.alt);
+            set('hudAirspeed', painted.speed);
+            set('liveGpsVisionDelta', painted.delta);
+            set('liveConfidenceText', '86');
+            set('pfdBattVal', '16.8');
+            set('probeExtraValue', painted.extra);
+            const boxOf = (node) => {
+              if (!node) return null;
+              const r = node.getBoundingClientRect();
+              return {
+                text: (node.textContent || '').replace(/\s+/g, ' ').trim(),
+                sw: node.scrollWidth,
+                cw: node.clientWidth,
+                sh: node.scrollHeight,
+                ch: node.clientHeight,
+                box: { left: r.left, right: r.right, top: r.top, bottom: r.bottom },
+              };
+            };
+            const tiles = [...grid.querySelectorAll('.mission-data-tile')].filter((node) => !node.hidden).map((node) => {
+              const tr = node.getBoundingClientRect();
+              const pair = node.querySelector('.mission-data-pair');
+              const value = node.querySelector('.mission-data-value');
+              return {
+                label: boxOf(node.querySelector('.mission-data-label')),
+                pair: boxOf(pair),
+                value: pair ? null : boxOf(value),
+                tile: { left: tr.left, right: tr.right, top: tr.top, bottom: tr.bottom, width: tr.width },
+              };
+            });
+            const col = document.querySelector('[data-mission-region="horizon"]').getBoundingClientRect();
+            const msg = document.querySelector('[data-mission-region="messages"]');
+            const mr = msg.getBoundingClientRect();
+            return {
+              tiles,
+              cols: getComputedStyle(grid).gridTemplateColumns,
+              visible: tiles.length,
+              msg: {
+                sw: msg.scrollWidth,
+                cw: msg.clientWidth,
+                box: { left: mr.left, right: mr.right, top: mr.top, bottom: mr.bottom },
+              },
+              col: { left: col.left, right: col.right, top: col.top, bottom: col.bottom },
+            };
+          }, { count, values, modeId: qstab.id });
+          const where = `${vp.name} tiles=${count} ${values.alt}`;
+          expect(fit.visible, where).toBe(count);
+          const tracks = fit.cols.split(' ').filter(Boolean);
+          expect(tracks, where).toHaveLength(expectedTracks(vp.width, count));
+          if (count < 8 && vp.width >= 1180) {
+            expect(tracks[0], where).toBe('62px');
+          } else {
+            const widths = tracks.map((track) => Number.parseFloat(track));
+            expect(Math.max(...widths) - Math.min(...widths), where).toBeLessThanOrEqual(1);
+          }
+          if (count === 7 && vp.width >= 721 && vp.width < 800) {
+            const widths = fit.tiles.map((tile) => tile.tile.width);
+            const last = widths[widths.length - 1];
+            const narrow = Math.min(...widths.slice(0, -1));
+            expect(last, where).toBeGreaterThan(narrow * 2);
+          }
+          for (const tile of fit.tiles) {
+            const bits = [tile.label, tile.pair, tile.value].filter(Boolean);
+            for (const bit of bits) {
+              const name = `${where} ${bit.text}`;
+              expect(bit.sw, name).toBeLessThanOrEqual(bit.cw + 1);
+              expect(bit.sh, name).toBeLessThanOrEqual(bit.ch + 1);
+              expect(inside(bit.box, tile.tile), name).toBe(true);
+            }
+          }
+          expect(inside(fit.msg.box, fit.col), `${where} messages`).toBe(true);
+          expect(fit.msg.sw, `${where} messages`).toBeLessThanOrEqual(fit.msg.cw + 1);
+          const shot = (vp.name === '721x720' && count === 7)
+            || (vp.name === '1024x576' && (count === 7 || count === 8))
+            || (vp.name === '1280x720' && count === 7);
+          if (shot && values.alt === '-9999.9') {
+            const file = path.join(shots, `${vp.name}-${count}.png`);
+            await page.locator('[data-mission-region="horizon"]').screenshot({ path: file });
+          }
+        }
+      }
+    }
+    await page.evaluate(() => {
+      const grid = document.getElementById('missionDataGrid');
+      grid.querySelector('[data-mission-data-slot="6"]')?.remove();
+      grid.querySelectorAll('.mission-data-tile').forEach((tile) => { tile.hidden = false; });
+    });
   }, 180000);
 });

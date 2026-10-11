@@ -13,6 +13,7 @@ import {
   applySimulatorPreset,
   detectSimulatorVehicle,
   parseAutopilotVersion,
+  registerSimulatorTestPort,
   resolveSimulatorTcpPort,
   SIMULATOR_PORT_BLOCKED_HE,
   SIMULATOR_PRESET_NAME,
@@ -336,19 +337,29 @@ describe('simulator TCP port override', () => {
     });
   });
 
-  it('refuses the fixed block list even when those ports were registered', () => {
-    withEnv({ VLC_SIM_FREE_PORTS: '4010,3090,5770,8080,8081' }, () => {
-      for (const port of [4010, 3090, 5770, 8080, 8081]) {
+  it('ignores free-port env entries the helper did not register', () => {
+    const blocked = [3090, 3091, 3092, 3190, 3191, 4010, 5770, 8080, 8081];
+    withEnv({ VLC_SIM_FREE_PORTS: [...blocked, 4401].join(',') }, () => {
+      for (const port of [...blocked, 4401]) {
         expect(resolveSimulatorTcpPort(port).ok, String(port)).toBe(false);
       }
+      expect(resolveSimulatorTcpPort(5761).port).toBe(5761);
+      expect(resolveSimulatorTcpPort(5859).port).toBe(5859);
     });
+  });
+
+  it('refuses the block list even after the helper registers those ports', () => {
+    for (const port of [3090, 3091, 3092, 3190, 3191, 4010, 5770, 8080, 8081]) {
+      expect(registerSimulatorTestPort(port), String(port)).toBeNull();
+      expect(resolveSimulatorTcpPort(port).ok, String(port)).toBe(false);
+    }
   });
 
   it('refuses a blocked simulator port instead of dialing the console', async () => {
     const dbPath = path.join(os.tmpdir(), `airvix-sim-block-${process.pid}-${Date.now()}.sqlite`);
     const db = openDatabase(dbPath);
     const ownPort = '4408';
-    const blocked = [5770, 4010, 3090, 8080, 8081, Number(ownPort), 4401];
+    const blocked = [3090, 3091, 3092, 3190, 3191, 4010, 5770, 8080, 8081, Number(ownPort), 4401];
     try {
       await withEnv({ PORT: ownPort, SIMULATOR_TCP_PORT: null }, async () => {
         for (const port of blocked) {

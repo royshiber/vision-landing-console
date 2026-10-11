@@ -27586,8 +27586,8 @@ body:has(#control.panel.visible) #assistToggleBtn {
   gap: 0;
   grid-template-columns: 62px repeat(6, minmax(0, 1fr));
 }
-/* Below 1024 a single even row still clips 1234.5 m. Two rows keep the value inside the tile. */
-@media (max-width: 1023.98px) {
+/* Below 1180 a single even row still clips the long values, and 1024 wraps the labels in 45px tiles. */
+@media (max-width: 1179.98px) {
   .mission-workspace .mission-region-horizon > .mission-region-data,
   .mission-workspace .mission-region-horizon[data-flight-stack="custom"] > .mission-region-data,
   .mission-region-horizon > .mission-region-data:has([data-mission-data-slot="6"]),
@@ -27613,7 +27613,7 @@ body:has(#control.panel.visible) #assistToggleBtn {
     gap: 0;
   }
 }
-/* The 220px flight floor cannot hold QSTABILIZE in four even tracks. */
+/* The 220px flight floor cannot hold QSTABILIZE in four even tracks. A lone last tile fills that row. */
 @media (max-width: 799.98px) and (min-width: 721px) {
   .mission-region-horizon > .mission-region-data > .mission-data-grid,
   .mission-region-horizon[data-flight-stack="custom"] > .mission-region-data > .mission-data-grid,
@@ -27621,6 +27621,9 @@ body:has(#control.panel.visible) #assistToggleBtn {
   .mission-region-horizon[data-flight-stack="custom"] > .mission-region-data:has([data-mission-data-slot="6"]) > .mission-data-grid,
   .mission-workspace .mission-region-horizon[data-flight-stack="custom"] > .mission-region-data > .mission-data-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .mission-region-horizon .mission-data-grid > .mission-data-tile:last-child:nth-child(3n+1) {
+    grid-column: 1 / -1;
   }
 }
 .mission-workspace[data-mission-layout="ops-v1"] .mission-region-horizon .mission-data-tile,
@@ -27959,4 +27962,35 @@ body:has(#control.panel.visible) #assistToggleBtn {
   body:has(#optics.panel.visible) #optics.panel.visible {
     padding-bottom: 96px;
   }
+}
+
+/* Eight tiles stay two even rows at every width, and the messages box stays in the column. */
+.mission-region-horizon > .mission-region-data:has(> .mission-data-grid > .mission-data-tile:nth-child(8)),
+.mission-region-horizon[data-flight-stack="custom"] > .mission-region-data:has(> .mission-data-grid > .mission-data-tile:nth-child(8)) {
+  flex: 0 0 auto;
+  height: auto;
+  min-height: 0;
+  max-height: none;
+  overflow: visible;
+  padding-inline: 0;
+}
+.mission-region-horizon > .mission-region-data > .mission-data-grid:has(> .mission-data-tile:nth-child(8)),
+.mission-region-horizon[data-flight-stack="custom"] > .mission-region-data > .mission-data-grid:has(> .mission-data-tile:nth-child(8)),
+.mission-workspace .mission-region-horizon[data-flight-stack="custom"] > .mission-region-data > .mission-data-grid:has(> .mission-data-tile:nth-child(8)) {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-auto-rows: auto;
+  height: auto;
+  min-height: 0;
+  max-height: none;
+  overflow: visible;
+  align-content: start;
+}
+.mission-region[data-mission-region="horizon"] > .mission-region-messages {
+  flex: 1 1 0%;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  min-height: 0;
+  box-sizing: border-box;
+  align-self: stretch;
 }
