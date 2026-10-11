@@ -72,7 +72,7 @@ describe('FC write acknowledgement', () => {
       data: { ok: true, written: 0, failed: [], verified: {}, via: 'mavlink', simulated: false },
     });
     expect(out.level).toBe('none');
-    expect(out.text).toBe('לא נכתב דבר — הערכים כבר זהים לבקר');
+    expect(out.text).toBe('לא נכתב דבר — הערכים כבר זהים לערכים בבקר');
     expect(out.history).toBe(false);
     expect(out.level).not.toBe('ok');
   });

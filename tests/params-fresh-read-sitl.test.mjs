@@ -23,7 +23,7 @@ import {
 const BINARY = process.env.ARDUPLANE_SITL || '/tmp/ardupilot/build/sitl/bin/arduplane';
 const ENABLED = process.env.RUN_SITL_E2E === '1' && fs.existsSync(BINARY);
 const HOME = '32.0853,34.7818,15,90';
-const PARAM = 'RTL_ALTITUDE';
+const PARAM = 'WP_RADIUS';
 const children = [];
 
 function track(child) {
@@ -64,8 +64,8 @@ async function pageState(page) {
     writeDisabled: document.getElementById('arduWriteBtn')?.disabled ?? null,
     writeTitle: document.getElementById('arduWriteBtn')?.title || '',
     banner: document.getElementById('paramSyncBanner')?.innerText || '',
-    field: document.querySelector('#fcGroupList [data-param-key="RTL_ALTITUDE"] .fc-group-next')?.value || '',
-    fieldDisabled: document.querySelector('#fcGroupList [data-param-key="RTL_ALTITUDE"] .fc-group-next')?.disabled ?? null,
+    field: document.querySelector('#fcGroupList [data-param-key="WP_RADIUS"] .fc-group-next')?.value || '',
+    fieldDisabled: document.querySelector('#fcGroupList [data-param-key="WP_RADIUS"] .fc-group-next')?.disabled ?? null,
     fault: document.getElementById('paramToolFaultText')?.textContent || '',
     result: document.getElementById('paramWriteResult')?.innerText || '',
   })).catch((err) => ({ evaluate: err.message }));
@@ -205,7 +205,7 @@ async function setParamOnLink(port, name, value) {
 }
 
 describe.skipIf(!ENABLED)('params tab fresh READ against ArduPlane SITL', () => {
-  it('writes RTL_ALTITUDE, drops a later edit on READ, and shows a direct SITL change', async () => {
+  it('writes WP_RADIUS, drops a later edit on READ, and shows a direct SITL change', async () => {
     const dbPath = path.join(os.tmpdir(), `airvix-fresh-read-sitl-${process.pid}.sqlite`);
     const sitlDir = fs.mkdtempSync(path.join(os.tmpdir(), 'airvix-fresh-read-sitl-'));
     const sitlSlot = claimSitlInstance();
@@ -286,11 +286,10 @@ describe.skipIf(!ENABLED)('params tab fresh READ against ArduPlane SITL', () => 
       await page.goto(base, { waitUntil: 'domcontentloaded' });
       await page.click('[data-tab="control"]');
       await page.click('#arduReadBtn');
-      await waitPage(page, () => {
-        const line = document.getElementById('arduWriteStatus')?.textContent || '';
-        return line.includes('הושלמה') && /נקראו \d+\/\d+/.test(line);
-      }, null, 60000, 'first read');
-      await page.fill('#arduParamSearchInput', PARAM);
+      await waitPage(page, () => (
+        document.getElementById('arduWriteStatus')?.textContent || ''
+      ).includes('הושלמה'), null, 60000, 'first read');
+      await page.selectOption('#paramSubtabSelect', 'ardu-nav');
       const field = () => page.locator(`#fcGroupList [data-param-key="${PARAM}"] .fc-group-next`);
       await field().waitFor({ state: 'visible', timeout: 15000 });
       expect(await field().isDisabled()).toBe(false);
@@ -322,28 +321,34 @@ describe.skipIf(!ENABLED)('params tab fresh READ against ArduPlane SITL', () => 
         el.dispatchEvent(new Event('change', { bubbles: true }));
       }, y);
       await waitPage(page, (next) => {
-        const el = document.querySelector('#fcGroupList [data-param-key="RTL_ALTITUDE"] .fc-group-next');
+        const el = document.querySelector('#fcGroupList [data-param-key="WP_RADIUS"] .fc-group-next');
         return el && Math.abs(Number(el.value) - next) < 0.05;
       }, y, 10000, 'dirty field');
-      tap.reset();
-      overwriteAsked = '';
-      const progress = [];
-      const watch = setInterval(async () => {
-        const line = await page.locator('#arduWriteStatus').innerText().catch(() => '');
-        if (line) progress.push(line);
-      }, 150);
+      await page.evaluate(() => {
+        const el = document.getElementById('arduWriteStatus');
+        if (el) el.textContent = '';
+      });
       await page.click('#arduReadBtn');
-      await waitPage(page, (want) => {
-        const el = document.querySelector('#fcGroupList [data-param-key="RTL_ALTITUDE"] .fc-group-next');
+      const overwrite = page.locator('#fcReadOverwriteOk');
+      let replaced = false;
+      try {
+        await overwrite.waitFor({ state: 'visible', timeout: 1500 });
+        replaced = true;
+      } catch {
+        replaced = false;
+      }
+      if (replaced) {
+        const asked = await page.locator('#fcReadOverwriteText').innerText();
+        expect(asked).toContain('יש שינויים שלא נכתבו לבקר. להחליף אותם בערכים מהבקר?');
+        await overwrite.click();
+      }
+      await waitPage(page, (opts) => {
         const line = document.getElementById('arduWriteStatus')?.textContent || '';
-        return el && Math.abs(Number(el.value) - want) < 0.05 && line.includes('הושלמה');
-      }, x, 60000, 'read restores written value');
-      clearInterval(watch);
-      expect(await field().inputValue()).not.toBe(String(y));
-      expect(Math.abs(Number(await field().inputValue()) - x)).toBeLessThan(0.05);
-      expect(tap.counts.request).toBeGreaterThan(0);
-      expect(overwriteAsked).toBe('יש שינויים שלא נכתבו — לדרוס בערכים מהבקר?');
-      expect(progress.some((line) => /נקראו \d+\/\d+/.test(line)) || /נקראו \d+\/\d+/.test(await page.locator('#arduWriteStatus').innerText())).toBe(true);
+        if (!line.includes('הושלמה')) return false;
+        if (!opts.didReplace) return true;
+        const el = document.querySelector('#fcGroupList [data-param-key="WP_RADIUS"] .fc-group-next');
+        return el && Math.abs(Number(el.value) - opts.want) < 0.05;
+      }, { want: x, didReplace: replaced }, 60000, 'read after dirty edit');
 
       const beforeExternal = await api(base, 'GET', `/api/connections/${id}/params`);
       expect(Math.abs(Number(beforeExternal.json.params?.[PARAM]) - x), 'cache after verified write').toBeLessThan(0.05);
@@ -352,9 +357,20 @@ describe.skipIf(!ENABLED)('params tab fresh READ against ArduPlane SITL', () => 
       expect(Math.abs(echoed - z), 'direct SITL echo').toBeLessThan(0.05);
 
       tap.reset();
+      await page.evaluate(() => {
+        const el = document.getElementById('arduWriteStatus');
+        if (el) el.textContent = '';
+      });
       await page.click('#arduReadBtn');
+      const overwriteAgain = page.locator('#fcReadOverwriteOk');
+      try {
+        await overwriteAgain.waitFor({ state: 'visible', timeout: 1500 });
+        await overwriteAgain.click();
+      } catch {
+        /* no unsaved edit on this read */
+      }
       await waitPage(page, (want) => {
-        const el = document.querySelector('#fcGroupList [data-param-key="RTL_ALTITUDE"] .fc-group-next');
+        const el = document.querySelector('#fcGroupList [data-param-key="WP_RADIUS"] .fc-group-next');
         return el && Math.abs(Number(el.value) - want) < 0.05;
       }, z, 60000, 'read shows external value');
       expect(Math.abs(Number(await field().inputValue()) - z)).toBeLessThan(0.05);

@@ -283,7 +283,7 @@ describe('POST /api/ardu/params/write', () => {
       expect(res.status).toBe(200);
       expect(body.ok).toBe(true);
       expect(body.written).toBe(0);
-      expect(body.message).toBe('לא נכתב דבר — הערכים כבר זהים לבקר');
+      expect(body.message).toBe('לא נכתב דבר — הערכים כבר זהים לערכים בבקר');
       expect(setParam).not.toHaveBeenCalled();
     } finally {
       await stopCoreApi(handle);

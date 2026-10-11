@@ -83,6 +83,95 @@ describe('readParamsFresh', () => {
     expect(result.timedOut).toBe(true);
     expect(result.count).toBe(0);
   });
+
+  async function readDropped({ ratio, accept, count = 1000 }) {
+    const { conn, frames } = fakeLink();
+    const dropCount = Math.max(1, Math.round(count * ratio));
+    const dropped = [];
+    for (let index = 1; index <= dropCount; index += 1) dropped.push(index);
+    const drop = new Set(dropped);
+    const answered = new Set();
+    const pump = setInterval(() => {
+      const parsed = parseMavlinkStream(Buffer.concat(frames.length ? frames : [Buffer.alloc(0)]));
+      for (const frame of parsed.frames) {
+        if (frame.msgId !== MSG_PARAM_REQUEST_READ || frame.payload.length < 2) continue;
+        const index = frame.payload.readInt16LE(0);
+        if (index < 0 || answered.has(index) || !accept(index)) continue;
+        answered.add(index);
+        conn.emit('param', {
+          name: `P${String(index).padStart(4, '0')}`,
+          value: index + 1,
+          count,
+          index,
+        });
+      }
+    }, 5);
+    const started = Date.now();
+    const pending = conn.readParamsFresh({ timeoutMs: 2500, quietMs: 40 });
+    for (let index = 0; index < count; index += 1) {
+      if (drop.has(index)) continue;
+      conn.emit('param', {
+        name: `P${String(index).padStart(4, '0')}`,
+        value: index + 1,
+        count,
+        index,
+      });
+    }
+    try {
+      const result = await pending;
+      const reads = parseMavlinkStream(Buffer.concat(frames))
+        .frames
+        .filter((frame) => frame.msgId === MSG_PARAM_REQUEST_READ && frame.payload.length >= 2)
+        .map((frame) => frame.payload.readInt16LE(0));
+      return { result, elapsed: Date.now() - started, reads, dropped };
+    } finally {
+      clearInterval(pump);
+    }
+  }
+
+  it('re-requests a 0.1% drop and recovers the full list', async () => {
+    const { result, elapsed, reads, dropped } = await readDropped({ ratio: 0.001, accept: () => true });
+    expect(dropped).toEqual([1]);
+    expect(reads).toContain(1);
+    expect(result.fresh).toBe(true);
+    expect(result.partial).toBe(false);
+    expect(result.timedOut).toBe(false);
+    expect(result.count).toBe(1000);
+    expect(result.paramCount).toBe(1000);
+    expect(result.missing).toEqual([]);
+    expect(result.current.P0001).toBe(2);
+    expect(elapsed).toBeLessThan(2000);
+  });
+
+  it('re-requests a 1% drop and recovers the full list', async () => {
+    const { result, elapsed, reads, dropped } = await readDropped({ ratio: 0.01, accept: () => true });
+    expect(dropped).toHaveLength(10);
+    expect(reads).toEqual(expect.arrayContaining(dropped));
+    expect(result.fresh).toBe(true);
+    expect(result.partial).toBe(false);
+    expect(result.timedOut).toBe(false);
+    expect(result.count).toBe(1000);
+    expect(result.missing).toEqual([]);
+    expect(elapsed).toBeLessThan(2000);
+  });
+
+  it('keeps a 5% drop after three quiet rounds when only half of the holes return', async () => {
+    const { result, elapsed, reads } = await readDropped({
+      ratio: 0.05,
+      accept: (index) => index % 2 === 1,
+    });
+    expect(reads.filter((index) => index % 2 === 0).length).toBeGreaterThan(0);
+    expect(result.fresh).toBe(true);
+    expect(result.partial).toBe(true);
+    expect(result.timedOut).toBe(false);
+    expect(result.count).toBe(975);
+    expect(result.paramCount).toBe(1000);
+    expect(result.missing).toHaveLength(25);
+    expect(result.missing.every((row) => row.index % 2 === 0)).toBe(true);
+    expect(result.current.P0001).toBe(2);
+    expect(result.current.P0002).toBeUndefined();
+    expect(elapsed).toBeLessThan(2000);
+  });
 });
 
 describe('POST /api/ardu/params/read', () => {

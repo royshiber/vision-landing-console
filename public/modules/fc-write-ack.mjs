@@ -53,7 +53,7 @@ export function classifyFcWrite({ linked, requested, httpOk, data }) {
   if (Number(data?.written) === 0 && data?.ok === true && httpOk && !(data?.failed?.length)) {
     return {
       level: 'none',
-      text: data?.message === 'אין שינוי' ? 'אין שינוי' : 'לא נכתב דבר — הערכים כבר זהים לבקר',
+      text: data?.message === 'אין שינוי' ? 'אין שינוי' : 'לא נכתב דבר — הערכים כבר זהים לערכים בבקר',
       posted: true,
       history: false,
       clear: [],

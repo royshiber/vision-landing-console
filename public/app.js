@@ -12755,9 +12755,9 @@ function adoptVerifiedFcValues(acked) {
   }
 }
 
-function applyFreshFcValues(current) {
+function applyFreshFcValues(current, { merge = false } = {}) {
   const bag = current && typeof current === 'object' ? current : {};
-  fcCurrentSnapshot = { ...bag };
+  fcCurrentSnapshot = merge ? { ...(fcCurrentSnapshot || {}), ...bag } : { ...bag };
   fcReadAt = Date.now();
   for (const [key, raw] of Object.entries(bag)) {
     const n = Number(raw);
@@ -12769,6 +12769,56 @@ function applyFreshFcValues(current) {
     delete fcGroupDraft[key];
     delete fcDraftMeta[key];
   }
+}
+
+let fcReadMissingIndices = [];
+
+function paintFcReadMissing(missing) {
+  const box = document.getElementById('fcReadMissing');
+  const names = document.getElementById('fcReadMissingNames');
+  const rows = Array.isArray(missing) ? missing : [];
+  fcReadMissingIndices = rows
+    .map((row) => Number(row?.index))
+    .filter((index) => Number.isInteger(index) && index >= 0);
+  if (!box || !names) return;
+  if (!rows.length) {
+    names.textContent = '';
+    box.hidden = true;
+    return;
+  }
+  names.textContent = rows.map((row) => row?.name || `#${row?.index}`).join(' ');
+  box.hidden = false;
+}
+
+function askReplaceUnsaved() {
+  const dialog = document.getElementById('fcReadOverwrite');
+  const ok = document.getElementById('fcReadOverwriteOk');
+  const cancel = document.getElementById('fcReadOverwriteCancel');
+  if (!dialog || !ok || !cancel) return Promise.resolve(false);
+  dialog.hidden = false;
+  ok.focus();
+  return new Promise((resolve) => {
+    const done = (value) => {
+      dialog.hidden = true;
+      ok.removeEventListener('click', onOk);
+      cancel.removeEventListener('click', onCancel);
+      dialog.removeEventListener('click', onBackdrop);
+      document.removeEventListener('keydown', onKey);
+      resolve(value);
+    };
+    const onOk = () => done(true);
+    const onCancel = () => done(false);
+    const onBackdrop = (event) => {
+      if (event.target === dialog) done(false);
+    };
+    const onKey = (event) => {
+      if (event.key === 'Escape') done(false);
+    };
+    ok.addEventListener('click', onOk);
+    cancel.addEventListener('click', onCancel);
+    dialog.addEventListener('click', onBackdrop);
+    document.addEventListener('keydown', onKey);
+  });
 }
 
 async function paintFcReadProgress() {
@@ -12818,11 +12868,15 @@ async function commitGuardedFcWrite(requested) {
   return classify({ linked: true, requested, httpOk: res.ok, data });
 }
 
-async function readFcParams() {
+async function readFcParams(extra) {
   if (!arduReadBtn) return;
+  const indices = Array.isArray(extra?.indices)
+    ? extra.indices.filter((index) => Number.isInteger(Number(index)) && Number(index) >= 0).map(Number)
+    : [];
   const unsaved = collectPendingWriteRows().some((row) => row.target === 'fc');
-  if (unsaved && !window.confirm('יש שינויים שלא נכתבו — לדרוס בערכים מהבקר?')) return;
+  if (unsaved && !(await askReplaceUnsaved())) return;
   arduReadBtn.disabled = true;
+  paintFcReadMissing([]);
   if (arduWriteStatus) {
     arduWriteStatus.textContent = 'נקראו 0/…';
     arduWriteStatus.className = 'ardu-write-status action-status param-tool-live';
@@ -12832,7 +12886,7 @@ async function readFcParams() {
     const res = await fetch('/api/ardu/params/read', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ record: true }),
+      body: JSON.stringify({ record: true, ...(indices.length ? { indices } : {}) }),
     });
     let d = {};
     try { d = await res.json(); } catch { d = {}; }
@@ -12852,6 +12906,7 @@ async function readFcParams() {
     if (!d.mavlinkConnected) {
       fcCurrentSnapshot = null;
       clearArduDiff();
+      paintFcReadMissing([]);
       const hint = 'הקריאה נכשלה. אין חיבור לבקר הטיסה';
       if (arduWriteStatus) {
         arduWriteStatus.textContent = hint;
@@ -12859,26 +12914,40 @@ async function readFcParams() {
       }
       showParamToolFault(hint, () => readFcParams());
     } else if (!usable || !d.current) {
-      fcCurrentSnapshot = null;
-      clearArduDiff();
       clearParamToolFault();
-      if (arduWriteStatus) {
-        arduWriteStatus.textContent = d.timedOut ? 'הקריאה מבקר הטיסה נכשלה. הסיבה: תם הזמן' : '';
-        arduWriteStatus.className = d.timedOut
-          ? 'ardu-write-status fail'
-          : 'ardu-write-status action-status param-tool-live';
+      paintFcReadMissing([]);
+      if (d.timedOut) {
+        const n = Number.isFinite(Number(d.count)) ? Number(d.count) : 0;
+        const timeoutText = `תם הזמן. נקראו ${n}. הערכים על המסך הם מהקריאה הקודמת.`;
+        if (arduWriteStatus) {
+          arduWriteStatus.textContent = timeoutText;
+          arduWriteStatus.className = 'ardu-write-status fail';
+        }
+        showParamToolFault(timeoutText, () => readFcParams());
+      } else {
+        fcCurrentSnapshot = null;
+        clearArduDiff();
+        if (arduWriteStatus) {
+          arduWriteStatus.textContent = '';
+          arduWriteStatus.className = 'ardu-write-status action-status param-tool-live';
+        }
       }
-      if (d.timedOut) showParamToolFault('הקריאה מבקר הטיסה נכשלה. הסיבה: תם הזמן', () => readFcParams());
     } else {
-      applyFreshFcValues(d.current);
+      applyFreshFcValues(d.current, { merge: indices.length > 0 });
       clearParamToolFault();
-      renderArduDiff(d.current, arduTargetState);
+      renderArduDiff(fcCurrentSnapshot, arduTargetState);
       const count = Number.isFinite(Number(d.count)) ? Number(d.count) : Object.keys(d.current).length;
       const total = Number.isFinite(Number(d.paramCount)) ? Number(d.paramCount) : count;
+      const missing = Array.isArray(d.missing) ? d.missing : [];
       if (arduWriteStatus) {
-        arduWriteStatus.textContent = `הקריאה הושלמה · נקראו ${count}/${total}`;
-        arduWriteStatus.className = 'ardu-write-status success';
+        arduWriteStatus.textContent = d.partial === true && missing.length
+          ? `נקראו ${count}/${total} — ${missing.length} חסרים`
+          : `הקריאה הושלמה · נקראו ${count}/${total}`;
+        arduWriteStatus.className = d.partial === true && missing.length
+          ? 'ardu-write-status warn'
+          : 'ardu-write-status success';
       }
+      paintFcReadMissing(d.partial === true ? missing : []);
     }
     updateParamSyncBanner();
     renderParams();
@@ -12903,6 +12972,10 @@ async function readFcParams() {
 if (arduReadBtn) {
   arduReadBtn.addEventListener('click', () => { void readFcParams(); });
 }
+document.getElementById('fcReadMissingBtn')?.addEventListener('click', () => {
+  if (!fcReadMissingIndices.length) return;
+  void readFcParams({ indices: fcReadMissingIndices.slice() });
+});
 
 /**
  * Enable כתיבה לבקר only when the link is up, the vehicle is disarmed, and a slider or field edit is pending.
