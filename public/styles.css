@@ -22484,8 +22484,8 @@ body:has(#telemetry.panel.visible) #telemetry .tele-dash-sub {
 .fc-read-missing {
   flex: 1 1 100%;
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
+  flex-direction: column;
+  align-items: stretch;
   gap: 8px;
   min-width: 12rem;
   max-width: 100%;
@@ -22493,7 +22493,14 @@ body:has(#telemetry.panel.visible) #telemetry .tele-dash-sub {
 .fc-read-missing[hidden] {
   display: none !important;
 }
-.fc-read-missing-names {
+.fc-read-missing-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+}
+.fc-read-missing-count {
   flex: 1 1 12rem;
   min-width: 8rem;
   margin: 0;
@@ -22509,30 +22516,26 @@ body:has(#telemetry.panel.visible) #telemetry .tele-dash-sub {
   overflow: visible;
   text-overflow: clip;
 }
-.fc-read-missing-details {
-  flex: 1 1 12rem;
-  min-width: 8rem;
-  max-width: 100%;
-}
-.fc-read-missing-details[hidden] {
-  display: none !important;
-}
-.fc-read-missing-details summary,
 .fc-read-missing-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+  gap: 2px 10px;
+  max-height: 160px;
+  overflow: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-width: 100%;
+  font-size: clamp(11px, 0.75rem, 14px);
+  line-height: 1.35;
+}
+.fc-read-missing-list li {
   font-size: clamp(11px, 0.75rem, 14px);
   line-height: 1.35;
   white-space: normal;
   overflow-wrap: anywhere;
   overflow: visible;
   text-overflow: clip;
-}
-.fc-read-missing-details summary {
-  cursor: pointer;
-}
-.fc-read-missing-list {
-  margin: 4px 0 0;
-  padding: 0 1.2rem 0 0;
-  max-width: 100%;
 }
 .param-tool-fault[hidden],
 .ac-step-panel[hidden],

@@ -216,6 +216,52 @@ describe('readParamsFresh', () => {
     expect(result.current.P0002).toBeUndefined();
     expect(elapsed).toBeLessThan(2000);
   });
+
+  it('paces index re-requests in batches of 20 and counts the FC total', async () => {
+    const { conn, frames } = fakeLink();
+    conn.paramCount = 1346;
+    const total = 600;
+    const indices = Array.from({ length: total }, (_, index) => index);
+    const readIndexes = () => parseMavlinkStream(Buffer.concat(frames.length ? frames : [Buffer.alloc(0)]))
+      .frames
+      .filter((frame) => frame.msgId === MSG_PARAM_REQUEST_READ && frame.payload.length >= 2)
+      .map((frame) => frame.payload.readInt16LE(0));
+    const pending = conn.readParamsFresh({ indices, timeoutMs: 4000, quietMs: 40 });
+    expect(readIndexes()).toHaveLength(20);
+    await new Promise((resolve) => setTimeout(resolve, 120));
+    const mid = readIndexes().length;
+    expect(mid).toBeGreaterThan(20);
+    expect(mid).toBeLessThanOrEqual(80);
+    const answered = new Set();
+    const pump = setInterval(() => {
+      const parsed = parseMavlinkStream(Buffer.concat(frames.length ? frames : [Buffer.alloc(0)]));
+      for (const frame of parsed.frames) {
+        if (frame.msgId !== MSG_PARAM_REQUEST_READ || frame.payload.length < 2) continue;
+        const index = frame.payload.readInt16LE(0);
+        if (index < 0 || answered.has(index)) continue;
+        answered.add(index);
+        conn.emit('param', {
+          name: `P${String(index).padStart(4, '0')}`,
+          value: index + 1,
+          count: 1346,
+          index,
+        });
+      }
+    }, 5);
+    try {
+      const result = await pending;
+      const reads = readIndexes();
+      expect(new Set(reads).size).toBe(total);
+      expect(reads.length).toBeGreaterThan(512);
+      expect(result.fresh).toBe(true);
+      expect(result.partial).toBe(false);
+      expect(result.count).toBe(total);
+      expect(result.paramCount).toBe(1346);
+      expect(result.missing).toEqual([]);
+    } finally {
+      clearInterval(pump);
+    }
+  });
 });
 
 describe('POST /api/ardu/params/read', () => {

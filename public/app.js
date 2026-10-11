@@ -12773,40 +12773,26 @@ function applyFreshFcValues(current, { merge = false } = {}) {
 
 let fcReadMissingIndices = [];
 
-function paintFcReadMissing(missing) {
+function paintFcReadMissing(missing, summary) {
   const box = document.getElementById('fcReadMissing');
-  const names = document.getElementById('fcReadMissingNames');
-  const details = document.getElementById('fcReadMissingDetails');
+  const countEl = document.getElementById('fcReadMissingCount');
   const list = document.getElementById('fcReadMissingList');
   const rows = Array.isArray(missing) ? missing : [];
   fcReadMissingIndices = rows
     .map((row) => Number(row?.index))
     .filter((index) => Number.isInteger(index) && index >= 0);
-  if (!box || !names) return;
-  if (list) list.replaceChildren();
-  if (details) {
-    details.open = false;
-    details.hidden = true;
-  }
+  if (!box || !list) return;
+  list.replaceChildren();
   if (!rows.length) {
-    names.textContent = '';
-    names.hidden = false;
+    if (countEl) countEl.textContent = '';
     box.hidden = true;
     return;
   }
-  const labels = rows.map((row) => row?.name || `#${row?.index}`);
-  if (labels.length > 8 && details && list) {
-    names.textContent = '';
-    names.hidden = true;
-    for (const label of labels) {
-      const item = document.createElement('li');
-      item.textContent = label;
-      list.appendChild(item);
-    }
-    details.hidden = false;
-  } else {
-    names.hidden = false;
-    names.textContent = labels.join(' ');
+  if (countEl) countEl.textContent = summary || `${rows.length} חסרים`;
+  for (const row of rows) {
+    const item = document.createElement('li');
+    item.textContent = row?.name || `#${row?.index}`;
+    list.appendChild(item);
   }
   box.hidden = false;
 }
@@ -12983,18 +12969,21 @@ async function readFcParams(extra) {
       applyFreshFcValues(d.current, { merge: indices.length > 0 });
       clearParamToolFault();
       renderArduDiff(fcCurrentSnapshot, arduTargetState);
-      const count = Number.isFinite(Number(d.count)) ? Number(d.count) : Object.keys(d.current).length;
-      const total = Number.isFinite(Number(d.paramCount)) ? Number(d.paramCount) : count;
+      const callCount = Number.isFinite(Number(d.count)) ? Number(d.count) : Object.keys(d.current).length;
+      const total = Number.isFinite(Number(d.paramCount)) ? Number(d.paramCount) : callCount;
+      const known = indices.length > 0 ? Object.keys(fcCurrentSnapshot || {}).length : callCount;
       const missing = Array.isArray(d.missing) ? d.missing : [];
+      const partial = d.partial === true && missing.length > 0;
+      const summary = partial
+        ? `נקראו ${known}/${total} — ${missing.length} חסרים`
+        : `הקריאה הושלמה · נקראו ${known}/${total}`;
       if (arduWriteStatus) {
-        arduWriteStatus.textContent = d.partial === true && missing.length
-          ? `נקראו ${count}/${total} — ${missing.length} חסרים`
-          : `הקריאה הושלמה · נקראו ${count}/${total}`;
-        arduWriteStatus.className = d.partial === true && missing.length
+        arduWriteStatus.textContent = summary;
+        arduWriteStatus.className = partial
           ? 'ardu-write-status warn'
           : 'ardu-write-status success';
       }
-      paintFcReadMissing(d.partial === true ? missing : []);
+      paintFcReadMissing(partial ? missing : [], summary);
     }
     updateParamSyncBanner();
     renderParams();

@@ -969,12 +969,11 @@
           </div>
         </div>
         <div id="fcReadMissing" class="fc-read-missing" hidden>
-          <p id="fcReadMissingNames" class="fc-read-missing-names"></p>
-          <details id="fcReadMissingDetails" class="fc-read-missing-details" hidden>
-            <summary id="fcReadMissingSummary">רשימת החסרים</summary>
-            <ul id="fcReadMissingList" class="fc-read-missing-list"></ul>
-          </details>
-          <button type="button" id="fcReadMissingBtn" class="param-tool-btn param-tool-btn--primary">נסו שוב לחסרים</button>
+          <div class="fc-read-missing-bar">
+            <button type="button" id="fcReadMissingBtn" class="param-tool-btn param-tool-btn--primary">נסו שוב לחסרים</button>
+            <p id="fcReadMissingCount" class="fc-read-missing-count"></p>
+          </div>
+          <ul id="fcReadMissingList" class="fc-read-missing-list"></ul>
         </div>
         <div id="paramCenterSearchBar" class="param-center-search-bar" role="search" aria-label="חיפוש פרמטרים">
           <div class="ardu-search-row">

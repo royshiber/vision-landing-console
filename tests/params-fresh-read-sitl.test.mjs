@@ -106,10 +106,12 @@ async function api(base, method, urlPath, body) {
   return { status: res.status, json };
 }
 
-function startTap(listenPort, upstreamPort) {
-  const counts = { request: 0 };
+function startTap(listenPort, upstreamPort, options = {}) {
+  const counts = { request: 0, values: 0, dropped: 0 };
+  let dropRatio = Number(options.dropRatio) || 0;
   const server = net.createServer((socket) => {
     let buf = Buffer.alloc(0);
+    let upBuf = Buffer.alloc(0);
     const upstream = net.connect({ host: '127.0.0.1', port: upstreamPort });
     const fail = () => {
       socket.destroy();
@@ -127,7 +129,30 @@ function startTap(listenPort, upstreamPort) {
       if (!upstream.destroyed) upstream.write(chunk);
     });
     upstream.on('data', (chunk) => {
-      if (!socket.destroyed) socket.write(chunk);
+      if (!(dropRatio > 0)) {
+        if (!socket.destroyed) socket.write(chunk);
+        return;
+      }
+      upBuf = Buffer.concat([upBuf, chunk]);
+      const parsed = parseMavlinkStream(upBuf);
+      const parts = [];
+      let from = 0;
+      for (const frame of parsed.frames) {
+        const start = Number.isInteger(frame.start) ? frame.start : from;
+        if (start > from) parts.push(upBuf.subarray(from, start));
+        let drop = false;
+        if (frame.msgId === 22 && dropRatio > 0) {
+          counts.values += 1;
+          const every = Math.max(2, Math.round(1 / dropRatio));
+          drop = counts.values % every === 0;
+          if (drop) counts.dropped += 1;
+        }
+        if (!drop) parts.push(upBuf.subarray(start, frame.end));
+        from = frame.end;
+      }
+      if (parsed.consumed > from) parts.push(upBuf.subarray(from, parsed.consumed));
+      upBuf = upBuf.subarray(parsed.consumed);
+      if (parts.length && !socket.destroyed) socket.write(Buffer.concat(parts));
     });
     socket.on('error', fail);
     upstream.on('error', fail);
@@ -140,6 +165,11 @@ function startTap(listenPort, upstreamPort) {
       resolve({
         counts,
         reset() { counts.request = 0; },
+        setDrop(ratio) {
+          dropRatio = Number(ratio) || 0;
+          counts.values = 0;
+          counts.dropped = 0;
+        },
         close() { server.close(); },
       });
     });
@@ -285,6 +315,34 @@ describe.skipIf(!ENABLED)('params tab fresh READ against ArduPlane SITL', () => 
       });
       await page.goto(base, { waitUntil: 'domcontentloaded' });
       await page.click('[data-tab="control"]');
+      const missingLayout = await page.evaluate(() => {
+        const rows = Array.from({ length: 790 }, (_, index) => ({ index, name: `PARAM_${index}` }));
+        paintFcReadMissing(rows, 'נקראו 556/1346 — 790 חסרים');
+        const btn = document.getElementById('fcReadMissingBtn');
+        const count = document.getElementById('fcReadMissingCount');
+        const list = document.getElementById('fcReadMissingList');
+        const btnBox = btn.getBoundingClientRect();
+        const countBox = count.getBoundingClientRect();
+        const listBox = list.getBoundingClientRect();
+        const columns = getComputedStyle(list).gridTemplateColumns.split(' ').filter(Boolean);
+        const layout = {
+          btnAbove: btnBox.bottom <= listBox.top + 1,
+          countAbove: countBox.bottom <= listBox.top + 1,
+          listHeight: listBox.height,
+          scrollHeight: list.scrollHeight,
+          columns: columns.length,
+          countText: count.textContent,
+        };
+        paintFcReadMissing([]);
+        return layout;
+      });
+      expect(missingLayout.btnAbove, JSON.stringify(missingLayout)).toBe(true);
+      expect(missingLayout.countAbove).toBe(true);
+      expect(missingLayout.listHeight).toBeGreaterThan(80);
+      expect(missingLayout.listHeight).toBeLessThanOrEqual(170);
+      expect(missingLayout.scrollHeight).toBeGreaterThan(1000);
+      expect(missingLayout.columns).toBeGreaterThan(1);
+      expect(missingLayout.countText).toContain('790');
       await page.click('#arduReadBtn');
       await waitPage(page, () => (
         document.getElementById('arduWriteStatus')?.textContent || ''
@@ -386,4 +444,118 @@ describe.skipIf(!ENABLED)('params tab fresh READ against ArduPlane SITL', () => 
       sitlSlot.release();
     }
   }, 240000);
+
+  it('recovers a 5% and 20% param-value loss against the FC total', async () => {
+    const dbPath = path.join(os.tmpdir(), `airvix-fresh-read-loss-${process.pid}.sqlite`);
+    const sitlDir = fs.mkdtempSync(path.join(os.tmpdir(), 'airvix-fresh-read-loss-'));
+    const sitlSlot = claimSitlInstance();
+    const sitlPort = await sitlMavlinkPort(sitlSlot.instance);
+    const tapPort = await sitlMavlinkPort(sitlSlot.instance);
+    const tap = await startTap(tapPort, sitlPort);
+    const consoleProc = await startTestServer({
+      env: {
+        SQLITE_PATH: dbPath,
+        COMPANION_MODE: 'off',
+        JETSON_COMPANION_BASE_URL: '',
+        GEMINI_API_KEY: '',
+        SIMULATOR_TCP_PORT: String(tapPort),
+      },
+    });
+    track(consoleProc.child);
+    const base = consoleProc.base;
+    const sitlLogs = { out: Buffer.alloc(0) };
+    const sitl = track(spawn(BINARY, [
+      '-I', String(sitlSlot.instance),
+      '--model', 'plane',
+      '--speedup', '1',
+      '--home', HOME,
+      '--serial0', `tcp:${sitlPort}`,
+      '-w',
+    ], {
+      cwd: sitlDir,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      env: { ...process.env, HOME: sitlDir },
+    }));
+    const push = (chunk) => {
+      sitlLogs.out = Buffer.concat([sitlLogs.out, chunk]).subarray(-12000);
+    };
+    sitl.stdout.on('data', push);
+    sitl.stderr.on('data', push);
+    try {
+      await waitUntil(async () => {
+        try {
+          const health = await api(base, 'GET', '/api/health');
+          return health.status === 200 ? true : null;
+        } catch {
+          return null;
+        }
+      }, 20000, 'console health');
+      await waitForPort(sitlPort, '127.0.0.1', 30000);
+      const connected = await api(base, 'POST', '/api/links/connect', {
+        role: 'radio',
+        type: 'tcp',
+        host: '127.0.0.1',
+        port: tapPort,
+        simulatorPort: tapPort,
+        preset: 'simulator',
+      });
+      expect(connected.status, JSON.stringify(connected.json)).toBe(200);
+      const id = connected.json.id;
+      await waitUntil(async () => {
+        const { json } = await api(base, 'GET', `/api/connections/${id}/status`);
+        const row = json?.connection?.liveStatus;
+        if (!row?.simulator || row.armed !== false || !(Number(row.heartbeatCount) > 0)) return null;
+        return row;
+      }, 45000, 'simulator heartbeat');
+
+      const readList = async (ratio) => {
+        tap.setDrop(ratio);
+        const read = await api(base, 'POST', '/api/ardu/params/read', {
+          record: true,
+          timeoutMs: 45000,
+        });
+        return read;
+      };
+
+      const clean = await readList(0);
+      expect(clean.status, JSON.stringify(clean.json).slice(0, 300)).toBe(200);
+      const fcTotal = Number(clean.json.paramCount);
+      expect(fcTotal).toBeGreaterThan(800);
+      expect(fcTotal).not.toBe(512);
+      expect(clean.json.count).toBe(fcTotal);
+      expect(clean.json.partial).not.toBe(true);
+
+      for (const ratio of [0.05, 0.2]) {
+        const read = await readList(ratio);
+        const body = read.json || {};
+        const missing = Array.isArray(body.missing) ? body.missing.length : -1;
+        const detail = JSON.stringify({
+          ratio,
+          status: read.status,
+          count: body.count,
+          paramCount: body.paramCount,
+          missing,
+          partial: body.partial,
+          timedOut: body.timedOut,
+          dropped: tap.counts.dropped,
+          values: tap.counts.values,
+        });
+        expect(read.status, detail).toBe(200);
+        expect(body.paramCount, detail).toBe(fcTotal);
+        expect(body.paramCount, detail).not.toBe(512);
+        expect(Number(body.count) + missing, detail).toBe(fcTotal);
+        expect(Number(body.count), detail).toBeGreaterThan(fcTotal - 15);
+        if (body.partial === true) expect(missing, detail).toBeGreaterThan(0);
+        else expect(body.count, detail).toBe(fcTotal);
+      }
+    } catch (err) {
+      throw new Error(`${err.message}\n${tail(sitlLogs.out)}`);
+    } finally {
+      tap.close();
+      await api(base, 'POST', '/api/links/disconnect', { role: 'radio' }).catch(() => {});
+      stopChild(sitl);
+      stopChild(consoleProc.child);
+      sitlSlot.release();
+    }
+  }, 300000);
 });
