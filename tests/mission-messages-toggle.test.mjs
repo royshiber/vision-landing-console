@@ -53,9 +53,9 @@ function interiorsIntersect(a, b, slack = 1) {
 }
 
 describe('Mission messages toggle — source contract', () => {
-  it('pins APP_VERSION at 1.02.377', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.377'");
-    expect(pkg.version).toBe('1.02.377');
+  it('pins APP_VERSION at 1.02.420', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.420'");
+    expect(pkg.version).toBe('1.02.420');
   });
 
   it('keeps the message list readable and LTR inside the RTL column', () => {
@@ -79,7 +79,7 @@ describe('Mission messages toggle — source contract', () => {
     expect(js).toContain('function translateFcStatusText(');
     expect(js).toContain('function collapseConsecutiveFcStatus(');
     const open = cssBlock(css, '.mission-region-messages[data-messages-expanded="1"]');
-    expect(open).toMatch(/max-height:\s*min\(160px, 32%\)/);
+    expect(open).toMatch(/max-height:\s*none/);
     expect(open).toMatch(/flex:\s*0 1 auto/);
     expect(open).not.toMatch(/min-height:\s*210px/);
     const closed = cssBlock(css, '.mission-region-messages[data-messages-expanded="0"]');

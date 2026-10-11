@@ -1,6 +1,7 @@
 /**
- * Digital zoom on a camera picture. Wheel and trackpad pinch (ctrl+wheel)
- * zoom around the cursor. Drag pans only while zoomed. Double-click resets.
+ * Digital zoom on a camera picture. Wheel, trackpad pinch, and a two-finger
+ * touch pinch zoom around the pointer. One finger pans only while zoomed.
+ * Double-click and double-tap reset. Cap is 8x.
  * Nothing here talks to a gimbal or a flight controller.
  */
 
@@ -39,6 +40,14 @@ export function zoomFactorFromWheel(deltaY) {
   const delta = Number(deltaY);
   if (!Number.isFinite(delta) || delta === 0) return 1;
   return Math.exp(-delta * 0.0025);
+}
+
+/** Scale after a two-finger pinch. startDist is the span at pointer-down. */
+export function zoomFromPinch(scale, startDist, dist) {
+  const base = Number(startDist);
+  const next = Number(dist);
+  if (!(base > 0) || !(next > 0)) return clampZoom(scale);
+  return clampZoom((Number(scale) || CAM_ZOOM_MIN) * (next / base));
 }
 
 const MEDIA = 'img, video, canvas.vision-box-layer, .vision-hit-layer';
@@ -124,17 +133,62 @@ export function bindCameraZoom(stage) {
     writeState(stage, next);
   }, { passive: false });
 
+  const pointers = new Map();
   let drag = null;
+  let pinch = null;
+  let lastTap = 0;
+
   stage.addEventListener('pointerdown', (event) => {
     if (event.button != null && event.button !== 0) return;
     if (ignoreTarget(event.target)) return;
-    const state = readState(stage);
-    if (state.scale <= 1) return;
-    drag = { id: event.pointerId, x: event.clientX, y: event.clientY, tx: state.tx, ty: state.ty, moved: false };
+    pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
     try { stage.setPointerCapture(event.pointerId); } catch { /* synthetic */ }
+    if (pointers.size >= 2) {
+      const [a, b] = [...pointers.values()];
+      const state = readState(stage);
+      pinch = {
+        dist: Math.max(1, Math.hypot(a.x - b.x, a.y - b.y)),
+        scale: state.scale,
+        tx: state.tx,
+        ty: state.ty,
+      };
+      drag = null;
+      return;
+    }
+    const state = readState(stage);
+    drag = {
+      id: event.pointerId,
+      x: event.clientX,
+      y: event.clientY,
+      tx: state.tx,
+      ty: state.ty,
+      scale: state.scale,
+      moved: false,
+    };
   });
   stage.addEventListener('pointermove', (event) => {
-    if (!drag || event.pointerId !== drag.id) return;
+    if (!pointers.has(event.pointerId)) return;
+    pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    if (pointers.size >= 2 && pinch) {
+      const pts = [...pointers.values()];
+      const a = pts[0];
+      const b = pts[1];
+      const dist = Math.max(1, Math.hypot(a.x - b.x, a.y - b.y));
+      const rect = stage.getBoundingClientRect();
+      const next = zoomAroundPoint({
+        scale: pinch.scale,
+        tx: pinch.tx,
+        ty: pinch.ty,
+        px: ((a.x + b.x) / 2) - rect.left,
+        py: ((a.y + b.y) / 2) - rect.top,
+        nextScale: zoomFromPinch(pinch.scale, pinch.dist, dist),
+        width: rect.width,
+        height: rect.height,
+      });
+      writeState(stage, next);
+      return;
+    }
+    if (!drag || event.pointerId !== drag.id || drag.scale <= 1) return;
     const dx = event.clientX - drag.x;
     const dy = event.clientY - drag.y;
     if (Math.hypot(dx, dy) < 3) return;
@@ -142,12 +196,37 @@ export function bindCameraZoom(stage) {
     const state = readState(stage);
     writeState(stage, { scale: state.scale, tx: drag.tx + dx, ty: drag.ty + dy });
   });
-  const endDrag = (event) => {
-    if (!drag || (event && event.pointerId !== drag.id)) return;
-    drag = null;
+  const endPointer = (event) => {
+    if (!event || !pointers.has(event.pointerId)) return;
+    pointers.delete(event.pointerId);
+    if (pointers.size < 2) pinch = null;
+    const endedDrag = drag && event.pointerId === drag.id ? drag : null;
+    if (endedDrag) drag = null;
+    if (pointers.size === 1) {
+      const [id, point] = [...pointers.entries()][0];
+      const state = readState(stage);
+      drag = {
+        id,
+        x: point.x,
+        y: point.y,
+        tx: state.tx,
+        ty: state.ty,
+        scale: state.scale,
+        moved: true,
+      };
+      return;
+    }
+    if (!endedDrag || endedDrag.moved || event.pointerType !== 'touch') return;
+    const now = Date.now();
+    if (lastTap && now - lastTap < 350) {
+      lastTap = 0;
+      resetZoom(stage);
+      return;
+    }
+    lastTap = now;
   };
-  stage.addEventListener('pointerup', endDrag);
-  stage.addEventListener('pointercancel', endDrag);
+  stage.addEventListener('pointerup', endPointer);
+  stage.addEventListener('pointercancel', endPointer);
   stage.addEventListener('dblclick', (event) => {
     if (ignoreTarget(event.target)) return;
     event.preventDefault();

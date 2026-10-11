@@ -8206,7 +8206,7 @@ function initHorizonCameraMenu() {
   });
   const quick = document.getElementById('horizonQuick');
   if (quick) {
-    for (const id of ['pfdArmedBadge', 'flightArmBtn', 'flightDisarmBtn']) {
+    for (const id of ['pfdArmedBadge', 'flightArmBtn', 'flightDisarmBtn', 'pfdVoiceFlightBtn']) {
       const btn = document.getElementById(id);
       if (btn) quick.appendChild(btn);
     }
@@ -8254,6 +8254,7 @@ function initHorizonCameraMenu() {
   let hold = null;
   stage.addEventListener('touchstart', (event) => {
     if (event.touches.length !== 1) return;
+    if (event.target?.closest?.('#horizonQuick, button, a, input, select')) return;
     const t = event.touches[0];
     const start = { x: t.clientX, y: t.clientY };
     hold = window.setTimeout(() => openMenu(start.x, start.y), 550);
@@ -9173,7 +9174,11 @@ function initFlightArmControls() {
   armBtn.dataset.bound = '1';
   armBtn.addEventListener('pointerdown', (event) => {
     if (armBtn.disabled || flightArmBusy) return;
+    if (event.button != null && event.button !== 0) return;
     event.preventDefault();
+    if (event.pointerType === 'touch') {
+      try { armBtn.setPointerCapture(event.pointerId); } catch { /* synthetic */ }
+    }
     flightArmHolding = true;
     armBtn.classList.add('is-holding');
     if (flightArmHoldTimer) clearTimeout(flightArmHoldTimer);
@@ -9183,9 +9188,14 @@ function initFlightArmControls() {
       openFlightArmDialog();
     }, FLIGHT_ARM_HOLD_MS);
   });
-  armBtn.addEventListener('pointerup', cancelFlightArmHold);
-  armBtn.addEventListener('pointerleave', cancelFlightArmHold);
-  armBtn.addEventListener('pointercancel', cancelFlightArmHold);
+  const endArmHold = (event) => {
+    if (event?.pointerType === 'touch' && (event.type === 'pointerleave' || event.type === 'pointercancel')) return;
+    cancelFlightArmHold();
+  };
+  armBtn.addEventListener('pointerup', endArmHold);
+  armBtn.addEventListener('pointerleave', endArmHold);
+  armBtn.addEventListener('pointercancel', endArmHold);
+  armBtn.addEventListener('contextmenu', (event) => event.preventDefault());
   disarmBtn?.addEventListener('click', () => {
     if (disarmBtn.disabled) return;
     closeFlightArmDialog();
@@ -9320,14 +9330,14 @@ function applyFlightHud(mav) {
       pfdArmedBadge.textContent = '';
     } else if (!mav.armedKnown) {
       pfdArmedBadge.hidden = false;
-      pfdArmedBadge.textContent = 'ARM ?';
+      pfdArmedBadge.textContent = 'חימוש ?';
       pfdArmedBadge.className   = 'pfd-badge pfd-badge--unknown';
-      pfdArmedBadge.title       = 'לא התקבל מידע ARM מלא — לחץ לפרטים';
+      pfdArmedBadge.title       = 'לא התקבל מידע חימוש מלא — לחץ לפרטים';
     } else {
       pfdArmedBadge.hidden = false;
-      pfdArmedBadge.textContent = armed ? 'ARMED' : 'DISARMED';
+      pfdArmedBadge.textContent = armed ? 'חמוש' : 'מנוטרל';
       pfdArmedBadge.className   = 'pfd-badge ' + (armed ? 'pfd-badge--armed' : 'pfd-badge--disarmed');
-      pfdArmedBadge.title       = armed ? 'במצב ARM — לחץ להסבר מוכנות' : 'DISARMED — לחץ לבדיקת מוכנות / הודעות';
+      pfdArmedBadge.title       = armed ? 'חמוש — לחץ להסבר מוכנות' : 'מנוטרל — לחץ לבדיקת מוכנות / הודעות';
     }
   }
   syncFlightArmControls(mav);

@@ -27999,8 +27999,10 @@ body:has(#control.panel.visible) #assistToggleBtn {
 #optics > .optics-calib {
   display: none !important;
 }
-.debrief-cam-stage {
+.debrief-cam-stage,
+#debriefCamGrid [data-camera-stage] {
   overflow: hidden;
+  touch-action: none;
 }
 .cam-zoom-layer {
   position: absolute;
@@ -28092,14 +28094,24 @@ body:has(#control.panel.visible) #assistToggleBtn {
   pointer-events: auto;
 }
 .horizon-quick .flight-arm-btn,
-.horizon-quick .pfd-badge {
+.horizon-quick .pfd-badge,
+.horizon-quick .pfd-voice-flight-btn {
   position: static;
   font-size: 11px;
   line-height: 1.2;
-  min-height: 22px;
-  height: auto;
-  padding: 1px 6px;
+  min-height: 32px !important;
+  height: 32px;
+  padding: 2px 8px;
   margin: 0;
+}
+.horizon-quick .flight-arm-btn,
+.horizon-quick .pfd-voice-flight-btn {
+  min-width: 44px !important;
+  touch-action: none;
+}
+.horizon-quick .pfd-badge {
+  font-family: "Heebo", "Segoe UI", sans-serif;
+  letter-spacing: 0;
 }
 .mission-region-horizon > .flight-hud > #flightArmRow {
   display: none !important;
@@ -28202,4 +28214,32 @@ body:has(#control.panel.visible) #assistToggleBtn {
     min-height: 200px !important;
     max-height: none !important;
   }
+}
+html {
+  --optics-menu-pad: 244px;
+}
+html[data-optics-sheet="1"] #optics #debriefCamGrid.debrief-cam-grid {
+  height: var(--optics-grid-h, 220px) !important;
+  max-height: var(--optics-grid-h, 220px) !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+  grid-template-rows: none !important;
+  grid-auto-rows: minmax(0, 1fr) !important;
+}
+html[data-optics-sheet="1"] #optics #debriefCamGrid .debrief-cam-tile,
+html[data-optics-sheet="1"] #optics #debriefCamGrid .debrief-cam-tile[hidden] {
+  min-height: 0 !important;
+  height: auto !important;
+  max-height: 100% !important;
+  overflow: hidden !important;
+}
+html[data-optics-pad="right"] #optics #debriefCamGrid.debrief-cam-grid {
+  width: calc(100% - var(--optics-menu-pad)) !important;
+  margin-right: var(--optics-menu-pad) !important;
+  margin-left: 0 !important;
+}
+html[data-optics-pad="left"] #optics #debriefCamGrid.debrief-cam-grid {
+  width: calc(100% - var(--optics-menu-pad)) !important;
+  margin-left: var(--optics-menu-pad) !important;
+  margin-right: 0 !important;
 }
