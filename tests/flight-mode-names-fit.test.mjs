@@ -1,5 +1,4 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import fs from 'node:fs';
 import path from 'node:path';
 import { ARDUPILOT_PLANE_MODES } from '../lib/arduplane-flight-modes.mjs';
 import { qaShotDir } from './shot-dir.mjs';
@@ -186,14 +185,6 @@ describe('ArduPlane mode names fit on one line', () => {
         sample.neighbours.forEach((width, index) => {
           expect(Math.abs(width - base.neighbours[index]), `${vp.name} neighbour ${index}`).toBeLessThanOrEqual(1);
         });
-      }
-    }
-    const artifactDir = '/opt/cursor/artifacts/screenshots';
-    if (fs.existsSync(path.dirname(artifactDir))) {
-      fs.mkdirSync(artifactDir, { recursive: true });
-      for (const name of ['empty', 'RTL', 'LOITER_ALT_QLAND', 'AVOID_ADSB', 'INITIALISING', 'QAUTOTUNE']) {
-        const src = path.join(shots, `${name}.png`);
-        if (fs.existsSync(src)) fs.copyFileSync(src, path.join(artifactDir, `mode-1024-${name}.png`));
       }
     }
   }, 120000);
