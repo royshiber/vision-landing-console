@@ -27586,9 +27586,8 @@ body:has(#control.panel.visible) #assistToggleBtn {
   gap: 0;
   grid-template-columns: 62px repeat(6, minmax(0, 1fr));
 }
-/* Below 1280 the flight column is too narrow for seven even tiles.
-   Two rows (4+3) keep every label and value inside its tile. */
-@media (max-width: 1279.98px) {
+/* Below 1024 a single even row still clips 1234.5 m. Two rows keep the value inside the tile. */
+@media (max-width: 1023.98px) {
   .mission-workspace .mission-region-horizon > .mission-region-data,
   .mission-workspace .mission-region-horizon[data-flight-stack="custom"] > .mission-region-data,
   .mission-region-horizon > .mission-region-data:has([data-mission-data-slot="6"]),

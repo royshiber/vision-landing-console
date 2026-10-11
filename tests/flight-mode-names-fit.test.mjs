@@ -27,7 +27,7 @@ const viewports = [
   { name: '1920x1080', width: 1920, height: 1080 },
 ];
 function expectedTracks(width) {
-  if (width >= 1280) return 7;
+  if (width >= 1024) return 7;
   if (width >= 721 && width < 800) return 3;
   return 4;
 }
@@ -203,7 +203,7 @@ describe('ArduPlane mode names fit on one line', () => {
         expect(fit.gridScroll, where).toBeLessThanOrEqual(1);
         const tracks = fit.cols.split(' ').filter(Boolean);
         expect(tracks, where).toHaveLength(expectedTracks(vp.width));
-        if (vp.width >= 1280) {
+        if (vp.width >= 1024) {
           expect(tracks[0], where).toBe('62px');
         } else {
           const widths = tracks.map((track) => Number.parseFloat(track));
