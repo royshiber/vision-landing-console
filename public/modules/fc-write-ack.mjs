@@ -50,6 +50,18 @@ export function classifyFcWrite({ linked, requested, httpOk, data }) {
       data: data || null,
     };
   }
+  if (Number(data?.written) === 0 && data?.ok === true && httpOk && !(data?.failed?.length)) {
+    return {
+      level: 'none',
+      text: 'לא נכתב דבר — הערכים כבר זהים לבקר',
+      posted: true,
+      history: false,
+      clear: [],
+      keep: keys,
+      acked: {},
+      data,
+    };
+  }
   const { missed, acked } = fcReadbackAck(requested, data);
   const ackedKeys = Object.keys(acked);
   if (missed.length === 0 && data?.ok === true && httpOk) {

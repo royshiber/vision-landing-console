@@ -231,6 +231,36 @@ describe('POST /api/ardu/params/write', () => {
     }
   });
 
+  it('reports that nothing was written when the live value already matches', async () => {
+    const setParam = vi.fn(async (param, value) => ({ ok: true, param, value }));
+    vi.spyOn(mavlinkConnection, 'getActiveConnection').mockReturnValue({
+      connected: true,
+      lastBaseMode: 0,
+      id: 1,
+      params: { LAND_SPEED: 50 },
+      setParam,
+    });
+    vi.spyOn(mavlinkConnection, 'getConnectionParams').mockReturnValue({ LAND_SPEED: 50 });
+    const handle = await startCoreApi(db, {
+      arduTargetParams: { ...buildArduTargetDefaults(), LAND_SPEED: 50 },
+    });
+    try {
+      const res = await fetch(`${handle.base}/api/ardu/params/write`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ params: { LAND_SPEED: 50 } }),
+      });
+      const body = await res.json();
+      expect(res.status).toBe(200);
+      expect(body.ok).toBe(true);
+      expect(body.written).toBe(0);
+      expect(body.message).toBe('לא נכתב דבר — הערכים כבר זהים לבקר');
+      expect(setParam).not.toHaveBeenCalled();
+    } finally {
+      await stopCoreApi(handle);
+    }
+  });
+
   it('aborts when dirty items exceed the bulk cap without confirmBulk', async () => {
     const setParam = vi.fn(async (param, value) => ({ ok: true, param, value }));
     const defaults = buildArduTargetDefaults();

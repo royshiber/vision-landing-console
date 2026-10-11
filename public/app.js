@@ -751,7 +751,7 @@ async function restoreFcParamFile(id) {
         if (status) status.textContent = '';
         if (outcome.history) {
           pushFcWriteLog(Object.keys(writable), outcome.data, writable);
-          applyAckedSnapshot(outcome.acked);
+          adoptVerifiedFcValues(outcome.acked);
           void loadFcParamFiles();
         }
         renderFcGroupList();
@@ -902,7 +902,7 @@ function renderFcGroupList() {
       : (group.id === 'all' && unread ? 'אין חיבור' : 'אין פרמטרים בקבוצה');
     list.appendChild(empty);
   }
-  const readOnly = group.id === 'all';
+  const readOnly = group.id === 'all' && !query;
   for (const key of keys) {
     const presence = fcPresence(key);
     const meta = fcParamMeta[key] || {};
@@ -1021,11 +1021,7 @@ function applyFcGroupDraft() {
       paintFcWriteResult(outcome, pairs, () => applyFcGroupDraft());
       if (outcome.history) {
         pushFcWriteLog(keys, outcome.data, params);
-        applyAckedSnapshot(outcome.acked);
-        for (const key of outcome.clear) {
-          delete fcGroupDraft[key];
-          delete fcDraftMeta[key];
-        }
+        adoptVerifiedFcValues(outcome.acked);
         void loadFcParamFiles();
       }
       renderFcGroupList();
@@ -2721,7 +2717,7 @@ wireArduCategorySubtabsOnce();
           ? 'ardu-smart-send-status ok'
           : 'ardu-smart-send-status fail';
         if (outcome.level === 'ok') input.value = '';
-        if (outcome.history) applyAckedSnapshot(outcome.acked);
+        if (outcome.history) adoptVerifiedFcValues(outcome.acked);
       } catch (err) {
         statusEl.textContent = `הכתיבה לבקר נכשלה. הסיבה: ${hebrewRequestFault(err)}`;
         statusEl.className = 'ardu-smart-send-status fail';
@@ -12744,6 +12740,53 @@ function applyAckedSnapshot(acked) {
   for (const [key, value] of Object.entries(acked)) fcCurrentSnapshot[key] = value;
 }
 
+function adoptVerifiedFcValues(acked) {
+  if (!acked || typeof acked !== 'object') return;
+  applyAckedSnapshot(acked);
+  for (const [key, raw] of Object.entries(acked)) {
+    const n = Number(raw);
+    const value = Number.isFinite(n) ? n : raw;
+    if (Object.prototype.hasOwnProperty.call(arduTargetState, key)) {
+      arduTargetState[key] = value;
+      arduWriteBaseline[key] = value;
+    }
+    delete fcGroupDraft[key];
+    delete fcDraftMeta[key];
+  }
+}
+
+function applyFreshFcValues(current) {
+  const bag = current && typeof current === 'object' ? current : {};
+  fcCurrentSnapshot = { ...bag };
+  fcReadAt = Date.now();
+  for (const [key, raw] of Object.entries(bag)) {
+    const n = Number(raw);
+    const value = Number.isFinite(n) ? n : raw;
+    if (Object.prototype.hasOwnProperty.call(arduTargetState, key)) {
+      arduTargetState[key] = value;
+      arduWriteBaseline[key] = value;
+    }
+    delete fcGroupDraft[key];
+    delete fcDraftMeta[key];
+  }
+}
+
+async function paintFcReadProgress() {
+  try {
+    const res = await fetch('/api/ardu/params/read-progress');
+    if (!res.ok) return;
+    const body = await res.json();
+    if (body?.reading !== true || !arduWriteStatus) return;
+    const received = Number(body.received) || 0;
+    const expected = Number(body.expected) || 0;
+    const total = expected > 0 ? String(expected) : '…';
+    arduWriteStatus.textContent = `נקראו ${received}/${total}`;
+    arduWriteStatus.className = 'ardu-write-status action-status param-tool-live';
+  } catch {
+    /* the read request reports the failure */
+  }
+}
+
 async function commitGuardedFcWrite(requested) {
   const keys = Object.keys(requested || {});
   const classify = typeof window.classifyFcWrite === 'function' ? window.classifyFcWrite : null;
@@ -12777,10 +12820,23 @@ async function commitGuardedFcWrite(requested) {
 
 async function readFcParams() {
   if (!arduReadBtn) return;
+  const unsaved = collectPendingWriteRows().some((row) => row.target === 'fc');
+  if (unsaved && !window.confirm('יש שינויים שלא נכתבו — לדרוס בערכים מהבקר?')) return;
   arduReadBtn.disabled = true;
+  if (arduWriteStatus) {
+    arduWriteStatus.textContent = 'נקראו 0/…';
+    arduWriteStatus.className = 'ardu-write-status action-status param-tool-live';
+  }
+  const progressTimer = setInterval(() => { void paintFcReadProgress(); }, 300);
   try {
-    const res = await fetch('/api/ardu/params?record=1');
-    if (!res.ok) {
+    const res = await fetch('/api/ardu/params/read', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ record: true }),
+    });
+    let d = {};
+    try { d = await res.json(); } catch { d = {}; }
+    if (!res.ok && d.timedOut !== true) {
       const fault = `הקריאה מבקר הטיסה נכשלה. הסיבה: ${hebrewRequestFault(null, res)}`;
       showParamToolFault(fault, () => readFcParams());
       if (arduWriteStatus) {
@@ -12789,10 +12845,10 @@ async function readFcParams() {
       }
       return;
     }
-    const d = await res.json();
     fcArmed = d.armed === true ? true : d.armed === false ? false : null;
     refreshArduWriteBtnState(d);
     fcLinkState = d.mavlinkConnected ? 'ok' : 'down';
+    const usable = d.fresh === true || (d.fresh == null && d.connected && d.current);
     if (!d.mavlinkConnected) {
       fcCurrentSnapshot = null;
       clearArduDiff();
@@ -12802,31 +12858,32 @@ async function readFcParams() {
         arduWriteStatus.className = 'ardu-write-status fail';
       }
       showParamToolFault(hint, () => readFcParams());
-    } else if (!d.connected || !d.current) {
+    } else if (!usable || !d.current) {
       fcCurrentSnapshot = null;
       clearArduDiff();
       clearParamToolFault();
       if (arduWriteStatus) {
-        arduWriteStatus.textContent = '';
-        arduWriteStatus.className = 'ardu-write-status action-status param-tool-live';
+        arduWriteStatus.textContent = d.timedOut ? 'הקריאה מבקר הטיסה נכשלה. הסיבה: תם הזמן' : '';
+        arduWriteStatus.className = d.timedOut
+          ? 'ardu-write-status fail'
+          : 'ardu-write-status action-status param-tool-live';
       }
+      if (d.timedOut) showParamToolFault('הקריאה מבקר הטיסה נכשלה. הסיבה: תם הזמן', () => readFcParams());
     } else {
-      fcCurrentSnapshot = { ...d.current };
-      fcReadAt = Date.now();
+      applyFreshFcValues(d.current);
       clearParamToolFault();
       renderArduDiff(d.current, arduTargetState);
-      const paramStr = d.paramCount != null ? ` (${d.paramCount})` : '';
+      const count = Number.isFinite(Number(d.count)) ? Number(d.count) : Object.keys(d.current).length;
+      const total = Number.isFinite(Number(d.paramCount)) ? Number(d.paramCount) : count;
       if (arduWriteStatus) {
-        const readLine = fcReadStatusLine();
-        arduWriteStatus.textContent = readLine
-          ? `הקריאה הושלמה${paramStr} · ${readLine}`
-          : `הקריאה הושלמה${paramStr}`;
+        arduWriteStatus.textContent = `הקריאה הושלמה · נקראו ${count}/${total}`;
         arduWriteStatus.className = 'ardu-write-status success';
       }
     }
     updateParamSyncBanner();
     renderParams();
     renderArduParamForm();
+    renderFcGroupList();
     renderFcParamFiles();
     void loadFcParamFiles();
     document.dispatchEvent(new CustomEvent('vlc:fc-params'));
@@ -12838,6 +12895,7 @@ async function readFcParams() {
       arduWriteStatus.className = 'ardu-write-status fail';
     }
   } finally {
+    clearInterval(progressTimer);
     arduReadBtn.disabled = false;
   }
 }
@@ -12933,12 +12991,7 @@ async function runConfirmedParamWrite(rows, retry) {
         });
       }
       if (fcOutcome.level === 'ok' || fcOutcome.history) {
-        applyAckedSnapshot(fcOutcome.acked);
-        for (const key of Object.keys(fcOutcome.acked || {})) {
-          if (Object.prototype.hasOwnProperty.call(arduTargetState, key)) arduWriteBaseline[key] = arduTargetState[key];
-          delete fcGroupDraft[key];
-          delete fcDraftMeta[key];
-        }
+        adoptVerifiedFcValues(fcOutcome.acked);
         if (fcCurrentSnapshot && arduDiffTable && arduDiffSection) {
           renderArduDiff(fcCurrentSnapshot, arduTargetState);
         }
@@ -16062,7 +16115,7 @@ initLiveCameraPanel();
           newText: row.nextText,
         })), () => applyBtn.click());
         if (applyStatus) applyStatus.textContent = '';
-        if (outcome.history) applyAckedSnapshot(outcome.acked);
+        if (outcome.history) adoptVerifiedFcValues(outcome.acked);
         if (outcome.level === 'ok') {
           saveRun({
             at: Date.now(),
@@ -16237,7 +16290,7 @@ initLiveCameraPanel();
               stEl.className = 'cp-param-status ' + (outcome.level === 'ok' ? 'ok' : 'err');
             }
             if (outcome.level === 'ok') inp.value = '';
-            if (outcome.history) applyAckedSnapshot(outcome.acked);
+            if (outcome.history) adoptVerifiedFcValues(outcome.acked);
           } catch (e) {
             if (stEl) { stEl.textContent = 'הכתיבה לבקר נכשלה'; stEl.className = 'cp-param-status err'; }
           } finally {
