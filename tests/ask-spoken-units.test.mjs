@@ -170,8 +170,9 @@ describe('talk-back honesty when ElevenLabs key is missing', () => {
     }
     const load = js.slice(js.indexOf("void fetch('/api/links/work')"), js.indexOf('if (toggleBtn)'));
     expect(load).toContain('if (vlcTestQuiet()) return;');
-    expect(load).toContain('return postWorkLink();');
-    expect(load.indexOf('vlcTestQuiet()')).toBeLessThan(load.lastIndexOf('return postWorkLink();'));
+    expect(load).toContain('paintWorkPath(j)');
+    expect(load).not.toContain('return postWorkLink();');
+    expect(load.indexOf('vlcTestQuiet()')).toBeLessThan(load.indexOf('paintWorkPath(j)'));
     expect(js).toContain("if (_vlcTalkbackEleven && !vlcTestQuiet())");
     expect(js).toContain("if (ttsMode === 'elevenlabs' && !vlcTestQuiet())");
     expect(js).not.toContain('navigator.webdriver');

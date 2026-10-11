@@ -10,6 +10,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { collectTextFitFailures } from './text-fit-audit.mjs';
 import { encodeTracksHeader } from '../public/modules/vision-tracks.mjs';
+import { startTestServer } from './test-server.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const shotDir = path.join(os.tmpdir(), `airvix-vision-shots-${process.pid}`);
@@ -72,21 +73,17 @@ function payload(state, camera) {
 }
 
 async function boot() {
-  const port = await freePort();
   const dbPath = path.join(os.tmpdir(), `airvix-vision-${process.pid}.sqlite`);
-  const proc = spawn(process.execPath, ['server.js'], {
-    cwd: repoRoot,
-    env: {
-      ...process.env,
-      HOST: '127.0.0.1',
-      PORT: String(port),
+  const started = await startTestServer({
+    env: (port) => ({
       SQLITE_PATH: dbPath,
       COMPANION_MODE: 'off',
       JETSON_COMPANION_BASE_URL: '',
-    },
+    }),
     stdio: 'ignore',
   });
-  const base = `http://127.0.0.1:${port}`;
+  const proc = started.child;
+  const base = started.base;
   const t0 = Date.now();
   let up = false;
   while (Date.now() - t0 < 20000) {
@@ -167,10 +164,11 @@ describe('vision track overlay', () => {
       });
     });
     await page.goto(started.base, { waitUntil: 'domcontentloaded' });
+    await page.waitForSelector('[data-tab="optics"]', { timeout: 15000 });
     await page.click('[data-tab="optics"]');
+    await page.waitForSelector('[data-camera-stage="cam0"]', { timeout: 15000 });
     const stageCount = await page.locator('[data-camera-stage="cam0"]').count();
     expect(stageCount, 'no camera stage found').toBeGreaterThan(0);
-    await page.waitForSelector('[data-camera-stage="cam0"]');
     await page.evaluate(() => {
       const detail = {
         cameras: {
@@ -238,28 +236,43 @@ describe('vision track overlay', () => {
     }
     await expect.poll(() => lockPosts, { timeout: 20000 }).toBe(before + 500);
     await page.screenshot({ path: `${shotDir}/vision-lock.png` });
-    await host.click({ button: 'right', position: { x: 24, y: 24 } });
+    const boxPoint = await page.evaluate(() => {
+      const stage = document.querySelector('[data-camera-stage="cam0"]');
+      const rect = stage?.getBoundingClientRect();
+      if (!rect) return null;
+      const scale = Math.min(rect.width / 320, rect.height / 180);
+      const ox = rect.x + (rect.width - 320 * scale) / 2;
+      const oy = rect.y + (rect.height - 180 * scale) / 2;
+      const box = [20, 30, 80, 70];
+      return { x: ox + (box[0] + box[2] / 2) * scale, y: oy + (box[1] + box[3] / 2) * scale };
+    });
+    await page.mouse.click(boxPoint.x, boxPoint.y, { button: 'right' });
     await page.waitForSelector('#visionTrackMenu:not([hidden])');
+    expect(await page.locator('#opticsContext').getAttribute('hidden')).not.toBeNull();
+    expect(await page.locator('#visionTrackMenu [data-vision-action="optics"]').innerText()).toBe('הגדרות מצלמה…');
     await page.screenshot({ path: `${shotDir}/vision-object-list.png` });
     const report = await page.evaluate(collectTextFitFailures, 1);
     const visionFails = (report.fails || []).filter((row) => /vision/.test(row.who));
     expect(visionFails).toEqual([]);
     await page.locator('#visionTrackMenu [data-vision-id="2"]').click();
     await page.waitForFunction(() => document.querySelector('[data-camera-stage="cam0"]')?.dataset.visionLock === '2');
-    await host.click({ button: 'right', position: { x: 24, y: 24 } });
+    await page.mouse.click(boxPoint.x, boxPoint.y, { button: 'right' });
     await page.locator('#visionTrackMenu [data-vision-action="next"]').click();
     await page.waitForFunction(() => {
       const id = document.querySelector('[data-camera-stage="cam0"]')?.dataset.visionLock;
       return id === '1';
     });
-    await host.click({ button: 'right', position: { x: 24, y: 24 } });
+    await page.mouse.click(boxPoint.x, boxPoint.y, { button: 'right' });
     await page.locator('#visionTrackMenu [data-vision-action="unlock"]').click();
     await page.waitForFunction(() => document.querySelector('[data-camera-stage="cam0"]')?.dataset.visionLock === '');
     expect(await page.locator('[data-camera-stage="cam0"]').first().getAttribute('data-vision-tracks')).toBe('1,2');
     await page.locator('[data-cam="cam0"] .debrief-cam-label').click({ button: 'right' });
-    await page.waitForSelector('#visionTrackMenu:not([hidden])');
+    await page.waitForSelector('#opticsContext:not([hidden]) .optics-vision-fold:not([open])');
+    expect(await page.locator('#visionTrackMenu').getAttribute('hidden')).not.toBeNull();
+    expect(await page.locator('#opticsContext .optics-vision-fold > summary').innerText()).toBe('זיהוי');
+    await page.locator('#opticsContext .optics-vision-fold > summary').click();
     const menuFace = await page.evaluate(() => {
-      const menu = document.getElementById('visionTrackMenu');
+      const menu = document.querySelector('#opticsContext [data-vision-menu-slot]');
       const sort = menu.querySelector('.vision-menu-sort');
       const steer = menu.querySelector('[data-vision-action="steer"]');
       const note = menu.querySelector('[data-vision-steer-note]');
@@ -284,7 +297,8 @@ describe('vision track overlay', () => {
     await page.keyboard.press('Escape');
     const tileBox = await page.locator('.debrief-cam-tile[data-cam="cam0"]').boundingBox();
     await page.mouse.click((tileBox?.x || 0) + 3, (tileBox?.y || 0) + 3, { button: 'right' });
-    await page.waitForSelector('#visionTrackMenu:not([hidden])');
+    await page.waitForSelector('#opticsContext:not([hidden])');
+    expect(await page.locator('#visionTrackMenu').getAttribute('hidden')).not.toBeNull();
     await page.close();
   }, 180000);
 
@@ -564,12 +578,6 @@ describe('vision track overlay', () => {
         }),
       });
     });
-    const posts = [];
-    page.on('request', (req) => {
-      if (req.method() !== 'POST' || !req.url().includes('/vision/lock')) return;
-      const body = req.postDataJSON() || {};
-      if (body.id != null) posts.push(Number(body.id));
-    });
     await page.goto(base, { waitUntil: 'domcontentloaded' });
     await page.click('[data-tab="optics"]');
     await page.evaluate(() => {
@@ -586,53 +594,67 @@ describe('vision track overlay', () => {
         && stage?.dataset.visionTracks
         && stage.querySelector('.vision-hit-layer')?.dataset.hit === '1';
     }, null, { timeout: 15000 });
-    let wrong = 0;
-    let drops = 0;
-    let armed = 0;
-    const clickCar = () => {
-      const stage = document.querySelector('[data-camera-stage="cam0"]');
-      const img = document.querySelector('[data-api="cam0"] .debrief-cam-live');
-      const shown = Number(img?.dataset.frameSeq || 0);
-      if (!stage || shown <= 0 || stage.dataset.visionFrame !== String(shown)) return 0;
-      if (stage.querySelector('.vision-hit-layer')?.dataset.hit !== '1') return 0;
-      const rect = stage.getBoundingClientRect();
-      if (rect.width < 40 || rect.height < 40) return 0;
-      const scale = Math.min(rect.width / 320, rect.height / 180);
-      const ox = rect.x + (rect.width - 320 * scale) / 2;
-      const oy = rect.y + (rect.height - 180 * scale) / 2;
-      const box = shown % 2 === 0 ? [20, 30, 80, 70] : [180, 50, 90, 50];
-      const x = ox + (box[0] + box[2] / 2) * scale;
-      const y = oy + (box[1] + box[3] / 2) * scale;
-      stage.dispatchEvent(new PointerEvent('pointerdown', {
-        bubbles: true,
-        cancelable: true,
-        clientX: x,
-        clientY: y,
-        button: 0,
-        pointerId: 1,
-        pointerType: 'mouse',
-      }));
-      return 2;
-    };
-    const deadline = Date.now() + 90000;
-    while (armed < 500 && Date.now() < deadline) {
-      const before = posts.length;
-      const expected = await page.evaluate(clickCar);
-      if (!expected) {
-        await page.waitForTimeout(15);
-        continue;
+    const race = await page.evaluate(async () => {
+      const orig = window.fetch.bind(window);
+      const posted = [];
+      window.fetch = (input, init) => {
+        const url = typeof input === 'string' ? input : (input?.url || '');
+        if (String(url).includes('/vision/lock') && init?.body) {
+          try {
+            const body = JSON.parse(init.body);
+            if (body.id != null) posted.push(Number(body.id));
+          } catch { /* ignore */ }
+        }
+        return orig(input, init);
+      };
+      let wrong = 0;
+      let drops = 0;
+      let armed = 0;
+      let skipped = 0;
+      const deadline = Date.now() + 20000;
+      while (armed < 500 && Date.now() < deadline) {
+        const stage = document.querySelector('[data-camera-stage="cam0"]');
+        const img = document.querySelector('[data-api="cam0"] .debrief-cam-live');
+        const shown = Number(img?.dataset.frameSeq || 0);
+        const ready = stage
+          && shown > 0
+          && stage.dataset.visionFrame === String(shown)
+          && stage.querySelector('.vision-hit-layer')?.dataset.hit === '1'
+          && stage.getBoundingClientRect().width >= 40;
+        if (!ready) {
+          skipped += 1;
+          await new Promise((resolve) => setTimeout(resolve, 15));
+          continue;
+        }
+        const rect = stage.getBoundingClientRect();
+        const scale = Math.min(rect.width / 320, rect.height / 180);
+        const ox = rect.x + (rect.width - 320 * scale) / 2;
+        const oy = rect.y + (rect.height - 180 * scale) / 2;
+        const box = shown % 2 === 0 ? [20, 30, 80, 70] : [180, 50, 90, 50];
+        const x = ox + (box[0] + box[2] / 2) * scale;
+        const y = oy + (box[1] + box[3] / 2) * scale;
+        const before = posted.length;
+        stage.dispatchEvent(new PointerEvent('pointerdown', {
+          bubbles: true,
+          cancelable: true,
+          clientX: x,
+          clientY: y,
+          button: 0,
+          pointerId: 1,
+          pointerType: 'mouse',
+        }));
+        armed += 1;
+        const until = Date.now() + 1000;
+        while (posted.length < before + 1 && Date.now() < until) {
+          await new Promise((resolve) => setTimeout(resolve, 5));
+        }
+        if (posted.length < before + 1) drops += 1;
+        else if (posted[before] !== 2) wrong += 1;
       }
-      armed += 1;
-      const until = Date.now() + 1000;
-      while (posts.length < before + 1 && Date.now() < until) {
-        await page.waitForTimeout(10);
-      }
-      if (posts.length < before + 1) drops += 1;
-      else if (posts[before] !== expected) wrong += 1;
-    }
-    expect(armed).toBe(500);
-    expect(drops).toBe(0);
-    expect(wrong).toBe(0);
+      window.fetch = orig;
+      return { armed, drops, wrong, skipped, sample: posted.slice(0, 8) };
+    });
+    expect(race, JSON.stringify(race)).toMatchObject({ armed: 500, drops: 0, wrong: 0 });
     await page.close();
   }, 120000);
 
@@ -680,9 +702,11 @@ describe('vision track overlay', () => {
     expect(rect && rect.height).toBeGreaterThan(8);
     const clickY = Math.min((rect?.y || 0) + (rect?.height || 0) - 6, 712);
     await page.mouse.click((rect?.x || 0) + Math.min(20, (rect?.width || 40) / 2), clickY, { button: 'right' });
-    await page.waitForSelector('#visionTrackMenu:not([hidden])');
+    await page.waitForSelector('#opticsContext:not([hidden]) .optics-vision-fold:not([open])');
+    expect(await page.locator('#visionTrackMenu').getAttribute('hidden')).not.toBeNull();
+    await page.locator('#opticsContext .optics-vision-fold > summary').click();
     const fit = await page.evaluate(() => {
-      const menu = document.getElementById('visionTrackMenu');
+      const menu = document.getElementById('opticsContext');
       const steer = menu.querySelector('[data-vision-action="steer"]');
       const kicker = steer;
       const viewW = window.innerWidth;
@@ -768,7 +792,7 @@ describe('vision track overlay', () => {
     expect(quietPosts).toEqual([]);
     await page.click('[data-tab="control"]');
     const railHidden = await page.locator('#assistRail').getAttribute('hidden');
-    if (railHidden !== null) await page.click('#assistToggleBtn');
+    if (railHidden !== null) await page.evaluate(() => assistSetOpen(true));
     await page.waitForSelector('#assistRail:not([hidden]) #assistInput', { state: 'visible' });
     await page.click('#assistMicBtn');
     await expect.poll(() => page.locator('#assistMicBtn .assist-mic-label').innerText()).toBe('מאזינים… לחצו לעצירה');

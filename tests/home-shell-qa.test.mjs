@@ -3,11 +3,12 @@ import { spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { qaShotDir } from './shot-dir.mjs';
+import { startTestServer } from './test-server.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const PORT = process.env.VLC_HOME_QA_PORT || '4041';
-const BASE = `http://127.0.0.1:${PORT}`;
-const shots = '/opt/cursor/artifacts/home-qa/after';
+let BASE = '';
+const shots = qaShotDir('home-qa-after');
 
 function box(page, selector) {
   return page.locator(selector).first().evaluate((el) => {
@@ -41,11 +42,14 @@ describe('home shell QA', () => {
 
   beforeAll(async () => {
     fs.mkdirSync(shots, { recursive: true });
-    child = spawn(process.execPath, ['server.js'], {
-      cwd: repoRoot,
-      env: { ...process.env, PORT, HOST: '127.0.0.1', COMPANION_MODE: 'off' },
+    const started = await startTestServer({
+      env: (port) => ({
+        COMPANION_MODE: 'off',
+      }),
       stdio: 'ignore',
     });
+    child = started.child;
+    BASE = started.base;
     const deadline = Date.now() + 20000;
     while (Date.now() < deadline) {
       try {
@@ -107,7 +111,8 @@ describe('home shell QA', () => {
     const mic = await page.locator('#assistMicBtn').innerText();
     expect(mic).toContain('האזינו');
     const talk = await box(page, '#missionTalkHost');
-    expect(talk.h).toBeGreaterThan(40);
+    expect(talk.h).toBeGreaterThanOrEqual(28);
+    expect(talk.h).toBeLessThanOrEqual(48);
     const stageAfter = await box(page, '#pfdHorizonStage');
     expect(stageAfter.h).toBeGreaterThanOrEqual(120);
     await page.screenshot({ path: path.join(shots, '1024-home.png') });
@@ -138,7 +143,7 @@ describe('home shell QA', () => {
     expect((await box(page, '#pfdModeVal')).text).toBe('—');
     expect((await box(page, '#hudFlightMode')).text).not.toMatch(/MANUAL/);
     const inputDisplay = await page.locator('#assistInput').evaluate((el) => getComputedStyle(el).display);
-    expect(inputDisplay).toBe('none');
+    expect(inputDisplay).not.toBe('none');
     const answer = await page.locator('#assistMessages, #assistTranscript, .assist-transcript').innerText().catch(() => '');
     expect(answer).not.toMatch(/MANUAL/);
     await page.screenshot({ path: path.join(shots, '1440-mode.png') });
@@ -150,7 +155,7 @@ describe('home shell QA', () => {
     await page.click('.tab[data-tab="control"]');
     await page.waitForTimeout(200);
     const toggle = await box(page, '#assistToggleBtn');
-    expect(toggle.position).toBe('fixed');
+    expect(toggle.hidden).toBe(true);
     const save = page.locator('#acSaveBtn, .ac-next, button:has-text("שמור")').first();
     if (await save.count()) {
       const saveBox = await save.evaluate((el) => {
@@ -159,7 +164,7 @@ describe('home shell QA', () => {
       });
       expect(overlaps(toggle, saveBox)).toBe(false);
     }
-    await page.click('#assistToggleBtn');
+    await page.evaluate(() => assistSetOpen(true));
     await page.waitForTimeout(200);
     const chrome = await box(page, '.app-chrome');
     const rail = await box(page, '#assistRail');
@@ -176,8 +181,8 @@ describe('home shell QA', () => {
     await page.waitForTimeout(150);
     const focused = await page.evaluate(() => document.activeElement?.id || '');
     expect(focused).toBe('flightPhraseInput');
-    await page.click('#connectToggleBtn');
-    await page.click('#rcStatusBtn');
+    await page.click('#missionCommOpen');
+    await page.locator('#rcStatusBtn').evaluate((el) => el.click());
     const rc = await box(page, '#rcLinkHint');
     expect(rc.text).toMatch(/שלט בלבד/);
     await page.keyboard.press('Escape');
@@ -216,7 +221,8 @@ describe('home shell QA', () => {
     const page = await openHome(360, 740, true);
     await page.locator('#missionTalkHost').scrollIntoViewIfNeeded();
     const talk = await box(page, '#missionTalkHost');
-    expect(talk.h).toBeGreaterThan(40);
+    expect(talk.h).toBeGreaterThanOrEqual(28);
+    expect(talk.h).toBeLessThanOrEqual(48);
     expect(talk.bottom).toBeGreaterThan(0);
     expect(talk.y).toBeLessThan(740);
     await page.screenshot({ path: path.join(shots, '360-ask.png') });
@@ -225,8 +231,8 @@ describe('home shell QA', () => {
 
   it('the connection chip wraps, the map title stays under dialogs, and Escape closes the version', async () => {
     const page = await openHome(1440, 900);
-    await page.click('#connectToggleBtn', { timeout: 5000 });
-    const chip = await box(page, '#jetsonLinkChip');
+    await page.click('#missionCommOpen', { timeout: 5000 });
+    const chip = await box(page, '.flight-comm-link');
     expect(chip.textOverflow).not.toBe('ellipsis');
     expect(chip.h).toBeGreaterThan(16);
     const title = await box(page, '.mission-region-map > .mission-region-title');

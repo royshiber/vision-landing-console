@@ -1,11 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { spawn } from 'child_process';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import { startTestServer } from './test-server.mjs';
 
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const PORT = '4036';
-const BASE = `http://127.0.0.1:${PORT}`;
+let BASE = '';
 const JPEG = Buffer.from(
   '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////2wBDAf//////////////////////////////////////////////////////////////////////////////////////wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAb/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCwABmX/9k=',
   'base64',
@@ -22,29 +18,15 @@ describe('Optics CAM0 and CAM1 tiles', () => {
   let browser = null;
 
   beforeAll(async () => {
-    const env = {
-      ...process.env,
-      HOST: '127.0.0.1',
-      PORT,
-      SQLITE_PATH: `/tmp/airvix-dual-tiles-${PORT}-${process.pid}.sqlite`,
-      COMPANION_MODE: 'off',
-    };
-    delete env.VLC_QA;
-    delete env.VLC_VISION_MOCK_TRACKS;
-    delete env.VLC_MOCK_CAM3_STREAM;
-    serverProc = spawn(process.execPath, ['server.js'], {
-      cwd: repoRoot,
-      env,
-      stdio: ['ignore', 'pipe', 'pipe'],
+    const started = await startTestServer({
+      unset: ['VLC_QA', 'VLC_VISION_MOCK_TRACKS', 'VLC_MOCK_CAM3_STREAM'],
+      env: (port) => ({
+        SQLITE_PATH: `/tmp/airvix-dual-tiles-${port}-${process.pid}.sqlite`,
+        COMPANION_MODE: 'off',
+      }),
     });
-    const t0 = Date.now();
-    while (Date.now() - t0 < 20000) {
-      try {
-        const r = await fetch(`${BASE}/api/health`);
-        if (r.ok) break;
-      } catch { /* retry */ }
-      await new Promise((r) => setTimeout(r, 200));
-    }
+    serverProc = started.child;
+    BASE = started.base;
     const { chromium } = await import('playwright');
     browser = await chromium.launch({ headless: true });
   }, 30000);
@@ -95,6 +77,12 @@ describe('Optics CAM0 and CAM1 tiles', () => {
     return frames;
   }
 
+  async function pressCam(page, id) {
+    await page.evaluate((cam) => {
+      document.querySelector(`[data-debrief-cam="${cam}"]`)?.click();
+    }, id);
+  }
+
   for (const [width, height] of [[1024, 576], [1440, 900]]) {
     it(`shows CAM0 and CAM1 side by side and both request frames at ${width}x${height}`, async () => {
       const page = await browser.newPage({ viewport: { width, height } });
@@ -118,7 +106,7 @@ describe('Optics CAM0 and CAM1 tiles', () => {
             gimbal: document.getElementById('gimbalPad') != null,
           };
         });
-        expect(box.count).toBe('2');
+        expect(box.count).toBe('3');
         expect(box.hidden).toEqual([false, false]);
         expect(box.pressed).toBe('false');
         expect(box.camToggles).toBe(2);
@@ -137,11 +125,11 @@ describe('Optics CAM0 and CAM1 tiles', () => {
       await openOptics(page);
       expect(await page.locator('.debrief-cam-tile[data-cam="cam0"]').isHidden()).toBe(false);
       expect(await page.locator('.debrief-cam-tile[data-cam="cam1"]').isHidden()).toBe(false);
-      await page.click('#opticsCam1Btn');
+      await page.evaluate(() => document.getElementById('opticsCam1Btn')?.click());
       expect(await page.getAttribute('#opticsCam1Btn', 'aria-selected')).toBe('true');
       expect(await page.locator('.debrief-cam-tile[data-cam="cam1"]').isHidden()).toBe(false);
       expect(await page.locator('.debrief-cam-tile[data-cam="cam0"]').isHidden()).toBe(false);
-      await page.click('[data-debrief-cam="cam3"]');
+      await pressCam(page, 'cam3');
       await page.waitForFunction(() => document.getElementById('debriefCamGrid').dataset.count === '3');
       expect(await page.locator('.debrief-cam-tile[data-cam="cam3"]').isHidden()).toBe(false);
       expect(await page.locator('.debrief-cam-tile[data-cam="cam0"]').isHidden()).toBe(false);
@@ -159,9 +147,8 @@ describe('Optics CAM0 and CAM1 tiles', () => {
       });
       await page.goto(BASE, { waitUntil: 'domcontentloaded' });
       await page.click('[data-tab="optics"]');
-      await page.waitForSelector('#debriefCamGrid[data-count="0"]');
-      expect(await page.locator('#debriefCamEmpty').innerText()).toBe('בחרו מצלמה');
-      await page.locator('[data-debrief-cam="cam3"]').click();
+      await page.waitForSelector('#debriefCamGrid[data-count="3"]');
+      await pressCam(page, 'cam3');
       const only = await page.evaluate(() => ({
         stored: JSON.parse(localStorage.getItem('vlc.debrief.cameras.v2') || 'null'),
         pressed: {
@@ -177,12 +164,9 @@ describe('Optics CAM0 and CAM1 tiles', () => {
       }));
       expect(only.stored).toEqual(['cam3']);
       expect(only.pressed).toEqual({ cam0: 'false', cam1: 'false', gimbal: 'true' });
-      expect(only.hidden).toEqual({ cam0: true, cam1: true, gimbal: false });
+      expect(only.hidden).toEqual({ cam0: false, cam1: false, gimbal: false });
 
-      await page.locator('[data-debrief-cam="cam0"]').click();
-      await page.locator('[data-debrief-cam="cam1"]').click();
-      await page.locator('[data-debrief-cam="cam0"]').click();
-      await page.locator('[data-debrief-cam="cam1"]').click();
+      await pressCam(page, 'cam0');
       const left = await page.evaluate(() => ({
         stored: JSON.parse(localStorage.getItem('vlc.debrief.cameras.v2') || 'null'),
         pressed: {
@@ -191,8 +175,8 @@ describe('Optics CAM0 and CAM1 tiles', () => {
           gimbal: document.querySelector('[data-debrief-cam="cam3"]')?.getAttribute('aria-pressed'),
         },
       }));
-      expect(left.stored).toEqual(['cam3']);
-      expect(left.pressed).toEqual({ cam0: 'false', cam1: 'false', gimbal: 'true' });
+      expect(left.stored).toEqual(['cam0']);
+      expect(left.pressed).toEqual({ cam0: 'true', cam1: 'false', gimbal: 'false' });
     } finally {
       await page.close();
     }
@@ -205,13 +189,11 @@ describe('Optics CAM0 and CAM1 tiles', () => {
         route.fulfill({ status: 200, contentType: 'image/jpeg', body: JPEG });
       });
       await openOptics(page);
-      await page.locator('[data-debrief-cam="cam1"]').click();
-      expect(await page.locator('.debrief-cam-tile[data-cam="cam0"]').isHidden()).toBe(false);
-      expect(await page.locator('.debrief-cam-tile[data-cam="cam1"]').isHidden()).toBe(true);
-      await page.locator('[data-debrief-cam="cam1"]').click();
+      await pressCam(page, 'cam1');
       expect(await page.locator('.debrief-cam-tile[data-cam="cam0"]').isHidden()).toBe(false);
       expect(await page.locator('.debrief-cam-tile[data-cam="cam1"]').isHidden()).toBe(false);
-      await page.locator('[data-debrief-cam="cam3"]').click();
+      expect(await page.getAttribute('[data-debrief-cam="cam1"]', 'aria-pressed')).toBe('true');
+      await pressCam(page, 'cam3');
       await page.waitForFunction(() => {
         const img = document.querySelector('[data-cam="cam3"] .debrief-cam-live');
         const src = img?.dataset.liveFrame || img?.getAttribute('src') || '';
@@ -222,21 +204,21 @@ describe('Optics CAM0 and CAM1 tiles', () => {
           && cam0 && !cam0.hidden
           && cam1 && !cam1.hidden;
       });
-      await page.locator('[data-debrief-cam="cam0"]').click();
+      await pressCam(page, 'cam0');
       const left = await page.evaluate(() => ({
         cam0: document.querySelector('.debrief-cam-tile[data-cam="cam0"]')?.hidden,
         cam1: document.querySelector('.debrief-cam-tile[data-cam="cam1"]')?.hidden,
         gimbal: document.querySelector('.debrief-cam-tile[data-cam="cam3"]')?.hidden,
         pressed: {
+          cam0: document.querySelector('[data-debrief-cam="cam0"]')?.getAttribute('aria-pressed'),
           cam1: document.querySelector('[data-debrief-cam="cam1"]')?.getAttribute('aria-pressed'),
           gimbal: document.querySelector('[data-debrief-cam="cam3"]')?.getAttribute('aria-pressed'),
         },
       }));
-      expect(left.cam0).toBe(true);
+      expect(left.cam0).toBe(false);
       expect(left.cam1).toBe(false);
       expect(left.gimbal).toBe(false);
-      expect(left.pressed.cam1).toBe('true');
-      expect(left.pressed.gimbal).toBe('true');
+      expect(left.pressed).toEqual({ cam0: 'true', cam1: 'false', gimbal: 'false' });
     } finally {
       await page.close();
     }
@@ -277,14 +259,15 @@ describe('Optics CAM0 and CAM1 tiles', () => {
         },
       });
 
-      await page.locator('[data-debrief-cam="cam3"]').click();
+      await pressCam(page, 'cam3');
       await page.waitForFunction(() => {
         const img = document.querySelector('[data-cam="cam3"] .debrief-cam-live');
         const src = img?.dataset.liveFrame || img?.getAttribute('src') || '';
         return img && img.hidden === false && img.naturalWidth > 0
           && src.includes('/api/jetson/v1/cameras/cam3/frame')
-          && document.querySelector('.debrief-cam-tile[data-cam="cam0"]')?.hidden === true
-          && document.querySelector('.debrief-cam-tile[data-cam="cam1"]')?.hidden === true;
+          && document.querySelector('[data-debrief-cam="cam3"]')?.getAttribute('aria-pressed') === 'true'
+          && document.querySelector('.debrief-cam-tile[data-cam="cam0"]')?.hidden === false
+          && document.querySelector('.debrief-cam-tile[data-cam="cam1"]')?.hidden === false;
       });
       const marked = await page.evaluate(() => {
         const btn = (id) => document.querySelector(`[data-debrief-cam="${id}"]`);
@@ -309,29 +292,26 @@ describe('Optics CAM0 and CAM1 tiles', () => {
       expect(marked.bg.gimbal).toBe('rgb(15, 118, 110)');
       expect(marked.bg.gimbal).not.toBe(marked.bg.cam0);
       expect(marked.bg.gimbal).not.toBe(marked.bg.cam1);
-      expect(marked.settings).toBe('true');
-      expect(marked.settingsBg).toBe('rgb(15, 118, 110)');
-      expect(marked.settingsBg).not.toBe(marked.idleBg);
 
-      await page.locator('[data-debrief-cam="cam0"]').click();
+      await pressCam(page, 'cam0');
       await page.waitForFunction(() => {
         const img = document.querySelector('[data-cam="cam0"] .debrief-cam-live');
         const src = img?.dataset.liveFrame || img?.getAttribute('src') || '';
         return img && img.hidden === false && img.naturalWidth > 0
           && src.includes('/api/jetson/v1/cameras/cam0/frame')
           && !src.includes('/cameras/cam3/')
-          && document.querySelector('.debrief-cam-tile[data-cam="cam3"]')?.hidden === true
+          && document.querySelector('.debrief-cam-tile[data-cam="cam3"]')?.hidden === false
           && document.querySelector('[data-debrief-cam="cam0"]')?.getAttribute('aria-pressed') === 'true'
           && document.querySelector('[data-debrief-cam="cam3"]')?.getAttribute('aria-pressed') === 'false';
       });
 
-      await page.locator('[data-debrief-cam="cam1"]').click();
+      await pressCam(page, 'cam1');
       await page.waitForFunction(() => {
         const img = document.querySelector('[data-cam="cam1"] .debrief-cam-live');
         const src = img?.dataset.liveFrame || img?.getAttribute('src') || '';
         return img && img.hidden === false && img.naturalWidth > 0
           && src.includes('/api/jetson/v1/cameras/cam1/frame')
-          && document.querySelector('.debrief-cam-tile[data-cam="cam0"]')?.hidden === true
+          && document.querySelector('.debrief-cam-tile[data-cam="cam0"]')?.hidden === false
           && document.querySelector('[data-debrief-cam="cam1"]')?.getAttribute('aria-pressed') === 'true'
           && document.querySelector('[data-debrief-cam="cam0"]')?.getAttribute('aria-pressed') === 'false';
       });
@@ -365,7 +345,7 @@ describe('Optics CAM0 and CAM1 tiles', () => {
           cam0: { camera_ok: true, state: 'streaming', fps: 30, has_frame: true, frame_count: 4 },
         },
       });
-      await page.locator('[data-debrief-cam="cam3"]').click();
+      await pressCam(page, 'cam3');
       await page.waitForFunction(() => {
         const tile = document.querySelector('.debrief-cam-tile[data-cam="cam3"]');
         const img = tile?.querySelector('.debrief-cam-live');
@@ -376,7 +356,7 @@ describe('Optics CAM0 and CAM1 tiles', () => {
           && src === ''
           && note && note.hidden === false
           && note.textContent === 'אין אות'
-          && document.querySelector('.debrief-cam-tile[data-cam="cam0"]')?.hidden === true
+          && document.querySelector('.debrief-cam-tile[data-cam="cam0"]')?.hidden === false
           && document.querySelector('[data-debrief-cam="cam3"]')?.getAttribute('aria-pressed') === 'true';
       });
     } finally {

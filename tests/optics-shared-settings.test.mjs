@@ -4,15 +4,18 @@
  */
 import { afterAll, describe, expect, it } from 'vitest';
 import { spawn } from 'node:child_process';
+import fs from 'node:fs';
 import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CAMERA_UNSUPPORTED_HE, cameraControlSupported } from '../public/modules/camera-settings.mjs';
 import { gimbalMoveBody, setGimbalMoveSpeed } from '../public/modules/gimbal-pad.mjs';
+import { startTestServer } from './test-server.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const shotDir = '/opt/cursor/artifacts/screenshots';
+const shotDir = process.env.VLC_OPTICS_SETTINGS_SHOTS || path.join(os.tmpdir(), 'airvix-optics-settings');
+fs.mkdirSync(shotDir, { recursive: true });
 
 function freePort() {
   return new Promise((resolve, reject) => {
@@ -70,21 +73,17 @@ describe('optics cameras and gimbal panel', () => {
   });
 
   it('fits both cameras at 1024x600 and mocks the gimbal without a vehicle', async () => {
-    const port = await freePort();
     const dbPath = path.join(os.tmpdir(), `airvix-optics-${process.pid}.sqlite`);
-    proc = spawn(process.execPath, ['server.js'], {
-      cwd: repoRoot,
-      env: {
-        ...process.env,
-        HOST: '127.0.0.1',
-        PORT: String(port),
+    const started = await startTestServer({
+      env: (port) => ({
         SQLITE_PATH: dbPath,
         COMPANION_MODE: 'off',
         JETSON_COMPANION_BASE_URL: '',
-      },
+      }),
       stdio: 'ignore',
     });
-    const base = `http://127.0.0.1:${port}`;
+    proc = started.child;
+    const base = started.base;
     const t0 = Date.now();
     let up = false;
     while (Date.now() - t0 < 20000) {
@@ -136,6 +135,9 @@ describe('optics cameras and gimbal panel', () => {
     }));
     await page.goto(base, { waitUntil: 'domcontentloaded' });
     await page.click('[data-tab="optics"]');
+    await page.locator('.debrief-cam-tile[data-cam="cam0"]').click({ button: 'right' });
+    await page.waitForSelector('#opticsContext:not([hidden]) #cam0Panel');
+    await page.locator('#opticsContext [data-settings-group="image"] > summary').click();
     await page.waitForSelector('#cam0Fov');
     await page.waitForSelector('#cam1Record', { state: 'attached' });
 
@@ -206,8 +208,8 @@ describe('optics cameras and gimbal panel', () => {
     await page.locator('#cam0Fov').locator('xpath=../button[@data-optics-step="1"]').click();
     expect(await page.locator('#cam0Fov').inputValue()).toBe('121');
 
-    await page.click('#opticsCam1Btn');
-    await page.waitForSelector('#cam1Panel:not([hidden])');
+    await page.locator('.debrief-cam-tile[data-cam="cam1"]').click({ button: 'right' });
+    await page.waitForSelector('#opticsContext:not([hidden]) #cam1Panel');
     const cam1 = await page.evaluate(() => {
       const panel = document.getElementById('cam1Panel');
       const start = document.getElementById('cam1CalibStart');
@@ -218,7 +220,7 @@ describe('optics cameras and gimbal panel', () => {
         start: start?.textContent || '',
         corners: document.getElementById('cam1CalibCols')?.value,
         square: document.getElementById('cam1CalibSquare')?.value,
-        note: document.querySelector('[data-camera-settings="cam1"]')?.innerText || '',
+        note: document.querySelector('[data-camera-settings="cam1"]')?.textContent || '',
         bottom: Math.max(panel.getBoundingClientRect().bottom, start.getBoundingClientRect().bottom),
         vh: window.innerHeight,
         calibScroll: document.querySelector('#optics .optics-calib').scrollHeight
@@ -240,11 +242,16 @@ describe('optics cameras and gimbal panel', () => {
     expect(await page.locator('#cam1Record').isDisabled()).toBe(true);
     expect(await page.locator('#cam1Snap').isDisabled()).toBe(false);
 
-    await page.click('#opticsGimbalBtn');
-    await page.waitForSelector('#gimbalSettings:not([hidden])');
+    // Gimbal controls open from the tile menu. The old switch sits in the hidden column.
+    await page.locator('.debrief-cam-tile[data-cam="cam3"]').click({ button: 'right' });
+    await page.waitForSelector('#opticsContext:not([hidden]) #gimbalSettings:not([hidden])');
     await page.waitForFunction(() => (document.getElementById('gimbalSettingsReason')?.textContent || '').includes('אין מענה מהגימבל'));
+    expect(await page.locator('#gimbalSettings [data-settings-group="motion"]').getAttribute('open')).toBeNull();
+    expect(await page.locator('#gimbalSettings [data-settings-group="mode"]').getAttribute('open')).toBeNull();
+    expect(await page.locator('#gimbalPad [data-settings-group="stick"]').getAttribute('open')).not.toBeNull();
     expect(await page.locator('#gimbalSettingsCenter').isDisabled()).toBe(true);
     expect(await page.locator('#gimbalTrack').isDisabled()).toBe(true);
+    await page.locator('#gimbalSettings [data-settings-group="mode"] > summary').click();
     expect(await page.locator('#gimbalTrackNote').innerText()).toContain('מעקב עדיין לא זמין');
     expect(posts).toEqual([]);
     await page.screenshot({ path: path.join(shotDir, 'optics-gimbal-down-1024x600.png'), animations: 'disabled' });
@@ -272,9 +279,11 @@ describe('optics cameras and gimbal panel', () => {
       zoom: 1,
     };
     await page.waitForFunction(() => document.getElementById('gimbalSettingsCenter')?.disabled === false);
+    await page.locator('#gimbalSettings [data-settings-group="angle"] > summary').click();
     expect(await page.locator('#gimbalSettingsYaw').innerText()).toContain('12.5');
     expect(await page.locator('#gimbalSettingsPitch').innerText()).toContain('-3.2');
     expect(await page.locator('#gimbalTrack').isDisabled()).toBe(true);
+    await page.locator('#gimbalSettings [data-settings-group="motion"] > summary').click();
     await page.fill('#gimbalSpeed', '25');
     await page.dispatchEvent('#gimbalSpeed', 'input');
     await page.dispatchEvent('#gimbalSpeed', 'change');

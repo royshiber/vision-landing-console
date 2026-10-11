@@ -58,5 +58,19 @@ describe('FC parameter groups', () => {
     expect(app).toContain('fcParamMeta[key]?.he');
     expect(app).toContain('openGuardedFcWriteConfirm');
     expect(app).toContain('void loadFcParamGroups()');
+    expect(app).toContain('לא נמצא בבקר:');
+    expect(app).toContain('formatFcParamNumber(value, fcParamMeta[key])');
+  });
+
+  it('rounds a float param to its declared precision', () => {
+    const rangeStart = app.indexOf('function fcRangeEnds');
+    const rangeEnd = app.indexOf('function fcCardCell');
+    const fmtStart = app.indexOf('function fcParamDecimals');
+    const fmtEnd = app.indexOf('function fcPresence');
+    const fn = new Function(`${app.slice(rangeStart, rangeEnd)}\n${app.slice(fmtStart, fmtEnd)}\nreturn { formatFcParamNumber };`);
+    const { formatFcParamNumber } = fn();
+    expect(formatFcParamNumber(0.07999999821186066, { range: '0.08–0.35' })).toBe('0.08');
+    expect(formatFcParamNumber(0.07999999821186066, {})).toBe('0.08');
+    expect(formatFcParamNumber(17, {})).toBe('17');
   });
 });

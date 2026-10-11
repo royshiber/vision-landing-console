@@ -3,6 +3,8 @@ import { spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { qaShotDir } from './shot-dir.mjs';
+import { startTestServer } from './test-server.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const css = fs.readFileSync(path.join(repoRoot, 'public', 'styles.css'), 'utf8');
@@ -42,9 +44,8 @@ describe('Horizon/map size swap — source', () => {
 });
 
 describe('Horizon/map size swap — layout', () => {
-  const PORT = process.env.VLC_SWAP_PORT || '4028';
-  const BASE = `http://127.0.0.1:${PORT}`;
-  const shots = '/opt/cursor/artifacts/horizon-map-swap';
+  let BASE = '';
+  const shots = qaShotDir('horizon-map-swap');
   let serverProc = null;
   let browser = null;
 
@@ -68,12 +69,13 @@ describe('Horizon/map size swap — layout', () => {
 
   beforeAll(async () => {
     fs.mkdirSync(shots, { recursive: true });
-    serverProc = spawn(process.execPath, ['server.js'], {
-      cwd: repoRoot,
-      env: { ...process.env, HOST: '127.0.0.1', PORT, CURSOR_API_KEY: '' },
-      stdio: ['ignore', 'pipe', 'pipe'],
+    const started = await startTestServer({
+      env: (port) => ({
+        CURSOR_API_KEY: '',
+      }),
     });
-    await waitHealth();
+    serverProc = started.child;
+    BASE = started.base;
     const { chromium } = await import('playwright');
     browser = await chromium.launch({ headless: true });
   });
@@ -89,6 +91,14 @@ describe('Horizon/map size swap — layout', () => {
       && a.right > b.left + slack
       && a.top < b.bottom - slack
       && a.bottom > b.top + slack;
+  }
+
+  function boxInside(inner, outer, slack = 2) {
+    if (!inner || !outer || inner.width < 2 || inner.height < 2) return false;
+    return inner.left >= outer.left - slack
+      && inner.right <= outer.right + slack
+      && inner.top >= outer.top - slack
+      && inner.bottom <= outer.bottom + slack;
   }
 
   async function measure(page) {
@@ -145,7 +155,7 @@ describe('Horizon/map size swap — layout', () => {
       expect(before.canvas.width).toBeGreaterThan(20);
 
       expect(interiorsIntersect(before.map, before.horizon)).toBe(false);
-      expect(interiorsIntersect(before.horizon, before.talk)).toBe(false);
+      expect(interiorsIntersect(before.talk, before.horizon)).toBe(false);
       expect(interiorsIntersect(before.map, before.talk)).toBe(false);
       expect(interiorsIntersect(before.ias, before.stage)).toBe(true);
       expect(interiorsIntersect(before.alt, before.stage)).toBe(true);
@@ -199,7 +209,7 @@ describe('Horizon/map size swap — layout', () => {
       expect(after.swap).toBe('horizon-map');
       expect(after.stored).toBe('horizon-map');
       expect(interiorsIntersect(after.map, after.horizon)).toBe(false);
-      expect(interiorsIntersect(after.horizon, after.talk)).toBe(false);
+      expect(interiorsIntersect(after.talk, after.horizon)).toBe(false);
       expect(interiorsIntersect(after.map, after.talk)).toBe(false);
       expect(interiorsIntersect(after.ias, after.stage)).toBe(true);
       expect(interiorsIntersect(after.alt, after.stage)).toBe(true);
@@ -207,7 +217,9 @@ describe('Horizon/map size swap — layout', () => {
       expect(after.stage.right).toBeGreaterThanOrEqual(after.alt.right - 2);
       expect(interiorsIntersect(after.ias, after.alt)).toBe(false);
       if (after.zoom && after.compass) {
-        expect(interiorsIntersect(after.zoom, after.compass)).toBe(false);
+        expect(boxInside(after.compass, after.zoom)).toBe(true);
+        expect(after.compass.width).toBeGreaterThanOrEqual(36);
+        expect(after.compass.height).toBeGreaterThanOrEqual(36);
       }
       expect(Math.abs(after.canvas.width - after.stage.width)).toBeLessThan(3);
       expect(Math.abs(after.canvas.height - after.stage.height)).toBeLessThan(3);
@@ -223,7 +235,9 @@ describe('Horizon/map size swap — layout', () => {
         expect(after.stage.height).toBeGreaterThan(before.stage.height);
         expect(after.horizon.top).toBeGreaterThanOrEqual(after.map.bottom - 8);
       }
-      expect(after.talk.width).toBeLessThan(8);
+      expect(after.talk.height).toBeGreaterThanOrEqual(32);
+      expect(after.talk.height).toBeLessThanOrEqual(56);
+      expect(after.talk.width).toBeGreaterThan(80);
 
       await page.reload({ waitUntil: 'domcontentloaded' });
       await page.waitForFunction(() => document.querySelector('.mission-workspace')?.dataset.missionSwap === 'horizon-map');
@@ -239,4 +253,41 @@ describe('Horizon/map size swap — layout', () => {
       await page.close();
     }, 30000);
   }
+
+  it('fills the row and keeps the map wider from 721 through 1100', async () => {
+    const page = await browser.newPage();
+    const shots = qaShotDir('map-fill');
+    const widths = [721, 800, 900, 1024, 1100];
+    try {
+      for (const width of widths) {
+        const height = width === 1024 ? 576 : 720;
+        await openModeA(page, { width, height });
+        const fit = await page.evaluate(() => {
+          const ws = document.querySelector('.mission-workspace');
+          const map = document.querySelector('[data-mission-region="map"]');
+          const horizon = document.querySelector('[data-mission-region="horizon"]');
+          const wsBox = ws.getBoundingClientRect();
+          const mapBox = map.getBoundingClientRect();
+          const horizonBox = horizon.getBoundingClientRect();
+          const cs = getComputedStyle(ws);
+          const gap = Number.parseFloat(cs.columnGap) || Number.parseFloat(cs.gap) || 0;
+          const pad = (Number.parseFloat(cs.paddingLeft) || 0) + (Number.parseFloat(cs.paddingRight) || 0);
+          return {
+            map: mapBox.width,
+            horizon: horizonBox.width,
+            sum: mapBox.width + horizonBox.width + gap,
+            content: wsBox.width - pad,
+          };
+        });
+        const where = String(width);
+        expect(Math.abs(fit.sum - fit.content), where).toBeLessThanOrEqual(1);
+        expect(fit.map, where).toBeGreaterThan(fit.horizon);
+        if (width === 721 || width === 1024) {
+          await page.screenshot({ path: path.join(shots, `${width}x${height}.png`) });
+        }
+      }
+    } finally {
+      await page.close();
+    }
+  }, 60000);
 });

@@ -8,6 +8,7 @@ import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { startTestServer } from './test-server.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -32,21 +33,17 @@ describe('optics mock companion', () => {
   });
 
   it('enables gain, badges the read-back, and starts calibration', async () => {
-    const port = await freePort();
     const dbPath = path.join(os.tmpdir(), `airvix-optics-mock-${process.pid}.sqlite`);
-    proc = spawn(process.execPath, ['server.js'], {
-      cwd: repoRoot,
-      env: {
-        ...process.env,
-        HOST: '127.0.0.1',
-        PORT: String(port),
+    const started = await startTestServer({
+      env: (port) => ({
         SQLITE_PATH: dbPath,
         COMPANION_MODE: 'mock',
         JETSON_COMPANION_BASE_URL: '',
-      },
+      }),
       stdio: 'ignore',
     });
-    const base = `http://127.0.0.1:${port}`;
+    proc = started.child;
+    const base = started.base;
     const t0 = Date.now();
     let up = false;
     while (Date.now() - t0 < 20000) {
@@ -71,6 +68,7 @@ describe('optics mock companion', () => {
     await page.waitForFunction(() => document.getElementById('cam1ApplyBadge')?.textContent === 'הוחל');
     expect(await page.locator('#cam1CalibBoard').getAttribute('href')).toBe('/docs/calibration-board.pdf');
     await page.waitForFunction(() => document.getElementById('cam1CalibStart')?.disabled === false);
+    await page.locator('#cam1Calib > summary').click();
     await page.click('#cam1CalibStart');
     await page.waitForFunction(() => {
       const text = document.getElementById('cam1CalibProgress')?.textContent || '';
@@ -80,5 +78,5 @@ describe('optics mock companion', () => {
     expect(pdf.ok).toBe(true);
     const bytes = Buffer.from(await pdf.arrayBuffer());
     expect(bytes.subarray(0, 8).toString()).toBe('%PDF-1.4');
-  });
+  }, 40000);
 });

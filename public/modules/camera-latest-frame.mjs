@@ -222,6 +222,7 @@ export function createLatestJpegPump({
 
   async function kick(opts = {}) {
     if (stopped || typeof urlFor !== 'function') return;
+    if (typeof window !== 'undefined' && window.__vlcCompanionFrames !== true) return;
     const age = startedAt ? Date.now() - startedAt : 0;
     const late = Boolean(controller) && framePullIsLate(age, lastGoodMs);
     const force = opts.force === true || late;

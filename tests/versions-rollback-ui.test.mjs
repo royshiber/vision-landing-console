@@ -5,6 +5,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { spawnSync } from 'node:child_process';
 import { chromium } from 'playwright';
+import { qaShotDir } from './shot-dir.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const shotRoot = path.join(repoRoot, 'versions-qa');
@@ -439,6 +440,5 @@ print(out)
   if (result.status !== 0) {
     throw new Error(result.stderr || result.stdout || 'contact sheet failed');
   }
-  fs.mkdirSync('/opt/cursor/artifacts', { recursive: true });
-  fs.copyFileSync(out, '/opt/cursor/artifacts/versions-contact-sheet.png');
+  fs.copyFileSync(out, path.join(qaShotDir('versions-rollback'), 'versions-contact-sheet.png'));
 }

@@ -63,7 +63,7 @@ describe('four-row communications widget', () => {
     expect(js).not.toMatch(/cellularConnectBtn\.textContent = cellUp \? 'ניתוק' : 'חיבור'/);
     const homeDisconnect = cssBlock(
       css,
-      '.connect-widget #companionLinkBtn.conn-btn-primary[data-action="disconnect"]',
+      ':is(.connect-widget, #flightCommMenu) #companionLinkBtn.conn-btn-primary[data-action="disconnect"]',
     );
     expect(homeDisconnect).toMatch(/#dc2626/);
     expect(homeDisconnect).not.toMatch(/#16a34a/);

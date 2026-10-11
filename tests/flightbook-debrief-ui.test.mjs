@@ -1,48 +1,16 @@
 import { afterAll, describe, expect, it } from 'vitest';
-import { spawn } from 'child_process';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { qaShotDir } from './shot-dir.mjs';
+import { startTestServer } from './test-server.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const shotDir = '/tmp/flightbook-shots';
-const artifactDir = '/opt/cursor/artifacts/flightbook-shots';
+const artifactDir = qaShotDir('flightbook-shots');
 const UID_B = '20260921T080000Z-airvix01-c3d4';
 const NO_KEY = 'אין מפתח Gemini. מוצגות תובנות אוטומטיות בלבד.';
-
-function startServer(port, mock) {
-  const sqlite = path.join(os.tmpdir(), `airvix-fb-debrief-${port}.sqlite`);
-  fs.rmSync(sqlite, { force: true });
-  return spawn(process.execPath, ['server.js'], {
-    cwd: repoRoot,
-    env: {
-      ...process.env,
-      HOST: '127.0.0.1',
-      PORT: String(port),
-      SQLITE_PATH: sqlite,
-      FLIGHT_LOGS_MODE: 'mock',
-      FLIGHT_DEBRIEF_MOCK: mock,
-      GEMINI_API_KEY: '',
-      GEMINI_MIN_INTERVAL_MS: '0',
-    },
-    stdio: ['ignore', 'pipe', 'pipe'],
-  });
-}
-
-async function waitHealth(base, maxMs = 25000) {
-  const t0 = Date.now();
-  while (Date.now() - t0 < maxMs) {
-    try {
-      const r = await fetch(`${base}/api/health`);
-      if (r.ok) return;
-    } catch {
-      /* retry */
-    }
-    await new Promise((r) => setTimeout(r, 200));
-  }
-  throw new Error(`debrief server did not become healthy at ${base}`);
-}
 
 async function saveShot(page, name) {
   fs.mkdirSync(shotDir, { recursive: true });
@@ -66,11 +34,22 @@ describe('Flight book debrief panel', () => {
     }
   });
 
-  async function openFlight(port, mock) {
-    const base = `http://127.0.0.1:${port}`;
-    const proc = startServer(port, mock);
-    procs.push(proc);
-    await waitHealth(base);
+  async function openFlight(mock) {
+    const started = await startTestServer({
+      env: (port) => {
+        const sqlite = path.join(os.tmpdir(), `airvix-fb-debrief-${port}.sqlite`);
+        fs.rmSync(sqlite, { force: true });
+        return {
+          SQLITE_PATH: sqlite,
+          FLIGHT_LOGS_MODE: 'mock',
+          FLIGHT_DEBRIEF_MOCK: mock,
+          GEMINI_API_KEY: '',
+          GEMINI_MIN_INTERVAL_MS: '0',
+        };
+      },
+    });
+    procs.push(started.child);
+    const base = started.base;
     if (!browser) {
       const { chromium } = await import('playwright');
       browser = await chromium.launch({ headless: true });
@@ -86,7 +65,7 @@ describe('Flight book debrief panel', () => {
   }
 
   it('shows a verified verdict and a citation that moves the cursor', async () => {
-    const page = await openFlight('4031', 'ok');
+    const page = await openFlight('ok');
     await page.waitForSelector('[data-fb="debrief"][data-state="ready"]', { timeout: 20000 });
     const text = await page.locator('[data-fb="debrief"]').innerText();
     expect(text).toContain('בעיה');
@@ -108,7 +87,7 @@ describe('Flight book debrief panel', () => {
   }, 60000);
 
   it('marks unverifiable sentences לא אומת', async () => {
-    const page = await openFlight('4032', 'partial');
+    const page = await openFlight('partial');
     await page.waitForSelector('[data-fb="debrief"][data-status="partial"]', { timeout: 20000 });
     const text = await page.locator('[data-fb="debrief"]').innerText();
     expect(text).toContain('לא אומת');
@@ -120,7 +99,7 @@ describe('Flight book debrief panel', () => {
   }, 60000);
 
   it('shows the Hebrew not-configured line when Gemini is off', async () => {
-    const page = await openFlight('4033', 'nokey');
+    const page = await openFlight('nokey');
     await page.waitForSelector('[data-fb="debrief"][data-state="nokey"]', { timeout: 20000 });
     const text = await page.locator('[data-fb="debrief"]').innerText();
     expect(text).toContain(NO_KEY);

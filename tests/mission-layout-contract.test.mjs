@@ -5,6 +5,8 @@ import fs from 'fs';
 import net from 'node:net';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { pauseLiveHud, resumeLiveHud } from './pause-hud-poll.mjs';
+import { startTestServer } from './test-server.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const html = fs.readFileSync(path.join(repoRoot, 'public', 'index.html'), 'utf8');
@@ -205,19 +207,13 @@ describe('Mission layout contract — live boxes', () => {
   }
 
   beforeAll(async () => {
-    const port = await freePort();
-    BASE = `http://127.0.0.1:${port}`;
-    serverProc = spawn(process.execPath, ['server.js'], {
-      cwd: repoRoot,
-      env: {
-        ...process.env,
-        HOST: '127.0.0.1',
-        PORT: String(port),
+    const started = await startTestServer({
+      env: (port) => ({
         SQLITE_PATH: `/tmp/airvix-mission-layout-${port}.sqlite`,
-      },
-      stdio: ['ignore', 'pipe', 'pipe'],
+      }),
     });
-    await waitHealth();
+    serverProc = started.child;
+    BASE = started.base;
     const { chromium } = await import('playwright');
     browser = await chromium.launch({ headless: true });
     page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
@@ -338,7 +334,10 @@ describe('Mission layout contract — live boxes', () => {
     expect(regions.data.height).toBeGreaterThanOrEqual(44);
     expect(regions.data.height).toBeLessThanOrEqual(280);
     expect(regions.messages.top - regions.data.bottom).toBeLessThan(24);
-    expect(regions.talk.width / regions.horizon.width).toBeGreaterThan(0.9);
+    expect(regions.talk.height).toBeGreaterThanOrEqual(32);
+    expect(regions.talk.height).toBeLessThanOrEqual(48);
+    expect(interiorsIntersect(regions.talk, regions.horizon)).toBe(false);
+    expect(regions.talk.bottom).toBeLessThanOrEqual(regions.horizon.top + 8);
     const hudRatio = measured.hud.width / measured.hud.height;
     expect(hudRatio).toBeGreaterThan(0.82);
     expect(hudRatio).toBeLessThan(1.22);
@@ -370,7 +369,7 @@ describe('Mission layout contract — live boxes', () => {
     expect(measured.pfd.stage.left).toBeLessThanOrEqual(measured.pfd.ias.left + 1);
     expect(measured.pfd.stage.right).toBeGreaterThanOrEqual(measured.pfd.alt.right - 1);
     expect(measured.pfd.ias.right).toBeLessThan(measured.pfd.alt.left);
-    expect(measured.pfd.hdg.top).toBeGreaterThanOrEqual(measured.pfd.stage.bottom - 1);
+    expect(measured.pfd.hdg.height).toBeLessThan(2);
     const canvasBox = await page.evaluate(() => {
       const box = (el) => {
         const r = el.getBoundingClientRect();
@@ -409,9 +408,10 @@ describe('Mission layout contract — live boxes', () => {
     }
 
     const ahShareH = measured.hud.height / regions.horizon.height;
-    const wellShare = measured.well.height / regions.talk.height;
-    const underPfdGap = regions.horizon.bottom - regions.talk.bottom;
-    expect(underPfdGap).toBeLessThan(24);
+    const wellShare = measured.well && regions.talk.height ? measured.well.height / regions.talk.height : 0;
+    const underPfdGap = regions.horizon.top - regions.talk.bottom;
+    expect(underPfdGap).toBeGreaterThanOrEqual(-8);
+    expect(underPfdGap).toBeLessThan(80);
     const measure = {
       ahShareH,
       ahContentH: measured.hud.height,
@@ -459,8 +459,8 @@ describe('Mission layout contract — live boxes', () => {
     });
     expect(ask.micText).toContain('האזינו');
     expect(ask.micDisplay).not.toBe('none');
-    expect(ask.inputDisplay).toBe('none');
-    expect(ask.sendDisplay).toBe('none');
+    expect(ask.inputDisplay).not.toBe('none');
+    expect(ask.sendDisplay).not.toBe('none');
     expect(ask.talkW).toBeGreaterThan(120);
     expect(ask.hostW / ask.talkW).toBeGreaterThan(0.85);
     expect(ask.mapShare).toBeGreaterThanOrEqual(0.65);
@@ -468,6 +468,8 @@ describe('Mission layout contract — live boxes', () => {
   }, 20000);
 
   it('grows messages inside the AH stack without covering the map', async () => {
+    await pauseLiveHud(page);
+    try {
     await page.evaluate(() => {
       const ws = document.querySelector('.mission-workspace');
       if (ws) ws.dataset.askOpen = '0';
@@ -553,6 +555,9 @@ describe('Mission layout contract — live boxes', () => {
     expect(expanded.overlapIas).toBe(false);
     expect(expanded.overlapAlt).toBe(false);
     await writeShot(page, 'mission-aircraft-messages.png');
+    } finally {
+      await resumeLiveHud(page);
+    }
   }, 20000);
 
   it('does not clip mission-data glyphs when the connect phrase is long', async () => {

@@ -3,6 +3,8 @@ import { spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { qaShotDir } from './shot-dir.mjs';
+import { startTestServer } from './test-server.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const html = fs.readFileSync(path.join(repoRoot, 'public', 'index.html'), 'utf8');
@@ -24,15 +26,15 @@ describe('Ask panel layout', () => {
     expect(rail).toContain('פקודות קול ללא אישור');
     expect(rail).toContain('id="assistAgentSettingsLink"');
     expect(html).toMatch(/id="gsCodingAgent"[\s\S]*סוכן קוד/);
-    expect(html).toMatch(/data-tab="development"[^>]*\bhidden\b/);
+    const devTab = html.match(/<button\b[^>]*\bdata-tab="development"[^>]*>/);
+    expect(devTab?.[0] || '').toMatch(/\bhidden\b/);
     expect(html).not.toContain('id="assistVoiceGoBtn"');
   });
 });
 
 describe('Ask panel — no control overlap', () => {
-  const PORT = process.env.VLC_ASK_PANEL_PORT || '4023';
-  const BASE = `http://127.0.0.1:${PORT}`;
-  const shots = '/opt/cursor/artifacts/ask-panel';
+  let BASE = '';
+  const shots = qaShotDir('ask-panel');
   let serverProc = null;
   let browser = null;
 
@@ -57,12 +59,13 @@ describe('Ask panel — no control overlap', () => {
 
   beforeAll(async () => {
     fs.mkdirSync(shots, { recursive: true });
-    serverProc = spawn(process.execPath, ['server.js'], {
-      cwd: repoRoot,
-      env: { ...process.env, HOST: '127.0.0.1', PORT, CURSOR_API_KEY: '' },
-      stdio: ['ignore', 'pipe', 'pipe'],
+    const started = await startTestServer({
+      env: (port) => ({
+        CURSOR_API_KEY: '',
+      }),
     });
-    await waitHealth();
+    serverProc = started.child;
+    BASE = started.base;
     const { chromium } = await import('playwright');
     browser = await chromium.launch({ headless: true });
   });
@@ -148,7 +151,11 @@ describe('Ask panel — no control overlap', () => {
       expect(measured.modalHidden, vp.name).toBe(true);
       expect(measured.key?.display === 'none' || measured.modalHidden, vp.name).toBe(true);
       expect(measured.devTab?.display, vp.name).toBe('none');
-      expect(measured.input.display, vp.name).toBe('none');
+      expect(measured.input.display, vp.name).not.toBe('none');
+      expect(measured.input.width, vp.name).toBeGreaterThan(80);
+      expect(interiorsIntersect(measured.input, measured.send), `${vp.name} send overlaps input`).toBe(false);
+      expect(interiorsIntersect(measured.input, measured.mic), `${vp.name} mic overlaps input`).toBe(false);
+      expect(interiorsIntersect(measured.send, measured.mic), `${vp.name} send overlaps mic`).toBe(false);
       expect(measured.mic.width, vp.name).toBeGreaterThan(40);
       expect((await page.locator('#assistMicBtn').innerText()), vp.name).toContain('האזינו');
       if (vp.name !== '1366x768') {
@@ -168,8 +175,8 @@ describe('Ask panel — no control overlap', () => {
     expect(await page.locator('#assistVoiceGoHint').isHidden()).toBe(true);
     await page.locator('#assistVoiceGoInfo').evaluate((el) => el.click());
     const hintText = await page.locator('#assistVoiceGoHint').innerText();
-    expect(hintText).toContain('חימוש ונטרול חסומים');
-    expect(hintText).toContain('פרמטר דורש אישור');
+    expect(hintText).toContain('חימוש ונטרול נשארים חסומים');
+    expect(hintText).toContain('פרמטר עדיין דורש אישור');
     const goOn = page.waitForResponse((r) => r.url().includes('/api/assist/voice-go') && r.ok());
     await page.locator('#assistVoiceGoToggle').evaluate((el) => el.click());
     const onBody = await (await goOn).json();

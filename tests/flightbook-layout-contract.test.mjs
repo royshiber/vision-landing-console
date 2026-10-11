@@ -1,9 +1,9 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { spawn } from 'child_process';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { startTestServer } from './test-server.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const html = fs.readFileSync(path.join(repoRoot, 'public', 'index.html'), 'utf8');
@@ -32,37 +32,19 @@ function interiorsIntersect(a, b, slack = 1) {
     && a.bottom > b.top + slack;
 }
 
-function startServer(port, env) {
-  const sqlite = path.join(os.tmpdir(), `airvix-fb-layout-${port}.sqlite`);
-  fs.rmSync(sqlite, { force: true });
-  const child = spawn(process.execPath, ['server.js'], {
-    cwd: repoRoot,
-    env: {
-      ...process.env,
-      HOST: '127.0.0.1',
-      PORT: String(port),
-      SQLITE_PATH: sqlite,
-      GEMINI_API_KEY: '',
-      FLIGHT_DEBRIEF_MOCK: '',
-      ...env,
+async function startServer(extra) {
+  return startTestServer({
+    env: (port) => {
+      const sqlite = path.join(os.tmpdir(), `airvix-fb-layout-${port}.sqlite`);
+      fs.rmSync(sqlite, { force: true });
+      return {
+        SQLITE_PATH: sqlite,
+        GEMINI_API_KEY: '',
+        FLIGHT_DEBRIEF_MOCK: '',
+        ...extra,
+      };
     },
-    stdio: ['ignore', 'pipe', 'pipe'],
   });
-  return child;
-}
-
-async function waitHealth(base, maxMs = 25000) {
-  const t0 = Date.now();
-  while (Date.now() - t0 < maxMs) {
-    try {
-      const r = await fetch(`${base}/api/health`);
-      if (r.ok) return;
-    } catch {
-      /* retry */
-    }
-    await new Promise((r) => setTimeout(r, 200));
-  }
-  throw new Error(`flight book server did not become healthy at ${base}`);
 }
 
 async function shot(page, name) {
@@ -89,8 +71,7 @@ describe('Flight book layout contract — static source', () => {
 });
 
 describe('Flight book layout contract — live boxes', () => {
-  const PORT = '4024';
-  const BASE = `http://127.0.0.1:${PORT}`;
+  let BASE = '';
   const UID_A = '20260920T070000Z-airvix01-a1b2';
   const UID_B = '20260921T080000Z-airvix01-c3d4';
   const UID_C = '20260922T060000Z-airvix01-e5f6';
@@ -152,8 +133,9 @@ describe('Flight book layout contract — live boxes', () => {
 
   beforeAll(async () => {
     fs.mkdirSync(shotDir, { recursive: true });
-    serverProc = startServer(PORT, { FLIGHT_LOGS_MODE: 'mock' });
-    await waitHealth(BASE);
+    const started = await startServer({ FLIGHT_LOGS_MODE: 'mock' });
+    serverProc = started.child;
+    BASE = started.base;
     const { chromium } = await import('playwright');
     browser = await chromium.launch({ headless: true });
     page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
@@ -238,14 +220,14 @@ describe('Flight book layout contract — live boxes', () => {
 });
 
 describe('Flight book empty state when storage is off', () => {
-  const PORT = '4025';
-  const BASE = `http://127.0.0.1:${PORT}`;
+  let BASE = '';
   let serverProc = null;
   let browser = null;
 
   beforeAll(async () => {
-    serverProc = startServer(PORT, { FLIGHT_LOGS_MODE: 'off' });
-    await waitHealth(BASE);
+    const started = await startServer({ FLIGHT_LOGS_MODE: 'off' });
+    serverProc = started.child;
+    BASE = started.base;
     const { chromium } = await import('playwright');
     browser = await chromium.launch({ headless: true });
   }, 40000);

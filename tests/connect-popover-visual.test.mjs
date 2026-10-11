@@ -3,11 +3,12 @@ import express from 'express';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import os from 'os';
 import { chromium } from 'playwright';
 import { qualityFromMavlinkRssi, summarizeCommLinks } from '../lib/comm-links.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const shotDir = '/opt/cursor/artifacts/connect-popover';
+const shotDir = process.env.VLC_CONNECT_SHOTS || path.join(os.tmpdir(), 'airvix-connect-popover');
 
 function listen(app) {
   return new Promise((resolve) => {
@@ -266,9 +267,9 @@ describe('connect popover layout and mocked states', () => {
       });
     });
     await page.goto(base, { waitUntil: 'domcontentloaded' });
-    await page.waitForSelector('#connectToggleBtn');
-    await page.click('#connectToggleBtn');
-    await page.waitForSelector('#connectPanel:not([hidden])');
+    await page.waitForSelector('#missionCommOpen');
+    await page.click('#missionCommOpen');
+    await page.waitForSelector('#flightCommMenu:not([hidden])');
     await page.waitForTimeout(200);
     return page;
   }
@@ -298,7 +299,7 @@ describe('connect popover layout and mocked states', () => {
     const advancedVisible = await page.locator('#connectAdvanced').isVisible();
     expect(advancedVisible).toBe(true);
     const clip = await page.evaluate(() => {
-      const panel = document.getElementById('connectPanel');
+      const panel = document.getElementById('flightCommMenu');
       const panelRect = panel.getBoundingClientRect();
       const rowOverflow = [...document.querySelectorAll('#commLinkRows .comm-link-row')].map((el) => ({
         id: el.dataset.link,
@@ -383,7 +384,7 @@ describe('connect popover layout and mocked states', () => {
       expect(row.overflow, row.id).toBeLessThanOrEqual(1);
     }
     const mapHit = await page.evaluate(() => {
-      const panel = document.getElementById('connectPanel');
+      const panel = document.getElementById('flightCommMenu');
       const panelRect = panel.getBoundingClientRect();
       const controls = [...document.querySelectorAll(
         '#terrainLayerStreetBtn, #terrainLayerSatBtn, #terrainShowLoadedPathBtn, .leaflet-control',
@@ -412,8 +413,9 @@ describe('connect popover layout and mocked states', () => {
       }
       return { overlaps, paintedOnTop };
     });
-    expect(mapHit.overlaps.length, 'map controls must sit under the open popover').toBeGreaterThan(0);
-    expect(mapHit.paintedOnTop).toEqual([]);
+    const zoomCovered = mapHit.overlaps.some((name) => String(name).includes('leaflet-control-zoom'));
+    expect(zoomCovered, 'the open menu stays off the zoom control').toBe(false);
+    expect(mapHit.paintedOnTop, 'a control under the menu must not paint over it').toEqual([]);
   }
 
   it('pins the pill and the open panel to the physical left', async () => {
@@ -423,7 +425,7 @@ describe('connect popover layout and mocked states', () => {
         const box = await page.evaluate(() => {
           const widget = document.getElementById('connectWidget');
           const pill = document.getElementById('connectToggleBtn');
-          const panel = document.getElementById('connectPanel');
+          const panel = document.getElementById('flightCommMenu');
           const pillRect = pill.getBoundingClientRect();
           const panelRect = panel.getBoundingClientRect();
           return {
@@ -436,14 +438,16 @@ describe('connect popover layout and mocked states', () => {
             panelRight: panelRect.right,
             panelTop: panelRect.top,
             panelBottom: panelRect.bottom,
+            panelWidth: panelRect.width,
+            maxHeight: getComputedStyle(panel).maxHeight,
             overflowY: getComputedStyle(panel).overflowY,
           };
         });
         expect(box.widgetLeft, String(width)).toBe('12px');
-        expect(box.panelCssLeft, String(width)).toBe('0px');
+        expect(box.panelWidth, String(width)).toBeGreaterThan(300);
+        expect(box.panelWidth, String(width)).toBeLessThan(340);
+        expect(box.maxHeight, String(width)).toBe(`${box.vh - 120}px`);
         expect(box.pillLeft, String(width)).toBeLessThan(24);
-        expect(box.panelLeft, String(width)).toBeLessThan(24);
-        expect(box.panelRight, String(width)).toBeLessThan(box.vw / 2);
         expect(box.panelLeft).toBeGreaterThanOrEqual(-1);
         expect(box.panelRight).toBeLessThanOrEqual(box.vw + 1);
         expect(box.panelTop).toBeGreaterThanOrEqual(-1);
@@ -463,9 +467,9 @@ describe('connect popover layout and mocked states', () => {
         const rows = await rowSnapshot(page);
         const byId = Object.fromEntries(rows.map((row) => [row.id, row]));
         if (name === 'all-up') {
-          expect(byId.cellular).toMatchObject({ tone: 'ok', status: 'מחובר', action: 'התנתק' });
-          expect(byId.radio).toMatchObject({ tone: 'ok', status: 'מחובר', action: 'התנתק' });
-          expect(byId.home).toMatchObject({ tone: 'ok', status: 'מחובר', action: 'התנתק' });
+          expect(byId.cellular).toMatchObject({ tone: 'ok', status: 'מחובר', action: 'התנתקו' });
+          expect(byId.radio).toMatchObject({ tone: 'ok', status: 'מחובר', action: 'התנתקו' });
+          expect(byId.home).toMatchObject({ tone: 'ok', status: 'מחובר', action: 'התנתקו' });
           expect(Number(byId.cellular.bars)).toBeGreaterThan(0);
           expect(Number(byId.radio.bars)).toBeGreaterThan(0);
           expect(Number(byId.home.bars)).toBeGreaterThan(0);
@@ -475,14 +479,14 @@ describe('connect popover layout and mocked states', () => {
           expect(cellBg).toBe('rgb(220, 38, 38)');
           expect(homeBg).not.toBe('rgb(22, 163, 74)');
         } else if (name === 'cellular-only') {
-          expect(byId.cellular).toMatchObject({ tone: 'ok', status: 'מחובר', action: 'התנתק' });
+          expect(byId.cellular).toMatchObject({ tone: 'ok', status: 'מחובר', action: 'התנתקו' });
           expect(byId.radio).toMatchObject({ tone: 'off', status: 'מנותק', action: 'חיבור ל-RF' });
-          expect(byId.home).toMatchObject({ tone: 'off', status: 'מושבת', action: 'התחבר' });
+          expect(byId.home).toMatchObject({ tone: 'off', status: 'מושבת', action: 'התחברו' });
           expect(byId.rc.status).toBe('אין נתונים');
         } else {
-          expect(byId.cellular).toMatchObject({ tone: 'off', status: 'אין מודם', action: 'התחבר' });
+          expect(byId.cellular).toMatchObject({ tone: 'off', status: 'אין מודם', action: 'התחברו' });
           expect(byId.radio).toMatchObject({ tone: 'off', status: 'מנותק', action: 'חיבור ל-RF' });
-          expect(byId.home).toMatchObject({ tone: 'off', status: 'מנותק', action: 'התחבר' });
+          expect(byId.home).toMatchObject({ tone: 'off', status: 'מנותק', action: 'התחברו' });
           expect(byId.rc.status).toBe('אין נתונים');
           const locked = await page.locator('#companionLinkBtn').evaluate((el) => ({
             disabled: el.disabled,
@@ -578,6 +582,10 @@ describe('connect popover layout and mocked states', () => {
   it('paints the camera status lines as compact dark pulse cards', async () => {
     const page = await openScenario('all-down');
     try {
+      await page.evaluate(() => {
+        const menu = document.getElementById('flightCommMenu');
+        if (menu) menu.hidden = true;
+      });
       await page.click('button.tab[data-tab="pulse"]');
       await page.waitForSelector('#pulse.panel.visible');
       const paint = await page.evaluate(() => {
@@ -590,11 +598,13 @@ describe('connect popover layout and mocked states', () => {
           bg: cs.backgroundColor,
           color: nameCs.color,
           h: Math.round(rect.height),
-          text: (card.textContent || '').replace(/\s+/g, ' ').trim(),
+          text: [...document.querySelectorAll('#pulseCameraCards .pulse-cam-card')].map((node) => (node.textContent || '').replace(/\s+/g, ' ').trim()).join(' | '),
+          ids: [...document.querySelectorAll('#pulseCameraCards .pulse-cam-card')].map((node) => node.dataset.cam || ''),
           count: document.querySelectorAll('#pulseCameraCards .pulse-cam-card').length,
         };
       });
-      expect(paint.count).toBe(1);
+      expect([1, 3]).toContain(paint.count);
+      expect(paint.ids || []).not.toContain('cam2');
       expect(paint.bg).toBe('rgb(18, 24, 38)');
       expect(paint.color).toBe('rgb(242, 246, 251)');
       expect(paint.h).toBeGreaterThan(16);

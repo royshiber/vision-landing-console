@@ -42,5 +42,5 @@ export function frameTilePresentation({
   if (picture && !showNone) return { showImage: true, showNote: false };
   if (showNone && !picture) return { showImage: false, showNote: true };
   if (picture) return { showImage: true, showNote: false };
-  return { showImage: false, showNote: false };
+  return { showImage: false, showNote: true };
 }

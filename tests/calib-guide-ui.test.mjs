@@ -3,12 +3,14 @@
  */
 import { afterAll, describe, expect, it } from 'vitest';
 import { spawn } from 'node:child_process';
+import fs from 'node:fs';
 import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { calibVerdictLine } from '../public/modules/calib-guide.mjs';
 import { cameraSettingsHtml } from '../public/modules/camera-settings.mjs';
+import { startTestServer } from './test-server.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -54,21 +56,17 @@ describe('guided calibration on CAM1', () => {
   });
 
   it('shows progress, a move hint, the verdict, then saves', async () => {
-    const port = await freePort();
     const dbPath = path.join(os.tmpdir(), `airvix-calib-guide-${process.pid}.sqlite`);
-    proc = spawn(process.execPath, ['server.js'], {
-      cwd: repoRoot,
-      env: {
-        ...process.env,
-        HOST: '127.0.0.1',
-        PORT: String(port),
+    const started = await startTestServer({
+      env: (port) => ({
         SQLITE_PATH: dbPath,
         COMPANION_MODE: 'off',
         JETSON_COMPANION_BASE_URL: '',
-      },
+      }),
       stdio: 'ignore',
     });
-    const base = `http://127.0.0.1:${port}`;
+    proc = started.child;
+    const base = started.base;
     const t0 = Date.now();
     let up = false;
     while (Date.now() - t0 < 20000) {
@@ -143,11 +141,13 @@ describe('guided calibration on CAM1', () => {
     await page.click('#opticsCam1Btn');
     await page.waitForSelector('#cam1Panel:not([hidden])');
     await page.waitForFunction(() => document.getElementById('cam1CalibStart')?.disabled === false);
+    await page.locator('#cam1Calib > summary').click();
     await page.click('#cam1CalibStart');
     await page.waitForFunction(() => document.getElementById('cam1CalibProgress')?.textContent === '12/20');
     await page.waitForFunction(() => document.getElementById('cam1CalibHint')?.textContent === 'קרב את הלוח');
-    const shotDir = '/opt/cursor/artifacts/screenshots';
-    await page.screenshot({ path: `${shotDir}/calib-guide-cam1.png`, animations: 'disabled' });
+    const shotDir = process.env.VLC_CALIB_SHOTS || path.join(os.tmpdir(), 'airvix-calib-guide');
+    fs.mkdirSync(shotDir, { recursive: true });
+    await page.screenshot({ path: path.join(shotDir, 'calib-guide-cam1.png'), animations: 'disabled' });
     showReview = true;
     await page.waitForFunction(() => (document.getElementById('cam1CalibState')?.textContent || '').includes('מצוין'));
     expect(await page.locator('#cam1CalibState').innerText()).toBe('שגיאת הטלה 0.42 · מצוין');
@@ -158,5 +158,5 @@ describe('guided calibration on CAM1', () => {
     expect(posts.some((row) => row.action === 'start' && row.inner_cols === 9 && row.inner_rows === 6 && row.square_mm === 25)).toBe(true);
     expect(posts.some((row) => row.action === 'save')).toBe(true);
     expect(posts.every((row) => row.inner_cols === 9 && row.square_mm === 25)).toBe(true);
-  });
+  }, 20000);
 });

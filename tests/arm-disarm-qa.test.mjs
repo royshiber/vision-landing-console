@@ -4,11 +4,12 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { collectTextFitFailures } from './text-fit-audit.mjs';
+import { qaShotDir } from './shot-dir.mjs';
+import { startTestServer } from './test-server.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const PORT = process.env.VLC_ARM_QA_PORT || '4037';
-const BASE = `http://127.0.0.1:${PORT}`;
-const shots = '/opt/cursor/artifacts/arm-disarm';
+let BASE = '';
+const shots = qaShotDir('arm-disarm');
 const PREARM = 'PreArm: GPS speed error 1.2m/s Need 3D Fix לפני חימוש';
 
 const viewports = [
@@ -79,12 +80,13 @@ describe('ARM DISARM flight screen', () => {
 
   beforeAll(async () => {
     fs.mkdirSync(shots, { recursive: true });
-    serverProc = spawn(process.execPath, ['server.js'], {
-      cwd: repoRoot,
-      env: { ...process.env, HOST: '127.0.0.1', PORT, CURSOR_API_KEY: '' },
-      stdio: ['ignore', 'pipe', 'pipe'],
+    const started = await startTestServer({
+      env: (port) => ({
+        CURSOR_API_KEY: '',
+      }),
     });
-    await waitHealth();
+    serverProc = started.child;
+    BASE = started.base;
     const { chromium } = await import('playwright');
     browser = await chromium.launch({ headless: true });
   });

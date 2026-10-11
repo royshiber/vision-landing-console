@@ -11,6 +11,8 @@ import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { startTestServer } from './test-server.mjs';
+import { claimSitlInstance, sitlMavlinkPort } from './sitl-instance.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DEFAULT_BINARY = '/tmp/ardupilot/build/sitl/bin/arduplane';
@@ -39,17 +41,6 @@ afterAll(() => {
 function tail(buf, max = 4000) {
   const text = buf.toString('utf8');
   return text.length > max ? text.slice(-max) : text;
-}
-
-function freePort() {
-  return new Promise((resolve, reject) => {
-    const server = net.createServer();
-    server.once('error', reject);
-    server.listen(0, '127.0.0.1', () => {
-      const { port } = server.address();
-      server.close(() => resolve(port));
-    });
-  });
 }
 
 function waitForPort(port, host, timeoutMs) {
@@ -98,27 +89,28 @@ function startSitl(args, cwd) {
   return child;
 }
 
-function startConsole(port, dbPath) {
+async function startConsole(dbPath, sitlPort) {
   const logs = { out: Buffer.alloc(0) };
-  const child = track(spawn(process.execPath, ['server.js'], {
-    cwd: repoRoot,
-    stdio: ['ignore', 'pipe', 'pipe'],
+  const started = await startTestServer({
     env: {
-      ...process.env,
-      PORT: String(port),
-      HOST: '127.0.0.1',
       SQLITE_PATH: dbPath,
       COMPANION_MODE: 'off',
       JETSON_COMPANION_BASE_URL: '',
+      ...(sitlPort ? { SIMULATOR_TCP_PORT: String(sitlPort) } : {}),
     },
-  }));
-  const push = (chunk) => {
-    logs.out = Buffer.concat([logs.out, chunk]).subarray(-16000);
-  };
-  child.stdout.on('data', push);
-  child.stderr.on('data', push);
-  child.logs = logs;
-  return child;
+    onChild(child) {
+      const push = (chunk) => {
+        logs.out = Buffer.concat([logs.out, chunk]).subarray(-16000);
+      };
+      child.stdout?.on('data', push);
+      child.stderr?.on('data', push);
+      child.logs = logs;
+      track(child);
+    },
+  });
+  started.child.logs = logs;
+  started.child.base = started.base;
+  return started.child;
 }
 
 async function api(base, method, urlPath, body) {
@@ -131,11 +123,11 @@ async function api(base, method, urlPath, body) {
   return { status: res.status, json };
 }
 
-function assertSimulatorOnly(live) {
+function assertSimulatorOnly(live, tcpPort) {
   expect(live?.simulator).toBe(true);
   if (live.type === 'tcp') {
     expect(live.host).toBe('127.0.0.1');
-    expect(live.port).toBe(5760);
+    expect(live.port).toBe(tcpPort);
   } else if (live.type === 'udp') {
     expect(['0.0.0.0', '127.0.0.1']).toContain(live.host);
   } else if (live.type === 'serial') {
@@ -153,14 +145,14 @@ function pickSimParam(params) {
   return found || null;
 }
 
-async function roundTripThreeTimes(base, id) {
+async function roundTripThreeTimes(base, id, tcpPort) {
   const ready = await waitUntil(async () => {
     const { json } = await api(base, 'GET', `/api/connections/${id}/status`);
     const live = json?.connection?.liveStatus;
     if (!live?.simulator || live.armed !== false || !(Number(live.heartbeatCount) > 0)) return null;
     return live;
   }, 45000, 'simulator heartbeat disarmed');
-  assertSimulatorOnly(ready);
+  assertSimulatorOnly(ready, tcpPort);
 
   await api(base, 'POST', `/api/connections/${id}/request-params`);
   const params = await waitUntil(async () => {
@@ -217,12 +209,14 @@ describe.skipIf(!ENABLED)('ArduPlane SITL param round-trip', () => {
     }
   });
 
-  it('connects over SITL TCP 5760, writes a SIM_ param, reads it back, and restores it three times', async () => {
-    const port = await freePort();
+  it('connects over SITL TCP on a free port, writes a SIM_ param, reads it back, and restores it three times', async () => {
     const dbPath = path.join(os.tmpdir(), `airvix-sitl-tcp-${process.pid}.sqlite`);
     const sitlDir = fs.mkdtempSync(path.join(os.tmpdir(), 'airvix-sitl-tcp-'));
-    consoleProc = startConsole(port, dbPath);
-    base = `http://127.0.0.1:${port}`;
+    const sitlSlot = claimSitlInstance();
+    try {
+    const sitlPort = await sitlMavlinkPort(sitlSlot.instance);
+    consoleProc = await startConsole(dbPath, sitlPort);
+    base = consoleProc.base;
     await waitUntil(async () => {
       try {
         const health = await api(base, 'GET', '/api/health');
@@ -233,14 +227,15 @@ describe.skipIf(!ENABLED)('ArduPlane SITL param round-trip', () => {
     }, 20000, 'console health');
 
     const sitl = startSitl([
+      '-I', String(sitlSlot.instance),
       '--model', 'plane',
       '--speedup', '1',
       '--home', HOME,
-      '--serial0', 'tcp:5760',
+      '--serial0', `tcp:${sitlPort}`,
       '-w',
     ], sitlDir);
     try {
-      await waitForPort(5760, '127.0.0.1', 30000);
+      await waitForPort(sitlPort, '127.0.0.1', 30000);
     } catch (err) {
       throw new Error(`${err.message}\n${tail(sitl.logs.out)}`);
     }
@@ -248,16 +243,21 @@ describe.skipIf(!ENABLED)('ArduPlane SITL param round-trip', () => {
       role: 'radio',
       type: 'tcp',
       host: '127.0.0.1',
-      port: 5760,
+      port: sitlPort,
+      simulatorPort: sitlPort,
       preset: 'simulator',
     });
     try {
-      await roundTripThreeTimes(base, id);
+      await roundTripThreeTimes(base, id, sitlPort);
     } catch (err) {
       throw new Error(`${err.message}\n${tail(sitl.logs.out)}\n${tail(consoleProc.logs.out)}`);
     } finally {
       await api(base, 'POST', '/api/links/disconnect', { role: 'radio' }).catch(() => {});
       stopChild(sitl);
+      sitlSlot.release();
+    }
+    } finally {
+      sitlSlot.release();
     }
   }, 180000);
 
@@ -281,7 +281,9 @@ describe.skipIf(!ENABLED)('ArduPlane SITL param round-trip', () => {
     const sitlDir = fs.mkdtempSync(path.join(os.tmpdir(), 'airvix-sitl-serial-'));
     const sitlPort = fs.realpathSync(linkA);
     const consolePort = fs.realpathSync(linkB);
+    const serialSlot = claimSitlInstance();
     const sitl = startSitl([
+      '-I', String(serialSlot.instance),
       '--model', 'plane',
       '--speedup', '1',
       '--home', HOME,
@@ -290,6 +292,7 @@ describe.skipIf(!ENABLED)('ArduPlane SITL param round-trip', () => {
     ], sitlDir);
     await new Promise((r) => setTimeout(r, 1500));
     if (sitl.exitCode != null) {
+      serialSlot.release();
       throw new Error(`SITL serial exited ${sitl.exitCode}\n${tail(sitl.logs.out)}`);
     }
     let id;
@@ -311,6 +314,7 @@ describe.skipIf(!ENABLED)('ArduPlane SITL param round-trip', () => {
       await api(base, 'POST', '/api/links/disconnect', { role: 'radio' }).catch(() => {});
       stopChild(sitl);
       stopChild(socat);
+      serialSlot.release();
     }
   }, 180000);
 });

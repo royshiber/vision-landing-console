@@ -6,10 +6,10 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { spawn } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { startTestServer } from './test-server.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const PORT = '4197';
-const BASE = `http://127.0.0.1:${PORT}`;
+let BASE = '';
 
 const NAMES = ['qa_a.tlog', 'qa_b.tlog', 'qa_c.tlog', 'qa_d.tlog'];
 
@@ -40,20 +40,18 @@ describe('GCS completed logs each have a download', () => {
   let browser = null;
 
   beforeAll(async () => {
-    serverProc = spawn(process.execPath, ['server.js'], {
-      cwd: repoRoot,
-      env: {
-        ...process.env,
-        HOST: '127.0.0.1',
-        PORT,
-        SQLITE_PATH: `/tmp/airvix-gcs-list-${PORT}.sqlite`,
+    const started = await startTestServer({
+      env: (port) => ({
+        SQLITE_PATH: `/tmp/airvix-gcs-list-${port}.sqlite`,
         COMPANION_MODE: 'off',
         JETSON_COMPANION_BASE_URL: '',
         FOLLOW_TARGET_SITL: '',
         AIRVIX_GCS_LOG_UPLOAD: '',
-      },
+      }),
       stdio: 'ignore',
     });
+    serverProc = started.child;
+    BASE = started.base;
     const t0 = Date.now();
     while (Date.now() - t0 < 20000) {
       try {

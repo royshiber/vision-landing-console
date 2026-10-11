@@ -1,8 +1,10 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { spawn } from 'child_process';
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { startTestServer } from './test-server.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const html = fs.readFileSync(path.join(repoRoot, 'public', 'index.html'), 'utf8');
@@ -10,7 +12,7 @@ const css = fs.readFileSync(path.join(repoRoot, 'public', 'styles.css'), 'utf8')
 const js = fs.readFileSync(path.join(repoRoot, 'public', 'app.js'), 'utf8');
 const version = fs.readFileSync(path.join(repoRoot, 'version.js'), 'utf8');
 const pkg = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8'));
-const shotDir = '/opt/cursor/artifacts/screenshots';
+const shotDir = process.env.VLC_MISSION_MSG_SHOTS || path.join(os.tmpdir(), 'airvix-mission-messages');
 
 function sliceFunction(src, name) {
   const start = src.indexOf(`function ${name}(`);
@@ -259,8 +261,7 @@ describe('Mission messages toggle — source contract', () => {
 });
 
 describe('Mission messages toggle — live layout', () => {
-  const PORT = '4025';
-  const BASE = `http://127.0.0.1:${PORT}`;
+  let BASE = '';
   let serverProc = null;
   let browser = null;
   let page = null;
@@ -338,11 +339,12 @@ describe('Mission messages toggle — live layout', () => {
   }
 
   beforeAll(async () => {
-    serverProc = spawn(process.execPath, ['server.js'], {
-      cwd: repoRoot,
-      env: { ...process.env, HOST: '127.0.0.1', PORT },
-      stdio: ['ignore', 'pipe', 'pipe'],
+    const started = await startTestServer({
+      env: (port) => ({
+      }),
     });
+    serverProc = started.child;
+    BASE = started.base;
     const t0 = Date.now();
     while (Date.now() - t0 < 20000) {
       try {

@@ -3,12 +3,35 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { buildAssistContext } from '../lib/assist/assist-context.mjs';
-import { FRAME_SYNC_TOLERANCE_MS, assembleVisionAsk, cacheCoversAsk, decodeTracksHeader, encodeTracksHeader, fillVisionAsk, framePoint, hitDrawnBox, hitShownFrame, hitTrack, layoutTrackBoxes, mediaFit, noteJpegTracks, placeMenuBox, placeTrackCaption, selectFrameTracks, TRACK_LIST_POLL_MS, trackCaption, tracksForShownFrame, tracksMatchFrame, tracksPollAllowed, unwrapTracks, visionAskSnapshot, VISION_ASK_WAIT_MS, waitForVisionAsk, waitFrameTracks } from '../public/modules/vision-tracks.mjs';
+import { FRAME_SYNC_TOLERANCE_MS, assembleVisionAsk, cacheCoversAsk, decodeTracksHeader, detectionCaption, encodeTracksHeader, fillVisionAsk, framePoint, hitDrawnBox, hitShownFrame, hitTrack, layoutTrackBoxes, mediaFit, noteJpegTracks, placeMenuBox, placeTrackCaption, selectFrameTracks, TRACK_LIST_POLL_MS, trackCaption, tracksForShownFrame, tracksMatchFrame, tracksPollAllowed, unwrapTracks, visionAskSnapshot, VISION_ASK_WAIT_MS, waitForVisionAsk, waitFrameTracks } from '../public/modules/vision-tracks.mjs';
 import { nextFailPollMs } from '../public/modules/poll-backoff.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 describe('vision track hit testing', () => {
+  it('hides the off caption when the frame under the boxes has tracks', () => {
+    const box = { id: 2, bbox: [20, 30, 80, 70] };
+    expect(detectionCaption({
+      enabled: false,
+      reason_he: 'הזיהוי כבוי',
+      tracks: [box],
+    })).toBe('');
+    expect(detectionCaption({
+      enabled: true,
+      reason_he: 'הזיהוי כבוי',
+      tracks: [],
+    })).toBe('');
+    expect(detectionCaption({
+      enabled: false,
+      reason_he: 'הזיהוי כבוי',
+      tracks: [],
+    })).toBe('הזיהוי כבוי');
+    expect(detectionCaption({
+      reason_he: 'אין נתון על זרם המצלמות',
+      tracks: [],
+    })).toBe('אין נתון על זרם המצלמות');
+  });
+
   it('unwraps the proxy envelope and keeps a bare payload', () => {
     expect(unwrapTracks({ ok: true, lane: 'NEW', data: { tracks: [] } })).toEqual({ tracks: [] });
     expect(unwrapTracks({ tracks: [1] })).toEqual({ tracks: [1] });
@@ -39,6 +62,9 @@ describe('vision track hit testing', () => {
     const wide = placeTrackCaption(0, 240, 200);
     expect(wide.right).toBe(200);
     expect(wide.right - wide.x).toBe(240);
+    const inset = placeTrackCaption(0, 40, 200, 80);
+    expect(inset.x).toBeGreaterThanOrEqual(80);
+    expect(inset.right).toBeLessThanOrEqual(120);
     expect(TRACK_LIST_POLL_MS).toBe(1000);
     expect(tracksPollAllowed(10_000, 9_500, 0)).toBe(false);
     expect(tracksPollAllowed(10_000, 0, 9_500)).toBe(false);

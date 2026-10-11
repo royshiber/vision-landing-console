@@ -3,11 +3,12 @@ import { execFileSync, spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { qaShotDir } from './shot-dir.mjs';
+import { startTestServer } from './test-server.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const PORT = process.env.VLC_HOME_QA_PORT || '4031';
-const BASE = `http://127.0.0.1:${PORT}`;
-const shots = '/opt/cursor/artifacts/home-qa';
+let BASE = '';
+const shots = qaShotDir('home-qa');
 
 const viewports = [
   { name: '1024x576', width: 1024, height: 576 },
@@ -44,12 +45,13 @@ describe('Home screen QA matrix', () => {
 
   beforeAll(async () => {
     fs.mkdirSync(shots, { recursive: true });
-    serverProc = spawn(process.execPath, ['server.js'], {
-      cwd: repoRoot,
-      env: { ...process.env, HOST: '127.0.0.1', PORT, CURSOR_API_KEY: '' },
-      stdio: ['ignore', 'pipe', 'pipe'],
+    const started = await startTestServer({
+      env: (port) => ({
+        CURSOR_API_KEY: '',
+      }),
     });
-    await waitHealth();
+    serverProc = started.child;
+    BASE = started.base;
     const { chromium } = await import('playwright');
     browser = await chromium.launch({ headless: true });
   });
@@ -182,6 +184,20 @@ describe('Home screen QA matrix', () => {
   it('covers every home-screen combination without overlap or clipping', async () => {
     expect(stateCount()).toBeGreaterThan(1500);
     const page = await browser.newPage();
+    await page.route('**/api/mavlink/mission-refresh', (route) => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ ok: true, count: 0 }),
+    }));
+    await page.route('**/api/assist/voice-go', async (route) => {
+      let active = false;
+      try { active = route.request().postDataJSON()?.active === true; } catch { /* empty body */ }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ ok: true, ask_voice_go_active: active }),
+      });
+    });
     await page.addInitScript(() => {
       localStorage.setItem('visionLandingMissionSwapV1', 'map-horizon');
       localStorage.setItem('vlc.instrumentView.v1', 'horizon');

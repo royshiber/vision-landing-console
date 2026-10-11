@@ -18,6 +18,7 @@ import {
   MSG_SYS_STATUS,
   MSG_ATTITUDE,
   MSG_GPS_RAW_INT,
+  MSG_GPS2_RAW,
   MSG_GLOBAL_POSITION_INT,
   MSG_VFR_HUD,
   HUD_STREAM_RATE_HZ,
@@ -101,8 +102,8 @@ function loadSizeFns() {
 
 describe('Mission AH size bias + swap persistence', () => {
   it('pins APP_VERSION at 1.02.377', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.377'");
-    expect(pkg.version).toBe('1.02.377');
+    expect(version).toContain("export const APP_VERSION = '1.02.418'");
+    expect(pkg.version).toBe('1.02.418');
   });
 
   it('fits mission-data text inside the tile instead of an ellipsis', () => {
@@ -276,6 +277,7 @@ describe('HUD message-interval request (no flight commands)', () => {
       MSG_GLOBAL_POSITION_INT,
       MSG_VFR_HUD,
       MSG_GPS_RAW_INT,
+      MSG_GPS2_RAW,
     ]);
     expect(targets.messages.find((m) => m.id === MSG_ATTITUDE).intervalUs).toBe(HUD_ATTITUDE_INTERVAL_US);
     expect(targets.messages.find((m) => m.id === MSG_GPS_RAW_INT).intervalUs).toBe(HUD_GPS_INTERVAL_US);

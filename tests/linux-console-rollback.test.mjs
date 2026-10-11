@@ -4,17 +4,19 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { freePort } from './test-server.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const script = path.join(repoRoot, 'scripts', 'linux', 'update-airvix.sh');
 
-function writeApp(dir, version) {
+function writeApp(dir, version, port) {
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(path.join(dir, 'server.js'), 'console.log("server")\n');
   fs.writeFileSync(path.join(dir, 'version.js'), `export const APP_VERSION = '${version}';\n`);
   fs.writeFileSync(path.join(dir, 'restart.sh'), '#!/bin/sh\nexit 0\n');
   fs.chmodSync(path.join(dir, 'restart.sh'), 0o755);
-  fs.writeFileSync(path.join(dir, '.env'), 'PORT=45123\nKEEP=yes\n');
+  const env = port ? `PORT=${port}\nKEEP=yes\n` : 'KEEP=yes\n';
+  fs.writeFileSync(path.join(dir, '.env'), env);
 }
 
 describe('linux updater rollback', () => {
@@ -71,7 +73,8 @@ describe('linux updater rollback', () => {
     const app = path.join(parent, 'console');
     const prev = path.join(parent, 'airvix-rollback', 'console');
     const sibling = path.join(parent, 'airvix-failed');
-    writeApp(app, '1.02.338');
+    const port = await freePort();
+    writeApp(app, '1.02.338', port);
     writeApp(prev, '1.02.335');
     const ranRestart = path.join(parent, 'ran-old-restart');
     const ranServer = path.join(parent, 'ran-server');
@@ -87,7 +90,7 @@ describe('linux updater rollback', () => {
       stdio: 'ignore',
     });
     fs.writeFileSync(path.join(app, 'data', 'console.pid'), `${child.pid}\n`);
-    const py = spawn('python3', ['-m', 'http.server', '45123', '--bind', '127.0.0.1'], {
+    const py = spawn('python3', ['-m', 'http.server', String(port), '--bind', '127.0.0.1'], {
       cwd: os.tmpdir(),
       stdio: 'ignore',
     });
@@ -102,7 +105,7 @@ describe('linux updater rollback', () => {
     const result = spawnSync('sh', [script, '--rollback'], { encoding: 'utf8', env });
     let portAlive = false;
     try {
-      const probe = await fetch('http://127.0.0.1:45123/');
+      const probe = await fetch(`http://127.0.0.1:${port}/`);
       portAlive = probe.status === 200;
     } catch { portAlive = false; }
     py.kill();
@@ -116,7 +119,7 @@ describe('linux updater rollback', () => {
     try { process.kill(child.pid, 'SIGKILL'); } catch { /* already stopped */ }
     expect(portAlive).toBe(true);
     expect(fs.readFileSync(path.join(sibling, 'keep.txt'), 'utf8')).toBe('stay');
-    expect(fs.readFileSync(path.join(parent, 'update.log'), 'utf8')).toContain('port 45123');
+    expect(fs.readFileSync(path.join(parent, 'update.log'), 'utf8')).toContain(`port ${port}`);
     expect(text).not.toContain('sh ./restart.sh');
     expect(fs.existsSync(path.join(parent, 'ran-old-restart'))).toBe(false);
     expect(fs.readFileSync(path.join(parent, 'ran-server'), 'utf8')).toBe('yes');

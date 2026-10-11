@@ -1,9 +1,9 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { spawn } from 'child_process';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { startTestServer } from './test-server.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const html = fs.readFileSync(path.join(repoRoot, 'public', 'index.html'), 'utf8');
@@ -19,35 +19,6 @@ function interiorsIntersect(a, b, slack = 1) {
     && a.right > b.left + slack
     && a.top < b.bottom - slack
     && a.bottom > b.top + slack;
-}
-
-function startServer(port) {
-  const sqlite = path.join(os.tmpdir(), `airvix-params-layout-${port}.sqlite`);
-  fs.rmSync(sqlite, { force: true });
-  return spawn(process.execPath, ['server.js'], {
-    cwd: repoRoot,
-    env: {
-      ...process.env,
-      HOST: '127.0.0.1',
-      PORT: String(port),
-      SQLITE_PATH: sqlite,
-      GEMINI_API_KEY: '',
-      COMPANION_MODE: 'off',
-    },
-    stdio: ['ignore', 'pipe', 'pipe'],
-  });
-}
-
-async function waitHealth(base, maxMs = 25000) {
-  const t0 = Date.now();
-  while (Date.now() - t0 < maxMs) {
-    try {
-      const r = await fetch(`${base}/api/health`);
-      if (r.ok) return;
-    } catch { /* retry */ }
-    await new Promise((r) => setTimeout(r, 200));
-  }
-  throw new Error(`params server did not become healthy at ${base}`);
 }
 
 describe('Parameters tab layout contract — static source', () => {
@@ -67,8 +38,7 @@ describe('Parameters tab layout contract — static source', () => {
 });
 
 describe('Parameters tab layout contract — live boxes', () => {
-  const PORT = '4036';
-  const BASE = `http://127.0.0.1:${PORT}`;
+  let BASE = '';
   let serverProc = null;
   let browser = null;
   let page = null;
@@ -100,8 +70,19 @@ describe('Parameters tab layout contract — live boxes', () => {
   }
 
   beforeAll(async () => {
-    serverProc = startServer(PORT);
-    await waitHealth(BASE);
+    const started = await startTestServer({
+      env: (port) => {
+        const sqlite = path.join(os.tmpdir(), `airvix-params-layout-${port}.sqlite`);
+        fs.rmSync(sqlite, { force: true });
+        return {
+          SQLITE_PATH: sqlite,
+          GEMINI_API_KEY: '',
+          COMPANION_MODE: 'off',
+        };
+      },
+    });
+    serverProc = started.child;
+    BASE = started.base;
     const { chromium } = await import('playwright');
     browser = await chromium.launch({ headless: true });
     page = await browser.newPage();
@@ -266,7 +247,12 @@ describe('Parameters tab layout contract — live boxes', () => {
       expect(await page.locator('[data-param-key="GPS_TYPE"] .fc-group-now').innerText()).toBe('אין חיבור');
 
       await page.fill('#arduParamSearchInput', 'EK3');
-      await page.waitForFunction(() => document.querySelector('#fcGroupList .fc-group-empty')?.textContent === 'אין התאמה בקבוצה');
+      await page.waitForFunction(() => {
+        const keys = [...document.querySelectorAll('#fcGroupList .fc-group-key')].map((el) => el.textContent);
+        return keys.includes('EK3_ENABLE') && !keys.includes('GPS_TYPE');
+      });
+      await page.fill('#arduParamSearchInput', 'ZZZNOMATCH');
+      await page.waitForFunction(() => document.querySelector('#fcGroupList .fc-group-empty')?.textContent === 'לא נמצא בבקר: ZZZNOMATCH');
       await page.click('#arduParamSearchClearBtn');
       await page.waitForSelector('#fcGroupList [data-param-key="GPS_TYPE"]');
 

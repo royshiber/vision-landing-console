@@ -3,11 +3,12 @@ import { spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { qaShotDir } from './shot-dir.mjs';
+import { startTestServer } from './test-server.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const shotDir = '/opt/cursor/artifacts/flight-layout/after';
-const PORT = '4048';
-const BASE = `http://127.0.0.1:${PORT}`;
+const shotDir = qaShotDir('flight-layout-after');
+let BASE = '';
 
 const VIEWPORTS = [
   ['1920x1080', 1920, 1080],
@@ -29,11 +30,13 @@ describe('Flight screen overlap', () => {
 
   beforeAll(async () => {
     fs.mkdirSync(shotDir, { recursive: true });
-    serverProc = spawn(process.execPath, ['server.js'], {
-      cwd: repoRoot,
-      env: { ...process.env, HOST: '127.0.0.1', PORT, SQLITE_PATH: `/tmp/airvix-overlap-${PORT}.sqlite` },
-      stdio: ['ignore', 'pipe', 'pipe'],
+    const started = await startTestServer({
+      env: (port) => ({
+        SQLITE_PATH: `/tmp/airvix-overlap-${port}.sqlite`,
+      }),
     });
+    serverProc = started.child;
+    BASE = started.base;
     const t0 = Date.now();
     while (Date.now() - t0 < 20000) {
       try {
@@ -123,6 +126,8 @@ describe('Flight screen overlap', () => {
           || el.id === 'connectPanel'
           || !!el.closest?.('#connectPanel, .connect-widget');
         if (connectFloat(a.el) || connectFloat(b.el)) return true;
+        const inComm = (el) => !!el.closest?.('#flightCommMenu, #flightLinkMenu');
+        if (inComm(a.el) || inComm(b.el)) return true;
         if ((ids.has('connectToggleBtn') || a.el.classList.contains('connect-widget') || b.el.classList.contains('connect-widget')) && (a.el.classList.contains('app-chrome') || b.el.classList.contains('app-chrome'))) return true;
         if (ids.has('horizonCanvas') && (ids.has('horizonCameraBg') || ids.has('horizonVideoEl') || ids.has('pfdHorizonStage'))) return true;
         if (a.el.id === 'horizonCameraNote' || b.el.id === 'horizonCameraNote') return true;
@@ -254,8 +259,8 @@ describe('Flight screen overlap', () => {
       expect(closed.missing, closed.missing.join('\n')).toEqual([]);
       expect(closed.stacked, closed.stacked.join('\n')).toEqual([]);
       if (name === '360x800') expect(closed.mapH).toBeGreaterThanOrEqual(220);
-      await page.click('#connectToggleBtn');
-      await page.waitForSelector('#connectPanel:not([hidden])');
+      await page.click('#missionCommOpen');
+      await page.waitForSelector('#flightCommMenu:not([hidden])');
       await page.waitForTimeout(200);
       await page.screenshot({ path: path.join(shotDir, `flight-${name}-connect.png`) });
       const opened = await audit(page, { connectOpen: true });

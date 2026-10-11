@@ -56,5 +56,13 @@ describe('single frame miss', () => {
     });
     expect(second).toEqual({ showImage: false, showNote: true });
     expect(second.showImage || second.showNote).toBe(true);
+    const waiting = frameTilePresentation({
+      seenAt: 0,
+      now,
+      streaming: true,
+      consecutiveMisses: 0,
+      hasPicture: false,
+    });
+    expect(waiting).toEqual({ showImage: false, showNote: true });
   });
 });

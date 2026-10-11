@@ -4,6 +4,7 @@ import fs from 'fs';
 import net from 'node:net';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { startTestServer } from './test-server.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const shotDir = '/tmp/status-layout-contract';
@@ -32,12 +33,13 @@ describe('Status tab layout contract', () => {
         probe.close(() => resolve(chosen));
       });
     });
-    BASE = `http://127.0.0.1:${port}`;
-    serverProc = spawn(process.execPath, ['server.js'], {
-      cwd: repoRoot,
-      env: { ...process.env, HOST: '127.0.0.1', PORT: String(port), SQLITE_PATH: `/tmp/airvix-status-layout-${port}.sqlite` },
-      stdio: ['ignore', 'pipe', 'pipe'],
+    const started = await startTestServer({
+      env: (port) => ({
+        SQLITE_PATH: `/tmp/airvix-status-layout-${port}.sqlite`,
+      }),
     });
+    serverProc = started.child;
+    BASE = started.base;
     const t0 = Date.now();
     let healthy = false;
     while (Date.now() - t0 < 20000) {

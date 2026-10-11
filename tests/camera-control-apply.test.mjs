@@ -3,13 +3,16 @@
  */
 import { afterAll, describe, expect, it } from 'vitest';
 import { spawn } from 'node:child_process';
+import fs from 'node:fs';
 import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { AE_LOCK_HE, APPLIED_HE, FAILED_HE, FOV_META_HE, applyOutcome } from '../public/modules/camera-settings.mjs';
+import { startTestServer } from './test-server.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const shotDir = process.env.VLC_CAM1_SHOTS || path.join(os.tmpdir(), 'airvix-cam1-control');
 
 function freePort() {
   return new Promise((resolve, reject) => {
@@ -51,21 +54,17 @@ describe('camera control badges', () => {
   });
 
   it('disables manual fields while auto exposure is on and badges the read-back', async () => {
-    const port = await freePort();
     const dbPath = path.join(os.tmpdir(), `airvix-cam-apply-${process.pid}.sqlite`);
-    proc = spawn(process.execPath, ['server.js'], {
-      cwd: repoRoot,
-      env: {
-        ...process.env,
-        HOST: '127.0.0.1',
-        PORT: String(port),
+    const started = await startTestServer({
+      env: (port) => ({
         SQLITE_PATH: dbPath,
         COMPANION_MODE: 'off',
         JETSON_COMPANION_BASE_URL: '',
-      },
+      }),
       stdio: 'ignore',
     });
-    const base = `http://127.0.0.1:${port}`;
+    proc = started.child;
+    const base = started.base;
     const t0 = Date.now();
     let up = false;
     while (Date.now() - t0 < 20000) {
@@ -138,8 +137,8 @@ describe('camera control badges', () => {
     });
     await page.goto(base, { waitUntil: 'domcontentloaded' });
     await page.click('[data-tab="optics"]');
-    await page.click('#opticsCam1Btn');
-    await page.waitForSelector('#cam1Panel:not([hidden])');
+    await page.locator('.debrief-cam-tile[data-cam="cam1"]').click({ button: 'right' });
+    await page.waitForSelector('#opticsContext:not([hidden]) #cam1Panel');
     await page.waitForFunction((reason) => {
       const exp = document.getElementById('cam1Exposure');
       const gain = document.getElementById('cam1Gain');
@@ -157,13 +156,14 @@ describe('camera control badges', () => {
     await page.dispatchEvent('#cam1Gain', 'change');
     await page.waitForFunction((word) => document.getElementById('cam1ApplyBadge')?.textContent === word, APPLIED_HE);
     expect(await page.locator('#cam1ApplyBadge').getAttribute('data-state')).toBe('applied');
-    expect(await page.locator('#cam1FovHint').innerText()).toContain(FOV_META_HE);
+    expect(await page.locator('#cam1FovHint').textContent()).toContain(FOV_META_HE);
 
     await page.fill('#cam1Gain', '40');
     await page.dispatchEvent('#cam1Gain', 'change');
     await page.waitForFunction((word) => document.getElementById('cam1ApplyBadge')?.textContent === word, FAILED_HE);
     expect(await page.locator('#cam1ApplyBadge').getAttribute('data-state')).toBe('failed');
     expect(await page.locator('#cam1Gain').inputValue()).toBe('16');
-    await page.screenshot({ path: '/opt/cursor/artifacts/screenshots/cam1-control-readback.png', animations: 'disabled' });
+    fs.mkdirSync(shotDir, { recursive: true });
+    await page.screenshot({ path: path.join(shotDir, 'cam1-control-readback.png'), animations: 'disabled' });
   }, 40000);
 });

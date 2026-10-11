@@ -2,10 +2,10 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { spawn } from 'child_process';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { startTestServer } from './test-server.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const PORT = process.env.VLC_INSTRUMENT_QA_PORT || '4046';
-const BASE = `http://127.0.0.1:${PORT}`;
+let BASE = '';
 
 const viewports = [
   { name: '1024x576', width: 1024, height: 576 },
@@ -16,7 +16,7 @@ const viewports = [
   { name: '360x740', width: 360, height: 740 },
 ];
 
-const CORE = ['#pfdAltVal', '#pfdAirspeedVal', '#pfdHdgVal', '#pfdBattVal', '#hudFlightMode', '#hudAltitude', '#hudAirspeed'];
+const CORE = ['#pfdAltVal', '#pfdAirspeedVal', '#pfdBattVal', '#hudFlightMode', '#hudAltitude', '#hudAirspeed'];
 
 function layoutScript({ selectors, scrollEach, scrollGrid }) {
   function overlaps(a, b) {
@@ -104,11 +104,14 @@ describe('flight instruments visible area', () => {
   let page;
 
   beforeAll(async () => {
-    child = spawn(process.execPath, ['server.js'], {
-      cwd: repoRoot,
-      env: { ...process.env, PORT, HOST: '127.0.0.1', COMPANION_MODE: 'off' },
+    const started = await startTestServer({
+      env: (port) => ({
+        COMPANION_MODE: 'off',
+      }),
       stdio: 'ignore',
     });
+    child = started.child;
+    BASE = started.base;
     const deadline = Date.now() + 20000;
     while (Date.now() < deadline) {
       try {
@@ -230,7 +233,7 @@ describe('flight instruments visible area', () => {
             expect(badgeHidden).toBe(true);
           } else {
             const note = await page.locator('.mission-horizon-filler-note').innerText();
-            expect(note).toContain('בקר מחובר');
+            expect(note).toBe('מחובר · ArduPlane');
           }
         }
       }
@@ -292,7 +295,7 @@ describe('flight instruments visible area', () => {
       };
     });
     expect(cover.talk).not.toBe('none');
-    expect(cover.input).toBe('none');
+    expect(cover.input).not.toBe('none');
     expect(cover.mic).toContain('האזינו');
     expect(cover.toggleOverlap).toBe(false);
     expect(cover.applyOverlap).toBe(false);

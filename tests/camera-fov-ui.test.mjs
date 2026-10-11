@@ -2,10 +2,10 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { spawn } from 'child_process';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { startTestServer } from './test-server.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const PORT = '4042';
-const BASE = `http://127.0.0.1:${PORT}`;
+let BASE = '';
 
 describe('camera FOV controls', () => {
   let serverProc = null;
@@ -13,17 +13,14 @@ describe('camera FOV controls', () => {
 
   beforeAll(async () => {
     const logs = [];
-    serverProc = spawn(process.execPath, ['server.js'], {
-      cwd: repoRoot,
-      env: {
-        ...process.env,
-        HOST: '127.0.0.1',
-        PORT,
-        SQLITE_PATH: `/tmp/airvix-fov-${PORT}.sqlite`,
+    const started = await startTestServer({
+      env: (port) => ({
+        SQLITE_PATH: `/tmp/airvix-fov-${port}.sqlite`,
         COMPANION_MODE: 'off',
-      },
-      stdio: ['ignore', 'pipe', 'pipe'],
+      }),
     });
+    serverProc = started.child;
+    BASE = started.base;
     serverProc.stdout?.on('data', (buf) => logs.push(String(buf)));
     serverProc.stderr?.on('data', (buf) => logs.push(String(buf)));
     const t0 = Date.now();
@@ -57,7 +54,15 @@ describe('camera FOV controls', () => {
     const valueOf = (id) => page.evaluate((fieldId) => document.getElementById(fieldId).value, id);
     await page.goto(BASE, { waitUntil: 'domcontentloaded' });
     await page.click('[data-tab="optics"]');
-    await page.waitForSelector('#cam0Fov');
+    await page.waitForSelector('.debrief-cam-tile[data-cam="cam0"]');
+    await page.click('.debrief-cam-tile[data-cam="cam0"]', { button: 'right' });
+    await page.waitForFunction(() => document.getElementById('cam0Fov'));
+    await page.evaluate(() => {
+      const field = document.getElementById('cam0Fov');
+      const group = field?.closest('details');
+      if (group) group.open = true;
+    });
+    await page.waitForSelector('#opticsContext #cam0Fov', { state: 'visible' });
     const defaults = await page.evaluate(() => ({
       cam0: document.querySelector('#cam0Fov').value,
       cam1: document.querySelector('#cam1Fov').value,
@@ -92,7 +97,7 @@ describe('camera FOV controls', () => {
     expect(cam1.hidden).toBe(false);
     await page.reload({ waitUntil: 'domcontentloaded' });
     await page.click('[data-tab="optics"]');
-    await page.waitForSelector('#cam0Fov');
+    await page.waitForFunction(() => document.getElementById('cam0Fov') && document.getElementById('cam1Fov'));
     expect(await valueOf('cam0Fov')).toBe('100');
     expect(await valueOf('cam1Fov')).toBe('79');
     await page.close();

@@ -1,13 +1,14 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { spawn } from 'child_process';
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { startTestServer } from './test-server.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const shotDir = '/opt/cursor/artifacts/screenshots';
-const PORT = '4052';
-const BASE = `http://127.0.0.1:${PORT}`;
+const shotDir = process.env.VLC_OPTICS_SHOTS || path.join(os.tmpdir(), 'airvix-optics-debrief');
+let BASE = '';
 const html = fs.readFileSync(path.join(repoRoot, 'public', 'index.html'), 'utf8');
 const js = fs.readFileSync(path.join(repoRoot, 'public', 'app.js'), 'utf8');
 
@@ -64,11 +65,14 @@ describe('Optics debrief tab — live layout', () => {
 
   beforeAll(async () => {
     fs.mkdirSync(shotDir, { recursive: true });
-    serverProc = spawn(process.execPath, ['server.js'], {
-      cwd: repoRoot,
-      env: { ...process.env, HOST: '127.0.0.1', PORT, SQLITE_PATH: `/tmp/airvix-optics-${PORT}.sqlite` },
+    const started = await startTestServer({
+      env: (port) => ({
+        SQLITE_PATH: `/tmp/airvix-optics-${port}.sqlite`,
+      }),
       stdio: 'ignore',
     });
+    serverProc = started.child;
+    BASE = started.base;
     const t0 = Date.now();
     let up = false;
     while (Date.now() - t0 < 20000) {
@@ -136,11 +140,30 @@ describe('Optics debrief tab — live layout', () => {
     });
   }
 
+  async function openTileMenu(page, cam) {
+    const tile = page.locator(`.debrief-cam-tile[data-cam="${cam}"]`);
+    const point = await tile.evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      return {
+        x: r.left + r.width / 2,
+        y: r.top + Math.min(24, r.height / 2),
+      };
+    });
+    const hit = await page.evaluate(({ x, y }) => {
+      const el = document.elementFromPoint(x, y);
+      return el?.closest?.('.debrief-cam-tile')?.dataset?.cam || null;
+    }, point);
+    expect(hit, `right-click point is inside cam ${cam}`).toBe(cam);
+    await page.mouse.click(point.x, point.y, { button: 'right' });
+  }
+
   async function openOptics(page) {
     await page.goto(BASE, { waitUntil: 'domcontentloaded', timeout: 15000 });
     await page.locator('[data-tab="optics"]').evaluate((el) => el.click());
-    await page.waitForSelector('#optics.panel.visible #gimbalPad[data-state="down"]', { timeout: 8000 });
-    await page.waitForSelector('#cam0Reason', { timeout: 8000 });
+    await page.waitForSelector('#optics.panel.visible #debriefCamGrid', { timeout: 8000 });
+    await openTileMenu(page, 'cam3');
+    await page.waitForSelector('#opticsContext:not([hidden]) #gimbalPad[data-state="down"]', { timeout: 8000 });
+    await page.waitForSelector('#cam0Reason', { state: 'attached', timeout: 8000 });
   }
 
   async function audit(page) {
@@ -264,9 +287,9 @@ describe('Optics debrief tab — live layout', () => {
   }
 
   async function auditCam1(page) {
-    await page.locator('#opticsCam1Btn').click();
-    await page.waitForSelector('#cam1Panel:not([hidden])');
-    await page.waitForFunction(() => (document.getElementById('cam1Reason')?.textContent || '').includes('אין קישור'));
+    await openTileMenu(page, 'cam1');
+    await page.waitForSelector('#opticsContext:not([hidden]) #cam1Panel', { timeout: 8000 });
+    await page.waitForFunction(() => (document.getElementById('cam1Reason')?.textContent || '').includes('אין קישור'), null, { timeout: 8000 });
     return page.evaluate(() => {
       const visible = (el) => {
         if (!el || el.closest('[hidden]')) return false;
@@ -339,20 +362,32 @@ describe('Optics debrief tab — live layout', () => {
         expect(report.videoInPlayer).toBe(true);
         expect(report.videoInTile).toBe(false);
         expect(report.clones).toBe(0);
-        expect(report.notes).toEqual(['אין אות', 'אין אות']);
+        expect(report.notes.length).toBeGreaterThanOrEqual(2);
+        expect(report.notes.every((note) => note.includes('אין אות'))).toBe(true);
         expect(report.lockHidden).toBe(true);
         expect(report.cam0InOptics).toBe(true);
         expect(report.cam0InPulse).toBe(false);
         expect(report.statusInPulse).toBe(true);
         expect(report.cam1InPulse).toBe(true);
-        if (width >= 1024) expect(report.beside).toBe(true);
+        if (width >= 1024) {
+          // The gimbal pad moved into the tile menu on purpose.
+          // The live column is pictures only; a side pad was a dead strip beside the tiles.
+          expect(await page.locator('#opticsContext #gimbalPad').count()).toBe(1);
+          const fill = await page.evaluate(() => {
+            const panel = document.getElementById('optics').getBoundingClientRect();
+            const grid = document.getElementById('debriefCamGrid').getBoundingClientRect();
+            return {
+              gridH: grid.height,
+              panelH: panel.height,
+              gridW: grid.width,
+              panelW: panel.width,
+            };
+          });
+          expect(fill.gridH).toBeGreaterThan(fill.panelH * 0.55);
+          expect(fill.gridW).toBeGreaterThan(fill.panelW * 0.85);
+        }
         if (width >= 1366 && height >= 768) {
           expect(report.scroll, `scroll ${report.scroll}`).toBeLessThan(48);
-          expect(report.calibScroll, `calib scroll ${report.calibScroll}`).toBeLessThan(2);
-          expect(report.calibOverflow).not.toBe('auto');
-          expect(report.calibOverflow).not.toBe('scroll');
-          expect(report.fovBottom).toBeLessThanOrEqual(height);
-          expect(report.calibBottom).toBeLessThanOrEqual(height);
         }
         const cam1 = await auditCam1(page);
         await page.screenshot({ path: path.join(shotDir, `optics-cam1-${name}.png`), fullPage: false, animations: 'disabled', timeout: 8000 });

@@ -193,7 +193,7 @@ describe('Mission FC empty-note honesty', () => {
     const ui = loadHonestyUi();
     expect(ui.note.textContent).toBe(EMPTY_NOTE);
     ui.applyFlightHud(liveFcSnapshot());
-    expect(ui.note.textContent).toBe('בקר מחובר · ArduPilot · Fixed Wing');
+    expect(ui.note.textContent).toBe('מחובר · ArduPlane');
     expect(ui.armed.textContent).toBe('DISARMED');
     expect(ui.mode.textContent).toBe('MANUAL');
     expect(ui.lastRoll).toBeCloseTo(0.4);
@@ -218,12 +218,12 @@ describe('Mission FC empty-note honesty', () => {
   it('applyFlightHud(null) after a live paint must not regress the note or wipe retained HUD', () => {
     const ui = loadHonestyUi();
     ui.applyFlightHud(liveFcSnapshot());
-    expect(ui.note.textContent).toBe('בקר מחובר · ArduPilot · Fixed Wing');
+    expect(ui.note.textContent).toBe('מחובר · ArduPlane');
     const roll = ui.lastRoll;
     const pitch = ui.lastPitch;
     ui.applyFlightHud(null);
     expectNoteNotEmptyDefault(ui);
-    expect(ui.note.textContent).toBe('בקר מחובר · ArduPilot · Fixed Wing');
+    expect(ui.note.textContent).toBe('מחובר · ArduPlane');
     expect(ui.latestHudMavlink).toBeTruthy();
     expect(ui.isHudMavlinkLive(ui.latestHudMavlink)).toBe(true);
     expect(ui.lastRoll).toBe(roll);
@@ -237,10 +237,10 @@ describe('Mission FC empty-note honesty', () => {
     ui.applyFlightHud(liveFcSnapshot());
     ui.applyFcStatustextHud(null);
     expectNoteNotEmptyDefault(ui);
-    expect(ui.note.textContent).toBe('בקר מחובר · ArduPilot · Fixed Wing');
+    expect(ui.note.textContent).toBe('מחובר · ArduPlane');
     ui.applyFcStatustextHud(disconnectedSnapshot());
     expectNoteNotEmptyDefault(ui);
-    expect(ui.note.textContent).toBe('בקר מחובר · ArduPilot · Fixed Wing');
+    expect(ui.note.textContent).toBe('מחובר · ArduPlane');
     expect(ui.lastRoll).toBeCloseTo(0.4);
     expect(ui.lastPitch).toBeCloseTo(-22.7);
   });
@@ -248,13 +248,13 @@ describe('Mission FC empty-note honesty', () => {
   it('SSE payload missing mavlink after a live tick keeps the connected note', () => {
     const ui = loadHonestyUi();
     ui.applySseMissionHud({ mavlink: liveFcSnapshot() });
-    expect(ui.note.textContent).toBe('בקר מחובר · ArduPilot · Fixed Wing');
+    expect(ui.note.textContent).toBe('מחובר · ArduPlane');
     ui.applySseMissionHud({});
     expectNoteNotEmptyDefault(ui);
-    expect(ui.note.textContent).toBe('בקר מחובר · ArduPilot · Fixed Wing');
+    expect(ui.note.textContent).toBe('מחובר · ArduPlane');
     ui.applySseMissionHud({ mavlink: null });
     expectNoteNotEmptyDefault(ui);
-    expect(ui.note.textContent).toBe('בקר מחובר · ArduPilot · Fixed Wing');
+    expect(ui.note.textContent).toBe('מחובר · ArduPlane');
     expect(ui.lastRoll).toBeCloseTo(0.4);
     expect(ui.armed.textContent).toBe('DISARMED');
   });
@@ -265,7 +265,7 @@ describe('Mission FC empty-note honesty', () => {
     ui.rememberLiveRadioStatus(null);
     ui.hydrateMissionHudFromLiveLink();
     expectNoteNotEmptyDefault(ui);
-    expect(ui.note.textContent).toBe('בקר מחובר · ArduPilot · Fixed Wing');
+    expect(ui.note.textContent).toBe('מחובר · ArduPlane');
   });
 
   it('true disconnect still writes honest empty copy, including ממסר hint', () => {

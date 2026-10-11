@@ -3,6 +3,7 @@ import { spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { startTestServer } from './test-server.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const js = fs.readFileSync(path.join(repoRoot, 'public', 'app.js'), 'utf8');
@@ -78,8 +79,7 @@ describe('Mission column resize — pointer direction', () => {
 });
 
 describe('Mission column resize — RTL flight screen', () => {
-  const PORT = process.env.VLC_RESIZE_PORT || '4063';
-  const BASE = `http://127.0.0.1:${PORT}`;
+  let BASE = '';
   let serverProc = null;
   let browser = null;
 
@@ -98,12 +98,13 @@ describe('Mission column resize — RTL flight screen', () => {
   }
 
   beforeAll(async () => {
-    serverProc = spawn(process.execPath, ['server.js'], {
-      cwd: repoRoot,
-      env: { ...process.env, HOST: '127.0.0.1', PORT, CURSOR_API_KEY: '' },
-      stdio: ['ignore', 'pipe', 'pipe'],
+    const started = await startTestServer({
+      env: (port) => ({
+        CURSOR_API_KEY: '',
+      }),
     });
-    await waitHealth();
+    serverProc = started.child;
+    BASE = started.base;
     const { chromium } = await import('playwright');
     browser = await chromium.launch({ headless: true });
   });

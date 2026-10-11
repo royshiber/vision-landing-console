@@ -1,12 +1,13 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { spawn } from 'child_process';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { qaShotDir } from './shot-dir.mjs';
+import { startTestServer } from './test-server.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const qaDir = '/opt/cursor/artifacts/params-tab/qa';
+const qaDir = qaShotDir('params-tab-qa');
 const VIEWPORTS = [
   { width: 1024, height: 576, name: '1024x576' },
   { width: 1280, height: 720, name: '1280x720' },
@@ -16,38 +17,8 @@ const VIEWPORTS = [
   { width: 360, height: 740, name: '360x740' },
 ];
 
-function startServer(port) {
-  const sqlite = path.join(os.tmpdir(), `airvix-params-qa-${port}.sqlite`);
-  fs.rmSync(sqlite, { force: true });
-  return spawn(process.execPath, ['server.js'], {
-    cwd: repoRoot,
-    env: {
-      ...process.env,
-      HOST: '127.0.0.1',
-      PORT: String(port),
-      SQLITE_PATH: sqlite,
-      GEMINI_API_KEY: '',
-      COMPANION_MODE: 'off',
-    },
-    stdio: 'ignore',
-  });
-}
-
-async function waitHealth(base, maxMs = 25000) {
-  const t0 = Date.now();
-  while (Date.now() - t0 < maxMs) {
-    try {
-      const r = await fetch(`${base}/api/health`);
-      if (r.ok) return;
-    } catch { /* retry */ }
-    await new Promise((r) => setTimeout(r, 200));
-  }
-  throw new Error(`params qa server did not become healthy at ${base}`);
-}
-
 describe('Parameters tab text fit', () => {
-  const PORT = '4037';
-  const BASE = `http://127.0.0.1:${PORT}`;
+  let BASE = '';
   let serverProc = null;
   let browser = null;
   let page = null;
@@ -183,8 +154,20 @@ describe('Parameters tab text fit', () => {
 
   beforeAll(async () => {
     fs.mkdirSync(qaDir, { recursive: true });
-    serverProc = startServer(PORT);
-    await waitHealth(BASE);
+    const started = await startTestServer({
+      env: (port) => {
+        const sqlite = path.join(os.tmpdir(), `airvix-params-qa-${port}.sqlite`);
+        fs.rmSync(sqlite, { force: true });
+        return {
+          SQLITE_PATH: sqlite,
+          GEMINI_API_KEY: '',
+          COMPANION_MODE: 'off',
+        };
+      },
+      stdio: 'ignore',
+    });
+    serverProc = started.child;
+    BASE = started.base;
     const { chromium } = await import('playwright');
     browser = await chromium.launch({ headless: true });
     page = await browser.newPage();

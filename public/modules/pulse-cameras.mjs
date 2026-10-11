@@ -5,7 +5,7 @@
  */
 import { cameraDisplayName } from './camera-names.mjs';
 
-const CAMERA_ORDER = ['cam0', 'cam1', 'cam2', 'cam3'];
+const CAMERA_ORDER = ['cam0', 'cam1', 'cam3'];
 
 const ERROR_HE = Object.freeze({
   disabled: 'כבוי',
@@ -97,6 +97,22 @@ export function formatPulseCameraAge(ms) {
   return `${(ms / 1000).toFixed(1)} s`;
 }
 
+function applyStale(card, ageMs) {
+  if (!Number.isFinite(ageMs)) return card;
+  if (ageMs >= 10000) {
+    const sec = Math.max(1, Math.round(ageMs / 1000));
+    return {
+      ...card,
+      pill: 'לא מגיב',
+      tone: 'bad',
+      dim: true,
+      ageLabel: card.ageLabel || `לפני ${sec} שנ׳`,
+    };
+  }
+  if (ageMs >= 3000) return { ...card, dim: true };
+  return card;
+}
+
 function cardTone(streaming, error) {
   if (streaming === true && error) return 'warn';
   if (streaming === true) return 'ok';
@@ -114,7 +130,7 @@ export function pulseCameraCards(companion) {
     src.extras?.cameras,
     src.vision?.cameras,
   );
-  const cards = orderedIds(map).map((id) => {
+  const cards = orderedIds(map).filter((id) => CAMERA_ORDER.includes(id)).map((id) => {
     const cam = map[id];
     const streaming = readStreaming(cam);
     const fps = readFinite(cam, 'fps');
@@ -185,30 +201,176 @@ function appendCard(host, card) {
   host.append(art);
 }
 
+export function createPulseCameraHold({
+  now = () => Date.now(),
+  fails = 3,
+  failMs = 10000,
+} = {}) {
+  const last = new Map();
+  const pending = new Map();
+  let failStreak = 0;
+  let failSince = 0;
+  function pillFor(streaming) {
+    if (streaming === true) return 'משדר';
+    if (streaming === false) return 'לא משדר';
+    return 'אין נתון';
+  }
+  return {
+    step(companion, at = now()) {
+      const link = pulseCameraLink(companion);
+      const down = !link.live;
+      if (down && last.size === 0) {
+        return { cards: [], live: false, collapsed: true, pill: link.pill || 'מנותק' };
+      }
+      if (down) {
+        failStreak += 1;
+        if (!failSince) failSince = at;
+      } else {
+        failStreak = 0;
+        failSince = 0;
+      }
+      const sustained = down && (failStreak >= fails || (at - failSince) >= failMs);
+      const fresh = down ? null : pulseCameraCards(companion);
+      const byId = new Map((fresh?.cards || []).map((card) => [card.id, card]));
+      const cards = CAMERA_ORDER.map((id) => {
+        const next = byId.get(id);
+        const prev = last.get(id);
+        if (!next) {
+          pending.delete(id);
+          if (prev && !sustained) {
+            const ageMs = Math.max(0, at - prev.at);
+            const age = Math.max(1, Math.round(ageMs / 1000));
+            return applyStale({
+              ...prev,
+              held: true,
+              tone: 'off',
+              ageLabel: `לפני ${age} שנ׳`,
+              pill: pillFor(prev.streaming),
+            }, ageMs);
+          }
+          const quiet = sustained ? (link.pill || 'לא מגיב') : 'אין נתון';
+          return {
+            id,
+            name: cameraName(id),
+            streaming: null,
+            fps: null,
+            ageMs: null,
+            error: sustained ? quiet : null,
+            tone: sustained ? downTone(link.pill) : 'off',
+            held: false,
+            ageLabel: null,
+            pill: quiet,
+          };
+        }
+        const flipped = prev && prev.streaming != null && next.streaming != null && prev.streaming !== next.streaming;
+        if (flipped) {
+          const pend = pending.get(id);
+          const same = pend && pend.streaming === next.streaming;
+          const streak = same ? pend.streak + 1 : 1;
+          const since = same ? pend.since : at;
+          pending.set(id, { streaming: next.streaming, streak, since });
+          const committed = streak >= fails || (at - since) >= failMs;
+          if (!committed) {
+            const ageMs = Math.max(0, at - prev.at);
+            const age = Math.max(1, Math.round(ageMs / 1000));
+            return applyStale({
+              ...prev,
+              held: true,
+              ageLabel: `לפני ${age} שנ׳`,
+              pill: pillFor(prev.streaming),
+            }, ageMs);
+          }
+        }
+        pending.delete(id);
+        last.set(id, { ...next, at });
+        return applyStale({ ...next, held: false, ageLabel: null, pill: pillFor(next.streaming) }, next.ageMs);
+      });
+      return { cards, live: !sustained, collapsed: false };
+    },
+  };
+}
+
+function ensurePulseCard(host, id) {
+  let art = host.querySelector(`.pulse-cam-card[data-cam="${id}"]`);
+  if (art) return art;
+  art = el('article', 'pulse-cam-card');
+  art.dataset.cam = id;
+  const head = el('div', 'pulse-cam-head');
+  head.append(el('span', 'pulse-cam-name', ''));
+  head.append(el('span', 'pulse-cam-pill', ''));
+  art.append(head);
+  art.append(el('p', 'pulse-cam-facts', ''));
+  art.append(el('p', 'pulse-cam-error', ''));
+  host.append(art);
+  return art;
+}
+
+function paintFixedCard(art, card) {
+  art.dataset.tone = card.tone || 'off';
+  art.dataset.held = card.held ? '1' : '0';
+  art.dataset.dim = card.dim ? '1' : '0';
+  if (card.streaming === true) art.dataset.streaming = 'true';
+  else if (card.streaming === false) art.dataset.streaming = 'false';
+  else delete art.dataset.streaming;
+  const name = art.querySelector('.pulse-cam-name');
+  const pill = art.querySelector('.pulse-cam-pill');
+  const facts = art.querySelector('.pulse-cam-facts');
+  const error = art.querySelector('.pulse-cam-error');
+  if (name && name.textContent !== card.name) name.textContent = card.name;
+  const pillText = card.pill || 'אין נתון';
+  if (pill && pill.textContent !== pillText) pill.textContent = pillText;
+  const bits = [];
+  const fps = formatPulseCameraFps(card.fps);
+  const age = formatPulseCameraAge(card.ageMs);
+  if (fps) bits.push(`קצב ${fps}`);
+  if (age) bits.push(`גיל ${age}`);
+  if (card.ageLabel) bits.push(card.ageLabel);
+  const factText = bits.join(' · ');
+  if (facts) {
+    facts.hidden = !factText;
+    if (facts.textContent !== factText) facts.textContent = factText;
+  }
+  if (error) {
+    error.hidden = !card.error;
+    if (card.error && error.textContent !== card.error) error.textContent = card.error;
+  }
+}
+
 export function paintPulseCameraCards(host, model) {
   if (!host || !model) return;
-  host.replaceChildren();
-  if (!model.live || !model.cards.length) {
-    host.dataset.link = model.live ? 'empty' : 'down';
-    const art = el('article', 'pulse-cam-card');
-    art.dataset.link = host.dataset.link;
-    art.dataset.tone = downTone(model.pill);
-    const head = el('div', 'pulse-cam-head');
-    head.append(el('span', 'pulse-cam-name', 'מצלמות'));
-    head.append(el('span', 'pulse-cam-pill', model.pill || 'מנותק'));
-    art.append(head);
-    host.append(art);
+  const fixed = Array.isArray(model.cards) && model.cards.length === CAMERA_ORDER.length
+    && model.cards.every((card, index) => card.id === CAMERA_ORDER[index]);
+  if (!fixed) {
+    host.replaceChildren();
+    if (!model.live || !model.cards.length) {
+      host.dataset.link = model.live ? 'empty' : 'down';
+      const art = el('article', 'pulse-cam-card pulse-cam-summary');
+      art.dataset.link = host.dataset.link;
+      art.dataset.tone = downTone(model.pill);
+      const head = el('div', 'pulse-cam-head');
+      head.append(el('span', 'pulse-cam-name', 'מצלמות'));
+      head.append(el('span', 'pulse-cam-pill', model.pill || 'מנותק'));
+      art.append(head);
+      host.append(art);
+      return;
+    }
+    host.dataset.link = 'live';
+    for (const card of model.cards) appendCard(host, card);
     return;
   }
-  host.dataset.link = 'live';
-  for (const card of model.cards) appendCard(host, card);
+  host.dataset.link = model.live ? 'live' : 'down';
+  const stray = [...host.querySelectorAll('.pulse-cam-card')].filter((node) => !CAMERA_ORDER.includes(node.dataset.cam));
+  stray.forEach((node) => node.remove());
+  for (const card of model.cards) paintFixedCard(ensurePulseCard(host, card.id), card);
 }
+
+const pulseCameraHold = createPulseCameraHold();
 
 export function paintPulseCameraCardsFromCompanion(companion) {
   const src = obj(companion)
     || (typeof globalThis.latestCompanionFromServer === 'object' ? globalThis.latestCompanionFromServer : null);
   const host = document.getElementById('pulseCameraCards');
-  paintPulseCameraCards(host, pulseCameraCards(src));
+  paintPulseCameraCards(host, pulseCameraHold.step(src));
 }
 
 function boot() {

@@ -78,6 +78,7 @@ describe('update status and apply', () => {
       logPath: path.join(tmp, 'update.log'),
       statusPath: path.join(tmp, 'status.json'),
       ignorePreview: true,
+      allowRemoteCheck: true,
       ...extra,
     });
     return { svc, spawnImpl, fetchImpl };

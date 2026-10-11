@@ -6,6 +6,7 @@ import os from 'node:os';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { FLIGHT_HUD_CATALOG, suggestMissionDataFields } from '../lib/flight-hud-resolve.mjs';
+import { startTestServer } from './test-server.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const html = fs.readFileSync(path.join(repoRoot, 'public', 'index.html'), 'utf8');
@@ -55,7 +56,7 @@ function loadSlotFns() {
     sliceFunction(js, 'readMissionDataSlots'),
     sliceFunction(js, 'writeMissionDataSlots'),
     sliceFunction(js, 'suggestMissionDataFields'),
-    'const GPS_FIX_LABELS = ["אין GPS", "אין Fix", "2D Fix", "3D Fix", "DGPS", "RTK Float", "RTK Fixed"];',
+    'const GPS_FIX_LABELS = ["אין GPS", "אין קיבוע", "קיבוע 2D", "קיבוע 3D", "DGPS", "RTK צף", "RTK קבוע"];',
     'const ARDUPILOT_PLANE_MODES = { 0: "MANUAL" };',
     sliceFunction(js, 'shortMissionLinkReadout'),
     sliceFunction(js, 'getPayloadValue'),
@@ -83,9 +84,12 @@ describe('Mission data-slot field picker', () => {
     expect(html).toContain('id="missionDataPickerClose"');
     expect(html).toContain('>ביטול<');
     expect(html).toContain('data-mission-data-slot="0"');
-    expect(html).toContain('קליק ימני מוחק אריח. לחיצה ארוכה או קליק בוחרים שדה.');
-    expect(html).toContain('id="missionDataAddBtn"');
-    expect(html).toContain('>הוסיפו נתון<');
+    expect(html).toContain('id="missionDataHintTip"');
+    expect(html).toContain('קליק ימני על אריח מוסיף או מוחק. לחיצה ארוכה או קליק בוחרים שדה.');
+    expect(html).not.toContain('flight-screen-tools">\n                <p class="mission-data-hint">');
+    expect(html).not.toContain('id="missionDataAddBtn"');
+    expect(html).toContain('id="missionDataTileAdd"');
+    expect(html).toContain('הוסיפו נתון');
     expect(css).toMatch(/\.mission-data-picker\s*\{[^}]*position:\s*fixed/);
     expect(css).toMatch(/\.mission-data-picker\s*\{[^}]*z-index:\s*9600/);
     expect(css).toMatch(/\.mission-data-picker\s*\{[^}]*direction:\s*rtl/);
@@ -177,21 +181,17 @@ describe('mission data picker stays in the viewport', () => {
   });
 
   it('opens above a low click and keeps the whole list on screen', async () => {
-    const port = await freePort();
     const dbPath = path.join(os.tmpdir(), `airvix-data-picker-${process.pid}.sqlite`);
-    proc = spawn(process.execPath, ['server.js'], {
-      cwd: repoRoot,
-      env: {
-        ...process.env,
-        HOST: '127.0.0.1',
-        PORT: String(port),
+    const started = await startTestServer({
+      env: (port) => ({
         SQLITE_PATH: dbPath,
         COMPANION_MODE: 'off',
         JETSON_COMPANION_BASE_URL: '',
-      },
+      }),
       stdio: 'ignore',
     });
-    const base = `http://127.0.0.1:${port}`;
+    proc = started.child;
+    const base = started.base;
     const t0 = Date.now();
     let up = false;
     while (Date.now() - t0 < 20000) {
@@ -306,6 +306,7 @@ describe('mission data picker stays in the viewport', () => {
     expect(row.dataH).toBeLessThan(88);
     expect(row.hudH).toBeGreaterThanOrEqual(200);
     expect(row.msgH).toBeGreaterThanOrEqual(120);
-    expect(row.rtlH).toBeGreaterThanOrEqual(42);
+    expect(row.rtlH).toBeGreaterThanOrEqual(26);
+    expect(row.rtlH).toBeLessThanOrEqual(32);
   }, 40000);
 });

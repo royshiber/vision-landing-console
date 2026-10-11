@@ -2,7 +2,7 @@
  * Slider edits become a pending FC write: the write button enables, the
  * confirm lists old → new, and a SITL PARAM_SET read-back matches.
  * The SITL case skips unless RUN_SITL_E2E=1 and an arduplane binary exists.
- * Writes stay on loopback TCP 5760. No real flight controller.
+ * Writes stay on a free loopback TCP port. No real flight controller.
  */
 import { afterAll, describe, expect, it } from 'vitest';
 import { spawn } from 'node:child_process';
@@ -11,6 +11,8 @@ import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { startTestServer } from './test-server.mjs';
+import { claimSitlInstance, sitlMavlinkPort } from './sitl-instance.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const BINARY = process.env.ARDUPLANE_SITL || '/tmp/ardupilot/build/sitl/bin/arduplane';
@@ -31,17 +33,6 @@ function stopChild(child) {
 afterAll(() => {
   for (const child of children) stopChild(child);
 });
-
-function freePort() {
-  return new Promise((resolve, reject) => {
-    const server = net.createServer();
-    server.once('error', reject);
-    server.listen(0, '127.0.0.1', () => {
-      const { port } = server.address();
-      server.close(() => resolve(port));
-    });
-  });
-}
 
 function waitForPort(port, host, timeoutMs) {
   const start = Date.now();
@@ -87,28 +78,29 @@ async function api(base, method, urlPath, body) {
   return { status: res.status, json };
 }
 
-function startConsole(port, dbPath) {
+async function startConsole(dbPath, sitlPort) {
   const logs = { out: Buffer.alloc(0) };
-  const child = track(spawn(process.execPath, ['server.js'], {
-    cwd: repoRoot,
-    stdio: ['ignore', 'pipe', 'pipe'],
+  const started = await startTestServer({
     env: {
-      ...process.env,
-      PORT: String(port),
-      HOST: '127.0.0.1',
       SQLITE_PATH: dbPath,
       COMPANION_MODE: 'off',
       JETSON_COMPANION_BASE_URL: '',
       GEMINI_API_KEY: '',
+      ...(sitlPort ? { SIMULATOR_TCP_PORT: String(sitlPort) } : {}),
     },
-  }));
-  const push = (chunk) => {
-    logs.out = Buffer.concat([logs.out, chunk]).subarray(-16000);
-  };
-  child.stdout.on('data', push);
-  child.stderr.on('data', push);
-  child.logs = logs;
-  return child;
+    onChild(child) {
+      const push = (chunk) => {
+        logs.out = Buffer.concat([logs.out, chunk]).subarray(-16000);
+      };
+      child.stdout?.on('data', push);
+      child.stderr?.on('data', push);
+      child.logs = logs;
+      track(child);
+    },
+  });
+  started.child.logs = logs;
+  started.child.base = started.base;
+  return started.child;
 }
 
 describe('landing slider pending write', () => {
@@ -119,10 +111,9 @@ describe('landing slider pending write', () => {
   });
 
   it('enables כתיבה לבקר, confirms the exact change, and does not report אין שינוי', async () => {
-    const port = await freePort();
     const dbPath = path.join(os.tmpdir(), `airvix-slider-ui-${process.pid}.sqlite`);
-    consoleProc = startConsole(port, dbPath);
-    const base = `http://127.0.0.1:${port}`;
+    consoleProc = await startConsole(dbPath);
+    const base = consoleProc.base;
     await waitUntil(async () => {
       try {
         const health = await api(base, 'GET', '/api/health');
@@ -211,16 +202,18 @@ describe('landing slider pending write', () => {
 
 describe.skipIf(!SITL_ENABLED)('slider write against ArduPlane SITL', () => {
   it('moves a slider, confirms, sends PARAM_SET, and the read-back matches', async () => {
-    const port = await freePort();
     const dbPath = path.join(os.tmpdir(), `airvix-slider-sitl-${process.pid}.sqlite`);
     const sitlDir = fs.mkdtempSync(path.join(os.tmpdir(), 'airvix-slider-sitl-'));
-    const consoleProc = startConsole(port, dbPath);
+    const sitlSlot = claimSitlInstance();
+    const sitlPort = await sitlMavlinkPort(sitlSlot.instance);
+    const consoleProc = await startConsole(dbPath, sitlPort);
     const sitlLogs = { out: Buffer.alloc(0) };
     const sitl = track(spawn(BINARY, [
+      '-I', String(sitlSlot.instance),
       '--model', 'plane',
       '--speedup', '1',
       '--home', HOME,
-      '--serial0', 'tcp:5760',
+      '--serial0', `tcp:${sitlPort}`,
       '-w',
     ], {
       cwd: sitlDir,
@@ -232,7 +225,7 @@ describe.skipIf(!SITL_ENABLED)('slider write against ArduPlane SITL', () => {
     };
     sitl.stdout.on('data', sitlPush);
     sitl.stderr.on('data', sitlPush);
-    const base = `http://127.0.0.1:${port}`;
+    const base = consoleProc.base;
     let browser = null;
     try {
       await waitUntil(async () => {
@@ -243,12 +236,13 @@ describe.skipIf(!SITL_ENABLED)('slider write against ArduPlane SITL', () => {
           return null;
         }
       }, 20000, 'console health');
-      await waitForPort(5760, '127.0.0.1', 30000);
+      await waitForPort(sitlPort, '127.0.0.1', 30000);
       const connected = await api(base, 'POST', '/api/links/connect', {
         role: 'radio',
         type: 'tcp',
         host: '127.0.0.1',
-        port: 5760,
+        port: sitlPort,
+        simulatorPort: sitlPort,
         preset: 'simulator',
       });
       expect(connected.status, JSON.stringify(connected.json)).toBe(200);
@@ -257,7 +251,7 @@ describe.skipIf(!SITL_ENABLED)('slider write against ArduPlane SITL', () => {
         const { json } = await api(base, 'GET', `/api/connections/${id}/status`);
         const row = json?.connection?.liveStatus;
         if (!row?.simulator || row.armed !== false || !(Number(row.heartbeatCount) > 0)) return null;
-        if (row.type !== 'tcp' || row.host !== '127.0.0.1' || row.port !== 5760) return null;
+        if (row.type !== 'tcp' || row.host !== '127.0.0.1' || row.port !== sitlPort) return null;
         return row;
       }, 45000, 'simulator heartbeat');
       expect(live.simulator).toBe(true);
@@ -331,6 +325,7 @@ describe.skipIf(!SITL_ENABLED)('slider write against ArduPlane SITL', () => {
       await api(base, 'POST', '/api/links/disconnect', { role: 'radio' }).catch(() => {});
       stopChild(sitl);
       stopChild(consoleProc);
+      sitlSlot.release();
     }
   }, 180000);
 });
