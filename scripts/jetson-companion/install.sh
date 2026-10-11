@@ -3,9 +3,11 @@
 # --apply backs up the live tree, copies, restarts airvix-companion,
 # checks /api/health with X-Companion-Token, and restores the backup
 # if that service crashes or restarts within 30 seconds.
+# -E so the ERR trap still runs when a function such as restart_service fails.
+# A first install with nothing to restore reports rolled_back false.
 # Agent files go to DEST (the running tree is /home/royshiber/vlc-companion).
 # uplink-nm.sh is installed separately, root:root 0755, at the sudo path.
-set -euo pipefail
+set -Eeuo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 DEST="${AIRVIX_COMPANION_DEST:-/home/royshiber/vlc-companion}"
@@ -90,13 +92,22 @@ restore_tree() {
   restart_service || true
 }
 
-on_deploy_err() {
-  local status=$?
+fail_deploy() {
+  local error="$1"
+  local status="$2"
   trap - ERR
+  local rolled=false
   if [[ "$deployed" == "1" && -n "$backup_dir" && -d "$backup_dir" ]]; then
     restore_tree "$backup_dir" || true
+    rolled=true
+    backup_dir=""
   fi
+  echo "{\"ok\":false,\"error\":\"${error}\",\"rolled_back\":${rolled}}" >&2
   exit "$status"
+}
+
+on_deploy_err() {
+  fail_deploy "deploy_failed" "$?"
 }
 
 verify_backup() {
@@ -214,11 +225,7 @@ for _try in 1 2 3 4 5 6 7 8 9 10; do
   sleep 1
 done
 if [[ "$up" != "1" ]]; then
-  if [[ -n "$backup_dir" ]]; then
-    restore_tree "$backup_dir" || true
-  fi
-  echo '{"ok":false,"error":"unhealthy","rolled_back":true}' >&2
-  exit 1
+  fail_deploy "unhealthy" 1
 fi
 
 base_pid="$(service_prop MainPID)"
@@ -233,18 +240,10 @@ while (( SECONDS < watch_end )); do
   now_restarts="$(service_prop NRestarts)"
   now_state="$(service_prop ActiveState)"
   if [[ "$now_state" != "active" || "$now_pid" != "$base_pid" || "$now_pid" == "0" || "$now_restarts" != "$base_restarts" ]]; then
-    if [[ -n "$backup_dir" ]]; then
-      restore_tree "$backup_dir" || true
-    fi
-    echo '{"ok":false,"error":"crashed","rolled_back":true}' >&2
-    exit 1
+    fail_deploy "crashed" 1
   fi
   if ! health_once; then
-    if [[ -n "$backup_dir" ]]; then
-      restore_tree "$backup_dir" || true
-    fi
-    echo '{"ok":false,"error":"unhealthy","rolled_back":true}' >&2
-    exit 1
+    fail_deploy "unhealthy" 1
   fi
 done
 

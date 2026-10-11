@@ -667,10 +667,9 @@ def apply_usb_pixel_format(cap, width, height, fps):
     return chosen
 
 
-# One lock for every cv2 call in this process. OpenCV 5 releases the GIL
-# inside grab, retrieve, and imencode. On JetPack those calls are not safe
-# to overlap, and a numpy 2 view of a Mat freed by the next read segfaults
-# instead of raising.
+# Capture-side cv2 only. Held across retrieve and the copy off a live Mat,
+# never across a grab that waits for the next frame. Inference has its own
+# lock in vision_tracks so an 80ms detect cannot stall the cameras.
 CV2_LOCK = threading.Lock()
 
 
@@ -702,11 +701,15 @@ def own_pixels(frame):
 
 
 def sanitize_bus_packet(packet):
-    """Drop any live Mat before the packet is visible to another thread."""
+    """Drop any live Mat before the packet is visible to another thread.
+
+    An array already marked bgr_owned was copied on the capture thread.
+    Publishing it again would copy every frame a second time.
+    """
     if not isinstance(packet, dict):
         return packet
     out = dict(packet)
-    if out.get("bgr") is not None:
+    if out.get("bgr") is not None and out.get("bgr_owned") is not True:
         owned = own_pixels(out.get("bgr"))
         if owned is None:
             out.pop("bgr", None)
@@ -715,11 +718,8 @@ def sanitize_bus_packet(packet):
             out["bgr"] = owned
             out["bgr_owned"] = True
     jpeg = out.get("jpeg")
-    if jpeg is not None and not isinstance(jpeg, bytes):
-        try:
-            out["jpeg"] = bytes(jpeg)
-        except Exception:
-            out.pop("jpeg", None)
+    if isinstance(jpeg, bytearray):
+        out["jpeg"] = bytes(jpeg)
     return out
 
 
@@ -751,15 +751,37 @@ class CvCapture:
         self.released = False
 
     def read_frame(self):
-        with CV2_LOCK:
-            ok, frame = self.cap.read()
+        grab = getattr(self.cap, "grab", None)
+        retrieve = getattr(self.cap, "retrieve", None)
+        frame = None
+        if callable(grab) and callable(retrieve):
+            try:
+                grabbed = bool(grab())
+            except Exception:
+                return None
+            if not grabbed:
+                return None
+            with CV2_LOCK:
+                try:
+                    ok, frame = retrieve()
+                except Exception:
+                    return None
+                if not ok or frame is None:
+                    return None
+                owned = own_pixels(frame)
+                frame = None
+        else:
+            try:
+                ok, frame = self.cap.read()
+            except Exception:
+                return None
             if not ok or frame is None:
                 return None
             owned = own_pixels(frame)
-            # Drop the live Mat on this thread before the next read reuses it.
             frame = None
-            if owned is None:
-                return None
+        if owned is None:
+            return None
+        with CV2_LOCK:
             ok_jpg, buf = self.cv2.imencode(".jpg", owned, [int(self.cv2.IMWRITE_JPEG_QUALITY), 80])
             if not ok_jpg:
                 return None
@@ -826,13 +848,13 @@ class RtspCapture:
             t_grab = time.perf_counter()
             owned = None
             try:
-                with CV2_LOCK:
-                    try:
-                        grabbed = bool(cap.grab())
-                    except Exception:
-                        grabbed = False
-                    t_got = time.perf_counter()
-                    if grabbed:
+                try:
+                    grabbed = bool(cap.grab())
+                except Exception:
+                    grabbed = False
+                t_got = time.perf_counter()
+                if grabbed:
+                    with CV2_LOCK:
                         try:
                             ok, frame = cap.retrieve()
                         except Exception:
@@ -841,8 +863,8 @@ class RtspCapture:
                         if ok and frame is not None:
                             owned = own_pixels(frame)
                         frame = None
-                    else:
-                        t_ret = t_got
+                else:
+                    t_ret = t_got
             except Exception:
                 grabbed = False
                 owned = None
@@ -1498,7 +1520,7 @@ class SlotSupervisor:
             count = self.frame_count
             resolved = self.resolved
         if self.bus is not None:
-            self.bus.publish(self.cam_id, {
+            packet = {
                 "cam_id": self.cam_id,
                 "jpeg": jpeg,
                 "bgr": bgr,
@@ -1509,7 +1531,10 @@ class SlotSupervisor:
                 "monotonic": now,
                 "device": resolved,
                 "role": self.role,
-            })
+            }
+            if bgr is not None and timing.get("bgr_owned") is True:
+                packet["bgr_owned"] = True
+            self.bus.publish(self.cam_id, packet)
 
     def _drop_live_frame(self):
         with self.lock:

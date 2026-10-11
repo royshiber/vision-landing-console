@@ -485,6 +485,100 @@ class VisionTrackTests(unittest.TestCase):
         self.assertEqual(body["commands_sent"], 0)
         self.assertEqual(self.sent, [])
 
+    def test_three_cameras_stay_at_30fps_while_detection_takes_80ms(self):
+        import numpy as np
+        from camera_ingest import RtspCapture
+
+        class Buf:
+            def __init__(self, payload):
+                self.payload = payload
+
+            def tobytes(self):
+                return self.payload
+
+        class FakeCv:
+            IMWRITE_JPEG_QUALITY = 1
+
+            def imencode(self, _ext, _frame, _params):
+                return True, Buf(b"\xff\xd8\xff\xd9")
+
+        class PaceCap:
+            def __init__(self):
+                self.times = []
+                self._next = time.perf_counter()
+                self._mu = threading.Lock()
+
+            def grab(self):
+                delay = self._next - time.perf_counter()
+                if delay > 0:
+                    time.sleep(delay)
+                stamp = time.perf_counter()
+                self._next = stamp + (1.0 / 30.0)
+                with self._mu:
+                    self.times.append(stamp)
+                return True
+
+            def retrieve(self):
+                return True, np.zeros((4, 4, 3), dtype=np.uint8)
+
+            def release(self):
+                return None
+
+        class Slow:
+            def __init__(self):
+                self.calls = 0
+
+            def detect(self, _width, _height, _rgb):
+                self.calls += 1
+                with vision_tracks._infer_lock():
+                    time.sleep(0.08)
+                return []
+
+        caps = [PaceCap() for _ in range(3)]
+        streams = [
+            RtspCapture(
+                cap, FakeCv(),
+                transport="udp", decoder="test", pipeline="test",
+                width=4, height=4, quality=80, codec="jpeg", backend="test",
+            )
+            for cap in caps
+        ]
+        slow = Slow()
+
+        def source(_camera):
+            count = len(caps[0].times)
+            if count <= 0:
+                return None
+            return {
+                "rgb": bytes(4 * 4 * 3),
+                "width": 4,
+                "height": 4,
+                "seq": count,
+                "jpeg": b"\xff\xd8\xff\xd9",
+            }
+
+        svc = VisionTracks(enabled=True, camera="cam3", backend="opencv", thread=False)
+        svc.backend = "opencv"
+        svc.detector = slow
+        svc.backend_error = None
+        svc.frame_source = source
+        svc.thread_allowed = True
+        svc._sync_thread()
+        try:
+            time.sleep(1.6)
+        finally:
+            svc.close()
+            for stream in streams:
+                stream.release()
+                stream._pull_thread.join(timeout=1.0)
+                stream._encode_thread.join(timeout=1.0)
+        self.assertGreaterEqual(slow.calls, 8, slow.calls)
+        for cap in caps:
+            self.assertGreaterEqual(len(cap.times), 3)
+            span = cap.times[-1] - cap.times[0]
+            fps = (len(cap.times) - 1) / span
+            self.assertGreaterEqual(fps, 27.0, fps)
+
 
 if __name__ == "__main__":
     unittest.main()

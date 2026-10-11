@@ -776,7 +776,7 @@ class CvDnnYolo:
         self.target = "cpu"
         if _dnn_cuda_built(cv2):
             try:
-                with _cv2_lock():
+                with _infer_lock():
                     net.setPreferableBackend(cv2.dnn.DNN_BACKEND_CUDA)
                     target = getattr(cv2.dnn, "DNN_TARGET_CUDA_FP16", cv2.dnn.DNN_TARGET_CUDA)
                     net.setPreferableTarget(target)
@@ -784,7 +784,7 @@ class CvDnnYolo:
             except Exception:
                 self.target = "cpu"
                 try:
-                    with _cv2_lock():
+                    with _infer_lock():
                         net.setPreferableBackend(cv2.dnn.DNN_BACKEND_OPENCV)
                         net.setPreferableTarget(cv2.dnn.DNN_TARGET_CPU)
                 except Exception:
@@ -798,7 +798,7 @@ class CvDnnYolo:
             return []
         try:
             blob, ratio, pad_x, pad_y = _letterbox_nchw(rgb, width, height, 640)
-            with _cv2_lock():
+            with _infer_lock():
                 self.net.setInput(blob)
                 output = self.net.forward()
             return decode_yolo_v8(_numpy_to_lists(output), width, height, ratio=ratio, pad_x=pad_x, pad_y=pad_y)
@@ -850,15 +850,12 @@ def _dnn_cuda_built(cv2):
     return bool(cuda and cudnn and hasattr(cv2, "dnn") and hasattr(cv2.dnn, "DNN_BACKEND_CUDA"))
 
 
-_CV2_LOCK = threading.Lock()
+# Inference only. Capture waits for frames on its own lock, and never this one.
+INFER_LOCK = threading.Lock()
 
 
-def _cv2_lock():
-    try:
-        from camera_ingest import CV2_LOCK
-        return CV2_LOCK
-    except Exception:
-        return _CV2_LOCK
+def _infer_lock():
+    return INFER_LOCK
 
 
 def probe_backend(name, model_path, engine_path):
@@ -1063,7 +1060,7 @@ def _decode_jpeg(jpeg):
         arr = writable_jpeg_array(jpeg)
         if not arr.flags.writeable or not arr.flags.c_contiguous:
             return None
-        with _cv2_lock():
+        with _infer_lock():
             bgr = cv2.imdecode(arr, cv2.IMREAD_COLOR)
             if bgr is None:
                 return None
@@ -1465,13 +1462,44 @@ class VisionTracks:
         if not self.enabled:
             self._stop.set()
 
+    def _latest_token(self):
+        """Identity of the newest frame. Missing when there is nothing to detect."""
+        camera = self.camera
+        if not camera:
+            return None
+        packet = self._packet(camera)
+        if not isinstance(packet, dict):
+            return None
+        seq = packet.get("seq")
+        if seq is None:
+            seq = packet.get("frame_count")
+        try:
+            seq = int(seq) if seq is not None and str(seq) != "" else None
+        except (TypeError, ValueError):
+            seq = None
+        if seq is None:
+            return None
+        return (camera, seq)
+
     def _loop(self):
-        while not self._stop.wait(0.1):
-            if self.enabled:
-                try:
-                    self.step()
-                except Exception:
-                    pass
+        """Latest frame wins. A slow detect does not queue, and does not pace capture."""
+        seen = None
+        while not self._stop.is_set():
+            if not self.enabled:
+                seen = None
+                if self._stop.wait(0.05):
+                    return
+                continue
+            token = self._latest_token()
+            if token is None or token == seen:
+                if self._stop.wait(0.01):
+                    return
+                continue
+            try:
+                self.step()
+            except Exception:
+                pass
+            seen = token
 
     def close(self):
         self._stop.set()

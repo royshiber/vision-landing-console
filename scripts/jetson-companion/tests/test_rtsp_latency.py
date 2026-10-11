@@ -205,6 +205,8 @@ class RtspPipelineTests(unittest.TestCase):
         self.assertIs(packet["bgr_owned"], True)
         self.assertIsInstance(packet["jpeg"], bytes)
         self.assertIsNot(packet["bgr"], live)
+        again = sanitize_bus_packet({"jpeg": b"\xff\xd8\xff\xd9", "bgr": owned, "bgr_owned": True, "seq": 5})
+        self.assertIs(again["bgr"], owned)
         shelf = NewestFrameShelf()
         shelf.note_decoded(own_pixels(live), 10, 11, 0.2)
         live[:, :] = 7

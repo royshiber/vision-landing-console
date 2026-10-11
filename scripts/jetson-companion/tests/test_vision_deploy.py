@@ -26,7 +26,7 @@ class VisionDeployTests(unittest.TestCase):
     def test_scripts_pin_the_guard_and_the_official_model(self):
         install = INSTALL.read_text(encoding="utf-8")
         provision = PROVISION.read_text(encoding="utf-8")
-        self.assertIn("set -euo pipefail", install)
+        self.assertIn("set -Eeuo pipefail", install)
         self.assertIn("X-Companion-Token", install)
         self.assertIn("verify_backup", install)
         self.assertIn("restore_tree", install)
@@ -49,6 +49,11 @@ dir="$AIRVIX_FAKE_SYSTEMD"
 cmd="$1"
 shift
 if [ "$cmd" = "restart" ]; then
+  if [ -f "$dir/fail_restart" ]; then
+    echo failed > "$dir/state"
+    echo 0 > "$dir/pid"
+    exit 1
+  fi
   n=$(cat "$dir/restarts")
   echo $((n + 1)) > "$dir/restarts"
   echo active > "$dir/state"
@@ -157,8 +162,36 @@ exit 0
             result = self._run(directory, dest, state, crash=True)
             self.assertEqual(result.returncode, 1, result.stderr + result.stdout)
             self.assertEqual((dest / "companion_agent.py").read_text(encoding="utf-8"), "OLD\n")
-            self.assertIn("rolled_back", result.stderr)
+            self.assertIn('"rolled_back":true', result.stderr)
             self.assertIn("X-Companion-Token: lab-token", (state / "curl_args").read_text(encoding="utf-8"))
+
+    def test_failed_restart_inside_a_function_rolls_back(self):
+        with tempfile.TemporaryDirectory() as raw:
+            directory = Path(raw)
+            state, dest = self._seed(directory)
+            (state / "fail_restart").write_text("1\n", encoding="utf-8")
+            result = self._run(directory, dest, state, crash=False)
+            self.assertNotEqual(result.returncode, 0, result.stderr + result.stdout)
+            self.assertEqual((dest / "companion_agent.py").read_text(encoding="utf-8"), "OLD\n")
+            self.assertIn('"rolled_back":true', result.stderr)
+
+    def test_first_install_restart_failure_reports_not_rolled_back(self):
+        with tempfile.TemporaryDirectory() as raw:
+            directory = Path(raw)
+            state = directory / "state"
+            state.mkdir()
+            (state / "restarts").write_text("0\n", encoding="utf-8")
+            (state / "state").write_text("inactive\n", encoding="utf-8")
+            (state / "pid").write_text("0\n", encoding="utf-8")
+            (state / "curl_args").write_text("", encoding="utf-8")
+            (state / "fail_restart").write_text("1\n", encoding="utf-8")
+            dest = directory / "vlc-companion"
+            result = self._run(directory, dest, state, crash=False)
+            self.assertNotEqual(result.returncode, 0, result.stderr + result.stdout)
+            self.assertTrue((dest / "companion_agent.py").is_file())
+            self.assertNotEqual((dest / "companion_agent.py").read_text(encoding="utf-8"), "OLD\n")
+            self.assertIn('"rolled_back":false', result.stderr)
+            self.assertNotIn('"rolled_back":true', result.stderr)
 
 
 class ProvisionTests(unittest.TestCase):
