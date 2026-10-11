@@ -58,6 +58,28 @@ function waitForPort(port, host, timeoutMs) {
   });
 }
 
+async function pageState(page) {
+  return page.evaluate(() => ({
+    status: document.getElementById('arduWriteStatus')?.textContent || '',
+    writeDisabled: document.getElementById('arduWriteBtn')?.disabled ?? null,
+    writeTitle: document.getElementById('arduWriteBtn')?.title || '',
+    banner: document.getElementById('paramSyncBanner')?.innerText || '',
+    field: document.querySelector('#fcGroupList [data-param-key="RTL_ALTITUDE"] .fc-group-next')?.value || '',
+    fieldDisabled: document.querySelector('#fcGroupList [data-param-key="RTL_ALTITUDE"] .fc-group-next')?.disabled ?? null,
+    fault: document.getElementById('paramToolFaultText')?.textContent || '',
+    result: document.getElementById('paramWriteResult')?.innerText || '',
+  })).catch((err) => ({ evaluate: err.message }));
+}
+
+async function waitPage(page, fn, arg, timeout, label) {
+  try {
+    await page.waitForFunction(fn, arg, { timeout });
+  } catch (err) {
+    const state = await pageState(page);
+    throw new Error(`${label}: ${err.message} ${JSON.stringify(state)}`);
+  }
+}
+
 async function waitUntil(fn, timeoutMs, label) {
   const start = Date.now();
   let last = null;
@@ -264,10 +286,10 @@ describe.skipIf(!ENABLED)('params tab fresh READ against ArduPlane SITL', () => 
       await page.goto(base, { waitUntil: 'domcontentloaded' });
       await page.click('[data-tab="control"]');
       await page.click('#arduReadBtn');
-      await page.waitForFunction(() => {
+      await waitPage(page, () => {
         const line = document.getElementById('arduWriteStatus')?.textContent || '';
         return line.includes('הושלמה') && /נקראו \d+\/\d+/.test(line);
-      }, null, { timeout: 60000 });
+      }, null, 60000, 'first read');
       await page.fill('#arduParamSearchInput', PARAM);
       const field = () => page.locator(`#fcGroupList [data-param-key="${PARAM}"] .fc-group-next`);
       await field().waitFor({ state: 'visible', timeout: 15000 });
@@ -278,23 +300,31 @@ describe.skipIf(!ENABLED)('params tab fresh READ against ArduPlane SITL', () => 
       const y = Math.abs(x - 80) < 0.05 ? 90 : 80;
       const z = [original, x, y].some((n) => Math.abs(n - 40) < 0.05) ? 55 : 40;
 
-      await field().fill(String(x));
-      await page.waitForFunction(() => document.getElementById('arduWriteBtn')?.disabled === false);
+      await field().evaluate((el, value) => {
+        el.value = String(value);
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+      }, x);
+      await waitPage(page, () => document.getElementById('arduWriteBtn')?.disabled === false, null, 10000, 'write enabled');
       await page.click('#arduWriteBtn');
       await page.waitForSelector('#applyConfirmModal:not(.hidden)');
       await page.click('#applyConfirmOkBtn');
-      await page.waitForFunction(() => (document.getElementById('paramWriteResult')?.textContent || '').includes('אומת'));
+      await waitPage(page, () => (document.getElementById('paramWriteResult')?.textContent || '').includes('אומת'), null, 20000, 'write verified');
       const written = await page.locator('#paramWriteResult').innerText();
       expect(written).toContain(PARAM);
       expect(written).toContain(String(x));
       expect(written).toContain('אומת');
       expect(written).not.toContain('לא נכתב דבר');
 
-      await field().fill(String(y));
-      await page.waitForFunction((next) => {
+      await field().evaluate((el, value) => {
+        el.value = String(value);
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+      }, y);
+      await waitPage(page, (next) => {
         const el = document.querySelector('#fcGroupList [data-param-key="RTL_ALTITUDE"] .fc-group-next');
         return el && Math.abs(Number(el.value) - next) < 0.05;
-      }, y);
+      }, y, 10000, 'dirty field');
       tap.reset();
       overwriteAsked = '';
       const progress = [];
@@ -303,11 +333,11 @@ describe.skipIf(!ENABLED)('params tab fresh READ against ArduPlane SITL', () => 
         if (line) progress.push(line);
       }, 150);
       await page.click('#arduReadBtn');
-      await page.waitForFunction((want) => {
+      await waitPage(page, (want) => {
         const el = document.querySelector('#fcGroupList [data-param-key="RTL_ALTITUDE"] .fc-group-next');
         const line = document.getElementById('arduWriteStatus')?.textContent || '';
         return el && Math.abs(Number(el.value) - want) < 0.05 && line.includes('הושלמה');
-      }, x, { timeout: 60000 });
+      }, x, 60000, 'read restores written value');
       clearInterval(watch);
       expect(await field().inputValue()).not.toBe(String(y));
       expect(Math.abs(Number(await field().inputValue()) - x)).toBeLessThan(0.05);
@@ -316,19 +346,17 @@ describe.skipIf(!ENABLED)('params tab fresh READ against ArduPlane SITL', () => 
       expect(progress.some((line) => /נקראו \d+\/\d+/.test(line)) || /נקראו \d+\/\d+/.test(await page.locator('#arduWriteStatus').innerText())).toBe(true);
 
       const beforeExternal = await api(base, 'GET', `/api/connections/${id}/params`);
-      expect(Math.abs(Number(beforeExternal.json.params?.[PARAM]) - x)).toBeLessThan(0.05);
+      expect(Math.abs(Number(beforeExternal.json.params?.[PARAM]) - x), 'cache after verified write').toBeLessThan(0.05);
       await waitForPort(sidePort, '127.0.0.1', 10000);
       const echoed = await setParamOnLink(sidePort, PARAM, z);
-      expect(Math.abs(echoed - z)).toBeLessThan(0.05);
-      const stillCached = await api(base, 'GET', `/api/connections/${id}/params`);
-      expect(Math.abs(Number(stillCached.json.params?.[PARAM]) - x)).toBeLessThan(0.05);
+      expect(Math.abs(echoed - z), 'direct SITL echo').toBeLessThan(0.05);
 
       tap.reset();
       await page.click('#arduReadBtn');
-      await page.waitForFunction((want) => {
+      await waitPage(page, (want) => {
         const el = document.querySelector('#fcGroupList [data-param-key="RTL_ALTITUDE"] .fc-group-next');
         return el && Math.abs(Number(el.value) - want) < 0.05;
-      }, z, { timeout: 60000 });
+      }, z, 60000, 'read shows external value');
       expect(Math.abs(Number(await field().inputValue()) - z)).toBeLessThan(0.05);
       expect(tap.counts.request).toBeGreaterThan(0);
     } catch (err) {

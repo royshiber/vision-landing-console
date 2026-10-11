@@ -231,6 +231,35 @@ describe('POST /api/ardu/params/write', () => {
     }
   });
 
+  it('writes a live flight-controller key that is outside the form schema', async () => {
+    const setParam = vi.fn(async (param, value) => ({ ok: true, param, value }));
+    vi.spyOn(mavlinkConnection, 'getActiveConnection').mockReturnValue({
+      connected: true,
+      lastBaseMode: 0,
+      id: 1,
+      params: { RTL_ALTITUDE: 100 },
+      setParam,
+    });
+    vi.spyOn(mavlinkConnection, 'getConnectionParams').mockReturnValue({ RTL_ALTITUDE: 100 });
+    const handle = await startCoreApi(db, {
+      arduTargetParams: { ...buildArduTargetDefaults() },
+    });
+    try {
+      const res = await fetch(`${handle.base}/api/ardu/params/write`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ params: { RTL_ALTITUDE: 150 } }),
+      });
+      const body = await res.json();
+      expect(res.status).toBe(200);
+      expect(body.written).toBe(1);
+      expect(body.verified.RTL_ALTITUDE).toBe(150);
+      expect(setParam).toHaveBeenCalledWith('RTL_ALTITUDE', 150, expect.objectContaining({ timeoutMs: 4000 }));
+    } finally {
+      await stopCoreApi(handle);
+    }
+  });
+
   it('reports that nothing was written when the live value already matches', async () => {
     const setParam = vi.fn(async (param, value) => ({ ok: true, param, value }));
     vi.spyOn(mavlinkConnection, 'getActiveConnection').mockReturnValue({

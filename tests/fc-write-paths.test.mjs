@@ -53,6 +53,17 @@ describe('FC write acknowledgement', () => {
     expect(out.clear).toEqual(['EK3_ENABLE', 'EK3_SRC1_POSXY']);
   });
 
+  it('keeps an empty change when the server rejected the keys', () => {
+    const out = classifyFcWrite({
+      linked: true,
+      requested,
+      httpOk: true,
+      data: { ok: true, written: 0, failed: [], verified: {}, message: 'אין שינוי', via: 'mavlink', simulated: false },
+    });
+    expect(out.level).toBe('none');
+    expect(out.text).toBe('אין שינוי');
+  });
+
   it('says nothing was written when the controller already has those values', () => {
     const out = classifyFcWrite({
       linked: true,
