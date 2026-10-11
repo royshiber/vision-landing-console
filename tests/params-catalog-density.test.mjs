@@ -164,8 +164,12 @@ describe('Catalog parameter cards use the dense profile card', () => {
     await page.addInitScript(() => {
       try { sessionStorage.clear(); } catch { /* ignore */ }
     });
-    await page.route(/\/api\/ardu\/params(?:\?|$)/, async (route) => {
-      if (route.request().method() !== 'GET') {
+    await page.route(/\/api\/ardu\/params(?:\/read)?(?:\?|$)/, async (route) => {
+      const method = route.request().method();
+      const pathname = new URL(route.request().url()).pathname;
+      const freshRead = method === 'POST' && pathname.endsWith('/api/ardu/params/read');
+      const cachedRead = method === 'GET' && pathname.endsWith('/api/ardu/params');
+      if (!freshRead && !cachedRead) {
         await route.fallback();
         return;
       }

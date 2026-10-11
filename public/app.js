@@ -751,7 +751,7 @@ async function restoreFcParamFile(id) {
         if (status) status.textContent = '';
         if (outcome.history) {
           pushFcWriteLog(Object.keys(writable), outcome.data, writable);
-          applyAckedSnapshot(outcome.acked);
+          adoptVerifiedFcValues(outcome.acked);
           void loadFcParamFiles();
         }
         renderFcGroupList();
@@ -902,7 +902,7 @@ function renderFcGroupList() {
       : (group.id === 'all' && unread ? 'אין חיבור' : 'אין פרמטרים בקבוצה');
     list.appendChild(empty);
   }
-  const readOnly = group.id === 'all';
+  const readOnly = group.id === 'all' && !query;
   for (const key of keys) {
     const presence = fcPresence(key);
     const meta = fcParamMeta[key] || {};
@@ -1021,11 +1021,7 @@ function applyFcGroupDraft() {
       paintFcWriteResult(outcome, pairs, () => applyFcGroupDraft());
       if (outcome.history) {
         pushFcWriteLog(keys, outcome.data, params);
-        applyAckedSnapshot(outcome.acked);
-        for (const key of outcome.clear) {
-          delete fcGroupDraft[key];
-          delete fcDraftMeta[key];
-        }
+        adoptVerifiedFcValues(outcome.acked);
         void loadFcParamFiles();
       }
       renderFcGroupList();
@@ -2721,7 +2717,7 @@ wireArduCategorySubtabsOnce();
           ? 'ardu-smart-send-status ok'
           : 'ardu-smart-send-status fail';
         if (outcome.level === 'ok') input.value = '';
-        if (outcome.history) applyAckedSnapshot(outcome.acked);
+        if (outcome.history) adoptVerifiedFcValues(outcome.acked);
       } catch (err) {
         statusEl.textContent = `הכתיבה לבקר נכשלה. הסיבה: ${hebrewRequestFault(err)}`;
         statusEl.className = 'ardu-smart-send-status fail';
@@ -12744,6 +12740,144 @@ function applyAckedSnapshot(acked) {
   for (const [key, value] of Object.entries(acked)) fcCurrentSnapshot[key] = value;
 }
 
+function adoptVerifiedFcValues(acked) {
+  if (!acked || typeof acked !== 'object') return;
+  applyAckedSnapshot(acked);
+  for (const [key, raw] of Object.entries(acked)) {
+    const n = Number(raw);
+    const value = Number.isFinite(n) ? n : raw;
+    if (Object.prototype.hasOwnProperty.call(arduTargetState, key)) {
+      arduTargetState[key] = value;
+      arduWriteBaseline[key] = value;
+    }
+    delete fcGroupDraft[key];
+    delete fcDraftMeta[key];
+  }
+}
+
+function applyFreshFcValues(current, { merge = false } = {}) {
+  const bag = current && typeof current === 'object' ? current : {};
+  fcCurrentSnapshot = merge ? { ...(fcCurrentSnapshot || {}), ...bag } : { ...bag };
+  fcReadAt = Date.now();
+  for (const [key, raw] of Object.entries(bag)) {
+    const n = Number(raw);
+    const value = Number.isFinite(n) ? n : raw;
+    if (Object.prototype.hasOwnProperty.call(arduTargetState, key)) {
+      arduTargetState[key] = value;
+      arduWriteBaseline[key] = value;
+    }
+    delete fcGroupDraft[key];
+    delete fcDraftMeta[key];
+  }
+}
+
+let fcReadMissingIndices = [];
+
+function paintFcReadMissing(missing, summary) {
+  const box = document.getElementById('fcReadMissing');
+  const countEl = document.getElementById('fcReadMissingCount');
+  const list = document.getElementById('fcReadMissingList');
+  const rows = Array.isArray(missing) ? missing : [];
+  fcReadMissingIndices = rows
+    .map((row) => Number(row?.index))
+    .filter((index) => Number.isInteger(index) && index >= 0);
+  if (!box || !list) return;
+  list.replaceChildren();
+  if (!rows.length) {
+    if (countEl) countEl.textContent = '';
+    box.hidden = true;
+    return;
+  }
+  if (countEl) countEl.textContent = summary || `${rows.length} חסרים`;
+  for (const row of rows) {
+    const item = document.createElement('li');
+    item.textContent = row?.name || `#${row?.index}`;
+    list.appendChild(item);
+  }
+  box.hidden = false;
+}
+
+function askReplaceUnsaved() {
+  const dialog = document.getElementById('fcReadOverwrite');
+  const ok = document.getElementById('fcReadOverwriteOk');
+  const cancel = document.getElementById('fcReadOverwriteCancel');
+  if (!dialog || !ok || !cancel) return Promise.resolve(false);
+  const trigger = document.activeElement instanceof HTMLElement
+    ? document.activeElement
+    : document.getElementById('arduReadBtn');
+  dialog.hidden = false;
+  cancel.focus();
+  return new Promise((resolve) => {
+    const items = () => [cancel, ok];
+    const restore = () => {
+      const back = trigger && document.contains(trigger) ? trigger : document.getElementById('arduReadBtn');
+      if (back && typeof back.focus === 'function') back.focus();
+    };
+    const done = (value) => {
+      dialog.hidden = true;
+      ok.removeEventListener('click', onOk);
+      cancel.removeEventListener('click', onCancel);
+      dialog.removeEventListener('click', onBackdrop);
+      document.removeEventListener('keydown', onKey);
+      restore();
+      resolve(value);
+    };
+    const onOk = () => done(true);
+    const onCancel = () => done(false);
+    const onBackdrop = (event) => {
+      if (event.target === dialog) done(false);
+    };
+    const onKey = (event) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        done(false);
+        return;
+      }
+      if (event.key !== 'Tab') return;
+      const order = items();
+      const index = order.indexOf(document.activeElement);
+      event.preventDefault();
+      const next = event.shiftKey
+        ? order[(index <= 0 ? order.length : index) - 1]
+        : order[(index + 1) % order.length];
+      next.focus();
+    };
+    ok.addEventListener('click', onOk);
+    cancel.addEventListener('click', onCancel);
+    dialog.addEventListener('click', onBackdrop);
+    document.addEventListener('keydown', onKey);
+  });
+}
+
+function failFcReadNoLink() {
+  fcLinkState = 'down';
+  fcCurrentSnapshot = null;
+  clearArduDiff();
+  paintFcReadMissing([]);
+  const hint = 'אין חיבור לבקר';
+  if (arduWriteStatus) {
+    arduWriteStatus.textContent = hint;
+    arduWriteStatus.className = 'ardu-write-status fail';
+  }
+  showParamToolFault(hint, () => readFcParams());
+}
+
+async function paintFcReadProgress() {
+  try {
+    const res = await fetch('/api/ardu/params/read-progress');
+    if (!res.ok) return;
+    const body = await res.json();
+    if (body?.reading !== true || !arduWriteStatus) return;
+    const received = Number(body.received) || 0;
+    const expected = Number(body.expected) || 0;
+    const total = expected > 0 ? String(expected) : '…';
+    arduWriteStatus.textContent = `נקראו ${received}/${total}`;
+    arduWriteStatus.className = 'ardu-write-status action-status param-tool-live';
+  } catch {
+    /* the read request reports the failure */
+  }
+}
+
 async function commitGuardedFcWrite(requested) {
   const keys = Object.keys(requested || {});
   const classify = typeof window.classifyFcWrite === 'function' ? window.classifyFcWrite : null;
@@ -12775,12 +12909,29 @@ async function commitGuardedFcWrite(requested) {
   return classify({ linked: true, requested, httpOk: res.ok, data });
 }
 
-async function readFcParams() {
+async function readFcParams(extra) {
   if (!arduReadBtn) return;
+  const indices = Array.isArray(extra?.indices)
+    ? extra.indices.filter((index) => Number.isInteger(Number(index)) && Number(index) >= 0).map(Number)
+    : [];
+  const unsaved = collectPendingWriteRows().some((row) => row.target === 'fc');
+  if (unsaved && !(await askReplaceUnsaved())) return;
   arduReadBtn.disabled = true;
+  paintFcReadMissing([]);
+  if (arduWriteStatus) {
+    arduWriteStatus.textContent = 'נקראו 0/…';
+    arduWriteStatus.className = 'ardu-write-status action-status param-tool-live';
+  }
+  const progressTimer = setInterval(() => { void paintFcReadProgress(); }, 300);
   try {
-    const res = await fetch('/api/ardu/params?record=1');
-    if (!res.ok) {
+    const res = await fetch('/api/ardu/params/read', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ record: true, ...(indices.length ? { indices } : {}) }),
+    });
+    let d = {};
+    try { d = await res.json(); } catch { d = {}; }
+    if (!res.ok && d.timedOut !== true) {
       const fault = `הקריאה מבקר הטיסה נכשלה. הסיבה: ${hebrewRequestFault(null, res)}`;
       showParamToolFault(fault, () => readFcParams());
       if (arduWriteStatus) {
@@ -12789,44 +12940,55 @@ async function readFcParams() {
       }
       return;
     }
-    const d = await res.json();
     fcArmed = d.armed === true ? true : d.armed === false ? false : null;
     refreshArduWriteBtnState(d);
     fcLinkState = d.mavlinkConnected ? 'ok' : 'down';
-    if (!d.mavlinkConnected) {
-      fcCurrentSnapshot = null;
-      clearArduDiff();
-      const hint = 'הקריאה נכשלה. אין חיבור לבקר הטיסה';
-      if (arduWriteStatus) {
-        arduWriteStatus.textContent = hint;
-        arduWriteStatus.className = 'ardu-write-status fail';
-      }
-      showParamToolFault(hint, () => readFcParams());
-    } else if (!d.connected || !d.current) {
-      fcCurrentSnapshot = null;
-      clearArduDiff();
+    const usable = d.fresh === true || (d.fresh == null && d.connected && d.current);
+    if (!d.mavlinkConnected || d.message === 'אין חיבור לבקר') {
+      failFcReadNoLink();
+    } else if (!usable || !d.current) {
       clearParamToolFault();
-      if (arduWriteStatus) {
-        arduWriteStatus.textContent = '';
-        arduWriteStatus.className = 'ardu-write-status action-status param-tool-live';
+      paintFcReadMissing([]);
+      if (d.timedOut) {
+        const n = Number.isFinite(Number(d.count)) ? Number(d.count) : 0;
+        const timeoutText = `תם הזמן. נקראו ${n}. הערכים על המסך הם מהקריאה הקודמת.`;
+        if (arduWriteStatus) {
+          arduWriteStatus.textContent = timeoutText;
+          arduWriteStatus.className = 'ardu-write-status fail';
+        }
+        showParamToolFault(timeoutText, () => readFcParams());
+      } else {
+        fcCurrentSnapshot = null;
+        clearArduDiff();
+        if (arduWriteStatus) {
+          arduWriteStatus.textContent = '';
+          arduWriteStatus.className = 'ardu-write-status action-status param-tool-live';
+        }
       }
     } else {
-      fcCurrentSnapshot = { ...d.current };
-      fcReadAt = Date.now();
+      applyFreshFcValues(d.current, { merge: indices.length > 0 });
       clearParamToolFault();
-      renderArduDiff(d.current, arduTargetState);
-      const paramStr = d.paramCount != null ? ` (${d.paramCount})` : '';
+      renderArduDiff(fcCurrentSnapshot, arduTargetState);
+      const callCount = Number.isFinite(Number(d.count)) ? Number(d.count) : Object.keys(d.current).length;
+      const total = Number.isFinite(Number(d.paramCount)) ? Number(d.paramCount) : callCount;
+      const known = indices.length > 0 ? Object.keys(fcCurrentSnapshot || {}).length : callCount;
+      const missing = Array.isArray(d.missing) ? d.missing : [];
+      const partial = d.partial === true && missing.length > 0;
+      const summary = partial
+        ? `נקראו ${known}/${total} — ${missing.length} חסרים`
+        : `הקריאה הושלמה · נקראו ${known}/${total}`;
       if (arduWriteStatus) {
-        const readLine = fcReadStatusLine();
-        arduWriteStatus.textContent = readLine
-          ? `הקריאה הושלמה${paramStr} · ${readLine}`
-          : `הקריאה הושלמה${paramStr}`;
-        arduWriteStatus.className = 'ardu-write-status success';
+        arduWriteStatus.textContent = summary;
+        arduWriteStatus.className = partial
+          ? 'ardu-write-status warn'
+          : 'ardu-write-status success';
       }
+      paintFcReadMissing(partial ? missing : [], summary);
     }
     updateParamSyncBanner();
     renderParams();
     renderArduParamForm();
+    renderFcGroupList();
     renderFcParamFiles();
     void loadFcParamFiles();
     document.dispatchEvent(new CustomEvent('vlc:fc-params'));
@@ -12838,6 +13000,7 @@ async function readFcParams() {
       arduWriteStatus.className = 'ardu-write-status fail';
     }
   } finally {
+    clearInterval(progressTimer);
     arduReadBtn.disabled = false;
   }
 }
@@ -12845,12 +13008,17 @@ async function readFcParams() {
 if (arduReadBtn) {
   arduReadBtn.addEventListener('click', () => { void readFcParams(); });
 }
+document.getElementById('fcReadMissingBtn')?.addEventListener('click', () => {
+  if (!fcReadMissingIndices.length) return;
+  void readFcParams({ indices: fcReadMissingIndices.slice() });
+});
 
 /**
  * Enable כתיבה לבקר only when the link is up, the vehicle is disarmed, and a slider or field edit is pending.
  */
 function syncWriteGateFromMav(mav) {
   if (!mav || mav.connected !== true) return;
+  fcLinkState = 'ok';
   const armed = mav.armedKnown === true ? mav.armed === true : arduWriteGate.armed;
   refreshArduWriteBtnState({
     mavlinkConnected: true,
@@ -12933,12 +13101,7 @@ async function runConfirmedParamWrite(rows, retry) {
         });
       }
       if (fcOutcome.level === 'ok' || fcOutcome.history) {
-        applyAckedSnapshot(fcOutcome.acked);
-        for (const key of Object.keys(fcOutcome.acked || {})) {
-          if (Object.prototype.hasOwnProperty.call(arduTargetState, key)) arduWriteBaseline[key] = arduTargetState[key];
-          delete fcGroupDraft[key];
-          delete fcDraftMeta[key];
-        }
+        adoptVerifiedFcValues(fcOutcome.acked);
         if (fcCurrentSnapshot && arduDiffTable && arduDiffSection) {
           renderArduDiff(fcCurrentSnapshot, arduTargetState);
         }
@@ -16062,7 +16225,7 @@ initLiveCameraPanel();
           newText: row.nextText,
         })), () => applyBtn.click());
         if (applyStatus) applyStatus.textContent = '';
-        if (outcome.history) applyAckedSnapshot(outcome.acked);
+        if (outcome.history) adoptVerifiedFcValues(outcome.acked);
         if (outcome.level === 'ok') {
           saveRun({
             at: Date.now(),
@@ -16237,7 +16400,7 @@ initLiveCameraPanel();
               stEl.className = 'cp-param-status ' + (outcome.level === 'ok' ? 'ok' : 'err');
             }
             if (outcome.level === 'ok') inp.value = '';
-            if (outcome.history) applyAckedSnapshot(outcome.acked);
+            if (outcome.history) adoptVerifiedFcValues(outcome.acked);
           } catch (e) {
             if (stEl) { stEl.textContent = 'הכתיבה לבקר נכשלה'; stEl.className = 'cp-param-status err'; }
           } finally {

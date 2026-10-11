@@ -53,6 +53,30 @@ describe('FC write acknowledgement', () => {
     expect(out.clear).toEqual(['EK3_ENABLE', 'EK3_SRC1_POSXY']);
   });
 
+  it('keeps an empty change when the server rejected the keys', () => {
+    const out = classifyFcWrite({
+      linked: true,
+      requested,
+      httpOk: true,
+      data: { ok: true, written: 0, failed: [], verified: {}, message: 'אין שינוי', via: 'mavlink', simulated: false },
+    });
+    expect(out.level).toBe('none');
+    expect(out.text).toBe('אין שינוי');
+  });
+
+  it('says nothing was written when the controller already has those values', () => {
+    const out = classifyFcWrite({
+      linked: true,
+      requested,
+      httpOk: true,
+      data: { ok: true, written: 0, failed: [], verified: {}, via: 'mavlink', simulated: false },
+    });
+    expect(out.level).toBe('none');
+    expect(out.text).toBe('לא נכתב דבר — הערכים כבר זהים לערכים בבקר');
+    expect(out.history).toBe(false);
+    expect(out.level).not.toBe('ok');
+  });
+
   it('treats an empty write as neutral, not a failure', () => {
     const out = classifyFcWrite({
       linked: true,
@@ -117,8 +141,12 @@ describe('FC write paths in the parameters tab', () => {
         localStorage.removeItem('vlc.fcWizard.runs.v1');
       } catch { /* ignore */ }
     });
-    await page.route(/\/api\/ardu\/params(?:\?|$)/, async (route) => {
-      if (route.request().method() !== 'GET') {
+    await page.route(/\/api\/ardu\/params(?:\/read)?(?:\?|$)/, async (route) => {
+      const method = route.request().method();
+      const pathname = new URL(route.request().url()).pathname;
+      const freshRead = method === 'POST' && pathname.endsWith('/api/ardu/params/read');
+      const cachedRead = method === 'GET' && pathname.endsWith('/api/ardu/params');
+      if (!freshRead && !cachedRead) {
         await route.fallback();
         return;
       }

@@ -968,6 +968,13 @@
             <span id="visionConfigStatus" class="vision-config-status action-status param-tool-live"></span>
           </div>
         </div>
+        <div id="fcReadMissing" class="fc-read-missing" hidden>
+          <div class="fc-read-missing-bar">
+            <button type="button" id="fcReadMissingBtn" class="param-tool-btn param-tool-btn--primary">נסו שוב לחסרים</button>
+            <p id="fcReadMissingCount" class="fc-read-missing-count"></p>
+          </div>
+          <ul id="fcReadMissingList" class="fc-read-missing-list"></ul>
+        </div>
         <div id="paramCenterSearchBar" class="param-center-search-bar" role="search" aria-label="חיפוש פרמטרים">
           <div class="ardu-search-row">
             <input id="arduParamSearchInput" type="search" placeholder="חיפוש פרמטר" dir="rtl" title="חיפוש לפי שם או תיאור" />
@@ -2756,6 +2763,15 @@
         </div>
       </div>
 
+      <div id="fcReadOverwrite" class="flight-arm-dialog flight-arm-popup" hidden role="dialog" aria-modal="true" aria-labelledby="fcReadOverwriteText">
+        <div class="flight-arm-popup-card">
+          <p id="fcReadOverwriteText" class="flight-arm-dialog-text">יש שינויים שלא נכתבו לבקר. להחליף אותם בערכים מהבקר?</p>
+          <div class="flight-arm-dialog-actions">
+            <button type="button" id="fcReadOverwriteOk" class="flight-arm-btn flight-arm-confirm">החליפו</button>
+            <button type="button" id="fcReadOverwriteCancel" class="flight-arm-btn">ביטול</button>
+          </div>
+        </div>
+      </div>
       <div id="flightArmDialog" class="flight-arm-dialog flight-arm-popup" hidden role="dialog" aria-modal="true" aria-labelledby="flightArmDialogText">
         <div class="flight-arm-popup-card">
           <p id="flightArmDialogText" class="flight-arm-dialog-text">אשרו חימוש</p>
