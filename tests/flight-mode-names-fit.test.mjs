@@ -12,12 +12,16 @@ const SHORT = {
   INITIALISING: 'אתחול',
 };
 const viewports = [
+  { name: '360x640', width: 360, height: 640 },
+  { name: '360x740', width: 360, height: 740 },
+  { name: '599x640', width: 599, height: 640 },
+  { name: '800x800', width: 800, height: 800 },
   { name: '1024x576', width: 1024, height: 576 },
+  { name: '1024x640', width: 1024, height: 640 },
   { name: '1280x720', width: 1280, height: 720 },
   { name: '1366x768', width: 1366, height: 768 },
   { name: '1440x900', width: 1440, height: 900 },
   { name: '1920x1080', width: 1920, height: 1080 },
-  { name: '360x740', width: 360, height: 740 },
 ];
 
 function inside(inner, outer) {
@@ -47,7 +51,7 @@ describe('ArduPlane mode names fit on one line', () => {
     server?.child.kill('SIGTERM');
   });
 
-  it('keeps a fixed mode column at all six sizes', async () => {
+  it('keeps a fixed mode column at every gate size', async () => {
     const shots = qaShotDir('mode-column');
     for (const vp of viewports) {
       await page.setViewportSize({ width: vp.width, height: vp.height });

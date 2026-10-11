@@ -291,7 +291,16 @@ describe('narrow chrome QA', () => {
     await page.close();
   }, 30000);
 
-  for (const [width, height] of [[360, 640], [360, 740], [599, 640]]) {
+  for (const [width, height] of [
+    [360, 640],
+    [360, 740],
+    [599, 640],
+    [800, 800],
+    [1024, 576],
+    [1024, 640],
+    [1280, 720],
+    [1440, 900],
+  ]) {
     it(`${width}x${height}: every tab button is the thing under the pointer`, async () => {
       const page = await openAt(width, height);
       const tabs = ['terrain', 'pulse', 'control', 'optics', 'recordings'];

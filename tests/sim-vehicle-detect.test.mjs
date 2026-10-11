@@ -5,13 +5,15 @@ import path from 'path';
 import net from 'net';
 import { fileURLToPath } from 'url';
 import { openDatabase } from '../lib/db.mjs';
+import { hebrewPillLabel } from '../lib/dual-link.mjs';
 import { connectLink, disconnectLink } from '../lib/dual-link-runtime.mjs';
-import { deactivateConnection, MavlinkConnection } from '../lib/mavlink-connection.mjs';
+import { buildMavlink1Frame, deactivateConnection, MavlinkConnection } from '../lib/mavlink-connection.mjs';
 import { buildSseMavlinkSnapshot } from '../lib/sse-mavlink-snapshot.mjs';
 import {
   applySimulatorPreset,
   detectSimulatorVehicle,
   parseAutopilotVersion,
+  SIMULATOR_PORT_BLOCKED_HE,
   SIMULATOR_PRESET_NAME,
   SIMULATOR_TCP_PORT,
   SIMULATOR_UNAVAILABLE_HE,
@@ -30,6 +32,60 @@ function versionPayload(osText) {
   const buf = Buffer.alloc(60);
   buf.write(osText, 52, 'latin1');
   return buf;
+}
+
+const OVERRIDE_FLAGS = ['VITEST', 'VLC_QA', 'VLC_TEST', 'RUN_SITL_E2E'];
+
+function vehicleHeartbeatFrame() {
+  const payload = Buffer.alloc(9);
+  payload[4] = 1;
+  payload[5] = 3;
+  payload[7] = 4;
+  payload[8] = 3;
+  const mid = Buffer.from([payload.length, 1, 1, 1, 0]);
+  const crcData = Buffer.concat([mid, payload, Buffer.from([50])]);
+  let crc = 0xFFFF;
+  for (const b of crcData) {
+    let tmp = (b ^ (crc & 0xFF)) & 0xFF;
+    tmp = (tmp ^ (tmp << 4)) & 0xFF;
+    crc = ((crc >> 8) ^ (tmp << 8) ^ (tmp << 3) ^ (tmp >> 4)) & 0xFFFF;
+  }
+  return Buffer.concat([
+    Buffer.from([0xfe]),
+    mid,
+    payload,
+    Buffer.from([crc & 0xff, (crc >> 8) & 0xff]),
+  ]);
+}
+
+function withEnv(patch, fn) {
+  const saved = {};
+  for (const key of Object.keys(patch)) {
+    saved[key] = process.env[key];
+    if (patch[key] == null) delete process.env[key];
+    else process.env[key] = patch[key];
+  }
+  const restore = () => {
+    for (const key of Object.keys(saved)) {
+      if (saved[key] == null) delete process.env[key];
+      else process.env[key] = saved[key];
+    }
+  };
+  try {
+    const result = fn();
+    if (result && typeof result.then === 'function') return result.finally(restore);
+    restore();
+    return result;
+  } catch (err) {
+    restore();
+    throw err;
+  }
+}
+
+function productionEnv(extra = {}) {
+  const patch = { ...extra };
+  for (const key of OVERRIDE_FLAGS) patch[key] = null;
+  return patch;
 }
 
 describe('simulator detection', () => {
@@ -69,7 +125,7 @@ describe('simulator detection', () => {
     }).simulator).toBe(false);
   });
 
-  it('keeps the badge off until the socket is up, then on for preset or SIM_ params', () => {
+  it('keeps the badge off until a vehicle heartbeat, then on for preset or SIM_ params', () => {
     const preset = new MavlinkConnection({
       id: 7,
       name: SIMULATOR_PRESET_NAME,
@@ -80,6 +136,8 @@ describe('simulator detection', () => {
     });
     expect(preset.getStatus().simulator).toBe(false);
     preset.connected = true;
+    expect(preset.getStatus().simulator).toBe(false);
+    preset.heartbeatCount = 1;
     expect(preset.getStatus().simulator).toBe(true);
     expect(preset.getStatus().simulatorReason).toBe('preset');
 
@@ -89,14 +147,25 @@ describe('simulator detection', () => {
     real.params.AIRSPEED_MIN = 9;
     expect(real.getStatus().simulator).toBe(false);
     real.params.SIM_SPEEDUP = 1;
+    expect(real.getStatus().simulator).toBe(false);
+    real.heartbeatCount = 1;
     expect(real.getStatus().simulatorReason).toBe('sim-params');
     real.params = {};
     real.autopilotVersion = { osCustomVersion: 'SITL' };
     expect(real.getStatus().simulatorReason).toBe('autopilot-version');
 
+    const quiet = buildSseMavlinkSnapshot({
+      connected: true,
+      listening: false,
+      heartbeatCount: 0,
+      params: { SIM_OPOS_LAT: 32.08 },
+      autopilotName: 'ArduPilot',
+    });
+    expect(quiet.simulator).toBe(false);
     const snap = buildSseMavlinkSnapshot({
       connected: true,
       listening: false,
+      heartbeatCount: 1,
       params: { SIM_OPOS_LAT: 32.08 },
       autopilotName: 'ArduPilot',
     });
@@ -106,9 +175,41 @@ describe('simulator detection', () => {
     expect(buildSseMavlinkSnapshot({
       connected: false,
       listening: false,
+      heartbeatCount: 1,
       name: SIMULATOR_PRESET_NAME,
       simulatorPreset: true,
     }).simulator).toBe(false);
+  });
+
+  it('does not label a link סימולטור until a vehicle heartbeat arrives', () => {
+    const link = new MavlinkConnection({
+      id: 9,
+      name: SIMULATOR_PRESET_NAME,
+      type: 'tcp',
+      host: '127.0.0.1',
+      port: SIMULATOR_TCP_PORT,
+      simulatorPreset: true,
+    });
+    link.connected = true;
+    const before = link.getStatus();
+    expect(before.simulator).toBe(false);
+    expect(before.heartbeatCount).toBe(0);
+    expect(hebrewPillLabel({ radio: 'connected', simulator: before.simulator })).toBe('מחובר · RF פעיל');
+
+    const gcs = Buffer.alloc(9);
+    gcs[4] = 6;
+    gcs[5] = 8;
+    link._handleData(buildMavlink1Frame(0, gcs, 1));
+    expect(link.heartbeatCount).toBe(0);
+    expect(link.getStatus().simulator).toBe(false);
+    expect(hebrewPillLabel({ radio: 'connected', simulator: link.getStatus().simulator })).not.toContain('סימולטור');
+
+    link._handleData(vehicleHeartbeatFrame());
+    const after = link.getStatus();
+    expect(after.heartbeatCount).toBe(1);
+    expect(after.simulator).toBe(true);
+    expect(after.simulatorReason).toBe('preset');
+    expect(hebrewPillLabel({ radio: 'connected', simulator: after.simulator })).toBe('מחובר · סימולטור');
   });
 });
 
@@ -188,6 +289,57 @@ describe('simulator TCP port override', () => {
       else process.env.SIMULATOR_TCP_PORT = prev;
     }
   });
+
+  it('production ignores simulatorPort and SIMULATOR_TCP_PORT', () => {
+    withEnv(productionEnv({ SIMULATOR_TCP_PORT: '4010' }), () => {
+      const shaped = applySimulatorPreset({
+        preset: 'simulator',
+        type: 'tcp',
+        host: '10.0.0.8',
+        port: 4010,
+        simulatorPort: 4401,
+      });
+      expect(shaped.simulatorPortRefused).toBeFalsy();
+      expect(shaped).toMatchObject({ host: '127.0.0.1', port: SIMULATOR_TCP_PORT });
+    });
+  });
+
+  it('refuses a blocked simulator port instead of dialing the console', async () => {
+    const dbPath = path.join(os.tmpdir(), `airvix-sim-block-${process.pid}-${Date.now()}.sqlite`);
+    const db = openDatabase(dbPath);
+    const ownPort = '4408';
+    const blocked = [4010, 3090, 8080, 8081, Number(ownPort)];
+    try {
+      await withEnv({ PORT: ownPort, SIMULATOR_TCP_PORT: null }, async () => {
+        for (const port of blocked) {
+          const result = await connectLink({ db }, {
+            role: 'radio',
+            type: 'tcp',
+            host: '10.1.1.1',
+            port: 9999,
+            preset: 'simulator',
+            simulatorPort: port,
+          });
+          expect(result.ok, String(port)).toBe(false);
+          expect(result.message, String(port)).toBe(SIMULATOR_PORT_BLOCKED_HE);
+        }
+        const fromEnv = await withEnv({ SIMULATOR_TCP_PORT: '8081' }, () => connectLink({ db }, {
+          role: 'radio',
+          type: 'tcp',
+          host: '10.1.1.1',
+          port: 9999,
+          preset: 'simulator',
+        }));
+        expect(fromEnv.ok).toBe(false);
+        expect(fromEnv.message).toBe(SIMULATOR_PORT_BLOCKED_HE);
+      });
+      const row = db.prepare('SELECT * FROM connections WHERE name = ?').get(SIMULATOR_PRESET_NAME);
+      expect(row).toBeFalsy();
+    } finally {
+      db.close();
+      fs.unlinkSync(dbPath);
+    }
+  });
 });
 
 describe('simulator connection preset', () => {
@@ -238,8 +390,9 @@ describe('simulator connection preset', () => {
     expect(tcp.status.type).toBe('tcp');
     expect(tcp.status.host).toBe('127.0.0.1');
     expect(tcp.status.port).toBe(SIMULATOR_TCP_PORT);
-    expect(tcp.status.simulator).toBe(true);
-    expect(tcp.status.simulatorReason).toBe('preset');
+    expect(tcp.status.simulator).toBe(false);
+    expect(tcp.status.simulatorReason).toBe(null);
+    expect(hebrewPillLabel({ radio: 'connected', simulator: tcp.status.simulator })).not.toContain('סימולטור');
     deactivateConnection(tcp.id);
 
     const udp = await connectLink({ db }, {
@@ -254,8 +407,8 @@ describe('simulator connection preset', () => {
     expect(udp.status.host).toBe('0.0.0.0');
     expect(udp.status.port).toBe(14550);
     expect(udp.status.host).not.toBe('10.9.9.9');
-    expect(udp.status.simulator).toBe(true);
-    expect(udp.status.simulatorReason).toBe('preset');
+    expect(udp.status.simulator).toBe(false);
+    expect(udp.status.simulatorReason).toBe(null);
     deactivateConnection(udp.id);
     db.close();
   });

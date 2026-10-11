@@ -4,6 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { qaShotDir } from './shot-dir.mjs';
+import { startTestServer } from './test-server.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 let BASE = '';
@@ -183,6 +184,20 @@ describe('Home screen QA matrix', () => {
   it('covers every home-screen combination without overlap or clipping', async () => {
     expect(stateCount()).toBeGreaterThan(1500);
     const page = await browser.newPage();
+    await page.route('**/api/mavlink/mission-refresh', (route) => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ ok: true, count: 0 }),
+    }));
+    await page.route('**/api/assist/voice-go', async (route) => {
+      let active = false;
+      try { active = route.request().postDataJSON()?.active === true; } catch { /* empty body */ }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ ok: true, ask_voice_go_active: active }),
+      });
+    });
     await page.addInitScript(() => {
       localStorage.setItem('visionLandingMissionSwapV1', 'map-horizon');
       localStorage.setItem('vlc.instrumentView.v1', 'horizon');
@@ -259,7 +274,6 @@ function makeSheet(files, dest) {
   fs.writeFileSync(list, files.join('\n'));
   const py = `
 import pathlib
-import { startTestServer } from './test-server.mjs';
 from PIL import Image
 files = pathlib.Path(${JSON.stringify(list)}).read_text().splitlines()
 files = [f for f in files if f]

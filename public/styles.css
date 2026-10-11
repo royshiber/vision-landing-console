@@ -12168,14 +12168,14 @@ html[data-evolve-preview="1"] #development {
 
 @media (max-width: 1100px) {
   .mission-workspace[data-mission-layout="ops-v1"] {
-    grid-template-columns: minmax(0, var(--mission-map-col, 2fr)) minmax(220px, var(--mission-ah-col, 1fr));
+    grid-template-columns: minmax(0, var(--mission-map-col, 2fr)) minmax(340px, var(--mission-ah-col, 1fr));
     grid-template-rows: minmax(0, 1fr);
     grid-template-areas: "map horizon";
   }
 
   .mission-workspace[data-mission-swap="map-horizon"],
   .mission-workspace[data-mission-swap="horizon-map"] {
-    grid-template-columns: minmax(0, var(--mission-map-col, 2fr)) minmax(220px, var(--mission-ah-col, 1fr));
+    grid-template-columns: minmax(0, var(--mission-map-col, 2fr)) minmax(340px, var(--mission-ah-col, 1fr));
     grid-template-rows: minmax(0, 1fr);
   }
 
@@ -23851,7 +23851,7 @@ body:has(#pulse.panel.visible) .pulse-home.pulse-status-home {
   .mission-workspace[data-mission-layout="ops-v1"],
   .mission-workspace[data-mission-swap="map-horizon"],
   .mission-workspace[data-mission-swap="horizon-map"] {
-    grid-template-columns: minmax(0, var(--mission-map-col, 2fr)) minmax(220px, var(--mission-ah-col, 1fr));
+    grid-template-columns: minmax(0, var(--mission-map-col, 2fr)) minmax(340px, var(--mission-ah-col, 1fr));
     grid-template-rows: minmax(0, 1fr);
     grid-template-areas: "map horizon";
     height: auto;
