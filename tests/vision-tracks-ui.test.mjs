@@ -82,7 +82,7 @@ async function boot() {
     }),
     stdio: 'ignore',
   });
-  proc = started.child;
+  const proc = started.child;
   const base = started.base;
   const t0 = Date.now();
   let up = false;
