@@ -167,10 +167,11 @@ describe('vision track overlay', () => {
       });
     });
     await page.goto(started.base, { waitUntil: 'domcontentloaded' });
+    await page.waitForSelector('[data-tab="optics"]', { timeout: 15000 });
     await page.click('[data-tab="optics"]');
+    await page.waitForSelector('[data-camera-stage="cam0"]', { timeout: 15000 });
     const stageCount = await page.locator('[data-camera-stage="cam0"]').count();
     expect(stageCount, 'no camera stage found').toBeGreaterThan(0);
-    await page.waitForSelector('[data-camera-stage="cam0"]');
     await page.evaluate(() => {
       const detail = {
         cameras: {
@@ -580,12 +581,6 @@ describe('vision track overlay', () => {
         }),
       });
     });
-    const posts = [];
-    page.on('request', (req) => {
-      if (req.method() !== 'POST' || !req.url().includes('/vision/lock')) return;
-      const body = req.postDataJSON() || {};
-      if (body.id != null) posts.push(Number(body.id));
-    });
     await page.goto(base, { waitUntil: 'domcontentloaded' });
     await page.click('[data-tab="optics"]');
     await page.evaluate(() => {
@@ -602,53 +597,67 @@ describe('vision track overlay', () => {
         && stage?.dataset.visionTracks
         && stage.querySelector('.vision-hit-layer')?.dataset.hit === '1';
     }, null, { timeout: 15000 });
-    let wrong = 0;
-    let drops = 0;
-    let armed = 0;
-    const clickCar = () => {
-      const stage = document.querySelector('[data-camera-stage="cam0"]');
-      const img = document.querySelector('[data-api="cam0"] .debrief-cam-live');
-      const shown = Number(img?.dataset.frameSeq || 0);
-      if (!stage || shown <= 0 || stage.dataset.visionFrame !== String(shown)) return 0;
-      if (stage.querySelector('.vision-hit-layer')?.dataset.hit !== '1') return 0;
-      const rect = stage.getBoundingClientRect();
-      if (rect.width < 40 || rect.height < 40) return 0;
-      const scale = Math.min(rect.width / 320, rect.height / 180);
-      const ox = rect.x + (rect.width - 320 * scale) / 2;
-      const oy = rect.y + (rect.height - 180 * scale) / 2;
-      const box = shown % 2 === 0 ? [20, 30, 80, 70] : [180, 50, 90, 50];
-      const x = ox + (box[0] + box[2] / 2) * scale;
-      const y = oy + (box[1] + box[3] / 2) * scale;
-      stage.dispatchEvent(new PointerEvent('pointerdown', {
-        bubbles: true,
-        cancelable: true,
-        clientX: x,
-        clientY: y,
-        button: 0,
-        pointerId: 1,
-        pointerType: 'mouse',
-      }));
-      return 2;
-    };
-    const deadline = Date.now() + 90000;
-    while (armed < 500 && Date.now() < deadline) {
-      const before = posts.length;
-      const expected = await page.evaluate(clickCar);
-      if (!expected) {
-        await page.waitForTimeout(15);
-        continue;
+    const race = await page.evaluate(async () => {
+      const orig = window.fetch.bind(window);
+      const posted = [];
+      window.fetch = (input, init) => {
+        const url = typeof input === 'string' ? input : (input?.url || '');
+        if (String(url).includes('/vision/lock') && init?.body) {
+          try {
+            const body = JSON.parse(init.body);
+            if (body.id != null) posted.push(Number(body.id));
+          } catch { /* ignore */ }
+        }
+        return orig(input, init);
+      };
+      let wrong = 0;
+      let drops = 0;
+      let armed = 0;
+      let skipped = 0;
+      const deadline = Date.now() + 20000;
+      while (armed < 500 && Date.now() < deadline) {
+        const stage = document.querySelector('[data-camera-stage="cam0"]');
+        const img = document.querySelector('[data-api="cam0"] .debrief-cam-live');
+        const shown = Number(img?.dataset.frameSeq || 0);
+        const ready = stage
+          && shown > 0
+          && stage.dataset.visionFrame === String(shown)
+          && stage.querySelector('.vision-hit-layer')?.dataset.hit === '1'
+          && stage.getBoundingClientRect().width >= 40;
+        if (!ready) {
+          skipped += 1;
+          await new Promise((resolve) => setTimeout(resolve, 15));
+          continue;
+        }
+        const rect = stage.getBoundingClientRect();
+        const scale = Math.min(rect.width / 320, rect.height / 180);
+        const ox = rect.x + (rect.width - 320 * scale) / 2;
+        const oy = rect.y + (rect.height - 180 * scale) / 2;
+        const box = shown % 2 === 0 ? [20, 30, 80, 70] : [180, 50, 90, 50];
+        const x = ox + (box[0] + box[2] / 2) * scale;
+        const y = oy + (box[1] + box[3] / 2) * scale;
+        const before = posted.length;
+        stage.dispatchEvent(new PointerEvent('pointerdown', {
+          bubbles: true,
+          cancelable: true,
+          clientX: x,
+          clientY: y,
+          button: 0,
+          pointerId: 1,
+          pointerType: 'mouse',
+        }));
+        armed += 1;
+        const until = Date.now() + 1000;
+        while (posted.length < before + 1 && Date.now() < until) {
+          await new Promise((resolve) => setTimeout(resolve, 5));
+        }
+        if (posted.length < before + 1) drops += 1;
+        else if (posted[before] !== 2) wrong += 1;
       }
-      armed += 1;
-      const until = Date.now() + 1000;
-      while (posts.length < before + 1 && Date.now() < until) {
-        await page.waitForTimeout(10);
-      }
-      if (posts.length < before + 1) drops += 1;
-      else if (posts[before] !== expected) wrong += 1;
-    }
-    expect(armed).toBe(500);
-    expect(drops).toBe(0);
-    expect(wrong).toBe(0);
+      window.fetch = orig;
+      return { armed, drops, wrong, skipped, sample: posted.slice(0, 8) };
+    });
+    expect(race, JSON.stringify(race)).toMatchObject({ armed: 500, drops: 0, wrong: 0 });
     await page.close();
   }, 120000);
 
