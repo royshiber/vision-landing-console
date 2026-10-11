@@ -27611,7 +27611,17 @@ body:has(#control.panel.visible) #assistToggleBtn {
     max-height: none;
     overflow: visible;
     align-content: start;
-    gap: 2px;
+    gap: 0;
+  }
+}
+/* The 220px flight floor cannot hold QSTABILIZE in four even tracks. */
+@media (max-width: 799.98px) and (min-width: 721px) {
+  .mission-region-horizon > .mission-region-data > .mission-data-grid,
+  .mission-region-horizon[data-flight-stack="custom"] > .mission-region-data > .mission-data-grid,
+  .mission-region-horizon > .mission-region-data:has([data-mission-data-slot="6"]) > .mission-data-grid,
+  .mission-region-horizon[data-flight-stack="custom"] > .mission-region-data:has([data-mission-data-slot="6"]) > .mission-data-grid,
+  .mission-workspace .mission-region-horizon[data-flight-stack="custom"] > .mission-region-data > .mission-data-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 .mission-workspace[data-mission-layout="ops-v1"] .mission-region-horizon .mission-data-tile,
