@@ -1,8 +1,11 @@
 """Tracks API: stable ids, lock, and a gimbal steer gate that does not fly."""
 
 import base64
+import inspect
 import json
 import sys
+import threading
+import time
 import unittest
 from pathlib import Path
 
@@ -13,6 +16,7 @@ import vision_tracks
 from vision_tracks import (
     ByteTracker,
     REASON_GIMBAL_ABSENT,
+    REASON_NO_MODEL,
     REASON_NO_STREAM,
     REASON_OFF,
     REASON_STEER_OFF,
@@ -399,6 +403,87 @@ class VisionTrackTests(unittest.TestCase):
         self.assertNotIn("COMMAND_LONG", text)
         self.assertNotIn("MAV_CMD", text)
         self.assertNotIn("uart", text.lower())
+        infer = inspect.getsource(vision_tracks.TensorRtYolo._infer)
+        self.assertNotIn("ctypes.data", infer)
+        self.assertIn("set_tensor_address(name, int(ptr))", infer)
+
+    def test_jpeg_array_for_cv2_is_a_writable_copy(self):
+        raw = b"\xff\xd8\xff\xd9not-a-live-mat"
+        arr = vision_tracks.writable_jpeg_array(raw)
+        self.assertTrue(arr.flags.writeable)
+        self.assertTrue(arr.flags.c_contiguous)
+        arr[0] = 0
+        self.assertEqual(raw[0], 0xFF)
+
+    def test_vision_thread_real_frames_and_no_model_stays_unavailable(self):
+        width, height, rgb, _truth = sample_frame(2)
+        jpeg = b"\xff\xd8" + rgb[:64] + b"\xff\xd9"
+        shared = {"packet": None}
+        stop = threading.Event()
+        calls = []
+
+        def produce():
+            import numpy as np
+            seq = 0
+            while not stop.is_set():
+                seq += 1
+                live = np.zeros((height, width, 3), dtype=np.uint8)
+                live[:, :] = (seq * 13) % 255
+                shared["packet"] = {
+                    "jpeg": jpeg,
+                    "rgb": rgb,
+                    "bgr": live,
+                    "width": width,
+                    "height": height,
+                    "seq": seq,
+                    "captured_at": 1_700_000_000_000 + seq * 40,
+                }
+                live[:, :] = 0
+                time.sleep(0.01)
+
+        def no_decode(*_args, **_kwargs):
+            calls.append("decode")
+            return None
+
+        original = vision_tracks._decode_jpeg
+        vision_tracks._decode_jpeg = no_decode
+        producer = threading.Thread(target=produce, name="frames", daemon=True)
+        producer.start()
+        svc = VisionTracks(
+            enabled=True,
+            camera="cam3",
+            backend="auto",
+            model_path="",
+            engine_path="",
+            gimbal_steer=False,
+            frame_source=lambda _camera: shared["packet"],
+            thread=True,
+        )
+        try:
+            deadline = time.monotonic() + 1.0
+            while shared["packet"] is None and time.monotonic() < deadline:
+                time.sleep(0.01)
+            svc._sync_thread()
+            time.sleep(0.6)
+            self.assertIsNotNone(svc._thread)
+            self.assertTrue(svc._thread.is_alive())
+            body = svc.snapshot("cam3")
+        finally:
+            svc.close()
+            stop.set()
+            producer.join(timeout=1.0)
+            vision_tracks._decode_jpeg = original
+        self.assertEqual(calls, [])
+        self.assertEqual(body["backend"], "unavailable")
+        self.assertEqual(body["backend_error"], "no_model")
+        self.assertEqual(body["tracks"], [])
+        self.assertEqual(body["reason_he"], REASON_NO_MODEL)
+        self.assertIs(body["stream"], True)
+        self.assertIs(body["gimbal_steer"]["enabled"], False)
+        self.assertIs(body["gimbal_steer"]["sent"], False)
+        self.assertIs(body["flight_commands"], False)
+        self.assertEqual(body["commands_sent"], 0)
+        self.assertEqual(self.sent, [])
 
 
 if __name__ == "__main__":

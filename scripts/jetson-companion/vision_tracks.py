@@ -2,8 +2,17 @@
 """Object detection and stable tracks for one companion camera.
 
 Off unless enabled. A URL or a camera id alone does not start detection.
-TensorRT is used when an engine file and the tensorrt module are both present.
-ONNX is the next choice when a model file and onnxruntime are present.
+With no model the backend stays unavailable: the vision thread may see that
+a frame exists, and it does not call into OpenCV.
+
+Auto inference, when a file is present:
+  TensorRT only if the engine loads, the tensorrt module imports, and a
+  device buffer can be allocated (cuda-python or the JetPack libcudart).
+  Host memory is never bound as a TensorRT tensor.
+  Otherwise cv2.dnn on the ONNX file. CUDA FP16 is used only when that
+  OpenCV build says CUDA and cuDNN are present. No extra pip package.
+  onnxruntime is a later fallback when it is already importable.
+
 The CPU path finds saturated color blobs and is only for the sample fixture
 and an explicit sim backend. It is not selected automatically, so a live
 camera without a model never grows invented boxes.
@@ -487,6 +496,158 @@ class OnnxYolo:
             return []
 
 
+class _DeviceMemory:
+    """CUDA device buffers. cuda-python if it is already imported, else libcudart.
+
+    JetPack ships libcudart next to trtexec. Nothing is pip-installed.
+    """
+
+    H2D = 1
+    D2H = 2
+
+    def __init__(self):
+        self.kind = None
+        self.lib = None
+        self.cudart = None
+        self.blocks = []
+
+    def open(self):
+        if self.kind:
+            return True
+        if self._open_cuda_python():
+            return True
+        return self._open_cudart()
+
+    def _open_cuda_python(self):
+        try:
+            try:
+                from cuda.bindings import runtime as cudart
+            except ImportError:
+                from cuda import cudart
+        except ImportError:
+            return False
+        try:
+            err, ptr = cudart.cudaMalloc(4)
+            if int(err) != 0:
+                return False
+            cudart.cudaFree(ptr)
+        except Exception:
+            return False
+        self.kind = "cuda-python"
+        self.cudart = cudart
+        return True
+
+    def _open_cudart(self):
+        import ctypes
+        lib = None
+        for name in ("libcudart.so.12", "libcudart.so.13", "libcudart.so"):
+            try:
+                lib = ctypes.CDLL(name)
+                break
+            except OSError:
+                lib = None
+        if lib is None:
+            return False
+        lib.cudaMalloc.argtypes = [ctypes.POINTER(ctypes.c_void_p), ctypes.c_size_t]
+        lib.cudaMalloc.restype = ctypes.c_int
+        lib.cudaFree.argtypes = [ctypes.c_void_p]
+        lib.cudaFree.restype = ctypes.c_int
+        lib.cudaMemcpy.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_size_t, ctypes.c_int]
+        lib.cudaMemcpy.restype = ctypes.c_int
+        lib.cudaStreamSynchronize.argtypes = [ctypes.c_void_p]
+        lib.cudaStreamSynchronize.restype = ctypes.c_int
+        probe = ctypes.c_void_p()
+        if lib.cudaMalloc(ctypes.byref(probe), 4) != 0:
+            return False
+        lib.cudaFree(probe)
+        self.kind = "libcudart"
+        self.lib = lib
+        return True
+
+    def alloc(self, nbytes):
+        size = int(nbytes)
+        if size <= 0:
+            raise RuntimeError("cuda_alloc")
+        if self.kind == "cuda-python":
+            err, ptr = self.cudart.cudaMalloc(size)
+            if int(err) != 0:
+                raise RuntimeError("cuda_alloc")
+            self.blocks.append(int(ptr))
+            return int(ptr)
+        import ctypes
+        ptr = ctypes.c_void_p()
+        if self.lib.cudaMalloc(ctypes.byref(ptr), size) != 0:
+            raise RuntimeError("cuda_alloc")
+        self.blocks.append(int(ptr.value))
+        return int(ptr.value)
+
+    def _memcpy_kind(self, kind):
+        if self.kind != "cuda-python":
+            return int(kind)
+        enum = getattr(self.cudart, "cudaMemcpyKind", None)
+        if enum is None:
+            return int(kind)
+        name = "cudaMemcpyHostToDevice" if int(kind) == self.H2D else "cudaMemcpyDeviceToHost"
+        return getattr(enum, name, int(kind))
+
+    def _memcpy(self, dst, src, nbytes, kind):
+        copied = self._memcpy_kind(kind)
+        if self.kind == "cuda-python":
+            err = self.cudart.cudaMemcpy(dst, src, int(nbytes), copied)
+            if int(err) != 0:
+                raise RuntimeError("cuda_memcpy")
+            return
+        import ctypes
+        err = self.lib.cudaMemcpy(ctypes.c_void_p(dst), ctypes.c_void_p(src), int(nbytes), int(copied))
+        if err != 0:
+            raise RuntimeError("cuda_memcpy")
+
+    def h2d(self, host, ptr):
+        import numpy as np
+        arr = np.ascontiguousarray(host)
+        self._memcpy(int(ptr), int(arr.ctypes.data), int(arr.nbytes), self.H2D)
+
+    def d2h(self, ptr, host):
+        import numpy as np
+        arr = np.ascontiguousarray(host)
+        self._memcpy(int(arr.ctypes.data), int(ptr), int(arr.nbytes), self.D2H)
+        return arr
+
+    def sync(self):
+        if self.kind == "cuda-python":
+            err = self.cudart.cudaStreamSynchronize(0)
+            if int(err) != 0:
+                raise RuntimeError("cuda_sync")
+            return
+        import ctypes
+        if self.lib.cudaStreamSynchronize(ctypes.c_void_p(0)) != 0:
+            raise RuntimeError("cuda_sync")
+
+    def close(self):
+        self._free_blocks()
+
+    def _free_blocks(self):
+        blocks = list(self.blocks)
+        self.blocks = []
+        for ptr in blocks:
+            try:
+                if self.kind == "cuda-python":
+                    self.cudart.cudaFree(ptr)
+                elif self.lib is not None:
+                    import ctypes
+                    self.lib.cudaFree(ctypes.c_void_p(ptr))
+            except Exception:
+                pass
+
+
+def device_buffers_available():
+    mem = _DeviceMemory()
+    try:
+        return mem.open()
+    finally:
+        mem.close()
+
+
 class TensorRtYolo:
     name = "tensorrt"
 
@@ -494,6 +655,7 @@ class TensorRtYolo:
         self.engine_path = engine_path
         self.engine = None
         self.context = None
+        self.device = None
         self.error = None
 
     def load(self):
@@ -505,6 +667,10 @@ class TensorRtYolo:
         except ImportError:
             self.error = "tensorrt_missing"
             return False
+        device = _DeviceMemory()
+        if not device.open():
+            self.error = "cuda_device_unavailable"
+            return False
         try:
             logger = trt.Logger(trt.Logger.ERROR)
             runtime = trt.Runtime(logger)
@@ -512,11 +678,14 @@ class TensorRtYolo:
                 engine = runtime.deserialize_cuda_engine(handle.read())
             if engine is None:
                 self.error = "engine_invalid"
+                device.close()
                 return False
             self.engine = engine
             self.context = engine.create_execution_context()
+            self.device = device
             return True
         except Exception:
+            device.close()
             self.error = "engine_invalid"
             return False
 
@@ -532,36 +701,110 @@ class TensorRtYolo:
             return []
 
     def _infer(self, blob):
+        """Bind device pointers only. A host address is not a TensorRT tensor."""
         import numpy as np
         engine = self.engine
         context = self.context
-        names = []
-        if hasattr(engine, "num_io_tensors"):
-            names = [engine.get_tensor_name(i) for i in range(engine.num_io_tensors)]
+        device = self.device
+        if device is None or not hasattr(engine, "num_io_tensors"):
+            raise RuntimeError("tensorrt_api")
+        if not hasattr(context, "execute_async_v3"):
+            raise RuntimeError("tensorrt_api")
+        blob = np.ascontiguousarray(blob, dtype=np.float32)
+        names = [engine.get_tensor_name(i) for i in range(engine.num_io_tensors)]
+        input_mode = engine.get_tensor_mode(names[0])
+        outputs = {}
+        try:
             for name in names:
                 mode = engine.get_tensor_mode(name)
-                if mode == engine.get_tensor_mode(names[0]) and name == names[0]:
-                    context.set_input_shape(name, blob.shape)
-            outputs = {}
-            bindings = []
+                if mode == input_mode and name == names[0]:
+                    context.set_input_shape(name, tuple(blob.shape))
             for name in names:
                 mode = str(engine.get_tensor_mode(name))
                 if "INPUT" in mode:
-                    context.set_tensor_address(name, blob.ctypes.data)
-                    bindings.append(name)
+                    ptr = device.alloc(int(blob.nbytes))
+                    device.h2d(blob, ptr)
+                    context.set_tensor_address(name, int(ptr))
                 else:
-                    shape = tuple(context.get_tensor_shape(name))
-                    buf = np.empty(shape, dtype=np.float32)
-                    outputs[name] = buf
-                    context.set_tensor_address(name, buf.ctypes.data)
-            if hasattr(context, "execute_async_v3"):
-                context.execute_async_v3(0)
-            else:
-                context.execute_v2([blob.ctypes.data, *[buf.ctypes.data for buf in outputs.values()]])
+                    shape = tuple(int(dim) for dim in context.get_tensor_shape(name))
+                    if any(dim <= 0 for dim in shape):
+                        raise RuntimeError("tensorrt_shape")
+                    host = np.empty(shape, dtype=np.float32)
+                    ptr = device.alloc(int(host.nbytes))
+                    outputs[name] = (host, ptr)
+                    context.set_tensor_address(name, int(ptr))
+            if not context.execute_async_v3(0):
+                raise RuntimeError("tensorrt_execute")
+            device.sync()
             if not outputs:
                 raise RuntimeError("no_output")
-            return next(iter(outputs.values()))
-        raise RuntimeError("tensorrt_api")
+            host, ptr = next(iter(outputs.values()))
+            copied = device.d2h(ptr, host)
+            return np.array(copied, copy=True)
+        finally:
+            device._free_blocks()
+
+
+class CvDnnYolo:
+    """YOLOv8n via cv2.dnn. OpenCV owns the network buffers. No new pip package."""
+
+    name = "opencv"
+
+    def __init__(self, model_path):
+        self.model_path = model_path
+        self.net = None
+        self.error = None
+        self.target = "cpu"
+
+    def load(self):
+        if not self.model_path or not os.path.isfile(self.model_path):
+            self.error = "model_missing"
+            return False
+        try:
+            import cv2
+        except ImportError:
+            self.error = "cv2_missing"
+            return False
+        if not hasattr(cv2, "dnn") or not hasattr(cv2.dnn, "readNetFromONNX"):
+            self.error = "dnn_missing"
+            return False
+        try:
+            net = cv2.dnn.readNetFromONNX(self.model_path)
+        except Exception:
+            self.error = "model_invalid"
+            return False
+        self.target = "cpu"
+        if _dnn_cuda_built(cv2):
+            try:
+                with _cv2_lock():
+                    net.setPreferableBackend(cv2.dnn.DNN_BACKEND_CUDA)
+                    target = getattr(cv2.dnn, "DNN_TARGET_CUDA_FP16", cv2.dnn.DNN_TARGET_CUDA)
+                    net.setPreferableTarget(target)
+                self.target = "cuda_fp16"
+            except Exception:
+                self.target = "cpu"
+                try:
+                    with _cv2_lock():
+                        net.setPreferableBackend(cv2.dnn.DNN_BACKEND_OPENCV)
+                        net.setPreferableTarget(cv2.dnn.DNN_TARGET_CPU)
+                except Exception:
+                    self.error = "dnn_backend"
+                    return False
+        self.net = net
+        return True
+
+    def detect(self, width, height, rgb):
+        if self.net is None and not self.load():
+            return []
+        try:
+            blob, ratio, pad_x, pad_y = _letterbox_nchw(rgb, width, height, 640)
+            with _cv2_lock():
+                self.net.setInput(blob)
+                output = self.net.forward()
+            return decode_yolo_v8(_numpy_to_lists(output), width, height, ratio=ratio, pad_x=pad_x, pad_y=pad_y)
+        except Exception as exc:
+            self.error = type(exc).__name__
+            return []
 
 
 def _numpy_to_lists(value):
@@ -590,6 +833,34 @@ def _letterbox_nchw(rgb, width, height, size):
     return blob, scale, float(pad_x), float(pad_y)
 
 
+def _dnn_cuda_built(cv2):
+    """True only when this cv2 build advertises CUDA and cuDNN. No trial forward."""
+    try:
+        info = cv2.getBuildInformation()
+    except Exception:
+        return False
+    cuda = False
+    cudnn = False
+    for line in str(info).splitlines():
+        upper = line.upper()
+        if "NVIDIA CUDA" in upper and "YES" in upper:
+            cuda = True
+        if "CUDNN" in upper and "YES" in upper:
+            cudnn = True
+    return bool(cuda and cudnn and hasattr(cv2, "dnn") and hasattr(cv2.dnn, "DNN_BACKEND_CUDA"))
+
+
+_CV2_LOCK = threading.Lock()
+
+
+def _cv2_lock():
+    try:
+        from camera_ingest import CV2_LOCK
+        return CV2_LOCK
+    except Exception:
+        return _CV2_LOCK
+
+
 def probe_backend(name, model_path, engine_path):
     wanted = (name or "auto").strip().lower()
     if wanted == "cpu":
@@ -600,6 +871,12 @@ def probe_backend(name, model_path, engine_path):
             return "tensorrt", det, None
         if wanted == "tensorrt":
             return "unavailable", None, det.error or "engine_invalid"
+    if wanted in {"auto", "opencv"} and model_path and os.path.isfile(model_path):
+        det = CvDnnYolo(model_path)
+        if det.load():
+            return "opencv", det, None
+        if wanted == "opencv":
+            return "unavailable", None, det.error or "model_invalid"
     if wanted in {"auto", "onnx"} and model_path and os.path.isfile(model_path):
         det = OnnxYolo(model_path)
         if det.load():
@@ -608,6 +885,8 @@ def probe_backend(name, model_path, engine_path):
             return "unavailable", None, det.error or "model_invalid"
     if wanted == "tensorrt":
         return "unavailable", None, "engine_missing"
+    if wanted == "opencv":
+        return "unavailable", None, "model_missing"
     if wanted == "onnx":
         return "unavailable", None, "model_missing"
     return "unavailable", None, "no_model"
@@ -699,25 +978,81 @@ def frame_identity(packet):
     return seq, captured
 
 
+def writable_jpeg_array(jpeg):
+    """Own a writable copy. cv2 5 segfaults on a read-only frombuffer view."""
+    import numpy as np
+    raw = bytes(jpeg)
+    view = np.frombuffer(raw, dtype=np.uint8)
+    return np.array(view, dtype=np.uint8, copy=True)
+
+
+def _rgb_bytes_from_owned(bgr):
+    """Copy an already-owned array to RGB bytes. A live Mat is not accepted."""
+    import numpy as np
+    arr = np.array(bgr, dtype=np.uint8, copy=True, order="C")
+    if arr.ndim != 3 or arr.shape[2] < 3:
+        return None
+    rgb = np.ascontiguousarray(arr[:, :, :3][:, :, ::-1])
+    height, width = int(rgb.shape[0]), int(rgb.shape[1])
+    return width, height, rgb.tobytes()
+
+
+def detach_packet(packet, *, pixels=False):
+    """Plain dict for the vision thread. Never keeps a capture Mat.
+
+    pixels=False is the no-model path: jpeg bytes may be copied so the
+    stream flag is honest, and bgr is not read at all.
+    """
+    if not isinstance(packet, dict):
+        return None
+    out = {}
+    for key in (
+        "seq", "frame_count", "captured_at", "captured_utc_ns", "captured_mono_ns",
+        "encode_ms", "decode_ms", "width", "height",
+    ):
+        if packet.get(key) is not None:
+            out[key] = packet.get(key)
+    jpeg = packet.get("jpeg")
+    if isinstance(jpeg, (bytes, bytearray)):
+        out["jpeg"] = bytes(jpeg)
+    rgb = packet.get("rgb")
+    if isinstance(rgb, (bytes, bytearray)) and packet.get("width") and packet.get("height"):
+        out["rgb"] = bytes(rgb)
+    if pixels and packet.get("bgr_owned") is True and packet.get("bgr") is not None:
+        try:
+            converted = _rgb_bytes_from_owned(packet.get("bgr"))
+        except Exception:
+            converted = None
+        if converted:
+            width, height, raw = converted
+            out["width"] = width
+            out["height"] = height
+            out["rgb"] = raw
+    return out
+
+
+def _has_frame(packet):
+    if not isinstance(packet, dict):
+        return False
+    return bool(packet.get("jpeg") or packet.get("rgb"))
+
+
 def rgb_from_packet(packet):
     if not isinstance(packet, dict):
         return None
-    if packet.get("rgb") is not None and packet.get("width") and packet.get("height"):
-        return int(packet["width"]), int(packet["height"]), packet["rgb"]
-    bgr = packet.get("bgr")
-    if bgr is not None:
+    rgb = packet.get("rgb")
+    if isinstance(rgb, (bytes, bytearray)) and packet.get("width") and packet.get("height"):
+        return int(packet["width"]), int(packet["height"]), bytes(rgb)
+    if packet.get("bgr_owned") is True and packet.get("bgr") is not None:
         try:
-            import numpy as np
-            arr = np.asarray(bgr)
-            if arr.ndim == 3 and arr.shape[2] >= 3:
-                rgb = np.ascontiguousarray(arr[:, :, :3][:, :, ::-1])
-                height, width = rgb.shape[:2]
-                return int(width), int(height), rgb.tobytes()
+            converted = _rgb_bytes_from_owned(packet.get("bgr"))
         except Exception:
-            return None
+            converted = None
+        if converted:
+            return converted
     jpeg = packet.get("jpeg")
-    if jpeg:
-        return _decode_jpeg(jpeg)
+    if isinstance(jpeg, (bytes, bytearray)) and jpeg:
+        return _decode_jpeg(bytes(jpeg))
     return None
 
 
@@ -725,11 +1060,15 @@ def _decode_jpeg(jpeg):
     try:
         import numpy as np
         import cv2
-        arr = np.frombuffer(jpeg, dtype=np.uint8)
-        bgr = cv2.imdecode(arr, cv2.IMREAD_COLOR)
-        if bgr is None:
+        arr = writable_jpeg_array(jpeg)
+        if not arr.flags.writeable or not arr.flags.c_contiguous:
             return None
-        rgb = np.ascontiguousarray(bgr[:, :, ::-1])
+        with _cv2_lock():
+            bgr = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+            if bgr is None:
+                return None
+            owned = np.array(bgr, dtype=np.uint8, copy=True, order="C")
+        rgb = np.ascontiguousarray(owned[:, :, ::-1])
         height, width = rgb.shape[:2]
         return int(width), int(height), rgb.tobytes()
     except Exception:
@@ -737,7 +1076,7 @@ def _decode_jpeg(jpeg):
     try:
         from PIL import Image
         import io
-        image = Image.open(io.BytesIO(jpeg)).convert("RGB")
+        image = Image.open(io.BytesIO(bytes(jpeg))).convert("RGB")
         return image.size[0], image.size[1], image.tobytes()
     except Exception:
         return None
@@ -898,15 +1237,18 @@ class VisionTracks:
                 self.frame_height = None
                 self._detected_packet = None
             return self.snapshot(camera)
-        if backend == "unavailable" or detector is None:
+        raw = self._packet(camera)
+        use_pixels = backend != "unavailable" and detector is not None
+        packet = detach_packet(raw, pixels=use_pixels)
+        raw = None
+        if not use_pixels:
             with self._lock:
                 self.tracks = []
-                self.stream = self._packet(camera) is not None
+                self.stream = _has_frame(packet)
                 self.frame_seq = None
                 self.captured_at = None
                 self._detected_packet = None
             return self.snapshot(camera)
-        packet = self._packet(camera)
         seq, captured = frame_identity(packet)
         decoded = rgb_from_packet(packet)
         if not decoded:

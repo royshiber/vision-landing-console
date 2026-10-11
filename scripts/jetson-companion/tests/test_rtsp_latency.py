@@ -13,10 +13,12 @@ from camera_ingest import (  # noqa: E402
     NewestFrameShelf,
     SlotSupervisor,
     jpeg_timing_headers,
+    own_pixels,
     rtsp_gstreamer_pipeline,
     rtsp_jpeg_size,
     rtsp_open_plan,
     rtsp_transport,
+    sanitize_bus_packet,
 )
 from measure_camera_latency import summarize_samples  # noqa: E402
 
@@ -189,6 +191,25 @@ class RtspPipelineTests(unittest.TestCase):
         self.assertEqual(sup.latest_packet()["jpeg"], b"newest")
         self.assertEqual(sup.snapshot(8.0)["stages_ms"]["jpeg"], 2.0)
         self.assertEqual(sup.snapshot(8.0)["transport"], "udp")
+
+    def test_a_reused_capture_buffer_is_copied_before_another_thread_sees_it(self):
+        import numpy as np
+        live = np.zeros((6, 8, 3), dtype=np.uint8)
+        live[:, :] = (3, 9, 12)
+        owned = own_pixels(live)
+        live[:, :] = 0
+        self.assertIsNot(owned, live)
+        self.assertTrue((owned[:, :, 0] == 3).all())
+        self.assertTrue(owned.flags.writeable)
+        packet = sanitize_bus_packet({"jpeg": bytearray(b"\xff\xd8\xff\xd9"), "bgr": live, "seq": 4})
+        self.assertIs(packet["bgr_owned"], True)
+        self.assertIsInstance(packet["jpeg"], bytes)
+        self.assertIsNot(packet["bgr"], live)
+        shelf = NewestFrameShelf()
+        shelf.note_decoded(own_pixels(live), 10, 11, 0.2)
+        live[:, :] = 7
+        _seq, payload, _utc, _mono, _decode = shelf.take_decoded()
+        self.assertFalse((payload == 7).all())
 
     def test_summary_marks_a_silent_camera_not_measured(self):
         quiet = summarize_samples([{"ok": False, "bytes": 0}], 5.0, "cam3")
