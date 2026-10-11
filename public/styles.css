@@ -23086,30 +23086,35 @@ body:has(#telemetry.panel.visible) #telemetry .tele-dash-sub {
   white-space: normal;
   line-height: 1.3;
 }
-@media (max-width: 1100px) {
+@media (max-width: 1100px) and (min-width: 721px) {
+  /* One header row on every tab. The fixed pill keeps the inline-end slot, after the tabs, the same way the wide flight chrome does. */
   .app-chrome {
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     align-items: center;
     height: auto;
-    padding: 6px 8px;
-    row-gap: 4px;
+    min-height: 36px;
+    max-height: none;
+    padding: 3px 8px;
+    padding-inline-end: 168px;
+    row-gap: 0;
   }
   .app-chrome .tabs {
-    flex: 1 1 100%;
-    flex-wrap: wrap;
+    flex: 1 1 auto;
+    flex-wrap: nowrap;
     overflow: visible;
-    width: 100%;
+    width: auto;
     min-width: 0;
     gap: 4px;
   }
   .app-chrome .tab {
-    font-size: 12px;
-    padding: 6px 8px;
+    font-size: 11px;
+    padding: 4px 6px;
     flex: 0 1 auto;
+    white-space: nowrap;
   }
   .app-chrome-tools {
-    flex: 1 1 auto;
-    min-width: 0;
+    flex: 0 0 auto;
+    min-width: max-content;
   }
 }
 @media (max-width: 720px) {
@@ -23962,7 +23967,7 @@ body:has(#pulse.panel.visible) .pulse-home.pulse-status-home {
     min-height: 36px;
     max-height: 40px;
     overflow: hidden;
-    padding-inline-end: 140px;
+    padding-inline-end: 168px;
   }
   .app-chrome .tab {
     padding: 4px 6px;
@@ -24123,9 +24128,6 @@ body:has(#terrain.panel.visible) .assist-toggle-btn.assist-toggle-float {
   z-index: var(--z-assist-float);
 }
 @media (max-width: 720px) {
-  body:has(#control.panel.visible) .app-chrome {
-    padding-top: 6px;
-  }
   html:has(#control.panel.visible),
   body:has(#control.panel.visible),
   body:has(#control.panel.visible) .layout,
@@ -24220,32 +24222,6 @@ body:has(#control.panel.visible) #controlSubtabsBar {
 #control.panel.visible .fc-group-actions {
   padding: 2px 2px 0;
   gap: 6px;
-}
-@media (max-width: 1100px) and (max-height: 640px) {
-  /* Same one-row chrome as the flight tab. A wrap here is the second parameters header row. */
-  body:has(#control.panel.visible) .app-chrome {
-    flex-wrap: nowrap;
-    align-items: center;
-    min-height: 36px;
-    max-height: 40px;
-    overflow: hidden;
-    padding-inline-end: 8px;
-  }
-  body:has(#control.panel.visible) .app-chrome .tabs {
-    flex: 1 1 auto;
-    flex-wrap: nowrap;
-    width: auto;
-    min-width: 0;
-  }
-  body:has(#control.panel.visible) .app-chrome-tools {
-    flex: 0 0 auto;
-    flex-shrink: 0;
-  }
-  body:has(#control.panel.visible) .app-chrome .tab {
-    white-space: nowrap;
-    padding: 4px 6px;
-    font-size: 11px;
-  }
 }
 .work-link-picker {
   display: flex;

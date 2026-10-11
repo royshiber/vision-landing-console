@@ -302,4 +302,46 @@ describe('narrow chrome QA', () => {
     expect(actions.labels).toContain('התנתקו');
     await page.close();
   }, 30000);
+
+  for (const width of [800, 900, 1024]) {
+    it(`parameters ${width}: the connection pill leaves AIRVIX and settings clickable`, async () => {
+      const page = await openAt(width, 800);
+      await page.click('.tab[data-tab="control"]');
+      await page.waitForSelector('#control.panel.visible');
+      const pill = await box(page, '#connectWidget');
+      const brand = await box(page, '.app-chrome-brand');
+      const gear = await box(page, '#globalSettingsBtn');
+      expect(overlaps(pill, brand), 'pill covers AIRVIX').toBe(false);
+      expect(overlaps(pill, gear), 'pill covers settings').toBe(false);
+      await page.click('#globalSettingsBtn');
+      await page.waitForSelector('#globalSettingsModal:not([hidden])');
+      expect(await page.locator('#globalSettingsModal').isVisible()).toBe(true);
+      await page.screenshot({ path: path.join(shots, `pill-slot-${width}.png`) });
+      await page.close();
+    }, 30000);
+  }
+
+  it('header position and height match across tabs', async () => {
+    const tabs = ['terrain', 'pulse', 'control', 'optics', 'recordings'];
+    for (const [width, height] of [[360, 800], [599, 800], [800, 800], [1024, 800], [1280, 800]]) {
+      const page = await openAt(width, height);
+      const measures = [];
+      for (const tab of tabs) {
+        await page.click(`.tab[data-tab="${tab}"]`);
+        await page.waitForSelector(`#${tab}.panel.visible`);
+        const box = await page.evaluate(() => {
+          const r = document.querySelector('.app-chrome').getBoundingClientRect();
+          return { top: Math.round(r.top), height: Math.round(r.height) };
+        });
+        measures.push({ tab, ...box });
+      }
+      const first = measures[0];
+      for (const measure of measures) {
+        expect(measure.top, `${width} ${measure.tab} top`).toBe(first.top);
+        expect(measure.height, `${width} ${measure.tab} height`).toBe(first.height);
+      }
+      await page.screenshot({ path: path.join(shots, `header-${width}.png`) });
+      await page.close();
+    }
+  }, 60000);
 });

@@ -137,15 +137,20 @@ describe('Optics debrief tab — live layout', () => {
   }
 
   async function openTileMenu(page, cam) {
-    await page.locator(`.debrief-cam-tile[data-cam="${cam}"]`).evaluate((el) => {
+    const tile = page.locator(`.debrief-cam-tile[data-cam="${cam}"]`);
+    const point = await tile.evaluate((el) => {
       const r = el.getBoundingClientRect();
-      el.dispatchEvent(new MouseEvent('contextmenu', {
-        bubbles: true,
-        cancelable: true,
-        clientX: r.left + r.width / 2,
-        clientY: r.top + Math.min(24, r.height / 2),
-      }));
+      return {
+        x: r.left + r.width / 2,
+        y: r.top + Math.min(24, r.height / 2),
+      };
     });
+    const hit = await page.evaluate(({ x, y }) => {
+      const el = document.elementFromPoint(x, y);
+      return el?.closest?.('.debrief-cam-tile')?.dataset?.cam || null;
+    }, point);
+    expect(hit, `right-click point is inside cam ${cam}`).toBe(cam);
+    await page.mouse.click(point.x, point.y, { button: 'right' });
   }
 
   async function openOptics(page) {
@@ -396,7 +401,7 @@ describe('Optics debrief tab — live layout', () => {
       } finally {
         await page.close();
       }
-    }, 45000);
+    }, 30000);
   }
 
   it('keeps the logs archive clickable at 1024 and explains a dead camera', async () => {
