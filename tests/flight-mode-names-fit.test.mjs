@@ -6,9 +6,10 @@ import { startTestServer } from './test-server.mjs';
 
 const modes = Object.entries(ARDUPILOT_PLANE_MODES).map(([id, name]) => ({ id: Number(id), name }));
 const SHORT = {
-  LOITER_ALT_QLAND: 'LTQLND',
-  AVOID_ADSB: 'ADSB',
-  INITIALISING: 'אתחול',
+  LOITER_ALT_QLAND: 'LQLAND',
+  AVOID_ADSB: 'AVOID',
+  INITIALISING: 'INIT',
+  QAUTOTUNE: 'QATUNE',
 };
 const viewports = [
   { name: '360x640', width: 360, height: 640 },
@@ -42,7 +43,9 @@ describe('ArduPlane mode names fit on one line', () => {
     page = await browser.newPage();
     await page.goto(server.base, { waitUntil: 'domcontentloaded' });
     await page.waitForSelector('#hudFlightMode');
-    await page.evaluate(() => document.fonts?.ready);
+    await page.evaluate(async () => {
+      await document.fonts.ready;
+    });
   });
 
   afterAll(async () => {
@@ -54,6 +57,9 @@ describe('ArduPlane mode names fit on one line', () => {
     const shots = qaShotDir('mode-column');
     for (const vp of viewports) {
       await page.setViewportSize({ width: vp.width, height: vp.height });
+      await page.evaluate(async () => {
+        await document.fonts.ready;
+      });
       const states = [{ id: null, name: '' }, ...modes];
       const samples = [];
       for (const state of states) {
@@ -176,6 +182,59 @@ describe('ArduPlane mode names fit on one line', () => {
         if (vp.name === '1024x576' && ['', 'RTL', 'LOITER_ALT_QLAND', 'AVOID_ADSB', 'INITIALISING', 'QAUTOTUNE'].includes(state.name)) {
           const file = path.join(shots, `${state.name || 'empty'}.png`);
           await page.locator('#missionDataGrid').screenshot({ path: file });
+        }
+        if (vp.name === '1024x576' && expectedTitle) {
+          const info = await page.evaluate(() => {
+            const tile = document.getElementById('hudFlightMode').closest('.mission-data-tile');
+            tile.dispatchEvent(new MouseEvent('contextmenu', {
+              bubbles: true,
+              cancelable: true,
+              clientX: 40,
+              clientY: 40,
+            }));
+            const node = document.getElementById('missionDataTileInfo');
+            const menu = document.getElementById('missionDataTileMenu');
+            return {
+              text: node?.textContent || '',
+              hidden: node?.hidden === true,
+              open: menu ? !menu.classList.contains('hidden') : false,
+            };
+          });
+          expect(info.open, where).toBe(true);
+          expect(info.hidden, where).toBe(false);
+          expect(info.text, where).toBe(state.name);
+        }
+        if (vp.name === '1024x576' && state.name === 'QAUTOTUNE') {
+          const held = await page.evaluate(() => new Promise((resolve) => {
+            const tile = document.getElementById('hudFlightMode').closest('.mission-data-tile');
+            document.getElementById('missionDataTileMenu')?.classList.add('hidden');
+            const touch = new Touch({
+              identifier: 1,
+              target: tile,
+              clientX: 24,
+              clientY: 24,
+              radiusX: 1,
+              radiusY: 1,
+              force: 1,
+            });
+            tile.dispatchEvent(new TouchEvent('touchstart', {
+              bubbles: true,
+              cancelable: true,
+              touches: [touch],
+              targetTouches: [touch],
+              changedTouches: [touch],
+            }));
+            setTimeout(() => {
+              const menu = document.getElementById('missionDataTileMenu');
+              const node = document.getElementById('missionDataTileInfo');
+              resolve({
+                open: menu ? !menu.classList.contains('hidden') : false,
+                text: node?.textContent || '',
+              });
+            }, 600);
+          }));
+          expect(held.open, where).toBe(true);
+          expect(held.text, where).toBe('QAUTOTUNE');
         }
       }
       const base = samples[0];

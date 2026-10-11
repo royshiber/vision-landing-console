@@ -13,11 +13,13 @@ import {
   applySimulatorPreset,
   detectSimulatorVehicle,
   parseAutopilotVersion,
+  resolveSimulatorTcpPort,
   SIMULATOR_PORT_BLOCKED_HE,
   SIMULATOR_PRESET_NAME,
   SIMULATOR_TCP_PORT,
   SIMULATOR_UNAVAILABLE_HE,
 } from '../lib/sim-vehicle.mjs';
+import { freePort } from './test-server.mjs';
 import { buildSitlLaunchPlan, SITL_STABLE_BASE_URL } from '../scripts/windows/sitl-launch-plan.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -273,17 +275,17 @@ describe('simulator TCP port override', () => {
       preset: 'simulator',
       type: 'tcp',
       port: 9999,
-      simulatorPort: 4401,
-    }).port).toBe(4401);
+      simulatorPort: 5761,
+    }).port).toBe(5761);
     const prev = process.env.SIMULATOR_TCP_PORT;
-    process.env.SIMULATOR_TCP_PORT = '4402';
+    process.env.SIMULATOR_TCP_PORT = '5802';
     try {
-      expect(applySimulatorPreset({ preset: 'simulator', type: 'tcp', port: 9999 }).port).toBe(4402);
+      expect(applySimulatorPreset({ preset: 'simulator', type: 'tcp', port: 9999 }).port).toBe(5802);
       expect(applySimulatorPreset({
         preset: 'simulator',
         type: 'tcp',
-        simulatorPort: 4403,
-      }).port).toBe(4403);
+        simulatorPort: 5840,
+      }).port).toBe(5840);
     } finally {
       if (prev == null) delete process.env.SIMULATOR_TCP_PORT;
       else process.env.SIMULATOR_TCP_PORT = prev;
@@ -297,10 +299,40 @@ describe('simulator TCP port override', () => {
         type: 'tcp',
         host: '10.0.0.8',
         port: 4010,
-        simulatorPort: 4401,
+        simulatorPort: 5761,
       });
       expect(shaped.simulatorPortRefused).toBeFalsy();
       expect(shaped).toMatchObject({ host: '127.0.0.1', port: SIMULATOR_TCP_PORT });
+    });
+  });
+
+  it('follows the qa-mode VLC_QA check and refuses the relay port', () => {
+    withEnv({ ...productionEnv(), VLC_QA: 'maybe' }, () => {
+      const shaped = applySimulatorPreset({
+        preset: 'simulator',
+        type: 'tcp',
+        simulatorPort: 5761,
+      });
+      expect(shaped.simulatorPortRefused).toBeFalsy();
+      expect(shaped.port).toBe(SIMULATOR_TCP_PORT);
+    });
+    withEnv({ ...productionEnv(), VLC_QA: 'yes' }, () => {
+      expect(applySimulatorPreset({
+        preset: 'simulator',
+        type: 'tcp',
+        simulatorPort: 5761,
+      }).port).toBe(5761);
+      expect(resolveSimulatorTcpPort(5770).ok).toBe(false);
+      expect(resolveSimulatorTcpPort(4401).ok).toBe(false);
+    });
+  });
+
+  it('accepts a helper free port and still refuses the console port', async () => {
+    const free = await freePort();
+    expect(resolveSimulatorTcpPort(free).port).toBe(free);
+    await withEnv({ PORT: String(free) }, () => {
+      expect(resolveSimulatorTcpPort(free).ok).toBe(false);
+      expect(resolveSimulatorTcpPort(5770).ok).toBe(false);
     });
   });
 
@@ -308,7 +340,7 @@ describe('simulator TCP port override', () => {
     const dbPath = path.join(os.tmpdir(), `airvix-sim-block-${process.pid}-${Date.now()}.sqlite`);
     const db = openDatabase(dbPath);
     const ownPort = '4408';
-    const blocked = [4010, 3090, 8080, 8081, Number(ownPort)];
+    const blocked = [5770, 4010, 3090, 8080, 8081, Number(ownPort), 4401];
     try {
       await withEnv({ PORT: ownPort, SIMULATOR_TCP_PORT: null }, async () => {
         for (const port of blocked) {

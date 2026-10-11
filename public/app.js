@@ -7003,13 +7003,14 @@ const ARDUPILOT_PLANE_MODES = {
   22:'QAUTOTUNE', 23:'QACRO', 24:'THERMAL', 25:'LOITER_ALT_QLAND', 26:'AUTOLAND',
 };
 /**
- * HUD abbreviations for the three widest ArduPlane names at 11px.
- * The full name stays on the tile title. Other names stay spelled out.
+ * HUD abbreviations for the widest ArduPlane names at 11px.
+ * The full name stays on the tile title and in the right-click / long-press info.
  */
 const PLANE_MODE_HUD_SHORT = {
-  LOITER_ALT_QLAND: 'LTQLND',
-  AVOID_ADSB: 'ADSB',
-  INITIALISING: 'אתחול',
+  LOITER_ALT_QLAND: 'LQLAND',
+  AVOID_ADSB: 'AVOID',
+  INITIALISING: 'INIT',
+  QAUTOTUNE: 'QATUNE',
 };
 
 function vlcFlightModeHudLabel(full) {
@@ -7018,6 +7019,27 @@ function vlcFlightModeHudLabel(full) {
   const short = PLANE_MODE_HUD_SHORT[name];
   if (short) return { text: short, title: name };
   return { text: name, title: '' };
+}
+
+function paintFlightModeTitle(el, tile, modeLabel) {
+  if (!el) return;
+  const shown = String(el.textContent || '').trim();
+  const incoming = String(modeLabel?.text || '');
+  const held = incoming === '—' && shown && shown !== '—';
+  if (modeLabel?.title) {
+    el.dataset.modeFull = modeLabel.title;
+    el.title = modeLabel.title;
+  } else if (held) {
+    const remembered = String(el.dataset.modeFull || '');
+    el.title = remembered && remembered !== shown ? remembered : '';
+  } else if (shown && shown !== '—') {
+    el.dataset.modeFull = shown;
+    el.title = '';
+  } else {
+    el.dataset.modeFull = '';
+    el.title = '';
+  }
+  if (tile) tile.title = el.title;
 }
 /** ArduCopter custom_mode names. Keep in sync with `lib/arducopter-flight-modes.mjs`. */
 const ARDUPILOT_COPTER_MODES = {
@@ -10290,9 +10312,8 @@ function applyTopbarFlightData(mav) {
       ? `mission:${hudFlightModeEl.closest('[data-mission-data-slot]')?.dataset?.missionDataSlot}:${missionTileBoundKey(hudFlightModeEl)}`
       : 'top-mode';
     paintHeldValue(hudFlightModeEl, modeKey, modeLabel.text === '—' ? null : modeLabel.text, { ttlMs: MODE_HOLD_MS });
-    hudFlightModeEl.title = modeLabel.title;
     const modeTile = hudFlightModeEl.closest('.mission-data-tile');
-    if (modeTile) modeTile.title = modeLabel.title;
+    paintFlightModeTitle(hudFlightModeEl, modeTile, modeLabel);
   }
   try {
     if (typeof pulseRefresh === 'function') pulseRefresh();
@@ -21174,6 +21195,11 @@ function applyMissionSize(size) {
     ahW = c1;
     talkW = c3;
     mapW = Math.max(0.2, 1 - ahW - talkW);
+    // A flex factor below 1 only takes that share of the leftover space.
+    // 67fr/33fr still sums above 1, so the row is filled and the map stays wider.
+    mapW = Math.round(mapW * 100);
+    ahW = Math.round(ahW * 100);
+    talkW = Math.round(talkW * 100);
   }
   ws.style.setProperty('--mission-map-col', `${mapW}fr`);
   ws.style.setProperty('--mission-ah-col', `${ahW}fr`);
@@ -22469,8 +22495,7 @@ function applyMissionDataGrid(payload) {
           payload?.mavlink?.connected === true,
         );
         const modeLabel = vlcFlightModeHudLabel(full);
-        valueEl.title = modeLabel.title;
-        item.title = modeLabel.title;
+        paintFlightModeTitle(valueEl, item, modeLabel);
       } else if (slot.key === 'mission.gpsVisionDelta' || valueEl.id === 'liveGpsVisionDelta') {
         const deltaTitle = shown === '—'
           ? hudFieldHonestyTitle('gpsVisionDelta', payload?.mavlink || latestHudMavlink, null)
@@ -22728,13 +22753,28 @@ function addMissionDataTile(anchor) {
   fitMissionDataTiles();
 }
 
+function missionTileModeInfo(item) {
+  const mode = item?.querySelector?.('#hudFlightMode');
+  if (!mode) return '';
+  const shown = String(mode.textContent || '').trim();
+  if (!shown || shown === '—') return '';
+  const full = String(mode.dataset.modeFull || mode.title || '').trim();
+  return full || shown;
+}
+
 function openMissionDataTileMenu(item, x, y) {
   const menu = document.getElementById('missionDataTileMenu');
   if (!menu || !item) return;
   menu.dataset.slot = String(item.dataset.missionDataSlot || '');
+  const info = document.getElementById('missionDataTileInfo');
+  const full = missionTileModeInfo(item);
+  if (info) {
+    info.hidden = !full;
+    info.textContent = full;
+  }
   menu.classList.remove('hidden');
-  const width = 160;
-  const height = 88;
+  const width = 180;
+  const height = menu.offsetHeight || 120;
   const left = Math.min(Math.max(8, x), Math.max(8, window.innerWidth - width - 8));
   const top = Math.min(Math.max(8, y), Math.max(8, window.innerHeight - height - 8));
   menu.style.left = `${Math.round(left)}px`;
@@ -22748,6 +22788,7 @@ function closeMissionDataTileMenu() {
 function bindMissionDataSlotPress(item) {
   if (!item || item.dataset.pressBound === '1') return;
   item.dataset.pressBound = '1';
+  let suppressClick = false;
   item.addEventListener('contextmenu', (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -22758,6 +22799,12 @@ function bindMissionDataSlotPress(item) {
     openMissionDataTileMenu(item, e.clientX, e.clientY);
   });
   item.addEventListener('click', (e) => {
+    if (suppressClick) {
+      suppressClick = false;
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
     if (e.button !== 0) return;
     const idx = Number(item.dataset.missionDataSlot);
     if (!Number.isFinite(idx)) return;
@@ -22774,6 +22821,11 @@ function bindMissionDataSlotPress(item) {
     clearPress();
     pressTimer = window.setTimeout(() => {
       pressTimer = 0;
+      if (item.querySelector('#hudFlightMode')) {
+        suppressClick = true;
+        openMissionDataTileMenu(item, t.clientX, t.clientY);
+        return;
+      }
       openMissionDataPicker(Number(item.dataset.missionDataSlot), t.clientX, t.clientY);
     }, 520);
   }, { passive: true });

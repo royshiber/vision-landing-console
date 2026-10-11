@@ -253,4 +253,41 @@ describe('Horizon/map size swap — layout', () => {
       await page.close();
     }, 30000);
   }
+
+  it('fills the row and keeps the map wider from 721 through 1100', async () => {
+    const page = await browser.newPage();
+    const shots = qaShotDir('map-fill');
+    const widths = [721, 800, 900, 1024, 1100];
+    try {
+      for (const width of widths) {
+        const height = width === 1024 ? 576 : 720;
+        await openModeA(page, { width, height });
+        const fit = await page.evaluate(() => {
+          const ws = document.querySelector('.mission-workspace');
+          const map = document.querySelector('[data-mission-region="map"]');
+          const horizon = document.querySelector('[data-mission-region="horizon"]');
+          const wsBox = ws.getBoundingClientRect();
+          const mapBox = map.getBoundingClientRect();
+          const horizonBox = horizon.getBoundingClientRect();
+          const cs = getComputedStyle(ws);
+          const gap = Number.parseFloat(cs.columnGap) || Number.parseFloat(cs.gap) || 0;
+          const pad = (Number.parseFloat(cs.paddingLeft) || 0) + (Number.parseFloat(cs.paddingRight) || 0);
+          return {
+            map: mapBox.width,
+            horizon: horizonBox.width,
+            sum: mapBox.width + horizonBox.width + gap,
+            content: wsBox.width - pad,
+          };
+        });
+        const where = String(width);
+        expect(Math.abs(fit.sum - fit.content), where).toBeLessThanOrEqual(1);
+        expect(fit.map, where).toBeGreaterThan(fit.horizon);
+        if (width === 721 || width === 1024) {
+          await page.screenshot({ path: path.join(shots, `${width}x${height}.png`) });
+        }
+      }
+    } finally {
+      await page.close();
+    }
+  }, 60000);
 });

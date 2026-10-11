@@ -4,6 +4,7 @@ import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { registerSimulatorTestPort } from '../lib/sim-vehicle.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 let sqliteSeq = 0;
@@ -15,7 +16,13 @@ export function freePort() {
     probe.once('error', reject);
     probe.listen(0, '127.0.0.1', () => {
       const { port } = probe.address();
-      probe.close((err) => (err ? reject(err) : resolve(port)));
+      probe.close((err) => {
+        if (err) reject(err);
+        else {
+          registerSimulatorTestPort(port);
+          resolve(port);
+        }
+      });
     });
   });
 }
