@@ -3,29 +3,18 @@
  * The four repros from pr199_repros are ported here. Loopback only.
  */
 import { afterAll, describe, expect, it } from 'vitest';
-import { spawn } from 'node:child_process';
 import fs from 'node:fs';
-import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { gpsFixLabel } from '../public/modules/gps-quality.mjs';
+import { pauseLiveHud, resumeLiveHud } from './pause-hud-poll.mjs';
+import { startTestServer } from './test-server.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const askTest = fs.readFileSync(path.join(repoRoot, 'tests/ask-latest-exchange.test.mjs'), 'utf8');
 const appJs = fs.readFileSync(path.join(repoRoot, 'public/app.js'), 'utf8');
 const indexHtml = fs.readFileSync(path.join(repoRoot, 'public/index.html'), 'utf8');
-
-function freePort() {
-  return new Promise((resolve, reject) => {
-    const server = net.createServer();
-    server.once('error', reject);
-    server.listen(0, '127.0.0.1', () => {
-      const { port } = server.address();
-      server.close(() => resolve(port));
-    });
-  });
-}
 
 function channel(color) {
   const m = String(color).match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
@@ -79,20 +68,16 @@ describe('QA gate 14702a0', () => {
     });
 
     it('starts', async () => {
-      const port = await freePort();
-      base = `http://127.0.0.1:${port}`;
-      proc = spawn(process.execPath, ['server.js'], {
-        cwd: repoRoot,
-        env: {
-          ...process.env,
-          HOST: '127.0.0.1',
-          PORT: String(port),
+      const started = await startTestServer({
+        env: (port) => ({
           SQLITE_PATH: path.join(os.tmpdir(), `airvix-qa-14702-${port}.sqlite`),
           COMPANION_MODE: 'mock',
           JETSON_COMPANION_BASE_URL: '',
-        },
+        }),
         stdio: 'ignore',
       });
+      proc = started.child;
+      base = started.base;
       const t0 = Date.now();
       let up = false;
       while (Date.now() - t0 < 20000) {
@@ -281,44 +266,50 @@ describe('QA gate 14702a0', () => {
         if (fly) fly.hidden = true;
       });
 
-      await page.evaluate(() => {
-        applyFlightHud({
-          connected: true,
-          armedKnown: true,
-          armed: false,
-          gpsFixType: 6,
-          gpsSats: 12,
-          gpsHdop: 0.81,
-          gpsAgeMs: 400,
+      await pauseLiveHud(page);
+      try {
+        await page.evaluate(() => {
+          applyFlightHud({
+            connected: true,
+            armedKnown: true,
+            armed: false,
+            gpsFixType: 6,
+            gpsSats: 12,
+            gpsHdop: 0.81,
+            gpsAgeMs: 400,
+          });
         });
-        const stage = document.getElementById('pfdHorizonStage');
-        const rect = stage.getBoundingClientRect();
-        stage.dispatchEvent(new MouseEvent('contextmenu', {
-          bubbles: true,
-          cancelable: true,
-          clientX: rect.left + rect.width / 2,
-          clientY: rect.top + 24,
-          button: 2,
-        }));
-      });
-      await page.waitForFunction(() => {
-        const menu = document.getElementById('horizonCameraMenu');
-        const tip = document.getElementById('hudNavGpsTip');
-        return menu && menu.hidden === false && tip && menu.contains(tip)
-          && tip.textContent.includes('RTK קבוע')
-          && tip.textContent.includes('HDOP');
-      });
-      const gps = await page.evaluate(() => {
-        const root = document.getElementById('horizonCameraMenu');
-        const tip = document.getElementById('hudNavGpsTip');
-        tip.scrollIntoView({ block: 'nearest' });
-        const m = root.getBoundingClientRect();
-        const r = tip.getBoundingClientRect();
-        return [{ bottom: r.bottom, menuBottom: m.bottom, vh: window.innerHeight, text: tip.textContent }];
-      });
-      expect(gps.length).toBeGreaterThan(0);
-      expect(gps.every((row) => row.bottom <= row.menuBottom + 1 && row.bottom <= row.vh + 1)).toBe(true);
-      expect(gps.some((row) => row.text.includes('RTK קבוע'))).toBe(true);
+        const point = await page.locator('#pfdHorizonStage').evaluate((el) => {
+          const rect = el.getBoundingClientRect();
+          return { x: rect.left + rect.width / 2, y: rect.top + 24 };
+        });
+        const hit = await page.evaluate(({ x, y }) => {
+          const el = document.elementFromPoint(x, y);
+          return !!el?.closest?.('#pfdHorizonStage');
+        }, point);
+        expect(hit, 'right-click point is inside the horizon').toBe(true);
+        await page.mouse.click(point.x, point.y, { button: 'right' });
+        await page.waitForFunction(() => {
+          const menu = document.getElementById('horizonCameraMenu');
+          const tip = document.getElementById('hudNavGpsTip');
+          return menu && menu.hidden === false && tip && menu.contains(tip)
+            && tip.textContent.includes('RTK קבוע')
+            && tip.textContent.includes('HDOP');
+        });
+        const gps = await page.evaluate(() => {
+          const root = document.getElementById('horizonCameraMenu');
+          const tip = document.getElementById('hudNavGpsTip');
+          tip.scrollIntoView({ block: 'nearest' });
+          const m = root.getBoundingClientRect();
+          const r = tip.getBoundingClientRect();
+          return [{ bottom: r.bottom, menuBottom: m.bottom, vh: window.innerHeight, text: tip.textContent }];
+        });
+        expect(gps.length).toBeGreaterThan(0);
+        expect(gps.every((row) => row.bottom <= row.menuBottom + 1 && row.bottom <= row.vh + 1)).toBe(true);
+        expect(gps.some((row) => row.text.includes('RTK קבוע'))).toBe(true);
+      } finally {
+        await resumeLiveHud(page);
+      }
     }, 30000);
 
     it('fits the data title and the speed label, and the comms menu does not scroll', async () => {

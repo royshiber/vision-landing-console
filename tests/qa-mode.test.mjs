@@ -1,24 +1,9 @@
-import { spawn } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
-import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { remoteUpdateCheckPaused } from '../lib/qa-mode.mjs';
-
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-
-function freePort() {
-  return new Promise((resolve, reject) => {
-    const server = net.createServer();
-    server.once('error', reject);
-    server.listen(0, '127.0.0.1', () => {
-      const { port } = server.address();
-      server.close(() => resolve(port));
-    });
-  });
-}
+import { startTestServer } from './test-server.mjs';
 
 describe('QA mode', () => {
   it('does not boot the GitHub update check during QA or tests', () => {
@@ -33,7 +18,6 @@ describe('QA mode', () => {
   });
 
   it('loads the page in QA mode without check() fetching GitHub', async () => {
-    const port = await freePort();
     const dir = mkdtempSync(path.join(os.tmpdir(), 'vlc-qa-update-'));
     const logPath = path.join(dir, 'fetches.log');
     const hookPath = path.join(dir, 'fetch-hook.mjs');
@@ -47,36 +31,22 @@ describe('QA mode', () => {
       '};',
       '',
     ].join('\n'));
-    const env = {
-      ...process.env,
-      HOST: '127.0.0.1',
-      PORT: String(port),
-      VLC_QA: '1',
-      VLC_FETCH_LOG: logPath,
-      COMPANION_MODE: 'off',
-      JETSON_COMPANION_BASE_URL: '',
-      SQLITE_PATH: path.join(dir, 'qa.sqlite'),
-    };
-    delete env.VITEST;
-    delete env.VLC_TEST;
-    const proc = spawn(process.execPath, ['--import', hookPath, 'server.js'], {
-      cwd: repoRoot,
-      env,
+    const started = await startTestServer({
+      execArgv: ['--import', hookPath],
+      unset: ['VITEST', 'VLC_TEST'],
       stdio: 'ignore',
+      env: {
+        VLC_QA: '1',
+        VLC_FETCH_LOG: logPath,
+        COMPANION_MODE: 'off',
+        JETSON_COMPANION_BASE_URL: '',
+        SQLITE_PATH: path.join(dir, 'qa.sqlite'),
+      },
     });
-    const base = `http://127.0.0.1:${port}`;
+    const proc = started.child;
+    const base = started.base;
     let browser = null;
     try {
-      const deadline = Date.now() + 20000;
-      let up = false;
-      while (Date.now() < deadline) {
-        try {
-          const health = await fetch(`${base}/api/health`);
-          if (health.ok) { up = true; break; }
-        } catch { /* retry */ }
-        await new Promise((r) => setTimeout(r, 200));
-      }
-      expect(up).toBe(true);
       const { chromium } = await import('playwright');
       browser = await chromium.launch({ headless: true });
       const page = await browser.newPage();

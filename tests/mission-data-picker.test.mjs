@@ -6,6 +6,7 @@ import os from 'node:os';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { FLIGHT_HUD_CATALOG, suggestMissionDataFields } from '../lib/flight-hud-resolve.mjs';
+import { startTestServer } from './test-server.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const html = fs.readFileSync(path.join(repoRoot, 'public', 'index.html'), 'utf8');
@@ -180,21 +181,17 @@ describe('mission data picker stays in the viewport', () => {
   });
 
   it('opens above a low click and keeps the whole list on screen', async () => {
-    const port = await freePort();
     const dbPath = path.join(os.tmpdir(), `airvix-data-picker-${process.pid}.sqlite`);
-    proc = spawn(process.execPath, ['server.js'], {
-      cwd: repoRoot,
-      env: {
-        ...process.env,
-        HOST: '127.0.0.1',
-        PORT: String(port),
+    const started = await startTestServer({
+      env: (port) => ({
         SQLITE_PATH: dbPath,
         COMPANION_MODE: 'off',
         JETSON_COMPANION_BASE_URL: '',
-      },
+      }),
       stdio: 'ignore',
     });
-    const base = `http://127.0.0.1:${port}`;
+    proc = started.child;
+    const base = started.base;
     const t0 = Date.now();
     let up = false;
     while (Date.now() - t0 < 20000) {

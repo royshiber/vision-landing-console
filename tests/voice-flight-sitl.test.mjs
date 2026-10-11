@@ -11,6 +11,7 @@ import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { startTestServer } from './test-server.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const BINARY = process.env.ARDUPLANE_SITL || '/tmp/ardupilot/build/sitl/bin/arduplane';
@@ -89,27 +90,22 @@ async function api(base, method, urlPath, body) {
 
 describe.skipIf(!ENABLED)('voice flight against ArduPlane SITL', () => {
   it('changes mode from a Hebrew transcript and refuses a blocked command', async () => {
-    const port = await freePort();
     const dbPath = path.join(os.tmpdir(), `airvix-voice-sitl-${process.pid}.sqlite`);
     const sitlDir = fs.mkdtempSync(path.join(os.tmpdir(), 'airvix-voice-sitl-'));
     const logs = { out: Buffer.alloc(0) };
     const push = (chunk) => {
       logs.out = Buffer.concat([logs.out, chunk]).subarray(-16000);
     };
-    const consoleProc = track(spawn(process.execPath, ['server.js'], {
-      cwd: repoRoot,
-      stdio: ['ignore', 'pipe', 'pipe'],
-      env: {
-        ...process.env,
-        PORT: String(port),
-        HOST: '127.0.0.1',
+    const started = await startTestServer({
+      env: (port) => ({
         SQLITE_PATH: dbPath,
         COMPANION_MODE: 'off',
         JETSON_COMPANION_BASE_URL: '',
         GEMINI_API_KEY: '',
         ELEVENLABS_API_KEY: '',
-      },
-    }));
+      }),
+    });
+    const consoleProc = track(started.child);
     consoleProc.stdout.on('data', push);
     consoleProc.stderr.on('data', push);
     const sitlLogs = { out: Buffer.alloc(0) };
@@ -129,7 +125,7 @@ describe.skipIf(!ENABLED)('voice flight against ArduPlane SITL', () => {
     };
     sitl.stdout.on('data', sitlPush);
     sitl.stderr.on('data', sitlPush);
-    const base = `http://127.0.0.1:${port}`;
+    const base = started.base;
     try {
       await waitUntil(async () => {
         try {

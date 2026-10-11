@@ -4,11 +4,11 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { qaShotDir } from './shot-dir.mjs';
+import { startTestServer } from './test-server.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const shotDir = qaShotDir('flight-layout-after');
-const PORT = '4048';
-const BASE = `http://127.0.0.1:${PORT}`;
+let BASE = '';
 
 const VIEWPORTS = [
   ['1920x1080', 1920, 1080],
@@ -30,11 +30,13 @@ describe('Flight screen overlap', () => {
 
   beforeAll(async () => {
     fs.mkdirSync(shotDir, { recursive: true });
-    serverProc = spawn(process.execPath, ['server.js'], {
-      cwd: repoRoot,
-      env: { ...process.env, HOST: '127.0.0.1', PORT, SQLITE_PATH: `/tmp/airvix-overlap-${PORT}.sqlite` },
-      stdio: ['ignore', 'pipe', 'pipe'],
+    const started = await startTestServer({
+      env: (port) => ({
+        SQLITE_PATH: `/tmp/airvix-overlap-${port}.sqlite`,
+      }),
     });
+    serverProc = started.child;
+    BASE = started.base;
     const t0 = Date.now();
     while (Date.now() - t0 < 20000) {
       try {

@@ -4,6 +4,7 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { startTestServer } from './test-server.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const html = fs.readFileSync(path.join(repoRoot, 'public', 'index.html'), 'utf8');
@@ -260,8 +261,7 @@ describe('Mission messages toggle — source contract', () => {
 });
 
 describe('Mission messages toggle — live layout', () => {
-  const PORT = '4025';
-  const BASE = `http://127.0.0.1:${PORT}`;
+  let BASE = '';
   let serverProc = null;
   let browser = null;
   let page = null;
@@ -339,11 +339,12 @@ describe('Mission messages toggle — live layout', () => {
   }
 
   beforeAll(async () => {
-    serverProc = spawn(process.execPath, ['server.js'], {
-      cwd: repoRoot,
-      env: { ...process.env, HOST: '127.0.0.1', PORT },
-      stdio: ['ignore', 'pipe', 'pipe'],
+    const started = await startTestServer({
+      env: (port) => ({
+      }),
     });
+    serverProc = started.child;
+    BASE = started.base;
     const t0 = Date.now();
     while (Date.now() - t0 < 20000) {
       try {

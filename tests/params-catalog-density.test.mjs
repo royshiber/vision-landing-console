@@ -1,43 +1,14 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { spawn } from 'child_process';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { qaShotDir } from './shot-dir.mjs';
+import { startTestServer } from './test-server.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const shotDir = qaShotDir('params-catalog-density');
 const css = fs.readFileSync(path.join(repoRoot, 'public', 'styles.css'), 'utf8');
-
-function startServer(port) {
-  const sqlite = path.join(os.tmpdir(), `airvix-catalog-density-${port}.sqlite`);
-  fs.rmSync(sqlite, { force: true });
-  return spawn(process.execPath, ['server.js'], {
-    cwd: repoRoot,
-    env: {
-      ...process.env,
-      HOST: '127.0.0.1',
-      PORT: String(port),
-      SQLITE_PATH: sqlite,
-      GEMINI_API_KEY: '',
-      COMPANION_MODE: 'off',
-    },
-    stdio: 'ignore',
-  });
-}
-
-async function waitHealth(base, maxMs = 25000) {
-  const t0 = Date.now();
-  while (Date.now() - t0 < maxMs) {
-    try {
-      const r = await fetch(`${base}/api/health`);
-      if (r.ok) return;
-    } catch { /* retry */ }
-    await new Promise((r) => setTimeout(r, 200));
-  }
-  throw new Error(`catalog density server did not become healthy at ${base}`);
-}
 
 function lum(channel) {
   const c = channel / 255;
@@ -70,8 +41,7 @@ describe('Catalog parameter cards use the dense profile card', () => {
     expect(css).toMatch(/#control\.panel\.visible \.fc-group-list[\s\S]*grid-auto-rows:\s*max-content/);
   });
 
-  const PORT = '4039';
-  const BASE = `http://127.0.0.1:${PORT}`;
+  let BASE = '';
   let serverProc = null;
   let browser = null;
   let page = null;
@@ -174,8 +144,20 @@ describe('Catalog parameter cards use the dense profile card', () => {
 
   beforeAll(async () => {
     fs.mkdirSync(shotDir, { recursive: true });
-    serverProc = startServer(PORT);
-    await waitHealth(BASE);
+    const started = await startTestServer({
+      env: (port) => {
+        const sqlite = path.join(os.tmpdir(), `airvix-catalog-density-${port}.sqlite`);
+        fs.rmSync(sqlite, { force: true });
+        return {
+          SQLITE_PATH: sqlite,
+          GEMINI_API_KEY: '',
+          COMPANION_MODE: 'off',
+        };
+      },
+      stdio: 'ignore',
+    });
+    serverProc = started.child;
+    BASE = started.base;
     const { chromium } = await import('playwright');
     browser = await chromium.launch({ headless: true });
     page = await browser.newPage();

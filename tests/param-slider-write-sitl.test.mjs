@@ -11,6 +11,7 @@ import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { startTestServer } from './test-server.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const BINARY = process.env.ARDUPLANE_SITL || '/tmp/ardupilot/build/sitl/bin/arduplane';
@@ -31,17 +32,6 @@ function stopChild(child) {
 afterAll(() => {
   for (const child of children) stopChild(child);
 });
-
-function freePort() {
-  return new Promise((resolve, reject) => {
-    const server = net.createServer();
-    server.once('error', reject);
-    server.listen(0, '127.0.0.1', () => {
-      const { port } = server.address();
-      server.close(() => resolve(port));
-    });
-  });
-}
 
 function waitForPort(port, host, timeoutMs) {
   const start = Date.now();
@@ -87,28 +77,28 @@ async function api(base, method, urlPath, body) {
   return { status: res.status, json };
 }
 
-function startConsole(port, dbPath) {
+async function startConsole(dbPath) {
   const logs = { out: Buffer.alloc(0) };
-  const child = track(spawn(process.execPath, ['server.js'], {
-    cwd: repoRoot,
-    stdio: ['ignore', 'pipe', 'pipe'],
+  const started = await startTestServer({
     env: {
-      ...process.env,
-      PORT: String(port),
-      HOST: '127.0.0.1',
       SQLITE_PATH: dbPath,
       COMPANION_MODE: 'off',
       JETSON_COMPANION_BASE_URL: '',
       GEMINI_API_KEY: '',
     },
-  }));
-  const push = (chunk) => {
-    logs.out = Buffer.concat([logs.out, chunk]).subarray(-16000);
-  };
-  child.stdout.on('data', push);
-  child.stderr.on('data', push);
-  child.logs = logs;
-  return child;
+    onChild(child) {
+      const push = (chunk) => {
+        logs.out = Buffer.concat([logs.out, chunk]).subarray(-16000);
+      };
+      child.stdout?.on('data', push);
+      child.stderr?.on('data', push);
+      child.logs = logs;
+      track(child);
+    },
+  });
+  started.child.logs = logs;
+  started.child.base = started.base;
+  return started.child;
 }
 
 describe('landing slider pending write', () => {
@@ -119,10 +109,9 @@ describe('landing slider pending write', () => {
   });
 
   it('enables כתיבה לבקר, confirms the exact change, and does not report אין שינוי', async () => {
-    const port = await freePort();
     const dbPath = path.join(os.tmpdir(), `airvix-slider-ui-${process.pid}.sqlite`);
-    consoleProc = startConsole(port, dbPath);
-    const base = `http://127.0.0.1:${port}`;
+    consoleProc = await startConsole(dbPath);
+    const base = consoleProc.base;
     await waitUntil(async () => {
       try {
         const health = await api(base, 'GET', '/api/health');
@@ -211,10 +200,9 @@ describe('landing slider pending write', () => {
 
 describe.skipIf(!SITL_ENABLED)('slider write against ArduPlane SITL', () => {
   it('moves a slider, confirms, sends PARAM_SET, and the read-back matches', async () => {
-    const port = await freePort();
     const dbPath = path.join(os.tmpdir(), `airvix-slider-sitl-${process.pid}.sqlite`);
     const sitlDir = fs.mkdtempSync(path.join(os.tmpdir(), 'airvix-slider-sitl-'));
-    const consoleProc = startConsole(port, dbPath);
+    const consoleProc = await startConsole(dbPath);
     const sitlLogs = { out: Buffer.alloc(0) };
     const sitl = track(spawn(BINARY, [
       '--model', 'plane',
@@ -232,7 +220,7 @@ describe.skipIf(!SITL_ENABLED)('slider write against ArduPlane SITL', () => {
     };
     sitl.stdout.on('data', sitlPush);
     sitl.stderr.on('data', sitlPush);
-    const base = `http://127.0.0.1:${port}`;
+    const base = consoleProc.base;
     let browser = null;
     try {
       await waitUntil(async () => {

@@ -1,11 +1,6 @@
 import { afterAll, describe, expect, it } from 'vitest';
-import { spawn } from 'child_process';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import { startTestServer } from './test-server.mjs';
 
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const PORT = '4077';
-const BASE = `http://127.0.0.1:${PORT}`;
 const FIXTURE = {
   camera: 'cam0',
   enabled: true,
@@ -17,64 +12,48 @@ const FIXTURE = {
 
 describe('real server keeps the QA mock tracks', () => {
   let serverProc = null;
+  let base = '';
 
   afterAll(() => {
     if (serverProc && !serverProc.killed) serverProc.kill('SIGTERM');
   });
 
   it('passes VLC_QA, mock tracks, and cam3 into the running server and answers within a second', async () => {
-    const env = {
-      ...process.env,
-      HOST: '127.0.0.1',
-      PORT,
-      SQLITE_PATH: `/tmp/airvix-qa-server-${PORT}-${process.pid}.sqlite`,
-      COMPANION_MODE: 'mock',
-      VLC_QA: '1',
-      VLC_VISION_MOCK_TRACKS: JSON.stringify(FIXTURE),
-      VLC_MOCK_CAM3_STREAM: '1',
-      GEMINI_API_KEY: 'present-but-unused',
-    };
-    delete env.VITEST;
-    serverProc = spawn(process.execPath, ['server.js'], {
-      cwd: repoRoot,
-      env,
-      stdio: ['ignore', 'pipe', 'pipe'],
+    const started = await startTestServer({
+      unset: ['VITEST'],
+      env: (port) => ({
+        SQLITE_PATH: `/tmp/airvix-qa-server-${port}-${process.pid}.sqlite`,
+        COMPANION_MODE: 'mock',
+        VLC_QA: '1',
+        VLC_VISION_MOCK_TRACKS: JSON.stringify(FIXTURE),
+        VLC_MOCK_CAM3_STREAM: '1',
+        GEMINI_API_KEY: 'present-but-unused',
+      }),
     });
-    const t0 = Date.now();
-    let up = false;
-    while (Date.now() - t0 < 20000) {
-      try {
-        const health = await fetch(`${BASE}/api/health`);
-        if (health.ok) {
-          up = true;
-          break;
-        }
-      } catch { /* retry */ }
-      await new Promise((resolve) => setTimeout(resolve, 200));
-    }
-    expect(up).toBe(true);
+    serverProc = started.child;
+    base = started.base;
 
-    const cam0 = await fetch(`${BASE}/api/jetson/v1/vision/tracks?camera=cam0`);
+    const cam0 = await fetch(`${base}/api/jetson/v1/vision/tracks?camera=cam0`);
     const cam0Json = await cam0.json();
     expect(cam0Json.data.tracks.map((row) => row.label_he)).toEqual(['רכב']);
     expect(cam0Json.data.stream).toBe(true);
     expect(cam0Json.data.flight_commands).toBe(false);
 
-    const cam3 = await fetch(`${BASE}/api/jetson/v1/vision/tracks?camera=cam3`);
+    const cam3 = await fetch(`${base}/api/jetson/v1/vision/tracks?camera=cam3`);
     const cam3Json = await cam3.json();
     expect(cam3Json.data.stream).toBe(true);
 
     let pulling = true;
     const frames = (async () => {
       while (pulling) {
-        await Promise.all(['cam0', 'cam1', 'cam3'].map((id) => fetch(`${BASE}/api/jetson/v1/cameras/${id}/frame?since=0`).catch(() => null)));
+        await Promise.all(['cam0', 'cam1', 'cam3'].map((id) => fetch(`${base}/api/jetson/v1/cameras/${id}/frame?since=0`).catch(() => null)));
       }
     })();
     const phrases = ['כמה רכבים יש', 'תסרוק', 'כמה חתולים יש', 'מה מצב המצלמות', 'מה מצב הטיסה'];
     const samples = [];
     for (const text of phrases) {
-      const started = Date.now();
-      const response = await fetch(`${BASE}/api/assist/message`, {
+      const startedAt = Date.now();
+      const response = await fetch(`${base}/api/assist/message`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -88,7 +67,7 @@ describe('real server keeps the QA mock tracks', () => {
       });
       const body = await response.json();
       expect(response.status, text).toBe(200);
-      const elapsed = Date.now() - started;
+      const elapsed = Date.now() - startedAt;
       samples.push(elapsed);
       expect(elapsed, text).toBeLessThan(1000);
       expect(String(body.response?.answer || ''), text).not.toMatch(/Gemini|error/i);

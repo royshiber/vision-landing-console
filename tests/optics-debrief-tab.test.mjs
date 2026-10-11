@@ -4,11 +4,11 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { startTestServer } from './test-server.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const shotDir = process.env.VLC_OPTICS_SHOTS || path.join(os.tmpdir(), 'airvix-optics-debrief');
-const PORT = '4052';
-const BASE = `http://127.0.0.1:${PORT}`;
+let BASE = '';
 const html = fs.readFileSync(path.join(repoRoot, 'public', 'index.html'), 'utf8');
 const js = fs.readFileSync(path.join(repoRoot, 'public', 'app.js'), 'utf8');
 
@@ -65,11 +65,14 @@ describe('Optics debrief tab — live layout', () => {
 
   beforeAll(async () => {
     fs.mkdirSync(shotDir, { recursive: true });
-    serverProc = spawn(process.execPath, ['server.js'], {
-      cwd: repoRoot,
-      env: { ...process.env, HOST: '127.0.0.1', PORT, SQLITE_PATH: `/tmp/airvix-optics-${PORT}.sqlite` },
+    const started = await startTestServer({
+      env: (port) => ({
+        SQLITE_PATH: `/tmp/airvix-optics-${port}.sqlite`,
+      }),
       stdio: 'ignore',
     });
+    serverProc = started.child;
+    BASE = started.base;
     const t0 = Date.now();
     let up = false;
     while (Date.now() - t0 < 20000) {

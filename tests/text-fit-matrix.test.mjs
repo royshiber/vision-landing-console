@@ -5,10 +5,10 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { collectTextFitFailures } from './text-fit-audit.mjs';
 import { qaShotDir } from './shot-dir.mjs';
+import { startTestServer } from './test-server.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const PORT = process.env.VLC_TEXT_FIT_PORT || '4035';
-const BASE = `http://127.0.0.1:${PORT}`;
+let BASE = '';
 const shots = qaShotDir('text-fit');
 
 const viewports = [
@@ -51,12 +51,13 @@ describe('Text fit matrix', () => {
 
   beforeAll(async () => {
     fs.mkdirSync(shots, { recursive: true });
-    serverProc = spawn(process.execPath, ['server.js'], {
-      cwd: repoRoot,
-      env: { ...process.env, HOST: '127.0.0.1', PORT, CURSOR_API_KEY: '' },
-      stdio: ['ignore', 'pipe', 'pipe'],
+    const started = await startTestServer({
+      env: (port) => ({
+        CURSOR_API_KEY: '',
+      }),
     });
-    await waitHealth();
+    serverProc = started.child;
+    BASE = started.base;
     const { chromium } = await import('playwright');
     browser = await chromium.launch({ headless: true });
   });

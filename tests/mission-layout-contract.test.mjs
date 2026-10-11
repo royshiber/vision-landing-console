@@ -5,6 +5,8 @@ import fs from 'fs';
 import net from 'node:net';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { pauseLiveHud, resumeLiveHud } from './pause-hud-poll.mjs';
+import { startTestServer } from './test-server.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const html = fs.readFileSync(path.join(repoRoot, 'public', 'index.html'), 'utf8');
@@ -205,19 +207,13 @@ describe('Mission layout contract — live boxes', () => {
   }
 
   beforeAll(async () => {
-    const port = await freePort();
-    BASE = `http://127.0.0.1:${port}`;
-    serverProc = spawn(process.execPath, ['server.js'], {
-      cwd: repoRoot,
-      env: {
-        ...process.env,
-        HOST: '127.0.0.1',
-        PORT: String(port),
+    const started = await startTestServer({
+      env: (port) => ({
         SQLITE_PATH: `/tmp/airvix-mission-layout-${port}.sqlite`,
-      },
-      stdio: ['ignore', 'pipe', 'pipe'],
+      }),
     });
-    await waitHealth();
+    serverProc = started.child;
+    BASE = started.base;
     const { chromium } = await import('playwright');
     browser = await chromium.launch({ headless: true });
     page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
@@ -472,6 +468,8 @@ describe('Mission layout contract — live boxes', () => {
   }, 20000);
 
   it('grows messages inside the AH stack without covering the map', async () => {
+    await pauseLiveHud(page);
+    try {
     await page.evaluate(() => {
       const ws = document.querySelector('.mission-workspace');
       if (ws) ws.dataset.askOpen = '0';
@@ -557,6 +555,9 @@ describe('Mission layout contract — live boxes', () => {
     expect(expanded.overlapIas).toBe(false);
     expect(expanded.overlapAlt).toBe(false);
     await writeShot(page, 'mission-aircraft-messages.png');
+    } finally {
+      await resumeLiveHud(page);
+    }
   }, 20000);
 
   it('does not clip mission-data glyphs when the connect phrase is long', async () => {

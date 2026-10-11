@@ -6,8 +6,7 @@ import { fileURLToPath } from 'url';
 import { qaShotDir } from './shot-dir.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const PORT = process.env.VLC_HOME_QA_PORT || '4031';
-const BASE = `http://127.0.0.1:${PORT}`;
+let BASE = '';
 const shots = qaShotDir('home-qa');
 
 const viewports = [
@@ -45,12 +44,13 @@ describe('Home screen QA matrix', () => {
 
   beforeAll(async () => {
     fs.mkdirSync(shots, { recursive: true });
-    serverProc = spawn(process.execPath, ['server.js'], {
-      cwd: repoRoot,
-      env: { ...process.env, HOST: '127.0.0.1', PORT, CURSOR_API_KEY: '' },
-      stdio: ['ignore', 'pipe', 'pipe'],
+    const started = await startTestServer({
+      env: (port) => ({
+        CURSOR_API_KEY: '',
+      }),
     });
-    await waitHealth();
+    serverProc = started.child;
+    BASE = started.base;
     const { chromium } = await import('playwright');
     browser = await chromium.launch({ headless: true });
   });
@@ -259,6 +259,7 @@ function makeSheet(files, dest) {
   fs.writeFileSync(list, files.join('\n'));
   const py = `
 import pathlib
+import { startTestServer } from './test-server.mjs';
 from PIL import Image
 files = pathlib.Path(${JSON.stringify(list)}).read_text().splitlines()
 files = [f for f in files if f]

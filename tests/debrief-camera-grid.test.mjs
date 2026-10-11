@@ -4,11 +4,11 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { qaShotDir } from './shot-dir.mjs';
+import { startTestServer } from './test-server.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const shotDir = qaShotDir('flight-layout-cameras');
-const PORT = '4032';
-const BASE = `http://127.0.0.1:${PORT}`;
+let BASE = '';
 const html = fs.readFileSync(path.join(repoRoot, 'public', 'index.html'), 'utf8');
 const css = fs.readFileSync(path.join(repoRoot, 'public', 'styles.css'), 'utf8');
 const js = fs.readFileSync(path.join(repoRoot, 'public', 'app.js'), 'utf8');
@@ -50,11 +50,13 @@ describe('Debrief camera grid and horizon menu — live', () => {
 
   beforeAll(async () => {
     fs.mkdirSync(shotDir, { recursive: true });
-    serverProc = spawn(process.execPath, ['server.js'], {
-      cwd: repoRoot,
-      env: { ...process.env, HOST: '127.0.0.1', PORT, SQLITE_PATH: `/tmp/airvix-cams-${PORT}.sqlite` },
-      stdio: ['ignore', 'pipe', 'pipe'],
+    const started = await startTestServer({
+      env: (port) => ({
+        SQLITE_PATH: `/tmp/airvix-cams-${port}.sqlite`,
+      }),
     });
+    serverProc = started.child;
+    BASE = started.base;
     const t0 = Date.now();
     while (Date.now() - t0 < 20000) {
       try {

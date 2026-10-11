@@ -1,45 +1,15 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { spawn } from 'child_process';
 import fs from 'fs';
-import net from 'net';
 import os from 'os';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { qaShotDir } from './shot-dir.mjs';
+import { startTestServer } from './test-server.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const shotDir = qaShotDir('params-density');
 const js = fs.readFileSync(path.join(repoRoot, 'public', 'app.js'), 'utf8');
 const css = fs.readFileSync(path.join(repoRoot, 'public', 'styles.css'), 'utf8');
-
-function startServer(port) {
-  const sqlite = path.join(os.tmpdir(), `airvix-param-density-${port}.sqlite`);
-  fs.rmSync(sqlite, { force: true });
-  return spawn(process.execPath, ['server.js'], {
-    cwd: repoRoot,
-    env: {
-      ...process.env,
-      HOST: '127.0.0.1',
-      PORT: String(port),
-      SQLITE_PATH: sqlite,
-      GEMINI_API_KEY: '',
-      COMPANION_MODE: 'off',
-    },
-    stdio: 'ignore',
-  });
-}
-
-async function waitHealth(base, maxMs = 25000) {
-  const t0 = Date.now();
-  while (Date.now() - t0 < maxMs) {
-    try {
-      const r = await fetch(`${base}/api/health`);
-      if (r.ok) return;
-    } catch { /* retry */ }
-    await new Promise((r) => setTimeout(r, 200));
-  }
-  throw new Error(`density server did not become healthy at ${base}`);
-}
 
 function lum(channel) {
   const c = channel / 255;
@@ -53,17 +23,6 @@ function contrast(a, b) {
   return (hi + 0.05) / (lo + 0.05);
 }
 
-function freePort() {
-  return new Promise((resolve, reject) => {
-    const server = net.createServer();
-    server.once('error', reject);
-    server.listen(0, '127.0.0.1', () => {
-      const { port } = server.address();
-      server.close(() => resolve(port));
-    });
-  });
-}
-
 describe('Parameter tiles are dense and not behind a filter wall', () => {
   it('does not tell the operator to narrow the list before the tiles render', () => {
     expect(js).not.toContain('צמצמו את הרשימה');
@@ -73,7 +32,6 @@ describe('Parameter tiles are dense and not behind a filter wall', () => {
     expect(css).not.toContain('min-height: 108px');
   });
 
-  let PORT = 0;
   let BASE = '';
   let serverProc = null;
   let browser = null;
@@ -145,11 +103,21 @@ describe('Parameter tiles are dense and not behind a filter wall', () => {
   }
 
   beforeAll(async () => {
-    PORT = await freePort();
-    BASE = `http://127.0.0.1:${PORT}`;
     fs.mkdirSync(shotDir, { recursive: true });
-    serverProc = startServer(PORT);
-    await waitHealth(BASE);
+    const started = await startTestServer({
+      env: (port) => {
+        const sqlite = path.join(os.tmpdir(), `airvix-param-density-${port}.sqlite`);
+        fs.rmSync(sqlite, { force: true });
+        return {
+          SQLITE_PATH: sqlite,
+          GEMINI_API_KEY: '',
+          COMPANION_MODE: 'off',
+        };
+      },
+      stdio: 'ignore',
+    });
+    serverProc = started.child;
+    BASE = started.base;
     const { chromium } = await import('playwright');
     browser = await chromium.launch({ headless: true });
     page = await browser.newPage();

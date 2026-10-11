@@ -11,6 +11,7 @@ import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { freePort, startTestServer } from './test-server.mjs';
 import { buildArmDisarmPayload } from '../lib/arm-disarm.mjs';
 import {
   MAV_PARAM_TYPE,
@@ -55,17 +56,6 @@ function delay(ms) {
 function tail(buf, max = 4000) {
   const text = Buffer.isBuffer(buf) ? buf.toString('utf8') : String(buf || '');
   return text.length > max ? text.slice(-max) : text;
-}
-
-function freePort() {
-  return new Promise((resolve, reject) => {
-    const server = net.createServer();
-    server.once('error', reject);
-    server.listen(0, '127.0.0.1', () => {
-      const { port } = server.address();
-      server.close(() => resolve(port));
-    });
-  });
 }
 
 function waitForPort(port, host, timeoutMs) {
@@ -127,28 +117,28 @@ function startSitl(port, cwd) {
   return child;
 }
 
-function startConsole(port, dbPath) {
+async function startConsole(dbPath) {
   const logs = { out: Buffer.alloc(0) };
-  const child = track(spawn(process.execPath, ['server.js'], {
-    cwd: repoRoot,
-    stdio: ['ignore', 'pipe', 'pipe'],
+  const started = await startTestServer({
     env: {
-      ...process.env,
-      PORT: String(port),
-      HOST: '127.0.0.1',
       SQLITE_PATH: dbPath,
       COMPANION_MODE: 'off',
       JETSON_COMPANION_BASE_URL: '',
       FOLLOW_TARGET_SITL: '1',
     },
-  }));
-  const push = (chunk) => {
-    logs.out = Buffer.concat([logs.out, chunk]).subarray(-16000);
-  };
-  child.stdout.on('data', push);
-  child.stderr.on('data', push);
-  child.logs = logs;
-  return child;
+    onChild(child) {
+      const push = (chunk) => {
+        logs.out = Buffer.concat([logs.out, chunk]).subarray(-16000);
+      };
+      child.stdout?.on('data', push);
+      child.stderr?.on('data', push);
+      child.logs = logs;
+      track(child);
+    },
+  });
+  started.child.logs = logs;
+  started.child.base = started.base;
+  return started.child;
 }
 
 async function api(base, method, urlPath, body) {
@@ -382,15 +372,14 @@ async function bootStack() {
   const started = Date.now();
   const stack = { sitl: null, bridge: null, consoleProc: null, base: '', started };
   const sitlPort = await freePort();
-  const consolePort = await freePort();
-  const dbPath = path.join(os.tmpdir(), `airvix-follow-sitl-${process.pid}-${consolePort}.sqlite`);
+  const dbPath = path.join(os.tmpdir(), `airvix-follow-sitl-${process.pid}.sqlite`);
   const sitlDir = fs.mkdtempSync(path.join(os.tmpdir(), 'airvix-follow-sitl-'));
   stack.sitl = startSitl(sitlPort, sitlDir);
   try {
     await waitForPort(sitlPort, '127.0.0.1', 30000);
     stack.bridge = await startBridge(sitlPort);
-    stack.consoleProc = startConsole(consolePort, dbPath);
-    stack.base = `http://127.0.0.1:${consolePort}`;
+    stack.consoleProc = await startConsole(dbPath);
+    stack.base = stack.consoleProc.base;
     await waitUntil(async () => {
       try {
         const health = await api(stack.base, 'GET', '/api/health');

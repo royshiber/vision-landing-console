@@ -9,6 +9,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { AE_LOCK_HE, APPLIED_HE, FAILED_HE, FOV_META_HE, applyOutcome } from '../public/modules/camera-settings.mjs';
+import { startTestServer } from './test-server.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const shotDir = process.env.VLC_CAM1_SHOTS || path.join(os.tmpdir(), 'airvix-cam1-control');
@@ -53,21 +54,17 @@ describe('camera control badges', () => {
   });
 
   it('disables manual fields while auto exposure is on and badges the read-back', async () => {
-    const port = await freePort();
     const dbPath = path.join(os.tmpdir(), `airvix-cam-apply-${process.pid}.sqlite`);
-    proc = spawn(process.execPath, ['server.js'], {
-      cwd: repoRoot,
-      env: {
-        ...process.env,
-        HOST: '127.0.0.1',
-        PORT: String(port),
+    const started = await startTestServer({
+      env: (port) => ({
         SQLITE_PATH: dbPath,
         COMPANION_MODE: 'off',
         JETSON_COMPANION_BASE_URL: '',
-      },
+      }),
       stdio: 'ignore',
     });
-    const base = `http://127.0.0.1:${port}`;
+    proc = started.child;
+    const base = started.base;
     const t0 = Date.now();
     let up = false;
     while (Date.now() - t0 < 20000) {

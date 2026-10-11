@@ -1,11 +1,10 @@
 import { beforeAll, afterAll, describe, expect, it } from 'vitest';
-import { spawn } from 'child_process';
 import fs from 'fs';
-import net from 'net';
 import os from 'os';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { classifyFcWrite, FC_NO_LINK_HE } from '../public/modules/fc-write-ack.mjs';
+import { startTestServer } from './test-server.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -80,48 +79,7 @@ describe('FC write acknowledgement', () => {
   });
 });
 
-function freePort() {
-  return new Promise((resolve, reject) => {
-    const server = net.createServer();
-    server.once('error', reject);
-    server.listen(0, '127.0.0.1', () => {
-      const { port } = server.address();
-      server.close(() => resolve(port));
-    });
-  });
-}
-
-function startServer(port) {
-  const sqlite = path.join(os.tmpdir(), `airvix-fc-write-${port}.sqlite`);
-  fs.rmSync(sqlite, { force: true });
-  return spawn(process.execPath, ['server.js'], {
-    cwd: repoRoot,
-    env: {
-      ...process.env,
-      HOST: '127.0.0.1',
-      PORT: String(port),
-      SQLITE_PATH: sqlite,
-      GEMINI_API_KEY: '',
-      COMPANION_MODE: 'off',
-    },
-    stdio: 'ignore',
-  });
-}
-
-async function waitHealth(base) {
-  const t0 = Date.now();
-  while (Date.now() - t0 < 25000) {
-    try {
-      const r = await fetch(`${base}/api/health`);
-      if (r.ok) return;
-    } catch { /* retry */ }
-    await new Promise((r) => setTimeout(r, 200));
-  }
-  throw new Error(`fc write server did not become healthy at ${base}`);
-}
-
 describe('FC write paths in the parameters tab', () => {
-  let PORT = 0;
   let BASE = '';
   let serverProc = null;
   let browser = null;
@@ -136,10 +94,20 @@ describe('FC write paths in the parameters tab', () => {
   }
 
   beforeAll(async () => {
-    PORT = await freePort();
-    BASE = `http://127.0.0.1:${PORT}`;
-    serverProc = startServer(PORT);
-    await waitHealth(BASE);
+    const started = await startTestServer({
+      env: (port) => {
+        const sqlite = path.join(os.tmpdir(), `airvix-fc-write-${port}.sqlite`);
+        fs.rmSync(sqlite, { force: true });
+        return {
+          SQLITE_PATH: sqlite,
+          GEMINI_API_KEY: '',
+          COMPANION_MODE: 'off',
+        };
+      },
+      stdio: 'ignore',
+    });
+    serverProc = started.child;
+    BASE = started.base;
     const { chromium } = await import('playwright');
     browser = await chromium.launch({ headless: true });
     page = await browser.newPage();

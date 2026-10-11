@@ -4,10 +4,10 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { qaShotDir } from './shot-dir.mjs';
+import { startTestServer } from './test-server.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const PORT = process.env.VLC_HOME_QA_PORT || '4041';
-const BASE = `http://127.0.0.1:${PORT}`;
+let BASE = '';
 const shots = qaShotDir('home-qa-after');
 
 function box(page, selector) {
@@ -42,11 +42,14 @@ describe('home shell QA', () => {
 
   beforeAll(async () => {
     fs.mkdirSync(shots, { recursive: true });
-    child = spawn(process.execPath, ['server.js'], {
-      cwd: repoRoot,
-      env: { ...process.env, PORT, HOST: '127.0.0.1', COMPANION_MODE: 'off' },
+    const started = await startTestServer({
+      env: (port) => ({
+        COMPANION_MODE: 'off',
+      }),
       stdio: 'ignore',
     });
+    child = started.child;
+    BASE = started.base;
     const deadline = Date.now() + 20000;
     while (Date.now() < deadline) {
       try {

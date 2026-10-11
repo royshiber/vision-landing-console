@@ -5,10 +5,10 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { APP_VERSION } from '../version.js';
 import { qaShotDir } from './shot-dir.mjs';
+import { startTestServer } from './test-server.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const PORT = process.env.VLC_FLIGHT_SCREEN_PORT || '4071';
-const BASE = `http://127.0.0.1:${PORT}`;
+let BASE = '';
 const shots = qaShotDir('flight-screen');
 
 function shown(page, selector) {
@@ -26,11 +26,14 @@ describe('approved flight screen', () => {
 
   beforeAll(async () => {
     fs.mkdirSync(shots, { recursive: true });
-    child = spawn(process.execPath, ['server.js'], {
-      cwd: repoRoot,
-      env: { ...process.env, PORT, HOST: '127.0.0.1', COMPANION_MODE: 'off' },
+    const started = await startTestServer({
+      env: (port) => ({
+        COMPANION_MODE: 'off',
+      }),
       stdio: 'ignore',
     });
+    child = started.child;
+    BASE = started.base;
     const deadline = Date.now() + 20000;
     while (Date.now() < deadline) {
       try {

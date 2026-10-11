@@ -4,10 +4,10 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { frameArrivalIsCurrent } from '../public/modules/camera-latest-frame.mjs';
 import { boxesFromDetectionList } from '../public/modules/gimbal-screen.mjs';
+import { startTestServer } from './test-server.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const PORT = '4044';
-const BASE = `http://127.0.0.1:${PORT}`;
+let BASE = '';
 
 describe('latest frame and lock boxes', () => {
   it('drops a stale JPEG generation and keeps the newest', () => {
@@ -32,11 +32,13 @@ describe('three-camera proportions and tile delete', () => {
   let page = null;
 
   beforeAll(async () => {
-    serverProc = spawn(process.execPath, ['server.js'], {
-      cwd: repoRoot,
-      env: { ...process.env, HOST: '127.0.0.1', PORT, SQLITE_PATH: `/tmp/airvix-optics-tiles-${PORT}.sqlite` },
-      stdio: ['ignore', 'pipe', 'pipe'],
+    const started = await startTestServer({
+      env: (port) => ({
+        SQLITE_PATH: `/tmp/airvix-optics-tiles-${port}.sqlite`,
+      }),
     });
+    serverProc = started.child;
+    BASE = started.base;
     const t0 = Date.now();
     while (Date.now() - t0 < 20000) {
       try {

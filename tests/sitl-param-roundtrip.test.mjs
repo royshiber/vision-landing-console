@@ -11,6 +11,7 @@ import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { startTestServer } from './test-server.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DEFAULT_BINARY = '/tmp/ardupilot/build/sitl/bin/arduplane';
@@ -39,17 +40,6 @@ afterAll(() => {
 function tail(buf, max = 4000) {
   const text = buf.toString('utf8');
   return text.length > max ? text.slice(-max) : text;
-}
-
-function freePort() {
-  return new Promise((resolve, reject) => {
-    const server = net.createServer();
-    server.once('error', reject);
-    server.listen(0, '127.0.0.1', () => {
-      const { port } = server.address();
-      server.close(() => resolve(port));
-    });
-  });
 }
 
 function waitForPort(port, host, timeoutMs) {
@@ -98,27 +88,27 @@ function startSitl(args, cwd) {
   return child;
 }
 
-function startConsole(port, dbPath) {
+async function startConsole(dbPath) {
   const logs = { out: Buffer.alloc(0) };
-  const child = track(spawn(process.execPath, ['server.js'], {
-    cwd: repoRoot,
-    stdio: ['ignore', 'pipe', 'pipe'],
+  const started = await startTestServer({
     env: {
-      ...process.env,
-      PORT: String(port),
-      HOST: '127.0.0.1',
       SQLITE_PATH: dbPath,
       COMPANION_MODE: 'off',
       JETSON_COMPANION_BASE_URL: '',
     },
-  }));
-  const push = (chunk) => {
-    logs.out = Buffer.concat([logs.out, chunk]).subarray(-16000);
-  };
-  child.stdout.on('data', push);
-  child.stderr.on('data', push);
-  child.logs = logs;
-  return child;
+    onChild(child) {
+      const push = (chunk) => {
+        logs.out = Buffer.concat([logs.out, chunk]).subarray(-16000);
+      };
+      child.stdout?.on('data', push);
+      child.stderr?.on('data', push);
+      child.logs = logs;
+      track(child);
+    },
+  });
+  started.child.logs = logs;
+  started.child.base = started.base;
+  return started.child;
 }
 
 async function api(base, method, urlPath, body) {
@@ -218,11 +208,10 @@ describe.skipIf(!ENABLED)('ArduPlane SITL param round-trip', () => {
   });
 
   it('connects over SITL TCP 5760, writes a SIM_ param, reads it back, and restores it three times', async () => {
-    const port = await freePort();
     const dbPath = path.join(os.tmpdir(), `airvix-sitl-tcp-${process.pid}.sqlite`);
     const sitlDir = fs.mkdtempSync(path.join(os.tmpdir(), 'airvix-sitl-tcp-'));
-    consoleProc = startConsole(port, dbPath);
-    base = `http://127.0.0.1:${port}`;
+    consoleProc = await startConsole(dbPath);
+    base = consoleProc.base;
     await waitUntil(async () => {
       try {
         const health = await api(base, 'GET', '/api/health');

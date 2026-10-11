@@ -3,6 +3,7 @@ import { spawn } from 'child_process';
 import net from 'net';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { startTestServer } from './test-server.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 let PORT = 0;
@@ -40,13 +41,14 @@ describe('WCAG AA color contrast across tabs', () => {
   let browser = null;
 
   beforeAll(async () => {
-    PORT = await freePort();
-    BASE = `http://127.0.0.1:${PORT}`;
-    serverProc = spawn(process.execPath, ['server.js'], {
-      cwd: repoRoot,
-      env: { ...process.env, HOST: '127.0.0.1', PORT: String(PORT), COMPANION_MODE: 'off', JETSON_COMPANION_BASE_URL: '' },
-      stdio: ['ignore', 'pipe', 'pipe'],
+    const started = await startTestServer({
+      env: (port) => ({
+        COMPANION_MODE: 'off',
+        JETSON_COMPANION_BASE_URL: '',
+      }),
     });
+    serverProc = started.child;
+    BASE = started.base;
     const t0 = Date.now();
     while (Date.now() - t0 < 20000) {
       try {

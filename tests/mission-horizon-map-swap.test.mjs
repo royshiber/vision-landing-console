@@ -4,6 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { qaShotDir } from './shot-dir.mjs';
+import { startTestServer } from './test-server.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const css = fs.readFileSync(path.join(repoRoot, 'public', 'styles.css'), 'utf8');
@@ -43,8 +44,7 @@ describe('Horizon/map size swap — source', () => {
 });
 
 describe('Horizon/map size swap — layout', () => {
-  const PORT = process.env.VLC_SWAP_PORT || '4028';
-  const BASE = `http://127.0.0.1:${PORT}`;
+  let BASE = '';
   const shots = qaShotDir('horizon-map-swap');
   let serverProc = null;
   let browser = null;
@@ -69,12 +69,13 @@ describe('Horizon/map size swap — layout', () => {
 
   beforeAll(async () => {
     fs.mkdirSync(shots, { recursive: true });
-    serverProc = spawn(process.execPath, ['server.js'], {
-      cwd: repoRoot,
-      env: { ...process.env, HOST: '127.0.0.1', PORT, CURSOR_API_KEY: '' },
-      stdio: ['ignore', 'pipe', 'pipe'],
+    const started = await startTestServer({
+      env: (port) => ({
+        CURSOR_API_KEY: '',
+      }),
     });
-    await waitHealth();
+    serverProc = started.child;
+    BASE = started.base;
     const { chromium } = await import('playwright');
     browser = await chromium.launch({ headless: true });
   });

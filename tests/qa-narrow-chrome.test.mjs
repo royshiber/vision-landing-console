@@ -1,14 +1,11 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { summarizeCommLinks } from '../lib/comm-links.mjs';
+import { startTestServer } from './test-server.mjs';
 
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const PORT = process.env.VLC_NARROW_QA_PORT || '4066';
-const BASE = `http://127.0.0.1:${PORT}`;
+let BASE = '';
 const shots = process.env.VLC_NARROW_SHOTS || path.join(os.tmpdir(), 'airvix-narrow-qa');
 
 function overlaps(a, b) {
@@ -22,25 +19,16 @@ describe('narrow chrome QA', () => {
 
   beforeAll(async () => {
     fs.mkdirSync(shots, { recursive: true });
-    child = spawn(process.execPath, ['server.js'], {
-      cwd: repoRoot,
-      env: {
-        ...process.env,
-        PORT,
-        HOST: '127.0.0.1',
+    const started = await startTestServer({
+      env: (port) => ({
+        SQLITE_PATH: path.join(os.tmpdir(), `airvix-narrow-qa-${port}.sqlite`),
         COMPANION_MODE: 'mock',
         JETSON_COMPANION_BASE_URL: '',
-      },
+      }),
       stdio: 'ignore',
     });
-    const deadline = Date.now() + 20000;
-    while (Date.now() < deadline) {
-      try {
-        const r = await fetch(`${BASE}/api/health`);
-        if (r.ok) break;
-      } catch { /* retry */ }
-      await new Promise((resolve) => setTimeout(resolve, 200));
-    }
+    child = started.child;
+    BASE = started.base;
     const { chromium } = await import('playwright');
     browser = await chromium.launch({ headless: true });
   }, 30000);

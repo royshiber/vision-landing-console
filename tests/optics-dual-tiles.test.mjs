@@ -1,23 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { spawn } from 'child_process';
-import net from 'net';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import { startTestServer } from './test-server.mjs';
 
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-let PORT = 0;
 let BASE = '';
-
-function freePort() {
-  return new Promise((resolve, reject) => {
-    const server = net.createServer();
-    server.once('error', reject);
-    server.listen(0, '127.0.0.1', () => {
-      const { port } = server.address();
-      server.close(() => resolve(port));
-    });
-  });
-}
 const JPEG = Buffer.from(
   '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////2wBDAf//////////////////////////////////////////////////////////////////////////////////////wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAb/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCwABmX/9k=',
   'base64',
@@ -34,31 +18,15 @@ describe('Optics CAM0 and CAM1 tiles', () => {
   let browser = null;
 
   beforeAll(async () => {
-    PORT = await freePort();
-    BASE = `http://127.0.0.1:${PORT}`;
-    const env = {
-      ...process.env,
-      HOST: '127.0.0.1',
-      PORT,
-      SQLITE_PATH: `/tmp/airvix-dual-tiles-${PORT}-${process.pid}.sqlite`,
-      COMPANION_MODE: 'off',
-    };
-    delete env.VLC_QA;
-    delete env.VLC_VISION_MOCK_TRACKS;
-    delete env.VLC_MOCK_CAM3_STREAM;
-    serverProc = spawn(process.execPath, ['server.js'], {
-      cwd: repoRoot,
-      env,
-      stdio: ['ignore', 'pipe', 'pipe'],
+    const started = await startTestServer({
+      unset: ['VLC_QA', 'VLC_VISION_MOCK_TRACKS', 'VLC_MOCK_CAM3_STREAM'],
+      env: (port) => ({
+        SQLITE_PATH: `/tmp/airvix-dual-tiles-${port}-${process.pid}.sqlite`,
+        COMPANION_MODE: 'off',
+      }),
     });
-    const t0 = Date.now();
-    while (Date.now() - t0 < 20000) {
-      try {
-        const r = await fetch(`${BASE}/api/health`);
-        if (r.ok) break;
-      } catch { /* retry */ }
-      await new Promise((r) => setTimeout(r, 200));
-    }
+    serverProc = started.child;
+    BASE = started.base;
     const { chromium } = await import('playwright');
     browser = await chromium.launch({ headless: true });
   }, 30000);

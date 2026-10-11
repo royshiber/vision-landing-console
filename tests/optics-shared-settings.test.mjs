@@ -11,6 +11,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CAMERA_UNSUPPORTED_HE, cameraControlSupported } from '../public/modules/camera-settings.mjs';
 import { gimbalMoveBody, setGimbalMoveSpeed } from '../public/modules/gimbal-pad.mjs';
+import { startTestServer } from './test-server.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const shotDir = process.env.VLC_OPTICS_SETTINGS_SHOTS || path.join(os.tmpdir(), 'airvix-optics-settings');
@@ -72,21 +73,17 @@ describe('optics cameras and gimbal panel', () => {
   });
 
   it('fits both cameras at 1024x600 and mocks the gimbal without a vehicle', async () => {
-    const port = await freePort();
     const dbPath = path.join(os.tmpdir(), `airvix-optics-${process.pid}.sqlite`);
-    proc = spawn(process.execPath, ['server.js'], {
-      cwd: repoRoot,
-      env: {
-        ...process.env,
-        HOST: '127.0.0.1',
-        PORT: String(port),
+    const started = await startTestServer({
+      env: (port) => ({
         SQLITE_PATH: dbPath,
         COMPANION_MODE: 'off',
         JETSON_COMPANION_BASE_URL: '',
-      },
+      }),
       stdio: 'ignore',
     });
-    const base = `http://127.0.0.1:${port}`;
+    proc = started.child;
+    const base = started.base;
     const t0 = Date.now();
     let up = false;
     while (Date.now() - t0 < 20000) {

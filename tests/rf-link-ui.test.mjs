@@ -4,11 +4,11 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { startTestServer } from './test-server.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const PORT = '4052';
-const BASE = `http://127.0.0.1:${PORT}`;
-const SQLITE = `/tmp/airvix-rf-link-${PORT}-${process.pid}.sqlite`;
+let BASE = '';
+const SQLITE = `/tmp/airvix-rf-link-${process.pid}.sqlite`;
 const REASON = 'במצב RF אין וידאו';
 const PORT_REASON = 'בחרו פורט';
 const shotDir = process.env.VLC_RF_SHOTS || path.join(os.tmpdir(), 'airvix-rf-shots');
@@ -42,19 +42,16 @@ describe('RF link panel', () => {
 
   beforeAll(async () => {
     fs.mkdirSync(shotDir, { recursive: true });
-    serverProc = spawn(process.execPath, ['server.js'], {
-      cwd: repoRoot,
-      env: {
-        ...process.env,
-        HOST: '127.0.0.1',
-        PORT,
+    const started = await startTestServer({
+      env: (port) => ({
         SQLITE_PATH: SQLITE,
         COMPANION_MODE: 'off',
         JETSON_COMPANION_BASE_URL: '',
         JETSON_COMPANION_BASE_URLS: '',
-      },
-      stdio: ['ignore', 'pipe', 'pipe'],
+      }),
     });
+    serverProc = started.child;
+    BASE = started.base;
     const t0 = Date.now();
     let up = false;
     while (Date.now() - t0 < 20000) {
