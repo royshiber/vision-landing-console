@@ -22478,7 +22478,9 @@ body:has(#telemetry.panel.visible) #telemetry .tele-dash-sub {
   flex: 0 0 auto;
   align-self: flex-start;
 }
-.param-file-menu[hidden],
+.param-file-menu[hidden] {
+  display: none !important;
+}
 .fc-read-missing {
   flex: 1 1 100%;
   display: flex;
@@ -22506,6 +22508,31 @@ body:has(#telemetry.panel.visible) #telemetry .tele-dash-sub {
   white-space: normal;
   overflow: visible;
   text-overflow: clip;
+}
+.fc-read-missing-details {
+  flex: 1 1 12rem;
+  min-width: 8rem;
+  max-width: 100%;
+}
+.fc-read-missing-details[hidden] {
+  display: none !important;
+}
+.fc-read-missing-details summary,
+.fc-read-missing-list {
+  font-size: clamp(11px, 0.75rem, 14px);
+  line-height: 1.35;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  overflow: visible;
+  text-overflow: clip;
+}
+.fc-read-missing-details summary {
+  cursor: pointer;
+}
+.fc-read-missing-list {
+  margin: 4px 0 0;
+  padding: 0 1.2rem 0 0;
+  max-width: 100%;
 }
 .param-tool-fault[hidden],
 .ac-step-panel[hidden],

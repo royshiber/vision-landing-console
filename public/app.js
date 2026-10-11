@@ -12776,17 +12776,38 @@ let fcReadMissingIndices = [];
 function paintFcReadMissing(missing) {
   const box = document.getElementById('fcReadMissing');
   const names = document.getElementById('fcReadMissingNames');
+  const details = document.getElementById('fcReadMissingDetails');
+  const list = document.getElementById('fcReadMissingList');
   const rows = Array.isArray(missing) ? missing : [];
   fcReadMissingIndices = rows
     .map((row) => Number(row?.index))
     .filter((index) => Number.isInteger(index) && index >= 0);
   if (!box || !names) return;
+  if (list) list.replaceChildren();
+  if (details) {
+    details.open = false;
+    details.hidden = true;
+  }
   if (!rows.length) {
     names.textContent = '';
+    names.hidden = false;
     box.hidden = true;
     return;
   }
-  names.textContent = rows.map((row) => row?.name || `#${row?.index}`).join(' ');
+  const labels = rows.map((row) => row?.name || `#${row?.index}`);
+  if (labels.length > 8 && details && list) {
+    names.textContent = '';
+    names.hidden = true;
+    for (const label of labels) {
+      const item = document.createElement('li');
+      item.textContent = label;
+      list.appendChild(item);
+    }
+    details.hidden = false;
+  } else {
+    names.hidden = false;
+    names.textContent = labels.join(' ');
+  }
   box.hidden = false;
 }
 
@@ -12795,15 +12816,24 @@ function askReplaceUnsaved() {
   const ok = document.getElementById('fcReadOverwriteOk');
   const cancel = document.getElementById('fcReadOverwriteCancel');
   if (!dialog || !ok || !cancel) return Promise.resolve(false);
+  const trigger = document.activeElement instanceof HTMLElement
+    ? document.activeElement
+    : document.getElementById('arduReadBtn');
   dialog.hidden = false;
-  ok.focus();
+  cancel.focus();
   return new Promise((resolve) => {
+    const items = () => [cancel, ok];
+    const restore = () => {
+      const back = trigger && document.contains(trigger) ? trigger : document.getElementById('arduReadBtn');
+      if (back && typeof back.focus === 'function') back.focus();
+    };
     const done = (value) => {
       dialog.hidden = true;
       ok.removeEventListener('click', onOk);
       cancel.removeEventListener('click', onCancel);
       dialog.removeEventListener('click', onBackdrop);
       document.removeEventListener('keydown', onKey);
+      restore();
       resolve(value);
     };
     const onOk = () => done(true);
@@ -12812,13 +12842,38 @@ function askReplaceUnsaved() {
       if (event.target === dialog) done(false);
     };
     const onKey = (event) => {
-      if (event.key === 'Escape') done(false);
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        done(false);
+        return;
+      }
+      if (event.key !== 'Tab') return;
+      const order = items();
+      const index = order.indexOf(document.activeElement);
+      event.preventDefault();
+      const next = event.shiftKey
+        ? order[(index <= 0 ? order.length : index) - 1]
+        : order[(index + 1) % order.length];
+      next.focus();
     };
     ok.addEventListener('click', onOk);
     cancel.addEventListener('click', onCancel);
     dialog.addEventListener('click', onBackdrop);
     document.addEventListener('keydown', onKey);
   });
+}
+
+function failFcReadNoLink() {
+  fcLinkState = 'down';
+  fcCurrentSnapshot = null;
+  clearArduDiff();
+  paintFcReadMissing([]);
+  const hint = 'אין חיבור לבקר';
+  if (arduWriteStatus) {
+    arduWriteStatus.textContent = hint;
+    arduWriteStatus.className = 'ardu-write-status fail';
+  }
+  showParamToolFault(hint, () => readFcParams());
 }
 
 async function paintFcReadProgress() {
@@ -12903,16 +12958,8 @@ async function readFcParams(extra) {
     refreshArduWriteBtnState(d);
     fcLinkState = d.mavlinkConnected ? 'ok' : 'down';
     const usable = d.fresh === true || (d.fresh == null && d.connected && d.current);
-    if (!d.mavlinkConnected) {
-      fcCurrentSnapshot = null;
-      clearArduDiff();
-      paintFcReadMissing([]);
-      const hint = 'הקריאה נכשלה. אין חיבור לבקר הטיסה';
-      if (arduWriteStatus) {
-        arduWriteStatus.textContent = hint;
-        arduWriteStatus.className = 'ardu-write-status fail';
-      }
-      showParamToolFault(hint, () => readFcParams());
+    if (!d.mavlinkConnected || d.message === 'אין חיבור לבקר') {
+      failFcReadNoLink();
     } else if (!usable || !d.current) {
       clearParamToolFault();
       paintFcReadMissing([]);
@@ -12982,6 +13029,7 @@ document.getElementById('fcReadMissingBtn')?.addEventListener('click', () => {
  */
 function syncWriteGateFromMav(mav) {
   if (!mav || mav.connected !== true) return;
+  fcLinkState = 'ok';
   const armed = mav.armedKnown === true ? mav.armed === true : arduWriteGate.armed;
   refreshArduWriteBtnState({
     mavlinkConnected: true,

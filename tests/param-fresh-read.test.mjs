@@ -76,6 +76,50 @@ describe('readParamsFresh', () => {
     expect(sentIds(frames)).not.toContain(MSG_PARAM_REQUEST_LIST);
   });
 
+  it('re-requests index 0 when its reply is dropped and keeps the rest', async () => {
+    const count = 20;
+    const { conn, frames } = fakeLink();
+    const answered = new Set();
+    const pump = setInterval(() => {
+      const parsed = parseMavlinkStream(Buffer.concat(frames.length ? frames : [Buffer.alloc(0)]));
+      for (const frame of parsed.frames) {
+        if (frame.msgId !== MSG_PARAM_REQUEST_READ || frame.payload.length < 2) continue;
+        const index = frame.payload.readInt16LE(0);
+        if (index !== 0 || answered.has(index)) continue;
+        answered.add(index);
+        conn.emit('param', { name: 'P0000', value: 7, count, index: 0 });
+      }
+    }, 5);
+    const pending = conn.readParamsFresh({ timeoutMs: 2500, quietMs: 40 });
+    for (let index = 1; index < count; index += 1) {
+      conn.emit('param', {
+        name: `P${String(index).padStart(4, '0')}`,
+        value: index + 1,
+        count,
+        index,
+      });
+    }
+    expect(conn.paramReadProgress().received).toBe(count - 1);
+    expect(conn.paramReadProgress().expected).toBe(count);
+    try {
+      const result = await pending;
+      const reads = parseMavlinkStream(Buffer.concat(frames)).frames
+        .filter((frame) => frame.msgId === MSG_PARAM_REQUEST_READ && frame.payload.length >= 2)
+        .map((frame) => frame.payload.readInt16LE(0));
+      expect(reads).toContain(0);
+      expect(result.fresh).toBe(true);
+      expect(result.timedOut).toBe(false);
+      expect(result.partial).toBe(false);
+      expect(result.count).toBe(count);
+      expect(result.paramCount).toBe(count);
+      expect(result.missing).toEqual([]);
+      expect(result.current.P0000).toBe(7);
+      expect(result.current.P0001).toBe(2);
+    } finally {
+      clearInterval(pump);
+    }
+  });
+
   it('returns fresh false when the named value does not arrive', async () => {
     const { conn } = fakeLink();
     const result = await conn.readParamsFresh({ keys: ['RTL_ALTITUDE'], timeoutMs: 80 });
