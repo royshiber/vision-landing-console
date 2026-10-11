@@ -150,6 +150,9 @@ describe('Mission aircraft messages — side print-log', () => {
       sliceFunction(js, 'collapseConsecutiveFcStatus'),
       sliceFunction(js, 'fcStatusTimeLabel'),
       sliceFunction(js, 'fcStatusSeverityClass'),
+      sliceFunction(js, 'fcStatusSeverityLabel'),
+      sliceFunction(js, 'orderFcStatusForLog'),
+      sliceFunction(js, 'bindFcMsgStick'),
       sliceFunction(js, 'fcStatusShownText'),
       sliceFunction(js, 'paintFcStatustextOverlay'),
       sliceFunction(js, 'paintFcStatustextHistory'),
@@ -164,7 +167,7 @@ describe('Mission aircraft messages — side print-log', () => {
     const result = new Function('primary', 'log', 'scroll', 'extras', 'history', src)(primary, log, scroll, extras, history);
     expect(result.first).toContain('EKF');
     expect(result.first).toContain('GPS');
-    expect(result.extras[0]).toContain('המצפן לא תקין');
+    expect(result.extras[0]).toContain('PreArm: Compass not healthy');
     expect(result.extras[1]).toContain('ArduPlane');
     expect(result.warn).toContain('pfd-horizon-msg-line--warn');
     expect(result.extraCount).toBe(2);

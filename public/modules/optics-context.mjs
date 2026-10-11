@@ -28,42 +28,34 @@ function restoreAll() {
   }
 }
 
-function place(x, y) {
+function place(anchor) {
   if (!menu) return;
   menu.hidden = false;
-  menu.style.left = '0px';
-  menu.style.top = '0px';
-  const limit = Math.max(140, window.innerHeight - 16);
   menu.style.boxSizing = 'border-box';
   menu.style.overflowY = 'auto';
-  menu.style.maxHeight = `${limit}px`;
-  const narrow = window.innerWidth <= 720;
-  if (narrow) {
-    const centers = [...document.querySelectorAll('#debriefCamGrid .debrief-cam-tile')].map((el) => {
-      const r = el.getBoundingClientRect();
-      return r.top + r.height / 2;
-    }).filter((n) => n > 0);
-    const below = centers.length ? Math.max(...centers) + 8 : y;
-    menu.style.maxHeight = `${Math.floor(Math.max(140, window.innerHeight - below - 8))}px`;
-    const rect = menu.getBoundingClientRect();
-    const left = Math.max(8, Math.min(x, window.innerWidth - rect.width - 8));
-    const top = Math.max(8, Math.min(below, window.innerHeight - rect.height - 8));
-    menu.style.left = `${Math.round(left)}px`;
-    menu.style.top = `${Math.round(top)}px`;
-  } else {
-    const rect = menu.getBoundingClientRect();
-    const height = Math.min(rect.height, limit);
-    const ceiling = Math.max(8, window.innerHeight - limit - 8);
-    const left = Math.max(8, Math.min(x, window.innerWidth - rect.width - 8));
-    const top = Math.min(Math.max(8, y), Math.max(8, window.innerHeight - height - 8), ceiling);
-    menu.style.left = `${Math.round(left)}px`;
-    menu.style.top = `${Math.round(top)}px`;
+  menu.style.width = '228px';
+  menu.style.maxWidth = '228px';
+  menu.style.maxHeight = '210px';
+  menu.style.left = '0px';
+  menu.style.top = '0px';
+  const tile = anchor?.getBoundingClientRect?.() || null;
+  const width = 228;
+  const height = Math.min(menu.getBoundingClientRect().height || 210, 210);
+  let left = 8;
+  let top = 8;
+  if (tile && tile.width > 0) {
+    left = tile.right - width - 8;
+    top = tile.top + 8;
+    if (left < tile.left) left = tile.left + 8;
   }
-  for (const id of ['cam0Panel', 'cam1Panel']) {
+  left = Math.max(8, Math.min(left, window.innerWidth - width - 8));
+  top = Math.max(8, Math.min(top, window.innerHeight - height - 8));
+  menu.style.left = `${Math.round(left)}px`;
+  menu.style.top = `${Math.round(top)}px`;
+  for (const id of ['cam0Panel', 'cam1Panel', 'gimbalSettings']) {
     const node = menu.querySelector(`#${id}`);
     if (!node) continue;
-    const panelTop = node.getBoundingClientRect().top;
-    node.style.maxHeight = `${Math.max(80, Math.floor(window.innerHeight - panelTop - 8))}px`;
+    node.style.maxHeight = '';
   }
 }
 
@@ -91,7 +83,7 @@ function ensureVisionFold(cam) {
   return fold;
 }
 
-function openFor(cam, x, y) {
+function openFor(cam, anchor) {
   if (!menu || placing) return;
   const ids = HOST[cam];
   if (!ids) return;
@@ -110,7 +102,7 @@ function openFor(cam, x, y) {
     const switchId = cam === 'cam0' ? 'opticsCam0Btn' : cam === 'cam1' ? 'opticsCam1Btn' : 'opticsGimbalBtn';
     document.getElementById(switchId)?.click();
     ensureVisionFold(cam);
-    place(x, y);
+    place(anchor);
   } finally {
     placing = false;
   }
@@ -133,19 +125,19 @@ function bind() {
     event.preventDefault();
     const cam = tile.dataset.cam;
     tile.classList.add('is-selected');
-    openFor(cam, event.clientX, event.clientY);
+    openFor(cam, tile);
   });
   document.querySelector('.optics-cam-switch')?.addEventListener('click', (event) => {
     if (placing) return;
     const btn = event.target.closest?.('.optics-cam-btn');
     if (!btn) return;
     const cam = btn.id === 'opticsCam1Btn' ? 'cam1' : btn.id === 'opticsGimbalBtn' ? 'cam3' : 'cam0';
-    const rect = btn.getBoundingClientRect();
-    openFor(cam, rect.left, rect.bottom + 8);
+    openFor(cam, btn);
   });
   document.addEventListener('vlc-open-optics', (event) => {
     const cam = event.detail?.cam || 'cam3';
-    openFor(cam, Number(event.detail?.x) || 24, Number(event.detail?.y) || 80);
+    const anchor = document.querySelector(`.debrief-cam-tile[data-cam="${cam}"]`) || menu;
+    openFor(cam, anchor);
   });
   document.addEventListener('vlc-close-optics', () => close());
   document.addEventListener('keydown', (event) => {

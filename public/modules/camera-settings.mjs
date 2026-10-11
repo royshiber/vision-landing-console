@@ -87,7 +87,7 @@ export function cameraSettingsHtml(camId) {
   const detectDisabled = cameraControlSupported(camId, 'detections') ? '' : ' disabled';
   const detectChecked = cameraControlSupported(camId, 'detections') ? ' checked' : '';
   return `<div class="cam0-controls optics-groups">
-    <details class="optics-field-group" data-settings-group="exposure" open>
+    <details class="optics-field-group" data-settings-group="exposure">
       <summary class="optics-field-kicker">חשיפה</summary>
       <label class="cam0-check"><input type="checkbox" id="${camId}Ae" disabled /> <span class="optics-field-name">חשיפה אוטומטית</span></label>
       <p id="${camId}AeLock" class="optics-field-note" hidden>${AE_LOCK_HE}</p>

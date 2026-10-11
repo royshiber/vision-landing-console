@@ -8107,7 +8107,7 @@ function initHorizonCameraMenu() {
   menu.className = 'horizon-cam-menu';
   menu.hidden = true;
   menu.setAttribute('role', 'menu');
-  menu.setAttribute('aria-label', 'פעולות אופק');
+  menu.setAttribute('aria-label', 'תצוגת וידאו');
   menu.dir = 'rtl';
   const HORIZON_MENU_COPY = {
     horizonVideoToggle: ['תמונת שידור באופק', 'שידור חי מהמצלמה הראשונה שמשדרת, או כתובת שמורה'],
@@ -8192,8 +8192,8 @@ function initHorizonCameraMenu() {
   menu.appendChild(cameraGroup);
   const overlayGroup = document.createElement('div');
   overlayGroup.className = 'horizon-menu-group';
-  overlayGroup.appendChild(menuHeading('שכבות'));
-  for (const id of ['horizonVideoToggle', 'annotatedVisionToggle', 'liveCameraToggle', 'horizonPointsToggle', 'pfdVoiceFlightBtn']) {
+  overlayGroup.appendChild(menuHeading('תצוגת וידאו'));
+  for (const id of ['horizonVideoToggle', 'annotatedVisionToggle', 'liveCameraToggle']) {
     const btn = document.getElementById(id);
     const copy = HORIZON_MENU_COPY[id];
     if (!btn || !copy) continue;
@@ -8204,25 +8204,13 @@ function initHorizonCameraMenu() {
   document.getElementById('horizonPointsToggle')?.addEventListener('click', () => {
     document.getElementById('terrainShowLoadedPathBtn')?.click();
   });
-  const armGroup = document.createElement('div');
-  armGroup.className = 'horizon-menu-group horizon-menu-group--arm';
-  armGroup.appendChild(menuHeading('פעולות'));
-  for (const id of ['flightArmBtn', 'flightDisarmBtn']) {
-    const btn = document.getElementById(id);
-    const copy = HORIZON_MENU_COPY[id];
-    if (!btn || !copy) continue;
-    fillMenuButton(btn, copy[0], copy[1]);
-    armGroup.appendChild(btn);
+  const quick = document.getElementById('horizonQuick');
+  if (quick) {
+    for (const id of ['pfdArmedBadge', 'flightArmBtn', 'flightDisarmBtn']) {
+      const btn = document.getElementById(id);
+      if (btn) quick.appendChild(btn);
+    }
   }
-  menu.appendChild(armGroup);
-  const stateGroup = document.createElement('div');
-  stateGroup.className = 'horizon-menu-group horizon-menu-face';
-  stateGroup.appendChild(menuHeading('מצב טיסה'));
-  const headingLane = document.querySelector('.pfd-heading-lane');
-  const armRow = document.getElementById('flightArmRow');
-  if (headingLane) stateGroup.appendChild(headingLane);
-  if (armRow) stateGroup.appendChild(armRow);
-  menu.appendChild(stateGroup);
   syncHorizonMenuState();
   document.body.appendChild(menu);
 
@@ -8258,6 +8246,7 @@ function initHorizonCameraMenu() {
   }
 
   stage.addEventListener('contextmenu', (event) => {
+    if (event.target?.closest?.('#horizonQuick, button, a, input, select')) return;
     event.preventDefault();
     openMenu(event.clientX, event.clientY);
   });
@@ -9674,27 +9663,55 @@ function fcStatusSeverityClass(sev) {
   return 'pfc-msg-line pfc-msg-line--info';
 }
 
+function fcStatusSeverityLabel(sev) {
+  const names = ['EMERGENCY', 'ALERT', 'CRITICAL', 'ERROR', 'WARNING', 'NOTICE', 'INFO', 'DEBUG'];
+  const n = Number(sev);
+  return names[n] || 'INFO';
+}
+
+/** Messages stay the raw English STATUSTEXT. Hebrew is not substituted. */
 function fcStatusShownText(row) {
-  const raw = String(row?.text || '').trim();
-  const local = translateFcStatusText(raw);
-  if (local && local !== raw) return local;
-  const he = String(row?.textHe || '').trim();
-  if (he && he !== raw) return he;
-  return local || raw;
+  return String(row?.text || '').trim();
+}
+
+/** Live buffers are newest-first. The log paints oldest-first, newest at the bottom. */
+function orderFcStatusForLog(rows) {
+  const list = Array.isArray(rows) ? rows.slice() : [];
+  const stamp = (row) => {
+    const n = Date.parse(row?.receivedAt || row?.time || row?.ts || '');
+    return Number.isFinite(n) ? n : NaN;
+  };
+  const first = stamp(list[0]);
+  const last = stamp(list[list.length - 1]);
+  if (Number.isFinite(first) && Number.isFinite(last) && first > last) list.reverse();
+  return list;
+}
+
+function bindFcMsgStick(el) {
+  if (!el || el.dataset?.fcStickBound === '1' || typeof el.addEventListener !== 'function') return;
+  el.dataset.fcStickBound = '1';
+  if (el.dataset.fcStick == null) el.dataset.fcStick = '1';
+  el.addEventListener('scroll', () => {
+    const gap = el.scrollHeight - el.clientHeight - el.scrollTop;
+    el.dataset.fcStick = gap < 28 ? '1' : '0';
+  });
 }
 
 function paintFcStatustextHistory(items) {
   if (!pfcMsgScroll) return;
+  if (typeof bindFcMsgStick === 'function') bindFcMsgStick(pfcMsgScroll);
+  const stick = pfcMsgScroll.dataset?.fcStick !== '0';
   pfcMsgScroll.innerHTML = '';
   if (typeof pfcMsgScroll.appendChild !== 'function') return;
   const hostDoc = pfcMsgScroll.ownerDocument || (typeof document !== 'undefined' ? document : null);
   if (!hostDoc || typeof hostDoc.createElement !== 'function') return;
-  let rows = collapseConsecutiveFcStatus(items);
+  let rows = collapseConsecutiveFcStatus(orderFcStatusForLog(items));
   if (_fcMsgFilter === 'warn') rows = rows.filter((row) => statusTextLineWarn(row.severity));
   for (const row of rows) {
     const shown = fcStatusShownText(row);
     const countBit = row.count > 1 ? ` ×${row.count}` : '';
     const timeBit = fcStatusTimeLabel(row);
+    const sevBit = fcStatusSeverityLabel(row.severity);
     const p = hostDoc.createElement('p');
     p.className = fcStatusSeverityClass(row.severity);
     p.dir = 'ltr';
@@ -9712,9 +9729,14 @@ function paintFcStatustextHistory(items) {
       time.textContent = timeBit;
       p.appendChild(time);
     }
+    const sev = hostDoc.createElement('span');
+    sev.className = 'pfc-msg-sev';
+    sev.dir = 'ltr';
+    sev.textContent = sevBit;
+    p.appendChild(sev);
     const body = hostDoc.createElement('span');
     body.className = 'pfc-msg-body';
-    body.dir = 'auto';
+    body.dir = 'ltr';
     body.textContent = shown;
     p.appendChild(body);
     if (row.count > 1) {
@@ -9726,6 +9748,7 @@ function paintFcStatustextHistory(items) {
     }
     pfcMsgScroll.appendChild(p);
   }
+  if (stick) pfcMsgScroll.scrollTop = pfcMsgScroll.scrollHeight;
 }
 
 function missionMessagesSeveritySig(rows) {
@@ -9824,7 +9847,7 @@ function applyFcStatustextHud(mavlink) {
     syncMissionMessagesBadge([]);
     return;
   }
-  const sig = JSON.stringify(raw.slice(0, 18));
+  const sig = JSON.stringify(raw);
   if (sig === _statustextSig) return;
   _statustextSig = sig;
   const missingHud = !altitudeIsFinite(mavlink?.altitude)
@@ -9838,12 +9861,12 @@ function applyFcStatustextHud(mavlink) {
     : raw;
   const first = String(ordered[0]?.text || '').trim();
   if (first) pfcMsgPrimaryHe.textContent = first;
-  _missionMessagesRows = ordered.slice(0, 18);
+  _missionMessagesRows = ordered;
   paintFcStatustextOverlay(ordered.slice(0, 8));
   paintFcStatustextHistory(_missionMessagesRows);
   syncMissionMessagesBadge(_missionMessagesRows);
   clearTimeout(_statustextTimer);
-  _statustextTimer = setTimeout(() => void translateAndRenderFcStatustext(ordered.slice(0, 18)), 0);
+  _statustextTimer = setTimeout(() => void translateAndRenderFcStatustext(ordered), 0);
 }
 
 async function translateAndRenderFcStatustext(rows) {
@@ -9864,7 +9887,7 @@ async function translateAndRenderFcStatustext(rows) {
       receivedAt: row?.receivedAt || row?.time || row?.ts || null,
     })).filter((row) => row.text);
     if (pfcMsgPrimaryHe && translated[0]) paintMixedBdi(pfcMsgPrimaryHe, fcStatusShownText(translated[0]));
-    _missionMessagesRows = translated.slice(0, 18);
+    _missionMessagesRows = translated;
     paintFcStatustextOverlay(translated.slice(0, 8));
     paintFcStatustextHistory(_missionMessagesRows);
     syncMissionMessagesBadge(_missionMessagesRows);
@@ -21753,34 +21776,22 @@ function flightMessagesWantOpen(msg, msgMin) {
   return msg >= msgMin + FLIGHT_MSG_OPEN_GAP;
 }
 
-function applyFlightStack(stack, opts = {}) {
+function applyFlightStack(_stack, opts = {}) {
   const horizon = document.querySelector('[data-mission-region="horizon"]');
-  if (!horizon || typeof horizon.style?.setProperty !== 'function' || typeof horizon.getBoundingClientRect !== 'function') {
-    return null;
-  }
-  const budget = flightStackBudget(horizon);
-  const half = opts.half === true || (opts.half !== false && stack?.half === true);
-  const sized = half
-    ? (flightColumnHalfStack(horizon) || clampFlightStack(stack || _flightStack, budget))
-    : clampFlightStack(stack || _flightStack, budget);
-  const next = half ? { ...sized, half: true } : { ...sized, half: false };
-  _flightStack = next;
-  horizon.dataset.flightStack = half ? 'half' : 'custom';
-  horizon.style.setProperty('--flight-data-h', `${Math.round(next.data)}px`);
-  const hudPx = Number.isFinite(next.hud)
-    ? next.hud
-    : Math.max(budget.hudMin, budget.avail - next.data - (half ? budget.msgMin : next.msg));
-  horizon.style.setProperty('--flight-hud-h', `${Math.round(hudPx)}px`);
-  if (half) horizon.style.removeProperty('--flight-msg-h');
-  else horizon.style.setProperty('--flight-msg-h', `${Math.round(next.msg)}px`);
+  if (!horizon || typeof horizon.style?.removeProperty !== 'function') return null;
+  horizon.dataset.flightStack = 'fixed';
+  horizon.style.removeProperty('--flight-data-h');
+  horizon.style.removeProperty('--flight-hud-h');
+  horizon.style.removeProperty('--flight-msg-h');
   const dataSplit = document.getElementById('flightStackSplitData');
   const msgSplit = document.getElementById('flightStackSplitMsg');
-  if (dataSplit) dataSplit.setAttribute('aria-valuenow', String(Math.round(next.data)));
-  if (msgSplit) msgSplit.setAttribute('aria-valuenow', String(Math.round(next.msg)));
-  _flightStackOpen = flightMessagesWantOpen(next.msg, budget.msgMin);
+  if (dataSplit) dataSplit.hidden = true;
+  if (msgSplit) msgSplit.hidden = true;
+  const collapsed = missionLayoutStoreGet(MISSION_MESSAGES_KEY) === '0';
+  _flightStack = { fixed: true };
+  _flightStackOpen = !collapsed;
   if (!opts.skipMessages) applyMissionMessagesExpanded(_flightStackOpen);
-  if (opts.persist) writeFlightStack(_flightStack);
-  return next;
+  return _flightStack;
 }
 
 function resetFlightStack() {
@@ -21801,6 +21812,9 @@ function syncFlightStackToToggle() {
 function bindFlightStackSplitters() {
   const dataSplit = document.getElementById('flightStackSplitData');
   const msgSplit = document.getElementById('flightStackSplitMsg');
+  if (dataSplit) dataSplit.hidden = true;
+  if (msgSplit) msgSplit.hidden = true;
+  return;
   if (!dataSplit || !msgSplit || dataSplit.dataset.bound === '1') return;
   dataSplit.dataset.bound = '1';
   msgSplit.dataset.bound = '1';

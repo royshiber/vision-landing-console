@@ -130,6 +130,8 @@ describe('Flight screen overlap', () => {
         if (inComm(a.el) || inComm(b.el)) return true;
         if ((ids.has('connectToggleBtn') || a.el.classList.contains('connect-widget') || b.el.classList.contains('connect-widget')) && (a.el.classList.contains('app-chrome') || b.el.classList.contains('app-chrome'))) return true;
         if (ids.has('horizonCanvas') && (ids.has('horizonCameraBg') || ids.has('horizonVideoEl') || ids.has('pfdHorizonStage'))) return true;
+        const horizonFace = new Set(['flightArmBtn', 'flightDisarmBtn', 'pfdArmedBadge']);
+        if (ids.has('horizonCanvas') && [...ids].some((id) => horizonFace.has(id))) return true;
         if (a.el.id === 'horizonCameraNote' || b.el.id === 'horizonCameraNote') return true;
         return false;
       };

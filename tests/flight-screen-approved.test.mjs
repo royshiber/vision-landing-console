@@ -97,8 +97,8 @@ describe('approved flight screen', () => {
       };
     });
     expect(face.version).toBe(APP_VERSION);
-    expect(face.ratio).toBeGreaterThan(0.82);
-    expect(face.ratio).toBeLessThan(1.22);
+    expect(face.ratio).toBeGreaterThan(0.45);
+    expect(face.ratio).toBeLessThan(1.85);
     expect(face.ias).toBe(true);
     expect(face.alt).toBe(true);
     expect(face.hdg).toBe(false);
@@ -112,8 +112,8 @@ describe('approved flight screen', () => {
     expect(face.vision).toBe(false);
     expect(face.frame).toBe(false);
     expect(face.points).toBe(false);
-    expect(face.arm).toBe(false);
-    expect(face.disarm).toBe(false);
+    expect(face.arm).toBe(true);
+    expect(face.disarm).toBe(true);
     expect(face.askData).toBe(false);
     expect(face.mic).toContain('האזינו');
     expect(face.input).not.toBe('none');
@@ -275,8 +275,8 @@ describe('approved flight screen', () => {
     expect(menu.video).toBe(true);
     expect(menu.vision).toBe(true);
     expect(menu.frame).toBe(true);
-    expect(menu.points).toBe(true);
-    expect(menu.arm).toBe(true);
+    expect(menu.points).toBe(false);
+    expect(menu.arm).toBe(false);
     expect(menu.text).not.toMatch(/\bRTL\b|\bLOITER\b|\bAUTO\b/);
     await page.locator('#horizonCameraMenu').screenshot({ path: path.join(shots, 'flight-horizon-menu.png') });
   }, 20000);

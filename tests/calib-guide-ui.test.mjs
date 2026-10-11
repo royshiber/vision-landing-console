@@ -138,8 +138,8 @@ describe('guided calibration on CAM1', () => {
     });
     await page.goto(base, { waitUntil: 'domcontentloaded' });
     await page.click('[data-tab="optics"]');
-    await page.click('#opticsCam1Btn');
-    await page.waitForSelector('#cam1Panel:not([hidden])');
+    await page.locator('.debrief-cam-tile[data-cam="cam1"]').click({ button: 'right' });
+    await page.waitForSelector('#opticsContext:not([hidden]) #cam1Panel');
     await page.waitForFunction(() => document.getElementById('cam1CalibStart')?.disabled === false);
     await page.locator('#cam1Calib > summary').click();
     await page.click('#cam1CalibStart');

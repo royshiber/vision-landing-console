@@ -292,20 +292,23 @@ describe('QA gate 14702a0', () => {
         await page.waitForFunction(() => {
           const menu = document.getElementById('horizonCameraMenu');
           const tip = document.getElementById('hudNavGpsTip');
-          return menu && menu.hidden === false && tip && menu.contains(tip)
+          return menu && menu.hidden === false && tip && !menu.contains(tip)
             && tip.textContent.includes('RTK קבוע')
             && tip.textContent.includes('HDOP');
         });
         const gps = await page.evaluate(() => {
           const root = document.getElementById('horizonCameraMenu');
           const tip = document.getElementById('hudNavGpsTip');
-          tip.scrollIntoView({ block: 'nearest' });
           const m = root.getBoundingClientRect();
-          const r = tip.getBoundingClientRect();
-          return [{ bottom: r.bottom, menuBottom: m.bottom, vh: window.innerHeight, text: tip.textContent }];
+          return [{
+            menuBottom: m.bottom,
+            vh: window.innerHeight,
+            text: tip.textContent,
+            videoOnly: !root.querySelector('#flightArmBtn, #hudNavGps'),
+          }];
         });
         expect(gps.length).toBeGreaterThan(0);
-        expect(gps.every((row) => row.bottom <= row.menuBottom + 1 && row.bottom <= row.vh + 1)).toBe(true);
+        expect(gps.every((row) => row.menuBottom <= row.vh + 1 && row.videoOnly)).toBe(true);
         expect(gps.some((row) => row.text.includes('RTK קבוע'))).toBe(true);
       } finally {
         await resumeLiveHud(page);

@@ -128,6 +128,9 @@ describe('Mission messages toggle — source contract', () => {
       sliceFunction(js, 'translateFcStatusText'),
       sliceFunction(js, 'collapseConsecutiveFcStatus'),
       sliceFunction(js, 'fcStatusSeverityClass'),
+      sliceFunction(js, 'fcStatusSeverityLabel'),
+      sliceFunction(js, 'orderFcStatusForLog'),
+      sliceFunction(js, 'bindFcMsgStick'),
       sliceFunction(js, 'fcStatusShownText'),
       sliceFunction(js, 'paintFcStatustextHistory'),
       sliceFunction(js, 'setFcMsgFilter'),
@@ -154,13 +157,17 @@ describe('Mission messages toggle — source contract', () => {
       getElementById() { return { setAttribute() {} }; },
     }, history);
     expect(result.all).toHaveLength(2);
-    expect(result.all[0].title).toBe('EKF3 waiting for GPS config data');
-    expect(result.all[0].text).toContain('EKF3 ממתינים להגדרת GPS');
-    expect(result.all[0].text).not.toContain('לוויין');
-    expect(result.all[0].text).toContain('×4');
-    expect(result.all[0].className).toContain('pfc-msg-line--warn');
+    expect(result.all[0].title).toBe('ArduPlane V4.5.0');
+    expect(result.all[0].text).toContain('ArduPlane V4.5.0');
+    expect(result.all[0].text).toContain('INFO');
     expect(result.all[0].time).toMatch(/^\d{2}:\d{2}:\d{2}$/);
-    expect(result.all[1].title).toBe('ArduPlane V4.5.0');
+    expect(result.all[1].title).toBe('EKF3 waiting for GPS config data');
+    expect(result.all[1].text).toContain('EKF3 waiting for GPS config data');
+    expect(result.all[1].text).not.toContain('ממתינים');
+    expect(result.all[1].text).toContain('×4');
+    expect(result.all[1].text).toContain('WARNING');
+    expect(result.all[1].className).toContain('pfc-msg-line--warn');
+    expect(result.all[1].time).toMatch(/^\d{2}:\d{2}:\d{2}$/);
     expect(result.warn).toEqual(['EKF3 waiting for GPS config data']);
     const translate = new Function(`${sliceFunction(js, 'translateFcStatusText')}; return translateFcStatusText;`)();
     expect(translate('Compass not healthy')).toBe('המצפן לא תקין');
@@ -458,12 +465,15 @@ describe('Mission messages toggle — live layout', () => {
         dir: getComputedStyle(line).direction,
       }));
     });
-    expect(painted[0].title).toBe('EKF3 waiting for GPS config data');
-    expect(painted[0].text).toContain('EKF3 ממתינים להגדרת GPS');
-    expect(painted[0].text).not.toContain('לוויין');
-    expect(painted[0].text).toContain('×4');
-    expect(painted[0].className).toContain('pfc-msg-line--warn');
-    expect(painted[0].dir).toBe('ltr');
+    expect(painted[0].title).toBe('ArduPlane V4.5.0');
+    expect(painted[0].text).toContain('ArduPlane V4.5.0');
+    expect(painted[0].text).not.toMatch(/[\u0590-\u05FF]/);
+    expect(painted.at(-1).title).toBe('EKF3 waiting for GPS config data');
+    expect(painted.at(-1).text).toContain('EKF3 waiting for GPS config data');
+    expect(painted.at(-1).text).toContain('×4');
+    expect(painted.at(-1).text).toContain('WARNING');
+    expect(painted.at(-1).className).toContain('pfc-msg-line--warn');
+    expect(painted.at(-1).dir).toBe('ltr');
     expect(painted.some((line) => line.title === 'PreArm: Compass not healthy')).toBe(true);
     const warned = await page.evaluate(() => {
       document.getElementById('pfcMsgFilterWarn').click();

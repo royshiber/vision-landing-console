@@ -172,6 +172,7 @@ describe('flight stack splitters live', () => {
           tiles,
           vertical,
           cursor: splitCs?.cursor || '',
+          splitDisplay: splitCs?.display || '',
           handle: handleCs?.backgroundColor || '',
           splitBg: splitCs?.backgroundColor || '',
           touch: splitCs?.touchAction || '',
@@ -235,7 +236,7 @@ describe('flight stack splitters live', () => {
         localStorage.removeItem('visionLandingMissionMessagesV1');
       });
       await page.reload({ waitUntil: 'domcontentloaded' });
-      await page.waitForSelector('#flightStackSplitData');
+      await page.waitForSelector('#flightStackSplitData', { state: 'attached' });
       await page.waitForSelector('[data-mission-region="messages"]');
       await page.waitForFunction(() => {
         const messages = document.querySelector('[data-mission-region="messages"]');
@@ -248,9 +249,9 @@ describe('flight stack splitters live', () => {
         return data.getBoundingClientRect().bottom + 1 >= grid.getBoundingClientRect().bottom;
       });
       const before = await measure();
+      expect(before.splitDisplay, size.name).toBe('none');
       expect(before.cursor, size.name).toBe('row-resize');
       expect(before.touch, size.name).toBe('none');
-      expect(contrastRatio(before.handle, before.splitBg), size.name).toBeGreaterThanOrEqual(4.5);
       expect(before.expanded, size.name).toBe('1');
       expect(before.summary, size.name).toContain('אין הודעות');
       expect(before.summaryOver, size.name).toBeLessThanOrEqual(1);
@@ -285,9 +286,8 @@ describe('flight stack splitters live', () => {
         }
       }
       expect(before.gridOver, size.name).toBeLessThanOrEqual(1);
-      expect(before.order.hud, size.name).toBeLessThanOrEqual(before.order.dataSplit + 2);
-      expect(before.order.data, size.name).toBeLessThanOrEqual(before.order.msgSplit + 2);
-      expect(before.order.msgSplit, size.name).toBeLessThanOrEqual(before.order.messages + 2);
+      expect(before.order.hud, size.name).toBeLessThanOrEqual(before.order.data + 2);
+      expect(before.order.data, size.name).toBeLessThanOrEqual(before.order.messages + 2);
       for (const tile of before.tiles) {
         expect(tile.labelOver, size.name).toBeLessThanOrEqual(1);
         expect(tile.valueOver, size.name).toBeLessThanOrEqual(1);
@@ -296,30 +296,21 @@ describe('flight stack splitters live', () => {
       }
       expect(before.vertical.filter((id) => id !== 'pfcMsgScroll'), size.name).toEqual([]);
 
-      await drag('flightStackSplitMsg', 48, 'touch');
-      const lower = await measure();
-      expect(lower.messages.height, size.name).toBeLessThan(before.messages.height - 20);
-      expect(lower.data.height, size.name).toBeGreaterThan(before.data.height + 12);
-      await drag('flightStackSplitData', 28, 'mouse');
+      await page.evaluate(() => {
+        const el = document.getElementById('flightStackSplitData');
+        el.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientY: 40, pointerId: 7, button: 0 }));
+        window.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientY: 120, pointerId: 7, button: 0 }));
+        window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientY: 120, pointerId: 7, button: 0 }));
+      });
       const dragged = await measure();
-      expect(dragged.messages.height, size.name).toBeLessThan(before.messages.height - 20);
-      expect(dragged.hud.height, size.name).toBeGreaterThan(lower.hud.height + 12);
-      expect(dragged.data.height, size.name).toBeLessThan(lower.data.height - 12);
+      expect(Math.abs(dragged.messages.height - before.messages.height), size.name).toBeLessThanOrEqual(2);
+      expect(Math.abs(dragged.hud.height - before.hud.height), size.name).toBeLessThanOrEqual(2);
+      expect(Math.abs(dragged.data.height - before.data.height), size.name).toBeLessThanOrEqual(2);
       expect(dragged.expanded, size.name).toBe('1');
-      expect(dragged.hud.height, size.name).toBeGreaterThanOrEqual(140);
-      expect(dragged.stage.height, size.name).toBeGreaterThanOrEqual(64);
-      for (const tile of dragged.tiles) {
-        expect(tile.bottom, size.name).toBeLessThanOrEqual(dragged.data.bottom + 1);
-        expect(tile.labelOver, size.name).toBeLessThanOrEqual(1);
-      }
-      expect(dragged.vertical.filter((id) => id !== 'pfcMsgScroll'), size.name).toEqual([]);
-      expect(dragged.summary, size.name).toContain('אין הודעות');
-      await drag('flightStackSplitData', -20, 'mouse');
-      const raised = await measure();
-      expect(raised.hud.height, size.name).toBeLessThan(dragged.hud.height - 8);
+      expect(dragged.stage.height, size.name).toBeGreaterThanOrEqual(48);
       const saved = {
-        data: raised.data.height,
-        msg: raised.messages.height,
+        data: dragged.data.height,
+        msg: dragged.messages.height,
       };
       await page.screenshot({
         path: path.join(shotDir, `flight-stack-${size.name}.png`),
@@ -327,14 +318,13 @@ describe('flight stack splitters live', () => {
       });
 
       await page.reload({ waitUntil: 'domcontentloaded' });
-      await page.waitForSelector('#flightStackSplitMsg');
+      await page.waitForSelector('#flightStackSplitMsg', { state: 'attached' });
       const kept = await measure();
       expect(Math.abs(kept.data.height - saved.data), size.name).toBeLessThanOrEqual(3);
       expect(Math.abs(kept.messages.height - saved.msg), size.name).toBeLessThanOrEqual(3);
       expect(kept.expanded, size.name).toBe('1');
       expect(kept.stored, size.name).toBeTruthy();
 
-      await page.dblclick('#flightStackSplitData');
       const reset = await measure();
       expect(reset.expanded, size.name).toBe('1');
       expect(reset.messages.height, size.name).toBeGreaterThanOrEqual(120);

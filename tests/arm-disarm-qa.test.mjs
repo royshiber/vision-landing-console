@@ -231,17 +231,6 @@ describe('ARM DISARM flight screen', () => {
         connected: true, armedKnown: true, armed: false, flying: false, lastHeartbeatAgeMs: 100,
       }));
       async function armPoint() {
-        await page.evaluate(() => {
-          const stage = document.getElementById('pfdHorizonStage');
-          const rect = stage.getBoundingClientRect();
-          stage.dispatchEvent(new MouseEvent('contextmenu', {
-            bubbles: true,
-            cancelable: true,
-            clientX: rect.left + 24,
-            clientY: rect.top + 24,
-          }));
-        });
-        await page.waitForSelector('#horizonCameraMenu:not([hidden])');
         const box = await page.locator('#flightArmBtn').boundingBox();
         return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
       }
