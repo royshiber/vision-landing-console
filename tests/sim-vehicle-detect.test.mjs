@@ -336,6 +336,14 @@ describe('simulator TCP port override', () => {
     });
   });
 
+  it('refuses the fixed block list even when those ports were registered', () => {
+    withEnv({ VLC_SIM_FREE_PORTS: '4010,3090,5770,8080,8081' }, () => {
+      for (const port of [4010, 3090, 5770, 8080, 8081]) {
+        expect(resolveSimulatorTcpPort(port).ok, String(port)).toBe(false);
+      }
+    });
+  });
+
   it('refuses a blocked simulator port instead of dialing the console', async () => {
     const dbPath = path.join(os.tmpdir(), `airvix-sim-block-${process.pid}-${Date.now()}.sqlite`);
     const db = openDatabase(dbPath);

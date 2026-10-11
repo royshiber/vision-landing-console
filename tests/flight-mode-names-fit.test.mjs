@@ -15,7 +15,10 @@ const viewports = [
   { name: '360x640', width: 360, height: 640 },
   { name: '360x740', width: 360, height: 740 },
   { name: '599x640', width: 599, height: 640 },
+  { name: '721x720', width: 721, height: 720 },
   { name: '800x800', width: 800, height: 800 },
+  { name: '900x800', width: 900, height: 800 },
+  { name: '980x800', width: 980, height: 800 },
   { name: '1024x576', width: 1024, height: 576 },
   { name: '1024x640', width: 1024, height: 640 },
   { name: '1280x720', width: 1280, height: 720 },
@@ -23,6 +26,7 @@ const viewports = [
   { name: '1440x900', width: 1440, height: 900 },
   { name: '1920x1080', width: 1920, height: 1080 },
 ];
+const TWO_ROW_MAX = 1280;
 
 function inside(inner, outer) {
   return inner.left >= outer.left - 1
@@ -89,9 +93,9 @@ describe('ArduPlane mode names fit on one line', () => {
             const node = document.getElementById(id);
             if (node) node.textContent = text;
           };
-          set('hudAltitude', '123.4');
+          set('hudAltitude', '1234.5');
           set('hudAirspeed', '12.4');
-          set('liveGpsVisionDelta', '3.2');
+          set('liveGpsVisionDelta', '12.3');
           set('liveConfidenceText', '86');
           set('pfdBattVal', '16.8');
           const el = document.getElementById('hudFlightMode');
@@ -103,6 +107,29 @@ describe('ArduPlane mode names fit on one line', () => {
           const tr = tile.getBoundingClientRect();
           const gr = grid.getBoundingClientRect();
           const doc = document.documentElement;
+          const boxOf = (node) => {
+            if (!node) return null;
+            const r = node.getBoundingClientRect();
+            return {
+              text: (node.textContent || '').replace(/\s+/g, ' ').trim(),
+              sw: node.scrollWidth,
+              cw: node.clientWidth,
+              sh: node.scrollHeight,
+              ch: node.clientHeight,
+              box: { left: r.left, right: r.right, top: r.top, bottom: r.bottom },
+            };
+          };
+          const tiles = [...grid.querySelectorAll('.mission-data-tile')].map((node) => {
+            const tr = node.getBoundingClientRect();
+            const pair = node.querySelector('.mission-data-pair');
+            const value = node.querySelector('.mission-data-value');
+            return {
+              label: boxOf(node.querySelector('.mission-data-label')),
+              pair: boxOf(pair),
+              value: pair ? null : boxOf(value),
+              tile: { left: tr.left, right: tr.right, top: tr.top, bottom: tr.bottom },
+            };
+          });
           const pairs = [...grid.querySelectorAll('.mission-data-pair')].map((pair) => {
             const value = pair.querySelector('.mission-data-value');
             const unit = pair.querySelector('.mission-data-unit');
@@ -114,6 +141,7 @@ describe('ArduPlane mode names fit on one line', () => {
               unit: unit?.textContent || '',
               sameLine: !unit || !unit.textContent.trim() || Math.abs(vr.top - ur.top) <= 1,
               sh: pair.scrollHeight,
+              ch: pair.clientHeight,
               line: pline,
               sw: pair.scrollWidth,
               cw: pair.clientWidth,
@@ -144,6 +172,7 @@ describe('ArduPlane mode names fit on one line', () => {
             docScroll: doc.scrollWidth - doc.clientWidth,
             gridScroll: grid.scrollWidth - grid.clientWidth,
             pairs,
+            tiles,
             confidence: confidence ? {
               sw: confidence.scrollWidth,
               cw: confidence.clientWidth,
@@ -168,17 +197,38 @@ describe('ArduPlane mode names fit on one line', () => {
         expect(inside(fit.tileBox, fit.gridBox), where).toBe(true);
         expect(fit.docScroll, where).toBeLessThanOrEqual(1);
         expect(fit.gridScroll, where).toBeLessThanOrEqual(1);
-        expect(fit.cols.split(' ')[0], where).toBe('62px');
+        const tracks = fit.cols.split(' ').filter(Boolean);
+        if (vp.width < TWO_ROW_MAX) {
+          expect(tracks, where).toHaveLength(4);
+          const widths = tracks.map((track) => Number.parseFloat(track));
+          expect(Math.max(...widths) - Math.min(...widths), where).toBeLessThanOrEqual(1);
+        } else {
+          expect(tracks[0], where).toBe('62px');
+        }
         for (const pair of fit.pairs) {
           expect(pair.sameLine, `${where} ${pair.unit}`).toBe(true);
           expect(pair.sh, `${where} ${pair.unit}`).toBeLessThanOrEqual(pair.line + 1);
+          expect(pair.sh, `${where} ${pair.unit}`).toBeLessThanOrEqual(pair.ch + 1);
           expect(pair.sw, `${where} ${pair.unit}`).toBeLessThanOrEqual(pair.cw + 1);
+        }
+        for (const tile of fit.tiles) {
+          const bits = [tile.label, tile.pair, tile.value].filter(Boolean);
+          for (const bit of bits) {
+            const name = `${where} ${bit.text}`;
+            expect(bit.sw, name).toBeLessThanOrEqual(bit.cw + 1);
+            expect(bit.sh, name).toBeLessThanOrEqual(bit.ch + 1);
+            expect(inside(bit.box, tile.tile), name).toBe(true);
+          }
         }
         if (fit.confidence) {
           expect(fit.confidence.sw, where).toBeLessThanOrEqual(fit.confidence.cw + 1);
           expect(inside(fit.confidence.box, fit.gridBox), where).toBe(true);
         }
         samples.push({ modeW: fit.modeW, neighbours: fit.neighbours });
+        if ((vp.name === '721x720' || vp.name === '800x800') && state.name === 'QSTABILIZE') {
+          const file = path.join(shots, `${vp.name}.png`);
+          await page.locator('#missionDataGrid').screenshot({ path: file });
+        }
         if (vp.name === '1024x576' && ['', 'RTL', 'LOITER_ALT_QLAND', 'AVOID_ADSB', 'INITIALISING', 'QAUTOTUNE'].includes(state.name)) {
           const file = path.join(shots, `${state.name || 'empty'}.png`);
           await page.locator('#missionDataGrid').screenshot({ path: file });
@@ -246,5 +296,5 @@ describe('ArduPlane mode names fit on one line', () => {
         });
       }
     }
-  }, 120000);
+  }, 180000);
 });
