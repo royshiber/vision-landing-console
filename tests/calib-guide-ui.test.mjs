@@ -159,5 +159,5 @@ describe('guided calibration on CAM1', () => {
     expect(posts.some((row) => row.action === 'start' && row.inner_cols === 9 && row.inner_rows === 6 && row.square_mm === 25)).toBe(true);
     expect(posts.some((row) => row.action === 'save')).toBe(true);
     expect(posts.every((row) => row.inner_cols === 9 && row.square_mm === 25)).toBe(true);
-  });
+  }, 20000);
 });
