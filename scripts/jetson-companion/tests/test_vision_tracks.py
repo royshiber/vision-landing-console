@@ -1,8 +1,11 @@
 """Tracks API: stable ids, lock, and a gimbal steer gate that does not fly."""
 
 import base64
+import inspect
 import json
 import sys
+import threading
+import time
 import unittest
 from pathlib import Path
 
@@ -13,6 +16,7 @@ import vision_tracks
 from vision_tracks import (
     ByteTracker,
     REASON_GIMBAL_ABSENT,
+    REASON_NO_MODEL,
     REASON_NO_STREAM,
     REASON_OFF,
     REASON_STEER_OFF,
@@ -399,6 +403,181 @@ class VisionTrackTests(unittest.TestCase):
         self.assertNotIn("COMMAND_LONG", text)
         self.assertNotIn("MAV_CMD", text)
         self.assertNotIn("uart", text.lower())
+        infer = inspect.getsource(vision_tracks.TensorRtYolo._infer)
+        self.assertNotIn("ctypes.data", infer)
+        self.assertIn("set_tensor_address(name, int(ptr))", infer)
+
+    def test_jpeg_array_for_cv2_is_a_writable_copy(self):
+        raw = b"\xff\xd8\xff\xd9not-a-live-mat"
+        arr = vision_tracks.writable_jpeg_array(raw)
+        self.assertTrue(arr.flags.writeable)
+        self.assertTrue(arr.flags.c_contiguous)
+        arr[0] = 0
+        self.assertEqual(raw[0], 0xFF)
+
+    def test_vision_thread_real_frames_and_no_model_stays_unavailable(self):
+        width, height, rgb, _truth = sample_frame(2)
+        jpeg = b"\xff\xd8" + rgb[:64] + b"\xff\xd9"
+        shared = {"packet": None}
+        stop = threading.Event()
+        calls = []
+
+        def produce():
+            import numpy as np
+            seq = 0
+            while not stop.is_set():
+                seq += 1
+                live = np.zeros((height, width, 3), dtype=np.uint8)
+                live[:, :] = (seq * 13) % 255
+                shared["packet"] = {
+                    "jpeg": jpeg,
+                    "rgb": rgb,
+                    "bgr": live,
+                    "width": width,
+                    "height": height,
+                    "seq": seq,
+                    "captured_at": 1_700_000_000_000 + seq * 40,
+                }
+                live[:, :] = 0
+                time.sleep(0.01)
+
+        def no_decode(*_args, **_kwargs):
+            calls.append("decode")
+            return None
+
+        original = vision_tracks._decode_jpeg
+        vision_tracks._decode_jpeg = no_decode
+        producer = threading.Thread(target=produce, name="frames", daemon=True)
+        producer.start()
+        svc = VisionTracks(
+            enabled=True,
+            camera="cam3",
+            backend="auto",
+            model_path="",
+            engine_path="",
+            gimbal_steer=False,
+            frame_source=lambda _camera: shared["packet"],
+            thread=True,
+        )
+        try:
+            deadline = time.monotonic() + 1.0
+            while shared["packet"] is None and time.monotonic() < deadline:
+                time.sleep(0.01)
+            svc._sync_thread()
+            time.sleep(0.6)
+            self.assertIsNotNone(svc._thread)
+            self.assertTrue(svc._thread.is_alive())
+            body = svc.snapshot("cam3")
+        finally:
+            svc.close()
+            stop.set()
+            producer.join(timeout=1.0)
+            vision_tracks._decode_jpeg = original
+        self.assertEqual(calls, [])
+        self.assertEqual(body["backend"], "unavailable")
+        self.assertEqual(body["backend_error"], "no_model")
+        self.assertEqual(body["tracks"], [])
+        self.assertEqual(body["reason_he"], REASON_NO_MODEL)
+        self.assertIs(body["stream"], True)
+        self.assertIs(body["gimbal_steer"]["enabled"], False)
+        self.assertIs(body["gimbal_steer"]["sent"], False)
+        self.assertIs(body["flight_commands"], False)
+        self.assertEqual(body["commands_sent"], 0)
+        self.assertEqual(self.sent, [])
+
+    def test_three_cameras_stay_at_30fps_while_detection_takes_80ms(self):
+        import numpy as np
+        from camera_ingest import RtspCapture
+
+        class Buf:
+            def __init__(self, payload):
+                self.payload = payload
+
+            def tobytes(self):
+                return self.payload
+
+        class FakeCv:
+            IMWRITE_JPEG_QUALITY = 1
+
+            def imencode(self, _ext, _frame, _params):
+                return True, Buf(b"\xff\xd8\xff\xd9")
+
+        class PaceCap:
+            def __init__(self):
+                self.times = []
+                self._next = time.perf_counter()
+                self._mu = threading.Lock()
+
+            def grab(self):
+                delay = self._next - time.perf_counter()
+                if delay > 0:
+                    time.sleep(delay)
+                stamp = time.perf_counter()
+                self._next = stamp + (1.0 / 30.0)
+                with self._mu:
+                    self.times.append(stamp)
+                return True
+
+            def retrieve(self):
+                return True, np.zeros((4, 4, 3), dtype=np.uint8)
+
+            def release(self):
+                return None
+
+        class Slow:
+            def __init__(self):
+                self.calls = 0
+
+            def detect(self, _width, _height, _rgb):
+                self.calls += 1
+                with vision_tracks._infer_lock():
+                    time.sleep(0.08)
+                return []
+
+        caps = [PaceCap() for _ in range(3)]
+        streams = [
+            RtspCapture(
+                cap, FakeCv(),
+                transport="udp", decoder="test", pipeline="test",
+                width=4, height=4, quality=80, codec="jpeg", backend="test",
+            )
+            for cap in caps
+        ]
+        slow = Slow()
+
+        def source(_camera):
+            count = len(caps[0].times)
+            if count <= 0:
+                return None
+            return {
+                "rgb": bytes(4 * 4 * 3),
+                "width": 4,
+                "height": 4,
+                "seq": count,
+                "jpeg": b"\xff\xd8\xff\xd9",
+            }
+
+        svc = VisionTracks(enabled=True, camera="cam3", backend="opencv", thread=False)
+        svc.backend = "opencv"
+        svc.detector = slow
+        svc.backend_error = None
+        svc.frame_source = source
+        svc.thread_allowed = True
+        svc._sync_thread()
+        try:
+            time.sleep(1.6)
+        finally:
+            svc.close()
+            for stream in streams:
+                stream.release()
+                stream._pull_thread.join(timeout=1.0)
+                stream._encode_thread.join(timeout=1.0)
+        self.assertGreaterEqual(slow.calls, 8, slow.calls)
+        for cap in caps:
+            self.assertGreaterEqual(len(cap.times), 3)
+            span = cap.times[-1] - cap.times[0]
+            fps = (len(cap.times) - 1) / span
+            self.assertGreaterEqual(fps, 27.0, fps)
 
 
 if __name__ == "__main__":

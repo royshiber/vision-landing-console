@@ -149,7 +149,34 @@ Rollback: put the 2.3.9 agent files back and remove `/etc/sudoers.d/airvix-uplin
 
 Detection is off until a config call or `VLC_VISION_DETECT=1` together with `VLC_VISION_CAMERA` (`cam0` front, `cam1` down, `cam3` gimbal). `GET /api/v1/vision/tracks?camera=cam3` returns `id`, `class`, `label_he`, `confidence`, `bbox`, and `age`. There is no vision event stream on this agent, so the console polls.
 
-`VLC_VISION_BACKEND=auto` uses TensorRT when `VLC_VISION_ENGINE` points at an engine and `tensorrt` imports. Otherwise it uses ONNX when `VLC_VISION_MODEL` points at a model and `onnxruntime` imports. Without a model the tracks stay empty and the reason is אין מודל זיהוי. `VLC_VISION_BACKEND=cpu` is the color-blob detector for the sample fixture and the sim. It does not run unless asked.
+`VLC_VISION_BACKEND=auto` uses TensorRT when `VLC_VISION_ENGINE` points at an engine, `tensorrt` imports, and a CUDA device buffer can be allocated (`cuda-python` if it is already present, otherwise the JetPack `libcudart`). Host memory is not bound as a TensorRT tensor. Otherwise it uses `cv2.dnn` on the ONNX file at `VLC_VISION_MODEL`. CUDA FP16 is selected only when that OpenCV build reports CUDA and cuDNN. `onnxruntime` is used only when it is already importable and the OpenCV path did not load. Without a model the tracks stay empty, the backend is `unavailable`, and the reason is אין מודל זיהוי. That path does not call into OpenCV. `VLC_VISION_BACKEND=cpu` is the color-blob detector for the sample fixture and the sim. It does not run unless asked.
+
+No pip package is added to `/home/royshiber/mavlink-env`. `requirements-vision.txt` lists none. The venv already has numpy and cv2.
+
+Provision the official Ultralytics YOLOv8n COCO ONNX (assets `v8.4.0`, sha256 pinned in the script) and build a TensorRT FP16 engine with the system `trtexec`. On the Jetson:
+
+```
+bash scripts/jetson-companion/provision_vision_model.sh
+```
+
+That writes `/home/royshiber/vlc-companion/models/yolov8n.onnx` and `yolov8n_fp16.engine`. Point the service at them and leave gimbal steering off:
+
+```
+VLC_VISION_DETECT=1
+VLC_VISION_CAMERA=cam3
+VLC_VISION_BACKEND=auto
+VLC_VISION_MODEL=/home/royshiber/vlc-companion/models/yolov8n.onnx
+VLC_VISION_ENGINE=/home/royshiber/vlc-companion/models/yolov8n_fp16.engine
+VLC_VISION_GIMBAL_STEER=0
+```
+
+Deploy from a checkout on the Jetson. The script stops on any error, copies the live tree to a directory `royshiber` can write, checks that backup, restarts `airvix-companion`, and calls `/api/health` with `X-Companion-Token`. If the service crashes or restarts within 30 seconds, the backup is restored.
+
+```
+sudo bash scripts/jetson-companion/install.sh --apply
+```
+
+`VLC_COMPANION_TOKEN` is the health-check header value. It is not printed.
 
 `POST /api/v1/vision/lock` with `{"camera":"cam3","id":1}` stores the target. `{"action":"next"}` and `{"action":"unlock"}` switch or clear it. `VLC_VISION_GIMBAL_STEER` defaults off. Steering sends a gimbal rate only when that switch is on, a box is locked, the gimbal answers, and gimbal control is enabled. It never sends a flight-controller command. With the gimbal unplugged the rate is not sent.
 

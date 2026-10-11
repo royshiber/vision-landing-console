@@ -1,0 +1,19 @@
+# Vision runtime for the Jetson companion.
+# This file lists no packages. Do not pip install it into
+# /home/royshiber/mavlink-env.
+#
+# Already in that venv and used as-is:
+#   numpy
+#   cv2 (OpenCV 5), including cv2.dnn
+#
+# Not required, and not installed by install.sh:
+#   onnxruntime
+#   tensorrt
+#   cuda-python
+#
+# The ONNX file is the official Ultralytics YOLOv8n COCO export.
+# provision_vision_model.sh downloads it and builds a TensorRT FP16
+# engine with the system trtexec (JetPack R39). Inference uses cv2.dnn
+# on that ONNX file. The engine is used only when the tensorrt module
+# is already importable and libcudart can allocate device buffers.
+# Host pointers are never passed to TensorRT.

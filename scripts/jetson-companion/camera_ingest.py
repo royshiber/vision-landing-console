@@ -667,6 +667,62 @@ def apply_usb_pixel_format(cap, width, height, fps):
     return chosen
 
 
+# Capture-side cv2 only. Held across retrieve and the copy off a live Mat,
+# never across a grab that waits for the next frame. Inference has its own
+# lock in vision_tracks so an 80ms detect cannot stall the cameras.
+CV2_LOCK = threading.Lock()
+
+
+def own_pixels(frame):
+    """A numpy-owned copy of a capture buffer.
+
+    cap.read / cap.retrieve hand back storage the next grab frees. Another
+    thread dropping that object, or calling cv2 on it, segfaults under
+    numpy 2 and cv2 5. Bytes are already owned and are only copied.
+    """
+    if frame is None:
+        return None
+    if isinstance(frame, (bytes, bytearray)):
+        return bytes(frame)
+    try:
+        import numpy as np
+    except ImportError:
+        return None
+    try:
+        arr = np.asarray(frame)
+    except Exception:
+        return None
+    if getattr(arr, "ndim", 0) < 2 or int(getattr(arr, "size", 0) or 0) == 0:
+        return None
+    try:
+        return np.array(arr, dtype=np.uint8, copy=True, order="C")
+    except Exception:
+        return None
+
+
+def sanitize_bus_packet(packet):
+    """Drop any live Mat before the packet is visible to another thread.
+
+    An array already marked bgr_owned was copied on the capture thread.
+    Publishing it again would copy every frame a second time.
+    """
+    if not isinstance(packet, dict):
+        return packet
+    out = dict(packet)
+    if out.get("bgr") is not None and out.get("bgr_owned") is not True:
+        owned = own_pixels(out.get("bgr"))
+        if owned is None:
+            out.pop("bgr", None)
+            out.pop("bgr_owned", None)
+        else:
+            out["bgr"] = owned
+            out["bgr_owned"] = True
+    jpeg = out.get("jpeg")
+    if isinstance(jpeg, bytearray):
+        out["jpeg"] = bytes(jpeg)
+    return out
+
+
 def _try_cv2():
     try:
         import cv2  # optional; not required at import time
@@ -695,13 +751,42 @@ class CvCapture:
         self.released = False
 
     def read_frame(self):
-        ok, frame = self.cap.read()
-        if not ok or frame is None:
+        grab = getattr(self.cap, "grab", None)
+        retrieve = getattr(self.cap, "retrieve", None)
+        frame = None
+        if callable(grab) and callable(retrieve):
+            try:
+                grabbed = bool(grab())
+            except Exception:
+                return None
+            if not grabbed:
+                return None
+            with CV2_LOCK:
+                try:
+                    ok, frame = retrieve()
+                except Exception:
+                    return None
+                if not ok or frame is None:
+                    return None
+                owned = own_pixels(frame)
+                frame = None
+        else:
+            try:
+                ok, frame = self.cap.read()
+            except Exception:
+                return None
+            if not ok or frame is None:
+                return None
+            owned = own_pixels(frame)
+            frame = None
+        if owned is None:
             return None
-        ok_jpg, buf = self.cv2.imencode(".jpg", frame, [int(self.cv2.IMWRITE_JPEG_QUALITY), 80])
-        if not ok_jpg:
-            return None
-        return {"jpeg": buf.tobytes(), "bgr": frame}
+        with CV2_LOCK:
+            ok_jpg, buf = self.cv2.imencode(".jpg", owned, [int(self.cv2.IMWRITE_JPEG_QUALITY), 80])
+            if not ok_jpg:
+                return None
+            jpeg = buf.tobytes()
+        return {"jpeg": jpeg, "bgr": owned, "bgr_owned": True}
 
     def release(self):
         if self.released:
@@ -761,23 +846,37 @@ class RtspCapture:
             if cap is None:
                 return
             t_grab = time.perf_counter()
+            owned = None
             try:
-                grabbed = bool(cap.grab())
+                try:
+                    grabbed = bool(cap.grab())
+                except Exception:
+                    grabbed = False
+                t_got = time.perf_counter()
+                if grabbed:
+                    with CV2_LOCK:
+                        try:
+                            ok, frame = cap.retrieve()
+                        except Exception:
+                            ok, frame = False, None
+                        t_ret = time.perf_counter()
+                        if ok and frame is not None:
+                            owned = own_pixels(frame)
+                        frame = None
+                else:
+                    t_ret = t_got
             except Exception:
                 grabbed = False
-            t_got = time.perf_counter()
+                owned = None
+                t_got = time.perf_counter()
+                t_ret = t_got
             if not grabbed:
                 if self._mark_idle():
                     return
                 if self._stop.wait(0.02):
                     return
                 continue
-            try:
-                ok, frame = cap.retrieve()
-            except Exception:
-                ok, frame = False, None
-            t_ret = time.perf_counter()
-            if not ok or frame is None:
+            if owned is None:
                 if self._mark_idle():
                     return
                 continue
@@ -785,7 +884,7 @@ class RtspCapture:
             decode_ms = max(0.0, (t_ret - t_got) * 1000.0)
             # grab() waits for the next sample. That wait is not decode time.
             _ = t_grab
-            self.shelf.note_decoded(frame, time.time_ns(), time.monotonic_ns(), decode_ms)
+            self.shelf.note_decoded(owned, time.time_ns(), time.monotonic_ns(), decode_ms)
             self._wake.set()
 
     def _encode(self):
@@ -800,7 +899,8 @@ class RtspCapture:
                 if isinstance(payload, (bytes, bytearray)):
                     jpeg, enc_ms = bytes(payload), 0.0
                 else:
-                    jpeg, enc_ms = _encode_bgr(self.cv2, payload, self.width, self.height, self.quality)
+                    with CV2_LOCK:
+                        jpeg, enc_ms = _encode_bgr(self.cv2, payload, self.width, self.height, self.quality)
             except Exception:
                 continue
             if not jpeg:
@@ -1082,6 +1182,7 @@ class FrameBus:
         self._lock = threading.Lock()
 
     def publish(self, cam_id, packet):
+        packet = sanitize_bus_packet(packet)
         with self._lock:
             self._latest[cam_id] = packet
             subs = list(self._subs)
@@ -1419,7 +1520,7 @@ class SlotSupervisor:
             count = self.frame_count
             resolved = self.resolved
         if self.bus is not None:
-            self.bus.publish(self.cam_id, {
+            packet = {
                 "cam_id": self.cam_id,
                 "jpeg": jpeg,
                 "bgr": bgr,
@@ -1430,7 +1531,10 @@ class SlotSupervisor:
                 "monotonic": now,
                 "device": resolved,
                 "role": self.role,
-            })
+            }
+            if bgr is not None and timing.get("bgr_owned") is True:
+                packet["bgr_owned"] = True
+            self.bus.publish(self.cam_id, packet)
 
     def _drop_live_frame(self):
         with self.lock:
