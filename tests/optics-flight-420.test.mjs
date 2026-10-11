@@ -250,9 +250,11 @@ describe('optics menu stays off the picture', () => {
         const el = document.getElementById(id);
         const box = el.getBoundingClientRect();
         const cs = getComputedStyle(el);
+        const shown = el.querySelector('.horizon-quick-label')?.textContent || '';
         return {
           label: el.getAttribute('aria-label'),
           tip: el.title,
+          shown,
           top: Math.round(box.top),
           width: box.width,
           height: box.height,
@@ -262,6 +264,8 @@ describe('optics menu stays off the picture', () => {
         };
       };
       const arm = document.getElementById('flightArmBtn').getBoundingClientRect();
+      const badge = document.getElementById('pfdArmedBadge').getBoundingClientRect();
+      const alt = document.querySelector('.pfd-side-tape--right').getBoundingClientRect();
       const canvas = document.getElementById('horizonCanvas').getBoundingClientRect();
       const quick = document.getElementById('horizonQuick').getBoundingClientRect();
       const tapes = [...document.querySelectorAll('.pfd-side-tape')].map((el) => el.getBoundingClientRect());
@@ -270,6 +274,9 @@ describe('optics menu stays off the picture', () => {
         const overlapH = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
         return overlapW > 1 && overlapH > 1;
       };
+      const dx = Math.max(badge.left - alt.right, alt.left - badge.right);
+      const dy = Math.max(badge.top - alt.bottom, alt.top - badge.bottom);
+      const altGap = dx < 0 && dy < 0 ? -1 : dx < 0 ? dy : dy < 0 ? dx : Math.hypot(dx, dy);
       return {
         arm: boxOf('flightArmBtn'),
         disarm: boxOf('flightDisarmBtn'),
@@ -277,13 +284,19 @@ describe('optics menu stays off the picture', () => {
         voice: boxOf('pfdVoiceFlightBtn'),
         hitsTape: tapes.some((tape) => hits(arm, tape)),
         hitsPicture: hits(quick, canvas),
+        altGap,
       };
     });
     expect(face.arm.label).toBe('חימוש');
+    expect(face.arm.shown).toBe('חימוש');
     expect(face.disarm.label).toBe('ניטרול');
     expect(face.disarm.tip).toBe('ניטרול');
+    expect(face.disarm.shown).toBe('ניטרול');
     expect(face.badge.label).toBe('מנוטרל');
     expect(face.badge.tip).toBe('מנוטרל');
+    expect(face.badge.shown).toBe('מנוטרל');
+    expect(face.voice.shown).toBe('פקודות');
+    expect(face.altGap).toBeGreaterThanOrEqual(4);
     expect(face.arm.width).toBeGreaterThanOrEqual(44);
     expect(face.arm.height).toBeGreaterThanOrEqual(32);
     expect(face.disarm.width).toBeGreaterThanOrEqual(44);

@@ -8213,9 +8213,10 @@ function initHorizonCameraMenu() {
       pfdVoiceFlightBtn: 'פקודות',
     };
     const quickIcon = {
-      flightArmBtn: '<circle cx="12" cy="12" r="7" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="2.4" fill="currentColor"/>',
-      flightDisarmBtn: '<circle cx="12" cy="12" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 12h8" stroke="currentColor" stroke-width="2"/>',
-      pfdVoiceFlightBtn: '<path d="M8 10.5v3h2.8L15 16.5v-9L10.8 10.5H8z" fill="currentColor"/>',
+      pfdArmedBadge: '<circle cx="12" cy="12" r="5" fill="currentColor"/>',
+      flightArmBtn: '<path d="M12 3.5v6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M8 8.5a5.5 5.5 0 1 0 8 0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
+      flightDisarmBtn: '<rect x="6" y="6" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M9 12h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
+      pfdVoiceFlightBtn: '<rect x="10" y="3.5" width="4" height="9" rx="2" fill="currentColor"/><path d="M7.5 11a4.5 4.5 0 0 0 9 0" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 15.5V19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
     };
     for (const id of ['pfdArmedBadge', 'flightArmBtn', 'flightDisarmBtn', 'pfdVoiceFlightBtn']) {
       const btn = document.getElementById(id);
@@ -8223,17 +8224,18 @@ function initHorizonCameraMenu() {
       quick.appendChild(btn);
       const label = quickLabel[id];
       btn.setAttribute('aria-label', label);
-      if (id === 'flightDisarmBtn') btn.title = label;
-      if (!quickIcon[id]) continue;
+      if (id === 'flightDisarmBtn' || !btn.title) btn.title = label;
       btn.replaceChildren();
       const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
       icon.setAttribute('viewBox', '0 0 24 24');
       icon.setAttribute('aria-hidden', 'true');
       icon.classList.add('horizon-quick-icon');
       icon.innerHTML = quickIcon[id];
-      btn.appendChild(icon);
+      const name = document.createElement('span');
+      name.className = 'horizon-quick-label';
+      name.textContent = label;
+      btn.append(icon, name);
     }
-    stage.parentElement?.insertBefore(quick, stage);
   }
   syncHorizonMenuState();
   document.body.appendChild(menu);
@@ -9374,23 +9376,44 @@ function applyFlightHud(mav) {
 
   // Armed / mode (top bar)
   const armed = !!mav.armed;
+  const paintHorizonBadgeWord = (word) => {
+    pfdArmedBadge.hidden = false;
+    pfdArmedBadge.title = word;
+    if (typeof pfdArmedBadge.setAttribute === 'function') pfdArmedBadge.setAttribute('aria-label', word);
+    const existing = typeof pfdArmedBadge.querySelector === 'function'
+      ? pfdArmedBadge.querySelector('.horizon-quick-label')
+      : null;
+    if (existing) {
+      existing.textContent = word;
+      return;
+    }
+    const canRebuild = typeof document !== 'undefined'
+      && typeof document.createElementNS === 'function'
+      && typeof pfdArmedBadge.replaceChildren === 'function';
+    if (!canRebuild) {
+      pfdArmedBadge.textContent = word;
+      return;
+    }
+    const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    icon.setAttribute('viewBox', '0 0 24 24');
+    icon.setAttribute('aria-hidden', 'true');
+    icon.classList.add('horizon-quick-icon');
+    icon.innerHTML = '<circle cx="12" cy="12" r="5" fill="currentColor"/>';
+    const name = document.createElement('span');
+    name.className = 'horizon-quick-label';
+    name.textContent = word;
+    pfdArmedBadge.replaceChildren(icon, name);
+  };
   if (pfdArmedBadge) {
     if (!mav.connected) {
       pfdArmedBadge.hidden = true;
-      pfdArmedBadge.textContent = '';
     } else if (!mav.armedKnown) {
-      pfdArmedBadge.hidden = false;
-      pfdArmedBadge.textContent = '?';
-      pfdArmedBadge.className   = 'pfd-badge pfd-badge--unknown';
-      pfdArmedBadge.title       = 'חימוש ?';
-      if (typeof pfdArmedBadge.setAttribute === 'function') pfdArmedBadge.setAttribute('aria-label', 'חימוש ?');
+      pfdArmedBadge.className = 'pfd-badge pfd-badge--unknown';
+      paintHorizonBadgeWord('חימוש ?');
     } else {
       const armedWord = armed ? 'חמוש' : 'מנוטרל';
-      pfdArmedBadge.hidden = false;
-      pfdArmedBadge.textContent = armed ? '●' : '○';
-      pfdArmedBadge.className   = 'pfd-badge ' + (armed ? 'pfd-badge--armed' : 'pfd-badge--disarmed');
-      pfdArmedBadge.title       = armedWord;
-      if (typeof pfdArmedBadge.setAttribute === 'function') pfdArmedBadge.setAttribute('aria-label', armedWord);
+      pfdArmedBadge.className = 'pfd-badge ' + (armed ? 'pfd-badge--armed' : 'pfd-badge--disarmed');
+      paintHorizonBadgeWord(armedWord);
     }
   }
   syncFlightArmControls(mav);
