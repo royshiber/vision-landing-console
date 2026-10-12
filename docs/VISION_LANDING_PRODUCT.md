@@ -334,14 +334,20 @@ Each experiment is a **product chapter**. A later chapter needs its own Human Ga
 - Still no ARM, LAND, SET_MODE, assist-steer, or auto site commit.
 - Debrief should be able to replay what was advised vs what the PIC did.
 
-### Exp#3 — Gated assist (future GO)
+### Exp#3 — Gated assist
 
-- Requires an explicit Human Gate before any steer help exists in product.
-- PIC remains in command.
-- Assist is bounded (what axis, what authority, what abort).
-- **Lost lock → abort assist.**
-- LAND-by-vision still not silent and still not implied by assist.
-- Implementation only after Roy GO for this chapter.
+SITL lateral stage, implemented. A live vehicle is still a Human Gate.
+
+- The console may correct lateral offset and heading toward the centerline.
+- Altitude and speed stay with ArduPlane.
+- It runs only on final: the last mission item is NAV_LAND and the current waypoint is the approach or the land item, or the operator arms it from the console.
+- Runway confidence must hold, default 70 percent, for the configured dwell, inside the altitude and distance envelope.
+- Commands leave only when the vehicle is SITL. Level 4 stays locked.
+- Lost runway or low confidence releases the override once.
+- A hazard, or a large lateral error below the minimum altitude, sends one go-around.
+- A mode change or a pilot stick movement cancels immediately.
+- The tiles show ממתין, פעיל, שוחרר, or גו-אראונד.
+- This is not full auto land. Connecting a live vehicle remains a Human Gate.
 
 ### Exp#4 — Full vision land (future GO)
 
@@ -360,6 +366,7 @@ There is no Exp#5 in this document. Do not invent one to skip a gate.
 | Date | Decision | Meaning |
 |---|---|---|
 | 2026-09-13 | `vision_doc_only` | Write the living product vision first. No implementation in that change |
+| 2026-10-12 | SITL lateral stage | Vision may steer roll on final in SITL only. Level 4 and live vehicles stay locked |
 | 2026-08-25 | Companion BOTH gate on master | Real Companion needs mode **and** URL. Unrelated to landing GO |
 | Existing | Issue #28 / #29 | Apply/restart and flight commands stay WAITING FOR ROY |
 

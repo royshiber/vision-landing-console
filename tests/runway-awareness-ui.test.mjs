@@ -6,6 +6,7 @@ import { afterAll, describe, expect, it } from 'vitest';
 import os from 'node:os';
 import path from 'node:path';
 import { startTestServer } from './test-server.mjs';
+import { collectTextFitFailures } from './text-fit-audit.mjs';
 
 const AWARENESS = {
   ok: true,
@@ -22,6 +23,7 @@ const AWARENESS = {
   },
   hazards: [{ kind: 'person', label_he: 'אדם', confidence: 0.91, bbox: [40, 40, 20, 30] }],
   adviceHe: 'יש אדם על המסלול. מומלץ ללכת סביב.',
+  vision: { state: 'go_around', labelHe: 'גו-אראונד', manualArm: false },
 };
 
 describe('runway awareness layout', () => {
@@ -47,6 +49,14 @@ describe('runway awareness layout', () => {
     const { chromium } = await import('playwright');
     browser = await chromium.launch({ headless: true });
     page = await browser.newPage({ viewport: { width: 1024, height: 470 } });
+    await page.route('**/api/runway/vision-arm', (route) => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ...AWARENESS,
+        vision: { state: 'waiting', labelHe: 'ממתין', manualArm: true },
+      }),
+    }));
     await page.route('**/api/runway/awareness**', (route) => route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -90,8 +100,44 @@ describe('runway awareness layout', () => {
     expect(fit.mode).toBe('2');
     expect(fit.runwayLevel).toBe(false);
     expect(fit.runwayLane).toBe(false);
+    expect(await page.locator('#runwayVisionStateWord').innerText()).toBe('גו-אראונד');
+
+    const armed = page.waitForRequest((req) => req.url().includes('/api/runway/vision-arm') && req.method() === 'POST');
+    await page.locator('#runwayVisionArm').click();
+    expect((await armed).postDataJSON()).toEqual({ arm: true });
 
     for (const [width, height] of [[1024, 470], [1366, 630], [1536, 730]]) {
+      await page.setViewportSize({ width, height });
+      const placed = await page.evaluate(async (words) => {
+        const stage = document.getElementById('pfdHorizonStage');
+        const tiles = document.getElementById('runwayAwarenessTiles');
+        const word = document.getElementById('runwayVisionStateWord');
+        const stageBox = stage.getBoundingClientRect();
+        const rows = [];
+        for (const value of words) {
+          word.textContent = value;
+          const box = word.getBoundingClientRect();
+          rows.push({
+            value,
+            inside: box.width > 0
+              && box.left >= stageBox.left - 1
+              && box.right <= stageBox.right + 1
+              && box.top >= stageBox.top - 1
+              && box.bottom <= stageBox.bottom + 1
+              && tiles.contains(word),
+          });
+        }
+        word.textContent = 'גו-אראונד';
+        return rows;
+      }, ['ממתין', 'פעיל', 'שוחרר', 'גו-אראונד']);
+      for (const row of placed) {
+        expect(row.inside, `${width}x${height} ${row.value}`).toBe(true);
+      }
+      if (width !== 1536) {
+        const fitReport = await page.evaluate(collectTextFitFailures, 1);
+        const runway = (fitReport.fails || []).filter((row) => /runway/i.test(`${row.who} ${row.text}`));
+        expect(runway, `${width}x${height}`).toEqual([]);
+      }
       await page.setViewportSize({ width, height });
       const point = await page.locator('#pfdHorizonStage').evaluate((el) => {
         const rect = el.getBoundingClientRect();

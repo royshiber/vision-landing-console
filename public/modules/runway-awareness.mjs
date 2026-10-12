@@ -89,6 +89,21 @@ function paintTiles(doc, status) {
     alert.hidden = !text;
     alert.textContent = text;
   }
+  const state = doc.getElementById('runwayVisionState');
+  const word = doc.getElementById('runwayVisionStateWord');
+  const arm = doc.getElementById('runwayVisionArm');
+  const label = on ? String(status?.vision?.labelHe || 'ממתין') : '';
+  if (state) {
+    state.hidden = !on;
+    state.dataset.visionState = String(status?.vision?.state || 'waiting');
+  }
+  if (word) word.textContent = label;
+  if (arm) {
+    const armed = status?.vision?.manualArm === true;
+    arm.hidden = !on;
+    arm.textContent = armed ? 'בטל' : 'ידני';
+    arm.setAttribute('aria-pressed', armed ? 'true' : 'false');
+  }
 }
 
 function mapPoint(point, fit, frameW, frameH) {
@@ -217,6 +232,16 @@ function horizonCamera(doc) {
   return id === 'cam1' || id === 'cam2' || id === 'cam3' ? id : '';
 }
 
+async function postLevelArm(arm) {
+  const res = await fetch('/api/runway/vision-arm', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ arm: arm === true }),
+  });
+  const data = await res.json().catch(() => ({}));
+  return { ok: res.ok && data.ok !== false, data };
+}
+
 async function postLevel(body) {
   const res = await fetch(LEVEL_URL, {
     method: 'POST',
@@ -339,6 +364,27 @@ function ensureChrome(doc) {
     tiles.id = 'runwayAwarenessTiles';
     tiles.hidden = true;
     tiles.dir = 'rtl';
+    const state = el(doc, 'div', 'runway-awareness-state');
+    state.id = 'runwayVisionState';
+    state.hidden = true;
+    const stateKey = el(doc, 'span', 'runway-awareness-k');
+    stateKey.textContent = 'מצב';
+    const stateWord = el(doc, 'strong', 'runway-awareness-v');
+    stateWord.id = 'runwayVisionStateWord';
+    stateWord.textContent = 'ממתין';
+    const arm = el(doc, 'button', 'runway-awareness-arm');
+    arm.type = 'button';
+    arm.id = 'runwayVisionArm';
+    arm.textContent = 'ידני';
+    arm.addEventListener('click', async (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const armed = arm.getAttribute('aria-pressed') === 'true';
+      const { data } = await postLevelArm(!armed);
+      paint(doc, data);
+    });
+    state.append(stateKey, stateWord, arm);
+    tiles.append(state);
     for (const [id, label, valueId] of [
       ['offset', 'סטייה', 'runwayOffsetValue'],
       ['heading', 'כיוון', 'runwayHeadingValue'],

@@ -25,6 +25,29 @@ const STRIP = {
   hazards: [],
 };
 
+function approachVehicle(overrides = {}) {
+  return {
+    simulator: true,
+    connected: true,
+    customMode: 10,
+    altAglM: 40,
+    distToLandM: 600,
+    lat: 32.02,
+    lon: 34.82,
+    missionCurrent: 2,
+    missionItems: [
+      { seq: 1, command: 16, lat: 32.03, lon: 34.83 },
+      { seq: 2, command: 16, lat: 32.015, lon: 34.815 },
+      { seq: 3, command: 21, lat: 32.01, lon: 34.81 },
+    ],
+    rcChannels: {
+      chan1_raw: 1500, chan2_raw: 1500, chan3_raw: 1500, chan4_raw: 1500,
+      chan5_raw: 1500, chan6_raw: 1500, chan7_raw: 1500, chan8_raw: 1500,
+    },
+    ...overrides,
+  };
+}
+
 function listen(app) {
   return new Promise((resolve) => {
     const server = app.listen(0, '127.0.0.1', () => resolve(server));
@@ -109,6 +132,7 @@ describe('runway awareness SITL command gate', () => {
     const calls = [];
     const controller = createRunwayController({
       env: {},
+      limits: { holdMs: 0 },
       link: { sendGuidance(cmd) { calls.push(cmd); return { sent: true }; } },
     });
     const server = await listen(appFor(controller));
@@ -127,11 +151,20 @@ describe('runway awareness SITL command gate', () => {
     expect(blocked.sentNow).toBe(0);
     expect(blocked.decision.reason).toBe('not_sitl');
 
-    const sent = controller.tick({
+    const idle = controller.tick({
       estimate: STRIP,
       vehicle: { simulator: true, connected: true },
     });
+    expect(idle.sentNow).toBe(0);
+    expect(idle.vision.labelHe).toBe('ממתין');
+    expect(calls).toEqual([]);
+
+    const sent = controller.tick({
+      estimate: STRIP,
+      vehicle: approachVehicle(),
+    });
     expect(sent.sentNow).toBe(1);
+    expect(sent.vision.labelHe).toBe('פעיל');
     expect(calls).toHaveLength(1);
     expect(calls[0].kind).toBe('ROLL_OVERRIDE');
     expect(calls[0].rollPwm).toBeGreaterThanOrEqual(1100);
@@ -139,27 +172,27 @@ describe('runway awareness SITL command gate', () => {
 
     const hazard = controller.tick({
       estimate: { ...STRIP, hazards: [{ kind: 'person', label_he: 'אדם' }] },
-      vehicle: { simulator: true, connected: true },
+      vehicle: approachVehicle(),
     });
     expect(hazard.decision.reason).toBe('hazard');
-    expect(hazard.sentNow).toBe(1);
-    expect(calls).toHaveLength(2);
-    expect(calls[1].release).toBe(true);
-    expect(calls[1].rollPwm).toBe(0);
+    expect(hazard.vision.labelHe).toBe('גו-אראונד');
+    expect(calls.filter((cmd) => cmd.release)).toHaveLength(1);
+    expect(calls.filter((cmd) => cmd.kind === 'GO_AROUND')).toHaveLength(1);
     controller.tick({
       estimate: { ...STRIP, hazards: [{ kind: 'person', label_he: 'אדם' }] },
-      vehicle: { simulator: true, connected: true },
+      vehicle: approachVehicle(),
     });
-    expect(calls).toHaveLength(2);
+    expect(calls.filter((cmd) => cmd.kind === 'GO_AROUND')).toHaveLength(1);
   });
 
   it('releases the override once when the level drops or the link drops, and never off SITL', async () => {
     const calls = [];
     const controller = createRunwayController({
       env: {},
+      limits: { holdMs: 0 },
       link: { sendGuidance(cmd) { calls.push(cmd); return { sent: true }; } },
     });
-    const sitl = { simulator: true, connected: true };
+    const sitl = approachVehicle();
     controller.setLevel({ level: 3 });
     controller.tick({ estimate: STRIP, vehicle: sitl });
     expect(calls).toHaveLength(1);
@@ -185,7 +218,7 @@ describe('runway awareness SITL command gate', () => {
     controller.tick({ estimate: STRIP, vehicle: sitl });
     const lost = controller.tick({
       estimate: STRIP,
-      vehicle: { simulator: true, connected: false },
+      vehicle: approachVehicle({ connected: false }),
     });
     expect(lost.sentNow).toBe(1);
     expect(calls.at(-1)).toMatchObject({ release: true, rollPwm: 0 });
@@ -216,6 +249,7 @@ describe('runway awareness SITL command gate', () => {
     const calls = [];
     const controller = createRunwayController({
       env: { VLC_RUNWAY_LEVEL4_UNLOCK: '1' },
+      limits: { holdMs: 0 },
       link: { sendGuidance(cmd) { calls.push(cmd); return { sent: true }; } },
     });
     const server = await listen(appFor(controller));
@@ -235,7 +269,7 @@ describe('runway awareness SITL command gate', () => {
     expect(calls).toEqual([]);
     const onSim = controller.tick({
       estimate: STRIP,
-      vehicle: { simulator: true, connected: true },
+      vehicle: approachVehicle(),
     });
     expect(onSim.sentNow).toBe(1);
     expect(calls).toHaveLength(1);
