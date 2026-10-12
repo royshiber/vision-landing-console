@@ -8176,13 +8176,8 @@ function initHorizonCameraMenu() {
       const btn = document.getElementById(id);
       if (!btn) continue;
       btn.setAttribute('aria-pressed', on ? 'true' : 'false');
-      let state = btn.querySelector('.horizon-menu-state');
-      if (!state) {
-        state = document.createElement('span');
-        state.className = 'horizon-menu-state';
-        btn.append(state);
-      }
-      state.textContent = on ? 'פועל' : 'כבוי';
+      btn.classList.toggle('is-selected', on);
+      btn.querySelector('.horizon-menu-state')?.remove();
     }
   }
   const cameraGroup = document.createElement('div');
