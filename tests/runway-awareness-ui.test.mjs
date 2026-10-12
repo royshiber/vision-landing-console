@@ -50,7 +50,7 @@ describe('runway awareness layout', () => {
     browser = await chromium.launch({ headless: true });
     page = await browser.newPage({ viewport: { width: 1024, height: 470 } });
     let armedNow = false;
-    const armedVision = { state: 'active', labelHe: 'פעיל', manualArm: true };
+    const armedVision = { state: 'active', labelHe: 'פעיל', manualArm: true, takeoverCh: 7 };
     await page.route('**/api/runway/vision-arm', (route) => {
       armedNow = true;
       return route.fulfill({
@@ -68,6 +68,7 @@ describe('runway awareness layout', () => {
       }),
     }));
     await page.goto(started.base, { waitUntil: 'domcontentloaded' });
+    await page.evaluate(() => document.fonts.ready);
     await page.locator('.tab[data-tab="terrain"]').click();
     await page.waitForFunction(() => {
       const tiles = document.getElementById('runwayAwarenessTiles');
@@ -106,13 +107,27 @@ describe('runway awareness layout', () => {
     expect(await page.locator('#runwayVisionStateWord').innerText()).toBe('סבוב מחדש');
     expect(await page.locator('#runwayVisionArm').innerText()).toBe('חימוש ידני');
     expect(await page.locator('#runwayVisionHold').isHidden()).toBe(true);
+    expect(await page.locator('#runwayVisionTakeover').isHidden()).toBe(true);
 
+    const armHit = await page.locator('#runwayVisionArm').evaluate((el) => {
+      const box = el.getBoundingClientRect();
+      const x = box.left + box.width / 2;
+      const y = box.top + box.height / 2;
+      const hit = document.elementFromPoint(x, y);
+      return {
+        x, y, w: Math.round(box.width), h: Math.round(box.height),
+        parent: el.parentElement?.id || '',
+        hit: hit ? `${hit.tagName}#${hit.id}.${String(hit.className).slice(0, 40)}` : 'none',
+      };
+    });
+    expect(armHit.hit, JSON.stringify(armHit)).toMatch(/BUTTON/i);
     const armed = page.waitForRequest((req) => req.url().includes('/api/runway/vision-arm') && req.method() === 'POST');
-    await page.locator('#runwayVisionArm').click();
+    await page.locator('#runwayVisionArm').click({ timeout: 4000 });
     expect((await armed).postDataJSON()).toEqual({ arm: true });
     await page.waitForFunction(() => document.getElementById('runwayVisionArm')?.textContent === 'בטל חימוש');
     expect(await page.locator('#runwayVisionArm').innerText()).toBe('בטל חימוש');
-    expect(await page.locator('#runwayVisionHold').innerText()).toBe('גלגול בראייה. עלרוד ומצערת ביד');
+    expect(await page.locator('#runwayVisionHold').innerText()).toBe('גלגול: הקונסולה. עלרוד, מצערת והגה: הטייס');
+    expect(await page.locator('#runwayVisionTakeover').innerText()).toBe('להשתלטות: מתג ערוץ 7 או החלפת מצב');
 
     for (const [width, height] of [[1024, 470], [1366, 630], [1536, 730]]) {
       await page.setViewportSize({ width, height });
@@ -157,10 +172,56 @@ describe('runway awareness layout', () => {
         expect(placed.stageShort).toBe(true);
         expect(placed.oneColumn, 'offset tiles use one column').toBe(true);
       }
+      const clearance = await page.evaluate(() => {
+        const stage = document.getElementById('pfdHorizonStage');
+        const stack = document.getElementById('runwayAwarenessStack');
+        const alert = document.getElementById('runwayAwarenessAlert');
+        const left = document.querySelector('.pfd-side-tape--left');
+        const right = document.querySelector('.pfd-side-tape--right');
+        const stageBox = stage.getBoundingClientRect();
+        const stackBox = stack.getBoundingClientRect();
+        const alertBox = alert.getBoundingClientRect();
+        const arm = document.getElementById('runwayVisionArm');
+        const offset = document.getElementById('runwayOffsetValue');
+        const offsetTile = offset?.closest('.runway-awareness-tile');
+        const offsetBox = offset?.getBoundingClientRect();
+        const tileBox = offsetTile?.getBoundingClientRect();
+        function hits(a, b) {
+          if (!a || !b || a.width < 1 || b.width < 1) return false;
+          const w = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+          const h = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+          return w > 1 && h > 1;
+        }
+        const leftBox = left?.getBoundingClientRect();
+        const rightBox = right?.getBoundingClientRect();
+        const armBox = arm?.getBoundingClientRect();
+        return {
+          hitLeft: hits(stackBox, leftBox) || hits(alertBox, leftBox) || hits(armBox, leftBox),
+          hitRight: hits(stackBox, rightBox) || hits(alertBox, rightBox) || hits(armBox, rightBox),
+          inside: stackBox.top >= stageBox.top - 1
+            && stackBox.bottom <= stageBox.bottom + 1
+            && alertBox.top >= stageBox.top - 1
+            && alertBox.bottom <= stageBox.bottom + 1
+            && stackBox.left >= stageBox.left - 1
+            && stackBox.right <= stageBox.right + 1,
+          offsetInside: !!(offsetBox && tileBox
+            && offsetBox.width > 0
+            && offsetBox.left >= tileBox.left - 1
+            && offsetBox.right <= tileBox.right + 1
+            && offsetBox.top >= tileBox.top - 1
+            && offsetBox.bottom <= tileBox.bottom + 1
+            && tileBox.left >= stageBox.left - 1
+            && tileBox.right <= stageBox.right + 1),
+        };
+      });
+      expect(clearance.hitLeft, `${width}x${height}`).toBe(false);
+      expect(clearance.hitRight, `${width}x${height}`).toBe(false);
+      expect(clearance.inside, `${width}x${height}`).toBe(true);
+      expect(clearance.offsetInside, `${width}x${height}`).toBe(true);
       if (width !== 1536) {
         const fitReport = await page.evaluate(collectTextFitFailures, 1);
         const runway = (fitReport.fails || []).filter((row) => /runway/i.test(`${row.who} ${row.text}`));
-        expect(runway, `${width}x${height}`).toEqual([]);
+        expect(runway.length, `${width}x${height} ${JSON.stringify(runway)}`).toBe(0);
       }
       await page.setViewportSize({ width, height });
       const point = await page.locator('#pfdHorizonStage').evaluate((el) => {
@@ -168,12 +229,10 @@ describe('runway awareness layout', () => {
         const x = rect.left + rect.width / 2;
         const y = Math.min(rect.bottom - 24, rect.top + 80);
         const hit = document.elementFromPoint(x, y);
-        const arm = document.getElementById('runwayVisionArm')?.getBoundingClientRect();
         return {
           x,
           y,
           hit: hit ? `${hit.tagName}#${hit.id}.${String(hit.className)}` : 'none',
-          arm: arm ? { top: arm.top, bottom: arm.bottom, left: arm.left, right: arm.right } : null,
         };
       });
       expect(point.hit, `${width}x${height} ${JSON.stringify(point)}`).not.toMatch(/BUTTON/i);

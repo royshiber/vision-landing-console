@@ -80,13 +80,13 @@ function wire(simulator = true) {
   };
 }
 
-function session() {
+function session(extraLimits = {}) {
   let now = 50_000;
   const link = wire(true);
   const controller = createRunwayController({
     link,
     now: () => now,
-    limits: { holdMs: 2000 },
+    limits: { holdMs: 2000, ...extraLimits },
   });
   controller.setLevel({ level: 3 });
   return {
@@ -290,7 +290,58 @@ describe('vision landing SITL e2e', () => {
     expect(decode(high.link.frames[0]).rest[2]).toBe(0);
   });
 
-  it('cancels immediately when the pilot moves the sticks or the mode changes', (ctx) => {
+  it('does not cancel on a roll echo, a guidance step, or pitch throttle and yaw', (ctx) => {
+    ctx.skip(!pymavlinkInstalled(), PYMAVLINK_SKIP);
+    const run = session();
+    const steer = { ...STRIP, heading_error_deg: 15, offset_m: 0 };
+    run.at(140_000);
+    run.controller.tick({ estimate: steer, vehicle: approach() });
+    run.at(142_000);
+    const active = run.controller.tick({ estimate: steer, vehicle: approach() });
+    expect(active.vision.state).toBe('active');
+    expect(active.vision.takeoverCh).toBe(7);
+    expect(decode(run.link.frames.at(-1)).rest[0]).toBe(1560);
+
+    const echoChannels = {
+      chan1_raw: 1560,
+      chan2_raw: 1500,
+      chan3_raw: 1500,
+      chan4_raw: 1500,
+      chan5_raw: 1500,
+      chan6_raw: 1500,
+      chan7_raw: 1500,
+      chan8_raw: 1500,
+    };
+    const echo = run.controller.tick({
+      estimate: steer,
+      vehicle: approach({ rcChannels: echoChannels }),
+    });
+    expect(echo.vision.state).toBe('active');
+    expect(echo.sentNow).toBe(1);
+    expect(decode(run.link.frames.at(-1)).rest[0]).toBe(1560);
+
+    const stepped = run.controller.tick({
+      estimate: { ...STRIP, heading_error_deg: 5, offset_m: 0 },
+      vehicle: approach({ rcChannels: echoChannels }),
+    });
+    expect(stepped.vision.state).toBe('active');
+    expect(stepped.sentNow).toBe(1);
+    expect(decode(run.link.frames.at(-1)).rest[0]).toBe(1520);
+    expect(decode(run.link.frames.at(-1)).rest.slice(1).every((value) => value === 0)).toBe(true);
+
+    const moved = run.controller.tick({
+      estimate: STRIP,
+      vehicle: approach({
+        rcChannels: { ...echoChannels, chan1_raw: 1560, chan2_raw: 1900, chan3_raw: 1100, chan4_raw: 1800 },
+      }),
+    });
+    expect(moved.vision.state).toBe('active');
+    expect(moved.sentNow).toBe(1);
+    expect(decode(run.link.frames.at(-1)).rest[0]).toBe(1520);
+    expect(decode(run.link.frames.at(-1)).rest.slice(1).every((value) => value === 0)).toBe(true);
+  });
+
+  it('cancels once when the takeover switch crosses 1700 or the mode changes', (ctx) => {
     ctx.skip(!pymavlinkInstalled(), PYMAVLINK_SKIP);
     const run = session();
     run.at(90_000);
@@ -298,21 +349,28 @@ describe('vision landing SITL e2e', () => {
     run.at(92_000);
     expect(run.controller.tick({ estimate: STRIP, vehicle: approach() }).vision.labelHe).toBe('פעיל');
     const before = run.link.frames.length;
-
-    const touched = run.controller.tick({
+    const flipped = run.controller.tick({
       estimate: STRIP,
       vehicle: approach({
         rcChannels: {
-          chan1_raw: 1600, chan2_raw: 1500, chan3_raw: 1500, chan4_raw: 1500,
-          chan5_raw: 1500, chan6_raw: 1500, chan7_raw: 1500, chan8_raw: 1500,
+          chan1_raw: 1560, chan2_raw: 1500, chan3_raw: 1500, chan4_raw: 1500,
+          chan5_raw: 1500, chan6_raw: 1500, chan7_raw: 1700, chan8_raw: 1500,
         },
       }),
     });
-    expect(touched.vision.labelHe).toBe('שוחרר');
-    expect(touched.sentNow).toBe(1);
+    expect(flipped.vision.labelHe).toBe('שוחרר');
+    expect(flipped.vision.reason).toBe('switch');
+    expect(flipped.sentNow).toBe(1);
     expect(decode(run.link.frames.at(-1)).rest.every((value) => value === 0)).toBe(true);
-    run.at(95_000);
-    expect(run.controller.tick({ estimate: STRIP, vehicle: approach() }).sentNow).toBe(0);
+    expect(run.controller.tick({
+      estimate: STRIP,
+      vehicle: approach({
+        rcChannels: {
+          chan1_raw: 1560, chan2_raw: 1500, chan3_raw: 1500, chan4_raw: 1500,
+          chan5_raw: 1500, chan6_raw: 1500, chan7_raw: 1800, chan8_raw: 1500,
+        },
+      }),
+    }).sentNow).toBe(0);
     expect(run.link.frames.length).toBe(before + 1);
 
     const mode = session();
@@ -325,11 +383,42 @@ describe('vision landing SITL e2e', () => {
       vehicle: approach({ customMode: 0 }),
     });
     expect(changed.vision.labelHe).toBe('שוחרר');
+    expect(changed.vision.reason).toBe('mode');
     expect(changed.sentNow).toBe(1);
     expect(mode.controller.tick({ estimate: STRIP, vehicle: approach({ customMode: 0 }) }).sentNow).toBe(0);
+
+    const custom = session({ takeoverCh: 6 });
+    custom.at(110_000);
+    custom.controller.tick({ estimate: STRIP, vehicle: approach() });
+    custom.at(112_000);
+    const armed = custom.controller.tick({ estimate: STRIP, vehicle: approach() });
+    expect(armed.vision.takeoverCh).toBe(6);
+    expect(armed.vision.state).toBe('active');
+    const other = custom.controller.tick({
+      estimate: STRIP,
+      vehicle: approach({
+        rcChannels: {
+          chan1_raw: 1500, chan2_raw: 1500, chan3_raw: 1500, chan4_raw: 1500,
+          chan5_raw: 1500, chan6_raw: 1500, chan7_raw: 1900, chan8_raw: 1500,
+        },
+      }),
+    });
+    expect(other.vision.state).toBe('active');
+    const own = custom.controller.tick({
+      estimate: STRIP,
+      vehicle: approach({
+        rcChannels: {
+          chan1_raw: 1500, chan2_raw: 1500, chan3_raw: 1500, chan4_raw: 1500,
+          chan5_raw: 1500, chan6_raw: 1700, chan7_raw: 1500, chan8_raw: 1500,
+        },
+      }),
+    });
+    expect(own.vision.labelHe).toBe('שוחרר');
+    expect(own.sentNow).toBe(1);
+    expect(custom.controller.tick({ estimate: STRIP, vehicle: approach() }).sentNow).toBe(0);
   });
 
-  it('manual arm keeps guiding through pitch throttle and yaw, and cancels on roll', (ctx) => {
+  it('manual arm keeps pitch throttle and yaw, and the switch still cancels once', (ctx) => {
     ctx.skip(!pymavlinkInstalled(), PYMAVLINK_SKIP);
     const run = session();
     const offApproach = (overrides = {}) => approach({ missionCurrent: 1, ...overrides });
@@ -338,15 +427,14 @@ describe('vision landing SITL e2e', () => {
     run.controller.tick({ estimate: STRIP, vehicle: offApproach() });
     run.at(122_000);
     expect(run.controller.tick({ estimate: STRIP, vehicle: offApproach() }).vision.labelHe).toBe('פעיל');
-
     const sticks = {
-      chan1_raw: 1500,
+      chan1_raw: 1700,
       chan2_raw: 1900,
       chan3_raw: 1100,
       chan4_raw: 1800,
       chan5_raw: 1900,
       chan6_raw: 1100,
-      chan7_raw: 1800,
+      chan7_raw: 1500,
       chan8_raw: 1200,
     };
     const moved = run.controller.tick({
@@ -356,73 +444,78 @@ describe('vision landing SITL e2e', () => {
     expect(moved.vision.state).toBe('active');
     expect(decode(run.link.frames.at(-1)).rest[0]).toBeGreaterThan(1500);
     expect(decode(run.link.frames.at(-1)).rest.slice(1).every((value) => value === 0)).toBe(true);
-
-    const inside = run.controller.tick({
-      estimate: STRIP,
-      vehicle: offApproach({ rcChannels: sticks, pilotRc: { chan1_raw: 1539 } }),
-    });
-    expect(inside.vision.state).toBe('active');
-
-    const roll = run.controller.tick({
-      estimate: STRIP,
-      vehicle: offApproach({ rcChannels: sticks, pilotRc: { chan1_raw: 1540 } }),
-    });
-    expect(roll.vision.labelHe).toBe('שוחרר');
-    expect(roll.sentNow).toBe(1);
-    expect(decode(run.link.frames.at(-1)).rest.every((value) => value === 0)).toBe(true);
-    expect(run.controller.tick({
-      estimate: STRIP,
-      vehicle: offApproach({ rcChannels: { ...sticks, chan1_raw: 1540 } }),
-    }).sentNow).toBe(0);
-  });
-
-  it('does not self-cancel on the roll echo and cancels once for a pilot stick at 1700', (ctx) => {
-    ctx.skip(!pymavlinkInstalled(), PYMAVLINK_SKIP);
-    const run = session();
-    const steer = { ...STRIP, heading_error_deg: 15, offset_m: 0 };
-    run.at(140_000);
-    run.controller.tick({ estimate: steer, vehicle: approach() });
-    run.at(142_000);
-    const active = run.controller.tick({ estimate: steer, vehicle: approach() });
-    expect(active.vision.state).toBe('active');
-    const commanded = decode(run.link.frames.at(-1)).rest[0];
-    expect(commanded).toBe(1560);
-
-    const echoChannels = {
-      chan1_raw: 1560,
-      chan2_raw: 1800,
-      chan3_raw: 1200,
-      chan4_raw: 1700,
-      chan5_raw: 1900,
-      chan6_raw: 1100,
-      chan7_raw: 1600,
-      chan8_raw: 1300,
-    };
-    const echo = run.controller.tick({
-      estimate: steer,
-      vehicle: approach({ rcChannels: echoChannels }),
-    });
-    expect(echo.vision.state).toBe('active');
-    expect(echo.sentNow).toBe(1);
-    expect(decode(run.link.frames.at(-1)).rest[0]).toBe(1560);
-    expect(decode(run.link.frames.at(-1)).rest.slice(1).every((value) => value === 0)).toBe(true);
-
     const before = run.link.frames.length;
-    const pilot = run.controller.tick({
-      estimate: steer,
-      vehicle: approach({
-        rcChannels: echoChannels,
-        pilotRc: { chan1_raw: 1700 },
-      }),
+    const cancel = run.controller.tick({
+      estimate: STRIP,
+      vehicle: offApproach({ rcChannels: { ...sticks, chan7_raw: 1700 } }),
     });
-    expect(pilot.vision.labelHe).toBe('שוחרר');
-    expect(pilot.sentNow).toBe(1);
+    expect(cancel.vision.labelHe).toBe('שוחרר');
+    expect(cancel.sentNow).toBe(1);
     expect(decode(run.link.frames.at(-1)).rest.every((value) => value === 0)).toBe(true);
     expect(run.controller.tick({
-      estimate: steer,
-      vehicle: approach({ rcChannels: echoChannels, pilotRc: { chan1_raw: 1700 } }),
+      estimate: STRIP,
+      vehicle: offApproach({ rcChannels: { ...sticks, chan7_raw: 1700 } }),
     }).sentNow).toBe(0);
     expect(run.link.frames.length).toBe(before + 1);
+  });
+
+  it('refuses to activate when the takeover switch has no valid RC', () => {
+    const cases = [
+      () => {
+        const vehicle = approach();
+        delete vehicle.rcChannels;
+        return vehicle;
+      },
+      () => approach({
+        rcChannels: {
+          chan1_raw: 1500, chan2_raw: 1500, chan3_raw: 1500, chan4_raw: 1500,
+          chan5_raw: 1500, chan6_raw: 1500, chan7_raw: 0, chan8_raw: 1500,
+        },
+      }),
+      () => approach({
+        rcChannels: {
+          chan1_raw: 1500, chan2_raw: 1500, chan3_raw: 1500, chan4_raw: 1500,
+          chan5_raw: 1500, chan6_raw: 1500, chan7_raw: 65535, chan8_raw: 1500,
+        },
+      }),
+      () => approach({
+        rcChannels: {
+          chan1_raw: 1500, chan2_raw: 1500, chan3_raw: 1500, chan4_raw: 1500,
+          chan5_raw: 1500, chan6_raw: 1500, chan8_raw: 1500,
+        },
+      }),
+    ];
+    for (const build of cases) {
+      const run = session();
+      const vehicle = build();
+      run.at(10_000);
+      run.controller.tick({ estimate: STRIP, vehicle });
+      run.at(12_000);
+      const blocked = run.controller.tick({ estimate: STRIP, vehicle });
+      expect(blocked.vision.labelHe).toBe('ממתין');
+      expect(blocked.vision.reason).toBe('no_switch');
+      expect(blocked.sentNow).toBe(0);
+      expect(run.link.frames).toHaveLength(0);
+    }
+
+    const run = session();
+    run.at(20_000);
+    run.controller.tick({ estimate: STRIP, vehicle: approach() });
+    run.at(22_000);
+    expect(run.controller.tick({ estimate: STRIP, vehicle: approach() }).vision.state).toBe('active');
+    const lostVehicle = approach();
+    delete lostVehicle.rcChannels;
+    const lost = run.controller.tick({ estimate: STRIP, vehicle: lostVehicle });
+    expect(lost.vision.labelHe).toBe('ממתין');
+    expect(lost.vision.reason).toBe('no_switch');
+    expect(lost.sentNow).toBe(1);
+    expect(run.controller.tick({ estimate: STRIP, vehicle: lostVehicle }).sentNow).toBe(0);
+    run.at(24_000);
+    expect(run.controller.tick({ estimate: STRIP, vehicle: approach() }).vision.state).toBe('waiting');
+    run.at(26_000);
+    const resumed = run.controller.tick({ estimate: STRIP, vehicle: approach() });
+    expect(resumed.vision.state).toBe('active');
+    expect(resumed.sentNow).toBe(1);
   });
 
   it('can be armed from the console, and it stays silent off SITL and at level 4', () => {

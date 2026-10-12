@@ -10,14 +10,14 @@
 .runway-awareness-stack {
   position: absolute;
   z-index: 6;
-  left: 6px;
-  right: 6px;
+  left: 56px;
+  right: 56px;
   bottom: 6px;
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
   gap: 4px;
-  max-height: 38%;
+  max-height: none;
   pointer-events: none;
 }
 .runway-awareness-tiles {
@@ -105,24 +105,32 @@
 }
 .runway-vision-hold[hidden] { display: none; }
 #pfdHorizonStage[data-awareness-stage="short"] .runway-awareness-stack {
-  left: 6px;
-  right: 6px;
-  bottom: 6px;
-  gap: 2px;
+  left: 52px;
+  right: 52px;
+  top: 0;
+  bottom: 0;
+  gap: 0;
   max-height: none;
+  justify-content: flex-end;
+}
+#pfdHorizonStage[data-awareness-stage="short"] .runway-awareness-state {
+  flex-flow: row wrap;
+  align-items: center;
+  gap: 1px 4px;
+  padding: 0 2px;
 }
 #pfdHorizonStage[data-awareness-stage="short"] .runway-awareness-tiles {
-  flex-direction: column;
-  gap: 2px;
+  flex-flow: column nowrap;
+  gap: 1px;
 }
 #pfdHorizonStage[data-awareness-stage="short"] .runway-awareness-tile {
   flex: 0 0 auto;
   width: 100%;
-  padding: 1px 4px;
+  padding: 0 2px;
 }
 #pfdHorizonStage[data-awareness-stage="short"] .runway-awareness-alert {
-  padding: 2px 4px;
-  line-height: 1.2;
+  padding: 0 2px;
+  line-height: 1.35;
 }
 #pfdHorizonStage[data-awareness-stage="short"] .runway-awareness-k,
 #pfdHorizonStage[data-awareness-stage="short"] .runway-awareness-v,
@@ -136,6 +144,21 @@
 #pfdHorizonStage[data-awareness-stage="short"] .runway-vision-hold,
 #pfdHorizonStage[data-awareness-stage="short"] .runway-awareness-arm {
   font-size: 11px;
+  line-height: 1.35;
+}
+#pfdHorizonStage[data-awareness-stage="short"] .runway-awareness-arm {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  left: auto;
+  z-index: 9;
+  margin-inline-start: 0;
+}
+#pfdHorizonStage[data-awareness-stage="short"] .runway-vision-hold,
+#pfdHorizonStage[data-awareness-stage="short"] .runway-awareness-alert,
+#pfdHorizonStage[data-awareness-stage="short"] .runway-awareness-tile,
+#pfdHorizonStage[data-awareness-stage="short"] .runway-awareness-state {
+  flex-shrink: 0;
 }
 .runway-level-confirm {
   position: fixed;

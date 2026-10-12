@@ -98,11 +98,18 @@ function paintTiles(doc, status) {
     state.dataset.visionState = String(status?.vision?.state || 'waiting');
   }
   if (word) word.textContent = label;
+  const active = on && status?.vision?.state === 'active';
   const hold = doc.getElementById('runwayVisionHold');
+  const takeover = doc.getElementById('runwayVisionTakeover');
+  const channel = Number(status?.vision?.takeoverCh);
+  const switchCh = Number.isInteger(channel) && channel >= 2 && channel <= 8 ? channel : 7;
   if (hold) {
-    const active = on && status?.vision?.state === 'active';
     hold.hidden = !active;
-    hold.textContent = active ? 'גלגול בראייה. עלרוד ומצערת ביד' : '';
+    hold.textContent = active ? 'גלגול: הקונסולה. עלרוד, מצערת והגה: הטייס' : '';
+  }
+  if (takeover) {
+    takeover.hidden = !active;
+    takeover.textContent = active ? `להשתלטות: מתג ערוץ ${switchCh} או החלפת מצב` : '';
   }
   if (arm) {
     const armed = status?.vision?.manualArm === true;
@@ -227,6 +234,11 @@ function syncStage(doc) {
   const stage = doc.getElementById('pfdHorizonStage');
   if (!stage) return;
   stage.dataset.awarenessStage = stage.clientHeight > 0 && stage.clientHeight < 280 ? 'short' : 'full';
+  const arm = doc.getElementById('runwayVisionArm');
+  const state = doc.getElementById('runwayVisionState');
+  if (!arm || !state) return;
+  const home = stage.dataset.awarenessStage === 'short' ? stage : state;
+  if (arm.parentElement !== home) home.append(arm);
 }
 
 async function readStatus(camera) {
@@ -385,6 +397,9 @@ function ensureChrome(doc) {
     const hold = el(doc, 'span', 'runway-vision-hold');
     hold.id = 'runwayVisionHold';
     hold.hidden = true;
+    const takeover = el(doc, 'span', 'runway-vision-hold');
+    takeover.id = 'runwayVisionTakeover';
+    takeover.hidden = true;
     const arm = el(doc, 'button', 'runway-awareness-arm');
     arm.type = 'button';
     arm.id = 'runwayVisionArm';
@@ -396,7 +411,7 @@ function ensureChrome(doc) {
       const { data } = await postLevelArm(!armed);
       paint(doc, data);
     });
-    state.append(stateKey, stateWord, hold, arm);
+    state.append(stateKey, stateWord, hold, takeover, arm);
     tiles.append(state);
     for (const [id, label, valueId] of [
       ['offset', 'סטייה', 'runwayOffsetValue'],
