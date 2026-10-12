@@ -136,7 +136,11 @@ function paintTiles(doc, status) {
   const released = on && status?.vision?.state === 'released';
   const ready = on && status?.vision?.buttonReady === true;
   const levelLow = on && Number(status?.level) < 3;
-  const noLand = on && status?.vision?.hasLand === false;
+  const noLand = on && (
+    status?.vision?.hasLand === false
+    || status?.vision?.reason === 'no_land'
+    || status?.vision?.labelHe === 'אין נחיתה במשימה'
+  );
   const label = !on
     ? ''
     : active

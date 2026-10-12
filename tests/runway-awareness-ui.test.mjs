@@ -204,6 +204,17 @@ describe('runway awareness layout', () => {
       }
       if (width === 1024 && height === 470) {
         expect(placed.stageShort).toBe(true);
+        const clearOfIas = await page.evaluate(() => {
+          const word = document.getElementById('runwayVisionStateWord');
+          const tape = document.querySelector('.pfd-side-tape--left');
+          const a = word?.getBoundingClientRect();
+          const b = tape?.getBoundingClientRect();
+          if (!a || !b || a.width < 1 || b.width < 1) return false;
+          const w = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+          const h = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+          return !(w > 0 && h > 0);
+        });
+        expect(clearOfIas, 'state text overlaps the IAS box').toBe(true);
         expect(placed.oneRow, 'offset heading and hazard share one line').toBe(true);
         const offsetText = await page.locator('#runwayOffsetValue').innerText();
         const headingText = await page.locator('#runwayHeadingValue').innerText();

@@ -2,6 +2,7 @@
  * Runway awareness stays silent at levels 0–2, and the roll override
  * leaves the process only when the link is a simulator.
  */
+import { EventEmitter } from 'node:events';
 import { spawnSync } from 'node:child_process';
 import { afterAll, describe, expect, it } from 'vitest';
 import express from 'express';
@@ -274,6 +275,44 @@ describe('runway awareness SITL command gate', () => {
     expect(onSim.sentNow).toBe(1);
     expect(calls).toHaveLength(1);
   });
+
+  it('downloads the mission on connect and when the level reaches 3', async () => {
+    const calls = [];
+    const conn = new EventEmitter();
+    conn.connected = true;
+    conn.missionItems = [];
+    conn.refreshMissionToCache = async () => {
+      calls.push('refresh');
+      return { ok: true };
+    };
+    conn.simulatorDetection = () => ({ simulator: true });
+    conn.getStatus = () => ({ simulator: true });
+    const controller = createRunwayController({
+      limits: { holdMs: 0 },
+      link: { sendGuidance() { return { sent: true }; } },
+    });
+    const app = express();
+    app.use(express.json());
+    registerRunwayAwarenessApi(app, {
+      controller,
+      loop: false,
+      env: {},
+      getConnection: () => conn,
+    });
+    expect(calls).toEqual(['refresh']);
+    conn.emit('connected');
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(calls).toEqual(['refresh', 'refresh']);
+    const server = await listen(app);
+    servers.push(server);
+    const base = `http://127.0.0.1:${server.address().port}`;
+    const low = await postLevel(base, { level: 2 });
+    expect(low.status).toBe(200);
+    expect(calls).toHaveLength(2);
+    const high = await postLevel(base, { level: 3 });
+    expect(high.status).toBe(200);
+    expect(calls).toHaveLength(3);
+  });
 });
 
 describe('RC_CHANNELS_OVERRIDE stays inside SITL', () => {
@@ -289,6 +328,7 @@ describe('RC_CHANNELS_OVERRIDE stays inside SITL', () => {
     conn.fcTargetCompId = 1;
     conn.simulatorDetection = () => ({ simulator });
     conn.getStatus = () => ({ simulator });
+    conn.lastHeartbeatWallMs = Date.now();
     return conn;
   }
 
