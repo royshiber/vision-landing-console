@@ -46,55 +46,116 @@ describe('flight column dock stays put', () => {
     }
   });
 
-  async function measure(swap) {
-    return page.evaluate((mode) => {
-      const ws = document.querySelector('.mission-workspace');
-      if (ws) ws.dataset.missionSwap = mode;
-      const stage = document.getElementById('pfdHorizonStage');
-      const dock = document.querySelector('[data-mission-region="messages"]');
-      const hud = document.querySelector('.mission-region-horizon > .flight-hud');
+  async function settle() {
+    await page.evaluate(() => new Promise((resolve) => {
+      requestAnimationFrame(() => requestAnimationFrame(resolve));
+    }));
+  }
+
+  async function readLayout(seed) {
+    return page.evaluate((seedLines) => {
+      const list = document.getElementById('pfcMsgScroll');
+      if (seedLines && list) {
+        list.hidden = false;
+        list.replaceChildren();
+        for (let i = 0; i < 30; i += 1) {
+          const line = document.createElement('p');
+          line.className = 'pfc-msg-line';
+          line.textContent = `14:52:40 CRITICAL PreArm line ${i} still configuring this GPS`;
+          list.appendChild(line);
+        }
+      }
       const box = (el) => {
+        if (!el) return { x: 0, y: 0, w: 0, h: 0 };
         const r = el.getBoundingClientRect();
         return { x: r.x, y: r.y, w: r.width, h: r.height };
       };
-      const actions = document.getElementById('flightDockActionsTab');
-      const messages = document.getElementById('flightDockMessagesTab');
-      actions.click();
-      const actionStage = box(stage);
-      const actionDock = box(dock);
-      messages.click();
-      const messageStage = box(stage);
-      const messageDock = box(dock);
-      const scroll = document.documentElement.scrollHeight - document.documentElement.clientHeight;
-      const overlap = actionStage.y + actionStage.h > actionDock.y + 2
-        && actionStage.y < actionDock.y + actionDock.h;
+      const stage = document.getElementById('pfdHorizonStage');
+      const dock = document.querySelector('[data-mission-region="messages"]');
+      const data = document.querySelector('[data-mission-region="data"]');
+      const msgScroll = document.getElementById('pfcMsgScroll');
+      const actionsPane = document.getElementById('flightDockActionsPane');
+      const msgCs = msgScroll ? getComputedStyle(msgScroll) : null;
+      const actionsCs = actionsPane ? getComputedStyle(actionsPane) : null;
       return {
-        actionStage,
-        messageStage,
-        actionDock,
-        messageDock,
-        scroll,
-        overlap,
-        ratio: actionStage.w / Math.max(1, actionStage.h),
+        stage: box(stage),
+        dock: box(dock),
+        data: box(data),
+        msgScroll: box(msgScroll),
+        scrollHeight: msgScroll ? msgScroll.scrollHeight : 0,
+        clientHeight: msgScroll ? msgScroll.clientHeight : 0,
+        overflowY: msgCs ? msgCs.overflowY : '',
+        actionsDisplay: actionsCs ? actionsCs.display : '',
       };
+    }, seed);
+  }
+
+  async function measure(swap) {
+    await page.evaluate((mode) => {
+      const ws = document.querySelector('.mission-workspace');
+      if (ws) ws.dataset.missionSwap = mode;
     }, swap);
+    await page.locator('#flightDockActionsTab').click();
+    await settle();
+    const actions = await readLayout(false);
+    await page.locator('#flightDockMessagesTab').click();
+    await settle();
+    const messages = await readLayout(true);
+    const scroll = await page.evaluate(() => document.documentElement.scrollHeight - document.documentElement.clientHeight);
+    const overlap = actions.stage.y + actions.stage.h > actions.dock.y + 2
+      && actions.stage.y < actions.dock.y + actions.dock.h;
+    return {
+      actionStage: actions.stage,
+      messageStage: messages.stage,
+      actionDock: actions.dock,
+      messageDock: messages.dock,
+      actionData: actions.data,
+      messageData: messages.data,
+      msgScroll: messages.msgScroll,
+      scrollHeight: messages.scrollHeight,
+      clientHeight: messages.clientHeight,
+      overflowY: messages.overflowY,
+      actionsDisplay: messages.actionsDisplay,
+      scroll,
+      overlap,
+      ratio: actions.stage.w / Math.max(1, actions.stage.h),
+    };
   }
 
   for (const vp of widths) {
     it(`keeps the horizon box when the dock tab changes at ${vp.name}`, async () => {
       await page.setViewportSize({ width: vp.width, height: vp.height });
       const map = await measure('map-horizon');
+      expect(nearly(map.actionStage.x, map.messageStage.x)).toBe(true);
+      expect(nearly(map.actionStage.y, map.messageStage.y)).toBe(true);
       expect(nearly(map.actionStage.w, map.messageStage.w)).toBe(true);
       expect(nearly(map.actionStage.h, map.messageStage.h)).toBe(true);
-      expect(nearly(map.actionStage.y, map.messageStage.y)).toBe(true);
+      expect(nearly(map.actionData.x, map.messageData.x)).toBe(true);
+      expect(nearly(map.actionData.y, map.messageData.y)).toBe(true);
+      expect(nearly(map.actionData.w, map.messageData.w)).toBe(true);
+      expect(nearly(map.actionData.h, map.messageData.h)).toBe(true);
       expect(nearly(map.actionDock.h, map.messageDock.h)).toBe(true);
+      expect(map.actionsDisplay).toBe('none');
+      expect(map.overflowY).toBe('auto');
+      expect(map.clientHeight).toBeGreaterThanOrEqual(vp.height < 520 ? 40 : map.messageDock.h * 0.4);
+      expect(map.scrollHeight).toBeGreaterThan(map.clientHeight);
+      expect(map.msgScroll.y).toBeGreaterThanOrEqual(map.messageDock.y - 1);
+      expect(map.msgScroll.y + map.msgScroll.h).toBeLessThanOrEqual(map.messageDock.y + map.messageDock.h + 2);
       expect(map.scroll).toBeLessThanOrEqual(4);
       expect(map.overlap).toBe(false);
       expect(map.ratio).toBeGreaterThan(0.7);
       expect(map.ratio).toBeLessThan(vp.height < 520 ? 2.15 : 1.55);
       const swapped = await measure('horizon-map');
+      expect(nearly(swapped.actionStage.x, swapped.messageStage.x)).toBe(true);
+      expect(nearly(swapped.actionStage.y, swapped.messageStage.y)).toBe(true);
+      expect(nearly(swapped.actionStage.w, swapped.messageStage.w)).toBe(true);
       expect(nearly(swapped.actionStage.h, swapped.messageStage.h)).toBe(true);
+      expect(nearly(swapped.actionData.h, swapped.messageData.h)).toBe(true);
       expect(nearly(swapped.actionDock.h, swapped.messageDock.h)).toBe(true);
+      expect(swapped.actionsDisplay).toBe('none');
+      expect(swapped.overflowY).toBe('auto');
+      expect(swapped.clientHeight).toBeGreaterThanOrEqual(vp.height < 520 ? 40 : swapped.messageDock.h * 0.4);
+      expect(swapped.scrollHeight).toBeGreaterThan(swapped.clientHeight);
       expect(swapped.scroll).toBeLessThanOrEqual(4);
       expect(swapped.ratio).toBeGreaterThan(0.85);
       expect(swapped.ratio).toBeLessThan(vp.height < 520 ? 2.4 : 1.7);

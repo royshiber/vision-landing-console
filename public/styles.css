@@ -28780,3 +28780,33 @@ body:has(#terrain.panel.visible) .layout,
   justify-content: flex-start !important;
   gap: 2px !important;
 }
+/* One pane fills the fixed dock. The other tab stays out of the layout. */
+.mission-workspace[data-mission-layout="ops-v1"] .mission-region-horizon > .mission-region-messages[data-flight-dock="messages"] > #flightDockActionsPane,
+.mission-workspace[data-mission-layout="ops-v1"] .mission-region-horizon > .mission-region-messages[data-flight-dock="actions"] > #flightDockMessagesPane {
+  display: none !important;
+}
+.mission-workspace[data-mission-layout="ops-v1"] .mission-region-horizon:not([data-flight-stack="custom"]) > .mission-region-messages[data-flight-dock="messages"] > #flightDockMessagesPane {
+  display: flex !important;
+  flex: 1 1 auto !important;
+  flex-direction: column !important;
+  justify-content: flex-start !important;
+  min-height: 0 !important;
+  height: auto !important;
+  max-height: 100% !important;
+  overflow: hidden !important;
+}
+.mission-workspace[data-mission-layout="ops-v1"] .mission-region-horizon #flightDockMessagesPane .pfd-statustext-strip {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  height: auto !important;
+  overflow: hidden !important;
+}
+.mission-workspace[data-mission-layout="ops-v1"] .mission-region-horizon #flightDockMessagesPane .pfc-msg-scroll {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  height: auto !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+}
