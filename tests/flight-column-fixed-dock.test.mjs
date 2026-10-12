@@ -73,6 +73,7 @@ describe('flight column dock stays put', () => {
       const stage = document.getElementById('pfdHorizonStage');
       const dock = document.querySelector('[data-mission-region="messages"]');
       const data = document.querySelector('[data-mission-region="data"]');
+      const map = document.querySelector('[data-mission-region="map"]');
       const msgScroll = document.getElementById('pfcMsgScroll');
       const actionsPane = document.getElementById('flightDockActionsPane');
       const msgCs = msgScroll ? getComputedStyle(msgScroll) : null;
@@ -81,6 +82,7 @@ describe('flight column dock stays put', () => {
         stage: box(stage),
         dock: box(dock),
         data: box(data),
+        map: box(map),
         msgScroll: box(msgScroll),
         scrollHeight: msgScroll ? msgScroll.scrollHeight : 0,
         clientHeight: msgScroll ? msgScroll.clientHeight : 0,
@@ -111,6 +113,8 @@ describe('flight column dock stays put', () => {
       messageDock: messages.dock,
       actionData: actions.data,
       messageData: messages.data,
+      actionMap: actions.map,
+      messageMap: messages.map,
       msgScroll: messages.msgScroll,
       scrollHeight: messages.scrollHeight,
       clientHeight: messages.clientHeight,
@@ -144,7 +148,7 @@ describe('flight column dock stays put', () => {
       expect(map.scroll).toBeLessThanOrEqual(4);
       expect(map.overlap).toBe(false);
       expect(map.ratio).toBeGreaterThan(0.7);
-      expect(map.ratio).toBeLessThan(vp.height < 520 ? 2.15 : 1.55);
+      expect(map.ratio).toBeLessThan(vp.height < 520 ? 1.7 : 1.55);
       const swapped = await measure('horizon-map');
       expect(nearly(swapped.actionStage.x, swapped.messageStage.x)).toBe(true);
       expect(nearly(swapped.actionStage.y, swapped.messageStage.y)).toBe(true);
@@ -158,7 +162,37 @@ describe('flight column dock stays put', () => {
       expect(swapped.scrollHeight).toBeGreaterThan(swapped.clientHeight);
       expect(swapped.scroll).toBeLessThanOrEqual(4);
       expect(swapped.ratio).toBeGreaterThan(0.85);
-      expect(swapped.ratio).toBeLessThan(vp.height < 520 ? 2.4 : 1.7);
+      expect(swapped.ratio).toBeLessThan(vp.height < 520 ? 1.65 : 1.55);
+      expect(swapped.actionMap.w).toBeGreaterThan(swapped.actionStage.w);
+      expect(nearly(swapped.actionMap.w, swapped.messageMap.w)).toBe(true);
+      expect(nearly(swapped.actionMap.h, swapped.messageMap.h)).toBe(true);
+      expect(nearly(map.actionDock.h, swapped.actionDock.h)).toBe(true);
+      const cover = await page.evaluate(() => {
+        const img = document.getElementById('horizonCameraBg');
+        const stage = document.getElementById('pfdHorizonStage');
+        const canvas = document.createElement('canvas');
+        canvas.width = 160;
+        canvas.height = 90;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#16a34a';
+        ctx.fillRect(0, 0, 160, 90);
+        img.hidden = false;
+        img.src = canvas.toDataURL('image/png');
+        if (typeof fitHorizonPicture === 'function') fitHorizonPicture(img);
+        const picture = img.getBoundingClientRect();
+        const horizon = stage.getBoundingClientRect();
+        const style = getComputedStyle(img);
+        return {
+          dw: Math.abs(picture.width - horizon.width),
+          dh: Math.abs(picture.height - horizon.height),
+          fit: style.objectFit,
+          transform: style.transform,
+        };
+      });
+      expect(cover.fit).toBe('cover');
+      expect(cover.dw).toBeLessThan(3);
+      expect(cover.dh).toBeLessThan(3);
+      expect(cover.transform === 'none' || cover.transform === 'matrix(1, 0, 0, 1, 0, 0)').toBe(true);
     });
   }
 });

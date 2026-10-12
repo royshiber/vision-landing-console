@@ -28661,12 +28661,21 @@ body:has(#terrain.panel.visible) .layout,
   min-height: 0 !important;
 }
 .mission-region-horizon .pfd-horizon-camera,
-.mission-region-horizon .pfd-horizon-video {
+.mission-region-horizon .pfd-horizon-video,
+#pfdHorizonStage > .instrument-stage-view {
+  position: absolute !important;
+  inset: 0 !important;
+  left: 0 !important;
+  top: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
   width: 100% !important;
   height: 100% !important;
   max-width: none !important;
   max-height: none !important;
+  transform: none !important;
   object-fit: cover !important;
+  object-position: center !important;
 }
 /* Column width tracks the height left after the header, the data strip, and the
    action band, so the horizon stays near square. 36vw keeps the 1440 share. */
@@ -28724,11 +28733,28 @@ body:has(#terrain.panel.visible) .layout,
   .mission-workspace[data-mission-layout="ops-v1"] {
     --flight-dock-h: 164px;
   }
+  #terrain > .mission-ask-dock {
+    flex-basis: 32px !important;
+    height: 32px !important;
+    min-height: 28px !important;
+    max-height: 32px !important;
+    padding-block: 2px !important;
+  }
+  .mission-workspace[data-mission-layout="ops-v1"] .mission-region-horizon > .mission-region-data > .mission-region-title {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    margin: -1px !important;
+    padding: 0 !important;
+    flex: 0 0 auto !important;
+    overflow: hidden !important;
+    clip: rect(0, 0, 0, 0) !important;
+  }
   .mission-workspace[data-mission-layout="ops-v1"]:not([data-mission-swap="horizon-map"]) {
     grid-template-columns: minmax(0, 1fr) minmax(160px, min(36vw, calc(100vh - 400px))) !important;
   }
   .mission-workspace[data-mission-layout="ops-v1"][data-mission-swap="horizon-map"] {
-    grid-template-columns: minmax(160px, min(42vw, calc(100vh - 400px))) minmax(140px, 1fr) !important;
+    grid-template-columns: minmax(160px, min(36vw, calc(100vh - 400px))) minmax(180px, 1fr) !important;
   }
   .mission-region-horizon .mission-data-tile {
     padding: 0 2px !important;

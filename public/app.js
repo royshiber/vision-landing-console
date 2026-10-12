@@ -7689,31 +7689,20 @@ function syncHorizonMenu(ids) {
 }
 
 function fitHorizonPicture(img) {
-  if (!img || img.hidden || !(img.naturalWidth > 0) || !(img.naturalHeight > 0)) return;
-  const host = img.closest('.horizon-cam-tile') || document.getElementById('pfdHorizonStage');
-  const bounds = host?.getBoundingClientRect?.();
-  const areaW = bounds?.width || 0;
-  const areaH = bounds?.height || 0;
-  if (!(areaW > 8) || !(areaH > 8)) return;
-  const aspect = img.naturalWidth / img.naturalHeight;
-  let width = areaW;
-  let height = width / aspect;
-  if (height > areaH) {
-    height = areaH;
-    width = height * aspect;
-  }
+  if (!img) return;
   img.style.position = 'absolute';
-  img.style.width = `${Math.max(1, Math.floor(width))}px`;
-  img.style.height = `${Math.max(1, Math.floor(height))}px`;
-  img.style.maxWidth = '100%';
-  img.style.maxHeight = '100%';
-  img.style.inset = 'auto';
-  img.style.left = '50%';
-  img.style.top = '50%';
-  img.style.right = 'auto';
-  img.style.bottom = 'auto';
-  img.style.transform = 'translate(-50%, -50%)';
-  img.style.objectFit = 'contain';
+  img.style.inset = '0';
+  img.style.left = '0';
+  img.style.top = '0';
+  img.style.right = '0';
+  img.style.bottom = '0';
+  img.style.width = '100%';
+  img.style.height = '100%';
+  img.style.maxWidth = 'none';
+  img.style.maxHeight = 'none';
+  img.style.transform = 'none';
+  img.style.objectFit = 'cover';
+  img.style.objectPosition = 'center';
 }
 
 function markHorizonLive() {
