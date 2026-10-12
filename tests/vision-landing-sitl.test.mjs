@@ -239,7 +239,7 @@ describe('vision landing SITL e2e', () => {
       estimate: { ...STRIP, hazards: [{ kind: 'person', label_he: 'אדם' }] },
       vehicle: approach(),
     });
-    expect(hazard.vision.labelHe).toBe('גו-אראונד');
+    expect(hazard.vision.labelHe).toBe('סבוב מחדש');
     expect(hazard.sentNow).toBe(2);
     const kinds = run.link.frames.slice(1).map((frame) => decode(frame));
     expect(kinds.map((row) => row.type)).toEqual(['RC_CHANNELS_OVERRIDE', 'COMMAND_LONG']);
@@ -261,7 +261,7 @@ describe('vision landing SITL e2e', () => {
       estimate: { ...STRIP, offset_m: 18 },
       vehicle: approach({ altAglM: 12 }),
     });
-    expect(wide.vision.labelHe).toBe('גו-אראונד');
+    expect(wide.vision.labelHe).toBe('סבוב מחדש');
     expect(wide.sentNow).toBe(1);
     const abort = decode(fresh.link.frames[0]);
     expect(abort.type).toBe('COMMAND_LONG');
@@ -327,6 +327,53 @@ describe('vision landing SITL e2e', () => {
     expect(changed.vision.labelHe).toBe('שוחרר');
     expect(changed.sentNow).toBe(1);
     expect(mode.controller.tick({ estimate: STRIP, vehicle: approach({ customMode: 0 }) }).sentNow).toBe(0);
+  });
+
+  it('manual arm keeps guiding through pitch throttle and yaw, and cancels on roll', (ctx) => {
+    ctx.skip(!pymavlinkInstalled(), PYMAVLINK_SKIP);
+    const run = session();
+    const offApproach = (overrides = {}) => approach({ missionCurrent: 1, ...overrides });
+    run.controller.setManualArm(true);
+    run.at(120_000);
+    run.controller.tick({ estimate: STRIP, vehicle: offApproach() });
+    run.at(122_000);
+    expect(run.controller.tick({ estimate: STRIP, vehicle: offApproach() }).vision.labelHe).toBe('פעיל');
+
+    const sticks = {
+      chan1_raw: 1500,
+      chan2_raw: 1900,
+      chan3_raw: 1100,
+      chan4_raw: 1800,
+      chan5_raw: 1900,
+      chan6_raw: 1100,
+      chan7_raw: 1800,
+      chan8_raw: 1200,
+    };
+    const moved = run.controller.tick({
+      estimate: STRIP,
+      vehicle: offApproach({ rcChannels: sticks }),
+    });
+    expect(moved.vision.state).toBe('active');
+    expect(decode(run.link.frames.at(-1)).rest[0]).toBeGreaterThan(1500);
+    expect(decode(run.link.frames.at(-1)).rest.slice(1).every((value) => value === 0)).toBe(true);
+
+    const inside = run.controller.tick({
+      estimate: STRIP,
+      vehicle: offApproach({ rcChannels: { ...sticks, chan1_raw: 1539 } }),
+    });
+    expect(inside.vision.state).toBe('active');
+
+    const roll = run.controller.tick({
+      estimate: STRIP,
+      vehicle: offApproach({ rcChannels: { ...sticks, chan1_raw: 1540 } }),
+    });
+    expect(roll.vision.labelHe).toBe('שוחרר');
+    expect(roll.sentNow).toBe(1);
+    expect(decode(run.link.frames.at(-1)).rest.every((value) => value === 0)).toBe(true);
+    expect(run.controller.tick({
+      estimate: STRIP,
+      vehicle: offApproach({ rcChannels: { ...sticks, chan1_raw: 1540 } }),
+    }).sentNow).toBe(0);
   });
 
   it('can be armed from the console, and it stays silent off SITL and at level 4', () => {

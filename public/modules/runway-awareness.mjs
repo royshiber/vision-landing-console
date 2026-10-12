@@ -101,7 +101,7 @@ function paintTiles(doc, status) {
   if (arm) {
     const armed = status?.vision?.manualArm === true;
     arm.hidden = !on;
-    arm.textContent = armed ? 'בטל' : 'ידני';
+    arm.textContent = armed ? 'בטל' : 'חימוש ידני';
     arm.setAttribute('aria-pressed', armed ? 'true' : 'false');
   }
 }
@@ -213,10 +213,14 @@ function paint(doc, status) {
   paintOverlay(doc, latest);
   syncMenu(doc, latest);
   const stage = doc.getElementById('pfdHorizonStage');
-  if (stage) {
-    stage.dataset.awarenessMode = String(latest.level ?? 0);
-    stage.dataset.awarenessStage = stage.clientHeight > 0 && stage.clientHeight < 280 ? 'short' : 'full';
-  }
+  if (stage) stage.dataset.awarenessMode = String(latest.level ?? 0);
+  syncStage(doc);
+}
+
+function syncStage(doc) {
+  const stage = doc.getElementById('pfdHorizonStage');
+  if (!stage) return;
+  stage.dataset.awarenessStage = stage.clientHeight > 0 && stage.clientHeight < 280 ? 'short' : 'full';
 }
 
 async function readStatus(camera) {
@@ -375,7 +379,7 @@ function ensureChrome(doc) {
     const arm = el(doc, 'button', 'runway-awareness-arm');
     arm.type = 'button';
     arm.id = 'runwayVisionArm';
-    arm.textContent = 'ידני';
+    arm.textContent = 'חימוש ידני';
     arm.addEventListener('click', async (event) => {
       event.preventDefault();
       event.stopPropagation();
@@ -425,7 +429,10 @@ export function mountRunwayAwareness(doc = document) {
   arm();
   const stage = doc.getElementById('pfdHorizonStage');
   if (stage && typeof ResizeObserver === 'function') {
-    const watch = new ResizeObserver(() => paintOverlay(doc, latest));
+    const watch = new ResizeObserver(() => {
+      syncStage(doc);
+      paintOverlay(doc, latest);
+    });
     watch.observe(stage);
   }
   doc.addEventListener('click', () => {

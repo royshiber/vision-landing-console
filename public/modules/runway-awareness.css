@@ -82,6 +82,7 @@
   pointer-events: auto;
   margin-inline-start: auto;
   min-height: 22px;
+  max-width: 100%;
   padding: 0 8px;
   border: 0;
   border-radius: 5px;
@@ -91,10 +92,14 @@
   font-size: clamp(11px, 1.5vw, 13px);
   font-weight: 700;
   line-height: 1.3;
+  white-space: normal;
 }
 .runway-awareness-arm[aria-pressed="true"] { background: #155e75; }
 #pfdHorizonStage[data-awareness-stage="short"] .runway-awareness-stack {
   max-height: 42%;
+  left: 56px;
+  right: 6px;
+  bottom: 78px;
 }
 #pfdHorizonStage[data-awareness-stage="short"] .runway-awareness-tile {
   padding: 2px 4px;

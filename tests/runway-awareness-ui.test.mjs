@@ -23,7 +23,7 @@ const AWARENESS = {
   },
   hazards: [{ kind: 'person', label_he: 'אדם', confidence: 0.91, bbox: [40, 40, 20, 30] }],
   adviceHe: 'יש אדם על המסלול. מומלץ ללכת סביב.',
-  vision: { state: 'go_around', labelHe: 'גו-אראונד', manualArm: false },
+  vision: { state: 'go_around', labelHe: 'סבוב מחדש', manualArm: false },
 };
 
 describe('runway awareness layout', () => {
@@ -100,7 +100,8 @@ describe('runway awareness layout', () => {
     expect(fit.mode).toBe('2');
     expect(fit.runwayLevel).toBe(false);
     expect(fit.runwayLane).toBe(false);
-    expect(await page.locator('#runwayVisionStateWord').innerText()).toBe('גו-אראונד');
+    expect(await page.locator('#runwayVisionStateWord').innerText()).toBe('סבוב מחדש');
+    expect(await page.locator('#runwayVisionArm').innerText()).toBe('חימוש ידני');
 
     const armed = page.waitForRequest((req) => req.url().includes('/api/runway/vision-arm') && req.method() === 'POST');
     await page.locator('#runwayVisionArm').click();
@@ -127,11 +128,25 @@ describe('runway awareness layout', () => {
               && tiles.contains(word),
           });
         }
-        word.textContent = 'גו-אראונד';
-        return rows;
-      }, ['ממתין', 'פעיל', 'שוחרר', 'גו-אראונד']);
-      for (const row of placed) {
+        word.textContent = 'סבוב מחדש';
+        const stageShort = stage.getAttribute('data-awareness-stage') === 'short';
+        const stack = document.getElementById('runwayAwarenessStack');
+        const alert = document.getElementById('runwayAwarenessAlert');
+        const tapes = [...document.querySelectorAll('.pfd-side-tape--left, .pfd-side-tape--right')].map((el) => el.getBoundingClientRect());
+        const hits = [stack, alert].filter(Boolean).map((el) => el.getBoundingClientRect());
+        const clearOfTapes = hits.every((box) => tapes.every((tape) => (
+          box.right <= tape.left + 1 || box.left >= tape.right - 1
+          || box.bottom <= tape.top + 1 || box.top >= tape.bottom - 1
+        )));
+        return { rows, stageShort, clearOfTapes, tapes: tapes.length };
+      }, ['ממתין', 'פעיל', 'שוחרר', 'סבוב מחדש']);
+      for (const row of placed.rows) {
         expect(row.inside, `${width}x${height} ${row.value}`).toBe(true);
+      }
+      if (width === 1024 && height === 470) expect(placed.stageShort).toBe(true);
+      if (placed.stageShort) {
+        expect(placed.tapes, `${width}x${height} tapes`).toBeGreaterThanOrEqual(2);
+        expect(placed.clearOfTapes, `${width}x${height} tapes`).toBe(true);
       }
       if (width !== 1536) {
         const fitReport = await page.evaluate(collectTextFitFailures, 1);
@@ -141,10 +156,20 @@ describe('runway awareness layout', () => {
       await page.setViewportSize({ width, height });
       const point = await page.locator('#pfdHorizonStage').evaluate((el) => {
         const rect = el.getBoundingClientRect();
-        return { x: rect.left + rect.width / 2, y: Math.min(rect.bottom - 24, rect.top + 80) };
+        const x = rect.left + rect.width / 2;
+        const y = Math.min(rect.bottom - 24, rect.top + 80);
+        const hit = document.elementFromPoint(x, y);
+        const arm = document.getElementById('runwayVisionArm')?.getBoundingClientRect();
+        return {
+          x,
+          y,
+          hit: hit ? `${hit.tagName}#${hit.id}.${String(hit.className)}` : 'none',
+          arm: arm ? { top: arm.top, bottom: arm.bottom, left: arm.left, right: arm.right } : null,
+        };
       });
+      expect(point.hit, `${width}x${height} ${JSON.stringify(point)}`).not.toMatch(/BUTTON/i);
       await page.mouse.click(point.x, point.y, { button: 'right' });
-      await page.waitForSelector('#horizonCameraMenu:not([hidden])');
+      await page.waitForSelector('#horizonCameraMenu:not([hidden])', { timeout: 3000 });
       const box = await page.evaluate(() => {
         const menuEl = document.getElementById('horizonCameraMenu');
         const menu = menuEl.getBoundingClientRect();

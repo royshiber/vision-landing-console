@@ -175,7 +175,7 @@ describe('runway awareness SITL command gate', () => {
       vehicle: approachVehicle(),
     });
     expect(hazard.decision.reason).toBe('hazard');
-    expect(hazard.vision.labelHe).toBe('גו-אראונד');
+    expect(hazard.vision.labelHe).toBe('סבוב מחדש');
     expect(calls.filter((cmd) => cmd.release)).toHaveLength(1);
     expect(calls.filter((cmd) => cmd.kind === 'GO_AROUND')).toHaveLength(1);
     controller.tick({

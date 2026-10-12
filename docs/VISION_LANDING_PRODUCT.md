@@ -345,8 +345,8 @@ SITL lateral stage, implemented. A live vehicle is still a Human Gate.
 - Commands leave only when the vehicle is SITL. Level 4 stays locked.
 - Lost runway or low confidence releases the override once.
 - A hazard, or a large lateral error below the minimum altitude, sends one go-around.
-- A mode change or a pilot stick movement cancels immediately.
-- The tiles show ממתין, פעיל, שוחרר, or גו-אראונד.
+- A mode change, or roll-stick movement past the deadband, cancels immediately. Pitch, throttle, and yaw do not.
+- The tiles show ממתין, פעיל, שוחרר, or סבוב מחדש.
 - This is not full auto land. Connecting a live vehicle remains a Human Gate.
 
 ### Exp#4 — Full vision land (future GO)
