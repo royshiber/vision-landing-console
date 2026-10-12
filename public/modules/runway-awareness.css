@@ -7,21 +7,32 @@
   pointer-events: none;
 }
 .runway-awareness-layer[hidden] { display: none; }
-.runway-awareness-tiles {
+.runway-awareness-stack {
   position: absolute;
   z-index: 6;
   left: 6px;
   right: 6px;
   bottom: 6px;
   display: flex;
-  flex-flow: row wrap;
+  flex-direction: column;
+  justify-content: flex-end;
   gap: 4px;
+  max-height: 38%;
+  pointer-events: none;
+}
+.runway-awareness-tiles {
+  position: relative;
+  display: flex;
+  flex-flow: row nowrap;
+  gap: 4px;
+  min-width: 0;
+  min-height: 0;
   pointer-events: none;
 }
 .runway-awareness-tiles[hidden] { display: none; }
 .runway-awareness-tile {
-  flex: 1 1 88px;
-  min-width: 88px;
+  flex: 1 1 0;
+  min-width: 0;
   box-sizing: border-box;
   padding: 4px 6px;
   border-radius: 6px;
@@ -39,11 +50,8 @@
 }
 .runway-awareness-c { font-weight: 500; color: #e2e8f0; }
 .runway-awareness-alert {
-  position: absolute;
-  z-index: 6;
-  left: 6px;
-  right: 6px;
-  bottom: 62px;
+  position: relative;
+  flex: 0 0 auto;
   margin: 0;
   padding: 4px 6px;
   border-radius: 6px;
@@ -55,6 +63,18 @@
   pointer-events: none;
 }
 .runway-awareness-alert[hidden] { display: none; }
+#pfdHorizonStage[data-awareness-stage="short"] .runway-awareness-stack {
+  max-height: 42%;
+}
+#pfdHorizonStage[data-awareness-stage="short"] .runway-awareness-tile {
+  padding: 2px 4px;
+}
+#pfdHorizonStage[data-awareness-stage="short"] .runway-awareness-k,
+#pfdHorizonStage[data-awareness-stage="short"] .runway-awareness-v,
+#pfdHorizonStage[data-awareness-stage="short"] .runway-awareness-c,
+#pfdHorizonStage[data-awareness-stage="short"] .runway-awareness-alert {
+  font-size: 11px;
+}
 .runway-level-confirm {
   position: fixed;
   z-index: 80;

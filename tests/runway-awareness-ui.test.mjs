@@ -1,0 +1,124 @@
+/**
+ * Runway overlay fit on a short flight screen, and the level menu stays
+ * inside the viewport.
+ */
+import { afterAll, describe, expect, it } from 'vitest';
+import os from 'node:os';
+import path from 'node:path';
+import { startTestServer } from './test-server.mjs';
+
+const AWARENESS = {
+  ok: true,
+  level: 2,
+  estimate: {
+    detected: true,
+    offset_px: 12,
+    offset_m: 1.4,
+    heading_error_deg: 3,
+    confidence: { offset: 0.82, heading: 0.64, along: 0.5 },
+    polygon: [[10, 10], [140, 12], [150, 90], [8, 88]],
+    centerline: [[75, 12], [79, 90]],
+    aircraft: [96, 70],
+  },
+  hazards: [{ kind: 'person', label_he: 'אדם', confidence: 0.91, bbox: [40, 40, 20, 30] }],
+  adviceHe: 'יש אדם על המסלול. מומלץ ללכת סביב.',
+};
+
+describe('runway awareness layout', () => {
+  let proc = null;
+  let browser = null;
+  let page = null;
+
+  afterAll(async () => {
+    try { await browser?.close(); } catch { /* ignore */ }
+    if (proc && !proc.killed) proc.kill('SIGTERM');
+  });
+
+  it('stacks the alert above the tiles on a short stage and keeps the menu on screen', async () => {
+    const started = await startTestServer({
+      env: (port) => ({
+        SQLITE_PATH: path.join(os.tmpdir(), `airvix-runway-ui-${port}.sqlite`),
+        COMPANION_MODE: 'mock',
+        JETSON_COMPANION_BASE_URL: '',
+      }),
+      stdio: 'ignore',
+    });
+    proc = started.child;
+    const { chromium } = await import('playwright');
+    browser = await chromium.launch({ headless: true });
+    page = await browser.newPage({ viewport: { width: 1024, height: 470 } });
+    await page.route('**/api/runway/awareness**', (route) => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(AWARENESS),
+    }));
+    await page.goto(started.base, { waitUntil: 'domcontentloaded' });
+    await page.locator('.tab[data-tab="terrain"]').click();
+    await page.waitForFunction(() => {
+      const tiles = document.getElementById('runwayAwarenessTiles');
+      const alert = document.getElementById('runwayAwarenessAlert');
+      return tiles && tiles.hidden === false && alert && alert.hidden === false
+        && tiles.innerText.includes('%');
+    });
+    const fit = await page.evaluate(() => {
+      const stage = document.getElementById('pfdHorizonStage');
+      const tiles = document.getElementById('runwayAwarenessTiles');
+      const alert = document.getElementById('runwayAwarenessAlert');
+      const stageBox = stage.getBoundingClientRect();
+      const tileBox = tiles.getBoundingClientRect();
+      const alertBox = alert.getBoundingClientRect();
+      const overlap = Math.max(0, Math.min(alertBox.bottom, tileBox.bottom) - Math.max(alertBox.top, tileBox.top));
+      return {
+        overlap,
+        alertAbove: alertBox.bottom <= tileBox.top + 1,
+        tilesShare: tileBox.height / stageBox.height,
+        stackShare: (Math.max(alertBox.bottom, tileBox.bottom) - Math.min(alertBox.top, tileBox.top)) / stageBox.height,
+        inside: tileBox.left >= stageBox.left - 1 && tileBox.right <= stageBox.right + 1
+          && tileBox.bottom <= stageBox.bottom + 1 && alertBox.top >= stageBox.top - 1,
+        confidence: document.getElementById('runwayOffsetValue')?.innerText || '',
+        mode: stage.getAttribute('data-awareness-mode'),
+        runwayLevel: stage.hasAttribute('data-runway-level'),
+        runwayLane: stage.hasAttribute('data-runway-lane'),
+      };
+    });
+    expect(fit.alertAbove).toBe(true);
+    expect(fit.overlap).toBe(0);
+    expect(fit.tilesShare).toBeLessThan(0.5);
+    expect(fit.stackShare).toBeLessThan(0.5);
+    expect(fit.inside).toBe(true);
+    expect(fit.confidence).toMatch(/%/);
+    expect(fit.mode).toBe('2');
+    expect(fit.runwayLevel).toBe(false);
+    expect(fit.runwayLane).toBe(false);
+
+    for (const [width, height] of [[1024, 470], [1366, 768]]) {
+      await page.setViewportSize({ width, height });
+      const point = await page.locator('#pfdHorizonStage').evaluate((el) => {
+        const rect = el.getBoundingClientRect();
+        return { x: rect.left + rect.width / 2, y: Math.min(rect.bottom - 24, rect.top + 80) };
+      });
+      await page.mouse.click(point.x, point.y, { button: 'right' });
+      await page.waitForSelector('#horizonCameraMenu:not([hidden])');
+      const box = await page.evaluate(() => {
+        const menu = document.getElementById('horizonCameraMenu').getBoundingClientRect();
+        return {
+          top: menu.top,
+          left: menu.left,
+          right: menu.right,
+          bottom: menu.bottom,
+          vw: window.innerWidth,
+          vh: window.innerHeight,
+          hasLevel: !!document.querySelector('#horizonCameraMenu [data-awareness-level]'),
+          collided: !!document.querySelector('#horizonCameraMenu [data-runway-level], #pfdHorizonStage [data-runway-level]'),
+        };
+      });
+      expect(box.hasLevel).toBe(true);
+      expect(box.collided).toBe(false);
+      expect(box.top).toBeGreaterThanOrEqual(0);
+      expect(box.left).toBeGreaterThanOrEqual(0);
+      expect(box.right).toBeLessThanOrEqual(box.vw + 1);
+      expect(box.bottom).toBeLessThanOrEqual(box.vh + 1);
+      await page.keyboard.press('Escape');
+    }
+  }, 30000);
+});

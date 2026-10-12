@@ -2,6 +2,7 @@
  * Runway awareness stays silent at levels 0–2, and the roll override
  * leaves the process only when the link is a simulator.
  */
+import { spawnSync } from 'node:child_process';
 import { afterAll, describe, expect, it } from 'vitest';
 import express from 'express';
 import { MavlinkConnection } from '../lib/mavlink-connection.mjs';
@@ -140,9 +141,59 @@ describe('runway awareness SITL command gate', () => {
       estimate: { ...STRIP, hazards: [{ kind: 'person', label_he: 'אדם' }] },
       vehicle: { simulator: true, connected: true },
     });
-    expect(hazard.sentNow).toBe(0);
     expect(hazard.decision.reason).toBe('hazard');
+    expect(hazard.sentNow).toBe(1);
+    expect(calls).toHaveLength(2);
+    expect(calls[1].release).toBe(true);
+    expect(calls[1].rollPwm).toBe(0);
+    controller.tick({
+      estimate: { ...STRIP, hazards: [{ kind: 'person', label_he: 'אדם' }] },
+      vehicle: { simulator: true, connected: true },
+    });
+    expect(calls).toHaveLength(2);
+  });
+
+  it('releases the override once when the level drops or the link drops, and never off SITL', async () => {
+    const calls = [];
+    const controller = createRunwayController({
+      env: {},
+      link: { sendGuidance(cmd) { calls.push(cmd); return { sent: true }; } },
+    });
+    const sitl = { simulator: true, connected: true };
+    controller.setLevel({ level: 3 });
+    controller.tick({ estimate: STRIP, vehicle: sitl });
     expect(calls).toHaveLength(1);
+    expect(calls[0].release).toBeUndefined();
+
+    controller.setLevel({ level: 1 });
+    const dropped = controller.tick({ estimate: STRIP, vehicle: sitl });
+    expect(dropped.sentNow).toBe(1);
+    expect(calls[1]).toMatchObject({ release: true, rollPwm: 0 });
+    controller.tick({ estimate: STRIP, vehicle: sitl });
+    expect(calls).toHaveLength(2);
+
+    controller.setLevel({ level: 3 });
+    controller.tick({ estimate: STRIP, vehicle: sitl });
+    const denied = controller.tick({
+      estimate: STRIP,
+      vehicle: { simulator: false, connected: true },
+    });
+    expect(denied.sentNow).toBe(0);
+    expect(calls.filter((cmd) => cmd.release).length).toBe(1);
+
+    controller.setLevel({ level: 3 });
+    controller.tick({ estimate: STRIP, vehicle: sitl });
+    const lost = controller.tick({
+      estimate: STRIP,
+      vehicle: { simulator: true, connected: false },
+    });
+    expect(lost.sentNow).toBe(1);
+    expect(calls.at(-1)).toMatchObject({ release: true, rollPwm: 0 });
+    controller.tick({
+      estimate: STRIP,
+      vehicle: { simulator: true, connected: false },
+    });
+    expect(calls.filter((cmd) => cmd.release).length).toBe(2);
   });
 
   it('keeps level 4 locked, and a confirmed unlock still sends nothing off SITL', async () => {
@@ -213,14 +264,56 @@ describe('RC_CHANNELS_OVERRIDE stays inside SITL', () => {
     expect(conn.frames).toHaveLength(0);
   });
 
-  it('writes one roll override and leaves every other channel released', () => {
+  function pymavlinkDecode(frame) {
+    const script = [
+      'import sys',
+      'from pymavlink.dialects.v20 import common as mav',
+      'parser = mav.MAVLink(None)',
+      'msg = parser.decode(bytearray(bytes.fromhex(sys.argv[1])))',
+      'chans = [getattr(msg, f"chan{i}_raw") for i in range(1, 19)]',
+      'print(msg.get_type(), msg.target_system, msg.target_component, ",".join(str(c) for c in chans))',
+    ].join('\n');
+    const run = spawnSync('python3', ['-c', script, frame.toString('hex')], { encoding: 'utf8' });
+    expect(run.status, run.stderr).toBe(0);
+    const [type, target, comp, chans] = run.stdout.trim().split(' ');
+    return {
+      type,
+      target: Number(target),
+      comp: Number(comp),
+      channels: chans.split(',').map(Number),
+    };
+  }
+
+  it('writes one roll override and pymavlink reads the wire order', () => {
+    for (const version of [1, 2]) {
+      const conn = link(true);
+      conn._preferredTxVersion = version;
+      conn.sysId = 7;
+      conn.fcTargetCompId = 1;
+      const frame = conn.sendRunwayRollOverride(1500);
+      expect(conn.frames).toHaveLength(1);
+      const decoded = pymavlinkDecode(frame);
+      expect(decoded.type).toBe('RC_CHANNELS_OVERRIDE');
+      expect(decoded.target).toBe(7);
+      expect(decoded.comp).toBe(1);
+      expect(decoded.channels[0]).toBe(1500);
+      expect(decoded.channels.slice(1).every((value) => value === 0)).toBe(true);
+      expect(decoded.target).not.toBe(220);
+      expect(decoded.comp).not.toBe(5);
+    }
+  });
+
+  it('releases every channel with one all-zero override', () => {
     const conn = link(true);
-    const frame = conn.sendRunwayRollOverride(1620);
+    conn.connected = false;
+    conn.sysId = 7;
+    conn.fcTargetCompId = 1;
+    const frame = conn.sendRunwayRollOverride(1500, { release: true });
+    const decoded = pymavlinkDecode(frame);
+    expect(decoded.target).toBe(7);
+    expect(decoded.comp).toBe(1);
+    expect(decoded.channels.every((value) => value === 0)).toBe(true);
+    expect(() => conn.sendRunwayRollOverride(1500)).toThrowError(expect.objectContaining({ code: 'no_link' }));
     expect(conn.frames).toHaveLength(1);
-    expect(frame[0]).toBe(0xfd);
-    const msgid = frame[7] | (frame[8] << 8) | (frame[9] << 16);
-    expect(msgid).toBe(70);
-    expect(frame.readUInt16LE(10)).toBe(1620);
-    for (let i = 12; i <= 25; i += 1) expect(frame[i]).toBe(0);
   });
 });

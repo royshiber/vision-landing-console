@@ -44,7 +44,7 @@ function fillMeasure(doc, node, side, amount, confidence) {
   if (amount) node.append(doc.createTextNode(' '), bdi(doc, amount));
   if (confidence) {
     const line = el(doc, 'span', 'runway-awareness-c');
-    line.append(doc.createTextNode('ביטחון '), bdi(doc, String(confidence)));
+    line.append(doc.createTextNode('ביטחון '), bdi(doc, `${confidence}%`));
     node.append(line);
   }
 }
@@ -79,7 +79,7 @@ function paintTiles(doc, status) {
       hazard.append(word);
       if (row && Number.isFinite(Number(row.confidence))) {
         const line = el(doc, 'span', 'runway-awareness-c');
-        line.append(doc.createTextNode('ביטחון '), bdi(doc, String(Math.round(Number(row.confidence) * 100))));
+        line.append(doc.createTextNode('ביטחון '), bdi(doc, `${Math.round(Number(row.confidence) * 100)}%`));
         hazard.append(line);
       }
     }
@@ -185,8 +185,8 @@ function paintOverlay(doc, status) {
 
 function syncMenu(doc, status) {
   const level = Number(status?.level);
-  doc.querySelectorAll('[data-runway-level]').forEach((btn) => {
-    const on = Number(btn.dataset.runwayLevel) === level;
+  doc.querySelectorAll('[data-awareness-level]').forEach((btn) => {
+    const on = Number(btn.dataset.awarenessLevel) === level;
     btn.setAttribute('aria-checked', on ? 'true' : 'false');
     btn.classList.toggle('is-selected', on);
   });
@@ -198,7 +198,10 @@ function paint(doc, status) {
   paintOverlay(doc, latest);
   syncMenu(doc, latest);
   const stage = doc.getElementById('pfdHorizonStage');
-  if (stage) stage.dataset.runwayLevel = String(latest.level ?? 0);
+  if (stage) {
+    stage.dataset.awarenessMode = String(latest.level ?? 0);
+    stage.dataset.awarenessStage = stage.clientHeight > 0 && stage.clientHeight < 280 ? 'short' : 'full';
+  }
 }
 
 async function readStatus(camera) {
@@ -287,7 +290,7 @@ function openLevel4(doc) {
 
 function ensureMenu(doc) {
   const menu = doc.getElementById('horizonCameraMenu');
-  if (!menu || menu.querySelector('[data-runway-level]')) return;
+  if (!menu || menu.querySelector('[data-awareness-level]')) return;
   const group = el(doc, 'div', 'horizon-menu-group horizon-menu-group--runway');
   group.id = 'runwayLevelGroup';
   const head = el(doc, 'p', 'horizon-menu-heading');
@@ -297,7 +300,7 @@ function ensureMenu(doc) {
     const btn = el(doc, 'button', 'horizon-cam-menu-item');
     btn.type = 'button';
     btn.setAttribute('role', 'menuitemradio');
-    btn.dataset.runwayLevel = String(row.level);
+    btn.dataset.awarenessLevel = String(row.level);
     const name = el(doc, 'span', 'horizon-menu-label');
     name.textContent = row.label;
     const desc = el(doc, 'span', 'horizon-menu-desc');
@@ -327,6 +330,11 @@ function ensureChrome(doc) {
     const canvas = el(doc, 'canvas', 'runway-awareness-layer');
     canvas.id = 'runwayAwarenessLayer';
     canvas.hidden = true;
+    const stack = el(doc, 'div', 'runway-awareness-stack');
+    stack.id = 'runwayAwarenessStack';
+    const alert = el(doc, 'p', 'runway-awareness-alert');
+    alert.id = 'runwayAwarenessAlert';
+    alert.hidden = true;
     const tiles = el(doc, 'div', 'runway-awareness-tiles');
     tiles.id = 'runwayAwarenessTiles';
     tiles.hidden = true;
@@ -337,7 +345,7 @@ function ensureChrome(doc) {
       ['hazard', 'סכנה', 'runwayHazardValue'],
     ]) {
       const tile = el(doc, 'div', 'runway-awareness-tile');
-      tile.dataset.runwayTile = id;
+      tile.dataset.awarenessTile = id;
       const key = el(doc, 'span', 'runway-awareness-k');
       key.textContent = label;
       const value = el(doc, 'strong', 'runway-awareness-v');
@@ -345,10 +353,8 @@ function ensureChrome(doc) {
       tile.append(key, value);
       tiles.append(tile);
     }
-    const alert = el(doc, 'p', 'runway-awareness-alert');
-    alert.id = 'runwayAwarenessAlert';
-    alert.hidden = true;
-    stage.append(canvas, alert, tiles);
+    stack.append(alert, tiles);
+    stage.append(canvas, stack);
   }
   ensureMenu(doc);
   ensureDialog(doc);
@@ -377,8 +383,32 @@ export function mountRunwayAwareness(doc = document) {
     watch.observe(stage);
   }
   doc.addEventListener('click', () => {
-    if (doc.getElementById('horizonCameraMenu') && !doc.querySelector('[data-runway-level]')) ensureMenu(doc);
+    if (doc.getElementById('horizonCameraMenu') && !doc.querySelector('#horizonCameraMenu [data-awareness-level]')) ensureMenu(doc);
   });
+  doc.addEventListener('contextmenu', () => clampHorizonMenu(doc));
+}
+
+function clampHorizonMenu(doc) {
+  const menu = doc.getElementById('horizonCameraMenu');
+  const view = doc.defaultView;
+  if (!menu || menu.hidden || !view) return;
+  const margin = 8;
+  const maxH = Math.max(120, view.innerHeight - margin * 2);
+  const maxW = Math.max(160, view.innerWidth - margin * 2);
+  menu.style.maxHeight = `${maxH}px`;
+  menu.style.maxWidth = `${Math.min(300, maxW)}px`;
+  menu.style.overflow = 'auto';
+  const rect = menu.getBoundingClientRect();
+  const height = Math.min(rect.height, maxH);
+  const width = Math.min(rect.width, maxW);
+  let top = rect.top;
+  let left = rect.left;
+  if (top + height > view.innerHeight - margin) top = view.innerHeight - margin - height;
+  if (left + width > view.innerWidth - margin) left = view.innerWidth - margin - width;
+  if (top < margin) top = margin;
+  if (left < margin) left = margin;
+  menu.style.top = `${Math.round(top)}px`;
+  menu.style.left = `${Math.round(left)}px`;
 }
 
 if (typeof document !== 'undefined') mountRunwayAwareness(document);
