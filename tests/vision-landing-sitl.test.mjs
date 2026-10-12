@@ -810,8 +810,50 @@ describe('vision landing SITL e2e', () => {
     stale.link.conn.lastHeartbeatWallMs = Date.now() - 2000;
     const quiet = stale.controller.tick({ estimate: seen, vehicle: { ...vehicle, altAt: 92_000 } });
     expect(quiet.sentNow).toBe(0);
-    expect(quiet.vision.state).toBe('active');
+    expect(quiet.vision.state).toBe('released');
+    expect(quiet.vision.reason).toBe('link');
+    expect(quiet.vision.labelHe).toBe('שוחרר');
     expect(stale.link.frames).toHaveLength(held);
+    stale.link.conn.lastHeartbeatWallMs = Date.now();
+    stale.link.conn.lastCustomMode = 15;
+    const returned = stale.controller.tick({ estimate: seen, vehicle: { ...vehicle, altAt: 92_000 } });
+    expect(returned.vision.state).toBe('released');
+    expect(returned.sentNow).toBe(0);
+    expect(stale.link.frames).toHaveLength(held);
+    const pressed = stale.controller.requestOptical({ ...vehicle, altAt: 92_000 });
+    expect(pressed.ok).toBe(true);
+    expect(stale.link.frames).toHaveLength(held + 1);
+    expect(decode(stale.link.frames.at(-1)).customMode).toBe(15);
+  });
+
+  it('releases once when the heartbeat goes stale and does not resume', (ctx) => {
+    ctx.skip(!pymavlinkInstalled(), PYMAVLINK_SKIP);
+    const run = session();
+    run.at(30_000);
+    run.controller.tick({ estimate: STRIP, vehicle: approach({ altAt: 30_000 }) });
+    run.at(32_000);
+    const guided = run.controller.tick({ estimate: STRIP, vehicle: approach({ altAt: 32_000 }) });
+    expect(guided.vision.state).toBe('active');
+    expect(guided.sentNow).toBe(1);
+    const before = run.link.frames.length;
+    run.link.conn.lastCustomMode = 10;
+    run.link.conn.lastHeartbeatWallMs = Date.now() - 2000;
+    const lost = run.controller.tick({ estimate: STRIP, vehicle: approach({ altAt: 32_000 }) });
+    expect(lost.vision.state).toBe('released');
+    expect(lost.vision.reason).toBe('link');
+    expect(lost.vision.labelHe).toBe('שוחרר');
+    expect(lost.sentNow).toBe(1);
+    expect(run.link.frames).toHaveLength(before + 1);
+    expect(decode(run.link.frames.at(-1)).rest.every((value) => value === 0)).toBe(true);
+    run.link.conn.lastHeartbeatWallMs = Date.now();
+    run.link.conn.lastCustomMode = 10;
+    const back = run.controller.tick({ estimate: STRIP, vehicle: approach({ altAt: 32_000 }) });
+    expect(back.vision.state).toBe('released');
+    expect(back.sentNow).toBe(0);
+    expect(run.link.frames).toHaveLength(before + 1);
+    const again = run.controller.tick({ estimate: STRIP, vehicle: approach({ altAt: 32_000 }) });
+    expect(again.vision.state).toBe('released');
+    expect(again.sentNow).toBe(0);
   });
 
   it('goes around when AUTO is refused or the next heartbeat is not AUTO', (ctx) => {
@@ -968,7 +1010,7 @@ describe('vision landing SITL e2e', () => {
     expect(early.vision.reason).not.toBe('idle');
     const fast = run.controller.tick({
       estimate: seen,
-      vehicle: { ...low, groundspeedMps: 4, groundspeedAt: 181_000, relativeAltAt: 181_000, altAt: 181_000 },
+      vehicle: { ...low, groundspeedMps: 15, groundspeedAt: 180_000, relativeAltAt: 180_000, altAt: 180_000 },
     });
     expect(fast.vision.reason).not.toBe('idle');
     run.at(182_000);
@@ -982,12 +1024,27 @@ describe('vision landing SITL e2e', () => {
       },
     });
     expect(restarted.vision.reason).not.toBe('idle');
+    run.at(184_000);
+    const midway = run.controller.tick({
+      estimate: seen,
+      vehicle: {
+        ...low,
+        groundspeedMps: 3.9,
+        relativeAltM: -1.15,
+        groundspeedAt: 184_000,
+        relativeAltAt: 184_000,
+        altAt: 184_000,
+      },
+    });
+    expect(midway.vision.reason).not.toBe('idle');
     run.at(185_000);
     const before = run.link.frames.length;
     const down = run.controller.tick({
       estimate: seen,
       vehicle: {
         ...low,
+        groundspeedMps: 3.9,
+        relativeAltM: -1.15,
         groundspeedAt: 185_000,
         relativeAltAt: 185_000,
         altAt: 185_000,
@@ -1004,6 +1061,139 @@ describe('vision landing SITL e2e', () => {
       vehicle: { ...vehicle, altAt: 185_000, groundspeedMps: null, relativeAltM: null },
     });
     expect(missing.vision.reason).not.toBe('idle');
+  });
+
+  it('idles on an ArduPlane touchdown and stays active through the glide', () => {
+    const run = session();
+    const seen = { ...STRIP, threshold_lat: 32.01, threshold_lon: 34.81 };
+    const glide = approach({
+      customMode: 15,
+      missionCurrent: 1,
+      lat: 32.01 + (700 / 111320),
+      lon: 34.81,
+      altAglM: 40,
+      altAt: 210_000,
+      armed: true,
+      landedState: 4,
+      groundspeedMps: 18,
+      groundspeedAt: 210_000,
+      relativeAltM: 40,
+      relativeAltAt: 210_000,
+    });
+    run.at(208_000);
+    run.controller.note({ estimate: seen, vehicle: glide });
+    run.at(210_000);
+    expect(run.controller.requestOptical(glide).ok).toBe(true);
+    const flying = run.controller.tick({ estimate: seen, vehicle: glide });
+    expect(flying.vision.state).toBe('active');
+    expect(flying.vision.reason).toBe('glide');
+    const lowFast = run.controller.tick({
+      estimate: seen,
+      vehicle: {
+        ...glide,
+        altAglM: 2,
+        altAt: 210_000,
+        landedState: null,
+        groundspeedMps: 15,
+        groundspeedAt: 210_000,
+        relativeAltM: 2,
+        relativeAltAt: 210_000,
+      },
+    });
+    expect(lowFast.vision.reason).not.toBe('idle');
+    run.at(214_000);
+    const stillFlying = run.controller.tick({
+      estimate: seen,
+      vehicle: {
+        ...glide,
+        altAglM: 2,
+        altAt: 214_000,
+        landedState: null,
+        groundspeedMps: 15,
+        groundspeedAt: 214_000,
+        relativeAltM: 2,
+        relativeAltAt: 214_000,
+      },
+    });
+    expect(stillFlying.vision.state).toBe('active');
+    expect(stillFlying.vision.reason).not.toBe('idle');
+    const touch = run.controller.tick({
+      estimate: seen,
+      vehicle: {
+        ...glide,
+        altAglM: -1.15,
+        altAt: 214_000,
+        landedState: 4,
+        groundspeedMps: 15,
+        groundspeedAt: 214_000,
+        relativeAltM: -1.15,
+        relativeAltAt: 214_000,
+      },
+    });
+    expect(touch.vision.state).toBe('waiting');
+    expect(touch.vision.reason).toBe('idle');
+    expect(touch.vision.labelHe).toBe('ממתין');
+    expect(touch.sentNow).toBe(0);
+
+    const roll = session();
+    const vehicle = approach({
+      customMode: 15,
+      missionCurrent: 1,
+      lat: 32.01 + (700 / 111320),
+      lon: 34.81,
+      altAglM: 40,
+      altAt: 220_000,
+      armed: true,
+      landedState: null,
+    });
+    roll.at(218_000);
+    roll.controller.note({ estimate: seen, vehicle });
+    roll.at(220_000);
+    expect(roll.controller.requestOptical(vehicle).ok).toBe(true);
+    expect(roll.controller.tick({ estimate: seen, vehicle }).vision.state).toBe('active');
+    const once = {
+      ...vehicle,
+      altAglM: -1.15,
+      altAt: 220_000,
+      groundspeedMps: 3.9,
+      groundspeedAt: 220_000,
+      relativeAltM: -1.15,
+      relativeAltAt: 220_000,
+    };
+    expect(roll.controller.tick({ estimate: seen, vehicle: once }).vision.reason).not.toBe('idle');
+    roll.at(223_000);
+    const down = roll.controller.tick({
+      estimate: seen,
+      vehicle: { ...once, altAt: 223_000, groundspeedAt: 223_000, relativeAltAt: 223_000 },
+    });
+    expect(down.vision.reason).toBe('idle');
+    expect(down.vision.state).toBe('waiting');
+    const edge = roll.controller.tick({
+      estimate: seen,
+      vehicle: {
+        ...once,
+        altAt: 223_000,
+        groundspeedMps: 5,
+        groundspeedAt: 223_000,
+        relativeAltM: 2.9,
+        relativeAltAt: 223_000,
+        landedState: null,
+      },
+    });
+    expect(edge.vision.reason).not.toBe('idle');
+    const highState = roll.controller.tick({
+      estimate: seen,
+      vehicle: {
+        ...vehicle,
+        altAt: 223_000,
+        landedState: 4,
+        relativeAltM: 40,
+        relativeAltAt: 223_000,
+        groundspeedMps: 18,
+        groundspeedAt: 223_000,
+      },
+    });
+    expect(highState.vision.reason).not.toBe('idle');
   });
 
   it('allows a new press after the climb and after a takeover', () => {

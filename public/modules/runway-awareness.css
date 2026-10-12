@@ -212,6 +212,28 @@
   z-index: 1;
   pointer-events: auto;
 }
+@media (max-width: 1100px) and (max-height: 520px) {
+  #pfdHorizonStage[data-awareness-stage="short"] > #runwayVisionState {
+    top: 38px;
+    left: 54px;
+    right: 4px;
+    width: auto;
+    max-width: none;
+  }
+  #pfdHorizonStage[data-awareness-stage="short"] > #runwayVisionArm {
+    position: absolute;
+    top: 96px;
+    left: 6px;
+    right: auto;
+    width: 46px;
+    max-width: 46px;
+    margin: 0;
+    white-space: normal;
+    text-align: center;
+    z-index: 9;
+    pointer-events: auto;
+  }
+}
 #pfdHorizonStage[data-awareness-stage="short"] .runway-vision-hold,
 #pfdHorizonStage[data-awareness-stage="short"] .runway-awareness-alert,
 #pfdHorizonStage[data-awareness-stage="short"] .runway-awareness-tile,

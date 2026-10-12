@@ -224,6 +224,36 @@ describe('runway awareness layout', () => {
           return !(w > 0 && h > 0);
         });
         expect(armClearsState, 'arm button covers the state text').toBe(true);
+        const armLanes = await page.evaluate(() => {
+          const word = document.getElementById('runwayVisionStateWord');
+          const previous = word.textContent;
+          word.textContent = 'רמה 3 נדרשת לנחיתה אופטית';
+          function hits(a, b) {
+            if (!a || !b || a.width < 1 || b.width < 1) return false;
+            const w = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+            const h = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+            return w > 0 && h > 0;
+          }
+          function textBox(el) {
+            const range = document.createRange();
+            range.selectNodeContents(el);
+            return range.getBoundingClientRect();
+          }
+          const arm = document.getElementById('runwayVisionArm')?.getBoundingClientRect();
+          const alt = document.querySelector('.pfd-side-tape--right')?.getBoundingClientRect();
+          const note = document.getElementById('horizonNoData');
+          const glyphs = note ? textBox(note) : null;
+          const wordBox = word.getBoundingClientRect();
+          word.textContent = previous;
+          return {
+            alt: !hits(arm, alt),
+            note: !hits(arm, glyphs),
+            word: !hits(arm, wordBox),
+          };
+        });
+        expect(armLanes.alt, 'arm overlaps the ALT box').toBe(true);
+        expect(armLanes.note, 'arm overlaps אין נתונים').toBe(true);
+        expect(armLanes.word, 'arm overlaps the state text').toBe(true);
         expect(placed.oneRow, 'offset heading and hazard share one line').toBe(true);
         const offsetText = await page.locator('#runwayOffsetValue').innerText();
         const headingText = await page.locator('#runwayHeadingValue').innerText();

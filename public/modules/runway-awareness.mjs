@@ -302,7 +302,11 @@ function syncStage(doc) {
     if (short) stage.append(state);
     else tiles.insertBefore(state, tiles.firstChild);
   }
-  if (arm && state && arm.parentElement !== state) state.append(arm);
+  const narrow = short && stage.clientWidth > 0 && stage.clientWidth <= 200;
+  if (arm && state) {
+    const parent = narrow ? stage : state;
+    if (arm.parentElement !== parent) parent.append(arm);
+  }
 }
 
 async function readStatus(camera) {
