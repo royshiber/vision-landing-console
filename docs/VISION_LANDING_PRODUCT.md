@@ -347,6 +347,8 @@ SITL lateral stage, implemented. A live vehicle is still a Human Gate.
 - A hazard, or a large lateral error below the minimum altitude, sends one go-around.
 - A mode change cancels immediately. So does the takeover switch, a channel the override never holds. The default is channel 7, and the cancel is when its PWM reaches 1700. Pitch, throttle, and yaw do not cancel. Channel 1 is the roll command echo and is not pilot input.
 - If that switch has no valid RC (missing RC_CHANNELS, or 0, or 65535), guidance does not activate and the tiles stay ממתין.
+- RC failsafe is the same invalid switch. Channel count 0, rssi 0, or a frozen sample (the same channel packet, or time_boot_ms not advancing, for about a second) refuses activation. While guiding, it releases once and stays ממתין.
+- A stored RC sample older than about 500 ms is dropped, so it is the same invalid switch and releases once.
 - The tiles show ממתין, פעיל, שוחרר, or סבוב מחדש.
 - This is not full auto land. Connecting a live vehicle remains a Human Gate.
 

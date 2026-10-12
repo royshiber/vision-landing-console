@@ -8,6 +8,11 @@ import path from 'node:path';
 import { startTestServer } from './test-server.mjs';
 import { collectTextFitFailures } from './text-fit-audit.mjs';
 
+function pngSize(buf) {
+  expect(buf.subarray(0, 8).toString('hex')).toBe('89504e470d0a1a0a');
+  return { width: buf.readUInt32BE(16), height: buf.readUInt32BE(20) };
+}
+
 const AWARENESS = {
   ok: true,
   level: 2,
@@ -50,6 +55,7 @@ describe('runway awareness layout', () => {
     browser = await chromium.launch({ headless: true });
     page = await browser.newPage({ viewport: { width: 1024, height: 470 } });
     let armedNow = false;
+    let visionOverride = null;
     const armedVision = { state: 'active', labelHe: 'פעיל', manualArm: true, takeoverCh: 7 };
     await page.route('**/api/runway/vision-arm', (route) => {
       armedNow = true;
@@ -64,7 +70,7 @@ describe('runway awareness layout', () => {
       contentType: 'application/json',
       body: JSON.stringify({
         ...AWARENESS,
-        vision: armedNow ? armedVision : AWARENESS.vision,
+        vision: visionOverride || (armedNow ? armedVision : AWARENESS.vision),
       }),
     }));
     await page.goto(started.base, { waitUntil: 'domcontentloaded' });
@@ -105,7 +111,7 @@ describe('runway awareness layout', () => {
     expect(fit.runwayLevel).toBe(false);
     expect(fit.runwayLane).toBe(false);
     expect(await page.locator('#runwayVisionStateWord').innerText()).toBe('סבוב מחדש');
-    expect(await page.locator('#runwayVisionArm').innerText()).toBe('חימוש ידני');
+    expect(await page.locator('#runwayVisionArm').innerText()).toBe('הנחיה ידנית');
     expect(await page.locator('#runwayVisionHold').isHidden()).toBe(true);
     expect(await page.locator('#runwayVisionTakeover').isHidden()).toBe(true);
 
@@ -124,10 +130,10 @@ describe('runway awareness layout', () => {
     const armed = page.waitForRequest((req) => req.url().includes('/api/runway/vision-arm') && req.method() === 'POST');
     await page.locator('#runwayVisionArm').click({ timeout: 4000 });
     expect((await armed).postDataJSON()).toEqual({ arm: true });
-    await page.waitForFunction(() => document.getElementById('runwayVisionArm')?.textContent === 'בטל חימוש');
-    expect(await page.locator('#runwayVisionArm').innerText()).toBe('בטל חימוש');
+    await page.waitForFunction(() => document.getElementById('runwayVisionArm')?.textContent === 'בטל הנחיה');
+    expect(await page.locator('#runwayVisionArm').innerText()).toBe('בטל הנחיה');
     expect(await page.locator('#runwayVisionHold').innerText()).toBe('גלגול: הקונסולה. עלרוד, מצערת והגה: הטייס');
-    expect(await page.locator('#runwayVisionTakeover').innerText()).toBe('להשתלטות: מתג ערוץ 7 או החלפת מצב');
+    expect(await page.locator('#runwayVisionTakeover').innerText()).toBe('להשתלטות: מתג ערוץ 7 למעלה או החלפת מצב');
 
     for (const [width, height] of [[1024, 470], [1366, 630], [1536, 730]]) {
       await page.setViewportSize({ width, height });
@@ -154,23 +160,21 @@ describe('runway awareness layout', () => {
         const stageShort = stage.getAttribute('data-awareness-stage') === 'short';
         const stack = document.getElementById('runwayAwarenessStack');
         const stackBox = stack.getBoundingClientRect();
-        const measure = [...tiles.querySelectorAll('.runway-awareness-tile')];
-        const oneColumn = measure.length >= 3 && measure.every((tile, index) => {
+        const measure = [...tiles.querySelectorAll('.runway-awareness-tile')].map((tile) => {
           const box = tile.getBoundingClientRect();
-          const prev = index === 0 ? null : measure[index - 1].getBoundingClientRect();
-          return box.width >= stackBox.width - 8
-            && box.right <= stageBox.right + 1
-            && box.left >= stageBox.left - 1
-            && (!prev || box.top >= prev.bottom - 1);
+          return { top: box.top, left: box.left, right: box.right, width: box.width };
         });
-        return { rows, stageShort, oneColumn };
+        const oneRow = measure.length >= 3
+          && Math.max(...measure.map((box) => box.top)) - Math.min(...measure.map((box) => box.top)) <= 2
+          && measure.every((box) => box.width < stackBox.width * 0.6 && box.width > 8);
+        return { rows, stageShort, oneRow };
       }, ['ממתין', 'פעיל', 'שוחרר', 'סבוב מחדש']);
       for (const row of placed.rows) {
         expect(row.inside, `${width}x${height} ${row.value}`).toBe(true);
       }
       if (width === 1024 && height === 470) {
         expect(placed.stageShort).toBe(true);
-        expect(placed.oneColumn, 'offset tiles use one column').toBe(true);
+        expect(placed.oneRow, 'offset heading and hazard share one line').toBe(true);
       }
       const clearance = await page.evaluate(() => {
         const stage = document.getElementById('pfdHorizonStage');
@@ -218,6 +222,50 @@ describe('runway awareness layout', () => {
       expect(clearance.hitRight, `${width}x${height}`).toBe(false);
       expect(clearance.inside, `${width}x${height}`).toBe(true);
       expect(clearance.offsetInside, `${width}x${height}`).toBe(true);
+      const png = await page.locator('#pfdHorizonStage').screenshot();
+      const image = pngSize(png);
+      const shot = await page.evaluate(() => {
+        const stage = document.getElementById('pfdHorizonStage').getBoundingClientRect();
+        const canvas = document.getElementById('horizonCanvas').getBoundingClientRect();
+        const left = document.querySelector('.pfd-side-tape--left').getBoundingClientRect();
+        const right = document.querySelector('.pfd-side-tape--right').getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+        const rel = (box) => ({
+          left: (box.left - stage.left) * dpr,
+          top: (box.top - stage.top) * dpr,
+          right: (box.right - stage.left) * dpr,
+          bottom: (box.bottom - stage.top) * dpr,
+        });
+        return {
+          dpr,
+          stage: { width: stage.width * dpr, height: stage.height * dpr },
+          canvas: rel(canvas),
+          left: rel(left),
+          right: rel(right),
+          tiles: [...document.querySelectorAll('#runwayAwarenessTiles .runway-awareness-tile')].map((el) => ({
+            id: el.dataset.awarenessTile,
+            ...rel(el.getBoundingClientRect()),
+          })),
+        };
+      });
+      expect(Math.abs(image.width - shot.stage.width), `${width}x${height} png`).toBeLessThanOrEqual(2);
+      expect(Math.abs(image.height - shot.stage.height), `${width}x${height} png`).toBeLessThanOrEqual(2);
+      expect(shot.tiles.map((tile) => tile.id)).toEqual(['offset', 'heading', 'hazard']);
+      const horizon = shot.canvas.right - shot.canvas.left > 8 ? shot.canvas : {
+        left: 0, top: 0, right: image.width, bottom: image.height,
+      };
+      for (const tile of shot.tiles) {
+        expect(tile.top, `${width} ${tile.id}`).toBeGreaterThanOrEqual(horizon.top - 1);
+        expect(tile.left, `${width} ${tile.id}`).toBeGreaterThanOrEqual(Math.max(0, horizon.left) - 1);
+        expect(tile.right, `${width} ${tile.id}`).toBeLessThanOrEqual(Math.min(image.width, horizon.right) + 1);
+        expect(tile.bottom, `${width} ${tile.id}`).toBeLessThanOrEqual(Math.min(image.height, horizon.bottom) + 1);
+        expect(tile.left, `${width} ${tile.id} tape`).toBeGreaterThanOrEqual(shot.left.right - 1);
+        expect(tile.right, `${width} ${tile.id} tape`).toBeLessThanOrEqual(shot.right.left + 1);
+      }
+      if (width === 1024 && height === 470) {
+        const tops = shot.tiles.map((tile) => tile.top);
+        expect(Math.max(...tops) - Math.min(...tops), 'screenshot row').toBeLessThanOrEqual(2);
+      }
       if (width !== 1536) {
         const fitReport = await page.evaluate(collectTextFitFailures, 1);
         const runway = (fitReport.fails || []).filter((row) => /runway/i.test(`${row.who} ${row.text}`));
@@ -277,5 +325,18 @@ describe('runway awareness layout', () => {
       }
       await page.keyboard.press('Escape');
     }
+    visionOverride = {
+      state: 'waiting',
+      labelHe: 'ממתין',
+      reason: 'no_switch',
+      manualArm: false,
+      takeoverCh: 4,
+    };
+    await page.waitForFunction(() => (
+      document.getElementById('runwayVisionStateWord')?.textContent || ''
+    ).includes('ערוץ 4'));
+    expect(await page.locator('#runwayVisionStateWord').innerText()).toBe(
+      'ממתין: אין קריאה ממתג ההשתלטות (ערוץ 4). בדקו שהשלט מחובר והמתג למטה',
+    );
   }, 30000);
 });

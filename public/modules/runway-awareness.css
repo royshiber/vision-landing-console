@@ -17,7 +17,7 @@
   flex-direction: column;
   justify-content: flex-end;
   gap: 4px;
-  max-height: none;
+  max-height: calc(100% - 8px);
   pointer-events: none;
 }
 .runway-awareness-tiles {
@@ -30,6 +30,13 @@
   pointer-events: none;
 }
 .runway-awareness-tiles[hidden] { display: none; }
+.runway-awareness-measures {
+  display: flex;
+  flex: 1 1 100%;
+  flex-flow: row nowrap;
+  gap: 4px;
+  min-width: 0;
+}
 .runway-awareness-tile {
   flex: 1 1 0;
   min-width: 0;
@@ -77,6 +84,10 @@
 .runway-awareness-state .runway-awareness-v {
   display: inline;
   width: auto;
+  min-width: 0;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: break-word;
 }
 .runway-awareness-arm {
   pointer-events: auto;
@@ -109,33 +120,52 @@
   right: 52px;
   top: 0;
   bottom: 0;
-  gap: 0;
-  max-height: none;
+  gap: 1px;
+  max-height: 100%;
   justify-content: flex-end;
 }
+#pfdHorizonStage[data-awareness-stage="short"] .runway-awareness-tiles {
+  position: static;
+  flex: 1 1 auto;
+  min-height: 0;
+  padding-bottom: 64px;
+  box-sizing: border-box;
+}
+#pfdHorizonStage[data-awareness-stage="short"] .runway-awareness-measures {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 7;
+  display: flex;
+  flex-flow: row nowrap;
+  align-items: stretch;
+  gap: 2px;
+  min-width: 0;
+}
 #pfdHorizonStage[data-awareness-stage="short"] .runway-awareness-state {
+  flex: 1 1 100%;
   flex-flow: row wrap;
   align-items: center;
   gap: 1px 4px;
   padding: 0 2px;
-}
-#pfdHorizonStage[data-awareness-stage="short"] .runway-awareness-tiles {
-  flex-flow: column nowrap;
-  gap: 1px;
+  max-width: 100%;
 }
 #pfdHorizonStage[data-awareness-stage="short"] .runway-awareness-tile {
-  flex: 0 0 auto;
-  width: 100%;
-  padding: 0 2px;
+  flex: 1 1 0;
+  width: auto;
+  min-width: 0;
+  padding: 0 1px;
+  overflow-wrap: anywhere;
 }
 #pfdHorizonStage[data-awareness-stage="short"] .runway-awareness-alert {
   padding: 0 2px;
   line-height: 1.35;
 }
-#pfdHorizonStage[data-awareness-stage="short"] .runway-awareness-k,
-#pfdHorizonStage[data-awareness-stage="short"] .runway-awareness-v,
-#pfdHorizonStage[data-awareness-stage="short"] .runway-awareness-c {
-  display: inline;
+#pfdHorizonStage[data-awareness-stage="short"] .runway-awareness-tile .runway-awareness-k,
+#pfdHorizonStage[data-awareness-stage="short"] .runway-awareness-tile .runway-awareness-v,
+#pfdHorizonStage[data-awareness-stage="short"] .runway-awareness-tile .runway-awareness-c {
+  display: block;
 }
 #pfdHorizonStage[data-awareness-stage="short"] .runway-awareness-k,
 #pfdHorizonStage[data-awareness-stage="short"] .runway-awareness-v,

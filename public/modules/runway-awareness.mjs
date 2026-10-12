@@ -49,6 +49,21 @@ function fillMeasure(doc, node, side, amount, confidence) {
   }
 }
 
+function stageIsShort(doc) {
+  const stage = doc.getElementById('pfdHorizonStage');
+  return !!stage && stage.clientHeight > 0 && stage.clientHeight < 280;
+}
+
+function fillShort(doc, node, amount, confidence) {
+  node.replaceChildren();
+  if (amount) node.append(bdi(doc, amount));
+  if (confidence) {
+    const line = el(doc, 'span', 'runway-awareness-c');
+    line.append(bdi(doc, `${confidence}%`));
+    node.append(line);
+  }
+}
+
 function paintTiles(doc, status) {
   const tiles = doc.getElementById('runwayAwarenessTiles');
   const alert = doc.getElementById('runwayAwarenessAlert');
@@ -60,10 +75,24 @@ function paintTiles(doc, status) {
   const offset = doc.getElementById('runwayOffsetValue');
   const heading = doc.getElementById('runwayHeadingValue');
   const hazard = doc.getElementById('runwayHazardValue');
+  const short = stageIsShort(doc);
   if (!est) {
-    if (offset) offset.textContent = on ? 'אין מסלול' : '';
-    if (heading) heading.textContent = on ? 'אין כיוון' : '';
+    if (offset) offset.textContent = on ? (short ? 'אין' : 'אין מסלול') : '';
+    if (heading) heading.textContent = on ? (short ? 'אין' : 'אין כיוון') : '';
     if (hazard) hazard.textContent = on ? 'אין' : '';
+  } else if (short) {
+    const meters = Number(est.offset_m);
+    const amount = Number.isFinite(meters) ? `${Math.abs(meters).toFixed(1)}` : '';
+    if (offset) fillShort(doc, offset, amount, Math.round(Number(conf.offset || 0) * 100));
+    const deg = Number(est.heading_error_deg);
+    if (heading) fillShort(doc, heading, Number.isFinite(deg) ? `${Math.abs(deg).toFixed(0)}°` : '', Math.round(Number(conf.heading || 0) * 100));
+    const row = Array.isArray(status.hazards) && status.hazards[0];
+    if (hazard) {
+      hazard.replaceChildren();
+      const word = el(doc, 'span');
+      word.textContent = row?.label_he || 'נקי';
+      hazard.append(word);
+    }
   } else {
     const meters = Number(est.offset_m);
     const amount = Number.isFinite(meters) ? `${Math.abs(meters).toFixed(1)} מ׳` : '';
@@ -92,7 +121,12 @@ function paintTiles(doc, status) {
   const state = doc.getElementById('runwayVisionState');
   const word = doc.getElementById('runwayVisionStateWord');
   const arm = doc.getElementById('runwayVisionArm');
-  const label = on ? String(status?.vision?.labelHe || 'ממתין') : '';
+  const channel = Number(status?.vision?.takeoverCh);
+  const switchCh = Number.isInteger(channel) && channel >= 2 && channel <= 8 ? channel : 7;
+  const noSwitch = on && status?.vision?.reason === 'no_switch';
+  const label = noSwitch
+    ? `ממתין: אין קריאה ממתג ההשתלטות (ערוץ ${switchCh}). בדקו שהשלט מחובר והמתג למטה`
+    : (on ? String(status?.vision?.labelHe || 'ממתין') : '');
   if (state) {
     state.hidden = !on;
     state.dataset.visionState = String(status?.vision?.state || 'waiting');
@@ -101,20 +135,18 @@ function paintTiles(doc, status) {
   const active = on && status?.vision?.state === 'active';
   const hold = doc.getElementById('runwayVisionHold');
   const takeover = doc.getElementById('runwayVisionTakeover');
-  const channel = Number(status?.vision?.takeoverCh);
-  const switchCh = Number.isInteger(channel) && channel >= 2 && channel <= 8 ? channel : 7;
   if (hold) {
     hold.hidden = !active;
     hold.textContent = active ? 'גלגול: הקונסולה. עלרוד, מצערת והגה: הטייס' : '';
   }
   if (takeover) {
     takeover.hidden = !active;
-    takeover.textContent = active ? `להשתלטות: מתג ערוץ ${switchCh} או החלפת מצב` : '';
+    takeover.textContent = active ? `להשתלטות: מתג ערוץ ${switchCh} למעלה או החלפת מצב` : '';
   }
   if (arm) {
     const armed = status?.vision?.manualArm === true;
     arm.hidden = !on;
-    arm.textContent = armed ? 'בטל חימוש' : 'חימוש ידני';
+    arm.textContent = armed ? 'בטל הנחיה' : 'הנחיה ידנית';
     arm.setAttribute('aria-pressed', armed ? 'true' : 'false');
   }
 }
@@ -403,7 +435,7 @@ function ensureChrome(doc) {
     const arm = el(doc, 'button', 'runway-awareness-arm');
     arm.type = 'button';
     arm.id = 'runwayVisionArm';
-    arm.textContent = 'חימוש ידני';
+    arm.textContent = 'הנחיה ידנית';
     arm.addEventListener('click', async (event) => {
       event.preventDefault();
       event.stopPropagation();
@@ -413,6 +445,7 @@ function ensureChrome(doc) {
     });
     state.append(stateKey, stateWord, hold, takeover, arm);
     tiles.append(state);
+    const measures = el(doc, 'div', 'runway-awareness-measures');
     for (const [id, label, valueId] of [
       ['offset', 'סטייה', 'runwayOffsetValue'],
       ['heading', 'כיוון', 'runwayHeadingValue'],
@@ -425,8 +458,9 @@ function ensureChrome(doc) {
       const value = el(doc, 'strong', 'runway-awareness-v');
       value.id = valueId;
       tile.append(key, value);
-      tiles.append(tile);
+      measures.append(tile);
     }
+    tiles.append(measures);
     stack.append(alert, tiles);
     stage.append(canvas, stack);
   }

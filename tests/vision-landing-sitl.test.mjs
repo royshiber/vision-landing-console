@@ -6,6 +6,7 @@ import { spawnSync } from 'node:child_process';
 import { describe, expect, it } from 'vitest';
 import { MavlinkConnection, parseMissionCurrent } from '../lib/mavlink-connection.mjs';
 import { createRunwayController } from '../lib/runway-awareness.mjs';
+import { vehicleFromConnection } from '../lib/routes/runway-awareness-api.mjs';
 import {
   MAV_CMD_DO_GO_AROUND,
   MAV_CMD_NAV_LAND,
@@ -516,6 +517,150 @@ describe('vision landing SITL e2e', () => {
     const resumed = run.controller.tick({ estimate: STRIP, vehicle: approach() });
     expect(resumed.vision.state).toBe('active');
     expect(resumed.sentNow).toBe(1);
+  });
+
+  it('treats RC loss as an invalid switch before activation and while guiding', (ctx) => {
+    ctx.skip(!pymavlinkInstalled(), PYMAVLINK_SKIP);
+    const live = (boot, patch = {}) => approach({
+      rcChannels: {
+        chan1_raw: 1500,
+        chan2_raw: 1500,
+        chan3_raw: 1500,
+        chan4_raw: 1500,
+        chan5_raw: 1500,
+        chan6_raw: 1500,
+        chan7_raw: 1500,
+        chan8_raw: 1500,
+        chancount: 16,
+        rssi: 200,
+        time_boot_ms: boot,
+        ...patch,
+      },
+    });
+    const blocked = (patch) => {
+      const run = session();
+      const vehicle = live(8_000, patch);
+      run.at(10_000);
+      run.controller.tick({ estimate: STRIP, vehicle });
+      run.at(12_000);
+      const row = run.controller.tick({ estimate: STRIP, vehicle });
+      expect(row.vision.labelHe).toBe('ממתין');
+      expect(row.vision.reason).toBe('no_switch');
+      expect(row.sentNow).toBe(0);
+      expect(run.link.frames).toHaveLength(0);
+    };
+    blocked({ chancount: 0 });
+    blocked({ rssi: 0 });
+
+    const frozen = session();
+    const stuck = live(8_000);
+    frozen.at(10_000);
+    frozen.controller.tick({ estimate: STRIP, vehicle: stuck });
+    frozen.at(11_100);
+    const held = frozen.controller.tick({ estimate: STRIP, vehicle: stuck });
+    expect(held.vision.reason).toBe('no_switch');
+    expect(held.vision.labelHe).toBe('ממתין');
+    expect(held.sentNow).toBe(0);
+    frozen.at(13_000);
+    expect(frozen.controller.tick({ estimate: STRIP, vehicle: stuck }).sentNow).toBe(0);
+    expect(frozen.link.frames).toHaveLength(0);
+
+    const clock = session();
+    clock.at(20_000);
+    clock.controller.tick({ estimate: STRIP, vehicle: live(9_000) });
+    clock.at(21_100);
+    const drifted = clock.controller.tick({
+      estimate: STRIP,
+      vehicle: live(9_000, { chan8_raw: 1600 }),
+    });
+    expect(drifted.vision.reason).toBe('no_switch');
+    expect(drifted.sentNow).toBe(0);
+
+    const moving = session();
+    moving.at(15_000);
+    moving.controller.tick({ estimate: STRIP, vehicle: live(15_000) });
+    moving.at(17_000);
+    const guided = moving.controller.tick({ estimate: STRIP, vehicle: live(17_000) });
+    expect(guided.vision.state).toBe('active');
+    expect(guided.sentNow).toBe(1);
+
+    const during = (patch, boot) => {
+      const run = session();
+      run.at(30_000);
+      run.controller.tick({ estimate: STRIP, vehicle: live(30_000) });
+      run.at(32_000);
+      expect(run.controller.tick({ estimate: STRIP, vehicle: live(32_000) }).vision.state).toBe('active');
+      const vehicle = live(boot, patch);
+      const lost = run.controller.tick({ estimate: STRIP, vehicle });
+      expect(lost.vision.labelHe).toBe('ממתין');
+      expect(lost.vision.reason).toBe('no_switch');
+      expect(lost.sentNow).toBe(1);
+      expect(decode(run.link.frames.at(-1)).rest.every((value) => value === 0)).toBe(true);
+      expect(run.controller.tick({ estimate: STRIP, vehicle }).sentNow).toBe(0);
+    };
+    during({ chancount: 0 }, 33_000);
+    during({ rssi: 0 }, 33_000);
+
+    const active = session();
+    active.at(40_000);
+    active.controller.tick({ estimate: STRIP, vehicle: live(40_000) });
+    active.at(42_000);
+    expect(active.controller.tick({ estimate: STRIP, vehicle: live(42_000) }).vision.state).toBe('active');
+    const same = live(42_000);
+    active.at(43_100);
+    const lost = active.controller.tick({ estimate: STRIP, vehicle: same });
+    expect(lost.vision.reason).toBe('no_switch');
+    expect(lost.sentNow).toBe(1);
+    expect(decode(active.link.frames.at(-1)).rest.every((value) => value === 0)).toBe(true);
+    expect(active.controller.tick({ estimate: STRIP, vehicle: same }).sentNow).toBe(0);
+  });
+
+  it('drops RC older than 500 ms and releases once', (ctx) => {
+    ctx.skip(!pymavlinkInstalled(), PYMAVLINK_SKIP);
+    const now = 1_700_000_000_000;
+    const rc = approach().rcChannels;
+    const fresh = vehicleFromConnection({
+      connected: true,
+      lastRcChannels: rc,
+      lastRcAt: now - 500,
+    }, now);
+    expect(fresh.rcChannels).toBe(rc);
+    const aged = vehicleFromConnection({
+      connected: true,
+      lastRcChannels: { ...rc, receivedWallMs: now - 100 },
+      lastRcAt: now - 501,
+    }, now);
+    expect(aged.rcChannels).toBeNull();
+    const wall = vehicleFromConnection({
+      connected: true,
+      lastRcChannels: { ...rc, receivedWallMs: now - 700 },
+    }, now);
+    expect(wall.rcChannels).toBeNull();
+    expect(vehicleFromConnection({ connected: true, lastRcChannels: rc }, now).rcChannels).toBeNull();
+
+    const run = session();
+    run.at(50_000);
+    run.controller.tick({ estimate: STRIP, vehicle: approach() });
+    run.at(52_000);
+    expect(run.controller.tick({ estimate: STRIP, vehicle: approach() }).vision.state).toBe('active');
+    const vehicle = vehicleFromConnection({
+      connected: true,
+      simulatorDetection: () => ({ simulator: true }),
+      lastCustomMode: 10,
+      lastRcChannels: rc,
+      lastRcAt: now - 700,
+      lastGlobalPos: { relativeAltM: 40, lat: 32.02, lon: 34.82 },
+      missionItems: approach().missionItems,
+      missionCurrent: 2,
+    }, now);
+    expect(vehicle.simulator).toBe(true);
+    expect(vehicle.rcChannels).toBeNull();
+    const lost = run.controller.tick({ estimate: STRIP, vehicle });
+    expect(lost.vision.labelHe).toBe('ממתין');
+    expect(lost.vision.reason).toBe('no_switch');
+    expect(lost.sentNow).toBe(1);
+    expect(decode(run.link.frames.at(-1)).rest.every((value) => value === 0)).toBe(true);
+    expect(run.controller.tick({ estimate: STRIP, vehicle }).sentNow).toBe(0);
   });
 
   it('can be armed from the console, and it stays silent off SITL and at level 4', () => {
