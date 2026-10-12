@@ -149,7 +149,11 @@ Rollback: put the 2.3.9 agent files back and remove `/etc/sudoers.d/airvix-uplin
 
 Detection is off until a config call or `VLC_VISION_DETECT=1` together with `VLC_VISION_CAMERA` (`cam0` front, `cam1` down, `cam3` gimbal). `GET /api/v1/vision/tracks?camera=cam3` returns `id`, `class`, `label_he`, `confidence`, `bbox`, and `age`. There is no vision event stream on this agent, so the console polls.
 
-`VLC_VISION_BACKEND=auto` uses TensorRT when `VLC_VISION_ENGINE` points at an engine, `tensorrt` imports, and a CUDA device buffer can be allocated (`cuda-python` if it is already present, otherwise the JetPack `libcudart`). Host memory is not bound as a TensorRT tensor. Otherwise it uses `cv2.dnn` on the ONNX file at `VLC_VISION_MODEL`. CUDA FP16 is selected only when that OpenCV build reports CUDA and cuDNN. `onnxruntime` is used only when it is already importable and the OpenCV path did not load. Without a model the tracks stay empty, the backend is `unavailable`, and the reason is אין מודל זיהוי. That path does not call into OpenCV. `VLC_VISION_BACKEND=cpu` is the color-blob detector for the sample fixture and the sim. It does not run unless asked.
+`VLC_VISION_BACKEND=auto` uses TensorRT when an engine file exists (`VLC_VISION_ENGINE`, or `yolov8n_fp16.engine` next to the ONNX file, or `/home/royshiber/vlc-companion/models/yolov8n_fp16.engine`), `tensorrt` imports (system dist-packages count; no pip), and a CUDA device buffer can be allocated (`cuda-python` if it is already present, otherwise JetPack `libcudart.so.12` or `.11`). Host memory is not bound as a TensorRT tensor. If that load fails, stderr gets `[vision] TensorRT not used:` plus the reason, and the status field `tensorrt_fallback` repeats it. Otherwise it uses `cv2.dnn` on the ONNX file at `VLC_VISION_MODEL`. CUDA FP16 is selected only when that OpenCV build reports CUDA and cuDNN. `onnxruntime` is a later fallback when it is already importable and the OpenCV path did not load. Without a model the tracks stay empty, the backend is `unavailable`, and the reason is אין מודל זיהוי. That path does not call into OpenCV. `VLC_VISION_BACKEND=cpu` is the color-blob detector for the sample fixture and the sim. It does not run unless asked.
+
+The vision thread infers the newest frame and drops the ones that arrived while it was busy. There is no detection queue. `GET /api/v1/status` and `/api/v1/status/lite` include `vision.backend` and `vision.track_age_ms` (capture monotonic time to the status read). The Jetson target is a track age under 300 ms.
+
+cam3 auto opens a hardware H.265 GStreamer pipeline (`nvv4l2decoder`, `appsink name=sink drop=true max-buffers=1 sync=false`) before FFmpeg. The journal line names the active decoder: `decoder=nvv4l2decoder` or `decoder=ffmpeg`. `install.sh --apply` apt-installs `python3-gi`, `gir1.2-gstreamer-1.0`, `gstreamer1.0-plugins-bad`, and the JetPack `nvidia-l4t-gstreamer` plugin when `nvv4l2decoder` is missing. If the service Python is a venv, the installer writes `airvix-system-gi.pth` so that venv imports system `gi`. No pip package is added.
 
 No pip package is added to `/home/royshiber/mavlink-env`. `requirements-vision.txt` lists none. The venv already has numpy and cv2.
 
@@ -191,7 +195,7 @@ Deploy from a checkout on the Jetson. The script stops on any error, copies the 
 sudo bash scripts/jetson-companion/install.sh --apply
 ```
 
-`VLC_COMPANION_TOKEN` is the health-check header value. It is not printed.
+`VLC_COMPANION_TOKEN` is the health-check header value. Under sudo the script reads it from the service `EnvironmentFile` and does not print it.
 
 `POST /api/v1/vision/lock` with `{"camera":"cam3","id":1}` stores the target. `{"action":"next"}` and `{"action":"unlock"}` switch or clear it. `VLC_VISION_GIMBAL_STEER` defaults off. Steering sends a gimbal rate only when that switch is on, a box is locked, the gimbal answers, and gimbal control is enabled. It never sends a flight-controller command. With the gimbal unplugged the rate is not sent.
 

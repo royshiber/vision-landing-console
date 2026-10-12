@@ -16,7 +16,7 @@ Env:
   VLC_CAM1_ROLE / VLC_CAM2_ROLE / VLC_CAM3_ROLE
   VLC_CAMERA_DRY_RUN               0|1|absent|synthetic
   VLC_CAMERA_WIDTH / HEIGHT / FPS  defaults, overridable per slot
-  VLC_CAM3_CODEC                   h264|h265|auto  (default auto)
+  VLC_CAM3_CODEC                   h264|h265|auto  (default auto, hardware H.265 first)
   VLC_CAM3_RTSP_TRANSPORT          udp|tcp|auto  (default udp, TCP fallback)
   VLC_CAM3_JPEG_WIDTH / HEIGHT     tile JPEG, default 640x360
   VLC_CAM3_JPEG_QUALITY            default 55 (same as cam0)
@@ -72,9 +72,10 @@ SYNTHETIC_JPEG = bytes.fromhex(
 
 
 class CaptureError(Exception):
-    def __init__(self, code):
-        super().__init__(code)
+    def __init__(self, code, detail=""):
+        super().__init__(code if not detail else f"{code}: {detail}")
         self.code = code
+        self.detail = str(detail or "")
 
 
 def _env_str(name, default="", env=None):
@@ -443,9 +444,37 @@ def rtsp_gstreamer_pipeline(url, codec, transport="udp", width=640, height=360, 
     sink = (
         "appsink name=jpeg drop=true max-buffers=1 sync=false"
         if str(mode) == "jpeg"
-        else "appsink drop=true max-buffers=1 sync=false"
+        else "appsink name=sink drop=true max-buffers=1 sync=false"
     )
     return src + body + sink
+
+
+def cam3_codec_order(codec):
+    """Hardware H.265 first. The gimbal main stream is HEVC even when the URL says .264."""
+    name = str(codec or "auto").strip().lower()
+    if name == "h264":
+        return ["h264"]
+    if name == "h265":
+        return ["h265"]
+    return ["h265", "h264"]
+
+
+def grab_newest(grab, limit=12):
+    """Grab until the source has nothing ready, up to `limit`.
+
+    retrieve() then returns the last grab. Earlier grabs are dropped, so a
+    full decoder queue is not inferred one frame at a time.
+    """
+    taken = 0
+    while taken < int(limit):
+        try:
+            ok = bool(grab())
+        except Exception:
+            break
+        if not ok:
+            break
+        taken += 1
+    return taken
 
 
 def rtsp_open_plan(url, codec, transport, width, height, quality=55):
@@ -626,17 +655,64 @@ def _call_with_deadline(fn, timeout_s):
     return box.get("value")
 
 
-def _try_gst():
+def gst_dist_paths(lib_root="/usr/lib"):
+    """JetPack puts PyGObject in system dist-packages. A venv often cannot see it."""
+    paths = []
     try:
-        import gi
+        names = os.listdir(lib_root)
+    except OSError:
+        return paths
+    for name in sorted(names):
+        if not str(name).startswith("python3"):
+            continue
+        dist = os.path.join(lib_root, name, "dist-packages")
+        if os.path.isdir(os.path.join(dist, "gi")):
+            paths.append(dist)
+    return paths
 
-        gi.require_version("Gst", "1.0")
-        from gi.repository import Gst
 
+def _drop_gi_modules():
+    for name in list(sys.modules):
+        if name == "gi" or name.startswith("gi."):
+            sys.modules.pop(name, None)
+
+
+def _load_gst():
+    import gi
+
+    gi.require_version("Gst", "1.0")
+    from gi.repository import Gst
+
+    if not Gst.is_initialized():
         Gst.init(None)
-        return Gst
-    except Exception:
-        return None
+    return Gst
+
+
+def _try_gst():
+    """Return Gst, or None. The reason is kept for the decoder log. No pip."""
+    errors = []
+    try:
+        gst = _load_gst()
+        _try_gst.last_error = None
+        return gst
+    except Exception as exc:
+        errors.append(f"{type(exc).__name__}: {exc}")
+        _drop_gi_modules()
+    for path in gst_dist_paths():
+        if path not in sys.path:
+            sys.path.append(path)
+        try:
+            gst = _load_gst()
+            _try_gst.last_error = None
+            return gst
+        except Exception as exc:
+            errors.append(f"{path}: {type(exc).__name__}: {exc}")
+            _drop_gi_modules()
+    _try_gst.last_error = "; ".join(errors) if errors else "gi Gst is not importable"
+    return None
+
+
+_try_gst.last_error = None
 
 
 def apply_usb_pixel_format(cap, width, height, fps):
@@ -849,7 +925,10 @@ class RtspCapture:
             owned = None
             try:
                 try:
-                    grabbed = bool(cap.grab())
+                    # FFmpeg queues several decoded HEVC frames. Grab through them
+                    # and retrieve only the last. Hardware appsink already drops.
+                    limit = 12 if self.decoder == "ffmpeg" else 1
+                    grabbed = grab_newest(cap.grab, limit) > 0
                 except Exception:
                     grabbed = False
                 t_got = time.perf_counter()
@@ -1014,6 +1093,93 @@ class GstJpegCapture(RtspCapture):
                 pass
 
 
+class GstBgrCapture(RtspCapture):
+    """Hardware decode into appsink drop=true max-buffers=1. The sample is copied here."""
+
+    def __init__(self, pipeline, Gst, *, transport, decoder, width, height, quality, codec):
+        self.Gst = Gst
+        self.pipeline = pipeline
+        self.transport = transport
+        self.decoder = decoder
+        self.width = int(width)
+        self.height = int(height)
+        self.quality = int(quality)
+        self.codec = codec
+        self.backend = "gstreamer"
+        self.pixel_format = "BGR"
+        self.cv2 = _try_cv2()
+        self.cap = None
+        self.shelf = NewestFrameShelf()
+        self.failed = False
+        self.fail_after_s = 2.0
+        self._stop = threading.Event()
+        self._wake = threading.Event()
+        self._handed = 0
+        self._released = False
+        self._opened_mono = time.monotonic()
+        self._last_frame_mono = self._opened_mono
+        try:
+            self._pipe = Gst.parse_launch(pipeline)
+        except Exception as exc:
+            raise CaptureError("pipeline_invalid", str(exc)) from exc
+        self._sink = self._pipe.get_by_name("sink")
+        if self._sink is None:
+            self._pipe.set_state(Gst.State.NULL)
+            raise CaptureError("pipeline_invalid", "appsink name=sink missing")
+        self._pipe.set_state(Gst.State.PLAYING)
+        _change, state, _pending = self._pipe.get_state(int(0.8 * Gst.SECOND))
+        if state != Gst.State.PLAYING:
+            self._pipe.set_state(Gst.State.NULL)
+            raise CaptureError("read_failed", f"gstreamer state {state}")
+        self._pull_thread = threading.Thread(target=self._pull, name="rtsp-gst-bgr", daemon=True)
+        self._encode_thread = threading.Thread(target=self._encode, name="rtsp-jpeg", daemon=True)
+        self._pull_thread.start()
+        self._encode_thread.start()
+
+    def _pull(self):
+        Gst = self.Gst
+        need = self.width * self.height * 3
+        while not self._stop.is_set() and not self.failed:
+            sample = self._sink.emit("try-pull-sample", int(0.4 * Gst.SECOND))
+            if sample is None:
+                if self._mark_idle():
+                    return
+                continue
+            buf = sample.get_buffer()
+            ok, info = buf.map(Gst.MapFlags.READ)
+            if not ok:
+                continue
+            owned = None
+            try:
+                size = int(getattr(info, "size", 0) or 0)
+                if size < need:
+                    continue
+                import numpy as np
+                view = np.frombuffer(info.data, dtype=np.uint8, count=need)
+                owned = own_pixels(view.reshape((self.height, self.width, 3)))
+            except Exception:
+                owned = None
+            finally:
+                buf.unmap(info)
+            if owned is None:
+                continue
+            self._last_frame_mono = time.monotonic()
+            self.shelf.note_decoded(owned, time.time_ns(), time.monotonic_ns(), 0.0)
+            self._wake.set()
+
+    def release(self):
+        if self._released:
+            return
+        super().release()
+        pipe = getattr(self, "_pipe", None)
+        self._pipe = None
+        if pipe is not None:
+            try:
+                pipe.set_state(self.Gst.State.NULL)
+            except Exception:
+                pass
+
+
 def _open_capture(cv2, target, api):
     cap = cv2.VideoCapture()
     if hasattr(cv2, "CAP_PROP_OPEN_TIMEOUT_MSEC"):
@@ -1103,7 +1269,39 @@ def _open_rtsp_candidate(cv2, gst, cand, quality, codec):
 
 def _ffmpeg_rtsp_options(transport):
     proto = "tcp" if str(transport).lower() == "tcp" else "udp"
-    return f"rtsp_transport;{proto}|fflags;nobuffer|flags;low_delay|max_delay;0|reorder_queue_size;0"
+    return (
+        f"rtsp_transport;{proto}|fflags;nobuffer|flags;low_delay|"
+        "max_delay;0|reorder_queue_size;0|framedrop;1"
+    )
+
+
+FFMPEG_READ_TIMEOUT_MS = 40
+
+
+def open_hardware_rtsp(url, codec, transport, width, height, quality, gst=None, decoder="hardware"):
+    """Hardware H.264/H.265 decode into one appsink buffer. No OpenCV required."""
+    Gst = gst if gst is not None else _try_gst()
+    if Gst is None:
+        raise CaptureError("gstreamer_missing", getattr(_try_gst, "last_error", None) or "gi Gst is not importable")
+    proto = "tcp" if str(transport).lower() == "tcp" else "udp"
+    pipeline = rtsp_gstreamer_pipeline(
+        url, codec, transport=proto, width=width, height=height,
+        mode="bgr", decoder=decoder, quality=quality,
+    )
+    return GstBgrCapture(
+        pipeline,
+        Gst,
+        transport=proto,
+        decoder="nvv4l2decoder",
+        width=width,
+        height=height,
+        quality=quality,
+        codec=str(codec).lower(),
+    )
+
+
+def _log_cam3(message):
+    print(f"[camera] {message}", flush=True)
 
 
 def _open_rtsp(cv2, url, codec, geometry=None, env=None):
@@ -1113,28 +1311,62 @@ def _open_rtsp(cv2, url, codec, geometry=None, env=None):
     width, height, quality = rtsp_jpeg_size(src_env)
     _ = geometry
     transport = rtsp_transport(src_env)
-    names = ["h264", "h265"] if str(codec).lower() == "auto" else [str(codec).lower()]
-    budget = time.monotonic() + RTSP_FAIL_FAST_S
+    explicit = str(codec or "auto").strip().lower()
+    failures = []
     gst = _try_gst()
-    for name in names:
-        for cand in rtsp_open_plan(url, name, transport, width, height, quality):
-            remaining = budget - time.monotonic()
-            if remaining <= 0.05:
-                break
+    # Hardware H.265 first, one appsink buffer. Do not spend the open budget on H.264.
+    native_names = ["h265"] if explicit in {"", "auto"} else cam3_codec_order(explicit)
+    decoders = ("hardware", "hardware-dpb")
+    for name in native_names:
+        for decoder in decoders:
             try:
-                opened = _call_with_deadline(
-                    lambda c=cand, codec_name=name: _open_rtsp_candidate(cv2, gst, c, quality, codec_name),
-                    min(0.9, remaining),
+                opened = open_hardware_rtsp(
+                    url, name, transport, width, height, quality, gst, decoder=decoder,
                 )
-            except CaptureError:
-                continue
-            except Exception:
-                continue
+            except CaptureError as exc:
+                failures.append(
+                    f"{name}:{decoder}:{exc.code}" + (f":{exc.detail}" if exc.detail else "")
+                )
+                opened = None
+            except Exception as exc:
+                failures.append(f"{name}:{decoder}:{type(exc).__name__}:{exc}")
+                opened = None
             if opened is not None:
+                _log_cam3(f"cam3 decoder=nvv4l2decoder codec={name} appsink drop=true max-buffers=1")
                 return opened
-        if time.monotonic() >= budget:
-            break
+    budget = time.monotonic() + RTSP_FAIL_FAST_S
+    # OpenCV GStreamer only when gi could not open, or the codec was explicit.
+    # Auto tries the first H.265 hardware pipeline, then FFmpeg. A long H.264 tour
+    # is what left the gimbal on software HEVC.
+    if gst is None or explicit in {"h264", "h265"}:
+        names = ["h265"] if explicit in {"", "auto"} else cam3_codec_order(explicit)
+        for name in names:
+            plan = rtsp_open_plan(url, name, transport, width, height, quality)
+            if explicit in {"", "auto"}:
+                plan = plan[:1]
+            for cand in plan:
+                remaining = budget - time.monotonic()
+                if remaining <= 0.05:
+                    break
+                try:
+                    opened = _call_with_deadline(
+                        lambda c=cand, codec_name=name: _open_rtsp_candidate(cv2, gst, c, quality, codec_name),
+                        min(0.9, remaining),
+                    )
+                except CaptureError as exc:
+                    failures.append(f"opencv-{name}:{exc.code}")
+                    continue
+                except Exception as exc:
+                    failures.append(f"opencv-{name}:{type(exc).__name__}")
+                    continue
+                if opened is not None:
+                    _log_cam3(f"cam3 decoder=opencv-gstreamer codec={name} element={cand.get('decoder')}")
+                    return opened
+            if time.monotonic() >= budget:
+                break
     remaining = budget - time.monotonic()
+    detail = ", ".join(failures) or "no hardware capture"
+    _log_cam3(f"cam3 decoder=ffmpeg. Hardware H.265 was not opened ({detail}).")
     if remaining > 0.05:
         proto = "tcp" if transport == "tcp" or rtsp_transport_blocked("udp") else transport
         if proto == "auto":
@@ -1158,6 +1390,12 @@ def _open_rtsp(cv2, url, codec, geometry=None, env=None):
                 cap.set(CAP_BUFFERS, 1)
             except Exception:
                 pass
+            timeout = getattr(cv2, "CAP_PROP_READ_TIMEOUT_MSEC", None)
+            if timeout is not None:
+                try:
+                    cap.set(timeout, FFMPEG_READ_TIMEOUT_MS)
+                except Exception:
+                    pass
             return RtspCapture(
                 cap,
                 cv2,

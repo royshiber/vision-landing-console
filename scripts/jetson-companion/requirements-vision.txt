@@ -6,10 +6,15 @@
 #   numpy
 #   cv2 (OpenCV 5), including cv2.dnn
 #
-# Not required, and not installed by install.sh:
+# Not required, and not installed by pip:
 #   onnxruntime
 #   tensorrt
 #   cuda-python
+#   PyGObject
+#
+# install.sh --apply apt-installs python3-gi, gir1.2-gstreamer-1.0,
+# gstreamer1.0-plugins-bad, and nvidia-l4t-gstreamer when nvv4l2decoder
+# is missing. A service venv gets airvix-system-gi.pth for system gi.
 #
 # The ONNX file is the official Ultralytics YOLOv8n COCO export.
 # provision_vision_model.sh downloads it and builds a TensorRT FP16

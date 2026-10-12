@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sys
+import tempfile
 import time
 import unittest
 from pathlib import Path
@@ -10,8 +11,12 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from camera_ingest import (  # noqa: E402
+    CaptureError,
     NewestFrameShelf,
     SlotSupervisor,
+    cam3_codec_order,
+    grab_newest,
+    gst_dist_paths,
     jpeg_timing_headers,
     own_pixels,
     rtsp_gstreamer_pipeline,
@@ -46,7 +51,7 @@ class RtspPipelineTests(unittest.TestCase):
         self.assertIn("do-retransmission=false", pipe)
         self.assertIn("nvv4l2decoder enable-max-performance=1 disable-dpb=true", pipe)
         self.assertIn("width=640,height=360", pipe)
-        self.assertIn("appsink drop=true max-buffers=1 sync=false", pipe)
+        self.assertIn("appsink name=sink drop=true max-buffers=1 sync=false", pipe)
         self.assertNotIn("max-buffers=2", pipe)
         self.assertNotIn("protocols=tcp", pipe)
 
@@ -226,6 +231,97 @@ class RtspPipelineTests(unittest.TestCase):
         self.assertEqual(loud["fps"], 2.0)
         self.assertEqual(loud["e2e_delay_ms"]["median"], 50.0)
         self.assertEqual(loud["encode_ms"]["min"], 3.0)
+
+    def test_auto_codec_is_hardware_h265_with_one_buffer(self):
+        self.assertEqual(cam3_codec_order("auto"), ["h265", "h264"])
+        self.assertEqual(cam3_codec_order("h265"), ["h265"])
+        self.assertEqual(cam3_codec_order("h264"), ["h264"])
+        pipe = rtsp_gstreamer_pipeline(URL, "h265")
+        self.assertIn("rtph265depay ! h265parse", pipe)
+        self.assertIn("nvv4l2decoder enable-max-performance=1 disable-dpb=true", pipe)
+        self.assertIn("appsink name=sink drop=true max-buffers=1 sync=false", pipe)
+        self.assertNotIn("max-buffers=2", pipe)
+
+    def test_grab_newest_drops_the_queued_frames(self):
+        queued = {"left": 8}
+
+        def grab():
+            if queued["left"] <= 0:
+                return False
+            queued["left"] -= 1
+            return True
+
+        self.assertEqual(grab_newest(grab, limit=12), 8)
+        self.assertEqual(grab_newest(grab, limit=12), 0)
+
+    def test_auto_open_tries_h265_hardware_then_logs_ffmpeg(self):
+        import camera_ingest
+
+        calls = []
+
+        def fake_hw(url, codec, transport, width, height, quality, gst=None, decoder="hardware"):
+            calls.append(("hardware", codec, decoder))
+            raise CaptureError("gstreamer_missing", "test")
+
+        def fake_gst():
+            return object()
+
+        def fake_open(cv2, target, api):
+            calls.append(("ffmpeg", target))
+            return None
+
+        original = (
+            camera_ingest.open_hardware_rtsp,
+            camera_ingest._try_gst,
+            camera_ingest._open_capture,
+        )
+        camera_ingest.open_hardware_rtsp = fake_hw
+        camera_ingest._try_gst = fake_gst
+        camera_ingest._open_capture = fake_open
+        try:
+            with self.assertRaises(CaptureError):
+                camera_ingest._open_rtsp(object(), URL, "auto", env={})
+        finally:
+            (
+                camera_ingest.open_hardware_rtsp,
+                camera_ingest._try_gst,
+                camera_ingest._open_capture,
+            ) = original
+        self.assertEqual(calls[0], ("hardware", "h265", "hardware"))
+        self.assertEqual(calls[1], ("hardware", "h265", "hardware-dpb"))
+        self.assertEqual(calls[2][0], "ffmpeg")
+        self.assertTrue(all(item[1] == "h265" for item in calls if item[0] == "hardware"))
+
+    def test_gst_dist_paths_finds_system_gi(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            pkg = Path(tmp) / "python3.10" / "dist-packages" / "gi"
+            pkg.mkdir(parents=True)
+            (pkg / "__init__.py").write_text("", encoding="utf-8")
+            found = gst_dist_paths(tmp)
+        self.assertEqual(found, [str(Path(tmp) / "python3.10" / "dist-packages")])
+
+    def test_active_decoder_is_named_in_the_log(self):
+        import camera_ingest
+        import io
+        from contextlib import redirect_stdout
+
+        class Opened:
+            pass
+
+        def fake_hw(url, codec, transport, width, height, quality, gst=None, decoder="hardware"):
+            return Opened()
+
+        original = camera_ingest.open_hardware_rtsp
+        camera_ingest.open_hardware_rtsp = fake_hw
+        buf = io.StringIO()
+        try:
+            with redirect_stdout(buf):
+                opened = camera_ingest._open_rtsp(object(), URL, "auto", env={})
+        finally:
+            camera_ingest.open_hardware_rtsp = original
+        self.assertIsInstance(opened, Opened)
+        self.assertIn("decoder=nvv4l2decoder", buf.getvalue())
+        self.assertIn("codec=h265", buf.getvalue())
 
 
 if __name__ == "__main__":

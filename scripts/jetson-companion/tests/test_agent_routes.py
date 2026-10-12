@@ -2,6 +2,7 @@
 
 import json
 import sys
+import time
 import unittest
 from pathlib import Path
 
@@ -36,6 +37,26 @@ class AgentRouteTests(unittest.TestCase):
         self.assertIn("fc_serial_name", relay)
         self.assertIsNone(health["tempC"])
         self.assertNotIn("NaN", json.dumps(health))
+
+    def test_status_exposes_detection_backend_and_track_age(self):
+        from vision_tracks import VisionTracks, reset_service, set_service
+        svc = VisionTracks(enabled=True, camera="cam3", backend="cpu", thread=False)
+        svc.captured_mono_ns = time.monotonic_ns() - 180_000_000
+        svc.stream = True
+        set_service(svc)
+        try:
+            body = companion_agent.vision_status_payload()
+            lite = companion_agent.status_lite_payload()
+        finally:
+            reset_service()
+        self.assertEqual(body["backend"], "cpu")
+        self.assertGreaterEqual(body["track_age_ms"], 100)
+        self.assertLess(body["track_age_ms"], 2000)
+        self.assertEqual(body["detection"]["backend"], "cpu")
+        self.assertEqual(lite["vision"]["backend"], "cpu")
+        self.assertGreaterEqual(lite["vision"]["track_age_ms"], 100)
+        self.assertLess(abs(lite["vision"]["track_age_ms"] - body["track_age_ms"]), 50)
+        self.assertIn("tensorrt_fallback", body)
 
 
 if __name__ == "__main__":

@@ -48,6 +48,12 @@ set -eu
 dir="$AIRVIX_FAKE_SYSTEMD"
 cmd="$1"
 shift
+if [ "$cmd" = "cat" ]; then
+  if [ -f "$dir/unit.txt" ]; then
+    cat "$dir/unit.txt"
+  fi
+  exit 0
+fi
 if [ "$cmd" = "restart" ]; then
   if [ -f "$dir/fail_restart" ]; then
     echo failed > "$dir/state"
@@ -192,6 +198,52 @@ exit 0
             self.assertNotEqual((dest / "companion_agent.py").read_text(encoding="utf-8"), "OLD\n")
             self.assertIn('"rolled_back":false', result.stderr)
             self.assertNotIn('"rolled_back":true', result.stderr)
+
+    def test_health_reads_the_service_env_file_and_does_not_print_it(self):
+        secret = "file-secret-token"
+        with tempfile.TemporaryDirectory() as raw:
+            directory = Path(raw)
+            state, dest = self._seed(directory)
+            env_file = directory / "companion.env"
+            env_file.write_text(f'VLC_COMPANION_TOKEN="{secret}"\n', encoding="utf-8")
+            (state / "unit.txt").write_text(
+                "[Service]\nEnvironmentFile=-" + str(env_file) + "\n",
+                encoding="utf-8",
+            )
+            env = os.environ.copy()
+            env.pop("VLC_COMPANION_TOKEN", None)
+            env.update({
+                "PATH": f"{directory}:{env.get('PATH', '')}",
+                "AIRVIX_FAKE_SYSTEMD": str(state),
+                "AIRVIX_DEPLOY_SYSTEMCTL": str(directory / "systemctl"),
+                "AIRVIX_DEPLOY_CURL": str(directory / "curl"),
+                "VLC_DEPLOY_WATCH_S": "1",
+                "FORCE_LAB": "1",
+            })
+            self._systemctl(directory)
+            self._curl(directory, crash=False)
+            result = subprocess.run(
+                ["bash", str(INSTALL), "--apply", "--force-lab", "--dest", str(dest)],
+                cwd=str(ROOT),
+                env=env,
+                text=True,
+                capture_output=True,
+                timeout=30,
+                check=False,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+            self.assertIn(f"X-Companion-Token: {secret}", (state / "curl_args").read_text(encoding="utf-8"))
+            self.assertNotIn(secret, result.stdout)
+            self.assertNotIn(secret, result.stderr)
+
+    def test_apply_installs_gi_and_points_a_venv_at_system_gi(self):
+        install = INSTALL.read_text(encoding="utf-8")
+        self.assertIn("python3-gi", install)
+        self.assertIn("gir1.2-gstreamer-1.0", install)
+        self.assertIn("gstreamer1.0-plugins-bad", install)
+        self.assertIn("nvidia-l4t-gstreamer", install)
+        self.assertIn("airvix-system-gi.pth", install)
+        self.assertIn("nvv4l2decoder", install)
 
 
 class ProvisionTests(unittest.TestCase):
