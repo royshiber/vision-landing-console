@@ -219,7 +219,7 @@ describe('link attribution', () => {
   it('says the computer is off the home LAN when that URL times out off-subnet', async () => {
     const abort = Object.assign(new Error('The operation was aborted'), { name: 'AbortError' });
     expect(lanProbeErrorHe('http://192.168.1.122:8081', abort, hotspot)).toBe(HOME_LAN_ABSENT_HE);
-    expect(lanProbeErrorHe('http://192.168.1.122:8081', abort, homeLan)).toBe('הכתובת לא הגיבה בזמן');
+    expect(lanProbeErrorHe('http://192.168.1.122:8081', abort, homeLan)).toBe('מחשב המשימה לא ענה ברשת הבית');
     expect(lanProbeErrorHe('http://100.82.59.45:8081', abort, hotspot)).toBe('הכתובת לא הגיבה בזמן');
     expect(lanProbeErrorHe('http://192.168.1.122:8081', new Error('Failed to fetch'), hotspot)).toBe('אין הגעה לכתובת');
 
@@ -251,13 +251,37 @@ describe('link attribution', () => {
     });
     const stillThere = await onSubnet.refreshCompanionPaths({ force: true });
     const same = stillThere.paths.find((p) => p.transport === 'lan');
-    expect(same.errorHe).toBe('הכתובת לא הגיבה בזמן');
+    expect(same.errorHe).toBe('מחשב המשימה לא ענה ברשת הבית');
     const sameLinks = summarizeCommLinks({
       pathProbes: stillThere,
       companion: { jetson: 'unreachable' },
     });
     const sameHome = sameLinks.rows.find((r) => r.id === 'home');
-    expect(sameHome.statusHe).toBe('לא מגיב');
-    expect(sameHome.errorHe).toBe('הכתובת לא הגיבה בזמן');
+    expect(sameHome.statusHe).toBe('מחשב המשימה לא ענה ברשת הבית');
+    expect(sameHome.errorHe).toBe('');
+  });
+
+  it('reports cellular connected when that path is up and the mavlink role is down', () => {
+    const links = summarizeCommLinks({
+      cellular: 'disconnected',
+      modemPresent: true,
+      cellularLive: { connected: false },
+      uplinks: { cellular: { enabled: true, up: false } },
+      activeTransport: 'cellular',
+      pathProbes: {
+        linkUp: true,
+        activeId: 'cellular',
+        paths: [{
+          id: 'cellular',
+          transport: 'tailscale',
+          url: 'http://100.64.1.2:8081',
+          ok: false,
+          errorHe: 'הכתובת לא הגיבה בזמן',
+        }],
+      },
+    });
+    const cell = links.rows.find((row) => row.id === 'cellular');
+    expect(cell.connected).toBe(true);
+    expect(cell.statusHe).toBe('מחובר');
   });
 });

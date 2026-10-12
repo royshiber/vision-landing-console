@@ -8209,11 +8209,19 @@ function initHorizonCameraMenu() {
   const overlayGroup = document.createElement('div');
   overlayGroup.className = 'horizon-menu-group';
   overlayGroup.appendChild(menuHeading('תצוגת וידאו'));
-  for (const id of ['horizonVideoToggle', 'annotatedVisionToggle', 'liveCameraToggle']) {
+    for (const id of ['horizonVideoToggle', 'annotatedVisionToggle', 'liveCameraToggle']) {
     const btn = document.getElementById(id);
     const copy = HORIZON_MENU_COPY[id];
     if (!btn || !copy) continue;
     fillMenuButton(btn, copy[0], copy[1]);
+    btn.classList.add('horizon-menu-toggle');
+    btn.setAttribute('role', 'menuitemcheckbox');
+    if (!btn.querySelector('.horizon-menu-switch')) {
+      const sw = document.createElement('span');
+      sw.className = 'horizon-menu-switch';
+      sw.setAttribute('aria-hidden', 'true');
+      btn.append(sw);
+    }
     overlayGroup.appendChild(btn);
   }
   menu.appendChild(overlayGroup);
@@ -15105,11 +15113,14 @@ initLiveCameraPanel();
       radioChip.textContent = `${links.radioLabelHe || 'RF'} · ${links.radioStatusHe || 'מנותק'}`;
     }
     if (cellularChip) {
-      cellularChip.dataset.state = chipStateFromLink(links.cellular);
+      const cellPathUp = (links?.comm?.rows || []).some((row) => row.id === 'cellular' && row.connected === true);
+      cellularChip.dataset.state = cellPathUp ? 'ok' : chipStateFromLink(links.cellular);
       cellularChip.dataset.reason = links.cellular === 'modem_absent' || links.modemPresent === false
         ? 'modem_absent'
         : (links.cellular || '');
-      cellularChip.textContent = `סלולר · ${links.cellularStatusHe || (links.modemPresent === false ? 'מודם לא מחובר' : 'מנותק')}`;
+      cellularChip.textContent = cellPathUp
+        ? 'סלולר · מחובר'
+        : `סלולר · ${links.cellularStatusHe || (links.modemPresent === false ? 'מודם לא מחובר' : 'מנותק')}`;
     }
     if (cellularModemStatus) {
       const absent = links.modemPresent !== true || links.cellular === 'modem_absent';

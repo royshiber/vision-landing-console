@@ -65,9 +65,8 @@
                 </div>
                 <div class="comm-link-copy">
                   <div class="comm-link-titleline">
-                    <label class="comm-path-pick" title="בחרו סלולר">
+                    <label class="comm-path-pick" hidden>
                       <input type="radio" name="commPath" id="commPathCellular" value="cellular" />
-                      <span>בחרו</span>
                     </label>
                     <strong class="comm-link-name">סלולר</strong>
                     <span id="cellularLinkMeta" class="comm-link-meta" hidden></span>
@@ -100,9 +99,8 @@
                 </div>
                 <div class="comm-link-copy">
                   <div class="comm-link-titleline">
-                    <label class="comm-path-pick" title="בחרו רשת בית">
+                    <label class="comm-path-pick" hidden>
                       <input type="radio" name="commPath" id="commPathHome" value="home" />
-                      <span>בחרו</span>
                     </label>
                     <strong class="comm-link-name">רשת בית</strong>
                   </div>
@@ -1140,6 +1138,8 @@
                       <button type="button" class="gimbal-pad-btn gimbal-video-btn" data-gimbal="down" disabled aria-label="מטה">▼</button>
                     </div>
                   </div>
+                  <p class="gimbal-track-lock" data-vision-lock-chip hidden>נעול</p>
+                  <button type="button" class="gimbal-track-release" data-vision-release hidden>שחררו</button>
                 </div>
                 <figcaption class="debrief-cam-label"><span>גימבל</span><p class="debrief-cam-chip" hidden>אין מענה</p></figcaption>
               </figure>

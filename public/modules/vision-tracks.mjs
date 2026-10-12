@@ -725,6 +725,7 @@ function ensureChrome(host, camera) {
         const node = record.target;
         if (!(node instanceof Element)) return false;
         if (node.classList.contains('vision-box-layer') || node.classList.contains('vision-box-note')) return false;
+        if (node.closest('[data-vision-lock-chip], [data-vision-release]')) return false;
         return true;
       });
       if (relevant) repaint();
@@ -748,6 +749,28 @@ function ensureChrome(host, camera) {
     host.ownerDocument.dispatchEvent(new CustomEvent('vlc-close-optics'));
     openMenu(host.ownerDocument, camera, event.clientX, event.clientY);
   });
+}
+
+function paintTrackLock(host, payload, { show, lost }) {
+  const root = host?.closest?.('[data-camera-stage]') || host;
+  const chip = root?.querySelector?.('[data-vision-lock-chip]');
+  const release = root?.querySelector?.('[data-vision-release]');
+  if (!chip && !release) return;
+  const lock = payload?.lock;
+  const visible = show && lock && lock.id != null;
+  const name = String(lock?.label_he || '').trim();
+  const id = lock?.id != null ? `#${lock.id}` : '';
+  const label = [name, id].filter(Boolean).join(' · ') || 'אובייקט';
+  const steerOn = payload?.gimbal_steer?.enabled === true;
+  let text = `נעול · ${label}`;
+  if (lost || lock?.lost === true) text = `נעול · ${label} · אבד`;
+  else if (!steerOn) text = `נעול · ${label} · היגוי כבוי`;
+  const wantHidden = !visible;
+  if (chip) {
+    if (chip.hidden !== wantHidden) chip.hidden = wantHidden;
+    if (visible && chip.textContent !== text) chip.textContent = text;
+  }
+  if (release && release.hidden !== wantHidden) release.hidden = wantHidden;
 }
 
 export function paintHost(host, payload, { kind = 'tile' } = {}) {
@@ -783,7 +806,10 @@ export function paintHost(host, payload, { kind = 'tile' } = {}) {
     note.hidden = !text;
     note.textContent = text;
   }
-  if (!canvas) return;
+  if (!canvas) {
+    paintTrackLock(host, payload, { show: showHorizon && !reason, lost: false });
+    return;
+  }
   const media = mediaOf(host);
   const width = Math.max(1, Math.round(host.clientWidth || canvas.clientWidth || 1));
   const height = Math.max(1, Math.round(host.clientHeight || canvas.clientHeight || 1));
@@ -797,6 +823,7 @@ export function paintHost(host, payload, { kind = 'tile' } = {}) {
     ? payload.lock
     : null;
   host.dataset.visionLost = lostLock ? String(lockId) : '';
+  paintTrackLock(host, payload, { show: showHorizon && !reason, lost: !!lostLock });
   const keepLast = showHorizon && !reason && tracks.length > 0 && drawnBoxes.get(host)?.length;
   if (!fit || !showHorizon || (!tracks.length && !lostLock)) {
     if (keepLast && !fit) {
@@ -1340,10 +1367,19 @@ export function mountVisionTracks(doc = document) {
     for (const item of hostList(doc)) ensureChrome(item.host, item.camera);
   };
   bind();
+  doc.addEventListener('click', (event) => {
+    const btn = event.target instanceof Element ? event.target.closest('[data-vision-release]') : null;
+    if (!btn) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const stage = btn.closest('[data-camera-stage]');
+    const camera = stage?.dataset?.cameraStage || stage?.dataset?.visionCamera || 'cam3';
+    void postLock({ action: 'unlock', camera });
+  }, true);
   doc.addEventListener('pointerdown', (event) => {
     if (event.button != null && event.button !== 0) return;
     const target = event.target instanceof Element ? event.target : null;
-    if (!target || target.closest('#visionTrackMenu, [data-vision-menu-slot], .gimbal-video-pad, [data-gimbal]')) return;
+    if (!target || target.closest('#visionTrackMenu, [data-vision-menu-slot], .gimbal-video-pad, [data-gimbal], [data-vision-release], [data-vision-lock-chip]')) return;
     const host = target.closest('[data-camera-stage]')
       || target.closest('.debrief-cam-tile')?.querySelector('[data-camera-stage]');
     if (!(host instanceof Element)) return;

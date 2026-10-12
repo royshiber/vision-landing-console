@@ -106,7 +106,7 @@ function resetZoom(stage) {
 
 function ignoreTarget(target) {
   if (!(target instanceof Element)) return false;
-  return Boolean(target.closest('button, a, input, select, textarea, .horizon-quick, .gimbal-pad, .gimbal-video-pad'));
+  return Boolean(target.closest('button, a, input, select, textarea, .horizon-quick, .gimbal-pad, .gimbal-video-pad, [data-vision-release], [data-vision-lock-chip]'));
 }
 
 export function bindCameraZoom(stage) {

@@ -195,7 +195,7 @@ const scenarios = {
           url: 'http://192.168.1.122:8081',
           ok: false,
           rttMs: null,
-          errorHe: 'המחשב לא מחובר לרשת הבית',
+          errorHe: 'הקונסולה לא ברשת הבית',
         },
       ],
     },
@@ -526,7 +526,7 @@ describe('connect popover layout and mocked states', () => {
           parentOverflow: parent.scrollWidth - parent.clientWidth,
         };
       });
-      expect(fit.text).toBe('המחשב לא מחובר לרשת הבית');
+      expect(fit.text).toBe('הקונסולה לא ברשת הבית');
       expect(fit.overflowX).toBeLessThanOrEqual(1);
       expect(fit.overflowY).toBeLessThanOrEqual(1);
       expect(fit.parentOverflow).toBeLessThanOrEqual(1);

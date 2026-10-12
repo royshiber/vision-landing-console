@@ -208,6 +208,67 @@ class VisionTrackTests(unittest.TestCase):
         self.assertIs(locked["flight_commands"], False)
         self.assertIs(locked["gimbal_steer"]["sent"], True)
         self.assertEqual(self.fc, ["fc"])
+        self.assertEqual(action, "rate")
+        self.assertGreaterEqual(rate["yaw"], -30)
+        self.assertLessEqual(rate["yaw"], 30)
+        self.assertGreaterEqual(rate["pitch"], -30)
+        self.assertLessEqual(rate["pitch"], 30)
+
+    def test_pid_clamps_and_the_interval_limits_repeats(self):
+        pid = vision_tracks.GimbalSteerPid(kp=1000, ki=0, kd=0, slew=1000)
+        clamped = pid.step(4, -4, 0.1)
+        self.assertEqual(clamped["yaw"], 30)
+        self.assertEqual(clamped["pitch"], -30)
+        self.svc.gimbal_status = lambda: {"present": True, "control_enabled": True}
+        self.svc._now = lambda: self.clock
+        self.clock = 50.0
+        width, height, rgb, _truth = sample_frame(0)
+        self.svc.configure({"enabled": True, "camera": "cam3", "gimbal_steer": True})
+        self.svc.push_frame("cam3", width, height, rgb)
+        body = self.svc.step()
+        self.svc.lock({"camera": "cam3", "id": body["tracks"][0]["id"]})
+        self.assertEqual(len(self.sent), 1)
+        self.clock = 50.05
+        self.svc.step()
+        self.assertEqual(len(self.sent), 1)
+        self.assertEqual(self.svc.snapshot("cam3")["gimbal_steer"]["reason"], "rate_limited")
+        self.clock = 50.3
+        self.svc.step()
+        self.assertEqual(len(self.sent), 2)
+        for sent_action, sent_rate in self.sent:
+            self.assertEqual(sent_action, "rate")
+            self.assertLessEqual(abs(sent_rate["yaw"]), 30)
+            self.assertLessEqual(abs(sent_rate["pitch"]), 30)
+            self.assertNotIn("command", sent_rate)
+
+    def test_lost_track_returns_the_gimbal_to_hold(self):
+        self.svc.gimbal_status = lambda: {"present": True, "control_enabled": True}
+        self.svc._now = lambda: self.clock
+        self.clock = 80.0
+        width, height, rgb, _truth = sample_frame(0)
+        self.svc.configure({"enabled": True, "camera": "cam3", "gimbal_steer": True})
+        self.svc.push_frame("cam3", width, height, rgb)
+        body = self.svc.step()
+        person = next(row for row in body["tracks"] if row["class"] == "person")
+        self.svc.lock({"camera": "cam3", "id": person["id"]})
+        raw = bytearray(rgb)
+        for offset in range(0, len(raw), 3):
+            red, green, blue = raw[offset], raw[offset + 1], raw[offset + 2]
+            if red > 160 and red > green + 40 and red > blue + 40:
+                raw[offset:offset + 3] = bytes((16, 16, 16))
+        self.clock = 80.2
+        self.svc.push_frame("cam3", width, height, bytes(raw))
+        lost = self.svc.step()
+        self.assertEqual(lost["lock"]["id"], person["id"])
+        self.assertIs(lost["lock"].get("lost"), True)
+        self.clock = 82.0
+        self.svc.push_frame("cam3", width, height, bytes(raw))
+        released = self.svc.step()
+        self.assertIsNone(released["lock"])
+        self.assertEqual(self.sent[-1][0], "rate")
+        self.assertEqual(self.sent[-1][1], {"yaw": 0.0, "pitch": 0.0})
+        self.assertIs(released["flight_commands"], False)
+        self.assertIs(released["gimbal_steer"]["flight_commands"], False)
 
     def test_yolo_decode_keeps_two_classes(self):
         def row(cx, cy, w, h, index, score):
