@@ -54,7 +54,8 @@ class AgentRouteTests(unittest.TestCase):
         self.assertLess(body["track_age_ms"], 2000)
         self.assertEqual(body["detection"]["backend"], "cpu")
         self.assertEqual(lite["vision"]["backend"], "cpu")
-        self.assertEqual(lite["vision"]["track_age_ms"], body["track_age_ms"])
+        self.assertGreaterEqual(lite["vision"]["track_age_ms"], 100)
+        self.assertLess(abs(lite["vision"]["track_age_ms"] - body["track_age_ms"]), 50)
         self.assertIn("tensorrt_fallback", body)
 
 

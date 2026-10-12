@@ -1,5 +1,16 @@
 [
   {
+    "version": "1.02.432",
+    "date": "2026-10-12",
+    "changes": [
+      {
+        "type": "chore",
+        "title": "Build scripts",
+        "detail": "README.md, camera_ingest.py, install.sh, requirements-vision.txt, test_agent_routes.py, test_rtsp_latency.py, test_vision_deploy.py"
+      }
+    ]
+  },
+  {
     "version": "1.02.431",
     "date": "2026-10-12",
     "changes": [

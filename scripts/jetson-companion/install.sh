@@ -69,14 +69,153 @@ service_prop() {
   systemctl_cmd show -p "$prop" --value "$SERVICE_NAME"
 }
 
+_token_from_file() {
+  local file="$1"
+  local line key value
+  [[ -f "$file" ]] || return 1
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    line="${line#"${line%%[![:space:]]*}"}"
+    line="${line%$'\r'}"
+    [[ -z "$line" || "$line" == \#* ]] && continue
+    [[ "$line" == export\ * ]] && line="${line#export }"
+    key="${line%%=*}"
+    [[ "$key" == "VLC_COMPANION_TOKEN" ]] || continue
+    value="${line#*=}"
+    if [[ ${#value} -ge 2 && "$value" == \"*\" && "$value" == *\" ]]; then
+      value="${value:1:${#value}-2}"
+    elif [[ ${#value} -ge 2 && "$value" == \'*\' && "$value" == *\' ]]; then
+      value="${value:1:${#value}-2}"
+    fi
+    printf '%s' "$value"
+    return 0
+  done < "$file"
+  return 1
+}
+
+_service_env_files() {
+  local text line path
+  text="$(systemctl_cmd cat "$SERVICE_NAME" 2>/dev/null || true)"
+  if [[ -z "$text" ]]; then
+    text="$(systemctl_cmd show -p EnvironmentFiles --value "$SERVICE_NAME" 2>/dev/null || true)"
+  fi
+  while IFS= read -r line; do
+    path=""
+    if [[ "$line" == *"EnvironmentFile="* ]]; then
+      path="${line#*EnvironmentFile=}"
+      path="${path%%#*}"
+      path="${path%"${path##*[![:space:]]}"}"
+      path="${path#"${path%%[![:space:]]*}"}"
+      path="${path#-}"
+    elif [[ "$line" == /* ]]; then
+      path="${line%% *}"
+    fi
+    [[ -n "$path" ]] && printf '%s\n' "$path"
+  done <<< "$text"
+}
+
+companion_token() {
+  # Shell env wins. sudo drops it, so the unit's EnvironmentFile is next.
+  # The value is only handed to curl. It is not printed.
+  local file token found=""
+  if [[ -n "${VLC_COMPANION_TOKEN:-}" ]]; then
+    printf '%s' "$VLC_COMPANION_TOKEN"
+    return 0
+  fi
+  while IFS= read -r file; do
+    [[ -n "$file" ]] || continue
+    if token="$(_token_from_file "$file")"; then
+      found="$token"
+    fi
+  done < <(_service_env_files)
+  if [[ -z "$found" ]]; then
+    for file in \
+      /etc/airvix/companion.env \
+      /etc/airvix/airvix-companion.env \
+      "${DEST}/companion.env" \
+      /home/royshiber/vlc-companion/companion.env
+    do
+      if token="$(_token_from_file "$file")"; then
+        found="$token"
+      fi
+    done
+  fi
+  printf '%s' "$found"
+}
+
 health_once() {
   local url="http://127.0.0.1:${VLC_HTTP_PORT:-8081}/api/health"
-  local token="${VLC_COMPANION_TOKEN:-}"
+  local token
+  token="$(companion_token)"
   if [[ -n "${AIRVIX_DEPLOY_CURL:-}" ]]; then
     "${AIRVIX_DEPLOY_CURL}" -fsS --max-time 2 -H "X-Companion-Token: ${token}" "$url"
     return
   fi
   curl -fsS --max-time 2 -H "X-Companion-Token: ${token}" "$url" >/dev/null
+}
+
+nvv4l2_present() {
+  if command -v gst-inspect-1.0 >/dev/null 2>&1 && gst-inspect-1.0 nvv4l2decoder >/dev/null 2>&1; then
+    return 0
+  fi
+  [[ -e /usr/lib/aarch64-linux-gnu/gstreamer-1.0/libgstnvvideo4linux2.so ]]
+}
+
+ensure_hardware_decode() {
+  # Lab and dry-run do not apt. A Jetson apply installs the bindings the venv cannot pip.
+  if [[ "${LAB_UNPRIV:-0}" == "1" || -n "${FORCE_LAB:-}" || -n "${AIRVIX_SKIP_APT:-}" ]]; then
+    return 0
+  fi
+  if ! command -v apt-get >/dev/null 2>&1; then
+    echo '{"ok":false,"error":"apt_missing","note":"python3-gi gir1.2-gstreamer-1.0 gstreamer1.0-plugins-bad"}' >&2
+    return 1
+  fi
+  local pkg missing=()
+  for pkg in python3-gi gir1.2-gstreamer-1.0 gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-plugins-bad; do
+    if ! dpkg -s "$pkg" >/dev/null 2>&1; then
+      missing+=("$pkg")
+    fi
+  done
+  if ! nvv4l2_present; then
+    if apt-cache show nvidia-l4t-gstreamer >/dev/null 2>&1; then
+      missing+=(nvidia-l4t-gstreamer)
+    else
+      echo '{"ok":false,"error":"nvv4l2_missing","note":"JetPack package nvidia-l4t-gstreamer is not installed"}' >&2
+      return 1
+    fi
+  fi
+  if [[ ${#missing[@]} -eq 0 ]]; then
+    echo '{"ok":true,"gst":"present","decoder":"nvv4l2decoder"}'
+    return 0
+  fi
+  DEBIAN_FRONTEND=noninteractive apt-get update -y
+  DEBIAN_FRONTEND=noninteractive apt-get install -y "${missing[@]}"
+  echo '{"ok":true,"gst":"installed","decoder":"nvv4l2decoder"}'
+}
+
+expose_gi_to_service_venv() {
+  # A venv without --system-site-packages cannot import gi. One .pth line adds dist-packages.
+  if [[ "${LAB_UNPRIV:-0}" == "1" || -n "${FORCE_LAB:-}" ]]; then
+    return 0
+  fi
+  local text py root minor dist site
+  text="$(systemctl_cmd cat "$SERVICE_NAME" 2>/dev/null || true)"
+  py="$(printf '%s\n' "$text" | sed -n 's/^ExecStart=//p' | head -n 1 | awk '{print $1}')"
+  if [[ -z "$py" && -x /home/royshiber/mavlink-env/bin/python3 ]]; then
+    py=/home/royshiber/mavlink-env/bin/python3
+  fi
+  [[ -n "$py" && -x "$py" ]] || return 0
+  root="$(dirname "$(dirname "$py")")"
+  [[ -f "$root/pyvenv.cfg" ]] || return 0
+  minor="$("$py" -c 'import sys; print("%d.%d" % sys.version_info[:2])')"
+  dist="/usr/lib/python${minor}/dist-packages"
+  if [[ ! -d "$dist/gi" ]]; then
+    echo "{\"ok\":false,\"error\":\"gi_not_in_dist_packages\",\"path\":\"${dist}/gi\"}" >&2
+    return 1
+  fi
+  site="$("$py" -c 'import site; print(site.getsitepackages()[0])')"
+  mkdir -p "$site"
+  printf '%s\n' "$dist" > "$site/airvix-system-gi.pth"
+  echo '{"ok":true,"gi_pth":"airvix-system-gi.pth"}'
 }
 
 restore_tree() {
@@ -165,6 +304,9 @@ if [[ "$(id -u)" -ne 0 ]]; then
     exit 1
   fi
 fi
+
+ensure_hardware_decode
+expose_gi_to_service_venv
 
 VER=$(sed -n 's/.*VLC_AGENT_VERSION", "\([^"]*\)".*/\1/p' "$ROOT/companion_agent.py" | head -n 1)
 SHA=$(git -C "$ROOT" rev-parse --short=12 HEAD 2>/dev/null || true)

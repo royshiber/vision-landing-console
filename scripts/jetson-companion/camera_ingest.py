@@ -655,17 +655,64 @@ def _call_with_deadline(fn, timeout_s):
     return box.get("value")
 
 
-def _try_gst():
+def gst_dist_paths(lib_root="/usr/lib"):
+    """JetPack puts PyGObject in system dist-packages. A venv often cannot see it."""
+    paths = []
     try:
-        import gi
+        names = os.listdir(lib_root)
+    except OSError:
+        return paths
+    for name in sorted(names):
+        if not str(name).startswith("python3"):
+            continue
+        dist = os.path.join(lib_root, name, "dist-packages")
+        if os.path.isdir(os.path.join(dist, "gi")):
+            paths.append(dist)
+    return paths
 
-        gi.require_version("Gst", "1.0")
-        from gi.repository import Gst
 
+def _drop_gi_modules():
+    for name in list(sys.modules):
+        if name == "gi" or name.startswith("gi."):
+            sys.modules.pop(name, None)
+
+
+def _load_gst():
+    import gi
+
+    gi.require_version("Gst", "1.0")
+    from gi.repository import Gst
+
+    if not Gst.is_initialized():
         Gst.init(None)
-        return Gst
-    except Exception:
-        return None
+    return Gst
+
+
+def _try_gst():
+    """Return Gst, or None. The reason is kept for the decoder log. No pip."""
+    errors = []
+    try:
+        gst = _load_gst()
+        _try_gst.last_error = None
+        return gst
+    except Exception as exc:
+        errors.append(f"{type(exc).__name__}: {exc}")
+        _drop_gi_modules()
+    for path in gst_dist_paths():
+        if path not in sys.path:
+            sys.path.append(path)
+        try:
+            gst = _load_gst()
+            _try_gst.last_error = None
+            return gst
+        except Exception as exc:
+            errors.append(f"{path}: {type(exc).__name__}: {exc}")
+            _drop_gi_modules()
+    _try_gst.last_error = "; ".join(errors) if errors else "gi Gst is not importable"
+    return None
+
+
+_try_gst.last_error = None
 
 
 def apply_usb_pixel_format(cap, width, height, fps):
@@ -1235,7 +1282,7 @@ def open_hardware_rtsp(url, codec, transport, width, height, quality, gst=None, 
     """Hardware H.264/H.265 decode into one appsink buffer. No OpenCV required."""
     Gst = gst if gst is not None else _try_gst()
     if Gst is None:
-        raise CaptureError("gstreamer_missing", "gi Gst is not importable")
+        raise CaptureError("gstreamer_missing", getattr(_try_gst, "last_error", None) or "gi Gst is not importable")
     proto = "tcp" if str(transport).lower() == "tcp" else "udp"
     pipeline = rtsp_gstreamer_pipeline(
         url, codec, transport=proto, width=width, height=height,
@@ -1285,7 +1332,7 @@ def _open_rtsp(cv2, url, codec, geometry=None, env=None):
                 failures.append(f"{name}:{decoder}:{type(exc).__name__}:{exc}")
                 opened = None
             if opened is not None:
-                _log_cam3(f"cam3 hardware {name} gstreamer appsink drop=true max-buffers=1")
+                _log_cam3(f"cam3 decoder=nvv4l2decoder codec={name} appsink drop=true max-buffers=1")
                 return opened
     budget = time.monotonic() + RTSP_FAIL_FAST_S
     # OpenCV GStreamer only when gi could not open, or the codec was explicit.
@@ -1313,13 +1360,13 @@ def _open_rtsp(cv2, url, codec, geometry=None, env=None):
                     failures.append(f"opencv-{name}:{type(exc).__name__}")
                     continue
                 if opened is not None:
-                    _log_cam3(f"cam3 opencv gstreamer {name} {cand.get('decoder')}")
+                    _log_cam3(f"cam3 decoder=opencv-gstreamer codec={name} element={cand.get('decoder')}")
                     return opened
             if time.monotonic() >= budget:
                 break
     remaining = budget - time.monotonic()
     detail = ", ".join(failures) or "no hardware capture"
-    _log_cam3(f"cam3 ffmpeg fallback. Hardware H.265 was not opened ({detail}).")
+    _log_cam3(f"cam3 decoder=ffmpeg. Hardware H.265 was not opened ({detail}).")
     if remaining > 0.05:
         proto = "tcp" if transport == "tcp" or rtsp_transport_blocked("udp") else transport
         if proto == "auto":
