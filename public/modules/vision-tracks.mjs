@@ -1343,7 +1343,7 @@ export function mountVisionTracks(doc = document) {
   doc.addEventListener('pointerdown', (event) => {
     if (event.button != null && event.button !== 0) return;
     const target = event.target instanceof Element ? event.target : null;
-    if (!target || target.closest('#visionTrackMenu, [data-vision-menu-slot]')) return;
+    if (!target || target.closest('#visionTrackMenu, [data-vision-menu-slot], .gimbal-video-pad, [data-gimbal]')) return;
     const host = target.closest('[data-camera-stage]')
       || target.closest('.debrief-cam-tile')?.querySelector('[data-camera-stage]');
     if (!(host instanceof Element)) return;
