@@ -28,7 +28,7 @@ const AWARENESS = {
   },
   hazards: [{ kind: 'person', label_he: 'אדם', confidence: 0.91, bbox: [40, 40, 20, 30] }],
   adviceHe: 'יש אדם על המסלול. מומלץ ללכת סביב.',
-  vision: { state: 'go_around', labelHe: 'סבוב מחדש', manualArm: false },
+  vision: { state: 'go_around', labelHe: 'סבוב מחדש', manualArm: false, buttonReady: false },
 };
 
 describe('runway awareness layout', () => {
@@ -56,7 +56,12 @@ describe('runway awareness layout', () => {
     page = await browser.newPage({ viewport: { width: 1024, height: 470 } });
     let armedNow = false;
     let visionOverride = null;
-    const armedVision = { state: 'active', labelHe: 'פעיל', manualArm: true, takeoverCh: 7 };
+    const armedVision = {
+      state: 'active',
+      labelHe: 'נחיתה אופטית פעילה. לביטול: החלפת מצב טיסה',
+      manualArm: true,
+      buttonReady: true,
+    };
     await page.route('**/api/runway/vision-arm', (route) => {
       armedNow = true;
       return route.fulfill({
@@ -70,7 +75,7 @@ describe('runway awareness layout', () => {
       contentType: 'application/json',
       body: JSON.stringify({
         ...AWARENESS,
-        vision: visionOverride || (armedNow ? armedVision : AWARENESS.vision),
+        vision: armedNow ? armedVision : (visionOverride || AWARENESS.vision),
       }),
     }));
     await page.goto(started.base, { waitUntil: 'domcontentloaded' });
@@ -111,7 +116,8 @@ describe('runway awareness layout', () => {
     expect(fit.runwayLevel).toBe(false);
     expect(fit.runwayLane).toBe(false);
     expect(await page.locator('#runwayVisionStateWord').innerText()).toBe('סבוב מחדש');
-    expect(await page.locator('#runwayVisionArm').innerText()).toBe('הנחיה ידנית');
+    expect(await page.locator('#runwayVisionArm').innerText()).toBe('נחיתה אופטית');
+    expect(await page.locator('#runwayVisionArm').isDisabled()).toBe(true);
     expect(await page.locator('#runwayVisionHold').isHidden()).toBe(true);
     expect(await page.locator('#runwayVisionTakeover').isHidden()).toBe(true);
 
@@ -127,13 +133,20 @@ describe('runway awareness layout', () => {
       };
     });
     expect(armHit.hit, JSON.stringify(armHit)).toMatch(/BUTTON/i);
+    visionOverride = { state: 'waiting', labelHe: 'ממתין', manualArm: false, buttonReady: true };
+    await page.waitForFunction(() => document.getElementById('runwayVisionArm')?.disabled === false);
     const armed = page.waitForRequest((req) => req.url().includes('/api/runway/vision-arm') && req.method() === 'POST');
     await page.locator('#runwayVisionArm').click({ timeout: 4000 });
     expect((await armed).postDataJSON()).toEqual({ arm: true });
-    await page.waitForFunction(() => document.getElementById('runwayVisionArm')?.textContent === 'בטל הנחיה');
-    expect(await page.locator('#runwayVisionArm').innerText()).toBe('בטל הנחיה');
-    expect(await page.locator('#runwayVisionHold').innerText()).toBe('גלגול: הקונסולה. עלרוד, מצערת והגה: הטייס');
-    expect(await page.locator('#runwayVisionTakeover').innerText()).toBe('להשתלטות: מתג ערוץ 7 למעלה או החלפת מצב');
+    await page.waitForFunction(() => (
+      document.getElementById('runwayVisionStateWord')?.textContent || ''
+    ).includes('לביטול'));
+    expect(await page.locator('#runwayVisionArm').innerText()).toBe('נחיתה אופטית');
+    expect(await page.locator('#runwayVisionStateWord').innerText()).toBe(
+      'נחיתה אופטית פעילה. לביטול: החלפת מצב טיסה',
+    );
+    expect(await page.locator('#runwayVisionHold').isHidden()).toBe(true);
+    expect(await page.locator('#runwayVisionTakeover').isHidden()).toBe(true);
 
     for (const [width, height] of [[1024, 470], [1366, 630], [1536, 730]]) {
       await page.setViewportSize({ width, height });
@@ -153,7 +166,7 @@ describe('runway awareness layout', () => {
               && box.right <= stageBox.right + 1
               && box.top >= stageBox.top - 1
               && box.bottom <= stageBox.bottom + 1
-              && tiles.contains(word),
+              && stage.contains(word),
           });
         }
         word.textContent = 'סבוב מחדש';
@@ -175,6 +188,14 @@ describe('runway awareness layout', () => {
       if (width === 1024 && height === 470) {
         expect(placed.stageShort).toBe(true);
         expect(placed.oneRow, 'offset heading and hazard share one line').toBe(true);
+        const offsetText = await page.locator('#runwayOffsetValue').innerText();
+        const headingText = await page.locator('#runwayHeadingValue').innerText();
+        expect(offsetText).toMatch(/י/);
+        expect(offsetText).toMatch(/1\.4/);
+        expect(offsetText).not.toMatch(/ימינה|שמאלה/);
+        expect(headingText).toMatch(/י/);
+        expect(headingText).toMatch(/3/);
+        expect(headingText).not.toMatch(/ימינה|שמאלה/);
       }
       const clearance = await page.evaluate(() => {
         const stage = document.getElementById('pfdHorizonStage');
@@ -325,18 +346,23 @@ describe('runway awareness layout', () => {
       }
       await page.keyboard.press('Escape');
     }
-    visionOverride = {
-      state: 'waiting',
-      labelHe: 'ממתין',
-      reason: 'no_switch',
-      manualArm: false,
-      takeoverCh: 4,
-    };
+    await page.setViewportSize({ width: 1024, height: 470 });
+    armedNow = false;
+    visionOverride = { state: 'waiting', labelHe: 'ממתין', manualArm: false, buttonReady: false };
     await page.waitForFunction(() => (
       document.getElementById('runwayVisionStateWord')?.textContent || ''
-    ).includes('ערוץ 4'));
+    ) === 'אין מסלול במסגרת');
+    expect(await page.locator('#runwayVisionStateWord').innerText()).toBe('אין מסלול במסגרת');
+    expect(await page.locator('#runwayVisionArm').isDisabled()).toBe(true);
+    visionOverride = armedVision;
+    await page.waitForFunction(() => (
+      document.getElementById('runwayVisionStateWord')?.textContent || ''
+    ).includes('לביטול'));
+    const shortFit = await page.evaluate(collectTextFitFailures, 1);
+    const shortRunway = (shortFit.fails || []).filter((row) => /runway/i.test(`${row.who} ${row.text}`));
+    expect(shortRunway.length, JSON.stringify(shortRunway)).toBe(0);
     expect(await page.locator('#runwayVisionStateWord').innerText()).toBe(
-      'ממתין: אין קריאה ממתג ההשתלטות (ערוץ 4). בדקו שהשלט מחובר והמתג למטה',
+      'נחיתה אופטית פעילה. לביטול: החלפת מצב טיסה',
     );
   }, 30000);
 });

@@ -143,6 +143,18 @@
   gap: 2px;
   min-width: 0;
 }
+#pfdHorizonStage[data-awareness-stage="short"] > #runwayVisionState {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  right: 2px;
+  z-index: 8;
+  width: auto;
+  max-width: none;
+  box-sizing: border-box;
+  padding: 0 88px 0 4px;
+  pointer-events: none;
+}
 #pfdHorizonStage[data-awareness-stage="short"] .runway-awareness-state {
   flex: 1 1 100%;
   flex-flow: row wrap;

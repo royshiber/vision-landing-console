@@ -338,18 +338,14 @@ Each experiment is a **product chapter**. A later chapter needs its own Human Ga
 
 SITL lateral stage, implemented. A live vehicle is still a Human Gate.
 
-- The console may correct lateral offset and heading toward the centerline.
-- Altitude and speed stay with ArduPlane.
-- It runs only on final: the last mission item is NAV_LAND and the current waypoint is the approach or the land item, or the operator arms it from the console.
+- Path A corrects lateral offset and heading with roll only while the active mission item is NAV_LAND and the mode stays AUTO. Altitude and speed stay with ArduPlane.
+- Path B is the button נחיתה אופטית. It is enabled only after the runway is seen at 70 percent or more for 2 seconds. The press sends SET_MODE GUIDED (custom mode 15) on SITL, then COMMAND_INT DO_REPOSITION along a 3 degree glide to the runway threshold. Inside about 80 m one COMMAND_INT NAV_LAND hands the flare to ArduPlane. Guidance continues while the mode stays GUIDED.
+- A mode change away from AUTO (path A) or GUIDED (path B) is the pilot cancel. A hazard or a large offset below the go-around altitude sends one go-around. Link loss releases once.
 - Runway confidence must hold, default 70 percent, for the configured dwell, inside the altitude and distance envelope.
 - Commands leave only when the vehicle is SITL. Level 4 stays locked.
-- Lost runway or low confidence releases the override once.
-- A hazard, or a large lateral error below the minimum altitude, sends one go-around.
-- A mode change cancels immediately. So does the takeover switch, a channel the override never holds. The default is channel 7, and the cancel is when its PWM reaches 1700. Pitch, throttle, and yaw do not cancel. Channel 1 is the roll command echo and is not pilot input.
-- If that switch has no valid RC (missing RC_CHANNELS, or 0, or 65535), guidance does not activate and the tiles stay ממתין.
-- RC failsafe is the same invalid switch. Channel count 0, rssi 0, or a frozen sample (the same channel packet, or time_boot_ms not advancing, for about a second) refuses activation. While guiding, it releases once and stays ממתין.
-- A stored RC sample older than about 500 ms is dropped, so it is the same invalid switch and releases once.
-- The tiles show ממתין, פעיל, שוחרר, or סבוב מחדש.
+- On path A, lost runway or low confidence releases the roll override once. Path B keeps guiding while the mode stays GUIDED.
+- Stick movement is not a cancel. There is no takeover switch and no RC-rate command.
+- The active line is נחיתה אופטית פעילה. לביטול: החלפת מצב טיסה. With no runway in frame the button stays off and the reason is אין מסלול במסגרת.
 - This is not full auto land. Connecting a live vehicle remains a Human Gate.
 
 ### Exp#4 — Full vision land (future GO)

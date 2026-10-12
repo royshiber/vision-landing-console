@@ -36,6 +36,11 @@ function sideWord(value) {
   return value > 0 ? 'ימינה' : 'שמאלה';
 }
 
+function sideMark(value) {
+  if (!Number.isFinite(value) || Math.abs(value) < 0.4) return '';
+  return value > 0 ? 'י' : 'ש';
+}
+
 function fillMeasure(doc, node, side, amount, confidence) {
   node.replaceChildren();
   const word = el(doc, 'span');
@@ -54,9 +59,14 @@ function stageIsShort(doc) {
   return !!stage && stage.clientHeight > 0 && stage.clientHeight < 280;
 }
 
-function fillShort(doc, node, amount, confidence) {
+function fillShort(doc, node, amount, confidence, mark) {
   node.replaceChildren();
-  if (amount) node.append(bdi(doc, amount));
+  if (mark) {
+    const side = el(doc, 'span');
+    side.textContent = mark;
+    node.append(side);
+  }
+  if (amount) node.append(doc.createTextNode(mark ? ' ' : ''), bdi(doc, amount));
   if (confidence) {
     const line = el(doc, 'span', 'runway-awareness-c');
     line.append(bdi(doc, `${confidence}%`));
@@ -83,9 +93,9 @@ function paintTiles(doc, status) {
   } else if (short) {
     const meters = Number(est.offset_m);
     const amount = Number.isFinite(meters) ? `${Math.abs(meters).toFixed(1)}` : '';
-    if (offset) fillShort(doc, offset, amount, Math.round(Number(conf.offset || 0) * 100));
+    if (offset) fillShort(doc, offset, amount, Math.round(Number(conf.offset || 0) * 100), sideMark(Number(est.offset_px)));
     const deg = Number(est.heading_error_deg);
-    if (heading) fillShort(doc, heading, Number.isFinite(deg) ? `${Math.abs(deg).toFixed(0)}°` : '', Math.round(Number(conf.heading || 0) * 100));
+    if (heading) fillShort(doc, heading, Number.isFinite(deg) ? `${Math.abs(deg).toFixed(0)}°` : '', Math.round(Number(conf.heading || 0) * 100), sideMark(deg));
     const row = Array.isArray(status.hazards) && status.hazards[0];
     if (hazard) {
       hazard.replaceChildren();
@@ -121,33 +131,41 @@ function paintTiles(doc, status) {
   const state = doc.getElementById('runwayVisionState');
   const word = doc.getElementById('runwayVisionStateWord');
   const arm = doc.getElementById('runwayVisionArm');
-  const channel = Number(status?.vision?.takeoverCh);
-  const switchCh = Number.isInteger(channel) && channel >= 2 && channel <= 8 ? channel : 7;
-  const noSwitch = on && status?.vision?.reason === 'no_switch';
-  const label = noSwitch
-    ? `ממתין: אין קריאה ממתג ההשתלטות (ערוץ ${switchCh}). בדקו שהשלט מחובר והמתג למטה`
-    : (on ? String(status?.vision?.labelHe || 'ממתין') : '');
+  const active = on && status?.vision?.state === 'active';
+  const goneAround = on && status?.vision?.state === 'go_around';
+  const released = on && status?.vision?.state === 'released';
+  const ready = on && status?.vision?.buttonReady === true;
+  const label = !on
+    ? ''
+    : active
+      ? 'נחיתה אופטית פעילה. לביטול: החלפת מצב טיסה'
+      : goneAround
+        ? 'סבוב מחדש'
+        : released
+          ? 'שוחרר'
+          : ready
+            ? 'ממתין'
+            : 'אין מסלול במסגרת';
   if (state) {
     state.hidden = !on;
     state.dataset.visionState = String(status?.vision?.state || 'waiting');
   }
   if (word) word.textContent = label;
-  const active = on && status?.vision?.state === 'active';
   const hold = doc.getElementById('runwayVisionHold');
   const takeover = doc.getElementById('runwayVisionTakeover');
   if (hold) {
-    hold.hidden = !active;
-    hold.textContent = active ? 'גלגול: הקונסולה. עלרוד, מצערת והגה: הטייס' : '';
+    hold.hidden = true;
+    hold.textContent = '';
   }
   if (takeover) {
-    takeover.hidden = !active;
-    takeover.textContent = active ? `להשתלטות: מתג ערוץ ${switchCh} למעלה או החלפת מצב` : '';
+    takeover.hidden = true;
+    takeover.textContent = '';
   }
   if (arm) {
-    const armed = status?.vision?.manualArm === true;
     arm.hidden = !on;
-    arm.textContent = armed ? 'בטל הנחיה' : 'הנחיה ידנית';
-    arm.setAttribute('aria-pressed', armed ? 'true' : 'false');
+    arm.disabled = !ready || active || goneAround;
+    arm.textContent = 'נחיתה אופטית';
+    arm.setAttribute('aria-pressed', active ? 'true' : 'false');
   }
 }
 
@@ -268,9 +286,16 @@ function syncStage(doc) {
   stage.dataset.awarenessStage = stage.clientHeight > 0 && stage.clientHeight < 280 ? 'short' : 'full';
   const arm = doc.getElementById('runwayVisionArm');
   const state = doc.getElementById('runwayVisionState');
-  if (!arm || !state) return;
-  const home = stage.dataset.awarenessStage === 'short' ? stage : state;
-  if (arm.parentElement !== home) home.append(arm);
+  const tiles = doc.getElementById('runwayAwarenessTiles');
+  const short = stage.dataset.awarenessStage === 'short';
+  if (state && tiles && state.parentElement !== (short ? stage : tiles)) {
+    if (short) stage.append(state);
+    else tiles.insertBefore(state, tiles.firstChild);
+  }
+  if (arm && state) {
+    const home = short ? stage : state;
+    if (arm.parentElement !== home) home.append(arm);
+  }
 }
 
 async function readStatus(camera) {
@@ -435,12 +460,13 @@ function ensureChrome(doc) {
     const arm = el(doc, 'button', 'runway-awareness-arm');
     arm.type = 'button';
     arm.id = 'runwayVisionArm';
-    arm.textContent = 'הנחיה ידנית';
+    arm.textContent = 'נחיתה אופטית';
+    arm.disabled = true;
     arm.addEventListener('click', async (event) => {
       event.preventDefault();
       event.stopPropagation();
-      const armed = arm.getAttribute('aria-pressed') === 'true';
-      const { data } = await postLevelArm(!armed);
+      if (arm.disabled) return;
+      const { data } = await postLevelArm(true);
       paint(doc, data);
     });
     state.append(stateKey, stateWord, hold, takeover, arm);

@@ -6,7 +6,6 @@ import { spawnSync } from 'node:child_process';
 import { describe, expect, it } from 'vitest';
 import { MavlinkConnection, parseMissionCurrent } from '../lib/mavlink-connection.mjs';
 import { createRunwayController } from '../lib/runway-awareness.mjs';
-import { vehicleFromConnection } from '../lib/routes/runway-awareness-api.mjs';
 import {
   MAV_CMD_DO_GO_AROUND,
   MAV_CMD_NAV_LAND,
@@ -32,7 +31,7 @@ function approach(overrides = {}) {
     distToLandM: 700,
     lat: 32.02,
     lon: 34.82,
-    missionCurrent: 2,
+    missionCurrent: 3,
     missionItems: [
       { seq: 1, command: 16, lat: 32.04, lon: 34.84 },
       { seq: 2, command: 16, lat: 32.02, lon: 34.82 },
@@ -66,10 +65,15 @@ function wire(simulator = true) {
   conn.getStatus = () => ({ simulator });
   return {
     frames,
+    conn,
     sendGuidance(cmd) {
       try {
         if (cmd.kind === 'GO_AROUND') {
           conn.sendRunwayGoAround();
+          return { sent: true };
+        }
+        if (cmd.kind === 'ENTER_GUIDED' || cmd.kind === 'REPOSITION' || cmd.kind === 'NAV_LAND') {
+          conn.sendRunwayOptical(cmd);
           return { sent: true };
         }
         conn.sendRunwayRollOverride(cmd.rollPwm, { release: cmd.release === true });
@@ -111,6 +115,10 @@ function decode(frame) {
     'if kind == "RC_CHANNELS_OVERRIDE":',
     '    chans = [getattr(msg, f"chan{i}_raw") for i in range(1, 19)]',
     '    print(kind, msg.target_system, msg.target_component, ",".join(str(c) for c in chans))',
+    'elif kind == "SET_MODE":',
+    '    print(kind, msg.target_system, msg.base_mode, msg.custom_mode)',
+    'elif kind == "COMMAND_INT":',
+    '    print(kind, msg.target_system, msg.target_component, msg.command, ",".join(str(n) for n in (msg.x, msg.y, msg.z, msg.frame)))',
     'else:',
     '    params = [getattr(msg, f"param{i}") for i in range(1, 8)]',
     '    print(kind, msg.target_system, msg.target_component, msg.command, ",".join(str(p) for p in params))',
@@ -126,6 +134,13 @@ function decode(frame) {
       rest: third.split(',').map(Number),
     };
   }
+  if (type === 'SET_MODE') {
+    return { type, target: Number(target), baseMode: Number(comp), customMode: Number(third) };
+  }
+  if (type === 'COMMAND_INT') {
+    const [lat, lon, alt, frame] = rest.split(',').map(Number);
+    return { type, target: Number(target), comp: Number(comp), third: Number(third), lat, lon, alt, frame };
+  }
   return {
     type,
     target: Number(target),
@@ -136,9 +151,9 @@ function decode(frame) {
 }
 
 describe('vision landing phase', () => {
-  it('accepts only the approach item or the land item after NAV_LAND', () => {
+  it('engages only when the active mission item is NAV_LAND', () => {
     const items = approach().missionItems;
-    expect(missionLandingPhase(items, 2).active).toBe(true);
+    expect(missionLandingPhase(items, 2).active).toBe(false);
     expect(missionLandingPhase(items, 3).active).toBe(true);
     expect(missionLandingPhase(items, 1).active).toBe(false);
     expect(missionLandingPhase([{ seq: 1, command: 16 }, { seq: 2, command: 16 }], 2).active).toBe(false);
@@ -177,7 +192,7 @@ describe('vision landing SITL e2e', () => {
     run.at(52_000);
     const live = run.controller.tick({ estimate: STRIP, vehicle: approach() });
     expect(live.sentNow).toBe(1);
-    expect(live.vision.labelHe).toBe('פעיל');
+    expect(live.vision.labelHe).toBe('נחיתה אופטית פעילה. לביטול: החלפת מצב טיסה');
     expect(run.link.frames).toHaveLength(1);
     const decoded = decode(run.link.frames[0]);
     expect(decoded.type).toBe('RC_CHANNELS_OVERRIDE');
@@ -200,7 +215,7 @@ describe('vision landing SITL e2e', () => {
     run.at(60_000);
     run.controller.tick({ estimate: STRIP, vehicle: approach() });
     run.at(62_000);
-    expect(run.controller.tick({ estimate: STRIP, vehicle: approach() }).vision.labelHe).toBe('פעיל');
+    expect(run.controller.tick({ estimate: STRIP, vehicle: approach() }).vision.labelHe).toBe('נחיתה אופטית פעילה. לביטול: החלפת מצב טיסה');
 
     const lost = run.controller.tick({
       estimate: { ...STRIP, detected: false, confidence: { offset: 0.2, heading: 0.2 } },
@@ -233,7 +248,7 @@ describe('vision landing SITL e2e', () => {
     run.at(70_000);
     run.controller.tick({ estimate: STRIP, vehicle: approach() });
     run.at(72_000);
-    expect(run.controller.tick({ estimate: STRIP, vehicle: approach() }).vision.labelHe).toBe('פעיל');
+    expect(run.controller.tick({ estimate: STRIP, vehicle: approach() }).vision.labelHe).toBe('נחיתה אופטית פעילה. לביטול: החלפת מצב טיסה');
     expect(run.link.frames).toHaveLength(1);
 
     const hazard = run.controller.tick({
@@ -285,422 +300,198 @@ describe('vision landing SITL e2e', () => {
       estimate: { ...STRIP, offset_m: 18, heading_error_deg: 0 },
       vehicle: approach({ altAglM: 40 }),
     });
-    expect(later.vision.labelHe).toBe('פעיל');
+    expect(later.vision.labelHe).toBe('נחיתה אופטית פעילה. לביטול: החלפת מצב טיסה');
     expect(decode(high.link.frames[0]).type).toBe('RC_CHANNELS_OVERRIDE');
     expect(decode(high.link.frames[0]).rest[1]).toBe(0);
     expect(decode(high.link.frames[0]).rest[2]).toBe(0);
   });
 
-  it('does not cancel on a roll echo, a guidance step, or pitch throttle and yaw', (ctx) => {
+  it('keeps guiding when the sticks move and cancels once when AUTO is left', (ctx) => {
     ctx.skip(!pymavlinkInstalled(), PYMAVLINK_SKIP);
     const run = session();
-    const steer = { ...STRIP, heading_error_deg: 15, offset_m: 0 };
     run.at(140_000);
-    run.controller.tick({ estimate: steer, vehicle: approach() });
+    run.controller.tick({ estimate: STRIP, vehicle: approach() });
     run.at(142_000);
-    const active = run.controller.tick({ estimate: steer, vehicle: approach() });
-    expect(active.vision.state).toBe('active');
-    expect(active.vision.takeoverCh).toBe(7);
-    expect(decode(run.link.frames.at(-1)).rest[0]).toBe(1560);
-
-    const echoChannels = {
-      chan1_raw: 1560,
-      chan2_raw: 1500,
-      chan3_raw: 1500,
-      chan4_raw: 1500,
-      chan5_raw: 1500,
-      chan6_raw: 1500,
-      chan7_raw: 1500,
-      chan8_raw: 1500,
-    };
-    const echo = run.controller.tick({
-      estimate: steer,
-      vehicle: approach({ rcChannels: echoChannels }),
-    });
-    expect(echo.vision.state).toBe('active');
-    expect(echo.sentNow).toBe(1);
-    expect(decode(run.link.frames.at(-1)).rest[0]).toBe(1560);
-
-    const stepped = run.controller.tick({
-      estimate: { ...STRIP, heading_error_deg: 5, offset_m: 0 },
-      vehicle: approach({ rcChannels: echoChannels }),
-    });
-    expect(stepped.vision.state).toBe('active');
-    expect(stepped.sentNow).toBe(1);
-    expect(decode(run.link.frames.at(-1)).rest[0]).toBe(1520);
-    expect(decode(run.link.frames.at(-1)).rest.slice(1).every((value) => value === 0)).toBe(true);
-
-    const moved = run.controller.tick({
-      estimate: STRIP,
-      vehicle: approach({
-        rcChannels: { ...echoChannels, chan1_raw: 1560, chan2_raw: 1900, chan3_raw: 1100, chan4_raw: 1800 },
-      }),
-    });
-    expect(moved.vision.state).toBe('active');
-    expect(moved.sentNow).toBe(1);
-    expect(decode(run.link.frames.at(-1)).rest[0]).toBe(1520);
-    expect(decode(run.link.frames.at(-1)).rest.slice(1).every((value) => value === 0)).toBe(true);
-  });
-
-  it('cancels once when the takeover switch crosses 1700 or the mode changes', (ctx) => {
-    ctx.skip(!pymavlinkInstalled(), PYMAVLINK_SKIP);
-    const run = session();
-    run.at(90_000);
-    run.controller.tick({ estimate: STRIP, vehicle: approach() });
-    run.at(92_000);
-    expect(run.controller.tick({ estimate: STRIP, vehicle: approach() }).vision.labelHe).toBe('פעיל');
-    const before = run.link.frames.length;
-    const flipped = run.controller.tick({
-      estimate: STRIP,
-      vehicle: approach({
-        rcChannels: {
-          chan1_raw: 1560, chan2_raw: 1500, chan3_raw: 1500, chan4_raw: 1500,
-          chan5_raw: 1500, chan6_raw: 1500, chan7_raw: 1700, chan8_raw: 1500,
-        },
-      }),
-    });
-    expect(flipped.vision.labelHe).toBe('שוחרר');
-    expect(flipped.vision.reason).toBe('switch');
-    expect(flipped.sentNow).toBe(1);
-    expect(decode(run.link.frames.at(-1)).rest.every((value) => value === 0)).toBe(true);
-    expect(run.controller.tick({
-      estimate: STRIP,
-      vehicle: approach({
-        rcChannels: {
-          chan1_raw: 1560, chan2_raw: 1500, chan3_raw: 1500, chan4_raw: 1500,
-          chan5_raw: 1500, chan6_raw: 1500, chan7_raw: 1800, chan8_raw: 1500,
-        },
-      }),
-    }).sentNow).toBe(0);
-    expect(run.link.frames.length).toBe(before + 1);
-
-    const mode = session();
-    mode.at(100_000);
-    mode.controller.tick({ estimate: STRIP, vehicle: approach() });
-    mode.at(102_000);
-    expect(mode.controller.tick({ estimate: STRIP, vehicle: approach() }).vision.state).toBe('active');
-    const changed = mode.controller.tick({
-      estimate: STRIP,
-      vehicle: approach({ customMode: 0 }),
-    });
-    expect(changed.vision.labelHe).toBe('שוחרר');
-    expect(changed.vision.reason).toBe('mode');
-    expect(changed.sentNow).toBe(1);
-    expect(mode.controller.tick({ estimate: STRIP, vehicle: approach({ customMode: 0 }) }).sentNow).toBe(0);
-
-    const custom = session({ takeoverCh: 6 });
-    custom.at(110_000);
-    custom.controller.tick({ estimate: STRIP, vehicle: approach() });
-    custom.at(112_000);
-    const armed = custom.controller.tick({ estimate: STRIP, vehicle: approach() });
-    expect(armed.vision.takeoverCh).toBe(6);
-    expect(armed.vision.state).toBe('active');
-    const other = custom.controller.tick({
-      estimate: STRIP,
-      vehicle: approach({
-        rcChannels: {
-          chan1_raw: 1500, chan2_raw: 1500, chan3_raw: 1500, chan4_raw: 1500,
-          chan5_raw: 1500, chan6_raw: 1500, chan7_raw: 1900, chan8_raw: 1500,
-        },
-      }),
-    });
-    expect(other.vision.state).toBe('active');
-    const own = custom.controller.tick({
-      estimate: STRIP,
-      vehicle: approach({
-        rcChannels: {
-          chan1_raw: 1500, chan2_raw: 1500, chan3_raw: 1500, chan4_raw: 1500,
-          chan5_raw: 1500, chan6_raw: 1700, chan7_raw: 1500, chan8_raw: 1500,
-        },
-      }),
-    });
-    expect(own.vision.labelHe).toBe('שוחרר');
-    expect(own.sentNow).toBe(1);
-    expect(custom.controller.tick({ estimate: STRIP, vehicle: approach() }).sentNow).toBe(0);
-  });
-
-  it('manual arm keeps pitch throttle and yaw, and the switch still cancels once', (ctx) => {
-    ctx.skip(!pymavlinkInstalled(), PYMAVLINK_SKIP);
-    const run = session();
-    const offApproach = (overrides = {}) => approach({ missionCurrent: 1, ...overrides });
-    run.controller.setManualArm(true);
-    run.at(120_000);
-    run.controller.tick({ estimate: STRIP, vehicle: offApproach() });
-    run.at(122_000);
-    expect(run.controller.tick({ estimate: STRIP, vehicle: offApproach() }).vision.labelHe).toBe('פעיל');
-    const sticks = {
-      chan1_raw: 1700,
-      chan2_raw: 1900,
-      chan3_raw: 1100,
-      chan4_raw: 1800,
-      chan5_raw: 1900,
-      chan6_raw: 1100,
-      chan7_raw: 1500,
-      chan8_raw: 1200,
-    };
-    const moved = run.controller.tick({
-      estimate: STRIP,
-      vehicle: offApproach({ rcChannels: sticks }),
-    });
-    expect(moved.vision.state).toBe('active');
-    expect(decode(run.link.frames.at(-1)).rest[0]).toBeGreaterThan(1500);
-    expect(decode(run.link.frames.at(-1)).rest.slice(1).every((value) => value === 0)).toBe(true);
-    const before = run.link.frames.length;
-    const cancel = run.controller.tick({
-      estimate: STRIP,
-      vehicle: offApproach({ rcChannels: { ...sticks, chan7_raw: 1700 } }),
-    });
-    expect(cancel.vision.labelHe).toBe('שוחרר');
-    expect(cancel.sentNow).toBe(1);
-    expect(decode(run.link.frames.at(-1)).rest.every((value) => value === 0)).toBe(true);
-    expect(run.controller.tick({
-      estimate: STRIP,
-      vehicle: offApproach({ rcChannels: { ...sticks, chan7_raw: 1700 } }),
-    }).sentNow).toBe(0);
-    expect(run.link.frames.length).toBe(before + 1);
-  });
-
-  it('refuses to activate when the takeover switch has no valid RC', () => {
-    const cases = [
-      () => {
-        const vehicle = approach();
-        delete vehicle.rcChannels;
-        return vehicle;
-      },
-      () => approach({
-        rcChannels: {
-          chan1_raw: 1500, chan2_raw: 1500, chan3_raw: 1500, chan4_raw: 1500,
-          chan5_raw: 1500, chan6_raw: 1500, chan7_raw: 0, chan8_raw: 1500,
-        },
-      }),
-      () => approach({
-        rcChannels: {
-          chan1_raw: 1500, chan2_raw: 1500, chan3_raw: 1500, chan4_raw: 1500,
-          chan5_raw: 1500, chan6_raw: 1500, chan7_raw: 65535, chan8_raw: 1500,
-        },
-      }),
-      () => approach({
-        rcChannels: {
-          chan1_raw: 1500, chan2_raw: 1500, chan3_raw: 1500, chan4_raw: 1500,
-          chan5_raw: 1500, chan6_raw: 1500, chan8_raw: 1500,
-        },
-      }),
-    ];
-    for (const build of cases) {
-      const run = session();
-      const vehicle = build();
-      run.at(10_000);
-      run.controller.tick({ estimate: STRIP, vehicle });
-      run.at(12_000);
-      const blocked = run.controller.tick({ estimate: STRIP, vehicle });
-      expect(blocked.vision.labelHe).toBe('ממתין');
-      expect(blocked.vision.reason).toBe('no_switch');
-      expect(blocked.sentNow).toBe(0);
-      expect(run.link.frames).toHaveLength(0);
-    }
-
-    const run = session();
-    run.at(20_000);
-    run.controller.tick({ estimate: STRIP, vehicle: approach() });
-    run.at(22_000);
-    expect(run.controller.tick({ estimate: STRIP, vehicle: approach() }).vision.state).toBe('active');
-    const lostVehicle = approach();
-    delete lostVehicle.rcChannels;
-    const lost = run.controller.tick({ estimate: STRIP, vehicle: lostVehicle });
-    expect(lost.vision.labelHe).toBe('ממתין');
-    expect(lost.vision.reason).toBe('no_switch');
-    expect(lost.sentNow).toBe(1);
-    expect(run.controller.tick({ estimate: STRIP, vehicle: lostVehicle }).sentNow).toBe(0);
-    run.at(24_000);
-    expect(run.controller.tick({ estimate: STRIP, vehicle: approach() }).vision.state).toBe('waiting');
-    run.at(26_000);
-    const resumed = run.controller.tick({ estimate: STRIP, vehicle: approach() });
-    expect(resumed.vision.state).toBe('active');
-    expect(resumed.sentNow).toBe(1);
-  });
-
-  it('treats RC loss as an invalid switch before activation and while guiding', (ctx) => {
-    ctx.skip(!pymavlinkInstalled(), PYMAVLINK_SKIP);
-    const live = (boot, patch = {}) => approach({
+    const active = run.controller.tick({ estimate: STRIP, vehicle: approach({
       rcChannels: {
-        chan1_raw: 1500,
-        chan2_raw: 1500,
-        chan3_raw: 1500,
-        chan4_raw: 1500,
-        chan5_raw: 1500,
-        chan6_raw: 1500,
-        chan7_raw: 1500,
-        chan8_raw: 1500,
-        chancount: 16,
-        rssi: 200,
-        time_boot_ms: boot,
-        ...patch,
+        chan1_raw: 1900, chan2_raw: 1200, chan3_raw: 1100, chan4_raw: 1800,
+        chan5_raw: 1500, chan6_raw: 1500, chan7_raw: 2000, chan8_raw: 1500,
+      },
+    }) });
+    expect(active.vision.state).toBe('active');
+    expect(active.vision.reason).toBe('guide');
+    expect(active.sentNow).toBe(1);
+    expect(decode(run.link.frames.at(-1)).rest.slice(1).every((value) => value === 0)).toBe(true);
+
+    const before = run.link.frames.length;
+    const left = run.controller.tick({ estimate: STRIP, vehicle: approach({ customMode: 5 }) });
+    expect(left.vision.state).toBe('released');
+    expect(left.vision.reason).toBe('mode');
+    expect(left.sentNow).toBe(1);
+    expect(decode(run.link.frames.at(-1)).rest.every((value) => value === 0)).toBe(true);
+    expect(run.controller.tick({ estimate: STRIP, vehicle: approach({ customMode: 5 }) }).sentNow).toBe(0);
+    expect(run.link.frames.length).toBe(before + 1);
+    run.at(146_000);
+    expect(run.controller.tick({ estimate: STRIP, vehicle: approach() }).vision.state).toBe('released');
+  });
+
+  it('does not engage on the waypoint before NAV_LAND', () => {
+    const run = session();
+    run.at(10_000);
+    run.controller.tick({ estimate: STRIP, vehicle: approach({ missionCurrent: 2 }) });
+    run.at(12_000);
+    const row = run.controller.tick({ estimate: STRIP, vehicle: approach({ missionCurrent: 2 }) });
+    expect(row.vision.state).toBe('waiting');
+    expect(row.vision.reason).toBe('phase');
+    expect(row.sentNow).toBe(0);
+    expect(run.link.frames).toHaveLength(0);
+  });
+
+  it('releases once when the link drops and ignores RC failsafe', (ctx) => {
+    ctx.skip(!pymavlinkInstalled(), PYMAVLINK_SKIP);
+    const run = session();
+    run.at(30_000);
+    run.controller.tick({ estimate: STRIP, vehicle: approach() });
+    run.at(32_000);
+    expect(run.controller.tick({ estimate: STRIP, vehicle: approach() }).vision.state).toBe('active');
+    const lost = run.controller.tick({ estimate: STRIP, vehicle: approach({ connected: false }) });
+    expect(lost.vision.reason).toBe('link');
+    expect(lost.sentNow).toBe(1);
+    expect(decode(run.link.frames.at(-1)).rest.every((value) => value === 0)).toBe(true);
+    expect(run.controller.tick({ estimate: STRIP, vehicle: approach({ connected: false }) }).sentNow).toBe(0);
+
+    const unhealthy = session();
+    const vehicle = approach({
+      sysSensors: { present: 0x10000, enabled: 0x10000, health: 0, receivedWallMs: 40_000 },
+      rcChannels: {
+        chan1_raw: 1500, chan2_raw: 1500, chan3_raw: 1500, chan4_raw: 1500,
+        chan5_raw: 1500, chan6_raw: 1500, chan7_raw: 1500, chan8_raw: 1500,
+        chancount: 0, rssi: 0, time_boot_ms: 40_000,
       },
     });
-    const blocked = (patch) => {
-      const run = session();
-      const vehicle = live(8_000, patch);
-      run.at(10_000);
-      run.controller.tick({ estimate: STRIP, vehicle });
-      run.at(12_000);
-      const row = run.controller.tick({ estimate: STRIP, vehicle });
-      expect(row.vision.labelHe).toBe('ממתין');
-      expect(row.vision.reason).toBe('no_switch');
-      expect(row.sentNow).toBe(0);
-      expect(run.link.frames).toHaveLength(0);
-    };
-    blocked({ chancount: 0 });
-    blocked({ rssi: 0 });
-
-    const frozen = session();
-    const stuck = live(8_000);
-    frozen.at(10_000);
-    frozen.controller.tick({ estimate: STRIP, vehicle: stuck });
-    frozen.at(11_100);
-    const held = frozen.controller.tick({ estimate: STRIP, vehicle: stuck });
-    expect(held.vision.reason).toBe('no_switch');
-    expect(held.vision.labelHe).toBe('ממתין');
-    expect(held.sentNow).toBe(0);
-    frozen.at(13_000);
-    expect(frozen.controller.tick({ estimate: STRIP, vehicle: stuck }).sentNow).toBe(0);
-    expect(frozen.link.frames).toHaveLength(0);
-
-    const clock = session();
-    clock.at(20_000);
-    clock.controller.tick({ estimate: STRIP, vehicle: live(9_000) });
-    clock.at(21_100);
-    const drifted = clock.controller.tick({
-      estimate: STRIP,
-      vehicle: live(9_000, { chan8_raw: 1600 }),
-    });
-    expect(drifted.vision.reason).toBe('no_switch');
-    expect(drifted.sentNow).toBe(0);
-
-    const moving = session();
-    moving.at(15_000);
-    moving.controller.tick({ estimate: STRIP, vehicle: live(15_000) });
-    moving.at(17_000);
-    const guided = moving.controller.tick({ estimate: STRIP, vehicle: live(17_000) });
+    unhealthy.at(40_000);
+    unhealthy.controller.tick({ estimate: STRIP, vehicle });
+    unhealthy.at(42_000);
+    const guided = unhealthy.controller.tick({ estimate: STRIP, vehicle });
     expect(guided.vision.state).toBe('active');
     expect(guided.sentNow).toBe(1);
-
-    const during = (patch, boot) => {
-      const run = session();
-      run.at(30_000);
-      run.controller.tick({ estimate: STRIP, vehicle: live(30_000) });
-      run.at(32_000);
-      expect(run.controller.tick({ estimate: STRIP, vehicle: live(32_000) }).vision.state).toBe('active');
-      const vehicle = live(boot, patch);
-      const lost = run.controller.tick({ estimate: STRIP, vehicle });
-      expect(lost.vision.labelHe).toBe('ממתין');
-      expect(lost.vision.reason).toBe('no_switch');
-      expect(lost.sentNow).toBe(1);
-      expect(decode(run.link.frames.at(-1)).rest.every((value) => value === 0)).toBe(true);
-      expect(run.controller.tick({ estimate: STRIP, vehicle }).sentNow).toBe(0);
-    };
-    during({ chancount: 0 }, 33_000);
-    during({ rssi: 0 }, 33_000);
-
-    const active = session();
-    active.at(40_000);
-    active.controller.tick({ estimate: STRIP, vehicle: live(40_000) });
-    active.at(42_000);
-    expect(active.controller.tick({ estimate: STRIP, vehicle: live(42_000) }).vision.state).toBe('active');
-    const same = live(42_000);
-    active.at(43_100);
-    const lost = active.controller.tick({ estimate: STRIP, vehicle: same });
-    expect(lost.vision.reason).toBe('no_switch');
-    expect(lost.sentNow).toBe(1);
-    expect(decode(active.link.frames.at(-1)).rest.every((value) => value === 0)).toBe(true);
-    expect(active.controller.tick({ estimate: STRIP, vehicle: same }).sentNow).toBe(0);
   });
 
-  it('drops RC older than 500 ms and releases once', (ctx) => {
+  it('enters GUIDED from the button and glides until NAV_LAND, SITL only', (ctx) => {
     ctx.skip(!pymavlinkInstalled(), PYMAVLINK_SKIP);
-    const now = 1_700_000_000_000;
-    const rc = approach().rcChannels;
-    const fresh = vehicleFromConnection({
-      connected: true,
-      lastRcChannels: rc,
-      lastRcAt: now - 500,
-    }, now);
-    expect(fresh.rcChannels).toBe(rc);
-    const aged = vehicleFromConnection({
-      connected: true,
-      lastRcChannels: { ...rc, receivedWallMs: now - 100 },
-      lastRcAt: now - 501,
-    }, now);
-    expect(aged.rcChannels).toBeNull();
-    const wall = vehicleFromConnection({
-      connected: true,
-      lastRcChannels: { ...rc, receivedWallMs: now - 700 },
-    }, now);
-    expect(wall.rcChannels).toBeNull();
-    expect(vehicleFromConnection({ connected: true, lastRcChannels: rc }, now).rcChannels).toBeNull();
-
     const run = session();
-    run.at(50_000);
-    run.controller.tick({ estimate: STRIP, vehicle: approach() });
-    run.at(52_000);
-    expect(run.controller.tick({ estimate: STRIP, vehicle: approach() }).vision.state).toBe('active');
-    const vehicle = vehicleFromConnection({
-      connected: true,
-      simulatorDetection: () => ({ simulator: true }),
-      lastCustomMode: 10,
-      lastRcChannels: rc,
-      lastRcAt: now - 700,
-      lastGlobalPos: { relativeAltM: 40, lat: 32.02, lon: 34.82 },
-      missionItems: approach().missionItems,
-      missionCurrent: 2,
-    }, now);
-    expect(vehicle.simulator).toBe(true);
-    expect(vehicle.rcChannels).toBeNull();
-    const lost = run.controller.tick({ estimate: STRIP, vehicle });
-    expect(lost.vision.labelHe).toBe('ממתין');
-    expect(lost.vision.reason).toBe('no_switch');
-    expect(lost.sentNow).toBe(1);
-    expect(decode(run.link.frames.at(-1)).rest.every((value) => value === 0)).toBe(true);
-    expect(run.controller.tick({ estimate: STRIP, vehicle }).sentNow).toBe(0);
+    const threshold = { lat: 32.01, lon: 34.81 };
+    const far = approach({
+      customMode: 5,
+      missionCurrent: 1,
+      lat: 32.01 + (700 / 111320),
+      lon: 34.81,
+      altAglM: 40,
+    });
+    run.at(10_000);
+    run.controller.note({ estimate: STRIP, vehicle: far });
+    const early = run.controller.requestOptical(far);
+    expect(early.ok).toBe(false);
+    expect(early.reason).toBe('no_runway');
+    expect(run.link.frames).toHaveLength(0);
+
+    run.at(12_000);
+    run.controller.note({ estimate: STRIP, vehicle: far });
+    const armed = run.controller.requestOptical(far);
+    expect(armed.ok).toBe(true);
+    expect(armed.vision.buttonReady).toBe(true);
+    expect(run.link.frames).toHaveLength(1);
+    const mode = decode(run.link.frames[0]);
+    expect(mode.type).toBe('SET_MODE');
+    expect(mode.customMode).toBe(15);
+    expect(mode.baseMode).toBe(1);
+
+    const guided = { ...far, customMode: 15 };
+    const glide = run.controller.tick({ estimate: { ...STRIP, threshold_lat: threshold.lat, threshold_lon: threshold.lon }, vehicle: guided });
+    expect(glide.vision.state).toBe('active');
+    expect(glide.vision.reason).toBe('glide');
+    expect(glide.sentNow).toBe(1);
+    const point = decode(run.link.frames.at(-1));
+    expect(point.type).toBe('COMMAND_INT');
+    expect(point.third).toBe(192);
+    expect(point.lat).toBe(Math.round(threshold.lat * 1e7));
+    expect(point.lon).toBe(Math.round(threshold.lon * 1e7));
+    expect(point.frame).toBe(3);
+    expect(point.alt).toBeGreaterThan(20);
+    expect(point.alt).toBeLessThan(40);
+
+    const near = {
+      ...guided,
+      lat: 32.01 + (50 / 111320),
+      altAglM: 12,
+    };
+    const land = run.controller.tick({
+      estimate: { ...STRIP, threshold_lat: threshold.lat, threshold_lon: threshold.lon },
+      vehicle: near,
+    });
+    expect(land.vision.reason).toBe('land');
+    expect(land.sentNow).toBe(1);
+    const flare = decode(run.link.frames.at(-1));
+    expect(flare.type).toBe('COMMAND_INT');
+    expect(flare.third).toBe(21);
+    expect(flare.alt).toBe(0);
+    const before = run.link.frames.length;
+    expect(run.controller.tick({
+      estimate: { ...STRIP, threshold_lat: threshold.lat, threshold_lon: threshold.lon },
+      vehicle: near,
+    }).sentNow).toBe(0);
+    expect(run.link.frames.length).toBe(before);
+
+    const left = run.controller.tick({
+      estimate: STRIP,
+      vehicle: { ...near, customMode: 10 },
+    });
+    expect(left.vision.reason).toBe('mode');
+    expect(left.vision.state).toBe('released');
+    expect(left.sentNow).toBe(0);
+
+    const real = wire(false);
+    expect(() => real.conn.sendRunwayOptical({ kind: 'ENTER_GUIDED' })).toThrow();
+    try {
+      real.conn.sendRunwayOptical({ kind: 'ENTER_GUIDED' });
+    } catch (err) {
+      expect(err.code).toBe('not_sitl');
+    }
+    expect(real.frames).toHaveLength(0);
+    const off = createRunwayController({
+      now: () => 20_000,
+      limits: { holdMs: 0 },
+      link: real,
+    });
+    off.note({ estimate: STRIP });
+    off.setLevel({ level: 3 });
+    const refused = off.requestOptical(approach({ simulator: false }));
+    expect(refused.ok).toBe(false);
+    expect(refused.reason).toBe('not_sitl');
+    expect(real.frames).toHaveLength(0);
   });
 
-  it('can be armed from the console, and it stays silent off SITL and at level 4', () => {
-    let now = 110_000;
+  it('stays silent off SITL and keeps level 4 locked', () => {
     const calls = [];
     const controller = createRunwayController({
-      now: () => now,
-      limits: { holdMs: 2000 },
+      now: () => 200_000,
+      limits: { holdMs: 0 },
       link: { sendGuidance(cmd) { calls.push(cmd); return { sent: true }; } },
     });
     controller.setLevel({ level: 3 });
-    const early = approach({ missionCurrent: 1 });
-    controller.setManualArm(true);
-    controller.tick({ estimate: STRIP, vehicle: early });
-    now = 112_000;
-    const armed = controller.tick({ estimate: STRIP, vehicle: early });
-    expect(armed.vision.manualArm).toBe(true);
-    expect(armed.vision.labelHe).toBe('פעיל');
-    expect(calls).toHaveLength(1);
-    expect(calls[0].kind).toBe('ROLL_OVERRIDE');
-    expect(calls[0].release).toBeUndefined();
-
-    const blocked = createRunwayController({
-      now: () => 200_000,
-      limits: { holdMs: 0 },
-      link: { sendGuidance(cmd) { throw new Error('should not send'); } },
-    });
-    blocked.setLevel({ level: 3 });
-    const off = blocked.tick({
+    const off = controller.tick({
       estimate: { ...STRIP, hazards: [{ kind: 'vehicle', label_he: 'רכב' }] },
       vehicle: approach({ simulator: false }),
     });
     expect(off.sentNow).toBe(0);
     expect(off.vision.labelHe).toBe('ממתין');
     expect(off.decision.reason).toBe('hazard');
+    expect(calls).toEqual([]);
 
     const locked = createRunwayController({
       now: () => 200_000,
       limits: { holdMs: 0 },
-      link: { sendGuidance(cmd) { throw new Error('should not send'); } },
+      link: { sendGuidance() { throw new Error('should not send'); } },
     });
     const refused = locked.setLevel({ level: 4, confirm: true, phrase: 'מאשר' });
     expect(refused.ok).toBe(false);

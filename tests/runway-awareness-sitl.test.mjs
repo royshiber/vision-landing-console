@@ -34,7 +34,7 @@ function approachVehicle(overrides = {}) {
     distToLandM: 600,
     lat: 32.02,
     lon: 34.82,
-    missionCurrent: 2,
+    missionCurrent: 3,
     missionItems: [
       { seq: 1, command: 16, lat: 32.03, lon: 34.83 },
       { seq: 2, command: 16, lat: 32.015, lon: 34.815 },
@@ -164,7 +164,7 @@ describe('runway awareness SITL command gate', () => {
       vehicle: approachVehicle(),
     });
     expect(sent.sentNow).toBe(1);
-    expect(sent.vision.labelHe).toBe('פעיל');
+    expect(sent.vision.labelHe).toBe('נחיתה אופטית פעילה. לביטול: החלפת מצב טיסה');
     expect(calls).toHaveLength(1);
     expect(calls[0].kind).toBe('ROLL_OVERRIDE');
     expect(calls[0].rollPwm).toBeGreaterThanOrEqual(1100);
