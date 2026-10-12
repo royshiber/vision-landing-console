@@ -170,6 +170,21 @@ VLC_VISION_ENGINE=/home/royshiber/vlc-companion/models/yolov8n_fp16.engine
 VLC_VISION_GIMBAL_STEER=0
 ```
 
+Gimbal follow stays off until the steer switch is on. On the Jetson, set these and restart the companion. Detection and the gimbal camera are required. The switch does not arm the aircraft and does not send a flight-controller command.
+
+```
+VLC_VISION_DETECT=1
+VLC_VISION_CAMERA=cam3
+VLC_VISION_GIMBAL_STEER=1
+```
+
+A click on a detection box stores the lock. While the switch is on, the gimbal answers, and gimbal control is enabled, a clamped PID rate follows that box at no more than ten commands a second. If the track stays missing for about 1.2 seconds the lock clears and one zero rate holds the gimbal. `שחררו` on the tile sends `{"action":"unlock"}`. Deploy the companion tree, then restart:
+
+```
+sudo bash scripts/jetson-companion/install.sh --apply
+sudo systemctl restart airvix-companion
+```
+
 Deploy from a checkout on the Jetson. The script stops on any error, copies the live tree to a directory `royshiber` can write, checks that backup, restarts `airvix-companion`, and calls `/api/health` with `X-Companion-Token`. If the service crashes or restarts within 30 seconds, the backup is restored.
 
 ```

@@ -527,7 +527,7 @@ describe('Vision Landing Readiness UI', () => {
     expect(js).toMatch(/applyMainTab\('pulse'\)/);
     expect(js).toContain('pfdReadinessStatusBtn');
     expect(html).toContain('id="plndProfileHonesty"');
-    expect(html).toContain('ערכים רק מקריאה אמיתית. אין המצאה. לא חוסם את ניסוי אחד.');
+    expect(html).toContain('פרופיל הנחיתה נשמר בקונסולה. הקריאה מהבקר לא ממלאת את הכרטיסים. לא חוסם את ניסוי אחד.');
     expect(html).toContain('id="plndProfileHonestyKeys"');
     expect(css).toMatch(/\.plnd-honesty-key\b/);
     expect(js).toContain('function paintPlndProfileHonesty');

@@ -17,10 +17,13 @@ The CPU path finds saturated color blobs and is only for the sample fixture
 and an explicit sim backend. It is not selected automatically, so a live
 camera without a model never grows invented boxes.
 
-Lock stores a target id. Gimbal steering is a second switch, default off.
-It may send a gimbal rate only when that switch is on, a track is locked,
-and the gimbal status says it is present and control is enabled. It never
-sends a flight-controller command.
+Lock stores a target id. Gimbal steering is a second switch, default off
+(`VLC_VISION_GIMBAL_STEER=0`). It may send a gimbal rate only when that
+switch is on, a track is locked, and the gimbal status says it is present
+and control is enabled. The rate is a clamped PID, sent at most ten times
+a second. A lost track stops the rate, and after a short timeout the lock
+clears and one zero rate holds the gimbal. It never sends a flight-controller
+command.
 
 Jetson frames per second were not measured here.
 """
@@ -32,6 +35,7 @@ import json
 import math
 import os
 import threading
+import time
 from pathlib import Path
 
 CAMERAS = ("cam0", "cam1", "cam2", "cam3")
@@ -43,6 +47,11 @@ REASON_GIMBAL_ABSENT = "הגימבל לא עונה. היגוי לא נשלח."
 REASON_GIMBAL_DISABLED = "שליטת גימבל כבויה. היגוי לא נשלח."
 REASON_NO_LOCK = "אין נעילה. היגוי לא נשלח."
 REASON_STEER_SENT = "היגוי נשלח לגימבל."
+REASON_HOLD = "האובייקט אבד. הגימבל בהחזקה."
+REASON_RATE_LIMIT = "היגוי ממתין."
+STEER_LIMIT = 30.0
+STEER_INTERVAL_S = 0.1
+STEER_LOSS_S = 1.2
 
 COCO_NAMES = (
     "person", "bicycle", "car", "motorcycle", "airplane", "bus", "train", "truck", "boat",
@@ -889,8 +898,12 @@ def probe_backend(name, model_path, engine_path):
     return "unavailable", None, "no_model"
 
 
-def decide_steer(lock, frame_w, frame_h, *, enabled, gimbal_present, control_enabled):
-    """Pure gate. allow_send is true only when every steer condition holds."""
+def decide_steer(lock, frame_w, frame_h, *, enabled, gimbal_present, control_enabled, lost=False, hold=False, pid=None, dt=0.1):
+    """Pure gate. allow_send is true only when every steer condition holds.
+
+    A lost or released lock asks for a zero rate, which holds the last aim.
+    The rate itself is a clamped PID. This function never builds a flight command.
+    """
     base = {
         "enabled": enabled is True,
         "sent": False,
@@ -902,6 +915,20 @@ def decide_steer(lock, frame_w, frame_h, *, enabled, gimbal_present, control_ena
         "flight_commands": False,
     }
     if enabled is not True:
+        return base
+    if hold or lost:
+        base["reason"] = "hold"
+        base["reason_he"] = REASON_HOLD
+        base["rate"] = {"yaw": 0.0, "pitch": 0.0}
+        if gimbal_present is True and control_enabled is True:
+            base["blocked"] = False
+            base["allow_send"] = True
+        elif gimbal_present is not True:
+            base["reason"] = "gimbal_absent"
+            base["reason_he"] = REASON_GIMBAL_ABSENT
+        else:
+            base["reason"] = "gimbal_control_disabled"
+            base["reason_he"] = REASON_GIMBAL_DISABLED
         return base
     if not lock or lock.get("id") is None:
         base["reason"] = "no_lock"
@@ -920,7 +947,13 @@ def decide_steer(lock, frame_w, frame_h, *, enabled, gimbal_present, control_ena
         base["reason"] = "gimbal_control_disabled"
         base["reason_he"] = REASON_GIMBAL_DISABLED
         return base
-    rate = bbox_rate(bbox, frame_w, frame_h)
+    if pid is not None:
+        x, y, w, h = bbox
+        ex = ((x + w / 2.0) - frame_w / 2.0) / (frame_w / 2.0)
+        ey = ((y + h / 2.0) - frame_h / 2.0) / (frame_h / 2.0)
+        rate = pid.step(ex, ey, dt)
+    else:
+        rate = bbox_rate(bbox, frame_w, frame_h)
     base.update({
         "blocked": False,
         "allow_send": True,
@@ -931,12 +964,48 @@ def decide_steer(lock, frame_w, frame_h, *, enabled, gimbal_present, control_ena
     return base
 
 
+class GimbalSteerPid:
+    """Normalized image error to a gimbal rate. Output and slew stay inside the limit."""
+
+    def __init__(self, kp=18.0, ki=2.0, kd=6.0, limit=STEER_LIMIT, slew=20.0):
+        self.kp = float(kp)
+        self.ki = float(ki)
+        self.kd = float(kd)
+        self.limit = float(limit)
+        self.slew = float(slew)
+        self.reset()
+
+    def reset(self):
+        self._i = [0.0, 0.0]
+        self._prev = None
+        self._out = [0.0, 0.0]
+
+    def step(self, ex, ey, dt):
+        dt = max(0.02, min(0.5, float(dt or 0.1)))
+        err = [
+            max(-1.0, min(1.0, float(ex or 0.0))),
+            max(-1.0, min(1.0, float(ey or 0.0))),
+        ]
+        prev = self._prev or err
+        out = []
+        for index in range(2):
+            self._i[index] = max(-1.0, min(1.0, self._i[index] + err[index] * dt))
+            derivative = (err[index] - prev[index]) / dt
+            raw = self.kp * err[index] + self.ki * self._i[index] + self.kd * derivative
+            raw = max(-self.limit, min(self.limit, raw))
+            delta = max(-self.slew, min(self.slew, raw - self._out[index]))
+            self._out[index] = max(-self.limit, min(self.limit, self._out[index] + delta))
+            out.append(round(self._out[index], 2))
+        self._prev = err
+        return {"yaw": out[0], "pitch": out[1]}
+
+
 def bbox_rate(bbox, frame_w, frame_h, kp=25.0):
     x, y, w, h = bbox
     ex = ((x + w / 2.0) - frame_w / 2.0) / (frame_w / 2.0)
     ey = ((y + h / 2.0) - frame_h / 2.0) / (frame_h / 2.0)
-    yaw = max(-30.0, min(30.0, ex * kp))
-    pitch = max(-30.0, min(30.0, ey * kp))
+    yaw = max(-STEER_LIMIT, min(STEER_LIMIT, ex * kp))
+    pitch = max(-STEER_LIMIT, min(STEER_LIMIT, ey * kp))
     return {"yaw": round(yaw, 2), "pitch": round(pitch, 2)}
 
 
@@ -1117,6 +1186,13 @@ class VisionTracks:
         self.tracker = ByteTracker()
         self.tracks = []
         self.lock_target = None
+        self._steer_pid = GimbalSteerPid()
+        self._now = time.monotonic
+        self._last_rate_at = 0.0
+        self._last_step_at = 0.0
+        self._hold_sent = False
+        self._pending_hold = False
+        self._lock_lost_at = None
         self.stream = False
         self.frame_seq = None
         self.captured_at = None
@@ -1257,7 +1333,7 @@ class VisionTracks:
                     self.captured_at = None
                     self.frame_width = None
                     self.frame_height = None
-                self._apply_steer_locked()
+                self._apply_steer_locked(self._now())
             return self.snapshot(camera)
         width, height, rgb = decoded
         try:
@@ -1273,11 +1349,21 @@ class VisionTracks:
             self._remember_detected_locked(packet, seq, captured)
             fresh = self.tracker.update(dets)
             self.tracks = fresh
+            now = self._now()
             if self.lock_target and self.lock_target.get("camera") == camera:
                 match = next((row for row in fresh if row["id"] == self.lock_target.get("id")), None)
                 if match:
                     self.lock_target = {**self.lock_target, **match, "camera": camera}
-            self._apply_steer_locked()
+                    self._lock_lost_at = None
+                else:
+                    if self._lock_lost_at is None:
+                        self._lock_lost_at = now
+                    elif now - self._lock_lost_at >= STEER_LOSS_S:
+                        self.lock_target = None
+                        self._lock_lost_at = None
+                        self._steer_pid.reset()
+                        self._pending_hold = True
+            self._apply_steer_locked(now)
         return self.snapshot(camera)
 
     def _remember_detected_locked(self, packet, seq, captured):
@@ -1324,13 +1410,20 @@ class VisionTracks:
             header = _tracks_header_b64(body)
         return packet, header
 
-    def _apply_steer_locked(self):
+    def _apply_steer_locked(self, now=None):
         status = {}
         if self.gimbal_steer and self.gimbal_status is not None:
             try:
                 status = self.gimbal_status() or {}
             except Exception:
                 status = {}
+        now = self._now() if now is None else now
+        dt = 0.1
+        if self._last_step_at:
+            dt = max(0.02, min(0.5, now - self._last_step_at))
+        self._last_step_at = now
+        lost = self._lock_lost_at is not None and self.lock_target is not None
+        hold = self._pending_hold is True or lost
         decision = decide_steer(
             self.lock_target if self.lock_target and self.lock_target.get("camera") == self.camera else None,
             self.frame_width,
@@ -1338,24 +1431,62 @@ class VisionTracks:
             enabled=self.gimbal_steer,
             gimbal_present=status.get("present") is True,
             control_enabled=status.get("control_enabled") is True,
+            lost=lost,
+            hold=hold,
+            pid=self._steer_pid,
+            dt=dt,
         )
         if decision.get("allow_send") and self.gimbal_command is not None:
-            try:
-                _code, body = self.gimbal_command("rate", decision.get("rate") or {})
-            except Exception:
-                body = {"sent": False}
-            sent = isinstance(body, dict) and body.get("sent") is True
-            decision["sent"] = sent
-            decision["blocked"] = not sent
-            decision["allow_send"] = False
-            decision["flight_commands"] = False
-            if sent:
-                self._sent_commands += 1
-                decision["reason"] = "sent"
-                decision["reason_he"] = REASON_STEER_SENT
+            rate = decision.get("rate") or {}
+            yaw = round(float(rate.get("yaw") or 0.0), 2)
+            pitch = round(float(rate.get("pitch") or 0.0), 2)
+            yaw = max(-STEER_LIMIT, min(STEER_LIMIT, yaw))
+            pitch = max(-STEER_LIMIT, min(STEER_LIMIT, pitch))
+            key = (yaw, pitch)
+            zero = key == (0.0, 0.0)
+            limited = bool(self._last_rate_at) and (now - self._last_rate_at) < STEER_INTERVAL_S
+            if zero and self._hold_sent:
+                decision["sent"] = False
+                decision["blocked"] = False
+                decision["allow_send"] = False
+                decision["reason"] = "holding"
+                decision["reason_he"] = REASON_HOLD
+                decision["rate"] = {"yaw": 0.0, "pitch": 0.0}
+                decision["flight_commands"] = False
+            elif limited:
+                decision["sent"] = False
+                decision["blocked"] = False
+                decision["allow_send"] = False
+                decision["reason"] = "rate_limited"
+                decision["reason_he"] = REASON_RATE_LIMIT
+                decision["rate"] = {"yaw": yaw, "pitch": pitch}
+                decision["flight_commands"] = False
             else:
-                decision["reason"] = (body or {}).get("reason") or "gimbal_rejected"
-                decision["reason_he"] = REASON_GIMBAL_ABSENT
+                try:
+                    _code, body = self.gimbal_command("rate", {"yaw": yaw, "pitch": pitch})
+                except Exception:
+                    body = {"sent": False}
+                sent = isinstance(body, dict) and body.get("sent") is True
+                decision["sent"] = sent
+                decision["blocked"] = not sent
+                decision["allow_send"] = False
+                decision["rate"] = {"yaw": yaw, "pitch": pitch}
+                decision["flight_commands"] = False
+                if sent:
+                    self._sent_commands += 1
+                    self._last_rate_at = now
+                    if zero:
+                        self._hold_sent = True
+                        self._pending_hold = False
+                        decision["reason"] = "hold"
+                        decision["reason_he"] = REASON_HOLD
+                    else:
+                        self._hold_sent = False
+                        decision["reason"] = "sent"
+                        decision["reason_he"] = REASON_STEER_SENT
+                else:
+                    decision["reason"] = (body or {}).get("reason") or "gimbal_rejected"
+                    decision["reason_he"] = REASON_GIMBAL_ABSENT
         self.last_steer = decision
 
     def lock(self, body):
@@ -1368,7 +1499,12 @@ class VisionTracks:
         with self._lock:
             rows = sort_tracks([dict(row) for row in self.tracks] if self.camera == camera else [], sort)
             if action == "unlock":
+                had = self.lock_target is not None
                 self.lock_target = None
+                self._lock_lost_at = None
+                self._steer_pid.reset()
+                if had:
+                    self._pending_hold = True
             elif action == "next":
                 if not rows:
                     return 200, self._snapshot_locked(camera, sort)
@@ -1380,6 +1516,10 @@ class VisionTracks:
                     pick = ids[0]
                 chosen = next(row for row in rows if row["id"] == pick)
                 self.lock_target = {**chosen, "camera": camera}
+                self._lock_lost_at = None
+                self._pending_hold = False
+                self._hold_sent = False
+                self._steer_pid.reset()
             else:
                 try:
                     track_id = int(body.get("id"))
@@ -1389,6 +1529,10 @@ class VisionTracks:
                 if chosen is None:
                     return 404, {"ok": False, "reason": "no_track", "reason_he": "אין אובייקט", "flight_commands": False}
                 self.lock_target = {**chosen, "camera": camera}
+                self._lock_lost_at = None
+                self._pending_hold = False
+                self._hold_sent = False
+                self._steer_pid.reset()
             self._apply_steer_locked()
             payload = self._snapshot_locked(camera, sort)
         return 200, payload

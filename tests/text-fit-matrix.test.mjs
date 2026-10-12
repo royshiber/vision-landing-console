@@ -13,10 +13,15 @@ const shots = qaShotDir('text-fit');
 
 const viewports = [
   { name: '1024x576', width: 1024, height: 576 },
+  { name: '1024x470', width: 1024, height: 470 },
   { name: '1280x720', width: 1280, height: 720 },
+  { name: '1280x600', width: 1280, height: 600 },
   { name: '1366x768', width: 1366, height: 768 },
+  { name: '1366x630', width: 1366, height: 630 },
   { name: '1440x900', width: 1440, height: 900 },
+  { name: '1536x730', width: 1536, height: 730 },
   { name: '1920x1080', width: 1920, height: 1080 },
+  { name: '1920x950', width: 1920, height: 950 },
   { name: '360x740', width: 360, height: 740 },
 ];
 

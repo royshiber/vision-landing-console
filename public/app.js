@@ -1730,7 +1730,7 @@ function ensureProfileGroupBadge(container) {
     badge.className = 'profile-source-badge';
     parent.insertBefore(badge, container);
   }
-  badge.textContent = 'נשמר בקונסולה · לא בבקר';
+  badge.textContent = 'פרופיל בקונסולה';
 }
 
 function renderParamsIn(container, items) {
@@ -1754,7 +1754,7 @@ function renderParamsIn(container, items) {
       </div>
       <p class="fc-group-key" dir="ltr">${param.key}</p>
       <div class="fc-card-cell"><span class="fc-card-kicker">דיפולט</span><span class="fc-card-value" dir="ltr">${param.value}</span></div>
-      <div class="fc-card-cell"><span class="fc-card-kicker">ערך</span><span class="fc-group-now" data-state="${live === 'לא נשמר עדיין' ? 'missing' : 'present'}">${live}</span></div>
+      <div class="fc-card-cell"><span class="fc-card-kicker">בקונסולה</span><span class="fc-group-now" data-state="${live === 'לא נשמר עדיין' ? 'missing' : 'present'}">${live}</span></div>
       <div class="fc-card-cell"><span class="fc-card-kicker">יחידה</span><span class="fc-group-unit" dir="ltr">${facts.unit || '—'}</span></div>
       <div class="fc-card-cell"><span class="fc-card-kicker">טווח</span><span class="fc-group-meta" dir="ltr">${param.min}–${param.max}</span></div>
       <div class="fc-card-cell fc-card-control">
@@ -2771,6 +2771,9 @@ wireArduCategorySubtabsOnce();
 
 let jetsonReadAt = null;
 let fcReadAt = null;
+let fcReadCount = 0;
+let fcReadTotal = 0;
+let fcReadBusy = false;
 let jetsonLinkState = 'unknown';
 let fcLinkState = 'unknown';
 let liveFcMavlink = null;
@@ -2913,11 +2916,28 @@ function refreshParamToolbarMeta() {
   if (fcMeta) fcMeta.textContent = fcReadStatusLine();
 }
 
+function paintFcReadLive(text, state) {
+  const el = document.getElementById('fcReadLive');
+  if (!el) return;
+  el.textContent = text;
+  el.dataset.state = state || 'idle';
+}
+
+function fcReadDoneLine() {
+  if (!fcCurrentSnapshot || typeof fcCurrentSnapshot !== 'object' || !fcReadAt) {
+    return 'עדיין לא נקרא מהבקר';
+  }
+  const count = fcReadCount > 0 ? fcReadCount : Object.keys(fcCurrentSnapshot).length;
+  const total = fcReadTotal > 0 ? fcReadTotal : count;
+  const clock = formatToolClock(fcReadAt);
+  const missing = Array.isArray(fcReadMissingIndices) ? fcReadMissingIndices.length : 0;
+  const base = `נקראו ${count} מתוך ${total} · ${clock}`;
+  return missing > 0 ? `${base} · ${missing} חסרים` : base;
+}
+
 function fcReadStatusLine() {
-  if (!fcCurrentSnapshot || typeof fcCurrentSnapshot !== 'object' || !fcReadAt) return '';
-  const count = Object.keys(fcCurrentSnapshot).length;
-  const mins = Math.max(0, Math.round((Date.now() - fcReadAt) / 60000));
-  return `נקראו ${count} · לפני ${mins} דק׳`;
+  if (fcReadBusy || !fcCurrentSnapshot || typeof fcCurrentSnapshot !== 'object' || !fcReadAt) return '';
+  return fcReadDoneLine();
 }
 
 async function refreshJetsonLink() {
@@ -7334,9 +7354,71 @@ function resizeHorizonCanvas() {
   }
 }
 
+function fitHorizonPack() {
+  const horizon = document.querySelector('.mission-workspace[data-mission-layout="ops-v1"] [data-mission-region="horizon"]');
+  if (!horizon || horizon.dataset.flightStack === 'custom') return;
+  const rect = horizon.getBoundingClientRect();
+  if (rect.width < 80 || rect.height < 120) return;
+  const ws = horizon.closest('.mission-workspace');
+  const dockVar = Number.parseFloat(getComputedStyle(ws).getPropertyValue('--flight-dock-h'));
+  const dockH = Number.isFinite(dockVar) && dockVar > 40 ? dockVar : 180;
+  let dataGuess = 72;
+  if ((horizon.dataset.horizonPack || 'stack') !== 'beside') {
+    const data = horizon.querySelector(':scope > [data-mission-region="data"]');
+    const dh = data?.getBoundingClientRect().height || 0;
+    if (dh > 20) dataGuess = dh;
+  }
+  const stackedHud = Math.max(1, rect.height - dockH - dataGuess);
+  const stackedRatio = rect.width / stackedHud;
+  const besideHud = Math.max(1, rect.height - dockH);
+  const wsRect = ws.getBoundingClientRect();
+  const phoneStack = wsRect.width < 700 || rect.width > wsRect.width * 0.92;
+  const tileMin = 280;
+  const room = rect.width - tileMin;
+  const besideRatio = room / besideHud;
+  let want = 'stack';
+  if (!phoneStack && stackedRatio > 1.2 && room >= 140 && besideRatio >= 0.7) want = 'beside';
+  else if (!phoneStack && stackedRatio > 1.2) want = 'cap';
+  const prevW = Number(horizon.dataset.packW) || 0;
+  const prevH = Number(horizon.dataset.packH) || 0;
+  const sizeChanged = Math.abs(rect.width - prevW) > 8 || Math.abs(rect.height - prevH) > 8;
+  if (sizeChanged) {
+    horizon.dataset.packW = String(Math.round(rect.width));
+    horizon.dataset.packH = String(Math.round(rect.height));
+  }
+  const capBasis = want === 'cap' ? stackedHud : besideHud;
+  let capPx = Math.floor((capBasis - 8) * 1.2);
+  const stage = document.getElementById('pfdHorizonStage');
+  const sr = stage?.getBoundingClientRect();
+  const prevCap = Number.parseFloat(horizon.style.getPropertyValue('--horizon-cap')) || 0;
+  if ((want === 'beside' || want === 'cap') && horizon.dataset.horizonPack === want && sr && sr.height > 40 && sr.width > 40) {
+    if (sr.width / sr.height > 1.2) capPx = Math.min(capPx, Math.floor(sr.height * 1.2));
+    else if (!sizeChanged && prevCap > 0) capPx = prevCap;
+  }
+  const packChanged = (horizon.dataset.horizonPack || 'stack') !== want;
+  if (packChanged) horizon.dataset.horizonPack = want;
+  let capChanged = false;
+  if (want === 'beside' || want === 'cap') {
+    const cap = `${Math.max(100, capPx)}px`;
+    capChanged = horizon.style.getPropertyValue('--horizon-cap') !== cap;
+    if (capChanged) horizon.style.setProperty('--horizon-cap', cap);
+  } else if (horizon.style.getPropertyValue('--horizon-cap')) {
+    horizon.style.removeProperty('--horizon-cap');
+    capChanged = true;
+  }
+  if (sizeChanged) horizon.dataset.packTight = '0';
+  if ((packChanged || capChanged) && horizon.dataset.packTight !== '1') {
+    horizon.dataset.packTight = '1';
+    requestAnimationFrame(() => fitHorizonPack());
+  }
+}
+
 if (horizonCanvas && pfdHorizonShell) {
   const stage = document.getElementById('pfdHorizonStage') || pfdHorizonShell;
   new ResizeObserver(() => resizeHorizonCanvas()).observe(stage);
+  const horizonRegion = stage.closest('[data-mission-region="horizon"]');
+  if (horizonRegion) new ResizeObserver(() => fitHorizonPack()).observe(horizonRegion);
+  fitHorizonPack();
 }
 
 let _horizonVideoMode = false;
@@ -7669,31 +7751,20 @@ function syncHorizonMenu(ids) {
 }
 
 function fitHorizonPicture(img) {
-  if (!img || img.hidden || !(img.naturalWidth > 0) || !(img.naturalHeight > 0)) return;
-  const host = img.closest('.horizon-cam-tile') || document.getElementById('pfdHorizonStage');
-  const bounds = host?.getBoundingClientRect?.();
-  const areaW = bounds?.width || 0;
-  const areaH = bounds?.height || 0;
-  if (!(areaW > 8) || !(areaH > 8)) return;
-  const aspect = img.naturalWidth / img.naturalHeight;
-  let width = areaW;
-  let height = width / aspect;
-  if (height > areaH) {
-    height = areaH;
-    width = height * aspect;
-  }
+  if (!img) return;
   img.style.position = 'absolute';
-  img.style.width = `${Math.max(1, Math.floor(width))}px`;
-  img.style.height = `${Math.max(1, Math.floor(height))}px`;
-  img.style.maxWidth = '100%';
-  img.style.maxHeight = '100%';
-  img.style.inset = 'auto';
-  img.style.left = '50%';
-  img.style.top = '50%';
-  img.style.right = 'auto';
-  img.style.bottom = 'auto';
-  img.style.transform = 'translate(-50%, -50%)';
-  img.style.objectFit = 'contain';
+  img.style.inset = '0';
+  img.style.left = '0';
+  img.style.top = '0';
+  img.style.right = '0';
+  img.style.bottom = '0';
+  img.style.width = '100%';
+  img.style.height = '100%';
+  img.style.maxWidth = 'none';
+  img.style.maxHeight = 'none';
+  img.style.transform = 'none';
+  img.style.objectFit = 'cover';
+  img.style.objectPosition = 'center';
 }
 
 function markHorizonLive() {
@@ -8156,13 +8227,8 @@ function initHorizonCameraMenu() {
       const btn = document.getElementById(id);
       if (!btn) continue;
       btn.setAttribute('aria-pressed', on ? 'true' : 'false');
-      let state = btn.querySelector('.horizon-menu-state');
-      if (!state) {
-        state = document.createElement('span');
-        state.className = 'horizon-menu-state';
-        btn.append(state);
-      }
-      state.textContent = on ? 'פועל' : 'כבוי';
+      btn.classList.toggle('is-selected', on);
+      btn.querySelector('.horizon-menu-state')?.remove();
     }
   }
   const cameraGroup = document.createElement('div');
@@ -8189,11 +8255,19 @@ function initHorizonCameraMenu() {
   const overlayGroup = document.createElement('div');
   overlayGroup.className = 'horizon-menu-group';
   overlayGroup.appendChild(menuHeading('תצוגת וידאו'));
-  for (const id of ['horizonVideoToggle', 'annotatedVisionToggle', 'liveCameraToggle']) {
+    for (const id of ['horizonVideoToggle', 'annotatedVisionToggle', 'liveCameraToggle']) {
     const btn = document.getElementById(id);
     const copy = HORIZON_MENU_COPY[id];
     if (!btn || !copy) continue;
     fillMenuButton(btn, copy[0], copy[1]);
+    btn.classList.add('horizon-menu-toggle');
+    btn.setAttribute('role', 'menuitemcheckbox');
+    if (!btn.querySelector('.horizon-menu-switch')) {
+      const sw = document.createElement('span');
+      sw.className = 'horizon-menu-switch';
+      sw.setAttribute('aria-hidden', 'true');
+      btn.append(sw);
+    }
     overlayGroup.appendChild(btn);
   }
   menu.appendChild(overlayGroup);
@@ -12852,9 +12926,12 @@ function askReplaceUnsaved() {
 function failFcReadNoLink() {
   fcLinkState = 'down';
   fcCurrentSnapshot = null;
+  fcReadCount = 0;
+  fcReadTotal = 0;
   clearArduDiff();
   paintFcReadMissing([]);
   const hint = 'אין חיבור לבקר';
+  paintFcReadLive(hint, 'bad');
   if (arduWriteStatus) {
     arduWriteStatus.textContent = hint;
     arduWriteStatus.className = 'ardu-write-status fail';
@@ -12867,10 +12944,15 @@ async function paintFcReadProgress() {
     const res = await fetch('/api/ardu/params/read-progress');
     if (!res.ok) return;
     const body = await res.json();
-    if (body?.reading !== true || !arduWriteStatus) return;
+    if (body?.reading !== true) return;
     const received = Number(body.received) || 0;
     const expected = Number(body.expected) || 0;
     const total = expected > 0 ? String(expected) : '…';
+    const line = expected > 0
+      ? `קוראים מהבקר · נקראו ${received} מתוך ${expected}`
+      : `קוראים מהבקר · נקראו ${received}`;
+    paintFcReadLive(line, 'busy');
+    if (!arduWriteStatus) return;
     arduWriteStatus.textContent = `נקראו ${received}/${total}`;
     arduWriteStatus.className = 'ardu-write-status action-status param-tool-live';
   } catch {
@@ -12917,7 +12999,9 @@ async function readFcParams(extra) {
   const unsaved = collectPendingWriteRows().some((row) => row.target === 'fc');
   if (unsaved && !(await askReplaceUnsaved())) return;
   arduReadBtn.disabled = true;
+  fcReadBusy = true;
   paintFcReadMissing([]);
+  paintFcReadLive('קוראים מהבקר · נקראו 0', 'busy');
   if (arduWriteStatus) {
     arduWriteStatus.textContent = 'נקראו 0/…';
     arduWriteStatus.className = 'ardu-write-status action-status param-tool-live';
@@ -12933,6 +13017,7 @@ async function readFcParams(extra) {
     try { d = await res.json(); } catch { d = {}; }
     if (!res.ok && d.timedOut !== true) {
       const fault = `הקריאה מבקר הטיסה נכשלה. הסיבה: ${hebrewRequestFault(null, res)}`;
+      paintFcReadLive('הקריאה מהבקר נכשלה', 'bad');
       showParamToolFault(fault, () => readFcParams());
       if (arduWriteStatus) {
         arduWriteStatus.textContent = fault;
@@ -12952,6 +13037,7 @@ async function readFcParams(extra) {
       if (d.timedOut) {
         const n = Number.isFinite(Number(d.count)) ? Number(d.count) : 0;
         const timeoutText = `תם הזמן. נקראו ${n}. הערכים על המסך הם מהקריאה הקודמת.`;
+        paintFcReadLive(`תם הזמן · נקראו ${n}`, 'bad');
         if (arduWriteStatus) {
           arduWriteStatus.textContent = timeoutText;
           arduWriteStatus.className = 'ardu-write-status fail';
@@ -12959,7 +13045,11 @@ async function readFcParams(extra) {
         showParamToolFault(timeoutText, () => readFcParams());
       } else {
         fcCurrentSnapshot = null;
+        fcReadCount = 0;
+        fcReadTotal = 0;
+        fcReadAt = null;
         clearArduDiff();
+        paintFcReadLive('עדיין לא נקרא מהבקר', 'idle');
         if (arduWriteStatus) {
           arduWriteStatus.textContent = '';
           arduWriteStatus.className = 'ardu-write-status action-status param-tool-live';
@@ -12972,6 +13062,8 @@ async function readFcParams(extra) {
       const callCount = Number.isFinite(Number(d.count)) ? Number(d.count) : Object.keys(d.current).length;
       const total = Number.isFinite(Number(d.paramCount)) ? Number(d.paramCount) : callCount;
       const known = indices.length > 0 ? Object.keys(fcCurrentSnapshot || {}).length : callCount;
+      fcReadCount = known;
+      fcReadTotal = total;
       const missing = Array.isArray(d.missing) ? d.missing : [];
       const partial = d.partial === true && missing.length > 0;
       const summary = partial
@@ -12984,7 +13076,9 @@ async function readFcParams(extra) {
           : 'ardu-write-status success';
       }
       paintFcReadMissing(partial ? missing : [], summary);
+      paintFcReadLive(fcReadDoneLine(), partial ? 'warn' : 'ok');
     }
+    fcReadBusy = false;
     updateParamSyncBanner();
     renderParams();
     renderArduParamForm();
@@ -12994,12 +13088,14 @@ async function readFcParams(extra) {
     document.dispatchEvent(new CustomEvent('vlc:fc-params'));
   } catch (err) {
     const fault = `הקריאה מבקר הטיסה נכשלה. הסיבה: ${hebrewRequestFault(err)}`;
+    paintFcReadLive('הקריאה מהבקר נכשלה', 'bad');
     showParamToolFault(fault, () => readFcParams());
     if (arduWriteStatus) {
       arduWriteStatus.textContent = fault;
       arduWriteStatus.className = 'ardu-write-status fail';
     }
   } finally {
+    fcReadBusy = false;
     clearInterval(progressTimer);
     arduReadBtn.disabled = false;
   }
@@ -15063,11 +15159,14 @@ initLiveCameraPanel();
       radioChip.textContent = `${links.radioLabelHe || 'RF'} · ${links.radioStatusHe || 'מנותק'}`;
     }
     if (cellularChip) {
-      cellularChip.dataset.state = chipStateFromLink(links.cellular);
+      const cellPathUp = (links?.comm?.rows || []).some((row) => row.id === 'cellular' && row.connected === true);
+      cellularChip.dataset.state = cellPathUp ? 'ok' : chipStateFromLink(links.cellular);
       cellularChip.dataset.reason = links.cellular === 'modem_absent' || links.modemPresent === false
         ? 'modem_absent'
         : (links.cellular || '');
-      cellularChip.textContent = `סלולר · ${links.cellularStatusHe || (links.modemPresent === false ? 'מודם לא מחובר' : 'מנותק')}`;
+      cellularChip.textContent = cellPathUp
+        ? 'סלולר · מחובר'
+        : `סלולר · ${links.cellularStatusHe || (links.modemPresent === false ? 'מודם לא מחובר' : 'מנותק')}`;
     }
     if (cellularModemStatus) {
       const absent = links.modemPresent !== true || links.cellular === 'modem_absent';

@@ -107,6 +107,21 @@ describe('gimbal pad state', () => {
     expect(mod).not.toContain('gimbalStopBody');
     expect(mod).toContain('ArrowUp');
     expect(mod).toContain("getElementById('optics')");
+    expect(mod).toContain("getElementById('gimbalVideoPad')");
+    const stageStart = panel.indexOf('data-camera-stage="cam3"');
+    const stage = panel.slice(stageStart, panel.indexOf('</figure>', stageStart));
+    expect(stage).toContain('id="gimbalVideoPad"');
+    expect(stage).toContain('אין מענה מהגימבל');
+    for (const dir of ['up', 'down', 'left', 'right', 'center']) {
+      expect(stage).toContain(`data-gimbal="${dir}"`);
+    }
+    const zoom = fs.readFileSync(path.join(root, 'public/modules/camera-digital-zoom.mjs'), 'utf8');
+    const tracks = fs.readFileSync(path.join(root, 'public/modules/vision-tracks.mjs'), 'utf8');
+    expect(zoom).toContain('.gimbal-video-pad');
+    expect(tracks).toContain('.gimbal-video-pad');
+    expect(css).toContain('.gimbal-video-pad');
+    expect(css).toContain('rgba(15, 23, 42, 0.5)');
+    expect(css).toMatch(/#optics \.gimbal-video-pad[\s\S]*pointer-events:\s*none/);
     expect(mod).toContain("mode: next");
     expect(mod).toContain("'lock'");
     expect(mod).toContain("'follow'");

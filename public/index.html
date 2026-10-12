@@ -65,9 +65,8 @@
                 </div>
                 <div class="comm-link-copy">
                   <div class="comm-link-titleline">
-                    <label class="comm-path-pick" title="בחרו סלולר">
+                    <label class="comm-path-pick" hidden>
                       <input type="radio" name="commPath" id="commPathCellular" value="cellular" />
-                      <span>בחרו</span>
                     </label>
                     <strong class="comm-link-name">סלולר</strong>
                     <span id="cellularLinkMeta" class="comm-link-meta" hidden></span>
@@ -100,9 +99,8 @@
                 </div>
                 <div class="comm-link-copy">
                   <div class="comm-link-titleline">
-                    <label class="comm-path-pick" title="בחרו רשת בית">
+                    <label class="comm-path-pick" hidden>
                       <input type="radio" name="commPath" id="commPathHome" value="home" />
-                      <span>בחרו</span>
                     </label>
                     <strong class="comm-link-name">רשת בית</strong>
                   </div>
@@ -968,6 +966,7 @@
             <span id="arduWriteStatus" class="ardu-write-status action-status param-tool-live" aria-live="polite"></span>
             <span id="visionConfigStatus" class="vision-config-status action-status param-tool-live"></span>
           </div>
+          <p id="fcReadLive" class="fc-read-live" role="status" aria-live="polite" data-state="idle">עדיין לא נקרא מהבקר</p>
         </div>
         <div id="fcReadMissing" class="fc-read-missing" hidden>
           <div class="fc-read-missing-bar">
@@ -992,7 +991,7 @@
         <section id="plndProfileHonesty" class="plnd-honesty" aria-label="פרופיל נחיתה לפי ראייה">
           <header class="plnd-honesty-head">
             <h3 class="plnd-honesty-title">פרופיל נחיתה לפי ראייה</h3>
-            <p class="plnd-honesty-note">ערכים רק מקריאה אמיתית. אין המצאה. לא חוסם את ניסוי אחד.</p>
+            <p class="plnd-honesty-note">פרופיל הנחיתה נשמר בקונסולה. הקריאה מהבקר לא ממלאת את הכרטיסים. לא חוסם את ניסוי אחד.</p>
             <p id="plndProfileHonestyState" class="plnd-honesty-state" data-state="unknown">לא ידוע</p>
           </header>
           <ul id="plndProfileHonestyKeys" class="plnd-honesty-keys"></ul>
@@ -1129,6 +1128,18 @@
                 <div class="debrief-cam-stage" data-camera-stage="cam3">
                   <img class="debrief-cam-live debrief-cam-media" alt="" hidden />
                   <p class="debrief-cam-nosignal">אין אות</p>
+                  <div id="gimbalVideoPad" class="gimbal-video-pad" data-gimbal-root="1" data-state="down" dir="ltr" aria-label="הזזת גימבל">
+                    <p class="gimbal-pad-reason gimbal-video-hint">אין מענה מהגימבל</p>
+                    <div class="gimbal-video-stick">
+                      <button type="button" class="gimbal-pad-btn gimbal-video-btn" data-gimbal="up" disabled aria-label="מעלה">▲</button>
+                      <button type="button" class="gimbal-pad-btn gimbal-video-btn" data-gimbal="left" disabled aria-label="שמאלה">◀</button>
+                      <button type="button" class="gimbal-pad-btn gimbal-video-btn gimbal-video-center" data-gimbal="center" disabled aria-label="מרכז">מרכז</button>
+                      <button type="button" class="gimbal-pad-btn gimbal-video-btn" data-gimbal="right" disabled aria-label="ימינה">▶</button>
+                      <button type="button" class="gimbal-pad-btn gimbal-video-btn" data-gimbal="down" disabled aria-label="מטה">▼</button>
+                    </div>
+                  </div>
+                  <p class="gimbal-track-lock" data-vision-lock-chip hidden>נעול</p>
+                  <button type="button" class="gimbal-track-release" data-vision-release hidden>שחררו</button>
                 </div>
                 <figcaption class="debrief-cam-label"><span>גימבל</span><p class="debrief-cam-chip" hidden>אין מענה</p></figcaption>
               </figure>
