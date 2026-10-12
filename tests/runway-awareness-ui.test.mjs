@@ -215,6 +215,15 @@ describe('runway awareness layout', () => {
           return !(w > 0 && h > 0);
         });
         expect(clearOfIas, 'state text overlaps the IAS box').toBe(true);
+        const armClearsState = await page.evaluate(() => {
+          const word = document.getElementById('runwayVisionStateWord')?.getBoundingClientRect();
+          const arm = document.getElementById('runwayVisionArm')?.getBoundingClientRect();
+          if (!word || !arm || word.width < 1 || arm.width < 1) return false;
+          const w = Math.min(word.right, arm.right) - Math.max(word.left, arm.left);
+          const h = Math.min(word.bottom, arm.bottom) - Math.max(word.top, arm.top);
+          return !(w > 0 && h > 0);
+        });
+        expect(armClearsState, 'arm button covers the state text').toBe(true);
         expect(placed.oneRow, 'offset heading and hazard share one line').toBe(true);
         const offsetText = await page.locator('#runwayOffsetValue').innerText();
         const headingText = await page.locator('#runwayHeadingValue').innerText();
@@ -310,6 +319,21 @@ describe('runway awareness layout', () => {
         expect(tile.bottom, `${width} ${tile.id}`).toBeLessThanOrEqual(Math.min(image.height, horizon.bottom) + 1);
         expect(tile.left, `${width} ${tile.id} tape`).toBeGreaterThanOrEqual(shot.left.right - 1);
         expect(tile.right, `${width} ${tile.id} tape`).toBeLessThanOrEqual(shot.right.left + 1);
+      }
+      if (width === 1366 && height === 630) {
+        const chipClear = await page.evaluate(() => {
+          const word = document.getElementById('runwayVisionStateWord');
+          const previous = word.textContent;
+          word.textContent = 'רמה 3 נדרשת לנחיתה אופטית';
+          const text = word.getBoundingClientRect();
+          const chips = document.getElementById('horizonQuick')?.getBoundingClientRect();
+          word.textContent = previous;
+          if (!chips || text.width < 1 || chips.width < 1) return { clear: false, text, chips };
+          const w = Math.min(text.right, chips.right) - Math.max(text.left, chips.left);
+          const h = Math.min(text.bottom, chips.bottom) - Math.max(text.top, chips.top);
+          return { clear: !(w > 0 && h > 0), top: text.top, chipBottom: chips.bottom };
+        });
+        expect(chipClear.clear, `level-3 text collides with the top status chips ${JSON.stringify(chipClear)}`).toBe(true);
       }
       if (width === 1024 && height === 470) {
         const tops = shot.tiles.map((tile) => tile.top);

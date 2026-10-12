@@ -287,6 +287,11 @@ describe('runway awareness SITL command gate', () => {
     };
     conn.simulatorDetection = () => ({ simulator: true });
     conn.getStatus = () => ({ simulator: true });
+    const landed = [];
+    conn.requestExtendedSysState = () => {
+      landed.push('landed');
+      return true;
+    };
     const controller = createRunwayController({
       limits: { holdMs: 0 },
       link: { sendGuidance() { return { sent: true }; } },
@@ -300,18 +305,22 @@ describe('runway awareness SITL command gate', () => {
       getConnection: () => conn,
     });
     expect(calls).toEqual(['refresh']);
+    expect(landed).toEqual(['landed']);
     conn.emit('connected');
     await new Promise((resolve) => setImmediate(resolve));
     expect(calls).toEqual(['refresh', 'refresh']);
+    expect(landed).toEqual(['landed', 'landed']);
     const server = await listen(app);
     servers.push(server);
     const base = `http://127.0.0.1:${server.address().port}`;
     const low = await postLevel(base, { level: 2 });
     expect(low.status).toBe(200);
     expect(calls).toHaveLength(2);
+    expect(landed).toHaveLength(2);
     const high = await postLevel(base, { level: 3 });
     expect(high.status).toBe(200);
     expect(calls).toHaveLength(3);
+    expect(landed).toHaveLength(3);
   });
 });
 

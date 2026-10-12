@@ -145,14 +145,17 @@
 }
 #pfdHorizonStage[data-awareness-stage="short"] > #runwayVisionState {
   position: absolute;
-  top: 2px;
+  top: 40px;
   left: 92px;
-  right: 4px;
-  z-index: 8;
-  width: auto;
-  max-width: none;
+  right: auto;
+  z-index: 9;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: max-content;
+  max-width: calc(100% - 96px);
   box-sizing: border-box;
-  padding: 0 2px 24px 0;
+  padding: 0;
   pointer-events: none;
 }
 #pfdHorizonStage[data-awareness-stage="short"] .runway-awareness-state {
@@ -188,14 +191,26 @@
   font-size: 11px;
   line-height: 1.35;
 }
+#pfdHorizonStage[data-awareness-stage="short"] > #runwayVisionState .runway-awareness-k {
+  display: none;
+}
+#pfdHorizonStage[data-awareness-stage="short"] > #runwayVisionState .runway-awareness-v {
+  display: block;
+  max-width: 100%;
+  min-width: 0;
+}
 #pfdHorizonStage[data-awareness-stage="short"] .runway-awareness-arm {
-  position: absolute;
-  top: 22px;
-  right: 4px;
-  left: 92px;
-  z-index: 9;
-  width: auto;
-  margin-inline-start: 0;
+  position: relative;
+  display: inline-flex;
+  align-self: flex-start;
+  top: auto;
+  right: auto;
+  left: auto;
+  width: max-content;
+  max-width: 100%;
+  margin: 2px 0 0;
+  z-index: 1;
+  pointer-events: auto;
 }
 #pfdHorizonStage[data-awareness-stage="short"] .runway-vision-hold,
 #pfdHorizonStage[data-awareness-stage="short"] .runway-awareness-alert,
