@@ -2,7 +2,7 @@
 
 Prepare the mission computer so **CAM1 קדמית**, **CAM2 מטה**, and optional **CAM3 גימבל** can report honest state / fps / frame age.
 
-This pack does **not** send flight commands, write the flight controller, apply Companion, run an optical estimator, or detect a runway. Gimbal UDP control is off unless `VLC_GIMBAL_CONTROL_ENABLED=1`.
+This pack does **not** send flight commands, write the flight controller, apply Companion, or run an optical estimator. Runway awareness is off unless `VLC_RUNWAY_LEVEL` is `1`–`4`. Level `4` also needs `VLC_RUNWAY_LEVEL4_UNLOCK=1` and the console confirm. The companion still emits no MAVLink. Gimbal UDP control is off unless `VLC_GIMBAL_CONTROL_ENABLED=1`.
 
 ## Roles
 

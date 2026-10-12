@@ -26,7 +26,7 @@ Also reject sibling text boxes that overlap inside the horizon top bar, a data t
 
 ## Flight horizon
 
-The flight column uses one fixed layout per screen size. The horizon fills the space above the data tiles. From 1180px the tiles stay one instrument row. Below that they use an even grid so each label stays inside its tile. The Actions and Messages band has a fixed height for that screen, and the message list scrolls inside it. There is no drag handle and no saved proportion. Speed and altitude stay on the instrument. ARM and DISARM are small buttons on the horizon and never cover those tapes. The horizon right-click menu is only the camera source and the video display toggles. Flight modes stay in the Actions tab.
+The flight column uses one fixed layout per screen size. The horizon fills the space above the data tiles. From 1180px the tiles stay one instrument row. Below that they use an even grid so each label stays inside its tile. The Actions and Messages band has a fixed height for that screen, and the message list scrolls inside it. There is no drag handle and no saved proportion. Speed and altitude stay on the instrument. ARM and DISARM are small buttons on the horizon and never cover those tapes. The horizon right-click menu holds the camera source, the video display toggles, and the runway-awareness level group. Flight modes stay in the Actions tab. The runway tiles sit on the video and stay hidden while awareness is off, so the data row and the other tabs do not move.
 
 Run it on every tab (הטסה, סטטוס מחשבים, פרמטרים, אופטיקה, תחקור) and the settings dialog, at every viewport in `tests/text-fit-matrix.test.mjs`, with live-like long values.
 

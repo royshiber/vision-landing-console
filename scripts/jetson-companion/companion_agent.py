@@ -27,7 +27,8 @@ maxsignal, a CurrentNetworkTypeEx label, and the PLMN operator name.
 dBm fields stay null when the modem leaves them empty. 2.3.10 counted a
 HiLink modem as up when operstate is "unknown" and carrier is 1 or
 NetworkManager is connected, and did not bounce a link that is already active.
-No VIO estimator, no EKF inject, no FC writes, no runway detect.
+No VIO estimator, no EKF inject, no FC writes. Runway awareness stays off
+until VLC_RUNWAY_LEVEL is raised, and this process never emits MAVLink.
 Gimbal and camera control are not flight commands.
 Never invent camera_ok, frames, gimbal attitude, runway detected/locked, or WGS84 position.
 Dry-run never claims a real camera.
@@ -101,6 +102,10 @@ try:
     from vision_tracks import try_handle as vision_try_handle
 except ImportError:
     vision_try_handle = None
+try:
+    from runway_awareness import try_handle as runway_try_handle
+except ImportError:
+    runway_try_handle = None
 try:
     from mavlink_route import CompanionRouter
 except ImportError:
@@ -1697,6 +1702,8 @@ class Handler(BaseHTTPRequestHandler):
                 return
         except Exception:
             pass
+        if runway_try_handle and runway_try_handle(self):
+            return
         if vision_try_handle and vision_try_handle(self):
             return
         cam_frame = _camera_frame_id(path)
@@ -1778,6 +1785,8 @@ class Handler(BaseHTTPRequestHandler):
             ctx["blocked"] = _versions_blocked
             code, body = version_rollback.http_post(path, data if isinstance(data, dict) else {}, ctx)
             return self._json(code, body)
+        if runway_try_handle and runway_try_handle(self, data if isinstance(data, dict) else {}):
+            return
         if vision_try_handle and vision_try_handle(self, data if isinstance(data, dict) else {}):
             return
         try:
