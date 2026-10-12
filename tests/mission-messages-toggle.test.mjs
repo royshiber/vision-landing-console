@@ -53,9 +53,9 @@ function interiorsIntersect(a, b, slack = 1) {
 }
 
 describe('Mission messages toggle — source contract', () => {
-  it('pins APP_VERSION at 1.02.422', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.422'");
-    expect(pkg.version).toBe('1.02.422');
+  it('pins APP_VERSION at 1.02.423', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.423'");
+    expect(pkg.version).toBe('1.02.423');
   });
 
   it('keeps the message list readable and LTR inside the RTL column', () => {

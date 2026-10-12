@@ -1730,7 +1730,7 @@ function ensureProfileGroupBadge(container) {
     badge.className = 'profile-source-badge';
     parent.insertBefore(badge, container);
   }
-  badge.textContent = 'נשמר בקונסולה · לא בבקר';
+  badge.textContent = 'פרופיל בקונסולה';
 }
 
 function renderParamsIn(container, items) {
@@ -1754,7 +1754,7 @@ function renderParamsIn(container, items) {
       </div>
       <p class="fc-group-key" dir="ltr">${param.key}</p>
       <div class="fc-card-cell"><span class="fc-card-kicker">דיפולט</span><span class="fc-card-value" dir="ltr">${param.value}</span></div>
-      <div class="fc-card-cell"><span class="fc-card-kicker">ערך</span><span class="fc-group-now" data-state="${live === 'לא נשמר עדיין' ? 'missing' : 'present'}">${live}</span></div>
+      <div class="fc-card-cell"><span class="fc-card-kicker">בקונסולה</span><span class="fc-group-now" data-state="${live === 'לא נשמר עדיין' ? 'missing' : 'present'}">${live}</span></div>
       <div class="fc-card-cell"><span class="fc-card-kicker">יחידה</span><span class="fc-group-unit" dir="ltr">${facts.unit || '—'}</span></div>
       <div class="fc-card-cell"><span class="fc-card-kicker">טווח</span><span class="fc-group-meta" dir="ltr">${param.min}–${param.max}</span></div>
       <div class="fc-card-cell fc-card-control">
@@ -2771,6 +2771,9 @@ wireArduCategorySubtabsOnce();
 
 let jetsonReadAt = null;
 let fcReadAt = null;
+let fcReadCount = 0;
+let fcReadTotal = 0;
+let fcReadBusy = false;
 let jetsonLinkState = 'unknown';
 let fcLinkState = 'unknown';
 let liveFcMavlink = null;
@@ -2913,11 +2916,28 @@ function refreshParamToolbarMeta() {
   if (fcMeta) fcMeta.textContent = fcReadStatusLine();
 }
 
+function paintFcReadLive(text, state) {
+  const el = document.getElementById('fcReadLive');
+  if (!el) return;
+  el.textContent = text;
+  el.dataset.state = state || 'idle';
+}
+
+function fcReadDoneLine() {
+  if (!fcCurrentSnapshot || typeof fcCurrentSnapshot !== 'object' || !fcReadAt) {
+    return 'עדיין לא נקרא מהבקר';
+  }
+  const count = fcReadCount > 0 ? fcReadCount : Object.keys(fcCurrentSnapshot).length;
+  const total = fcReadTotal > 0 ? fcReadTotal : count;
+  const clock = formatToolClock(fcReadAt);
+  const missing = Array.isArray(fcReadMissingIndices) ? fcReadMissingIndices.length : 0;
+  const base = `נקראו ${count} מתוך ${total} · ${clock}`;
+  return missing > 0 ? `${base} · ${missing} חסרים` : base;
+}
+
 function fcReadStatusLine() {
-  if (!fcCurrentSnapshot || typeof fcCurrentSnapshot !== 'object' || !fcReadAt) return '';
-  const count = Object.keys(fcCurrentSnapshot).length;
-  const mins = Math.max(0, Math.round((Date.now() - fcReadAt) / 60000));
-  return `נקראו ${count} · לפני ${mins} דק׳`;
+  if (fcReadBusy || !fcCurrentSnapshot || typeof fcCurrentSnapshot !== 'object' || !fcReadAt) return '';
+  return fcReadDoneLine();
 }
 
 async function refreshJetsonLink() {
@@ -12852,9 +12872,12 @@ function askReplaceUnsaved() {
 function failFcReadNoLink() {
   fcLinkState = 'down';
   fcCurrentSnapshot = null;
+  fcReadCount = 0;
+  fcReadTotal = 0;
   clearArduDiff();
   paintFcReadMissing([]);
   const hint = 'אין חיבור לבקר';
+  paintFcReadLive(hint, 'bad');
   if (arduWriteStatus) {
     arduWriteStatus.textContent = hint;
     arduWriteStatus.className = 'ardu-write-status fail';
@@ -12867,10 +12890,15 @@ async function paintFcReadProgress() {
     const res = await fetch('/api/ardu/params/read-progress');
     if (!res.ok) return;
     const body = await res.json();
-    if (body?.reading !== true || !arduWriteStatus) return;
+    if (body?.reading !== true) return;
     const received = Number(body.received) || 0;
     const expected = Number(body.expected) || 0;
     const total = expected > 0 ? String(expected) : '…';
+    const line = expected > 0
+      ? `קוראים מהבקר · נקראו ${received} מתוך ${expected}`
+      : `קוראים מהבקר · נקראו ${received}`;
+    paintFcReadLive(line, 'busy');
+    if (!arduWriteStatus) return;
     arduWriteStatus.textContent = `נקראו ${received}/${total}`;
     arduWriteStatus.className = 'ardu-write-status action-status param-tool-live';
   } catch {
@@ -12917,7 +12945,9 @@ async function readFcParams(extra) {
   const unsaved = collectPendingWriteRows().some((row) => row.target === 'fc');
   if (unsaved && !(await askReplaceUnsaved())) return;
   arduReadBtn.disabled = true;
+  fcReadBusy = true;
   paintFcReadMissing([]);
+  paintFcReadLive('קוראים מהבקר · נקראו 0', 'busy');
   if (arduWriteStatus) {
     arduWriteStatus.textContent = 'נקראו 0/…';
     arduWriteStatus.className = 'ardu-write-status action-status param-tool-live';
@@ -12933,6 +12963,7 @@ async function readFcParams(extra) {
     try { d = await res.json(); } catch { d = {}; }
     if (!res.ok && d.timedOut !== true) {
       const fault = `הקריאה מבקר הטיסה נכשלה. הסיבה: ${hebrewRequestFault(null, res)}`;
+      paintFcReadLive('הקריאה מהבקר נכשלה', 'bad');
       showParamToolFault(fault, () => readFcParams());
       if (arduWriteStatus) {
         arduWriteStatus.textContent = fault;
@@ -12952,6 +12983,7 @@ async function readFcParams(extra) {
       if (d.timedOut) {
         const n = Number.isFinite(Number(d.count)) ? Number(d.count) : 0;
         const timeoutText = `תם הזמן. נקראו ${n}. הערכים על המסך הם מהקריאה הקודמת.`;
+        paintFcReadLive(`תם הזמן · נקראו ${n}`, 'bad');
         if (arduWriteStatus) {
           arduWriteStatus.textContent = timeoutText;
           arduWriteStatus.className = 'ardu-write-status fail';
@@ -12959,7 +12991,11 @@ async function readFcParams(extra) {
         showParamToolFault(timeoutText, () => readFcParams());
       } else {
         fcCurrentSnapshot = null;
+        fcReadCount = 0;
+        fcReadTotal = 0;
+        fcReadAt = null;
         clearArduDiff();
+        paintFcReadLive('עדיין לא נקרא מהבקר', 'idle');
         if (arduWriteStatus) {
           arduWriteStatus.textContent = '';
           arduWriteStatus.className = 'ardu-write-status action-status param-tool-live';
@@ -12972,6 +13008,8 @@ async function readFcParams(extra) {
       const callCount = Number.isFinite(Number(d.count)) ? Number(d.count) : Object.keys(d.current).length;
       const total = Number.isFinite(Number(d.paramCount)) ? Number(d.paramCount) : callCount;
       const known = indices.length > 0 ? Object.keys(fcCurrentSnapshot || {}).length : callCount;
+      fcReadCount = known;
+      fcReadTotal = total;
       const missing = Array.isArray(d.missing) ? d.missing : [];
       const partial = d.partial === true && missing.length > 0;
       const summary = partial
@@ -12984,7 +13022,9 @@ async function readFcParams(extra) {
           : 'ardu-write-status success';
       }
       paintFcReadMissing(partial ? missing : [], summary);
+      paintFcReadLive(fcReadDoneLine(), partial ? 'warn' : 'ok');
     }
+    fcReadBusy = false;
     updateParamSyncBanner();
     renderParams();
     renderArduParamForm();
@@ -12994,12 +13034,14 @@ async function readFcParams(extra) {
     document.dispatchEvent(new CustomEvent('vlc:fc-params'));
   } catch (err) {
     const fault = `הקריאה מבקר הטיסה נכשלה. הסיבה: ${hebrewRequestFault(err)}`;
+    paintFcReadLive('הקריאה מהבקר נכשלה', 'bad');
     showParamToolFault(fault, () => readFcParams());
     if (arduWriteStatus) {
       arduWriteStatus.textContent = fault;
       arduWriteStatus.className = 'ardu-write-status fail';
     }
   } finally {
+    fcReadBusy = false;
     clearInterval(progressTimer);
     arduReadBtn.disabled = false;
   }

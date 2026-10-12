@@ -148,7 +148,9 @@ describe('Parameter tiles are dense and not behind a filter wall', () => {
   async function expectDense(label, { minCards, file }) {
     await page.locator('#paramsGrid').scrollIntoViewIfNeeded();
     const data = await measure();
-    expect(data.bodyText, label).toContain('נשמר בקונסולה · לא בבקר');
+    expect(data.bodyText, label).toContain('פרופיל בקונסולה');
+    expect(data.bodyText, label).not.toContain('נשמר בקונסולה · לא בבקר');
+    expect(data.bodyText, label).toContain('עדיין לא נקרא מהבקר');
     expect(data.faultHidden, label).toBe(true);
     expect(data.faultText, label).not.toMatch(/צמצמו|יותר מדי פרמטרים|עדיין אין פרמטרים/);
     expect(data.bodyText, label).not.toMatch(/צמצמו את הרשימה|יש יותר מדי פרמטרים/);
@@ -373,5 +375,80 @@ describe('Parameter tiles are dense and not behind a filter wall', () => {
     expect(closed.hidden).toBe(true);
     expect(closed.text).toBe('');
     await page.screenshot({ path: path.join(shotDir, 'params-1024x600.png'), fullPage: false });
+  }, 40000);
+
+  it('shows how many controller values were read, and leaves the profile as a console copy', async () => {
+    const server = await fetch(`${BASE}/api/ardu/params/read`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: '{}',
+    });
+    expect(server.status).not.toBe(404);
+    const serverBody = await server.json();
+    expect(serverBody.ok).toBe(true);
+    expect(serverBody.fresh).toBe(false);
+    expect(serverBody.message).toBe('אין חיבור לבקר');
+
+    await page.route('**/api/ardu/params/read-progress', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ ok: true, reading: true, received: 4, expected: 10 }),
+      });
+    });
+    await page.route('**/api/ardu/params/read', async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 350));
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          ok: true,
+          fresh: true,
+          connected: true,
+          mavlinkConnected: true,
+          armed: false,
+          paramCount: 10,
+          count: 2,
+          current: { RLL2SRV_P: 1.1, ARSPD_FBW_MIN: 8 },
+          missing: [],
+          target: {},
+        }),
+      });
+    });
+    try {
+      await openParams(1280, 800);
+      const live = page.locator('#fcReadLive');
+      const before = await live.evaluate((el) => {
+        const style = getComputedStyle(el);
+        const box = el.getBoundingClientRect();
+        return {
+          text: el.textContent,
+          width: box.width,
+          height: box.height,
+          position: style.position,
+          overflow: style.overflow,
+        };
+      });
+      expect(before.text).toBe('עדיין לא נקרא מהבקר');
+      expect(before.width).toBeGreaterThan(80);
+      expect(before.height).toBeGreaterThan(16);
+      expect(before.position).not.toBe('absolute');
+      expect(before.overflow).not.toBe('hidden');
+      const badge = await page.locator('#paramsGrid').locator('xpath=..').locator('.profile-source-badge').first().innerText();
+      expect(badge).toBe('פרופיל בקונסולה');
+      expect(badge).not.toContain('לא בבקר');
+
+      await page.click('#arduReadBtn');
+      await page.waitForFunction(() => /נקראו 2 מתוך 10/.test(document.getElementById('fcReadLive')?.textContent || ''));
+      const after = await live.innerText();
+      expect(after).toMatch(/נקראו 2 מתוך 10 · \d{1,2}:\d{2}/);
+      const flare = await page.locator('#paramsGrid .param-card[data-param-key="flare_alt_m"]').innerText();
+      expect(flare).toContain('בקונסולה');
+      expect(flare).toContain('לא נשמר עדיין');
+      expect(flare).not.toContain('לא בבקר');
+    } finally {
+      await page.unroute('**/api/ardu/params/read');
+      await page.unroute('**/api/ardu/params/read-progress');
+    }
   }, 40000);
 });

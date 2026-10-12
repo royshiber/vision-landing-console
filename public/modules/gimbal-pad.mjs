@@ -342,7 +342,7 @@ function createPadSession(doc, post) {
   }
 
   function keyRoot() {
-    if (opticsOpen()) return doc.getElementById('gimbalPad');
+    if (opticsOpen()) return doc.getElementById('gimbalVideoPad') || doc.getElementById('gimbalPad');
     const screen = doc.getElementById('gimbalScreen');
     if (screen && !screen.hidden) return screen;
     return null;
@@ -421,6 +421,8 @@ export function bindGimbalPadRoot(root, doc = root?.ownerDocument, { post = post
   ensurePadSession(doc, post).attach(root);
 }
 
-if (typeof document !== 'undefined' && document.getElementById('gimbalPad')) {
-  bindGimbalPad(document);
+if (typeof document !== 'undefined') {
+  if (document.getElementById('gimbalPad')) bindGimbalPad(document);
+  const videoPad = document.getElementById('gimbalVideoPad');
+  if (videoPad) bindGimbalPadRoot(videoPad, document);
 }
