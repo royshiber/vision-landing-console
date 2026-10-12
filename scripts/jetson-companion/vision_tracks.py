@@ -8,7 +8,9 @@ a frame exists, and it does not call into OpenCV.
 Auto inference, when a file is present:
   TensorRT only if the engine loads, the tensorrt module imports, and a
   device buffer can be allocated (cuda-python or the JetPack libcudart).
-  Host memory is never bound as a TensorRT tensor.
+  Host memory is never bound as a TensorRT tensor. A failed load is printed
+  to stderr with the reason. An empty engine path still finds
+  yolov8n_fp16.engine next to the ONNX file or in the companion models dir.
   Otherwise cv2.dnn on the ONNX file. CUDA FP16 is used only when that
   OpenCV build says CUDA and cuDNN are present. No extra pip package.
   onnxruntime is a later fallback when it is already importable.
@@ -25,7 +27,9 @@ a second. A lost track stops the rate, and after a short timeout the lock
 clears and one zero rate holds the gimbal. It never sends a flight-controller
 command.
 
-Jetson frames per second were not measured here.
+The vision thread infers the newest frame and drops the ones that arrived
+while it was busy. There is no frame queue. Track age is capture time to
+the status read, and the target on the Jetson is under 300 ms.
 """
 
 from __future__ import annotations
@@ -34,6 +38,7 @@ import base64
 import json
 import math
 import os
+import sys
 import threading
 import time
 from pathlib import Path
@@ -549,7 +554,7 @@ class _DeviceMemory:
     def _open_cudart(self):
         import ctypes
         lib = None
-        for name in ("libcudart.so.12", "libcudart.so.13", "libcudart.so"):
+        for name in ("libcudart.so.12", "libcudart.so.13", "libcudart.so.11", "libcudart.so.11.0", "libcudart.so"):
             try:
                 lib = ctypes.CDLL(name)
                 break
@@ -649,6 +654,80 @@ class _DeviceMemory:
                 pass
 
 
+DEFAULT_MODEL = "/home/royshiber/vlc-companion/models/yolov8n.onnx"
+DEFAULT_ENGINE = "/home/royshiber/vlc-companion/models/yolov8n_fp16.engine"
+
+
+def resolve_vision_files(model_path, engine_path):
+    """Use the provisioned engine when the env path is empty and the file is there."""
+    model = str(model_path or "").strip()
+    engine = str(engine_path or "").strip()
+    if not model and os.path.isfile(DEFAULT_MODEL):
+        model = DEFAULT_MODEL
+    if not engine and model:
+        sibling = os.path.join(os.path.dirname(model) or ".", "yolov8n_fp16.engine")
+        if os.path.isfile(sibling):
+            engine = sibling
+    if not engine and os.path.isfile(DEFAULT_ENGINE):
+        engine = DEFAULT_ENGINE
+    return model, engine
+
+
+def tensorrt_dist_paths(lib_root="/usr/lib"):
+    """JetPack installs tensorrt into system dist-packages. The venv often cannot see it."""
+    paths = []
+    try:
+        names = os.listdir(lib_root)
+    except OSError:
+        return paths
+    for name in sorted(names):
+        if not str(name).startswith("python3"):
+            continue
+        dist = os.path.join(lib_root, name, "dist-packages")
+        if os.path.isdir(os.path.join(dist, "tensorrt")):
+            paths.append(dist)
+    return paths
+
+
+def import_tensorrt():
+    """Return (module, error). Searches the system dist-packages without pip."""
+    try:
+        import tensorrt as trt
+        return trt, None
+    except ImportError as exc:
+        first = f"{type(exc).__name__}: {exc}"
+    added = False
+    for path in tensorrt_dist_paths():
+        if path not in sys.path:
+            sys.path.append(path)
+            added = True
+        try:
+            import tensorrt as trt
+            return trt, None
+        except ImportError:
+            continue
+    if not added:
+        return None, first
+    return None, first
+
+
+def _log_tensorrt_fallback(reason, detail=""):
+    extra = f" — {detail}" if detail else ""
+    print(
+        f"[vision] TensorRT not used: {reason}{extra}. Falling back.",
+        file=sys.stderr,
+        flush=True,
+    )
+
+
+def _tensorrt_numpy_dtype(trt, dtype):
+    import numpy as np
+    name = str(dtype).upper()
+    if dtype == getattr(trt, "float16", None) or "HALF" in name or name.endswith("16"):
+        return np.float16
+    return np.float32
+
+
 def device_buffers_available():
     mem = _DeviceMemory()
     try:
@@ -666,36 +745,65 @@ class TensorRtYolo:
         self.context = None
         self.device = None
         self.error = None
+        self.error_detail = None
+        self.tensorrt_fallback = None
 
     def load(self):
         if not self.engine_path or not os.path.isfile(self.engine_path):
             self.error = "engine_missing"
+            self.error_detail = self.engine_path or "empty path"
+            _log_tensorrt_fallback(self.error, self.error_detail)
             return False
-        try:
-            import tensorrt as trt
-        except ImportError:
+        trt, import_error = import_tensorrt()
+        if trt is None:
             self.error = "tensorrt_missing"
+            self.error_detail = import_error or "tensorrt import failed"
+            _log_tensorrt_fallback(self.error, self.error_detail)
             return False
         device = _DeviceMemory()
         if not device.open():
             self.error = "cuda_device_unavailable"
+            self.error_detail = "cuda-python and libcudart.so.12/11 did not allocate a device buffer"
+            _log_tensorrt_fallback(self.error, self.error_detail)
             return False
         try:
-            logger = trt.Logger(trt.Logger.ERROR)
+            logger = trt.Logger(trt.Logger.WARNING)
+            plugin_note = ""
+            init_plugins = getattr(trt, "init_libnvinfer_plugins", None)
+            if init_plugins is None:
+                plugin_note = "init_libnvinfer_plugins missing"
+            else:
+                try:
+                    if init_plugins(logger, "") is False:
+                        plugin_note = "init_libnvinfer_plugins returned false"
+                except Exception as exc:
+                    plugin_note = f"init_libnvinfer_plugins {type(exc).__name__}: {exc}"
             runtime = trt.Runtime(logger)
             with open(self.engine_path, "rb") as handle:
                 engine = runtime.deserialize_cuda_engine(handle.read())
             if engine is None:
+                version = getattr(trt, "__version__", "?")
                 self.error = "engine_invalid"
+                self.error_detail = (
+                    f"deserialize returned None; tensorrt {version}"
+                    f"{('; ' + plugin_note) if plugin_note else ''}"
+                    "; rebuild yolov8n_fp16.engine with this trtexec"
+                )
                 device.close()
+                _log_tensorrt_fallback(self.error, self.error_detail)
                 return False
             self.engine = engine
             self.context = engine.create_execution_context()
             self.device = device
+            self.error = None
+            self.error_detail = None
+            print(f"[vision] TensorRT loaded {self.engine_path}", flush=True)
             return True
-        except Exception:
+        except Exception as exc:
             device.close()
             self.error = "engine_invalid"
+            self.error_detail = f"{type(exc).__name__}: {exc}"
+            _log_tensorrt_fallback(self.error, self.error_detail)
             return False
 
     def detect(self, width, height, rgb):
@@ -712,43 +820,98 @@ class TensorRtYolo:
     def _infer(self, blob):
         """Bind device pointers only. A host address is not a TensorRT tensor."""
         import numpy as np
-        engine = self.engine
-        context = self.context
-        device = self.device
-        if device is None or not hasattr(engine, "num_io_tensors"):
+        with _infer_lock():
+            engine = self.engine
+            context = self.context
+            device = self.device
+            if device is None:
+                raise RuntimeError("tensorrt_api")
+            if not hasattr(engine, "num_io_tensors") or not hasattr(context, "execute_async_v3"):
+                return self._infer_bindings(blob, np, engine, context, device)
+            trt, _import_error = import_tensorrt()
+            names = [engine.get_tensor_name(i) for i in range(engine.num_io_tensors)]
+            input_dtype = np.float32
+            if trt is not None and hasattr(engine, "get_tensor_dtype"):
+                input_dtype = _tensorrt_numpy_dtype(trt, engine.get_tensor_dtype(names[0]))
+            blob = np.ascontiguousarray(blob, dtype=input_dtype)
+            input_mode = engine.get_tensor_mode(names[0])
+            outputs = {}
+            try:
+                for name in names:
+                    mode = engine.get_tensor_mode(name)
+                    if mode == input_mode and name == names[0]:
+                        try:
+                            context.set_input_shape(name, tuple(blob.shape))
+                        except Exception:
+                            pass
+                for name in names:
+                    mode = str(engine.get_tensor_mode(name))
+                    if "INPUT" in mode:
+                        ptr = device.alloc(int(blob.nbytes))
+                        device.h2d(blob, ptr)
+                        context.set_tensor_address(name, int(ptr))
+                    else:
+                        shape = tuple(int(dim) for dim in context.get_tensor_shape(name))
+                        if any(dim <= 0 for dim in shape):
+                            raise RuntimeError("tensorrt_shape")
+                        out_dtype = np.float32
+                        if trt is not None and hasattr(engine, "get_tensor_dtype"):
+                            out_dtype = _tensorrt_numpy_dtype(trt, engine.get_tensor_dtype(name))
+                        host = np.empty(shape, dtype=out_dtype)
+                        ptr = device.alloc(int(host.nbytes))
+                        outputs[name] = (host, ptr)
+                        context.set_tensor_address(name, int(ptr))
+                if not context.execute_async_v3(0):
+                    raise RuntimeError("tensorrt_execute")
+                device.sync()
+                if not outputs:
+                    raise RuntimeError("no_output")
+                host, ptr = next(iter(outputs.values()))
+                copied = device.d2h(ptr, host)
+                return np.array(copied, copy=True)
+            finally:
+                device._free_blocks()
+
+    def _infer_bindings(self, blob, np, engine, context, device):
+        """TensorRT 8 binding API. Still device pointers, never a host address."""
+        if not hasattr(engine, "num_bindings") or not hasattr(context, "execute_async_v2"):
             raise RuntimeError("tensorrt_api")
-        if not hasattr(context, "execute_async_v3"):
-            raise RuntimeError("tensorrt_api")
+        trt, _import_error = import_tensorrt()
+        count = int(engine.num_bindings)
         blob = np.ascontiguousarray(blob, dtype=np.float32)
-        names = [engine.get_tensor_name(i) for i in range(engine.num_io_tensors)]
-        input_mode = engine.get_tensor_mode(names[0])
-        outputs = {}
+        bindings = [0] * count
+        host = None
+        out_ptr = None
         try:
-            for name in names:
-                mode = engine.get_tensor_mode(name)
-                if mode == input_mode and name == names[0]:
-                    context.set_input_shape(name, tuple(blob.shape))
-            for name in names:
-                mode = str(engine.get_tensor_mode(name))
-                if "INPUT" in mode:
+            for index in range(count):
+                if engine.binding_is_input(index):
+                    if hasattr(context, "set_binding_shape"):
+                        try:
+                            context.set_binding_shape(index, tuple(blob.shape))
+                        except Exception:
+                            pass
+                    if trt is not None and hasattr(engine, "get_binding_dtype"):
+                        blob = np.ascontiguousarray(blob, dtype=_tensorrt_numpy_dtype(trt, engine.get_binding_dtype(index)))
                     ptr = device.alloc(int(blob.nbytes))
                     device.h2d(blob, ptr)
-                    context.set_tensor_address(name, int(ptr))
+                    bindings[index] = int(ptr)
                 else:
-                    shape = tuple(int(dim) for dim in context.get_tensor_shape(name))
+                    shape = tuple(int(dim) for dim in context.get_binding_shape(index))
                     if any(dim <= 0 for dim in shape):
                         raise RuntimeError("tensorrt_shape")
-                    host = np.empty(shape, dtype=np.float32)
-                    ptr = device.alloc(int(host.nbytes))
-                    outputs[name] = (host, ptr)
-                    context.set_tensor_address(name, int(ptr))
-            if not context.execute_async_v3(0):
+                    dtype = np.float32
+                    if trt is not None and hasattr(engine, "get_binding_dtype"):
+                        dtype = _tensorrt_numpy_dtype(trt, engine.get_binding_dtype(index))
+                    host = np.empty(shape, dtype=dtype)
+                    out_ptr = device.alloc(int(host.nbytes))
+                    bindings[index] = int(out_ptr)
+            if host is None or out_ptr is None:
+                raise RuntimeError("no_output")
+            stream = getattr(device, "stream", 0)
+            if not context.execute_async_v2(bindings, int(stream or 0)):
                 raise RuntimeError("tensorrt_execute")
             device.sync()
-            if not outputs:
-                raise RuntimeError("no_output")
-            host, ptr = next(iter(outputs.values()))
-            copied = device.d2h(ptr, host)
+            copied = device.d2h(out_ptr, host)
             return np.array(copied, copy=True)
         finally:
             device._free_blocks()
@@ -867,35 +1030,48 @@ def _infer_lock():
     return INFER_LOCK
 
 
+def _backend_result(backend, detector, error, fallback=None):
+    probe_backend.last_fallback = fallback
+    if detector is not None and fallback:
+        detector.tensorrt_fallback = fallback
+    return backend, detector, error
+
+
 def probe_backend(name, model_path, engine_path):
     wanted = (name or "auto").strip().lower()
+    model_path, engine_path = resolve_vision_files(model_path, engine_path)
     if wanted == "cpu":
-        return "cpu", CpuBlobDetector(), None
+        return _backend_result("cpu", CpuBlobDetector(), None, None)
+    fallback = None
     if wanted in {"auto", "tensorrt"} and engine_path and os.path.isfile(engine_path):
         det = TensorRtYolo(engine_path)
         if det.load():
-            return "tensorrt", det, None
+            return _backend_result("tensorrt", det, None, None)
+        fallback = det.error_detail or det.error or "engine_invalid"
         if wanted == "tensorrt":
-            return "unavailable", None, det.error or "engine_invalid"
+            return _backend_result("unavailable", None, det.error or "engine_invalid", fallback)
     if wanted in {"auto", "opencv"} and model_path and os.path.isfile(model_path):
         det = CvDnnYolo(model_path)
         if det.load():
-            return "opencv", det, None
+            return _backend_result("opencv", det, None, fallback)
         if wanted == "opencv":
-            return "unavailable", None, det.error or "model_invalid"
+            return _backend_result("unavailable", None, det.error or "model_invalid", fallback)
     if wanted in {"auto", "onnx"} and model_path and os.path.isfile(model_path):
         det = OnnxYolo(model_path)
         if det.load():
-            return "onnx", det, None
+            return _backend_result("onnx", det, None, fallback)
         if wanted == "onnx":
-            return "unavailable", None, det.error or "model_invalid"
+            return _backend_result("unavailable", None, det.error or "model_invalid", fallback)
     if wanted == "tensorrt":
-        return "unavailable", None, "engine_missing"
+        if not fallback:
+            _log_tensorrt_fallback("engine_missing", engine_path or "empty path")
+            fallback = engine_path or "empty path"
+        return _backend_result("unavailable", None, "engine_missing", fallback)
     if wanted == "opencv":
-        return "unavailable", None, "model_missing"
+        return _backend_result("unavailable", None, "model_missing", fallback)
     if wanted == "onnx":
-        return "unavailable", None, "model_missing"
-    return "unavailable", None, "no_model"
+        return _backend_result("unavailable", None, "model_missing", fallback)
+    return _backend_result("unavailable", None, "no_model", fallback)
 
 
 def decide_steer(lock, frame_w, frame_h, *, enabled, gimbal_present, control_enabled, lost=False, hold=False, pid=None, dt=0.1):
@@ -1016,6 +1192,16 @@ def sort_tracks(tracks, mode):
     else:
         rows.sort(key=lambda row: (str(row.get("label_he") or row.get("class") or ""), int(row.get("id") or 0)))
     return rows
+
+
+def _mono_ns(packet):
+    if not isinstance(packet, dict) or packet.get("captured_mono_ns") in (None, ""):
+        return None
+    try:
+        value = int(packet.get("captured_mono_ns"))
+    except (TypeError, ValueError):
+        return None
+    return value if value > 0 else None
 
 
 def frame_identity(packet):
@@ -1195,13 +1381,16 @@ class VisionTracks:
         self._lock_lost_at = None
         self.stream = False
         self.frame_seq = None
+        self.captured_mono_ns = None
         self.captured_at = None
         self._detected_packet = None
         self.frame_width = None
         self.frame_height = None
         self.backend = "off"
         self.backend_error = None
+        self.tensorrt_fallback = None
         self.detector = None
+        self.frames_dropped = 0
         self.last_steer = decide_steer(None, None, None, enabled=False, gimbal_present=False, control_enabled=False)
         self._stop = threading.Event()
         self._thread = None
@@ -1226,11 +1415,19 @@ class VisionTracks:
             self.backend = "off"
             self.detector = None
             self.backend_error = None
+            self.tensorrt_fallback = None
             return
+        model, engine = resolve_vision_files(self.model_path, self.engine_path)
+        if model:
+            self.model_path = model
+        if engine:
+            self.engine_path = engine
         backend, detector, error = probe_backend(self.backend_name, self.model_path, self.engine_path)
         self.backend = backend
         self.detector = detector
         self.backend_error = error
+        carried = getattr(detector, "tensorrt_fallback", None) if detector is not None else None
+        self.tensorrt_fallback = carried or getattr(probe_backend, "last_fallback", None)
 
     def configure(self, body):
         body = body if isinstance(body, dict) else {}
@@ -1248,6 +1445,7 @@ class VisionTracks:
                     self.tracks = []
                     self.stream = False
                     self.frame_seq = None
+                    self.captured_mono_ns = None
                     self.captured_at = None
                     self.frame_width = None
                     self.frame_height = None
@@ -1266,6 +1464,7 @@ class VisionTracks:
                 self.tracks = []
                 self.stream = False
                 self.frame_seq = None
+                self.captured_mono_ns = None
                 self.captured_at = None
                 self.frame_width = None
                 self.frame_height = None
@@ -1283,6 +1482,19 @@ class VisionTracks:
             if captured_at is not None:
                 row["captured_at"] = int(captured_at)
             self._frames[str(camera)] = row
+
+    def _newest_packet(self, camera, use_pixels, packet):
+        """The frame to infer. A newer one that landed while we copied replaces the older one."""
+        seq, _captured = frame_identity(packet)
+        again_raw = self._packet(camera)
+        again = detach_packet(again_raw, pixels=use_pixels)
+        seq2, _captured2 = frame_identity(again)
+        if seq2 is not None and (seq is None or seq2 > seq):
+            dropped = (seq2 - seq) if seq is not None else 1
+            with self._lock:
+                self.frames_dropped += max(1, int(dropped))
+            return again
+        return packet
 
     def _packet(self, camera):
         if self.frame_source is not None:
@@ -1305,6 +1517,7 @@ class VisionTracks:
                 self.tracks = []
                 self.stream = False
                 self.frame_seq = None
+                self.captured_mono_ns = None
                 self.captured_at = None
                 self.frame_width = None
                 self.frame_height = None
@@ -1312,13 +1525,14 @@ class VisionTracks:
             return self.snapshot(camera)
         raw = self._packet(camera)
         use_pixels = backend != "unavailable" and detector is not None
-        packet = detach_packet(raw, pixels=use_pixels)
+        packet = self._newest_packet(camera, use_pixels, detach_packet(raw, pixels=use_pixels))
         raw = None
         if not use_pixels:
             with self._lock:
                 self.tracks = []
                 self.stream = _has_frame(packet)
                 self.frame_seq = None
+                self.captured_mono_ns = None
                 self.captured_at = None
                 self._detected_packet = None
             return self.snapshot(camera)
@@ -1330,6 +1544,7 @@ class VisionTracks:
                     self.tracks = []
                     self.stream = False
                     self.frame_seq = None
+                    self.captured_mono_ns = None
                     self.captured_at = None
                     self.frame_width = None
                     self.frame_height = None
@@ -1344,6 +1559,7 @@ class VisionTracks:
             self.stream = True
             self.frame_seq = seq
             self.captured_at = captured
+            self.captured_mono_ns = _mono_ns(packet)
             self.frame_width = width
             self.frame_height = height
             self._remember_detected_locked(packet, seq, captured)
@@ -1595,8 +1811,25 @@ class VisionTracks:
             "reason_he": reason,
             "flight_commands": False,
             "commands_sent": self._sent_commands,
-            "performance": {"measured": False, "note": "not measured"},
+            "track_age_ms": self._track_age_locked() if active else None,
+            "tensorrt_fallback": self.tensorrt_fallback,
+            "performance": {
+                "measured": False,
+                "note": "not measured",
+                "track_age_ms": self._track_age_locked() if active else None,
+                "frames_dropped": int(self.frames_dropped),
+            },
         }
+
+    def _track_age_locked(self, now_ns=None):
+        """Milliseconds from capture to now. Monotonic when the frame carried it."""
+        mono = self.captured_mono_ns
+        if mono:
+            now = time.monotonic_ns() if now_ns is None else int(now_ns)
+            return max(0, int((int(now) - int(mono)) / 1_000_000))
+        if self.captured_at:
+            return max(0, int(time.time() * 1000) - int(self.captured_at))
+        return None
 
     def _sync_thread(self):
         if self.thread_allowed and self.enabled and (self._thread is None or not self._thread.is_alive()):
@@ -1639,11 +1872,24 @@ class VisionTracks:
                 if self._stop.wait(0.01):
                     return
                 continue
+            if (
+                seen is not None
+                and token[0] == seen[0]
+                and token[1] > seen[1] + 1
+            ):
+                with self._lock:
+                    self.frames_dropped += int(token[1] - seen[1] - 1)
             try:
                 self.step()
             except Exception:
                 pass
-            seen = token
+            with self._lock:
+                committed = self.frame_seq
+                camera = self.camera
+            if committed is not None and camera:
+                seen = (camera, int(committed))
+            else:
+                seen = token
 
     def close(self):
         self._stop.set()

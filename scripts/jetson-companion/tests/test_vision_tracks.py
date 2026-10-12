@@ -2,11 +2,15 @@
 
 import base64
 import inspect
+import io
 import json
+import os
 import sys
+import tempfile
 import threading
 import time
 import unittest
+from contextlib import redirect_stderr
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -639,6 +643,112 @@ class VisionTrackTests(unittest.TestCase):
             span = cap.times[-1] - cap.times[0]
             fps = (len(cap.times) - 1) / span
             self.assertGreaterEqual(fps, 27.0, fps)
+
+
+class DetectionLatencyTests(unittest.TestCase):
+    def test_engine_path_defaults_to_the_sibling_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            model = os.path.join(tmp, "yolov8n.onnx")
+            engine = os.path.join(tmp, "yolov8n_fp16.engine")
+            Path(model).write_bytes(b"onnx")
+            Path(engine).write_bytes(b"eng")
+            got_model, got_engine = vision_tracks.resolve_vision_files(model, "")
+        self.assertEqual(got_model, model)
+        self.assertEqual(got_engine, engine)
+        missing_model, missing_engine = vision_tracks.resolve_vision_files("", "")
+        if not os.path.isfile(vision_tracks.DEFAULT_ENGINE):
+            self.assertEqual(missing_engine, "")
+        self.assertNotIn("tensorrt", missing_model)
+
+    def test_tensorrt_failure_is_logged(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            engine = os.path.join(tmp, "yolov8n_fp16.engine")
+            Path(engine).write_bytes(b"not-a-real-engine")
+            buf = io.StringIO()
+            with redirect_stderr(buf):
+                backend, _det, error = vision_tracks.probe_backend("auto", "", engine)
+        text = buf.getvalue()
+        self.assertIn("[vision] TensorRT not used:", text)
+        self.assertNotEqual(backend, "tensorrt")
+        self.assertTrue(error)
+        self.assertIn("init_libnvinfer_plugins", inspect.getsource(vision_tracks.TensorRtYolo.load))
+        self.assertIn("libcudart.so.11", inspect.getsource(vision_tracks._DeviceMemory._open_cudart))
+        infer = inspect.getsource(vision_tracks.TensorRtYolo._infer)
+        self.assertIn("_infer_lock()", infer)
+        self.assertIn("set_tensor_address(name, int(ptr))", infer)
+        self.assertNotIn("ctypes.data", infer)
+
+    def test_tensorrt_dist_paths_finds_a_system_package(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            pkg = Path(tmp) / "python3.10" / "dist-packages" / "tensorrt"
+            pkg.mkdir(parents=True)
+            (pkg / "__init__.py").write_text("version = 'test'\n", encoding="utf-8")
+            found = vision_tracks.tensorrt_dist_paths(tmp)
+        self.assertEqual(found, [str(Path(tmp) / "python3.10" / "dist-packages")])
+
+    def test_track_age_is_capture_monotonic_time(self):
+        svc = VisionTracks(enabled=True, camera="cam3", backend="cpu", thread=False)
+        try:
+            svc.captured_mono_ns = 1_000_000_000
+            self.assertEqual(svc._track_age_locked(now_ns=1_250_000_000), 250)
+            self.assertEqual(svc._track_age_locked(now_ns=1_000_000_000), 0)
+            svc.captured_mono_ns = time.monotonic_ns() - 50_000_000
+            body = svc.snapshot("cam3")
+        finally:
+            svc.close()
+        self.assertEqual(body["backend"], "cpu")
+        self.assertGreaterEqual(body["track_age_ms"], 40)
+        self.assertLess(body["track_age_ms"], 300)
+
+    def test_slow_detect_skips_stale_frames(self):
+        seq = {"n": 0}
+        seen = []
+        stop = threading.Event()
+
+        def source(_camera):
+            return {
+                "rgb": bytes(4 * 4 * 3),
+                "width": 4,
+                "height": 4,
+                "seq": seq["n"],
+                "jpeg": b"\xff\xd8\xff\xd9",
+                "captured_mono_ns": time.monotonic_ns(),
+            }
+
+        def produce():
+            while not stop.is_set():
+                seq["n"] += 1
+                time.sleep(0.01)
+
+        class Slow:
+            def detect(self, _width, _height, _rgb):
+                seen.append(seq["n"])
+                time.sleep(0.08)
+                return []
+
+        producer = threading.Thread(target=produce, name="frames", daemon=True)
+        producer.start()
+        svc = VisionTracks(enabled=True, camera="cam3", backend="opencv", thread=False)
+        svc.backend = "opencv"
+        svc.detector = Slow()
+        svc.backend_error = None
+        svc.frame_source = source
+        svc.thread_allowed = True
+        svc._sync_thread()
+        try:
+            time.sleep(0.55)
+            body = svc.snapshot("cam3")
+        finally:
+            svc.close()
+            stop.set()
+            producer.join(timeout=1.0)
+        self.assertGreaterEqual(len(seen), 3)
+        gaps = [seen[i] - seen[i - 1] for i in range(1, len(seen))]
+        self.assertTrue(any(gap > 1 for gap in gaps), gaps)
+        self.assertGreater(svc.frames_dropped, 0)
+        self.assertEqual(body["backend"], "opencv")
+        self.assertIsNotNone(body["track_age_ms"])
+        self.assertLess(body["track_age_ms"], 2000)
 
 
 if __name__ == "__main__":

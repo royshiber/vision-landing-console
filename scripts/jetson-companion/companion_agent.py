@@ -862,9 +862,41 @@ def cameras_status_payload():
     }
 
 
+def detection_status_payload():
+    """Track age and the detector backend. Absent detection stays backend off."""
+    empty = {
+        "backend": "off",
+        "backend_error": None,
+        "track_age_ms": None,
+        "tensorrt_fallback": None,
+        "enabled": False,
+        "camera": None,
+        "frames_dropped": 0,
+    }
+    try:
+        from vision_tracks import service as vision_service
+        svc = vision_service()
+        body = svc.snapshot(svc.camera or "")
+    except Exception:
+        return empty
+    if not isinstance(body, dict):
+        return empty
+    perf = body.get("performance") if isinstance(body.get("performance"), dict) else {}
+    return {
+        "backend": body.get("backend") or "off",
+        "backend_error": body.get("backend_error"),
+        "track_age_ms": body.get("track_age_ms"),
+        "tensorrt_fallback": body.get("tensorrt_fallback"),
+        "enabled": body.get("enabled") is True,
+        "camera": body.get("selected_camera"),
+        "frames_dropped": int(perf.get("frames_dropped") or 0),
+    }
+
+
 def vision_status_payload():
     """Observe-only camera / vision. Absent device → camera_ok false. Dry-run is never real."""
     snap = _ingest_or_absent()
+    detection = detection_status_payload()
     any_ok = snap.get("camera_ok") is True
     source_id = "none"
     raw_cams = _apply_ov9281(snap.get("cameras") or {})
@@ -892,6 +924,11 @@ def vision_status_payload():
         "frame_count": snap.get("frame_count"),
         "last_frame_age_ms": snap.get("last_frame_age_ms"),
         "age_ms": snap.get("last_frame_age_ms"),
+        "backend": detection.get("backend") or "off",
+        "backend_error": detection.get("backend_error"),
+        "track_age_ms": detection.get("track_age_ms"),
+        "tensorrt_fallback": detection.get("tensorrt_fallback"),
+        "detection": detection,
         "source_id": source_id,
         "source": snap.get("source") or "absent",
         "dry_run": snap.get("dry_run") is True,
@@ -1226,6 +1263,7 @@ def status_lite_payload():
     validity = hb.get("validity") or fc.get("heartbeat_validity")
     vision = vision_status_payload()
     cameras = _lite_cameras(vision.get("cameras"))
+    detection = vision.get("detection") if isinstance(vision.get("detection"), dict) else {}
     landing = landing_status_payload()
     video = video_status_payload()
     modem = modem_status_payload()
@@ -1278,6 +1316,10 @@ def status_lite_payload():
             "real": vision.get("real") is True,
             "last_frame_age_ms": vision.get("last_frame_age_ms"),
             "frame_count": vision.get("frame_count"),
+            "backend": detection.get("backend") or vision.get("backend") or "off",
+            "track_age_ms": detection.get("track_age_ms", vision.get("track_age_ms")),
+            "backend_error": detection.get("backend_error", vision.get("backend_error")),
+            "tensorrt_fallback": detection.get("tensorrt_fallback", vision.get("tensorrt_fallback")),
             "cameras": cameras,
         },
         "optical_nav": {
