@@ -7354,9 +7354,71 @@ function resizeHorizonCanvas() {
   }
 }
 
+function fitHorizonPack() {
+  const horizon = document.querySelector('.mission-workspace[data-mission-layout="ops-v1"] [data-mission-region="horizon"]');
+  if (!horizon || horizon.dataset.flightStack === 'custom') return;
+  const rect = horizon.getBoundingClientRect();
+  if (rect.width < 80 || rect.height < 120) return;
+  const ws = horizon.closest('.mission-workspace');
+  const dockVar = Number.parseFloat(getComputedStyle(ws).getPropertyValue('--flight-dock-h'));
+  const dockH = Number.isFinite(dockVar) && dockVar > 40 ? dockVar : 180;
+  let dataGuess = 72;
+  if ((horizon.dataset.horizonPack || 'stack') !== 'beside') {
+    const data = horizon.querySelector(':scope > [data-mission-region="data"]');
+    const dh = data?.getBoundingClientRect().height || 0;
+    if (dh > 20) dataGuess = dh;
+  }
+  const stackedHud = Math.max(1, rect.height - dockH - dataGuess);
+  const stackedRatio = rect.width / stackedHud;
+  const besideHud = Math.max(1, rect.height - dockH);
+  const wsRect = ws.getBoundingClientRect();
+  const phoneStack = wsRect.width < 700 || rect.width > wsRect.width * 0.92;
+  const tileMin = 280;
+  const room = rect.width - tileMin;
+  const besideRatio = room / besideHud;
+  let want = 'stack';
+  if (!phoneStack && stackedRatio > 1.2 && room >= 140 && besideRatio >= 0.7) want = 'beside';
+  else if (!phoneStack && stackedRatio > 1.2) want = 'cap';
+  const prevW = Number(horizon.dataset.packW) || 0;
+  const prevH = Number(horizon.dataset.packH) || 0;
+  const sizeChanged = Math.abs(rect.width - prevW) > 8 || Math.abs(rect.height - prevH) > 8;
+  if (sizeChanged) {
+    horizon.dataset.packW = String(Math.round(rect.width));
+    horizon.dataset.packH = String(Math.round(rect.height));
+  }
+  const capBasis = want === 'cap' ? stackedHud : besideHud;
+  let capPx = Math.floor((capBasis - 8) * 1.2);
+  const stage = document.getElementById('pfdHorizonStage');
+  const sr = stage?.getBoundingClientRect();
+  const prevCap = Number.parseFloat(horizon.style.getPropertyValue('--horizon-cap')) || 0;
+  if ((want === 'beside' || want === 'cap') && horizon.dataset.horizonPack === want && sr && sr.height > 40 && sr.width > 40) {
+    if (sr.width / sr.height > 1.2) capPx = Math.min(capPx, Math.floor(sr.height * 1.2));
+    else if (!sizeChanged && prevCap > 0) capPx = prevCap;
+  }
+  const packChanged = (horizon.dataset.horizonPack || 'stack') !== want;
+  if (packChanged) horizon.dataset.horizonPack = want;
+  let capChanged = false;
+  if (want === 'beside' || want === 'cap') {
+    const cap = `${Math.max(100, capPx)}px`;
+    capChanged = horizon.style.getPropertyValue('--horizon-cap') !== cap;
+    if (capChanged) horizon.style.setProperty('--horizon-cap', cap);
+  } else if (horizon.style.getPropertyValue('--horizon-cap')) {
+    horizon.style.removeProperty('--horizon-cap');
+    capChanged = true;
+  }
+  if (sizeChanged) horizon.dataset.packTight = '0';
+  if ((packChanged || capChanged) && horizon.dataset.packTight !== '1') {
+    horizon.dataset.packTight = '1';
+    requestAnimationFrame(() => fitHorizonPack());
+  }
+}
+
 if (horizonCanvas && pfdHorizonShell) {
   const stage = document.getElementById('pfdHorizonStage') || pfdHorizonShell;
   new ResizeObserver(() => resizeHorizonCanvas()).observe(stage);
+  const horizonRegion = stage.closest('[data-mission-region="horizon"]');
+  if (horizonRegion) new ResizeObserver(() => fitHorizonPack()).observe(horizonRegion);
+  fitHorizonPack();
 }
 
 let _horizonVideoMode = false;

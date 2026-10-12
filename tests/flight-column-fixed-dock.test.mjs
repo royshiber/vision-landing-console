@@ -74,6 +74,7 @@ describe('flight column dock stays put', () => {
       const dock = document.querySelector('[data-mission-region="messages"]');
       const data = document.querySelector('[data-mission-region="data"]');
       const map = document.querySelector('[data-mission-region="map"]');
+      const horizon = document.querySelector('[data-mission-region="horizon"]');
       const msgScroll = document.getElementById('pfcMsgScroll');
       const actionsPane = document.getElementById('flightDockActionsPane');
       const msgCs = msgScroll ? getComputedStyle(msgScroll) : null;
@@ -83,6 +84,7 @@ describe('flight column dock stays put', () => {
         dock: box(dock),
         data: box(data),
         map: box(map),
+        horizon: box(horizon),
         msgScroll: box(msgScroll),
         scrollHeight: msgScroll ? msgScroll.scrollHeight : 0,
         clientHeight: msgScroll ? msgScroll.clientHeight : 0,
@@ -115,6 +117,8 @@ describe('flight column dock stays put', () => {
       messageData: messages.data,
       actionMap: actions.map,
       messageMap: messages.map,
+      actionHorizon: actions.horizon,
+      messageHorizon: messages.horizon,
       msgScroll: messages.msgScroll,
       scrollHeight: messages.scrollHeight,
       clientHeight: messages.clientHeight,
@@ -148,7 +152,7 @@ describe('flight column dock stays put', () => {
       expect(map.scroll).toBeLessThanOrEqual(4);
       expect(map.overlap).toBe(false);
       expect(map.ratio).toBeGreaterThan(0.7);
-      expect(map.ratio).toBeLessThan(vp.height < 520 ? 1.7 : 1.55);
+      expect(map.ratio).toBeLessThanOrEqual(1.2);
       const swapped = await measure('horizon-map');
       expect(nearly(swapped.actionStage.x, swapped.messageStage.x)).toBe(true);
       expect(nearly(swapped.actionStage.y, swapped.messageStage.y)).toBe(true);
@@ -161,9 +165,10 @@ describe('flight column dock stays put', () => {
       expect(swapped.clientHeight).toBeGreaterThanOrEqual(vp.height < 520 ? 40 : swapped.messageDock.h * 0.4);
       expect(swapped.scrollHeight).toBeGreaterThan(swapped.clientHeight);
       expect(swapped.scroll).toBeLessThanOrEqual(4);
-      expect(swapped.ratio).toBeGreaterThan(0.85);
-      expect(swapped.ratio).toBeLessThan(vp.height < 520 ? 1.65 : 1.55);
-      expect(swapped.actionMap.w).toBeGreaterThan(swapped.actionStage.w);
+      expect(swapped.ratio).toBeGreaterThan(0.7);
+      expect(swapped.ratio).toBeLessThanOrEqual(1.2);
+      expect(swapped.actionHorizon.w).toBeGreaterThan(swapped.actionMap.w * 1.4);
+      expect(swapped.actionStage.w).toBeGreaterThan(map.actionStage.w);
       expect(nearly(swapped.actionMap.w, swapped.messageMap.w)).toBe(true);
       expect(nearly(swapped.actionMap.h, swapped.messageMap.h)).toBe(true);
       expect(nearly(map.actionDock.h, swapped.actionDock.h)).toBe(true);
