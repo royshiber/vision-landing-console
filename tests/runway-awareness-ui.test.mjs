@@ -56,11 +56,14 @@ describe('runway awareness layout', () => {
     page = await browser.newPage({ viewport: { width: 1024, height: 470 } });
     let armedNow = false;
     let visionOverride = null;
+    let levelOverride = null;
+    let landOverride = null;
     const armedVision = {
       state: 'active',
       labelHe: 'נחיתה אופטית פעילה. לביטול: החלפת מצב טיסה',
       manualArm: true,
       buttonReady: true,
+      hasLand: true,
     };
     await page.route('**/api/runway/vision-arm', (route) => {
       armedNow = true;
@@ -75,7 +78,11 @@ describe('runway awareness layout', () => {
       contentType: 'application/json',
       body: JSON.stringify({
         ...AWARENESS,
-        vision: armedNow ? armedVision : (visionOverride || AWARENESS.vision),
+        level: levelOverride == null ? AWARENESS.level : levelOverride,
+        vision: {
+          ...(armedNow ? armedVision : (visionOverride || AWARENESS.vision)),
+          ...(landOverride == null ? {} : { hasLand: landOverride }),
+        },
       }),
     }));
     await page.goto(started.base, { waitUntil: 'domcontentloaded' });
@@ -134,17 +141,27 @@ describe('runway awareness layout', () => {
     });
     expect(armHit.hit, JSON.stringify(armHit)).toMatch(/BUTTON/i);
     visionOverride = { state: 'waiting', labelHe: 'ממתין', manualArm: false, buttonReady: true };
+    landOverride = true;
+    await page.waitForFunction(() => (
+      document.getElementById('runwayVisionStateWord')?.textContent || ''
+    ) === 'רמה 3 נדרשת לנחיתה אופטית');
+    expect(await page.locator('#runwayVisionArm').isDisabled()).toBe(true);
+    levelOverride = 3;
+    landOverride = false;
+    await page.waitForFunction(() => (
+      document.getElementById('runwayVisionStateWord')?.textContent || ''
+    ) === 'אין נחיתה במשימה');
+    expect(await page.locator('#runwayVisionArm').isDisabled()).toBe(true);
+    landOverride = true;
     await page.waitForFunction(() => document.getElementById('runwayVisionArm')?.disabled === false);
     const armed = page.waitForRequest((req) => req.url().includes('/api/runway/vision-arm') && req.method() === 'POST');
     await page.locator('#runwayVisionArm').click({ timeout: 4000 });
     expect((await armed).postDataJSON()).toEqual({ arm: true });
     await page.waitForFunction(() => (
       document.getElementById('runwayVisionStateWord')?.textContent || ''
-    ).includes('לביטול'));
+    ) === 'אופטית פעילה');
     expect(await page.locator('#runwayVisionArm').innerText()).toBe('נחיתה אופטית');
-    expect(await page.locator('#runwayVisionStateWord').innerText()).toBe(
-      'נחיתה אופטית פעילה. לביטול: החלפת מצב טיסה',
-    );
+    expect(await page.locator('#runwayVisionStateWord').innerText()).toBe('אופטית פעילה');
     expect(await page.locator('#runwayVisionHold').isHidden()).toBe(true);
     expect(await page.locator('#runwayVisionTakeover').isHidden()).toBe(true);
 
@@ -357,12 +374,10 @@ describe('runway awareness layout', () => {
     visionOverride = armedVision;
     await page.waitForFunction(() => (
       document.getElementById('runwayVisionStateWord')?.textContent || ''
-    ).includes('לביטול'));
+    ) === 'אופטית פעילה');
     const shortFit = await page.evaluate(collectTextFitFailures, 1);
     const shortRunway = (shortFit.fails || []).filter((row) => /runway/i.test(`${row.who} ${row.text}`));
     expect(shortRunway.length, JSON.stringify(shortRunway)).toBe(0);
-    expect(await page.locator('#runwayVisionStateWord').innerText()).toBe(
-      'נחיתה אופטית פעילה. לביטול: החלפת מצב טיסה',
-    );
+    expect(await page.locator('#runwayVisionStateWord').innerText()).toBe('אופטית פעילה');
   }, 30000);
 });

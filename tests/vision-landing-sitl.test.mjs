@@ -68,16 +68,18 @@ function wire(simulator = true) {
     conn,
     sendGuidance(cmd) {
       try {
-        if (cmd.kind === 'GO_AROUND') {
-          conn.sendRunwayGoAround();
-          return { sent: true };
+        let out;
+        if (cmd.kind === 'GO_AROUND') out = conn.sendRunwayGoAround(cmd);
+        else if (
+          cmd.kind === 'ENTER_GUIDED' || cmd.kind === 'ENTER_AUTO' || cmd.kind === 'RTL'
+          || cmd.kind === 'REPOSITION' || cmd.kind === 'DO_LAND_START' || cmd.kind === 'SET_CURRENT'
+        ) out = conn.sendRunwayOptical(cmd);
+        else out = conn.sendRunwayRollOverride(cmd.rollPwm, { release: cmd.release === true, expectMode: cmd.expectMode });
+        const ack = typeof conn.ackFor === 'function' ? conn.ackFor(cmd) : undefined;
+        if (out && typeof out.then === 'function') {
+          return out.then(() => (ack === undefined ? { sent: true } : { sent: true, ack }));
         }
-        if (cmd.kind === 'ENTER_GUIDED' || cmd.kind === 'REPOSITION' || cmd.kind === 'NAV_LAND') {
-          conn.sendRunwayOptical(cmd);
-          return { sent: true };
-        }
-        conn.sendRunwayRollOverride(cmd.rollPwm, { release: cmd.release === true });
-        return { sent: true };
+        return ack === undefined ? { sent: true } : { sent: true, ack };
       } catch (err) {
         return { sent: false, reason: err?.code || 'not_sitl' };
       }
@@ -119,6 +121,8 @@ function decode(frame) {
     '    print(kind, msg.target_system, msg.base_mode, msg.custom_mode)',
     'elif kind == "COMMAND_INT":',
     '    print(kind, msg.target_system, msg.target_component, msg.command, ",".join(str(n) for n in (msg.x, msg.y, msg.z, msg.frame)))',
+    'elif kind == "MISSION_SET_CURRENT":',
+    '    print(kind, msg.target_system, msg.target_component, msg.seq, "0")',
     'else:',
     '    params = [getattr(msg, f"param{i}") for i in range(1, 8)]',
     '    print(kind, msg.target_system, msg.target_component, msg.command, ",".join(str(p) for p in params))',
@@ -140,6 +144,9 @@ function decode(frame) {
   if (type === 'COMMAND_INT') {
     const [lat, lon, alt, frame] = rest.split(',').map(Number);
     return { type, target: Number(target), comp: Number(comp), third: Number(third), lat, lon, alt, frame };
+  }
+  if (type === 'MISSION_SET_CURRENT') {
+    return { type, target: Number(target), comp: Number(comp), third: Number(third) };
   }
   return {
     type,
@@ -377,7 +384,7 @@ describe('vision landing SITL e2e', () => {
     expect(guided.sentNow).toBe(1);
   });
 
-  it('enters GUIDED from the button and glides until NAV_LAND, SITL only', (ctx) => {
+  it('enters GUIDED from the button and hands the flare to AUTO, SITL only', (ctx) => {
     ctx.skip(!pymavlinkInstalled(), PYMAVLINK_SKIP);
     const run = session();
     const threshold = { lat: 32.01, lon: 34.81 };
@@ -387,6 +394,7 @@ describe('vision landing SITL e2e', () => {
       lat: 32.01 + (700 / 111320),
       lon: 34.81,
       altAglM: 40,
+      altAt: 12_000,
     });
     run.at(10_000);
     run.controller.note({ estimate: STRIP, vehicle: far });
@@ -406,7 +414,7 @@ describe('vision landing SITL e2e', () => {
     expect(mode.customMode).toBe(15);
     expect(mode.baseMode).toBe(1);
 
-    const guided = { ...far, customMode: 15 };
+    const guided = { ...far, customMode: 15, altAt: 12_000 };
     const glide = run.controller.tick({ estimate: { ...STRIP, threshold_lat: threshold.lat, threshold_lon: threshold.lon }, vehicle: guided });
     expect(glide.vision.state).toBe('active');
     expect(glide.vision.reason).toBe('glide');
@@ -419,32 +427,39 @@ describe('vision landing SITL e2e', () => {
     expect(point.frame).toBe(3);
     expect(point.alt).toBeGreaterThan(20);
     expect(point.alt).toBeLessThan(40);
+    expect(point.alt).not.toBe(0);
 
     const near = {
       ...guided,
       lat: 32.01 + (50 / 111320),
       altAglM: 12,
+      altAt: 12_000,
     };
     const land = run.controller.tick({
       estimate: { ...STRIP, threshold_lat: threshold.lat, threshold_lon: threshold.lon },
       vehicle: near,
     });
     expect(land.vision.reason).toBe('land');
-    expect(land.sentNow).toBe(1);
-    const flare = decode(run.link.frames.at(-1));
-    expect(flare.type).toBe('COMMAND_INT');
-    expect(flare.third).toBe(21);
-    expect(flare.alt).toBe(0);
+    expect(land.vision.state).toBe('active');
+    expect(land.sentNow).toBe(2);
+    const jump = run.link.frames.slice(-2).map((frame) => decode(frame));
+    expect(jump.map((row) => row.type)).toEqual(['SET_MODE', 'MISSION_SET_CURRENT']);
+    expect(jump[0].customMode).toBe(10);
+    expect(jump[1].third).toBe(3);
+    expect(run.link.frames.map((frame) => decode(frame)).some((row) => row.third === 21)).toBe(false);
     const before = run.link.frames.length;
-    expect(run.controller.tick({
+    const stayed = run.controller.tick({
       estimate: { ...STRIP, threshold_lat: threshold.lat, threshold_lon: threshold.lon },
-      vehicle: near,
-    }).sentNow).toBe(0);
+      vehicle: { ...near, customMode: 10 },
+    });
+    expect(stayed.vision.state).toBe('active');
+    expect(stayed.vision.reason).toBe('land');
+    expect(stayed.sentNow).toBe(0);
     expect(run.link.frames.length).toBe(before);
 
     const left = run.controller.tick({
       estimate: STRIP,
-      vehicle: { ...near, customMode: 10 },
+      vehicle: { ...near, customMode: 5 },
     });
     expect(left.vision.reason).toBe('mode');
     expect(left.vision.state).toBe('released');
@@ -469,6 +484,207 @@ describe('vision landing SITL e2e', () => {
     expect(refused.ok).toBe(false);
     expect(refused.reason).toBe('not_sitl');
     expect(real.frames).toHaveLength(0);
+  });
+
+  it('goes around when the landing jump is rejected and never sends NAV_LAND', (ctx) => {
+    ctx.skip(!pymavlinkInstalled(), PYMAVLINK_SKIP);
+    const run = session();
+    run.link.conn.ackFor = (cmd) => {
+      if (cmd.kind === 'DO_LAND_START') return { command: 189, result: 3 };
+      if (cmd.kind === 'REPOSITION' && Number(cmd.altM) >= 60) return { command: 192, result: 0 };
+      return undefined;
+    };
+    const threshold = { lat: 32.01, lon: 34.81 };
+    const items = [
+      { seq: 1, command: 16, lat: 32.02, lon: 34.82 },
+      { seq: 2, command: 189, lat: 32.015, lon: 34.815 },
+      { seq: 3, command: 21, lat: 32.01, lon: 34.81 },
+    ];
+    const far = approach({
+      customMode: 15,
+      missionCurrent: 1,
+      missionItems: items,
+      lat: 32.01 + (700 / 111320),
+      lon: 34.81,
+      altAglM: 40,
+      altAt: 22_000,
+    });
+    run.at(20_000);
+    run.controller.note({ estimate: STRIP, vehicle: far });
+    run.at(22_000);
+    expect(run.controller.requestOptical(far).ok).toBe(true);
+    const landed = run.controller.tick({
+      estimate: { ...STRIP, threshold_lat: threshold.lat, threshold_lon: threshold.lon },
+      vehicle: { ...far, lat: 32.01 + (50 / 111320), altAglM: 18, altAt: 22_000 },
+    });
+    expect(landed.vision.state).toBe('go_around');
+    const rows = run.link.frames.map((frame) => decode(frame));
+    expect(rows.some((row) => row.third === 21)).toBe(false);
+    expect(rows.some((row) => row.type === 'SET_MODE' && row.customMode === 10)).toBe(true);
+    expect(rows.some((row) => row.type === 'COMMAND_LONG' && row.third === 189)).toBe(true);
+    const climb = rows.find((row) => row.type === 'COMMAND_INT' && row.third === 192);
+    expect(climb.alt).toBeGreaterThanOrEqual(60);
+    expect(climb.alt).not.toBe(0);
+  });
+
+  it('climbs out in GUIDED and falls back to RTL when the climb is refused', (ctx) => {
+    ctx.skip(!pymavlinkInstalled(), PYMAVLINK_SKIP);
+    const run = session();
+    run.link.conn.ackFor = (cmd) => (
+      cmd.kind === 'REPOSITION' ? { command: 192, result: 4 } : undefined
+    );
+    const vehicle = approach({
+      customMode: 15,
+      missionCurrent: 1,
+      lat: 32.02,
+      lon: 34.82,
+      altAglM: 40,
+      altAt: 32_000,
+    });
+    run.at(30_000);
+    run.controller.note({ estimate: STRIP, vehicle });
+    run.at(32_000);
+    expect(run.controller.requestOptical({ ...vehicle, altAt: 32_000 }).ok).toBe(true);
+    const hazard = run.controller.tick({
+      estimate: { ...STRIP, hazards: [{ kind: 'person', label_he: 'אדם' }] },
+      vehicle,
+    });
+    expect(hazard.vision.labelHe).toBe('סבוב מחדש');
+    const rows = run.link.frames.map((frame) => decode(frame));
+    expect(rows.some((row) => row.third === 191)).toBe(false);
+    const climb = rows.find((row) => row.type === 'COMMAND_INT');
+    expect(climb.third).toBe(192);
+    expect(climb.alt).toBeGreaterThanOrEqual(60);
+    expect(climb.frame).toBe(3);
+    expect(climb.alt).not.toBe(0);
+    const rtl = rows.find((row) => row.type === 'SET_MODE' && row.customMode === 11);
+    expect(rtl).toBeTruthy();
+    expect(rtl.baseMode).toBe(1);
+  });
+
+  it('releases on a stale altitude and clamps the glide to the floor', (ctx) => {
+    ctx.skip(!pymavlinkInstalled(), PYMAVLINK_SKIP);
+    const run = session();
+    const threshold = { lat: 32.01, lon: 34.81 };
+    const seen = { ...STRIP, threshold_lat: threshold.lat, threshold_lon: threshold.lon };
+    const vehicle = approach({
+      customMode: 15,
+      missionCurrent: 1,
+      lat: 32.01 + (200 / 111320),
+      lon: 34.81,
+      altAglM: 12,
+      altAt: 42_000,
+    });
+    run.at(40_000);
+    run.controller.note({ estimate: seen, vehicle });
+    run.at(42_000);
+    expect(run.controller.requestOptical(vehicle).ok).toBe(true);
+    const stale = run.controller.tick({
+      estimate: seen,
+      vehicle: { ...vehicle, altAt: 42_000 - 5_000 },
+    });
+    expect(stale.vision.reason).toBe('alt');
+    expect(stale.vision.state).toBe('released');
+    expect(stale.sentNow).toBe(0);
+    expect(run.link.frames).toHaveLength(1);
+    const missing = run.controller.tick({
+      estimate: seen,
+      vehicle: { ...vehicle, altAglM: null, altAt: 42_000 },
+    });
+    expect(missing.vision.reason).toBe('alt');
+    expect(missing.sentNow).toBe(0);
+    expect(run.link.frames).toHaveLength(1);
+    const floored = run.controller.tick({ estimate: seen, vehicle });
+    expect(floored.vision.reason).toBe('glide');
+    const point = decode(run.link.frames.at(-1));
+    expect(point.third).toBe(192);
+    expect(point.alt).toBeGreaterThanOrEqual(15);
+    expect(point.alt).not.toBe(0);
+    expect(run.link.frames.map((frame) => decode(frame)).some((row) => row.alt === 0)).toBe(false);
+  });
+
+  it('sends nothing after a mode change and stays released after link loss', (ctx) => {
+    ctx.skip(!pymavlinkInstalled(), PYMAVLINK_SKIP);
+    const run = session();
+    const vehicle = approach({
+      customMode: 15,
+      missionCurrent: 1,
+      lat: 32.01 + (700 / 111320),
+      lon: 34.81,
+      altAglM: 40,
+      altAt: 52_000,
+    });
+    const seen = { ...STRIP, threshold_lat: 32.01, threshold_lon: 34.81 };
+    run.at(50_000);
+    run.controller.note({ estimate: seen, vehicle });
+    run.at(52_000);
+    expect(run.controller.requestOptical(vehicle).ok).toBe(true);
+    expect(run.controller.tick({ estimate: seen, vehicle }).vision.reason).toBe('glide');
+    const before = run.link.frames.length;
+    run.link.conn.lastCustomMode = 5;
+    const flipped = run.controller.tick({ estimate: seen, vehicle });
+    expect(flipped.sentNow).toBe(0);
+    expect(flipped.vision.state).toBe('released');
+    expect(flipped.vision.reason).toBe('mode');
+    expect(run.link.frames).toHaveLength(before);
+
+    const again = session();
+    again.at(60_000);
+    const live = approach({
+      customMode: 15,
+      missionCurrent: 1,
+      lat: 32.01 + (700 / 111320),
+      lon: 34.81,
+      altAglM: 40,
+      altAt: 62_000,
+    });
+    again.at(60_000);
+    again.controller.note({ estimate: seen, vehicle: live });
+    again.at(62_000);
+    expect(again.controller.requestOptical(live).ok).toBe(true);
+    expect(again.controller.tick({ estimate: seen, vehicle: live }).sentNow).toBe(1);
+    const sent = again.link.frames.length;
+    const lost = again.controller.tick({ estimate: seen, vehicle: { ...live, connected: false } });
+    expect(lost.vision.reason).toBe('link');
+    expect(lost.vision.state).toBe('released');
+    expect(lost.sentNow).toBe(0);
+    const back = again.controller.tick({ estimate: seen, vehicle: live });
+    expect(back.vision.state).toBe('released');
+    expect(back.sentNow).toBe(0);
+    expect(again.link.frames).toHaveLength(sent);
+    const pressed = again.controller.requestOptical({ ...live, altAt: 62_000 });
+    expect(pressed.ok).toBe(true);
+    expect(again.link.frames).toHaveLength(sent + 1);
+    expect(decode(again.link.frames.at(-1)).customMode).toBe(15);
+  });
+
+  it('greys the button below level 3 and when the mission has no landing item', () => {
+    const run = session();
+    const vehicle = approach({ customMode: 5, missionCurrent: 1, altAt: 72_000 });
+    run.at(70_000);
+    run.controller.note({ estimate: STRIP, vehicle });
+    run.at(72_000);
+    run.controller.setLevel({ level: 2 });
+    const low = run.controller.requestOptical(vehicle);
+    expect(low.ok).toBe(false);
+    expect(low.reason).toBe('level');
+    expect(low.messageHe).toBe('רמה 3 נדרשת לנחיתה אופטית');
+    expect(run.link.frames).toHaveLength(0);
+
+    run.controller.setLevel({ level: 3 });
+    const bare = approach({
+      customMode: 5,
+      missionCurrent: 1,
+      altAt: 72_000,
+      missionItems: [{ seq: 1, command: 16, lat: 32.02, lon: 34.82 }],
+    });
+    run.at(72_000);
+    run.controller.note({ estimate: STRIP, vehicle: bare });
+    const missing = run.controller.requestOptical(bare);
+    expect(missing.ok).toBe(false);
+    expect(missing.reason).toBe('no_land');
+    expect(missing.messageHe).toBe('אין נחיתה במשימה');
+    expect(run.link.frames).toHaveLength(0);
   });
 
   it('stays silent off SITL and keeps level 4 locked', () => {

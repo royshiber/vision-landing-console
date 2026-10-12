@@ -339,13 +339,13 @@ Each experiment is a **product chapter**. A later chapter needs its own Human Ga
 SITL lateral stage, implemented. A live vehicle is still a Human Gate.
 
 - Path A corrects lateral offset and heading with roll only while the active mission item is NAV_LAND and the mode stays AUTO. Altitude and speed stay with ArduPlane.
-- Path B is the button נחיתה אופטית. It is enabled only after the runway is seen at 70 percent or more for 2 seconds. The press sends SET_MODE GUIDED (custom mode 15) on SITL, then COMMAND_INT DO_REPOSITION along a 3 degree glide to the runway threshold. Inside about 80 m one COMMAND_INT NAV_LAND hands the flare to ArduPlane. Guidance continues while the mode stays GUIDED.
-- A mode change away from AUTO (path A) or GUIDED (path B) is the pilot cancel. A hazard or a large offset below the go-around altitude sends one go-around. Link loss releases once.
+- Path B is the button נחיתה אופטית. It is enabled only after the runway is seen at 70 percent or more for 2 seconds, the level is 3, and the mission contains a landing item. The press sends SET_MODE GUIDED (custom mode 15) on SITL, then COMMAND_INT DO_REPOSITION along a 3 degree glide. The glide stays at or above a floor. An unknown or stale altitude sends nothing. Inside about 80 m the console switches to AUTO and jumps to DO_LAND_START, or sets the current item to NAV_LAND. Every command acknowledgement is checked. A rejection climbs out or returns home. NAV_LAND is not sent in GUIDED.
+- The console's own mode change is part of that flow. A pilot or other mode change cancels. In GUIDED a hazard climbs ahead along the runway, and a refused climb falls back to RTL. Link loss on the button path stays released until the next press.
 - Runway confidence must hold, default 70 percent, for the configured dwell, inside the altitude and distance envelope.
 - Commands leave only when the vehicle is SITL. Level 4 stays locked.
 - On path A, lost runway or low confidence releases the roll override once. Path B keeps guiding while the mode stays GUIDED.
 - Stick movement is not a cancel. There is no takeover switch and no RC-rate command.
-- The active line is נחיתה אופטית פעילה. לביטול: החלפת מצב טיסה. With no runway in frame the button stays off and the reason is אין מסלול במסגרת.
+- The active line is נחיתה אופטית פעילה. לביטול: החלפת מצב טיסה. On a short stage it is אופטית פעילה. With no runway in frame the reason is אין מסלול במסגרת. Below level 3 the reason is רמה 3 נדרשת לנחיתה אופטית. With no landing item the reason is אין נחיתה במשימה.
 - This is not full auto land. Connecting a live vehicle remains a Human Gate.
 
 ### Exp#4 — Full vision land (future GO)
