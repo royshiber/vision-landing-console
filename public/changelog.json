@@ -4,9 +4,9 @@
     "date": "2026-10-12",
     "changes": [
       {
-        "type": "chore",
-        "title": "Build scripts",
-        "detail": "README.md, camera_ingest.py, install.sh, requirements-vision.txt, test_agent_routes.py, test_rtsp_latency.py, test_vision_deploy.py"
+        "type": "fix",
+        "title": "פענוח חומרה לגימבל ובדיקת בריאות בלי הדפסת אסימון",
+        "detail": "ההתקנה מוסיפה את קשרי גסטרימר ומפנה את סביבת השירות אל חבילות המערכת. היומן מציין אם הפענוח הוא חומרה או תוכנה. בדיקת הבריאות קוראת את האסימון מקובץ השירות ואינה מדפיסה אותו."
       }
     ]
   },
