@@ -195,12 +195,18 @@ const scenarios = {
           url: 'http://192.168.1.122:8081',
           ok: false,
           rttMs: null,
-          errorHe: 'הקונסולה לא ברשת הבית',
+          errorHe: 'הקונסולה לא מחוברת לרשת הבית',
         },
       ],
     },
     companion: { jetson: 'unreachable' },
   })),
+  'home-jetson-down': payload(summarizeCommLinks({
+    modemPresent: true,
+    uplinkControl: true,
+    uplinks: { wifi: { enabled: true, up: false } },
+    companion: { jetson: 'reachable', hint_he: 'מחשב משימה מחובר' },
+  }), { modemPresent: true }),
   'all-down': payload(summarizeCommLinks({
     modemPresent: false,
     radio: 'disconnected',
@@ -526,24 +532,63 @@ describe('connect popover layout and mocked states', () => {
           parentOverflow: parent.scrollWidth - parent.clientWidth,
         };
       });
-      expect(fit.text).toBe('הקונסולה לא ברשת הבית');
+      expect(fit.text).toBe('הקונסולה לא מחוברת לרשת הבית');
       expect(fit.overflowX).toBeLessThanOrEqual(1);
       expect(fit.overflowY).toBeLessThanOrEqual(1);
       expect(fit.parentOverflow).toBeLessThanOrEqual(1);
       expect(await page.locator('#homeLinkError').isHidden()).toBe(true);
-      const picks = await page.evaluate(() => ({
-        home: {
-          disabled: document.getElementById('commPathHome')?.disabled === true,
-          type: document.getElementById('commPathHome')?.type || '',
-        },
-        cellular: {
-          disabled: document.getElementById('commPathCellular')?.disabled === true,
-          type: document.getElementById('commPathCellular')?.type || '',
-        },
-      }));
-      expect(picks.home).toEqual({ disabled: false, type: 'radio' });
-      expect(picks.cellular).toEqual({ disabled: false, type: 'radio' });
+      const picks = await page.evaluate(() => {
+        const shown = (el) => {
+          if (!el) return false;
+          const style = getComputedStyle(el);
+          const rect = el.getBoundingClientRect();
+          return style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0;
+        };
+        const home = document.getElementById('commPathHome');
+        const cell = document.getElementById('commPathCellular');
+        const work = ['workLinkAuto', 'workLinkHome', 'workLinkCellular', 'workLinkRf']
+          .map((id) => shown(document.getElementById(id)));
+        const menuText = document.getElementById('flightCommMenu')?.innerText || '';
+        return {
+          home: {
+            disabled: home?.disabled === true,
+            type: home?.type || '',
+            shown: shown(home?.closest('.comm-path-pick')),
+          },
+          cellular: {
+            disabled: cell?.disabled === true,
+            type: cell?.type || '',
+            shown: shown(cell?.closest('.comm-path-pick')),
+          },
+          workShown: work.every(Boolean),
+          cardChoice: /בחרו\s*(סלולר|רשת)/.test(menuText),
+        };
+      });
+      expect(picks.home).toEqual({ disabled: false, type: 'radio', shown: false });
+      expect(picks.cellular).toEqual({ disabled: false, type: 'radio', shown: false });
+      expect(picks.workShown).toBe(true);
+      expect(picks.cardChoice).toBe(false);
       const file = path.join(shotDir, 'home-off-lan.png');
+      await page.screenshot({ path: file, fullPage: false });
+      expect(fs.statSync(file).size).toBeGreaterThan(1000);
+    } finally {
+      await page.close();
+    }
+  }, 20000);
+
+  it('names the mission computer when its home path is down, and fits', async () => {
+    const page = await openScenario('home-jetson-down', { width: 1024, height: 576 });
+    try {
+      await assertLayout(page);
+      const fit = await page.locator('#homeLinkStatus').evaluate((el) => ({
+        text: el.textContent,
+        overflowX: el.scrollWidth - el.clientWidth,
+        overflowY: el.scrollHeight - el.clientHeight,
+      }));
+      expect(fit.text).toBe('מחשב המשימה לא מחובר לרשת הבית');
+      expect(fit.overflowX).toBeLessThanOrEqual(1);
+      expect(fit.overflowY).toBeLessThanOrEqual(1);
+      const file = path.join(shotDir, 'home-jetson-down.png');
       await page.screenshot({ path: file, fullPage: false });
       expect(fs.statSync(file).size).toBeGreaterThan(1000);
     } finally {

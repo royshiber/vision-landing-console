@@ -10,7 +10,7 @@ Row state for those two links comes from `GET /api/v1/network/uplinks`:
 
 - `enabled: false` — grey `מושבת`, button `התחבר`
 - `enabled: true` and `up: true` — green `מחובר`, button `התנתק` (red)
-- `enabled: true` and `up: false` — yellow `לא עלה`, button `התנתק`
+- `enabled: true` and `up: false` — cellular stays yellow `לא עלה`. The home card says `מחשב המשימה לא מחובר לרשת הבית`. Button `התנתק`
 
 A 409 from the companion is shown in Hebrew. Companion 2.3.9 sends `message: "אי אפשר לכבות את הקישור האחרון"` with `reason: "last_uplink"`, and that message is shown as-is. A non-Hebrew last-link refusal becomes `אי אפשר לנתק את הערוץ הפעיל האחרון`. Anything else is `הפעולה נדחתה`.
 

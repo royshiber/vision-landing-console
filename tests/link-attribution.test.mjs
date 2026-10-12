@@ -1,9 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createCompanionApiClient } from '../lib/companion-api-client.mjs';
 import { summarizeCommLinks } from '../lib/comm-links.mjs';
+import { resetDualLinkRuntimeForTests, snapshotDualLink } from '../lib/dual-link-runtime.mjs';
 import { hebrewUiError } from '../lib/link-attribution.mjs';
 import {
   HOME_LAN_ABSENT_HE,
+  MISSION_LAN_DOWN_HE,
   classifyCompanionUrl,
   hebrewTransportError,
   hostSharesSubnet,
@@ -283,5 +285,139 @@ describe('link attribution', () => {
     const cell = links.rows.find((row) => row.id === 'cellular');
     expect(cell.connected).toBe(true);
     expect(cell.statusHe).toBe('מחובר');
+  });
+
+  it('names the mission computer when its home LAN is reported down', () => {
+    const links = summarizeCommLinks({
+      modemPresent: true,
+      uplinkControl: true,
+      uplinks: { wifi: { enabled: true, up: false } },
+      companion: { jetson: 'reachable', hint_he: 'מחשב משימה מחובר' },
+    });
+    const home = links.rows.find((row) => row.id === 'home');
+    expect(home.statusHe).toBe(MISSION_LAN_DOWN_HE);
+    expect(home.connected).toBe(false);
+    expect(home.statusHe).not.toMatch(/הקונסולה|המחשב לא/);
+  });
+
+  it('keeps a live home probe ahead of a stale wifi-down report', () => {
+    const links = summarizeCommLinks({
+      uplinks: { wifi: { enabled: true, up: false } },
+      pathProbes: {
+        paths: [{
+          id: 'home',
+          transport: 'lan',
+          url: 'http://192.168.1.122:8081',
+          ok: true,
+          rttMs: 12,
+        }],
+      },
+    });
+    const home = links.rows.find((row) => row.id === 'home');
+    expect(home.connected).toBe(true);
+    expect(home.statusHe).toBe('מחובר');
+  });
+
+  it('names the mission computer when wifi is down even if the probe blamed the console', () => {
+    const links = summarizeCommLinks({
+      uplinks: { wifi: { enabled: true, up: false } },
+      pathProbes: {
+        paths: [{
+          id: 'home',
+          transport: 'lan',
+          url: 'http://192.168.1.122:8081',
+          ok: false,
+          errorHe: HOME_LAN_ABSENT_HE,
+        }],
+      },
+      companion: { jetson: 'unreachable' },
+    });
+    const home = links.rows.find((row) => row.id === 'home');
+    expect(home.statusHe).toBe(MISSION_LAN_DOWN_HE);
+    expect(home.connected).toBe(false);
+  });
+
+  it('keeps the on-subnet timeout when the mission computer did not answer', () => {
+    const links = summarizeCommLinks({
+      uplinks: { wifi: { enabled: true, up: false } },
+      pathProbes: {
+        paths: [{
+          id: 'home',
+          transport: 'lan',
+          url: 'http://192.168.1.122:8081',
+          ok: false,
+          errorHe: 'מחשב המשימה לא ענה ברשת הבית',
+        }],
+      },
+    });
+    const home = links.rows.find((row) => row.id === 'home');
+    expect(home.statusHe).toBe('מחשב המשימה לא ענה ברשת הבית');
+  });
+});
+
+describe('GET /api/links cellular field follows the path', () => {
+  it('reports cellular connected when the path is up and the mavlink role is down', () => {
+    resetDualLinkRuntimeForTests();
+    const snap = snapshotDualLink({
+      env: { CELLULAR_MODEM_MOCK: 'present' },
+      companionService: {
+        client: {
+          getPathSnapshot() {
+            return {
+              linkUp: true,
+              activeId: 'cellular',
+              paths: [{
+                id: 'cellular',
+                transport: 'tailscale',
+                url: 'http://100.64.1.2:8081',
+                ok: false,
+                errorHe: 'הכתובת לא הגיבה בזמן',
+              }],
+            };
+          },
+        },
+      },
+    });
+    expect(snap.cellular).toBe('connected');
+    expect(snap.cellularStatusHe).toBe('מחובר');
+    expect(snap.comm.rows.find((row) => row.id === 'cellular').connected).toBe(true);
+    expect(snap.video.available).toBe(false);
+    expect(snap.video.reason).toBe('cellular_disconnected');
+    expect(snap.commandLinkId).toBeFalsy();
+    expect(snap.ops.flightCommands).toBe(false);
+    expect(snap.ops.companionHttpCommandPath).toBe(false);
+    expect(snap.canSelectActive).toBe(false);
+    expect(snap.active).toBeNull();
+  });
+
+  it('keeps cellular disconnected when the path is not up', () => {
+    resetDualLinkRuntimeForTests();
+    const snap = snapshotDualLink({
+      env: { CELLULAR_MODEM_MOCK: 'present' },
+      companionService: {
+        client: {
+          getPathSnapshot() {
+            return { linkUp: false, activeId: null, paths: [] };
+          },
+        },
+      },
+    });
+    expect(snap.cellular).toBe('disconnected');
+    expect(snap.cellularStatusHe).toBe('מנותק');
+  });
+
+  it('keeps modem_absent when no modem is present', () => {
+    resetDualLinkRuntimeForTests();
+    const snap = snapshotDualLink({
+      env: {},
+      companionService: {
+        client: {
+          getPathSnapshot() {
+            return { linkUp: false, activeId: null, paths: [] };
+          },
+        },
+      },
+    });
+    expect(snap.cellular).toBe('modem_absent');
   });
 });
