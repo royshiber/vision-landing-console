@@ -91,7 +91,7 @@ describe('runway awareness layout', () => {
     expect(fit.runwayLevel).toBe(false);
     expect(fit.runwayLane).toBe(false);
 
-    for (const [width, height] of [[1024, 470], [1366, 768]]) {
+    for (const [width, height] of [[1024, 470], [1366, 630], [1536, 730]]) {
       await page.setViewportSize({ width, height });
       const point = await page.locator('#pfdHorizonStage').evaluate((el) => {
         const rect = el.getBoundingClientRect();
@@ -100,7 +100,22 @@ describe('runway awareness layout', () => {
       await page.mouse.click(point.x, point.y, { button: 'right' });
       await page.waitForSelector('#horizonCameraMenu:not([hidden])');
       const box = await page.evaluate(() => {
-        const menu = document.getElementById('horizonCameraMenu').getBoundingClientRect();
+        const menuEl = document.getElementById('horizonCameraMenu');
+        const menu = menuEl.getBoundingClientRect();
+        const levels = [...menuEl.querySelectorAll('[data-awareness-level]')].map((btn) => {
+          const rect = btn.getBoundingClientRect();
+          return {
+            level: btn.getAttribute('data-awareness-level'),
+            top: rect.top,
+            bottom: rect.bottom,
+            height: rect.height,
+            inside: rect.height > 8
+              && rect.top >= menu.top - 1
+              && rect.bottom <= menu.bottom + 1
+              && rect.left >= menu.left - 1
+              && rect.right <= menu.right + 1,
+          };
+        });
         return {
           top: menu.top,
           left: menu.left,
@@ -108,16 +123,19 @@ describe('runway awareness layout', () => {
           bottom: menu.bottom,
           vw: window.innerWidth,
           vh: window.innerHeight,
-          hasLevel: !!document.querySelector('#horizonCameraMenu [data-awareness-level]'),
+          levels,
           collided: !!document.querySelector('#horizonCameraMenu [data-runway-level], #pfdHorizonStage [data-runway-level]'),
         };
       });
-      expect(box.hasLevel).toBe(true);
       expect(box.collided).toBe(false);
+      expect(box.levels.map((row) => row.level)).toEqual(['0', '1', '2', '3', '4']);
       expect(box.top).toBeGreaterThanOrEqual(0);
       expect(box.left).toBeGreaterThanOrEqual(0);
       expect(box.right).toBeLessThanOrEqual(box.vw + 1);
       expect(box.bottom).toBeLessThanOrEqual(box.vh + 1);
+      for (const row of box.levels) {
+        expect(row.inside, `${width}x${height} level ${row.level} top ${row.top} bottom ${row.bottom}`).toBe(true);
+      }
       await page.keyboard.press('Escape');
     }
   }, 30000);

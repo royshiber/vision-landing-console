@@ -409,6 +409,35 @@ function clampHorizonMenu(doc) {
   if (left < margin) left = margin;
   menu.style.top = `${Math.round(top)}px`;
   menu.style.left = `${Math.round(left)}px`;
+  revealRunwayGroup(menu);
+}
+
+function revealRunwayGroup(menu) {
+  const group = menu.querySelector('#runwayLevelGroup');
+  if (!group) return;
+  if (typeof group.scrollIntoView === 'function') {
+    group.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }
+  const menuBox = menu.getBoundingClientRect();
+  const buttons = group.querySelectorAll('[data-awareness-level]');
+  let top = Infinity;
+  let bottom = -Infinity;
+  buttons.forEach((btn) => {
+    const box = btn.getBoundingClientRect();
+    if (box.height < 1) return;
+    if (box.top < top) top = box.top;
+    if (box.bottom > bottom) bottom = box.bottom;
+  });
+  if (!Number.isFinite(top)) return;
+  const overflowBottom = bottom - menuBox.bottom;
+  const overflowTop = menuBox.top - top;
+  if (overflowBottom <= 1 && overflowTop <= 1) return;
+  const span = bottom - top;
+  if (span <= menuBox.height + 1) {
+    menu.scrollTop += overflowBottom > 1 ? overflowBottom : -overflowTop;
+    return;
+  }
+  menu.scrollTop += top - menuBox.top;
 }
 
 if (typeof document !== 'undefined') mountRunwayAwareness(document);

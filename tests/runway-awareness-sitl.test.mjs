@@ -264,6 +264,13 @@ describe('RC_CHANNELS_OVERRIDE stays inside SITL', () => {
     expect(conn.frames).toHaveLength(0);
   });
 
+  const PYMAVLINK_SKIP = 'pymavlink is not installed. Install pymavlink to decode RC_CHANNELS_OVERRIDE wire order.';
+
+  function pymavlinkInstalled() {
+    const run = spawnSync('python3', ['-c', 'import pymavlink'], { encoding: 'utf8' });
+    return run.status === 0;
+  }
+
   function pymavlinkDecode(frame) {
     const script = [
       'import sys',
@@ -284,7 +291,8 @@ describe('RC_CHANNELS_OVERRIDE stays inside SITL', () => {
     };
   }
 
-  it('writes one roll override and pymavlink reads the wire order', () => {
+  it('writes one roll override and pymavlink reads the wire order', (ctx) => {
+    ctx.skip(!pymavlinkInstalled(), PYMAVLINK_SKIP);
     for (const version of [1, 2]) {
       const conn = link(true);
       conn._preferredTxVersion = version;
@@ -303,7 +311,8 @@ describe('RC_CHANNELS_OVERRIDE stays inside SITL', () => {
     }
   });
 
-  it('releases every channel with one all-zero override', () => {
+  it('releases every channel with one all-zero override', (ctx) => {
+    ctx.skip(!pymavlinkInstalled(), PYMAVLINK_SKIP);
     const conn = link(true);
     conn.connected = false;
     conn.sysId = 7;
