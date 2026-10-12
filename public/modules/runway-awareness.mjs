@@ -98,10 +98,16 @@ function paintTiles(doc, status) {
     state.dataset.visionState = String(status?.vision?.state || 'waiting');
   }
   if (word) word.textContent = label;
+  const hold = doc.getElementById('runwayVisionHold');
+  if (hold) {
+    const active = on && status?.vision?.state === 'active';
+    hold.hidden = !active;
+    hold.textContent = active ? 'גלגול בראייה. עלרוד ומצערת ביד' : '';
+  }
   if (arm) {
     const armed = status?.vision?.manualArm === true;
     arm.hidden = !on;
-    arm.textContent = armed ? 'בטל' : 'חימוש ידני';
+    arm.textContent = armed ? 'בטל חימוש' : 'חימוש ידני';
     arm.setAttribute('aria-pressed', armed ? 'true' : 'false');
   }
 }
@@ -376,6 +382,9 @@ function ensureChrome(doc) {
     const stateWord = el(doc, 'strong', 'runway-awareness-v');
     stateWord.id = 'runwayVisionStateWord';
     stateWord.textContent = 'ממתין';
+    const hold = el(doc, 'span', 'runway-vision-hold');
+    hold.id = 'runwayVisionHold';
+    hold.hidden = true;
     const arm = el(doc, 'button', 'runway-awareness-arm');
     arm.type = 'button';
     arm.id = 'runwayVisionArm';
@@ -387,7 +396,7 @@ function ensureChrome(doc) {
       const { data } = await postLevelArm(!armed);
       paint(doc, data);
     });
-    state.append(stateKey, stateWord, arm);
+    state.append(stateKey, stateWord, hold, arm);
     tiles.append(state);
     for (const [id, label, valueId] of [
       ['offset', 'סטייה', 'runwayOffsetValue'],

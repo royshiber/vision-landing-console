@@ -359,13 +359,13 @@ describe('vision landing SITL e2e', () => {
 
     const inside = run.controller.tick({
       estimate: STRIP,
-      vehicle: offApproach({ rcChannels: { ...sticks, chan1_raw: 1539 } }),
+      vehicle: offApproach({ rcChannels: sticks, pilotRc: { chan1_raw: 1539 } }),
     });
     expect(inside.vision.state).toBe('active');
 
     const roll = run.controller.tick({
       estimate: STRIP,
-      vehicle: offApproach({ rcChannels: { ...sticks, chan1_raw: 1540 } }),
+      vehicle: offApproach({ rcChannels: sticks, pilotRc: { chan1_raw: 1540 } }),
     });
     expect(roll.vision.labelHe).toBe('שוחרר');
     expect(roll.sentNow).toBe(1);
@@ -374,6 +374,55 @@ describe('vision landing SITL e2e', () => {
       estimate: STRIP,
       vehicle: offApproach({ rcChannels: { ...sticks, chan1_raw: 1540 } }),
     }).sentNow).toBe(0);
+  });
+
+  it('does not self-cancel on the roll echo and cancels once for a pilot stick at 1700', (ctx) => {
+    ctx.skip(!pymavlinkInstalled(), PYMAVLINK_SKIP);
+    const run = session();
+    const steer = { ...STRIP, heading_error_deg: 15, offset_m: 0 };
+    run.at(140_000);
+    run.controller.tick({ estimate: steer, vehicle: approach() });
+    run.at(142_000);
+    const active = run.controller.tick({ estimate: steer, vehicle: approach() });
+    expect(active.vision.state).toBe('active');
+    const commanded = decode(run.link.frames.at(-1)).rest[0];
+    expect(commanded).toBe(1560);
+
+    const echoChannels = {
+      chan1_raw: 1560,
+      chan2_raw: 1800,
+      chan3_raw: 1200,
+      chan4_raw: 1700,
+      chan5_raw: 1900,
+      chan6_raw: 1100,
+      chan7_raw: 1600,
+      chan8_raw: 1300,
+    };
+    const echo = run.controller.tick({
+      estimate: steer,
+      vehicle: approach({ rcChannels: echoChannels }),
+    });
+    expect(echo.vision.state).toBe('active');
+    expect(echo.sentNow).toBe(1);
+    expect(decode(run.link.frames.at(-1)).rest[0]).toBe(1560);
+    expect(decode(run.link.frames.at(-1)).rest.slice(1).every((value) => value === 0)).toBe(true);
+
+    const before = run.link.frames.length;
+    const pilot = run.controller.tick({
+      estimate: steer,
+      vehicle: approach({
+        rcChannels: echoChannels,
+        pilotRc: { chan1_raw: 1700 },
+      }),
+    });
+    expect(pilot.vision.labelHe).toBe('שוחרר');
+    expect(pilot.sentNow).toBe(1);
+    expect(decode(run.link.frames.at(-1)).rest.every((value) => value === 0)).toBe(true);
+    expect(run.controller.tick({
+      estimate: steer,
+      vehicle: approach({ rcChannels: echoChannels, pilotRc: { chan1_raw: 1700 } }),
+    }).sentNow).toBe(0);
+    expect(run.link.frames.length).toBe(before + 1);
   });
 
   it('can be armed from the console, and it stays silent off SITL and at level 4', () => {

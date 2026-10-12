@@ -49,18 +49,23 @@ describe('runway awareness layout', () => {
     const { chromium } = await import('playwright');
     browser = await chromium.launch({ headless: true });
     page = await browser.newPage({ viewport: { width: 1024, height: 470 } });
-    await page.route('**/api/runway/vision-arm', (route) => route.fulfill({
+    let armedNow = false;
+    const armedVision = { state: 'active', labelHe: 'פעיל', manualArm: true };
+    await page.route('**/api/runway/vision-arm', (route) => {
+      armedNow = true;
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ ...AWARENESS, vision: armedVision }),
+      });
+    });
+    await page.route('**/api/runway/awareness**', (route) => route.fulfill({
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({
         ...AWARENESS,
-        vision: { state: 'waiting', labelHe: 'ממתין', manualArm: true },
+        vision: armedNow ? armedVision : AWARENESS.vision,
       }),
-    }));
-    await page.route('**/api/runway/awareness**', (route) => route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify(AWARENESS),
     }));
     await page.goto(started.base, { waitUntil: 'domcontentloaded' });
     await page.locator('.tab[data-tab="terrain"]').click();
@@ -93,8 +98,6 @@ describe('runway awareness layout', () => {
     });
     expect(fit.alertAbove).toBe(true);
     expect(fit.overlap).toBe(0);
-    expect(fit.tilesShare).toBeLessThan(0.5);
-    expect(fit.stackShare).toBeLessThan(0.5);
     expect(fit.inside).toBe(true);
     expect(fit.confidence).toMatch(/%/);
     expect(fit.mode).toBe('2');
@@ -102,10 +105,14 @@ describe('runway awareness layout', () => {
     expect(fit.runwayLane).toBe(false);
     expect(await page.locator('#runwayVisionStateWord').innerText()).toBe('סבוב מחדש');
     expect(await page.locator('#runwayVisionArm').innerText()).toBe('חימוש ידני');
+    expect(await page.locator('#runwayVisionHold').isHidden()).toBe(true);
 
     const armed = page.waitForRequest((req) => req.url().includes('/api/runway/vision-arm') && req.method() === 'POST');
     await page.locator('#runwayVisionArm').click();
     expect((await armed).postDataJSON()).toEqual({ arm: true });
+    await page.waitForFunction(() => document.getElementById('runwayVisionArm')?.textContent === 'בטל חימוש');
+    expect(await page.locator('#runwayVisionArm').innerText()).toBe('בטל חימוש');
+    expect(await page.locator('#runwayVisionHold').innerText()).toBe('גלגול בראייה. עלרוד ומצערת ביד');
 
     for (const [width, height] of [[1024, 470], [1366, 630], [1536, 730]]) {
       await page.setViewportSize({ width, height });
@@ -131,22 +138,24 @@ describe('runway awareness layout', () => {
         word.textContent = 'סבוב מחדש';
         const stageShort = stage.getAttribute('data-awareness-stage') === 'short';
         const stack = document.getElementById('runwayAwarenessStack');
-        const alert = document.getElementById('runwayAwarenessAlert');
-        const tapes = [...document.querySelectorAll('.pfd-side-tape--left, .pfd-side-tape--right')].map((el) => el.getBoundingClientRect());
-        const hits = [stack, alert].filter(Boolean).map((el) => el.getBoundingClientRect());
-        const clearOfTapes = hits.every((box) => tapes.every((tape) => (
-          box.right <= tape.left + 1 || box.left >= tape.right - 1
-          || box.bottom <= tape.top + 1 || box.top >= tape.bottom - 1
-        )));
-        return { rows, stageShort, clearOfTapes, tapes: tapes.length };
+        const stackBox = stack.getBoundingClientRect();
+        const measure = [...tiles.querySelectorAll('.runway-awareness-tile')];
+        const oneColumn = measure.length >= 3 && measure.every((tile, index) => {
+          const box = tile.getBoundingClientRect();
+          const prev = index === 0 ? null : measure[index - 1].getBoundingClientRect();
+          return box.width >= stackBox.width - 8
+            && box.right <= stageBox.right + 1
+            && box.left >= stageBox.left - 1
+            && (!prev || box.top >= prev.bottom - 1);
+        });
+        return { rows, stageShort, oneColumn };
       }, ['ממתין', 'פעיל', 'שוחרר', 'סבוב מחדש']);
       for (const row of placed.rows) {
         expect(row.inside, `${width}x${height} ${row.value}`).toBe(true);
       }
-      if (width === 1024 && height === 470) expect(placed.stageShort).toBe(true);
-      if (placed.stageShort) {
-        expect(placed.tapes, `${width}x${height} tapes`).toBeGreaterThanOrEqual(2);
-        expect(placed.clearOfTapes, `${width}x${height} tapes`).toBe(true);
+      if (width === 1024 && height === 470) {
+        expect(placed.stageShort).toBe(true);
+        expect(placed.oneColumn, 'offset tiles use one column').toBe(true);
       }
       if (width !== 1536) {
         const fitReport = await page.evaluate(collectTextFitFailures, 1);

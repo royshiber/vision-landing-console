@@ -346,6 +346,7 @@ SITL lateral stage, implemented. A live vehicle is still a Human Gate.
 - Lost runway or low confidence releases the override once.
 - A hazard, or a large lateral error below the minimum altitude, sends one go-around.
 - A mode change, or roll-stick movement past the deadband, cancels immediately. Pitch, throttle, and yaw do not.
+- While the override is held, RC_CHANNELS channel 1 is the echo of the commanded roll. A sample within the deadband of that command is ignored. The pilot stick is the pre-override receiver value when the vehicle supplies it.
 - The tiles show ממתין, פעיל, שוחרר, or סבוב מחדש.
 - This is not full auto land. Connecting a live vehicle remains a Human Gate.
 
