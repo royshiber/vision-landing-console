@@ -152,6 +152,22 @@ describe('Mission data-slot field picker', () => {
     expect(clientKeys).toEqual(hudKeys);
     expect(fns.MISSION_DATA_CATALOG.find((e) => e.key === 'mavlink.altitude')?.mav).toBe('VFR_HUD.alt');
     expect(fns.MISSION_DATA_CATALOG.find((e) => e.key === 'mavlink.pitchDeg')?.mav).toBe('ATTITUDE.pitch');
+    for (const phrase of ['כמות לוויינים', 'כמות לווינים', 'לוויינים', 'לווינים']) {
+      const hit = fns.suggestMissionDataFields(phrase);
+      expect(hit.exact?.key, phrase).toBe('mavlink.gpsSats');
+      expect(hit.exact?.mav).toBe('GPS_RAW_INT.satellites_visible');
+    }
+    expect(fns.formatMissionDataValue('mavlink.rssi', { mavlink: { rssi: 255 } })).toBe('—');
+    expect(fns.formatMissionDataValue('mavlink.rssi', { mavlink: { rssi: 42 } })).toBe('42');
+    expect(fns.formatMissionDataValue('mavlink.distHomeM', { mavlink: { map: {} } })).toBe('—');
+    const suggest = sliceFunction(js, 'runMissionDataSuggest');
+    expect(suggest).toContain('מחפש…');
+    expect(suggest).toContain('aria-busy');
+    expect(suggest).toContain('is-busy');
+    expect(suggest).toContain('שגיאה בזיהוי הפרמטר');
+    expect(suggest).toContain('/api/flight-hud/resolve-param');
+    expect(suggest).not.toContain('applyMissionDataSlotChoice');
+    expect(js).toContain('void runMissionDataSuggest()');
     const alt = fns.suggestMissionDataFields('VFR_HUD.alt');
     expect(alt.exact?.key).toBe('mavlink.altitude');
     const pitch = suggestMissionDataFields('ATTITUDE.pitch');

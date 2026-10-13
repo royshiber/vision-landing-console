@@ -266,8 +266,15 @@ const MISSION_DATA_CATALOG = Object.freeze([
   { key: 'mavlink.fcLoadPct', label: 'עומס FC', unit: '%', mav: 'SYS_STATUS.load', tokens: ['load', 'עומס'] },
   { key: 'mavlink.rollDeg', label: 'רול', unit: '°', mav: 'ATTITUDE.roll', tokens: ['roll', 'רול'] },
   { key: 'mavlink.pitchDeg', label: 'פיץ׳', unit: '°', mav: 'ATTITUDE.pitch', tokens: ['pitch', 'פיץ'] },
-  { key: 'mavlink.gpsFixType', label: 'Fix GPS', unit: '', mav: 'GPS_RAW_INT.fix_type', tokens: ['fix', 'gps'] },
-  { key: 'mavlink.gpsSats', label: 'לוויינים GPS', unit: '', mav: 'GPS_RAW_INT.satellites_visible', tokens: ['sats', 'לוויינים'] },
+  { key: 'mavlink.gpsFixType', label: 'Fix GPS', unit: '', mav: 'GPS_RAW_INT.fix_type', tokens: ['fix', 'gps', 'קיבוע', 'gps fix'] },
+  { key: 'mavlink.gpsSats', label: 'לוויינים GPS', unit: '', mav: 'GPS_RAW_INT.satellites_visible', tokens: ['sats', 'satellites', 'satellites_visible', 'לוויינים', 'לווינים', 'לוויין', 'כמות לוויינים', 'כמות לווינים', 'num sat'] },
+  { key: 'mavlink.gpsHdop', label: 'דיוק GPS', unit: '', mav: 'GPS_RAW_INT.eph', tokens: ['hdop', 'eph', 'דיוק', 'דיוק אופקי'] },
+  { key: 'mavlink.batteryCurrentA', label: 'זרם סוללה', unit: 'A', mav: 'SYS_STATUS.current_battery', tokens: ['current', 'amps', 'זרם', 'זרם סוללה'] },
+  { key: 'mavlink.rssi', label: 'עוצמת קליטה', unit: '', mav: 'RC_CHANNELS.rssi', tokens: ['rssi', 'קליטה', 'עוצמת קליטה'] },
+  { key: 'mavlink.throttle', label: 'מצערת', unit: '%', mav: 'VFR_HUD.throttle', tokens: ['throttle', 'מצערת'] },
+  { key: 'mavlink.windSpeed', label: 'רוח', unit: 'm/s', mav: 'WIND.speed', tokens: ['wind', 'רוח', 'מהירות רוח'] },
+  { key: 'mavlink.distHomeM', label: 'מרחק הביתה', unit: 'm', tokens: ['home', 'הביתה', 'מרחק הביתה', 'מרחק הבית'] },
+  { key: 'mavlink.wpDistM', label: 'מרחק לנקודה', unit: 'm', mav: 'NAV_CONTROLLER_OUTPUT.wp_dist', tokens: ['wp', 'waypoint', 'נקודה', 'מרחק לנקודה'] },
   { key: 'vision.confidence', label: 'ביטחון נחיתה', unit: '%', tokens: ['confidence', 'ביטחון', 'נחיתה'] },
   { key: 'vision.headingErrorDeg', label: 'שגיאת כיוון Vision', unit: '°', tokens: ['heading error', 'שגיאת כיוון'] },
   { key: 'mission.link', label: 'קישור', unit: '', tokens: ['link', 'קישור', 'rssi'] },
@@ -8334,6 +8341,7 @@ function initHorizonCameraMenu() {
       name.className = 'horizon-quick-label';
       name.textContent = label;
       btn.append(icon, name);
+      if (id === 'flightArmBtn') ensureFlightArmHoldRing(btn);
     }
   }
   syncHorizonMenuState();
@@ -8502,6 +8510,12 @@ function hudFiniteOrNull(v) {
   return Number.isFinite(n) ? n : null;
 }
 
+function hudRssiOrNull(v) {
+  const n = hudFiniteOrNull(v);
+  if (n == null || n < 0 || n >= 255) return null;
+  return n;
+}
+
 function hudFcMetricFields(src) {
   const s = src && typeof src === 'object' ? src : {};
   return {
@@ -8516,6 +8530,11 @@ function hudFcMetricFields(src) {
     batteryConsumedMah: hudFiniteOrNull(s.batteryConsumedMah),
     gpsFixType: hudFiniteOrNull(s.gpsFixType),
     gpsSats: hudFiniteOrNull(s.gpsSats),
+    gpsHdop: hudFiniteOrNull(s.gpsHdop),
+    throttle: hudFiniteOrNull(s.throttle),
+    rssi: hudRssiOrNull(s.rssi ?? s.rcRssi),
+    windSpeed: hudFiniteOrNull(s.windSpeed),
+    wpDistM: hudFiniteOrNull(s.wpDistM),
     rcChannels: s.rcChannels && typeof s.rcChannels === 'object' ? s.rcChannels : null,
   };
 }
@@ -9070,9 +9089,36 @@ function flightArmLinkLive(mav) {
   return true;
 }
 
+function flightArmAckLabel(result) {
+  const names = {
+    0: 'ACCEPTED',
+    1: 'TEMPORARILY_REJECTED',
+    2: 'DENIED',
+    3: 'UNSUPPORTED',
+    4: 'FAILED',
+    5: 'IN_PROGRESS',
+    6: 'CANCELLED',
+  };
+  if (result == null || result === '') return 'COMMAND_ACK missing';
+  const n = Number(result);
+  if (!Number.isInteger(n)) return 'COMMAND_ACK missing';
+  return `COMMAND_ACK ${names[n] || n}`;
+}
+
+function flightArmModeBlockHe(modeName) {
+  if (String(modeName || '').toUpperCase() === 'RTL') return 'מצב RTL לא מאפשר חימוש';
+  return '';
+}
+
 function translatePrearmText(raw) {
   const line = String(raw || '').trim();
   if (!line) return '';
+  if (/mode not armable/i.test(line)) {
+    const named = line.match(/([A-Za-z0-9_]+)\s+mode not armable|mode not armable[:\s-]*([A-Za-z0-9_]+)/i);
+    const mode = String((named && (named[1] || named[2])) || '').toUpperCase();
+    if (mode === 'RTL') return 'מצב RTL לא מאפשר חימוש';
+    return 'המצב לא מאפשר חימוש';
+  }
   const rules = [
     [/3d accel calibration needed/i, 'לא ניתן לחמש: נדרש כיול מד תאוצה'],
     [/gps speed error/i, 'לא ניתן לחמש: שגיאת מהירות GPS'],
@@ -9180,6 +9226,27 @@ function showFlightArmRefusal(text) {
   paintPrearmBadge(note, text);
 }
 
+function showFlightArmAckRefusal(prearm, ackLabel) {
+  const note = document.getElementById('flightArmRefusal');
+  if (!note) return;
+  const fc = String(prearm || '').trim();
+  const he = fc ? translatePrearmText(fc) : '';
+  note.hidden = false;
+  note.classList.add('is-open');
+  note.setAttribute('aria-expanded', 'true');
+  note.replaceChildren();
+  const lead = document.createElement('span');
+  lead.textContent = 'הבקר סירב לחימוש';
+  note.appendChild(lead);
+  if (he && he !== 'הבקר סירב לחימוש') {
+    const line = document.createElement('span');
+    line.textContent = he;
+    note.appendChild(line);
+  }
+  if (fc && fc !== he) appendFlightArmRaw(note, fc);
+  appendFlightArmRaw(note, ackLabel);
+}
+
 function closeFlightDisarmDialog() {
   flightDisarmSecond = false;
   const dialog = document.getElementById('flightDisarmDialog');
@@ -9197,6 +9264,8 @@ async function postFlightArmDisarm(action, confirmFlying) {
 }
 
 let flightArmOpenedAt = 0;
+let flightArmLastAck = null;
+const FLIGHT_ARM_EARLY_RELEASE_HE = 'החזיקו 1.5 שניות לחימוש';
 
 function flightArmClickIgnored() {
   return flightArmOpenedAt > 0 && Date.now() - flightArmOpenedAt < 400;
@@ -9214,12 +9283,74 @@ function refuseFlightArmNoLink() {
   showFlightTalkback('אין חיבור לבקר הטיסה');
 }
 
+function recentPrearmLines(mav) {
+  const raw = Array.isArray(mav?.recentStatusTexts) ? mav.recentStatusTexts : [];
+  const lines = [];
+  for (const item of raw) {
+    const text = String(item?.text || item || '').trim();
+    if (!text) continue;
+    if (!/prearm|arm:|not armable/i.test(text)) continue;
+    lines.push(text);
+    if (lines.length >= 4) break;
+  }
+  return lines;
+}
+
+function appendFlightArmRaw(parent, english) {
+  const raw = String(english || '').trim();
+  if (!raw) return;
+  const span = document.createElement('span');
+  span.className = 'flight-arm-warn-raw';
+  span.dir = 'ltr';
+  span.textContent = raw;
+  parent.appendChild(span);
+}
+
+function paintFlightArmDialogFacts(mav) {
+  const box = document.getElementById('flightArmDialogFacts');
+  if (!box) return;
+  box.replaceChildren();
+  const mode = mav && mav.connected === true ? vlcFlightModeName(mav.flightMode, mav) : null;
+  const modeLine = document.createElement('p');
+  modeLine.className = 'flight-arm-fact';
+  modeLine.append('מצב ');
+  const modeRaw = document.createElement('span');
+  modeRaw.className = 'flight-arm-warn-raw';
+  modeRaw.dir = 'ltr';
+  modeRaw.textContent = mode || '—';
+  modeLine.appendChild(modeRaw);
+  box.appendChild(modeLine);
+  const block = flightArmModeBlockHe(mode);
+  if (block) {
+    const warn = document.createElement('p');
+    warn.className = 'flight-arm-fact';
+    warn.textContent = block;
+    box.appendChild(warn);
+  }
+  for (const line of recentPrearmLines(mav)) {
+    const row = document.createElement('p');
+    row.className = 'flight-arm-fact';
+    const he = translatePrearmText(line);
+    row.append(he);
+    if (he !== line) appendFlightArmRaw(row, line);
+    box.appendChild(row);
+  }
+  if (flightArmLastAck && flightArmLastAck.accepted !== true && flightArmLastAck.label) {
+    const ack = document.createElement('p');
+    ack.className = 'flight-arm-fact flight-arm-ack';
+    ack.append('הבקר סירב לחימוש');
+    appendFlightArmRaw(ack, flightArmLastAck.label);
+    box.appendChild(ack);
+  }
+}
+
 function openFlightArmDialog() {
   if (flightArmBusy) return;
   if (flightArmLinkLive(latestHudMavlink) && latestHudMavlink?.armed === true) return;
   closeFlightDisarmDialog();
   const text = document.getElementById('flightArmDialogText');
   if (text) text.textContent = FLIGHT_ARM_CONFIRM_HE;
+  paintFlightArmDialogFacts(latestHudMavlink);
   const dialog = document.getElementById('flightArmDialog');
   if (dialog) {
     dialog.hidden = false;
@@ -9238,12 +9369,18 @@ async function sendFlightArm() {
   try {
     const { data } = await postFlightArmDisarm('arm', false);
     closeFlightArmDialog();
-    if (data?.ok === true) {
+    if (data?.sent !== true) {
+      showFlightArmRefusal(data?.message || data?.prearm || 'השליחה נכשלה');
+      return;
+    }
+    if (data?.ok === true && Number(data.result) === 0) {
+      flightArmLastAck = { accepted: true, result: 0, label: flightArmAckLabel(0) };
       showFlightArmRefusal('');
       return;
     }
-    const fc = String(data?.prearm || '').trim();
-    showFlightArmRefusal(fc || 'הבקר סירב לחימוש');
+    const label = flightArmAckLabel(data?.result);
+    flightArmLastAck = { accepted: false, result: data?.result ?? null, label };
+    showFlightArmAckRefusal(data?.prearm || '', label);
   } catch {
     closeFlightArmDialog();
     showFlightArmRefusal('השליחה נכשלה');
@@ -9257,6 +9394,33 @@ function cancelFlightArmHold() {
   if (flightArmHoldTimer) clearTimeout(flightArmHoldTimer);
   flightArmHoldTimer = null;
   document.getElementById('flightArmBtn')?.classList.remove('is-holding');
+}
+
+function finishFlightArmHold() {
+  if (!flightArmHolding) return;
+  cancelFlightArmHold();
+  openFlightArmDialog();
+}
+
+function ensureFlightArmHoldRing(btn) {
+  if (!btn || btn.querySelector('.flight-arm-hold-ring')) return;
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 36 36');
+  svg.setAttribute('aria-hidden', 'true');
+  svg.classList.add('flight-arm-hold-ring');
+  const track = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+  track.setAttribute('class', 'flight-arm-hold-track');
+  track.setAttribute('cx', '18');
+  track.setAttribute('cy', '18');
+  track.setAttribute('r', '15');
+  const arc = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+  arc.setAttribute('class', 'flight-arm-hold-arc');
+  arc.setAttribute('cx', '18');
+  arc.setAttribute('cy', '18');
+  arc.setAttribute('r', '15');
+  arc.setAttribute('pathLength', '100');
+  svg.append(track, arc);
+  btn.append(svg);
 }
 
 function flightDisarmGate(mav) {
@@ -9322,18 +9486,17 @@ function initFlightArmControls() {
     }
     flightArmHolding = true;
     armBtn.classList.add('is-holding');
+    showFlightArmRefusal('');
     if (flightArmHoldTimer) clearTimeout(flightArmHoldTimer);
-    flightArmHoldTimer = setTimeout(() => {
-      if (!flightArmHolding) return;
-      cancelFlightArmHold();
-      openFlightArmDialog();
-    }, FLIGHT_ARM_HOLD_MS);
+    flightArmHoldTimer = setTimeout(finishFlightArmHold, FLIGHT_ARM_HOLD_MS);
   });
   const endArmHold = (event) => {
     if (event?.pointerType === 'touch' && (event.type === 'pointerleave' || event.type === 'pointercancel')) return;
     const dialog = document.getElementById('flightArmDialog');
     if (event?.pointerType === 'touch' && dialog && dialog.hidden === false && event.cancelable) event.preventDefault();
+    const releasedEarly = flightArmHolding === true;
     cancelFlightArmHold();
+    if (releasedEarly) showFlightArmRefusal(FLIGHT_ARM_EARLY_RELEASE_HE);
   };
   armBtn.addEventListener('pointerup', endArmHold);
   armBtn.addEventListener('pointerleave', endArmHold);
@@ -9384,6 +9547,7 @@ function initFlightArmControls() {
       togglePrearmBadge(badge);
     });
   }
+  ensureFlightArmHoldRing(armBtn);
   syncFlightArmControls(latestHudMavlink);
 }
 
@@ -22681,25 +22845,33 @@ function initMissionMessages() {
 }
 
 function suggestMissionDataFields(text) {
-  const raw = String(text || '').trim().toLowerCase().replace(/\s+/g, ' ');
+  const fold = (value) => String(value || '')
+    .toLowerCase()
+    .replace(/[׳״'"`]/g, '')
+    .replace(/יי/g, 'י')
+    .replace(/וו/g, 'ו')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const raw = fold(text);
   if (!raw) {
     return { chips: MISSION_DATA_CATALOG.slice(0, 8), hint: 'כתבו מה להציג, או בחרו אפשרות.', exact: null };
   }
   const ranked = MISSION_DATA_CATALOG.map((entry) => {
     let score = 0;
-    const label = String(entry.label || '').toLowerCase();
-    const mav = String(entry.mav || '').toLowerCase();
+    const label = fold(entry.label);
+    const mav = fold(entry.mav);
     if (mav && (raw === mav || raw.includes(mav))) score += 96;
     if (raw.includes(label) || (label && label.includes(raw) && raw.length >= 3)) score += 80;
-    const keyPart = String(entry.key || '').split('.')[1] || '';
-    if (keyPart && raw.includes(keyPart.toLowerCase())) score += 22;
+    const keyPart = fold(String(entry.key || '').split('.')[1] || '');
+    if (keyPart && raw.includes(keyPart)) score += 22;
     if (mav) {
-      const mavField = mav.split('.')[1] || '';
+      const mavField = fold(mav.split('.')[1] || '');
       if (mavField.length >= 2 && raw.includes(mavField)) score += 28;
       if (raw.includes(mav.split('.')[0])) score += 10;
     }
     for (const token of entry.tokens || []) {
-      if (token.length >= 2 && raw.includes(String(token).toLowerCase())) score += 14;
+      const folded = fold(token);
+      if (folded.length >= 2 && raw.includes(folded)) score += 14;
     }
     return { entry, score };
   }).filter((x) => x.score > 0).sort((a, b) => b.score - a.score);
@@ -22720,6 +22892,78 @@ function suggestMissionDataFields(text) {
     hint: 'בחרו אפשרות, או נסחו מחדש.',
     exact: top.entry,
   };
+}
+
+async function runMissionDataSuggest() {
+  const btn = document.getElementById('missionDataPickerSuggest');
+  const hint = document.getElementById('missionDataPickerHint');
+  const text = String(document.getElementById('missionDataPickerInput')?.value || '');
+  if (btn) {
+    btn.disabled = true;
+    btn.classList.add('is-busy');
+    btn.setAttribute('aria-busy', 'true');
+  }
+  if (hint) {
+    hint.setAttribute('aria-live', 'polite');
+    hint.textContent = 'מחפש…';
+  }
+  await new Promise((resolve) => {
+    requestAnimationFrame(() => requestAnimationFrame(resolve));
+  });
+  const local = suggestMissionDataFields(text);
+  try {
+    if (local.exact) {
+      renderMissionDataPickerChips(local);
+      return;
+    }
+    if (!text.trim()) {
+      renderMissionDataPickerChips(local);
+      return;
+    }
+    let data = {};
+    try {
+      const res = await fetch('/api/flight-hud/resolve-param', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+      });
+      data = await res.json().catch(() => ({}));
+      if (!res.ok || data?.ok !== true) {
+        const msg = String(data?.message || '').trim() || 'שגיאה בזיהוי הפרמטר';
+        if (data?.ambiguous === true && Array.isArray(data.options) && data.options.length) {
+          const chips = data.options.map((opt) => (
+            MISSION_DATA_CATALOG.find((entry) => entry.key === opt.key) || opt
+          ));
+          renderMissionDataPickerChips({ chips, hint: data.hint || msg, exact: null });
+          return;
+        }
+        renderMissionDataPickerChips({ chips: local.chips, hint: msg, exact: null });
+        return;
+      }
+      const found = MISSION_DATA_CATALOG.find((entry) => entry.key === data.key);
+      if (!found) {
+        renderMissionDataPickerChips({ chips: local.chips, hint: 'שגיאה בזיהוי הפרמטר', exact: null });
+        return;
+      }
+      renderMissionDataPickerChips({
+        chips: [found],
+        hint: 'בחרו אפשרות, או נסחו מחדש.',
+        exact: found,
+      });
+    } catch {
+      renderMissionDataPickerChips({
+        chips: local.chips,
+        hint: 'שגיאה בזיהוי הפרמטר',
+        exact: null,
+      });
+    }
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.classList.remove('is-busy');
+      btn.setAttribute('aria-busy', 'false');
+    }
+  }
 }
 
 function defaultMissionDataSlots() {
@@ -22817,6 +23061,18 @@ function formatMissionDataValue(key, payload) {
     const vision = payload?.vision;
     const meters = gpsVisionDeltaMeters(mapData?.gpsLat, mapData?.gpsLon, vision?.navLat, vision?.navLon);
     return Number.isFinite(meters) ? meters.toFixed(1) : '—';
+  }
+  if (key === 'mavlink.distHomeM') {
+    const mapData = payload?.mavlink?.map;
+    const meters = gpsVisionDeltaMeters(mapData?.gpsLat, mapData?.gpsLon, mapData?.homeLat, mapData?.homeLon);
+    return Number.isFinite(meters) ? meters.toFixed(1) : '—';
+  }
+  if (key === 'mavlink.rssi') {
+    const direct = payload?.mavlink?.rssi;
+    const fromRc = payload?.mavlink?.rcChannels?.rssi;
+    const n = Number(direct != null ? direct : fromRc);
+    if (!Number.isFinite(n) || n < 0 || n >= 255) return '—';
+    return String(Math.round(n));
   }
   if (key === 'mavlink.gpsFixType') {
     const fix = payload?.mavlink?.gpsFixType;
@@ -23269,10 +23525,7 @@ function initMissionDataPicker() {
     confirmMissionDataPickerChoice();
   });
   document.getElementById('missionDataPickerSuggest')?.addEventListener('click', () => {
-    const text = document.getElementById('missionDataPickerInput')?.value || '';
-    const result = suggestMissionDataFields(text);
-    renderMissionDataPickerChips(result);
-    if (result.exact && result.chips.length === 1) applyMissionDataSlotChoice(result.exact);
+    void runMissionDataSuggest();
   });
   document.getElementById('missionDataPickerInput')?.addEventListener('input', () => {
     renderMissionDataPickerChips(suggestMissionDataFields(document.getElementById('missionDataPickerInput')?.value || ''));

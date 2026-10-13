@@ -69,6 +69,30 @@ describe('suggestMissionDataFields', () => {
     expect(JSON.stringify(miss)).not.toMatch(/12\.4/);
   });
 
+  it('finds GPS satellites for both Hebrew spellings', () => {
+    for (const phrase of ['לוויינים', 'כמות לוויינים', 'לווינים', 'כמות לווינים']) {
+      const hit = suggestMissionDataFields(phrase);
+      expect(hit.exact?.key, phrase).toBe('mavlink.gpsSats');
+      expect(hit.exact?.mav).toBe('GPS_RAW_INT.satellites_visible');
+      expect(hit.chips[0].key).toBe('mavlink.gpsSats');
+    }
+    const keys = FLIGHT_HUD_CATALOG.map((entry) => entry.key);
+    for (const key of [
+      'mavlink.gpsSats',
+      'mavlink.gpsFixType',
+      'mavlink.gpsHdop',
+      'mavlink.batteryPct',
+      'mavlink.batteryCurrentA',
+      'mavlink.rssi',
+      'mavlink.throttle',
+      'mavlink.windSpeed',
+      'mavlink.distHomeM',
+      'mavlink.wpDistM',
+    ]) {
+      expect(keys).toContain(key);
+    }
+  });
+
   it('matches technical MAVLink keys used in the suggestion list', () => {
     const alt = suggestMissionDataFields('VFR_HUD.alt');
     expect(alt.exact?.key).toBe('mavlink.altitude');

@@ -226,7 +226,20 @@ describe('ARM DISARM ui contract', () => {
     expect(js).toContain('openFlightArmDialog');
     expect(js).toContain('FLIGHT_ARM_HOLD_MS = 1500');
     expect(js).toContain('initFlightArmControls();');
+    expect(js).toContain('החזיקו 1.5 שניות לחימוש');
+    expect(js).toContain('flight-arm-hold-ring');
+    expect(js).toContain('מצב RTL לא מאפשר חימוש');
+    expect(js).toContain('COMMAND_ACK');
+    expect(js).toContain('function finishFlightArmHold(');
     expect(js).not.toContain('21196');
+    const holdStart = js.indexOf('function finishFlightArmHold(');
+    const holdEnd = js.indexOf('function ensureFlightArmHoldRing(');
+    const holdBody = js.slice(holdStart, holdEnd);
+    expect(holdBody).toContain('openFlightArmDialog');
+    expect(holdBody).not.toContain('sendFlightArm');
+    expect(holdBody).not.toContain('fetch(');
+    expect(js.match(/sendFlightArm\(\)/g)).toHaveLength(2);
+    expect(css).toContain('animation: flight-arm-hold 1.5s linear forwards');
     const armCss = css.slice(css.indexOf('#flightArmRow'), css.indexOf('#flightArmRow') + 1800);
     expect(armCss).toMatch(/font-size:\s*clamp\(11px/);
     expect(armCss).not.toMatch(/text-overflow:\s*ellipsis/);
@@ -256,6 +269,19 @@ describe('ARM DISARM ui contract', () => {
     expect(translate('PreArm: Compass not healthy')).toBe('לא ניתן לחמש: המצפן לא תקין');
     expect(translate('something the console does not know')).toBe('something the console does not know');
     expect(translate('אין חיבור לבקר הטיסה')).toBe('אין חיבור לבקר הטיסה');
+    expect(translate('Arm: RTL mode not armable')).toBe('מצב RTL לא מאפשר חימוש');
+    const ackStart = js.indexOf('function flightArmAckLabel(');
+    const ackEnd = js.indexOf('function flightArmModeBlockHe(');
+    const ack = new Function(`${js.slice(ackStart, ackEnd)}; return flightArmAckLabel;`)();
+    const blockStart = ackEnd;
+    const blockEnd = js.indexOf('function translatePrearmText(');
+    const block = new Function(`${js.slice(blockStart, blockEnd)}; return flightArmModeBlockHe;`)();
+    expect(ack(2)).toBe('COMMAND_ACK DENIED');
+    expect(ack(4)).toBe('COMMAND_ACK FAILED');
+    expect(ack(null)).toBe('COMMAND_ACK missing');
+    expect(ack(0)).toBe('COMMAND_ACK ACCEPTED');
+    expect(block('RTL')).toBe('מצב RTL לא מאפשר חימוש');
+    expect(block('LOITER')).toBe('');
   });
 
   it('treats live FC telemetry as connected before a parameter read', () => {

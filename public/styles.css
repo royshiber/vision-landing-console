@@ -11526,19 +11526,32 @@ html[data-evolve-preview="1"] #development {
 
 .mission-data-picker-title {
   margin: 0 0 4px;
-  font-size: 0.74rem;
+  flex: 0 0 auto;
+  font-size: clamp(11px, 0.74rem, 16px);
+  line-height: 1.35;
   font-weight: 800;
   color: #0f172a;
   font-family: "Heebo", sans-serif;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  overflow: visible;
+  text-overflow: clip;
 }
 
 .mission-data-picker-current {
   margin: 0 0 6px;
-  min-height: 1em;
-  font-size: clamp(11px, 0.62rem, 8rem);
+  flex: 0 0 auto;
+  height: auto;
+  min-height: 0;
+  font-size: clamp(11px, 0.72rem, 14px);
+  line-height: 1.4;
   color: #64748b;
   font-family: "Heebo", sans-serif;
   direction: rtl;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  overflow: visible;
+  text-overflow: clip;
 }
 
 .mission-data-picker-input {
@@ -11555,9 +11568,15 @@ html[data-evolve-preview="1"] #development {
 
 .mission-data-picker-hint {
   margin: 6px 0;
-  font-size: clamp(11px, 0.66rem, 8rem);
+  flex: 0 0 auto;
+  height: auto;
+  font-size: clamp(11px, 0.72rem, 14px);
   color: #475569;
-  line-height: 1.35;
+  line-height: 1.4;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  overflow: visible;
+  text-overflow: clip;
 }
 
 .mission-data-picker-chips {
@@ -11586,16 +11605,28 @@ html[data-evolve-preview="1"] #development {
   cursor: pointer;
   text-align: start;
   width: 100%;
+  max-width: 100%;
   box-sizing: border-box;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  overflow: visible;
+  text-overflow: clip;
 }
 
 .mission-data-picker-chip-mav {
+  display: block;
+  width: 100%;
+  max-width: 100%;
   font-family: "Space Grotesk", ui-monospace, monospace;
   font-size: clamp(11px, 0.58rem, 8rem);
   font-weight: 600;
   color: #334155;
   direction: ltr;
   unicode-bidi: isolate;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  overflow: visible;
+  text-overflow: clip;
 }
 
 .mission-data-picker-chip:hover {
@@ -11604,20 +11635,40 @@ html[data-evolve-preview="1"] #development {
 
 .mission-data-picker-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
   flex: 0 0 auto;
+  width: 100%;
+  overflow: visible;
 }
 
 .mission-data-picker-btn {
   border: 0;
   border-radius: 8px;
   padding: 5px 10px;
-  font-size: 0.7rem;
+  font-size: clamp(11px, 0.75rem, 16px);
   font-weight: 700;
   font-family: "Heebo", sans-serif;
   background: #1e293b;
   color: #f8fafc;
   cursor: pointer;
+  overflow: visible;
+  white-space: normal;
+}
+.mission-data-picker-btn.is-busy::after {
+  content: '';
+  display: inline-block;
+  width: 11px;
+  height: 11px;
+  margin-inline-start: 6px;
+  border: 2px solid currentColor;
+  border-inline-end-color: transparent;
+  border-radius: 50%;
+  vertical-align: middle;
+  animation: mission-suggest-spin 0.7s linear infinite;
+}
+@keyframes mission-suggest-spin {
+  to { transform: rotate(360deg); }
 }
 
 .mission-data-picker-btn--quiet {
@@ -22046,6 +22097,44 @@ html body :is(
 .flight-arm-btn.is-holding {
   outline: 2px solid #facc15;
 }
+#flightArmBtn.flight-arm-btn,
+#horizonQuick #flightArmBtn.flight-arm-btn {
+  position: relative;
+}
+.flight-arm-hold-ring {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: visible;
+  opacity: 0;
+}
+.flight-arm-btn.is-holding .flight-arm-hold-ring {
+  opacity: 1;
+}
+.flight-arm-hold-track,
+.flight-arm-hold-arc {
+  fill: none;
+  stroke-width: 2.5;
+}
+.flight-arm-hold-track {
+  stroke: rgba(250, 204, 21, 0.35);
+}
+.flight-arm-hold-arc {
+  stroke: transparent;
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100;
+  transform: rotate(-90deg);
+  transform-origin: 18px 18px;
+}
+.flight-arm-btn.is-holding .flight-arm-hold-arc {
+  stroke: #facc15;
+  animation: flight-arm-hold 1.5s linear forwards;
+}
+@keyframes flight-arm-hold {
+  to { stroke-dashoffset: 0; }
+}
 .flight-arm-btn--danger {
   border-color: rgba(248, 113, 113, 0.75);
   color: #fecaca;
@@ -25759,6 +25848,39 @@ body[data-work-path="rf"] #optics .optics-calib {
   border: 1px solid #7dd3fc;
   background: #102033;
   box-shadow: 0 24px 64px rgba(0, 0, 0, 0.45);
+}
+.flight-arm-facts {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  width: 100%;
+  margin: 0;
+  text-align: start;
+  overflow: visible;
+}
+.flight-arm-fact {
+  margin: 0;
+  width: 100%;
+  font-size: clamp(11px, 0.8rem, 16px);
+  line-height: 1.35;
+  color: #e0f2fe;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  overflow: visible;
+  text-overflow: clip;
+}
+.flight-arm-popup .flight-arm-warn-raw {
+  display: block;
+  direction: ltr;
+  unicode-bidi: isolate;
+  text-align: left;
+  font-size: clamp(11px, 0.75rem, 14px);
+  line-height: 1.35;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  overflow: visible;
+  text-overflow: clip;
 }
 .flight-arm-popup .flight-arm-dialog-text {
   width: 100%;
