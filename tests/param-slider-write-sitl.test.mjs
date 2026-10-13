@@ -83,8 +83,9 @@ async function startConsole(dbPath, sitlPort) {
   const started = await startTestServer({
     env: {
       SQLITE_PATH: dbPath,
-      COMPANION_MODE: 'off',
+      COMPANION_MODE: 'mock',
       JETSON_COMPANION_BASE_URL: '',
+      VLC_LANDING_PROFILE_DIR: path.join(os.tmpdir(), `airvix-slider-profile-${process.pid}`),
       GEMINI_API_KEY: '',
       ...(sitlPort ? { SIMULATOR_TCP_PORT: String(sitlPort) } : {}),
     },
@@ -174,7 +175,7 @@ describe('landing slider pending write', () => {
       await slider.fill('29');
       await page.waitForFunction(() => document.querySelector('[data-param-key="approach_speed_ms"]')?.classList.contains('param-card--dirty'));
       expect(await page.locator('#arduWriteBtn').isDisabled()).toBe(true);
-      const untouched = await api(base, 'GET', '/api/vision/config');
+      const untouched = await api(base, 'GET', '/api/vision/landing-profile');
       expect(untouched.json.profile?.approach_speed_ms).not.toBe(29);
       const banner = await page.locator('#paramSyncBanner').innerText();
       expect(banner).toContain('שינוי לא נשמר');
@@ -183,8 +184,8 @@ describe('landing slider pending write', () => {
       expect(banner).toContain('29');
       expect(banner).not.toContain('אין שינוי');
       expect(await page.locator('#jetsonToolState').innerText()).toContain('שינוי לא נשמר');
-      await page.click('#saveVisionProfileBtn');
-      await page.waitForFunction(() => (document.getElementById('paramWriteResult')?.textContent || '').includes('נשמר בקונסולה ואומת'));
+      await page.click('#jetsonProfileWriteBtn');
+      await page.waitForFunction(() => (document.getElementById('paramWriteResult')?.textContent || '').includes('נשמר בג׳טסון ואומת'));
       const result = await page.locator('#paramWriteResult').innerText();
       expect(result).toContain('approach_speed_ms');
       expect(result).toContain('29');
@@ -192,7 +193,7 @@ describe('landing slider pending write', () => {
       expect(result).not.toContain('נכתב לבקר ואומת');
       expect(result).not.toContain('אין שינוי');
       expect(posts).toBe(0);
-      const saved = await api(base, 'GET', '/api/vision/config');
+      const saved = await api(base, 'GET', '/api/vision/landing-profile');
       expect(saved.json.profile.approach_speed_ms).toBe(29);
     } finally {
       await browser.close();

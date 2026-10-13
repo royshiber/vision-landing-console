@@ -146,7 +146,7 @@ describe('QA gate 14702a0', () => {
         const gear = getComputedStyle(document.getElementById('globalSettingsBtn'));
         return {
           read: shown('קריאה מהבקר'),
-          loadProfile: shown('טעינה מהקונסולה'),
+          loadProfile: shown('קריאה מהג׳טסון'),
           writeFc: shown('כתיבה לבקר'),
           backupWrite: shown('כתיבה'),
           writeColor: write.color,

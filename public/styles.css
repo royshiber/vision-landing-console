@@ -25273,6 +25273,20 @@ body[data-work-path="rf"] #optics .optics-calib {
 #control.panel.visible .param-card-fc-note {
   color: #e2e8f0;
 }
+#control .jetson-offline-note {
+  margin: 0;
+  width: 100%;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.35;
+  color: #fde68a;
+  white-space: normal !important;
+  overflow-wrap: anywhere;
+}
+#control.panel.visible .param-tool-seg:has(.jetson-offline-note:not([hidden])) {
+  max-height: none !important;
+  flex-wrap: wrap !important;
+}
 #control.panel.visible .param-card-actions {
   display: flex;
   flex-wrap: wrap;
@@ -27587,10 +27601,10 @@ button.mission-link-chip,
 }
 
 /* QA fold: one read/write pair, contrast, data strip, GPS detail, map chip, Ask. */
-.param-tool-seg[aria-label="גיבוי בקונסולה"] #visionConfigWriteBtn {
+.param-tool-seg[aria-label="פרמטרי נחיתה אופטית"] #visionConfigWriteBtn {
   display: none;
 }
-.param-tool-seg[aria-label="גיבוי בקונסולה"] {
+.param-tool-seg[aria-label="פרמטרי נחיתה אופטית"] {
   min-height: 28px;
 }
 #visionConfigWriteBtn,
@@ -27900,7 +27914,7 @@ body:has(#control.panel.visible) #assistToggleBtn {
   gap: 1px;
 }
 #control .param-tool-seg,
-#control .param-tool-seg[aria-label="גיבוי בקונסולה"] {
+#control .param-tool-seg[aria-label="פרמטרי נחיתה אופטית"] {
   min-height: 28px;
   align-items: center;
 }
@@ -27939,7 +27953,7 @@ body:has(#control.panel.visible) #assistToggleBtn {
     max-height: 40px;
   }
   #control.panel.visible .param-tool-seg,
-  #control.panel.visible .param-tool-seg[aria-label="גיבוי בקונסולה"] {
+  #control.panel.visible .param-tool-seg[aria-label="פרמטרי נחיתה אופטית"] {
     flex-wrap: nowrap;
     min-height: 28px;
     max-height: 40px;

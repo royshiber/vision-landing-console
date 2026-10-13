@@ -28,7 +28,8 @@ describe('Parameters tab layout contract — static source', () => {
     expect(html).toContain('id="fcToolState"');
     expect(html).toContain('id="paramToolFault"');
     expect(html).toContain('id="paramFileMenu"');
-    expect(html).toContain('גיבוי בקונסולה');
+    expect(html).toContain('פרמטרי נחיתה אופטית (ג׳טסון)');
+    expect(html).toContain('פרמטרי בקר (FC)');
     expect(html).toContain('בקר הטיסה');
     expect(css).toContain('#autoConfig.subpanel:not(.visible)');
     expect(css).toContain('.param-file-menu[hidden]');
@@ -77,7 +78,9 @@ describe('Parameters tab layout contract — live boxes', () => {
         return {
           SQLITE_PATH: sqlite,
           GEMINI_API_KEY: '',
-          COMPANION_MODE: 'off',
+          COMPANION_MODE: 'mock',
+          JETSON_COMPANION_BASE_URL: '',
+          VLC_LANDING_PROFILE_DIR: path.join(os.tmpdir(), `airvix-params-layout-profile-${port}`),
         };
       },
     });
