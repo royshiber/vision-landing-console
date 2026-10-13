@@ -422,6 +422,7 @@ function applyMainTab(tabId, { save = true } = {}) {
   }
   if ((tabId === 'control' || tabId === 'development') && !opsChromeAlwaysReachable(tabId)) return;
   if (!_mainTabIds().has(tabId) && !isAssistShelfPanel(tabId)) return;
+  if (save && tabId !== 'control' && !confirmUnsavedProfileLeave()) return;
   tabs.forEach((t) => t.classList.remove('active'));
   panels.forEach((p) => p.classList.remove('visible'));
   const tab = tabs.find((t) => t.dataset.tab === tabId);
@@ -464,8 +465,16 @@ function applyMainTab(tabId, { save = true } = {}) {
 }
 const PARAM_SUBTAB_IDS = new Set(['landingParams', 'abortParams', 'visionNavParams', 'arduParams', 'customParams']);
 
+function confirmUnsavedProfileLeave() {
+  if (typeof collectPendingProfileRows !== 'function' || !collectPendingProfileRows().length) return true;
+  if (!document.getElementById('control')?.classList.contains('visible')) return true;
+  return window.confirm('יש שינוי שלא נשמר בפרופיל. לעזוב בלי שמירה?');
+}
+
 function applyControlSubtab(subId, { save = true, selectOverride = null } = {}) {
   if (!_subtabIds().has(subId)) return;
+  const currentSub = subpanels.find((panel) => panel.classList.contains('visible'))?.id || '';
+  if (save && currentSub && currentSub !== subId && !confirmUnsavedProfileLeave()) return;
   subtabs.forEach((t) => t.classList.remove('active'));
   subpanels.forEach((p) => p.classList.remove('visible'));
   const st = subtabs.find((t) => t.dataset.subtab === subId);
@@ -1432,6 +1441,86 @@ function pendingValueText(value) {
   return String(value);
 }
 
+function formatProfileNumber(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return String(value ?? '');
+  return String(Math.round(n * 1000) / 1000);
+}
+
+function revertProfileKey(key) {
+  const saved = Number(profileWriteBaseline[key]);
+  if (!Number.isFinite(saved)) return;
+  profileState[key] = saved;
+  const slider = document.getElementById(`rng_${key}`);
+  const valueNode = document.getElementById(`val_${key}`);
+  if (slider) slider.value = String(saved);
+  if (valueNode) valueNode.textContent = formatProfileNumber(saved);
+  const mirror = document.querySelector(`#plndProfileHonestyKeys input[data-honesty-key="${key}"]`);
+  if (mirror) mirror.value = String(saved);
+  if (typeof refreshEventsFromParams === 'function') refreshEventsFromParams();
+  updateParamSyncBanner();
+}
+
+function paintProfileCard(card, param) {
+  if (!card || !param) return;
+  const next = Number(profileState[param.key]);
+  const saved = Number(profileWriteBaseline[param.key]);
+  const dirty = Number.isFinite(next) && arduValuesDiffer(saved, next);
+  card.classList.toggle('param-card--dirty', dirty);
+  let note = card.querySelector('.param-card-dirty');
+  let actions = card.querySelector('.param-card-actions');
+  if (!dirty) {
+    note?.remove();
+    actions?.remove();
+  } else {
+    if (!note) {
+      note = document.createElement('p');
+      note.className = 'param-card-dirty';
+      card.appendChild(note);
+    }
+    note.textContent = `לא נשמר — ${formatProfileNumber(next)} (שמור: ${formatProfileNumber(saved)})`;
+    if (!actions) {
+      actions = document.createElement('div');
+      actions.className = 'param-card-actions';
+      const save = document.createElement('button');
+      save.type = 'button';
+      save.className = 'param-tool-btn param-tool-btn--primary param-card-save';
+      save.textContent = 'שמירה';
+      save.addEventListener('click', () => { void saveVisionProfile(); });
+      const cancel = document.createElement('button');
+      cancel.type = 'button';
+      cancel.className = 'param-tool-btn param-tool-btn--secondary param-card-cancel';
+      cancel.textContent = 'ביטול';
+      cancel.addEventListener('click', () => revertProfileKey(param.key));
+      actions.append(save, cancel);
+      card.appendChild(actions);
+    }
+  }
+  let fcNote = card.querySelector('.param-card-fc-note');
+  if (fcCurrentSnapshot) {
+    if (!fcNote) {
+      fcNote = document.createElement('p');
+      fcNote.className = 'param-card-fc-note';
+      card.appendChild(fcNote);
+    }
+    fcNote.textContent = 'ערך קונסולה — לא נקרא מהבקר';
+  } else {
+    fcNote?.remove();
+  }
+}
+
+function refreshProfileDirtyMarks() {
+  for (const param of PARAMS) {
+    document.querySelectorAll(`.param-card[data-param-key="${param.key}"]`).forEach((card) => {
+      paintProfileCard(card, param);
+    });
+  }
+}
+
+function scrollToUnsavedProfileCard() {
+  document.querySelector('#control .param-card--dirty')?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+}
+
 /** Profile slider edits since the last backup sync. */
 function collectPendingProfileRows() {
   const rows = [];
@@ -1490,18 +1579,25 @@ function updateParamSyncBanner() {
   const el = document.getElementById('paramSyncBanner');
   if (!el) return;
 
-  const rows = collectPendingWriteRows();
+  const profileRows = collectPendingProfileRows();
+  const fcRows = collectPendingFcRows();
   const fcMis = countArduMismatchVsFc();
   const lines = [];
   let level = 'info';
-  if (rows.length) {
-    lines.push('יש שינוי');
-    for (const row of rows) lines.push(`${row.key} ${row.currentText} → ${row.nextText}`);
+  if (profileRows.length) {
+    lines.push(`שינוי לא נשמר (${profileRows.length})`);
+    for (const row of profileRows) lines.push(`${row.key} ${row.currentText} → ${row.nextText}`);
     level = 'warn';
-  } else if (fcMis == null) {
+  }
+  if (fcRows.length) {
+    lines.push('יש שינוי');
+    for (const row of fcRows) lines.push(`${row.key} ${row.currentText} → ${row.nextText}`);
+    level = 'warn';
+  }
+  if (!profileRows.length && !fcRows.length && fcMis == null) {
     lines.push('לא בוצעה קריאה מבקר הטיסה. לא ידוע אם המטוס תואם ליעדים.');
     level = 'info';
-  } else if (fcMis === 0) {
+  } else if (!profileRows.length && !fcRows.length && fcMis === 0) {
     lines.push('הכול מסונכרן: הגיבוי בקונסולה תואם למה שנקרא מבקר הטיסה.');
     level = 'ok';
   }
@@ -1512,9 +1608,10 @@ function updateParamSyncBanner() {
   if (typeof refreshArduWriteBtnState === 'function') refreshArduWriteBtnState(arduWriteGate);
   const writeBtn = document.getElementById('visionConfigWriteBtn');
   if (writeBtn) {
-    writeBtn.disabled = rows.length === 0;
-    writeBtn.title = rows.length ? 'שומר גיבוי בקונסולה' : 'אין שינוי לכתיבה';
+    writeBtn.disabled = profileRows.length === 0;
+    writeBtn.title = profileRows.length ? 'שומר גיבוי בקונסולה' : 'אין שינוי לכתיבה';
   }
+  refreshProfileDirtyMarks();
   el.replaceChildren();
   for (const text of lines) {
     const span = document.createElement('span');
@@ -2828,7 +2925,7 @@ function paintFcWriteResult(outcome, pairs = [], retry) {
   box.replaceChildren();
   const title = document.createElement('p');
   title.className = 'param-write-result-title';
-  const verifiedTitle = outcome?.text === 'נשמר ואומת' ? 'נשמר ואומת' : 'נכתב לבקר ואומת';
+  const verifiedTitle = outcome?.text === 'נשמר בקונסולה ואומת' ? 'נשמר בקונסולה ואומת' : 'נכתב לבקר ואומת';
   title.textContent = outcome?.level === 'ok' ? verifiedTitle : String(outcome?.text || '');
   box.appendChild(title);
   if (outcome?.level !== 'none') {
@@ -2886,18 +2983,18 @@ function refreshParamToolbarMeta() {
   const fcStateEl = document.getElementById('fcToolState');
   const fcMeta = document.getElementById('fcToolMeta');
   const serverKnown = lastServerSyncedCanonical != null;
-  const pending = collectPendingWriteRows();
+  const profilePending = collectPendingProfileRows();
+  const fcPending = collectPendingFcRows();
   const fcLink = resolvedFcLink();
-  const pendingLabel = pending.length > 0;
   if (jetsonState) {
     let state = 'unknown';
     let label = 'לא ידוע';
     if (backupLoadState === 'fail') {
       state = 'down';
       label = 'נכשל';
-    } else if (serverKnown && pendingLabel) {
+    } else if (serverKnown && profilePending.length) {
       state = 'dirty';
-      label = 'יש שינוי';
+      label = `שינוי לא נשמר (${profilePending.length})`;
     } else if (serverKnown || backupLoadState === 'ok') {
       state = 'ok';
       label = 'נטען';
@@ -2907,9 +3004,9 @@ function refreshParamToolbarMeta() {
   }
   if (jetsonMeta) jetsonMeta.textContent = '';
   if (fcStateEl) {
-    const state = pendingLabel ? 'dirty' : fcLink === 'ok' ? 'ok' : fcLink;
+    const state = fcPending.length ? 'dirty' : fcLink === 'ok' ? 'ok' : fcLink;
     fcStateEl.dataset.state = state;
-    fcStateEl.textContent = pendingLabel
+    fcStateEl.textContent = fcPending.length
       ? 'יש שינוי'
       : fcLink === 'ok' ? 'מחובר' : fcLink === 'down' ? 'מנותק' : 'לא ידוע';
   }
@@ -3071,8 +3168,21 @@ const visionConfigReadBtn = document.getElementById('visionConfigReadBtn');
 const visionConfigWriteBtn = document.getElementById('visionConfigWriteBtn');
 const visionConfigStatus = document.getElementById('visionConfigStatus');
 if (visionConfigReadBtn) {
-  visionConfigReadBtn.addEventListener('click', () => loadVisionConfigFromServer(visionConfigStatus));
+  visionConfigReadBtn.addEventListener('click', () => {
+    if (collectPendingProfileRows().length && !window.confirm('יש שינוי שלא נשמר. לטעון מהקונסולה ולבטל אותו?')) return;
+    loadVisionConfigFromServer(visionConfigStatus);
+  });
 }
+document.getElementById('jetsonToolState')?.addEventListener('click', () => {
+  if (!collectPendingProfileRows().length) return;
+  scrollToUnsavedProfileCard();
+});
+document.getElementById('saveVisionProfileBtn')?.addEventListener('click', () => { void saveVisionProfile(); });
+window.addEventListener('beforeunload', (event) => {
+  if (!collectPendingProfileRows().length) return;
+  event.preventDefault();
+  event.returnValue = '';
+});
 if (visionConfigWriteBtn) {
   visionConfigWriteBtn.addEventListener('click', () => saveVisionConfigToServer(visionConfigStatus));
 }
@@ -3114,43 +3224,78 @@ setInterval(() => {
   void refreshJetsonLink();
 }, 4000);
 
-if (saveProfileBtn) {
-  saveProfileBtn.addEventListener('click', async () => {
-    // Always keep localStorage for backward-compat / offline use.
+async function saveVisionProfile() {
+  const pending = collectPendingProfileRows();
+  try {
     localStorage.setItem('visionLandingProfile', JSON.stringify({
       values: profileState,
       locks: lockState,
       companionLink: { ...companionLinkState },
     }));
-    // Additionally push to server so the profile persists across browser clears / devices.
-    saveProfileBtn.textContent = '⏳ שומר…';
-    try {
-      const res = await fetch('/api/vision/config', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          profile: {
-            ...profileState,
-            companion_serial_port: companionLinkState.companion_serial_port,
-            companion_sr_bucket: companionLinkState.companion_sr_bucket,
-          },
-          arduTarget: { ...arduTargetState },
-        }),
-      });
-      const d = await res.json();
-      if (d.ok) {
-        captureServerBaseline();
-        updateParamSyncBanner();
-        saveProfileBtn.textContent = '✓ נשמר';
-      } else {
-        saveProfileBtn.textContent = '⚠ שגיאה';
-      }
-    } catch (err) {
-      saveProfileBtn.textContent = 'שמירה';
-      showParamToolFault(`שמירת הפרופיל נכשלה. הסיבה: ${hebrewRequestFault(err)}`, () => saveProfileBtn.click());
+  } catch { /* private mode */ }
+  const profilePayload = {
+    ...profileState,
+    companion_serial_port: companionLinkState.companion_serial_port,
+    companion_sr_bucket: companionLinkState.companion_sr_bucket,
+  };
+  try {
+    const res = await fetch('/api/vision/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ profile: profilePayload, arduTarget: { ...arduTargetState } }),
+    });
+    const posted = await res.json().catch(() => ({}));
+    if (!res.ok || !posted.ok) {
+      const fault = `שמירת הפרופיל נכשלה. הסיבה: ${posted.message || hebrewRequestFault(null, res)}`;
+      paintFcWriteResult({ level: 'fail', text: fault }, [], () => { void saveVisionProfile(); });
+      return;
     }
-    setTimeout(() => { saveProfileBtn.textContent = 'שמירה'; }, 1800);
-  });
+    const read = await fetch('/api/vision/config');
+    const saved = await read.json().catch(() => ({}));
+    const rows = pending.length ? pending : PARAMS.map((param) => ({
+      key: param.key,
+      currentText: formatProfileNumber(profileWriteBaseline[param.key]),
+      nextText: formatProfileNumber(profileState[param.key]),
+      value: Number(profileState[param.key]),
+    }));
+    const pairs = rows.map((row) => {
+      const got = saved?.profile?.[row.key];
+      const ok = read.ok && got != null && !arduValuesDiffer(got, row.value);
+      return {
+        key: row.key,
+        oldText: row.currentText,
+        newText: row.nextText,
+        result: ok ? 'verified' : 'failed',
+      };
+    });
+    const verified = pairs.length > 0 && pairs.every((pair) => pair.result === 'verified');
+    if (!verified) {
+      paintFcWriteResult({ level: 'fail', text: 'השמירה לא אומתה' }, pairs, () => { void saveVisionProfile(); });
+      return;
+    }
+    if (saved.profile && typeof saved.profile === 'object') {
+      serverProfileValues = { ...(serverProfileValues || {}) };
+      for (const param of PARAMS) {
+        const got = saved.profile[param.key];
+        if (got != null && Number.isFinite(Number(got))) {
+          profileState[param.key] = Number(got);
+          serverProfileValues[param.key] = got;
+        }
+      }
+    }
+    captureServerBaseline();
+    backupLoadState = 'ok';
+    clearParamToolFault();
+    renderParams();
+    paintFcWriteResult({ level: 'ok', text: 'נשמר בקונסולה ואומת' }, pairs, null);
+  } catch (err) {
+    const fault = `שמירת הפרופיל נכשלה. הסיבה: ${hebrewRequestFault(err)}`;
+    paintFcWriteResult({ level: 'fail', text: fault }, [], () => { void saveVisionProfile(); });
+  }
+}
+
+if (saveProfileBtn) {
+  saveProfileBtn.addEventListener('click', () => { void saveVisionProfile(); });
 }
 
 if (exportProfileBtn) {
@@ -13166,7 +13311,7 @@ function refreshArduWriteBtnState(arduStatus) {
   if (!btn) return;
   const { mavlinkConnected, armed } = arduStatus || {};
   arduWriteGate = { mavlinkConnected: !!mavlinkConnected, armed: armed === true ? true : armed === false ? false : null };
-  const pending = collectPendingWriteRows().length;
+  const pending = collectPendingFcRows().length;
   if (!mavlinkConnected) {
     btn.disabled = true;
     btn.classList.remove('ardu-write-armed');
@@ -13192,36 +13337,10 @@ async function runConfirmedParamWrite(rows, retry) {
   const btn = document.getElementById('arduWriteBtn');
   if (btn) btn.disabled = true;
   paintFcWriteResult({ level: 'none', text: 'שולח…' }, [], null);
-  const fcRows = rows.filter((row) => row.target === 'fc');
-  const profileRows = rows.filter((row) => row.target === 'profile');
+  const fcRows = rows.filter((row) => row.target !== 'profile');
   const pairs = [];
   try {
-    if (profileRows.length) {
-      await saveVisionConfigToServer(null);
-      let saved = null;
-      try {
-        const res = await fetch('/api/vision/config');
-        saved = await res.json();
-      } catch {
-        saved = null;
-      }
-      for (const row of profileRows) {
-        const got = saved?.profile?.[row.key];
-        const ok = got != null && !arduValuesDiffer(got, row.value);
-        pairs.push({
-          key: row.key,
-          oldText: row.currentText,
-          newText: row.nextText,
-          result: ok ? 'verified' : 'failed',
-        });
-      }
-    }
-    let outcome = {
-      level: pairs.length && pairs.every((pair) => pair.result === 'verified') ? 'ok' : 'fail',
-      text: pairs.length && pairs.every((pair) => pair.result === 'verified') ? 'נשמר ואומת' : 'השמירה נכשלה',
-      acked: {},
-    };
-    if (!profileRows.length) outcome = { level: 'none', text: '', acked: {} };
+    let outcome = { level: 'none', text: '', acked: {} };
     if (fcRows.length) {
       const dirtyParams = {};
       for (const row of fcRows) dirtyParams[row.key] = row.value;
@@ -13269,7 +13388,7 @@ if (arduWriteBtn) {
       refreshArduWriteBtnState(arduWriteGate);
       return;
     }
-    const rows = collectPendingWriteRows();
+    const rows = collectPendingFcRows();
     if (!rows.length) {
       paintFcWriteResult({ level: 'none', text: 'אין שינוי' }, [], null);
       refreshArduWriteBtnState(arduWriteGate);

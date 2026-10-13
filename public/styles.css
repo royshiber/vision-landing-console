@@ -22390,17 +22390,17 @@ body:has(#telemetry.panel.visible) #telemetry .tele-dash-sub {
 .param-toolbar {
   position: relative;
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   align-items: center;
   gap: 6px;
   width: 100%;
   min-width: 0;
 }
 .param-tool-seg {
-  flex: 1 1 auto;
+  flex: 1 1 160px;
   min-width: 0;
   display: flex;
-  flex-direction: row;
+  flex-flow: row wrap;
   align-items: center;
   gap: 6px;
   padding: 2px 6px;
@@ -22430,6 +22430,20 @@ body:has(#telemetry.panel.visible) #telemetry .tele-dash-sub {
   color: #94a3b8;
   overflow-wrap: anywhere;
 }
+button.param-tool-state {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font: inherit;
+  font-size: clamp(11px, 0.72rem, 12px);
+  font-weight: 700;
+  line-height: 1.3;
+  text-align: start;
+  cursor: pointer;
+  max-width: 100%;
+  white-space: normal;
+}
 .param-tool-meta {
   position: absolute;
   width: 1px;
@@ -22458,9 +22472,12 @@ body:has(#telemetry.panel.visible) #telemetry .tele-dash-sub {
   font-family: "Heebo", sans-serif;
   font-weight: 800;
   font-size: clamp(11px, 0.72rem, 0.75rem);
+  line-height: 1.3;
   padding: 2px 8px;
   cursor: pointer;
-  white-space: nowrap;
+  white-space: normal;
+  text-align: center;
+  max-width: 100%;
 }
 .param-tool-btn--primary {
   background: #0c4a6e;
@@ -25238,6 +25255,30 @@ body[data-work-path="rf"] #optics .optics-calib {
   border-radius: 12px;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
+#control.panel.visible .param-card.param-card--dirty {
+  border: 2px solid #fbbf24;
+}
+#control.panel.visible .param-card-dirty,
+#control.panel.visible .param-card-fc-note {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.35;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+#control.panel.visible .param-card-dirty {
+  color: #fde68a;
+}
+#control.panel.visible .param-card-fc-note {
+  color: #e2e8f0;
+}
+#control.panel.visible .param-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+}
 #control.panel.visible .fc-group-he,
 #control.panel.visible .param-title,
 #control.panel.visible .plnd-honesty-key-name {
@@ -27546,7 +27587,7 @@ button.mission-link-chip,
 }
 
 /* QA fold: one read/write pair, contrast, data strip, GPS detail, map chip, Ask. */
-.param-tool-seg[aria-label="גיבוי בקונסולה"] .param-tool-actions {
+.param-tool-seg[aria-label="גיבוי בקונסולה"] #visionConfigWriteBtn {
   display: none;
 }
 .param-tool-seg[aria-label="גיבוי בקונסולה"] {
