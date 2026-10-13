@@ -8372,6 +8372,9 @@ function initHorizonCameraMenu() {
 
   const horizonFace = stage.closest('.pfd-horizon-instrument') || stage;
   horizonFace.addEventListener('contextmenu', (event) => {
+    if (event.target?.closest?.('button, [role="button"]')) event.preventDefault();
+  }, true);
+  horizonFace.addEventListener('contextmenu', (event) => {
     if (event.target?.closest?.('button, a, input, select, [role="button"]')) return;
     if (!event.target?.closest?.('#pfdHorizonStage, .pfd-side-tape, #horizonQuick')) return;
     event.preventDefault();
@@ -9156,7 +9159,7 @@ function syncFlightArmControls(mav) {
     armBtn.disabled = false;
     disarmBtn.disabled = false;
     armBtn.title = 'חימוש — אין חיבור לבקר הטיסה';
-    disarmBtn.title = 'אין חיבור לבקר הטיסה';
+    disarmBtn.title = 'ניטרול — אין חיבור לבקר הטיסה';
     paintNoLinkReason(reason);
     if (row) row.dataset.armLink = 'off';
     return;

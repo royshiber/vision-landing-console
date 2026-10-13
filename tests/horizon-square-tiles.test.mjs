@@ -191,6 +191,45 @@ describe('horizon square and whole tile words', () => {
             return new Set(tops).size;
           })(),
           armTitle: document.getElementById('flightArmBtn')?.title || '',
+          disarmTitle: document.getElementById('flightDisarmBtn')?.title || '',
+          barOverlap: Math.round((stage.bottom - (bar?.top || stage.bottom)) * 10) / 10,
+          chipClear: (() => {
+            const canvas = document.getElementById('horizonCanvas')?.getBoundingClientRect();
+            const stack = document.getElementById('runwayAwarenessStack')?.getBoundingClientRect();
+            if (!canvas || !stack) return 0;
+            return Math.round((canvas.bottom - 22 - stack.bottom) * 10) / 10;
+          })(),
+          badgeHidden: document.getElementById('pfdArmedBadge')?.hidden === true,
+          shownBadge: (() => {
+            const el = document.getElementById('pfdArmedBadge');
+            const armEl = document.getElementById('flightArmBtn');
+            const was = el.hidden;
+            el.hidden = false;
+            const labelEl = el.querySelector('.horizon-quick-label');
+            const b = el.getBoundingClientRect();
+            const a = armEl.getBoundingClientRect();
+            const after = getComputedStyle(el, '::after').content || '';
+            const out = {
+              labelDisplay: getComputedStyle(labelEl).display,
+              labelText: labelEl.textContent || '',
+              after,
+              icon: getComputedStyle(el.querySelector('.horizon-quick-icon')).display,
+              gap: Math.round((Math.max(b.left, a.left) - Math.min(b.right, a.right)) * 10) / 10,
+              inside: b.left >= stage.left - 1 && b.right <= stage.right + 1
+                && b.top >= stage.top - 1 && b.bottom <= stage.bottom + 1,
+            };
+            el.hidden = was;
+            return out;
+          })(),
+          menuPrevented: ['flightArmBtn', 'flightDisarmBtn', 'pfdVoiceFlightBtn', 'pfdArmedBadge'].map((id) => {
+            const el = document.getElementById(id);
+            let prevented = false;
+            const fn = (event) => { prevented = event.defaultPrevented; };
+            el.addEventListener('contextmenu', fn);
+            el.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+            el.removeEventListener('contextmenu', fn);
+            return { id, prevented };
+          }),
           controls: ['pfdArmedBadge', 'flightArmBtn', 'flightDisarmBtn', 'pfdVoiceFlightBtn'].map((id) => {
             const el = document.getElementById(id);
             const box = el.getBoundingClientRect();
@@ -216,6 +255,7 @@ describe('horizon square and whole tile words', () => {
               const box = document.querySelector('.pfd-side-tape--right').getBoundingClientRect();
               return { x: box.left + box.width / 2, y: box.top + box.height / 2 };
             })(),
+            bottom: { x: stage.left + stage.width / 2, y: stage.bottom - 2 },
           },
         };
       });
@@ -247,6 +287,24 @@ describe('horizon square and whole tile words', () => {
       expect(report.scroll, name).toBe(0);
       expect(report.noteHidden, `${name} ${report.tilesText}`).toBe(true);
       expect(report.armTitle, name).toBe('חימוש — אין חיבור לבקר הטיסה');
+      expect(report.disarmTitle, name).toBe('ניטרול — אין חיבור לבקר הטיסה');
+      expect(report.barOverlap, `${name} landing row`).toBeLessThanOrEqual(0);
+      expect(report.tilesBottom, `${name} tiles above landing row`).toBeLessThanOrEqual(report.barBottom - report.barH);
+      if (report.height < 280) {
+        expect(report.chipClear, `${name} roll pitch chips`).toBeGreaterThanOrEqual(0);
+      }
+      expect(report.badgeHidden, name).toBe(true);
+      expect(report.shownBadge.inside, name).toBe(true);
+      expect(report.shownBadge.gap, name).toBeGreaterThanOrEqual(4);
+      if (report.width >= 240) {
+        expect(report.shownBadge.labelDisplay, name).not.toBe('none');
+        expect(report.shownBadge.labelText, name).toMatch(/חמוש|מנוטרל/);
+      } else {
+        expect(report.shownBadge.labelDisplay, name).toBe('none');
+        expect(report.shownBadge.after, name).toMatch(/[חמ?]/);
+        expect(report.shownBadge.icon, name).not.toBe('none');
+      }
+      expect(report.menuPrevented.filter((row) => !row.prevented).map((row) => row.id), name).toEqual([]);
       expect(report.controls.filter((row) => row.shown && !row.inside).map((row) => row.id), name).toEqual([]);
       if (report.height < 280) {
         expect(report.tilesText, name).not.toMatch(/%/);

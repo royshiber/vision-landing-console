@@ -28222,6 +28222,7 @@ html body #horizonQuick .flight-arm-btn .horizon-quick-label {
 .horizon-quick .pfd-badge {
   font-family: "Heebo", "Segoe UI", sans-serif;
   letter-spacing: 0;
+  margin-inline-end: 4px !important;
 }
 #pfdHorizonStage > canvas,
 #pfdHorizonStage > .pfd-horizon-video,
@@ -29130,13 +29131,14 @@ body:has(#terrain.panel.visible) .layout,
     aspect-ratio: 1 / 1 !important;
     flex: 0 0 auto !important;
     margin-inline: auto !important;
+    padding: 0 !important;
   }
   .mission-workspace[data-mission-layout="ops-v1"]:not([data-mission-swap="horizon-map"]) .mission-region-horizon .pfd-horizon-instrument,
   .mission-workspace[data-mission-layout="ops-v1"]:not([data-mission-swap="horizon-map"]) .mission-region-horizon .pfd-horizon-stage {
-    width: min(100%, var(--horizon-phone-square, 240px)) !important;
-    height: var(--horizon-phone-square, 240px) !important;
+    width: 100% !important;
+    height: 100% !important;
     max-width: 100% !important;
-    max-height: none !important;
+    max-height: 100% !important;
   }
   .mission-workspace[data-mission-layout="ops-v1"]:not([data-mission-swap="horizon-map"]) .mission-region-horizon:not([data-flight-stack="custom"]) > .flight-hud,
   .mission-workspace[data-mission-layout="ops-v1"]:not([data-mission-swap="horizon-map"]) .mission-region-horizon:not([data-flight-stack="custom"]):has(> .mission-region-messages[data-flight-dock="actions"]) > .flight-hud,
@@ -29150,21 +29152,55 @@ body:has(#terrain.panel.visible) .layout,
   }
 }
 .pfd-horizon-instrument:has(#pfdHorizonStage[data-awareness-stage="short"]) > .pfd-side-tape {
-  top: 48px !important;
+  top: 44px !important;
   bottom: auto !important;
   transform: none !important;
+  padding: 1px 4px !important;
+  gap: 0 !important;
+}
+.pfd-horizon-instrument:has(#pfdHorizonStage[data-awareness-stage="short"]) > .pfd-side-tape :is(.pfd-tape-key, .pfd-tape-big, .pfd-tape-unit) {
+  font-size: 11px !important;
+  line-height: 1.3 !important;
 }
 @container (max-width: 420px) {
-  #horizonQuick .pfd-badge .horizon-quick-label,
   #horizonQuick .pfd-voice-flight-btn .horizon-quick-label {
     display: none !important;
   }
-  #horizonQuick .pfd-badge,
   #horizonQuick .pfd-voice-flight-btn {
     width: 40px !important;
     min-width: 40px !important;
     padding: 0 !important;
   }
+}
+@container (max-width: 239px) {
+  #horizonQuick .pfd-badge .horizon-quick-label {
+    display: none !important;
+  }
+  #horizonQuick .pfd-badge {
+    width: 40px !important;
+    min-width: 40px !important;
+    padding: 0 !important;
+  }
+  #horizonQuick .pfd-badge::after {
+    font-family: "Heebo", "Segoe UI", sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1;
+  }
+  #horizonQuick .pfd-badge--armed::after { content: "ח"; }
+  #horizonQuick .pfd-badge--disarmed::after { content: "מ"; }
+  #horizonQuick .pfd-badge--unknown::after { content: "?"; }
+}
+@container (min-width: 240px) {
+  #horizonQuick .pfd-badge .horizon-quick-label {
+    display: inline !important;
+  }
+  #horizonQuick .pfd-badge {
+    width: auto !important;
+    min-width: 40px !important;
+    padding: 0 4px !important;
+  }
+  #horizonQuick .pfd-badge::after { content: none; }
 }
 @container (max-width: 220px) {
   #horizonQuick {
