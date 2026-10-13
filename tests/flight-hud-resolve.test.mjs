@@ -4,6 +4,7 @@ import {
   resolveHudParamLocally,
   parseHudGeminiResolution,
   suggestMissionDataFields,
+  formatGpsHdop,
   FLIGHT_HUD_CATALOG,
 } from '../lib/flight-hud-resolve.mjs';
 
@@ -67,6 +68,40 @@ describe('suggestMissionDataFields', () => {
     const miss = suggestMissionDataFields('מספר לוויינים בדוי 12.4');
     expect(miss.chips.every((c) => typeof c.key === 'string')).toBe(true);
     expect(JSON.stringify(miss)).not.toMatch(/12\.4/);
+  });
+
+  it('says when nothing matches, and scales HDOP', () => {
+    const miss = suggestMissionDataFields('בלי שום התאמה בכלל');
+    expect(miss.chips).toEqual([]);
+    expect(miss.hint).toBe('לא נמצא נתון מתאים. נסחו מחדש.');
+    expect(FLIGHT_HUD_CATALOG.find((e) => e.key === 'mavlink.gpsHdop')?.label).toBe('HDOP');
+    expect(formatGpsHdop(140)).toBe(1.4);
+    expect(formatGpsHdop(1.4)).toBe(1.4);
+    expect(formatGpsHdop(65535)).toBe(null);
+  });
+
+  it('finds GPS satellites for both Hebrew spellings', () => {
+    for (const phrase of ['לוויינים', 'כמות לוויינים', 'לווינים', 'כמות לווינים']) {
+      const hit = suggestMissionDataFields(phrase);
+      expect(hit.exact?.key, phrase).toBe('mavlink.gpsSats');
+      expect(hit.exact?.mav).toBe('GPS_RAW_INT.satellites_visible');
+      expect(hit.chips[0].key).toBe('mavlink.gpsSats');
+    }
+    const keys = FLIGHT_HUD_CATALOG.map((entry) => entry.key);
+    for (const key of [
+      'mavlink.gpsSats',
+      'mavlink.gpsFixType',
+      'mavlink.gpsHdop',
+      'mavlink.batteryPct',
+      'mavlink.batteryCurrentA',
+      'mavlink.rssi',
+      'mavlink.throttle',
+      'mavlink.windSpeed',
+      'mavlink.distHomeM',
+      'mavlink.wpDistM',
+    ]) {
+      expect(keys).toContain(key);
+    }
   });
 
   it('matches technical MAVLink keys used in the suggestion list', () => {

@@ -276,15 +276,24 @@ describe('connect popover relay cache, home ownership, and prefs', () => {
     try { fs.unlinkSync(tmpPath); } catch { /* ignore */ }
   });
 
-  it('clears the relay cache when radio disconnects', () => {
+  it('keeps the relay cache when radio disconnects and clears it for cellular', () => {
+    const closed = [];
     const ctx = {
       db,
       lastCompanionMavlinkRelay: { ok: true, id: 6, connected: true },
-      closeCompanionMavlinkRelay: () => ({ ok: true, closed: [6] }),
+      closeCompanionMavlinkRelay: () => {
+        closed.push(6);
+        return { ok: true, closed: [6] };
+      },
     };
-    const result = disconnectLink(ctx, 'radio');
-    expect(result.ok).toBe(true);
+    const radio = disconnectLink(ctx, 'radio');
+    expect(radio.ok).toBe(true);
+    expect(ctx.lastCompanionMavlinkRelay?.id).toBe(6);
+    expect(closed).toEqual([]);
+    const cellular = disconnectLink(ctx, 'cellular');
+    expect(cellular.ok).toBe(true);
     expect(ctx.lastCompanionMavlinkRelay).toBeNull();
+    expect(closed).toEqual([6]);
   });
 
   it('persists prefs and tells the operator when the Jetson cannot switch uplinks', async () => {
