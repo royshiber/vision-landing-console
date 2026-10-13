@@ -521,6 +521,26 @@ describe('runway awareness layout', () => {
     expect(chipClear.lines, JSON.stringify(chipClear)).toBe(1);
     expect(chipClear.nowrap).toBe('nowrap');
     expect(chipClear.hits, JSON.stringify(chipClear)).toBe(false);
+    const headerClear = await page.evaluate(() => {
+      function hits(a, b) {
+        if (!a || !b || a.width < 1 || b.width < 1) return false;
+        const w = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+        const h = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+        return w > 0 && h > 0;
+      }
+      const arm = document.getElementById('runwayVisionArm').getBoundingClientRect();
+      const state = document.getElementById('runwayVisionState').getBoundingClientRect();
+      const headers = [...document.querySelectorAll('#runwayAwarenessTiles .runway-awareness-k')].map((el) => ({
+        text: el.textContent,
+        box: el.getBoundingClientRect(),
+      }));
+      const covered = headers.filter((row) => hits(arm, row.box)).map((row) => row.text);
+      const outside = arm.left < state.left - 1 || arm.right > state.right + 1
+        || arm.top < state.top - 1 || arm.bottom > state.bottom + 1;
+      return { covered, outside, parent: document.getElementById('runwayVisionArm').parentElement?.id || '' };
+    });
+    expect(headerClear.covered, JSON.stringify(headerClear)).toEqual([]);
+    expect(headerClear.outside, JSON.stringify(headerClear)).toBe(false);
     const missionFit = await page.evaluate(collectTextFitFailures, 1);
     const missionRunway = (missionFit.fails || []).filter((row) => /runway/i.test(`${row.who} ${row.text}`));
     expect(missionRunway.length, JSON.stringify(missionRunway)).toBe(0);

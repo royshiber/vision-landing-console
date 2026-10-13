@@ -313,7 +313,8 @@ function syncStage(doc) {
     if (short) stage.append(state);
     else tiles.insertBefore(state, tiles.firstChild);
   }
-  const narrow = short && stage.clientWidth > 0 && stage.clientWidth <= 200;
+  const missionLabel = arm?.dataset.armLabel === 'mission';
+  const narrow = short && stage.clientWidth > 0 && stage.clientWidth <= 200 && !missionLabel;
   if (arm && state) {
     const parent = narrow ? stage : state;
     if (arm.parentElement !== parent) parent.append(arm);

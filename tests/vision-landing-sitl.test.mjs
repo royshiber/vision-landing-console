@@ -806,6 +806,22 @@ describe('vision landing SITL e2e', () => {
     const done = level.run.controller.requestOptical({ ...flat, altAt: 51_000 });
     expect(done.ok).toBe(true);
     expect(done.reason).not.toBe('go_around');
+
+    const sink = climbed();
+    const falling = {
+      ...sink.vehicle,
+      altAglM: target - 4,
+      relativeAltM: 80,
+      climbMps: -0.8,
+      altAt: 48_000,
+      customMode: 15,
+    };
+    sink.run.at(48_000);
+    sink.run.controller.tick({ estimate: sink.seen, vehicle: falling });
+    sink.run.at(51_000);
+    const descending = sink.run.controller.requestOptical({ ...falling, altAt: 51_000 });
+    expect(descending.ok).toBe(false);
+    expect(descending.reason).toBe('go_around');
   });
 
   it('does not wait for a climb that a frozen glide never got acknowledged', (ctx) => {
