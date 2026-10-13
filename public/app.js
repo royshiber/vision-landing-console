@@ -15368,7 +15368,7 @@ initLiveCameraPanel();
               : 'off';
       chip.dataset.state = state;
       chip.dataset.quality = row.quality?.known ? 'known' : 'unknown';
-      chip.title = row.hintHe || row.nameHe || '';
+      chip.title = row.roleNoticeHe || row.hintHe || row.nameHe || '';
     });
     if (typeof paintPulseCommStatus === 'function') paintPulseCommStatus(links);
     syncRadioWithWork();
@@ -15460,6 +15460,9 @@ initLiveCameraPanel();
     if (radioChip) {
       radioChip.dataset.state = chipStateFromLink(links.radio);
       radioChip.textContent = `${links.radioLabelHe || 'RF'} · ${links.radioStatusHe || 'מנותק'}`;
+      const radioNotice = links.comm?.rows?.find((row) => row.id === 'radio')?.roleNoticeHe || '';
+      if (radioNotice) radioChip.title = radioNotice;
+      else radioChip.removeAttribute('title');
     }
     if (cellularChip) {
       const cellPathUp = (links?.comm?.rows || []).some((row) => row.id === 'cellular' && row.connected === true);
@@ -15470,6 +15473,9 @@ initLiveCameraPanel();
       cellularChip.textContent = cellPathUp
         ? 'סלולר · מחובר'
         : `סלולר · ${links.cellularStatusHe || (links.modemPresent === false ? 'מודם לא מחובר' : 'מנותק')}`;
+      const cellNotice = links.comm?.rows?.find((row) => row.id === 'cellular')?.roleNoticeHe || '';
+      if (cellNotice) cellularChip.title = cellNotice;
+      else cellularChip.removeAttribute('title');
     }
     if (cellularModemStatus) {
       const absent = links.modemPresent !== true || links.cellular === 'modem_absent';
@@ -24321,7 +24327,18 @@ function paintFlightLinkPanel(prefix, id) {
   if (action) {
     action.textContent = flightMenuActionHe(row, id);
     action.dataset.link = id || '';
+    action.dataset.connectionId = row?.connectionId != null ? String(row.connectionId) : '';
     action.classList.toggle('is-disconnect', action.textContent === 'התנתקו');
+  }
+  if (prefix === 'flightLink') {
+    const note = document.getElementById('flightLinkRoleNote');
+    const actions = document.getElementById('flightLinkRoleActions');
+    const notice = String(row?.roleNoticeHe || '').trim();
+    if (note) {
+      note.hidden = !notice;
+      note.textContent = notice;
+    }
+    if (actions) actions.hidden = row?.connectionId == null;
   }
   return id;
 }
@@ -24443,10 +24460,61 @@ function openFlightLinkMenu(id, x, y) {
   const menu = document.getElementById('flightLinkMenu');
   const comm = document.getElementById('flightCommMenu');
   if (comm) comm.hidden = true;
+  const result = document.getElementById('flightLinkRoleResult');
+  if (result) {
+    result.hidden = true;
+    result.textContent = '';
+  }
   attachWorkLinkPicker(menu);
   paintFlightLinkPanel('flightLink', id);
   placeFlightMenu(menu, x, y);
   syncFlightCommChoice();
+}
+
+function flightLinkRoleResultHe(body) {
+  const notice = String(body?.roleNoticeHe || '').trim();
+  if (notice && body?.savedLinkRole === 'radio' && body?.shownLinkRole === 'cellular') {
+    return 'התפקיד נשמר כ-RF. התעבורה נשארת סלולר.';
+  }
+  if (notice && body?.savedLinkRole === 'cellular' && body?.shownLinkRole === 'radio') {
+    return 'התפקיד נשמר כסלולר. התעבורה נשארת RF.';
+  }
+  if (body?.savedLinkRole === 'cellular') return 'התפקיד נשמר כסלולר.';
+  if (body?.savedLinkRole === 'radio') return 'התפקיד נשמר כ-RF.';
+  return notice;
+}
+
+async function saveFlightLinkRole(role) {
+  const id = document.getElementById('flightLinkAction')?.dataset.connectionId || '';
+  const note = document.getElementById('flightLinkRoleResult');
+  if (!note) return;
+  note.hidden = false;
+  if (!id) {
+    note.textContent = 'אין קישור חי לשמירה.';
+    return;
+  }
+  try {
+    const res = await fetch(`/api/connections/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ linkRole: role }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok || body?.ok !== true) {
+      note.textContent = 'שמירת התפקיד נכשלה.';
+      return;
+    }
+    note.textContent = flightLinkRoleResultHe(body);
+    const links = await fetch('/api/links', { cache: 'no-store' });
+    if (links.ok) {
+      const snap = await links.json();
+      if (snap?.ok && snap.links) {
+        document.dispatchEvent(new CustomEvent('vlc:links-snapshot', { detail: snap.links }));
+      }
+    }
+  } catch {
+    note.textContent = 'שמירת התפקיד נכשלה.';
+  }
 }
 
 function syncFlightCommChoice() {
@@ -24553,6 +24621,22 @@ function initFlightCommMenus() {
   document.getElementById('flightLinkAction')?.addEventListener('click', () => {
     runExistingLinkAction(document.getElementById('flightLinkAction')?.dataset.link || '');
   });
+  document.getElementById('flightLinkRoleCellular')?.addEventListener('click', () => {
+    void saveFlightLinkRole('cellular');
+  });
+  document.getElementById('flightLinkRoleRadio')?.addEventListener('click', () => {
+    void saveFlightLinkRole('radio');
+  });
+  for (const chip of [
+    ['radioLinkChip', 'radio'],
+    ['cellularLinkChip', 'cellular'],
+  ]) {
+    document.getElementById(chip[0])?.addEventListener('contextmenu', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      openFlightLinkMenu(chip[1], event.clientX, event.clientY);
+    });
+  }
   document.addEventListener('pointerdown', (event) => {
     const target = event.target;
     if (!(target instanceof Element)) return;

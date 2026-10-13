@@ -1,0 +1,152 @@
+import { describe, it, expect } from 'vitest';
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { openDatabase } from '../lib/db.mjs';
+import {
+  bucketLinkStatuses,
+  displayedLinkRole,
+  linkRoleNotice,
+  persistConnectionLinkRole,
+  savedLinkRole,
+} from '../lib/link-attribution.mjs';
+import { summarizeCommLinks } from '../lib/comm-links.mjs';
+import {
+  closeCompanionMavlinkRelay,
+  openCompanionMavlinkRelay,
+} from '../lib/companion-mavlink-relay.mjs';
+
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+
+const tailscaleRelay = {
+  id: 7,
+  name: 'Jetson MAVLink relay (100.64.8.8:5770)',
+  type: 'tcp',
+  host: '100.64.8.8',
+  port: 5770,
+  linkRole: 'radio',
+  connected: true,
+  heartbeatCount: 4,
+  lastHeartbeatAgeMs: 200,
+};
+
+describe('link role follows the real transport', () => {
+  it('shows a Tailscale relay as cellular without rewriting the saved role', () => {
+    const input = { ...tailscaleRelay };
+    expect(savedLinkRole(input)).toBe('radio');
+    expect(displayedLinkRole(input)).toBe('cellular');
+    expect(linkRoleNotice(input)).toBe('הקישור נשמר כ-RF. התעבורה היא סלולר.');
+    expect(input.linkRole).toBe('radio');
+  });
+
+  it('keeps a serial telemetry radio on RF and a plain saved radio unchanged', () => {
+    const radio = {
+      id: 2,
+      type: 'serial',
+      serialPort: '/dev/ttyUSB0',
+      linkRole: 'radio',
+      connected: true,
+    };
+    const plain = { id: 3, type: 'udp', host: '127.0.0.1', port: 14550, linkRole: 'radio' };
+    expect(displayedLinkRole(radio)).toBe('radio');
+    expect(linkRoleNotice(radio)).toBe('');
+    expect(displayedLinkRole(plain)).toBe('radio');
+    expect(displayedLinkRole({ type: 'telemetry', linkRole: 'cellular' })).toBe('radio');
+    const bucket = bucketLinkStatuses([radio, tailscaleRelay, plain]);
+    expect(bucket.radio?.id).toBe(2);
+    expect(bucket.cellular?.id).toBe(7);
+  });
+
+  it('paints the relay on the cellular row and leaves the RF row down', () => {
+    const summary = summarizeCommLinks({
+      radio: 'disconnected',
+      cellular: 'disconnected',
+      modemPresent: false,
+      radioLive: null,
+      cellularLive: tailscaleRelay,
+    });
+    const cell = summary.rows.find((row) => row.id === 'cellular');
+    const radio = summary.rows.find((row) => row.id === 'radio');
+    expect(cell.connected).toBe(true);
+    expect(cell.shownLinkRole).toBe('cellular');
+    expect(cell.savedLinkRole).toBe('radio');
+    expect(cell.roleNoticeHe).toBe('הקישור נשמר כ-RF. התעבורה היא סלולר.');
+    expect(cell.hintHe).toContain('הקישור נשמר כ-RF');
+    expect(cell.connectionId).toBe(7);
+    expect(radio.connected).toBe(false);
+    expect(radio.connectionId).toBeUndefined();
+    expect(tailscaleRelay.linkRole).toBe('radio');
+  });
+
+  it('inserts a new relay as cellular and does not rewrite an existing saved row', async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'vlc-role-'));
+    const db = openDatabase(path.join(root, 'app.sqlite'));
+    try {
+      const existing = db.prepare(
+        `INSERT INTO connections (name, type, host, port, serial_port, baud_rate, link_role) VALUES (?,?,?,?,?,?,?)`,
+      ).run('saved radio', 'tcp', '100.64.8.8', 5770, null, 57600, 'radio');
+      const activated = [];
+      const opened = await openCompanionMavlinkRelay({
+        db,
+        baseUrl: 'http://100.64.8.8:8081',
+        activate: async (cfg) => {
+          activated.push(cfg);
+          return { id: cfg.id, connected: true };
+        },
+        listStatuses: () => [],
+        statusOf: (id) => ({ id, connected: true, heartbeatCount: 1 }),
+      });
+      expect(opened.ok).toBe(true);
+      expect(activated[0].linkRole).toBe('cellular');
+      expect(db.prepare(`SELECT link_role FROM connections WHERE id = ?`).get(existing.lastInsertRowid).link_role).toBe('radio');
+      expect(db.prepare(`SELECT link_role FROM connections WHERE id = ?`).get(opened.id).link_role).toBe('cellular');
+
+      const matched = persistConnectionLinkRole(db, existing.lastInsertRowid, 'cellular');
+      expect(matched.ok).toBe(true);
+      expect(matched.savedLinkRole).toBe('cellular');
+      expect(matched.shownLinkRole).toBe('cellular');
+      expect(matched.roleNoticeHe).toBe('');
+      expect(db.prepare(`SELECT link_role FROM connections WHERE id = ?`).get(opened.id).link_role).toBe('cellular');
+
+      const mismatch = persistConnectionLinkRole(db, existing.lastInsertRowid, 'radio');
+      expect(mismatch.savedLinkRole).toBe('radio');
+      expect(mismatch.shownLinkRole).toBe('cellular');
+      expect(mismatch.roleNoticeHe).toBe('הקישור נשמר כ-RF. התעבורה היא סלולר.');
+      expect(db.prepare(`SELECT link_role FROM connections WHERE id = ?`).get(existing.lastInsertRowid).link_role).toBe('radio');
+    } finally {
+      db.close();
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('closes a relay that is already marked cellular', () => {
+    const deactivated = [];
+    const closed = closeCompanionMavlinkRelay({
+      baseUrl: 'http://100.64.8.8:8081',
+      deactivate: (id) => { deactivated.push(id); },
+      listStatuses: () => [{
+        id: 4,
+        type: 'tcp',
+        host: '100.64.8.8',
+        port: 5770,
+        linkRole: 'cellular',
+        connected: true,
+      }],
+    });
+    expect(closed.closed).toContain(4);
+    expect(deactivated).toContain(4);
+  });
+
+  it('offers the role in the comms chip menu', () => {
+    const html = fs.readFileSync(path.join(repoRoot, 'public/index.html'), 'utf8');
+    const js = fs.readFileSync(path.join(repoRoot, 'public/app.js'), 'utf8');
+    expect(html).toContain('id="flightLinkRoleNote"');
+    expect(html).toContain('שמרו כסלולר');
+    expect(html).toContain('שמרו כ-RF');
+    expect(js).toContain('function saveFlightLinkRole');
+    expect(js).toContain('linkRole: role');
+    expect(js).toContain('התפקיד נשמר כסלולר.');
+    expect(js).toContain('התפקיד נשמר כ-RF. התעבורה נשארת סלולר.');
+  });
+});
