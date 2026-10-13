@@ -4,9 +4,9 @@
     "date": "2026-10-13",
     "changes": [
       {
-        "type": "chore",
-        "title": "Build scripts",
-        "detail": "README.md, camera_ingest.py, install.sh, test_rtsp_latency.py, test_vision_deploy.py"
+        "type": "fix",
+        "title": "גיסטרימר נמצא בנתיב המערכת",
+        "detail": "ההתקנה שואלת את פייתון המערכת איפה החבילה יושבת, כולל הנתיב בלי מספר גרסה. את מפרש הסביבה מריצים כמשתמש השירות ולא כשורש."
       }
     ]
   },
