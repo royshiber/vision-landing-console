@@ -26449,6 +26449,9 @@ button.mission-link-chip,
   gap: 6px;
   min-width: 0;
 }
+.flight-link-role-actions button[hidden] {
+  display: none;
+}
 .flight-link-role-actions button {
   margin: 0;
   border: 1px solid rgba(255, 255, 255, 0.16);

@@ -37,7 +37,7 @@ describe('link role follows the real transport', () => {
     const input = { ...tailscaleRelay };
     expect(savedLinkRole(input)).toBe('radio');
     expect(displayedLinkRole(input)).toBe('cellular');
-    expect(linkRoleNotice(input)).toBe('הקישור נשמר כקישור RF. התעבורה היא סלולר.');
+    expect(linkRoleNotice(input)).toBe('נשמר כ\u05be <bdi dir="ltr">RF</bdi> · בפועל עובר בסלולר');
     expect(input.linkRole).toBe('radio');
   });
 
@@ -52,6 +52,9 @@ describe('link role follows the real transport', () => {
     const plain = { id: 3, type: 'udp', host: '127.0.0.1', port: 14550, linkRole: 'radio' };
     expect(displayedLinkRole(radio)).toBe('radio');
     expect(linkRoleNotice(radio)).toBe('');
+    expect(linkRoleNotice({ ...radio, linkRole: 'cellular' })).toBe(
+      'נשמר כ\u05beסלולר · בפועל עובר ב\u05be <bdi dir="ltr">RF</bdi>',
+    );
     expect(displayedLinkRole(plain)).toBe('radio');
     expect(displayedLinkRole({ type: 'telemetry', linkRole: 'cellular' })).toBe('radio');
     const bucket = bucketLinkStatuses([radio, tailscaleRelay, plain]);
@@ -72,8 +75,9 @@ describe('link role follows the real transport', () => {
     expect(cell.connected).toBe(true);
     expect(cell.shownLinkRole).toBe('cellular');
     expect(cell.savedLinkRole).toBe('radio');
-    expect(cell.roleNoticeHe).toBe('הקישור נשמר כקישור RF. התעבורה היא סלולר.');
-    expect(cell.hintHe || '').not.toContain('הקישור נשמר');
+    expect(cell.roleNoticeHe).toBe('נשמר כ\u05be <bdi dir="ltr">RF</bdi> · בפועל עובר בסלולר');
+    expect(cell.hintHe).toBe('קישור סלולרי דרך מחשב המשימה');
+    expect(cell.hintHe).not.toContain('נשמר כ');
     expect(cell.roleSaveRadio).toBe(false);
     expect(cell.connectionId).toBe(7);
     expect(radio.connected).toBe(false);
@@ -114,7 +118,7 @@ describe('link role follows the real transport', () => {
       const mismatch = persistConnectionLinkRole(db, existing.lastInsertRowid, 'radio');
       expect(mismatch.savedLinkRole).toBe('radio');
       expect(mismatch.shownLinkRole).toBe('cellular');
-      expect(mismatch.roleNoticeHe).toBe('הקישור נשמר כקישור RF. התעבורה היא סלולר.');
+      expect(mismatch.roleNoticeHe).toBe('נשמר כ\u05be <bdi dir="ltr">RF</bdi> · בפועל עובר בסלולר');
       expect(db.prepare(`SELECT link_role FROM connections WHERE id = ?`).get(existing.lastInsertRowid).link_role).toBe('radio');
     } finally {
       db.close();
@@ -144,8 +148,11 @@ describe('link role follows the real transport', () => {
     const html = fs.readFileSync(path.join(repoRoot, 'public/index.html'), 'utf8');
     const js = fs.readFileSync(path.join(repoRoot, 'public/app.js'), 'utf8');
     expect(html).toContain('id="flightLinkRoleNote"');
+    expect(html).toContain('id="flightLinkRoleNote" class="flight-link-role-note" dir="rtl"');
+    expect(html).toContain('id="flightLinkRoleActions" class="flight-link-role-actions" dir="rtl"');
     expect(html).toContain('שמרו כקישור סלולר');
-    expect(html).toContain('שמרו כקישור RF');
+    expect(html).toContain('שמרו כקישור <bdi dir="ltr">RF</bdi>');
+    expect(html).toContain('>קישור</h3>');
     expect(html).not.toContain('שמרו כ-RF');
     expect(js).toContain('function saveFlightLinkRole');
     expect(js).toContain('linkRole: role');
@@ -153,6 +160,8 @@ describe('link role follows the real transport', () => {
     expect(js).toContain('הקישור נשמר כקישור RF.');
     expect(js).not.toContain('התפקיד נשמר');
     expect(js).toContain('radioSave.hidden = row?.roleSaveRadio === false');
+    const css = fs.readFileSync(path.join(repoRoot, 'public/styles.css'), 'utf8');
+    expect(css).toMatch(/\.flight-link-role-actions button\[hidden\]\s*\{[^}]*display:\s*none/);
     const start = js.indexOf('function flightLinkFacts(');
     const end = js.indexOf('function pluralLinkAction(');
     const facts = new Function(`${js.slice(start, end)}\nreturn flightLinkFacts;`)();

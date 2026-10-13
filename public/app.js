@@ -24269,6 +24269,30 @@ function flightLinkErrorText(id) {
   return fromRow || fromEl;
 }
 
+function paintFlightLinkRoleNotice(note, notice) {
+  if (!note) return;
+  const text = String(notice || '').trim();
+  note.hidden = !text;
+  note.dir = 'rtl';
+  note.replaceChildren();
+  if (!text) return;
+  const token = '<bdi dir="ltr">RF</bdi>';
+  const parts = text.split(token);
+  if (parts.length === 1) {
+    note.textContent = text;
+    return;
+  }
+  parts.forEach((part, index) => {
+    if (part) note.append(document.createTextNode(part));
+    if (index < parts.length - 1) {
+      const mark = document.createElement('bdi');
+      mark.dir = 'ltr';
+      mark.textContent = 'RF';
+      note.append(mark);
+    }
+  });
+}
+
 function paintFlightLinkPanel(prefix, id) {
   const row = flightLinkRow(id);
   const facts = flightLinkFacts(row);
@@ -24299,10 +24323,7 @@ function paintFlightLinkPanel(prefix, id) {
     const note = document.getElementById('flightLinkRoleNote');
     const actions = document.getElementById('flightLinkRoleActions');
     const notice = String(row?.roleNoticeHe || '').trim();
-    if (note) {
-      note.hidden = !notice;
-      note.textContent = notice;
-    }
+    paintFlightLinkRoleNotice(note, notice);
     if (actions) actions.hidden = row?.connectionId == null;
     const radioSave = document.getElementById('flightLinkRoleRadio');
     if (radioSave) radioSave.hidden = row?.roleSaveRadio === false;

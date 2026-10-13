@@ -31,7 +31,7 @@
           </button>
           <div id="connectPanel" class="conn-panel" hidden>
             <section id="workLinkPicker" class="work-link-picker" aria-label="ערוץ תקשורת">
-              <h3 class="conn-link-title">ערוץ תקשורת</h3>
+              <h3 class="conn-link-title">קישור</h3>
               <div class="work-link-choices conn-active-choices">
                 <label class="conn-active-choice"><input type="radio" name="workLink" id="workLinkAuto" value="auto" checked /> <span>אוטומטי</span></label>
                 <label class="conn-active-choice"><input type="radio" name="workLink" id="workLinkHome" value="home" /> <span>רשת בית</span></label>
@@ -2598,10 +2598,10 @@
             <p><span>איכות אות</span><b id="flightLinkQuality">—</b></p>
             <p><span>השהיה</span><b id="flightLinkDelay">—</b></p>
             <p id="flightLinkError" class="flight-comm-error" hidden></p>
-            <p id="flightLinkRoleNote" class="flight-link-role-note" hidden></p>
-            <div id="flightLinkRoleActions" class="flight-link-role-actions" hidden>
+            <p id="flightLinkRoleNote" class="flight-link-role-note" dir="rtl" hidden></p>
+            <div id="flightLinkRoleActions" class="flight-link-role-actions" dir="rtl" hidden>
               <button type="button" id="flightLinkRoleCellular">שמרו כקישור סלולר</button>
-              <button type="button" id="flightLinkRoleRadio">שמרו כקישור RF</button>
+              <button type="button" id="flightLinkRoleRadio">שמרו כקישור <bdi dir="ltr">RF</bdi></button>
             </div>
             <p id="flightLinkRoleResult" class="flight-link-role-note" hidden></p>
             <button type="button" id="flightLinkAction" class="flight-comm-action">התחברו</button>

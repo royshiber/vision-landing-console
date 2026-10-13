@@ -1,6 +1,9 @@
+import { readFileSync } from 'node:fs';
 import { beforeEach, describe, expect, it } from 'vitest';
+import { jpegFrameIsBlank } from '../lib/frame-luminance.mjs';
 import {
   companionHttpVideoHealthy,
+  frameBytesHash,
   noteCompanionVideoFrame,
   recentCompanionVideoFrame,
   resetCompanionVideoReachForTests,
@@ -156,6 +159,43 @@ describe('companion video reachability', () => {
     expect(noteCompanionVideoFrame('cam0', { capturedAt: 14_000, now: 14_000 })).toBe(false);
     expect(noteCompanionVideoFrame('cam0', { bytes: Buffer.from([1]), now: 14_000 })).toBe(true);
     expect(recentCompanionVideoFrame({ now: 14_000 })?.camId).toBe('cam0');
+  });
+
+  it('drops a frozen image after 12s even when the sequence rises and the capture time is fresh', () => {
+    const bytes = Buffer.from([4, 4, 4, 4]);
+    const t0 = 2_000_000;
+    expect(noteCompanionVideoFrame('cam0', { seq: 1, capturedAt: t0, bytes, now: t0 })).toBe(true);
+    expect(recentCompanionVideoFrame({ now: t0 + 5_000 })).not.toBe(null);
+    expect(noteCompanionVideoFrame('cam0', {
+      seq: 2,
+      capturedAt: t0 + 5_000,
+      bytes,
+      now: t0 + 5_000,
+    })).toBe(true);
+    expect(noteCompanionVideoFrame('cam0', {
+      seq: 3,
+      capturedAt: t0 + 13_000,
+      bytes,
+      now: t0 + 13_000,
+    })).toBe(false);
+    expect(recentCompanionVideoFrame({ now: t0 + 13_000 })).toBe(null);
+  });
+
+  it('keeps a static scene live when sensor noise changes the JPEG bytes', () => {
+    const first = readFileSync(new URL('./fixtures/static-scene-1.jpg', import.meta.url));
+    const second = readFileSync(new URL('./fixtures/static-scene-2.jpg', import.meta.url));
+    expect(jpegFrameIsBlank(first)).toBe(false);
+    expect(jpegFrameIsBlank(second)).toBe(false);
+    expect(frameBytesHash(first)).not.toBe(frameBytesHash(second));
+    const t0 = 4_000_000;
+    expect(noteCompanionVideoFrame('cam0', { seq: 1, capturedAt: t0, bytes: first, now: t0 })).toBe(true);
+    expect(noteCompanionVideoFrame('cam0', {
+      seq: 2,
+      capturedAt: t0 + 13_000,
+      bytes: second,
+      now: t0 + 13_000,
+    })).toBe(true);
+    expect(recentCompanionVideoFrame({ now: t0 + 13_000 })).not.toBe(null);
   });
 
   it('rejects a new sequence whose capture time is already older than 12s', () => {
