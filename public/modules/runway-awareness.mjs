@@ -173,7 +173,7 @@ function paintTiles(doc, status) {
   }
   if (arm) {
     arm.hidden = !on;
-    arm.disabled = levelLow || noLand || !ready || active || goneAround;
+    arm.disabled = levelLow || noLand || !ready || active;
     arm.textContent = 'נחיתה אופטית';
     arm.setAttribute('aria-pressed', active ? 'true' : 'false');
   }

@@ -207,7 +207,10 @@ describe('runway awareness SITL command gate', () => {
     expect(calls).toHaveLength(2);
 
     controller.setLevel({ level: 3 });
-    controller.tick({ estimate: STRIP, vehicle: sitl });
+    const restored = controller.tick({ estimate: STRIP, vehicle: sitl });
+    expect(restored.sentNow).toBe(0);
+    expect(restored.vision.state).toBe('released');
+    expect(calls).toHaveLength(2);
     const denied = controller.tick({
       estimate: STRIP,
       vehicle: { simulator: false, connected: true },
@@ -215,18 +218,27 @@ describe('runway awareness SITL command gate', () => {
     expect(denied.sentNow).toBe(0);
     expect(calls.filter((cmd) => cmd.release).length).toBe(1);
 
-    controller.setLevel({ level: 3 });
-    controller.tick({ estimate: STRIP, vehicle: sitl });
-    const lost = controller.tick({
+    const again = createRunwayController({
+      env: {},
+      limits: { holdMs: 0 },
+      link: { sendGuidance(cmd) { calls.push(cmd); return { sent: true }; } },
+    });
+    again.setLevel({ level: 3 });
+    again.tick({ estimate: STRIP, vehicle: sitl });
+    const lost = again.tick({
       estimate: STRIP,
       vehicle: approachVehicle({ connected: false }),
     });
     expect(lost.sentNow).toBe(1);
+    expect(lost.vision.reason).toBe('link');
     expect(calls.at(-1)).toMatchObject({ release: true, rollPwm: 0 });
-    controller.tick({
+    again.tick({
       estimate: STRIP,
       vehicle: { simulator: true, connected: false },
     });
+    const relinked = again.tick({ estimate: STRIP, vehicle: sitl });
+    expect(relinked.vision.state).toBe('released');
+    expect(relinked.sentNow).toBe(0);
     expect(calls.filter((cmd) => cmd.release).length).toBe(2);
   });
 
