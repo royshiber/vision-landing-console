@@ -135,6 +135,7 @@ function paintTiles(doc, status) {
   const goneAround = on && status?.vision?.state === 'go_around';
   const released = on && status?.vision?.state === 'released';
   const ready = on && status?.vision?.buttonReady === true;
+  const blockHe = on && !active && !goneAround ? String(status?.vision?.blockHe || '') : '';
   const levelLow = on && Number(status?.level) < 3;
   const noLand = on && (
     status?.vision?.hasLand === false
@@ -147,15 +148,17 @@ function paintTiles(doc, status) {
       ? (stageIsShort(doc) ? 'אופטית פעילה' : 'נחיתה אופטית פעילה. לביטול: החלפת מצב טיסה')
       : goneAround
         ? 'סבוב מחדש'
-        : released
-          ? 'שוחרר'
-          : levelLow
-            ? 'רמה 3 נדרשת לנחיתה אופטית'
-            : noLand
-              ? 'אין נחיתה במשימה'
-              : ready
-                ? 'ממתין'
-                : 'אין מסלול במסגרת';
+        : levelLow
+          ? 'רמה 3 נדרשת לנחיתה אופטית'
+          : noLand
+            ? 'אין נחיתה במשימה'
+            : blockHe
+              ? blockHe
+              : released
+                ? 'שוחרר'
+                : ready
+                  ? 'ממתין'
+                  : 'אין מסלול במסגרת';
   if (state) {
     state.hidden = !on;
     state.dataset.visionState = String(status?.vision?.state || 'waiting');
@@ -173,7 +176,7 @@ function paintTiles(doc, status) {
   }
   if (arm) {
     arm.hidden = !on;
-    arm.disabled = levelLow || noLand || !ready || active;
+    arm.disabled = levelLow || noLand || !ready || active || blockHe !== '';
     arm.textContent = 'נחיתה אופטית';
     arm.setAttribute('aria-pressed', active ? 'true' : 'false');
   }

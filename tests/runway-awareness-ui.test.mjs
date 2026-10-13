@@ -198,7 +198,7 @@ describe('runway awareness layout', () => {
           && Math.max(...measure.map((box) => box.top)) - Math.min(...measure.map((box) => box.top)) <= 2
           && measure.every((box) => box.width < stackBox.width * 0.6 && box.width > 8);
         return { rows, stageShort, oneRow };
-      }, ['ממתין', 'פעיל', 'שוחרר', 'סבוב מחדש']);
+      }, ['ממתין', 'פעיל', 'שוחרר', 'סבוב מחדש', 'נמוך מדי להפעלה']);
       for (const row of placed.rows) {
         expect(row.inside, `${width}x${height} ${row.value}`).toBe(true);
       }

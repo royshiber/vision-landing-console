@@ -615,7 +615,8 @@ describe('vision landing SITL e2e', () => {
       estimate: { ...STRIP, hazards: [{ kind: 'person', label_he: 'אדם' }] },
       vehicle,
     });
-    expect(hazard.vision.labelHe).toBe('סבוב מחדש');
+    expect(hazard.vision.state).toBe('released');
+    expect(hazard.vision.labelHe).toBe('שוחרר');
     const rows = run.link.frames.map((frame) => decode(frame));
     expect(rows.some((row) => row.third === 191)).toBe(false);
     const climb = rows.find((row) => row.type === 'COMMAND_INT');
@@ -666,15 +667,17 @@ describe('vision landing SITL e2e', () => {
     expect(handed.third).toBe(176);
   });
 
-  it('stays released when a frozen clock resumes with a fresh altitude', () => {
+  it('climbs out of a 5 s GUIDED freeze only after the climb is acknowledged', (ctx) => {
+    ctx.skip(!pymavlinkInstalled(), PYMAVLINK_SKIP);
     const run = session();
+    const dist = 63 / Math.tan((3 * Math.PI) / 180);
     const seen = { ...STRIP, threshold_lat: 32.01, threshold_lon: 34.81 };
     const vehicle = approach({
       customMode: 15,
       missionCurrent: 1,
-      lat: 32.01 + (450 / 111320),
+      lat: 32.01 + (dist / 111320),
       lon: 34.81,
-      altAglM: 40,
+      altAglM: 80,
       altAt: 42_000,
     });
     run.at(40_000);
@@ -684,35 +687,132 @@ describe('vision landing SITL e2e', () => {
     const glide = run.controller.tick({ estimate: seen, vehicle });
     expect(glide.vision.state).toBe('active');
     expect(glide.vision.reason).toBe('glide');
+    const held = decode(run.link.frames.at(-1));
+    expect(held.third).toBe(192);
+    expect(held.param2).toBe(0);
+    expect(held.alt).toBeGreaterThan(62);
+    expect(held.alt).toBeLessThan(64);
     const frames = run.link.frames.length;
-    run.at(132_000);
+    run.at(47_000);
     const frozen = run.controller.tick({
       estimate: seen,
       vehicle: { ...vehicle, altAt: 42_000 },
     });
-    expect(frozen.vision.reason).toBe('alt');
+    expect(frozen.vision.state).toBe('go_around');
+    expect(frozen.vision.labelHe).toBe('סבוב מחדש');
+    expect(run.link.frames).toHaveLength(frames + 1);
+    const climb = decode(run.link.frames.at(-1));
+    expect(climb.type).toBe('COMMAND_INT');
+    expect(climb.third).toBe(192);
+    expect(climb.param2).toBe(0);
+    expect(climb.frame).toBe(3);
+    expect(climb.alt).toBeGreaterThanOrEqual(Math.max(vehicle.altAglM + 30, 60));
+    expect(climb.alt).toBeGreaterThan(held.alt);
+    run.at(48_000);
+    const resumed = run.controller.tick({
+      estimate: seen,
+      vehicle: { ...vehicle, altAt: 48_000, customMode: 15 },
+    });
+    expect(resumed.vision.state).toBe('go_around');
+    expect(resumed.sentNow).toBe(0);
+    expect(run.link.frames).toHaveLength(frames + 1);
+    const early = run.controller.requestOptical({ ...vehicle, altAt: 48_000, customMode: 15 });
+    expect(early.ok).toBe(false);
+    expect(early.reason).toBe('go_around');
+    expect(run.link.frames).toHaveLength(frames + 1);
+    const high = { ...vehicle, altAglM: climb.alt, altAt: 50_000, customMode: 15 };
+    run.at(50_000);
+    run.controller.note({ estimate: seen, vehicle: high });
+    const pressed = run.controller.requestOptical(high);
+    expect(pressed.ok).toBe(true);
+    expect(pressed.reason).not.toBe('go_around');
+  });
+
+  it('does not wait for a climb that a frozen glide never got acknowledged', (ctx) => {
+    ctx.skip(!pymavlinkInstalled(), PYMAVLINK_SKIP);
+    const run = session();
+    let repositions = 0;
+    run.link.conn.ackFor = (cmd) => {
+      if (cmd.kind !== 'REPOSITION') return undefined;
+      repositions += 1;
+      return { command: 192, result: repositions === 1 ? 0 : 4 };
+    };
+    const dist = 63 / Math.tan((3 * Math.PI) / 180);
+    const seen = { ...STRIP, threshold_lat: 32.01, threshold_lon: 34.81 };
+    const vehicle = approach({
+      customMode: 15,
+      missionCurrent: 1,
+      lat: 32.01 + (dist / 111320),
+      lon: 34.81,
+      altAglM: 80,
+      altAt: 42_000,
+    });
+    run.at(40_000);
+    run.controller.note({ estimate: seen, vehicle });
+    run.at(42_000);
+    expect(run.controller.requestOptical(vehicle).ok).toBe(true);
+    expect(run.controller.tick({ estimate: seen, vehicle }).vision.reason).toBe('glide');
+    const frames = run.link.frames.length;
+    run.at(47_000);
+    const frozen = run.controller.tick({
+      estimate: seen,
+      vehicle: { ...vehicle, altAt: 42_000 },
+    });
+    expect(frozen.vision.state).toBe('released');
+    expect(frozen.vision.labelHe).toBe('שוחרר');
+    const rows = run.link.frames.slice(frames).map((frame) => decode(frame));
+    const climb = rows.find((row) => row.type === 'COMMAND_INT' && row.third === 192);
+    expect(climb.param2).toBe(0);
+    expect(climb.alt).toBeGreaterThanOrEqual(Math.max(vehicle.altAglM + 30, 60));
+    const rtl = rows.find((row) => row.type === 'SET_MODE' && row.customMode === 11);
+    expect(rtl).toBeTruthy();
+    run.at(49_000);
+    const stuck = run.controller.requestOptical({ ...vehicle, altAt: 49_000, customMode: 15 });
+    expect(stuck.ok).toBe(false);
+    expect(stuck.reason).not.toBe('go_around');
+    run.at(51_000);
+    const pressed = run.controller.requestOptical({ ...vehicle, altAt: 51_000, customMode: 15 });
+    expect(pressed.ok).toBe(true);
+    expect(pressed.reason).not.toBe('go_around');
+  });
+
+  it('stays released when a 5 s freeze cannot send the climb', () => {
+    const run = session();
+    const seen = { ...STRIP, threshold_lat: 32.01, threshold_lon: 34.81 };
+    const vehicle = approach({
+      customMode: 15,
+      missionCurrent: 1,
+      lat: 32.01 + (700 / 111320),
+      lon: 34.81,
+      altAglM: 80,
+      altAt: 42_000,
+    });
+    run.at(40_000);
+    run.controller.note({ estimate: seen, vehicle });
+    run.at(42_000);
+    expect(run.controller.requestOptical(vehicle).ok).toBe(true);
+    expect(run.controller.tick({ estimate: seen, vehicle }).vision.reason).toBe('glide');
+    const frames = run.link.frames.length;
+    run.link.conn.lastCustomMode = 15;
+    run.link.conn.lastHeartbeatWallMs = Date.now() - 5000;
+    run.at(47_000);
+    const frozen = run.controller.tick({
+      estimate: seen,
+      vehicle: { ...vehicle, altAt: 42_000 },
+    });
     expect(frozen.vision.state).toBe('released');
     expect(frozen.vision.labelHe).toBe('שוחרר');
     expect(frozen.sentNow).toBe(0);
     expect(run.link.frames).toHaveLength(frames);
-    run.at(133_000);
-    const resumed = run.controller.tick({
-      estimate: seen,
-      vehicle: { ...vehicle, altAt: 133_000, customMode: 15 },
-    });
-    expect(resumed.vision.state).toBe('released');
-    expect(resumed.vision.reason).toBe('alt');
-    expect(resumed.vision.labelHe).toBe('שוחרר');
-    expect(resumed.sentNow).toBe(0);
-    expect(run.link.frames).toHaveLength(frames);
-    const early = run.controller.requestOptical({ ...vehicle, altAt: 133_000, customMode: 15 });
-    expect(early.ok).toBe(false);
-    expect(early.reason).toBe('no_runway');
-    expect(run.link.frames).toHaveLength(frames);
-    run.at(135_000);
-    const pressed = run.controller.requestOptical({ ...vehicle, altAt: 135_000, customMode: 15 });
+    run.link.conn.lastHeartbeatWallMs = Date.now();
+    run.at(49_000);
+    const stuck = run.controller.requestOptical({ ...vehicle, altAt: 49_000, customMode: 15 });
+    expect(stuck.ok).toBe(false);
+    expect(stuck.reason).not.toBe('go_around');
+    run.at(51_000);
+    const pressed = run.controller.requestOptical({ ...vehicle, altAt: 51_000, customMode: 15 });
     expect(pressed.ok).toBe(true);
-    expect(run.link.frames).toHaveLength(frames + 1);
+    expect(pressed.reason).not.toBe('go_around');
   });
 
   it('releases a stale heartbeat after the AUTO handover and requires a new press', () => {
@@ -729,7 +829,7 @@ describe('vision landing SITL e2e', () => {
     run.at(48_000);
     run.controller.note({ estimate: seen, vehicle: near });
     run.at(50_000);
-    expect(run.controller.requestOptical(near).ok).toBe(true);
+    expect(run.controller.requestOptical({ ...near, lat: 32.01 + (700 / 111320) }).ok).toBe(true);
     const land = run.controller.tick({ estimate: seen, vehicle: near });
     expect(land.vision.reason).toBe('land');
     expect(land.vision.state).toBe('active');
@@ -762,11 +862,12 @@ describe('vision landing SITL e2e', () => {
     expect(back.vision.reason).toBe('stale');
     expect(back.sentNow).toBe(0);
     expect(run.link.frames).toHaveLength(frames);
-    const refused = run.controller.requestOptical({ ...near, customMode: 10, altAt: 50_000 });
+    const againVehicle = { ...near, lat: 32.01 + (700 / 111320), customMode: 10 };
+    const refused = run.controller.requestOptical({ ...againVehicle, altAt: 50_000 });
     expect(refused.ok).toBe(false);
     expect(refused.reason).toBe('no_runway');
     run.at(52_000);
-    const pressed = run.controller.requestOptical({ ...near, customMode: 10, altAt: 52_000 });
+    const pressed = run.controller.requestOptical({ ...againVehicle, altAt: 52_000 });
     expect(pressed.ok).toBe(true);
     expect(run.link.frames).toHaveLength(frames + 1);
   });
@@ -857,6 +958,78 @@ describe('vision landing SITL e2e', () => {
     expect(missing.reason).toBe('no_land');
     expect(missing.messageHe).toBe('אין נחיתה במשימה');
     expect(run.link.frames).toHaveLength(0);
+  });
+
+  it('greys the button below 50 m, inside the handoff, and while landed state is 4', () => {
+    const run = session();
+    const seen = { ...STRIP, threshold_lat: 32.01, threshold_lon: 34.81 };
+    const legal = approach({
+      customMode: 5,
+      missionCurrent: 1,
+      lat: 32.01 + (700 / 111320),
+      lon: 34.81,
+      altAglM: 80,
+      relativeAltM: 80,
+      altAt: 12_000,
+      landedState: 1,
+    });
+    run.at(10_000);
+    run.controller.note({ estimate: seen, vehicle: legal });
+    run.at(12_000);
+    const ready = run.controller.note({ estimate: seen, vehicle: legal });
+    expect(ready.vision.buttonReady).toBe(true);
+    expect(ready.vision.blockHe).toBeNull();
+
+    const low = { ...legal, relativeAltM: 12 };
+    const lowStatus = run.controller.note({ estimate: seen, vehicle: low });
+    expect(lowStatus.vision.buttonReady).toBe(false);
+    expect(lowStatus.vision.blockHe).toBe('נמוך מדי להפעלה');
+    const lowPress = run.controller.requestOptical(low);
+    expect(lowPress.ok).toBe(false);
+    expect(lowPress.reason).toBe('too_low');
+    expect(lowPress.messageHe).toBe('נמוך מדי להפעלה');
+
+    const close = { ...legal, relativeAltM: 80, lat: 32.01 + (80 / 111320) };
+    expect(run.controller.note({ estimate: seen, vehicle: close }).vision.blockHe).toBe('נמוך מדי להפעלה');
+    expect(run.controller.requestOptical(close).reason).toBe('too_low');
+
+    const grounded = { ...legal, relativeAltM: 80, landedState: 4 };
+    expect(run.controller.note({ estimate: seen, vehicle: grounded }).vision.buttonReady).toBe(false);
+    expect(run.controller.requestOptical(grounded).messageHe).toBe('נמוך מדי להפעלה');
+    expect(run.link.frames).toHaveLength(0);
+
+    const far = { ...legal, customMode: 15, relativeAltM: 80, landedState: null };
+    expect(run.controller.requestOptical(far).ok).toBe(true);
+    const near = {
+      ...far,
+      lat: 32.01 + (80 / 111320),
+      altAglM: 12,
+      relativeAltM: 12,
+    };
+    const handed = run.controller.tick({ estimate: seen, vehicle: near });
+    expect(handed.vision.reason).toBe('land');
+    run.link.conn.lastCustomMode = 10;
+    run.link.conn.lastHeartbeatWallMs = Date.now() - 2000;
+    const stalled = run.controller.tick({
+      estimate: seen,
+      vehicle: { ...near, customMode: 10 },
+    });
+    expect(stalled.vision.state).toBe('released');
+    expect(stalled.vision.labelHe).toBe('שוחרר');
+    expect(stalled.vision.blockHe).toBe('נמוך מדי להפעלה');
+    expect(stalled.vision.buttonReady).toBe(false);
+    run.at(14_000);
+    run.link.conn.lastHeartbeatWallMs = Date.now();
+    const after = run.controller.note({
+      estimate: seen,
+      vehicle: { ...near, customMode: 10, altAt: 14_000 },
+    });
+    expect(after.vision.buttonReady).toBe(false);
+    expect(after.vision.blockHe).toBe('נמוך מדי להפעלה');
+    const again = run.controller.requestOptical({ ...near, customMode: 10, altAt: 14_000 });
+    expect(again.ok).toBe(false);
+    expect(again.reason).toBe('too_low');
+    expect(again.messageHe).toBe('נמוך מדי להפעלה');
   });
 
   it('sends nothing when the heartbeat is FBWA or stale, even if the tick still says GUIDED', (ctx) => {
@@ -972,7 +1145,7 @@ describe('vision landing SITL e2e', () => {
     run.at(100_000);
     run.controller.note({ estimate: seen, vehicle: near });
     run.at(102_000);
-    expect(run.controller.requestOptical(near).ok).toBe(true);
+    expect(run.controller.requestOptical({ ...near, lat: 32.01 + (700 / 111320) }).ok).toBe(true);
     const refused = run.controller.tick({ estimate: seen, vehicle: near });
     expect(refused.vision.state).toBe('go_around');
     const refusedRows = run.link.frames.map((frame) => decode(frame));
@@ -989,7 +1162,11 @@ describe('vision landing SITL e2e', () => {
     missed.at(110_000);
     missed.controller.note({ estimate: seen, vehicle: { ...near, altAt: 112_000 } });
     missed.at(112_000);
-    expect(missed.controller.requestOptical({ ...near, altAt: 112_000 }).ok).toBe(true);
+    expect(missed.controller.requestOptical({
+      ...near,
+      lat: 32.01 + (700 / 111320),
+      altAt: 112_000,
+    }).ok).toBe(true);
     const stayed = missed.controller.tick({ estimate: seen, vehicle: { ...near, altAt: 112_000 } });
     expect(stayed.vision.state).toBe('released');
     expect(stayed.sentNow).toBe(1);
@@ -1030,7 +1207,11 @@ describe('vision landing SITL e2e', () => {
     });
     controller.note({ estimate: seen, vehicle });
     now = 122_000;
-    expect(controller.requestOptical({ ...vehicle, altAt: 122_000 }).ok).toBe(true);
+    expect(controller.requestOptical({
+      ...vehicle,
+      lat: 32.01 + (700 / 111320),
+      altAt: 122_000,
+    }).ok).toBe(true);
     const land = controller.tick({ estimate: seen, vehicle: { ...vehicle, altAt: 122_000 } });
     expect(calls).toEqual(['handover']);
     expect(land.vision.reason).toBe('land');
@@ -1192,7 +1373,7 @@ describe('vision landing SITL e2e', () => {
     inAir.at(198_000);
     inAir.controller.note({ estimate: seen, vehicle: flying });
     inAir.at(200_000);
-    expect(inAir.controller.requestOptical(flying).ok).toBe(true);
+    expect(inAir.controller.requestOptical({ ...flying, relativeAltM: 80, altAglM: 80 }).ok).toBe(true);
     expect(inAir.controller.tick({ estimate: seen, vehicle: flying }).vision.state).toBe('active');
     inAir.at(203_000);
     const stillAir = inAir.controller.tick({
@@ -1228,7 +1409,7 @@ describe('vision landing SITL e2e', () => {
     run.at(208_000);
     run.controller.note({ estimate: seen, vehicle: glide });
     run.at(210_000);
-    expect(run.controller.requestOptical(glide).ok).toBe(true);
+    expect(run.controller.requestOptical({ ...glide, landedState: null, relativeAltM: 80 }).ok).toBe(true);
     const flying = run.controller.tick({ estimate: seen, vehicle: glide });
     expect(flying.vision.state).toBe('active');
     expect(flying.vision.reason).toBe('glide');
@@ -1373,10 +1554,10 @@ describe('vision landing SITL e2e', () => {
     const refused = roll.controller.requestOptical({
       ...vehicle,
       altAt: 223_000,
-      altAglM: 40,
+      altAglM: 80,
       groundspeedMps: 18.6,
       groundspeedAt: 223_000,
-      relativeAltM: 40,
+      relativeAltM: 80,
       relativeAltAt: 223_000,
     });
     expect(refused.ok).toBe(false);
@@ -1385,10 +1566,10 @@ describe('vision landing SITL e2e', () => {
     const again = roll.controller.requestOptical({
       ...vehicle,
       altAt: 225_000,
-      altAglM: 40,
+      altAglM: 80,
       groundspeedMps: 18.6,
       groundspeedAt: 225_000,
-      relativeAltM: 40,
+      relativeAltM: 80,
       relativeAltAt: 225_000,
     });
     expect(again.ok).toBe(true);
