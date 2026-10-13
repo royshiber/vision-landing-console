@@ -154,6 +154,8 @@ describe('link role Hebrew order', () => {
       expect(seen.display).toBe('none');
       expect(seen.width).toBe(0);
       expect(seen.height).toBe(0);
+      expect(await page.locator('#flightLinkRoleRadio').isVisible()).toBe(false);
+      expect(await page.locator('#flightLinkRoleCellular').isVisible()).toBe(true);
     } finally {
       await page.close();
     }

@@ -37,7 +37,7 @@ describe('link role follows the real transport', () => {
     const input = { ...tailscaleRelay };
     expect(savedLinkRole(input)).toBe('radio');
     expect(displayedLinkRole(input)).toBe('cellular');
-    expect(linkRoleNotice(input)).toBe('נשמר כ\u05be <bdi dir="ltr">RF</bdi> · בפועל עובר בסלולר');
+    expect(linkRoleNotice(input)).toBe('נשמר כ\u05be<bdi dir="ltr">RF</bdi> · בפועל עובר בסלולר');
     expect(input.linkRole).toBe('radio');
   });
 
@@ -53,7 +53,7 @@ describe('link role follows the real transport', () => {
     expect(displayedLinkRole(radio)).toBe('radio');
     expect(linkRoleNotice(radio)).toBe('');
     expect(linkRoleNotice({ ...radio, linkRole: 'cellular' })).toBe(
-      'נשמר כ\u05beסלולר · בפועל עובר ב\u05be <bdi dir="ltr">RF</bdi>',
+      'נשמר כ\u05beסלולר · בפועל עובר ב\u05be<bdi dir="ltr">RF</bdi>',
     );
     expect(displayedLinkRole(plain)).toBe('radio');
     expect(displayedLinkRole({ type: 'telemetry', linkRole: 'cellular' })).toBe('radio');
@@ -75,7 +75,7 @@ describe('link role follows the real transport', () => {
     expect(cell.connected).toBe(true);
     expect(cell.shownLinkRole).toBe('cellular');
     expect(cell.savedLinkRole).toBe('radio');
-    expect(cell.roleNoticeHe).toBe('נשמר כ\u05be <bdi dir="ltr">RF</bdi> · בפועל עובר בסלולר');
+    expect(cell.roleNoticeHe).toBe('נשמר כ\u05be<bdi dir="ltr">RF</bdi> · בפועל עובר בסלולר');
     expect(cell.hintHe).toBe('קישור סלולרי דרך מחשב המשימה');
     expect(cell.hintHe).not.toContain('נשמר כ');
     expect(cell.roleSaveRadio).toBe(false);
@@ -118,7 +118,7 @@ describe('link role follows the real transport', () => {
       const mismatch = persistConnectionLinkRole(db, existing.lastInsertRowid, 'radio');
       expect(mismatch.savedLinkRole).toBe('radio');
       expect(mismatch.shownLinkRole).toBe('cellular');
-      expect(mismatch.roleNoticeHe).toBe('נשמר כ\u05be <bdi dir="ltr">RF</bdi> · בפועל עובר בסלולר');
+      expect(mismatch.roleNoticeHe).toBe('נשמר כ\u05be<bdi dir="ltr">RF</bdi> · בפועל עובר בסלולר');
       expect(db.prepare(`SELECT link_role FROM connections WHERE id = ?`).get(existing.lastInsertRowid).link_role).toBe('radio');
     } finally {
       db.close();

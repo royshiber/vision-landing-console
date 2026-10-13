@@ -198,6 +198,20 @@ describe('companion video reachability', () => {
     expect(recentCompanionVideoFrame({ now: t0 + 13_000 })).not.toBe(null);
   });
 
+  it('does not keep a frame that is already 10s old on arrival live after the frames stop', () => {
+    const now = 1_000_000;
+    const bytes = Buffer.from([1, 2, 3, 4]);
+    expect(noteCompanionVideoFrame('cam0', {
+      seq: 1,
+      capturedAt: now - 10_000,
+      bytes,
+      now,
+    })).toBe(true);
+    expect(recentCompanionVideoFrame({ now })).not.toBe(null);
+    expect(recentCompanionVideoFrame({ now: now + 1_000 })).not.toBe(null);
+    expect(recentCompanionVideoFrame({ now: now + 2_001 })).toBe(null);
+  });
+
   it('rejects a new sequence whose capture time is already older than 12s', () => {
     const t0 = 5_000_000;
     expect(noteCompanionVideoFrame('cam0', { seq: 3, capturedAt: t0, now: t0 })).toBe(true);
