@@ -145,7 +145,8 @@ describe('QA gate 14702a0', () => {
         const write = getComputedStyle(document.getElementById('arduWriteBtn'));
         const gear = getComputedStyle(document.getElementById('globalSettingsBtn'));
         return {
-          read: shown('קריאה'),
+          read: shown('קריאה מהבקר'),
+          loadProfile: shown('טעינה מהקונסולה'),
           writeFc: shown('כתיבה לבקר'),
           backupWrite: shown('כתיבה'),
           writeColor: write.color,
@@ -156,6 +157,7 @@ describe('QA gate 14702a0', () => {
         };
       });
       expect(counts.read).toBe(1);
+      expect(counts.loadProfile).toBe(1);
       expect(counts.writeFc).toBe(1);
       expect(counts.backupWrite).toBe(0);
       expect(Number(counts.writeOpacity)).toBe(1);

@@ -930,10 +930,10 @@
           <div class="param-toolbar" aria-label="סנכרון פרמטרים">
             <section class="param-tool-seg" aria-label="גיבוי בקונסולה">
               <h3 class="param-tool-title">גיבוי</h3>
-              <p id="jetsonToolState" class="param-tool-state" data-state="unknown">לא ידוע</p>
+              <button type="button" id="jetsonToolState" class="param-tool-state" data-state="unknown">לא ידוע</button>
               <p id="jetsonToolMeta" class="param-tool-meta"></p>
               <div class="param-tool-actions">
-                <button type="button" id="visionConfigReadBtn" class="param-tool-btn param-tool-btn--primary" title="טוען את הגיבוי השמור בקונסולה">קריאה</button>
+                <button type="button" id="visionConfigReadBtn" class="param-tool-btn param-tool-btn--primary" title="טוען את הפרופיל השמור בקונסולה">טעינה מהקונסולה</button>
                 <button type="button" id="visionConfigWriteBtn" class="param-tool-btn param-tool-btn--secondary" title="שומר גיבוי בקונסולה">כתיבה</button>
               </div>
             </section>
@@ -942,7 +942,7 @@
               <p id="fcToolState" class="param-tool-state" data-state="unknown">לא ידוע</p>
               <p id="fcToolMeta" class="param-tool-meta"></p>
               <div class="param-tool-actions">
-                <button type="button" id="arduReadBtn" class="param-tool-btn param-tool-btn--primary" title="קורא פרמטרים מבקר הטיסה">קריאה</button>
+                <button type="button" id="arduReadBtn" class="param-tool-btn param-tool-btn--primary" title="קורא פרמטרים מבקר הטיסה">קריאה מהבקר</button>
                 <button type="button" id="arduWriteBtn" class="param-tool-btn param-tool-btn--secondary" disabled title="אין חיבור לבקר הטיסה">כתיבה לבקר</button>
               </div>
             </section>
@@ -993,6 +993,7 @@
             <h3 class="plnd-honesty-title">פרופיל נחיתה לפי ראייה</h3>
             <p class="plnd-honesty-note">פרופיל הנחיתה נשמר בקונסולה. הקריאה מהבקר לא ממלאת את הכרטיסים. לא חוסם את ניסוי אחד.</p>
             <p id="plndProfileHonestyState" class="plnd-honesty-state" data-state="unknown">לא ידוע</p>
+            <button type="button" id="saveVisionProfileBtn" class="param-tool-btn param-tool-btn--primary">שמירת פרופיל</button>
           </header>
           <ul id="plndProfileHonestyKeys" class="plnd-honesty-keys"></ul>
         </section>
