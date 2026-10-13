@@ -728,6 +728,86 @@ describe('vision landing SITL e2e', () => {
     expect(pressed.reason).not.toBe('go_around');
   });
 
+  it('treats a climb as finished 1.9 m under the target or after a level-off', () => {
+    const target = Math.max(80 + 30, 60);
+    function climbed() {
+      const run = session();
+      const dist = 63 / Math.tan((3 * Math.PI) / 180);
+      const seen = { ...STRIP, threshold_lat: 32.01, threshold_lon: 34.81 };
+      const vehicle = approach({
+        customMode: 15,
+        missionCurrent: 1,
+        lat: 32.01 + (dist / 111320),
+        lon: 34.81,
+        altAglM: 80,
+        relativeAltM: 80,
+        altAt: 42_000,
+      });
+      run.at(40_000);
+      run.controller.note({ estimate: seen, vehicle });
+      run.at(42_000);
+      expect(run.controller.requestOptical(vehicle).ok).toBe(true);
+      expect(run.controller.tick({ estimate: seen, vehicle }).vision.reason).toBe('glide');
+      run.at(47_000);
+      const frozen = run.controller.tick({
+        estimate: seen,
+        vehicle: { ...vehicle, altAt: 42_000 },
+      });
+      expect(frozen.vision.state).toBe('go_around');
+      return { run, seen, vehicle };
+    }
+
+    const near = climbed();
+    const short = {
+      ...near.vehicle,
+      altAglM: target - 1.9,
+      relativeAltM: 80,
+      altAt: 50_000,
+      customMode: 15,
+    };
+    near.run.at(48_000);
+    near.run.controller.tick({ estimate: near.seen, vehicle: short });
+    near.run.at(50_000);
+    const close = near.run.controller.requestOptical({ ...short, altAt: 50_000 });
+    expect(close.ok).toBe(true);
+    expect(close.reason).not.toBe('go_around');
+
+    const low = climbed();
+    const below = {
+      ...low.vehicle,
+      altAglM: 50,
+      relativeAltM: 80,
+      climbMps: 0,
+      altAt: 50_000,
+      customMode: 15,
+    };
+    low.run.at(50_000);
+    low.run.controller.tick({ estimate: low.seen, vehicle: below });
+    low.run.at(54_000);
+    const still = low.run.controller.requestOptical({ ...below, altAt: 54_000 });
+    expect(still.ok).toBe(false);
+    expect(still.reason).toBe('go_around');
+
+    const level = climbed();
+    const flat = {
+      ...level.vehicle,
+      altAglM: target - 4,
+      relativeAltM: 80,
+      climbMps: 0.2,
+      altAt: 48_000,
+      customMode: 15,
+    };
+    level.run.at(48_000);
+    level.run.controller.tick({ estimate: level.seen, vehicle: flat });
+    const early = level.run.controller.requestOptical(flat);
+    expect(early.ok).toBe(false);
+    expect(early.reason).toBe('go_around');
+    level.run.at(51_000);
+    const done = level.run.controller.requestOptical({ ...flat, altAt: 51_000 });
+    expect(done.ok).toBe(true);
+    expect(done.reason).not.toBe('go_around');
+  });
+
   it('does not wait for a climb that a frozen glide never got acknowledged', (ctx) => {
     ctx.skip(!pymavlinkInstalled(), PYMAVLINK_SKIP);
     const run = session();

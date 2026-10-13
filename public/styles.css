@@ -21641,7 +21641,8 @@ html body :is(
   .mission-ask-chip,
   .pfc-opt-mini,
   .comm-link-sr,
-  .pulse-purpose
+  .pulse-purpose,
+  #runwayVisionArm[data-arm-label="mission"]
 ) {
   white-space: normal !important;
   text-overflow: clip !important;

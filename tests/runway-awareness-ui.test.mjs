@@ -205,7 +205,7 @@ describe('runway awareness layout', () => {
           && Math.max(...measure.map((box) => box.top)) - Math.min(...measure.map((box) => box.top)) <= 2
           && measure.every((box) => box.width < stackBox.width * 0.6 && box.width > 8);
         return { rows, stageShort, oneRow };
-      }, ['ממתין', 'פעיל', 'שוחרר', 'סבוב מחדש', 'נמוך מדי להפעלה', 'נחיתת משימה: הנחיית גלגול', 'נחיתת משימה פעילה']);
+      }, ['ממתין', 'פעיל', 'שוחרר', 'סבוב מחדש', 'נמוך מדי להפעלה', 'נחיתת משימה: הנחיית גלגול', 'נחיתת משימה פעילה', 'משימה פעילה']);
       for (const row of placed.rows) {
         expect(row.inside, `${width}x${height} ${row.value}`).toBe(true);
       }
@@ -481,8 +481,46 @@ describe('runway awareness layout', () => {
     await page.waitForFunction(() => (
       document.getElementById('runwayVisionStateWord')?.textContent || ''
     ) === 'נחיתת משימה: הנחיית גלגול');
-    expect(await page.locator('#runwayVisionArm').innerText()).toBe('נחיתת משימה פעילה');
+    expect(await page.locator('#runwayVisionArm').innerText()).toBe('משימה פעילה');
     expect(await page.locator('#runwayVisionStateWord').innerText()).not.toBe('נמוך מדי להפעלה');
+    const chipClear = await page.evaluate(() => {
+      const stage = document.getElementById('pfdHorizonStage');
+      const canvas = document.getElementById('horizonCanvas');
+      const arm = document.getElementById('runwayVisionArm');
+      const armBox = arm.getBoundingClientRect();
+      const canvasBox = canvas.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      const height = canvas.height / dpr;
+      const scaleY = canvasBox.height / height;
+      const scaleX = canvasBox.width / (canvas.width / dpr);
+      const ctx = canvas.getContext('2d');
+      ctx.font = '700 11px "Space Grotesk", sans-serif';
+      const chipW = Math.ceil(ctx.measureText('R —').width) + 8;
+      const chipH = 16;
+      const chip = {
+        left: canvasBox.left + 4 * scaleX,
+        top: canvasBox.top + (height - 6 - chipH) * scaleY,
+        right: canvasBox.left + (4 + chipW) * scaleX,
+        bottom: canvasBox.top + (height - 6) * scaleY,
+      };
+      const hits = armBox.left < chip.right && armBox.right > chip.left
+        && armBox.top < chip.bottom && armBox.bottom > chip.top;
+      const range = document.createRange();
+      range.selectNodeContents(arm);
+      const lines = range.getClientRects().length;
+      return {
+        hits,
+        lines,
+        nowrap: getComputedStyle(arm).whiteSpace,
+        height: Math.round(armBox.height),
+        width: Math.round(armBox.width),
+        short: stage.getAttribute('data-awareness-stage') === 'short',
+      };
+    });
+    expect(chipClear.short).toBe(true);
+    expect(chipClear.lines, JSON.stringify(chipClear)).toBe(1);
+    expect(chipClear.nowrap).toBe('nowrap');
+    expect(chipClear.hits, JSON.stringify(chipClear)).toBe(false);
     const missionFit = await page.evaluate(collectTextFitFailures, 1);
     const missionRunway = (missionFit.fails || []).filter((row) => /runway/i.test(`${row.who} ${row.text}`));
     expect(missionRunway.length, JSON.stringify(missionRunway)).toBe(0);

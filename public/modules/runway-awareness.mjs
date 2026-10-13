@@ -182,7 +182,10 @@ function paintTiles(doc, status) {
     const disabled = levelLow || noLand || !ready || active || blockHe !== '';
     arm.disabled = disabled;
     arm.setAttribute('aria-disabled', disabled ? 'true' : 'false');
-    arm.textContent = mission ? 'נחיתת משימה פעילה' : 'נחיתה אופטית';
+    const missionShort = mission && stageIsShort(doc);
+    arm.textContent = missionShort ? 'משימה פעילה' : (mission ? 'נחיתת משימה פעילה' : 'נחיתה אופטית');
+    if (missionShort) arm.dataset.armLabel = 'mission';
+    else delete arm.dataset.armLabel;
     arm.setAttribute('aria-pressed', active && !mission ? 'true' : 'false');
   }
 }
