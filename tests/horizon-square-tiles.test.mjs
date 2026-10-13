@@ -98,6 +98,12 @@ describe('horizon square and whole tile words', () => {
             overflow.push({ text, sw: el.scrollWidth, cw: el.clientWidth, sh: el.scrollHeight, ch: el.clientHeight });
           }
         }
+        function hits(a, b) {
+          if (!a || !b || a.width < 2 || b.width < 2) return false;
+          const w = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+          const h = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+          return w > 1 && h > 1;
+        }
         const offButtons = [...document.querySelectorAll('button')].filter((el) => {
           const style = getComputedStyle(el);
           const rect = el.getBoundingClientRect();
@@ -125,25 +131,97 @@ describe('horizon square and whole tile words', () => {
           }
           return false;
         }).map((el) => el.id || (el.textContent || '').trim().slice(0, 16));
+        const stageEl = document.getElementById('pfdHorizonStage');
+        const bar = document.getElementById('runwayVisionBar')?.getBoundingClientRect();
+        const quick = document.getElementById('horizonQuick')?.getBoundingClientRect();
+        const leftTape = document.querySelector('.pfd-side-tape--left')?.getBoundingClientRect();
+        const rightTape = document.querySelector('.pfd-side-tape--right')?.getBoundingClientRect();
+        const tileBoxes = [...document.querySelectorAll('#pfdHorizonStage .runway-awareness-tile')].map((el) => el.getBoundingClientRect());
+        const arm = document.getElementById('flightArmBtn').getBoundingClientRect();
+        const disarm = document.getElementById('flightDisarmBtn').getBoundingClientRect();
+        const column = document.querySelector('[data-mission-region="horizon"]')?.getBoundingClientRect();
+        const terrain = document.getElementById('terrain');
         return {
           width: Math.round(stage.width),
           height: Math.round(stage.height),
+          top: Math.round(stage.top),
           ratio: stage.width / stage.height,
           midWord,
           overflow,
           offButtons,
           labels: [...document.querySelectorAll('#pfdHorizonStage .runway-awareness-k')].map((el) => el.textContent),
-          widthMode: document.getElementById('pfdHorizonStage').getAttribute('data-awareness-width'),
+          widthMode: stageEl.getAttribute('data-awareness-width'),
           stack: Math.round(document.getElementById('runwayAwarenessStack')?.getBoundingClientRect().width || 0),
+          vh: window.innerHeight,
+          barH: Math.round(bar?.height || 0),
+          barBottom: Math.round(bar?.bottom || 0),
+          tilesBottom: Math.round(Math.max(...tileBoxes.map((box) => box.bottom), 0)),
+          tilesTop: Math.round(Math.min(...tileBoxes.map((box) => box.top), 0)),
+          oneRow: tileBoxes.length >= 3 && Math.max(...tileBoxes.map((box) => box.top)) - Math.min(...tileBoxes.map((box) => box.top)) <= 2,
+          tileOnTape: tileBoxes.some((box) => hits(box, leftTape) || hits(box, rightTape)),
+          tileOnQuick: tileBoxes.some((box) => hits(box, quick)),
+          columnW: Math.round(column?.width || 0),
+          offset: (document.getElementById('runwayOffsetValue')?.innerText || '').replace(/\s+/g, ' '),
+          heading: (document.getElementById('runwayHeadingValue')?.innerText || '').replace(/\s+/g, ' '),
+          arm: {
+            w: Math.round(arm.width),
+            h: Math.round(arm.height),
+            text: document.querySelector('#flightArmBtn .horizon-quick-label')?.textContent || '',
+            shown: getComputedStyle(document.querySelector('#flightArmBtn .horizon-quick-label')).display,
+          },
+          disarm: {
+            w: Math.round(disarm.width),
+            h: Math.round(disarm.height),
+            text: document.querySelector('#flightDisarmBtn .horizon-quick-label')?.textContent || '',
+            shown: getComputedStyle(document.querySelector('#flightDisarmBtn .horizon-quick-label')).display,
+          },
+          gap: Math.round(Math.max(arm.left, disarm.left) - Math.min(arm.right, disarm.right)),
+          scroll: terrain ? terrain.scrollTop : 0,
         };
       });
       const name = `${width}x${height}`;
-      expect(report.ratio, `${name} ${report.width}x${report.height}`).toBeGreaterThan(0.8);
-      expect(report.ratio, `${name} ${report.width}x${report.height}`).toBeLessThanOrEqual(1.25);
+      if (!(width <= 720 && height >= 701)) {
+        expect(report.ratio, `${name} ${report.width}x${report.height}`).toBeGreaterThan(0.8);
+        expect(report.ratio, `${name} ${report.width}x${report.height}`).toBeLessThanOrEqual(1.65);
+      }
       expect(report.midWord, name).toEqual([]);
-      expect(report.overflow, `${name} stage ${report.width}x${report.height} stack ${report.stack} ${report.widthMode}`).toEqual([]);
+      expect(report.overflow, `${name} stage ${report.width}x${report.height} stack ${report.stack} ${report.widthMode} ${report.offset}`).toEqual([]);
       expect(report.offButtons, name).toEqual([]);
       expect(report.labels, name).toEqual(expect.arrayContaining(['כיוון', 'סכנה']));
+      expect(report.labels, name).not.toContain('צד');
+      expect(report.labels.some((label) => label === 'היסט' || label === 'סטייה'), name).toBe(true);
+      expect(report.barBottom, `${name} landing row`).toBeLessThanOrEqual(report.vh + 1);
+      expect(report.tilesBottom, `${name} tiles`).toBeLessThanOrEqual(report.vh + 1);
+      expect(report.tilesTop, `${name} tiles`).toBeGreaterThanOrEqual(-1);
+      expect(report.scroll, name).toBe(0);
+      if (width <= 720 && height <= 700) {
+        const remain = report.vh - report.top - report.barH;
+        expect(Math.abs(report.height - remain), `${name} square ${report.height} vs ${remain}`).toBeLessThanOrEqual(12);
+      }
+      if (width <= 720 && height >= 701) {
+        expect(report.width, name).toBeGreaterThanOrEqual(240);
+        expect(report.width, name).toBeGreaterThanOrEqual(report.columnW * 0.9);
+      }
+      expect(report.tileOnTape, name).toBe(false);
+      expect(report.tileOnQuick, name).toBe(false);
+      expect(report.oneRow, `${name} ${report.widthMode}`).toBe(true);
+      expect(report.offset, name).toMatch(/מ׳/);
+      expect(report.offset, name).not.toMatch(/צד/);
+      if (report.height < 280) {
+        expect(report.offset, name).toMatch(/[→←]/);
+        expect(report.offset, name).not.toMatch(/ימינה|שמאלה/);
+        expect(report.heading, name).toMatch(/[→←]/);
+        expect(report.heading, name).not.toMatch(/ימינה|שמאלה/);
+      }
+      expect(report.arm.text, name).toBe('חימוש');
+      expect(report.disarm.text, name).toBe('ניטרול');
+      expect(report.arm.shown, name).not.toBe('none');
+      expect(report.disarm.shown, name).not.toBe('none');
+      expect(report.arm.w, name).toBeGreaterThanOrEqual(40);
+      expect(report.arm.h, name).toBeGreaterThanOrEqual(40);
+      expect(report.disarm.w, name).toBeGreaterThanOrEqual(40);
+      expect(report.disarm.h, name).toBeGreaterThanOrEqual(40);
+      expect(report.gap, name).toBeGreaterThanOrEqual(8);
     }
   }, 40000);
 });

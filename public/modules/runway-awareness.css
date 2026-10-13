@@ -194,8 +194,8 @@
 }
 .runway-vision-hold[hidden] { display: none; }
 #pfdHorizonStage[data-awareness-stage="short"] .runway-awareness-stack {
-  left: 52px;
-  right: 52px;
+  left: 54px;
+  right: 54px;
   top: 0;
   bottom: 0;
   gap: 1px;
@@ -233,9 +233,20 @@
   flex: 1 1 auto;
   width: auto;
   min-width: min-content;
-  padding: 0 1px;
+  padding: 0;
   overflow-wrap: normal;
   word-break: keep-all;
+}
+#pfdHorizonStage[data-awareness-stage="short"] .runway-awareness-v > bdi,
+#pfdHorizonStage[data-awareness-stage="short"] .runway-awareness-v > .runway-awareness-c {
+  display: inline !important;
+}
+#pfdHorizonStage[data-awareness-width="narrow"] .runway-awareness-tiles {
+  padding-bottom: 84px;
+}
+#pfdHorizonStage[data-awareness-width="narrow"] .runway-awareness-v > bdi,
+#pfdHorizonStage[data-awareness-width="narrow"] .runway-awareness-v > .runway-awareness-c {
+  display: block !important;
 }
 html body #pfdHorizonStage .runway-awareness-tile :is(span, strong, bdi) {
   white-space: nowrap !important;
@@ -245,18 +256,26 @@ html body #pfdHorizonStage .runway-awareness-tile :is(span, strong, bdi) {
 #pfdHorizonStage[data-awareness-width="tight"] .runway-awareness-stack {
   left: 4px;
   right: 4px;
+  top: auto;
+  bottom: 2px;
+  height: auto;
+  max-height: none;
 }
 #pfdHorizonStage[data-awareness-width="tight"] .runway-awareness-measures {
-  flex-flow: column nowrap;
+  position: static;
+  flex-flow: row nowrap;
   align-items: stretch;
 }
 #pfdHorizonStage[data-awareness-width="tight"] .runway-awareness-tile {
-  flex: 0 0 auto;
-  width: 100%;
-  min-width: 0;
+  flex: 1 1 0;
+  width: auto;
+  min-width: min-content;
 }
 #pfdHorizonStage[data-awareness-width="tight"] .runway-awareness-tiles {
-  padding-bottom: 4px;
+  padding-bottom: 0;
+}
+#pfdHorizonStage[data-awareness-width="tight"] .runway-awareness-v > .runway-awareness-c {
+  display: none !important;
 }
 #pfdHorizonStage[data-awareness-stage="short"] .runway-awareness-alert {
   padding: 0 2px;

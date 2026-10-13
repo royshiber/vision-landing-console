@@ -32,7 +32,7 @@ describe('horizon video rows are switches in the camera-row style', () => {
     await page.click('[data-tab="terrain"]');
     await page.waitForSelector('#pfdHorizonStage', { state: 'visible' });
     const stage = await page.locator('#pfdHorizonStage').boundingBox();
-    await page.mouse.click(stage.x + stage.width / 2, stage.y + 36, { button: 'right' });
+    await page.mouse.click(stage.x + stage.width / 2, stage.y + Math.min(80, stage.height - 8), { button: 'right' });
     await page.waitForSelector('#horizonCameraMenu:not([hidden])');
   }, 30000);
 

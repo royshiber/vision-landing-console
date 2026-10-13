@@ -7354,9 +7354,28 @@ function resizeHorizonCanvas() {
   }
 }
 
+function syncPhoneHorizonSquare(horizon) {
+  const ws = horizon.closest('.mission-workspace');
+  const phone = window.innerWidth <= 720 && window.innerHeight <= 700 && ws?.dataset.missionSwap !== 'horizon-map';
+  if (!phone) {
+    if (horizon.style.getPropertyValue('--horizon-phone-square')) horizon.style.removeProperty('--horizon-phone-square');
+    return;
+  }
+  const top = horizon.getBoundingClientRect().top;
+  const bar = document.getElementById('runwayVisionBar');
+  const barBox = bar && !bar.hidden ? bar.getBoundingClientRect().height : 0;
+  const barH = barBox > 8 ? barBox : 36;
+  const size = Math.max(96, Math.round(window.innerHeight - top - barH));
+  const next = `${size}px`;
+  if (horizon.style.getPropertyValue('--horizon-phone-square') !== next) {
+    horizon.style.setProperty('--horizon-phone-square', next);
+  }
+}
+
 function fitHorizonPack() {
   const horizon = document.querySelector('.mission-workspace[data-mission-layout="ops-v1"] [data-mission-region="horizon"]');
   if (!horizon || horizon.dataset.flightStack === 'custom') return;
+  syncPhoneHorizonSquare(horizon);
   const rect = horizon.getBoundingClientRect();
   if (rect.width < 80 || rect.height < 120) return;
   const ws = horizon.closest('.mission-workspace');
@@ -7418,6 +7437,7 @@ if (horizonCanvas && pfdHorizonShell) {
   new ResizeObserver(() => resizeHorizonCanvas()).observe(stage);
   const horizonRegion = stage.closest('[data-mission-region="horizon"]');
   if (horizonRegion) new ResizeObserver(() => fitHorizonPack()).observe(horizonRegion);
+  window.addEventListener('resize', () => fitHorizonPack());
   fitHorizonPack();
 }
 
@@ -8288,6 +8308,8 @@ function initHorizonCameraMenu() {
       flightDisarmBtn: '<rect x="6" y="6" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M9 12h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
       pfdVoiceFlightBtn: '<rect x="10" y="3.5" width="4" height="9" rx="2" fill="currentColor"/><path d="M7.5 11a4.5 4.5 0 0 0 9 0" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 15.5V19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
     };
+    const hud = document.getElementById('flightHud');
+    if (hud) hud.appendChild(quick);
     for (const id of ['pfdArmedBadge', 'flightArmBtn', 'flightDisarmBtn', 'pfdVoiceFlightBtn']) {
       const btn = document.getElementById(id);
       if (!btn) continue;

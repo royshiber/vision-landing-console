@@ -282,10 +282,11 @@ describe('runway awareness layout', () => {
         expect(disabledHere.aria).toBe('true');
         const offsetText = await page.locator('#runwayOffsetValue').innerText();
         const headingText = await page.locator('#runwayHeadingValue').innerText();
-        expect(offsetText).toMatch(/י/);
+        expect(offsetText).toMatch(/[→←]/);
         expect(offsetText).toMatch(/1\.4/);
-        expect(offsetText).not.toMatch(/ימינה|שמאלה/);
-        expect(headingText).toMatch(/י/);
+        expect(offsetText).toMatch(/מ׳/);
+        expect(offsetText).not.toMatch(/ימינה|שמאלה|צד/);
+        expect(headingText).toMatch(/[→←]/);
         expect(headingText).toMatch(/3/);
         expect(headingText).not.toMatch(/ימינה|שמאלה/);
       }
