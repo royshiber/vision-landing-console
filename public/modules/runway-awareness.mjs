@@ -186,6 +186,7 @@ function paintTiles(doc, status) {
     arm.textContent = missionShort ? 'משימה פעילה' : (mission ? 'נחיתת משימה פעילה' : 'נחיתה אופטית');
     if (missionShort) arm.dataset.armLabel = 'mission';
     else delete arm.dataset.armLabel;
+    arm.classList.toggle('runway-arm-mission', missionShort);
     arm.setAttribute('aria-pressed', active && !mission ? 'true' : 'false');
   }
 }
@@ -316,7 +317,7 @@ function syncStage(doc) {
   const missionLabel = arm?.dataset.armLabel === 'mission';
   const narrow = short && stage.clientWidth > 0 && stage.clientWidth <= 200 && !missionLabel;
   if (arm && state) {
-    const parent = narrow ? stage : state;
+    const parent = narrow || (short && missionLabel) ? stage : state;
     if (arm.parentElement !== parent) parent.append(arm);
   }
 }
@@ -484,6 +485,7 @@ function ensureChrome(doc) {
     arm.type = 'button';
     arm.id = 'runwayVisionArm';
     arm.textContent = 'נחיתה אופטית';
+    arm.hidden = true;
     arm.disabled = true;
     arm.setAttribute('aria-disabled', 'true');
     arm.addEventListener('click', async (event) => {

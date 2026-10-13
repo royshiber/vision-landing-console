@@ -528,19 +528,59 @@ describe('runway awareness layout', () => {
         const h = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
         return w > 0 && h > 0;
       }
-      const arm = document.getElementById('runwayVisionArm').getBoundingClientRect();
-      const state = document.getElementById('runwayVisionState').getBoundingClientRect();
+      function glyphs(el) {
+        if (!el) return null;
+        const range = document.createRange();
+        range.selectNodeContents(el);
+        return range.getBoundingClientRect();
+      }
+      const armEl = document.getElementById('runwayVisionArm');
+      const arm = armEl.getBoundingClientRect();
+      const word = document.getElementById('runwayVisionStateWord').getBoundingClientRect();
+      const stage = document.getElementById('pfdHorizonStage').getBoundingClientRect();
       const headers = [...document.querySelectorAll('#runwayAwarenessTiles .runway-awareness-k')].map((el) => ({
         text: el.textContent,
         box: el.getBoundingClientRect(),
       }));
-      const covered = headers.filter((row) => hits(arm, row.box)).map((row) => row.text);
-      const outside = arm.left < state.left - 1 || arm.right > state.right + 1
-        || arm.top < state.top - 1 || arm.bottom > state.bottom + 1;
-      return { covered, outside, parent: document.getElementById('runwayVisionArm').parentElement?.id || '' };
+      const note = glyphs(document.getElementById('horizonNoData'));
+      const left = document.querySelector('.pfd-side-tape--left')?.getBoundingClientRect();
+      const right = document.querySelector('.pfd-side-tape--right')?.getBoundingClientRect();
+      const canvas = document.getElementById('horizonCanvas');
+      const canvasBox = canvas.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      const height = canvas.height / dpr;
+      const scaleY = canvasBox.height / height;
+      const scaleX = canvasBox.width / (canvas.width / dpr);
+      const ctx = canvas.getContext('2d');
+      ctx.font = '700 11px "Space Grotesk", sans-serif';
+      const chipW = Math.ceil(ctx.measureText('R —').width) + 8;
+      const chip = {
+        left: canvasBox.left + 4 * scaleX,
+        top: canvasBox.top + (height - 6 - 16) * scaleY,
+        right: canvasBox.left + (4 + chipW) * scaleX,
+        bottom: canvasBox.top + (height - 6) * scaleY,
+        width: chipW * scaleX,
+        height: 16 * scaleY,
+      };
+      return {
+        covered: headers.filter((row) => hits(arm, row.box)).map((row) => row.text),
+        note: hits(arm, note),
+        left: hits(arm, left),
+        right: hits(arm, right),
+        chip: hits(arm, chip),
+        underState: arm.top >= word.bottom - 1,
+        inStage: arm.left >= stage.left - 1 && arm.right <= stage.right + 1
+          && arm.top >= stage.top - 1 && arm.bottom <= stage.bottom + 1,
+        parent: armEl.parentElement?.id || '',
+      };
     });
     expect(headerClear.covered, JSON.stringify(headerClear)).toEqual([]);
-    expect(headerClear.outside, JSON.stringify(headerClear)).toBe(false);
+    expect(headerClear.note, JSON.stringify(headerClear)).toBe(false);
+    expect(headerClear.left, JSON.stringify(headerClear)).toBe(false);
+    expect(headerClear.right, JSON.stringify(headerClear)).toBe(false);
+    expect(headerClear.chip, JSON.stringify(headerClear)).toBe(false);
+    expect(headerClear.underState, JSON.stringify(headerClear)).toBe(true);
+    expect(headerClear.inStage, JSON.stringify(headerClear)).toBe(true);
     const missionFit = await page.evaluate(collectTextFitFailures, 1);
     const missionRunway = (missionFit.fails || []).filter((row) => /runway/i.test(`${row.who} ${row.text}`));
     expect(missionRunway.length, JSON.stringify(missionRunway)).toBe(0);

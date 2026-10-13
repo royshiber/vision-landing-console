@@ -21642,7 +21642,7 @@ html body :is(
   .pfc-opt-mini,
   .comm-link-sr,
   .pulse-purpose,
-  #runwayVisionArm[data-arm-label="mission"]
+  .runway-arm-mission
 ) {
   white-space: normal !important;
   text-overflow: clip !important;

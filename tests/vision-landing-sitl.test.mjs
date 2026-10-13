@@ -720,15 +720,19 @@ describe('vision landing SITL e2e', () => {
     expect(early.ok).toBe(false);
     expect(early.reason).toBe('go_around');
     expect(run.link.frames).toHaveLength(frames + 1);
-    const high = { ...vehicle, altAglM: climb.alt, altAt: 50_000, customMode: 15 };
+    const high = { ...vehicle, altAglM: climb.alt, climbMps: 0.2, altAt: 50_000, customMode: 15 };
     run.at(50_000);
     run.controller.note({ estimate: seen, vehicle: high });
-    const pressed = run.controller.requestOptical(high);
+    const earlyHigh = run.controller.requestOptical({ ...high, altAt: 50_000 });
+    expect(earlyHigh.ok).toBe(false);
+    expect(earlyHigh.reason).toBe('go_around');
+    run.at(53_000);
+    const pressed = run.controller.requestOptical({ ...high, altAt: 53_000 });
     expect(pressed.ok).toBe(true);
     expect(pressed.reason).not.toBe('go_around');
   });
 
-  it('treats a climb as finished 1.9 m under the target or after a level-off', () => {
+  it('finishes a climb only inside the band after the rate stays level', () => {
     const target = Math.max(80 + 30, 60);
     function climbed() {
       const run = session();
@@ -762,55 +766,40 @@ describe('vision landing SITL e2e', () => {
       ...near.vehicle,
       altAglM: target - 1.9,
       relativeAltM: 80,
-      altAt: 50_000,
+      climbMps: 0.2,
+      altAt: 48_000,
       customMode: 15,
     };
     near.run.at(48_000);
     near.run.controller.tick({ estimate: near.seen, vehicle: short });
-    near.run.at(50_000);
-    const close = near.run.controller.requestOptical({ ...short, altAt: 50_000 });
+    const tooSoon = near.run.controller.requestOptical(short);
+    expect(tooSoon.ok).toBe(false);
+    expect(tooSoon.reason).toBe('go_around');
+    near.run.at(51_000);
+    const close = near.run.controller.requestOptical({ ...short, altAt: 51_000 });
     expect(close.ok).toBe(true);
     expect(close.reason).not.toBe('go_around');
 
     const low = climbed();
     const below = {
       ...low.vehicle,
-      altAglM: 50,
-      relativeAltM: 80,
-      climbMps: 0,
-      altAt: 50_000,
-      customMode: 15,
-    };
-    low.run.at(50_000);
-    low.run.controller.tick({ estimate: low.seen, vehicle: below });
-    low.run.at(54_000);
-    const still = low.run.controller.requestOptical({ ...below, altAt: 54_000 });
-    expect(still.ok).toBe(false);
-    expect(still.reason).toBe('go_around');
-
-    const level = climbed();
-    const flat = {
-      ...level.vehicle,
       altAglM: target - 4,
       relativeAltM: 80,
       climbMps: 0.2,
       altAt: 48_000,
       customMode: 15,
     };
-    level.run.at(48_000);
-    level.run.controller.tick({ estimate: level.seen, vehicle: flat });
-    const early = level.run.controller.requestOptical(flat);
-    expect(early.ok).toBe(false);
-    expect(early.reason).toBe('go_around');
-    level.run.at(51_000);
-    const done = level.run.controller.requestOptical({ ...flat, altAt: 51_000 });
-    expect(done.ok).toBe(true);
-    expect(done.reason).not.toBe('go_around');
+    low.run.at(48_000);
+    low.run.controller.tick({ estimate: low.seen, vehicle: below });
+    low.run.at(51_000);
+    const outside = low.run.controller.requestOptical({ ...below, altAt: 51_000 });
+    expect(outside.ok).toBe(false);
+    expect(outside.reason).toBe('go_around');
 
     const sink = climbed();
     const falling = {
       ...sink.vehicle,
-      altAglM: target - 4,
+      altAglM: target - 1.9,
       relativeAltM: 80,
       climbMps: -0.8,
       altAt: 48_000,
@@ -1781,36 +1770,42 @@ describe('vision landing SITL e2e', () => {
     run.at(194_000);
     const ready = run.controller.tick({
       estimate: seen,
-      vehicle: { ...vehicle, altAglM: 70, altAt: 194_000 },
+      vehicle: { ...vehicle, altAglM: 70, climbMps: 0.1, altAt: 194_000 },
     });
     expect(ready.vision.state).toBe('go_around');
     expect(ready.vision.labelHe).toBe('סבוב מחדש');
-    const again = run.controller.requestOptical({ ...vehicle, altAglM: 70, altAt: 194_000 });
+    run.at(197_000);
+    const again = run.controller.requestOptical({
+      ...vehicle,
+      altAglM: 70,
+      climbMps: 0.1,
+      altAt: 197_000,
+    });
     expect(again.ok).toBe(true);
     expect(again.sentNow).toBe(1);
     const resumed = run.controller.tick({
       estimate: seen,
-      vehicle: { ...vehicle, customMode: 15, altAglM: 70, altAt: 194_000 },
+      vehicle: { ...vehicle, customMode: 15, altAglM: 70, altAt: 197_000 },
     });
     expect(resumed.vision.state).toBe('active');
     const took = run.controller.tick({
       estimate: seen,
-      vehicle: { ...vehicle, customMode: 5, altAglM: 80, altAt: 194_000 },
+      vehicle: { ...vehicle, customMode: 5, altAglM: 80, altAt: 197_000 },
     });
     expect(took.vision.state).toBe('released');
-    run.at(196_000);
+    run.at(199_000);
     const next = run.controller.note({
       estimate: seen,
-      vehicle: { ...vehicle, customMode: 5, altAglM: 80, altAt: 196_000 },
+      vehicle: { ...vehicle, customMode: 5, altAglM: 80, altAt: 199_000 },
     });
     expect(next.vision.state).toBe('released');
     expect(next.vision.labelHe).toBe('שוחרר');
-    run.at(198_000);
+    run.at(201_000);
     const pressed = run.controller.requestOptical({
       ...vehicle,
       customMode: 5,
       altAglM: 80,
-      altAt: 198_000,
+      altAt: 201_000,
     });
     expect(pressed.ok).toBe(true);
     expect(pressed.reason).not.toBe('go_around');

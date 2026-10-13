@@ -221,15 +221,41 @@
   z-index: 1;
   pointer-events: auto;
 }
-#pfdHorizonStage[data-awareness-stage="short"] .runway-awareness-arm[data-arm-label="mission"] {
+#pfdHorizonStage[data-awareness-stage="short"] > #runwayVisionArm.runway-arm-mission {
+  position: absolute;
+  top: 90px;
+  bottom: auto;
+  left: 54px;
+  right: auto;
   width: max-content;
-  max-width: 100%;
+  max-width: none;
   margin: 0;
   min-height: 16px;
-  padding: 0 6px;
+  padding: 0 2px;
   line-height: 1.35;
+  text-align: start;
   white-space: nowrap;
   overflow-wrap: normal;
+  z-index: 8;
+}
+#pfdHorizonStage[data-awareness-stage="short"]:has(> #runwayVisionArm.runway-arm-mission) .runway-awareness-measures {
+  left: -48px;
+  right: 0;
+  width: auto;
+}
+#pfdHorizonStage[data-awareness-stage="short"]:has(> #runwayVisionArm.runway-arm-mission) .runway-awareness-tile {
+  display: flex;
+  flex: 0 1 auto;
+  flex-flow: row nowrap;
+  align-items: baseline;
+  gap: 2px;
+  width: auto;
+}
+#pfdHorizonStage[data-awareness-stage="short"]:has(> #runwayVisionArm.runway-arm-mission) .runway-awareness-tile .runway-awareness-k,
+#pfdHorizonStage[data-awareness-stage="short"]:has(> #runwayVisionArm.runway-arm-mission) .runway-awareness-tile .runway-awareness-v {
+  display: inline;
+  width: auto;
+  white-space: nowrap !important;
 }
 @media (max-width: 1100px) and (max-height: 520px) {
   #pfdHorizonStage[data-awareness-stage="short"] > #runwayVisionState {
@@ -252,10 +278,13 @@
     z-index: 9;
     pointer-events: auto;
   }
-  #pfdHorizonStage[data-awareness-stage="short"] > #runwayVisionArm[data-arm-label="mission"] {
+  #pfdHorizonStage[data-awareness-stage="short"] > #runwayVisionArm.runway-arm-mission {
+    top: 90px;
+    left: 54px;
     width: max-content;
-    max-width: calc(100% - 12px);
+    max-width: none;
     white-space: nowrap;
+    text-align: start;
   }
 }
 #pfdHorizonStage[data-awareness-stage="short"] .runway-vision-hold,
