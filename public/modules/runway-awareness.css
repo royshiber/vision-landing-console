@@ -106,6 +106,15 @@
   white-space: normal;
 }
 .runway-awareness-arm[aria-pressed="true"] { background: #155e75; }
+.runway-awareness-arm:disabled,
+.runway-awareness-arm[aria-disabled="true"],
+#pfdHorizonStage[data-awareness-stage="short"] .runway-awareness-arm:disabled,
+#pfdHorizonStage[data-awareness-stage="short"] .runway-awareness-arm[aria-disabled="true"],
+#pfdHorizonStage[data-awareness-stage="short"] > #runwayVisionArm:disabled,
+#pfdHorizonStage[data-awareness-stage="short"] > #runwayVisionArm[aria-disabled="true"] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
 .runway-vision-hold {
   flex: 1 1 100%;
   min-width: 0;

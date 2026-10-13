@@ -132,6 +132,7 @@ function paintTiles(doc, status) {
   const word = doc.getElementById('runwayVisionStateWord');
   const arm = doc.getElementById('runwayVisionArm');
   const active = on && status?.vision?.state === 'active';
+  const mission = active && status?.vision?.optical === false;
   const goneAround = on && status?.vision?.state === 'go_around';
   const released = on && status?.vision?.state === 'released';
   const ready = on && status?.vision?.buttonReady === true;
@@ -145,7 +146,9 @@ function paintTiles(doc, status) {
   const label = !on
     ? ''
     : active
-      ? (stageIsShort(doc) ? 'אופטית פעילה' : 'נחיתה אופטית פעילה. לביטול: החלפת מצב טיסה')
+      ? (mission
+        ? 'נחיתת משימה: הנחיית גלגול'
+        : (stageIsShort(doc) ? 'אופטית פעילה' : 'נחיתה אופטית פעילה. לביטול: החלפת מצב טיסה'))
       : goneAround
         ? 'סבוב מחדש'
         : levelLow
@@ -176,9 +179,11 @@ function paintTiles(doc, status) {
   }
   if (arm) {
     arm.hidden = !on;
-    arm.disabled = levelLow || noLand || !ready || active || blockHe !== '';
-    arm.textContent = 'נחיתה אופטית';
-    arm.setAttribute('aria-pressed', active ? 'true' : 'false');
+    const disabled = levelLow || noLand || !ready || active || blockHe !== '';
+    arm.disabled = disabled;
+    arm.setAttribute('aria-disabled', disabled ? 'true' : 'false');
+    arm.textContent = mission ? 'נחיתת משימה פעילה' : 'נחיתה אופטית';
+    arm.setAttribute('aria-pressed', active && !mission ? 'true' : 'false');
   }
 }
 
@@ -476,6 +481,7 @@ function ensureChrome(doc) {
     arm.id = 'runwayVisionArm';
     arm.textContent = 'נחיתה אופטית';
     arm.disabled = true;
+    arm.setAttribute('aria-disabled', 'true');
     arm.addEventListener('click', async (event) => {
       event.preventDefault();
       event.stopPropagation();

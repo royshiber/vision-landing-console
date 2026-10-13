@@ -165,7 +165,7 @@ describe('runway awareness SITL command gate', () => {
       vehicle: approachVehicle(),
     });
     expect(sent.sentNow).toBe(1);
-    expect(sent.vision.labelHe).toBe('נחיתה אופטית פעילה. לביטול: החלפת מצב טיסה');
+    expect(sent.vision.labelHe).toBe('נחיתת משימה: הנחיית גלגול');
     expect(calls).toHaveLength(1);
     expect(calls[0].kind).toBe('ROLL_OVERRIDE');
     expect(calls[0].rollPwm).toBeGreaterThanOrEqual(1100);

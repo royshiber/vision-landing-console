@@ -345,7 +345,7 @@ SITL lateral stage, implemented. A live vehicle is still a Human Gate.
 - Commands leave only when the vehicle is SITL. Level 4 stays locked.
 - On path A, lost runway or low confidence releases the roll override once. Path B keeps guiding while the mode stays GUIDED.
 - Stick movement is not a cancel. There is no takeover switch and no RC-rate command.
-- The active line is נחיתה אופטית פעילה. לביטול: החלפת מצב טיסה. On a short stage it is אופטית פעילה. With no runway in frame the reason is אין מסלול במסגרת. Below level 3 the reason is רמה 3 נדרשת לנחיתה אופטית. With no landing item the reason is אין נחיתה במשימה.
+- The button path line is נחיתה אופטית פעילה. לביטול: החלפת מצב טיסה. On a short stage it is אופטית פעילה. Path A, while it is steering roll, reads נחיתת משימה: הנחיית גלגול and the button reads נחיתת משימה פעילה. The 50 m floor, the handoff distance, and landed state 4 refuse a button press only. They do not stop path A, and they are not shown while path A is active. A climb acknowledgement that arrives after the state is already שוחרר switches it to סבוב מחדש. With no runway in frame the reason is אין מסלול במסגרת. Below level 3 the reason is רמה 3 נדרשת לנחיתה אופטית. With no landing item the reason is אין נחיתה במשימה. A disabled button is dim, shows a not-allowed cursor, and is marked aria-disabled.
 - This is not full auto land. Connecting a live vehicle remains a Human Gate.
 
 ### Exp#4 — Full vision land (future GO)

@@ -125,6 +125,13 @@ describe('runway awareness layout', () => {
     expect(await page.locator('#runwayVisionStateWord').innerText()).toBe('סבוב מחדש');
     expect(await page.locator('#runwayVisionArm').innerText()).toBe('נחיתה אופטית');
     expect(await page.locator('#runwayVisionArm').isDisabled()).toBe(true);
+    const disabledLook = await page.locator('#runwayVisionArm').evaluate((el) => {
+      const style = getComputedStyle(el);
+      return { opacity: style.opacity, cursor: style.cursor, aria: el.getAttribute('aria-disabled') };
+    });
+    expect(Number(disabledLook.opacity)).toBeLessThan(1);
+    expect(disabledLook.cursor).toBe('not-allowed');
+    expect(disabledLook.aria).toBe('true');
     expect(await page.locator('#runwayVisionHold').isHidden()).toBe(true);
     expect(await page.locator('#runwayVisionTakeover').isHidden()).toBe(true);
 
@@ -198,10 +205,18 @@ describe('runway awareness layout', () => {
           && Math.max(...measure.map((box) => box.top)) - Math.min(...measure.map((box) => box.top)) <= 2
           && measure.every((box) => box.width < stackBox.width * 0.6 && box.width > 8);
         return { rows, stageShort, oneRow };
-      }, ['ממתין', 'פעיל', 'שוחרר', 'סבוב מחדש', 'נמוך מדי להפעלה']);
+      }, ['ממתין', 'פעיל', 'שוחרר', 'סבוב מחדש', 'נמוך מדי להפעלה', 'נחיתת משימה: הנחיית גלגול', 'נחיתת משימה פעילה']);
       for (const row of placed.rows) {
         expect(row.inside, `${width}x${height} ${row.value}`).toBe(true);
       }
+      const disabledSize = await page.locator('#runwayVisionArm').evaluate((el) => {
+        const style = getComputedStyle(el);
+        return { opacity: style.opacity, cursor: style.cursor, aria: el.getAttribute('aria-disabled'), disabled: el.disabled };
+      });
+      expect(disabledSize.disabled, `${width}x${height}`).toBe(true);
+      expect(Number(disabledSize.opacity), `${width}x${height}`).toBeLessThan(1);
+      expect(disabledSize.cursor, `${width}x${height}`).toBe('not-allowed');
+      expect(disabledSize.aria, `${width}x${height}`).toBe('true');
       if (width === 1024 && height === 470) {
         expect(placed.stageShort).toBe(true);
         const clearOfIas = await page.evaluate(() => {
@@ -255,6 +270,14 @@ describe('runway awareness layout', () => {
         expect(armLanes.note, 'arm overlaps אין נתונים').toBe(true);
         expect(armLanes.word, 'arm overlaps the state text').toBe(true);
         expect(placed.oneRow, 'offset heading and hazard share one line').toBe(true);
+        const disabledHere = await page.locator('#runwayVisionArm').evaluate((el) => {
+          const style = getComputedStyle(el);
+          return { opacity: style.opacity, cursor: style.cursor, aria: el.getAttribute('aria-disabled'), disabled: el.disabled };
+        });
+        expect(disabledHere.disabled).toBe(true);
+        expect(Number(disabledHere.opacity)).toBeLessThan(1);
+        expect(disabledHere.cursor).toBe('not-allowed');
+        expect(disabledHere.aria).toBe('true');
         const offsetText = await page.locator('#runwayOffsetValue').innerText();
         const headingText = await page.locator('#runwayHeadingValue').innerText();
         expect(offsetText).toMatch(/י/);
@@ -444,5 +467,24 @@ describe('runway awareness layout', () => {
     const shortRunway = (shortFit.fails || []).filter((row) => /runway/i.test(`${row.who} ${row.text}`));
     expect(shortRunway.length, JSON.stringify(shortRunway)).toBe(0);
     expect(await page.locator('#runwayVisionStateWord').innerText()).toBe('אופטית פעילה');
+    expect(await page.locator('#runwayVisionArm').innerText()).toBe('נחיתה אופטית');
+    armedNow = false;
+    visionOverride = {
+      state: 'active',
+      optical: false,
+      labelHe: 'נחיתת משימה: הנחיית גלגול',
+      manualArm: false,
+      buttonReady: true,
+      hasLand: true,
+      blockHe: 'נמוך מדי להפעלה',
+    };
+    await page.waitForFunction(() => (
+      document.getElementById('runwayVisionStateWord')?.textContent || ''
+    ) === 'נחיתת משימה: הנחיית גלגול');
+    expect(await page.locator('#runwayVisionArm').innerText()).toBe('נחיתת משימה פעילה');
+    expect(await page.locator('#runwayVisionStateWord').innerText()).not.toBe('נמוך מדי להפעלה');
+    const missionFit = await page.evaluate(collectTextFitFailures, 1);
+    const missionRunway = (missionFit.fails || []).filter((row) => /runway/i.test(`${row.who} ${row.text}`));
+    expect(missionRunway.length, JSON.stringify(missionRunway)).toBe(0);
   }, 30000);
 });

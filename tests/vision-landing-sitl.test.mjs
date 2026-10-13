@@ -260,7 +260,7 @@ describe('vision landing SITL e2e', () => {
     run.at(52_000);
     const live = run.controller.tick({ estimate: STRIP, vehicle: approach() });
     expect(live.sentNow).toBe(1);
-    expect(live.vision.labelHe).toBe('נחיתה אופטית פעילה. לביטול: החלפת מצב טיסה');
+    expect(live.vision.labelHe).toBe('נחיתת משימה: הנחיית גלגול');
     expect(run.link.frames).toHaveLength(1);
     const decoded = decode(run.link.frames[0]);
     expect(decoded.type).toBe('RC_CHANNELS_OVERRIDE');
@@ -283,7 +283,7 @@ describe('vision landing SITL e2e', () => {
     run.at(60_000);
     run.controller.tick({ estimate: STRIP, vehicle: approach() });
     run.at(62_000);
-    expect(run.controller.tick({ estimate: STRIP, vehicle: approach() }).vision.labelHe).toBe('נחיתה אופטית פעילה. לביטול: החלפת מצב טיסה');
+    expect(run.controller.tick({ estimate: STRIP, vehicle: approach() }).vision.labelHe).toBe('נחיתת משימה: הנחיית גלגול');
 
     const lost = run.controller.tick({
       estimate: { ...STRIP, detected: false, confidence: { offset: 0.2, heading: 0.2 } },
@@ -316,7 +316,7 @@ describe('vision landing SITL e2e', () => {
     run.at(70_000);
     run.controller.tick({ estimate: STRIP, vehicle: approach() });
     run.at(72_000);
-    expect(run.controller.tick({ estimate: STRIP, vehicle: approach() }).vision.labelHe).toBe('נחיתה אופטית פעילה. לביטול: החלפת מצב טיסה');
+    expect(run.controller.tick({ estimate: STRIP, vehicle: approach() }).vision.labelHe).toBe('נחיתת משימה: הנחיית גלגול');
     expect(run.link.frames).toHaveLength(1);
 
     const hazard = run.controller.tick({
@@ -368,7 +368,7 @@ describe('vision landing SITL e2e', () => {
       estimate: { ...STRIP, offset_m: 18, heading_error_deg: 0 },
       vehicle: approach({ altAglM: 40 }),
     });
-    expect(later.vision.labelHe).toBe('נחיתה אופטית פעילה. לביטול: החלפת מצב טיסה');
+    expect(later.vision.labelHe).toBe('נחיתת משימה: הנחיית גלגול');
     expect(decode(high.link.frames[0]).type).toBe('RC_CHANNELS_OVERRIDE');
     expect(decode(high.link.frames[0]).rest[1]).toBe(0);
     expect(decode(high.link.frames[0]).rest[2]).toBe(0);
@@ -774,6 +774,78 @@ describe('vision landing SITL e2e', () => {
     const pressed = run.controller.requestOptical({ ...vehicle, altAt: 51_000, customMode: 15 });
     expect(pressed.ok).toBe(true);
     expect(pressed.reason).not.toBe('go_around');
+  });
+
+  it('switches a late climb acknowledgement to go-around after release', (ctx) => {
+    ctx.skip(!pymavlinkInstalled(), PYMAVLINK_SKIP);
+    const run = session();
+    let repositions = 0;
+    run.link.conn.ackFor = (cmd) => {
+      if (cmd.kind !== 'REPOSITION') return undefined;
+      repositions += 1;
+      if (repositions === 1) return { command: 192, result: 0 };
+      return null;
+    };
+    const dist = 63 / Math.tan((3 * Math.PI) / 180);
+    const seen = { ...STRIP, threshold_lat: 32.01, threshold_lon: 34.81 };
+    const vehicle = approach({
+      customMode: 15,
+      missionCurrent: 1,
+      lat: 32.01 + (dist / 111320),
+      lon: 34.81,
+      altAglM: 80,
+      relativeAltM: 80,
+      altAt: 42_000,
+    });
+    run.at(40_000);
+    run.controller.note({ estimate: seen, vehicle });
+    run.at(42_000);
+    expect(run.controller.requestOptical(vehicle).ok).toBe(true);
+    expect(run.controller.tick({ estimate: seen, vehicle }).vision.reason).toBe('glide');
+    run.at(47_000);
+    const frozen = run.controller.tick({
+      estimate: seen,
+      vehicle: { ...vehicle, altAt: 42_000 },
+    });
+    expect(frozen.vision.state).toBe('released');
+    expect(frozen.vision.labelHe).toBe('שוחרר');
+    const late = run.controller.noteClimbAck({ command: 192, result: 0 });
+    expect(late.vision.state).toBe('go_around');
+    expect(late.vision.labelHe).toBe('סבוב מחדש');
+    const ignored = run.controller.noteClimbAck({ command: 192, result: 0 });
+    expect(ignored.vision.state).toBe('go_around');
+    const early = run.controller.requestOptical({ ...vehicle, altAt: 48_000, customMode: 15 });
+    expect(early.ok).toBe(false);
+    expect(early.reason).toBe('go_around');
+  });
+
+  it('keeps mission roll guidance below the button floor', () => {
+    const run = session();
+    const seen = { ...STRIP, threshold_lat: 32.01, threshold_lon: 34.81 };
+    const low = approach({
+      relativeAltM: 12,
+      altAglM: 40,
+      lat: 32.01 + (80 / 111320),
+      lon: 34.81,
+      altAt: 10_000,
+    });
+    run.at(10_000);
+    const waiting = run.controller.tick({ estimate: seen, vehicle: low });
+    expect(waiting.vision.state).not.toBe('active');
+    expect(waiting.vision.blockHe).toBe('נמוך מדי להפעלה');
+    expect(waiting.sentNow).toBe(0);
+    run.at(12_000);
+    const live = run.controller.tick({ estimate: seen, vehicle: { ...low, altAt: 12_000 } });
+    expect(live.vision.state).toBe('active');
+    expect(live.vision.optical).toBe(false);
+    expect(live.vision.labelHe).toBe('נחיתת משימה: הנחיית גלגול');
+    expect(live.vision.blockHe).toBeNull();
+    expect(live.sentNow).toBe(1);
+    const press = run.controller.requestOptical({ ...low, altAt: 12_000 });
+    expect(press.ok).toBe(false);
+    expect(press.reason).toBe('too_low');
+    expect(press.vision.labelHe).toBe('נחיתת משימה: הנחיית גלגול');
+    expect(press.vision.blockHe).toBeNull();
   });
 
   it('stays released when a 5 s freeze cannot send the climb', () => {
