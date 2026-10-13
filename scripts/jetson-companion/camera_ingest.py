@@ -656,14 +656,14 @@ def _call_with_deadline(fn, timeout_s):
 
 
 def gst_dist_paths(lib_root="/usr/lib"):
-    """JetPack puts PyGObject in system dist-packages. A venv often cannot see it."""
+    """JetPack puts PyGObject in dist-packages. Ubuntu uses python3, not python3.12."""
     paths = []
     try:
         names = os.listdir(lib_root)
     except OSError:
         return paths
     for name in sorted(names):
-        if not str(name).startswith("python3"):
+        if name != "python3" and not str(name).startswith("python3."):
             continue
         dist = os.path.join(lib_root, name, "dist-packages")
         if os.path.isdir(os.path.join(dist, "gi")):

@@ -244,6 +244,38 @@ exit 0
         self.assertIn("nvidia-l4t-gstreamer", install)
         self.assertIn("airvix-system-gi.pth", install)
         self.assertIn("nvv4l2decoder", install)
+        self.assertIn("runuser -u royshiber --", install)
+        self.assertIn("/usr/lib/python3/dist-packages", install)
+        self.assertIn("import gi, os; print(os.path.dirname(gi.__file__))", install)
+        self.assertNotIn('"$py" -c \'import sys', install)
+
+    def test_gi_dist_dir_uses_unversioned_system_path(self):
+        text = INSTALL.read_text(encoding="utf-8")
+        start = text.index("gi_dist_dir() {")
+        end = text.index("\nexpose_gi_to_service_venv()", start)
+        function = text[start:end]
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            gi = root / "python3" / "dist-packages" / "gi"
+            gi.mkdir(parents=True)
+            (gi / "__init__.py").write_text("", encoding="utf-8")
+            (root / "python3.12" / "dist-packages").mkdir(parents=True)
+            probe = root / "syspython"
+            probe.write_text("#!/bin/sh\nexit 1\n", encoding="utf-8")
+            probe.chmod(probe.stat().st_mode | stat.S_IXUSR)
+            env = os.environ.copy()
+            env["AIRVIX_GI_LIB_ROOT"] = str(root)
+            env["AIRVIX_SYSTEM_PYTHON"] = str(probe)
+            result = subprocess.run(
+                ["bash", "-c", function + "\ngi_dist_dir\n"],
+                env=env,
+                text=True,
+                capture_output=True,
+                timeout=10,
+                check=False,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(result.stdout.strip(), str(root / "python3" / "dist-packages"))
 
 
 class ProvisionTests(unittest.TestCase):

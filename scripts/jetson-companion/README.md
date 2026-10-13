@@ -153,7 +153,7 @@ Detection is off until a config call or `VLC_VISION_DETECT=1` together with `VLC
 
 The vision thread infers the newest frame and drops the ones that arrived while it was busy. There is no detection queue. `GET /api/v1/status` and `/api/v1/status/lite` include `vision.backend` and `vision.track_age_ms` (capture monotonic time to the status read). The Jetson target is a track age under 300 ms.
 
-cam3 auto opens a hardware H.265 GStreamer pipeline (`nvv4l2decoder`, `appsink name=sink drop=true max-buffers=1 sync=false`) before FFmpeg. The journal line names the active decoder: `decoder=nvv4l2decoder` or `decoder=ffmpeg`. `install.sh --apply` apt-installs `python3-gi`, `gir1.2-gstreamer-1.0`, `gstreamer1.0-plugins-bad`, and the JetPack `nvidia-l4t-gstreamer` plugin when `nvv4l2decoder` is missing. If the service Python is a venv, the installer writes `airvix-system-gi.pth` so that venv imports system `gi`. No pip package is added.
+cam3 auto opens a hardware H.265 GStreamer pipeline (`nvv4l2decoder`, `appsink name=sink drop=true max-buffers=1 sync=false`) before FFmpeg. The journal line names the active decoder: `decoder=nvv4l2decoder` or `decoder=ffmpeg`. `install.sh --apply` apt-installs `python3-gi`, `gir1.2-gstreamer-1.0`, `gstreamer1.0-plugins-bad`, and the JetPack `nvidia-l4t-gstreamer` plugin when `nvv4l2decoder` is missing. If the service Python is a venv, the installer writes `airvix-system-gi.pth` so that venv imports system `gi`. `gi` is found with `/usr/bin/python3`, including `/usr/lib/python3/dist-packages`. The venv interpreter runs only as `royshiber`. No pip package is added.
 
 No pip package is added to `/home/royshiber/mavlink-env`. `requirements-vision.txt` lists none. The venv already has numpy and cv2.
 

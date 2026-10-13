@@ -192,29 +192,69 @@ ensure_hardware_decode() {
   echo '{"ok":true,"gst":"installed","decoder":"nvv4l2decoder"}'
 }
 
+gi_dist_dir() {
+  # python3-gi on JetPack lives in /usr/lib/python3/dist-packages, not python3.12.
+  # Ask the system interpreter. It is root-owned. Never ask the venv here.
+  local py probe parent candidate root
+  root="${AIRVIX_GI_LIB_ROOT:-/usr/lib}"
+  py="${AIRVIX_SYSTEM_PYTHON:-/usr/bin/python3}"
+  if [[ -x "$py" ]]; then
+    probe="$("$py" -c 'import gi, os; print(os.path.dirname(gi.__file__))' 2>/dev/null || true)"
+    probe="${probe%%$'\n'*}"
+    if [[ -n "$probe" && -d "$probe" ]]; then
+      parent="$(dirname "$probe")"
+      if [[ -d "$parent/gi" ]]; then
+        printf '%s\n' "$parent"
+        return 0
+      fi
+    fi
+  fi
+  for candidate in \
+    "$root/python3/dist-packages" \
+    "$root/python3.12/dist-packages" \
+    "$root/python3.10/dist-packages" \
+    "$root/python3.8/dist-packages"
+  do
+    if [[ -d "$candidate/gi" ]]; then
+      printf '%s\n' "$candidate"
+      return 0
+    fi
+  done
+  return 1
+}
+
 expose_gi_to_service_venv() {
   # A venv without --system-site-packages cannot import gi. One .pth line adds dist-packages.
+  # The venv interpreter is owned by royshiber. Run it only as that user, never as root.
   if [[ "${LAB_UNPRIV:-0}" == "1" || -n "${FORCE_LAB:-}" ]]; then
     return 0
   fi
-  local text py root minor dist site
+  local text py root dist site
   text="$(systemctl_cmd cat "$SERVICE_NAME" 2>/dev/null || true)"
   py="$(printf '%s\n' "$text" | sed -n 's/^ExecStart=//p' | head -n 1 | awk '{print $1}')"
-  if [[ -z "$py" && -x /home/royshiber/mavlink-env/bin/python3 ]]; then
+  if [[ -z "$py" && -e /home/royshiber/mavlink-env/bin/python3 ]]; then
     py=/home/royshiber/mavlink-env/bin/python3
   fi
-  [[ -n "$py" && -x "$py" ]] || return 0
+  [[ -n "$py" && -e "$py" ]] || return 0
   root="$(dirname "$(dirname "$py")")"
   [[ -f "$root/pyvenv.cfg" ]] || return 0
-  minor="$("$py" -c 'import sys; print("%d.%d" % sys.version_info[:2])')"
-  dist="/usr/lib/python${minor}/dist-packages"
-  if [[ ! -d "$dist/gi" ]]; then
-    echo "{\"ok\":false,\"error\":\"gi_not_in_dist_packages\",\"path\":\"${dist}/gi\"}" >&2
+  if ! dist="$(gi_dist_dir)"; then
+    echo '{"ok":false,"error":"gi_not_in_dist_packages","path":"/usr/lib/python3/dist-packages/gi"}' >&2
     return 1
   fi
-  site="$("$py" -c 'import site; print(site.getsitepackages()[0])')"
-  mkdir -p "$site"
-  printf '%s\n' "$dist" > "$site/airvix-system-gi.pth"
+  if ! id royshiber >/dev/null 2>&1; then
+    echo '{"ok":false,"error":"service_user_missing","user":"royshiber"}' >&2
+    return 1
+  fi
+  site="$(runuser -u royshiber -- "$py" -c 'import site; print(site.getsitepackages()[0])')"
+  site="${site%%$'\n'*}"
+  site="${site%$'\r'}"
+  if [[ "$site" != /* || "$site" != "$root"/* ]]; then
+    echo '{"ok":false,"error":"venv_site_rejected"}' >&2
+    return 1
+  fi
+  runuser -u royshiber -- mkdir -p -- "$site"
+  printf '%s\n' "$dist" | runuser -u royshiber -- tee -- "$site/airvix-system-gi.pth" >/dev/null
   echo '{"ok":true,"gi_pth":"airvix-system-gi.pth"}'
 }
 

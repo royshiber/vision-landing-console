@@ -300,6 +300,16 @@ class RtspPipelineTests(unittest.TestCase):
             found = gst_dist_paths(tmp)
         self.assertEqual(found, [str(Path(tmp) / "python3.10" / "dist-packages")])
 
+    def test_gst_dist_paths_finds_unversioned_python3(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            pkg = Path(tmp) / "python3" / "dist-packages" / "gi"
+            pkg.mkdir(parents=True)
+            (pkg / "__init__.py").write_text("", encoding="utf-8")
+            versioned = Path(tmp) / "python3.12" / "dist-packages"
+            versioned.mkdir(parents=True)
+            found = gst_dist_paths(tmp)
+        self.assertEqual(found, [str(Path(tmp) / "python3" / "dist-packages")])
+
     def test_active_decoder_is_named_in_the_log(self):
         import camera_ingest
         import io
