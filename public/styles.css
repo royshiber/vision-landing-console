@@ -29173,13 +29173,15 @@ body:has(#terrain.panel.visible) .layout,
   }
 }
 @container (max-width: 239px) {
-  #horizonQuick .pfd-badge .horizon-quick-label {
+  #horizonQuick .pfd-badge .horizon-quick-label,
+  #horizonQuick .pfd-badge .horizon-quick-icon {
     display: none !important;
   }
   #horizonQuick .pfd-badge {
     width: 40px !important;
     min-width: 40px !important;
     padding: 0 !important;
+    border-radius: 999px !important;
   }
   #horizonQuick .pfd-badge::after {
     font-family: "Heebo", "Segoe UI", sans-serif;
@@ -29187,8 +29189,27 @@ body:has(#terrain.panel.visible) .layout,
     font-weight: 700;
     line-height: 1;
   }
-  #horizonQuick .pfd-badge--armed::after { content: "ח"; }
-  #horizonQuick .pfd-badge--disarmed::after { content: "מ"; }
+  /* White on #b91c1c is 6.5:1. The ring is white against the dark zenith and black against the light haze. */
+  #horizonQuick .pfd-badge--armed {
+    background: #b91c1c !important;
+    color: #ffffff !important;
+    border: 0 !important;
+    box-shadow: none !important;
+  }
+  #horizonQuick .pfd-badge--armed::after { content: "חמ"; }
+  #horizonQuick .pfd-badge--disarmed {
+    background: transparent !important;
+    color: transparent !important;
+    border: 0 !important;
+    box-shadow: inset 0 0 0 2px #f8fafc, inset 0 0 0 3px #0b1220 !important;
+  }
+  #horizonQuick .pfd-badge--disarmed::after { content: none; }
+  #horizonQuick .pfd-badge--unknown {
+    background: #0b1220 !important;
+    color: #f8fafc !important;
+    border: 2px solid #f8fafc !important;
+    box-shadow: none !important;
+  }
   #horizonQuick .pfd-badge--unknown::after { content: "?"; }
 }
 @container (min-width: 240px) {

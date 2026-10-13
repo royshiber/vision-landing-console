@@ -9,6 +9,27 @@ import { startTestServer } from './test-server.mjs';
 
 const SIZES = [[360, 640], [360, 800], [1024, 470], [1366, 630], [1536, 730]];
 
+function parseRgb(value) {
+  const match = String(value).match(/rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)(?:[,\s/]+([\d.]+))?\s*\)/);
+  if (!match) return null;
+  return { r: Number(match[1]), g: Number(match[2]), b: Number(match[3]), a: match[4] == null ? 1 : Number(match[4]) };
+}
+
+function channelLum(value) {
+  const s = value / 255;
+  return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+}
+
+function lum(color) {
+  return 0.2126 * channelLum(color.r) + 0.7152 * channelLum(color.g) + 0.0722 * channelLum(color.b);
+}
+
+function contrast(a, b) {
+  const hi = Math.max(lum(a), lum(b));
+  const lo = Math.min(lum(a), lum(b));
+  return (hi + 0.05) / (lo + 0.05);
+}
+
 const AWARENESS = {
   ok: true,
   level: 2,
@@ -208,16 +229,31 @@ describe('horizon square and whole tile words', () => {
             const labelEl = el.querySelector('.horizon-quick-label');
             const b = el.getBoundingClientRect();
             const a = armEl.getBoundingClientRect();
-            const after = getComputedStyle(el, '::after').content || '';
+            const wasClass = el.className;
+            const readMark = () => {
+              const style = getComputedStyle(el);
+              return {
+                after: getComputedStyle(el, '::after').content || '',
+                bg: style.backgroundColor,
+                color: style.color,
+                icon: getComputedStyle(el.querySelector('.horizon-quick-icon')).display,
+                shadow: style.boxShadow,
+              };
+            };
             const out = {
               labelDisplay: getComputedStyle(labelEl).display,
               labelText: labelEl.textContent || '',
-              after,
-              icon: getComputedStyle(el.querySelector('.horizon-quick-icon')).display,
               gap: Math.round((Math.max(b.left, a.left) - Math.min(b.right, a.right)) * 10) / 10,
               inside: b.left >= stage.left - 1 && b.right <= stage.right + 1
                 && b.top >= stage.top - 1 && b.bottom <= stage.bottom + 1,
             };
+            el.className = 'pfd-badge pfd-badge--armed';
+            out.armed = readMark();
+            el.className = 'pfd-badge pfd-badge--disarmed';
+            out.disarmed = readMark();
+            el.className = 'pfd-badge pfd-badge--unknown';
+            out.unknown = readMark();
+            el.className = wasClass;
             el.hidden = was;
             return out;
           })(),
@@ -301,8 +337,25 @@ describe('horizon square and whole tile words', () => {
         expect(report.shownBadge.labelText, name).toMatch(/חמוש|מנוטרל/);
       } else {
         expect(report.shownBadge.labelDisplay, name).toBe('none');
-        expect(report.shownBadge.after, name).toMatch(/[חמ?]/);
-        expect(report.shownBadge.icon, name).not.toBe('none');
+        const armedBg = parseRgb(report.shownBadge.armed.bg);
+        const armedFg = parseRgb(report.shownBadge.armed.color);
+        expect(report.shownBadge.armed.after, name).toContain('חמ');
+        expect(report.shownBadge.armed.after, name).not.toContain('חימוש');
+        expect(report.shownBadge.armed.icon, name).toBe('none');
+        expect(armedBg.a, name).toBe(1);
+        expect(armedBg.r, `${name} solid red`).toBeGreaterThan(armedBg.g + 80);
+        expect(armedBg.r, `${name} solid red`).toBeGreaterThan(armedBg.b + 80);
+        expect(contrast(armedFg, armedBg), `${name} armed contrast`).toBeGreaterThanOrEqual(4.5);
+        expect(report.shownBadge.disarmed.after, name).toBe('none');
+        expect(report.shownBadge.disarmed.icon, name).toBe('none');
+        expect(parseRgb(report.shownBadge.disarmed.bg).a, name).toBe(0);
+        const rings = [...String(report.shownBadge.disarmed.shadow).matchAll(/rgba?\([^)]+\)/g)].map((hit) => parseRgb(hit[0]));
+        const lightRing = rings.reduce((best, color) => (lum(color) > lum(best) ? color : best));
+        const darkRing = rings.reduce((best, color) => (lum(color) < lum(best) ? color : best));
+        expect(contrast(lightRing, { r: 10, g: 22, b: 51 }), `${name} ring on dark sky`).toBeGreaterThanOrEqual(4.5);
+        expect(contrast(darkRing, { r: 142, g: 200, b: 238 }), `${name} ring on light sky`).toBeGreaterThanOrEqual(3);
+        expect(report.shownBadge.unknown.after, name).toContain('?');
+        expect(contrast(parseRgb(report.shownBadge.unknown.color), parseRgb(report.shownBadge.unknown.bg)), `${name} unknown contrast`).toBeGreaterThanOrEqual(4.5);
       }
       expect(report.menuPrevented.filter((row) => !row.prevented).map((row) => row.id), name).toEqual([]);
       expect(report.controls.filter((row) => row.shown && !row.inside).map((row) => row.id), name).toEqual([]);
