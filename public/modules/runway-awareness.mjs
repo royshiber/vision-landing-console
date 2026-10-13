@@ -59,6 +59,16 @@ function stageIsShort(doc) {
   return !!stage && stage.clientHeight > 0 && stage.clientHeight < 280;
 }
 
+function syncTileLabels(doc) {
+  const stage = doc.getElementById('pfdHorizonStage');
+  const tight = !!stage && stage.clientWidth > 0 && stage.clientWidth < 220;
+  const labels = { offset: tight ? 'צד' : 'סטייה', heading: 'כיוון', hazard: 'סכנה' };
+  for (const [id, label] of Object.entries(labels)) {
+    const key = doc.querySelector(`[data-awareness-tile="${id}"] .runway-awareness-k`);
+    if (key && key.textContent !== label) key.textContent = label;
+  }
+}
+
 function fillShort(doc, node, amount, confidence, mark) {
   node.replaceChildren();
   if (mark) {
@@ -86,6 +96,7 @@ function paintTiles(doc, status) {
   const heading = doc.getElementById('runwayHeadingValue');
   const hazard = doc.getElementById('runwayHazardValue');
   const short = stageIsShort(doc);
+  syncTileLabels(doc);
   if (!est) {
     if (offset) offset.textContent = on ? (short ? 'אין' : 'אין מסלול') : '';
     if (heading) heading.textContent = on ? (short ? 'אין' : 'אין כיוון') : '';
@@ -308,6 +319,8 @@ function syncStage(doc) {
   const stage = doc.getElementById('pfdHorizonStage');
   if (!stage) return;
   stage.dataset.awarenessStage = stage.clientHeight > 0 && stage.clientHeight < 280 ? 'short' : 'full';
+  stage.dataset.awarenessWidth = stage.clientWidth > 0 && stage.clientWidth < 170 ? 'tight' : 'room';
+  syncTileLabels(doc);
 }
 
 async function readStatus(camera) {

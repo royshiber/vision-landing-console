@@ -230,11 +230,33 @@
   max-width: 100%;
 }
 #pfdHorizonStage[data-awareness-stage="short"] .runway-awareness-tile {
-  flex: 1 1 0;
+  flex: 1 1 auto;
   width: auto;
-  min-width: 0;
+  min-width: min-content;
   padding: 0 1px;
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
+  word-break: keep-all;
+}
+html body #pfdHorizonStage .runway-awareness-tile :is(span, strong, bdi) {
+  white-space: nowrap !important;
+  overflow-wrap: normal !important;
+  word-break: keep-all !important;
+}
+#pfdHorizonStage[data-awareness-width="tight"] .runway-awareness-stack {
+  left: 4px;
+  right: 4px;
+}
+#pfdHorizonStage[data-awareness-width="tight"] .runway-awareness-measures {
+  flex-flow: column nowrap;
+  align-items: stretch;
+}
+#pfdHorizonStage[data-awareness-width="tight"] .runway-awareness-tile {
+  flex: 0 0 auto;
+  width: 100%;
+  min-width: 0;
+}
+#pfdHorizonStage[data-awareness-width="tight"] .runway-awareness-tiles {
+  padding-bottom: 4px;
 }
 #pfdHorizonStage[data-awareness-stage="short"] .runway-awareness-alert {
   padding: 0 2px;
