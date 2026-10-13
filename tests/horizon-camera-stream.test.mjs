@@ -61,6 +61,7 @@ function loadModeFns() {
   const hud = [
     'hudSysId',
     'hudFiniteOrNull',
+    'hudRssiOrNull',
     'hudFcMetricFields',
     'preferHudFcMetrics',
     'hudFiniteMode',

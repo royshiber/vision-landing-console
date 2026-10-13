@@ -36,6 +36,32 @@ describe('hardware bug layout', () => {
       await page.goto(base, { waitUntil: 'domcontentloaded' });
       await page.waitForSelector('#flightArmBtn');
       await page.evaluate(() => document.fonts?.ready);
+      await page.evaluate(() => {
+        const arm = document.getElementById('flightArmBtn');
+        if (arm) arm.disabled = false;
+      });
+      await page.focus('#flightArmBtn');
+      await page.keyboard.down(' ');
+      await page.waitForTimeout(120);
+      await page.keyboard.up(' ');
+      const afterHold = await page.evaluate(() => ({
+        dialogHidden: document.getElementById('flightArmDialog')?.hidden !== false,
+        text: document.getElementById('flightArmRefusal')?.textContent || '',
+        inQuick: !!document.getElementById('flightArmRefusal')?.closest('#horizonQuick'),
+        box: document.getElementById('flightArmRefusal')?.getBoundingClientRect(),
+      }));
+      expect(afterHold.dialogHidden).toBe(true);
+      expect(afterHold.inQuick).toBe(true);
+      expect(afterHold.text).toContain('החזיקו 1.5 שניות לחימוש');
+      expect(afterHold.box?.width || 0).toBeGreaterThan(8);
+      expect(afterHold.box?.height || 0).toBeGreaterThan(8);
+      await page.evaluate(() => {
+        const dialog = document.getElementById('flightArmDialog');
+        if (dialog) dialog.hidden = false;
+      });
+      await page.keyboard.press('Escape');
+      const afterEsc = await page.evaluate(() => document.getElementById('flightArmDialog')?.hidden !== false);
+      expect(afterEsc).toBe(true);
       for (const vp of viewports) {
         await page.setViewportSize({ width: vp.width, height: vp.height });
         await page.evaluate(() => {
@@ -72,13 +98,8 @@ describe('hardware bug layout', () => {
             raw.textContent = 'PreArm: Need GPS 3D Fix before arming this vehicle in RTL mode not armable';
             pre.appendChild(raw);
             const ack = document.createElement('p');
-            ack.className = 'flight-arm-fact';
-            ack.append('הבקר סירב לחימוש');
-            const ackRaw = document.createElement('span');
-            ackRaw.className = 'flight-arm-warn-raw';
-            ackRaw.dir = 'ltr';
-            ackRaw.textContent = 'COMMAND_ACK DENIED';
-            ack.appendChild(ackRaw);
+            ack.className = 'flight-arm-fact flight-arm-ack';
+            ack.textContent = 'הבקר דחה את החימוש (DENIED)';
             facts.append(mode, block, pre, ack);
           }
           if (dialog) dialog.hidden = false;
@@ -120,7 +141,11 @@ describe('hardware bug layout', () => {
         expect(await page.locator('#flightArmRefusal').innerText()).toContain('החזיקו 1.5 שניות לחימוש');
         const facts = await page.locator('#flightArmDialogFacts').innerText();
         expect(facts).toContain('מצב RTL לא מאפשר חימוש');
-        expect(facts).toContain('COMMAND_ACK DENIED');
+        expect(facts).toContain('הבקר דחה את החימוש (DENIED)');
+        const noteBox = await page.locator('#horizonQuick #flightArmRefusal').boundingBox();
+        expect(noteBox?.width || 0).toBeGreaterThan(8);
+        expect(noteBox?.height || 0).toBeGreaterThan(8);
+        expect(await page.locator('#flightArmRow #flightArmRefusal').count()).toBe(0);
         expect(await page.locator('#missionDataPickerChips').innerText()).toContain('לוויינים');
       }
     } finally {

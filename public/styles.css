@@ -28290,8 +28290,41 @@ body:has(#control.panel.visible) #assistToggleBtn {
   box-sizing: border-box;
   pointer-events: none;
 }
-#horizonQuick #flightArmBtn {
+#horizonQuick #flightArmBtn:has(+ #flightArmRefusal[hidden]),
+#horizonQuick #flightArmBtn:not(:has(+ #flightArmRefusal)) {
   margin-inline-end: auto;
+}
+#horizonQuick:has(#flightArmRefusal:not([hidden])) {
+  flex-wrap: wrap;
+  height: auto;
+  min-height: 44px;
+  overflow: visible;
+  align-items: center;
+}
+#horizonQuick #flightArmRefusal {
+  position: static;
+  flex: 1 1 160px;
+  min-width: 120px;
+  width: auto;
+  max-width: 100%;
+  height: auto;
+  min-height: 16px;
+  margin: 0;
+  pointer-events: auto;
+  white-space: normal;
+  overflow: visible;
+  font-size: clamp(11px, 0.72rem, 13px);
+  line-height: 1.25;
+}
+#horizonQuick #flightArmRefusal:not([hidden]) {
+  margin-inline-end: auto;
+}
+#horizonQuick #flightArmRefusal[hidden] {
+  display: none !important;
+}
+.flight-arm-ack,
+.flight-arm-ack-he {
+  display: block;
 }
 #horizonQuick #flightDisarmBtn {
   margin-inline-start: 4px;

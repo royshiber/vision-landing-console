@@ -268,7 +268,7 @@ const MISSION_DATA_CATALOG = Object.freeze([
   { key: 'mavlink.pitchDeg', label: 'פיץ׳', unit: '°', mav: 'ATTITUDE.pitch', tokens: ['pitch', 'פיץ'] },
   { key: 'mavlink.gpsFixType', label: 'Fix GPS', unit: '', mav: 'GPS_RAW_INT.fix_type', tokens: ['fix', 'gps', 'קיבוע', 'gps fix'] },
   { key: 'mavlink.gpsSats', label: 'לוויינים GPS', unit: '', mav: 'GPS_RAW_INT.satellites_visible', tokens: ['sats', 'satellites', 'satellites_visible', 'לוויינים', 'לווינים', 'לוויין', 'כמות לוויינים', 'כמות לווינים', 'num sat'] },
-  { key: 'mavlink.gpsHdop', label: 'דיוק GPS', unit: '', mav: 'GPS_RAW_INT.eph', tokens: ['hdop', 'eph', 'דיוק', 'דיוק אופקי'] },
+  { key: 'mavlink.gpsHdop', label: 'HDOP', unit: '', mav: 'GPS_RAW_INT.eph', tokens: ['hdop', 'eph', 'דיוק', 'דיוק אופקי'] },
   { key: 'mavlink.batteryCurrentA', label: 'זרם סוללה', unit: 'A', mav: 'SYS_STATUS.current_battery', tokens: ['current', 'amps', 'זרם', 'זרם סוללה'] },
   { key: 'mavlink.rssi', label: 'עוצמת קליטה', unit: '', mav: 'RC_CHANNELS.rssi', tokens: ['rssi', 'קליטה', 'עוצמת קליטה'] },
   { key: 'mavlink.throttle', label: 'מצערת', unit: '%', mav: 'VFR_HUD.throttle', tokens: ['throttle', 'מצערת'] },
@@ -7851,6 +7851,46 @@ function horizonFrameIsReal(img) {
   return !!(img && img.naturalWidth > 0 && img.naturalHeight > 0);
 }
 
+function imageLuminanceIsFlat(img) {
+  try {
+    if (!img || !img.naturalWidth || !img.naturalHeight) return false;
+    const canvas = document.createElement('canvas');
+    const w = 24;
+    const h = 24;
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    if (!ctx) return false;
+    ctx.drawImage(img, 0, 0, w, h);
+    const data = ctx.getImageData(0, 0, w, h).data;
+    const ys = [];
+    let sum = 0;
+    for (let i = 0; i < data.length; i += 4) {
+      const y = (0.2126 * data[i]) + (0.7152 * data[i + 1]) + (0.0722 * data[i + 2]);
+      ys.push(y);
+      sum += y;
+    }
+    if (ys.length < 16) return false;
+    const mean = sum / ys.length;
+    let acc = 0;
+    for (const y of ys) {
+      const d = y - mean;
+      acc += d * d;
+    }
+    return acc / ys.length < 12;
+  } catch {
+    return false;
+  }
+}
+
+function showHorizonNoPicture(img, note) {
+  if (img) img.hidden = true;
+  if (!note) return;
+  note.textContent = 'אין תמונה';
+  note.hidden = false;
+  if (typeof syncHorizonNoData === 'function') syncHorizonNoData();
+}
+
 function showHorizonNoSignal(img, note) {
   if (img) img.hidden = true;
   if (!note) return;
@@ -7895,6 +7935,7 @@ async function loadHorizonCameraFrame(src, signal) {
   }
   const seq = Number(res.headers.get('x-airvix-frame-seq') || 0);
   const capturedAt = Number(res.headers.get('x-airvix-capture-at') || 0);
+  const blank = res.headers.get('x-airvix-frame-blank') === '1';
   const blob = await res.blob();
   if (!blob || blob.size === 0) {
     const err = new Error('miss');
@@ -7922,6 +7963,7 @@ async function loadHorizonCameraFrame(src, signal) {
     objectUrl,
     seq: Number.isFinite(seq) ? seq : 0,
     capturedAt: Number.isFinite(capturedAt) ? capturedAt : 0,
+    blank,
     ...(tracks ? { tracks } : {}),
   };
 }
@@ -7943,7 +7985,11 @@ function ensureHorizonGimbalPump(img, note, base) {
       const newest = info?.replace ? '&newest=1' : '';
       return `${base}?since=${seenSeq || 0}&t=${gen}${newest}`;
     },
-    onFrame() {
+    onFrame(_src, loaded) {
+      if (loaded?.blank === true || imageLuminanceIsFlat(img)) {
+        showHorizonNoPicture(img, note);
+        return;
+      }
       const stage = img.closest('#pfdHorizonStage') || img.closest('[data-camera-stage="horizon"]');
       const slotId = img.dataset.horizonSlot || '';
       if (stage && slotId && slotId !== 'none') stage.dataset.visionCamera = slotId;
@@ -8341,7 +8387,11 @@ function initHorizonCameraMenu() {
       name.className = 'horizon-quick-label';
       name.textContent = label;
       btn.append(icon, name);
-      if (id === 'flightArmBtn') ensureFlightArmHoldRing(btn);
+      if (id === 'flightArmBtn') {
+        ensureFlightArmHoldRing(btn);
+        const note = document.getElementById('flightArmRefusal');
+        if (note) btn.insertAdjacentElement('afterend', note);
+      }
     }
   }
   syncHorizonMenuState();
@@ -9089,6 +9139,12 @@ function flightArmLinkLive(mav) {
   return true;
 }
 
+function flightArmRefuseHe(result) {
+  const label = flightArmAckLabel(result);
+  const name = label.replace(/^COMMAND_ACK\s+/, '');
+  return `הבקר דחה את החימוש (${name})`;
+}
+
 function flightArmAckLabel(result) {
   const names = {
     0: 'ACCEPTED',
@@ -9226,25 +9282,27 @@ function showFlightArmRefusal(text) {
   paintPrearmBadge(note, text);
 }
 
-function showFlightArmAckRefusal(prearm, ackLabel) {
+function showFlightArmAckRefusal(prearm, ackLine) {
   const note = document.getElementById('flightArmRefusal');
   if (!note) return;
   const fc = String(prearm || '').trim();
   const he = fc ? translatePrearmText(fc) : '';
+  const line = String(ackLine || '').trim() || flightArmRefuseHe(null);
   note.hidden = false;
   note.classList.add('is-open');
   note.setAttribute('aria-expanded', 'true');
   note.replaceChildren();
-  const lead = document.createElement('span');
-  lead.textContent = 'הבקר סירב לחימוש';
-  note.appendChild(lead);
-  if (he && he !== 'הבקר סירב לחימוש') {
-    const line = document.createElement('span');
-    line.textContent = he;
-    note.appendChild(line);
+  if (he) {
+    const lead = document.createElement('span');
+    lead.className = 'flight-arm-ack-he';
+    lead.textContent = he;
+    note.appendChild(lead);
   }
   if (fc && fc !== he) appendFlightArmRaw(note, fc);
-  appendFlightArmRaw(note, ackLabel);
+  const ack = document.createElement('span');
+  ack.className = 'flight-arm-ack';
+  ack.textContent = line;
+  note.appendChild(ack);
 }
 
 function closeFlightDisarmDialog() {
@@ -9286,12 +9344,16 @@ function refuseFlightArmNoLink() {
 function recentPrearmLines(mav) {
   const raw = Array.isArray(mav?.recentStatusTexts) ? mav.recentStatusTexts : [];
   const lines = [];
+  const seen = new Set();
   for (const item of raw) {
     const text = String(item?.text || item || '').trim();
     if (!text) continue;
     if (!/prearm|arm:|not armable/i.test(text)) continue;
+    const he = translatePrearmText(text);
+    if (!he || seen.has(he)) continue;
+    seen.add(he);
     lines.push(text);
-    if (lines.length >= 4) break;
+    if (lines.length >= 3) break;
   }
   return lines;
 }
@@ -9321,16 +9383,20 @@ function paintFlightArmDialogFacts(mav) {
   modeLine.appendChild(modeRaw);
   box.appendChild(modeLine);
   const block = flightArmModeBlockHe(mode);
+  const seenHe = new Set();
   if (block) {
+    seenHe.add(block);
     const warn = document.createElement('p');
     warn.className = 'flight-arm-fact';
     warn.textContent = block;
     box.appendChild(warn);
   }
   for (const line of recentPrearmLines(mav)) {
+    const he = translatePrearmText(line);
+    if (!he || seenHe.has(he)) continue;
+    seenHe.add(he);
     const row = document.createElement('p');
     row.className = 'flight-arm-fact';
-    const he = translatePrearmText(line);
     row.append(he);
     if (he !== line) appendFlightArmRaw(row, line);
     box.appendChild(row);
@@ -9338,8 +9404,7 @@ function paintFlightArmDialogFacts(mav) {
   if (flightArmLastAck && flightArmLastAck.accepted !== true && flightArmLastAck.label) {
     const ack = document.createElement('p');
     ack.className = 'flight-arm-fact flight-arm-ack';
-    ack.append('הבקר סירב לחימוש');
-    appendFlightArmRaw(ack, flightArmLastAck.label);
+    ack.textContent = flightArmLastAck.label;
     box.appendChild(ack);
   }
 }
@@ -9378,7 +9443,7 @@ async function sendFlightArm() {
       showFlightArmRefusal('');
       return;
     }
-    const label = flightArmAckLabel(data?.result);
+    const label = flightArmRefuseHe(data?.result);
     flightArmLastAck = { accepted: false, result: data?.result ?? null, label };
     showFlightArmAckRefusal(data?.prearm || '', label);
   } catch {
@@ -9394,6 +9459,23 @@ function cancelFlightArmHold() {
   if (flightArmHoldTimer) clearTimeout(flightArmHoldTimer);
   flightArmHoldTimer = null;
   document.getElementById('flightArmBtn')?.classList.remove('is-holding');
+}
+
+function beginFlightArmHold(btn) {
+  if (!btn || btn.disabled || flightArmBusy || flightArmHolding) return false;
+  flightArmHolding = true;
+  btn.classList.add('is-holding');
+  showFlightArmRefusal('');
+  if (flightArmHoldTimer) clearTimeout(flightArmHoldTimer);
+  flightArmHoldTimer = setTimeout(finishFlightArmHold, FLIGHT_ARM_HOLD_MS);
+  return true;
+}
+
+function placeFlightArmNote() {
+  const note = document.getElementById('flightArmRefusal');
+  const arm = document.getElementById('flightArmBtn');
+  if (!note || !arm || !arm.closest('#horizonQuick')) return;
+  arm.insertAdjacentElement('afterend', note);
 }
 
 function finishFlightArmHold() {
@@ -9477,6 +9559,7 @@ function initFlightArmControls() {
   const disarmBtn = document.getElementById('flightDisarmBtn');
   if (!armBtn || armBtn.dataset.bound === '1') return;
   armBtn.dataset.bound = '1';
+  placeFlightArmNote();
   armBtn.addEventListener('pointerdown', (event) => {
     if (armBtn.disabled || flightArmBusy) return;
     if (event.button != null && event.button !== 0) return;
@@ -9484,11 +9567,7 @@ function initFlightArmControls() {
     if (event.pointerType === 'touch') {
       try { armBtn.setPointerCapture(event.pointerId); } catch { /* synthetic */ }
     }
-    flightArmHolding = true;
-    armBtn.classList.add('is-holding');
-    showFlightArmRefusal('');
-    if (flightArmHoldTimer) clearTimeout(flightArmHoldTimer);
-    flightArmHoldTimer = setTimeout(finishFlightArmHold, FLIGHT_ARM_HOLD_MS);
+    beginFlightArmHold(armBtn);
   });
   const endArmHold = (event) => {
     if (event?.pointerType === 'touch' && (event.type === 'pointerleave' || event.type === 'pointercancel')) return;
@@ -9501,6 +9580,27 @@ function initFlightArmControls() {
   armBtn.addEventListener('pointerup', endArmHold);
   armBtn.addEventListener('pointerleave', endArmHold);
   armBtn.addEventListener('pointercancel', endArmHold);
+  armBtn.addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    if (event.repeat) return;
+    event.preventDefault();
+    beginFlightArmHold(armBtn);
+  });
+  armBtn.addEventListener('keyup', (event) => {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    endArmHold(event);
+  });
+  window.addEventListener('blur', () => cancelFlightArmHold());
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible') cancelFlightArmHold();
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape') return;
+    const dialog = document.getElementById('flightArmDialog');
+    if (!dialog || dialog.hidden) return;
+    event.preventDefault();
+    closeFlightArmDialog();
+  });
   armBtn.addEventListener('touchend', (event) => {
     const dialog = document.getElementById('flightArmDialog');
     if (dialog && dialog.hidden === false) event.preventDefault();
@@ -22876,7 +22976,7 @@ function suggestMissionDataFields(text) {
     return { entry, score };
   }).filter((x) => x.score > 0).sort((a, b) => b.score - a.score);
   if (!ranked.length) {
-    return { chips: MISSION_DATA_CATALOG.slice(0, 8), hint: 'לא זוהה במדויק. נסחו מחדש או בחרו אפשרות.', exact: null };
+    return { chips: [], hint: 'לא נמצא נתון מתאים. נסחו מחדש.', exact: null };
   }
   const top = ranked[0];
   const second = ranked[1];
@@ -22929,7 +23029,8 @@ async function runMissionDataSuggest() {
       });
       data = await res.json().catch(() => ({}));
       if (!res.ok || data?.ok !== true) {
-        const msg = String(data?.message || '').trim() || 'שגיאה בזיהוי הפרמטר';
+        const msg = String(data?.message || '').trim();
+        const serverError = res.status >= 500 && msg.includes('שגיאה');
         if (data?.ambiguous === true && Array.isArray(data.options) && data.options.length) {
           const chips = data.options.map((opt) => (
             MISSION_DATA_CATALOG.find((entry) => entry.key === opt.key) || opt
@@ -22937,12 +23038,25 @@ async function runMissionDataSuggest() {
           renderMissionDataPickerChips({ chips, hint: data.hint || msg, exact: null });
           return;
         }
-        renderMissionDataPickerChips({ chips: local.chips, hint: msg, exact: null });
+        if (serverError) {
+          renderMissionDataPickerChips({ chips: local.chips, hint: 'שגיאה בזיהוי הפרמטר', exact: null });
+          return;
+        }
+        const miss = 'לא נמצא נתון מתאים. נסחו מחדש.';
+        renderMissionDataPickerChips({
+          chips: local.chips.length ? local.chips : [],
+          hint: local.chips.length ? (local.hint || miss) : miss,
+          exact: null,
+        });
         return;
       }
       const found = MISSION_DATA_CATALOG.find((entry) => entry.key === data.key);
       if (!found) {
-        renderMissionDataPickerChips({ chips: local.chips, hint: 'שגיאה בזיהוי הפרמטר', exact: null });
+        renderMissionDataPickerChips({
+          chips: [],
+          hint: 'לא נמצא נתון מתאים. נסחו מחדש.',
+          exact: null,
+        });
         return;
       }
       renderMissionDataPickerChips({
@@ -23066,6 +23180,12 @@ function formatMissionDataValue(key, payload) {
     const mapData = payload?.mavlink?.map;
     const meters = gpsVisionDeltaMeters(mapData?.gpsLat, mapData?.gpsLon, mapData?.homeLat, mapData?.homeLon);
     return Number.isFinite(meters) ? meters.toFixed(1) : '—';
+  }
+  if (key === 'mavlink.gpsHdop') {
+    const n = Number(getPayloadValue(payload, key));
+    if (!Number.isFinite(n) || n < 0 || n >= 65535) return '—';
+    const scaled = n >= 20 ? n / 100 : n;
+    return scaled.toFixed(2);
   }
   if (key === 'mavlink.rssi') {
     const direct = payload?.mavlink?.rssi;
