@@ -176,9 +176,10 @@ describe('runway awareness layout', () => {
       await page.setViewportSize({ width, height });
       const placed = await page.evaluate(async (words) => {
         const stage = document.getElementById('pfdHorizonStage');
+        const bar = document.getElementById('runwayVisionBar');
         const tiles = document.getElementById('runwayAwarenessTiles');
         const word = document.getElementById('runwayVisionStateWord');
-        const stageBox = stage.getBoundingClientRect();
+        const barBox = bar.getBoundingClientRect();
         const rows = [];
         for (const value of words) {
           word.textContent = value;
@@ -186,11 +187,12 @@ describe('runway awareness layout', () => {
           rows.push({
             value,
             inside: box.width > 0
-              && box.left >= stageBox.left - 1
-              && box.right <= stageBox.right + 1
-              && box.top >= stageBox.top - 1
-              && box.bottom <= stageBox.bottom + 1
-              && stage.contains(word),
+              && box.left >= barBox.left - 1
+              && box.right <= barBox.right + 1
+              && box.top >= barBox.top - 1
+              && box.bottom <= barBox.bottom + 1
+              && bar.contains(word)
+              && !stage.contains(word),
           });
         }
         word.textContent = 'סבוב מחדש';
@@ -521,6 +523,83 @@ describe('runway awareness layout', () => {
     expect(chipClear.lines, JSON.stringify(chipClear)).toBe(1);
     expect(chipClear.nowrap).toBe('nowrap');
     expect(chipClear.hits, JSON.stringify(chipClear)).toBe(false);
+    const sizes = [[360, 640], [360, 800], [1024, 470], [1366, 630], [1536, 730]];
+    const readyVision = {
+      state: 'waiting',
+      optical: false,
+      labelHe: 'ממתין',
+      manualArm: false,
+      buttonReady: true,
+      hasLand: true,
+    };
+    const missionVision = {
+      state: 'active',
+      optical: false,
+      labelHe: 'נחיתת משימה: הנחיית גלגול',
+      manualArm: false,
+      buttonReady: true,
+      hasLand: true,
+    };
+    async function horizonClear(label) {
+      return page.evaluate((name) => {
+        function hits(a, b) {
+          if (!a || !b || a.width < 1 || b.width < 1) return false;
+          const w = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+          const h = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+          return w > 1 && h > 1;
+        }
+        const shell = document.getElementById('pfdHorizonShell');
+        const stage = document.getElementById('pfdHorizonStage');
+        const bar = document.getElementById('runwayVisionBar');
+        const tiles = document.getElementById('runwayAwarenessTiles');
+        const movers = [document.getElementById('runwayVisionArm'), document.getElementById('runwayVisionState')];
+        const horizon = [...shell.querySelectorAll('*')].filter((el) => {
+          if (el.hidden || movers.some((mover) => mover === el || mover.contains(el))) return false;
+          const style = getComputedStyle(el);
+          if (style.display === 'none' || style.visibility === 'hidden') return false;
+          const box = el.getBoundingClientRect();
+          return box.width > 1 && box.height > 1;
+        });
+        const overlaps = [];
+        for (const mover of movers) {
+          const box = mover.getBoundingClientRect();
+          for (const el of horizon) {
+            if (!hits(box, el.getBoundingClientRect())) continue;
+            overlaps.push(`${mover.id} ∩ ${el.id || el.className.toString().slice(0, 24)}`);
+          }
+        }
+        const style = getComputedStyle(bar);
+        return {
+          name,
+          overlaps,
+          outside: !shell.contains(bar) && !stage.contains(bar),
+          tilesOnly: stage.contains(tiles) && !bar.contains(tiles),
+          height: style.height,
+          parent: bar.parentElement?.id || bar.parentElement?.className?.toString?.() || '',
+        };
+      }, label);
+    }
+    for (const [width, height] of sizes) {
+      await page.setViewportSize({ width, height });
+      armedNow = false;
+      visionOverride = readyVision;
+      await page.waitForFunction(() => document.getElementById('runwayVisionArm')?.textContent === 'נחיתה אופטית');
+      const ready = await horizonClear(`ready ${width}x${height}`);
+      expect(ready.overlaps, JSON.stringify(ready)).toEqual([]);
+      expect(ready.outside, JSON.stringify(ready)).toBe(true);
+      expect(ready.tilesOnly, JSON.stringify(ready)).toBe(true);
+      expect(ready.height, JSON.stringify(ready)).toBe('36px');
+      visionOverride = missionVision;
+      await page.waitForFunction(() => {
+        const text = document.getElementById('runwayVisionArm')?.textContent || '';
+        return text === 'משימה פעילה' || text === 'נחיתת משימה פעילה';
+      });
+      const mission = await horizonClear(`mission ${width}x${height}`);
+      expect(mission.overlaps, JSON.stringify(mission)).toEqual([]);
+      expect(mission.outside, JSON.stringify(mission)).toBe(true);
+      expect(mission.tilesOnly, JSON.stringify(mission)).toBe(true);
+      expect(mission.height, JSON.stringify(mission)).toBe('36px');
+    }
     const headerClear = await page.evaluate(() => {
       function hits(a, b) {
         if (!a || !b || a.width < 1 || b.width < 1) return false;
@@ -568,9 +647,8 @@ describe('runway awareness layout', () => {
         left: hits(arm, left),
         right: hits(arm, right),
         chip: hits(arm, chip),
-        underState: arm.top >= word.bottom - 1,
-        inStage: arm.left >= stage.left - 1 && arm.right <= stage.right + 1
-          && arm.top >= stage.top - 1 && arm.bottom <= stage.bottom + 1,
+        besideState: Math.abs(arm.top - word.top) <= 8,
+        inStage: stage.top <= arm.top && arm.bottom <= stage.bottom && stage.left <= arm.left && arm.right <= stage.right,
         parent: armEl.parentElement?.id || '',
       };
     });
@@ -579,8 +657,9 @@ describe('runway awareness layout', () => {
     expect(headerClear.left, JSON.stringify(headerClear)).toBe(false);
     expect(headerClear.right, JSON.stringify(headerClear)).toBe(false);
     expect(headerClear.chip, JSON.stringify(headerClear)).toBe(false);
-    expect(headerClear.underState, JSON.stringify(headerClear)).toBe(true);
-    expect(headerClear.inStage, JSON.stringify(headerClear)).toBe(true);
+    expect(headerClear.besideState, JSON.stringify(headerClear)).toBe(true);
+    expect(headerClear.inStage, JSON.stringify(headerClear)).toBe(false);
+    expect(headerClear.parent, JSON.stringify(headerClear)).toBe('runwayVisionBar');
     const missionFit = await page.evaluate(collectTextFitFailures, 1);
     const missionRunway = (missionFit.fails || []).filter((row) => /runway/i.test(`${row.who} ${row.text}`));
     expect(missionRunway.length, JSON.stringify(missionRunway)).toBe(0);

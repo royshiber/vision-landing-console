@@ -162,6 +162,8 @@ function paintTiles(doc, status) {
                 : ready
                   ? 'ממתין'
                   : 'אין מסלול במסגרת';
+  const bar = doc.getElementById('runwayVisionBar');
+  if (bar) bar.hidden = !on;
   if (state) {
     state.hidden = !on;
     state.dataset.visionState = String(status?.vision?.state || 'waiting');
@@ -306,20 +308,6 @@ function syncStage(doc) {
   const stage = doc.getElementById('pfdHorizonStage');
   if (!stage) return;
   stage.dataset.awarenessStage = stage.clientHeight > 0 && stage.clientHeight < 280 ? 'short' : 'full';
-  const arm = doc.getElementById('runwayVisionArm');
-  const state = doc.getElementById('runwayVisionState');
-  const tiles = doc.getElementById('runwayAwarenessTiles');
-  const short = stage.dataset.awarenessStage === 'short';
-  if (state && tiles && state.parentElement !== (short ? stage : tiles)) {
-    if (short) stage.append(state);
-    else tiles.insertBefore(state, tiles.firstChild);
-  }
-  const missionLabel = arm?.dataset.armLabel === 'mission';
-  const narrow = short && stage.clientWidth > 0 && stage.clientWidth <= 200 && !missionLabel;
-  if (arm && state) {
-    const parent = narrow || (short && missionLabel) ? stage : state;
-    if (arm.parentElement !== parent) parent.append(arm);
-  }
 }
 
 async function readStatus(camera) {
@@ -467,6 +455,10 @@ function ensureChrome(doc) {
     tiles.id = 'runwayAwarenessTiles';
     tiles.hidden = true;
     tiles.dir = 'rtl';
+    const bar = el(doc, 'div', 'runway-vision-bar');
+    bar.id = 'runwayVisionBar';
+    bar.hidden = true;
+    bar.dir = 'rtl';
     const state = el(doc, 'div', 'runway-awareness-state');
     state.id = 'runwayVisionState';
     state.hidden = true;
@@ -495,8 +487,10 @@ function ensureChrome(doc) {
       const { data } = await postLevelArm(true);
       paint(doc, data);
     });
-    state.append(stateKey, stateWord, hold, takeover, arm);
-    tiles.append(state);
+    state.append(stateKey, stateWord, hold, takeover);
+    bar.append(state, arm);
+    const hud = doc.getElementById('flightHud');
+    if (hud?.parentElement) hud.insertAdjacentElement('afterend', bar);
     const measures = el(doc, 'div', 'runway-awareness-measures');
     for (const [id, label, valueId] of [
       ['offset', 'סטייה', 'runwayOffsetValue'],

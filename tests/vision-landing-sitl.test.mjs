@@ -732,7 +732,7 @@ describe('vision landing SITL e2e', () => {
     expect(pressed.reason).not.toBe('go_around');
   });
 
-  it('finishes a climb only inside the band after the rate stays level', () => {
+  it('finishes a climb above 50 m after the rate stays level', () => {
     const target = Math.max(80 + 30, 60);
     function climbed() {
       const run = session();
@@ -783,7 +783,7 @@ describe('vision landing SITL e2e', () => {
     const low = climbed();
     const below = {
       ...low.vehicle,
-      altAglM: target - 4,
+      altAglM: 40,
       relativeAltM: 80,
       climbMps: 0.2,
       altAt: 48_000,
@@ -792,9 +792,47 @@ describe('vision landing SITL e2e', () => {
     low.run.at(48_000);
     low.run.controller.tick({ estimate: low.seen, vehicle: below });
     low.run.at(51_000);
-    const outside = low.run.controller.requestOptical({ ...below, altAt: 51_000 });
-    expect(outside.ok).toBe(false);
-    expect(outside.reason).toBe('go_around');
+    const underFloor = low.run.controller.requestOptical({ ...below, altAt: 51_000 });
+    expect(underFloor.ok).toBe(false);
+    expect(underFloor.reason).toBe('go_around');
+
+    const shortOf = session();
+    const seen = { ...STRIP, threshold_lat: 32.01, threshold_lon: 34.81 };
+    const vehicle = approach({
+      customMode: 15,
+      missionCurrent: 1,
+      lat: 32.01 + ((63 / Math.tan((3 * Math.PI) / 180)) / 111320),
+      lon: 34.81,
+      altAglM: 62,
+      relativeAltM: 62,
+      altAt: 40_000,
+    });
+    shortOf.at(40_000);
+    shortOf.controller.note({ estimate: seen, vehicle });
+    shortOf.at(42_000);
+    expect(shortOf.controller.requestOptical(vehicle).ok).toBe(true);
+    expect(shortOf.controller.tick({
+      estimate: seen,
+      vehicle: { ...vehicle, altAt: 42_000 },
+    }).vision.reason).toBe('glide');
+    shortOf.at(47_000);
+    const around = shortOf.controller.tick({ estimate: seen, vehicle: { ...vehicle, altAt: 42_000 } });
+    expect(around.vision.state).toBe('go_around');
+    expect(decode(shortOf.link.frames.at(-1)).alt).toBe(92);
+    const levelled = {
+      ...vehicle,
+      altAglM: 85,
+      relativeAltM: 85,
+      climbMps: 0.2,
+      altAt: 48_000,
+      customMode: 15,
+    };
+    shortOf.at(48_000);
+    shortOf.controller.tick({ estimate: seen, vehicle: levelled });
+    shortOf.at(51_000);
+    const settled = shortOf.controller.requestOptical({ ...levelled, altAt: 51_000 });
+    expect(settled.ok).toBe(true);
+    expect(settled.reason).not.toBe('go_around');
 
     const sink = climbed();
     const falling = {
