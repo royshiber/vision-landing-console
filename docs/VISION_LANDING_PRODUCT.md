@@ -334,14 +334,19 @@ Each experiment is a **product chapter**. A later chapter needs its own Human Ga
 - Still no ARM, LAND, SET_MODE, assist-steer, or auto site commit.
 - Debrief should be able to replay what was advised vs what the PIC did.
 
-### Exp#3 — Gated assist (future GO)
+### Exp#3 — Gated assist
 
-- Requires an explicit Human Gate before any steer help exists in product.
-- PIC remains in command.
-- Assist is bounded (what axis, what authority, what abort).
-- **Lost lock → abort assist.**
-- LAND-by-vision still not silent and still not implied by assist.
-- Implementation only after Roy GO for this chapter.
+SITL lateral stage, implemented. A live vehicle is still a Human Gate.
+
+- Path A corrects lateral offset and heading with roll only while the active mission item is NAV_LAND and the mode stays AUTO. Altitude and speed stay with ArduPlane.
+- Path B is the button נחיתה אופטית. It is enabled only after the runway is seen at 70 percent or more for 2 seconds, the level is 3, and the mission contains a landing item. A press is refused below 50 m relative altitude, inside the 300 m handoff, or while landed state is 4. The button stays grey and the reason is נמוך מדי להפעלה. The press sends SET_MODE GUIDED (custom mode 15) on SITL, then COMMAND_INT DO_REPOSITION along a 3 degree glide. The reposition flag that would change mode stays off: ArduPlane enters GUIDED on that command only when the flag is set or the plane is already GUIDED, so a frame that arrives in another mode is refused and leaves the mode unchanged. A guidance frame is sent only when the latest heartbeat is under 1.5 s old and already GUIDED. The mission is downloaded on connect, when the level reaches 3, and again before handover. Inside about 300 m the console switches to AUTO with DO_SET_MODE, waits for the acknowledgement and the next AUTO heartbeat, and jumps to DO_LAND_START or the NAV_LAND item. A rejected switch or jump goes around. The go-around climb is the higher of 60 m and 30 m above the aircraft, never below the current altitude. An unknown altitude returns home. NAV_LAND is not sent in GUIDED.
+- The console's own mode change is part of that flow. A pilot or other mode change cancels. In GUIDED a hazard climbs ahead along the runway, and a refused climb falls back to RTL. Every terminal state latches in one place: released, go-around, link loss, unknown or stale altitude, a mode change, and a stale heartbeat. Only a new button press leaves it. A fresh sample after a frozen clock does not resume the glide. If that release happens in GUIDED and the link is alive, the console sends the climb reposition, or returns home when the climb is refused. The state becomes סבוב מחדש and a new press waits for the climb only after that reposition is acknowledged. The climb is finished when the absolute climb rate stays under 0.5 m/s for 3 s and the aircraft is at or above 50 m, whatever the climb target. A level-off more than 3 m below the target still counts. A sink does not. Otherwise the state stays שוחרר and a new press is not waiting on a climb that never left. A heartbeat older than 1.5 s in any active phase, including AUTO after handover, latches released and stays there until a new press even after heartbeats return. Touchdown requires all of these, held for 3 seconds: groundspeed under 5 m/s, absolute relative altitude under 3 m, and, when a landed state is present, state 4 or 1. A flare at about 2 m and 19 m/s does not idle, and the button stays disarmed until the runway gate is earned again. After a takeover or a go-around, a new press is allowed once the climb is finished and that gate holds again.
+- Runway confidence must hold, default 70 percent, for the configured dwell, inside the altitude and distance envelope.
+- Commands leave only when the vehicle is SITL. Level 4 stays locked.
+- On path A, lost runway or low confidence releases the roll override once. Path B keeps guiding while the mode stays GUIDED.
+- Stick movement is not a cancel. There is no takeover switch and no RC-rate command.
+- The button path line is נחיתה אופטית פעילה. לביטול: החלפת מצב טיסה. On a short stage it is אופטית פעילה. Path A, while it is steering roll, reads נחיתת משימה: הנחיית גלגול and the button reads נחיתת משימה פעילה. The button and the state chip sit in one fixed row directly under the horizon. The horizon overlay keeps only the tiles. The 50 m floor, the handoff distance, and landed state 4 refuse a button press only. They do not stop path A, and they are not shown while path A is active. A climb acknowledgement that arrives after the state is already שוחרר switches it to סבוב מחדש. With no runway in frame the reason is אין מסלול במסגרת. Below level 3 the reason is רמה 3 נדרשת לנחיתה אופטית. With no landing item the reason is אין נחיתה במשימה. A disabled button is dim, shows a not-allowed cursor, and is marked aria-disabled.
+- This is not full auto land. Connecting a live vehicle remains a Human Gate.
 
 ### Exp#4 — Full vision land (future GO)
 
@@ -360,6 +365,7 @@ There is no Exp#5 in this document. Do not invent one to skip a gate.
 | Date | Decision | Meaning |
 |---|---|---|
 | 2026-09-13 | `vision_doc_only` | Write the living product vision first. No implementation in that change |
+| 2026-10-12 | SITL lateral stage | Vision may steer roll on final in SITL only. Level 4 and live vehicles stay locked |
 | 2026-08-25 | Companion BOTH gate on master | Real Companion needs mode **and** URL. Unrelated to landing GO |
 | Existing | Issue #28 / #29 | Apply/restart and flight commands stay WAITING FOR ROY |
 

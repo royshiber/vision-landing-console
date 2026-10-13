@@ -21641,7 +21641,8 @@ html body :is(
   .mission-ask-chip,
   .pfc-opt-mini,
   .comm-link-sr,
-  .pulse-purpose
+  .pulse-purpose,
+  .runway-arm-mission
 ) {
   white-space: normal !important;
   text-overflow: clip !important;
@@ -28839,6 +28840,30 @@ body:has(#terrain.panel.visible) .layout,
   max-width: min(100%, var(--horizon-cap, 100%)) !important;
   margin-inline: auto !important;
   align-self: center !important;
+}
+.mission-workspace[data-mission-layout="ops-v1"] .mission-region-horizon > .runway-vision-bar {
+  align-self: stretch !important;
+  width: auto !important;
+  max-width: none !important;
+  margin-inline: 0 !important;
+}
+@media (min-width: 721px) {
+  .mission-workspace[data-mission-layout="ops-v1"] .mission-region-horizon:has(> .runway-vision-bar:not([hidden])) > .mission-region-messages {
+    flex: 0 0 calc(var(--flight-dock-h) - 36px) !important;
+    flex-basis: calc(var(--flight-dock-h) - 36px) !important;
+    height: calc(var(--flight-dock-h) - 36px) !important;
+    min-height: 0 !important;
+    max-height: calc(var(--flight-dock-h) - 36px) !important;
+  }
+}
+.mission-workspace[data-mission-layout="ops-v1"] .mission-region-horizon[data-horizon-pack="beside"]:has(> .runway-vision-bar:not([hidden])) {
+  grid-template-rows: minmax(0, 1fr) 36px calc(var(--flight-dock-h, 180px) - 36px) !important;
+  grid-template-areas: "hud data" "bar bar" "dock dock" !important;
+}
+.mission-workspace[data-mission-layout="ops-v1"] .mission-region-horizon[data-horizon-pack="beside"] > .runway-vision-bar {
+  grid-area: bar !important;
+  width: auto !important;
+  max-width: none !important;
 }
 @media (max-width: 720px) {
   .mission-workspace[data-mission-layout="ops-v1"] .mission-region-horizon > .mission-region-messages,

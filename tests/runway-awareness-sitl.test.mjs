@@ -2,6 +2,7 @@
  * Runway awareness stays silent at levels 0–2, and the roll override
  * leaves the process only when the link is a simulator.
  */
+import { EventEmitter } from 'node:events';
 import { spawnSync } from 'node:child_process';
 import { afterAll, describe, expect, it } from 'vitest';
 import express from 'express';
@@ -24,6 +25,29 @@ const STRIP = {
   confidence: { offset: 0.9, heading: 0.8, along: 0.7 },
   hazards: [],
 };
+
+function approachVehicle(overrides = {}) {
+  return {
+    simulator: true,
+    connected: true,
+    customMode: 10,
+    altAglM: 40,
+    distToLandM: 600,
+    lat: 32.02,
+    lon: 34.82,
+    missionCurrent: 3,
+    missionItems: [
+      { seq: 1, command: 16, lat: 32.03, lon: 34.83 },
+      { seq: 2, command: 16, lat: 32.015, lon: 34.815 },
+      { seq: 3, command: 21, lat: 32.01, lon: 34.81 },
+    ],
+    rcChannels: {
+      chan1_raw: 1500, chan2_raw: 1500, chan3_raw: 1500, chan4_raw: 1500,
+      chan5_raw: 1500, chan6_raw: 1500, chan7_raw: 1500, chan8_raw: 1500,
+    },
+    ...overrides,
+  };
+}
 
 function listen(app) {
   return new Promise((resolve) => {
@@ -109,6 +133,7 @@ describe('runway awareness SITL command gate', () => {
     const calls = [];
     const controller = createRunwayController({
       env: {},
+      limits: { holdMs: 0 },
       link: { sendGuidance(cmd) { calls.push(cmd); return { sent: true }; } },
     });
     const server = await listen(appFor(controller));
@@ -127,11 +152,20 @@ describe('runway awareness SITL command gate', () => {
     expect(blocked.sentNow).toBe(0);
     expect(blocked.decision.reason).toBe('not_sitl');
 
-    const sent = controller.tick({
+    const idle = controller.tick({
       estimate: STRIP,
       vehicle: { simulator: true, connected: true },
     });
+    expect(idle.sentNow).toBe(0);
+    expect(idle.vision.labelHe).toBe('ממתין');
+    expect(calls).toEqual([]);
+
+    const sent = controller.tick({
+      estimate: STRIP,
+      vehicle: approachVehicle(),
+    });
     expect(sent.sentNow).toBe(1);
+    expect(sent.vision.labelHe).toBe('נחיתת משימה: הנחיית גלגול');
     expect(calls).toHaveLength(1);
     expect(calls[0].kind).toBe('ROLL_OVERRIDE');
     expect(calls[0].rollPwm).toBeGreaterThanOrEqual(1100);
@@ -139,27 +173,27 @@ describe('runway awareness SITL command gate', () => {
 
     const hazard = controller.tick({
       estimate: { ...STRIP, hazards: [{ kind: 'person', label_he: 'אדם' }] },
-      vehicle: { simulator: true, connected: true },
+      vehicle: approachVehicle(),
     });
     expect(hazard.decision.reason).toBe('hazard');
-    expect(hazard.sentNow).toBe(1);
-    expect(calls).toHaveLength(2);
-    expect(calls[1].release).toBe(true);
-    expect(calls[1].rollPwm).toBe(0);
+    expect(hazard.vision.labelHe).toBe('סבוב מחדש');
+    expect(calls.filter((cmd) => cmd.release)).toHaveLength(1);
+    expect(calls.filter((cmd) => cmd.kind === 'GO_AROUND')).toHaveLength(1);
     controller.tick({
       estimate: { ...STRIP, hazards: [{ kind: 'person', label_he: 'אדם' }] },
-      vehicle: { simulator: true, connected: true },
+      vehicle: approachVehicle(),
     });
-    expect(calls).toHaveLength(2);
+    expect(calls.filter((cmd) => cmd.kind === 'GO_AROUND')).toHaveLength(1);
   });
 
   it('releases the override once when the level drops or the link drops, and never off SITL', async () => {
     const calls = [];
     const controller = createRunwayController({
       env: {},
+      limits: { holdMs: 0 },
       link: { sendGuidance(cmd) { calls.push(cmd); return { sent: true }; } },
     });
-    const sitl = { simulator: true, connected: true };
+    const sitl = approachVehicle();
     controller.setLevel({ level: 3 });
     controller.tick({ estimate: STRIP, vehicle: sitl });
     expect(calls).toHaveLength(1);
@@ -173,7 +207,10 @@ describe('runway awareness SITL command gate', () => {
     expect(calls).toHaveLength(2);
 
     controller.setLevel({ level: 3 });
-    controller.tick({ estimate: STRIP, vehicle: sitl });
+    const restored = controller.tick({ estimate: STRIP, vehicle: sitl });
+    expect(restored.sentNow).toBe(0);
+    expect(restored.vision.state).toBe('released');
+    expect(calls).toHaveLength(2);
     const denied = controller.tick({
       estimate: STRIP,
       vehicle: { simulator: false, connected: true },
@@ -181,18 +218,27 @@ describe('runway awareness SITL command gate', () => {
     expect(denied.sentNow).toBe(0);
     expect(calls.filter((cmd) => cmd.release).length).toBe(1);
 
-    controller.setLevel({ level: 3 });
-    controller.tick({ estimate: STRIP, vehicle: sitl });
-    const lost = controller.tick({
+    const again = createRunwayController({
+      env: {},
+      limits: { holdMs: 0 },
+      link: { sendGuidance(cmd) { calls.push(cmd); return { sent: true }; } },
+    });
+    again.setLevel({ level: 3 });
+    again.tick({ estimate: STRIP, vehicle: sitl });
+    const lost = again.tick({
       estimate: STRIP,
-      vehicle: { simulator: true, connected: false },
+      vehicle: approachVehicle({ connected: false }),
     });
     expect(lost.sentNow).toBe(1);
+    expect(lost.vision.reason).toBe('link');
     expect(calls.at(-1)).toMatchObject({ release: true, rollPwm: 0 });
-    controller.tick({
+    again.tick({
       estimate: STRIP,
       vehicle: { simulator: true, connected: false },
     });
+    const relinked = again.tick({ estimate: STRIP, vehicle: sitl });
+    expect(relinked.vision.state).toBe('released');
+    expect(relinked.sentNow).toBe(0);
     expect(calls.filter((cmd) => cmd.release).length).toBe(2);
   });
 
@@ -216,6 +262,7 @@ describe('runway awareness SITL command gate', () => {
     const calls = [];
     const controller = createRunwayController({
       env: { VLC_RUNWAY_LEVEL4_UNLOCK: '1' },
+      limits: { holdMs: 0 },
       link: { sendGuidance(cmd) { calls.push(cmd); return { sent: true }; } },
     });
     const server = await listen(appFor(controller));
@@ -235,10 +282,57 @@ describe('runway awareness SITL command gate', () => {
     expect(calls).toEqual([]);
     const onSim = controller.tick({
       estimate: STRIP,
-      vehicle: { simulator: true, connected: true },
+      vehicle: approachVehicle(),
     });
     expect(onSim.sentNow).toBe(1);
     expect(calls).toHaveLength(1);
+  });
+
+  it('downloads the mission on connect and when the level reaches 3', async () => {
+    const calls = [];
+    const conn = new EventEmitter();
+    conn.connected = true;
+    conn.missionItems = [];
+    conn.refreshMissionToCache = async () => {
+      calls.push('refresh');
+      return { ok: true };
+    };
+    conn.simulatorDetection = () => ({ simulator: true });
+    conn.getStatus = () => ({ simulator: true });
+    const landed = [];
+    conn.requestExtendedSysState = () => {
+      landed.push('landed');
+      return true;
+    };
+    const controller = createRunwayController({
+      limits: { holdMs: 0 },
+      link: { sendGuidance() { return { sent: true }; } },
+    });
+    const app = express();
+    app.use(express.json());
+    registerRunwayAwarenessApi(app, {
+      controller,
+      loop: false,
+      env: {},
+      getConnection: () => conn,
+    });
+    expect(calls).toEqual(['refresh']);
+    expect(landed).toEqual(['landed']);
+    conn.emit('connected');
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(calls).toEqual(['refresh', 'refresh']);
+    expect(landed).toEqual(['landed', 'landed']);
+    const server = await listen(app);
+    servers.push(server);
+    const base = `http://127.0.0.1:${server.address().port}`;
+    const low = await postLevel(base, { level: 2 });
+    expect(low.status).toBe(200);
+    expect(calls).toHaveLength(2);
+    expect(landed).toHaveLength(2);
+    const high = await postLevel(base, { level: 3 });
+    expect(high.status).toBe(200);
+    expect(calls).toHaveLength(3);
+    expect(landed).toHaveLength(3);
   });
 });
 
@@ -255,6 +349,7 @@ describe('RC_CHANNELS_OVERRIDE stays inside SITL', () => {
     conn.fcTargetCompId = 1;
     conn.simulatorDetection = () => ({ simulator });
     conn.getStatus = () => ({ simulator });
+    conn.lastHeartbeatWallMs = Date.now();
     return conn;
   }
 
