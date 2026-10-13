@@ -36,9 +36,9 @@ function sideWord(value) {
   return value > 0 ? 'ימינה' : 'שמאלה';
 }
 
-function sideMark(value) {
+function sideArrow(value) {
   if (!Number.isFinite(value) || Math.abs(value) < 0.4) return '';
-  return value > 0 ? 'י' : 'ש';
+  return value > 0 ? '→' : '←';
 }
 
 function fillMeasure(doc, node, side, amount, confidence) {
@@ -59,19 +59,19 @@ function stageIsShort(doc) {
   return !!stage && stage.clientHeight > 0 && stage.clientHeight < 280;
 }
 
-function fillShort(doc, node, amount, confidence, mark) {
+function syncTileLabels(doc) {
+  const stage = doc.getElementById('pfdHorizonStage');
+  const tight = !!stage && stage.clientWidth > 0 && stage.clientWidth < 200;
+  const labels = { offset: tight ? 'היסט' : 'סטייה', heading: 'כיוון', hazard: 'סכנה' };
+  for (const [id, label] of Object.entries(labels)) {
+    const key = doc.querySelector(`[data-awareness-tile="${id}"] .runway-awareness-k`);
+    if (key && key.textContent !== label) key.textContent = label;
+  }
+}
+
+function fillShort(doc, node, text) {
   node.replaceChildren();
-  if (mark) {
-    const side = el(doc, 'span');
-    side.textContent = mark;
-    node.append(side);
-  }
-  if (amount) node.append(doc.createTextNode(mark ? ' ' : ''), bdi(doc, amount));
-  if (confidence) {
-    const line = el(doc, 'span', 'runway-awareness-c');
-    line.append(bdi(doc, `${confidence}%`));
-    node.append(line);
-  }
+  if (text) node.append(bdi(doc, text));
 }
 
 function paintTiles(doc, status) {
@@ -86,16 +86,19 @@ function paintTiles(doc, status) {
   const heading = doc.getElementById('runwayHeadingValue');
   const hazard = doc.getElementById('runwayHazardValue');
   const short = stageIsShort(doc);
+  syncTileLabels(doc);
   if (!est) {
     if (offset) offset.textContent = on ? (short ? 'אין' : 'אין מסלול') : '';
     if (heading) heading.textContent = on ? (short ? 'אין' : 'אין כיוון') : '';
     if (hazard) hazard.textContent = on ? 'אין' : '';
   } else if (short) {
     const meters = Number(est.offset_m);
-    const amount = Number.isFinite(meters) ? `${Math.abs(meters).toFixed(1)}` : '';
-    if (offset) fillShort(doc, offset, amount, Math.round(Number(conf.offset || 0) * 100), sideMark(Number(est.offset_px)));
+    const amount = Number.isFinite(meters) ? `${Math.abs(meters).toFixed(1)} מ׳` : '';
+    const offsetLine = [sideArrow(Number(est.offset_px)), amount].filter(Boolean).join(' ');
+    if (offset) fillShort(doc, offset, offsetLine);
     const deg = Number(est.heading_error_deg);
-    if (heading) fillShort(doc, heading, Number.isFinite(deg) ? `${Math.abs(deg).toFixed(0)}°` : '', Math.round(Number(conf.heading || 0) * 100), sideMark(deg));
+    const headingLine = [sideArrow(deg), Number.isFinite(deg) ? `${Math.abs(deg).toFixed(0)}°` : ''].filter(Boolean).join(' ');
+    if (heading) fillShort(doc, heading, headingLine);
     const row = Array.isArray(status.hazards) && status.hazards[0];
     if (hazard) {
       hazard.replaceChildren();
@@ -127,6 +130,14 @@ function paintTiles(doc, status) {
     const text = on && Number(status.level) >= 2 ? String(status.adviceHe || '') : '';
     alert.hidden = !text;
     alert.textContent = text;
+  }
+  const note = doc.getElementById('horizonNoData');
+  if (note && on && tiles.hidden === false) note.hidden = true;
+  const stage = doc.getElementById('pfdHorizonStage');
+  const stack = doc.getElementById('runwayAwarenessStack');
+  if (alert && stage && stack) {
+    if (short && alert.parentElement !== stage) stage.appendChild(alert);
+    if (!short && alert.parentElement !== stack) stack.prepend(alert);
   }
   const state = doc.getElementById('runwayVisionState');
   const word = doc.getElementById('runwayVisionStateWord');
@@ -307,7 +318,14 @@ function paint(doc, status) {
 function syncStage(doc) {
   const stage = doc.getElementById('pfdHorizonStage');
   if (!stage) return;
-  stage.dataset.awarenessStage = stage.clientHeight > 0 && stage.clientHeight < 280 ? 'short' : 'full';
+  const nextStage = stage.clientHeight > 0 && stage.clientHeight < 280 ? 'short' : 'full';
+  const width = stage.clientWidth;
+  const nextWidth = width > 0 && width < 170 ? 'tight' : 'room';
+  const changed = stage.dataset.awarenessStage !== nextStage || stage.dataset.awarenessWidth !== nextWidth;
+  stage.dataset.awarenessStage = nextStage;
+  stage.dataset.awarenessWidth = nextWidth;
+  syncTileLabels(doc);
+  if (changed) paintTiles(doc, latest);
 }
 
 async function readStatus(camera) {

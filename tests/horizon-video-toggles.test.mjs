@@ -93,6 +93,31 @@ describe('horizon video rows are switches in the camera-row style', () => {
       expect(row.overflowX).toBeLessThanOrEqual(1);
       expect(row.overflowY).toBeLessThanOrEqual(1);
     }
+    const points = await page.evaluate(() => {
+      const arm = document.getElementById('flightArmBtn').getBoundingClientRect();
+      const disarm = document.getElementById('flightDisarmBtn').getBoundingClientRect();
+      const left = document.querySelector('.pfd-side-tape--left').getBoundingClientRect();
+      const right = document.querySelector('.pfd-side-tape--right').getBoundingClientRect();
+      const mid = (box) => ({ x: box.x + box.width / 2, y: box.y + box.height / 2 });
+      return {
+        left: mid(left),
+        right: mid(right),
+        gap: {
+          x: (Math.max(arm.left, disarm.left) + Math.min(arm.right, disarm.right)) / 2,
+          y: arm.y + arm.height / 2,
+        },
+      };
+    });
+    for (const [name, point] of Object.entries(points)) {
+      await page.evaluate(() => {
+        document.getElementById('horizonCameraMenu').hidden = true;
+        const column = document.getElementById('flightColumnMenu');
+        if (column) column.hidden = true;
+      });
+      await page.mouse.click(point.x, point.y, { button: 'right' });
+      const opened = await page.locator('#horizonCameraMenu').evaluate((el) => el.hidden === false);
+      expect(opened, name).toBe(true);
+    }
     const file = path.join(shotDir, 'horizon-video-toggles.png');
     await page.locator('#horizonCameraMenu').screenshot({ path: file });
     expect(fs.statSync(file).size).toBeGreaterThan(1000);

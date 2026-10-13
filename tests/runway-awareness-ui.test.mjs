@@ -92,7 +92,7 @@ describe('runway awareness layout', () => {
       const tiles = document.getElementById('runwayAwarenessTiles');
       const alert = document.getElementById('runwayAwarenessAlert');
       return tiles && tiles.hidden === false && alert && alert.hidden === false
-        && tiles.innerText.includes('%');
+        && tiles.innerText.includes('סכנה');
     });
     const fit = await page.evaluate(() => {
       const stage = document.getElementById('pfdHorizonStage');
@@ -118,7 +118,8 @@ describe('runway awareness layout', () => {
     expect(fit.alertAbove).toBe(true);
     expect(fit.overlap).toBe(0);
     expect(fit.inside).toBe(true);
-    expect(fit.confidence).toMatch(/%/);
+    expect(fit.confidence).toMatch(/מ׳/);
+    expect(fit.confidence).not.toMatch(/%/);
     expect(fit.mode).toBe('2');
     expect(fit.runwayLevel).toBe(false);
     expect(fit.runwayLane).toBe(false);
@@ -282,10 +283,11 @@ describe('runway awareness layout', () => {
         expect(disabledHere.aria).toBe('true');
         const offsetText = await page.locator('#runwayOffsetValue').innerText();
         const headingText = await page.locator('#runwayHeadingValue').innerText();
-        expect(offsetText).toMatch(/י/);
+        expect(offsetText).toMatch(/[→←]/);
         expect(offsetText).toMatch(/1\.4/);
-        expect(offsetText).not.toMatch(/ימינה|שמאלה/);
-        expect(headingText).toMatch(/י/);
+        expect(offsetText).toMatch(/מ׳/);
+        expect(offsetText).not.toMatch(/ימינה|שמאלה|צד/);
+        expect(headingText).toMatch(/[→←]/);
         expect(headingText).toMatch(/3/);
         expect(headingText).not.toMatch(/ימינה|שמאלה/);
       }
@@ -372,8 +374,12 @@ describe('runway awareness layout', () => {
         expect(tile.left, `${width} ${tile.id}`).toBeGreaterThanOrEqual(Math.max(0, horizon.left) - 1);
         expect(tile.right, `${width} ${tile.id}`).toBeLessThanOrEqual(Math.min(image.width, horizon.right) + 1);
         expect(tile.bottom, `${width} ${tile.id}`).toBeLessThanOrEqual(Math.min(image.height, horizon.bottom) + 1);
-        expect(tile.left, `${width} ${tile.id} tape`).toBeGreaterThanOrEqual(shot.left.right - 1);
-        expect(tile.right, `${width} ${tile.id} tape`).toBeLessThanOrEqual(shot.right.left + 1);
+        const overlapW = Math.min(tile.right, shot.left.right) - Math.max(tile.left, shot.left.left);
+        const overlapH = Math.min(tile.bottom, shot.left.bottom) - Math.max(tile.top, shot.left.top);
+        const overlapWR = Math.min(tile.right, shot.right.right) - Math.max(tile.left, shot.right.left);
+        const overlapHR = Math.min(tile.bottom, shot.right.bottom) - Math.max(tile.top, shot.right.top);
+        expect(overlapW > 1 && overlapH > 1, `${width} ${tile.id} left tape`).toBe(false);
+        expect(overlapWR > 1 && overlapHR > 1, `${width} ${tile.id} right tape`).toBe(false);
       }
       if (width === 1366 && height === 630) {
         const chipClear = await page.evaluate(() => {

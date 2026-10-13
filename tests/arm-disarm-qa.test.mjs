@@ -140,6 +140,10 @@ describe('ARM DISARM flight screen', () => {
                 clipped.push(`${el.id}-viewport`);
               }
             }
+            const armBox = arm.getBoundingClientRect();
+            const disarmBox = disarm.getBoundingClientRect();
+            const armLabel = arm.querySelector('.horizon-quick-label');
+            const disarmLabel = disarm.querySelector('.horizon-quick-label');
             return {
               armDisabled: arm.disabled,
               disarmDisabled: disarm.disabled,
@@ -149,6 +153,15 @@ describe('ARM DISARM flight screen', () => {
               refusal: note.textContent,
               link: row.dataset.armLink,
               clipped,
+              armW: Math.round(armBox.width),
+              armH: Math.round(armBox.height),
+              disarmW: Math.round(disarmBox.width),
+              disarmH: Math.round(disarmBox.height),
+              armText: armLabel?.textContent || '',
+              disarmText: disarmLabel?.textContent || '',
+              armShown: armLabel ? getComputedStyle(armLabel).display : 'none',
+              disarmShown: disarmLabel ? getComputedStyle(disarmLabel).display : 'none',
+              gap: Math.round(Math.max(armBox.left, disarmBox.left) - Math.min(armBox.right, disarmBox.right)),
             };
           }, { mav: hud(state.mav), refusal: state.refusal || '' });
           const report = await page.evaluate(collectTextFitFailures, 1);
@@ -158,6 +171,15 @@ describe('ARM DISARM flight screen', () => {
           }
           tested.push({ viewport: vp.name, state: state.id, fails: report.fails.length + ui.clipped.length });
           expect(ui.clipped, key).toEqual([]);
+          expect(ui.armText, key).toBe('חימוש');
+          expect(ui.disarmText, key).toBe('ניטרול');
+          expect(ui.armShown, key).not.toBe('none');
+          expect(ui.disarmShown, key).not.toBe('none');
+          expect(ui.armW, key).toBeGreaterThanOrEqual(40);
+          expect(ui.armH, key).toBeGreaterThanOrEqual(40);
+          expect(ui.disarmW, key).toBeGreaterThanOrEqual(40);
+          expect(ui.disarmH, key).toBeGreaterThanOrEqual(40);
+          expect(ui.gap, key).toBeGreaterThanOrEqual(8);
           expect(report.fails, `${key} ${JSON.stringify(report.fails.slice(0, 6))}`).toEqual([]);
           if (state.id === 'nolink') {
             expect(ui.armDisabled).toBe(false);
