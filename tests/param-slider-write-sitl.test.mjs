@@ -83,8 +83,9 @@ async function startConsole(dbPath, sitlPort) {
   const started = await startTestServer({
     env: {
       SQLITE_PATH: dbPath,
-      COMPANION_MODE: 'off',
+      COMPANION_MODE: 'mock',
       JETSON_COMPANION_BASE_URL: '',
+      VLC_LANDING_PROFILE_DIR: path.join(os.tmpdir(), `airvix-slider-profile-${process.pid}`),
       GEMINI_API_KEY: '',
       ...(sitlPort ? { SIMULATOR_TCP_PORT: String(sitlPort) } : {}),
     },
@@ -110,7 +111,7 @@ describe('landing slider pending write', () => {
     stopChild(consoleProc);
   });
 
-  it('enables כתיבה לבקר, confirms the exact change, and does not report אין שינוי', async () => {
+  it('keeps a profile slider off the flight controller until the profile is saved', async () => {
     const dbPath = path.join(os.tmpdir(), `airvix-slider-ui-${process.pid}.sqlite`);
     consoleProc = await startConsole(dbPath);
     const base = consoleProc.base;
@@ -172,31 +173,27 @@ describe('landing slider pending write', () => {
       await slider.waitFor({ state: 'attached' });
       const before = await slider.inputValue();
       await slider.fill('29');
-      await page.waitForFunction(() => document.getElementById('arduWriteBtn')?.disabled === false);
+      await page.waitForFunction(() => document.querySelector('[data-param-key="approach_speed_ms"]')?.classList.contains('param-card--dirty'));
+      expect(await page.locator('#arduWriteBtn').isDisabled()).toBe(true);
+      const untouched = await api(base, 'GET', '/api/vision/landing-profile');
+      expect(untouched.json.profile?.approach_speed_ms).not.toBe(29);
       const banner = await page.locator('#paramSyncBanner').innerText();
-      expect(banner).toContain('יש שינוי');
+      expect(banner).toContain('שינוי לא נשמר');
       expect(banner).toContain('approach_speed_ms');
       expect(banner).toContain(before);
       expect(banner).toContain('29');
       expect(banner).not.toContain('אין שינוי');
-      expect(await page.locator('#jetsonToolState').innerText()).toBe('יש שינוי');
-      expect(await page.locator('#fcToolState').innerText()).toBe('יש שינוי');
-      await page.click('#arduWriteBtn');
-      await page.waitForSelector('#applyConfirmModal:not(.hidden)');
-      const confirm = await page.locator('#applyConfirmBody').innerText();
-      expect(await page.locator('#applyConfirmTitle').innerText()).toContain('כתיבה לבקר');
-      expect(confirm).toContain('approach_speed_ms');
-      expect(confirm).toContain(before);
-      expect(confirm).toContain('29');
-      await page.click('#applyConfirmOkBtn');
-      await page.waitForFunction(() => (document.getElementById('paramWriteResult')?.textContent || '').includes('approach_speed_ms'));
+      expect(await page.locator('#jetsonToolState').innerText()).toContain('שינוי לא נשמר');
+      await page.click('#jetsonProfileWriteBtn');
+      await page.waitForFunction(() => (document.getElementById('paramWriteResult')?.textContent || '').includes('נשמר בג׳טסון ואומת'));
       const result = await page.locator('#paramWriteResult').innerText();
       expect(result).toContain('approach_speed_ms');
       expect(result).toContain('29');
       expect(result).toContain('אומת');
+      expect(result).not.toContain('נכתב לבקר ואומת');
       expect(result).not.toContain('אין שינוי');
       expect(posts).toBe(0);
-      const saved = await api(base, 'GET', '/api/vision/config');
+      const saved = await api(base, 'GET', '/api/vision/landing-profile');
       expect(saved.json.profile.approach_speed_ms).toBe(29);
     } finally {
       await browser.close();
