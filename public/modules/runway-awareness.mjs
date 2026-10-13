@@ -69,18 +69,9 @@ function syncTileLabels(doc) {
   }
 }
 
-function fillShort(doc, node, parts, confidence) {
+function fillShort(doc, node, text) {
   node.replaceChildren();
-  const tokens = parts.filter(Boolean);
-  tokens.forEach((part, index) => {
-    node.append(bdi(doc, part));
-    if (index !== tokens.length - 1 || confidence) node.append(doc.createTextNode(' '));
-  });
-  if (confidence) {
-    const line = el(doc, 'span', 'runway-awareness-c');
-    line.append(bdi(doc, `${confidence}%`));
-    node.append(line);
-  }
+  if (text) node.append(bdi(doc, text));
 }
 
 function paintTiles(doc, status) {
@@ -102,10 +93,12 @@ function paintTiles(doc, status) {
     if (hazard) hazard.textContent = on ? 'אין' : '';
   } else if (short) {
     const meters = Number(est.offset_m);
-    const amount = Number.isFinite(meters) ? Math.abs(meters).toFixed(1) : '';
-    if (offset) fillShort(doc, offset, [sideArrow(Number(est.offset_px)), amount, amount ? 'מ׳' : ''], Math.round(Number(conf.offset || 0) * 100));
+    const amount = Number.isFinite(meters) ? `${Math.abs(meters).toFixed(1)} מ׳` : '';
+    const offsetLine = [sideArrow(Number(est.offset_px)), amount].filter(Boolean).join(' ');
+    if (offset) fillShort(doc, offset, offsetLine);
     const deg = Number(est.heading_error_deg);
-    if (heading) fillShort(doc, heading, [sideArrow(deg), Number.isFinite(deg) ? `${Math.abs(deg).toFixed(0)}°` : ''], Math.round(Number(conf.heading || 0) * 100));
+    const headingLine = [sideArrow(deg), Number.isFinite(deg) ? `${Math.abs(deg).toFixed(0)}°` : ''].filter(Boolean).join(' ');
+    if (heading) fillShort(doc, heading, headingLine);
     const row = Array.isArray(status.hazards) && status.hazards[0];
     if (hazard) {
       hazard.replaceChildren();
@@ -137,6 +130,14 @@ function paintTiles(doc, status) {
     const text = on && Number(status.level) >= 2 ? String(status.adviceHe || '') : '';
     alert.hidden = !text;
     alert.textContent = text;
+  }
+  const note = doc.getElementById('horizonNoData');
+  if (note && on && tiles.hidden === false) note.hidden = true;
+  const stage = doc.getElementById('pfdHorizonStage');
+  const stack = doc.getElementById('runwayAwarenessStack');
+  if (alert && stage && stack) {
+    if (short && alert.parentElement !== stage) stage.appendChild(alert);
+    if (!short && alert.parentElement !== stack) stack.prepend(alert);
   }
   const state = doc.getElementById('runwayVisionState');
   const word = doc.getElementById('runwayVisionStateWord');
@@ -319,7 +320,7 @@ function syncStage(doc) {
   if (!stage) return;
   const nextStage = stage.clientHeight > 0 && stage.clientHeight < 280 ? 'short' : 'full';
   const width = stage.clientWidth;
-  const nextWidth = !(width > 0) || width >= 240 ? 'room' : (width < 170 ? 'tight' : 'narrow');
+  const nextWidth = width > 0 && width < 170 ? 'tight' : 'room';
   const changed = stage.dataset.awarenessStage !== nextStage || stage.dataset.awarenessWidth !== nextWidth;
   stage.dataset.awarenessStage = nextStage;
   stage.dataset.awarenessWidth = nextWidth;

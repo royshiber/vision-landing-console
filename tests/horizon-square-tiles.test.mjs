@@ -177,10 +177,61 @@ describe('horizon square and whole tile words', () => {
           },
           gap: Math.round(Math.max(arm.left, disarm.left) - Math.min(arm.right, disarm.right)),
           scroll: terrain ? terrain.scrollTop : 0,
+          noteHidden: document.getElementById('horizonNoData')?.hidden === true,
+          tilesText: (document.getElementById('runwayAwarenessTiles')?.innerText || '').replace(/\s+/g, ' '),
+          offsetTile: Math.round(document.querySelector('[data-awareness-tile="offset"]')?.getBoundingClientRect().width || 0),
+          valueLines: (() => {
+            const el = document.getElementById('runwayOffsetValue');
+            if (!el) return 0;
+            const range = document.createRange();
+            range.selectNodeContents(el);
+            const tops = [...range.getClientRects()]
+              .filter((rect) => rect.width > 0.5 && rect.height > 0.5)
+              .map((rect) => Math.round(rect.top));
+            return new Set(tops).size;
+          })(),
+          armTitle: document.getElementById('flightArmBtn')?.title || '',
+          controls: ['pfdArmedBadge', 'flightArmBtn', 'flightDisarmBtn', 'pfdVoiceFlightBtn'].map((id) => {
+            const el = document.getElementById(id);
+            const box = el.getBoundingClientRect();
+            const shown = !el.hidden && box.width > 2 && box.height > 2 && getComputedStyle(el).display !== 'none';
+            return {
+              id,
+              shown,
+              inside: box.left >= stage.left - 1 && box.right <= stage.right + 1
+                && box.top >= stage.top - 1 && box.bottom <= stage.bottom + 1,
+            };
+          }),
+          points: {
+            center: { x: stage.left + stage.width / 2, y: stage.top + 36 },
+            gap: {
+              x: (Math.max(arm.left, disarm.left) + Math.min(arm.right, disarm.right)) / 2,
+              y: arm.top + arm.height / 2,
+            },
+            left: (() => {
+              const box = document.querySelector('.pfd-side-tape--left').getBoundingClientRect();
+              return { x: box.left + box.width / 2, y: box.top + box.height / 2 };
+            })(),
+            right: (() => {
+              const box = document.querySelector('.pfd-side-tape--right').getBoundingClientRect();
+              return { x: box.left + box.width / 2, y: box.top + box.height / 2 };
+            })(),
+          },
         };
       });
       const name = `${width}x${height}`;
-      if (!(width <= 720 && height >= 701)) {
+      if (width <= 720) {
+        expect(report.ratio, `${name} ${report.width}x${report.height}`).toBeGreaterThan(0.9);
+        expect(report.ratio, `${name} ${report.width}x${report.height}`).toBeLessThan(1.15);
+        if (height <= 700) {
+          expect(report.height, name).toBeGreaterThan(154);
+          const remain = report.vh - report.top - report.barH;
+          expect(Math.abs(report.height - remain), `${name} square ${report.height} vs ${remain}`).toBeLessThanOrEqual(16);
+        } else {
+          expect(report.width, name).toBeGreaterThanOrEqual(240);
+          expect(report.height, name).toBeGreaterThanOrEqual(240);
+        }
+      } else {
         expect(report.ratio, `${name} ${report.width}x${report.height}`).toBeGreaterThan(0.8);
         expect(report.ratio, `${name} ${report.width}x${report.height}`).toBeLessThanOrEqual(1.65);
       }
@@ -194,13 +245,13 @@ describe('horizon square and whole tile words', () => {
       expect(report.tilesBottom, `${name} tiles`).toBeLessThanOrEqual(report.vh + 1);
       expect(report.tilesTop, `${name} tiles`).toBeGreaterThanOrEqual(-1);
       expect(report.scroll, name).toBe(0);
-      if (width <= 720 && height <= 700) {
-        const remain = report.vh - report.top - report.barH;
-        expect(Math.abs(report.height - remain), `${name} square ${report.height} vs ${remain}`).toBeLessThanOrEqual(12);
-      }
-      if (width <= 720 && height >= 701) {
-        expect(report.width, name).toBeGreaterThanOrEqual(240);
-        expect(report.width, name).toBeGreaterThanOrEqual(report.columnW * 0.9);
+      expect(report.noteHidden, `${name} ${report.tilesText}`).toBe(true);
+      expect(report.armTitle, name).toBe('חימוש — אין חיבור לבקר הטיסה');
+      expect(report.controls.filter((row) => row.shown && !row.inside).map((row) => row.id), name).toEqual([]);
+      if (report.height < 280) {
+        expect(report.tilesText, name).not.toMatch(/%/);
+        expect(report.valueLines, name).toBe(1);
+        expect(report.offsetTile, name).toBeGreaterThanOrEqual(40);
       }
       expect(report.tileOnTape, name).toBe(false);
       expect(report.tileOnQuick, name).toBe(false);
@@ -222,6 +273,16 @@ describe('horizon square and whole tile words', () => {
       expect(report.disarm.w, name).toBeGreaterThanOrEqual(40);
       expect(report.disarm.h, name).toBeGreaterThanOrEqual(40);
       expect(report.gap, name).toBeGreaterThanOrEqual(8);
+      for (const [spot, point] of Object.entries(report.points)) {
+        await page.evaluate(() => {
+          document.getElementById('horizonCameraMenu').hidden = true;
+          const column = document.getElementById('flightColumnMenu');
+          if (column) column.hidden = true;
+        });
+        await page.mouse.click(point.x, point.y, { button: 'right' });
+        const opened = await page.locator('#horizonCameraMenu').evaluate((el) => el.hidden === false);
+        expect(opened, `${name} ${spot}`).toBe(true);
+      }
     }
-  }, 40000);
+  }, 90000);
 });

@@ -12475,6 +12475,7 @@ html[data-evolve-preview="1"] #development {
 .pfd-horizon-stage {
   grid-area: horizon;
   position: relative;
+  container-type: inline-size;
   width: 100%;
   height: 100%;
   min-width: 0;
@@ -28158,20 +28159,31 @@ body:has(#control.panel.visible) #assistToggleBtn {
   flex-flow: row nowrap;
   align-items: center;
   justify-content: flex-start;
-  gap: 8px;
+  gap: 4px;
   width: 100%;
   max-width: 100%;
   height: 44px;
   margin: 0;
-  padding: 2px;
+  padding: 0 2px;
   box-sizing: border-box;
   pointer-events: none;
+}
+#horizonQuick #flightArmBtn {
+  margin-inline-end: auto;
+}
+#horizonQuick #flightDisarmBtn {
+  margin-inline-start: 4px;
 }
 .horizon-quick .horizon-quick-icon {
   width: 16px;
   height: 16px;
   flex: 0 0 16px;
   display: block;
+}
+.horizon-quick .flight-arm-btn[hidden],
+.horizon-quick .pfd-badge[hidden],
+.horizon-quick .pfd-voice-flight-btn[hidden] {
+  display: none !important;
 }
 .horizon-quick .flight-arm-btn,
 .horizon-quick .pfd-badge,
@@ -29031,6 +29043,16 @@ body:has(#terrain.panel.visible) .layout,
   }
 }
 @media (max-width: 720px) and (max-height: 700px) {
+  .mission-workspace[data-mission-layout="ops-v1"]:not([data-mission-swap="horizon-map"]),
+  .mission-workspace[data-mission-swap="map-horizon"] {
+    grid-template-rows: 200px auto !important;
+  }
+  .mission-workspace[data-mission-layout="ops-v1"]:not([data-mission-swap="horizon-map"]) .mission-region[data-mission-region="map"],
+  .mission-workspace[data-mission-swap="map-horizon"] .mission-region[data-mission-region="map"] {
+    height: 200px !important;
+    min-height: 200px !important;
+    max-height: 200px !important;
+  }
   .mission-workspace[data-mission-layout="ops-v1"]:not([data-mission-swap="horizon-map"]) .mission-region-horizon:not([data-flight-stack="custom"]) > .flight-hud {
     height: auto !important;
     min-height: 0 !important;
@@ -29044,6 +29066,87 @@ body:has(#terrain.panel.visible) .layout,
     aspect-ratio: 1 / 1 !important;
     flex: 0 0 auto !important;
     margin-inline: auto !important;
+  }
+}
+@media (max-width: 720px) and (min-height: 701px) {
+  .mission-workspace[data-mission-layout="ops-v1"]:not([data-mission-swap="horizon-map"]),
+  .mission-workspace[data-mission-swap="map-horizon"] {
+    overflow: visible !important;
+    height: auto !important;
+    flex: 0 0 auto !important;
+  }
+  .mission-workspace[data-mission-layout="ops-v1"]:not([data-mission-swap="horizon-map"]) .mission-region[data-mission-region="horizon"] {
+    overflow: visible !important;
+    height: auto !important;
+    max-height: none !important;
+  }
+  .mission-workspace[data-mission-layout="ops-v1"]:not([data-mission-swap="horizon-map"]) .mission-region-horizon > .mission-region-data > .mission-region-title {
+    position: absolute !important;
+    width: 0 !important;
+    height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+  }
+  .mission-workspace[data-mission-layout="ops-v1"]:not([data-mission-swap="horizon-map"]) .mission-region-horizon #missionDataHintBtn {
+    display: none !important;
+  }
+  .mission-workspace[data-mission-layout="ops-v1"]:not([data-mission-swap="horizon-map"]) .mission-region-horizon > .mission-region-data > .mission-data-grid {
+    gap: 1px !important;
+    padding: 0 !important;
+  }
+  .mission-workspace[data-mission-layout="ops-v1"]:not([data-mission-swap="horizon-map"]) .mission-region-horizon .mission-data-tile {
+    min-height: 0 !important;
+    padding: 0 3px !important;
+  }
+  .mission-workspace[data-mission-layout="ops-v1"]:not([data-mission-swap="horizon-map"]) .mission-region-horizon:not([data-flight-stack="custom"]) > .mission-region-messages,
+  .mission-workspace[data-mission-layout="ops-v1"]:not([data-mission-swap="horizon-map"]) .mission-region-horizon:not([data-flight-stack="custom"]) > .mission-region-messages[data-messages-expanded="0"],
+  .mission-workspace[data-mission-layout="ops-v1"]:not([data-mission-swap="horizon-map"]) .mission-region-horizon:not([data-flight-stack="custom"]) > .mission-region-messages[data-messages-expanded="1"],
+  .mission-workspace[data-mission-layout="ops-v1"]:not([data-mission-swap="horizon-map"]) .mission-region-horizon:not([data-flight-stack="custom"]) > .mission-region-messages[data-flight-dock="messages"],
+  .mission-workspace[data-mission-layout="ops-v1"]:not([data-mission-swap="horizon-map"]) .mission-region-horizon:not([data-flight-stack="custom"]) > .mission-region-messages[data-flight-dock="actions"] {
+    flex: 0 0 auto !important;
+    height: auto !important;
+    min-height: 28px !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+  .mission-workspace[data-mission-layout="ops-v1"]:not([data-mission-swap="horizon-map"]) .mission-region-horizon:not([data-flight-stack="custom"]) > .flight-hud,
+  .mission-workspace[data-mission-layout="ops-v1"]:not([data-mission-swap="horizon-map"]) .mission-region-horizon:not([data-flight-stack="custom"]):has(> .mission-region-messages[data-flight-dock="actions"]) > .flight-hud,
+  .mission-workspace[data-mission-layout="ops-v1"]:not([data-mission-swap="horizon-map"]) .mission-region-horizon:not([data-flight-stack="custom"]):has(> .mission-region-messages[data-flight-dock="messages"]) > .flight-hud {
+    flex: 0 0 auto !important;
+    height: auto !important;
+    min-height: var(--horizon-phone-square, 240px) !important;
+    max-height: none !important;
+    align-items: stretch !important;
+    justify-content: flex-start !important;
+  }
+}
+@media (max-width: 720px) {
+  .mission-workspace[data-mission-layout="ops-v1"]:not([data-mission-swap="horizon-map"]) .mission-region-horizon .pfd-horizon-shell {
+    width: min(100%, var(--horizon-phone-square, 240px)) !important;
+    height: var(--horizon-phone-square, 240px) !important;
+    max-width: 100% !important;
+    max-height: calc(100dvh - 80px) !important;
+    aspect-ratio: 1 / 1 !important;
+    flex: 0 0 auto !important;
+    margin-inline: auto !important;
+  }
+  .mission-workspace[data-mission-layout="ops-v1"]:not([data-mission-swap="horizon-map"]) .mission-region-horizon .pfd-horizon-instrument,
+  .mission-workspace[data-mission-layout="ops-v1"]:not([data-mission-swap="horizon-map"]) .mission-region-horizon .pfd-horizon-stage {
+    width: min(100%, var(--horizon-phone-square, 240px)) !important;
+    height: var(--horizon-phone-square, 240px) !important;
+    max-width: 100% !important;
+    max-height: none !important;
+  }
+  .mission-workspace[data-mission-layout="ops-v1"]:not([data-mission-swap="horizon-map"]) .mission-region-horizon:not([data-flight-stack="custom"]) > .flight-hud,
+  .mission-workspace[data-mission-layout="ops-v1"]:not([data-mission-swap="horizon-map"]) .mission-region-horizon:not([data-flight-stack="custom"]):has(> .mission-region-messages[data-flight-dock="actions"]) > .flight-hud,
+  .mission-workspace[data-mission-layout="ops-v1"]:not([data-mission-swap="horizon-map"]) .mission-region-horizon:not([data-flight-stack="custom"]):has(> .mission-region-messages[data-flight-dock="messages"]) > .flight-hud {
+    height: auto !important;
+    min-height: var(--horizon-phone-square, 240px) !important;
+    max-height: none !important;
+    flex: 0 0 auto !important;
+    align-items: stretch !important;
+    justify-content: flex-start !important;
   }
 }
 .pfd-horizon-instrument:has(#pfdHorizonStage[data-awareness-stage="short"]) > .pfd-side-tape {
@@ -29061,5 +29164,21 @@ body:has(#terrain.panel.visible) .layout,
     width: 40px !important;
     min-width: 40px !important;
     padding: 0 !important;
+  }
+}
+@container (max-width: 220px) {
+  #horizonQuick {
+    gap: 0 !important;
+    padding: 0 !important;
+  }
+  #horizonQuick #flightDisarmBtn {
+    margin-inline-start: 8px !important;
+  }
+  #horizonQuick .flight-arm-btn .horizon-quick-icon {
+    display: none !important;
+  }
+  #horizonQuick .flight-arm-btn {
+    padding: 0 !important;
+    gap: 0 !important;
   }
 }

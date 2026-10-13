@@ -7356,16 +7356,23 @@ function resizeHorizonCanvas() {
 
 function syncPhoneHorizonSquare(horizon) {
   const ws = horizon.closest('.mission-workspace');
-  const phone = window.innerWidth <= 720 && window.innerHeight <= 700 && ws?.dataset.missionSwap !== 'horizon-map';
+  const phone = window.innerWidth <= 720 && ws?.dataset.missionSwap !== 'horizon-map';
   if (!phone) {
     if (horizon.style.getPropertyValue('--horizon-phone-square')) horizon.style.removeProperty('--horizon-phone-square');
     return;
   }
-  const top = horizon.getBoundingClientRect().top;
+  const map = ws.querySelector('[data-mission-region="map"]');
+  const mapTop = map ? map.getBoundingClientRect().top : 0;
+  const tall = window.innerHeight >= 701;
+  const mapMin = tall ? 220 : 200;
   const bar = document.getElementById('runwayVisionBar');
   const barBox = bar && !bar.hidden ? bar.getBoundingClientRect().height : 0;
   const barH = barBox > 8 ? barBox : 36;
-  const size = Math.max(96, Math.round(window.innerHeight - top - barH));
+  const tail = tall ? 36 + 36 + barH : barH;
+  const column = Math.max(96, Math.floor(horizon.clientWidth || window.innerWidth));
+  const budget = Math.floor(window.innerHeight - mapTop - mapMin - tail - (tall ? 0 : 4));
+  let size = Math.max(96, Math.min(column, budget));
+  if (tall) size = Math.min(column, budget >= 240 ? 240 : size);
   const next = `${size}px`;
   if (horizon.style.getPropertyValue('--horizon-phone-square') !== next) {
     horizon.style.setProperty('--horizon-phone-square', next);
@@ -8308,8 +8315,8 @@ function initHorizonCameraMenu() {
       flightDisarmBtn: '<rect x="6" y="6" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M9 12h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
       pfdVoiceFlightBtn: '<rect x="10" y="3.5" width="4" height="9" rx="2" fill="currentColor"/><path d="M7.5 11a4.5 4.5 0 0 0 9 0" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 15.5V19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
     };
-    const hud = document.getElementById('flightHud');
-    if (hud) hud.appendChild(quick);
+    const stageFace = document.getElementById('pfdHorizonStage');
+    if (stageFace) stageFace.appendChild(quick);
     for (const id of ['pfdArmedBadge', 'flightArmBtn', 'flightDisarmBtn', 'pfdVoiceFlightBtn']) {
       const btn = document.getElementById(id);
       if (!btn) continue;
@@ -8363,8 +8370,10 @@ function initHorizonCameraMenu() {
     }
   }
 
-  stage.addEventListener('contextmenu', (event) => {
-    if (event.target?.closest?.('#horizonQuick, button, a, input, select')) return;
+  const horizonFace = stage.closest('.pfd-horizon-instrument') || stage;
+  horizonFace.addEventListener('contextmenu', (event) => {
+    if (event.target?.closest?.('button, a, input, select, [role="button"]')) return;
+    if (!event.target?.closest?.('#pfdHorizonStage, .pfd-side-tape, #horizonQuick')) return;
     event.preventDefault();
     openMenu(event.clientX, event.clientY);
   });
@@ -9146,7 +9155,7 @@ function syncFlightArmControls(mav) {
   if (!live) {
     armBtn.disabled = false;
     disarmBtn.disabled = false;
-    armBtn.title = 'אין חיבור לבקר הטיסה';
+    armBtn.title = 'חימוש — אין חיבור לבקר הטיסה';
     disarmBtn.title = 'אין חיבור לבקר הטיסה';
     paintNoLinkReason(reason);
     if (row) row.dataset.armLink = 'off';
@@ -10350,6 +10359,11 @@ function horizonTapeIsDash(id) {
 function syncHorizonNoData() {
   const note = document.getElementById('horizonNoData');
   if (!note) return;
+  const tiles = document.getElementById('runwayAwarenessTiles');
+  if (tiles && tiles.hidden === false) {
+    note.hidden = true;
+    return;
+  }
   const chip = document.getElementById('horizonCameraNote');
   const bg = document.getElementById('horizonCameraBg');
   const frame = horizonFrameIsReal(bg) && bg?.hidden !== true;
@@ -22296,7 +22310,7 @@ function bindFlightColumnMenu() {
     menu.style.top = `${top}px`;
   };
   horizon.addEventListener('contextmenu', (ev) => {
-    if (ev.target.closest('#pfdHorizonStage, .mission-data-tile, #flightColumnMenu, .flight-stack-split')) return;
+    if (ev.target.closest('#pfdHorizonStage, .pfd-side-tape, #horizonQuick, .mission-data-tile, #flightColumnMenu, .flight-stack-split')) return;
     ev.preventDefault();
     open(ev.clientX, ev.clientY);
   });
