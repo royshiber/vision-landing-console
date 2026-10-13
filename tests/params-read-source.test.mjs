@@ -31,7 +31,7 @@ describe('parameter read labels the real source', () => {
     ];
     expect(profileLivePresentation('vision_enable_alt_m', keys)).toEqual({
       text: '12',
-      kicker: 'נשמר בקונסולה',
+      kicker: 'נשמר בג׳טסון',
     });
     expect(profileLivePresentation('WPNAV_SPEED', keys)).toEqual({
       text: '500',
