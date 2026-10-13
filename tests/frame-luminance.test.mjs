@@ -17,4 +17,13 @@ describe('flat frame check', () => {
     expect(jpegFrameIsBlank(varied)).toBe(false);
     expect(jpegFrameIsBlank(Buffer.from([1, 2, 3, 4]))).toBe(false);
   });
+
+  it('keeps a dark noisy night frame live and leaves the verdict to the server', () => {
+    const dark = readFileSync(new URL('./fixtures/dark-noise-64.jpg', import.meta.url));
+    expect(jpegFrameIsBlank(dark)).toBe(false);
+    const app = readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
+    expect(app).not.toContain('imageLuminanceIsFlat');
+    expect(app).toContain('if (loaded?.blank === true)');
+    expect(app).toContain('אין תמונה');
+  });
 });

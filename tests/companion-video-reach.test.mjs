@@ -144,6 +144,20 @@ describe('companion video reachability', () => {
     expect(video.reason).toBe('cellular_disconnected');
   });
 
+  it('counts a frameless companion only while the bytes hash changes, then drops it', () => {
+    const bytes = Buffer.from([9, 8, 7, 6]);
+    expect(noteCompanionVideoFrame('cam0', { bytes, now: 1_000 })).toBe(true);
+    expect(recentCompanionVideoFrame({ now: 2_000 })?.camId).toBe('cam0');
+    expect(noteCompanionVideoFrame('cam0', { bytes, now: 8_000 })).toBe(false);
+    expect(recentCompanionVideoFrame({ now: 12_000 })).not.toBe(null);
+    expect(recentCompanionVideoFrame({ now: 13_001 })).toBe(null);
+    expect(noteCompanionVideoFrame('cam0', { now: 14_000 })).toBe(false);
+    expect(noteCompanionVideoFrame('cam0', { seq: 4, now: 14_000 })).toBe(false);
+    expect(noteCompanionVideoFrame('cam0', { capturedAt: 14_000, now: 14_000 })).toBe(false);
+    expect(noteCompanionVideoFrame('cam0', { bytes: Buffer.from([1]), now: 14_000 })).toBe(true);
+    expect(recentCompanionVideoFrame({ now: 14_000 })?.camId).toBe('cam0');
+  });
+
   it('rejects a new sequence whose capture time is already older than 12s', () => {
     const t0 = 5_000_000;
     expect(noteCompanionVideoFrame('cam0', { seq: 3, capturedAt: t0, now: t0 })).toBe(true);

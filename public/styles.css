@@ -28334,9 +28334,10 @@ body:has(#control.panel.visible) #assistToggleBtn {
 }
 #horizonQuick #flightArmRefusal {
   position: static;
-  flex: 1 1 160px;
-  min-width: 120px;
-  width: auto;
+  flex: 1 0 100%;
+  order: 2;
+  min-width: 0;
+  width: 100%;
   max-width: 100%;
   height: auto;
   min-height: 16px;
@@ -28348,7 +28349,10 @@ body:has(#control.panel.visible) #assistToggleBtn {
   line-height: 1.25;
 }
 #horizonQuick #flightArmRefusal:not([hidden]) {
-  margin-inline-end: auto;
+  margin-top: 8px;
+}
+#horizonQuick {
+  row-gap: 0;
 }
 #horizonQuick #flightArmRefusal[hidden] {
   display: none !important;

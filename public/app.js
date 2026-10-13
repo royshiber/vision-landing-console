@@ -7851,38 +7851,6 @@ function horizonFrameIsReal(img) {
   return !!(img && img.naturalWidth > 0 && img.naturalHeight > 0);
 }
 
-function imageLuminanceIsFlat(img) {
-  try {
-    if (!img || !img.naturalWidth || !img.naturalHeight) return false;
-    const canvas = document.createElement('canvas');
-    const w = 24;
-    const h = 24;
-    canvas.width = w;
-    canvas.height = h;
-    const ctx = canvas.getContext('2d', { willReadFrequently: true });
-    if (!ctx) return false;
-    ctx.drawImage(img, 0, 0, w, h);
-    const data = ctx.getImageData(0, 0, w, h).data;
-    const ys = [];
-    let sum = 0;
-    for (let i = 0; i < data.length; i += 4) {
-      const y = (0.2126 * data[i]) + (0.7152 * data[i + 1]) + (0.0722 * data[i + 2]);
-      ys.push(y);
-      sum += y;
-    }
-    if (ys.length < 16) return false;
-    const mean = sum / ys.length;
-    let acc = 0;
-    for (const y of ys) {
-      const d = y - mean;
-      acc += d * d;
-    }
-    return acc / ys.length < 12;
-  } catch {
-    return false;
-  }
-}
-
 function showHorizonNoPicture(img, note) {
   if (img) img.hidden = true;
   if (!note) return;
@@ -7986,7 +7954,7 @@ function ensureHorizonGimbalPump(img, note, base) {
       return `${base}?since=${seenSeq || 0}&t=${gen}${newest}`;
     },
     onFrame(_src, loaded) {
-      if (loaded?.blank === true || imageLuminanceIsFlat(img)) {
+      if (loaded?.blank === true) {
         showHorizonNoPicture(img, note);
         return;
       }
@@ -15368,7 +15336,7 @@ initLiveCameraPanel();
               : 'off';
       chip.dataset.state = state;
       chip.dataset.quality = row.quality?.known ? 'known' : 'unknown';
-      chip.title = row.roleNoticeHe || row.hintHe || row.nameHe || '';
+      chip.title = row.hintHe || row.nameHe || '';
     });
     if (typeof paintPulseCommStatus === 'function') paintPulseCommStatus(links);
     syncRadioWithWork();
@@ -15460,9 +15428,7 @@ initLiveCameraPanel();
     if (radioChip) {
       radioChip.dataset.state = chipStateFromLink(links.radio);
       radioChip.textContent = `${links.radioLabelHe || 'RF'} · ${links.radioStatusHe || 'מנותק'}`;
-      const radioNotice = links.comm?.rows?.find((row) => row.id === 'radio')?.roleNoticeHe || '';
-      if (radioNotice) radioChip.title = radioNotice;
-      else radioChip.removeAttribute('title');
+      radioChip.removeAttribute('title');
     }
     if (cellularChip) {
       const cellPathUp = (links?.comm?.rows || []).some((row) => row.id === 'cellular' && row.connected === true);
@@ -15473,9 +15439,7 @@ initLiveCameraPanel();
       cellularChip.textContent = cellPathUp
         ? 'סלולר · מחובר'
         : `סלולר · ${links.cellularStatusHe || (links.modemPresent === false ? 'מודם לא מחובר' : 'מנותק')}`;
-      const cellNotice = links.comm?.rows?.find((row) => row.id === 'cellular')?.roleNoticeHe || '';
-      if (cellNotice) cellularChip.title = cellNotice;
-      else cellularChip.removeAttribute('title');
+      cellularChip.removeAttribute('title');
     }
     if (cellularModemStatus) {
       const absent = links.modemPresent !== true || links.cellular === 'modem_absent';
@@ -24270,7 +24234,8 @@ function flightLinkRow(id) {
 
 function flightLinkFacts(row) {
   const quality = row && row.quality && typeof row.quality === 'object' ? row.quality : null;
-  const percent = quality && quality.known === true ? Number(quality.percent) : NaN;
+  const rawPercent = quality && quality.known === true ? quality.percent : null;
+  const percent = rawPercent == null || rawPercent === '' ? NaN : Number(rawPercent);
   const delay = row && row.delayMs != null ? Number(row.delayMs) : NaN;
   return {
     state: row && row.statusHe ? String(row.statusHe) : '—',
@@ -24339,6 +24304,8 @@ function paintFlightLinkPanel(prefix, id) {
       note.textContent = notice;
     }
     if (actions) actions.hidden = row?.connectionId == null;
+    const radioSave = document.getElementById('flightLinkRoleRadio');
+    if (radioSave) radioSave.hidden = row?.roleSaveRadio === false;
   }
   return id;
 }
@@ -24472,16 +24439,10 @@ function openFlightLinkMenu(id, x, y) {
 }
 
 function flightLinkRoleResultHe(body) {
-  const notice = String(body?.roleNoticeHe || '').trim();
-  if (notice && body?.savedLinkRole === 'radio' && body?.shownLinkRole === 'cellular') {
-    return 'התפקיד נשמר כ-RF. התעבורה נשארת סלולר.';
-  }
-  if (notice && body?.savedLinkRole === 'cellular' && body?.shownLinkRole === 'radio') {
-    return 'התפקיד נשמר כסלולר. התעבורה נשארת RF.';
-  }
-  if (body?.savedLinkRole === 'cellular') return 'התפקיד נשמר כסלולר.';
-  if (body?.savedLinkRole === 'radio') return 'התפקיד נשמר כ-RF.';
-  return notice;
+  if (String(body?.roleNoticeHe || '').trim()) return '';
+  if (body?.savedLinkRole === 'cellular') return 'הקישור נשמר כקישור סלולר.';
+  if (body?.savedLinkRole === 'radio') return 'הקישור נשמר כקישור RF.';
+  return '';
 }
 
 async function saveFlightLinkRole(role) {
@@ -24501,10 +24462,19 @@ async function saveFlightLinkRole(role) {
     });
     const body = await res.json().catch(() => ({}));
     if (!res.ok || body?.ok !== true) {
-      note.textContent = 'שמירת התפקיד נכשלה.';
+      note.textContent = 'שמירת הקישור נכשלה.';
       return;
     }
-    note.textContent = flightLinkRoleResultHe(body);
+    const saved = flightLinkRoleResultHe(body);
+    const standing = document.getElementById('flightLinkRoleNote');
+    const standingText = standing && !standing.hidden ? String(standing.textContent || '').trim() : '';
+    if (!saved || saved === standingText) {
+      note.hidden = true;
+      note.textContent = '';
+    } else {
+      note.hidden = false;
+      note.textContent = saved;
+    }
     const links = await fetch('/api/links', { cache: 'no-store' });
     if (links.ok) {
       const snap = await links.json();
@@ -24513,7 +24483,7 @@ async function saveFlightLinkRole(role) {
       }
     }
   } catch {
-    note.textContent = 'שמירת התפקיד נכשלה.';
+    note.textContent = 'שמירת הקישור נכשלה.';
   }
 }
 

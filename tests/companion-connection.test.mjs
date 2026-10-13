@@ -304,7 +304,7 @@ describe('Companion in-product v1 connect', () => {
       type: 'tcp',
       host: 'jetson.example',
       port: 5770,
-      linkRole: 'radio',
+      linkRole: 'cellular',
     });
     const status = await fetch(`${base}/api/companion/connection`).then((r) => r.json());
     expect(status.mode).toBe('real');
@@ -617,7 +617,7 @@ describe('Companion in-product v1 connect', () => {
       type: 'tcp',
       host: 'jetson.example',
       port: 5770,
-      linkRole: 'radio',
+      linkRole: 'cellular',
     });
     expect(connected.mavlinkRelay.ok).toBe(true);
     expect(connected.mavlinkRelay.host).toBe('jetson.example');
