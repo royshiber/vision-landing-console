@@ -25347,6 +25347,19 @@ body[data-work-path="rf"] #optics .optics-calib {
 #control.panel.visible .param-card.param-card--dirty {
   border: 2px solid #fbbf24;
 }
+#control.panel.visible .param-card.param-card--stale .param-value,
+#control.panel.visible .param-card.param-card--stale .fc-group-now {
+  color: #94a3b8;
+}
+#control.panel.visible .param-card-stale {
+  margin: 0;
+  color: #fde68a;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.35;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
 #control.panel.visible .param-card-dirty,
 #control.panel.visible .param-card-fc-note {
   margin: 0;
@@ -27757,8 +27770,8 @@ button.mission-link-chip,
 }
 
 /* QA fold: one read/write pair, contrast, data strip, GPS detail, map chip, Ask. */
-.param-tool-seg[aria-label="פרמטרי נחיתה אופטית"] #visionConfigWriteBtn {
-  display: none;
+.param-tool-btn[hidden] {
+  display: none !important;
 }
 .param-tool-seg[aria-label="פרמטרי נחיתה אופטית"] {
   min-height: 28px;
@@ -28086,6 +28099,9 @@ body:has(#control.panel.visible) #assistToggleBtn {
     white-space: nowrap !important;
     overflow-wrap: normal !important;
     word-break: keep-all !important;
+  }
+  #control #visionConfigWriteBtn {
+    white-space: normal !important;
   }
 }
 .mission-region-horizon .flight-dock-bar .flight-actions-note,

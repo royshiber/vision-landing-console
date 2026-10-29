@@ -66,34 +66,51 @@ def reject(raw_profile):
     return {"ok": ok, "accepted": accepted, "rejected": rejected}
 
 
-def _read_file():
+def _corrupt(reason="corrupt"):
+    """A file on disk is never the same as 'no profile'."""
+    return {
+        "ok": False,
+        "present": True,
+        "corrupt": True,
+        "profile": {},
+        "rejected": {"profile": reason},
+    }
+
+
+def read():
     path = profile_path()
     if not path.is_file():
-        return None
+        return {"ok": True, "present": False, "corrupt": False, "profile": {}, "rejected": {}}
     try:
         with path.open("r", encoding="utf-8") as handle:
             body = json.load(handle)
     except (OSError, json.JSONDecodeError):
-        return None
+        return _corrupt()
     if not isinstance(body, dict):
-        return None
-    return body
-
-
-def read():
-    body = _read_file()
-    profile = body.get("profile") if isinstance(body, dict) else None
-    if not isinstance(profile, dict) or not profile or body.get("present") is not True:
-        return {"ok": True, "present": False, "profile": {}}
-    clean = {}
+        return _corrupt()
+    profile = body.get("profile")
+    if not isinstance(profile, dict):
+        if body.get("present") is True:
+            return _corrupt()
+        return {"ok": True, "present": False, "corrupt": False, "profile": {}, "rejected": {}}
+    if not profile and body.get("present") is not True:
+        return {"ok": True, "present": False, "corrupt": False, "profile": {}, "rejected": {}}
     verdict = reject(profile)
-    if verdict["ok"]:
-        clean = verdict["accepted"]
-    elif verdict["accepted"] and not any(reason == "out_of_range" for reason in verdict["rejected"].values()):
-        clean = verdict["accepted"]
-    if not clean:
-        return {"ok": True, "present": False, "profile": {}}
-    return {"ok": True, "present": True, "profile": clean}
+    if verdict["rejected"] or not verdict["ok"]:
+        return {
+            "ok": False,
+            "present": True,
+            "corrupt": False,
+            "profile": verdict["accepted"],
+            "rejected": verdict["rejected"] or {"profile": "invalid"},
+        }
+    return {
+        "ok": True,
+        "present": True,
+        "corrupt": False,
+        "profile": verdict["accepted"],
+        "rejected": {},
+    }
 
 
 def _atomic_write(path, body):
@@ -108,21 +125,44 @@ def _atomic_write(path, body):
 
 
 def put(raw):
+    current = read()
+    if current.get("corrupt") or current.get("rejected"):
+        return 409, {
+            "ok": False,
+            "present": True,
+            "corrupt": current.get("corrupt") is True,
+            "rejected": current.get("rejected") or {},
+            "profile": current.get("profile") or {},
+        }
     incoming = raw.get("profile") if isinstance(raw, dict) and "profile" in raw else raw
     verdict = reject(incoming)
     if not verdict["ok"]:
-        return 400, {"ok": False, "present": read()["present"], "rejected": verdict["rejected"]}
-    current = read()
+        return 400, {
+            "ok": False,
+            "present": current["present"] is True,
+            "rejected": verdict["rejected"],
+            "profile": current.get("profile") or {},
+        }
     profile = dict(current["profile"]) if current["present"] else {}
     profile.update(verdict["accepted"])
     _atomic_write(profile_path(), {"present": True, "profile": profile})
-    return 200, {"ok": True, "present": True, "profile": profile}
+    stored = read()
+    return 200, {
+        "ok": True,
+        "present": True,
+        "corrupt": False,
+        "rejected": {},
+        "profile": stored.get("profile") or profile,
+    }
 
 
 def for_landing():
-    """Optical landing reads these numbers. Missing file does not invent values."""
+    """Optical landing reads these numbers. A bad file is not an empty profile."""
     stored = read()
+    blocked = stored.get("corrupt") is True or bool(stored.get("rejected"))
     return {
-        "present": stored["present"] is True,
-        "profile": dict(stored["profile"]) if stored["present"] else {},
+        "present": stored["present"] is True or blocked,
+        "corrupt": stored.get("corrupt") is True,
+        "rejected": dict(stored.get("rejected") or {}),
+        "profile": dict(stored.get("profile") or {}) if stored["present"] or blocked else {},
     }
