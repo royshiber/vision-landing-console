@@ -3323,11 +3323,12 @@ function paintJetsonFaultNote(note) {
   note.replaceChildren();
   const rejected = jetsonProfileRejected && typeof jetsonProfileRejected === 'object' ? jetsonProfileRejected : null;
   const keys = rejected ? Object.keys(rejected) : [];
-  if (!keys.length) {
-    note.textContent = jetsonProfileFault || '';
+  const shown = keys.filter((key) => !(key === 'profile' && rejected[key] === 'corrupt'));
+  if (!shown.length) {
+    note.textContent = keys.length ? 'הקובץ בג׳טסון פגום' : (jetsonProfileFault || '');
     return;
   }
-  keys.forEach((key, index) => {
+  shown.forEach((key, index) => {
     if (index > 0) note.append(document.createTextNode(', '));
     const bdi = document.createElement('bdi');
     bdi.dir = 'ltr';
@@ -3414,11 +3415,14 @@ function noteLandingResponse(res, body) {
 function applyLandingNumbers(profile, { force = false } = {}) {
   const landing = profile && typeof profile === 'object' ? profile : {};
   for (const param of PARAMS) {
-    if (!force && arduValuesDiffer(profileWriteBaseline[param.key], profileState[param.key])) continue;
+    const dirty = arduValuesDiffer(profileWriteBaseline[param.key], profileState[param.key]);
+    if (!force && dirty) continue;
     const got = landing[param.key];
     if (got != null && Number.isFinite(Number(got))) {
       profileState[param.key] = Number(got);
       profileWriteBaseline[param.key] = Number(got);
+    } else if (force && dirty) {
+      profileState[param.key] = profileWriteBaseline[param.key];
     }
   }
 }
@@ -3457,7 +3461,7 @@ function offerJetsonCompare(body) {
   box.appendChild(btn);
 }
 
-async function loadLandingProfileFromJetson() {
+async function loadLandingProfileFromJetson(options = {}) {
   const epoch = ++landingOpEpoch;
   const readBtn = document.getElementById('visionConfigReadBtn');
   setLandingBusy(readBtn, 'קורא מהג׳טסון…');
@@ -3467,10 +3471,11 @@ async function loadLandingProfileFromJetson() {
     if (epoch !== landingOpEpoch) return;
     noteLandingResponse(res, d);
     if (jetsonProfileConnected && d.ok !== false) {
-      applyLandingNumbers(d.profile);
+      applyLandingNumbers(d.profile, { force: options.force === true });
       lastServerSyncedCanonical = baselineCanonicalStr();
       backupLoadState = 'ok';
       clearParamToolFault();
+      refreshLandingHonesty();
     }
     renderParams();
     updateParamSyncBanner();
@@ -3490,6 +3495,8 @@ async function loadLandingProfileFromJetson() {
 }
 
 async function migrateLandingProfileToJetson() {
+  const migrateBtnEarly = document.getElementById('jetsonMigrateBtn');
+  if (migrateBtnEarly?.dataset.busy === '1') return;
   if (landingBackupReadonly) {
     paintFcWriteResult({ level: 'fail', text: 'הגיבוי בקונסולה לקריאה בלבד' }, [], null);
     return;
@@ -3562,8 +3569,9 @@ async function migrateLandingProfileToJetson() {
 
 if (visionConfigReadBtn) {
   visionConfigReadBtn.addEventListener('click', () => {
-    if (collectPendingProfileRows().length && !window.confirm('יש שינוי שלא נשמר. לקרוא מהג׳טסון ולבטל אותו?')) return;
-    void loadLandingProfileFromJetson();
+    const pending = collectPendingProfileRows().length > 0;
+    if (pending && !window.confirm('יש שינוי שלא נשמר. לקרוא מהג׳טסון ולבטל אותו?')) return;
+    void loadLandingProfileFromJetson({ force: pending });
   });
 }
 document.getElementById('jetsonToolState')?.addEventListener('click', () => {

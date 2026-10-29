@@ -999,6 +999,68 @@ describe('landing profile through companion_agent.py', () => {
     }
   }, 30000);
 
+  it('shows a corrupt file without the internal profile key', async () => {
+    const { writeFileSync } = await import('node:fs');
+    writeFileSync(path.join(dir, 'landing-profile.json'), '{');
+    const { chromium } = await import('playwright');
+    const browserUi = await chromium.launch({ headless: true });
+    try {
+      const page = await browserUi.newPage({ viewport: { width: 1024, height: 470 } });
+      await page.goto(base, { waitUntil: 'domcontentloaded' });
+      await page.click('[data-tab="control"]');
+      await page.waitForFunction(() => document.getElementById('jetsonOfflineNote')?.textContent === 'הקובץ בג׳טסון פגום');
+      const note = await page.locator('#jetsonOfflineNote').innerText();
+      expect(note).toBe('הקובץ בג׳טסון פגום');
+      expect(note).not.toContain('profile');
+    } finally {
+      await browserUi.close();
+    }
+  }, 30000);
+
+  it('replaces the slider with the jetson value when a re-read is accepted', async () => {
+    const seeded = await fetch(`${base}/api/vision/landing-profile`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ profile: { flare_alt_m: 8 } }),
+    });
+    expect(seeded.ok).toBe(true);
+    const { chromium } = await import('playwright');
+    const browserUi = await chromium.launch({ headless: true });
+    try {
+      const page = await browserUi.newPage({ viewport: { width: 1280, height: 800 } });
+      await page.goto(base, { waitUntil: 'domcontentloaded' });
+      await page.click('[data-tab="control"]');
+      await page.waitForFunction(() => document.getElementById('rng_flare_alt_m')?.value === '8');
+      await page.locator('#rng_flare_alt_m').fill('9');
+      await page.route('**/api/vision/landing-profile', async (route) => {
+        if (route.request().method() !== 'PUT') return route.continue();
+        await route.fulfill({
+          status: 504,
+          contentType: 'application/json',
+          body: JSON.stringify({ ok: false, connected: true, reason: 'timeout', message: TIMEOUT_HE }),
+        });
+      });
+      await page.locator('#jetsonProfileWriteBtn').click();
+      await page.waitForFunction((text) => (document.getElementById('paramWriteResult')?.textContent || '').includes(text), TIMEOUT_HE);
+      await page.unroute('**/api/vision/landing-profile');
+      page.once('dialog', (dialog) => dialog.accept());
+      await page.locator('#visionConfigReadBtn').click();
+      await page.waitForFunction(() => document.getElementById('rng_flare_alt_m')?.value === '8');
+      const card = page.locator('#paramsGrid [data-param-key="flare_alt_m"]');
+      expect(await card.getAttribute('class')).not.toContain('param-card--dirty');
+      expect(await page.locator('#plndProfileHonestyState').innerText()).toBe('נשמר בג׳טסון');
+      expect(await card.locator('.fc-group-now').innerText()).toBe('8');
+      let askedAgain = false;
+      page.once('dialog', () => { askedAgain = true; });
+      await page.locator('#visionConfigReadBtn').click();
+      await page.waitForTimeout(300);
+      expect(askedAgain).toBe(false);
+      expect(await page.locator('#rng_flare_alt_m').inputValue()).toBe('8');
+    } finally {
+      await browserUi.close();
+    }
+  }, 40000);
+
   it('covers a first migrate press, a short second press, and a blocked press', async () => {
     rmSync(path.join(dir, 'landing-profile.json'), { force: true });
     const fresh = await startTestServer({
@@ -1014,6 +1076,12 @@ describe('landing profile through companion_agent.py', () => {
     const { chromium } = await import('playwright');
     const browserUi = await chromium.launch({ headless: true });
     try {
+      const seeded = await fetch(`${fresh.base}/api/vision/config`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ profile: { motor_hold_s: 4.5 } }),
+      });
+      expect(seeded.ok).toBe(true);
       const page = await browserUi.newPage({ viewport: { width: 1280, height: 800 } });
       let migratePosts = 0;
       page.on('request', (req) => {
@@ -1021,27 +1089,20 @@ describe('landing profile through companion_agent.py', () => {
       });
       await page.goto(fresh.base, { waitUntil: 'domcontentloaded' });
       await page.click('[data-tab="control"]');
-      await page.waitForFunction(() => {
-        const button = document.getElementById('visionConfigReadBtn');
-        return button && button.disabled === false;
-      });
-      await page.evaluate(() => {
-        const button = document.getElementById('jetsonMigrateBtn');
-        button.hidden = false;
-        button.click();
-      });
-      await page.waitForFunction(() => (document.getElementById('paramWriteResult')?.textContent || '').includes('אין פרופיל בקונסולה להעברה'));
-      expect(migratePosts).toBe(0);
-
-      const seeded = await fetch(`${fresh.base}/api/vision/config`, {
-        method: 'POST',
+      await page.waitForFunction(() => document.getElementById('jetsonMigrateBtn')?.hidden === false);
+      const blocked = await fetch(`${fresh.base}/api/vision/landing-profile`, {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ profile: { motor_hold_s: 4.5 } }),
+        body: JSON.stringify({ profile: { motor_hold_s: 1 } }),
       });
-      expect(seeded.ok).toBe(true);
+      expect(blocked.ok).toBe(true);
+      await page.locator('#jetsonMigrateBtn').click();
+      await page.waitForFunction(() => (document.getElementById('paramWriteResult')?.textContent || '').includes('כבר יש פרופיל בג׳טסון'));
+      expect(migratePosts).toBe(1);
+
+      rmSync(path.join(dir, 'landing-profile.json'), { force: true });
       proxy.setFault('slow');
-      await page.reload({ waitUntil: 'domcontentloaded' });
-      await page.click('[data-tab="control"]');
+      await page.locator('#visionConfigReadBtn').click();
       await page.waitForFunction(() => document.getElementById('jetsonMigrateBtn')?.hidden === false);
       const before = migratePosts;
       await page.locator('#jetsonMigrateBtn').click();
@@ -1049,7 +1110,7 @@ describe('landing profile through companion_agent.py', () => {
         const button = document.getElementById('jetsonMigrateBtn');
         return button && button.disabled === true && (button.textContent || '').includes('מעביר לג׳טסון');
       });
-      await page.evaluate(() => document.getElementById('jetsonMigrateBtn').click());
+      await page.locator('#jetsonMigrateBtn').click({ force: true });
       await page.waitForTimeout(200);
       expect(migratePosts - before).toBe(1);
       await page.waitForFunction(() => {
