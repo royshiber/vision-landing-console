@@ -28,7 +28,8 @@ describe('Parameters tab layout contract — static source', () => {
     expect(html).toContain('id="fcToolState"');
     expect(html).toContain('id="paramToolFault"');
     expect(html).toContain('id="paramFileMenu"');
-    expect(html).toContain('גיבוי בקונסולה');
+    expect(html).toContain('פרמטרי נחיתה אופטית (ג׳טסון)');
+    expect(html).toContain('פרמטרי בקר (FC)');
     expect(html).toContain('בקר הטיסה');
     expect(css).toContain('#autoConfig.subpanel:not(.visible)');
     expect(css).toContain('.param-file-menu[hidden]');
@@ -77,7 +78,9 @@ describe('Parameters tab layout contract — live boxes', () => {
         return {
           SQLITE_PATH: sqlite,
           GEMINI_API_KEY: '',
-          COMPANION_MODE: 'off',
+          COMPANION_MODE: 'mock',
+          JETSON_COMPANION_BASE_URL: '',
+          VLC_LANDING_PROFILE_DIR: path.join(os.tmpdir(), `airvix-params-layout-profile-${port}`),
         };
       },
     });
@@ -114,14 +117,14 @@ describe('Parameters tab layout contract — live boxes', () => {
       const toolbar = await measureToolbar();
       await page.waitForFunction(() => {
         const label = document.getElementById('jetsonToolState')?.textContent || '';
-        return label === 'נטען' || label === 'יש שינוי' || label === 'נכשל';
+        return label === 'לא נשמר עדיין' || label === 'נשמר בקונסולה' || label === 'נקרא מהג׳טסון' || label === 'נכשל';
       });
       const sync = await page.evaluate(() => ({
         backup: document.getElementById('jetsonToolState')?.textContent || '',
         live: document.getElementById('visionConfigStatus')?.textContent || '',
         meta: `${document.getElementById('jetsonToolMeta')?.textContent || ''}${document.getElementById('fcToolMeta')?.textContent || ''}`,
       }));
-      expect(sync.backup, vp.name).toBe('נטען');
+      expect(sync.backup, vp.name).toBe('לא נשמר עדיין');
       expect(sync.live, vp.name).toBe('');
       expect(sync.meta, vp.name).not.toContain('קריאה אחרונה');
       expect(sync.meta, vp.name).not.toContain('לא מסונכרן');

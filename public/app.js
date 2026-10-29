@@ -429,6 +429,7 @@ function applyMainTab(tabId, { save = true } = {}) {
   }
   if ((tabId === 'control' || tabId === 'development') && !opsChromeAlwaysReachable(tabId)) return;
   if (!_mainTabIds().has(tabId) && !isAssistShelfPanel(tabId)) return;
+  if (save && tabId !== 'control' && !confirmUnsavedProfileLeave()) return;
   tabs.forEach((t) => t.classList.remove('active'));
   panels.forEach((p) => p.classList.remove('visible'));
   const tab = tabs.find((t) => t.dataset.tab === tabId);
@@ -471,8 +472,16 @@ function applyMainTab(tabId, { save = true } = {}) {
 }
 const PARAM_SUBTAB_IDS = new Set(['landingParams', 'abortParams', 'visionNavParams', 'arduParams', 'customParams']);
 
+function confirmUnsavedProfileLeave() {
+  if (typeof collectPendingProfileRows !== 'function' || !collectPendingProfileRows().length) return true;
+  if (!document.getElementById('control')?.classList.contains('visible')) return true;
+  return window.confirm('יש שינוי שלא נשמר בפרופיל. לעזוב בלי שמירה?');
+}
+
 function applyControlSubtab(subId, { save = true, selectOverride = null } = {}) {
   if (!_subtabIds().has(subId)) return;
+  const currentSub = subpanels.find((panel) => panel.classList.contains('visible'))?.id || '';
+  if (save && currentSub && currentSub !== subId && !confirmUnsavedProfileLeave()) return;
   subtabs.forEach((t) => t.classList.remove('active'));
   subpanels.forEach((p) => p.classList.remove('visible'));
   const st = subtabs.find((t) => t.dataset.subtab === subId);
@@ -1439,6 +1448,102 @@ function pendingValueText(value) {
   return String(value);
 }
 
+function formatProfileNumber(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return String(value ?? '');
+  return String(Math.round(n * 1000) / 1000);
+}
+
+function revertProfileKey(key) {
+  const saved = Number(profileWriteBaseline[key]);
+  if (!Number.isFinite(saved)) return;
+  profileState[key] = saved;
+  const slider = document.getElementById(`rng_${key}`);
+  const valueNode = document.getElementById(`val_${key}`);
+  if (slider) slider.value = String(saved);
+  if (valueNode) valueNode.textContent = formatProfileNumber(saved);
+  const mirror = document.querySelector(`#plndProfileHonestyKeys input[data-honesty-key="${key}"]`);
+  if (mirror) mirror.value = String(saved);
+  if (typeof refreshEventsFromParams === 'function') refreshEventsFromParams();
+  updateParamSyncBanner();
+}
+
+function paintProfileCard(card, param) {
+  if (!card || !param) return;
+  const next = Number(profileState[param.key]);
+  const saved = Number(profileWriteBaseline[param.key]);
+  const dirty = Number.isFinite(next) && arduValuesDiffer(saved, next);
+  card.classList.toggle('param-card--dirty', dirty);
+  let note = card.querySelector('.param-card-dirty');
+  let actions = card.querySelector('.param-card-actions');
+  if (!dirty) {
+    note?.remove();
+    actions?.remove();
+  } else {
+    if (!note) {
+      note = document.createElement('p');
+      note.className = 'param-card-dirty';
+      card.appendChild(note);
+    }
+    note.textContent = `לא נשמר — ${formatProfileNumber(next)} (שמור: ${formatProfileNumber(saved)})`;
+    if (!actions) {
+      actions = document.createElement('div');
+      actions.className = 'param-card-actions';
+      const save = document.createElement('button');
+      save.type = 'button';
+      save.className = 'param-tool-btn param-tool-btn--primary param-card-save';
+      save.textContent = 'שמירה';
+      save.disabled = jetsonProfileSaving || !jetsonProfileConnected;
+      save.addEventListener('click', () => { void saveVisionProfile(); });
+      const cancel = document.createElement('button');
+      cancel.type = 'button';
+      cancel.className = 'param-tool-btn param-tool-btn--secondary param-card-cancel';
+      cancel.textContent = 'ביטול';
+      cancel.addEventListener('click', () => revertProfileKey(param.key));
+      actions.append(save, cancel);
+      card.appendChild(actions);
+    }
+    const saveBtn = actions.querySelector('.param-card-save');
+    if (saveBtn) saveBtn.disabled = jetsonProfileSaving || !jetsonProfileConnected;
+  }
+  const stale = jetsonProfileStale === true || jetsonProfileOffline === true;
+  card.classList.toggle('param-card--stale', stale);
+  let staleNote = card.querySelector('.param-card-stale');
+  if (stale) {
+    if (!staleNote) {
+      staleNote = document.createElement('p');
+      staleNote.className = 'param-card-stale';
+      card.appendChild(staleNote);
+    }
+    staleNote.textContent = 'ערך אחרון שנקרא — לא עדכני';
+  } else {
+    staleNote?.remove();
+  }
+  let fcNote = card.querySelector('.param-card-fc-note');
+  if (fcCurrentSnapshot) {
+    if (!fcNote) {
+      fcNote = document.createElement('p');
+      fcNote.className = 'param-card-fc-note';
+      card.appendChild(fcNote);
+    }
+    fcNote.textContent = 'ערך ג׳טסון — לא נקרא מהבקר';
+  } else {
+    fcNote?.remove();
+  }
+}
+
+function refreshProfileDirtyMarks() {
+  for (const param of PARAMS) {
+    document.querySelectorAll(`.param-card[data-param-key="${param.key}"]`).forEach((card) => {
+      paintProfileCard(card, param);
+    });
+  }
+}
+
+function scrollToUnsavedProfileCard() {
+  document.querySelector('#control .param-card--dirty')?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+}
+
 /** Profile slider edits since the last backup sync. */
 function collectPendingProfileRows() {
   const rows = [];
@@ -1497,18 +1602,25 @@ function updateParamSyncBanner() {
   const el = document.getElementById('paramSyncBanner');
   if (!el) return;
 
-  const rows = collectPendingWriteRows();
+  const profileRows = collectPendingProfileRows();
+  const fcRows = collectPendingFcRows();
   const fcMis = countArduMismatchVsFc();
   const lines = [];
   let level = 'info';
-  if (rows.length) {
-    lines.push('יש שינוי');
-    for (const row of rows) lines.push(`${row.key} ${row.currentText} → ${row.nextText}`);
+  if (profileRows.length) {
+    lines.push(`שינוי לא נשמר (${profileRows.length})`);
+    for (const row of profileRows) lines.push(`${row.key} ${row.currentText} → ${row.nextText}`);
     level = 'warn';
-  } else if (fcMis == null) {
+  }
+  if (fcRows.length) {
+    lines.push('יש שינוי');
+    for (const row of fcRows) lines.push(`${row.key} ${row.currentText} → ${row.nextText}`);
+    level = 'warn';
+  }
+  if (!profileRows.length && !fcRows.length && fcMis == null) {
     lines.push('לא בוצעה קריאה מבקר הטיסה. לא ידוע אם המטוס תואם ליעדים.');
     level = 'info';
-  } else if (fcMis === 0) {
+  } else if (!profileRows.length && !fcRows.length && fcMis === 0) {
     lines.push('הכול מסונכרן: הגיבוי בקונסולה תואם למה שנקרא מבקר הטיסה.');
     level = 'ok';
   }
@@ -1518,10 +1630,36 @@ function updateParamSyncBanner() {
   if (typeof refreshParamToolbarMeta === 'function') refreshParamToolbarMeta();
   if (typeof refreshArduWriteBtnState === 'function') refreshArduWriteBtnState(arduWriteGate);
   const writeBtn = document.getElementById('visionConfigWriteBtn');
-  if (writeBtn) {
-    writeBtn.disabled = rows.length === 0;
-    writeBtn.title = rows.length ? 'שומר גיבוי בקונסולה' : 'אין שינוי לכתיבה';
+  if (writeBtn && writeBtn.dataset.busy !== '1') {
+    if (landingBackupReadonly) {
+      writeBtn.disabled = false;
+      writeBtn.title = 'הגיבוי בקונסולה לקריאה בלבד';
+    } else {
+      writeBtn.disabled = profileRows.length === 0;
+      writeBtn.title = profileRows.length ? 'שומר גיבוי בקונסולה' : 'אין שינוי לכתיבה';
+    }
   }
+  const jetsonWrite = document.getElementById('jetsonProfileWriteBtn');
+  if (jetsonWrite && jetsonWrite.dataset.busy !== '1') {
+    jetsonWrite.disabled = !jetsonProfileConnected || profileRows.length === 0;
+  }
+  const migrateBtn = document.getElementById('jetsonMigrateBtn');
+  if (migrateBtn && migrateBtn.dataset.busy !== '1') {
+    migrateBtn.hidden = !(jetsonProfileConnected && jetsonMigrationOffered && !profileRows.length);
+  }
+  const offlineNote = document.getElementById('jetsonOfflineNote');
+  if (offlineNote) {
+    if (jetsonProfileOffline) {
+      offlineNote.hidden = false;
+      offlineNote.textContent = JETSON_OFFLINE_HE;
+    } else if (jetsonProfileStale && (jetsonProfileFault || jetsonProfileRejected)) {
+      offlineNote.hidden = false;
+      paintJetsonFaultNote(offlineNote);
+    } else {
+      offlineNote.hidden = true;
+    }
+  }
+  refreshProfileDirtyMarks();
   el.replaceChildren();
   for (const text of lines) {
     const span = document.createElement('span');
@@ -1714,10 +1852,35 @@ function profileReadinessKeys() {
 function profileLivePresentation(key, readinessKeys) {
   const keys = Array.isArray(readinessKeys) ? readinessKeys : profileReadinessKeys();
   const row = keys.find((item) => item && item.key === key) || null;
-  if (row?.state === 'present' && row.value != null && row.value !== '') {
-    return { text: String(row.value), kicker: 'נשמר בקונסולה' };
+  let source = row?.source || '';
+  let text = row?.state === 'present' && row.value != null && row.value !== '' ? String(row.value) : 'לא נשמר עדיין';
+  const origin = typeof landingProfileOrigin === 'string' ? landingProfileOrigin : '';
+  if (origin === 'jetson') {
+    source = 'companion';
+    if (typeof profileWriteBaseline === 'object' && profileWriteBaseline && profileWriteBaseline[key] != null) {
+      text = String(profileWriteBaseline[key]);
+    }
+  } else if (origin === 'console') {
+    source = 'persisted';
+    if (typeof serverProfileValues === 'object' && serverProfileValues && serverProfileValues[key] != null && serverProfileValues[key] !== '') {
+      text = String(serverProfileValues[key]);
+    }
+  } else if (origin === 'stale') {
+    source = 'stale';
   }
-  return { text: 'לא נשמר עדיין', kicker: 'נשמר בקונסולה' };
+  const kicker = source === 'companion'
+    ? 'נשמר בג׳טסון'
+    : source === 'stale'
+      ? 'לא עדכני'
+      : text !== 'לא נשמר עדיין'
+        ? 'נשמר בקונסולה'
+        : 'לא נשמר עדיין';
+  return { text, kicker };
+}
+
+function consoleHasLandingCopy() {
+  if (typeof serverProfileValues !== 'object' || !serverProfileValues) return false;
+  return PARAMS.some((param) => serverProfileValues[param.key] != null && serverProfileValues[param.key] !== '');
 }
 
 function profileLiveText(key) {
@@ -1737,7 +1900,12 @@ function ensureProfileGroupBadge(container) {
     badge.className = 'profile-source-badge';
     parent.insertBefore(badge, container);
   }
-  badge.textContent = 'פרופיל בקונסולה';
+  const sample = profileLiveKicker('motor_hold_s');
+  badge.textContent = sample === 'נשמר בג׳טסון'
+    ? 'פרופיל בג׳טסון'
+    : sample === 'לא עדכני'
+      ? 'פרופיל לא עדכני'
+      : 'פרופיל בקונסולה';
 }
 
 function renderParamsIn(container, items) {
@@ -1751,6 +1919,7 @@ function renderParamsIn(container, items) {
     card.className = 'param-card';
     card.dataset.paramKey = param.key;
     const live = profileLiveText(param.key);
+    const kicker = profileLiveKicker(param.key);
     card.innerHTML = `
       <div class="param-top">
         <h3 class="param-title">${renderParamIcon(param.key)}${facts.name}</h3>
@@ -1761,7 +1930,7 @@ function renderParamsIn(container, items) {
       </div>
       <p class="fc-group-key" dir="ltr">${param.key}</p>
       <div class="fc-card-cell"><span class="fc-card-kicker">דיפולט</span><span class="fc-card-value" dir="ltr">${param.value}</span></div>
-      <div class="fc-card-cell"><span class="fc-card-kicker">בקונסולה</span><span class="fc-group-now" data-state="${live === 'לא נשמר עדיין' ? 'missing' : 'present'}">${live}</span></div>
+      <div class="fc-card-cell"><span class="fc-card-kicker">${kicker}</span><span class="fc-group-now" data-state="${live === 'לא נשמר עדיין' ? 'missing' : 'present'}">${live}</span></div>
       <div class="fc-card-cell"><span class="fc-card-kicker">יחידה</span><span class="fc-group-unit" dir="ltr">${facts.unit || '—'}</span></div>
       <div class="fc-card-cell"><span class="fc-card-kicker">טווח</span><span class="fc-group-meta" dir="ltr">${param.min}–${param.max}</span></div>
       <div class="fc-card-cell fc-card-control">
@@ -2785,7 +2954,20 @@ let jetsonLinkState = 'unknown';
 let fcLinkState = 'unknown';
 let liveFcMavlink = null;
 let backupLoadState = 'unknown';
+let jetsonProfileChecked = false;
+let jetsonProfileConnected = false;
+let jetsonProfileOffline = false;
+let jetsonProfileStale = false;
+let jetsonProfileFault = '';
+let jetsonProfileRejected = null;
+let jetsonProfileSaving = false;
+let landingProfileOrigin = 'unknown';
+let jetsonProfileBlockReason = '';
+let jetsonMigrationOffered = false;
+let landingBackupReadonly = false;
+let landingOpEpoch = 0;
 let paramToolRetryAction = null;
+const JETSON_OFFLINE_HE = 'הג׳טסון לא מחובר — לא ניתן לקרוא או לשמור';
 
 function hebrewRequestFault(err, res) {
   if (res && !res.ok) return `השרת החזיר ${res.status}`;
@@ -2835,7 +3017,7 @@ function paintFcWriteResult(outcome, pairs = [], retry) {
   box.replaceChildren();
   const title = document.createElement('p');
   title.className = 'param-write-result-title';
-  const verifiedTitle = outcome?.text === 'נשמר ואומת' ? 'נשמר ואומת' : 'נכתב לבקר ואומת';
+  const verifiedTitle = outcome?.text === 'נשמר בג׳טסון ואומת' ? 'נשמר בג׳טסון ואומת' : 'נכתב לבקר ואומת';
   title.textContent = outcome?.level === 'ok' ? verifiedTitle : String(outcome?.text || '');
   box.appendChild(title);
   if (outcome?.level !== 'none') {
@@ -2846,7 +3028,10 @@ function paintFcWriteResult(outcome, pairs = [], retry) {
       const mark = pair.result === 'verified' || (pair.result !== 'failed' && (acked || outcome?.level === 'ok'))
         ? 'אומת'
         : 'נכשל';
-      line.textContent = `${pair.key} ${pair.oldText} → ${pair.newText} ${mark}`;
+      const jetson = pair.result === 'failed' && pair.jetsonText != null && pair.jetsonText !== ''
+        ? ` בג׳טסון: ${pair.jetsonText}`
+        : '';
+      line.textContent = `${pair.key} ${pair.oldText} → ${pair.newText} ${mark}${jetson}`;
       box.appendChild(line);
     }
   }
@@ -2893,30 +3078,42 @@ function refreshParamToolbarMeta() {
   const fcStateEl = document.getElementById('fcToolState');
   const fcMeta = document.getElementById('fcToolMeta');
   const serverKnown = lastServerSyncedCanonical != null;
-  const pending = collectPendingWriteRows();
+  const profilePending = collectPendingProfileRows();
+  const fcPending = collectPendingFcRows();
   const fcLink = resolvedFcLink();
-  const pendingLabel = pending.length > 0;
   if (jetsonState) {
     let state = 'unknown';
     let label = 'לא ידוע';
-    if (backupLoadState === 'fail') {
+    if (jetsonProfileOffline) {
+      state = 'down';
+      label = 'לא מחובר';
+    } else if (jetsonProfileStale) {
+      state = 'down';
+      label = 'לא עדכני';
+    } else if (backupLoadState === 'fail') {
       state = 'down';
       label = 'נכשל';
-    } else if (serverKnown && pendingLabel) {
+    } else if (serverKnown && profilePending.length) {
       state = 'dirty';
-      label = 'יש שינוי';
-    } else if (serverKnown || backupLoadState === 'ok') {
+      label = `שינוי לא נשמר (${profilePending.length})`;
+    } else if (landingProfileOrigin === 'jetson' && jetsonProfileConnected) {
       state = 'ok';
-      label = 'נטען';
+      label = 'נקרא מהג׳טסון';
+    } else if (landingProfileOrigin === 'console' && jetsonProfileConnected && consoleHasLandingCopy()) {
+      state = 'ok';
+      label = 'נשמר בקונסולה';
+    } else if (landingProfileOrigin === 'console' && jetsonProfileConnected) {
+      state = 'ok';
+      label = 'לא נשמר עדיין';
     }
     jetsonState.dataset.state = state;
     jetsonState.textContent = label;
   }
   if (jetsonMeta) jetsonMeta.textContent = '';
   if (fcStateEl) {
-    const state = pendingLabel ? 'dirty' : fcLink === 'ok' ? 'ok' : fcLink;
+    const state = fcPending.length ? 'dirty' : fcLink === 'ok' ? 'ok' : fcLink;
     fcStateEl.dataset.state = state;
-    fcStateEl.textContent = pendingLabel
+    fcStateEl.textContent = fcPending.length
       ? 'יש שינוי'
       : fcLink === 'ok' ? 'מחובר' : fcLink === 'down' ? 'מנותק' : 'לא ידוע';
   }
@@ -2939,7 +3136,13 @@ function fcReadDoneLine() {
   const clock = formatToolClock(fcReadAt);
   const missing = Array.isArray(fcReadMissingIndices) ? fcReadMissingIndices.length : 0;
   const base = `נקראו ${count} מתוך ${total} · ${clock}`;
-  return missing > 0 ? `${base} · ${missing} חסרים` : base;
+  return missing > 0 ? `${base} · ${missingParamsLabel(missing)}` : base;
+}
+
+function missingParamsLabel(count) {
+  const n = Number(count) || 0;
+  if (n === 1) return 'חסר פרמטר אחד';
+  return `${n} חסרים`;
 }
 
 function fcReadStatusLine() {
@@ -2983,7 +3186,9 @@ async function loadVisionConfigFromServer(statusEl) {
       Object.keys(d.profile).forEach((key) => {
         if (d.profile[key] != null && d.profile[key] !== '') serverProfileValues[key] = d.profile[key];
       });
+      const landingKeys = new Set(PARAMS.map((param) => param.key));
       Object.keys(profileState).forEach((key) => {
+        if (landingKeys.has(key)) return;
         if (arduValuesDiffer(profileWriteBaseline[key], profileState[key])) return;
         if (d.profile[key] != null && Number.isFinite(Number(d.profile[key]))) {
           profileState[key] = Number(d.profile[key]);
@@ -3006,6 +3211,7 @@ async function loadVisionConfigFromServer(statusEl) {
         }
       });
     }
+    landingBackupReadonly = d.landingProfileMigrated === true;
     lastServerSyncedCanonical = baselineCanonicalStr();
     renderParams();
     renderArduParamForm();
@@ -3034,6 +3240,10 @@ async function loadVisionConfigFromServer(statusEl) {
 
 /** Why: persist full tab state server-side; what: POST profile + arduTarget for next session / other clients. */
 async function saveVisionConfigToServer(statusEl) {
+  if (landingBackupReadonly) {
+    paintFcWriteResult({ level: 'fail', text: 'הגיבוי בקונסולה לקריאה בלבד' }, [], null);
+    return;
+  }
   try {
     const profilePayload = {
       ...profileState,
@@ -3077,19 +3287,314 @@ async function saveVisionConfigToServer(statusEl) {
 const visionConfigReadBtn = document.getElementById('visionConfigReadBtn');
 const visionConfigWriteBtn = document.getElementById('visionConfigWriteBtn');
 const visionConfigStatus = document.getElementById('visionConfigStatus');
-if (visionConfigReadBtn) {
-  visionConfigReadBtn.addEventListener('click', () => loadVisionConfigFromServer(visionConfigStatus));
+function jetsonActualText(value) {
+  if (value == null || value === '') return 'חסר';
+  const n = Number(value);
+  return Number.isFinite(n) ? formatProfileNumber(n) : String(value);
 }
+
+function landingFailureText(res, body) {
+  const reason = String(body?.reason || '');
+  if (reason === 'timeout' || res?.status === 504) return 'הג׳טסון לא ענה בזמן — לא נשמר';
+  if (reason === 'error' || res?.status === 500 || res?.status === 502) return 'הג׳טסון החזיר שגיאה — לא נשמר';
+  if (reason === 'offline') return JETSON_OFFLINE_HE;
+  if (reason === 'unconfigured') return body?.message || 'הג׳טסון לא מוגדר';
+  if (body?.message) return body.message;
+  return 'השמירה לא אומתה';
+}
+
+function landingRejectPhrase(reason) {
+  if (reason === 'unknown_key') return ' (פרמטר לא מוכר)';
+  if (reason === 'not_numeric') return ' (ערך לא מספרי)';
+  if (reason === 'corrupt') return ' (הקובץ פגום)';
+  return ' (הערך מחוץ לטווח)';
+}
+
+function formatLandingRejected(rejected) {
+  const parts = [];
+  for (const [key, reason] of Object.entries(rejected || {})) {
+    parts.push(`${key}${landingRejectPhrase(reason)}`);
+  }
+  return parts.join(', ');
+}
+
+function paintJetsonFaultNote(note) {
+  if (!note) return;
+  note.replaceChildren();
+  const rejected = jetsonProfileRejected && typeof jetsonProfileRejected === 'object' ? jetsonProfileRejected : null;
+  const keys = rejected ? Object.keys(rejected) : [];
+  const shown = keys.filter((key) => !(key === 'profile' && rejected[key] === 'corrupt'));
+  if (!shown.length) {
+    note.textContent = keys.length ? 'הקובץ בג׳טסון פגום' : (jetsonProfileFault || '');
+    return;
+  }
+  shown.forEach((key, index) => {
+    if (index > 0) note.append(document.createTextNode(', '));
+    const bdi = document.createElement('bdi');
+    bdi.dir = 'ltr';
+    bdi.textContent = key;
+    note.append(bdi, document.createTextNode(landingRejectPhrase(rejected[key])));
+  });
+}
+
+function noteLandingResponse(res, body) {
+  jetsonProfileChecked = true;
+  const reason = String(body?.reason || '');
+  const rejected = body?.rejected && typeof body.rejected === 'object' ? body.rejected : {};
+  const blocked = body?.ok === false || body?.corrupt === true || Object.keys(rejected).length > 0;
+  if (reason === 'offline') {
+    jetsonProfileConnected = false;
+    jetsonProfileOffline = true;
+    jetsonProfileStale = true;
+    jetsonProfileFault = JETSON_OFFLINE_HE;
+    jetsonProfileRejected = null;
+    landingProfileOrigin = 'stale';
+    jetsonMigrationOffered = false;
+    refreshLandingHonesty();
+    return;
+  }
+  if (reason === 'timeout' || reason === 'error' || res?.status === 502 || res?.status === 504) {
+    jetsonProfileOffline = false;
+    jetsonProfileStale = true;
+    jetsonProfileFault = landingFailureText(res, body);
+    jetsonProfileRejected = null;
+    jetsonProfileBlockReason = jetsonProfileFault;
+    landingProfileOrigin = 'stale';
+    if (body?.connected === true) jetsonProfileConnected = true;
+    refreshLandingHonesty();
+    return;
+  }
+  if (reason === 'unconfigured' || body?.connected === false) {
+    jetsonProfileConnected = false;
+    jetsonProfileOffline = false;
+    jetsonProfileStale = false;
+    jetsonProfileFault = '';
+    jetsonProfileRejected = null;
+    landingProfileOrigin = 'unknown';
+    jetsonMigrationOffered = false;
+    refreshLandingHonesty();
+    return;
+  }
+  if (res?.ok && body?.connected === true && blocked) {
+    jetsonProfileConnected = true;
+    jetsonProfileOffline = false;
+    jetsonProfileStale = true;
+    jetsonProfileRejected = rejected;
+    jetsonProfileFault = formatLandingRejected(rejected) || body.message || 'הקובץ בג׳טסון פגום — ההעברה נחסמה';
+    jetsonProfileBlockReason = jetsonProfileFault;
+    landingProfileOrigin = 'stale';
+    jetsonMigrationOffered = false;
+    refreshLandingHonesty();
+    return;
+  }
+  if (reason === 'rejected' || reason === 'mismatch' || reason === 'conflict') {
+    jetsonProfileOffline = false;
+    jetsonProfileStale = false;
+    if (body?.connected === true) jetsonProfileConnected = true;
+    return;
+  }
+  if (res?.ok && body?.connected === true) {
+    jetsonProfileConnected = true;
+    jetsonProfileOffline = false;
+    jetsonProfileStale = false;
+    jetsonProfileFault = '';
+    jetsonProfileRejected = null;
+    jetsonProfileBlockReason = '';
+    landingProfileOrigin = body.present === true ? 'jetson' : 'console';
+    jetsonMigrationOffered = body.migrationOffered === true;
+    if (body.migrated === true) landingBackupReadonly = true;
+    refreshLandingHonesty();
+    return;
+  }
+  jetsonProfileConnected = false;
+  jetsonProfileOffline = false;
+  jetsonProfileStale = false;
+  jetsonMigrationOffered = false;
+}
+
+function applyLandingNumbers(profile, { force = false } = {}) {
+  const landing = profile && typeof profile === 'object' ? profile : {};
+  for (const param of PARAMS) {
+    const dirty = arduValuesDiffer(profileWriteBaseline[param.key], profileState[param.key]);
+    if (!force && dirty) continue;
+    const got = landing[param.key];
+    if (got != null && Number.isFinite(Number(got))) {
+      profileState[param.key] = Number(got);
+      profileWriteBaseline[param.key] = Number(got);
+    } else if (force && dirty) {
+      profileState[param.key] = profileWriteBaseline[param.key];
+    }
+  }
+}
+
+function setLandingBusy(button, text) {
+  if (!button) return;
+  button.dataset.busy = '1';
+  button.disabled = true;
+  if (text) button.textContent = text;
+}
+
+function clearLandingBusy(button, text) {
+  if (!button) return;
+  delete button.dataset.busy;
+  button.disabled = false;
+  if (text) button.textContent = text;
+}
+
+function offerJetsonCompare(body) {
+  const mismatch = Array.isArray(body?.mismatch) ? body.mismatch : [];
+  const pairs = mismatch.map((key) => ({
+    key,
+    oldText: jetsonActualText(serverProfileValues?.[key]),
+    newText: jetsonActualText(serverProfileValues?.[key]),
+    result: 'failed',
+    jetsonText: jetsonActualText(body?.actual?.[key]),
+  }));
+  paintFcWriteResult({ level: 'fail', text: body?.message || 'ההעברה לא אומתה' }, pairs, null);
+  const box = document.getElementById('paramWriteResult');
+  if (!box || box.querySelector('.jetson-compare-btn')) return;
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'param-tool-btn param-tool-btn--primary jetson-compare-btn';
+  btn.textContent = 'קריאה מהג׳טסון והשוואה';
+  btn.addEventListener('click', () => { void loadLandingProfileFromJetson(); });
+  box.appendChild(btn);
+}
+
+async function loadLandingProfileFromJetson(options = {}) {
+  const epoch = ++landingOpEpoch;
+  const readBtn = document.getElementById('visionConfigReadBtn');
+  setLandingBusy(readBtn, 'קורא מהג׳טסון…');
+  try {
+    const res = await fetch('/api/vision/landing-profile');
+    const d = await res.json().catch(() => ({}));
+    if (epoch !== landingOpEpoch) return;
+    noteLandingResponse(res, d);
+    if (jetsonProfileConnected && d.ok !== false) {
+      applyLandingNumbers(d.profile, { force: options.force === true });
+      lastServerSyncedCanonical = baselineCanonicalStr();
+      backupLoadState = 'ok';
+      clearParamToolFault();
+      refreshLandingHonesty();
+    }
+    renderParams();
+    updateParamSyncBanner();
+    refreshParamToolbarMeta();
+  } catch {
+    if (epoch !== landingOpEpoch) return;
+    jetsonProfileChecked = true;
+    jetsonProfileOffline = false;
+    updateParamSyncBanner();
+    refreshParamToolbarMeta();
+  } finally {
+    if (epoch === landingOpEpoch) {
+      clearLandingBusy(readBtn, 'קריאה מהג׳טסון');
+      updateParamSyncBanner();
+    }
+  }
+}
+
+async function migrateLandingProfileToJetson() {
+  const migrateBtnEarly = document.getElementById('jetsonMigrateBtn');
+  if (migrateBtnEarly?.dataset.busy === '1') return;
+  if (landingBackupReadonly) {
+    paintFcWriteResult({ level: 'fail', text: 'הגיבוי בקונסולה לקריאה בלבד' }, [], null);
+    return;
+  }
+  if (jetsonProfileOffline) {
+    paintFcWriteResult({ level: 'fail', text: JETSON_OFFLINE_HE }, [], null);
+    return;
+  }
+  if (!jetsonProfileConnected) {
+    paintFcWriteResult({ level: 'fail', text: jetsonProfileBlockReason || 'הג׳טסון לא מוגדר' }, [], null);
+    return;
+  }
+  if (jetsonProfileBlockReason) {
+    paintFcWriteResult({ level: 'fail', text: jetsonProfileBlockReason }, [], null);
+    return;
+  }
+  if (!jetsonMigrationOffered) {
+    paintFcWriteResult({ level: 'fail', text: 'אין פרופיל בקונסולה להעברה' }, [], null);
+    return;
+  }
+  if (collectPendingProfileRows().length && !window.confirm('יש שינוי שלא נשמר. להעביר את הפרופיל הישן ולבטל אותו?')) return;
+  const epoch = ++landingOpEpoch;
+  const migrateBtn = document.getElementById('jetsonMigrateBtn');
+  setLandingBusy(migrateBtn, 'מעביר לג׳טסון…');
+  try {
+    const res = await fetch('/api/vision/landing-profile/migrate', { method: 'POST' });
+    const d = await res.json().catch(() => ({}));
+    if (epoch !== landingOpEpoch) return;
+    if (res.status === 409) {
+      jetsonProfileOffline = false;
+      jetsonProfileConnected = d.connected !== false;
+      offerJetsonCompare(d);
+      refreshLandingHonesty();
+      updateParamSyncBanner();
+      return;
+    }
+    if (!res.ok || !d.ok) {
+      noteLandingResponse(res, d);
+      const text = res.status === 400
+        ? (d.message || 'פרופיל הקונסולה נדחה בג׳טסון')
+        : landingFailureText(res, d);
+      paintFcWriteResult({ level: 'fail', text }, [], () => { void migrateLandingProfileToJetson(); });
+      updateParamSyncBanner();
+      return;
+    }
+    landingBackupReadonly = true;
+    jetsonMigrationOffered = false;
+    jetsonProfileBlockReason = '';
+    jetsonProfileConnected = true;
+    jetsonProfileOffline = false;
+    jetsonProfileStale = false;
+    jetsonProfileFault = '';
+    jetsonProfileRejected = null;
+    landingProfileOrigin = 'jetson';
+    applyLandingNumbers(d.profile, { force: true });
+    refreshLandingHonesty();
+    renderParams();
+    paintFcWriteResult({ level: 'ok', text: 'נשמר בג׳טסון ואומת' }, [], null);
+    updateParamSyncBanner();
+  } catch {
+    if (epoch !== landingOpEpoch) return;
+    paintFcWriteResult({ level: 'fail', text: 'הג׳טסון החזיר שגיאה — לא נשמר' }, [], () => { void migrateLandingProfileToJetson(); });
+  } finally {
+    if (epoch === landingOpEpoch) {
+      clearLandingBusy(migrateBtn, 'העברה לג׳טסון');
+      updateParamSyncBanner();
+    }
+  }
+}
+
+if (visionConfigReadBtn) {
+  visionConfigReadBtn.addEventListener('click', () => {
+    const pending = collectPendingProfileRows().length > 0;
+    if (pending && !window.confirm('יש שינוי שלא נשמר. לקרוא מהג׳טסון ולבטל אותו?')) return;
+    void loadLandingProfileFromJetson({ force: pending });
+  });
+}
+document.getElementById('jetsonToolState')?.addEventListener('click', () => {
+  if (!collectPendingProfileRows().length) return;
+  scrollToUnsavedProfileCard();
+});
+document.getElementById('jetsonProfileWriteBtn')?.addEventListener('click', () => { void saveVisionProfile(); });
+document.getElementById('jetsonMigrateBtn')?.addEventListener('click', () => { void migrateLandingProfileToJetson(); });
+window.addEventListener('beforeunload', (event) => {
+  if (!collectPendingProfileRows().length) return;
+  event.preventDefault();
+  event.returnValue = '';
+});
 if (visionConfigWriteBtn) {
   visionConfigWriteBtn.addEventListener('click', () => saveVisionConfigToServer(visionConfigStatus));
 }
 document.getElementById('visionBackupReadItem')?.addEventListener('click', () => {
   closeParamFileMenu();
-  visionConfigReadBtn?.click();
+  loadVisionConfigFromServer(visionConfigStatus);
 });
 document.getElementById('visionBackupWriteItem')?.addEventListener('click', () => {
   closeParamFileMenu();
-  visionConfigWriteBtn?.click();
+  void saveVisionConfigToServer(visionConfigStatus);
 });
 const paramFileMenuBtn = document.getElementById('paramFileMenuBtn');
 const paramFileMenu = document.getElementById('paramFileMenu');
@@ -3121,43 +3626,105 @@ setInterval(() => {
   void refreshJetsonLink();
 }, 4000);
 
-if (saveProfileBtn) {
-  saveProfileBtn.addEventListener('click', async () => {
-    // Always keep localStorage for backward-compat / offline use.
-    localStorage.setItem('visionLandingProfile', JSON.stringify({
-      values: profileState,
-      locks: lockState,
-      companionLink: { ...companionLinkState },
-    }));
-    // Additionally push to server so the profile persists across browser clears / devices.
-    saveProfileBtn.textContent = '⏳ שומר…';
-    try {
-      const res = await fetch('/api/vision/config', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          profile: {
-            ...profileState,
-            companion_serial_port: companionLinkState.companion_serial_port,
-            companion_sr_bucket: companionLinkState.companion_sr_bucket,
-          },
-          arduTarget: { ...arduTargetState },
-        }),
-      });
-      const d = await res.json();
-      if (d.ok) {
-        captureServerBaseline();
-        updateParamSyncBanner();
-        saveProfileBtn.textContent = '✓ נשמר';
-      } else {
-        saveProfileBtn.textContent = '⚠ שגיאה';
-      }
-    } catch (err) {
-      saveProfileBtn.textContent = 'שמירה';
-      showParamToolFault(`שמירת הפרופיל נכשלה. הסיבה: ${hebrewRequestFault(err)}`, () => saveProfileBtn.click());
+async function saveVisionProfile() {
+  if (jetsonProfileOffline) {
+    paintFcWriteResult({ level: 'fail', text: JETSON_OFFLINE_HE }, [], null);
+    return;
+  }
+  if (jetsonProfileChecked && !jetsonProfileConnected) {
+    paintFcWriteResult({ level: 'fail', text: jetsonProfileBlockReason || 'הג׳טסון לא מוגדר' }, [], null);
+    return;
+  }
+  const pending = collectPendingProfileRows();
+  const rows = pending.length ? pending : PARAMS.map((param) => ({
+    key: param.key,
+    currentText: formatProfileNumber(profileWriteBaseline[param.key]),
+    nextText: formatProfileNumber(profileState[param.key]),
+    value: Number(profileState[param.key]),
+  }));
+  const profilePayload = {};
+  for (const row of rows) profilePayload[row.key] = row.value;
+  const epoch = ++landingOpEpoch;
+  const writeBtn = document.getElementById('jetsonProfileWriteBtn');
+  jetsonProfileSaving = true;
+  setLandingBusy(writeBtn, 'שומר בג׳טסון…');
+  refreshProfileDirtyMarks();
+  try {
+    const res = await fetch('/api/vision/landing-profile', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ profile: profilePayload }),
+    });
+    const posted = await res.json().catch(() => ({}));
+    if (epoch !== landingOpEpoch) return;
+    if (!res.ok || !posted.ok) {
+      noteLandingResponse(res, posted);
+      const pairs = Array.isArray(posted.mismatch) ? posted.mismatch.map((key) => ({
+        key,
+        oldText: formatProfileNumber(profileWriteBaseline[key]),
+        newText: formatProfileNumber(profilePayload[key]),
+        result: 'failed',
+        jetsonText: jetsonActualText(posted.actual?.[key]),
+      })) : [];
+      updateParamSyncBanner();
+      paintFcWriteResult({ level: 'fail', text: landingFailureText(res, posted) }, pairs, () => { void saveVisionProfile(); });
+      return;
     }
-    setTimeout(() => { saveProfileBtn.textContent = 'שמירה'; }, 1800);
-  });
+    const pairs = rows.map((row) => {
+      const got = posted.profile?.[row.key];
+      const ok = got != null && !arduValuesDiffer(got, row.value);
+      return {
+        key: row.key,
+        oldText: row.currentText,
+        newText: row.nextText,
+        result: ok ? 'verified' : 'failed',
+        jetsonText: ok ? '' : jetsonActualText(got),
+      };
+    });
+    const verified = pairs.length > 0 && pairs.every((pair) => pair.result === 'verified');
+    if (!verified) {
+      paintFcWriteResult({ level: 'fail', text: 'השמירה לא אומתה' }, pairs, () => { void saveVisionProfile(); });
+      return;
+    }
+    jetsonProfileChecked = true;
+    jetsonProfileConnected = true;
+    jetsonProfileOffline = false;
+    jetsonProfileStale = false;
+    jetsonProfileFault = '';
+    jetsonProfileRejected = null;
+    landingProfileOrigin = 'jetson';
+    jetsonMigrationOffered = false;
+    refreshLandingHonesty();
+    serverProfileValues = { ...(serverProfileValues || {}) };
+    for (const param of PARAMS) {
+      const got = posted.profile?.[param.key];
+      if (got != null && Number.isFinite(Number(got))) {
+        profileState[param.key] = Number(got);
+        profileWriteBaseline[param.key] = Number(got);
+        serverProfileValues[param.key] = got;
+      }
+    }
+    captureServerBaseline();
+    backupLoadState = 'ok';
+    clearParamToolFault();
+    renderParams();
+    paintFcWriteResult({ level: 'ok', text: 'נשמר בג׳טסון ואומת' }, pairs, null);
+  } catch (err) {
+    if (epoch !== landingOpEpoch) return;
+    updateParamSyncBanner();
+    const fault = `שמירת הפרופיל נכשלה. הסיבה: ${hebrewRequestFault(err)}`;
+    paintFcWriteResult({ level: 'fail', text: fault }, [], () => { void saveVisionProfile(); });
+  } finally {
+    if (epoch === landingOpEpoch) {
+      jetsonProfileSaving = false;
+      clearLandingBusy(writeBtn, 'כתיבה לג׳טסון');
+      updateParamSyncBanner();
+    }
+  }
+}
+
+if (saveProfileBtn) {
+  saveProfileBtn.addEventListener('click', () => { void saveVisionProfile(); });
 }
 
 if (exportProfileBtn) {
@@ -3217,8 +3784,13 @@ try {
   const savedLocks = saved?.locks || {};
   const savedCompanion = saved?.companionLink || saved || {};
   if (savedValues && typeof savedValues === 'object') {
+    const landingKeys = new Set(PARAMS.map((param) => param.key));
     Object.keys(profileState).forEach((key) => {
+      if (landingKeys.has(key)) return;
       if (typeof savedValues[key] === 'number') profileState[key] = savedValues[key];
+      if (typeof savedLocks[key] === 'boolean') lockState[key] = savedLocks[key];
+    });
+    Object.keys(savedLocks).forEach((key) => {
       if (typeof savedLocks[key] === 'boolean') lockState[key] = savedLocks[key];
     });
     const normalized = normalizeCompanionLink(savedCompanion);
@@ -3232,6 +3804,7 @@ renderParams();
 renderArduParamForm();
 syncConfigTextFromArdu();
 loadVisionConfigFromServer(visionConfigStatus);
+void loadLandingProfileFromJetson();
 void refreshJetsonLink();
 document.getElementById('fcGroupApply')?.addEventListener('click', () => applyFcGroupDraft());
 document.getElementById('fcFileList')?.addEventListener('click', (event) => {
@@ -4856,7 +5429,7 @@ function appendPlndProfileKeys(host, keys, itemClass) {
     token.dir = 'ltr';
     token.textContent = id;
     const live = honestyLiveText(key);
-    const sourceKicker = 'נשמר בקונסולה';
+    const sourceKicker = profileLiveKicker(id);
     const unit = facts?.unit || meta.units || '';
     const range = local ? `${local.min}–${local.max}` : (meta.range || '');
     const fallback = local ? String(local.value) : (meta.default || '');
@@ -4946,7 +5519,12 @@ function openPlndProfileParams() {
   document.getElementById('plndProfileHonesty')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
 }
 
-function paintPlndProfileHonesty(snapshot) {
+function refreshLandingHonesty() {
+  if (typeof paintPlndProfileHonesty !== 'function') return;
+  paintPlndProfileHonesty(typeof latestVisionLandingReadiness === 'undefined' ? null : latestVisionLandingReadiness, { render: true });
+}
+
+function paintPlndProfileHonesty(snapshot, options = {}) {
   const stateEl = document.getElementById('plndProfileHonestyState');
   const keysEl = document.getElementById('plndProfileHonestyKeys');
   if (!stateEl && !keysEl) return;
@@ -4957,10 +5535,18 @@ function paintPlndProfileHonesty(snapshot) {
     const state = String(row?.state || 'unknown');
     stateEl.dataset.state = state;
     const saved = Array.isArray(row?.keys) && row.keys.some((key) => key?.state === 'present' && key.value != null && key.value !== '');
-    stateEl.textContent = saved ? 'נשמר בקונסולה' : 'לא נשמר עדיין';
+    stateEl.textContent = jetsonProfileOffline
+      ? 'לא מחובר'
+      : jetsonProfileStale
+        ? 'לא עדכני'
+        : landingProfileOrigin === 'jetson'
+          ? 'נשמר בג׳טסון'
+          : landingProfileOrigin === 'console'
+            ? 'נשמר בקונסולה'
+            : (saved ? profileLiveKicker(row?.keys?.find((key) => key?.state === 'present')?.key || '') : 'לא נשמר עדיין');
   }
   appendPlndProfileKeys(keysEl, row?.keys || [], 'plnd-honesty-key');
-  if (typeof renderParams === 'function') renderParams();
+  if (options.render !== false && typeof renderParams === 'function') renderParams();
 }
 
 function cameraInstallBusy() {
@@ -13133,7 +13719,7 @@ function paintFcReadMissing(missing, summary) {
     box.hidden = true;
     return;
   }
-  if (countEl) countEl.textContent = summary || `${rows.length} חסרים`;
+  if (countEl) countEl.textContent = summary || missingParamsLabel(rows.length);
   for (const row of rows) {
     const item = document.createElement('li');
     item.textContent = row?.name || `#${row?.index}`;
@@ -13338,7 +13924,7 @@ async function readFcParams(extra) {
       const missing = Array.isArray(d.missing) ? d.missing : [];
       const partial = d.partial === true && missing.length > 0;
       const summary = partial
-        ? `נקראו ${known}/${total} — ${missing.length} חסרים`
+        ? `נקראו ${known}/${total} — ${missingParamsLabel(missing.length)}`
         : `הקריאה הושלמה · נקראו ${known}/${total}`;
       if (arduWriteStatus) {
         arduWriteStatus.textContent = summary;
@@ -13398,7 +13984,7 @@ function refreshArduWriteBtnState(arduStatus) {
   if (!btn) return;
   const { mavlinkConnected, armed } = arduStatus || {};
   arduWriteGate = { mavlinkConnected: !!mavlinkConnected, armed: armed === true ? true : armed === false ? false : null };
-  const pending = collectPendingWriteRows().length;
+  const pending = collectPendingFcRows().length;
   if (!mavlinkConnected) {
     btn.disabled = true;
     btn.classList.remove('ardu-write-armed');
@@ -13424,36 +14010,10 @@ async function runConfirmedParamWrite(rows, retry) {
   const btn = document.getElementById('arduWriteBtn');
   if (btn) btn.disabled = true;
   paintFcWriteResult({ level: 'none', text: 'שולח…' }, [], null);
-  const fcRows = rows.filter((row) => row.target === 'fc');
-  const profileRows = rows.filter((row) => row.target === 'profile');
+  const fcRows = rows.filter((row) => row.target !== 'profile');
   const pairs = [];
   try {
-    if (profileRows.length) {
-      await saveVisionConfigToServer(null);
-      let saved = null;
-      try {
-        const res = await fetch('/api/vision/config');
-        saved = await res.json();
-      } catch {
-        saved = null;
-      }
-      for (const row of profileRows) {
-        const got = saved?.profile?.[row.key];
-        const ok = got != null && !arduValuesDiffer(got, row.value);
-        pairs.push({
-          key: row.key,
-          oldText: row.currentText,
-          newText: row.nextText,
-          result: ok ? 'verified' : 'failed',
-        });
-      }
-    }
-    let outcome = {
-      level: pairs.length && pairs.every((pair) => pair.result === 'verified') ? 'ok' : 'fail',
-      text: pairs.length && pairs.every((pair) => pair.result === 'verified') ? 'נשמר ואומת' : 'השמירה נכשלה',
-      acked: {},
-    };
-    if (!profileRows.length) outcome = { level: 'none', text: '', acked: {} };
+    let outcome = { level: 'none', text: '', acked: {} };
     if (fcRows.length) {
       const dirtyParams = {};
       for (const row of fcRows) dirtyParams[row.key] = row.value;
@@ -13501,7 +14061,7 @@ if (arduWriteBtn) {
       refreshArduWriteBtnState(arduWriteGate);
       return;
     }
-    const rows = collectPendingWriteRows();
+    const rows = collectPendingFcRows();
     if (!rows.length) {
       paintFcWriteResult({ level: 'none', text: 'אין שינוי' }, [], null);
       refreshArduWriteBtnState(arduWriteGate);

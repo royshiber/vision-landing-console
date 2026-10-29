@@ -443,7 +443,7 @@ describe('Parameter tiles are dense and not behind a filter wall', () => {
       const after = await live.innerText();
       expect(after).toMatch(/נקראו 2 מתוך 10 · \d{1,2}:\d{2}/);
       const flare = await page.locator('#paramsGrid .param-card[data-param-key="flare_alt_m"]').innerText();
-      expect(flare).toContain('בקונסולה');
+      expect(flare).not.toContain('נשמר בג׳טסון');
       expect(flare).toContain('לא נשמר עדיין');
       expect(flare).not.toContain('לא בבקר');
     } finally {

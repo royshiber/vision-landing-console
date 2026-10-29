@@ -102,6 +102,7 @@ try:
     from vision_tracks import try_handle as vision_try_handle
 except ImportError:
     vision_try_handle = None
+import landing_profile
 try:
     from runway_awareness import try_handle as runway_try_handle
 except ImportError:
@@ -904,7 +905,8 @@ def vision_status_payload():
 
 
 def landing_status_payload():
-    """Observe-only runway detect / lock. Default hardware has no runway detector."""
+    """Observe-only runway detect / lock. Optical landing reads the stored profile."""
+    stored = landing_profile.for_landing()
     return {
         "ok": True,
         "observe_only": True,
@@ -919,6 +921,8 @@ def landing_status_payload():
         "implemented": False,
         "present": False,
         "enabled": False,
+        "profile_present": stored["present"] is True,
+        "profile": stored["profile"],
         "note": "no runway detector on this companion; runway_detector is false; not invented",
     }
 
@@ -1614,8 +1618,8 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_OPTIONS(self):
         self.send_response(204)
-        self.send_header("Allow", "GET, HEAD, POST, OPTIONS")
-        self.send_header("Access-Control-Allow-Methods", "GET, HEAD, POST, OPTIONS")
+        self.send_header("Allow", "GET, HEAD, POST, PUT, OPTIONS")
+        self.send_header("Access-Control-Allow-Methods", "GET, HEAD, POST, PUT, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Companion-Token")
         self.send_header("Access-Control-Max-Age", "600")
         self.send_header("Content-Length", "0")
@@ -1666,6 +1670,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(200, optical_nav_status_payload())
         if path in ("/api/status/landing", "/api/v1/status/landing"):
             return self._json(200, landing_status_payload())
+        if path in ("/api/landing/profile", "/api/v1/landing/profile"):
+            return self._json(200, landing_profile.read())
         if path in ("/api/status/video", "/api/v1/status/video"):
             return self._json(200, video_status_payload())
         if path in ("/api/status/annotated-video", "/api/v1/status/annotated-video"):
@@ -1811,6 +1817,27 @@ class Handler(BaseHTTPRequestHandler):
                 dest.chmod(0o755)
             return self._json(200, {"ok": True, "path": str(dest), "version": version})
         return self._json(404, {"ok": False})
+
+    def do_PUT(self):
+        path = self._path()
+        try:
+            raw = self._read_request_body()
+        except Exception:
+            self.close_connection = True
+            return self._json(400, {"ok": False, "message": "bad body"})
+        if path not in ("/api/landing/profile", "/api/v1/landing/profile"):
+            return self.send_error(501, "Unsupported method ('PUT')")
+        if not self._auth_ok():
+            return self._json(401, {"ok": False, "message": "Unauthorized"})
+        self._note_console()
+        if not raw:
+            raw = b"{}"
+        try:
+            data = json.loads(raw.decode("utf-8"))
+        except json.JSONDecodeError:
+            data = {}
+        code, body = landing_profile.put(data if isinstance(data, dict) else {})
+        return self._json(code, body)
 
     def log_message(self, fmt, *args):
         print(f"[http] {self.address_string()} {fmt % args}")

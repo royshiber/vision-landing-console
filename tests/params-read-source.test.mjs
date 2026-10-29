@@ -31,7 +31,7 @@ describe('parameter read labels the real source', () => {
     ];
     expect(profileLivePresentation('vision_enable_alt_m', keys)).toEqual({
       text: '12',
-      kicker: 'נשמר בקונסולה',
+      kicker: 'נשמר בג׳טסון',
     });
     expect(profileLivePresentation('WPNAV_SPEED', keys)).toEqual({
       text: '500',
@@ -39,11 +39,11 @@ describe('parameter read labels the real source', () => {
     });
     expect(profileLivePresentation('flare_alt_m', keys)).toEqual({
       text: 'לא נשמר עדיין',
-      kicker: 'נשמר בקונסולה',
+      kicker: 'לא נשמר עדיין',
     });
     expect(profileLivePresentation('missing_key', keys)).toEqual({
       text: 'לא נשמר עדיין',
-      kicker: 'נשמר בקונסולה',
+      kicker: 'לא נשמר עדיין',
     });
     expect(profileLivePresentation('missing_key', keys).text).not.toBe('אין חיבור');
     expect(profileLivePresentation('missing_key', keys).kicker).not.toBe('בבקר');

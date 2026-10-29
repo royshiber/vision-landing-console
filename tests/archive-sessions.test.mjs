@@ -267,8 +267,8 @@ describe('תחקור archive sessions UI contract', () => {
     expect(applyDebrief).toContain('refreshArchiveSessions');
   });
 
-  it('pins APP_VERSION at 1.02.452', () => {
-    expect(version).toContain("export const APP_VERSION = '1.02.452'");
-    expect(pkg.version).toBe('1.02.452');
+  it('pins APP_VERSION at 1.02.453', () => {
+    expect(version).toContain("export const APP_VERSION = '1.02.453'");
+    expect(pkg.version).toBe('1.02.453');
   });
 });

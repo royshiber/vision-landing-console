@@ -928,21 +928,24 @@
       <section id="control" class="panel" data-layout-contract="params-v1" dir="rtl">
         <div class="panel-header">
           <div class="param-toolbar" aria-label="סנכרון פרמטרים">
-            <section class="param-tool-seg" aria-label="גיבוי בקונסולה">
-              <h3 class="param-tool-title">גיבוי</h3>
-              <p id="jetsonToolState" class="param-tool-state" data-state="unknown">לא ידוע</p>
+            <section class="param-tool-seg" aria-label="פרמטרי נחיתה אופטית">
+              <h3 class="param-tool-title">פרמטרי נחיתה אופטית (ג׳טסון)</h3>
+              <button type="button" id="jetsonToolState" class="param-tool-state" data-state="unknown">לא ידוע</button>
               <p id="jetsonToolMeta" class="param-tool-meta"></p>
+              <p id="jetsonOfflineNote" class="jetson-offline-note" hidden>הג׳טסון לא מחובר — לא ניתן לקרוא או לשמור</p>
               <div class="param-tool-actions">
-                <button type="button" id="visionConfigReadBtn" class="param-tool-btn param-tool-btn--primary" title="טוען את הגיבוי השמור בקונסולה">קריאה</button>
-                <button type="button" id="visionConfigWriteBtn" class="param-tool-btn param-tool-btn--secondary" title="שומר גיבוי בקונסולה">כתיבה</button>
+                <button type="button" id="visionConfigReadBtn" class="param-tool-btn param-tool-btn--primary" title="קורא את פרופיל הנחיתה מהג׳טסון">קריאה מהג׳טסון</button>
+                <button type="button" id="jetsonProfileWriteBtn" class="param-tool-btn param-tool-btn--secondary" disabled title="כותב את פרופיל הנחיתה לג׳טסון">כתיבה לג׳טסון</button>
+                <button type="button" id="jetsonMigrateBtn" class="param-tool-btn param-tool-btn--primary" hidden>העברה לג׳טסון</button>
+                <button type="button" id="visionConfigWriteBtn" class="param-tool-btn param-tool-btn--secondary" title="שומר גיבוי בקונסולה">שמירת גיבוי בקונסולה</button>
               </div>
             </section>
             <section class="param-tool-seg" aria-label="FC">
-              <h3 class="param-tool-title">בקר</h3>
+              <h3 class="param-tool-title">פרמטרי בקר (FC)</h3>
               <p id="fcToolState" class="param-tool-state" data-state="unknown">לא ידוע</p>
               <p id="fcToolMeta" class="param-tool-meta"></p>
               <div class="param-tool-actions">
-                <button type="button" id="arduReadBtn" class="param-tool-btn param-tool-btn--primary" title="קורא פרמטרים מבקר הטיסה">קריאה</button>
+                <button type="button" id="arduReadBtn" class="param-tool-btn param-tool-btn--primary" title="קורא פרמטרים מבקר הטיסה">קריאה מהבקר</button>
                 <button type="button" id="arduWriteBtn" class="param-tool-btn param-tool-btn--secondary" disabled title="אין חיבור לבקר הטיסה">כתיבה לבקר</button>
               </div>
             </section>
@@ -988,10 +991,10 @@
         <div id="paramWriteResult" class="param-write-result" hidden></div>
         <div id="paramSyncBanner" class="param-sync-banner param-sync-banner--info" role="status" aria-live="polite"></div>
         <div id="autoLogsBanner" class="auto-logs-banner hidden" role="status" aria-live="polite"></div>
-        <section id="plndProfileHonesty" class="plnd-honesty" aria-label="פרופיל נחיתה לפי ראייה">
+        <section id="plndProfileHonesty" class="plnd-honesty" aria-label="פרמטרי נחיתה אופטית">
           <header class="plnd-honesty-head">
-            <h3 class="plnd-honesty-title">פרופיל נחיתה לפי ראייה</h3>
-            <p class="plnd-honesty-note">פרופיל הנחיתה נשמר בקונסולה. הקריאה מהבקר לא ממלאת את הכרטיסים. לא חוסם את ניסוי אחד.</p>
+            <h3 class="plnd-honesty-title">פרמטרי נחיתה אופטית (ג׳טסון)</h3>
+            <p class="plnd-honesty-note">הערכים נשמרים בג׳טסון. קריאה מהבקר לא משנה את הכרטיסים. לא חוסם את ניסוי אחד.</p>
             <p id="plndProfileHonestyState" class="plnd-honesty-state" data-state="unknown">לא ידוע</p>
           </header>
           <ul id="plndProfileHonestyKeys" class="plnd-honesty-keys"></ul>
