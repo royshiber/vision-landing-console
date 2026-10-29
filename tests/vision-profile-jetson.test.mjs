@@ -918,4 +918,148 @@ describe('landing profile through companion_agent.py', () => {
       rmSync(offDir, { recursive: true, force: true });
     }
   }, 40000);
+
+  it('repaints the honesty strip from the landing read, not the readiness poll', async () => {
+    const { writeFileSync } = await import('node:fs');
+    writeFileSync(path.join(dir, 'landing-profile.json'), JSON.stringify({
+      present: true,
+      profile: { flare_alt_m: 99, motor_hold_s: 2.5 },
+    }));
+    const { chromium } = await import('playwright');
+    const browserUi = await chromium.launch({ headless: true });
+    try {
+      const page = await browserUi.newPage({ viewport: { width: 1280, height: 800 } });
+      await page.goto(base, { waitUntil: 'domcontentloaded' });
+      await page.click('[data-tab="control"]');
+      await page.waitForFunction(() => document.getElementById('plndProfileHonestyState')?.textContent === 'לא עדכני', null, { timeout: 5000 });
+      expect(await page.locator('#plndProfileHonestyState').innerText()).not.toBe('נשמר בג׳טסון');
+      writeFileSync(path.join(dir, 'landing-profile.json'), JSON.stringify({
+        present: true,
+        profile: { flare_alt_m: 8, motor_hold_s: 2.5 },
+      }));
+      await page.locator('#visionConfigReadBtn').click();
+      await page.waitForFunction(() => document.getElementById('plndProfileHonestyState')?.textContent === 'נשמר בג׳טסון', null, { timeout: 5000 });
+      expect(await page.locator('#plndProfileHonestyState').innerText()).not.toBe('לא עדכני');
+    } finally {
+      await browserUi.close();
+    }
+  }, 30000);
+
+  it('repaints the profile badge when a save returns 504', async () => {
+    const seeded = await fetch(`${base}/api/vision/landing-profile`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ profile: { motor_hold_s: 3 } }),
+    });
+    expect(seeded.ok).toBe(true);
+    const { chromium } = await import('playwright');
+    const browserUi = await chromium.launch({ headless: true });
+    try {
+      const page = await browserUi.newPage({ viewport: { width: 1280, height: 800 } });
+      await page.goto(base, { waitUntil: 'domcontentloaded' });
+      await page.click('[data-tab="control"]');
+      await page.waitForFunction(() => document.querySelector('.profile-source-badge')?.textContent === 'פרופיל בג׳טסון');
+      await page.route('**/api/vision/landing-profile', async (route) => {
+        if (route.request().method() !== 'PUT') return route.continue();
+        await route.fulfill({
+          status: 504,
+          contentType: 'application/json',
+          body: JSON.stringify({ ok: false, connected: true, reason: 'timeout', message: TIMEOUT_HE }),
+        });
+      });
+      await page.locator('#rng_motor_hold_s').fill('4');
+      await page.locator('#jetsonProfileWriteBtn').click();
+      await page.waitForFunction(() => document.querySelector('.profile-source-badge')?.textContent === 'פרופיל לא עדכני');
+      expect(await page.locator('.profile-source-badge').first().innerText()).not.toBe('פרופיל בג׳טסון');
+    } finally {
+      await browserUi.close();
+    }
+  }, 30000);
+
+  it('wraps each rejected key in an LTR isolate', async () => {
+    const { writeFileSync } = await import('node:fs');
+    writeFileSync(path.join(dir, 'landing-profile.json'), JSON.stringify({
+      present: true,
+      profile: { flare_alt_m: 99, xtrack_gain: 'nope' },
+    }));
+    const { chromium } = await import('playwright');
+    const browserUi = await chromium.launch({ headless: true });
+    try {
+      const page = await browserUi.newPage({ viewport: { width: 1024, height: 470 } });
+      await page.goto(base, { waitUntil: 'domcontentloaded' });
+      await page.click('[data-tab="control"]');
+      await page.waitForFunction(() => document.querySelectorAll('#jetsonOfflineNote bdi[dir="ltr"]').length >= 2);
+      const keys = await page.locator('#jetsonOfflineNote bdi[dir="ltr"]').allInnerTexts();
+      expect(keys).toEqual(expect.arrayContaining(['flare_alt_m', 'xtrack_gain']));
+      const fit = await page.evaluate(controlTextFit);
+      expect(fit).toEqual([]);
+      expect(await page.locator('#control').getAttribute('dir')).toBe('rtl');
+    } finally {
+      await browserUi.close();
+    }
+  }, 30000);
+
+  it('covers a first migrate press, a short second press, and a blocked press', async () => {
+    rmSync(path.join(dir, 'landing-profile.json'), { force: true });
+    const fresh = await startTestServer({
+      env: {
+        SQLITE_PATH: path.join(dir, `migrate-clicks-${Date.now()}.sqlite`),
+        COMPANION_MODE: 'real',
+        JETSON_COMPANION_BASE_URL: `http://127.0.0.1:${proxy.port}`,
+        VLC_COMPANION_TOKEN: token,
+        COMPANION_TIMEOUT_MS: '4000',
+        GEMINI_API_KEY: '',
+      },
+    });
+    const { chromium } = await import('playwright');
+    const browserUi = await chromium.launch({ headless: true });
+    try {
+      const page = await browserUi.newPage({ viewport: { width: 1280, height: 800 } });
+      let migratePosts = 0;
+      page.on('request', (req) => {
+        if (req.method() === 'POST' && req.url().includes('/api/vision/landing-profile/migrate')) migratePosts += 1;
+      });
+      await page.goto(fresh.base, { waitUntil: 'domcontentloaded' });
+      await page.click('[data-tab="control"]');
+      await page.waitForFunction(() => {
+        const button = document.getElementById('visionConfigReadBtn');
+        return button && button.disabled === false;
+      });
+      await page.evaluate(() => {
+        const button = document.getElementById('jetsonMigrateBtn');
+        button.hidden = false;
+        button.click();
+      });
+      await page.waitForFunction(() => (document.getElementById('paramWriteResult')?.textContent || '').includes('אין פרופיל בקונסולה להעברה'));
+      expect(migratePosts).toBe(0);
+
+      const seeded = await fetch(`${fresh.base}/api/vision/config`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ profile: { motor_hold_s: 4.5 } }),
+      });
+      expect(seeded.ok).toBe(true);
+      proxy.setFault('slow');
+      await page.reload({ waitUntil: 'domcontentloaded' });
+      await page.click('[data-tab="control"]');
+      await page.waitForFunction(() => document.getElementById('jetsonMigrateBtn')?.hidden === false);
+      const before = migratePosts;
+      await page.locator('#jetsonMigrateBtn').click();
+      await page.waitForFunction(() => {
+        const button = document.getElementById('jetsonMigrateBtn');
+        return button && button.disabled === true && (button.textContent || '').includes('מעביר לג׳טסון');
+      });
+      await page.evaluate(() => document.getElementById('jetsonMigrateBtn').click());
+      await page.waitForTimeout(200);
+      expect(migratePosts - before).toBe(1);
+      await page.waitForFunction(() => {
+        const button = document.getElementById('jetsonMigrateBtn');
+        return button && button.dataset.busy !== '1';
+      });
+    } finally {
+      proxy.setFault('pass');
+      await browserUi.close();
+      fresh.child.kill('SIGTERM');
+    }
+  }, 40000);
 });

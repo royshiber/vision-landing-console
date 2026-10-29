@@ -1652,9 +1652,9 @@ function updateParamSyncBanner() {
     if (jetsonProfileOffline) {
       offlineNote.hidden = false;
       offlineNote.textContent = JETSON_OFFLINE_HE;
-    } else if (jetsonProfileStale && jetsonProfileFault) {
+    } else if (jetsonProfileStale && (jetsonProfileFault || jetsonProfileRejected)) {
       offlineNote.hidden = false;
-      offlineNote.textContent = jetsonProfileFault;
+      paintJetsonFaultNote(offlineNote);
     } else {
       offlineNote.hidden = true;
     }
@@ -2959,6 +2959,7 @@ let jetsonProfileConnected = false;
 let jetsonProfileOffline = false;
 let jetsonProfileStale = false;
 let jetsonProfileFault = '';
+let jetsonProfileRejected = null;
 let jetsonProfileSaving = false;
 let landingProfileOrigin = 'unknown';
 let jetsonProfileBlockReason = '';
@@ -3302,15 +3303,37 @@ function landingFailureText(res, body) {
   return 'השמירה לא אומתה';
 }
 
+function landingRejectPhrase(reason) {
+  if (reason === 'unknown_key') return ' (פרמטר לא מוכר)';
+  if (reason === 'not_numeric') return ' (ערך לא מספרי)';
+  if (reason === 'corrupt') return ' (הקובץ פגום)';
+  return ' (הערך מחוץ לטווח)';
+}
+
 function formatLandingRejected(rejected) {
   const parts = [];
   for (const [key, reason] of Object.entries(rejected || {})) {
-    if (reason === 'unknown_key') parts.push(`${key} (פרמטר לא מוכר)`);
-    else if (reason === 'not_numeric') parts.push(`${key} (ערך לא מספרי)`);
-    else if (reason === 'corrupt') parts.push('הקובץ בג׳טסון פגום');
-    else parts.push(`${key} (הערך מחוץ לטווח)`);
+    parts.push(`${key}${landingRejectPhrase(reason)}`);
   }
   return parts.join(', ');
+}
+
+function paintJetsonFaultNote(note) {
+  if (!note) return;
+  note.replaceChildren();
+  const rejected = jetsonProfileRejected && typeof jetsonProfileRejected === 'object' ? jetsonProfileRejected : null;
+  const keys = rejected ? Object.keys(rejected) : [];
+  if (!keys.length) {
+    note.textContent = jetsonProfileFault || '';
+    return;
+  }
+  keys.forEach((key, index) => {
+    if (index > 0) note.append(document.createTextNode(', '));
+    const bdi = document.createElement('bdi');
+    bdi.dir = 'ltr';
+    bdi.textContent = key;
+    note.append(bdi, document.createTextNode(landingRejectPhrase(rejected[key])));
+  });
 }
 
 function noteLandingResponse(res, body) {
@@ -3323,17 +3346,21 @@ function noteLandingResponse(res, body) {
     jetsonProfileOffline = true;
     jetsonProfileStale = true;
     jetsonProfileFault = JETSON_OFFLINE_HE;
+    jetsonProfileRejected = null;
     landingProfileOrigin = 'stale';
     jetsonMigrationOffered = false;
+    refreshLandingHonesty();
     return;
   }
   if (reason === 'timeout' || reason === 'error' || res?.status === 502 || res?.status === 504) {
     jetsonProfileOffline = false;
     jetsonProfileStale = true;
     jetsonProfileFault = landingFailureText(res, body);
+    jetsonProfileRejected = null;
     jetsonProfileBlockReason = jetsonProfileFault;
     landingProfileOrigin = 'stale';
     if (body?.connected === true) jetsonProfileConnected = true;
+    refreshLandingHonesty();
     return;
   }
   if (reason === 'unconfigured' || body?.connected === false) {
@@ -3341,18 +3368,22 @@ function noteLandingResponse(res, body) {
     jetsonProfileOffline = false;
     jetsonProfileStale = false;
     jetsonProfileFault = '';
+    jetsonProfileRejected = null;
     landingProfileOrigin = 'unknown';
     jetsonMigrationOffered = false;
+    refreshLandingHonesty();
     return;
   }
   if (res?.ok && body?.connected === true && blocked) {
     jetsonProfileConnected = true;
     jetsonProfileOffline = false;
     jetsonProfileStale = true;
+    jetsonProfileRejected = rejected;
     jetsonProfileFault = formatLandingRejected(rejected) || body.message || 'הקובץ בג׳טסון פגום — ההעברה נחסמה';
     jetsonProfileBlockReason = jetsonProfileFault;
     landingProfileOrigin = 'stale';
     jetsonMigrationOffered = false;
+    refreshLandingHonesty();
     return;
   }
   if (reason === 'rejected' || reason === 'mismatch' || reason === 'conflict') {
@@ -3366,10 +3397,12 @@ function noteLandingResponse(res, body) {
     jetsonProfileOffline = false;
     jetsonProfileStale = false;
     jetsonProfileFault = '';
+    jetsonProfileRejected = null;
     jetsonProfileBlockReason = '';
     landingProfileOrigin = body.present === true ? 'jetson' : 'console';
     jetsonMigrationOffered = body.migrationOffered === true;
     if (body.migrated === true) landingBackupReadonly = true;
+    refreshLandingHonesty();
     return;
   }
   jetsonProfileConnected = false;
@@ -3489,6 +3522,7 @@ async function migrateLandingProfileToJetson() {
       jetsonProfileOffline = false;
       jetsonProfileConnected = d.connected !== false;
       offerJetsonCompare(d);
+      refreshLandingHonesty();
       updateParamSyncBanner();
       return;
     }
@@ -3508,8 +3542,10 @@ async function migrateLandingProfileToJetson() {
     jetsonProfileOffline = false;
     jetsonProfileStale = false;
     jetsonProfileFault = '';
+    jetsonProfileRejected = null;
     landingProfileOrigin = 'jetson';
     applyLandingNumbers(d.profile, { force: true });
+    refreshLandingHonesty();
     renderParams();
     paintFcWriteResult({ level: 'ok', text: 'נשמר בג׳טסון ואומת' }, [], null);
     updateParamSyncBanner();
@@ -3647,8 +3683,10 @@ async function saveVisionProfile() {
     jetsonProfileOffline = false;
     jetsonProfileStale = false;
     jetsonProfileFault = '';
+    jetsonProfileRejected = null;
     landingProfileOrigin = 'jetson';
     jetsonMigrationOffered = false;
+    refreshLandingHonesty();
     serverProfileValues = { ...(serverProfileValues || {}) };
     for (const param of PARAMS) {
       const got = posted.profile?.[param.key];
@@ -5473,7 +5511,12 @@ function openPlndProfileParams() {
   document.getElementById('plndProfileHonesty')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
 }
 
-function paintPlndProfileHonesty(snapshot) {
+function refreshLandingHonesty() {
+  if (typeof paintPlndProfileHonesty !== 'function') return;
+  paintPlndProfileHonesty(typeof latestVisionLandingReadiness === 'undefined' ? null : latestVisionLandingReadiness, { render: true });
+}
+
+function paintPlndProfileHonesty(snapshot, options = {}) {
   const stateEl = document.getElementById('plndProfileHonestyState');
   const keysEl = document.getElementById('plndProfileHonestyKeys');
   if (!stateEl && !keysEl) return;
@@ -5495,7 +5538,7 @@ function paintPlndProfileHonesty(snapshot) {
             : (saved ? profileLiveKicker(row?.keys?.find((key) => key?.state === 'present')?.key || '') : 'לא נשמר עדיין');
   }
   appendPlndProfileKeys(keysEl, row?.keys || [], 'plnd-honesty-key');
-  if (typeof renderParams === 'function') renderParams();
+  if (options.render !== false && typeof renderParams === 'function') renderParams();
 }
 
 function cameraInstallBusy() {
