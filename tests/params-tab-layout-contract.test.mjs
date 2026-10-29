@@ -117,14 +117,14 @@ describe('Parameters tab layout contract — live boxes', () => {
       const toolbar = await measureToolbar();
       await page.waitForFunction(() => {
         const label = document.getElementById('jetsonToolState')?.textContent || '';
-        return label === 'נקרא מהג׳טסון' || label === 'יש שינוי' || label === 'נכשל';
+        return label === 'לא נשמר עדיין' || label === 'נשמר בקונסולה' || label === 'נקרא מהג׳טסון' || label === 'נכשל';
       });
       const sync = await page.evaluate(() => ({
         backup: document.getElementById('jetsonToolState')?.textContent || '',
         live: document.getElementById('visionConfigStatus')?.textContent || '',
         meta: `${document.getElementById('jetsonToolMeta')?.textContent || ''}${document.getElementById('fcToolMeta')?.textContent || ''}`,
       }));
-      expect(sync.backup, vp.name).toBe('נקרא מהג׳טסון');
+      expect(sync.backup, vp.name).toBe('לא נשמר עדיין');
       expect(sync.live, vp.name).toBe('');
       expect(sync.meta, vp.name).not.toContain('קריאה אחרונה');
       expect(sync.meta, vp.name).not.toContain('לא מסונכרן');

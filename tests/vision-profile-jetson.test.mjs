@@ -397,9 +397,18 @@ async function startRealCompanion(dir, token) {
 
 async function startFaultProxy(targetPort, token) {
   let fault = 'pass';
+  let landingGets = 0;
   const server = http.createServer(async (req, res) => {
     try {
       if (fault === 'hang') return;
+      if (req.method === 'GET' && String(req.url).includes('landing/profile')) {
+        landingGets += 1;
+        if (fault === 'fail-second-get' && landingGets >= 2) {
+          res.writeHead(500, { 'content-type': 'application/json' });
+          res.end(JSON.stringify({ ok: false, message: 'dropped' }));
+          return;
+        }
+      }
       if (fault === '500' && req.method === 'PUT') {
         res.writeHead(500, { 'content-type': 'application/json' });
         res.end(JSON.stringify({ ok: false }));
@@ -441,7 +450,11 @@ async function startFaultProxy(targetPort, token) {
     }
   });
   const port = await listen(server);
-  return { port, setFault(next) { fault = next; }, close() { server.close(); } };
+  return {
+    port,
+    setFault(next) { fault = next; landingGets = 0; },
+    close() { server.close(); },
+  };
 }
 
 describe('landing profile through companion_agent.py', () => {
@@ -597,7 +610,10 @@ describe('landing profile through companion_agent.py', () => {
     expect(saved.profile.motor_hold_s).toBe(4.5);
     expect(saved.profile.flare_alt_m).toBe(8);
     const second = await fetch(`${base}/api/vision/landing-profile/migrate`, { method: 'POST' });
-    expect(second.status).toBe(409);
+    const secondBody = await second.json();
+    expect(second.ok).toBe(true);
+    expect(secondBody.recovered).toBe(true);
+    expect(secondBody.profile.motor_hold_s).toBe(4.5);
   });
 
   it('uses a different line for a jetson 500 and for a timeout', async () => {
@@ -650,10 +666,15 @@ describe('landing profile through companion_agent.py', () => {
       await page.waitForFunction(() => (document.getElementById('visionConfigReadBtn')?.textContent || '').includes('קורא מהג׳טסון'));
       expect(await page.locator('#visionConfigReadBtn').isDisabled()).toBe(true);
       await page.evaluate(() => loadLandingProfileFromJetson());
-      await page.waitForFunction(() => document.getElementById('jetsonToolState')?.textContent === 'נקרא מהג׳טסון');
+      await page.waitForFunction(() => {
+        const label = document.getElementById('jetsonToolState')?.textContent || '';
+        return label === 'נקרא מהג׳טסון' || label === 'נשמר בקונסולה' || label === 'לא נשמר עדיין';
+      });
+      const settled = await page.locator('#jetsonToolState').innerText();
       releaseHold();
       await page.waitForTimeout(400);
-      expect(await page.locator('#jetsonToolState').innerText()).toBe('נקרא מהג׳טסון');
+      expect(await page.locator('#jetsonToolState').innerText()).toBe(settled);
+      expect(await page.locator('#jetsonToolState').innerText()).not.toBe('לא מחובר');
       expect(await page.locator('#jetsonOfflineNote').isHidden()).toBe(true);
 
       proxy.setFault('lie');
@@ -666,6 +687,185 @@ describe('landing profile through companion_agent.py', () => {
       await browserUi.close();
     }
   }, 40000);
+
+  it('re-enables the jetson read button after the first read', async () => {
+    const { chromium } = await import('playwright');
+    const browserUi = await chromium.launch({ headless: true });
+    try {
+      const page = await browserUi.newPage({ viewport: { width: 1024, height: 470 } });
+      await page.goto(base, { waitUntil: 'domcontentloaded' });
+      await page.click('[data-tab="control"]');
+      await page.waitForFunction(() => {
+        const button = document.getElementById('visionConfigReadBtn');
+        return button && button.dataset.busy !== '1';
+      });
+      const afterBoot = await page.evaluate(() => {
+        const button = document.getElementById('visionConfigReadBtn');
+        return { disabled: button.disabled, text: button.textContent };
+      });
+      expect(afterBoot.disabled).toBe(false);
+      expect(afterBoot.text).toBe('קריאה מהג׳טסון');
+      await page.locator('#visionConfigReadBtn').click();
+      await page.waitForFunction(() => {
+        const button = document.getElementById('visionConfigReadBtn');
+        return button && button.dataset.busy !== '1' && button.disabled === false && button.textContent === 'קריאה מהג׳טסון';
+      });
+    } finally {
+      await browserUi.close();
+    }
+  }, 40000);
+
+  it('greys the last values when a read returns 502 or 504', async () => {
+    const { chromium } = await import('playwright');
+    const browserUi = await chromium.launch({ headless: true });
+    try {
+      const page = await browserUi.newPage({ viewport: { width: 1366, height: 630 } });
+      await page.goto(base, { waitUntil: 'domcontentloaded' });
+      await page.click('[data-tab="control"]');
+      await page.waitForFunction(() => {
+        const label = document.getElementById('jetsonToolState')?.textContent || '';
+        return label === 'נשמר בקונסולה' || label === 'נקרא מהג׳טסון' || label === 'לא נשמר עדיין';
+      });
+      for (const [status, reason, message] of [[502, 'error', ERROR_HE], [504, 'timeout', TIMEOUT_HE]]) {
+        await page.route('**/api/vision/landing-profile', async (route) => {
+          if (route.request().method() !== 'GET') return route.continue();
+          await route.fulfill({
+            status,
+            contentType: 'application/json',
+            body: JSON.stringify({ ok: false, connected: true, reason, message }),
+          });
+        });
+        await page.locator('#visionConfigReadBtn').click();
+        await page.waitForFunction((text) => {
+          const note = document.getElementById('jetsonOfflineNote');
+          const state = document.getElementById('jetsonToolState')?.textContent || '';
+          return note && note.hidden === false && note.textContent === text && state !== 'נקרא מהג׳טסון';
+        }, message);
+        expect(await page.locator('[data-param-key="motor_hold_s"]').getAttribute('class')).toContain('param-card--stale');
+        expect(await page.locator('[data-param-key="motor_hold_s"] .param-card-stale').innerText()).toBe('ערך אחרון שנקרא — לא עדכני');
+        await page.unroute('**/api/vision/landing-profile');
+      }
+    } finally {
+      await browserUi.close();
+    }
+  }, 40000);
+
+  it('labels an empty jetson from the console copy, not as jetson values', async () => {
+    await seedConsole({ flare_alt_m: 8 });
+    rmSync(path.join(dir, 'landing-profile.json'), { force: true });
+    const { chromium } = await import('playwright');
+    const browserUi = await chromium.launch({ headless: true });
+    try {
+      const page = await browserUi.newPage({ viewport: { width: 1280, height: 800 } });
+      await page.goto(base, { waitUntil: 'domcontentloaded' });
+      await page.click('[data-tab="control"]');
+      await page.waitForFunction(() => document.getElementById('jetsonToolState')?.textContent === 'נשמר בקונסולה');
+      const card = page.locator('[data-param-key="flare_alt_m"]');
+      await page.waitForFunction(() => (document.querySelector('[data-param-key="flare_alt_m"] .fc-group-now')?.textContent || '').includes('8'));
+      expect(await card.locator('.fc-card-kicker').nth(1).innerText()).toBe('נשמר בקונסולה');
+      expect(await page.locator('.profile-source-badge').first().innerText()).toBe('פרופיל בקונסולה');
+      expect(await page.locator('#jetsonToolState').innerText()).not.toBe('נקרא מהג׳טסון');
+    } finally {
+      await browserUi.close();
+    }
+  }, 30000);
+
+  it('greys a corrupt jetson file and shows the rejected key', async () => {
+    const { writeFileSync } = await import('node:fs');
+    writeFileSync(path.join(dir, 'landing-profile.json'), JSON.stringify({
+      present: true,
+      profile: { flare_alt_m: 99, motor_hold_s: 2.5 },
+    }));
+    const { chromium } = await import('playwright');
+    const browserUi = await chromium.launch({ headless: true });
+    try {
+      const page = await browserUi.newPage({ viewport: { width: 1024, height: 470 } });
+      await page.goto(base, { waitUntil: 'domcontentloaded' });
+      await page.click('[data-tab="control"]');
+      await page.waitForFunction(() => {
+        const note = document.getElementById('jetsonOfflineNote');
+        return note && note.hidden === false && (note.textContent || '').includes('flare_alt_m');
+      });
+      expect(await page.locator('#jetsonOfflineNote').innerText()).toContain('הערך מחוץ לטווח');
+      expect(await page.locator('#jetsonToolState').innerText()).toBe('לא עדכני');
+      expect(await page.locator('[data-param-key="motor_hold_s"]').getAttribute('class')).toContain('param-card--stale');
+      expect(await page.locator('[data-param-key="motor_hold_s"] .param-card-stale').innerText()).toBe('ערך אחרון שנקרא — לא עדכני');
+    } finally {
+      await browserUi.close();
+    }
+  }, 30000);
+
+  it('disables the save button and shows שומר בג׳טסון while the write hangs', async () => {
+    proxy.setFault('hang');
+    const { chromium } = await import('playwright');
+    const browserUi = await chromium.launch({ headless: true });
+    try {
+      const page = await browserUi.newPage({ viewport: { width: 1280, height: 800 } });
+      await page.goto(base, { waitUntil: 'domcontentloaded' });
+      await page.click('[data-tab="control"]');
+      await page.waitForFunction(() => {
+        const label = document.getElementById('jetsonToolState')?.textContent || '';
+        return label === 'נשמר בקונסולה' || label === 'נקרא מהג׳טסון' || label === 'לא עדכני' || label === 'לא נשמר עדיין';
+      });
+      await page.locator('#rng_motor_hold_s').fill('4');
+      await page.locator('#jetsonProfileWriteBtn').click();
+      await page.waitForFunction(() => {
+        const button = document.getElementById('jetsonProfileWriteBtn');
+        return button && button.disabled === true && button.textContent === 'שומר בג׳טסון…';
+      });
+      await page.waitForFunction(() => {
+        const button = document.getElementById('jetsonProfileWriteBtn');
+        return button && button.textContent === 'כתיבה לג׳טסון';
+      });
+      expect(await page.locator('#jetsonProfileWriteBtn').isDisabled()).toBe(false);
+    } finally {
+      proxy.setFault('pass');
+      await browserUi.close();
+    }
+  }, 30000);
+
+  it('marks the console migrated when a retry finds the jetson profile already matches', async () => {
+    rmSync(path.join(dir, 'landing-profile.json'), { force: true });
+    const fresh = await startTestServer({
+      env: {
+        SQLITE_PATH: path.join(dir, 'fresh-migrate.sqlite'),
+        COMPANION_MODE: 'real',
+        JETSON_COMPANION_BASE_URL: `http://127.0.0.1:${proxy.port}`,
+        VLC_COMPANION_TOKEN: token,
+        COMPANION_TIMEOUT_MS: '1200',
+        GEMINI_API_KEY: '',
+      },
+    });
+    try {
+      const seeded = await fetch(`${fresh.base}/api/vision/config`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ profile: { motor_hold_s: 4.5, flare_alt_m: 8 } }),
+      });
+      expect(seeded.ok).toBe(true);
+      proxy.setFault('fail-second-get');
+      const dropped = await fetch(`${fresh.base}/api/vision/landing-profile/migrate`, { method: 'POST' });
+      const droppedBody = await dropped.json();
+      expect(dropped.ok).toBe(false);
+      expect(droppedBody.migrated).not.toBe(true);
+      proxy.setFault('pass');
+      const recovered = await fetch(`${fresh.base}/api/vision/landing-profile/migrate`, { method: 'POST' });
+      const body = await recovered.json();
+      expect(recovered.ok).toBe(true);
+      expect(body.migrated).toBe(true);
+      expect(body.recovered).toBe(true);
+      const saved = await fetch(`${fresh.base}/api/vision/config`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ profile: { motor_hold_s: 1 } }),
+      });
+      const after = await saved.json();
+      expect(after.landingProfileReadonly).toBe(true);
+      expect(after.profile.motor_hold_s).toBe(4.5);
+    } finally {
+      fresh.child.kill('SIGTERM');
+    }
+  }, 30000);
 
   it('shows the offline line only when the real companion is unreachable', async () => {
     const closed = await freePort();

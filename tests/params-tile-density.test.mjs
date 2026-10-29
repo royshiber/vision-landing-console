@@ -148,7 +148,7 @@ describe('Parameter tiles are dense and not behind a filter wall', () => {
   async function expectDense(label, { minCards, file }) {
     await page.locator('#paramsGrid').scrollIntoViewIfNeeded();
     const data = await measure();
-    expect(data.bodyText, label).toContain('פרופיל בג׳טסון');
+    expect(data.bodyText, label).toContain('פרופיל בקונסולה');
     expect(data.bodyText, label).not.toContain('נשמר בקונסולה · לא בבקר');
     expect(data.bodyText, label).toContain('עדיין לא נקרא מהבקר');
     expect(data.faultHidden, label).toBe(true);
@@ -435,7 +435,7 @@ describe('Parameter tiles are dense and not behind a filter wall', () => {
       expect(before.position).not.toBe('absolute');
       expect(before.overflow).not.toBe('hidden');
       const badge = await page.locator('#paramsGrid').locator('xpath=..').locator('.profile-source-badge').first().innerText();
-      expect(badge).toBe('פרופיל בג׳טסון');
+      expect(badge).toBe('פרופיל בקונסולה');
       expect(badge).not.toContain('לא בבקר');
 
       await page.click('#arduReadBtn');
@@ -443,7 +443,7 @@ describe('Parameter tiles are dense and not behind a filter wall', () => {
       const after = await live.innerText();
       expect(after).toMatch(/נקראו 2 מתוך 10 · \d{1,2}:\d{2}/);
       const flare = await page.locator('#paramsGrid .param-card[data-param-key="flare_alt_m"]').innerText();
-      expect(flare).toContain('בג׳טסון');
+      expect(flare).not.toContain('נשמר בג׳טסון');
       expect(flare).toContain('לא נשמר עדיין');
       expect(flare).not.toContain('לא בבקר');
     } finally {
